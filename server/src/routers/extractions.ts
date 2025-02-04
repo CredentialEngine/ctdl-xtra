@@ -1,3 +1,4 @@
+import { ExtractionStatus } from "@common/types";
 import { z } from "zod";
 import { publicProcedure, router } from ".";
 import { AppError, AppErrors } from "../appErrors";
@@ -16,7 +17,6 @@ import {
   updateExtraction,
 } from "../data/extractions";
 import {
-  ExtractionStatus,
   readContent,
   readMarkdownContent,
   readScreenshot,

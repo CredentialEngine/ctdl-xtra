@@ -1,9 +1,9 @@
+import { PageType, PaginationConfiguration } from "@common/types";
 import {
   ChatCompletionContentPart,
   ChatCompletionMessageParam,
 } from "openai/resources/chat/completions";
 import { DefaultLlmPageOptions } from ".";
-import { PageType, PaginationConfiguration } from "../../data/schema";
 import {
   BadToolCallResponseError,
   UnknownPaginationTypeError,

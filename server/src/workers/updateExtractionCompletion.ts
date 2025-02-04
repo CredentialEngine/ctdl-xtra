@@ -1,3 +1,12 @@
+import {
+  CompletionStats,
+  CostCallSite,
+  CostSummary,
+  ExtractionStatus,
+  PageStatus,
+  ProviderModel,
+  StepCompletionStats,
+} from "@common/types";
 import { deepEqual } from "fast-equals";
 import {
   createProcessor,
@@ -12,15 +21,6 @@ import {
   getStepStats,
   updateExtraction,
 } from "../data/extractions";
-import {
-  CompletionStats,
-  CostCallSite,
-  CostSummary,
-  ExtractionStatus,
-  PageStatus,
-  ProviderModel,
-  StepCompletionStats,
-} from "../data/schema";
 import { sendEmailToAll } from "../email";
 import ExtractionComplete from "../emails/extractionComplete";
 import { estimateCost } from "../openai";

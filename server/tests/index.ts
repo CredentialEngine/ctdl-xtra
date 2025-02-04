@@ -1,6 +1,6 @@
+import { CourseStructuredData, RecipeConfiguration } from "@common/types";
 import { inspect } from "util";
 import { expect } from "vitest";
-import { CourseStructuredData, RecipeConfiguration } from "../src/data/schema";
 import {
   fetchBrowserPage,
   simplifiedMarkdown,

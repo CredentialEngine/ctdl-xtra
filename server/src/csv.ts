@@ -1,7 +1,7 @@
+import { TextInclusion } from "@common/types";
 import { format } from "fast-csv";
 import { Transform } from "stream";
 import { findDataItems } from "./data/datasets";
-import { TextInclusion } from "./data/schema";
 
 /*
   Ref.

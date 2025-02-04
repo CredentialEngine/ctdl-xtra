@@ -3,13 +3,6 @@ import { sql } from "drizzle-orm/sql/sql";
 import { SQLiteUpdateSetSource } from "drizzle-orm/sqlite-core";
 import db from "../data";
 import {
-  LogLevel,
-  PageStatus,
-  PageType,
-  Provider,
-  ProviderModel,
-  RecipeConfiguration,
-  Step,
   crawlPages,
   crawlSteps,
   dataItems,
@@ -17,6 +10,16 @@ import {
   extractions,
   modelApiCalls,
 } from "../data/schema";
+
+import {
+  LogLevel,
+  PageStatus,
+  PageType,
+  Provider,
+  ProviderModel,
+  RecipeConfiguration,
+  Step,
+} from "@common/types";
 
 export async function createExtraction(recipeId: number) {
   const result = await db

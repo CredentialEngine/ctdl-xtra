@@ -1,9 +1,9 @@
+import { PageType } from "@common/types";
 import {
   ChatCompletionContentPart,
   ChatCompletionMessageParam,
 } from "openai/resources/chat/completions";
 import { DefaultLlmPageOptions } from ".";
-import { PageType } from "../../data/schema";
 import { assertStringEnum, simpleToolCompletion } from "../../openai";
 
 export async function detectPageType(defaultOptions: DefaultLlmPageOptions) {

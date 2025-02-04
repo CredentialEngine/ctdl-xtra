@@ -3,11 +3,12 @@ import { createProcessor, ExtractDataJob, ExtractDataProgress } from ".";
 import { createDataItem, findOrCreateDataset } from "../data/datasets";
 import { findPageForJob, updatePage } from "../data/extractions";
 import {
-  ExtractionStatus,
   getSqliteTimestamp,
   readMarkdownContent,
   readScreenshot,
 } from "../data/schema";
+
+import { ExtractionStatus } from "@common/types";
 import { extractAndVerifyCourseData } from "../extraction/llm/extractAndVerifyCourseData";
 
 export default createProcessor<ExtractDataJob, ExtractDataProgress>(

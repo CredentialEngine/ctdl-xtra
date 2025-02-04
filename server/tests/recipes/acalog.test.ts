@@ -1,6 +1,6 @@
+import { PageType } from "@common/types";
 import { describe, test } from "vitest";
 import { assertConfiguration, RECIPE_TIMEOUT } from "..";
-import { PageType } from "../../src/data/schema";
 
 describe(
   "ACALOG",

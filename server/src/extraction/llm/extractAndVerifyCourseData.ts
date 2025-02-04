@@ -1,5 +1,5 @@
+import { CourseStructuredData, TextInclusion } from "@common/types";
 import { DefaultLlmPageOptions } from ".";
-import { CourseStructuredData, TextInclusion } from "../../data/schema";
 import { SimplifiedMarkdown } from "../../types";
 import { shouldChunk, splitChunks } from "../splitChunks";
 import { extractCourseData } from "./extractCourseData";

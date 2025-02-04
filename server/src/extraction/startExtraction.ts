@@ -1,6 +1,6 @@
+import { RecipeDetectionStatus, Step } from "@common/types";
 import { findCatalogueById } from "../data/catalogues";
 import { createExtraction, createPage, createStep } from "../data/extractions";
-import { RecipeDetectionStatus, Step } from "../data/schema";
 import { Queues, submitJob, submitRepeatableJob } from "../workers";
 
 export async function startExtraction(catalogueId: number, recipeId: number) {

@@ -1,3 +1,4 @@
+import { Provider, ProviderModel } from "@common/types";
 import { OpenAI } from "openai";
 import {
   ChatCompletion,
@@ -6,7 +7,7 @@ import {
 } from "openai/resources/chat/completions";
 import db from "./data";
 import { createModelApiCallLog } from "./data/extractions";
-import { Provider, ProviderModel, decryptFromDb } from "./data/schema";
+import { decryptFromDb } from "./data/schema";
 import { exponentialRetry } from "./utils";
 
 export const ModelPrices = {

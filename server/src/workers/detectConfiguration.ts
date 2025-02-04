@@ -1,10 +1,10 @@
+import { RecipeDetectionStatus } from "@common/types";
 import {
   createProcessor,
   DetectConfigurationJob,
   DetectConfigurationProgress,
 } from ".";
 import { findRecipeById, updateRecipe } from "../data/recipes";
-import { RecipeDetectionStatus } from "../data/schema";
 import { sendEmailToAll } from "../email";
 import DetectConfigurationFail from "../emails/detectConfigurationFail";
 import DetectConfigurationSuccess from "../emails/detectConfigurationSuccess";

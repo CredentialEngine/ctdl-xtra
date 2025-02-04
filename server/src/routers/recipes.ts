@@ -1,3 +1,4 @@
+import { PageType } from "@common/types";
 import { z } from "zod";
 import { publicProcedure, router } from ".";
 import { AppError, AppErrors } from "../appErrors";
@@ -7,7 +8,6 @@ import {
   setDefault,
   updateRecipe,
 } from "../data/recipes";
-import { PageType } from "../data/schema";
 import { createRecipe } from "../extraction/createRecipe";
 import { Queues, submitJob } from "../workers";
 

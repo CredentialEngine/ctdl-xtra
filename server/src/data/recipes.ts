@@ -1,12 +1,13 @@
 import { InferSelectModel, eq } from "drizzle-orm";
 import { SQLiteUpdateSetSource } from "drizzle-orm/sqlite-core";
 import db from "../data";
+import { recipes } from "../data/schema";
+
 import {
   PageType,
   RecipeConfiguration,
   RecipeDetectionStatus,
-  recipes,
-} from "../data/schema";
+} from "@common/types";
 
 export type Recipe = Omit<InferSelectModel<typeof recipes>, "configuration"> & {
   configuration?: RecipeConfiguration;

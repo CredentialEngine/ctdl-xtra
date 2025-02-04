@@ -1,18 +1,18 @@
+import { CompletionStats } from "@common/types";
 import {
-    Body,
-    Button,
-    Column,
-    Container,
-    Head,
-    Hr,
-    Html,
-    Link,
-    Preview,
-    Row,
-    Section,
-    Text,
+  Body,
+  Button,
+  Column,
+  Container,
+  Head,
+  Hr,
+  Html,
+  Link,
+  Preview,
+  Row,
+  Section,
+  Text,
 } from "@react-email/components";
-import { CompletionStats } from "../data/schema";
 import { buildFrontendUrl } from "../utils";
 import * as styles from "./styles";
 
@@ -131,9 +131,7 @@ const ExtractionComplete = ({
           <Button style={styles.button} href={datasetUrl}>
             View {totalCourses} courses
           </Button>
-          <Text style={styles.footer}>
-            Credential Engine - CTDL xTRA
-          </Text>
+          <Text style={styles.footer}>Credential Engine - CTDL xTRA</Text>
         </Container>
       </Body>
     </Html>

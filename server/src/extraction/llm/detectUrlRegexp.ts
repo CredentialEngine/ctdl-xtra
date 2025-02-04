@@ -1,6 +1,6 @@
+import { PageType } from "@common/types";
 import { ChatCompletionContentPart } from "openai/resources/chat/completions";
 import { DefaultLlmPageOptions } from ".";
-import { PageType } from "../../data/schema";
 import { assertArray, assertString, simpleToolCompletion } from "../../openai";
 import { SimplifiedMarkdown } from "../../types";
 import { resolveAbsoluteUrl } from "../../utils";

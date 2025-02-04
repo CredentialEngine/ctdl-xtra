@@ -1,5 +1,5 @@
+import { PageType, RecipeConfiguration } from "@common/types";
 import { inspect } from "util";
-import { PageType, RecipeConfiguration } from "../data/schema";
 import { bestOutOf, exponentialRetry, unique } from "../utils";
 import { fetchBrowserPage, simplifiedMarkdown } from "./browser";
 import { detectPageType } from "./llm/detectPageType";

@@ -1,4 +1,13 @@
 import {
+  ExtractionStatus,
+  FetchFailureReason,
+  PageStatus,
+  PageType,
+  PaginationConfiguration,
+  RecipeConfiguration,
+  Step,
+} from "@common/types";
+import {
   createProcessor,
   FetchPageJob,
   FetchPageProgress,
@@ -13,15 +22,8 @@ import {
   updatePage,
 } from "../data/extractions";
 import {
-  ExtractionStatus,
-  FetchFailureReason,
-  PageStatus,
-  PageType,
-  PaginationConfiguration,
   readMarkdownContent,
   readScreenshot,
-  RecipeConfiguration,
-  Step,
   storeContent,
   storeScreenshot,
 } from "../data/schema";

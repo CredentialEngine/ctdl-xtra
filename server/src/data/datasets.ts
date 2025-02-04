@@ -1,14 +1,14 @@
 import { and, desc, eq, sql } from "drizzle-orm";
 import db from ".";
 import {
-  CourseStructuredData,
   crawlPages,
   crawlSteps,
   dataItems,
   datasets,
   extractions,
-  TextInclusion,
 } from "./schema";
+
+import { CourseStructuredData, TextInclusion } from "@common/types";
 
 export async function createDataItem(
   crawlPageId: number,

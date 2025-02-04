@@ -2,7 +2,7 @@ import {
   CourseStructuredData,
   PageType,
   RecipeConfiguration,
-} from "./data/schema";
+} from "@common/types";
 import { router } from "./routers";
 import { cataloguesRouter } from "./routers/catalogues";
 import { datasetsRouter } from "./routers/datasets";

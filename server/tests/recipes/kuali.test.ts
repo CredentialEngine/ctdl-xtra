@@ -1,6 +1,6 @@
+import { PageType } from "@common/types";
 import { describe, test } from "vitest";
 import { RECIPE_TIMEOUT, assertConfiguration } from "..";
-import { PageType } from "../../src/data/schema";
 
 describe("Kuali", { timeout: RECIPE_TIMEOUT }, () => {
   test("BYU-Idaho", async () => {

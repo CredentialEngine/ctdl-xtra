@@ -1,9 +1,9 @@
+import { ExtractionStatus } from "@common/types";
 import {
   findExtractionById,
   findFailedAndNoDataPageIds,
   updateExtraction,
 } from "../data/extractions";
-import { ExtractionStatus } from "../data/schema";
 import { Queues, submitJobs, submitRepeatableJob } from "../workers";
 
 export async function retryFailedItems(extractionId: number) {

@@ -12,7 +12,11 @@
     "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true,
     "types": ["node"],
-    "allowSyntheticDefaultImports": true
+    "allowSyntheticDefaultImports": true,
+    "paths": {
+      "@/*": ["./src/*"],
+      "@common/*": ["../common/*"]
+    }
   },
   "include": ["src", "tests", "drizzle.config.ts", "migrate.ts"],
   "exclude": ["node_modules", "dist"]
