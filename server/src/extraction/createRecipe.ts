@@ -1,6 +1,6 @@
-import { bestOutOf } from "@/utils";
 import { PageType } from "@common/types";
 import { startRecipe } from "../data/recipes";
+import { bestOutOf } from "../utils";
 import { Queues, submitJob } from "../workers";
 import { fetchBrowserPage, simplifiedMarkdown } from "./browser";
 import { detectPageType } from "./llm/detectPageType";
