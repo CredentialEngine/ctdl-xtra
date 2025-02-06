@@ -83,11 +83,7 @@ Apply migrations:
 pnpm run db:migrate
 ```
 
-Via DB create development user, to generate the password hash use:
-```bash
-node -e "require('argon2').hash('password').then(console.log)"
-```
-Save the entire output in the passwword field, should start with `$argon2id$...`
+To seed a development user, use `src/createUser.ts`:
 
 ## Testing
 
