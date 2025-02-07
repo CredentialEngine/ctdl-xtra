@@ -206,6 +206,9 @@ const catalogues = pgTable("catalogues", {
   url: text("url").notNull().unique(),
   thumbnailUrl: text("thumbnail_url"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
+  orgId: integer("recipe_id")
+    .notNull()
+    .references(() => orgs.id),
 });
 
 const cataloguesRelations = relations(catalogues, ({ many }) => ({
@@ -478,6 +481,7 @@ const users = pgTable("users", {
   name: text("name").notNull(),
   email: text("email").notNull().unique(),
   password: text("password").notNull(),
+  isStaff: boolean("is_staff").notNull().default(false),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 

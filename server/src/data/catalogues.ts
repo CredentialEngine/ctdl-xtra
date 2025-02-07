@@ -1,4 +1,4 @@
-import { desc, eq, sql } from "drizzle-orm";
+import { desc, eq, sql, and } from "drizzle-orm";
 import db from "../data";
 import { catalogues, extractions, recipes } from "../data/schema";
 
@@ -34,9 +34,12 @@ export async function findCatalogueById(id: number) {
   return result;
 }
 
-export async function findCatalogueByUrl(url: string) {
+export async function findCatalogueByUrl(url: string, orgIds: number[]) {
   return db.query.catalogues.findFirst({
-    where: (catalogues, { eq }) => eq(catalogues.url, url),
+    where: and(
+      (catalogues, { eq }) => eq(catalogues.url, url),
+      (catalogues, { in }) => in(catalogues.orgId, orgIds),
+    ),
   });
 }
 
@@ -51,9 +54,10 @@ export async function findLatestExtractionsForCatalogue(catalogueId: number) {
   return catExtractions.map((e) => e.extractions);
 }
 
-export async function findCatalogues(limit: number = 20, offset?: number) {
+export async function findCatalogues(orgId: number[], limit: number = 20, offset?: number) {
   offset = offset || 0;
   return db.query.catalogues.findMany({
+    where: (catalogues, { eq }) => eq(catalogues.orgId, orgId),
     limit,
     offset,
     with: {
@@ -65,11 +69,12 @@ export async function findCatalogues(limit: number = 20, offset?: number) {
 export async function createCatalogue(
   name: string,
   url: string,
-  thumbnailUrl?: string
+  orgId: number,
+  thumbnailUrl?: string,
 ) {
   const result = await db
     .insert(catalogues)
-    .values({ name, url, thumbnailUrl })
+    .values({ name, url, thumbnailUrl, orgId })
     .returning();
   return result[0];
 }

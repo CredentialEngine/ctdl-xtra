@@ -1,15 +1,20 @@
 import db from "../data";
 import { encryptForDb, settings } from "../data/schema";
 
-export async function findSettings() {
-  return db.query.settings.findMany();
+export async function findSettings(orgId: number) {
+  return db.query.settings.findMany({
+    where(fields, { eq }) {
+      return eq(fields?.orgId, orgId)
+    },
+  });
 }
 
 export async function createOrUpdate(
   key: string,
   value: string,
   isEncrypted: boolean = false,
-  encryptedPreview: string | null
+  encryptedPreview: string | null,
+  orgId: number,
 ) {
   value = isEncrypted ? encryptForDb(value) : value;
   return db
@@ -19,6 +24,7 @@ export async function createOrUpdate(
       value,
       isEncrypted,
       encryptedPreview,
+      orgId,
     })
     .onConflictDoUpdate({
       target: settings.key,

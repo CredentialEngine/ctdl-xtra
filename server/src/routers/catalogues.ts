@@ -11,6 +11,7 @@ import {
 } from "../data/catalogues";
 import { findDatasets } from "../data/datasets";
 import { fetchPreview } from "../extraction/browser";
+import { findOrgsByUser } from "@/data/orgs";
 
 export const cataloguesRouter = router({
   preview: publicProcedure
@@ -35,7 +36,7 @@ export const cataloguesRouter = router({
       return {
         totalItems,
         totalPages,
-        results: await findCatalogues(20, opts.input.page * 20 - 20),
+        results: await findCatalogues(opts.ctx.user.orgId, 20, opts.input.page * 20 - 20),
       };
     }),
   create: publicProcedure
@@ -48,7 +49,8 @@ export const cataloguesRouter = router({
     )
     .mutation(async (opts) => {
       const { name, url, thumbnailUrl } = opts.input;
-      const existingCatalogue = await findCatalogueByUrl(url);
+      const userOrgs = await findOrgsByUser(opts.ctx.user.id);
+      const existingCatalogue = await findCatalogueByUrl(url, userOrgs.map(org => org.orgId));
       if (existingCatalogue) {
         return {
           id: existingCatalogue.id,

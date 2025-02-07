@@ -22,6 +22,20 @@
       "when": 1738950572242,
       "tag": "0002_sudden_sprite",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1738953325622,
+      "tag": "0003_fixed_hydra",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1738953356264,
+      "tag": "0004_sticky_onslaught",
+      "breakpoints": true
     }
   ]
 }

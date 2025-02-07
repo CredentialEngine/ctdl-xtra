@@ -22,11 +22,13 @@ const fastifySessionAuth: FastifyPluginCallback = fastifyPlugin(
         return;
       }
 
+      // adjust frontend to send the desired orgId
       const userId = req.session.get("userId");
       if (userId) {
         const user = await findUserById(parseInt(userId));
         if (user) {
           req.user = user;
+          // add selected orgId to the user context
         } else {
           req.session.set("userId", undefined);
         }

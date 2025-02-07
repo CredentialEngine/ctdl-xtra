@@ -72,6 +72,10 @@ export default function CreateUser() {
     }
   }
 
+  // Update component with organization list selection
+  // for the new user inferred from the current user
+  // org+roles
+
   return (
     <>
       <h1 className="text-lg font-semibold md:text-2xl">Create user</h1>

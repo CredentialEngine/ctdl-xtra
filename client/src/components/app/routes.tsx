@@ -22,6 +22,13 @@ import ResetUserPassword from "./users/reset-password";
 import Welcome from "./welcome";
 
 export default function Routes() {
+  // We will add a new route called /select-org that will be the thing a user sees
+  // if their session does not contain an org ID. So immediately after login.
+
+  // We will create a new organization list selector component in this folder.
+  // We will ensure backend sets a correct orgId if the user is part of a single
+  // org as to not bother the user selecting their only organization.
+
   return (
     <Switch>
       <Route path="/" component={Welcome} />

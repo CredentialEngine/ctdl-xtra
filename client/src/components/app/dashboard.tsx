@@ -25,6 +25,11 @@ import Routes from "./routes";
 export function Dashboard() {
   const [location] = useLocation();
 
+  // IF the user is part of more than one organization or the user isStaff
+  // We will adjust this and any other component that has the header
+  // besides the user icon we will add the organization selector
+  
+
   return (
     <TooltipProvider>
       <div className="grid min-h-screen w-full md:grid-cols-[220px_1fr] lg:grid-cols-[280px_1fr]">

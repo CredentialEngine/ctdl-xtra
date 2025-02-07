@@ -44,6 +44,9 @@ importers:
       drizzle-orm:
         specifier: ^0.39.2
         version: 0.39.2(@types/better-sqlite3@7.6.9)(@types/pg@8.11.9)(@types/react@18.3.3)(better-sqlite3@9.5.0)(pg@8.12.0)(react@18.3.1)
+      drizzle-seed:
+        specifier: ^0.3.1
+        version: 0.3.1(drizzle-orm@0.39.2(@types/better-sqlite3@7.6.9)(@types/pg@8.11.9)(@types/react@18.3.3)(better-sqlite3@9.5.0)(pg@8.12.0)(react@18.3.1))
       fast-csv:
         specifier: ^5.0.1
         version: 5.0.1
@@ -2529,6 +2532,14 @@ packages:
       sqlite3:
         optional: true
 
+  drizzle-seed@0.3.1:
+    resolution: {integrity: sha512-F/0lgvfOAsqlYoHM/QAGut4xXIOXoE5VoAdv2FIl7DpGYVXlAzKuJO+IphkKUFK3Dz+rFlOsQLnMNrvoQ0cx7g==}
+    peerDependencies:
+      drizzle-orm: '>=0.36.4'
+    peerDependenciesMeta:
+      drizzle-orm:
+        optional: true
+
   eastasianwidth@0.2.0:
     resolution: {integrity: sha512-I88TYZWc9XiYHRQ4/3c5rjjfgkjhLyW2luGIheGERbNQ6OY7yTybanSpDXZa8y7VUP9YmDcYa+eyq4ca7iLqWA==}
 
@@ -3883,6 +3894,9 @@ packages:
     engines: {node: '>=18'}
     deprecated: < 22.8.2 is no longer supported
     hasBin: true
+
+  pure-rand@6.1.0:
+    resolution: {integrity: sha512-bVWawvoZoBYpp6yIoQtQXHZjmz35RSVHnUOTefl8Vcjr8snTPY1wnpSPMWekcFwbxI6gtmT7rSYPFvz71ldiOA==}
 
   queue-microtask@1.2.3:
     resolution: {integrity: sha512-NuaNSa6flKT5JaSYQzJok04JzTL1CA6aGhv5rfLW3PgqA+M2ChpZQnAC8h8i4ZFkBS8X5RqkDBHA7r4hej3K9A==}
@@ -6786,6 +6800,12 @@ snapshots:
       pg: 8.12.0
       react: 18.3.1
 
+  drizzle-seed@0.3.1(drizzle-orm@0.39.2(@types/better-sqlite3@7.6.9)(@types/pg@8.11.9)(@types/react@18.3.3)(better-sqlite3@9.5.0)(pg@8.12.0)(react@18.3.1)):
+    dependencies:
+      pure-rand: 6.1.0
+    optionalDependencies:
+      drizzle-orm: 0.39.2(@types/better-sqlite3@7.6.9)(@types/pg@8.11.9)(@types/react@18.3.3)(better-sqlite3@9.5.0)(pg@8.12.0)(react@18.3.1)
+
   eastasianwidth@0.2.0: {}
 
   editorconfig@1.0.4:
@@ -8268,6 +8288,8 @@ snapshots:
       - supports-color
       - typescript
       - utf-8-validate
+
+  pure-rand@6.1.0: {}
 
   queue-microtask@1.2.3: {}
 
