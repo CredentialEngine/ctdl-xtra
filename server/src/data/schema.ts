@@ -468,6 +468,9 @@ const settings = pgTable("settings", {
   isEncrypted: boolean("is_encrypted").default(false).notNull(),
   encryptedPreview: text("encrypted_preview"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
+  orgId: integer("org_id")
+    .notNull()
+    .references(() => orgs.id),
 });
 
 const users = pgTable("users", {
@@ -477,6 +480,33 @@ const users = pgTable("users", {
   password: text("password").notNull(),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
+
+const orgs = pgTable("orgs", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  logo: text("name").default("null"),
+  description: text("description").default("null"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+const userRoles = pgTable("user_roles", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  description: text("description").default("null"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+const orgsUsers = pgTable("orgs_users_roles", {
+  orgId: integer("org_id")
+    .notNull()
+    .references(() => orgs.id),
+  userId: integer("user_id")
+    .notNull()
+    .references(() => users.id),
+  roleId: integer("user_id")
+    .notNull()
+    .references(() => userRoles.id),
+})
 
 export function encryptForDb(text: string) {
   const IV = randomBytes(16);
@@ -520,4 +550,6 @@ export {
   recipesRelations,
   settings,
   users,
+  orgs,
+  orgsUsers,
 };
