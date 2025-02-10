@@ -1,3 +1,5 @@
+import { orgs } from '../server/src/data/schema';
+
 export enum CatalogueType {
   COURSES = "COURSES",
   LEARNING_PROGRAMS = "LEARNING_PROGRAMS",
@@ -117,3 +119,5 @@ export interface CompletionStats {
   steps: StepCompletionStats[];
   generatedAt: string;
 }
+
+export { Organizations } from '../server/src/data/types';

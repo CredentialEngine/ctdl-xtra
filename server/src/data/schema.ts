@@ -206,7 +206,7 @@ const catalogues = pgTable("catalogues", {
   url: text("url").notNull().unique(),
   thumbnailUrl: text("thumbnail_url"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
-  orgId: integer("recipe_id")
+  orgId: integer("org_id")
     .notNull()
     .references(() => orgs.id),
 });
@@ -493,24 +493,22 @@ const orgs = pgTable("orgs", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
-const userRoles = pgTable("user_roles", {
-  id: serial("id").primaryKey(),
-  name: text("name").notNull(),
-  description: text("description").default("null"),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-});
+const roleTypes = pgEnum('role_type', [
+  'viewer', // Unused, reserved for future read-only use
+  'member', // Default, can see organization data and run extractions
+  'admin', // Same as member but can invite new or remove existing members
+]);
 
-const orgsUsers = pgTable("orgs_users_roles", {
+const memberships = pgTable("memberships", {
   orgId: integer("org_id")
     .notNull()
     .references(() => orgs.id),
   userId: integer("user_id")
     .notNull()
     .references(() => users.id),
-  roleId: integer("user_id")
-    .notNull()
-    .references(() => userRoles.id),
-})
+  role: roleTypes().default('member'),
+});
+
 
 export function encryptForDb(text: string) {
   const IV = randomBytes(16);
@@ -555,5 +553,6 @@ export {
   settings,
   users,
   orgs,
-  orgsUsers,
+  memberships,
+  roleTypes,
 };

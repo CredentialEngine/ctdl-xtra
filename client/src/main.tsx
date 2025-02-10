@@ -1,12 +1,12 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { httpBatchLink } from "@trpc/client";
-import React, { useEffect, useState } from "react";
+import React, { useContext, useEffect, useState } from "react";
 import ReactDOM from "react-dom/client";
 import { Dashboard } from "./components/app/dashboard";
 import Unauthenticated from "./components/app/unauthenticated";
 import { API_URL } from "./constants";
 import "./main.css";
-import UserContext from "./userContext";
+import { UserContext, UserProvider } from "./userContext";
 import { trpc } from "./utils";
 
 const queryClient = new QueryClient();
@@ -25,8 +25,8 @@ const trpcClient = trpc.createClient({
 });
 
 export function App() {
-  const [user, setUser] = useState();
   const [isLoading, setIsLoading] = useState(true);
+  const {user, setUser} = useContext(UserContext);
 
   useEffect(() => {
     setIsLoading(true);
@@ -50,13 +50,13 @@ export function App() {
 
   return (
     <React.StrictMode>
-      <UserContext.Provider value={{ user, setUser }}>
+      <UserProvider>
         <trpc.Provider client={trpcClient} queryClient={queryClient}>
           <QueryClientProvider client={queryClient}>
             {user ? <Dashboard /> : <Unauthenticated />}
           </QueryClientProvider>
         </trpc.Provider>
-      </UserContext.Provider>
+      </UserProvider>
     </React.StrictMode>
   );
 }
