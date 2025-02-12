@@ -2,12 +2,13 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { httpBatchLink } from "@trpc/client";
 import React, { useContext, useEffect, useState } from "react";
 import ReactDOM from "react-dom/client";
-import { Dashboard } from "./components/app/dashboard";
+import { Scaffold } from "./components/app/routes";
 import Unauthenticated from "./components/app/unauthenticated";
 import { API_URL } from "./constants";
 import "./main.css";
 import { UserContext, UserProvider } from "./userContext";
 import { trpc } from "./utils";
+import { Dashboard } from "./components/app/dashboard";
 
 const queryClient = new QueryClient();
 const trpcClient = trpc.createClient({
@@ -26,7 +27,7 @@ const trpcClient = trpc.createClient({
 
 export function App() {
   const [isLoading, setIsLoading] = useState(true);
-  const {user, setUser} = useContext(UserContext);
+  const { user, setUser } = useContext(UserContext);
 
   useEffect(() => {
     setIsLoading(true);
@@ -48,17 +49,30 @@ export function App() {
     return null;
   }
 
+  // return (
+  //   <React.StrictMode>
+  //       <trpc.Provider client={trpcClient} queryClient={queryClient}>
+  //         <QueryClientProvider client={queryClient}>
+  //           <UserProvider>
+  //             {user ? <Dashboard /> : <Unauthenticated />}
+  //           </UserProvider>
+  //         </QueryClientProvider>
+  //       </trpc.Provider>
+  //   </React.StrictMode>
+  // );
   return (
-    <React.StrictMode>
-      <UserProvider>
-        <trpc.Provider client={trpcClient} queryClient={queryClient}>
-          <QueryClientProvider client={queryClient}>
-            {user ? <Dashboard /> : <Unauthenticated />}
-          </QueryClientProvider>
-        </trpc.Provider>
-      </UserProvider>
-    </React.StrictMode>
+    user
+    ? <Scaffold><Dashboard /></Scaffold>
+    : <Unauthenticated />
   );
 }
 
-ReactDOM.createRoot(document.getElementById("root")!).render(<App />);
+ReactDOM.createRoot(document.getElementById("root")!).render(
+  <React.StrictMode>
+    <trpc.Provider client={trpcClient} queryClient={queryClient}>
+      <QueryClientProvider client={queryClient}>
+        <UserProvider><App /></UserProvider>
+      </QueryClientProvider>
+    </trpc.Provider>
+  </React.StrictMode>
+);

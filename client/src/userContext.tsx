@@ -2,18 +2,19 @@ import {
   createContext,
   FC,
   PropsWithChildren,
-  useEffect,
   useMemo,
   useState
 } from "react";
+import { UseTRPCQueryResult } from "@trpc/react-query/shared";
+import { TRPCClientErrorLike } from '@trpc/react-query';
+import { trpc, AppRouter, RouterOutput } from "./utils";
 
-import { useQuery, UseQueryResult } from "@tanstack/react-query";
-
-import { Organizations } from "@common/types";
+type UserOrgs = RouterOutput['orgs']['ofCurrentUser'];
+type UserOrgsQuery = UseTRPCQueryResult<UserOrgs, TRPCClientErrorLike<AppRouter>>;
 
 export interface UserContextProps {
   user: any;
-  userOrganizationsQuery?: UseQueryResult<Organizations[], unknown>,
+  userOrgsQuery?: UserOrgsQuery,
   setUser: React.Dispatch<any>;
   orgId?: number;
   setOrgId: React.Dispatch<this['orgId']>;
@@ -28,25 +29,21 @@ export const UserContext = createContext<UserContextProps>({
 export const UserProvider: FC<PropsWithChildren> = ({ children }) => {
   const [user, setUser] = useState<any>();
   const [orgId, setOrgId] = useState<UserContextProps['orgId']>();
-  // const [userOrganizations, setUserOrganizations] = useState([]);
-  const userOrganizationsQuery = useUserOrganizationsQuery(user?.id);
-
-  useEffect(() => {
-    if (user?.id) {
-      // TODO: Call get user orgs
-    }
-  }, [user?.id])
+  const userOrgsQuery = trpc.orgs.ofCurrentUser.useQuery(undefined, {
+    enabled: !!user?.id,
+  });
 
   const value = useMemo(() => ({
     user,
     setUser,
     orgId,
     setOrgId,
-    userOrganizationsQuery,
+    userOrgsQuery,
   }),
     [
       user?.id,
-      orgId
+      orgId,
+      userOrgsQuery?.isLoading
     ]
   );
   return (
@@ -55,11 +52,3 @@ export const UserProvider: FC<PropsWithChildren> = ({ children }) => {
     </UserContext.Provider>
   );
 }
-
-const useUserOrganizationsQuery = (userId: string | null) => {
-  return useQuery<Organizations[]>({
-    queryKey: ["user", userId], // The query depends on `userId`
-    queryFn: () => { console.log('hello!') }, // Fetch function
-    enabled: !!userId, // Only run query if `userId` is not null/undefined
-  });
-};

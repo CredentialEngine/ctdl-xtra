@@ -20,15 +20,10 @@ import { Link, useLocation } from "wouter";
 import MenuLink from "../ui/menu-link";
 import { Toaster } from "../ui/toaster";
 import { TooltipProvider } from "../ui/tooltip";
-import Routes from "./routes";
+import { Routes } from "./routes";
 
 export function Dashboard() {
   const [location] = useLocation();
-
-  // IF the user is part of more than one organization or the user isStaff
-  // We will adjust this and any other component that has the header
-  // besides the user icon we will add the organization selector
-  
 
   return (
     <TooltipProvider>
@@ -37,7 +32,7 @@ export function Dashboard() {
           <div className="flex h-full max-h-screen flex-col gap-2">
             <div className="flex items-center justify-center border-b px-4 h-16 lg:px-6 bg-white">
               <Link
-                to={"/"}
+                to={"./"}
                 className="flex items-center gap-2 font-semibold h-full"
               >
                 <img src={logo} alt="CTDL xTRA" className="h-full w-auto" />
@@ -45,23 +40,23 @@ export function Dashboard() {
             </div>
             <div className="flex-1">
               <nav className="grid items-start px-2 text-sm font-medium lg:px-4">
-                <MenuLink to={"/catalogues"} currentLocation={location}>
+                <MenuLink to={"./catalogues"} currentLocation={location}>
                   <Earth className="h-4 w-4" />
                   Catalogues
                 </MenuLink>
-                <MenuLink to={"/extractions"} currentLocation={location}>
+                <MenuLink to={"./extractions"} currentLocation={location}>
                   <Pickaxe className="h-4 w-4" />
                   Extractions
                 </MenuLink>
-                <MenuLink to={"/datasets"} currentLocation={location}>
+                <MenuLink to={"./datasets"} currentLocation={location}>
                   <LibraryBig className="h-4 w-4" />
                   Data Library
                 </MenuLink>
-                <MenuLink to={"/users"} currentLocation={location}>
+                <MenuLink to={"./users"} currentLocation={location}>
                   <Users className="h-4 w-4" />
                   Users
                 </MenuLink>
-                <MenuLink to={"/settings"} currentLocation={location}>
+                <MenuLink to={"./settings"} currentLocation={location}>
                   <Settings2 className="h-4 w-4" />
                   Settings
                 </MenuLink>
@@ -128,7 +123,7 @@ export function Dashboard() {
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
                 <DropdownMenuItem asChild>
-                  <Link className="cursor-pointer" to="/profile">
+                  <Link className="cursor-pointer" to="./profile">
                     My Profile
                   </Link>
                 </DropdownMenuItem>

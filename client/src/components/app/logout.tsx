@@ -1,5 +1,5 @@
 import { API_URL } from "@/constants";
-import UserContext from "@/userContext";
+import { UserContext } from "@/userContext";
 import { useContext, useEffect } from "react";
 import { useLocation } from "wouter";
 
