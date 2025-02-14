@@ -30,12 +30,15 @@ export function Dashboard() {
   const [location] = useLocation();
 
   const [isOrgDropDownOpen, setOrgDropDownOpen] = useState(false)
-  const { userOrgsQuery } = useContext(UserContext);
-  const orgSelectorItems = userOrgsQuery?.data?.map(item => ({
-    key: item.orgs.id,
-    linkProps: { to: `~/org/${item.orgs?.id}` },
-    text: item.orgs.name,
-  }));
+  const { currentOrganization, userOrgsQuery } = useContext(UserContext);
+  
+  const orgSelectorItems = userOrgsQuery?.data?.map(organization => {
+    return {
+      key: organization.orgs.id,
+      linkProps: { to: `~/org/${organization.orgs?.id}` },
+      text: organization.orgs.name,
+    }
+  });
 
   return (
     <TooltipProvider>
@@ -129,12 +132,14 @@ export function Dashboard() {
               >
                 <DropdownMenuTrigger asChild>
                   <Button
-                    variant="secondary"
-                    size="icon"
+                    variant="default"
+                    size="default"
                     className="rounded-full"
                   >
                     <BriefcaseBusiness className="h-5 w-5" />
-                    <span className="sr-only">Organisations menu</span>
+                    <div className="w-[120px] overflow-hidden text-ellipsis text-xs">
+                      { currentOrganization?.orgs?.name }
+                    </div>
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">

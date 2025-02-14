@@ -16,34 +16,43 @@ export interface UserContextProps {
   user: any;
   userOrgsQuery?: UserOrgsQuery,
   setUser: React.Dispatch<any>;
-  orgId?: number;
-  setOrgId: React.Dispatch<this['orgId']>;
+  currentOrganizationId?: number;
+  setCurrentOrganizationId: React.Dispatch<this['currentOrganizationId']>;
+  currentOrganization?: UserOrgs[number];
 }
 
 export const UserContext = createContext<UserContextProps>({
   user: null,
   setUser: () => { },
-  setOrgId: () => { }
+  setCurrentOrganizationId: () => { }
 });
 
 export const UserProvider: FC<PropsWithChildren> = ({ children }) => {
   const [user, setUser] = useState<any>();
-  const [orgId, setOrgId] = useState<UserContextProps['orgId']>();
+  const [currentOrganizationId, setCurrentOrganizationId] = useState<UserContextProps['currentOrganizationId']>();
   const userOrgsQuery = trpc.orgs.ofCurrentUser.useQuery(undefined, {
     enabled: !!user?.id,
   });
+  const currentOrganization = userOrgsQuery?.data?.find(org => org.orgs.id === currentOrganizationId);
 
   const value = useMemo(() => ({
     user,
-    setUser,
-    orgId,
-    setOrgId,
+    setUser: (user: any) => {
+      console.trace(`setting user`);
+      setUser(user);
+    },
+    currentOrganization,
+    currentOrganizationId,
+    setCurrentOrganizationId: (id: any) => {
+      console.trace(`set ID state`);
+      setCurrentOrganizationId(id);
+    },
     userOrgsQuery,
   }),
     [
       user?.id,
-      orgId,
-      userOrgsQuery?.isLoading
+      currentOrganizationId,
+      userOrgsQuery?.status,
     ]
   );
   return (

@@ -7,11 +7,11 @@ import { Alert, AlertTitle, AlertDescription } from "../ui/alert";
 import { OrgSelector } from "../ui/org-selector";
 
 export const SelectOrganization = () => {
-  const { setOrgId, userOrgsQuery } = useContext(UserContext);
+  const { setCurrentOrganizationId, userOrgsQuery } = useContext(UserContext);
   const [error, setError] = useState<Error | undefined>();
 
   useEffect(
-    () => autoSelectOrgIfSingleMembership(userOrgsQuery, setOrgId, setError),
+    () => autoSelectOrgIfSingleMembership(userOrgsQuery, setCurrentOrganizationId, setError),
     [userOrgsQuery?.status]
   );
 
@@ -58,7 +58,7 @@ export function ErrorAlert({ error }: { error: Error }) {
 
 function autoSelectOrgIfSingleMembership(
   query: UserContextProps["userOrgsQuery"],
-  onSelect: (id?: UserContextProps["orgId"]) => void,
+  onSelect: (id?: UserContextProps["currentOrganizationId"]) => void,
   onError: (e: Error) => void
 ) {
   if (query?.data?.length! > 1 || !query?.isFetched) {

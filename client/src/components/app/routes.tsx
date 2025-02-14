@@ -27,7 +27,7 @@ import { UserContext } from "@/userContext";
 
 export function Scaffold({ children }: PropsWithChildren) {
   const [location, navigate] = useLocation();
-  const { orgId, setOrgId } = useContext(UserContext);
+  const { setCurrentOrganizationId } = useContext(UserContext);
 
   // useParams() should be used instead
   // however it requires the router context provider which 
@@ -38,12 +38,13 @@ export function Scaffold({ children }: PropsWithChildren) {
   useLayoutEffect(() => {
     if (!uriOrg) {
       console.debug({ goTo: 'orgs' });
-      navigate('/organizations');
+      navigate('~/organizations');
       return;
     }
 
-    setOrgId(orgId)
+    setCurrentOrganizationId(Number(uriOrg))
   }, [uriOrg, location])
+
   return (
     <Switch>
       <Route path="/organizations" component={SelectOrganization} />
