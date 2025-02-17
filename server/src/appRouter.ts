@@ -10,6 +10,7 @@ import { extractionsRouter } from "./routers/extractions";
 import { recipesRouter } from "./routers/recipes";
 import { settingsRouter } from "./routers/settings";
 import { usersRouter } from "./routers/users";
+import { orgsRouter } from "./routers/orgs";
 import { DetectConfigurationProgress } from "./workers";
 
 const appRouter = router({
@@ -19,6 +20,7 @@ const appRouter = router({
   recipes: recipesRouter,
   extractions: extractionsRouter,
   users: usersRouter,
+  orgs: orgsRouter,
 });
 
 export { appRouter };

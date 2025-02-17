@@ -117,3 +117,5 @@ export interface CompletionStats {
   steps: StepCompletionStats[];
   generatedAt: string;
 }
+
+export type { Organizations } from '../server/src/data/types';

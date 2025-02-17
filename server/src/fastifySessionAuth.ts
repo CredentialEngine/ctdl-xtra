@@ -27,6 +27,7 @@ const fastifySessionAuth: FastifyPluginCallback = fastifyPlugin(
         const user = await findUserById(parseInt(userId));
         if (user) {
           req.user = user;
+          // add selected orgId to the user context
         } else {
           req.session.set("userId", undefined);
         }

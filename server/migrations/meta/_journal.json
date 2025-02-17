@@ -15,6 +15,13 @@
       "when": 1727814665852,
       "tag": "0001_normal_beast",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1739203036407,
+      "tag": "0002_cooing_gauntlet",
+      "breakpoints": true
     }
   ]
 }

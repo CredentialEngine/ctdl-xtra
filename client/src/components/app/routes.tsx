@@ -1,4 +1,4 @@
-import { Route, Switch } from "wouter";
+import { Route, Switch, useLocation } from "wouter";
 import Catalogues from "./catalogues";
 import CreateCatalogue from "./catalogues/create";
 import CatalogueDetail from "./catalogues/detail";
@@ -20,8 +20,42 @@ import CreateUser from "./users/create";
 import DeleteUser from "./users/delete";
 import ResetUserPassword from "./users/reset-password";
 import Welcome from "./welcome";
+import { PropsWithChildren, useContext, useLayoutEffect } from "react";
 
-export default function Routes() {
+import { SelectOrganization } from "./selectOrganization";
+import { UserContext } from "@/userContext";
+
+export function Scaffold({ children }: PropsWithChildren) {
+  const [location, navigate] = useLocation();
+  const { setCurrentOrganizationId } = useContext(UserContext);
+
+  // useParams() should be used instead
+  // however it requires the router context provider which 
+  // can only be when a child of a route and that requires
+  // a hefty restructuring of the app
+  const uriOrg = location.match(/(?:^|\/)org\/([^\/]+)/)?.[1];
+
+  useLayoutEffect(() => {
+    if (!uriOrg) {
+      console.debug({ goTo: 'orgs' });
+      navigate('~/organizations');
+      return;
+    }
+
+    setCurrentOrganizationId(Number(uriOrg))
+  }, [uriOrg, location])
+
+  return (
+    <Switch>
+      <Route path="/organizations" component={SelectOrganization} />
+      <Route path="/org/:uriOrg" nest>
+        { children }
+      </Route>
+    </Switch>
+  );
+}
+
+export function Routes() {
   return (
     <Switch>
       <Route path="/" component={Welcome} />

@@ -8,6 +8,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import {
+  BriefcaseBusiness,
   CircleUser,
   Earth,
   LibraryBig,
@@ -20,10 +21,24 @@ import { Link, useLocation } from "wouter";
 import MenuLink from "../ui/menu-link";
 import { Toaster } from "../ui/toaster";
 import { TooltipProvider } from "../ui/tooltip";
-import Routes from "./routes";
+import { Routes } from "./routes";
+import { OrgSelector } from "../ui/org-selector";
+import { useContext, useState } from "react";
+import { UserContext } from "@/userContext";
 
 export function Dashboard() {
   const [location] = useLocation();
+
+  const [isOrgDropDownOpen, setOrgDropDownOpen] = useState(false)
+  const { currentOrganization, userOrgsQuery } = useContext(UserContext);
+  
+  const orgSelectorItems = userOrgsQuery?.data?.map(organization => {
+    return {
+      key: organization.orgs.id,
+      linkProps: { to: `~/org/${organization.orgs?.id}` },
+      text: organization.orgs.name,
+    }
+  });
 
   return (
     <TooltipProvider>
@@ -110,6 +125,33 @@ export function Dashboard() {
               </SheetContent>
             </Sheet>
             <div className="w-full flex-1"></div>
+            { orgSelectorItems?.length! > 1 && (
+              <DropdownMenu
+                open={isOrgDropDownOpen}
+                onOpenChange={(state) => setOrgDropDownOpen(state)}
+              >
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="default"
+                    size="default"
+                    className="rounded-full"
+                  >
+                    <BriefcaseBusiness className="h-5 w-5" />
+                    <div className="w-[120px] overflow-hidden text-ellipsis text-xs">
+                      { currentOrganization?.orgs?.name }
+                    </div>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <OrgSelector 
+                    items={orgSelectorItems || []}
+                    LinkComponent={Link}
+                    density="dense"
+                    onSelected={() => setOrgDropDownOpen(false)}
+                  />
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button

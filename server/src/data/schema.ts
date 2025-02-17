@@ -206,6 +206,9 @@ const catalogues = pgTable("catalogues", {
   url: text("url").notNull().unique(),
   thumbnailUrl: text("thumbnail_url"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
+  orgId: integer("org_id")
+    .notNull()
+    .references(() => orgs.id),
 });
 
 const cataloguesRelations = relations(catalogues, ({ many }) => ({
@@ -468,6 +471,9 @@ const settings = pgTable("settings", {
   isEncrypted: boolean("is_encrypted").default(false).notNull(),
   encryptedPreview: text("encrypted_preview"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
+  orgId: integer("org_id")
+    .notNull()
+    .references(() => orgs.id),
 });
 
 const users = pgTable("users", {
@@ -475,8 +481,34 @@ const users = pgTable("users", {
   name: text("name").notNull(),
   email: text("email").notNull().unique(),
   password: text("password").notNull(),
+  isStaff: boolean("is_staff").notNull().default(false),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
+
+const orgs = pgTable("orgs", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  logo: text("name").default("null"),
+  description: text("description").default("null"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+const roleTypes = pgEnum('role_type', [
+  'viewer', // Unused, reserved for future read-only use
+  'member', // Default, can see organization data and run extractions
+  'admin', // Same as member but can invite new or remove existing members
+]);
+
+const memberships = pgTable("memberships", {
+  orgId: integer("org_id")
+    .notNull()
+    .references(() => orgs.id),
+  userId: integer("user_id")
+    .notNull()
+    .references(() => users.id),
+  role: roleTypes().default('member'),
+});
+
 
 export function encryptForDb(text: string) {
   const IV = randomBytes(16);
@@ -520,4 +552,7 @@ export {
   recipesRelations,
   settings,
   users,
+  orgs,
+  memberships,
+  roleTypes,
 };
