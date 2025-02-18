@@ -5,6 +5,7 @@ import { fetchBrowserPage, simplifiedMarkdown } from "./browser";
 import { detectPageType } from "./llm/detectPageType";
 import { detectPagination } from "./llm/detectPagination";
 import detectUrlRegexp, { createUrlExtractor } from "./llm/detectUrlRegexp";
+import { Probes } from "./vendor-probes";
 
 const sample = <T>(arr: T[], sampleSize: number) =>
   arr.sort(() => 0.5 - Math.random()).slice(0, sampleSize);
@@ -182,7 +183,8 @@ const recursivelyDetectConfiguration = async (
       );
     }
 
-    return configuration;
+    const probeOptions = { pageUrl: url, pageType, pageContent: content, pagination };
+    return Probes.decorateRecipe(configuration, probeOptions);
   }
 };
 

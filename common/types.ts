@@ -9,6 +9,10 @@ export enum PageType {
   COURSE_LINKS_PAGE = "COURSE_LINKS_PAGE",
 }
 
+export enum ApiProvider {
+  Coursedog = 'Coursedog'
+}
+
 export type UrlPatternType = "page_num" | "offset";
 
 export interface PaginationConfiguration {
@@ -22,6 +26,7 @@ export interface RecipeConfiguration {
   linkRegexp?: string;
   pagination?: PaginationConfiguration;
   links?: RecipeConfiguration;
+  apiProvider?: ApiProvider;
 }
 
 export enum LogLevel {
