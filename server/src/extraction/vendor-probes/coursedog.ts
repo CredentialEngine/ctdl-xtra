@@ -4,6 +4,7 @@ import { URL } from "node:url";
 import {
   ApiConfig,
   ApiProvider,
+  PageType,
   RecipeConfiguration,
 } from "@common/types";
 import { BaseProbe, RecipeDecorateOptions } from "./base";
@@ -42,6 +43,7 @@ export class CourseDog extends BaseProbe {
     }
 
     return {
+      pageType: PageType.API_REQUEST,
       apiProvider: ApiProvider.Coursedog,
       apiConfig: courseDogConfig as ApiConfig[ApiProvider.Coursedog],
     };

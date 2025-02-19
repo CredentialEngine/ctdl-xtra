@@ -7,6 +7,7 @@ export enum PageType {
   COURSE_DETAIL_PAGE = "COURSE_DETAIL_PAGE",
   CATEGORY_LINKS_PAGE = "CATEGORY_LINKS_PAGE",
   COURSE_LINKS_PAGE = "COURSE_LINKS_PAGE",
+  API_REQUEST = "API_REQUEST",
 }
 
 export enum ApiProvider {
@@ -22,7 +23,7 @@ export interface PaginationConfiguration {
 }
 
 export interface RecipeConfiguration<ConfigType extends ApiProvider = ApiProvider> {
-  pageType?: PageType;
+  pageType: PageType;
   linkRegexp?: string;
   pagination?: PaginationConfiguration;
   links?: RecipeConfiguration;
@@ -76,6 +77,7 @@ export enum Step {
   FETCH_ROOT = "FETCH_ROOT",
   FETCH_PAGINATED = "FETCH_PAGINATED",
   FETCH_LINKS = "FETCH_LINKS",
+  FETCH_VIA_API = "FETCH_VIA_API",
 }
 
 export interface FetchFailureReason {

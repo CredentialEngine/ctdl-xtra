@@ -185,7 +185,7 @@ const processNextStep = async (
 export default createProcessor<FetchPageJob, FetchPageProgress>(
   async function fetchPage(job) {
     const crawlPage = await findPageForJob(job.data.crawlPageId);
-
+    const recipeConf = crawlPage.extraction.recipe.configuration;
     if (crawlPage.extraction.status == ExtractionStatus.CANCELLED) {
       console.log(
         `Extraction ${crawlPage.extractionId} was cancelled; aborting`
@@ -200,7 +200,10 @@ export default createProcessor<FetchPageJob, FetchPageProgress>(
     }
 
     try {
-      console.log(`Loading ${crawlPage.url} for page ${crawlPage.id}`);
+      console.log(recipeConf.apiConfig 
+        ? `Retreving API data from ${crawlPage.url} for page ${crawlPage.id}`
+        : `Loading ${crawlPage.url} for page ${crawlPage.id}`
+      );
       await updatePage(crawlPage.id, { status: PageStatus.IN_PROGRESS });
       const page = await fetchBrowserPage(crawlPage.url);
       if (page.status == 404) {

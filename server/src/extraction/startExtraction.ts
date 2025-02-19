@@ -16,16 +16,17 @@ export async function startExtraction(catalogueId: number, recipeId: number) {
     throw new Error(`Recipe ${recipeId} hasn't been configured for extraction`);
   }
   const extraction = await createExtraction(recipe.id);
+
   const step = await createStep({
     extractionId: extraction.id,
     step: Step.FETCH_ROOT,
-    configuration: recipe.configuration!,
+    configuration: recipe.configuration,
   });
   const crawlPage = await createPage({
     crawlStepId: step.id,
     extractionId: extraction.id,
     url: recipe.url,
-    dataType: recipe.configuration!.pageType!,
+    dataType: recipe.configuration!.pageType,
   });
   submitJob(
     Queues.FetchPage,
