@@ -10,8 +10,8 @@ import { Probes } from "./vendor-probes";
 const sample = <T>(arr: T[], sampleSize: number) =>
   arr.sort(() => 0.5 - Math.random()).slice(0, sampleSize);
 
-const detectConfiguration = async (url: string) => {
-  let { content, screenshot } = await fetchBrowserPage(url);
+const detectConfiguration = async (url: string, pageData?: { content: string, screenshot: string }) => {
+  let { content, screenshot } = pageData || await fetchBrowserPage(url);
   const markdownContent = await simplifiedMarkdown(content);
   console.log(`Detecting page type for ${url}`);
   const pageType = await bestOutOf(
@@ -90,9 +90,20 @@ const recursivelyDetectConfiguration = async (
     throw new Error("Exceeded max category depth");
   }
 
+  let { content: pageContent, screenshot } = await fetchBrowserPage(url);
+  const apiReceipe = await Probes.detectApiProviderRecipe({
+    pageContent,
+    pageUrl: url,
+  });
+
+  if (apiReceipe) {
+    console.log(`API provider identified ${apiReceipe.apiProvider}. Skipping page format detection.`);
+    return apiReceipe;
+  }
+
   console.log("Detecting configuration for root page");
   const { content, linkRegexp, pageType, pagination } =
-    await detectConfiguration(url);
+    await detectConfiguration(url, { content: pageContent, screenshot });
 
   const configuration: RecipeConfiguration = {
     pageType,
@@ -183,8 +194,7 @@ const recursivelyDetectConfiguration = async (
       );
     }
 
-    const probeOptions = { pageUrl: url, pageType, pageContent: content, pagination };
-    return Probes.decorateRecipe(configuration, probeOptions);
+    return configuration;
   }
 };
 

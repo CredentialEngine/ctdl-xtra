@@ -25,7 +25,7 @@ export async function startExtraction(catalogueId: number, recipeId: number) {
     crawlStepId: step.id,
     extractionId: extraction.id,
     url: recipe.url,
-    dataType: recipe.configuration!.pageType,
+    dataType: recipe.configuration!.pageType!,
   });
   submitJob(
     Queues.FetchPage,

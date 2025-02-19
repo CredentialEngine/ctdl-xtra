@@ -103,7 +103,7 @@ async function enqueuePages(
     step: Step.FETCH_PAGINATED,
     parentStepId: crawlPage.crawlStepId,
     configuration,
-    pageType: configuration.pageType,
+    pageType: configuration.pageType!,
     pages: pageUrls.map((url) => ({ url })),
   });
 
@@ -141,7 +141,7 @@ async function processLinks(
     step: Step.FETCH_LINKS,
     parentStepId: crawlPage.crawlStepId,
     configuration: configuration.links!,
-    pageType: configuration.links!.pageType,
+    pageType: configuration.links!.pageType!,
     pages: urls.map((url) => ({ url })),
   });
 

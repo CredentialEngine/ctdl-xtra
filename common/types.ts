@@ -21,12 +21,20 @@ export interface PaginationConfiguration {
   totalPages: number;
 }
 
-export interface RecipeConfiguration {
-  pageType: PageType;
+export interface RecipeConfiguration<ConfigType extends ApiProvider = ApiProvider> {
+  pageType?: PageType;
   linkRegexp?: string;
   pagination?: PaginationConfiguration;
   links?: RecipeConfiguration;
   apiProvider?: ApiProvider;
+  apiConfig?: ApiConfig[ConfigType];
+}
+
+export type ApiConfig = {
+  [ApiProvider.Coursedog]: {
+    schoolId: string;
+    catalogIds: number[]
+  }
 }
 
 export enum LogLevel {
