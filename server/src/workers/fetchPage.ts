@@ -103,7 +103,7 @@ async function enqueuePages(
     step: Step.FETCH_PAGINATED,
     parentStepId: crawlPage.crawlStepId,
     configuration,
-    pageType: configuration.pageType!,
+    pageType: configuration.pageType,
     pages: pageUrls.map((url) => ({ url })),
   });
 
@@ -141,7 +141,7 @@ async function processLinks(
     step: Step.FETCH_LINKS,
     parentStepId: crawlPage.crawlStepId,
     configuration: configuration.links!,
-    pageType: configuration.links!.pageType!,
+    pageType: configuration.links!.pageType,
     pages: urls.map((url) => ({ url })),
   });
 
@@ -185,7 +185,7 @@ const processNextStep = async (
 export default createProcessor<FetchPageJob, FetchPageProgress>(
   async function fetchPage(job) {
     const crawlPage = await findPageForJob(job.data.crawlPageId);
-    const recipeConf = crawlPage.extraction.recipe.configuration;
+
     if (crawlPage.extraction.status == ExtractionStatus.CANCELLED) {
       console.log(
         `Extraction ${crawlPage.extractionId} was cancelled; aborting`
@@ -200,10 +200,7 @@ export default createProcessor<FetchPageJob, FetchPageProgress>(
     }
 
     try {
-      console.log(recipeConf.apiConfig 
-        ? `Retreving API data from ${crawlPage.url} for page ${crawlPage.id}`
-        : `Loading ${crawlPage.url} for page ${crawlPage.id}`
-      );
+      console.log(`Loading ${crawlPage.url} for page ${crawlPage.id}`);
       await updatePage(crawlPage.id, { status: PageStatus.IN_PROGRESS });
       const page = await fetchBrowserPage(crawlPage.url);
       if (page.status == 404) {
