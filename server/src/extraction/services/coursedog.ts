@@ -1,47 +1,124 @@
-export class CourseDogAPIService {
+import { exponentialRetry } from '@/utils';
+import querystring from 'node:querystring';
+import { VendorExtractionService } from './base';
+import { Recipe } from '@/data/recipes';
+import { CourseStructuredData } from '@common/types';
+
+export class CourseDogAPIService extends VendorExtractionService {
   apiBase = "https://app.coursedog.com/api/v1";
+
+  public async extractData(recipe: Recipe): Promise<CourseStructuredData[]>  {
+    // @ts-ignore
+    let { schoolId, catalogIds } = recipe.configuration || {}; 
+    if (!schoolId) { 
+      throw new Error(`Coursedog schoolId is required to retrieve course information.`);
+    }
+
+    const allCatalogs = await this.getCatalogs(schoolId);
+    const targetedCatalogs = Array.isArray(catalogIds)
+      ? allCatalogs.filter(entry => catalogIds.includes(entry.id))
+      : allCatalogs;
+    
+    let results: CourseStructuredData[] = [];
+    for (const catalog of targetedCatalogs) {
+      let courses = await this.getAllCatalogCourses(schoolId, catalog);
+      results.concat(courses.map(
+        cgCourse => ({
+          course_id: cgCourse.id,
+          course_description: cgCourse.description,
+          course_name: cgCourse.longName,
+          course_ceu_credits: cgCourse.credits.creditHours.min,
+        })
+      ))
+    }
+
+    return [];
+  }
 
   public async getCatalogs(schoolId: string): Promise<CourseDogCatalog[]> {
     return fetch(`${this.apiBase}/ca/${schoolId}/catalogs`)
       .then(r => r.json() as Promise<CourseDogCatalog[]>)
   }
 
-  public async getCourses(schoolId: string, catalogId: string) {
-    // Temporary early PoC implementation, requires better error handling
-    // and simpler logic.
+  /**
+   * Iterates all pages containing courses for the given school ID and
+   * catalog with a limit of up 20 courses per page. The calls are 
+   * done in sequence and are exponentially retried in case of failure.
+   * 
+   * @param schoolId 
+   * @param catalog 
+   */
+  public async getAllCatalogCourses(schoolId: string, catalog: CourseDogCatalog) {
+    const url = `${this.apiBase}/ca/${schoolId}/courses/search/%24filters`;
+    const parameters = {
+      catalogId: catalog.id,
+      skip: 0,
+      limit: 20,
+      orderBy: [
+        'catalogDisplayName',
+        'transcriptDescription',
+        'longName',
+        'name'
+      ].join(','),
+      formatDependents: 'false',
+      effectiveDatesRange: [
+        catalog.effectiveStartDate,
+        catalog.effectiveEndDate
+      ].join(','),
+      columns: [
+        'customFields.rawCourseId',
+        'customFields.crseOfferNbr',
+        'customFields.catalogAttributes',
+        'displayName',
+        'department',
+        'description',
+        'name',
+        'courseNumber',
+        'subjectCode',
+        'code',
+        'courseGroupId',
+        'career',
+        'college',
+        'longName',
+        'status',
+        'institution',
+        'institutionId',
+        'credits'
+      ].join(',')
+    }
+
+    if (!catalog.effectiveEndDate || !catalog.effectiveStartDate) {
+      // @ts-expect-error ts(2790)
+      delete parameters.effectiveDatesRange;
+    }
 
     const results: CourseDogCourse[] = [];
-    const urlTemplate = `${this.apiBase}/ca/${schoolId}/courses/search/%24filters` +
-      `?catalogId=${catalogId}` +
-      `&skip={skip}` +
-      `&limit=20` +
-      `&orderBy=catalogDisplayName%2CtranscriptDescription%2ClongName%2Cname` +
-      `&formatDependents=false` +
-      `&effectiveDatesRange=2024-09-03%2C2025-08-20` +
-      `&columns=customFields.rawCourseId%2CcustomFields.crseOfferNbr%2CcustomFields.catalogAttributes` +
-      `%2CdisplayName%2Cdepartment%2Cdescription%2Cname%2CcourseNumber%2CsubjectCode%2Ccode%2CcourseGroupId` +
-      `%2Ccareer%2Ccollege%2ClongName%2Cstatus%2Cinstitution%2CinstitutionId%2Ccredits`;
     const limit = 20;
-
     let numCalls = 1;
     let listLength = 0;
 
     for (let i = 0; i < numCalls; i++) {
       const skipValue = i * limit;
-      const pageUrl = urlTemplate.replace("{skip}", String(skipValue));
-      const data = await fetch(pageUrl).then(r => r.json() as Promise<CourseSearchApiResponse>);
+      const query = querystring.stringify({...parameters, skip: String(skipValue)});
+      const pageUrl = `${url}?${query}`;
+      const response = await exponentialRetry(
+        () => fetch(pageUrl).then(r => r.json() as Promise<CourseSearchApiResponse>),
+        3,
+        10 * 1000,
+      );
 
-      listLength = data.listLength;
+      listLength = response.listLength;
       numCalls = Math.ceil(listLength / limit);
-      
-      results.push(...data);
+
+      results.push(...response.data);
     }
+
+    return results;
   }
 }
 
 //#region Types
 export interface CourseDogCatalog {
-  _id: string
   sidebar: any[]
   displayName: string
   effectiveStartDate: string
