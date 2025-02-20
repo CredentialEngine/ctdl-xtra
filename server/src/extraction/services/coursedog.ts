@@ -30,7 +30,7 @@ export class CourseDogAPIService extends VendorExtractionService {
               course_id: cgCourse.id,
               course_description: cgCourse.description,
               course_name: cgCourse.longName,
-              course_credits_min: cgCourse.credits.creditHours.min,
+              course_credits_min: cgCourse?.credits?.creditHours?.min,
             })
           );
 
