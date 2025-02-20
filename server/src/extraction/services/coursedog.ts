@@ -111,7 +111,7 @@ export class CourseDogAPIService extends VendorExtractionService {
       const pageUrl = `${url}?${query}`;
       const response = await exponentialRetry(
         () => fetch(pageUrl).then(r => r.json() as Promise<CourseSearchApiResponse>),
-        3,
+        10,
         10 * 1000,
       );
 
