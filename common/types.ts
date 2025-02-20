@@ -34,7 +34,7 @@ export interface RecipeConfiguration<ConfigType extends ApiProvider = ApiProvide
 export type ApiConfig = {
   [ApiProvider.Coursedog]: {
     schoolId: string;
-    catalogIds: number[]
+    catalogIds: string[]
   }
 }
 

@@ -7,9 +7,9 @@ import { CourseStructuredData } from '@common/types';
 export class CourseDogAPIService extends VendorExtractionService {
   apiBase = "https://app.coursedog.com/api/v1";
 
-  public async extractData(recipe: Recipe): Promise<CourseStructuredData[]>  {
+  public async extractData(recipe: Recipe, onResultBatch: (res: CourseStructuredData[]) => Promise<boolean>): Promise<void>  {
     // @ts-ignore
-    let { schoolId, catalogIds } = recipe.configuration || {}; 
+    let { schoolId, catalogIds } = recipe.configuration?.apiConfig || {}; 
     if (!schoolId) { 
       throw new Error(`Coursedog schoolId is required to retrieve course information.`);
     }
@@ -19,20 +19,25 @@ export class CourseDogAPIService extends VendorExtractionService {
       ? allCatalogs.filter(entry => catalogIds.includes(entry.id))
       : allCatalogs;
     
-    let results: CourseStructuredData[] = [];
+    
     for (const catalog of targetedCatalogs) {
-      let courses = await this.getAllCatalogCourses(schoolId, catalog);
-      results.concat(courses.map(
-        cgCourse => ({
-          course_id: cgCourse.id,
-          course_description: cgCourse.description,
-          course_name: cgCourse.longName,
-          course_ceu_credits: cgCourse.credits.creditHours.min,
-        })
-      ))
-    }
+      await this.getAllCatalogCourses(
+        schoolId,
+        catalog,
+        function onData(response) {
+          let courses: CourseStructuredData[] = response.data.map(
+            cgCourse => ({
+              course_id: cgCourse.id,
+              course_description: cgCourse.description,
+              course_name: cgCourse.longName,
+              course_credits_min: cgCourse.credits.creditHours.min,
+            })
+          );
 
-    return [];
+          return onResultBatch(courses)
+        }
+      );
+    }
   }
 
   public async getCatalogs(schoolId: string): Promise<CourseDogCatalog[]> {
@@ -48,8 +53,12 @@ export class CourseDogAPIService extends VendorExtractionService {
    * @param schoolId 
    * @param catalog 
    */
-  public async getAllCatalogCourses(schoolId: string, catalog: CourseDogCatalog) {
-    const url = `${this.apiBase}/ca/${schoolId}/courses/search/%24filters`;
+  public async getAllCatalogCourses(
+    schoolId: string,
+    catalog: CourseDogCatalog,
+    onBatch: (results: CourseSearchApiResponse) => Promise<boolean>
+  ) {
+    const url = `${this.apiBase}/cm/${schoolId}/courses/search/%24filters`;
     const parameters = {
       catalogId: catalog.id,
       skip: 0,
@@ -92,7 +101,6 @@ export class CourseDogAPIService extends VendorExtractionService {
       delete parameters.effectiveDatesRange;
     }
 
-    const results: CourseDogCourse[] = [];
     const limit = 20;
     let numCalls = 1;
     let listLength = 0;
@@ -110,10 +118,10 @@ export class CourseDogAPIService extends VendorExtractionService {
       listLength = response.listLength;
       numCalls = Math.ceil(listLength / limit);
 
-      results.push(...response.data);
+      if (!await onBatch(response)) {
+        break;
+      }
     }
-
-    return results;
   }
 }
 

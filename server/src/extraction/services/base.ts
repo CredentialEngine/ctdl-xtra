@@ -1,11 +1,6 @@
 import { Recipe } from "@/data/recipes";
 import { CourseStructuredData } from "@common/types";
-import { ApiProvider } from '@common/types';
-import { CourseDogAPIService } from './coursedog';
-
-export const apiExtractorServices = {
-  [ApiProvider.Coursedog]: new CourseDogAPIService()
-}
+import { apiExtractorServices } from ".";
 
 export function resolveExctractionService(recipe: Recipe): VendorExtractionService {
   const provider = recipe.configuration?.apiProvider!;
@@ -20,7 +15,8 @@ export function resolveExctractionService(recipe: Recipe): VendorExtractionServi
 }
 
 export class VendorExtractionService {
-  public async extractData(recipe: Recipe): Promise<CourseStructuredData[]>  {
-    return [];
+  public async extractData(recipe: Recipe, onResultBatch: (results: CourseStructuredData[]) => Promise<boolean>): Promise<void>
+  {
+    throw new Error('Incorrect call on base class. Should call specialized type instead.');
   }
 }
