@@ -52,8 +52,8 @@ const detectConfiguration = async (url: string) => {
   console.log(`Detected as: ${inspect(pagination)}`);
   let linkRegexp;
   if (
-    pageType == PageType.CATEGORY_LINKS_PAGE ||
-    pageType == PageType.COURSE_LINKS_PAGE
+    pageType == PageType.CATEGORY_LINKS ||
+    pageType == PageType.DETAIL_LINKS
   ) {
     console.log(`Detecting regexp for ${url}`);
     linkRegexp = await bestOutOf(
@@ -99,7 +99,7 @@ const recursivelyDetectConfiguration = async (
     pagination,
   };
 
-  if (pageType == PageType.COURSE_DETAIL_PAGE) {
+  if (pageType == PageType.DETAIL) {
     // We are already at the course details page.
     return configuration;
   } else {
@@ -132,15 +132,15 @@ const recursivelyDetectConfiguration = async (
     };
 
     if (
-      pageType == PageType.COURSE_LINKS_PAGE &&
-      childPage.pageType != PageType.COURSE_DETAIL_PAGE
+      pageType == PageType.DETAIL_LINKS &&
+      childPage.pageType != PageType.DETAIL
     ) {
       throw new Error(
         `Detected course links page and expected course detail pages, but child pages are ${childPage.pageType}`
       );
     }
 
-    if (childPage.pageType == PageType.COURSE_DETAIL_PAGE) {
+    if (childPage.pageType == PageType.DETAIL) {
       return configuration;
     }
 
@@ -168,14 +168,14 @@ const recursivelyDetectConfiguration = async (
       pagination: childLinkPage.pagination,
     };
 
-    if (childPage.pageType == PageType.COURSE_LINKS_PAGE) {
-      if (childLinkPage.pageType != PageType.COURSE_DETAIL_PAGE) {
+    if (childPage.pageType == PageType.DETAIL_LINKS) {
+      if (childLinkPage.pageType != PageType.DETAIL) {
         throw new Error(
           `Detected course links page and expected course detail pages, but child pages are ${childLinkPage.pageType}`
         );
       }
       return configuration;
-    } else if (childPage.pageType == PageType.CATEGORY_LINKS_PAGE) {
+    } else if (childPage.pageType == PageType.CATEGORY_LINKS) {
       configuration.links.links.links = await recursivelyDetectConfiguration(
         childLinkPage.url,
         depth + 1

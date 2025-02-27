@@ -5,7 +5,7 @@ import { RECIPE_TIMEOUT, assertConfiguration } from "..";
 describe("Kuali", { timeout: RECIPE_TIMEOUT }, () => {
   test("BYU-Idaho", async () => {
     await assertConfiguration("https://www.byui.edu/catalog/#/courses", {
-      pageType: PageType.CATEGORY_LINKS_PAGE,
+      pageType: PageType.CATEGORY_LINKS,
       linkRegexp:
         "https:\\/\\/www\\.byui\\.edu\\/catalog\\/#\\/courses\\?group=[A-Za-z%20]+",
       pagination: undefined,
@@ -14,7 +14,7 @@ describe("Kuali", { timeout: RECIPE_TIMEOUT }, () => {
         "https://www.byui.edu/catalog/#/courses?group=Welding",
       ],
       links: {
-        pageType: PageType.COURSE_LINKS_PAGE,
+        pageType: PageType.DETAIL_LINKS,
         linkRegexp:
           "#\\/courses\\/[\\w-]+\\?group=[\\w%20]+&bc=true&bcCurrent=[\\w%20-]+&bcGroup=[\\w%20]+&bcItemType=courses",
         pagination: undefined,
@@ -23,7 +23,7 @@ describe("Kuali", { timeout: RECIPE_TIMEOUT }, () => {
           "#/courses/NkSTgWhjW?bc=true&bcCurrent=WELD100%20-%20Introduction%20to%20Welding&bcGroup=Welding&bcItemType=courses",
         ],
         links: {
-          pageType: PageType.COURSE_DETAIL_PAGE,
+          pageType: PageType.DETAIL,
           linkRegexp: undefined,
           pagination: undefined,
         },

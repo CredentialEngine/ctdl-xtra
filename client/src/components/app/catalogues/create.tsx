@@ -15,7 +15,15 @@ import {
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/ui/use-toast";
 
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { trpc } from "@/utils";
+import { CatalogueType } from "@common/types";
 import { useEffect } from "react";
 import { useLocation } from "wouter";
 
@@ -23,6 +31,7 @@ const FormSchema = z.object({
   name: z.string().min(2, {
     message: "Catalogue name must be at least 2 characters.",
   }),
+  catalogueType: z.nativeEnum(CatalogueType),
   url: z
     .string()
     .url("Catalogue URL must be a valid URL (e.g. https://example.com)."),
@@ -36,6 +45,7 @@ export default function CreateCatalogue() {
     defaultValues: {
       name: "",
       url: "",
+      catalogueType: CatalogueType.COURSES,
     },
   });
 
@@ -53,6 +63,9 @@ export default function CreateCatalogue() {
         if (output.data?.title) {
           form.setValue("name", output.data.title);
         }
+        if (output.data?.catalogueType) {
+          form.setValue("catalogueType", output.data.catalogueType);
+        }
       });
     }
   }, [url]);
@@ -61,6 +74,7 @@ export default function CreateCatalogue() {
     try {
       const result = await createMutation.mutateAsync({
         ...data,
+        catalogueType: data.catalogueType,
         thumbnailUrl: previewQuery.data?.thumbnailUrl,
       });
       form.reset();
@@ -129,6 +143,36 @@ export default function CreateCatalogue() {
                   <FormDescription>
                     Display name for the catalogue
                   </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="catalogueType"
+              disabled={previewQuery.isFetching ? true : undefined}
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Type</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select a type" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value={CatalogueType.COURSES}>
+                        Courses
+                      </SelectItem>
+                      <SelectItem value={CatalogueType.LEARNING_PROGRAMS}>
+                        Learning Programs
+                      </SelectItem>
+                      <SelectItem value={CatalogueType.COMPETENCIES}>
+                        Competencies
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <FormDescription>Type of catalogue to create</FormDescription>
                   <FormMessage />
                 </FormItem>
               )}

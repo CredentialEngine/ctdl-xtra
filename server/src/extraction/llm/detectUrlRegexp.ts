@@ -22,12 +22,12 @@ export default async function detectUrlRegexp(
   defaultOptions: DefaultLlmPageOptions,
   dataType: PageType
 ) {
-  if (dataType == PageType.COURSE_DETAIL_PAGE) {
+  if (dataType == PageType.DETAIL) {
     throw new Error("Invalid page data type.");
   }
 
   const descriptions = {
-    [PageType.CATEGORY_LINKS_PAGE]: `
+    [PageType.CATEGORY_LINKS]: `
     CATEGORY LINKS
 
     Programs, careers, degrees, or course category pages.
@@ -64,7 +64,7 @@ export default async function detectUrlRegexp(
 
     `,
 
-    [PageType.COURSE_LINKS_PAGE]: `
+    [PageType.DETAIL_LINKS]: `
     COURSE LINKS
 
     Course detail pages in an educational institution.

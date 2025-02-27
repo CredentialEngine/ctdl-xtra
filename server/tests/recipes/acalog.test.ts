@@ -13,9 +13,9 @@ describe(
         "https://catalog.ivytech.edu/content.php?catoid=7&navoid=771",
         {
           links: {
-            pageType: PageType.COURSE_DETAIL_PAGE,
+            pageType: PageType.DETAIL,
           },
-          pageType: PageType.COURSE_LINKS_PAGE,
+          pageType: PageType.DETAIL_LINKS,
           sampleLinks: [
             "preview_course_nopop.php?catoid=7&coid=123",
             "preview_course_nopop.php?catoid=7&coid=456",
@@ -35,9 +35,9 @@ describe(
       await assertConfiguration(
         "http://coursecatalog.syr.edu/content.php?catoid=35&navoid=4525",
         {
-          pageType: PageType.COURSE_LINKS_PAGE,
+          pageType: PageType.DETAIL_LINKS,
           links: {
-            pageType: PageType.COURSE_DETAIL_PAGE,
+            pageType: PageType.DETAIL,
           },
           linkRegexp: "preview_course_nopop.php\\?catoid=\\d+&coid=\\d+",
           sampleLinks: [
@@ -59,9 +59,9 @@ describe(
       await assertConfiguration(
         "https://catalog.upp.pitt.edu/content.php?catoid=225&navoid=23279",
         {
-          pageType: PageType.COURSE_LINKS_PAGE,
+          pageType: PageType.DETAIL_LINKS,
           links: {
-            pageType: PageType.COURSE_DETAIL_PAGE,
+            pageType: PageType.DETAIL,
           },
           linkRegexp: "preview_course.php\\?catoid=225&coid=\\d+",
           sampleLinks: [

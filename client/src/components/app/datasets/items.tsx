@@ -2,6 +2,7 @@ import { Badge } from "@/components/ui/badge";
 import BreadcrumbTrail from "@/components/ui/breadcrumb-trail";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
+import { JsonView } from "@/components/ui/jsonview";
 import {
   Table,
   TableBody,
@@ -11,7 +12,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { API_URL } from "@/constants";
-import { CourseStructuredData, DataItem, prettyPrintDate, trpc } from "@/utils";
+import { DataItem, prettyPrintDate, trpc } from "@/utils";
+import { CourseStructuredData } from "@common/types";
 import { Download } from "lucide-react";
 import { useState } from "react";
 import { useParams } from "wouter";
@@ -34,43 +36,17 @@ function CourseDisplayItem({ item }: CourseDisplayItemProps) {
     );
   }
 
-  const displayCredits = () => {
-    const min = structuredData.course_credits_min;
-    const max = structuredData.course_credits_max;
-    if (!min && !max) {
-      return "";
-    }
-    if (!min) {
-      return max;
-    }
-    if (!max) {
-      return min;
-    }
-    if (min === max) {
-      return max;
-    }
-    return `${min}-${max}`;
-  };
-
   return (
     <TableRow>
       <TableCell className="text-sm">{item.id}</TableCell>
-      <TableCell className="text-sm">{structuredData.course_id}</TableCell>
-      <TableCell className="text-sm max-w-40">
-        {structuredData.course_name}
+      <TableCell className="text-sm">
+        <JsonView data={item.structuredData} initialExpanded={true} />
       </TableCell>
-      <TableCell className="text-sm max-w-80">
-        {structuredData.course_description}
-      </TableCell>
-      <TableCell className="text-sm max-w-80">
-        {structuredData.course_prerequisites}
-      </TableCell>
-      <TableCell className="text-sm">{displayCredits()}</TableCell>
     </TableRow>
   );
 }
 
-export default function DatasetCourses() {
+export default function DatasetItems() {
   const { extractionId } = useParams();
   const [downloadInProgress, setDownloadInProgress] = useState(false);
   const { page, PaginationButtons } = usePagination();
@@ -80,18 +56,18 @@ export default function DatasetCourses() {
     { enabled: !!extractionId }
   );
 
-  const coursesQuery = trpc.datasets.courses.useQuery(
+  const itemsQuery = trpc.datasets.items.useQuery(
     { extractionId: parseInt(extractionId || ""), page },
     { enabled: !!extractionId }
   );
 
-  if (!extractionQuery.data || !coursesQuery.data) {
+  if (!extractionQuery.data || !itemsQuery.data) {
     return null;
   }
   const handleDownload: React.MouseEventHandler<HTMLButtonElement> = (e) => {
     setDownloadInProgress(true);
     e.preventDefault();
-    fetch(`${API_URL}/downloads/courses/bulk_upload_template/${extractionId}`, {
+    fetch(`${API_URL}/downloads/bulk_upload_template/${extractionId}`, {
       credentials: "include",
     })
       .then((response) => {
@@ -130,7 +106,7 @@ export default function DatasetCourses() {
 
   const extraction = extractionQuery.data;
   const catalogue = extraction.recipe.catalogue;
-  const items = coursesQuery.data.results;
+  const items = itemsQuery.data.results;
 
   const breadCrumbs = [
     { label: "Data Library", href: "/" },
@@ -146,7 +122,7 @@ export default function DatasetCourses() {
       <BreadcrumbTrail items={breadCrumbs} />
       <div className="flex items-center">
         <h1 className="text-lg font-semibold md:text-2xl">
-          Extraction #{extraction.id} Data — Courses
+          Extraction #{extraction.id} Data - {catalogue.catalogueType}
         </h1>
       </div>
       <div className="border p-6">
@@ -170,8 +146,8 @@ export default function DatasetCourses() {
           </div>
         </div>
         <div className="mt-6 border-t border-border pt-6 text-sm">
-          {coursesQuery.data.totalItems} courses were extracted. The extraction
-          was created on {prettyPrintDate(extraction.createdAt)}.
+          {itemsQuery.data.totalItems} items were extracted. The extraction was
+          created on {prettyPrintDate(extraction.createdAt)}.
           <Badge className="ml-2">{extraction.status}</Badge>
         </div>
       </div>
@@ -181,11 +157,7 @@ export default function DatasetCourses() {
             <TableHeader>
               <TableRow>
                 <TableHead>Data ID</TableHead>
-                <TableHead>Course ID</TableHead>
-                <TableHead>Name</TableHead>
-                <TableHead>Description</TableHead>
-                <TableHead>Prerequisites</TableHead>
-                <TableHead>Credits</TableHead>
+                <TableHead>Data</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -198,8 +170,8 @@ export default function DatasetCourses() {
         {items.length > 0 ? (
           <CardFooter>
             <PaginationButtons
-              totalItems={coursesQuery.data.totalItems}
-              totalPages={coursesQuery.data.totalPages}
+              totalItems={itemsQuery.data.totalItems}
+              totalPages={itemsQuery.data.totalPages}
             />
           </CardFooter>
         ) : null}

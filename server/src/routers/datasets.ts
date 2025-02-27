@@ -23,7 +23,7 @@ export const datasetsRouter = router({
         results: items,
       };
     }),
-  courses: publicProcedure
+  items: publicProcedure
     .input(
       z.object({
         page: z.number().int().positive().default(1),

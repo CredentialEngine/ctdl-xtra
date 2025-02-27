@@ -15,6 +15,41 @@
       "when": 1727814665852,
       "tag": "0001_normal_beast",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1738713585491,
+      "tag": "0002_classy_weapon_omega",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1738713806822,
+      "tag": "0003_condemned_siren",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1740600357427,
+      "tag": "0004_worthless_santa_claus",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1740746378917,
+      "tag": "0005_white_scream",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1740746436197,
+      "tag": "0006_update-page-data-types",
+      "breakpoints": true
     }
   ]
 }

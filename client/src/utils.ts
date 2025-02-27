@@ -24,13 +24,6 @@ export type CrawlPage = ItemType<
   RouterOutput["extractions"]["stepDetail"]["crawlPages"]["results"]
 >;
 export type DataItem = ItemType<RouterOutput["datasets"]["courses"]["results"]>;
-export type CourseStructuredData = DataItem["structuredData"];
-
-export enum PageType {
-  COURSE_DETAIL_PAGE = "COURSE_DETAIL_PAGE",
-  CATEGORY_LINKS_PAGE = "CATEGORY_LINKS_PAGE",
-  COURSE_LINKS_PAGE = "COURSE_LINKS_PAGE",
-}
 
 export enum ExtractionStatus {
   WAITING = "WAITING",

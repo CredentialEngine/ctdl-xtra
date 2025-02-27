@@ -1,4 +1,8 @@
-import { PageType, PaginationConfiguration } from "@common/types";
+import {
+  CatalogueType,
+  PageType,
+  PaginationConfiguration,
+} from "@common/types";
 import {
   ChatCompletionContentPart,
   ChatCompletionMessageParam,
@@ -13,18 +17,7 @@ import {
   assertStringEnum,
   simpleToolCompletion,
 } from "../../openai";
-
-const pageTypeDescriptions = {
-  [PageType.COURSE_LINKS_PAGE]:
-    "It has links to ALL the courses for an institution. IF there is pagination, it is for pages of links to courses.",
-  [PageType.CATEGORY_LINKS_PAGE]:
-    "It has links to program or degree pages that presumably have links/descriptions for the courses. " +
-    "Those links are presumably extensive for ALL the programs/degrees in the institution." +
-    "IF there is pagination, it is for pages of program/degree links.",
-  [PageType.COURSE_DETAIL_PAGE]:
-    "It has names/descriptions for ALL the courses for an instution. " +
-    "IF there is pagination, it is for pages of course descriptions.",
-};
+import { getCatalogueTypeDefinition } from "../catalogueTypes";
 
 function getUrlPath(urlString: string): string {
   try {
@@ -39,6 +32,22 @@ export async function detectPagination(
   defaultOptions: DefaultLlmPageOptions,
   rootPageType: PageType
 ): Promise<PaginationConfiguration | undefined> {
+  const catalogueType = defaultOptions.catalogueType || CatalogueType.COURSES;
+  const entity = getCatalogueTypeDefinition(catalogueType);
+
+  const pageTypeDescriptions = {
+    [PageType.DETAIL_LINKS]:
+      `It has links to ALL the ${entity.pluralName} for an institution. ` +
+      `IF there is pagination, it is for pages of links to ${entity.pluralName}.`,
+    [PageType.CATEGORY_LINKS]:
+      `It has links to ${entity.categoryDescription.toLowerCase()} ` +
+      `Those links are presumably extensive for ALL the categories in the institution. ` +
+      `IF there is pagination, it is for pages of category links.`,
+    [PageType.DETAIL]:
+      `It has names/descriptions for ALL the ${entity.pluralName} for an institution. ` +
+      `IF there is pagination, it is for pages of ${entity.name} descriptions.`,
+  };
+
   const prompt = `
 Your goal is to determine whether the given website has pagination, and how that pagination works.
 
@@ -61,12 +70,12 @@ url_pattern: ONLY FILL THIS IN IF THE WEBSITE HAS PAGINATION
 
 the URL for pages, with the parameter replaced by {page_num} or {offset} (plus {limit} if relevant).
 Example:
-https://www.example.com/courses.php?page={page_num}
+https://www.example.com/${entity.pluralName.toLowerCase()}.php?page={page_num}
 
 total_pages: ONLY FILL THIS IN IF THE WEBSITE HAS PAGINATION
 
 
-For context, the page is a course catalogue index:
+For context, the page is a ${entity.name} catalogue index:
 
 ${pageTypeDescriptions[rootPageType]}
 

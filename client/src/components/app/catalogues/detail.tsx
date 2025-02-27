@@ -1,3 +1,4 @@
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -139,6 +140,10 @@ export default function CatalogueDetail() {
                     className="w-full"
                     defaultValue={query.data.name}
                   />
+                </div>
+                <div className="grid gap-3">
+                  <Label htmlFor="type">Type</Label>
+                  <Badge variant="outline">{query.data.catalogueType}</Badge>
                 </div>
                 {query.data.thumbnailUrl ? (
                   <div>

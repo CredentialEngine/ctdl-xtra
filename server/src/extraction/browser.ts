@@ -3,6 +3,7 @@ import { Cluster } from "puppeteer-cluster";
 import TurndownService from "turndown";
 import { SimplifiedMarkdown } from "../types";
 import { resolveAbsoluteUrl } from "../utils";
+import { detectCatalogueType } from "./llm/detectCatalogueType";
 
 import { addExtra, VanillaPuppeteer } from "puppeteer-extra";
 import StealthPlugin from "puppeteer-extra-plugin-stealth";
@@ -93,18 +94,25 @@ export async function fetchBrowserPage(url: string) {
 }
 
 export async function fetchPreview(url: string) {
-  const res = await fetch(url);
-  const text = await res.text();
-  const $ = cheerio.load(text);
-  const title = $('meta[name="og:title"]').attr("content") || $("title").text();
+  let { content, screenshot } = await fetchBrowserPage(url);
+  const $ = cheerio.load(content);
+  const title = $("title").text() || $('meta[name="og:title"]').attr("content");
   const description = $('meta[name="og:description"]').attr("content");
-  let thumbnailUrl =
-    $('meta[name="og:image"]').attr("content") || $("img").first().attr("src");
+  let thumbnailUrl = screenshot
+    ? `data:image/webp;base64,${screenshot}`
+    : $('meta[name="og:image"]').attr("content") ||
+      $("img").first().attr("src");
   thumbnailUrl = thumbnailUrl
     ? resolveAbsoluteUrl(url, thumbnailUrl)
     : undefined;
+  const simplifiedContent = await simplifiedMarkdown(content);
+  const catalogueType = await detectCatalogueType({
+    url,
+    content: simplifiedContent,
+    screenshot,
+  });
 
-  return { title, thumbnailUrl, description };
+  return { title, thumbnailUrl, description, catalogueType };
 }
 
 export async function simplifyHtml(html: string) {

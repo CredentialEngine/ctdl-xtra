@@ -2,7 +2,7 @@ import { isWithinTokenLimit } from "gpt-tokenizer";
 import { DefaultLlmPageOptions } from "./llm";
 import detectChunkSplitRegexp from "./llm/detectChunkSplitRegexp";
 import { detectMultipleCourses } from "./llm/detectMultipleCourses";
-import { preprocessText } from "./llm/extractAndVerifyCourseData";
+import { preprocessText } from "./llm/extractAndVerifyEntityData";
 
 export async function splitChunks(options: DefaultLlmPageOptions) {
   let regexp, expectedCourseCount, chunks, firstCourseTitle;

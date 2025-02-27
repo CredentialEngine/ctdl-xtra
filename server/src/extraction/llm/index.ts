@@ -1,9 +1,11 @@
+import { CatalogueType } from "@common/types";
 import { SimplifiedMarkdown } from "../../types";
 
 export interface DefaultLlmPageOptions {
   content: SimplifiedMarkdown;
   url: string;
   screenshot: string;
+  catalogueType?: CatalogueType;
   logApiCalls?: {
     extractionId: number;
   };

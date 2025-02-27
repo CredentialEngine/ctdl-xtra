@@ -1,12 +1,13 @@
 export enum CatalogueType {
   COURSES = "COURSES",
   LEARNING_PROGRAMS = "LEARNING_PROGRAMS",
+  COMPETENCIES = "COMPETENCIES",
 }
 
 export enum PageType {
-  COURSE_DETAIL_PAGE = "COURSE_DETAIL_PAGE",
-  CATEGORY_LINKS_PAGE = "CATEGORY_LINKS_PAGE",
-  COURSE_LINKS_PAGE = "COURSE_LINKS_PAGE",
+  DETAIL = "DETAIL",
+  CATEGORY_LINKS = "CATEGORY_LINKS",
+  DETAIL_LINKS = "DETAIL_LINKS",
 }
 
 export type UrlPatternType = "page_num" | "offset";
@@ -81,8 +82,15 @@ export interface CourseStructuredData {
   course_prerequisites?: string;
 }
 
+export interface LearningProgramStructuredData {}
+
+export interface CompetencyStructuredData {}
+
 export type TextInclusion = {
-  [K in keyof CourseStructuredData]: { full: boolean };
+  [K in
+    | keyof CourseStructuredData
+    | keyof LearningProgramStructuredData
+    | keyof CompetencyStructuredData]: { full: boolean };
 };
 
 export interface StepCompletionStats {
