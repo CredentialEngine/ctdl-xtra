@@ -71,7 +71,7 @@ const ExtractionComplete = ({
   stale,
 }: ExtractionCompleteProps) => {
   const extractionUrl = buildFrontendUrl(`/extractions/${extractionId}`);
-  const datasetUrl = buildFrontendUrl(`/datasets/courses/${extractionId}`);
+  const datasetUrl = buildFrontendUrl(`/datasets/items/${extractionId}`);
   const elapsedTimeMs =
     new Date(completionStats.generatedAt).getTime() -
     toIsoDate(createdAt).getTime();

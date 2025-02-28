@@ -123,7 +123,7 @@ server.register(async (instance) => {
   });
 
   instance.get(
-    "/downloads/courses/bulk_upload_template/:extractionId",
+    "/downloads/bulk_upload_template/:extractionId",
     async (request, reply) => {
       const { extractionId } = request.params as any;
       const extraction = await findExtractionById(extractionId);

@@ -22,6 +22,20 @@
       "when": 1740068887238,
       "tag": "0002_soft_outlaw_kid",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1740774181485,
+      "tag": "0003_messy_randall_flagg",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1740774191238,
+      "tag": "0004_update-page-data-types",
+      "breakpoints": true
     }
   ]
 }

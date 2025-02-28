@@ -1,3 +1,4 @@
+import { CatalogueType } from "@common/types";
 import { desc, eq, sql } from "drizzle-orm";
 import db from "../data";
 import { catalogues, extractions, recipes } from "../data/schema";
@@ -65,11 +66,12 @@ export async function findCatalogues(limit: number = 20, offset?: number) {
 export async function createCatalogue(
   name: string,
   url: string,
+  catalogueType?: CatalogueType,
   thumbnailUrl?: string
 ) {
   const result = await db
     .insert(catalogues)
-    .values({ name, url, thumbnailUrl })
+    .values({ name, url, thumbnailUrl, catalogueType })
     .returning();
   return result[0];
 }

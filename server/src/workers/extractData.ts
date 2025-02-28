@@ -8,8 +8,8 @@ import {
   readScreenshot,
 } from "../data/schema";
 
-import { ExtractionStatus } from "@common/types";
-import { extractAndVerifyCourseData } from "../extraction/llm/extractAndVerifyCourseData";
+import { CatalogueType, ExtractionStatus } from "@common/types";
+import { extractAndVerifyEntityData } from "../extraction/llm/extractAndVerifyEntityData";
 
 export default createProcessor<ExtractDataJob, ExtractDataProgress>(
   async function extractData(job) {
@@ -44,15 +44,19 @@ export default createProcessor<ExtractDataJob, ExtractDataProgress>(
         crawlPage.id
       );
 
-      const extractedData = await extractAndVerifyCourseData({
+      const catalogueType = crawlPage.extraction.recipe.catalogue
+        .catalogueType as CatalogueType;
+
+      const extractedData = await extractAndVerifyEntityData({
         url: crawlPage.url,
         content,
         screenshot,
+        catalogueType,
         logApiCalls: { extractionId: crawlPage.extractionId },
       });
 
-      for (const { course, textInclusion } of extractedData) {
-        await createDataItem(crawlPage.id, dataset.id, course, textInclusion);
+      for (const { entity, textInclusion } of extractedData) {
+        await createDataItem(crawlPage.id, dataset.id, entity, textInclusion);
       }
     } catch (err) {
       console.log(inspect(err));

@@ -1,17 +1,18 @@
 export enum CatalogueType {
   COURSES = "COURSES",
   LEARNING_PROGRAMS = "LEARNING_PROGRAMS",
+  COMPETENCIES = "COMPETENCIES",
 }
 
 export enum PageType {
-  COURSE_DETAIL_PAGE = "COURSE_DETAIL_PAGE",
-  CATEGORY_LINKS_PAGE = "CATEGORY_LINKS_PAGE",
-  COURSE_LINKS_PAGE = "COURSE_LINKS_PAGE",
+  DETAIL = "DETAIL",
+  CATEGORY_LINKS = "CATEGORY_LINKS",
+  DETAIL_LINKS = "DETAIL_LINKS",
   API_REQUEST = "API_REQUEST",
 }
 
 export enum ApiProvider {
-  Coursedog = 'Coursedog'
+  Coursedog = "Coursedog",
 }
 
 export type UrlPatternType = "page_num" | "offset";
@@ -22,7 +23,9 @@ export interface PaginationConfiguration {
   totalPages: number;
 }
 
-export interface RecipeConfiguration<ConfigType extends ApiProvider = ApiProvider> {
+export interface RecipeConfiguration<
+  ConfigType extends ApiProvider = ApiProvider,
+> {
   pageType: PageType;
   linkRegexp?: string;
   pagination?: PaginationConfiguration;
@@ -34,9 +37,9 @@ export interface RecipeConfiguration<ConfigType extends ApiProvider = ApiProvide
 export type ApiConfig = {
   [ApiProvider.Coursedog]: {
     schoolId: string;
-    catalogIds: string[]
-  }
-}
+    catalogIds: string[];
+  };
+};
 
 export enum LogLevel {
   INFO = "INFO",
@@ -96,8 +99,15 @@ export interface CourseStructuredData {
   course_prerequisites?: string;
 }
 
+export interface LearningProgramStructuredData {}
+
+export interface CompetencyStructuredData {}
+
 export type TextInclusion = {
-  [K in keyof CourseStructuredData]: { full: boolean };
+  [K in
+    | keyof CourseStructuredData
+    | keyof LearningProgramStructuredData
+    | keyof CompetencyStructuredData]: { full: boolean };
 };
 
 export interface StepCompletionStats {

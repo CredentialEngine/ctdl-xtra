@@ -61,7 +61,8 @@ export default function DatasetDetail() {
               <TableRow>
                 <TableHead>Extraction</TableHead>
                 <TableHead>Created At</TableHead>
-                <TableHead>Courses</TableHead>
+                <TableHead>Type</TableHead>
+                <TableHead>Items</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -69,6 +70,7 @@ export default function DatasetDetail() {
                 <TableRow key={`dataset-${dataset.id}`}>
                   <TableCell>#{dataset.id}</TableCell>
                   <TableCell>{prettyPrintDate(dataset.createdAt)}</TableCell>
+                  <TableCell>{catalogue.catalogueType}</TableCell>
                   <TableCell>
                     <Button
                       variant={"outline"}
@@ -76,9 +78,9 @@ export default function DatasetDetail() {
                       className="text-xs"
                       asChild
                     >
-                      <Link to={`/courses/${dataset.id}`}>
+                      <Link to={`/items/${dataset.id}`}>
                         <List className="w-3.5 h-3.5 mr-2" />
-                        View {dataset.itemsCount} courses
+                        View {dataset.itemsCount} items
                       </Link>
                     </Button>
                   </TableCell>

@@ -9,19 +9,20 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { PageType, concisePrintDate, trpc } from "@/utils";
+import { concisePrintDate, trpc } from "@/utils";
+import { PageType } from "@common/types";
 import { Link, useParams } from "wouter";
 import usePagination from "../usePagination";
 import { displayStepType } from "./utils";
 
 function displayDataType(dataType: PageType) {
   switch (dataType) {
-    case PageType.COURSE_DETAIL_PAGE:
-      return "Course Detail";
-    case PageType.CATEGORY_LINKS_PAGE:
+    case PageType.DETAIL:
+      return "Detail Page";
+    case PageType.CATEGORY_LINKS:
       return "Category Page";
-    case PageType.COURSE_LINKS_PAGE:
-      return "Course Links";
+    case PageType.DETAIL_LINKS:
+      return "Detail Links Page";
   }
 }
 
@@ -79,7 +80,7 @@ export default function CrawlStepDetail() {
                 <TableRow key={`step-item-${item.id}`}>
                   <TableCell>{item.id}</TableCell>
                   <TableCell>
-                    {displayDataType(item.dataType as PageType)}
+                    {displayDataType(item.pageType as PageType)}
                   </TableCell>
                   <TableCell>{concisePrintDate(item.createdAt)}</TableCell>
                   <TableCell className="max-w-40 overflow-hidden whitespace-nowrap text-ellipsis text-blue-800 underline">

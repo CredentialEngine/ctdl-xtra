@@ -1,4 +1,5 @@
 import {
+  CatalogueType,
   ExtractionStatus,
   FetchFailureReason,
   PageStatus,
@@ -59,7 +60,8 @@ async function enqueueExtraction(
 
 async function enqueuePages(
   configuration: RecipeConfiguration,
-  crawlPage: Awaited<ReturnType<typeof findPageForJob>>
+  crawlPage: Awaited<ReturnType<typeof findPageForJob>>,
+  catalogueType: CatalogueType
 ) {
   console.log(`Enqueuing page fetches for page ${crawlPage.id}`);
 
@@ -77,6 +79,7 @@ async function enqueuePages(
       ),
       logApiCalls: { extractionId: crawlPage.extractionId },
       url: crawlPage.url,
+      catalogueType,
     },
     configuration.pagination!.urlPattern,
     configuration.pagination!.urlPatternType
@@ -164,12 +167,14 @@ const processNextStep = async (
   const configuration = crawlPage.crawlStep
     .configuration as RecipeConfiguration;
   const currentStep = crawlPage.crawlStep.step;
+  const catalogueType = crawlPage.extraction.recipe.catalogue
+    .catalogueType as CatalogueType;
 
   if (configuration.pagination && currentStep != Step.FETCH_PAGINATED) {
-    return enqueuePages(configuration, crawlPage);
+    return enqueuePages(configuration, crawlPage, catalogueType);
   }
 
-  if (configuration.pageType == PageType.COURSE_DETAIL_PAGE) {
+  if (configuration.pageType == PageType.DETAIL) {
     return enqueueExtraction(crawlPage);
   }
 

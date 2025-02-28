@@ -210,7 +210,7 @@ export default function ExtractionDetail() {
               <div className="rounded-md border p-4 mt-2 flex items-center">
                 {extraction.dataItemsCount ? (
                   <Link
-                    to={`~/datasets/courses/${extraction.id}`}
+                    to={`~/datasets/items/${extraction.id}`}
                     className="flex items-center gap-4 w-full"
                   >
                     <div>

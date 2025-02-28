@@ -205,7 +205,11 @@ export async function findPageForJob(crawlPageId: number) {
     with: {
       extraction: {
         with: {
-          recipe: true,
+          recipe: {
+            with: {
+              catalogue: true,
+            },
+          },
         },
       },
       crawlStep: true,
@@ -260,7 +264,7 @@ export interface CreatePageOptions {
   crawlStepId: number;
   extractionId: number;
   url: string;
-  dataType: string;
+  pageType: PageType;
   content?: string;
   screenshot?: string;
   status?: PageStatus;
@@ -271,7 +275,7 @@ export async function createPage({
   extractionId,
   url,
   content,
-  dataType,
+  pageType,
   status,
   screenshot,
 }: CreatePageOptions) {
@@ -281,7 +285,7 @@ export async function createPage({
       crawlStepId,
       extractionId,
       content,
-      dataType,
+      pageType,
       url,
       screenshot,
       status: status || PageStatus.WAITING,
@@ -323,7 +327,7 @@ export async function createStepAndPages(
           crawlStepId: step.id,
           extractionId: createOptions.extractionId,
           url: pageCreateOptions.url,
-          dataType: createOptions.pageType,
+          pageType: createOptions.pageType,
         }))
       )
       .returning();
@@ -396,7 +400,7 @@ export async function getStepStats(crawlStepId: number) {
     .where(
       and(
         eq(crawlPages.crawlStepId, crawlStepId),
-        eq(crawlPages.dataType, PageType.COURSE_DETAIL_PAGE)
+        eq(crawlPages.pageType, PageType.DETAIL)
       )
     )
     .groupBy(
@@ -431,7 +435,7 @@ export async function findFailedAndNoDataPageIds(crawlStepId: number) {
       and(
         eq(crawlPages.crawlStepId, crawlStepId),
         eq(crawlPages.status, PageStatus.SUCCESS),
-        eq(crawlPages.dataType, PageType.COURSE_DETAIL_PAGE),
+        eq(crawlPages.pageType, PageType.DETAIL),
         isNotNull(crawlPages.dataExtractionStartedAt)
       )
     )

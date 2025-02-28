@@ -4,8 +4,8 @@ import CreateCatalogue from "./catalogues/create";
 import CatalogueDetail from "./catalogues/detail";
 import CatalogueCreateExtraction from "./catalogues/extract";
 import DatasetList from "./datasets";
-import DatasetCourses from "./datasets/courses";
 import DatasetDetail from "./datasets/detail";
+import DatasetItems from "./datasets/items";
 import Extractions from "./extractions";
 import ExtractionDetail from "./extractions/detail";
 import CrawlPageDetail from "./extractions/page";
@@ -59,7 +59,7 @@ export default function Routes() {
         <Route path="/" component={DatasetList} />
         <Switch>
           <Route path="/catalogue/:catalogueId" component={DatasetDetail} />
-          <Route path="/courses/:extractionId" component={DatasetCourses} />
+          <Route path="/items/:extractionId" component={DatasetItems} />
         </Switch>
       </Route>
       <Route path="/users" nest>

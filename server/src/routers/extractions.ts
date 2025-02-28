@@ -1,4 +1,4 @@
-import { ExtractionStatus } from "@common/types";
+import { CatalogueType, ExtractionStatus } from "@common/types";
 import { z } from "zod";
 import { publicProcedure, router } from ".";
 import { AppError, AppErrors } from "../appErrors";
@@ -9,6 +9,7 @@ import {
   findExtractions,
   findLogs,
   findPage,
+  findPageForJob,
   findPagesPaginated,
   findStep,
   getExtractionCount,
@@ -21,7 +22,7 @@ import {
   readMarkdownContent,
   readScreenshot,
 } from "../data/schema";
-import { extractCourseData } from "../extraction/llm/extractCourseData";
+import { extractEntityData } from "../extraction/llm/extractEntityData";
 import { retryFailedItems } from "../extraction/retryFailedItems";
 import { startExtraction } from "../extraction/startExtraction";
 
@@ -182,7 +183,7 @@ export const extractionsRouter = router({
       })
     )
     .mutation(async (opts) => {
-      const crawlPage = await findPage(opts.input.crawlPageId);
+      const crawlPage = await findPageForJob(opts.input.crawlPageId);
       if (!crawlPage) {
         throw new AppError("Page not found", AppErrors.NOT_FOUND);
       }
@@ -199,10 +200,13 @@ export const extractionsRouter = router({
         crawlPage.crawlStepId,
         crawlPage.id
       );
-      return await extractCourseData({
-        url: crawlPage.url,
-        content,
-        screenshot,
-      });
+      return await extractEntityData(
+        {
+          url: crawlPage.url,
+          content,
+          screenshot,
+        },
+        crawlPage.extraction.recipe.catalogue.catalogueType as CatalogueType
+      );
     }),
 });

@@ -1,3 +1,4 @@
+import { CatalogueType } from "@common/types";
 import { z } from "zod";
 import { publicProcedure, router } from ".";
 import {
@@ -44,10 +45,11 @@ export const cataloguesRouter = router({
         name: z.string().min(2),
         url: z.string().url(),
         thumbnailUrl: z.string().optional(),
+        catalogueType: z.nativeEnum(CatalogueType).optional(),
       })
     )
     .mutation(async (opts) => {
-      const { name, url, thumbnailUrl } = opts.input;
+      const { name, url, thumbnailUrl, catalogueType } = opts.input;
       const existingCatalogue = await findCatalogueByUrl(url);
       if (existingCatalogue) {
         return {
@@ -55,7 +57,12 @@ export const cataloguesRouter = router({
           existing: true,
         };
       }
-      const newCatalogue = await createCatalogue(name, url, thumbnailUrl);
+      const newCatalogue = await createCatalogue(
+        name,
+        url,
+        catalogueType,
+        thumbnailUrl
+      );
       return {
         id: newCatalogue.id,
         existing: false,

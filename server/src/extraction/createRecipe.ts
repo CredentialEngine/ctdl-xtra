@@ -26,7 +26,7 @@ export async function createRecipe(url: string, catalogueId: number) {
   if (!pageType) {
     message =
       "Page was not detected as a course catalogue index. Defaulting to home page type: course links.";
-    pageType = PageType.COURSE_LINKS_PAGE;
+    pageType = PageType.DETAIL_LINKS;
   }
   console.log(`Creating recipe`);
   const result = await startRecipe(catalogueId, url, pageType);
