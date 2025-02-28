@@ -24,6 +24,7 @@ const pageTypeDescriptions = {
   [PageType.COURSE_DETAIL_PAGE]:
     "It has names/descriptions for ALL the courses for an instution. " +
     "IF there is pagination, it is for pages of course descriptions.",
+  [PageType.API_REQUEST]: '',
 };
 
 function getUrlPath(urlString: string): string {

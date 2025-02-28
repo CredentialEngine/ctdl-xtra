@@ -15,6 +15,13 @@
       "when": 1727814665852,
       "tag": "0001_normal_beast",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1740068887238,
+      "tag": "0002_soft_outlaw_kid",
+      "breakpoints": true
     }
   ]
 }

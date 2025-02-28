@@ -8,6 +8,7 @@ import {
 } from "bullmq";
 import { default as IORedis } from "ioredis";
 import { closeCluster } from "../extraction/browser";
+import { Recipe } from "@/data/recipes";
 
 const REDIS_URL = process.env.REDIS_URL || "redis://localhost:6379";
 
@@ -157,6 +158,16 @@ export const Queues = {
     },
   }),
   ExtractData: new Queue<ExtractDataJob>("extractions.extractData", {
+    connection: getRedisConnection(),
+    defaultJobOptions: {
+      attempts: 3,
+      backoff: {
+        type: "exponential",
+        delay: 1000,
+      },
+    },
+  }),
+  ExtractDataWithAPI: new Queue<ExtractDataJob>("extractions.extractDataWithApi", {
     connection: getRedisConnection(),
     defaultJobOptions: {
       attempts: 3,
