@@ -46,6 +46,7 @@ export async function detectPagination(
     [PageType.DETAIL]:
       `It has names/descriptions for ALL the ${entity.pluralName} for an institution. ` +
       `IF there is pagination, it is for pages of ${entity.name} descriptions.`,
+    [PageType.API_REQUEST]: "",
   };
 
   const prompt = `

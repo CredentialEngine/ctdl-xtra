@@ -122,6 +122,7 @@ export default async function detectUrlRegexp(
     BAD
     /course-[number]?cat=ACCOUNTING&other=123
     `,
+    [PageType.API_REQUEST]: '',
   };
 
   const prompt = `
