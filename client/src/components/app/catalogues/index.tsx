@@ -25,7 +25,7 @@ const CatalogueListItem = (catalogue: {
   url: string;
   catalogueType: string;
   thumbnailUrl?: string | null;
-  recipes: Recipe[];
+  recipes: Omit<Recipe, "catalogue">[];
 }) => {
   const hasReadyRecipe = catalogue.recipes.some(
     (r) => r.status == RecipeDetectionStatus.SUCCESS

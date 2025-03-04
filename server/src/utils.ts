@@ -9,7 +9,7 @@ export async function exponentialRetry<T>(
     try {
       return await fn();
     } catch (error) {
-      console.error(error);
+      // console.error(error);
 
       console.log(
         `Exponential retries fn failed with error ${error}. Retrying`

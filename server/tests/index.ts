@@ -46,7 +46,10 @@ export async function assertConfiguration(
   url: string,
   expected: RecipeConfigurationWithSampleLinks
 ): Promise<void> {
-  const actual = await recursivelyDetectConfiguration(url);
+  const actual = await recursivelyDetectConfiguration(
+    url,
+    CatalogueType.COURSES
+  );
   console.log(inspect(actual));
 
   function compareConfigurations(

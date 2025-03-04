@@ -11,9 +11,10 @@ import {
 } from "../../openai";
 import { getCatalogueTypeDefinition } from "../catalogueTypes";
 
-export async function detectPageType(defaultOptions: DefaultLlmPageOptions) {
-  const catalogueType = defaultOptions.catalogueType || CatalogueType.COURSES;
-  const entity = getCatalogueTypeDefinition(catalogueType);
+export async function detectPageType(
+  defaultOptions: DefaultLlmPageOptions & { catalogueType: CatalogueType }
+) {
+  const entity = getCatalogueTypeDefinition(defaultOptions.catalogueType);
 
   const prompt = `
   You are an agent in a system that autonomously scrapes educational data from the internet.

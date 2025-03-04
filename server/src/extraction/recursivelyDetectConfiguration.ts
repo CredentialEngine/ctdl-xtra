@@ -1,4 +1,4 @@
-import { PageType, RecipeConfiguration } from "@common/types";
+import { CatalogueType, PageType, RecipeConfiguration } from "@common/types";
 import { inspect } from "util";
 import { bestOutOf, exponentialRetry, unique } from "../utils";
 import { fetchBrowserPage, simplifiedMarkdown } from "./browser";
@@ -10,8 +10,12 @@ import { Probes } from "./vendor-probes";
 const sample = <T>(arr: T[], sampleSize: number) =>
   arr.sort(() => 0.5 - Math.random()).slice(0, sampleSize);
 
-const detectConfiguration = async (url: string, pageData?: { content: string, screenshot: string }) => {
-  let { content, screenshot } = pageData || await fetchBrowserPage(url);
+const detectConfiguration = async (
+  url: string,
+  catalogueType: CatalogueType,
+  pageData?: { content: string; screenshot: string }
+) => {
+  let { content, screenshot } = pageData || (await fetchBrowserPage(url));
   const markdownContent = await simplifiedMarkdown(content);
   console.log(`Detecting page type for ${url}`);
   const pageType = await bestOutOf(
@@ -23,6 +27,7 @@ const detectConfiguration = async (url: string, pageData?: { content: string, sc
             url,
             content: markdownContent,
             screenshot: screenshot,
+            catalogueType,
           });
           return pageType;
         } catch (e) {
@@ -43,7 +48,12 @@ const detectConfiguration = async (url: string, pageData?: { content: string, sc
       exponentialRetry(
         async () =>
           detectPagination(
-            { url, content: markdownContent, screenshot: screenshot },
+            {
+              url,
+              content: markdownContent,
+              screenshot: screenshot,
+              catalogueType,
+            },
             pageType
           ),
         10
@@ -63,7 +73,12 @@ const detectConfiguration = async (url: string, pageData?: { content: string, sc
         exponentialRetry(
           async () =>
             detectUrlRegexp(
-              { url, content: markdownContent, screenshot: screenshot },
+              {
+                url,
+                content: markdownContent,
+                screenshot: screenshot,
+                catalogueType,
+              },
               pageType
             ),
           10
@@ -84,6 +99,7 @@ const detectConfiguration = async (url: string, pageData?: { content: string, sc
 
 const recursivelyDetectConfiguration = async (
   url: string,
+  catalogueType: CatalogueType,
   depth: number = 1
 ) => {
   if (depth > 3) {
@@ -97,13 +113,18 @@ const recursivelyDetectConfiguration = async (
   });
 
   if (apiReceipe) {
-    console.log(`API provider identified ${apiReceipe.apiProvider}. Skipping page format detection.`);
+    console.log(
+      `API provider identified ${apiReceipe.apiProvider}. Skipping page format detection.`
+    );
     return apiReceipe;
   }
 
   console.log("Detecting configuration for root page");
   const { content, linkRegexp, pageType, pagination } =
-    await detectConfiguration(url, { content: pageContent, screenshot });
+    await detectConfiguration(url, catalogueType, {
+      content: pageContent,
+      screenshot,
+    });
 
   const configuration: RecipeConfiguration = {
     pageType,
@@ -124,7 +145,9 @@ const recursivelyDetectConfiguration = async (
     console.log("Detecting configuration for sample child pages");
     console.log(`There are ${urls.length} URLs and we're sampling 5`);
     const samplePageConfigs = await Promise.all(
-      sample(urls, 5).map(async (url) => detectConfiguration(url))
+      sample(urls, 5).map(async (url) =>
+        detectConfiguration(url, catalogueType)
+      )
     );
 
     const mixedContent =
@@ -161,7 +184,9 @@ const recursivelyDetectConfiguration = async (
 
     console.log("Detecting configuration for sample child > child pages");
     const sampleChildPageConfigs = await Promise.all(
-      sample(childUrls, 5).map(async (url) => detectConfiguration(url))
+      sample(childUrls, 5).map(async (url) =>
+        detectConfiguration(url, catalogueType)
+      )
     );
 
     const mixedChildContent =
@@ -190,6 +215,7 @@ const recursivelyDetectConfiguration = async (
     } else if (childPage.pageType == PageType.CATEGORY_LINKS) {
       configuration.links.links.links = await recursivelyDetectConfiguration(
         childLinkPage.url,
+        catalogueType,
         depth + 1
       );
     }

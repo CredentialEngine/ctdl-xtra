@@ -52,8 +52,6 @@ export async function detectCatalogueType(
   ${defaultOptions.content}
 `;
 
-  console.log(prompt);
-
   const completionContent: ChatCompletionContentPart[] = [
     {
       type: "text",

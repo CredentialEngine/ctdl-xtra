@@ -1,4 +1,5 @@
-import { PageType } from "@common/types";
+import { CatalogueType, PageType } from "@common/types";
+import { findCatalogueById } from "../data/catalogues";
 import { startRecipe } from "../data/recipes";
 import { bestOutOf } from "../utils";
 import { Queues, submitJob } from "../workers";
@@ -11,6 +12,10 @@ export async function createRecipe(url: string, catalogueId: number) {
   const markdownContent = await simplifiedMarkdown(content);
   console.log(`Downloaded ${url}.`);
   console.log(`Detecting page type`);
+  const catalogue = await findCatalogueById(catalogueId);
+  if (!catalogue) {
+    throw new Error(`Catalogue not found: ${catalogueId}`);
+  }
   let pageType = await bestOutOf(
     5,
     () =>
@@ -18,6 +23,7 @@ export async function createRecipe(url: string, catalogueId: number) {
         url,
         content: markdownContent,
         screenshot,
+        catalogueType: catalogue.catalogueType as CatalogueType,
       }),
     (p) => p as string
   );

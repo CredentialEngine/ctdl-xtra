@@ -50,11 +50,13 @@ export async function setDefault(recipeId: number) {
   return result[0];
 }
 
-export async function findRecipeById(id: number): Promise<undefined | Recipe> {
-  const recipe = await db.query.recipes.findFirst({
+export async function findRecipeById(id: number) {
+  return await db.query.recipes.findFirst({
     where: (recipes, { eq }) => eq(recipes.id, id),
+    with: {
+      catalogue: true,
+    },
   });
-  return recipe as undefined | Recipe;
 }
 
 export async function startRecipe(

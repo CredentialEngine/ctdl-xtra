@@ -23,7 +23,7 @@ export type CrawlStep = ItemType<Extraction["crawlSteps"]>;
 export type CrawlPage = ItemType<
   RouterOutput["extractions"]["stepDetail"]["crawlPages"]["results"]
 >;
-export type DataItem = ItemType<RouterOutput["datasets"]["courses"]["results"]>;
+export type DataItem = ItemType<RouterOutput["datasets"]["items"]["results"]>;
 
 export enum ExtractionStatus {
   WAITING = "WAITING",

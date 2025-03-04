@@ -24,6 +24,7 @@ import { useToast } from "@/components/ui/use-toast";
 import {
   Catalogue,
   prettyPrintDate,
+  Recipe,
   RecipeDetectionStatus,
   trpc,
 } from "@/utils";
@@ -65,7 +66,7 @@ const RecipeList = ({ catalogue }: RecipeListProps) => {
                       : "— Draft"}
                   </div>
                   <div className="text-xs text-muted-foreground">
-                    {displayRecipeDetails(recipe)}
+                    {displayRecipeDetails(recipe as Recipe)}
                   </div>
                 </div>
                 {recipe.isDefault ? (
