@@ -15,14 +15,16 @@ import {
   TextInclusion,
 } from "@common/types";
 
-export async function createDataItem(
-  crawlPageId: number,
-  datasetId: number,
-  structuredData:
+export async function createDataItem<
+  T extends
     | CourseStructuredData
     | LearningProgramStructuredData
     | CompetencyStructuredData,
-  textInclusion: TextInclusion
+>(
+  crawlPageId: number,
+  datasetId: number,
+  structuredData: T,
+  textInclusion: TextInclusion<T>
 ) {
   const result = await db
     .insert(dataItems)

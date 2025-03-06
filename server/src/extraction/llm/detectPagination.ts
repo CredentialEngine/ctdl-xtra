@@ -2,6 +2,7 @@ import {
   CatalogueType,
   PageType,
   PaginationConfiguration,
+  RecipeConfiguration,
 } from "@common/types";
 import {
   ChatCompletionContentPart,
@@ -18,7 +19,6 @@ import {
   simpleToolCompletion,
 } from "../../openai";
 import { getCatalogueTypeDefinition } from "../catalogueTypes";
-
 function getUrlPath(urlString: string): string {
   try {
     const url = new URL(urlString);
@@ -30,7 +30,8 @@ function getUrlPath(urlString: string): string {
 
 export async function detectPagination(
   defaultOptions: DefaultLlmPageOptions & { catalogueType: CatalogueType },
-  pageType: PageType
+  pageType: PageType,
+  currentConfiguration?: RecipeConfiguration
 ): Promise<PaginationConfiguration | undefined> {
   const entity = getCatalogueTypeDefinition(defaultOptions.catalogueType);
 

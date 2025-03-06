@@ -461,7 +461,7 @@ const dataItems = pgTable(
         | CompetencyStructuredData
       >()
       .notNull(),
-    textInclusion: jsonb("text_inclusion").$type<TextInclusion>(),
+    textInclusion: jsonb("text_inclusion").$type<TextInclusion<any>>(),
     createdAt: timestamp("created_at").notNull().defaultNow(),
   },
   (t) => ({

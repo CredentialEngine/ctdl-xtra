@@ -1,4 +1,4 @@
-import { CatalogueType, PageType } from "@common/types";
+import { CatalogueType, PageType, RecipeConfiguration } from "@common/types";
 import {
   ChatCompletionContentPart,
   ChatCompletionMessageParam,
@@ -10,9 +10,9 @@ import {
   simpleToolCompletion,
 } from "../../openai";
 import { getCatalogueTypeDefinition } from "../catalogueTypes";
-
 export async function detectPageType(
-  defaultOptions: DefaultLlmPageOptions & { catalogueType: CatalogueType }
+  defaultOptions: DefaultLlmPageOptions & { catalogueType: CatalogueType },
+  currentConfiguration?: RecipeConfiguration
 ) {
   const entity = getCatalogueTypeDefinition(defaultOptions.catalogueType);
 
@@ -20,7 +20,7 @@ export async function detectPageType(
   You are an agent in a system that autonomously scrapes educational data from the internet.
 
   For this task, you're being given the content of a web page that we believe is relevant
-  for finding ${entity.description}.
+  for finding ${entity.pluralName} (${entity.description}) entities.
 
   Your goal is to identify the primary type of content that features in the page.
   There are descriptions for the content types we're looking for below.
@@ -33,7 +33,7 @@ export async function detectPageType(
      but you're looking for the main content section.
   3. When evaluating the main content section, go through it carefully and consider:
      - Is the content in the main section mostly links to individual ${entity.pluralName} such as ${entity.exampleIdentifier} (${entity.name} links page)?
-     - Is the content in the main section mostly links to category pages such as "${entity.properties[entity.name + "_domain"]?.description || "categories"}" (category links page)?
+     - Is the content in the main section mostly links to category pages (${entity.name} categories page)?
      - Is the content in the main section mostly details such as full descriptions for ${entity.pluralName} (${entity.name} detail page)?
      - Is the content something else that doesn't match the descriptions above?
      Sometimes the page may look like a mix of content. In that case:
@@ -53,37 +53,43 @@ export async function detectPageType(
   show up in the link (example: ${entity.exampleIdentifier}).
   Presumably, detailed information about the ${entity.pluralName} will be present in the destination links.
 
-  Example:
-
+  <example>
   ...
   # Main Content
 
-  [${entity.exampleIdentifier} - ${entity.exampleName}](preview_${entity.name}_nopop.php?catoid=7&coid=23568)
-  [${entity.exampleIdentifier.replace(/\d+$/, (n) => String(Number(n) + 1))} - Another ${entity.name}](preview_${entity.name}_nopop.php?catoid=7&coid=23569)
-  [${entity.exampleIdentifier.replace(/\d+$/, (n) => String(Number(n) + 2))} - Yet Another ${entity.name}](preview_${entity.name}_nopop.php?catoid=7&coid=23570)
+  [${entity.exampleIdentifier} - ${entity.exampleName}](${entity.name}.php?catoid=7&coid=1)
+  [${entity.exampleIdentifier.replace(/\d+$/, (n) => String(Number(n) + 1))} - Another ${entity.name}](${entity.name}.php?catoid=7&coid=2)
+  [${entity.exampleIdentifier.replace(/\d+$/, (n) => String(Number(n) + 2))} - Yet Another ${entity.name}](${entity.name}.php?catoid=7&coid=3)
   ...
 
   > page_type: ${PageType.DETAIL_LINKS}
   > Reason: The content is mostly links to specific ${entity.pluralName} like ${entity.exampleIdentifier}.
+  </example>
 
   page_type ${PageType.DETAIL}:
 
   ${entity.detailDescription}
   Unlike A, pretty much all information about the ${entity.pluralName} is already in the page.
   In other words, it doesn't have links to detail pages; it IS a detail page.
-  Information may include: identifier, description, and other specific details.
 
-  Example:
+  For ${entity.name}, we need the following fields:
 
+  ${Object.entries(entity.properties)
+    .map(([key, { description }]) => `${key}: ${description}`)
+    .join("\n")}
+
+  <example>
   ...
   # Main Content
 
-  ${entity.exampleIdentifier} ${entity.exampleName}
+  ## ${entity.exampleIdentifier}
+  ${entity.exampleName}
   ${entity.exampleDescription}
   ...
 
   > page_type: ${PageType.DETAIL}
   > Reason: The content is full details for ${entity.pluralName}.
+  </example>
 
   page_type ${PageType.CATEGORY_LINKS}:
 
@@ -91,8 +97,7 @@ export async function detectPageType(
   In other words, the page links to "categories" or "groups" of ${entity.pluralName}.
   We'll find more detailed ${entity.name} information if we navigate to those category pages.
 
-  Example:
-
+  <example>
   ...
   # Main Content
 
@@ -103,6 +108,7 @@ export async function detectPageType(
 
   > page_type: ${PageType.CATEGORY_LINKS}
   > Reason: The content is mostly links to generic subjects like "Accounting" and not to individual ${entity.pluralName}.
+  </example>
 
   Blank page_type:
 

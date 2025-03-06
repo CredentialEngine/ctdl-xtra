@@ -1,4 +1,4 @@
-import { CatalogueType, PageType } from "@common/types";
+import { CatalogueType, PageType, RecipeConfiguration } from "@common/types";
 import { ChatCompletionContentPart } from "openai/resources/chat/completions";
 import { DefaultLlmPageOptions } from ".";
 import { assertArray, assertString, simpleToolCompletion } from "../../openai";
@@ -21,7 +21,8 @@ export function createUrlExtractor(regexp: RegExp) {
 
 export default async function detectUrlRegexp(
   defaultOptions: DefaultLlmPageOptions & { catalogueType: CatalogueType },
-  dataType: PageType
+  dataType: PageType,
+  currentConfiguration?: RecipeConfiguration
 ) {
   if (dataType == PageType.DETAIL) {
     throw new Error("Invalid page data type.");
@@ -31,9 +32,9 @@ export default async function detectUrlRegexp(
 
   const descriptions = {
     [PageType.CATEGORY_LINKS]: `
-    CATEGORY LINKS
-
+    ${entity.name.toUpperCase()} CATEGORY LINKS
     ${entity.categoryDescription}
+
     In other words, the page links to "categories" or "groups" of ${entity.pluralName},
     and we'll find more detailed ${entity.name} information if we navigate to those category pages.
 
@@ -68,30 +69,29 @@ export default async function detectUrlRegexp(
     `,
 
     [PageType.DETAIL_LINKS]: `
-    ${entity.name.toUpperCase()} LINKS
-
+    ${entity.name.toUpperCase()} DETAIL LINKS
     ${entity.linkDescription}
+
     Typically those links include the ${entity.name} identifier and/or description.
     Presumably, more information about the ${entity.name} will be in the destination link.
 
     EXAMPLE ON HOW TO IDENTIFY THE ${entity.name.toUpperCase()} LINKS:
-
     ...
     Possibly links to other things (that are not ${entity.pluralName})... (we don't want these)
     ...
     ...
     # Main Content
 
-    [${entity.exampleIdentifier} - ${entity.exampleName}](${entity.name}.php?catoid=7&coid=23568)
-    [ACCT 102 - Managerial Accounting](${entity.name}.php?catoid=7&coid=23569)
-    [ACCT 106 - Payroll Accounting](${entity.name}.php?catoid=7&coid=23570)
-    [ACCT 118 - Financial Concepts for Accounting](${entity.name}.php?catoid=7&coid=23571)
-    [ACCT 122 - Accounting Systems Applications](${entity.name}.php?catoid=7&coid=23572)
+    [${entity.exampleIdentifier} - ${entity.exampleName}](link to detail page)
+    [ACCT 102 - Managerial Accounting](link to detail page)
+    [ACCT 106 - Payroll Accounting](link to detail page)
+    [ACCT 118 - Financial Concepts for Accounting](link to detail page)
+    [ACCT 122 - Accounting Systems Applications](link to detail page)
     ...
     Possibly links to other things (that are not ${entity.pluralName})... (we don't want these)
     ...
 
-    VERY IMPORTANT NOTE (PLEASE READ):
+    VERY IMPORTANT NOTE:
 
     You must find a pattern that is generic to ${entity.name} detail links.
     Let's say for example that the page has 30 links and they're all like this:
@@ -124,6 +124,8 @@ export default async function detectUrlRegexp(
 
     BAD
     /${entity.name}-[number]?cat=ACCOUNTING&other=123
+
+    AVOID SPECIFIC CATEGORIES IN LINKS AND LOOK FOR GENERIC ONES!
     `,
     [PageType.API_REQUEST]: "",
   };
@@ -157,6 +159,8 @@ export default async function detectUrlRegexp(
     Note that these are just examples!
     There will be different patterns and links in different pages.
 
+    Hypothetically, if we were looking for course links, we might have:
+
     Content:
     [Course Page A](course_page.php?id=1)
     [Course Page B](course_page.php?id=2)
@@ -184,7 +188,9 @@ export default async function detectUrlRegexp(
 
     VERY IMPORTANT NOTE:
     - it's obvious, but the URLs detected by your regexp should be in the page content!
-    The exmaples above are EXAMPLES. Don't just blindly submit them again.
+    The examples above are EXAMPLES. Don't just blindly submit them again.
+
+
 
     PAGE CONTENT
     ============

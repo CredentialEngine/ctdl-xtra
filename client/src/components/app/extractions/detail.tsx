@@ -140,7 +140,7 @@ export default function ExtractionDetail() {
     totalExtractionsPossible = 0,
     totalExtractionsAttempted = 0,
     totalExtractionErrors = 0,
-    totalCourses = 0;
+    totalItems = 0;
   for (const step of extraction.completionStats?.steps || []) {
     totalDownloads += step.downloads.total;
     totalDownloadsAttempted += step.downloads.attempted;
@@ -149,7 +149,7 @@ export default function ExtractionDetail() {
     totalExtractionsAttempted += step.extractions.attempted;
     totalExtractionErrors +=
       step.extractions.attempted - step.extractions.succeeded;
-    totalCourses += step.extractions.courses;
+    totalItems += step.extractions.courses;
   }
 
   // if we dont have a generated at, just use the current date
@@ -357,11 +357,11 @@ export default function ExtractionDetail() {
               </CardHeader>
               <CardContent>
                 <div className="grid auto-rows-min gap-2">
-                  {totalCourses ? (
+                  {totalItems ? (
                     <div className="flex items-baseline gap-1 text-2xl font-bold tabular-nums leading-none">
-                      {totalCourses}
+                      {totalItems}
                       <span className="text-sm font-normal">
-                        Courses extracted
+                        Items extracted
                       </span>
                     </div>
                   ) : null}

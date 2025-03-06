@@ -4,7 +4,6 @@ import { SimplifiedMarkdown } from "../../types";
 import { getCatalogueTypeDefinition } from "../catalogueTypes";
 import { shouldChunk, splitChunks } from "../splitChunks";
 import { extractEntityData } from "./extractEntityData";
-import { focusedExtractEntityData } from "./focusedExtractEntityData";
 
 export function preprocessText(text: string): string {
   return text
@@ -17,14 +16,14 @@ async function reportTextInclusion(
   entity: Record<string, any>,
   content: string,
   catalogueType: CatalogueType
-): Promise<TextInclusion> {
-  const result: TextInclusion = {} as TextInclusion;
+): Promise<TextInclusion<any>> {
+  const result: TextInclusion<any> = {} as TextInclusion<any>;
   const entityDef = getCatalogueTypeDefinition(catalogueType);
 
   for (const [key, value] of Object.entries(entity)) {
     if (value !== undefined && value !== null) {
       const preprocessedValue = preprocessText(String(value));
-      result[key as keyof TextInclusion] = {
+      result[key] = {
         full: content.includes(preprocessedValue),
       };
     }
@@ -34,7 +33,7 @@ async function reportTextInclusion(
 }
 
 const passesVerification = (
-  textInclusion: TextInclusion,
+  textInclusion: TextInclusion<any>,
   catalogueType: CatalogueType
 ) => {
   const entityDef = getCatalogueTypeDefinition(catalogueType);
@@ -44,9 +43,7 @@ const passesVerification = (
     .map(([key]) => key);
 
   return requiredFields.every(
-    (field) =>
-      !textInclusion[field as keyof TextInclusion] ||
-      textInclusion[field as keyof TextInclusion].full
+    (field) => !textInclusion[field] || textInclusion[field].full
   );
 };
 
@@ -68,13 +65,13 @@ async function verifyAndRetryExtraction(
     retryCount < MAX_RETRIES &&
     !passesVerification(textInclusion, catalogueType)
   ) {
-    const focusedEntityData = await focusedExtractEntityData(
+    const focusedEntityData = await extractEntityData(
       options,
-      entity,
-      catalogueType
+      catalogueType,
+      entity
     );
-    if (focusedEntityData) {
-      entity = focusedEntityData;
+    if (focusedEntityData?.length) {
+      entity = focusedEntityData[0];
       textInclusion = await reportTextInclusion(
         entity,
         preprocessedContent,
@@ -90,6 +87,9 @@ async function verifyAndRetryExtraction(
 async function maybeChunkContent(
   options: DefaultLlmPageOptions
 ): Promise<DefaultLlmPageOptions[]> {
+  if (options.catalogueType !== CatalogueType.COURSES) {
+    return [options];
+  }
   const willChunk = await shouldChunk(options);
   if (willChunk) {
     const chunks = await splitChunks(options);

@@ -15,6 +15,10 @@ export const ModelPrices = {
     per1MInput: 5.0,
     per1MOutput: 15.0,
   },
+  [ProviderModel.O3Mini]: {
+    per1MInput: 1.1,
+    per1MOutput: 4.4,
+  },
 };
 
 export class BadToolCallResponseError extends Error {}
@@ -60,6 +64,7 @@ export async function simpleToolCompletion<
   messages: Array<ChatCompletionMessageParam>;
   toolName: string;
   parameters: T;
+  model?: ProviderModel;
   requiredParameters?: Array<keyof T>;
   logApiCall?: {
     callSite: string;
@@ -75,7 +80,7 @@ export async function simpleToolCompletion<
     let chatCompletion: ChatCompletion;
     const completionOptions: ChatCompletionCreateParams = {
       messages: options.messages,
-      model: ProviderModel.Gpt4o,
+      model: options.model || ProviderModel.Gpt4o,
       tools: [
         {
           type: "function",

@@ -111,18 +111,19 @@ export const catalogueTypes: Record<CatalogueType, CatalogueTypeDefinition> = {
     exampleDescription:
       "A comprehensive program that prepares students for careers in software development and computer systems.",
     properties: {
-      program_id: {
-        description: 'code/identifier for the program (example: "BSCS")',
+      learning_program_id: {
+        description:
+          'code/identifier for the learning program (example: "BSCS")',
         required: true,
       },
-      program_name: {
+      learning_program_name: {
         description:
-          'name for the program (for example "Bachelor of Science in Computer Science")',
+          'name for the learning program (example: "Bachelor of Science in Computer Science")',
         required: true,
       },
-      program_description: {
+      learning_program_description: {
         description:
-          "the full description of the program. If there are links, only extract the text.",
+          "the full description of the learning program. If there are links, only extract the text.",
         required: true,
       },
     },

@@ -1,7 +1,7 @@
 import {
   CatalogueType,
   CourseStructuredData,
-  TextInclusion,
+  LearningProgramStructuredData,
 } from "@common/types";
 import { format } from "fast-csv";
 import { Transform } from "stream";
@@ -80,7 +80,24 @@ function getLearningProgramRow(
   textVerificationAverage: number,
   textVerificationDetails: string
 ) {
-  throw new Error("Not implemented");
+  // columns are:
+  // External Identifier,	Learning Type,	Learning Opportunity Name,	Description	Subject Webpage,	Life Cycle, Status, Type,	Language,	Available Online At
+  // example row:
+  // Academic Curriculum	Learning Program	Academic Curriculum	The Associate in Arts and the Associate in Science degrees can give you a good start before transferring to a four-year university.	https://www.hccs.edu/programs/areas-of-study/academic-curriculum/	Active	English	https://www.hccs.edu/programs/areas-of-study/academic-curriculum/
+
+  const structuredData = item.structuredData as LearningProgramStructuredData;
+  return {
+    "External Identifier": structuredData.learning_program_id,
+    "Learning Type": "Learning Program",
+    "Learning Opportunity Name": structuredData.learning_program_name,
+    Description: structuredData.learning_program_description,
+    "Subject Webpage": item.url,
+    "Life Cycle Status Type": "Active",
+    Language: "English",
+    "Available Online At": item.url,
+    "Text Verification Average": (textVerificationAverage * 100).toFixed(2),
+    "Text Verification Details": textVerificationDetails,
+  };
 }
 
 function getCompetencyRow(
@@ -104,15 +121,14 @@ function getBulkUploadTemplateRow(
     textVerificationAverage =
       textVerificationFields.length > 0
         ? textVerificationFields.reduce(
-            (sum, field) =>
-              sum + (textInclusion[field as keyof TextInclusion]?.full ? 1 : 0),
+            (sum, field) => sum + (textInclusion[field]?.full ? 1 : 0),
             0
           ) / textVerificationFields.length
         : 0;
     textVerificationDetails = textVerificationFields
       .map(
         (field) =>
-          `${field}: ${textInclusion[field as keyof TextInclusion]?.full ? "Present" : "Not present"}`
+          `${field}: ${textInclusion[field]?.full ? "Present" : "Not present"}`
       )
       .join("\n");
   }

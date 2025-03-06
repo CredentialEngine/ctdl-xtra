@@ -52,6 +52,7 @@ export enum Provider {
 
 export enum ProviderModel {
   Gpt4o = "gpt-4o",
+  O3Mini = "o3-mini",
 }
 
 export enum ExtractionStatus {
@@ -99,15 +100,16 @@ export interface CourseStructuredData {
   course_prerequisites?: string;
 }
 
-export interface LearningProgramStructuredData {}
+export interface LearningProgramStructuredData {
+  learning_program_id: string;
+  learning_program_name: string;
+  learning_program_description: string;
+}
 
 export interface CompetencyStructuredData {}
 
-export type TextInclusion = {
-  [K in
-    | keyof CourseStructuredData
-    | keyof LearningProgramStructuredData
-    | keyof CompetencyStructuredData]: { full: boolean };
+export type TextInclusion<T> = {
+  [K in keyof T]: { full: boolean };
 };
 
 export interface StepCompletionStats {

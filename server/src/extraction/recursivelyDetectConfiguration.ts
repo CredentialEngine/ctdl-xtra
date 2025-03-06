@@ -13,22 +13,26 @@ const sample = <T>(arr: T[], sampleSize: number) =>
 const detectConfiguration = async (
   url: string,
   catalogueType: CatalogueType,
-  pageData?: { content: string; screenshot: string }
+  pageData?: { content: string; screenshot: string },
+  currentConfiguration?: RecipeConfiguration
 ) => {
   let { content, screenshot } = pageData || (await fetchBrowserPage(url));
   const markdownContent = await simplifiedMarkdown(content);
   console.log(`Detecting page type for ${url}`);
   const pageType = await bestOutOf(
-    5,
+    10,
     () =>
       exponentialRetry(async () => {
         try {
-          const pageType = await detectPageType({
-            url,
-            content: markdownContent,
-            screenshot: screenshot,
-            catalogueType,
-          });
+          const pageType = await detectPageType(
+            {
+              url,
+              content: markdownContent,
+              screenshot: screenshot,
+              catalogueType,
+            },
+            currentConfiguration
+          );
           return pageType;
         } catch (e) {
           console.log(`Error detecting page type for ${url}: ${inspect(e)}`);
@@ -43,7 +47,7 @@ const detectConfiguration = async (
   }
   console.log(`Detecting pagination for ${url}`);
   const pagination = await bestOutOf(
-    5,
+    10,
     () =>
       exponentialRetry(
         async () =>
@@ -54,7 +58,8 @@ const detectConfiguration = async (
               screenshot: screenshot,
               catalogueType,
             },
-            pageType
+            pageType,
+            currentConfiguration
           ),
         10
       ),
@@ -68,7 +73,7 @@ const detectConfiguration = async (
   ) {
     console.log(`Detecting regexp for ${url}`);
     linkRegexp = await bestOutOf(
-      5,
+      3,
       () =>
         exponentialRetry(
           async () =>
@@ -79,7 +84,8 @@ const detectConfiguration = async (
                 screenshot: screenshot,
                 catalogueType,
               },
-              pageType
+              pageType,
+              currentConfiguration
             ),
           10
         ),
@@ -100,7 +106,8 @@ const detectConfiguration = async (
 const recursivelyDetectConfiguration = async (
   url: string,
   catalogueType: CatalogueType,
-  depth: number = 1
+  depth: number = 1,
+  currentConfiguration?: RecipeConfiguration
 ) => {
   if (depth > 3) {
     throw new Error("Exceeded max category depth");
@@ -146,7 +153,7 @@ const recursivelyDetectConfiguration = async (
     console.log(`There are ${urls.length} URLs and we're sampling 5`);
     const samplePageConfigs = await Promise.all(
       sample(urls, 5).map(async (url) =>
-        detectConfiguration(url, catalogueType)
+        detectConfiguration(url, catalogueType, undefined, currentConfiguration)
       )
     );
 
@@ -185,7 +192,7 @@ const recursivelyDetectConfiguration = async (
     console.log("Detecting configuration for sample child > child pages");
     const sampleChildPageConfigs = await Promise.all(
       sample(childUrls, 5).map(async (url) =>
-        detectConfiguration(url, catalogueType)
+        detectConfiguration(url, catalogueType, undefined, currentConfiguration)
       )
     );
 
@@ -216,7 +223,8 @@ const recursivelyDetectConfiguration = async (
       configuration.links.links.links = await recursivelyDetectConfiguration(
         childLinkPage.url,
         catalogueType,
-        depth + 1
+        depth + 1,
+        configuration
       );
     }
 

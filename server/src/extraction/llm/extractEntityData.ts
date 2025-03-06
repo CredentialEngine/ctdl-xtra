@@ -126,7 +126,8 @@ ${key}: ${prop.description}${prop.required ? " (REQUIRED)" : ""}`;
 
 export async function extractEntityData(
   options: DefaultLlmPageOptions,
-  catalogueType: CatalogueType
+  catalogueType: CatalogueType,
+  entity?: Record<string, any>
 ): Promise<
   | CourseStructuredData[]
   | LearningProgramStructuredData[]
@@ -145,8 +146,24 @@ ${(options.additionalContext.context ?? []).join("\n")}
 `
     : "";
 
+  const entityPrompt = entity
+    ? `Your goal is to extract ${entityDef.name} data from this page for one specific ${entityDef.name}.
+
+In a previous step, we asked you to extract the data, but we noticed there was an issue
+with the ${entityDef.name} data.
+
+Note you must extract data for the ${entityDef.name} EXACTLY as it is in the page, without adding or
+removing anything.
+
+Your previous extraction (INCORRECT) was:
+
+${JSON.stringify(entity)}
+
+Pay attention to the page content and extract it correctly this time.`
+    : `Your goal is to extract ${entityDef.name} data from this page.`;
+
   const prompt = `
-Your goal is to extract ${entityDef.name} data from this page.
+${entityPrompt}
 
 ${basePrompt}
 
@@ -187,8 +204,8 @@ ${options.content}
 
   for (const [key, prop] of Object.entries(entityDef.properties)) {
     if (
-      key === `${entityDef.name}_credits_type` &&
-      catalogueType === CatalogueType.COURSES
+      catalogueType === CatalogueType.COURSES &&
+      key.includes("credits_type")
     ) {
       entityProperties[key] = {
         type: "string",
@@ -207,9 +224,9 @@ ${options.content}
 
   const result = await simpleToolCompletion({
     messages,
-    toolName: `${entityDef.name}_data`,
+    toolName: "submit_extracted_data",
     parameters: {
-      [`${entityDef.pluralName}`]: {
+      items: {
         type: "array",
         items: {
           type: "object",
@@ -218,11 +235,11 @@ ${options.content}
         },
       },
     },
-    requiredParameters: [`${entityDef.pluralName}`],
+    requiredParameters: ["items"],
     logApiCall: options?.logApiCalls
       ? {
           extractionId: options.logApiCalls.extractionId,
-          callSite: `extract${entityDef.name.charAt(0).toUpperCase() + entityDef.name.slice(1)}DataItem`,
+          callSite: "extractEntityData",
         }
       : undefined,
   });
@@ -233,7 +250,7 @@ ${options.content}
 
   const entities = assertArray<Record<string, any>>(
     result.toolCallArgs,
-    `${entityDef.pluralName}`
+    "items"
   );
 
   return entities
