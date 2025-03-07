@@ -221,9 +221,10 @@ export async function findPageForJob(crawlPageId: number) {
   return result;
 }
 
-export async function findPageByUrl(url: string) {
+export async function findPageByUrl(extractionId: number, url: string) {
   const result = await db.query.crawlPages.findFirst({
-    where: (crawlPages, { eq }) => eq(crawlPages.url, url),
+    where: (crawlPages, { eq, and }) =>
+      and(eq(crawlPages.url, url), eq(crawlPages.extractionId, extractionId)),
     with: {
       crawlStep: {
         with: {

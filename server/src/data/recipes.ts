@@ -79,6 +79,24 @@ export async function startRecipe(
   return result[0];
 }
 
+export async function createRecipe(
+  catalogueId: number,
+  url: string,
+  configuration: RecipeConfiguration
+) {
+  const result = await db
+    .insert(recipes)
+    .values({
+      catalogueId,
+      url,
+      isDefault: false,
+      configuration,
+      status: RecipeDetectionStatus.SUCCESS,
+    })
+    .returning({ id: recipes.id });
+  return result[0];
+}
+
 export async function updateRecipe(
   recipeId: number,
   updateAttributes: SQLiteUpdateSetSource<typeof recipes>

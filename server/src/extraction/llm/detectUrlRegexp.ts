@@ -19,10 +19,17 @@ export function createUrlExtractor(regexp: RegExp) {
   };
 }
 
+export interface AdditionalPage {
+  content: SimplifiedMarkdown;
+  url: string;
+  screenshot: string;
+}
+
 export default async function detectUrlRegexp(
   defaultOptions: DefaultLlmPageOptions & { catalogueType: CatalogueType },
   dataType: PageType,
-  currentConfiguration?: RecipeConfiguration
+  currentConfiguration?: RecipeConfiguration,
+  additionalPages?: AdditionalPage[]
 ) {
   if (dataType == PageType.DETAIL) {
     throw new Error("Invalid page data type.");
@@ -125,41 +132,37 @@ export default async function detectUrlRegexp(
     BAD
     /${entity.name}-[number]?cat=ACCOUNTING&other=123
 
-    AVOID SPECIFIC CATEGORIES IN LINKS AND LOOK FOR GENERIC ONES!
+    On the other hand, you should avoid regexps that will link to a wide variety of pages outside
+    of ${entity.pluralName} detail pages.
     `,
     [PageType.API_REQUEST]: "",
   };
 
   const prompt = `
-    This document has a list of links to detail pages of a certain type:
+    ${
+      additionalPages
+        ? `
+      The following webpages all have lists of links to detail pages of a certain type.
+      `
+        : `The following webpage has a list of links to detail pages of a certain type.`
+    }
 
-    ${descriptions[dataType]}
+    Your goal is to create a single JS regexp that will find all the URLs of those links.
 
-    Your goal is to create a JS regexp for all the URLs of those links.
     Go through the content carefully and think about a regexp that finds all the links
     with the type above.
+
     We are going to use it like this:
 
     > const detailUrls = content.match(new RegExp(regexp, "g"));
 
-    Break down your reasoning for creating the regexp.
+    DESCRIPTION OF THE LINKS
+    ========================
 
-    IMPORTANT
-    =========
-    - only extract links for the type we mentioned above.
-    - do not attempt to transform links in any way.
-    - do not add any extra characters to the links.
-    - we will run the regexp as you give it, on the content we gave you.
-    - only submit one tool call with one regexp and total_links.
-      There must be one regexp for all the links.
-    - example_matches: some example matches that we should find when running your regexp. Max 5 examples.
+    ${descriptions[dataType]}
 
-    EXAMPLES
-    ========
-    Note that these are just examples!
-    There will be different patterns and links in different pages.
-
-    Hypothetically, if we were looking for course links, we might have:
+    GUIDELINES FOR REGEXP CREATION
+    ==============================
 
     Content:
     [Course Page A](course_page.php?id=1)
@@ -185,17 +188,40 @@ export default async function detectUrlRegexp(
     [Course Page C](www.blablabla.com/course_page.php?id=3)
     Regexp: www\.blablabla\.com\/course_page\.php\?id=\d+
 
-
-    VERY IMPORTANT NOTE:
+    IMPORTANT
+    =========
+    - only extract links for the type we mentioned above.
+    - do not attempt to transform links in any way.
+    - do not add any extra characters to the links.
+    - we will run the regexp as you give it, on the content we gave you.
+    - only submit one tool call with one regexp and total_links.
+      There must be one regexp for all the links.
+    - example_matches: some example matches that we should find when running your regexp. Max 5 examples.
     - it's obvious, but the URLs detected by your regexp should be in the page content!
-    The examples above are EXAMPLES. Don't just blindly submit them again.
+    - if we give you multiple pages, make sure the single regexp works for all of them.
 
+    The examples are EXAMPLES. Don't just blindly submit those as an answer. Create a regexp for the specific
+    page content we give you.
 
-
-    PAGE CONTENT
-    ============
-
+    <page_content>
     ${defaultOptions.content}
+    </page_content>
+
+        ${
+          additionalPages
+            ? `
+    ${additionalPages
+      .map(
+        (p) => `
+    <page_content>
+    ${p.content}
+    </page_content>
+    `
+      )
+      .join("\n")}
+    `
+            : null
+        }
   `;
 
   const completionContent: ChatCompletionContentPart[] = [
@@ -252,9 +278,22 @@ export default async function detectUrlRegexp(
   console.log(`Example matches is ${exampleMatches}`);
   const regexp = new RegExp(regexpStr, "g");
 
-  const urls = defaultOptions.content.match(regexp) || [];
-  if (!exampleMatches.every((u) => urls.find((u2) => u2 == u))) {
+  const mainContentUrls = [...(defaultOptions.content.match(regexp) || [])];
+  const additionalContentUrls =
+    additionalPages?.flatMap((p) => p.content.match(regexp) || []) || [];
+
+  const allContentUrls = Array.from(
+    new Set([...mainContentUrls, ...additionalContentUrls])
+  );
+
+  const notFoundExamples = exampleMatches.filter(
+    (u) => !allContentUrls.includes(u)
+  );
+
+  if (notFoundExamples.length > 0) {
+    console.error("Examples not found:", notFoundExamples);
     throw new Error("Could not find every example");
   }
+
   return regexp;
 }

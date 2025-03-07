@@ -1,4 +1,4 @@
-import { PageType } from "@common/types";
+import { PageType, UrlPatternType } from "@common/types";
 import { describe, test } from "vitest";
 import { assertConfiguration, RECIPE_TIMEOUT } from "..";
 
@@ -25,7 +25,7 @@ describe(
             totalPages: 24,
             urlPattern:
               "https://catalog.ivytech.edu/content.php?catoid=7&navoid=771&filter[cpage]={page_num}",
-            urlPatternType: "page_num",
+            urlPatternType: UrlPatternType.page_num,
           },
         }
       );
@@ -46,7 +46,7 @@ describe(
             "preview_course_nopop.php?catoid=35&coid=789",
           ],
           pagination: {
-            urlPatternType: "page_num",
+            urlPatternType: UrlPatternType.page_num,
             totalPages: 55,
             urlPattern:
               "http://coursecatalog.syr.edu/content.php?catoid=35&navoid=4525&filter%5Bcpage%5D={page_num}",
@@ -70,7 +70,7 @@ describe(
             "preview_course.php?catoid=225&coid=789",
           ],
           pagination: {
-            urlPatternType: "page_num",
+            urlPatternType: UrlPatternType.page_num,
             totalPages: 61,
             urlPattern:
               "https://catalog.upp.pitt.edu/content.php?catoid=225&navoid=23279&filter%5Bcpage%5D={page_num}",

@@ -18,6 +18,7 @@ import {
 } from ".";
 import {
   createStepAndPages,
+  findPageByUrl,
   findPageForJob,
   updateExtraction,
   updatePage,
@@ -50,7 +51,7 @@ const constructPaginatedUrls = (configuration: PaginationConfiguration) => {
 async function enqueueExtraction(
   crawlPage: Awaited<ReturnType<typeof findPageForJob>>
 ) {
-  console.log(`Enqueuing extraction for page ${crawlPage.id}`);
+  console.log(`Enqueuing extraction for page ${crawlPage.url}`);
   return submitJob(
     Queues.ExtractData,
     { crawlPageId: crawlPage.id },
@@ -63,7 +64,7 @@ async function enqueuePages(
   crawlPage: Awaited<ReturnType<typeof findPageForJob>>,
   catalogueType: CatalogueType
 ) {
-  console.log(`Enqueuing page fetches for page ${crawlPage.id}`);
+  console.log(`Enqueuing page fetches for page ${crawlPage.url}`);
 
   const pageCount = await detectPageCount(
     {
@@ -97,7 +98,7 @@ async function enqueuePages(
   const pageUrls = constructPaginatedUrls(updatedPagination);
 
   if (!pageUrls.length) {
-    console.log(`No paginated pages found for page ${crawlPage.id}`);
+    console.log(`No paginated pages found for page ${crawlPage.url}`);
     return;
   }
 
@@ -123,7 +124,7 @@ async function processLinks(
   configuration: RecipeConfiguration,
   crawlPage: Awaited<ReturnType<typeof findPageForJob>>
 ) {
-  console.log(`Processing links for page ${crawlPage.id}`);
+  console.log(`Processing links for page ${crawlPage.url}`);
 
   const regexp = new RegExp(configuration.linkRegexp!, "g");
   const extractor = createUrlExtractor(regexp);
@@ -132,10 +133,20 @@ async function processLinks(
     crawlPage.crawlStepId,
     crawlPage.id
   );
-  const urls = await extractor(crawlPage.url, content);
+  const extractedUrls = await extractor(crawlPage.url, content);
+  let urls = [];
+
+  for (const url of extractedUrls) {
+    const page = await findPageByUrl(crawlPage.extractionId, url);
+    if (!page) {
+      urls.push(url);
+    } else {
+      console.log(`Skipping ${url} because it has already been fetched`);
+    }
+  }
 
   if (!urls.length) {
-    console.log(`No URLs found for page ${crawlPage.id}`);
+    console.log(`No URLs found for page ${crawlPage.url}`);
     return;
   }
 
@@ -205,7 +216,7 @@ export default createProcessor<FetchPageJob, FetchPageProgress>(
     }
 
     try {
-      console.log(`Loading ${crawlPage.url} for page ${crawlPage.id}`);
+      console.log(`Loading ${crawlPage.url} for page ${crawlPage.url}`);
       await updatePage(crawlPage.id, { status: PageStatus.IN_PROGRESS });
       const page = await fetchBrowserPage(crawlPage.url);
       if (page.status == 404) {

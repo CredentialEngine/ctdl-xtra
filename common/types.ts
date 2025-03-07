@@ -15,7 +15,10 @@ export enum ApiProvider {
   Coursedog = "Coursedog",
 }
 
-export type UrlPatternType = "page_num" | "offset";
+export enum UrlPatternType {
+  page_num = "page_num",
+  offset = "offset",
+}
 
 export interface PaginationConfiguration {
   urlPatternType: UrlPatternType;

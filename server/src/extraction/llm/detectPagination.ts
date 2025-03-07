@@ -3,6 +3,7 @@ import {
   PageType,
   PaginationConfiguration,
   RecipeConfiguration,
+  UrlPatternType,
 } from "@common/types";
 import {
   ChatCompletionContentPart,
@@ -169,7 +170,7 @@ ${defaultOptions.content}
 
   const totalPages = assertNumber(toolCall, "total_pages");
   return {
-    urlPatternType,
+    urlPatternType: urlPatternType as UrlPatternType,
     urlPattern,
     totalPages,
   };

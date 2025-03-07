@@ -132,6 +132,10 @@ export async function simplifyHtml(html: string) {
       $elm.remove();
       continue;
     }
+    if (["nav", "header", "footer"].includes(elm.tagName)) {
+      $elm.remove();
+      continue;
+    }
     // CourseDog: convert buttons to links
     if (elm.tagName === "button" && $elm.attr("number")) {
       const pageNum = $elm.attr("number");

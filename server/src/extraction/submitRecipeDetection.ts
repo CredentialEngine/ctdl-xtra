@@ -6,7 +6,7 @@ import { Queues, submitJob } from "../workers";
 import { fetchBrowserPage, simplifiedMarkdown } from "./browser";
 import { detectPageType } from "./llm/detectPageType";
 
-export async function createRecipe(url: string, catalogueId: number) {
+export async function submitRecipeDetection(url: string, catalogueId: number) {
   console.log(`Fetching ${url}`);
   const { content, screenshot } = await fetchBrowserPage(url);
   const markdownContent = await simplifiedMarkdown(content);
