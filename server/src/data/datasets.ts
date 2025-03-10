@@ -8,13 +8,23 @@ import {
   extractions,
 } from "./schema";
 
-import { CourseStructuredData, TextInclusion } from "@common/types";
+import {
+  CompetencyStructuredData,
+  CourseStructuredData,
+  LearningProgramStructuredData,
+  TextInclusion,
+} from "@common/types";
 
-export async function createDataItem(
+export async function createDataItem<
+  T extends
+    | CourseStructuredData
+    | LearningProgramStructuredData
+    | CompetencyStructuredData,
+>(
   crawlPageId: number,
   datasetId: number,
-  structuredData: CourseStructuredData,
-  textInclusion: TextInclusion
+  structuredData: T,
+  textInclusion: TextInclusion<T>
 ) {
   const result = await db
     .insert(dataItems)

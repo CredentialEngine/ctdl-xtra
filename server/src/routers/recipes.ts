@@ -1,19 +1,22 @@
-import { PageType } from "@common/types";
+import { bestOutOf, exponentialRetry } from "@/utils";
+import { CatalogueType, PageType, UrlPatternType } from "@common/types";
 import { z } from "zod";
 import { publicProcedure, router } from ".";
 import { AppError, AppErrors } from "../appErrors";
 import {
+  createRecipe,
   destroyRecipe,
   findRecipeById,
   setDefault,
   updateRecipe,
 } from "../data/recipes";
-import { createRecipe } from "../extraction/createRecipe";
+import { fetchBrowserPage, simplifiedMarkdown } from "../extraction/browser";
+import { detectPagination } from "../extraction/llm/detectPagination";
+import detectUrlRegexp, {
+  createUrlExtractor,
+} from "../extraction/llm/detectUrlRegexp";
+import { submitRecipeDetection } from "../extraction/submitRecipeDetection";
 import { Queues, submitJob } from "../workers";
-
-enum UrlPatternType {
-  page_num = "page_num",
-}
 
 const PaginationConfigurationSchema = z.object({
   urlPatternType: z.nativeEnum(UrlPatternType),
@@ -43,10 +46,36 @@ export const recipesRouter = router({
       z.object({
         url: z.string().url(),
         catalogueId: z.number().int().positive(),
+        configuration: RecipeConfigurationSchema.optional(),
       })
     )
-    .mutation(async (opts) =>
-      createRecipe(opts.input.url, opts.input.catalogueId)
+    .mutation(
+      async (
+        opts
+      ): Promise<{
+        id: number;
+        context?: { pageType: PageType; message?: string };
+      }> => {
+        if (opts.input.configuration) {
+          return createRecipe(
+            opts.input.catalogueId,
+            opts.input.url,
+            opts.input.configuration
+          );
+        } else {
+          const detection = await submitRecipeDetection(
+            opts.input.url,
+            opts.input.catalogueId
+          );
+          return {
+            id: detection.id,
+            context: {
+              pageType: detection.pageType,
+              message: detection.message ?? undefined,
+            },
+          };
+        }
+      }
     ),
   reconfigure: publicProcedure
     .input(
@@ -65,6 +94,69 @@ export const recipesRouter = router({
         `detectConfiguration.${recipe.id}`
       );
       return;
+    }),
+  detectPagination: publicProcedure
+    .input(
+      z.object({
+        url: z.string().url(),
+        catalogueType: z.nativeEnum(CatalogueType),
+      })
+    )
+    .mutation(async (opts) => {
+      const { content, screenshot } = await fetchBrowserPage(opts.input.url);
+      const markdownContent = await simplifiedMarkdown(content);
+      return detectPagination(
+        {
+          url: opts.input.url,
+          content: markdownContent,
+          screenshot,
+          catalogueType: opts.input.catalogueType,
+        },
+        PageType.DETAIL_LINKS
+      );
+    }),
+  detectUrlRegexp: publicProcedure
+    .input(
+      z.object({
+        urls: z.array(z.string().url()),
+        pageType: z.nativeEnum(PageType),
+        catalogueType: z.nativeEnum(CatalogueType),
+      })
+    )
+    .mutation(async (opts) => {
+      const pages = await Promise.all(
+        opts.input.urls.map(async (url) => {
+          const { content, screenshot } = await fetchBrowserPage(url);
+          const markdownContent = await simplifiedMarkdown(content);
+          return { url, content: markdownContent, screenshot };
+        })
+      );
+      const detection = await bestOutOf(
+        3,
+        () =>
+          exponentialRetry(
+            async () =>
+              detectUrlRegexp(
+                {
+                  url: pages[0].url,
+                  content: pages[0].content,
+                  screenshot: pages[0].screenshot,
+                  catalogueType: opts.input.catalogueType,
+                },
+                opts.input.pageType,
+                undefined,
+                pages.length > 1 ? [pages[1]] : undefined
+              ),
+            10
+          ),
+        (r) => r.source
+      );
+      const extractor = createUrlExtractor(detection);
+      const urls = await extractor(pages[0].url, pages[0].content);
+      return {
+        regexp: detection.source,
+        urls,
+      };
     }),
   update: publicProcedure
     .input(

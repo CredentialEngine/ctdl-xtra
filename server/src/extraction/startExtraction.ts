@@ -1,9 +1,9 @@
 import { RecipeDetectionStatus, Step } from "@common/types";
 import { findCatalogueById } from "../data/catalogues";
 import { createExtraction, createPage, createStep } from "../data/extractions";
+import { Recipe } from "../data/recipes";
 import { extractions, recipes } from "../data/schema";
 import { Queues, submitJob, submitRepeatableJob } from "../workers";
-import { Recipe } from "@/data/recipes";
 
 export async function startExtraction(catalogueId: number, recipeId: number) {
   const catalogue = await findCatalogueById(catalogueId);
@@ -26,7 +26,10 @@ export async function startExtraction(catalogueId: number, recipeId: number) {
   return extraction;
 }
 
-async function launchLLMExtraction(extraction: typeof extractions.$inferSelect, recipe: typeof recipes.$inferSelect) {
+async function launchLLMExtraction(
+  extraction: typeof extractions.$inferSelect,
+  recipe: typeof recipes.$inferSelect
+) {
   const step = await createStep({
     extractionId: extraction.id,
     step: Step.FETCH_ROOT,
@@ -36,7 +39,7 @@ async function launchLLMExtraction(extraction: typeof extractions.$inferSelect, 
     crawlStepId: step.id,
     extractionId: extraction.id,
     url: recipe.url,
-    dataType: recipe.configuration!.pageType,
+    pageType: recipe.configuration!.pageType,
   });
   submitJob(
     Queues.FetchPage,
@@ -51,7 +54,10 @@ async function launchLLMExtraction(extraction: typeof extractions.$inferSelect, 
   );
 }
 
-async function launchAPIExtraction(extraction: typeof extractions.$inferSelect, recipe: Recipe) {
+async function launchAPIExtraction(
+  extraction: typeof extractions.$inferSelect,
+  recipe: Recipe
+) {
   const step = await createStep({
     extractionId: extraction.id,
     step: Step.FETCH_VIA_API,
@@ -61,7 +67,7 @@ async function launchAPIExtraction(extraction: typeof extractions.$inferSelect, 
     crawlStepId: step.id,
     extractionId: extraction.id,
     url: recipe.url,
-    dataType: recipe.configuration!.pageType,
+    pageType: recipe.configuration!.pageType,
   });
   submitJob(
     Queues.ExtractDataWithAPI,
@@ -75,4 +81,3 @@ async function launchAPIExtraction(extraction: typeof extractions.$inferSelect, 
     { every: 5 * 60 * 1000 }
   );
 }
-

@@ -1,3 +1,4 @@
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -23,6 +24,7 @@ import { useToast } from "@/components/ui/use-toast";
 import {
   Catalogue,
   prettyPrintDate,
+  Recipe,
   RecipeDetectionStatus,
   trpc,
 } from "@/utils";
@@ -64,7 +66,7 @@ const RecipeList = ({ catalogue }: RecipeListProps) => {
                       : "— Draft"}
                   </div>
                   <div className="text-xs text-muted-foreground">
-                    {displayRecipeDetails(recipe)}
+                    {displayRecipeDetails(recipe as Recipe)}
                   </div>
                 </div>
                 {recipe.isDefault ? (
@@ -139,6 +141,10 @@ export default function CatalogueDetail() {
                     className="w-full"
                     defaultValue={query.data.name}
                   />
+                </div>
+                <div className="grid gap-3">
+                  <Label htmlFor="type">Type</Label>
+                  <Badge variant="outline">{query.data.catalogueType}</Badge>
                 </div>
                 {query.data.thumbnailUrl ? (
                   <div>

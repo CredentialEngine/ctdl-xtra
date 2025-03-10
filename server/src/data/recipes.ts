@@ -50,11 +50,13 @@ export async function setDefault(recipeId: number) {
   return result[0];
 }
 
-export async function findRecipeById(id: number): Promise<undefined | Recipe> {
-  const recipe = await db.query.recipes.findFirst({
+export async function findRecipeById(id: number) {
+  return await db.query.recipes.findFirst({
     where: (recipes, { eq }) => eq(recipes.id, id),
+    with: {
+      catalogue: true,
+    },
   });
-  return recipe as undefined | Recipe;
 }
 
 export async function startRecipe(
@@ -72,6 +74,24 @@ export async function startRecipe(
         pageType: rootPageType,
       },
       status: RecipeDetectionStatus.WAITING,
+    })
+    .returning({ id: recipes.id });
+  return result[0];
+}
+
+export async function createRecipe(
+  catalogueId: number,
+  url: string,
+  configuration: RecipeConfiguration
+) {
+  const result = await db
+    .insert(recipes)
+    .values({
+      catalogueId,
+      url,
+      isDefault: false,
+      configuration,
+      status: RecipeDetectionStatus.SUCCESS,
     })
     .returning({ id: recipes.id });
   return result[0];

@@ -1,17 +1,23 @@
 import { inspect } from "util";
 import { createProcessor, ExtractDataJob, ExtractDataProgress } from ".";
 import { createDataItem, findOrCreateDataset } from "../data/datasets";
-import { findPageForJob, updateExtraction, updatePage } from "../data/extractions";
 import {
-  crawlPages,
-  getSqliteTimestamp,
-} from "../data/schema";
+  findPageForJob,
+  updateExtraction,
+  updatePage,
+} from "../data/extractions";
+import { crawlPages, getSqliteTimestamp } from "../data/schema";
 
-import { ExtractionStatus, PageStatus, TextInclusion } from "@common/types";
-import { resolveExctractionService } from "@/extraction/services";
+import { resolveExtractionService } from "@/extraction/services";
+import {
+  CourseStructuredData,
+  ExtractionStatus,
+  PageStatus,
+  TextInclusion,
+} from "@common/types";
 
 function updatePageAndExtractionInProgress(
-  page: typeof crawlPages.$inferSelect,
+  page: typeof crawlPages.$inferSelect
 ) {
   return Promise.all([
     updatePage(page.id, {
@@ -20,13 +26,13 @@ function updatePageAndExtractionInProgress(
     }),
     updateExtraction(page.extractionId, {
       status: ExtractionStatus.IN_PROGRESS,
-    })
+    }),
   ]);
 }
 
 function updatePageAndExtractionAsComplete(
   page: typeof crawlPages.$inferSelect,
-  courseCount: number,
+  courseCount: number
 ) {
   return Promise.all([
     updatePage(page.id, {
@@ -36,20 +42,22 @@ function updatePageAndExtractionAsComplete(
       status: ExtractionStatus.COMPLETE,
       completionStats: {
         generatedAt: String(getSqliteTimestamp()),
-        steps: [{
-          extractions: {
-            attempted: 1,
-            succeeded: 1,
-            courses: courseCount,
+        steps: [
+          {
+            extractions: {
+              attempted: 1,
+              succeeded: 1,
+              courses: courseCount,
+            },
+            downloads: {
+              attempted: 1,
+              succeeded: 1,
+              total: 1,
+            },
           },
-          downloads: {
-            attempted: 1,
-            succeeded: 1,
-            total: 1,
-          }
-        }]
-      }
-    })
+        ],
+      },
+    }),
   ]);
 }
 
@@ -63,11 +71,11 @@ function updatePageAndExtractionWithError(
       fetchFailureReason: {
         reason: String(error),
         responseStatus: 1,
-      }
+      },
     }),
     updateExtraction(page.extractionId, {
       status: ExtractionStatus.CANCELLED,
-    })
+    }),
   ]);
 }
 
@@ -83,7 +91,7 @@ export default createProcessor<ExtractDataJob, ExtractDataProgress>(
     }
 
     try {
-      await updatePageAndExtractionInProgress(crawlPage)
+      await updatePageAndExtractionInProgress(crawlPage);
       const dataset = await findOrCreateDataset(
         crawlPage.extraction.recipe.catalogueId,
         crawlPage.extractionId
@@ -92,10 +100,12 @@ export default createProcessor<ExtractDataJob, ExtractDataProgress>(
       if (!dataset) throw new Error("Could not find or create dataset");
 
       let totalCourses = 0;
-      const extractionService = resolveExctractionService(crawlPage.extraction.recipe);
+      const extractionService = resolveExtractionService(
+        crawlPage.extraction.recipe
+      );
 
       const incl = { full: true };
-      const fullTextInclusion: TextInclusion = {
+      const fullTextInclusion: TextInclusion<CourseStructuredData> = {
         course_description: incl,
         course_id: incl,
         course_name: incl,
@@ -104,13 +114,18 @@ export default createProcessor<ExtractDataJob, ExtractDataProgress>(
         course_credits_min: incl,
         course_credits_type: incl,
         course_prerequisites: incl,
-      }
+      };
 
       await extractionService.extractData(
         crawlPage.extraction.recipe,
         async (resultBatch) => {
           for (const course of resultBatch) {
-            await createDataItem(crawlPage.id, dataset.id, course, fullTextInclusion);
+            await createDataItem(
+              crawlPage.id,
+              dataset.id,
+              course,
+              fullTextInclusion
+            );
             totalCourses++;
           }
           return true; // continue supplying batches

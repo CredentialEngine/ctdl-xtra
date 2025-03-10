@@ -7,8 +7,8 @@ import {
   PageType,
   RecipeConfiguration,
 } from "@common/types";
+import { apiExtractorServices } from "../services";
 import { BaseProbe, RecipeDecorateOptions } from "./base";
-import { apiExtractorServices, resolveExctractionService } from "../services";
 
 type CourseDogApiConfig = ApiConfig[ApiProvider.Coursedog];
 export class CourseDog extends BaseProbe {
@@ -16,10 +16,14 @@ export class CourseDog extends BaseProbe {
     options: RecipeDecorateOptions
   ): Promise<RecipeConfiguration | undefined> {
     const url = new URL(options.pageUrl);
-    const cnameHost = await resolveCname(url.hostname).catch(() => Promise.resolve([]));
-    const isCourseDogCname = cnameHost.some((entry) => entry.includes("coursedog"));
+    const cnameHost = await resolveCname(url.hostname).catch(() =>
+      Promise.resolve([])
+    );
+    const isCourseDogCname = cnameHost.some((entry) =>
+      entry.includes("coursedog")
+    );
     const hasCourseDogInPage = options.pageContent.includes("coursedog");
-    const apiService = apiExtractorServices['Coursedog'];
+    const apiService = apiExtractorServices["Coursedog"];
 
     if (!isCourseDogCname && !hasCourseDogInPage) {
       // we didn't find any hints the page is using Coursedog
@@ -31,7 +35,9 @@ export class CourseDog extends BaseProbe {
     };
     const potentialSchoolIds = this.detectSchoolIds(options.pageContent);
     for (const school of potentialSchoolIds) {
-      const catalogs = await apiService.getCatalogs(school).catch(() => Promise.resolve());
+      const catalogs = await apiService
+        .getCatalogs(school)
+        .catch(() => Promise.resolve());
 
       if (Array.isArray(catalogs)) {
         // @ts-ignore

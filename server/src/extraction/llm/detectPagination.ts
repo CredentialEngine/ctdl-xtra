@@ -1,4 +1,10 @@
-import { PageType, PaginationConfiguration } from "@common/types";
+import {
+  CatalogueType,
+  PageType,
+  PaginationConfiguration,
+  RecipeConfiguration,
+  UrlPatternType,
+} from "@common/types";
 import {
   ChatCompletionContentPart,
   ChatCompletionMessageParam,
@@ -13,20 +19,7 @@ import {
   assertStringEnum,
   simpleToolCompletion,
 } from "../../openai";
-
-const pageTypeDescriptions = {
-  [PageType.COURSE_LINKS_PAGE]:
-    "It has links to ALL the courses for an institution. IF there is pagination, it is for pages of links to courses.",
-  [PageType.CATEGORY_LINKS_PAGE]:
-    "It has links to program or degree pages that presumably have links/descriptions for the courses. " +
-    "Those links are presumably extensive for ALL the programs/degrees in the institution." +
-    "IF there is pagination, it is for pages of program/degree links.",
-  [PageType.COURSE_DETAIL_PAGE]:
-    "It has names/descriptions for ALL the courses for an instution. " +
-    "IF there is pagination, it is for pages of course descriptions.",
-  [PageType.API_REQUEST]: '',
-};
-
+import { getCatalogueTypeDefinition } from "../catalogueTypes";
 function getUrlPath(urlString: string): string {
   try {
     const url = new URL(urlString);
@@ -37,47 +30,55 @@ function getUrlPath(urlString: string): string {
 }
 
 export async function detectPagination(
-  defaultOptions: DefaultLlmPageOptions,
-  rootPageType: PageType
+  defaultOptions: DefaultLlmPageOptions & { catalogueType: CatalogueType },
+  pageType: PageType,
+  currentConfiguration?: RecipeConfiguration
 ): Promise<PaginationConfiguration | undefined> {
+  const entity = getCatalogueTypeDefinition(defaultOptions.catalogueType);
+
   const prompt = `
-Your goal is to determine whether the given website has pagination, and how that pagination works.
+Your goal is to determine whether the given web page is paginated, and how that pagination works.
 
-You can say the website has pagination if there are links in it to pages like page 1, page 2, page 3 etc.
-If the listings aren't paginated, you should say has_pagination is false.
+If it does have pagination, figure out the pattern
+(for example, a parameter for the page number or for the items offset).
+Also if it does have pagination, determine the total number of pages.
 
-If it does have pagination, figure out the pattern (for example, a parameter for the page number or for the items offset).
-If it does have pagination, determine the total number of pages for the content.
+<parameters>
+is_paginated: true or false
 
-IMPORTANT: be strict! If you don't spot a pagination link, assume the page doesn't have pagination and set has_pagination to false.
+IMPORTANT: be strict! If you don't spot something that is CLEARLY a pagination link for the page content,
+assume this content isn't paginated and set is_paginated to false.
 
-url_pattern_type: ONLY FILL THIS IN IF THE WEBSITE HAS PAGINATION
+url_pattern_type: ONLY FILL THIS IN IF THE WEBSITE IS PAGINATED
 
 - page_num: page number parameter
 - offset: offset parameter
 - other: other type of pattern
-- unknown: can't determine pattern
 
-url_pattern: ONLY FILL THIS IN IF THE WEBSITE HAS PAGINATION
+url_pattern: ONLY FILL THIS IN IF THE WEBSITE IS PAGINATED
 
 the URL for pages, with the parameter replaced by {page_num} or {offset} (plus {limit} if relevant).
 Example:
-https://www.example.com/courses.php?page={page_num}
+https://www.example.com/${entity.pluralName.toLowerCase()}.php?page={page_num}
 
-total_pages: ONLY FILL THIS IN IF THE WEBSITE HAS PAGINATION
+total_pages: ONLY FILL THIS IN IF THE WEBSITE IS PAGINATED
 
+other_explanation: ONLY FILL THIS IN IF THE WEBSITE IS PAGINATED AND THE PAGINATION TYPE IS OTHER
 
-For context, the page is a course catalogue index:
+the reason why the pagination type is other and how you determined that.
+</parameters>
 
-${pageTypeDescriptions[rootPageType]}
+<context>
+The page is a ${entity.name} ${pageType} page.
+</context>
 
-URL FOR THIS PAGE:
-
+<url>
 ${defaultOptions.url}
+</url>
 
-WEBSITE CONTENT:
-
+<website_content>
 ${defaultOptions.content}
+</website_content>
 `;
 
   const completionContent: ChatCompletionContentPart[] = [
@@ -106,18 +107,21 @@ ${defaultOptions.content}
     messages,
     toolName: "submit_detected_pagination",
     parameters: {
-      has_pagination: {
+      is_paginated: {
         type: "boolean",
       },
       url_pattern_type: {
         type: "string",
-        enum: ["page_num", "offset", "other", "unknown"],
+        enum: ["page_num", "offset", "other"],
       },
       url_pattern: {
         type: "string",
       },
       total_pages: {
         type: "number",
+      },
+      other_explanation: {
+        type: "string",
       },
     },
     logApiCall: defaultOptions?.logApiCalls
@@ -131,7 +135,7 @@ ${defaultOptions.content}
     return undefined;
   }
   const toolCall = response.toolCallArgs;
-  const hasPagination = assertBool(toolCall, "has_pagination");
+  const hasPagination = assertBool(toolCall, "is_paginated");
   if (!hasPagination) {
     return undefined;
   }
@@ -143,6 +147,7 @@ ${defaultOptions.content}
   ]);
   if (urlPatternType == "other") {
     // TODO: record this
+    console.log(toolCall);
     throw new UnknownPaginationTypeError("The pagination type is unknown.");
   }
   const urlPattern = assertString(toolCall, "url_pattern");
@@ -165,7 +170,7 @@ ${defaultOptions.content}
 
   const totalPages = assertNumber(toolCall, "total_pages");
   return {
-    urlPatternType,
+    urlPatternType: urlPatternType as UrlPatternType,
     urlPattern,
     totalPages,
   };

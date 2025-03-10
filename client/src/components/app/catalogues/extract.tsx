@@ -60,7 +60,7 @@ export default function CatalogueCreateExtraction() {
         ? catalogueDetail.data.recipes.find((r) => r.id == parsedRecipeId)
         : catalogueDetail.data.recipes.find((r) => r.isDefault);
       if (foundRecipe) {
-        setRecipe(foundRecipe);
+        setRecipe(foundRecipe as Recipe);
         form.reset({ recipeId: foundRecipe.id.toString() });
       }
     }
@@ -76,7 +76,7 @@ export default function CatalogueCreateExtraction() {
 
   const recipes = catalogueDetail?.data?.recipes.filter(
     (r) => r.status == RecipeDetectionStatus.SUCCESS
-  );
+  ) as Recipe[];
 
   if (!recipes) {
     return null;

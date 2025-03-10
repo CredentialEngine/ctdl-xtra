@@ -1,8 +1,11 @@
 import {
+  CatalogueType,
+  CompetencyStructuredData,
   CompletionStats,
   CourseStructuredData,
   ExtractionStatus,
   FetchFailureReason,
+  LearningProgramStructuredData,
   LogLevel,
   PageStatus,
   PageType,
@@ -177,7 +180,10 @@ export async function readScreenshot(
   return decompressedContent.toString("base64");
 }
 
-// Define enums using pgEnum
+export const catalogueTypeEnum = pgEnum(
+  "catalogue_type",
+  toDbEnum(CatalogueType)
+);
 export const pageTypeEnum = pgEnum("page_type", toDbEnum(PageType));
 export const urlPatternTypeEnum = pgEnum("url_pattern_type", [
   "page_num",
@@ -200,13 +206,22 @@ export const recipeDetectionStatusEnum = pgEnum(
 );
 export const stepEnum = pgEnum("step", toDbEnum(Step));
 
-const catalogues = pgTable("catalogues", {
-  id: serial("id").primaryKey(),
-  name: text("name").notNull(),
-  url: text("url").notNull().unique(),
-  thumbnailUrl: text("thumbnail_url"),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-});
+const catalogues = pgTable(
+  "catalogues",
+  {
+    id: serial("id").primaryKey(),
+    name: text("name").notNull(),
+    url: text("url").notNull(),
+    thumbnailUrl: text("thumbnail_url"),
+    catalogueType: catalogueTypeEnum("catalogue_type")
+      .notNull()
+      .default(CatalogueType.COURSES),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => ({
+    uniq: unique().on(t.url, t.catalogueType),
+  })
+);
 
 const cataloguesRelations = relations(catalogues, ({ many }) => ({
   recipes: many(recipes),
@@ -377,7 +392,7 @@ const crawlPages = pgTable(
     fetchFailureReason: jsonb(
       "fetch_failure_reason"
     ).$type<FetchFailureReason>(),
-    dataType: pageTypeEnum("data_type"),
+    pageType: pageTypeEnum("page_type"),
     dataExtractionStartedAt: timestamp("data_extraction_started_at"),
     createdAt: timestamp("created_at").notNull().defaultNow(),
   },
@@ -385,7 +400,7 @@ const crawlPages = pgTable(
     uniq: unique().on(t.extractionId, t.url),
     extractionIdx: index("crawl_pages_extraction_idx").on(t.extractionId),
     statusIdx: index("crawl_pages_status_idx").on(t.status),
-    dataTypeIdx: index("crawl_pages_data_type_idx").on(t.dataType),
+    pageTypeIdx: index("crawl_pages_data_type_idx").on(t.pageType),
     stepIdx: index("crawl_pages_step_idx").on(t.crawlStepId),
   })
 );
@@ -440,9 +455,13 @@ const dataItems = pgTable(
       onDelete: "cascade",
     }),
     structuredData: jsonb("structured_data")
-      .$type<CourseStructuredData>()
+      .$type<
+        | CourseStructuredData
+        | LearningProgramStructuredData
+        | CompetencyStructuredData
+      >()
       .notNull(),
-    textInclusion: jsonb("text_inclusion").$type<TextInclusion>(),
+    textInclusion: jsonb("text_inclusion").$type<TextInclusion<any>>(),
     createdAt: timestamp("created_at").notNull().defaultNow(),
   },
   (t) => ({

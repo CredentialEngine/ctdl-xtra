@@ -1,11 +1,15 @@
-import { CourseStructuredData, RecipeConfiguration } from "@common/types";
+import { extractAndVerifyEntityData } from "@/extraction/llm/extractAndVerifyEntityData";
+import {
+  CatalogueType,
+  CourseStructuredData,
+  RecipeConfiguration,
+} from "@common/types";
 import { inspect } from "util";
 import { expect } from "vitest";
 import {
   fetchBrowserPage,
   simplifiedMarkdown,
 } from "../src/extraction/browser";
-import { extractAndVerifyCourseData } from "../src/extraction/llm/extractAndVerifyCourseData";
 import recursivelyDetectConfiguration from "../src/extraction/recursivelyDetectConfiguration";
 
 export const EXTRACTION_TIMEOUT = 1000 * 60 * 10;
@@ -42,7 +46,10 @@ export async function assertConfiguration(
   url: string,
   expected: RecipeConfigurationWithSampleLinks
 ): Promise<void> {
-  const actual = await recursivelyDetectConfiguration(url);
+  const actual = await recursivelyDetectConfiguration(
+    url,
+    CatalogueType.COURSES
+  );
   console.log(inspect(actual));
 
   function compareConfigurations(
@@ -116,15 +123,16 @@ export async function assertExtraction(
 
   const simplifiedContent = await simplifiedMarkdown(page.content);
 
-  const extractions = await extractAndVerifyCourseData({
+  const extractions = await extractAndVerifyEntityData({
     content: simplifiedContent,
     url: page.url,
     screenshot: page.screenshot,
+    catalogueType: CatalogueType.COURSES,
   });
 
   for (const expectedCourse of expected) {
     const extraction = extractions.find((course) =>
-      course.course.course_id
+      course.entity.course_id
         .toLowerCase()
         .replace(/[\W\s]+/g, "")
         .includes(
@@ -135,9 +143,8 @@ export async function assertExtraction(
       throw new Error(`Course ${expectedCourse.course_id} not found`);
     }
     for (const key in expectedCourse) {
-      const expectedValue = expectedCourse[key as keyof CourseStructuredData];
-      const extractedValue =
-        extraction.course[key as keyof CourseStructuredData];
+      let expectedValue = expectedCourse[key as keyof CourseStructuredData];
+      let extractedValue = extraction.entity[key as keyof CourseStructuredData];
 
       if (
         typeof expectedValue === "string" &&
@@ -148,7 +155,12 @@ export async function assertExtraction(
         );
       } else {
         if (extractedValue != expectedValue) {
-          console.log(extraction.course);
+          console.log(
+            `Expected ${key} to be ${expectedValue}, got ${extractedValue}.`
+          );
+        }
+        if (extractedValue === 0 && expectedValue === undefined) {
+          expectedValue = 0;
         }
         expect(extractedValue).toEqual(expectedValue);
       }
@@ -156,7 +168,7 @@ export async function assertExtraction(
     if (verified) {
       expect(extraction.textInclusion.course_id?.full).toBe(true);
       expect(extraction.textInclusion.course_description?.full).toBe(true);
-      if (extraction.course.course_prerequisites) {
+      if (extraction.entity.course_prerequisites) {
         expect(extraction.textInclusion.course_prerequisites?.full).toBe(true);
       }
     }

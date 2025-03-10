@@ -1,20 +1,24 @@
 export enum CatalogueType {
   COURSES = "COURSES",
   LEARNING_PROGRAMS = "LEARNING_PROGRAMS",
+  COMPETENCIES = "COMPETENCIES",
 }
 
 export enum PageType {
-  COURSE_DETAIL_PAGE = "COURSE_DETAIL_PAGE",
-  CATEGORY_LINKS_PAGE = "CATEGORY_LINKS_PAGE",
-  COURSE_LINKS_PAGE = "COURSE_LINKS_PAGE",
+  DETAIL = "DETAIL",
+  CATEGORY_LINKS = "CATEGORY_LINKS",
+  DETAIL_LINKS = "DETAIL_LINKS",
   API_REQUEST = "API_REQUEST",
 }
 
 export enum ApiProvider {
-  Coursedog = 'Coursedog'
+  Coursedog = "Coursedog",
 }
 
-export type UrlPatternType = "page_num" | "offset";
+export enum UrlPatternType {
+  page_num = "page_num",
+  offset = "offset",
+}
 
 export interface PaginationConfiguration {
   urlPatternType: UrlPatternType;
@@ -22,7 +26,9 @@ export interface PaginationConfiguration {
   totalPages: number;
 }
 
-export interface RecipeConfiguration<ConfigType extends ApiProvider = ApiProvider> {
+export interface RecipeConfiguration<
+  ConfigType extends ApiProvider = ApiProvider,
+> {
   pageType: PageType;
   linkRegexp?: string;
   pagination?: PaginationConfiguration;
@@ -34,9 +40,9 @@ export interface RecipeConfiguration<ConfigType extends ApiProvider = ApiProvide
 export type ApiConfig = {
   [ApiProvider.Coursedog]: {
     schoolId: string;
-    catalogIds: string[]
-  }
-}
+    catalogIds: string[];
+  };
+};
 
 export enum LogLevel {
   INFO = "INFO",
@@ -49,6 +55,7 @@ export enum Provider {
 
 export enum ProviderModel {
   Gpt4o = "gpt-4o",
+  O3Mini = "o3-mini",
 }
 
 export enum ExtractionStatus {
@@ -96,8 +103,16 @@ export interface CourseStructuredData {
   course_prerequisites?: string;
 }
 
-export type TextInclusion = {
-  [K in keyof CourseStructuredData]: { full: boolean };
+export interface LearningProgramStructuredData {
+  learning_program_id: string;
+  learning_program_name: string;
+  learning_program_description: string;
+}
+
+export interface CompetencyStructuredData {}
+
+export type TextInclusion<T> = {
+  [K in keyof T]: { full: boolean };
 };
 
 export interface StepCompletionStats {

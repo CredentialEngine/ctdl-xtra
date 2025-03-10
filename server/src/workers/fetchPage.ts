@@ -1,4 +1,5 @@
 import {
+  CatalogueType,
   ExtractionStatus,
   FetchFailureReason,
   PageStatus,
@@ -17,6 +18,7 @@ import {
 } from ".";
 import {
   createStepAndPages,
+  findPageByUrl,
   findPageForJob,
   updateExtraction,
   updatePage,
@@ -49,7 +51,7 @@ const constructPaginatedUrls = (configuration: PaginationConfiguration) => {
 async function enqueueExtraction(
   crawlPage: Awaited<ReturnType<typeof findPageForJob>>
 ) {
-  console.log(`Enqueuing extraction for page ${crawlPage.id}`);
+  console.log(`Enqueuing extraction for page ${crawlPage.url}`);
   return submitJob(
     Queues.ExtractData,
     { crawlPageId: crawlPage.id },
@@ -59,9 +61,10 @@ async function enqueueExtraction(
 
 async function enqueuePages(
   configuration: RecipeConfiguration,
-  crawlPage: Awaited<ReturnType<typeof findPageForJob>>
+  crawlPage: Awaited<ReturnType<typeof findPageForJob>>,
+  catalogueType: CatalogueType
 ) {
-  console.log(`Enqueuing page fetches for page ${crawlPage.id}`);
+  console.log(`Enqueuing page fetches for page ${crawlPage.url}`);
 
   const pageCount = await detectPageCount(
     {
@@ -77,6 +80,7 @@ async function enqueuePages(
       ),
       logApiCalls: { extractionId: crawlPage.extractionId },
       url: crawlPage.url,
+      catalogueType,
     },
     configuration.pagination!.urlPattern,
     configuration.pagination!.urlPatternType
@@ -94,7 +98,7 @@ async function enqueuePages(
   const pageUrls = constructPaginatedUrls(updatedPagination);
 
   if (!pageUrls.length) {
-    console.log(`No paginated pages found for page ${crawlPage.id}`);
+    console.log(`No paginated pages found for page ${crawlPage.url}`);
     return;
   }
 
@@ -120,7 +124,7 @@ async function processLinks(
   configuration: RecipeConfiguration,
   crawlPage: Awaited<ReturnType<typeof findPageForJob>>
 ) {
-  console.log(`Processing links for page ${crawlPage.id}`);
+  console.log(`Processing links for page ${crawlPage.url}`);
 
   const regexp = new RegExp(configuration.linkRegexp!, "g");
   const extractor = createUrlExtractor(regexp);
@@ -129,10 +133,20 @@ async function processLinks(
     crawlPage.crawlStepId,
     crawlPage.id
   );
-  const urls = await extractor(crawlPage.url, content);
+  const extractedUrls = await extractor(crawlPage.url, content);
+  let urls = [];
+
+  for (const url of extractedUrls) {
+    const page = await findPageByUrl(crawlPage.extractionId, url);
+    if (!page) {
+      urls.push(url);
+    } else {
+      console.log(`Skipping ${url} because it has already been fetched`);
+    }
+  }
 
   if (!urls.length) {
-    console.log(`No URLs found for page ${crawlPage.id}`);
+    console.log(`No URLs found for page ${crawlPage.url}`);
     return;
   }
 
@@ -164,12 +178,14 @@ const processNextStep = async (
   const configuration = crawlPage.crawlStep
     .configuration as RecipeConfiguration;
   const currentStep = crawlPage.crawlStep.step;
+  const catalogueType = crawlPage.extraction.recipe.catalogue
+    .catalogueType as CatalogueType;
 
   if (configuration.pagination && currentStep != Step.FETCH_PAGINATED) {
-    return enqueuePages(configuration, crawlPage);
+    return enqueuePages(configuration, crawlPage, catalogueType);
   }
 
-  if (configuration.pageType == PageType.COURSE_DETAIL_PAGE) {
+  if (configuration.pageType == PageType.DETAIL) {
     return enqueueExtraction(crawlPage);
   }
 
@@ -200,7 +216,7 @@ export default createProcessor<FetchPageJob, FetchPageProgress>(
     }
 
     try {
-      console.log(`Loading ${crawlPage.url} for page ${crawlPage.id}`);
+      console.log(`Loading ${crawlPage.url} for page ${crawlPage.url}`);
       await updatePage(crawlPage.id, { status: PageStatus.IN_PROGRESS });
       const page = await fetchBrowserPage(crawlPage.url);
       if (page.status == 404) {

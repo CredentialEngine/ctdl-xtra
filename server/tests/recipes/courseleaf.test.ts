@@ -6,9 +6,9 @@ describe("Courseleaf", { timeout: RECIPE_TIMEOUT }, () => {
   test("University of Pennsylvania", async () => {
     await assertConfiguration("https://catalog.upenn.edu/courses/", {
       links: {
-        pageType: PageType.COURSE_DETAIL_PAGE,
+        pageType: PageType.DETAIL,
       },
-      pageType: PageType.CATEGORY_LINKS_PAGE,
+      pageType: PageType.CATEGORY_LINKS,
       sampleLinks: ["/courses/acct/", "/courses/hist/", "/courses/punj/"],
     });
   });
@@ -18,9 +18,9 @@ describe("Courseleaf", { timeout: RECIPE_TIMEOUT }, () => {
       "https://catalog.tamiu.edu/course-descriptions/",
       {
         links: {
-          pageType: PageType.COURSE_DETAIL_PAGE,
+          pageType: PageType.DETAIL,
         },
-        pageType: PageType.CATEGORY_LINKS_PAGE,
+        pageType: PageType.CATEGORY_LINKS,
         sampleLinks: [
           "/course-descriptions/port/",
           "/course-descriptions/ms/",

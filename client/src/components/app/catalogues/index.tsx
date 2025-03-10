@@ -1,3 +1,4 @@
+import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import {
   Table,
@@ -22,8 +23,9 @@ const CatalogueListItem = (catalogue: {
   id: number;
   name: string;
   url: string;
+  catalogueType: string;
   thumbnailUrl?: string | null;
-  recipes: Recipe[];
+  recipes: Omit<Recipe, "catalogue">[];
 }) => {
   const hasReadyRecipe = catalogue.recipes.some(
     (r) => r.status == RecipeDetectionStatus.SUCCESS
@@ -40,6 +42,9 @@ const CatalogueListItem = (catalogue: {
             {catalogue.name}
           </div>
         </Link>
+      </TableCell>
+      <TableCell className="hidden md:table-cell">
+        <Badge variant="outline">{catalogue.catalogueType}</Badge>
       </TableCell>
       <TableCell className="hidden md:table-cell">
         {hasReadyRecipe ? (
@@ -115,7 +120,7 @@ export default function Catalogues() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead colSpan={2}>Catalogue</TableHead>
+                <TableHead colSpan={3}>Catalogue</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>

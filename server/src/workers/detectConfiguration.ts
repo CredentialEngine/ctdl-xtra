@@ -1,4 +1,4 @@
-import { RecipeDetectionStatus } from "@common/types";
+import { CatalogueType, RecipeDetectionStatus } from "@common/types";
 import {
   createProcessor,
   DetectConfigurationJob,
@@ -22,7 +22,10 @@ export default createProcessor<
     status: RecipeDetectionStatus.IN_PROGRESS,
   });
   try {
-    const configuration = await recursivelyDetectConfiguration(recipe.url);
+    const configuration = await recursivelyDetectConfiguration(
+      recipe.url,
+      recipe.catalogue.catalogueType as CatalogueType
+    );
     await updateRecipe(recipe.id, {
       configuration,
       status: RecipeDetectionStatus.SUCCESS,
