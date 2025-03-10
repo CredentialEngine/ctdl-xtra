@@ -24,24 +24,25 @@ RUN npm install pm2 -g
 RUN npm install pnpm -g
 
 # Build the app
-COPY client/package.json client/pnpm-lock.yaml /build/client/
-COPY server/package.json server/pnpm-lock.yaml /build/server/
-RUN (cd /build/client && pnpm install) & \
-  (cd /build/server && pnpm install) & \
+COPY client/package.json client/pnpm-lock.yaml /build/app/client/
+COPY server/package.json server/pnpm-lock.yaml /build/app/server/
+RUN (cd /build/app/client && pnpm install) & \
+  (cd /build/app/server && pnpm install) & \
   wait
 
 USER pptruser
-RUN /build/server/node_modules/.bin/rebrowser-puppeteer browsers install chrome
+RUN /build/app/server/node_modules/.bin/rebrowser-puppeteer browsers install chrome
 
 USER root
-COPY client/ /build/client
-COPY server/ /build/server
-RUN (cd /build/client && pnpm run build) & \
-  (cd /build/server && pnpm run build) & \
+COPY client/ /build/app/client
+COPY common /build/app/common
+COPY server/ /build/app/server
+RUN (cd /build/app/client && pnpm run build) & \
+  (cd /build/app/server && pnpm run build) & \
   wait
 
-RUN cp -R /build/server /app
-RUN cp -R /build/client/dist /app/public
+RUN cp -R /build/app/server /app
+RUN cp -R /build/app/client/dist /app/public
 
 WORKDIR /app
 
