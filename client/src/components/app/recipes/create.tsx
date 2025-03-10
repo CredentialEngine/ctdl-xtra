@@ -434,7 +434,9 @@ export default function CreateRecipe() {
   const configuration = form.watch("configuration");
 
   async function onDetectPagination(
+    // @ts-ignore
     rootUrl: string,
+    // @ts-ignore
     context: {
       parents?: FormRecipeConfiguration[];
       current: FormRecipeConfiguration;
