@@ -28,6 +28,7 @@ export interface AdditionalPage {
 export default async function detectUrlRegexp(
   defaultOptions: DefaultLlmPageOptions & { catalogueType: CatalogueType },
   dataType: PageType,
+  // @ts-ignore
   currentConfiguration?: RecipeConfiguration,
   additionalPages?: AdditionalPage[]
 ) {

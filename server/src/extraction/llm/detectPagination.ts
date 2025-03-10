@@ -32,6 +32,7 @@ function getUrlPath(urlString: string): string {
 export async function detectPagination(
   defaultOptions: DefaultLlmPageOptions & { catalogueType: CatalogueType },
   pageType: PageType,
+  // @ts-ignore
   currentConfiguration?: RecipeConfiguration
 ): Promise<PaginationConfiguration | undefined> {
   const entity = getCatalogueTypeDefinition(defaultOptions.catalogueType);

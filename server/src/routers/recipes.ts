@@ -1,4 +1,3 @@
-import { bestOutOf, exponentialRetry } from "@/utils";
 import { CatalogueType, PageType, UrlPatternType } from "@common/types";
 import { z } from "zod";
 import { publicProcedure, router } from ".";
@@ -16,6 +15,7 @@ import detectUrlRegexp, {
   createUrlExtractor,
 } from "../extraction/llm/detectUrlRegexp";
 import { submitRecipeDetection } from "../extraction/submitRecipeDetection";
+import { bestOutOf, exponentialRetry } from "../utils";
 import { Queues, submitJob } from "../workers";
 
 const PaginationConfigurationSchema = z.object({

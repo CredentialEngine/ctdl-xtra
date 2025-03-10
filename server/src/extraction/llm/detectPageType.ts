@@ -12,6 +12,7 @@ import {
 import { getCatalogueTypeDefinition } from "../catalogueTypes";
 export async function detectPageType(
   defaultOptions: DefaultLlmPageOptions & { catalogueType: CatalogueType },
+  // @ts-ignore
   currentConfiguration?: RecipeConfiguration
 ) {
   const entity = getCatalogueTypeDefinition(defaultOptions.catalogueType);
