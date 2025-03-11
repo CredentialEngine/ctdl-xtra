@@ -1,4 +1,4 @@
-import { ExtractionStatus } from "@common/types";
+import { ExtractionStatus } from "../../../common/types";
 import {
   findExtractionById,
   findFailedAndNoDataPageIds,

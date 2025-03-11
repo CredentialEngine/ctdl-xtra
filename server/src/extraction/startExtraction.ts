@@ -1,4 +1,4 @@
-import { RecipeDetectionStatus, Step } from "@common/types";
+import { RecipeDetectionStatus, Step } from "../../../common/types";
 import { findCatalogueById } from "../data/catalogues";
 import { createExtraction, createPage, createStep } from "../data/extractions";
 import { Recipe } from "../data/recipes";

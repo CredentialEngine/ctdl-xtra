@@ -13,7 +13,7 @@ import {
   CourseStructuredData,
   LearningProgramStructuredData,
   TextInclusion,
-} from "@common/types";
+} from "../../../common/types";
 
 export async function createDataItem<
   T extends

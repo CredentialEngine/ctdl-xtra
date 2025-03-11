@@ -1,9 +1,13 @@
-import { CatalogueType, PageType, RecipeConfiguration } from "@common/types";
 import {
   ChatCompletionContentPart,
   ChatCompletionMessageParam,
 } from "openai/resources/chat/completions";
 import { DefaultLlmPageOptions } from ".";
+import {
+  CatalogueType,
+  PageType,
+  RecipeConfiguration,
+} from "../../../../common/types";
 import {
   assertStringEnum,
   BadToolCallResponseError,

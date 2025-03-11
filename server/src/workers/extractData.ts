@@ -8,7 +8,7 @@ import {
   readScreenshot,
 } from "../data/schema";
 
-import { CatalogueType, ExtractionStatus } from "@common/types";
+import { CatalogueType, ExtractionStatus } from "../../../common/types";
 import { extractAndVerifyEntityData } from "../extraction/llm/extractAndVerifyEntityData";
 
 export default createProcessor<ExtractDataJob, ExtractDataProgress>(

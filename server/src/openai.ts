@@ -1,10 +1,10 @@
-import { Provider, ProviderModel } from "@common/types";
 import { OpenAI } from "openai";
 import {
   ChatCompletion,
   ChatCompletionCreateParams,
   ChatCompletionMessageParam,
 } from "openai/resources/chat/completions";
+import { Provider, ProviderModel } from "../../common/types";
 import db from "./data";
 import { createModelApiCallLog } from "./data/extractions";
 import { decryptFromDb } from "./data/schema";

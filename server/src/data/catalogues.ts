@@ -1,5 +1,5 @@
-import { CatalogueType } from "@common/types";
 import { desc, eq, sql } from "drizzle-orm";
+import { CatalogueType } from "../../../common/types";
 import db from "../data";
 import { catalogues, extractions, recipes } from "../data/schema";
 

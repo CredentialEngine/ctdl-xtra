@@ -1,21 +1,3 @@
-import {
-  CatalogueType,
-  CompetencyStructuredData,
-  CompletionStats,
-  CourseStructuredData,
-  ExtractionStatus,
-  FetchFailureReason,
-  LearningProgramStructuredData,
-  LogLevel,
-  PageStatus,
-  PageType,
-  Provider,
-  ProviderModel,
-  RecipeConfiguration,
-  RecipeDetectionStatus,
-  Step,
-  TextInclusion,
-} from "@common/types";
 import { relations, sql } from "drizzle-orm";
 import {
   AnyPgColumn,
@@ -35,6 +17,24 @@ import { createCipheriv, createDecipheriv, randomBytes } from "node:crypto";
 import path from "path";
 import { promisify } from "util";
 import { gunzip as syncGunzip, gzip as syncGzip } from "zlib";
+import {
+  CatalogueType,
+  CompetencyStructuredData,
+  CompletionStats,
+  CourseStructuredData,
+  ExtractionStatus,
+  FetchFailureReason,
+  LearningProgramStructuredData,
+  LogLevel,
+  PageStatus,
+  PageType,
+  Provider,
+  ProviderModel,
+  RecipeConfiguration,
+  RecipeDetectionStatus,
+  Step,
+  TextInclusion,
+} from "../../../common/types";
 import { SimplifiedMarkdown } from "../types";
 
 const gzip = promisify(syncGzip);

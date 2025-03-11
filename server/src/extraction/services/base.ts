@@ -1,6 +1,6 @@
-import { Recipe } from "@/data/recipes";
-import { CourseStructuredData } from "@common/types";
 import { apiExtractorServices } from ".";
+import { CourseStructuredData } from "../../../../common/types";
+import { Recipe } from "../../data/recipes";
 
 export function resolveExtractionService(
   recipe: Recipe

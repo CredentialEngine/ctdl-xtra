@@ -6,7 +6,7 @@ import {
   ApiProvider,
   PageType,
   RecipeConfiguration,
-} from "@common/types";
+} from "../../../../common/types";
 import { apiExtractorServices } from "../services";
 import { BaseProbe, RecipeDecorateOptions } from "./base";
 

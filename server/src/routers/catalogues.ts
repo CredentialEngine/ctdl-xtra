@@ -1,6 +1,6 @@
-import { CatalogueType } from "@common/types";
 import { z } from "zod";
 import { publicProcedure, router } from ".";
+import { CatalogueType } from "../../../common/types";
 import {
   createCatalogue,
   destroyCatalogue,

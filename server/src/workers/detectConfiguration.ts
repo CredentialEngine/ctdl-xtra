@@ -1,9 +1,9 @@
-import { CatalogueType, RecipeDetectionStatus } from "@common/types";
 import {
   createProcessor,
   DetectConfigurationJob,
   DetectConfigurationProgress,
 } from ".";
+import { CatalogueType, RecipeDetectionStatus } from "../../../common/types";
 import { findRecipeById, updateRecipe } from "../data/recipes";
 import { sendEmailToAll } from "../email";
 import DetectConfigurationFail from "../emails/detectConfigurationFail";

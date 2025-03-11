@@ -1,6 +1,6 @@
-import { CatalogueType } from "@common/types";
 import "dotenv/config";
 import { inspect } from "util";
+import { CatalogueType } from "../../common/types";
 import recursivelyDetectConfiguration from "./extraction/recursivelyDetectConfiguration";
 
 async function testDetect(url: string) {

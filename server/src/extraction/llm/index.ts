@@ -1,4 +1,4 @@
-import { CatalogueType } from "@common/types";
+import { CatalogueType } from "../../../../common/types";
 import { SimplifiedMarkdown } from "../../types";
 
 export interface DefaultLlmPageOptions {

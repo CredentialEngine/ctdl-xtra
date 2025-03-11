@@ -1,15 +1,15 @@
 import {
+  ChatCompletionContentPart,
+  ChatCompletionMessageParam,
+} from "openai/resources/chat/completions";
+import { DefaultLlmPageOptions } from ".";
+import {
   CatalogueType,
   PageType,
   PaginationConfiguration,
   RecipeConfiguration,
   UrlPatternType,
-} from "@common/types";
-import {
-  ChatCompletionContentPart,
-  ChatCompletionMessageParam,
-} from "openai/resources/chat/completions";
-import { DefaultLlmPageOptions } from ".";
+} from "../../../../common/types";
 import {
   BadToolCallResponseError,
   UnknownPaginationTypeError,

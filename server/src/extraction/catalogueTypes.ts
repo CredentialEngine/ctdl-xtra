@@ -1,4 +1,4 @@
-import { CatalogueType } from "@common/types";
+import { CatalogueType } from "../../../common/types";
 
 export interface CatalogueTypeDefinition {
   name: string;

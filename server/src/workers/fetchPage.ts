@@ -1,4 +1,12 @@
 import {
+  createProcessor,
+  FetchPageJob,
+  FetchPageProgress,
+  Queues,
+  submitJob,
+  submitJobs,
+} from ".";
+import {
   CatalogueType,
   ExtractionStatus,
   FetchFailureReason,
@@ -7,15 +15,7 @@ import {
   PaginationConfiguration,
   RecipeConfiguration,
   Step,
-} from "@common/types";
-import {
-  createProcessor,
-  FetchPageJob,
-  FetchPageProgress,
-  Queues,
-  submitJob,
-  submitJobs,
-} from ".";
+} from "../../../common/types";
 import {
   createStepAndPages,
   findPageByUrl,

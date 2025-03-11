@@ -1,15 +1,15 @@
-import { extractAndVerifyEntityData } from "@/extraction/llm/extractAndVerifyEntityData";
+import { inspect } from "util";
+import { expect } from "vitest";
 import {
   CatalogueType,
   CourseStructuredData,
   RecipeConfiguration,
-} from "@common/types";
-import { inspect } from "util";
-import { expect } from "vitest";
+} from "../../common/types";
 import {
   fetchBrowserPage,
   simplifiedMarkdown,
 } from "../src/extraction/browser";
+import { extractAndVerifyEntityData } from "../src/extraction/llm/extractAndVerifyEntityData";
 import recursivelyDetectConfiguration from "../src/extraction/recursivelyDetectConfiguration";
 
 export const EXTRACTION_TIMEOUT = 1000 * 60 * 10;

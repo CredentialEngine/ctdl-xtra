@@ -7,7 +7,7 @@ import {
   PageType,
   RecipeConfiguration,
   RecipeDetectionStatus,
-} from "@common/types";
+} from "../../../common/types";
 
 export type Recipe = Omit<InferSelectModel<typeof recipes>, "configuration"> & {
   configuration?: RecipeConfiguration;

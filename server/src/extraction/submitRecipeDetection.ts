@@ -1,4 +1,4 @@
-import { CatalogueType, PageType } from "@common/types";
+import { CatalogueType, PageType } from "../../../common/types";
 import { findCatalogueById } from "../data/catalogues";
 import { startRecipe } from "../data/recipes";
 import { bestOutOf } from "../utils";

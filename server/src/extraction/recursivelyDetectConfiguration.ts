@@ -1,5 +1,9 @@
-import { CatalogueType, PageType, RecipeConfiguration } from "@common/types";
 import { inspect } from "util";
+import {
+  CatalogueType,
+  PageType,
+  RecipeConfiguration,
+} from "../../../common/types";
 import { bestOutOf, exponentialRetry, unique } from "../utils";
 import { fetchBrowserPage, simplifiedMarkdown } from "./browser";
 import { detectPageType } from "./llm/detectPageType";

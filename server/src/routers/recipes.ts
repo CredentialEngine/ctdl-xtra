@@ -1,6 +1,6 @@
-import { CatalogueType, PageType, UrlPatternType } from "@common/types";
 import { z } from "zod";
 import { publicProcedure, router } from ".";
+import { CatalogueType, PageType, UrlPatternType } from "../../../common/types";
 import { AppError, AppErrors } from "../appErrors";
 import {
   createRecipe,

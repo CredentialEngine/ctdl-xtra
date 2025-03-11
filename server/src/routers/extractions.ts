@@ -1,6 +1,6 @@
-import { CatalogueType, ExtractionStatus } from "@common/types";
 import { z } from "zod";
 import { publicProcedure, router } from ".";
+import { CatalogueType, ExtractionStatus } from "../../../common/types";
 import { AppError, AppErrors } from "../appErrors";
 import { getItemsCount } from "../data/datasets";
 import {

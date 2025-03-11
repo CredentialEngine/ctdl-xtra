@@ -1,4 +1,3 @@
-import { CompletionStats } from "@common/types";
 import {
   Body,
   Button,
@@ -13,6 +12,7 @@ import {
   Section,
   Text,
 } from "@react-email/components";
+import { CompletionStats } from "../../../common/types";
 import { buildFrontendUrl } from "../utils";
 import * as styles from "./styles";
 

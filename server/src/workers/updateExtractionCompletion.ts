@@ -1,12 +1,3 @@
-import {
-  CompletionStats,
-  CostCallSite,
-  CostSummary,
-  ExtractionStatus,
-  PageStatus,
-  ProviderModel,
-  StepCompletionStats,
-} from "@common/types";
 import { deepEqual } from "fast-equals";
 import {
   createProcessor,
@@ -15,6 +6,15 @@ import {
   UpdateExtractionCompletionJob,
   UpdateExtractionCompletionProgress,
 } from ".";
+import {
+  CompletionStats,
+  CostCallSite,
+  CostSummary,
+  ExtractionStatus,
+  PageStatus,
+  ProviderModel,
+  StepCompletionStats,
+} from "../../../common/types";
 import {
   findExtractionById,
   getApiCallSummary,

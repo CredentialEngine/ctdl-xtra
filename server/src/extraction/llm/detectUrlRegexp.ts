@@ -1,6 +1,10 @@
-import { CatalogueType, PageType, RecipeConfiguration } from "@common/types";
 import { ChatCompletionContentPart } from "openai/resources/chat/completions";
 import { DefaultLlmPageOptions } from ".";
+import {
+  CatalogueType,
+  PageType,
+  RecipeConfiguration,
+} from "../../../../common/types";
 import { assertArray, assertString, simpleToolCompletion } from "../../openai";
 import { SimplifiedMarkdown } from "../../types";
 import { resolveAbsoluteUrl } from "../../utils";

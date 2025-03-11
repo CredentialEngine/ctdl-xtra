@@ -1,6 +1,6 @@
-import { PageType } from "@common/types";
 import { describe, test } from "vitest";
 import { assertConfiguration, RECIPE_TIMEOUT } from "..";
+import { PageType } from "../../../common/types";
 
 describe("Courseleaf", { timeout: RECIPE_TIMEOUT }, () => {
   test("University of Pennsylvania", async () => {

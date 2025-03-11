@@ -19,7 +19,7 @@ import {
   ProviderModel,
   RecipeConfiguration,
   Step,
-} from "@common/types";
+} from "../../../common/types";
 
 export async function createExtraction(recipeId: number) {
   const result = await db

@@ -1,6 +1,6 @@
-import { PageType, UrlPatternType } from "@common/types";
 import { describe, test } from "vitest";
 import { assertConfiguration, RECIPE_TIMEOUT } from "..";
+import { PageType, UrlPatternType } from "../../../common/types";
 
 describe(
   "ACALOG",

@@ -1,9 +1,9 @@
-import { CatalogueType } from "@common/types";
 import {
   ChatCompletionContentPart,
   ChatCompletionMessageParam,
 } from "openai/resources/chat/completions";
 import { DefaultLlmPageOptions } from ".";
+import { CatalogueType } from "../../../../common/types";
 import { assertStringEnum, simpleToolCompletion } from "../../openai";
 import { catalogueTypes } from "../catalogueTypes";
 

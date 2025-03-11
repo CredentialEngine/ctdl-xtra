@@ -1,5 +1,5 @@
-import { CatalogueType, TextInclusion } from "@common/types";
 import { DefaultLlmPageOptions } from ".";
+import { CatalogueType, TextInclusion } from "../../../../common/types";
 import { SimplifiedMarkdown } from "../../types";
 import { getCatalogueTypeDefinition } from "../catalogueTypes";
 import { shouldChunk, splitChunks } from "../splitChunks";

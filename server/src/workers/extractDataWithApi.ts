@@ -8,13 +8,13 @@ import {
 } from "../data/extractions";
 import { crawlPages, getSqliteTimestamp } from "../data/schema";
 
-import { resolveExtractionService } from "@/extraction/services";
 import {
   CourseStructuredData,
   ExtractionStatus,
   PageStatus,
   TextInclusion,
-} from "@common/types";
+} from "../../../common/types";
+import { resolveExtractionService } from "../extraction/services";
 
 function updatePageAndExtractionInProgress(
   page: typeof crawlPages.$inferSelect
