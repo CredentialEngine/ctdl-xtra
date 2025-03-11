@@ -44,7 +44,7 @@ const ExtractionListItem = (extraction: ExtractionSummary) => {
         </Link>
       </TableCell>
       <TableCell className="font-medium">
-        <Link to={`/${extraction.id}`}>Courses</Link>
+        <Link to={`/${extraction.id}`}>{catalogue.catalogueType}</Link>
       </TableCell>
       <TableCell className="text-xs">{extraction.status}</TableCell>
       <TableCell className="text-xs">
