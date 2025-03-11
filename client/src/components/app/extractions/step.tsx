@@ -10,8 +10,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { concisePrintDate, trpc } from "@/utils";
-import { PageType } from "@common/types";
 import { Link, useParams } from "wouter";
+import { PageType } from "../../../../../common/types";
 import usePagination from "../usePagination";
 import { displayStepType } from "./utils";
 

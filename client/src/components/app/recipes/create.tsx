@@ -32,14 +32,14 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useToast } from "@/components/ui/use-toast";
+import { Loader2 } from "lucide-react";
+import { useEffect, useState } from "react";
 import {
   CatalogueType,
   PageType,
   PaginationConfiguration,
   UrlPatternType,
-} from "@common/types";
-import { Loader2 } from "lucide-react";
-import { useEffect, useState } from "react";
+} from "../../../../../common/types";
 
 type FormRecipeConfiguration = {
   pageType: PageType;

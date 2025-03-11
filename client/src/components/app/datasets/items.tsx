@@ -13,10 +13,10 @@ import {
 } from "@/components/ui/table";
 import { API_URL } from "@/constants";
 import { DataItem, prettyPrintDate, trpc } from "@/utils";
-import { CourseStructuredData } from "@common/types";
 import { Download } from "lucide-react";
 import { useState } from "react";
 import { useParams } from "wouter";
+import { CourseStructuredData } from "../../../../../common/types";
 import usePagination from "../usePagination";
 
 interface CourseDisplayItemProps {

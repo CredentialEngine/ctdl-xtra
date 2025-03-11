@@ -23,9 +23,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { trpc } from "@/utils";
-import { CatalogueType } from "@common/types";
 import { useEffect } from "react";
 import { useLocation } from "wouter";
+import { CatalogueType } from "../../../../../common/types";
 
 const FormSchema = z.object({
   name: z.string().min(2, {
