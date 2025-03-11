@@ -32,7 +32,7 @@ RUN /build/app/server/node_modules/.bin/rebrowser-puppeteer browsers install chr
 
 USER root
 COPY server/ /build/app/server
-COPY common /build/app/common
+COPY common/ /build/app/common
 RUN cd /build/app/server && pnpm run build
 
 RUN cp -R /build/app/server /app
