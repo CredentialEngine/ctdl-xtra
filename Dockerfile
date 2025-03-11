@@ -48,4 +48,4 @@ WORKDIR /app
 
 EXPOSE 3000
 ENTRYPOINT [ "/app/entrypoint.sh" ]
-CMD ["pm2-runtime", "/app/dist/src/server.js"]
+CMD ["pm2-runtime", "/app/dist/server/src/server.js"]

@@ -40,4 +40,4 @@ RUN cp -R /build/app/server /app
 WORKDIR /app
 
 ENTRYPOINT [ "/app/entrypoint-worker.sh" ]
-CMD ["pm2-runtime", "/app/dist/src/worker.js"]
+CMD ["pm2-runtime", "/app/dist/server/src/worker.js"]
