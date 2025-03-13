@@ -124,15 +124,20 @@ ${key}: ${prop.description}${prop.required ? " (REQUIRED)" : ""}`;
   return prompt;
 }
 
+type ExtractEntityDataReturnType = Promise<{
+  prompt: string,
+  data: 
+    | CourseStructuredData[]
+    | LearningProgramStructuredData[]
+    | CompetencyStructuredData[]
+}>;
+
 export async function extractEntityData(
   options: DefaultLlmPageOptions,
   catalogueType: CatalogueType,
   entity?: Record<string, any>
-): Promise<
-  | CourseStructuredData[]
-  | LearningProgramStructuredData[]
-  | CompetencyStructuredData[]
-> {
+): ExtractEntityDataReturnType 
+{
   const entityDef = getCatalogueTypeDefinition(catalogueType);
   const basePrompt = getBasePrompt(catalogueType);
 
@@ -245,7 +250,7 @@ ${options.content}
   });
 
   if (!result || !result.toolCallArgs) {
-    return [];
+    return { prompt, data: [] };
   }
 
   const entities = assertArray<Record<string, any>>(
@@ -253,7 +258,9 @@ ${options.content}
     "items"
   );
 
-  return entities
+  const data = entities
     .filter((entity) => requiredProperties.every((prop) => entity[prop]))
     .map((entity) => processEntity(entity, catalogueType));
+
+  return { prompt, data };
 }

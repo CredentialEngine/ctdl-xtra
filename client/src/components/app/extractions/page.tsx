@@ -87,8 +87,8 @@ export default function CrawlPageDetail() {
     );
   }
 
-  const formattedSimulatedData = simulatedExtractedData
-    ? JSON.stringify(simulatedExtractedData, null, 2)
+  const formattedSimulatedData = simulatedExtractedData?.data
+    ? JSON.stringify(simulatedExtractedData?.data, null, 2)
     : null;
 
   return (
@@ -109,7 +109,18 @@ export default function CrawlPageDetail() {
               <AccordionItem value="simulated_data">
                 <AccordionTrigger>Simulated Data</AccordionTrigger>
                 <AccordionContent>
-                  <pre className="text-xs">{formattedSimulatedData}</pre>
+                  <Tabs defaultValue="output">
+                    <TabsList>
+                      <TabsTrigger value="output">Output</TabsTrigger>
+                      <TabsTrigger value="prompt">Prompt</TabsTrigger>
+                    </TabsList>
+                    <TabsContent value="output">
+                      <pre className="text-xs overflow-auto">{formattedSimulatedData}</pre>
+                    </TabsContent>
+                    <TabsContent value="prompt">
+                      <pre className="text-xs overflow-auto">{simulatedExtractedData?.prompt}</pre>
+                    </TabsContent>
+                  </Tabs>
                 </AccordionContent>
               </AccordionItem>
             </Accordion>

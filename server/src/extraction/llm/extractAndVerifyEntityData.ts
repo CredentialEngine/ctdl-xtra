@@ -65,7 +65,7 @@ async function verifyAndRetryExtraction(
     retryCount < MAX_RETRIES &&
     !passesVerification(textInclusion, catalogueType)
   ) {
-    const focusedEntityData = await extractEntityData(
+    const { data: focusedEntityData } = await extractEntityData(
       options,
       catalogueType,
       entity
@@ -113,7 +113,7 @@ export async function extractAndVerifyEntityData(
 
   const results = [];
   for (const chunkOptions of chunks) {
-    const entitiesData = await extractEntityData(chunkOptions, catalogueType);
+    const { data: entitiesData } = await extractEntityData(chunkOptions, catalogueType);
     if (!entitiesData || entitiesData.length === 0) {
       console.log(`Couldn't find ${catalogueType} data`);
       continue;
