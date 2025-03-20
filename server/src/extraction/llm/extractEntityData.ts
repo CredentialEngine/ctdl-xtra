@@ -158,14 +158,16 @@ In a previous step, we asked you to extract the data, but we noticed there was a
 with the ${entityDef.name} data.
 
 Note you must extract data for the ${entityDef.name} EXACTLY as it is in the page, without adding or
-removing anything.
+removing anything. NEVER paraphrase or change the content unless requested.
 
 Your previous extraction (INCORRECT) was:
 
 ${JSON.stringify(entity)}
 
 Pay attention to the page content and extract it correctly this time.`
-    : `Your goal is to extract ${entityDef.name} data from this page.`;
+    : `Your goal is to extract ${entityDef.name} data from this page.
+       Extract the data EXACTLY as it shows up in the page.
+       NEVER paraphrase, rewrite or change content unless requested.`;
 
   const prompt = `
 ${entityPrompt}

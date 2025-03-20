@@ -16,6 +16,7 @@ export interface CatalogueTypeDefinition {
       required: boolean;
     };
   };
+  identifierProperty: string;
 }
 
 export const catalogueTypes: Record<CatalogueType, CatalogueTypeDefinition> = {
@@ -32,6 +33,7 @@ export const catalogueTypes: Record<CatalogueType, CatalogueTypeDefinition> = {
     exampleName: "Financial Accounting",
     exampleDescription:
       "A study of the underlying theory and application of financial accounting concepts.",
+    identifierProperty: "course_id",
     properties: {
       course_id: {
         description: 'code/identifier for the course (example: "AGRI 101")',
@@ -104,16 +106,18 @@ export const catalogueTypes: Record<CatalogueType, CatalogueTypeDefinition> = {
     detailDescription:
       "It has details for the learning programs of an institution directly in the page.",
     categoryDescription:
-      "It has links to departments, schools, or learning program category pages.",
-    linkDescription: "It has links to the learning programs of an institution.",
+      "It has links to learning program category pages. For example, it might have a link to an 'Arts' category that will then have links to various art-related programs.",
+    linkDescription:
+      "It has links to the learning programs of an institution. For example, it links directly to a Bachelor of Science in Computer Science learning program, a Bachelor of Science in Nursing learning program, etc.",
     exampleIdentifier: "BSCS",
     exampleName: "Bachelor of Science in Computer Science",
     exampleDescription:
       "A comprehensive program that prepares students for careers in software development and computer systems.",
+    identifierProperty: "learning_program_id",
     properties: {
       learning_program_id: {
         description:
-          'code/identifier for the learning program (example: "BSCS")',
+          "code/identifier for the learning program. Unless it is clearly identified as such in the page, default to the name of the learning program.",
         required: true,
       },
       learning_program_name: {
@@ -122,8 +126,11 @@ export const catalogueTypes: Record<CatalogueType, CatalogueTypeDefinition> = {
         required: true,
       },
       learning_program_description: {
-        description:
-          "the full description of the learning program. If there are links, only extract the text.",
+        description: `the full description of the learning program.
+           Pages often include other sections aside from the basic description, for example containing program requirements,
+           restrictions, etc. We don't want any of that - we only want the program description (directly extracted from the page).
+           If there are links, only extract the text.
+          `,
         required: true,
       },
     },
@@ -141,6 +148,7 @@ export const catalogueTypes: Record<CatalogueType, CatalogueTypeDefinition> = {
     exampleName: "Critical Thinking",
     exampleDescription:
       "The ability to analyze information objectively and make reasoned judgments.",
+    identifierProperty: "competency_id",
     properties: {
       competency_id: {
         description: 'code/identifier for the competency (example: "COMP-101")',
