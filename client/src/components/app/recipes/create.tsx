@@ -91,7 +91,8 @@ function RecipeLevel({
     context: {
       parents?: FormRecipeConfiguration[];
       current: FormRecipeConfiguration;
-    }
+    },
+    formPath?: string
   ) => Promise<void>;
 }) {
   const form = useFormContext<z.infer<typeof FormSchema>>();
@@ -247,10 +248,14 @@ function RecipeLevel({
                     <Button
                       type="button"
                       onClick={() =>
-                        onDetectPagination(rootUrl, {
-                          parents: parentsConfig,
-                          current: currentConfig,
-                        })
+                        onDetectPagination(
+                          rootUrl,
+                          {
+                            parents: parentsConfig,
+                            current: currentConfig,
+                          },
+                          path
+                        )
                       }
                     >
                       Detect
@@ -377,13 +382,14 @@ export default function CreateRecipe() {
   });
   const { toast } = useToast();
   const [_location, navigate] = useLocation();
+
   useEffect(() => {
     if (!catalogueQuery.data) {
       return;
     }
     form.reset({ url: catalogueQuery.data.url });
   }, [catalogueQuery.data]);
-  // when manualConfig is set, we need tos et another field
+
   useEffect(() => {
     if (form.getValues("manualConfig")) {
       form.setValue("configuration", {
@@ -440,16 +446,28 @@ export default function CreateRecipe() {
     context: {
       parents?: FormRecipeConfiguration[];
       current: FormRecipeConfiguration;
-    }
+    },
+    formPath?: string
   ) {
     if (!catalogueQuery.data?.catalogueType) return;
     try {
+      const url = context.parents
+        ? context.parents[context.parents.length - 1]?.sampleUrls![0]
+        : rootUrl;
       const result = await detectPagination.mutateAsync({
-        url: "test",
+        url,
         catalogueType: catalogueQuery.data.catalogueType as CatalogueType,
       });
       if (result) {
-        form.setValue("configuration.pagination", result);
+        const paginationPath = formPath
+          ? `${formPath}.pagination`
+          : "configuration.pagination";
+        form.setValue(
+          `${paginationPath}.urlPatternType` as any,
+          result.urlPatternType
+        );
+        form.setValue(`${paginationPath}.urlPattern` as any, result.urlPattern);
+        form.setValue(`${paginationPath}.totalPages` as any, result.totalPages);
       }
     } catch (err) {
       toast({
