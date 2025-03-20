@@ -173,15 +173,17 @@ export default function ExtractionDetail() {
     extraction.status == ExtractionStatus.CANCELLED ||
     extraction.status == ExtractionStatus.STALE
   ) {
-    statusDetails = (
-      <div>
-        Marked as stale on{" "}
-        {prettyPrintDate(extraction.completionStats!.generatedAt)}.
-        <div className="text-sm text-muted-foreground mt-2">
-          Ran for {elapsedTimeText}
+    if (extraction?.completionStats?.generatedAt) {
+      statusDetails = (
+        <div>
+          Marked as stale on{" "}
+          {prettyPrintDate(extraction.completionStats!.generatedAt)}.
+          <div className="text-sm text-muted-foreground mt-2">
+            Ran for {elapsedTimeText}
+          </div>
         </div>
-      </div>
-    );
+      );
+    }
   } else {
     statusDetails = (
       <div className="text-sm text-muted-foreground mt-2">
