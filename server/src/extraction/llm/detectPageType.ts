@@ -3,11 +3,7 @@ import {
   ChatCompletionMessageParam,
 } from "openai/resources/chat/completions";
 import { DefaultLlmPageOptions } from ".";
-import {
-  CatalogueType,
-  PageType,
-  RecipeConfiguration,
-} from "../../../../common/types";
+import { CatalogueType, PageType } from "../../../../common/types";
 import {
   assertStringEnum,
   BadToolCallResponseError,
@@ -15,9 +11,7 @@ import {
 } from "../../openai";
 import { getCatalogueTypeDefinition } from "../catalogueTypes";
 export async function detectPageType(
-  defaultOptions: DefaultLlmPageOptions & { catalogueType: CatalogueType },
-  // @ts-ignore
-  currentConfiguration?: RecipeConfiguration
+  defaultOptions: DefaultLlmPageOptions & { catalogueType: CatalogueType }
 ) {
   const entity = getCatalogueTypeDefinition(defaultOptions.catalogueType);
 

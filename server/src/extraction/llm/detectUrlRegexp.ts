@@ -1,10 +1,6 @@
 import { ChatCompletionContentPart } from "openai/resources/chat/completions";
 import { DefaultLlmPageOptions } from ".";
-import {
-  CatalogueType,
-  PageType,
-  RecipeConfiguration,
-} from "../../../../common/types";
+import { CatalogueType, PageType } from "../../../../common/types";
 import { assertArray, assertString, simpleToolCompletion } from "../../openai";
 import { SimplifiedMarkdown } from "../../types";
 import { resolveAbsoluteUrl } from "../../utils";
@@ -32,8 +28,6 @@ export interface AdditionalPage {
 export default async function detectUrlRegexp(
   defaultOptions: DefaultLlmPageOptions & { catalogueType: CatalogueType },
   dataType: PageType,
-  // @ts-ignore
-  currentConfiguration?: RecipeConfiguration,
   additionalPages?: AdditionalPage[]
 ) {
   if (dataType == PageType.DETAIL) {
