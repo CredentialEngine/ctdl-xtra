@@ -131,13 +131,17 @@ function RecipeLevel({
                 const currentConfig = form.getValues(
                   path as any
                 ) as any as FormRecipeConfiguration;
+                const links =
+                  PageType.DETAIL_LINKS == value
+                    ? { pageType: PageType.DETAIL }
+                    : currentConfig?.links;
                 (form.setValue as any)(path, {
                   ...currentConfig,
                   pageType: value as PageType,
                   ...(value !== PageType.DETAIL && {
                     linkRegexp: currentConfig?.linkRegexp || "",
                     pagination: currentConfig?.pagination,
-                    links: currentConfig?.links,
+                    links: links,
                   }),
                 });
               }}
