@@ -94,4 +94,55 @@ describe("ACALOG", { timeout: EXTRACTION_TIMEOUT }, () => {
       );
     });
   });
+
+  describe("Raritan Valley Community College", () => {
+    test("Standard Learning Program", async () => {
+      await assertExtraction<LearningProgramStructuredData>(
+        "https://catalog.raritanval.edu/preview_program.php?catoid=15&poid=1917&returnto=1319",
+        [
+          {
+            learning_program_id: "Medical Assistant, Certificate",
+            learning_program_name: "Medical Assistant, Certificate",
+            learning_program_description: `The Medical Assistant Certificate program prepares a student for a career in the field of medical assisting.  A Medical Assistant performs routine administrative and clinical tasks under the supervision of a physician, other health practitioner, or office manager. Clinical skills include taking medical histories and recording vital signs, assisting with the primary physical exam and other specialty exams, preparing patients for minor surgical procedures, providing patient education, cleaning and sterilizing instruments, and assisting in the collection and analysis of laboratory specimens.  Administrative skills include coordinating and scheduling patient appointments, receiving and processing patients in the office, preparing and maintaining patient records, coding and filing health insurance claims, and performing bookkeeping tasks.`,
+          },
+        ],
+        true,
+        CatalogueType.LEARNING_PROGRAMS
+      );
+    });
+  });
+
+  describe("Union College of Union County", () => {
+    test("Standard Learning Program", async () => {
+      await assertExtraction<LearningProgramStructuredData>(
+        "http://onlinecatalog.ucc.edu/preview_program.php?catoid=11&poid=1578",
+        [
+          {
+            learning_program_id: "Game Design and Development, A.A.S.",
+            learning_program_name: "Game Design and Development, A.A.S.",
+            learning_program_description: `Game Design and Development is a comprehensive two-year program leading to an Associate in Applied Science degree. The program introduces students to a variety of programming, digital art and animation, and game development concepts. Students learn the concepts of gameplay, graphics programming, artificial intelligence, and game algorithms. Students also gain an understanding of the connection between game design with physics and mathematics. For better design, students are also required to successfully complete fine arts courses. The program provides students with the skills necessary for entry-level positions in the game development industry.`,
+          },
+        ],
+        true,
+        CatalogueType.LEARNING_PROGRAMS
+      );
+    });
+  });
+
+  describe("Sussex County Community College", () => {
+    test("Standard Learning Program", async () => {
+      await assertExtraction<LearningProgramStructuredData>(
+        "https://catalog.sussex.edu/preview_program.php?catoid=6&poid=905&returnto=310",
+        [
+          {
+            learning_program_id: "Optics Technology: Conventional, C.O.A.",
+            learning_program_name: "Optics Technology: Conventional, C.O.A.",
+            learning_program_description: `This program is designed to provide continuing students and professionals with theoretical and hands-on knowledge of the art and science of conventional manufacturing techniques. Students acquire skills for an entry-level position in the manufacturing sector of the photonics industry.`,
+          },
+        ],
+        true,
+        CatalogueType.LEARNING_PROGRAMS
+      );
+    });
+  });
 });

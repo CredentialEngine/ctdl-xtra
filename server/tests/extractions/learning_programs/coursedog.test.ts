@@ -22,4 +22,21 @@ describe("CourseDog", { timeout: EXTRACTION_TIMEOUT }, () => {
       );
     });
   });
+
+  describe("Commonwealth University-Bloomsburg", () => {
+    test("Standard Learning Program", async () => {
+      await assertExtraction<LearningProgramStructuredData>(
+        "https://va-commonwealth.catalog.prod.coursedog.com/programs/SCUL-BFA-Concentration",
+        [
+          {
+            learning_program_id: "SCUL-BFA-Concentration",
+            learning_program_name: "Visual Arts BFA - Sculpture",
+            learning_program_description: `The Bachelor of Fine Arts in Visual Arts will offer students a NASAD accredited professional degree in Visual Arts with a choice of concentration in multiple areas: and (BU/LHU/MU) Art History and Graphic Design; (BU only) Painting; Drawing; Fabric Design; Printmaking; Sculpture; Photography; (LHU/MU only) 2D Media; 3D Media.`,
+          },
+        ],
+        true,
+        CatalogueType.LEARNING_PROGRAMS
+      );
+    });
+  });
 });
