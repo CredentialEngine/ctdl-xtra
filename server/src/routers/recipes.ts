@@ -144,7 +144,6 @@ export const recipesRouter = router({
                   catalogueType: opts.input.catalogueType,
                 },
                 opts.input.pageType,
-                undefined,
                 pages.length > 1 ? [pages[1]] : undefined
               ),
             10

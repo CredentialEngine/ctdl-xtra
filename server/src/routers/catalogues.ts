@@ -26,17 +26,24 @@ export const cataloguesRouter = router({
       z
         .object({
           page: z.number().int().positive().default(1),
-          withData: z.boolean().default(false),
+          search: z.string().optional(),
+          catalogueType: z.nativeEnum(CatalogueType).optional(),
         })
         .default({})
     )
     .query(async (opts) => {
       const totalItems = await getCatalogueCount();
       const totalPages = Math.ceil(totalItems / 20);
+      const params = {
+        limit: 20,
+        offset: opts.input.page * 20 - 20,
+        search: opts.input.search,
+        catalogueType: opts.input.catalogueType,
+      };
       return {
         totalItems,
         totalPages,
-        results: await findCatalogues(20, opts.input.page * 20 - 20),
+        results: await findCatalogues(params),
       };
     }),
   create: publicProcedure

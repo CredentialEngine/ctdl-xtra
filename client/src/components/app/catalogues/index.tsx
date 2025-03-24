@@ -14,10 +14,31 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { Recipe, RecipeDetectionStatus, trpc } from "@/utils";
-import { CookingPot, Pickaxe, Plus } from "lucide-react";
+import { CookingPot, Pickaxe, Plus, Search } from "lucide-react";
+import { useRef, useState } from "react";
 import { Link } from "wouter";
+import { CatalogueType } from "../../../../../common/types";
 import { Button } from "../../ui/button";
+import { Input } from "../../ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../../ui/select";
 import usePagination from "../usePagination";
+
+function debounce<T extends (...args: any[]) => any>(
+  func: T,
+  wait: number
+): (...args: Parameters<T>) => void {
+  let timeout: NodeJS.Timeout;
+  return (...args: Parameters<T>) => {
+    clearTimeout(timeout);
+    timeout = setTimeout(() => func(...args), wait);
+  };
+}
 
 const CatalogueListItem = (catalogue: {
   id: number;
@@ -76,7 +97,48 @@ const CatalogueListItem = (catalogue: {
 
 export default function Catalogues() {
   const { page, PaginationButtons } = usePagination();
-  const listQuery = trpc.catalogues.list.useQuery({ page });
+  const [search, setSearch] = useState("");
+  const [catalogueType, setCatalogueType] = useState<CatalogueType | "all">(
+    "all"
+  );
+  const debouncedSetSearch = useRef(debounce(setSearch, 300)).current;
+
+  const listQuery = trpc.catalogues.list.useQuery({
+    page,
+    search,
+    catalogueType: catalogueType === "all" ? undefined : catalogueType,
+  });
+
+  const searchFilters = (
+    <div>
+      <div className="flex gap-4 mb-4">
+        <div className="relative flex-1">
+          <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search catalogues..."
+            className="pl-8"
+            onChange={(e) => debouncedSetSearch(e.target.value)}
+          />
+        </div>
+        <Select
+          value={catalogueType}
+          onValueChange={(value) => setCatalogueType(value as CatalogueType)}
+        >
+          <SelectTrigger className="w-[180px]">
+            <SelectValue placeholder="All catalogue types" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All catalogue types</SelectItem>
+            {Object.values(CatalogueType).map((type) => (
+              <SelectItem key={type} value={type}>
+                {type}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+    </div>
+  );
 
   if (listQuery.isFetched && !listQuery.data?.results.length) {
     return (
@@ -84,6 +146,7 @@ export default function Catalogues() {
         <div className="flex items-center">
           <h1 className="text-lg font-semibold md:text-2xl">Catalogues</h1>
         </div>
+        {searchFilters}
         <div
           className="flex flex-1 items-center justify-center rounded-lg border border-dashed shadow-sm"
           x-chunk="dashboard-02-chunk-1"
@@ -115,6 +178,7 @@ export default function Catalogues() {
           </Button>
         </Link>
       </div>
+      {searchFilters}
       <Card>
         <CardContent>
           <Table>

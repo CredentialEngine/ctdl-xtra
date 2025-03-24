@@ -4,39 +4,37 @@ import {
   PageType,
   RecipeConfiguration,
 } from "../../../common/types";
+import { SimplifiedMarkdown } from "../types";
 import { bestOutOf, exponentialRetry, unique } from "../utils";
 import { fetchBrowserPage, simplifiedMarkdown } from "./browser";
 import { detectPageType } from "./llm/detectPageType";
 import { detectPagination } from "./llm/detectPagination";
-import detectUrlRegexp, { createUrlExtractor } from "./llm/detectUrlRegexp";
+import detectUrlRegexp, {
+  AdditionalPage,
+  createUrlExtractor,
+} from "./llm/detectUrlRegexp";
 import { Probes } from "./vendor-probes";
 
 const sample = <T>(arr: T[], sampleSize: number) =>
   arr.sort(() => 0.5 - Math.random()).slice(0, sampleSize);
 
-const detectConfiguration = async (
+const detectPageTypeWithRetry = async (
   url: string,
-  catalogueType: CatalogueType,
-  pageData?: { content: string; screenshot: string },
-  currentConfiguration?: RecipeConfiguration
+  markdownContent: SimplifiedMarkdown,
+  screenshot: string,
+  catalogueType: CatalogueType
 ) => {
-  let { content, screenshot } = pageData || (await fetchBrowserPage(url));
-  const markdownContent = await simplifiedMarkdown(content);
-  console.log(`Detecting page type for ${url}`);
-  const pageType = await bestOutOf(
+  return bestOutOf(
     10,
     () =>
       exponentialRetry(async () => {
         try {
-          const pageType = await detectPageType(
-            {
-              url,
-              content: markdownContent,
-              screenshot: screenshot,
-              catalogueType,
-            },
-            currentConfiguration
-          );
+          const pageType = await detectPageType({
+            url,
+            content: markdownContent,
+            screenshot: screenshot,
+            catalogueType,
+          });
           return pageType;
         } catch (e) {
           console.log(`Error detecting page type for ${url}: ${inspect(e)}`);
@@ -45,12 +43,16 @@ const detectConfiguration = async (
       }, 10),
     (t) => t as string
   );
-  console.log(`Detected as ${pageType}`);
-  if (!pageType) {
-    throw new Error(`Couldn't detect page type for URL ${url}`);
-  }
-  console.log(`Detecting pagination for ${url}`);
-  const pagination = await bestOutOf(
+};
+
+const detectPaginationWithRetry = async (
+  url: string,
+  markdownContent: SimplifiedMarkdown,
+  screenshot: string,
+  catalogueType: CatalogueType,
+  pageType: PageType
+) => {
+  return bestOutOf(
     10,
     () =>
       exponentialRetry(
@@ -62,12 +64,68 @@ const detectConfiguration = async (
               screenshot: screenshot,
               catalogueType,
             },
-            pageType,
-            currentConfiguration
+            pageType
           ),
         10
       ),
     (p) => inspect(p)
+  );
+};
+
+const detectUrlRegexpWithRetry = async (
+  url: string,
+  markdownContent: SimplifiedMarkdown,
+  screenshot: string,
+  catalogueType: CatalogueType,
+  pageType: PageType,
+  additionalPages?: AdditionalPage[]
+) => {
+  return bestOutOf(
+    3,
+    () =>
+      exponentialRetry(
+        async () =>
+          detectUrlRegexp(
+            {
+              url,
+              content: markdownContent,
+              screenshot: screenshot,
+              catalogueType,
+            },
+            pageType,
+            additionalPages
+          ),
+        10
+      ),
+    (r) => r.source
+  );
+};
+
+const detectConfiguration = async (
+  url: string,
+  catalogueType: CatalogueType,
+  pageData?: { content: string; screenshot: string }
+) => {
+  let { content, screenshot } = pageData || (await fetchBrowserPage(url));
+  const markdownContent = await simplifiedMarkdown(content);
+  console.log(`Detecting page type for ${url}`);
+  const pageType = await detectPageTypeWithRetry(
+    url,
+    markdownContent,
+    screenshot,
+    catalogueType
+  );
+  console.log(`Detected as ${pageType}`);
+  if (!pageType) {
+    throw new Error(`Couldn't detect page type for URL ${url}`);
+  }
+  console.log(`Detecting pagination for ${url}`);
+  const pagination = await detectPaginationWithRetry(
+    url,
+    markdownContent,
+    screenshot,
+    catalogueType,
+    pageType
   );
   console.log(`Detected as: ${inspect(pagination)}`);
   let linkRegexp;
@@ -76,26 +134,14 @@ const detectConfiguration = async (
     pageType == PageType.DETAIL_LINKS
   ) {
     console.log(`Detecting regexp for ${url}`);
-    linkRegexp = await bestOutOf(
-      3,
-      () =>
-        exponentialRetry(
-          async () =>
-            detectUrlRegexp(
-              {
-                url,
-                content: markdownContent,
-                screenshot: screenshot,
-                catalogueType,
-              },
-              pageType,
-              currentConfiguration
-            ),
-          10
-        ),
-      (r) => r.source
+    linkRegexp = await detectUrlRegexpWithRetry(
+      url,
+      markdownContent,
+      screenshot,
+      catalogueType,
+      pageType
     );
-    console.log(`Detect as ${linkRegexp}`);
+    console.log(`Detected as ${linkRegexp}`);
   }
   return {
     content: markdownContent,
@@ -110,8 +156,7 @@ const detectConfiguration = async (
 const recursivelyDetectConfiguration = async (
   url: string,
   catalogueType: CatalogueType,
-  depth: number = 1,
-  currentConfiguration?: RecipeConfiguration
+  depth: number = 1
 ) => {
   if (depth > 3) {
     throw new Error("Exceeded max category depth");
@@ -155,80 +200,148 @@ const recursivelyDetectConfiguration = async (
     // Extract some sample pages which we'll use to confirm the page type.
     console.log("Detecting configuration for sample child pages");
     console.log(`There are ${urls.length} URLs and we're sampling 5`);
-    const samplePageConfigs = await Promise.all(
-      sample(urls, 5).map(async (url) =>
-        detectConfiguration(url, catalogueType, undefined, currentConfiguration)
-      )
+
+    const sampleLinks = await Promise.all(
+      sample(urls, 5).map(async (url) => {
+        const { content, screenshot } = await fetchBrowserPage(url);
+        const markdownContent = await simplifiedMarkdown(content);
+        return { url, content: markdownContent, screenshot };
+      })
     );
 
-    const mixedContent =
-      unique(samplePageConfigs.map((spc) => spc.pageType)).length > 1;
+    const linkedPageTypes = await Promise.all(
+      sampleLinks.map(async (page) => {
+        return detectPageTypeWithRetry(
+          page.url,
+          page.content,
+          page.screenshot,
+          catalogueType
+        );
+      })
+    );
+
+    const mixedContent = unique(linkedPageTypes).length > 1;
 
     if (mixedContent) {
       // If the LLM detects mixed content in the child pages, something is probably off; abort.
-      throw new Error("Couldn't determine page type for links");
+      throw new Error("Couldn't determine page type for links - mixed results");
     }
 
-    const childPage = samplePageConfigs[0];
+    const linkedPageType = linkedPageTypes[0];
 
-    configuration.links = {
-      pageType: childPage.pageType,
-      linkRegexp: childPage.linkRegexp?.source,
-      pagination: childPage.pagination,
-    };
+    if (!linkedPageType) {
+      throw new Error("Couldn't determine page type for links - no results");
+    }
 
     if (
       pageType == PageType.DETAIL_LINKS &&
-      childPage.pageType != PageType.DETAIL
+      linkedPageType != PageType.DETAIL
     ) {
       throw new Error(
-        `Detected course links page and expected course detail pages, but child pages are ${childPage.pageType}`
+        `Detected course links page and expected course detail pages, but child pages are ${linkedPageType}`
       );
     }
 
-    if (childPage.pageType == PageType.DETAIL) {
+    const childLinkRegexp =
+      linkedPageType == PageType.DETAIL
+        ? null
+        : await detectUrlRegexpWithRetry(
+            sampleLinks[0].url,
+            sampleLinks[0].content,
+            sampleLinks[0].screenshot,
+            catalogueType,
+            linkedPageType,
+            sampleLinks.slice(1)
+          );
+
+    configuration.links = {
+      pageType: linkedPageType,
+      linkRegexp: childLinkRegexp?.source,
+      pagination: pagination,
+    };
+
+    if (linkedPageType == PageType.DETAIL) {
       return configuration;
     }
 
-    const childUrlExtractor = createUrlExtractor(childPage.linkRegexp!);
-    const childUrls = await childUrlExtractor(childPage.url, childPage.content);
+    const childUrlExtractor = createUrlExtractor(childLinkRegexp!);
+    const childUrls = await childUrlExtractor(
+      sampleLinks[0].url,
+      sampleLinks[0].content
+    );
 
     console.log("Detecting configuration for sample child > child pages");
-    const sampleChildPageConfigs = await Promise.all(
-      sample(childUrls, 5).map(async (url) =>
-        detectConfiguration(url, catalogueType, undefined, currentConfiguration)
+    const sampleSubChildLinks = await Promise.all(
+      sample(childUrls, 5).map(async (url) => {
+        const { content, screenshot } = await fetchBrowserPage(url);
+        const markdownContent = await simplifiedMarkdown(content);
+        return { url, content: markdownContent, screenshot };
+      })
+    );
+    const subChildPageTypes = await Promise.all(
+      sampleSubChildLinks.map(async (page) =>
+        detectPageTypeWithRetry(
+          page.url,
+          page.content,
+          page.screenshot,
+          catalogueType
+        )
       )
     );
 
-    const mixedChildContent =
-      unique(sampleChildPageConfigs.map((spc) => spc.pageType)).length > 1;
+    const mixedSubChildContent = unique(subChildPageTypes).length > 1;
 
-    if (mixedChildContent) {
+    if (mixedSubChildContent) {
       // If the LLM detects mixed content in the child pages, something is probably off; abort.
-      throw new Error("Couldn't determine page type for child links");
+      throw new Error(
+        "Couldn't determine page type for child links - mixed results"
+      );
     }
 
-    const childLinkPage = sampleChildPageConfigs[0];
+    const subChildPageType = subChildPageTypes[0];
+
+    if (!subChildPageType) {
+      throw new Error(
+        "Couldn't determine page type for child links - no results"
+      );
+    }
+
+    if (
+      linkedPageType == PageType.DETAIL_LINKS &&
+      subChildPageType != PageType.DETAIL
+    ) {
+      throw new Error(
+        `Detected course links page and expected course detail pages, but child pages are ${subChildPageType}`
+      );
+    }
+
+    const subChildLinkRegexp =
+      subChildPageType == PageType.DETAIL
+        ? null
+        : await detectUrlRegexpWithRetry(
+            sampleSubChildLinks[0].url,
+            sampleSubChildLinks[0].content,
+            sampleSubChildLinks[0].screenshot,
+            catalogueType,
+            subChildPageType,
+            sampleSubChildLinks.slice(1)
+          );
 
     configuration.links.links = {
-      pageType: childLinkPage.pageType,
-      linkRegexp: childLinkPage.linkRegexp?.source,
-      pagination: childLinkPage.pagination,
+      pageType: subChildPageType,
+      linkRegexp: subChildLinkRegexp?.source,
+      pagination: pagination,
     };
 
-    if (childPage.pageType == PageType.DETAIL_LINKS) {
-      if (childLinkPage.pageType != PageType.DETAIL) {
-        throw new Error(
-          `Detected course links page and expected course detail pages, but child pages are ${childLinkPage.pageType}`
-        );
-      }
+    if (linkedPageType == PageType.DETAIL_LINKS) {
       return configuration;
-    } else if (childPage.pageType == PageType.CATEGORY_LINKS) {
+    }
+
+    if (linkedPageType == PageType.CATEGORY_LINKS) {
       configuration.links.links.links = await recursivelyDetectConfiguration(
-        childLinkPage.url,
+        sampleSubChildLinks[0].url,
         catalogueType,
-        depth + 1,
-        configuration
+        depth + 1
       );
     }
 

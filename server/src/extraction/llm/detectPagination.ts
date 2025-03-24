@@ -7,7 +7,6 @@ import {
   CatalogueType,
   PageType,
   PaginationConfiguration,
-  RecipeConfiguration,
   UrlPatternType,
 } from "../../../../common/types";
 import {
@@ -31,9 +30,7 @@ function getUrlPath(urlString: string): string {
 
 export async function detectPagination(
   defaultOptions: DefaultLlmPageOptions & { catalogueType: CatalogueType },
-  pageType: PageType,
-  // @ts-ignore
-  currentConfiguration?: RecipeConfiguration
+  pageType: PageType
 ): Promise<PaginationConfiguration | undefined> {
   const entity = getCatalogueTypeDefinition(defaultOptions.catalogueType);
 

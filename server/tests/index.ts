@@ -3,12 +3,14 @@ import { expect } from "vitest";
 import {
   CatalogueType,
   CourseStructuredData,
+  LearningProgramStructuredData,
   RecipeConfiguration,
 } from "../../common/types";
 import {
   fetchBrowserPage,
   simplifiedMarkdown,
 } from "../src/extraction/browser";
+import { getCatalogueTypeDefinition } from "../src/extraction/catalogueTypes";
 import { extractAndVerifyEntityData } from "../src/extraction/llm/extractAndVerifyEntityData";
 import recursivelyDetectConfiguration from "../src/extraction/recursivelyDetectConfiguration";
 
@@ -111,11 +113,15 @@ export async function assertConfiguration(
   compareConfigurations(actual, expected);
 }
 
-export async function assertExtraction(
+export async function assertExtraction<
+  T extends CourseStructuredData | LearningProgramStructuredData,
+>(
   url: string,
-  expected: CourseStructuredData[],
-  verified: boolean = false
+  expected: T[],
+  verified: boolean = false,
+  catalogueType: CatalogueType = CatalogueType.COURSES
 ) {
+  const typeDef = getCatalogueTypeDefinition(catalogueType);
   const page = await fetchBrowserPage(url);
   if (!page?.content) {
     throw new Error(`Page ${url} not found`);
@@ -127,24 +133,34 @@ export async function assertExtraction(
     content: simplifiedContent,
     url: page.url,
     screenshot: page.screenshot,
-    catalogueType: CatalogueType.COURSES,
+    catalogueType,
   });
 
-  for (const expectedCourse of expected) {
-    const extraction = extractions.find((course) =>
-      course.entity.course_id
+  for (const expectedItem of expected) {
+    const extraction = extractions.find((item) =>
+      item.entity[typeDef.identifierProperty]
         .toLowerCase()
         .replace(/[\W\s]+/g, "")
         .includes(
-          expectedCourse.course_id.toLowerCase().replace(/[\W\s]+/g, "")
+          (expectedItem as any)[typeDef.identifierProperty]
+            .toLowerCase()
+            .replace(/[\W\s]+/g, "")
         )
     );
     if (!extraction) {
-      throw new Error(`Course ${expectedCourse.course_id} not found`);
+      console.log(
+        `Found entities: ${extractions
+          .map((e) => inspect(e.entity))
+          .join("\n")}`
+      );
+      throw new Error(
+        `${typeDef.name} ${(expectedItem as any)[typeDef.identifierProperty]} not found`
+      );
     }
-    for (const key in expectedCourse) {
-      let expectedValue = expectedCourse[key as keyof CourseStructuredData];
-      let extractedValue = extraction.entity[key as keyof CourseStructuredData];
+    console.log(`Extracted entity: ${inspect(extraction.entity)}`);
+    for (const key in expectedItem) {
+      let expectedValue = expectedItem[key as keyof T];
+      let extractedValue = (extraction.entity as any)[key as keyof T];
 
       if (
         typeof expectedValue === "string" &&
@@ -160,16 +176,25 @@ export async function assertExtraction(
           );
         }
         if (extractedValue === 0 && expectedValue === undefined) {
-          expectedValue = 0;
+          (expectedValue as any) = 0;
         }
         expect(extractedValue).toEqual(expectedValue);
       }
     }
     if (verified) {
-      expect(extraction.textInclusion.course_id?.full).toBe(true);
-      expect(extraction.textInclusion.course_description?.full).toBe(true);
-      if (extraction.entity.course_prerequisites) {
-        expect(extraction.textInclusion.course_prerequisites?.full).toBe(true);
+      if (catalogueType === CatalogueType.COURSES) {
+        expect(extraction.textInclusion.course_id?.full).toBe(true);
+        expect(extraction.textInclusion.course_description?.full).toBe(true);
+        if (extraction.entity.course_prerequisites) {
+          expect(extraction.textInclusion.course_prerequisites?.full).toBe(
+            true
+          );
+        }
+      } else if (catalogueType === CatalogueType.LEARNING_PROGRAMS) {
+        expect(extraction.textInclusion.learning_program_id?.full).toBe(true);
+        expect(
+          extraction.textInclusion.learning_program_description?.full
+        ).toBe(true);
       }
     }
   }

@@ -1,7 +1,14 @@
-import { desc, eq, sql } from "drizzle-orm";
+import { and, desc, eq, ilike, sql } from "drizzle-orm";
 import { CatalogueType } from "../../../common/types";
 import db from "../data";
 import { catalogues, extractions, recipes } from "../data/schema";
+
+export interface FindCatalogueOptions {
+  limit?: number;
+  offset?: number;
+  catalogueType?: CatalogueType;
+  search?: string;
+}
 
 export async function getCatalogueCount() {
   const result = await db
@@ -52,14 +59,33 @@ export async function findLatestExtractionsForCatalogue(catalogueId: number) {
   return catExtractions.map((e) => e.extractions);
 }
 
-export async function findCatalogues(limit: number = 20, offset?: number) {
-  offset = offset || 0;
+/*
+const searchPosts = async (term?: string, categories: string[] = [], views = 0) => {
+  await db
+    .select()
+    .from(posts)
+    .where(
+      and(
+        term ? ilike(posts.title, term) : undefined,
+        categories.length > 0 ? inArray(posts.category, categories) : undefined,
+        views > 100 ? gt(posts.views, views) : undefined,
+      ),
+    );
+};
+*/
+
+export async function findCatalogues(options: FindCatalogueOptions) {
+  const { limit = 20, offset = 0, catalogueType, search } = options;
   return db.query.catalogues.findMany({
     limit,
     offset,
     with: {
       recipes: true,
     },
+    where: and(
+      catalogueType ? eq(catalogues.catalogueType, catalogueType) : undefined,
+      search ? ilike(catalogues.name, `%${search}%`) : undefined
+    ),
   });
 }
 

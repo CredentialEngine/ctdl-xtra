@@ -1,5 +1,5 @@
 import { describe, test } from "vitest";
-import { assertExtraction, EXTRACTION_TIMEOUT } from "..";
+import { assertExtraction, EXTRACTION_TIMEOUT } from "../..";
 
 describe("Kuali", { timeout: EXTRACTION_TIMEOUT }, () => {
   describe("BYU-Idaho", async () => {
