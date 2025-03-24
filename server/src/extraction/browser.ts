@@ -132,7 +132,7 @@ export async function simplifyHtml(html: string) {
       $elm.remove();
       continue;
     }
-    if (["nav", "header", "footer"].includes(elm.tagName)) {
+    if (["header", "footer"].includes(elm.tagName)) {
       $elm.remove();
       continue;
     }

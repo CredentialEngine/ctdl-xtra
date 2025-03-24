@@ -19,6 +19,7 @@ import {
   simpleToolCompletion,
 } from "../../openai";
 import { getCatalogueTypeDefinition } from "../catalogueTypes";
+
 function getUrlPath(urlString: string): string {
   try {
     const url = new URL(urlString);
@@ -30,9 +31,54 @@ function getUrlPath(urlString: string): string {
 
 export async function detectPagination(
   defaultOptions: DefaultLlmPageOptions & { catalogueType: CatalogueType },
-  pageType: PageType
+  pageType: PageType,
+  isPaginated: boolean | undefined = undefined
 ): Promise<PaginationConfiguration | undefined> {
   const entity = getCatalogueTypeDefinition(defaultOptions.catalogueType);
+
+  const hasPaginationPrompt = `
+Your goal is to determine how pagination works for this page: the URL pattern
+and the total number of pages.
+
+In order to determine that you'll look at the content and try to find pagination
+links.
+
+<parameters>
+is_paginated: always true in this case
+
+url_pattern_type:
+
+- page_num: page number parameter
+- offset: offset parameter
+- other: other type of pattern
+
+url_pattern:
+
+the URL for pages, with the parameter replaced by {page_num} or {offset} (plus {limit} if relevant).
+Example:
+https://www.example.com/${entity.pluralName.toLowerCase()}.php?page={page_num}
+
+total_pages:
+
+total number of pages
+
+other_explanation: ONLY FILL THIS IN IF THE PAGINATION TYPE IS OTHER
+
+the reason why the pagination type is other and how you determined that.
+</parameters>
+
+<context>
+The page is a ${entity.name} ${pageType} page.
+</context>
+
+<url>
+${defaultOptions.url}
+</url>
+
+<website_content>
+${defaultOptions.content}
+</website_content>
+`;
 
   const prompt = `
 Your goal is to determine whether the given web page is paginated, and how that pagination works.
@@ -82,7 +128,7 @@ ${defaultOptions.content}
   const completionContent: ChatCompletionContentPart[] = [
     {
       type: "text",
-      text: prompt,
+      text: isPaginated ? hasPaginationPrompt : prompt,
     },
   ];
 
@@ -159,7 +205,9 @@ ${defaultOptions.content}
     throw new BadToolCallResponseError(`Couldn't find offset: ${urlPattern}`);
   }
 
-  const detectedPath = getUrlPath(urlPattern);
+  const detectedPath = getUrlPath(
+    urlPattern.replace("{page_num}", "").replace("{offset}", "")
+  );
   if (!defaultOptions.content.includes(detectedPath)) {
     throw new BadToolCallResponseError(
       `Detected path ${detectedPath} not found in HTML`

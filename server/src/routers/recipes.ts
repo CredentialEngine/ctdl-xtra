@@ -112,7 +112,8 @@ export const recipesRouter = router({
           screenshot,
           catalogueType: opts.input.catalogueType,
         },
-        PageType.DETAIL_LINKS
+        PageType.DETAIL_LINKS,
+        true
       );
     }),
   detectUrlRegexp: publicProcedure
