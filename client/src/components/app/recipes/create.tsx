@@ -98,6 +98,7 @@ function RecipeLevel({
   const form = useFormContext<z.infer<typeof FormSchema>>();
   const config = form.watch(path as any) as any as FormRecipeConfiguration;
   const [isDetectingUrlRegexp, setIsDetectingUrlRegexp] = useState(false);
+  const [isDetectingPagination, setIsDetectingPagination] = useState(false);
 
   const rootUrl = form.watch("url");
 
@@ -251,18 +252,31 @@ function RecipeLevel({
                   <div className="mt-2 space-y-4">
                     <Button
                       type="button"
-                      onClick={() =>
-                        onDetectPagination(
-                          rootUrl,
-                          {
-                            parents: parentsConfig,
-                            current: currentConfig,
-                          },
-                          path
-                        )
-                      }
+                      onClick={async () => {
+                        setIsDetectingPagination(true);
+                        try {
+                          await onDetectPagination(
+                            rootUrl,
+                            {
+                              parents: parentsConfig,
+                              current: currentConfig,
+                            },
+                            path
+                          );
+                        } finally {
+                          setIsDetectingPagination(false);
+                        }
+                      }}
+                      disabled={isDetectingPagination}
                     >
-                      Detect
+                      {isDetectingPagination ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Detecting...
+                        </>
+                      ) : (
+                        "Detect"
+                      )}
                     </Button>
                     <div className="space-y-2">
                       <FormField
@@ -274,6 +288,7 @@ function RecipeLevel({
                             <Select
                               onValueChange={field.onChange}
                               defaultValue={field.value}
+                              disabled={isDetectingPagination}
                             >
                               <FormControl>
                                 <SelectTrigger>
@@ -299,7 +314,10 @@ function RecipeLevel({
                           <FormItem>
                             <FormLabel>URL Pattern</FormLabel>
                             <FormControl>
-                              <Input {...field} />
+                              <Input
+                                {...field}
+                                disabled={isDetectingPagination}
+                              />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -315,6 +333,7 @@ function RecipeLevel({
                               <Input
                                 type="number"
                                 {...field}
+                                disabled={isDetectingPagination}
                                 onChange={(e) =>
                                   field.onChange(parseInt(e.target.value))
                                 }
