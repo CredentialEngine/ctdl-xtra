@@ -10,10 +10,22 @@ export interface FindCatalogueOptions {
   search?: string;
 }
 
-export async function getCatalogueCount() {
+export async function getCatalogueCount(
+  options: Omit<FindCatalogueOptions, "limit" | "offset">
+) {
   const result = await db
     .select({ count: sql<number>`count(*)` })
-    .from(catalogues);
+    .from(catalogues)
+    .where(
+      and(
+        options.catalogueType
+          ? eq(catalogues.catalogueType, options.catalogueType)
+          : undefined,
+        options.search
+          ? ilike(catalogues.name, `%${options.search}%`)
+          : undefined
+      )
+    );
   return result[0].count;
 }
 
@@ -58,21 +70,6 @@ export async function findLatestExtractionsForCatalogue(catalogueId: number) {
     .limit(10);
   return catExtractions.map((e) => e.extractions);
 }
-
-/*
-const searchPosts = async (term?: string, categories: string[] = [], views = 0) => {
-  await db
-    .select()
-    .from(posts)
-    .where(
-      and(
-        term ? ilike(posts.title, term) : undefined,
-        categories.length > 0 ? inArray(posts.category, categories) : undefined,
-        views > 100 ? gt(posts.views, views) : undefined,
-      ),
-    );
-};
-*/
 
 export async function findCatalogues(options: FindCatalogueOptions) {
   const { limit = 20, offset = 0, catalogueType, search } = options;

@@ -32,7 +32,7 @@ export const cataloguesRouter = router({
         .default({})
     )
     .query(async (opts) => {
-      const totalItems = await getCatalogueCount();
+      const totalItems = await getCatalogueCount(opts.input);
       const totalPages = Math.ceil(totalItems / 20);
       const params = {
         limit: 20,
