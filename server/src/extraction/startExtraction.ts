@@ -37,6 +37,7 @@ async function launchLLMExtraction(
   });
   const crawlPage = await createPage({
     crawlStepId: step.id,
+    step: Step.FETCH_ROOT,
     extractionId: extraction.id,
     url: recipe.url,
     pageType: recipe.configuration!.pageType,
@@ -65,6 +66,7 @@ async function launchAPIExtraction(
   });
   const crawlPage = await createPage({
     crawlStepId: step.id,
+    step: Step.FETCH_VIA_API,
     extractionId: extraction.id,
     url: recipe.url,
     pageType: recipe.configuration!.pageType,

@@ -263,6 +263,7 @@ export async function createStep({
 
 export interface CreatePageOptions {
   crawlStepId: number;
+  step: Step;
   extractionId: number;
   url: string;
   pageType: PageType;
@@ -273,6 +274,7 @@ export interface CreatePageOptions {
 
 export async function createPage({
   crawlStepId,
+  step,
   extractionId,
   url,
   content,
@@ -284,6 +286,7 @@ export async function createPage({
     .insert(crawlPages)
     .values({
       crawlStepId,
+      step,
       extractionId,
       content,
       pageType,
@@ -326,6 +329,7 @@ export async function createStepAndPages(
       .values(
         createOptions.pages.map((pageCreateOptions) => ({
           crawlStepId: step.id,
+          step: createOptions.step,
           extractionId: createOptions.extractionId,
           url: pageCreateOptions.url,
           pageType: createOptions.pageType,

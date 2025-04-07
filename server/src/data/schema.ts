@@ -385,6 +385,9 @@ const crawlPages = pgTable(
     crawlStepId: integer("crawl_step_id")
       .notNull()
       .references(() => crawlSteps.id, { onDelete: "cascade" }),
+    // Redundant considering crawl_steps but makes it easier to enforce uniqueness
+    // for URLs at the database level
+    step: stepEnum("step").notNull(),
     status: pageStatusEnum("status").notNull().default(PageStatus.WAITING),
     url: text("url").notNull(),
     content: text("content"),
@@ -397,7 +400,7 @@ const crawlPages = pgTable(
     createdAt: timestamp("created_at").notNull().defaultNow(),
   },
   (t) => ({
-    uniq: unique().on(t.extractionId, t.url),
+    uniq: unique().on(t.extractionId, t.url, t.step),
     extractionIdx: index("crawl_pages_extraction_idx").on(t.extractionId),
     statusIdx: index("crawl_pages_status_idx").on(t.status),
     pageTypeIdx: index("crawl_pages_data_type_idx").on(t.pageType),
