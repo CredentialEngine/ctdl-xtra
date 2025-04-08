@@ -14,6 +14,10 @@ import { detectPagination } from "../extraction/llm/detectPagination";
 import detectUrlRegexp, {
   createUrlExtractor,
 } from "../extraction/llm/detectUrlRegexp";
+import {
+  fetchAndParseRobotsTxt,
+  isUrlAllowed,
+} from "../extraction/robotsParser";
 import { submitRecipeDetection } from "../extraction/submitRecipeDetection";
 import { bestOutOf, exponentialRetry } from "../utils";
 import { Queues, submitJob } from "../workers";
@@ -47,6 +51,7 @@ export const recipesRouter = router({
         url: z.string().url(),
         catalogueId: z.number().int().positive(),
         configuration: RecipeConfigurationSchema.optional(),
+        acknowledgedSkipRobotsTxt: z.boolean().optional(),
       })
     )
     .mutation(
@@ -56,17 +61,41 @@ export const recipesRouter = router({
         id: number;
         context?: { pageType: PageType; message?: string };
       }> => {
+        const robotsTxt = await fetchAndParseRobotsTxt(opts.input.url);
+        console.log(`robotsTxt: ${JSON.stringify(robotsTxt)}`);
+        if (
+          robotsTxt &&
+          !isUrlAllowed(robotsTxt, opts.input.url) &&
+          !opts.input.acknowledgedSkipRobotsTxt
+        ) {
+          throw new AppError(
+            "This URL cannot be crawled according to robots.txt rules. Please check the 'Bypass robots.txt' checkbox to confirm you have permission to crawl this site.",
+            AppErrors.BAD_REQUEST
+          );
+        }
+
         if (opts.input.configuration) {
           return createRecipe(
             opts.input.catalogueId,
             opts.input.url,
-            opts.input.configuration
+            opts.input.configuration,
+            robotsTxt || undefined,
+            opts.input.acknowledgedSkipRobotsTxt
           );
         } else {
           const detection = await submitRecipeDetection(
             opts.input.url,
             opts.input.catalogueId
           );
+
+          // If detection was successful, update the recipe with robots.txt info
+          if (detection.id) {
+            await updateRecipe(detection.id, {
+              robotsTxt: robotsTxt || undefined,
+              acknowledgedSkipRobotsTxt: opts.input.acknowledgedSkipRobotsTxt,
+            });
+          }
+
           return {
             id: detection.id,
             context: {

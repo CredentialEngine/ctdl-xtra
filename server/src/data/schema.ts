@@ -35,6 +35,7 @@ import {
   Step,
   TextInclusion,
 } from "../../../common/types";
+import { RobotsTxt } from "../extraction/robotsParser";
 import { SimplifiedMarkdown } from "../types";
 
 const gzip = promisify(syncGzip);
@@ -244,6 +245,8 @@ const recipes = pgTable(
     status: recipeDetectionStatusEnum("status")
       .notNull()
       .default(RecipeDetectionStatus.WAITING),
+    robotsTxt: jsonb("robots_txt").$type<RobotsTxt>(),
+    acknowledgedSkipRobotsTxt: boolean("acknowledged_skip_robots_txt"),
   },
   (t) => ({
     catalogueIdx: index("recipes_catalogue_idx").on(t.catalogueId),

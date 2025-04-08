@@ -1,6 +1,6 @@
 import querystring from "node:querystring";
 import { CourseStructuredData } from "../../../../common/types";
-import { Recipe } from "../../data/recipes";
+import { recipes } from "../../data/schema";
 import { exponentialRetry } from "../../utils";
 import { VendorExtractionService } from "./base";
 
@@ -8,7 +8,7 @@ export class CourseDogAPIService extends VendorExtractionService {
   apiBase = "https://app.coursedog.com/api/v1";
 
   public async extractData(
-    recipe: Recipe,
+    recipe: typeof recipes.$inferSelect,
     onResultBatch: (res: CourseStructuredData[]) => Promise<boolean>
   ): Promise<void> {
     // @ts-ignore
