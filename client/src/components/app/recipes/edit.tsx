@@ -8,32 +8,39 @@ import { z } from "zod";
 
 import { Button } from "@/components/ui/button";
 import {
-    Card,
-    CardContent,
-    CardDescription,
-    CardHeader,
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
 } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogHeader,
-    DialogTitle,
-    DialogTrigger,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
 } from "@/components/ui/dialog";
 import {
-    Form,
-    FormControl,
-    FormDescription,
-    FormField,
-    FormItem,
-    FormLabel,
-    FormMessage,
+  Form,
+  FormControl,
+  FormDescription,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/ui/use-toast";
-import { LoaderIcon, Pickaxe, RotateCcw, Star } from "lucide-react";
+import {
+  AlertTriangle,
+  Check,
+  LoaderIcon,
+  Pickaxe,
+  RotateCcw,
+  Star,
+} from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Link } from "wouter";
 import { displayRecipeDetails } from "./util";
@@ -191,7 +198,7 @@ export default function EditRecipe() {
                 {recipe.status == RecipeDetectionStatus.SUCCESS ? (
                   <Card>
                     <CardHeader>
-                      <CardDescription>Configuration</CardDescription>
+                      <CardDescription>Crawling Configuration</CardDescription>
                     </CardHeader>
                     <CardContent>
                       <div className="text-xs">
@@ -230,8 +237,8 @@ export default function EditRecipe() {
                     <CardContent className="text-sm">
                       <div>
                         <p className="text-red-800 font-semibold">
-                          CTDL xTRA failed to detect a valid
-                          configuration for this recipe.
+                          CTDL xTRA failed to detect a valid configuration for
+                          this recipe.
                         </p>
                         <p className="mt-4">
                           You can adjust the URL, or try again.
@@ -336,6 +343,125 @@ export default function EditRecipe() {
                 </div>
               ) : null}
             </div>
+
+            <div className="grid gap-2 md:grid-cols-[1fr_250px] lg:grid-cols-2 lg:gap-4">
+              <Card>
+                <CardHeader>
+                  <CardDescription>robots.txt Configuration</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {recipe.robotsTxt ? (
+                    <div className="space-y-4">
+                      <div>
+                        <p className="text-sm font-medium">Crawling Status</p>
+                        <div className="mt-2 flex items-center">
+                          {recipe.acknowledgedSkipRobotsTxt ? (
+                            <>
+                              <AlertTriangle className="h-4 w-4 text-amber-500 mr-2" />
+                              <p className="text-sm font-medium text-amber-700">
+                                Ignoring robots.txt (acknowledgment provided)
+                              </p>
+                            </>
+                          ) : (
+                            <>
+                              <Check className="h-4 w-4 text-green-500 mr-2" />
+                              <p className="text-sm font-medium text-green-700">
+                                Following robots.txt rules
+                              </p>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium">Rules</p>
+                        <div className="mt-2 text-sm">
+                          {recipe.robotsTxt.rules
+                            .sort((a, b) => {
+                              // Sort rules so that user-agent "*" appears first
+                              if (a.userAgent === "*" && b.userAgent !== "*")
+                                return -1;
+                              if (a.userAgent !== "*" && b.userAgent === "*")
+                                return 1;
+                              return 0;
+                            })
+                            .map((rule, i) => (
+                              <div
+                                key={i}
+                                className={`mb-4 rounded-md border p-3 ${
+                                  rule.userAgent === "*"
+                                    ? "bg-blue-50 border-blue-200"
+                                    : "bg-muted/50"
+                                }`}
+                              >
+                                <p className="font-medium text-xs text-muted-foreground mb-1">
+                                  User-Agent:
+                                </p>
+                                <p
+                                  className={`font-mono mb-2 ${rule.userAgent === "*" ? "font-semibold" : ""}`}
+                                >
+                                  {rule.userAgent}
+                                  {rule.userAgent === "*" && (
+                                    <span className="ml-2 text-xs text-blue-600">
+                                      (in effect)
+                                    </span>
+                                  )}
+                                </p>
+                                {rule.disallow.length > 0 && (
+                                  <>
+                                    <p className="font-medium text-xs text-muted-foreground mb-1">
+                                      Disallow:
+                                    </p>
+                                    <p className="font-mono mb-2">
+                                      {rule.disallow.join(", ")}
+                                    </p>
+                                  </>
+                                )}
+                                {rule.allow.length > 0 && (
+                                  <>
+                                    <p className="font-medium text-xs text-muted-foreground mb-1">
+                                      Allow:
+                                    </p>
+                                    <p className="font-mono mb-2">
+                                      {rule.allow.join(", ")}
+                                    </p>
+                                  </>
+                                )}
+                                {rule.crawlDelay !== undefined && (
+                                  <>
+                                    <p className="font-medium text-xs text-muted-foreground mb-1">
+                                      Crawl-Delay:
+                                    </p>
+                                    <p className="font-mono">
+                                      {rule.crawlDelay}
+                                    </p>
+                                  </>
+                                )}
+                              </div>
+                            ))}
+                        </div>
+                      </div>
+                      {recipe.robotsTxt.sitemaps.length > 0 && (
+                        <div>
+                          <p className="text-sm font-medium">Sitemaps:</p>
+                          <div className="rounded-md border p-3 bg-muted/50">
+                            {recipe.robotsTxt.sitemaps.map((sitemap, i) => (
+                              <p key={i} className="font-mono text-sm mb-1">
+                                {sitemap}
+                              </p>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <p className="text-sm">
+                      No robots.txt file found for this website.
+                    </p>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+
             <div className="flex items-center">
               {recipe.status == RecipeDetectionStatus.IN_PROGRESS ? (
                 <Button disabled={true} variant={"outline"}>
