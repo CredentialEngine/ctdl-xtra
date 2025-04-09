@@ -104,6 +104,12 @@ export interface CatalogueTypeDefinition {
     };
   };
   identifierProperty: string;
+
+  /** If defined, examples will be provided to the LLM for few shot prompting. */
+  examples?: Array<{
+    data: string;
+    desiredOutcome: string;
+  }>
 }
 
 export const catalogueTypes: Record<CatalogueType, CatalogueTypeDefinition> = {

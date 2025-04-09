@@ -121,6 +121,15 @@ export function getBasePrompt(catalogueType: CatalogueType): string {
     prompt += `\nWe are looking for the following fields:\n${promptOfRequiredFields}\n`;
   }
 
+  if (entityDef.examples?.length) {
+    const examples = entityDef.examples.map(({ data, desiredOutcome }, index) => `
+Example #${index+1}: ${data}
+Desired outcome: ${desiredOutcome}
+    `);
+
+    prompt += examples.join('\n');
+  }
+
   return prompt;
 }
 
