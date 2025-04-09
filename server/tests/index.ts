@@ -12,7 +12,9 @@ import {
 } from "../src/extraction/browser";
 import { getCatalogueTypeDefinition } from "../src/extraction/catalogueTypes";
 import { extractAndVerifyEntityData } from "../src/extraction/llm/extractAndVerifyEntityData";
+import { exploreAdditionalPages } from "../src/extraction/llm/exploreAdditionalPages";
 import recursivelyDetectConfiguration from "../src/extraction/recursivelyDetectConfiguration";
+import { determinePresenceOfEntity } from "../src/extraction/llm/determinePresenceOfEntity";
 
 export const EXTRACTION_TIMEOUT = 1000 * 60 * 10;
 
@@ -199,3 +201,54 @@ export async function assertExtraction<
     }
   }
 }
+
+export async function extractCompetencies(
+  url: string,
+) {
+  const page = await fetchBrowserPage(url)
+    .then(page => page.content
+      ? page
+      : Promise.reject(new Error(`Page ${url} not found`))
+    );
+  const simplifiedContent = await simplifiedMarkdown(page.content);
+  
+  const extractionOptions = {
+    content: simplifiedContent,
+    url: page.url,
+    screenshot: page.screenshot,
+    catalogueType: CatalogueType.COMPETENCIES,
+  };
+  
+  // Check if competencies are present on the page
+  const entityDef = getCatalogueTypeDefinition(CatalogueType.COMPETENCIES);
+  if (entityDef.presencePrompt) {
+    const presenceResult = await determinePresenceOfEntity(extractionOptions, entityDef);
+    if (!presenceResult.present) {
+      return []; // Return empty array if no competencies are present
+    }
+  }
+  
+  const extractions = await extractAndVerifyEntityData(extractionOptions);
+  return extractions.map(e => e.entity);
+}
+
+export async function detectExploratoryPages(
+  url: string,
+  catalogueType: CatalogueType = CatalogueType.COMPETENCIES
+) {
+  const page = await getPageWithFallback(url)
+    .then(page => page.content
+      ? page
+      : Promise.reject(new Error(`Page ${url} not found`))
+    );
+  const simplifiedContent = await simplifiedMarkdown(page.content);
+  
+  const { data: urls } = await exploreAdditionalPages({
+    url: page.url,
+    content: simplifiedContent,
+    screenshot: page.screenshot,
+  }, catalogueType);
+
+  return urls;
+}
+
