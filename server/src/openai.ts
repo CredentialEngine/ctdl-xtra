@@ -4,6 +4,7 @@ import {
   ChatCompletionCreateParams,
   ChatCompletionMessageParam,
 } from "openai/resources/chat/completions";
+import { JSONSchema } from "openai/lib/jsonschema";
 import { Provider, ProviderModel } from "../../common/types";
 import db from "./data";
 import { createModelApiCallLog } from "./data/extractions";
@@ -159,6 +160,104 @@ export async function simpleToolCompletion<
 
     return {
       toolCallArgs: toolArgs,
+      inputTokenCount,
+      outputTokenCount,
+    };
+  }, 10);
+}
+
+export async function structuredCompletion<
+  T extends ToolCallParameters,
+>(options: {
+  messages: Array<ChatCompletionMessageParam>;
+  schema: JSONSchema;
+  requiredParameters?: Array<keyof T>;
+  logApiCall?: {
+    callSite: string;
+    extractionId: number;
+  };
+}): Promise<{
+  result: ToolCallReturn<T> | null;
+  inputTokenCount: number;
+  outputTokenCount: number;
+}> {
+  return exponentialRetry(async () => {
+    const openai = await getOpenAi();
+    let chatCompletion: ChatCompletion;
+
+    const completionOptions: ChatCompletionCreateParams = {
+      messages: options.messages,
+      model: ProviderModel.Gpt4o,
+      temperature: 1,
+      top_p: 1,
+      frequency_penalty: 0,
+      presence_penalty: 0,
+      response_format: {
+        type: "json_schema",
+        json_schema: {
+          strict: true,
+          name: 'schema',
+          schema: options.schema,
+        },
+      } as any,
+    };
+
+    try {
+      chatCompletion = await openai.chat.completions.create(completionOptions) as ChatCompletion;
+    } catch (e) {
+      if (
+        e instanceof OpenAI.APIError &&
+        ["invalid_base64", "invalid_image_format"].includes(e.code || "")
+      ) {
+        console.log(
+          `OpenAI API Error: ${e.code}. Likely invalid base64 screenshot; retrying without screenshots`
+        );
+
+        const messagesWithoutScreenshots = completionOptions.messages.map((m) => ({
+          ...m,
+          content: Array.isArray(m.content)
+            ? m.content.filter((c) => c.type !== "image_url")
+            : m.content,
+        }));
+
+        const completionOptionsWithoutScreenshots = {
+          ...completionOptions,
+          messages: messagesWithoutScreenshots as ChatCompletionMessageParam[],
+        };
+        chatCompletion = await openai.chat.completions.create(
+          completionOptionsWithoutScreenshots
+        ) as ChatCompletion;
+      } else {
+        throw e;
+      }
+    }
+
+    const inputTokenCount = chatCompletion.usage?.prompt_tokens || 0;
+    const outputTokenCount = chatCompletion.usage?.completion_tokens || 0;
+
+    if (options.logApiCall) {
+      await createModelApiCallLog(
+        options.logApiCall.extractionId,
+        Provider.OpenAI,
+        ProviderModel.Gpt4o,
+        options.logApiCall.callSite,
+        inputTokenCount,
+        outputTokenCount
+      );
+    }
+
+    if (!chatCompletion.choices[0].message.content) {
+      return {
+        result: null,
+        inputTokenCount,
+        outputTokenCount,
+      };
+    }
+
+    const result = JSON.parse(chatCompletion.choices[0].message.content);
+
+    return {
+      result,
       inputTokenCount,
       outputTokenCount,
     };
