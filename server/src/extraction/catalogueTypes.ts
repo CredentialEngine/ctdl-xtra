@@ -50,6 +50,11 @@ export interface CatalogueTypeDefinition {
   model?: ProviderModel;
 
   /**
+   * If true, we will not use screenshots for the LLM.
+   */
+  skipScreenshot?: boolean
+
+  /**
    * When defined, we will instruct the LLM to use it for 
    * structured output instead of the default function call
    * instruction.
@@ -273,6 +278,7 @@ export const catalogueTypes: Record<CatalogueType, CatalogueTypeDefinition> = {
       "We are ONLY looking for links within the same domain as the page or relative to the page. " +
       "PAY ATTENTION to extract only the link and not markdown specific information like [link](url). " +
       "If there are no instances of links that CLEARLY point to skills or learning outcomes or competencies, yield an empty list.",
+    skipScreenshot: true,
   },
 };
 

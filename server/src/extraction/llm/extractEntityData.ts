@@ -197,7 +197,7 @@ ${options.content}
     },
   ];
 
-  if (options?.screenshot) {
+  if (!entityDef?.skipScreenshot && options?.screenshot) {
     completionContent.push({
       type: "image_url",
       image_url: { url: `data:image/webp;base64,${options.screenshot}` },
