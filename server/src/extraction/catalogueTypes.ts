@@ -66,6 +66,19 @@ export interface CatalogueTypeDefinition {
    * instruction.
    */
   schema?: JSONSchema;
+
+  /**
+   * When true, we will instruct the LLM to verify that the
+   * full phrases are extracted.
+   */
+  verifyFullPhrases?: boolean;
+
+  /**
+   * When defined, we will verify that the
+   * properties listed in the array are extracted as full phrases.
+   */
+  propertiesRequiredAsPhrases?: string[];
+
   /**
    * When defined, we will run a presence check
    * using this prompt before the extraction. Useful for keeping
@@ -228,6 +241,8 @@ export const catalogueTypes: Record<CatalogueType, CatalogueTypeDefinition> = {
       temperature: 1,
       top_p: 0.5,
     },
+    verifyFullPhrases: false,
+    propertiesRequiredAsPhrases: ["text"],
     wrapWithMarkdownBlock: true,
     presencePrompt: 
       'Look at the given markdown page and check if there exists a list of skills in a dedicated section. ' +

@@ -117,7 +117,7 @@ export interface CompetencyStructuredData {
 }
 
 export type TextInclusion<T> = {
-  [K in keyof T]: { full: boolean };
+  [K in keyof T]: { full: boolean, sentences?: boolean };
 };
 
 export interface StepCompletionStats {
