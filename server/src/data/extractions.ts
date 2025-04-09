@@ -235,6 +235,16 @@ export async function findPageByUrl(extractionId: number, url: string) {
   });
   return result;
 }
+export async function findCrawlPageByUrl(url: string) {
+  const result = await db.query.crawlPages.findFirst({
+    where: (crawlPages, { eq, and }) =>
+      eq(crawlPages.url, url),
+    with: {
+      crawlStep: true,
+    },
+  });
+  return result;
+}
 
 export interface CreateStepOptions {
   extractionId: number;

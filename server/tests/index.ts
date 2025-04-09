@@ -14,12 +14,40 @@ import { getCatalogueTypeDefinition } from "../src/extraction/catalogueTypes";
 import { extractAndVerifyEntityData } from "../src/extraction/llm/extractAndVerifyEntityData";
 import { exploreAdditionalPages } from "../src/extraction/llm/exploreAdditionalPages";
 import recursivelyDetectConfiguration from "../src/extraction/recursivelyDetectConfiguration";
+import { readContent, readScreenshot } from "../src/data/schema";
+import { findCrawlPageByUrl } from "../src/data/extractions";
 import { determinePresenceOfEntity } from "../src/extraction/llm/determinePresenceOfEntity";
 
 export const EXTRACTION_TIMEOUT = 1000 * 60 * 10;
 
 // Recipes can take a long time, let's wait for up to 30mins.
 export const RECIPE_TIMEOUT = 1000 * 60 * 30;
+
+/**
+ * Get a page from the database or fetch it from the browser if it's not in the database.
+ * @param url The URL of the page to get.
+ * @returns The page content, URL, and screenshot.
+ */
+async function getPageWithFallback(url: string) {
+  let page;
+
+  try {
+    page = await findCrawlPageByUrl(url);
+  } catch (e) {
+    console.error(`Page ${url} not found in database, fetching from browser`, e);
+  }
+
+  if (page?.content) {
+    return {
+      content: await readContent(page.extractionId, page.crawlStepId, page.id),
+      url,
+      screenshot: page.screenshot
+        ? await readScreenshot(page.extractionId, page.crawlStepId, page.id)
+        : "",
+    };
+  }
+  return fetchBrowserPage(url);
+}
 
 function matchesUrlPattern(expected: string, actual: string): boolean {
   const expectedUrl = new URL(expected);
@@ -124,7 +152,7 @@ export async function assertExtraction<
   catalogueType: CatalogueType = CatalogueType.COURSES
 ) {
   const typeDef = getCatalogueTypeDefinition(catalogueType);
-  const page = await fetchBrowserPage(url);
+  const page = await getPageWithFallback(url);
   if (!page?.content) {
     throw new Error(`Page ${url} not found`);
   }
