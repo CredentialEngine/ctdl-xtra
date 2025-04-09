@@ -2,11 +2,13 @@ import { format } from "fast-csv";
 import { Transform } from "stream";
 import {
   CatalogueType,
+  CompetencyStructuredData,
   CourseStructuredData,
   LearningProgramStructuredData,
 } from "../../common/types";
 import { findDataItems } from "./data/datasets";
 import { findExtractionById } from "./data/extractions";
+import { randomUUID } from "crypto";
 
 /*
   Ref.
@@ -100,17 +102,76 @@ function getLearningProgramRow(
   };
 }
 
+type Framework = { name: string; id: string };
+
 function getCompetencyRow(
   item: Awaited<ReturnType<typeof findDataItems>>["items"][number],
   textVerificationAverage: number,
-  textVerificationDetails: string
+  textVerificationDetails: string,
+  state: Record<string, any>,
 ) {
-  throw new Error("Not implemented");
+
+  const entityData = item.structuredData as CompetencyStructuredData;
+  const frameworks = state?.frameworks || [];
+
+  const result = [];
+
+  let framework: Framework = frameworks.find((item: typeof framework) => item?.name === entityData.competency_framework)
+  if (!framework) {
+    framework = {
+      name: entityData.competency_framework,
+      id: randomUUID(),
+    };
+    frameworks.push(framework);
+    state.frameworks = frameworks;
+
+    const frameworkItem = makeCompetencyRow(
+      { text: framework.name, language: entityData.language, competency_framework: '' },
+      { textVerificationAverage, textVerificationDetails },
+    );
+    result.push(frameworkItem);
+  }
+
+  const competencyItem = makeCompetencyRow(
+    { text: entityData.text, language: entityData.language, competency_framework: framework.id },
+    { textVerificationAverage, textVerificationDetails },
+    framework
+  );
+  result.push(competencyItem);
+  return result;
 }
 
-function getBulkUploadTemplateRow(
+function makeCompetencyRow(
+  entity: CompetencyStructuredData,
+  verification: { textVerificationAverage: number, textVerificationDetails: string },
+  parent?: Framework
+) {
+  const type = parent ? "ceasn:Competency" : "ceasn:CompetencyFramework";
+  const id = randomUUID();
+  const name = !parent ? entity.text : "";
+  const text = parent ? entity.text : "";
+  const description = parent ? "" : `These are the competencies associated with ${entity.text}`;
+  const language = entity.language;
+  const isPartOf = parent ? parent.id : "";
+  const result = {
+    "@type": type,
+    "@id": id,
+    "ceasn:name": name,
+    "ceasn:competencyText": text,
+    "ceasn:description": description,
+    "ceasn:inLanguage": language,
+    "ceasn:publisher": "",
+    "ceasn:isPartOf": isPartOf,
+  };
+
+  return result;
+  
+}
+
+function getBulkUploadTemplateRow<T>(
   item: Awaited<ReturnType<typeof findDataItems>>["items"][number],
-  catalogueType: CatalogueType
+  catalogueType: CatalogueType,
+  state: Record<string, any>,
 ) {
   const textInclusion = item.textInclusion;
   let textVerificationAverage = 0;
@@ -145,7 +206,8 @@ function getBulkUploadTemplateRow(
     return getCompetencyRow(
       item,
       textVerificationAverage,
-      textVerificationDetails
+      textVerificationDetails,
+      state
     );
   } else {
     throw new Error(`Unknown catalogue type: ${catalogueType}`);
@@ -156,24 +218,31 @@ async function buildCsv(csvStream: Transform, extractionId: number) {
   try {
     let offset = 0;
     let limit = 100;
+    let state: Record<string, any> = {};
+
+    const extraction = await findExtractionById(extractionId);
+    if (!extraction) {
+      throw new Error("Extraction not found");
+    }
 
     while (true) {
-      const extraction = await findExtractionById(extractionId);
-      if (!extraction) {
-        throw new Error("Extraction not found");
-      }
-
       const { items } = await findDataItems(extractionId, limit, offset, true);
       if (!items.length) {
         break;
       }
       for (const item of items) {
-        csvStream.write(
-          getBulkUploadTemplateRow(
-            item,
-            extraction.recipe.catalogue.catalogueType as CatalogueType
-          )
+        const records = getBulkUploadTemplateRow(
+          item,
+          extraction.recipe.catalogue.catalogueType as CatalogueType,
+          state,
         );
+
+        if (Array.isArray(records) && records?.length) {
+          records.map(entry => csvStream.write(entry));
+        } else {
+          csvStream.write(records);
+        }
+        
       }
       offset += limit;
     }

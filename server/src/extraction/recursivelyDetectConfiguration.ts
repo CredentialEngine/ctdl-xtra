@@ -168,7 +168,7 @@ const recursivelyDetectConfiguration = async (
     pageUrl: url,
   });
 
-  if (apiReceipe) {
+  if (apiReceipe && catalogueType === CatalogueType.COURSES) {
     console.log(
       `API provider identified ${apiReceipe.apiProvider}. Skipping page format detection.`
     );

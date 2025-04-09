@@ -1,3 +1,5 @@
+import nlp from "compromise";
+
 import { DefaultLlmPageOptions } from ".";
 import { CatalogueType, TextInclusion } from "../../../../common/types";
 import { SimplifiedMarkdown } from "../../types";
@@ -12,9 +14,14 @@ export function preprocessText(text: string): string {
     .replace(/[^a-z0-9]/g, "");
 }
 
+export function stripNonAlphanumeric(text: string): string {
+  return text.replace(/[^A-z0-9\.\-\s\;\\\,]/g, "");
+}
+
 async function reportTextInclusion(
   entity: Record<string, any>,
-  content: string,
+  preprocessedContent: string,
+  sentences: string[],
   catalogueType: CatalogueType
 ): Promise<TextInclusion<any>> {
   const result: TextInclusion<any> = {} as TextInclusion<any>;
@@ -23,9 +30,16 @@ async function reportTextInclusion(
   for (const [key, value] of Object.entries(entity)) {
     if (value !== undefined && value !== null) {
       const preprocessedValue = preprocessText(String(value));
+      const verifyFullPhrases = entityDef.verifyFullPhrases && entityDef.propertiesRequiredAsPhrases?.includes(key);
+      const entitySentences = verifyFullPhrases && nlp(String(value)).sentences().out('array');
+      
       result[key] = {
-        full: content.includes(preprocessedValue),
+        full: preprocessedContent.includes(preprocessedValue),
       };
+
+      if (verifyFullPhrases) {
+        result[key].sentences = entitySentences.every((sentence: string) => sentences.includes(sentence));
+      }
     }
   }
 
@@ -38,24 +52,34 @@ const passesVerification = (
 ) => {
   const entityDef = getCatalogueTypeDefinition(catalogueType);
 
-  const requiredFields = Object.entries(entityDef.properties)
+  const requiredFields = Object.entries(entityDef.properties || {})
     .filter(([_, prop]) => prop.required)
     .map(([key]) => key);
 
-  return requiredFields.every(
+  const passes = requiredFields.every(
     (field) => !textInclusion[field] || textInclusion[field].full
   );
+  const sentencesPass = entityDef.verifyFullPhrases 
+  ?
+    entityDef.propertiesRequiredAsPhrases?.every(
+      (field) => textInclusion[field].sentences
+    )
+  : true;
+  
+  return passes && sentencesPass;
 };
 
 async function verifyAndRetryExtraction(
   entity: Record<string, any>,
   options: DefaultLlmPageOptions,
   preprocessedContent: string,
+  sentences: string[],
   catalogueType: CatalogueType
 ) {
   let textInclusion = await reportTextInclusion(
     entity,
     preprocessedContent,
+    sentences,
     catalogueType
   );
   let retryCount = 0;
@@ -75,6 +99,7 @@ async function verifyAndRetryExtraction(
       textInclusion = await reportTextInclusion(
         entity,
         preprocessedContent,
+        sentences,
         catalogueType
       );
     }
@@ -106,6 +131,7 @@ export async function extractAndVerifyEntityData(
 ) {
   const chunks = await maybeChunkContent(options);
   const catalogueType = options.catalogueType;
+  const entityDef = catalogueType ? getCatalogueTypeDefinition(catalogueType!) : undefined;
 
   if (!catalogueType) {
     throw new Error("Catalogue type is required");
@@ -120,12 +146,16 @@ export async function extractAndVerifyEntityData(
     }
 
     const preprocessedContent = preprocessText(chunkOptions.content);
+    let sentences = entityDef?.verifyFullPhrases
+      ? nlp(stripNonAlphanumeric(chunkOptions.content)).sentences().out('array')
+      : [];
 
     for (const entity of entitiesData) {
       const verifiedExtraction = await verifyAndRetryExtraction(
         entity,
         chunkOptions,
         preprocessedContent,
+        sentences,
         catalogueType
       );
       results.push(verifiedExtraction);

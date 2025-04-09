@@ -9,6 +9,7 @@ export enum PageType {
   CATEGORY_LINKS = "CATEGORY_LINKS",
   DETAIL_LINKS = "DETAIL_LINKS",
   API_REQUEST = "API_REQUEST",
+  EXPLORATORY = "EXPLORATORY",
 }
 
 export enum ApiProvider {
@@ -109,10 +110,14 @@ export interface LearningProgramStructuredData {
   learning_program_description: string;
 }
 
-export interface CompetencyStructuredData {}
+export interface CompetencyStructuredData {
+  text: string;
+  competency_framework: string;
+  language?: string;
+}
 
 export type TextInclusion<T> = {
-  [K in keyof T]: { full: boolean };
+  [K in keyof T]: { full: boolean, sentences?: boolean };
 };
 
 export interface StepCompletionStats {

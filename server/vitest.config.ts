@@ -9,4 +9,7 @@ export default defineConfig({
       "@common": path.resolve(__dirname, "../common"),
     },
   },
+  test: {
+    setupFiles: ["./tests/assertions.ts"],
+  },
 });
