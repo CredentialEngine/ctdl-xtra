@@ -73,7 +73,7 @@ export async function detectPageType(
 
   For ${entity.name}, we need the following fields:
 
-  ${Object.entries(entity.properties)
+  ${Object.entries(entity?.properties || {})
     .map(([key, { description }]) => `${key}: ${description}`)
     .join("\n")}
 

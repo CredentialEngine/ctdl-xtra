@@ -7,6 +7,18 @@ export interface CatalogueTypeDefinition {
   detailDescription: string;
   categoryDescription: string;
   linkDescription: string;
+
+  /**
+   * If specified it will tell the LLM what is
+   * the desired output. Example values:
+   * - 'An array of strings with all the animals mentioned in the page'
+   * - 'An array of JSON objects having x, y, z attributes.'
+   * 
+   * If not specified, the LLM will be instructed
+   * to give us structured output for the defined
+   * data in the `properties` field.
+   */
+  desiredOutput?: string;
   exampleIdentifier: string;
   exampleName: string;
   exampleDescription: string;
@@ -136,33 +148,46 @@ export const catalogueTypes: Record<CatalogueType, CatalogueTypeDefinition> = {
     },
   },
   [CatalogueType.COMPETENCIES]: {
-    name: "competency",
-    pluralName: "competencies",
-    description: "skills and competencies defined by an institution",
+    name: "skill, competency or learning outcome",
+    pluralName: "skills, competencies or learning outcomes",
+    description: "skills, competencies or learning outcomes",
     detailDescription:
-      "It has details for the competencies of an institution directly in the page.",
+      "It contains one or more competencies, skills or learning outcomes directly in the page.",
     categoryDescription:
       "It has links to skill areas, domains, or competency category pages.",
     linkDescription: "It has links to the competencies of an institution.",
-    exampleIdentifier: "COMP-101",
+    exampleIdentifier: "",
     exampleName: "Critical Thinking",
     exampleDescription:
       "The ability to analyze information objectively and make reasoned judgments.",
     identifierProperty: "competency_id",
+    desiredOutput:
+      'We are looking for a list of skills that are gained after taking the course described in the page. ' +
+      'If found, take each item exactly as it is in the page and return them. Skip everything else, just the skill list.' +
+      'Do not confuse skills with courses or tools or technologies used. Return the skills that result after the course is completed.' +
+      'Do not return skills required for taking the course. Return only the skills that are gained after taking the course.',
     properties: {
-      competency_id: {
-        description: 'code/identifier for the competency (example: "COMP-101")',
+      text: {
+        description:
+          'text of the skill item of the list (for example "Critical Thinking"). ' +
+          'The information should be EXACTLY as in the page AND the FULL PHRASE. DO NOT break phrases. ',
         required: true,
       },
-      competency_name: {
+      competency_framework: {
         description:
-          'name for the competency (for example "Critical Thinking")',
-        required: true,
+          "The name of the encompassing or overarching skill or competency or learning program or course that will lead " +
+          "to obtaining the skill or competency or learning outcome. " +
+          "Usually this value is the same for the entire list but should be set " +
+          "according to the hierarchy structure of the page. This is usually shorter. " +
+          'Sometimes, this might contain descriptive language about the skill - we should only keep the ' +
+          'name of the skill and trim phrases such as "competency" or "learning outcome".' +
+          'This field should be in title case. If it contains roman numerals, they use use uppercase.',
+        required: false,
       },
-      competency_description: {
+      language: {
         description:
-          "the full description of the competency. If there are links, only extract the text.",
-        required: true,
+          "ISO code of the language in which the name property is expressed. Examples - 'en' for English, 'es' for Spanish, 'de' for German, etc.",
+        required: false,
       },
     },
   },

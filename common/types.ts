@@ -109,7 +109,11 @@ export interface LearningProgramStructuredData {
   learning_program_description: string;
 }
 
-export interface CompetencyStructuredData {}
+export interface CompetencyStructuredData {
+  text: string;
+  competency_framework: string;
+  language?: string;
+}
 
 export type TextInclusion<T> = {
   [K in keyof T]: { full: boolean };

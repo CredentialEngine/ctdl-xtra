@@ -91,7 +91,7 @@ export function processEntity(
     }
 
     if (
-      !entityDef.properties[key]?.required &&
+      !entityDef?.properties?.[key]?.required &&
       (processedEntity[key] === "" || processedEntity[key] === undefined)
     ) {
       processedEntity[key] = undefined;
@@ -111,25 +111,29 @@ export function processEntity(
 
 export function getBasePrompt(catalogueType: CatalogueType): string {
   const entityDef = getCatalogueTypeDefinition(catalogueType);
+  const promptOfRequiredFields = Object.entries(entityDef.properties)
+    .map(([key, prop]) => `${key}: ${prop.description}${prop.required ? " (REQUIRED)" : ""}`)
+    .join('\n');
 
-  let prompt = `
-We are looking for the following fields:
-`;
-
-  for (const [key, prop] of Object.entries(entityDef.properties)) {
-    prompt += `
-${key}: ${prop.description}${prop.required ? " (REQUIRED)" : ""}`;
+  let prompt = entityDef.desiredOutput || '';
+  if (entityDef.properties) {
+    prompt += `\nWe are looking for the following fields:\n${promptOfRequiredFields}\n`;
+  }
   }
 
   return prompt;
 }
 
 type ExtractEntityDataReturnType = Promise<{
-  prompt: string,
-  data: 
-    | CourseStructuredData[]
-    | LearningProgramStructuredData[]
-    | CompetencyStructuredData[]
+  /** LLM textual prompt used for the extraction */
+  prompt: string, 
+
+  /** Extracted structured data items (entities) */
+  data: Array<
+    | Record<string, any>
+    | CourseStructuredData
+    | LearningProgramStructuredData
+    | CompetencyStructuredData>,
 }>;
 
 export async function extractEntityData(

@@ -56,7 +56,13 @@ export default createProcessor<ExtractDataJob, ExtractDataProgress>(
       });
 
       for (const { entity, textInclusion } of extractedData) {
-        await createDataItem(crawlPage.id, dataset.id, entity, textInclusion);
+        if (entity.items) {
+          for (const item of entity.items) {
+            await createDataItem(crawlPage.id, dataset.id, item, textInclusion);
+          }
+        } else {
+          await createDataItem(crawlPage.id, dataset.id, entity, textInclusion);
+        }
       }
     } catch (err) {
       console.log(inspect(err));
