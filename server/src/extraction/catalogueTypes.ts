@@ -1,4 +1,4 @@
-import { CatalogueType } from "../../../common/types";
+import { CatalogueType, ProviderModel } from "../../../common/types";
 
 export interface CatalogueTypeDefinition {
   name: string;
@@ -42,6 +42,19 @@ export interface CatalogueTypeDefinition {
    * from the page content.
    */
   explorationPrompt?: string;
+
+  /**
+   * The model to use for the LLM.
+   */
+  model?: ProviderModel;
+  /**
+   * Parameters applicable for the extraction stage.
+   */
+  extractionParameters?: {
+    temperature?: number; // LLM temperature
+    top_p?: number; // LLM top_p
+  };
+
   exampleIdentifier: string;
   exampleName: string;
   exampleDescription: string;
@@ -184,6 +197,11 @@ export const catalogueTypes: Record<CatalogueType, CatalogueTypeDefinition> = {
     exampleDescription:
       "The ability to analyze information objectively and make reasoned judgments.",
     identifierProperty: "competency_id",
+    model: ProviderModel.Gpt4o,
+    extractionParameters: {
+      temperature: 1,
+      top_p: 0.5,
+    },
     desiredOutput:
       'We are looking for a list of skills that are gained after taking the course described in the page. ' +
       'If found, take each item exactly as it is in the page and return them. Skip everything else, just the skill list.' +

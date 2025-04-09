@@ -67,6 +67,8 @@ export async function simpleToolCompletion<
   parameters: T;
   model?: ProviderModel;
   requiredParameters?: Array<keyof T>;
+  temperature?: number;
+  top_p?: number;
   logApiCall?: {
     callSite: string;
     extractionId: number;
@@ -82,6 +84,8 @@ export async function simpleToolCompletion<
     const completionOptions: ChatCompletionCreateParams = {
       messages: options.messages,
       model: options.model || ProviderModel.Gpt4o,
+      temperature: options?.temperature ?? 1,
+      top_p: options?.top_p ?? 1,
       tools: [
         {
           type: "function",
@@ -103,6 +107,16 @@ export async function simpleToolCompletion<
       },
     };
     try {
+      if (options.model === ProviderModel.O3Mini) {
+        // @ts-ignore
+        completionOptions.messages = options.messages.map((m) => ({
+          ...m,
+          content: Array.isArray(m.content)
+            ? m.content.filter((c) => c.type !== "image_url")
+            : m.content,
+        }));
+      }
+
       chatCompletion = await openai.chat.completions.create(completionOptions);
     } catch (e) {
       if (
@@ -171,7 +185,10 @@ export async function structuredCompletion<
 >(options: {
   messages: Array<ChatCompletionMessageParam>;
   schema: JSONSchema;
+  model?: ProviderModel;
   requiredParameters?: Array<keyof T>;
+  temperature?: number;
+  top_p?: number;
   logApiCall?: {
     callSite: string;
     extractionId: number;
@@ -187,9 +204,9 @@ export async function structuredCompletion<
 
     const completionOptions: ChatCompletionCreateParams = {
       messages: options.messages,
-      model: ProviderModel.Gpt4o,
-      temperature: 1,
-      top_p: 1,
+      model: options.model || ProviderModel.Gpt4o,
+      temperature: options?.temperature ?? 1,
+      top_p: options?.top_p ?? 1,
       frequency_penalty: 0,
       presence_penalty: 0,
       response_format: {
@@ -203,6 +220,16 @@ export async function structuredCompletion<
     };
 
     try {
+      if (options.model === ProviderModel.O3Mini) {
+        // @ts-ignore
+        completionOptions.messages = completionOptions.messages.map((m) => ({
+          ...m,
+          content: Array.isArray(m.content)
+            ? m.content.filter((c) => c.type !== "image_url")
+            : m.content,
+        }));
+      }
+
       chatCompletion = await openai.chat.completions.create(completionOptions) as ChatCompletion;
     } catch (e) {
       if (
