@@ -9,6 +9,7 @@ export enum PageType {
   CATEGORY_LINKS = "CATEGORY_LINKS",
   DETAIL_LINKS = "DETAIL_LINKS",
   API_REQUEST = "API_REQUEST",
+  EXPLORATORY = "EXPLORATORY",
 }
 
 export enum ApiProvider {

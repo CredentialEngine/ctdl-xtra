@@ -19,6 +19,29 @@ export interface CatalogueTypeDefinition {
    * data in the `properties` field.
    */
   desiredOutput?: string;
+
+  /**
+   * When set to true, we will ask the LLM for additional 
+   * URLs that could indicate sub pages where we could find
+   * entites when the page extracted does not yield any of 
+   * the targeted entities.
+   */
+  exploreDuringExtraction?: boolean;
+
+  /**
+   * When set to true, filter the exploration URLs to
+   * only include URLs that are on the same origin as the page.
+   * This helps to avoid extracting URLs that are external
+   * such as links to social media, external blogs,
+   * our outside the catalogue.
+   */
+  exploreSameOrigin?: boolean
+
+  /**
+   * Textual prompt set to the LLM to yield additional URLs
+   * from the page content.
+   */
+  explorationPrompt?: string;
   exampleIdentifier: string;
   exampleName: string;
   exampleDescription: string;
@@ -190,6 +213,16 @@ export const catalogueTypes: Record<CatalogueType, CatalogueTypeDefinition> = {
         required: false,
       },
     },
+    exploreDuringExtraction: true,
+    exploreSameOrigin: true,
+    explorationPrompt: 
+      "In the page markdown given below, look for all links or URL like information " +
+      "that point to pages with information about skills or learning outcomes or competencies obtained. " +
+      "The link we are looking for is related to the course presented in the page, general links like navigation should be ignored. " +
+      "IT IS IMPORTANT THAT THE LINK IS RELATED TO OUTCOMES FOR THE CURRENT COURSE, NOT OTHER COURSES OR PROGRAMS. " +
+      "We are ONLY looking for links within the same domain as the page or relative to the page. " +
+      "PAY ATTENTION to extract only the link and not markdown specific information like [link](url). " +
+      "If there are no instances of links that CLEARLY point to skills or learning outcomes or competencies, yield an empty list.",
   },
 };
 
