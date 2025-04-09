@@ -61,6 +61,13 @@ export interface CatalogueTypeDefinition {
    */
   schema?: JSONSchema;
   /**
+   * When defined, we will run a presence check
+   * using this prompt before the extraction. Useful for keeping
+   * extractions prompts simple.
+   */
+  presencePrompt?: string;
+
+  /**
    * Parameters applicable for the extraction stage.
    */
   extractionParameters?: {
@@ -215,6 +222,10 @@ export const catalogueTypes: Record<CatalogueType, CatalogueTypeDefinition> = {
       temperature: 1,
       top_p: 0.5,
     },
+    presencePrompt: 
+      'Look at the given markdown page and check if there exists a list of skills in a dedicated section. ' +
+      'We are looking for a list in a dedicated section, do not consider paragraphs or long descriptions. ' +
+      'Do not confuse courses with skills. We are looking for skills attained after taking the course described in the page.',
     desiredOutput:
       'We are looking for a list of skills that are gained after taking the course described in the page. ' +
       'If found, take each item exactly as it is in the page and return them. Skip everything else, just the skill list.' +

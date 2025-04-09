@@ -12,6 +12,7 @@ import { CatalogueType, ExtractionStatus, PageType, Step, TextInclusion } from "
 import { extractAndVerifyEntityData } from "../extraction/llm/extractAndVerifyEntityData";
 import { getCatalogueTypeDefinition } from "../extraction/catalogueTypes";
 import { exploreAdditionalPages } from "../extraction/llm/exploreAdditionalPages";
+import { determinePresenceOfEntity } from "../extraction/llm/determinePresenceOfEntity";
 
 export default createProcessor<ExtractDataJob, ExtractDataProgress>(
   async function extractData(job) {
@@ -57,16 +58,25 @@ export default createProcessor<ExtractDataJob, ExtractDataProgress>(
         logApiCalls: { extractionId: crawlPage.extractionId },
       };
 
-      let extractedData: { entity: any, textInclusion: TextInclusion<any> }[] = [];
+      let skipExtraction = false, extractedData: { entity: any, textInclusion: TextInclusion<any> }[] = [];
 
-      extractedData = await extractAndVerifyEntityData(extractionOptions);
-      for (const { entity, textInclusion } of extractedData) {
-        if (entity.items) {
-          for (const item of entity.items) {
-            await createDataItem(crawlPage.id, dataset.id, item, textInclusion);
+      if (entityDef.presencePrompt) {
+        const result = await determinePresenceOfEntity(extractionOptions, entityDef);
+        if (!result.present) {
+          skipExtraction = true;
+        }
+      }
+
+      if (!skipExtraction) {
+        extractedData = await extractAndVerifyEntityData(extractionOptions);
+        for (const { entity, textInclusion } of extractedData) {
+          if (entity.items) {
+            for (const item of entity.items) {
+              await createDataItem(crawlPage.id, dataset.id, item, textInclusion);
+            }
+          } else {
+            await createDataItem(crawlPage.id, dataset.id, entity, textInclusion);
           }
-        } else {
-          await createDataItem(crawlPage.id, dataset.id, entity, textInclusion);
         }
       }
 
@@ -107,6 +117,7 @@ export default createProcessor<ExtractDataJob, ExtractDataProgress>(
             );
           })
           .catch(console.log);
+
       }
     } catch (err) {
       console.log(inspect(err));
