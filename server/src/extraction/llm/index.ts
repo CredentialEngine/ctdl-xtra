@@ -1,6 +1,9 @@
 import { CatalogueType } from "../../../../common/types";
 import { SimplifiedMarkdown } from "../../types";
 
+export const MD_START = "```markdown";
+export const MD_END = "```";
+
 export interface DefaultLlmPageOptions {
   content: SimplifiedMarkdown;
   url: string;

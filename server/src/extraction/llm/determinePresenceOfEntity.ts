@@ -2,7 +2,7 @@ import {
   ChatCompletionContentPart,
   ChatCompletionMessageParam,
 } from "openai/resources/chat/completions";
-import { DefaultLlmPageOptions } from ".";
+import { DefaultLlmPageOptions, MD_START, MD_END } from ".";
 import { ProviderModel } from "../../../../common/types";
 import { structuredCompletion } from "../../openai";
 import { CatalogueTypeDefinition } from "../catalogueTypes";
@@ -28,7 +28,9 @@ ${entityDef.presencePrompt}
 
 PAGE:
 
+${MD_START}
 ${options.content}
+${MD_END}
 `;
 
   const completionContent: ChatCompletionContentPart[] = [

@@ -21,6 +21,12 @@ export interface CatalogueTypeDefinition {
    */
   desiredOutput?: string;
 
+  /** 
+   * When set to true, we will wrap the page content
+   * with a markdown code block in the LLM prompt.
+   */
+  wrapWithMarkdownBlock?: boolean;
+
   /**
    * When set to true, we will ask the LLM for additional 
    * URLs that could indicate sub pages where we could find
@@ -222,6 +228,7 @@ export const catalogueTypes: Record<CatalogueType, CatalogueTypeDefinition> = {
       temperature: 1,
       top_p: 0.5,
     },
+    wrapWithMarkdownBlock: true,
     presencePrompt: 
       'Look at the given markdown page and check if there exists a list of skills in a dedicated section. ' +
       'We are looking for a list in a dedicated section, do not consider paragraphs or long descriptions. ' +

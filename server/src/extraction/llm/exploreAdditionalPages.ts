@@ -4,7 +4,7 @@ import {
   ChatCompletionContentPart,
   ChatCompletionMessageParam,
 } from "openai/resources/chat/completions";
-import { dedupUrls, DefaultLlmPageOptions, filterUrlsByOrigin } from ".";
+import { dedupUrls, DefaultLlmPageOptions, filterUrlsByOrigin, MD_START, MD_END } from ".";
 import {
   CatalogueType,
   ProviderModel,
@@ -31,7 +31,9 @@ ${options.url}
 
 PAGE CONTENT:
 
+${MD_START}
 ${options.content}
+${MD_END}
 `;
 
   const completionContent: ChatCompletionContentPart[] = [
