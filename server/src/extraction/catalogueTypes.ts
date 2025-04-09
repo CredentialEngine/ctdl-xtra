@@ -1,3 +1,4 @@
+import { JSONSchema } from "openai/lib/jsonschema";
 import { CatalogueType, ProviderModel } from "../../../common/types";
 
 export interface CatalogueTypeDefinition {
@@ -47,6 +48,13 @@ export interface CatalogueTypeDefinition {
    * The model to use for the LLM.
    */
   model?: ProviderModel;
+
+  /**
+   * When defined, we will instruct the LLM to use it for 
+   * structured output instead of the default function call
+   * instruction.
+   */
+  schema?: JSONSchema;
   /**
    * Parameters applicable for the extraction stage.
    */
@@ -230,6 +238,30 @@ export const catalogueTypes: Record<CatalogueType, CatalogueTypeDefinition> = {
           "ISO code of the language in which the name property is expressed. Examples - 'en' for English, 'es' for Spanish, 'de' for German, etc.",
         required: false,
       },
+    },
+    schema: {
+      type: "object",
+      properties: {
+        items: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              text: { type: "string" },
+              competency_framework: { type: "string" },
+              language: { type: "string" },
+            },
+            additionalProperties: false,
+            required: [
+              "competency_framework",
+              "text",
+              "language",
+            ],
+          },
+        },
+      },
+      additionalProperties: false,
+      required: ["items"],
     },
     exploreDuringExtraction: true,
     exploreSameOrigin: true,

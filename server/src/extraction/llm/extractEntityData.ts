@@ -8,8 +8,9 @@ import {
   CompetencyStructuredData,
   CourseStructuredData,
   LearningProgramStructuredData,
+  ProviderModel,
 } from "../../../../common/types";
-import { assertArray, simpleToolCompletion } from "../../openai";
+import { assertArray, simpleToolCompletion, structuredCompletion } from "../../openai";
 import { getCatalogueTypeDefinition } from "../catalogueTypes";
 
 export const validCreditUnitTypes = [
@@ -233,40 +234,62 @@ ${options.content}
     }
   }
 
-  const result = await simpleToolCompletion({
-    messages,
-    toolName: "submit_extracted_data",
-    parameters: {
-      items: {
-        type: "array",
+  if (entityDef.schema) {
+    const results = await structuredCompletion({
+      messages,
+      schema: entityDef.schema,
+      model: entityDef.model || ProviderModel.Gpt4o,
+    });
+
+    if (!results.result) {
+      return { prompt, data: [] };
+    }
+
+    const data = Array.isArray(results.result?.items)
+      ? results.result.items.map((entity) => processEntity(entity, catalogueType))
+      : [processEntity(results.result, catalogueType)];
+
+    return { prompt, data };
+  } else {
+    const completionParameters = {
+      messages,
+      toolName: "result",
+      model: entityDef.model || ProviderModel.Gpt4o,
+      parameters: {
         items: {
-          type: "object",
-          properties: entityProperties,
-          required: requiredProperties,
+          type: "array",
+          items: {
+            type: "object",
+            properties: entityProperties,
+            required: requiredProperties,
+          },
         },
       },
-    },
-    requiredParameters: ["items"],
-    logApiCall: options?.logApiCalls
-      ? {
-          extractionId: options.logApiCalls.extractionId,
-          callSite: "extractEntityData",
-        }
-      : undefined,
-  });
+      requiredParameters: ["items"],
+      logApiCall: options?.logApiCalls
+        ? {
+            extractionId: options.logApiCalls.extractionId,
+            callSite: "extractEntityData",
+          }
+        : undefined,
+    };
+  
+    // @ts-ignore
+    const result = await simpleToolCompletion(completionParameters);
 
-  if (!result || !result.toolCallArgs) {
-    return { prompt, data: [] };
+    if (!result || !result.toolCallArgs) {
+      return { prompt, data: [] };
+    }
+
+    const entities = assertArray<Record<string, any>>(
+      result.toolCallArgs,
+      "items"
+    );
+
+    const data = entities
+      .filter((entity) => requiredProperties.every((prop) => entity[prop]))
+      .map((entity) => processEntity(entity, catalogueType));
+
+    return { prompt, data };
   }
-
-  const entities = assertArray<Record<string, any>>(
-    result.toolCallArgs,
-    "items"
-  );
-
-  const data = entities
-    .filter((entity) => requiredProperties.every((prop) => entity[prop]))
-    .map((entity) => processEntity(entity, catalogueType));
-
-  return { prompt, data };
 }
