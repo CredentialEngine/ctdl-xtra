@@ -141,7 +141,7 @@ export async function extractAndVerifyEntityData(
   for (const chunkOptions of chunks) {
     const { data: entitiesData } = await extractEntityData(chunkOptions, catalogueType);
     if (!entitiesData || entitiesData.length === 0) {
-      console.log(`Couldn't find ${catalogueType} data`);
+      console.log(`Couldn't find ${catalogueType} data from page ${chunkOptions.url}`);
       continue;
     }
 
