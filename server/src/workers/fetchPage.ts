@@ -29,9 +29,11 @@ import {
   storeContent,
   storeScreenshot,
 } from "../data/schema";
+import { findGetSettingJSON } from "../data/settings";
 import { fetchBrowserPage, simplifiedMarkdown } from "../extraction/browser";
 import { detectPageCount } from "../extraction/llm/detectPageCount";
 import { createUrlExtractor } from "../extraction/llm/detectUrlRegexp";
+import { ProxySettings } from "../types";
 
 const constructPaginatedUrls = (configuration: PaginationConfiguration) => {
   const urls = [];
@@ -218,7 +220,8 @@ export default createProcessor<FetchPageJob, FetchPageProgress>(
     try {
       console.log(`Loading ${crawlPage.url} for page ${crawlPage.url}`);
       await updatePage(crawlPage.id, { status: PageStatus.IN_PROGRESS });
-      const page = await fetchBrowserPage(crawlPage.url);
+      const proxy = await findGetSettingJSON<ProxySettings>('PROXY');
+      const page = await fetchBrowserPage(crawlPage.url, proxy?.enabled ? proxy?.url : undefined);
       if (page.status == 404) {
         await updatePage(crawlPage.id, {
           status: PageStatus.ERROR,
