@@ -35,6 +35,8 @@ export const settingsRouter = router({
         if (existingSetting) {
           const newValue = merge(JSON.parse(existingSetting.value), JSON.parse(value));
           await createOrUpdate(key, JSON.stringify(newValue), isEncrypted, encryptedPreview || null);
+
+          return;
         }
       } else {
         await createOrUpdate(key, value, isEncrypted, encryptedPreview || null);

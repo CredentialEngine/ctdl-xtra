@@ -1,6 +1,6 @@
 import { trpc } from "@/utils";
 import { OpenAIApiKeyForm } from "./openapi";
-import { CrawlerSettingsForm } from "./crawler";
+import { ProxySettingsForm } from "./proxy";
 
 export default function Settings() {
   const listQuery = trpc.settings.list.useQuery();
@@ -19,7 +19,7 @@ export default function Settings() {
           currentApiKeyPreview={openAIApiKey?.encryptedPreview}
           onSuccess={listQuery.refetch}
         />
-        <CrawlerSettingsForm
+        <ProxySettingsForm
           settingsQuery={listQuery}
           onSuccess={listQuery.refetch}
         />

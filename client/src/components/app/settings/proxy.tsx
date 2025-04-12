@@ -13,66 +13,46 @@ import { useToast } from "@/components/ui/use-toast";
 import { AppRouter, RouterOutput, trpc } from "@/utils";
 import { TRPCClientErrorLike } from "@trpc/react-query";
 import { UseTRPCQueryResult } from "@trpc/react-query/shared";
-import { useCallback, useEffect, useState } from "react";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { useEffect, useState } from "react";
 import { Checkbox } from "@/components/ui/checkbox";
-
 type SettingsList = RouterOutput['settings']['list'];
 type SettingsListQuery = UseTRPCQueryResult<SettingsList, TRPCClientErrorLike<AppRouter>>;
 
-interface CrawlerSettingsFormProps {
+interface ProxySettingsFormProps {
   settingsQuery: SettingsListQuery;
   onSuccess: () => void;
 }
 
-const SupportedCrawlers = [
-  { value: "FireCrawler", label: "FireCrawler" },
-  { value: "OxyLabs", label: "OxyLabs" },
-  { value: "BrightData", label: "BrightData" },
-  { value: "SmartProxy", label: "SmartProxy" },
-] as const;
-
 const redacted = "*****"
 
-export function CrawlerSettingsForm({
+export function ProxySettingsForm({
   settingsQuery,
   onSuccess,
-}: CrawlerSettingsFormProps) {
+}: ProxySettingsFormProps) {
   const updateMutation = trpc.settings.setSetting.useMutation();
-  const dbSetting = settingsQuery?.data?.find((setting) => setting.key === 'CRAWLER');
-  const dbSettingRawValue = settingsQuery?.data?.find((setting) => setting.key === 'CRAWLER')?.encryptedPreview;
+  const dbSetting = settingsQuery?.data?.find((setting) => setting.key === 'PROXY');
+  const dbSettingRawValue = settingsQuery?.data?.find((setting) => setting.key === 'PROXY')?.encryptedPreview;
   const dbSettingValue = dbSettingRawValue ? JSON.parse(dbSettingRawValue) : null;
-  const [apiKey, setApiKey] = useState("");
-  const [selectedType, setSelectedType] = useState<string>(SupportedCrawlers[0].value);
+  const [proxyUrl, setProxyUrl] = useState("");
   const [isEnabled, setIsEnabled] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
     if (dbSettingValue) {
-      setIsEnabled(dbSettingValue?.isEnabled);
-      setSelectedType(dbSettingValue.activeCrawler || SupportedCrawlers[0].value);
-      setApiKey(dbSettingValue[dbSettingValue.activeCrawler]?.apiKey || "");
+      setIsEnabled(dbSettingValue?.enabled);
+      setProxyUrl(dbSettingValue?.url || "");
     }
   }, [dbSettingRawValue]);
-
-  const onSelectTypeChange = useCallback((newValue: string) => {
-    setSelectedType(newValue);
-    setApiKey(dbSettingValue[newValue]?.apiKey || "");
-  }, [dbSettingValue]);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     try {
-      const newValue = {
-        isEnabled,
-        activeCrawler: selectedType,
-        [selectedType]: { apiKey },
+      const newValue: Partial<{ enabled: boolean, url: string }> = {
+        enabled: isEnabled
+      }
+
+      if (proxyUrl !== redacted) {
+        newValue.url = proxyUrl;
       }
 
       let encryptedPreview;
@@ -84,13 +64,12 @@ export function CrawlerSettingsForm({
 
       encryptedPreview = {
         ...encryptedPreview,
-        activeCrawler: selectedType,
-        [selectedType]: { apiKey: redacted },
-        isEnabled,
+        url: redacted,
+        enabled: isEnabled,
       }
       
       await updateMutation.mutateAsync({
-        key: 'CRAWLER',
+        key: 'PROXY',
         value: JSON.stringify(newValue),
         isEncrypted: true,
         merge: true,
@@ -114,9 +93,9 @@ export function CrawlerSettingsForm({
     <form onSubmit={handleSubmit}>
       <Card className="flex-1">
         <CardHeader>
-          <CardTitle>Crawler Proxy</CardTitle>
+          <CardTitle>Proxy Settings</CardTitle>
           <CardDescription>
-            Activating a crawler proxy is helpful in overcoming rate limits or <br />
+            Activating a proxy is helpful in overcoming rate limits or <br />
             blocking by anti-scraping measures. <br />
           </CardDescription>
         </CardHeader>
@@ -128,37 +107,22 @@ export function CrawlerSettingsForm({
               checked={isEnabled}
               onCheckedChange={(checked) => setIsEnabled(checked as boolean)}
             />
-            <Label htmlFor="enabled">Enable Crawler Proxy</Label>
+            <Label htmlFor="enabled">Enable Proxy</Label>
           </div>
           <div className="grid gap-2">
-            <Label htmlFor="active_crawler">Active Crawler</Label>
-            <Select disabled={settingsQuery?.isLoading} value={selectedType} onValueChange={onSelectTypeChange}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select a crawler" />
-              </SelectTrigger>
-              <SelectContent>
-                {SupportedCrawlers.map((type) => (
-                  <SelectItem key={type.value} value={type.value}>
-                    {type.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="grid gap-2">
-            <Label htmlFor="api_key">{selectedType} API Key</Label>
+            <Label htmlFor="proxy_url">Proxy URL</Label>
             <Input
-              id="api_key"
-              placeholder="Enter API key..."
+              id="proxy_url"
+              placeholder="https://username:password@proxy.com:port"
               disabled={settingsQuery?.isLoading}
-              value={apiKey}
-              onChange={(e) => setApiKey(e.target.value)}
+              value={proxyUrl}
+              onChange={(e) => setProxyUrl(e.target.value)}
               type="text"
             />
           </div>
         </CardContent>
         <CardFooter>
-          <Button variant="outline" disabled={updateMutation?.isLoading || settingsQuery?.isLoading || apiKey === redacted}>Update</Button>
+          <Button variant="outline" disabled={updateMutation?.isLoading || settingsQuery?.isLoading}>Update</Button>
         </CardFooter>
       </Card>
     </form>
