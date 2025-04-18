@@ -307,29 +307,35 @@ export default createProcessor<FetchPageJob, FetchPageProgress>(
     const domain = new URL(crawlPage.url).hostname;
     const lockKey = `crawl-lock:${domain}`;
     const redis = getRedisConnection();
-    const remainingCooldownMillis = await redis.pttl(lockKey);
 
-    if (remainingCooldownMillis > 0) {
+    // Attempt to acquire the lock atomically
+    const lockAcquired = await redis.set(
+      lockKey,
+      "locked",
+      "PX",
+      delayOptions.delayInterval,
+      "NX"
+    );
+
+    if (!lockAcquired) {
+      // Lock is held by another worker
+      const remainingCooldownMillis = await redis.pttl(lockKey);
+      const delay =
+        remainingCooldownMillis > 0
+          ? remainingCooldownMillis
+          : delayOptions.delayInterval;
+
       console.log(
-        `Domain ${domain} cooldown active (${remainingCooldownMillis}ms). Re-queuing with delay.`
+        `Domain ${domain} locked. Re-queuing ${crawlPage.url} with delay ${delay}ms.`
       );
-
       return submitJobWithOpts(Queues.FetchPage, job.data, {
         ...job.opts,
         jobId: `${job.opts.jobId}.delayed.${uuidv4()}`,
-        delay: remainingCooldownMillis,
+        delay: delay,
       });
     }
 
-    console.log(
-      `Processing URL: ${crawlPage.url} for domain ${domain} considering crawl delay`
-    );
-
-    await performJob(job, crawlPage, delayOptions);
-
-    console.log(
-      `Setting ${delayOptions.delayInterval}s cooldown for domain ${domain}`
-    );
-    await redis.set(lockKey, "locked", "PX", delayOptions.delayInterval);
+    console.log(`Processing URL: ${crawlPage.url} for domain ${domain}`);
+    return performJob(job, crawlPage, delayOptions);
   }
 );
