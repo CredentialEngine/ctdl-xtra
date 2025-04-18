@@ -39,6 +39,8 @@ import { detectPageCount } from "../extraction/llm/detectPageCount";
 import { createUrlExtractor } from "../extraction/llm/detectUrlRegexp";
 import { findRule, isUrlAllowedForRule } from "../extraction/robotsParser";
 
+const redis = getRedisConnection();
+
 const constructPaginatedUrls = (configuration: PaginationConfiguration) => {
   const urls = [];
   if (configuration.urlPatternType == "offset") {
@@ -306,7 +308,6 @@ export default createProcessor<FetchPageJob, FetchPageProgress>(
 
     const domain = new URL(crawlPage.url).hostname;
     const lockKey = `crawl-lock:${domain}`;
-    const redis = getRedisConnection();
 
     // Attempt to acquire the lock atomically
     const lockAcquired = await redis.set(
