@@ -68,6 +68,7 @@ const FormSchema = z.object({
     .url("Catalogue URL must be a valid URL (e.g. https://example.com)."),
   manualConfig: z.boolean().default(false),
   configuration: RecipeConfigurationSchema.optional(),
+  acknowledgedSkipRobotsTxt: z.boolean().default(false),
 });
 
 function RecipeLevel({
@@ -401,6 +402,7 @@ export default function CreateRecipe() {
     defaultValues: {
       url: "",
       manualConfig: false,
+      acknowledgedSkipRobotsTxt: false,
     },
   });
   const { toast } = useToast();
@@ -439,6 +441,7 @@ export default function CreateRecipe() {
         catalogueId: parseInt(catalogueId!),
         url: data.url,
         configuration: data.manualConfig ? data.configuration : undefined,
+        acknowledgedSkipRobotsTxt: data.acknowledgedSkipRobotsTxt,
       });
       if (result.context?.message) {
         toast({
@@ -596,6 +599,27 @@ export default function CreateRecipe() {
                             <FormDescription>
                               Manually configure the recipe instead of
                               auto-detection
+                            </FormDescription>
+                          </div>
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="acknowledgedSkipRobotsTxt"
+                      render={({ field }) => (
+                        <FormItem className="flex flex-row items-start space-x-3 space-y-0">
+                          <FormControl>
+                            <Checkbox
+                              checked={field.value}
+                              onCheckedChange={field.onChange}
+                            />
+                          </FormControl>
+                          <div className="space-y-1 leading-none">
+                            <FormLabel>Bypass robots.txt</FormLabel>
+                            <FormDescription>
+                              I confirm we have permission from the website
+                              owners to bypass robots.txt restrictions.
                             </FormDescription>
                           </div>
                         </FormItem>

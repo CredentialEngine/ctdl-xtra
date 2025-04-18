@@ -1,9 +1,9 @@
 import { apiExtractorServices } from ".";
 import { CourseStructuredData } from "../../../../common/types";
-import { Recipe } from "../../data/recipes";
+import { recipes } from "../../data/schema";
 
 export function resolveExtractionService(
-  recipe: Recipe
+  recipe: typeof recipes.$inferSelect
 ): VendorExtractionService {
   const provider = recipe.configuration?.apiProvider!;
   const service = apiExtractorServices[provider];
@@ -20,7 +20,7 @@ export function resolveExtractionService(
 
 export class VendorExtractionService {
   public async extractData(
-    recipe: Recipe,
+    recipe: typeof recipes.$inferSelect,
     onResultBatch: (results: CourseStructuredData[]) => Promise<boolean>
   ): Promise<void> {
     throw new Error(
