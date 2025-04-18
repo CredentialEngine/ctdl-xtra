@@ -11,6 +11,7 @@ import {
 } from "../../../../common/types";
 import { assertArray, simpleToolCompletion } from "../../openai";
 import { getCatalogueTypeDefinition } from "../catalogueTypes";
+import { deduplicateSimilarItems } from "../../utils";
 
 export const validCreditUnitTypes = [
   "AcademicYear",
@@ -264,5 +265,7 @@ ${options.content}
     .filter((entity) => requiredProperties.every((prop) => entity[prop]))
     .map((entity) => processEntity(entity, catalogueType));
 
-  return { prompt, data };
+  const deduplicatedData = deduplicateSimilarItems(data);
+
+  return { prompt, data: deduplicatedData };
 }
