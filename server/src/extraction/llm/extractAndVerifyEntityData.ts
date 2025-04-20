@@ -90,14 +90,21 @@ async function maybeChunkContent(
   if (options.catalogueType !== CatalogueType.COURSES) {
     return [options];
   }
-  const willChunk = await shouldChunk(options);
-  if (willChunk) {
-    const chunks = await splitChunks(options);
-    return chunks.map((chunk) => ({
-      ...options,
-      content: chunk as SimplifiedMarkdown,
-    }));
+
+  try {
+    const willChunk = await shouldChunk(options);
+    if (willChunk) {
+      const chunks = await splitChunks(options);
+      return chunks.map((chunk) => ({
+        ...options,
+        content: chunk as SimplifiedMarkdown,
+      }));
+    }
+  } catch (error) {
+    console.error(`Error chunking content`, error);
+    return [options];
   }
+
   return [options];
 }
 

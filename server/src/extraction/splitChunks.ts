@@ -4,6 +4,8 @@ import detectChunkSplitRegexp from "./llm/detectChunkSplitRegexp";
 import { detectMultipleCourses } from "./llm/detectMultipleCourses";
 import { preprocessText } from "./llm/extractAndVerifyEntityData";
 
+const MAX_TOKEN_LIMIT = 2000;
+
 export async function splitChunks(options: DefaultLlmPageOptions) {
   let regexp, expectedCourseCount, chunks, firstCourseTitle;
   let attempts = 0;
@@ -13,11 +15,23 @@ export async function splitChunks(options: DefaultLlmPageOptions) {
       ({ regexp, expectedCourseCount, firstCourseTitle } =
         await detectChunkSplitRegexp(options));
       chunks = options.content.split(regexp);
-      if (!chunks) {
+      if (!chunks || chunks?.length < expectedCourseCount) {
         throw new Error(`Could not find chunks with the regexp: ${regexp}`);
       }
 
-      chunks = chunks.filter((chunk) => chunk.trim() !== "");
+      chunks = chunks
+        .filter((chunk) => chunk.trim() !== "")
+        .reduce((chunkResult: string[], chunk: string) => {
+          let accumulatedChunk = chunkResult.pop() || "";
+          let combinedChunk = `${accumulatedChunk}${chunk}`;
+          if (isWithinTokenLimit(combinedChunk, MAX_TOKEN_LIMIT)) {
+            chunkResult.push(combinedChunk);
+          } else {
+            chunkResult.push(accumulatedChunk);
+            chunkResult.push(chunk);
+          }
+          return chunkResult;
+        }, []);
 
       // There's usually some junk at the beginning of the document, so let's
       // remove the first few chunks until the first title appears
@@ -54,7 +68,7 @@ export async function splitChunks(options: DefaultLlmPageOptions) {
 }
 
 export async function shouldChunk(options: DefaultLlmPageOptions) {
-  const isLarge = !isWithinTokenLimit(options.content, 1000);
+  const isLarge = !isWithinTokenLimit(options.content, MAX_TOKEN_LIMIT);
   if (!isLarge) {
     return false;
   }
