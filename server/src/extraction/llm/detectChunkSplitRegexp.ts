@@ -16,12 +16,18 @@ export default async function detectChunkSplitRegexp(
   const prompt = `
     This document has a list of courses. For each course, it may have a description and details.
 
-    Your goal is to find a regexp that splits the document per course. So a course list with 5 courses
+    One of your goals is to find a regexp that splits the document per course. So a course list with 5 courses
     should be split into 5 chunks.
 
     We are going to use the regexp like this:
 
     > const chunks = content.split(new RegExp(regexp, "g"))
+
+    The other goal is to find how many courses are in the document. Sometimes the document will have the
+    number of courses in the title or in the content. Sometimes it might not have the number of courses at all.
+    Use the number of courses found in the document, do not attempt to count the courses yourself.
+
+    Explain your reasoning for the expected course count in expected_course_count_explanation.
 
     SANITY CHECK
     ============
@@ -105,6 +111,9 @@ export default async function detectChunkSplitRegexp(
       },
       expected_course_count: {
         type: "number",
+      },
+      expected_course_count_explanation: {
+        type: "string",
       },
       first_course_title: {
         type: "string",

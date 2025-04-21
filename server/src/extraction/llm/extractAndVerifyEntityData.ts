@@ -118,12 +118,11 @@ export async function extractAndVerifyEntityData(
     throw new Error("Catalogue type is required");
   }
 
-  const results = [];
-  for (const chunkOptions of chunks) {
+  const results = await Promise.all(chunks.map(async (chunkOptions) => {
     const { data: entitiesData } = await extractEntityData(chunkOptions, catalogueType);
     if (!entitiesData || entitiesData.length === 0) {
       console.log(`Couldn't find ${catalogueType} data`);
-      continue;
+      return null;
     }
 
     const preprocessedContent = preprocessText(chunkOptions.content);
@@ -135,9 +134,9 @@ export async function extractAndVerifyEntityData(
         preprocessedContent,
         catalogueType
       );
-      results.push(verifiedExtraction);
+      return verifiedExtraction;
     }
-  }
+  }));
 
-  return results;
+  return results.filter((result) => result !== null);
 }

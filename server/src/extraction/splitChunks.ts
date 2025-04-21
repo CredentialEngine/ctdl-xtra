@@ -4,13 +4,21 @@ import detectChunkSplitRegexp from "./llm/detectChunkSplitRegexp";
 import { detectMultipleCourses } from "./llm/detectMultipleCourses";
 import { preprocessText } from "./llm/extractAndVerifyEntityData";
 
-const MAX_TOKEN_LIMIT = 2000;
+/**
+ * The maximum number of LLM tokens that can be used to split the chunks.
+ * This is a compromise between the number of tokens and the number of chunks
+ * and therefore the number of calls to the LLM. If the number of tokens is too low,
+ * the number of requests will increase. If the number of tokens is too high, we might
+ * encounter rate limiting from the LLM provider or exceed the context window of the LLM.
+ */
+const MAX_TOKEN_LIMIT = 3000;
 
 export async function splitChunks(options: DefaultLlmPageOptions) {
   let regexp, expectedCourseCount, chunks, firstCourseTitle;
   let attempts = 0;
+  const maxAttempts = 10;
 
-  while (attempts < 10) {
+  while (attempts < maxAttempts) {
     try {
       ({ regexp, expectedCourseCount, firstCourseTitle } =
         await detectChunkSplitRegexp(options));
@@ -18,6 +26,7 @@ export async function splitChunks(options: DefaultLlmPageOptions) {
       if (!chunks || chunks?.length < expectedCourseCount) {
         throw new Error(`Could not find chunks with the regexp: ${regexp}`);
       }
+      const chunkCount = chunks.length;
 
       chunks = chunks
         .filter((chunk) => chunk.trim() !== "")
@@ -45,12 +54,12 @@ export async function splitChunks(options: DefaultLlmPageOptions) {
       }
 
       // LLMs are not good at counting so let's treat the number of courses as a ballpark estimate
-      const discrepancy = Math.abs(chunks.length - expectedCourseCount);
+      const discrepancy = Math.abs(chunkCount - expectedCourseCount);
       const allowedDiscrepancy =
         expectedCourseCount > 5 ? Math.floor(expectedCourseCount * 0.3) : 0;
       if (discrepancy > allowedDiscrepancy) {
         throw new Error(
-          `Could not find expected number of chunks: ${chunks.length} !== ${expectedCourseCount}`
+          `Could not find expected number of chunks: ${chunkCount} !== ${expectedCourseCount}`
         );
       }
       return chunks;
@@ -64,7 +73,9 @@ export async function splitChunks(options: DefaultLlmPageOptions) {
     }
   }
 
-  throw new Error("Failed to split chunks");
+  throw new Error(
+    `Failed to split chunks for ${options.url} maximum of ${maxAttempts} attempts were made.`
+  );
 }
 
 export async function shouldChunk(options: DefaultLlmPageOptions) {

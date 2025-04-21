@@ -138,7 +138,7 @@ export async function assertExtraction<
 
   for (const expectedItem of expected) {
     const extraction = extractions.find((item) =>
-      item.entity[typeDef.identifierProperty]
+      item?.entity?.[typeDef.identifierProperty]
         .toLowerCase()
         .replace(/[\W\s]+/g, "")
         .includes(
@@ -150,7 +150,7 @@ export async function assertExtraction<
     if (!extraction) {
       console.log(
         `Found entities: ${extractions
-          .map((e) => inspect(e.entity))
+          .map((e) => inspect(e?.entity))
           .join("\n")}`
       );
       throw new Error(

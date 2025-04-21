@@ -55,7 +55,17 @@ export default createProcessor<ExtractDataJob, ExtractDataProgress>(
         logApiCalls: { extractionId: crawlPage.extractionId },
       });
 
+      if (!extractedData) {
+        console.log(`No data found for ${crawlPage.url}`);
+        return;
+      }
+
+      //@ts-ignore
       for (const { entity, textInclusion } of extractedData) {
+        if (!entity) {
+          console.log(`No entity found for ${crawlPage.url}`);
+          continue;
+        }
         await createDataItem(crawlPage.id, dataset.id, entity, textInclusion);
       }
     } catch (err) {
