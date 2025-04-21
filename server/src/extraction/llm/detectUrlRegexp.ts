@@ -135,6 +135,7 @@ export default async function detectUrlRegexp(
     of ${entity.pluralName} detail pages.
     `,
     [PageType.API_REQUEST]: "",
+    [PageType.EXPLORATORY]: "",
   };
 
   const prompt = `

@@ -235,6 +235,16 @@ export async function findPageByUrl(extractionId: number, url: string) {
   });
   return result;
 }
+export async function findCrawlPageByUrl(url: string) {
+  const result = await db.query.crawlPages.findFirst({
+    where: (crawlPages, { eq, and }) =>
+      eq(crawlPages.url, url),
+    with: {
+      crawlStep: true,
+    },
+  });
+  return result;
+}
 
 export interface CreateStepOptions {
   extractionId: number;
@@ -341,6 +351,22 @@ export async function createStepAndPages(
       pages,
     };
   });
+}
+
+export async function countParentNodesOfCrawlSteps(crawlStepId: number): Promise<number> {
+  const result = await db.execute(
+    sql`
+      WITH RECURSIVE ancestors AS (
+        SELECT id, parent_step_id FROM crawl_steps WHERE id = ${crawlStepId}
+        UNION ALL
+        SELECT c.id, c.parent_step_id FROM crawl_steps c
+        INNER JOIN ancestors a ON c.id = a.parent_step_id
+      )
+      SELECT COUNT(*) FROM ancestors;
+    `
+  );
+
+  return Number(result.rows[0].count);
 }
 
 export async function getApiCallSummary(extractionId: number) {

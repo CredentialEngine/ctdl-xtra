@@ -1,4 +1,5 @@
-import { CatalogueType } from "../../../common/types";
+import { JSONSchema } from "openai/lib/jsonschema";
+import { CatalogueType, ProviderModel } from "../../../common/types";
 
 export interface CatalogueTypeDefinition {
   name: string;
@@ -7,6 +8,92 @@ export interface CatalogueTypeDefinition {
   detailDescription: string;
   categoryDescription: string;
   linkDescription: string;
+
+  /**
+   * If specified it will tell the LLM what is
+   * the desired output. Example values:
+   * - 'An array of strings with all the animals mentioned in the page'
+   * - 'An array of JSON objects having x, y, z attributes.'
+   * 
+   * If not specified, the LLM will be instructed
+   * to give us structured output for the defined
+   * data in the `properties` field.
+   */
+  desiredOutput?: string;
+
+  /** 
+   * When set to true, we will wrap the page content
+   * with a markdown code block in the LLM prompt.
+   */
+  wrapWithMarkdownBlock?: boolean;
+
+  /**
+   * When set to true, we will ask the LLM for additional 
+   * URLs that could indicate sub pages where we could find
+   * entites when the page extracted does not yield any of 
+   * the targeted entities.
+   */
+  exploreDuringExtraction?: boolean;
+
+  /**
+   * When set to true, filter the exploration URLs to
+   * only include URLs that are on the same origin as the page.
+   * This helps to avoid extracting URLs that are external
+   * such as links to social media, external blogs,
+   * our outside the catalogue.
+   */
+  exploreSameOrigin?: boolean
+
+  /**
+   * Textual prompt set to the LLM to yield additional URLs
+   * from the page content.
+   */
+  explorationPrompt?: string;
+
+  /**
+   * The model to use for the LLM.
+   */
+  model?: ProviderModel;
+
+  /**
+   * If true, we will not use screenshots for the LLM.
+   */
+  skipScreenshot?: boolean
+
+  /**
+   * When defined, we will instruct the LLM to use it for 
+   * structured output instead of the default function call
+   * instruction.
+   */
+  schema?: JSONSchema;
+
+  /**
+   * When true, we will instruct the LLM to verify that the
+   * full phrases are extracted.
+   */
+  verifyFullPhrases?: boolean;
+
+  /**
+   * When defined, we will verify that the
+   * properties listed in the array are extracted as full phrases.
+   */
+  propertiesRequiredAsPhrases?: string[];
+
+  /**
+   * When defined, we will run a presence check
+   * using this prompt before the extraction. Useful for keeping
+   * extractions prompts simple.
+   */
+  presencePrompt?: string;
+
+  /**
+   * Parameters applicable for the extraction stage.
+   */
+  extractionParameters?: {
+    temperature?: number; // LLM temperature
+    top_p?: number; // LLM top_p
+  };
+
   exampleIdentifier: string;
   exampleName: string;
   exampleDescription: string;
@@ -17,6 +104,12 @@ export interface CatalogueTypeDefinition {
     };
   };
   identifierProperty: string;
+
+  /** If defined, examples will be provided to the LLM for few shot prompting. */
+  examples?: Array<{
+    data: string;
+    desiredOutcome: string;
+  }>
 }
 
 export const catalogueTypes: Record<CatalogueType, CatalogueTypeDefinition> = {
@@ -136,35 +229,95 @@ export const catalogueTypes: Record<CatalogueType, CatalogueTypeDefinition> = {
     },
   },
   [CatalogueType.COMPETENCIES]: {
-    name: "competency",
-    pluralName: "competencies",
-    description: "skills and competencies defined by an institution",
+    name: "skill, competency or learning outcome",
+    pluralName: "skills, competencies or learning outcomes",
+    description: "skills, competencies or learning outcomes",
     detailDescription:
-      "It has details for the competencies of an institution directly in the page.",
+      "It contains one or more competencies, skills or learning outcomes directly in the page.",
     categoryDescription:
       "It has links to skill areas, domains, or competency category pages.",
     linkDescription: "It has links to the competencies of an institution.",
-    exampleIdentifier: "COMP-101",
+    exampleIdentifier: "",
     exampleName: "Critical Thinking",
     exampleDescription:
       "The ability to analyze information objectively and make reasoned judgments.",
     identifierProperty: "competency_id",
+    model: ProviderModel.Gpt4o,
+    extractionParameters: {
+      temperature: 1,
+      top_p: 0.5,
+    },
+    verifyFullPhrases: false,
+    propertiesRequiredAsPhrases: ["text"],
+    wrapWithMarkdownBlock: true,
+    presencePrompt: 
+      'Look at the given markdown page and check if there exists a list of skills in a dedicated section. ' +
+      'We are looking for a list in a dedicated section, do not consider paragraphs or long descriptions. ' +
+      'Do not confuse courses with skills. We are looking for skills attained after taking the course described in the page.',
+    desiredOutput:
+      'We are looking for a list of skills that are gained after taking the course described in the page. ' +
+      'If found, take each item exactly as it is in the page and return them. Skip everything else, just the skill list.' +
+      'Do not confuse skills with courses or tools or technologies used. Return the skills that result after the course is completed.' +
+      'Do not return skills required for taking the course. Return only the skills that are gained after taking the course.',
     properties: {
-      competency_id: {
-        description: 'code/identifier for the competency (example: "COMP-101")',
+      text: {
+        description:
+          'text of the skill item of the list (for example "Critical Thinking"). ' +
+          'The information should be EXACTLY as in the page AND the FULL PHRASE. DO NOT break phrases. ',
         required: true,
       },
-      competency_name: {
+      competency_framework: {
         description:
-          'name for the competency (for example "Critical Thinking")',
-        required: true,
+          "The name of the encompassing or overarching skill or competency or learning program or course that will lead " +
+          "to obtaining the skill or competency or learning outcome. " +
+          "Usually this value is the same for the entire list but should be set " +
+          "according to the hierarchy structure of the page. This is usually shorter. " +
+          'Sometimes, this might contain descriptive language about the skill - we should only keep the ' +
+          'name of the skill and trim phrases such as "competency" or "learning outcome".' +
+          'This field should be in title case. If it contains roman numerals, they use use uppercase.',
+        required: false,
       },
-      competency_description: {
+      language: {
         description:
-          "the full description of the competency. If there are links, only extract the text.",
-        required: true,
+          "ISO code of the language in which the name property is expressed. Examples - 'en' for English, 'es' for Spanish, 'de' for German, etc.",
+        required: false,
       },
     },
+    schema: {
+      type: "object",
+      properties: {
+        items: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              text: { type: "string" },
+              competency_framework: { type: "string" },
+              language: { type: "string" },
+            },
+            additionalProperties: false,
+            required: [
+              "competency_framework",
+              "text",
+              "language",
+            ],
+          },
+        },
+      },
+      additionalProperties: false,
+      required: ["items"],
+    },
+    exploreDuringExtraction: true,
+    exploreSameOrigin: true,
+    explorationPrompt: 
+      "In the page markdown given below, look for all links or URL like information " +
+      "that point to pages with information about skills or learning outcomes or competencies obtained. " +
+      "The link we are looking for is related to the course presented in the page, general links like navigation should be ignored. " +
+      "IT IS IMPORTANT THAT THE LINK IS RELATED TO OUTCOMES FOR THE CURRENT COURSE, NOT OTHER COURSES OR PROGRAMS. " +
+      "We are ONLY looking for links within the same domain as the page or relative to the page. " +
+      "PAY ATTENTION to extract only the link and not markdown specific information like [link](url). " +
+      "If there are no instances of links that CLEARLY point to skills or learning outcomes or competencies, yield an empty list.",
+    skipScreenshot: true,
   },
 };
 

@@ -2,14 +2,15 @@ import {
   ChatCompletionContentPart,
   ChatCompletionMessageParam,
 } from "openai/resources/chat/completions";
-import { DefaultLlmPageOptions } from ".";
+import { DefaultLlmPageOptions, MD_START, MD_END } from ".";
 import {
   CatalogueType,
   CompetencyStructuredData,
   CourseStructuredData,
   LearningProgramStructuredData,
+  ProviderModel,
 } from "../../../../common/types";
-import { assertArray, simpleToolCompletion } from "../../openai";
+import { assertArray, simpleToolCompletion, structuredCompletion } from "../../openai";
 import { getCatalogueTypeDefinition } from "../catalogueTypes";
 
 export const validCreditUnitTypes = [
@@ -91,7 +92,7 @@ export function processEntity(
     }
 
     if (
-      !entityDef.properties[key]?.required &&
+      !entityDef?.properties?.[key]?.required &&
       (processedEntity[key] === "" || processedEntity[key] === undefined)
     ) {
       processedEntity[key] = undefined;
@@ -111,25 +112,37 @@ export function processEntity(
 
 export function getBasePrompt(catalogueType: CatalogueType): string {
   const entityDef = getCatalogueTypeDefinition(catalogueType);
+  const promptOfRequiredFields = Object.entries(entityDef.properties)
+    .map(([key, prop]) => `${key}: ${prop.description}${prop.required ? " (REQUIRED)" : ""}`)
+    .join('\n');
 
-  let prompt = `
-We are looking for the following fields:
-`;
+  let prompt = entityDef.desiredOutput || '';
+  if (entityDef.properties) {
+    prompt += `\nWe are looking for the following fields:\n${promptOfRequiredFields}\n`;
+  }
 
-  for (const [key, prop] of Object.entries(entityDef.properties)) {
-    prompt += `
-${key}: ${prop.description}${prop.required ? " (REQUIRED)" : ""}`;
+  if (entityDef.examples?.length) {
+    const examples = entityDef.examples.map(({ data, desiredOutcome }, index) => `
+Example #${index+1}: ${data}
+Desired outcome: ${desiredOutcome}
+    `);
+
+    prompt += examples.join('\n');
   }
 
   return prompt;
 }
 
 type ExtractEntityDataReturnType = Promise<{
-  prompt: string,
-  data: 
-    | CourseStructuredData[]
-    | LearningProgramStructuredData[]
-    | CompetencyStructuredData[]
+  /** LLM textual prompt used for the extraction */
+  prompt: string, 
+
+  /** Extracted structured data items (entities) */
+  data: Array<
+    | Record<string, any>
+    | CourseStructuredData
+    | LearningProgramStructuredData
+    | CompetencyStructuredData>,
 }>;
 
 export async function extractEntityData(
@@ -182,7 +195,9 @@ ${options.url}
 
 SIMPLIFIED PAGE CONTENT:
 
+${MD_START}
 ${options.content}
+${MD_END}
 `;
 
   const completionContent: ChatCompletionContentPart[] = [
@@ -192,7 +207,7 @@ ${options.content}
     },
   ];
 
-  if (options?.screenshot) {
+  if (!entityDef?.skipScreenshot && options?.screenshot) {
     completionContent.push({
       type: "image_url",
       image_url: { url: `data:image/webp;base64,${options.screenshot}` },
@@ -229,40 +244,62 @@ ${options.content}
     }
   }
 
-  const result = await simpleToolCompletion({
-    messages,
-    toolName: "submit_extracted_data",
-    parameters: {
-      items: {
-        type: "array",
+  if (entityDef.schema) {
+    const results = await structuredCompletion({
+      messages,
+      schema: entityDef.schema,
+      model: entityDef.model || ProviderModel.Gpt4o,
+    });
+
+    if (!results.result) {
+      return { prompt, data: [] };
+    }
+
+    const data = Array.isArray(results.result?.items)
+      ? results.result.items.map((entity) => processEntity(entity, catalogueType))
+      : [processEntity(results.result, catalogueType)];
+
+    return { prompt, data };
+  } else {
+    const completionParameters = {
+      messages,
+      toolName: "result",
+      model: entityDef.model || ProviderModel.Gpt4o,
+      parameters: {
         items: {
-          type: "object",
-          properties: entityProperties,
-          required: requiredProperties,
+          type: "array",
+          items: {
+            type: "object",
+            properties: entityProperties,
+            required: requiredProperties,
+          },
         },
       },
-    },
-    requiredParameters: ["items"],
-    logApiCall: options?.logApiCalls
-      ? {
-          extractionId: options.logApiCalls.extractionId,
-          callSite: "extractEntityData",
-        }
-      : undefined,
-  });
+      requiredParameters: ["items"],
+      logApiCall: options?.logApiCalls
+        ? {
+            extractionId: options.logApiCalls.extractionId,
+            callSite: "extractEntityData",
+          }
+        : undefined,
+    };
+  
+    // @ts-ignore
+    const result = await simpleToolCompletion(completionParameters);
 
-  if (!result || !result.toolCallArgs) {
-    return { prompt, data: [] };
+    if (!result || !result.toolCallArgs) {
+      return { prompt, data: [] };
+    }
+
+    const entities = assertArray<Record<string, any>>(
+      result.toolCallArgs,
+      "items"
+    );
+
+    const data = entities
+      .filter((entity) => requiredProperties.every((prop) => entity[prop]))
+      .map((entity) => processEntity(entity, catalogueType));
+
+    return { prompt, data };
   }
-
-  const entities = assertArray<Record<string, any>>(
-    result.toolCallArgs,
-    "items"
-  );
-
-  const data = entities
-    .filter((entity) => requiredProperties.every((prop) => entity[prop]))
-    .map((entity) => processEntity(entity, catalogueType));
-
-  return { prompt, data };
 }
