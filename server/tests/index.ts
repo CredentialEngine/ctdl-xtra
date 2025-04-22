@@ -277,6 +277,36 @@ export async function extractCompetencies(url: string) {
   return extractions.map((e) => e.entity);
 }
 
+export async function extractCredentials(
+  url: string,
+) {
+  const page = await fetchBrowserPage(url)
+    .then(page => page.content
+      ? page
+      : Promise.reject(new Error(`Page ${url} not found`))
+    );
+  const simplifiedContent = await simplifiedMarkdown(page.content);
+  
+  const extractionOptions = {
+    content: simplifiedContent,
+    url: page.url,
+    screenshot: page.screenshot,
+    catalogueType: CatalogueType.CREDENTIALS,
+  };
+  
+  // Check if credentials are present on the page
+  const entityDef = getCatalogueTypeDefinition(CatalogueType.CREDENTIALS);
+  if (entityDef.presencePrompt) {
+    const presenceResult = await determinePresenceOfEntity(extractionOptions, entityDef);
+    if (!presenceResult.present) {
+      return []; // Return empty array if no credentials are present
+    }
+  }
+  
+  const extractions = await extractAndVerifyEntityData(extractionOptions);
+  return extractions.map(e => e.entity);
+}
+
 export async function detectExploratoryPages(
   url: string,
   catalogueType: CatalogueType = CatalogueType.COMPETENCIES

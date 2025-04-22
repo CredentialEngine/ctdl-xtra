@@ -2,6 +2,7 @@ export enum CatalogueType {
   COURSES = "COURSES",
   LEARNING_PROGRAMS = "LEARNING_PROGRAMS",
   COMPETENCIES = "COMPETENCIES",
+  CREDENTIALS = "CREDENTIALS",
 }
 
 export enum PageType {
@@ -152,4 +153,14 @@ export interface CompletionStats {
   costs?: CostSummary;
   steps: StepCompletionStats[];
   generatedAt: string;
+}
+
+export interface ProxySettings {
+  url: string;
+}
+
+export interface CredentialStructuredData {
+  credential_name: string;
+  credential_description: string;
+  credential_type?: string;
 }

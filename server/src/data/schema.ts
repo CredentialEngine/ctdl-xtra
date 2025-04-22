@@ -34,6 +34,7 @@ import {
   RecipeDetectionStatus,
   Step,
   TextInclusion,
+  CredentialStructuredData,
 } from "../../../common/types";
 import { RobotsTxt } from "../extraction/robotsParser";
 import getLogger from "../logging";
@@ -468,6 +469,7 @@ const dataItems = pgTable(
         | CourseStructuredData
         | LearningProgramStructuredData
         | CompetencyStructuredData
+        | CredentialStructuredData
       >()
       .notNull(),
     textInclusion: jsonb("text_inclusion").$type<TextInclusion<any>>(),
