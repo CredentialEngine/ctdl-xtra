@@ -237,8 +237,7 @@ export async function findPageByUrl(extractionId: number, url: string) {
 }
 export async function findCrawlPageByUrl(url: string) {
   const result = await db.query.crawlPages.findFirst({
-    where: (crawlPages, { eq, and }) =>
-      eq(crawlPages.url, url),
+    where: (crawlPages, { eq }) => eq(crawlPages.url, url),
     with: {
       crawlStep: true,
     },
@@ -353,7 +352,9 @@ export async function createStepAndPages(
   });
 }
 
-export async function countParentNodesOfCrawlSteps(crawlStepId: number): Promise<number> {
+export async function countParentNodesOfCrawlSteps(
+  crawlStepId: number
+): Promise<number> {
   const result = await db.execute(
     sql`
       WITH RECURSIVE ancestors AS (
