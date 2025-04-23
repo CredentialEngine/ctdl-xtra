@@ -12,7 +12,7 @@ import {
 } from "../data/catalogues";
 import { findDatasets } from "../data/datasets";
 import { fetchPreview } from "../extraction/browser";
-import { findGetSettingJSON } from "../data/settings";
+import { findSettingJson } from "../data/settings";
 import { ProxySettings } from "../types";
 
 export const cataloguesRouter = router({
@@ -23,7 +23,7 @@ export const cataloguesRouter = router({
       })
     )
     .query(async (opts) => {
-      const proxy = await findGetSettingJSON<ProxySettings>('PROXY');
+      const proxy = await findSettingJson<ProxySettings>('PROXY');
       return fetchPreview(opts.input.url, proxy?.enabled ? proxy.url : undefined)
     }),
   list: publicProcedure

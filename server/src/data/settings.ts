@@ -6,7 +6,7 @@ export async function findSettings() {
   return db.query.settings.findMany();
 }
 
-export async function findGetSettingJSON<T>(key: string): Promise<T | null> {
+export async function findSettingJson<T>(key: string): Promise<T | null> {
   try {
     const setting = await db.query.settings.findFirst({
       where: eq(settings.key, key),
