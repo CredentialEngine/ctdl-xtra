@@ -70,7 +70,7 @@ export function ProxySettingsForm({
       
       await updateMutation.mutateAsync({
         key: 'PROXY',
-        value: JSON.stringify(newValue),
+        value: newValue as any,
         isEncrypted: true,
         merge: true,
         encryptedPreview: JSON.stringify(encryptedPreview),
