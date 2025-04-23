@@ -9,7 +9,7 @@ import {
   setDefault,
   updateRecipe,
 } from "../data/recipes";
-import { fetchBrowserPage, simplifiedMarkdown } from "../extraction/browser";
+import { fetchPageWithProxy, simplifiedMarkdown } from "../extraction/browser";
 import { detectPagination } from "../extraction/llm/detectPagination";
 import detectUrlRegexp, {
   createUrlExtractor,
@@ -17,8 +17,6 @@ import detectUrlRegexp, {
 import { submitRecipeDetection } from "../extraction/submitRecipeDetection";
 import { bestOutOf, exponentialRetry } from "../utils";
 import { Queues, submitJob } from "../workers";
-import { ProxySettings } from "../types";
-import { findGetSettingJSON } from "../data/settings";
 
 const PaginationConfigurationSchema = z.object({
   urlPatternType: z.nativeEnum(UrlPatternType),
@@ -105,8 +103,7 @@ export const recipesRouter = router({
       })
     )
     .mutation(async (opts) => {
-      const proxy = await findGetSettingJSON<ProxySettings>('PROXY');
-      const { content, screenshot } = await fetchBrowserPage(opts.input.url, proxy?.enabled ? proxy.url : undefined);
+      const { content, screenshot } = await fetchPageWithProxy(opts.input.url);
       const markdownContent = await simplifiedMarkdown(content);
       return detectPagination(
         {
@@ -130,8 +127,7 @@ export const recipesRouter = router({
     .mutation(async (opts) => {
       const pages = await Promise.all(
         opts.input.urls.map(async (url) => {
-          const proxy = await findGetSettingJSON<ProxySettings>('PROXY');
-          const { content, screenshot } = await fetchBrowserPage(url, proxy?.enabled ? proxy.url : undefined);
+          const { content, screenshot } = await fetchPageWithProxy(url);
           const markdownContent = await simplifiedMarkdown(content);
           return { url, content: markdownContent, screenshot };
         })

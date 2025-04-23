@@ -8,6 +8,8 @@ import { detectCatalogueType } from "./llm/detectCatalogueType";
 import { addExtra, VanillaPuppeteer } from "puppeteer-extra";
 import StealthPlugin from "puppeteer-extra-plugin-stealth";
 import rebrowserPuppeteer from "rebrowser-puppeteer";
+import { findGetSettingJSON } from '../data/settings';
+import { ProxySettings } from '../types';
 
 export interface BrowserTaskInput {
   url: string;
@@ -114,8 +116,13 @@ export async function closeCluster() {
 }
 
 export async function fetchBrowserPage(url: string, proxyUrl?: string) {
-    const cluster = await getCluster(proxyUrl || process.env.PROXY_URL);
-    return cluster.execute({ url });  
+  const cluster = await getCluster(proxyUrl || process.env.PROXY_URL);
+  return cluster.execute({ url });
+}
+
+export async function fetchPageWithProxy(url: string) {
+  const proxy = await findGetSettingJSON<ProxySettings>('PROXY');
+  return fetchBrowserPage(url, proxy?.enabled ? proxy.url : undefined);
 }
 
 export async function fetchPreview(url: string, proxyUrl?: string) {

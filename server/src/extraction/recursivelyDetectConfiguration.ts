@@ -4,9 +4,9 @@ import {
   PageType,
   RecipeConfiguration,
 } from "../../../common/types";
-import { ProxySettings, SimplifiedMarkdown } from "../types";
+import { SimplifiedMarkdown } from "../types";
 import { bestOutOf, exponentialRetry, unique } from "../utils";
-import { fetchBrowserPage, simplifiedMarkdown } from "./browser";
+import { fetchPageWithProxy, simplifiedMarkdown } from "./browser";
 import { detectPageType } from "./llm/detectPageType";
 import { detectPagination } from "./llm/detectPagination";
 import detectUrlRegexp, {
@@ -14,7 +14,6 @@ import detectUrlRegexp, {
   createUrlExtractor,
 } from "./llm/detectUrlRegexp";
 import { Probes } from "./vendor-probes";
-import { findGetSettingJSON } from "../data/settings";
 
 const sample = <T>(arr: T[], sampleSize: number) =>
   arr.sort(() => 0.5 - Math.random()).slice(0, sampleSize);
@@ -107,8 +106,7 @@ const detectConfiguration = async (
   catalogueType: CatalogueType,
   pageData?: { content: string; screenshot: string }
 ) => {
-  let proxy = await findGetSettingJSON<ProxySettings>('PROXY');
-  let { content, screenshot } = pageData || (await fetchBrowserPage(url, proxy?.enabled ? proxy.url : undefined));
+  let { content, screenshot } = pageData || (await fetchPageWithProxy(url));
   const markdownContent = await simplifiedMarkdown(content);
   console.log(`Detecting page type for ${url}`);
   const pageType = await detectPageTypeWithRetry(
@@ -164,8 +162,7 @@ const recursivelyDetectConfiguration = async (
     throw new Error("Exceeded max category depth");
   }
 
-  let proxy = await findGetSettingJSON<ProxySettings>('PROXY');
-  let { content: pageContent, screenshot } = await fetchBrowserPage(url, proxy?.enabled ? proxy.url : undefined);
+  let { content: pageContent, screenshot } = await fetchPageWithProxy(url);
   const apiReceipe = await Probes.detectApiProviderRecipe({
     pageContent,
     pageUrl: url,
@@ -203,11 +200,10 @@ const recursivelyDetectConfiguration = async (
     // Extract some sample pages which we'll use to confirm the page type.
     console.log("Detecting configuration for sample child pages");
     console.log(`There are ${urls.length} URLs and we're sampling 5`);
-    const proxy = await findGetSettingJSON<ProxySettings>('PROXY');
 
     const sampleLinks = await Promise.all(
       sample(urls, 5).map(async (url) => {
-        const { content, screenshot } = await fetchBrowserPage(url, proxy?.enabled ? proxy.url : undefined);
+        const { content, screenshot } = await fetchPageWithProxy(url);
         const markdownContent = await simplifiedMarkdown(content);
         return { url, content: markdownContent, screenshot };
       })
@@ -277,7 +273,7 @@ const recursivelyDetectConfiguration = async (
     console.log("Detecting configuration for sample child > child pages");
     const sampleSubChildLinks = await Promise.all(
       sample(childUrls, 5).map(async (url) => {
-        const { content, screenshot } = await fetchBrowserPage(url, proxy?.enabled ? proxy.url : undefined);
+        const { content, screenshot } = await fetchPageWithProxy(url);
         const markdownContent = await simplifiedMarkdown(content);
         return { url, content: markdownContent, screenshot };
       })
