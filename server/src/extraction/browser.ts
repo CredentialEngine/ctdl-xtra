@@ -1,13 +1,15 @@
+import { URL } from "url";
 import * as cheerio from "cheerio";
 import { Cluster } from "puppeteer-cluster";
 import TurndownService from "turndown";
 import { SimplifiedMarkdown } from "../types";
 import { resolveAbsoluteUrl } from "../utils";
 import { detectCatalogueType } from "./llm/detectCatalogueType";
-
 import { addExtra, VanillaPuppeteer } from "puppeteer-extra";
 import StealthPlugin from "puppeteer-extra-plugin-stealth";
 import rebrowserPuppeteer from "rebrowser-puppeteer";
+import { findSettingJson } from '../data/settings';
+import { ProxySettings } from '../types';
 
 export interface BrowserTaskInput {
   url: string;
@@ -28,23 +30,48 @@ let clusterClosed = false;
 
 const PAGE_TIMEOUT = 5 * 60 * 1000;
 
-export async function getCluster() {
+export async function getCluster(proxyUrl?: string) {
   if (clusterClosed) {
     throw new Error("Cluster has been closed");
   }
   if (cluster) {
     return cluster;
   }
+
+  let proxyBaseUrl = null;
+  let proxyUsername = null;
+  let proxyPassword = null;
+  if (proxyUrl) {
+    const url = new URL(proxyUrl);
+    proxyBaseUrl = `${url.protocol}//${url.host}`;
+    proxyUsername = url.username;
+    proxyPassword = url.password;
+  }
+
   cluster = await Cluster.launch({
     concurrency: Cluster.CONCURRENCY_CONTEXT,
     maxConcurrency: 2,
     puppeteer: puppeteer,
     puppeteerOptions: {
-      args: ["--font-render-hinting=none", "--force-gpu-mem-available-mb=4096"],
+      ignoreHTTPSErrors: true,
+      args: [
+        "--font-render-hinting=none",
+        "--force-gpu-mem-available-mb=4096",
+        '--ignore-certificate-errors',
+        proxyBaseUrl ? `--proxy-server=${proxyBaseUrl}` : "",
+      ].filter(Boolean),
     },
     timeout: PAGE_TIMEOUT,
   });
+
   await cluster.task(async ({ page, data }) => {
+    if (proxyUsername || proxyPassword) {
+      await page.authenticate({
+        username: proxyUsername || "",
+        password: proxyPassword || "",
+      });
+    }
+
     page.setDefaultTimeout(PAGE_TIMEOUT);
     const { url } = data;
     const response = await page.goto(url, {
@@ -88,13 +115,18 @@ export async function closeCluster() {
   await cluster.close();
 }
 
-export async function fetchBrowserPage(url: string) {
-  const cluster = await getCluster();
+export async function fetchBrowserPage(url: string, proxyUrl?: string) {
+  const cluster = await getCluster(proxyUrl || process.env.PROXY_URL);
   return cluster.execute({ url });
 }
 
-export async function fetchPreview(url: string) {
-  let { content, screenshot } = await fetchBrowserPage(url);
+export async function fetchPageWithProxy(url: string) {
+  const proxy = await findSettingJson<ProxySettings>('PROXY');
+  return fetchBrowserPage(url, proxy?.enabled ? proxy.url : undefined);
+}
+
+export async function fetchPreview(url: string, proxyUrl?: string) {
+  let { content, screenshot } = await fetchBrowserPage(url, proxyUrl);
   const $ = cheerio.load(content);
   const title = $("title").text() || $('meta[name="og:title"]').attr("content");
   const description = $('meta[name="og:description"]').attr("content");
@@ -195,3 +227,4 @@ export async function simplifiedMarkdown(html: string) {
   const simplified = await toMarkdown(await simplifyHtml(html));
   return simplified as SimplifiedMarkdown;
 }
+

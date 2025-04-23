@@ -1,14 +1,18 @@
 import { CatalogueType, PageType } from "../../../common/types";
 import { findCatalogueById } from "../data/catalogues";
 import { startRecipe } from "../data/recipes";
+import { findSettingJson } from "../data/settings";
+import { ProxySettings } from "../types";
 import { bestOutOf } from "../utils";
 import { Queues, submitJob } from "../workers";
-import { fetchBrowserPage, simplifiedMarkdown } from "./browser";
+import { fetchPageWithProxy, simplifiedMarkdown } from "./browser";
 import { detectPageType } from "./llm/detectPageType";
 
 export async function submitRecipeDetection(url: string, catalogueId: number) {
-  console.log(`Fetching ${url}`);
-  const { content, screenshot } = await fetchBrowserPage(url);
+  const proxy = await findSettingJson<ProxySettings>('PROXY');
+  console.log(`Fetching ${url}${proxy?.enabled ? ` using proxy.` : ""}`);
+  
+  const { content, screenshot } = await fetchPageWithProxy(url);
   const markdownContent = await simplifiedMarkdown(content);
   console.log(`Downloaded ${url}.`);
   console.log(`Detecting page type`);
