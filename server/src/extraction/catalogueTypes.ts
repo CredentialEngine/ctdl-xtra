@@ -382,6 +382,11 @@ export const catalogueTypes: Record<CatalogueType, CatalogueTypeDefinition> = {
     exampleDescription: "A comprehensive program that prepares students for careers in software development and computer systems.",
     exampleIdentifier: "BSCS",
     identifierProperty: "credential_id",
+    desiredOutput: `
+      We are looking for a list of credentials that are offered by the institution.
+      If found, take each item exactly as it is in the page and return them. Skip everything else, just the credential list.
+      Do not confuse credentials with courses or skills or learning outcomes. Return only the credentials that are offered by the institution.
+    `,
     properties: {
       credential_name: {
         description: 'name for the credential (example: "Bachelor of Science in Computer Science")',
