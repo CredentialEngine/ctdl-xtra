@@ -386,6 +386,7 @@ export const catalogueTypes: Record<CatalogueType, CatalogueTypeDefinition> = {
       We are looking for a list of credentials that are offered by the institution.
       Credentials are prof of completion of a course or learning program. They can be diplomas, certificates, badges, etc.
       If found, take each item exactly as it is in the page and return them. Skip everything else, just the credential list.
+      Note that pages can show options to get other credentials, we only need the ones directly related to the course or learning program.
       Do not confuse credentials with courses or skills or learning outcomes. Return only the credentials that are offered by the institution.
     `,
     properties: {
