@@ -398,7 +398,7 @@ export const catalogueTypes: Record<CatalogueType, CatalogueTypeDefinition> = {
         required: true,
       },
       credential_type: {
-        description: "the type of credential (e.g. degree, certificate, diploma, etc.)",
+        description: "the type of credential, the possible values are: BachelorDegree, AssociateDegree, Certificate, Diploma, DoctoralDegree, MasterDegree",
         required: false,
       },
     }
