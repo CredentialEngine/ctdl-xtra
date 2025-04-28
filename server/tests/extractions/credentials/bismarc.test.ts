@@ -43,4 +43,46 @@ The Advanced Digital Technologies degree empowers students to customize their de
       ]);
     }
   );
+
+  test(
+    "Cybersecurity and Computer Networks",
+    async () => {
+      const url = "https://bismarckstate.edu/academics/programs/computersupport";
+      const credentials = await extractCredentials(url);
+
+      expect(credentials).toEqual([
+        {
+          credential_name: expect.like("Cybersecurity and Computer Networks"),
+          credential_description: expect.like(
+            `This degree program combines system administration fundamentals with a foundation in cybersecurity concepts. Classes focus on best practices to implement, administer, and secure operating systems and computer networks.
+
+Our students experience real-life scenarios through hands-on labs and simulations that are constructed based on feedback from the cybersecurity community and continually adapted to today's changing world. Not only do we teach security concepts and technologies, we also teach the information technology component that goes with it. Upon graduation, you will be ready to use your knowledge and skills in the workforce.`
+          ),
+          credential_type: "AssociateDegree",
+          language: "English",
+        },
+      ]);
+    }
+  );
+
+  test(
+    "Cybersecurity and Information Technology (BAS)",
+    async () => {
+      const url = "https://bismarckstate.edu/academics/programs/BASinCybersecurityandInformationTechnology";
+      const credentials = await extractCredentials(url);
+
+      expect(credentials).toEqual([
+        {
+          credential_name: expect.like("Cybersecurity and Information Technology"),
+          credential_description: expect.like(
+            `This degree program provides a solid cybersecurity backing to information technology (IT) tasks. Classes focus on best practices to implement, administer, and secure the technologies used to process, transmit, and store data. Graduates gain hands-on experience securing network communications, configuring virtualization, managing cloud-based resources, and performing other common security-related tasks while administering daily IT operations.
+
+These practical IT experiences are constructed using continual feedback from local, regional, and global cybersecurity practitioners. This assessment ensures students learn modern IT practices and receive the latest in cybersecurity education. Upon graduation, students are ready to use their knowledge and skills in the workforce of today and tomorrow.`
+          ),
+          credential_type: "BachelorDegree",
+          language: "English",
+        },
+      ]);
+    }
+  );
 });
