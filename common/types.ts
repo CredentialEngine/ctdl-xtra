@@ -163,4 +163,5 @@ export interface CredentialStructuredData {
   credential_name: string;
   credential_description: string;
   credential_type?: string;
+  language?: string;
 }

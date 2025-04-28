@@ -193,7 +193,7 @@ function getCredentialRow(
     "External Identifier": randomUUID(),
     "Name": structuredData.credential_name,
     "Description": structuredData.credential_description,
-    "Language": "English",
+    "Language": structuredData?.language || "English",
     "Credential Type": structuredData.credential_type || "Unknown",
     "In Catalog": item.url,
     "Text Verification Average": (textVerificationAverage * 100).toFixed(2),
