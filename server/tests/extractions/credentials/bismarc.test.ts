@@ -12,7 +12,7 @@ describe("Bismarck State College", { timeout: EXTRACTION_TIMEOUT }, () => {
       // Verify the credential details
       expect(credentials).toEqual([
         {
-          credential_name: expect.like("Advanced Digital Technologies Associate in Applied Science"),
+          credential_name: expect.like("Advanced Digital Technologies"),
           credential_description: expect.like(
             `With an ever-changing workplace, many employers desire graduates who have well-rounded educational backgrounds including skills related to digital technology. The Advanced Digital Technology degree offers students an opportunity to combine three short-term certificates (16+ credits each) that are job skill related into one AAS degree. The certificates would include coursework from technical fields including cybersecurity, mobile application development, management, and exercise science.
 

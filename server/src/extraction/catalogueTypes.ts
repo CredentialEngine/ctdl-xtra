@@ -390,7 +390,7 @@ export const catalogueTypes: Record<CatalogueType, CatalogueTypeDefinition> = {
     `,
     properties: {
       credential_name: {
-        description: 'name for the credential or certificate (example: "Bachelor of Science in Computer Science")',
+        description: 'name for the credential or certificate (example: "Computer Science"). Don not include the type of credential in the name.',
         required: true,
       },
       credential_description: {
@@ -399,6 +399,8 @@ export const catalogueTypes: Record<CatalogueType, CatalogueTypeDefinition> = {
       },
       credential_type: {
         description: "the type of credential, the possible values are: BachelorDegree, AssociateDegree, Certificate, Diploma, DoctoralDegree, MasterDegree",
+        required: true,
+      },
       language: {
         description: "The language in full (example: 'English', 'Spanish', 'German', etc.)",
         required: false,
