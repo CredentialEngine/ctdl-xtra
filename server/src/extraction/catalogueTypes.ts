@@ -395,7 +395,7 @@ export const catalogueTypes: Record<CatalogueType, CatalogueTypeDefinition> = {
         required: true,
       },
       credential_description: {
-        description: "the full description of the credential. If there are links, only extract the text.",
+        description: "the concise description of the credential, make sure to include all the details of the credential.",
         required: true,
       },
       credential_type: {
