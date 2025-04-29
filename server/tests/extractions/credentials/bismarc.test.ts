@@ -85,4 +85,42 @@ These practical IT experiences are constructed using continual feedback from loc
       ]);
     }
   );
+
+  test(
+    "Offensive and Defensive Security",
+    async () => {
+      const url = "https://bismarckstate.edu/academics/programs/Offensive%20and%20Defensive%20Security";
+      const credentials = await extractCredentials(url);
+
+      expect(credentials).toEqual([
+        {
+          credential_name: expect.like("Offensive and Defensive Security"),
+          credential_description: expect.like(
+            "The Certificate in Offensive and Defensive Security is a great way to improve your career trajectory. You may choose from online and on-campus course-delivery options. This flexibility allows you to complete coursework at your convenience and on your schedule."
+          ),
+          credential_type: "Certificate",
+          language: "English",
+        },
+      ]);
+    }
+  );
+
+  test(
+    "Security and Hacking",
+    async () => {
+      const url = "https://bismarckstate.edu/academics/programs/Security%20and%20Hacking";
+      const credentials = await extractCredentials(url);
+
+      expect(credentials).toEqual([
+        {
+          credential_name: expect.like("Security and Hacking"),
+          credential_description: expect.like(
+            "The Certificate in Security and Hacking is a great way to jump-start your career. You may choose from online and on-campus course-delivery options. This flexibility allows you to complete coursework at your convenience and on your schedule."
+          ),
+          credential_type: "Certificate",
+          language: "English",
+        },
+      ]);
+    }
+  );
 });
