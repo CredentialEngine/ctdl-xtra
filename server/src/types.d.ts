@@ -31,8 +31,3 @@ type Brand<B> = { [__brand]: B };
 export type Branded<T, B> = T & Brand<B>;
 
 export type SimplifiedMarkdown = Branded<string, "SimplifiedMarkdown">;
-
-export interface ProxySettings {
-  enabled: boolean;
-  url: string;
-}

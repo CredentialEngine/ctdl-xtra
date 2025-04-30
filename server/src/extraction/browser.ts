@@ -1,15 +1,15 @@
-import { URL } from "url";
 import * as cheerio from "cheerio";
 import { Cluster } from "puppeteer-cluster";
-import TurndownService from "turndown";
-import { SimplifiedMarkdown } from "../types";
-import { resolveAbsoluteUrl } from "../utils";
-import { detectCatalogueType } from "./llm/detectCatalogueType";
 import { addExtra, VanillaPuppeteer } from "puppeteer-extra";
 import StealthPlugin from "puppeteer-extra-plugin-stealth";
 import rebrowserPuppeteer from "rebrowser-puppeteer";
-import { findSettingJson } from '../data/settings';
-import { ProxySettings } from '../types';
+import TurndownService from "turndown";
+import { URL } from "url";
+import { ProxySettings } from "../../../common/types";
+import { findSetting } from "../data/settings";
+import { SimplifiedMarkdown } from "../types";
+import { resolveAbsoluteUrl } from "../utils";
+import { detectCatalogueType } from "./llm/detectCatalogueType";
 
 export interface BrowserTaskInput {
   url: string;
@@ -57,7 +57,7 @@ export async function getCluster(proxyUrl?: string) {
       args: [
         "--font-render-hinting=none",
         "--force-gpu-mem-available-mb=4096",
-        '--ignore-certificate-errors',
+        "--ignore-certificate-errors",
         proxyBaseUrl ? `--proxy-server=${proxyBaseUrl}` : "",
       ].filter(Boolean),
     },
@@ -115,18 +115,23 @@ export async function closeCluster() {
   await cluster.close();
 }
 
-export async function fetchBrowserPage(url: string, proxyUrl?: string) {
-  const cluster = await getCluster(proxyUrl || process.env.PROXY_URL);
+export async function findProxy(): Promise<string | undefined> {
+  const proxyEnabled = await findSetting<boolean>("PROXY_ENABLED");
+  if (!proxyEnabled) {
+    return undefined;
+  }
+  const proxy = await findSetting<ProxySettings>("PROXY", true);
+  return proxy?.value.url || process.env.PROXY_URL;
+}
+
+export async function fetchBrowserPage(url: string, skipProxy?: boolean) {
+  const proxyUrl = skipProxy ? undefined : await findProxy();
+  const cluster = await getCluster(proxyUrl);
   return cluster.execute({ url });
 }
 
-export async function fetchPageWithProxy(url: string) {
-  const proxy = await findSettingJson<ProxySettings>('PROXY');
-  return fetchBrowserPage(url, proxy?.enabled ? proxy.url : undefined);
-}
-
-export async function fetchPreview(url: string, proxyUrl?: string) {
-  let { content, screenshot } = await fetchBrowserPage(url, proxyUrl);
+export async function fetchPreview(url: string) {
+  let { content, screenshot } = await fetchBrowserPage(url);
   const $ = cheerio.load(content);
   const title = $("title").text() || $('meta[name="og:title"]').attr("content");
   const description = $('meta[name="og:description"]').attr("content");
@@ -227,4 +232,3 @@ export async function simplifiedMarkdown(html: string) {
   const simplified = await toMarkdown(await simplifyHtml(html));
   return simplified as SimplifiedMarkdown;
 }
-

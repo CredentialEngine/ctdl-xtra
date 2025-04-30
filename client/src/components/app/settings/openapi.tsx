@@ -13,29 +13,24 @@ import { useToast } from "@/components/ui/use-toast";
 import { trpc } from "@/utils";
 import { useState } from "react";
 
-interface OpenAIApiKeyFormProps {
-  currentApiKeyPreview?: string | null;
-  onSuccess: () => void;
-}
-
-export function OpenAIApiKeyForm({
-  currentApiKeyPreview,
-  onSuccess,
-}: OpenAIApiKeyFormProps) {
+export function OpenAIApiKeyForm() {
+  const settingQuery = trpc.settings.detail.useQuery({
+    key: "OPENAI_API_KEY",
+  });
   const updateMutation = trpc.settings.setOpenAIApiKey.useMutation();
-  const [newApiKey, setNewApiKey] = useState("");
+  const [apiKey, setApiKey] = useState("");
   const { toast } = useToast();
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     try {
-      await updateMutation.mutateAsync({ apiKey: newApiKey });
+      await updateMutation.mutateAsync({ apiKey: apiKey });
       toast({
         title: "API Key Updated",
         description: "The OpenAI API key has been updated.",
       });
-      setNewApiKey("");
-      onSuccess();
+      setApiKey("");
+      settingQuery.refetch();
     } catch (error) {
       toast({
         title: "Error",
@@ -51,10 +46,13 @@ export function OpenAIApiKeyForm({
           <CardTitle>OpenAI API Key</CardTitle>
           <CardDescription>
             The API key that will used for OpenAI requests. <br />
-            {currentApiKeyPreview ? (
+            {settingQuery.data?.encryptedPreview ? (
               <>
                 The key is currently set to{" "}
-                <code className="font-bold">{currentApiKeyPreview}</code>.
+                <code className="font-bold">
+                  {settingQuery.data.encryptedPreview}
+                </code>
+                .
               </>
             ) : null}
           </CardDescription>
@@ -65,8 +63,8 @@ export function OpenAIApiKeyForm({
             <Input
               id="openai_api_key"
               placeholder="sk-..."
-              value={newApiKey}
-              onChange={(e) => setNewApiKey(e.target.value)}
+              value={apiKey}
+              onChange={(e) => setApiKey(e.target.value)}
               type="password"
             />
           </div>
@@ -77,4 +75,4 @@ export function OpenAIApiKeyForm({
       </Card>
     </form>
   );
-};
+}

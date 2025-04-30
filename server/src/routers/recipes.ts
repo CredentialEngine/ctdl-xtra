@@ -9,7 +9,7 @@ import {
   setDefault,
   updateRecipe,
 } from "../data/recipes";
-import { fetchPageWithProxy, simplifiedMarkdown } from "../extraction/browser";
+import { fetchBrowserPage, simplifiedMarkdown } from "../extraction/browser";
 import { detectPagination } from "../extraction/llm/detectPagination";
 import detectUrlRegexp, {
   createUrlExtractor,
@@ -132,7 +132,7 @@ export const recipesRouter = router({
       })
     )
     .mutation(async (opts) => {
-      const { content, screenshot } = await fetchPageWithProxy(opts.input.url);
+      const { content, screenshot } = await fetchBrowserPage(opts.input.url);
       const markdownContent = await simplifiedMarkdown(content);
       return detectPagination(
         {
@@ -156,7 +156,7 @@ export const recipesRouter = router({
     .mutation(async (opts) => {
       const pages = await Promise.all(
         opts.input.urls.map(async (url) => {
-          const { content, screenshot } = await fetchPageWithProxy(url);
+          const { content, screenshot } = await fetchBrowserPage(url);
           const markdownContent = await simplifiedMarkdown(content);
           return { url, content: markdownContent, screenshot };
         })
