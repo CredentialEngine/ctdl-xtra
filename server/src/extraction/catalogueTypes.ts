@@ -389,6 +389,7 @@ export const catalogueTypes: Record<CatalogueType, CatalogueTypeDefinition> = {
       Note that pages can show options to get other credentials, we only need the ones directly related to the course or learning program.
       Do not confuse credentials with courses or skills or learning outcomes. Return only the credentials that are offered by the institution.
     `,
+    model: ProviderModel.Gpt41,
     properties: {
       credential_name: {
         description: 'name for the credential or certificate (example: "Computer Science"). Don not include the type of credential in the name.',
