@@ -8,9 +8,12 @@ import {
   RecipeConfiguration,
   RecipeDetectionStatus,
 } from "../../../common/types";
+import { RobotsTxt } from "../extraction/robotsParser";
 
 export type Recipe = Omit<InferSelectModel<typeof recipes>, "configuration"> & {
   configuration?: RecipeConfiguration;
+  robotsTxt?: RobotsTxt;
+  acknowledgedSkipRobotsTxt?: boolean;
 };
 
 export async function findRecipes() {
@@ -82,7 +85,9 @@ export async function startRecipe(
 export async function createRecipe(
   catalogueId: number,
   url: string,
-  configuration: RecipeConfiguration
+  configuration: RecipeConfiguration,
+  robotsTxt?: RobotsTxt,
+  acknowledgedSkipRobotsTxt?: boolean
 ) {
   const result = await db
     .insert(recipes)
@@ -92,6 +97,8 @@ export async function createRecipe(
       isDefault: false,
       configuration,
       status: RecipeDetectionStatus.SUCCESS,
+      robotsTxt,
+      acknowledgedSkipRobotsTxt,
     })
     .returning({ id: recipes.id });
   return result[0];

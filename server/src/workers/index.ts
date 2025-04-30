@@ -1,6 +1,7 @@
 import * as Airbrake from "@airbrake/node";
 import {
   BulkJobOptions,
+  JobsOptions,
   Queue,
   RepeatOptions,
   SandboxedJob,
@@ -28,9 +29,9 @@ export interface JobWithProgress<T, K extends BaseProgress>
   updateProgress(value: K): Promise<void>;
 }
 
-export type Processor<T, K extends BaseProgress> = (
+export type Processor<T, K extends BaseProgress, L = any> = (
   job: JobWithProgress<T, K>
-) => Promise<void>;
+) => Promise<L>;
 
 export const createProcessor = <T, K extends BaseProgress>(
   fn: Processor<T, K>
@@ -70,6 +71,15 @@ export async function submitJob<T, K extends T>(
   return queue.add(name, data, { jobId, priority: priority || 100 });
 }
 
+export async function submitJobWithOpts<T, K extends T>(
+  queue: Queue<T>,
+  data: K,
+  opts: JobsOptions
+) {
+  const name = `${queue.name}.default`;
+  return queue.add(name, data, opts);
+}
+
 export async function submitRepeatableJob<T, K extends T>(
   queue: Queue<T>,
   data: K,
@@ -85,16 +95,37 @@ export interface SubmitJobsItem<K> {
   options: BulkJobOptions & { jobId: string };
 }
 
+export interface DelayOptions {
+  delayInterval: number;
+  startWithDelay: number;
+}
+
 export async function submitJobs<T, K extends T>(
   queue: Queue<T>,
-  jobs: SubmitJobsItem<K>[]
+  jobs: SubmitJobsItem<K>[],
+  delayOptions?: DelayOptions
 ) {
   const name = `${queue.name}.default`;
-  const bulkJobs = jobs.map((j) => ({
-    name,
-    data: j.data,
-    opts: j.options,
-  }));
+
+  const bulkJobs = [];
+  let delay = delayOptions?.startWithDelay || undefined;
+  console.log(
+    `[Batch starting with ${jobs[0].options.jobId}] Delay interval ${delayOptions?.delayInterval}`
+  );
+  for (const job of jobs) {
+    bulkJobs.push({
+      name,
+      data: job.data,
+      opts: {
+        ...job.options,
+        delay,
+      },
+    });
+    if (delay && delayOptions?.delayInterval) {
+      delay += delayOptions.delayInterval + 1000;
+    }
+  }
+
   return queue.addBulk(bulkJobs);
 }
 

@@ -1,10 +1,15 @@
+import { v4 as uuidv4 } from "uuid";
 import {
   createProcessor,
+  DelayOptions,
   FetchPageJob,
   FetchPageProgress,
+  getRedisConnection,
+  JobWithProgress,
   Queues,
   submitJob,
   submitJobs,
+  submitJobWithOpts,
 } from ".";
 import {
   CatalogueType,
@@ -32,6 +37,9 @@ import {
 import { fetchPageWithProxy, simplifiedMarkdown } from "../extraction/browser";
 import { detectPageCount } from "../extraction/llm/detectPageCount";
 import { createUrlExtractor } from "../extraction/llm/detectUrlRegexp";
+import { findRule, isUrlAllowedForRule } from "../extraction/robotsParser";
+
+const redis = getRedisConnection();
 
 const constructPaginatedUrls = (configuration: PaginationConfiguration) => {
   const urls = [];
@@ -62,7 +70,8 @@ async function enqueueExtraction(
 async function enqueuePages(
   configuration: RecipeConfiguration,
   crawlPage: Awaited<ReturnType<typeof findPageForJob>>,
-  catalogueType: CatalogueType
+  catalogueType: CatalogueType,
+  delayOptions: DelayOptions
 ) {
   console.log(`Enqueuing page fetches for page ${crawlPage.url}`);
 
@@ -115,14 +124,16 @@ async function enqueuePages(
     Queues.FetchPage,
     stepAndPages.pages.map((page) => ({
       data: { crawlPageId: page.id },
-      options: { jobId: `fetchPage.${page.id}`, lifo: true, delay: 1500 },
-    }))
+      options: { jobId: `fetchPage.${page.id}`, lifo: true },
+    })),
+    delayOptions
   );
 }
 
 async function processLinks(
   configuration: RecipeConfiguration,
-  crawlPage: Awaited<ReturnType<typeof findPageForJob>>
+  crawlPage: Awaited<ReturnType<typeof findPageForJob>>,
+  delayOptions: DelayOptions
 ) {
   console.log(`Processing links for page ${crawlPage.url}`);
 
@@ -166,14 +177,15 @@ async function processLinks(
       options: {
         jobId: `fetchPage.${page.id}`,
         lifo: true,
-        delay: 1500,
       },
-    }))
+    })),
+    delayOptions
   );
 }
 
 const processNextStep = async (
-  crawlPage: Awaited<ReturnType<typeof findPageForJob>>
+  crawlPage: Awaited<ReturnType<typeof findPageForJob>>,
+  delayOptions: DelayOptions
 ) => {
   const configuration = crawlPage.crawlStep
     .configuration as RecipeConfiguration;
@@ -182,7 +194,7 @@ const processNextStep = async (
     .catalogueType as CatalogueType;
 
   if (configuration.pagination && currentStep != Step.FETCH_PAGINATED) {
-    return enqueuePages(configuration, crawlPage, catalogueType);
+    return enqueuePages(configuration, crawlPage, catalogueType, delayOptions);
   }
 
   if (configuration.pageType == PageType.DETAIL) {
@@ -195,77 +207,136 @@ const processNextStep = async (
     );
   }
 
-  processLinks(configuration, crawlPage);
+  processLinks(configuration, crawlPage, delayOptions);
+};
+
+const performJob = async (
+  job: JobWithProgress<FetchPageJob, FetchPageProgress>,
+  crawlPage: Awaited<ReturnType<typeof findPageForJob>>,
+  delayOptions: DelayOptions
+) => {
+  if (crawlPage.extraction.status == ExtractionStatus.CANCELLED) {
+    console.log(`Extraction ${crawlPage.extractionId} was cancelled; aborting`);
+    return;
+  }
+
+  if (crawlPage.crawlStep.step == Step.FETCH_ROOT) {
+    await updateExtraction(crawlPage.extractionId, {
+      status: ExtractionStatus.IN_PROGRESS,
+    });
+  }
+
+  try {
+    console.log(`Loading ${crawlPage.url}`);
+    await updatePage(crawlPage.id, { status: PageStatus.IN_PROGRESS });
+
+    const page = await fetchPageWithProxy(crawlPage.url);
+    if (page.status == 404) {
+      await updatePage(crawlPage.id, {
+        status: PageStatus.ERROR,
+        fetchFailureReason: {
+          responseStatus: page.status,
+          reason: "404 Not found",
+        },
+      });
+      return;
+    }
+    if (!page.content) {
+      throw new Error(`Could not fetch URL ${crawlPage.url}`);
+    }
+    const markdownContent = await simplifiedMarkdown(page.content);
+    crawlPage.content = await storeContent(
+      crawlPage.extractionId,
+      crawlPage.crawlStepId,
+      crawlPage.id,
+      page.content,
+      markdownContent
+    );
+    crawlPage.screenshot = await storeScreenshot(
+      crawlPage.extractionId,
+      crawlPage.crawlStepId,
+      crawlPage.id,
+      page.screenshot
+    );
+    await updatePage(crawlPage.id, {
+      content: crawlPage.content,
+      screenshot: crawlPage.screenshot,
+    });
+    await processNextStep(crawlPage, delayOptions);
+    await updatePage(crawlPage.id, {
+      status: PageStatus.SUCCESS,
+    });
+  } catch (err) {
+    const failureReason: FetchFailureReason = {
+      reason:
+        err instanceof Error
+          ? err.message || `Generic failure: ${err.constructor.name}`
+          : `Unknown error: ${String(err)}`,
+    };
+    await updatePage(crawlPage.id, {
+      status: PageStatus.ERROR,
+      fetchFailureReason: failureReason,
+    });
+    throw err;
+  }
 };
 
 export default createProcessor<FetchPageJob, FetchPageProgress>(
-  async function fetchPage(job) {
+  async (job: JobWithProgress<FetchPageJob, FetchPageProgress>) => {
     const crawlPage = await findPageForJob(job.data.crawlPageId);
 
-    if (crawlPage.extraction.status == ExtractionStatus.CANCELLED) {
+    const delayOptions: DelayOptions = {
+      delayInterval: 3000,
+      startWithDelay: 0,
+    };
+
+    const robotsTxt = crawlPage.extraction.recipe.acknowledgedSkipRobotsTxt
+      ? undefined
+      : crawlPage.extraction.recipe.robotsTxt || undefined;
+
+    if (robotsTxt) {
+      const robotsRule = findRule(robotsTxt, crawlPage.url);
+      if (
+        robotsRule &&
+        isUrlAllowedForRule(robotsRule, crawlPage.url) &&
+        robotsRule.crawlDelay &&
+        robotsRule.crawlDelay > 0
+      ) {
+        delayOptions.delayInterval = robotsRule.crawlDelay * 1000;
+      }
+    }
+
+    const domain = new URL(crawlPage.url).hostname;
+    const lockKey = `crawl-lock:${domain}`;
+
+    // Attempt to acquire the lock atomically
+    const lockAcquired = await redis.set(
+      lockKey,
+      "locked",
+      "PX",
+      delayOptions.delayInterval,
+      "NX"
+    );
+
+    if (!lockAcquired) {
+      // Lock is held by another worker
+      const remainingCooldownMillis = await redis.pttl(lockKey);
+      const delay =
+        remainingCooldownMillis > 0
+          ? remainingCooldownMillis
+          : delayOptions.delayInterval;
+
       console.log(
-        `Extraction ${crawlPage.extractionId} was cancelled; aborting`
+        `Domain ${domain} locked. Re-queuing ${crawlPage.url} with delay ${delay}ms.`
       );
-      return;
+      return submitJobWithOpts(Queues.FetchPage, job.data, {
+        ...job.opts,
+        jobId: `${job.opts.jobId}.delayed.${uuidv4()}`,
+        delay: delay,
+      });
     }
 
-    if (crawlPage.crawlStep.step == Step.FETCH_ROOT) {
-      await updateExtraction(crawlPage.extractionId, {
-        status: ExtractionStatus.IN_PROGRESS,
-      });
-    }
-
-    try {
-      console.log(`Loading ${crawlPage.url} for page ${crawlPage.url}`);
-      await updatePage(crawlPage.id, { status: PageStatus.IN_PROGRESS });
-      const page = await fetchPageWithProxy(crawlPage.url);
-      if (page.status == 404) {
-        await updatePage(crawlPage.id, {
-          status: PageStatus.ERROR,
-          fetchFailureReason: {
-            responseStatus: page.status,
-            reason: "404 Not found",
-          },
-        });
-        return;
-      }
-      if (!page.content) {
-        throw new Error(`Could not fetch URL ${crawlPage.url}`);
-      }
-      const markdownContent = await simplifiedMarkdown(page.content);
-      crawlPage.content = await storeContent(
-        crawlPage.extractionId,
-        crawlPage.crawlStepId,
-        crawlPage.id,
-        page.content,
-        markdownContent
-      );
-      crawlPage.screenshot = await storeScreenshot(
-        crawlPage.extractionId,
-        crawlPage.crawlStepId,
-        crawlPage.id,
-        page.screenshot
-      );
-      await updatePage(crawlPage.id, {
-        content: crawlPage.content,
-        screenshot: crawlPage.screenshot,
-      });
-      await processNextStep(crawlPage);
-      await updatePage(crawlPage.id, {
-        status: PageStatus.SUCCESS,
-      });
-    } catch (err) {
-      const failureReason: FetchFailureReason = {
-        reason:
-          err instanceof Error
-            ? err.message || `Generic failure: ${err.constructor.name}`
-            : `Unknown error: ${String(err)}`,
-      };
-      await updatePage(crawlPage.id, {
-        status: PageStatus.ERROR,
-        fetchFailureReason: failureReason,
-      });
-      throw err;
-    }
+    console.log(`Processing URL: ${crawlPage.url} for domain ${domain}`);
+    return performJob(job, crawlPage, delayOptions);
   }
 );
