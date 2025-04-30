@@ -4,15 +4,15 @@ import { CatalogueType } from "../../../common/types";
 import {
   createCatalogue,
   destroyCatalogue,
+  findCatalogue,
   findCatalogueById,
-  findCatalogueByUrl,
   findCatalogues,
   findLatestExtractionsForCatalogue,
   getCatalogueCount,
 } from "../data/catalogues";
 import { findDatasets } from "../data/datasets";
-import { fetchPreview } from "../extraction/browser";
 import { findSettingJson } from "../data/settings";
+import { fetchPreview } from "../extraction/browser";
 import { ProxySettings } from "../types";
 
 export const cataloguesRouter = router({
@@ -23,8 +23,11 @@ export const cataloguesRouter = router({
       })
     )
     .query(async (opts) => {
-      const proxy = await findSettingJson<ProxySettings>('PROXY');
-      return fetchPreview(opts.input.url, proxy?.enabled ? proxy.url : undefined)
+      const proxy = await findSettingJson<ProxySettings>("PROXY");
+      return fetchPreview(
+        opts.input.url,
+        proxy?.enabled ? proxy.url : undefined
+      );
     }),
   list: publicProcedure
     .input(
@@ -57,12 +60,15 @@ export const cataloguesRouter = router({
         name: z.string().min(2),
         url: z.string().url(),
         thumbnailUrl: z.string().optional(),
-        catalogueType: z.nativeEnum(CatalogueType).optional(),
+        catalogueType: z
+          .nativeEnum(CatalogueType)
+          .optional()
+          .default(CatalogueType.COURSES),
       })
     )
     .mutation(async (opts) => {
       const { name, url, thumbnailUrl, catalogueType } = opts.input;
-      const existingCatalogue = await findCatalogueByUrl(url);
+      const existingCatalogue = await findCatalogue(url, catalogueType);
       if (existingCatalogue) {
         return {
           id: existingCatalogue.id,

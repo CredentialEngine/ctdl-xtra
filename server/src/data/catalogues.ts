@@ -54,9 +54,10 @@ export async function findCatalogueById(id: number) {
   return result;
 }
 
-export async function findCatalogueByUrl(url: string) {
+export async function findCatalogue(url: string, catalogueType: CatalogueType) {
   return db.query.catalogues.findFirst({
-    where: (catalogues, { eq }) => eq(catalogues.url, url),
+    where: (catalogues, { eq }) =>
+      and(eq(catalogues.url, url), eq(catalogues.catalogueType, catalogueType)),
   });
 }
 

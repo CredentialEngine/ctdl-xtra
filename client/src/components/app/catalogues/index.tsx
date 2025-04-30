@@ -189,7 +189,10 @@ export default function Catalogues() {
             </TableHeader>
             <TableBody>
               {listQuery.data?.results.map((catalogue) => (
-                <CatalogueListItem key={catalogue.url} {...catalogue} />
+                <CatalogueListItem
+                  key={`${catalogue.url}-${catalogue.catalogueType}`}
+                  {...catalogue}
+                />
               )) || (
                 <TableRow>
                   <TableCell colSpan={2}>
