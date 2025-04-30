@@ -18,6 +18,10 @@ export const ModelPrices = {
     per1MInput: 2.5,
     per1MOutput: 10.0,
   },
+  [ProviderModel.Gpt41]: {
+    per1MInput: 6.0,
+    per1MOutput: 18.0,
+  },
   [ProviderModel.O3Mini]: {
     per1MInput: 1.1,
     per1MOutput: 4.4,
