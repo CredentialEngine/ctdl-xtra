@@ -1,14 +1,13 @@
 import { OpenAI } from "openai";
+import { JSONSchema } from "openai/lib/jsonschema";
 import {
   ChatCompletion,
   ChatCompletionCreateParams,
   ChatCompletionMessageParam,
 } from "openai/resources/chat/completions";
-import { JSONSchema } from "openai/lib/jsonschema";
 import { Provider, ProviderModel } from "../../common/types";
-import db from "./data";
 import { createModelApiCallLog } from "./data/extractions";
-import { decryptFromDb } from "./data/schema";
+import { findSetting } from "./data/settings";
 import { exponentialRetry } from "./utils";
 
 export const ModelPrices = {
@@ -38,14 +37,11 @@ export function estimateCost(
 }
 
 export async function findOpenAiApiKey() {
-  const apiKey = await db.query.settings.findFirst({
-    where: (settings, { eq }) => eq(settings.key, "OPENAI_API_KEY"),
-  });
+  const apiKey = await findSetting("OPENAI_API_KEY", true);
   if (!apiKey) {
     throw new Error("OpenAI API Key not found");
   }
-  const decrypted = decryptFromDb(apiKey.value);
-  return decrypted;
+  return apiKey.value;
 }
 
 export async function getOpenAi() {
@@ -213,7 +209,7 @@ export async function structuredCompletion<
         type: "json_schema",
         json_schema: {
           strict: true,
-          name: 'schema',
+          name: "schema",
           schema: options.schema,
         },
       } as any,
@@ -230,7 +226,9 @@ export async function structuredCompletion<
         }));
       }
 
-      chatCompletion = await openai.chat.completions.create(completionOptions) as ChatCompletion;
+      chatCompletion = (await openai.chat.completions.create(
+        completionOptions
+      )) as ChatCompletion;
     } catch (e) {
       if (
         e instanceof OpenAI.APIError &&
@@ -240,20 +238,22 @@ export async function structuredCompletion<
           `OpenAI API Error: ${e.code}. Likely invalid base64 screenshot; retrying without screenshots`
         );
 
-        const messagesWithoutScreenshots = completionOptions.messages.map((m) => ({
-          ...m,
-          content: Array.isArray(m.content)
-            ? m.content.filter((c) => c.type !== "image_url")
-            : m.content,
-        }));
+        const messagesWithoutScreenshots = completionOptions.messages.map(
+          (m) => ({
+            ...m,
+            content: Array.isArray(m.content)
+              ? m.content.filter((c) => c.type !== "image_url")
+              : m.content,
+          })
+        );
 
         const completionOptionsWithoutScreenshots = {
           ...completionOptions,
           messages: messagesWithoutScreenshots as ChatCompletionMessageParam[],
         };
-        chatCompletion = await openai.chat.completions.create(
+        chatCompletion = (await openai.chat.completions.create(
           completionOptionsWithoutScreenshots
-        ) as ChatCompletion;
+        )) as ChatCompletion;
       } else {
         throw e;
       }

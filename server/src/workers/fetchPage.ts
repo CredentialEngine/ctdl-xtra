@@ -34,7 +34,7 @@ import {
   storeContent,
   storeScreenshot,
 } from "../data/schema";
-import { fetchPageWithProxy, simplifiedMarkdown } from "../extraction/browser";
+import { fetchBrowserPage, simplifiedMarkdown } from "../extraction/browser";
 import { detectPageCount } from "../extraction/llm/detectPageCount";
 import { createUrlExtractor } from "../extraction/llm/detectUrlRegexp";
 import { findRule, isUrlAllowedForRule } from "../extraction/robotsParser";
@@ -230,7 +230,7 @@ const performJob = async (
     console.log(`Loading ${crawlPage.url}`);
     await updatePage(crawlPage.id, { status: PageStatus.IN_PROGRESS });
 
-    const page = await fetchPageWithProxy(crawlPage.url);
+    const page = await fetchBrowserPage(crawlPage.url);
     if (page.status == 404) {
       await updatePage(crawlPage.id, {
         status: PageStatus.ERROR,

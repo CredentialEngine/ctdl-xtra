@@ -117,7 +117,7 @@ export interface CompetencyStructuredData {
 }
 
 export type TextInclusion<T> = {
-  [K in keyof T]: { full: boolean, sentences?: boolean };
+  [K in keyof T]: { full: boolean; sentences?: boolean };
 };
 
 export interface StepCompletionStats {
@@ -151,4 +151,8 @@ export interface CompletionStats {
   costs?: CostSummary;
   steps: StepCompletionStats[];
   generatedAt: string;
+}
+
+export interface ProxySettings {
+  url: string;
 }
