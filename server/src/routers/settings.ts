@@ -1,6 +1,5 @@
 import { z } from "zod";
 import { publicProcedure, router } from ".";
-import { AppError, AppErrors } from "../appErrors";
 import { createOrUpdate, findSetting } from "../data/settings";
 
 export const settingsRouter = router({
@@ -18,8 +17,6 @@ export const settingsRouter = router({
         setting = await findSetting<boolean>(opts.input.key);
       } else if (opts.input.key === "OPENAI_API_KEY") {
         setting = await findSetting<string>(opts.input.key);
-      } else {
-        throw new AppError("Unknown setting", AppErrors.BAD_REQUEST);
       }
       return setting;
     }),
