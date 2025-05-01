@@ -14,23 +14,23 @@ export interface CatalogueTypeDefinition {
    * the desired output. Example values:
    * - 'An array of strings with all the animals mentioned in the page'
    * - 'An array of JSON objects having x, y, z attributes.'
-   * 
+   *
    * If not specified, the LLM will be instructed
    * to give us structured output for the defined
    * data in the `properties` field.
    */
   desiredOutput?: string;
 
-  /** 
+  /**
    * When set to true, we will wrap the page content
    * with a markdown code block in the LLM prompt.
    */
   wrapWithMarkdownBlock?: boolean;
 
   /**
-   * When set to true, we will ask the LLM for additional 
+   * When set to true, we will ask the LLM for additional
    * URLs that could indicate sub pages where we could find
-   * entites when the page extracted does not yield any of 
+   * entites when the page extracted does not yield any of
    * the targeted entities.
    */
   exploreDuringExtraction?: boolean;
@@ -42,7 +42,7 @@ export interface CatalogueTypeDefinition {
    * such as links to social media, external blogs,
    * our outside the catalogue.
    */
-  exploreSameOrigin?: boolean
+  exploreSameOrigin?: boolean;
 
   /**
    * Textual prompt set to the LLM to yield additional URLs
@@ -58,10 +58,10 @@ export interface CatalogueTypeDefinition {
   /**
    * If true, we will not use screenshots for the LLM.
    */
-  skipScreenshot?: boolean
+  skipScreenshot?: boolean;
 
   /**
-   * When defined, we will instruct the LLM to use it for 
+   * When defined, we will instruct the LLM to use it for
    * structured output instead of the default function call
    * instruction.
    */
@@ -109,7 +109,7 @@ export interface CatalogueTypeDefinition {
   examples?: Array<{
     data: string;
     desiredOutcome: string;
-  }>
+  }>;
 }
 
 export const catalogueTypes: Record<CatalogueType, CatalogueTypeDefinition> = {
@@ -219,9 +219,10 @@ export const catalogueTypes: Record<CatalogueType, CatalogueTypeDefinition> = {
         required: true,
       },
       learning_program_description: {
-        description: `the full description of the learning program.
+        description: `the description of the learning program.
            Pages often include other sections aside from the basic description, for example containing program requirements,
            restrictions, etc. We don't want any of that - we only want the program description (directly extracted from the page).
+           You should take only the first few paragraphs of the description.
            If there are links, only extract the text.
           `,
         required: true,
@@ -250,20 +251,20 @@ export const catalogueTypes: Record<CatalogueType, CatalogueTypeDefinition> = {
     verifyFullPhrases: false,
     propertiesRequiredAsPhrases: ["text"],
     wrapWithMarkdownBlock: true,
-    presencePrompt: 
-      'Look at the given markdown page and check if there exists a list of skills in a dedicated section. ' +
-      'We are looking for a list in a dedicated section, do not consider paragraphs or long descriptions. ' +
-      'Do not confuse courses with skills. We are looking for skills attained after taking the course described in the page.',
+    presencePrompt:
+      "Look at the given markdown page and check if there exists a list of skills in a dedicated section. " +
+      "We are looking for a list in a dedicated section, do not consider paragraphs or long descriptions. " +
+      "Do not confuse courses with skills. We are looking for skills attained after taking the course described in the page.",
     desiredOutput:
-      'We are looking for a list of skills that are gained after taking the course described in the page. ' +
-      'If found, take each item exactly as it is in the page and return them. Skip everything else, just the skill list.' +
-      'Do not confuse skills with courses or tools or technologies used. Return the skills that result after the course is completed.' +
-      'Do not return skills required for taking the course. Return only the skills that are gained after taking the course.',
+      "We are looking for a list of skills that are gained after taking the course described in the page. " +
+      "If found, take each item exactly as it is in the page and return them. Skip everything else, just the skill list." +
+      "Do not confuse skills with courses or tools or technologies used. Return the skills that result after the course is completed." +
+      "Do not return skills required for taking the course. Return only the skills that are gained after taking the course.",
     properties: {
       text: {
         description:
           'text of the skill item of the list (for example "Critical Thinking"). ' +
-          'The information should be EXACTLY as in the page AND the FULL PHRASE. DO NOT break phrases. ',
+          "The information should be EXACTLY as in the page AND the FULL PHRASE. DO NOT break phrases. ",
         required: true,
       },
       competency_framework: {
@@ -272,9 +273,9 @@ export const catalogueTypes: Record<CatalogueType, CatalogueTypeDefinition> = {
           "to obtaining the skill or competency or learning outcome. " +
           "Usually this value is the same for the entire list but should be set " +
           "according to the hierarchy structure of the page. This is usually shorter. " +
-          'Sometimes, this might contain descriptive language about the skill - we should only keep the ' +
+          "Sometimes, this might contain descriptive language about the skill - we should only keep the " +
           'name of the skill and trim phrases such as "competency" or "learning outcome".' +
-          'This field should be in title case. If it contains roman numerals, they use use uppercase.',
+          "This field should be in title case. If it contains roman numerals, they use use uppercase.",
         required: false,
       },
       language: {
@@ -296,11 +297,7 @@ export const catalogueTypes: Record<CatalogueType, CatalogueTypeDefinition> = {
               language: { type: "string" },
             },
             additionalProperties: false,
-            required: [
-              "competency_framework",
-              "text",
-              "language",
-            ],
+            required: ["competency_framework", "text", "language"],
           },
         },
       },
@@ -309,7 +306,7 @@ export const catalogueTypes: Record<CatalogueType, CatalogueTypeDefinition> = {
     },
     exploreDuringExtraction: true,
     exploreSameOrigin: true,
-    explorationPrompt: 
+    explorationPrompt:
       "In the page markdown given below, look for all links or URL like information " +
       "that point to pages with information about skills or learning outcomes or competencies obtained. " +
       "The link we are looking for is related to the course presented in the page, general links like navigation should be ignored. " +
