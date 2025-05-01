@@ -9,17 +9,7 @@ export const settingsRouter = router({
         key: z.enum(["PROXY", "PROXY_ENABLED", "OPENAI_API_KEY"]),
       })
     )
-    .query(async (opts) => {
-      let setting;
-      if (opts.input.key === "PROXY") {
-        setting = await findSetting(opts.input.key);
-      } else if (opts.input.key === "PROXY_ENABLED") {
-        setting = await findSetting<boolean>(opts.input.key);
-      } else if (opts.input.key === "OPENAI_API_KEY") {
-        setting = await findSetting<string>(opts.input.key);
-      }
-      return setting;
-    }),
+    .query(async (opts) => findSetting(opts.input.key)),
   setOpenAIApiKey: publicProcedure
     .input(
       z.object({
