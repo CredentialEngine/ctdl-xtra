@@ -7,85 +7,61 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/components/ui/use-toast";
-import { AppRouter, RouterOutput, trpc } from "@/utils";
-import { TRPCClientErrorLike } from "@trpc/react-query";
-import { UseTRPCQueryResult } from "@trpc/react-query/shared";
-import { useEffect, useState } from "react";
-import { Checkbox } from "@/components/ui/checkbox";
-type SettingsList = RouterOutput['settings']['list'];
-type SettingsListQuery = UseTRPCQueryResult<SettingsList, TRPCClientErrorLike<AppRouter>>;
+import { trpc } from "@/utils";
+import { useState } from "react";
 
-interface ProxySettingsFormProps {
-  settingsQuery: SettingsListQuery;
-  onSuccess: () => void;
-}
-
-const redacted = "*****"
-
-export function ProxySettingsForm({
-  settingsQuery,
-  onSuccess,
-}: ProxySettingsFormProps) {
-  const updateMutation = trpc.settings.setSetting.useMutation();
-  const dbSetting = settingsQuery?.data?.find((setting) => setting.key === 'PROXY');
-  const dbSettingRawValue = settingsQuery?.data?.find((setting) => setting.key === 'PROXY')?.encryptedPreview;
-  const dbSettingValue = dbSettingRawValue ? JSON.parse(dbSettingRawValue) : null;
+export function ProxySettingsForm() {
+  const proxyUrlQuery = trpc.settings.detail.useQuery({
+    key: "PROXY",
+  });
+  const proxyEnabledQuery = trpc.settings.detail.useQuery({
+    key: "PROXY_ENABLED",
+  });
+  const proxyEnabledMutation = trpc.settings.setProxyEnabled.useMutation();
+  const proxyUrlMutation = trpc.settings.setProxyUrl.useMutation();
   const [proxyUrl, setProxyUrl] = useState("");
-  const [isEnabled, setIsEnabled] = useState(false);
+  const [confirmProxyToggle, setConfirmProxyToggle] = useState(false);
+  const [proxyConfirmOpen, setProxyConfirmOpen] = useState(false);
   const { toast } = useToast();
-
-  useEffect(() => {
-    if (dbSettingValue) {
-      setIsEnabled(dbSettingValue?.enabled);
-      setProxyUrl(dbSettingValue?.url || "");
-    }
-  }, [dbSettingRawValue]);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     try {
-      const newValue: Partial<{ enabled: boolean, url: string }> = {
-        enabled: isEnabled
-      }
-
-      if (proxyUrl !== redacted) {
-        newValue.url = proxyUrl;
-      }
-
-      let encryptedPreview;
-      try {
-        encryptedPreview = JSON.parse(dbSetting?.encryptedPreview || "{}");
-      } catch (error) {
-        encryptedPreview = null;
-      }
-
-      encryptedPreview = {
-        ...encryptedPreview,
-        url: redacted,
-        enabled: isEnabled,
-      }
-      
-      await updateMutation.mutateAsync({
-        key: 'PROXY',
-        value: newValue as any,
-        isEncrypted: true,
-        merge: true,
-        encryptedPreview: JSON.stringify(encryptedPreview),
-      });
+      await proxyUrlMutation.mutateAsync(proxyUrl);
+      setProxyUrl("");
       toast({
         title: "Settings Updated",
         description: "The setting has been updated successfully.",
       });
-      onSuccess();
+      proxyUrlQuery.refetch();
+      proxyEnabledQuery.refetch();
     } catch (error) {
       toast({
         title: "Error",
         description: "There was an error updating the setting.",
         variant: "destructive",
       });
+    }
+  };
+
+  const onProxyToggle = async () => {
+    try {
+      await proxyEnabledMutation.mutateAsync(!proxyEnabledQuery.data?.value);
+      await proxyEnabledQuery.refetch();
+    } finally {
+      setProxyConfirmOpen(false);
     }
   };
 
@@ -97,32 +73,104 @@ export function ProxySettingsForm({
           <CardDescription>
             Activating a proxy is helpful in overcoming rate limits or <br />
             blocking by anti-scraping measures. <br />
+            The proxy is currently{" "}
+            <strong>
+              {proxyEnabledQuery.data?.value ? "enabled" : "disabled"}
+            </strong>
+            .
           </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-6">
-          <div className="flex items-center space-x-2">
-            <Checkbox
-              id="enabled"
-              disabled={settingsQuery?.isLoading}
-              checked={isEnabled}
-              onCheckedChange={(checked) => setIsEnabled(checked as boolean)}
-            />
-            <Label htmlFor="enabled">Enable Proxy</Label>
-          </div>
+          <Dialog
+            open={
+              proxyEnabledQuery.isFetched &&
+              proxyUrlQuery.isFetched &&
+              proxyConfirmOpen
+            }
+            onOpenChange={setProxyConfirmOpen}
+          >
+            <DialogTrigger asChild>
+              <Button variant="destructive">
+                {proxyEnabledQuery.data?.value
+                  ? "Disable Proxy"
+                  : "Enable Proxy"}
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Are you absolutely sure?</DialogTitle>
+                <DialogDescription className="pt-2">
+                  This will{" "}
+                  {proxyEnabledQuery.data?.value ? "DISABLE" : "ENABLE"} the
+                  proxy for all requests.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="items-top flex space-x-2">
+                <Checkbox
+                  id="terms1"
+                  onCheckedChange={(e) => setConfirmProxyToggle(!!!e)}
+                />
+                <div className="grid gap-1.5 leading-none">
+                  <label
+                    htmlFor="terms1"
+                    className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                  >
+                    I understand the consequences
+                  </label>
+                  <p className="text-sm text-muted-foreground">
+                    {proxyEnabledQuery.data?.value
+                      ? "DISABLE the proxy for all requests."
+                      : "ENABLE the proxy for all requests."}
+                  </p>
+                  <Button
+                    variant="destructive"
+                    disabled={confirmProxyToggle}
+                    onClick={onProxyToggle}
+                    className="mt-4"
+                  >
+                    {proxyEnabledQuery.data?.value
+                      ? "Disable Proxy"
+                      : "Enable Proxy"}
+                  </Button>
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
           <div className="grid gap-2">
-            <Label htmlFor="proxy_url">Proxy URL</Label>
+            <Label htmlFor="proxy_url">New proxy URL</Label>
+            <div className="text-sm text-muted-foreground">
+              {proxyUrlQuery.data?.encryptedPreview ? (
+                <>
+                  The URL is currently set to{" "}
+                  <code className="font-bold mb-2">
+                    {proxyUrlQuery.data.encryptedPreview}
+                  </code>
+                  .
+                </>
+              ) : null}
+            </div>
             <Input
               id="proxy_url"
               placeholder="https://username:password@proxy.com:port"
-              disabled={settingsQuery?.isLoading}
+              disabled={proxyUrlQuery?.isLoading}
               value={proxyUrl}
               onChange={(e) => setProxyUrl(e.target.value)}
-              type="text"
+              type="password"
             />
           </div>
         </CardContent>
         <CardFooter>
-          <Button variant="outline" disabled={updateMutation?.isLoading || settingsQuery?.isLoading}>Update</Button>
+          <Button
+            variant="outline"
+            disabled={
+              proxyUrlMutation?.isLoading ||
+              proxyUrlQuery?.isLoading ||
+              proxyEnabledMutation?.isLoading ||
+              proxyEnabledQuery?.isLoading
+            }
+          >
+            Update proxy URL
+          </Button>
         </CardFooter>
       </Card>
     </form>

@@ -1,61 +1,15 @@
 import { z } from "zod";
-import { merge } from "lodash";
 import { publicProcedure, router } from ".";
-import { createOrUpdate, findSettings } from "../data/settings";
-import { decryptFromDb } from "../data/schema";
+import { createOrUpdate, findSetting } from "../data/settings";
 
 export const settingsRouter = router({
-  list: publicProcedure.query(async (_opts) => {
-    const allSettings = await findSettings();
-    return allSettings.map((setting) => ({
-      ...setting,
-      value: setting.isEncrypted ? "*****" : setting.value,
-    }));
-  }),
-  setSetting: publicProcedure
+  detail: publicProcedure
     .input(
-      z.discriminatedUnion("key", [
-        z.object({
-          key: z.literal("PROXY"),
-          value: z.object({
-            enabled: z.boolean()
-              .describe('Whether to use the configured proxy when fetching the web pages.'),
-            url: z.string().url().optional()
-              .describe('The URL of the proxy server. Can contain username and password, for example: http://user:password@proxy.example.com:8080'),
-          }).transform(val => JSON.stringify(val)),
-        }),
-        z.object({
-          key: z.literal("OPENAI_API_KEY"),
-          value: z.string().regex(/^sk-.{30,200}$/).describe('The OpenAI API key sk-...')
-        })
-      ])
-        .and(
-          z.object({
-            isEncrypted: z.boolean().optional(),
-            encryptedPreview: z.string().optional(),
-            merge: z.boolean().optional(),
-          })
-        )
+      z.object({
+        key: z.enum(["PROXY", "PROXY_ENABLED", "OPENAI_API_KEY"]),
+      })
     )
-    .mutation(async (opts) => {
-      const { key, value, isEncrypted, encryptedPreview, merge: mergeSettings } = opts.input;
-
-      if (mergeSettings) {
-        const existingSettings = await findSettings();
-        let existingSetting = existingSettings.find((setting) => setting.key === key);
-        if (existingSetting?.isEncrypted) {
-          existingSetting.value = decryptFromDb(existingSetting.value);
-        }
-
-        if (existingSetting) {
-          const newValue = merge(JSON.parse(existingSetting.value), JSON.parse(value));
-          await createOrUpdate(key, JSON.stringify(newValue), isEncrypted, encryptedPreview || null);
-          return;
-        }
-      }
-
-      await createOrUpdate(key, value, isEncrypted, encryptedPreview || null);
-    }),
+    .query(async (opts) => findSetting(opts.input.key)),
   setOpenAIApiKey: publicProcedure
     .input(
       z.object({
@@ -63,11 +17,44 @@ export const settingsRouter = router({
       })
     )
     .mutation(async (opts) => {
-      await createOrUpdate(
-        "OPENAI_API_KEY",
-        opts.input.apiKey,
-        true,
-        `sk-...${opts.input.apiKey.slice(-4)}`
-      );
+      await createOrUpdate({
+        key: "OPENAI_API_KEY",
+        value: opts.input.apiKey,
+        isEncrypted: true,
+        encryptedPreview: `sk-...${opts.input.apiKey.slice(-4)}`,
+      });
+    }),
+  setProxyEnabled: publicProcedure.input(z.boolean()).mutation(async (opts) => {
+    await createOrUpdate({
+      key: "PROXY_ENABLED",
+      value: opts.input,
+    });
+  }),
+  setProxyUrl: publicProcedure
+    .input(
+      z
+        .string()
+        .url()
+        .describe(
+          "The URL of the proxy server. Can contain username and password, for example: http://user:password@proxy.example.com:8080"
+        )
+    )
+    .mutation(async (opts) => {
+      const uri = new URL(opts.input);
+      const preview = `${uri.username}:******@${uri.hostname}:${uri.port}`;
+      await createOrUpdate({
+        key: "PROXY",
+        value: opts.input,
+        isEncrypted: false,
+        encryptedPreview: preview,
+      });
+
+      const proxyEnabledExists = await findSetting<boolean>("PROXY_ENABLED");
+      if (!proxyEnabledExists) {
+        await createOrUpdate({
+          key: "PROXY_ENABLED",
+          value: true,
+        });
+      }
     }),
 });
