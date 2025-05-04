@@ -400,14 +400,43 @@ export const catalogueTypes: Record<CatalogueType, CatalogueTypeDefinition> = {
         required: true,
       },
       credential_type: {
-        description: "the type of credential, the possible values are: BachelorDegree, AssociateDegree, Certificate, Diploma, DoctoralDegree, MasterDegree",
+        description: "the type of credential.",
         required: true,
       },
       language: {
         description: "The language in full (example: 'English', 'Spanish', 'German', etc.)",
         required: false,
       },
-    }
+    },
+    schema: {
+      type: "object",
+      properties: {
+        items: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              credential_name: { type: "string" },
+              credential_description: { type: "string" },
+              credential_type: {
+                type: "string",
+                enum: ["BachelorDegree", "AssociateDegree", "Certificate", "Diploma", "DoctoralDegree", "MasterDegree"]
+              },
+              language: { type: "string" },
+            },
+            additionalProperties: false,
+            required: [
+              "credential_name",
+              "credential_description",
+              "credential_type",
+              "language",
+            ],
+          },
+        },
+      },
+      additionalProperties: false,
+      required: ["items"],
+    },
   },
 };
 
