@@ -23,6 +23,10 @@ export const ModelPrices = {
     per1MInput: 1.1,
     per1MOutput: 4.4,
   },
+  [ProviderModel.O4Mini]: {
+    per1MInput: 1.1,
+    per1MOutput: 4.4,
+  },
 };
 
 export class BadToolCallResponseError extends Error {}
