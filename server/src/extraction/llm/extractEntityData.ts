@@ -182,7 +182,7 @@ Pay attention to the page content and extract it correctly this time.`
        Extract the data EXACTLY as it shows up in the page.
        NEVER paraphrase, rewrite or change content unless requested.`;
 
-  const prompt = `
+  let prompt = `
 ${entityPrompt}
 
 ${basePrompt}
@@ -198,7 +198,19 @@ SIMPLIFIED PAGE CONTENT:
 ${MD_START}
 ${options.content}
 ${MD_END}
+
 `;
+
+if (entityDef.repeatExtractionInstructions) {
+  prompt += `
+
+Reminder the instructions for extracting the data are:
+
+${entityPrompt}
+
+${basePrompt}
+`;
+}
 
   const completionContent: ChatCompletionContentPart[] = [
     {
