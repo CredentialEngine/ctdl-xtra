@@ -165,6 +165,11 @@ export interface CatalogueTypeDefinition {
     data: string;
     desiredOutcome: string;
   }>;
+
+  /**
+   * If turned on, the extraction prompt will repeat the instructions before and after the page content.
+   */
+  repeatExtractionInstructions?: boolean;
 }
 
 export const catalogueTypes: Record<CatalogueType, CatalogueTypeDefinition> = {
@@ -388,8 +393,9 @@ export const catalogueTypes: Record<CatalogueType, CatalogueTypeDefinition> = {
       If found, take each item exactly as it is in the page and return them. Skip everything else, just the credential list.
       Note that pages can show options to get other credentials, we only need the ones directly related to the course or learning program.
       Do not confuse credentials with courses or skills or learning outcomes. Return only the credentials that are offered by the institution.
+      Ignore stackable certificates.
     `,
-    model: ProviderModel.Gpt41,
+    model: ProviderModel.O4Mini,
     properties: {
       credential_name: {
         description: 'name for the credential or certificate (example: "Computer Science"). Don not include the type of credential in the name.',
