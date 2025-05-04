@@ -59,7 +59,7 @@ export enum ProviderModel {
   Gpt4o = "gpt-4o",
   Gpt41 = "gpt-4.1",
   O3Mini = "o3-mini",
-  Gpt41 = "gpt-4.1",
+  O4Mini = "o4-mini",
 }
 
 export enum ExtractionStatus {
