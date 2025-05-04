@@ -4,8 +4,8 @@ import { CatalogueType } from "../../../common/types";
 import {
   createCatalogue,
   destroyCatalogue,
+  findCatalogue,
   findCatalogueById,
-  findCatalogueByUrl,
   findCatalogues,
   findLatestExtractionsForCatalogue,
   getCatalogueCount,
@@ -52,12 +52,15 @@ export const cataloguesRouter = router({
         name: z.string().min(2),
         url: z.string().url(),
         thumbnailUrl: z.string().optional(),
-        catalogueType: z.nativeEnum(CatalogueType).optional(),
+        catalogueType: z
+          .nativeEnum(CatalogueType)
+          .optional()
+          .default(CatalogueType.COURSES),
       })
     )
     .mutation(async (opts) => {
       const { name, url, thumbnailUrl, catalogueType } = opts.input;
-      const existingCatalogue = await findCatalogueByUrl(url);
+      const existingCatalogue = await findCatalogue(url, catalogueType);
       if (existingCatalogue) {
         return {
           id: existingCatalogue.id,
