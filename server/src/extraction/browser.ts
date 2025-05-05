@@ -169,7 +169,11 @@ export async function simplifyHtml(html: string) {
       $elm.remove();
       continue;
     }
-    if (["header", "footer"].includes(elm.tagName)) {
+    if (["footer", "form"].includes(elm.tagName)) {
+      $elm.remove();
+      continue;
+    }
+    if (elm.tagName === "iframe" && elm.children.length === 0) {
       $elm.remove();
       continue;
     }
