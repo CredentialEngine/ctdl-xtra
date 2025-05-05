@@ -45,7 +45,7 @@ export const settingsRouter = router({
       await createOrUpdate({
         key: "PROXY",
         value: opts.input,
-        isEncrypted: false,
+        isEncrypted: true,
         encryptedPreview: preview,
       });
 
