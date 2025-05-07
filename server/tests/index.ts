@@ -72,6 +72,16 @@ function matchesUrlPattern(expected: string, actual: string): boolean {
   });
 }
 
+export async function collectFromGenerator<T>(
+  generator: AsyncGenerator<T>
+): Promise<T[]> {
+  const results: T[] = [];
+  for await (const item of generator) {
+    results.push(item);
+  }
+  return results;
+}
+
 export type RecipeConfigurationWithSampleLinks = RecipeConfiguration & {
   sampleLinks?: string[];
   links?: RecipeConfigurationWithSampleLinks;
@@ -162,12 +172,14 @@ export async function assertExtraction<
 
   const simplifiedContent = await simplifiedMarkdown(page.content);
 
-  const extractions = await extractAndVerifyEntityData({
-    content: simplifiedContent,
-    url: page.url,
-    screenshot: page.screenshot,
-    catalogueType,
-  });
+  const extractions = await collectFromGenerator(
+    extractAndVerifyEntityData({
+      content: simplifiedContent,
+      url: page.url,
+      screenshot: page.screenshot,
+      catalogueType,
+    })
+  );
 
   for (const expectedItem of expected) {
     const extraction = extractions.find((item) =>
@@ -259,7 +271,9 @@ export async function extractCompetencies(url: string) {
     }
   }
 
-  const extractions = await extractAndVerifyEntityData(extractionOptions);
+  const extractions = await collectFromGenerator(
+    extractAndVerifyEntityData(extractionOptions)
+  );
   return extractions.map((e) => e.entity);
 }
 
