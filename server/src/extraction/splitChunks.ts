@@ -14,7 +14,9 @@ export async function splitChunks(options: DefaultLlmPageOptions) {
         await detectChunkSplitRegexp(options));
       chunks = options.content.split(regexp);
       if (!chunks) {
-        throw new Error(`Could not find chunks with the regexp: ${regexp}`);
+        const errorMessage = `Could not find any chunks with the regexp: ${regexp}. Expected ${expectedCourseCount} chunks.`;
+        console.error(errorMessage);
+        throw new Error(errorMessage);
       }
 
       chunks = chunks.filter((chunk) => chunk.trim() !== "");
@@ -33,12 +35,17 @@ export async function splitChunks(options: DefaultLlmPageOptions) {
       // LLMs are not good at counting so let's treat the number of courses as a ballpark estimate
       const discrepancy = Math.abs(chunks.length - expectedCourseCount);
       const allowedDiscrepancy =
-        expectedCourseCount > 5 ? Math.floor(expectedCourseCount * 0.3) : 0;
+        expectedCourseCount > 5 ? Math.floor(expectedCourseCount * 0.1) : 0;
       if (discrepancy > allowedDiscrepancy) {
-        throw new Error(
-          `Could not find expected number of chunks: ${chunks.length} !== ${expectedCourseCount}`
-        );
+        const errorMessage =
+          "Could not find expected number of chunks.\n" +
+          `Regexp: ${regexp}.\n` +
+          `Found ${chunks.length} chunks, expected ${expectedCourseCount}`;
+
+        console.error(errorMessage);
+        throw new Error(errorMessage);
       }
+      console.log(`Success - Found ${chunks.length} chunks`);
       return chunks;
     } catch (error) {
       if (error instanceof Error) {

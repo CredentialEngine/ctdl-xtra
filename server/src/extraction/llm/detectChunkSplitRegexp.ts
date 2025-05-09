@@ -1,5 +1,6 @@
 import { ChatCompletionContentPart } from "openai/resources/chat/completions";
 import { DefaultLlmPageOptions } from ".";
+import { ProviderModel } from "../../../../common/types";
 import { assertNumber, assertString, simpleToolCompletion } from "../../openai";
 
 export default async function detectChunkSplitRegexp(
@@ -10,25 +11,38 @@ export default async function detectChunkSplitRegexp(
     ADDITIONAL CONTEXT
     ==================
 
-    The last attempt at this task failed because: ${defaultOptions.additionalContext}
+    This is another attempt at this task. The last attempt failed for the following reason:
+
+    ${defaultOptions.additionalContext}
+
+    (the values above were provided by you in the previous attempt)
     `
     : "";
   const prompt = `
     This document has a list of courses. For each course, it may have a description and details.
 
-    Your goal is to find a regexp that splits the document per course. So a course list with 5 courses
+    One of your goals is to find a regexp that splits the document per course. So a course list with 5 courses
     should be split into 5 chunks.
 
     We are going to use the regexp like this:
 
     > const chunks = content.split(new RegExp(regexp, "g"))
 
+    The other goal is to find how many courses are in the document.
+    Sometimes the document will have the number of courses in the title.
+    Sometimes in the end.
+    Sometimes it might not have the number of courses at all or can be inferred from the content.
+
+    If the document lists the number of courses, use that number, do not attempt to count the courses yourself.
+
+    Explain your reasoning for the expected course count in expected_course_count_explanation.
+
     SANITY CHECK
     ============
 
-    Additionally, we are going to do a sanity check on the regexp by using two values:
-    1. expected_course_count: the number of courses you expect to find in the document
-    2. first_course_title: the title of the first course you expect to find in the document
+    Additionally, we are going to do a sanity check on the regexp by using the first_course_title
+    value: the title of the first course you expect to find in the document. We expect to find this
+    course title in the first chunk.
 
     IMPORTANT
     ========
@@ -98,6 +112,7 @@ export default async function detectChunkSplitRegexp(
         content: completionContent,
       },
     ],
+    model: ProviderModel.Gpt41,
     toolName: "regexp",
     parameters: {
       regexp: {
@@ -105,6 +120,9 @@ export default async function detectChunkSplitRegexp(
       },
       expected_course_count: {
         type: "number",
+      },
+      expected_course_count_explanation: {
+        type: "string",
       },
       first_course_title: {
         type: "string",
@@ -129,5 +147,6 @@ export default async function detectChunkSplitRegexp(
   console.log(`Expected chunks is ${expectedCourseCount}`);
   const regexp = new RegExp(regexpStr, "g");
   const firstCourseTitle = assertString(completion, "first_course_title");
+  console.log(`Explanation is ${completion.expected_course_count_explanation}`);
   return { regexp, expectedCourseCount, firstCourseTitle };
 }

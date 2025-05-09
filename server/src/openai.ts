@@ -12,12 +12,16 @@ import { exponentialRetry } from "./utils";
 
 export const ModelPrices = {
   [ProviderModel.Gpt4o]: {
-    per1MInput: 5.0,
-    per1MOutput: 15.0,
+    per1MInput: 2.5,
+    per1MOutput: 10.0,
   },
   [ProviderModel.O3Mini]: {
     per1MInput: 1.1,
     per1MOutput: 4.4,
+  },
+  [ProviderModel.Gpt41]: {
+    per1MInput: 2.0,
+    per1MOutput: 8.0,
   },
 };
 

@@ -1,22 +1,38 @@
 import { inspect } from "util";
-import { createProcessor, ExtractDataJob, ExtractDataProgress, Queues, submitJobs } from ".";
+import {
+  createProcessor,
+  ExtractDataJob,
+  ExtractDataProgress,
+  Queues,
+  submitJobs,
+} from ".";
 import { createDataItem, findOrCreateDataset } from "../data/datasets";
-import { countParentNodesOfCrawlSteps, createStepAndPages, findPageForJob, updatePage } from "../data/extractions";
+import {
+  countParentNodesOfCrawlSteps,
+  createStepAndPages,
+  findPageForJob,
+  updatePage,
+} from "../data/extractions";
 import {
   getSqliteTimestamp,
   readMarkdownContent,
   readScreenshot,
 } from "../data/schema";
 
-import { CatalogueType, ExtractionStatus, PageType, Step, TextInclusion } from "../../../common/types";
-import { extractAndVerifyEntityData } from "../extraction/llm/extractAndVerifyEntityData";
+import {
+  CatalogueType,
+  ExtractionStatus,
+  PageType,
+  Step,
+} from "../../../common/types";
 import { getCatalogueTypeDefinition } from "../extraction/catalogueTypes";
-import { exploreAdditionalPages } from "../extraction/llm/exploreAdditionalPages";
 import { determinePresenceOfEntity } from "../extraction/llm/determinePresenceOfEntity";
+import { exploreAdditionalPages } from "../extraction/llm/exploreAdditionalPages";
+import { extractAndVerifyEntityData } from "../extraction/llm/extractAndVerifyEntityData";
 
 export default createProcessor<ExtractDataJob, ExtractDataProgress>(
   async function extractData(job) {
-    const crawlPage = await findPageForJob(job.data.crawlPageId);
+    let crawlPage = await findPageForJob(job.data.crawlPageId);
 
     if (crawlPage.extraction.status == ExtractionStatus.CANCELLED) {
       console.log(
@@ -58,32 +74,66 @@ export default createProcessor<ExtractDataJob, ExtractDataProgress>(
         logApiCalls: { extractionId: crawlPage.extractionId },
       };
 
-      let skipExtraction = false, extractedData: { entity: any, textInclusion: TextInclusion<any> }[] = [];
+      let skipExtraction = false,
+        extractedEntityCount = 0;
 
       if (entityDef.presencePrompt) {
-        const result = await determinePresenceOfEntity(extractionOptions, entityDef);
+        const result = await determinePresenceOfEntity(
+          extractionOptions,
+          entityDef
+        );
         if (!result.present) {
           skipExtraction = true;
         }
       }
 
       if (!skipExtraction) {
-        extractedData = await extractAndVerifyEntityData(extractionOptions);
-        for (const { entity, textInclusion } of extractedData) {
+        for await (const {
+          entity,
+          textInclusion,
+        } of extractAndVerifyEntityData(extractionOptions)) {
           if (entity.items) {
             for (const item of entity.items) {
-              await createDataItem(crawlPage.id, dataset.id, item, textInclusion);
+              await createDataItem(
+                crawlPage.id,
+                dataset.id,
+                item,
+                textInclusion
+              );
+              extractedEntityCount++;
             }
           } else {
-            await createDataItem(crawlPage.id, dataset.id, entity, textInclusion);
+            await createDataItem(
+              crawlPage.id,
+              dataset.id,
+              entity,
+              textInclusion
+            );
+            extractedEntityCount++;
+          }
+
+          // If we're dealing with large amount of entities in the same doc,
+          // check for cancelation every 10 entities
+          if (extractedEntityCount % 10 === 0) {
+            crawlPage = await findPageForJob(crawlPage.id);
+            if (crawlPage.extraction.status == ExtractionStatus.CANCELLED) {
+              console.log(
+                `Extraction ${crawlPage.extractionId} was cancelled; aborting`
+              );
+              return;
+            }
           }
         }
       }
 
-      if (extractedData?.length && entityDef.exploreDuringExtraction) {
-        const pageDepth = await countParentNodesOfCrawlSteps(crawlPage.crawlStepId);
+      if (extractedEntityCount > 0 && entityDef.exploreDuringExtraction) {
+        const pageDepth = await countParentNodesOfCrawlSteps(
+          crawlPage.crawlStepId
+        );
         if (pageDepth > 8) {
-          console.log(`Not adding new pages, crawling new pages limited to 8 levels relative to catalogue root.`);
+          console.log(
+            `Not adding new pages, crawling new pages limited to 8 levels relative to catalogue root.`
+          );
           return;
         }
 
@@ -117,7 +167,6 @@ export default createProcessor<ExtractDataJob, ExtractDataProgress>(
             );
           })
           .catch(console.log);
-
       }
     } catch (err) {
       console.log(inspect(err));

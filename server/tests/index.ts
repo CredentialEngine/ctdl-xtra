@@ -6,17 +6,17 @@ import {
   LearningProgramStructuredData,
   RecipeConfiguration,
 } from "../../common/types";
+import { findCrawlPageByUrl } from "../src/data/extractions";
+import { readContent, readScreenshot } from "../src/data/schema";
 import {
   fetchBrowserPage,
   simplifiedMarkdown,
 } from "../src/extraction/browser";
 import { getCatalogueTypeDefinition } from "../src/extraction/catalogueTypes";
-import { extractAndVerifyEntityData } from "../src/extraction/llm/extractAndVerifyEntityData";
-import { exploreAdditionalPages } from "../src/extraction/llm/exploreAdditionalPages";
-import recursivelyDetectConfiguration from "../src/extraction/recursivelyDetectConfiguration";
-import { readContent, readScreenshot } from "../src/data/schema";
-import { findCrawlPageByUrl } from "../src/data/extractions";
 import { determinePresenceOfEntity } from "../src/extraction/llm/determinePresenceOfEntity";
+import { exploreAdditionalPages } from "../src/extraction/llm/exploreAdditionalPages";
+import { extractAndVerifyEntityData } from "../src/extraction/llm/extractAndVerifyEntityData";
+import recursivelyDetectConfiguration from "../src/extraction/recursivelyDetectConfiguration";
 
 export const EXTRACTION_TIMEOUT = 1000 * 60 * 10;
 
@@ -34,7 +34,10 @@ async function getPageWithFallback(url: string) {
   try {
     page = await findCrawlPageByUrl(url);
   } catch (e) {
-    console.error(`Page ${url} not found in database, fetching from browser`, e);
+    console.error(
+      `Page ${url} not found in database, fetching from browser`,
+      e
+    );
   }
 
   if (page?.content) {
@@ -67,6 +70,16 @@ function matchesUrlPattern(expected: string, actual: string): boolean {
       (value === "{offset}" && actualParams[key]?.includes("{offset}"))
     );
   });
+}
+
+export async function collectFromGenerator<T>(
+  generator: AsyncGenerator<T>
+): Promise<T[]> {
+  const results: T[] = [];
+  for await (const item of generator) {
+    results.push(item);
+  }
+  return results;
 }
 
 export type RecipeConfigurationWithSampleLinks = RecipeConfiguration & {
@@ -159,12 +172,14 @@ export async function assertExtraction<
 
   const simplifiedContent = await simplifiedMarkdown(page.content);
 
-  const extractions = await extractAndVerifyEntityData({
-    content: simplifiedContent,
-    url: page.url,
-    screenshot: page.screenshot,
-    catalogueType,
-  });
+  const extractions = await collectFromGenerator(
+    extractAndVerifyEntityData({
+      content: simplifiedContent,
+      url: page.url,
+      screenshot: page.screenshot,
+      catalogueType,
+    })
+  );
 
   for (const expectedItem of expected) {
     const extraction = extractions.find((item) =>
@@ -228,55 +243,57 @@ export async function assertExtraction<
       }
     }
   }
+  return extractions;
 }
 
-export async function extractCompetencies(
-  url: string,
-) {
-  const page = await fetchBrowserPage(url)
-    .then(page => page.content
-      ? page
-      : Promise.reject(new Error(`Page ${url} not found`))
-    );
+export async function extractCompetencies(url: string) {
+  const page = await fetchBrowserPage(url).then((page) =>
+    page.content ? page : Promise.reject(new Error(`Page ${url} not found`))
+  );
   const simplifiedContent = await simplifiedMarkdown(page.content);
-  
+
   const extractionOptions = {
     content: simplifiedContent,
     url: page.url,
     screenshot: page.screenshot,
     catalogueType: CatalogueType.COMPETENCIES,
   };
-  
+
   // Check if competencies are present on the page
   const entityDef = getCatalogueTypeDefinition(CatalogueType.COMPETENCIES);
   if (entityDef.presencePrompt) {
-    const presenceResult = await determinePresenceOfEntity(extractionOptions, entityDef);
+    const presenceResult = await determinePresenceOfEntity(
+      extractionOptions,
+      entityDef
+    );
     if (!presenceResult.present) {
       return []; // Return empty array if no competencies are present
     }
   }
-  
-  const extractions = await extractAndVerifyEntityData(extractionOptions);
-  return extractions.map(e => e.entity);
+
+  const extractions = await collectFromGenerator(
+    extractAndVerifyEntityData(extractionOptions)
+  );
+  return extractions.map((e) => e.entity);
 }
 
 export async function detectExploratoryPages(
   url: string,
   catalogueType: CatalogueType = CatalogueType.COMPETENCIES
 ) {
-  const page = await getPageWithFallback(url)
-    .then(page => page.content
-      ? page
-      : Promise.reject(new Error(`Page ${url} not found`))
-    );
+  const page = await getPageWithFallback(url).then((page) =>
+    page.content ? page : Promise.reject(new Error(`Page ${url} not found`))
+  );
   const simplifiedContent = await simplifiedMarkdown(page.content);
-  
-  const { data: urls } = await exploreAdditionalPages({
-    url: page.url,
-    content: simplifiedContent,
-    screenshot: page.screenshot,
-  }, catalogueType);
+
+  const { data: urls } = await exploreAdditionalPages(
+    {
+      url: page.url,
+      content: simplifiedContent,
+      screenshot: page.screenshot,
+    },
+    catalogueType
+  );
 
   return urls;
 }
-

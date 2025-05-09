@@ -30,15 +30,20 @@ async function reportTextInclusion(
   for (const [key, value] of Object.entries(entity)) {
     if (value !== undefined && value !== null) {
       const preprocessedValue = preprocessText(String(value));
-      const verifyFullPhrases = entityDef.verifyFullPhrases && entityDef.propertiesRequiredAsPhrases?.includes(key);
-      const entitySentences = verifyFullPhrases && nlp(String(value)).sentences().out('array');
-      
+      const verifyFullPhrases =
+        entityDef.verifyFullPhrases &&
+        entityDef.propertiesRequiredAsPhrases?.includes(key);
+      const entitySentences =
+        verifyFullPhrases && nlp(String(value)).sentences().out("array");
+
       result[key] = {
         full: preprocessedContent.includes(preprocessedValue),
       };
 
       if (verifyFullPhrases) {
-        result[key].sentences = entitySentences.every((sentence: string) => sentences.includes(sentence));
+        result[key].sentences = entitySentences.every((sentence: string) =>
+          sentences.includes(sentence)
+        );
       }
     }
   }
@@ -59,13 +64,12 @@ const passesVerification = (
   const passes = requiredFields.every(
     (field) => !textInclusion[field] || textInclusion[field].full
   );
-  const sentencesPass = entityDef.verifyFullPhrases 
-  ?
-    entityDef.propertiesRequiredAsPhrases?.every(
-      (field) => textInclusion[field].sentences
-    )
-  : true;
-  
+  const sentencesPass = entityDef.verifyFullPhrases
+    ? entityDef.propertiesRequiredAsPhrases?.every(
+        (field) => textInclusion[field].sentences
+      )
+    : true;
+
   return passes && sentencesPass;
 };
 
@@ -120,34 +124,44 @@ async function maybeChunkContent(
     const chunks = await splitChunks(options);
     return chunks.map((chunk) => ({
       ...options,
+      additionalContext: undefined,
+      screenshot: "",
       content: chunk as SimplifiedMarkdown,
     }));
   }
   return [options];
 }
 
-export async function extractAndVerifyEntityData(
+export async function* extractAndVerifyEntityData(
   options: DefaultLlmPageOptions
 ) {
   const chunks = await maybeChunkContent(options);
   const catalogueType = options.catalogueType;
-  const entityDef = catalogueType ? getCatalogueTypeDefinition(catalogueType!) : undefined;
+  const entityDef = catalogueType
+    ? getCatalogueTypeDefinition(catalogueType!)
+    : undefined;
 
   if (!catalogueType) {
     throw new Error("Catalogue type is required");
   }
 
-  const results = [];
+  let processedChunks = 0;
+
   for (const chunkOptions of chunks) {
-    const { data: entitiesData } = await extractEntityData(chunkOptions, catalogueType);
+    const { data: entitiesData } = await extractEntityData(
+      chunkOptions,
+      catalogueType
+    );
     if (!entitiesData || entitiesData.length === 0) {
-      console.log(`Couldn't find ${catalogueType} data from page ${chunkOptions.url}`);
+      console.log(
+        `Couldn't find ${catalogueType} data from page ${chunkOptions.url}`
+      );
       continue;
     }
 
     const preprocessedContent = preprocessText(chunkOptions.content);
     let sentences = entityDef?.verifyFullPhrases
-      ? nlp(stripNonAlphanumeric(chunkOptions.content)).sentences().out('array')
+      ? nlp(stripNonAlphanumeric(chunkOptions.content)).sentences().out("array")
       : [];
 
     for (const entity of entitiesData) {
@@ -158,9 +172,11 @@ export async function extractAndVerifyEntityData(
         sentences,
         catalogueType
       );
-      results.push(verifiedExtraction);
+      yield verifiedExtraction;
+    }
+    if (chunks.length > 1) {
+      processedChunks++;
+      console.log(`Processed ${processedChunks}/${chunks.length} chunks`);
     }
   }
-
-  return results;
 }
