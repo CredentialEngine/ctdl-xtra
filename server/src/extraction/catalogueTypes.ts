@@ -395,7 +395,7 @@ export const catalogueTypes: Record<CatalogueType, CatalogueTypeDefinition> = {
       Do not confuse credentials with courses or skills or learning outcomes. Return only the credentials that are offered by the institution.
       Ignore stackable certificates.
     `,
-    model: ProviderModel.O4Mini,
+    model: ProviderModel.Gpt4o,
     properties: {
       credential_name: {
         description: 'name for the credential or certificate (example: "Computer Science"). Don not include the type of credential in the name.',
