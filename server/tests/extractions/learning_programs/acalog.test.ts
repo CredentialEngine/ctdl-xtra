@@ -1,4 +1,4 @@
-import { describe, test } from "vitest";
+import { describe, expect, test } from "vitest";
 import { assertExtraction, EXTRACTION_TIMEOUT } from "../..";
 import {
   CatalogueType,
@@ -20,6 +20,25 @@ describe("ACALOG", { timeout: EXTRACTION_TIMEOUT }, () => {
         ],
         true,
         CatalogueType.LEARNING_PROGRAMS
+      );
+    });
+
+    test("Description with additional data", async () => {
+      const extractions = await assertExtraction<LearningProgramStructuredData>(
+        "https://www.hccs.edu/programs/areas-of-study/liberal-arts--humanities/interpretingsign-language/",
+        [
+          {
+            learning_program_id: "Interpreting Sign Language",
+            learning_program_name: "Interpreting Sign Language",
+            learning_program_description:
+              "The curriculum for the AAS degree in Interpreting Training/American Sign Language Program is a two-year course of study that prepares students for employment in the interpreting profession.",
+          },
+        ],
+        true,
+        CatalogueType.LEARNING_PROGRAMS
+      );
+      expect(extractions[0].entity.learning_program_description).toEqual(
+        "The curriculum for the AAS degree in Interpreting Training/American Sign Language Program is a two-year course of study that prepares students for employment in the interpreting profession."
       );
     });
   });
