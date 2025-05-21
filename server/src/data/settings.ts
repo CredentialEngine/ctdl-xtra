@@ -17,9 +17,9 @@ export async function findSetting<T>(key: string, decrypt: boolean = false) {
       value = "[redacted]";
     }
   } else {
-    value = JSON.parse(value) as T;
+    value = JSON.parse(value);
   }
-  return { ...setting, value };
+  return { ...setting, value: value as T };
 }
 
 export async function createOrUpdate(options: {

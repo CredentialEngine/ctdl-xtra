@@ -153,7 +153,3 @@ export interface CompletionStats {
   steps: StepCompletionStats[];
   generatedAt: string;
 }
-
-export interface ProxySettings {
-  url: string;
-}

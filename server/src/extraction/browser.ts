@@ -5,7 +5,6 @@ import StealthPlugin from "puppeteer-extra-plugin-stealth";
 import rebrowserPuppeteer from "rebrowser-puppeteer";
 import TurndownService from "turndown";
 import { URL } from "url";
-import { ProxySettings } from "../../../common/types";
 import { findSetting } from "../data/settings";
 import { SimplifiedMarkdown } from "../types";
 import { resolveAbsoluteUrl } from "../utils";
@@ -117,11 +116,11 @@ export async function closeCluster() {
 
 export async function findProxy(): Promise<string | undefined> {
   const proxyEnabled = await findSetting<boolean>("PROXY_ENABLED");
-  if (!proxyEnabled) {
+  if (!proxyEnabled?.value) {
     return undefined;
   }
-  const proxy = await findSetting<ProxySettings>("PROXY", true);
-  return proxy?.value.url || process.env.PROXY_URL;
+  const proxy = await findSetting<string>("PROXY", true);
+  return proxy?.value || process.env.PROXY_URL;
 }
 
 export async function fetchBrowserPage(url: string, skipProxy?: boolean) {

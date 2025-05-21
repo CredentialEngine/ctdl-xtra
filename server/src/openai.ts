@@ -41,7 +41,7 @@ export function estimateCost(
 }
 
 export async function findOpenAiApiKey() {
-  const apiKey = await findSetting("OPENAI_API_KEY", true);
+  const apiKey = await findSetting<string>("OPENAI_API_KEY", true);
   if (!apiKey) {
     throw new Error("OpenAI API Key not found");
   }
