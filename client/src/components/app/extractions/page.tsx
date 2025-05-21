@@ -1,16 +1,16 @@
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
+import BreadcrumbTrail from "@/components/ui/breadcrumb-trail";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { trpc } from "@/utils";
+import { PageStatus, trpc } from "@/utils";
 import { useState } from "react";
 import { useParams } from "wouter";
 import { base64Img } from "./utils";
-import BreadcrumbTrail from "@/components/ui/breadcrumb-trail";
-import {
-  Accordion,
-  AccordionItem,
-  AccordionTrigger,
-  AccordionContent,
-} from "@/components/ui/accordion";
 
 export default function CrawlPageDetail() {
   const { extractionId, stepId, crawlPageId } = useParams();
@@ -76,6 +76,17 @@ export default function CrawlPageDetail() {
     );
   }
 
+  if (item.crawlPage.status == PageStatus.ERROR) {
+    tabTriggers.push(
+      <TabsTrigger value="fetch_failure_reason">Error Details</TabsTrigger>
+    );
+    tabContents.push(
+      <TabsContent value="fetch_failure_reason">
+        <pre>{JSON.stringify(item.crawlPage.fetchFailureReason, null, 2)}</pre>
+      </TabsContent>
+    );
+  }
+
   const screenshot = item.screenshot ? base64Img(item.screenshot) : null;
   if (screenshot) {
     defaultTab = "screenshot";
@@ -115,10 +126,14 @@ export default function CrawlPageDetail() {
                       <TabsTrigger value="prompt">Prompt</TabsTrigger>
                     </TabsList>
                     <TabsContent value="output">
-                      <pre className="text-xs overflow-auto">{formattedSimulatedData}</pre>
+                      <pre className="text-xs overflow-auto">
+                        {formattedSimulatedData}
+                      </pre>
                     </TabsContent>
                     <TabsContent value="prompt">
-                      <pre className="text-xs overflow-auto">{simulatedExtractedData?.prompt}</pre>
+                      <pre className="text-xs overflow-auto">
+                        {simulatedExtractedData?.prompt}
+                      </pre>
                     </TabsContent>
                   </Tabs>
                 </AccordionContent>
