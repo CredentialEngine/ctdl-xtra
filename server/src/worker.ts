@@ -31,8 +31,8 @@ function processorPath(name: string) {
 const processors: [Queue, string, number][] = [
   [Queues.DetectConfiguration, processorPath("detectConfiguration"), 2],
   [Queues.FetchPage, processorPath("fetchPage"), 2],
-  [Queues.ExtractData, processorPath("extractData"), 10],
-  [Queues.ExtractDataWithAPI, processorPath("extractDataWithApi"), 10],
+  [Queues.ExtractData, processorPath("extractData"), 2],
+  [Queues.ExtractDataWithAPI, processorPath("extractDataWithApi"), 2],
   [
     Queues.UpdateExtractionCompletion,
     processorPath("updateExtractionCompletion"),

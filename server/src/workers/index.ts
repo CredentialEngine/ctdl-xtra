@@ -1,6 +1,7 @@
 import * as Airbrake from "@airbrake/node";
 import {
   BulkJobOptions,
+  DefaultJobOptions,
   JobsOptions,
   Queue,
   RepeatOptions,
@@ -163,64 +164,48 @@ export interface FetchPageProgress extends BaseProgress {}
 export interface ExtractDataProgress extends BaseProgress {}
 export interface UpdateExtractionCompletionProgress extends BaseProgress {}
 
+const connection = getRedisConnection();
+
+const defaultJobOptions: DefaultJobOptions = {
+  attempts: 3,
+  backoff: {
+    type: "exponential",
+    delay: 1000,
+  },
+  removeOnComplete: true,
+  removeOnFail: {
+    age: 1000 * 60 * 60 * 24 * 5, // 5 days
+  },
+};
+
 export const Queues = {
   DetectConfiguration: new Queue<DetectConfigurationJob>(
     "recipes.detectConfiguration",
     {
-      connection: getRedisConnection(),
-      defaultJobOptions: {
-        attempts: 3,
-        backoff: {
-          type: "exponential",
-          delay: 1000,
-        },
-      },
+      connection,
+      defaultJobOptions,
     }
   ),
   FetchPage: new Queue<FetchPageJob>("extractions.fetchPage", {
-    connection: getRedisConnection(),
-    defaultJobOptions: {
-      attempts: 3,
-      backoff: {
-        type: "exponential",
-        delay: 1000,
-      },
-    },
+    connection,
+    defaultJobOptions,
   }),
   ExtractData: new Queue<ExtractDataJob>("extractions.extractData", {
-    connection: getRedisConnection(),
-    defaultJobOptions: {
-      attempts: 3,
-      backoff: {
-        type: "exponential",
-        delay: 1000,
-      },
-    },
+    connection,
+    defaultJobOptions,
   }),
   ExtractDataWithAPI: new Queue<ExtractDataJob>(
     "extractions.extractDataWithApi",
     {
-      connection: getRedisConnection(),
-      defaultJobOptions: {
-        attempts: 3,
-        backoff: {
-          type: "exponential",
-          delay: 1000,
-        },
-      },
+      connection,
+      defaultJobOptions,
     }
   ),
   UpdateExtractionCompletion: new Queue<UpdateExtractionCompletionJob>(
     "extractions.updateExtractionCompletion",
     {
-      connection: getRedisConnection(),
-      defaultJobOptions: {
-        attempts: 3,
-        backoff: {
-          type: "exponential",
-          delay: 1000,
-        },
-      },
+      connection,
+      defaultJobOptions,
     }
   ),
 };
