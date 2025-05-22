@@ -18,8 +18,10 @@ import { makeAirbrakePlugin } from "./fastifyAirbrakeNotifier";
 import fastifySessionAuth, {
   requireAuthentication,
 } from "./fastifySessionAuth";
+import getLogger from "./logging";
 import { createContext } from "./trpcContext";
 
+const logger = getLogger("server");
 const server = fastify();
 
 let airbrake: Airbrake.Notifier | undefined;
@@ -81,11 +83,14 @@ server.register(async (instance) => {
       router: appRouter,
       createContext,
       onError(opts) {
-        console.error("Error in tRPC request:", {
-          path: opts.path,
-          type: opts.error.name,
-          message: opts.error.message,
-        });
+        logger.error(
+          {
+            path: opts.path,
+            type: opts.error.name,
+            message: opts.error.message,
+          },
+          "Error in tRPC request"
+        );
 
         if (!airbrake) {
           return;
@@ -194,8 +199,8 @@ server.post("/login", async (req, rep) => {
 
 server.listen({ port: 3000, host: "0.0.0.0" }, (err, address) => {
   if (err) {
-    console.error(err);
+    logger.error(err);
     process.exit(1);
   }
-  console.log(`Server is running on ${address}`);
+  logger.info(`Server is running on ${address}`);
 });

@@ -1,16 +1,19 @@
 import { CatalogueType, PageType } from "../../../common/types";
 import { findCatalogueById } from "../data/catalogues";
 import { startRecipe } from "../data/recipes";
+import getLogger from "../logging";
 import { bestOutOf } from "../utils";
 import { Queues, submitJob } from "../workers";
 import { fetchBrowserPage, simplifiedMarkdown } from "./browser";
 import { detectPageType } from "./llm/detectPageType";
 
+const logger = getLogger("extraction.submitRecipeDetection");
+
 export async function submitRecipeDetection(url: string, catalogueId: number) {
   const { content, screenshot } = await fetchBrowserPage(url);
   const markdownContent = await simplifiedMarkdown(content);
-  console.log(`Downloaded ${url}.`);
-  console.log(`Detecting page type`);
+  logger.info(`Downloaded ${url}.`);
+  logger.info(`Detecting page type`);
   const catalogue = await findCatalogueById(catalogueId);
   if (!catalogue) {
     throw new Error(`Catalogue not found: ${catalogueId}`);
@@ -26,16 +29,16 @@ export async function submitRecipeDetection(url: string, catalogueId: number) {
       }),
     (p) => p as string
   );
-  console.log(`Detected page type: ${pageType}`);
+  logger.info(`Detected page type: ${pageType}`);
   let message: string | null = null;
   if (!pageType) {
     message =
       "Page was not detected as a course catalogue index. Defaulting to home page type: course links.";
     pageType = PageType.DETAIL_LINKS;
   }
-  console.log(`Creating recipe`);
+  logger.info(`Creating recipe`);
   const result = await startRecipe(catalogueId, url, pageType);
-  console.log(`Created recipe ${result.id}`);
+  logger.info(`Created recipe ${result.id}`);
   const id = result.id;
   await submitJob(
     Queues.DetectConfiguration,

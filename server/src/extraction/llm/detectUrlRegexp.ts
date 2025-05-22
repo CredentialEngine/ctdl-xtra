@@ -1,10 +1,13 @@
 import { ChatCompletionContentPart } from "openai/resources/chat/completions";
 import { DefaultLlmPageOptions } from ".";
 import { CatalogueType, PageType } from "../../../../common/types";
+import getLogger from "../../logging";
 import { assertArray, assertString, simpleToolCompletion } from "../../openai";
 import { SimplifiedMarkdown } from "../../types";
 import { resolveAbsoluteUrl } from "../../utils";
 import { getCatalogueTypeDefinition } from "../catalogueTypes";
+
+const logger = getLogger("extraction.llm.detectUrlRegexp");
 
 export function createUrlExtractor(regexp: RegExp) {
   return async (baseUrl: string, content: SimplifiedMarkdown) => {
@@ -274,8 +277,8 @@ export default async function detectUrlRegexp(
   const completion = result.toolCallArgs;
   let regexpStr = assertString(completion, "regexp");
   const exampleMatches = assertArray<string>(completion, "example_matches");
-  console.log(`Raw regexp is ${regexpStr}`);
-  console.log(`Example matches is ${exampleMatches}`);
+  logger.info(`Raw regexp is ${regexpStr}`);
+  logger.info(`Example matches is ${exampleMatches}`);
   const regexp = new RegExp(regexpStr, "g");
 
   const mainContentUrls = [...(defaultOptions.content.match(regexp) || [])];
@@ -291,7 +294,7 @@ export default async function detectUrlRegexp(
   );
 
   if (notFoundExamples.length > 0) {
-    console.error("Examples not found:", notFoundExamples);
+    logger.error("Examples not found:", notFoundExamples);
     throw new Error("Could not find every example");
   }
 

@@ -23,7 +23,10 @@ import {
 } from "../data/extractions";
 import { sendEmailToAll } from "../email";
 import ExtractionComplete from "../emails/extractionComplete";
+import getLogger from "../logging";
 import { estimateCost } from "../openai";
+
+const logger = getLogger("workers.updateExtractionCompletion");
 
 function hoursDiff(date1: Date, date2: Date): number {
   const millisecondsInHour = 60 * 60 * 1000; // 1 hour in milliseconds
@@ -81,7 +84,7 @@ async function removeSelf(
     UpdateExtractionCompletionProgress
   >
 ) {
-  console.log(`Removing repeatable job ${job.repeatJobKey}`);
+  logger.info(`Removing repeatable job ${job.repeatJobKey}`);
   return Queues.UpdateExtractionCompletion.removeRepeatableByKey(
     job.repeatJobKey!
   );
@@ -163,18 +166,18 @@ async function handleStaleExtraction(
     : ExtractionStatus.STALE;
 
   if (status == ExtractionStatus.COMPLETE && staleHrs < 1) {
-    console.log(
+    logger.info(
       `No changes for extraction ${extraction.id}, looks complete; waiting`
     );
     return;
   } else if (status == ExtractionStatus.STALE && staleHrs < 4) {
-    console.log(
+    logger.info(
       `No changes for extraction ${extraction.id}, looks incomplete; waiting`
     );
     return;
   }
 
-  console.log(`Marking extraction ${extraction.id} as ${status}`);
+  logger.info(`Marking extraction ${extraction.id} as ${status}`);
   extraction.status = status;
   await updateExtraction(extraction.id, {
     status,
@@ -195,7 +198,7 @@ export default createProcessor<
     await removeSelf(job);
     return;
   }
-  console.log(`Updating completion for extraction ${extraction.id}`);
+  logger.info(`Updating completion for extraction ${extraction.id}`);
 
   const stepStats = await getStepCompletionStats(extraction);
   const costStats = await computeCosts(extraction);
@@ -219,7 +222,7 @@ export default createProcessor<
     }
   }
 
-  console.log(`Detected changes for extraction ${extraction.id}; updating`);
+  logger.info(`Detected changes for extraction ${extraction.id}; updating`);
   await updateExtraction(extraction.id, { completionStats });
   return;
 });

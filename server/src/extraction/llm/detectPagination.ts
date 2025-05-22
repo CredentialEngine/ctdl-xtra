@@ -9,6 +9,7 @@ import {
   PaginationConfiguration,
   UrlPatternType,
 } from "../../../../common/types";
+import getLogger from "../../logging";
 import {
   BadToolCallResponseError,
   UnknownPaginationTypeError,
@@ -19,6 +20,8 @@ import {
   simpleToolCompletion,
 } from "../../openai";
 import { getCatalogueTypeDefinition } from "../catalogueTypes";
+
+const logger = getLogger("extraction.llm.detectPagination");
 
 function getUrlPath(urlString: string): string {
   try {
@@ -191,7 +194,7 @@ ${defaultOptions.content}
   ]);
   if (urlPatternType == "other") {
     // TODO: record this
-    console.log(toolCall);
+    logger.info(toolCall);
     throw new UnknownPaginationTypeError("The pagination type is unknown.");
   }
   const urlPattern = assertString(toolCall, "url_pattern");

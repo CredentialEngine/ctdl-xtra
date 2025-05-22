@@ -2,6 +2,9 @@ import { readFile } from "fs/promises";
 import path from "path";
 import { describe, expect, it } from "vitest";
 import { simplifiedMarkdown, simplifyHtml } from "../src/extraction/browser";
+import getLogger from "../src/logging";
+
+const logger = getLogger("tests.browser");
 
 describe("simplifiedMarkdown", () => {
   it("should simplify the html", async () => {
@@ -15,7 +18,7 @@ describe("simplifiedMarkdown", () => {
       "utf8"
     );
     const simplifiedHtml = await simplifyHtml(rawHtml);
-    console.log(simplifiedHtml);
+    logger.info(simplifiedHtml);
     const simplified = await simplifiedMarkdown(rawHtml);
     expect(simplified).toBe(markdown);
   });

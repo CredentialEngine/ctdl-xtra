@@ -10,7 +10,9 @@ import {
 } from "bullmq";
 import { default as IORedis } from "ioredis";
 import { closeCluster } from "../extraction/browser";
+import getLogger from "../logging";
 
+const logger = getLogger("workers");
 const REDIS_URL = process.env.REDIS_URL || "redis://localhost:6379";
 
 export function getRedisConnection() {
@@ -38,7 +40,7 @@ export const createProcessor = <T, K extends BaseProgress>(
   fn: Processor<T, K>
 ) => {
   process.on("SIGTERM", async () => {
-    console.log(`Shutting down ${fn.name}`);
+    logger.info(`Shutting down ${fn.name}`);
     closeCluster();
   });
 
@@ -110,7 +112,7 @@ export async function submitJobs<T, K extends T>(
 
   const bulkJobs = [];
   let delay = delayOptions?.startWithDelay || undefined;
-  console.log(
+  logger.info(
     `[Batch starting with ${jobs[0].options.jobId}] Delay interval ${delayOptions?.delayInterval}`
   );
   for (const job of jobs) {

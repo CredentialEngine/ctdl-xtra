@@ -1,7 +1,10 @@
 import { ChatCompletionContentPart } from "openai/resources/chat/completions";
 import { DefaultLlmPageOptions } from ".";
 import { ProviderModel } from "../../../../common/types";
+import getLogger from "../../logging";
 import { assertNumber, assertString, simpleToolCompletion } from "../../openai";
+
+const logger = getLogger("extraction.llm.detectChunkSplitRegexp");
 
 export default async function detectChunkSplitRegexp(
   defaultOptions: DefaultLlmPageOptions
@@ -143,10 +146,10 @@ export default async function detectChunkSplitRegexp(
   const completion = result.toolCallArgs;
   let regexpStr = assertString(completion, "regexp");
   const expectedCourseCount = assertNumber(completion, "expected_course_count");
-  console.log(`Raw regexp is ${regexpStr}`);
-  console.log(`Expected chunks is ${expectedCourseCount}`);
+  logger.info(`Raw regexp is ${regexpStr}`);
+  logger.info(`Expected chunks is ${expectedCourseCount}`);
   const regexp = new RegExp(regexpStr, "g");
   const firstCourseTitle = assertString(completion, "first_course_title");
-  console.log(`Explanation is ${completion.expected_course_count_explanation}`);
+  logger.info(`Explanation is ${completion.expected_course_count_explanation}`);
   return { regexp, expectedCourseCount, firstCourseTitle };
 }

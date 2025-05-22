@@ -19,8 +19,11 @@ import {
   isUrlAllowed,
 } from "../extraction/robotsParser";
 import { submitRecipeDetection } from "../extraction/submitRecipeDetection";
+import getLogger from "../logging";
 import { bestOutOf, exponentialRetry } from "../utils";
 import { Queues, submitJob } from "../workers";
+
+const logger = getLogger("routers.recipes");
 
 const PaginationConfigurationSchema = z.object({
   urlPatternType: z.nativeEnum(UrlPatternType),
@@ -62,7 +65,7 @@ export const recipesRouter = router({
         context?: { pageType: PageType; message?: string };
       }> => {
         const robotsTxt = await fetchAndParseRobotsTxt(opts.input.url);
-        console.log(`robotsTxt: ${JSON.stringify(robotsTxt)}`);
+        logger.info(`robotsTxt: ${JSON.stringify(robotsTxt)}`);
         if (
           robotsTxt &&
           !isUrlAllowed(robotsTxt, opts.input.url) &&

@@ -29,13 +29,16 @@ import { getCatalogueTypeDefinition } from "../extraction/catalogueTypes";
 import { determinePresenceOfEntity } from "../extraction/llm/determinePresenceOfEntity";
 import { exploreAdditionalPages } from "../extraction/llm/exploreAdditionalPages";
 import { extractAndVerifyEntityData } from "../extraction/llm/extractAndVerifyEntityData";
+import getLogger from "../logging";
+
+const logger = getLogger("workers.extractData");
 
 export default createProcessor<ExtractDataJob, ExtractDataProgress>(
   async function extractData(job) {
     let crawlPage = await findPageForJob(job.data.crawlPageId);
 
     if (crawlPage.extraction.status == ExtractionStatus.CANCELLED) {
-      console.log(
+      logger.info(
         `Extraction ${crawlPage.extractionId} was cancelled; aborting`
       );
       return;
@@ -117,7 +120,7 @@ export default createProcessor<ExtractDataJob, ExtractDataProgress>(
           if (extractedEntityCount % 10 === 0) {
             crawlPage = await findPageForJob(crawlPage.id);
             if (crawlPage.extraction.status == ExtractionStatus.CANCELLED) {
-              console.log(
+              logger.info(
                 `Extraction ${crawlPage.extractionId} was cancelled; aborting`
               );
               return;
@@ -131,7 +134,7 @@ export default createProcessor<ExtractDataJob, ExtractDataProgress>(
           crawlPage.crawlStepId
         );
         if (pageDepth > 8) {
-          console.log(
+          logger.info(
             `Not adding new pages, crawling new pages limited to 8 levels relative to catalogue root.`
           );
           return;
@@ -166,10 +169,10 @@ export default createProcessor<ExtractDataJob, ExtractDataProgress>(
               }))
             );
           })
-          .catch(console.log);
+          .catch(logger.error);
       }
     } catch (err) {
-      console.log(inspect(err));
+      logger.error(inspect(err));
       throw err;
     }
   }

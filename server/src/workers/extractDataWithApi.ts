@@ -15,6 +15,9 @@ import {
   TextInclusion,
 } from "../../../common/types";
 import { resolveExtractionService } from "../extraction/services";
+import getLogger from "../logging";
+
+const logger = getLogger("workers.extractDataWithApi");
 
 function updatePageAndExtractionInProgress(
   page: typeof crawlPages.$inferSelect
@@ -84,7 +87,7 @@ export default createProcessor<ExtractDataJob, ExtractDataProgress>(
     const crawlPage = await findPageForJob(job.data.crawlPageId);
 
     if (crawlPage.extraction.status == ExtractionStatus.CANCELLED) {
-      console.log(
+      logger.info(
         `Extraction ${crawlPage.extractionId} was cancelled; aborting`
       );
       return;
@@ -134,7 +137,7 @@ export default createProcessor<ExtractDataJob, ExtractDataProgress>(
 
       await updatePageAndExtractionAsComplete(crawlPage, totalCourses);
     } catch (err) {
-      console.log(inspect(err));
+      logger.error(inspect(err));
       await updatePageAndExtractionWithError(crawlPage, err);
 
       throw err;
