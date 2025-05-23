@@ -4,6 +4,7 @@ import {
   PageType,
   RecipeConfiguration,
 } from "../../../common/types";
+import getLogger from "../logging";
 import { SimplifiedMarkdown } from "../types";
 import { bestOutOf, exponentialRetry, unique } from "../utils";
 import { fetchBrowserPage, simplifiedMarkdown } from "./browser";
@@ -14,6 +15,8 @@ import detectUrlRegexp, {
   createUrlExtractor,
 } from "./llm/detectUrlRegexp";
 import { Probes } from "./vendor-probes";
+
+const logger = getLogger("extraction.recursivelyDetectConfiguration");
 
 const sample = <T>(arr: T[], sampleSize: number) =>
   arr.sort(() => 0.5 - Math.random()).slice(0, sampleSize);
@@ -37,7 +40,7 @@ const detectPageTypeWithRetry = async (
           });
           return pageType;
         } catch (e) {
-          console.log(`Error detecting page type for ${url}: ${inspect(e)}`);
+          logger.error(`Error detecting page type for ${url}: ${inspect(e)}`);
           throw e;
         }
       }, 10),
@@ -108,18 +111,18 @@ const detectConfiguration = async (
 ) => {
   let { content, screenshot } = pageData || (await fetchBrowserPage(url));
   const markdownContent = await simplifiedMarkdown(content);
-  console.log(`Detecting page type for ${url}`);
+  logger.info(`Detecting page type for ${url}`);
   const pageType = await detectPageTypeWithRetry(
     url,
     markdownContent,
     screenshot,
     catalogueType
   );
-  console.log(`Detected as ${pageType}`);
+  logger.info(`Detected as ${pageType}`);
   if (!pageType) {
     throw new Error(`Couldn't detect page type for URL ${url}`);
   }
-  console.log(`Detecting pagination for ${url}`);
+  logger.info(`Detecting pagination for ${url}`);
   const pagination = await detectPaginationWithRetry(
     url,
     markdownContent,
@@ -127,13 +130,13 @@ const detectConfiguration = async (
     catalogueType,
     pageType
   );
-  console.log(`Detected as: ${inspect(pagination)}`);
+  logger.info(`Detected as: ${inspect(pagination)}`);
   let linkRegexp;
   if (
     pageType == PageType.CATEGORY_LINKS ||
     pageType == PageType.DETAIL_LINKS
   ) {
-    console.log(`Detecting regexp for ${url}`);
+    logger.info(`Detecting regexp for ${url}`);
     linkRegexp = await detectUrlRegexpWithRetry(
       url,
       markdownContent,
@@ -141,7 +144,7 @@ const detectConfiguration = async (
       catalogueType,
       pageType
     );
-    console.log(`Detected as ${linkRegexp}`);
+    logger.info(`Detected as ${linkRegexp}`);
   }
   return {
     content: markdownContent,
@@ -169,13 +172,13 @@ const recursivelyDetectConfiguration = async (
   });
 
   if (apiReceipe && catalogueType === CatalogueType.COURSES) {
-    console.log(
+    logger.info(
       `API provider identified ${apiReceipe.apiProvider}. Skipping page format detection.`
     );
     return apiReceipe;
   }
 
-  console.log("Detecting configuration for root page");
+  logger.info("Detecting configuration for root page");
   const { content, linkRegexp, pageType, pagination } =
     await detectConfiguration(url, catalogueType, {
       content: pageContent,
@@ -198,8 +201,8 @@ const recursivelyDetectConfiguration = async (
     const urls = await urlExtractor(url, content);
 
     // Extract some sample pages which we'll use to confirm the page type.
-    console.log("Detecting configuration for sample child pages");
-    console.log(`There are ${urls.length} URLs and we're sampling 5`);
+    logger.info("Detecting configuration for sample child pages");
+    logger.info(`There are ${urls.length} URLs and we're sampling 5`);
 
     const sampleLinks = await Promise.all(
       sample(urls, 5).map(async (url) => {
@@ -270,7 +273,7 @@ const recursivelyDetectConfiguration = async (
       sampleLinks[0].content
     );
 
-    console.log("Detecting configuration for sample child > child pages");
+    logger.info("Detecting configuration for sample child > child pages");
     const sampleSubChildLinks = await Promise.all(
       sample(childUrls, 5).map(async (url) => {
         const { content, screenshot } = await fetchBrowserPage(url);

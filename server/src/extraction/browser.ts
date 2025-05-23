@@ -6,6 +6,7 @@ import rebrowserPuppeteer from "rebrowser-puppeteer";
 import TurndownService from "turndown";
 import { URL } from "url";
 import { findSetting } from "../data/settings";
+import getLogger from "../logging";
 import { SimplifiedMarkdown } from "../types";
 import { resolveAbsoluteUrl } from "../utils";
 import { detectCatalogueType } from "./llm/detectCatalogueType";
@@ -28,6 +29,8 @@ let cluster: Cluster<BrowserTaskInput, BrowserTaskResult> | undefined;
 let clusterClosed = false;
 
 const PAGE_TIMEOUT = 5 * 60 * 1000;
+
+const logger = getLogger("extraction.browser");
 
 export async function getCluster(proxyUrl?: string) {
   if (clusterClosed) {
@@ -82,7 +85,7 @@ export async function getCluster(proxyUrl?: string) {
     }
     let content = await page.content();
     if (content.includes("kuali-catalog")) {
-      console.log(`Kuali detected at url ${url}; waiting for selector`);
+      logger.info(`Kuali detected at url ${url}; waiting for selector`);
       await page.waitForFunction(
         `document.querySelector("#kuali-catalog-main h3") || document.querySelector("#kuali-catalog-main ul li")`
       );

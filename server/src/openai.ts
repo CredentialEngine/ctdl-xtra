@@ -8,7 +8,10 @@ import {
 import { Provider, ProviderModel } from "../../common/types";
 import { createModelApiCallLog } from "./data/extractions";
 import { findSetting } from "./data/settings";
+import getLogger from "./logging";
 import { exponentialRetry } from "./utils";
+
+const logger = getLogger("openai");
 
 export const ModelPrices = {
   [ProviderModel.Gpt4o]: {
@@ -123,7 +126,7 @@ export async function simpleToolCompletion<
         e instanceof OpenAI.APIError &&
         ["invalid_base64", "invalid_image_format"].includes(e.code || "")
       ) {
-        console.log(
+        logger.warn(
           `OpenAI API Error: ${e.code}. Likely invalid base64 screenshot; retrying without screenshots`
         );
 
@@ -238,7 +241,7 @@ export async function structuredCompletion<
         e instanceof OpenAI.APIError &&
         ["invalid_base64", "invalid_image_format"].includes(e.code || "")
       ) {
-        console.log(
+        logger.warn(
           `OpenAI API Error: ${e.code}. Likely invalid base64 screenshot; retrying without screenshots`
         );
 

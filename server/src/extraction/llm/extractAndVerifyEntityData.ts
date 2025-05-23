@@ -1,4 +1,5 @@
 import nlp from "compromise";
+import getLogger from "../../logging";
 
 import { DefaultLlmPageOptions } from ".";
 import { CatalogueType, TextInclusion } from "../../../../common/types";
@@ -6,6 +7,8 @@ import { SimplifiedMarkdown } from "../../types";
 import { getCatalogueTypeDefinition } from "../catalogueTypes";
 import { shouldChunk, splitChunks } from "../splitChunks";
 import { extractEntityData } from "./extractEntityData";
+
+const logger = getLogger("extraction.llm.extractAndVerifyEntityData");
 
 export function preprocessText(text: string): string {
   return text
@@ -153,7 +156,7 @@ export async function* extractAndVerifyEntityData(
       catalogueType
     );
     if (!entitiesData || entitiesData.length === 0) {
-      console.log(
+      logger.info(
         `Couldn't find ${catalogueType} data from page ${chunkOptions.url}`
       );
       continue;
@@ -176,7 +179,7 @@ export async function* extractAndVerifyEntityData(
     }
     if (chunks.length > 1) {
       processedChunks++;
-      console.log(`Processed ${processedChunks}/${chunks.length} chunks`);
+      logger.info(`Processed ${processedChunks}/${chunks.length} chunks`);
     }
   }
 }

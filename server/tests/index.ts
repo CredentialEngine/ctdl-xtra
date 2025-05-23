@@ -17,6 +17,9 @@ import { determinePresenceOfEntity } from "../src/extraction/llm/determinePresen
 import { exploreAdditionalPages } from "../src/extraction/llm/exploreAdditionalPages";
 import { extractAndVerifyEntityData } from "../src/extraction/llm/extractAndVerifyEntityData";
 import recursivelyDetectConfiguration from "../src/extraction/recursivelyDetectConfiguration";
+import getLogger from "../src/logging";
+
+const logger = getLogger("tests.index");
 
 export const EXTRACTION_TIMEOUT = 1000 * 60 * 10;
 
@@ -34,10 +37,7 @@ async function getPageWithFallback(url: string) {
   try {
     page = await findCrawlPageByUrl(url);
   } catch (e) {
-    console.error(
-      `Page ${url} not found in database, fetching from browser`,
-      e
-    );
+    logger.error(`Page ${url} not found in database, fetching from browser`, e);
   }
 
   if (page?.content) {
@@ -95,7 +95,7 @@ export async function assertConfiguration(
     url,
     CatalogueType.COURSES
   );
-  console.log(inspect(actual));
+  logger.info(inspect(actual));
 
   function compareConfigurations(
     actualConfig: any,
@@ -193,7 +193,7 @@ export async function assertExtraction<
         )
     );
     if (!extraction) {
-      console.log(
+      logger.info(
         `Found entities: ${extractions
           .map((e) => inspect(e.entity))
           .join("\n")}`
@@ -202,7 +202,7 @@ export async function assertExtraction<
         `${typeDef.name} ${(expectedItem as any)[typeDef.identifierProperty]} not found`
       );
     }
-    console.log(`Extracted entity: ${inspect(extraction.entity)}`);
+    logger.info(`Extracted entity: ${inspect(extraction.entity)}`);
     for (const key in expectedItem) {
       let expectedValue = expectedItem[key as keyof T];
       let extractedValue = (extraction.entity as any)[key as keyof T];
@@ -216,7 +216,7 @@ export async function assertExtraction<
         );
       } else {
         if (extractedValue != expectedValue) {
-          console.log(
+          logger.info(
             `Expected ${key} to be ${expectedValue}, got ${extractedValue}.`
           );
         }

@@ -1,3 +1,7 @@
+import getLogger from "./logging";
+
+const logger = getLogger("utils");
+
 export async function exponentialRetry<T>(
   fn: () => Promise<T>,
   retries: number,
@@ -9,11 +13,11 @@ export async function exponentialRetry<T>(
     try {
       return await fn();
     } catch (error) {
-      console.log(
+      logger.warn(
         `Exponential retries fn failed with error ${error}. Details:`
       );
-      console.error(error);
-      console.log("Retrying...");
+      logger.error(error);
+      logger.info("Retrying...");
       retryErr = error;
       if (attempt === retries) throw error;
       await new Promise((resolve) =>
@@ -22,7 +26,7 @@ export async function exponentialRetry<T>(
       attempt++;
     }
   }
-  console.log("All retries failed");
+  logger.error("All retries failed");
   throw retryErr;
 }
 

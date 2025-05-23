@@ -1,5 +1,8 @@
 import { CatalogueType } from "../../../../common/types";
+import getLogger from "../../logging";
 import { SimplifiedMarkdown } from "../../types";
+
+const logger = getLogger("extraction.llm");
 
 export const MD_START = "```markdown";
 export const MD_END = "```";
@@ -27,7 +30,7 @@ export function resolveAbsoluteUrl(base: string, relative: string): string {
 // Deduplicate URLs by normalizing them while preserving query parameters and hash fragments
 export function dedupUrls(urls: string[]): string[] {
   const normalizedUrls = new Set<string>();
-  return urls.filter(url => {
+  return urls.filter((url) => {
     try {
       const normalizedUrl = new URL(url).href;
       if (normalizedUrls.has(normalizedUrl)) {
@@ -36,14 +39,14 @@ export function dedupUrls(urls: string[]): string[] {
       normalizedUrls.add(normalizedUrl);
       return true;
     } catch (e) {
-      console.warn(`Failed to normalize URL: ${url}`, e);
+      logger.warn(`Failed to normalize URL: ${url}`, e);
       return false;
     }
   });
-};
+}
 
 export function filterUrlsByOrigin(urls: string[], hostname: string) {
-  return urls.filter(url => {
+  return urls.filter((url) => {
     const urlObj = new URL(url);
     return urlObj.hostname === hostname;
   });

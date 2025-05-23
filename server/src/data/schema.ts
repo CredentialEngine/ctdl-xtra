@@ -36,7 +36,10 @@ import {
   TextInclusion,
 } from "../../../common/types";
 import { RobotsTxt } from "../extraction/robotsParser";
+import getLogger from "../logging";
 import { SimplifiedMarkdown } from "../types";
+
+const logger = getLogger("data.schema");
 
 const gzip = promisify(syncGzip);
 const gunzip = promisify(syncGunzip);
@@ -125,7 +128,7 @@ export async function storeScreenshot(
     await fs.writeFile(screenshotFilePath, gzippedScreenshot);
     return screenshotFilePath;
   } catch (error) {
-    console.error("Error storing screenshot:", error);
+    logger.error("Error storing screenshot:", error);
     return null;
   }
 }

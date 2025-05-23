@@ -1,7 +1,10 @@
 import { Queue, Worker } from "bullmq";
 import "dotenv/config";
 import path from "path";
+import getLogger from "./logging";
 import { Queues, startProcessor } from "./workers";
+
+const logger = getLogger("worker");
 
 // @ts-ignore
 const workerExtension = process._preload_modules.some((s) => s.includes("tsx"))
@@ -18,7 +21,7 @@ async function handleShutdown() {
   }
   shuttingDown = true;
   for (const worker of workers) {
-    console.log(`Shutting down worker ${worker.name}`);
+    logger.info(`Shutting down worker ${worker.name}`);
     await worker.close();
   }
   process.exit(0);
@@ -42,9 +45,9 @@ const processors: [Queue, string, number][] = [
 
 for (const [queue, processor, localConcurrency] of processors) {
   const worker = startProcessor(queue, processor, localConcurrency);
-  worker.on("error", (err) => console.log(err));
-  worker.on("failed", (_job, err) => console.log(err));
-  worker.on("progress", (_job, progress) => console.log(progress));
+  worker.on("error", (err) => logger.error(err));
+  worker.on("failed", (_job, err) => logger.error(err));
+  worker.on("progress", (_job, progress) => logger.info(progress));
   workers.push(worker);
 }
 

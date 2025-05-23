@@ -1,4 +1,7 @@
 import { URL } from "url";
+import getLogger from "../logging";
+
+const logger = getLogger("extraction.robotsParser");
 
 export interface RobotsRule {
   userAgent: string;
@@ -20,19 +23,19 @@ export async function fetchAndParseRobotsTxt(
     const parsedUrl = new URL(url);
     const robotsUrl = `${parsedUrl.protocol}//${parsedUrl.host}/robots.txt`;
 
-    console.log(`Fetching robots.txt from ${robotsUrl}`);
+    logger.info(`Fetching robots.txt from ${robotsUrl}`);
 
     const response = await fetch(robotsUrl);
 
     if (!response.ok) {
-      console.log(`robots.txt not found at ${robotsUrl}`);
+      logger.info(`robots.txt not found at ${robotsUrl}`);
       return null;
     }
 
     const content = await response.text();
     return parseRobotsTxt(content);
   } catch (error) {
-    console.error(`Error fetching robots.txt: ${error}`);
+    logger.error(`Error fetching robots.txt: ${error}`);
     return null;
   }
 }

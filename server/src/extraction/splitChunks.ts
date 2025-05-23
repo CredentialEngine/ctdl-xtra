@@ -1,8 +1,11 @@
 import { isWithinTokenLimit } from "gpt-tokenizer";
+import getLogger from "../logging";
 import { DefaultLlmPageOptions } from "./llm";
 import detectChunkSplitRegexp from "./llm/detectChunkSplitRegexp";
 import { detectMultipleCourses } from "./llm/detectMultipleCourses";
 import { preprocessText } from "./llm/extractAndVerifyEntityData";
+
+const logger = getLogger("extraction.splitChunks");
 
 export async function splitChunks(options: DefaultLlmPageOptions) {
   let regexp, expectedCourseCount, chunks, firstCourseTitle;
@@ -15,7 +18,7 @@ export async function splitChunks(options: DefaultLlmPageOptions) {
       chunks = options.content.split(regexp);
       if (!chunks) {
         const errorMessage = `Could not find any chunks with the regexp: ${regexp}. Expected ${expectedCourseCount} chunks.`;
-        console.error(errorMessage);
+        logger.error(errorMessage);
         throw new Error(errorMessage);
       }
 
@@ -42,10 +45,10 @@ export async function splitChunks(options: DefaultLlmPageOptions) {
           `Regexp: ${regexp}.\n` +
           `Found ${chunks.length} chunks, expected ${expectedCourseCount}`;
 
-        console.error(errorMessage);
+        logger.error(errorMessage);
         throw new Error(errorMessage);
       }
-      console.log(`Success - Found ${chunks.length} chunks`);
+      logger.info(`Success - Found ${chunks.length} chunks`);
       return chunks;
     } catch (error) {
       if (error instanceof Error) {

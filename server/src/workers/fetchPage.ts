@@ -38,7 +38,9 @@ import { fetchBrowserPage, simplifiedMarkdown } from "../extraction/browser";
 import { detectPageCount } from "../extraction/llm/detectPageCount";
 import { createUrlExtractor } from "../extraction/llm/detectUrlRegexp";
 import { findRule, isUrlAllowedForRule } from "../extraction/robotsParser";
+import getLogger from "../logging";
 
+const logger = getLogger("workers.fetchPage");
 const redis = getRedisConnection();
 
 const constructPaginatedUrls = (configuration: PaginationConfiguration) => {
@@ -59,7 +61,7 @@ const constructPaginatedUrls = (configuration: PaginationConfiguration) => {
 async function enqueueExtraction(
   crawlPage: Awaited<ReturnType<typeof findPageForJob>>
 ) {
-  console.log(`Enqueuing extraction for page ${crawlPage.url}`);
+  logger.info(`Enqueuing extraction for page ${crawlPage.url}`);
   return submitJob(
     Queues.ExtractData,
     { crawlPageId: crawlPage.id },
@@ -73,7 +75,7 @@ async function enqueuePages(
   catalogueType: CatalogueType,
   delayOptions: DelayOptions
 ) {
-  console.log(`Enqueuing page fetches for page ${crawlPage.url}`);
+  logger.info(`Enqueuing page fetches for page ${crawlPage.url}`);
 
   const pageCount = await detectPageCount(
     {
@@ -107,7 +109,7 @@ async function enqueuePages(
   const pageUrls = constructPaginatedUrls(updatedPagination);
 
   if (!pageUrls.length) {
-    console.log(`No paginated pages found for page ${crawlPage.url}`);
+    logger.info(`No paginated pages found for page ${crawlPage.url}`);
     return;
   }
 
@@ -135,7 +137,7 @@ async function processLinks(
   crawlPage: Awaited<ReturnType<typeof findPageForJob>>,
   delayOptions: DelayOptions
 ) {
-  console.log(`Processing links for page ${crawlPage.url}`);
+  logger.info(`Processing links for page ${crawlPage.url}`);
 
   const regexp = new RegExp(configuration.linkRegexp!, "g");
   const extractor = createUrlExtractor(regexp);
@@ -152,12 +154,12 @@ async function processLinks(
     if (!page) {
       urls.push(url);
     } else {
-      console.log(`Skipping ${url} because it has already been fetched`);
+      logger.info(`Skipping ${url} because it has already been fetched`);
     }
   }
 
   if (!urls.length) {
-    console.log(`No URLs found for page ${crawlPage.url}`);
+    logger.info(`No URLs found for page ${crawlPage.url}`);
     return;
   }
 
@@ -216,7 +218,7 @@ const performJob = async (
   delayOptions: DelayOptions
 ) => {
   if (crawlPage.extraction.status == ExtractionStatus.CANCELLED) {
-    console.log(`Extraction ${crawlPage.extractionId} was cancelled; aborting`);
+    logger.info(`Extraction ${crawlPage.extractionId} was cancelled; aborting`);
     return;
   }
 
@@ -227,7 +229,7 @@ const performJob = async (
   }
 
   try {
-    console.log(`Loading ${crawlPage.url}`);
+    logger.info(`Loading ${crawlPage.url}`);
     await updatePage(crawlPage.id, { status: PageStatus.IN_PROGRESS });
 
     const page = await fetchBrowserPage(crawlPage.url);
@@ -326,7 +328,7 @@ export default createProcessor<FetchPageJob, FetchPageProgress>(
           ? remainingCooldownMillis
           : delayOptions.delayInterval;
 
-      console.log(
+      logger.trace(
         `Domain ${domain} locked. Re-queuing ${crawlPage.url} with delay ${delay}ms.`
       );
       return submitJobWithOpts(Queues.FetchPage, job.data, {
@@ -336,7 +338,7 @@ export default createProcessor<FetchPageJob, FetchPageProgress>(
       });
     }
 
-    console.log(`Processing URL: ${crawlPage.url} for domain ${domain}`);
+    logger.info(`Processing URL: ${crawlPage.url} for domain ${domain}`);
     return performJob(job, crawlPage, delayOptions);
   }
 );

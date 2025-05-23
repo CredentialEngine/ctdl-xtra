@@ -1,25 +1,32 @@
-import { URL } from 'url';
+import { URL } from "url";
 
 import {
   ChatCompletionContentPart,
   ChatCompletionMessageParam,
 } from "openai/resources/chat/completions";
-import { dedupUrls, DefaultLlmPageOptions, filterUrlsByOrigin, MD_START, MD_END } from ".";
 import {
-  CatalogueType,
-  ProviderModel,
-} from "../../../../common/types";
+  dedupUrls,
+  DefaultLlmPageOptions,
+  filterUrlsByOrigin,
+  MD_END,
+  MD_START,
+} from ".";
+import { CatalogueType, ProviderModel } from "../../../../common/types";
+import getLogger from "../../logging";
 import { structuredCompletion } from "../../openai";
 import { getCatalogueTypeDefinition } from "../catalogueTypes";
 
+const logger = getLogger("extraction.llm.exploreAdditionalPages");
+
 export async function exploreAdditionalPages(
   options: DefaultLlmPageOptions,
-  catalogueType: CatalogueType,
-): Promise<{ prompt: string, data: string[] }> 
-{
+  catalogueType: CatalogueType
+): Promise<{ prompt: string; data: string[] }> {
   const entityDef = getCatalogueTypeDefinition(catalogueType);
   if (!entityDef.exploreDuringExtraction) {
-    throw new Error(`Entity of type ${entityDef.name} is not configured to allow exploration of additional content.`);
+    throw new Error(
+      `Entity of type ${entityDef.name} is not configured to allow exploration of additional content.`
+    );
   }
 
   const prompt = `
@@ -60,7 +67,7 @@ ${MD_END}
         items: {
           type: "array",
           items: {
-            type: "string"
+            type: "string",
           },
         },
       },
@@ -78,22 +85,24 @@ ${MD_END}
     return { prompt, data: [] };
   }
 
-  const rawUrls = result.result?.items as string[] || [];
-  let urls = rawUrls.map(rawUrl => {
-    try {
-      if (!options.content.includes(rawUrl)) {
+  const rawUrls = (result.result?.items as string[]) || [];
+  let urls = rawUrls
+    .map((rawUrl) => {
+      try {
+        if (!options.content.includes(rawUrl)) {
+          return null;
+        }
+
+        return new URL(rawUrl, options.url).href;
+      } catch (e) {
+        logger.warn(
+          `Exception caught while joining ${rawUrl} with ${options.url}`,
+          e
+        );
         return null;
       }
-
-      return new URL(rawUrl, options.url).href;
-    } catch (e) {
-      console.warn(
-        `Exception caught while joining ${rawUrl} with ${options.url}`,
-        e
-      );
-      return null;
-    }
-  }).filter(Boolean) as string[];
+    })
+    .filter(Boolean) as string[];
 
   if (entityDef.exploreSameOrigin) {
     const hostname = new URL(options.url).hostname;

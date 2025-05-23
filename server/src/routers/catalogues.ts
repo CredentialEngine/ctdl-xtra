@@ -12,6 +12,9 @@ import {
 } from "../data/catalogues";
 import { findDatasets } from "../data/datasets";
 import { fetchPreview } from "../extraction/browser";
+import getLogger from "../logging";
+
+const logger = getLogger("routers.catalogues");
 
 export const cataloguesRouter = router({
   preview: publicProcedure
@@ -20,7 +23,10 @@ export const cataloguesRouter = router({
         url: z.string().url(),
       })
     )
-    .query(async (opts) => fetchPreview(opts.input.url)),
+    .query(async (opts) => {
+      logger.info(`Fetching preview for ${opts.input.url}`);
+      return fetchPreview(opts.input.url);
+    }),
   list: publicProcedure
     .input(
       z
