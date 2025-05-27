@@ -160,7 +160,10 @@ export default createProcessor<ExtractDataJob, ExtractDataProgress>(
             await submitJobs(
               Queues.FetchPage,
               stepAndPages.pages.map((page) => ({
-                data: { crawlPageId: page.id },
+                data: {
+                  crawlPageId: page.id,
+                  extractionId: crawlPage.extractionId,
+                },
                 options: {
                   jobId: `fetchPage.${page.id}`,
                   lifo: true,

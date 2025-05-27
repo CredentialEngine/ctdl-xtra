@@ -1,6 +1,7 @@
 import { deepEqual } from "fast-equals";
 import {
   createProcessor,
+  detectExtractionJobs,
   JobWithProgress,
   Queues,
   UpdateExtractionCompletionJob,
@@ -27,12 +28,6 @@ import getLogger from "../logging";
 import { estimateCost } from "../openai";
 
 const logger = getLogger("workers.updateExtractionCompletion");
-
-function hoursDiff(date1: Date, date2: Date): number {
-  const millisecondsInHour = 60 * 60 * 1000; // 1 hour in milliseconds
-  const differenceInMilliseconds = Math.abs(date2.getTime() - date1.getTime());
-  return differenceInMilliseconds / millisecondsInHour;
-}
 
 async function getStepCompletionStats(
   extraction: NonNullable<Awaited<ReturnType<typeof findExtractionById>>>
@@ -154,7 +149,7 @@ async function handleStaleExtraction(
     UpdateExtractionCompletionProgress
   >,
   extraction: NonNullable<Awaited<ReturnType<typeof findExtractionById>>>,
-  staleHrs: number
+  staleMs: number
 ) {
   const allStepsCompleted = extraction.completionStats!.steps.every(
     (s) =>
@@ -165,14 +160,30 @@ async function handleStaleExtraction(
     ? ExtractionStatus.COMPLETE
     : ExtractionStatus.STALE;
 
-  if (status == ExtractionStatus.COMPLETE && staleHrs < 1) {
+  const waitForCompletionMs = 5 * 60 * 1000;
+  const waitForStaleMs = 4 * 60 * 60 * 1000;
+
+  if (status == ExtractionStatus.COMPLETE) {
+    if (staleMs < waitForCompletionMs) {
+      const remainingTime = (waitForCompletionMs - staleMs) / 1000;
+      logger.info(
+        `No changes for extraction ${extraction.id}, looks complete; waiting ${remainingTime}s`
+      );
+      return;
+    } else {
+      const shouldKeepWaiting = await detectExtractionJobs(extraction.id);
+      if (shouldKeepWaiting) {
+        logger.info(
+          `No changes for extraction ${extraction.id}, there are pending jobs; waiting`
+        );
+        return;
+      }
+      logger.info(`Found no pending jobs for extraction ${extraction.id}`);
+    }
+  } else if (status == ExtractionStatus.STALE && staleMs < waitForStaleMs) {
+    const remainingTime = (waitForStaleMs - staleMs) / 1000;
     logger.info(
-      `No changes for extraction ${extraction.id}, looks complete; waiting`
-    );
-    return;
-  } else if (status == ExtractionStatus.STALE && staleHrs < 4) {
-    logger.info(
-      `No changes for extraction ${extraction.id}, looks incomplete; waiting`
+      `No changes for extraction ${extraction.id}, looks incomplete; waiting ${remainingTime}s`
     );
     return;
   }
@@ -213,11 +224,11 @@ export default createProcessor<
   if (extraction.completionStats) {
     const stale = deepEqual(stepStats, extraction.completionStats.steps);
     if (stale) {
-      await handleStaleExtraction(
-        job,
-        extraction,
-        hoursDiff(new Date(extraction.completionStats.generatedAt), currentDate)
+      const timeDiff = Math.abs(
+        currentDate.getTime() -
+          new Date(extraction.completionStats.generatedAt).getTime()
       );
+      await handleStaleExtraction(job, extraction, timeDiff);
       return;
     }
   }

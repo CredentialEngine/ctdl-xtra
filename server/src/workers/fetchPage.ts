@@ -64,7 +64,7 @@ async function enqueueExtraction(
   logger.info(`Enqueuing extraction for page ${crawlPage.url}`);
   return submitJob(
     Queues.ExtractData,
-    { crawlPageId: crawlPage.id },
+    { crawlPageId: crawlPage.id, extractionId: crawlPage.extractionId },
     `extractData.${crawlPage.id}`
   );
 }
@@ -125,7 +125,7 @@ async function enqueuePages(
   await submitJobs(
     Queues.FetchPage,
     stepAndPages.pages.map((page) => ({
-      data: { crawlPageId: page.id },
+      data: { crawlPageId: page.id, extractionId: crawlPage.extractionId },
       options: { jobId: `fetchPage.${page.id}`, lifo: true },
     })),
     delayOptions
@@ -175,7 +175,10 @@ async function processLinks(
   await submitJobs(
     Queues.FetchPage,
     stepAndPages.pages.map((page) => ({
-      data: { crawlPageId: page.id },
+      data: {
+        crawlPageId: page.id,
+        extractionId: crawlPage.extractionId,
+      },
       options: {
         jobId: `fetchPage.${page.id}`,
         lifo: true,
