@@ -4,7 +4,12 @@ import {
   findFailedAndNoDataPageIds,
   updateExtraction,
 } from "../data/extractions";
-import { Queues, submitJobs, submitRepeatableJob } from "../workers";
+import {
+  Queues,
+  REPEAT_UPDATE_COMPLETION_EVERY_MS,
+  submitJobs,
+  submitRepeatableJob,
+} from "../workers";
 
 export async function retryFailedItems(extractionId: number) {
   const extraction = await findExtractionById(extractionId);
@@ -37,7 +42,7 @@ export async function retryFailedItems(extractionId: number) {
   await submitJobs(
     Queues.FetchPage,
     pageIds.map((id) => ({
-      data: { crawlPageId: id },
+      data: { crawlPageId: id, extractionId },
       options: { jobId: `fetchPage.${id}` },
     }))
   );
@@ -45,7 +50,7 @@ export async function retryFailedItems(extractionId: number) {
     Queues.UpdateExtractionCompletion,
     { extractionId: extraction.id },
     `updateExtractionCompletion.${extraction.id}`,
-    { every: 5 * 60 * 1000 }
+    { every: REPEAT_UPDATE_COMPLETION_EVERY_MS }
   );
   return;
 }

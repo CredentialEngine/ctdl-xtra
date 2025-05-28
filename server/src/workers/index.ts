@@ -14,6 +14,7 @@ import getLogger from "../logging";
 
 const logger = getLogger("workers");
 const REDIS_URL = process.env.REDIS_URL || "redis://localhost:6379";
+export const REPEAT_UPDATE_COMPLETION_EVERY_MS = 2 * 60 * 1000;
 
 export function getRedisConnection() {
   const connection = new IORedis(REDIS_URL, { maxRetriesPerRequest: null });
@@ -151,10 +152,12 @@ export interface DetectConfigurationJob {
 
 export interface FetchPageJob {
   crawlPageId: number;
+  extractionId: number;
 }
 
 export interface ExtractDataJob {
   crawlPageId: number;
+  extractionId: number;
 }
 
 export interface UpdateExtractionCompletionJob {
@@ -179,6 +182,35 @@ const defaultJobOptions: DefaultJobOptions = {
     age: 1000 * 60 * 60 * 24 * 5, // 5 days
   },
 };
+
+export async function detectExtractionJobs(extractionId: number) {
+  const queues = [
+    Queues.FetchPage,
+    Queues.ExtractData,
+    Queues.ExtractDataWithAPI,
+  ];
+  for (const queue of queues) {
+    let start = 0,
+      end = 100;
+    while (true) {
+      const jobs = await queue.getJobs(
+        ["active", "waiting", "delayed", "prioritized", "repeat", "wait"],
+        start,
+        end
+      );
+      if (jobs.length === 0) {
+        break;
+      }
+      for (const job of jobs) {
+        if (job.data.extractionId === extractionId) {
+          return true;
+        }
+      }
+      start = end;
+    }
+  }
+  return false;
+}
 
 export const Queues = {
   DetectConfiguration: new Queue<DetectConfigurationJob>(

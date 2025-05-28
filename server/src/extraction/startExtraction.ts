@@ -2,7 +2,12 @@ import { RecipeDetectionStatus, Step } from "../../../common/types";
 import { findCatalogueById } from "../data/catalogues";
 import { createExtraction, createPage, createStep } from "../data/extractions";
 import { extractions, recipes } from "../data/schema";
-import { Queues, submitJob, submitRepeatableJob } from "../workers";
+import {
+  Queues,
+  REPEAT_UPDATE_COMPLETION_EVERY_MS,
+  submitJob,
+  submitRepeatableJob,
+} from "../workers";
 
 export async function startExtraction(catalogueId: number, recipeId: number) {
   const catalogue = await findCatalogueById(catalogueId);
@@ -43,14 +48,14 @@ async function launchLLMExtraction(
   });
   submitJob(
     Queues.FetchPage,
-    { crawlPageId: crawlPage.id },
+    { crawlPageId: crawlPage.id, extractionId: extraction.id },
     `fetchPage.${crawlPage.id}`
   );
   submitRepeatableJob(
     Queues.UpdateExtractionCompletion,
     { extractionId: extraction.id },
     `updateExtractionCompletion.${extraction.id}`,
-    { every: 5 * 60 * 1000 }
+    { every: REPEAT_UPDATE_COMPLETION_EVERY_MS }
   );
 }
 
@@ -72,13 +77,13 @@ async function launchAPIExtraction(
   });
   submitJob(
     Queues.ExtractDataWithAPI,
-    { crawlPageId: crawlPage.id },
+    { crawlPageId: crawlPage.id, extractionId: extraction.id },
     `extractWithApi.${crawlPage.id}`
   );
   submitRepeatableJob(
     Queues.UpdateExtractionCompletion,
     { extractionId: extraction.id },
     `updateExtractionCompletion.${extraction.id}`,
-    { every: 5 * 60 * 1000 }
+    { every: REPEAT_UPDATE_COMPLETION_EVERY_MS }
   );
 }
