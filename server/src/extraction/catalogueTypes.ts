@@ -2,32 +2,32 @@ import { JSONSchema } from "openai/lib/jsonschema";
 import { CatalogueType, ProviderModel } from "../../../common/types";
 
 export interface CatalogueTypeDefinition {
-  /** 
+  /**
    * The singular name of the entity type (e.g. "course", "learning program").
    * This is used in UI elements and prompts to refer to a single instance of the entity.
    */
   name: string;
-  /** 
+  /**
    * The plural name of the entity type (e.g. "courses", "learning programs").
    * This is used in UI elements and prompts to refer to multiple instances of the entity.
    */
   pluralName: string;
-  /** 
+  /**
    * A brief description of what the entity type represents.
    * This is used in the catalogue type detection process to help identify the type of content on a page.
    */
   description: string;
-  /** 
+  /**
    * A description of what a detail page for this entity type contains.
    * This is used to help identify pages that contain detailed information about a single entity.
    */
   detailDescription: string;
-  /** 
+  /**
    * A description of what a category page for this entity type contains.
    * This is used to help identify pages that contain links to categories of entities.
    */
   categoryDescription: string;
-  /** 
+  /**
    * A description of what a links page for this entity type contains.
    * This is used to help identify pages that contain direct links to entity detail pages.
    */
@@ -120,25 +120,25 @@ export interface CatalogueTypeDefinition {
     top_p?: number; // LLM top_p
   };
 
-  /** 
+  /**
    * An example identifier for the entity type (e.g. "ACCT 101" for courses).
    * This is used in prompts to help the LLM understand the expected format
    * of entity identifiers.
    */
   exampleIdentifier: string;
-  /** 
+  /**
    * An example name for the entity type (e.g. "Financial Accounting" for courses).
    * This is used in prompts to help the LLM understand the expected format
    * of entity names.
    */
   exampleName: string;
-  /** 
+  /**
    * An example description for the entity type.
    * This is used in prompts to help the LLM understand the expected format
    * and level of detail for entity descriptions.
    */
   exampleDescription: string;
-  /** 
+  /**
    * The properties that define the structure of the entity type.
    * Each property has a description and required flag that helps
    * guide the LLM in extracting the correct information.
@@ -149,14 +149,14 @@ export interface CatalogueTypeDefinition {
       required: boolean;
     };
   };
-  /** 
+  /**
    * The property that serves as the unique identifier for the entity type.
    * This is used to uniquely identify entities and is typically required
    * for database operations and entity relationships.
    */
   identifierProperty: string;
 
-  /** 
+  /**
    * If defined, examples will be provided to the LLM for few shot prompting.
    * These examples help the LLM understand the expected output format
    * and improve the accuracy of entity extraction.
@@ -380,11 +380,13 @@ export const catalogueTypes: Record<CatalogueType, CatalogueTypeDefinition> = {
     name: "credential",
     pluralName: "credentials",
     description: "credentials",
-    detailDescription: "It contains details for a credential directly in the page.",
+    detailDescription:
+      "It contains details for a credential directly in the page.",
     categoryDescription: "It has links to credential category pages.",
     linkDescription: "It has links to the credentials of an institution.",
     exampleName: "Bachelor of Science in Computer Science",
-    exampleDescription: "A comprehensive program that prepares students for careers in software development and computer systems.",
+    exampleDescription:
+      "A comprehensive program that prepares students for careers in software development and computer systems.",
     exampleIdentifier: "BSCS",
     identifierProperty: "credential_id",
     desiredOutput: `
@@ -398,11 +400,13 @@ export const catalogueTypes: Record<CatalogueType, CatalogueTypeDefinition> = {
     model: ProviderModel.Gpt4o,
     properties: {
       credential_name: {
-        description: 'name for the credential or certificate (example: "Computer Science"). Don not include the type of credential in the name.',
+        description:
+          'name for the credential or certificate (example: "Computer Science"). Don not include the type of credential in the name.',
         required: true,
       },
       credential_description: {
-        description: "the concise description of the credential, make sure to include all the details of the credential.",
+        description:
+          "the concise description of the credential, make sure to include all the details of the credential.",
         required: true,
       },
       credential_type: {
@@ -410,7 +414,8 @@ export const catalogueTypes: Record<CatalogueType, CatalogueTypeDefinition> = {
         required: true,
       },
       language: {
-        description: "The language in full (example: 'English', 'Spanish', 'German', etc.)",
+        description:
+          "The language in full (example: 'English', 'Spanish', 'German', etc.)",
         required: false,
       },
     },
@@ -426,7 +431,47 @@ export const catalogueTypes: Record<CatalogueType, CatalogueTypeDefinition> = {
               credential_description: { type: "string" },
               credential_type: {
                 type: "string",
-                enum: ["BachelorDegree", "AssociateDegree", "Certificate", "Diploma", "DoctoralDegree", "MasterDegree"]
+                enum: [
+                  "AcademicCertificate",
+                  "ApprenticeshipCertificate",
+                  "AssociateDegree",
+                  "BachelorDegree",
+                  "Badge",
+                  "BasicTechnicalCertificate",
+                  "Certificate",
+                  "CertificateOfCompletion",
+                  "CertificateOfParticipation",
+                  "Certification",
+                  "Degree",
+                  "DigitalBadge",
+                  "Diploma",
+                  "DoctoralDegree",
+                  "GeneralEducationDevelopment",
+                  "GeneralEducationLevel1Certificate",
+                  "GeneralEducationLevel2Certificate",
+                  "HigherEducationLevel1Certificate",
+                  "HigherEducationLevel2Certificate",
+                  "JourneymanCertificate",
+                  "License",
+                  "MasterCertificate",
+                  "MasterDegree",
+                  "MicroCredential",
+                  "OpenBadge",
+                  "PostBaccalaureateCertificate",
+                  "PostMasterCertificate",
+                  "PreApprenticeshipCertificate",
+                  "ProfessionalCertificate",
+                  "ProfessionalDoctorate",
+                  "ProficiencyCertificate",
+                  "QualityAssuranceCredential",
+                  "ResearchDoctorate",
+                  "SecondaryEducationCertificate",
+                  "SecondarySchoolDiploma",
+                  "TechnicalLevel1Certificate",
+                  "TechnicalLevel2Certificate",
+                  "TechnicalLevel3Certificate",
+                  "WorkBasedLearningCertificate"
+                ],
               },
               language: { type: "string" },
             },
