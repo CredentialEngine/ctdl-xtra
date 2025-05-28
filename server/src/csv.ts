@@ -191,7 +191,7 @@ function getCredentialRow(
   
   return {
     "External Identifier": randomUUID(),
-    "Name": structuredData.credential_name,
+    "Credential Name": structuredData.credential_name,
     "Description": structuredData.credential_description,
     "Language": structuredData?.language || "English",
     "Credential Type": structuredData.credential_type || "Unknown",
