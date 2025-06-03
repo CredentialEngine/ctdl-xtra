@@ -171,7 +171,7 @@ export async function simplifyHtml(html: string) {
       $elm.remove();
       continue;
     }
-    if (["footer", "form"].includes(elm.tagName)) {
+    if (["footer"].includes(elm.tagName)) {
       $elm.remove();
       continue;
     }
