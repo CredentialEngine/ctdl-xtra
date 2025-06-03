@@ -3,16 +3,16 @@ import { extractCredentials, EXTRACTION_TIMEOUT } from "../../index";
 
 describe("Butler County Community College", { timeout: EXTRACTION_TIMEOUT }, () => {
   test(
-    "Information Technology",
+    "Computer Technology",
     async () => {
-      const url = "https://www.bc3.edu/programs-classes/degrees-certificates/index.html";
+      const url = "https://www.bc3.edu/programs-classes/degrees-certificates/computer-technology/computer-programming-specialist.html";
       const credentials = await extractCredentials(url);
 
       expect(credentials).toEqual([
         {
-          credential_name: expect.like("Information Technology"),
+          credential_name: expect.like("Computer Information Systems - Programming Specialist"),
           credential_description: expect.like(
-            "Associate degree program that prepares students for careers in information technology, systems administration, and technical support"
+            "Become highly employable in the computer field after learning three programming languages: procedural, object-oriented and visual."
           ),
           credential_type: "AssociateDegree",
           language: "English",
@@ -22,18 +22,75 @@ describe("Butler County Community College", { timeout: EXTRACTION_TIMEOUT }, () 
   );
 
   test(
-    "Computer Programming Certificate",
+    "Physical Education - Teacher Education, A.S.",
     async () => {
-      const url = "https://www.bc3.edu/programs-classes/degrees-certificates/index.html";
+      const url = "https://www.bc3.edu/programs-classes/degrees-certificates/education/physical-education-teacher-education.html";
       const credentials = await extractCredentials(url);
 
       expect(credentials).toEqual([
         {
-          credential_name: expect.like("Computer Programming"),
+          credential_name: expect.like("Physical Education - Teacher Education, A.S."),
           credential_description: expect.like(
-            "Certificate program focusing on programming languages, software development, and application design"
+            "The Physical Education - Teacher Education, A.S. program is designed to prepare students for transfer to a four-year institution to complete a bachelor's degree and teacher certification in health and physical education."
           ),
-          credential_type: "Certificate",
+          credential_type: "AssociateDegree",
+          language: "English",
+        },
+      ]);
+    }
+  );
+
+  test(
+    "Networking and Cybersecurity",
+    async () => {
+      const url = "https://www.bc3.edu/programs-classes/degrees-certificates/computer-technology/networking-cybersecurity.html";
+      const credentials = await extractCredentials(url);
+
+      expect(credentials).toEqual([
+        {
+          credential_name: expect.like("Networking and Cybersecurity"),
+          credential_description: expect.like(
+            "Learn how computers share data, software and other resources via wireless (wi-fi) and client server networks and also the Internet."
+          ),
+          credential_type: "AssociateDegree",
+          language: "English",
+        },
+      ]);
+    }
+  );
+
+  test(
+    "Nursing, R.N. - Three-Year, A.A.S",
+    async () => {
+      const url = "https://www.bc3.edu/programs-classes/degrees-certificates/health-care/nursing-three-year.html";
+      const credentials = await extractCredentials(url);
+
+      expect(credentials).toEqual([
+        {
+          credential_name: expect.like("Nursing, R.N. - Three-Year, A.A.S"),
+          credential_description: expect.like(
+            "The Nursing, R.N. - Three-Year, A.A.S. program is designed to prepare students for transfer to a four-year institution to complete a bachelor's degree and teacher certification in health and physical education."
+          ),
+          credential_type: "AssociateDegree",
+          language: "English",
+        },
+      ]);
+    }
+  );
+ 
+  test(
+    "Nanofabrication Technology",
+    async () => {
+      const url = "https://www.bc3.edu/programs-classes/degrees-certificates/engineering-applied-technology/nanofabrication-technology.html";
+      const credentials = await extractCredentials(url);
+
+      expect(credentials).toEqual([
+        {
+          credential_name: expect.like("Nanofabrication Technology"),
+          credential_description: expect.like(
+            "By utilizing biology, chemistry and engineering principles, learn to create extremely small electronic and mechanical devices."
+          ),
+          credential_type: "AssociateDegree",
           language: "English",
         },
       ]);
