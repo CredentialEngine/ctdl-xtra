@@ -47,34 +47,29 @@ export default async function detectUrlRegexp(
     In other words, the page links to "categories" or "groups" of ${entity.pluralName},
     and we'll find more detailed ${entity.name} information if we navigate to those category pages.
 
-    EXAMPLE ON HOW TO IDENTIFY THE CATEGORIES:
-
+    <example_content>
     ...
     Possibly links to other things (that are not categories)... (we don't want these)
     ...
     # Main Content
 
-    *   [Accounting (ACCT)](/catalog/${entity.name}/acct/)
-    *   [Agricultural Economics (AGEC)](/catalog/${entity.name}/agec/)
-    *   [Agricultural Systems Management (ASM)](/catalog/${entity.name}/asm/)
-    *   [Agriculture (AGRI)](/catalog/${entity.name}/agri/)
-    *   [Allied Health (AH)](/catalog/${entity.name}/ah/)
-    *   [Animal and Range Science (ANSC)](/catalog/${entity.name}/ansc/)
-    *   [Anthropology (ANTH)](/catalog/${entity.name}/anth/)
-    *   [Architectural Drafting & Estimating Technology (ARCT)](/catalog/${entity.name}/arct/)
-    *   [Art (ART)](/catalog/${entity.name}/art/)
-    *   [Artificial Intelligence (AI)](/catalog/${entity.name}/ai/)
-    *   [Automation Management (AM)](/catalog/${entity.name}/am/)
-    *   [Automotive Collision Technology (ABOD)](/catalog/${entity.name}/abod/)
-    *   [Automotive Technology (AUTO)](/catalog/${entity.name}/auto/)
+    *   [Accounting (ACCT)](link to category page)
+    *   [Agricultural Economics (AGEC)](link to category page)
+    *   [Agricultural Systems Management (ASM)](link to category page)
+    *   [Agriculture (AGRI)](link to category page)
+    *   [Allied Health (AH)](link to category page)
+    *   [Animal and Range Science (ANSC)](link to category page)
+    *   [Anthropology (ANTH)](link to category page)
+    *   [Architectural Drafting & Estimating Technology (ARCT)](link to category page)
+    *   [Art (ART)](link to category page)
+    *   [Artificial Intelligence (AI)](link to category page)
+    *   [Automation Management (AM)](link to category page)
+    *   [Automotive Collision Technology (ABOD)](link to category page)
+    *   [Automotive Technology (AUTO)](link to category page)
     ...
     Possibly links to other things (that are not categories)... (we don't want these)
     ...
-
-    > page_type: category_links
-    > Reason: The content is mostly links to generic subjects like "Accounting" and "Art"
-      and not to individual ${entity.pluralName}.
-
+    </example_content>
     `,
 
     [PageType.DETAIL_LINKS]: `
@@ -84,7 +79,7 @@ export default async function detectUrlRegexp(
     Typically those links include the ${entity.name} identifier and/or description.
     Presumably, more information about the ${entity.name} will be in the destination link.
 
-    EXAMPLE ON HOW TO IDENTIFY THE ${entity.name.toUpperCase()} LINKS:
+    <example_content>
     ...
     Possibly links to other things (that are not ${entity.pluralName})... (we don't want these)
     ...
@@ -99,6 +94,7 @@ export default async function detectUrlRegexp(
     ...
     Possibly links to other things (that are not ${entity.pluralName})... (we don't want these)
     ...
+    </example_content>
 
     VERY IMPORTANT NOTE:
 
