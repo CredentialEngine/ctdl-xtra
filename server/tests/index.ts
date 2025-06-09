@@ -303,7 +303,9 @@ export async function extractCredentials(
     }
   }
   
-  const extractions = await extractAndVerifyEntityData(extractionOptions);
+  const extractions = await collectFromGenerator(
+    extractAndVerifyEntityData(extractionOptions)
+  );
   return extractions.map(e => e.entity);
 }
 

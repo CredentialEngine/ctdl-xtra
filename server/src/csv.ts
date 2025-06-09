@@ -257,6 +257,7 @@ const idColumns = {
   [CatalogueType.COURSES]: "course_id",
   [CatalogueType.LEARNING_PROGRAMS]: "learning_program_id",
   [CatalogueType.COMPETENCIES]: "competency_framework",
+  [CatalogueType.CREDENTIALS]: "credential_id",
 };
 
 export async function buildCsv(csvStream: Transform, extractionId: number) {
