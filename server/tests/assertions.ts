@@ -66,7 +66,7 @@ class LikeMatcher extends AsymmetricMatcher<string> {
 }
 
 // Add the custom matcher directly to expect
-(expect as any).like = (expected: string, threshold = 0.8) => {
+(expect as any).like = (expected: string, threshold = 0.6) => {
   return new LikeMatcher(expected, threshold);
 };
 

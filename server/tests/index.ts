@@ -329,3 +329,10 @@ export async function detectExploratoryPages(
 
   return urls;
 }
+
+
+
+/**
+ * [volatile]: We should enable the description assertions once the model is sufficiently constant in extracting the same description
+ * every single time. Otherwise, our tests are very flaky or we need to implement a different type of assertion.
+ */

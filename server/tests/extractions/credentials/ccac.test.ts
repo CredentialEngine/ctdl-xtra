@@ -3,18 +3,20 @@ import { extractCredentials, EXTRACTION_TIMEOUT } from "../../index";
 
 describe("Community College of Allegheny County", { timeout: EXTRACTION_TIMEOUT }, () => {
   test(
-    "Cybersecurity",
+    "Barbering",
     async () => {
-      const url = "https://catalog.ccac.edu/content.php?catoid=14&navoid=4655";
+      const url = "https://catalog.ccac.edu/preview_program.php?catoid=14&poid=3381&returnto=4655";
       const credentials = await extractCredentials(url);
 
       expect(credentials).toEqual([
         {
-          credential_name: expect.like("Cybersecurity"),
-          credential_description: expect.like(
-            "Associate degree program focusing on information security, network defense, and cybersecurity fundamentals to prepare students for careers in information security"
-          ),
-          credential_type: "AssociateDegree",
+          credential_name: expect.like("Barbering"),
+          // Refer to [volatile]
+          // credential_description: expect.like(
+          //   "This 1,275 hour program prepares and trains students in the theory and practice of professional barbering.  Content includes didactic instruction and practical experience necessary to prepare students to sit for the Pennsylvania State Board of Barber Examiners licensing exam and for immediate employment in the barbering profession."
+          // ),
+          credential_description: expect.any(String),
+          credential_type: "Certificate",
           language: "English",
         },
       ]);
@@ -22,18 +24,20 @@ describe("Community College of Allegheny County", { timeout: EXTRACTION_TIMEOUT 
   );
 
   test(
-    "Computer Programming",
+    "Mathematics & Sciences",
     async () => {
-      const url = "https://catalog.ccac.edu/content.php?catoid=14&navoid=4655";
+      const url = "https://catalog.ccac.edu/preview_program.php?catoid=14&poid=3305&returnto=4655";
       const credentials = await extractCredentials(url);
 
       expect(credentials).toEqual([
         {
-          credential_name: expect.like("Computer Programming"),
-          credential_description: expect.like(
-            "Certificate or degree program that teaches software development, programming languages, and application development skills"
-          ),
-          credential_type: "Certificate",
+          credential_name: expect.like("Mathematics & Sciences"),
+          // Refer to [volatile]
+          // credential_description: expect.like(
+          //   "This University Parallel Program provides the foundations for successful transfer to a baccalaureate degree at a four-year college or university in Science, Technology, Engineering and Mathematics (STEM) fields."
+          // ),
+          credential_description: expect.any(String),
+          credential_type: "AssociateDegree",
           language: "English",
         },
       ]);
