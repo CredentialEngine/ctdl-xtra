@@ -401,7 +401,7 @@ export const catalogueTypes: Record<CatalogueType, CatalogueTypeDefinition> = {
     properties: {
       credential_name: {
         description:
-          'name for the credential or certificate (example: "Computer Science"). Don not include the type of credential in the name.',
+          'name for the credential or certificate (example: "Computer Science"). Don not include the type of credential in the name. Do not confuse the category of the credential with the specific name.',
         required: true,
       },
       credential_description: {
