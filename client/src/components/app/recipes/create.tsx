@@ -40,6 +40,7 @@ import {
   PaginationConfiguration,
   UrlPatternType,
 } from "../../../../../common/types";
+import TestLinkRegex from "./TestLinkRegex";
 
 type FormRecipeConfiguration = {
   pageType: PageType;
@@ -648,6 +649,14 @@ export default function CreateRecipe() {
                   </CardContent>
                 </Card>
               </div>
+            )}
+
+
+            {manualConfig && configuration && (
+              <TestLinkRegex
+                defaultUrl={form.watch("url")}
+                defaultRegex={configuration.linkRegexp}
+              />
             )}
 
             <div className="flex items-center">

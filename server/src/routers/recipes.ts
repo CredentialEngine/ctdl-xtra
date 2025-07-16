@@ -235,4 +235,25 @@ export const recipesRouter = router({
       }
       return setDefault(opts.input.id);
     }),
+  testRecipeRegex: publicProcedure
+    .input(
+      z.object({
+        url: z.string().url(),
+        regex: z.string(),
+      })
+    )
+    .mutation(async (opts) => {
+      const regexp = opts.input.regex;
+    
+      const { content } = await fetchBrowserPage(opts.input.url);
+      const markdownContent = await simplifiedMarkdown(content);
+
+      const testRegex = new RegExp(regexp, "g");
+      const extractor = createUrlExtractor(testRegex);
+      const urls = await extractor(opts.input.url, markdownContent);
+      return {
+        regexp,
+        urls,
+      };
+    }),
 });

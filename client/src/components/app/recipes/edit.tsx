@@ -44,12 +44,18 @@ import {
 import { useEffect, useRef, useState } from "react";
 import { Link } from "wouter";
 import { displayRecipeDetails } from "./util";
+import TestLinkRegex from "./TestLinkRegex";
 
 const FormSchema = z.object({
   url: z
     .string()
     .url("Catalogue URL must be a valid URL (e.g. https://example.com)."),
 });
+
+function getFirstLevelRegex(recipe: { configuration?: { linkRegexp?: string } }): string | undefined {
+  if (!recipe.configuration) return undefined;
+  return recipe.configuration.linkRegexp;
+}
 
 export default function EditRecipe() {
   const [lockedDelete, setLockDelete] = useState(true);
@@ -211,6 +217,13 @@ export default function EditRecipe() {
                   </Card>
                 ) : null}
               </div>
+              {/* Add the Test Link Regex component here, after Crawling Configuration, if recipe.status == SUCCESS */}
+              {recipe.status == RecipeDetectionStatus.SUCCESS && (
+                <TestLinkRegex
+                  defaultUrl={recipe.url}
+                  defaultRegex={getFirstLevelRegex(recipe)}
+                />
+              )}
               {recipe.status == RecipeDetectionStatus.WAITING ? (
                 <div className="mt-4 grid gap-2 md:grid-cols-[1fr_250px] lg:grid-cols-2 lg:gap-4">
                   <Card>
@@ -313,7 +326,7 @@ export default function EditRecipe() {
                             <div className="items-top flex space-x-2">
                               <Checkbox
                                 id="terms1"
-                                onCheckedChange={(e) => setLockDelete(!!!e)}
+                                onCheckedChange={(e) => setLockDelete(!e)}
                               />
                               <div className="grid gap-1.5 leading-none">
                                 <label
