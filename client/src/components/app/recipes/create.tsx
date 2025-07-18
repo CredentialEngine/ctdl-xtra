@@ -398,6 +398,10 @@ export default function CreateRecipe() {
   const createRecipe = trpc.recipes.create.useMutation();
   const detectPagination = trpc.recipes.detectPagination.useMutation();
   const detectUrlRegexp = trpc.recipes.detectUrlRegexp.useMutation();
+  const testRecipeRegex = trpc.recipes.testRecipeRegex.useMutation();
+  const [testResult, setTestResult] = useState<{regexp: string; urls: string[]} | null>(null);
+  const [isTesting, setIsTesting] = useState(false);
+  const [testError, setTestError] = useState<string | null>(null);
   const form = useForm<z.infer<typeof FormSchema>>({
     resolver: zodResolver(FormSchema),
     defaultValues: {
@@ -646,17 +650,15 @@ export default function CreateRecipe() {
                         onDetectPagination={onDetectPagination}
                       />
                     )}
+
+                    <TestLinkRegex
+                      simplified
+                      defaultUrl={form.watch("url")}
+                      defaultRegex={configuration?.linkRegexp}
+                    />
                   </CardContent>
                 </Card>
               </div>
-            )}
-
-
-            {manualConfig && configuration && (
-              <TestLinkRegex
-                defaultUrl={form.watch("url")}
-                defaultRegex={configuration.linkRegexp}
-              />
             )}
 
             <div className="flex items-center">
