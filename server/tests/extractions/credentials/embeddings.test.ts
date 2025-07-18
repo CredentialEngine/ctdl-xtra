@@ -1,5 +1,8 @@
 import { expect, describe, it } from "vitest";
 
+// Cosine similarity of embeddings vectors example
+// More information: ../doc/embeddings-cosine-similarity.md
+
 describe("embeddings", () => {
   it("test cosine similarity between two texts", async () => {
     const textA = "By utilizing biology, chemistry and engineering principles, learn to create extremely small electronic and mechanical devices.";
