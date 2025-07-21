@@ -170,6 +170,9 @@ export default function CreateCatalogue() {
                       <SelectItem value={CatalogueType.COMPETENCIES}>
                         Competencies
                       </SelectItem>
+                      <SelectItem value={CatalogueType.CREDENTIALS}>
+                        Credentials
+                      </SelectItem>
                     </SelectContent>
                   </Select>
                   <FormDescription>Type of catalogue to create</FormDescription>

@@ -5,6 +5,7 @@ import {
   CatalogueType,
   CompetencyStructuredData,
   CourseStructuredData,
+  CredentialStructuredData,
   LearningProgramStructuredData,
 } from "../../common/types";
 import { findDataItems } from "./data/datasets";
@@ -181,6 +182,25 @@ function makeCompetencyRow(
   return result;
 }
 
+function getCredentialRow(
+  item: Awaited<ReturnType<typeof findDataItems>>["items"][number],
+  textVerificationAverage: number,
+  textVerificationDetails: string
+) {
+  const structuredData = item.structuredData as CredentialStructuredData;
+  
+  return {
+    "External Identifier": randomUUID(),
+    "Credential Name": structuredData.credential_name,
+    "Description": structuredData.credential_description,
+    "Language": structuredData?.language || "English",
+    "Credential Type": structuredData.credential_type || "Unknown",
+    "In Catalog": item.url,
+    "Text Verification Average": (textVerificationAverage * 100).toFixed(2),
+    "Text Verification Details": textVerificationDetails,
+  };
+}
+
 function getBulkUploadTemplateRow<T>(
   item: Awaited<ReturnType<typeof findDataItems>>["items"][number],
   catalogueType: CatalogueType,
@@ -222,6 +242,12 @@ function getBulkUploadTemplateRow<T>(
       textVerificationDetails,
       state
     );
+  } else if (catalogueType === CatalogueType.CREDENTIALS) {
+    return getCredentialRow(
+      item,
+      textVerificationAverage,
+      textVerificationDetails
+    );
   } else {
     throw new Error(`Unknown catalogue type: ${catalogueType}`);
   }
@@ -231,6 +257,7 @@ const idColumns = {
   [CatalogueType.COURSES]: "course_id",
   [CatalogueType.LEARNING_PROGRAMS]: "learning_program_id",
   [CatalogueType.COMPETENCIES]: "competency_framework",
+  [CatalogueType.CREDENTIALS]: "credential_id",
 };
 
 export async function buildCsv(csvStream: Transform, extractionId: number) {

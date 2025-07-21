@@ -50,6 +50,13 @@
       "when": 1744071342617,
       "tag": "0006_lucky_talkback",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1753123960718,
+      "tag": "0007_nappy_paladin",
+      "breakpoints": true
     }
   ]
 }

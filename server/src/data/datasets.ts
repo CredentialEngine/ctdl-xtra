@@ -13,13 +13,15 @@ import {
   CourseStructuredData,
   LearningProgramStructuredData,
   TextInclusion,
+  CredentialStructuredData,
 } from "../../../common/types";
 
 export async function createDataItem<
   T extends
     | CourseStructuredData
     | LearningProgramStructuredData
-    | CompetencyStructuredData,
+    | CompetencyStructuredData
+    | CredentialStructuredData,
 >(
   crawlPageId: number,
   datasetId: number,

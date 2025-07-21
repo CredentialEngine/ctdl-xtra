@@ -2,6 +2,7 @@ export enum CatalogueType {
   COURSES = "COURSES",
   LEARNING_PROGRAMS = "LEARNING_PROGRAMS",
   COMPETENCIES = "COMPETENCIES",
+  CREDENTIALS = "CREDENTIALS",
 }
 
 export enum PageType {
@@ -56,8 +57,9 @@ export enum Provider {
 
 export enum ProviderModel {
   Gpt4o = "gpt-4o",
-  O3Mini = "o3-mini",
   Gpt41 = "gpt-4.1",
+  O3Mini = "o3-mini",
+  O4Mini = "o4-mini",
 }
 
 export enum ExtractionStatus {
@@ -152,4 +154,15 @@ export interface CompletionStats {
   costs?: CostSummary;
   steps: StepCompletionStats[];
   generatedAt: string;
+}
+
+export interface ProxySettings {
+  url: string;
+}
+
+export interface CredentialStructuredData {
+  credential_name: string;
+  credential_description: string;
+  credential_type?: string;
+  language?: string;
 }

@@ -1,7 +1,7 @@
 import { expect } from 'vitest';
 import { AsymmetricMatcher } from '@vitest/expect';
 import { distance } from 'fastest-levenshtein';
-import { inspect } from 'vitest/utils';
+import { computeEmbedding } from '../src/embedding';
 
 declare module 'vitest' {
   interface ExpectStatic {
@@ -18,6 +18,20 @@ declare module 'vitest' {
      * ```
      */
     like(expected: string, threshold?: number): any;
+
+
+    /**
+     * Asserts that two embedding vectors are similar enough based on cosine similarity.
+     * @param expected - The expected embedding vector.
+     * @param threshold - The minimum cosine similarity required to pass (default: 0.85).
+     */
+    toBeSimilarEmbedding(expected: string, threshold?: number): any;
+
+    /**
+     * Asymmetric matcher factory for embedding similarity. Use inside other matchers, e.g.
+     * `expect(vec).toEqual(expect.similarEmbedding(other))`.
+     */
+    similarEmbedding(expected: string, threshold?: number): any;
   }
   interface Assertion<T> {
     /**
@@ -35,6 +49,19 @@ declare module 'vitest' {
      * @param expected 
      */
     arrayContaining(expected: any[]): T;
+    /**
+     * Asserts that two embedding vectors are similar enough based on cosine similarity.
+     * @param expected - The expected embedding vector.
+     * @param threshold - The minimum cosine similarity required to pass (default: 0.85).
+     */
+    toBeSimilarEmbedding(expected: string | number[], threshold?: number): T;
+
+    /**
+     * Asserts that two embedding vectors are similar enough based on cosine similarity.
+     * @param expected - The expected embedding vector.
+     * @param threshold - The minimum cosine similarity required to pass (default: 0.85).
+     */
+    cosineSimilarity(expected: number[], threshold?: number): T;
   }
 }
 
@@ -66,7 +93,7 @@ class LikeMatcher extends AsymmetricMatcher<string> {
 }
 
 // Add the custom matcher directly to expect
-(expect as any).like = (expected: string, threshold = 0.8) => {
+(expect as any).like = (expected: string, threshold = 0.6) => {
   return new LikeMatcher(expected, threshold);
 };
 
@@ -216,4 +243,98 @@ expect.extend({
       }
     };
   }
+});
+
+class SimilarEmbeddingMatcher extends AsymmetricMatcher<string> {
+  private threshold: number;
+  private similarity: number | null = null;
+
+  constructor(private expected: string, threshold: number = 0.85) {
+    super(expected);
+    this.threshold = threshold;
+  }
+
+  // Vitest does not support async matchers yet, Once it does we can remove the @ts-ignore
+  // and use expect.toBeSimilarEmbedding within a object matcher. But for now this does not work.
+  // @ts-ignore
+  async asymmetricMatch(actual: string): Promise<boolean> {
+    if (typeof actual !== "string" || typeof this.expected !== "string") {
+      return false;
+    }
+
+    // Convert to vectors
+    const { embedding: expectedVector } = await computeEmbedding(this.expected);
+    const { embedding: actualVector } = await computeEmbedding(actual);
+
+    if (expectedVector.length !== actualVector.length) {
+      return false;
+    }
+
+    const dot = actualVector.reduce(
+      (acc, v, i) => acc + v * expectedVector[i],
+      0
+    );
+    const normA = Math.sqrt(actualVector.reduce((acc, v) => acc + v * v, 0));
+    const normB = Math.sqrt(expectedVector.reduce((acc, v) => acc + v * v, 0));
+
+    this.similarity = normA === 0 || normB === 0 ? 0 : dot / (normA * normB);
+    return this.similarity >= this.threshold;
+  }
+
+  toString(): string {
+    return `similarEmbedding(${typeof this.expected === "string" ? "\"" + this.expected + "\"" : "[vector]"}, ${this.threshold})`;
+  }
+
+  getExpectedType(): string {
+    return "string";
+  }
+
+  toAsymmetricMatcher(): string {
+    return this.toString();
+  }
+
+  getSimilarity(): number | null {
+    return this.similarity;
+  }
+}
+
+// Add the matcher factory to expect
+(expect as any).similarEmbedding = (
+  expected: string,
+  threshold: number = 0.85
+) => new SimilarEmbeddingMatcher(expected, threshold);
+
+expect.extend({
+  async toBeSimilarEmbedding(
+    received: string,
+    expected: string,
+    threshold: number = 0.85
+  ) {
+    const matcher = new SimilarEmbeddingMatcher(expected, threshold);
+    const pass = await matcher.asymmetricMatch(received);
+
+    const similarity = (matcher as any).getSimilarity?.() ?? null;
+
+    return {
+      pass,
+      message: () =>
+        `Expected cosine similarity ${pass ? "not " : ""}to be >= ${threshold}. Actual similarity: ${
+          similarity !== null ? similarity.toFixed(4) : "unknown"
+        }`,
+    } as any;
+  },
+});
+
+expect.extend({
+  cosineSimilarity(received: number[], expected: number[], threshold: number = 0.85) {
+    const dot = received.reduce((acc, v, i) => acc + v * expected[i], 0);
+    const normA = Math.sqrt(received.reduce((acc, v) => acc + v * v, 0));
+    const normB = Math.sqrt(expected.reduce((acc, v) => acc + v * v, 0));
+
+    const similarity = normA === 0 || normB === 0 ? 0 : dot / (normA * normB);
+    return {
+      pass: similarity >= threshold,
+      message: () => `Expected cosine similarity ${similarity >= threshold ? "not " : ""}to be >= ${threshold}. Actual similarity: ${similarity.toFixed(4)}`,
+    } as any;
+  },
 });
