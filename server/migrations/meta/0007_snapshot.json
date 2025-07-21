@@ -1,5 +1,5 @@
 {
-  "id": "e43f8702-d0ed-49ee-938e-f9effcc4cb5e",
+  "id": "3da35b28-c419-4e15-a82d-187ec61c47d2",
   "prevId": "bea09600-46b0-4ed8-801f-b712745843dd",
   "version": "7",
   "dialect": "postgresql",
@@ -1064,7 +1064,9 @@
       "schema": "public",
       "values": [
         "gpt-4o",
-        "o3-mini"
+        "gpt-4.1",
+        "o3-mini",
+        "o4-mini"
       ]
     },
     "public.recipe_detection_status": {
