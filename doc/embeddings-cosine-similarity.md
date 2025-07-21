@@ -75,6 +75,8 @@ Examples ran with `text-embedding-3-small`
 - Con: Missing words from one of the terms does not impact the coefficient which could be undesirable if applications required that it the assertions ensure no information is missing
 - Tooling for using cosine similarity embeddings vectors has been added to the project with an example test at: [../server/tests/extractions/credentials/embeddings.test.ts](../server/tests/extractions/credentials/embeddings.test.ts)
 
+While it might not be a definitive answer for longer worded terms it can be one of the composite KPIs used to assert precision of the model. Combined with word saliency evaluation between the terms we could answer the question that the bodies of text are both close semantically and discuss the same key concepts.
+
 ### Cost estimation
 
 Total tokens used for the title examples: 193 total with an average of 8,7 tokens per entry.
