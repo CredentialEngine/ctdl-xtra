@@ -406,7 +406,7 @@ export const catalogueTypes: Record<CatalogueType, CatalogueTypeDefinition> = {
       },
       credential_description: {
         description:
-          "the concise description of the credential, make sure to include all the details of the credential.",
+          "the description of the credential. Can be a short description or a long description, make sure to include all the details of the credential such as the opportunities it provides or descriptions of roles in the industry.",
         required: true,
       },
       credential_type: {
