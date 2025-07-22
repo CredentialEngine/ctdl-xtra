@@ -1,4 +1,4 @@
-import { and, desc, eq, ilike, sql } from "drizzle-orm";
+import { and, desc, eq, ilike, or, sql } from "drizzle-orm";
 import { CatalogueType } from "../../../common/types";
 import db from "../data";
 import { catalogues, extractions, recipes } from "../data/schema";
@@ -22,7 +22,10 @@ export async function getCatalogueCount(
           ? eq(catalogues.catalogueType, options.catalogueType)
           : undefined,
         options.search
-          ? ilike(catalogues.name, `%${options.search}%`)
+          ? or(
+              ilike(catalogues.name, `%${options.search}%`),
+              ilike(catalogues.url, `%${options.search}%`)
+            )
           : undefined
       )
     );
@@ -82,7 +85,12 @@ export async function findCatalogues(options: FindCatalogueOptions) {
     },
     where: and(
       catalogueType ? eq(catalogues.catalogueType, catalogueType) : undefined,
-      search ? ilike(catalogues.name, `%${search}%`) : undefined
+      search
+        ? or(
+            ilike(catalogues.name, `%${search}%`),
+            ilike(catalogues.url, `%${search}%`)
+          )
+        : undefined
     ),
   });
 }
