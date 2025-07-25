@@ -50,7 +50,7 @@ describe("Pennsylvania Highlands Community College", { timeout: EXTRACTION_TIMEO
         {
           credential_name: expect.like("Accounting"),
           credential_description: expect.like(
-            "Associate in Applied Science degree program that prepares students for careers in accounting, bookkeeping, and financial management"
+            "Accountants analyze financial information and consult with upper management about important business decisions. Those completing this program will have demonstrated an understanding and application of accounting theory and practice and will have achieved a level of proficiency in related areas, including economics, management, marketing, IT, and business sub-disciplines.\n\nThe Associate of Applied Science (A.A.S.) degree in Accounting is designed to provide the foundation necessary for optimal transfer to bachelor degree programs in Accounting or related fields. It also simultaneously prepares students for immediate employment in a wide range of businesses requiring advanced skills and knowledge in accounting and business. This program will prepare you for whichever path you decide to take.\n\nGraduates will have the opportunity to earn the Certified Bookkeeper designation offered through the American Institute of Professional Bookkeepers (AIPB). This will increase the ability of graduates to showcase their skills and obtain employment."
           ),
           credential_type: "AssociateDegree",
           language: "English",
