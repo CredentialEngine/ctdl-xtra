@@ -34,7 +34,7 @@ import {
   storeContent,
   storeScreenshot,
 } from "../data/schema";
-import { fetchBrowserPage, simplifiedMarkdown } from "../extraction/browser";
+import { BrowserFetchError, fetchBrowserPage, simplifiedMarkdown } from "../extraction/browser";
 import { detectPageCount } from "../extraction/llm/detectPageCount";
 import { createUrlExtractor } from "../extraction/llm/detectUrlRegexp";
 import { findRule, isUrlAllowedForRule } from "../extraction/robotsParser";
@@ -236,16 +236,7 @@ const performJob = async (
     await updatePage(crawlPage.id, { status: PageStatus.IN_PROGRESS });
 
     const page = await fetchBrowserPage(crawlPage.url);
-    if (page.status == 404) {
-      await updatePage(crawlPage.id, {
-        status: PageStatus.ERROR,
-        fetchFailureReason: {
-          responseStatus: page.status,
-          reason: "404 Not found",
-        },
-      });
-      return;
-    }
+    
     if (!page.content) {
       throw new Error(`Could not fetch URL ${crawlPage.url}`);
     }
@@ -272,16 +263,27 @@ const performJob = async (
       status: PageStatus.SUCCESS,
     });
   } catch (err) {
-    const failureReason: FetchFailureReason = {
-      reason:
-        err instanceof Error
-          ? err.message || `Generic failure: ${err.constructor.name}`
-          : `Unknown error: ${String(err)}`,
-    };
+    let failureReason: FetchFailureReason | undefined;
+
+    if (err instanceof BrowserFetchError) {
+      failureReason = {
+        responseStatus: err.status,
+        reason: err.uiMessage(),
+      };
+    } else {
+      failureReason = {
+        reason:
+          err instanceof Error
+            ? err.message || `Generic failure: ${err.constructor.name}`
+            : `Unknown error: ${String(err)}`,
+      };
+    }
+
     await updatePage(crawlPage.id, {
       status: PageStatus.ERROR,
       fetchFailureReason: failureReason,
     });
+
     throw err;
   }
 };

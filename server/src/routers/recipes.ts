@@ -9,7 +9,7 @@ import {
   setDefault,
   updateRecipe,
 } from "../data/recipes";
-import { fetchBrowserPage, simplifiedMarkdown } from "../extraction/browser";
+import { BrowserFetchError, fetchBrowserPage, simplifiedMarkdown } from "../extraction/browser";
 import { detectPagination } from "../extraction/llm/detectPagination";
 import detectUrlRegexp, {
   createUrlExtractor,
@@ -244,16 +244,25 @@ export const recipesRouter = router({
     )
     .mutation(async (opts) => {
       const regexp = opts.input.regex;
-    
-      const { content } = await fetchBrowserPage(opts.input.url);
-      const markdownContent = await simplifiedMarkdown(content);
 
-      const testRegex = new RegExp(regexp, "g");
-      const extractor = createUrlExtractor(testRegex);
-      const urls = await extractor(opts.input.url, markdownContent);
-      return {
-        regexp,
-        urls,
-      };
+      try {
+        const { content } = await fetchBrowserPage(opts.input.url);
+        const markdownContent = await simplifiedMarkdown(content);
+
+        const testRegex = new RegExp(regexp, "g");
+        const extractor = createUrlExtractor(testRegex);
+        const urls = await extractor(opts.input.url, markdownContent);
+        return {
+          regexp,
+          urls,
+        };
+      } catch (error) {
+        if (error instanceof BrowserFetchError) {
+          throw new AppError(
+            error.uiMessage(),
+            AppErrors.BAD_REQUEST
+          );
+        } else { throw error; }
+      }
     }),
 });
