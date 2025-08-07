@@ -70,7 +70,7 @@ export async function getCluster(proxyUrl?: string) {
   let proxyPassword = null;
   if (proxyUrl) {
     const url = new URL(proxyUrl);
-    proxyBaseUrl = `${url.protocol}//${url.host}`;
+    proxyBaseUrl = `${url.protocol}=${url.host}`;
     proxyUsername = url.username;
     proxyPassword = url.password;
   }
