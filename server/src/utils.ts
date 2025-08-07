@@ -74,3 +74,16 @@ export function buildFrontendUrl(suffix: string) {
   }
   return `${baseUrl}${suffix}`;
 }
+
+const HTTP_MESSAGES = {
+  400: "Bad Request",
+  401: "Unauthorized",
+  403: "Forbidden",
+  404: "Not Found",
+  407: "Proxy related error",
+  500: "Webpage server error",
+};
+
+export function httpCodeToMessage(code: keyof typeof HTTP_MESSAGES) {
+  return HTTP_MESSAGES[code] || "Unknown";
+}

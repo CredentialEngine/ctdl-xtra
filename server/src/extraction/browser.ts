@@ -8,7 +8,7 @@ import { URL } from "url";
 import { findSetting } from "../data/settings";
 import getLogger from "../logging";
 import { SimplifiedMarkdown } from "../types";
-import { resolveAbsoluteUrl } from "../utils";
+import { httpCodeToMessage, resolveAbsoluteUrl } from "../utils";
 import { detectCatalogueType } from "./llm/detectCatalogueType";
 
 export interface BrowserTaskInput {
@@ -20,6 +20,31 @@ export interface BrowserTaskResult {
   content: string;
   screenshot: string;
   status: number;
+}
+
+export class BrowserFetchError extends Error {
+  readonly status: number;
+  readonly url: string;
+
+  constructor(browserResult: BrowserTaskResult) {
+    const statusMessage = httpCodeToMessage(browserResult?.status as any);
+    super(statusMessage);
+
+    this.status = browserResult?.status;
+    this.url = browserResult?.url;
+  }
+
+  statusMessage() {
+    return httpCodeToMessage(this.status as any);
+  }
+
+  toString() {
+    return `BrowserFetchError: ${this.status}: ${this.statusMessage()} for ${this.url}\nStack: ${this.stack}`;
+  }
+
+  uiMessage() {
+    return `Failed to fetch page - issue: ${this.statusMessage()} (HTTP ${this.status})`;
+  }
 }
 
 const puppeteer = addExtra(rebrowserPuppeteer as unknown as VanillaPuppeteer);
@@ -45,7 +70,7 @@ export async function getCluster(proxyUrl?: string) {
   let proxyPassword = null;
   if (proxyUrl) {
     const url = new URL(proxyUrl);
-    proxyBaseUrl = `${url.protocol}//${url.host}`;
+    proxyBaseUrl = `${url.protocol}=${url.host}`;
     proxyUsername = url.username;
     proxyPassword = url.password;
   }
@@ -129,7 +154,11 @@ export async function findProxy(): Promise<string | undefined> {
 export async function fetchBrowserPage(url: string, skipProxy?: boolean) {
   const proxyUrl = skipProxy ? undefined : await findProxy();
   const cluster = await getCluster(proxyUrl);
-  return cluster.execute({ url });
+  const result = await cluster.execute({ url });
+  if (result?.status > 399) {
+    throw new BrowserFetchError(result);
+  }
+  return result;
 }
 
 export async function fetchPreview(url: string) {
