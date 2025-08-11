@@ -140,24 +140,33 @@ export const extractionsRouter = router({
       if (!crawlPage) {
         throw new AppError("Step item not found", AppErrors.NOT_FOUND);
       }
-      return {
-        crawlPage,
-        content: await readContent(
-          crawlPage.extractionId,
-          crawlPage.crawlStepId,
-          crawlPage.id
-        ),
-        markdownContent: await readMarkdownContent(
-          crawlPage.extractionId,
-          crawlPage.crawlStepId,
-          crawlPage.id
-        ),
-        screenshot: await readScreenshot(
-          crawlPage.extractionId,
-          crawlPage.crawlStepId,
-          crawlPage.id
-        ),
-      };
+      try {
+        return {
+          crawlPage,
+          content: await readContent(
+            crawlPage.extractionId,
+            crawlPage.crawlStepId,
+            crawlPage.id
+          ),
+          markdownContent: await readMarkdownContent(
+            crawlPage.extractionId,
+            crawlPage.crawlStepId,
+            crawlPage.id
+          ),
+          screenshot: await readScreenshot(
+            crawlPage.extractionId,
+            crawlPage.crawlStepId,
+            crawlPage.id
+          ),
+        };
+      } catch (error) {
+        return {
+          crawlPage,
+          content: null,
+          markdownContent: null,
+          screenshot: null,
+        };
+      }
     }),
   list: publicProcedure
     .input(

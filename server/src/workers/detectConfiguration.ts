@@ -8,6 +8,7 @@ import { findRecipeById, updateRecipe } from "../data/recipes";
 import { sendEmailToAll } from "../email";
 import DetectConfigurationFail from "../emails/detectConfigurationFail";
 import DetectConfigurationSuccess from "../emails/detectConfigurationSuccess";
+import { BrowserFetchError } from "../extraction/browser";
 import recursivelyDetectConfiguration from "../extraction/recursivelyDetectConfiguration";
 
 export default createProcessor<
@@ -40,8 +41,16 @@ export default createProcessor<
       `Recipe configuration detection #${recipe.id} is complete`
     );
   } catch (err: unknown) {
-    let detectionFailureReason =
-      err instanceof Error ? err.message : "Unknown error";
+    let detectionFailureReason;
+
+    if (err instanceof BrowserFetchError) {
+      detectionFailureReason = err.uiMessage();
+    } else {
+      detectionFailureReason =
+        err instanceof Error ? err.message : "Unknown error";
+    }
+    
+
     await updateRecipe(recipe.id, {
       detectionFailureReason,
       status: RecipeDetectionStatus.ERROR,
