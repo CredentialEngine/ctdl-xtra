@@ -11,6 +11,7 @@ import {
   text,
   timestamp,
   unique,
+  uuid as pgUuid,
 } from "drizzle-orm/pg-core";
 import { promises as fs } from "fs";
 import { createCipheriv, createDecipheriv, randomBytes } from "node:crypto";
@@ -464,6 +465,7 @@ const dataItems = pgTable(
     crawlPageId: integer("crawl_page_id").references(() => crawlPages.id, {
       onDelete: "cascade",
     }),
+    uuid: pgUuid("uuid").unique(),
     structuredData: jsonb("structured_data")
       .$type<
         | CourseStructuredData

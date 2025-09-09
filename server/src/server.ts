@@ -140,7 +140,12 @@ server.register(async (instance) => {
         .replace(/_+/g, "_")
         .replace(/^_|_$/g, "")
         .substring(0, 50);
-      const filename = `AICourseCrawl-BulkUploadTemplate-${extraction.id}_${cataloguePiece}.csv`;
+      const classType = extraction.recipe.catalogue.catalogueType
+        .replace(/[^a-zA-Z0-9]/g, "_")
+        .replace(/_+/g, "_")
+        .replace(/^_|_$/g, "")
+        .substring(0, 50);
+      const filename = `AICourseCrawl-${extraction.id}-${cataloguePiece}-${classType}-${extraction.createdAt.toISOString().split("T")[0]}.csv`;
 
       return reply
         .headers({

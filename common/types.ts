@@ -97,6 +97,7 @@ export interface FetchFailureReason {
 }
 
 export interface CourseStructuredData {
+  uuid: string;
   course_id: string;
   course_name: string;
   course_description: string;
@@ -108,12 +109,14 @@ export interface CourseStructuredData {
 }
 
 export interface LearningProgramStructuredData {
+  uuid: string;
   learning_program_id: string;
   learning_program_name: string;
   learning_program_description: string;
 }
 
 export interface CompetencyStructuredData {
+  uuid: string;
   text: string;
   competency_framework: string;
   language?: string;

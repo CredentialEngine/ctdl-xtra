@@ -57,6 +57,13 @@
       "when": 1753123960718,
       "tag": "0007_nappy_paladin",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1757427414547,
+      "tag": "0008_milky_loners",
+      "breakpoints": true
     }
   ]
 }

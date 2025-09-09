@@ -1,10 +1,11 @@
-import { and, desc, eq, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import db from ".";
 import {
   crawlPages,
   crawlSteps,
   dataItems,
   datasets,
+  catalogues,
   extractions,
 } from "./schema";
 
@@ -15,6 +16,7 @@ import {
   TextInclusion,
   CredentialStructuredData,
 } from "../../../common/types";
+import { randomUUID } from "node:crypto";
 
 export async function createDataItem<
   T extends
@@ -31,6 +33,7 @@ export async function createDataItem<
   const result = await db
     .insert(dataItems)
     .values({
+      uuid: randomUUID(),
       crawlPageId,
       datasetId,
       structuredData,
@@ -137,6 +140,7 @@ export async function findDataItems(
   const items = await db
     .select({
       id: dataItems.id,
+      uuid: dataItems.uuid,
       structuredData: dataItems.structuredData,
       textInclusion: dataItems.textInclusion,
       url: crawlPages.url,
@@ -155,4 +159,35 @@ export async function findDataItems(
 
   const totalItems = await getItemsCount(extractionId);
   return { totalItems, items };
+}
+
+export async function findDataItemsWithSameUrlAcrossExtractions(
+  extractionIds: number[],
+  url: string
+) {
+  if (!extractionIds || extractionIds.length === 0) return [];
+
+  const items = await db
+    .select({
+      id: dataItems.id,
+      uuid: dataItems.uuid,
+      structuredData: dataItems.structuredData,
+      textInclusion: dataItems.textInclusion,
+      url: crawlPages.url,
+      extractionId: datasets.extractionId,
+      catalogueType: catalogues.catalogueType,
+    })
+    .from(dataItems)
+    .innerJoin(crawlPages, eq(crawlPages.id, dataItems.crawlPageId))
+    .innerJoin(datasets, eq(datasets.id, dataItems.datasetId))
+    .innerJoin(catalogues, eq(catalogues.id, datasets.catalogueId))
+    .where(
+      and(
+        inArray(datasets.extractionId, extractionIds),
+        eq(crawlPages.url, url)
+      )
+    )
+    .orderBy(crawlPages.url, datasets.extractionId);
+
+  return items;
 }

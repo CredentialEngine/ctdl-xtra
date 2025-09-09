@@ -1,14 +1,16 @@
-import { and, eq, isNotNull } from "drizzle-orm";
+import { and, desc, eq, ilike, isNotNull } from "drizzle-orm";
 import { sql } from "drizzle-orm/sql/sql";
 import { SQLiteUpdateSetSource } from "drizzle-orm/sqlite-core";
 import db from "../data";
 import {
+  catalogues,
   crawlPages,
   crawlSteps,
   dataItems,
   extractionLogs,
   extractions,
   modelApiCalls,
+  recipes,
 } from "../data/schema";
 
 import {
@@ -104,6 +106,32 @@ export async function findExtractionById(id: number) {
       },
     },
   });
+}
+
+export type LatestExtractionForHostname = Record<'id' | 'created_at' | 'catalogue_type', string | number>;
+
+export async function findAllLatestExtractionsForHostname(hostname: string) {
+  const pattern = `%${hostname}%`;
+  const result = await db.execute(
+    sql`
+      SELECT id, created_at, catalogue_type
+      FROM (
+        SELECT e.id,
+               c.catalogue_type,
+               e.created_at,
+               ROW_NUMBER() OVER (
+                 PARTITION BY c.catalogue_type
+                 ORDER BY e.created_at DESC, e.id DESC
+               ) AS rn
+        FROM extractions e
+        JOIN recipes r ON e.recipe_id = r.id
+        JOIN catalogues c ON r.catalogue_id = c.id
+        WHERE r.url ILIKE ${pattern}
+      ) t
+      WHERE rn = 1;
+    `
+  );
+  return result.rows as LatestExtractionForHostname[];
 }
 
 export async function findExtractionForDetailPage(id: number) {
