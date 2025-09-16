@@ -115,7 +115,7 @@ export default async function detectChunkSplitRegexp(
         content: completionContent,
       },
     ],
-    model: ProviderModel.Gpt41,
+    model: ProviderModel.Gpt5,
     toolName: "regexp",
     parameters: {
       regexp: {

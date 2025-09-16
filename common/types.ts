@@ -60,6 +60,7 @@ export enum ProviderModel {
   Gpt41 = "gpt-4.1",
   O3Mini = "o3-mini",
   O4Mini = "o4-mini",
+  Gpt5 = "gpt-5",
 }
 
 export enum ExtractionStatus {
@@ -138,6 +139,7 @@ export interface StepCompletionStats {
 
 export interface CostCallSite {
   callSite: string;
+  model: ProviderModel;
   totalInputTokens: number;
   totalOutputTokens: number;
   estimatedCost: number;

@@ -36,7 +36,7 @@ import {
   trpc,
 } from "@/utils";
 import { CookingPot, LibraryBig, List } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Bar, BarChart, XAxis, YAxis } from "recharts";
 import { Link, useLocation, useParams } from "wouter";
 import { displayRecipeDetails } from "../recipes/util";
@@ -81,6 +81,19 @@ export default function ExtractionDetail() {
   const cancelExtraction = trpc.extractions.cancel.useMutation();
   const destroyExtraction = trpc.extractions.destroy.useMutation();
   const retryFailed = trpc.extractions.retryFailed.useMutation();
+
+  useEffect(() => {
+    const observableStates = [
+      ExtractionStatus.IN_PROGRESS,
+      ExtractionStatus.WAITING
+    ];
+    if (observableStates.includes(query.data?.status as ExtractionStatus)) {
+      const interval = setInterval(() => {
+        query.refetch();
+      }, 10000);
+      return () => clearInterval(interval);
+    }
+  }, [query.data?.status]);
 
   if (!query.data) {
     return null;
@@ -229,6 +242,24 @@ export default function ExtractionDetail() {
                   </div>
                 )}
               </div>
+              {extraction.completionStats?.costs?.callSites?.length ? (
+                <div className="rounded-md border p-4 mt-2">
+                  <div className="text-sm text-muted-foreground mb-1">
+                    Models used
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {[...
+                      new Set(
+                        extraction.completionStats.costs.callSites.map(
+                          (c) => c.model
+                        )
+                      ),
+                    ].map((m) => (
+                      <Badge key={`model-${m}`}>{m}</Badge>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
               <div className="rounded-md border p-4 mt-2">
                 <Link
                   to={`~/catalogues/${extraction.recipe.catalogue.id}/recipes/${extraction.recipe.id}`}
@@ -446,6 +477,7 @@ export default function ExtractionDetail() {
                             <TableHeader>
                               <TableRow className="text-xs">
                                 <TableHead>Call Site</TableHead>
+                                <TableHead>Model</TableHead>
                                 <TableHead>Input Tokens</TableHead>
                                 <TableHead>Output Tokens</TableHead>
                                 <TableHead className="text-right">
@@ -456,8 +488,9 @@ export default function ExtractionDetail() {
                             <TableBody className="text-xs">
                               {extraction.completionStats.costs.callSites.map(
                                 (callSite) => (
-                                  <TableRow key={callSite.callSite}>
+                                  <TableRow key={`${callSite.callSite}-${callSite.model}`}>
                                     <TableCell>{callSite.callSite}</TableCell>
+                                    <TableCell>{callSite.model}</TableCell>
                                     <TableCell>
                                       {callSite.totalInputTokens}
                                     </TableCell>

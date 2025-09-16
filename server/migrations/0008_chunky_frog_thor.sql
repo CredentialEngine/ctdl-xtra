@@ -1,0 +1,1 @@
+ALTER TYPE "provider_model" ADD VALUE 'gpt-5';

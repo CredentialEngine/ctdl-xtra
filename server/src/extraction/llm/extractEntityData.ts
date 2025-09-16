@@ -260,7 +260,13 @@ ${basePrompt}
     const results = await structuredCompletion({
       messages,
       schema: entityDef.schema,
-      model: entityDef.model || ProviderModel.Gpt4o,
+      model: entityDef.model || ProviderModel.Gpt5,
+      logApiCall: options?.logApiCalls
+        ? {
+            extractionId: options.logApiCalls.extractionId,
+            callSite: "extractEntityData",
+          }
+        : undefined,
     });
 
     if (!results.result) {
@@ -276,7 +282,7 @@ ${basePrompt}
     const completionParameters = {
       messages,
       toolName: "result",
-      model: entityDef.model || ProviderModel.Gpt4o,
+      model: entityDef.model || ProviderModel.Gpt5,
       parameters: {
         items: {
           type: "array",

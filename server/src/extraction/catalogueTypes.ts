@@ -303,7 +303,7 @@ export const catalogueTypes: Record<CatalogueType, CatalogueTypeDefinition> = {
     exampleDescription:
       "The ability to analyze information objectively and make reasoned judgments.",
     identifierProperty: "competency_id",
-    model: ProviderModel.Gpt4o,
+    model: ProviderModel.Gpt5,
     extractionParameters: {
       temperature: 1,
       top_p: 0.5,
@@ -397,7 +397,7 @@ export const catalogueTypes: Record<CatalogueType, CatalogueTypeDefinition> = {
       Do not confuse credentials with courses or skills or learning outcomes. Do not list Certifications, those are not credentials. Return only the credentials that are offered by the institution.
       Ignore stackable certificates.
     `,
-    model: ProviderModel.Gpt4o,
+    model: ProviderModel.Gpt5,
     properties: {
       credential_name: {
         description:

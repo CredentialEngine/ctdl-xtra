@@ -59,7 +59,7 @@ ${MD_END}
 
   const result = await structuredCompletion({
     messages,
-    model: entityDef.model || ProviderModel.Gpt4o,
+    model: entityDef.model || ProviderModel.Gpt5,
     schema: {
       type: "object",
       additionalProperties: false,

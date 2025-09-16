@@ -14,6 +14,10 @@ import { exponentialRetry } from "./utils";
 const logger = getLogger("openai");
 
 export const ModelPrices = {
+  [ProviderModel.Gpt5]: {
+    per1MInput: 1.25,
+    per1MOutput: 10.0,
+  },
   [ProviderModel.Gpt4o]: {
     per1MInput: 2.5,
     per1MOutput: 10.0,
@@ -88,11 +92,11 @@ export async function simpleToolCompletion<
   return exponentialRetry(async () => {
     const openai = await getOpenAi();
     let chatCompletion: ChatCompletion;
+    const selectedModel = options.model || ProviderModel.Gpt5;
     const completionOptions: ChatCompletionCreateParams = {
       messages: options.messages,
-      model: options.model || ProviderModel.Gpt4o,
+      model: selectedModel,
       temperature: options?.temperature ?? 1,
-      top_p: options?.top_p ?? 1,
       tools: [
         {
           type: "function",
@@ -113,6 +117,10 @@ export async function simpleToolCompletion<
         },
       },
     };
+
+    if (Number.isFinite(options?.top_p) && selectedModel !== ProviderModel.Gpt5) {
+      completionOptions.top_p = options?.top_p;
+    }
     try {
       if (options.model === ProviderModel.O3Mini) {
         // @ts-ignore
@@ -160,7 +168,7 @@ export async function simpleToolCompletion<
       await createModelApiCallLog(
         options.logApiCall.extractionId,
         Provider.OpenAI,
-        ProviderModel.Gpt4o,
+        (completionOptions.model as ProviderModel) || ProviderModel.Gpt5,
         options.logApiCall.callSite,
         inputTokenCount,
         outputTokenCount
@@ -209,11 +217,11 @@ export async function structuredCompletion<
     const openai = await getOpenAi();
     let chatCompletion: ChatCompletion;
 
+    const selectedModel = options.model || ProviderModel.Gpt5;
     const completionOptions: ChatCompletionCreateParams = {
       messages: options.messages,
-      model: options.model || ProviderModel.Gpt4o,
+      model: selectedModel,
       temperature: options?.temperature ?? 1,
-      top_p: options?.top_p ?? 1,
       frequency_penalty: 0,
       presence_penalty: 0,
       response_format: {
@@ -225,6 +233,10 @@ export async function structuredCompletion<
         },
       } as any,
     };
+
+    if (Number.isFinite(options?.top_p) && selectedModel !== ProviderModel.Gpt5) {
+      completionOptions.top_p = options?.top_p;
+    }
 
     try {
       if (options.model === ProviderModel.O3Mini) {
@@ -277,7 +289,7 @@ export async function structuredCompletion<
       await createModelApiCallLog(
         options.logApiCall.extractionId,
         Provider.OpenAI,
-        ProviderModel.Gpt4o,
+        (completionOptions.model as ProviderModel) || ProviderModel.Gpt5,
         options.logApiCall.callSite,
         inputTokenCount,
         outputTokenCount

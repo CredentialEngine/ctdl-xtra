@@ -56,10 +56,15 @@ ${MD_END}
     },
   ];
 
-  const result = await structuredCompletion({
+  const model = entityDef.model || ProviderModel.Gpt5;
+
+  type PresenceCompletion = { present: boolean; explanation: string };
+
+  const requestOptions: Parameters<
+    typeof structuredCompletion<PresenceCompletion>
+  >[0] = {
     messages,
-    model: entityDef.model || ProviderModel.Gpt4o,
-    top_p: 0.3,
+    model,
     schema: {
       type: "object",
       additionalProperties: false,
@@ -81,7 +86,13 @@ ${MD_END}
           callSite: "determinePresenceOfEntity",
         }
       : undefined,
-  });
+  };
+
+  if (model !== ProviderModel.Gpt5) {
+    requestOptions.top_p = 0.3;
+  }
+
+  const result = await structuredCompletion<PresenceCompletion>(requestOptions);
 
   if (!result || !result.result || typeof result.result.present !== 'boolean') {
     return { prompt, present: false };
