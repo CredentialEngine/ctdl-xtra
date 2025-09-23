@@ -454,6 +454,7 @@ export default function CreateRecipe() {
     } catch (err) {
       toast({
         description: (err as Error).message,
+        variant: "destructive",
       });
     }
   }
