@@ -9,7 +9,11 @@ import {
   setDefault,
   updateRecipe,
 } from "../data/recipes";
-import { BrowserFetchError, fetchBrowserPage, simplifiedMarkdown } from "../extraction/browser";
+import {
+  BrowserFetchError,
+  fetchBrowserPage,
+  simplifiedMarkdown,
+} from "../extraction/browser";
 import { detectPagination } from "../extraction/llm/detectPagination";
 import detectUrlRegexp, {
   createUrlExtractor,
@@ -64,48 +68,59 @@ export const recipesRouter = router({
         id: number;
         context?: { pageType: PageType; message?: string };
       }> => {
-        const robotsTxt = await fetchAndParseRobotsTxt(opts.input.url);
-        logger.info(`robotsTxt: ${JSON.stringify(robotsTxt)}`);
-        if (
-          robotsTxt &&
-          !isUrlAllowed(robotsTxt, opts.input.url) &&
-          !opts.input.acknowledgedSkipRobotsTxt
-        ) {
-          throw new AppError(
-            "This URL cannot be crawled according to robots.txt rules. Please check the 'Bypass robots.txt' checkbox to confirm you have permission to crawl this site.",
-            AppErrors.BAD_REQUEST
-          );
-        }
-
-        if (opts.input.configuration) {
-          return createRecipe(
-            opts.input.catalogueId,
-            opts.input.url,
-            opts.input.configuration,
-            robotsTxt || undefined,
-            opts.input.acknowledgedSkipRobotsTxt
-          );
-        } else {
-          const detection = await submitRecipeDetection(
-            opts.input.url,
-            opts.input.catalogueId
-          );
-
-          // If detection was successful, update the recipe with robots.txt info
-          if (detection.id) {
-            await updateRecipe(detection.id, {
-              robotsTxt: robotsTxt || undefined,
-              acknowledgedSkipRobotsTxt: opts.input.acknowledgedSkipRobotsTxt,
-            });
+        try {
+          const robotsTxt = await fetchAndParseRobotsTxt(opts.input.url);
+          logger.info(`robotsTxt: ${JSON.stringify(robotsTxt)}`);
+          if (
+            robotsTxt &&
+            !isUrlAllowed(robotsTxt, opts.input.url) &&
+            !opts.input.acknowledgedSkipRobotsTxt
+          ) {
+            throw new AppError(
+              "This URL cannot be crawled according to robots.txt rules. Please check the 'Bypass robots.txt' checkbox to confirm you have permission to crawl this site.",
+              AppErrors.BAD_REQUEST
+            );
           }
 
-          return {
-            id: detection.id,
-            context: {
-              pageType: detection.pageType,
-              message: detection.message ?? undefined,
-            },
-          };
+          if (opts.input.configuration) {
+            return createRecipe(
+              opts.input.catalogueId,
+              opts.input.url,
+              opts.input.configuration,
+              robotsTxt || undefined,
+              opts.input.acknowledgedSkipRobotsTxt
+            );
+          } else {
+            const detection = await submitRecipeDetection(
+              opts.input.url,
+              opts.input.catalogueId
+            );
+
+            // If detection was successful, update the recipe with robots.txt info
+            if (detection.id) {
+              await updateRecipe(detection.id, {
+                robotsTxt: robotsTxt || undefined,
+                acknowledgedSkipRobotsTxt: opts.input.acknowledgedSkipRobotsTxt,
+              });
+            }
+
+            return {
+              id: detection.id,
+              context: {
+                pageType: detection.pageType,
+                message: detection.message ?? undefined,
+              },
+            };
+          }
+        } catch (error) {
+          if (error instanceof BrowserFetchError) {
+            throw new AppError(
+              error.uiMessage() + " URL: " + error.url,
+              AppErrors.BAD_REQUEST
+            );
+          } else {
+            throw error;
+          }
         }
       }
     ),
@@ -258,11 +273,10 @@ export const recipesRouter = router({
         };
       } catch (error) {
         if (error instanceof BrowserFetchError) {
-          throw new AppError(
-            error.uiMessage(),
-            AppErrors.BAD_REQUEST
-          );
-        } else { throw error; }
+          throw new AppError(error.uiMessage(), AppErrors.BAD_REQUEST);
+        } else {
+          throw error;
+        }
       }
     }),
 });
