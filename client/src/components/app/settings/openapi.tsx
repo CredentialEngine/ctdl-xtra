@@ -41,7 +41,7 @@ export function OpenAIApiKeyForm() {
 
   return (
     <form onSubmit={handleSubmit}>
-      <Card className="flex-1 h-full">
+      <Card className="flex-1 h-full w-[440px]">
         <CardHeader>
           <CardTitle>OpenAI API Key</CardTitle>
           <CardDescription>

@@ -67,7 +67,7 @@ export function ProxySettingsForm() {
 
   return (
     <form onSubmit={handleSubmit}>
-      <Card className="flex-1">
+      <Card className="flex-1 w-[440px]">
         <CardHeader>
           <CardTitle>Proxy Settings</CardTitle>
           <CardDescription>

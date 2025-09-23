@@ -13,6 +13,9 @@ export async function exponentialRetry<T>(
     try {
       return await fn();
     } catch (error) {
+      if ((error as any)?.noRetry) {
+        throw error;
+      }
       logger.warn(
         `Exponential retries fn failed with error ${error}. Details:`
       );

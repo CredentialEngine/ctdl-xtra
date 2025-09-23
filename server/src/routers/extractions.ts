@@ -227,6 +227,7 @@ export const extractionsRouter = router({
           url: crawlPage.url,
           content,
           screenshot,
+          logApiCalls: { extractionId: crawlPage.extractionId },
         },
         crawlPage.extraction.recipe.catalogue.catalogueType as CatalogueType
       );
