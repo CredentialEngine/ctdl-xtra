@@ -1,4 +1,4 @@
-import { and, eq, isNotNull } from "drizzle-orm";
+import { and, eq, gte, isNotNull, lte } from "drizzle-orm";
 import { sql } from "drizzle-orm/sql/sql";
 import { SQLiteUpdateSetSource } from "drizzle-orm/sqlite-core";
 import db from "../data";
@@ -59,10 +59,27 @@ export async function createExtractionLog(
   return result[0];
 }
 
-export async function getExtractionCount() {
-  const result = await db
-    .select({ count: sql<number>`count(*)` })
-    .from(extractions);
+export interface ExtractionFilterParams {
+  startDate?: Date;
+  endDate?: Date;
+}
+
+export async function getExtractionCount(filters?: ExtractionFilterParams) {
+  const baseQuery = db.select({ count: sql<number>`count(*)` }).from(extractions);
+  const condition = filters?.startDate && filters?.endDate
+    ? and(
+        gte(extractions.createdAt, filters.startDate),
+        lte(extractions.createdAt, filters.endDate)
+      )
+    : filters?.startDate
+      ? gte(extractions.createdAt, filters.startDate)
+      : filters?.endDate
+        ? lte(extractions.createdAt, filters.endDate)
+        : undefined;
+
+  const result = condition
+    ? await baseQuery.where(condition)
+    : await baseQuery;
   return result[0].count;
 }
 
@@ -74,7 +91,11 @@ export async function getPageCount(stepId: number) {
   return result[0].count;
 }
 
-export async function findExtractions(limit: number = 20, offset?: number) {
+export async function findExtractions(
+  limit: number = 20,
+  offset?: number,
+  filters?: ExtractionFilterParams
+) {
   offset = offset || 0;
   return db.query.extractions.findMany({
     limit,
@@ -86,6 +107,17 @@ export async function findExtractions(limit: number = 20, offset?: number) {
         },
       },
     },
+    where: filters?.startDate || filters?.endDate
+      ? (extractions) =>
+          filters?.startDate && filters?.endDate
+            ? and(
+                gte(extractions.createdAt, filters.startDate!),
+                lte(extractions.createdAt, filters.endDate!)
+              )
+            : filters?.startDate
+              ? gte(extractions.createdAt, filters.startDate!)
+              : lte(extractions.createdAt, filters.endDate!)
+      : undefined,
     orderBy: (extractions, { desc }) => desc(extractions.createdAt),
   });
 }

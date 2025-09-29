@@ -173,16 +173,34 @@ export const extractionsRouter = router({
       z
         .object({
           page: z.number().int().positive().default(1),
+          startDate: z.string().optional(),
+          endDate: z.string().optional(),
         })
         .default({})
     )
     .query(async (opts) => {
-      const totalItems = await getExtractionCount();
+      let startDate: Date | undefined = undefined;
+      let endDate: Date | undefined = undefined;
+      if (opts.input.startDate) {
+        startDate = new Date(opts.input.startDate);
+      }
+      if (opts.input.endDate) {
+        const d = new Date(opts.input.endDate);
+        // Inclusive end-of-day: set to 23:59:59.999
+        d.setHours(23, 59, 59, 999);
+        endDate = d;
+      }
+
+      const filters = {
+        startDate,
+        endDate,
+      };
+      const totalItems = await getExtractionCount(filters);
       const totalPages = Math.ceil(totalItems / 20);
       return {
         totalItems,
         totalPages,
-        results: await findExtractions(20, opts.input.page * 20 - 20),
+        results: await findExtractions(20, opts.input.page * 20 - 20, filters),
       };
     }),
   simulateDataExtraction: publicProcedure
