@@ -1,4 +1,5 @@
 import logo from "@/assets/logo.png";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -15,6 +16,8 @@ import {
   Pickaxe,
   Settings2,
   Users,
+  PanelLeftClose,
+  PanelLeftOpen,
 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import MenuLink from "../ui/menu-link";
@@ -24,11 +27,16 @@ import Routes from "./routes";
 
 export function Dashboard() {
   const [location] = useLocation();
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
   return (
     <TooltipProvider>
-      <div className="grid min-h-screen w-full md:grid-cols-[220px_1fr] lg:grid-cols-[280px_1fr]">
-        <div className="hidden border-r bg-muted/40 md:block">
+      <div className={`grid min-h-screen w-full ${
+        isSidebarCollapsed
+          ? "md:grid-cols-[0_1fr] lg:grid-cols-[0_1fr]"
+          : "md:grid-cols-[220px_1fr] lg:grid-cols-[280px_1fr]"
+      }`}>
+        <div className={`hidden md:block border-r bg-muted/40 overflow-hidden`}>
           <div className="flex h-full max-h-screen flex-col gap-2">
             <div className="flex items-center justify-center border-b px-4 h-16 lg:px-6 bg-white">
               <Link
@@ -66,6 +74,19 @@ export function Dashboard() {
         </div>
         <div className="flex flex-col">
           <header className="flex h-16 items-center gap-4 border-b bg-muted/40 px-4 lg:px-6">
+            <Button
+              variant="outline"
+              size="icon"
+              className="hidden md:inline-flex"
+              onClick={() => setIsSidebarCollapsed((v) => !v)}
+            >
+              {isSidebarCollapsed ? (
+                <PanelLeftOpen className="h-5 w-5" />
+              ) : (
+                <PanelLeftClose className="h-5 w-5" />
+              )}
+              <span className="sr-only">Toggle sidebar</span>
+            </Button>
             <Sheet>
               <SheetTrigger asChild>
                 <Button
