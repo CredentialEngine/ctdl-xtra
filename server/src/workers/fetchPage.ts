@@ -132,7 +132,7 @@ async function enqueuePages(
   );
 }
 
-async function processLinks(
+export async function processLinks(
   configuration: RecipeConfiguration,
   crawlPage: Awaited<ReturnType<typeof findPageForJob>>,
   delayOptions: DelayOptions
@@ -215,7 +215,7 @@ const processNextStep = async (
   processLinks(configuration, crawlPage, delayOptions);
 };
 
-const performJob = async (
+export const performJob = async (
   job: JobWithProgress<FetchPageJob, FetchPageProgress>,
   crawlPage: Awaited<ReturnType<typeof findPageForJob>>,
   delayOptions: DelayOptions
