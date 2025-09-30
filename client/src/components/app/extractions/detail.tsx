@@ -68,6 +68,11 @@ function getElapsedTimeText(statsLastUpdatedAt: string, createdAt: string) {
   }
 }
 
+const REFETCH_STATES = [
+  ExtractionStatus.IN_PROGRESS,
+  ExtractionStatus.WAITING
+];
+
 export default function ExtractionDetail() {
   const { extractionId } = useParams();
   const [lockedCancel, setLockedCancel] = useState(true);
@@ -76,7 +81,15 @@ export default function ExtractionDetail() {
   const [, navigate] = useLocation();
   const query = trpc.extractions.detail.useQuery(
     { id: parseInt(extractionId || "") },
-    { enabled: !!parseInt(extractionId || "") }
+    { 
+      enabled: !!parseInt(extractionId || ""),
+      refetchInterval(data) {
+        if (REFETCH_STATES.includes(data?.status as ExtractionStatus)) {
+          return 10000;
+        }
+        return false;
+      },
+    }
   );
   const cancelExtraction = trpc.extractions.cancel.useMutation();
   const destroyExtraction = trpc.extractions.destroy.useMutation();
@@ -229,6 +242,24 @@ export default function ExtractionDetail() {
                   </div>
                 )}
               </div>
+              {extraction.completionStats?.costs?.callSites?.length ? (
+                <div className="rounded-md border p-4 mt-2">
+                  <div className="text-sm text-muted-foreground mb-1">
+                    Models used
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {[...
+                      new Set(
+                        extraction.completionStats.costs.callSites.map(
+                          (c) => c.model
+                        )
+                      ),
+                    ].map((m) => (
+                      <Badge key={`model-${m}`}>{m}</Badge>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
               <div className="rounded-md border p-4 mt-2">
                 <Link
                   to={`~/catalogues/${extraction.recipe.catalogue.id}/recipes/${extraction.recipe.id}`}
@@ -446,6 +477,7 @@ export default function ExtractionDetail() {
                             <TableHeader>
                               <TableRow className="text-xs">
                                 <TableHead>Call Site</TableHead>
+                                <TableHead>Model</TableHead>
                                 <TableHead>Input Tokens</TableHead>
                                 <TableHead>Output Tokens</TableHead>
                                 <TableHead className="text-right">
@@ -456,8 +488,9 @@ export default function ExtractionDetail() {
                             <TableBody className="text-xs">
                               {extraction.completionStats.costs.callSites.map(
                                 (callSite) => (
-                                  <TableRow key={callSite.callSite}>
+                                  <TableRow key={`${callSite.callSite}-${callSite.model}`}>
                                     <TableCell>{callSite.callSite}</TableCell>
+                                    <TableCell>{callSite.model}</TableCell>
                                     <TableCell>
                                       {callSite.totalInputTokens}
                                     </TableCell>

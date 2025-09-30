@@ -57,6 +57,13 @@
       "when": 1753123960718,
       "tag": "0007_nappy_paladin",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1758043982523,
+      "tag": "0008_chunky_frog_thor",
+      "breakpoints": true
     }
   ]
 }

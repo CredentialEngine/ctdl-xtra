@@ -166,6 +166,9 @@ export async function findExtractionForDetailPage(id: number) {
           itemCount: sql<number>`0`.as("item_count"),
         },
       },
+      modelApiCalls: {
+        orderBy: (e) => e.createdAt,
+      },
       logs: {
         orderBy: (e) => e.createdAt,
       },

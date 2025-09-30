@@ -99,6 +99,7 @@ async function computeCosts(
     totalOutputTokens += summary.totalOutputTokens;
     callSites.push({
       callSite: summary.callSite,
+      model: summary.model as ProviderModel,
       totalInputTokens: summary.totalInputTokens,
       totalOutputTokens: summary.totalOutputTokens,
       estimatedCost: estimateCost(
