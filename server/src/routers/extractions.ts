@@ -7,6 +7,7 @@ import {
   destroyExtraction,
   findExtractionForDetailPage,
   findExtractions,
+  findExtractionsSorted,
   findLogs,
   findPage,
   findPageForJob,
@@ -173,17 +174,23 @@ export const extractionsRouter = router({
       z
         .object({
           page: z.number().int().positive().default(1),
+          sortKey: z.enum(["date", "status", "catalogue", "type"]).default("date"),
+          sortOrder: z.enum(["asc", "desc"]).default("desc"),
         })
         .default({})
     )
     .query(async (opts) => {
       const totalItems = await getExtractionCount();
       const totalPages = Math.ceil(totalItems / 20);
-      return {
-        totalItems,
-        totalPages,
-        results: await findExtractions(20, opts.input.page * 20 - 20),
-      };
+      const limit = 20;
+      const offset = opts.input.page * limit - limit;
+      const results = await findExtractionsSorted(
+        limit,
+        offset,
+        opts.input.sortKey,
+        opts.input.sortOrder
+      );
+      return { totalItems, totalPages, results };
     }),
   simulateDataExtraction: publicProcedure
     .input(
