@@ -1,7 +1,8 @@
 import { Button } from "@/components/ui/button";
+import { useCallback, useEffect, useState } from "react";
 import { IterableElement, prettyPrintDate, RouterOutput, trpc } from "@/utils";
 import { Earth } from "lucide-react";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import {
@@ -17,6 +18,28 @@ import usePagination from "../usePagination";
 type ExtractionSummary = IterableElement<
   RouterOutput["extractions"]["list"]["results"]
 >;
+
+type SortKey = "catalogue" | "type" | "status" | "date";
+type SortOrder = "asc" | "desc";
+
+const VALID_SORT_KEYS: SortKey[] = ["catalogue", "type", "status", "date"];
+
+function parseSortFromSearch(search: string): {
+  sortKey: SortKey;
+  sortOrder: SortOrder;
+} {
+  const sp = new URLSearchParams(search);
+  const key = sp.get("sort");
+  const order = sp.get("order");
+  const parsedKey = VALID_SORT_KEYS.includes(
+    (key as SortKey) || ("" as SortKey)
+  )
+    ? (key as SortKey)
+    : "date";
+  const parsedOrder =
+    order === "asc" || order === "desc" ? (order as SortOrder) : "desc";
+  return { sortKey: parsedKey, sortOrder: parsedOrder };
+}
 
 const ExtractionListItem = (extraction: ExtractionSummary) => {
   const catalogue = extraction.recipe.catalogue;
@@ -36,15 +59,15 @@ const ExtractionListItem = (extraction: ExtractionSummary) => {
       <TableCell colSpan={2} className="">
         <Link to={`/${extraction.id}`}>
           <div className="flex items-center gap-4">
-            {catalogue.thumbnailUrl ? (
+            {catalogue?.thumbnailUrl ? (
               <img src={catalogue.thumbnailUrl} style={{ maxHeight: "30px" }} />
             ) : null}
-            {catalogue.name}
+            {catalogue?.name || "Unknown"}
           </div>
         </Link>
       </TableCell>
       <TableCell className="font-medium">
-        <Link to={`/${extraction.id}`}>{catalogue.catalogueType}</Link>
+        <Link to={`/${extraction.id}`}>{catalogue?.catalogueType || "-"}</Link>
       </TableCell>
       <TableCell className="text-xs">{extraction.status}</TableCell>
       <TableCell className="text-xs">
@@ -70,7 +93,49 @@ const ExtractionListItem = (extraction: ExtractionSummary) => {
 
 export default function Extractions() {
   const { page, PaginationButtons } = usePagination();
-  const listQuery = trpc.extractions.list.useQuery({ page });
+  const [location, navigate] = useLocation();
+  const [{ sortKey, sortOrder }, setSort] = useState(() =>
+    parseSortFromSearch(window.location.search)
+  );
+
+  useEffect(() => {
+    setSort(parseSortFromSearch(window.location.search));
+  }, [location]);
+  const listQuery = trpc.extractions.list.useQuery({
+    page,
+    sortKey,
+    sortOrder,
+  });
+
+  const handleSort = useCallback(
+    (key: SortKey) => {
+      const nextKey = key;
+      const nextOrder: SortOrder =
+        sortKey === key
+          ? sortOrder === "asc"
+            ? "desc"
+            : "asc"
+          : key === "date"
+            ? "desc"
+            : "asc";
+      setSort({ sortKey: nextKey, sortOrder: nextOrder });
+      const sp = new URLSearchParams(window.location.search);
+      sp.set("sort", nextKey);
+      sp.set("order", nextOrder);
+      const basePath = location?.split("?")[0] || "/extractions";
+      navigate(`${basePath}?${sp.toString()}`);
+    },
+    [sortKey, sortOrder, navigate, location]
+  );
+
+  const renderHeader = (label: string, key: SortKey) => (
+    <span className="flex w-full items-center justify-between select-none">
+      <span>{label}</span>
+      <span className="inline-block w-3 text-right">
+        {sortKey === key ? (sortOrder === "asc" ? "▲" : "▼") : null}
+      </span>
+    </span>
+  );
 
   if (!listQuery.data?.results.length) {
     return (
@@ -107,20 +172,45 @@ export default function Extractions() {
         <h1 className="text-lg font-semibold md:text-2xl">Extractions</h1>
       </div>
       <Card>
-        <CardContent>
+        <CardContent className="px-0">
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead colSpan={2}>Catalogue</TableHead>
-                <TableHead>Type</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Downloads</TableHead>
-                <TableHead>Extractions</TableHead>
-                <TableHead>Date</TableHead>
+                <TableHead
+                  colSpan={2}
+                  className="cursor-pointer"
+                  onClick={() => handleSort("catalogue")}
+                >
+                  {renderHeader("Catalogue", "catalogue")}
+                </TableHead>
+                <TableHead
+                  className="cursor-pointer"
+                  onClick={() => handleSort("type")}
+                >
+                  {renderHeader("Type", "type")}
+                </TableHead>
+                <TableHead
+                  className="cursor-pointer"
+                  onClick={() => handleSort("status")}
+                >
+                  {renderHeader("Status", "status")}
+                </TableHead>
+                <TableHead>
+                  <span>Downloads</span>
+                </TableHead>
+                <TableHead>
+                  <span>Extractions</span>
+                </TableHead>
+                <TableHead
+                  className="cursor-pointer"
+                  onClick={() => handleSort("date")}
+                >
+                  {renderHeader("Date", "date")}
+                </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {listQuery.data?.results.map((extraction) => (
+              {(listQuery.data?.results || []).map((extraction) => (
                 <ExtractionListItem key={extraction.id} {...extraction} />
               )) || (
                 <TableRow>

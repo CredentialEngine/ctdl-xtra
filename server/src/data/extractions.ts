@@ -1,4 +1,4 @@
-import { and, eq, isNotNull } from "drizzle-orm";
+import { and, asc, desc, eq, isNotNull } from "drizzle-orm";
 import { sql } from "drizzle-orm/sql/sql";
 import { SQLiteUpdateSetSource } from "drizzle-orm/sqlite-core";
 import db from "../data";
@@ -9,6 +9,8 @@ import {
   extractionLogs,
   extractions,
   modelApiCalls,
+  recipes,
+  catalogues,
 } from "../data/schema";
 
 import {
@@ -88,6 +90,49 @@ export async function findExtractions(limit: number = 20, offset?: number) {
     },
     orderBy: (extractions, { desc }) => desc(extractions.createdAt),
   });
+}
+
+export type ExtractionsSortKey = "date" | "status" | "catalogue" | "type";
+export type ExtractionsSortOrder = "asc" | "desc";
+
+export async function findExtractionsSorted(
+  limit: number = 20,
+  offset: number = 0,
+  sortKey: ExtractionsSortKey = "date",
+  sortOrder: ExtractionsSortOrder = "desc"
+) {
+  const dir = sortOrder === "asc" ? asc : desc;
+
+  const orderExpr = (() => {
+    switch (sortKey) {
+      case "status":
+        return dir(extractions.status);
+      case "catalogue":
+        return dir(catalogues.name);
+      case "type":
+        return dir(catalogues.catalogueType);
+      case "date":
+      default:
+        return dir(extractions.createdAt);
+    }
+  })();
+
+  const rows = await db
+    .select({ extraction: extractions, recipe: recipes, catalogue: catalogues })
+    .from(extractions)
+    .leftJoin(recipes, eq(recipes.id, extractions.recipeId))
+    .leftJoin(catalogues, eq(catalogues.id, recipes.catalogueId))
+    .orderBy(orderExpr)
+    .limit(limit)
+    .offset(offset);
+
+  return rows.map((r) => ({
+    ...r.extraction,
+    recipe: {
+      ...r.recipe,
+      catalogue: r.catalogue,
+    },
+  }));
 }
 
 export async function findExtractionById(id: number) {
