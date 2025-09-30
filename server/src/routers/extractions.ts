@@ -176,11 +176,15 @@ export const extractionsRouter = router({
           page: z.number().int().positive().default(1),
           sortKey: z.enum(["date", "status", "catalogue", "type"]).default("date"),
           sortOrder: z.enum(["asc", "desc"]).default("desc"),
+          dateFrom: z.string().datetime().optional(),
+          dateTo: z.string().datetime().optional(),
         })
         .default({})
     )
     .query(async (opts) => {
-      const totalItems = await getExtractionCount();
+      const dateFrom = opts.input.dateFrom ? new Date(opts.input.dateFrom) : undefined;
+      const dateTo = opts.input.dateTo ? new Date(opts.input.dateTo) : undefined;
+      const totalItems = await getExtractionCount(dateFrom, dateTo);
       const totalPages = Math.ceil(totalItems / 20);
       const limit = 20;
       const offset = opts.input.page * limit - limit;
@@ -188,7 +192,9 @@ export const extractionsRouter = router({
         limit,
         offset,
         opts.input.sortKey,
-        opts.input.sortOrder
+        opts.input.sortOrder,
+        dateFrom,
+        dateTo
       );
       return { totalItems, totalPages, results };
     }),

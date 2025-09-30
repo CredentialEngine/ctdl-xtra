@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, isNotNull } from "drizzle-orm";
+import { and, asc, desc, eq, isNotNull, gte, lte } from "drizzle-orm";
 import { sql } from "drizzle-orm/sql/sql";
 import { SQLiteUpdateSetSource } from "drizzle-orm/sqlite-core";
 import db from "../data";
@@ -61,10 +61,18 @@ export async function createExtractionLog(
   return result[0];
 }
 
-export async function getExtractionCount() {
-  const result = await db
-    .select({ count: sql<number>`count(*)` })
-    .from(extractions);
+export async function getExtractionCount(
+  dateFrom?: Date,
+  dateTo?: Date
+) {
+  const whereClauses = [] as any[];
+  if (dateFrom) whereClauses.push(gte(extractions.createdAt, dateFrom));
+  if (dateTo) whereClauses.push(lte(extractions.createdAt, dateTo));
+
+  const query = db.select({ count: sql<number>`count(*)` }).from(extractions);
+  const result = whereClauses.length
+    ? await query.where(and(...whereClauses))
+    : await query;
   return result[0].count;
 }
 
@@ -99,7 +107,9 @@ export async function findExtractionsSorted(
   limit: number = 20,
   offset: number = 0,
   sortKey: ExtractionsSortKey = "date",
-  sortOrder: ExtractionsSortOrder = "desc"
+  sortOrder: ExtractionsSortOrder = "desc",
+  dateFrom?: Date,
+  dateTo?: Date
 ) {
   const dir = sortOrder === "asc" ? asc : desc;
 
@@ -117,11 +127,16 @@ export async function findExtractionsSorted(
     }
   })();
 
+  const whereClauses = [] as any[];
+  if (dateFrom) whereClauses.push(gte(extractions.createdAt, dateFrom));
+  if (dateTo) whereClauses.push(lte(extractions.createdAt, dateTo));
+
   const rows = await db
     .select({ extraction: extractions, recipe: recipes, catalogue: catalogues })
     .from(extractions)
     .leftJoin(recipes, eq(recipes.id, extractions.recipeId))
     .leftJoin(catalogues, eq(catalogues.id, recipes.catalogueId))
+    .where(whereClauses.length ? and(...whereClauses) : undefined as any)
     .orderBy(orderExpr)
     .limit(limit)
     .offset(offset);
