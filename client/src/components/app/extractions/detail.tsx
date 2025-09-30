@@ -36,7 +36,7 @@ import {
   trpc,
 } from "@/utils";
 import { CookingPot, LibraryBig, List } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Bar, BarChart, XAxis, YAxis } from "recharts";
 import { Link, useLocation, useParams } from "wouter";
 import { displayRecipeDetails } from "../recipes/util";
@@ -68,6 +68,11 @@ function getElapsedTimeText(statsLastUpdatedAt: string, createdAt: string) {
   }
 }
 
+const REFETCH_STATES = [
+  ExtractionStatus.IN_PROGRESS,
+  ExtractionStatus.WAITING
+];
+
 export default function ExtractionDetail() {
   const { extractionId } = useParams();
   const [lockedCancel, setLockedCancel] = useState(true);
@@ -76,24 +81,19 @@ export default function ExtractionDetail() {
   const [, navigate] = useLocation();
   const query = trpc.extractions.detail.useQuery(
     { id: parseInt(extractionId || "") },
-    { enabled: !!parseInt(extractionId || "") }
+    { 
+      enabled: !!parseInt(extractionId || ""),
+      refetchInterval(data) {
+        if (REFETCH_STATES.includes(data?.status as ExtractionStatus)) {
+          return 10000;
+        }
+        return false;
+      },
+    }
   );
   const cancelExtraction = trpc.extractions.cancel.useMutation();
   const destroyExtraction = trpc.extractions.destroy.useMutation();
   const retryFailed = trpc.extractions.retryFailed.useMutation();
-
-  useEffect(() => {
-    const observableStates = [
-      ExtractionStatus.IN_PROGRESS,
-      ExtractionStatus.WAITING
-    ];
-    if (observableStates.includes(query.data?.status as ExtractionStatus)) {
-      const interval = setInterval(() => {
-        query.refetch();
-      }, 10000);
-      return () => clearInterval(interval);
-    }
-  }, [query.data?.status]);
 
   if (!query.data) {
     return null;
