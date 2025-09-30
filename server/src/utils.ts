@@ -82,8 +82,11 @@ const HTTP_MESSAGES = {
   404: "Not Found",
   407: "Proxy related error",
   500: "Webpage server error",
+  502: "Bad Gateway",
+  503: "Service Unavailable",
+  504: "Gateway Timeout",
 };
 
 export function httpCodeToMessage(code: keyof typeof HTTP_MESSAGES) {
-  return HTTP_MESSAGES[code] || "Unknown";
+  return HTTP_MESSAGES[code] || `HTTP ${code}`;
 }
