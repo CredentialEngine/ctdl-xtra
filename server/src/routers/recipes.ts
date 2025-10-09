@@ -40,6 +40,7 @@ const RecipeConfigurationSchema = z.object({
   linkRegexp: z.string().optional(),
   pagination: PaginationConfigurationSchema.optional(),
   links: z.lazy((): z.ZodSchema => RecipeConfigurationSchema).optional(),
+  pageLoadWaitTime: z.number().optional().default(0),
 });
 
 export const recipesRouter = router({
@@ -211,6 +212,7 @@ export const recipesRouter = router({
         id: z.number().int().positive(),
         update: z.object({
           url: z.string(),
+          configuration: RecipeConfigurationSchema.partial().optional(),
         }),
       })
     )
@@ -224,8 +226,12 @@ export const recipesRouter = router({
         { recipeId: recipe.id },
         `detectConfiguration.${recipe.id}`
       );
+      const mergedConfiguration = opts.input.update.configuration
+        ? { ...(recipe.configuration as any), ...opts.input.update.configuration }
+        : undefined;
       return updateRecipe(recipe.id, {
         url: opts.input.update.url,
+        ...(mergedConfiguration ? { configuration: mergedConfiguration } : {}),
       });
     }),
   destroy: publicProcedure

@@ -37,6 +37,7 @@ export interface RecipeConfiguration<
   links?: RecipeConfiguration;
   apiProvider?: ApiProvider;
   apiConfig?: ApiConfig[ConfigType];
+  pageLoadWaitTime?: number;
 }
 
 export type ApiConfig = {
