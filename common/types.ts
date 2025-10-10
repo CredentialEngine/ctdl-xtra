@@ -33,6 +33,8 @@ export interface RecipeConfiguration<
 > {
   pageType: PageType;
   linkRegexp?: string;
+  clickSelector?: string;
+  clickOptions?: ClickDiscoveryOptions;
   pagination?: PaginationConfiguration;
   links?: RecipeConfiguration;
   apiProvider?: ApiProvider;
@@ -167,4 +169,9 @@ export interface CredentialStructuredData {
   credential_description: string;
   credential_type?: string;
   language?: string;
+}
+
+export interface ClickDiscoveryOptions {
+  limit?: number;
+  waitMs?: number;
 }
