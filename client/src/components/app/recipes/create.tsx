@@ -45,6 +45,8 @@ import TestLinkRegex from "./TestLinkRegex";
 type FormRecipeConfiguration = {
   pageType: PageType;
   linkRegexp?: string;
+  clickSelector?: string;
+  clickOptions?: { limit?: number; waitMs?: number };
   pagination?: PaginationConfiguration;
   links?: any;
   sampleUrls?: string[];
@@ -60,6 +62,13 @@ const PaginationSchema = z.object({
 const RecipeConfigurationSchema: z.ZodType<FormRecipeConfiguration> = z.object({
   pageType: z.nativeEnum(PageType),
   linkRegexp: z.string().optional(),
+  clickSelector: z.string().optional(),
+  clickOptions: z
+    .object({
+      limit: z.number().int().positive().max(10000).optional(),
+      waitMs: z.number().int().nonnegative().max(60000).optional(),
+    })
+    .optional(),
   pagination: PaginationSchema.optional(),
   links: z.lazy(() => RecipeConfigurationSchema).optional(),
   pageLoadWaitTime: z.number().optional().default(0),
@@ -172,6 +181,74 @@ function RecipeLevel({
 
       {config?.pageType && config.pageType !== PageType.DETAIL && (
         <>
+          <FormField
+            control={control}
+            name={`${path}.clickSelector`}
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Click Selector (querySelectorAll)</FormLabel>
+                <FormControl>
+                  <Input placeholder="e.g. a.nav-link" {...field} />
+                </FormControl>
+                <FormDescription>
+                  Optional. If provided, we will click matching elements to collect URLs.
+                </FormDescription>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <div className="grid grid-cols-2 gap-4">
+            <FormField
+              control={control}
+              name={`${path}.clickOptions.limit` as any}
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Click Limit</FormLabel>
+                  <FormControl>
+                    <Input
+                      type="number"
+                      value={field.value ?? ""}
+                      onChange={(e) =>
+                        field.onChange(
+                          e.target.value === "" ? undefined : parseInt(e.target.value)
+                        )
+                      }
+                    />
+                  </FormControl>
+                  <FormDescription>
+                    Maximum number of elements to click (optional).
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={control}
+              name={`${path}.clickOptions.waitMs` as any}
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Wait after click (ms)</FormLabel>
+                  <FormControl>
+                    <Input
+                      type="number"
+                      value={field.value ?? ""}
+                      onChange={(e) =>
+                        field.onChange(
+                          e.target.value === "" ? undefined : parseInt(e.target.value)
+                        )
+                      }
+                    />
+                  </FormControl>
+                  <FormDescription>
+                    Optional delay after each click.
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
+
           <FormField
             control={control}
             name={`${path}.linkRegexp`}

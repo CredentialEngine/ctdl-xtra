@@ -35,9 +35,16 @@ const PaginationConfigurationSchema = z.object({
   totalPages: z.number(),
 });
 
+const ClickDiscoveryOptionsSchema = z.object({
+  limit: z.number().int().positive().max(10000).optional(),
+  waitMs: z.number().int().nonnegative().max(60000).optional(),
+});
+
 const RecipeConfigurationSchema = z.object({
   pageType: z.nativeEnum(PageType),
   linkRegexp: z.string().optional(),
+  clickSelector: z.string().optional(),
+  clickOptions: ClickDiscoveryOptionsSchema.optional(),
   pagination: PaginationConfigurationSchema.optional(),
   links: z.lazy((): z.ZodSchema => RecipeConfigurationSchema).optional(),
   pageLoadWaitTime: z.number().optional().default(0),
