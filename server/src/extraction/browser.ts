@@ -13,6 +13,7 @@ import { detectCatalogueType } from "./llm/detectCatalogueType";
 
 export interface BrowserTaskInput {
   url: string;
+  pageLoadWaitTime?: number;
 }
 
 export interface BrowserTaskResult {
@@ -100,7 +101,7 @@ export async function getCluster(proxyUrl?: string) {
     }
 
     page.setDefaultTimeout(PAGE_TIMEOUT);
-    const { url } = data;
+    const { url, pageLoadWaitTime } = data;
     const response = await page.goto(url, {
       timeout: PAGE_TIMEOUT,
       waitUntil: "networkidle2",
@@ -108,6 +109,13 @@ export async function getCluster(proxyUrl?: string) {
     if (!response) {
       throw new Error(`Failed to load page ${url}`);
     }
+    
+    // Wait for the specified time if provided
+    if (pageLoadWaitTime && pageLoadWaitTime > 0) {
+      logger.info(`Waiting ${pageLoadWaitTime} seconds for page scripts to complete at ${url}`);
+      await new Promise(resolve => setTimeout(resolve, pageLoadWaitTime * 1000));
+    }
+    
     let content = await page.content();
     if (content.includes("kuali-catalog")) {
       logger.info(`Kuali detected at url ${url}; waiting for selector`);
@@ -151,10 +159,10 @@ export async function findProxy(): Promise<string | undefined> {
   return proxy?.value || process.env.PROXY_URL;
 }
 
-export async function fetchBrowserPage(url: string, skipProxy?: boolean) {
+export async function fetchBrowserPage(url: string, skipProxy?: boolean, pageLoadWaitTime?: number) {
   const proxyUrl = skipProxy ? undefined : await findProxy();
   const cluster = await getCluster(proxyUrl);
-  const result = await cluster.execute({ url });
+  const result = await cluster.execute({ url, pageLoadWaitTime });
   if (result?.status > 399) {
     throw new BrowserFetchError(result);
   }

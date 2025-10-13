@@ -48,6 +48,7 @@ type FormRecipeConfiguration = {
   pagination?: PaginationConfiguration;
   links?: any;
   sampleUrls?: string[];
+  pageLoadWaitTime?: number;
 };
 
 const PaginationSchema = z.object({
@@ -61,6 +62,7 @@ const RecipeConfigurationSchema: z.ZodType<FormRecipeConfiguration> = z.object({
   linkRegexp: z.string().optional(),
   pagination: PaginationSchema.optional(),
   links: z.lazy(() => RecipeConfigurationSchema).optional(),
+  pageLoadWaitTime: z.number().optional().default(0),
 });
 
 const FormSchema = z.object({
@@ -639,6 +641,31 @@ export default function CreateRecipe() {
                     <CardDescription>Recipe Configuration</CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-4">
+                    <FormField
+                      control={form.control}
+                      name="configuration.pageLoadWaitTime"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Page Load Wait Time (seconds)</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="number"
+                              placeholder="0"
+                              {...field}
+                              onChange={(e) => {
+                                const value = e.target.value ? parseInt(e.target.value) : undefined;
+                                field.onChange(value);
+                              }}
+                              value={field.value ?? ""}
+                            />
+                          </FormControl>
+                          <FormDescription>
+                            How long to wait (in seconds) for the page to fully load after opening. This is useful for pages that dynamically load content. Leave empty or 0 for no additional wait.
+                          </FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
                     {configuration && (
                       <RecipeLevel
                         path="configuration"

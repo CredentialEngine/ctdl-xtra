@@ -235,7 +235,14 @@ export const performJob = async (
     logger.info(`Loading ${crawlPage.url}`);
     await updatePage(crawlPage.id, { status: PageStatus.IN_PROGRESS });
 
-    const page = await fetchBrowserPage(crawlPage.url);
+    const configuration = crawlPage.crawlStep.configuration as RecipeConfiguration;
+    const rootConfiguration = crawlPage.extraction.recipe
+      .configuration as RecipeConfiguration | undefined;
+    const page = await fetchBrowserPage(
+      crawlPage.url,
+      false,
+      rootConfiguration?.pageLoadWaitTime
+    );
     
     if (!page.content) {
       throw new Error(`Could not fetch URL ${crawlPage.url}`);
