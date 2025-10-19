@@ -106,6 +106,7 @@ describe.skip("Recipe execution", () => {
       linkRegexp:
         "(https://cabrillo.elumenapp.com)/catalog/[d-]+/department(.+)",
       links: { pageType: PageType.DETAIL },
+      pageLoadWaitTime: 1000,
     } as any;
 
     const crawlPage = {
@@ -141,3 +142,78 @@ describe.skip("Recipe execution", () => {
     expect(arg.pages).toHaveLength(135);
   }, 60_000);
 });
+
+describe("Dynamic link discovery and enqueueing", () => {
+  beforeEach(() => {
+    vi.resetModules();
+  });
+
+  test(
+    "should discover and enqueue links using click selector",
+    async () => {
+      // Mock workers to avoid real Redis usage when enqueueing
+      vi.doMock("../src/workers", async () => {
+        const actual = await vi.importActual<any>("../src/workers");
+        return {
+          ...actual,
+          getRedisConnection: () => ({
+            set: vi.fn().mockResolvedValue("OK"),
+            pttl: vi.fn().mockResolvedValue(0),
+          }),
+          submitJobs: vi.fn().mockResolvedValue([]),
+        };
+      });
+
+      const { performJob } = await import("../src/workers/fetchPage");
+      const module = await import("../src/data/extractions");
+      const createStepAndPages = module.createStepAndPages as unknown as ReturnType<typeof vi.fn>;
+
+      const extractionId = 1;
+      const crawlStepId = 10;
+      const pageId = 1;
+
+      const configuration = {
+        pageType: PageType.CATEGORY_LINKS,
+        clickSelector: "#body-list-2950 > div",
+        links: { pageType: PageType.DETAIL },
+      } as any;
+
+      const crawlPage = {
+        id: pageId,
+        extractionId,
+        crawlStepId,
+        url: "https://rccd.curriqunet.com/catalog/alias/nc-catalog/iq/2743/2950",
+        crawlStep: { step: Step.FETCH_ROOT, configuration },
+        extraction: {
+          id: 999,
+          status: ExtractionStatus.IN_PROGRESS,
+          recipe: {
+            acknowledgedSkipRobotsTxt: true,
+            catalogue: { catalogueType: CatalogueType.COURSES },
+            pageLoadWaitTime: 10000,
+          },
+        },
+      } as any;
+
+      const job: any = {
+        data: { crawlPageId: pageId, extractionId },
+        opts: { jobId: `fetchPage.${pageId}` },
+        updateProgress: vi.fn(),
+      };
+
+      await performJob(job, crawlPage, { delayInterval: 0, startWithDelay: 0 });
+
+      expect((createStepAndPages as any).mock.calls.length).toBe(1);
+      const arg = (createStepAndPages as any).mock.calls[0][0];
+      expect(Array.isArray(arg.pages)).toBe(true);
+      expect(arg.pages.length).toBeGreaterThan(0);
+      // Ensure discovered URLs look valid
+      for (const p of arg.pages) {
+        expect(typeof p.url).toBe("string");
+        expect(p.url).toContain("rccd.curriqunet.com");
+      }
+    },
+    600_000 // 10 minutes
+  );
+});
+

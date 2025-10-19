@@ -235,7 +235,7 @@ const processNextStep = async (
     );
   }
 
-  processLinks(configuration, crawlPage, delayOptions);
+  await processLinks(configuration, crawlPage, delayOptions);
 };
 
 export const performJob = async (
@@ -275,6 +275,21 @@ export const performJob = async (
     if (!baseUrl) {
       baseUrl = crawlPage.extraction.recipe.url;
     }
+    
+    try {
+      // this throws if the baseUrl is not absolute
+      new URL(baseUrl);
+    } catch {
+      // If baseUrl is relative, resolve it against the recipe URL
+      const recipeUrl = crawlPage.extraction.recipe.url;
+      try {
+        baseUrl = new URL(baseUrl, recipeUrl).href;
+      } catch {
+        logger.warn(`Could not resolve baseUrl "${baseUrl}" against recipe URL "${recipeUrl}"`);
+        baseUrl = recipeUrl;
+      }
+    }
+    
     
     const page = await fetchBrowserPage(
       crawlPage.url,

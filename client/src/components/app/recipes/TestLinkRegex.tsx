@@ -41,10 +41,14 @@ export default function TestLinkRegex({
   defaultUrl,
   defaultRegex,
   simplified = false,
+  clickSelector,
+  clickOptions,
 }: {
   defaultUrl: string;
   defaultRegex?: string;
   simplified?: boolean;
+  clickSelector?: string;
+  clickOptions?: { limit?: number; waitMs?: number };
 }) {
   const [url, setUrl] = useState(defaultUrl);
   const [regex, setRegex] = useState(defaultRegex || "");
@@ -58,7 +62,7 @@ export default function TestLinkRegex({
     setRegex(defaultRegex || "");
   }, [defaultRegex]);
 
-  const isDisabled = !regex || testRecipeRegex.isLoading;
+  const isDisabled = (!regex && !clickSelector) || testRecipeRegex.isLoading;
 
   // Simplified mode early return
   if (simplified) {
@@ -69,7 +73,28 @@ export default function TestLinkRegex({
             type="button"
             onClick={(e) => {
               e.preventDefault();
-              testRecipeRegex.mutate({ url, regex });
+              const mutationData: {
+                url: string;
+                regex?: string;
+                clickSelector?: string;
+                clickOptions?: { limit?: number; waitMs?: number };
+              } = {
+                url,
+              };
+              
+              if (regex && regex.trim()) {
+                mutationData.regex = regex;
+              }
+              
+              if (clickSelector !== undefined && clickSelector !== null) {
+                mutationData.clickSelector = clickSelector;
+              }
+              
+              if (clickOptions && (clickOptions.limit !== undefined || clickOptions.waitMs !== undefined)) {
+                mutationData.clickOptions = clickOptions;
+              }
+              
+              testRecipeRegex.mutate(mutationData);
             }}
             disabled={isDisabled}
           >
@@ -127,7 +152,28 @@ export default function TestLinkRegex({
             type="button"
             onClick={(e) => {
               e.preventDefault();
-              testRecipeRegex.mutate({ url, regex });
+              const mutationData: {
+                url: string;
+                regex?: string;
+                clickSelector?: string;
+                clickOptions?: { limit?: number; waitMs?: number };
+              } = {
+                url,
+              };
+              
+              if (regex && regex.trim()) {
+                mutationData.regex = regex;
+              }
+              
+              if (clickSelector !== undefined && clickSelector !== null) {
+                mutationData.clickSelector = clickSelector;
+              }
+              
+              if (clickOptions && (clickOptions.limit !== undefined || clickOptions.waitMs !== undefined)) {
+                mutationData.clickOptions = clickOptions;
+              }
+              
+              testRecipeRegex.mutate(mutationData);
             }}
             disabled={isDisabled}
           >
