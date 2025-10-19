@@ -234,7 +234,7 @@ const processNextStep = async (
     );
   }
 
-  processLinks(configuration, crawlPage, delayOptions);
+  await processLinks(configuration, crawlPage, delayOptions);
 };
 
 export const performJob = async (

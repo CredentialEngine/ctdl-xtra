@@ -19,7 +19,11 @@ export async function discoverDynamicLinks(
 ): Promise<string[]> {
   const logger = getLogger("extraction.dynamicLinkDiscovery");
   const proxyUrl = await findProxy();
-  const args = [proxyUrl ? `--proxy-server=${new URL(proxyUrl).origin}` : ""].filter(Boolean);
+  const args = [
+    proxyUrl ? `--proxy-server=${new URL(proxyUrl).origin}` : "",
+    "--ignore-certificate-errors",
+    "--allow-insecure-localhost",
+  ].filter(Boolean);
 
   const browser = await puppeteer.launch({
     ignoreHTTPSErrors: true,
