@@ -218,6 +218,18 @@ export async function getLogCount(extractionId: number) {
   return result[0].count;
 }
 
+export async function findErrorPagesForExtraction(extractionId: number) {
+  return db.query.crawlPages.findMany({
+    columns: {
+      content: false,
+      screenshot: false,
+    },
+    where: (pages, { and, eq }) =>
+      and(eq(pages.extractionId, extractionId), eq(pages.status, PageStatus.ERROR)),
+    orderBy: (pages, { desc }) => desc(pages.createdAt),
+  });
+}
+
 export async function findStep(stepId: number) {
   const result = await db.query.crawlSteps.findFirst({
     where: (steps, { eq }) => eq(steps.id, stepId),

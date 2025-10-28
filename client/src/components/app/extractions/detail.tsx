@@ -75,14 +75,15 @@ const REFETCH_STATES = [
 
 export default function ExtractionDetail() {
   const { extractionId } = useParams();
+  const extractionIdNum = parseInt(extractionId || "");
   const [lockedCancel, setLockedCancel] = useState(true);
   const [lockedDelete, setLockDelete] = useState(true);
   const { toast } = useToast();
   const [, navigate] = useLocation();
   const query = trpc.extractions.detail.useQuery(
-    { id: parseInt(extractionId || "") },
+    { id: extractionIdNum },
     { 
-      enabled: !!parseInt(extractionId || ""),
+      enabled: !!extractionIdNum,
       refetchInterval(data) {
         if (REFETCH_STATES.includes(data?.status as ExtractionStatus)) {
           return 10000;
@@ -90,6 +91,10 @@ export default function ExtractionDetail() {
         return false;
       },
     }
+  );
+  const errorPagesQuery = trpc.extractions.errorPages.useQuery(
+    { extractionId: extractionIdNum },
+    { enabled: !!extractionIdNum }
   );
   const cancelExtraction = trpc.extractions.cancel.useMutation();
   const destroyExtraction = trpc.extractions.destroy.useMutation();
@@ -456,17 +461,70 @@ export default function ExtractionDetail() {
                 <div className="mt-2 gap-4">
                   {totalDownloadErrors ? (
                     <div className="text-xs text-muted-foreground py-1">
-                      Download Errors: {totalDownloadErrors} /{" "}
-                      {totalDownloadsAttempted}.
+                      Download Errors: {totalDownloadErrors}
                     </div>
                   ) : null}
                   {totalExtractionErrors ? (
                     <div className="text-xs text-muted-foreground py-1">
-                      Extraction Errors: {totalExtractionErrors} /{" "}
-                      {totalExtractionsAttempted}.
+                      Items not extracted: {totalExtractionErrors}
                     </div>
                   ) : null}
                 </div>
+                {errorPagesQuery.data && errorPagesQuery.data.length ? (
+                  <div className="grid auto-rows-min gap-2 mt-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-baseline gap-1 text-2xl font-bold tabular-nums leading-none">
+                        {errorPagesQuery.data.length}
+                        <span className="text-sm font-normal">Errors</span>
+                      </div>
+                      <Dialog>
+                        <DialogTrigger asChild>
+                          <Button size="sm" variant="outline">View</Button>
+                        </DialogTrigger>
+                        <DialogContent className="sm:max-w-[66vw] w-11/12 max-h-[70vh] overflow-y-auto">
+                          <DialogHeader>
+                            <DialogTitle>Error Pages</DialogTitle>
+                            <DialogDescription>
+                              Pages that failed to download and their error messages.
+                            </DialogDescription>
+                          </DialogHeader>
+                          <div className="mt-2">
+                            <Table>
+                              <TableHeader>
+                                <TableRow className="text-xs">
+                                  <TableHead className="w-1/2">Error</TableHead>
+                                  <TableHead>URL</TableHead>
+                                  <TableHead className="text-right">Action</TableHead>
+                                </TableRow>
+                              </TableHeader>
+                              <TableBody className="text-xs">
+                                {errorPagesQuery.data.map((p) => (
+                                  <TableRow key={`error-page-${p.id}`}>
+                                    <TableCell className="align-top">
+                                      {p.fetchFailureReason?.reason || "-"}
+                                    </TableCell>
+                                    <TableCell className="break-all align-top">
+                                      <a href={p.url} target="_blank" rel="noreferrer" className="underline">
+                                        {p.url}
+                                      </a>
+                                    </TableCell>
+                                    <TableCell className="text-right align-top">
+                                      <Button variant={"outline"} size="sm" className="text-xs" asChild>
+                                        <Link to={`/${extraction.id}/steps/${p.crawlStepId}/items/${p.id}`}>
+                                          View item
+                                        </Link>
+                                      </Button>
+                                    </TableCell>
+                                  </TableRow>
+                                ))}
+                              </TableBody>
+                            </Table>
+                          </div>
+                        </DialogContent>
+                      </Dialog>
+                    </div>
+                  </div>
+                ) : null}
                 {extraction.completionStats.costs ? (
                   <div className="mt-4">
                     <Accordion type="single" collapsible>

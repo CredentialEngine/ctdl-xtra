@@ -197,10 +197,16 @@ server.post("/login", async (req, rep) => {
   rep.send(userOmittedPassword);
 });
 
-server.listen({ port: 3000, host: "0.0.0.0" }, (err, address) => {
-  if (err) {
-    logger.error(err);
-    process.exit(1);
+server.listen(
+  {
+    port: process.env.PORT ? parseInt(process.env.PORT) : 3000,
+    host: "0.0.0.0",
+  },
+  (err, address) => {
+    if (err) {
+      logger.error(err);
+      process.exit(1);
+    }
+    logger.info(`Server is running on ${address}`);
   }
-  logger.info(`Server is running on ${address}`);
-});
+);
