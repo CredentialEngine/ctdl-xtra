@@ -26,6 +26,8 @@ import { sendEmailToAll } from "../email";
 import ExtractionComplete from "../emails/extractionComplete";
 import getLogger from "../logging";
 import { estimateCost } from "../openai";
+import { findSetting } from "../data/settings";
+import { SETTING_DEFAULTS } from "../constants";
 
 const logger = getLogger("workers.updateExtractionCompletion");
 
@@ -220,6 +222,23 @@ export default createProcessor<
     steps: stepStats,
     costs: costStats,
   };
+
+  // Enforce budget: cancel extraction if estimated cost exceeds max budget
+  const maxBudgetSetting = await findSetting<number>("MAX_EXTRACTION_BUDGET");
+  const maxBudget = maxBudgetSetting?.value ?? SETTING_DEFAULTS.MAX_EXTRACTION_BUDGET;
+  if (typeof maxBudget === "number" && maxBudget >= 0 && costStats.estimatedCost > maxBudget) {
+    logger.warn(
+      `Cancelling extraction ${extraction.id} due to budget overage: $${costStats.estimatedCost.toFixed(
+        4
+      )} > $${maxBudget}`
+    );
+    await updateExtraction(extraction.id, {
+      status: ExtractionStatus.CANCELLED,
+      completionStats,
+    });
+    await removeSelf(job);
+    return;
+  }
 
   // If there's a preexisting completionStats value, check if it changed
   if (extraction.completionStats) {

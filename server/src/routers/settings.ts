@@ -1,15 +1,30 @@
 import { z } from "zod";
 import { publicProcedure, router } from ".";
 import { createOrUpdate, findSetting } from "../data/settings";
+import { SETTING_DEFAULTS } from "../constants";
+
+const DetailQuerySchema = z.object({
+  key: z.enum([
+    "PROXY",
+    "PROXY_ENABLED",
+    "OPENAI_API_KEY",
+    "MAX_EXTRACTION_BUDGET",
+  ]),
+});
+
+type DetailQueryInput = z.infer<typeof DetailQuerySchema>;
 
 export const settingsRouter = router({
   detail: publicProcedure
-    .input(
-      z.object({
-        key: z.enum(["PROXY", "PROXY_ENABLED", "OPENAI_API_KEY"]),
-      })
-    )
-    .query(async (opts) => findSetting(opts.input.key)),
+    .input(DetailQuerySchema)
+    .query(async (opts: { input: DetailQueryInput }) => {
+      return (
+        (await findSetting(opts.input.key)) || {
+          key: opts.input.key,
+          value: SETTING_DEFAULTS[opts.input.key],
+        }
+      );
+    }),
   setOpenAIApiKey: publicProcedure
     .input(
       z.object({
@@ -56,5 +71,19 @@ export const settingsRouter = router({
           value: true,
         });
       }
+    }),
+  setMaxExtractionBudget: publicProcedure
+    .input(
+      z
+        .number()
+        .nonnegative()
+        .finite()
+        .describe("Maximum USD budget allowed per extraction. No enforcement logic here.")
+    )
+    .mutation(async (opts) => {
+      await createOrUpdate({
+        key: "MAX_EXTRACTION_BUDGET",
+        value: opts.input,
+      });
     }),
 });
