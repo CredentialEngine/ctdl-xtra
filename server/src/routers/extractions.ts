@@ -6,9 +6,9 @@ import { getItemsCount } from "../data/datasets";
 import {
   destroyExtraction,
   findExtractionForDetailPage,
-  findExtractions,
   findExtractionsSorted,
   findLogs,
+  findErrorPagesForExtraction,
   findPage,
   findPageForJob,
   findPagesPaginated,
@@ -104,6 +104,15 @@ export const extractionsRouter = router({
           offset
         ),
       };
+    }),
+  errorPages: publicProcedure
+    .input(
+      z.object({
+        extractionId: z.number().int().positive(),
+      })
+    )
+    .query(async (opts) => {
+      return findErrorPagesForExtraction(opts.input.extractionId);
     }),
   stepDetail: publicProcedure
     .input(
