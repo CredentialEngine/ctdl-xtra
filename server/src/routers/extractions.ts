@@ -6,7 +6,6 @@ import { getItemsCount } from "../data/datasets";
 import {
   destroyExtraction,
   findExtractionForDetailPage,
-  findExtractions,
   findExtractionsSorted,
   findLogs,
   findErrorPagesForExtraction,
