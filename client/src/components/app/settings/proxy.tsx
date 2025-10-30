@@ -139,7 +139,7 @@ export function ProxySettingsForm() {
           <div className="grid gap-2">
             <Label htmlFor="proxy_url">New proxy URL</Label>
             <div className="text-sm text-muted-foreground">
-              {proxyUrlQuery.data?.encryptedPreview ? (
+              {proxyUrlQuery.data?.encryptedPreview && (
                 <>
                   The URL is currently set to{" "}
                   <code className="font-bold mb-2">
@@ -147,7 +147,7 @@ export function ProxySettingsForm() {
                   </code>
                   .
                 </>
-              ) : null}
+              )}
             </div>
             <Input
               id="proxy_url"
