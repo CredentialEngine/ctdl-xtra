@@ -18,12 +18,17 @@ export const settingsRouter = router({
   detail: publicProcedure
     .input(DetailQuerySchema)
     .query(async (opts: { input: DetailQueryInput }) => {
-      return (
-        (await findSetting(opts.input.key)) || {
-          key: opts.input.key,
-          value: SETTING_DEFAULTS[opts.input.key],
-        }
-      );
+      const found = await findSetting(opts.input.key);
+      if (found) {
+        return found;
+      }
+      return {
+        key: opts.input.key,
+        value: SETTING_DEFAULTS[opts.input.key],
+        isEncrypted: false,
+        encryptedPreview: null,
+        createdAt: new Date(),
+      };
     }),
   setOpenAIApiKey: publicProcedure
     .input(
