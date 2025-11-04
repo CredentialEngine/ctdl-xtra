@@ -46,7 +46,7 @@ export function OpenAIApiKeyForm() {
           <CardTitle>OpenAI API Key</CardTitle>
           <CardDescription>
             The API key that will used for OpenAI requests. <br />
-            {settingQuery.data?.encryptedPreview ? (
+            {settingQuery.data?.encryptedPreview && (
               <>
                 The key is currently set to{" "}
                 <code className="font-bold">
@@ -54,7 +54,7 @@ export function OpenAIApiKeyForm() {
                 </code>
                 .
               </>
-            ) : null}
+            )}
           </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-6">

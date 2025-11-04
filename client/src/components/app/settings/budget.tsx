@@ -66,9 +66,9 @@ export function MaxExtractionBudgetForm() {
           <CardTitle>Max Extraction Budget</CardTitle>
           <CardDescription>
             Maximum USD budget allowed per extraction.
-            {settingQuery.data?.value !== undefined ? (
+            {settingQuery.data?.value !== undefined && typeof settingQuery.data.value === "number" && (
               <span className="ml-1">(Current: ${settingQuery.data.value})</span>
-            ) : null}
+            )}
           </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-6">
