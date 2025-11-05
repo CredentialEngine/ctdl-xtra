@@ -197,9 +197,10 @@ server.post("/login", async (req, rep) => {
   rep.send(userOmittedPassword);
 });
 
+const port = process.env.PORT || process.env.VITE_PORT;
 server.listen(
   {
-    port: process.env.PORT ? parseInt(process.env.PORT) : 3000,
+    port: port ? parseInt(port) : 3000,
     host: "0.0.0.0",
   },
   (err, address) => {
