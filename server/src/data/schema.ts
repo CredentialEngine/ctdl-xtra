@@ -237,6 +237,7 @@ const recipes = pgTable(
   {
     id: serial("id").primaryKey(),
     isDefault: boolean("is_default").default(false).notNull(),
+    isTemplate: boolean("is_template").default(false).notNull(),
     catalogueId: integer("catalogue_id")
       .notNull()
       .references(() => catalogues.id, { onDelete: "cascade" }),
@@ -254,6 +255,7 @@ const recipes = pgTable(
   },
   (t) => ({
     catalogueIdx: index("recipes_catalogue_idx").on(t.catalogueId),
+    templateIdx: index("recipes_template_idx").on(t.isTemplate, t.catalogueId),
   })
 );
 

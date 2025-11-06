@@ -1,12 +1,13 @@
-import { InferSelectModel, eq } from "drizzle-orm";
+import { InferSelectModel, eq, and, or, ilike, sql } from "drizzle-orm";
 import { SQLiteUpdateSetSource } from "drizzle-orm/sqlite-core";
 import db from "../data";
-import { recipes } from "../data/schema";
+import { recipes, catalogues, extractions } from "../data/schema";
 
 import {
   PageType,
   RecipeConfiguration,
   RecipeDetectionStatus,
+  CatalogueType,
 } from "../../../common/types";
 import { RobotsTxt } from "../extraction/robotsParser";
 
@@ -118,4 +119,40 @@ export async function updateRecipe(
 
 export async function destroyRecipe(id: number) {
   return db.delete(recipes).where(eq(recipes.id, id));
+}
+
+export async function searchTemplateRecipes(
+  catalogueType: CatalogueType,
+  searchQuery?: string
+) {
+  const whereConditions: any[] = [
+    eq(recipes.isTemplate, true),
+    eq(catalogues.catalogueType, catalogueType),
+  ];
+
+  // Add search filter if provided
+  if (searchQuery && searchQuery.trim()) {
+    whereConditions.push(
+      or(
+        ilike(catalogues.name, `%${searchQuery}%`),
+        ilike(catalogues.url, `%${searchQuery}%`)
+      )!
+    );
+  }
+
+  // Join with catalogues to filter by catalogue type
+  const results = await db
+    .select({
+      recipe: recipes,
+      catalogue: catalogues,
+      extractionCount: sql<number>`COUNT(${extractions.id})`.as("extraction_count"),
+      mostRecentExtractionDate: sql<string | null>`MAX(${extractions.createdAt})`.as("most_recent_extraction_date"),
+    })
+    .from(recipes)
+    .innerJoin(catalogues, eq(catalogues.id, recipes.catalogueId))
+    .leftJoin(extractions, eq(extractions.recipeId, recipes.id))
+    .where(and(...whereConditions))
+    .groupBy(recipes.id, catalogues.id);
+
+  return results;
 }

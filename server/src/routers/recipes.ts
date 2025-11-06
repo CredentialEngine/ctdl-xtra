@@ -6,6 +6,7 @@ import {
   createRecipe,
   destroyRecipe,
   findRecipeById,
+  searchTemplateRecipes,
   setDefault,
   updateRecipe,
 } from "../data/recipes";
@@ -83,14 +84,23 @@ export const recipesRouter = router({
             );
           }
 
-          if (opts.input.configuration) {
-            return createRecipe(
+          // Check if configuration is provided and valid (has pageType at minimum)
+          const hasValidConfiguration = 
+            opts.input.configuration && 
+            typeof opts.input.configuration === 'object' &&
+            'pageType' in opts.input.configuration;
+
+          if (hasValidConfiguration) {
+            const recipe = await createRecipe(
               opts.input.catalogueId,
               opts.input.url,
               opts.input.configuration,
               robotsTxt || undefined,
               opts.input.acknowledgedSkipRobotsTxt
             );
+            return {
+              id: recipe.id,
+            };
           } else {
             const detection = await submitRecipeDetection(
               opts.input.url,
@@ -211,8 +221,9 @@ export const recipesRouter = router({
       z.object({
         id: z.number().int().positive(),
         update: z.object({
-          url: z.string(),
-          configuration: RecipeConfigurationSchema.partial().optional(),
+          url: z.string().optional(),
+          configuration: RecipeConfigurationSchema.optional(),
+          isTemplate: z.boolean().optional(),
         }),
       })
     )
@@ -221,18 +232,35 @@ export const recipesRouter = router({
       if (!recipe) {
         throw new AppError("Recipe not found", AppErrors.NOT_FOUND);
       }
-      await submitJob(
-        Queues.DetectConfiguration,
-        { recipeId: recipe.id },
-        `detectConfiguration.${recipe.id}`
-      );
-      const mergedConfiguration = opts.input.update.configuration
-        ? { ...(recipe.configuration as any), ...opts.input.update.configuration }
-        : undefined;
-      return updateRecipe(recipe.id, {
-        url: opts.input.update.url,
-        ...(mergedConfiguration ? { configuration: mergedConfiguration } : {}),
-      });
+      
+      // Only trigger detection if URL changed, not if only configuration or isTemplate changed
+      const urlChanged = opts.input.update.url !== undefined && opts.input.update.url !== recipe.url;
+      
+      if (urlChanged) {
+        await submitJob(
+          Queues.DetectConfiguration,
+          { recipeId: recipe.id },
+          `detectConfiguration.${recipe.id}`
+        );
+      }
+      
+      // Build update object with only provided fields
+      const updateData: any = {};
+      
+      if (opts.input.update.url !== undefined) {
+        updateData.url = opts.input.update.url;
+      }
+      
+      if (opts.input.update.configuration !== undefined) {
+        // If configuration is provided, use it directly (full replacement)
+        updateData.configuration = opts.input.update.configuration;
+      }
+      
+      if (opts.input.update.isTemplate !== undefined) {
+        updateData.isTemplate = opts.input.update.isTemplate;
+      }
+      
+      return updateRecipe(recipe.id, updateData);
     }),
   destroy: publicProcedure
     .input(
@@ -284,5 +312,24 @@ export const recipesRouter = router({
           throw error;
         }
       }
+    }),
+  searchTemplates: publicProcedure
+    .input(
+      z.object({
+        catalogueType: z.nativeEnum(CatalogueType),
+        searchQuery: z.string().optional(),
+      })
+    )
+    .query(async (opts) => {
+      const results = await searchTemplateRecipes(
+        opts.input.catalogueType,
+        opts.input.searchQuery
+      );
+      return results.map((r) => ({
+        recipe: r.recipe,
+        catalogue: r.catalogue,
+        extractionCount: r.extractionCount,
+        mostRecentExtractionDate: r.mostRecentExtractionDate,
+      }));
     }),
 });
