@@ -64,6 +64,27 @@
       "when": 1758043982523,
       "tag": "0008_chunky_frog_thor",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1762209608948,
+      "tag": "0009_daily_prism",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1763501625342,
+      "tag": "0010_clear_pride",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1763502063466,
+      "tag": "0011_tired_dragon_lord",
+      "breakpoints": true
     }
   ]
 }

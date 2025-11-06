@@ -91,6 +91,16 @@ export async function copyToClipboard(text: string) {
   return navigator.clipboard.writeText(text);
 }
 
+export function formatCatalogueType(catalogueType: string): string {
+  const typeMap: Record<string, string> = {
+    COURSES: "Courses",
+    LEARNING_PROGRAMS: "Learning Programs",
+    COMPETENCIES: "Competencies",
+    CREDENTIALS: "Credentials",
+  };
+  return typeMap[catalogueType] || catalogueType;
+}
+
 export type IterableElement<TargetIterable> =
   TargetIterable extends Iterable<infer ElementType>
     ? ElementType

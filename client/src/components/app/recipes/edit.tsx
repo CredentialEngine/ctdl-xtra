@@ -32,6 +32,12 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@/components/ui/tabs";
 import { useToast } from "@/components/ui/use-toast";
 import {
   AlertTriangle,
@@ -45,17 +51,37 @@ import { useEffect, useRef, useState } from "react";
 import { Link } from "wouter";
 import { displayRecipeDetails } from "./util";
 import TestLinkRegex from "./TestLinkRegex";
+import { RecipeConfigurationEditor } from "./RecipeConfigurationEditor";
+import { CatalogueType, PageType, PaginationConfiguration, UrlPatternType } from "../../../../../common/types";
+
+const PaginationSchema = z.object({
+  urlPatternType: z.nativeEnum(UrlPatternType),
+  urlPattern: z.string(),
+  totalPages: z.number().positive(),
+}) as z.ZodType<PaginationConfiguration>;
+
+const RecipeConfigurationSchema: z.ZodType<any> = z.object({
+  pageType: z.nativeEnum(PageType),
+  linkRegexp: z.string().optional(),
+  pagination: PaginationSchema.optional(),
+  links: z.lazy(() => RecipeConfigurationSchema).optional(),
+  pageLoadWaitTime: z.number().optional().default(0),
+});
 
 const FormSchema = z.object({
+  name: z.preprocess(
+    (val) => (val === "" || val === null ? undefined : val),
+    z.string().optional()
+  ),
+  description: z.preprocess(
+    (val) => (val === "" || val === null ? undefined : val),
+    z.string().optional()
+  ),
   url: z
     .string()
     .url("Catalogue URL must be a valid URL (e.g. https://example.com)."),
-  configuration: z
-    .object({
-      pageLoadWaitTime: z.number().positive().optional(),
-    })
-    .partial()
-    .optional(),
+  configuration: RecipeConfigurationSchema.optional(),
+  isTemplate: z.boolean().optional(),
 });
 
 function getFirstLevelRegex(recipe: { configuration?: { linkRegexp?: string } }): string | undefined {
@@ -131,7 +157,13 @@ export default function EditRecipe() {
   async function onSubmit(data: z.infer<typeof FormSchema>) {
     await updateRecipe.mutateAsync({
       id: recipe.id,
-      update: data,
+      update: {
+        name: data.name,
+        description: data.description,
+        url: data.url,
+        configuration: data.configuration,
+        isTemplate: data.isTemplate,
+      },
     });
     recipeQuery.refetch();
   }
@@ -188,7 +220,39 @@ export default function EditRecipe() {
                   <CardHeader>
                     <CardDescription>Root URL</CardDescription>
                   </CardHeader>
-                  <CardContent>
+                  <CardContent className="space-y-4">
+                    <FormField
+                      control={form.control}
+                      name="name"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Recipe Name</FormLabel>
+                          <FormControl>
+                            <Input placeholder="My Recipe" {...field} />
+                          </FormControl>
+                          <FormDescription>
+                            Optional name for this recipe
+                          </FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="description"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Description</FormLabel>
+                          <FormControl>
+                            <Input placeholder="Optional description for this recipe" {...field} />
+                          </FormControl>
+                          <FormDescription>
+                            Optional description that will appear as a tooltip next to the recipe name
+                          </FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
                     <FormField
                       control={form.control}
                       name="url"
@@ -213,37 +277,69 @@ export default function EditRecipe() {
                       <CardDescription>Crawling Configuration</CardDescription>
                     </CardHeader>
                     <CardContent>
-                      <FormField
-                        control={form.control}
-                        name="configuration.pageLoadWaitTime"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Page Load Wait Time (seconds)</FormLabel>
-                            <FormControl>
-                              <Input
-                                type="number"
-                                placeholder="0"
-                                {...field}
-                                onChange={(e) => {
-                                  const value = e.target.value ? parseInt(e.target.value) : undefined;
-                                  field.onChange(value);
-                                }}
-                                value={field.value ?? ""}
-                              />
-                            </FormControl>
-                            <FormDescription>
-                              How long to wait (in seconds) for the page to fully load after opening. This is useful for pages that dynamically load content. Leave empty or 0 for no additional wait.
-                            </FormDescription>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      <div className="text-xs">
-                        {displayRecipeDetails(recipe)}
-                      </div>
-                      <pre className="mt-4 text-xs overflow-x-auto">
-                        {JSON.stringify(recipe.configuration, null, 2)}
-                      </pre>
+                      <Tabs defaultValue="editor" className="w-full">
+                        <TabsList>
+                          <TabsTrigger value="editor">Editor</TabsTrigger>
+                          <TabsTrigger value="json">JSON</TabsTrigger>
+                        </TabsList>
+                        <TabsContent value="editor" className="space-y-4">
+                          <RecipeConfigurationEditor
+                            control={form.control}
+                            setValue={form.setValue}
+                            rootUrl={recipe.url}
+                            catalogueType={catalogue.catalogueType as CatalogueType}
+                          />
+                          <div className="flex justify-end pt-4 border-t">
+                            <Button
+                              type="button"
+                              onClick={async () => {
+                                const configuration = form.getValues("configuration");
+                                try {
+                                  await updateRecipe.mutateAsync({
+                                    id: recipe.id,
+                                    update: {
+                                      configuration,
+                                    },
+                                  });
+                                  toast({
+                                    title: "Configuration saved",
+                                    description: "The recipe configuration has been updated successfully.",
+                                  });
+                                  recipeQuery.refetch();
+                                } catch (err) {
+                                  toast({
+                                    title: "Error saving configuration",
+                                    description: (err as Error).message,
+                                    variant: "destructive",
+                                  });
+                                }
+                              }}
+                              disabled={
+                                recipeQuery.isLoading ||
+                                updateRecipe.isLoading ||
+                                recipeQuery.data?.status === RecipeDetectionStatus.IN_PROGRESS
+                              }
+                            >
+                              {updateRecipe.isLoading ? (
+                                <>
+                                  <LoaderIcon className="animate-spin mr-2 h-4 w-4" />
+                                  Saving...
+                                </>
+                              ) : (
+                                "Save Configuration"
+                              )}
+                            </Button>
+                          </div>
+                        </TabsContent>
+                        <TabsContent value="json" className="space-y-4">
+                          <div className="text-xs">
+                            {displayRecipeDetails(recipe)}
+                          </div>
+                          <pre className="mt-4 text-xs overflow-x-auto">
+                            {JSON.stringify(recipe.configuration, null, 2)}
+                          </pre>
+                        </TabsContent>
+                      </Tabs>
                     </CardContent>
                   </Card>
                 ) : null}
@@ -338,6 +434,29 @@ export default function EditRecipe() {
                           </div>
                         )
                       ) : null}
+                      <div className="mt-4">
+                        <FormField
+                          control={form.control}
+                          name="isTemplate"
+                          render={({ field }) => (
+                            <FormItem className="flex flex-row items-start space-x-3 space-y-0">
+                              <FormControl>
+                                <Checkbox
+                                  checked={field.value}
+                                  onCheckedChange={field.onChange}
+                                />
+                              </FormControl>
+                              <div className="space-y-1 leading-none">
+                                <FormLabel>Mark as template</FormLabel>
+                                <FormDescription>
+                                  Allow this recipe to be reused as a template
+                                  when creating new recipes
+                                </FormDescription>
+                              </div>
+                            </FormItem>
+                          )}
+                        />
+                      </div>
                       <div className="mt-4">
                         <Dialog>
                           <DialogTrigger asChild>
