@@ -156,7 +156,7 @@ export function Dashboard() {
               </DropdownMenuContent>
             </DropdownMenu>
           </header>
-          <main className="flex flex-1 flex-col gap-4 p-4 lg:gap-6 lg:p-6 max-w-5xl">
+          <main className="flex flex-1 flex-col gap-4 p-4 lg:gap-6 lg:p-6 w-[70%]">
             <Routes />
           </main>
         </div>

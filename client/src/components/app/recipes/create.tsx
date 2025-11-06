@@ -1,9 +1,9 @@
 import BreadcrumbTrail from "@/components/ui/breadcrumb-trail";
-import { trpc } from "@/utils";
+import { formatCatalogueType, prettyPrintDate, trpc } from "@/utils";
 import { useLocation, useParams } from "wouter";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useForm, useFormContext, Path } from "react-hook-form";
+import { useForm } from "react-hook-form";
 import { z } from "zod";
 
 import { Button } from "@/components/ui/button";
@@ -38,26 +38,35 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { HelpCircle, Loader2 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { HelpCircle, Search } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 import {
   CatalogueType,
   PageType,
   PaginationConfiguration,
   UrlPatternType,
 } from "../../../../../common/types";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import TestLinkRegex from "./TestLinkRegex";
+import { RecipeLevel, FormRecipeConfiguration } from "./RecipeLevel";
 
-type FormRecipeConfiguration = {
-  pageType: PageType;
-  linkRegexp?: string;
-  clickSelector?: string;
-  clickOptions?: { limit?: number; waitMs?: number };
-  pagination?: PaginationConfiguration;
-  links?: any;
-  sampleUrls?: string[];
-  pageLoadWaitTime?: number;
-};
+function debounce<T extends (...args: any[]) => any>(
+  func: T,
+  wait: number
+): (...args: Parameters<T>) => void {
+  let timeout: NodeJS.Timeout;
+  return (...args: Parameters<T>) => {
+    clearTimeout(timeout);
+    timeout = setTimeout(() => func(...args), wait);
+  };
+}
 
 const PaginationSchema = z.object({
   urlPatternType: z.nativeEnum(UrlPatternType),
@@ -93,501 +102,64 @@ const RecipeConfigurationSchema: z.ZodType<FormRecipeConfiguration> = z.object({
 );
 
 const FormSchema = z.object({
+  name: z.string().optional(),
+  description: z.string().optional(),
   url: z
     .string()
     .url("Catalogue URL must be a valid URL (e.g. https://example.com)."),
   manualConfig: z.boolean().default(false),
   configuration: RecipeConfigurationSchema.optional(),
   acknowledgedSkipRobotsTxt: z.boolean().default(false),
+  creationMode: z.enum(["detect", "manual", "template"]).default("detect"),
 });
 
-function RecipeLevel({
-  path,
-  control,
-  onDetectUrlRegexp,
-  onDetectPagination,
-}: {
-  path: string;
-  control: any;
-  onDetectUrlRegexp: (
-    rootUrl: string,
-    context: {
-      parents?: FormRecipeConfiguration[];
-      current: FormRecipeConfiguration;
-    },
-    formPath?: string
-  ) => Promise<void>;
-  onDetectPagination: (
-    rootUrl: string,
-    context: {
-      parents?: FormRecipeConfiguration[];
-      current: FormRecipeConfiguration;
-    },
-    formPath?: string
-  ) => Promise<void>;
-}) {
-  const form = useFormContext<z.infer<typeof FormSchema>>();
-  const config = form.watch(path as any) as any as FormRecipeConfiguration;
-  const [isDetectingUrlRegexp, setIsDetectingUrlRegexp] = useState(false);
-  const [isDetectingPagination, setIsDetectingPagination] = useState(false);
-  const [tooltipOpen, setTooltipOpen] = useState<{ [key: string]: boolean }>({});
-
-  const rootUrl = form.watch("url");
-
-  const currentConfig = form.getValues(
-    path as any
-  ) as any as FormRecipeConfiguration;
-  const parts = path.split(".");
-  const parentsConfig =
-    parts.length > 1
-      ? parts.slice(0, -1).reduce((acc, _, index) => {
-          const parentPath = parts.slice(0, index + 1).join(".");
-          return [...acc, form.getValues(parentPath as any)];
-        }, [] as FormRecipeConfiguration[])
-      : undefined;
-  const canDetectUrlRegexp =
-    !isDetectingUrlRegexp &&
-    (!parentsConfig ||
-      parentsConfig.length === 0 ||
-      parentsConfig[parentsConfig.length - 1]?.sampleUrls?.length);
-
-  return (
-    <TooltipProvider>
-      <div className="space-y-4 border-l-2 pl-4 mt-4">
-      <FormField
-        control={control}
-        name={`${path}.pageType` as any}
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel>Page Type</FormLabel>
-            <Select
-              onValueChange={(value) => {
-                const currentConfig = form.getValues(
-                  path as any
-                ) as any as FormRecipeConfiguration;
-                const links =
-                  PageType.DETAIL_LINKS == value
-                    ? { pageType: PageType.DETAIL }
-                    : currentConfig?.links;
-                (form.setValue as any)(path, {
-                  ...currentConfig,
-                  pageType: value as PageType,
-                  ...(value !== PageType.DETAIL && {
-                    linkRegexp: currentConfig?.linkRegexp || "",
-                    pagination: currentConfig?.pagination,
-                    links: links,
-                  }),
-                });
-              }}
-              defaultValue={field.value}
-            >
-              <FormControl>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select a page type" />
-                </SelectTrigger>
-              </FormControl>
-              <SelectContent>
-                {Object.values(PageType).map((type) => (
-                  <SelectItem key={type} value={type}>
-                    {type}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <FormMessage />
-          </FormItem>
-        )}
-      />
-
-      {config?.pageType && config.pageType !== PageType.DETAIL && (
-        <>
-          <FormItem className="flex flex-row items-start space-x-3 space-y-0">
-            <FormControl>
-              <Checkbox
-                checked={config?.clickSelector !== undefined}
-                onCheckedChange={(checked) => {
-                  if (checked) {
-                    // When checked, initialize clickSelector with "body" and set default limit
-                    form.setValue(`${path}.clickSelector` as Path<z.infer<typeof FormSchema>>, "body", { shouldValidate: false });
-                    const clickOptionsPath = `${path}.clickOptions` as Path<z.infer<typeof FormSchema>>;
-                    const currentClickOptions = form.getValues(clickOptionsPath);
-                    if (!currentClickOptions?.limit) {
-                      form.setValue(clickOptionsPath as Path<z.infer<typeof FormSchema>>, { limit: 300 }, { shouldValidate: false });
-                    }
-                  } else {
-                    // When unchecked, clear clickSelector and clickOptions
-                    form.setValue(`${path}.clickSelector` as Path<z.infer<typeof FormSchema>>, undefined, { shouldValidate: false });
-                    form.setValue(`${path}.clickOptions` as Path<z.infer<typeof FormSchema>>, undefined, { shouldValidate: false });
-                  }
-                }}
-              />
-            </FormControl>
-            <div className="space-y-1 leading-none">
-              <FormLabel>Dynamic catalogue</FormLabel>
-              <FormDescription>
-                Enable dynamic link discovery by simulating clicks on the elements on the page. This is needed for catalogues that do not use classic page navigation and are more dynamic in nature.
-              </FormDescription>
-            </div>
-          </FormItem>
-
-          {config?.clickSelector !== undefined && (
-            <>
-              <FormField
-                control={control}
-                name={`${path}.clickSelector`}
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="flex items-center gap-2">
-                      Dynamic URL Selector
-                      <span className="text-destructive">*</span>
-                      <Tooltip 
-                        open={tooltipOpen[`${path}-selector`] || false}
-                        onOpenChange={(open) => setTooltipOpen(prev => ({ ...prev, [`${path}-selector`]: open }))}
-                      >
-                        <TooltipTrigger asChild>
-                          <HelpCircle 
-                            className="h-4 w-4 text-muted-foreground cursor-help" 
-                            onClick={(e) => {
-                              e.preventDefault();
-                              e.stopPropagation();
-                              setTooltipOpen(prev => ({ 
-                                ...prev, 
-                                [`${path}-selector`]: !prev[`${path}-selector`] 
-                              }));
-                            }}
-                          />
-                        </TooltipTrigger>
-                        <TooltipContent className="max-w-xs">
-                          <p>
-                            This is the selector of the element that contains the things xTRA will try to click on. You can find this by using the developer tools on the catalogue webpage. "body" by default should encompass all clickable elements, but it is highly recommended to set a more specific element to avoid proxy costs or stopping because of max clicks allowed. Note that using this method, pages will take longer to index and the regex tester can take up to 5 minutes to show results.
-                          </p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </FormLabel>
-                    <FormControl>
-                      <Input placeholder="e.g. a.nav-link" {...field} />
-                    </FormControl>
-                    <FormDescription>
-                      Required when Dynamic catalogue is enabled. The selector of elements to click.
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <div className="grid grid-cols-2 gap-4">
-                <FormField
-                  control={control}
-                  name={`${path}.clickOptions.limit`}
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="flex items-center gap-2">
-                        Click Limit
-                        <Tooltip 
-                          open={tooltipOpen[`${path}-limit`] || false}
-                          onOpenChange={(open) => setTooltipOpen(prev => ({ ...prev, [`${path}-limit`]: open }))}
-                        >
-                          <TooltipTrigger asChild>
-                            <HelpCircle 
-                              className="h-4 w-4 text-muted-foreground cursor-help" 
-                              onClick={(e) => {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                setTooltipOpen(prev => ({ 
-                                  ...prev, 
-                                  [`${path}-limit`]: !prev[`${path}-limit`] 
-                                }));
-                              }}
-                            />
-                          </TooltipTrigger>
-                          <TooltipContent className="max-w-xs">
-                            <p>
-                              This is a safety limit against infinite loops. Adjust this value if you expect the page to have more than 300 clickable elements.
-                            </p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </FormLabel>
-                      <FormControl>
-                        <Input
-                          type="number"
-                          value={field.value ?? (config.clickSelector ? 300 : "")}
-                          onChange={(e) =>
-                            field.onChange(
-                              e.target.value === "" ? undefined : parseInt(e.target.value)
-                            )
-                          }
-                        />
-                      </FormControl>
-                      <FormDescription>
-                        Maximum number of elements to click (optional).
-                      </FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={control}
-                  name={`${path}.clickOptions.waitMs`}
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Wait after click (ms)</FormLabel>
-                      <FormControl>
-                        <Input
-                          type="number"
-                          value={field.value ?? ""}
-                          onChange={(e) =>
-                            field.onChange(
-                              e.target.value === "" ? undefined : parseInt(e.target.value)
-                            )
-                          }
-                        />
-                      </FormControl>
-                      <FormDescription>
-                        Optional delay after each click.
-                      </FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-            </>
-          )}
-
-          <FormField
-            control={control}
-            name={`${path}.linkRegexp`}
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Link RegExp</FormLabel>
-                <div className="flex space-x-2">
-                  <FormControl>
-                    <Input {...field} />
-                  </FormControl>
-                  <Button
-                    type="button"
-                    onClick={async () => {
-                      setIsDetectingUrlRegexp(true);
-                      try {
-                        await onDetectUrlRegexp(
-                          rootUrl,
-                          { parents: parentsConfig, current: currentConfig },
-                          path
-                        );
-                      } finally {
-                        setIsDetectingUrlRegexp(false);
-                      }
-                    }}
-                    disabled={!canDetectUrlRegexp}
-                  >
-                    {isDetectingUrlRegexp ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Detecting...
-                      </>
-                    ) : (
-                      "Detect"
-                    )}
-                  </Button>
-                </div>
-                {config.sampleUrls?.length && config.sampleUrls.length > 0 && (
-                  <div className="mt-2">
-                    <p className="text-sm font-medium">Sample matches:</p>
-                    <ul className="text-sm text-muted-foreground mt-1 space-y-1 max-h-32 overflow-y-auto">
-                      {config.sampleUrls.map((url, index) => (
-                        <li key={index} className="truncate">
-                          {url}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          <FormField
-            control={control}
-            name={`${path}.pagination`}
-            render={({ field }) => (
-              <FormItem>
-                <div className="flex items-center space-x-2">
-                  <FormControl>
-                    <Checkbox
-                      checked={!!field.value}
-                      onCheckedChange={(checked) => {
-                        if (checked) {
-                          (form.setValue as any)(`${path}.pagination`, {
-                            urlPatternType: UrlPatternType.page_num,
-                            urlPattern: "",
-                            totalPages: 1,
-                          });
-                        } else {
-                          (form.setValue as any)(
-                            `${path}.pagination`,
-                            undefined
-                          );
-                        }
-                      }}
-                    />
-                  </FormControl>
-                  <FormLabel className="!mt-0">Has Pagination</FormLabel>
-                </div>
-                {field.value && (
-                  <div className="mt-2 space-y-4">
-                    <Button
-                      type="button"
-                      onClick={async () => {
-                        setIsDetectingPagination(true);
-                        try {
-                          await onDetectPagination(
-                            rootUrl,
-                            {
-                              parents: parentsConfig,
-                              current: currentConfig,
-                            },
-                            path
-                          );
-                        } finally {
-                          setIsDetectingPagination(false);
-                        }
-                      }}
-                      disabled={isDetectingPagination}
-                    >
-                      {isDetectingPagination ? (
-                        <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Detecting...
-                        </>
-                      ) : (
-                        "Detect"
-                      )}
-                    </Button>
-                    <div className="space-y-2">
-                      <FormField
-                        control={control}
-                        name={`${path}.pagination.urlPatternType`}
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Pattern Type</FormLabel>
-                            <Select
-                              onValueChange={field.onChange}
-                              defaultValue={field.value}
-                              disabled={isDetectingPagination}
-                            >
-                              <FormControl>
-                                <SelectTrigger>
-                                  <SelectValue placeholder="Select a pattern type" />
-                                </SelectTrigger>
-                              </FormControl>
-                              <SelectContent>
-                                {Object.values(UrlPatternType).map((type) => (
-                                  <SelectItem key={type} value={type}>
-                                    {type}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      <FormField
-                        control={control}
-                        name={`${path}.pagination.urlPattern`}
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>URL Pattern</FormLabel>
-                            <FormControl>
-                              <Input
-                                {...field}
-                                disabled={isDetectingPagination}
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      <FormField
-                        control={control}
-                        name={`${path}.pagination.totalPages`}
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Total Pages</FormLabel>
-                            <FormControl>
-                              <Input
-                                type="number"
-                                {...field}
-                                disabled={isDetectingPagination}
-                                onChange={(e) =>
-                                  field.onChange(parseInt(e.target.value))
-                                }
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    </div>
-                  </div>
-                )}
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        </>
-      )}
-
-      <div className="flex space-x-2">
-        {config?.pageType !== PageType.DETAIL && (
-          <Button
-            type="button"
-            onClick={() =>
-              (form.setValue as any)(`${path}.links`, {
-                pageType: PageType.DETAIL,
-              })
-            }
-          >
-            Add Level
-          </Button>
-        )}
-        <Button
-          type="button"
-          variant="destructive"
-          onClick={() => (form.setValue as any)(path, undefined)}
-        >
-          Remove Level
-        </Button>
-      </div>
-
-      {config?.links && (
-        <RecipeLevel
-          path={`${path}.links`}
-          control={control}
-          onDetectUrlRegexp={onDetectUrlRegexp}
-          onDetectPagination={onDetectPagination}
-        />
-      )}
-      </div>
-    </TooltipProvider>
-  );
-}
-
 export default function CreateRecipe() {
-  let { catalogueId } = useParams();
+  const { catalogueId } = useParams();
+  const searchParams = new URLSearchParams(window.location.search);
+  const templateIdFromUrl = searchParams.get("templateId");
+  const [selectedTemplateId, setSelectedTemplateId] = useState<number | null>(
+    templateIdFromUrl ? parseInt(templateIdFromUrl) : null
+  );
+  const [templateSearchQuery, setTemplateSearchQuery] = useState("");
+  const [debouncedTemplateSearchQuery, setDebouncedTemplateSearchQuery] = useState("");
+
   const catalogueQuery = trpc.catalogues.detail.useQuery(
     { id: parseInt(catalogueId || "") },
     { enabled: !!parseInt(catalogueId || "") }
   );
+  const templateQuery = trpc.recipes.detail.useQuery(
+    { id: selectedTemplateId! },
+    { enabled: !!selectedTemplateId }
+  );
+  const templatesQuery = trpc.recipes.searchTemplates.useQuery(
+    {
+      searchQuery: debouncedTemplateSearchQuery || undefined,
+    }
+  );
+
+  // Debounce template search query
+  const debouncedSetTemplateSearch = useRef(
+    debounce((value: string) => {
+      setDebouncedTemplateSearchQuery(value);
+    }, 750)
+  ).current;
+
+  const handleTemplateSearchChange = (value: string) => {
+    setTemplateSearchQuery(value);
+    debouncedSetTemplateSearch(value);
+  };
   const createRecipe = trpc.recipes.create.useMutation();
   const detectPagination = trpc.recipes.detectPagination.useMutation();
   const detectUrlRegexp = trpc.recipes.detectUrlRegexp.useMutation();
   const form = useForm<z.infer<typeof FormSchema>>({
     resolver: zodResolver(FormSchema),
+    mode: "onSubmit",
+    reValidateMode: "onSubmit",
     defaultValues: {
       url: "",
       manualConfig: false,
       acknowledgedSkipRobotsTxt: false,
+      creationMode: templateIdFromUrl ? "template" : "detect",
     },
   });
   const { toast } = useToast();
@@ -597,24 +169,48 @@ export default function CreateRecipe() {
     if (!catalogueQuery.data) {
       return;
     }
-    form.reset({ url: catalogueQuery.data.url });
-  }, [catalogueQuery.data]);
-
-  useEffect(() => {
-    if (form.getValues("manualConfig")) {
-      form.setValue("configuration", {
-        pageType: PageType.DETAIL,
+    if (templateQuery.data && selectedTemplateId) {
+      // Pre-fill form with template data
+      form.reset({
+        url: catalogueQuery.data.url,
+        manualConfig: true,
+        configuration: templateQuery.data.configuration as any,
+        acknowledgedSkipRobotsTxt: templateQuery.data.acknowledgedSkipRobotsTxt || false,
+        creationMode: "template" as const,
+        name: templateQuery.data.name || undefined,
+        description: templateQuery.data.description || undefined,
+      }, { keepErrors: false });
+    } else if (form.getValues("creationMode") === "template") {
+      // If we're in template mode but no template is selected, keep template mode
+      // but reset URL to catalogue URL
+      form.reset({
+        url: catalogueQuery.data.url,
+        creationMode: "template" as const,
+        manualConfig: false,
+        acknowledgedSkipRobotsTxt: false,
       });
     } else {
-      form.setValue("configuration", undefined);
+      form.reset({ url: catalogueQuery.data.url });
     }
-  }, [form.getValues("manualConfig")]);
+  }, [catalogueQuery.data, templateQuery.data, selectedTemplateId]);
+
+  const creationMode = form.watch("creationMode");
 
   useEffect(() => {
-    if (!form.getValues("configuration")) {
+    if (creationMode === "manual" || creationMode === "template") {
+      if (!form.getValues("configuration")) {
+        form.setValue("configuration", {
+          pageType: PageType.DETAIL,
+        });
+      }
+      form.setValue("manualConfig", true);
+    } else {
       form.setValue("manualConfig", false);
+      if (creationMode === "detect") {
+        form.setValue("configuration", undefined);
+      }
     }
-  }, [form.getValues("configuration")]);
+  }, [creationMode, form]);
 
   if (!catalogueQuery.data) {
     return null;
@@ -622,10 +218,45 @@ export default function CreateRecipe() {
 
   async function onSubmit(data: z.infer<typeof FormSchema>) {
     try {
+      // Explicitly prevent submission in template mode without a valid configuration
+      if (creationMode === "template") {
+        if (!selectedTemplateId) {
+          toast({
+            title: "Template required",
+            description: "Please select a template recipe before creating the recipe.",
+            variant: "destructive",
+          });
+          return;
+        }
+        if (!data.configuration || !data.configuration.pageType) {
+          toast({
+            title: "Configuration required",
+            description: "Template configuration is missing. Please select a template or wait for it to load.",
+            variant: "destructive",
+          });
+          return;
+        }
+      }
+
+      // Ensure manual mode also has configuration
+      if (creationMode === "manual" && (!data.configuration || !data.configuration.pageType)) {
+        toast({
+          title: "Configuration required",
+          description: "Please provide a valid recipe configuration.",
+          variant: "destructive",
+        });
+        return;
+      }
+
       const result = await createRecipe.mutateAsync({
         catalogueId: parseInt(catalogueId!),
         url: data.url,
-        configuration: data.manualConfig ? data.configuration : undefined,
+        name: data.name,
+        description: data.description,
+        configuration:
+          creationMode === "template" || creationMode === "manual"
+            ? data.configuration
+            : undefined,
         acknowledgedSkipRobotsTxt: data.acknowledgedSkipRobotsTxt,
       });
       if (result.context?.message) {
@@ -648,7 +279,6 @@ export default function CreateRecipe() {
     { label: catalogueQuery.data.name, href: `/${catalogueId}` },
   ];
 
-  const manualConfig = form.watch("manualConfig");
   const configuration = form.watch("configuration");
 
   async function onDetectPagination(
@@ -740,19 +370,51 @@ export default function CreateRecipe() {
       <div className="flex items-center">
         <h1 className="text-lg font-semibold md:text-2xl">Configure recipe</h1>
       </div>
-      <div className="">
+      <div className="w-full">
         <Form {...form}>
           <form
             onSubmit={form.handleSubmit(onSubmit)}
             className="w-full space-y-6"
           >
             <div>
-              <div className="grid gap-2 md:grid-cols-[1fr_250px] lg:grid-cols-2 lg:gap-4">
+              <div className="grid gap-2 md:grid-cols-[1fr_250px] lg:grid-cols-1 lg:gap-4">
                 <Card>
                   <CardHeader>
                     <CardDescription>Root URL</CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-4">
+                    <FormField
+                      control={form.control}
+                      name="name"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Recipe Name</FormLabel>
+                          <FormControl>
+                            <Input placeholder="My Recipe" {...field} />
+                          </FormControl>
+                          <FormDescription>
+                            Optional name for this recipe
+                          </FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="description"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Description</FormLabel>
+                          <FormControl>
+                            <Input placeholder="Optional description for this recipe" {...field} />
+                          </FormControl>
+                          <FormDescription>
+                            Optional description that will appear as a tooltip next to the recipe name
+                          </FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
                     <FormField
                       control={form.control}
                       name="url"
@@ -771,22 +433,50 @@ export default function CreateRecipe() {
                     />
                     <FormField
                       control={form.control}
-                      name="manualConfig"
+                      name="creationMode"
                       render={({ field }) => (
-                        <FormItem className="flex flex-row items-start space-x-3 space-y-0">
-                          <FormControl>
-                            <Checkbox
-                              checked={field.value}
-                              onCheckedChange={field.onChange}
-                            />
-                          </FormControl>
-                          <div className="space-y-1 leading-none">
-                            <FormLabel>Manual configuration</FormLabel>
-                            <FormDescription>
-                              Manually configure the recipe instead of
-                              auto-detection
-                            </FormDescription>
-                          </div>
+                        <FormItem>
+                          <FormLabel>Configuration Method</FormLabel>
+                          <Select
+                            onValueChange={(value) => {
+                              field.onChange(value);
+                              if (value === "manual") {
+                                // Immediately set configuration so the Recipe Configuration section appears
+                                if (!form.getValues("configuration")) {
+                                  form.setValue("configuration", {
+                                    pageType: PageType.DETAIL,
+                                  });
+                                }
+                                form.setValue("manualConfig", true);
+                                setSelectedTemplateId(null);
+                              } else if (value === "detect") {
+                                form.setValue("manualConfig", false);
+                                form.setValue("configuration", undefined);
+                                setSelectedTemplateId(null);
+                              }
+                              // For "template", we don't navigate - just show the template selection card
+                            }}
+                            value={field.value}
+                          >
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue defaultValue="detect" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="detect">Auto-detect</SelectItem>
+                              <SelectItem value="manual">Manual</SelectItem>
+                              <SelectItem value="template">From template</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <FormDescription>
+                            {creationMode === "detect"
+                              ? "Automatically detect recipe configuration using AI"
+                              : creationMode === "manual"
+                                ? "Manually configure the recipe"
+                                : "Use an existing recipe as a template"}
+                          </FormDescription>
+                          <FormMessage />
                         </FormItem>
                       )}
                     />
@@ -816,8 +506,129 @@ export default function CreateRecipe() {
               </div>
             </div>
 
-            {manualConfig && (
-              <div className="grid gap-2 md:grid-cols-[1fr_250px] lg:grid-cols-2 lg:gap-4">
+            {creationMode === "template" && (
+              <div className="grid gap-2 md:grid-cols-[1fr_250px] lg:grid-cols-1 lg:gap-4">
+                <Card>
+                  <CardHeader>
+                    <CardDescription>Select Template Recipe</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    {selectedTemplateId && templateQuery.data ? (
+                      <div className="rounded-md bg-muted p-3 text-sm">
+                        <p className="font-medium">Using template: Recipe #{templateQuery.data.id}</p>
+                        <p className="text-muted-foreground mt-1">
+                          Configuration from template will be pre-filled below.
+                        </p>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          className="mt-2"
+                          onClick={() => {
+                            setSelectedTemplateId(null);
+                            // Ensure creation mode stays as template
+                            form.setValue("creationMode", "template");
+                          }}
+                        >
+                          Change Template
+                        </Button>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="relative">
+                          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                          <Input
+                            placeholder="Search by catalogue name or URL..."
+                            value={templateSearchQuery}
+                            onChange={(e) => handleTemplateSearchChange(e.target.value)}
+                            className="pl-9"
+                          />
+                        </div>
+                        {templatesQuery.isLoading ? (
+                          <div className="text-sm text-muted-foreground">
+                            Loading templates...
+                          </div>
+                        ) : templatesQuery.data && templatesQuery.data.length > 0 ? (
+                          <div className="max-h-[600px] overflow-y-auto">
+                            <Table>
+                              <TableHeader>
+                                <TableRow>
+                                  <TableHead>Recipe Name</TableHead>
+                                  <TableHead>Catalogue Name</TableHead>
+                                  <TableHead>Catalogue Type</TableHead>
+                                  <TableHead>Catalogue URL</TableHead>
+                                  <TableHead>Created</TableHead>
+                                  <TableHead>Extractions</TableHead>
+                                  <TableHead>Last Extraction</TableHead>
+                                  <TableHead></TableHead>
+                                </TableRow>
+                              </TableHeader>
+                              <TableBody>
+                                {templatesQuery.data.map((item) => (
+                                  <TableRow key={item.recipe.id}>
+                                    <TableCell className="font-medium">
+                                      <div className="flex items-center gap-2">
+                                        <span>{item.recipe.name || `Recipe #${item.recipe.id}`}</span>
+                                        {item.recipe.description && (
+                                          <TooltipProvider>
+                                            <Tooltip>
+                                              <TooltipTrigger asChild>
+                                                <HelpCircle className="h-8 w-8 text-muted-foreground cursor-help" />
+                                              </TooltipTrigger>
+                                              <TooltipContent>
+                                                <p>{item.recipe.description}</p>
+                                              </TooltipContent>
+                                            </Tooltip>
+                                          </TooltipProvider>
+                                        )}
+                                      </div>
+                                    </TableCell>
+                                    <TableCell>{item.catalogue.name}</TableCell>
+                                    <TableCell>
+                                      {formatCatalogueType(item.catalogue.catalogueType)}
+                                    </TableCell>
+                                    <TableCell className="font-mono text-xs">
+                                      {item.catalogue.url}
+                                    </TableCell>
+                                    <TableCell className="text-muted-foreground">
+                                      {prettyPrintDate(item.recipe.createdAt)}
+                                    </TableCell>
+                                    <TableCell>{item.extractionCount}</TableCell>
+                                    <TableCell className="text-muted-foreground">
+                                      {item.mostRecentExtractionDate
+                                        ? prettyPrintDate(item.mostRecentExtractionDate)
+                                        : "Never"}
+                                    </TableCell>
+                                    <TableCell>
+                                      <Button
+                                        type="button"
+                                        size="sm"
+                                        onClick={() => setSelectedTemplateId(item.recipe.id)}
+                                      >
+                                        Select
+                                      </Button>
+                                    </TableCell>
+                                  </TableRow>
+                                ))}
+                              </TableBody>
+                            </Table>
+                          </div>
+                        ) : (
+                          <div className="text-sm text-muted-foreground text-center py-8">
+                            {debouncedTemplateSearchQuery
+                              ? "No templates found matching your search."
+                              : "No template recipes available. Create a recipe and mark it as a template to use it here."}
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
+            )}
+
+            {((creationMode === "template" && selectedTemplateId) || creationMode === "manual") && (
+              <div className="grid gap-2 md:grid-cols-[1fr_250px] lg:grid-cols-1 lg:gap-4">
                 <Card>
                   <CardHeader>
                     <CardDescription>Recipe Configuration</CardDescription>
