@@ -22,13 +22,19 @@ import {
 } from "@/components/ui/table";
 import { useToast } from "@/components/ui/use-toast";
 import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
   Catalogue,
   prettyPrintDate,
   Recipe,
   RecipeDetectionStatus,
   trpc,
 } from "@/utils";
-import { CookingPot, Star } from "lucide-react";
+import { CookingPot, HelpCircle, Star } from "lucide-react";
 import { useState } from "react";
 import { Link, useLocation, useParams } from "wouter";
 import { displayRecipeDetails } from "../recipes/util";
@@ -59,11 +65,25 @@ const RecipeList = ({ catalogue }: RecipeListProps) => {
                 className="hover:bg-muted py-2 px-4 border mt-4 rounded-md flex items-center justify-between"
               >
                 <div className="text-xs">
-                  <div>
-                    Recipe #{recipe.id}{" "}
-                    {recipe.status == RecipeDetectionStatus.SUCCESS
-                      ? null
-                      : "— Draft"}
+                  <div className="flex items-center gap-2">
+                    <span>
+                      {recipe.name || `Recipe #${recipe.id}`}{" "}
+                      {recipe.status == RecipeDetectionStatus.SUCCESS
+                        ? null
+                        : "— Draft"}
+                    </span>
+                    {recipe.description && (
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <HelpCircle className="h-5 w-5 text-muted-foreground cursor-help" />
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>{recipe.description}</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    )}
                   </div>
                   <div className="text-xs text-muted-foreground">
                     {displayRecipeDetails(recipe as Recipe)}

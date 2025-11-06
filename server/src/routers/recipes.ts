@@ -1,11 +1,12 @@
 import { z } from "zod";
 import { publicProcedure, router } from ".";
-import { CatalogueType, PageType, UrlPatternType } from "../../../common/types";
+import { CatalogueType, PageType, RecipeConfiguration, UrlPatternType } from "../../../common/types";
 import { AppError, AppErrors } from "../appErrors";
 import {
   createRecipe,
   destroyRecipe,
   findRecipeById,
+  searchTemplateRecipes,
   setDefault,
   updateRecipe,
 } from "../data/recipes";
@@ -68,6 +69,8 @@ export const recipesRouter = router({
         catalogueId: z.number().int().positive(),
         configuration: RecipeConfigurationSchema.optional(),
         acknowledgedSkipRobotsTxt: z.boolean().optional(),
+        name: z.string().optional(),
+        description: z.string().optional(),
       })
     )
     .mutation(
@@ -91,25 +94,54 @@ export const recipesRouter = router({
             );
           }
 
-          if (opts.input.configuration) {
-            return createRecipe(
+          // Check if configuration is provided and valid (has pageType at minimum)
+          // This ensures template and manual modes don't trigger background detection tasks
+          const hasValidConfiguration = 
+            opts.input.configuration && 
+            typeof opts.input.configuration === 'object' &&
+            'pageType' in opts.input.configuration &&
+            opts.input.configuration.pageType !== undefined &&
+            opts.input.configuration.pageType !== null;
+
+          if (hasValidConfiguration && opts.input.configuration) {
+            logger.info(`Creating recipe with provided configuration (template/manual mode). No background tasks will be triggered.`);
+            const recipe = await createRecipe(
               opts.input.catalogueId,
               opts.input.url,
-              opts.input.configuration,
+              opts.input.configuration as RecipeConfiguration,
               robotsTxt || undefined,
-              opts.input.acknowledgedSkipRobotsTxt
+              opts.input.acknowledgedSkipRobotsTxt,
+              opts.input.name,
+              opts.input.description
             );
+            logger.info(`Created recipe ${recipe.id} without background detection tasks`);
+            return {
+              id: recipe.id,
+            };
           } else {
+            // Only trigger detection if configuration is explicitly not provided (detect mode)
+            // If configuration is provided but invalid, reject the request to prevent accidental detection
+            if (opts.input.configuration !== undefined && opts.input.configuration !== null) {
+              logger.warn(`Invalid configuration provided. Rejecting recipe creation to prevent accidental background detection.`);
+              throw new AppError(
+                "Invalid recipe configuration provided. Please ensure the configuration includes a valid pageType.",
+                AppErrors.BAD_REQUEST
+              );
+            }
+
+            logger.info(`No configuration provided. Starting recipe detection with background tasks (detect mode).`);
             const detection = await submitRecipeDetection(
               opts.input.url,
               opts.input.catalogueId
             );
 
-            // If detection was successful, update the recipe with robots.txt info
+            // If detection was successful, update the recipe with robots.txt info, name, and description
             if (detection.id) {
               await updateRecipe(detection.id, {
                 robotsTxt: robotsTxt || undefined,
                 acknowledgedSkipRobotsTxt: opts.input.acknowledgedSkipRobotsTxt,
+                name: opts.input.name,
+                description: opts.input.description,
               });
             }
 
@@ -219,8 +251,11 @@ export const recipesRouter = router({
       z.object({
         id: z.number().int().positive(),
         update: z.object({
-          url: z.string(),
-          configuration: RecipeConfigurationSchema.partial().optional(),
+          url: z.string().optional(),
+          configuration: RecipeConfigurationSchema.optional(),
+          isTemplate: z.boolean().optional(),
+          name: z.string().optional(),
+          description: z.string().optional(),
         }),
       })
     )
@@ -229,18 +264,43 @@ export const recipesRouter = router({
       if (!recipe) {
         throw new AppError("Recipe not found", AppErrors.NOT_FOUND);
       }
-      await submitJob(
-        Queues.DetectConfiguration,
-        { recipeId: recipe.id },
-        `detectConfiguration.${recipe.id}`
-      );
-      const mergedConfiguration = opts.input.update.configuration
-        ? { ...(recipe.configuration as any), ...opts.input.update.configuration }
-        : undefined;
-      return updateRecipe(recipe.id, {
-        url: opts.input.update.url,
-        ...(mergedConfiguration ? { configuration: mergedConfiguration } : {}),
-      });
+      
+      // Only trigger detection if URL changed, not if only configuration or isTemplate changed
+      const urlChanged = opts.input.update.url !== undefined && opts.input.update.url !== recipe.url;
+      
+      if (urlChanged) {
+        await submitJob(
+          Queues.DetectConfiguration,
+          { recipeId: recipe.id },
+          `detectConfiguration.${recipe.id}`
+        );
+      }
+      
+      // Build update object with only provided fields
+      const updateData: any = {};
+      
+      if (opts.input.update.url !== undefined) {
+        updateData.url = opts.input.update.url;
+      }
+      
+      if (opts.input.update.configuration !== undefined) {
+        // If configuration is provided, use it directly (full replacement)
+        updateData.configuration = opts.input.update.configuration;
+      }
+      
+      if (opts.input.update.isTemplate !== undefined) {
+        updateData.isTemplate = opts.input.update.isTemplate;
+      }
+      
+      if (opts.input.update.name !== undefined) {
+        updateData.name = opts.input.update.name;
+      }
+      
+      if (opts.input.update.description !== undefined) {
+        updateData.description = opts.input.update.description;
+      }
+      
+      return updateRecipe(recipe.id, updateData);
     }),
   destroy: publicProcedure
     .input(
@@ -318,5 +378,24 @@ export const recipesRouter = router({
           throw error;
         }
       }
+    }),
+  searchTemplates: publicProcedure
+    .input(
+      z.object({
+        catalogueType: z.nativeEnum(CatalogueType).optional(),
+        searchQuery: z.string().optional(),
+      })
+    )
+    .query(async (opts) => {
+      const results = await searchTemplateRecipes(
+        opts.input.catalogueType,
+        opts.input.searchQuery
+      );
+      return results.map((r) => ({
+        recipe: r.recipe,
+        catalogue: r.catalogue,
+        extractionCount: r.extractionCount,
+        mostRecentExtractionDate: r.mostRecentExtractionDate,
+      }));
     }),
 });

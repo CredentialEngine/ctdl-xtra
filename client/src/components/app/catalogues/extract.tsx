@@ -21,9 +21,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { Recipe, RecipeDetectionStatus, trpc } from "@/utils";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Pickaxe } from "lucide-react";
+import { HelpCircle, Pickaxe } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { useLocation, useParams } from "wouter";
@@ -119,9 +125,23 @@ export default function CatalogueCreateExtraction() {
                                 value={r.id.toString()}
                                 className="cursor-pointer"
                               >
-                                <div>
-                                  Recipe #{r.id}{" "}
-                                  {r.isDefault ? "(Default)" : null}
+                                <div className="flex items-center gap-2">
+                                  <span>
+                                    {r.name || `Recipe #${r.id}`}{" "}
+                                    {r.isDefault ? "(Default)" : null}
+                                  </span>
+                                  {r.description && (
+                                    <TooltipProvider>
+                                      <Tooltip>
+                                        <TooltipTrigger asChild onClick={(e) => e.stopPropagation()}>
+                                          <HelpCircle className="h-5 w-5 text-muted-foreground cursor-help" />
+                                        </TooltipTrigger>
+                                        <TooltipContent>
+                                          <p>{r.description}</p>
+                                        </TooltipContent>
+                                      </Tooltip>
+                                    </TooltipProvider>
+                                  )}
                                 </div>
                                 <div className="text-xs">
                                   {displayRecipeDetails(r)}
