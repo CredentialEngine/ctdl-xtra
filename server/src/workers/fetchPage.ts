@@ -271,12 +271,15 @@ export const performJob = async (
     });
   } catch (err) {
     let failureReason: FetchFailureReason | undefined;
+    let isClientError = false; // 4xx errors are permanent and shouldn't be retried
 
     if (err instanceof BrowserFetchError) {
       failureReason = {
         responseStatus: err.status,
         reason: err.uiMessage(),
       };
+      // 4xx errors are client errors (permanent failures) - don't retry
+      isClientError = err.status >= 400 && err.status < 500;
     } else {
       failureReason = {
         reason:
@@ -290,8 +293,19 @@ export const performJob = async (
       status: PageStatus.ERROR,
       fetchFailureReason: failureReason,
     });
+    // For 4xx client errors (like 404), don't throw - mark as failed and return successfully
+    // This prevents BullMQ from retrying permanent failures
+    // For 5xx server errors and other errors, throw so BullMQ can retry
+    if (isClientError) {
+      logger.info(
+        `Page ${crawlPage.url} failed with client error ${(err as BrowserFetchError).status}; marking as failed without retry`
+      );
+      logger.info(`Returning successfully from performJob for ${crawlPage.url} - should not retry`);
+      return; // Don't throw - job completes successfully, page is marked as failed
+    }
 
-    throw err;
+    logger.info(`Throwing error for ${crawlPage.url} - BullMQ will retry`);
+    throw err; // Throw for server errors and other errors so BullMQ can retry
   }
 };
 
@@ -351,6 +365,6 @@ export default createProcessor<FetchPageJob, FetchPageProgress>(
     }
 
     logger.info(`Processing URL: ${crawlPage.url} for domain ${domain}`);
-    return performJob(job, crawlPage, delayOptions);
+    return await performJob(job, crawlPage, delayOptions);
   }
 );
