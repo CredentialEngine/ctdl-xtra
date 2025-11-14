@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, isNotNull, gte, lte } from "drizzle-orm";
+import { and, asc, desc, eq, isNotNull, gte, lte, SQL } from "drizzle-orm";
 import { sql } from "drizzle-orm/sql/sql";
 import { SQLiteUpdateSetSource } from "drizzle-orm/sqlite-core";
 import db from "../data";
@@ -65,7 +65,7 @@ export async function getExtractionCount(
   dateFrom?: Date,
   dateTo?: Date
 ) {
-  const whereClauses = [] as any[];
+  const whereClauses: SQL[] = [];
   if (dateFrom) whereClauses.push(gte(extractions.createdAt, dateFrom));
   if (dateTo) whereClauses.push(lte(extractions.createdAt, dateTo));
 
@@ -127,7 +127,7 @@ export async function findExtractionsSorted(
     }
   })();
 
-  const whereClauses = [] as any[];
+  const whereClauses: SQL[] = [];
   if (dateFrom) whereClauses.push(gte(extractions.createdAt, dateFrom));
   if (dateTo) whereClauses.push(lte(extractions.createdAt, dateTo));
 
@@ -136,7 +136,7 @@ export async function findExtractionsSorted(
     .from(extractions)
     .leftJoin(recipes, eq(recipes.id, extractions.recipeId))
     .leftJoin(catalogues, eq(catalogues.id, recipes.catalogueId))
-    .where(whereClauses.length ? and(...whereClauses) : undefined as any)
+    .where(whereClauses.length ? and(...whereClauses) : undefined)
     .orderBy(orderExpr)
     .limit(limit)
     .offset(offset);
@@ -166,6 +166,11 @@ export async function findExtractionById(id: number) {
   });
 }
 
+type CrawlStepWithPages = Awaited<ReturnType<typeof db.query.crawlSteps.findFirst>> & {
+  itemCount: number;
+  crawlPages: Awaited<ReturnType<typeof findPages>>;
+};
+
 export async function findExtractionForDetailPage(id: number) {
   const result = await db.query.extractions.findFirst({
     where: (catalogues, { eq }) => eq(catalogues.id, id),
@@ -192,6 +197,9 @@ export async function findExtractionForDetailPage(id: number) {
   if (result) {
     for (const step of result.crawlSteps) {
       step.itemCount = await getPageCount(step.id);
+      // Get all pages for this step
+      const pages = await findPages(step.id);
+      (step as CrawlStepWithPages).crawlPages = pages;
     }
   }
   return result;

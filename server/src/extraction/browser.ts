@@ -159,10 +159,50 @@ export async function findProxy(): Promise<string | undefined> {
   return proxy?.value || process.env.PROXY_URL;
 }
 
-export async function fetchBrowserPage(url: string, skipProxy?: boolean, pageLoadWaitTime?: number) {
+/**
+ * Checks if a URL is absolute (has protocol)
+ */
+function isAbsoluteUrl(url: string): boolean {
+  try {
+    new URL(url);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Resolves a relative URL against a base URL
+ */
+function normalizeUrl(url: string, baseUrl?: string): string {
+  // If URL is already absolute, return as-is
+  if (isAbsoluteUrl(url)) {
+    return url;
+  }
+
+  // If URL is relative and we have a base URL, resolve it
+  if (baseUrl) {
+    return resolveAbsoluteUrl(baseUrl, url);
+  }
+
+  // If URL is relative but no base URL provided, log warning and return as-is
+  // (Puppeteer might handle it, but it's not ideal)
+  logger.warn(`Relative URL "${url}" provided without baseUrl. Attempting to fetch as-is.`);
+  return url;
+}
+
+export async function fetchBrowserPage(
+  url: string,
+  skipProxy?: boolean,
+  pageLoadWaitTime?: number,
+  baseUrl?: string
+) {
+  // Normalize relative URLs against the base URL
+  const normalizedUrl = normalizeUrl(url, baseUrl);
+  
   const proxyUrl = skipProxy ? undefined : await findProxy();
   const cluster = await getCluster(proxyUrl);
-  const result = await cluster.execute({ url, pageLoadWaitTime });
+  const result = await cluster.execute({ url: normalizedUrl, pageLoadWaitTime });
   if (result?.status > 399) {
     throw new BrowserFetchError(result);
   }
@@ -268,7 +308,9 @@ export async function simplifyHtml(html: string) {
 }
 
 export async function toMarkdown(html: string) {
-  return new TurndownService().turndown(html);
+  return new TurndownService({
+    linkReferenceStyle: "full"
+  }).turndown(html);
 }
 
 export async function simplifiedMarkdown(html: string) {

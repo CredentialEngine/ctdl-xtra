@@ -25,6 +25,7 @@ import {
   createStepAndPages,
   findPageByUrl,
   findPageForJob,
+  findPages,
   updateExtraction,
   updatePage,
 } from "../data/extractions";
@@ -238,10 +239,26 @@ export const performJob = async (
     const configuration = crawlPage.crawlStep.configuration as RecipeConfiguration;
     const rootConfiguration = crawlPage.extraction.recipe
       .configuration as RecipeConfiguration | undefined;
+    
+    // Get parent page URL for resolving relative URLs
+    let baseUrl: string | undefined;
+    if (crawlPage.crawlStep.parentStepId) {
+      // If there's a parent step, get the parent step's pages and use the first one as baseUrl
+      const parentPages = await findPages(crawlPage.crawlStep.parentStepId);
+      if (parentPages.length > 0) {
+        baseUrl = parentPages[0].url;
+      }
+    }
+    // If no parent step (root page), fall back to recipe URL
+    if (!baseUrl) {
+      baseUrl = crawlPage.extraction.recipe.url;
+    }
+    
     const page = await fetchBrowserPage(
       crawlPage.url,
       false,
-      rootConfiguration?.pageLoadWaitTime
+      rootConfiguration?.pageLoadWaitTime,
+      baseUrl
     );
     
     if (!page.content) {
@@ -318,15 +335,26 @@ export default createProcessor<FetchPageJob, FetchPageProgress>(
       startWithDelay: 0,
     };
 
+    // Resolve relative URLs to absolute URLs
+    let absoluteUrl: string;
+    try {
+      // Try to create a URL directly - if it's already absolute, this will work
+      absoluteUrl = new URL(crawlPage.url).href;
+    } catch {
+      // If it's a relative URL, resolve it against the recipe URL
+      const baseUrl = crawlPage.extraction.recipe.url;
+      absoluteUrl = new URL(crawlPage.url, baseUrl).href;
+    }
+
     const robotsTxt = crawlPage.extraction.recipe.acknowledgedSkipRobotsTxt
       ? undefined
       : crawlPage.extraction.recipe.robotsTxt || undefined;
 
     if (robotsTxt) {
-      const robotsRule = findRule(robotsTxt, crawlPage.url);
+      const robotsRule = findRule(robotsTxt, "*");
       if (
         robotsRule &&
-        isUrlAllowedForRule(robotsRule, crawlPage.url) &&
+        isUrlAllowedForRule(robotsRule, absoluteUrl) &&
         robotsRule.crawlDelay &&
         robotsRule.crawlDelay > 0
       ) {
@@ -334,7 +362,7 @@ export default createProcessor<FetchPageJob, FetchPageProgress>(
       }
     }
 
-    const domain = new URL(crawlPage.url).hostname;
+    const domain = new URL(absoluteUrl).hostname;
     const lockKey = `crawl-lock:${domain}`;
 
     // Attempt to acquire the lock atomically
