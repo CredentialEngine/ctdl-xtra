@@ -8,6 +8,7 @@ import BreadcrumbTrail from "@/components/ui/breadcrumb-trail";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PageStatus, trpc } from "@/utils";
+import { ExternalLink } from "lucide-react";
 import { useState } from "react";
 import { useParams } from "wouter";
 import { base64Img } from "./utils";
@@ -143,10 +144,20 @@ export default function CrawlPageDetail() {
         </div>
       ) : null}
 
-      <div className="flex items-center">
+      <div className="flex items-center justify-between">
         <h1 className="text-lg font-semibold md:text-2xl">
           Extraction Step Item #{crawlPageId} - Content Preview
         </h1>
+        {item.crawlPage.url && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => window.open(item.crawlPage.url, "_blank", "noopener,noreferrer")}
+          >
+            <ExternalLink className="w-4 h-4 mr-2" />
+            Open Page URL
+          </Button>
+        )}
       </div>
 
       <Tabs defaultValue={defaultTab}>

@@ -21,12 +21,6 @@ export interface DefaultLlmPageOptions {
   };
 }
 
-export function resolveAbsoluteUrl(base: string, relative: string): string {
-  const baseUrl = new URL(base);
-  const absoluteUrl = new URL(relative, baseUrl);
-  return absoluteUrl.href;
-}
-
 // Deduplicate URLs by normalizing them while preserving query parameters and hash fragments
 export function dedupUrls(urls: string[]): string[] {
   const normalizedUrls = new Set<string>();

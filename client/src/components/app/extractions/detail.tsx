@@ -26,6 +26,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tree, TreeNode } from "@/components/ui/tree";
 import { useToast } from "@/components/ui/use-toast";
 import {
   CrawlStep,
@@ -48,6 +50,59 @@ function displayStepParent(steps: CrawlStep[], parentId: number) {
     return parentId;
   }
   return displayStepType(parent.step);
+}
+
+function buildStepHierarchy(steps: CrawlStep[]): TreeNode[] {
+  const stepMap = new Map<number, TreeNode>();
+  const rootNodes: TreeNode[] = [];
+
+  // First pass: create all step nodes
+  steps.forEach((step) => {
+    const stepType = displayStepType(step.step);
+    const stepWithPages = step as CrawlStep & { crawlPages?: Array<{ id: number; url: string; crawlStepId: number }> };
+    const crawlPages = stepWithPages.crawlPages || [];
+    
+    // Create page nodes as children
+    const pageNodes: TreeNode[] = crawlPages.map((page) => ({
+      id: `page-${page.id}`,
+      label: page.url,
+      children: [],
+      type: 'page',
+      page: page,
+      url: page.url,
+    }));
+
+    const node: TreeNode = {
+      id: step.id,
+      label: `Step ${step.id}: ${stepType}`,
+      children: pageNodes,
+      type: 'step',
+      step: step,
+    };
+    stepMap.set(step.id, node);
+  });
+
+  // Second pass: build step hierarchy
+  steps.forEach((step) => {
+    const node = stepMap.get(step.id)!;
+    if (step.parentStepId === null || step.parentStepId === undefined) {
+      rootNodes.push(node);
+    } else {
+      const parent = stepMap.get(step.parentStepId);
+      if (parent) {
+        // Separate child steps and pages
+        const existingChildSteps = (parent.children || []).filter((c) => c.type === 'step');
+        const existingPages = (parent.children || []).filter((c) => c.type === 'page');
+        // Add the new child step, then keep existing pages
+        parent.children = [...existingChildSteps, node, ...existingPages];
+      } else {
+        // Parent not found, treat as root
+        rootNodes.push(node);
+      }
+    }
+  });
+
+  return rootNodes;
 }
 
 function getElapsedTimeText(statsLastUpdatedAt: string, createdAt: string) {
@@ -602,55 +657,76 @@ export default function ExtractionDetail() {
             <CardTitle>Extraction Steps</CardTitle>
           </CardHeader>
           <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-20">Step ID</TableHead>
-                  <TableHead>Type</TableHead>
-                  <TableHead>Parent</TableHead>
-                  <TableHead>Configuration</TableHead>
-                  <TableHead>Started At</TableHead>
-                  <TableHead className="text-right">Items</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {extraction.crawlSteps.map((step) => (
-                  <TableRow key={`steps-${step.id}`}>
-                    <TableCell className="font-medium w-20">
-                      {step.id}
-                    </TableCell>
-                    <TableCell>{displayStepType(step.step)}</TableCell>
-                    <TableCell>
-                      {step.parentStepId
-                        ? displayStepParent(
-                            extraction.crawlSteps,
-                            step.parentStepId
-                          )
-                        : null}
-                    </TableCell>
-                    <TableCell>
-                      {step.configuration ? (
-                        <JsonPopover jsonData={step.configuration} />
-                      ) : null}
-                    </TableCell>
-                    <TableCell>{concisePrintDate(step.createdAt)}</TableCell>
-                    <TableCell className="text-right">
-                      <Button
-                        variant={"outline"}
-                        size="sm"
-                        className="text-xs"
-                        asChild
-                      >
-                        <Link to={`/${extraction.id}/steps/${step.id}`}>
-                          <List className="w-3.5 h-3.5 mr-2" />
-                          View {step.itemCount} items
-                        </Link>
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+            <Tabs defaultValue="table">
+              <TabsList>
+                <TabsTrigger value="table">Table</TabsTrigger>
+                <TabsTrigger value="hierarchy">Hierarchy</TabsTrigger>
+              </TabsList>
+              <TabsContent value="table">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-20">Step ID</TableHead>
+                      <TableHead>Type</TableHead>
+                      <TableHead>Parent</TableHead>
+                      <TableHead>Configuration</TableHead>
+                      <TableHead>Started At</TableHead>
+                      <TableHead className="text-right">Items</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {extraction.crawlSteps.map((step) => (
+                      <TableRow key={`steps-${step.id}`}>
+                        <TableCell className="font-medium w-20">
+                          {step.id}
+                        </TableCell>
+                        <TableCell>{displayStepType(step.step)}</TableCell>
+                        <TableCell>
+                          {step.parentStepId
+                            ? displayStepParent(
+                                extraction.crawlSteps,
+                                step.parentStepId
+                              )
+                            : null}
+                        </TableCell>
+                        <TableCell>
+                          {step.configuration ? (
+                            <JsonPopover jsonData={step.configuration} />
+                          ) : null}
+                        </TableCell>
+                        <TableCell>{concisePrintDate(step.createdAt)}</TableCell>
+                        <TableCell className="text-right">
+                          <Button
+                            variant={"outline"}
+                            size="sm"
+                            className="text-xs"
+                            asChild
+                          >
+                            <Link to={`/${extraction.id}/steps/${step.id}`}>
+                              <List className="w-3.5 h-3.5 mr-2" />
+                              View {step.itemCount} items
+                            </Link>
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </TabsContent>
+              <TabsContent value="hierarchy">
+                <Tree
+                  data={buildStepHierarchy(extraction.crawlSteps)}
+                  onNodeClick={(node) => {
+                    if (node.type === 'page' && node.page) {
+                      const page = node.page as { id: number; crawlStepId: number };
+                      navigate(`/${extraction.id}/steps/${page.crawlStepId}/items/${page.id}`);
+                    } else if (node.type === 'step' && node.step) {
+                      navigate(`/${extraction.id}/steps/${node.step.id}`);
+                    }
+                  }}
+                />
+              </TabsContent>
+            </Tabs>
           </CardContent>
         </Card>
       </div>
