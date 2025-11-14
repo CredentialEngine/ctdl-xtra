@@ -4,6 +4,8 @@ FROM node:20
 # Configure default locale (important for chrome-headless-shell).
 ENV LANG=en_US.UTF-8
 
+ENV VITE_API_URL="$VITE_API_URL"
+
 # Install latest chrome dev package and fonts to support major charsets (Chinese, Japanese, Arabic, Hebrew, Thai and a few others)
 # Note: this installs the necessary libs to make the bundled version of Chrome that Puppeteer
 # installs, work.
