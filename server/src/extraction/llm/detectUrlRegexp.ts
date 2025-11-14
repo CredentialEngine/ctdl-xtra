@@ -11,14 +11,38 @@ const logger = getLogger("extraction.llm.detectUrlRegexp");
 
 export function createUrlExtractor(regexp: RegExp) {
   return async (baseUrl: string, content: SimplifiedMarkdown) => {
+    // First, extract all markdown links [text](url) and their URLs
+    const markdownLinkRegex = /\[([^\]]*)\]\(([^)]+)\)/g;
+    const markdownLinkUrls: string[] = [];
+    
+    // Reset regex lastIndex to ensure we start from the beginning
+    markdownLinkRegex.lastIndex = 0;
+    let match;
+    while ((match = markdownLinkRegex.exec(content)) !== null) {
+      const fullUrl = match[2]; // The URL part of [text](url)
+      markdownLinkUrls.push(fullUrl);
+    }
+    
+    // Now find all regex matches
+    regexp.lastIndex = 0;
     const urls = content.match(regexp) || [];
-    return [
-      ...new Set(
-        urls.map((foundUrl) => {
-          return resolveAbsoluteUrl(baseUrl, foundUrl);
-        })
-      ),
-    ];
+    const matchedUrls = urls.map((foundUrl) => {
+      // If the matched URL is already absolute (starts with http:// or https://),
+      // use it as-is to preserve subdomains and full URLs
+      if (foundUrl.startsWith('http://') || foundUrl.startsWith('https://')) {
+        return foundUrl;
+      }
+
+      const markdownUrl = markdownLinkUrls.find((url) => url.includes(foundUrl));
+      if (markdownUrl) {
+        return markdownUrl;
+      }
+
+      return resolveAbsoluteUrl(baseUrl, foundUrl);
+    });
+
+    const uniqueUrls = new Set(matchedUrls);
+    return Array.from(uniqueUrls);
   };
 }
 
