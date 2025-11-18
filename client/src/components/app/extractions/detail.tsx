@@ -42,6 +42,7 @@ import { useState } from "react";
 import { Bar, BarChart, XAxis, YAxis } from "recharts";
 import { Link, useLocation, useParams } from "wouter";
 import { displayRecipeDetails } from "../recipes/util";
+import AuditLogModal from "./AuditLogModal";
 import { displayStepType } from "./utils";
 
 function displayStepParent(steps: CrawlStep[], parentId: number) {
@@ -136,6 +137,7 @@ export default function ExtractionDetail() {
   const extractionIdNum = parseInt(extractionId || "");
   const [lockedCancel, setLockedCancel] = useState(true);
   const [lockedDelete, setLockDelete] = useState(true);
+  const [auditLogModalOpen, setAuditLogModalOpen] = useState(false);
   const { toast } = useToast();
   const [, navigate] = useLocation();
   const query = trpc.extractions.detail.useQuery(
@@ -312,6 +314,37 @@ export default function ExtractionDetail() {
                 </div>
                 {statusDetails}
               </div>
+
+              {extraction.lastAuditLog &&
+                extraction.status !== ExtractionStatus.IN_PROGRESS &&
+                extraction.status !== ExtractionStatus.WAITING && (
+                  <div className="rounded-md border p-4 mt-2">
+                    <div className="flex items-center justify-between mb-1">
+                      <div className="text-sm text-muted-foreground">
+                        Last Action
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 w-6 p-0"
+                        onClick={() => setAuditLogModalOpen(true)}
+                      >
+                        <List className="h-4 w-4" />
+                      </Button>
+                    </div>
+                    <div className="text-sm">
+                      <span className="font-medium">
+                        {extraction.lastAuditLog.user?.name || "Unknown User"}
+                      </span>
+                      {" - "}
+                      {extraction.lastAuditLog.reason ||
+                        extraction.lastAuditLog.action}
+                    </div>
+                    <div className="text-xs text-muted-foreground mt-1">
+                      {prettyPrintDate(extraction.lastAuditLog.createdAt)}
+                    </div>
+                  </div>
+                )}
 
               <div className="rounded-md border p-4 mt-2 flex flex-col gap-2">
                 {latestDataset ? (
@@ -833,6 +866,11 @@ export default function ExtractionDetail() {
           </CardContent>
         </Card>
       </div>
+      <AuditLogModal
+        extractionId={extractionIdNum}
+        open={auditLogModalOpen}
+        onOpenChange={setAuditLogModalOpen}
+      />
     </>
   );
 }

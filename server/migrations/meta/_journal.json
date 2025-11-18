@@ -92,6 +92,13 @@
       "when": 1765402616329,
       "tag": "0012_pale_the_executioner",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1765562134045,
+      "tag": "0013_warm_silvermane",
+      "breakpoints": true
     }
   ]
 }

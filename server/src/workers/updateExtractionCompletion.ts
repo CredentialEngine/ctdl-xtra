@@ -19,6 +19,7 @@ import {
 import { SETTING_DEFAULTS } from "../constants";
 import { findLatestDataset } from "../data/datasets";
 import {
+  createExtractionAuditLog,
   findExtractionById,
   getApiCallSummary,
   getStepStats,
@@ -243,6 +244,12 @@ export default createProcessor<
       status: ExtractionStatus.CANCELLED,
       completionStats,
     });
+    await createExtractionAuditLog(
+      extraction.id,
+      null,
+      "CANCEL",
+      `Budget setting of ${maxBudget} was exceeded.`
+    );
     await removeSelf(job);
     return;
   }
