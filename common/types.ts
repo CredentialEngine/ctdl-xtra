@@ -107,6 +107,7 @@ export interface CourseStructuredData {
   course_credits_type?: string;
   course_ceu_credits?: number;
   course_prerequisites?: string;
+  course_non_credit?: boolean;
 }
 
 export interface LearningProgramStructuredData {
