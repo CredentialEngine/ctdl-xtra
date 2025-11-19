@@ -205,13 +205,21 @@ export const catalogueTypes: Record<CatalogueType, CatalogueTypeDefinition> = {
         description: `if the text explicitly mentions any course prerequisite(s) or course requirements,
           extract them as is - the full text for prerequisites, as it may contain observations.
           (If there are links in the text, only extract the text without links.)
+          Some courses list their prerequisites as ADVISE (advised courses).
+          In that case treat them the same as prerequisites and extract the full text.
+
           - If it mentions course corequisites, leave blank.
           - If it mentions mutually exclusive courses, leave blank.
           - If it mentions courses that must be taken concurrently, leave blank.
-          - Only extract the text if it's explicitly stated that the course has prerequisites/requirements.
+          - Only extract the text if it's explicitly stated that the course has prerequisites/requirements/advised courses.
           - Otherwise leave blank.
+
           `,
         required: false,
+      },
+      course_non_credit: {
+        description: `Must be set to true if the course's credit information explicitly/literally mentions Noncredit (or NONCREDIT and variations). Otherwise leave blank.`,
+        required: false
       },
       course_credits_min: {
         description: "min credit",
@@ -232,6 +240,7 @@ export const catalogueTypes: Record<CatalogueType, CatalogueTypeDefinition> = {
               (If you see "CEU" values in the page, that's the same as Continuing Education Units)
             - In that case, there's a separate field: course_ceu_credits.
             - A course may have both normal credits like the types we mentioned above, and CEUs.
+            - If the page says "Credit/Nondegree-Applicable" or "Credit/Degree Applicable", set it as "UNKNOWN"
 
           It is ok to have the course credits set to a number and the course credits type set to "UNKNOWN"
           if the content shows the credits value but doesn't mention the type.

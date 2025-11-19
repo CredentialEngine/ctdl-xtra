@@ -61,6 +61,7 @@ function getCourseRow(
     Language: "English",
     "Life Cycle Status Type": "Active",
     "In Catalog": item.url,
+    "Is Non-Credit": structuredData.course_non_credit ? "TRUE" : undefined,
     "Credit Unit Value": structuredData.course_credits_min,
     "Credit Unit Max Value": creditRange
       ? structuredData.course_credits_max
@@ -188,7 +189,7 @@ function getCredentialRow(
   textVerificationDetails: string
 ) {
   const structuredData = item.structuredData as CredentialStructuredData;
-  
+
   return {
     "External Identifier": randomUUID(),
     "Credential Name": structuredData.credential_name,
@@ -215,9 +216,9 @@ function getBulkUploadTemplateRow<T>(
     textVerificationAverage =
       textVerificationFields.length > 0
         ? textVerificationFields.reduce(
-            (sum, field) => sum + (textInclusion[field]?.full ? 1 : 0),
-            0
-          ) / textVerificationFields.length
+          (sum, field) => sum + (textInclusion[field]?.full ? 1 : 0),
+          0
+        ) / textVerificationFields.length
         : 0;
     textVerificationDetails = textVerificationFields
       .map(

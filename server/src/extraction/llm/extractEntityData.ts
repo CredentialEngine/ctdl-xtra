@@ -2,7 +2,7 @@ import {
   ChatCompletionContentPart,
   ChatCompletionMessageParam,
 } from "openai/resources/chat/completions";
-import { DefaultLlmPageOptions, MD_START, MD_END } from ".";
+import { DefaultLlmPageOptions, MD_END, MD_START } from ".";
 import {
   CatalogueType,
   CompetencyStructuredData,
@@ -99,15 +99,23 @@ export function processEntity(
     }
   }
 
+  let postProcessedEntity;
+
   if (catalogueType === CatalogueType.COURSES) {
-    return processedEntity as CourseStructuredData;
+    postProcessedEntity = processedEntity as CourseStructuredData;
+
+    if (postProcessedEntity.course_non_credit) {
+      delete postProcessedEntity.course_credits_type;
+    }
   } else if (catalogueType === CatalogueType.LEARNING_PROGRAMS) {
-    return processedEntity as LearningProgramStructuredData;
+    postProcessedEntity = processedEntity as LearningProgramStructuredData;
   } else if (catalogueType === CatalogueType.COMPETENCIES) {
-    return processedEntity as CompetencyStructuredData;
+    postProcessedEntity = processedEntity as CompetencyStructuredData;
+  } else {
+    throw new Error("Unknown catalogue type");
   }
 
-  return processedEntity;
+  return postProcessedEntity;
 }
 
 export function getBasePrompt(catalogueType: CatalogueType): string {
@@ -123,7 +131,7 @@ export function getBasePrompt(catalogueType: CatalogueType): string {
 
   if (entityDef.examples?.length) {
     const examples = entityDef.examples.map(({ data, desiredOutcome }, index) => `
-Example #${index+1}: ${data}
+Example #${index + 1}: ${data}
 Desired outcome: ${desiredOutcome}
     `);
 
@@ -135,7 +143,7 @@ Desired outcome: ${desiredOutcome}
 
 type ExtractEntityDataReturnType = Promise<{
   /** LLM textual prompt used for the extraction */
-  prompt: string, 
+  prompt: string,
 
   /** Extracted structured data items (entities) */
   data: Array<
@@ -149,8 +157,7 @@ export async function extractEntityData(
   options: DefaultLlmPageOptions,
   catalogueType: CatalogueType,
   entity?: Record<string, any>
-): ExtractEntityDataReturnType 
-{
+): ExtractEntityDataReturnType {
   const entityDef = getCatalogueTypeDefinition(catalogueType);
   const basePrompt = getBasePrompt(catalogueType);
 
@@ -201,8 +208,8 @@ ${MD_END}
 
 `;
 
-if (entityDef.repeatExtractionInstructions) {
-  prompt += `
+  if (entityDef.repeatExtractionInstructions) {
+    prompt += `
 
 Reminder the instructions for extracting the data are:
 
@@ -210,7 +217,7 @@ ${entityPrompt}
 
 ${basePrompt}
 `;
-}
+  }
 
   const completionContent: ChatCompletionContentPart[] = [
     {
@@ -263,9 +270,9 @@ ${basePrompt}
       model: entityDef.model || ProviderModel.Gpt5,
       logApiCall: options?.logApiCalls
         ? {
-            extractionId: options.logApiCalls.extractionId,
-            callSite: "extractEntityData",
-          }
+          extractionId: options.logApiCalls.extractionId,
+          callSite: "extractEntityData",
+        }
         : undefined,
     });
 
@@ -296,12 +303,12 @@ ${basePrompt}
       requiredParameters: ["items"],
       logApiCall: options?.logApiCalls
         ? {
-            extractionId: options.logApiCalls.extractionId,
-            callSite: "extractEntityData",
-          }
+          extractionId: options.logApiCalls.extractionId,
+          callSite: "extractEntityData",
+        }
         : undefined,
     };
-  
+
     // @ts-ignore
     const result = await simpleToolCompletion(completionParameters);
 
