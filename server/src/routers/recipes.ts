@@ -14,6 +14,7 @@ import {
   fetchBrowserPage,
   simplifiedMarkdown,
 } from "../extraction/browser";
+import { discoverDynamicLinks } from "../extraction/dynamicLinkDiscovery";
 import { detectPagination } from "../extraction/llm/detectPagination";
 import detectUrlRegexp, {
   createUrlExtractor,
@@ -35,9 +36,16 @@ const PaginationConfigurationSchema = z.object({
   totalPages: z.number(),
 });
 
+const ClickDiscoveryOptionsSchema = z.object({
+  limit: z.number().int().positive().max(10000).optional(),
+  waitMs: z.number().int().nonnegative().max(60000).optional(),
+});
+
 const RecipeConfigurationSchema = z.object({
   pageType: z.nativeEnum(PageType),
   linkRegexp: z.string().optional(),
+  clickSelector: z.string().optional(),
+  clickOptions: ClickDiscoveryOptionsSchema.optional(),
   pagination: PaginationConfigurationSchema.optional(),
   links: z.lazy((): z.ZodSchema => RecipeConfigurationSchema).optional(),
   pageLoadWaitTime: z.number().optional().default(0),
@@ -260,21 +268,47 @@ export const recipesRouter = router({
     .input(
       z.object({
         url: z.string().url(),
-        regex: z.string(),
+        regex: z.string().optional(),
+        clickSelector: z.string().optional(),
+        clickOptions: ClickDiscoveryOptionsSchema.optional(),
       })
     )
     .mutation(async (opts) => {
       const regexp = opts.input.regex;
 
       try {
-        const { content } = await fetchBrowserPage(opts.input.url);
-        const markdownContent = await simplifiedMarkdown(content);
+        let urls: string[];
 
-        const testRegex = new RegExp(regexp, "g");
-        const extractor = createUrlExtractor(testRegex);
-        const urls = await extractor(opts.input.url, markdownContent);
+        // Use dynamic links harvesting if clickSelector is provided
+        if (opts.input.clickSelector) {
+          urls = await discoverDynamicLinks(
+            opts.input.url,
+            opts.input.clickSelector,
+            opts.input.clickOptions
+          );
+          
+          // If regex is provided, filter the discovered URLs by the regex
+          if (regexp) {
+            const testRegex = new RegExp(regexp, "g");
+            urls = urls.filter((url) => testRegex.test(url));
+            // Reset regex lastIndex for next use
+            testRegex.lastIndex = 0;
+          }
+        } else {
+          // Use traditional regex-based extraction (regex is required when no clickSelector)
+          if (!regexp) {
+            throw new AppError("Regex is required when clickSelector is not provided", AppErrors.BAD_REQUEST);
+          }
+          const { content } = await fetchBrowserPage(opts.input.url);
+          const markdownContent = await simplifiedMarkdown(content);
+
+          const testRegex = new RegExp(regexp, "g");
+          const extractor = createUrlExtractor(testRegex);
+          urls = await extractor(opts.input.url, markdownContent);
+        }
+
         return {
-          regexp,
+          regexp: regexp || "",
           urls,
         };
       } catch (error) {

@@ -10,6 +10,7 @@ export default defineConfig({
     },
   },
   test: {
+    globalSetup: ["./tests/globalSetup.ts"],
     setupFiles: ["./tests/assertions.ts"],
   },
 });

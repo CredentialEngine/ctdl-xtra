@@ -63,6 +63,16 @@ function getFirstLevelRegex(recipe: { configuration?: { linkRegexp?: string } })
   return recipe.configuration.linkRegexp;
 }
 
+function getFirstLevelClickSelector(recipe: { configuration?: { clickSelector?: string; clickOptions?: { limit?: number; waitMs?: number } } }): string | undefined {
+  if (!recipe.configuration) return undefined;
+  return recipe.configuration.clickSelector;
+}
+
+function getFirstLevelClickOptions(recipe: { configuration?: { clickOptions?: { limit?: number; waitMs?: number } } }): { limit?: number; waitMs?: number } | undefined {
+  if (!recipe.configuration) return undefined;
+  return recipe.configuration.clickOptions;
+}
+
 export default function EditRecipe() {
   const [lockedDelete, setLockDelete] = useState(true);
   const [, navigate] = useLocation();
@@ -253,6 +263,8 @@ export default function EditRecipe() {
                 <TestLinkRegex
                   defaultUrl={recipe.url}
                   defaultRegex={getFirstLevelRegex(recipe)}
+                  clickSelector={getFirstLevelClickSelector(recipe)}
+                  clickOptions={getFirstLevelClickOptions(recipe)}
                 />
               )}
               {recipe.status == RecipeDetectionStatus.WAITING ? (

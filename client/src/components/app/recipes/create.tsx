@@ -3,7 +3,7 @@ import { trpc } from "@/utils";
 import { useLocation, useParams } from "wouter";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useForm, useFormContext } from "react-hook-form";
+import { useForm, useFormContext, Path } from "react-hook-form";
 import { z } from "zod";
 
 import { Button } from "@/components/ui/button";
@@ -32,7 +32,13 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useToast } from "@/components/ui/use-toast";
-import { Loader2 } from "lucide-react";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { HelpCircle, Loader2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import {
   CatalogueType,
@@ -45,6 +51,8 @@ import TestLinkRegex from "./TestLinkRegex";
 type FormRecipeConfiguration = {
   pageType: PageType;
   linkRegexp?: string;
+  clickSelector?: string;
+  clickOptions?: { limit?: number; waitMs?: number };
   pagination?: PaginationConfiguration;
   links?: any;
   sampleUrls?: string[];
@@ -60,10 +68,29 @@ const PaginationSchema = z.object({
 const RecipeConfigurationSchema: z.ZodType<FormRecipeConfiguration> = z.object({
   pageType: z.nativeEnum(PageType),
   linkRegexp: z.string().optional(),
+  clickSelector: z.string().optional(),
+  clickOptions: z
+    .object({
+      limit: z.number().int().positive().max(10000).optional(),
+      waitMs: z.number().int().nonnegative().max(60000).optional(),
+    })
+    .optional(),
   pagination: PaginationSchema.optional(),
   links: z.lazy(() => RecipeConfigurationSchema).optional(),
   pageLoadWaitTime: z.number().optional().default(0),
-});
+}).refine(
+  (data) => {
+    // If clickSelector is defined (not undefined), it must be a non-empty string
+    if (data.clickSelector !== undefined) {
+      return data.clickSelector.trim().length > 0;
+    }
+    return true;
+  },
+  {
+    message: "Dynamic URL Selector is required when Dynamic catalogue is enabled",
+    path: ["clickSelector"],
+  }
+);
 
 const FormSchema = z.object({
   url: z
@@ -103,6 +130,7 @@ function RecipeLevel({
   const config = form.watch(path as any) as any as FormRecipeConfiguration;
   const [isDetectingUrlRegexp, setIsDetectingUrlRegexp] = useState(false);
   const [isDetectingPagination, setIsDetectingPagination] = useState(false);
+  const [tooltipOpen, setTooltipOpen] = useState<{ [key: string]: boolean }>({});
 
   const rootUrl = form.watch("url");
 
@@ -124,7 +152,8 @@ function RecipeLevel({
       parentsConfig[parentsConfig.length - 1]?.sampleUrls?.length);
 
   return (
-    <div className="space-y-4 border-l-2 pl-4 mt-4">
+    <TooltipProvider>
+      <div className="space-y-4 border-l-2 pl-4 mt-4">
       <FormField
         control={control}
         name={`${path}.pageType` as any}
@@ -172,6 +201,158 @@ function RecipeLevel({
 
       {config?.pageType && config.pageType !== PageType.DETAIL && (
         <>
+          <FormItem className="flex flex-row items-start space-x-3 space-y-0">
+            <FormControl>
+              <Checkbox
+                checked={config?.clickSelector !== undefined}
+                onCheckedChange={(checked) => {
+                  if (checked) {
+                    // When checked, initialize clickSelector with "body" and set default limit
+                    form.setValue(`${path}.clickSelector` as Path<z.infer<typeof FormSchema>>, "body", { shouldValidate: false });
+                    const clickOptionsPath = `${path}.clickOptions` as Path<z.infer<typeof FormSchema>>;
+                    const currentClickOptions = form.getValues(clickOptionsPath);
+                    if (!currentClickOptions?.limit) {
+                      form.setValue(clickOptionsPath as Path<z.infer<typeof FormSchema>>, { limit: 300 }, { shouldValidate: false });
+                    }
+                  } else {
+                    // When unchecked, clear clickSelector and clickOptions
+                    form.setValue(`${path}.clickSelector` as Path<z.infer<typeof FormSchema>>, undefined, { shouldValidate: false });
+                    form.setValue(`${path}.clickOptions` as Path<z.infer<typeof FormSchema>>, undefined, { shouldValidate: false });
+                  }
+                }}
+              />
+            </FormControl>
+            <div className="space-y-1 leading-none">
+              <FormLabel>Dynamic catalogue</FormLabel>
+              <FormDescription>
+                Enable dynamic link discovery by simulating clicks on the elements on the page. This is needed for catalogues that do not use classic page navigation and are more dynamic in nature.
+              </FormDescription>
+            </div>
+          </FormItem>
+
+          {config?.clickSelector !== undefined && (
+            <>
+              <FormField
+                control={control}
+                name={`${path}.clickSelector`}
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="flex items-center gap-2">
+                      Dynamic URL Selector
+                      <span className="text-destructive">*</span>
+                      <Tooltip 
+                        open={tooltipOpen[`${path}-selector`] || false}
+                        onOpenChange={(open) => setTooltipOpen(prev => ({ ...prev, [`${path}-selector`]: open }))}
+                      >
+                        <TooltipTrigger asChild>
+                          <HelpCircle 
+                            className="h-4 w-4 text-muted-foreground cursor-help" 
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              setTooltipOpen(prev => ({ 
+                                ...prev, 
+                                [`${path}-selector`]: !prev[`${path}-selector`] 
+                              }));
+                            }}
+                          />
+                        </TooltipTrigger>
+                        <TooltipContent className="max-w-xs">
+                          <p>
+                            This is the selector of the element that contains the things xTRA will try to click on. You can find this by using the developer tools on the catalogue webpage. "body" by default should encompass all clickable elements, but it is highly recommended to set a more specific element to avoid proxy costs or stopping because of max clicks allowed. Note that using this method, pages will take longer to index and the regex tester can take up to 5 minutes to show results.
+                          </p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </FormLabel>
+                    <FormControl>
+                      <Input placeholder="e.g. a.nav-link" {...field} />
+                    </FormControl>
+                    <FormDescription>
+                      Required when Dynamic catalogue is enabled. The selector of elements to click.
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <div className="grid grid-cols-2 gap-4">
+                <FormField
+                  control={control}
+                  name={`${path}.clickOptions.limit`}
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="flex items-center gap-2">
+                        Click Limit
+                        <Tooltip 
+                          open={tooltipOpen[`${path}-limit`] || false}
+                          onOpenChange={(open) => setTooltipOpen(prev => ({ ...prev, [`${path}-limit`]: open }))}
+                        >
+                          <TooltipTrigger asChild>
+                            <HelpCircle 
+                              className="h-4 w-4 text-muted-foreground cursor-help" 
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                setTooltipOpen(prev => ({ 
+                                  ...prev, 
+                                  [`${path}-limit`]: !prev[`${path}-limit`] 
+                                }));
+                              }}
+                            />
+                          </TooltipTrigger>
+                          <TooltipContent className="max-w-xs">
+                            <p>
+                              This is a safety limit against infinite loops. Adjust this value if you expect the page to have more than 300 clickable elements.
+                            </p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </FormLabel>
+                      <FormControl>
+                        <Input
+                          type="number"
+                          value={field.value ?? (config.clickSelector ? 300 : "")}
+                          onChange={(e) =>
+                            field.onChange(
+                              e.target.value === "" ? undefined : parseInt(e.target.value)
+                            )
+                          }
+                        />
+                      </FormControl>
+                      <FormDescription>
+                        Maximum number of elements to click (optional).
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={control}
+                  name={`${path}.clickOptions.waitMs`}
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Wait after click (ms)</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="number"
+                          value={field.value ?? ""}
+                          onChange={(e) =>
+                            field.onChange(
+                              e.target.value === "" ? undefined : parseInt(e.target.value)
+                            )
+                          }
+                        />
+                      </FormControl>
+                      <FormDescription>
+                        Optional delay after each click.
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+            </>
+          )}
+
           <FormField
             control={control}
             name={`${path}.linkRegexp`}
@@ -387,7 +568,8 @@ function RecipeLevel({
           onDetectPagination={onDetectPagination}
         />
       )}
-    </div>
+      </div>
+    </TooltipProvider>
   );
 }
 
@@ -679,6 +861,8 @@ export default function CreateRecipe() {
                       simplified
                       defaultUrl={form.watch("url")}
                       defaultRegex={configuration?.linkRegexp}
+                      clickSelector={configuration?.clickSelector || undefined}
+                      clickOptions={configuration?.clickOptions || undefined}
                     />
                   </CardContent>
                 </Card>

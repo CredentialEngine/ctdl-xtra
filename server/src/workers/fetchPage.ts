@@ -40,6 +40,7 @@ import { detectPageCount } from "../extraction/llm/detectPageCount";
 import { createUrlExtractor } from "../extraction/llm/detectUrlRegexp";
 import { findRule, isUrlAllowedForRule } from "../extraction/robotsParser";
 import getLogger from "../logging";
+import { discoverDynamicLinks } from "../extraction/dynamicLinkDiscovery";
 
 const logger = getLogger("workers.fetchPage");
 const redis = getRedisConnection();
@@ -140,23 +141,44 @@ export async function processLinks(
 ) {
   logger.info(`Processing links for page ${crawlPage.url}`);
 
-  const regexp = new RegExp(configuration.linkRegexp!, "g");
-  const extractor = createUrlExtractor(regexp);
-  const content = await readMarkdownContent(
-    crawlPage.extractionId,
-    crawlPage.crawlStepId,
-    crawlPage.id
-  );
-  const extractedUrls = await extractor(crawlPage.url, content);
-  let urls = [];
+  let urls: string[] = [];
 
-  for (const url of extractedUrls) {
-    const page = await findPageByUrl(crawlPage.extractionId, url);
-    if (!page) {
-      urls.push(url);
-    } else {
-      logger.info(`Skipping ${url} because it has already been fetched`);
+  if (configuration.clickSelector) {
+    logger.info(
+      `Using click-based discovery with selector ${configuration.clickSelector}`
+    );
+    const discovered = await discoverDynamicLinks(
+      crawlPage.url,
+      configuration.clickSelector,
+      configuration.clickOptions
+    );
+    for (const url of discovered) {
+      const page = await findPageByUrl(crawlPage.extractionId, url);
+      if (!page) {
+        urls.push(url);
+      } else {
+        logger.info(`Skipping ${url} because it has already been fetched`);
+      }
     }
+  } else if (configuration.linkRegexp) {
+    const regexp = new RegExp(configuration.linkRegexp, "g");
+    const extractor = createUrlExtractor(regexp);
+    const content = await readMarkdownContent(
+      crawlPage.extractionId,
+      crawlPage.crawlStepId,
+      crawlPage.id
+    );
+    const extractedUrls = await extractor(crawlPage.url, content);
+    for (const url of extractedUrls) {
+      const page = await findPageByUrl(crawlPage.extractionId, url);
+      if (!page) {
+        urls.push(url);
+      } else {
+        logger.info(`Skipping ${url} because it has already been fetched`);
+      }
+    }
+  } else {
+    logger.info(`No link discovery configured for ${crawlPage.url}`);
   }
 
   if (!urls.length) {
@@ -213,7 +235,7 @@ const processNextStep = async (
     );
   }
 
-  processLinks(configuration, crawlPage, delayOptions);
+  await processLinks(configuration, crawlPage, delayOptions);
 };
 
 export const performJob = async (
@@ -253,6 +275,21 @@ export const performJob = async (
     if (!baseUrl) {
       baseUrl = crawlPage.extraction.recipe.url;
     }
+    
+    try {
+      // this throws if the baseUrl is not absolute
+      new URL(baseUrl);
+    } catch {
+      // If baseUrl is relative, resolve it against the recipe URL
+      const recipeUrl = crawlPage.extraction.recipe.url;
+      try {
+        baseUrl = new URL(baseUrl, recipeUrl).href;
+      } catch {
+        logger.warn(`Could not resolve baseUrl "${baseUrl}" against recipe URL "${recipeUrl}"`);
+        baseUrl = recipeUrl;
+      }
+    }
+    
     
     const page = await fetchBrowserPage(
       crawlPage.url,

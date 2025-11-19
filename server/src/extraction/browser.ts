@@ -151,12 +151,18 @@ export async function closeCluster() {
 }
 
 export async function findProxy(): Promise<string | undefined> {
+  // Prefer environment variable if provided, regardless of DB settings
+  if (process.env.PROXY_URL && process.env.PROXY_URL.trim()) {
+    return process.env.PROXY_URL;
+  }
+
+  // Fall back to DB-driven settings
   const proxyEnabled = await findSetting<boolean>("PROXY_ENABLED");
   if (!proxyEnabled?.value) {
     return undefined;
   }
   const proxy = await findSetting<string>("PROXY", true);
-  return proxy?.value || process.env.PROXY_URL;
+  return proxy?.value;
 }
 
 /**
