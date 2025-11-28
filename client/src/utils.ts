@@ -23,7 +23,8 @@ export type CrawlStep = ItemType<Extraction["crawlSteps"]>;
 export type CrawlPage = ItemType<
   RouterOutput["extractions"]["stepDetail"]["crawlPages"]["results"]
 >;
-export type DataItem = ItemType<RouterOutput["datasets"]["items"]["results"]>;
+type DatasetItemsResponse = Exclude<RouterOutput["datasets"]["items"], null>;
+export type DatasetItem = ItemType<DatasetItemsResponse["items"]["results"]>;
 
 export enum ExtractionStatus {
   WAITING = "WAITING",
@@ -93,7 +94,7 @@ export async function copyToClipboard(text: string) {
 
 export type IterableElement<TargetIterable> =
   TargetIterable extends Iterable<infer ElementType>
-    ? ElementType
-    : TargetIterable extends AsyncIterable<infer ElementType>
-      ? ElementType
-      : never;
+  ? ElementType
+  : TargetIterable extends AsyncIterable<infer ElementType>
+  ? ElementType
+  : never;

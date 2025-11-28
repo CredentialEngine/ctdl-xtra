@@ -12,7 +12,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { API_URL } from "@/constants";
-import { DataItem, prettyPrintDate, trpc } from "@/utils";
+import { DatasetItem, prettyPrintDate, trpc } from "@/utils";
 import { Download } from "lucide-react";
 import { useState } from "react";
 import { useParams } from "wouter";
@@ -20,7 +20,7 @@ import { CourseStructuredData } from "../../../../../common/types";
 import usePagination from "../usePagination";
 
 interface CourseDisplayItemProps {
-  item: DataItem;
+  item: DatasetItem;
 }
 
 function CourseDisplayItem({ item }: CourseDisplayItemProps) {

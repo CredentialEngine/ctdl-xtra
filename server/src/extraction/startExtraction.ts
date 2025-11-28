@@ -80,7 +80,7 @@ export async function rerunDataExtraction(extractionId: number) {
 }
 
 async function launchLLMExtraction(
-  catalogue: typeof catalogues.$inferSelect,
+  _catalogue: typeof catalogues.$inferSelect,
   extraction: typeof extractions.$inferSelect,
   recipe: typeof recipes.$inferSelect
 ) {
@@ -111,7 +111,7 @@ async function launchLLMExtraction(
 }
 
 async function launchAPIExtraction(
-  catalogue: typeof catalogues.$inferSelect,
+  _catalogue: typeof catalogues.$inferSelect,
   extraction: typeof extractions.$inferSelect,
   recipe: typeof recipes.$inferSelect
 ) {
