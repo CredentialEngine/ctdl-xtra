@@ -69,9 +69,11 @@ export default function DatasetDetail() {
             <TableBody>
               {datasets.map((dataset) => (
                 <TableRow key={`dataset-${dataset.id}`}>
-                  <TableCell>#{dataset.id}</TableCell>
                   <TableCell>
-                    <Link to={`/${dataset.extractionId}`}>
+                    <Link to={`/items/${dataset.id}`}>#{dataset.id}</Link>
+                  </TableCell>
+                  <TableCell>
+                    <Link to={`~/extractions/${dataset.extractionId}`}>
                       #{dataset.extractionId}
                     </Link>
                   </TableCell>
