@@ -36,9 +36,9 @@ export const ModelPrices = {
   },
 };
 
-export class BadToolCallResponseError extends Error {}
+export class BadToolCallResponseError extends Error { }
 
-export class UnknownPaginationTypeError extends Error {}
+export class UnknownPaginationTypeError extends Error { }
 
 export function estimateCost(
   model: ProviderModel,
@@ -207,6 +207,7 @@ export async function structuredCompletion<
   logApiCall?: {
     callSite: string;
     extractionId: number;
+    datasetId?: number;
   };
 }): Promise<{
   result: ToolCallReturn<T> | null;
@@ -292,7 +293,8 @@ export async function structuredCompletion<
         (completionOptions.model as ProviderModel) || ProviderModel.Gpt5,
         options.logApiCall.callSite,
         inputTokenCount,
-        outputTokenCount
+        outputTokenCount,
+        options.logApiCall.datasetId
       );
     }
 

@@ -16,18 +16,19 @@ import {
   ProviderModel,
   StepCompletionStats,
 } from "../../../common/types";
+import { SETTING_DEFAULTS } from "../constants";
+import { findLatestDataset } from "../data/datasets";
 import {
   findExtractionById,
   getApiCallSummary,
   getStepStats,
   updateExtraction,
 } from "../data/extractions";
+import { findSetting } from "../data/settings";
 import { sendEmailToAll } from "../email";
 import ExtractionComplete from "../emails/extractionComplete";
 import getLogger from "../logging";
 import { estimateCost } from "../openai";
-import { findSetting } from "../data/settings";
-import { SETTING_DEFAULTS } from "../constants";
 
 const logger = getLogger("workers.updateExtractionCompletion");
 
@@ -35,8 +36,14 @@ async function getStepCompletionStats(
   extraction: NonNullable<Awaited<ReturnType<typeof findExtractionById>>>
 ) {
   const stats: StepCompletionStats[] = [];
+
+  const latestDataset = await findLatestDataset(extraction.id);
+  if (!latestDataset) {
+    return stats;
+  }
+
   for (const step of extraction.crawlSteps || []) {
-    const rawStepStats = await getStepStats(step.id);
+    const rawStepStats = await getStepStats(latestDataset.id, step.id);
     let downloadsTotal = 0,
       downloadsAttempted = 0,
       downloadsSucceeded = 0,
@@ -246,7 +253,7 @@ export default createProcessor<
     if (stale) {
       const timeDiff = Math.abs(
         currentDate.getTime() -
-          new Date(extraction.completionStats.generatedAt).getTime()
+        new Date(extraction.completionStats.generatedAt).getTime()
       );
       await handleStaleExtraction(job, extraction, timeDiff);
       return;

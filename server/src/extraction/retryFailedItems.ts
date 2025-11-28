@@ -1,4 +1,5 @@
 import { ExtractionStatus } from "../../../common/types";
+import { findExtractionDatasets } from "../data/datasets";
 import {
   findExtractionById,
   findFailedAndNoDataPageIds,
@@ -39,13 +40,19 @@ export async function retryFailedItems(extractionId: number) {
       generatedAt: new Date().toISOString(),
     },
   });
-  await submitJobs(
-    Queues.FetchPage,
-    pageIds.map((id) => ({
-      data: { crawlPageId: id, extractionId },
-      options: { jobId: `fetchPage.${id}` },
-    }))
-  );
+
+  const datasets = await findExtractionDatasets(extraction.id);
+
+  for (const dataset of datasets) {
+    await submitJobs(
+      Queues.FetchPage,
+      pageIds.map((id) => ({
+        data: { crawlPageId: id, extractionId, datasetId: dataset.id },
+        options: { jobId: `fetchPage.${id}` },
+      }))
+    );
+  }
+
   await submitRepeatableJob(
     Queues.UpdateExtractionCompletion,
     { extractionId: extraction.id },

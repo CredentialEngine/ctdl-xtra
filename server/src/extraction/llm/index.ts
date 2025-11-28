@@ -14,6 +14,7 @@ export interface DefaultLlmPageOptions {
   catalogueType?: CatalogueType;
   logApiCalls?: {
     extractionId: number;
+    datasetId?: number;
   };
   additionalContext?: {
     message: string;

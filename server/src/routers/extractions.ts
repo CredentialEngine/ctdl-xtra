@@ -2,13 +2,13 @@ import { z } from "zod";
 import { publicProcedure, router } from ".";
 import { CatalogueType, ExtractionStatus } from "../../../common/types";
 import { AppError, AppErrors } from "../appErrors";
-import { getItemsCount } from "../data/datasets";
+import { findExtractionDatasets } from "../data/datasets";
 import {
   destroyExtraction,
+  findErrorPagesForExtraction,
   findExtractionForDetailPage,
   findExtractionsSorted,
   findLogs,
-  findErrorPagesForExtraction,
   findPage,
   findPageForJob,
   findPagesPaginated,
@@ -25,7 +25,10 @@ import {
 } from "../data/schema";
 import { extractEntityData } from "../extraction/llm/extractEntityData";
 import { retryFailedItems } from "../extraction/retryFailedItems";
-import { startExtraction } from "../extraction/startExtraction";
+import {
+  rerunDataExtraction,
+  startExtraction,
+} from "../extraction/startExtraction";
 
 export const extractionsRouter = router({
   create: publicProcedure
@@ -58,6 +61,15 @@ export const extractionsRouter = router({
     .mutation(async (opts) => {
       return retryFailedItems(opts.input.id);
     }),
+  rerunData: publicProcedure
+    .input(
+      z.object({
+        id: z.number().int().positive(),
+      })
+    )
+    .mutation(async (opts) => {
+      return rerunDataExtraction(opts.input.id);
+    }),
   detail: publicProcedure
     .input(
       z.object({
@@ -69,9 +81,11 @@ export const extractionsRouter = router({
       if (!result) {
         throw new AppError("Extraction not found", AppErrors.NOT_FOUND);
       }
+      const datasets = await findExtractionDatasets(opts.input.id);
       return {
         ...result,
-        dataItemsCount: await getItemsCount(opts.input.id),
+        datasets,
+        latestDataset: datasets[0],
       };
     }),
   destroy: publicProcedure

@@ -47,32 +47,28 @@ function CourseDisplayItem({ item }: CourseDisplayItemProps) {
 }
 
 export default function DatasetItems() {
-  const { extractionId } = useParams();
+  const { datasetId } = useParams();
   const [downloadInProgress, setDownloadInProgress] = useState(false);
   const { page, PaginationButtons } = usePagination();
 
-  const extractionQuery = trpc.extractions.detail.useQuery(
-    { id: parseInt(extractionId || "") },
-    { enabled: !!extractionId }
+  const datasetQuery = trpc.datasets.items.useQuery(
+    { id: parseInt(datasetId || ""), page },
+    { enabled: !!datasetId }
   );
 
-  const itemsQuery = trpc.datasets.items.useQuery(
-    { extractionId: parseInt(extractionId || ""), page },
-    { enabled: !!extractionId }
-  );
-
-  if (!extractionQuery.data || !itemsQuery.data) {
+  if (!datasetQuery.data) {
     return null;
   }
+
   const handleDownload: React.MouseEventHandler<HTMLButtonElement> = (e) => {
     setDownloadInProgress(true);
     e.preventDefault();
-    fetch(`${API_URL}/downloads/bulk_upload_template/${extractionId}`, {
+    fetch(`${API_URL}/downloads/bulk_upload_template/${datasetId}`, {
       credentials: "include",
     })
       .then((response) => {
         const disposition = response.headers.get("Content-Disposition");
-        let filename = `AICourseMapping-BulkUploadTemplate-${extractionId}.csv`; // Fallback filename
+        let filename = `AICourseMapping-BulkUploadTemplate-${datasetId}.csv`;
 
         if (disposition && disposition.includes("attachment")) {
           const filenameRegex = /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/;
@@ -104,9 +100,9 @@ export default function DatasetItems() {
       });
   };
 
-  const extraction = extractionQuery.data;
+  const extraction = datasetQuery.data.dataset.extraction;
   const catalogue = extraction.recipe.catalogue;
-  const items = itemsQuery.data.results;
+  const items = datasetQuery.data.items;
 
   const breadCrumbs = [
     { label: "Data Library", href: "/" },
@@ -146,8 +142,8 @@ export default function DatasetItems() {
           </div>
         </div>
         <div className="mt-6 border-t border-border pt-6 text-sm">
-          {itemsQuery.data.totalItems} items were extracted. The extraction was
-          created on {prettyPrintDate(extraction.createdAt)}.
+          {items.totalItems} items were extracted. The extraction was created on{" "}
+          {prettyPrintDate(extraction.createdAt)}.
           <Badge className="ml-2">{extraction.status}</Badge>
         </div>
       </div>
@@ -161,17 +157,17 @@ export default function DatasetItems() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {items.map((item) => (
+              {items.results.map((item) => (
                 <CourseDisplayItem key={`step-item-${item.id}`} item={item} />
               ))}
             </TableBody>
           </Table>
         </CardContent>
-        {items.length > 0 ? (
+        {items.results.length > 0 ? (
           <CardFooter>
             <PaginationButtons
-              totalItems={itemsQuery.data.totalItems}
-              totalPages={itemsQuery.data.totalPages}
+              totalItems={items.totalItems}
+              totalPages={items.totalPages}
             />
           </CardFooter>
         ) : null}

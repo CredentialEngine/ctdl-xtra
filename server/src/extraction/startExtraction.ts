@@ -1,13 +1,20 @@
-import { RecipeDetectionStatus, Step } from "../../../common/types";
+import { ExtractionStatus, RecipeDetectionStatus, Step } from "../../../common/types";
 import { findCatalogueById } from "../data/catalogues";
-import { createExtraction, createPage, createStep } from "../data/extractions";
-import { extractions, recipes } from "../data/schema";
+import { createDataset } from "../data/datasets";
+import { createExtraction, createPage, createStep, findExtractionById, findExtractionValidPages, updateExtraction } from "../data/extractions";
+import { catalogues, extractions, recipes } from "../data/schema";
+import getLogger from "../logging";
 import {
+  ExtractDataJob,
   Queues,
   REPEAT_UPDATE_COMPLETION_EVERY_MS,
   submitJob,
+  submitJobs,
+  SubmitJobsItem,
   submitRepeatableJob,
 } from "../workers";
+
+const logger = getLogger("extraction.startExtraction");
 
 export async function startExtraction(catalogueId: number, recipeId: number) {
   const catalogue = await findCatalogueById(catalogueId);
@@ -24,13 +31,56 @@ export async function startExtraction(catalogueId: number, recipeId: number) {
   const extraction = await createExtraction(recipe.id);
 
   recipe.configuration.apiProvider
-    ? await launchAPIExtraction(extraction, recipe)
-    : await launchLLMExtraction(extraction, recipe);
+    ? await launchAPIExtraction(catalogue, extraction, recipe)
+    : await launchLLMExtraction(catalogue, extraction, recipe);
 
   return extraction;
 }
 
+export async function rerunDataExtraction(extractionId: number) {
+  logger.info(`Rerunning data extraction for extraction ${extractionId}`);
+  const extraction = await findExtractionById(extractionId);
+  if (!extraction) {
+    throw new Error("Extraction not found");
+  }
+  const dataset = await createDataset(extractionId);
+  await updateExtraction(extractionId, {
+    status: ExtractionStatus.IN_PROGRESS,
+    completionStats: null
+  });
+  const limit = 20;
+  let offset = 0;
+  while (true) {
+    const pages = await findExtractionValidPages(extractionId, limit, offset);
+
+    const jobDefinitions: SubmitJobsItem<ExtractDataJob>[] = pages.map(page => ({
+      data: {
+        crawlPageId: page.id,
+        datasetId: dataset.id,
+        extractionId,
+      },
+      options: {
+        jobId: `extractData.rerun.${dataset.id}.${page.id}`
+      }
+    }));
+
+    await submitJobs(Queues.ExtractData, jobDefinitions);
+    offset += limit;
+
+    if (pages.length < limit) {
+      break;
+    }
+  }
+  await submitRepeatableJob(
+    Queues.UpdateExtractionCompletion,
+    { extractionId },
+    `updateExtractionCompletion.${extractionId}`,
+    { every: REPEAT_UPDATE_COMPLETION_EVERY_MS }
+  );
+}
+
 async function launchLLMExtraction(
+  catalogue: typeof catalogues.$inferSelect,
   extraction: typeof extractions.$inferSelect,
   recipe: typeof recipes.$inferSelect
 ) {
@@ -46,9 +96,10 @@ async function launchLLMExtraction(
     url: recipe.url,
     pageType: recipe.configuration!.pageType,
   });
+  const dataset = await createDataset(extraction.id);
   submitJob(
     Queues.FetchPage,
-    { crawlPageId: crawlPage.id, extractionId: extraction.id },
+    { crawlPageId: crawlPage.id, extractionId: extraction.id, datasetId: dataset.id },
     `fetchPage.${crawlPage.id}`
   );
   submitRepeatableJob(
@@ -60,6 +111,7 @@ async function launchLLMExtraction(
 }
 
 async function launchAPIExtraction(
+  catalogue: typeof catalogues.$inferSelect,
   extraction: typeof extractions.$inferSelect,
   recipe: typeof recipes.$inferSelect
 ) {
@@ -75,9 +127,10 @@ async function launchAPIExtraction(
     url: recipe.url,
     pageType: recipe.configuration!.pageType,
   });
+  const dataset = await createDataset(extraction.id);
   submitJob(
     Queues.ExtractDataWithAPI,
-    { crawlPageId: crawlPage.id, extractionId: extraction.id },
+    { crawlPageId: crawlPage.id, extractionId: extraction.id, datasetId: dataset.id },
     `extractWithApi.${crawlPage.id}`
   );
   submitRepeatableJob(

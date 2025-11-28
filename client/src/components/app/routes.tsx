@@ -59,7 +59,7 @@ export default function Routes() {
         <Route path="/" component={DatasetList} />
         <Switch>
           <Route path="/catalogue/:catalogueId" component={DatasetDetail} />
-          <Route path="/items/:extractionId" component={DatasetItems} />
+          <Route path="/items/:datasetId" component={DatasetItems} />
         </Switch>
       </Route>
       <Route path="/users" nest>

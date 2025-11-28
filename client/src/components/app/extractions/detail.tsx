@@ -59,15 +59,17 @@ function buildStepHierarchy(steps: CrawlStep[]): TreeNode[] {
   // First pass: create all step nodes
   steps.forEach((step) => {
     const stepType = displayStepType(step.step);
-    const stepWithPages = step as CrawlStep & { crawlPages?: Array<{ id: number; url: string; crawlStepId: number }> };
+    const stepWithPages = step as CrawlStep & {
+      crawlPages?: Array<{ id: number; url: string; crawlStepId: number }>;
+    };
     const crawlPages = stepWithPages.crawlPages || [];
-    
+
     // Create page nodes as children
     const pageNodes: TreeNode[] = crawlPages.map((page) => ({
       id: `page-${page.id}`,
       label: page.url,
       children: [],
-      type: 'page',
+      type: "page",
       page: page,
       url: page.url,
     }));
@@ -76,7 +78,7 @@ function buildStepHierarchy(steps: CrawlStep[]): TreeNode[] {
       id: step.id,
       label: `Step ${step.id}: ${stepType}`,
       children: pageNodes,
-      type: 'step',
+      type: "step",
       step: step,
     };
     stepMap.set(step.id, node);
@@ -91,8 +93,12 @@ function buildStepHierarchy(steps: CrawlStep[]): TreeNode[] {
       const parent = stepMap.get(step.parentStepId);
       if (parent) {
         // Separate child steps and pages
-        const existingChildSteps = (parent.children || []).filter((c) => c.type === 'step');
-        const existingPages = (parent.children || []).filter((c) => c.type === 'page');
+        const existingChildSteps = (parent.children || []).filter(
+          (c) => c.type === "step"
+        );
+        const existingPages = (parent.children || []).filter(
+          (c) => c.type === "page"
+        );
         // Add the new child step, then keep existing pages
         parent.children = [...existingChildSteps, node, ...existingPages];
       } else {
@@ -123,10 +129,7 @@ function getElapsedTimeText(statsLastUpdatedAt: string, createdAt: string) {
   }
 }
 
-const REFETCH_STATES = [
-  ExtractionStatus.IN_PROGRESS,
-  ExtractionStatus.WAITING
-];
+const REFETCH_STATES = [ExtractionStatus.IN_PROGRESS, ExtractionStatus.WAITING];
 
 export default function ExtractionDetail() {
   const { extractionId } = useParams();
@@ -137,7 +140,7 @@ export default function ExtractionDetail() {
   const [, navigate] = useLocation();
   const query = trpc.extractions.detail.useQuery(
     { id: extractionIdNum },
-    { 
+    {
       enabled: !!extractionIdNum,
       refetchInterval(data) {
         if (REFETCH_STATES.includes(data?.status as ExtractionStatus)) {
@@ -153,6 +156,7 @@ export default function ExtractionDetail() {
   );
   const cancelExtraction = trpc.extractions.cancel.useMutation();
   const destroyExtraction = trpc.extractions.destroy.useMutation();
+  const rerunDataExtraction = trpc.extractions.rerunData.useMutation();
   const retryFailed = trpc.extractions.retryFailed.useMutation();
 
   if (!query.data) {
@@ -194,6 +198,30 @@ export default function ExtractionDetail() {
     }
   };
 
+  const onRerunDataExtraction = async () => {
+    try {
+      await rerunDataExtraction.mutateAsync({
+        id: extraction.id,
+      });
+      toast({
+        title: "Data extraction rerun started",
+        description:
+          "We are reprocessing the extracted pages and will attach a new dataset.",
+      });
+      await query.refetch();
+    } catch (err: unknown) {
+      let errorMessage =
+        "Something went wrong while restarting the data extraction.";
+      if (err instanceof Error && err.message) {
+        errorMessage = err.message;
+      }
+      toast({
+        title: "Error rerunning data extraction",
+        description: errorMessage,
+      });
+    }
+  };
+
   const onDestroyExtraction = async () => {
     if (lockedDelete) {
       return;
@@ -207,6 +235,9 @@ export default function ExtractionDetail() {
   };
 
   const extraction = query.data;
+  const datasets = extraction.datasets || [];
+  const latestDataset = extraction.latestDataset || datasets[0];
+  const olderDatasets = datasets.slice(1);
   let totalDownloads = 0,
     totalDownloadsAttempted = 0,
     totalDownloadErrors = 0,
@@ -282,16 +313,22 @@ export default function ExtractionDetail() {
                 {statusDetails}
               </div>
 
-              <div className="rounded-md border p-4 mt-2 flex items-center">
-                {extraction.dataItemsCount ? (
+              <div className="rounded-md border p-4 mt-2 flex flex-col gap-2">
+                {latestDataset ? (
                   <Link
-                    to={`~/datasets/items/${extraction.id}`}
+                    to={`~/datasets/items/${latestDataset.id}`}
                     className="flex items-center gap-4 w-full"
                   >
                     <div>
                       <LibraryBig className="w-4 h-4" />
                     </div>
-                    <div>View Data</div>
+                    <div>
+                      View Data
+                      <div className="text-xs text-muted-foreground">
+                        Latest dataset from{" "}
+                        {prettyPrintDate(latestDataset.createdAt)}
+                      </div>
+                    </div>
                   </Link>
                 ) : (
                   <div>
@@ -301,15 +338,55 @@ export default function ExtractionDetail() {
                     </div>
                   </div>
                 )}
+                {olderDatasets.length ? (
+                  <Accordion type="single" collapsible>
+                    <AccordionItem value="older-datasets">
+                      <AccordionTrigger className="px-0">
+                        Previous datasets
+                      </AccordionTrigger>
+                      <AccordionContent>
+                        <div className="flex flex-col gap-2">
+                          {olderDatasets.map((dataset) => (
+                            <Button
+                              key={`dataset-${dataset.id}`}
+                              variant="outline"
+                              size="sm"
+                              className="justify-start"
+                              asChild
+                            >
+                              <Link to={`~/datasets/items/${dataset.id}`}>
+                                Dataset #{dataset.id} —{" "}
+                                {prettyPrintDate(dataset.createdAt)}
+                              </Link>
+                            </Button>
+                          ))}
+                        </div>
+                      </AccordionContent>
+                    </AccordionItem>
+                  </Accordion>
+                ) : null}
               </div>
+              {extraction.status === ExtractionStatus.COMPLETE ? (
+                <div className="mt-2">
+                  <Button
+                    size="sm"
+                    onClick={onRerunDataExtraction}
+                    disabled={rerunDataExtraction.isLoading}
+                  >
+                    {rerunDataExtraction.isLoading
+                      ? "Starting rerun..."
+                      : "Rerun data extraction"}
+                  </Button>
+                </div>
+              ) : null}
               {extraction.completionStats?.costs?.callSites?.length ? (
                 <div className="rounded-md border p-4 mt-2">
                   <div className="text-sm text-muted-foreground mb-1">
                     Models used
                   </div>
                   <div className="flex flex-wrap gap-2">
-                    {[...
-                      new Set(
+                    {[
+                      ...new Set(
                         extraction.completionStats.costs.callSites.map(
                           (c) => c.model
                         )
@@ -534,13 +611,16 @@ export default function ExtractionDetail() {
                       </div>
                       <Dialog>
                         <DialogTrigger asChild>
-                          <Button size="sm" variant="outline">View</Button>
+                          <Button size="sm" variant="outline">
+                            View
+                          </Button>
                         </DialogTrigger>
                         <DialogContent className="sm:max-w-[66vw] w-11/12 max-h-[70vh] overflow-y-auto">
                           <DialogHeader>
                             <DialogTitle>Error Pages</DialogTitle>
                             <DialogDescription>
-                              Pages that failed to download and their error messages.
+                              Pages that failed to download and their error
+                              messages.
                             </DialogDescription>
                           </DialogHeader>
                           <div className="mt-2">
@@ -549,7 +629,9 @@ export default function ExtractionDetail() {
                                 <TableRow className="text-xs">
                                   <TableHead className="w-1/2">Error</TableHead>
                                   <TableHead>URL</TableHead>
-                                  <TableHead className="text-right">Action</TableHead>
+                                  <TableHead className="text-right">
+                                    Action
+                                  </TableHead>
                                 </TableRow>
                               </TableHeader>
                               <TableBody className="text-xs">
@@ -559,13 +641,25 @@ export default function ExtractionDetail() {
                                       {p.fetchFailureReason?.reason || "-"}
                                     </TableCell>
                                     <TableCell className="break-all align-top">
-                                      <a href={p.url} target="_blank" rel="noreferrer" className="underline">
+                                      <a
+                                        href={p.url}
+                                        target="_blank"
+                                        rel="noreferrer"
+                                        className="underline"
+                                      >
                                         {p.url}
                                       </a>
                                     </TableCell>
                                     <TableCell className="text-right align-top">
-                                      <Button variant={"outline"} size="sm" className="text-xs" asChild>
-                                        <Link to={`/${extraction.id}/steps/${p.crawlStepId}/items/${p.id}`}>
+                                      <Button
+                                        variant={"outline"}
+                                        size="sm"
+                                        className="text-xs"
+                                        asChild
+                                      >
+                                        <Link
+                                          to={`/${extraction.id}/steps/${p.crawlStepId}/items/${p.id}`}
+                                        >
                                           View item
                                         </Link>
                                       </Button>
@@ -601,7 +695,9 @@ export default function ExtractionDetail() {
                             <TableBody className="text-xs">
                               {extraction.completionStats.costs.callSites.map(
                                 (callSite) => (
-                                  <TableRow key={`${callSite.callSite}-${callSite.model}`}>
+                                  <TableRow
+                                    key={`${callSite.callSite}-${callSite.model}`}
+                                  >
                                     <TableCell>{callSite.callSite}</TableCell>
                                     <TableCell>{callSite.model}</TableCell>
                                     <TableCell>
@@ -694,7 +790,9 @@ export default function ExtractionDetail() {
                             <JsonPopover jsonData={step.configuration} />
                           ) : null}
                         </TableCell>
-                        <TableCell>{concisePrintDate(step.createdAt)}</TableCell>
+                        <TableCell>
+                          {concisePrintDate(step.createdAt)}
+                        </TableCell>
                         <TableCell className="text-right">
                           <Button
                             variant={"outline"}
@@ -717,10 +815,15 @@ export default function ExtractionDetail() {
                 <Tree
                   data={buildStepHierarchy(extraction.crawlSteps)}
                   onNodeClick={(node) => {
-                    if (node.type === 'page' && node.page) {
-                      const page = node.page as { id: number; crawlStepId: number };
-                      navigate(`/${extraction.id}/steps/${page.crawlStepId}/items/${page.id}`);
-                    } else if (node.type === 'step' && node.step) {
+                    if (node.type === "page" && node.page) {
+                      const page = node.page as {
+                        id: number;
+                        crawlStepId: number;
+                      };
+                      navigate(
+                        `/${extraction.id}/steps/${page.crawlStepId}/items/${page.id}`
+                      );
+                    } else if (node.type === "step" && node.step) {
                       navigate(`/${extraction.id}/steps/${node.step.id}`);
                     }
                   }}

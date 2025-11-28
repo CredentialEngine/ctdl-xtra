@@ -12,7 +12,7 @@ import fastify from "fastify";
 import { z } from "zod";
 import { appRouter, type AppRouter } from "./appRouter";
 import { streamCsv } from "./csv";
-import { findExtractionById } from "./data/extractions";
+import { findDataset } from "./data/datasets";
 import { findUserByEmail } from "./data/users";
 import { makeAirbrakePlugin } from "./fastifyAirbrakeNotifier";
 import fastifySessionAuth, {
@@ -128,26 +128,26 @@ server.register(async (instance) => {
   });
 
   instance.get(
-    "/downloads/bulk_upload_template/:extractionId",
+    "/downloads/bulk_upload_template/:datasetId",
     async (request, reply) => {
-      const { extractionId } = request.params as any;
-      const extraction = await findExtractionById(extractionId);
-      if (!extraction) {
-        return reply.code(404).send({ error: "Extraction not found" });
+      const { datasetId } = request.params as any;
+      const dataset = await findDataset(datasetId);
+      if (!dataset) {
+        return reply.code(404).send({ error: "Dataset not found" });
       }
-      const cataloguePiece = extraction.recipe.catalogue.name
+      const cataloguePiece = dataset.extraction.recipe.catalogue.name
         .replace(/[^a-zA-Z0-9]/g, "_")
         .replace(/_+/g, "_")
         .replace(/^_|_$/g, "")
         .substring(0, 50);
-      const filename = `AICourseCrawl-BulkUploadTemplate-${extraction.id}_${cataloguePiece}.csv`;
+      const filename = `AICourseCrawl-BulkUploadTemplate-${datasetId}_${cataloguePiece}.csv`;
 
       return reply
         .headers({
           "Content-Type": "application/octet-stream",
           "Content-Disposition": `attachment; filename="${filename}"`,
         })
-        .send(streamCsv(extractionId));
+        .send(streamCsv(datasetId));
     }
   );
 });

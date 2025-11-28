@@ -22,6 +22,7 @@ import {
   CompetencyStructuredData,
   CompletionStats,
   CourseStructuredData,
+  CredentialStructuredData,
   ExtractionStatus,
   FetchFailureReason,
   LearningProgramStructuredData,
@@ -34,7 +35,6 @@ import {
   RecipeDetectionStatus,
   Step,
   TextInclusion,
-  CredentialStructuredData,
 } from "../../../common/types";
 import { RobotsTxt } from "../extraction/robotsParser";
 import getLogger from "../logging";
@@ -308,9 +308,13 @@ const modelApiCalls = pgTable(
     input_token_count: integer("input_token_count").notNull(),
     output_token_count: integer("output_token_count").notNull(),
     createdAt: timestamp("created_at").notNull().defaultNow(),
+    datasetId: integer("dataset_id").references(() => datasets.id, {
+      onDelete: "cascade"
+    })
   },
   (t) => ({
     extractionIdx: index("model_api_calls_extraction_idx").on(t.extractionId),
+    datasetIdx: index("model_api_calls_datasaet_idx").on(t.datasetId),
   })
 );
 
@@ -319,6 +323,10 @@ const modelApiCallsRelations = relations(modelApiCalls, ({ one }) => ({
     fields: [modelApiCalls.extractionId],
     references: [extractions.id],
   }),
+  dataset: one(datasets, {
+    fields: [modelApiCalls.datasetId],
+    references: [datasets.id]
+  })
 }));
 
 const extractionLogs = pgTable(
@@ -440,7 +448,6 @@ const datasets = pgTable(
     createdAt: timestamp("created_at").notNull().defaultNow(),
   },
   (t) => ({
-    uniq: unique().on(t.catalogueId, t.extractionId),
     catalogueIdx: index("datasets_catalogue_idx").on(t.catalogueId),
     extractionIdx: index("datasets_extraction_idx").on(t.extractionId),
   })
@@ -452,6 +459,7 @@ const datasetsRelations = relations(datasets, ({ one, many }) => ({
     references: [extractions.id],
   }),
   dataItems: many(dataItems),
+  modelApiCalls: many(modelApiCalls)
 }));
 
 const dataItems = pgTable(
@@ -549,5 +557,5 @@ export {
   recipes,
   recipesRelations,
   settings,
-  users,
+  users
 };

@@ -10,7 +10,7 @@ import {
   findLatestExtractionsForCatalogue,
   getCatalogueCount,
 } from "../data/catalogues";
-import { findDatasets } from "../data/datasets";
+import { findCatalogueDatasets } from "../data/datasets";
 import { fetchPreview } from "../extraction/browser";
 import getLogger from "../logging";
 
@@ -109,7 +109,7 @@ export const cataloguesRouter = router({
       })
     )
     .query(async (opts) => {
-      const { totalItems, items } = await findDatasets(
+      const { totalItems, items } = await findCatalogueDatasets(
         opts.input.id,
         20,
         opts.input.page * 20 - 20

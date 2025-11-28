@@ -153,21 +153,23 @@ export interface DetectConfigurationJob {
 export interface FetchPageJob {
   crawlPageId: number;
   extractionId: number;
+  datasetId: number;
 }
 
 export interface ExtractDataJob {
   crawlPageId: number;
   extractionId: number;
+  datasetId: number;
 }
 
 export interface UpdateExtractionCompletionJob {
   extractionId: number;
 }
 
-export interface DetectConfigurationProgress extends BaseProgress {}
-export interface FetchPageProgress extends BaseProgress {}
-export interface ExtractDataProgress extends BaseProgress {}
-export interface UpdateExtractionCompletionProgress extends BaseProgress {}
+export interface DetectConfigurationProgress extends BaseProgress { }
+export interface FetchPageProgress extends BaseProgress { }
+export interface ExtractDataProgress extends BaseProgress { }
+export interface UpdateExtractionCompletionProgress extends BaseProgress { }
 
 const connection = getRedisConnection();
 
