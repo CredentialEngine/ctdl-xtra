@@ -271,6 +271,7 @@ ${basePrompt}
       logApiCall: options?.logApiCalls
         ? {
           extractionId: options.logApiCalls.extractionId,
+          datasetId: options.logApiCalls.datasetId,
           callSite: "extractEntityData",
         }
         : undefined,
@@ -304,6 +305,7 @@ ${basePrompt}
       logApiCall: options?.logApiCalls
         ? {
           extractionId: options.logApiCalls.extractionId,
+          datasetId: options.logApiCalls.datasetId,
           callSite: "extractEntityData",
         }
         : undefined,

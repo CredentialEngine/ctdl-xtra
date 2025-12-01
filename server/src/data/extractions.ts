@@ -1,8 +1,9 @@
-import { and, asc, desc, eq, isNotNull, gte, lte, SQL } from "drizzle-orm";
+import { and, asc, desc, eq, gte, isNotNull, isNull, lte, or, SQL } from "drizzle-orm";
 import { sql } from "drizzle-orm/sql/sql";
 import { SQLiteUpdateSetSource } from "drizzle-orm/sqlite-core";
 import db from "../data";
 import {
+  catalogues,
   crawlPages,
   crawlSteps,
   dataItems,
@@ -10,7 +11,6 @@ import {
   extractions,
   modelApiCalls,
   recipes,
-  catalogues,
 } from "../data/schema";
 
 import {
@@ -22,6 +22,7 @@ import {
   RecipeConfiguration,
   Step,
 } from "../../../common/types";
+import { findLatestDataset } from "./datasets";
 
 export async function createExtraction(recipeId: number) {
   const result = await db
@@ -245,6 +246,29 @@ export async function findStep(stepId: number) {
   return result;
 }
 
+export async function findExtractionValidPages(
+  extractionId: number,
+  limit: number = 20,
+  offset?: number
+) {
+  offset = offset || 0;
+  const result = await db.query.crawlPages.findMany({
+    columns: {
+      content: false,
+      screenshot: false,
+    },
+    limit,
+    offset,
+    where: (crawlPages, { and, eq }) =>
+      and(
+        eq(crawlPages.extractionId, extractionId),
+        eq(crawlPages.status, PageStatus.SUCCESS)
+      ),
+    orderBy: (crawlPages) => crawlPages.createdAt,
+  });
+  return result;
+}
+
 export async function findPages(stepId: number) {
   const result = await db.query.crawlPages.findMany({
     where: (crawlPages, { eq }) => eq(crawlPages.crawlStepId, stepId),
@@ -454,7 +478,8 @@ export async function countParentNodesOfCrawlSteps(
 }
 
 export async function getApiCallSummary(extractionId: number) {
-  const result = await db
+  const latestDataset = await findLatestDataset(extractionId);
+  let query = db
     .select({
       callSite: modelApiCalls.callSite,
       model: modelApiCalls.model,
@@ -462,10 +487,25 @@ export async function getApiCallSummary(extractionId: number) {
       totalOutputTokens: sql<number>`SUM(${modelApiCalls.output_token_count})`,
     })
     .from(modelApiCalls)
-    .where(eq(modelApiCalls.extractionId, extractionId))
-    .groupBy(modelApiCalls.callSite, modelApiCalls.model);
+    .$dynamic();
 
-  return result;
+  if (latestDataset) {
+    query = query
+      .where(
+        and(
+          eq(modelApiCalls.extractionId, extractionId),
+          or(
+            eq(modelApiCalls.datasetId, latestDataset.id),
+            isNull(modelApiCalls.datasetId)
+          )
+        )
+      )
+
+  } else {
+    query = query.where(eq(modelApiCalls.extractionId, extractionId))
+  }
+
+  return query.groupBy(modelApiCalls.callSite, modelApiCalls.model);
 }
 
 export async function createModelApiCallLog(
@@ -474,7 +514,8 @@ export async function createModelApiCallLog(
   model: ProviderModel,
   callSite: string,
   inputTokenCount: number,
-  outputTokenCount: number
+  outputTokenCount: number,
+  datasetId?: number
 ) {
   const result = await db
     .insert(modelApiCalls)
@@ -485,6 +526,7 @@ export async function createModelApiCallLog(
       callSite,
       input_token_count: inputTokenCount,
       output_token_count: outputTokenCount,
+      datasetId
     })
     .returning();
   return result[0];
@@ -502,7 +544,7 @@ export async function updatePage(
   return result[0];
 }
 
-export async function getStepStats(crawlStepId: number) {
+export async function getStepStats(datasetId: number, crawlStepId: number) {
   return await db
     .select({
       crawlPageId: crawlPages.id,
@@ -511,7 +553,12 @@ export async function getStepStats(crawlStepId: number) {
       dataItemCount: sql<number>`COUNT(${dataItems.id})::integer`,
     })
     .from(crawlPages)
-    .leftJoin(dataItems, eq(dataItems.crawlPageId, crawlPages.id))
+    .leftJoin(dataItems,
+      and(
+        eq(dataItems.datasetId, datasetId),
+        eq(dataItems.crawlPageId, crawlPages.id)
+      )
+    )
     .where(
       and(
         eq(crawlPages.crawlStepId, crawlStepId),

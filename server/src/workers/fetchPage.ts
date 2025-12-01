@@ -36,11 +36,11 @@ import {
   storeScreenshot,
 } from "../data/schema";
 import { BrowserFetchError, fetchBrowserPage, simplifiedMarkdown } from "../extraction/browser";
+import { discoverDynamicLinks } from "../extraction/dynamicLinkDiscovery";
 import { detectPageCount } from "../extraction/llm/detectPageCount";
 import { createUrlExtractor } from "../extraction/llm/detectUrlRegexp";
 import { findRule, isUrlAllowedForRule } from "../extraction/robotsParser";
 import getLogger from "../logging";
-import { discoverDynamicLinks } from "../extraction/dynamicLinkDiscovery";
 
 const logger = getLogger("workers.fetchPage");
 const redis = getRedisConnection();
@@ -61,18 +61,20 @@ const constructPaginatedUrls = (configuration: PaginationConfiguration) => {
 };
 
 async function enqueueExtraction(
+  datasetId: number,
   crawlPage: Awaited<ReturnType<typeof findPageForJob>>
 ) {
   logger.info(`Enqueuing extraction for page ${crawlPage.url}`);
   return submitJob(
     Queues.ExtractData,
-    { crawlPageId: crawlPage.id, extractionId: crawlPage.extractionId },
+    { crawlPageId: crawlPage.id, extractionId: crawlPage.extractionId, datasetId },
     `extractData.${crawlPage.id}`
   );
 }
 
 async function enqueuePages(
   configuration: RecipeConfiguration,
+  datasetId: number,
   crawlPage: Awaited<ReturnType<typeof findPageForJob>>,
   catalogueType: CatalogueType,
   delayOptions: DelayOptions
@@ -127,7 +129,7 @@ async function enqueuePages(
   await submitJobs(
     Queues.FetchPage,
     stepAndPages.pages.map((page) => ({
-      data: { crawlPageId: page.id, extractionId: crawlPage.extractionId },
+      data: { crawlPageId: page.id, extractionId: crawlPage.extractionId, datasetId },
       options: { jobId: `fetchPage.${page.id}`, lifo: true },
     })),
     delayOptions
@@ -136,6 +138,7 @@ async function enqueuePages(
 
 export async function processLinks(
   configuration: RecipeConfiguration,
+  datasetId: number,
   crawlPage: Awaited<ReturnType<typeof findPageForJob>>,
   delayOptions: DelayOptions
 ) {
@@ -201,6 +204,7 @@ export async function processLinks(
       data: {
         crawlPageId: page.id,
         extractionId: crawlPage.extractionId,
+        datasetId
       },
       options: {
         jobId: `fetchPage.${page.id}`,
@@ -212,6 +216,7 @@ export async function processLinks(
 }
 
 const processNextStep = async (
+  datasetId: number,
   crawlPage: Awaited<ReturnType<typeof findPageForJob>>,
   delayOptions: DelayOptions
 ) => {
@@ -222,11 +227,11 @@ const processNextStep = async (
     .catalogueType as CatalogueType;
 
   if (configuration.pagination && currentStep != Step.FETCH_PAGINATED) {
-    return enqueuePages(configuration, crawlPage, catalogueType, delayOptions);
+    return enqueuePages(configuration, datasetId, crawlPage, catalogueType, delayOptions);
   }
 
   if (configuration.pageType == PageType.DETAIL) {
-    return enqueueExtraction(crawlPage);
+    return enqueueExtraction(datasetId, crawlPage);
   }
 
   if (!configuration.links) {
@@ -235,7 +240,7 @@ const processNextStep = async (
     );
   }
 
-  await processLinks(configuration, crawlPage, delayOptions);
+  await processLinks(configuration, datasetId, crawlPage, delayOptions);
 };
 
 export const performJob = async (
@@ -261,7 +266,7 @@ export const performJob = async (
     const configuration = crawlPage.crawlStep.configuration as RecipeConfiguration;
     const rootConfiguration = crawlPage.extraction.recipe
       .configuration as RecipeConfiguration | undefined;
-    
+
     // Get parent page URL for resolving relative URLs
     let baseUrl: string | undefined;
     if (crawlPage.crawlStep.parentStepId) {
@@ -275,7 +280,7 @@ export const performJob = async (
     if (!baseUrl) {
       baseUrl = crawlPage.extraction.recipe.url;
     }
-    
+
     try {
       // this throws if the baseUrl is not absolute
       new URL(baseUrl);
@@ -289,15 +294,15 @@ export const performJob = async (
         baseUrl = recipeUrl;
       }
     }
-    
-    
+
+
     const page = await fetchBrowserPage(
       crawlPage.url,
       false,
       rootConfiguration?.pageLoadWaitTime,
       baseUrl
     );
-    
+
     if (!page.content) {
       throw new Error(`Could not fetch URL ${crawlPage.url}`);
     }
@@ -319,7 +324,7 @@ export const performJob = async (
       content: crawlPage.content,
       screenshot: crawlPage.screenshot,
     });
-    await processNextStep(crawlPage, delayOptions);
+    await processNextStep(job.data.datasetId, crawlPage, delayOptions);
     await updatePage(crawlPage.id, {
       status: PageStatus.SUCCESS,
     });

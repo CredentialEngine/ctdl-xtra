@@ -2,26 +2,25 @@ import { and, desc, eq, sql } from "drizzle-orm";
 import db from ".";
 import {
   crawlPages,
-  crawlSteps,
   dataItems,
-  datasets,
-  extractions,
+  datasets
 } from "./schema";
 
 import {
   CompetencyStructuredData,
   CourseStructuredData,
+  CredentialStructuredData,
   LearningProgramStructuredData,
   TextInclusion,
-  CredentialStructuredData,
 } from "../../../common/types";
+import { findExtractionById } from "./extractions";
 
 export async function createDataItem<
   T extends
-    | CourseStructuredData
-    | LearningProgramStructuredData
-    | CompetencyStructuredData
-    | CredentialStructuredData,
+  | CourseStructuredData
+  | LearningProgramStructuredData
+  | CompetencyStructuredData
+  | CredentialStructuredData,
 >(
   crawlPageId: number,
   datasetId: number,
@@ -36,6 +35,20 @@ export async function createDataItem<
       structuredData,
       textInclusion,
     })
+    .returning();
+  return result[0];
+}
+
+export async function createDataset(
+  extractionId: number
+) {
+  const extraction = await findExtractionById(extractionId);
+  if (!extraction) {
+    throw new Error("Extraction could not be found");
+  }
+  const result = await db
+    .insert(datasets)
+    .values({ catalogueId: extraction.recipe.catalogueId, extractionId })
     .returning();
   return result[0];
 }
@@ -84,17 +97,40 @@ export async function findCataloguesWithData(
   return { totalItems, items };
 }
 
-export async function getItemsCount(extractionId: number) {
+export async function getItemsCount(datasetId: number) {
   return (
     await db
       .select({ count: sql<number>`count(*)` })
-      .from(datasets)
-      .innerJoin(dataItems, eq(datasets.id, dataItems.datasetId))
-      .where(eq(datasets.extractionId, extractionId))
+      .from(dataItems)
+      .where(eq(dataItems.datasetId, datasetId))
   )[0].count;
 }
 
-export async function findDatasets(
+export async function findDataset(id: number) {
+  return db.query.datasets.findFirst({
+    where: (datasets, { eq }) => eq(datasets.id, id),
+    with: {
+      extraction: {
+        with: {
+          recipe: {
+            with: {
+              catalogue: true
+            }
+          }
+        }
+      }
+    }
+  });
+}
+
+export async function findLatestDataset(extractionId: number) {
+  return db.query.datasets.findFirst({
+    where: eq(datasets.extractionId, extractionId),
+    orderBy: desc(datasets.createdAt)
+  });
+}
+
+export async function findCatalogueDatasets(
   catalogueId: number,
   limit: number = 20,
   offset: number = 0
@@ -108,7 +144,8 @@ export async function findDatasets(
 
   let datasetsQuery = db
     .select({
-      id: datasets.extractionId,
+      id: datasets.id,
+      extractionId: datasets.extractionId,
       createdAt: datasets.createdAt,
     })
     .from(datasets)
@@ -128,8 +165,15 @@ export async function findDatasets(
   return { totalItems, items };
 }
 
+export async function findExtractionDatasets(extractionId: number) {
+  return db.query.datasets.findMany({
+    where: (datasets, { eq }) => eq(datasets.extractionId, extractionId),
+    orderBy: (datasets, { desc }) => desc(datasets.createdAt),
+  });
+}
+
 export async function findDataItems(
-  extractionId: number,
+  datasetId: number,
   limit: number = 20,
   offset: number = 0,
   skipTotals = false
@@ -143,9 +187,7 @@ export async function findDataItems(
     })
     .from(dataItems)
     .innerJoin(crawlPages, eq(crawlPages.id, dataItems.crawlPageId))
-    .innerJoin(crawlSteps, eq(crawlSteps.id, crawlPages.crawlStepId))
-    .innerJoin(extractions, eq(extractions.id, crawlSteps.extractionId))
-    .where(eq(crawlSteps.extractionId, extractionId))
+    .where(eq(dataItems.datasetId, datasetId))
     .limit(limit)
     .offset(offset);
 
@@ -153,6 +195,6 @@ export async function findDataItems(
     return { items };
   }
 
-  const totalItems = await getItemsCount(extractionId);
+  const totalItems = await getItemsCount(datasetId);
   return { totalItems, items };
 }

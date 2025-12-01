@@ -1,6 +1,6 @@
 import { inspect } from "util";
 import { createProcessor, ExtractDataJob, ExtractDataProgress } from ".";
-import { createDataItem, findOrCreateDataset } from "../data/datasets";
+import { createDataItem, findDataset } from "../data/datasets";
 import {
   findPageForJob,
   updateExtraction,
@@ -95,9 +95,8 @@ export default createProcessor<ExtractDataJob, ExtractDataProgress>(
 
     try {
       await updatePageAndExtractionInProgress(crawlPage);
-      const dataset = await findOrCreateDataset(
-        crawlPage.extraction.recipe.catalogueId,
-        crawlPage.extractionId
+      const dataset = await findDataset(
+        job.data.datasetId
       );
 
       if (!dataset) throw new Error("Could not find or create dataset");

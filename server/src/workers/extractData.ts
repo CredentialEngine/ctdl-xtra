@@ -6,7 +6,7 @@ import {
   Queues,
   submitJobs,
 } from ".";
-import { createDataItem, findOrCreateDataset } from "../data/datasets";
+import { createDataItem, findDataset } from "../data/datasets";
 import {
   countParentNodesOfCrawlSteps,
   createStepAndPages,
@@ -48,12 +48,11 @@ export default createProcessor<ExtractDataJob, ExtractDataProgress>(
       dataExtractionStartedAt: getSqliteTimestamp(),
     });
     try {
-      const dataset = await findOrCreateDataset(
-        crawlPage.extraction.recipe.catalogueId,
-        crawlPage.extractionId
+      const dataset = await findDataset(
+        job.data.datasetId
       );
 
-      if (!dataset) throw new Error("Could not find or create dataset");
+      if (!dataset) throw new Error("Could not find dataset");
 
       const content = await readMarkdownContent(
         crawlPage.extractionId,
@@ -74,7 +73,7 @@ export default createProcessor<ExtractDataJob, ExtractDataProgress>(
         content,
         screenshot,
         catalogueType,
-        logApiCalls: { extractionId: crawlPage.extractionId },
+        logApiCalls: { extractionId: crawlPage.extractionId, datasetId: dataset.id },
       };
 
       let skipExtraction = false,
@@ -116,8 +115,8 @@ export default createProcessor<ExtractDataJob, ExtractDataProgress>(
           }
 
           // If we're dealing with large amount of entities in the same doc,
-          // check for cancelation every 10 entities
-          if (extractedEntityCount % 10 === 0) {
+          // check for cancelation every 2 entities
+          if (extractedEntityCount % 2 === 0) {
             crawlPage = await findPageForJob(crawlPage.id);
             if (crawlPage.extraction.status == ExtractionStatus.CANCELLED) {
               logger.info(
@@ -163,6 +162,7 @@ export default createProcessor<ExtractDataJob, ExtractDataProgress>(
                 data: {
                   crawlPageId: page.id,
                   extractionId: crawlPage.extractionId,
+                  datasetId: job.data.datasetId
                 },
                 options: {
                   jobId: `fetchPage.${page.id}`,

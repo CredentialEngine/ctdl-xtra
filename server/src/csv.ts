@@ -8,8 +8,7 @@ import {
   CredentialStructuredData,
   LearningProgramStructuredData,
 } from "../../common/types";
-import { findDataItems } from "./data/datasets";
-import { findExtractionById } from "./data/extractions";
+import { findDataItems, findDataset } from "./data/datasets";
 
 /*
   Ref.
@@ -261,23 +260,26 @@ const idColumns = {
   [CatalogueType.CREDENTIALS]: "credential_id",
 };
 
-export async function buildCsv(csvStream: Transform, extractionId: number) {
+export async function buildCsv(csvStream: Transform, datasetId: number) {
   try {
     let offset = 0;
     let limit = 100;
     let state: Record<string, any> = {};
 
-    const extraction = await findExtractionById(extractionId);
-    if (!extraction) {
-      throw new Error("Extraction not found");
+    const dataset = await findDataset(datasetId);
+
+    if (!dataset) {
+      throw new Error("Dataset not found");
     }
+
+    const extraction = dataset.extraction;
 
     const idMap = new Map<string, number>();
     const idColumn =
-      idColumns[extraction.recipe.catalogue.catalogueType as CatalogueType];
+      idColumns[dataset.extraction.recipe.catalogue.catalogueType as CatalogueType];
 
     while (true) {
-      const { items } = await findDataItems(extractionId, limit, offset, true);
+      const { items } = await findDataItems(datasetId, limit, offset, true);
       if (!items.length) {
         break;
       }
