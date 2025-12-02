@@ -14,6 +14,7 @@ import Logout from "./logout";
 import MyProfile from "./profile";
 import CreateRecipe from "./recipes/create";
 import EditRecipe from "./recipes/edit";
+import SelectTemplate from "./recipes/select-template";
 import Settings from "./settings";
 import Users from "./users";
 import CreateUser from "./users/create";
@@ -30,6 +31,10 @@ export default function Routes() {
         <Route path="/new" component={CreateCatalogue} />
         <Switch>
           <Route path="/:catalogueId" component={CatalogueDetail} />
+          <Route
+            path="/:catalogueId/recipes/select-template"
+            component={SelectTemplate}
+          />
           <Route path="/:catalogueId/recipes/new" component={CreateRecipe} />
           <Route
             path="/:catalogueId/recipes/:recipeId"
