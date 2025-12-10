@@ -46,6 +46,10 @@ const CatalogueListItem = (catalogue: {
   url: string;
   catalogueType: string;
   thumbnailUrl?: string | null;
+  institution?: {
+    id: number;
+    name: string;
+  } | null;
   recipes: Omit<Recipe, "catalogue">[];
 }) => {
   const hasReadyRecipe = catalogue.recipes.some(
@@ -54,18 +58,30 @@ const CatalogueListItem = (catalogue: {
 
   return (
     <TableRow>
+      <TableCell>
+            {catalogue.thumbnailUrl ? (
+              <img src={catalogue.thumbnailUrl} style={{ maxHeight: "30px", maxWidth: "100px" }} />
+            ) : null}
+      </TableCell>
       <TableCell className="font-medium">
         <Link to={`/${catalogue.id}`}>
           <div className="flex items-center gap-4">
-            {catalogue.thumbnailUrl ? (
-              <img src={catalogue.thumbnailUrl} style={{ maxHeight: "30px" }} />
-            ) : null}
+
             {catalogue.name}
           </div>
         </Link>
       </TableCell>
       <TableCell className="hidden md:table-cell">
         <Badge variant="outline">{catalogue.catalogueType}</Badge>
+      </TableCell>
+      <TableCell className="hidden md:table-cell">
+        {catalogue.institution ? (
+          <Link to={`~/institutions/${catalogue.institution.id}`}>
+            {catalogue.institution.name}
+          </Link>
+        ) : (
+          <span className="text-muted-foreground text-xs">Not set</span>
+        )}
       </TableCell>
       <TableCell className="hidden md:table-cell">
         {hasReadyRecipe ? (
@@ -96,7 +112,7 @@ const CatalogueListItem = (catalogue: {
 };
 
 export default function Catalogues() {
-  const { page, PaginationButtons } = usePagination();
+  const { page, setPage, PaginationButtons } = usePagination();
   const [search, setSearch] = useState("");
   const [catalogueType, setCatalogueType] = useState<CatalogueType | "all">(
     "all"
@@ -109,6 +125,16 @@ export default function Catalogues() {
     catalogueType: catalogueType === "all" ? undefined : catalogueType,
   });
 
+  const handleSearchChange = (value: string) => {
+    setPage(1);
+    debouncedSetSearch(value);
+  };
+
+  const handleCatalogueTypeChange = (value: CatalogueType | "all") => {
+    setPage(1);
+    setCatalogueType(value);
+  };
+
   const searchFilters = (
     <div>
       <div className="flex gap-4 mb-4">
@@ -117,12 +143,14 @@ export default function Catalogues() {
           <Input
             placeholder="Search catalogues by name or URL..."
             className="pl-8"
-            onChange={(e) => debouncedSetSearch(e.target.value)}
+            onChange={(e) => handleSearchChange(e.target.value)}
           />
         </div>
         <Select
           value={catalogueType}
-          onValueChange={(value) => setCatalogueType(value as CatalogueType)}
+          onValueChange={(value) =>
+            handleCatalogueTypeChange(value as CatalogueType | "all")
+          }
         >
           <SelectTrigger className="w-[180px]">
             <SelectValue placeholder="All catalogue types" />
@@ -184,7 +212,12 @@ export default function Catalogues() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead colSpan={3}>Catalogue</TableHead>
+                <TableHead colSpan={2}>Catalogue</TableHead>
+                <TableHead className="hidden md:table-cell">Type</TableHead>
+                <TableHead className="hidden md:table-cell">
+                  Institution
+                </TableHead>
+                <TableHead className="hidden md:table-cell"></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -195,7 +228,7 @@ export default function Catalogues() {
                 />
               )) || (
                 <TableRow>
-                  <TableCell colSpan={2}>
+                  <TableCell colSpan={4}>
                     <div className="flex items-center justify-center">
                       <span className="text-muted-foreground">
                         Loading catalogues...

@@ -6,6 +6,7 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -34,10 +35,20 @@ import {
   RecipeDetectionStatus,
   trpc,
 } from "@/utils";
-import { CookingPot, HelpCircle, Star } from "lucide-react";
-import { useState } from "react";
+import { CookingPot, HelpCircle, Star, Check, ChevronsUpDown } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useParams } from "wouter";
 import { displayRecipeDetails } from "../recipes/util";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { cn } from "@/utils";
 
 interface RecipeListProps {
   catalogue: Catalogue;
@@ -108,15 +119,47 @@ const RecipeList = ({ catalogue }: RecipeListProps) => {
 };
 
 export default function CatalogueDetail() {
-  let { catalogueId } = useParams();
+  const { catalogueId } = useParams();
   const [lockedDelete, setLockDelete] = useState(true);
-  const [_location, navigate] = useLocation();
+  const [reassignDialogOpen, setReassignDialogOpen] = useState(false);
+  const [selectedInstitutionId, setSelectedInstitutionId] = useState<
+    number | undefined
+  >(undefined);
+  const [institutionOpen, setInstitutionOpen] = useState(false);
+  const [, navigate] = useLocation();
   const query = trpc.catalogues.detail.useQuery(
     { id: parseInt(catalogueId || "") },
     { enabled: !!parseInt(catalogueId || "") }
   );
+  const institutionsQuery = trpc.institutions.list.useQuery({
+    page: 1,
+    limit: 200,
+    url: query.data?.url,
+  });
+  const [institutionSearch, setInstitutionSearch] = useState("");
+  const filteredInstitutions = useMemo(() => {
+    const term = institutionSearch.trim().toLowerCase();
+    if (!term) return institutionsQuery.data?.results || [];
+    return (
+      institutionsQuery.data?.results.filter((institution) => {
+        const inName = institution.name.toLowerCase().includes(term);
+        const inDomain = institution.domains.some((d) =>
+          d.toLowerCase().includes(term)
+        );
+        return inName || inDomain;
+      }) || []
+    );
+  }, [institutionSearch, institutionsQuery.data?.results]);
   const destroyMutation = trpc.catalogues.destroy.useMutation();
+  const updateInstitutionMutation =
+    trpc.catalogues.updateInstitution.useMutation();
   const { toast } = useToast();
+
+  useEffect(() => {
+    if (query.data?.institutionId) {
+      setSelectedInstitutionId(query.data.institutionId);
+    }
+  }, [query.data?.institutionId]);
 
   if (!query.data) {
     return null;
@@ -132,6 +175,29 @@ export default function CatalogueDetail() {
       description: "The catalogue has been deleted successfully.",
     });
     navigate("/");
+  };
+
+  const reassignInstitution = async () => {
+    if (!selectedInstitutionId) return;
+    try {
+      await updateInstitutionMutation.mutateAsync({
+        catalogueId: query.data!.id,
+        institutionId: selectedInstitutionId,
+      });
+      await query.refetch();
+      toast({
+        title: "Institution updated",
+        description: "Catalogue institution updated successfully.",
+      });
+      setReassignDialogOpen(false);
+    } catch (error: unknown) {
+      const description =
+        error instanceof Error ? error.message : JSON.stringify(error);
+      toast({
+        title: "Unable to update institution",
+        description,
+      });
+    }
   };
 
   return (
@@ -165,6 +231,139 @@ export default function CatalogueDetail() {
                 <div className="grid gap-3">
                   <Label htmlFor="type">Type</Label>
                   <Badge variant="outline">{query.data.catalogueType}</Badge>
+                </div>
+                <div className="grid gap-3">
+                  <Label htmlFor="institution">Institution</Label>
+                  <div className="flex items-center gap-3 flex-wrap">
+                    {query.data.institution ? (
+                      <Link
+                        to={`~/institutions/${query.data.institution.id}`}
+                        className="font-semibold"
+                      >
+                        {query.data.institution.name}
+                      </Link>
+                    ) : (
+                      <span className="text-muted-foreground text-sm">
+                        Not assigned
+                      </span>
+                    )}
+                    <Dialog
+                      open={reassignDialogOpen}
+                      onOpenChange={setReassignDialogOpen}
+                    >
+                      <DialogTrigger asChild>
+                        <Button size="sm" variant="outline">
+                          Change
+                        </Button>
+                      </DialogTrigger>
+                      <DialogContent>
+                        <DialogHeader>
+                          <DialogTitle>Change institution</DialogTitle>
+                          <DialogDescription>
+                            Institutions matching the catalogue URL are shown
+                            first.
+                          </DialogDescription>
+                        </DialogHeader>
+                        <div className="grid gap-3">
+                          <Label>Select institution</Label>
+                          <Popover
+                            open={institutionOpen}
+                            onOpenChange={setInstitutionOpen}
+                          >
+                            <PopoverTrigger asChild>
+                              <Button
+                                variant="outline"
+                                role="combobox"
+                                aria-expanded={institutionOpen}
+                                className="justify-between"
+                              >
+                                {selectedInstitutionId
+                                  ? filteredInstitutions.find(
+                                      (institution) =>
+                                        institution.id === selectedInstitutionId
+                                    )?.name || "Select an institution"
+                                  : "Select an institution"}
+                                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                              </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-[520px] p-0">
+                              <Command>
+                                <CommandInput
+                                  placeholder="Search institutions..."
+                                  value={institutionSearch}
+                                  onValueChange={setInstitutionSearch}
+                                />
+                                <CommandList>
+                                  <CommandEmpty>
+                                    {institutionsQuery.isLoading
+                                      ? "Loading institutions..."
+                                      : "No institutions found"}
+                                  </CommandEmpty>
+                                  <CommandGroup>
+                                    {filteredInstitutions.map((institution) => (
+                                      <CommandItem
+                                        key={institution.id}
+                                        value={institution.name}
+                                        onSelect={() => {
+                                          setSelectedInstitutionId(
+                                            institution.id
+                                          );
+                                          setInstitutionOpen(false);
+                                        }}
+                                      >
+                                        <Check
+                                          className={cn(
+                                            "mr-2 h-4 w-4",
+                                            selectedInstitutionId ===
+                                              institution.id
+                                              ? "opacity-100"
+                                              : "opacity-0"
+                                          )}
+                                        />
+                                        <div className="flex flex-col">
+                                          <span>{institution.name}</span>
+                                          <span className="text-xs text-muted-foreground">
+                                            {institution.domains.join(", ")}
+                                          </span>
+                                        </div>
+                                      </CommandItem>
+                                    ))}
+                                  </CommandGroup>
+                                </CommandList>
+                              </Command>
+                            </PopoverContent>
+                          </Popover>
+                          <div className="text-xs text-muted-foreground">
+                            Can't find it?{" "}
+                            <Link to="~/institutions/new">
+                              Create a new institution
+                            </Link>
+                            .
+                          </div>
+                        </div>
+                        <DialogFooter className="gap-2">
+                          <Button
+                            onClick={reassignInstitution}
+                            disabled={
+                              !selectedInstitutionId ||
+                              updateInstitutionMutation.isLoading
+                            }
+                          >
+                            Save
+                          </Button>
+                        </DialogFooter>
+                      </DialogContent>
+                    </Dialog>
+                  </div>
+                  {query.data.institution?.domains?.length ? (
+                    <div className="flex flex-wrap gap-2">
+                      {query.data.institution.domains.map((domain) => (
+                        <Badge key={domain} variant="secondary">
+                          {domain}
+                        </Badge>
+                      ))}
+                    </div>
+                  ) : null}
                 </div>
                 {query.data.thumbnailUrl ? (
                   <div>
@@ -241,7 +440,9 @@ TODO: add save
                   <div className="items-top flex space-x-2">
                     <Checkbox
                       id="terms1"
-                      onCheckedChange={(e) => setLockDelete(!!!e)}
+                      onCheckedChange={(checked) =>
+                        setLockDelete(checked !== true)
+                      }
                     />
                     <div className="grid gap-1.5 leading-none">
                       <label

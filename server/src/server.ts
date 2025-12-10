@@ -42,9 +42,10 @@ if (CLIENT_PATH) {
     root: CLIENT_PATH,
   });
   const spaRoutes = [
+    "/institutions",
     "/catalogues",
     "/extractions",
-    "/data",
+    "/datasets",
     "/users",
     "/profile",
     "/settings",

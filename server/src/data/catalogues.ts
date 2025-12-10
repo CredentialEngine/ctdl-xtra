@@ -8,6 +8,7 @@ export interface FindCatalogueOptions {
   offset?: number;
   catalogueType?: CatalogueType;
   search?: string;
+  institutionId?: number;
 }
 
 export async function getCatalogueCount(
@@ -18,6 +19,9 @@ export async function getCatalogueCount(
     .from(catalogues)
     .where(
       and(
+        options.institutionId
+          ? eq(catalogues.institutionId, options.institutionId)
+          : undefined,
         options.catalogueType
           ? eq(catalogues.catalogueType, options.catalogueType)
           : undefined,
@@ -37,6 +41,7 @@ export async function findCatalogueById(id: number) {
     where: (catalogues, { eq }) => eq(catalogues.id, id),
     with: {
       recipes: true,
+      institution: true,
     },
   });
   if (result) {
@@ -82,8 +87,12 @@ export async function findCatalogues(options: FindCatalogueOptions) {
     offset,
     with: {
       recipes: true,
+      institution: true,
     },
     where: and(
+      options.institutionId
+        ? eq(catalogues.institutionId, options.institutionId)
+        : undefined,
       catalogueType ? eq(catalogues.catalogueType, catalogueType) : undefined,
       search
         ? or(
@@ -98,16 +107,29 @@ export async function findCatalogues(options: FindCatalogueOptions) {
 export async function createCatalogue(
   name: string,
   url: string,
+  institutionId: number,
   catalogueType?: CatalogueType,
   thumbnailUrl?: string
 ) {
   const result = await db
     .insert(catalogues)
-    .values({ name, url, thumbnailUrl, catalogueType })
+    .values({ name, url, thumbnailUrl, catalogueType, institutionId })
     .returning();
   return result[0];
 }
 
 export async function destroyCatalogue(id: number) {
   return db.delete(catalogues).where(eq(catalogues.id, id));
+}
+
+export async function updateCatalogueInstitution(
+  id: number,
+  institutionId: number
+) {
+  const result = await db
+    .update(catalogues)
+    .set({ institutionId })
+    .where(eq(catalogues.id, id))
+    .returning();
+  return result[0];
 }
