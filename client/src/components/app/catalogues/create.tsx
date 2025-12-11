@@ -13,8 +13,6 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { useToast } from "@/components/ui/use-toast";
-
 import {
   Select,
   SelectContent,
@@ -22,9 +20,21 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { trpc } from "@/utils";
-import { useEffect } from "react";
-import { useLocation } from "wouter";
+import { useToast } from "@/components/ui/use-toast";
+
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { cn, trpc } from "@/utils";
+import { Check, ChevronsUpDown } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { Link, useLocation, useParams } from "wouter";
 import { CatalogueType } from "../../../../../common/types";
 
 const FormSchema = z.object({
@@ -32,43 +42,80 @@ const FormSchema = z.object({
     message: "Catalogue name must be at least 2 characters.",
   }),
   catalogueType: z.nativeEnum(CatalogueType),
+  institutionId: z
+    .number({ required_error: "Select an institution" })
+    .int()
+    .positive({
+      message: "Select an institution",
+    }),
   url: z
     .string()
     .url("Catalogue URL must be a valid URL (e.g. https://example.com)."),
 });
 
 export default function CreateCatalogue() {
-  const [_location, navigate] = useLocation();
+  const [, navigate] = useLocation();
   const { toast } = useToast();
+  const { institutionId } = useParams();
   const form = useForm<z.infer<typeof FormSchema>>({
     resolver: zodResolver(FormSchema),
     defaultValues: {
       name: "",
       url: "",
+      institutionId: institutionId
+        ? parseInt(institutionId)
+        : undefined,
       catalogueType: CatalogueType.COURSES,
     },
   });
 
   const url = form.watch("url");
+  const [institutionOpen, setInstitutionOpen] = useState(false);
+  const [lastPreviewUrl, setLastPreviewUrl] = useState<string | null>(null);
 
   const previewQuery = trpc.catalogues.preview.useQuery(
     { url },
     { enabled: false }
   );
+  const urlIsValid = z.string().url().safeParse(url).success;
+  const institutionsQuery = trpc.institutions.list.useQuery({
+    page: 1,
+    limit: 200,
+    url: urlIsValid ? url : undefined,
+  });
   const createMutation = trpc.catalogues.create.useMutation();
+  const [institutionSearch, setInstitutionSearch] = useState("");
+  const filteredInstitutions = useMemo(() => {
+    const term = institutionSearch.trim().toLowerCase();
+    if (!term) return institutionsQuery.data?.results || [];
+    return (
+      institutionsQuery.data?.results.filter((institution) => {
+        const inName = institution.name.toLowerCase().includes(term);
+        const inDomain = institution.domains.some((d) =>
+          d.toLowerCase().includes(term)
+        );
+        return inName || inDomain;
+      }) || []
+    );
+  }, [institutionSearch, institutionsQuery.data?.results]);
 
   useEffect(() => {
-    if (z.string().url().safeParse(url).success) {
-      previewQuery.refetch().then((output) => {
-        if (output.data?.title) {
-          form.setValue("name", output.data.title);
-        }
-        if (output.data?.catalogueType) {
-          form.setValue("catalogueType", output.data.catalogueType);
-        }
-      });
-    }
-  }, [url]);
+    const parsed = z.string().url().safeParse(url);
+    if (!parsed.success) return;
+    if (lastPreviewUrl === url) return;
+
+    setLastPreviewUrl(url);
+    previewQuery.refetch().then((output) => {
+      if (output.data?.title) {
+        form.setValue("name", output.data.title, { shouldValidate: false });
+      }
+      if (output.data?.catalogueType) {
+        form.setValue("catalogueType", output.data.catalogueType, {
+          shouldValidate: false,
+        });
+      }
+    });
+  }, [form, previewQuery.refetch, url, lastPreviewUrl]);
 
   async function onSubmit(data: z.infer<typeof FormSchema>) {
     try {
@@ -154,7 +201,12 @@ export default function CreateCatalogue() {
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Type</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value}>
+                  <Select
+                    onValueChange={(value) => {
+                      field.onChange(value as CatalogueType);
+                    }}
+                    value={field.value}
+                  >
                     <FormControl>
                       <SelectTrigger>
                         <SelectValue placeholder="Select a type" />
@@ -176,6 +228,85 @@ export default function CreateCatalogue() {
                     </SelectContent>
                   </Select>
                   <FormDescription>Type of catalogue to create</FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="institutionId"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Institution</FormLabel>
+                  <Popover open={institutionOpen} onOpenChange={setInstitutionOpen}>
+                    <PopoverTrigger asChild>
+                      <FormControl>
+                        <Button
+                          variant="outline"
+                          role="combobox"
+                          aria-expanded={institutionOpen}
+                          className="w-full justify-between"
+                        >
+                          {field.value
+                            ? filteredInstitutions.find(
+                                (institution) => institution.id === field.value
+                              )?.name || "Select an institution"
+                            : "Select an institution"}
+                          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                        </Button>
+                      </FormControl>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-[540px] p-0">
+                      <Command>
+                        <CommandInput
+                          placeholder="Search institutions..."
+                          value={institutionSearch}
+                          onValueChange={setInstitutionSearch}
+                        />
+                        <CommandList>
+                          <CommandEmpty>
+                            {institutionsQuery.isLoading
+                              ? "Loading institutions..."
+                              : "No institutions found"}
+                          </CommandEmpty>
+                          <CommandGroup>
+                            {filteredInstitutions.map((institution) => (
+                              <CommandItem
+                                key={institution.id}
+                                value={institution.name}
+                                onSelect={() => {
+                                  field.onChange(institution.id);
+                                  setInstitutionOpen(false);
+                                }}
+                              >
+                                <Check
+                                  className={cn(
+                                    "mr-2 h-4 w-4",
+                                    field.value === institution.id
+                                      ? "opacity-100"
+                                      : "opacity-0"
+                                  )}
+                                />
+                                <div className="flex flex-col">
+                                  <span>{institution.name}</span>
+                                  <span className="text-xs text-muted-foreground">
+                                    {institution.domains.join(", ")}
+                                  </span>
+                                </div>
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
+                  <FormDescription>
+                    Institutions that match the catalogue URL appear first.{" "}
+                    <Link to="~/institutions/new" className="underline">
+                      Create a new institution
+                    </Link>{" "}
+                    if you don't see yours.
+                  </FormDescription>
                   <FormMessage />
                 </FormItem>
               )}

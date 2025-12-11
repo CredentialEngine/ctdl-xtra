@@ -114,12 +114,16 @@ export async function findDataset(id: number) {
         with: {
           recipe: {
             with: {
-              catalogue: true
-            }
-          }
+              catalogue: {
+                with: {
+                  institution: true,
+                },
+              },
+            },
+          },
         }
-      }
-    }
+      },
+    },
   });
 }
 

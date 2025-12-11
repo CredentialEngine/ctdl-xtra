@@ -211,6 +211,23 @@ export const recipeDetectionStatusEnum = pgEnum(
 );
 export const stepEnum = pgEnum("step", toDbEnum(Step));
 
+const institutions = pgTable(
+  "institutions",
+  {
+    id: serial("id").primaryKey(),
+    name: text("name").notNull(),
+    domains: text("domains").array().notNull(),
+    createdAt: timestamp("created_at").notNull().defaultNow()
+  },
+  (t) => ({
+    uniq: unique().on(t.name),
+  })
+);
+
+const institutionsRelations = relations(institutions, ({ many }) => ({
+  catalogues: many(catalogues),
+}));
+
 const catalogues = pgTable(
   "catalogues",
   {
@@ -221,6 +238,9 @@ const catalogues = pgTable(
     catalogueType: catalogueTypeEnum("catalogue_type")
       .notNull()
       .default(CatalogueType.COURSES),
+    institutionId: integer("institution_id")
+      .notNull()
+      .references(() => institutions.id, { onDelete: "cascade" }),
     createdAt: timestamp("created_at").notNull().defaultNow(),
   },
   (t) => ({
@@ -228,8 +248,12 @@ const catalogues = pgTable(
   })
 );
 
-const cataloguesRelations = relations(catalogues, ({ many }) => ({
+const cataloguesRelations = relations(catalogues, ({ one, many }) => ({
   recipes: many(recipes),
+  institution: one(institutions, {
+    fields: [catalogues.institutionId],
+    references: [institutions.id],
+  }),
 }));
 
 const recipes = pgTable(
@@ -555,8 +579,8 @@ export {
   extractionLogs,
   extractionLogsRelations,
   extractions,
-  extractionsRelations,
-  modelApiCalls,
+  extractionsRelations, institutions,
+  institutionsRelations, modelApiCalls,
   modelApiCallsRelations,
   recipes,
   recipesRelations,

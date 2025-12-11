@@ -145,6 +145,7 @@ export default function usePagination() {
 
   return {
     page,
+    setPage,
     PaginationButtons,
   };
 }

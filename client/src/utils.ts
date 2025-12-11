@@ -14,6 +14,10 @@ export type Catalogue = Exclude<
   RouterOutput["catalogues"]["detail"],
   undefined
 >;
+export type Institution = Exclude<
+  RouterOutput["institutions"]["detail"],
+  undefined
+>;
 export type Recipe = Exclude<RouterOutput["recipes"]["detail"], undefined>;
 export type Extraction = Exclude<
   RouterOutput["extractions"]["detail"],

@@ -9,6 +9,7 @@ import {
   findCatalogues,
   findLatestExtractionsForCatalogue,
   getCatalogueCount,
+  updateCatalogueInstitution,
 } from "../data/catalogues";
 import { findCatalogueDatasets } from "../data/datasets";
 import { fetchPreview } from "../extraction/browser";
@@ -58,6 +59,7 @@ export const cataloguesRouter = router({
         name: z.string().min(2),
         url: z.string().url(),
         thumbnailUrl: z.string().optional(),
+        institutionId: z.number().int().positive(),
         catalogueType: z
           .nativeEnum(CatalogueType)
           .optional()
@@ -76,6 +78,7 @@ export const cataloguesRouter = router({
       const newCatalogue = await createCatalogue(
         name,
         url,
+        opts.input.institutionId,
         catalogueType,
         thumbnailUrl
       );
@@ -129,5 +132,22 @@ export const cataloguesRouter = router({
     )
     .mutation(async (opts) => {
       return destroyCatalogue(opts.input.id);
+    }),
+  updateInstitution: publicProcedure
+    .input(
+      z.object({
+        catalogueId: z.number().int().positive(),
+        institutionId: z.number().int().positive(),
+      })
+    )
+    .mutation(async (opts) => {
+      const catalogue = await findCatalogueById(opts.input.catalogueId);
+      if (!catalogue) {
+        throw new Error("Catalogue not found");
+      }
+      return updateCatalogueInstitution(
+        opts.input.catalogueId,
+        opts.input.institutionId
+      );
     }),
 });

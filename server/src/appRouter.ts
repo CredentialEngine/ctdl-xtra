@@ -7,6 +7,7 @@ import { router } from "./routers";
 import { cataloguesRouter } from "./routers/catalogues";
 import { datasetsRouter } from "./routers/datasets";
 import { extractionsRouter } from "./routers/extractions";
+import { institutionsRouter } from "./routers/institutions";
 import { recipesRouter } from "./routers/recipes";
 import { settingsRouter } from "./routers/settings";
 import { usersRouter } from "./routers/users";
@@ -15,6 +16,7 @@ import { DetectConfigurationProgress } from "./workers";
 const appRouter = router({
   catalogues: cataloguesRouter,
   datasets: datasetsRouter,
+  institutions: institutionsRouter,
   settings: settingsRouter,
   recipes: recipesRouter,
   extractions: extractionsRouter,

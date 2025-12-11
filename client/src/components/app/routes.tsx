@@ -10,6 +10,9 @@ import Extractions from "./extractions";
 import ExtractionDetail from "./extractions/detail";
 import CrawlPageDetail from "./extractions/page";
 import CrawlStepDetail from "./extractions/step";
+import Institutions from "./institutions";
+import CreateInstitution from "./institutions/create";
+import InstitutionDetail from "./institutions/detail";
 import Logout from "./logout";
 import MyProfile from "./profile";
 import CreateRecipe from "./recipes/create";
@@ -28,7 +31,7 @@ export default function Routes() {
       <Route path="/" component={Welcome} />
       <Route path="/catalogues" nest>
         <Route path="/" component={Catalogues} />
-        <Route path="/new" component={CreateCatalogue} />
+        <Route path="/new/:institutionId?" component={CreateCatalogue} />
         <Switch>
           <Route path="/:catalogueId" component={CatalogueDetail} />
           <Route
@@ -65,6 +68,13 @@ export default function Routes() {
         <Switch>
           <Route path="/catalogue/:catalogueId" component={DatasetDetail} />
           <Route path="/items/:datasetId" component={DatasetItems} />
+        </Switch>
+      </Route>
+      <Route path="/institutions" nest>
+        <Route path="/" component={Institutions} />
+        <Route path="/new" component={CreateInstitution} />
+        <Switch>
+          <Route path="/:institutionId" component={InstitutionDetail} />
         </Switch>
       </Route>
       <Route path="/users" nest>
