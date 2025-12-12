@@ -135,9 +135,6 @@ export default function InstitutionDetail() {
             Created {prettyPrintDate(institution.createdAt)}
           </div>
         </div>
-        <Link to={`~/catalogues/new/${institution.id}`}>
-          <Button>Add catalogue</Button>
-        </Link>
       </div>
       <div className="grid gap-4 md:grid-cols-[1fr] lg:grid-cols-3 lg:gap-8">
         <Card className="lg:col-span-1">
@@ -226,7 +223,7 @@ export default function InstitutionDetail() {
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle>Catalogues</CardTitle>
             <Link to={`~/catalogues/new/${institution.id}`}>
-              <Button variant="outline">Add catalogue</Button>
+              <Button>Add catalogue</Button>
             </Link>
           </CardHeader>
           <CardContent>
