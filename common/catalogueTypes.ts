@@ -1,0 +1,536 @@
+import { CatalogueType, ProviderModel } from "./types";
+
+// JSONSchema type - using a generic type that works in both client and server
+// Server code can cast to openai's JSONSchema when needed
+export type JSONSchema = Record<string, any>;
+
+export interface CatalogueTypeDefinition {
+  /**
+   * The singular name of the entity type (e.g. "course", "learning program").
+   * This is used in UI elements and prompts to refer to a single instance of the entity.
+   */
+  name: string;
+  /**
+   * The plural name of the entity type (e.g. "courses", "learning programs").
+   * This is used in UI elements and prompts to refer to multiple instances of the entity.
+   */
+  pluralName: string;
+  /**
+   * A brief description of what the entity type represents.
+   * This is used in the catalogue type detection process to help identify the type of content on a page.
+   */
+  description: string;
+  /**
+   * A description of what a detail page for this entity type contains.
+   * This is used to help identify pages that contain detailed information about a single entity.
+   */
+  detailDescription: string;
+  /**
+   * A description of what a category page for this entity type contains.
+   * This is used to help identify pages that contain links to categories of entities.
+   */
+  categoryDescription: string;
+  /**
+   * A description of what a links page for this entity type contains.
+   * This is used to help identify pages that contain direct links to entity detail pages.
+   */
+  linkDescription: string;
+
+  /**
+   * If specified it will tell the LLM what is
+   * the desired output. Example values:
+   * - 'An array of strings with all the animals mentioned in the page'
+   * - 'An array of JSON objects having x, y, z attributes.'
+   *
+   * If not specified, the LLM will be instructed
+   * to give us structured output for the defined
+   * data in the `properties` field.
+   */
+  desiredOutput?: string;
+
+  /**
+   * When set to true, we will wrap the page content
+   * with a markdown code block in the LLM prompt.
+   * This helps preserve formatting and structure of the content
+   * when sending it to the LLM for processing.
+   */
+  wrapWithMarkdownBlock?: boolean;
+
+  /**
+   * When set to true, we will ask the LLM for additional
+   * URLs that could indicate sub pages where we could find
+   * entites when the page extracted does not yield any of
+   * the targeted entities.
+   */
+  exploreDuringExtraction?: boolean;
+
+  /**
+   * When set to true, filter the exploration URLs to
+   * only include URLs that are on the same origin as the page.
+   * This helps to avoid extracting URLs that are external
+   * such as links to social media, external blogs,
+   * our outside the catalogue.
+   */
+  exploreSameOrigin?: boolean;
+
+  /**
+   * Textual prompt set to the LLM to yield additional URLs
+   * from the page content.
+   */
+  explorationPrompt?: string;
+
+  /**
+   * The model to use for the LLM.
+   */
+  model?: ProviderModel;
+
+  /**
+   * If true, we will not use screenshots for the LLM.
+   */
+  skipScreenshot?: boolean;
+
+  /**
+   * When defined, we will instruct the LLM to use it for
+   * structured output instead of the default function call
+   * instruction.
+   */
+  schema?: JSONSchema;
+
+  /**
+   * When true, we will instruct the LLM to verify that the
+   * full phrases are extracted.
+   */
+  verifyFullPhrases?: boolean;
+
+  /**
+   * When defined, we will verify that the
+   * properties listed in the array are extracted as full phrases.
+   */
+  propertiesRequiredAsPhrases?: string[];
+
+  /**
+   * When defined, we will run a presence check
+   * using this prompt before the extraction. Useful for keeping
+   * extractions prompts simple.
+   */
+  presencePrompt?: string;
+
+  /**
+   * Parameters applicable for the extraction stage.
+   */
+  extractionParameters?: {
+    temperature?: number; // LLM temperature
+    top_p?: number; // LLM top_p
+  };
+
+  /**
+   * An example identifier for the entity type (e.g. "ACCT 101" for courses).
+   * This is used in prompts to help the LLM understand the expected format
+   * of entity identifiers.
+   */
+  exampleIdentifier: string;
+  /**
+   * An example name for the entity type (e.g. "Financial Accounting" for courses).
+   * This is used in prompts to help the LLM understand the expected format
+   * of entity names.
+   */
+  exampleName: string;
+  /**
+   * An example description for the entity type.
+   * This is used in prompts to help the LLM understand the expected format
+   * and level of detail for entity descriptions.
+   */
+  exampleDescription: string;
+  /**
+   * The properties that define the structure of the entity type.
+   * Each property has a description and required flag that helps
+   * guide the LLM in extracting the correct information.
+   */
+  properties: {
+    [key: string]: {
+      description: string;
+      required: boolean;
+    };
+  };
+  /**
+   * The property that serves as the unique identifier for the entity type.
+   * This is used to uniquely identify entities and is typically required
+   * for database operations and entity relationships.
+   */
+  identifierProperty: string;
+
+  /**
+   * If defined, examples will be provided to the LLM for few shot prompting.
+   * These examples help the LLM understand the expected output format
+   * and improve the accuracy of entity extraction.
+   */
+  examples?: Array<{
+    data: string;
+    desiredOutcome: string;
+  }>;
+
+  /**
+   * If turned on, the extraction prompt will repeat the instructions before and after the page content.
+   */
+  repeatExtractionInstructions?: boolean;
+
+  /**
+   * Display title for the catalogue type in the UI (e.g. "Courses", "Credentials").
+   */
+  displayTitle: string;
+  /**
+   * Display description for the catalogue type shown in the landing page.
+   */
+  displayDescription: string;
+  /**
+   * Whether this catalogue type is currently active/available. Currently only used for the landing page UI.
+   * This is not used for the extraction process.
+   */
+  isActive: boolean;
+}
+
+export const catalogueTypes: Record<CatalogueType, CatalogueTypeDefinition> = {
+  [CatalogueType.COURSES]: {
+    name: "course",
+    pluralName: "courses",
+    description: "educational courses offered by an institution",
+    detailDescription:
+      "It has details for the courses of an institution directly in the page.",
+    categoryDescription:
+      "It has links to programs, careers, degrees, or course category pages.",
+    linkDescription: "It has links to the courses of an institution.",
+    exampleIdentifier: "ACCT 101",
+    exampleName: "Financial Accounting",
+    exampleDescription:
+      "A study of the underlying theory and application of financial accounting concepts.",
+    identifierProperty: "course_id",
+    displayTitle: "Courses",
+    displayDescription: "Optimized for extracting and transforming course information from web pages that meet specific formatting criteria.",
+    isActive: true,
+    properties: {
+      course_id: {
+        description: 'code/identifier for the course (example: "AGRI 101")',
+        required: true,
+      },
+      course_name: {
+        description: 'name for the course (for example "Landscape Design")',
+        required: true,
+      },
+      course_description: {
+        description:
+          "the full description of the course. If there are links, only extract the text.",
+        required: true,
+      },
+      course_prerequisites: {
+        description: `if the text explicitly mentions any course prerequisite(s) or course requirements,
+          extract them as is - the full text for prerequisites, as it may contain observations.
+          (If there are links in the text, only extract the text without links.)
+          Some courses list their prerequisites as ADVISE (advised courses).
+          In that case treat them the same as prerequisites and extract the full text.
+
+          - If it mentions course corequisites, leave blank.
+          - If it mentions mutually exclusive courses, leave blank.
+          - If it mentions courses that must be taken concurrently, leave blank.
+          - Only extract the text if it's explicitly stated that the course has prerequisites/requirements/advised courses.
+          - Otherwise leave blank.
+
+          `,
+        required: false,
+      },
+      course_non_credit: {
+        description: `Must be set to true if the course's credit information explicitly/literally mentions Noncredit (or NONCREDIT and variations). Otherwise leave blank.`,
+        required: false
+      },
+      course_credits_min: {
+        description: "min credit",
+        required: false,
+      },
+      course_credits_max: {
+        description:
+          "max credit (if the page shows a range). If there is only a single credit information in the page, set it as the max.",
+        required: false,
+      },
+      course_credits_type: {
+        description: `type of credits, infer it from the page.
+          IMPORTANT:
+            - Only infer the type if it's CLEARLY stated in the page somewhere.
+            - If you can't infer the type, set it as "UNKNOWN"
+            - MUST BE either UNKNOWN or: AcademicYear, CarnegieUnit, CertificateCredit, ClockHour, CompetencyCredit, ContactHour, DegreeCredit, DualCredit, QuarterHour, RequirementCredit, SecondaryDiplomaCredit, SemesterHour, TimeBasedCredit, TypeBasedCredit, UNKNOWN
+            - Sometimes the course has a special type of credit: CEUs (Continuing Education Units).
+              (If you see "CEU" values in the page, that's the same as Continuing Education Units)
+            - In that case, there's a separate field: course_ceu_credits.
+            - A course may have both normal credits like the types we mentioned above, and CEUs.
+            - If the page says "Credit/Nondegree-Applicable" or "Credit/Degree Applicable", set it as "UNKNOWN"
+
+          It is ok to have the course credits set to a number and the course credits type set to "UNKNOWN"
+          if the content shows the credits value but doesn't mention the type.
+
+          It is ok to have CEUs and course credits type set to "UNKNOWN" if the page doesn't mention the type
+          but does mention CEUs.
+
+          EVEN MORE IMPORTANT REGARDING COURSE CREDITS:
+
+          IF THERE ARE NO CLEARLY STATED COURSE CREDITS INFORMATION, LEAVE ALL COURSE CREDITS FIELDS BLANK.
+          ONLY INCLUDE COURSE CREDITS INFORMATION IF IT'S EXPLICITLY STATED IN THE PAGE!
+        `,
+        required: false,
+      },
+      course_ceu_credits: {
+        description: "CEU credits",
+        required: false,
+      },
+    },
+  },
+  [CatalogueType.LEARNING_PROGRAMS]: {
+    name: "learning program",
+    pluralName: "learning programs",
+    description: "educational programs offered by an institution",
+    detailDescription:
+      "It has details for the learning programs of an institution directly in the page.",
+    categoryDescription:
+      "It has links to learning program category pages. For example, it might have a link to an 'Arts' category that will then have links to various art-related programs.",
+    linkDescription:
+      "It has links to the learning programs of an institution. For example, it links directly to a Bachelor of Science in Computer Science learning program, a Bachelor of Science in Nursing learning program, etc.",
+    exampleIdentifier: "BSCS",
+    exampleName: "Bachelor of Science in Computer Science",
+    exampleDescription:
+      "A comprehensive program that prepares students for careers in software development and computer systems.",
+    identifierProperty: "learning_program_id",
+    displayTitle: "Learning Programs",
+    displayDescription: "Capture information about learning programs, training pathways, and educational offerings.",
+    isActive: true,
+    properties: {
+      learning_program_id: {
+        description:
+          "code/identifier for the learning program. Unless it is clearly identified as such in the page, default to the name of the learning program.",
+        required: true,
+      },
+      learning_program_name: {
+        description:
+          'name for the learning program (example: "Bachelor of Science in Computer Science")',
+        required: true,
+      },
+      learning_program_description: {
+        description: `the description of the learning program.
+           Pages often include other sections aside from the basic description, for example containing program requirements,
+           restrictions, etc. We don't want any of that - we only want the program description (directly extracted from the page).
+           You should take only the first few paragraphs of the description.
+           If there are links, only extract the text.
+          `,
+        required: true,
+      },
+    },
+  },
+  [CatalogueType.COMPETENCIES]: {
+    name: "skill, competency or learning outcome",
+    pluralName: "skills, competencies or learning outcomes",
+    description: "skills, competencies or learning outcomes",
+    detailDescription:
+      "It contains one or more competencies, skills or learning outcomes directly in the page.",
+    categoryDescription:
+      "It has links to skill areas, domains, or competency category pages.",
+    linkDescription: "It has links to the competencies of an institution.",
+    exampleIdentifier: "",
+    exampleName: "Critical Thinking",
+    exampleDescription:
+      "The ability to analyze information objectively and make reasoned judgments.",
+    identifierProperty: "competency_id",
+    displayTitle: "Competencies",
+    displayDescription: "Identify and structure competency frameworks and skill requirements from educational resources.",
+    isActive: true,
+    model: ProviderModel.Gpt5,
+    extractionParameters: {
+      temperature: 1,
+      top_p: 0.5,
+    },
+    verifyFullPhrases: false,
+    propertiesRequiredAsPhrases: ["text"],
+    wrapWithMarkdownBlock: true,
+    presencePrompt:
+      "Look at the given markdown page and check if there exists a list of skills in a dedicated section. " +
+      "We are looking for a list in a dedicated section, do not consider paragraphs or long descriptions. " +
+      "Do not confuse courses with skills. We are looking for skills attained after taking the course described in the page.",
+    desiredOutput:
+      "We are looking for a list of skills that are gained after taking the course described in the page. " +
+      "If found, take each item exactly as it is in the page and return them. Skip everything else, just the skill list." +
+      "Do not confuse skills with courses or tools or technologies used. Return the skills that result after the course is completed." +
+      "Do not return skills required for taking the course. Return only the skills that are gained after taking the course.",
+    properties: {
+      text: {
+        description:
+          'text of the skill item of the list (for example "Critical Thinking"). ' +
+          "The information should be EXACTLY as in the page AND the FULL PHRASE. DO NOT break phrases. ",
+        required: true,
+      },
+      competency_framework: {
+        description:
+          "The name of the encompassing or overarching skill or competency or learning program or course that will lead " +
+          "to obtaining the skill or competency or learning outcome. " +
+          "Usually this value is the same for the entire list but should be set " +
+          "according to the hierarchy structure of the page. This is usually shorter. " +
+          "Sometimes, this might contain descriptive language about the skill - we should only keep the " +
+          'name of the skill and trim phrases such as "competency" or "learning outcome".' +
+          "This field should be in title case. If it contains roman numerals, they use use uppercase.",
+        required: false,
+      },
+      language: {
+        description:
+          "ISO code of the language in which the name property is expressed. Examples - 'en' for English, 'es' for Spanish, 'de' for German, etc.",
+        required: false,
+      },
+    },
+    schema: {
+      type: "object",
+      properties: {
+        items: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              text: { type: "string" },
+              competency_framework: { type: "string" },
+              language: { type: "string" },
+            },
+            additionalProperties: false,
+            required: ["competency_framework", "text", "language"],
+          },
+        },
+      },
+      additionalProperties: false,
+      required: ["items"],
+    },
+    exploreDuringExtraction: true,
+    exploreSameOrigin: true,
+    explorationPrompt:
+      "In the page markdown given below, look for all links or URL like information " +
+      "that point to pages with information about skills or learning outcomes or competencies obtained. " +
+      "The link we are looking for is related to the course presented in the page, general links like navigation should be ignored. " +
+      "IT IS IMPORTANT THAT THE LINK IS RELATED TO OUTCOMES FOR THE CURRENT COURSE, NOT OTHER COURSES OR PROGRAMS. " +
+      "We are ONLY looking for links within the same domain as the page or relative to the page. " +
+      "PAY ATTENTION to extract only the link and not markdown specific information like [link](url). " +
+      "If there are no instances of links that CLEARLY point to skills or learning outcomes or competencies, yield an empty list.",
+    skipScreenshot: true,
+  },
+  [CatalogueType.CREDENTIALS]: {
+    name: "credential",
+    pluralName: "credentials",
+    description: "credentials",
+    detailDescription:
+      "It contains details for a credential directly in the page.",
+    categoryDescription: "It has links to credential category pages.",
+    linkDescription: "It has links to the credentials of an institution.",
+    exampleName: "Bachelor of Science in Computer Science",
+    exampleDescription:
+      "A comprehensive program that prepares students for careers in software development and computer systems.",
+    exampleIdentifier: "BSCS",
+    identifierProperty: "credential_id",
+    displayTitle: "Credentials",
+    displayDescription: "Extract credential data including certificates, degrees, licenses, and certifications from web sources.",
+    isActive: true,
+    desiredOutput: `
+      We are looking for a list of credentials that are offered by the institution.
+      Credentials are prof of completion of a course or learning program. They can be diplomas, certificates, badges, etc.
+      If found, take each item exactly as it is in the page and return them. Skip everything else, just the credential list.
+      Note that pages can show options to get other credentials, we only need the ones directly related to the course or learning program.
+      Do not confuse credentials with courses or skills or learning outcomes. Do not list Certifications, those are not credentials. Return only the credentials that are offered by the institution.
+      Ignore stackable certificates.
+    `,
+    model: ProviderModel.Gpt5,
+    properties: {
+      credential_name: {
+        description:
+          'name for the credential or certificate (example: "Computer Science"). Don not include the type of credential in the name. Do not confuse the category of the credential with the specific name.',
+        required: true,
+      },
+      credential_description: {
+        description:
+          "the description of the credential. Can be a short description or a long description, make sure to include all the details of the credential such as the opportunities it provides or descriptions of roles in the industry.",
+        required: true,
+      },
+      credential_type: {
+        description: "the type of credential.",
+        required: true,
+      },
+      language: {
+        description:
+          "The language in full (example: 'English', 'Spanish', 'German', etc.)",
+        required: false,
+      },
+    },
+    schema: {
+      type: "object",
+      properties: {
+        items: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              credential_name: { type: "string" },
+              credential_description: { type: "string" },
+              credential_type: {
+                type: "string",
+                enum: [
+                  "AcademicCertificate",
+                  "ApprenticeshipCertificate",
+                  "AssociateDegree",
+                  "BachelorDegree",
+                  "Badge",
+                  "BasicTechnicalCertificate",
+                  "Certificate",
+                  "CertificateOfCompletion",
+                  "CertificateOfParticipation",
+                  "Certification",
+                  "Degree",
+                  "DigitalBadge",
+                  "Diploma",
+                  "DoctoralDegree",
+                  "GeneralEducationDevelopment",
+                  "GeneralEducationLevel1Certificate",
+                  "GeneralEducationLevel2Certificate",
+                  "HigherEducationLevel1Certificate",
+                  "HigherEducationLevel2Certificate",
+                  "JourneymanCertificate",
+                  "License",
+                  "MasterCertificate",
+                  "MasterDegree",
+                  "MicroCredential",
+                  "OpenBadge",
+                  "PostBaccalaureateCertificate",
+                  "PostMasterCertificate",
+                  "PreApprenticeshipCertificate",
+                  "ProfessionalCertificate",
+                  "ProfessionalDoctorate",
+                  "ProficiencyCertificate",
+                  "QualityAssuranceCredential",
+                  "ResearchDoctorate",
+                  "SecondaryEducationCertificate",
+                  "SecondarySchoolDiploma",
+                  "TechnicalLevel1Certificate",
+                  "TechnicalLevel2Certificate",
+                  "TechnicalLevel3Certificate",
+                  "WorkBasedLearningCertificate"
+                ],
+              },
+              language: { type: "string" },
+            },
+            additionalProperties: false,
+            required: [
+              "credential_name",
+              "credential_description",
+              "credential_type",
+              "language",
+            ],
+          },
+        },
+      },
+      additionalProperties: false,
+      required: ["items"],
+    },
+  },
+};
+
+export function getCatalogueTypeDefinition(
+  catalogueType: CatalogueType
+): CatalogueTypeDefinition {
+  return catalogueTypes[catalogueType];
+}
