@@ -37,6 +37,7 @@ import { prettyPrintDate, trpc } from "@/utils";
 import { Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link, useLocation, useParams } from "wouter";
+import { parseDomains, validateDomains } from "../../../../../common/domains";
 
 const FormSchema = z.object({
   name: z.string().min(2, {
@@ -46,15 +47,6 @@ const FormSchema = z.object({
     message: "Add at least one domain.",
   }),
 });
-
-function parseDomains(domains: string) {
-  return domains
-    .split(/[,\\n]/)
-    .map((domain) => domain.trim())
-    .filter(Boolean);
-}
-
-const domainRegex = /^(?!-)[A-Za-z0-9-]+(\.[A-Za-z0-9-]+)+$/;
 
 export default function InstitutionDetail() {
   const { institutionId } = useParams();
@@ -93,8 +85,8 @@ export default function InstitutionDetail() {
 
   async function onSubmit(values: z.infer<typeof FormSchema>) {
     const parsedDomains = parseDomains(values.domains);
-    const invalid = parsedDomains.filter((domain) => !domainRegex.test(domain));
-    if (invalid.length || !parsedDomains.length) {
+    const { normalized, invalid } = validateDomains(parsedDomains);
+    if (invalid.length || !normalized.length) {
       form.setError("domains", {
         message: invalid.length
           ? `Invalid domain(s): ${invalid.join(", ")}`
@@ -105,7 +97,7 @@ export default function InstitutionDetail() {
     await updateMutation.mutateAsync({
       id: institution.id,
       name: values.name,
-      domains: parsedDomains,
+      domains: normalized,
     });
     toast({
       title: "Institution updated",

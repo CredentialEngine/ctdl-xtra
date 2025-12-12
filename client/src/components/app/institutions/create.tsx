@@ -17,6 +17,7 @@ import { useToast } from "@/components/ui/use-toast";
 import { trpc } from "@/utils";
 import { useEffect } from "react";
 import { useLocation } from "wouter";
+import { parseDomains, validateDomains } from "../../../../../common/domains";
 
 const FormSchema = z.object({
   name: z.string().min(2, {
@@ -26,15 +27,6 @@ const FormSchema = z.object({
     message: "Add at least one domain (e.g. example.edu).",
   }),
 });
-
-function parseDomains(domains: string) {
-  return domains
-    .split(/[,\\n]/)
-    .map((domain) => domain.trim())
-    .filter(Boolean);
-}
-
-const domainRegex = /^(?!-)[A-Za-z0-9-]+(\.[A-Za-z0-9-]+)+$/;
 
 export default function CreateInstitution() {
   const [, navigate] = useLocation();
@@ -55,8 +47,8 @@ export default function CreateInstitution() {
 
   async function onSubmit(data: z.infer<typeof FormSchema>) {
     const parsedDomains = parseDomains(data.domains);
-    const invalid = parsedDomains.filter((domain) => !domainRegex.test(domain));
-    if (invalid.length || !parsedDomains.length) {
+    const { normalized, invalid } = validateDomains(parsedDomains);
+    if (invalid.length || !normalized.length) {
       form.setError("domains", {
         message: invalid.length
           ? `Invalid domain(s): ${invalid.join(", ")}`
@@ -67,7 +59,7 @@ export default function CreateInstitution() {
     try {
       const result = await createMutation.mutateAsync({
         name: data.name,
-        domains: parsedDomains,
+        domains: normalized,
       });
       form.reset();
       toast({

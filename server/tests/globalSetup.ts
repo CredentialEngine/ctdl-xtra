@@ -7,6 +7,10 @@ import { spawn } from "node:child_process";
 // Vitest global setup that creates a unique ephemeral Postgres database, runs migrations,
 // sets DATABASE_URL for the test process, and returns a teardown to drop the DB.
 export default async function () {
+  if (process.env.VITEST_SKIP_DB === "1") {
+    return async () => {};
+  }
+
   const baseUrl = process.env.DATABASE_URL;
   if (!baseUrl) {
     throw new Error("DATABASE_URL must be set to a Postgres connection string");
@@ -86,5 +90,4 @@ function runCommand(command: string, args: string[], opts: { cwd: string; env: N
     child.on("error", reject);
   });
 }
-
 
