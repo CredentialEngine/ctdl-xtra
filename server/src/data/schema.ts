@@ -11,6 +11,7 @@ import {
   text,
   timestamp,
   unique,
+  varchar,
 } from "drizzle-orm/pg-core";
 import { promises as fs } from "fs";
 import { createCipheriv, createDecipheriv, randomBytes } from "node:crypto";
@@ -544,6 +545,37 @@ const users = pgTable("users", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
+const extractionsAuditLog = pgTable(
+  "extractions_audit_log",
+  {
+    id: serial("id").primaryKey(),
+    extractionId: integer("extraction_id")
+      .notNull()
+      .references(() => extractions.id, { onDelete: "cascade" }),
+    // userId is null for system-initiated actions (e.g., budget cancellation)
+    userId: integer("user_id")
+      .references(() => users.id, { onDelete: "cascade" }),
+    action: varchar("action", { length: 80 }).notNull(),
+    reason: varchar("reason", { length: 180 }),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => ({
+    extractionIdx: index("extractions_audit_log_extraction_idx").on(t.extractionId),
+    userIdx: index("extractions_audit_log_user_idx").on(t.userId),
+  })
+);
+
+const extractionsAuditLogRelations = relations(extractionsAuditLog, ({ one }) => ({
+  extraction: one(extractions, {
+    fields: [extractionsAuditLog.extractionId],
+    references: [extractions.id],
+  }),
+  user: one(users, {
+    fields: [extractionsAuditLog.userId],
+    references: [users.id],
+  }),
+}));
+
 export function encryptForDb(text: string) {
   const IV = randomBytes(16);
   let cipher = createCipheriv("aes-256-cbc", Buffer.from(ENCRYPTION_KEY), IV);
@@ -579,6 +611,8 @@ export {
   extractionLogs,
   extractionLogsRelations,
   extractions,
+  extractionsAuditLog,
+  extractionsAuditLogRelations,
   extractionsRelations, institutions,
   institutionsRelations, modelApiCalls,
   modelApiCallsRelations,

@@ -1,9 +1,18 @@
 import { ExtractionStatus, RecipeDetectionStatus, Step } from "../../../common/types";
 import { findCatalogueById } from "../data/catalogues";
 import { createDataset } from "../data/datasets";
-import { createExtraction, createPage, createStep, findExtractionById, findExtractionValidPages, updateExtraction } from "../data/extractions";
+import {
+  createExtraction,
+  createExtractionAuditLog,
+  createPage,
+  createStep,
+  findExtractionById,
+  findExtractionValidPages,
+  updateExtraction
+} from "../data/extractions";
 import { catalogues, extractions, recipes } from "../data/schema";
 import getLogger from "../logging";
+
 import {
   ExtractDataJob,
   Queues,
@@ -16,7 +25,11 @@ import {
 
 const logger = getLogger("extraction.startExtraction");
 
-export async function startExtraction(catalogueId: number, recipeId: number) {
+export async function startExtraction(
+  catalogueId: number,
+  recipeId: number,
+  userId?: number
+) {
   const catalogue = await findCatalogueById(catalogueId);
   if (!catalogue) {
     throw new Error(`Catalogue ${catalogueId} not found`);
@@ -29,6 +42,11 @@ export async function startExtraction(catalogueId: number, recipeId: number) {
     throw new Error(`Recipe ${recipeId} hasn't been configured for extraction`);
   }
   const extraction = await createExtraction(recipe.id);
+
+  // Log audit entry if user is provided
+  if (userId) {
+    await createExtractionAuditLog(extraction.id, userId, "START", null);
+  }
 
   recipe.configuration.apiProvider
     ? await launchAPIExtraction(catalogue, extraction, recipe)

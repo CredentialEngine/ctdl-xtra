@@ -9,8 +9,10 @@ import {
   dataItems,
   extractionLogs,
   extractions,
+  extractionsAuditLog,
   modelApiCalls,
   recipes,
+  users,
 } from "../data/schema";
 
 import {
@@ -32,6 +34,102 @@ export async function createExtraction(recipeId: number) {
     })
     .returning();
   return result[0];
+}
+
+export async function createExtractionAuditLog(
+  extractionId: number,
+  userId: number | null | undefined,
+  action: string,
+  reason?: string | null
+) {
+  const result = await db
+    .insert(extractionsAuditLog)
+    .values({
+      extractionId,
+      userId: userId || null,
+      action,
+      reason: reason || null,
+    })
+    .returning();
+  return result[0];
+}
+
+export async function findLastAuditLogEntry(extractionId: number) {
+  const result = await db
+    .select({
+      id: extractionsAuditLog.id,
+      extractionId: extractionsAuditLog.extractionId,
+      userId: extractionsAuditLog.userId,
+      action: extractionsAuditLog.action,
+      reason: extractionsAuditLog.reason,
+      createdAt: extractionsAuditLog.createdAt,
+      user: {
+        id: users.id,
+        name: users.name,
+        email: users.email,
+      },
+    })
+    .from(extractionsAuditLog)
+    .leftJoin(users, eq(users.id, extractionsAuditLog.userId))
+    .where(eq(extractionsAuditLog.extractionId, extractionId))
+    .orderBy(desc(extractionsAuditLog.createdAt))
+    .limit(1);
+  
+  if (!result[0]) {
+    return null;
+  }
+
+  const entry = result[0];
+  
+  // Return System user when userId is null (system-initiated actions)
+  if (entry.userId === null || entry.userId === undefined) {
+    return {
+      ...entry,
+      user: {
+        id: null,
+        name: "System",
+        email: null,
+      },
+    };
+  }
+
+  return entry;
+}
+
+export async function findAuditLogs(extractionId: number) {
+  const result = await db
+    .select({
+      id: extractionsAuditLog.id,
+      extractionId: extractionsAuditLog.extractionId,
+      userId: extractionsAuditLog.userId,
+      action: extractionsAuditLog.action,
+      reason: extractionsAuditLog.reason,
+      createdAt: extractionsAuditLog.createdAt,
+      user: {
+        id: users.id,
+        name: users.name,
+        email: users.email,
+      },
+    })
+    .from(extractionsAuditLog)
+    .leftJoin(users, eq(users.id, extractionsAuditLog.userId))
+    .where(eq(extractionsAuditLog.extractionId, extractionId))
+    .orderBy(desc(extractionsAuditLog.createdAt));
+  
+  // Map results to return System user when userId is null (system-initiated actions)
+  return result.map((entry) => {
+    if (entry.userId === null || entry.userId === undefined) {
+      return {
+        ...entry,
+        user: {
+          id: null,
+          name: "System",
+          email: null,
+        },
+      };
+    }
+    return entry;
+  });
 }
 
 export async function updateExtraction(

@@ -4,10 +4,13 @@ import { CatalogueType, ExtractionStatus } from "../../../common/types";
 import { AppError, AppErrors } from "../appErrors";
 import { findExtractionDatasets } from "../data/datasets";
 import {
+  createExtractionAuditLog,
   destroyExtraction,
+  findAuditLogs,
   findErrorPagesForExtraction,
   findExtractionForDetailPage,
   findExtractionsSorted,
+  findLastAuditLogEntry,
   findLogs,
   findPage,
   findPageForJob,
@@ -39,7 +42,12 @@ export const extractionsRouter = router({
       })
     )
     .mutation(async (opts) => {
-      return startExtraction(opts.input.catalogueId, opts.input.recipeId);
+      const userId = opts.ctx.user?.id;
+      return startExtraction(
+        opts.input.catalogueId,
+        opts.input.recipeId,
+        userId
+      );
     }),
   cancel: publicProcedure
     .input(
@@ -48,9 +56,22 @@ export const extractionsRouter = router({
       })
     )
     .mutation(async (opts) => {
-      return updateExtraction(opts.input.id, {
+      const result = await updateExtraction(opts.input.id, {
         status: ExtractionStatus.CANCELLED,
       });
+      
+      // Log audit entry if user is provided
+      const userId = opts.ctx.user?.id;
+      if (userId && result) {
+        await createExtractionAuditLog(
+          opts.input.id,
+          userId,
+          "CANCEL",
+          null
+        );
+      }
+      
+      return result;
     }),
   retryFailed: publicProcedure
     .input(
@@ -82,10 +103,12 @@ export const extractionsRouter = router({
         throw new AppError("Extraction not found", AppErrors.NOT_FOUND);
       }
       const datasets = await findExtractionDatasets(opts.input.id);
+      const lastAuditLog = await findLastAuditLogEntry(opts.input.id);
       return {
         ...result,
         datasets,
         latestDataset: datasets[0],
+        lastAuditLog,
       };
     }),
   destroy: publicProcedure
@@ -127,6 +150,15 @@ export const extractionsRouter = router({
     )
     .query(async (opts) => {
       return findErrorPagesForExtraction(opts.input.extractionId);
+    }),
+  auditLogs: publicProcedure
+    .input(
+      z.object({
+        extractionId: z.number().int().positive(),
+      })
+    )
+    .query(async (opts) => {
+      return findAuditLogs(opts.input.extractionId);
     }),
   stepDetail: publicProcedure
     .input(
