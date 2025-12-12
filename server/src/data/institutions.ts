@@ -9,6 +9,52 @@ export interface InstitutionListOptions {
   url?: string;
 }
 
+export function sortInstitutionsByUrlMatch<
+  T extends { domains: string[]; name: string },
+>(institutionsList: T[], url?: string) {
+  if (!url) return institutionsList;
+
+  let hostname: string;
+  try {
+    hostname = new URL(url).hostname.replace(/^www\./, "").toLowerCase();
+  } catch {
+    return institutionsList;
+  }
+
+  const bestMatch = (institution: T): readonly [number, number] => {
+    let bestScore = 0;
+    let bestLength = 0;
+
+    for (const rawDomain of institution.domains) {
+      const domain = rawDomain.toLowerCase();
+      if (!domain) continue;
+
+      let score = 0;
+      if (hostname === domain) score = 3;
+      else if (hostname.endsWith(`.${domain}`) || domain.endsWith(`.${hostname}`))
+        score = 2;
+      else if (hostname.includes(domain)) score = 1;
+
+      if (score > bestScore || (score === bestScore && domain.length > bestLength)) {
+        bestScore = score;
+        bestLength = domain.length;
+      }
+    }
+
+    return [bestScore, bestLength] as const;
+  };
+
+  return [...institutionsList].sort((a, b) => {
+    const [scoreA, lengthA] = bestMatch(a);
+    const [scoreB, lengthB] = bestMatch(b);
+    return (
+      scoreB - scoreA ||
+      lengthB - lengthA ||
+      a.name.localeCompare(b.name)
+    );
+  });
+}
+
 function normalizeDomain(domain: string) {
   return domain
     .trim()
@@ -56,36 +102,6 @@ function buildSearchFilter(search?: string) {
   );
 }
 
-function sortByUrlMatch<T extends { domains: string[]; name: string }>(
-  institutionsList: T[],
-  url?: string
-) {
-  if (!url) {
-    return institutionsList;
-  }
-
-  let hostname: string | null = null;
-  try {
-    hostname = new URL(url).hostname.replace(/^www\./, "").toLowerCase();
-  } catch {
-    return institutionsList;
-  }
-
-  const score = (institution: T) => {
-    const domains = institution.domains.map((d) => d.toLowerCase());
-    if (!hostname) return 0;
-    if (domains.some((d) => hostname === d)) return 3;
-    if (domains.some((d) => hostname.endsWith(d))) return 2;
-    if (domains.some((d) => hostname.includes(d))) return 1;
-    return 0;
-  };
-
-  return [...institutionsList].sort((a, b) => {
-    const diff = score(b) - score(a);
-    if (diff !== 0) return diff;
-    return a.name.localeCompare(b.name);
-  });
-}
 
 export async function getInstitutionCount(
   options: Omit<InstitutionListOptions, "limit" | "offset" | "url">
@@ -120,7 +136,7 @@ export async function findInstitutions(options: InstitutionListOptions) {
     catalogueCount: row.catalogueCount,
   }));
 
-  const sorted = sortByUrlMatch(mapped, url);
+  const sorted = sortInstitutionsByUrlMatch(mapped, url);
   if (url) {
     return sorted.slice(offset, offset + limit);
   }
