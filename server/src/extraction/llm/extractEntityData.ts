@@ -7,6 +7,7 @@ import {
   CatalogueType,
   CompetencyStructuredData,
   CourseStructuredData,
+  CredentialStructuredData,
   LearningProgramStructuredData,
   ProviderModel,
 } from "../../../../common/types";
@@ -111,6 +112,8 @@ export function processEntity(
     postProcessedEntity = processedEntity as LearningProgramStructuredData;
   } else if (catalogueType === CatalogueType.COMPETENCIES) {
     postProcessedEntity = processedEntity as CompetencyStructuredData;
+  } else if (catalogueType === CatalogueType.CREDENTIALS) {
+    postProcessedEntity = processedEntity as CredentialStructuredData;
   } else {
     throw new Error("Unknown catalogue type");
   }
