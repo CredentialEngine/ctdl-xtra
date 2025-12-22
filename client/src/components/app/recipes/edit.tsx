@@ -66,6 +66,7 @@ const RecipeConfigurationSchema: z.ZodType<any> = z.object({
   pagination: PaginationSchema.optional(),
   links: z.lazy(() => RecipeConfigurationSchema).optional(),
   pageLoadWaitTime: z.number().optional().default(0),
+  exactLinkPatternMatch: z.boolean().optional(),
 });
 
 const FormSchema = z.object({
@@ -97,6 +98,11 @@ function getFirstLevelClickSelector(recipe: { configuration?: { clickSelector?: 
 function getFirstLevelClickOptions(recipe: { configuration?: { clickOptions?: { limit?: number; waitMs?: number } } }): { limit?: number; waitMs?: number } | undefined {
   if (!recipe.configuration) return undefined;
   return recipe.configuration.clickOptions;
+}
+
+function getFirstLevelExactLinkPatternMatch(recipe: { configuration?: { exactLinkPatternMatch?: boolean } }): boolean | undefined {
+  if (!recipe.configuration) return undefined;
+  return recipe.configuration.exactLinkPatternMatch;
 }
 
 export default function EditRecipe() {
@@ -365,6 +371,8 @@ export default function EditRecipe() {
                   defaultRegex={getFirstLevelRegex(recipe)}
                   clickSelector={getFirstLevelClickSelector(recipe)}
                   clickOptions={getFirstLevelClickOptions(recipe)}
+                  exactLinkPatternMatch={getFirstLevelExactLinkPatternMatch(recipe)}
+                  pageLoadWaitTime={recipe.configuration?.pageLoadWaitTime}
                 />
               )}
               {recipe.status == RecipeDetectionStatus.WAITING ? (

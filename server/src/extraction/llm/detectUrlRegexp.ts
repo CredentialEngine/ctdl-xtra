@@ -10,7 +10,7 @@ import { getCatalogueTypeDefinition } from "../catalogueTypes";
 const logger = getLogger("extraction.llm.detectUrlRegexp");
 
 export function createUrlExtractor(regexp: RegExp) {
-  return async (baseUrl: string, content: SimplifiedMarkdown) => {
+  return async (baseUrl: string, content: SimplifiedMarkdown, returnExact: boolean = false) => {
     // First, extract all markdown links [text](url) and their URLs
     const markdownLinkRegex = /\[([^\]]*)\]\(([^)]+)\)/g;
     const markdownLinkUrls: string[] = [];
@@ -35,7 +35,15 @@ export function createUrlExtractor(regexp: RegExp) {
 
       const markdownUrl = markdownLinkUrls.find((url) => url.includes(foundUrl));
       if (markdownUrl) {
-        return markdownUrl;
+        if (returnExact) {
+          const matches = markdownUrl.match(regexp);
+          
+          if (matches) {
+            return matches[0];
+          }
+        } else {
+          return markdownUrl;
+        }
       }
 
       return resolveAbsoluteUrl(baseUrl, foundUrl);
