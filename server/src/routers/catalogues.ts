@@ -12,7 +12,6 @@ import {
   updateCatalogueInstitution,
 } from "../data/catalogues";
 import { findCatalogueDatasets } from "../data/datasets";
-import { fetchPreview } from "../extraction/browser";
 import getLogger from "../logging";
 
 const logger = getLogger("routers.catalogues");
@@ -26,7 +25,11 @@ export const cataloguesRouter = router({
     )
     .query(async (opts) => {
       logger.info(`Fetching preview for ${opts.input.url}`);
-      return fetchPreview(opts.input.url);
+      
+      return { title: undefined, thumbnailUrl: undefined, description: undefined, catalogueType: undefined };
+      // TODO: Disabled currently due to being slow (some catalogues are slow themselves)
+      // as to not affect the catalogue creation experience. To be enabled.
+      // return fetchPreview(opts.input.url);
     }),
   list: publicProcedure
     .input(

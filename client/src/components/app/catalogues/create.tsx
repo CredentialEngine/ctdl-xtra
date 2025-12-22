@@ -106,11 +106,12 @@ export default function CreateCatalogue() {
 
     setLastPreviewUrl(url);
     previewQuery.refetch().then((output) => {
-      if (output.data?.title) {
-        form.setValue("name", output.data.title, { shouldValidate: false });
+      const data = output.data;
+      if (data && 'title' in data && typeof data.title === 'string' && data.title) {
+        form.setValue("name", data.title, { shouldValidate: false });
       }
-      if (output.data?.catalogueType) {
-        form.setValue("catalogueType", output.data.catalogueType, {
+      if (data && 'catalogueType' in data && data.catalogueType) {
+        form.setValue("catalogueType", data.catalogueType as CatalogueType, {
           shouldValidate: false,
         });
       }
@@ -119,10 +120,14 @@ export default function CreateCatalogue() {
 
   async function onSubmit(data: z.infer<typeof FormSchema>) {
     try {
+      const previewData = previewQuery.data;
+      const thumbnailUrl = previewData && 'thumbnailUrl' in previewData && typeof previewData.thumbnailUrl === 'string'
+        ? previewData.thumbnailUrl 
+        : undefined;
       const result = await createMutation.mutateAsync({
         ...data,
         catalogueType: data.catalogueType,
-        thumbnailUrl: previewQuery.data?.thumbnailUrl,
+        thumbnailUrl,
       });
       form.reset();
       if (result.existing) {
@@ -311,7 +316,7 @@ export default function CreateCatalogue() {
                 </FormItem>
               )}
             />
-            {previewQuery.data?.thumbnailUrl ? (
+            {previewQuery.data && 'thumbnailUrl' in previewQuery.data && typeof previewQuery.data.thumbnailUrl === 'string' && previewQuery.data.thumbnailUrl ? (
               <div className="flex gap-4 rounded-lg border border-dashed p-4">
                 <img
                   src={previewQuery.data.thumbnailUrl}
@@ -319,9 +324,9 @@ export default function CreateCatalogue() {
                 />
                 <div>
                   <h2 className="text-sm font-semibold">
-                    {previewQuery.data.title}
+                    {'title' in previewQuery.data && typeof previewQuery.data.title === 'string' ? previewQuery.data.title : ''}
                   </h2>
-                  <p>{previewQuery.data.description}</p>
+                  <p>{'description' in previewQuery.data && typeof previewQuery.data.description === 'string' ? previewQuery.data.description : ''}</p>
                 </div>
               </div>
             ) : null}
