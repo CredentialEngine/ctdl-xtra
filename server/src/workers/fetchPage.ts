@@ -171,8 +171,11 @@ export async function processLinks(
       crawlPage.crawlStepId,
       crawlPage.id
     );
-    const extractedUrls = await extractor(crawlPage.url, content);
+    const extractedUrls = await extractor(crawlPage.url, content, configuration.exactLinkPatternMatch);
     for (const url of extractedUrls) {
+      if (!url) {
+        continue;
+      }
       const page = await findPageByUrl(crawlPage.extractionId, url);
       if (!page) {
         urls.push(url);

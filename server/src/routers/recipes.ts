@@ -13,6 +13,7 @@ import {
 import {
   BrowserFetchError,
   fetchBrowserPage,
+  normalizeUrl,
   simplifiedMarkdown,
 } from "../extraction/browser";
 import { discoverDynamicLinks } from "../extraction/dynamicLinkDiscovery";
@@ -50,6 +51,7 @@ const RecipeConfigurationSchema = z.object({
   pagination: PaginationConfigurationSchema.optional(),
   links: z.lazy((): z.ZodSchema => RecipeConfigurationSchema).optional(),
   pageLoadWaitTime: z.number().optional().default(0),
+  exactLinkPatternMatch: z.boolean().optional(),
 });
 
 export const recipesRouter = router({
@@ -331,6 +333,8 @@ export const recipesRouter = router({
         regex: z.string().optional(),
         clickSelector: z.string().optional(),
         clickOptions: ClickDiscoveryOptionsSchema.optional(),
+        exactLinkPatternMatch: z.boolean().optional(),
+        pageLoadWaitTime: z.number().optional(),
       })
     )
     .mutation(async (opts) => {
@@ -359,17 +363,25 @@ export const recipesRouter = router({
           if (!regexp) {
             throw new AppError("Regex is required when clickSelector is not provided", AppErrors.BAD_REQUEST);
           }
-          const { content } = await fetchBrowserPage(opts.input.url);
+          const { content } = await fetchBrowserPage(
+            opts.input.url,
+            false,
+            opts.input.pageLoadWaitTime
+          );
           const markdownContent = await simplifiedMarkdown(content);
 
           const testRegex = new RegExp(regexp, "g");
           const extractor = createUrlExtractor(testRegex);
-          urls = await extractor(opts.input.url, markdownContent);
+          const extractedUrls = await extractor(opts.input.url, markdownContent, opts.input.exactLinkPatternMatch ?? false);
+          urls = extractedUrls.filter((url): url is string => url !== null);
         }
+
+        // Normalize all extracted URLs using the input URL as the base
+        const normalizedUrls = urls.map((url) => normalizeUrl(url, opts.input.url));
 
         return {
           regexp: regexp || "",
-          urls,
+          urls: normalizedUrls,
         };
       } catch (error) {
         if (error instanceof BrowserFetchError) {

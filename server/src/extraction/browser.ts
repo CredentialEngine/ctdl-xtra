@@ -180,7 +180,7 @@ function isAbsoluteUrl(url: string): boolean {
 /**
  * Resolves a relative URL against a base URL
  */
-function normalizeUrl(url: string, baseUrl?: string): string {
+export function normalizeUrl(url: string, baseUrl?: string): string {
   // If URL is already absolute, return as-is
   if (isAbsoluteUrl(url)) {
     return url;

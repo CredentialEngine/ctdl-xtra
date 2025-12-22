@@ -87,6 +87,7 @@ const RecipeConfigurationSchema: z.ZodType<FormRecipeConfiguration> = z.object({
   pagination: PaginationSchema.optional(),
   links: z.lazy(() => RecipeConfigurationSchema).optional(),
   pageLoadWaitTime: z.number().optional().default(0),
+  exactLinkPatternMatch: z.boolean().optional(),
 }).refine(
   (data) => {
     // If clickSelector is defined (not undefined), it must be a non-empty string
@@ -674,6 +675,8 @@ export default function CreateRecipe() {
                       defaultRegex={configuration?.linkRegexp}
                       clickSelector={configuration?.clickSelector || undefined}
                       clickOptions={configuration?.clickOptions || undefined}
+                      exactLinkPatternMatch={configuration?.exactLinkPatternMatch}
+                      pageLoadWaitTime={configuration?.pageLoadWaitTime}
                     />
                   </CardContent>
                 </Card>

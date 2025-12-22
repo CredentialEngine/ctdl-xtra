@@ -43,12 +43,16 @@ export default function TestLinkRegex({
   simplified = false,
   clickSelector,
   clickOptions,
+  exactLinkPatternMatch,
+  pageLoadWaitTime,
 }: {
   defaultUrl: string;
   defaultRegex?: string;
   simplified?: boolean;
   clickSelector?: string;
   clickOptions?: { limit?: number; waitMs?: number };
+  exactLinkPatternMatch?: boolean;
+  pageLoadWaitTime?: number;
 }) {
   const [url, setUrl] = useState(defaultUrl);
   const [regex, setRegex] = useState(defaultRegex || "");
@@ -78,6 +82,8 @@ export default function TestLinkRegex({
                 regex?: string;
                 clickSelector?: string;
                 clickOptions?: { limit?: number; waitMs?: number };
+                exactLinkPatternMatch?: boolean;
+                pageLoadWaitTime?: number;
               } = {
                 url,
               };
@@ -92,6 +98,14 @@ export default function TestLinkRegex({
               
               if (clickOptions && (clickOptions.limit !== undefined || clickOptions.waitMs !== undefined)) {
                 mutationData.clickOptions = clickOptions;
+              }
+              
+              if (exactLinkPatternMatch !== undefined) {
+                mutationData.exactLinkPatternMatch = exactLinkPatternMatch;
+              }
+              
+              if (pageLoadWaitTime !== undefined) {
+                mutationData.pageLoadWaitTime = pageLoadWaitTime;
               }
               
               testRecipeRegex.mutate(mutationData);
@@ -157,6 +171,8 @@ export default function TestLinkRegex({
                 regex?: string;
                 clickSelector?: string;
                 clickOptions?: { limit?: number; waitMs?: number };
+                exactLinkPatternMatch?: boolean;
+                pageLoadWaitTime?: number;
               } = {
                 url,
               };
@@ -171,6 +187,14 @@ export default function TestLinkRegex({
               
               if (clickOptions && (clickOptions.limit !== undefined || clickOptions.waitMs !== undefined)) {
                 mutationData.clickOptions = clickOptions;
+              }
+              
+              if (exactLinkPatternMatch !== undefined) {
+                mutationData.exactLinkPatternMatch = exactLinkPatternMatch;
+              }
+              
+              if (pageLoadWaitTime !== undefined) {
+                mutationData.pageLoadWaitTime = pageLoadWaitTime;
               }
               
               testRecipeRegex.mutate(mutationData);

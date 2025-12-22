@@ -32,6 +32,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Tabs,
   TabsContent,
@@ -66,6 +67,7 @@ const RecipeConfigurationSchema: z.ZodType<any> = z.object({
   pagination: PaginationSchema.optional(),
   links: z.lazy(() => RecipeConfigurationSchema).optional(),
   pageLoadWaitTime: z.number().optional().default(0),
+  exactLinkPatternMatch: z.boolean().optional(),
 });
 
 const FormSchema = z.object({
@@ -99,8 +101,14 @@ function getFirstLevelClickOptions(recipe: { configuration?: { clickOptions?: { 
   return recipe.configuration.clickOptions;
 }
 
+function getFirstLevelExactLinkPatternMatch(recipe: { configuration?: { exactLinkPatternMatch?: boolean } }): boolean | undefined {
+  if (!recipe.configuration) return undefined;
+  return recipe.configuration.exactLinkPatternMatch;
+}
+
 export default function EditRecipe() {
   const [lockedDelete, setLockDelete] = useState(true);
+  const [jsonText, setJsonText] = useState("");
   const [, navigate] = useLocation();
   const { catalogueId, recipeId } = useParams();
   const catalogueQuery = trpc.catalogues.detail.useQuery(
@@ -152,6 +160,11 @@ export default function EditRecipe() {
       name: recipeQuery.data.name ?? undefined,
       description: recipeQuery.data.description ?? undefined,
     });
+    
+    // Update JSON text when recipe data loads
+    if (recipeQuery.data.configuration) {
+      setJsonText(JSON.stringify(recipeQuery.data.configuration, null, 2));
+    }
 
     return () => {
       if (intervalRef.current) {
@@ -315,6 +328,8 @@ export default function EditRecipe() {
                                       configuration,
                                     },
                                   });
+                                  // Update JSON text to reflect saved configuration
+                                  setJsonText(JSON.stringify(configuration, null, 2));
                                   toast({
                                     title: "Configuration saved",
                                     description: "The recipe configuration has been updated successfully.",
@@ -349,9 +364,60 @@ export default function EditRecipe() {
                           <div className="text-xs">
                             {displayRecipeDetails(recipe)}
                           </div>
-                          <pre className="mt-4 text-xs overflow-x-auto">
-                            {JSON.stringify(recipe.configuration, null, 2)}
-                          </pre>
+                          <Textarea
+                            value={jsonText}
+                            onChange={(e) => setJsonText(e.target.value)}
+                            className="font-mono text-xs min-h-[400px]"
+                            placeholder="Enter JSON configuration..."
+                          />
+                          <div className="flex justify-end pt-4 border-t">
+                            <Button
+                              type="button"
+                              onClick={async () => {
+                                try {
+                                  // Parse and validate JSON
+                                  const parsedConfig = JSON.parse(jsonText);
+                                  
+                                  // Update form with parsed configuration
+                                  form.setValue("configuration", parsedConfig);
+                                  
+                                  // Save to server
+                                  await updateRecipe.mutateAsync({
+                                    id: recipe.id,
+                                    update: {
+                                      configuration: parsedConfig,
+                                    },
+                                  });
+                                  
+                                  toast({
+                                    title: "Configuration saved",
+                                    description: "The recipe configuration has been updated successfully.",
+                                  });
+                                  recipeQuery.refetch();
+                                } catch (err) {
+                                  toast({
+                                    title: "Invalid JSON",
+                                    description: err instanceof Error ? err.message : "Please check your JSON syntax.",
+                                    variant: "destructive",
+                                  });
+                                }
+                              }}
+                              disabled={
+                                recipeQuery.isLoading ||
+                                updateRecipe.isLoading ||
+                                recipeQuery.data?.status === RecipeDetectionStatus.IN_PROGRESS
+                              }
+                            >
+                              {updateRecipe.isLoading ? (
+                                <>
+                                  <LoaderIcon className="animate-spin mr-2 h-4 w-4" />
+                                  Saving...
+                                </>
+                              ) : (
+                                "Save Configuration"
+                              )}
+                            </Button>
+                          </div>
                         </TabsContent>
                       </Tabs>
                     </CardContent>
@@ -365,6 +431,8 @@ export default function EditRecipe() {
                   defaultRegex={getFirstLevelRegex(recipe)}
                   clickSelector={getFirstLevelClickSelector(recipe)}
                   clickOptions={getFirstLevelClickOptions(recipe)}
+                  exactLinkPatternMatch={getFirstLevelExactLinkPatternMatch(recipe)}
+                  pageLoadWaitTime={recipe.configuration?.pageLoadWaitTime}
                 />
               )}
               {recipe.status == RecipeDetectionStatus.WAITING ? (

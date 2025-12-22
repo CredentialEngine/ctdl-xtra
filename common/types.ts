@@ -40,6 +40,30 @@ export interface RecipeConfiguration<
   apiProvider?: ApiProvider;
   apiConfig?: ApiConfig[ConfigType];
   pageLoadWaitTime?: number;
+
+  /**
+   * When true, the links gathered from the page
+   * will be the sub-segment that exactly matches the link pattern.
+   * 
+   * So for example, if the link pattern is course\/([A-Za-z0-9]+)
+   * and the URL is /2025-2026/course/acb then the page enqueued
+   * will be /course/acb instead of /2025-2026/course/acb which 
+   * is the default behavior without this flag.
+   * 
+   * This is needed when catalogues use links that are not
+   * correctly resolved by the NodeJS URL class.
+   * 
+   * For example, The Antelope Valley College uses links such as
+   * 2025-2026/course/acb in its courses index page but the 
+   * catalogue index page already contains the 2025-2026 segment
+   * segment leading to URLs being formed to /2025-2026/2025-2026/course/acb
+   * instead of /2025-2026/course/acb.
+   * 
+   * For some reason browsers handle this correctly but NodeJS URL 
+   * keeps the duplicate segment.
+   * 
+   */
+  exactLinkPatternMatch?: boolean;
 }
 
 export type ApiConfig = {
