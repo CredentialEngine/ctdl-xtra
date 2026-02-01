@@ -57,6 +57,7 @@ let clusterClosed = false;
 const PAGE_TIMEOUT = 5 * 60 * 1000;
 
 const logger = getLogger("extraction.browser");
+const DEBUG = process.env.DEBUG === "1";
 
 export async function getCluster(proxyUrl?: string) {
   if (clusterClosed) {
@@ -82,6 +83,7 @@ export async function getCluster(proxyUrl?: string) {
     puppeteer: puppeteer,
     puppeteerOptions: {
       ignoreHTTPSErrors: true,
+      dumpio: DEBUG, // Pipe Chrome process stdout/stderr to console when DEBUG=1
       args: [
         "--font-render-hinting=none",
         "--force-gpu-mem-available-mb=4096",
@@ -97,6 +99,13 @@ export async function getCluster(proxyUrl?: string) {
       await page.authenticate({
         username: proxyUsername || "",
         password: proxyPassword || "",
+      });
+    }
+
+    // Log browser console messages when DEBUG=1
+    if (DEBUG) {
+      page.on("console", (msg) => {
+        console.log(`Browser console: [${msg.type()}] ${msg.text()}`);
       });
     }
 
