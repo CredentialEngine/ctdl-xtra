@@ -1,8 +1,8 @@
 import * as cheerio from "cheerio";
-import { Cluster } from "puppeteer-cluster";
+import { Cluster} from "puppeteer-cluster";
 import { addExtra, VanillaPuppeteer } from "puppeteer-extra";
 import StealthPlugin from "puppeteer-extra-plugin-stealth";
-import rebrowserPuppeteer from "rebrowser-puppeteer";
+import rebrowserPuppeteer, { HTTPResponse } from "rebrowser-puppeteer";
 import TurndownService from "turndown";
 import { URL } from "url";
 import { findSetting } from "../data/settings";
@@ -21,11 +21,13 @@ export interface BrowserTaskResult {
   content: string;
   screenshot: string;
   status: number;
+  consoleOutput: string;
 }
 
 export class BrowserFetchError extends Error {
   readonly status: number;
   readonly url: string;
+  readonly consoleOutput: string;
 
   constructor(browserResult: BrowserTaskResult) {
     const statusMessage = httpCodeToMessage(browserResult?.status as any);
@@ -33,6 +35,7 @@ export class BrowserFetchError extends Error {
 
     this.status = browserResult?.status;
     this.url = browserResult?.url;
+    this.consoleOutput = browserResult?.consoleOutput;
   }
 
   statusMessage() {
@@ -82,8 +85,9 @@ export async function getCluster(proxyUrl?: string) {
     maxConcurrency: 2,
     puppeteer: puppeteer,
     puppeteerOptions: {
+      headless: process.env.SHELL_HEADLESS === '1' ? 'shell' : true,
       ignoreHTTPSErrors: true,
-      dumpio: DEBUG, // Pipe Chrome process stdout/stderr to console when DEBUG=1
+      dumpio: true, // Pipe Chrome process stdout/stderr to console when DEBUG=1
       args: [
         "--font-render-hinting=none",
         "--force-gpu-mem-available-mb=4096",
@@ -94,7 +98,11 @@ export async function getCluster(proxyUrl?: string) {
     timeout: PAGE_TIMEOUT,
   });
 
-  await cluster.task(async ({ page, data }) => {
+  await cluster.task(async ({ page, data }): Promise<BrowserTaskResult> => {
+    page.on("console", (msg) => {
+      console.log(`Browser console: [${msg.type()}] ${msg.text()}`);
+    });
+
     if (proxyUsername || proxyPassword) {
       await page.authenticate({
         username: proxyUsername || "",
@@ -102,19 +110,23 @@ export async function getCluster(proxyUrl?: string) {
       });
     }
 
-    // Log browser console messages when DEBUG=1
-    if (DEBUG) {
-      page.on("console", (msg) => {
-        console.log(`Browser console: [${msg.type()}] ${msg.text()}`);
-      });
-    }
-
     page.setDefaultTimeout(PAGE_TIMEOUT);
     const { url, pageLoadWaitTime } = data;
-    const response = await page.goto(url, {
-      timeout: PAGE_TIMEOUT,
-      waitUntil: "networkidle2",
-    });
+    let response: HTTPResponse | null = null;
+    try {
+      response = await page.goto(url, {
+        timeout: PAGE_TIMEOUT,
+        waitUntil: "networkidle2",
+      }) as unknown as HTTPResponse; // TODO: Remove when puppeteer-cluster is updated to return the same type of HTTPResponse as rebrowser-puppeteer
+    } catch (error) {
+      // TODO: Do we need handle these differently?
+      // if (error instanceof Error && error.message.includes('net::ERR_TUNNEL_CONNECTION_FAILED')) {
+
+      // }
+
+      // TODO: remove redundant try/catch block if we don't handle anything different here
+      throw error;
+    }
     if (!response) {
       throw new Error(`Failed to load page ${url}`);
     }
@@ -144,6 +156,7 @@ export async function getCluster(proxyUrl?: string) {
       content,
       screenshot,
       status: response.status(),
+      consoleOutput,
     };
   });
   return cluster;

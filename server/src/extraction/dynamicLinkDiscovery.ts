@@ -34,6 +34,8 @@ export async function navigateWithProxy(
 
   const browser = await puppeteer.launch({
     ignoreHTTPSErrors: true,
+    headless: process.env.SHELL_HEADLESS === '1' ? 'shell' : true,
+    dumpio: true, // Pipe Chrome process stdout/stderr to console when DEBUG=1
     args,
   });
 
@@ -69,7 +71,9 @@ export async function discoverDynamicLinks(
   selector?: string,
   opts: ClickDiscoveryOptions = {}
 ): Promise<string[]> {
-  const pageMaxWaitMs = opts?.waitMs ?? 30 * 1000; // 30 seconds
+  const pageMaxWaitMs = Number.isFinite(opts?.waitMs) && opts?.waitMs! > 0 
+    ? opts?.waitMs!
+    : 30 * 1000; // 30 seconds
   const logger = getLogger("extraction.dynamicLinkDiscovery");
   const urls: string[] = [];
   let browser: Browser | undefined;
