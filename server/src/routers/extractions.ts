@@ -12,6 +12,7 @@ import {
   findExtractionsSorted,
   findLastAuditLogEntry,
   findLogs,
+  findLogsByCrawlPageId,
   findPage,
   findPageForJob,
   findPagesPaginated,
@@ -252,6 +253,15 @@ export const extractionsRouter = router({
         dateTo
       );
       return { totalItems, totalPages, results };
+    }),
+  crawlPageLogs: publicProcedure
+    .input(
+      z.object({
+        crawlPageId: z.number().int().positive(),
+      })
+    )
+    .query(async (opts) => {
+      return findLogsByCrawlPageId(opts.input.crawlPageId);
     }),
   simulateDataExtraction: publicProcedure
     .input(

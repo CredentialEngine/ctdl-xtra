@@ -365,12 +365,16 @@ const extractionLogs = pgTable(
     extractionId: integer("extraction_id")
       .notNull()
       .references(() => extractions.id, { onDelete: "cascade" }),
+    crawlPageId: integer("crawl_page_id").references(() => crawlPages.id, {
+      onDelete: "cascade",
+    }),
     log: text("log").notNull(),
     logLevel: logLevelEnum("log_level").notNull().default(LogLevel.INFO),
     createdAt: timestamp("created_at").notNull().defaultNow(),
   },
   (t) => ({
     extractionIdx: index("extraction_logs_extraction_idx").on(t.extractionId),
+    crawlPageIdx: index("extraction_logs_crawl_page_idx").on(t.crawlPageId),
   })
 );
 
@@ -378,6 +382,10 @@ const extractionLogsRelations = relations(extractionLogs, ({ one }) => ({
   extraction: one(extractions, {
     fields: [extractionLogs.extractionId],
     references: [extractions.id],
+  }),
+  crawlPage: one(crawlPages, {
+    fields: [extractionLogs.crawlPageId],
+    references: [crawlPages.id],
   }),
 }));
 
@@ -462,6 +470,7 @@ const crawlPageRelations = relations(crawlPages, ({ one, many }) => ({
     references: [extractions.id],
   }),
   dataItems: many(dataItems),
+  extractionLogs: many(extractionLogs),
 }));
 
 const datasets = pgTable(

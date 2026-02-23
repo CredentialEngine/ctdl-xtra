@@ -6,8 +6,16 @@ import {
 } from "@/components/ui/accordion";
 import BreadcrumbTrail from "@/components/ui/breadcrumb-trail";
 import { Button } from "@/components/ui/button";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { PageStatus, trpc } from "@/utils";
+import { concisePrintDate, trpc } from "@/utils";
 import { ExternalLink } from "lucide-react";
 import { useState } from "react";
 import { useParams } from "wouter";
@@ -16,6 +24,10 @@ import { base64Img } from "./utils";
 export default function CrawlPageDetail() {
   const { extractionId, stepId, crawlPageId } = useParams();
   const crawlPageQuery = trpc.extractions.crawlPageDetail.useQuery(
+    { crawlPageId: parseInt(crawlPageId || "") },
+    { enabled: !!crawlPageId }
+  );
+  const crawlPageLogsQuery = trpc.extractions.crawlPageLogs.useQuery(
     { crawlPageId: parseInt(crawlPageId || "") },
     { enabled: !!crawlPageId }
   );
@@ -77,16 +89,52 @@ export default function CrawlPageDetail() {
     );
   }
 
-  if (item.crawlPage.status == PageStatus.ERROR) {
-    tabTriggers.push(
-      <TabsTrigger value="fetch_failure_reason">Error Details</TabsTrigger>
-    );
-    tabContents.push(
-      <TabsContent value="fetch_failure_reason">
-        <pre>{JSON.stringify(item.crawlPage.fetchFailureReason, null, 2)}</pre>
-      </TabsContent>
-    );
-  }
+  tabTriggers.push(
+    <TabsTrigger value="operation_logs">Operation logs</TabsTrigger>
+  );
+  const pageLogs = crawlPageLogsQuery.data ?? [];
+  tabContents.push(
+    <TabsContent value="operation_logs">
+      <div className="space-y-4">
+        {pageLogs.length > 0 ? (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Type</TableHead>
+                <TableHead>Message</TableHead>
+                <TableHead>Created At</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {pageLogs.map((log) => (
+                <TableRow key={log.id}>
+                  <TableCell>{log.logLevel}</TableCell>
+                  <TableCell className="max-w-md overflow-hidden text-ellipsis whitespace-nowrap" title={log.log}>
+                    {log.log}
+                  </TableCell>
+                  <TableCell>{concisePrintDate(log.createdAt)}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        ) : null}
+        {item.crawlPage.fetchFailureReason ? (
+          <Accordion type="single" collapsible={true}>
+            <AccordionItem value="advanced_error_details">
+              <AccordionTrigger>Advanced Error Details</AccordionTrigger>
+              <AccordionContent>
+                <pre>
+                  {JSON.stringify(item.crawlPage.fetchFailureReason, null, 2)}
+                </pre>
+              </AccordionContent>
+            </AccordionItem>
+          </Accordion>
+        ) : !crawlPageLogsQuery.isLoading && pageLogs.length === 0 ? (
+          <div className="text-muted-foreground">No content to display.</div>
+        ) : null}
+      </div>
+    </TabsContent>
+  );
 
   const screenshot = item.screenshot ? base64Img(item.screenshot) : null;
   if (screenshot) {

@@ -1,5 +1,6 @@
 import BreadcrumbTrail from "@/components/ui/breadcrumb-trail";
 import { Button } from "@/components/ui/button";
+import { Eye } from "lucide-react";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import {
   Table,
@@ -71,8 +72,8 @@ export default function CrawlStepDetail() {
                 <TableHead>Data Type</TableHead>
                 <TableHead>Created At</TableHead>
                 <TableHead>URL</TableHead>
-                <TableHead>Content</TableHead>
                 <TableHead>Status</TableHead>
+                <TableHead>Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -88,18 +89,21 @@ export default function CrawlStepDetail() {
                       {item.url}
                     </a>
                   </TableCell>
-                  <TableCell>
-                    {item.status == "SUCCESS" || item.status == "ERROR" ? (
-                      <Button variant={"outline"} size={"sm"} asChild>
-                        <Link
-                          to={`/${extractionId}/steps/${stepId}/items/${item.id}`}
-                        >
-                          View
-                        </Link>
-                      </Button>
-                    ) : null}
-                  </TableCell>
                   <TableCell>{item.status}</TableCell>
+                  <TableCell>
+                    <Button
+                      variant={"outline"}
+                      size={"sm"}
+                      asChild
+                      title="View page details"
+                    >
+                      <Link
+                        to={`/${extractionId}/steps/${stepId}/items/${item.id}`}
+                      >
+                        <Eye className="w-4 h-4" />
+                      </Link>
+                    </Button>
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>

@@ -1,4 +1,3 @@
-import { inspect } from "util";
 import {
   createProcessor,
   ExtractDataJob,
@@ -9,6 +8,7 @@ import {
 import { createDataItem, findDataset } from "../data/datasets";
 import {
   countParentNodesOfCrawlSteps,
+  createExtractionLogSafe,
   createStepAndPages,
   findPageForJob,
   updatePage,
@@ -22,6 +22,7 @@ import {
 import {
   CatalogueType,
   ExtractionStatus,
+  LogLevel,
   PageType,
   Step,
 } from "../../../common/types";
@@ -35,19 +36,20 @@ const logger = getLogger("workers.extractData");
 
 export default createProcessor<ExtractDataJob, ExtractDataProgress>(
   async function extractData(job) {
-    let crawlPage = await findPageForJob(job.data.crawlPageId);
-
-    if (crawlPage.extraction.status == ExtractionStatus.CANCELLED) {
-      logger.info(
-        `Extraction ${crawlPage.extractionId} was cancelled; aborting`
-      );
-      return;
-    }
-
-    await updatePage(crawlPage.id, {
-      dataExtractionStartedAt: getSqliteTimestamp(),
-    });
     try {
+      let crawlPage = await findPageForJob(job.data.crawlPageId);
+
+      if (crawlPage.extraction.status == ExtractionStatus.CANCELLED) {
+        logger.info(
+          `Extraction ${crawlPage.extractionId} was cancelled; aborting`
+        );
+        return;
+      }
+
+        await updatePage(crawlPage.id, {
+        dataExtractionStartedAt: getSqliteTimestamp(),
+      });
+
       const dataset = await findDataset(
         job.data.datasetId
       );
@@ -175,7 +177,15 @@ export default createProcessor<ExtractDataJob, ExtractDataProgress>(
           .catch(logger.error);
       }
     } catch (err) {
-      logger.error(inspect(err));
+      const errStr = await createExtractionLogSafe(
+        job.data.extractionId,
+        "Extraction failed for",
+        undefined,
+        err,
+        LogLevel.ERROR,
+        job.data.crawlPageId
+      );
+      logger.error(errStr);
       throw err;
     }
   }
