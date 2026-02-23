@@ -27,6 +27,7 @@ import {
 } from "../extraction/robotsParser";
 import { submitRecipeDetection } from "../extraction/submitRecipeDetection";
 import getLogger from "../logging";
+import { SimplifiedMarkdown } from "../types";
 import { bestOutOf, exponentialRetry } from "../utils";
 import { Queues, submitJob } from "../workers";
 
@@ -342,6 +343,7 @@ export const recipesRouter = router({
 
       try {
         let urls: string[];
+        let markdownContent: SimplifiedMarkdown;
 
         // Use dynamic links harvesting if clickSelector is provided
         if (opts.input.clickSelector) {
@@ -354,10 +356,25 @@ export const recipesRouter = router({
           // If regex is provided, filter the discovered URLs by the regex
           if (regexp) {
             const testRegex = new RegExp(regexp, "g");
-            urls = urls.filter((url) => testRegex.test(url));
-            // Reset regex lastIndex for next use
+            const exactMatch = opts.input.exactLinkPatternMatch ?? false;
+            if (exactMatch) {
+              urls = urls.flatMap((url) => {
+                const matches = url.match(testRegex);
+                return matches ?? [];
+              });
+            } else {
+              urls = urls.filter((url) => testRegex.test(url));
+            }
             testRegex.lastIndex = 0;
           }
+
+          // Fetch page content for simplified markdown
+          const { content } = await fetchBrowserPage({
+            url: opts.input.url,
+            skipProxy: false,
+            pageLoadWaitTime: opts.input.pageLoadWaitTime,
+          });
+          markdownContent = await simplifiedMarkdown(content);
         } else {
           // Use traditional regex-based extraction (regex is required when no clickSelector)
           if (!regexp) {
@@ -368,7 +385,7 @@ export const recipesRouter = router({
             skipProxy: false,
             pageLoadWaitTime: opts.input.pageLoadWaitTime,
           });
-          const markdownContent = await simplifiedMarkdown(content);
+          markdownContent = await simplifiedMarkdown(content);
 
           const testRegex = new RegExp(regexp, "g");
           const extractor = createUrlExtractor(testRegex);
@@ -382,6 +399,7 @@ export const recipesRouter = router({
         return {
           regexp: regexp || "",
           urls: normalizedUrls,
+          markdownContent: markdownContent as string,
         };
       } catch (error) {
         if (error instanceof BrowserFetchError) {
