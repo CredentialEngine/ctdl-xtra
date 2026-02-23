@@ -40,6 +40,7 @@ export interface RecipeConfiguration<
   apiProvider?: ApiProvider;
   apiConfig?: ApiConfig[ConfigType];
   pageLoadWaitTime?: number;
+  contentSelector?: string;
 
   /**
    * When true, the links gathered from the page

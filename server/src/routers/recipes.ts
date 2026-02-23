@@ -52,6 +52,7 @@ const RecipeConfigurationSchema = z.object({
   links: z.lazy((): z.ZodSchema => RecipeConfigurationSchema).optional(),
   pageLoadWaitTime: z.number().optional().default(0),
   exactLinkPatternMatch: z.boolean().optional(),
+  contentSelector: z.string().optional(),
 });
 
 export const recipesRouter = router({

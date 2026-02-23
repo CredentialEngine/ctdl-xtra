@@ -309,7 +309,8 @@ export const performJob = async (
     if (!page.content) {
       throw new Error(`Could not fetch URL ${crawlPage.url}`);
     }
-    const markdownContent = await simplifiedMarkdown(page.content);
+    const contentSelector = configuration.contentSelector;
+    const markdownContent = await simplifiedMarkdown(page.content, contentSelector);
     crawlPage.content = await storeContent(
       crawlPage.extractionId,
       crawlPage.crawlStepId,

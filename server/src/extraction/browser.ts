@@ -319,7 +319,15 @@ export async function toMarkdown(html: string) {
   }).turndown(html);
 }
 
-export async function simplifiedMarkdown(html: string) {
-  const simplified = await toMarkdown(await simplifyHtml(html));
+export async function simplifiedMarkdown(html: string, contentSelector?: string) {
+  let workingHtml = html;
+  if (contentSelector?.trim()) {
+    const $ = cheerio.load(html);
+    const el = $(contentSelector).first();
+    if (el.length) {
+      workingHtml = $.html(el);
+    }
+  }
+  const simplified = await toMarkdown(await simplifyHtml(workingHtml));
   return simplified as SimplifiedMarkdown;
 }
