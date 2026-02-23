@@ -1,6 +1,6 @@
 // @ts-ignore
 window.__xtra__waitForUrlChangeScript = ({ oldUrl, timeout, pollInterval }) => {
-  return new Promise(resolve => {
+  return new Promise((resolve) => {
     const start = Date.now();
 
     function checkUrl() {
@@ -9,8 +9,7 @@ window.__xtra__waitForUrlChangeScript = ({ oldUrl, timeout, pollInterval }) => {
         // @ts-ignore
         resolve(window.location.href);
       } else if (Date.now() - start > timeout) {
-        // @ts-ignore
-        reject(new Error('Timeout waiting for URL change')); // timed out, return current URL
+        resolve(null);
       } else {
         setTimeout(checkUrl, pollInterval);
       }
