@@ -230,7 +230,9 @@ export const extractionsRouter = router({
       z
         .object({
           page: z.number().int().positive().default(1),
-          sortKey: z.enum(["date", "status", "catalogue", "type"]).default("date"),
+          sortKey: z
+            .enum(["date", "status", "catalogue", "type", "items", "cost"])
+            .default("date"),
           sortOrder: z.enum(["asc", "desc"]).default("desc"),
           dateFrom: z.string().datetime().optional(),
           dateTo: z.string().datetime().optional(),
