@@ -49,7 +49,7 @@ async function getPageWithFallback(url: string) {
         : "",
     };
   }
-  return fetchBrowserPage(url);
+  return fetchBrowserPage({ url });
 }
 
 function matchesUrlPattern(expected: string, actual: string): boolean {
@@ -247,7 +247,7 @@ export async function assertExtraction<
 }
 
 export async function extractCompetencies(url: string) {
-  const page = await fetchBrowserPage(url).then((page) =>
+  const page = await fetchBrowserPage({ url }).then((page) =>
     page.content ? page : Promise.reject(new Error(`Page ${url} not found`))
   );
   const simplifiedContent = await simplifiedMarkdown(page.content);
@@ -280,7 +280,7 @@ export async function extractCompetencies(url: string) {
 export async function extractCredentials(
   url: string,
 ) {
-  const page = await fetchBrowserPage(url)
+  const page = await fetchBrowserPage({ url })
     .then(page => page.content
       ? page
       : Promise.reject(new Error(`Page ${url} not found`))
