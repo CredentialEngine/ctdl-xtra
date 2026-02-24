@@ -5,7 +5,7 @@ import {
   count,
   desc,
   eq,
-  gte,
+  gte, inArray,
   isNotNull,
   isNull,
   lte,
@@ -429,6 +429,42 @@ export async function findErrorPagesForExtraction(extractionId: number) {
   });
 }
 
+export async function findNoDataPagesForExtraction(extractionId: number) {
+  const extraction = await findExtractionById(extractionId);
+  if (!extraction) {
+    return [];
+  }
+  const latestDataset = await findLatestDataset(extractionId);
+  if (!latestDataset) {
+    return [];
+  }
+  // Use the exact same logic as getStepCompletionStats so we return the same
+  // pages that contribute to totalExtractionErrors
+  const noDataPageIds: number[] = [];
+  for (const step of extraction.crawlSteps || []) {
+    const rawStepStats = await getStepStats(latestDataset.id, step.id);
+    for (const rawPageStats of rawStepStats) {
+      if (
+        rawPageStats.dataExtractionStartedAt &&
+        rawPageStats.dataItemCount === 0
+      ) {
+        noDataPageIds.push(rawPageStats.crawlPageId);
+      }
+    }
+  }
+  if (noDataPageIds.length === 0) {
+    return [];
+  }
+  return db.query.crawlPages.findMany({
+    columns: {
+      content: false,
+      screenshot: false,
+    },
+    where: (pages, { inArray }) => inArray(pages.id, noDataPageIds),
+    orderBy: (pages, { desc }) => desc(pages.createdAt),
+  });
+}
+
 export async function findStep(stepId: number) {
   const result = await db.query.crawlSteps.findFirst({
     where: (steps, { eq }) => eq(steps.id, stepId),
@@ -449,10 +485,14 @@ export async function findExtractionValidPages(
     },
     limit,
     offset,
-    where: (crawlPages, { and, eq }) =>
+    where: (crawlPages, { and, eq, inArray }) =>
       and(
         eq(crawlPages.extractionId, extractionId),
-        eq(crawlPages.status, PageStatus.SUCCESS)
+        inArray(crawlPages.status, [
+          PageStatus.DOWNLOADED,
+          PageStatus.SUCCESS,
+          PageStatus.EXTRACTED_NO_DATA,
+        ])
       ),
     orderBy: (crawlPages) => crawlPages.createdAt,
   });
@@ -786,7 +826,10 @@ export async function findFailedAndNoDataPageIds(crawlStepId: number) {
     .where(
       and(
         eq(crawlPages.crawlStepId, crawlStepId),
-        eq(crawlPages.status, PageStatus.SUCCESS),
+        inArray(crawlPages.status, [
+          PageStatus.SUCCESS,
+          PageStatus.EXTRACTED_NO_DATA,
+        ]),
         eq(crawlPages.pageType, PageType.DETAIL),
         isNotNull(crawlPages.dataExtractionStartedAt)
       )

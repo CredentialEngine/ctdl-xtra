@@ -332,7 +332,7 @@ export const performJob = async (
     });
     await processNextStep(job.data.datasetId, crawlPage, delayOptions);
     await updatePage(crawlPage.id, {
-      status: PageStatus.SUCCESS,
+      status: PageStatus.DOWNLOADED,
     });
   } catch (err) {
     let failureReason: FetchFailureReason | undefined;

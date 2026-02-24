@@ -39,7 +39,8 @@ function updatePageAndExtractionAsComplete(
 ) {
   return Promise.all([
     updatePage(page.id, {
-      status: PageStatus.SUCCESS,
+      status:
+        courseCount > 0 ? PageStatus.SUCCESS : PageStatus.EXTRACTED_NO_DATA,
     }),
     updateExtraction(page.extractionId, {
       status: ExtractionStatus.COMPLETE,

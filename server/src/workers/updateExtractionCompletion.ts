@@ -53,7 +53,11 @@ async function getStepCompletionStats(
       extractionsCourses = 0;
     for (const rawPageStats of rawStepStats) {
       downloadsTotal += 1;
-      if (rawPageStats.status == PageStatus.SUCCESS) {
+      if (
+        rawPageStats.status == PageStatus.DOWNLOADED ||
+        rawPageStats.status == PageStatus.SUCCESS ||
+        rawPageStats.status == PageStatus.EXTRACTED_NO_DATA
+      ) {
         downloadsAttempted += 1;
         downloadsSucceeded += 1;
       } else if (rawPageStats.status == PageStatus.ERROR) {

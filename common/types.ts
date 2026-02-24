@@ -102,7 +102,9 @@ export enum ExtractionStatus {
 export enum PageStatus {
   WAITING = "WAITING",
   IN_PROGRESS = "IN_PROGRESS",
+  DOWNLOADED = "DOWNLOADED",
   SUCCESS = "SUCCESS",
+  EXTRACTED_NO_DATA = "EXTRACTED_NO_DATA",
   ERROR = "ERROR",
 }
 
