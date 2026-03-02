@@ -10,7 +10,7 @@ import { detectPageType } from "./llm/detectPageType";
 const logger = getLogger("extraction.submitRecipeDetection");
 
 export async function submitRecipeDetection(url: string, catalogueId: number) {
-  const { content, screenshot } = await fetchBrowserPage(url);
+  const { content, screenshot } = await fetchBrowserPage({ url });
   const markdownContent = await simplifiedMarkdown(content);
   logger.info(`Downloaded ${url}.`);
   logger.info(`Detecting page type`);

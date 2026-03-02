@@ -14,7 +14,21 @@ const DetailQuerySchema = z.object({
 
 type DetailQueryInput = z.infer<typeof DetailQuerySchema>;
 
+function parseProxyPreviews(encryptedPreview: string | null | undefined): string[] {
+  if (!encryptedPreview) return [];
+  try {
+    const parsed = JSON.parse(encryptedPreview);
+    return Array.isArray(parsed) ? parsed : [encryptedPreview];
+  } catch {
+    return [encryptedPreview];
+  }
+}
+
 export const settingsRouter = router({
+  proxyPreviews: publicProcedure.query(async () => {
+    const proxy = await findSetting("PROXY", false);
+    return parseProxyPreviews(proxy?.encryptedPreview ?? null);
+  }),
   detail: publicProcedure
     .input(DetailQuerySchema)
     .query(async (opts: { input: DetailQueryInput }) => {
@@ -50,32 +64,63 @@ export const settingsRouter = router({
       value: opts.input,
     });
   }),
-  setProxyUrl: publicProcedure
+  addProxyUrl: publicProcedure
     .input(
       z
         .string()
         .url()
         .describe(
-          "The URL of the proxy server. Can contain username and password, for example: http://user:password@proxy.example.com:8080"
+          "Proxy URL, e.g. http://user:password@proxy.example.com:8080"
         )
     )
     .mutation(async (opts) => {
-      const uri = new URL(opts.input);
-      const preview = `${uri.username}:******@${uri.hostname}:${uri.port}`;
+      const proxy = await findSetting<string | string[]>("PROXY", true);
+      const current: string[] =
+        Array.isArray(proxy?.value) && proxy.value.length > 0
+          ? proxy.value
+          : typeof proxy?.value === "string" && proxy.value.trim()
+            ? [proxy.value]
+            : [];
+      const updated = [...current, opts.input];
+      const previews = updated.map((urlStr) => {
+        const uri = new URL(urlStr);
+        return `${uri.username}:******@${uri.hostname}:${uri.port}`;
+      });
       await createOrUpdate({
         key: "PROXY",
-        value: opts.input,
+        value: updated,
         isEncrypted: true,
-        encryptedPreview: preview,
+        encryptedPreview: JSON.stringify(previews),
       });
 
       const proxyEnabledExists = await findSetting<boolean>("PROXY_ENABLED");
       if (!proxyEnabledExists) {
-        await createOrUpdate({
-          key: "PROXY_ENABLED",
-          value: true,
-        });
+        await createOrUpdate({ key: "PROXY_ENABLED", value: true });
       }
+    }),
+  removeProxyUrl: publicProcedure
+    .input(z.number().int().min(0))
+    .mutation(async (opts) => {
+      const proxy = await findSetting<string | string[]>("PROXY", true);
+      const current: string[] =
+        Array.isArray(proxy?.value) && proxy.value.length > 0
+          ? proxy.value
+          : typeof proxy?.value === "string" && proxy.value.trim()
+            ? [proxy.value]
+            : [];
+      const index = opts.input;
+      if (index >= current.length) return;
+      const updated = current.filter((_, i) => i !== index);
+      const previews = updated.map((urlStr) => {
+        const uri = new URL(urlStr);
+        return `${uri.username}:******@${uri.hostname}:${uri.port}`;
+      });
+      await createOrUpdate({
+        key: "PROXY",
+        value: updated,
+        isEncrypted: true,
+        encryptedPreview: updated.length > 0 ? JSON.stringify(previews) : null,
+      });
     }),
   setMaxExtractionBudget: publicProcedure
     .input(

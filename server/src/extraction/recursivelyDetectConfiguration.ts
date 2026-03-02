@@ -109,7 +109,7 @@ const detectConfiguration = async (
   catalogueType: CatalogueType,
   pageData?: { content: string; screenshot: string }
 ) => {
-  let { content, screenshot } = pageData || (await fetchBrowserPage(url));
+  let { content, screenshot } = pageData || (await fetchBrowserPage({ url }));
   const markdownContent = await simplifiedMarkdown(content);
   logger.info(`Detecting page type for ${url}`);
   const pageType = await detectPageTypeWithRetry(
@@ -165,7 +165,7 @@ const recursivelyDetectConfiguration = async (
     throw new Error("Exceeded max category depth");
   }
 
-  let { content: pageContent, screenshot } = await fetchBrowserPage(url);
+  let { content: pageContent, screenshot } = await fetchBrowserPage({ url });
   const apiReceipe = await Probes.detectApiProviderRecipe({
     pageContent,
     pageUrl: url,
@@ -206,7 +206,7 @@ const recursivelyDetectConfiguration = async (
 
     const sampleLinks = await Promise.all(
       sample(urls, 5).map(async (url) => {
-        const { content, screenshot } = await fetchBrowserPage(url);
+        const { content, screenshot } = await fetchBrowserPage({ url });
         const markdownContent = await simplifiedMarkdown(content);
         return { url, content: markdownContent, screenshot };
       })
@@ -276,7 +276,7 @@ const recursivelyDetectConfiguration = async (
     logger.info("Detecting configuration for sample child > child pages");
     const sampleSubChildLinks = await Promise.all(
       sample(childUrls, 5).map(async (url) => {
-        const { content, screenshot } = await fetchBrowserPage(url);
+        const { content, screenshot } = await fetchBrowserPage({ url });
         const markdownContent = await simplifiedMarkdown(content);
         return { url, content: markdownContent, screenshot };
       })

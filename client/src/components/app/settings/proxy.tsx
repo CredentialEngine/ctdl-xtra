@@ -3,7 +3,6 @@ import {
   Card,
   CardContent,
   CardDescription,
-  CardFooter,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
@@ -20,41 +19,78 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/components/ui/use-toast";
 import { trpc } from "@/utils";
-import { useState } from "react";
+import { Trash2 } from "lucide-react";
+import { useState, useCallback } from "react";
 
 export function ProxySettingsForm() {
-  const proxyUrlQuery = trpc.settings.detail.useQuery({
-    key: "PROXY",
+  const proxyPreviewsQuery = trpc.settings.proxyPreviews.useQuery(undefined, {
+    refetchOnWindowFocus: false,
   });
   const proxyEnabledQuery = trpc.settings.detail.useQuery({
     key: "PROXY_ENABLED",
   });
   const proxyEnabledMutation = trpc.settings.setProxyEnabled.useMutation();
-  const proxyUrlMutation = trpc.settings.setProxyUrl.useMutation();
-  const [proxyUrl, setProxyUrl] = useState("");
+  const addProxyUrlMutation = trpc.settings.addProxyUrl.useMutation();
+  const removeProxyUrlMutation = trpc.settings.removeProxyUrl.useMutation();
+  const [newProxyUrl, setNewProxyUrl] = useState("");
   const [confirmProxyToggle, setConfirmProxyToggle] = useState(false);
   const [proxyConfirmOpen, setProxyConfirmOpen] = useState(false);
+  const [deleteConfirmIndex, setDeleteConfirmIndex] = useState<number | null>(
+    null
+  );
   const { toast } = useToast();
 
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    try {
-      await proxyUrlMutation.mutateAsync(proxyUrl);
-      setProxyUrl("");
+  const redactedList = proxyPreviewsQuery.data ?? [];
+
+  const handleAdd = useCallback(async () => {
+    const url = newProxyUrl.trim();
+    if (!url) {
       toast({
-        title: "Settings Updated",
-        description: "The setting has been updated successfully.",
+        title: "Validation Error",
+        description: "Enter a proxy URL to add.",
+        variant: "destructive",
       });
-      proxyUrlQuery.refetch();
-      proxyEnabledQuery.refetch();
+      return;
+    }
+    try {
+      await addProxyUrlMutation.mutateAsync(url);
+      setNewProxyUrl("");
+      toast({ title: "Added", description: "Proxy URL added successfully." });
+      proxyPreviewsQuery.refetch();
     } catch (error) {
       toast({
         title: "Error",
-        description: "There was an error updating the setting.",
+        description: "Failed to add proxy URL. Check the URL format.",
         variant: "destructive",
       });
     }
-  };
+  }, [newProxyUrl, addProxyUrlMutation, toast, proxyPreviewsQuery]);
+
+  const handleRemoveClick = useCallback((index: number) => {
+    setDeleteConfirmIndex(index);
+  }, []);
+
+  const handleRemoveConfirm = useCallback(async () => {
+    if (deleteConfirmIndex === null) return;
+    const index = deleteConfirmIndex;
+    setDeleteConfirmIndex(null);
+    try {
+      await removeProxyUrlMutation.mutateAsync(index);
+      toast({ title: "Removed", description: "Proxy URL removed." });
+      proxyPreviewsQuery.refetch();
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to remove proxy URL.",
+        variant: "destructive",
+      });
+    }
+  }, [
+    deleteConfirmIndex,
+    removeProxyUrlMutation,
+    toast,
+    proxyPreviewsQuery,
+  ]);
 
   const onProxyToggle = async () => {
     try {
@@ -65,8 +101,23 @@ export function ProxySettingsForm() {
     }
   };
 
+  const proxiesLoaded =
+    proxyPreviewsQuery.isFetched && !proxyPreviewsQuery.isLoading;
+
+  const isLoading =
+    addProxyUrlMutation.isLoading ||
+    removeProxyUrlMutation.isLoading ||
+    proxyPreviewsQuery.isLoading ||
+    proxyEnabledMutation.isLoading ||
+    proxyEnabledQuery.isLoading;
+
   return (
-    <form onSubmit={handleSubmit}>
+    <form
+      onSubmit={(e) => {
+        e.preventDefault();
+        handleAdd();
+      }}
+    >
       <Card className="flex-1 w-[440px]">
         <CardHeader>
           <CardTitle>Proxy Settings</CardTitle>
@@ -84,7 +135,7 @@ export function ProxySettingsForm() {
           <Dialog
             open={
               proxyEnabledQuery.isFetched &&
-              proxyUrlQuery.isFetched &&
+              proxiesLoaded &&
               proxyConfirmOpen
             }
             onOpenChange={setProxyConfirmOpen}
@@ -136,42 +187,86 @@ export function ProxySettingsForm() {
               </div>
             </DialogContent>
           </Dialog>
+          <Dialog
+            open={deleteConfirmIndex !== null}
+            onOpenChange={(open) => !open && setDeleteConfirmIndex(null)}
+          >
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Remove proxy?</DialogTitle>
+                <DialogDescription>
+                  This will remove the proxy URL from your configuration. You
+                  can add it back later if needed.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="flex justify-end gap-2 pt-4">
+                <Button
+                  variant="outline"
+                  onClick={() => setDeleteConfirmIndex(null)}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  variant="destructive"
+                  onClick={handleRemoveConfirm}
+                  disabled={removeProxyUrlMutation.isLoading}
+                >
+                  Remove
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
           <div className="grid gap-2">
-            <Label htmlFor="proxy_url">New proxy URL</Label>
-            <div className="text-sm text-muted-foreground">
-              {proxyUrlQuery.data?.encryptedPreview && (
-                <>
-                  The URL is currently set to{" "}
-                  <code className="font-bold mb-2">
-                    {proxyUrlQuery.data.encryptedPreview}
-                  </code>
-                  .
-                </>
-              )}
+            <Label>Proxy URLs</Label>
+            <p className="text-sm text-muted-foreground">
+              Add new proxy URLs or remove existing ones. Credentials are stored
+              encrypted and never exposed to the UI.
+            </p>
+            {redactedList.length > 0 && (
+              <div className="space-y-2">
+                <span className="text-sm font-medium">Configured proxies:</span>
+                <ul className="space-y-2">
+                  {redactedList.map((preview, index) => (
+                    <li
+                      key={index}
+                      className="flex items-center gap-2 rounded-md border px-3 py-2"
+                    >
+                      <code className="flex-1 min-w-0 break-all font-mono text-sm">
+                        {preview}
+                      </code>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        onClick={() => handleRemoveClick(index)}
+                        disabled={isLoading}
+                        aria-label={`Remove proxy ${index + 1}`}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            <div className="flex gap-2">
+              <Input
+                placeholder="https://username:password@proxy.com:port"
+                disabled={isLoading}
+                value={newProxyUrl}
+                onChange={(e) => setNewProxyUrl(e.target.value)}
+                className="flex-1"
+              />
+              <Button
+                type="submit"
+                variant="secondary"
+                disabled={isLoading}
+              >
+                Add proxy URL
+              </Button>
             </div>
-            <Input
-              id="proxy_url"
-              placeholder="https://username:password@proxy.com:port"
-              disabled={proxyUrlQuery?.isLoading}
-              value={proxyUrl}
-              onChange={(e) => setProxyUrl(e.target.value)}
-              type="password"
-            />
           </div>
         </CardContent>
-        <CardFooter>
-          <Button
-            variant="outline"
-            disabled={
-              proxyUrlMutation?.isLoading ||
-              proxyUrlQuery?.isLoading ||
-              proxyEnabledMutation?.isLoading ||
-              proxyEnabledQuery?.isLoading
-            }
-          >
-            Update proxy URL
-          </Button>
-        </CardFooter>
       </Card>
     </form>
   );

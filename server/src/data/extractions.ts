@@ -1,3 +1,4 @@
+import { inspect } from "util";
 import { and, asc, desc, eq, gte, isNotNull, isNull, lte, or, SQL } from "drizzle-orm";
 import { sql } from "drizzle-orm/sql/sql";
 import { SQLiteUpdateSetSource } from "drizzle-orm/sqlite-core";
@@ -25,6 +26,7 @@ import {
   Step,
 } from "../../../common/types";
 import { findLatestDataset } from "./datasets";
+import getLogger from "../logging";
 
 export async function createExtraction(recipeId: number) {
   const result = await db
@@ -147,7 +149,8 @@ export async function updateExtraction(
 export async function createExtractionLog(
   extractionId: number,
   log: string,
-  logLevel: LogLevel = LogLevel.INFO
+  logLevel: LogLevel = LogLevel.INFO,
+  crawlPageId?: number
 ) {
   const result = await db
     .insert(extractionLogs)
@@ -155,9 +158,46 @@ export async function createExtractionLog(
       extractionId,
       log,
       logLevel,
+      crawlPageId: crawlPageId ?? null,
     })
     .returning();
   return result[0];
+}
+
+/**
+ * Safe wrapper for createExtractionLog. Builds a log message from an error
+ * (using inspect with try/catch), optionally writes to extraction_logs,
+ * and returns the safe error string for use with logger. Never throws.
+ * Use in worker jobs to avoid extraction log failures from affecting retry behavior.
+ */
+export async function createExtractionLogSafe(
+  extractionId: number | undefined,
+  logPrefix: string,
+  url: string | undefined,
+  err: unknown,
+  logLevel: LogLevel = LogLevel.ERROR,
+  crawlPageId?: number
+): Promise<string> {
+  let errStr: string;
+  try {
+    errStr = inspect(err);
+  } catch {
+    errStr = "Unknown error";
+  }
+
+  if (extractionId != null) {
+    try {
+      const log = `${logPrefix} ${url ?? "unknown"}: ${errStr}`;
+      await createExtractionLog(extractionId, log, logLevel, crawlPageId);
+    } catch (dbError) {
+      getLogger("data.extractions").error(
+        "Failed to write extraction log to database",
+        dbError
+      );
+    }
+  }
+
+  return errStr;
 }
 
 export async function getExtractionCount(
@@ -313,6 +353,13 @@ export async function findLogs(
     where: (logs, { eq }) => eq(logs.extractionId, extractionId),
     limit,
     offset,
+    orderBy: (logs, { desc }) => desc(logs.createdAt),
+  });
+}
+
+export async function findLogsByCrawlPageId(crawlPageId: number) {
+  return db.query.extractionLogs.findMany({
+    where: (logs, { eq }) => eq(logs.crawlPageId, crawlPageId),
     orderBy: (logs, { desc }) => desc(logs.createdAt),
   });
 }

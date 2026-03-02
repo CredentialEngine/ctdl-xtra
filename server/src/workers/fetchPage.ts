@@ -15,6 +15,7 @@ import {
   CatalogueType,
   ExtractionStatus,
   FetchFailureReason,
+  LogLevel,
   PageStatus,
   PageType,
   PaginationConfiguration,
@@ -22,6 +23,7 @@ import {
   Step,
 } from "../../../common/types";
 import {
+  createExtractionLogSafe,
   createStepAndPages,
   findPageByUrl,
   findPageForJob,
@@ -150,11 +152,11 @@ export async function processLinks(
     logger.info(
       `Using click-based discovery with selector ${configuration.clickSelector}`
     );
-    const discovered = await discoverDynamicLinks(
-      crawlPage.url,
-      configuration.clickSelector,
-      configuration.clickOptions
-    );
+    const discovered = await discoverDynamicLinks({
+      rootUrl: crawlPage.url,
+      selector: configuration.clickSelector,
+      clickOptions: configuration.clickOptions,
+    });
     for (const url of discovered) {
       const page = await findPageByUrl(crawlPage.extractionId, url);
       if (!page) {
@@ -299,12 +301,12 @@ export const performJob = async (
     }
 
 
-    const page = await fetchBrowserPage(
-      crawlPage.url,
-      false,
-      rootConfiguration?.pageLoadWaitTime,
-      baseUrl
-    );
+    const page = await fetchBrowserPage({
+      url: crawlPage.url,
+      skipProxy: false,
+      pageLoadWaitTime: rootConfiguration?.pageLoadWaitTime,
+      baseUrl,
+    });
 
     if (!page.content) {
       throw new Error(`Could not fetch URL ${crawlPage.url}`);
@@ -373,12 +375,13 @@ export const performJob = async (
 
 export default createProcessor<FetchPageJob, FetchPageProgress>(
   async (job: JobWithProgress<FetchPageJob, FetchPageProgress>) => {
-    const crawlPage = await findPageForJob(job.data.crawlPageId);
+    try {
+      const crawlPage = await findPageForJob(job.data.crawlPageId);
 
-    const delayOptions: DelayOptions = {
-      delayInterval: 3000,
-      startWithDelay: 0,
-    };
+      const delayOptions: DelayOptions = {
+        delayInterval: 3000,
+        startWithDelay: 0,
+      };
 
     // Resolve relative URLs to absolute URLs
     let absoluteUrl: string;
@@ -438,6 +441,17 @@ export default createProcessor<FetchPageJob, FetchPageProgress>(
     }
 
     logger.info(`Processing URL: ${crawlPage.url} for domain ${domain}`);
-    return await performJob(job, crawlPage, delayOptions);
+      return await performJob(job, crawlPage, delayOptions);
+    } catch (err) {
+      await createExtractionLogSafe(
+        job.data.extractionId,
+        "Fetch failed for",
+        undefined,
+        err,
+        LogLevel.ERROR,
+        job.data.crawlPageId
+      );
+      throw err;
+    }
   }
 );

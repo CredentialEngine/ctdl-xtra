@@ -1,3 +1,4 @@
+import { BrowserFetchError, BrowserTaskResult } from "./extraction/browser";
 import getLogger from "./logging";
 
 const logger = getLogger("utils");
@@ -76,6 +77,21 @@ export function buildFrontendUrl(suffix: string) {
     suffix = suffix.substring(1);
   }
   return `${baseUrl}${suffix}`;
+}
+
+export function isProxyError(error?: Error | BrowserFetchError | string | undefined) {
+  const httpStatus = error instanceof BrowserFetchError ? error.status : undefined;
+  const errorMessage = error instanceof Error 
+    ? error.message
+    : typeof error === "string"
+      ? error
+      : undefined;
+  const isPaymentError = httpStatus && httpStatus === 402; // Some proxies use this to indicate lack of funds
+  const isTunnelError = errorMessage && errorMessage.includes("net::ERR_TUNNEL_CONNECTION_FAILED");
+  const isConnectionRefusedError = errorMessage && errorMessage.includes("net::ERR_CONNECTION_REFUSED");
+  const isAuthError = httpStatus && httpStatus === 407; // HTTP 407: Proxy Authentication Required
+
+  return [isPaymentError, isTunnelError, isConnectionRefusedError, isAuthError].some(Boolean);
 }
 
 const HTTP_MESSAGES = {

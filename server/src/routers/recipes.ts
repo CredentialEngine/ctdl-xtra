@@ -193,7 +193,7 @@ export const recipesRouter = router({
       })
     )
     .mutation(async (opts) => {
-      const { content, screenshot } = await fetchBrowserPage(opts.input.url);
+      const { content, screenshot } = await fetchBrowserPage({ url: opts.input.url });
       const markdownContent = await simplifiedMarkdown(content);
       return detectPagination(
         {
@@ -217,7 +217,7 @@ export const recipesRouter = router({
     .mutation(async (opts) => {
       const pages = await Promise.all(
         opts.input.urls.map(async (url) => {
-          const { content, screenshot } = await fetchBrowserPage(url);
+          const { content, screenshot } = await fetchBrowserPage({ url });
           const markdownContent = await simplifiedMarkdown(content);
           return { url, content: markdownContent, screenshot };
         })
@@ -345,11 +345,11 @@ export const recipesRouter = router({
 
         // Use dynamic links harvesting if clickSelector is provided
         if (opts.input.clickSelector) {
-          urls = await discoverDynamicLinks(
-            opts.input.url,
-            opts.input.clickSelector,
-            opts.input.clickOptions
-          );
+          urls = await discoverDynamicLinks({
+            rootUrl: opts.input.url,
+            selector: opts.input.clickSelector,
+            clickOptions: opts.input.clickOptions,
+          });
           
           // If regex is provided, filter the discovered URLs by the regex
           if (regexp) {
@@ -363,11 +363,11 @@ export const recipesRouter = router({
           if (!regexp) {
             throw new AppError("Regex is required when clickSelector is not provided", AppErrors.BAD_REQUEST);
           }
-          const { content } = await fetchBrowserPage(
-            opts.input.url,
-            false,
-            opts.input.pageLoadWaitTime
-          );
+          const { content } = await fetchBrowserPage({
+            url: opts.input.url,
+            skipProxy: false,
+            pageLoadWaitTime: opts.input.pageLoadWaitTime,
+          });
           const markdownContent = await simplifiedMarkdown(content);
 
           const testRegex = new RegExp(regexp, "g");

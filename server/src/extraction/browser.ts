@@ -1,14 +1,15 @@
+import { isDeepStrictEqual } from 'node:util';
 import * as cheerio from "cheerio";
-import { Cluster } from "puppeteer-cluster";
+import { Cluster} from "puppeteer-cluster";
 import { addExtra, VanillaPuppeteer } from "puppeteer-extra";
 import StealthPlugin from "puppeteer-extra-plugin-stealth";
-import rebrowserPuppeteer from "rebrowser-puppeteer";
+import rebrowserPuppeteer, { HTTPResponse } from "rebrowser-puppeteer";
 import TurndownService from "turndown";
 import { URL } from "url";
 import { findSetting } from "../data/settings";
 import getLogger from "../logging";
 import { SimplifiedMarkdown } from "../types";
-import { httpCodeToMessage, resolveAbsoluteUrl } from "../utils";
+import { httpCodeToMessage, isProxyError, resolveAbsoluteUrl } from "../utils";
 import { detectCatalogueType } from "./llm/detectCatalogueType";
 
 export interface BrowserTaskInput {
@@ -52,6 +53,7 @@ const puppeteer = addExtra(rebrowserPuppeteer as unknown as VanillaPuppeteer);
 puppeteer.use(StealthPlugin());
 
 let cluster: Cluster<BrowserTaskInput, BrowserTaskResult> | undefined;
+let clusterLaunchOptions: Record<string, unknown> | undefined;
 let clusterClosed = false;
 
 const PAGE_TIMEOUT = 5 * 60 * 1000;
@@ -62,10 +64,6 @@ export async function getCluster(proxyUrl?: string) {
   if (clusterClosed) {
     throw new Error("Cluster has been closed");
   }
-  if (cluster) {
-    return cluster;
-  }
-
   let proxyBaseUrl = null;
   let proxyUsername = null;
   let proxyPassword = null;
@@ -76,12 +74,14 @@ export async function getCluster(proxyUrl?: string) {
     proxyPassword = url.password;
   }
 
-  cluster = await Cluster.launch({
+  const newClusterLaunchOptions = {
     concurrency: Cluster.CONCURRENCY_CONTEXT,
     maxConcurrency: 2,
     puppeteer: puppeteer,
     puppeteerOptions: {
+      headless: true,
       ignoreHTTPSErrors: true,
+      dumpio: true, // Pipe Chrome process stdout/stderr to console when DEBUG=1
       args: [
         "--font-render-hinting=none",
         "--force-gpu-mem-available-mb=4096",
@@ -90,9 +90,18 @@ export async function getCluster(proxyUrl?: string) {
       ].filter(Boolean),
     },
     timeout: PAGE_TIMEOUT,
-  });
+  };
 
-  await cluster.task(async ({ page, data }) => {
+  if (cluster && clusterLaunchOptions && isDeepStrictEqual(clusterLaunchOptions, newClusterLaunchOptions)) {
+    return cluster;
+  } else {
+    await cluster?.close();
+  }
+
+  cluster = await Cluster.launch(newClusterLaunchOptions);
+  clusterLaunchOptions = newClusterLaunchOptions;
+
+  await cluster.task(async ({ page, data }): Promise<BrowserTaskResult> => {
     if (proxyUsername || proxyPassword) {
       await page.authenticate({
         username: proxyUsername || "",
@@ -102,12 +111,15 @@ export async function getCluster(proxyUrl?: string) {
 
     page.setDefaultTimeout(PAGE_TIMEOUT);
     const { url, pageLoadWaitTime } = data;
-    const response = await page.goto(url, {
+    let response: HTTPResponse | null = null;
+
+    response = await page.goto(url, {
       timeout: PAGE_TIMEOUT,
       waitUntil: "networkidle2",
-    });
+    }) as unknown as HTTPResponse; // TODO: Remove when puppeteer-cluster is updated to return the same type of HTTPResponse as rebrowser-puppeteer    
+
     if (!response) {
-      throw new Error(`Failed to load page ${url}`);
+      throw new Error(`Failed to load page ${url}, no response received.`);
     }
     
     // Wait for the specified time if provided
@@ -150,10 +162,10 @@ export async function closeCluster() {
   await cluster.close();
 }
 
-export async function findProxy(): Promise<string | undefined> {
+export async function findProxies(): Promise<string[] | undefined> {
   // Prefer environment variable if provided, regardless of DB settings
   if (process.env.PROXY_URL && process.env.PROXY_URL.trim()) {
-    return process.env.PROXY_URL;
+    return [process.env.PROXY_URL];
   }
 
   // Fall back to DB-driven settings
@@ -161,8 +173,18 @@ export async function findProxy(): Promise<string | undefined> {
   if (!proxyEnabled?.value) {
     return undefined;
   }
-  const proxy = await findSetting<string>("PROXY", true);
-  return proxy?.value;
+  const proxy = await findSetting<string | string[]>("PROXY", true);
+  if (proxy?.value == null) {
+    return undefined;
+  }
+
+  if (Array.isArray(proxy.value) && proxy.value.length > 0) {
+    return proxy.value;
+  }
+  if (typeof proxy.value === "string" && proxy.value.trim()) {
+    return [proxy.value];
+  }
+  return undefined;
 }
 
 /**
@@ -197,26 +219,102 @@ export function normalizeUrl(url: string, baseUrl?: string): string {
   return url;
 }
 
-export async function fetchBrowserPage(
-  url: string,
-  skipProxy?: boolean,
-  pageLoadWaitTime?: number,
-  baseUrl?: string
-) {
+export interface FetchBrowserPageOptions {
+  /** The URL to fetch. May be relative when baseUrl is provided. */
+  url: string;
+  /** When true, bypass the configured proxy for this request. */
+  skipProxy?: boolean;
+  /** Seconds to wait after page load for scripts to complete before capturing content. */
+  pageLoadWaitTime?: number;
+  /** Base URL used to resolve relative URLs. */
+  baseUrl?: string;
+
+  /**
+   * When true, it will attempt connections without proxy first and then rotate through the proxies. 
+   * Unless specifically set to false, it will default to true.
+  */
+  rotateProxies?: boolean;
+}
+
+export async function fetchBrowserPage(options: FetchBrowserPageOptions) {
+  const { url, skipProxy, baseUrl } = options;
+
   // Normalize relative URLs against the base URL
   const normalizedUrl = normalizeUrl(url, baseUrl);
+  const proxyUrls = skipProxy ? undefined : await findProxies();
+
+  if (!skipProxy && proxyUrls) {
+    return await fetchBrowserPageWithProxies({
+      rotateProxies: true,
+      ...options,
+      url: normalizedUrl,
+    }, proxyUrls);
+  }
   
-  const proxyUrl = skipProxy ? undefined : await findProxy();
-  const cluster = await getCluster(proxyUrl);
-  const result = await cluster.execute({ url: normalizedUrl, pageLoadWaitTime });
+  const cluster = await getCluster(proxyUrls?.[0]);
+  const result = await cluster.execute({ ...options, url: normalizedUrl });
   if (result?.status > 399) {
     throw new BrowserFetchError(result);
   }
   return result;
 }
 
+export async function fetchBrowserPageWithProxies(options: FetchBrowserPageOptions, proxies: string[]): Promise<BrowserTaskResult> {
+  const { url, rotateProxies } = options;
+
+  let proxyList = [];
+  if (rotateProxies) {
+    proxyList = Array.isArray(proxies) && proxies.length > 0
+      ? [undefined, ...proxies]
+      : [undefined];
+  } else {
+    proxyList = proxies;
+  }
+
+  let result: BrowserTaskResult | undefined;
+  let proxiesAttempted = 0;
+  let lastError: unknown;
+  for (const proxy of proxyList) {
+    try {
+      proxiesAttempted += proxy ? 1 : 0;
+
+      const cluster = await getCluster(proxy);
+      result = await cluster.execute(options);
+
+      if (result && result.status < 399) {
+        break;
+      }
+
+      if (!result || result.status > 399) {
+        throw new BrowserFetchError(result);
+      }
+    } catch (error) {
+      if (isProxyError(error as Error | BrowserFetchError | string)) {
+        logger.error(`Error fetching page ${proxy ? `with proxy ${proxy}` : 'without proxy'}. Continuing with next proxy.`);
+        logger.error(error + "\n" + (error as Error)?.stack);
+        lastError = error;
+        continue;
+      } else {
+        throw error;
+      }
+    }
+  }
+
+  if (result && result.status > 399) {
+    throw new BrowserFetchError(result);
+  }
+
+  if (!result) {
+    logger.error(lastError + "\n" + (lastError as Error)?.stack);
+    throw new Error(`Failed to fetch page ${url} with any proxy after ${proxiesAttempted} proxies attempted. Last error: ${lastError}`);
+    
+  }
+
+  return result;
+}
+
 export async function fetchPreview(url: string) {
-  let { content, screenshot } = await fetchBrowserPage(url);
+  let { content, screenshot } = await fetchBrowserPage({ url });
   const $ = cheerio.load(content);
   const title = $("title").text() || $('meta[name="og:title"]').attr("content");
   const description = $('meta[name="og:description"]').attr("content");
