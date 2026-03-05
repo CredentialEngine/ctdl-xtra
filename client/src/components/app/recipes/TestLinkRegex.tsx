@@ -7,13 +7,18 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Loader2 } from "lucide-react";
+import { Loader2, Copy } from "lucide-react";
 import { trpc } from "@/utils";
+import { useToast } from "@/components/ui/use-toast";
+
+type TestResult = { regexp: string; urls: string[]; markdownContent?: string };
 
 function MatchedLinks({
   result,
+  onCopySimplifiedText,
 }: {
-  result: { regexp: string; urls: string[] };
+  result: TestResult;
+  onCopySimplifiedText?: (text: string) => void;
 }) {
   return (
     <div className="mt-4">
@@ -33,6 +38,20 @@ function MatchedLinks({
       ) : (
         <div className="text-xs text-muted-foreground">No links matched.</div>
       )}
+      <div className="flex items-center gap-2 mt-4">
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          disabled={!result.markdownContent}
+          onClick={() =>
+            result.markdownContent && onCopySimplifiedText?.(result.markdownContent)
+          }
+        >
+          <Copy className="w-4 h-4 mr-2" />
+          Copy simplified page text
+        </Button>
+      </div>
     </div>
   );
 }
@@ -57,6 +76,16 @@ export default function TestLinkRegex({
   const [url, setUrl] = useState(defaultUrl);
   const [regex, setRegex] = useState(defaultRegex || "");
   const testRecipeRegex = trpc.recipes.testRecipeRegex.useMutation();
+  const { toast } = useToast();
+
+  const handleCopySimplifiedText = async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      toast({ title: "Copied to clipboard" });
+    } catch {
+      toast({ title: "Failed to copy", variant: "destructive" });
+    }
+  };
 
   useEffect(() => {
     setUrl(defaultUrl);
@@ -126,7 +155,10 @@ export default function TestLinkRegex({
           )}
 
           {testRecipeRegex.isSuccess && (
-            <MatchedLinks result={testRecipeRegex.data} />
+            <MatchedLinks
+              result={testRecipeRegex.data}
+              onCopySimplifiedText={handleCopySimplifiedText}
+            />
           )}
         </div>
       </>
@@ -215,7 +247,10 @@ export default function TestLinkRegex({
         )}
 
         {testRecipeRegex.isSuccess && (
-          <MatchedLinks result={testRecipeRegex.data} />
+          <MatchedLinks
+            result={testRecipeRegex.data}
+            onCopySimplifiedText={handleCopySimplifiedText}
+          />
         )}
       </CardContent>
     </Card>
