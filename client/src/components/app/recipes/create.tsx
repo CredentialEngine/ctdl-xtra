@@ -88,6 +88,7 @@ const RecipeConfigurationSchema: z.ZodType<FormRecipeConfiguration> = z.object({
   links: z.lazy(() => RecipeConfigurationSchema).optional(),
   pageLoadWaitTime: z.number().optional().default(0),
   exactLinkPatternMatch: z.boolean().optional(),
+  contentSelector: z.string().optional(),
 }).refine(
   (data) => {
     // If clickSelector is defined (not undefined), it must be a non-empty string

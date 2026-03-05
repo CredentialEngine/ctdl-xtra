@@ -37,6 +37,7 @@ export type FormRecipeConfiguration = {
   sampleUrls?: string[];
   pageLoadWaitTime?: number;
   exactLinkPatternMatch?: boolean;
+  contentSelector?: string;
 };
 
 interface RecipeLevelProps {
@@ -133,6 +134,58 @@ export function RecipeLevel({
                   ))}
                 </SelectContent>
               </Select>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={control}
+          name={`${path}.contentSelector`}
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel className="flex items-center gap-2">
+                Content Element Selector
+                <Tooltip
+                  open={tooltipOpen[`${path}-contentSelector`] || false}
+                  onOpenChange={(open) =>
+                    setTooltipOpen((prev) => ({
+                      ...prev,
+                      [`${path}-contentSelector`]: open,
+                    }))
+                  }
+                >
+                  <TooltipTrigger asChild>
+                    <HelpCircle
+                      className="h-4 w-4 text-muted-foreground cursor-help"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        setTooltipOpen((prev) => ({
+                          ...prev,
+                          [`${path}-contentSelector`]: !prev[`${path}-contentSelector`],
+                        }));
+                      }}
+                    />
+                  </TooltipTrigger>
+                  <TooltipContent className="max-w-xs">
+                    <p>
+                      The HTML element selector (aka CSS selector) that xTRA will focus on, ignoring
+                      the other page elements. This is useful for when pages display
+                      a lot of irrelevant content which makes extractions more expensive
+                      and take longer to complete.
+                      The selector can be obtained from
+                      the browser Developer Tools while navigating the page.
+                    </p>
+                  </TooltipContent>
+                </Tooltip>
+              </FormLabel>
+              <FormControl>
+                <Input placeholder="e.g. main.content" {...field} />
+              </FormControl>
+              <FormDescription>
+                Optional. When set, only this element is used as page content.
+              </FormDescription>
               <FormMessage />
             </FormItem>
           )}

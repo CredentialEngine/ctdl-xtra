@@ -335,10 +335,13 @@ export async function fetchPreview(url: string) {
   return { title, thumbnailUrl, description, catalogueType };
 }
 
-export async function simplifyHtml(html: string) {
+export async function simplifyHtml(html: string, contentSelector?: string) {
   const $ = cheerio.load(html);
-  $("head").empty();
-  const elms = $("*").toArray();
+  const root = contentSelector?.trim() ? $(contentSelector).first() : null;
+  (root ?? $("html")).find("head").empty();
+  const elms = root?.length
+    ? root.find("*").addBack().toArray()
+    : $("*").toArray();
   for (const elm of elms) {
     const $elm = $(elm);
     if (elm.type !== "tag" && elm.type !== "text") {
@@ -408,7 +411,7 @@ export async function simplifyHtml(html: string) {
     // Remove redundant divs
     $elm.replaceWith($elm.children());
   }
-  return $.html();
+  return root?.length ? $.html(root) : $.html();
 }
 
 export async function toMarkdown(html: string) {
@@ -417,7 +420,7 @@ export async function toMarkdown(html: string) {
   }).turndown(html);
 }
 
-export async function simplifiedMarkdown(html: string) {
-  const simplified = await toMarkdown(await simplifyHtml(html));
+export async function simplifiedMarkdown(html: string, contentSelector?: string) {
+  const simplified = await toMarkdown(await simplifyHtml(html, contentSelector));
   return simplified as SimplifiedMarkdown;
 }

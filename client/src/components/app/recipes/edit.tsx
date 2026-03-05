@@ -68,6 +68,7 @@ const RecipeConfigurationSchema: z.ZodType<any> = z.object({
   links: z.lazy(() => RecipeConfigurationSchema).optional(),
   pageLoadWaitTime: z.number().optional().default(0),
   exactLinkPatternMatch: z.boolean().optional(),
+  contentSelector: z.string().optional(),
 });
 
 const FormSchema = z.object({
