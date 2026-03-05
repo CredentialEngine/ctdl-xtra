@@ -1,6 +1,18 @@
 import { inspect } from "util";
-import { and, asc, desc, eq, gte, isNotNull, isNull, lte, or, SQL } from "drizzle-orm";
-import { sql } from "drizzle-orm/sql/sql";
+import {
+  and,
+  asc,
+  count,
+  desc,
+  eq,
+  gte,
+  isNotNull,
+  isNull,
+  lte,
+  or,
+  SQL,
+  sql,
+} from "drizzle-orm";
 import { SQLiteUpdateSetSource } from "drizzle-orm/sqlite-core";
 import db from "../data";
 import {
@@ -8,6 +20,7 @@ import {
   crawlPages,
   crawlSteps,
   dataItems,
+  datasets,
   extractionLogs,
   extractions,
   extractionsAuditLog,
@@ -239,7 +252,13 @@ export async function findExtractions(limit: number = 20, offset?: number) {
   });
 }
 
-export type ExtractionsSortKey = "date" | "status" | "catalogue" | "type";
+export type ExtractionsSortKey =
+  | "date"
+  | "status"
+  | "catalogue"
+  | "type"
+  | "items"
+  | "cost";
 export type ExtractionsSortOrder = "asc" | "desc";
 
 export async function findExtractionsSorted(
@@ -252,6 +271,20 @@ export async function findExtractionsSorted(
 ) {
   const dir = sortOrder === "asc" ? asc : desc;
 
+  const whereClauses: SQL[] = [];
+  if (dateFrom) whereClauses.push(gte(extractions.createdAt, dateFrom));
+  if (dateTo) whereClauses.push(lte(extractions.createdAt, dateTo));
+
+  const itemsCountByExtraction = db
+    .select({
+      extractionId: datasets.extractionId,
+      itemsCount: count(dataItems.id).as("items_count"),
+    })
+    .from(dataItems)
+    .innerJoin(datasets, eq(datasets.id, dataItems.datasetId))
+    .groupBy(datasets.extractionId)
+    .as("items_count_by_extraction");
+
   const orderExpr = (() => {
     switch (sortKey) {
       case "status":
@@ -260,21 +293,32 @@ export async function findExtractionsSorted(
         return dir(catalogues.name);
       case "type":
         return dir(catalogues.catalogueType);
+      case "items":
+        return dir(sql`coalesce(${itemsCountByExtraction.itemsCount}, 0)`);
+      case "cost":
+        return dir(
+          sql`(${extractions.completionStats}->'costs'->>'estimatedCost')::double precision`
+        );
       case "date":
       default:
         return dir(extractions.createdAt);
     }
   })();
 
-  const whereClauses: SQL[] = [];
-  if (dateFrom) whereClauses.push(gte(extractions.createdAt, dateFrom));
-  if (dateTo) whereClauses.push(lte(extractions.createdAt, dateTo));
-
   const rows = await db
-    .select({ extraction: extractions, recipe: recipes, catalogue: catalogues })
+    .select({
+      extraction: extractions,
+      recipe: recipes,
+      catalogue: catalogues,
+      itemsCount: itemsCountByExtraction.itemsCount,
+    })
     .from(extractions)
     .leftJoin(recipes, eq(recipes.id, extractions.recipeId))
     .leftJoin(catalogues, eq(catalogues.id, recipes.catalogueId))
+    .leftJoin(
+      itemsCountByExtraction,
+      eq(itemsCountByExtraction.extractionId, extractions.id)
+    )
     .where(whereClauses.length ? and(...whereClauses) : undefined)
     .orderBy(orderExpr)
     .limit(limit)
@@ -282,6 +326,7 @@ export async function findExtractionsSorted(
 
   return rows.map((r) => ({
     ...r.extraction,
+    itemsCount: r.itemsCount ?? 0,
     recipe: {
       ...r.recipe,
       catalogue: r.catalogue,

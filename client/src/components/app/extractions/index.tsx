@@ -21,10 +21,23 @@ type ExtractionSummary = IterableElement<
   RouterOutput["extractions"]["list"]["results"]
 >;
 
-type SortKey = "catalogue" | "type" | "status" | "date";
+type SortKey =
+  | "catalogue"
+  | "type"
+  | "status"
+  | "date"
+  | "items"
+  | "cost";
 type SortOrder = "asc" | "desc";
 
-const VALID_SORT_KEYS: SortKey[] = ["catalogue", "type", "status", "date"];
+const VALID_SORT_KEYS: SortKey[] = [
+  "catalogue",
+  "type",
+  "status",
+  "date",
+  "items",
+  "cost",
+];
 
 function toStartOfDayIso(date?: string) {
   return date ? `${date}T00:00:00.000Z` : undefined;
@@ -43,11 +56,12 @@ function getNextSortOrder(
   clickedKey: SortKey,
   currentOrder: SortOrder
 ): SortOrder {
+  const defaultDesc: SortKey[] = ["date", "items", "cost"];
   return currentKey === clickedKey
     ? currentOrder === "asc"
       ? "desc"
       : "asc"
-    : clickedKey === "date"
+    : defaultDesc.includes(clickedKey)
       ? "desc"
       : "asc";
 }
@@ -115,6 +129,14 @@ const ExtractionListItem = (extraction: ExtractionSummary) => {
             ? `${Math.floor((totalExtractionsAttempted / totalExtractionsPossible) * 100)}%`
             : "0%"
           : "Pending"}
+      </TableCell>
+      <TableCell className="text-xs">
+        {extraction.itemsCount ?? "-"}
+      </TableCell>
+      <TableCell className="text-xs">
+        {extraction.completionStats?.costs?.estimatedCost != null
+          ? `$${extraction.completionStats.costs.estimatedCost.toFixed(2)}`
+          : "-"}
       </TableCell>
       <TableCell className="text-xs">
         {prettyPrintDate(extraction.createdAt)}
@@ -289,6 +311,18 @@ export default function Extractions() {
                   <span>Extractions</span>
                 </TableHead>
                 <TableHead
+                  className="cursor-pointer w-40"
+                  onClick={() => handleSort("items")}
+                >
+                  {renderHeader("Items extracted", "items")}
+                </TableHead>
+                <TableHead
+                  className="cursor-pointer"
+                  onClick={() => handleSort("cost")}
+                >
+                  {renderHeader("Cost", "cost")}
+                </TableHead>
+                <TableHead
                   className="cursor-pointer"
                   onClick={() => handleSort("date")}
                 >
@@ -301,7 +335,7 @@ export default function Extractions() {
                 <ExtractionListItem key={extraction.id} {...extraction} />
               )) || (
                 <TableRow>
-                  <TableCell colSpan={3}>
+                  <TableCell colSpan={8}>
                     <div className="flex items-center justify-center">
                       Loading extractions...
                     </div>
