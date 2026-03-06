@@ -59,7 +59,10 @@ async function getStepCompletionStats(
       } else if (rawPageStats.status == PageStatus.ERROR) {
         downloadsAttempted += 1;
       }
-      if (rawPageStats.dataExtractionStartedAt) {
+      if (
+        rawPageStats.status == PageStatus.SUCCESS &&
+        rawPageStats.dataExtractionStartedAt
+      ) {
         extractionsAttempted += 1;
         if (rawPageStats.dataItemCount > 0) {
           extractionsSucceeded += 1;
