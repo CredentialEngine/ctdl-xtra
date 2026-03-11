@@ -29,6 +29,7 @@ import {
   readScreenshot,
 } from "../data/schema";
 import { extractEntityData } from "../extraction/llm/extractEntityData";
+import { resumeExtraction } from "../extraction/resumeExtraction";
 import { retryFailedItems } from "../extraction/retryFailedItems";
 import {
   rerunDataExtraction,
@@ -74,6 +75,16 @@ export const extractionsRouter = router({
       }
       
       return result;
+    }),
+  resume: publicProcedure
+    .input(
+      z.object({
+        id: z.number().int().positive(),
+      })
+    )
+    .mutation(async (opts) => {
+      const userId = opts.ctx.user?.id;
+      return resumeExtraction(opts.input.id, userId);
     }),
   retryFailed: publicProcedure
     .input(

@@ -214,6 +214,77 @@ export async function detectExtractionJobs(extractionId: number) {
   return false;
 }
 
+export interface PageIdsWithExistingJobs {
+  fetchPageIds: Set<number>;
+  extractDataPageIds: Set<number>;
+  extractDataWithApiPageIds: Set<number>;
+}
+
+export async function getPageIdsWithExistingJobs(
+  extractionId: number
+): Promise<PageIdsWithExistingJobs> {
+  const result: PageIdsWithExistingJobs = {
+    fetchPageIds: new Set(),
+    extractDataPageIds: new Set(),
+    extractDataWithApiPageIds: new Set(),
+  };
+
+  const fetchPageJobs = await collectJobsForExtraction(
+    Queues.FetchPage,
+    extractionId
+  );
+  for (const job of fetchPageJobs) {
+    result.fetchPageIds.add(job.data.crawlPageId);
+  }
+
+  const extractDataJobs = await collectJobsForExtraction(
+    Queues.ExtractData,
+    extractionId
+  );
+  for (const job of extractDataJobs) {
+    result.extractDataPageIds.add(job.data.crawlPageId);
+  }
+
+  const extractDataWithApiJobs = await collectJobsForExtraction(
+    Queues.ExtractDataWithAPI,
+    extractionId
+  );
+  for (const job of extractDataWithApiJobs) {
+    result.extractDataWithApiPageIds.add(job.data.crawlPageId);
+  }
+
+  return result;
+}
+
+async function collectJobsForExtraction<T extends { extractionId: number; crawlPageId: number }>(
+  queue: Queue<T>,
+  extractionId: number
+): Promise<Array<{ data: T }>> {
+  const jobs: Array<{ data: T }> = [];
+  let start = 0,
+    end = 100;
+  while (true) {
+    const batch = await queue.getJobs(
+      ["active", "waiting", "delayed", "prioritized", "wait"],
+      start,
+      end
+    );
+    if (batch.length === 0) {
+      break;
+    }
+    for (const job of batch) {
+      if (job.data.extractionId === extractionId) {
+        jobs.push({ data: job.data });
+      }
+    }
+    start = end;
+    if (batch.length < end) {
+      break;
+    }
+  }
+  return jobs;
+}
+
 export const Queues = {
   DetectConfiguration: new Queue<DetectConfigurationJob>(
     "recipes.detectConfiguration",
