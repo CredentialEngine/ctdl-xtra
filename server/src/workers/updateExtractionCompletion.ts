@@ -63,7 +63,11 @@ async function getStepCompletionStats(
       } else if (rawPageStats.status == PageStatus.ERROR) {
         downloadsAttempted += 1;
       }
-      if (rawPageStats.dataExtractionStartedAt) {
+
+      if (
+        rawPageStats.status == PageStatus.SUCCESS &&
+        rawPageStats.dataExtractionStartedAt
+      ) {
         extractionsAttempted += 1;
         if (rawPageStats.dataItemCount > 0) {
           extractionsSucceeded += 1;
@@ -134,37 +138,52 @@ async function computeCosts(
   return costSummary;
 }
 
+async function computeCompletionStats(
+  extraction: NonNullable<Awaited<ReturnType<typeof findExtractionById>>>
+) {
+  const stepStats = await getStepCompletionStats(extraction);
+  const costStats = await computeCosts(extraction);
+  const completionStats: CompletionStats = {
+    generatedAt: new Date().toISOString(),
+    steps: stepStats,
+    costs: costStats,
+  };
+  return { stepStats, costStats, completionStats };
+}
+
 async function afterExtractionComplete(
+  extraction: NonNullable<Awaited<ReturnType<typeof findExtractionById>>>,
   job: JobWithProgress<
     UpdateExtractionCompletionJob,
     UpdateExtractionCompletionProgress
-  >,
-  extraction: NonNullable<Awaited<ReturnType<typeof findExtractionById>>>
+  > | null
 ) {
-  await removeSelf(job);
-  await sendEmailToAll(
-    ExtractionComplete,
-    {
-      extractionId: extraction.id,
-      recipeId: extraction.recipeId,
-      catalogueId: extraction.recipe.catalogueId,
-      catalogueName: extraction.recipe.catalogue.name,
-      url: extraction.recipe.url,
-      completionStats: extraction.completionStats!,
-      createdAt: extraction.createdAt.toISOString(),
-      stale: extraction.status == ExtractionStatus.STALE,
-    },
-    `Extraction #${extraction.id} has finished`
-  );
+  if (job) await removeSelf(job);
+  if (job) {
+    await sendEmailToAll(
+      ExtractionComplete,
+      {
+        extractionId: extraction.id,
+        recipeId: extraction.recipeId,
+        catalogueId: extraction.recipe.catalogueId,
+        catalogueName: extraction.recipe.catalogue.name,
+        url: extraction.recipe.url,
+        completionStats: extraction.completionStats!,
+        createdAt: extraction.createdAt.toISOString(),
+        stale: extraction.status == ExtractionStatus.STALE,
+      },
+      `Extraction #${extraction.id} has finished`
+    );
+  }
 }
 
 async function handleStaleExtraction(
+  extraction: NonNullable<Awaited<ReturnType<typeof findExtractionById>>>,
+  staleMs: number,
   job: JobWithProgress<
     UpdateExtractionCompletionJob,
     UpdateExtractionCompletionProgress
-  >,
-  extraction: NonNullable<Awaited<ReturnType<typeof findExtractionById>>>,
-  staleMs: number
+  > | null
 ) {
   const allStepsCompleted = extraction.completionStats!.steps.every(
     (s) =>
@@ -208,37 +227,55 @@ async function handleStaleExtraction(
   await updateExtraction(extraction.id, {
     status,
   });
-  return afterExtractionComplete(job, extraction);
+  return afterExtractionComplete(extraction, job);
 }
 
-export default createProcessor<
-  UpdateExtractionCompletionJob,
-  UpdateExtractionCompletionProgress
->(async function updateExtractionCompletion(job) {
-  const extraction = await findExtractionById(job.data.extractionId);
+export type RunUpdateExtractionCompletionJob =
+  | JobWithProgress<
+      UpdateExtractionCompletionJob,
+      UpdateExtractionCompletionProgress
+    >
+  | null;
+
+/**
+ * Full completion stats update logic: compute stats, enforce budget, handle
+ * stale extractions, update DB. Callable from the BullMQ processor or scripts.
+ *
+ * @param extractionId - Extraction to update
+ * @param job - When provided (processor), runs removeSelf and sendEmailToAll.
+ *              When null (script), skips Redis/email.
+ */
+export async function runUpdateExtractionCompletion(
+  extractionId: number,
+  job: RunUpdateExtractionCompletionJob = null
+) {
+  const extraction = await findExtractionById(extractionId);
+  if (!extraction) {
+    throw new Error(`Extraction ${extractionId} not found`);
+  }
   if (
-    !extraction ||
     extraction.status == ExtractionStatus.COMPLETE ||
     extraction.status == ExtractionStatus.CANCELLED
   ) {
-    await removeSelf(job);
-    return;
+    if (job) await removeSelf(job);
+    return { extractionId, skipped: true as const, reason: "COMPLETE or CANCELLED" };
   }
+
   logger.info(`Updating completion for extraction ${extraction.id}`);
 
-  const stepStats = await getStepCompletionStats(extraction);
-  const costStats = await computeCosts(extraction);
+  const { stepStats, costStats, completionStats } =
+    await computeCompletionStats(extraction);
   const currentDate = new Date();
-  const completionStats: CompletionStats = {
-    generatedAt: currentDate.toISOString(),
-    steps: stepStats,
-    costs: costStats,
-  };
 
   // Enforce budget: cancel extraction if estimated cost exceeds max budget
   const maxBudgetSetting = await findSetting<number>("MAX_EXTRACTION_BUDGET");
-  const maxBudget = maxBudgetSetting?.value ?? SETTING_DEFAULTS.MAX_EXTRACTION_BUDGET;
-  if (typeof maxBudget === "number" && maxBudget >= 0 && costStats.estimatedCost > maxBudget) {
+  const maxBudget =
+    maxBudgetSetting?.value ?? SETTING_DEFAULTS.MAX_EXTRACTION_BUDGET;
+  if (
+    typeof maxBudget === "number" &&
+    maxBudget >= 0 &&
+    costStats.estimatedCost > maxBudget
+  ) {
     logger.warn(
       `Cancelling extraction ${extraction.id} due to budget overage: $${costStats.estimatedCost.toFixed(
         4
@@ -254,8 +291,8 @@ export default createProcessor<
       "CANCEL",
       `Budget setting of ${maxBudget} was exceeded.`
     );
-    await removeSelf(job);
-    return;
+    if (job) await removeSelf(job);
+    return { extractionId, stepStats, costStats, completionStats, cancelled: true };
   }
 
   // If there's a preexisting completionStats value, check if it changed
@@ -264,14 +301,21 @@ export default createProcessor<
     if (stale) {
       const timeDiff = Math.abs(
         currentDate.getTime() -
-        new Date(extraction.completionStats.generatedAt).getTime()
+          new Date(extraction.completionStats.generatedAt).getTime()
       );
-      await handleStaleExtraction(job, extraction, timeDiff);
-      return;
+      await handleStaleExtraction(extraction, timeDiff, job);
+      return { extractionId, stepStats, costStats, completionStats, stale: true };
     }
   }
 
   logger.info(`Detected changes for extraction ${extraction.id}; updating`);
   await updateExtraction(extraction.id, { completionStats });
-  return;
+  return { extractionId, stepStats, costStats, completionStats };
+}
+
+export default createProcessor<
+  UpdateExtractionCompletionJob,
+  UpdateExtractionCompletionProgress
+>(async function updateExtractionCompletion(job) {
+  await runUpdateExtractionCompletion(job.data.extractionId, job);
 });
