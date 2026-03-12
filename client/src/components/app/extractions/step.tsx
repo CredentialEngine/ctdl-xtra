@@ -10,7 +10,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { concisePrintDate, trpc } from "@/utils";
+import { concisePrintDate, resolveCrawlPageUrl, trpc } from "@/utils";
 import { Link, useParams } from "wouter";
 import { PageType } from "../../../../../common/types";
 import usePagination from "../usePagination";
@@ -85,7 +85,14 @@ export default function CrawlStepDetail() {
                   </TableCell>
                   <TableCell>{concisePrintDate(item.createdAt)}</TableCell>
                   <TableCell className="max-w-40 overflow-hidden whitespace-nowrap text-ellipsis text-blue-800 underline">
-                    <a href={item.url} target="_blank">
+                    <a
+                      href={resolveCrawlPageUrl(
+                        item.url,
+                        extractionQuery.data.recipe.url
+                      )}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
                       {item.url}
                     </a>
                   </TableCell>

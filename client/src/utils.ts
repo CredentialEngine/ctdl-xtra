@@ -108,6 +108,19 @@ export function formatCatalogueType(catalogueType: string): string {
   return typeMap[catalogueType] || catalogueType;
 }
 
+/**
+ * Resolves a crawl page URL to an absolute URL. Relative URLs (e.g. /courses/math)
+ * are resolved against the catalogue base URL so they open on the extracted
+ * website rather than the app origin.
+ */
+export function resolveCrawlPageUrl(url: string, baseUrl: string): string {
+  try {
+    return new URL(url, baseUrl).href;
+  } catch {
+    return url;
+  }
+}
+
 export type IterableElement<TargetIterable> =
   TargetIterable extends Iterable<infer ElementType>
   ? ElementType

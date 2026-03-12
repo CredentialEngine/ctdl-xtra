@@ -16,7 +16,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { concisePrintDate, prettyPrintDate, trpc } from "@/utils";
+import { concisePrintDate, prettyPrintDate, resolveCrawlPageUrl, trpc } from "@/utils";
 import { ExternalLink } from "lucide-react";
 import { useState } from "react";
 import { useParams } from "wouter";
@@ -244,7 +244,14 @@ export default function CrawlPageDetail() {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => window.open(item.crawlPage.url, "_blank", "noopener,noreferrer")}
+            onClick={() => {
+              const url = item.crawlPage.url;
+              const baseUrl = item.crawlPage.extraction?.recipe?.url;
+              const resolved = baseUrl
+                ? resolveCrawlPageUrl(url, baseUrl)
+                : url;
+              window.open(resolved, "_blank", "noopener,noreferrer");
+            }}
           >
             <ExternalLink className="w-4 h-4 mr-2" />
             Open Page URL
