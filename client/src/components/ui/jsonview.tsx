@@ -103,12 +103,33 @@ const JsonNode: React.FC<JsonNodeProps> = ({
     );
   };
 
+  const renderObjectShape = (onExpand: () => void) => (
+    <div className="flex items-start">
+      <button
+        onClick={onExpand}
+        className="mr-1 p-0.5 hover:bg-gray-200 rounded"
+      >
+        <ChevronRight className="h-3 w-3" />
+      </button>
+      <span
+        onClick={onExpand}
+        className="cursor-pointer text-gray-500"
+      >
+        {type === "array"
+          ? `[...${Object.keys(data).length} items]`
+          : `{...${Object.keys(data).length} properties}`}
+      </span>
+    </div>
+  );
+
   if (name === "root" && level === 0) {
     if (isExpandable) {
-      return renderChildren();
-    } else {
-      return renderValue();
+      if (isExpanded) {
+        return renderChildren();
+      }
+      return renderObjectShape(() => setIsExpanded(true));
     }
+    return renderValue();
   }
 
   return (

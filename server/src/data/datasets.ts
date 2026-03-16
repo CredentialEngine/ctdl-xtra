@@ -202,3 +202,17 @@ export async function findDataItems(
   const totalItems = await getItemsCount(datasetId);
   return { totalItems, items };
 }
+
+export async function findDataItemsByCrawlPageId(crawlPageId: number) {
+  return db
+    .select({
+      id: dataItems.id,
+      datasetId: dataItems.datasetId,
+      crawlPageId: dataItems.crawlPageId,
+      structuredData: dataItems.structuredData,
+      textInclusion: dataItems.textInclusion,
+      createdAt: dataItems.createdAt,
+    })
+    .from(dataItems)
+    .where(eq(dataItems.crawlPageId, crawlPageId));
+}
