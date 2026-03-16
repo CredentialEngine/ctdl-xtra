@@ -3,7 +3,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { IterableElement, prettyPrintDate, RouterOutput, trpc } from "@/utils";
-import { Earth } from "lucide-react";
+import { API_URL } from "@/constants";
+import { Download, Earth } from "lucide-react";
 import { Link, useLocation } from "wouter";
 
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
@@ -148,6 +149,7 @@ const ExtractionListItem = (extraction: ExtractionSummary) => {
 export default function Extractions() {
   const { page, PaginationButtons } = usePagination();
   const [location, navigate] = useLocation();
+  const [exportInProgress, setExportInProgress] = useState(false);
   const [{ sortKey, sortOrder, dateFrom, dateTo }, setQuery] = useState(() =>
     parseSearch(window.location.search)
   );
@@ -199,6 +201,28 @@ export default function Extractions() {
     [navigate, location]
   );
 
+  const handleExport = useCallback(() => {
+    setExportInProgress(true);
+    const params = new URLSearchParams();
+    if (dateFrom) params.set("from", dateFrom);
+    if (dateTo) params.set("to", dateTo);
+    const filename = `extractions_${dateFrom || "all"}_${dateTo || "all"}.csv`;
+    fetch(`${API_URL}/downloads/extractions_csv?${params.toString()}`, {
+      credentials: "include",
+    })
+      .then((response) => response.blob())
+      .then((blob) => {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = filename;
+        a.click();
+        URL.revokeObjectURL(url);
+      })
+      .catch((err) => console.error("Export error:", err))
+      .finally(() => setExportInProgress(false));
+  }, [dateFrom, dateTo]);
+
   const renderHeader = (label: string, key: SortKey) => (
     <span className="flex w-full items-center justify-between select-none">
       <span>{label}</span>
@@ -219,7 +243,9 @@ export default function Extractions() {
           x-chunk="dashboard-02-chunk-1"
         >
           <div className="flex flex-col items-center gap-1 text-center">
-            <p className="text-sm text-muted-foreground">Loading extractions...</p>
+            <p className="text-sm text-muted-foreground">
+              Loading extractions...
+            </p>
           </div>
         </div>
       </>
@@ -234,6 +260,15 @@ export default function Extractions() {
       <div className="w-full flex justify-between items-center">
         <h1 className="text-lg font-semibold md:text-2xl">Extractions</h1>
         <div className="flex items-end gap-4">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleExport}
+            disabled={exportInProgress}
+          >
+            <Download className="h-4 w-4 mr-2" />
+            {exportInProgress ? "Exporting…" : "Export"}
+          </Button>
           <div>
             <Label htmlFor="date_from">From</Label>
             <Input

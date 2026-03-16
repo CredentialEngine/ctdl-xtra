@@ -13,6 +13,7 @@ import { z } from "zod";
 import { appRouter, type AppRouter } from "./appRouter";
 import { streamCsv } from "./csv";
 import { findDataset } from "./data/datasets";
+import { streamExtractionsCsv } from "./extractionsCsv";
 import { findUserByEmail } from "./data/users";
 import { makeAirbrakePlugin } from "./fastifyAirbrakeNotifier";
 import fastifySessionAuth, {
@@ -151,6 +152,20 @@ server.register(async (instance) => {
         .send(streamCsv(datasetId));
     }
   );
+
+  instance.get("/downloads/extractions_csv", async (request, reply) => {
+    const { from, to } = request.query as { from?: string; to?: string };
+    const dateFrom = from ? new Date(`${from}T00:00:00.000Z`) : undefined;
+    const dateTo = to ? new Date(`${to}T23:59:59.999Z`) : undefined;
+    const filename = `extractions_${from || "all"}_${to || "all"}.csv`;
+
+    return reply
+      .headers({
+        "Content-Type": "text/csv",
+        "Content-Disposition": `attachment; filename="${filename}"`,
+      })
+      .send(streamExtractionsCsv(dateFrom, dateTo));
+  });
 });
 
 server.get("/up", async (request, reply) => {
