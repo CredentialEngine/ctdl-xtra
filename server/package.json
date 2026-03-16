@@ -6,6 +6,7 @@
     "build": "tsc",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit up && drizzle-kit migrate",
+    "run:update-completion": "tsx -r dotenv/config scripts/runUpdateCompletionStats.ts",
     "test": "vitest",
     "test:html": "vitest --reporter=html"
   },

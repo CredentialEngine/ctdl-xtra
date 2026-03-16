@@ -22,6 +22,7 @@ import {
 import {
   CatalogueType,
   ExtractionStatus,
+  PageStatus,
   LogLevel,
   PageType,
   Step,
@@ -129,6 +130,13 @@ export default createProcessor<ExtractDataJob, ExtractDataProgress>(
           }
         }
       }
+
+      await updatePage(crawlPage.id, {
+        status:
+          extractedEntityCount > 0
+            ? PageStatus.SUCCESS
+            : PageStatus.EXTRACTED_NO_DATA,
+      });
 
       if (extractedEntityCount > 0 && entityDef.exploreDuringExtraction) {
         const pageDepth = await countParentNodesOfCrawlSteps(

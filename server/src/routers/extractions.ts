@@ -9,6 +9,7 @@ import {
   findAuditLogs,
   findErrorPagesForExtraction,
   findExtractionForDetailPage,
+  findNoDataPagesForExtraction,
   findExtractionsSorted,
   findLastAuditLogEntry,
   findLogs,
@@ -151,6 +152,15 @@ export const extractionsRouter = router({
     )
     .query(async (opts) => {
       return findErrorPagesForExtraction(opts.input.extractionId);
+    }),
+  noDataPages: publicProcedure
+    .input(
+      z.object({
+        extractionId: z.number().int().positive(),
+      })
+    )
+    .query(async (opts) => {
+      return findNoDataPagesForExtraction(opts.input.extractionId);
     }),
   auditLogs: publicProcedure
     .input(

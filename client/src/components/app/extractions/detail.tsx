@@ -156,6 +156,10 @@ export default function ExtractionDetail() {
     { extractionId: extractionIdNum },
     { enabled: !!extractionIdNum }
   );
+  const noDataPagesQuery = trpc.extractions.noDataPages.useQuery(
+    { extractionId: extractionIdNum },
+    { enabled: !!extractionIdNum }
+  );
   const cancelExtraction = trpc.extractions.cancel.useMutation();
   const destroyExtraction = trpc.extractions.destroy.useMutation();
   const rerunDataExtraction = trpc.extractions.rerunData.useMutation();
@@ -629,9 +633,75 @@ export default function ExtractionDetail() {
                       Download Errors: {totalDownloadErrors}
                     </div>
                   ) : null}
-                  {totalExtractionErrors ? (
-                    <div className="text-xs text-muted-foreground py-1">
-                      Items not extracted: {totalExtractionErrors}
+                  {(noDataPagesQuery.data?.length ?? totalExtractionErrors) ? (
+                    <div className="text-xs text-muted-foreground py-1 flex items-center gap-2">
+                      Items not extracted:{" "}
+                      {noDataPagesQuery.data?.length ?? totalExtractionErrors}
+                      {(noDataPagesQuery.data?.length ?? totalExtractionErrors) >
+                      0 ? (
+                        <Dialog>
+                          <DialogTrigger asChild>
+                            <Button size="sm" variant="outline">
+                              View
+                            </Button>
+                          </DialogTrigger>
+                          <DialogContent className="sm:max-w-[66vw] w-11/12 max-h-[70vh] overflow-y-auto">
+                            <DialogHeader>
+                              <DialogTitle>Pages With No Data Extracted</DialogTitle>
+                              <DialogDescription>
+                                Crawl pages that were processed but did not
+                                yield any data items.
+                              </DialogDescription>
+                            </DialogHeader>
+                            <div className="mt-2">
+                              <Table>
+                                <TableHeader>
+                                  <TableRow className="text-xs">
+                                    <TableHead>Status</TableHead>
+                                    <TableHead>URL</TableHead>
+                                    <TableHead className="text-right">
+                                      Action
+                                    </TableHead>
+                                  </TableRow>
+                                </TableHeader>
+                                <TableBody className="text-xs">
+                                  {noDataPagesQuery.data?.map((p) => (
+                                    <TableRow key={`no-data-page-${p.id}`}>
+                                      <TableCell className="align-top">
+                                        {p.status}
+                                      </TableCell>
+                                      <TableCell className="break-all align-top">
+                                        <a
+                                          href={p.url}
+                                          target="_blank"
+                                          rel="noreferrer"
+                                          className="underline"
+                                        >
+                                          {p.url}
+                                        </a>
+                                      </TableCell>
+                                      <TableCell className="text-right align-top">
+                                        <Button
+                                          variant={"outline"}
+                                          size="sm"
+                                          className="text-xs"
+                                          asChild
+                                        >
+                                          <Link
+                                            to={`/${extraction.id}/steps/${p.crawlStepId}/items/${p.id}`}
+                                          >
+                                            View item
+                                          </Link>
+                                        </Button>
+                                      </TableCell>
+                                    </TableRow>
+                                  ))}
+                                </TableBody>
+                              </Table>
+                            </div>
+                          </DialogContent>
+                        </Dialog>
+                      ) : null}
                     </div>
                   ) : null}
                 </div>
