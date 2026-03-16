@@ -6,6 +6,7 @@ import {
 } from "@/components/ui/accordion";
 import BreadcrumbTrail from "@/components/ui/breadcrumb-trail";
 import { Button } from "@/components/ui/button";
+import { JsonView } from "@/components/ui/jsonview";
 import {
   Table,
   TableBody,
@@ -15,7 +16,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { concisePrintDate, trpc } from "@/utils";
+import { concisePrintDate, prettyPrintDate, trpc } from "@/utils";
 import { ExternalLink } from "lucide-react";
 import { useState } from "react";
 import { useParams } from "wouter";
@@ -67,23 +68,69 @@ export default function CrawlPageDetail() {
     },
   ];
 
+  const dataItems = item.dataItems ?? [];
+
   const tabTriggers = [
-    <TabsTrigger value="raw_content">Raw content</TabsTrigger>,
+    <TabsTrigger key="data" value="data">Data</TabsTrigger>,
+    <TabsTrigger key="raw_content" value="raw_content">Raw content</TabsTrigger>,
   ];
   const tabContents = [
-    <TabsContent value="raw_content">
+    <TabsContent key="data" value="data">
+      {dataItems.length > 0 ? (
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>ID</TableHead>
+              <TableHead>Dataset ID</TableHead>
+              <TableHead>Crawl Page ID</TableHead>
+              <TableHead>Created At</TableHead>
+              <TableHead>Content (JSON)</TableHead>
+              <TableHead>Text Inclusion</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {dataItems.map((di) => (
+              <TableRow key={di.id}>
+                <TableCell className="text-sm">{di.id}</TableCell>
+                <TableCell className="text-sm">{di.datasetId}</TableCell>
+                <TableCell className="text-sm">{di.crawlPageId}</TableCell>
+                <TableCell className="text-sm">
+                  {prettyPrintDate(di.createdAt)}
+                </TableCell>
+                <TableCell className="max-w-md">
+                  <JsonView data={di.structuredData} initialExpanded={true} />
+                </TableCell>
+                <TableCell className="max-w-md">
+                  {di.textInclusion != null ? (
+                    <JsonView data={di.textInclusion} initialExpanded={false} />
+                  ) : (
+                    <span className="text-muted-foreground">—</span>
+                  )}
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      ) : (
+        <div className="text-muted-foreground">
+          No data items yet. They will appear here once the data extraction has
+          run for this page.
+        </div>
+      )}
+    </TabsContent>,
+    <TabsContent key="raw_content" value="raw_content">
       <code>{item.content}</code>
     </TabsContent>,
   ];
 
-  let defaultTab = "raw_content";
+  const defaultTab = "data";
 
   if (item.markdownContent) {
     tabTriggers.push(
-      <TabsTrigger value="simplified_content">Simplified Content</TabsTrigger>
+      <TabsTrigger key="simplified_content" value="simplified_content">Simplified Content</TabsTrigger>
     );
     tabContents.push(
-      <TabsContent value="simplified_content" key="simplified_content">
+      <TabsContent key="simplified_content" value="simplified_content">
         <pre className="whitespace-pre-wrap break-all">
           {item.markdownContent}
         </pre>
@@ -92,11 +139,11 @@ export default function CrawlPageDetail() {
   }
 
   tabTriggers.push(
-    <TabsTrigger value="operation_logs">Operation logs</TabsTrigger>
+    <TabsTrigger key="operation_logs" value="operation_logs">Operation logs</TabsTrigger>
   );
   const pageLogs = crawlPageLogsQuery.data ?? [];
   tabContents.push(
-    <TabsContent value="operation_logs">
+    <TabsContent key="operation_logs" value="operation_logs">
       <div className="space-y-4">
         {pageLogs.length > 0 ? (
           <Table>
@@ -140,13 +187,8 @@ export default function CrawlPageDetail() {
 
   const screenshot = item.screenshot ? base64Img(item.screenshot) : null;
   if (screenshot) {
-    defaultTab = "screenshot";
-    tabTriggers.unshift(
-      <TabsTrigger value="screenshot">Screenshot</TabsTrigger>
-    );
-    tabContents.unshift(
-      <TabsContent value="screenshot">{screenshot}</TabsContent>
-    );
+    tabTriggers.splice(1, 0, <TabsTrigger key="screenshot" value="screenshot">Screenshot</TabsTrigger>);
+    tabContents.splice(1, 0, <TabsContent key="screenshot" value="screenshot">{screenshot}</TabsContent>);
   }
 
   const formattedSimulatedData = simulatedExtractedData?.data

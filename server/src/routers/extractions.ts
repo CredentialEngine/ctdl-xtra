@@ -2,7 +2,10 @@ import { z } from "zod";
 import { publicProcedure, router } from ".";
 import { CatalogueType, ExtractionStatus } from "../../../common/types";
 import { AppError, AppErrors } from "../appErrors";
-import { findExtractionDatasets } from "../data/datasets";
+import {
+  findDataItemsByCrawlPageId,
+  findExtractionDatasets,
+} from "../data/datasets";
 import {
   createExtractionAuditLog,
   destroyExtraction,
@@ -197,9 +200,11 @@ export const extractionsRouter = router({
       if (!crawlPage) {
         throw new AppError("Step item not found", AppErrors.NOT_FOUND);
       }
+      const dataItems = await findDataItemsByCrawlPageId(opts.input.crawlPageId);
       try {
         return {
           crawlPage,
+          dataItems,
           content: await readContent(
             crawlPage.extractionId,
             crawlPage.crawlStepId,
@@ -219,6 +224,7 @@ export const extractionsRouter = router({
       } catch (error) {
         return {
           crawlPage,
+          dataItems,
           content: null,
           markdownContent: null,
           screenshot: null,
