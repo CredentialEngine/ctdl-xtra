@@ -83,8 +83,10 @@ export default function CrawlPageDetail() {
       <TabsTrigger value="simplified_content">Simplified Content</TabsTrigger>
     );
     tabContents.push(
-      <TabsContent value="simplified_content">
-        <pre>{item.markdownContent}</pre>
+      <TabsContent value="simplified_content" key="simplified_content">
+        <pre className="whitespace-pre-wrap break-all">
+          {item.markdownContent}
+        </pre>
       </TabsContent>
     );
   }
