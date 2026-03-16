@@ -226,34 +226,8 @@ export default function Extractions() {
     );
   }
 
-  if (!listQuery.data?.results.length) {
-    return (
-      <>
-        <div className="flex items-center">
-          <h1 className="text-lg font-semibold md:text-2xl">Extractions</h1>
-        </div>
-        <div
-          className="flex flex-1 items-center justify-center rounded-lg border border-dashed shadow-sm"
-          x-chunk="dashboard-02-chunk-1"
-        >
-          <div className="flex flex-col items-center gap-1 text-center">
-            <h3 className="text-2xl font-bold tracking-tight">
-              No extractions have been created yet!
-            </h3>
-            <p className="text-sm text-muted-foreground">
-              Select a catalogue to start an extraction.
-            </p>
-            <Link to="~/catalogues">
-              <Button className="mt-4">
-                <Earth className="h-5 w-5 mr-2" />
-                Catalogues
-              </Button>
-            </Link>
-          </div>
-        </div>
-      </>
-    );
-  }
+  const hasResults = (listQuery.data?.results?.length ?? 0) > 0;
+  const hasDateFilter = !!dateFrom || !!dateTo;
 
   return (
     <>
@@ -280,80 +254,98 @@ export default function Extractions() {
           </div>
         </div>
       </div>
-      <Card>
-        <CardContent className="px-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead
-                  colSpan={2}
-                  className="cursor-pointer"
-                  onClick={() => handleSort("catalogue")}
-                >
-                  {renderHeader("Catalogue", "catalogue")}
-                </TableHead>
-                <TableHead
-                  className="cursor-pointer"
-                  onClick={() => handleSort("type")}
-                >
-                  {renderHeader("Type", "type")}
-                </TableHead>
-                <TableHead
-                  className="cursor-pointer"
-                  onClick={() => handleSort("status")}
-                >
-                  {renderHeader("Status", "status")}
-                </TableHead>
-                <TableHead>
-                  <span>Downloads</span>
-                </TableHead>
-                <TableHead>
-                  <span>Extractions</span>
-                </TableHead>
-                <TableHead
-                  className="cursor-pointer w-40"
-                  onClick={() => handleSort("items")}
-                >
-                  {renderHeader("Items extracted", "items")}
-                </TableHead>
-                <TableHead
-                  className="cursor-pointer"
-                  onClick={() => handleSort("cost")}
-                >
-                  {renderHeader("Cost", "cost")}
-                </TableHead>
-                <TableHead
-                  className="cursor-pointer"
-                  onClick={() => handleSort("date")}
-                >
-                  {renderHeader("Date", "date")}
-                </TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {(listQuery.data?.results || []).map((extraction) => (
-                <ExtractionListItem key={extraction.id} {...extraction} />
-              )) || (
+      {hasResults ? (
+        <Card>
+          <CardContent className="px-0">
+            <Table>
+              <TableHeader>
                 <TableRow>
-                  <TableCell colSpan={8}>
-                    <div className="flex items-center justify-center">
-                      Loading extractions...
-                    </div>
-                  </TableCell>
+                  <TableHead
+                    colSpan={2}
+                    className="cursor-pointer"
+                    onClick={() => handleSort("catalogue")}
+                  >
+                    {renderHeader("Catalogue", "catalogue")}
+                  </TableHead>
+                  <TableHead
+                    className="cursor-pointer"
+                    onClick={() => handleSort("type")}
+                  >
+                    {renderHeader("Type", "type")}
+                  </TableHead>
+                  <TableHead
+                    className="cursor-pointer"
+                    onClick={() => handleSort("status")}
+                  >
+                    {renderHeader("Status", "status")}
+                  </TableHead>
+                  <TableHead>
+                    <span>Downloads</span>
+                  </TableHead>
+                  <TableHead>
+                    <span>Extractions</span>
+                  </TableHead>
+                  <TableHead
+                    className="cursor-pointer w-40"
+                    onClick={() => handleSort("items")}
+                  >
+                    {renderHeader("Items extracted", "items")}
+                  </TableHead>
+                  <TableHead
+                    className="cursor-pointer"
+                    onClick={() => handleSort("cost")}
+                  >
+                    {renderHeader("Cost", "cost")}
+                  </TableHead>
+                  <TableHead
+                    className="cursor-pointer"
+                    onClick={() => handleSort("date")}
+                  >
+                    {renderHeader("Date", "date")}
+                  </TableHead>
                 </TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </CardContent>
-        {listQuery.data!.results.length > 0 ? (
+              </TableHeader>
+              <TableBody>
+                {(listQuery.data?.results || []).map((extraction) => (
+                  <ExtractionListItem key={extraction.id} {...extraction} />
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
           <CardFooter>
             <PaginationButtons
-              totalItems={listQuery.data.totalItems}
-              totalPages={listQuery.data.totalPages}
+              totalItems={listQuery.data!.totalItems}
+              totalPages={listQuery.data!.totalPages}
             />
           </CardFooter>
-        ) : null}
-      </Card>
+        </Card>
+      ) : (
+        <div
+          className="flex flex-1 items-center justify-center rounded-lg border border-dashed shadow-sm"
+          x-chunk="dashboard-02-chunk-1"
+        >
+          <div className="flex flex-col items-center gap-1 text-center">
+            <h3 className="text-2xl font-bold tracking-tight">
+              {hasDateFilter
+                ? "No extractions match your filter"
+                : "No extractions have been created yet!"}
+            </h3>
+            <p className="text-sm text-muted-foreground">
+              {hasDateFilter
+                ? "Try adjusting your date range."
+                : "Select a catalogue to start an extraction."}
+            </p>
+            {!hasDateFilter && (
+              <Link to="~/catalogues">
+                <Button className="mt-4">
+                  <Earth className="h-5 w-5 mr-2" />
+                  Catalogues
+                </Button>
+              </Link>
+            )}
+          </div>
+        </div>
+      )}
     </>
   );
 }
