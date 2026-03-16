@@ -499,6 +499,83 @@ export async function findExtractionValidPages(
   return result;
 }
 
+export async function findPagesNeedingFetch(extractionId: number) {
+  return db.query.crawlPages.findMany({
+    columns: {
+      content: false,
+      screenshot: false,
+    },
+    where: (crawlPages, { and, eq }) =>
+      and(
+        eq(crawlPages.extractionId, extractionId),
+        eq(crawlPages.status, PageStatus.WAITING)
+      ),
+    orderBy: (crawlPages) => crawlPages.createdAt,
+  });
+}
+
+export async function findPagesNeedingExtractData(extractionId: number) {
+  return db.query.crawlPages.findMany({
+    columns: {
+      content: false,
+      screenshot: false,
+    },
+    where: (crawlPages, { and, eq }) =>
+      and(
+        eq(crawlPages.extractionId, extractionId),
+        eq(crawlPages.status, PageStatus.DOWNLOADED),
+        eq(crawlPages.pageType, PageType.DETAIL)
+      ),
+    orderBy: (crawlPages) => crawlPages.createdAt,
+  });
+}
+
+export async function findInProgressPagesWithoutJobs(
+  extractionId: number,
+  pageIdsWithJobs: Set<number>
+) {
+  const allInProgress = await db.query.crawlPages.findMany({
+    columns: { id: true },
+    where: (crawlPages, { and, eq }) =>
+      and(
+        eq(crawlPages.extractionId, extractionId),
+        eq(crawlPages.status, PageStatus.IN_PROGRESS)
+      ),
+  });
+  return allInProgress.filter((p) => !pageIdsWithJobs.has(p.id));
+}
+
+export async function resetInProgressPagesToWaiting(
+  extractionId: number,
+  pageIds: number[]
+) {
+  if (pageIds.length === 0) {
+    return 0;
+  }
+  const result = await db
+    .update(crawlPages)
+    .set({ status: PageStatus.WAITING })
+    .where(
+      and(
+        eq(crawlPages.extractionId, extractionId),
+        inArray(crawlPages.id, pageIds),
+        eq(crawlPages.status, PageStatus.IN_PROGRESS)
+      )
+    )
+    .returning({ id: crawlPages.id });
+  return result.length;
+}
+
+export async function findApiExtractionRootPage(extractionId: number) {
+  return db.query.crawlPages.findFirst({
+    where: (crawlPages, { and, eq }) =>
+      and(
+        eq(crawlPages.extractionId, extractionId),
+        eq(crawlPages.step, Step.FETCH_VIA_API)
+      ),
+  });
+}
+
 export async function findPages(stepId: number) {
   const result = await db.query.crawlPages.findMany({
     where: (crawlPages, { eq }) => eq(crawlPages.crawlStepId, stepId),

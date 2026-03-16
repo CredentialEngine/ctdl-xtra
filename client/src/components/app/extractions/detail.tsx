@@ -162,6 +162,7 @@ export default function ExtractionDetail() {
   );
   const cancelExtraction = trpc.extractions.cancel.useMutation();
   const destroyExtraction = trpc.extractions.destroy.useMutation();
+  const resumeExtraction = trpc.extractions.resume.useMutation();
   const rerunDataExtraction = trpc.extractions.rerunData.useMutation();
   const retryFailed = trpc.extractions.retryFailed.useMutation();
 
@@ -179,6 +180,30 @@ export default function ExtractionDetail() {
       description: "The extraction has been cancelled.",
     });
     navigate("/");
+  };
+
+  const onResumeExtraction = async () => {
+    try {
+      await resumeExtraction.mutateAsync({
+        id: extraction.id,
+      });
+      toast({
+        title: "Extraction resumed",
+        description:
+          "The extraction has been resumed. Pending pages will be processed.",
+      });
+      await query.refetch();
+    } catch (err: unknown) {
+      let errorMessage =
+        "Something went wrong while resuming the extraction. Please notify us about it.";
+      if (err instanceof Error && err.message) {
+        errorMessage = err.message;
+      }
+      toast({
+        title: "Error resuming extraction",
+        description: errorMessage,
+      });
+    }
   };
 
   const onRetryFailed = async () => {
@@ -495,6 +520,20 @@ export default function ExtractionDetail() {
                       </div>
                     </DialogContent>
                   </Dialog>
+                ) : null}
+                {(extraction.status === ExtractionStatus.STALE ||
+                  extraction.status === ExtractionStatus.CANCELLED) ? (
+                  <div className="mt-4">
+                    <Button
+                      size="sm"
+                      onClick={onResumeExtraction}
+                      disabled={resumeExtraction.isLoading}
+                    >
+                      {resumeExtraction.isLoading
+                        ? "Resuming..."
+                        : "Resume extraction"}
+                    </Button>
+                  </div>
                 ) : null}
                 {extraction.status == ExtractionStatus.COMPLETE &&
                 (totalDownloadErrors || totalExtractionErrors) ? (
