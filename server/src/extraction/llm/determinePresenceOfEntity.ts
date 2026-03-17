@@ -84,6 +84,7 @@ ${MD_END}
     logApiCall: options?.logApiCalls
       ? {
           extractionId: options.logApiCalls.extractionId,
+          datasetId: options.logApiCalls.datasetId,
           crawlPageId: options.logApiCalls.crawlPageId,
           callSite: "determinePresenceOfEntity",
         }

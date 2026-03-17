@@ -1,3 +1,5 @@
+import { toTitleCase } from "./utils";
+
 export enum CatalogueType {
   COURSES = "COURSES",
   LEARNING_PROGRAMS = "LEARNING_PROGRAMS",
@@ -111,6 +113,13 @@ export enum PageStatus {
   EXTRACTED_NO_DATA = "EXTRACTED_NO_DATA",
   ERROR = "ERROR",
 }
+
+export const UIPageStatus: { value: PageStatus; label: string }[] = (
+  Object.values(PageStatus) as PageStatus[]
+).map((value) => ({
+  value,
+  label: toTitleCase(String(value).replace(/_/g, " ")),
+}));
 
 export enum RecipeDetectionStatus {
   WAITING = "WAITING",
