@@ -831,8 +831,7 @@ export async function createModelApiCallLog(
   callSite: string,
   inputTokenCount: number,
   outputTokenCount: number,
-  datasetId?: number,
-  crawlPageId?: number
+  options?: { datasetId?: number; crawlPageId?: number }
 ) {
   const result = await db
     .insert(modelApiCalls)
@@ -843,8 +842,8 @@ export async function createModelApiCallLog(
       callSite,
       input_token_count: inputTokenCount,
       output_token_count: outputTokenCount,
-      datasetId,
-      crawlPageId,
+      datasetId: options?.datasetId,
+      crawlPageId: options?.crawlPageId,
     })
     .returning();
   return result[0];
@@ -923,7 +922,7 @@ export async function findFailedAndNoDataPageIds(crawlStepId: number) {
       )
     )
     .groupBy(crawlPages.id)
-    .having(sql`count(${dataItems.id}) = 0`);
+    .having(eq(count(dataItems.id), 0));
 
   return [...new Set(failedIds.concat(noDataIds).map((p) => p.id))];
 }
@@ -931,3 +930,10 @@ export async function findFailedAndNoDataPageIds(crawlStepId: number) {
 export async function destroyExtraction(id: number) {
   return db.delete(extractions).where(eq(extractions.id, id));
 }
+
+export {
+  findSampledPagesForExtraction,
+  type SamplePagesOptions,
+  type SampleSortOption,
+  type SampledPageRow,
+} from "./extractionsSample";

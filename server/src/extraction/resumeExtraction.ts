@@ -3,7 +3,6 @@ import { findLatestDataset } from "../data/datasets";
 import {
   createExtractionAuditLog,
   createExtractionLog,
-  findApiExtractionRootPage,
   findExtractionById,
   findInProgressPagesWithoutJobs,
   findPagesNeedingExtractData,
@@ -16,7 +15,6 @@ import {
   getPageIdsWithExistingJobs,
   Queues,
   REPEAT_UPDATE_COMPLETION_EVERY_MS,
-  submitJob,
   submitJobs,
   submitRepeatableJob,
 } from "../workers";
