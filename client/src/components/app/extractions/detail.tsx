@@ -38,12 +38,13 @@ import {
   resolveCrawlPageUrl,
   trpc,
 } from "@/utils";
-import { CookingPot, LibraryBig, List } from "lucide-react";
+import { CookingPot, LibraryBig, List, Pipette } from "lucide-react";
 import { useState } from "react";
 import { Bar, BarChart, XAxis, YAxis } from "recharts";
 import { Link, useLocation, useParams } from "wouter";
 import { displayRecipeDetails } from "../recipes/util";
 import AuditLogModal from "./AuditLogModal";
+import SampleModal from "./SampleModal";
 import { displayStepType } from "./utils";
 
 function displayStepParent(steps: CrawlStep[], parentId: number) {
@@ -139,6 +140,7 @@ export default function ExtractionDetail() {
   const [lockedCancel, setLockedCancel] = useState(true);
   const [lockedDelete, setLockDelete] = useState(true);
   const [auditLogModalOpen, setAuditLogModalOpen] = useState(false);
+  const [sampleModalOpen, setSampleModalOpen] = useState(false);
   const { toast } = useToast();
   const [, navigate] = useLocation();
   const query = trpc.extractions.detail.useQuery(
@@ -898,8 +900,16 @@ export default function ExtractionDetail() {
           ) : null}
         </div>
         <Card className="mt-4">
-          <CardHeader>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0">
             <CardTitle>Extraction Steps</CardTitle>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setSampleModalOpen(true)}
+            >
+              <Pipette className="w-3.5 h-3.5 mr-2" />
+              Sample
+            </Button>
           </CardHeader>
           <CardContent>
             <Tabs defaultValue="table">
@@ -986,6 +996,14 @@ export default function ExtractionDetail() {
         extractionId={extractionIdNum}
         open={auditLogModalOpen}
         onOpenChange={setAuditLogModalOpen}
+      />
+      <SampleModal
+        extractionId={extractionIdNum}
+        extractionStatus={extraction.status}
+        open={sampleModalOpen}
+        onOpenChange={setSampleModalOpen}
+        totalInputTokens={extraction.totalInputTokens}
+        totalOutputTokens={extraction.totalOutputTokens}
       />
     </>
   );
