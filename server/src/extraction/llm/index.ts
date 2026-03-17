@@ -15,6 +15,7 @@ export interface DefaultLlmPageOptions {
   logApiCalls?: {
     extractionId: number;
     datasetId?: number;
+    crawlPageId?: number;
   };
   additionalContext?: {
     message: string;
