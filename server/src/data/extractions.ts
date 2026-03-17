@@ -822,7 +822,8 @@ export async function createModelApiCallLog(
   callSite: string,
   inputTokenCount: number,
   outputTokenCount: number,
-  datasetId?: number
+  datasetId?: number,
+  crawlPageId?: number
 ) {
   const result = await db
     .insert(modelApiCalls)
@@ -833,7 +834,8 @@ export async function createModelApiCallLog(
       callSite,
       input_token_count: inputTokenCount,
       output_token_count: outputTokenCount,
-      datasetId
+      datasetId,
+      crawlPageId,
     })
     .returning();
   return result[0];

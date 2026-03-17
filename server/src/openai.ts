@@ -83,6 +83,7 @@ export async function simpleToolCompletion<
   logApiCall?: {
     callSite: string;
     extractionId: number;
+    crawlPageId?: number;
   };
 }): Promise<{
   toolCallArgs: ToolCallReturn<T> | null;
@@ -171,7 +172,9 @@ export async function simpleToolCompletion<
         (completionOptions.model as ProviderModel) || ProviderModel.Gpt5,
         options.logApiCall.callSite,
         inputTokenCount,
-        outputTokenCount
+        outputTokenCount,
+        undefined,
+        options.logApiCall.crawlPageId
       );
     }
 
@@ -208,6 +211,7 @@ export async function structuredCompletion<
     callSite: string;
     extractionId: number;
     datasetId?: number;
+    crawlPageId?: number;
   };
 }): Promise<{
   result: ToolCallReturn<T> | null;
@@ -294,7 +298,8 @@ export async function structuredCompletion<
         options.logApiCall.callSite,
         inputTokenCount,
         outputTokenCount,
-        options.logApiCall.datasetId
+        options.logApiCall.datasetId,
+        options.logApiCall.crawlPageId
       );
     }
 
