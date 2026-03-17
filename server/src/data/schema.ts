@@ -332,6 +332,9 @@ const modelApiCalls = pgTable(
     extractionId: integer("extraction_id").references(() => extractions.id, {
       onDelete: "cascade",
     }),
+    crawlPageId: integer("crawl_page_id").references(() => crawlPages.id, {
+      onDelete: "cascade",
+    }),
     provider: providerEnum("provider").notNull(),
     model: providerModelEnum("model").notNull(),
     callSite: text("call_site").notNull(),
@@ -341,14 +344,11 @@ const modelApiCalls = pgTable(
     datasetId: integer("dataset_id").references(() => datasets.id, {
       onDelete: "cascade"
     }),
-    crawlPageId: integer("crawl_page_id").references(() => crawlPages.id, {
-      onDelete: "cascade",
-    }),
   },
   (t) => ({
     extractionIdx: index("model_api_calls_extraction_idx").on(t.extractionId),
-    datasetIdx: index("model_api_calls_datasaet_idx").on(t.datasetId),
     crawlPageIdx: index("model_api_calls_crawl_page_idx").on(t.crawlPageId),
+    datasetIdx: index("model_api_calls_datasaet_idx").on(t.datasetId),
   })
 );
 
@@ -357,13 +357,13 @@ const modelApiCallsRelations = relations(modelApiCalls, ({ one }) => ({
     fields: [modelApiCalls.extractionId],
     references: [extractions.id],
   }),
-  dataset: one(datasets, {
-    fields: [modelApiCalls.datasetId],
-    references: [datasets.id]
-  }),
   crawlPage: one(crawlPages, {
     fields: [modelApiCalls.crawlPageId],
     references: [crawlPages.id],
+  }),
+  dataset: one(datasets, {
+    fields: [modelApiCalls.datasetId],
+    references: [datasets.id]
   }),
 }));
 
@@ -480,6 +480,7 @@ const crawlPageRelations = relations(crawlPages, ({ one, many }) => ({
   }),
   dataItems: many(dataItems),
   extractionLogs: many(extractionLogs),
+  modelApiCalls: many(modelApiCalls),
 }));
 
 const datasets = pgTable(
