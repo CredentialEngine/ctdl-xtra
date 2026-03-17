@@ -14,9 +14,25 @@ import { exponentialRetry } from "./utils";
 const logger = getLogger("openai");
 
 export const ModelPrices = {
+  [ProviderModel.Gpt54]: {
+    per1MInput: 2.5,
+    per1MOutput: 15.0,
+  },
+  [ProviderModel.Gpt54Mini]: {
+    per1MInput: 0.75,
+    per1MOutput: 4.5,
+  },
+  [ProviderModel.Gpt54Nano]: {
+    per1MInput: 0.2,
+    per1MOutput: 1.25,
+  },
   [ProviderModel.Gpt5]: {
     per1MInput: 1.25,
     per1MOutput: 10.0,
+  },
+  [ProviderModel.Gpt5Nano]: {
+    per1MInput: 0.05,
+    per1MOutput: 0.4,
   },
   [ProviderModel.Gpt4o]: {
     per1MInput: 2.5,
@@ -119,7 +135,13 @@ export async function simpleToolCompletion<
       },
     };
 
-    if (Number.isFinite(options?.top_p) && selectedModel !== ProviderModel.Gpt5) {
+    const noTopP =
+      selectedModel === ProviderModel.Gpt5 ||
+      selectedModel === ProviderModel.Gpt5Nano ||
+      selectedModel === ProviderModel.Gpt54 ||
+      selectedModel === ProviderModel.Gpt54Mini ||
+      selectedModel === ProviderModel.Gpt54Nano;
+    if (Number.isFinite(options?.top_p) && !noTopP) {
       completionOptions.top_p = options?.top_p;
     }
     try {
@@ -239,7 +261,13 @@ export async function structuredCompletion<
       } as any,
     };
 
-    if (Number.isFinite(options?.top_p) && selectedModel !== ProviderModel.Gpt5) {
+    const noTopP =
+      selectedModel === ProviderModel.Gpt5 ||
+      selectedModel === ProviderModel.Gpt5Nano ||
+      selectedModel === ProviderModel.Gpt54 ||
+      selectedModel === ProviderModel.Gpt54Mini ||
+      selectedModel === ProviderModel.Gpt54Nano;
+    if (Number.isFinite(options?.top_p) && !noTopP) {
       completionOptions.top_p = options?.top_p;
     }
 
