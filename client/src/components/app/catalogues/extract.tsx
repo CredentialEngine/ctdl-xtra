@@ -27,6 +27,10 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import {
+  DEFAULT_EXTRACTION_MODEL,
+  MODEL_METADATA,
+} from "@common/modelMetadata";
 import { Recipe, RecipeDetectionStatus, trpc } from "@/utils";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { HelpCircle, Pickaxe } from "lucide-react";
@@ -38,6 +42,17 @@ import { displayRecipeDetails } from "../recipes/util";
 
 const FormSchema = z.object({
   recipeId: z.string(),
+  model: z.enum([
+    "gpt-4o",
+    "gpt-4.1",
+    "o3-mini",
+    "o4-mini",
+    "gpt-5",
+    "gpt-5-nano",
+    "gpt-5.4",
+    "gpt-5.4-mini",
+    "gpt-5.4-nano",
+  ]),
 });
 
 export default function CatalogueCreateExtraction() {
@@ -52,6 +67,7 @@ export default function CatalogueCreateExtraction() {
     resolver: zodResolver(FormSchema),
     defaultValues: {
       recipeId: recipeId || "",
+      model: DEFAULT_EXTRACTION_MODEL,
     },
   });
   const [_location, navigate] = useLocation();
@@ -59,7 +75,7 @@ export default function CatalogueCreateExtraction() {
   useEffect(() => {
     if (!catalogueDetail.data) {
       setRecipe(null);
-      form.reset({ recipeId: "" });
+      form.reset({ recipeId: "", model: DEFAULT_EXTRACTION_MODEL });
     } else {
       const parsedRecipeId = parseInt(recipeId || "");
       const foundRecipe = parsedRecipeId
@@ -67,7 +83,10 @@ export default function CatalogueCreateExtraction() {
         : catalogueDetail.data.recipes.find((r) => r.isDefault);
       if (foundRecipe) {
         setRecipe(foundRecipe as Recipe);
-        form.reset({ recipeId: foundRecipe.id.toString() });
+        form.reset({
+          recipeId: foundRecipe.id.toString(),
+          model: DEFAULT_EXTRACTION_MODEL,
+        });
       }
     }
   }, [catalogueDetail.data, recipeId]);
@@ -76,6 +95,7 @@ export default function CatalogueCreateExtraction() {
     await createExtraction.mutateAsync({
       catalogueId: parseInt(catalogueId!),
       recipeId: parseInt(data.recipeId),
+      model: data.model,
     });
     navigate(`~/extractions`);
   }
@@ -102,7 +122,48 @@ export default function CatalogueCreateExtraction() {
                 <CardHeader>
                   <CardDescription>Recipe settings</CardDescription>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="space-y-4">
+                  <FormField
+                    control={form.control}
+                    name="model"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Model</FormLabel>
+                        <Select
+                          onValueChange={field.onChange}
+                          value={field.value}
+                        >
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select model" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {MODEL_METADATA.map((meta) => (
+                              <SelectItem
+                                key={meta.model}
+                                value={meta.model}
+                                className="cursor-pointer"
+                              >
+                                {meta.label}
+                                {meta.isCheapest ? " (Lowest cost)" : ""}
+                                {meta.bestValue ? " (Best Value)" : ""}
+                                {meta.isFlagship ? " (Flagship)" : ""}
+                                <span className="opacity-60">
+                                  {" — "}
+                                  {new Date(meta.releaseDate).toLocaleDateString(
+                                    "en-US",
+                                    { year: "numeric", month: "short", day: "numeric" }
+                                  )}
+                                </span>
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
                   <FormField
                     control={form.control}
                     name="recipeId"
@@ -158,7 +219,13 @@ export default function CatalogueCreateExtraction() {
                 </CardContent>
               </Card>
             </div>
-            <Button>
+            <Button
+              disabled={
+                !form.watch("model") ||
+                !form.watch("recipeId") ||
+                createExtraction.isLoading
+              }
+            >
               <Pickaxe className="h-4 w-4 mr-2" /> Start extraction
             </Button>
           </form>

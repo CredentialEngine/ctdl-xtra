@@ -41,11 +41,15 @@ import {
 import { findLatestDataset } from "./datasets";
 import getLogger from "../logging";
 
-export async function createExtraction(recipeId: number) {
+export async function createExtraction(
+  recipeId: number,
+  model?: ProviderModel
+) {
   const result = await db
     .insert(extractions)
     .values({
       recipeId,
+      model: model ?? null,
     })
     .returning();
   return result[0];
