@@ -120,6 +120,13 @@
       "when": 1773773542129,
       "tag": "0016_gorgeous_franklin_richards",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1773819352103,
+      "tag": "0017_wide_mole_man",
+      "breakpoints": true
     }
   ]
 }
