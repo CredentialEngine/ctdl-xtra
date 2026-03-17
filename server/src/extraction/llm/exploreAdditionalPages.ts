@@ -57,9 +57,12 @@ ${MD_END}
     },
   ];
 
+  const model =
+    options.modelOverride ?? entityDef.model ?? ProviderModel.Gpt5;
+
   const result = await structuredCompletion({
     messages,
-    model: entityDef.model || ProviderModel.Gpt5,
+    model,
     schema: {
       type: "object",
       additionalProperties: false,

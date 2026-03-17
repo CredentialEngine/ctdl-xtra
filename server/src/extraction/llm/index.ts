@@ -1,4 +1,4 @@
-import { CatalogueType } from "../../../../common/types";
+import { CatalogueType, ProviderModel } from "../../../../common/types";
 import getLogger from "../../logging";
 import { SimplifiedMarkdown } from "../../types";
 
@@ -12,6 +12,7 @@ export interface DefaultLlmPageOptions {
   url: string;
   screenshot: string;
   catalogueType?: CatalogueType;
+  modelOverride?: ProviderModel;
   logApiCalls?: {
     extractionId: number;
     datasetId?: number;
