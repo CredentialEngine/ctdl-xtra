@@ -301,6 +301,7 @@ const extractions = pgTable(
     recipeId: integer("recipe_id")
       .notNull()
       .references(() => recipes.id, { onDelete: "cascade" }),
+    model: providerModelEnum("model"),
     completionStats: jsonb("completion_stats").$type<CompletionStats>(),
     status: extractionStatusEnum("status")
       .notNull()

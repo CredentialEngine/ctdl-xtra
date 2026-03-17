@@ -127,6 +127,13 @@
       "when": 1773819352103,
       "tag": "0017_wide_mole_man",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1773774697355,
+      "tag": "0018_bitter_tyrannus",
+      "breakpoints": true
     }
   ]
 }
