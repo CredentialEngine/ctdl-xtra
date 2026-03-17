@@ -99,6 +99,7 @@ export async function simpleToolCompletion<
   logApiCall?: {
     callSite: string;
     extractionId: number;
+    datasetId?: number;
     crawlPageId?: number;
   };
 }): Promise<{
@@ -195,8 +196,10 @@ export async function simpleToolCompletion<
         options.logApiCall.callSite,
         inputTokenCount,
         outputTokenCount,
-        undefined,
-        options.logApiCall.crawlPageId
+        {
+          datasetId: options.logApiCall.datasetId,
+          crawlPageId: options.logApiCall.crawlPageId,
+        }
       );
     }
 
@@ -326,8 +329,10 @@ export async function structuredCompletion<
         options.logApiCall.callSite,
         inputTokenCount,
         outputTokenCount,
-        options.logApiCall.datasetId,
-        options.logApiCall.crawlPageId
+        {
+          datasetId: options.logApiCall.datasetId,
+          crawlPageId: options.logApiCall.crawlPageId,
+        }
       );
     }
 
