@@ -273,10 +273,11 @@ ${basePrompt}
       model: entityDef.model || ProviderModel.Gpt5,
       logApiCall: options?.logApiCalls
         ? {
-          extractionId: options.logApiCalls.extractionId,
-          datasetId: options.logApiCalls.datasetId,
-          callSite: "extractEntityData",
-        }
+            extractionId: options.logApiCalls.extractionId,
+            datasetId: options.logApiCalls.datasetId,
+            crawlPageId: options.logApiCalls.crawlPageId,
+            callSite: "extractEntityData",
+          }
         : undefined,
     });
 
@@ -307,10 +308,11 @@ ${basePrompt}
       requiredParameters: ["items"],
       logApiCall: options?.logApiCalls
         ? {
-          extractionId: options.logApiCalls.extractionId,
-          datasetId: options.logApiCalls.datasetId,
-          callSite: "extractEntityData",
-        }
+            extractionId: options.logApiCalls.extractionId,
+            datasetId: options.logApiCalls.datasetId,
+            crawlPageId: options.logApiCalls.crawlPageId,
+            callSite: "extractEntityData",
+          }
         : undefined,
     };
 

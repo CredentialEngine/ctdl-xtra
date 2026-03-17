@@ -76,7 +76,11 @@ export default createProcessor<ExtractDataJob, ExtractDataProgress>(
         content,
         screenshot,
         catalogueType,
-        logApiCalls: { extractionId: crawlPage.extractionId, datasetId: dataset.id },
+        logApiCalls: {
+          extractionId: crawlPage.extractionId,
+          datasetId: dataset.id,
+          crawlPageId: crawlPage.id,
+        },
       };
 
       let skipExtraction = false,

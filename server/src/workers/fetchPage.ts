@@ -95,7 +95,10 @@ async function enqueuePages(
         crawlPage.crawlStepId,
         crawlPage.id
       ),
-      logApiCalls: { extractionId: crawlPage.extractionId },
+      logApiCalls: {
+        extractionId: crawlPage.extractionId,
+        crawlPageId: crawlPage.id,
+      },
       url: crawlPage.url,
       catalogueType,
     },
