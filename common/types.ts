@@ -118,7 +118,7 @@ export const UIPageStatus: { value: PageStatus; label: string }[] = (
   Object.values(PageStatus) as PageStatus[]
 ).map((value) => ({
   value,
-  label: toTitleCase(value.replaceAll("_", " ")),
+  label: toTitleCase(String(value).replace(/_/g, " ")),
 }));
 
 export enum RecipeDetectionStatus {
