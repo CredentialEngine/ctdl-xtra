@@ -204,6 +204,9 @@ export async function detectExtractionJobs(extractionId: number) {
         break;
       }
       for (const job of jobs) {
+        if (!job || !job.data)
+          continue;
+
         if (job.data.extractionId === extractionId) {
           return true;
         }
