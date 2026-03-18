@@ -1,1 +1,1 @@
-ALTER TABLE "extractions" ADD COLUMN "model" "provider_model";
+ALTER TABLE "extractions" ADD COLUMN IF NOT EXISTS "model" "provider_model";
