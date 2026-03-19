@@ -1,6 +1,10 @@
 import { z } from "zod";
 import { publicProcedure, router } from ".";
-import { CatalogueType, ExtractionStatus } from "../../../common/types";
+import {
+  CatalogueType,
+  ExtractionStatus,
+  ProviderModel,
+} from "../../../common/types";
 import { AppError, AppErrors } from "../appErrors";
 import {
   findDataItemsByCrawlPageId,
@@ -45,6 +49,17 @@ export const extractionsRouter = router({
       z.object({
         catalogueId: z.number().positive(),
         recipeId: z.number().positive(),
+        model: z.enum([
+          "gpt-4o",
+          "gpt-4.1",
+          "o3-mini",
+          "o4-mini",
+          "gpt-5",
+          "gpt-5-nano",
+          "gpt-5.4",
+          "gpt-5.4-mini",
+          "gpt-5.4-nano",
+        ]),
       })
     )
     .mutation(async (opts) => {
@@ -52,7 +67,8 @@ export const extractionsRouter = router({
       return startExtraction(
         opts.input.catalogueId,
         opts.input.recipeId,
-        userId
+        userId,
+        opts.input.model as ProviderModel,
       );
     }),
   cancel: publicProcedure
@@ -321,7 +337,12 @@ export const extractionsRouter = router({
           url: crawlPage.url,
           content,
           screenshot,
-          logApiCalls: { extractionId: crawlPage.extractionId },
+          modelOverride: (crawlPage.extraction.model ??
+            undefined) as ProviderModel | undefined,
+          logApiCalls: {
+            extractionId: crawlPage.extractionId,
+            crawlPageId: crawlPage.id,
+          },
         },
         crawlPage.extraction.recipe.catalogue.catalogueType as CatalogueType
       );

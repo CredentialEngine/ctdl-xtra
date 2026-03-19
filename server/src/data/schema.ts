@@ -301,6 +301,7 @@ const extractions = pgTable(
     recipeId: integer("recipe_id")
       .notNull()
       .references(() => recipes.id, { onDelete: "cascade" }),
+    model: providerModelEnum("model"),
     completionStats: jsonb("completion_stats").$type<CompletionStats>(),
     status: extractionStatusEnum("status")
       .notNull()
@@ -339,11 +340,15 @@ const modelApiCalls = pgTable(
     createdAt: timestamp("created_at").notNull().defaultNow(),
     datasetId: integer("dataset_id").references(() => datasets.id, {
       onDelete: "cascade"
-    })
+    }),
+    crawlPageId: integer("crawl_page_id").references(() => crawlPages.id, {
+      onDelete: "cascade",
+    }),
   },
   (t) => ({
     extractionIdx: index("model_api_calls_extraction_idx").on(t.extractionId),
     datasetIdx: index("model_api_calls_datasaet_idx").on(t.datasetId),
+    crawlPageIdx: index("model_api_calls_crawl_page_idx").on(t.crawlPageId),
   })
 );
 
@@ -355,7 +360,11 @@ const modelApiCallsRelations = relations(modelApiCalls, ({ one }) => ({
   dataset: one(datasets, {
     fields: [modelApiCalls.datasetId],
     references: [datasets.id]
-  })
+  }),
+  crawlPage: one(crawlPages, {
+    fields: [modelApiCalls.crawlPageId],
+    references: [crawlPages.id],
+  }),
 }));
 
 const extractionLogs = pgTable(

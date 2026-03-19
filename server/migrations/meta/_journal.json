@@ -113,6 +113,27 @@
       "when": 1772713584974,
       "tag": "0015_chemical_power_man",
       "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1773773542129,
+      "tag": "0016_gorgeous_franklin_richards",
+      "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1773819352103,
+      "tag": "0017_wide_mole_man",
+      "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1773774697355,
+      "tag": "0018_bitter_tyrannus",
+      "breakpoints": true
     }
   ]
 }

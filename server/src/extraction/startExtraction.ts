@@ -1,4 +1,9 @@
-import { ExtractionStatus, RecipeDetectionStatus, Step } from "../../../common/types";
+import {
+  ExtractionStatus,
+  ProviderModel,
+  RecipeDetectionStatus,
+  Step,
+} from "../../../common/types";
 import { findCatalogueById } from "../data/catalogues";
 import { createDataset } from "../data/datasets";
 import {
@@ -28,7 +33,8 @@ const logger = getLogger("extraction.startExtraction");
 export async function startExtraction(
   catalogueId: number,
   recipeId: number,
-  userId?: number
+  userId?: number,
+  model?: ProviderModel
 ) {
   const catalogue = await findCatalogueById(catalogueId);
   if (!catalogue) {
@@ -41,7 +47,7 @@ export async function startExtraction(
   if (recipe.status != RecipeDetectionStatus.SUCCESS) {
     throw new Error(`Recipe ${recipeId} hasn't been configured for extraction`);
   }
-  const extraction = await createExtraction(recipe.id);
+  const extraction = await createExtraction(recipe.id, model);
 
   // Log audit entry if user is provided
   if (userId) {

@@ -266,17 +266,21 @@ ${basePrompt}
     }
   }
 
+  const model =
+    options.modelOverride ?? entityDef.model ?? ProviderModel.Gpt5;
+
   if (entityDef.schema) {
     const results = await structuredCompletion({
       messages,
       schema: entityDef.schema,
-      model: entityDef.model || ProviderModel.Gpt5,
+      model,
       logApiCall: options?.logApiCalls
         ? {
-          extractionId: options.logApiCalls.extractionId,
-          datasetId: options.logApiCalls.datasetId,
-          callSite: "extractEntityData",
-        }
+            extractionId: options.logApiCalls.extractionId,
+            datasetId: options.logApiCalls.datasetId,
+            crawlPageId: options.logApiCalls.crawlPageId,
+            callSite: "extractEntityData",
+          }
         : undefined,
     });
 
@@ -293,7 +297,7 @@ ${basePrompt}
     const completionParameters = {
       messages,
       toolName: "result",
-      model: entityDef.model || ProviderModel.Gpt5,
+      model,
       parameters: {
         items: {
           type: "array",
@@ -307,10 +311,11 @@ ${basePrompt}
       requiredParameters: ["items"],
       logApiCall: options?.logApiCalls
         ? {
-          extractionId: options.logApiCalls.extractionId,
-          datasetId: options.logApiCalls.datasetId,
-          callSite: "extractEntityData",
-        }
+            extractionId: options.logApiCalls.extractionId,
+            datasetId: options.logApiCalls.datasetId,
+            crawlPageId: options.logApiCalls.crawlPageId,
+            callSite: "extractEntityData",
+          }
         : undefined,
     };
 

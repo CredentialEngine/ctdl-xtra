@@ -89,6 +89,10 @@ export enum ProviderModel {
   O3Mini = "o3-mini",
   O4Mini = "o4-mini",
   Gpt5 = "gpt-5",
+  Gpt5Nano = "gpt-5-nano",
+  Gpt54 = "gpt-5.4",
+  Gpt54Mini = "gpt-5.4-mini",
+  Gpt54Nano = "gpt-5.4-nano",
 }
 
 export enum ExtractionStatus {
