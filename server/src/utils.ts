@@ -1,4 +1,4 @@
-import { BrowserFetchError, BrowserTaskResult } from "./extraction/browser";
+import { BrowserFetchError } from "./extraction/browser";
 import getLogger from "./logging";
 
 const logger = getLogger("utils");
