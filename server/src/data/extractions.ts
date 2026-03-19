@@ -608,6 +608,11 @@ export async function findPage(crawlPageId: number) {
     where: (crawlPages, { eq }) => eq(crawlPages.id, crawlPageId),
     with: {
       crawlStep: true,
+      extraction: {
+        with: {
+          recipe: true,
+        },
+      },
     },
   });
   return result;

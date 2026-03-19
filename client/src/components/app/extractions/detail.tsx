@@ -35,6 +35,7 @@ import {
   RecipeDetectionStatus,
   concisePrintDate,
   prettyPrintDate,
+  resolveCrawlPageUrl,
   trpc,
 } from "@/utils";
 import { CookingPot, LibraryBig, List } from "lucide-react";
@@ -711,7 +712,10 @@ export default function ExtractionDetail() {
                                       </TableCell>
                                       <TableCell className="break-all align-top">
                                         <a
-                                          href={p.url}
+                                          href={resolveCrawlPageUrl(
+                                            p.url,
+                                            extraction.recipe.url
+                                          )}
                                           target="_blank"
                                           rel="noreferrer"
                                           className="underline"
@@ -784,7 +788,10 @@ export default function ExtractionDetail() {
                                     </TableCell>
                                     <TableCell className="break-all align-top">
                                       <a
-                                        href={p.url}
+                                        href={resolveCrawlPageUrl(
+                                          p.url,
+                                          extraction.recipe.url
+                                        )}
                                         target="_blank"
                                         rel="noreferrer"
                                         className="underline"
