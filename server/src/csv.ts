@@ -105,6 +105,17 @@ function getLearningProgramRow(
 
 type Framework = { name: string; id: string };
 
+const COMPETENCY_CATEGORY_MAP: Record<string, string> = {
+  outcomes: "Course Level Student Learning Outcome(s)",
+  course_objectives: "Course Objectives",
+};
+
+function formatCompetencyCategory(
+  value: string | null | undefined
+): string {
+  return COMPETENCY_CATEGORY_MAP[value ?? ""] || "Unknown";
+}
+
 function getCompetencyRow(
   item: Awaited<ReturnType<typeof findDataItems>>["items"][number],
   textVerificationAverage: number,
@@ -143,6 +154,7 @@ function getCompetencyRow(
       text: entityData.text,
       language: entityData.language,
       competency_framework: framework.id,
+      competency_category: entityData.competency_category,
     },
     { textVerificationAverage, textVerificationDetails },
     framework
@@ -177,6 +189,9 @@ function makeCompetencyRow(
     "ceasn:inLanguage": language,
     "ceasn:publisher": "",
     "ceasn:isPartOf": isPartOf,
+    ...(parent && {
+      "Competency Category": formatCompetencyCategory(entity.competency_category),
+    }),
   };
 
   return result;
