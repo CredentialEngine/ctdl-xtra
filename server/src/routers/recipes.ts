@@ -268,18 +268,7 @@ export const recipesRouter = router({
       if (!recipe) {
         throw new AppError("Recipe not found", AppErrors.NOT_FOUND);
       }
-      
-      // Only trigger detection if URL changed, not if only configuration or isTemplate changed
-      const urlChanged = opts.input.update.url !== undefined && opts.input.update.url !== recipe.url;
-      
-      if (urlChanged) {
-        await submitJob(
-          Queues.DetectConfiguration,
-          { recipeId: recipe.id },
-          `detectConfiguration.${recipe.id}`
-        );
-      }
-      
+
       // Build update object with only provided fields
       const updateData: any = {};
       
