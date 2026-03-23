@@ -25,6 +25,7 @@ import {
   PageStatus,
   LogLevel,
   PageType,
+  ProviderModel,
   Step,
 } from "../../../common/types";
 import { getCatalogueTypeDefinition } from "../extraction/catalogueTypes";
@@ -76,7 +77,14 @@ export default createProcessor<ExtractDataJob, ExtractDataProgress>(
         content,
         screenshot,
         catalogueType,
-        logApiCalls: { extractionId: crawlPage.extractionId, datasetId: dataset.id },
+        modelOverride: (crawlPage.extraction.model ?? undefined) as
+          | ProviderModel
+          | undefined,
+        logApiCalls: {
+          extractionId: crawlPage.extractionId,
+          datasetId: dataset.id,
+          crawlPageId: crawlPage.id,
+        },
       };
 
       let skipExtraction = false,

@@ -80,7 +80,9 @@ export interface CatalogueTypeDefinition {
   explorationPrompt?: string;
 
   /**
-   * The model to use for the LLM.
+   * The model to use for the LLM when extracting entities of this catalogue type.
+   * Used when no model is specified at extraction creation time (e.g. user-selected model
+   * on the extraction form). The extraction's model takes precedence when set.
    */
   model?: ProviderModel;
 
@@ -207,6 +209,7 @@ export const catalogueTypes: Record<CatalogueType, CatalogueTypeDefinition> = {
     displayTitle: "Courses",
     displayDescription: "Optimized for extracting and transforming course information from web pages that meet specific formatting criteria.",
     isActive: true,
+    model: ProviderModel.Gpt54Mini,
     properties: {
       course_id: {
         description: 'code/identifier for the course (example: "AGRI 101")',
@@ -299,6 +302,7 @@ export const catalogueTypes: Record<CatalogueType, CatalogueTypeDefinition> = {
     displayTitle: "Learning Programs",
     displayDescription: "Capture information about learning programs, training pathways, and educational offerings.",
     isActive: true,
+    model: ProviderModel.Gpt54Mini,
     properties: {
       learning_program_id: {
         description:
@@ -338,7 +342,7 @@ export const catalogueTypes: Record<CatalogueType, CatalogueTypeDefinition> = {
     displayTitle: "Competencies",
     displayDescription: "Identify and structure competency frameworks and skill requirements from educational resources.",
     isActive: true,
-    model: ProviderModel.Gpt5,
+    model: ProviderModel.Gpt54Mini,
     extractionParameters: {
       temperature: 1,
       top_p: 0.5,
@@ -435,7 +439,7 @@ export const catalogueTypes: Record<CatalogueType, CatalogueTypeDefinition> = {
       Do not confuse credentials with courses or skills or learning outcomes. Do not list Certifications, those are not credentials. Return only the credentials that are offered by the institution.
       Ignore stackable certificates.
     `,
-    model: ProviderModel.Gpt5,
+    model: ProviderModel.Gpt54Mini,
     properties: {
       credential_name: {
         description:

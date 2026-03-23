@@ -56,7 +56,8 @@ ${MD_END}
     },
   ];
 
-  const model = entityDef.model || ProviderModel.Gpt5;
+  const model =
+    options.modelOverride ?? entityDef.model ?? ProviderModel.Gpt5;
 
   type PresenceCompletion = { present: boolean; explanation: string };
 
@@ -83,6 +84,7 @@ ${MD_END}
     logApiCall: options?.logApiCalls
       ? {
           extractionId: options.logApiCalls.extractionId,
+          crawlPageId: options.logApiCalls.crawlPageId,
           callSite: "determinePresenceOfEntity",
         }
       : undefined,

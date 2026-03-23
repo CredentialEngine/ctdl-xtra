@@ -41,11 +41,15 @@ import {
 import { findLatestDataset } from "./datasets";
 import getLogger from "../logging";
 
-export async function createExtraction(recipeId: number) {
+export async function createExtraction(
+  recipeId: number,
+  model?: ProviderModel
+) {
   const result = await db
     .insert(extractions)
     .values({
       recipeId,
+      model: model ?? null,
     })
     .returning();
   return result[0];
@@ -827,7 +831,8 @@ export async function createModelApiCallLog(
   callSite: string,
   inputTokenCount: number,
   outputTokenCount: number,
-  datasetId?: number
+  datasetId?: number,
+  crawlPageId?: number
 ) {
   const result = await db
     .insert(modelApiCalls)
@@ -838,7 +843,8 @@ export async function createModelApiCallLog(
       callSite,
       input_token_count: inputTokenCount,
       output_token_count: outputTokenCount,
-      datasetId
+      datasetId,
+      crawlPageId,
     })
     .returning();
   return result[0];
