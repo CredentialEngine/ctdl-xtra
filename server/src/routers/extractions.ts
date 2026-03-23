@@ -3,6 +3,7 @@ import { publicProcedure, router } from ".";
 import {
   CatalogueType,
   ExtractionStatus,
+  PageStatus,
   ProviderModel,
 } from "../../../common/types";
 import { AppError, AppErrors } from "../appErrors";
@@ -24,7 +25,9 @@ import {
   findPage,
   findPageForJob,
   findPagesPaginated,
+  findSampledPagesForExtraction,
   findStep,
+  getApiCallSummary,
   getExtractionCount,
   getLogCount,
   getPageCount,
@@ -130,17 +133,30 @@ export const extractionsRouter = router({
       })
     )
     .query(async (opts) => {
-      let result = await findExtractionForDetailPage(opts.input.id);
+      const result = await findExtractionForDetailPage(opts.input.id);
       if (!result) {
         throw new AppError("Extraction not found", AppErrors.NOT_FOUND);
       }
       const datasets = await findExtractionDatasets(opts.input.id);
       const lastAuditLog = await findLastAuditLogEntry(opts.input.id);
+
+      const apiSummary = await getApiCallSummary(opts.input.id);
+      const totalInputTokens = apiSummary.reduce(
+        (sum, s) => sum + Number(s.totalInputTokens ?? 0),
+        0
+      );
+      const totalOutputTokens = apiSummary.reduce(
+        (sum, s) => sum + Number(s.totalOutputTokens ?? 0),
+        0
+      );
+
       return {
         ...result,
         datasets,
         latestDataset: datasets[0],
         lastAuditLog,
+        totalInputTokens,
+        totalOutputTokens,
       };
     }),
   destroy: publicProcedure
@@ -307,6 +323,26 @@ export const extractionsRouter = router({
     )
     .query(async (opts) => {
       return findLogsByCrawlPageId(opts.input.crawlPageId);
+    }),
+  samplePages: publicProcedure
+    .input(
+      z.object({
+        extractionId: z.number().int().positive(),
+        sampleSizePercent: z.number().min(0).max(100),
+        dataStatus: z.array(z.enum(["present", "absent"])),
+        statuses: z.array(z.nativeEnum(PageStatus)),
+        sortBy: z.enum(["random", "most_expensive", "most_data_items", "least_data_items"]),
+        applyKey: z.number().optional(),
+      })
+    )
+    .query(async (opts) => {
+      return findSampledPagesForExtraction({
+        extractionId: opts.input.extractionId,
+        sampleSizePercent: opts.input.sampleSizePercent,
+        dataStatus: opts.input.dataStatus,
+        statuses: opts.input.statuses,
+        sortBy: opts.input.sortBy,
+      });
     }),
   simulateDataExtraction: publicProcedure
     .input(

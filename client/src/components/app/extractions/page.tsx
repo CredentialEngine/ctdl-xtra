@@ -18,12 +18,26 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { concisePrintDate, prettyPrintDate, resolveCrawlPageUrl, trpc } from "@/utils";
 import { ExternalLink } from "lucide-react";
-import { useState } from "react";
-import { useParams } from "wouter";
+import { useEffect, useState } from "react";
+import { useLocation, useParams, useSearch } from "wouter";
 import { base64Img } from "./utils";
+
+const DEFAULT_TAB = "data";
+
+const VALID_TAB_VALUES = [
+  "data",
+  "raw_content",
+  "screenshot",
+  "simplified_content",
+  "operation_logs",
+];
 
 export default function CrawlPageDetail() {
   const { extractionId, stepId, crawlPageId } = useParams();
+  const [, navigate] = useLocation();
+  const search = useSearch();
+  const basePath = "~" + new URL(window.location.href).pathname;
+
   const crawlPageQuery = trpc.extractions.crawlPageDetail.useQuery(
     { crawlPageId: parseInt(crawlPageId || "") },
     { enabled: !!crawlPageId }
@@ -40,7 +54,22 @@ export default function CrawlPageDetail() {
         (typeof simulateExtractionQuery)["mutateAsync"]
       > | null>
     >(null);
-  if (!crawlPageQuery.data) {
+
+  const item = crawlPageQuery.data;
+
+  useEffect(() => {
+    const sp = new URLSearchParams(search || "");
+    const tabName = sp.get("tabName");
+    const shouldRedirect =
+      !tabName || !VALID_TAB_VALUES.includes(tabName || "");
+
+    if (shouldRedirect) {
+      sp.set("tabName", DEFAULT_TAB);
+      navigate(`${basePath}?${sp.toString()}`, { replace: true });
+    }
+  }, [basePath, navigate, search]);
+
+  if (!item) {
     return null;
   }
 
@@ -52,8 +81,6 @@ export default function CrawlPageDetail() {
       setSimulatedExtractedData(simulatedData);
     }
   };
-
-  const item = crawlPageQuery.data;
 
   const breadCrumbs = [
     { label: "Extractions", href: "/" },
@@ -123,8 +150,6 @@ export default function CrawlPageDetail() {
     </TabsContent>,
   ];
 
-  const defaultTab = "data";
-
   if (item.markdownContent) {
     tabTriggers.push(
       <TabsTrigger key="simplified_content" value="simplified_content">Simplified Content</TabsTrigger>
@@ -190,6 +215,18 @@ export default function CrawlPageDetail() {
     tabTriggers.splice(1, 0, <TabsTrigger key="screenshot" value="screenshot">Screenshot</TabsTrigger>);
     tabContents.splice(1, 0, <TabsContent key="screenshot" value="screenshot">{screenshot}</TabsContent>);
   }
+
+  const tabNameFromUrl = new URLSearchParams(search || "").get("tabName");
+  if (tabNameFromUrl && !VALID_TAB_VALUES.includes(tabNameFromUrl)) {
+    return null;
+  }
+  const currentTab = tabNameFromUrl ?? DEFAULT_TAB;
+
+  const onTabChange = (value: string) => {
+    const sp = new URLSearchParams(search || "");
+    sp.set("tabName", value);
+    navigate(`${basePath}?${sp.toString()}`);
+  };
 
   const formattedSimulatedData = simulatedExtractedData?.data
     ? JSON.stringify(simulatedExtractedData?.data, null, 2)
@@ -259,7 +296,7 @@ export default function CrawlPageDetail() {
         )}
       </div>
 
-      <Tabs defaultValue={defaultTab}>
+      <Tabs value={currentTab} onValueChange={onTabChange}>
         <TabsList className="w-full mb-4">{tabTriggers}</TabsList>
         <div className="border border-dashed p-4 text-xs overflow-auto">
           {tabContents}

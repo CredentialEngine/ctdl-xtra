@@ -30,35 +30,12 @@ export type CrawlPage = ItemType<
 type DatasetItemsResponse = Exclude<RouterOutput["datasets"]["items"], null>;
 export type DatasetItem = ItemType<DatasetItemsResponse["items"]["results"]>;
 
-export enum ExtractionStatus {
-  WAITING = "WAITING",
-  IN_PROGRESS = "IN_PROGRESS",
-  COMPLETE = "COMPLETE",
-  STALE = "STALE",
-  CANCELLED = "CANCELLED",
-}
-
-export enum PageStatus {
-  WAITING = "WAITING",
-  IN_PROGRESS = "IN_PROGRESS",
-  DOWNLOADED = "DOWNLOADED",
-  SUCCESS = "SUCCESS",
-  EXTRACTED_NO_DATA = "EXTRACTED_NO_DATA",
-  ERROR = "ERROR",
-}
-
-export enum RecipeDetectionStatus {
-  WAITING = "WAITING",
-  IN_PROGRESS = "IN_PROGRESS",
-  SUCCESS = "SUCCESS",
-  ERROR = "ERROR",
-}
-
-export enum Step {
-  FETCH_ROOT = "FETCH_ROOT",
-  FETCH_PAGINATED = "FETCH_PAGINATED",
-  FETCH_LINKS = "FETCH_LINKS",
-}
+export {
+  ExtractionStatus,
+  PageStatus,
+  RecipeDetectionStatus,
+  Step,
+} from "../../common/types";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
