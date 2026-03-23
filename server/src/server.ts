@@ -90,6 +90,7 @@ server.register(async (instance) => {
             path: opts.path,
             type: opts.error.name,
             message: opts.error.message,
+            stack: opts.error.stack,
           },
           "Error in tRPC request"
         );
