@@ -162,6 +162,7 @@ export interface CompetencyStructuredData {
   text: string;
   competency_framework: string;
   language?: string;
+  competency_category?: "outcomes" | "course_objectives" | "unknown";
 }
 
 export type TextInclusion<T> = {
