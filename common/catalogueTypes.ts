@@ -353,7 +353,8 @@ export const catalogueTypes: Record<CatalogueType, CatalogueTypeDefinition> = {
     presencePrompt:
       "Look at the given markdown page and check if there exists a list of skills in a dedicated section. " +
       "We are looking for a list in a dedicated section, do not consider paragraphs or long descriptions. " +
-      "Do not confuse courses with skills. We are looking for skills attained after taking the course described in the page.",
+      "Do not confuse courses with skills. We are looking for skills attained after taking the course described in the page." +
+      "Example of headers listing the items are 'Learning outcomes', 'Course objectives', 'Competencies', etc.",
     desiredOutput:
       "We are looking for a list of skills that are gained after taking the course described in the page. " +
       "If found, take each item exactly as it is in the page and return them. Skip everything else, just the skill list." +
@@ -371,10 +372,18 @@ export const catalogueTypes: Record<CatalogueType, CatalogueTypeDefinition> = {
           "The name of the encompassing or overarching skill or competency or learning program or course that will lead " +
           "to obtaining the skill or competency or learning outcome. " +
           "Usually this value is the same for the entire list but should be set " +
-          "according to the hierarchy structure of the page. This is usually shorter. " +
+          "according to the hierarchy structure of the page. This is usually shorter. No course codes should be included. (ex. ACCT 101)" +
           "Sometimes, this might contain descriptive language about the skill - we should only keep the " +
           'name of the skill and trim phrases such as "competency" or "learning outcome".' +
           "This field should be in title case. If it contains roman numerals, they use use uppercase.",
+        required: false,
+      },
+      competency_category: {
+        description:
+          "Some pages contain competency under outcomes and course objectives, we need to distinguish between the two. " +
+          "If the competency is under outcomes, set this field to 'outcomes'. " +
+          "Otherwise, set this field to 'course_objectives'. " +
+          "If it's not clear, set this field to 'unknown'.",
         required: false,
       },
       language: {
@@ -393,10 +402,14 @@ export const catalogueTypes: Record<CatalogueType, CatalogueTypeDefinition> = {
             properties: {
               text: { type: "string" },
               competency_framework: { type: "string" },
+              competency_category: {
+                type: "string",
+                enum: ["outcomes", "course_objectives", "unknown"],
+              },
               language: { type: "string" },
             },
             additionalProperties: false,
-            required: ["competency_framework", "text", "language"],
+            required: ["competency_framework", "text", "language", "competency_category"],
           },
         },
       },
