@@ -11,6 +11,7 @@ import {
 import { default as IORedis } from "ioredis";
 import { closeCluster } from "../extraction/browser";
 import getLogger from "../logging";
+import { inspect } from "node:util";
 
 const logger = getLogger("workers");
 const REDIS_URL = process.env.REDIS_URL || "redis://localhost:6379";
@@ -276,8 +277,11 @@ async function collectJobsForExtraction<T extends { extractionId: number; crawlP
       break;
     }
     for (const job of batch) {
-      if (job.data.extractionId === extractionId) {
+      if (job?.data?.extractionId === extractionId) {
         jobs.push({ data: job.data });
+      } else {
+        logger.info(`Skipping job ${job.id} for extraction ${extractionId} because it's not for the same extraction`);
+        logger.info(`Job data: \n${inspect(job.data)}`);
       }
     }
     start = end;
