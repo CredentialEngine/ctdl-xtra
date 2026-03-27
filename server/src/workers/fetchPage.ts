@@ -106,13 +106,20 @@ async function enqueuePages(
     configuration.pagination!.urlPatternType
   );
 
-  if (!pageCount) {
+  const totalPages =
+    pageCount?.totalPages ?? configuration.pagination!.totalPages;
+  if (!Number.isFinite(totalPages) || totalPages < 1) {
     throw new Error("Couldn't determine page count for paginated page");
+  }
+  if (!pageCount) {
+    logger.info(
+      `Using recipe totalPages (${totalPages}) as fallback; LLM did not detect page count for ${crawlPage.url}`
+    );
   }
 
   const updatedPagination = {
     ...configuration.pagination!,
-    totalPages: pageCount.totalPages,
+    totalPages,
   };
 
   const pageUrls = constructPaginatedUrls(updatedPagination);
