@@ -36,6 +36,7 @@ import {
   RecipeDetectionStatus,
   Step,
   TextInclusion,
+  UserPreferences,
 } from "../../../common/types";
 import { RobotsTxt } from "../extraction/robotsParser";
 import getLogger from "../logging";
@@ -562,6 +563,7 @@ const users = pgTable("users", {
   email: text("email").notNull().unique(),
   password: text("password").notNull(),
   createdAt: timestamp("created_at").notNull().defaultNow(),
+  userPreferences: jsonb("user_preferences").$type<UserPreferences | null>(),
 });
 
 const extractionsAuditLog = pgTable(

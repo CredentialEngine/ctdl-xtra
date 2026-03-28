@@ -31,6 +31,7 @@ type DatasetItemsResponse = Exclude<RouterOutput["datasets"]["items"], null>;
 export type DatasetItem = ItemType<DatasetItemsResponse["items"]["results"]>;
 
 export {
+  EmailNotificationPreference,
   ExtractionStatus,
   PageStatus,
   RecipeDetectionStatus,

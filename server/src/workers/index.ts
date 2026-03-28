@@ -149,6 +149,8 @@ export function startProcessor<T>(
 
 export interface DetectConfigurationJob {
   recipeId: number;
+  /** User who requested detection; omitted on older queued jobs. */
+  triggeredByUserId?: number | null;
 }
 
 export interface FetchPageJob {
