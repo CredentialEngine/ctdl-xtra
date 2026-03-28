@@ -1,5 +1,10 @@
 import { hash } from "argon2";
 import { eq } from "drizzle-orm";
+import { merge } from "lodash";
+import {
+  defaultUserPreferences,
+  UserPreferences,
+} from "../../../common/types";
 import db from "../data";
 import { users } from "./schema";
 
@@ -48,6 +53,7 @@ export async function findAllUsers() {
   return db.query.users.findMany({
     columns: {
       password: false,
+      userPreferences: false,
     },
     orderBy: (u) => u.createdAt,
   });
@@ -88,4 +94,35 @@ export async function resetUserPassword(id: number, password: string) {
     .where(eq(users.id, id))
     .returning();
   return { ...result[0], password: undefined };
+}
+
+export type UserPreferencesPatch = Partial<
+  Pick<UserPreferences, "email">
+> & {
+  email?: Partial<NonNullable<UserPreferences["email"]>>;
+};
+
+export async function patchUserPreferences(
+  userId: number,
+  patch: UserPreferencesPatch
+) {
+  const row = await db.query.users.findFirst({
+    columns: { userPreferences: true },
+    where: (users, { eq }) => eq(users.id, userId),
+  });
+  if (!row) {
+    return null;
+  }
+  const current: UserPreferences = merge(
+    {},
+    defaultUserPreferences(),
+    row.userPreferences ?? {}
+  );
+  const next: UserPreferences = merge({}, current, patch);
+  await db
+    .update(users)
+    .set({ userPreferences: next })
+    .where(eq(users.id, userId));
+
+  return next;
 }

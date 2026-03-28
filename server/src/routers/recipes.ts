@@ -136,7 +136,8 @@ export const recipesRouter = router({
             logger.info(`No configuration provided. Starting recipe detection with background tasks (detect mode).`);
             const detection = await submitRecipeDetection(
               opts.input.url,
-              opts.input.catalogueId
+              opts.input.catalogueId,
+              opts.ctx.user?.id
             );
 
             // If detection was successful, update the recipe with robots.txt info, name, and description
@@ -182,7 +183,10 @@ export const recipesRouter = router({
       }
       await submitJob(
         Queues.DetectConfiguration,
-        { recipeId: opts.input.id },
+        {
+          recipeId: opts.input.id,
+          triggeredByUserId: opts.ctx.user?.id ?? null,
+        },
         `detectConfiguration.${recipe.id}`
       );
       return;
