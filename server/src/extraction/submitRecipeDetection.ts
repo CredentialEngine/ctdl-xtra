@@ -9,7 +9,11 @@ import { detectPageType } from "./llm/detectPageType";
 
 const logger = getLogger("extraction.submitRecipeDetection");
 
-export async function submitRecipeDetection(url: string, catalogueId: number) {
+export async function submitRecipeDetection(
+  url: string,
+  catalogueId: number,
+  triggeredByUserId?: number | null
+) {
   const { content, screenshot } = await fetchBrowserPage({ url });
   const markdownContent = await simplifiedMarkdown(content);
   logger.info(`Downloaded ${url}.`);
@@ -42,7 +46,7 @@ export async function submitRecipeDetection(url: string, catalogueId: number) {
   const id = result.id;
   await submitJob(
     Queues.DetectConfiguration,
-    { recipeId: id },
+    { recipeId: id, triggeredByUserId: triggeredByUserId ?? null },
     `detectConfiguration.${id}`
   );
   return {

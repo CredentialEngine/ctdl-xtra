@@ -21,6 +21,7 @@ import { findLatestDataset } from "../data/datasets";
 import {
   createExtractionAuditLog,
   findExtractionById,
+  findExtractionStartUserId,
   getApiCallSummary,
   getStepStats,
   updateExtraction,
@@ -160,6 +161,7 @@ async function afterExtractionComplete(
 ) {
   if (job) await removeSelf(job);
   if (job) {
+    const triggeredByUserId = await findExtractionStartUserId(extraction.id);
     await sendEmailToAll(
       ExtractionComplete,
       {
@@ -172,7 +174,8 @@ async function afterExtractionComplete(
         createdAt: extraction.createdAt.toISOString(),
         stale: extraction.status == ExtractionStatus.STALE,
       },
-      `Extraction #${extraction.id} has finished`
+      `Extraction #${extraction.id} has finished`,
+      { triggeredByUserId }
     );
   }
 }
