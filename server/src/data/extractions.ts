@@ -73,6 +73,25 @@ export async function createExtractionAuditLog(
   return result[0];
 }
 
+/** User who started the extraction (first START audit with a user id), if any. */
+export async function findExtractionStartUserId(
+  extractionId: number
+): Promise<number | null> {
+  const result = await db
+    .select({ userId: extractionsAuditLog.userId })
+    .from(extractionsAuditLog)
+    .where(
+      and(
+        eq(extractionsAuditLog.extractionId, extractionId),
+        eq(extractionsAuditLog.action, "START"),
+        isNotNull(extractionsAuditLog.userId)
+      )
+    )
+    .orderBy(asc(extractionsAuditLog.createdAt))
+    .limit(1);
+  return result[0]?.userId ?? null;
+}
+
 export async function findLastAuditLogEntry(extractionId: number) {
   const result = await db
     .select({

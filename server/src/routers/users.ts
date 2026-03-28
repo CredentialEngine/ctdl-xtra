@@ -1,4 +1,10 @@
 import { z } from "zod";
+import { merge } from "lodash";
+import {
+  defaultUserPreferences,
+  EmailNotificationPreference,
+  UserPreferences,
+} from "../../../common/types";
 import { publicProcedure, router } from ".";
 import { AppError, AppErrors } from "../appErrors";
 import {
@@ -7,6 +13,7 @@ import {
   findAllUsers,
   findUserById,
   generateStrongPassword,
+  patchUserPreferences as applyUserPreferencesPatch,
   resetUserPassword,
 } from "../data/users";
 
@@ -18,10 +25,21 @@ export const usersRouter = router({
       })
     )
     .query(async (opts) => {
-      return findUserById(opts.input.id);
+      const user = await findUserById(opts.input.id);
+      if (!user) {
+        return null;
+      }
+      return {
+        ...user,
+        userPreferences: merge(
+          {},
+          defaultUserPreferences(),
+          user.userPreferences || {}
+        ) as UserPreferences,
+      };
     }),
   list: publicProcedure.query(async (_opts) => {
-    return findAllUsers();
+    return await findAllUsers();
   }),
   create: publicProcedure
     .input(
@@ -84,5 +102,26 @@ export const usersRouter = router({
     )
     .mutation(async (opts) => {
       await resetUserPassword(opts.ctx.user!.id, opts.input.password);
+    }),
+  patchUserPreferences: publicProcedure
+    .input(
+      z.object({
+        email: z.object({
+          notifications: z.nativeEnum(EmailNotificationPreference),
+        }),
+      })
+    )
+    .mutation(async (opts) => {
+      const uid = opts.ctx.user?.id;
+      if (!uid) {
+        throw new AppError("Not authenticated", AppErrors.BAD_REQUEST);
+      }
+      const merged = await applyUserPreferencesPatch(uid, {
+        email: opts.input.email,
+      });
+      if (!merged) {
+        throw new AppError("User not found", AppErrors.NOT_FOUND);
+      }
+      return merged;
     }),
 });

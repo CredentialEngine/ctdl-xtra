@@ -38,7 +38,10 @@ export default createProcessor<
         recipeId: recipe.id,
         url: recipe.url,
       },
-      `Recipe configuration detection #${recipe.id} is complete`
+      `Recipe configuration detection #${recipe.id} is complete`,
+      {
+        triggeredByUserId: job.data.triggeredByUserId ?? null,
+      }
     );
   } catch (err: unknown) {
     let detectionFailureReason;
@@ -64,7 +67,10 @@ export default createProcessor<
           url: recipe.url,
           reason: detectionFailureReason,
         },
-        `Recipe configuration detection #${recipe.id} has failed`
+        `Recipe configuration detection #${recipe.id} has failed`,
+        {
+          triggeredByUserId: job.data.triggeredByUserId ?? null,
+        }
       );
     }
     throw err;

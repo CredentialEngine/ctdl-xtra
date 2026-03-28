@@ -218,3 +218,26 @@ export interface ClickDiscoveryOptions {
   limit?: number;
   waitMs?: number;
 }
+
+export enum EmailNotificationPreference {
+  ALWAYS = "always",
+  MINE = "mine",
+  OFF = "off",
+}
+
+export interface UserEmailPreferences {
+  /** Default: ALWAYS (legacy / no stored preference). */
+  notifications?: EmailNotificationPreference;
+}
+
+export interface UserPreferences {
+  email?: UserEmailPreferences;
+}
+
+export function defaultUserPreferences(): UserPreferences {
+  return {
+    email: {
+      notifications: EmailNotificationPreference.ALWAYS,
+    },
+  };
+}
