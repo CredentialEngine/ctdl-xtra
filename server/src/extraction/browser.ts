@@ -10,11 +10,14 @@ import { findSetting } from "../data/settings";
 import getLogger from "../logging";
 import { SimplifiedMarkdown } from "../types";
 import { httpCodeToMessage, isProxyError, resolveAbsoluteUrl } from "../utils";
+import { PageSetupConfig } from "../../../common/types";
+import { applyPageSetupSteps } from "./pageSetup";
 import { detectCatalogueType } from "./llm/detectCatalogueType";
 
 export interface BrowserTaskInput {
   url: string;
   pageLoadWaitTime?: number;
+  pageSetup?: PageSetupConfig;
 }
 
 export interface BrowserTaskResult {
@@ -110,7 +113,7 @@ export async function getCluster(proxyUrl?: string) {
     }
 
     page.setDefaultTimeout(PAGE_TIMEOUT);
-    const { url, pageLoadWaitTime } = data;
+    const { url, pageLoadWaitTime, pageSetup } = data;
     let response: HTTPResponse | null = null;
 
     response = await page.goto(url, {
@@ -121,7 +124,9 @@ export async function getCluster(proxyUrl?: string) {
     if (!response) {
       throw new Error(`Failed to load page ${url}, no response received.`);
     }
-    
+
+    await applyPageSetupSteps(page, url, pageSetup);
+
     // Wait for the specified time if provided
     if (pageLoadWaitTime && pageLoadWaitTime > 0) {
       logger.info(`Waiting ${pageLoadWaitTime} seconds for page scripts to complete at ${url}`);
@@ -226,6 +231,8 @@ export interface FetchBrowserPageOptions {
   skipProxy?: boolean;
   /** Seconds to wait after page load for scripts to complete before capturing content. */
   pageLoadWaitTime?: number;
+  /** After navigation, optional ordered click/wait steps (root recipe config). */
+  pageSetup?: PageSetupConfig;
   /** Base URL used to resolve relative URLs. */
   baseUrl?: string;
 

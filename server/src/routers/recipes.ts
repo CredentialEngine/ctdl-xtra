@@ -44,6 +44,45 @@ const ClickDiscoveryOptionsSchema = z.object({
   waitMs: z.number().int().nonnegative().max(60000).optional(),
 });
 
+const PageSetupStepInputSchema = z.discriminatedUnion("type", [
+  z.object({
+    type: z.literal("click"),
+    selector: z.string(),
+  }),
+  z.object({
+    type: z.literal("wait"),
+    seconds: z.number(),
+  }),
+]);
+
+const PageSetupConfigSchema = z
+  .object({
+    enabled: z.boolean(),
+    steps: z.array(PageSetupStepInputSchema),
+  })
+  .superRefine((data, ctx) => {
+    if (!data.enabled) return;
+    data.steps.forEach((step, i) => {
+      if (step.type === "click") {
+        if (!step.selector.trim()) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: "Selector is required",
+            path: ["steps", i, "selector"],
+          });
+        }
+      } else if (step.type === "wait") {
+        if (!Number.isFinite(step.seconds) || step.seconds <= 0 || step.seconds > 600) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: "Wait seconds must be between 1 and 600",
+            path: ["steps", i, "seconds"],
+          });
+        }
+      }
+    });
+  });
+
 const RecipeConfigurationSchema = z.object({
   pageType: z.nativeEnum(PageType),
   linkRegexp: z.string().optional(),
@@ -54,6 +93,7 @@ const RecipeConfigurationSchema = z.object({
   pageLoadWaitTime: z.number().optional().default(0),
   exactLinkPatternMatch: z.boolean().optional(),
   contentSelector: z.string().optional(),
+  pageSetup: PageSetupConfigSchema.optional(),
 });
 
 export const recipesRouter = router({
@@ -330,6 +370,7 @@ export const recipesRouter = router({
         clickOptions: ClickDiscoveryOptionsSchema.optional(),
         exactLinkPatternMatch: z.boolean().optional(),
         pageLoadWaitTime: z.number().optional(),
+        pageSetup: PageSetupConfigSchema.optional(),
       })
     )
     .mutation(async (opts) => {
@@ -345,6 +386,7 @@ export const recipesRouter = router({
             rootUrl: opts.input.url,
             selector: opts.input.clickSelector,
             clickOptions: opts.input.clickOptions,
+            pageSetup: opts.input.pageSetup,
           });
           
           // If regex is provided, filter the discovered URLs by the regex
@@ -367,6 +409,7 @@ export const recipesRouter = router({
             url: opts.input.url,
             skipProxy: false,
             pageLoadWaitTime: opts.input.pageLoadWaitTime,
+            pageSetup: opts.input.pageSetup,
           });
           markdownContent = await simplifiedMarkdown(content);
         } else {
@@ -378,6 +421,7 @@ export const recipesRouter = router({
             url: opts.input.url,
             skipProxy: false,
             pageLoadWaitTime: opts.input.pageLoadWaitTime,
+            pageSetup: opts.input.pageSetup,
           });
           markdownContent = await simplifiedMarkdown(content);
 

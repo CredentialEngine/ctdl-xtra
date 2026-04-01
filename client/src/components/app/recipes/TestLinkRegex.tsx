@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Loader2, Copy } from "lucide-react";
 import { trpc } from "@/utils";
 import { useToast } from "@/components/ui/use-toast";
+import { PageSetupConfig } from "../../../../../common/types";
 
 type TestResult = { regexp: string; urls: string[]; markdownContent?: string };
 
@@ -64,6 +65,7 @@ export default function TestLinkRegex({
   clickOptions,
   exactLinkPatternMatch,
   pageLoadWaitTime,
+  pageSetup,
 }: {
   defaultUrl: string;
   defaultRegex?: string;
@@ -72,6 +74,7 @@ export default function TestLinkRegex({
   clickOptions?: { limit?: number; waitMs?: number };
   exactLinkPatternMatch?: boolean;
   pageLoadWaitTime?: number;
+  pageSetup?: PageSetupConfig;
 }) {
   const [url, setUrl] = useState(defaultUrl);
   const [regex, setRegex] = useState(defaultRegex || "");
@@ -113,6 +116,7 @@ export default function TestLinkRegex({
                 clickOptions?: { limit?: number; waitMs?: number };
                 exactLinkPatternMatch?: boolean;
                 pageLoadWaitTime?: number;
+                pageSetup?: PageSetupConfig;
               } = {
                 url,
               };
@@ -135,6 +139,10 @@ export default function TestLinkRegex({
               
               if (pageLoadWaitTime !== undefined) {
                 mutationData.pageLoadWaitTime = pageLoadWaitTime;
+              }
+
+              if (pageSetup !== undefined) {
+                mutationData.pageSetup = pageSetup;
               }
               
               testRecipeRegex.mutate(mutationData);
@@ -205,6 +213,7 @@ export default function TestLinkRegex({
                 clickOptions?: { limit?: number; waitMs?: number };
                 exactLinkPatternMatch?: boolean;
                 pageLoadWaitTime?: number;
+                pageSetup?: PageSetupConfig;
               } = {
                 url,
               };
@@ -227,6 +236,10 @@ export default function TestLinkRegex({
               
               if (pageLoadWaitTime !== undefined) {
                 mutationData.pageLoadWaitTime = pageLoadWaitTime;
+              }
+
+              if (pageSetup !== undefined) {
+                mutationData.pageSetup = pageSetup;
               }
               
               testRecipeRegex.mutate(mutationData);
