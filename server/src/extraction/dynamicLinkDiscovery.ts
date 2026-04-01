@@ -1,7 +1,9 @@
 import { addExtra, VanillaPuppeteer } from "puppeteer-extra";
 import StealthPlugin from "puppeteer-extra-plugin-stealth";
 import rebrowserPuppeteer, { ElementHandle, KnownDevices } from "rebrowser-puppeteer";
+import { PageSetupConfig } from "../../../common/types";
 import { BrowserFetchError, findProxies } from "./browser";
+import { applyPageSetupSteps } from "./pageSetup";
 import getLogger from "../logging";
 import { readFileSync } from "fs";
 import { isProxyError } from "../utils";
@@ -27,6 +29,8 @@ export interface DiscoverDynamicLinksOptions {
   selector?: string;
   /** Options for the click discovery process (limit, wait timeout). */
   clickOptions?: ClickDiscoveryOptions;
+  /** Root recipe page setup (after load, before waiting for the click container). */
+  pageSetup?: PageSetupConfig;
 }
 
 type Browser = Awaited<ReturnType<typeof puppeteer.launch>>;
@@ -146,6 +150,7 @@ export async function navigateWithProxy(
  * @param options.rootUrl - Root URL to navigate to and discover links from
  * @param options.selector - CSS selector for the container of clickable elements (defaults to "body")
  * @param options.clickOptions - Options for the click discovery process (limit, wait timeout)
+ * @param options.pageSetup - Optional root recipe page setup (runs after load, before the click container selector)
  */
 export async function discoverDynamicLinks(
   options: DiscoverDynamicLinksOptions
@@ -230,7 +235,7 @@ async function runDiscoveryWithProxy(
   options: DiscoverDynamicLinksOptions,
   proxyUrl?: string
 ): Promise<string[]> {
-  const { rootUrl, selector, clickOptions = {} } = options;
+  const { rootUrl, selector, clickOptions = {}, pageSetup } = options;
   const pageMaxWaitMs = Number.isFinite(clickOptions.waitMs) && clickOptions.waitMs! > 0
     ? clickOptions.waitMs!
     : 30 * 1000;
@@ -240,16 +245,19 @@ async function runDiscoveryWithProxy(
   const rootOrigin = new URL(rootUrl).origin;
   const state: PageListenerState = { blockedError: null, urls: [] };
 
+  const afterRootNavigation = async (webpage: Page) => {
+    if (state.blockedError) throw state.blockedError;
+    await webpage.waitForNetworkIdle({ idleTime: 1000, timeout: pageMaxWaitMs });
+    await applyPageSetupSteps(webpage, rootUrl, pageSetup);
+    if (selector) {
+      await webpage.waitForSelector(selector, { timeout: pageMaxWaitMs });
+    }
+  };
+
   try {
     const navResult = await navigateWithProxy(rootUrl, proxyUrl, {
       beforeNavigation: (p) => attachPageListeners(p, rootOrigin, state),
-      loadCompletedCallback: async (webpage) => {
-        if (state.blockedError) throw state.blockedError;
-        await webpage.waitForNetworkIdle({ idleTime: 1000, timeout: pageMaxWaitMs });
-        if (selector) {
-          await webpage.waitForSelector(selector, { timeout: pageMaxWaitMs });
-        }
-      },
+      loadCompletedCallback: afterRootNavigation,
     });
     page = navResult.page;
     browser = navResult.browser;
@@ -259,6 +267,8 @@ async function runDiscoveryWithProxy(
     await page.setRequestInterception(true);
     attachRequestInterception(page, state);
 
+    // Repeat settle + selector wait after interception attaches: navigation callbacks
+    // already ran before interception, and blocking navigations can change network/ DOM timing.
     await page.waitForNetworkIdle({ idleTime: 1000, timeout: pageMaxWaitMs });
     if (selector) {
       await page.waitForSelector(selector, { timeout: pageMaxWaitMs });
@@ -321,6 +331,8 @@ async function runDiscoveryWithProxy(
         });
         await page.waitForNetworkIdle({ idleTime: 500, timeout: pageMaxWaitMs }).catch(() => {});
 
+        await applyPageSetupSteps(page, rootUrl, pageSetup);
+
         if (selector) {
           try {
             await page.waitForSelector(selector, { timeout: pageMaxWaitMs });
@@ -337,6 +349,7 @@ async function runDiscoveryWithProxy(
           await browser?.close();
           const navResult = await navigateWithProxy(rootUrl, proxyUrl, {
             beforeNavigation: (p) => attachPageListeners(p, rootOrigin, state),
+            loadCompletedCallback: afterRootNavigation,
           });
           page = navResult.page;
           browser = navResult.browser;
@@ -346,10 +359,6 @@ async function runDiscoveryWithProxy(
           await page.setRequestInterception(true);
           attachRequestInterception(page, state);
 
-          await page.waitForNetworkIdle({ idleTime: 1000, timeout: pageMaxWaitMs });
-          if (selector) {
-            await page.waitForSelector(selector, { timeout: pageMaxWaitMs });
-          }
           await scrollAndSettle(page, pageMaxWaitMs);
         }
 

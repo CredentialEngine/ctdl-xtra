@@ -1,5 +1,5 @@
 import { useFormContext, Path } from "react-hook-form";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -25,7 +25,13 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { HelpCircle, Loader2 } from "lucide-react";
-import { PageType, PaginationConfiguration, UrlPatternType } from "../../../../../common/types";
+import {
+  PageSetupConfig,
+  PageType,
+  PaginationConfiguration,
+  UrlPatternType,
+} from "../../../../../common/types";
+import { PageSetupSection } from "./PageSetupSection";
 
 export type FormRecipeConfiguration = {
   pageType: PageType;
@@ -38,6 +44,7 @@ export type FormRecipeConfiguration = {
   pageLoadWaitTime?: number;
   exactLinkPatternMatch?: boolean;
   contentSelector?: string;
+  pageSetup?: PageSetupConfig;
 };
 
 interface RecipeLevelProps {
@@ -90,6 +97,16 @@ export function RecipeLevel({
       parentsConfig.length === 0 ||
       parentsConfig[parentsConfig.length - 1]?.sampleUrls?.length);
 
+  useEffect(() => {
+    const cfg = form.getValues(path as any) as FormRecipeConfiguration | undefined;
+    if (cfg && cfg.pageSetup === undefined) {
+      form.setValue(`${path}.pageSetup` as any, {
+        enabled: false,
+        steps: [],
+      });
+    }
+  }, [path, form]);
+
   return (
     <TooltipProvider>
       <div className="space-y-4 border-l-2 pl-4 mt-4">
@@ -106,7 +123,10 @@ export function RecipeLevel({
                   ) as FormRecipeConfiguration;
                   const links =
                     PageType.DETAIL_LINKS == value
-                      ? { pageType: PageType.DETAIL }
+                      ? {
+                          pageType: PageType.DETAIL,
+                          pageSetup: { enabled: false, steps: [] },
+                        }
                       : currentConfig?.links;
                   (form.setValue as any)(path, {
                     ...currentConfig,
@@ -190,6 +210,14 @@ export function RecipeLevel({
             </FormItem>
           )}
         />
+
+        {config?.pageSetup && (
+          <PageSetupSection
+            basePath={path}
+            control={control}
+            setValue={form.setValue}
+          />
+        )}
 
         {config?.pageType && config.pageType !== PageType.DETAIL && (
           <>
@@ -642,6 +670,7 @@ export function RecipeLevel({
               onClick={() =>
                 (form.setValue as any)(`${path}.links`, {
                   pageType: PageType.DETAIL,
+                  pageSetup: { enabled: false, steps: [] },
                 })
               }
             >

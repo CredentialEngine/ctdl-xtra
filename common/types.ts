@@ -30,6 +30,16 @@ export interface PaginationConfiguration {
   totalPages: number;
 }
 
+/** Ordered actions after navigation; extend the union for new step kinds. */
+export type PageSetupStep =
+  | { type: "click"; selector: string }
+  | { type: "wait"; seconds: number };
+
+export interface PageSetupConfig {
+  enabled: boolean;
+  steps: PageSetupStep[];
+}
+
 export interface RecipeConfiguration<
   ConfigType extends ApiProvider = ApiProvider,
 > {
@@ -43,6 +53,7 @@ export interface RecipeConfiguration<
   apiConfig?: ApiConfig[ConfigType];
   pageLoadWaitTime?: number;
   contentSelector?: string;
+  pageSetup?: PageSetupConfig;
 
   /**
    * When true, the links gathered from the page
