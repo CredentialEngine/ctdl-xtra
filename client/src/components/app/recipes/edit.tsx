@@ -53,13 +53,65 @@ import { Link } from "wouter";
 import { displayRecipeDetails } from "./util";
 import TestLinkRegex from "./TestLinkRegex";
 import { RecipeConfigurationEditor } from "./RecipeConfigurationEditor";
-import { CatalogueType, PageType, PaginationConfiguration, UrlPatternType } from "../../../../../common/types";
+import {
+  CatalogueType,
+  PageType,
+  PaginationConfiguration,
+  RecipeConfiguration,
+  UrlPatternType,
+} from "../../../../../common/types";
+
+/** Ensures each nested recipe level can bind page setup in the UI. */
+function withDefaultPageSetupAtEachLevel(
+  cfg: RecipeConfiguration
+): RecipeConfiguration {
+  return {
+    ...cfg,
+    pageSetup: cfg.pageSetup ?? { enabled: false, steps: [] },
+    links: cfg.links
+      ? withDefaultPageSetupAtEachLevel(cfg.links)
+      : undefined,
+  };
+}
 
 const PaginationSchema = z.object({
   urlPatternType: z.nativeEnum(UrlPatternType),
   urlPattern: z.string(),
   totalPages: z.number().positive(),
 }) as z.ZodType<PaginationConfiguration>;
+
+const PageSetupStepInputSchema = z.discriminatedUnion("type", [
+  z.object({ type: z.literal("click"), selector: z.string() }),
+  z.object({ type: z.literal("wait"), seconds: z.number() }),
+]);
+
+const PageSetupConfigSchema = z
+  .object({
+    enabled: z.boolean(),
+    steps: z.array(PageSetupStepInputSchema),
+  })
+  .superRefine((data, ctx) => {
+    if (!data.enabled) return;
+    data.steps.forEach((step, i) => {
+      if (step.type === "click") {
+        if (!step.selector.trim()) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: "Selector is required",
+            path: ["steps", i, "selector"],
+          });
+        }
+      } else if (step.type === "wait") {
+        if (!Number.isFinite(step.seconds) || step.seconds <= 0 || step.seconds > 600) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: "Wait seconds must be between 0 and 600",
+            path: ["steps", i, "seconds"],
+          });
+        }
+      }
+    });
+  });
 
 const RecipeConfigurationSchema: z.ZodType<any> = z.object({
   pageType: z.nativeEnum(PageType),
@@ -69,6 +121,7 @@ const RecipeConfigurationSchema: z.ZodType<any> = z.object({
   pageLoadWaitTime: z.number().optional().default(0),
   exactLinkPatternMatch: z.boolean().optional(),
   contentSelector: z.string().optional(),
+  pageSetup: PageSetupConfigSchema.optional(),
 });
 
 const FormSchema = z.object({
@@ -160,6 +213,11 @@ export default function EditRecipe() {
       ...recipeQuery.data,
       name: recipeQuery.data.name ?? undefined,
       description: recipeQuery.data.description ?? undefined,
+      configuration: recipeQuery.data.configuration
+        ? withDefaultPageSetupAtEachLevel(
+            recipeQuery.data.configuration as RecipeConfiguration
+          )
+        : undefined,
     });
     
     // Update JSON text when recipe data loads
@@ -434,6 +492,7 @@ export default function EditRecipe() {
                   clickOptions={getFirstLevelClickOptions(recipe)}
                   exactLinkPatternMatch={getFirstLevelExactLinkPatternMatch(recipe)}
                   pageLoadWaitTime={recipe.configuration?.pageLoadWaitTime}
+                  pageSetup={recipe.configuration?.pageSetup}
                 />
               )}
               {recipe.status == RecipeDetectionStatus.WAITING ? (

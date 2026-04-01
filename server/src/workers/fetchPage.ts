@@ -166,6 +166,7 @@ export async function processLinks(
       rootUrl: crawlPage.url,
       selector: configuration.clickSelector,
       clickOptions: configuration.clickOptions,
+      pageSetup: configuration.pageSetup,
     });
     for (const url of discovered) {
       const page = await findPageByUrl(crawlPage.extractionId, url);
@@ -315,6 +316,7 @@ export const performJob = async (
       url: crawlPage.url,
       skipProxy: false,
       pageLoadWaitTime: rootConfiguration?.pageLoadWaitTime,
+      pageSetup: configuration.pageSetup,
       baseUrl,
     });
 

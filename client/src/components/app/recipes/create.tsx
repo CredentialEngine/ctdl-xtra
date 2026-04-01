@@ -44,8 +44,21 @@ import {
   CatalogueType,
   PageType,
   PaginationConfiguration,
+  RecipeConfiguration,
   UrlPatternType,
 } from "../../../../../common/types";
+
+function withDefaultPageSetupAtEachLevel(
+  cfg: RecipeConfiguration
+): RecipeConfiguration {
+  return {
+    ...cfg,
+    pageSetup: cfg.pageSetup ?? { enabled: false, steps: [] },
+    links: cfg.links
+      ? withDefaultPageSetupAtEachLevel(cfg.links)
+      : undefined,
+  };
+}
 import {
   Table,
   TableBody,
@@ -74,6 +87,40 @@ const PaginationSchema = z.object({
   totalPages: z.number().positive(),
 }) as z.ZodType<PaginationConfiguration>;
 
+const PageSetupStepInputSchema = z.discriminatedUnion("type", [
+  z.object({ type: z.literal("click"), selector: z.string() }),
+  z.object({ type: z.literal("wait"), seconds: z.number() }),
+]);
+
+const PageSetupConfigSchema = z
+  .object({
+    enabled: z.boolean(),
+    steps: z.array(PageSetupStepInputSchema),
+  })
+  .superRefine((data, ctx) => {
+    if (!data.enabled) return;
+
+    data.steps.forEach((step, i) => {
+      if (step.type === "click") {
+        if (!step.selector.trim()) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: "Selector is required",
+            path: ["steps", i, "selector"],
+          });
+        }
+      } else if (step.type === "wait") {
+        if (!Number.isFinite(step.seconds) || step.seconds <= 0 || step.seconds > 600) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: "Wait seconds must be between 0 and 600",
+            path: ["steps", i, "seconds"],
+          });
+        }
+      }
+    });
+  });
+
 const RecipeConfigurationSchema: z.ZodType<FormRecipeConfiguration> = z.object({
   pageType: z.nativeEnum(PageType),
   linkRegexp: z.string().optional(),
@@ -89,6 +136,7 @@ const RecipeConfigurationSchema: z.ZodType<FormRecipeConfiguration> = z.object({
   pageLoadWaitTime: z.number().optional().default(0),
   exactLinkPatternMatch: z.boolean().optional(),
   contentSelector: z.string().optional(),
+  pageSetup: PageSetupConfigSchema.optional(),
 }).refine(
   (data) => {
     // If clickSelector is defined (not undefined), it must be a non-empty string
@@ -176,7 +224,9 @@ export default function CreateRecipe() {
       form.reset({
         url: catalogueQuery.data.url,
         manualConfig: true,
-        configuration: templateQuery.data.configuration as any,
+        configuration: withDefaultPageSetupAtEachLevel(
+          templateQuery.data.configuration as RecipeConfiguration
+        ),
         acknowledgedSkipRobotsTxt: templateQuery.data.acknowledgedSkipRobotsTxt || false,
         creationMode: "template" as const,
         name: templateQuery.data.name || undefined,
@@ -197,12 +247,14 @@ export default function CreateRecipe() {
   }, [catalogueQuery.data, templateQuery.data, selectedTemplateId]);
 
   const creationMode = form.watch("creationMode");
+  const configuration = form.watch("configuration");
 
   useEffect(() => {
     if (creationMode === "manual" || creationMode === "template") {
       if (!form.getValues("configuration")) {
         form.setValue("configuration", {
           pageType: PageType.DETAIL,
+          pageSetup: { enabled: false, steps: [] },
         });
       }
       form.setValue("manualConfig", true);
@@ -280,8 +332,6 @@ export default function CreateRecipe() {
     { label: "Catalogues", href: "/" },
     { label: catalogueQuery.data.name, href: `/${catalogueId}` },
   ];
-
-  const configuration = form.watch("configuration");
 
   async function onDetectPagination(
     // @ts-ignore
@@ -447,6 +497,7 @@ export default function CreateRecipe() {
                                 if (!form.getValues("configuration")) {
                                   form.setValue("configuration", {
                                     pageType: PageType.DETAIL,
+                                    pageSetup: { enabled: false, steps: [] },
                                   });
                                 }
                                 form.setValue("manualConfig", true);
@@ -678,6 +729,7 @@ export default function CreateRecipe() {
                       clickOptions={configuration?.clickOptions || undefined}
                       exactLinkPatternMatch={configuration?.exactLinkPatternMatch}
                       pageLoadWaitTime={configuration?.pageLoadWaitTime}
+                      pageSetup={configuration?.pageSetup}
                     />
                   </CardContent>
                 </Card>
