@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/ui/use-toast";
 import { CatalogueType } from "../../../../../common/types";
 import { trpc } from "@/utils";
+import { ExpandableRecipeSection } from "./ExpandableRecipeSection";
 import { RecipeLevel, FormRecipeConfiguration } from "./RecipeLevel";
 
 type RecipeFormData = {
@@ -113,31 +114,33 @@ export function RecipeConfigurationEditor({
 
   return (
     <div className="space-y-4">
-      <FormField
-        control={control}
-        name="configuration.pageLoadWaitTime"
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel>Page Load Wait Time (seconds)</FormLabel>
-            <FormControl>
-              <Input
-                type="number"
-                placeholder="0"
-                {...field}
-                onChange={(e) => {
-                  const value = e.target.value ? parseInt(e.target.value) : undefined;
-                  field.onChange(value);
-                }}
-                value={(field.value ?? "") as string | number}
-              />
-            </FormControl>
-            <FormDescription>
-              How long to wait (in seconds) for the page to fully load after opening. This is useful for pages that dynamically load content. Leave empty or 0 for no additional wait.
-            </FormDescription>
-            <FormMessage />
-          </FormItem>
-        )}
-      />
+      <ExpandableRecipeSection expanded contentClassName="space-y-2">
+        <FormField
+          control={control}
+          name="configuration.pageLoadWaitTime"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Page Load Wait Time (seconds)</FormLabel>
+              <FormControl>
+                <Input
+                  type="number"
+                  placeholder="0"
+                  {...field}
+                  onChange={(e) => {
+                    const value = e.target.value ? parseInt(e.target.value) : undefined;
+                    field.onChange(value);
+                  }}
+                  value={(field.value ?? "") as string | number}
+                />
+              </FormControl>
+              <FormDescription>
+                How long to wait (in seconds) for the page to fully load after opening. This is useful for pages that dynamically load content. Leave empty or 0 for no additional wait.
+              </FormDescription>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+      </ExpandableRecipeSection>
       <RecipeLevel
         path="configuration"
         control={control}
