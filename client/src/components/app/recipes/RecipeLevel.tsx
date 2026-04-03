@@ -24,13 +24,15 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { HelpCircle, Loader2 } from "lucide-react";
+import { CornerDownRight, HelpCircle, Loader2 } from "lucide-react";
 import {
   PageSetupConfig,
   PageType,
   PaginationConfiguration,
   UrlPatternType,
 } from "../../../../../common/types";
+import { cn } from "@/utils";
+import { ExpandableRecipeSection } from "./ExpandableRecipeSection";
 import { PageSetupSection } from "./PageSetupSection";
 
 export type FormRecipeConfiguration = {
@@ -79,8 +81,15 @@ export function RecipeLevel({
   const [isDetectingUrlRegexp, setIsDetectingUrlRegexp] = useState(false);
   const [isDetectingPagination, setIsDetectingPagination] = useState(false);
   const [tooltipOpen, setTooltipOpen] = useState<{ [key: string]: boolean }>({});
+  const [contentSelectorUiExpanded, setContentSelectorUiExpanded] = useState(false);
 
   const rootUrl = form.watch("url");
+
+  const contentSelectorHasValue = Boolean(
+    (config?.contentSelector ?? "").toString().trim()
+  );
+  const contentSelectorSectionExpanded =
+    contentSelectorHasValue || contentSelectorUiExpanded;
 
   const currentConfig = form.getValues(path as any) as FormRecipeConfiguration;
   const parts = path.split(".");
@@ -107,109 +116,158 @@ export function RecipeLevel({
     }
   }, [path, form]);
 
+  const recipeLevelDepth = path.split(".links").length - 1;
+  const levelTitle = `Level ${recipeLevelDepth + 1}`;
+  const levelHeading = (
+    <h3 className="text-lg font-semibold leading-tight tracking-tight">
+      {levelTitle}
+    </h3>
+  );
+
   return (
     <TooltipProvider>
-      <div className="space-y-4 border-l-2 pl-4 mt-4">
-        <FormField
-          control={control}
-          name={`${path}.pageType` as any}
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Page Type</FormLabel>
-              <Select
-                onValueChange={(value) => {
-                  const currentConfig = form.getValues(
-                    path as any
-                  ) as FormRecipeConfiguration;
-                  const links =
-                    PageType.DETAIL_LINKS == value
-                      ? {
-                          pageType: PageType.DETAIL,
-                          pageSetup: { enabled: false, steps: [] },
-                        }
-                      : currentConfig?.links;
-                  (form.setValue as any)(path, {
-                    ...currentConfig,
-                    pageType: value as PageType,
-                    ...(value !== PageType.DETAIL && {
-                      linkRegexp: currentConfig?.linkRegexp || "",
-                      pagination: currentConfig?.pagination,
-                      links: links,
-                    }),
-                  });
-                  field.onChange(value);
-                }}
-                value={field.value}
-              >
-                <FormControl>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select a page type" />
-                  </SelectTrigger>
-                </FormControl>
-                <SelectContent>
-                  {Object.values(PageType).map((type) => (
-                    <SelectItem key={type} value={type}>
-                      {type}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        <FormField
-          control={control}
-          name={`${path}.contentSelector`}
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel className="flex items-center gap-2">
-                Content Element Selector
-                <Tooltip
-                  open={tooltipOpen[`${path}-contentSelector`] || false}
-                  onOpenChange={(open) =>
-                    setTooltipOpen((prev) => ({
-                      ...prev,
-                      [`${path}-contentSelector`]: open,
-                    }))
-                  }
+      <div className={cn("mt-4", recipeLevelDepth > 0 && "pl-6")}>
+        <div className="space-y-4">
+          <div className="flex items-center gap-3">
+            <CornerDownRight
+              className="h-5 w-5 shrink-0 text-muted-foreground"
+              aria-hidden
+            />
+            {levelHeading}
+          </div>
+          <div className="min-w-0 space-y-4 pl-8">
+            <ExpandableRecipeSection expanded contentClassName="space-y-2">
+          <FormField
+            control={control}
+            name={`${path}.pageType` as any}
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Page Type</FormLabel>
+                <Select
+                  onValueChange={(value) => {
+                    const currentConfig = form.getValues(
+                      path as any
+                    ) as FormRecipeConfiguration;
+                    const links =
+                      PageType.DETAIL_LINKS == value
+                        ? {
+                            pageType: PageType.DETAIL,
+                            pageSetup: { enabled: false, steps: [] },
+                          }
+                        : currentConfig?.links;
+                    (form.setValue as any)(path, {
+                      ...currentConfig,
+                      pageType: value as PageType,
+                      ...(value !== PageType.DETAIL && {
+                        linkRegexp: currentConfig?.linkRegexp || "",
+                        pagination: currentConfig?.pagination,
+                        links: links,
+                      }),
+                    });
+                    field.onChange(value);
+                  }}
+                  value={field.value}
                 >
-                  <TooltipTrigger asChild>
-                    <HelpCircle
-                      className="h-4 w-4 text-muted-foreground cursor-help"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        setTooltipOpen((prev) => ({
-                          ...prev,
-                          [`${path}-contentSelector`]: !prev[`${path}-contentSelector`],
-                        }));
-                      }}
-                    />
-                  </TooltipTrigger>
-                  <TooltipContent className="max-w-xs">
-                    <p>
-                      The HTML element selector (aka CSS selector) that xTRA will focus on, ignoring
-                      the other page elements. This is useful for when pages display
-                      a lot of irrelevant content which makes extractions more expensive
-                      and take longer to complete.
-                      The selector can be obtained from
-                      the browser Developer Tools while navigating the page.
-                    </p>
-                  </TooltipContent>
-                </Tooltip>
-              </FormLabel>
-              <FormControl>
-                <Input placeholder="e.g. main.content" {...field} />
-              </FormControl>
-              <FormDescription>
-                Optional. When set, only this element is used as page content.
-              </FormDescription>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select a page type" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    {Object.values(PageType).map((type) => (
+                      <SelectItem key={type} value={type}>
+                        {type}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </ExpandableRecipeSection>
+
+        <ExpandableRecipeSection
+          expanded={contentSelectorSectionExpanded}
+          checkbox={
+            <FormControl>
+              <Checkbox
+                checked={contentSelectorSectionExpanded}
+                onCheckedChange={(checked) => {
+                  if (checked) {
+                    setContentSelectorUiExpanded(true);
+                  } else {
+                    setContentSelectorUiExpanded(false);
+                    if (contentSelectorHasValue) {
+                      form.setValue(
+                        `${path}.contentSelector` as Path<any>,
+                        undefined,
+                        { shouldValidate: false }
+                      );
+                    }
+                  }
+                }}
+              />
+            </FormControl>
+          }
+          label={
+            <FormLabel className="!mt-0 flex items-center gap-2">
+              Content Element Selector
+              <Tooltip
+                open={tooltipOpen[`${path}-contentSelector`] || false}
+                onOpenChange={(open) =>
+                  setTooltipOpen((prev) => ({
+                    ...prev,
+                    [`${path}-contentSelector`]: open,
+                  }))
+                }
+              >
+                <TooltipTrigger asChild>
+                  <HelpCircle
+                    className="h-4 w-4 text-muted-foreground cursor-help"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setTooltipOpen((prev) => ({
+                        ...prev,
+                        [`${path}-contentSelector`]:
+                          !prev[`${path}-contentSelector`],
+                      }));
+                    }}
+                  />
+                </TooltipTrigger>
+                <TooltipContent className="max-w-xs">
+                  <p>
+                    The HTML element selector (aka CSS selector) that xTRA will focus on, ignoring
+                    the other page elements. This is useful for when pages display
+                    a lot of irrelevant content which makes extractions more expensive
+                    and take longer to complete.
+                    The selector can be obtained from
+                    the browser Developer Tools while navigating the page.
+                  </p>
+                </TooltipContent>
+              </Tooltip>
+            </FormLabel>
+          }
+          contentClassName="space-y-2 pl-6"
+        >
+          <FormField
+            control={control}
+            name={`${path}.contentSelector`}
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel className="sr-only">Content Element Selector</FormLabel>
+                <FormControl>
+                  <Input placeholder="e.g. main.content" {...field} />
+                </FormControl>
+                <FormDescription>
+                  Optional. When set, only this element is used as page content.
+                </FormDescription>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </ExpandableRecipeSection>
 
         {config?.pageSetup && (
           <PageSetupSection
@@ -221,59 +279,75 @@ export function RecipeLevel({
 
         {config?.pageType && config.pageType !== PageType.DETAIL && (
           <>
-            <FormItem className="flex flex-row items-start space-x-3 space-y-0">
-              <FormControl>
-                <Checkbox
-                  checked={config?.clickSelector !== undefined}
-                  onCheckedChange={(checked) => {
-                    if (checked) {
-                      // When checked, initialize clickSelector with "body" and set default limit
-                      form.setValue(
-                        `${path}.clickSelector` as Path<any>,
-                        "body",
-                        { shouldValidate: false }
-                      );
-                      const clickOptionsPath =
-                        `${path}.clickOptions` as Path<any>;
-                      const currentClickOptions =
-                        form.getValues(clickOptionsPath);
-                      if (!currentClickOptions?.limit) {
+            <ExpandableRecipeSection
+              expanded={config?.clickSelector !== undefined}
+              checkbox={
+                <FormControl>
+                  <Checkbox
+                    checked={config?.clickSelector !== undefined}
+                    onCheckedChange={(checked) => {
+                      if (checked) {
+                        // When checked, initialize clickSelector with "body" and set default limit
                         form.setValue(
-                          clickOptionsPath as Path<any>,
-                          { limit: 300 },
+                          `${path}.clickSelector` as Path<any>,
+                          "body",
+                          { shouldValidate: false }
+                        );
+                        const clickOptionsPath =
+                          `${path}.clickOptions` as Path<any>;
+                        const currentClickOptions =
+                          form.getValues(clickOptionsPath);
+                        if (!currentClickOptions?.limit) {
+                          form.setValue(
+                            clickOptionsPath as Path<any>,
+                            { limit: 300 },
+                            { shouldValidate: false }
+                          );
+                        }
+                      } else {
+                        // When unchecked, clear clickSelector and clickOptions
+                        form.setValue(
+                          `${path}.clickSelector` as Path<any>,
+                          undefined,
+                          { shouldValidate: false }
+                        );
+                        form.setValue(
+                          `${path}.clickOptions` as Path<any>,
+                          undefined,
                           { shouldValidate: false }
                         );
                       }
-                    } else {
-                      // When unchecked, clear clickSelector and clickOptions
-                      form.setValue(
-                        `${path}.clickSelector` as Path<any>,
-                        undefined,
-                        { shouldValidate: false }
-                      );
-                      form.setValue(
-                        `${path}.clickOptions` as Path<any>,
-                        undefined,
-                        { shouldValidate: false }
-                      );
-                    }
-                  }}
-                />
-              </FormControl>
-              <div className="space-y-1 leading-none">
-                <FormLabel>Dynamic catalogue</FormLabel>
-                <FormDescription>
-                  Enable dynamic link discovery by simulating clicks on the
-                  elements on the page. This is needed for catalogues that do
-                  not use classic page navigation and are more dynamic in
-                  nature.
-                </FormDescription>
-              </div>
-            </FormItem>
-
-            {config?.clickSelector !== undefined && (
-              <>
-                <FormField
+                    }}
+                  />
+                </FormControl>
+              }
+              label={
+                <FormLabel className="flex items-center gap-1.5">
+                  Dynamic catalogue
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <button
+                        type="button"
+                        className="inline-flex shrink-0 rounded-full text-muted-foreground outline-offset-2 hover:text-foreground focus-visible:outline focus-visible:ring-2 focus-visible:ring-ring"
+                        aria-label="What is a dynamic catalogue?"
+                      >
+                        <HelpCircle className="h-4 w-4 cursor-help" />
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent className="max-w-sm text-left" side="top">
+                      <p>
+                        Enable dynamic link discovery by simulating clicks on
+                        the elements on the page. This is needed for catalogues
+                        that do not use classic page navigation and are more
+                        dynamic in nature.
+                      </p>
+                    </TooltipContent>
+                  </Tooltip>
+                </FormLabel>
+              }
+              contentClassName="space-y-4"
+            >
+              <FormField
                   control={control}
                   name={`${path}.clickSelector`}
                   render={({ field }) => (
@@ -420,166 +494,36 @@ export function RecipeLevel({
                     )}
                   />
                 </div>
-              </>
-            )}
+            </ExpandableRecipeSection>
 
-            <FormField
-              control={control}
-              name={`${path}.linkRegexp`}
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Link RegExp</FormLabel>
-                  <div className="flex space-x-2">
-                    <FormControl>
-                      <Input {...field} />
-                    </FormControl>
-                    <Button
-                      type="button"
-                      onClick={async () => {
-                        setIsDetectingUrlRegexp(true);
-                        try {
-                          await onDetectUrlRegexp(
-                            rootUrl,
-                            { parents: parentsConfig, current: currentConfig },
-                            path
-                          );
-                        } finally {
-                          setIsDetectingUrlRegexp(false);
-                        }
-                      }}
-                      disabled={!canDetectUrlRegexp}
-                    >
-                      {isDetectingUrlRegexp ? (
-                        <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Detecting...
-                        </>
-                      ) : (
-                        "Detect"
-                      )}
-                    </Button>
-                  </div>
-                  {config.sampleUrls?.length &&
-                    config.sampleUrls.length > 0 && (
-                      <div className="mt-2">
-                        <p className="text-sm font-medium">Sample matches:</p>
-                        <ul className="text-sm text-muted-foreground mt-1 space-y-1 max-h-32 overflow-y-auto">
-                          {config.sampleUrls.map((url, index) => (
-                            <li key={index} className="truncate">
-                              {url}
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={control}
-              name={`${path}.exactLinkPatternMatch`}
-              render={({ field }) => (
-                <FormItem className="flex flex-row items-start space-x-2 space-y-0">
-                  <FormControl>
-                    <Checkbox
-                      checked={field.value ?? config?.exactLinkPatternMatch ?? false}
-                      onCheckedChange={field.onChange}
-                    />
-                  </FormControl>
-                  <div className="leading-none">
-                    <FormLabel className="flex items-center gap-1 space-x-0 space-y-0">
-                      Use exact Regex match in URL subpages.
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <HelpCircle className="h-4 w-4 text-muted-foreground cursor-help" />
-                        </TooltipTrigger>
-                        <TooltipContent className="max-w-[550px] break-words">
-                          <p className="mb-2">
-                            This controls how xTRA uses links in a page to
-                            enqueue sub-pages for crawling & extraction.
-
-                            When enabled, xTRA will only use 
-                            the sub-segment that exactly matches the link
-                            pattern. So for example, if the link pattern is
-                            <span className="font-mono mx-1">course\/([A-Za-z0-9]+)</span> and the URL is 
-                            <span className="font-mono mx-1">/2025-2026/course/acb</span> then the page enqueued will be 
-                            <span className="font-mono mx-1">/course/acb</span> instead of <span className="font-mono mx-1">/2025-2026/course/acb</span> which
-                            is the default behavior without this flag.
-                          </p>
-                          <p className="mb-2">
-                            This is needed when catalogues use links that are
-                            not correctly resolved in relation to their parent page.
-                            For example, The Antelope Valley College uses links such
-                            as <span className="font-mono">/2025-2026/course/acb</span> in its courses index page
-                            but the catalogue index page already contains the 
-                            <span className="font-mono">2025-2026</span> segment leading to URLs being
-                            formed to <span className="font-mono">/2025-2026/2025-2026/course/acb</span> instead of 
-                            <span className="font-mono">/2025-2026/course/acb</span>.
-                            Browsers handle this correctly but
-                            NodeJS URL built-in helper keeps the <span className="font-mono">2025-2026</span> duplicate segment.
-                          </p>
-                          <p>
-                            <b>Recommended to keep it disabled unless absolutely necessary.</b>
-                          </p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </FormLabel>
-                  </div>
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={control}
-              name={`${path}.pagination`}
-              render={({ field }) => (
-                <FormItem>
-                  <div className="flex items-center space-x-2">
-                    <FormControl>
-                      <Checkbox
-                        checked={!!field.value}
-                        onCheckedChange={(checked) => {
-                          if (checked) {
-                            (form.setValue as any)(`${path}.pagination`, {
-                              urlPatternType: UrlPatternType.page_num,
-                              urlPattern: "",
-                              totalPages: 1,
-                            });
-                          } else {
-                            (form.setValue as any)(
-                              `${path}.pagination`,
-                              undefined
-                            );
-                          }
-                        }}
-                      />
-                    </FormControl>
-                    <FormLabel className="!mt-0">Has Pagination</FormLabel>
-                  </div>
-                  {field.value && (
-                    <div className="mt-2 space-y-4">
+            <ExpandableRecipeSection expanded contentClassName="space-y-2">
+              <FormField
+                control={control}
+                name={`${path}.linkRegexp`}
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Link RegExp</FormLabel>
+                    <div className="flex space-x-2">
+                      <FormControl>
+                        <Input {...field} />
+                      </FormControl>
                       <Button
                         type="button"
                         onClick={async () => {
-                          setIsDetectingPagination(true);
+                          setIsDetectingUrlRegexp(true);
                           try {
-                            await onDetectPagination(
+                            await onDetectUrlRegexp(
                               rootUrl,
-                              {
-                                parents: parentsConfig,
-                                current: currentConfig,
-                              },
+                              { parents: parentsConfig, current: currentConfig },
                               path
                             );
                           } finally {
-                            setIsDetectingPagination(false);
+                            setIsDetectingUrlRegexp(false);
                           }
                         }}
-                        disabled={isDetectingPagination}
+                        disabled={!canDetectUrlRegexp}
                       >
-                        {isDetectingPagination ? (
+                        {isDetectingUrlRegexp ? (
                           <>
                             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                             Detecting...
@@ -588,74 +532,210 @@ export function RecipeLevel({
                           "Detect"
                         )}
                       </Button>
-                      <div className="space-y-2">
-                        <FormField
-                          control={control}
-                          name={`${path}.pagination.urlPatternType`}
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Pattern Type</FormLabel>
-                              <Select
-                                onValueChange={field.onChange}
-                                value={field.value}
-                                disabled={isDetectingPagination}
-                              >
-                                <FormControl>
-                                  <SelectTrigger>
-                                    <SelectValue placeholder="Select a pattern type" />
-                                  </SelectTrigger>
-                                </FormControl>
-                                <SelectContent>
-                                  {Object.values(UrlPatternType).map((type) => (
-                                    <SelectItem key={type} value={type}>
-                                      {type}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        <FormField
-                          control={control}
-                          name={`${path}.pagination.urlPattern`}
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>URL Pattern</FormLabel>
-                              <FormControl>
-                                <Input
-                                  {...field}
-                                  disabled={isDetectingPagination}
-                                />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        <FormField
-                          control={control}
-                          name={`${path}.pagination.totalPages`}
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Total Pages</FormLabel>
-                              <FormControl>
-                                <Input
-                                  type="number"
-                                  {...field}
-                                  disabled={isDetectingPagination}
-                                  onChange={(e) =>
-                                    field.onChange(parseInt(e.target.value))
-                                  }
-                                />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                      </div>
                     </div>
-                  )}
+                    {config.sampleUrls?.length &&
+                      config.sampleUrls.length > 0 && (
+                        <div className="mt-2">
+                          <p className="text-sm font-medium">Sample matches:</p>
+                          <ul className="text-sm text-muted-foreground mt-1 space-y-1 max-h-32 overflow-y-auto">
+                            {config.sampleUrls.map((url, index) => (
+                              <li key={index} className="truncate">
+                                {url}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </ExpandableRecipeSection>
+
+            <ExpandableRecipeSection expanded contentClassName="space-y-2">
+              <FormField
+                control={control}
+                name={`${path}.exactLinkPatternMatch`}
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-start space-x-2 space-y-0">
+                    <FormControl>
+                      <Checkbox
+                        checked={field.value ?? config?.exactLinkPatternMatch ?? false}
+                        onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
+                    <div className="leading-none">
+                      <FormLabel className="flex items-center gap-1 space-x-0 space-y-0">
+                        Use exact Regex match in URL subpages.
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <HelpCircle className="h-4 w-4 text-muted-foreground cursor-help" />
+                          </TooltipTrigger>
+                          <TooltipContent className="max-w-[550px] break-words">
+                            <p className="mb-2">
+                              This controls how xTRA uses links in a page to
+                              enqueue sub-pages for crawling & extraction.
+
+                              When enabled, xTRA will only use 
+                              the sub-segment that exactly matches the link
+                              pattern. So for example, if the link pattern is
+                              <span className="font-mono mx-1">course\/([A-Za-z0-9]+)</span> and the URL is 
+                              <span className="font-mono mx-1">/2025-2026/course/acb</span> then the page enqueued will be 
+                              <span className="font-mono mx-1">/course/acb</span> instead of <span className="font-mono mx-1">/2025-2026/course/acb</span> which
+                              is the default behavior without this flag.
+                            </p>
+                            <p className="mb-2">
+                              This is needed when catalogues use links that are
+                              not correctly resolved in relation to their parent page.
+                              For example, The Antelope Valley College uses links such
+                              as <span className="font-mono">/2025-2026/course/acb</span> in its courses index page
+                              but the catalogue index page already contains the 
+                              <span className="font-mono">2025-2026</span> segment leading to URLs being
+                              formed to <span className="font-mono">/2025-2026/2025-2026/course/acb</span> instead of 
+                              <span className="font-mono">/2025-2026/course/acb</span>.
+                              Browsers handle this correctly but
+                              NodeJS URL built-in helper keeps the <span className="font-mono">2025-2026</span> duplicate segment.
+                            </p>
+                            <p>
+                              <b>Recommended to keep it disabled unless absolutely necessary.</b>
+                            </p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </FormLabel>
+                    </div>
+                  </FormItem>
+                )}
+              />
+            </ExpandableRecipeSection>
+
+            <FormField
+              control={control}
+              name={`${path}.pagination`}
+              render={({ field }) => (
+                <FormItem className="space-y-0">
+                  <ExpandableRecipeSection
+                    expanded={!!field.value}
+                    checkbox={
+                      <FormControl>
+                        <Checkbox
+                          checked={!!field.value}
+                          onCheckedChange={(checked) => {
+                            if (checked) {
+                              (form.setValue as any)(`${path}.pagination`, {
+                                urlPatternType: UrlPatternType.page_num,
+                                urlPattern: "",
+                                totalPages: 1,
+                              });
+                            } else {
+                              (form.setValue as any)(
+                                `${path}.pagination`,
+                                undefined
+                              );
+                            }
+                          }}
+                        />
+                      </FormControl>
+                    }
+                    label={
+                      <FormLabel className="!mt-0">Has Pagination</FormLabel>
+                    }
+                    contentClassName="space-y-4"
+                  >
+                    <Button
+                      type="button"
+                      onClick={async () => {
+                        setIsDetectingPagination(true);
+                        try {
+                          await onDetectPagination(
+                            rootUrl,
+                            {
+                              parents: parentsConfig,
+                              current: currentConfig,
+                            },
+                            path
+                          );
+                        } finally {
+                          setIsDetectingPagination(false);
+                        }
+                      }}
+                      disabled={isDetectingPagination}
+                    >
+                      {isDetectingPagination ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Detecting...
+                        </>
+                      ) : (
+                        "Detect"
+                      )}
+                    </Button>
+                    <div className="space-y-2">
+                      <FormField
+                        control={control}
+                        name={`${path}.pagination.urlPatternType`}
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Pattern Type</FormLabel>
+                            <Select
+                              onValueChange={field.onChange}
+                              value={field.value}
+                              disabled={isDetectingPagination}
+                            >
+                              <FormControl>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Select a pattern type" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                {Object.values(UrlPatternType).map((type) => (
+                                  <SelectItem key={type} value={type}>
+                                    {type}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={control}
+                        name={`${path}.pagination.urlPattern`}
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>URL Pattern</FormLabel>
+                            <FormControl>
+                              <Input
+                                {...field}
+                                disabled={isDetectingPagination}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={control}
+                        name={`${path}.pagination.totalPages`}
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Total Pages</FormLabel>
+                            <FormControl>
+                              <Input
+                                type="number"
+                                {...field}
+                                disabled={isDetectingPagination}
+                                onChange={(e) =>
+                                  field.onChange(parseInt(e.target.value))
+                                }
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                  </ExpandableRecipeSection>
                   <FormMessage />
                 </FormItem>
               )}
@@ -663,7 +743,7 @@ export function RecipeLevel({
           </>
         )}
 
-        <div className="flex space-x-2">
+        <ExpandableRecipeSection expanded contentClassName="flex flex-wrap gap-2">
           {config?.pageType !== PageType.DETAIL && (
             <Button
               type="button"
@@ -684,7 +764,7 @@ export function RecipeLevel({
           >
             Remove Level
           </Button>
-        </div>
+        </ExpandableRecipeSection>
 
         {config?.links && (
           <RecipeLevel
@@ -694,6 +774,8 @@ export function RecipeLevel({
             onDetectPagination={onDetectPagination}
           />
         )}
+          </div>
+        </div>
       </div>
     </TooltipProvider>
   );
