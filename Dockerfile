@@ -26,14 +26,15 @@ RUN npm install pm2 -g
 RUN npm install pnpm -g
 
 # Build the app
-COPY client/package.json client/pnpm-lock.yaml /build/app/client/
-COPY server/package.json server/pnpm-lock.yaml /build/app/server/
+COPY client/package.json client/pnpm-lock.yaml client/pnpm-workspace.yaml /build/app/client/
+COPY server/package.json server/pnpm-lock.yaml server/pnpm-workspace.yaml /build/app/server/
 RUN (cd /build/app/client && pnpm install) & \
   (cd /build/app/server && pnpm install) & \
   wait
 
 USER pptruser
 RUN /build/app/server/node_modules/.bin/rebrowser-puppeteer browsers install chrome
+RUN /build/app/server/node_modules/.bin/rebrowser-puppeteer browsers install chrome-headless-shell
 
 USER root
 COPY client/ /build/app/client
