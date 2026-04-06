@@ -24,7 +24,7 @@ RUN npm install pm2 -g
 RUN npm install pnpm -g
 
 # Build the app
-COPY server/package.json server/pnpm-lock.yaml /build/app/server/
+COPY server/package.json server/pnpm-lock.yaml server/pnpm-workspace.yaml /build/app/server/
 RUN cd /build/app/server && pnpm install
 
 USER pptruser
