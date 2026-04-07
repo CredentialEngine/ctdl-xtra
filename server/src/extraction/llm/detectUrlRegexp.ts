@@ -39,7 +39,7 @@ export function createUrlExtractor(regexp: RegExp) {
           const matches = markdownUrl.match(regexp);
           
           if (matches) {
-            return matches[0];
+            return `.${matches[0]}`;
           }
         } else {
           return markdownUrl;

@@ -7,3 +7,5 @@ allowBuilds:
   puppeteer: true
   rebrowser-puppeteer: true
   sodium-native: true
+
+packages: []
