@@ -285,7 +285,17 @@ export type ExtractionsSortOrder = "asc" | "desc";
 
 function withRecipeDisplayName<T extends { id: number; name: string | null }>(
   recipe: T
-): T & { name: string } {
+): T & { name: string };
+function withRecipeDisplayName(recipe: null): null;
+function withRecipeDisplayName<T extends { id: number; name: string | null }>(
+  recipe: T | null
+): (T & { name: string }) | null;
+function withRecipeDisplayName<T extends { id: number; name: string | null }>(
+  recipe: T | null
+): (T & { name: string }) | null {
+  if (!recipe) {
+    return null;
+  }
   return {
     ...recipe,
     name: recipe.name || `Recipe #${recipe.id}`,
@@ -410,7 +420,9 @@ export async function findExtractionForDetailPage(id: number) {
     },
   });
   if (result) {
-    result.recipe = withRecipeDisplayName(result.recipe);
+    if (result.recipe) {
+      result.recipe = withRecipeDisplayName(result.recipe);
+    }
     for (const step of result.crawlSteps) {
       step.itemCount = await getPageCount(step.id);
       // Get all pages for this step
