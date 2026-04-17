@@ -52,6 +52,14 @@ export class BrowserFetchError extends Error {
   }
 }
 
+/** Thrown when a recipe `contentSelector` matches nothing or yields empty simplified text. */
+export class ContentSelectorError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "ContentSelectorError";
+  }
+}
+
 const puppeteer = addExtra(rebrowserPuppeteer as unknown as VanillaPuppeteer);
 puppeteer.use(StealthPlugin());
 
@@ -344,7 +352,13 @@ export async function fetchPreview(url: string) {
 
 export async function simplifyHtml(html: string, contentSelector?: string) {
   const $ = cheerio.load(html);
-  const root = contentSelector?.trim() ? $(contentSelector).first() : null;
+  const trimmedSelector = contentSelector?.trim() ?? "";
+  const root = trimmedSelector ? $(trimmedSelector).first() : null;
+  if (trimmedSelector && !root?.length) {
+    throw new ContentSelectorError(
+      `CSS selector "${trimmedSelector}" matched no elements`
+    );
+  }
   (root ?? $("html")).find("head").empty();
   const elms = root?.length
     ? root.find("*").addBack().toArray()
@@ -428,6 +442,12 @@ export async function toMarkdown(html: string) {
 }
 
 export async function simplifiedMarkdown(html: string, contentSelector?: string) {
+  const trimmedSelector = contentSelector?.trim() ?? "";
   const simplified = await toMarkdown(await simplifyHtml(html, contentSelector));
+  if (trimmedSelector && !String(simplified).trim()) {
+    throw new ContentSelectorError(
+      `CSS selector "${trimmedSelector}" produced empty simplified content`
+    );
+  }
   return simplified as SimplifiedMarkdown;
 }
