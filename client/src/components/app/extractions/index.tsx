@@ -4,7 +4,7 @@ import { Label } from "@/components/ui/label";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { IterableElement, prettyPrintDate, RouterOutput, trpc } from "@/utils";
 import { API_URL } from "@/constants";
-import { Download, Earth } from "lucide-react";
+import { Download, Earth, Pickaxe } from "lucide-react";
 import { Link, useLocation } from "wouter";
 
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
@@ -16,6 +16,12 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import usePagination from "../usePagination";
 
 type ExtractionSummary = IterableElement<
@@ -27,7 +33,6 @@ type SortKey =
   | "type"
   | "status"
   | "date"
-  | "items"
   | "cost";
 type SortOrder = "asc" | "desc";
 
@@ -36,7 +41,6 @@ const VALID_SORT_KEYS: SortKey[] = [
   "type",
   "status",
   "date",
-  "items",
   "cost",
 ];
 
@@ -57,7 +61,7 @@ function getNextSortOrder(
   clickedKey: SortKey,
   currentOrder: SortOrder
 ): SortOrder {
-  const defaultDesc: SortKey[] = ["date", "items", "cost"];
+  const defaultDesc: SortKey[] = ["date", "cost"];
   return currentKey === clickedKey
     ? currentOrder === "asc"
       ? "desc"
@@ -88,7 +92,13 @@ function parseSearch(search: string): {
   return { sortKey, sortOrder, dateFrom, dateTo };
 }
 
-const ExtractionListItem = (extraction: ExtractionSummary) => {
+const ExtractionListItem = ({
+  extraction,
+  onOpen,
+}: {
+  extraction: ExtractionSummary;
+  onOpen: (id: ExtractionSummary["id"]) => void;
+}) => {
   const catalogue = extraction.recipe.catalogue;
   let totalDownloads = 0,
     totalDownloadsAttempted = 0,
@@ -99,40 +109,66 @@ const ExtractionListItem = (extraction: ExtractionSummary) => {
     totalDownloadsAttempted += step.downloads.attempted;
     totalExtractionsPossible += step.downloads.succeeded;
     totalExtractionsAttempted += step.extractions.attempted;
-    step.extractions.attempted - step.extractions.succeeded;
   }
+  const downloadsPercent =
+    totalDownloads > 0
+      ? `${Math.floor((totalDownloadsAttempted / totalDownloads) * 100)}%`
+      : "0%";
+  const extractionsPercent =
+    totalExtractionsPossible > 0
+      ? `${Math.floor((totalExtractionsAttempted / totalExtractionsPossible) * 100)}%`
+      : "0%";
   return (
-    <TableRow>
-      <TableCell colSpan={2} className="">
-        <Link to={`/${extraction.id}`}>
-          <div className="flex items-center gap-4">
-            {catalogue?.thumbnailUrl ? (
-              <img src={catalogue.thumbnailUrl} style={{ maxHeight: "30px" }} />
-            ) : null}
-            {catalogue?.name || "Unknown"}
-          </div>
-        </Link>
+    <TableRow
+      className="cursor-pointer hover:bg-muted/50"
+      onClick={() => onOpen(extraction.id)}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onOpen(extraction.id);
+        }
+      }}
+      tabIndex={0}
+    >
+      <TableCell>
+        <div className="flex items-center gap-4">
+          {catalogue?.thumbnailUrl ? (
+            <img src={catalogue.thumbnailUrl} style={{ maxHeight: "30px" }} />
+          ) : null}
+          {catalogue?.name || "Unknown"}
+        </div>
+      </TableCell>
+      <TableCell className="text-xs">
+        {extraction.recipe.name}
       </TableCell>
       <TableCell className="font-medium">
-        <Link to={`/${extraction.id}`}>{catalogue?.catalogueType || "-"}</Link>
+        {catalogue?.catalogueType || "-"}
       </TableCell>
       <TableCell className="text-xs">{extraction.status}</TableCell>
       <TableCell className="text-xs">
-        {extraction.completionStats
-          ? totalDownloads > 0
-            ? `${Math.floor((totalDownloadsAttempted / totalDownloads) * 100)}%`
-            : "0%"
-          : "Pending"}
-      </TableCell>
-      <TableCell className="text-xs">
-        {extraction.completionStats
-          ? totalExtractionsPossible > 0
-            ? `${Math.floor((totalExtractionsAttempted / totalExtractionsPossible) * 100)}%`
-            : "0%"
-          : "Pending"}
-      </TableCell>
-      <TableCell className="text-xs">
-        {extraction.itemsCount ?? "-"}
+        {extraction.completionStats ? (
+          <TooltipProvider>
+            <div className="flex items-center gap-1">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Download className="h-3.5 w-3.5 text-muted-foreground" />
+                </TooltipTrigger>
+                <TooltipContent>Downloads</TooltipContent>
+              </Tooltip>
+              <span className="inline-block w-8">{downloadsPercent}</span>
+              <span>/</span>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Pickaxe className="h-3.5 w-3.5 text-muted-foreground" />
+                </TooltipTrigger>
+                <TooltipContent>Extractions</TooltipContent>
+              </Tooltip>
+              <span className="inline-block w-8">{extractionsPercent}</span>
+            </div>
+          </TooltipProvider>
+        ) : (
+          "Pending"
+        )}
       </TableCell>
       <TableCell className="text-xs">
         {extraction.completionStats?.costs?.estimatedCost != null
@@ -296,12 +332,12 @@ export default function Extractions() {
               <TableHeader>
                 <TableRow>
                   <TableHead
-                    colSpan={2}
                     className="cursor-pointer"
                     onClick={() => handleSort("catalogue")}
                   >
                     {renderHeader("Catalogue", "catalogue")}
                   </TableHead>
+                  <TableHead>Recipe</TableHead>
                   <TableHead
                     className="cursor-pointer"
                     onClick={() => handleSort("type")}
@@ -315,16 +351,7 @@ export default function Extractions() {
                     {renderHeader("Status", "status")}
                   </TableHead>
                   <TableHead>
-                    <span>Downloads</span>
-                  </TableHead>
-                  <TableHead>
-                    <span>Extractions</span>
-                  </TableHead>
-                  <TableHead
-                    className="cursor-pointer w-40"
-                    onClick={() => handleSort("items")}
-                  >
-                    {renderHeader("Items extracted", "items")}
+                    <span>Stats</span>
                   </TableHead>
                   <TableHead
                     className="cursor-pointer"
@@ -342,7 +369,11 @@ export default function Extractions() {
               </TableHeader>
               <TableBody>
                 {(listQuery.data?.results || []).map((extraction) => (
-                  <ExtractionListItem key={extraction.id} {...extraction} />
+                  <ExtractionListItem
+                    key={extraction.id}
+                    extraction={extraction}
+                    onOpen={(id) => navigate(`/${id}`)}
+                  />
                 ))}
               </TableBody>
             </Table>

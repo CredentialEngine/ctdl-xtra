@@ -283,6 +283,15 @@ export type ExtractionsSortKey =
   | "cost";
 export type ExtractionsSortOrder = "asc" | "desc";
 
+function withRecipeDisplayName<T extends { id: number; name: string | null }>(
+  recipe: T
+): T & { name: string } {
+  return {
+    ...recipe,
+    name: recipe.name || `Recipe #${recipe.id}`,
+  };
+}
+
 export async function findExtractionsSorted(
   limit: number = 20,
   offset: number = 0,
@@ -350,7 +359,7 @@ export async function findExtractionsSorted(
     ...r.extraction,
     itemsCount: r.itemsCount ?? 0,
     recipe: {
-      ...r.recipe,
+      ...withRecipeDisplayName(r.recipe),
       catalogue: r.catalogue,
     },
   }));
@@ -401,6 +410,7 @@ export async function findExtractionForDetailPage(id: number) {
     },
   });
   if (result) {
+    result.recipe = withRecipeDisplayName(result.recipe);
     for (const step of result.crawlSteps) {
       step.itemCount = await getPageCount(step.id);
       // Get all pages for this step

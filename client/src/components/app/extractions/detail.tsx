@@ -471,7 +471,7 @@ export default function ExtractionDetail() {
                     <CookingPot className="w-4 h-4" />
                   </div>
                   <div>
-                    Recipe #{extraction.recipe.id}{" "}
+                    {extraction.recipe.name}{" "}
                     {extraction.recipe.status == RecipeDetectionStatus.SUCCESS
                       ? null
                       : "— Draft"}
