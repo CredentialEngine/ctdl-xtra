@@ -103,12 +103,14 @@ const ExtractionListItem = ({
   let totalDownloads = 0,
     totalDownloadsAttempted = 0,
     totalExtractionsPossible = 0,
-    totalExtractionsAttempted = 0;
+    totalExtractionsAttempted = 0,
+    totalExtractedItems = 0;
   for (const step of extraction.completionStats?.steps || []) {
     totalDownloads += step.downloads.total;
     totalDownloadsAttempted += step.downloads.attempted;
     totalExtractionsPossible += step.downloads.succeeded;
     totalExtractionsAttempted += step.extractions.attempted;
+    totalExtractedItems += step.extractions.courses;
   }
   const downloadsPercent =
     totalDownloads > 0
@@ -174,6 +176,9 @@ const ExtractionListItem = ({
         {extraction.completionStats?.costs?.estimatedCost != null
           ? `$${extraction.completionStats.costs.estimatedCost.toFixed(2)}`
           : "-"}
+      </TableCell>
+      <TableCell className="text-xs">
+        {totalExtractedItems.toLocaleString()}
       </TableCell>
       <TableCell className="text-xs">
         {prettyPrintDate(extraction.createdAt)}
@@ -359,6 +364,7 @@ export default function Extractions() {
                   >
                     {renderHeader("Cost", "cost")}
                   </TableHead>
+                  <TableHead>Extracted Items</TableHead>
                   <TableHead
                     className="cursor-pointer"
                     onClick={() => handleSort("date")}
