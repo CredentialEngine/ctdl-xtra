@@ -13,7 +13,6 @@ import {
 import {
   BrowserFetchError,
   fetchBrowserPage,
-  normalizeUrl,
   simplifiedMarkdown,
 } from "../extraction/browser";
 import { discoverDynamicLinks } from "../extraction/dynamicLinkDiscovery";
@@ -28,7 +27,7 @@ import {
 import { submitRecipeDetection } from "../extraction/submitRecipeDetection";
 import getLogger from "../logging";
 import { SimplifiedMarkdown } from "../types";
-import { bestOutOf, exponentialRetry } from "../utils";
+import { bestOutOf, exponentialRetry, normalizeUrl } from "../utils";
 import { Queues, submitJob } from "../workers";
 
 const logger = getLogger("routers.recipes");

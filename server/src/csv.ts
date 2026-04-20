@@ -9,6 +9,7 @@ import {
   LearningProgramStructuredData,
 } from "../../common/types";
 import { findDataItems, findDataset } from "./data/datasets";
+import { normalizeUrl } from "./utils";
 
 /*
   Ref.
@@ -219,8 +220,13 @@ function getCredentialRow(
 function getBulkUploadTemplateRow<T>(
   item: Awaited<ReturnType<typeof findDataItems>>["items"][number],
   catalogueType: CatalogueType,
-  state: Record<string, any>
+  state: Record<string, any>,
+  baseUrl?: string
 ) {
+  const normalizedItem = {
+    ...item,
+    url: normalizeUrl(item.url, baseUrl),
+  };
   const textInclusion = item.textInclusion;
   let textVerificationAverage = 0;
   let textVerificationDetails = "";
@@ -243,23 +249,27 @@ function getBulkUploadTemplateRow<T>(
   }
 
   if (catalogueType === CatalogueType.COURSES) {
-    return getCourseRow(item, textVerificationAverage, textVerificationDetails);
+    return getCourseRow(
+      normalizedItem,
+      textVerificationAverage,
+      textVerificationDetails
+    );
   } else if (catalogueType === CatalogueType.LEARNING_PROGRAMS) {
     return getLearningProgramRow(
-      item,
+      normalizedItem,
       textVerificationAverage,
       textVerificationDetails
     );
   } else if (catalogueType === CatalogueType.COMPETENCIES) {
     return getCompetencyRow(
-      item,
+      normalizedItem,
       textVerificationAverage,
       textVerificationDetails,
       state
     );
   } else if (catalogueType === CatalogueType.CREDENTIALS) {
     return getCredentialRow(
-      item,
+      normalizedItem,
       textVerificationAverage,
       textVerificationDetails
     );
@@ -321,7 +331,8 @@ export async function buildCsv(csvStream: Transform, datasetId: number) {
         const records = getBulkUploadTemplateRow(
           item,
           extraction.recipe.catalogue.catalogueType as CatalogueType,
-          state
+          state,
+          extraction.recipe.url
         );
 
         if (Array.isArray(records) && records?.length) {
