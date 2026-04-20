@@ -68,6 +68,37 @@ export function resolveAbsoluteUrl(base: string, relative: string): string {
   return absoluteUrl.href;
 }
 
+/**
+ * Checks if a URL is absolute (has protocol)
+ */
+function isAbsoluteUrl(url: string): boolean {
+  try {
+    new URL(url);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Resolves relative URLs against a base URL when provided.
+ */
+export function normalizeUrl(url: string, baseUrl?: string): string {
+  // If URL is already absolute, return as-is
+  if (isAbsoluteUrl(url)) {
+    return url;
+  }
+
+  // If URL is relative and we have a base URL, resolve it
+  if (baseUrl) {
+    return resolveAbsoluteUrl(baseUrl, url);
+  }
+
+  // If URL is relative but no base URL provided, log warning and return as-is
+  logger.warn(`Relative URL "${url}" provided without baseUrl. Attempting to fetch as-is.`);
+  return url;
+}
+
 export function buildFrontendUrl(suffix: string) {
   let baseUrl = process.env.FRONTEND_URL || "";
   if (!baseUrl.endsWith("/")) {

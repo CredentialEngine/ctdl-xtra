@@ -9,7 +9,12 @@ import { URL } from "url";
 import { findSetting } from "../data/settings";
 import getLogger from "../logging";
 import { SimplifiedMarkdown } from "../types";
-import { httpCodeToMessage, isProxyError, resolveAbsoluteUrl } from "../utils";
+import {
+  httpCodeToMessage,
+  isProxyError,
+  normalizeUrl,
+  resolveAbsoluteUrl,
+} from "../utils";
 import { PageSetupConfig } from "../../../common/types";
 import { applyPageSetupSteps } from "./pageSetup";
 import { detectCatalogueType } from "./llm/detectCatalogueType";
@@ -198,38 +203,6 @@ export async function findProxies(): Promise<string[] | undefined> {
     return [proxy.value];
   }
   return undefined;
-}
-
-/**
- * Checks if a URL is absolute (has protocol)
- */
-function isAbsoluteUrl(url: string): boolean {
-  try {
-    new URL(url);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-/**
- * Resolves a relative URL against a base URL
- */
-export function normalizeUrl(url: string, baseUrl?: string): string {
-  // If URL is already absolute, return as-is
-  if (isAbsoluteUrl(url)) {
-    return url;
-  }
-
-  // If URL is relative and we have a base URL, resolve it
-  if (baseUrl) {
-    return resolveAbsoluteUrl(baseUrl, url);
-  }
-
-  // If URL is relative but no base URL provided, log warning and return as-is
-  // (Puppeteer might handle it, but it's not ideal)
-  logger.warn(`Relative URL "${url}" provided without baseUrl. Attempting to fetch as-is.`);
-  return url;
 }
 
 export interface FetchBrowserPageOptions {
