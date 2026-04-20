@@ -323,6 +323,13 @@ export const performJob = async (
     if (!page.content) {
       throw new Error(`Could not fetch URL ${crawlPage.url}`);
     }
+    crawlPage.screenshot = await storeScreenshot(
+      crawlPage.extractionId,
+      crawlPage.crawlStepId,
+      crawlPage.id,
+      page.screenshot
+    );
+
     const contentSelector = configuration.contentSelector;
     const markdownContent = await simplifiedMarkdown(page.content, contentSelector);
     crawlPage.content = await storeContent(
@@ -331,12 +338,6 @@ export const performJob = async (
       crawlPage.id,
       page.content,
       markdownContent
-    );
-    crawlPage.screenshot = await storeScreenshot(
-      crawlPage.extractionId,
-      crawlPage.crawlStepId,
-      crawlPage.id,
-      page.screenshot
     );
     await updatePage(crawlPage.id, {
       content: crawlPage.content,
