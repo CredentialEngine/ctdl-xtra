@@ -270,6 +270,7 @@ export default function SampleModal({
     },
     {
       enabled: appliedFilters !== null && open,
+      refetchOnWindowFocus: false,
     }
   );
 
