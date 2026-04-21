@@ -43,6 +43,7 @@ import { detectPageCount } from "../extraction/llm/detectPageCount";
 import { createUrlExtractor } from "../extraction/llm/detectUrlRegexp";
 import { findRule, isUrlAllowedForRule } from "../extraction/robotsParser";
 import getLogger from "../logging";
+import { isProxyError } from "../utils";
 
 const logger = getLogger("workers.fetchPage");
 const redis = getRedisConnection();
@@ -349,15 +350,15 @@ export const performJob = async (
     });
   } catch (err) {
     let failureReason: FetchFailureReason | undefined;
-    let isClientError = false; // 4xx errors are permanent and shouldn't be retried
+    let isClientError = false; // non-proxy 4xx errors are permanent and shouldn't be retried
 
     if (err instanceof BrowserFetchError) {
       failureReason = {
         responseStatus: err.status,
         reason: err.uiMessage(),
       };
-      // 4xx errors are client errors (permanent failures) - don't retry
-      isClientError = err.status >= 400 && err.status < 500;
+      // 4xx errors are client errors (permanent failures) unless classified as proxy-related.
+      isClientError = err.status >= 400 && err.status < 500 && !isProxyError(err);
     } else {
       failureReason = {
         reason:
