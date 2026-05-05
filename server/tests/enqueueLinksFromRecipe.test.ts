@@ -14,6 +14,7 @@ import {
   ExtractionStatus,
   PageType,
   Step,
+  UrlPatternType,
 } from "../../common/types";
 import { promises as fs } from "fs";
 import path from "path";
@@ -146,6 +147,84 @@ describe.skip("Recipe execution", () => {
 describe("Dynamic link discovery and enqueueing", () => {
   beforeEach(() => {
     vi.resetModules();
+  });
+
+  test("constructs zero-based page number pagination URLs", async () => {
+    vi.doMock("../src/workers", async () => {
+      const actual = await vi.importActual<any>("../src/workers");
+      return {
+        ...actual,
+        getRedisConnection: () => ({
+          set: vi.fn().mockResolvedValue("OK"),
+          pttl: vi.fn().mockResolvedValue(0),
+        }),
+      };
+    });
+
+    const { constructPaginatedUrls } = await import("../src/workers/fetchPage");
+
+    expect(
+      constructPaginatedUrls({
+        urlPatternType: UrlPatternType.page_num,
+        urlPattern: "https://example.com/courses?page={page_num}",
+        totalPages: 3,
+        startPage: 0,
+      })
+    ).toEqual([
+      "https://example.com/courses?page=0",
+      "https://example.com/courses?page=1",
+      "https://example.com/courses?page=2",
+    ]);
+  });
+
+  test("constructs one-based page number pagination URLs by default", async () => {
+    vi.doMock("../src/workers", async () => {
+      const actual = await vi.importActual<any>("../src/workers");
+      return {
+        ...actual,
+        getRedisConnection: () => ({
+          set: vi.fn().mockResolvedValue("OK"),
+          pttl: vi.fn().mockResolvedValue(0),
+        }),
+      };
+    });
+
+    const { constructPaginatedUrls } = await import("../src/workers/fetchPage");
+
+    expect(
+      constructPaginatedUrls({
+        urlPatternType: UrlPatternType.page_num,
+        urlPattern: "https://example.com/courses?page={page_num}",
+        totalPages: 3,
+      })
+    ).toEqual([
+      "https://example.com/courses?page=1",
+      "https://example.com/courses?page=2",
+      "https://example.com/courses?page=3",
+    ]);
+  });
+
+  test("rejects empty pagination URL patterns", async () => {
+    vi.doMock("../src/workers", async () => {
+      const actual = await vi.importActual<any>("../src/workers");
+      return {
+        ...actual,
+        getRedisConnection: () => ({
+          set: vi.fn().mockResolvedValue("OK"),
+          pttl: vi.fn().mockResolvedValue(0),
+        }),
+      };
+    });
+
+    const { constructPaginatedUrls } = await import("../src/workers/fetchPage");
+
+    expect(() =>
+      constructPaginatedUrls({
+        urlPatternType: UrlPatternType.page_num,
+        urlPattern: "   ",
+        totalPages: 3,
+      })
+    ).toThrow("Pagination URL pattern cannot be empty");
   });
 
   test(
