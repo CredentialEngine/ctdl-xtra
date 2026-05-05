@@ -59,6 +59,10 @@ export function RecipeConfigurationEditor({
         setValue(`${paginationPath}.urlPatternType` as any, result.urlPatternType);
         setValue(`${paginationPath}.urlPattern` as any, result.urlPattern);
         setValue(`${paginationPath}.totalPages` as any, result.totalPages);
+        setValue(
+          `${paginationPath}.startPage` as Parameters<typeof setValue>[0],
+          result.startPage
+        );
       }
     } catch (err) {
       toast({

@@ -65,6 +65,10 @@ total_pages:
 
 total number of pages
 
+start_page:
+
+the first page number used by this website. Usually this is 1, but use 0 if the first page link uses a zero-based page parameter such as page=0.
+
 other_explanation: ONLY FILL THIS IN IF THE PAGINATION TYPE IS OTHER
 
 the reason why the pagination type is other and how you determined that.
@@ -109,6 +113,10 @@ Example:
 https://www.example.com/${entity.pluralName.toLowerCase()}.php?page={page_num}
 
 total_pages: ONLY FILL THIS IN IF THE WEBSITE IS PAGINATED
+
+start_page: ONLY FILL THIS IN IF THE WEBSITE IS PAGINATED
+
+the first page number used by this website. Usually this is 1, but use 0 if the first page link uses a zero-based page parameter such as page=0.
 
 other_explanation: ONLY FILL THIS IN IF THE WEBSITE IS PAGINATED AND THE PAGINATION TYPE IS OTHER
 
@@ -167,6 +175,9 @@ ${defaultOptions.content}
       total_pages: {
         type: "number",
       },
+      start_page: {
+        type: "number",
+      },
       other_explanation: {
         type: "string",
       },
@@ -218,9 +229,17 @@ ${defaultOptions.content}
   }
 
   const totalPages = assertNumber(toolCall, "total_pages");
+  const startPage =
+    toolCall.start_page === undefined ? 1 : assertNumber(toolCall, "start_page");
+  if (!Number.isInteger(startPage) || startPage < 0) {
+    throw new BadToolCallResponseError(
+      `Bad tool response value for start_page. ${JSON.stringify(toolCall)}`
+    );
+  }
   return {
     urlPatternType: urlPatternType as UrlPatternType,
     urlPattern,
     totalPages,
+    startPage,
   };
 }

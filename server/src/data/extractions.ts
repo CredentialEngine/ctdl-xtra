@@ -784,6 +784,15 @@ export interface CreateStepAndPagesOptions {
 export async function createStepAndPages(
   createOptions: CreateStepAndPagesOptions
 ) {
+  const blankPageIndex = createOptions.pages.findIndex(
+    (pageCreateOptions) => !pageCreateOptions.url.trim()
+  );
+  if (blankPageIndex >= 0) {
+    throw new Error(
+      `Cannot create crawl page with empty URL at index ${blankPageIndex} for step ${createOptions.step}`
+    );
+  }
+
   return await db.transaction(async (tx) => {
     const step = (
       await tx
@@ -796,18 +805,42 @@ export async function createStepAndPages(
         })
         .returning()
     )[0];
-    const pages = await tx
-      .insert(crawlPages)
-      .values(
-        createOptions.pages.map((pageCreateOptions) => ({
-          crawlStepId: step.id,
-          step: createOptions.step,
-          extractionId: createOptions.extractionId,
-          url: pageCreateOptions.url,
-          pageType: createOptions.pageType,
-        }))
-      )
-      .returning();
+    let pages;
+    try {
+      pages = await tx
+        .insert(crawlPages)
+        .values(
+          createOptions.pages.map((pageCreateOptions) => ({
+            crawlStepId: step.id,
+            step: createOptions.step,
+            extractionId: createOptions.extractionId,
+            url: pageCreateOptions.url,
+            pageType: createOptions.pageType,
+          }))
+        )
+        .returning();
+    } catch (err) {
+      const dbError = err as Error & {
+        code?: string;
+        constraint?: string;
+        detail?: string;
+      };
+
+      if (
+        dbError.code === "23505" &&
+        dbError.constraint === "crawl_pages_extraction_id_url_step_unique"
+      ) {
+        const attemptedUrls = createOptions.pages
+          .map((pageCreateOptions) => pageCreateOptions.url)
+          .join(", ");
+        const detail = dbError.detail ? ` ${dbError.detail}` : "";
+        throw new Error(
+          `${dbError.message}.${detail} Attempted crawl page URLs: ${attemptedUrls}`
+        );
+      }
+
+      throw err;
+    }
     return {
       step,
       pages,

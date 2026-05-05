@@ -355,6 +355,7 @@ Tells xTRA that the content is split across multiple pages (e.g., “Page 1 of 1
 2. **Inspect manually:**
    - Click “Next” or a page number.
    - Check how the URL changes (e.g., `?page=2`, `?offset=20`).
+   - Check whether the first page starts at `1` or `0`. Most sites use `page=1`, but some catalogues use zero-based pagination like `page=0`, `page=1`, `page=2`.
 
 ### Pattern Type
 
@@ -381,6 +382,21 @@ Tells xTRA that the content is split across multiple pages (e.g., “Page 1 of 1
 **What it is:** The total number of pages to crawl.
 
 **Where to find it:** Look for “Page 1 of X” or the last page number on the site. If unsure, use a higher number; xTRA will stop when there is no more content.
+
+### Start Page
+
+**Type:** Number  
+**Default:** `1`
+
+**What it is:** The first page number xTRA should use when building `page_num` pagination URLs.
+
+**When to change it:** Leave this as `1` for the usual `page=1`, `page=2`, `page=3` pattern. Set it to `0` when the catalogue starts at `page=0`, then continues with `page=1`, `page=2`, and so on.
+
+**Example:** If URL Pattern is `https://catalog.example.edu/courses?page={page_num}`, Total Pages is `3`, and Start Page is `0`, xTRA crawls:
+
+- `https://catalog.example.edu/courses?page=0`
+- `https://catalog.example.edu/courses?page=1`
+- `https://catalog.example.edu/courses?page=2`
 
 ---
 
