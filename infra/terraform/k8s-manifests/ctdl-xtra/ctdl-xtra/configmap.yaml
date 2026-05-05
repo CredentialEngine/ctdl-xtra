@@ -6,8 +6,8 @@ metadata:
 data:
   CLIENT_PATH: /app/public
   EXTRACTION_FILES_PATH: /app/storage
-  FRONTEND_URL: https://ctdl-xtra.credentialengine.org
+  FRONTEND_URL: https://ctdl-xtra.credentialengineregistry.org
   INSPECT_WORKERS: "1"
   PORT: "3000"
   REDIS_URL: redis://redis:6379
-  VITE_API_URL: https://ctdl-xtra.credentialengine.org
+  VITE_API_URL: https://ctdl-xtra.credentialengineregistry.org
