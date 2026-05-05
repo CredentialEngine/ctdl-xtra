@@ -625,6 +625,7 @@ export function RecipeLevel({
                                 urlPatternType: UrlPatternType.page_num,
                                 urlPattern: "",
                                 totalPages: 1,
+                                startPage: 1,
                               });
                             } else {
                               (form.setValue as any)(
@@ -730,6 +731,30 @@ export function RecipeLevel({
                                 }
                               />
                             </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={control}
+                        name={`${path}.pagination.startPage`}
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Start Page</FormLabel>
+                            <FormControl>
+                              <Input
+                                type="number"
+                                {...field}
+                                value={field.value ?? 1}
+                                disabled={isDetectingPagination}
+                                onChange={(e) =>
+                                  field.onChange(parseInt(e.target.value))
+                                }
+                              />
+                            </FormControl>
+                            <FormDescription>
+                              Usually 1. Use 0 for zero-based pagination.
+                            </FormDescription>
                             <FormMessage />
                           </FormItem>
                         )}
