@@ -1,0 +1,54 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ctdl-xtra-worker
+  namespace: ctdl-xtra
+  labels:
+    app: ctdl-xtra-worker
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ctdl-xtra-worker
+  strategy:
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app: ctdl-xtra-worker
+        workload: ctdl-xtra
+    spec:
+      nodeSelector:
+        workload: ctdl-xtra
+      tolerations:
+        - key: workload
+          operator: Equal
+          value: ctdl-xtra
+          effect: NoSchedule
+      serviceAccountName: ctdl-xtra
+      containers:
+        - name: worker
+          image: 996810415034.dkr.ecr.us-east-1.amazonaws.com/ctdl-xtra-worker:release
+          imagePullPolicy: Always
+          command: ["pm2-runtime", "/app/dist/server/src/worker.js"]
+          envFrom:
+            - configMapRef:
+                name: ctdl-xtra-config
+            - secretRef:
+                name: ctdl-xtra-secrets
+          resources:
+            requests:
+              cpu: "1000m"
+              memory: "3Gi"
+            limits:
+              cpu: "3000m"
+              memory: "6Gi"
+          volumeMounts:
+            - name: extraction-storage
+              mountPath: /app/storage
+      volumes:
+        - name: extraction-storage
+          persistentVolumeClaim:
+            claimName: ctdl-xtra-storage
