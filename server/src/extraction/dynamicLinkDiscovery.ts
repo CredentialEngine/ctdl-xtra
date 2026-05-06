@@ -90,7 +90,7 @@ export async function navigateWithProxy(
     protocolTimeout: 1 * 60 * 1000,
     dumpio: true,
     args,
-  });
+  } as Parameters<typeof puppeteer.launch>[0] & { ignoreHTTPSErrors: boolean });
 
   let settlementTimer: ReturnType<typeof setTimeout> | undefined;
 

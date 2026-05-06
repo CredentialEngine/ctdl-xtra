@@ -6,15 +6,18 @@
     "build": "tsc",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit up && drizzle-kit migrate",
+    "agentic:experiment": "caffeinate -i tsx src/agentic-experiment/run.ts",
     "run:update-completion": "tsx -r dotenv/config scripts/runUpdateCompletionStats.ts",
     "test": "vitest",
     "test:html": "vitest --reporter=html"
   },
   "dependencies": {
     "@airbrake/node": "^2.1.8",
+    "@anthropic-ai/claude-agent-sdk": "^0.2.139",
     "@fastify/cors": "^9.0.1",
     "@fastify/secure-session": "^7.5.1",
     "@fastify/static": "^7.0.4",
+    "@modelcontextprotocol/server-puppeteer": "^2025.5.12",
     "@react-email/components": "^0.0.22",
     "@trpc/server": "^10.45.2",
     "@types/lodash": "^4.17.16",
@@ -46,7 +49,7 @@
     "rebrowser-puppeteer": "^23.6.101",
     "turndown": "^7.1.3",
     "uuid": "^11.1.0",
-    "zod": "^3.22.4"
+    "zod": "^3.25.76"
   },
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.9",

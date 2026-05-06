@@ -38,3 +38,4 @@ _scratchbook.md
 *.db-*
 .env*
 !.env.example
+./agentic-experiment/extractions/*.csv

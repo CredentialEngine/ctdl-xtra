@@ -1,5 +1,7 @@
 import { randomUUID } from "crypto";
+import { createWriteStream } from "fs";
 import { format } from "fast-csv";
+import { finished } from "stream/promises";
 import { Transform } from "stream";
 import {
   CatalogueType,
@@ -7,6 +9,7 @@ import {
   CourseStructuredData,
   CredentialStructuredData,
   LearningProgramStructuredData,
+  type TextInclusion,
 } from "../../common/types";
 import { findDataItems, findDataset } from "./data/datasets";
 import { normalizeUrl } from "./utils";
@@ -41,8 +44,19 @@ import { normalizeUrl } from "./utils";
 const noCreditUnitTypeDescription =
   "This has credit value, but the type cannot be determined";
 
+export type CsvExportItem = {
+  url: string;
+  structuredData:
+    | CourseStructuredData
+    | LearningProgramStructuredData
+    | CompetencyStructuredData
+    | CredentialStructuredData
+    | Record<string, any>;
+  textInclusion?: TextInclusion<any> | null;
+};
+
 function getCourseRow(
-  item: Awaited<ReturnType<typeof findDataItems>>["items"][number],
+  item: CsvExportItem,
   textVerificationAverage: number,
   textVerificationDetails: string
 ) {
@@ -80,7 +94,7 @@ function getCourseRow(
 }
 
 function getLearningProgramRow(
-  item: Awaited<ReturnType<typeof findDataItems>>["items"][number],
+  item: CsvExportItem,
   textVerificationAverage: number,
   textVerificationDetails: string
 ) {
@@ -118,7 +132,7 @@ function formatCompetencyCategory(
 }
 
 function getCompetencyRow(
-  item: Awaited<ReturnType<typeof findDataItems>>["items"][number],
+  item: CsvExportItem,
   textVerificationAverage: number,
   textVerificationDetails: string,
   state: Record<string, any>
@@ -145,7 +159,9 @@ function getCompetencyRow(
         language: entityData.language,
         competency_framework: "",
       },
-      { textVerificationAverage, textVerificationDetails }
+      { textVerificationAverage, textVerificationDetails },
+      undefined,
+      item.url
     );
     result.push(frameworkItem);
   }
@@ -158,7 +174,8 @@ function getCompetencyRow(
       competency_category: entityData.competency_category,
     },
     { textVerificationAverage, textVerificationDetails },
-    framework
+    framework,
+    item.url
   );
   result.push(competencyItem);
   return result;
@@ -170,7 +187,8 @@ function makeCompetencyRow(
     textVerificationAverage: number;
     textVerificationDetails: string;
   },
-  parent?: Framework
+  parent?: Framework,
+  pageUrl?: string
 ) {
   const type = parent ? "ceasn:Competency" : "ceasn:CompetencyFramework";
   const id = randomUUID();
@@ -190,6 +208,7 @@ function makeCompetencyRow(
     "ceasn:inLanguage": language,
     "ceasn:publisher": "",
     "ceasn:isPartOf": isPartOf,
+    "Page URL": pageUrl ?? "",
     ...(parent && {
       "Competency Category": formatCompetencyCategory(entity.competency_category),
     }),
@@ -199,7 +218,7 @@ function makeCompetencyRow(
 }
 
 function getCredentialRow(
-  item: Awaited<ReturnType<typeof findDataItems>>["items"][number],
+  item: CsvExportItem,
   textVerificationAverage: number,
   textVerificationDetails: string
 ) {
@@ -217,8 +236,8 @@ function getCredentialRow(
   };
 }
 
-function getBulkUploadTemplateRow<T>(
-  item: Awaited<ReturnType<typeof findDataItems>>["items"][number],
+function getBulkUploadTemplateRow(
+  item: CsvExportItem,
   catalogueType: CatalogueType,
   state: Record<string, any>,
   baseUrl?: string
@@ -285,11 +304,79 @@ const idColumns = {
   [CatalogueType.CREDENTIALS]: "credential_id",
 };
 
+function writeCsvItemsToStream(
+  csvStream: Transform,
+  items: CsvExportItem[],
+  catalogueType: CatalogueType,
+  baseUrl: string | undefined,
+  state: Record<string, any>,
+  idMap: Map<string, number>
+) {
+  const idColumn = idColumns[catalogueType];
+
+  for (let item of items) {
+    if (idColumn) {
+      const rowId: string | undefined = (item.structuredData as unknown as Record<
+        string,
+        unknown
+      >)[idColumn] as string | undefined;
+      if (rowId) {
+        let rowNumber = idMap.get(rowId);
+        if (rowNumber) {
+          rowNumber += 1;
+          item = {
+            ...item,
+            structuredData: {
+              ...item.structuredData,
+              [idColumn]: `${rowId}-${rowNumber}`,
+            },
+          };
+        } else {
+          rowNumber = 1;
+        }
+        idMap.set(rowId, rowNumber);
+      }
+    }
+
+    const records = getBulkUploadTemplateRow(
+      item,
+      catalogueType,
+      state,
+      baseUrl
+    );
+
+    if (Array.isArray(records) && records.length) {
+      for (const entry of records) {
+        csvStream.write(entry);
+      }
+    } else {
+      csvStream.write(records);
+    }
+  }
+}
+
+export async function writeBulkUploadCsvToPath(
+  outputPath: string,
+  items: CsvExportItem[],
+  catalogueType: CatalogueType,
+  baseUrl?: string
+) {
+  const csvStream = format({ headers: true });
+  const fileStream = createWriteStream(outputPath);
+  csvStream.pipe(fileStream);
+
+  const state: Record<string, any> = {};
+  const idMap = new Map<string, number>();
+  writeCsvItemsToStream(csvStream, items, catalogueType, baseUrl, state, idMap);
+  csvStream.end();
+  await finished(fileStream);
+}
+
 export async function buildCsv(csvStream: Transform, datasetId: number) {
   try {
     let offset = 0;
-    let limit = 100;
-    let state: Record<string, any> = {};
+    const limit = 100;
+    const state: Record<string, any> = {};
 
     const dataset = await findDataset(datasetId);
 
@@ -298,55 +385,26 @@ export async function buildCsv(csvStream: Transform, datasetId: number) {
     }
 
     const extraction = dataset.extraction;
-
+    const catalogueType = extraction.recipe.catalogue
+      .catalogueType as CatalogueType;
     const idMap = new Map<string, number>();
-    const idColumn =
-      idColumns[dataset.extraction.recipe.catalogue.catalogueType as CatalogueType];
 
     while (true) {
       const { items } = await findDataItems(datasetId, limit, offset, true);
       if (!items.length) {
         break;
       }
-      for (let item of items) {
-        if (idColumn) {
-          const rowId: string | undefined = (item.structuredData as any)[
-            idColumn
-          ];
-          if (rowId) {
-            let rowNumber = idMap.get(rowId);
-            if (rowNumber) {
-              rowNumber += 1;
-              item = {
-                ...item,
-                structuredData: {
-                  ...item.structuredData,
-                  [idColumn]: `${rowId}-${rowNumber}`,
-                },
-              };
-            } else {
-              rowNumber = 1;
-            }
-            idMap.set(rowId, rowNumber);
-          }
-        }
-        const records = getBulkUploadTemplateRow(
-          item,
-          extraction.recipe.catalogue.catalogueType as CatalogueType,
-          state,
-          extraction.recipe.url
-        );
 
-        if (Array.isArray(records) && records?.length) {
-          records.map((entry) => csvStream.write(entry));
-        } else {
-          csvStream.write(records);
-        }
-      }
+      writeCsvItemsToStream(
+        csvStream,
+        items,
+        catalogueType,
+        extraction.recipe.url,
+        state,
+        idMap
+      );
       offset += limit;
     }
-
-    csvStream.end();
   } catch (err) {
     csvStream.emit("error", err);
   } finally {

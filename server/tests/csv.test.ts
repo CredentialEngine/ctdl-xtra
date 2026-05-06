@@ -198,6 +198,7 @@ describe("buildCsv", () => {
         "ceasn:name": "Test Framework",
         "ceasn:description": expect.any(String),
         "ceasn:inLanguage": "English",
+        "Page URL": "https://example.com/competency1",
       })
     );
 
@@ -210,6 +211,7 @@ describe("buildCsv", () => {
         "ceasn:competencyText": "Competency 1",
         "ceasn:inLanguage": "English",
         "ceasn:isPartOf": "12345678-1234-1234-1234-123456789012",
+        "Page URL": "https://example.com/competency1",
       })
     );
 
