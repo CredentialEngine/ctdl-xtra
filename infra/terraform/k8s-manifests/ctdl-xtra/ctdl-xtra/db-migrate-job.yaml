@@ -1,0 +1,32 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: ctdl-xtra-db-migrate
+  namespace: ctdl-xtra
+spec:
+  backoffLimit: 1
+  template:
+    metadata:
+      labels:
+        app: ctdl-xtra-db-migrate
+        workload: ctdl-xtra
+    spec:
+      restartPolicy: Never
+      nodeSelector:
+        workload: ctdl-xtra
+      tolerations:
+        - key: workload
+          operator: Equal
+          value: ctdl-xtra
+          effect: NoSchedule
+      serviceAccountName: ctdl-xtra
+      containers:
+        - name: migrate
+          image: 996810415034.dkr.ecr.us-east-1.amazonaws.com/ctdl-xtra-app:release
+          imagePullPolicy: Always
+          command: ["./node_modules/.bin/drizzle-kit", "migrate"]
+          envFrom:
+            - configMapRef:
+                name: ctdl-xtra-config
+            - secretRef:
+                name: ctdl-xtra-secrets
