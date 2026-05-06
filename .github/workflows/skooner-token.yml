@@ -60,6 +60,13 @@ jobs:
         run: |
           aws eks update-kubeconfig --name "${{ env.EKS_CLUSTER }}" --region "${{ env.AWS_REGION }}"
 
+      - name: Mask sensitive inputs
+        if: ${{ inputs.whitelist_source_range != '' }}
+        env:
+          WHITELIST: ${{ inputs.whitelist_source_range }}
+        run: |
+          echo "::add-mask::${WHITELIST}"
+
       - name: Validate RBAC (dry-run)
         env:
           ROLE: ${{ inputs.role }}
@@ -131,7 +138,7 @@ jobs:
         env:
           WHITELIST: ${{ inputs.whitelist_source_range }}
         run: |
-          echo "Setting whitelist-source-range to: ${WHITELIST}"
+          echo "Setting whitelist-source-range"
           kubectl -n kube-system annotate ingress skooner-ingress \
             nginx.ingress.kubernetes.io/whitelist-source-range="${WHITELIST}" --overwrite
 
@@ -156,7 +163,7 @@ jobs:
           ACTOR: ${{ github.actor }}
           DURATION: ${{ inputs.duration }}
           ROLE: ${{ inputs.role }}
-          WHITELIST: ${{ inputs.whitelist_source_range }}
+          WHITELIST_CONFIGURED: ${{ inputs.whitelist_source_range != '' }}
           BINDING_KIND: ${{ steps.rbac.outputs.binding_kind }}
           BINDING_NS: ${{ steps.rbac.outputs.binding_namespace }}
           SA_NAME: ${{ env.SA_NAME }}
@@ -174,7 +181,7 @@ jobs:
             --arg duration "$DURATION" \
             --arg role "$ROLE" \
             --arg ns "$BINDING_NS" \
-            --arg wl "${WHITELIST:-}" \
+            --arg whitelist_configured "$WHITELIST_CONFIGURED" \
             --arg token "$TOKEN" \
             '
             {
@@ -189,7 +196,7 @@ jobs:
                   ]
                 },
                 { "type": "section", "fields": [
-                    {"type":"mrkdwn", "text": "*Whitelist:*\n\($wl)"}
+                    {"type":"mrkdwn", "text": "*Whitelist:*\n\(if $whitelist_configured == "true" then "configured" else "unchanged" end)"}
                   ]
                 },
                 { "type": "section", "text": { "type": "mrkdwn", "text": "*Token:*\n```\($token)```" } },
