@@ -122,6 +122,13 @@ resource "aws_iam_role_policy" "ecr_push" {
           "arn:aws:ecr:${var.aws_region}:${data.aws_caller_identity.current.account_id}:repository/${repository_name}"
         ]
       }
+      {
+        Effect = "Allow"
+        Action = [
+          "eks:DescribeCluster"
+        ]
+        Resource = "arn:aws:eks:${var.aws_region}:${data.aws_caller_identity.current.account_id}:cluster/cer-api-prod"
+      }
     ]
   })
 }
