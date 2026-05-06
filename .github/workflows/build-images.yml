@@ -1,0 +1,157 @@
+name: Build Images
+
+on:
+  push:
+    branches:
+      - main
+      - preview
+    paths:
+      - Dockerfile
+      - worker.Dockerfile
+      - .dockerignore
+      - client/**
+      - common/**
+      - server/**
+      - .github/workflows/build-images.yml
+  pull_request:
+    branches:
+      - main
+      - preview
+    paths:
+      - Dockerfile
+      - worker.Dockerfile
+      - .dockerignore
+      - client/**
+      - common/**
+      - server/**
+      - .github/workflows/build-images.yml
+  workflow_dispatch:
+
+env:
+  AWS_REGION: us-east-1
+  ECR_REGISTRY: 996810415034.dkr.ecr.us-east-1.amazonaws.com
+  APP_ECR_REPOSITORY: ctdl-xtra-app
+  WORKER_ECR_REPOSITORY: ctdl-xtra-worker
+
+jobs:
+  changes:
+    name: Detect Changes
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      app: ${{ steps.filter.outputs.app }}
+      worker: ${{ steps.filter.outputs.worker }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
+
+      - name: Filter changed paths
+        id: filter
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            app:
+              - Dockerfile
+              - .dockerignore
+              - client/**
+              - common/**
+              - server/**
+              - .github/workflows/build-images.yml
+            worker:
+              - worker.Dockerfile
+              - .dockerignore
+              - common/**
+              - server/**
+              - .github/workflows/build-images.yml
+
+  build-app:
+    name: Build App Image
+    needs: changes
+    if: github.event_name == 'workflow_dispatch' || needs.changes.outputs.app == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
+
+      - name: Docker metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.ECR_REGISTRY }}/${{ env.APP_ECR_REPOSITORY }}
+          tags: |
+            type=sha,prefix=git-
+            type=raw,value=release
+            type=ref,event=branch
+
+      - name: Configure AWS credentials
+        if: github.event_name != 'pull_request'
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        if: github.event_name != 'pull_request'
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build app image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+
+  build-worker:
+    name: Build Worker Image
+    needs: changes
+    if: github.event_name == 'workflow_dispatch' || needs.changes.outputs.worker == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
+
+      - name: Docker metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.ECR_REGISTRY }}/${{ env.WORKER_ECR_REPOSITORY }}
+          tags: |
+            type=sha,prefix=git-
+            type=raw,value=release
+            type=ref,event=branch
+
+      - name: Configure AWS credentials
+        if: github.event_name != 'pull_request'
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        if: github.event_name != 'pull_request'
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build worker image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: worker.Dockerfile
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
