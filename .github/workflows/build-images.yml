@@ -32,6 +32,8 @@ env:
   ECR_REGISTRY: 996810415034.dkr.ecr.us-east-1.amazonaws.com
   APP_ECR_REPOSITORY: ctdl-xtra-app
   WORKER_ECR_REPOSITORY: ctdl-xtra-worker
+  PREVIEW_EKS_CLUSTER: cer-api-prod
+  PREVIEW_K8S_NAMESPACE: ctdl-xtra
 
 jobs:
   changes:
@@ -89,6 +91,7 @@ jobs:
           images: ${{ env.ECR_REGISTRY }}/${{ env.APP_ECR_REPOSITORY }}
           tags: |
             type=sha,prefix=git-
+            type=sha,prefix=git-,format=long
             type=raw,value=release
             type=ref,event=branch
 
@@ -133,6 +136,7 @@ jobs:
           images: ${{ env.ECR_REGISTRY }}/${{ env.WORKER_ECR_REPOSITORY }}
           tags: |
             type=sha,prefix=git-
+            type=sha,prefix=git-,format=long
             type=raw,value=release
             type=ref,event=branch
 
@@ -155,3 +159,122 @@ jobs:
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+
+  deploy-preview:
+    name: Deploy Preview
+    needs:
+      - changes
+      - build-app
+      - build-worker
+    if: >
+      ${{
+        !cancelled() &&
+        !failure() &&
+        github.event_name != 'pull_request' &&
+        github.ref == 'refs/heads/preview' &&
+        (
+          github.event_name == 'workflow_dispatch' ||
+          needs.changes.outputs.app == 'true' ||
+          needs.changes.outputs.worker == 'true'
+        )
+      }}
+    runs-on: ubuntu-latest
+    environment: preview
+    concurrency:
+      group: preview-deployment
+      cancel-in-progress: false
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@v4
+
+      - name: Configure Kubernetes credentials
+        run: |
+          aws eks update-kubeconfig \
+            --name "$PREVIEW_EKS_CLUSTER" \
+            --region "$AWS_REGION"
+
+      - name: Deploy preview images
+        env:
+          APP_IMAGE_BUILT: ${{ github.event_name == 'workflow_dispatch' || needs.changes.outputs.app == 'true' }}
+          WORKER_IMAGE_BUILT: ${{ github.event_name == 'workflow_dispatch' || needs.changes.outputs.worker == 'true' }}
+        run: |
+          set -euo pipefail
+
+          app_repo="$ECR_REGISTRY/$APP_ECR_REPOSITORY"
+          worker_repo="$ECR_REGISTRY/$WORKER_ECR_REPOSITORY"
+          app_image="$app_repo:git-$GITHUB_SHA"
+          worker_image="$worker_repo:git-$GITHUB_SHA"
+
+          mapfile -t containers < <(kubectl get deployment \
+            --namespace "$PREVIEW_K8S_NAMESPACE" \
+            --output json \
+            | jq -r \
+              --arg app_repo "$app_repo" \
+              --arg worker_repo "$worker_repo" \
+              '
+              .items[] as $deployment
+              | $deployment.spec.template.spec.containers[]
+              | if (.image | startswith($app_repo + ":")) then
+                  [$deployment.metadata.name, .name, "app"] | @tsv
+                elif (.image | startswith($worker_repo + ":")) then
+                  [$deployment.metadata.name, .name, "worker"] | @tsv
+                else
+                  empty
+                end
+              ')
+
+          if [ "${#containers[@]}" -eq 0 ]; then
+            echo "No app or worker containers found in namespace $PREVIEW_K8S_NAMESPACE."
+            exit 1
+          fi
+
+          updated_deployments=()
+          for container_ref in "${containers[@]}"; do
+            IFS=$'\t' read -r deployment container image_type <<< "$container_ref"
+
+            case "$image_type" in
+              app)
+                if [ "$APP_IMAGE_BUILT" != "true" ]; then
+                  continue
+                fi
+                image="$app_image"
+                ;;
+              worker)
+                if [ "$WORKER_IMAGE_BUILT" != "true" ]; then
+                  continue
+                fi
+                image="$worker_image"
+                ;;
+              *)
+                echo "Unknown image type $image_type."
+                exit 1
+                ;;
+            esac
+
+            kubectl set image "deployment/$deployment" \
+              "$container=$image" \
+              --namespace "$PREVIEW_K8S_NAMESPACE"
+
+            updated_deployments+=("deployment/$deployment")
+          done
+
+          if [ "${#updated_deployments[@]}" -eq 0 ]; then
+            echo "No preview deployments needed image updates."
+            exit 0
+          fi
+
+          mapfile -t unique_deployments < <(printf "%s\n" "${updated_deployments[@]}" | sort -u)
+          for deployment in "${unique_deployments[@]}"; do
+            kubectl rollout status "$deployment" \
+              --namespace "$PREVIEW_K8S_NAMESPACE" \
+              --timeout=10m
+          done
