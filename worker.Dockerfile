@@ -3,6 +3,8 @@ FROM node:20
 
 # Configure default locale (important for chrome-headless-shell).
 ENV LANG=en_US.UTF-8
+ENV HOME=/home/pptruser
+ENV PUPPETEER_CACHE_DIR=/home/pptruser/.cache/puppeteer
 
 # Install latest chrome dev package and fonts to support major charsets (Chinese, Japanese, Arabic, Hebrew, Thai and a few others)
 # Note: this installs the necessary libs to make the bundled version of Chrome that Puppeteer
@@ -26,6 +28,8 @@ RUN npm install pnpm -g
 # Build the app
 COPY server/package.json server/pnpm-lock.yaml server/pnpm-workspace.yaml /build/app/server/
 RUN cd /build/app/server && pnpm install
+RUN mkdir -p "$PUPPETEER_CACHE_DIR" \
+  && chown -R pptruser:pptruser /home/pptruser
 
 USER pptruser
 RUN /build/app/server/node_modules/.bin/rebrowser-puppeteer browsers install chrome
