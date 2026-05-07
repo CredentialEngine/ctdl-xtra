@@ -3,7 +3,10 @@ FROM node:20
 
 # Configure default locale (important for chrome-headless-shell).
 ENV LANG=en_US.UTF-8
+ENV HOME=/home/pptruser
+ENV PUPPETEER_CACHE_DIR=/home/pptruser/.cache/puppeteer
 
+ARG VITE_API_URL
 ENV VITE_API_URL="$VITE_API_URL"
 
 # Install latest chrome dev package and fonts to support major charsets (Chinese, Japanese, Arabic, Hebrew, Thai and a few others)
@@ -31,6 +34,8 @@ COPY server/package.json server/pnpm-lock.yaml server/pnpm-workspace.yaml /build
 RUN (cd /build/app/client && pnpm install) & \
   (cd /build/app/server && pnpm install) & \
   wait
+RUN mkdir -p "$PUPPETEER_CACHE_DIR" \
+  && chown -R pptruser:pptruser /home/pptruser
 
 USER pptruser
 RUN /build/app/server/node_modules/.bin/rebrowser-puppeteer browsers install chrome
