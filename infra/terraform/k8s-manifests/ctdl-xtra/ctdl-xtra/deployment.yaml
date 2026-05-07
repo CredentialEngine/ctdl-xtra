@@ -32,7 +32,7 @@ spec:
         - name: web
           image: 996810415034.dkr.ecr.us-east-1.amazonaws.com/ctdl-xtra-app:release
           imagePullPolicy: Always
-          command: ["pm2-runtime", "/app/dist/server/src/server.js"]
+          args: ["pm2-runtime", "/app/dist/server/src/server.js"]
           ports:
             - containerPort: 3000
           envFrom:
