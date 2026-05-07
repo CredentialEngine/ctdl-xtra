@@ -32,7 +32,7 @@ spec:
         - name: worker
           image: 996810415034.dkr.ecr.us-east-1.amazonaws.com/ctdl-xtra-worker:release
           imagePullPolicy: Always
-          args: ["pm2-runtime", "/app/dist/server/src/worker.js"]
+          command: ["runuser", "-u", "pptruser", "--", "pm2-runtime", "/app/dist/server/src/worker.js"]
           envFrom:
             - configMapRef:
                 name: ctdl-xtra-config
