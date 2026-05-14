@@ -1,0 +1,58 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: ctdl-xtra-db-migrate
+  namespace: ctdl-xtra
+  labels:
+    app.kubernetes.io/name: ctdl-xtra
+    app.kubernetes.io/component: db-migrate
+    app.kubernetes.io/part-of: ctdl-xtra
+    environment: prod
+spec:
+  backoffLimit: 1
+  ttlSecondsAfterFinished: 86400
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: ctdl-xtra
+        app.kubernetes.io/component: db-migrate
+        app.kubernetes.io/part-of: ctdl-xtra
+        environment: prod
+    spec:
+      restartPolicy: Never
+      serviceAccountName: ctdl-xtra
+      nodeSelector:
+        nodepool: app
+      containers:
+        - name: db-migrate
+          image: 996810415034.dkr.ecr.us-east-1.amazonaws.com/ctdl-xtra/api:prod-20260514-d36bff263e6e-r2
+          imagePullPolicy: IfNotPresent
+          command:
+            - /app/entrypoint.sh
+          args:
+            - ./node_modules/.bin/drizzle-kit
+            - migrate
+          env:
+            - name: RUN_MIGRATIONS
+              value: "false"
+            - name: NODE_EXTRA_CA_CERTS
+              value: /etc/ssl/certs/rds-global-bundle.pem
+          envFrom:
+            - secretRef:
+                name: ctdl-xtra-app-env
+          volumeMounts:
+            - name: rds-ca-bundle
+              mountPath: /etc/ssl/certs/rds-global-bundle.pem
+              subPath: rds-global-bundle.pem
+              readOnly: true
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              cpu: "1"
+              memory: 1Gi
+      volumes:
+        - name: rds-ca-bundle
+          configMap:
+            name: rds-ca-bundle
