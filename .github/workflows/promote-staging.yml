@@ -1,0 +1,49 @@
+name: Promote to STAGING
+
+on:
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: "Image tag to deploy (sha-xxxxxxx or main-latest)"
+        required: false
+        default: main-latest
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  AWS_REGION: us-east-1
+  ECR_REGISTRY: 996810415034.dkr.ecr.us-east-1.amazonaws.com
+  NAMESPACE: ctdl-xtra
+
+jobs:
+  promote:
+    name: Deploy ${{ inputs.image_tag }} → STAGING
+    runs-on: ubuntu-latest
+    environment: STAGING
+    steps:
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Configure kubeconfig
+        run: aws eks update-kubeconfig --name ctdl-xtra-staging --region "$AWS_REGION"
+
+      - name: Deploy
+        env:
+          IMAGE_TAG: ${{ inputs.image_tag }}
+        run: |
+          API_IMAGE="${ECR_REGISTRY}/ctdl-xtra-staging/api:${IMAGE_TAG}"
+          WORKER_IMAGE="${ECR_REGISTRY}/ctdl-xtra-staging/worker:${IMAGE_TAG}"
+
+          kubectl set image deployment/ctdl-xtra-api    api="${API_IMAGE}"       -n "${NAMESPACE}"
+          kubectl set image deployment/ctdl-xtra-worker worker="${WORKER_IMAGE}" -n "${NAMESPACE}"
+
+          kubectl rollout status deployment/ctdl-xtra-api    -n "${NAMESPACE}" --timeout=300s
+          kubectl rollout status deployment/ctdl-xtra-worker -n "${NAMESPACE}" --timeout=300s
+
+      - name: Summary
+        run: |
+          echo "### Deployed \`${{ inputs.image_tag }}\` to STAGING" >> "$GITHUB_STEP_SUMMARY"

@@ -1,0 +1,53 @@
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: ctdl-xtra-efs
+  labels:
+    app.kubernetes.io/name: ctdl-xtra
+    app.kubernetes.io/part-of: ctdl-xtra
+    environment: staging
+provisioner: efs.csi.aws.com
+reclaimPolicy: Retain
+volumeBindingMode: WaitForFirstConsumer
+mountOptions:
+  - tls
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: ctdl-xtra-files
+  labels:
+    app.kubernetes.io/name: ctdl-xtra
+    app.kubernetes.io/part-of: ctdl-xtra
+    environment: staging
+spec:
+  capacity:
+    storage: 50Gi
+  volumeMode: Filesystem
+  accessModes:
+    - ReadWriteMany
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: ctdl-xtra-efs
+  mountOptions:
+    - tls
+  csi:
+    driver: efs.csi.aws.com
+    volumeHandle: fs-0b6862791ad5b5ab4
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: ctdl-xtra-files
+  namespace: ctdl-xtra
+  labels:
+    app.kubernetes.io/name: ctdl-xtra
+    app.kubernetes.io/part-of: ctdl-xtra
+    environment: staging
+spec:
+  accessModes:
+    - ReadWriteMany
+  storageClassName: ctdl-xtra-efs
+  volumeName: ctdl-xtra-files
+  resources:
+    requests:
+      storage: 50Gi
