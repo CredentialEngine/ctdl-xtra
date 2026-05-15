@@ -1,0 +1,74 @@
+name: Promote to PRODUCTION
+
+on:
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: "Exact image tag to promote from STAGING → PRODUCTION (e.g. sha-abc1234)"
+        required: true
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  AWS_REGION: us-east-1
+  ECR_REGISTRY: 996810415034.dkr.ecr.us-east-1.amazonaws.com
+  NAMESPACE: ctdl-xtra
+
+jobs:
+  promote:
+    name: Promote ${{ inputs.image_tag }} → PRODUCTION
+    runs-on: ubuntu-latest
+    environment: PRODUCTION
+    steps:
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Copy images STAGING → PRODUCTION ECR
+        env:
+          IMAGE_TAG: ${{ inputs.image_tag }}
+        run: |
+          for SERVICE in api worker; do
+            MANIFEST=$(aws ecr batch-get-image \
+              --repository-name "ctdl-xtra-staging/${SERVICE}" \
+              --image-ids imageTag="${IMAGE_TAG}" \
+              --query 'images[0].imageManifest' \
+              --output text)
+
+            if [ -z "$MANIFEST" ] || [ "$MANIFEST" = "None" ]; then
+              echo "ERROR: tag ${IMAGE_TAG} not found in ctdl-xtra-staging/${SERVICE}"
+              exit 1
+            fi
+
+            for DEST_TAG in "${IMAGE_TAG}" "prod-latest"; do
+              aws ecr put-image \
+                --repository-name "ctdl-xtra/${SERVICE}" \
+                --image-tag "${DEST_TAG}" \
+                --image-manifest "${MANIFEST}" || true
+            done
+
+            echo "Copied ctdl-xtra-staging/${SERVICE}:${IMAGE_TAG} → ctdl-xtra/${SERVICE}:${IMAGE_TAG}"
+          done
+
+      - name: Configure kubeconfig
+        run: aws eks update-kubeconfig --name ctdl-xtra-prod --region "$AWS_REGION"
+
+      - name: Deploy
+        env:
+          IMAGE_TAG: ${{ inputs.image_tag }}
+        run: |
+          API_IMAGE="${ECR_REGISTRY}/ctdl-xtra/api:${IMAGE_TAG}"
+          WORKER_IMAGE="${ECR_REGISTRY}/ctdl-xtra/worker:${IMAGE_TAG}"
+
+          kubectl set image deployment/ctdl-xtra-api    api="${API_IMAGE}"       -n "${NAMESPACE}"
+          kubectl set image deployment/ctdl-xtra-worker worker="${WORKER_IMAGE}" -n "${NAMESPACE}"
+
+          kubectl rollout status deployment/ctdl-xtra-api    -n "${NAMESPACE}" --timeout=300s
+          kubectl rollout status deployment/ctdl-xtra-worker -n "${NAMESPACE}" --timeout=300s
+
+      - name: Summary
+        run: |
+          echo "### Promoted \`${{ inputs.image_tag }}\` to PRODUCTION" >> "$GITHUB_STEP_SUMMARY"

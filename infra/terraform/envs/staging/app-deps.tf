@@ -7,7 +7,7 @@ locals {
     EXTRACTION_FILES_PATH = "/data/extractions"
     CLIENT_PATH           = "/app/public"
     FRONTEND_URL          = "https://${var.app_domain_name}"
-    NODE_ENV              = "production"
+    NODE_ENV              = "staging"
     PORT                  = "3000"
   }
 }
@@ -19,7 +19,7 @@ locals {
 resource "aws_ecr_repository" "app" {
   for_each = toset(["api", "worker"])
 
-  name                 = "${local.project_name}/${each.key}"
+  name                 = "${local.cluster_name}/${each.key}"
   image_tag_mutability = "MUTABLE"
 
   encryption_configuration {
@@ -31,7 +31,7 @@ resource "aws_ecr_repository" "app" {
   }
 
   tags = merge(local.common_tags, {
-    Name = "${local.project_name}-${each.key}"
+    Name = "${local.cluster_name}-${each.key}"
   })
 }
 
@@ -43,10 +43,10 @@ resource "aws_ecr_lifecycle_policy" "app" {
     rules = [
       {
         rulePriority = 1
-        description  = "Keep the last 50 production images"
+        description  = "Keep the last 50 staging images"
         selection = {
           tagStatus     = "tagged"
-          tagPrefixList = ["prod-", "latest"]
+          tagPrefixList = ["staging-", "latest"]
           countType     = "imageCountMoreThan"
           countNumber   = 50
         }
@@ -157,11 +157,9 @@ resource "aws_db_instance" "app" {
   maintenance_window      = "sun:08:00-sun:09:00"
   copy_tags_to_snapshot   = true
 
-  auto_minor_version_upgrade   = true
-  deletion_protection          = true
-  final_snapshot_identifier    = "${local.cluster_name}-postgres-final"
-  performance_insights_enabled = true
-  skip_final_snapshot          = false
+  auto_minor_version_upgrade = true
+  deletion_protection        = false
+  skip_final_snapshot        = true
 
   tags = merge(local.common_tags, {
     Name = "${local.cluster_name}-postgres"
@@ -178,11 +176,11 @@ resource "random_password" "redis_password" {
 }
 
 resource "aws_secretsmanager_secret" "redis" {
-  name        = "ctdl-xtra/prod/redis"
+  name        = "ctdl-xtra/staging/redis"
   description = "Redis auth for ${local.cluster_name} in-cluster pod"
 
   tags = merge(local.common_tags, {
-    Name = "ctdl-xtra/prod/redis"
+    Name = "ctdl-xtra/staging/redis"
   })
 }
 
@@ -243,7 +241,7 @@ resource "aws_efs_backup_policy" "app" {
 }
 
 resource "aws_efs_mount_target" "app" {
-  for_each = toset(module.vpc.private_subnet_ids)
+  for_each = zipmap(var.private_subnet_cidrs, module.vpc.private_subnet_ids)
 
   file_system_id  = aws_efs_file_system.app.id
   subnet_id       = each.value

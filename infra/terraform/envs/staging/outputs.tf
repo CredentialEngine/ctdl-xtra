@@ -1,35 +1,35 @@
 output "cluster_name" {
-  description = "Production EKS cluster name."
+  description = "Staging EKS cluster name."
   value       = module.eks.cluster_id
 }
 
 output "cluster_endpoint" {
-  description = "Production EKS API endpoint."
+  description = "Staging EKS API endpoint."
   value       = module.eks.cluster_endpoint
 }
 
 output "cluster_oidc_issuer_url" {
-  description = "Production EKS OIDC issuer URL."
+  description = "Staging EKS OIDC issuer URL."
   value       = module.eks.cluster_oidc_issuer_url
 }
 
 output "vpc_id" {
-  description = "Production VPC ID."
+  description = "Staging VPC ID."
   value       = module.vpc.vpc_id
 }
 
 output "vpc_cidr_block" {
-  description = "Production VPC CIDR block."
+  description = "Staging VPC CIDR block."
   value       = module.vpc.vpc_cidr_block
 }
 
 output "private_subnet_ids" {
-  description = "Production private subnet IDs."
+  description = "Staging private subnet IDs."
   value       = module.vpc.private_subnet_ids
 }
 
 output "public_subnet_ids" {
-  description = "Production public subnet IDs."
+  description = "Staging public subnet IDs."
   value       = module.vpc.public_subnet_ids
 }
 
