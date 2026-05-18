@@ -1,74 +1,23 @@
-terraform {
-  required_version = ">= 1.5"
-
-  required_providers {
-    aws = {
-      source  = "hashicorp/aws"
-      version = "~> 5.50"
-    }
-  }
-
-  backend "s3" {
-    bucket  = "terraform-state-o1r8"
-    key     = "ctdl-xtra/github-ci-oidc/tfstate"
-    region  = "us-east-1"
-    encrypt = true
-  }
+locals {
+  github_repo    = "CredentialEngine/ctdl-xtra"
+  aws_account_id = "996810415034"
 }
 
-provider "aws" {
-  region = var.aws_region
-}
+# ---------------------------------------------------------------
+# GitHub Actions OIDC
+# ---------------------------------------------------------------
 
-variable "aws_region" {
-  description = "AWS region for provider operations."
-  type        = string
-  default     = "us-east-1"
-}
-
-variable "github_org" {
-  description = "GitHub organization name."
-  type        = string
-  default     = "CredentialEngine"
-}
-
-variable "github_repo" {
-  description = "GitHub repository name."
-  type        = string
-  default     = "ctdl-xtra"
-}
-
-variable "role_name" {
-  description = "IAM role name for GitHub Actions OIDC."
-  type        = string
-  default     = "github-actions-ctdl-xtra"
-}
-
-variable "ecr_repository_names" {
-  description = "ECR repositories this role can push to."
-  type        = set(string)
-  default = [
-    "ctdl-xtra-app",
-    "ctdl-xtra-worker",
+resource "aws_iam_openid_connect_provider" "github" {
+  url             = "https://token.actions.githubusercontent.com"
+  client_id_list  = ["sts.amazonaws.com"]
+  thumbprint_list = [
+    "6938fd4d98bab03faadb97b34396831e3780aea1",
+    "1c58a3a8518e8759bf075b76b750d4f2df264fcd",
   ]
 }
 
-variable "common_tags" {
-  description = "Common tags for all resources."
-  type        = map(string)
-  default = {
-    project = "ctdl-xtra"
-  }
-}
-
-data "aws_caller_identity" "current" {}
-
-data "aws_iam_openid_connect_provider" "github" {
-  url = "https://token.actions.githubusercontent.com"
-}
-
-resource "aws_iam_role" "github_actions" {
-  name = var.role_name
+resource "aws_iam_role" "github_actions_ci" {
+  name = "ctdl-xtra-github-actions-ci"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
@@ -76,7 +25,7 @@ resource "aws_iam_role" "github_actions" {
       {
         Effect = "Allow"
         Principal = {
-          Federated = data.aws_iam_openid_connect_provider.github.arn
+          Federated = aws_iam_openid_connect_provider.github.arn
         }
         Action = "sts:AssumeRoleWithWebIdentity"
         Condition = {
@@ -84,56 +33,96 @@ resource "aws_iam_role" "github_actions" {
             "token.actions.githubusercontent.com:aud" = "sts.amazonaws.com"
           }
           StringLike = {
-            "token.actions.githubusercontent.com:sub" = "repo:${var.github_org}/${var.github_repo}:*"
+            "token.actions.githubusercontent.com:sub" = "repo:${local.github_repo}:*"
           }
         }
       }
     ]
   })
-
-  tags = var.common_tags
 }
 
-resource "aws_iam_role_policy" "ecr_push" {
-  name = "ecr-push"
-  role = aws_iam_role.github_actions.id
+# ---------------------------------------------------------------
+# ECR — push to STAGING repos, pull from STAGING to copy to PRODUCTION
+# ---------------------------------------------------------------
+
+resource "aws_iam_policy" "github_actions_ecr" {
+  name = "ctdl-xtra-github-actions-ecr"
 
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
       {
+        Sid      = "AuthToken"
         Effect   = "Allow"
         Action   = "ecr:GetAuthorizationToken"
         Resource = "*"
       },
       {
+        Sid    = "StagingReadWrite"
         Effect = "Allow"
         Action = [
           "ecr:BatchCheckLayerAvailability",
           "ecr:GetDownloadUrlForLayer",
           "ecr:BatchGetImage",
+          "ecr:PutImage",
           "ecr:InitiateLayerUpload",
           "ecr:UploadLayerPart",
           "ecr:CompleteLayerUpload",
-          "ecr:PutImage"
+          "ecr:DescribeRepositories",
+          "ecr:ListImages",
+          "ecr:DescribeImages",
         ]
         Resource = [
-          for repository_name in var.ecr_repository_names :
-          "arn:aws:ecr:${var.aws_region}:${data.aws_caller_identity.current.account_id}:repository/${repository_name}"
+          "arn:aws:ecr:us-east-1:${local.aws_account_id}:repository/ctdl-xtra-staging/*",
         ]
-      }
+      },
       {
+        Sid    = "ProductionPromote"
         Effect = "Allow"
         Action = [
-          "eks:DescribeCluster"
+          "ecr:BatchGetImage",
+          "ecr:GetDownloadUrlForLayer",
+          "ecr:PutImage",
+          "ecr:DescribeRepositories",
+          "ecr:ListImages",
+          "ecr:DescribeImages",
         ]
-        Resource = "arn:aws:eks:${var.aws_region}:${data.aws_caller_identity.current.account_id}:cluster/cer-api-prod"
+        Resource = [
+          "arn:aws:ecr:us-east-1:${local.aws_account_id}:repository/ctdl-xtra/*",
+        ]
+      },
+    ]
+  })
+}
+
+# ---------------------------------------------------------------
+# EKS — describe cluster so GitHub Actions can generate kubeconfig
+# ---------------------------------------------------------------
+
+resource "aws_iam_policy" "github_actions_eks" {
+  name = "ctdl-xtra-github-actions-eks"
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = "eks:DescribeCluster"
+        Resource = [
+          "arn:aws:eks:us-east-1:${local.aws_account_id}:cluster/ctdl-xtra-staging",
+          "arn:aws:eks:us-east-1:${local.aws_account_id}:cluster/ctdl-xtra-prod",
+        ]
       }
     ]
   })
 }
 
-output "role_arn" {
-  description = "IAM Role ARN for GitHub Actions. Store this as the AWS_ROLE_ARN repository secret."
-  value       = aws_iam_role.github_actions.arn
+resource "aws_iam_role_policy_attachment" "github_actions_ecr" {
+  role       = aws_iam_role.github_actions_ci.name
+  policy_arn = aws_iam_policy.github_actions_ecr.arn
+}
+
+resource "aws_iam_role_policy_attachment" "github_actions_eks" {
+  role       = aws_iam_role.github_actions_ci.name
+  policy_arn = aws_iam_policy.github_actions_eks.arn
 }

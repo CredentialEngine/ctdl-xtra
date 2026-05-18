@@ -1,0 +1,20 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ctdl-xtra
+  labels:
+    app.kubernetes.io/name: ctdl-xtra
+    app.kubernetes.io/part-of: ctdl-xtra
+    environment: staging
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: ctdl-xtra
+  namespace: ctdl-xtra
+  labels:
+    app.kubernetes.io/name: ctdl-xtra
+    app.kubernetes.io/part-of: ctdl-xtra
+    environment: staging
+  annotations:
+    eks.amazonaws.com/role-arn: arn:aws:iam::996810415034:role/ctdl-xtra-staging-application-irsa-role

@@ -1,0 +1,32 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ctdl-xtra-api
+  namespace: ctdl-xtra
+  labels:
+    app.kubernetes.io/name: ctdl-xtra
+    app.kubernetes.io/component: api
+    app.kubernetes.io/part-of: ctdl-xtra
+    environment: staging
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    nginx.ingress.kubernetes.io/proxy-body-size: "50m"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - xtra-staging.credentialengineregistry.org
+      secretName: ctdl-xtra-staging-tls
+  rules:
+    - host: xtra-staging.credentialengineregistry.org
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: ctdl-xtra-api
+                port:
+                  name: http

@@ -1,0 +1,93 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: redis
+  namespace: ctdl-xtra
+  labels:
+    app: redis
+spec:
+  serviceName: redis
+  replicas: 1
+  selector:
+    matchLabels:
+      app: redis
+  template:
+    metadata:
+      labels:
+        app: redis
+    spec:
+      nodeSelector:
+        workload: ctdl-xtra
+      containers:
+        - name: redis
+          image: redis:8.0-alpine
+          command:
+            - /bin/sh
+            - -c
+            - |
+              set -euo pipefail
+              PASS="$(cat /run/redis-auth/password)"
+              exec redis-server /usr/local/etc/redis/redis.conf --requirepass "$PASS"
+          ports:
+            - containerPort: 6379
+          volumeMounts:
+            - name: redis-data
+              mountPath: /data
+            - name: redis-config
+              mountPath: /usr/local/etc/redis
+            - name: redis-auth
+              mountPath: /run/redis-auth
+              readOnly: true
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "256Mi"
+            limits:
+              cpu: "500m"
+              memory: "1Gi"
+          livenessProbe:
+            exec:
+              command:
+                - /bin/sh
+                - -c
+                - redis-cli -a "$(cat /run/redis-auth/password)" ping
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            exec:
+              command:
+                - /bin/sh
+                - -c
+                - redis-cli -a "$(cat /run/redis-auth/password)" ping
+            initialDelaySeconds: 5
+            periodSeconds: 5
+      volumes:
+        - name: redis-config
+          configMap:
+            name: redis-config
+        - name: redis-auth
+          secret:
+            secretName: redis-auth
+  volumeClaimTemplates:
+    - metadata:
+        name: redis-data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        storageClassName: gp3
+        resources:
+          requests:
+            storage: 10Gi
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis
+  namespace: ctdl-xtra
+spec:
+  clusterIP: None
+  ports:
+    - port: 6379
+      targetPort: 6379
+  selector:
+    app: redis

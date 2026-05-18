@@ -1,0 +1,79 @@
+name: CI
+
+on:
+  pull_request:
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: pnpm
+          cache-dependency-path: client/pnpm-lock.yaml
+
+      - name: Install client deps
+        run: pnpm install
+        working-directory: client
+
+      - name: Lint
+        run: pnpm run lint
+        working-directory: client
+
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: pnpm
+          cache-dependency-path: server/pnpm-lock.yaml
+
+      - name: Install server deps
+        run: pnpm install
+        working-directory: server
+
+      - name: Test
+        run: pnpm exec vitest run
+        working-directory: server
+
+  build:
+    name: Build images
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Build API image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile
+          push: false
+          cache-from: type=gha,scope=api
+          cache-to: type=gha,mode=max,scope=api
+
+      - name: Build Worker image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: worker.Dockerfile
+          push: false
+          cache-from: type=gha,scope=worker
+          cache-to: type=gha,mode=max,scope=worker
