@@ -10,7 +10,7 @@ terraform {
 
   backend "s3" {
     bucket  = "terraform-state-o1r8"
-    key     = "ctdl-xtra/envs/shared/tfstate"
+    key     = "ctdl-xtra/github-ci-oidc/tfstate"
     region  = "us-east-1"
     encrypt = true
   }
