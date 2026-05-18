@@ -62,6 +62,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: us-east-1
+
+      - uses: aws-actions/amazon-ecr-login@v2
+
       - uses: docker/setup-buildx-action@v3
 
       - name: Build API image
