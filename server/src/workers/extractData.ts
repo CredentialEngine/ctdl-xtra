@@ -22,6 +22,7 @@ import {
 import {
   CatalogueType,
   ExtractionStatus,
+  FetchFailureReason,
   PageStatus,
   LogLevel,
   PageType,
@@ -35,6 +36,21 @@ import { extractAndVerifyEntityData } from "../extraction/llm/extractAndVerifyEn
 import getLogger from "../logging";
 
 const logger = getLogger("workers.extractData");
+
+function getExtractionFailureReason(err: unknown): FetchFailureReason {
+  const statusError = err as { status?: unknown };
+  const responseStatus =
+    typeof statusError.status === "number" ? statusError.status : undefined;
+  const reason =
+    err instanceof Error
+      ? err.message || `Generic failure: ${err.constructor.name}`
+      : `Unknown error: ${String(err)}`;
+
+  return {
+    responseStatus,
+    reason,
+  };
+}
 
 export default createProcessor<ExtractDataJob, ExtractDataProgress>(
   async function extractData(job) {
@@ -202,6 +218,10 @@ export default createProcessor<ExtractDataJob, ExtractDataProgress>(
         job.data.crawlPageId
       );
       logger.error(errStr);
+      await updatePage(job.data.crawlPageId, {
+        status: PageStatus.ERROR,
+        fetchFailureReason: getExtractionFailureReason(err),
+      });
       throw err;
     }
   }

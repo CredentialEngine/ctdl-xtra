@@ -281,7 +281,7 @@ function getBulkUploadTemplateRow<T>(
 const idColumns = {
   [CatalogueType.COURSES]: "course_id",
   [CatalogueType.LEARNING_PROGRAMS]: "learning_program_id",
-  [CatalogueType.COMPETENCIES]: "competency_framework",
+  [CatalogueType.COMPETENCIES]: undefined,
   [CatalogueType.CREDENTIALS]: "credential_id",
 };
 
@@ -309,24 +309,26 @@ export async function buildCsv(csvStream: Transform, datasetId: number) {
         break;
       }
       for (let item of items) {
-        const rowId: string | undefined = (item.structuredData as any)[
-          idColumn
-        ];
-        if (rowId) {
-          let rowNumber = idMap.get(rowId);
-          if (rowNumber) {
-            rowNumber += 1;
-            item = {
-              ...item,
-              structuredData: {
-                ...item.structuredData,
-                [idColumn]: `${rowId}-${rowNumber}`,
-              },
-            };
-          } else {
-            rowNumber = 1;
+        if (idColumn) {
+          const rowId: string | undefined = (item.structuredData as any)[
+            idColumn
+          ];
+          if (rowId) {
+            let rowNumber = idMap.get(rowId);
+            if (rowNumber) {
+              rowNumber += 1;
+              item = {
+                ...item,
+                structuredData: {
+                  ...item.structuredData,
+                  [idColumn]: `${rowId}-${rowNumber}`,
+                },
+              };
+            } else {
+              rowNumber = 1;
+            }
+            idMap.set(rowId, rowNumber);
           }
-          idMap.set(rowId, rowNumber);
         }
         const records = getBulkUploadTemplateRow(
           item,

@@ -28,6 +28,7 @@ export interface PaginationConfiguration {
   urlPatternType: UrlPatternType;
   urlPattern: string;
   totalPages: number;
+  startPage?: number;
 }
 
 /** Ordered actions after navigation; extend the union for new step kinds. */

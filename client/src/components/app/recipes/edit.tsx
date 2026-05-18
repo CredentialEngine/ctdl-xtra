@@ -76,8 +76,9 @@ function withDefaultPageSetupAtEachLevel(
 
 const PaginationSchema = z.object({
   urlPatternType: z.nativeEnum(UrlPatternType),
-  urlPattern: z.string(),
+  urlPattern: z.string().trim().min(1),
   totalPages: z.number().positive(),
+  startPage: z.number().int().nonnegative().optional(),
 }) as z.ZodType<PaginationConfiguration>;
 
 const PageSetupStepInputSchema = z.discriminatedUnion("type", [

@@ -84,8 +84,9 @@ function debounce<T extends (...args: any[]) => any>(
 
 const PaginationSchema = z.object({
   urlPatternType: z.nativeEnum(UrlPatternType),
-  urlPattern: z.string().url(),
+  urlPattern: z.string().trim().url(),
   totalPages: z.number().positive(),
+  startPage: z.number().int().nonnegative().optional(),
 }) as z.ZodType<PaginationConfiguration>;
 
 const PageSetupStepInputSchema = z.discriminatedUnion("type", [
@@ -363,6 +364,10 @@ export default function CreateRecipe() {
         );
         form.setValue(`${paginationPath}.urlPattern` as any, result.urlPattern);
         form.setValue(`${paginationPath}.totalPages` as any, result.totalPages);
+        form.setValue(
+          `${paginationPath}.startPage` as Parameters<typeof form.setValue>[0],
+          result.startPage
+        );
       }
     } catch (err) {
       toast({

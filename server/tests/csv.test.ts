@@ -9,10 +9,8 @@ import {
 } from "../../common/types";
 import { buildCsv } from "../src/csv";
 import * as datasetModule from "../src/data/datasets";
-import * as extractionModule from "../src/data/extractions";
 
 vi.mock("../src/data/datasets");
-vi.mock("../src/data/extractions");
 vi.mock("crypto");
 
 describe("buildCsv", () => {
@@ -20,6 +18,20 @@ describe("buildCsv", () => {
   const mockWrite = vi.fn();
   const mockEnd = vi.fn();
   const mockEmit = vi.fn();
+  const mockDataset = (
+    catalogueType: CatalogueType,
+    url = "https://example.com"
+  ) => ({
+    id: 1,
+    extraction: {
+      recipe: {
+        url,
+        catalogue: {
+          catalogueType,
+        },
+      },
+    },
+  });
 
   beforeEach(() => {
     vi.resetAllMocks();
@@ -42,14 +54,9 @@ describe("buildCsv", () => {
   });
 
   it("should handle empty results and end the stream", async () => {
-    vi.mocked(extractionModule.findExtractionById).mockResolvedValue({
-      id: 1,
-      recipe: {
-        catalogue: {
-          catalogueType: CatalogueType.COURSES,
-        },
-      },
-    } as any);
+    vi.mocked(datasetModule.findDataset).mockResolvedValue(
+      mockDataset(CatalogueType.COURSES) as any
+    );
 
     vi.mocked(datasetModule.findDataItems).mockResolvedValue({ items: [] });
 
@@ -60,14 +67,9 @@ describe("buildCsv", () => {
   });
 
   it("should process course data correctly", async () => {
-    vi.mocked(extractionModule.findExtractionById).mockResolvedValue({
-      id: 1,
-      recipe: {
-        catalogue: {
-          catalogueType: CatalogueType.COURSES,
-        },
-      },
-    } as any);
+    vi.mocked(datasetModule.findDataset).mockResolvedValue(
+      mockDataset(CatalogueType.COURSES) as any
+    );
 
     const mockCourseData = {
       items: [
@@ -116,14 +118,9 @@ describe("buildCsv", () => {
   });
 
   it("should process learning program data correctly", async () => {
-    vi.mocked(extractionModule.findExtractionById).mockResolvedValue({
-      id: 1,
-      recipe: {
-        catalogue: {
-          catalogueType: CatalogueType.LEARNING_PROGRAMS,
-        },
-      },
-    } as any);
+    vi.mocked(datasetModule.findDataset).mockResolvedValue(
+      mockDataset(CatalogueType.LEARNING_PROGRAMS) as any
+    );
 
     const mockLearningProgramData = {
       items: [
@@ -164,14 +161,9 @@ describe("buildCsv", () => {
   });
 
   it("should process competency data correctly", async () => {
-    vi.mocked(extractionModule.findExtractionById).mockResolvedValue({
-      id: 1,
-      recipe: {
-        catalogue: {
-          catalogueType: CatalogueType.COMPETENCIES,
-        },
-      },
-    } as any);
+    vi.mocked(datasetModule.findDataset).mockResolvedValue(
+      mockDataset(CatalogueType.COMPETENCIES) as any
+    );
 
     const mockCompetencyData = {
       items: [
@@ -224,15 +216,69 @@ describe("buildCsv", () => {
     expect(mockEnd).toHaveBeenCalled();
   });
 
-  it("should handle duplicate IDs correctly", async () => {
-    vi.mocked(extractionModule.findExtractionById).mockResolvedValue({
-      id: 1,
-      recipe: {
-        catalogue: {
-          catalogueType: CatalogueType.COURSES,
+  it("should reuse one framework for multiple competencies in the same framework", async () => {
+    vi.mocked(datasetModule.findDataset).mockResolvedValue(
+      mockDataset(CatalogueType.COMPETENCIES) as any
+    );
+
+    const mockCompetencyData = {
+      items: [
+        {
+          id: 1,
+          url: "https://example.com/competency1",
+          structuredData: {
+            competency_framework: "Test Framework",
+            text: "Competency 1",
+            language: "English",
+          } as CompetencyStructuredData,
+          textInclusion: {
+            text: { full: true },
+          },
         },
-      },
-    } as any);
+        {
+          id: 2,
+          url: "https://example.com/competency2",
+          structuredData: {
+            competency_framework: "Test Framework",
+            text: "Competency 2",
+            language: "English",
+          } as CompetencyStructuredData,
+          textInclusion: {
+            text: { full: true },
+          },
+        },
+      ],
+    };
+
+    vi.mocked(datasetModule.findDataItems)
+      .mockResolvedValueOnce(mockCompetencyData)
+      .mockResolvedValueOnce({ items: [] });
+
+    await buildCsv(csvStream, 1);
+
+    const rows = mockWrite.mock.calls.map(([row]) => row);
+    const frameworks = rows.filter(
+      (row) => row["@type"] === "ceasn:CompetencyFramework"
+    );
+
+    expect(mockWrite).toHaveBeenCalledTimes(3);
+    expect(frameworks).toHaveLength(1);
+    expect(frameworks[0]).toEqual(
+      expect.objectContaining({
+        "ceasn:name": "Test Framework",
+      })
+    );
+    expect(rows).not.toContainEqual(
+      expect.objectContaining({
+        "ceasn:name": "Test Framework-2",
+      })
+    );
+  });
+
+  it("should handle duplicate IDs correctly", async () => {
+    vi.mocked(datasetModule.findDataset).mockResolvedValue(
+      mockDataset(CatalogueType.COURSES) as any
+    );
 
     const mockDuplicateCourseData = {
       items: [
@@ -293,7 +339,7 @@ describe("buildCsv", () => {
   });
 
   it("should handle extraction not found error", async () => {
-    vi.mocked(extractionModule.findExtractionById).mockResolvedValue(undefined);
+    vi.mocked(datasetModule.findDataset).mockResolvedValue(undefined);
 
     await buildCsv(csvStream, 1);
 
@@ -302,7 +348,7 @@ describe("buildCsv", () => {
   });
 
   it("should handle database errors properly", async () => {
-    vi.mocked(extractionModule.findExtractionById).mockRejectedValue(
+    vi.mocked(datasetModule.findDataset).mockRejectedValue(
       new Error("Database error")
     );
 
@@ -313,14 +359,9 @@ describe("buildCsv", () => {
   });
 
   it("should paginate through results with multiple batches", async () => {
-    vi.mocked(extractionModule.findExtractionById).mockResolvedValue({
-      id: 1,
-      recipe: {
-        catalogue: {
-          catalogueType: CatalogueType.COURSES,
-        },
-      },
-    } as any);
+    vi.mocked(datasetModule.findDataset).mockResolvedValue(
+      mockDataset(CatalogueType.COURSES) as any
+    );
 
     // First batch
     const mockBatch1 = {

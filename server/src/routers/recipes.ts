@@ -34,8 +34,9 @@ const logger = getLogger("routers.recipes");
 
 const PaginationConfigurationSchema = z.object({
   urlPatternType: z.nativeEnum(UrlPatternType),
-  urlPattern: z.string(),
+  urlPattern: z.string().trim().min(1),
   totalPages: z.number(),
+  startPage: z.number().int().nonnegative().optional(),
 });
 
 const ClickDiscoveryOptionsSchema = z.object({

@@ -1,0 +1,24 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ctdl-xtra-web
+  namespace: ctdl-xtra
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - ctdl-xtra.credentialengineregistry.org
+      secretName: ctdl-xtra-web-tls
+  rules:
+    - host: ctdl-xtra.credentialengineregistry.org
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: ctdl-xtra-web
+                port:
+                  number: 80

@@ -48,14 +48,29 @@ import { isProxyError } from "../utils";
 const logger = getLogger("workers.fetchPage");
 const redis = getRedisConnection();
 
-const constructPaginatedUrls = (configuration: PaginationConfiguration) => {
+export const constructPaginatedUrls = (
+  configuration: PaginationConfiguration
+) => {
+  const urlPattern = configuration.urlPattern.trim();
+  if (!urlPattern) {
+    throw new Error("Pagination URL pattern cannot be empty");
+  }
+
   const urls = [];
   if (configuration.urlPatternType == "offset") {
     // TODO: implement offset logic
     return [];
   } else if (configuration.urlPatternType == "page_num") {
-    for (let i = 1; i <= configuration.totalPages; i++) {
-      urls.push(configuration.urlPattern.replace("{page_num}", i.toString()));
+    if (!urlPattern.includes("{page_num}")) {
+      throw new Error(
+        `Pagination URL pattern must include {page_num}: ${urlPattern}`
+      );
+    }
+
+    const startPage = configuration.startPage ?? 1;
+    const endPage = startPage + configuration.totalPages - 1;
+    for (let i = startPage; i <= endPage; i++) {
+      urls.push(urlPattern.replace("{page_num}", i.toString()));
     }
     return urls;
   } else {
@@ -83,6 +98,8 @@ async function enqueuePages(
   delayOptions: DelayOptions
 ) {
   logger.info(`Enqueuing page fetches for page ${crawlPage.url}`);
+
+  constructPaginatedUrls(configuration.pagination!);
 
   const pageCount = await detectPageCount(
     {

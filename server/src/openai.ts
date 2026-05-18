@@ -56,6 +56,19 @@ export class BadToolCallResponseError extends Error { }
 
 export class UnknownPaginationTypeError extends Error { }
 
+type ErrorWithRetryFlag = Error & { noRetry?: boolean };
+
+function markNonRetryableOpenAiError(error: unknown) {
+  const isOpenAiError = error instanceof OpenAI.APIError;
+  const isQuotaError = isOpenAiError && error.code === "insufficient_quota";
+
+  if (error instanceof Error) {
+    (error as ErrorWithRetryFlag).noRetry = isQuotaError;
+  }
+
+  return error;
+}
+
 export function estimateCost(
   model: ProviderModel,
   inputTokens: number,
@@ -186,7 +199,7 @@ export async function simpleToolCompletion<
           completionOptionsWithoutScreenshots
         );
       } else {
-        throw e;
+        throw markNonRetryableOpenAiError(e);
       }
     }
 
@@ -319,7 +332,7 @@ export async function structuredCompletion<
           completionOptionsWithoutScreenshots
         )) as ChatCompletion;
       } else {
-        throw e;
+        throw markNonRetryableOpenAiError(e);
       }
     }
 
