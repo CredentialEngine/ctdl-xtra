@@ -13,8 +13,6 @@ permissions:
 
 env:
   AWS_REGION: us-east-1
-  ECR_REGISTRY: 996810415034.dkr.ecr.us-east-1.amazonaws.com
-  NAMESPACE: ctdl-xtra
 
 jobs:
   promote:
@@ -22,6 +20,8 @@ jobs:
     runs-on: ubuntu-latest
     environment: PRODUCTION
     steps:
+      - uses: actions/checkout@v4
+
       - uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
@@ -43,31 +43,22 @@ jobs:
               exit 1
             fi
 
-            for DEST_TAG in "${IMAGE_TAG}" "prod-latest"; do
-              aws ecr put-image \
-                --repository-name "ctdl-xtra/${SERVICE}" \
-                --image-tag "${DEST_TAG}" \
-                --image-manifest "${MANIFEST}" || true
-            done
+            aws ecr put-image \
+              --repository-name "ctdl-xtra/${SERVICE}" \
+              --image-tag "${IMAGE_TAG}" \
+              --image-manifest "${MANIFEST}" || true
 
             echo "Copied ctdl-xtra-staging/${SERVICE}:${IMAGE_TAG} → ctdl-xtra/${SERVICE}:${IMAGE_TAG}"
           done
 
       - name: Configure kubeconfig
-        run: aws eks update-kubeconfig --name ctdl-xtra-prod --region "$AWS_REGION"
+        run: aws eks update-kubeconfig --name ctdl-xtra-prod --region "$AWS_REGION" --alias ctdl-xtra-prod
 
       - name: Deploy
         env:
           IMAGE_TAG: ${{ inputs.image_tag }}
-        run: |
-          API_IMAGE="${ECR_REGISTRY}/ctdl-xtra/api:${IMAGE_TAG}"
-          WORKER_IMAGE="${ECR_REGISTRY}/ctdl-xtra/worker:${IMAGE_TAG}"
-
-          kubectl set image deployment/ctdl-xtra-api    api="${API_IMAGE}"       -n "${NAMESPACE}"
-          kubectl set image deployment/ctdl-xtra-worker worker="${WORKER_IMAGE}" -n "${NAMESPACE}"
-
-          kubectl rollout status deployment/ctdl-xtra-api    -n "${NAMESPACE}" --timeout=300s
-          kubectl rollout status deployment/ctdl-xtra-worker -n "${NAMESPACE}" --timeout=300s
+          KUBE_CONTEXT: ctdl-xtra-prod
+        run: bash infra/terraform/k8s-manifests/production/app/deploy-app.sh
 
       - name: Summary
         run: |

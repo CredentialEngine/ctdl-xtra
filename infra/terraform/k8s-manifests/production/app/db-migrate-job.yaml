@@ -25,7 +25,7 @@ spec:
         nodepool: app
       containers:
         - name: db-migrate
-          image: 996810415034.dkr.ecr.us-east-1.amazonaws.com/ctdl-xtra/api:prod-20260514-d36bff263e6e-r2
+          image: 996810415034.dkr.ecr.us-east-1.amazonaws.com/ctdl-xtra/api:${IMAGE_TAG}
           imagePullPolicy: IfNotPresent
           command:
             - /app/entrypoint.sh
