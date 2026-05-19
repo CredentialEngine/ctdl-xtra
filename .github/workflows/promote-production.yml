@@ -13,6 +13,7 @@ permissions:
 
 env:
   AWS_REGION: us-east-1
+  ECR_REGISTRY: 996810415034.dkr.ecr.us-east-1.amazonaws.com
 
 jobs:
   promote:
@@ -27,28 +28,20 @@ jobs:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
 
+      - uses: aws-actions/amazon-ecr-login@v2
+
+      - uses: imjasonh/setup-crane@v0.4
+
       - name: Copy images STAGING → PRODUCTION ECR
         env:
           IMAGE_TAG: ${{ inputs.image_tag }}
         run: |
+          set -euo pipefail
           for SERVICE in api worker; do
-            MANIFEST=$(aws ecr batch-get-image \
-              --repository-name "ctdl-xtra-staging/${SERVICE}" \
-              --image-ids imageTag="${IMAGE_TAG}" \
-              --query 'images[0].imageManifest' \
-              --output text)
-
-            if [ -z "$MANIFEST" ] || [ "$MANIFEST" = "None" ]; then
-              echo "ERROR: tag ${IMAGE_TAG} not found in ctdl-xtra-staging/${SERVICE}"
-              exit 1
-            fi
-
-            aws ecr put-image \
-              --repository-name "ctdl-xtra/${SERVICE}" \
-              --image-tag "${IMAGE_TAG}" \
-              --image-manifest "${MANIFEST}" || true
-
-            echo "Copied ctdl-xtra-staging/${SERVICE}:${IMAGE_TAG} → ctdl-xtra/${SERVICE}:${IMAGE_TAG}"
+            SRC="${ECR_REGISTRY}/ctdl-xtra-staging/${SERVICE}:${IMAGE_TAG}"
+            DST="${ECR_REGISTRY}/ctdl-xtra/${SERVICE}:${IMAGE_TAG}"
+            echo "Copying ${SRC} → ${DST}"
+            crane copy "${SRC}" "${DST}"
           done
 
       - name: Configure kubeconfig
