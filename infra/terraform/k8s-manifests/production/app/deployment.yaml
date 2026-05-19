@@ -32,7 +32,7 @@ spec:
         nodepool: app
       containers:
         - name: api
-          image: 996810415034.dkr.ecr.us-east-1.amazonaws.com/ctdl-xtra/api:prod-20260514-d36bff263e6e-r2
+          image: 996810415034.dkr.ecr.us-east-1.amazonaws.com/ctdl-xtra/api:${IMAGE_TAG}
           imagePullPolicy: IfNotPresent
           ports:
             - name: http
@@ -127,7 +127,7 @@ spec:
       terminationGracePeriodSeconds: 60
       containers:
         - name: worker
-          image: 996810415034.dkr.ecr.us-east-1.amazonaws.com/ctdl-xtra/worker:prod-20260514-d36bff263e6e-r2
+          image: 996810415034.dkr.ecr.us-east-1.amazonaws.com/ctdl-xtra/worker:${IMAGE_TAG}
           imagePullPolicy: IfNotPresent
           env:
             - name: LOG_LEVEL

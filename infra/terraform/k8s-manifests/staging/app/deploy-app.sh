@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+: "${IMAGE_TAG:?IMAGE_TAG must be set (e.g. sha-abc1234 or main-latest)}"
+export IMAGE_TAG
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CONTEXT="${KUBE_CONTEXT:-ctdl-xtra-staging}"
 NAMESPACE="ctdl-xtra"
@@ -17,13 +20,13 @@ kubectl --context "${CONTEXT}" -n "${NAMESPACE}" create configmap rds-ca-bundle 
   -o yaml | kubectl --context "${CONTEXT}" apply -f -
 kubectl --context "${CONTEXT}" -n "${NAMESPACE}" wait --for=condition=Ready externalsecret/ctdl-xtra-app --timeout=120s
 kubectl --context "${CONTEXT}" -n "${NAMESPACE}" delete job ctdl-xtra-db-migrate --ignore-not-found
-kubectl --context "${CONTEXT}" apply -f "${SCRIPT_DIR}/db-migrate-job.yaml"
+envsubst '${IMAGE_TAG}' < "${SCRIPT_DIR}/db-migrate-job.yaml" | kubectl --context "${CONTEXT}" apply -f -
 kubectl --context "${CONTEXT}" -n "${NAMESPACE}" wait --for=condition=Complete job/ctdl-xtra-db-migrate --timeout=300s
 kubectl --context "${CONTEXT}" apply -f "${SCRIPT_DIR}/redis-configmap.yaml"
 kubectl --context "${CONTEXT}" apply -f "${SCRIPT_DIR}/redis-externalsecret.yaml"
 kubectl --context "${CONTEXT}" apply -f "${SCRIPT_DIR}/redis-statefulset.yaml"
 kubectl --context "${CONTEXT}" apply -f "${SCRIPT_DIR}/service.yaml"
-kubectl --context "${CONTEXT}" apply -f "${SCRIPT_DIR}/deployment.yaml"
+envsubst '${IMAGE_TAG}' < "${SCRIPT_DIR}/deployment.yaml" | kubectl --context "${CONTEXT}" apply -f -
 kubectl --context "${CONTEXT}" apply -f "${SCRIPT_DIR}/ingress.yaml"
 kubectl --context "${CONTEXT}" -n "${NAMESPACE}" rollout status deployment/ctdl-xtra-api --timeout=300s
 kubectl --context "${CONTEXT}" -n "${NAMESPACE}" rollout status deployment/ctdl-xtra-worker --timeout=300s
