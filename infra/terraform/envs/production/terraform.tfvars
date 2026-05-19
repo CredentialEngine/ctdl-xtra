@@ -51,8 +51,8 @@ system_node_max_size       = 4
 system_node_desired_size   = 2
 system_node_disk_size      = 30
 
-app_node_instance_types = ["m7i.large"]
+app_node_instance_types = ["t3.large"]
 app_node_min_size       = 2
-app_node_max_size       = 8
+app_node_max_size       = 4
 app_node_desired_size   = 2
 app_node_disk_size      = 50
