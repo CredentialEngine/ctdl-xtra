@@ -1,4 +1,4 @@
-ARG BASE_IMAGE=996810415034.dkr.ecr.us-east-1.amazonaws.com/ctdl-xtra-sandbox/base:latest
+ARG BASE_IMAGE=996810415034.dkr.ecr.us-east-1.amazonaws.com/ctdl-xtra-test/base:latest
 FROM ${BASE_IMAGE}
 
 ENV VITE_API_URL="$VITE_API_URL"

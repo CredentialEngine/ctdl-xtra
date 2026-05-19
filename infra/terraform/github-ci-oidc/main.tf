@@ -42,7 +42,7 @@ resource "aws_iam_role" "github_actions_ci" {
 }
 
 # ---------------------------------------------------------------
-# ECR — push to SANDBOX (including base), copy SANDBOX → PRODUCTION
+# ECR — push to TEST (incl. base), promote TEST→SANDBOX→PRODUCTION
 # ---------------------------------------------------------------
 
 resource "aws_iam_policy" "github_actions_ecr" {
@@ -58,7 +58,7 @@ resource "aws_iam_policy" "github_actions_ecr" {
         Resource = "*"
       },
       {
-        Sid    = "SandboxReadWrite"
+        Sid    = "TestReadWrite"
         Effect = "Allow"
         Action = [
           "ecr:BatchCheckLayerAvailability",
@@ -68,6 +68,25 @@ resource "aws_iam_policy" "github_actions_ecr" {
           "ecr:InitiateLayerUpload",
           "ecr:UploadLayerPart",
           "ecr:CompleteLayerUpload",
+          "ecr:DescribeRepositories",
+          "ecr:ListImages",
+          "ecr:DescribeImages",
+        ]
+        Resource = [
+          "arn:aws:ecr:us-east-1:${local.aws_account_id}:repository/ctdl-xtra-test/*",
+        ]
+      },
+      {
+        Sid    = "SandboxPromote"
+        Effect = "Allow"
+        Action = [
+          "ecr:BatchCheckLayerAvailability",
+          "ecr:BatchGetImage",
+          "ecr:GetDownloadUrlForLayer",
+          "ecr:InitiateLayerUpload",
+          "ecr:UploadLayerPart",
+          "ecr:CompleteLayerUpload",
+          "ecr:PutImage",
           "ecr:DescribeRepositories",
           "ecr:ListImages",
           "ecr:DescribeImages",
@@ -114,6 +133,7 @@ resource "aws_iam_policy" "github_actions_eks" {
         Effect = "Allow"
         Action = "eks:DescribeCluster"
         Resource = [
+          "arn:aws:eks:us-east-1:${local.aws_account_id}:cluster/ctdl-xtra-test",
           "arn:aws:eks:us-east-1:${local.aws_account_id}:cluster/ctdl-xtra-sandbox",
           "arn:aws:eks:us-east-1:${local.aws_account_id}:cluster/ctdl-xtra-prod",
         ]

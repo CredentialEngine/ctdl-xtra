@@ -1,0 +1,72 @@
+name: Deploy to TEST
+
+on:
+  workflow_run:
+    workflows: ["Release"]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: "Image tag to deploy (defaults to main-latest)"
+        required: false
+        default: main-latest
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  AWS_REGION: us-east-1
+
+jobs:
+  deploy:
+    name: Deploy to TEST
+    runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    environment: TEST
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+
+      - name: Compute image tag
+        id: tag
+        run: |
+          if [ -n "${{ inputs.image_tag }}" ]; then
+            echo "value=${{ inputs.image_tag }}" >> "$GITHUB_OUTPUT"
+          else
+            SHA="${{ github.event.workflow_run.head_sha || github.sha }}"
+            echo "value=sha-${SHA:0:7}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Configure kubeconfig
+        run: aws eks update-kubeconfig --name ctdl-xtra-test --region "$AWS_REGION" --alias ctdl-xtra-test
+
+      - name: Look up EFS file system id
+        id: efs
+        run: |
+          set -euo pipefail
+          FS_ID=$(aws efs describe-file-systems \
+            --query "FileSystems[?Tags[?Key=='Name' && Value=='ctdl-xtra-test-files']].FileSystemId | [0]" \
+            --output text)
+          if [ -z "$FS_ID" ] || [ "$FS_ID" = "None" ]; then
+            echo "Could not resolve EFS file system id for ctdl-xtra-test-files" >&2
+            exit 1
+          fi
+          echo "id=$FS_ID" >> "$GITHUB_OUTPUT"
+
+      - name: Deploy
+        env:
+          IMAGE_TAG: ${{ steps.tag.outputs.value }}
+          EFS_FS_ID: ${{ steps.efs.outputs.id }}
+          KUBE_CONTEXT: ctdl-xtra-test
+        run: bash infra/terraform/k8s-manifests/test/app/deploy-app.sh
+
+      - name: Summary
+        run: echo "### Deployed \`${{ steps.tag.outputs.value }}\` to TEST" >> "$GITHUB_STEP_SUMMARY"
