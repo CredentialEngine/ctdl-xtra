@@ -80,8 +80,12 @@ resource "aws_iam_policy" "github_actions_ecr" {
         Sid    = "ProductionPromote"
         Effect = "Allow"
         Action = [
+          "ecr:BatchCheckLayerAvailability",
           "ecr:BatchGetImage",
           "ecr:GetDownloadUrlForLayer",
+          "ecr:InitiateLayerUpload",
+          "ecr:UploadLayerPart",
+          "ecr:CompleteLayerUpload",
           "ecr:PutImage",
           "ecr:DescribeRepositories",
           "ecr:ListImages",
