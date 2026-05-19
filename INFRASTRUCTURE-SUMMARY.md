@@ -2,38 +2,39 @@
 
 Quick reference for app developers — endpoints, names, and how to find/change things in each environment.
 
-> **Current state:** the only live environment is `PRODUCTION`. The previous `staging` env was decommissioned and will be replaced by a `SANDBOX` env (per the xTRA Design Document). Until SANDBOX is built, the release / promote workflows are disabled.
+> Per the xTRA Design Document, the target environment chain is `TEST → SANDBOX → PRODUCTION`. TEST is not yet built; until then, builds land directly in SANDBOX.
 
 ## Environments
 
-| | Production |
-|---|---|
-| **App URL** | `https://xtra.credentialengineregistry.org` |
-| **EKS cluster** | `ctdl-xtra-prod` |
-| **K8s namespace** | `ctdl-xtra` |
-| **AWS region** | `us-east-1` |
-| **AWS account** | `996810415034` |
+| | Sandbox | Production |
+|---|---|---|
+| **App URL** | `https://xtra-sandbox.credentialengineregistry.org` | `https://xtra.credentialengineregistry.org` |
+| **EKS cluster** | `ctdl-xtra-sandbox` | `ctdl-xtra-prod` |
+| **K8s namespace** | `ctdl-xtra` | `ctdl-xtra` |
+| **AWS region** | `us-east-1` | `us-east-1` |
+| **AWS account** | `996810415034` | `996810415034` |
 
 ## Container images (ECR)
 
-| | Production |
-|---|---|
-| API repo | `ctdl-xtra/api` |
-| Worker repo | `ctdl-xtra/worker` |
-| Base image | TBD — was `ctdl-xtra-staging/base`; will move to a env-neutral repo when SANDBOX is built |
-| Image tag pattern | `sha-<7char>` only |
+| | Sandbox | Production |
+|---|---|---|
+| API repo | `ctdl-xtra-sandbox/api` | `ctdl-xtra/api` |
+| Worker repo | `ctdl-xtra-sandbox/worker` | `ctdl-xtra/worker` |
+| Base image | `ctdl-xtra-sandbox/base` (owned by sandbox; built once, consumed by Dockerfiles at build time) | N/A — base layers are embedded in the promoted api/worker images |
+| Image tag pattern | `sha-<7char>`, `main-latest` (floats) | `sha-<7char>` only |
 
-All images are at `996810415034.dkr.ecr.us-east-1.amazonaws.com/<repo>:<tag>`.
+All images are at `996810415034.dkr.ecr.us-east-1.amazonaws.com/<repo>:<tag>`. Promotion never rebuilds — the production image is the byte-for-byte same image as sandbox.
 
 ## Database (RDS PostgreSQL)
 
-| | Production |
-|---|---|
-| Endpoint | `ctdl-xtra-prod-postgres.cwdkv5tua6nq.us-east-1.rds.amazonaws.com:5432` |
-| DB name | `ctdl_xtra` |
-| Engine | PostgreSQL 17.5 |
-| HA | Multi-AZ |
-| Reachable from | inside cluster only (private subnets) |
+| | Sandbox | Production |
+|---|---|---|
+| Endpoint | TBD after first apply (see `terraform output rds_endpoint` in `envs/sandbox`) | `ctdl-xtra-prod-postgres.cwdkv5tua6nq.us-east-1.rds.amazonaws.com:5432` |
+| Instance class | `db.t4g.small` | `db.t4g.small` |
+| DB name | `ctdl_xtra` | `ctdl_xtra` |
+| Engine | PostgreSQL 17.5 | PostgreSQL 17.5 |
+| HA | Single-AZ | Multi-AZ |
+| Reachable from | inside cluster only (private subnets) | inside cluster only (private subnets) |
 
 `DATABASE_URL` (full connection string with credentials) is injected as an env var via the app secret — never hardcoded.
 
@@ -58,10 +59,10 @@ Runs **inside the cluster** as a StatefulSet (not AWS ElastiCache).
 
 Stored in **AWS Secrets Manager**, synced into the cluster by the External Secrets operator. Pods read them as plain env vars (`envFrom: secretRef`).
 
-| Purpose | Secret name (prod) |
-|---|---|
-| App env vars | `ctdl-xtra/prod/app` |
-| Redis password | `ctdl-xtra/prod/redis` |
+| Purpose | Secret name (sandbox) | Secret name (prod) |
+|---|---|---|
+| App env vars | `ctdl-xtra/sandbox/app` | `ctdl-xtra/prod/app` |
+| Redis password | `ctdl-xtra/sandbox/redis` | `ctdl-xtra/prod/redis` |
 
 To **add or change an app env var**, edit the app secret in Secrets Manager. Within ~5 min the External Secrets operator syncs it into the K8s `ctdl-xtra-app-env` Secret. Pods need a restart to see the change (`kubectl -n ctdl-xtra rollout restart deployment/ctdl-xtra-api deployment/ctdl-xtra-worker`).
 
@@ -78,20 +79,21 @@ Current keys in the app secret:
 
 ## Deployments
 
-In the `ctdl-xtra-prod` cluster's `ctdl-xtra` namespace:
+In each cluster's `ctdl-xtra` namespace:
 
-| Workload | Type | Prod replicas |
-|---|---|---|
-| `ctdl-xtra-api` | Deployment | 2 |
-| `ctdl-xtra-worker` | Deployment | 2 |
-| `redis` | StatefulSet | 1 |
-| `ctdl-xtra-db-migrate` | Job (one-shot per deploy) | — |
+| Workload | Type | Sandbox replicas | Prod replicas |
+|---|---|---|---|
+| `ctdl-xtra-api` | Deployment | 1 | 2 |
+| `ctdl-xtra-worker` | Deployment | 1 | 2 |
+| `redis` | StatefulSet | 1 | 1 |
+| `ctdl-xtra-db-migrate` | Job (one-shot per deploy) | — | — |
 
 The migrate Job runs `drizzle-kit migrate` before each rollout via the deploy script.
 
-
 ## Deploying
 
-> Currently paused. Release and promote workflows are disabled until SANDBOX is built. See [CI-CD.md](CI-CD.md) for context.
+You don't run `kubectl` to deploy — use the GitHub Actions workflows. See [CI-CD.md](CI-CD.md) for the full pipeline. TL;DR:
 
-The intended flow (per the xTRA Design Document) is `TEST → SANDBOX → PRODUCTION`. Builds happen on merge to `main`, all promotions are manual, and images are never rebuilt between tiers.
+- Merge to `main` → image auto-built and pushed to sandbox ECR
+- Run **Promote to SANDBOX** workflow → image deployed to sandbox cluster
+- Run **Promote to PRODUCTION** workflow with the same `sha-*` tag → same image copied to prod ECR and deployed
