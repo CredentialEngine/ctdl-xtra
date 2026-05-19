@@ -1,6 +1,10 @@
 # CI/CD Pipeline
 
-## Branching Model
+> **Status:** the `staging` environment was decommissioned. Until SANDBOX is built, the `Release`, `Build Base Image`, and `Promote to PRODUCTION` workflows are disabled (manual-only via `workflow_dispatch`, with no working ECR targets). The `CI` workflow on PRs still runs.
+>
+> The design target (per the xTRA Design Document) is `TEST → SANDBOX → PRODUCTION`.
+
+## Branching Model (target)
 
 ```
 feature/* or fix/*
@@ -12,17 +16,18 @@ feature/* or fix/*
        │  Merge to main (automatic)
        ▼
   [Release workflow]
-  Build images → push to STAGING ECR
+  Build images → push to TEST ECR     (not yet wired)
        │
        │  Manual trigger
        ▼
-  [Promote to STAGING]
-  envsubst + kubectl apply → ctdl-xtra-staging cluster
+  [Promote to SANDBOX]
+  Copy image TEST ECR → SANDBOX ECR (no rebuild)
+  envsubst + kubectl apply → ctdl-xtra-sandbox cluster
        │
        │  Manual trigger (exact sha tag required)
        ▼
   [Promote to PRODUCTION]
-  Copy image STAGING ECR → PRODUCTION ECR (no rebuild)
+  Copy image SANDBOX ECR → PRODUCTION ECR (no rebuild)
   envsubst + kubectl apply → ctdl-xtra-prod cluster
 ```
 
@@ -42,53 +47,23 @@ Runs on every PR. Blocks merge if any job fails.
 | Test | Vitest on the `server/` workspace |
 | Build images | Docker build for API and Worker (no push, uses GHA layer cache) |
 
-### Build Base Image (`build-base.yml`) — Push to `main` (path-filtered)
+### Build Base Image (`build-base.yml`) — Disabled
 
-Triggers only when `base.Dockerfile` changes. Builds the shared base image (system Chrome, fonts, pm2, pnpm, pre-downloaded Chrome binaries) and pushes to `ctdl-xtra-staging/base:latest`. Both `Dockerfile` and `worker.Dockerfile` `FROM` this base, so app builds skip the heavy apt + Chrome install.
+Built the shared base image (system Chrome, fonts, pm2, pnpm, pre-downloaded Chrome binaries). Pushed to `ctdl-xtra-staging/base:latest`, which no longer exists. The base will move to an env-neutral ECR repo when SANDBOX is built.
 
-### Release (`release.yml`) — Push to `main`
+### Release (`release.yml`) — Disabled
 
-Runs automatically on every merge to `main`. Lint and Test run in parallel (non-blocking via `continue-on-error`); `publish` runs independently.
+Will resume building `sha-<7char>` images on every merge to `main` and pushing them to SANDBOX (or TEST, when that tier exists). Currently `workflow_dispatch` only.
 
-Produces two image tags per service and pushes to STAGING ECR:
+### Promote to PRODUCTION (`promote-production.yml`) — Disabled in practice
 
-| Tag | Purpose |
-|-----|---------|
-| `sha-<7char>` | Immutable reference to this exact commit, used for promotion |
-| `main-latest` | Floating tag, always points to the latest main build |
-
-ECR repositories written to:
-- `ctdl-xtra-staging/api`
-- `ctdl-xtra-staging/worker`
-
-### Promote to STAGING (`promote-staging.yml`) — Manual
-
-Go to **Actions → Promote to STAGING → Run workflow**.
-
-Input: `image_tag` (default: `main-latest`). Use a `sha-*` tag to deploy a specific commit.
-
-Runs `deploy-app.sh` with `IMAGE_TAG` set, which `envsubst`s the tag into `deployment.yaml` / `db-migrate-job.yaml` and `kubectl apply`s the full manifest set on `ctdl-xtra-staging`.
-
-### Promote to PRODUCTION (`promote-production.yml`) — Manual
-
-Go to **Actions → Promote to PRODUCTION → Run workflow**.
-
-Input: `image_tag` (**required**, must be an exact `sha-*` tag).
-
-Steps:
-1. Validates the tag exists in STAGING ECR.
-2. Copies the image manifest via the ECR API (no Docker pull/push, same digest guaranteed) to PRODUCTION ECR under the same `sha-*` tag.
-3. Runs `deploy-app.sh` against `ctdl-xtra-prod` — same envsubst + apply flow as staging.
-
-ECR repositories written to:
-- `ctdl-xtra/api`
-- `ctdl-xtra/worker`
+Manual only; copies an image from the pre-prod ECR to `ctdl-xtra/{api,worker}` using `crane copy` and deploys via `deploy-app.sh`. The source repo will be repointed to `ctdl-xtra-sandbox/*` once SANDBOX is built.
 
 ---
 
 ## Deployment Model
 
-Manifests in `infra/terraform/k8s-manifests/{staging,production}/app/` are **templates**, not state snapshots. The image reference is left as a placeholder:
+Manifests in `infra/terraform/k8s-manifests/production/app/` are **templates**, not state snapshots. The image reference is left as a placeholder:
 
 ```yaml
 image: 996810415034.dkr.ecr.us-east-1.amazonaws.com/ctdl-xtra/api:${IMAGE_TAG}
@@ -106,10 +81,10 @@ At deploy time, `deploy-app.sh` substitutes `${IMAGE_TAG}` with the requested ta
 
 ## Key Principles
 
-- **Build once.** Images are built only on merge to `main`. Promotion to production copies the manifest via the AWS ECR API; the image is never rebuilt and the digest never changes.
-- **Immutable tags.** `sha-*` tags are never overwritten. Only `main-latest` floats (staging only).
+- **Build once.** Images are built only on merge to `main`. Promotion copies via the AWS ECR API (`crane copy`); the image is never rebuilt and the digest never changes.
+- **Immutable tags.** `sha-*` tags are never overwritten.
 - **Specific sha in production.** Production deploys always specify an exact `sha-*` tag.
-- **Manual gates.** Both staging and production deploys require a human to trigger them in GitHub Actions.
+- **Manual gates.** Both pre-prod and production deploys require a human to trigger them in GitHub Actions.
 - **OIDC auth.** GitHub Actions assumes the `ctdl-xtra-github-actions-ci` IAM role via OIDC (no stored AWS credentials). The role ARN is stored as the `AWS_ROLE_ARN` repository secret.
 
 ---
@@ -118,7 +93,6 @@ At deploy time, `deploy-app.sh` substitutes `${IMAGE_TAG}` with the requested ta
 
 | Environment | EKS Cluster | ECR prefix | Domain |
 |-------------|-------------|------------|--------|
-| Staging | `ctdl-xtra-staging` | `ctdl-xtra-staging/*` | `xtra-staging.credentialengineregistry.org` |
 | Production | `ctdl-xtra-prod` | `ctdl-xtra/*` | `xtra.credentialengineregistry.org` |
 
 Terraform for the IAM role and OIDC provider lives in [`infra/terraform/github-ci-oidc/`](infra/terraform/github-ci-oidc/).

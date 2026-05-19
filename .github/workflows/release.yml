@@ -1,8 +1,9 @@
 name: Release
 
+# DISABLED: staging environment was decommissioned. Re-enable the push
+# trigger and update ECR_REGISTRY targets once SANDBOX is built.
 on:
-  push:
-    branches: [main]
+  workflow_dispatch:
 
 permissions:
   id-token: write
