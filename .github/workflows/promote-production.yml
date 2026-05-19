@@ -1,8 +1,5 @@
 name: Promote to PRODUCTION
 
-# Source ECR is currently broken: staging was decommissioned and the
-# replacement SANDBOX env is not yet built. Re-point the crane copy step
-# once SANDBOX ECR repos exist.
 on:
   workflow_dispatch:
     inputs:
@@ -35,13 +32,13 @@ jobs:
 
       - uses: imjasonh/setup-crane@v0.4
 
-      - name: Copy images STAGING → PRODUCTION ECR
+      - name: Copy images SANDBOX → PRODUCTION ECR
         env:
           IMAGE_TAG: ${{ inputs.image_tag }}
         run: |
           set -euo pipefail
           for SERVICE in api worker; do
-            SRC="${ECR_REGISTRY}/ctdl-xtra-staging/${SERVICE}:${IMAGE_TAG}"
+            SRC="${ECR_REGISTRY}/ctdl-xtra-sandbox/${SERVICE}:${IMAGE_TAG}"
             DST="${ECR_REGISTRY}/ctdl-xtra/${SERVICE}:${IMAGE_TAG}"
             echo "Copying ${SRC} → ${DST}"
             crane copy "${SRC}" "${DST}"

@@ -1,0 +1,55 @@
+name: Promote to SANDBOX
+
+on:
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: "Image tag to deploy (e.g. sha-abc1234 or main-latest)"
+        required: true
+        default: main-latest
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  AWS_REGION: us-east-1
+
+jobs:
+  promote:
+    name: Promote ${{ inputs.image_tag }} → SANDBOX
+    runs-on: ubuntu-latest
+    environment: SANDBOX
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Configure kubeconfig
+        run: aws eks update-kubeconfig --name ctdl-xtra-sandbox --region "$AWS_REGION" --alias ctdl-xtra-sandbox
+
+      - name: Look up EFS file system id
+        id: efs
+        run: |
+          set -euo pipefail
+          FS_ID=$(aws efs describe-file-systems \
+            --query "FileSystems[?Tags[?Key=='Name' && Value=='ctdl-xtra-sandbox-files']].FileSystemId | [0]" \
+            --output text)
+          if [ -z "$FS_ID" ] || [ "$FS_ID" = "None" ]; then
+            echo "Could not resolve EFS file system id for ctdl-xtra-sandbox-files" >&2
+            exit 1
+          fi
+          echo "id=$FS_ID" >> "$GITHUB_OUTPUT"
+
+      - name: Deploy
+        env:
+          IMAGE_TAG: ${{ inputs.image_tag }}
+          EFS_FS_ID: ${{ steps.efs.outputs.id }}
+          KUBE_CONTEXT: ctdl-xtra-sandbox
+        run: bash infra/terraform/k8s-manifests/sandbox/app/deploy-app.sh
+
+      - name: Summary
+        run: echo "### Deployed \`${{ inputs.image_tag }}\` to SANDBOX" >> "$GITHUB_STEP_SUMMARY"

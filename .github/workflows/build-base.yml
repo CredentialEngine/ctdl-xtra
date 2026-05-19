@@ -1,8 +1,10 @@
 name: Build Base Image
 
-# DISABLED: pushes to ctdl-xtra-staging/base which was decommissioned.
-# Re-enable the push trigger and repoint to the new base ECR once SANDBOX is built.
 on:
+  push:
+    branches: [main]
+    paths:
+      - base.Dockerfile
   workflow_dispatch:
 
 permissions:
@@ -12,7 +14,7 @@ permissions:
 env:
   AWS_REGION: us-east-1
   ECR_REGISTRY: 996810415034.dkr.ecr.us-east-1.amazonaws.com
-  ECR_REPOSITORY: ctdl-xtra-staging/base
+  ECR_REPOSITORY: ctdl-xtra-base
 
 jobs:
   build:
