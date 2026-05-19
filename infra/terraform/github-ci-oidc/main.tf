@@ -42,31 +42,7 @@ resource "aws_iam_role" "github_actions_ci" {
 }
 
 # ---------------------------------------------------------------
-# Shared base image ECR repository (env-neutral)
-# ---------------------------------------------------------------
-
-resource "aws_ecr_repository" "base" {
-  name                 = "ctdl-xtra-base"
-  image_tag_mutability = "MUTABLE"
-  force_delete         = true
-
-  encryption_configuration {
-    encryption_type = "AES256"
-  }
-
-  image_scanning_configuration {
-    scan_on_push = true
-  }
-
-  tags = {
-    project    = "ctdl-xtra"
-    managed-by = "terraform"
-    Name       = "ctdl-xtra-base"
-  }
-}
-
-# ---------------------------------------------------------------
-# ECR — push to SANDBOX + base, copy SANDBOX → PRODUCTION
+# ECR — push to SANDBOX (including base), copy SANDBOX → PRODUCTION
 # ---------------------------------------------------------------
 
 resource "aws_iam_policy" "github_actions_ecr" {
@@ -98,7 +74,6 @@ resource "aws_iam_policy" "github_actions_ecr" {
         ]
         Resource = [
           "arn:aws:ecr:us-east-1:${local.aws_account_id}:repository/ctdl-xtra-sandbox/*",
-          aws_ecr_repository.base.arn,
         ]
       },
       {

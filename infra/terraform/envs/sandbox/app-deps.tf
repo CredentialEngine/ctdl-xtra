@@ -17,7 +17,7 @@ locals {
 # ---------------------------------------------------------------
 
 resource "aws_ecr_repository" "app" {
-  for_each = toset(["api", "worker"])
+  for_each = toset(["api", "worker", "base"])
 
   name                 = "${local.cluster_name}/${each.key}"
   image_tag_mutability = "MUTABLE"

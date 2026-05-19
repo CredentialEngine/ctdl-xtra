@@ -1,4 +1,4 @@
-ARG BASE_IMAGE=996810415034.dkr.ecr.us-east-1.amazonaws.com/ctdl-xtra-base:latest
+ARG BASE_IMAGE=996810415034.dkr.ecr.us-east-1.amazonaws.com/ctdl-xtra-sandbox/base:latest
 FROM ${BASE_IMAGE}
 
 COPY server/package.json server/pnpm-lock.yaml server/pnpm-workspace.yaml /build/app/server/

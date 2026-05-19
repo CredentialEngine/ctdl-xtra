@@ -46,9 +46,9 @@ Runs on every PR. Blocks merge if any job fails.
 
 ### Build Base Image (`build-base.yml`) — Push to `main` (path-filtered)
 
-Triggers only when `base.Dockerfile` changes. Builds the shared base image (system Chrome, fonts, pm2, pnpm, pre-downloaded Chrome binaries) and pushes to `ctdl-xtra-base:latest`. Both `Dockerfile` and `worker.Dockerfile` `FROM` this base, so app builds skip the heavy apt + Chrome install.
+Triggers only when `base.Dockerfile` changes. Builds the shared base image (system Chrome, fonts, pm2, pnpm, pre-downloaded Chrome binaries) and pushes to `ctdl-xtra-sandbox/base:latest`. Both `Dockerfile` and `worker.Dockerfile` `FROM` this base, so app builds skip the heavy apt + Chrome install.
 
-The base image repo lives in an env-neutral ECR namespace (not under any environment prefix) so the same base is reused across SANDBOX, TEST, and PRODUCTION.
+The base image lives in the build-target env's own ECR namespace (currently sandbox). Production never pulls from it — base layers are baked into the api/worker image manifests at `docker build` time, so the promoted images are self-contained.
 
 ### Release (`release.yml`) — Push to `main`
 

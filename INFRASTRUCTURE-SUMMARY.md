@@ -20,7 +20,7 @@ Quick reference for app developers — endpoints, names, and how to find/change 
 |---|---|---|
 | API repo | `ctdl-xtra-sandbox/api` | `ctdl-xtra/api` |
 | Worker repo | `ctdl-xtra-sandbox/worker` | `ctdl-xtra/worker` |
-| Base image | `ctdl-xtra-base` (env-neutral, shared by API and Worker Dockerfiles) | same |
+| Base image | `ctdl-xtra-sandbox/base` (owned by sandbox; built once, consumed by Dockerfiles at build time) | N/A — base layers are embedded in the promoted api/worker images |
 | Image tag pattern | `sha-<7char>`, `main-latest` (floats) | `sha-<7char>` only |
 
 All images are at `996810415034.dkr.ecr.us-east-1.amazonaws.com/<repo>:<tag>`. Promotion never rebuilds — the production image is the byte-for-byte same image as sandbox.

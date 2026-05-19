@@ -14,7 +14,7 @@ permissions:
 env:
   AWS_REGION: us-east-1
   ECR_REGISTRY: 996810415034.dkr.ecr.us-east-1.amazonaws.com
-  ECR_REPOSITORY: ctdl-xtra-base
+  ECR_REPOSITORY: ctdl-xtra-sandbox/base
 
 jobs:
   build:
