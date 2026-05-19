@@ -4,9 +4,8 @@ on:
   workflow_dispatch:
     inputs:
       image_tag:
-        description: "Image tag to deploy (e.g. sha-abc1234 or main-latest)"
+        description: "Exact image tag to promote from TEST → SANDBOX (e.g. sha-abc1234)"
         required: true
-        default: main-latest
 
 permissions:
   id-token: write
@@ -14,6 +13,7 @@ permissions:
 
 env:
   AWS_REGION: us-east-1
+  ECR_REGISTRY: 996810415034.dkr.ecr.us-east-1.amazonaws.com
 
 jobs:
   promote:
@@ -27,6 +27,22 @@ jobs:
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
+
+      - uses: aws-actions/amazon-ecr-login@v2
+
+      - uses: imjasonh/setup-crane@v0.4
+
+      - name: Copy images TEST → SANDBOX ECR
+        env:
+          IMAGE_TAG: ${{ inputs.image_tag }}
+        run: |
+          set -euo pipefail
+          for SERVICE in api worker; do
+            SRC="${ECR_REGISTRY}/ctdl-xtra-test/${SERVICE}:${IMAGE_TAG}"
+            DST="${ECR_REGISTRY}/ctdl-xtra-sandbox/${SERVICE}:${IMAGE_TAG}"
+            echo "Copying ${SRC} → ${DST}"
+            crane copy "${SRC}" "${DST}"
+          done
 
       - name: Configure kubeconfig
         run: aws eks update-kubeconfig --name ctdl-xtra-sandbox --region "$AWS_REGION" --alias ctdl-xtra-sandbox
@@ -52,4 +68,4 @@ jobs:
         run: bash infra/terraform/k8s-manifests/sandbox/app/deploy-app.sh
 
       - name: Summary
-        run: echo "### Deployed \`${{ inputs.image_tag }}\` to SANDBOX" >> "$GITHUB_STEP_SUMMARY"
+        run: echo "### Promoted \`${{ inputs.image_tag }}\` TEST → SANDBOX" >> "$GITHUB_STEP_SUMMARY"

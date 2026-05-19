@@ -92,8 +92,8 @@ jobs:
           file: Dockerfile
           push: true
           tags: |
-            ${{ env.ECR_REGISTRY }}/ctdl-xtra-sandbox/api:${{ steps.tag.outputs.value }}
-            ${{ env.ECR_REGISTRY }}/ctdl-xtra-sandbox/api:main-latest
+            ${{ env.ECR_REGISTRY }}/ctdl-xtra-test/api:${{ steps.tag.outputs.value }}
+            ${{ env.ECR_REGISTRY }}/ctdl-xtra-test/api:main-latest
           cache-from: type=gha,scope=api
           cache-to: type=gha,mode=max,scope=api
 
@@ -104,10 +104,10 @@ jobs:
           file: worker.Dockerfile
           push: true
           tags: |
-            ${{ env.ECR_REGISTRY }}/ctdl-xtra-sandbox/worker:${{ steps.tag.outputs.value }}
-            ${{ env.ECR_REGISTRY }}/ctdl-xtra-sandbox/worker:main-latest
+            ${{ env.ECR_REGISTRY }}/ctdl-xtra-test/worker:${{ steps.tag.outputs.value }}
+            ${{ env.ECR_REGISTRY }}/ctdl-xtra-test/worker:main-latest
           cache-from: type=gha,scope=worker
           cache-to: type=gha,mode=max,scope=worker
 
       - name: Summary
-        run: echo "### Published \`${{ steps.tag.outputs.value }}\` to SANDBOX ECR" >> "$GITHUB_STEP_SUMMARY"
+        run: echo "### Published \`${{ steps.tag.outputs.value }}\` to TEST ECR" >> "$GITHUB_STEP_SUMMARY"

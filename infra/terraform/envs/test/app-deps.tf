@@ -7,7 +7,7 @@ locals {
     EXTRACTION_FILES_PATH = "/data/extractions"
     CLIENT_PATH           = "/app/public"
     FRONTEND_URL          = "https://${var.app_domain_name}"
-    NODE_ENV              = "sandbox"
+    NODE_ENV              = "test"
     PORT                  = "3000"
   }
 }
@@ -17,7 +17,7 @@ locals {
 # ---------------------------------------------------------------
 
 resource "aws_ecr_repository" "app" {
-  for_each = toset(["api", "worker"])
+  for_each = toset(["api", "worker", "base"])
 
   name                 = "${local.cluster_name}/${each.key}"
   image_tag_mutability = "MUTABLE"
@@ -44,7 +44,7 @@ resource "aws_ecr_lifecycle_policy" "app" {
     rules = [
       {
         rulePriority = 1
-        description  = "Keep the last 50 sandbox images"
+        description  = "Keep the last 50 test images"
         selection = {
           tagStatus     = "tagged"
           tagPrefixList = ["sha-", "main-latest"]
@@ -178,12 +178,12 @@ resource "random_password" "redis_password" {
 }
 
 resource "aws_secretsmanager_secret" "redis" {
-  name                    = "ctdl-xtra/sandbox/redis"
+  name                    = "ctdl-xtra/test/redis"
   description             = "Redis auth for ${local.cluster_name} in-cluster pod"
   recovery_window_in_days = 0
 
   tags = merge(local.common_tags, {
-    Name = "ctdl-xtra/sandbox/redis"
+    Name = "ctdl-xtra/test/redis"
   })
 }
 
