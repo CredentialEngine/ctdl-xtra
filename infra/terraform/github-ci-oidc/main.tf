@@ -58,25 +58,6 @@ resource "aws_iam_policy" "github_actions_ecr" {
         Resource = "*"
       },
       {
-        Sid    = "StagingReadWrite"
-        Effect = "Allow"
-        Action = [
-          "ecr:BatchCheckLayerAvailability",
-          "ecr:GetDownloadUrlForLayer",
-          "ecr:BatchGetImage",
-          "ecr:PutImage",
-          "ecr:InitiateLayerUpload",
-          "ecr:UploadLayerPart",
-          "ecr:CompleteLayerUpload",
-          "ecr:DescribeRepositories",
-          "ecr:ListImages",
-          "ecr:DescribeImages",
-        ]
-        Resource = [
-          "arn:aws:ecr:us-east-1:${local.aws_account_id}:repository/ctdl-xtra-staging/*",
-        ]
-      },
-      {
         Sid    = "ProductionPromote"
         Effect = "Allow"
         Action = [
@@ -113,7 +94,6 @@ resource "aws_iam_policy" "github_actions_eks" {
         Effect = "Allow"
         Action = "eks:DescribeCluster"
         Resource = [
-          "arn:aws:eks:us-east-1:${local.aws_account_id}:cluster/ctdl-xtra-staging",
           "arn:aws:eks:us-east-1:${local.aws_account_id}:cluster/ctdl-xtra-prod",
         ]
       }

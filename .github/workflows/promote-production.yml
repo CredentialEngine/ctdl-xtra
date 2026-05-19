@@ -1,10 +1,13 @@
 name: Promote to PRODUCTION
 
+# Source ECR is currently broken: staging was decommissioned and the
+# replacement SANDBOX env is not yet built. Re-point the crane copy step
+# once SANDBOX ECR repos exist.
 on:
   workflow_dispatch:
     inputs:
       image_tag:
-        description: "Exact image tag to promote from STAGING → PRODUCTION (e.g. sha-abc1234)"
+        description: "Exact image tag to promote from SANDBOX → PRODUCTION (e.g. sha-abc1234)"
         required: true
 
 permissions:
