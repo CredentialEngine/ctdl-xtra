@@ -61,3 +61,6 @@ helm upgrade --install metrics-server metrics-server/metrics-server \
 
 kubectl --context "${CONTEXT}" apply -f "${SCRIPT_DIR}/cluster-autoscaler.yaml"
 kubectl --context "${CONTEXT}" -n kube-system rollout status deployment/cluster-autoscaler --timeout=180s
+
+kubectl --context "${CONTEXT}" apply -f "${SCRIPT_DIR}/skooner.yaml"
+kubectl --context "${CONTEXT}" -n kube-system rollout status deployment/skooner --timeout=180s

@@ -3,6 +3,15 @@ name: Generate Skooner token
 on:
   workflow_dispatch:
     inputs:
+      environment:
+        description: "Target environment / cluster"
+        type: choice
+        required: true
+        default: test
+        options:
+          - test
+          - sandbox
+          - prod
       duration:
         description: "Token duration"
         type: choice
@@ -32,7 +41,6 @@ permissions:
 
 env:
   AWS_REGION: us-east-1
-  EKS_CLUSTER: cer-api-prod
   SA_NAMESPACE: kube-system
   SA_NAME: skooner-sa
   APP_NAMESPACE: ctdl-xtra
@@ -44,6 +52,31 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
+      - name: Resolve target cluster + hostname
+        id: target
+        env:
+          ENVIRONMENT: ${{ inputs.environment }}
+        run: |
+          set -euo pipefail
+          case "${ENVIRONMENT}" in
+            test)
+              echo "cluster=ctdl-xtra-test" >> "$GITHUB_OUTPUT"
+              echo "hostname=status.xtra-test.credentialengineregistry.org" >> "$GITHUB_OUTPUT"
+              ;;
+            sandbox)
+              echo "cluster=ctdl-xtra-sandbox" >> "$GITHUB_OUTPUT"
+              echo "hostname=status.xtra-sandbox.credentialengineregistry.org" >> "$GITHUB_OUTPUT"
+              ;;
+            prod)
+              echo "cluster=ctdl-xtra-prod" >> "$GITHUB_OUTPUT"
+              echo "hostname=status.xtra.credentialengineregistry.org" >> "$GITHUB_OUTPUT"
+              ;;
+            *)
+              echo "Unknown environment: ${ENVIRONMENT}" >&2
+              exit 1
+              ;;
+          esac
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -58,7 +91,7 @@ jobs:
 
       - name: Update kubeconfig
         run: |
-          aws eks update-kubeconfig --name "${{ env.EKS_CLUSTER }}" --region "${{ env.AWS_REGION }}"
+          aws eks update-kubeconfig --name "${{ steps.target.outputs.cluster }}" --region "${{ env.AWS_REGION }}"
 
       - name: Mask sensitive inputs
         if: ${{ inputs.whitelist_source_range != '' }}
@@ -75,6 +108,9 @@ jobs:
           SA="${SA_NAME}"
           APP_NS="${APP_NAMESPACE}"
           echo "Validating role: ${ROLE}"
+          # Use `apply --dry-run=server` so validation is idempotent when the
+          # binding already exists (server-side `create` dry-run rejects
+          # existing resources, breaking re-runs).
           if [ "${ROLE}" = "cluster-admin" ]; then
             kubectl create clusterrolebinding "${SA}" \
               --clusterrole="cluster-admin" \
@@ -112,25 +148,31 @@ jobs:
             echo "binding_kind=ClusterRoleBinding" >> "$GITHUB_OUTPUT"
             echo "binding_namespace=cluster-wide" >> "$GITHUB_OUTPUT"
           elif [ "${ROLE}" = "developer" ]; then
+            # Cluster-wide read-only via view
             kubectl create clusterrolebinding "${SA}-developer-view" \
               --clusterrole="view" \
               --serviceaccount="${NS}:${SA}" \
               --dry-run=client -o yaml > /tmp/rbac-view.yaml
             kubectl apply -f /tmp/rbac-view.yaml
+            # Namespaced edit in the app namespace
             kubectl -n "${APP_NS}" create rolebinding "${SA}-developer-edit" \
               --clusterrole="edit" \
               --serviceaccount="${NS}:${SA}" \
               --dry-run=client -o yaml > /tmp/rbac-edit.yaml
             kubectl -n "${APP_NS}" apply -f /tmp/rbac-edit.yaml
+            # Ensure no lingering admin CRB remains
             kubectl delete clusterrolebinding "${SA}" --ignore-not-found
             echo "binding_kind=developer" >> "$GITHUB_OUTPUT"
             echo "binding_namespace=cluster-wide,${APP_NS}" >> "$GITHUB_OUTPUT"
           else
+            # view: revoke any elevated bindings, including the cluster-admin
+            # CRB baked into skooner.yaml. Re-applying the foundation script
+            # restores cluster-admin (the install-time default).
             kubectl delete clusterrolebinding "${SA}" --ignore-not-found
             kubectl delete clusterrolebinding "${SA}-developer-view" --ignore-not-found
             kubectl -n "${APP_NS}" delete rolebinding "${SA}-developer-edit" --ignore-not-found
             echo "binding_kind=view-only" >> "$GITHUB_OUTPUT"
-            echo "binding_namespace=${NS}" >> "$GITHUB_OUTPUT"
+            echo "binding_namespace=-" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Update Skooner Ingress whitelist (optional)
@@ -161,6 +203,9 @@ jobs:
           REPO: ${{ github.repository }}
           RUN_URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
           ACTOR: ${{ github.actor }}
+          ENVIRONMENT: ${{ inputs.environment }}
+          CLUSTER: ${{ steps.target.outputs.cluster }}
+          HOSTNAME: ${{ steps.target.outputs.hostname }}
           DURATION: ${{ inputs.duration }}
           ROLE: ${{ inputs.role }}
           WHITELIST_CONFIGURED: ${{ inputs.whitelist_source_range != '' }}
@@ -178,6 +223,9 @@ jobs:
             --arg repo "$REPO" \
             --arg run "$RUN_URL" \
             --arg actor "$ACTOR" \
+            --arg env "$ENVIRONMENT" \
+            --arg cluster "$CLUSTER" \
+            --arg url "https://${HOSTNAME}/#!workload" \
             --arg duration "$DURATION" \
             --arg role "$ROLE" \
             --arg ns "$BINDING_NS" \
@@ -187,9 +235,10 @@ jobs:
             {
               text: "Skooner token generated",
               blocks: [
-                { "type": "header", "text": { "type": "plain_text", "text": "Skooner token" } },
+                { "type": "header", "text": { "type": "plain_text", "text": "Skooner token (\($env))" } },
                 { "type": "section", "fields": [
                     {"type":"mrkdwn", "text": "*Requested by:*\n\($actor)"},
+                    {"type":"mrkdwn", "text": "*Cluster:*\n\($cluster)"},
                     {"type":"mrkdwn", "text": "*Duration:*\n\($duration)"},
                     {"type":"mrkdwn", "text": "*Role:*\n\($role)"},
                     {"type":"mrkdwn", "text": "*Namespace:*\n\($ns)"}
@@ -203,7 +252,7 @@ jobs:
                 { "type": "context", "elements": [
                     {"type":"mrkdwn", "text": "<\($run)|View run>"},
                     {"type":"mrkdwn", "text": $repo},
-                    {"type":"mrkdwn", "text": "<https://status.cer-api.credentialengineregistry.org/#!workload|Open Skooner>"}
+                    {"type":"mrkdwn", "text": "<\($url)|Open Skooner>"}
                   ]
                 }
               ]
