@@ -91,6 +91,26 @@ In each cluster's `ctdl-xtra` namespace:
 
 The migrate Job runs `drizzle-kit migrate` before each rollout via the deploy script.
 
+## Skooner dashboards
+
+Web UI for cluster inspection. One Skooner deployment per cluster, exposed via ingress with TLS issued by cert-manager.
+
+| | Test | Sandbox | Production |
+|---|---|---|---|
+| URL | `https://status.xtra-test.credentialengineregistry.org` | `https://status.xtra-sandbox.credentialengineregistry.org` | `https://status.xtra.credentialengineregistry.org` |
+| Image | `ghcr.io/skooner-k8s/skooner:stable` | same | same |
+| ServiceAccount | `skooner-sa` in `kube-system` | same | same |
+| Default RBAC at install time | `skooner-sa` ClusterRoleBinding → `cluster-admin` | same | same |
+
+**Logging in**: paste a short-lived ServiceAccount token. Tokens are issued by the `Generate Skooner token` workflow (manual, `workflow_dispatch`). Inputs:
+
+- `environment` — `test` / `sandbox` / `prod` (picks the cluster)
+- `duration` — `30m` / `2h` / `6h`
+- `role` — `view` (revokes all bindings), `developer` (cluster-wide view + edit on `ctdl-xtra` namespace), `cluster-admin`
+- `whitelist_source_range` — optional NGINX `whitelist-source-range` annotation (CIDR or comma-separated CIDRs)
+
+The token is delivered via Slack (the `SLACK_WEBHOOK_URL` repo secret). Choosing `view` revokes the baked-in `cluster-admin` binding; re-running `install-foundation.sh` restores it.
+
 ## Deploying
 
 You don't run `kubectl` to deploy — use the GitHub Actions workflows. See [CI-CD.md](CI-CD.md) for the full pipeline. TL;DR:
