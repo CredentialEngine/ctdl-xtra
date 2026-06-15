@@ -112,17 +112,12 @@ jobs:
           # binding already exists (server-side `create` dry-run rejects
           # existing resources, breaking re-runs).
           if [ "${ROLE}" = "cluster-admin" ]; then
-            kubectl create clusterrolebinding "${SA}" \
+            kubectl create clusterrolebinding "${SA}-admin" \
               --clusterrole="cluster-admin" \
               --serviceaccount="${NS}:${SA}" \
               --dry-run=client -o yaml > /tmp/rbac-validate.yaml
             kubectl apply --dry-run=server -f /tmp/rbac-validate.yaml
           elif [ "${ROLE}" = "developer" ]; then
-            kubectl create clusterrolebinding "${SA}-developer-view" \
-              --clusterrole="view" \
-              --serviceaccount="${NS}:${SA}" \
-              --dry-run=client -o yaml > /tmp/rbac-validate-view.yaml
-            kubectl apply --dry-run=server -f /tmp/rbac-validate-view.yaml
             kubectl -n "${APP_NS}" create rolebinding "${SA}-developer-edit" \
               --clusterrole="edit" \
               --serviceaccount="${NS}:${SA}" \
@@ -139,40 +134,37 @@ jobs:
           SA="${SA_NAME}"
           APP_NS="${APP_NAMESPACE}"
           echo "Applying role: ${ROLE}"
+          # The baked `${SA}-view` ClusterRoleBinding (cluster-wide view) is
+          # always in place after install-foundation.sh. This step only adds
+          # or removes elevated bindings on top.
           if [ "${ROLE}" = "cluster-admin" ]; then
-            kubectl create clusterrolebinding "${SA}" \
+            kubectl create clusterrolebinding "${SA}-admin" \
               --clusterrole="cluster-admin" \
               --serviceaccount="${NS}:${SA}" \
               --dry-run=client -o yaml > /tmp/rbac.yaml
             kubectl apply -f /tmp/rbac.yaml
-            echo "binding_kind=ClusterRoleBinding" >> "$GITHUB_OUTPUT"
+            kubectl -n "${APP_NS}" delete rolebinding "${SA}-developer-edit" --ignore-not-found
+            echo "binding_kind=cluster-admin" >> "$GITHUB_OUTPUT"
             echo "binding_namespace=cluster-wide" >> "$GITHUB_OUTPUT"
           elif [ "${ROLE}" = "developer" ]; then
-            # Cluster-wide read-only via view
-            kubectl create clusterrolebinding "${SA}-developer-view" \
-              --clusterrole="view" \
-              --serviceaccount="${NS}:${SA}" \
-              --dry-run=client -o yaml > /tmp/rbac-view.yaml
-            kubectl apply -f /tmp/rbac-view.yaml
-            # Namespaced edit in the app namespace
             kubectl -n "${APP_NS}" create rolebinding "${SA}-developer-edit" \
               --clusterrole="edit" \
               --serviceaccount="${NS}:${SA}" \
               --dry-run=client -o yaml > /tmp/rbac-edit.yaml
             kubectl -n "${APP_NS}" apply -f /tmp/rbac-edit.yaml
-            # Ensure no lingering admin CRB remains
-            kubectl delete clusterrolebinding "${SA}" --ignore-not-found
+            kubectl delete clusterrolebinding "${SA}-admin" --ignore-not-found
             echo "binding_kind=developer" >> "$GITHUB_OUTPUT"
-            echo "binding_namespace=cluster-wide,${APP_NS}" >> "$GITHUB_OUTPUT"
+            echo "binding_namespace=cluster-wide(view),${APP_NS}(edit)" >> "$GITHUB_OUTPUT"
           else
-            # view: revoke any elevated bindings, including the cluster-admin
-            # CRB baked into skooner.yaml. Re-applying the foundation script
-            # restores cluster-admin (the install-time default).
+            # view: drop any elevated bindings; the baked `${SA}-view` CRB
+            # remains so the SA keeps cluster-wide read access.
+            kubectl delete clusterrolebinding "${SA}-admin" --ignore-not-found
+            kubectl -n "${APP_NS}" delete rolebinding "${SA}-developer-edit" --ignore-not-found
+            # Backwards-compat: clean up bindings from the prior naming scheme.
             kubectl delete clusterrolebinding "${SA}" --ignore-not-found
             kubectl delete clusterrolebinding "${SA}-developer-view" --ignore-not-found
-            kubectl -n "${APP_NS}" delete rolebinding "${SA}-developer-edit" --ignore-not-found
-            echo "binding_kind=view-only" >> "$GITHUB_OUTPUT"
-            echo "binding_namespace=-" >> "$GITHUB_OUTPUT"
+            echo "binding_kind=view" >> "$GITHUB_OUTPUT"
+            echo "binding_namespace=cluster-wide" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Update Skooner Ingress whitelist (optional)

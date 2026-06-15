@@ -100,16 +100,19 @@ Web UI for cluster inspection. One Skooner deployment per cluster, exposed via i
 | URL | `https://status.xtra-test.credentialengineregistry.org` | `https://status.xtra-sandbox.credentialengineregistry.org` | `https://status.xtra.credentialengineregistry.org` |
 | Image | `ghcr.io/skooner-k8s/skooner:stable` | same | same |
 | ServiceAccount | `skooner-sa` in `kube-system` | same | same |
-| Default RBAC at install time | `skooner-sa` ClusterRoleBinding → `cluster-admin` | same | same |
+| Baseline RBAC (always on) | `skooner-sa-view` ClusterRoleBinding → `view` | same | same |
 
 **Logging in**: paste a short-lived ServiceAccount token. Tokens are issued by the `Generate Skooner token` workflow (manual, `workflow_dispatch`). Inputs:
 
 - `environment` — `test` / `sandbox` / `prod` (picks the cluster)
 - `duration` — `30m` / `2h` / `6h`
-- `role` — `view` (revokes all bindings), `developer` (cluster-wide view + edit on `ctdl-xtra` namespace), `cluster-admin`
+- `role` — applied **on top of** the baseline view:
+  - `view` — removes any elevated bindings, leaves the baseline cluster-wide view in place
+  - `developer` — adds a `skooner-sa-developer-edit` RoleBinding (`edit`) on the `ctdl-xtra` namespace
+  - `cluster-admin` — adds a `skooner-sa-admin` ClusterRoleBinding (`cluster-admin`)
 - `whitelist_source_range` — optional NGINX `whitelist-source-range` annotation (CIDR or comma-separated CIDRs)
 
-The token is delivered via Slack (the `SLACK_WEBHOOK_URL` repo secret). Choosing `view` revokes the baked-in `cluster-admin` binding; re-running `install-foundation.sh` restores it.
+The token is delivered via Slack (the `SLACK_WEBHOOK_URL` repo secret).
 
 ## Deploying
 
