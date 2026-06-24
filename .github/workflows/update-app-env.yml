@@ -1,0 +1,287 @@
+name: Update app env vars
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Target environment / cluster"
+        type: choice
+        required: true
+        default: test
+        options:
+          - test
+          - sandbox
+          - prod
+      changes:
+        description: 'JSON map of keys to set or remove. Example: {"LOG_LEVEL":"debug","OLD_FLAG":null}'
+        type: string
+        required: true
+      restart:
+        description: "Restart api and worker Deployments after applying"
+        type: boolean
+        required: true
+        default: true
+      dry_run:
+        description: "Compute and print the diff without writing"
+        type: boolean
+        required: true
+        default: false
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  AWS_REGION: us-east-1
+  APP_NAMESPACE: ctdl-xtra
+  ESO_EXTERNALSECRET: ctdl-xtra-app
+  TARGET_SECRET: ctdl-xtra-app-env
+  ROLLOUT_TIMEOUT: 5m
+
+jobs:
+  update:
+    if: ${{ github.repository_owner == 'CredentialEngine' }}
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment == 'prod' && 'PRODUCTION' || (inputs.environment == 'sandbox' && 'SANDBOX' || 'TEST') }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Resolve target cluster + AWS secret name
+        id: target
+        env:
+          ENVIRONMENT: ${{ inputs.environment }}
+        run: |
+          set -euo pipefail
+          case "${ENVIRONMENT}" in
+            test)
+              echo "cluster=ctdl-xtra-test"        >> "$GITHUB_OUTPUT"
+              echo "secret_id=ctdl-xtra/test/app"  >> "$GITHUB_OUTPUT"
+              ;;
+            sandbox)
+              echo "cluster=ctdl-xtra-sandbox"        >> "$GITHUB_OUTPUT"
+              echo "secret_id=ctdl-xtra/sandbox/app"  >> "$GITHUB_OUTPUT"
+              ;;
+            prod)
+              echo "cluster=ctdl-xtra-prod"        >> "$GITHUB_OUTPUT"
+              echo "secret_id=ctdl-xtra/prod/app"  >> "$GITHUB_OUTPUT"
+              ;;
+            *)
+              echo "Unknown environment: ${ENVIRONMENT}" >&2
+              exit 1
+              ;;
+          esac
+
+      - name: Validate changes JSON
+        env:
+          CHANGES: ${{ inputs.changes }}
+        run: |
+          set -euo pipefail
+          if ! echo "$CHANGES" | jq -e 'type=="object"' >/dev/null; then
+            echo "Input 'changes' must be a JSON object (got: $(echo "$CHANGES" | jq -r 'type'))" >&2
+            exit 1
+          fi
+          # Reject nested values and non-string non-null leaves
+          if echo "$CHANGES" | jq -e 'to_entries[] | select(.value | type | . != "string" and . != "null")' >/dev/null; then
+            echo "Each value must be a string (to set) or null (to remove)" >&2
+            echo "$CHANGES" | jq .
+            exit 1
+          fi
+          # Reject empty / illegal keys
+          if echo "$CHANGES" | jq -e 'keys[] | select(test("^[A-Za-z_][A-Za-z0-9_]*$") | not)' >/dev/null; then
+            echo "Keys must match [A-Za-z_][A-Za-z0-9_]*" >&2
+            exit 1
+          fi
+
+      - name: Mask change values
+        env:
+          CHANGES: ${{ inputs.changes }}
+        run: |
+          # Mask every non-null value in the log so they never appear in diffs or errors.
+          echo "$CHANGES" | jq -r 'to_entries[] | select(.value != null) | .value' \
+            | while IFS= read -r v; do [ -n "$v" ] && echo "::add-mask::$v"; done
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - uses: azure/setup-kubectl@v4
+        with:
+          version: v1.29.6
+
+      - name: Update kubeconfig
+        run: aws eks update-kubeconfig --name "${{ steps.target.outputs.cluster }}" --region "$AWS_REGION"
+
+      - name: Fetch current secret, compute next, diff
+        id: diff
+        env:
+          SECRET_ID: ${{ steps.target.outputs.secret_id }}
+          CHANGES: ${{ inputs.changes }}
+        run: |
+          set -euo pipefail
+          CURRENT=$(aws secretsmanager get-secret-value --secret-id "$SECRET_ID" --query SecretString --output text)
+          if ! echo "$CURRENT" | jq -e 'type=="object"' >/dev/null; then
+            echo "Existing secret value is not a JSON object; refusing to mutate" >&2
+            exit 1
+          fi
+          # Mask current values too so we never echo them later.
+          echo "$CURRENT" | jq -r 'to_entries[] | .value | select(. != null and . != "")' \
+            | while IFS= read -r v; do echo "::add-mask::$v"; done
+
+          # Merge changes; null in CHANGES means delete. Filter null values from the union.
+          NEXT=$(jq -nc --argjson c "$CURRENT" --argjson p "$CHANGES" \
+            '($c * $p) | with_entries(select(.value != null))')
+
+          # Key-level diff (never values)
+          ADDED=$(jq -nc --argjson c "$CURRENT" --argjson n "$NEXT" '($n|keys) - ($c|keys)')
+          REMOVED=$(jq -nc --argjson c "$CURRENT" --argjson n "$NEXT" '($c|keys) - ($n|keys)')
+          CHANGED=$(jq -nc --argjson c "$CURRENT" --argjson n "$NEXT" \
+            '[ ($n|keys[]) as $k | select(($c[$k]//null) != null and ($n[$k]//null) != null and $c[$k] != $n[$k]) | $k ]')
+
+          {
+            echo "## Pending env change for \`${SECRET_ID}\`"
+            echo
+            echo "- **Added keys:** \`$ADDED\`"
+            echo "- **Removed keys:** \`$REMOVED\`"
+            echo "- **Changed keys:** \`$CHANGED\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          echo "added=$ADDED"     >> "$GITHUB_OUTPUT"
+          echo "removed=$REMOVED" >> "$GITHUB_OUTPUT"
+          echo "changed=$CHANGED" >> "$GITHUB_OUTPUT"
+
+          # Stash next value for the apply step (file, not env, to avoid log exposure).
+          printf '%s' "$NEXT" > /tmp/next-secret.json
+
+          NOOP=$(jq -nc --argjson a "$ADDED" --argjson r "$REMOVED" --argjson ch "$CHANGED" \
+            '($a|length)+($r|length)+($ch|length) == 0')
+          echo "noop=$NOOP" >> "$GITHUB_OUTPUT"
+
+      - name: Exit if no-op
+        if: ${{ steps.diff.outputs.noop == 'true' }}
+        run: |
+          echo "No keys added, changed, or removed — nothing to do."
+          echo "::notice::No-op: ${{ steps.target.outputs.secret_id }} already matches desired state."
+
+      - name: Exit if dry run
+        if: ${{ inputs.dry_run && steps.diff.outputs.noop != 'true' }}
+        run: |
+          echo "::notice::Dry run requested — not writing to Secrets Manager."
+
+      - name: Put new secret version
+        id: put
+        if: ${{ !inputs.dry_run && steps.diff.outputs.noop != 'true' }}
+        env:
+          SECRET_ID: ${{ steps.target.outputs.secret_id }}
+        run: |
+          set -euo pipefail
+          VERSION=$(aws secretsmanager put-secret-value \
+            --secret-id "$SECRET_ID" \
+            --secret-string file:///tmp/next-secret.json \
+            --query VersionId --output text)
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "::notice::Wrote new version $VERSION to $SECRET_ID"
+
+      - name: Force ExternalSecret sync and wait for k8s Secret refresh
+        if: ${{ !inputs.dry_run && steps.diff.outputs.noop != 'true' }}
+        env:
+          NS: ${{ env.APP_NAMESPACE }}
+          ES: ${{ env.ESO_EXTERNALSECRET }}
+          TARGET: ${{ env.TARGET_SECRET }}
+        run: |
+          set -euo pipefail
+          BEFORE=$(kubectl -n "$NS" get secret "$TARGET" -o jsonpath='{.metadata.resourceVersion}')
+          echo "k8s Secret resourceVersion before: $BEFORE"
+          kubectl -n "$NS" annotate externalsecret "$ES" \
+            "force-sync=$(date +%s)" --overwrite >/dev/null
+          # Wait up to 60s for ESO to bump the target Secret.
+          for i in $(seq 1 30); do
+            NOW=$(kubectl -n "$NS" get secret "$TARGET" -o jsonpath='{.metadata.resourceVersion}')
+            if [ "$NOW" != "$BEFORE" ]; then
+              echo "k8s Secret refreshed; resourceVersion now: $NOW"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "Timed out waiting for ESO to refresh $NS/$TARGET" >&2
+          kubectl -n "$NS" describe externalsecret "$ES" || true
+          exit 1
+
+      - name: Restart api and worker
+        id: rollout
+        if: ${{ !inputs.dry_run && steps.diff.outputs.noop != 'true' && inputs.restart }}
+        env:
+          NS: ${{ env.APP_NAMESPACE }}
+        run: |
+          set -euo pipefail
+          kubectl -n "$NS" rollout restart deploy/ctdl-xtra-api deploy/ctdl-xtra-worker
+          kubectl -n "$NS" rollout status   deploy/ctdl-xtra-api    --timeout="${ROLLOUT_TIMEOUT}"
+          kubectl -n "$NS" rollout status   deploy/ctdl-xtra-worker --timeout="${ROLLOUT_TIMEOUT}"
+
+      - name: Notify Slack
+        if: ${{ always() }}
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          REPO: ${{ github.repository }}
+          RUN_URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          ACTOR: ${{ github.actor }}
+          ENVIRONMENT: ${{ inputs.environment }}
+          SECRET_ID: ${{ steps.target.outputs.secret_id }}
+          VERSION: ${{ steps.put.outputs.version }}
+          ADDED: ${{ steps.diff.outputs.added }}
+          REMOVED: ${{ steps.diff.outputs.removed }}
+          CHANGED: ${{ steps.diff.outputs.changed }}
+          NOOP: ${{ steps.diff.outputs.noop }}
+          DRY_RUN: ${{ inputs.dry_run }}
+          RESTART: ${{ inputs.restart }}
+          STATUS: ${{ job.status }}
+        run: |
+          if [ -z "${SLACK_WEBHOOK_URL}" ]; then
+            echo "SLACK_WEBHOOK_URL not set; skipping notification"
+            exit 0
+          fi
+          if [ "$DRY_RUN" = "true" ]; then SUMMARY="dry-run"
+          elif [ "$NOOP" = "true" ]; then SUMMARY="no-op"
+          elif [ "$RESTART" = "true" ]; then SUMMARY="applied + restarted"
+          else SUMMARY="applied (no restart)"
+          fi
+          payload=$(jq -nc \
+            --arg repo "$REPO" \
+            --arg run "$RUN_URL" \
+            --arg actor "$ACTOR" \
+            --arg env "$ENVIRONMENT" \
+            --arg secret_id "$SECRET_ID" \
+            --arg version "${VERSION:-n/a}" \
+            --arg added "${ADDED:-[]}" \
+            --arg removed "${REMOVED:-[]}" \
+            --arg changed "${CHANGED:-[]}" \
+            --arg status "$STATUS" \
+            --arg summary "$SUMMARY" \
+            '
+            {
+              text: "App env update (\($env)): \($summary)",
+              blocks: [
+                { "type": "header", "text": { "type": "plain_text", "text": "App env update (\($env))" } },
+                { "type": "section", "fields": [
+                    {"type":"mrkdwn", "text": "*Status:*\n\($status)"},
+                    {"type":"mrkdwn", "text": "*Outcome:*\n\($summary)"},
+                    {"type":"mrkdwn", "text": "*Requested by:*\n\($actor)"},
+                    {"type":"mrkdwn", "text": "*Secret:*\n\($secret_id)"},
+                    {"type":"mrkdwn", "text": "*New version:*\n\($version)"}
+                  ]
+                },
+                { "type": "section", "fields": [
+                    {"type":"mrkdwn", "text": "*Added:*\n```\($added)```"},
+                    {"type":"mrkdwn", "text": "*Changed:*\n```\($changed)```"},
+                    {"type":"mrkdwn", "text": "*Removed:*\n```\($removed)```"}
+                  ]
+                },
+                { "type": "context", "elements": [
+                    {"type":"mrkdwn", "text": "<\($run)|View run>"},
+                    {"type":"mrkdwn", "text": $repo}
+                  ]
+                }
+              ]
+            }
+            ')
+          curl -sS -X POST -H 'Content-type: application/json' --data "$payload" "$SLACK_WEBHOOK_URL" || true
