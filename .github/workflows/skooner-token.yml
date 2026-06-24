@@ -175,14 +175,22 @@ jobs:
             echo "binding_namespace=-" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Update Skooner Ingress whitelist (optional)
-        if: ${{ inputs.whitelist_source_range != '' }}
+      - name: Update Skooner Ingress whitelist
+        id: whitelist
         env:
           WHITELIST: ${{ inputs.whitelist_source_range }}
         run: |
-          echo "Setting whitelist-source-range"
-          kubectl -n kube-system annotate ingress skooner-ingress \
-            nginx.ingress.kubernetes.io/whitelist-source-range="${WHITELIST}" --overwrite
+          if [ -z "${WHITELIST}" ]; then
+            echo "Clearing whitelist-source-range"
+            kubectl -n kube-system annotate ingress skooner-ingress \
+              nginx.ingress.kubernetes.io/whitelist-source-range- --overwrite
+            echo "state=cleared" >> "$GITHUB_OUTPUT"
+          else
+            echo "Setting whitelist-source-range"
+            kubectl -n kube-system annotate ingress skooner-ingress \
+              nginx.ingress.kubernetes.io/whitelist-source-range="${WHITELIST}" --overwrite
+            echo "state=configured" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Create Skooner token
         id: tok
@@ -208,7 +216,7 @@ jobs:
           HOSTNAME: ${{ steps.target.outputs.hostname }}
           DURATION: ${{ inputs.duration }}
           ROLE: ${{ inputs.role }}
-          WHITELIST_CONFIGURED: ${{ inputs.whitelist_source_range != '' }}
+          WHITELIST_STATE: ${{ steps.whitelist.outputs.state }}
           BINDING_KIND: ${{ steps.rbac.outputs.binding_kind }}
           BINDING_NS: ${{ steps.rbac.outputs.binding_namespace }}
           SA_NAME: ${{ env.SA_NAME }}
@@ -229,7 +237,7 @@ jobs:
             --arg duration "$DURATION" \
             --arg role "$ROLE" \
             --arg ns "$BINDING_NS" \
-            --arg whitelist_configured "$WHITELIST_CONFIGURED" \
+            --arg whitelist_state "$WHITELIST_STATE" \
             --arg token "$TOKEN" \
             '
             {
@@ -245,7 +253,7 @@ jobs:
                   ]
                 },
                 { "type": "section", "fields": [
-                    {"type":"mrkdwn", "text": "*Whitelist:*\n\(if $whitelist_configured == "true" then "configured" else "unchanged" end)"}
+                    {"type":"mrkdwn", "text": "*Whitelist:*\n\($whitelist_state)"}
                   ]
                 },
                 { "type": "section", "text": { "type": "mrkdwn", "text": "*Token:*\n```\($token)```" } },
