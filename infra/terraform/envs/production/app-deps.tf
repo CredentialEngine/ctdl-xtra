@@ -275,4 +275,14 @@ resource "aws_secretsmanager_secret" "app" {
 resource "aws_secretsmanager_secret_version" "app" {
   secret_id     = aws_secretsmanager_secret.app.id
   secret_string = jsonencode(local.app_secret_values)
+
+  # Terraform only *seeds* this secret on first creation. Runtime values
+  # (notably ENCRYPTION_KEY, plus anything set via the "Update app env vars"
+  # workflow) are managed out-of-band in Secrets Manager and must survive
+  # later applies. Without this, every apply rewrites the blob from
+  # local.app_secret_values — regenerating ENCRYPTION_KEY and orphaning all
+  # data already encrypted under the previous key.
+  lifecycle {
+    ignore_changes = [secret_string]
+  }
 }
