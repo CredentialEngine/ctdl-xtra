@@ -1,0 +1,185 @@
+{
+    "@id": "https://credentialengineregistry.org/resources/ce-727764d7-b909-4e5c-b26a-c4d0fced2159",
+    "@type": "ceterms:OpenBadge",
+    "@context": "https://credreg.net/ctdl/schema/context/json",
+    "ceterms:ctid": "ce-727764d7-b909-4e5c-b26a-c4d0fced2159",
+    "ceterms:name": {
+        "en-US": "WGU Certificate: AWS Cloud DevOps v1.1"
+    },
+    "ceterms:image": "https://api.badgr.io/public/badges/a9STuosRQuOqLKKKYhB9dQ/image",
+    "ceterms:ownedBy": [
+        "https://credentialengineregistry.org/resources/ce-036d082d-d80e-41a7-99a0-2d63a4ad3a4a"
+    ],
+    "ceterms:requires": [
+        {
+            "@type": "ceterms:ConditionProfile",
+            "ceterms:name": {
+                "en-US": "Open Badges Criteria"
+            },
+            "ceterms:assertedBy": [
+                "https://credentialengineregistry.org/resources/ce-036d082d-d80e-41a7-99a0-2d63a4ad3a4a"
+            ],
+            "ceterms:description": {
+                "en-US": "Credential Detail\n\nRecipients of WGU\u2019s AWS Cloud DevOps Certificate have demonstrated competence in the following areas via rigorous assessment activities completed through Western Governors University:\n\nCloud Foundations\n\nThe learner articulates the value proposition of cloud solutions in business scenarios.\nThe learner defines cloud security and compliance. \nThe learner identifies cloud technology solutions in IaaS, PaaS, and SaaS models.\nThe learner determines the best-fit solution for a project based on the cost and support structures.\n\nCloud Deployment and Operations\n\nThe learner automates cloud provisioning processes and maintenance. \nThe learner configures network connectivity as part of AWS network infrastructure design, troubleshooting, and remediation. \nThe learner determines optimal baseline for cost and performance using AWS Services. \nThe learner implements AWS data and infrastructure protection services for information security and compliance.\nThe learner implements AWS system scalability, elasticity, and backup systems in support of business continuity operations. \nThe learner remediates issues based on the output of implemented AWS systems monitoring and logging services.\n\nAWS Cloud Architecture\n\nThe learner designs control measures for resilient architectures with cloud solutions and concepts.\nThe learner designs cost-optimized storage, database, and network architectures based on situational feedback.\nThe learner designs high-performing and scalable architectures for software performance workloads.\nThe learner designs security policies and access for cloud applications and architectures.\n\nAWS Developer\n\nThe learner designs cloud service deployments with Amazon Web Services (AWS) infrastructure services, platform services, and features.\nThe learner designs software applications with Amazon Web Services (AWS), software development kits (SDKs), and command line interface (CLI). \nThe learner implements authentication, encryption, and authorization within an Amazon Web Services (AWS) environment.\nThe learner implements automated and continuous testing processes for software deployments with cloud solutions.\nThe learner monitors automated testing for quality control. \nThe learner performs root cause analysis on testing or production failures.\n\nWGU Accreditation\n\nWGU is regionally accredited by the Northwest Commission on Colleges and Universities. The WGU Teachers College is granted accreditation at the initial-licensure level from the Council for the Accreditation of Educator Preparation (CAEP). WGU nursing degree programs are accredited by the Commission for Collegiate Nursing Education (CCNE). The Health Informatics program is accredited by the Commission of Accreditation for Health Informatics and Information Management Education (CAHIIM). The WGU Business College is accredited by the Accreditation Council for Business Schools and Programs (ACBSP)."
+            }
+        },
+        {
+            "@type": "ceterms:ConditionProfile",
+            "ceterms:name": {
+                "en-US": "WGU Certificate: AWS Cloud DevOps v1.1"
+            },
+            "ceterms:assertedBy": [
+                "https://credentialengineregistry.org/resources/ce-036d082d-d80e-41a7-99a0-2d63a4ad3a4a"
+            ],
+            "ceterms:description": {
+                "en-US": "The indicated courses must be satisfied in order for a student to earn the credential. A student must be enrolled in a program and catalog version where the credential is embedded. Students must earn at least 50% of any micro-credential competency units from Western Governors University in order to be eligible."
+            },
+            "ceterms:audienceLevelType": [
+                {
+                    "@type": "ceterms:CredentialAlignmentObject",
+                    "ceterms:framework": "https://credreg.net/ctdl/terms/AudienceLevel",
+                    "ceterms:targetNode": "audLevel:PostSecondaryLevel",
+                    "ceterms:frameworkName": {
+                        "en-US": "Audience Level"
+                    },
+                    "ceterms:targetNodeName": {
+                        "en-US": "Post-Secondary Level"
+                    },
+                    "ceterms:targetNodeDescription": {
+                        "en-US": "Intended for those who have completed secondary level school programs or equivalent."
+                    }
+                },
+                {
+                    "@type": "ceterms:CredentialAlignmentObject",
+                    "ceterms:framework": "https://credreg.net/ctdl/terms/AudienceLevel",
+                    "ceterms:targetNode": "audLevel:MastersDegreeLevel",
+                    "ceterms:frameworkName": {
+                        "en-US": "Audience Level"
+                    },
+                    "ceterms:targetNodeName": {
+                        "en-US": "Masters Degree Level"
+                    },
+                    "ceterms:targetNodeDescription": {
+                        "en-US": "Intended for those who have completed a Bachelor's Degree or equivalent."
+                    }
+                },
+                {
+                    "@type": "ceterms:CredentialAlignmentObject",
+                    "ceterms:framework": "https://credreg.net/ctdl/terms/AudienceLevel",
+                    "ceterms:targetNode": "audLevel:GraduateLevel",
+                    "ceterms:frameworkName": {
+                        "en-US": "Audience Level"
+                    },
+                    "ceterms:targetNodeName": {
+                        "en-US": "Graduate Level"
+                    },
+                    "ceterms:targetNodeDescription": {
+                        "en-US": "Intended for those who enrolled in a degree program or other formal program above the baccalaureate level, such as a masters or doctoral degree program."
+                    }
+                }
+            ],
+            "ceterms:targetLearningOpportunity": [
+                "https://credentialengineregistry.org/resources/ce-eac490a3-3f15-4314-88d1-4978bb060400",
+                "https://credentialengineregistry.org/resources/ce-f57f62a1-90e9-44b2-b2ca-f096fd156159",
+                "https://credentialengineregistry.org/resources/ce-68e125cb-6c77-41ab-a989-6bf987637a8c",
+                "https://credentialengineregistry.org/resources/ce-40e350e6-5888-4c88-9380-cbd9b331d908"
+            ]
+        }
+    ],
+    "ceterms:offeredBy": [
+        "https://credentialengineregistry.org/resources/ce-036d082d-d80e-41a7-99a0-2d63a4ad3a4a"
+    ],
+    "ceterms:revokedBy": [
+        "https://credentialengineregistry.org/resources/ce-036d082d-d80e-41a7-99a0-2d63a4ad3a4a"
+    ],
+    "ceterms:inLanguage": [
+        "en-US"
+    ],
+    "ceterms:description": {
+        "en-US": "Recipients of the AWS Cloud DevOps Certificate from Western Governors University have demonstrated their competence in skills associated with automated testing and deployment of cloud applications, with a focused alignment to Amazon Web Services."
+    },
+    "ceterms:credentialId": "https://api.badgr.io/public/badges/a9STuosRQuOqLKKKYhB9dQ",
+    "ceterms:subjectWebpage": "https://api.badgr.io/public/badges/a9STuosRQuOqLKKKYhB9dQ",
+    "ceterms:isPreparationFor": [
+        {
+            "@type": "ceterms:ConditionProfile",
+            "ceterms:name": {
+                "en-US": "Occupations"
+            },
+            "ceterms:assertedBy": [
+                "https://credentialengineregistry.org/resources/ce-036d082d-d80e-41a7-99a0-2d63a4ad3a4a"
+            ],
+            "ceterms:description": {
+                "en-US": "Occupations that this credential prepares learners for"
+            },
+            "ceterms:targetOccupation": [
+                "_:d746c82f-d341-b015-9493-2bb8e2f1bd35",
+                "_:d927f05a-2bfb-9e47-49d5-3e9d94b14d99",
+                "_:c6863454-1a62-2abd-d456-937df5f3719c",
+                "_:9dbceec1-627a-3b32-8e05-b5216a30bf23",
+                "_:60ac385e-f9de-9de5-dece-4dfe3abf6ba1"
+            ]
+        }
+    ],
+    "ceterms:audienceLevelType": [
+        {
+            "@type": "ceterms:CredentialAlignmentObject",
+            "ceterms:framework": "https://credreg.net/ctdl/terms/AudienceLevel",
+            "ceterms:targetNode": "audLevel:PostSecondaryLevel",
+            "ceterms:frameworkName": {
+                "en-US": "Audience Level"
+            },
+            "ceterms:targetNodeName": {
+                "en-US": "Post-Secondary Level"
+            },
+            "ceterms:targetNodeDescription": {
+                "en-US": "Intended for those who have completed secondary level school programs or equivalent."
+            }
+        },
+        {
+            "@type": "ceterms:CredentialAlignmentObject",
+            "ceterms:framework": "https://credreg.net/ctdl/terms/AudienceLevel",
+            "ceterms:targetNode": "audLevel:MastersDegreeLevel",
+            "ceterms:frameworkName": {
+                "en-US": "Audience Level"
+            },
+            "ceterms:targetNodeName": {
+                "en-US": "Masters Degree Level"
+            },
+            "ceterms:targetNodeDescription": {
+                "en-US": "Intended for those who have completed a Bachelor's Degree or equivalent."
+            }
+        },
+        {
+            "@type": "ceterms:CredentialAlignmentObject",
+            "ceterms:framework": "https://credreg.net/ctdl/terms/AudienceLevel",
+            "ceterms:targetNode": "audLevel:GraduateLevel",
+            "ceterms:frameworkName": {
+                "en-US": "Audience Level"
+            },
+            "ceterms:targetNodeName": {
+                "en-US": "Graduate Level"
+            },
+            "ceterms:targetNodeDescription": {
+                "en-US": "Intended for those who enrolled in a degree program or other formal program above the baccalaureate level, such as a masters or doctoral degree program."
+            }
+        }
+    ],
+    "ceterms:credentialStatusType": {
+        "@type": "ceterms:CredentialAlignmentObject",
+        "ceterms:framework": "https://credreg.net/ctdl/terms/CredentialStatus",
+        "ceterms:targetNode": "credentialStat:Active",
+        "ceterms:frameworkName": {
+            "en-US": "Credential Status"
+        },
+        "ceterms:targetNodeName": {
+            "en-US": "Active"
+        },
+        "ceterms:targetNodeDescription": {
+            "en-US": "Awards of the credential are ongoing."
+        }
+    },
+    "ceterms:usesVerificationService": [
+        "https://credentialengineregistry.org/resources/ce-6cc0acaa-87c9-46c5-8776-c1dd7805e605"
+    ]
+}

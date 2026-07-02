@@ -1,0 +1,295 @@
+{
+    "@id": "https://credentialengineregistry.org/resources/ce-6f236de1-9651-471a-9773-d9c7087b92c3",
+    "@type": "ceterms:MasterOfScienceDegree",
+    "@context": "https://credreg.net/ctdl/schema/context/json",
+    "ceterms:ctid": "ce-6f236de1-9651-471a-9773-d9c7087b92c3",
+    "ceterms:name": {
+        "en-US": "Master of Science, Nursing - Education (BSN to MSN) (MSNUED_202003)"
+    },
+    "ceterms:image": "https://www.wgu.edu/content/dam/web-sites/mvp/global/brand/brand-guidelines/WGU-MarketingLogo_Natl_RGB_Owl_NoTag_4-1-2017.jpg",
+    "ceterms:keyword": {
+        "en-US": [
+            "Clinical Education",
+            "Clinical Education Skills",
+            "Clinical Preceptorship",
+            "Clinical Preceptorship Skills",
+            "Curriculum Development",
+            "Curriculum Development Skills",
+            "Educational Leadership",
+            "Educational Leadership Skills",
+            "Educational Technology in Nursing",
+            "Educational Technology in Nursing Skills",
+            "Evidence-Based Practice in Nursing Education",
+            "Evidence-Based Practice in Nursing Education Skills",
+            "Learning Assessment",
+            "Learning Assessment Skills",
+            "Master of Science in Nursing - Education (BSN to MSN)",
+            "MSN in Nursing Education (BSN to MSN)",
+            "Nurse Educator",
+            "Nurse Educator Skills",
+            "Nursing Assessment",
+            "Nursing Assessment Skills",
+            "Nursing Competency",
+            "Nursing Competency Skills",
+            "Nursing Curriculum",
+            "Nursing Curriculum Skills",
+            "Nursing Education",
+            "Nursing Education Administration",
+            "Nursing Education Administration Skills",
+            "Nursing Education Skills",
+            "Nursing Education Strategies",
+            "Nursing Education Trends",
+            "Nursing Faculty Development",
+            "Nursing Faculty Development Skills",
+            "Nursing Instruction",
+            "Nursing Instruction Skills",
+            "Nursing Pedagogy",
+            "Nursing Pedagogy Skills",
+            "Nursing Program Evaluation",
+            "Nursing Program Evaluation Skills",
+            "Nursing Research",
+            "Nursing Research Skills",
+            "Nursing Simulation",
+            "Nursing Simulation Skills",
+            "Nursing Student Mentoring",
+            "Nursing Student Mentoring Skills",
+            "Nursing Theory",
+            "Nursing Theory Skills",
+            "Teaching Strategies",
+            "Teaching Strategies Skills"
+        ]
+    },
+    "ceterms:ownedBy": [
+        "https://credentialengineregistry.org/resources/ce-036d082d-d80e-41a7-99a0-2d63a4ad3a4a"
+    ],
+    "ceterms:requires": [
+        {
+            "@type": "ceterms:ConditionProfile",
+            "ceterms:name": {
+                "en-US": "Requires"
+            },
+            "ceterms:assertedBy": [
+                "https://credentialengineregistry.org/resources/ce-036d082d-d80e-41a7-99a0-2d63a4ad3a4a"
+            ],
+            "ceterms:description": {
+                "en-US": "The learner must have satisfied the indicated learning opportunities, or an approved equivalent, in order to be awarded the credential."
+            },
+            "ceterms:audienceLevelType": [
+                {
+                    "@type": "ceterms:CredentialAlignmentObject",
+                    "ceterms:framework": "https://credreg.net/ctdl/terms/AudienceLevel",
+                    "ceterms:targetNode": "audLevel:MastersDegreeLevel",
+                    "ceterms:frameworkName": {
+                        "en-US": "Audience Level"
+                    },
+                    "ceterms:targetNodeName": {
+                        "en-US": "Masters Degree Level"
+                    },
+                    "ceterms:targetNodeDescription": {
+                        "en-US": "Intended for those who have completed a Bachelor's Degree or equivalent."
+                    }
+                },
+                {
+                    "@type": "ceterms:CredentialAlignmentObject",
+                    "ceterms:framework": "https://credreg.net/ctdl/terms/AudienceLevel",
+                    "ceterms:targetNode": "audLevel:GraduateLevel",
+                    "ceterms:frameworkName": {
+                        "en-US": "Audience Level"
+                    },
+                    "ceterms:targetNodeName": {
+                        "en-US": "Graduate Level"
+                    },
+                    "ceterms:targetNodeDescription": {
+                        "en-US": "Intended for those who enrolled in a degree program or other formal program above the baccalaureate level, such as a masters or doctoral degree program."
+                    }
+                }
+            ],
+            "ceterms:targetLearningOpportunity": [
+                "https://credentialengineregistry.org/resources/ce-4f22fb20-afb0-4299-a4c6-732ff458388f",
+                "https://credentialengineregistry.org/resources/ce-f035c36a-d9d3-4ecf-a72c-3088d3f697c5",
+                "https://credentialengineregistry.org/resources/ce-27e84508-6de6-43dd-a2c9-4345223e5d53",
+                "https://credentialengineregistry.org/resources/ce-c5535815-d697-4cc5-bcba-7b10b82e2e04",
+                "https://credentialengineregistry.org/resources/ce-fa8c2a97-3672-448e-8774-78d2ba999db8",
+                "https://credentialengineregistry.org/resources/ce-f108adc6-ea1a-41c3-b10a-88ac84d96bb4",
+                "https://credentialengineregistry.org/resources/ce-356929fa-6eea-4fbf-b10a-9e054ef8f46c",
+                "https://credentialengineregistry.org/resources/ce-0de0b472-98e0-4cac-aa72-1d1dc3527003",
+                "https://credentialengineregistry.org/resources/ce-a0097e8b-acfb-4606-833f-35dc70a62360",
+                "https://credentialengineregistry.org/resources/ce-e3492f14-d3f2-4337-813c-376c31ab7409",
+                "https://credentialengineregistry.org/resources/ce-55661c5f-755e-46af-9e75-1d4f0a6fbc33",
+                "https://credentialengineregistry.org/resources/ce-da78fc69-63b6-4acd-ac7b-6a8cf9e8775e",
+                "https://credentialengineregistry.org/resources/ce-c1ab667a-7584-4d50-bcc0-ea4c6d8f6b6f",
+                "https://credentialengineregistry.org/resources/ce-f25bde5f-eb6b-466f-9459-9437edc856e7",
+                "https://credentialengineregistry.org/resources/ce-f3dac997-433a-4e2a-9031-5ea5fb6982e7"
+            ]
+        }
+    ],
+    "ceterms:offeredBy": [
+        "https://credentialengineregistry.org/resources/ce-036d082d-d80e-41a7-99a0-2d63a4ad3a4a"
+    ],
+    "ceterms:inLanguage": [
+        "en"
+    ],
+    "ceterms:description": {
+        "en-US": "Experience is valuable. And your experience as a nurse is what will make you a great nurse educator. A BSN to MSN nursing education program is designed to help you thrive as a nurse educator-giving you crucial skills that will prepare you to train the next generation of nurses, impact patient care, and improve health systems in your community. WGU's online, CCNE-accredited BSN to MSN program will prepare you to teach a new generation of nurses, influence patient outcomes, and change the future of healthcare. \nThis BSN to MSN program lets you utilize your knowledge and experience and gives you specific skills you need to take your passion and teach it to others. As a leader you will develop and implement life-saving techniques that will set important standards for the nurses you train. This online nursing education degree program also includes clinical practice experiences that support the student in demonstrating advanced nursing practice competence and curriculum development. Additionally, you'll have the opportunity to earn the NAHQ (National Association for Healthcare Quality) HQ Principles certificate along with your degree, helping you to boost your r\u00e9sum\u00e9 before you even graduate."
+    },
+    "ceterms:industryType": [
+        {
+            "@type": "ceterms:CredentialAlignmentObject",
+            "ceterms:targetNode": "https://www.census.gov/naics/?input=62&year=2022&details=62",
+            "ceterms:codedNotation": "62",
+            "ceterms:frameworkName": {
+                "en-US": "NAICS"
+            },
+            "ceterms:targetNodeName": {
+                "en-US": "Health Care and Social Assistance"
+            },
+            "ceterms:targetNodeDescription": {
+                "en-US": "Health Care and Social Assistance"
+            }
+        }
+    ],
+    "ceterms:alternateName": {
+        "en-US": [
+            "MSNUED_202003"
+        ]
+    },
+    "ceterms:dateEffective": "2020-03-01",
+    "ceterms:estimatedCost": [
+        {
+            "@type": "ceterms:CostProfile",
+            "ceterms:name": {
+                "en-US": "WGU Tuition"
+            },
+            "ceterms:currency": "US Dollar",
+            "ceterms:costDetails": "https://www.wgu.edu/financial-aid-tuition.html",
+            "ceterms:description": {
+                "en-US": "Each six-month term includes costs for tuition, an e-books and resources fee, and a program fee. Please see site for details."
+            }
+        }
+    ],
+    "ceterms:occupationType": [
+        {
+            "@type": "ceterms:CredentialAlignmentObject",
+            "ceterms:targetNode": "https://www.onetonline.org/link/summary/25-1072.00",
+            "ceterms:codedNotation": "25-1072.00",
+            "ceterms:frameworkName": {
+                "en-US": "Standard Occupational Classification"
+            },
+            "ceterms:targetNodeName": {
+                "en-US": "Nursing Instructors and Teachers, Postsecondary"
+            },
+            "ceterms:targetNodeDescription": {
+                "en-US": "Demonstrate and teach patient care in classroom and clinical units to nursing students. Includes both teachers primarily engaged in teaching and those who do a combination of teaching and research."
+            }
+        }
+    ],
+    "ceterms:subjectWebpage": "https://www.wgu.edu/online-nursing-health-degrees/masters-programs.html",
+    "ceterms:copyrightHolder": [
+        "https://credentialengineregistry.org/resources/ce-036d082d-d80e-41a7-99a0-2d63a4ad3a4a"
+    ],
+    "ceterms:audienceLevelType": [
+        {
+            "@type": "ceterms:CredentialAlignmentObject",
+            "ceterms:framework": "https://credreg.net/ctdl/terms/AudienceLevel",
+            "ceterms:targetNode": "audLevel:MastersDegreeLevel",
+            "ceterms:frameworkName": {
+                "en-US": "Audience Level"
+            },
+            "ceterms:targetNodeName": {
+                "en-US": "Masters Degree Level"
+            },
+            "ceterms:targetNodeDescription": {
+                "en-US": "Intended for those who have completed a Bachelor's Degree or equivalent."
+            }
+        },
+        {
+            "@type": "ceterms:CredentialAlignmentObject",
+            "ceterms:framework": "https://credreg.net/ctdl/terms/AudienceLevel",
+            "ceterms:targetNode": "audLevel:GraduateLevel",
+            "ceterms:frameworkName": {
+                "en-US": "Audience Level"
+            },
+            "ceterms:targetNodeName": {
+                "en-US": "Graduate Level"
+            },
+            "ceterms:targetNodeDescription": {
+                "en-US": "Intended for those who enrolled in a degree program or other formal program above the baccalaureate level, such as a masters or doctoral degree program."
+            }
+        }
+    ],
+    "ceterms:availableOnlineAt": [
+        "http://www.wgu.edu"
+    ],
+    "ceterms:estimatedDuration": [
+        {
+            "@type": "ceterms:DurationProfile",
+            "ceterms:description": {
+                "en-US": "By charging per term rather than per credit\u2014and empowering students to accelerate through material they know well or learn quickly\u2014WGU helps students control the ultimate cost of their degrees.\u00a0The faster you complete your program, the less you pay for your degree."
+            },
+            "ceterms:exactDuration": "P2Y"
+        }
+    ],
+    "ceterms:credentialStatusType": {
+        "@type": "ceterms:CredentialAlignmentObject",
+        "ceterms:framework": "https://credreg.net/ctdl/terms/CredentialStatus",
+        "ceterms:targetNode": "credentialStat:Active",
+        "ceterms:frameworkName": {
+            "en-US": "Credential Status"
+        },
+        "ceterms:targetNodeName": {
+            "en-US": "Active"
+        },
+        "ceterms:targetNodeDescription": {
+            "en-US": "Awards of the credential are ongoing."
+        }
+    },
+    "ceterms:learningDeliveryType": [
+        {
+            "@type": "ceterms:CredentialAlignmentObject",
+            "ceterms:framework": "https://credreg.net/ctdl/terms/Delivery",
+            "ceterms:targetNode": "deliveryType:OnlineOnly",
+            "ceterms:frameworkName": {
+                "en-US": "Delivery Type"
+            },
+            "ceterms:targetNodeName": {
+                "en-US": "Online Only"
+            },
+            "ceterms:targetNodeDescription": {
+                "en-US": "Delivery is only via the Internet."
+            }
+        }
+    ],
+    "ceterms:assessmentDeliveryType": [
+        {
+            "@type": "ceterms:CredentialAlignmentObject",
+            "ceterms:framework": "https://credreg.net/ctdl/terms/Delivery",
+            "ceterms:targetNode": "deliveryType:OnlineOnly",
+            "ceterms:frameworkName": {
+                "en-US": "Delivery Type"
+            },
+            "ceterms:targetNodeName": {
+                "en-US": "Online Only"
+            },
+            "ceterms:targetNodeDescription": {
+                "en-US": "Delivery is only via the Internet."
+            }
+        }
+    ],
+    "ceterms:instructionalProgramType": [
+        {
+            "@type": "ceterms:CredentialAlignmentObject",
+            "ceterms:framework": "https://nces.ed.gov/ipeds/cipcode/Default.aspx?y=55",
+            "ceterms:targetNode": "https://nces.ed.gov/ipeds/cipcode/cipdetail.aspx?y=56&cip=51.3801",
+            "ceterms:codedNotation": "51.3801",
+            "ceterms:frameworkName": {
+                "en-US": "Classification of Instructional Programs"
+            },
+            "ceterms:targetNodeName": {
+                "en-US": "Registered Nursing/Registered Nurse"
+            },
+            "ceterms:targetNodeDescription": {
+                "en-US": "A program that generally prepares individuals in the knowledge, techniques and procedures for promoting health, providing care for sick, disabled, infirmed, or other individuals or groups.  Includes instruction in the administration of medication and treatments, assisting a physician during treatments and examinations, Referring patients to physicians and other health care specialists, and planning education for health maintenance."
+            }
+        }
+    ]
+}
