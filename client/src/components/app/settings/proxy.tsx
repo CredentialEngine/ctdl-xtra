@@ -159,7 +159,7 @@ export function ProxySettingsForm() {
               <div className="items-top flex space-x-2">
                 <Checkbox
                   id="terms1"
-                  onCheckedChange={(e) => setConfirmProxyToggle(!!!e)}
+                  onCheckedChange={(e) => setConfirmProxyToggle(!e)}
                 />
                 <div className="grid gap-1.5 leading-none">
                   <label

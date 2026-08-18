@@ -336,9 +336,7 @@ export default function CreateRecipe() {
   ];
 
   async function onDetectPagination(
-    // @ts-ignore
     rootUrl: string,
-    // @ts-ignore
     context: {
       parents?: FormRecipeConfiguration[];
       current: FormRecipeConfiguration;

@@ -5,7 +5,7 @@ import { trpc } from "@/utils";
 import { Link, useLocation, useParams } from "wouter";
 
 export default function DeleteUser() {
-  let { userId } = useParams();
+  const { userId } = useParams();
   const userQuery = trpc.users.detail.useQuery(
     { id: parseInt(userId || "") },
     { enabled: !!parseInt(userId || "") }
