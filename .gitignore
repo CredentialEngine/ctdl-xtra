@@ -34,6 +34,9 @@ lerna-debug.log*
 !.env.example
 !**/.env.example
 
+# Local Docker Compose (copy from docker-compose.example.yml)
+docker-compose.yml
+
 # Build/test output
 dist/
 dist-ssr/
@@ -61,3 +64,4 @@ override.tf.json
 *_override.tf.json
 .terraformrc
 terraform.rc
+.pnpm-store
