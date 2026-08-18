@@ -12,11 +12,13 @@ This guide explains every option available when configuring a **recipe** in CTDL
 2. [Recipe Levels (Hierarchy)](#recipe-levels-hierarchy)
 3. [Page Load Wait Time](#page-load-wait-time)
 4. [Page Types](#page-types)
-5. [Link RegExp (Link Pattern)](#link-regexp-link-pattern)
-6. [Dynamic Catalogue (Click-Based Discovery)](#dynamic-catalogue-click-based-discovery)
-7. [Pagination](#pagination)
-8. [Exact Link Pattern Match](#exact-link-pattern-match)
-9. [Testing Your Recipe](#testing-your-recipe)
+5. [Content Element Selector](#content-element-selector)
+6. [Page Actions](#page-actions)
+7. [Link RegExp (Link Pattern)](#link-regexp-link-pattern)
+8. [Dynamic Catalogue (Click-Based Discovery)](#dynamic-catalogue-click-based-discovery)
+9. [Pagination](#pagination)
+10. [Exact Link Pattern Match](#exact-link-pattern-match)
+11. [Testing Your Recipe](#testing-your-recipe)
 
 ---
 
@@ -57,6 +59,17 @@ Recipes can have multiple **levels** (steps). Each level has its own page type a
    - If `DETAIL_LINKS` or `CATEGORY_LINKS`: find more links, then go to Level 3.
 3. **Level 3 and beyond:** Same logic, until you reach `DETAIL` pages.
 
+At each non-`DETAIL` level, if **Has Pagination** is enabled, xTRA fetches all paginated URLs for that level first, then collects links from each page before moving to the next level.
+
+### Per-level vs recipe-wide options
+
+| Scope | Options |
+|-------|---------|
+| **Recipe-wide (Level 1 form only)** | Page Load Wait Time |
+| **Per level** | Page Type, Content Element Selector, Page actions, Link RegExp, Dynamic catalogue, Pagination, Exact Link Pattern Match |
+
+The nested `links` object stores the next level's configuration.
+
 ### Example structures
 
 **Simple (one level):**  
@@ -79,13 +92,15 @@ Catalogue URL → `CATEGORY_LINKS` → `DETAIL_LINKS` → `DETAIL`
 
 ## Page Load Wait Time
 
-**Location:** Top of the recipe configuration form  
+**Location:** Top of the recipe configuration form (recipe-wide, not per level)  
 **Type:** Number (seconds)  
 **Default:** 0
 
 ### What it does
 
-Adds an extra wait after the page loads before xTRA starts processing it. This gives the page time to show content that appears after the initial load.
+Adds an extra wait after the page loads (and after any [Page actions](#page-actions) on that level) before xTRA captures page content. This gives every page in the extraction time to show content that appears after the initial load.
+
+This setting applies to **all levels** of the recipe from the root configuration — it is not configurable separately per level.
 
 ### When to use it
 
@@ -154,9 +169,82 @@ Page type describes what kind of content is on the page and what xTRA should do 
 
 ---
 
-### API_REQUEST and EXPLORATORY
+### API_REQUEST
 
-These are used for special integrations (e.g., API-based catalogues) and exploratory crawling. They are not typically used when configuring recipes manually.
+**Meaning:** The catalogue is served via a vendor API rather than HTML pages. xTRA skips browser crawling and fetches data directly from the provider.
+
+**When to use:** Automatically detected for supported vendors (currently **Coursedog**). You do not configure this manually in most cases — auto-detection sets `apiProvider` and provider-specific config when the catalogue URL matches a known API pattern.
+
+**What happens during extraction:** Instead of `FETCH_ROOT` → link following → detail pages, xTRA runs a single `FETCH_VIA_API` step and extracts structured data from the API response.
+
+---
+
+### EXPLORATORY
+
+Used internally for experimental crawling flows. Not available for manual recipe configuration in the UI.
+
+---
+
+## Content Element Selector
+
+**Location:** Each recipe level (optional checkbox)  
+**Type:** Text (CSS selector)
+
+### What it does
+
+When set, xTRA restricts page content to the HTML element matched by the selector before converting the page to simplified markdown. Navigation, footers, sidebars, and other page chrome outside that element are ignored.
+
+This affects both link detection (Link RegExp runs against the simplified text from that element only) and LLM extraction on detail pages.
+
+### When to use it
+
+- **Use it when:** Pages contain large amounts of irrelevant content (global nav, ads, footers) that slows extractions or adds noise.
+- **Leave it off when:** The default full-page simplification already captures what you need.
+
+### How to choose a selector
+
+1. Open the catalogue page in your browser.
+2. Right-click the main content area (course list, program details, etc.) → **Inspect**.
+3. Look for a stable `id` or `class` on the container:
+   - `id="main-content"` → `#main-content`
+   - `class="course-list"` → `.course-list`
+   - nested: `#catalog .content`
+
+**Important:** The selector must match an element that exists when the page loads. If it matches nothing, the page fetch fails with a content-selector error.
+
+---
+
+## Page Actions
+
+**Location:** Each recipe level (optional checkbox labeled **Page actions**)  
+**Type:** Ordered list of steps (Click or Wait)
+
+### What it does
+
+Runs a sequence of browser actions **after the page loads** and **before** xTRA performs its main work on that level (link extraction, dynamic clicking, or detail extraction). Steps run in order:
+
+- **Click** — waits for a CSS selector, then clicks it (e.g., dismiss a cookie banner, open a tab, expand a section).
+- **Wait** — pauses for a number of seconds (1–600) to allow content to appear.
+
+Page actions are applied on every page fetch at that recipe level, including when dynamic catalogue re-navigates back to the starting URL between clicks.
+
+### When to use it
+
+- **Use it when:** Content or links only appear after user interaction (accept cookies, choose a term/year, click a tab, wait for lazy-loaded lists).
+- **Leave it off when:** The page is ready immediately after load (aside from any [Page Load Wait Time](#page-load-wait-time) you already configured).
+
+### Example flows
+
+| Scenario | Steps |
+|----------|-------|
+| Cookie banner | Click → `#accept-cookies` |
+| Term picker | Click → `.term-2025-26`, then Wait → 2 seconds |
+| Tabbed catalogue | Click → `a[href="#courses"]`, then Wait → 3 seconds |
+
+### Scope
+
+- **Per level:** Each recipe level has its own page actions. Level 2 can dismiss a different overlay than Level 1.
+- **Recipe Tester:** Page actions are included when you test link detection, so you can verify the page is in the right state before links are collected.
 
 ---
 
@@ -183,7 +271,7 @@ If we look at how xTRA sees the page (Copy simplified page text, from Recipe Tes
 ```
 This something called Markdown and unlike HTML, it is much easier for the AI models to reason about than the HTML web pages use to display content.
 
-So, we need to use RegExp to tell extra to pick up `2025-26/course/acct111` and `2025-26/course/acct113`.
+So, we need to use RegExp to tell xTRA to pick up `2025-26/course/acct111` and `2025-26/course/acct113`.
 
 For these two examples, the right pattern is:
 `2025-26\/course\/([A-z0-9])+`
@@ -193,12 +281,13 @@ We can think of the pattern in 3 groups
 - `\/course\/` - this matches `/course/` but we need to escape `/` with a `\` because `/` on its own has special meaning in the RegExp syntax so we need to tell it to not treat it as such.
 - `([A-z0-9])+` - Matches anything in the rage of A to z or 0 to 9, so both upper and lower case letters or any digit. The `+` sign tells RegExp to allow matching one or more characters that conform to the range. But why won't this include the rest of the page? Because we notice in the text that xTRA sees above that we have a bracket: `)`. Since this does not conform to our range, the expression stops before `)` is encountered, leaving us with `2025-26/course/acct111`. If there would be no bracket, then the RegExp would still stop because because at the end there is a new line. And new lines are also considered characters but our range only matches A-z, 0-9, so new line characters are also not in the specified range.
 
-Sites like [regex101.com]() have an explanation feature and can be used for other examples.
+Sites like [regex101.com](https://regex101.com) have an explanation feature and can be used for other examples.
 <img src="./assets/regex101-example.png">
 
 ### When to use it
 
-- **Required for:** `DETAIL_LINKS` and `CATEGORY_LINKS` pages.
+- **Required for:** `DETAIL_LINKS` and `CATEGORY_LINKS` pages when [Dynamic catalogue](#dynamic-catalogue-click-based-discovery) is **off**.
+- **Optional but recommended when Dynamic catalogue is on:** xTRA discovers URLs by clicking first; Link RegExp then **filters** those URLs to keep only the ones you want.
 - **Not used for:** `DETAIL` pages (no links to follow).
 
 ### Where to get the pattern
@@ -290,12 +379,12 @@ However, some catalogues have some scripting logic that perform some action and 
 2. It scrolls to the bottom (to reveal any content that loads when you scroll).
 3. It finds the container element using your selector.
 4. Inside that container, it finds all elements that are clickable (links, buttons, or elements with a pointer cursor).
-5. For each clickable element, it clicks it and waits up to 15 seconds for the URL to change.
-6. **If the URL changes:** xTRA records the new URL, goes back to the starting page, and continues with the next element.
-7. **If the URL does not change** (e.g., a dropdown opens, or a "Show more" expands content on the same page): xTRA waits the full 15 seconds, then **the process fails with an error**. It does not skip and continue — the extraction stops.
+5. For each clickable element, it clicks it and waits (up to ~15 seconds) for the URL to change via navigation or SPA-style updates.
+6. **If the URL changes:** xTRA records the new URL, goes back to the starting page, re-applies [Page actions](#page-actions) if configured, and continues with the next element.
+7. **If the URL does not change** (e.g., a dropdown opens, or a "Show more" expands content on the same page): xTRA **skips that element** and continues with the next one. No URL is recorded for that click.
 8. **If the element cannot be clicked** (e.g., it is obscured or not yet visible): xTRA skips that element and continues with the next one.
 
-**Important:** Use a selector that targets only the area with links that navigate to new pages. If the container includes buttons or links that do not change the URL (dropdowns, expand buttons, etc.), the process will fail when it clicks one of them. Narrow your selector to avoid those elements.
+**Important:** Use a selector that targets the area with links that navigate to new pages. Clicks on elements that do not change the URL are silently skipped, but they still consume time during discovery. Narrow your selector to avoid navigation chrome, dropdowns, and expand-only controls when possible.
 
 **How to choose the right selector:**
 - **Start with `body`** if you are unsure — this tells xTRA to look everywhere on the page. It works but is slow and may click navigation, footer, and other links you do not need. The resulting links will still go through the recipe RegExp pattern, it'll just take longer to collect all page links and in some extreme cases the extraction maximum allowed time could be exceeded marking it as 'stale'.
@@ -329,9 +418,9 @@ However, some catalogues have some scripting logic that perform some action and 
 **Location:** Under Dynamic catalogue  
 **Type:** Number (milliseconds, optional)
 
-**What it does:** How long xTRA will wait for the page to load and for your selector to appear. Default is 30 seconds. If the page or selector takes longer to appear, increase this value (e.g., 45000 for 45 seconds, up to 60000).
+**What it does:** Maximum time (timeout) for page operations during dynamic discovery — network idle, waiting for the Dynamic URL Selector to appear, navigation after clicks, and scrolling. Default is 30,000 ms (30 seconds). Maximum allowed value is 60,000 ms.
 
-**When to use:** Leave empty to use the default. Increase only if the page loads slowly or you see timeouts. This does **not** add a delay after each click — it only affects how long xTRA waits for the initial page load.
+**When to use:** Leave empty to use the default. Increase if the page or selector loads slowly and discovery times out. This is **not** an extra pause after each click; it sets how long xTRA waits for slow pages and navigations before giving up on an individual operation.
 
 ---
 
@@ -366,6 +455,8 @@ Tells xTRA that the content is split across multiple pages (e.g., “Page 1 of 1
 - **offset:** The URL uses an offset (0, 20, 40…).  
   Example: `https://catalog.example.edu/courses?offset=20`
 
+**Note:** Only `page_num` is fully supported today. The `offset` pattern type appears in the UI but is not yet implemented in the crawler — use `page_num` unless offset support is added.
+
 ### URL Pattern
 
 **Format:** The full URL for a paginated page, with the changing part replaced by a placeholder:
@@ -379,9 +470,9 @@ Tells xTRA that the content is split across multiple pages (e.g., “Page 1 of 1
 
 **Type:** Number
 
-**What it is:** The total number of pages to crawl.
+**What it is:** The total number of pages to crawl (minimum estimate).
 
-**Where to find it:** Look for “Page 1 of X” or the last page number on the site. If unsure, use a higher number; xTRA will stop when there is no more content.
+**Where to find it:** Look for “Page 1 of X” or the last page number on the site. During extraction, xTRA may also use an LLM pass on the first page to refine the page count; if detection fails, the **Total Pages** value from your recipe is used as a fallback.
 
 ### Start Page
 
@@ -432,9 +523,11 @@ Controls how xTRA builds URLs for the next level:
 
 **How to use it:**
 1. Enter the URL of a page you want to test (e.g., a course index).
-2. Enter or paste your Link RegExp (or use the one from the recipe).
+2. Enter or paste your Link RegExp (or use the one from the recipe). When Dynamic catalogue is enabled, RegExp is optional and filters discovered URLs.
 3. Click **Test URL Detection** or **Test Regex**.
 4. Review the list of matching links.
+
+The tester uses the same options as the recipe: Page Load Wait Time, Page actions, Dynamic catalogue settings, and Exact Link Pattern Match. Dynamic catalogue tests can take several minutes.
 
 **Interpretation:**
 - If the list looks correct (only relevant links), the pattern is good.
@@ -454,14 +547,16 @@ Use these when creating or tuning a recipe; you can still adjust the results man
 
 | Option | When to use | Where to find the value |
 |--------|--------------|--------------------------|
-| **Page Load Wait Time** | Content appears gradually after load | Time until content appears (seconds) |
+| **Page Load Wait Time** | Content appears gradually after load (all levels) | Time until content appears (seconds) |
 | **Page Type** | Always | Type of page (links, categories, or detail) |
-| **Link RegExp** | For links/category pages | Detect button or by inspecting URLs |
-| **Dynamic catalogue** | Links require URL change after click | Check if URL changes when you click; expanding sections on the same page don't need it |
+| **Content Element Selector** | Page has lots of irrelevant chrome | Inspect main content container in dev tools |
+| **Page actions** | Content/links need clicks or waits after load | Cookie banners, term pickers, tabs |
+| **Link RegExp** | Links/category pages (required unless Dynamic catalogue) | Detect button or by inspecting URLs |
+| **Dynamic catalogue** | Links require URL change after click | Check if URL changes when you click |
 | **Dynamic URL Selector** | When Dynamic catalogue is on | Inspect the page to find the right selector |
-| **Click Limit** | Dynamic catalogue with many elements | Number of clickable elements |
-| **Wait (ms)** | Page loads slowly | Max wait for page/selector (default 30s) |
-| **Pagination** | Content split across pages | Detect button or inspect pagination |
+| **Click Limit** | Dynamic catalogue with many elements | Number of clickable elements (max 10,000) |
+| **Wait (ms)** | Slow pages during dynamic discovery | Operation timeout (default 30s, max 60s) |
+| **Pagination** | Content split across pages (`page_num` only) | Detect button or inspect pagination |
 | **Exact Link Pattern Match** | Duplicate path segments in URLs | Keep off unless needed |
 
 ---
@@ -469,6 +564,6 @@ Use these when creating or tuning a recipe; you can still adjust the results man
 ## Getting Help
 
 - Use **Detect** for Link RegExp and Pagination when possible.
-- Use the **Recipe Tester** to verify link extraction.
+- Use the **Recipe Tester** to verify link extraction (including Page actions and Dynamic catalogue).
 - Start with a simple recipe (one or two levels) and add levels only if the site structure requires it.
-- If extractions fail or return wrong data, check: page type, link pattern, pagination, and whether Dynamic catalogue is needed.
+- If extractions fail or return wrong data, check: page type, [Content Element Selector](#content-element-selector), [Page actions](#page-actions), link pattern, pagination, and whether Dynamic catalogue is needed.

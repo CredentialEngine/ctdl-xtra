@@ -1,0 +1,126 @@
+name: xtra
+
+services:
+  redis:
+    image: redis:7-alpine
+    container_name: xtra_redis
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  xtra:
+    container_name: xtra
+    platform: linux/amd64
+    build:
+      context: .
+      dockerfile: server/Dockerfile.dev
+      platforms:
+        - linux/amd64
+      args:
+        DEV_UID: ${DEV_UID:-1000}
+        DEV_GID: ${DEV_GID:-1000}
+    cap_add:
+      - NET_BIND_SERVICE
+    security_opt:
+      - seccomp:unconfined
+    env_file:
+      - server/.env
+      - .env
+    environment:
+      DEV_UID: ${DEV_UID:-1000}
+      DEV_GID: ${DEV_GID:-1000}
+      DEBUG: ${DEBUG:-}
+      DEBUG_SERVICE: server
+      SERVER_DBG_PORT: ${SERVER_DBG_PORT:-9229}
+      PORT: "80"
+      REDIS_URL: redis://redis:6379
+      EXTRACTION_FILES_PATH: /data/extractions
+    expose:
+      - "${SERVER_DBG_PORT:-9229}"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - ./server:/app
+      - ./common:/common
+      - server-node-modules-amd64:/app/node_modules
+      - extraction-data:/data/extractions
+      - puppeteer-cache:/home/pptruser/.cache/puppeteer
+    ports:
+      - "${SERVER_PORT:-8080}:80"
+      # Uncomment to publish Node inspect to localhost (omit if attaching via container IP/DNS):
+      # - "${SERVER_DBG_PUBLISH_PORT:-${SERVER_DBG_PORT:-9229}}:${SERVER_DBG_PORT:-9229}"
+    depends_on:
+      redis:
+        condition: service_healthy
+    command: ["pnpm", "run", "dev"]
+
+  worker:
+    container_name: xtra_worker
+    platform: linux/amd64
+    build:
+      context: .
+      dockerfile: worker.Dockerfile
+      platforms:
+        - linux/amd64
+    entrypoint: ["sh", "/app/docker-dev-entrypoint.sh"]
+    security_opt:
+      - seccomp:unconfined
+    env_file:
+      - server/.env
+      - .env
+    environment:
+      DEV_UID: ${DEV_UID:-1000}
+      DEV_GID: ${DEV_GID:-1000}
+      DEBUG: ${DEBUG:-}
+      DEBUG_SERVICE: worker
+      WORKER_DBG_PORT: ${WORKER_DBG_PORT:-9230}
+      REDIS_URL: redis://redis:6379
+      EXTRACTION_FILES_PATH: /data/extractions
+    expose:
+      - "${WORKER_DBG_PORT:-9230}"
+    # Uncomment to publish Node inspect to localhost (omit if attaching via container IP/DNS):
+    # ports:
+    #   - "${WORKER_DBG_PUBLISH_PORT:-${WORKER_DBG_PORT:-9230}}:${WORKER_DBG_PORT:-9230}"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - ./server:/app
+      - ./common:/common
+      - server-node-modules-amd64:/app/node_modules
+      - extraction-data:/data/extractions
+      - puppeteer-cache:/home/pptruser/.cache/puppeteer
+    depends_on:
+      redis:
+        condition: service_healthy
+    command: ["pnpm", "exec", "tsx", "src/worker.ts"]
+
+  xtra_fe:
+    container_name: xtra_fe
+    build:
+      context: .
+      dockerfile: client/Dockerfile.dev
+    env_file:
+      - client/.env
+      - .env
+    environment:
+      VITE_API_URL: ${VITE_API_URL:-http://localhost:8080}
+    volumes:
+      - ./client:/app
+      - ./common:/common
+      - client-node-modules:/app/node_modules
+    ports:
+      - "${FRONTEND_PORT:-8081}:80"
+    depends_on:
+      - xtra
+    command: ["pnpm", "exec", "vite", "--host", "0.0.0.0", "--port", "80"]
+
+volumes:
+  redis-data:
+  extraction-data:
+  server-node-modules-amd64:
+  client-node-modules:
+  puppeteer-cache:
