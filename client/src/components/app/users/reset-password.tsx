@@ -22,7 +22,7 @@ export default function ResetUserPassword() {
   const [generatedPassword, setGeneratedPassword] = useState<
     string | undefined
   >(undefined);
-  let { userId } = useParams();
+  const { userId } = useParams();
   const userQuery = trpc.users.detail.useQuery(
     { id: parseInt(userId || "") },
     { enabled: !!parseInt(userId || "") }

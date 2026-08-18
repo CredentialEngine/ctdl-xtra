@@ -56,7 +56,7 @@ const FormSchema = z.object({
 });
 
 export default function CatalogueCreateExtraction() {
-  let { catalogueId, recipeId } = useParams();
+  const { catalogueId, recipeId } = useParams();
   const [_recipe, setRecipe] = useState<Recipe | null>(null);
   const catalogueDetail = trpc.catalogues.detail.useQuery(
     { id: parseInt(catalogueId || "") },

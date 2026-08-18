@@ -28,7 +28,7 @@ function displayDataType(dataType: PageType) {
 }
 
 export default function CrawlStepDetail() {
-  let { extractionId, stepId } = useParams();
+  const { extractionId, stepId } = useParams();
   const { page, PaginationButtons } = usePagination();
   const extractionQuery = trpc.extractions.detail.useQuery(
     { id: parseInt(extractionId || "") },
