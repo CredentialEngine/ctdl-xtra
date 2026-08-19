@@ -33,6 +33,7 @@ function processorPath(name: string) {
 
 const processors: [Queue, string, number][] = [
   [Queues.DetectConfiguration, processorPath("detectConfiguration"), 2],
+  [Queues.AgenticRecipeConfig, processorPath("agenticRecipeConfig"), 2],
   [Queues.FetchPage, processorPath("fetchPage"), 2],
   [Queues.ExtractData, processorPath("extractData"), 2],
   [Queues.ExtractDataWithAPI, processorPath("extractDataWithApi"), 2],

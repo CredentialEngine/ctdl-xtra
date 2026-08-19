@@ -38,7 +38,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { HelpCircle, Search } from "lucide-react";
+import { HelpCircle, LoaderIcon, Search } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import {
   CatalogueType,
@@ -162,7 +162,7 @@ const FormSchema = z.object({
   manualConfig: z.boolean().default(false),
   configuration: RecipeConfigurationSchema.optional(),
   acknowledgedSkipRobotsTxt: z.boolean().default(false),
-  creationMode: z.enum(["detect", "manual", "template"]).default("detect"),
+  creationMode: z.enum(["detect", "agentic", "manual", "template"]).default("detect"),
 });
 
 export default function CreateRecipe() {
@@ -262,7 +262,7 @@ export default function CreateRecipe() {
       form.setValue("manualConfig", true);
     } else {
       form.setValue("manualConfig", false);
-      if (creationMode === "detect") {
+      if (creationMode === "detect" || creationMode === "agentic") {
         form.setValue("configuration", undefined);
       }
     }
@@ -314,6 +314,7 @@ export default function CreateRecipe() {
             ? data.configuration
             : undefined,
         acknowledgedSkipRobotsTxt: data.acknowledgedSkipRobotsTxt,
+        mode: creationMode === "agentic" ? "agentic" : creationMode === "detect" ? "detect" : undefined,
       });
       if (result.context?.message) {
         toast({
@@ -324,6 +325,10 @@ export default function CreateRecipe() {
       navigate(`/${catalogueId}/recipes/${result.id}`);
     } catch (err) {
       toast({
+        title:
+          creationMode === "agentic"
+            ? "Could not start agentic configuration"
+            : "Could not create recipe",
         description: (err as Error).message,
         variant: "destructive",
       });
@@ -506,7 +511,7 @@ export default function CreateRecipe() {
                                 }
                                 form.setValue("manualConfig", true);
                                 setSelectedTemplateId(null);
-                              } else if (value === "detect") {
+                              } else if (value === "detect" || value === "agentic") {
                                 form.setValue("manualConfig", false);
                                 form.setValue("configuration", undefined);
                                 setSelectedTemplateId(null);
@@ -522,6 +527,7 @@ export default function CreateRecipe() {
                             </FormControl>
                             <SelectContent>
                               <SelectItem value="detect">Auto-detect</SelectItem>
+                              <SelectItem value="agentic">Agentic</SelectItem>
                               <SelectItem value="manual">Manual</SelectItem>
                               <SelectItem value="template">From template</SelectItem>
                             </SelectContent>
@@ -529,6 +535,8 @@ export default function CreateRecipe() {
                           <FormDescription>
                             {creationMode === "detect"
                               ? "Automatically detect recipe configuration using AI"
+                              : creationMode === "agentic"
+                                ? "Start agentic configuration in the background; progress appears on the recipe page"
                               : creationMode === "manual"
                                 ? "Manually configure the recipe"
                                 : "Use an existing recipe as a template"}
@@ -744,7 +752,18 @@ export default function CreateRecipe() {
 
             <div className="flex items-center">
               <Button disabled={createRecipe.isLoading} type="submit">
-                Next
+                {createRecipe.isLoading ? (
+                  <>
+                    <LoaderIcon className="animate-spin mr-2 h-4 w-4" />
+                    {creationMode === "agentic"
+                      ? "Starting agent…"
+                      : creationMode === "detect"
+                        ? "Detecting…"
+                        : "Saving…"}
+                  </>
+                ) : (
+                  "Next"
+                )}
               </Button>
             </div>
           </form>

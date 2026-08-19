@@ -54,6 +54,34 @@ interface RecipeListProps {
   catalogue: Catalogue;
 }
 
+function RecipeStatusLabel({ recipe }: { recipe: Recipe }) {
+  const jobStatusQuery = trpc.recipes.configurationJobStatus.useQuery(
+    { recipeId: recipe.id },
+    {
+      enabled: recipe.status !== RecipeDetectionStatus.SUCCESS,
+      refetchInterval: recipe.status !== RecipeDetectionStatus.SUCCESS ? 2000 : false,
+    }
+  );
+
+  if (recipe.status === RecipeDetectionStatus.SUCCESS) {
+    return null;
+  }
+
+  if (
+    jobStatusQuery.data?.kind === "agentic" &&
+    (recipe.status === RecipeDetectionStatus.WAITING ||
+      recipe.status === RecipeDetectionStatus.IN_PROGRESS)
+  ) {
+    return (
+      <Badge variant="secondary" className="ml-1">
+        Agentic · In progress
+      </Badge>
+    );
+  }
+
+  return <>— Draft</>;
+}
+
 const RecipeList = ({ catalogue }: RecipeListProps) => {
   return (
     <Card>
@@ -79,9 +107,7 @@ const RecipeList = ({ catalogue }: RecipeListProps) => {
                   <div className="flex items-center gap-2">
                     <span>
                       {recipe.name || `Recipe #${recipe.id}`}{" "}
-                      {recipe.status == RecipeDetectionStatus.SUCCESS
-                        ? null
-                        : "— Draft"}
+                      <RecipeStatusLabel recipe={recipe as Recipe} />
                     </span>
                     {recipe.description && (
                       <TooltipProvider>
