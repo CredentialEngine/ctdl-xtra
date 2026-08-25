@@ -1,6 +1,7 @@
 import { CatalogueType, PageType } from "../../../common/types";
 import { findCatalogueById } from "../data/catalogues";
 import { startRecipe } from "../data/recipes";
+import { toWatchRef } from "../jobWatching";
 import getLogger from "../logging";
 import { bestOutOf } from "../utils";
 import { Queues, submitJob } from "../workers";
@@ -44,14 +45,16 @@ export async function submitRecipeDetection(
   const result = await startRecipe(catalogueId, url, pageType);
   logger.info(`Created recipe ${result.id}`);
   const id = result.id;
+  const jobId = `detectConfiguration.${id}`;
   await submitJob(
     Queues.DetectConfiguration,
     { recipeId: id, triggeredByUserId: triggeredByUserId ?? null },
-    `detectConfiguration.${id}`
+    jobId
   );
   return {
     id,
     pageType,
     message,
+    ...toWatchRef(Queues.DetectConfiguration, jobId),
   };
 }

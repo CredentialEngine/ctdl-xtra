@@ -8,6 +8,7 @@ import { cataloguesRouter } from "./routers/catalogues";
 import { datasetsRouter } from "./routers/datasets";
 import { extractionsRouter } from "./routers/extractions";
 import { institutionsRouter } from "./routers/institutions";
+import { jobWatchingRouter } from "./routers/jobWatching";
 import { recipesRouter } from "./routers/recipes";
 import { settingsRouter } from "./routers/settings";
 import { usersRouter } from "./routers/users";
@@ -21,6 +22,7 @@ const appRouter = router({
   recipes: recipesRouter,
   extractions: extractionsRouter,
   users: usersRouter,
+  jobWatching: jobWatchingRouter,
 });
 
 export { appRouter };
