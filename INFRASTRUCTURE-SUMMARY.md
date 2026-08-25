@@ -56,6 +56,13 @@ Runs **inside the cluster** as a StatefulSet (not AWS ElastiCache).
 - ReadWriteMany — both API and Worker pods see the same files
 - Persistent across deploys and pod restarts
 
+| | Test | Sandbox | Production |
+|---|---|---|---|
+| File system id | `fs-0b3bfe1beaf5ed573` | `fs-093db3f7f152e19d7` | `fs-0ade50f1051fb7502` |
+| Name tag | `ctdl-xtra-test-files` | `ctdl-xtra-sandbox-files` | `ctdl-xtra-prod-files` |
+
+`deploy-app.sh` looks up the file system id by Name tag at deploy time and substitutes it into the static PV manifest, so you don't reference the id by hand.
+
 ## Secrets
 
 Stored in **AWS Secrets Manager**, synced into the cluster by the External Secrets operator. Pods read them as plain env vars (`envFrom: secretRef`).
@@ -78,6 +85,18 @@ Current keys in the app secret:
 - `NODE_ENV`
 - `PORT`
 
+## Nodes
+
+Two managed node groups per cluster (`system` and `app`), labeled `nodepool=system` and `nodepool=app`. The app group also carries `workload=ctdl-xtra`, which is the selector redis pins itself to.
+
+| | Test | Sandbox | Production |
+|---|---|---|---|
+| System node group | 1× t3.medium (1-2 autoscale) | 1× t3.medium (1-2 autoscale) | 2× t3.medium (2-4 autoscale) |
+| App node group | 1× t3.medium (1-2 autoscale) | 1× t3.medium (1-2 autoscale) | 2× t3.large (2-4 autoscale) |
+| NAT Gateway | 1 (shared across AZs) | 1 (shared across AZs) | 1 (shared across AZs) |
+
+Cluster autoscaler runs in each cluster and grows/shrinks the node groups based on pending pods.
+
 ## Deployments
 
 In each cluster's `ctdl-xtra` namespace:
@@ -89,7 +108,17 @@ In each cluster's `ctdl-xtra` namespace:
 | `redis` | StatefulSet | 1 | 1 | 1 |
 | `ctdl-xtra-db-migrate` | Job (one-shot per deploy) | — | — | — |
 
-The migrate Job runs `drizzle-kit migrate` before each rollout via the deploy script.
+The migrate Job runs `drizzle-kit migrate` before each rollout via the deploy script. Test and Sandbox use lighter resource requests/limits than Production to fit on t3.medium.
+
+## Cluster add-ons
+
+Same five Helm/manifest installs in every cluster, all managed via `k8s-manifests/<env>/addons/install-foundation.sh`:
+
+- **cert-manager** — TLS via Let's Encrypt (HTTP-01 / DNS-01)
+- **external-secrets** — syncs AWS Secrets Manager → K8s Secrets
+- **ingress-nginx** — L7 ingress + ALB
+- **metrics-server** — pod/node metrics for HPA and `kubectl top`
+- **cluster-autoscaler** — scales the EKS node groups based on pending pods
 
 ## Skooner dashboards
 

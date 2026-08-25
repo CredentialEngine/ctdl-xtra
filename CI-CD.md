@@ -38,6 +38,67 @@ This mirrors the environment model in the xTRA Design Document: `DEVELOPMENT →
 
 ---
 
+## What happens when you merge to `main`
+
+Concrete walkthrough. Say you merge `feat/something` at `10:00:00`. The commit sha is `abc1234…`.
+
+| Time | Event | Why |
+|---|---|---|
+| `10:00:00` | Merge to `main` lands | GitHub fires a `push` event |
+| `10:00:05` | `Release` workflow starts | Its trigger is `push: branches: [main]` |
+| `10:00:05` | `Build Base Image` evaluates trigger | Only fires if `base.Dockerfile` changed in this commit. Usually skipped |
+| `~10:06:00` | `Release` finishes | Three jobs ran: `lint` and `test` non-blocking (`continue-on-error: true`), `publish` independently built+pushed `ctdl-xtra-test/{api,worker}:sha-abc1234` and `:main-latest` |
+| `10:06:05` | `Deploy to TEST` auto-fires | Triggered by `workflow_run` event from Release. Its `if:` checks `conclusion == 'success'` and proceeds |
+| `~10:10:00` | TEST is live with `sha-abc1234` | Pods rolled out, db-migrate Completed, app reachable at `xtra-test.credentialengineregistry.org` |
+
+Then the pipeline **stops automatically**. SANDBOX and PRODUCTION don't move on their own.
+
+When you're ready to promote:
+
+| Action | Effect | Time |
+|---|---|---|
+| **Actions → Promote to SANDBOX → Run workflow**, type `sha-abc1234` | `crane copy` TEST → SANDBOX ECR (no rebuild, same digest), then deploy to `ctdl-xtra-sandbox` | ~4 min |
+| **Actions → Promote to PRODUCTION → Run workflow**, type `sha-abc1234` | `crane copy` SANDBOX → PROD ECR (no rebuild, same digest), then deploy to `ctdl-xtra-prod` | ~4 min |
+
+The image you put in PRODUCTION is byte-for-byte the same image that was tested in TEST and SANDBOX — never rebuilt.
+
+---
+
+## How `workflow_run` chains Release → Deploy to TEST
+
+GitHub Actions has a `workflow_run` trigger that lets one workflow fire automatically when another workflow finishes. It's how we get auto-deploy to TEST without a human in the middle.
+
+In `deploy-test.yml`:
+
+```yaml
+on:
+  workflow_run:
+    workflows: ["Release"]   # upstream workflow's name
+    types: [completed]        # fire when it finishes (success or fail)
+    branches: [main]          # only when Release ran on main
+```
+
+The deploy job guards with `if: github.event.workflow_run.conclusion == 'success'`, so a failed Release still triggers Deploy to TEST but the job exits as "Skipped" instead of deploying a broken build.
+
+Two quirks worth knowing:
+
+1. **The triggered workflow runs against the default branch (`main`), not against the commit that produced the upstream run.** We work around it by passing `ref: ${{ github.event.workflow_run.head_sha }}` to `actions/checkout` so the deploy script and manifests match the commit that was actually built. The image tag is computed from the same sha (`sha-${head_sha:0:7}`).
+2. **You can also run `deploy-test.yml` manually** via `workflow_dispatch` with an explicit `image_tag` input — useful for rolling back to an older sha without going through Release.
+
+---
+
+## Failure modes
+
+| What fails | What you'll see | Effect |
+|---|---|---|
+| Lint or tests in Release | Red ⚠ on the run but Release still succeeds | None — those jobs have `continue-on-error: true`. Will be tightened later. |
+| Docker build in Release | Red ✗ on Release | Deploy to TEST runs but the `if:` guard skips the deploy job (you'll see a grey "Skipped" run) |
+| `ctdl-xtra-db-migrate` Job fails | Deploy workflow fails after waiting up to 5 min | Pods don't get rolled out. `kubectl describe job/ctdl-xtra-db-migrate` shows the error |
+| App pods don't become Ready | `kubectl rollout status` times out at 5 min, deploy fails | Old pods keep serving (current rollout strategy doesn't drop them until new ones are healthy) |
+| `crane copy` source missing | Promote workflow fails immediately | Promotion didn't happen; target ECR unchanged |
+
+---
+
 ## Workflows
 
 ### CI (`ci.yml`) — Pull Request
