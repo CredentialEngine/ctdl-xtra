@@ -26,6 +26,7 @@ import {
 } from "../extraction/robotsParser";
 import { submitRecipeDetection } from "../extraction/submitRecipeDetection";
 import { submitAgenticRecipeDetection } from "../extraction/submitAgenticRecipeDetection";
+import { toWatchRef } from "../jobWatching";
 import getLogger from "../logging";
 import { SimplifiedMarkdown } from "../types";
 import { bestOutOf, exponentialRetry, normalizeUrl } from "../utils";
@@ -125,6 +126,9 @@ export const recipesRouter = router({
       ): Promise<{
         id: number;
         context?: { pageType: PageType; message?: string };
+        queueName?: string;
+        jobId?: string;
+        watchKey?: string;
       }> => {
         try {
           const robotsTxt = await fetchAndParseRobotsTxt(opts.input.url);
@@ -202,6 +206,9 @@ export const recipesRouter = router({
                 pageType: detection.pageType,
                 message: detection.message ?? undefined,
               },
+              queueName: detection.queueName,
+              jobId: detection.jobId,
+              watchKey: detection.watchKey,
             };
           }
         } catch (error) {
@@ -227,15 +234,16 @@ export const recipesRouter = router({
       if (!recipe) {
         throw new AppError("Recipe not found", AppErrors.NOT_FOUND);
       }
+      const jobId = `detectConfiguration.${recipe.id}`;
       await submitJob(
         Queues.DetectConfiguration,
         {
           recipeId: opts.input.id,
           triggeredByUserId: opts.ctx.user?.id ?? null,
         },
-        `detectConfiguration.${recipe.id}`
+        jobId
       );
-      return;
+      return toWatchRef(Queues.DetectConfiguration, jobId);
     }),
   configurationJobStatus: publicProcedure
     .input(
@@ -253,10 +261,12 @@ export const recipesRouter = router({
         const progress = agenticJob.progress as
           | import("../workers").AgenticRecipeConfigProgress
           | undefined;
+        const watch = toWatchRef(Queues.AgenticRecipeConfig, agenticJobId);
         return {
           kind: "agentic" as const,
           state,
           progress: progress ?? null,
+          ...watch,
         };
       }
 
@@ -266,10 +276,12 @@ export const recipesRouter = router({
         const progress = detectJob.progress as
           | import("../workers").DetectConfigurationProgress
           | undefined;
+        const watch = toWatchRef(Queues.DetectConfiguration, detectJobId);
         return {
           kind: "detect" as const,
           state,
           progress: progress ?? null,
+          ...watch,
         };
       }
 
@@ -292,7 +304,7 @@ export const recipesRouter = router({
         jobId
       );
       if (existing === "active") {
-        return;
+        return toWatchRef(Queues.AgenticRecipeConfig, jobId);
       }
       await updateRecipe(recipe.id, {
         status: RecipeDetectionStatus.WAITING,
@@ -306,7 +318,7 @@ export const recipesRouter = router({
         },
         jobId
       );
-      return;
+      return toWatchRef(Queues.AgenticRecipeConfig, jobId);
     }),
   detectPagination: publicProcedure
     .input(
