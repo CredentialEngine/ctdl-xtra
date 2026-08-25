@@ -226,9 +226,16 @@ const defaultJobOptions: DefaultJobOptions = {
 
 const agenticRecipeConfigJobOptions: DefaultJobOptions = {
   attempts: 1,
-  removeOnComplete: true,
+  // BullMQ `age` is seconds. keepLogs caps the Redis list while the job exists;
+  // removeOnComplete.age keeps a finished job long enough for the UI to observe
+  // `completed` and drain logs. Durable log retention is intentionally omitted —
+  // use an off-the-shelf logging stack rather than persisting Bull transcripts here.
+  keepLogs: 500,
+  removeOnComplete: {
+    age: 60 * 60, // 1 hour
+  },
   removeOnFail: {
-    age: 1000 * 60 * 60 * 24 * 5, // 5 days
+    age: 60 * 60 * 24 * 5, // 5 days
   },
 };
 

@@ -85,7 +85,13 @@ server.register(async (instance) => {
       router: appRouter,
       createContext,
       onError(opts) {
-        logger.error(
+        const isClientError =
+          opts.error.code === "NOT_FOUND" ||
+          opts.error.code === "BAD_REQUEST" ||
+          opts.error.code === "UNAUTHORIZED" ||
+          opts.error.code === "FORBIDDEN";
+        const log = isClientError ? logger.warn : logger.error;
+        log(
           {
             path: opts.path,
             type: opts.error.name,
@@ -95,7 +101,7 @@ server.register(async (instance) => {
           "Error in tRPC request"
         );
 
-        if (!airbrake) {
+        if (!airbrake || isClientError) {
           return;
         }
 
