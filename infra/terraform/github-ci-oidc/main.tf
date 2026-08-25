@@ -157,3 +157,39 @@ resource "aws_iam_role_policy_attachment" "github_actions_eks" {
   role       = aws_iam_role.github_actions_ci.name
   policy_arn = aws_iam_policy.github_actions_eks.arn
 }
+
+# ---------------------------------------------------------------
+# Secrets Manager — read/write the app env secrets that ESO syncs
+# into the ctdl-xtra-app-env k8s Secret. Used by the
+# update-app-env workflow to push key changes from CI.
+# ---------------------------------------------------------------
+
+resource "aws_iam_policy" "github_actions_secretsmanager" {
+  name = "ctdl-xtra-github-actions-secretsmanager"
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid    = "AppEnvReadWrite"
+        Effect = "Allow"
+        Action = [
+          "secretsmanager:DescribeSecret",
+          "secretsmanager:GetSecretValue",
+          "secretsmanager:PutSecretValue",
+          "secretsmanager:ListSecretVersionIds",
+        ]
+        Resource = [
+          "arn:aws:secretsmanager:us-east-1:${local.aws_account_id}:secret:ctdl-xtra/test/app-*",
+          "arn:aws:secretsmanager:us-east-1:${local.aws_account_id}:secret:ctdl-xtra/sandbox/app-*",
+          "arn:aws:secretsmanager:us-east-1:${local.aws_account_id}:secret:ctdl-xtra/prod/app-*",
+        ]
+      },
+    ]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "github_actions_secretsmanager" {
+  role       = aws_iam_role.github_actions_ci.name
+  policy_arn = aws_iam_policy.github_actions_secretsmanager.arn
+}
