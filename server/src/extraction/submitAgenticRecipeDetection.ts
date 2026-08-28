@@ -1,6 +1,7 @@
 import { PageType } from "../../../common/types";
 import { findCatalogueById } from "../data/catalogues";
 import { startRecipe } from "../data/recipes";
+import { toWatchRef } from "../jobWatching";
 import getLogger from "../logging";
 import { Queues, submitJob } from "../workers";
 
@@ -23,14 +24,16 @@ export async function submitAgenticRecipeDetection(
   const result = await startRecipe(catalogueId, url, pageType);
   logger.info(`Created recipe ${result.id}`);
   const id = result.id;
+  const jobId = `agenticRecipeConfig.${id}`;
   await submitJob(
     Queues.AgenticRecipeConfig,
     { recipeId: id, triggeredByUserId: triggeredByUserId ?? null },
-    `agenticRecipeConfig.${id}`
+    jobId
   );
   return {
     id,
     pageType,
     message: null,
+    ...toWatchRef(Queues.AgenticRecipeConfig, jobId),
   };
 }
