@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { publicProcedure, router } from ".";
-import { CatalogueType, PageType, RecipeConfiguration, UrlPatternType } from "../../../common/types";
+import { CatalogueType, PageType, RecipeConfiguration, RecipeDetectionStatus, UrlPatternType } from "../../../common/types";
 import { AppError, AppErrors } from "../appErrors";
 import {
   createRecipe,
@@ -25,10 +25,11 @@ import {
   isUrlAllowed,
 } from "../extraction/robotsParser";
 import { submitRecipeDetection } from "../extraction/submitRecipeDetection";
+import { submitAgenticRecipeDetection } from "../extraction/submitAgenticRecipeDetection";
 import getLogger from "../logging";
 import { SimplifiedMarkdown } from "../types";
 import { bestOutOf, exponentialRetry, normalizeUrl } from "../utils";
-import { Queues, submitJob } from "../workers";
+import { Queues, removeJobIfInactive, submitJob } from "../workers";
 
 const logger = getLogger("routers.recipes");
 
@@ -115,6 +116,7 @@ export const recipesRouter = router({
         acknowledgedSkipRobotsTxt: z.boolean().optional(),
         name: z.string().optional(),
         description: z.string().optional(),
+        mode: z.enum(["detect", "agentic"]).optional(),
       })
     )
     .mutation(
@@ -173,8 +175,12 @@ export const recipesRouter = router({
               );
             }
 
-            logger.info(`No configuration provided. Starting recipe detection with background tasks (detect mode).`);
-            const detection = await submitRecipeDetection(
+            logger.info(`No configuration provided. Starting recipe detection with background tasks (${opts.input.mode ?? "detect"} mode).`);
+            const submitDetection =
+              opts.input.mode === "agentic"
+                ? submitAgenticRecipeDetection
+                : submitRecipeDetection;
+            const detection = await submitDetection(
               opts.input.url,
               opts.input.catalogueId,
               opts.ctx.user?.id
@@ -228,6 +234,77 @@ export const recipesRouter = router({
           triggeredByUserId: opts.ctx.user?.id ?? null,
         },
         `detectConfiguration.${recipe.id}`
+      );
+      return;
+    }),
+  configurationJobStatus: publicProcedure
+    .input(
+      z.object({
+        recipeId: z.number().int().positive(),
+      })
+    )
+    .query(async (opts) => {
+      const agenticJobId = `agenticRecipeConfig.${opts.input.recipeId}`;
+      const detectJobId = `detectConfiguration.${opts.input.recipeId}`;
+
+      const agenticJob = await Queues.AgenticRecipeConfig.getJob(agenticJobId);
+      if (agenticJob) {
+        const state = await agenticJob.getState();
+        const progress = agenticJob.progress as
+          | import("../workers").AgenticRecipeConfigProgress
+          | undefined;
+        return {
+          kind: "agentic" as const,
+          state,
+          progress: progress ?? null,
+        };
+      }
+
+      const detectJob = await Queues.DetectConfiguration.getJob(detectJobId);
+      if (detectJob) {
+        const state = await detectJob.getState();
+        const progress = detectJob.progress as
+          | import("../workers").DetectConfigurationProgress
+          | undefined;
+        return {
+          kind: "detect" as const,
+          state,
+          progress: progress ?? null,
+        };
+      }
+
+      return null;
+    }),
+  reconfigureAgentic: publicProcedure
+    .input(
+      z.object({
+        id: z.number().int().positive(),
+      })
+    )
+    .mutation(async (opts) => {
+      const recipe = await findRecipeById(opts.input.id);
+      if (!recipe) {
+        throw new AppError("Recipe not found", AppErrors.NOT_FOUND);
+      }
+      const jobId = `agenticRecipeConfig.${recipe.id}`;
+      const existing = await removeJobIfInactive(
+        Queues.AgenticRecipeConfig,
+        jobId
+      );
+      if (existing === "active") {
+        return;
+      }
+      await updateRecipe(recipe.id, {
+        status: RecipeDetectionStatus.WAITING,
+        detectionFailureReason: null,
+      });
+      await submitJob(
+        Queues.AgenticRecipeConfig,
+        {
+          recipeId: opts.input.id,
+          triggeredByUserId: opts.ctx.user?.id ?? null,
+        },
+        jobId
       );
       return;
     }),

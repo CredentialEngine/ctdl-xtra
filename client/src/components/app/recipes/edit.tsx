@@ -174,8 +174,17 @@ export default function EditRecipe() {
     { id: parseInt(recipeId || "") },
     { enabled: !!recipeId }
   );
+  const jobStatusQuery = trpc.recipes.configurationJobStatus.useQuery(
+    { recipeId: parseInt(recipeId || "") },
+    {
+      enabled: !!recipeId && recipeQuery.data?.status !== RecipeDetectionStatus.SUCCESS,
+      refetchInterval:
+        recipeQuery.data?.status !== RecipeDetectionStatus.SUCCESS ? 2000 : false,
+    }
+  );
   const updateRecipe = trpc.recipes.update.useMutation();
   const reconfigureRecipe = trpc.recipes.reconfigure.useMutation();
+  const reconfigureAgenticRecipe = trpc.recipes.reconfigureAgentic.useMutation();
   const setDefaultRecipe = trpc.recipes.setDefault.useMutation();
   const destroyRecipe = trpc.recipes.destroy.useMutation();
   const { toast } = useToast();
@@ -190,11 +199,14 @@ export default function EditRecipe() {
   useEffect(() => {
     const pollQuery = () => {
       if (recipeQuery.data?.status == RecipeDetectionStatus.SUCCESS) {
-        window.clearInterval(intervalRef.current!);
-        intervalRef.current = null;
+        if (intervalRef.current) {
+          window.clearInterval(intervalRef.current);
+          intervalRef.current = null;
+        }
         return;
       }
       recipeQuery.refetch();
+      jobStatusQuery.refetch();
     };
 
     if (!recipeQuery.data) {
@@ -204,10 +216,10 @@ export default function EditRecipe() {
     if (recipeQuery.data.status != RecipeDetectionStatus.SUCCESS) {
       if (!intervalRef.current) {
         intervalRef.current = window.setInterval(pollQuery, 2000);
-      } else {
-        window.clearInterval(intervalRef.current);
-        intervalRef.current = null;
       }
+    } else if (intervalRef.current) {
+      window.clearInterval(intervalRef.current);
+      intervalRef.current = null;
     }
 
     form.reset({
@@ -234,6 +246,9 @@ export default function EditRecipe() {
     };
   }, [recipeQuery.data]);
 
+  const isAgenticJob = jobStatusQuery.data?.kind === "agentic";
+  const agenticProgress = isAgenticJob ? jobStatusQuery.data?.progress : null;
+
   if (!catalogueQuery.data || !recipeQuery.data) {
     return null;
   }
@@ -256,8 +271,23 @@ export default function EditRecipe() {
   }
 
   async function onReconfigure() {
-    await reconfigureRecipe.mutateAsync({ id: recipe.id });
-    recipeQuery.refetch();
+    try {
+      if (isAgenticJob) {
+        await reconfigureAgenticRecipe.mutateAsync({ id: recipe.id });
+      } else {
+        await reconfigureRecipe.mutateAsync({ id: recipe.id });
+      }
+      await recipeQuery.refetch();
+      await jobStatusQuery.refetch();
+    } catch (err) {
+      toast({
+        title: isAgenticJob
+          ? "Could not retry agentic configuration"
+          : "Could not redetect configuration",
+        description: (err as Error).message,
+        variant: "destructive",
+      });
+    }
   }
 
   async function onSetDefault(e: React.MouseEvent<HTMLButtonElement>) {
@@ -496,6 +526,32 @@ export default function EditRecipe() {
                   pageSetup={recipe.configuration?.pageSetup}
                 />
               )}
+              {isAgenticJob &&
+              (recipe.status == RecipeDetectionStatus.WAITING ||
+                recipe.status == RecipeDetectionStatus.IN_PROGRESS) ? (
+                <div className="mt-4 grid gap-2 md:grid-cols-[1fr_250px] lg:grid-cols-2 lg:gap-4">
+                  <Card>
+                    <CardHeader>
+                      <CardDescription>Agentic Configuration</CardDescription>
+                    </CardHeader>
+                    <CardContent className="text-sm space-y-2">
+                      <div className="flex items-center">
+                        <LoaderIcon className="animate-spin mr-2 w-4 h-4" />
+                        <span>Agent is configuring this recipe…</span>
+                      </div>
+                      {agenticProgress?.message ? (
+                        <p className="text-muted-foreground">
+                          {agenticProgress.message}
+                          {"elapsedSeconds" in agenticProgress &&
+                          agenticProgress.elapsedSeconds != null
+                            ? ` (${agenticProgress.elapsedSeconds}s)`
+                            : null}
+                        </p>
+                      ) : null}
+                    </CardContent>
+                  </Card>
+                </div>
+              ) : null}
               {recipe.status == RecipeDetectionStatus.WAITING ? (
                 <div className="mt-4 grid gap-2 md:grid-cols-[1fr_250px] lg:grid-cols-2 lg:gap-4">
                   <Card>
@@ -522,8 +578,9 @@ export default function EditRecipe() {
                     <CardContent className="text-sm">
                       <div>
                         <p className="text-red-800 font-semibold">
-                          CTDL xTRA failed to detect a valid configuration for
-                          this recipe.
+                          {isAgenticJob
+                            ? "The agentic configuration workflow failed for this recipe."
+                            : "CTDL xTRA failed to detect a valid configuration for this recipe."}
                         </p>
                         <p className="mt-4">
                           You can adjust the URL, or try again.
@@ -533,14 +590,20 @@ export default function EditRecipe() {
                           {recipe.detectionFailureReason}
                         </pre>
                         <Button
+                          type="button"
                           className="mt-8"
                           variant="outline"
                           size="sm"
                           onClick={onReconfigure}
-                          disabled={reconfigureRecipe.isLoading}
+                          disabled={
+                            reconfigureRecipe.isLoading ||
+                            reconfigureAgenticRecipe.isLoading
+                          }
                         >
                           <RotateCcw className="w-4 h-4 mr-2" />
-                          Redetect configuration
+                          {isAgenticJob
+                            ? "Retry agentic configuration"
+                            : "Redetect configuration"}
                         </Button>
                       </div>
                     </CardContent>
@@ -775,7 +838,9 @@ export default function EditRecipe() {
                 <Button disabled={true} variant={"outline"}>
                   <div className="flex text-sm items-center">
                     <LoaderIcon className="animate-spin mr-2 w-3.5" />
-                    Detecting configuration{" "}
+                    {isAgenticJob
+                      ? "Agent configuring recipe"
+                      : "Detecting configuration"}{" "}
                   </div>
                 </Button>
               ) : (
@@ -784,6 +849,7 @@ export default function EditRecipe() {
                     recipeQuery.isLoading ||
                     updateRecipe.isLoading ||
                     reconfigureRecipe.isLoading ||
+                    reconfigureAgenticRecipe.isLoading ||
                     recipe.status == RecipeDetectionStatus.IN_PROGRESS ||
                     !form.formState.isDirty
                   }

@@ -76,6 +76,32 @@ export async function submitJob<T, K extends T>(
   return queue.add(name, data, { jobId, priority: priority || 100 });
 }
 
+const inflightJobStates = new Set([
+  "active",
+  "waiting",
+  "delayed",
+  "prioritized",
+  "paused",
+  "waiting-children",
+]);
+
+/** Removes a completed/failed job so the same jobId can be enqueued again. */
+export async function removeJobIfInactive<T>(
+  queue: Queue<T>,
+  jobId: string
+): Promise<"absent" | "removed" | "active"> {
+  const existing = await queue.getJob(jobId);
+  if (!existing) {
+    return "absent";
+  }
+  const state = await existing.getState();
+  if (inflightJobStates.has(state)) {
+    return "active";
+  }
+  await existing.remove();
+  return "removed";
+}
+
 export async function submitJobWithOpts<T, K extends T>(
   queue: Queue<T>,
   data: K,
@@ -153,6 +179,12 @@ export interface DetectConfigurationJob {
   triggeredByUserId?: number | null;
 }
 
+export interface AgenticRecipeConfigJob {
+  recipeId: number;
+  /** User who requested agentic configuration; omitted on older queued jobs. */
+  triggeredByUserId?: number | null;
+}
+
 export interface FetchPageJob {
   crawlPageId: number;
   extractionId: number;
@@ -170,6 +202,10 @@ export interface UpdateExtractionCompletionJob {
 }
 
 export interface DetectConfigurationProgress extends BaseProgress { }
+export interface AgenticRecipeConfigProgress extends BaseProgress {
+  elapsedSeconds?: number;
+  step?: number;
+}
 export interface FetchPageProgress extends BaseProgress { }
 export interface ExtractDataProgress extends BaseProgress { }
 export interface UpdateExtractionCompletionProgress extends BaseProgress { }
@@ -182,6 +218,14 @@ const defaultJobOptions: DefaultJobOptions = {
     type: "exponential",
     delay: 1000,
   },
+  removeOnComplete: true,
+  removeOnFail: {
+    age: 1000 * 60 * 60 * 24 * 5, // 5 days
+  },
+};
+
+const agenticRecipeConfigJobOptions: DefaultJobOptions = {
+  attempts: 1,
   removeOnComplete: true,
   removeOnFail: {
     age: 1000 * 60 * 60 * 24 * 5, // 5 days
@@ -300,6 +344,13 @@ export const Queues = {
     {
       connection,
       defaultJobOptions,
+    }
+  ),
+  AgenticRecipeConfig: new Queue<AgenticRecipeConfigJob>(
+    "recipes.agenticRecipeConfig",
+    {
+      connection,
+      defaultJobOptions: agenticRecipeConfigJobOptions,
     }
   ),
   FetchPage: new Queue<FetchPageJob>("extractions.fetchPage", {
