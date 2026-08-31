@@ -8,13 +8,16 @@ const DetailQuerySchema = z.object({
     "PROXY",
     "PROXY_ENABLED",
     "OPENAI_API_KEY",
+    "ANTHROPIC_API_KEY",
     "MAX_EXTRACTION_BUDGET",
   ]),
 });
 
 type DetailQueryInput = z.infer<typeof DetailQuerySchema>;
 
-function parseProxyPreviews(encryptedPreview: string | null | undefined): string[] {
+function parseProxyPreviews(
+  encryptedPreview: string | null | undefined
+): string[] {
   if (!encryptedPreview) return [];
   try {
     const parsed = JSON.parse(encryptedPreview);
@@ -58,6 +61,20 @@ export const settingsRouter = router({
         encryptedPreview: `sk-...${opts.input.apiKey.slice(-4)}`,
       });
     }),
+  setAnthropicApiKey: publicProcedure
+    .input(
+      z.object({
+        apiKey: z.string().regex(/^sk-ant-.{20,200}$/),
+      })
+    )
+    .mutation(async (opts) => {
+      await createOrUpdate({
+        key: "ANTHROPIC_API_KEY",
+        value: opts.input.apiKey,
+        isEncrypted: true,
+        encryptedPreview: `sk-ant-...${opts.input.apiKey.slice(-4)}`,
+      });
+    }),
   setProxyEnabled: publicProcedure.input(z.boolean()).mutation(async (opts) => {
     await createOrUpdate({
       key: "PROXY_ENABLED",
@@ -69,9 +86,7 @@ export const settingsRouter = router({
       z
         .string()
         .url()
-        .describe(
-          "Proxy URL, e.g. http://user:password@proxy.example.com:8080"
-        )
+        .describe("Proxy URL, e.g. http://user:password@proxy.example.com:8080")
     )
     .mutation(async (opts) => {
       const proxy = await findSetting<string | string[]>("PROXY", true);
@@ -128,7 +143,9 @@ export const settingsRouter = router({
         .number()
         .nonnegative()
         .finite()
-        .describe("Maximum USD budget allowed per extraction. No enforcement logic here.")
+        .describe(
+          "Maximum USD budget allowed per extraction. No enforcement logic here."
+        )
     )
     .mutation(async (opts) => {
       await createOrUpdate({

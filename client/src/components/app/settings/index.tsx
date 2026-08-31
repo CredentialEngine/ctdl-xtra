@@ -1,3 +1,4 @@
+import { AnthropicApiKeyForm } from "./anthropic";
 import { OpenAIApiKeyForm } from "./openapi";
 import { ProxySettingsForm } from "./proxy";
 import { MaxExtractionBudgetForm } from "./budget";
@@ -10,6 +11,7 @@ export default function Settings() {
       </div>
       <div className="flex gap-4 min-h-0 w-full shadow-sm flex-wrap">
         <OpenAIApiKeyForm />
+        <AnthropicApiKeyForm />
         <ProxySettingsForm />
         <MaxExtractionBudgetForm />
       </div>
