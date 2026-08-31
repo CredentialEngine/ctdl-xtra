@@ -9,20 +9,21 @@ This guide explains every option available when configuring a **recipe** in CTDL
 ## Table of Contents
 
 1. [Overview: What is a Recipe?](#overview-what-is-a-recipe)
-2. [Recipe Levels (Hierarchy)](#recipe-levels-hierarchy)
-3. [Page Load Wait Time](#page-load-wait-time)
-4. [Page Types](#page-types)
-5. [Link RegExp (Link Pattern)](#link-regexp-link-pattern)
-6. [Dynamic Catalogue (Click-Based Discovery)](#dynamic-catalogue-click-based-discovery)
-7. [Pagination](#pagination)
-8. [Exact Link Pattern Match](#exact-link-pattern-match)
-9. [Testing Your Recipe](#testing-your-recipe)
+2. [Why Recipes (Recipes vs Agentic)](#why-recipes-recipes-vs-agentic)
+3. [Recipe Levels (Hierarchy)](#recipe-levels-hierarchy)
+4. [Page Load Wait Time](#page-load-wait-time)
+5. [Page Types](#page-types)
+6. [Link RegExp (Link Pattern)](#link-regexp-link-pattern)
+7. [Dynamic Catalogue (Click-Based Discovery)](#dynamic-catalogue-click-based-discovery)
+8. [Pagination](#pagination)
+9. [Exact Link Pattern Match](#exact-link-pattern-match)
+10. [Testing Your Recipe](#testing-your-recipe)
 
 ---
 
 ## Overview: What is a Recipe?
 
-A **recipe** tells xTRA how to navigate an institution’s website and where to find the data you want (courses, learning programs, competencies, or credentials). It answers:
+A **recipe** tells xTRA how to navigate an institution’s website and where to find the data you want (courses, learning programs, competencies, or credentials). Recipes are the default crawl method because they are cheap and repeatable on well-structured sites; see [Why Recipes (Recipes vs Agentic)](#why-recipes-recipes-vs-agentic) for when to use a recipe and when an agentic crawl is a better fit. A recipe answers:
 
 - **Where to start** — the catalogue URL
 - **What kind of page** each step is (links page, category page, or detail page)
@@ -40,6 +41,82 @@ The **Catalogue URL** is the starting point for the crawl. Choose the page that 
 - **For competencies or credentials:** The page that links to the relevant sections.
 
 **Where to find it:** Open the institution's website, navigate to the section you want to extract, and copy the URL from your browser's address bar. Avoid URLs that include session IDs or temporary tokens, as they may expire.
+
+---
+
+## Why Recipes (Recipes vs Agentic)
+
+xTRA can crawl a catalogue in two ways: with a **recipe**, or with an **agentic** (not exactly right now but, is planned to be added). They solve the same problem — find every course/program/credential/competency/etc page and extract it, but they do it very differently. This section explains why recipes exist, where they fall short, and when agentic is the better (or only) option.
+
+### Why recipes exist
+
+A catalogue walk is mostly *navigation*: start at an index, follow the right links, handle pagination, and stop when you reach a detail page. On many institution sites that path is stable and visible in the URL:
+
+- `https://catalog.example.edu/courses` → department pages
+- `https://catalog.example.edu/courses/accounting` → course list
+- `https://catalog.example.edu/courses/ACCT-101` → one course
+
+A **recipe** records that map once: page types, link patterns, pagination, and (when needed) click-based discovery. After that, every extraction is a mechanical walk of the same map. xTRA does not need a model to decide where to go next; it matches links, builds the next URLs, and fetches them.
+
+That is the point of recipes. You pay the cost of understanding the site **once** (manually, from a template, or via auto-detect). Re-runs, large catalogues, and bulk extraction then stay cheap (or essentially free) and repeatable.
+
+### Recipes are rigid — and that is also why they scale
+
+Recipes are somewhat rigid. They assume the site can be described as a **fixed hierarchy of page types and URL patterns**:
+
+- This page is a list of category links, or a list of detail links, or a detail page.
+- The links we care about look like *this* pattern.
+- Pagination, if any, looks like `?page=2` or `?offset=20`.
+- In the click-based case, clicking an item still produces a **new URL**.
+
+If the site fits that model, the rigidity is an advantage. The crawl is deterministic: the same recipe on the same site should find the same pages. Cost stays tied to pages fetched, not to model reasoning at every click. A catalogue with thousands of well-structured course URLs is exactly what recipes are for — they are **very scalable and cheap** compared with asking an agent to browse the site.
+
+If the site does *not* fit, the same rigidity becomes the limitation. Recipes cannot “look around” and invent a new strategy mid-crawl. They will not recover well from a layout that has no stable links, a search UI with no copyable URLs, or a single-page app that keeps you on one address while swapping content. You can stretch a recipe with waits, page actions, and [Dynamic Catalogue](#dynamic-catalogue-click-based-discovery), but those still require a predictable URL or click-to-URL behaviour.
+
+### When recipes are the right choice
+
+Prefer a recipe when the catalogue is organized **URL-wise**:
+
+- You can copy a course or program link, paste it in a new tab, and land on that item.
+- Department, subject, and item pages follow a repeating path (e.g. `/courses/{dept}`, `/courses/{code}`).
+- Pagination or filters show up in the address bar.
+- The site is a conventional multi-page catalogue, even if it is large.
+
+On those sites, a recipe will usually be faster, cheaper, and more complete than an agentic crawl. Tune the recipe (see [Testing Your Recipe](#testing-your-recipe)) rather than switching approach.
+
+### When agentic is required
+
+**Agentic** crawling uses a model to operate the site more like a person would: click, read, decide what to open next, and keep going until it believes it has found the items. It is the right tool when the site does **not** respect links as a map of the catalogue.
+
+Typical cases:
+
+- **Dynamic SPAs** that never change the URL, or use a single catch-all address while content is loaded in place.
+- Navigation that is not a real link (you cannot copy an address) *and* does not produce a new URL after a click — so Dynamic Catalogue cannot record destinations either.
+- Filters, tabs, or “load more” flows where the next set of items is not encoded in a URL pattern you can write down.
+- Sites whose structure cannot be expressed as recipe levels + a link pattern, even after inspection.
+
+In those cases a recipe would be guessing at a structure that is not there. Agentic is slower and more expensive, but it can still reach the detail content.
+
+### Agentic success varies with the model
+
+Recipes succeed or fail in a binary, inspectable way: the pattern matched these links, or it did not. You can see the list in the Recipe Tester and fix the pattern.
+
+Agentic runs are not like that. The model chooses what to click, what to ignore, and when to stop. That behaviour changes with the model, the prompt, and even from run to run on the same site. Coverage can be excellent on one attempt and incomplete on the next. Budget, timeouts, and “the agent got stuck in a menu” are normal failure modes.
+
+That variability is inherent: you are trading a rigid, cheap map for a flexible, model-driven browse. Do not expect agentic success rate to be as stable as a well-tuned recipe on a well-structured catalogue.
+
+### Choosing between them
+
+| | **Recipe** | **Agentic** |
+|---|------------|-------------|
+| **How it navigates** | Follows a configured map of page types, link patterns, and pagination | A model browses and decides where to go |
+| **Best fit** | Sites with stable, copyable URLs and a repeating structure | Dynamic SPAs and sites that do not expose a URL map |
+| **Flexibility** | Rigid: the site must fit the recipe model | Flexible: can handle navigation that recipes cannot describe |
+| **Scale and cost** | Cheap at catalogue scale; LLM work is mostly extraction, not navigation | More expensive; the model is involved throughout navigation |
+| **Repeatability** | High: same recipe, same link set (until the site changes) | Variable: success depends on how the model behaves that run |
+| **When to prefer it** | Default for well-organized catalogues | When a recipe cannot see or follow the catalogue |
+
+**Rule of thumb:** start with a recipe if you can copy item URLs and see a pattern. Use agentic when the catalogue lives behind a dynamic UI that does not respect links.
 
 ---
 
@@ -472,3 +549,4 @@ Use these when creating or tuning a recipe; you can still adjust the results man
 - Use the **Recipe Tester** to verify link extraction.
 - Start with a simple recipe (one or two levels) and add levels only if the site structure requires it.
 - If extractions fail or return wrong data, check: page type, link pattern, pagination, and whether Dynamic catalogue is needed.
+- If the catalogue is a dynamic site with no copyable item URLs, a recipe may not be the right tool — see [Why Recipes (Recipes vs Agentic)](#why-recipes-recipes-vs-agentic).
