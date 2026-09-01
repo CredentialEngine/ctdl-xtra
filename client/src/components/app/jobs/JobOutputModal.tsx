@@ -5,6 +5,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { AGENTIC_RECIPE_CONFIG_JOB_RETENTION_HOURS } from "@common/recipe";
 import { useEffect, useRef, type ReactNode } from "react";
 
 interface JobOutputModalProps {
@@ -38,7 +39,9 @@ export default function JobOutputModal({
         <DialogHeader>
           <DialogTitle>Job output</DialogTitle>
           <DialogDescription>
-            Public output from the running job.
+            Public output from the running job. After the job finishes, output
+            remains available for {AGENTIC_RECIPE_CONFIG_JOB_RETENTION_HOURS}{" "}
+            hours.
           </DialogDescription>
         </DialogHeader>
         <div

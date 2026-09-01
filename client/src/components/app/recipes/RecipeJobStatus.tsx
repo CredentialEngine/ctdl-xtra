@@ -148,7 +148,10 @@ export default function RecipeJobStatus({ recipeId }: { recipeId: number }) {
                 </div>
               )}
               {lastStatus ? (
-                <p className="font-serif text-muted-foreground">
+                <p
+                  className="font-serif text-muted-foreground line-clamp-6 break-words"
+                  title={lastStatus}
+                >
                   {lastStatus}
                   {jobWatcher.startedAt ? <> · {elapsed}</> : null}
                 </p>
