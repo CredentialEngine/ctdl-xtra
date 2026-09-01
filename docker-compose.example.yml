@@ -81,7 +81,7 @@ services:
     platform: linux/amd64
     build:
       context: .
-      dockerfile: worker.Dockerfile
+      dockerfile: server/Dockerfile.dev
       platforms:
         - linux/amd64
     entrypoint: ["sh", "/app/docker-dev-entrypoint.sh"]
