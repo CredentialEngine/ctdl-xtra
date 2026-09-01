@@ -12,6 +12,7 @@ import { default as IORedis } from "ioredis";
 import { closeCluster } from "../extraction/browser";
 import getLogger from "../logging";
 import { inspect } from "node:util";
+import { AGENTIC_RECIPE_CONFIG_JOB_RETENTION_MS } from "../../../common/recipe";
 
 const logger = getLogger("workers");
 const REDIS_URL = process.env.REDIS_URL || "redis://localhost:6379";
@@ -224,18 +225,15 @@ const defaultJobOptions: DefaultJobOptions = {
   },
 };
 
+/** BullMQ `age` is seconds. keepLogs caps the Redis list while the job exists. */
 const agenticRecipeConfigJobOptions: DefaultJobOptions = {
   attempts: 1,
-  // BullMQ `age` is seconds. keepLogs caps the Redis list while the job exists;
-  // removeOnComplete.age keeps a finished job long enough for the UI to observe
-  // `completed` and drain logs. Durable log retention is intentionally omitted —
-  // use an off-the-shelf logging stack rather than persisting Bull transcripts here.
   keepLogs: 500,
   removeOnComplete: {
-    age: 60 * 60, // 1 hour
+    age: AGENTIC_RECIPE_CONFIG_JOB_RETENTION_MS / 1000,
   },
   removeOnFail: {
-    age: 60 * 60 * 24 * 5, // 5 days
+    age: AGENTIC_RECIPE_CONFIG_JOB_RETENTION_MS / 1000,
   },
 };
 
