@@ -3,6 +3,7 @@ import StealthPlugin from "puppeteer-extra-plugin-stealth";
 import rebrowserPuppeteer, { ElementHandle, KnownDevices } from "rebrowser-puppeteer";
 import { PageSetupConfig } from "../../../common/types";
 import { BrowserFetchError, findProxies } from "./browser";
+import { parseProxyEndpoint, sharedChromeArgs } from "./chromeLaunch";
 import { applyPageSetupSteps } from "./pageSetup";
 import getLogger from "../logging";
 import { readFileSync } from "fs";
@@ -76,21 +77,19 @@ export async function navigateWithProxy(
   const opts: NavigateWithProxyOptions =
     typeof options === 'function' ? { loadCompletedCallback: options } : (options ?? {});
 
+  const parsed = proxyUrl ? parseProxyEndpoint(proxyUrl) : undefined;
   const args = [
-    proxyUrl ? `--proxy-server=${new URL(proxyUrl).origin}` : "",
-    "--ignore-certificate-errors",
+    ...sharedChromeArgs({ proxyServerUrl: parsed?.serverUrl }),
     "--allow-insecure-localhost",
-    '--no-sandbox', 
-    '--disable-setuid-sandbox'
-  ].filter(Boolean);
+  ];
 
   const browser = await puppeteer.launch({
     ignoreHTTPSErrors: true,
-    headless: process.env.SHOW_CHROME ? false : 'shell',
+    headless: process.env.SHOW_CHROME ? false : "shell",
     protocolTimeout: 1 * 60 * 1000,
     dumpio: true,
     args,
-  });
+  } as unknown as Parameters<typeof puppeteer.launch>[0]);
 
   let settlementTimer: ReturnType<typeof setTimeout> | undefined;
 
@@ -103,14 +102,11 @@ export async function navigateWithProxy(
 
     const page = (await browser.pages()).length > 0 ? (await browser.pages())[0] : await browser.newPage();
 
-    if (proxyUrl) {
-      const parsed = new URL(proxyUrl);
-      if (parsed.username || parsed.password) {
-        await page.authenticate({
-          username: parsed.username,
-          password: parsed.password,
-        });
-      }
+    if (parsed?.username || parsed?.password) {
+      await page.authenticate({
+        username: parsed.username || "",
+        password: parsed.password || "",
+      });
     }
 
     if (opts.beforeNavigation) {

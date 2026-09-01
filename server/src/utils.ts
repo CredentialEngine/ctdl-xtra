@@ -121,7 +121,14 @@ export function isProxyError(error?: Error | BrowserFetchError | string | undefi
   const isBlockedError = httpStatus && httpStatus === 403; // Forbidden often indicates IP/proxy block
   const isTunnelError = errorMessage && errorMessage.includes("net::ERR_TUNNEL_CONNECTION_FAILED");
   const isConnectionRefusedError = errorMessage && errorMessage.includes("net::ERR_CONNECTION_REFUSED");
-  const isAuthError = httpStatus && httpStatus === 407; // HTTP 407: Proxy Authentication Required
+  const isAuthError =
+    httpStatus === 407 ||
+    Boolean(
+      errorMessage &&
+        (errorMessage.includes("net::ERR_INVALID_AUTH_CREDENTIALS") ||
+          /HTTP 407\b/.test(errorMessage) ||
+          /proxy authentication required/i.test(errorMessage))
+    );
 
   return [isPaymentError, isBlockedError, isTunnelError, isConnectionRefusedError, isAuthError].some(Boolean);
 }

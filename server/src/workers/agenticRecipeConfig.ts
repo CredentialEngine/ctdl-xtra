@@ -4,13 +4,16 @@ import {
   createProcessor,
 } from ".";
 import { RecipeDetectionStatus } from "../../../common/types";
+import { inspectPagePrompt, runBrowserAgent } from "../agentic";
 import { findRecipeById, updateRecipe } from "../data/recipes";
 import { mergeJobProgress, publicLog } from "../jobWatching";
 import getLogger from "../logging";
 
 const logger = getLogger("workers.agenticRecipeConfig");
 
-const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+function statusLog(message: string): string {
+  return `<status>${message}</status>`;
+}
 
 export default createProcessor<
   AgenticRecipeConfigJob,
@@ -24,8 +27,13 @@ export default createProcessor<
     throw new Error(`${logPrefix} Recipe with ID ${recipeId} not found`);
   }
 
+  const pageType = recipe.configuration?.pageType;
+  if (!pageType) {
+    throw new Error(`${logPrefix} Recipe seed configuration missing pageType`);
+  }
+
   logger.info(`${logPrefix} Starting job ${job.id}`);
-  await publicLog(job, logger, "Starting agentic configuration");
+  await publicLog(job, logger, statusLog("Starting agentic configuration"));
   await updateRecipe(recipe.id, {
     status: RecipeDetectionStatus.IN_PROGRESS,
   });
@@ -34,53 +42,63 @@ export default createProcessor<
     status: "info",
   });
 
-  for (let step = 1; step <= 6; step++) {
-    await sleep(10_000);
-    const elapsedSeconds = step * 10;
-    await publicLog(
-      job,
-      logger,
-      `Bogus agent working… (${elapsedSeconds}s)`
-    );
+  const pageLoadWaitTime = recipe.configuration?.pageLoadWaitTime;
+  const pageSetup = recipe.configuration?.pageSetup;
+
+  try {
+    await publicLog(job, logger, statusLog("Running browser agent"));
     await mergeJobProgress(job, {
-      message: `Step ${step}/6`,
+      message: "Running browser agent",
       status: "info",
-      elapsedSeconds,
-      step,
     });
-  }
 
-  const succeeded = Math.random() < 0.5;
+    const result = await runBrowserAgent({
+      prompt: inspectPagePrompt({ url: recipe.url }),
+      browser: {
+        pageLoadWaitTime,
+        pageSetup,
+      },
+      onEvent: (event) => {
+        logger.info(`${logPrefix} ${event.message}`);
+        if (event.type === "status") {
+          void publicLog(job, logger, event.message);
+        }
+      },
+    });
 
-  if (succeeded) {
-    const pageType = recipe.configuration?.pageType;
-    if (!pageType) {
-      throw new Error(`${logPrefix} Recipe seed configuration missing pageType`);
-    }
     await updateRecipe(recipe.id, {
-      configuration: { pageType, linkRegexp: ".*" },
       status: RecipeDetectionStatus.SUCCESS,
       detectionFailureReason: null,
     });
-    await publicLog(job, logger, "Bogus agent completed");
+    await publicLog(
+      job,
+      logger,
+      statusLog("Agent finished inspecting this recipe.")
+    );
+    await publicLog(job, logger, result.resultText);
     await mergeJobProgress(job, {
       status: "success",
-      message: "Bogus agent completed",
+      message: "Agent finished inspecting this recipe.",
     });
-    logger.info(`${logPrefix} Job ${job.id} completed successfully`);
-    return;
+    logger.info(
+      `${logPrefix} Job ${job.id} completed tools=${result.toolNames.join(",")}`
+    );
+  } catch (err: unknown) {
+    const failureMessage =
+      err instanceof Error ? err.message : "Browser agent failed";
+    await updateRecipe(recipe.id, {
+      status: RecipeDetectionStatus.ERROR,
+      detectionFailureReason: failureMessage,
+    });
+    await publicLog(job, logger, failureMessage);
+    await publicLog(job, logger, statusLog(failureMessage));
+    await mergeJobProgress(job, {
+      status: "failure",
+      message: failureMessage,
+    });
+    logger.info(`${logPrefix} Job ${job.id} failed`);
+    throw err instanceof Error
+      ? err
+      : new Error(`${logPrefix} ${failureMessage}`);
   }
-
-  const failureMessage = "Bogus agent failed (random)";
-  await updateRecipe(recipe.id, {
-    status: RecipeDetectionStatus.ERROR,
-    detectionFailureReason: failureMessage,
-  });
-  await publicLog(job, logger, failureMessage);
-  await mergeJobProgress(job, {
-    status: "failure",
-    message: failureMessage,
-  });
-  logger.info(`${logPrefix} Job ${job.id} failed (random)`);
-  throw new Error(`${logPrefix} ${failureMessage}`);
 });

@@ -8,7 +8,7 @@ COPY server/ /build/app/server
 COPY common/ /build/app/common
 RUN cd /build/app/server && pnpm run build
 
-RUN cp -R /build/app/server /app
+RUN rm -rf /app && cp -R /build/app/server /app
 
 WORKDIR /app
 

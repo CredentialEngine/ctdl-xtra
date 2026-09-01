@@ -5,7 +5,6 @@ import { addExtra, VanillaPuppeteer } from "puppeteer-extra";
 import StealthPlugin from "puppeteer-extra-plugin-stealth";
 import rebrowserPuppeteer, { HTTPResponse } from "rebrowser-puppeteer";
 import TurndownService from "turndown";
-import { URL } from "url";
 import { findSetting } from "../data/settings";
 import getLogger from "../logging";
 import { SimplifiedMarkdown } from "../types";
@@ -18,6 +17,7 @@ import {
 import { PageSetupConfig } from "../../../common/types";
 import { applyPageSetupSteps } from "./pageSetup";
 import { detectCatalogueType } from "./llm/detectCatalogueType";
+import { parseProxyEndpoint, sharedPuppeteerLaunchOptions } from "./chromeLaunch";
 
 export interface BrowserTaskInput {
   url: string;
@@ -80,14 +80,14 @@ export async function getCluster(proxyUrl?: string) {
   if (clusterClosed) {
     throw new Error("Cluster has been closed");
   }
-  let proxyBaseUrl = null;
-  let proxyUsername = null;
-  let proxyPassword = null;
+  let proxyUsername: string | undefined;
+  let proxyPassword: string | undefined;
+  let proxyServerUrl: string | undefined;
   if (proxyUrl) {
-    const url = new URL(proxyUrl);
-    proxyBaseUrl = `${url.protocol}//${url.host}`;
-    proxyUsername = url.username;
-    proxyPassword = url.password;
+    const parsed = parseProxyEndpoint(proxyUrl);
+    proxyServerUrl = parsed.serverUrl;
+    proxyUsername = parsed.username;
+    proxyPassword = parsed.password;
   }
 
   const newClusterLaunchOptions = {
@@ -95,16 +95,8 @@ export async function getCluster(proxyUrl?: string) {
     maxConcurrency: 2,
     puppeteer: puppeteer,
     puppeteerOptions: {
-      headless: true,
-      ignoreHTTPSErrors: true,
+      ...sharedPuppeteerLaunchOptions({ proxyServerUrl }),
       dumpio: true, // Pipe Chrome process stdout/stderr to console when DEBUG=1
-      args: [
-        "--disable-dev-shm-usage",
-        "--font-render-hinting=none",
-        "--force-gpu-mem-available-mb=4096",
-        "--ignore-certificate-errors",
-        proxyBaseUrl ? `--proxy-server=${proxyBaseUrl}` : "",
-      ].filter(Boolean),
     },
     timeout: PAGE_TIMEOUT,
   };
