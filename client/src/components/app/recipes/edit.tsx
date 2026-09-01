@@ -1,3 +1,4 @@
+import JobOutputModal from "@/components/app/jobs/JobOutputModal";
 import BreadcrumbTrail from "@/components/ui/breadcrumb-trail";
 import { RecipeDetectionStatus, trpc } from "@/utils";
 import { useLocation, useParams } from "wouter";
@@ -46,6 +47,7 @@ import {
   LoaderIcon,
   Pickaxe,
   RotateCcw,
+  ScrollText,
   Star,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
@@ -164,6 +166,7 @@ function getFirstLevelExactLinkPatternMatch(recipe: { configuration?: { exactLin
 export default function EditRecipe() {
   const [lockedDelete, setLockDelete] = useState(true);
   const [jsonText, setJsonText] = useState("");
+  const [jobOutputOpen, setJobOutputOpen] = useState(false);
   const [, navigate] = useLocation();
   const { catalogueId, recipeId } = useParams();
   const catalogueQuery = trpc.catalogues.detail.useQuery(
@@ -177,9 +180,11 @@ export default function EditRecipe() {
   const jobStatusQuery = trpc.recipes.configurationJobStatus.useQuery(
     { recipeId: parseInt(recipeId || "") },
     {
-      enabled: !!recipeId && recipeQuery.data?.status !== RecipeDetectionStatus.SUCCESS,
+      enabled: !!recipeId,
       refetchInterval:
-        recipeQuery.data?.status !== RecipeDetectionStatus.SUCCESS ? 2000 : false,
+        recipeQuery.data?.status !== RecipeDetectionStatus.SUCCESS
+          ? 2000
+          : false,
     }
   );
   const updateRecipe = trpc.recipes.update.useMutation();
@@ -195,6 +200,21 @@ export default function EditRecipe() {
     },
   });
   const intervalRef = useRef<number | null>(null);
+  const [sawAgenticJob, setSawAgenticJob] = useState(false);
+  const [cachedAgenticProgress, setCachedAgenticProgress] = useState<
+    | {
+        message?: string;
+        status?: string;
+        elapsedSeconds?: number;
+        step?: number;
+      }
+    | null
+  >(null);
+
+  useEffect(() => {
+    setSawAgenticJob(false);
+    setCachedAgenticProgress(null);
+  }, [recipeId]);
 
   useEffect(() => {
     const pollQuery = () => {
@@ -246,8 +266,21 @@ export default function EditRecipe() {
     };
   }, [recipeQuery.data]);
 
-  const isAgenticJob = jobStatusQuery.data?.kind === "agentic";
-  const agenticProgress = isAgenticJob ? jobStatusQuery.data?.progress : null;
+  useEffect(() => {
+    if (jobStatusQuery.data?.kind === "agentic") {
+      setSawAgenticJob(true);
+      setCachedAgenticProgress(jobStatusQuery.data.progress ?? null);
+    }
+  }, [jobStatusQuery.data]);
+
+  const isAgenticJob =
+    jobStatusQuery.data?.kind === "agentic" || sawAgenticJob;
+  const agenticProgress =
+    jobStatusQuery.data?.kind === "agentic"
+      ? jobStatusQuery.data.progress
+      : cachedAgenticProgress;
+  const agenticSucceeded =
+    isAgenticJob && recipeQuery.data?.status === RecipeDetectionStatus.SUCCESS;
 
   if (!catalogueQuery.data || !recipeQuery.data) {
     return null;
@@ -528,7 +561,8 @@ export default function EditRecipe() {
               )}
               {isAgenticJob &&
               (recipe.status == RecipeDetectionStatus.WAITING ||
-                recipe.status == RecipeDetectionStatus.IN_PROGRESS) ? (
+                recipe.status == RecipeDetectionStatus.IN_PROGRESS ||
+                recipe.status == RecipeDetectionStatus.SUCCESS) ? (
                 <div className="mt-4 grid gap-2 md:grid-cols-[1fr_250px] lg:grid-cols-2 lg:gap-4">
                   <Card>
                     <CardHeader>
@@ -536,8 +570,16 @@ export default function EditRecipe() {
                     </CardHeader>
                     <CardContent className="text-sm space-y-2">
                       <div className="flex items-center">
-                        <LoaderIcon className="animate-spin mr-2 w-4 h-4" />
-                        <span>Agent is configuring this recipe…</span>
+                        {agenticSucceeded ? (
+                          <Check className="mr-2 w-4 h-4 text-green-800" />
+                        ) : (
+                          <LoaderIcon className="animate-spin mr-2 w-4 h-4" />
+                        )}
+                        <span>
+                          {agenticSucceeded
+                            ? "Agent finished configuring this recipe."
+                            : "Agent is configuring this recipe…"}
+                        </span>
                       </div>
                       {agenticProgress?.message ? (
                         <p className="text-muted-foreground">
@@ -548,6 +590,15 @@ export default function EditRecipe() {
                             : null}
                         </p>
                       ) : null}
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setJobOutputOpen(true)}
+                      >
+                        <ScrollText className="w-4 h-4 mr-2" />
+                        View output
+                      </Button>
                     </CardContent>
                   </Card>
                 </div>
@@ -589,6 +640,18 @@ export default function EditRecipe() {
                         <pre className="mt-2 text-xs overflow-x-auto">
                           {recipe.detectionFailureReason}
                         </pre>
+                        {isAgenticJob ? (
+                          <Button
+                            type="button"
+                            className="mt-4"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setJobOutputOpen(true)}
+                          >
+                            <ScrollText className="w-4 h-4 mr-2" />
+                            View output
+                          </Button>
+                        ) : null}
                         <Button
                           type="button"
                           className="mt-8"
@@ -873,6 +936,17 @@ export default function EditRecipe() {
           </form>
         </Form>
       </div>
+      <JobOutputModal
+        open={jobOutputOpen}
+        onOpenChange={setJobOutputOpen}
+        logs={[
+          agenticProgress?.message,
+          recipe.status === RecipeDetectionStatus.ERROR
+            ? recipe.detectionFailureReason
+            : null,
+        ].filter((line): line is string => !!line)}
+        isRunning={recipe.status === RecipeDetectionStatus.IN_PROGRESS}
+      />
     </>
   );
 }

@@ -224,11 +224,15 @@ const defaultJobOptions: DefaultJobOptions = {
   },
 };
 
+import { AGENTIC_RECIPE_CONFIG_JOB_RETENTION_MS } from "../../../common/recipe";
+
 const agenticRecipeConfigJobOptions: DefaultJobOptions = {
   attempts: 1,
-  removeOnComplete: true,
+  removeOnComplete: {
+    age: AGENTIC_RECIPE_CONFIG_JOB_RETENTION_MS,
+  },
   removeOnFail: {
-    age: 1000 * 60 * 60 * 24 * 5, // 5 days
+    age: AGENTIC_RECIPE_CONFIG_JOB_RETENTION_MS,
   },
 };
 
