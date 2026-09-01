@@ -4,12 +4,15 @@ import {
   createProcessor,
 } from ".";
 import { RecipeDetectionStatus } from "../../../common/types";
+import {
+  AGENT_SMOKE_URL,
+  inspectPagePrompt,
+  runBrowserAgent,
+} from "../agentic";
 import { findRecipeById, updateRecipe } from "../data/recipes";
 import getLogger from "../logging";
 
 const logger = getLogger("workers.agenticRecipeConfig");
-
-const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 export default createProcessor<
   AgenticRecipeConfigJob,
@@ -27,25 +30,33 @@ export default createProcessor<
   await updateRecipe(recipe.id, {
     status: RecipeDetectionStatus.IN_PROGRESS,
   });
+  await job.updateProgress({
+    message: "Running browser agent",
+    status: "info",
+  });
 
-  for (let step = 1; step <= 6; step++) {
-    await sleep(10_000);
-    const elapsedSeconds = step * 10;
-    await job.updateProgress({
-      message: `Bogus agent working… (${elapsedSeconds}s)`,
-      status: "info",
-      elapsedSeconds,
-      step,
+  const pageLoadWaitTime = recipe.configuration?.pageLoadWaitTime;
+  const pageSetup = recipe.configuration?.pageSetup;
+
+  try {
+    const result = await runBrowserAgent({
+      prompt: inspectPagePrompt({
+        url: 'https://www.reddit.com',
+        pageLoadWaitTime,
+        pageSetup,
+      }),
+      browser: {
+        pageLoadWaitTime,
+        pageSetup,
+      },
+      onEvent: (event) => logger.info(`${logPrefix} ${event.message}`),
     });
-    logger.info(`${logPrefix} Job ${job.id} progress step ${step}/6`);
-  }
 
-  const succeeded = Math.random() < 0.5;
-
-  if (succeeded) {
     const pageType = recipe.configuration?.pageType;
     if (!pageType) {
-      throw new Error(`${logPrefix} Recipe seed configuration missing pageType`);
+      throw new Error(
+        `${logPrefix} Recipe seed configuration missing pageType`
+      );
     }
     await updateRecipe(recipe.id, {
       configuration: { pageType, linkRegexp: ".*" },
@@ -54,21 +65,25 @@ export default createProcessor<
     });
     await job.updateProgress({
       status: "success",
-      message: "Bogus agent completed",
+      message: result.resultText.slice(0, 1000),
     });
-    logger.info(`${logPrefix} Job ${job.id} completed successfully`);
-    return;
+    logger.info(
+      `${logPrefix} Job ${job.id} completed tools=${result.toolNames.join(",")}`
+    );
+  } catch (err: unknown) {
+    const failureMessage =
+      err instanceof Error ? err.message : "Browser agent failed";
+    await updateRecipe(recipe.id, {
+      status: RecipeDetectionStatus.ERROR,
+      detectionFailureReason: failureMessage,
+    });
+    await job.updateProgress({
+      status: "failure",
+      message: failureMessage,
+    });
+    logger.info(`${logPrefix} Job ${job.id} failed`);
+    throw err instanceof Error
+      ? err
+      : new Error(`${logPrefix} ${failureMessage}`);
   }
-
-  const failureMessage = "Bogus agent failed (random)";
-  await updateRecipe(recipe.id, {
-    status: RecipeDetectionStatus.ERROR,
-    detectionFailureReason: failureMessage,
-  });
-  await job.updateProgress({
-    status: "failure",
-    message: failureMessage,
-  });
-  logger.info(`${logPrefix} Job ${job.id} failed (random)`);
-  throw new Error(`${logPrefix} ${failureMessage}`);
 });

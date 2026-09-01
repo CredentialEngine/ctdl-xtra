@@ -86,11 +86,11 @@ export async function navigateWithProxy(
 
   const browser = await puppeteer.launch({
     ignoreHTTPSErrors: true,
-    headless: process.env.SHOW_CHROME ? false : 'shell',
+    headless: process.env.SHOW_CHROME ? false : "shell",
     protocolTimeout: 1 * 60 * 1000,
     dumpio: true,
     args,
-  });
+  } as unknown as Parameters<typeof puppeteer.launch>[0]);
 
   let settlementTimer: ReturnType<typeof setTimeout> | undefined;
 

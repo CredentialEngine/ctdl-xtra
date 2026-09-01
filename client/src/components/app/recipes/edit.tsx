@@ -582,7 +582,18 @@ export default function EditRecipe() {
                         </span>
                       </div>
                       {agenticProgress?.message ? (
-                        <p className="text-muted-foreground">
+                        <p
+                          className="text-muted-foreground line-clamp-6 break-words"
+                          title={[
+                            agenticProgress.message,
+                            "elapsedSeconds" in agenticProgress &&
+                            agenticProgress.elapsedSeconds != null
+                              ? ` (${agenticProgress.elapsedSeconds}s)`
+                              : null,
+                          ]
+                            .filter(Boolean)
+                            .join("")}
+                        >
                           {agenticProgress.message}
                           {"elapsedSeconds" in agenticProgress &&
                           agenticProgress.elapsedSeconds != null

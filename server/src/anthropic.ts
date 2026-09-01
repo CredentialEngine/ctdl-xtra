@@ -1,8 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { findSetting } from "./data/settings";
 
-export const ANTHROPIC_HELLO_WORLD_MODEL = "claude-haiku-4-5-20251001";
-
 export async function findAnthropicApiKey() {
   const envKey = process.env.ANTHROPIC_API_KEY?.trim();
   if (envKey) {
