@@ -162,7 +162,7 @@ const FormSchema = z.object({
   manualConfig: z.boolean().default(false),
   configuration: RecipeConfigurationSchema.optional(),
   acknowledgedSkipRobotsTxt: z.boolean().default(false),
-  creationMode: z.enum(["detect", "agentic", "manual", "template"]).default("detect"),
+  creationMode: z.enum(["detect", "agentic", "manual", "template"]).default("agentic"),
 });
 
 export default function CreateRecipe() {
@@ -211,7 +211,7 @@ export default function CreateRecipe() {
       url: "",
       manualConfig: false,
       acknowledgedSkipRobotsTxt: false,
-      creationMode: templateIdFromUrl ? "template" : "detect",
+      creationMode: templateIdFromUrl ? "template" : "agentic",
     },
   });
   const { toast } = useToast();
@@ -522,12 +522,12 @@ export default function CreateRecipe() {
                           >
                             <FormControl>
                               <SelectTrigger>
-                                <SelectValue defaultValue="detect" />
+                                <SelectValue defaultValue="agentic" />
                               </SelectTrigger>
                             </FormControl>
                             <SelectContent>
-                              <SelectItem value="detect">Auto-detect</SelectItem>
-                              <SelectItem value="agentic">Agentic</SelectItem>
+                              <SelectItem value="agentic">Auto (agentic)</SelectItem>
+                              <SelectItem value="detect">Auto (legacy)</SelectItem>
                               <SelectItem value="manual">Manual</SelectItem>
                               <SelectItem value="template">From template</SelectItem>
                             </SelectContent>
