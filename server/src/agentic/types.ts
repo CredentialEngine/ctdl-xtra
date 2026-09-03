@@ -36,6 +36,10 @@ export interface AgentRunResult {
   proxyAttempts?: number;
 }
 
+export interface AgenticRecipeSessionOptions {
+  recipeId: number;
+}
+
 export interface RunBrowserAgentOptions {
   prompt: string;
   apiKey?: string;
@@ -43,6 +47,8 @@ export interface RunBrowserAgentOptions {
   maxTurns?: number;
   maxBudgetUsd?: number;
   browser?: AgentBrowserOptions;
+  /** When set, attaches the xTRA recipe-config MCP server. */
+  agenticRecipe?: AgenticRecipeSessionOptions;
   /** Fail if the agent never called a Puppeteer MCP tool. Default true. */
   requireBrowserTool?: boolean;
   onEvent?: (event: AgentEvent) => void;
