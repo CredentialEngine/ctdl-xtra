@@ -9,6 +9,7 @@ export {
   formatAgentEventForPublicLog,
   parseXtraToolResult,
   statusLog,
+  stageLog,
 } from "./agenticRecipeEvents";
 export { verifyRecipeLinks } from "./verifyRecipeLinks";
 export { testExtraction } from "./testExtraction";

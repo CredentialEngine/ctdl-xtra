@@ -4,6 +4,7 @@ import {
   createProcessor,
   JobWithProgress,
 } from ".";
+import { AGENTIC_RECIPE_STAGE_LABELS } from "../../../common/recipe";
 import { CatalogueType, RecipeDetectionStatus } from "../../../common/types";
 import {
   agenticRecipeConfigurationPrompt,
@@ -11,6 +12,7 @@ import {
 } from "../agentic";
 import {
   formatAgentEventForPublicLog,
+  stageLog,
   statusLog,
 } from "../agentic/agenticRecipeEvents";
 import type { AgentEvent } from "../agentic/types";
@@ -33,12 +35,26 @@ function createPublicLogHandler(
     if (!formatted) {
       return;
     }
+    if (formatted.kind === "stage") {
+      void publicLog(
+        job as PublicLoggableJob,
+        logger,
+        stageLog(formatted.stage)
+      );
+      void mergeJobProgress(job, {
+        message: AGENTIC_RECIPE_STAGE_LABELS[formatted.stage],
+        status: "info",
+      });
+      return;
+    }
     void publicLog(
       job as PublicLoggableJob,
       logger,
-      formatted.isStatus ? statusLog(formatted.message) : formatted.message
+      formatted.kind === "status"
+        ? statusLog(formatted.message)
+        : formatted.message
     );
-    if (formatted.isStatus) {
+    if (formatted.kind === "status") {
       void mergeJobProgress(job, {
         message: formatted.message,
         status: "info",

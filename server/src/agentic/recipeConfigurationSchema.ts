@@ -73,12 +73,3 @@ export const AGENT_RECIPE_CONFIGURATION_JSON_SCHEMA = {
     },
   },
 } as const;
-
-export const AGENT_RECIPE_STAGE_NAMES = {
-  1: "Assess catalogue usability",
-  2: "Map catalogue structure",
-  3: "Write recipe configuration",
-  4: "Verify recipe",
-} as const;
-
-export type AgentRecipeStage = keyof typeof AGENT_RECIPE_STAGE_NAMES;

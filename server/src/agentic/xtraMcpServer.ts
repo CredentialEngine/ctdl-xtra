@@ -9,17 +9,18 @@ import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
-import type { PageSetupConfig } from "../../../common/types";
-import { RecipeDetectionStatus } from "../../../common/types";
-import { updateRecipe } from "../data/recipes";
 import {
-  AGENT_RECIPE_STAGE_NAMES,
-  type AgentRecipeStage,
-} from "./recipeConfigurationSchema";
+  AgenticRecipeStage,
+  AGENTIC_RECIPE_STAGES,
+  RecipeDetectionStatus,
+  type PageSetupConfig,
+} from "../../../common/types";
+import { updateRecipe } from "../data/recipes";
 import {
   assertRecipeConfigurationHasDetailLeaf,
   parseAgentRecipeConfiguration,
 } from "./recipeConfigurationValidation";
+import { applyStageReport } from "./recipeStages";
 import { verifyRecipeLinks } from "./verifyRecipeLinks";
 import {
   TEST_EXTRACTION_LIMIT_MESSAGE,
@@ -31,19 +32,14 @@ const TOOLS = [
   {
     name: "xtra_report_stage",
     description:
-      "Report the current recipe configuration stage (1-4). Call when entering or re-entering a stage.",
+      "Report the current recipe configuration stage enum. Call when entering or re-entering a stage. Do not skip stages.",
     inputSchema: {
       type: "object",
       properties: {
         stage: {
-          type: "number",
-          description: "Stage number: 1=assess usability, 2=map structure, 3=write recipe, 4=verify",
-          minimum: 1,
-          maximum: 4,
-        },
-        message: {
           type: "string",
-          description: "Optional short status message for this stage transition",
+          enum: [...AGENTIC_RECIPE_STAGES],
+          description: `Stage enum: ${AGENTIC_RECIPE_STAGES.join(", ")}`,
         },
       },
       required: ["stage"],
@@ -110,7 +106,7 @@ const TOOLS = [
   {
     name: "xtra_submit_recipe_configuration",
     description:
-      "Submit the final validated recipe configuration after stage 4 verification succeeds.",
+      "Submit the final validated recipe configuration after VERIFY_RECIPE succeeds.",
     inputSchema: {
       type: "object",
       properties: {
@@ -163,27 +159,21 @@ function xtraPayload(payload: Record<string, unknown>) {
   return JSON.stringify({ xtraEvent: true, ...payload });
 }
 
-function stageLabel(stage: AgentRecipeStage): string {
-  return AGENT_RECIPE_STAGE_NAMES[stage];
-}
+let currentStage: AgenticRecipeStage | null = null;
 
 async function handleToolCall(name: string, args: Record<string, unknown>) {
   switch (name) {
     case "xtra_report_stage": {
-      const stage = Number(args.stage);
-      if (!Number.isInteger(stage) || stage < 1 || stage > 4) {
-        return toolError("stage must be an integer between 1 and 4");
+      const result = applyStageReport(currentStage, args.stage);
+      if (!result.ok) {
+        return toolError(result.error);
       }
-      const typedStage = stage as AgentRecipeStage;
-      const detail =
-        typeof args.message === "string" && args.message.trim()
-          ? args.message.trim()
-          : stageLabel(typedStage);
+      currentStage = result.stage;
       return toolSuccess(
         xtraPayload({
           kind: "stage",
-          stage: typedStage,
-          message: `Stage ${stage}: ${detail}`,
+          stage: result.stage,
+          changed: result.changed,
         })
       );
     }

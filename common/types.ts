@@ -24,6 +24,29 @@ export enum UrlPatternType {
   offset = "offset",
 }
 
+export enum AgenticRecipeStage {
+  ASSESS_USABILITY = "ASSESS_USABILITY",
+  MAP_STRUCTURE = "MAP_STRUCTURE",
+  WRITE_CONFIGURATION = "WRITE_CONFIGURATION",
+  VERIFY_RECIPE = "VERIFY_RECIPE",
+}
+
+export const AGENTIC_RECIPE_STAGES: AgenticRecipeStage[] = [
+  AgenticRecipeStage.ASSESS_USABILITY,
+  AgenticRecipeStage.MAP_STRUCTURE,
+  AgenticRecipeStage.WRITE_CONFIGURATION,
+  AgenticRecipeStage.VERIFY_RECIPE,
+];
+
+export function isAgenticRecipeStage(
+  value: unknown
+): value is AgenticRecipeStage {
+  return (
+    typeof value === "string" &&
+    (AGENTIC_RECIPE_STAGES as string[]).includes(value)
+  );
+}
+
 export interface PaginationConfiguration {
   urlPatternType: UrlPatternType;
   urlPattern: string;

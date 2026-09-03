@@ -1,8 +1,10 @@
-import type { CatalogueType } from "../../../common/types";
 import {
-  AGENT_RECIPE_CONFIGURATION_JSON_SCHEMA,
-  AGENT_RECIPE_STAGE_NAMES,
-} from "./recipeConfigurationSchema";
+  AgenticRecipeStage,
+  AGENTIC_RECIPE_STAGES,
+  type CatalogueType,
+} from "../../../common/types";
+import { AGENTIC_RECIPE_STAGE_LABELS } from "../../../common/recipe";
+import { AGENT_RECIPE_CONFIGURATION_JSON_SCHEMA } from "./recipeConfigurationSchema";
 
 const RECIPE_COMPATIBILITY_GUIDE = `
 ## Recipe compatibility (from xTRA recipe docs)
@@ -77,9 +79,10 @@ export function agenticRecipeConfigurationPrompt(input: {
     ? `Catalogue type: ${input.catalogueType}.`
     : "Catalogue type: unknown.";
 
-  const stageList = Object.entries(AGENT_RECIPE_STAGE_NAMES)
-    .map(([num, name]) => `${num}. ${name}`)
-    .join("\n");
+  const stageList = AGENTIC_RECIPE_STAGES.map(
+    (stage, index) =>
+      `${index + 1}. \`${stage}\` — ${AGENTIC_RECIPE_STAGE_LABELS[stage]}`
+  ).join("\n");
 
   return `
 You are configuring a CTDL xTRA crawl recipe for ${input.url}.
@@ -91,10 +94,10 @@ ${stageList}
 
 ## Reporting rules (required)
 
-1. Call \`xtra_report_stage\` whenever you enter or re-enter a stage (including going back from stage 4 to stage 3).
+1. Call \`xtra_report_stage\` with the stage enum whenever you enter or re-enter a stage (including going back from \`${AgenticRecipeStage.VERIFY_RECIPE}\` to \`${AgenticRecipeStage.WRITE_CONFIGURATION}\`).
 2. Call \`xtra_report_progress\` before each major action to explain what you are about to do.
 3. Use Puppeteer MCP tools (\`puppeteer_navigate\`, \`puppeteer_evaluate\`, etc.) to inspect pages.
-4. Do not skip stages. If the catalogue is not recipe-compatible, stop after stage 1 with a clear explanation.
+4. Do not skip stages. If you report the wrong stage, the tool rejects it and tells you the expected stage. If the catalogue is not recipe-compatible, stop after \`${AgenticRecipeStage.ASSESS_USABILITY}\` with a clear explanation.
 
 ## Output style (required)
 
@@ -103,7 +106,7 @@ ${stageList}
 - Do not use interpersonal or chatty phrases (e.g. "Let me try", "Great!", "Let me help you", "I'll", "Sure", "Perfect").
 - Prefer tools over prose; do not repeat information already sent via \`xtra_report_stage\` or \`xtra_report_progress\`.
 
-## Stage 1 — ${AGENT_RECIPE_STAGE_NAMES[1]}
+## Stage ${AgenticRecipeStage.ASSESS_USABILITY} — ${AGENTIC_RECIPE_STAGE_LABELS[AgenticRecipeStage.ASSESS_USABILITY]}
 
 Using ${input.url}, determine whether this catalogue can be crawled with a recipe:
 
@@ -112,7 +115,7 @@ Using ${input.url}, determine whether this catalogue can be crawled with a recip
 3. **Pagination:** if present, confirm it uses \`page_num\` or \`offset\` URL patterns compatible with recipe pagination. If pagination uses another mechanism (infinite scroll, POST-only, hash routing), note incompatibility.
 4. **Link-based navigation:** confirm links are copyable/openable OR can be handled with dynamic catalogue (click changes URL). If navigation is a dynamic SPA with no linkable URLs, the catalogue is **not recipe-compatible** — explain why and stop.
 
-## Stage 2 — ${AGENT_RECIPE_STAGE_NAMES[2]}
+## Stage ${AgenticRecipeStage.MAP_STRUCTURE} — ${AGENTIC_RECIPE_STAGE_LABELS[AgenticRecipeStage.MAP_STRUCTURE]}
 
 Explore the catalogue hierarchy:
 
@@ -121,7 +124,7 @@ Explore the catalogue hierarchy:
 3. Map each level as \`CATEGORY_LINKS\`, \`DETAIL_LINKS\`, or \`DETAIL\` (see Page types above: category hubs vs item lists vs single-item pages).
 4. Note whether dynamic catalogue or pagination is needed at any level.
 
-## Stage 3 — ${AGENT_RECIPE_STAGE_NAMES[3]}
+## Stage ${AgenticRecipeStage.WRITE_CONFIGURATION} — ${AGENTIC_RECIPE_STAGE_LABELS[AgenticRecipeStage.WRITE_CONFIGURATION]}
 
 Write the full nested recipe configuration:
 
@@ -136,22 +139,22 @@ ${JSON.stringify(AGENT_RECIPE_CONFIGURATION_JSON_SCHEMA, null, 2)}
 Guidelines:
 - Deepest level must be \`DETAIL\`.
 - Provide \`linkRegexp\` for every non-DETAIL level.
-- Include \`pagination\` only when stage 1 confirmed compatible pagination.
+- Include \`pagination\` only when \`${AgenticRecipeStage.ASSESS_USABILITY}\` confirmed compatible pagination.
 - Include \`clickSelector\` / \`clickOptions\` only when dynamic catalogue is required.
 - Set \`pageLoadWaitTime\` if content appears after load delay.
 
-## Stage 4 — ${AGENT_RECIPE_STAGE_NAMES[4]}
+## Stage ${AgenticRecipeStage.VERIFY_RECIPE} — ${AGENTIC_RECIPE_STAGE_LABELS[AgenticRecipeStage.VERIFY_RECIPE]}
 
 Dry-run verification (do **not** enqueue pages):
 
 1. For each non-DETAIL level, call \`xtra_verify_recipe_links\` with that level's URL, \`linkRegexp\`, and dynamic options.
 2. Compare returned URLs to what you expect from browsing.
-3. If results are wrong or empty, call \`xtra_report_stage\` with stage \`3\`, fix the configuration, and re-verify.
+3. If results are wrong or empty, call \`xtra_report_stage\` with \`${AgenticRecipeStage.WRITE_CONFIGURATION}\`, fix the configuration, and re-verify.
 4. When link verification passes, sample DETAIL page URLs at random from the verified set (spread across the list; do not take the first consecutive links). Call \`xtra_test_extraction\` on each sampled URL, up to 10 times. This tool is limited to 10 calls for this recipe; further calls return an error that you tried too many times.
-5. \`xtra_test_extraction\` returns \`extracted: true\` if any entries were generated, otherwise \`extracted: false\`. If a sample returns false, call \`xtra_report_stage\` with stage \`3\`, fix the configuration, and re-verify links. Remaining extraction attempts still count toward the 10-call limit.
+5. \`xtra_test_extraction\` returns \`extracted: true\` if any entries were generated, otherwise \`extracted: false\`. If a sample returns false, call \`xtra_report_stage\` with \`${AgenticRecipeStage.WRITE_CONFIGURATION}\`, fix the configuration, and re-verify links. Remaining extraction attempts still count toward the 10-call limit.
 6. When every level's links pass and sampled DETAIL pages extract successfully, call \`xtra_submit_recipe_configuration\` with the final configuration object and a brief summary.
 
-Start now with stage 1: call \`xtra_report_stage\` with stage \`1\`, then \`xtra_report_progress\`, then navigate to ${input.url}.
+Start now with \`${AgenticRecipeStage.ASSESS_USABILITY}\`: call \`xtra_report_stage\` with that stage enum, then \`xtra_report_progress\`, then navigate to ${input.url}.
 `.trim();
 }
 
