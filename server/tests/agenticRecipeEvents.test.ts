@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
+import { AgenticRecipeStage } from "../../common/types";
+import { agenticRecipeStageLog } from "../../common/recipe";
 import {
   formatAgentEventForPublicLog,
   parseXtraToolResult,
+  stageLog,
   statusLog,
 } from "../src/agentic/agenticRecipeEvents";
 
@@ -10,13 +13,16 @@ describe("parseXtraToolResult", () => {
     const payload = JSON.stringify({
       xtraEvent: true,
       kind: "stage",
-      stage: 2,
-      message: "Stage 2: Map catalogue structure",
+      stage: AgenticRecipeStage.MAP_STRUCTURE,
+      changed: true,
     });
     expect(parseXtraToolResult(payload)).toEqual({
       kind: "stage",
-      stage: 2,
-      message: "Stage 2: Map catalogue structure",
+      stage: AgenticRecipeStage.MAP_STRUCTURE,
+      changed: true,
+      message: undefined,
+      matchCount: undefined,
+      extracted: undefined,
     });
   });
 
@@ -33,29 +39,29 @@ describe("formatAgentEventForPublicLog", () => {
         message: "Starting browser agent",
       })
     ).toEqual({
+      kind: "status",
       message: "Starting browser agent",
-      isStatus: true,
     });
   });
 
-  it("marks assistant text as non-status logs", () => {
+  it("marks assistant text as plain logs", () => {
     expect(
       formatAgentEventForPublicLog({
         type: "assistant",
         message: "Checking whether links are copyable.",
       })
     ).toEqual({
+      kind: "plain",
       message: "Checking whether links are copyable.",
-      isStatus: false,
     });
   });
 
-  it("maps xtra stage tool results to status logs", () => {
+  it("maps xtra stage tool results to stage logs when the stage changed", () => {
     const payload = JSON.stringify({
       xtraEvent: true,
       kind: "stage",
-      stage: 1,
-      message: "Stage 1: Assess catalogue usability",
+      stage: AgenticRecipeStage.ASSESS_USABILITY,
+      changed: true,
     });
     expect(
       formatAgentEventForPublicLog({
@@ -63,12 +69,27 @@ describe("formatAgentEventForPublicLog", () => {
         message: payload,
       })
     ).toEqual({
-      message: "Stage 1: Assess catalogue usability",
-      isStatus: true,
+      kind: "stage",
+      stage: AgenticRecipeStage.ASSESS_USABILITY,
     });
   });
 
-  it("maps xtra progress tool results to non-status logs", () => {
+  it("omits stage tool results when the stage did not change", () => {
+    const payload = JSON.stringify({
+      xtraEvent: true,
+      kind: "stage",
+      stage: AgenticRecipeStage.ASSESS_USABILITY,
+      changed: false,
+    });
+    expect(
+      formatAgentEventForPublicLog({
+        type: "tool",
+        message: payload,
+      })
+    ).toBeNull();
+  });
+
+  it("maps xtra progress tool results to plain logs", () => {
     const payload = JSON.stringify({
       xtraEvent: true,
       kind: "progress",
@@ -80,8 +101,8 @@ describe("formatAgentEventForPublicLog", () => {
         message: payload,
       })
     ).toEqual({
+      kind: "plain",
       message: "Opening the catalogue index page.",
-      isStatus: false,
     });
   });
 
@@ -96,8 +117,8 @@ describe("formatAgentEventForPublicLog", () => {
         }),
       })
     ).toEqual({
+      kind: "plain",
       message: "Test extraction generated entries.",
-      isStatus: false,
     });
     expect(
       formatAgentEventForPublicLog({
@@ -109,8 +130,8 @@ describe("formatAgentEventForPublicLog", () => {
         }),
       })
     ).toEqual({
+      kind: "plain",
       message: "Test extraction generated no entries.",
-      isStatus: false,
     });
   });
 });
@@ -119,6 +140,14 @@ describe("statusLog", () => {
   it("wraps messages in status tags", () => {
     expect(statusLog("Running stage 3")).toBe(
       "<status>Running stage 3</status>"
+    );
+  });
+});
+
+describe("stageLog", () => {
+  it("wraps stage enums in stage tags", () => {
+    expect(stageLog(AgenticRecipeStage.VERIFY_RECIPE)).toBe(
+      agenticRecipeStageLog(AgenticRecipeStage.VERIFY_RECIPE)
     );
   });
 });

@@ -9,12 +9,79 @@ import {
 } from "@/components/ui/card";
 import { useToast } from "@/components/ui/use-toast";
 import { TimeElapsedText } from "@/useTimeElapsed";
-import { RecipeDetectionStatus, trpc } from "@/utils";
-import { Check, LoaderIcon, RotateCcw, ScrollText } from "lucide-react";
+import { cn, RecipeDetectionStatus, trpc } from "@/utils";
+import {
+  AGENTIC_RECIPE_STAGE_LABELS,
+  agenticRecipeStageUiStates,
+  latestAgenticRecipeStageFromLogs,
+  parseAgenticRecipeStageLog,
+  type AgenticRecipeStageUiState,
+} from "@common/recipe";
+import {
+  AGENTIC_RECIPE_STAGES,
+  type AgenticRecipeStage,
+} from "@common/types";
+import {
+  Check,
+  ChevronsRight,
+  LoaderIcon,
+  RotateCcw,
+  ScrollText,
+} from "lucide-react";
 import { useState } from "react";
 
 const STATUS_PREFIX = "<status>";
 const STATUS_SUFFIX = "</status>";
+
+const STAGE_STATE_STYLES: Record<
+  AgenticRecipeStageUiState,
+  { row: string; indicator: string; label: string }
+> = {
+  pending: {
+    row: "text-gray-700",
+    indicator: "bg-gray-700",
+    label: "Pending",
+  },
+  in_progress: {
+    row: "text-yellow-500",
+    indicator: "text-yellow-500",
+    label: "In progress",
+  },
+  done: {
+    row: "text-green-600",
+    indicator: "text-green-600",
+    label: "Done",
+  },
+};
+
+function StageIndicator({ state }: { state: AgenticRecipeStageUiState }) {
+  const styles = STAGE_STATE_STYLES[state];
+  if (state === "pending") {
+    return (
+      <span
+        className={cn(
+          "h-2.5 w-2.5 shrink-0 rounded-full",
+          styles.indicator
+        )}
+        aria-hidden
+      />
+    );
+  }
+  if (state === "in_progress") {
+    return (
+      <ChevronsRight
+        className={cn("h-4 w-4 shrink-0", styles.indicator)}
+        aria-hidden
+      />
+    );
+  }
+  return (
+    <Check
+      className={cn("h-4 w-4 shrink-0", styles.indicator)}
+      aria-hidden
+    />
+  );
+}
 
 function parseStatusLogMessage(line: string): string | null {
   if (!line.startsWith(STATUS_PREFIX)) {
@@ -29,6 +96,14 @@ function parseStatusLogMessage(line: string): string | null {
 }
 
 function renderRecipeJobLogLine(line: string) {
+  const stage = parseAgenticRecipeStageLog(line);
+  if (stage) {
+    return (
+      <>
+        <em>Stage:</em> {AGENTIC_RECIPE_STAGE_LABELS[stage]}
+      </>
+    );
+  }
   const statusMessage = parseStatusLogMessage(line);
   if (statusMessage) {
     return (
@@ -48,6 +123,36 @@ function latestStatusFromLogs(logs: string[]): string | null {
     }
   }
   return null;
+}
+
+function AgenticStageList({
+  logs,
+  completed,
+}: {
+  logs: string[];
+  completed: boolean;
+}) {
+  const current = latestAgenticRecipeStageFromLogs(logs);
+  const states = agenticRecipeStageUiStates(current, { completed });
+
+  return (
+    <ol className="space-y-2">
+      {AGENTIC_RECIPE_STAGES.map((stage: AgenticRecipeStage) => {
+        const state = states[stage];
+        const styles = STAGE_STATE_STYLES[state];
+        return (
+          <li
+            key={stage}
+            className={cn("flex items-center gap-2 text-sm", styles.row)}
+          >
+            <StageIndicator state={state} />
+            <span>{AGENTIC_RECIPE_STAGE_LABELS[stage]}</span>
+            <span className="sr-only">{styles.label}</span>
+          </li>
+        );
+      })}
+    </ol>
+  );
 }
 
 export default function RecipeJobStatus({ recipeId }: { recipeId: number }) {
@@ -135,7 +240,7 @@ export default function RecipeJobStatus({ recipeId }: { recipeId: number }) {
             <CardHeader>
               <CardDescription>Agentic Configuration</CardDescription>
             </CardHeader>
-            <CardContent className="text-sm space-y-2">
+            <CardContent className="text-sm space-y-3">
               {isAgenticComplete ? (
                 <div className="flex items-center">
                   <Check className="mr-2 w-4 h-4" />
@@ -147,6 +252,10 @@ export default function RecipeJobStatus({ recipeId }: { recipeId: number }) {
                   <span>Agent is configuring this recipe…</span>
                 </div>
               )}
+              <AgenticStageList
+                logs={jobWatcher.logs}
+                completed={isAgenticComplete}
+              />
               {lastStatus ? (
                 <p
                   className="font-serif text-muted-foreground line-clamp-6 break-words"
@@ -200,6 +309,14 @@ export default function RecipeJobStatus({ recipeId }: { recipeId: number }) {
                   ? "The agentic configuration workflow failed for this recipe."
                   : "CTDL xTRA failed to detect a valid configuration for this recipe."}
               </p>
+              {isAgenticJob ? (
+                <div className="mt-4">
+                  <AgenticStageList
+                    logs={jobWatcher.logs}
+                    completed={false}
+                  />
+                </div>
+              ) : null}
               <p className="mt-4">You can adjust the URL, or try again.</p>
               <p className="mt-8">Failure reason:</p>
               <pre className="mt-2 text-xs overflow-x-auto">
