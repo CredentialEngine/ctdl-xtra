@@ -30,9 +30,8 @@ import {
   Step,
 } from "../../../common/types";
 import { getCatalogueTypeDefinition } from "../extraction/catalogueTypes";
-import { determinePresenceOfEntity } from "../extraction/llm/determinePresenceOfEntity";
 import { exploreAdditionalPages } from "../extraction/llm/exploreAdditionalPages";
-import { extractAndVerifyEntityData } from "../extraction/llm/extractAndVerifyEntityData";
+import { runEntityExtraction } from "../extraction/runEntityExtraction";
 import getLogger from "../logging";
 
 const logger = getLogger("workers.extractData");
@@ -103,54 +102,29 @@ export default createProcessor<ExtractDataJob, ExtractDataProgress>(
         },
       };
 
-      let skipExtraction = false,
-        extractedEntityCount = 0;
+      let extractedEntityCount = 0;
 
-      if (entityDef.presencePrompt) {
-        const result = await determinePresenceOfEntity(
-          extractionOptions,
-          entityDef
-        );
-        if (!result.present) {
-          skipExtraction = true;
-        }
-      }
-
-      if (!skipExtraction) {
-        for await (const {
+      for await (const {
+        entity,
+        textInclusion,
+      } of runEntityExtraction(extractionOptions)) {
+        await createDataItem(
+          crawlPage.id,
+          dataset.id,
           entity,
-          textInclusion,
-        } of extractAndVerifyEntityData(extractionOptions)) {
-          if (entity.items) {
-            for (const item of entity.items) {
-              await createDataItem(
-                crawlPage.id,
-                dataset.id,
-                item,
-                textInclusion
-              );
-              extractedEntityCount++;
-            }
-          } else {
-            await createDataItem(
-              crawlPage.id,
-              dataset.id,
-              entity,
-              textInclusion
-            );
-            extractedEntityCount++;
-          }
+          textInclusion
+        );
+        extractedEntityCount++;
 
-          // If we're dealing with large amount of entities in the same doc,
-          // check for cancelation every 2 entities
-          if (extractedEntityCount % 2 === 0) {
-            crawlPage = await findPageForJob(crawlPage.id);
-            if (crawlPage.extraction.status == ExtractionStatus.CANCELLED) {
-              logger.info(
-                `Extraction ${crawlPage.extractionId} was cancelled; aborting`
-              );
-              return;
-            }
+        // If we're dealing with large amount of entities in the same doc,
+        // check for cancelation every 2 entities
+        if (extractedEntityCount % 2 === 0) {
+          crawlPage = await findPageForJob(crawlPage.id);
+          if (crawlPage.extraction.status == ExtractionStatus.CANCELLED) {
+            logger.info(
+              `Extraction ${crawlPage.extractionId} was cancelled; aborting`
+            );
+            return;
           }
         }
       }

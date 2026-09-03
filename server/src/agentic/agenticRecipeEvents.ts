@@ -1,10 +1,11 @@
 import type { AgentEvent } from "./types";
 
 export interface ParsedXtraEvent {
-  kind: "stage" | "progress" | "verify" | "submit";
+  kind: "stage" | "progress" | "verify" | "submit" | "test_extraction";
   stage?: number;
   message?: string;
   matchCount?: number;
+  extracted?: boolean;
 }
 
 export function parseXtraToolResult(message: string): ParsedXtraEvent | null {
@@ -19,6 +20,7 @@ export function parseXtraToolResult(message: string): ParsedXtraEvent | null {
       stage?: number;
       message?: string;
       matchCount?: number;
+      extracted?: boolean;
     };
     if (!parsed.xtraEvent || !parsed.kind) {
       return null;
@@ -27,7 +29,8 @@ export function parseXtraToolResult(message: string): ParsedXtraEvent | null {
       parsed.kind !== "stage" &&
       parsed.kind !== "progress" &&
       parsed.kind !== "verify" &&
-      parsed.kind !== "submit"
+      parsed.kind !== "submit" &&
+      parsed.kind !== "test_extraction"
     ) {
       return null;
     }
@@ -36,6 +39,7 @@ export function parseXtraToolResult(message: string): ParsedXtraEvent | null {
       stage: parsed.stage,
       message: parsed.message,
       matchCount: parsed.matchCount,
+      extracted: parsed.extracted,
     };
   } catch {
     return null;
@@ -75,6 +79,15 @@ export function formatAgentEventForPublicLog(
     }
     if (parsed.kind === "submit" && parsed.message) {
       return { message: parsed.message, isStatus: false };
+    }
+    if (parsed.kind === "test_extraction") {
+      return {
+        message:
+          parsed.extracted === true
+            ? "Test extraction generated entries."
+            : "Test extraction generated no entries.",
+        isStatus: false,
+      };
     }
   }
   return null;
