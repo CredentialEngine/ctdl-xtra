@@ -135,3 +135,9 @@ variable "enable_efs_csi_driver" {
   type        = bool
   default     = false
 }
+
+variable "enable_prefix_delegation" {
+  description = "Enable VPC CNI prefix delegation (raises per-node pod capacity)."
+  type        = bool
+  default     = false
+}
