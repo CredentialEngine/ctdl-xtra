@@ -3,10 +3,14 @@ import { normalizeUrl, isProxyError } from "../utils";
 import getLogger from "../logging";
 import { buildAgentChromeSession } from "./chrome";
 import {
+  AGENTIC_RECIPE_ALLOWED_TOOLS,
   PUPPETEER_ALLOWED_TOOLS,
   PUPPETEER_TOOL_PREFIX,
+  XTRA_TOOL_PREFIX,
+  allowAgenticRecipeTools,
   allowPuppeteerTools,
 } from "./permissions";
+import { xtraMcpCommand, xtraMcpEnv } from "./xtraMcp";
 import {
   PROXY_ROTATE_PREFIX,
   buildAgentProxyAttempts,
@@ -132,21 +136,43 @@ async function runBrowserAgentOnce(
     message: `Starting browser agent${proxyUrl ? " via proxy" : ""}`,
   });
 
+  const agenticRecipe = options.agenticRecipe;
+  const mcpServers: Record<
+    string,
+    { command: string; args: string[]; env: Record<string, string> }
+  > = {
+    puppeteer: {
+      command: mcp.command,
+      args: mcp.args,
+      env: mcpEnv,
+    },
+  };
+  if (agenticRecipe) {
+    const xtra = xtraMcpCommand();
+    mcpServers.xtra = {
+      command: xtra.command,
+      args: xtra.args,
+      env: {
+        ...xtraMcpEnv({
+          recipeId: agenticRecipe.recipeId,
+          pageLoadWaitTime: browser.pageLoadWaitTime,
+          pageSetup: browser.pageSetup,
+        }),
+      },
+    };
+  }
+
   const result = await runAgentQuery({
     prompt: options.prompt,
     apiKey,
     model: options.model,
     maxTurns: options.maxTurns,
     maxBudgetUsd: options.maxBudgetUsd,
-    allowedTools: PUPPETEER_ALLOWED_TOOLS,
-    canUseTool: allowPuppeteerTools,
-    mcpServers: {
-      puppeteer: {
-        command: mcp.command,
-        args: mcp.args,
-        env: mcpEnv,
-      },
-    },
+    allowedTools: agenticRecipe
+      ? AGENTIC_RECIPE_ALLOWED_TOOLS
+      : PUPPETEER_ALLOWED_TOOLS,
+    canUseTool: agenticRecipe ? allowAgenticRecipeTools : allowPuppeteerTools,
+    mcpServers,
     onEvent: options.onEvent,
   });
 
@@ -154,8 +180,14 @@ async function runBrowserAgentOnce(
   const usedBrowser = result.toolNames.some((name) =>
     name.startsWith(PUPPETEER_TOOL_PREFIX)
   );
+  const usedXtra = result.toolNames.some((name) =>
+    name.startsWith(XTRA_TOOL_PREFIX)
+  );
   if (requireBrowserTool && !usedBrowser) {
     throw new Error("Agent finished without calling a Puppeteer MCP tool");
+  }
+  if (options.agenticRecipe && !usedXtra) {
+    throw new Error("Agent finished without calling an xTRA MCP tool");
   }
 
   return result;
