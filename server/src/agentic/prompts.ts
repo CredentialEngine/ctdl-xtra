@@ -147,7 +147,9 @@ Dry-run verification (do **not** enqueue pages):
 1. For each non-DETAIL level, call \`xtra_verify_recipe_links\` with that level's URL, \`linkRegexp\`, and dynamic options.
 2. Compare returned URLs to what you expect from browsing.
 3. If results are wrong or empty, call \`xtra_report_stage\` with stage \`3\`, fix the configuration, and re-verify.
-4. When every level passes, call \`xtra_submit_recipe_configuration\` with the final configuration object and a brief summary.
+4. When link verification passes, sample DETAIL page URLs at random from the verified set (spread across the list; do not take the first consecutive links). Call \`xtra_test_extraction\` on each sampled URL, up to 10 times. This tool is limited to 10 calls for this recipe; further calls return an error that you tried too many times.
+5. \`xtra_test_extraction\` returns \`extracted: true\` if any entries were generated, otherwise \`extracted: false\`. If a sample returns false, call \`xtra_report_stage\` with stage \`3\`, fix the configuration, and re-verify links. Remaining extraction attempts still count toward the 10-call limit.
+6. When every level's links pass and sampled DETAIL pages extract successfully, call \`xtra_submit_recipe_configuration\` with the final configuration object and a brief summary.
 
 Start now with stage 1: call \`xtra_report_stage\` with stage \`1\`, then \`xtra_report_progress\`, then navigate to ${input.url}.
 `.trim();

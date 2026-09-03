@@ -11,6 +11,7 @@ export {
   statusLog,
 } from "./agenticRecipeEvents";
 export { verifyRecipeLinks } from "./verifyRecipeLinks";
+export { testExtraction } from "./testExtraction";
 export {
   DEFAULT_AGENT_MODEL,
   DEFAULT_MAX_BUDGET_USD,

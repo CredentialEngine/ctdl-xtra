@@ -84,6 +84,35 @@ describe("formatAgentEventForPublicLog", () => {
       isStatus: false,
     });
   });
+
+  it("maps test extraction results to whether entries were generated", () => {
+    expect(
+      formatAgentEventForPublicLog({
+        type: "tool",
+        message: JSON.stringify({
+          xtraEvent: true,
+          kind: "test_extraction",
+          extracted: true,
+        }),
+      })
+    ).toEqual({
+      message: "Test extraction generated entries.",
+      isStatus: false,
+    });
+    expect(
+      formatAgentEventForPublicLog({
+        type: "tool",
+        message: JSON.stringify({
+          xtraEvent: true,
+          kind: "test_extraction",
+          extracted: false,
+        }),
+      })
+    ).toEqual({
+      message: "Test extraction generated no entries.",
+      isStatus: false,
+    });
+  });
 });
 
 describe("statusLog", () => {

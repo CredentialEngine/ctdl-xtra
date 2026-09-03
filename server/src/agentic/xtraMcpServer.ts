@@ -21,6 +21,11 @@ import {
   parseAgentRecipeConfiguration,
 } from "./recipeConfigurationValidation";
 import { verifyRecipeLinks } from "./verifyRecipeLinks";
+import {
+  TEST_EXTRACTION_LIMIT_MESSAGE,
+  TestExtractionLimitError,
+  testExtraction,
+} from "./testExtraction";
 
 const TOOLS = [
   {
@@ -83,6 +88,21 @@ const TOOLS = [
           },
         },
         exactLinkPatternMatch: { type: "boolean" },
+      },
+      required: ["url"],
+    },
+  },
+  {
+    name: "xtra_test_extraction",
+    description:
+      "Run xTRA entity extraction on a DETAIL page URL. Returns whether any entries were extracted (extracted: true/false). Limited to 10 calls per recipe.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        url: {
+          type: "string",
+          description: "DETAIL page URL to extract",
+        },
       },
       required: ["url"],
     },
@@ -223,6 +243,37 @@ async function handleToolCall(name: string, args: Record<string, unknown>) {
       } catch (error) {
         const message =
           error instanceof Error ? error.message : "Verification failed";
+        return toolError(message);
+      }
+    }
+    case "xtra_test_extraction": {
+      const url = String(args.url ?? "").trim();
+      if (!url) {
+        return toolError("url is required");
+      }
+      try {
+        const result = await testExtraction({
+          url,
+          recipeId: readRecipeIdFromEnv(),
+          pageLoadWaitTime: readPageLoadWaitTimeFromEnv(),
+          pageSetup: readPageSetupFromEnv(),
+        });
+        return toolSuccess(
+          xtraPayload({
+            kind: "test_extraction",
+            url: result.url,
+            extracted: result.extracted,
+            entryCount: result.entryCount,
+            attempt: result.attempt,
+            remaining: result.remaining,
+          })
+        );
+      } catch (error) {
+        if (error instanceof TestExtractionLimitError) {
+          return toolError(TEST_EXTRACTION_LIMIT_MESSAGE);
+        }
+        const message =
+          error instanceof Error ? error.message : "Test extraction failed";
         return toolError(message);
       }
     }
