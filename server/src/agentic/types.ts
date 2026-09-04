@@ -5,6 +5,11 @@ export const DEFAULT_MAX_TURNS = 24;
 export const DEFAULT_MAX_BUDGET_USD = 5;
 export const AGENT_SMOKE_URL = "https://www.google.com";
 
+export function resolveAgentModel(model?: string | null): string {
+  const trimmed = model?.trim();
+  return trimmed || DEFAULT_AGENT_MODEL;
+}
+
 /**
  * Browser context aligned with `FetchBrowserPageOptions`.
  * Launch, proxy, page wait, and page setup are applied by the Puppeteer MCP session.

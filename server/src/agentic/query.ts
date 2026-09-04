@@ -1,8 +1,8 @@
 import type { CanUseTool, McpServerConfig } from "@anthropic-ai/claude-agent-sdk";
 import {
-  DEFAULT_AGENT_MODEL,
   DEFAULT_MAX_BUDGET_USD,
   DEFAULT_MAX_TURNS,
+  resolveAgentModel,
   type AgentEvent,
   type AgentRunResult,
 } from "./types";
@@ -43,7 +43,7 @@ export async function runAgentQuery(
     prompt: request.prompt,
     options: {
       cwd: serverPackageRoot(),
-      model: request.model ?? DEFAULT_AGENT_MODEL,
+      model: resolveAgentModel(request.model),
       maxTurns: request.maxTurns ?? DEFAULT_MAX_TURNS,
       maxBudgetUsd: request.maxBudgetUsd ?? DEFAULT_MAX_BUDGET_USD,
       permissionMode: "dontAsk",

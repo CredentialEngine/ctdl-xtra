@@ -97,7 +97,7 @@ ${stageList}
 1. Call \`xtra_report_stage\` with the stage enum whenever you enter or re-enter a stage (including going back from \`${AgenticRecipeStage.VERIFY_RECIPE}\` to \`${AgenticRecipeStage.WRITE_CONFIGURATION}\`).
 2. Call \`xtra_report_progress\` before each major action to explain what you are about to do.
 3. Use Puppeteer MCP tools (\`puppeteer_navigate\`, \`puppeteer_evaluate\`, etc.) to inspect pages.
-4. Do not skip stages. If you report the wrong stage, the tool rejects it and tells you the expected stage. If the catalogue is not recipe-compatible, stop after \`${AgenticRecipeStage.ASSESS_USABILITY}\` with a clear explanation.
+4. Do not skip stages. If you report the wrong stage, the tool rejects it and tells you the expected stage. If the catalogue is not recipe-compatible or cannot be configured, call \`xtra_give_up\` with a clear user-visible \`message\` and stop.
 
 ## Output style (required)
 
@@ -113,7 +113,7 @@ Using ${input.url}, determine whether this catalogue can be crawled with a recip
 1. **Accessible:** page loads successfully (not blocked, not empty error page).
 2. **Index of sub-pages:** the starting page lists or links to deeper catalogue pages (categories or items), OR is itself a detail page.
 3. **Pagination:** if present, confirm it uses \`page_num\` or \`offset\` URL patterns compatible with recipe pagination. If pagination uses another mechanism (infinite scroll, POST-only, hash routing), note incompatibility.
-4. **Link-based navigation:** confirm links are copyable/openable OR can be handled with dynamic catalogue (click changes URL). If navigation is a dynamic SPA with no linkable URLs, the catalogue is **not recipe-compatible** — explain why and stop.
+4. **Link-based navigation:** confirm links are copyable/openable OR can be handled with dynamic catalogue (click changes URL). If navigation is a dynamic SPA with no linkable URLs, the catalogue is **not recipe-compatible** — call \`xtra_give_up\` with the reason and stop.
 
 ## Stage ${AgenticRecipeStage.MAP_STRUCTURE} — ${AGENTIC_RECIPE_STAGE_LABELS[AgenticRecipeStage.MAP_STRUCTURE]}
 
@@ -130,7 +130,7 @@ Write the full nested recipe configuration:
 
 ${RECIPE_COMPATIBILITY_GUIDE}
 
-Submit configuration matching this JSON schema:
+Build the configuration object matching this JSON schema (do not call \`xtra_submit_recipe_configuration\` until \`${AgenticRecipeStage.VERIFY_RECIPE}\` passes):
 
 \`\`\`json
 ${JSON.stringify(AGENT_RECIPE_CONFIGURATION_JSON_SCHEMA, null, 2)}

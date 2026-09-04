@@ -17,6 +17,7 @@ import {
   parseAgenticRecipeStageLog,
   type AgenticRecipeStageUiState,
 } from "@common/recipe";
+import { anthropicModelLabel } from "@common/anthropicModels";
 import {
   AGENTIC_RECIPE_STAGES,
   type AgenticRecipeStage,
@@ -125,6 +126,15 @@ function latestStatusFromLogs(logs: string[]): string | null {
   return null;
 }
 
+function AgenticModelLabel({ model }: { model?: string | null }) {
+  if (!model) {
+    return null;
+  }
+  return (
+    <p className="text-xs opacity-80">Model: {anthropicModelLabel(model)}</p>
+  );
+}
+
 function AgenticStageList({
   logs,
   completed,
@@ -191,6 +201,10 @@ export default function RecipeJobStatus({ recipeId }: { recipeId: number }) {
 
   const recipe = recipeQuery.data;
   const isAgenticJob = jobStatusQuery.data?.kind === "agentic";
+  const agenticModel =
+    jobStatusQuery.data?.kind === "agentic"
+      ? jobStatusQuery.data.model
+      : undefined;
   if (!recipe || (recipe.status === RecipeDetectionStatus.SUCCESS && !isAgenticJob)) {
     return null;
   }
@@ -239,6 +253,7 @@ export default function RecipeJobStatus({ recipeId }: { recipeId: number }) {
           <Card>
             <CardHeader>
               <CardDescription>Agentic Configuration</CardDescription>
+              <AgenticModelLabel model={agenticModel} />
             </CardHeader>
             <CardContent className="text-sm space-y-3">
               {isAgenticComplete ? (
@@ -302,6 +317,7 @@ export default function RecipeJobStatus({ recipeId }: { recipeId: number }) {
           <Card>
             <CardHeader>
               <CardDescription>Configuration Error</CardDescription>
+              {isAgenticJob ? <AgenticModelLabel model={agenticModel} /> : null}
             </CardHeader>
             <CardContent className="text-sm">
               <p className="text-red-800 font-semibold">

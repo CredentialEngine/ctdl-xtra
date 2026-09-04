@@ -1,4 +1,5 @@
 import { PageType } from "../../../common/types";
+import { resolveAgentModel } from "../agentic/types";
 import { findCatalogueById } from "../data/catalogues";
 import { startRecipe } from "../data/recipes";
 import { toWatchRef } from "../jobWatching";
@@ -27,7 +28,11 @@ export async function submitAgenticRecipeDetection(
   const jobId = `agenticRecipeConfig.${id}`;
   await submitJob(
     Queues.AgenticRecipeConfig,
-    { recipeId: id, triggeredByUserId: triggeredByUserId ?? null },
+    {
+      recipeId: id,
+      triggeredByUserId: triggeredByUserId ?? null,
+      model: resolveAgentModel(),
+    },
     jobId
   );
   return {

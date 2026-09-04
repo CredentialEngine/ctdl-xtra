@@ -10,6 +10,8 @@ import {
   agenticRecipeConfigurationPrompt,
   runBrowserAgent,
 } from "../agentic";
+import { AgenticRecipeRunTracker } from "../agentic/agenticRecipeRunTracker";
+import { resolveAgentModel } from "../agentic/types";
 import {
   formatAgentEventForPublicLog,
   stageLog,
@@ -23,13 +25,13 @@ import getLogger from "../logging";
 
 const logger = getLogger("workers.agenticRecipeConfig");
 
-const XTRA_SUBMIT_TOOL = "mcp__xtra__xtra_submit_recipe_configuration";
-
 function createPublicLogHandler(
   job: JobWithProgress<AgenticRecipeConfigJob, AgenticRecipeConfigProgress>,
-  logPrefix: string
+  logPrefix: string,
+  tracker: AgenticRecipeRunTracker
 ) {
   return (event: AgentEvent) => {
+    tracker.handleEvent(event);
     logger.info(`${logPrefix} ${event.type}: ${event.message.slice(0, 200)}`);
     const formatted = formatAgentEventForPublicLog(event);
     if (!formatted) {
@@ -61,10 +63,6 @@ function createPublicLogHandler(
       });
     }
   };
-}
-
-function agentSubmittedRecipe(toolNames: string[]): boolean {
-  return toolNames.includes(XTRA_SUBMIT_TOOL);
 }
 
 function extractFailureReason(resultText: string): string | null {
@@ -103,75 +101,80 @@ export default createProcessor<
 
   const pageLoadWaitTime = recipe.configuration?.pageLoadWaitTime;
   const pageSetup = recipe.configuration?.pageSetup;
+  const model = resolveAgentModel(job.data.model);
   const catalogueType = recipe.catalogue?.catalogueType as
     | CatalogueType
     | undefined;
 
+  let failureMessage: string | null = null;
+
   try {
+    const tracker = new AgenticRecipeRunTracker();
     const result = await runBrowserAgent({
       prompt: agenticRecipeConfigurationPrompt({
         url: recipe.url,
         catalogueType,
       }),
+      model,
       browser: {
         pageLoadWaitTime,
         pageSetup,
       },
       agenticRecipe: { recipeId: recipe.id },
       maxTurns: 200,
-      onEvent: createPublicLogHandler(job, logPrefix),
+      onEvent: createPublicLogHandler(job, logPrefix, tracker),
     });
 
-    const submitted = agentSubmittedRecipe(result.toolNames);
-    const incompatibleReason = extractFailureReason(result.resultText);
+    if (tracker.giveUpMessage) {
+      failureMessage = tracker.giveUpMessage;
+    } else {
+      const updatedRecipe = await findRecipeById(recipeId);
+      if (updatedRecipe?.status === RecipeDetectionStatus.SUCCESS) {
+        await publicLog(
+          job,
+          logger,
+          statusLog("Agent finished configuring this recipe.")
+        );
+        await mergeJobProgress(job, {
+          status: "success",
+          message: "Agent finished configuring this recipe.",
+        });
+        logger.info(
+          `${logPrefix} Job ${job.id} completed tools=${result.toolNames.join(",")}`
+        );
+        return;
+      }
 
-    if (submitted) {
-      await publicLog(
-        job,
-        logger,
-        statusLog("Agent finished configuring this recipe.")
-      );
-      await mergeJobProgress(job, {
-        status: "success",
-        message: "Agent finished configuring this recipe.",
-      });
-      logger.info(
-        `${logPrefix} Job ${job.id} completed tools=${result.toolNames.join(",")}`
-      );
-      return;
+      const incompatibleReason = extractFailureReason(result.resultText);
+      if (incompatibleReason) {
+        failureMessage = incompatibleReason;
+        await updateRecipe(recipe.id, {
+          status: RecipeDetectionStatus.ERROR,
+          detectionFailureReason: incompatibleReason,
+        });
+        await publicLog(job, logger, incompatibleReason);
+        await publicLog(
+          job,
+          logger,
+          statusLog("Catalogue is not recipe-compatible.")
+        );
+        await mergeJobProgress(job, {
+          status: "failure",
+          message: "Catalogue is not recipe-compatible.",
+        });
+        logger.info(`${logPrefix} Job ${job.id} stopped: not recipe-compatible`);
+        return;
+      }
+
+      failureMessage =
+        "Agent finished without saving a recipe configuration.";
     }
-
-    if (incompatibleReason) {
-      await updateRecipe(recipe.id, {
-        status: RecipeDetectionStatus.ERROR,
-        detectionFailureReason: incompatibleReason,
-      });
-      await publicLog(job, logger, incompatibleReason);
-      await publicLog(job, logger, statusLog("Catalogue is not recipe-compatible."));
-      await mergeJobProgress(job, {
-        status: "failure",
-        message: "Catalogue is not recipe-compatible.",
-      });
-      logger.info(`${logPrefix} Job ${job.id} stopped: not recipe-compatible`);
-      return;
-    }
-
-    const failureMessage =
-      "Agent finished without submitting a recipe configuration.";
-    await updateRecipe(recipe.id, {
-      status: RecipeDetectionStatus.ERROR,
-      detectionFailureReason: failureMessage,
-    });
-    await publicLog(job, logger, failureMessage);
-    await publicLog(job, logger, statusLog(failureMessage));
-    await mergeJobProgress(job, {
-      status: "failure",
-      message: failureMessage,
-    });
-    throw new Error(`${logPrefix} ${failureMessage}`);
   } catch (err: unknown) {
-    const failureMessage =
+    failureMessage =
       err instanceof Error ? err.message : "Browser agent failed";
+  }
+
+  if (failureMessage) {
     await updateRecipe(recipe.id, {
       status: RecipeDetectionStatus.ERROR,
       detectionFailureReason: failureMessage,
@@ -183,8 +186,6 @@ export default createProcessor<
       message: failureMessage,
     });
     logger.info(`${logPrefix} Job ${job.id} failed`);
-    throw err instanceof Error
-      ? err
-      : new Error(`${logPrefix} ${failureMessage}`);
+    throw new Error(`${logPrefix} ${failureMessage}`);
   }
 });

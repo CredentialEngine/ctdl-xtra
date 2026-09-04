@@ -20,6 +20,11 @@ import {
   assertRecipeConfigurationHasDetailLeaf,
   parseAgentRecipeConfiguration,
 } from "./recipeConfigurationValidation";
+import {
+  shouldResetVerificationState,
+  validateSubmitAllowed,
+  type SubmitVerificationState,
+} from "./recipeSubmitGates";
 import { applyStageReport } from "./recipeStages";
 import { verifyRecipeLinks } from "./verifyRecipeLinks";
 import {
@@ -104,6 +109,22 @@ const TOOLS = [
     },
   },
   {
+    name: "xtra_give_up",
+    description:
+      "Stop configuration and report why the catalogue cannot be configured. Use when the site is not recipe-compatible or configuration cannot be completed.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        message: {
+          type: "string",
+          description:
+            "User-visible explanation of why configuration is being abandoned",
+        },
+      },
+      required: ["message"],
+    },
+  },
+  {
     name: "xtra_submit_recipe_configuration",
     description:
       "Submit the final validated recipe configuration after VERIFY_RECIPE succeeds.",
@@ -160,6 +181,21 @@ function xtraPayload(payload: Record<string, unknown>) {
 }
 
 let currentStage: AgenticRecipeStage | null = null;
+let verifyLinkCallsSuccessful = 0;
+let testExtractionSucceeded = false;
+
+function verificationState(): SubmitVerificationState {
+  return {
+    currentStage,
+    verifyLinkCallsSuccessful,
+    testExtractionSucceeded,
+  };
+}
+
+function resetVerificationState() {
+  verifyLinkCallsSuccessful = 0;
+  testExtractionSucceeded = false;
+}
 
 async function handleToolCall(name: string, args: Record<string, unknown>) {
   switch (name) {
@@ -167,6 +203,9 @@ async function handleToolCall(name: string, args: Record<string, unknown>) {
       const result = applyStageReport(currentStage, args.stage);
       if (!result.ok) {
         return toolError(result.error);
+      }
+      if (shouldResetVerificationState(result.stage, result.changed)) {
+        resetVerificationState();
       }
       currentStage = result.stage;
       return toolSuccess(
@@ -219,6 +258,7 @@ async function handleToolCall(name: string, args: Record<string, unknown>) {
           pageLoadWaitTime: readPageLoadWaitTimeFromEnv(),
           pageSetup: readPageSetupFromEnv(),
         });
+        verifyLinkCallsSuccessful++;
         return toolSuccess(
           xtraPayload({
             kind: "verify",
@@ -248,6 +288,9 @@ async function handleToolCall(name: string, args: Record<string, unknown>) {
           pageLoadWaitTime: readPageLoadWaitTimeFromEnv(),
           pageSetup: readPageSetupFromEnv(),
         });
+        if (result.extracted) {
+          testExtractionSucceeded = true;
+        }
         return toolSuccess(
           xtraPayload({
             kind: "test_extraction",
@@ -267,11 +310,30 @@ async function handleToolCall(name: string, args: Record<string, unknown>) {
         return toolError(message);
       }
     }
+    case "xtra_give_up": {
+      const message = String(args.message ?? "").trim();
+      if (!message) {
+        return toolError("message is required");
+      }
+      return toolSuccess(
+        xtraPayload({
+          kind: "give_up",
+          message,
+        })
+      );
+    }
     case "xtra_submit_recipe_configuration": {
       const recipeId = readRecipeIdFromEnv();
       try {
         const configuration = parseAgentRecipeConfiguration(args.configuration);
         assertRecipeConfigurationHasDetailLeaf(configuration);
+        const submitGate = validateSubmitAllowed(
+          configuration,
+          verificationState()
+        );
+        if (!submitGate.ok) {
+          return toolError(submitGate.error);
+        }
         await updateRecipe(recipeId, {
           configuration,
           status: RecipeDetectionStatus.SUCCESS,

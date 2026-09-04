@@ -134,6 +134,22 @@ describe("formatAgentEventForPublicLog", () => {
       message: "Test extraction generated no entries.",
     });
   });
+
+  it("maps give_up tool results to status logs", () => {
+    expect(
+      formatAgentEventForPublicLog({
+        type: "tool",
+        message: JSON.stringify({
+          xtraEvent: true,
+          kind: "give_up",
+          message: "Site requires login.",
+        }),
+      })
+    ).toEqual({
+      kind: "status",
+      message: "Site requires login.",
+    });
+  });
 });
 
 describe("statusLog", () => {
