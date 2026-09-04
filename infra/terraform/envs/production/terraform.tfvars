@@ -9,8 +9,8 @@ nat_eip_allocation_ids = ["eipalloc-0e99711fab807584f"]
 
 cluster_version = "1.35"
 
-cluster_endpoint_private_access = true
-cluster_endpoint_public_access  = true
+cluster_endpoint_private_access      = true
+cluster_endpoint_public_access       = true
 cluster_endpoint_public_access_cidrs = ["0.0.0.0/0"]
 
 authentication_mode                         = "API_AND_CONFIG_MAP"
@@ -45,14 +45,15 @@ db_max_allocated_storage = 200
 db_multi_az              = true
 db_backup_retention_days = 14
 
+# PROD single-AZ, 2 VMs total: 1 system node + 1 app node (no HA).
 system_node_instance_types = ["t3.medium"]
-system_node_min_size       = 2
-system_node_max_size       = 4
-system_node_desired_size   = 2
+system_node_min_size       = 1
+system_node_max_size       = 1
+system_node_desired_size   = 1
 system_node_disk_size      = 30
 
 app_node_instance_types = ["t3.large"]
-app_node_min_size       = 2
-app_node_max_size       = 4
-app_node_desired_size   = 2
+app_node_min_size       = 1
+app_node_max_size       = 1
+app_node_desired_size   = 1
 app_node_disk_size      = 50

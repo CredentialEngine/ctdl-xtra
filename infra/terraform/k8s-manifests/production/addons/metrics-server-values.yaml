@@ -1,4 +1,5 @@
-replicas: 2
+# Single system node (us-east-1a): one replica.
+replicas: 1
 
 resources:
   requests:
