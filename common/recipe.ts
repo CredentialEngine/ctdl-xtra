@@ -60,9 +60,11 @@ export function agenticRecipeStageUiStates(
   options?: { completed?: boolean }
 ): Record<AgenticRecipeStage, AgenticRecipeStageUiState> {
   const states = {} as Record<AgenticRecipeStage, AgenticRecipeStageUiState>;
-  if (options?.completed) {
-    for (const stage of AGENTIC_RECIPE_STAGES) {
-      states[stage] = "done";
+  if (options?.completed && current) {
+    const currentIndex = AGENTIC_RECIPE_STAGES.indexOf(current);
+    for (let i = 0; i < AGENTIC_RECIPE_STAGES.length; i++) {
+      const stage = AGENTIC_RECIPE_STAGES[i];
+      states[stage] = i <= currentIndex ? "done" : "pending";
     }
     return states;
   }

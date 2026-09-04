@@ -26,6 +26,7 @@ import {
 } from "../extraction/robotsParser";
 import { submitRecipeDetection } from "../extraction/submitRecipeDetection";
 import { submitAgenticRecipeDetection } from "../extraction/submitAgenticRecipeDetection";
+import { resolveAgentModel } from "../agentic/types";
 import { toWatchRef } from "../jobWatching";
 import getLogger from "../logging";
 import { SimplifiedMarkdown } from "../types";
@@ -266,6 +267,7 @@ export const recipesRouter = router({
           kind: "agentic" as const,
           state,
           progress: progress ?? null,
+          model: resolveAgentModel(agenticJob.data.model),
           ...watch,
         };
       }
@@ -315,6 +317,7 @@ export const recipesRouter = router({
         {
           recipeId: opts.input.id,
           triggeredByUserId: opts.ctx.user?.id ?? null,
+          model: resolveAgentModel(),
         },
         jobId
       );

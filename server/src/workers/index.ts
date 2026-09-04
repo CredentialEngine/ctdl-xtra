@@ -184,6 +184,8 @@ export interface AgenticRecipeConfigJob {
   recipeId: number;
   /** User who requested agentic configuration; omitted on older queued jobs. */
   triggeredByUserId?: number | null;
+  /** Claude model slug used for this run; omitted on older queued jobs. */
+  model?: string;
 }
 
 export interface FetchPageJob {

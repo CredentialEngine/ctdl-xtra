@@ -39,15 +39,23 @@ describe("agenticRecipeStageUiStates", () => {
     expect(states[AgenticRecipeStage.VERIFY_RECIPE]).toBe("pending");
   });
 
-  it("marks every stage done when completed without error", () => {
+  it("marks stages through the latest logged stage when completed", () => {
     const states = agenticRecipeStageUiStates(
-      AgenticRecipeStage.MAP_STRUCTURE,
+      AgenticRecipeStage.VERIFY_RECIPE,
       { completed: true }
     );
     expect(states[AgenticRecipeStage.ASSESS_USABILITY]).toBe("done");
     expect(states[AgenticRecipeStage.MAP_STRUCTURE]).toBe("done");
     expect(states[AgenticRecipeStage.WRITE_CONFIGURATION]).toBe("done");
     expect(states[AgenticRecipeStage.VERIFY_RECIPE]).toBe("done");
+  });
+
+  it("does not mark verify done when completed without reaching verify", () => {
+    const states = agenticRecipeStageUiStates(
+      AgenticRecipeStage.WRITE_CONFIGURATION,
+      { completed: true }
+    );
+    expect(states[AgenticRecipeStage.VERIFY_RECIPE]).toBe("pending");
   });
 });
 

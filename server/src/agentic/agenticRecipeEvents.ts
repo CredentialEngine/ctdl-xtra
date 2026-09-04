@@ -6,7 +6,13 @@ import { agenticRecipeStageLog } from "../../../common/recipe";
 import type { AgentEvent } from "./types";
 
 export interface ParsedXtraEvent {
-  kind: "stage" | "progress" | "verify" | "submit" | "test_extraction";
+  kind:
+    | "stage"
+    | "progress"
+    | "verify"
+    | "submit"
+    | "test_extraction"
+    | "give_up";
   stage?: AgenticRecipeStage;
   changed?: boolean;
   message?: string;
@@ -42,7 +48,8 @@ export function parseXtraToolResult(message: string): ParsedXtraEvent | null {
       parsed.kind !== "progress" &&
       parsed.kind !== "verify" &&
       parsed.kind !== "submit" &&
-      parsed.kind !== "test_extraction"
+      parsed.kind !== "test_extraction" &&
+      parsed.kind !== "give_up"
     ) {
       return null;
     }
@@ -104,6 +111,9 @@ export function formatAgentEventForPublicLog(
             ? "Test extraction generated entries."
             : "Test extraction generated no entries.",
       };
+    }
+    if (parsed.kind === "give_up" && parsed.message) {
+      return { kind: "status", message: parsed.message };
     }
   }
   return null;
