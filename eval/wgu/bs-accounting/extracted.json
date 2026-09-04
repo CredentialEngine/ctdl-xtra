@@ -1,0 +1,377 @@
+{
+  "slug": "bs-accounting",
+  "url": "file://bs-accounting.html",
+  "model": "claude-opus-4-5",
+  "sourceMarkdownChars": 49862,
+  "baseline": {
+    "items": [
+      {
+        "credential_name": "Accounting",
+        "credential_description": "WGU's Bachelor of Science in Accounting is also the first step toward your CPA certification. Continuing on to earn your Master of Accounting (also known as Master of Accountancy) from an online college for accounting will help you meet the 150 semester hours required to sit for the CPA exam in most states. The CPA license gives you additional experience and credentials, boosting your résumé and qualifying you for elite positions in finance and business.",
+        "credential_type": "BachelorDegree",
+        "language": "English"
+      }
+    ]
+  },
+  "baselineProgram": {
+    "items": [
+      {
+        "learning_program_id": "Bachelor of Science in Accounting",
+        "learning_program_name": "Bachelor of Science in Accounting",
+        "learning_program_description": "Every business relies on accountants to help them meet regulations, achieve financial security, and make money. This accounting degree ensures you will stand out from the competition with your knowledge of GAAP, ledgers, journal entries, and more. A knack for numbers and a passion for financial performance can help you get into a career where you're sure to thrive and make a difference. This online accounting degree empowers you to help organizations meet standards and obey laws, benefiting individuals, companies, and entire communities.\n\nWGU's Bachelor of Science in Accounting is also the first step toward your CPA certification. Continuing on to earn your Master of Accounting (also known as Master of Accountancy) from an online college for accounting will help you meet the 150 semester hours required to sit for the CPA exam in most states. The CPA license gives you additional experience and credentials, boosting your résumé and qualifying you for elite positions in finance and business. View requirements for CPA licensure by state."
+      }
+    ]
+  },
+  "enhanced": {
+    "name": "Bachelor of Science in Accounting",
+    "description": "Every business relies on accountants to help them meet regulations, achieve financial security, and make money. This accounting degree ensures you will stand out from the competition with your knowledge of GAAP, ledgers, journal entries, and more. A knack for numbers and a passion for financial performance can help you get into a career where you're sure to thrive and make a difference. This online accounting degree empowers you to help organizations meet standards and obey laws, benefiting individuals, companies, and entire communities.\n\nWGU's Bachelor of Science in Accounting is also the first step toward your CPA certification. Continuing on to earn your Master of Accounting (also known as Master of Accountancy) from an online college for accounting will help you meet the 150 semester hours required to sit for the CPA exam in most states. The CPA license gives you additional experience and credentials, boosting your résumé and qualifying you for elite positions in finance and business.\n\nThe WGU B.S. Accounting degree program is an affordable, online way to prepare for a rewarding career in accounting, auditing, or bookkeeping, or as a CPA. Once you earn your accounting degree, you'll be ready to complete your accounting certification. Learn to evaluate and manage business performance and develop the financial skills needed to keep companies running smoothly. You will learn auditing, financial recording, taxes, payroll, financial planning, and other essential accounting principles while preparing for the CPA or other licensing exams.",
+    "credentialType": "BachelorOfScienceDegree",
+    "subjectWebpage": "file://bs-accounting.html",
+    "inLanguage": "en",
+    "credentialStatusType": "Active",
+    "alternateName": "B.S. Accounting",
+    "audienceLevelType": [
+      "UndergraduateLevel",
+      "BachelorsDegreeLevel"
+    ],
+    "learningDeliveryType": [
+      "OnlineOnly"
+    ],
+    "estimatedCost": [
+      {
+        "costType": "Tuition",
+        "currency": "USD",
+        "price": 3830,
+        "paymentPattern": "per 6-month term",
+        "description": "Tuition per six-month term"
+      },
+      {
+        "costType": "BooksAndSupplies",
+        "currency": "USD",
+        "price": 200,
+        "paymentPattern": "per 6-month term",
+        "description": "E-Books and Resources Fee"
+      }
+    ],
+    "estimatedDuration": {
+      "description": "62% of graduates finish within 24 Months",
+      "exactDuration": "P24M"
+    },
+    "creditValue": {
+      "creditUnitType": "CompetencyCredit",
+      "description": "Program consists of 40 courses",
+      "value": 40
+    },
+    "requires": {
+      "description": "Applicants to undergraduate School of Business programs must possess a high school diploma or its equivalent AND demonstrate program readiness through one of the following options: Option 1: Submit all transcripts documenting completion of college-level coursework with a cumulative GPA of 2.0 or higher. Option 2: Possess a bachelors or associate degree (A.A or A.S. acceptable) from an accredited post-secondary institution. Option 3: Submit high school transcripts for review with a cumulative GPA of 2.0 or higher. NOTE: You do not need to take the ACT or SAT to be admitted to this program.",
+      "prerequisiteCredentials": [
+        "high school diploma"
+      ]
+    },
+    "occupationType": [
+      "Accounting manager",
+      "Financial director",
+      "Vice president of finance and operations",
+      "Controller",
+      "Chief financial officer",
+      "Forensic accountant",
+      "Payroll specialist",
+      "Tax accountant",
+      "Auditor",
+      "Bookkeeper",
+      "Financial analyst"
+    ],
+    "industryType": [
+      "Business and corporations",
+      "Tax preparation",
+      "U.S. military",
+      "Government",
+      "Colleges and universities"
+    ],
+    "teaches": [
+      "Auditing",
+      "Financial recording",
+      "Taxes",
+      "Payroll",
+      "Financial planning",
+      "Essential accounting principles",
+      "GAAP",
+      "Ledgers",
+      "Journal entries",
+      "Evaluate and manage business performance",
+      "Financial skills needed to keep companies running smoothly"
+    ],
+    "industryCertifications": [
+      "CPA"
+    ],
+    "accreditedBy": [
+      "ACBSP"
+    ],
+    "hasPart": [
+      {
+        "name": "Integrated Physical Sciences",
+        "codedNotation": null
+      },
+      {
+        "name": "Composition: Successful Self-Expression",
+        "codedNotation": null
+      },
+      {
+        "name": "Critical Thinking: Reason and Evidence",
+        "codedNotation": null
+      },
+      {
+        "name": "Applied Probability and Statistics",
+        "codedNotation": null
+      },
+      {
+        "name": "Applied Algebra",
+        "codedNotation": null
+      },
+      {
+        "name": "Introduction to Communication: Connecting with Others",
+        "codedNotation": null
+      },
+      {
+        "name": "Health, Fitness, and Wellness",
+        "codedNotation": null
+      },
+      {
+        "name": "US History: Stories of American Democracy",
+        "codedNotation": null
+      },
+      {
+        "name": "Global Arts and Humanities",
+        "codedNotation": null
+      },
+      {
+        "name": "Introduction to Sociology",
+        "codedNotation": null
+      },
+      {
+        "name": "Intermediate Accounting II",
+        "codedNotation": null
+      },
+      {
+        "name": "Auditing",
+        "codedNotation": null
+      },
+      {
+        "name": "Intermediate Accounting III",
+        "codedNotation": null
+      },
+      {
+        "name": "Taxation I",
+        "codedNotation": null
+      },
+      {
+        "name": "Business Law for Accountants",
+        "codedNotation": null
+      },
+      {
+        "name": "Financial Accounting",
+        "codedNotation": null
+      },
+      {
+        "name": "Cost and Managerial Accounting",
+        "codedNotation": null
+      },
+      {
+        "name": "Intermediate Accounting I",
+        "codedNotation": null
+      },
+      {
+        "name": "Accounting Information Systems",
+        "codedNotation": "D103"
+      },
+      {
+        "name": "Managing in a Global Business Environment",
+        "codedNotation": null
+      },
+      {
+        "name": "Fundamentals for Success in Business",
+        "codedNotation": null
+      },
+      {
+        "name": "Principles of Financial and Managerial Accounting",
+        "codedNotation": null
+      },
+      {
+        "name": "Business Simulation",
+        "codedNotation": null
+      },
+      {
+        "name": "Emotional and Cultural Intelligence",
+        "codedNotation": null
+      },
+      {
+        "name": "Fundamentals of Spreadsheets and Data Presentations",
+        "codedNotation": null
+      },
+      {
+        "name": "Innovative and Strategic Thinking",
+        "codedNotation": null
+      },
+      {
+        "name": "Principles of Economics",
+        "codedNotation": null
+      },
+      {
+        "name": "Principles of Management",
+        "codedNotation": null
+      },
+      {
+        "name": "Business Environment Applications I: Business Structures and Legal Environment",
+        "codedNotation": null
+      },
+      {
+        "name": "Finance Skills for Managers",
+        "codedNotation": null
+      },
+      {
+        "name": "Business Environment Applications II: Process, Logistics, and Operations",
+        "codedNotation": null
+      },
+      {
+        "name": "Concepts in Marketing, Sales, and Customer Contact",
+        "codedNotation": null
+      },
+      {
+        "name": "Organizational Behavior",
+        "codedNotation": null
+      },
+      {
+        "name": "Business Ethics",
+        "codedNotation": null
+      },
+      {
+        "name": "Change Management",
+        "codedNotation": null
+      },
+      {
+        "name": "Operations and Supply Chain Management",
+        "codedNotation": null
+      },
+      {
+        "name": "Values-Based Leadership",
+        "codedNotation": null
+      },
+      {
+        "name": "Business Communication",
+        "codedNotation": null
+      },
+      {
+        "name": "Quantitative Analysis For Business",
+        "codedNotation": null
+      },
+      {
+        "name": "Project Management",
+        "codedNotation": null
+      }
+    ],
+    "keyword": [
+      "accounting",
+      "CPA",
+      "finance",
+      "business",
+      "GAAP",
+      "auditing",
+      "taxes",
+      "payroll",
+      "financial planning"
+    ],
+    "_extractionNotes": "The page mentions program was founded in 2002 and has over 7,400 graduates. It also mentions students earn three certificates during the program: Accounting, Strategic Thinking & Innovation, and Leadership certificates. The page states employment of accountants and auditors is projected to grow 6% through 2033 with median salary of almost $80,000 per year (BLS). Course codes are not consistently provided - only one course (Accounting Information Systems) mentions a code (D103/D104 in its description). The estimated duration of 24 months is noted as typical for 62% of graduates, with the page also mentioning \"typically less than 3 years\" compared to traditional universities' 4 years."
+  },
+  "_meta": [
+    {
+      "config": "baseline-credential",
+      "usage": {
+        "input_tokens": 12075,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 0,
+          "ephemeral_1h_input_tokens": 0
+        },
+        "iterations": [
+          {
+            "input_tokens": 12075,
+            "output_tokens": 165,
+            "cache_read_input_tokens": 0,
+            "cache_creation_input_tokens": 0,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 0
+            },
+            "type": "message"
+          }
+        ],
+        "output_tokens": 165,
+        "service_tier": "standard",
+        "inference_geo": "not_available"
+      },
+      "latencyMs": 7091,
+      "stopReason": "tool_use"
+    },
+    {
+      "config": "baseline-learning_program",
+      "usage": {
+        "input_tokens": 11628,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 0,
+          "ephemeral_1h_input_tokens": 0
+        },
+        "iterations": [
+          {
+            "input_tokens": 11628,
+            "output_tokens": 288,
+            "cache_read_input_tokens": 0,
+            "cache_creation_input_tokens": 0,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 0
+            },
+            "type": "message"
+          }
+        ],
+        "output_tokens": 288,
+        "service_tier": "standard",
+        "inference_geo": "not_available"
+      },
+      "latencyMs": 8950,
+      "stopReason": "tool_use"
+    },
+    {
+      "config": "enhanced",
+      "usage": {
+        "input_tokens": 13490,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 0,
+          "ephemeral_1h_input_tokens": 0
+        },
+        "iterations": [
+          {
+            "input_tokens": 13490,
+            "output_tokens": 2166,
+            "cache_read_input_tokens": 0,
+            "cache_creation_input_tokens": 0,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 0
+            },
+            "type": "message"
+          }
+        ],
+        "output_tokens": 2166,
+        "service_tier": "standard",
+        "inference_geo": "not_available"
+      },
+      "latencyMs": 36480,
+      "stopReason": "tool_use"
+    }
+  ]
+}
