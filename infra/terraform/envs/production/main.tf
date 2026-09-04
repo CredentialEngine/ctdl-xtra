@@ -8,6 +8,10 @@ locals {
     environment = local.env
     managed-by  = "terraform"
   }
+
+  # PROD runs in a single AZ (us-east-1a) — no cross-AZ HA at this stage.
+  # private_subnet_ids is ordered by var.azs, so index 0 == us-east-1a.
+  single_az_private_subnet_ids = [module.vpc.private_subnet_ids[0]]
 }
 
 # ---------------------------------------------------------------
@@ -66,5 +70,6 @@ module "eks" {
   external_secrets_secret_name_prefixes       = var.external_secrets_secret_name_prefixes
   external_secrets_ssm_parameter_prefixes     = var.external_secrets_ssm_parameter_prefixes
   enable_efs_csi_driver                       = var.enable_efs_csi_driver
+  enable_prefix_delegation                    = true
   common_tags                                 = local.common_tags
 }
