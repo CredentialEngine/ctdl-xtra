@@ -45,15 +45,16 @@ db_max_allocated_storage = 200
 db_multi_az              = true
 db_backup_retention_days = 14
 
-# PROD single-AZ, 2 VMs total: 1 system node + 1 app node (no HA).
+# PROD single-AZ (us-east-1a), HA kept within the zone: 2 system + 2 app nodes.
+# All node groups on t3.medium.
 system_node_instance_types = ["t3.medium"]
-system_node_min_size       = 1
-system_node_max_size       = 1
-system_node_desired_size   = 1
+system_node_min_size       = 2
+system_node_max_size       = 2
+system_node_desired_size   = 2
 system_node_disk_size      = 30
 
-app_node_instance_types = ["t3.large"]
-app_node_min_size       = 1
-app_node_max_size       = 1
-app_node_desired_size   = 1
+app_node_instance_types = ["t3.medium"]
+app_node_min_size       = 2
+app_node_max_size       = 2
+app_node_desired_size   = 2
 app_node_disk_size      = 50

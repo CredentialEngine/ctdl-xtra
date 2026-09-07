@@ -1,48 +1,3 @@
-# PROD single-AZ topology (us-east-1a): one system node + one app node.
-# No cross-AZ HA at this stage (accepted trade-off).
-
-# Launch template for the system node group only: a single t3.medium must host
-# all platform pods, which exceeds the default 17-pod cap, so raise kubelet
-# max-pods to 110 (works together with VPC CNI prefix delegation, see main.tf).
-# The app node (t3.large) stays on the default cap (~35) — it runs few pods.
-resource "aws_launch_template" "system" {
-  name_prefix = "${local.cluster_name}-system-"
-
-  block_device_mappings {
-    device_name = "/dev/xvda"
-    ebs {
-      volume_size = var.system_node_disk_size
-      volume_type = "gp3"
-      encrypted   = true
-    }
-  }
-
-  # AL2023 NodeConfig merged by the managed node group bootstrap.
-  user_data = base64encode(<<-EOT
-    MIME-Version: 1.0
-    Content-Type: multipart/mixed; boundary="//"
-
-    --//
-    Content-Type: application/node.eks.aws
-
-    ---
-    apiVersion: node.eks.aws/v1alpha1
-    kind: NodeConfig
-    spec:
-      kubelet:
-        config:
-          maxPods: 110
-    --//--
-  EOT
-  )
-
-  tags = local.common_tags
-
-  lifecycle {
-    create_before_destroy = true
-  }
-}
-
 resource "aws_eks_node_group" "system" {
   cluster_name    = module.eks.cluster_id
   node_group_name = "${local.cluster_name}-system"
@@ -51,12 +6,8 @@ resource "aws_eks_node_group" "system" {
 
   ami_type       = "AL2023_x86_64_STANDARD"
   capacity_type  = "ON_DEMAND"
+  disk_size      = var.system_node_disk_size
   instance_types = var.system_node_instance_types
-
-  launch_template {
-    id      = aws_launch_template.system.id
-    version = aws_launch_template.system.latest_version
-  }
 
   labels = {
     env      = local.env
@@ -79,7 +30,10 @@ resource "aws_eks_node_group" "system" {
     ]
   }
 
-  tags = local.common_tags
+  tags = merge(local.common_tags, {
+    "k8s.io/cluster-autoscaler/${local.cluster_name}" = "owned"
+    "k8s.io/cluster-autoscaler/enabled"               = "true"
+  })
 
   depends_on = [module.vpc]
 }
@@ -117,7 +71,10 @@ resource "aws_eks_node_group" "app" {
     ]
   }
 
-  tags = local.common_tags
+  tags = merge(local.common_tags, {
+    "k8s.io/cluster-autoscaler/${local.cluster_name}" = "owned"
+    "k8s.io/cluster-autoscaler/enabled"               = "true"
+  })
 
   depends_on = [module.vpc]
 }

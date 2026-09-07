@@ -1,6 +1,5 @@
 controller:
-  # Single system node (us-east-1a): one replica.
-  replicaCount: 1
+  replicaCount: 2
   nodeSelector:
     nodepool: system
   service:
