@@ -1,0 +1,357 @@
+{
+  "slug": "bs-computer-science",
+  "url": "file://bs-computer-science.html",
+  "model": "claude-opus-4-5",
+  "sourceMarkdownChars": 44384,
+  "baseline": {
+    "items": [
+      {
+        "credential_name": "Computer Science",
+        "credential_description": "Earn your bachelor's degree in computer science from WGU and increase your earning potential, job security, and opportunities for advancement. This degree prepares you to design, develop, and optimize systems that will meet industry needs, and gives you the opportunity to earn multiple industry-recognized certifications. Designed with input from industry experts, this program has received ABET-accreditation. The computer science degree program at WGU provides a solid foundation for the most in-demand skills: Artificial Intelligence (AI), Machine Learning, Logic, Architecture and systems, Data structures, Computer theory, Version Control, Linux.",
+        "credential_type": "BachelorDegree",
+        "language": "English"
+      }
+    ]
+  },
+  "baselineProgram": {
+    "items": [
+      {
+        "learning_program_id": "Bachelor of Science in Computer Science",
+        "learning_program_name": "Bachelor of Science in Computer Science",
+        "learning_program_description": "Earn your bachelor's degree in computer science from WGU and increase your earning potential, job security, and opportunities for advancement. This degree prepares you to design, develop, and optimize systems that will meet industry needs, and gives you the opportunity to earn multiple industry-recognized certifications.\n\nDesigned with input from industry experts, this program has received ABET-accreditation. The computer science degree program at WGU provides a solid foundation for the most in-demand skills:\n\n- Artificial Intelligence (AI)\n- Machine Learning\n- Logic\n- Architecture and systems\n- Data structures\n- Computer theory\n- Version Control\n- Linux\n\nYou can earn while you learn with this information technology degree. Top technology certifications, such as Linux Esssentials and ITIL® Foundation Certificate, as well as Artificial Intelligence Optimization Developer, Back-End Developer, and Java Developer are built into the CS degree program and do not add time or additional costs—but they do add to your résumé as soon as you've earned them, even before you complete your degree! Students get a chance to be part of the first-ever School of Technology Online Teamwork Course, designed to enhance student collaboration and teamwork skills in a virtual environment."
+      }
+    ]
+  },
+  "enhanced": {
+    "name": "Bachelor of Science in Computer Science",
+    "description": "Earn your bachelor's degree in computer science from WGU and increase your earning potential, job security, and opportunities for advancement. This degree prepares you to design, develop, and optimize systems that will meet industry needs, and gives you the opportunity to earn multiple industry-recognized certifications.\n\nDesigned with input from industry experts, this program has received ABET-accreditation. The computer science degree program at WGU provides a solid foundation for the most in-demand skills: Artificial Intelligence (AI), Machine Learning, Logic, Architecture and systems, Data structures, Computer theory, Version Control, and Linux.\n\nYou can earn while you learn with this information technology degree. Top technology certifications, such as Linux Essentials and ITIL® Foundation Certificate, as well as Artificial Intelligence Optimization Developer, Back-End Developer, and Java Developer are built into the CS degree program and do not add time or additional costs—but they do add to your résumé as soon as you've earned them, even before you complete your degree! Students get a chance to be part of the first-ever School of Technology Online Teamwork Course, designed to enhance student collaboration and teamwork skills in a virtual environment.",
+    "credentialType": "BachelorOfScienceDegree",
+    "subjectWebpage": "file://bs-computer-science.html",
+    "inLanguage": "en",
+    "credentialStatusType": "Active",
+    "alternateName": "B.S. Computer Science",
+    "audienceLevelType": [
+      "BachelorsDegreeLevel",
+      "UndergraduateLevel"
+    ],
+    "accreditedBy": [
+      "ABET"
+    ],
+    "learningDeliveryType": [
+      "OnlineOnly"
+    ],
+    "estimatedCost": [
+      {
+        "costType": "Tuition",
+        "currency": "USD",
+        "price": 4125,
+        "paymentPattern": "per 6-month term",
+        "description": "Tuition per six-month term"
+      },
+      {
+        "costType": "BooksAndSupplies",
+        "currency": "USD",
+        "price": 200,
+        "paymentPattern": "per 6-month term",
+        "description": "E-Books and Resources Fee"
+      }
+    ],
+    "estimatedDuration": {
+      "description": "62% of graduates finish within 25 Months*",
+      "exactDuration": "P25M"
+    },
+    "industryCertifications": [
+      "Linux Essentials",
+      "ITIL® 4 Foundation Certification",
+      "WGU Java Developer",
+      "WGU Back-End Developer",
+      "WGU Artificial Intelligence Optimization Developer"
+    ],
+    "industryType": [
+      "Information Technology",
+      "Technology",
+      "Aerospace",
+      "Banking and Finance",
+      "Military",
+      "Consulting"
+    ],
+    "occupationType": [
+      "Software Engineer",
+      "Software Developer",
+      "Computer & Information Systems Manager",
+      "Business Intelligence Analyst",
+      "Machine Learning Specialist"
+    ],
+    "keyword": [
+      "Artificial Intelligence",
+      "Machine Learning",
+      "Logic",
+      "Architecture and systems",
+      "Data structures",
+      "Computer theory",
+      "Version Control",
+      "Linux"
+    ],
+    "teaches": [
+      "Computer system design",
+      "System development",
+      "Computer architecture",
+      "Data structures",
+      "Project management"
+    ],
+    "requires": {
+      "description": "Students must be able to use key Calculus principles, rules, and applications while in the B.S. Computer Science program. Students must meet the following admission requirements for admittance to this program: 1. Possess a high school diploma or its equivalent. 2. Demonstrate readiness through completion of one of the following: Option 1: Submit all transcripts documenting completion of college-level coursework with a minimum of 2.25 cumulative GPA or higher, AND successful and verifiable completion of a precalculus (or higher level) course from a WGU approved third-party provider with a grade \"C\" or better. Option 2: A high school cumulative GPA of 2.75 or higher, AND successful, verifiable completion of a precalculus (or higher level) advanced mathematics course with a grade of B or better. If no previous precalculus course has been completed by the time of application, students can complete this course through WGU Academy for a $25 course fee prior to matriculation.",
+      "prerequisiteCredentials": [
+        "high school diploma"
+      ]
+    },
+    "hasPart": [
+      {
+        "name": "Health, Fitness, and Wellness",
+        "codedNotation": null
+      },
+      {
+        "name": "Applied Probability and Statistics",
+        "codedNotation": null
+      },
+      {
+        "name": "Calculus I",
+        "codedNotation": null
+      },
+      {
+        "name": "Discrete Mathematics I",
+        "codedNotation": null
+      },
+      {
+        "name": "Discrete Mathematics II",
+        "codedNotation": null
+      },
+      {
+        "name": "Introduction to Communication: Connecting with Others",
+        "codedNotation": null
+      },
+      {
+        "name": "Composition: Successful Self-Expression",
+        "codedNotation": null
+      },
+      {
+        "name": "American Politics and the US Constitution",
+        "codedNotation": null
+      },
+      {
+        "name": "Ethics in Technology",
+        "codedNotation": null
+      },
+      {
+        "name": "Natural Science Lab",
+        "codedNotation": null
+      },
+      {
+        "name": "Introduction to Systems Thinking and Applications",
+        "codedNotation": null
+      },
+      {
+        "name": "Data Management - Foundations",
+        "codedNotation": null
+      },
+      {
+        "name": "Data Management - Applications",
+        "codedNotation": null
+      },
+      {
+        "name": "Linux Foundations",
+        "codedNotation": null
+      },
+      {
+        "name": "Web Development Foundations",
+        "codedNotation": null
+      },
+      {
+        "name": "Scripting and Programming - Foundations",
+        "codedNotation": null
+      },
+      {
+        "name": "Software Engineering",
+        "codedNotation": null
+      },
+      {
+        "name": "Introduction to Computer Science",
+        "codedNotation": null
+      },
+      {
+        "name": "Advanced AI and ML",
+        "codedNotation": null
+      },
+      {
+        "name": "Computer Architecture",
+        "codedNotation": null
+      },
+      {
+        "name": "Data Structures and Algorithms I",
+        "codedNotation": null
+      },
+      {
+        "name": "Data Structures and Algorithms II",
+        "codedNotation": null
+      },
+      {
+        "name": "Practical Applications of Prompt",
+        "codedNotation": null
+      },
+      {
+        "name": "Operating Systems for Computer Scientists",
+        "codedNotation": null
+      },
+      {
+        "name": "Introduction to AI for Computer Scientists",
+        "codedNotation": null
+      },
+      {
+        "name": "Artificial Intelligence Optimization for Computer Scientists",
+        "codedNotation": null
+      },
+      {
+        "name": "Computer Science Project Development with a Team",
+        "codedNotation": null
+      },
+      {
+        "name": "Fundamentals of Information Security",
+        "codedNotation": null
+      },
+      {
+        "name": "Scripting and Programming - Applications",
+        "codedNotation": null
+      },
+      {
+        "name": "Java Fundamentals",
+        "codedNotation": null
+      },
+      {
+        "name": "Java Frameworks",
+        "codedNotation": null
+      },
+      {
+        "name": "Back-End Programming",
+        "codedNotation": null
+      },
+      {
+        "name": "Advanced Java",
+        "codedNotation": null
+      },
+      {
+        "name": "Software Design and Quality Assurance",
+        "codedNotation": null
+      },
+      {
+        "name": "Version Control",
+        "codedNotation": null
+      },
+      {
+        "name": "Network and Security - Foundations",
+        "codedNotation": null
+      },
+      {
+        "name": "Business of IT - Applications",
+        "codedNotation": null
+      }
+    ],
+    "creditValue": {
+      "creditUnitType": "CompetencyCredit",
+      "description": "You will be expected to complete at least 13 competency units each 6-month term. (One course is typically 3 or 4 units.)",
+      "value": null
+    },
+    "_extractionNotes": "The page states the program consists of 37 courses but does not provide a total competency unit count. The 25-month completion time is stated as what 62% of graduates finish within, not necessarily the standard duration. The tuition calculator on the page is interactive but doesn't provide a fixed total cost. Course codes are not provided on the page."
+  },
+  "_meta": [
+    {
+      "config": "baseline-credential",
+      "usage": {
+        "input_tokens": 11117,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 0,
+          "ephemeral_1h_input_tokens": 0
+        },
+        "iterations": [
+          {
+            "input_tokens": 11117,
+            "output_tokens": 195,
+            "cache_read_input_tokens": 0,
+            "cache_creation_input_tokens": 0,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 0
+            },
+            "type": "message"
+          }
+        ],
+        "output_tokens": 195,
+        "service_tier": "standard",
+        "inference_geo": "not_available"
+      },
+      "latencyMs": 6583,
+      "stopReason": "tool_use"
+    },
+    {
+      "config": "baseline-learning_program",
+      "usage": {
+        "input_tokens": 10670,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 0,
+          "ephemeral_1h_input_tokens": 0
+        },
+        "iterations": [
+          {
+            "input_tokens": 10670,
+            "output_tokens": 350,
+            "cache_read_input_tokens": 0,
+            "cache_creation_input_tokens": 0,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 0
+            },
+            "type": "message"
+          }
+        ],
+        "output_tokens": 350,
+        "service_tier": "standard",
+        "inference_geo": "not_available"
+      },
+      "latencyMs": 9744,
+      "stopReason": "tool_use"
+    },
+    {
+      "config": "enhanced",
+      "usage": {
+        "input_tokens": 12532,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 0,
+          "ephemeral_1h_input_tokens": 0
+        },
+        "iterations": [
+          {
+            "input_tokens": 12532,
+            "output_tokens": 2024,
+            "cache_read_input_tokens": 0,
+            "cache_creation_input_tokens": 0,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 0
+            },
+            "type": "message"
+          }
+        ],
+        "output_tokens": 2024,
+        "service_tier": "standard",
+        "inference_geo": "not_available"
+      },
+      "latencyMs": 35802,
+      "stopReason": "tool_use"
+    }
+  ]
+}
