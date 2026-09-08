@@ -1,6 +1,8 @@
 resource "aws_eks_node_group" "system" {
-  cluster_name    = module.eks.cluster_id
-  node_group_name = "${local.cluster_name}-system"
+  cluster_name = module.eks.cluster_id
+  # -1a suffix: single-AZ migration is a create-before-destroy replacement, so
+  # the new group needs a distinct name to coexist with the old one during cutover.
+  node_group_name = "${local.cluster_name}-system-1a"
   node_role_arn   = module.eks.nodegroup_role_arn
   subnet_ids      = local.single_az_private_subnet_ids
 
@@ -25,6 +27,7 @@ resource "aws_eks_node_group" "system" {
   }
 
   lifecycle {
+    create_before_destroy = true
     ignore_changes = [
       scaling_config[0].desired_size
     ]
@@ -39,8 +42,10 @@ resource "aws_eks_node_group" "system" {
 }
 
 resource "aws_eks_node_group" "app" {
-  cluster_name    = module.eks.cluster_id
-  node_group_name = "${local.cluster_name}-app"
+  cluster_name = module.eks.cluster_id
+  # -1a suffix: single-AZ migration is a create-before-destroy replacement, so
+  # the new group needs a distinct name to coexist with the old one during cutover.
+  node_group_name = "${local.cluster_name}-app-1a"
   node_role_arn   = module.eks.nodegroup_role_arn
   subnet_ids      = local.single_az_private_subnet_ids
 
@@ -66,6 +71,7 @@ resource "aws_eks_node_group" "app" {
   }
 
   lifecycle {
+    create_before_destroy = true
     ignore_changes = [
       scaling_config[0].desired_size
     ]
