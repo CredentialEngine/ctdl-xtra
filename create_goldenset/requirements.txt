@@ -1,0 +1,3 @@
+# Python 3.9+. Run from this folder.
+playwright>=1.40
+jsonschema>=4.0
