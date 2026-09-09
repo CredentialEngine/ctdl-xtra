@@ -4,6 +4,11 @@ import {
   isAgenticRecipeStage,
 } from "../../../common/types";
 
+export const MAX_STAGE_CHANGES = 20;
+
+export const STAGE_CHANGE_LIMIT_MESSAGE =
+  `Tried too many times. Stage changes are limited to ${MAX_STAGE_CHANGES} for this recipe. Call xtra_give_up if the catalogue cannot be configured.`;
+
 export type StageReportResult =
   | { ok: true; stage: AgenticRecipeStage; changed: boolean }
   | { ok: false; error: string };
@@ -12,9 +17,20 @@ function validStagesList(): string {
   return AGENTIC_RECIPE_STAGES.join(", ");
 }
 
+function acceptStageChange(
+  stage: AgenticRecipeStage,
+  stageChangeCount: number
+): StageReportResult {
+  if (stageChangeCount >= MAX_STAGE_CHANGES) {
+    return { ok: false, error: STAGE_CHANGE_LIMIT_MESSAGE };
+  }
+  return { ok: true, stage, changed: true };
+}
+
 export function applyStageReport(
   current: AgenticRecipeStage | null,
-  reported: unknown
+  reported: unknown,
+  stageChangeCount: number = 0
 ): StageReportResult {
   if (!isAgenticRecipeStage(reported)) {
     if (current) {
@@ -36,7 +52,7 @@ export function applyStageReport(
         error: `Incorrect stage. Report ${AgenticRecipeStage.ASSESS_USABILITY} first.`,
       };
     }
-    return { ok: true, stage: reported, changed: true };
+    return acceptStageChange(reported, stageChangeCount);
   }
 
   if (reported === current) {
@@ -58,5 +74,5 @@ export function applyStageReport(
     };
   }
 
-  return { ok: true, stage: reported, changed: true };
+  return acceptStageChange(reported, stageChangeCount);
 }

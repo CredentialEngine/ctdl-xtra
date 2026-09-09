@@ -25,7 +25,7 @@ import {
   validateSubmitAllowed,
   type SubmitVerificationState,
 } from "./recipeSubmitGates";
-import { applyStageReport } from "./recipeStages";
+import { applyStageReport, MAX_STAGE_CHANGES } from "./recipeStages";
 import { verifyRecipeLinks } from "./verifyRecipeLinks";
 import {
   TEST_EXTRACTION_LIMIT_MESSAGE,
@@ -37,7 +37,7 @@ const TOOLS = [
   {
     name: "xtra_report_stage",
     description:
-      "Report the current recipe configuration stage enum. Call when entering or re-entering a stage. Do not skip stages.",
+      "Report the current recipe configuration stage enum. Call when entering or re-entering a stage. Do not skip stages. Limited to 20 stage changes per recipe (re-reporting the current stage does not count).",
     inputSchema: {
       type: "object",
       properties: {
@@ -181,6 +181,7 @@ function xtraPayload(payload: Record<string, unknown>) {
 }
 
 let currentStage: AgenticRecipeStage | null = null;
+let stageChangeCount = 0;
 let verifyLinkCallsSuccessful = 0;
 let testExtractionSucceeded = false;
 
@@ -200,9 +201,16 @@ function resetVerificationState() {
 async function handleToolCall(name: string, args: Record<string, unknown>) {
   switch (name) {
     case "xtra_report_stage": {
-      const result = applyStageReport(currentStage, args.stage);
+      const result = applyStageReport(
+        currentStage,
+        args.stage,
+        stageChangeCount
+      );
       if (!result.ok) {
         return toolError(result.error);
+      }
+      if (result.changed) {
+        stageChangeCount++;
       }
       if (shouldResetVerificationState(result.stage, result.changed)) {
         resetVerificationState();
@@ -213,6 +221,8 @@ async function handleToolCall(name: string, args: Record<string, unknown>) {
           kind: "stage",
           stage: result.stage,
           changed: result.changed,
+          attempt: stageChangeCount,
+          remaining: MAX_STAGE_CHANGES - stageChangeCount,
         })
       );
     }
