@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { AgenticRecipeStage } from "../../common/types";
-import { applyStageReport } from "../src/agentic/recipeStages";
+import {
+  applyStageReport,
+  MAX_STAGE_CHANGES,
+  STAGE_CHANGE_LIMIT_MESSAGE,
+} from "../src/agentic/recipeStages";
 
 describe("applyStageReport", () => {
   it("requires ASSESS_USABILITY first", () => {
@@ -76,6 +80,76 @@ describe("applyStageReport", () => {
       ok: true,
       stage: AgenticRecipeStage.MAP_STRUCTURE,
       changed: false,
+    });
+  });
+
+  it("rejects a stage change after the max number of changes", () => {
+    expect(
+      applyStageReport(
+        null,
+        AgenticRecipeStage.ASSESS_USABILITY,
+        MAX_STAGE_CHANGES
+      )
+    ).toEqual({
+      ok: false,
+      error: STAGE_CHANGE_LIMIT_MESSAGE,
+    });
+  });
+
+  it("still allows re-reporting the current stage at the max", () => {
+    expect(
+      applyStageReport(
+        AgenticRecipeStage.WRITE_CONFIGURATION,
+        AgenticRecipeStage.WRITE_CONFIGURATION,
+        MAX_STAGE_CHANGES
+      )
+    ).toEqual({
+      ok: true,
+      stage: AgenticRecipeStage.WRITE_CONFIGURATION,
+      changed: false,
+    });
+  });
+
+  it("stops looping between WRITE_CONFIGURATION and VERIFY_RECIPE at 20 changes", () => {
+    let current: AgenticRecipeStage | null = null;
+    let count = 0;
+    const path = [
+      AgenticRecipeStage.ASSESS_USABILITY,
+      AgenticRecipeStage.MAP_STRUCTURE,
+      AgenticRecipeStage.WRITE_CONFIGURATION,
+      AgenticRecipeStage.VERIFY_RECIPE,
+    ];
+    for (const stage of path) {
+      const result = applyStageReport(current, stage, count);
+      expect(result.ok).toBe(true);
+      if (result.ok && result.changed) {
+        current = result.stage;
+        count++;
+      }
+    }
+    while (count < MAX_STAGE_CHANGES) {
+      const next =
+        current === AgenticRecipeStage.VERIFY_RECIPE
+          ? AgenticRecipeStage.WRITE_CONFIGURATION
+          : AgenticRecipeStage.VERIFY_RECIPE;
+      const result = applyStageReport(current, next, count);
+      expect(result.ok).toBe(true);
+      if (result.ok && result.changed) {
+        current = result.stage;
+        count++;
+      }
+    }
+    expect(count).toBe(MAX_STAGE_CHANGES);
+    const blocked = applyStageReport(
+      current,
+      current === AgenticRecipeStage.VERIFY_RECIPE
+        ? AgenticRecipeStage.WRITE_CONFIGURATION
+        : AgenticRecipeStage.VERIFY_RECIPE,
+      count
+    );
+    expect(blocked).toEqual({
+      ok: false,
+      error: STAGE_CHANGE_LIMIT_MESSAGE,
     });
   });
 });

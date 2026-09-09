@@ -98,6 +98,7 @@ ${stageList}
 2. Call \`xtra_report_progress\` before each major action to explain what you are about to do.
 3. Use Puppeteer MCP tools (\`puppeteer_navigate\`, \`puppeteer_evaluate\`, etc.) to inspect pages.
 4. Do not skip stages. If you report the wrong stage, the tool rejects it and tells you the expected stage. If the catalogue is not recipe-compatible or cannot be configured, call \`xtra_give_up\` with a clear user-visible \`message\` and stop.
+5. Stage changes (entering a different stage, including going back) are limited to 20 for this recipe; re-reporting the current stage does not count. Further changes return an error that you tried too many times — call \`xtra_give_up\` if you cannot finish.
 
 ## Output style (required)
 
