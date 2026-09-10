@@ -15,7 +15,7 @@ import argparse
 import json
 import sys
 
-from _stage import add_pack_flag, configure_pack, run
+from _stage import configure_pack, run
 
 
 def probe_one(url: str) -> int:

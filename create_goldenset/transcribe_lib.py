@@ -5,7 +5,6 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 
-from evidence import EvidenceError, find_excerpt
 
 
 class TranscriptionError(ValueError):

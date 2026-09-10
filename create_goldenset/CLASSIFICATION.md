@@ -61,6 +61,14 @@ python3 detect_family.py --url https://catalog.brookdalecc.edu/courses/ENGL121
 
 RCBC is checked before Brookdale because RCBC pages also contain `Course Description` / credit-hour labels.
 
+## Cache retention
+
+`cache/{yyyy-mm-dd}/` is append-only. A page dropped from the pack keeps its
+cached bytes, because a dated entry is the record of what that URL served on
+that day and later runs and audits may need it. Only `snapshots/` (the legacy
+flat path) and the derived `normalized/` text are pruned when a page leaves the
+pack. Re-running `freeze` reuses an existing dated copy and never overwrites it.
+
 ## No match
 
 - **Family `unknown`:** crawl may still collect URLs; many will fail later.

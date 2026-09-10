@@ -142,9 +142,7 @@ def validate_pack(pack: Path, *, strict_promotion: bool = False) -> list[str]:
             errors.append("pack has 0 records")
     elif n != 30:
         errors.append(f"pack has {n} records, required 30")
-    if types == {"Course"}:
-        pass
-    else:
+    if not college_pack:
         missing = TYPES - types
         if missing:
             errors.append(f"missing entity types: {sorted(missing)}")

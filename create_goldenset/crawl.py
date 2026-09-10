@@ -9,7 +9,6 @@ Writes {pack}/slots.json. Downloads nothing; freeze.py does that.
 from __future__ import annotations
 
 import argparse
-import sys
 
 from _stage import add_pack_flag, configure_pack, run
 

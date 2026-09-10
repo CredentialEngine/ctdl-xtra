@@ -195,8 +195,6 @@ def run_college_capture(
     if not all_slots:
         raise SystemExit("every freeze failed transcription")
 
-    from argparse import Namespace
-
     from registry import lookup_pack
 
     if not skip_registry:

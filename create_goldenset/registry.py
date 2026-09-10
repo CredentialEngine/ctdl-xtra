@@ -7,7 +7,6 @@ import os
 import urllib.error
 import urllib.request
 from datetime import datetime, timezone
-from pathlib import Path
 
 from config import PACK, RECORD_DIR, REGISTRY_USER_AGENT
 from normalize import sha256_bytes

@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-from collections import defaultdict
 from pathlib import Path
 
 from config import PACK, RECORD_DIR, SLOTS_NAME
@@ -15,6 +14,7 @@ from normalize import sha256_bytes, sha256_text
 from record import locator, shell, source_block
 from active import active_slots
 from transcribe import entities_for_page, transcribe_slot
+from transcribe_lib import TranscriptionError
 
 
 def _meta(stem: str) -> dict:
@@ -142,25 +142,41 @@ def _scope(slot, text: str) -> dict:
     }
 
 
+def _link_endpoints(slot) -> tuple[str, str]:
+    """Subject and object record ids for a Link slot.
+
+    A Link record asserts a relationship between two other records on the same
+    freeze. The ids are derived from the Link's own record_id by convention:
+
+        {base}-link-results-in-credential
+          -> subject {base}-learning-program
+          -> object  {base}-credential
+
+    A Link slot whose id does not follow that convention fails closed with a
+    clear message rather than a KeyError from a hardcoded table.
+    """
+    suffix = "-link-results-in-credential"
+    rid = slot.record_id
+    if not rid.endswith(suffix):
+        raise TranscriptionError(
+            f"{rid}: Link record_id must end with {suffix!r} so the subject and "
+            "object can be derived. Rename the slot or extend _link_endpoints."
+        )
+    base = rid[: -len(suffix)]
+    return f"{base}-learning-program", f"{base}-credential"
+
+
 def _links(slot, fields: list[dict]) -> list[dict]:
     if slot.entity_type != "Link":
         return []
-    mapping = {
-        "brookdale-hospm-link-results-in-credential": (
-            "brookdale-hospm-learning-program",
-            "brookdale-hospm-credential",
-        ),
-        "raritan-medical-assistant-link-results-in-credential": (
-            "raritan-medical-assistant-learning-program",
-            "raritan-medical-assistant-credential",
-        ),
-        "raritan-automotive-link-results-in-credential": (
-            "raritan-automotive-learning-program",
-            "raritan-automotive-credential",
-        ),
-    }
-    subj, obj = mapping[slot.record_id]
-    heading = next(f for f in fields if f["canonical_label"] == "relationship_heading")
+    subj, obj = _link_endpoints(slot)
+    heading = next(
+        (f for f in fields if f["canonical_label"] == "relationship_heading"), None
+    )
+    if heading is None:
+        raise TranscriptionError(
+            f"{slot.record_id}: a Link record needs a printed relationship_heading field"
+        )
     ev_id = heading["evidence"][0]["evidence_id"]
     return [
         {

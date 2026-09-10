@@ -9,12 +9,7 @@ from __future__ import annotations
 import re
 
 from transcribe_lib import FieldDraft, TranscriptionError
-from templates._shared import (
-    _add,
-    _line_after,
-    _maybe_labeled_number,
-    _num,
-)
+from templates._shared import _add, _line_after, _maybe_labeled_number
 
 
 FAMILY = "custom_html"
@@ -23,7 +18,7 @@ FAMILY = "custom_html"
 def detect(text: str) -> str | None:
     """Return this family's template id, or None."""
     heading = "Course Catalog Software by Clean Catalog" in text or re.search(
-        r"^[A-Z]{2,5}\\d{3}:\\s*$", text, re.M
+        r"^[A-Z]{2,5}\d{3}:\s*$", text, re.M
     )
     if heading and re.search(r"^Credits$", text, re.M):
         return "clean_catalog_course_detail"

@@ -155,6 +155,13 @@ def _drop_stale_xtra_json(keep: dict[str, set[str]]) -> None:
 
 
 def _drop_unused_freezes() -> None:
+    """Prune derived files for pages no longer in the pack.
+
+    cache/ is deliberately NOT pruned. A dated cache entry is the immutable
+    record of what a URL served on a given day, so a page dropped from this
+    pack keeps its bytes for any later run or audit. Only the legacy flat
+    snapshots/ folder and the derived normalized/ text are cleaned up.
+    """
     from active import unique_pages
 
     keep_stems = {s.stem for s in unique_pages()}
