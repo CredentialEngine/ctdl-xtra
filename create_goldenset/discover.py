@@ -20,6 +20,7 @@ from catalog import (
 )
 from slots import Slot
 from catalog import page_id_for, record_id_for
+from config import BROWSER_USER_AGENT
 
 HREF = re.compile(r"""href=["']([^"'#]+)["']""", re.I)
 COURSE_CODE = re.compile(r"^[A-Za-z]{2,8}[-_]?[A-Za-z]?\d{2,4}[A-Za-z]?$")
@@ -183,10 +184,7 @@ def harvest_with_playwright(
             browser = p.chromium.launch(headless=True)
         context = browser.new_context(
             viewport={"width": 1400, "height": 1800},
-            user_agent=(
-                "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
-                "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
-            ),
+            user_agent=BROWSER_USER_AGENT,
             ignore_https_errors=True,
         )
         page = context.new_page()

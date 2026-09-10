@@ -7,12 +7,11 @@ import argparse
 import sys
 from pathlib import Path
 
-_HERE = Path(__file__).resolve().parent
+_HERE = Path(__file__).absolute().parent
 if str(_HERE) not in sys.path:
     sys.path.insert(0, str(_HERE))
 
 from lib import (
-    ROOT,
     check_pack,
     configure,
     json_dumps,
@@ -44,7 +43,7 @@ def main(argv: list[str] | None = None) -> int:
             "home pages and/or course detail URLs. Does not rebuild NJ 30."
         ),
         epilog=(
-            "Example: python3 run.py "
+            "Example: python3 create_goldenset/run.py "
             "--url https://catalog.brookdalecc.edu"
         ),
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -63,7 +62,7 @@ def main(argv: list[str] | None = None) -> int:
     )
     parser.add_argument(
         "--out",
-        help="Pack folder under C:\\Code\\golden_set (default golden_set_<college>_courses)",
+        help="Pack folder (absolute path, or a name under GOLDEN_SET_HOME / create_goldenset/out)",
     )
     parser.add_argument("--limit", type=int, default=None, help="Total course cap after sampling")
     parser.add_argument(
@@ -92,11 +91,9 @@ def main(argv: list[str] | None = None) -> int:
     urls = collect_urls(args)
     if not urls:
         parser.print_help()
-        print("\nNeed --url or --url-file. Need --url or --url-file.")
+        print("\nNeed --url or --url-file. This folder generates a NEW pack; it does not replay NJ 30.")
         return 2
 
-    if str(ROOT) not in sys.path:
-        sys.path.insert(0, str(ROOT))
     pack = resolve_pack(args.out, urls)
     blocked = refuse_protected_pack(pack)
     if blocked:

@@ -9,7 +9,7 @@ import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
 
-from config import PACK, RECORD_DIR
+from config import PACK, RECORD_DIR, REGISTRY_USER_AGENT
 from normalize import sha256_bytes
 
 SEARCH_URL = "https://apps.credentialengine.org/assistant/search/ctdl"
@@ -78,7 +78,7 @@ def _post_search(catalog_url: str) -> tuple[int, dict | str]:
     headers = {
         "Content-Type": "application/json",
         "Accept": "application/json",
-        "User-Agent": "Nicolas-xTRA-golden-set/courses-30",
+        "User-Agent": REGISTRY_USER_AGENT,
     }
     if key:
         headers["Authorization"] = key if key.lower().startswith("bearer ") else f"Bearer {key}"

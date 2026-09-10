@@ -8,7 +8,7 @@ from pathlib import Path
 
 from config import PACK, RECORD_DIR, SLOTS_NAME
 from evidence import hydrate_evidence
-from freeze import meta_path, snapshot_path
+from freeze import meta_path, snapshot_path, snapshot_rel
 from inventory import csv_text as inventory_csv
 from mapping import map_fields
 from normalize import sha256_bytes, sha256_text
@@ -34,7 +34,7 @@ def build_record(slot) -> dict:
         slot,
         source=source_block(
             slot,
-            snapshot_rel=f"snapshots/{slot.stem}.html",
+            snapshot_rel=snapshot_rel(slot.stem),
             snapshot_sha256=sha256_bytes(html),
             normalized_rel=f"normalized/{slot.stem}.txt",
             normalized_sha256=sha256_text(text),
@@ -248,7 +248,7 @@ def assemble_manifest() -> Path:
     if SLOTS_NAME == "courses_30":
         notes = [
             "Courses-only candidate pack. Dual named human review is required before human_signed export.",
-            "30 Course records from seven New Jersey colleges. Proof is snapshots/{stem}.html only.",
+            "30 Course records from seven New Jersey colleges. Proof is cache/{yyyy-mm-dd}/{stem}.html (legacy snapshots/ reused).",
             "A single printed credit is course_credits. course_credits_min/max are omitted unless the freeze prints both bounds or a range.",
             "catalog_edition is omitted when the freeze does not print an edition. proof_snapshot is not written.",
             "Registry lookup uses exact ceterms:subjectWebpage = catalog URL. No name matching. Without an API key the status stays not_checked.",
@@ -266,11 +266,16 @@ def assemble_manifest() -> Path:
         pack_id = PACK.name
     else:
         notes = [
-            "Candidates only. Dual named human review is required before human_signed.",
-            "Expected values are freeze slices. No LLM-invented fields.",
-            "Do not quote this pack as official extract accuracy. Do not use --signed-only.",
+            "Candidates only. Dual named human review is required before human_signed export.",
+            "ed2go stratum was replaced: careertraining.atlanticcape.edu returns 403.",
+            "PDF/course-outline stratum was replaced with HTML proof per v4 HTML-proof rule.",
+            "Coursedog and Acalog HTML were oversampled to keep 30 records, all six entity types, and 5-10 per exact template_id.",
+            "Atlantic Cape FLTI freeze is an explicit multi-entity competency bundle (1 program + 4 outcomes).",
+            "CompetencyFramework records capture the printed PROGRAM OUTCOMES heading only; outcome lists are out of pack scope.",
+            "Do not quote this pack as official extract accuracy. Use xtra-accuracy only after human_signed promotion.",
+            "v1/v2/v3 golden_sets JSON were not copied as expected values.",
         ]
-        pack_id = PACK.name
+        pack_id = "golden_set_v4"
     manifest = {
         "pack_id": pack_id,
         "schema_version": "2.0.0",

@@ -37,10 +37,12 @@ def abs_url(base: str, href: str) -> str:
 
 
 def detect_family(html: str, url: str = "") -> str:
+    """CMS family from distinctive markers. Coursedog and Acalog before Clean Catalog."""
     blob = f"{html}\n{url}".lower()
-    if "cleancatalog.com" in blob or "clean catalog" in blob:
-        return "custom_html"
+    path = urlparse(url).path.lower()
     if "coursedog" in blob:
+        return "coursedog"
+    if path.startswith("/courses/") and path.count("/") >= 2:
         return "coursedog"
     if (
         "acalog" in blob
@@ -49,11 +51,10 @@ def detect_family(html: str, url: str = "") -> str:
         or "modern campus catalog" in blob
     ):
         return "acalog"
-    path = urlparse(url).path.lower()
     if "preview_course" in path or "catoid=" in url.lower():
         return "acalog"
-    if path.startswith("/courses/") and path.count("/") >= 2:
-        return "coursedog"
+    if "cleancatalog.com" in blob:
+        return "custom_html"
     return "unknown"
 
 

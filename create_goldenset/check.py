@@ -7,7 +7,7 @@ import argparse
 import sys
 from pathlib import Path
 
-_HERE = Path(__file__).resolve().parent
+_HERE = Path(__file__).absolute().parent
 if str(_HERE) not in sys.path:
     sys.path.insert(0, str(_HERE))
 
@@ -21,7 +21,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--pack",
         required=True,
-        help="Pack directory (folder name under C:\\Code\\golden_set, or an absolute path)",
+        help="Pack directory (absolute path, or a folder name under GOLDEN_SET_HOME)",
     )
     args = parser.parse_args(argv)
     pack = resolve_existing_pack(args.pack)

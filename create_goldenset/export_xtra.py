@@ -102,6 +102,30 @@ def _expected(rec: dict) -> dict:
 SKIP_FREEZE_CHECK = {"predicate", "subject_id", "object_id"}
 
 
+def _proof_folder(snap: str) -> str:
+    proof = snap.replace("\\", "/")
+    if proof.startswith("cache/"):
+        return "cache/"
+    if proof.startswith("snapshots/"):
+        return "snapshots/"
+    if "/" in proof:
+        return proof.split("/", 1)[0] + "/"
+    return "the freeze file"
+
+
+def _transcription_method(snap: str) -> str:
+    credit = (
+        "a single printed credit is course_credits; min/max only if the freeze prints a range"
+        if COURSE_PACK
+        else "a single printed credit is course_credits_min only"
+    )
+    return (
+        f"verbatim copy from frozen HTML bytes in {_proof_folder(snap)}; "
+        "no LLM extract; omit fields the freeze does not print; "
+        + credit
+    )
+
+
 def _assert_in_freeze(rec: dict, expected: dict) -> None:
     text = (PACK / rec["source"]["normalized_text_path"]).read_text(encoding="utf-8")
     for key, val in expected.items():
@@ -114,7 +138,7 @@ def _assert_in_freeze(rec: dict, expected: dict) -> None:
 
 
 def _drop_nested_html_copy() -> None:
-    """Course goldens read snapshots/. Nested html/{stem}.html/{stem}.html is not proof."""
+    """Course goldens read cache/ or snapshots/. Nested html/{stem}.html/{stem}.html is not proof."""
     html_dir = PACK / "html"
     if html_dir.exists():
         shutil.rmtree(html_dir)
@@ -167,15 +191,7 @@ def export_xtra_goldens() -> list[Path]:
             "source_url": rec["source"]["requested_url"],
             "institution": rec["source"]["institution_name"],
             "retrieved_at": rec["source"]["retrieved_at"],
-            "transcription_method": (
-                "verbatim copy from frozen HTML bytes in snapshots/; "
-                "no LLM extract; omit fields the freeze does not print; "
-                + (
-                    "a single printed credit is course_credits; min/max only if the freeze prints a range"
-                    if COURSE_PACK
-                    else "a single printed credit is course_credits_min only"
-                )
-            ),
+            "transcription_method": _transcription_method(snap),
             "proof_html": snap,
             "pile": (
                 os.environ.get("GOLDEN_SET_PILE")

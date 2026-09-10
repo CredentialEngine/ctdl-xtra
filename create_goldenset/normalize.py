@@ -6,7 +6,7 @@ import hashlib
 import re
 from html.parser import HTMLParser
 
-from page import SCRIPT_STYLE
+from html_text import SCRIPT_STYLE
 
 
 class _VisibleText(HTMLParser):

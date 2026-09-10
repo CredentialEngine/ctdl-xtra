@@ -1,0 +1,48 @@
+#!/usr/bin/env python3
+"""Stage 1a. Discover course detail URLs for a catalog and write slots.json.
+
+  python3 crawl.py --pack my_pack --url https://catalog.brookdalecc.edu --limit 5
+
+Writes {pack}/slots.json. Downloads nothing; freeze.py does that.
+"""
+
+from __future__ import annotations
+
+import argparse
+import sys
+
+from _stage import add_pack_flag, configure_pack, run
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    add_pack_flag(parser)
+    parser.add_argument("--url", action="append", dest="urls", metavar="URL",
+                        help="Catalog home or course detail URL (repeatable)")
+    parser.add_argument("--url-file", metavar="PATH", help="One URL per line")
+    parser.add_argument("--limit", type=int, default=None, help="Total course cap")
+    parser.add_argument("--per-college", type=int, default=None, help="Cap per catalog")
+    parser.add_argument("--all", action="store_true", help="Every discovered course")
+    parser.add_argument("--institution", help="Override institution_name")
+    args = parser.parse_args(argv)
+    if not args.urls and not args.url_file:
+        parser.error("need --url or --url-file")
+    configure_pack(args.pack)
+    passthrough: list[str] = []
+    for url in args.urls or []:
+        passthrough += ["--url", url]
+    if args.url_file:
+        passthrough += ["--url-file", args.url_file]
+    if args.limit is not None:
+        passthrough += ["--limit", str(args.limit)]
+    if args.per_college is not None:
+        passthrough += ["--per-college", str(args.per_college)]
+    if args.all:
+        passthrough.append("--all")
+    if args.institution:
+        passthrough += ["--institution", args.institution]
+    return run("crawl", passthrough)
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

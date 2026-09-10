@@ -1,13 +1,33 @@
-"""Slots for the pack currently being generated (slots.json)."""
+"""Select the active sampling slot list."""
 
 from __future__ import annotations
 
-from dynamic_slots import load_slots, unique_pages as _unique_pages
+from config import SLOTS_NAME
 
 
 def active_slots():
-    return load_slots()
+    if SLOTS_NAME == "courses_30":
+        from course_slots import SLOTS
+
+        return SLOTS
+    if SLOTS_NAME == "dynamic":
+        from dynamic_slots import load_slots
+
+        return load_slots()
+    from slots import SLOTS
+
+    return SLOTS
 
 
 def unique_pages():
-    return _unique_pages()
+    if SLOTS_NAME == "courses_30":
+        from course_slots import unique_pages as u
+
+        return u()
+    if SLOTS_NAME == "dynamic":
+        from dynamic_slots import unique_pages as u
+
+        return u()
+    from slots import unique_pages as u
+
+    return u()

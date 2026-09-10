@@ -6,7 +6,7 @@ import json
 import shutil
 from pathlib import Path
 
-from config import PACK, RECORD_DIR, ROOT as REPO_ROOT
+from config import HERE, PACK, RECORD_DIR
 from catalog import college_slug
 from discover import harvest_with_playwright
 from dynamic_slots import write_slots
@@ -73,23 +73,17 @@ def attach_templates(slots: list[Slot], normalized_dir: Path) -> list[Slot]:
     return out
 
 
-def run_college_capture(
+def harvest_seeds(
     seeds: list[str],
     *,
     per_college: int | None,
     total_limit: int | None,
     fetch_all: bool,
     institution: str | None,
-    skip_registry: bool = False,
-) -> dict:
-    from config import NORMALIZED_DIR
-    from build import assemble_manifest, build_pack
-    from cli import cmd_normalize
-    from quality import cross_check_pack
-    from validate import validate_pack
-
+) -> tuple[list[Slot], list[dict], int]:
+    """Discover course URLs. Returns slots, discovery reports, and the per-college cap."""
     all_slots: list[Slot] = []
-    reports = []
+    reports: list[dict] = []
     n_colleges = len(seeds)
     if fetch_all:
         want_each = 10_000
@@ -133,6 +127,31 @@ def run_college_capture(
             f"queued={len(slots)} institution={report['institution_name']}",
             flush=True,
         )
+    return all_slots, reports, want_each
+
+
+def run_college_capture(
+    seeds: list[str],
+    *,
+    per_college: int | None,
+    total_limit: int | None,
+    fetch_all: bool,
+    institution: str | None,
+    skip_registry: bool = False,
+) -> dict:
+    from config import NORMALIZED_DIR
+    from build import assemble_manifest, build_pack
+    from cli import cmd_normalize
+    from quality import cross_check_pack
+    from validate import validate_pack
+
+    all_slots, reports, want_each = harvest_seeds(
+        seeds,
+        per_college=per_college,
+        total_limit=total_limit,
+        fetch_all=fetch_all,
+        institution=institution,
+    )
 
     if not all_slots:
         raise SystemExit("no course URLs discovered")
@@ -199,7 +218,7 @@ def run_college_capture(
         + "\n",
         encoding="utf-8",
     )
-    schema_src = REPO_ROOT / "record.schema.json"
+    schema_src = (HERE / "record.schema.json").absolute()
     if schema_src.is_file():
         shutil.copyfile(schema_src, PACK / "record.schema.json")
     return {"records": len(all_slots), "errors": problems, "pack": str(PACK)}

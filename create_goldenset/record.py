@@ -9,7 +9,7 @@ from slots import Slot
 
 ANNOTATOR = {
     "person_id": "golden-set-v4-candidate-builder",
-    "display_name": "golden-set candidate builder",
+    "display_name": "golden_set_v4 candidate builder",
     "completed_at": None,
 }
 
