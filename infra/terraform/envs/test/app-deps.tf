@@ -166,6 +166,13 @@ resource "aws_db_instance" "app" {
   tags = merge(local.common_tags, {
     Name = "${local.cluster_name}-postgres"
   })
+
+  # auto_minor_version_upgrade is enabled, so RDS bumps the minor version out of
+  # band (e.g. 17.5 -> 17.9). Ignore engine_version here so Terraform does not
+  # try to "downgrade" back to the pinned value on every plan.
+  lifecycle {
+    ignore_changes = [engine_version]
+  }
 }
 
 # ---------------------------------------------------------------

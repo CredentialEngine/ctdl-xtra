@@ -33,13 +33,8 @@ output "public_subnet_ids" {
   value       = module.vpc.public_subnet_ids
 }
 
-output "system_node_group_name" {
-  description = "System managed node group name."
-  value       = aws_eks_node_group.system.node_group_name
-}
-
 output "app_node_group_name" {
-  description = "Application managed node group name."
+  description = "Consolidated managed node group name (single node, no HA)."
   value       = aws_eks_node_group.app.node_group_name
 }
 

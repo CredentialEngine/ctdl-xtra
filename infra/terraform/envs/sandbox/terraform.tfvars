@@ -44,14 +44,10 @@ db_max_allocated_storage = 100
 db_multi_az              = false
 db_backup_retention_days = 7
 
-system_node_instance_types = ["t3.medium"]
-system_node_min_size       = 1
-system_node_max_size       = 2
-system_node_desired_size   = 1
-system_node_disk_size      = 30
-
+# SANDBOX: single consolidated t3.medium node (no HA — fail-fast by design).
+# system_node_* vars are unused now that the system node group is removed.
 app_node_instance_types = ["t3.medium"]
 app_node_min_size       = 1
-app_node_max_size       = 2
+app_node_max_size       = 1
 app_node_desired_size   = 1
 app_node_disk_size      = 50

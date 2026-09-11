@@ -1,7 +1,8 @@
 controller:
-  replicaCount: 2
+  # TEST runs on a single consolidated node group (nodepool: app), no HA.
+  replicaCount: 1
   nodeSelector:
-    nodepool: system
+    nodepool: app
   service:
     externalTrafficPolicy: Local
     annotations:

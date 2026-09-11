@@ -1,4 +1,5 @@
-replicas: 2
+# TEST runs on a single consolidated node group (nodepool: app), no HA.
+replicas: 1
 
 resources:
   requests:
@@ -9,4 +10,4 @@ resources:
     memory: 400Mi
 
 nodeSelector:
-  nodepool: system
+  nodepool: app
