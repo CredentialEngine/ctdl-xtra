@@ -29,7 +29,7 @@ import {
   RotateCcw,
   ScrollText,
 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 const STATUS_PREFIX = "<status>";
 const STATUS_SUFFIX = "</status>";
@@ -167,7 +167,9 @@ function AgenticStageList({
 
 export default function RecipeJobStatus({ recipeId }: { recipeId: number }) {
   const [jobOutputOpen, setJobOutputOpen] = useState(false);
+  const [retrying, setRetrying] = useState(false);
   const { toast } = useToast();
+  const utils = trpc.useContext();
   const recipeQuery = trpc.recipes.detail.useQuery(
     { id: recipeId },
     {
@@ -180,6 +182,9 @@ export default function RecipeJobStatus({ recipeId }: { recipeId: number }) {
     { recipeId },
     {
       refetchInterval: (data) => {
+        if (retrying && !data?.watchKey) {
+          return 2000;
+        }
         if (data?.watchKey) {
           return false;
         }
@@ -199,8 +204,16 @@ export default function RecipeJobStatus({ recipeId }: { recipeId: number }) {
   const reconfigureRecipe = trpc.recipes.reconfigure.useMutation();
   const reconfigureAgenticRecipe = trpc.recipes.reconfigureAgentic.useMutation();
 
+  useEffect(() => {
+    setRetrying(false);
+  }, [recipeId]);
+
   const recipe = recipeQuery.data;
   const isAgenticJob = jobStatusQuery.data?.kind === "agentic";
+  const isRetrying =
+    retrying ||
+    reconfigureRecipe.isLoading ||
+    reconfigureAgenticRecipe.isLoading;
   const agenticModel =
     jobStatusQuery.data?.kind === "agentic"
       ? jobStatusQuery.data.model
@@ -211,6 +224,15 @@ export default function RecipeJobStatus({ recipeId }: { recipeId: number }) {
 
   const isAgenticComplete =
     isAgenticJob && recipe.status === RecipeDetectionStatus.SUCCESS;
+  const showAgenticRunningCard =
+    isAgenticJob &&
+    (recipe.status !== RecipeDetectionStatus.ERROR || isRetrying);
+  const showDetectPendingCard =
+    !showAgenticRunningCard &&
+    ((recipe.status === RecipeDetectionStatus.WAITING && !isAgenticJob) ||
+      (isRetrying && !isAgenticJob));
+  const showErrorCard =
+    recipe.status === RecipeDetectionStatus.ERROR && !isRetrying;
   const showOutputButton =
     !isAgenticComplete || jobWatcher.logs.length > 0;
   const lastStatus = latestStatusFromLogs(jobWatcher.logs);
@@ -226,17 +248,36 @@ export default function RecipeJobStatus({ recipeId }: { recipeId: number }) {
     if (!recipe) {
       return;
     }
+    const useAgentic = isAgenticJob;
+    setRetrying(true);
+    jobWatcher.resetLogs();
     try {
-      if (isAgenticJob) {
-        await reconfigureAgenticRecipe.mutateAsync({ id: recipe.id });
+      if (useAgentic) {
+        const result = await reconfigureAgenticRecipe.mutateAsync({
+          id: recipe.id,
+        });
+        utils.recipes.configurationJobStatus.setData({ recipeId }, {
+          kind: "agentic",
+          state: "waiting",
+          progress: null,
+          model: agenticModel,
+          ...result,
+        });
       } else {
-        await reconfigureRecipe.mutateAsync({ id: recipe.id });
+        const result = await reconfigureRecipe.mutateAsync({ id: recipe.id });
+        utils.recipes.configurationJobStatus.setData({ recipeId }, {
+          kind: "detect",
+          state: "waiting",
+          progress: null,
+          ...result,
+        });
       }
-      jobWatcher.resetLogs();
-      await recipeQuery.refetch();
+      await Promise.all([recipeQuery.refetch(), jobStatusQuery.refetch()]);
+      setRetrying(false);
     } catch (err) {
+      setRetrying(false);
       toast({
-        title: isAgenticJob
+        title: useAgentic
           ? "Could not retry agentic configuration"
           : "Could not redetect configuration",
         description: (err as Error).message,
@@ -247,8 +288,7 @@ export default function RecipeJobStatus({ recipeId }: { recipeId: number }) {
 
   return (
     <>
-      {isAgenticJob &&
-      recipe.status !== RecipeDetectionStatus.ERROR ? (
+      {showAgenticRunningCard ? (
         <div className="mt-4 grid gap-2 md:grid-cols-[1fr_250px] lg:grid-cols-2 lg:gap-4">
           <Card>
             <CardHeader>
@@ -297,7 +337,7 @@ export default function RecipeJobStatus({ recipeId }: { recipeId: number }) {
           </Card>
         </div>
       ) : null}
-      {recipe.status == RecipeDetectionStatus.WAITING && !isAgenticJob ? (
+      {showDetectPendingCard ? (
         <div className="mt-4 grid gap-2 md:grid-cols-[1fr_250px] lg:grid-cols-2 lg:gap-4">
           <Card>
             <CardHeader>
@@ -312,12 +352,14 @@ export default function RecipeJobStatus({ recipeId }: { recipeId: number }) {
           </Card>
         </div>
       ) : null}
-      {recipe.status == RecipeDetectionStatus.ERROR ? (
+      {showErrorCard ? (
         <div className="mt-4 grid gap-2 md:grid-cols-[1fr_250px] lg:grid-cols-2 lg:gap-4">
           <Card>
             <CardHeader>
               <CardDescription>Configuration Error</CardDescription>
-              {isAgenticJob ? <AgenticModelLabel model={agenticModel} /> : null}
+              {isAgenticJob ? (
+                <AgenticModelLabel model={agenticModel} />
+              ) : null}
             </CardHeader>
             <CardContent className="text-sm">
               <p className="text-red-800 font-semibold">
@@ -356,12 +398,13 @@ export default function RecipeJobStatus({ recipeId }: { recipeId: number }) {
                 variant="outline"
                 size="sm"
                 onClick={onReconfigure}
-                disabled={
-                  reconfigureRecipe.isLoading ||
-                  reconfigureAgenticRecipe.isLoading
-                }
+                disabled={isRetrying}
               >
-                <RotateCcw className="w-4 h-4 mr-2" />
+                {isRetrying ? (
+                  <LoaderIcon className="w-4 h-4 mr-2 animate-spin" />
+                ) : (
+                  <RotateCcw className="w-4 h-4 mr-2" />
+                )}
                 {isAgenticJob
                   ? "Retry agentic configuration"
                   : "Redetect configuration"}
