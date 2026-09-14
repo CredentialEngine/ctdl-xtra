@@ -29,7 +29,7 @@ import {
   RotateCcw,
   ScrollText,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useState, type ReactNode } from "react";
 
 const STATUS_PREFIX = "<status>";
 const STATUS_SUFFIX = "</status>";
@@ -96,12 +96,73 @@ function parseStatusLogMessage(line: string): string | null {
   return message || null;
 }
 
+function isSafeHttpUrl(href: string): boolean {
+  try {
+    const url = new URL(href);
+    return url.protocol === "http:" || url.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
+function renderInlineMarkdown(text: string, keyPrefix = "md"): ReactNode {
+  const pattern = /\[([^\]]*)\]\(([^)]+)\)|\*\*(.+?)\*\*/g;
+  const nodes: ReactNode[] = [];
+  let lastIndex = 0;
+  let matchIndex = 0;
+  for (const match of text.matchAll(pattern)) {
+    const index = match.index ?? 0;
+    if (index > lastIndex) {
+      nodes.push(
+        <Fragment key={`${keyPrefix}-t-${matchIndex}`}>
+          {text.slice(lastIndex, index)}
+        </Fragment>
+      );
+    }
+    const key = `${keyPrefix}-${matchIndex}`;
+    if (match[2] !== undefined) {
+      const href = match[2];
+      const label = match[1] ?? "";
+      if (isSafeHttpUrl(href)) {
+        nodes.push(
+          <a
+            key={key}
+            href={href}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="underline underline-offset-2 hover:opacity-80"
+          >
+            {renderInlineMarkdown(label, key)}
+          </a>
+        );
+      } else {
+        nodes.push(<Fragment key={key}>{match[0]}</Fragment>);
+      }
+    } else {
+      nodes.push(
+        <strong key={key}>
+          {renderInlineMarkdown(match[3] ?? "", key)}
+        </strong>
+      );
+    }
+    lastIndex = index + match[0].length;
+    matchIndex += 1;
+  }
+  if (lastIndex < text.length) {
+    nodes.push(
+      <Fragment key={`${keyPrefix}-t-end`}>{text.slice(lastIndex)}</Fragment>
+    );
+  }
+  return nodes;
+}
+
 function renderRecipeJobLogLine(line: string) {
   const stage = parseAgenticRecipeStageLog(line);
   if (stage) {
     return (
       <>
-        <em>Stage:</em> {AGENTIC_RECIPE_STAGE_LABELS[stage]}
+        <em className="text-yellow-800">Stage:</em>{" "}
+        {AGENTIC_RECIPE_STAGE_LABELS[stage]}
       </>
     );
   }
@@ -109,11 +170,12 @@ function renderRecipeJobLogLine(line: string) {
   if (statusMessage) {
     return (
       <>
-        <em>Status changed:</em> {statusMessage}
+        <em className="text-green-800">Status changed:</em>{" "}
+        {renderInlineMarkdown(statusMessage)}
       </>
     );
   }
-  return line;
+  return renderInlineMarkdown(line);
 }
 
 function latestStatusFromLogs(logs: string[]): string | null {
@@ -316,7 +378,7 @@ export default function RecipeJobStatus({ recipeId }: { recipeId: number }) {
                   className="font-serif text-muted-foreground line-clamp-6 break-words"
                   title={lastStatus}
                 >
-                  {lastStatus}
+                  {renderInlineMarkdown(lastStatus)}
                   {jobWatcher.startedAt ? <> · {elapsed}</> : null}
                 </p>
               ) : jobWatcher.startedAt && !isAgenticComplete ? (
