@@ -14,6 +14,8 @@ Recipes work when the catalogue exposes a **stable URL map**:
 - Index/category/detail pages follow repeating URL paths.
 - Pagination changes the address bar using \`page_num\` (\`?page=2\`) or \`offset\` (\`?offset=20\`) patterns.
 - Links are real href destinations, OR dynamic catalogue mode applies (click produces a new URL).
+- Do not confuse dynamically rendered pages with catalogues that do not use regular URLs. As long as the dynamic
+  logic renders regular URLs that is still usable by extra (see wait time)
 
 Recipes do **not** work when:
 - The site is a SPA that never changes URL and clicks do not produce linkable addresses.
