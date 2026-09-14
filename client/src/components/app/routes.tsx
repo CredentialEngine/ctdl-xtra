@@ -1,4 +1,5 @@
-import { Route, Switch } from "wouter";
+import { Redirect, Route, Switch, useLocation, useSearch } from "wouter";
+import { safeReturnToFromSearch } from "./loginRedirect";
 import Catalogues from "./catalogues";
 import CreateCatalogue from "./catalogues/create";
 import CatalogueDetail from "./catalogues/detail";
@@ -26,6 +27,14 @@ import ResetUserPassword from "./users/reset-password";
 import Welcome from "./welcome";
 
 export default function Routes() {
+  const [location] = useLocation();
+  const search = useSearch();
+  const returnTo = safeReturnToFromSearch(search);
+
+  if (location === "/" && returnTo) {
+    return <Redirect to={returnTo} replace />;
+  }
+
   return (
     <Switch>
       <Route path="/" component={Welcome} />

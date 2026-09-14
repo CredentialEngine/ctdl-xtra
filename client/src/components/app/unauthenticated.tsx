@@ -1,6 +1,13 @@
 import { Redirect, Route, Switch } from "wouter";
 import Login from "./login";
+import { currentPathWithSearch, loginPathWithReturnTo } from "./loginRedirect";
 import Logout from "./logout";
+
+function RedirectToLogin() {
+  return (
+    <Redirect to={loginPathWithReturnTo(currentPathWithSearch())} replace />
+  );
+}
 
 export default function Unauthenticated() {
   return (
@@ -9,7 +16,7 @@ export default function Unauthenticated() {
         <Route path="/" component={Login} />
         <Route path="/logout" component={Logout} />
         <Route>
-          <Redirect to="/" />
+          <RedirectToLogin />
         </Route>
       </Switch>
     </div>
