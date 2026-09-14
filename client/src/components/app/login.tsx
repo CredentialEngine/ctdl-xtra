@@ -13,6 +13,7 @@ import UserContext from "@/userContext";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useContext } from "react";
 import { useForm } from "react-hook-form";
+import { useLocation, useSearch } from "wouter";
 import { z } from "zod";
 import {
   Form,
@@ -22,6 +23,7 @@ import {
   FormLabel,
   FormMessage,
 } from "../ui/form";
+import { LOGIN_PATH, safeReturnToFromSearch } from "./loginRedirect";
 
 const LoginSchema = z.object({
   email: z.string().email().min(3).max(400),
@@ -30,6 +32,8 @@ const LoginSchema = z.object({
 
 export default function Login() {
   const { setUser } = useContext(UserContext);
+  const [, navigate] = useLocation();
+  const search = useSearch();
 
   const form = useForm<z.infer<typeof LoginSchema>>({
     resolver: zodResolver(LoginSchema),
@@ -50,7 +54,9 @@ export default function Login() {
     });
     if (result.status == 200) {
       const serverUser = await result.json();
+      const returnTo = safeReturnToFromSearch(search) ?? LOGIN_PATH;
       setUser(serverUser);
+      navigate(returnTo, { replace: true });
     }
   };
 
