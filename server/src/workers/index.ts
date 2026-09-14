@@ -228,14 +228,18 @@ const defaultJobOptions: DefaultJobOptions = {
 };
 
 /** BullMQ `age` is seconds. keepLogs caps the Redis list while the job exists. */
+const agenticRecipeConfigJobRetentionSeconds =
+  +(process.env.AGENTIC_RECIPE_CONFIG_JOB_RETENTION_MS ??
+    AGENTIC_RECIPE_CONFIG_JOB_RETENTION_MS) / 1000;
+
 const agenticRecipeConfigJobOptions: DefaultJobOptions = {
   attempts: 1,
   keepLogs: 500,
   removeOnComplete: {
-    age: AGENTIC_RECIPE_CONFIG_JOB_RETENTION_MS / 1000,
+    age: agenticRecipeConfigJobRetentionSeconds,
   },
   removeOnFail: {
-    age: AGENTIC_RECIPE_CONFIG_JOB_RETENTION_MS / 1000,
+    age: agenticRecipeConfigJobRetentionSeconds,
   },
 };
 
