@@ -1,0 +1,552 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://credentialengine.org/ctdl-xtra/golden-set/v2/record.schema.json",
+  "title": "CTDL xTRA Golden-Set Record v2",
+  "description": "One atomic source entity and its separately reviewed source, CTDL, Registry, and linking truth. A Competency record represents exactly one competency. Cross-record page completeness is checked with page.entities_observed. Runtime validation must enforce reviewer distinctness, reference integrity, hash/span integrity, and the human-signoff rules described here that JSON Schema cannot compare directly.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "record_id",
+    "entity_type",
+    "source",
+    "page",
+    "annotation_scope",
+    "verification",
+    "publisher_inputs",
+    "source_expected",
+    "ctdl_expected",
+    "registry_expected",
+    "links_expected"
+  ],
+  "properties": {
+    "schema_version": { "const": "2.0.0" },
+    "record_id": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9._:-]{2,127}$",
+      "description": "Stable bundle-local ID; do not use a newly generated CTID as the extraction identifier."
+    },
+    "entity_type": {
+      "enum": ["Course", "LearningProgram", "Credential", "CompetencyFramework", "Competency", "Link"]
+    },
+    "source": { "$ref": "#/$defs/source" },
+    "page": { "$ref": "#/$defs/page" },
+    "annotation_scope": { "$ref": "#/$defs/annotationScope" },
+    "verification": { "$ref": "#/$defs/verification" },
+    "publisher_inputs": {
+      "type": "array",
+      "description": "Authorized publisher assertions, kept outside source extraction and outside retrieved Registry truth. IDs are referenced by ctdl_expected.publisher_input_refs.",
+      "items": { "$ref": "#/$defs/publisherInput" }
+    },
+    "source_expected": { "$ref": "#/$defs/sourceExpected" },
+    "ctdl_expected": { "$ref": "#/$defs/ctdlExpected" },
+    "registry_expected": { "$ref": "#/$defs/registryExpected" },
+    "links_expected": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/expectedLink" }
+    }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "entity_type": { "const": "Link" } }, "required": ["entity_type"] },
+      "then": { "properties": { "ctdl_expected": { "properties": { "class_uri": { "const": null } } } } },
+      "else": { "properties": { "ctdl_expected": { "properties": { "class_uri": { "type": "string" } } } } }
+    },
+    {
+      "if": {
+        "properties": { "verification": { "properties": { "status": { "const": "human_signed" } } } }
+      },
+      "then": {
+        "properties": {
+          "verification": {
+            "properties": {
+              "reviewer_1": { "$ref": "#/$defs/reviewer" },
+              "reviewer_2": { "$ref": "#/$defs/reviewer" },
+              "signed_at": { "type": "string", "format": "date-time" },
+              "checklist": {
+                "properties": {
+                  "frozen_source_opened": { "const": true },
+                  "side_by_side_source_check": { "const": true },
+                  "all_values_evidence_backed": { "const": true },
+                  "no_unsupported_inference": { "const": true },
+                  "ctdl_mapping_checked": { "const": true },
+                  "registry_result_checked": { "const": true },
+                  "links_checked": { "const": true },
+                  "scope_completeness_checked": { "const": true }
+                }
+              },
+              "stage_reviews": {
+                "contains": {
+                  "type": "object",
+                  "properties": { "stage": { "const": "extraction" }, "status": { "const": "reviewed" } },
+                  "required": ["stage", "status"]
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "nullableSha256": {
+      "oneOf": [{ "$ref": "#/$defs/sha256" }, { "type": "null" }]
+    },
+    "jsonValue": {},
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "institution_name",
+        "requested_url",
+        "final_url",
+        "source_kind",
+        "media_type",
+        "retrieved_at",
+        "snapshot_path",
+        "snapshot_sha256",
+        "normalized_text_path",
+        "normalized_text_sha256",
+        "source_family",
+        "template_id",
+        "template_version",
+        "acquisition",
+        "normalization"
+      ],
+      "properties": {
+        "institution_name": { "type": "string", "minLength": 1 },
+        "institution_identifier": { "type": ["string", "null"] },
+        "catalog_name": { "type": ["string", "null"] },
+        "catalog_version": { "type": ["string", "null"] },
+        "requested_url": { "type": "string", "format": "uri" },
+        "final_url": { "type": "string", "format": "uri" },
+        "source_kind": { "enum": ["html", "pdf", "json", "api", "csv", "spreadsheet", "other"] },
+        "media_type": { "type": "string", "minLength": 1 },
+        "retrieved_at": { "type": "string", "format": "date-time" },
+        "snapshot_path": { "type": "string", "minLength": 1 },
+        "snapshot_sha256": { "$ref": "#/$defs/sha256" },
+        "normalized_text_path": { "type": "string", "minLength": 1 },
+        "normalized_text_sha256": { "$ref": "#/$defs/sha256" },
+        "source_family": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Coarse technology family such as coursedog, acalog, catalog_pdf, or custom_html."
+        },
+        "template_id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Exact classified layout/API template. The 5-10-example review gate is evaluated by this ID, not source_family."
+        },
+        "template_version": { "type": "string", "minLength": 1 },
+        "acquisition": { "$ref": "#/$defs/acquisition" },
+        "normalization": { "$ref": "#/$defs/normalization" },
+        "pdf": { "oneOf": [{ "$ref": "#/$defs/pdfSource" }, { "type": "null" }] },
+        "script_provenance": {
+          "oneOf": [{ "$ref": "#/$defs/scriptProvenance" }, { "type": "null" }]
+        }
+      }
+    },
+    "acquisition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["http_status", "content_type", "redirect_chain", "etag", "last_modified"],
+      "properties": {
+        "http_status": { "type": ["integer", "null"], "minimum": 100, "maximum": 599 },
+        "content_type": { "type": ["string", "null"] },
+        "redirect_chain": { "type": "array", "items": { "type": "string", "format": "uri" } },
+        "etag": { "type": ["string", "null"] },
+        "last_modified": { "type": ["string", "null"] }
+      }
+    },
+    "normalization": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["tool", "version"],
+      "properties": {
+        "tool": { "type": "string", "minLength": 1 },
+        "version": { "type": "string", "minLength": 1 },
+        "options": { "type": "object" }
+      }
+    },
+    "pdfSource": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["extractor", "version", "page_start", "page_end", "parent_pdf_sha256"],
+      "properties": {
+        "extractor": { "type": "string", "minLength": 1 },
+        "version": { "type": "string", "minLength": 1 },
+        "page_start": { "type": "integer", "minimum": 1 },
+        "page_end": { "type": "integer", "minimum": 1 },
+        "parent_pdf_sha256": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "scriptProvenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["repo_url", "repo_commit", "script_path"],
+      "properties": {
+        "workbook_path": { "type": ["string", "null"] },
+        "worksheet": { "type": ["string", "null"] },
+        "workbook_row": { "type": ["integer", "null"], "minimum": 1 },
+        "repo_url": { "type": "string", "format": "uri" },
+        "repo_commit": { "type": "string", "pattern": "^[0-9a-f]{7,64}$" },
+        "script_path": { "type": "string", "minLength": 1 }
+      }
+    },
+    "page": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "page_id",
+        "title",
+        "canonical_url",
+        "classification",
+        "classification_confidence",
+        "entity_locator",
+        "entities_observed",
+        "entity_inventory_complete"
+      ],
+      "properties": {
+        "page_id": { "type": "string", "minLength": 1 },
+        "title": { "type": ["string", "null"] },
+        "canonical_url": { "type": "string", "format": "uri" },
+        "classification": {
+          "enum": ["detail", "multi_entity_list", "category", "catalog", "framework", "api_response", "export_row", "other"]
+        },
+        "classification_confidence": {
+          "type": ["number", "null"],
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Non-authoritative triage metadata. Never use confidence to promote a record or replace human review."
+        },
+        "entity_locator": { "$ref": "#/$defs/locator" },
+        "entities_observed": {
+          "type": "array",
+          "description": "Inventory of every in-scope entity visible in the classified page region. Bundle validation requires one atomic record per observed entity, especially one Competency per record.",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["provisional_id", "entity_type", "locator"],
+            "properties": {
+              "provisional_id": { "type": "string", "minLength": 1 },
+              "entity_type": { "enum": ["Course", "LearningProgram", "Credential", "CompetencyFramework", "Competency", "Link"] },
+              "locator": { "$ref": "#/$defs/locator" }
+            }
+          }
+        },
+        "entity_inventory_complete": {
+          "type": ["boolean", "null"],
+          "description": "May be null for a candidate; human signoff requires runtime confirmation consistent with annotation_scope."
+        }
+      }
+    },
+    "locator": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["strategy", "value"],
+      "properties": {
+        "strategy": { "enum": ["css_selector", "xpath", "json_pointer", "table_cell", "pdf_page_bbox", "text_anchor", "whole_document", "manual"] },
+        "value": { "type": "string", "minLength": 1 },
+        "occurrence": { "type": ["integer", "null"], "minimum": 1 },
+        "page_number": { "type": ["integer", "null"], "minimum": 1 },
+        "bbox": {
+          "oneOf": [
+            { "type": "array", "prefixItems": [{ "type": "number" }, { "type": "number" }, { "type": "number" }, { "type": "number" }], "items": false },
+            { "type": "null" }
+          ]
+        }
+      }
+    },
+    "annotationScope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["mode", "entity_boundary", "included_regions", "excluded_regions", "partial_reason", "completeness_attested"],
+      "properties": {
+        "mode": { "enum": ["complete", "partial"] },
+        "entity_boundary": { "type": "string", "minLength": 1 },
+        "included_regions": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/locator" } },
+        "excluded_regions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["locator", "reason"],
+            "properties": { "locator": { "$ref": "#/$defs/locator" }, "reason": { "type": "string", "minLength": 1 } }
+          }
+        },
+        "partial_reason": { "type": ["string", "null"] },
+        "completeness_attested": {
+          "type": ["boolean", "null"],
+          "description": "Candidate annotations may leave this null. Only a human reviewer can attest completeness."
+        }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "mode": { "const": "partial" } }, "required": ["mode"] },
+          "then": { "properties": { "partial_reason": { "type": "string", "minLength": 1 } } },
+          "else": { "properties": { "partial_reason": { "const": null } } }
+        }
+      ]
+    },
+    "person": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["person_id", "display_name", "completed_at"],
+      "properties": {
+        "person_id": { "type": "string", "minLength": 1 },
+        "display_name": { "type": "string", "minLength": 1 },
+        "completed_at": { "type": "string", "format": "date-time" }
+      }
+    },
+    "reviewer": {
+      "allOf": [
+        { "$ref": "#/$defs/person" },
+        {
+          "type": "object",
+          "properties": {
+            "decision": { "enum": ["accepted", "rejected", "changes_requested"] },
+            "notes": { "type": ["string", "null"] }
+          },
+          "required": ["decision", "notes"]
+        }
+      ]
+    },
+    "stageReview": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["stage", "status", "reviewer_1", "reviewer_2", "notes"],
+      "properties": {
+        "stage": { "enum": ["extraction", "mapping", "registry_reconciliation", "linking"] },
+        "status": { "enum": ["candidate", "reviewed"] },
+        "reviewer_1": { "oneOf": [{ "$ref": "#/$defs/reviewer" }, { "type": "null" }] },
+        "reviewer_2": { "oneOf": [{ "$ref": "#/$defs/reviewer" }, { "type": "null" }] },
+        "notes": { "type": ["string", "null"] }
+      }
+    },
+    "verification": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "reviewer_1 and reviewer_2 MUST have different person_id values. A runtime validator must enforce this because JSON Schema cannot compare sibling values. Confidence values are never promotion criteria.",
+      "required": ["status", "annotator", "reviewer_1", "reviewer_2", "signed_at", "stage_reviews", "checklist", "notes"],
+      "properties": {
+        "status": { "enum": ["candidate", "reviewed", "human_signed"] },
+        "annotator": { "$ref": "#/$defs/person" },
+        "reviewer_1": { "oneOf": [{ "$ref": "#/$defs/reviewer" }, { "type": "null" }] },
+        "reviewer_2": {
+          "oneOf": [{ "$ref": "#/$defs/reviewer" }, { "type": "null" }],
+          "description": "Must be a different human from reviewer_1; enforced by the bundle validator."
+        },
+        "signed_at": { "type": ["string", "null"], "format": "date-time" },
+        "stage_reviews": {
+          "type": "array",
+          "minItems": 4,
+          "maxItems": 4,
+          "items": { "$ref": "#/$defs/stageReview" },
+          "description": "Exactly one entry per required stage; stage uniqueness and all-reviewed status for human_signed records are enforced by the bundle validator."
+        },
+        "checklist": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["frozen_source_opened", "side_by_side_source_check", "all_values_evidence_backed", "no_unsupported_inference", "ctdl_mapping_checked", "registry_result_checked", "links_checked", "scope_completeness_checked"],
+          "properties": {
+            "frozen_source_opened": { "type": "boolean" },
+            "side_by_side_source_check": { "type": "boolean" },
+            "all_values_evidence_backed": { "type": "boolean" },
+            "no_unsupported_inference": { "type": "boolean" },
+            "ctdl_mapping_checked": { "type": "boolean" },
+            "registry_result_checked": { "type": "boolean" },
+            "links_checked": { "type": "boolean" },
+            "scope_completeness_checked": { "type": "boolean" }
+          }
+        },
+        "notes": { "type": ["string", "null"] }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "status": { "const": "reviewed" } }, "required": ["status"] },
+          "then": { "properties": { "reviewer_1": { "$ref": "#/$defs/reviewer" } } }
+        }
+      ]
+    },
+    "publisherInput": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["input_id", "property", "value", "supplied_by", "authorization_ref", "supplied_at"],
+      "properties": {
+        "input_id": { "type": "string", "pattern": "^pub_[a-zA-Z0-9._:-]+$" },
+        "property": { "type": "string", "minLength": 1 },
+        "value": { "$ref": "#/$defs/jsonValue" },
+        "supplied_by": { "type": "string", "minLength": 1 },
+        "authorization_ref": { "type": "string", "minLength": 1 },
+        "supplied_at": { "type": "string", "format": "date-time" }
+      }
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["evidence_id", "snapshot_sha256", "normalized_text_sha256", "locator", "occurrence", "char_start", "char_end", "excerpt", "excerpt_sha256"],
+      "properties": {
+        "evidence_id": { "type": "string", "pattern": "^ev_[a-zA-Z0-9._:-]+$" },
+        "snapshot_sha256": { "$ref": "#/$defs/sha256" },
+        "normalized_text_sha256": { "$ref": "#/$defs/sha256" },
+        "locator": { "$ref": "#/$defs/locator" },
+        "occurrence": {
+          "type": ["integer", "null"],
+          "minimum": 1,
+          "description": "Required during hydration when the same excerpt occurs more than once."
+        },
+        "char_start": {
+          "type": ["integer", "null"],
+          "minimum": 0,
+          "description": "Candidate may be null. The hydration CLI computes offsets; models must not guess them."
+        },
+        "char_end": {
+          "type": ["integer", "null"],
+          "minimum": 0,
+          "description": "Exclusive end offset. Candidate may be null; the hydration CLI computes it."
+        },
+        "excerpt": { "type": "string", "minLength": 1 },
+        "excerpt_sha256": {
+          "$ref": "#/$defs/nullableSha256",
+          "description": "Candidate may be null. The hydration CLI hashes the exact excerpt."
+        }
+      },
+      "description": "For human_signed records, runtime validation requires non-null offsets and excerpt hash, verifies hashes against the frozen files, checks excerpt equality at [char_start,char_end), and rejects ambiguous duplicate occurrences without adjudication."
+    },
+    "sourceField": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["field_id", "canonical_label", "presence", "value", "raw_text", "evidence", "notes"],
+      "properties": {
+        "field_id": { "type": "string", "pattern": "^src_[a-zA-Z0-9._:-]+$" },
+        "canonical_label": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" },
+        "presence": { "enum": ["present", "explicit_empty", "not_present", "not_applicable", "illegible"] },
+        "value": { "$ref": "#/$defs/jsonValue" },
+        "raw_text": { "type": ["string", "null"] },
+        "evidence": { "type": "array", "items": { "$ref": "#/$defs/evidence" } },
+        "notes": { "type": ["string", "null"] }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "presence": { "const": "present" } }, "required": ["presence"] },
+          "then": { "properties": { "evidence": { "minItems": 1 } } }
+        },
+        {
+          "if": { "properties": { "presence": { "enum": ["not_present", "not_applicable", "illegible"] } }, "required": ["presence"] },
+          "then": { "properties": { "value": { "const": null } } }
+        }
+      ]
+    },
+    "sourceExpected": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["fields"],
+      "properties": {
+        "fields": { "type": "array", "items": { "$ref": "#/$defs/sourceField" } }
+      }
+    },
+    "ctdlProperty": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["property_id", "property", "value", "source_field_refs", "publisher_input_refs", "mapping_method", "notes"],
+      "properties": {
+        "property_id": { "type": "string", "pattern": "^map_[a-zA-Z0-9._:-]+$" },
+        "property": { "type": "string", "pattern": "^(@type|(@id)|(ceterms|ceasn|asn|qdata|schema):[A-Za-z][A-Za-z0-9]*)$" },
+        "value": { "$ref": "#/$defs/jsonValue" },
+        "source_field_refs": { "type": "array", "items": { "type": "string", "pattern": "^src_" } },
+        "publisher_input_refs": { "type": "array", "items": { "type": "string", "pattern": "^pub_" } },
+        "mapping_method": { "enum": ["verbatim", "lossless_normalization", "datatype_cast", "approved_controlled_value", "nested_profile", "publisher_input"] },
+        "notes": { "type": ["string", "null"] }
+      },
+      "anyOf": [
+        { "properties": { "source_field_refs": { "minItems": 1 } } },
+        { "properties": { "publisher_input_refs": { "minItems": 1 } } }
+      ],
+      "description": "Reference integrity is enforced at bundle runtime. creditValue, estimatedCost, estimatedDuration, and condition relations must use the CTDL structured object/reference shape, never an invented scalar shortcut."
+    },
+    "ctdlExpected": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["class_uri", "schema_release", "mapping_version", "properties", "unmapped_source_field_refs"],
+      "properties": {
+        "class_uri": {
+          "enum": ["ceterms:Course", "ceterms:LearningProgram", "ceterms:Credential", "ceasn:CompetencyFramework", "ceasn:Competency", null]
+        },
+        "schema_release": { "type": "string", "minLength": 1 },
+        "mapping_version": { "type": "string", "minLength": 1 },
+        "properties": { "type": "array", "items": { "$ref": "#/$defs/ctdlProperty" } },
+        "unmapped_source_field_refs": { "type": "array", "items": { "type": "string", "pattern": "^src_" } }
+      }
+    },
+    "registryComparison": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["property", "golden_value", "registry_value", "outcome", "notes"],
+      "properties": {
+        "property": { "type": "string", "minLength": 1 },
+        "golden_value": { "$ref": "#/$defs/jsonValue" },
+        "registry_value": { "$ref": "#/$defs/jsonValue" },
+        "outcome": { "enum": ["match", "mismatch", "missing_in_registry", "registry_only", "not_compared"] },
+        "notes": { "type": ["string", "null"] }
+      }
+    },
+    "registryExpected": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Only actually retrieved Registry state belongs here; no guessed or intended publisher values.",
+      "required": ["status", "checked_at", "registry_ctid", "registry_url", "registry_snapshot_path", "registry_resource_sha256", "property_comparisons", "notes"],
+      "properties": {
+        "status": { "enum": ["not_checked", "not_applicable", "record_not_found", "matched", "mismatch"] },
+        "checked_at": { "type": ["string", "null"], "format": "date-time" },
+        "registry_ctid": { "type": ["string", "null"], "pattern": "^ce-[0-9a-fA-F-]{36}$" },
+        "registry_url": { "type": ["string", "null"], "format": "uri" },
+        "registry_snapshot_path": { "type": ["string", "null"] },
+        "registry_resource_sha256": { "$ref": "#/$defs/nullableSha256" },
+        "property_comparisons": { "type": "array", "items": { "$ref": "#/$defs/registryComparison" } },
+        "notes": { "type": ["string", "null"] }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "status": { "enum": ["matched", "mismatch"] } }, "required": ["status"] },
+          "then": {
+            "properties": {
+              "checked_at": { "type": "string", "format": "date-time" },
+              "registry_ctid": { "type": "string" },
+              "registry_url": { "type": "string", "format": "uri" },
+              "registry_snapshot_path": { "type": "string", "minLength": 1 },
+              "registry_resource_sha256": { "$ref": "#/$defs/sha256" },
+              "property_comparisons": { "minItems": 1 }
+            }
+          }
+        }
+      ]
+    },
+    "expectedLink": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["link_id", "predicate", "subject_ref", "object_ref", "object_uri", "object_label", "link_kind", "source_field_refs", "publisher_input_refs", "evidence_refs", "notes"],
+      "properties": {
+        "link_id": { "type": "string", "pattern": "^link_[a-zA-Z0-9._:-]+$" },
+        "predicate": { "type": "string", "pattern": "^(ceterms|ceasn|asn):[A-Za-z][A-Za-z0-9]*$" },
+        "subject_ref": { "type": "string", "minLength": 1 },
+        "object_ref": { "type": ["string", "null"] },
+        "object_uri": { "type": ["string", "null"], "format": "uri" },
+        "object_label": { "type": ["string", "null"] },
+        "link_kind": { "enum": ["intra_record", "inter_record", "external_registry", "unresolved_source_reference"] },
+        "source_field_refs": { "type": "array", "items": { "type": "string", "pattern": "^src_" } },
+        "publisher_input_refs": { "type": "array", "items": { "type": "string", "pattern": "^pub_" } },
+        "evidence_refs": { "type": "array", "items": { "type": "string", "pattern": "^ev_" } },
+        "notes": { "type": ["string", "null"] }
+      },
+      "allOf": [
+        { "anyOf": [{ "properties": { "object_ref": { "type": "string", "minLength": 1 } } }, { "properties": { "object_uri": { "type": "string", "format": "uri" } } }] },
+        { "anyOf": [{ "properties": { "source_field_refs": { "minItems": 1 }, "evidence_refs": { "minItems": 1 } } }, { "properties": { "publisher_input_refs": { "minItems": 1 } } }] }
+      ],
+      "description": "Link endpoints and all refs are checked at bundle runtime. Never resolve an ambiguous label to a CTID without source or authorized publisher evidence."
+    }
+  }
+}

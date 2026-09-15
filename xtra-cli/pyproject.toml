@@ -1,0 +1,47 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "xtra-cli"
+version = "0.2.0"
+description = "Credential Engine xTRA CLI: catalog crawl, extract, and transform."
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = [
+  "click>=8.1.0",
+  "jsonschema>=4.0",
+  "playwright>=1.40",
+  "rapidfuzz>=3.0",
+]
+
+[project.scripts]
+xtra = "xtra.cli:cli"
+xtra-cli = "xtra.cli:cli"
+
+[project.optional-dependencies]
+azure = [
+  "azure-storage-blob>=12.19.0",
+]
+dev = [
+  "pytest>=8.0",
+  "ruff>=0.6",
+]
+
+[tool.setuptools]
+package-dir = { "" = "src" }
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
+addopts = ["--import-mode=importlib"]
+markers = [
+  "integration: tests that need Azurite or another live service",
+]
+
+[tool.ruff]
+line-length = 80
+target-version = "py310"
