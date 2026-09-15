@@ -125,6 +125,48 @@ describe("testExtraction", () => {
     });
   });
 
+  it("uses the provided pageLoadWaitTime when fetching the page", async () => {
+    mockRecipePage();
+    findRecipeByIdMock.mockResolvedValue({
+      id: 7,
+      catalogue: { catalogueType: CatalogueType.COURSES },
+      configuration: { pageLoadWaitTime: 3 },
+    } as Awaited<ReturnType<typeof findRecipeById>>);
+    runEntityExtractionMock.mockReturnValue(yieldEntries(1));
+
+    await testExtraction({
+      url: "https://example.edu/course/101",
+      recipeId: 7,
+      pageLoadWaitTime: 10,
+    });
+
+    expect(fetchBrowserPageMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        url: "https://example.edu/course/101",
+        pageLoadWaitTime: 10,
+      })
+    );
+  });
+
+  it("falls back to the saved recipe pageLoadWaitTime", async () => {
+    mockRecipePage();
+    findRecipeByIdMock.mockResolvedValue({
+      id: 7,
+      catalogue: { catalogueType: CatalogueType.COURSES },
+      configuration: { pageLoadWaitTime: 3 },
+    } as Awaited<ReturnType<typeof findRecipeById>>);
+    runEntityExtractionMock.mockReturnValue(yieldEntries(1));
+
+    await testExtraction({
+      url: "https://example.edu/course/101",
+      recipeId: 7,
+    });
+
+    expect(fetchBrowserPageMock).toHaveBeenCalledWith(
+      expect.objectContaining({ pageLoadWaitTime: 3 })
+    );
+  });
+
   it("tells the agent it tried too many times after 10 calls", async () => {
     mockRecipePage();
     runEntityExtractionMock.mockReturnValue(yieldEntries(1));

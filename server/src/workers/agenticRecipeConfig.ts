@@ -109,6 +109,9 @@ export default createProcessor<
   });
 
   const pageLoadWaitTime = recipe.configuration?.pageLoadWaitTime;
+  const pageWaitTimeSec =
+    pageLoadWaitTime && pageLoadWaitTime > 0 ? pageLoadWaitTime : 0;
+  logger.info(`${logPrefix} pageWaitTimeSec=${pageWaitTimeSec}`);
   const pageSetup = recipe.configuration?.pageSetup;
   const model = resolveAgentModel(job.data.model);
   const catalogueType = recipe.catalogue?.catalogueType as

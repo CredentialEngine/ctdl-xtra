@@ -26,6 +26,7 @@ import {
   type SubmitVerificationState,
 } from "./recipeSubmitGates";
 import { applyStageReport, MAX_STAGE_CHANGES } from "./recipeStages";
+import { parsePageLoadWaitTime } from "./xtraMcp";
 import { verifyRecipeLinks } from "./verifyRecipeLinks";
 import {
   TEST_EXTRACTION_LIMIT_MESSAGE,
@@ -89,6 +90,11 @@ const TOOLS = [
           },
         },
         exactLinkPatternMatch: { type: "boolean" },
+        pageLoadWaitTime: {
+          type: "number",
+          description:
+            "Extra seconds to wait after page load before extracting links. Use the same value as the recipe configuration.",
+        },
       },
       required: ["url"],
     },
@@ -103,6 +109,11 @@ const TOOLS = [
         url: {
           type: "string",
           description: "DETAIL page URL to extract",
+        },
+        pageLoadWaitTime: {
+          type: "number",
+          description:
+            "Extra seconds to wait after page load before extraction. Use the same value as the recipe configuration.",
         },
       },
       required: ["url"],
@@ -161,6 +172,15 @@ function readPageLoadWaitTimeFromEnv(): number | undefined {
   }
   const value = Number(raw);
   return Number.isFinite(value) && value >= 0 ? value : undefined;
+}
+
+function pageLoadWaitTimeFromTool(
+  args: Record<string, unknown>
+): number | undefined {
+  return (
+    parsePageLoadWaitTime(args.pageLoadWaitTime) ??
+    readPageLoadWaitTimeFromEnv()
+  );
 }
 
 function readPageSetupFromEnv(): PageSetupConfig | undefined {
@@ -265,7 +285,7 @@ async function handleToolCall(name: string, args: Record<string, unknown>) {
             typeof args.exactLinkPatternMatch === "boolean"
               ? args.exactLinkPatternMatch
               : undefined,
-          pageLoadWaitTime: readPageLoadWaitTimeFromEnv(),
+          pageLoadWaitTime: pageLoadWaitTimeFromTool(args),
           pageSetup: readPageSetupFromEnv(),
         });
         verifyLinkCallsSuccessful++;
@@ -295,7 +315,7 @@ async function handleToolCall(name: string, args: Record<string, unknown>) {
         const result = await testExtraction({
           url,
           recipeId: readRecipeIdFromEnv(),
-          pageLoadWaitTime: readPageLoadWaitTimeFromEnv(),
+          pageLoadWaitTime: pageLoadWaitTimeFromTool(args),
           pageSetup: readPageSetupFromEnv(),
         });
         if (result.extracted) {

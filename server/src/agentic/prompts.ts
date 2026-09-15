@@ -146,18 +146,18 @@ Guidelines:
 - Provide \`linkRegexp\` for every non-DETAIL level.
 - Include \`pagination\` only when \`${AgenticRecipeStage.ASSESS_USABILITY}\` confirmed compatible pagination.
 - Include \`clickSelector\` / \`clickOptions\` only when dynamic catalogue is required.
-- Set \`pageLoadWaitTime\` if content appears after load delay.
+- Set \`pageLoadWaitTime\` if content appears after load delay. Pass that same value to \`xtra_verify_recipe_links\` and \`xtra_test_extraction\`; those tools apply the wait. Assistant text does not.
 - Never asses yourself if a DETAIL page contains what is needed. Use the xtra_test_extraction tool to verify.
 
 ## Stage ${AgenticRecipeStage.VERIFY_RECIPE} — ${AGENTIC_RECIPE_STAGE_LABELS[AgenticRecipeStage.VERIFY_RECIPE]}
 
 Verification:
 
-1. For each non-DETAIL level, call \`xtra_verify_recipe_links\` with that level's URL, \`linkRegexp\`, and dynamic options.
-2. If verification with xtra_verify_recipe_links failed even with a very wide Regex (such as '.*'), write a recipe with pageLoadWaitTime set to 10 and verify again.
+1. For each non-DETAIL level, call \`xtra_verify_recipe_links\` with that level's URL, \`linkRegexp\`, dynamic options, and \`pageLoadWaitTime\` from the configuration when set.
+2. If verification with xtra_verify_recipe_links failed even with a very wide Regex (such as '.*'), retry \`xtra_verify_recipe_links\` with \`pageLoadWaitTime\` set to 10, and include \`pageLoadWaitTime: 10\` in the configuration you will submit. Do not call \`xtra_submit_recipe_configuration\` yet.
 3. Compare returned URLs to what you expect from browsing.
 4. If results are wrong or empty, call \`xtra_report_stage\` with \`${AgenticRecipeStage.WRITE_CONFIGURATION}\`, fix the configuration, and re-verify.
-5. When link verification passes, sample DETAIL page URLs at random from the verified set (spread across the list; do not take the first consecutive links). Call \`xtra_test_extraction\` on each sampled URL, up to 10 times. This tool is limited to 10 calls for this recipe; further calls return an error that you tried too many times.
+5. When link verification passes, sample DETAIL page URLs at random from the verified set (spread across the list; do not take the first consecutive links). Call \`xtra_test_extraction\` on each sampled URL with the same \`pageLoadWaitTime\` as the configuration, up to 10 times. This tool is limited to 10 calls for this recipe; further calls return an error that you tried too many times.
 6. \`xtra_test_extraction\` returns \`extracted: true\` if any entries were generated, otherwise \`extracted: false\`. If a sample returns false, call \`xtra_report_stage\` with \`${AgenticRecipeStage.WRITE_CONFIGURATION}\`, fix the configuration, and re-verify links. Remaining extraction attempts still count toward the 10-call limit.
 7. When every level's links pass and sampled DETAIL pages extract successfully, call \`xtra_submit_recipe_configuration\` with the final configuration object and a brief summary.
 
