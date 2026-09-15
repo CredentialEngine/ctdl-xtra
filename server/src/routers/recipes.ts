@@ -379,6 +379,7 @@ export const recipesRouter = router({
       try {
         let urls: string[];
         let markdownContent: SimplifiedMarkdown;
+        let htmlContent: string;
 
         // Use dynamic links harvesting if clickSelector is provided
         if (opts.input.clickSelector) {
@@ -411,6 +412,7 @@ export const recipesRouter = router({
             pageLoadWaitTime: opts.input.pageLoadWaitTime,
             pageSetup: opts.input.pageSetup,
           });
+          htmlContent = content;
           markdownContent = await simplifiedMarkdown(content);
         } else {
           // Use traditional regex-based extraction (regex is required when no clickSelector)
@@ -423,6 +425,7 @@ export const recipesRouter = router({
             pageLoadWaitTime: opts.input.pageLoadWaitTime,
             pageSetup: opts.input.pageSetup,
           });
+          htmlContent = content;
           markdownContent = await simplifiedMarkdown(content);
 
           const testRegex = new RegExp(regexp, "g");
@@ -438,6 +441,7 @@ export const recipesRouter = router({
           regexp: regexp || "",
           urls: normalizedUrls,
           markdownContent: markdownContent as string,
+          htmlContent,
         };
       } catch (error) {
         if (error instanceof BrowserFetchError) {

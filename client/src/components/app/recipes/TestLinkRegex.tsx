@@ -8,18 +8,23 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Loader2, Copy } from "lucide-react";
-import { trpc } from "@/utils";
+import { copyToClipboard, trpc } from "@/utils";
 import { useToast } from "@/components/ui/use-toast";
 import { PageSetupConfig } from "../../../../../common/types";
 
-type TestResult = { regexp: string; urls: string[]; markdownContent?: string };
+type TestResult = {
+  regexp: string;
+  urls: string[];
+  markdownContent?: string;
+  htmlContent?: string;
+};
 
 function MatchedLinks({
   result,
-  onCopySimplifiedText,
+  onCopyText,
 }: {
   result: TestResult;
-  onCopySimplifiedText?: (text: string) => void;
+  onCopyText?: (text: string) => void;
 }) {
   return (
     <div className="mt-4">
@@ -39,18 +44,28 @@ function MatchedLinks({
       ) : (
         <div className="text-xs text-muted-foreground">No links matched.</div>
       )}
-      <div className="flex items-center gap-2 mt-4">
+      <div className="flex flex-wrap items-center gap-2 mt-4">
         <Button
           type="button"
           variant="outline"
           size="sm"
           disabled={!result.markdownContent}
           onClick={() =>
-            result.markdownContent && onCopySimplifiedText?.(result.markdownContent)
+            result.markdownContent && onCopyText?.(result.markdownContent)
           }
         >
           <Copy className="w-4 h-4 mr-2" />
           Copy simplified page text
+        </Button>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          disabled={!result.htmlContent}
+          onClick={() => result.htmlContent && onCopyText?.(result.htmlContent)}
+        >
+          <Copy className="w-4 h-4 mr-2" />
+          Copy page HTML
         </Button>
       </div>
     </div>
@@ -81,9 +96,9 @@ export default function TestLinkRegex({
   const testRecipeRegex = trpc.recipes.testRecipeRegex.useMutation();
   const { toast } = useToast();
 
-  const handleCopySimplifiedText = async (text: string) => {
+  const handleCopyText = async (text: string) => {
     try {
-      await navigator.clipboard.writeText(text);
+      await copyToClipboard(text);
       toast({ title: "Copied to clipboard" });
     } catch {
       toast({ title: "Failed to copy", variant: "destructive" });
@@ -165,7 +180,7 @@ export default function TestLinkRegex({
           {testRecipeRegex.isSuccess && (
             <MatchedLinks
               result={testRecipeRegex.data}
-              onCopySimplifiedText={handleCopySimplifiedText}
+              onCopyText={handleCopyText}
             />
           )}
         </div>
@@ -262,7 +277,7 @@ export default function TestLinkRegex({
         {testRecipeRegex.isSuccess && (
           <MatchedLinks
             result={testRecipeRegex.data}
-            onCopySimplifiedText={handleCopySimplifiedText}
+            onCopyText={handleCopyText}
           />
         )}
       </CardContent>
