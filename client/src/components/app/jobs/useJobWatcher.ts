@@ -8,46 +8,70 @@ export function isTerminalJobState(state: string | undefined): boolean {
 }
 
 /**
- * Watches a job identified by `watchKey` (queue name and job id) using polling.
+ * Watches a job identified by `watchKey` (queue name and job id).
  *
- * @param watchKey Queue and job id, or null/undefined to stop watching.
+ * Logs and status are fetched once when a key is present. Pass `poll: true`
+ * to keep polling until the job reaches a terminal state.
  */
-export function useJobWatcher(watchKey: string | null | undefined) {
+export function useJobWatcher(
+  watchKey: string | null | undefined,
+  options?: { poll?: boolean }
+) {
+  const poll = options?.poll ?? false;
   const utils = trpc.useContext();
   const [logs, setLogs] = useState<string[]>([]);
+  const [suppressed, setSuppressed] = useState(false);
   const consumedUpdatedAt = useRef(0);
+  const watching = !!watchKey && !suppressed;
 
   useEffect(() => {
     setLogs([]);
     consumedUpdatedAt.current = 0;
+    setSuppressed(false);
   }, [watchKey]);
+
+  useEffect(() => {
+    if (!suppressed || !watchKey) {
+      return;
+    }
+    void utils.jobWatching.logs.cancel();
+    void utils.jobWatching.logs.reset();
+    void utils.jobWatching.status.cancel();
+    void utils.jobWatching.status.reset({ watchKey });
+  }, [suppressed, watchKey]);
 
   const statusQuery = trpc.jobWatching.status.useQuery(
     { watchKey: watchKey ?? "" },
     {
-      enabled: !!watchKey,
+      enabled: watching,
       refetchInterval: (data) =>
-        isTerminalJobState(data?.state) ? false : 2000,
+        poll && watching && !isTerminalJobState(data?.state) ? 2000 : false,
+      refetchOnWindowFocus: poll,
+      refetchOnReconnect: poll,
       retry: false,
     }
   );
 
-  const isTerminal = isTerminalJobState(statusQuery.data?.state);
+  const isTerminal =
+    !suppressed && isTerminalJobState(statusQuery.data?.state);
 
   const logsQuery = trpc.jobWatching.logs.useQuery(
     { watchKey: watchKey ?? "", startLineIndex: logs.length },
     {
-      enabled: !!watchKey && !statusQuery.isError,
-      refetchInterval: isTerminal || statusQuery.isError ? false : 2000,
+      enabled: watching,
+      refetchInterval:
+        poll && watching && !isTerminal && !statusQuery.isError ? 2000 : false,
+      refetchOnWindowFocus: poll,
+      refetchOnReconnect: poll,
       retry: false,
     }
   );
 
   useEffect(() => {
-    if (!watchKey || !logsQuery.data) {
+    if (!watching || !logsQuery.data) {
       return;
     }
-    if (logsQuery.dataUpdatedAt === consumedUpdatedAt.current) {
+    if (logsQuery.dataUpdatedAt <= consumedUpdatedAt.current) {
       return;
     }
     consumedUpdatedAt.current = logsQuery.dataUpdatedAt;
@@ -55,32 +79,36 @@ export function useJobWatcher(watchKey: string | null | undefined) {
       return;
     }
     setLogs((prev) => [...prev, ...logsQuery.data.logs]);
-  }, [watchKey, logsQuery.data, logsQuery.dataUpdatedAt]);
+  }, [watching, logsQuery.data, logsQuery.dataUpdatedAt]);
 
   const refetchLogs = logsQuery.refetch;
   useEffect(() => {
-    if (!isTerminal || !watchKey) {
+    if (!poll || !isTerminal || !watching) {
       return;
     }
     void refetchLogs();
-  }, [isTerminal, watchKey, refetchLogs]);
+  }, [poll, isTerminal, watching, refetchLogs]);
 
   return {
     watchKey: watchKey ?? null,
-    status: statusQuery.data ?? null,
+    status: suppressed ? null : statusQuery.data ?? null,
     logs,
     logText: logs.join("\n"),
     isTerminal,
-    startedAt: statusQuery.data?.startedAt ?? null,
-    isError: statusQuery.isError || logsQuery.isError,
+    startedAt: suppressed ? null : statusQuery.data?.startedAt ?? null,
+    isError: !suppressed && (statusQuery.isError || logsQuery.isError),
     resetLogs: () => {
       setLogs([]);
-      consumedUpdatedAt.current = 0;
+      consumedUpdatedAt.current = Date.now();
+      setSuppressed(true);
       if (!watchKey) {
         return;
       }
-      void utils.jobWatching.logs.invalidate();
-      void utils.jobWatching.status.invalidate({ watchKey });
+      void utils.jobWatching.logs.cancel();
+      void utils.jobWatching.status.cancel();
+    },
+    resumeWatching: () => {
+      setSuppressed(false);
     },
   };
 }
