@@ -7,7 +7,7 @@ Deprecated GOLDEN_SET_* names still work and print a stderr warning.
 
 Schema contract deferred: record.schema.json keeps $id
 .../golden-set/v2/... and the key golden_value. Those are a versioned data
-contrac.
+contract. Renaming them needs a schema bump.
 """
 
 from __future__ import annotations

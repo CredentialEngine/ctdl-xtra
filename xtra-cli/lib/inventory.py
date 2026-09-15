@@ -14,6 +14,7 @@ INVENTORY: dict[str, tuple[tuple[str, ...], str, str | None]] = {
     "course_corequisites": (("Course",), "string", None),
     "course_lecture_hours": (("Course",), "number", None),
     "course_lab_hours": (("Course",), "number", None),
+    "course_ceu_credits": (("Course",), "number", None),
     "course_program": (("Course",), "string", None),
     "course_department": (("Course",), "string", None),
     "course_school": (("Course",), "string", None),
@@ -48,6 +49,8 @@ def csv_text() -> str:
             notes = "Only when the freeze prints an explicit minimum bound (Min, range start)."
         elif label == "course_credits_max":
             notes = "Only when the freeze prints an explicit maximum bound (Max, range end)."
+        elif label == "course_ceu_credits":
+            notes = "Only when the freeze prints CEUs. Do not treat CEUs as course_credits."
         elif label == "relationship_heading":
             notes = "Printed heading that names the program and the award; used only as link evidence."
         lines.append(

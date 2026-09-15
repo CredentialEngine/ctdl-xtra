@@ -21,7 +21,7 @@ Order in `detect_family`: **Coursedog, then Acalog, then Clean Catalog.** A Cour
 | `custom_html` (Clean Catalog) | `cleancatalog.com` in HTML or URL. Not the loose phrase “clean catalog”. | `https://catalog.atlanticcape.edu/english/engl101` |
 | `unknown` | none of the above | harvest still tries mixed URL regexes; extract will drop if no template matches |
 
-## Six template ids
+## Eight template ids
 
 `detect_template` returns the first match. College name is not a signal.
 
@@ -31,6 +31,8 @@ Order in `detect_family`: **Coursedog, then Acalog, then Clean Catalog.** A Cour
 | `coursedog_rcbc_course_detail` | `Course Long Title` **or** `(Credit Hours) Min` |
 | `coursedog_mccc_course_detail` | lines `Subject Code` and `Course Number` and `Course Description` |
 | `coursedog_brookdale_course_detail` | `Course Description` and (`Credit Hours` or `Credit Hours Min`) |
+| `acalog_hcc_nbsp_credits` | `{CODE} {NNNN}` NBSP-dash name, with `Credits: N` on the heading or the next line |
+| `acalog_units_glued_hours` | `{CODE} {N}` NBSP-dash name glued to `N unit(s)` plus an `hours lecture` / `hours lab` line |
 | `acalog_bergen_glued_credits` | a line matching `{CODE}-{NNN} … {n} Credit(s)` |
 | `acalog_raritan_hours_credits` | `(lecture,lab) N Credits` and a NBSP hyphen `\xa0-\xa0` |
 
@@ -40,7 +42,7 @@ RCBC is checked before Brookdale because RCBC pages also contain `Course Descrip
 
 - **Family `unknown`:** crawl may still collect URLs; many will fail later.
 - **Template `None`:** `attach_templates` prints `drop unknown template {url}` and drops the slot. `classify` CLI reports `dropped_unknown_template`.
-- **Extract:** if `detect_template` is `None` but `slot.template_id` is one of the six ids, extract **warns on stderr** (`detect_template=None` vs `slot.template_id=…`) and uses the slot. If the slot id is not in the six, extract fails closed (no LLM).
+- **Extract:** if `detect_template` is `None` but `slot.template_id` is one of the eight ids, extract **warns on stderr** (`detect_template=None` vs `slot.template_id=…`) and uses the slot. If the slot id is not in the eight, extract fails closed (no LLM).
 
 ## CLI
 

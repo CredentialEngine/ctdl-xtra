@@ -250,9 +250,9 @@ def fetch_missing() -> list[dict]:
             dest = snapshot_path(slot.stem)
             try:
                 try:
-                    resp = page.goto(slot.requested_url, wait_until="networkidle", timeout=60000)
-                except PlaywrightTimeout:
                     resp = page.goto(slot.requested_url, wait_until="load", timeout=60000)
+                except PlaywrightTimeout:
+                    resp = page.goto(slot.requested_url, wait_until="domcontentloaded", timeout=60000)
                     page.wait_for_timeout(1500)
                 if resp is not None:
                     http_status = resp.status
@@ -295,6 +295,8 @@ def fetch_missing() -> list[dict]:
                 }
             )
             print(f"  -> {status} http={http_status}", flush=True)
+        page.close()
+        context.close()
         browser.close()
     return rows
 

@@ -51,6 +51,7 @@ def _expected(rec: dict) -> dict:
             "course_corequisites",
             "course_lecture_hours",
             "course_lab_hours",
+            "course_ceu_credits",
             "course_program",
             "course_department",
             "course_school",

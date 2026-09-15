@@ -2,205 +2,195 @@
 
 Command-line ETL for public college catalog pages used by Credential Engine xTRA.
 
-The same commands produce a working extract and a freeze-backed pack that can later be copied into a reviewed reference folder. That copy is a destination directory after human review, not a second pipeline or a second codebase.
+The layout follows **ceops**: Click commands live at `src/xtra/<noun>/<verb>.py`, tests at `tests/xtra/<noun>/test_<verb>.py`, and reusable storage code lives in `src/common/`. There is no pack folder and no zip of a run. Each run is identified by an ISO8601 UTC timestamp `yyyy-MM-ddTHH:mm:ssZ`.
 
 This CLI does not invent CTIDs and does not publish to the Credential Registry.
 
-## Requirements
-
-- Python 3.9 or later
-- Playwright Chrome (for crawl and download)
-- Optional: `xtra_accuracy` on `PYTHONPATH` (for `course score`)
-- Optional: Credential Registry API key (for exact `ceterms:subjectWebpage` lookup)
-
-Run commands from the repository root that contains the `xtra-cli/` directory.
-
 ## Install
 
+Python 3.10+. From this directory:
+
 ```bash
-python3 -m pip install -r xtra-cli/lib/requirements.txt
+python3 -m pip install -e ".[dev]"
 python3 -m playwright install chrome
 ```
 
-Optional Registry lookup:
+Azure Blob (production or Azurite) needs the extra:
 
 ```bash
-export REGISTRY_API_KEY='...'
+python3 -m pip install -e ".[dev,azure]"
 ```
 
-Without a key, registry status stays `not_checked`.
-
-## Layout
-
-```text
-xtra-cli/
-  xtra_cli.py                 entry point (Unix and Windows)
-  bin/xtra-cli                bash wrapper (Unix)
-  bin/xtra-cli.cmd            cmd wrapper (Windows)
-  crawling/crawl.py           catalog crawl
-  downloading/download.py     page download
-  extraction/extract.py       course extract
-  extraction/classify.py      page classify
-  extraction/run.py           pipeline run
-  transformation/transform.py course transform
-  scoring/score.py            course score
-  scoring/check.py            pack check
-  scoring/promote.py          pack promote
-  lib/                        shared engine, schema, templates
-  tests/                      fixtures and command tests
-```
-
-Classification is not a separate top-level stage. CMS family detection runs during `catalog crawl`. Template detection runs during `course extract`. `page classify` is an extraction subcommand that stamps `template_id` on cached pages.
-
-## Entry point
-
-Canonical invocation:
+Azurite (local Azure Blob emulator), same as ceops:
 
 ```bash
-python3 xtra-cli/xtra_cli.py <noun> <verb> [options]
+export AZURE_STORAGE_CONNECTION_STRING="UseDevelopmentStorage=true"
 ```
 
-Windows (cmd):
+## Environments
 
-```bat
-python xtra-cli\xtra_cli.py <noun> <verb> [options]
-```
-
-`bin/xtra-cli` is a bash wrapper. On Windows use `python xtra-cli\xtra_cli.py` or `xtra-cli\bin\xtra-cli.cmd`.
-
-Stage scripts are also runnable directly. `--url` must be a live catalog home or course page (the host must resolve in DNS):
+An xTRA environment names *where a run is written*: the storage container and the variable holding its secret. Same verbs as `ceops environment`:
 
 ```bash
-python3 xtra-cli/crawling/crawl.py --pack my_pack --url https://catalog.brookdalecc.edu --limit 5
+xtra environment list
+xtra environment set prod --data-uri azure://https://ACCOUNT.blob.core.windows.net/xtra
+xtra environment show
 ```
 
-Commands use noun-verb form (`<noun> [<noun>] <verb>`). Verb-only names remain as hidden aliases.
+`set` saves the active environment to `~/.xtra/config.json` (`XTRA_CONFIG_DIR` relocates it for CI and containers). Only the *name* of the secret variable is stored; the connection string itself never touches disk.
+
+`dev` is the only environment with a built-in container (Azurite at `127.0.0.1:10000`). `test`, `sandbox`, and `prod` ship blank on purpose so nobody guesses a real account name; give each one a `--data-uri` once.
+
+Once an environment is active, the ETL commands no longer need URIs:
+
+```bash
+export AZURE_STORAGE_CONNECTION_STRING="DefaultEndpointsProtocol=https;AccountName=...;AccountKey=..."
+xtra catalog crawl --with-playwright --url https://catalog.brookdalecc.edu --limit 5
+```
+
+To run one command elsewhere without changing the active environment, pass `--env` (or set `XTRA_ENV`):
+
+```bash
+xtra catalog crawl --with-playwright --env sandbox --url https://catalog.brookdalecc.edu --limit 5
+XTRA_ENV=test xtra catalog extract --with-template --catalog-id brookdalecc --run-id 2026-09-14T18:12:00Z
+```
+
+Resolution order for every run, highest first:
+
+| Source | Storage URI | Azure secret |
+| --- | --- | --- |
+| Command flag | `--target-uri` / `--source-uri` | `--azure-storage-connection-string` |
+| `--env NAME` or `XTRA_ENV` | that environment's data URI | that environment's secret variable |
+| Active environment | saved data URI | saved secret variable |
+
+An explicit URI always wins, so `--target-uri ./xtra-cache` keeps working with no environment configured at all. When nothing resolves, the command fails with the exact `xtra environment set` line to run.
+
+Per-environment secrets in one shell, without repeated exports:
+
+```bash
+xtra environment set prod \
+  --data-uri azure://https://ACCOUNT.blob.core.windows.net/xtra \
+  --connection-string-env CE_PROD_STORAGE
+export CE_PROD_STORAGE="DefaultEndpointsProtocol=https;AccountName=...;AccountKey=..."
+```
 
 ## Commands
 
-| Command | Alias | Writes | Description |
-|---|---|---|---|
-| `catalog crawl` | `crawl` | `slots.json` | Discover course URLs. Does not download HTML. |
-| `page download` | `download` | `cache/{yyyy-mm-dd}/*.html` | Freeze HTML. `--normalize` also writes `normalized/*.txt`. Dated copies are never overwritten. |
-| `page classify` | `classify` | stamps `template_id` | Unknown layouts are dropped. No LLM fallback. |
-| `course extract` | `extract` | `records/*.json` | Transcribe printed fields. Always `verification.status = candidate`. |
-| `course transform` | `transform` | `jsonld/`, `courses/` | Map labels to CTDL JSON-LD and scoring JSON. No CTIDs. Does not publish. |
-| `course score` | `score` | scorer stdout | Wraps `xtra-accuracy`. Pass the pack (or a class folder such as `courses/` inside it). `--golden` is a deprecated alias for `--reference`. |
-| `pack check` | `check` | `CHECK.json` | Freeze and schema gates. Does not sign records. |
-| `pack promote` | `promote` | copies `courses/*.json` | Copy scoring JSON into a folder you name. Still unsigned. |
-| `pipeline run` | `run` | a new pack | One-shot crawl through transform. Refuses a nonempty destination directory. |
-| `field union` | `union-fields` | label counts | Count inventory labels across catalogs or packs. |
+Filesystem path matches invocation, the same way ceops does (`ceops elasticsearch graphs create` → `src/ceops/elasticsearch/graphs/create.py`):
 
-`--pack` is a directory name under `XTRA_HOME` (default `xtra-cli/out/`) or an absolute path.
+```text
+xtra environment set    -> src/xtra/environment.py
+xtra catalog crawl      -> src/xtra/catalog/crawl.py
+xtra catalog extract    -> src/xtra/catalog/extract.py
+xtra catalog transform  -> src/xtra/catalog/transform.py
+xtra page download      -> src/xtra/page/download.py
+```
 
-`pipeline run` creates a new pack. Re-running with `--out` pointing at an existing nonempty folder exits 2. Stage commands that take `--pack` do not have that gate.
-
-## Examples
-
-Staged extract:
+### Crawl
 
 ```bash
-python3 xtra-cli/xtra_cli.py catalog crawl --pack my_pack --url https://catalog.brookdalecc.edu --limit 5
-python3 xtra-cli/xtra_cli.py page download --pack my_pack --normalize
-python3 xtra-cli/xtra_cli.py course extract --pack my_pack
-python3 xtra-cli/xtra_cli.py course transform --pack my_pack
-python3 xtra-cli/xtra_cli.py pack check --pack my_pack
+xtra catalog crawl --with-playwright \
+  --url https://catalog.brookdalecc.edu \
+  --target-uri azure://https://ACCOUNT.blob.core.windows.net/xtra \
+  --limit 5 \
+  --concurrency 1 \
+  --min-interval 180
 ```
 
-One-shot pack:
+`--limit 5` caps pages for testing. Omit it for a full catalog of any size.
+
+`--with-ai-agent` and `--with-third-party` are reserved strategy flags. They fail closed with a clear message until those backends exist. Add a backend by implementing it next to `crawl.py`; the command shape stays `xtra catalog crawl --with-<strategy>`.
+
+Local file target (no Azure):
 
 ```bash
-python3 xtra-cli/xtra_cli.py pipeline run --url https://catalog.brookdalecc.edu --out my_pack
+xtra catalog crawl --with-playwright \
+  --url https://catalog.brookdalecc.edu \
+  --target-uri ./xtra-cache \
+  --limit 5 \
+  --min-interval 0 \
+  --discover-only
 ```
 
-Score extractor dumps against a pack (requires `xtra_accuracy` on `PYTHONPATH`):
+Default `--min-interval` is **180 seconds** (3 minutes) between page fetches, `--concurrency` is **1**. Failed fetches retry with exponential backoff starting at 3 minutes (3, 6, 12, … up to `--backoff-max`). That is the production posture: crawls stay up continuously across thousands of catalogs without leaning on origin sites.
+
+### Extract and transform
+
+Same `--with-<strategy>` pattern:
 
 ```bash
-python3 xtra-cli/xtra_cli.py course score --reference my_pack --candidate dumps
+xtra catalog extract --with-template \
+  --source-uri "$TARGET" --target-uri "$TARGET" \
+  --catalog-id brookdalecc --run-id 2026-09-14T18:12:00Z
+
+xtra catalog transform --with-ctdl \
+  --source-uri "$TARGET" --target-uri "$TARGET" \
+  --catalog-id brookdalecc --run-id 2026-09-14T18:12:00Z
 ```
 
-Windows (cmd):
+`--with-template` is the current deterministic CMS extractors (Clean Catalog, Coursedog, Acalog). `--with-ctdl` maps printed labels to CTDL JSON-LD and never writes a CTID. `--with-ai-agent` is reserved on both verbs.
 
-```bat
-python xtra-cli\xtra_cli.py page download --pack my_pack --normalize
-xtra-cli\bin\xtra-cli.cmd pack check --pack my_pack
-set PYTHONPATH=C:\path\to\xTRA-Scoring
-python xtra-cli\xtra_cli.py course score --reference my_pack --candidate dumps
-```
+### Page download
 
-If both `PYTHONPATH` and this repository's `src/` contain `xtra_accuracy`, `PYTHONPATH` wins. The in-repo `src/` path is a fallback only.
-
-## Environment
-
-| Variable | Default | Purpose |
-|---|---|---|
-| `XTRA_HOME` | `xtra-cli/out/` | Directory where relative pack names are created |
-| `XTRA_PACK` | set by `--pack` / `--out` | Active pack directory |
-| `XTRA_MODE` | `college` | Validation mode |
-| `XTRA_SLOTS` | `dynamic` | Load course URLs from the pack `slots.json` |
-| `XTRA_PILE` | pack folder name | Scoring pile label |
-| `XTRA_CACHE_URL` | unset | Optional blob upload after a successful local freeze |
-| `REGISTRY_API_KEY` | unset | Exact-URL Credential Registry lookup |
-
-Deprecated `GOLDEN_SET_*` names (`GOLDEN_SET_HOME`, `GOLDEN_SET_PACK`, `GOLDEN_SET_MODE`, `GOLDEN_SET_SLOTS`, `GOLDEN_SET_PILE`, `GOLDEN_SET_CACHE_URL`) still work and print a stderr warning.
-
-## Pack contents
-
-A pack is a directory. Typical files after `pipeline run` or a full staged run:
-
-| Path | Source | Contents |
-|---|---|---|
-| `slots.json` | crawl | Course URLs in this pack |
-| `cache/<yyyy-mm-dd>/<stem>.html` | download | Frozen page HTML (immutable dated cache) |
-| `cache/<yyyy-mm-dd>/<stem>.meta.json` | download | Retrieval time, HTTP status, SHA-256 |
-| `normalized/<stem>.txt` | download `--normalize` | Visible text with scripts and styles stripped |
-| `records/<id>.json` | extract | Candidate record, evidence, CTDL map |
-| `courses/<id>.json` | transform | Scoring JSON (`id`, `catalogue_type`, `source_url`, `expected`) |
-| `jsonld/` | transform | CTDL JSON-LD (no invented CTIDs) |
-| `CHECK.json` | check / pipeline | `"ok": true` only if freeze and schema checks passed |
-| `PACK.md` | pipeline | Pack notes and the scoring command |
-| `MANIFEST.json` | transform | Pack index; status remains `candidate` |
-| `record.schema.json` | copied into the pack | Record schema |
-| `FIELD_INVENTORY.csv` | copied into the pack | Allowed field labels |
-
-`CHECK.json.ok == true` means the pack is freeze-backed and schema-valid. Records remain candidates. The CLI never writes `human_signed`.
-
-## Review and promotion
-
-There is one extract pipeline. After independent dual review of freeze HTML and JSON side by side, copy scoring files into a reference folder:
+Use when crawl ran `--discover-only` and you want to freeze HTML later, still politely:
 
 ```bash
-python3 xtra-cli/xtra_cli.py pack promote --pack my_pack --to golden_sets/courses
+xtra page download --with-playwright \
+  --source-uri "$TARGET" --target-uri "$TARGET" \
+  --catalog-id brookdalecc --run-id 2026-09-14T18:12:00Z \
+  --concurrency 1 --min-interval 180
 ```
 
-`pack promote` copies files. It does not set `human_signed`. Quote official accuracy only with `--signed-only` against a signed pack.
+## Object layout (not packs)
 
-Review checklist: `lib/HUMAN_REVIEW.md`. Classification rules: `lib/CLASSIFICATION.md`.
+`--target-uri` is a ceops storage URI. Runs are keys under the catalog id and the UTC timestamp:
 
-## Catalog families
+```text
+{target-uri}/{catalog-id}/{yyyy-MM-ddTHH:mm:ssZ}/
+  crawl.json
+  slots.json
+  pages/{stem}.html
+  pages/{stem}.meta.json
+  pages/{stem}.txt
+  records/{record-id}.json
+  jsonld/{record-id}.json
+  expected/{record-id}.json
+```
 
-Deterministic extractors, one module per supported CMS family:
+URI schemes, copied from ceops:
 
-- `lib/templates/clean_catalog.py`
-- `lib/templates/coursedog.py`
-- `lib/templates/acalog.py`
+```text
+azure://https://account.blob.core.windows.net/container/prefix
+azure://http://127.0.0.1:10000/devstoreaccount1/container/prefix   # Azurite
+file:///absolute/path
+./relative-path
+```
 
-Unknown CMS families fail closed. College name is not a classification signal. There is no LLM fallback.
+Pass `--azure-storage-connection-string` or set `AZURE_STORAGE_CONNECTION_STRING`. Production reads and writes Azure Blob containers. Tests use `file://` plus mocked Blob clients; set the connection string to `UseDevelopmentStorage=true` to exercise Azurite (`pytest -m integration`).
 
-Supported field copies are only values printed on the frozen page (for example course id, name, description, credits or min/max, prerequisites, hours, department). The extractor does not invent credit type or fill missing fields.
+## Answers to the design questions
+
+1. **Packs.** A pack was a working directory plus an implied zip of a small slice. That does not scale to “any catalog of any size” and zip/pack folders add copies. This CLI does not take `--pack`. The run id is an ISO8601 UTC timestamp `yyyy-MM-ddTHH:mm:ssZ`. Artifacts are objects in `--target-uri`.
+2. **Crawl strategies.** `xtra catalog crawl --with-playwright --url ...` selects Playwright today. `--with-ai-agent` and `--with-third-party` are the extension points.
+3. **Extract / transform.** Same flag pattern: `--with-template` / `--with-ctdl` now; `--with-ai-agent` later.
+4. **`--limit 5`.** Page cap for tests. Not a pack size.
+5. **Concurrency and politeness.** `--concurrency` (default 1) and `--min-interval` (default 180s) plus exponential backoff. Long-running cache refresh should stay at those defaults.
+6. **Folder structure.** `src/xtra/catalog/crawl.py` and `tests/xtra/catalog/test_crawl.py`, matching ceops `src/ceops/<noun>/<noun>/<verb>.py`.
+7. **Azure Blob.** `src/common/azure_storage_*.py` is adapted from ceops. Local tests use Azurite (`UseDevelopmentStorage=true`) or `file://`. Production uses the account connection string and container URIs. `xtra environment set|show|list` picks the target account per environment (dev, test, sandbox, prod) exactly like `ceops environment`, and `--env` overrides it for one run.
+8. **When in doubt.** Storage URIs, Click groups, lazy command loading, and test paths follow ceops.
 
 ## Tests
 
 ```bash
-python3 -m pytest xtra-cli/tests -q
+cd xtra-cli
+python3 -m pytest tests -q
 ```
 
-Fixtures live in `tests/fixtures/html/` (Clean Catalog course page and catalog home) and `tests/fixtures/pdf/sample-placeholder.pdf`. Command tests reuse cached HTML and do not hit the network.
+Network is not required. Playwright harvest is monkeypatched. Azurite tests are marked `integration` and skip unless `AZURE_STORAGE_CONNECTION_STRING` is set.
 
 ## Non-goals
 
 - Invent `expected` values, CTIDs, or `human_signed`
 - Publish to the Credential Registry
-- LLM classification or extraction
-- Overwrite an existing nonempty pack with `pipeline run`
-- Quote official accuracy without `--signed-only` on a signed pack
+- LLM classification or extraction (the `--with-ai-agent` flags are stubs)
+- Zip or pack a catalog run

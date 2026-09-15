@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+from collections.abc import Callable
 from urllib.parse import parse_qs, urlparse
 
 from catalog import (
@@ -189,6 +190,7 @@ def harvest_with_playwright(
     *,
     want: int,
     fetch_all: bool,
+    between_pages: Callable[[], None] | None = None,
 ) -> dict:
     from playwright.sync_api import Error as PlaywrightError
     from playwright.sync_api import TimeoutError as PlaywrightTimeout
@@ -224,6 +226,8 @@ def harvest_with_playwright(
         page.on("response", on_response)
 
         def goto(url: str) -> str:
+            if between_pages is not None:
+                between_pages()
             try:
                 try:
                     page.goto(url, wait_until="load", timeout=60000)
@@ -232,7 +236,14 @@ def harvest_with_playwright(
             except PlaywrightError as exc:
                 raise HarvestError(navigation_failure(url, exc)) from None
             page.wait_for_timeout(1200)
-            return page.content()
+            last_exc: PlaywrightError | None = None
+            for _ in range(3):
+                try:
+                    return page.content()
+                except PlaywrightError as exc:
+                    last_exc = exc
+                    page.wait_for_timeout(800)
+            raise HarvestError(navigation_failure(url, last_exc or RuntimeError("empty page"))) from None
 
         html = goto(seed_url)
         family = detect_family(html, seed_url)
@@ -243,20 +254,35 @@ def harvest_with_playwright(
             urls = [normalize_course_url(seed_url)]
         elif family == "acalog":
             listing = acalog_listing_url(html, seed_url) or seed_url
-            listing_html = goto(listing) if listing != seed_url else html
-            urls.extend(acalog_course_urls(listing_html, listing))
+            if listing != seed_url:
+                goto(listing)
+            try:
+                page.wait_for_selector('a[href*="preview_course"]', timeout=12000)
+            except PlaywrightTimeout:
+                pass
+            listing_html = page.content()
+            live_listing = page.url or listing
+            origin = origin_of(live_listing)
+            urls.extend(acalog_course_urls(listing_html, live_listing))
             max_page = acalog_max_page(listing_html)
-            parsed = urlparse(listing)
+            parsed = urlparse(live_listing)
             qs = parse_qs(parsed.query)
             catoid = (qs.get("catoid") or [None])[0]
             navoid = (qs.get("navoid") or [None])[0]
             if catoid and navoid:
                 last = max_page if fetch_all else min(max_page, 8)
-                for n in range(1, last + 1):
+                # Page 1 is often the listing we already loaded. Re-goto
+                # filter[cpage]=1 on http Acalog hosts can abort the harvest.
+                start = 2 if urls else 1
+                for n in range(start, last + 1):
                     page_url = (
                         f"{origin}/content.php?catoid={catoid}&navoid={navoid}&filter[cpage]={n}"
                     )
-                    ph = goto(page_url)
+                    try:
+                        ph = goto(page_url)
+                    except HarvestError as exc:
+                        print(str(exc), flush=True)
+                        break
                     urls.extend(acalog_course_urls(ph, page_url))
                     if len(dict.fromkeys(urls)) >= buffer:
                         break
