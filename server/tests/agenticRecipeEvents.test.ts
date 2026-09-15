@@ -127,11 +127,14 @@ describe("formatAgentEventForPublicLog", () => {
           xtraEvent: true,
           kind: "test_extraction",
           extracted: true,
+          url: "https://catalog.example.edu/programs/nursing",
+          entryCount: 3,
         }),
       })
     ).toEqual({
       kind: "plain",
-      message: "Test extraction generated entries.",
+      message:
+        "Test extraction on the [page](https://catalog.example.edu/programs/nursing) generated 3 entry(s).",
     });
     expect(
       formatAgentEventForPublicLog({
@@ -140,11 +143,13 @@ describe("formatAgentEventForPublicLog", () => {
           xtraEvent: true,
           kind: "test_extraction",
           extracted: false,
+          url: "https://catalog.example.edu/programs/missing",
         }),
       })
     ).toEqual({
       kind: "plain",
-      message: "Test extraction generated no entries.",
+      message:
+        "Test extraction on the [page](https://catalog.example.edu/programs/missing) generated no entries.",
     });
   });
 

@@ -18,6 +18,8 @@ export interface ParsedXtraEvent {
   message?: string;
   matchCount?: number;
   extracted?: boolean;
+  url?: string;
+  entryCount?: number;
 }
 
 export type FormattedAgentLog =
@@ -42,6 +44,7 @@ export function parseXtraToolResult(message: string): ParsedXtraEvent | null {
       extracted?: boolean;
       url?: unknown;
       linkRegexp?: unknown;
+      entryCount?: number;
     };
     if (!parsed.xtraEvent || !parsed.kind) {
       return null;
@@ -73,6 +76,8 @@ export function parseXtraToolResult(message: string): ParsedXtraEvent | null {
           : parsed.message,
       matchCount: parsed.matchCount,
       extracted: parsed.extracted,
+      url: typeof parsed.url === "string" ? parsed.url : undefined,
+      entryCount: parsed.entryCount,
     };
   } catch {
     return null;
@@ -118,10 +123,11 @@ export function formatAgentEventForPublicLog(
     if (parsed.kind === "test_extraction") {
       return {
         kind: "plain",
-        message:
-          parsed.extracted === true
-            ? "Test extraction generated entries."
-            : "Test extraction generated no entries.",
+        message: formatTestExtractionLogMessage({
+          extracted: parsed.extracted === true,
+          url: parsed.url,
+          entryCount: parsed.entryCount,
+        }),
       };
     }
     if (parsed.kind === "give_up" && parsed.message) {
@@ -129,6 +135,17 @@ export function formatAgentEventForPublicLog(
     }
   }
   return null;
+}
+
+function formatTestExtractionLogMessage(input: {
+  extracted: boolean;
+  url?: string;
+  entryCount?: number;
+}): string {
+  const page = input.url ? `[page](${input.url})` : "page";
+  return input.extracted
+    ? `Test extraction on the ${page} generated ${input.entryCount} entry(s).`
+    : `Test extraction on the ${page} generated no entries.`;
 }
 
 function formatVerifyLogMessage(input: {
