@@ -6,6 +6,7 @@ import {
   parseXtraToolResult,
   stageLog,
   statusLog,
+  toolLog,
 } from "../src/agentic/agenticRecipeEvents";
 
 describe("parseXtraToolResult", () => {
@@ -41,6 +42,18 @@ describe("formatAgentEventForPublicLog", () => {
     ).toEqual({
       kind: "status",
       message: "Starting browser agent",
+    });
+  });
+
+  it("marks tool call events as tool logs", () => {
+    expect(
+      formatAgentEventForPublicLog({
+        type: "toolCall",
+        message: "puppeteer_navigate",
+      })
+    ).toEqual({
+      kind: "tool",
+      message: "puppeteer_navigate",
     });
   });
 
@@ -135,6 +148,41 @@ describe("formatAgentEventForPublicLog", () => {
     });
   });
 
+  it("maps verify results to a regex and page log", () => {
+    expect(
+      formatAgentEventForPublicLog({
+        type: "tool",
+        message: JSON.stringify({
+          xtraEvent: true,
+          kind: "verify",
+          matchCount: 0,
+          url: "https://catalog.example.edu/programs",
+          linkRegexp: "/programs/[a-z-]+$",
+        }),
+      })
+    ).toEqual({
+      kind: "plain",
+      message:
+        "Verification found 0 matching links by using Regex (/programs/[a-z-]+$) on [this page](https://catalog.example.edu/programs)",
+    });
+    expect(
+      formatAgentEventForPublicLog({
+        type: "tool",
+        message: JSON.stringify({
+          xtraEvent: true,
+          kind: "verify",
+          matchCount: 1,
+          url: "https://catalog.example.edu/courses",
+          linkRegexp: "COURSE-\\d+",
+        }),
+      })
+    ).toEqual({
+      kind: "plain",
+      message:
+        "Verification found 1 matching link by using Regex (COURSE-\\d+) on [this page](https://catalog.example.edu/courses)",
+    });
+  });
+
   it("maps give_up tool results to status logs", () => {
     expect(
       formatAgentEventForPublicLog({
@@ -149,6 +197,14 @@ describe("formatAgentEventForPublicLog", () => {
       kind: "status",
       message: "Site requires login.",
     });
+  });
+});
+
+describe("toolLog", () => {
+  it("wraps messages in tool tags", () => {
+    expect(toolLog("puppeteer_navigate")).toBe(
+      "<tool>puppeteer_navigate</tool>"
+    );
   });
 });
 
