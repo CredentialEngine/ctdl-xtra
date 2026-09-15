@@ -1,19 +1,16 @@
 import { URL } from "url";
 
 import {
-  ChatCompletionContentPart,
-  ChatCompletionMessageParam,
-} from "openai/resources/chat/completions";
-import {
   dedupUrls,
   DefaultLlmPageOptions,
   filterUrlsByOrigin,
   MD_END,
   MD_START,
+  userPageMessage,
 } from ".";
 import { CatalogueType, ProviderModel } from "../../../../common/types";
+import { structuredCompletion } from "../../llm/LLMProviderApi";
 import getLogger from "../../logging";
-import { structuredCompletion } from "../../openai";
 import { getCatalogueTypeDefinition } from "../catalogueTypes";
 
 const logger = getLogger("extraction.llm.exploreAdditionalPages");
@@ -43,19 +40,7 @@ ${options.content}
 ${MD_END}
 `;
 
-  const completionContent: ChatCompletionContentPart[] = [
-    {
-      type: "text",
-      text: prompt,
-    },
-  ];
-
-  const messages: ChatCompletionMessageParam[] = [
-    {
-      role: "user",
-      content: completionContent,
-    },
-  ];
+  const messages = [userPageMessage(prompt)];
 
   const model =
     options.modelOverride ?? entityDef.model ?? ProviderModel.Gpt5;

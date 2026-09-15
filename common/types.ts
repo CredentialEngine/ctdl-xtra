@@ -118,6 +118,7 @@ export enum LogLevel {
 
 export enum Provider {
   OpenAI = "openai",
+  Anthropic = "anthropic",
 }
 
 export enum ProviderModel {
@@ -130,6 +131,10 @@ export enum ProviderModel {
   Gpt54 = "gpt-5.4",
   Gpt54Mini = "gpt-5.4-mini",
   Gpt54Nano = "gpt-5.4-nano",
+  ClaudeHaiku45 = "claude-haiku-4-5",
+  ClaudeSonnet5 = "claude-sonnet-5",
+  ClaudeOpus5 = "claude-opus-5",
+  ClaudeFable51 = "claude-fable-5-1",
 }
 
 export enum ExtractionStatus {

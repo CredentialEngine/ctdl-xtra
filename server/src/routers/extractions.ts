@@ -52,17 +52,7 @@ export const extractionsRouter = router({
       z.object({
         catalogueId: z.number().positive(),
         recipeId: z.number().positive(),
-        model: z.enum([
-          "gpt-4o",
-          "gpt-4.1",
-          "o3-mini",
-          "o4-mini",
-          "gpt-5",
-          "gpt-5-nano",
-          "gpt-5.4",
-          "gpt-5.4-mini",
-          "gpt-5.4-nano",
-        ]),
+        model: z.nativeEnum(ProviderModel).optional(),
       })
     )
     .mutation(async (opts) => {
@@ -71,7 +61,7 @@ export const extractionsRouter = router({
         opts.input.catalogueId,
         opts.input.recipeId,
         userId,
-        opts.input.model as ProviderModel,
+        opts.input.model,
       );
     }),
   cancel: publicProcedure

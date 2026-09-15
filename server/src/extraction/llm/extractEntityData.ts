@@ -1,8 +1,4 @@
-import {
-  ChatCompletionContentPart,
-  ChatCompletionMessageParam,
-} from "openai/resources/chat/completions";
-import { DefaultLlmPageOptions, MD_END, MD_START } from ".";
+import { DefaultLlmPageOptions, MD_END, MD_START, userPageMessage } from ".";
 import {
   CatalogueType,
   CompetencyStructuredData,
@@ -11,7 +7,8 @@ import {
   LearningProgramStructuredData,
   ProviderModel,
 } from "../../../../common/types";
-import { assertArray, simpleToolCompletion, structuredCompletion } from "../../openai";
+import { assertArray } from "../../llm/assert";
+import { simpleToolCompletion, structuredCompletion } from "../../llm/LLMProviderApi";
 import { getCatalogueTypeDefinition } from "../catalogueTypes";
 
 export const validCreditUnitTypes = [
@@ -222,25 +219,8 @@ ${basePrompt}
 `;
   }
 
-  const completionContent: ChatCompletionContentPart[] = [
-    {
-      type: "text",
-      text: prompt,
-    },
-  ];
-
-  if (!entityDef?.skipScreenshot && options?.screenshot) {
-    completionContent.push({
-      type: "image_url",
-      image_url: { url: `data:image/webp;base64,${options.screenshot}` },
-    });
-  }
-
-  const messages: ChatCompletionMessageParam[] = [
-    {
-      role: "user",
-      content: completionContent,
-    },
+  const messages = [
+    userPageMessage(prompt, options?.screenshot, entityDef?.skipScreenshot),
   ];
 
   const entityProperties: Record<string, any> = {};

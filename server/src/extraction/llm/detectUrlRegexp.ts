@@ -1,8 +1,8 @@
-import { ChatCompletionContentPart } from "openai/resources/chat/completions";
-import { DefaultLlmPageOptions } from ".";
+import { DefaultLlmPageOptions, userPageMessage } from ".";
 import { CatalogueType, PageType } from "../../../../common/types";
+import { assertArray, assertString } from "../../llm/assert";
+import { simpleToolCompletion } from "../../llm/LLMProviderApi";
 import getLogger from "../../logging";
-import { assertArray, assertString, simpleToolCompletion } from "../../openai";
 import { SimplifiedMarkdown } from "../../types";
 import { resolveAbsoluteUrl } from "../../utils";
 import { getCatalogueTypeDefinition } from "../catalogueTypes";
@@ -255,29 +255,8 @@ export default async function detectUrlRegexp(
         }
   `;
 
-  const completionContent: ChatCompletionContentPart[] = [
-    {
-      type: "text",
-      text: prompt,
-    },
-  ];
-
-  if (defaultOptions.screenshot) {
-    completionContent.push({
-      type: "image_url",
-      image_url: {
-        url: `data:image/webp;base64,${defaultOptions.screenshot}`,
-      },
-    });
-  }
-
   const result = await simpleToolCompletion({
-    messages: [
-      {
-        role: "user",
-        content: completionContent,
-      },
-    ],
+    messages: [userPageMessage(prompt, defaultOptions.screenshot)],
     toolName: "detail_link_regexp",
     parameters: {
       regexp: {
