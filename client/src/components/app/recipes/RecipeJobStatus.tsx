@@ -112,7 +112,8 @@ function parseStatusLogMessage(line: string): string | null {
 function isStageOrStatusLog(line: string): boolean {
   return (
     parseAgenticRecipeStageLog(line) !== null ||
-    parseStatusLogMessage(line) !== null
+    parseStatusLogMessage(line) !== null ||
+    line.includes("```")
   );
 }
 
@@ -127,6 +128,53 @@ function isSafeHttpUrl(href: string): boolean {
   } catch {
     return false;
   }
+}
+
+function renderMarkdownCodeBlock(code: string, key: string) {
+  return (
+    <pre
+      key={key}
+      className="my-1 box-border block w-full max-w-full max-h-[50vh] overflow-auto whitespace-pre rounded-md border bg-muted/60 p-2 font-mono text-xs"
+    >
+      {code}
+    </pre>
+  );
+}
+
+function renderMarkdown(text: string, keyPrefix = "md"): ReactNode {
+  const fencePattern = /```[^\n]*\n?([\s\S]*?)```/g;
+  const nodes: ReactNode[] = [];
+  let lastIndex = 0;
+  let blockIndex = 0;
+  for (const match of text.matchAll(fencePattern)) {
+    const index = match.index ?? 0;
+    if (index > lastIndex) {
+      nodes.push(
+        <Fragment key={`${keyPrefix}-p-${blockIndex}`}>
+          {renderInlineMarkdown(
+            text.slice(lastIndex, index),
+            `${keyPrefix}-i-${blockIndex}`
+          )}
+        </Fragment>
+      );
+    }
+    nodes.push(
+      renderMarkdownCodeBlock(
+        match[1].replace(/^\n/, "").replace(/\n$/, ""),
+        `${keyPrefix}-c-${blockIndex}`
+      )
+    );
+    lastIndex = index + match[0].length;
+    blockIndex += 1;
+  }
+  if (lastIndex < text.length) {
+    nodes.push(
+      <Fragment key={`${keyPrefix}-p-end`}>
+        {renderInlineMarkdown(text.slice(lastIndex), `${keyPrefix}-i-end`)}
+      </Fragment>
+    );
+  }
+  return nodes;
 }
 
 function renderInlineMarkdown(text: string, keyPrefix = "md"): ReactNode {
@@ -201,7 +249,7 @@ function renderRecipeJobLogLine(line: string) {
     return (
       <>
         <em className="text-green-800">Status changed:</em>{" "}
-        {renderInlineMarkdown(statusMessage)}
+        {renderMarkdown(statusMessage)}
       </>
     );
   }
@@ -210,11 +258,11 @@ function renderRecipeJobLogLine(line: string) {
     return (
       <>
         <em className="text-fuchsia-700">Tool:</em>{" "}
-        {renderInlineMarkdown(toolMessage)}
+        {renderMarkdown(toolMessage)}
       </>
     );
   }
-  return renderInlineMarkdown(line);
+  return renderMarkdown(line);
 }
 
 function latestStatusFromLogs(logs: string[]): string | null {
@@ -448,7 +496,7 @@ export default function RecipeJobStatus({ recipeId }: { recipeId: number }) {
                   className="font-serif text-muted-foreground line-clamp-6 break-words"
                   title={lastStatus}
                 >
-                  {renderInlineMarkdown(lastStatus)}
+                  {renderMarkdown(lastStatus)}
                   {jobWatcher.startedAt ? <> · {elapsed}</> : null}
                 </p>
               ) : jobWatcher.startedAt && !isAgenticComplete ? (
@@ -509,9 +557,15 @@ export default function RecipeJobStatus({ recipeId }: { recipeId: number }) {
               ) : null}
               <p className="mt-4">You can adjust the URL, or try again.</p>
               <p className="mt-8">Failure reason:</p>
-              <pre className="mt-2 text-xs overflow-x-auto">
-                {recipe.detectionFailureReason}
-              </pre>
+              {isAgenticJob ? (
+                <p className="mt-2 text-sm whitespace-pre-wrap">
+                  {recipe.detectionFailureReason}
+                </p>
+              ) : (
+                <pre className="mt-2 text-xs overflow-x-auto">
+                  {recipe.detectionFailureReason}
+                </pre>
+              )}
               {jobWatcher.logs.length > 0 ? (
                 <Button
                   type="button"

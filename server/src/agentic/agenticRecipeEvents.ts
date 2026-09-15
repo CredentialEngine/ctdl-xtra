@@ -20,6 +20,7 @@ export interface ParsedXtraEvent {
   extracted?: boolean;
   url?: string;
   entryCount?: number;
+  configuration?: unknown;
 }
 
 export type FormattedAgentLog =
@@ -45,6 +46,7 @@ export function parseXtraToolResult(message: string): ParsedXtraEvent | null {
       url?: unknown;
       linkRegexp?: unknown;
       entryCount?: number;
+      configuration?: unknown;
     };
     if (!parsed.xtraEvent || !parsed.kind) {
       return null;
@@ -78,6 +80,9 @@ export function parseXtraToolResult(message: string): ParsedXtraEvent | null {
       extracted: parsed.extracted,
       url: typeof parsed.url === "string" ? parsed.url : undefined,
       entryCount: parsed.entryCount,
+      ...(parsed.configuration !== undefined
+        ? { configuration: parsed.configuration }
+        : {}),
     };
   } catch {
     return null;
@@ -117,8 +122,18 @@ export function formatAgentEventForPublicLog(
     ) {
       return { kind: "plain", message: parsed.message };
     }
-    if (parsed.kind === "submit" && parsed.message) {
-      return { kind: "plain", message: parsed.message };
+    if (parsed.kind === "submit") {
+      const parts: string[] = [];
+      if (parsed.message) {
+        parts.push(parsed.message);
+      }
+      if (parsed.configuration !== undefined) {
+        parts.push(formatRecipeConfigurationLog(parsed.configuration));
+      }
+      if (parts.length === 0) {
+        return null;
+      }
+      return { kind: "plain", message: parts.join("\n") };
     }
     if (parsed.kind === "test_extraction") {
       return {
@@ -135,6 +150,10 @@ export function formatAgentEventForPublicLog(
     }
   }
   return null;
+}
+
+export function formatRecipeConfigurationLog(configuration: unknown): string {
+  return `\`\`\`json\n${JSON.stringify(configuration, null, 2)}\n\`\`\``;
 }
 
 function formatTestExtractionLogMessage(input: {

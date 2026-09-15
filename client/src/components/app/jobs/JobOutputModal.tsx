@@ -46,7 +46,7 @@ export default function JobOutputModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[66vw] w-11/12 max-h-[70vh] overflow-hidden flex flex-col">
+      <DialogContent className="sm:max-w-[66vw] w-11/12 max-h-[70vh] min-w-0 overflow-hidden flex flex-col">
         <DialogHeader>
           <DialogTitle>Job output</DialogTitle>
           <DialogDescription>
@@ -67,16 +67,19 @@ export default function JobOutputModal({
         </div>
         <div
           ref={outputRef}
-          className="mt-4 flex-1 min-h-[240px] max-h-[50vh] overflow-y-auto rounded-md border bg-muted/40 p-4"
+          className="mt-4 flex-1 min-h-[240px] min-w-0 max-h-[50vh] overflow-y-auto rounded-md border bg-muted/40 p-4"
         >
           {logs.length === 0 ? (
             <p className="font-serif text-sm text-muted-foreground">
               Waiting for output…
             </p>
           ) : (
-            <div className="font-serif text-sm space-y-1">
+            <div className="font-serif text-sm space-y-1 min-w-0 w-full">
               {displayedLogs.map((line, index) => (
-                <div key={index} className="whitespace-pre-wrap">
+                <div
+                  key={index}
+                  className="min-w-0 w-full max-w-full overflow-x-hidden whitespace-pre-wrap"
+                >
                   {renderLine ? renderLine(line) : line}
                 </div>
               ))}
