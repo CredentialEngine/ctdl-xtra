@@ -154,11 +154,13 @@ Guidelines:
 Verification:
 
 1. For each non-DETAIL level, call \`xtra_verify_recipe_links\` with that level's URL, \`linkRegexp\`, and dynamic options.
-2. Compare returned URLs to what you expect from browsing.
-3. If results are wrong or empty, call \`xtra_report_stage\` with \`${AgenticRecipeStage.WRITE_CONFIGURATION}\`, fix the configuration, and re-verify.
-4. When link verification passes, sample DETAIL page URLs at random from the verified set (spread across the list; do not take the first consecutive links). Call \`xtra_test_extraction\` on each sampled URL, up to 10 times. This tool is limited to 10 calls for this recipe; further calls return an error that you tried too many times.
-5. \`xtra_test_extraction\` returns \`extracted: true\` if any entries were generated, otherwise \`extracted: false\`. If a sample returns false, call \`xtra_report_stage\` with \`${AgenticRecipeStage.WRITE_CONFIGURATION}\`, fix the configuration, and re-verify links. Remaining extraction attempts still count toward the 10-call limit.
-6. When every level's links pass and sampled DETAIL pages extract successfully, call \`xtra_submit_recipe_configuration\` with the final configuration object and a brief summary.
+2. If verification with xtra_verify_recipe_links failed even with a very wide Regex (such as '.*'), write a recipe with pageLoadWaitTime set to 10 and verify again.
+3. Compare returned URLs to what you expect from browsing.
+4. If results are wrong or empty, call \`xtra_report_stage\` with \`${AgenticRecipeStage.WRITE_CONFIGURATION}\`, fix the configuration, and re-verify.
+5. When link verification passes, sample DETAIL page URLs at random from the verified set (spread across the list; do not take the first consecutive links). Call \`xtra_test_extraction\` on each sampled URL, up to 10 times. This tool is limited to 10 calls for this recipe; further calls return an error that you tried too many times.
+6. \`xtra_test_extraction\` returns \`extracted: true\` if any entries were generated, otherwise \`extracted: false\`. If a sample returns false, call \`xtra_report_stage\` with \`${AgenticRecipeStage.WRITE_CONFIGURATION}\`, fix the configuration, and re-verify links. Remaining extraction attempts still count toward the 10-call limit.
+7. When every level's links pass and sampled DETAIL pages extract successfully, call \`xtra_submit_recipe_configuration\` with the final configuration object and a brief summary.
+
 
 Start now with \`${AgenticRecipeStage.ASSESS_USABILITY}\`: call \`xtra_report_stage\` with that stage enum, then \`xtra_report_progress\`, then navigate to ${input.url}.
 `.trim();
