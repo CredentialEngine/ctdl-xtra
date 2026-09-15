@@ -3,6 +3,7 @@ import { AgenticRecipeStage } from "../../common/types";
 import { agenticRecipeStageLog } from "../../common/recipe";
 import {
   formatAgentEventForPublicLog,
+  formatRecipeConfigurationLog,
   parseXtraToolResult,
   stageLog,
   statusLog,
@@ -185,6 +186,30 @@ describe("formatAgentEventForPublicLog", () => {
       kind: "plain",
       message:
         "Verification found 1 matching link by using Regex (COURSE-\\d+) on [this page](https://catalog.example.edu/courses)",
+    });
+  });
+
+  it("maps submit results to a summary and formatted JSON code block", () => {
+    const configuration = {
+      pageType: "DETAIL_LINKS",
+      linkRegexp: "course\\\\/\\\\w+",
+      links: { pageType: "DETAIL" },
+    };
+    expect(
+      formatAgentEventForPublicLog({
+        type: "tool",
+        message: JSON.stringify({
+          xtraEvent: true,
+          kind: "submit",
+          message: "Two-level course recipe.",
+          configuration,
+        }),
+      })
+    ).toEqual({
+      kind: "plain",
+      message: `Two-level course recipe.\n${formatRecipeConfigurationLog(
+        configuration
+      )}`,
     });
   });
 

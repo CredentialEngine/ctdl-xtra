@@ -263,10 +263,13 @@ async function handleToolCall(name: string, args: Record<string, unknown>) {
           targetUrl,
           readPageSetupFromEnv()
         );
-        const waitSeconds = readPageLoadWaitTimeFromEnv();
-        if (waitSeconds) {
+        const pageWaitTimeSec = readPageLoadWaitTimeFromEnv();
+        if (pageWaitTimeSec) {
+          console.error(
+            `[puppeteerMcp] Waiting ${pageWaitTimeSec} seconds after page load at ${targetUrl}`
+          );
           await new Promise((resolve) =>
-            setTimeout(resolve, waitSeconds * 1000)
+            setTimeout(resolve, pageWaitTimeSec * 1000)
           );
         }
         return {

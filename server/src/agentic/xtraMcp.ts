@@ -53,3 +53,19 @@ export function xtraMcpEnv(session: XtraMcpSession): Record<string, string> {
   }
   return env;
 }
+
+/** Parse a tool-argument page wait (seconds). `0` means no extra wait. */
+export function parsePageLoadWaitTime(value: unknown): number | undefined {
+  if (typeof value === "number") {
+    return Number.isFinite(value) && value >= 0 ? value : undefined;
+  }
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    if (!trimmed) {
+      return undefined;
+    }
+    const parsed = Number(trimmed);
+    return Number.isFinite(parsed) && parsed >= 0 ? parsed : undefined;
+  }
+  return undefined;
+}
