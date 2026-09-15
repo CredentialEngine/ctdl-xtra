@@ -1,5 +1,8 @@
 import JobOutputModal from "@/components/app/jobs/JobOutputModal";
-import { useJobWatcher } from "@/components/app/jobs/useJobWatcher";
+import {
+  isTerminalJobState,
+  useJobWatcher,
+} from "@/components/app/jobs/useJobWatcher";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -266,13 +269,24 @@ function AgenticStageList({
 export default function RecipeJobStatus({ recipeId }: { recipeId: number }) {
   const [jobOutputOpen, setJobOutputOpen] = useState(false);
   const [retrying, setRetrying] = useState(false);
+  const [pollJob, setPollJob] = useState(false);
   const { toast } = useToast();
   const utils = trpc.useContext();
   const recipeQuery = trpc.recipes.detail.useQuery(
     { id: recipeId },
     {
-      refetchInterval: (data) =>
-        data?.status === RecipeDetectionStatus.SUCCESS ? false : 2000,
+      refetchInterval: (data) => {
+        if (retrying) {
+          return 2000;
+        }
+        if (
+          data?.status === RecipeDetectionStatus.WAITING ||
+          data?.status === RecipeDetectionStatus.IN_PROGRESS
+        ) {
+          return 2000;
+        }
+        return false;
+      },
     }
   );
   const recipeStatus = recipeQuery.data?.status;
@@ -298,12 +312,18 @@ export default function RecipeJobStatus({ recipeId }: { recipeId: number }) {
       refetchOnReconnect: false,
     }
   );
-  const jobWatcher = useJobWatcher(jobStatusQuery.data?.watchKey ?? null);
+  const jobIsActive =
+    !!jobStatusQuery.data?.state &&
+    !isTerminalJobState(jobStatusQuery.data.state);
+  const jobWatcher = useJobWatcher(jobStatusQuery.data?.watchKey ?? null, {
+    poll: pollJob || jobIsActive,
+  });
   const reconfigureRecipe = trpc.recipes.reconfigure.useMutation();
   const reconfigureAgenticRecipe = trpc.recipes.reconfigureAgentic.useMutation();
 
   useEffect(() => {
     setRetrying(false);
+    setPollJob(false);
   }, [recipeId]);
 
   const recipe = recipeQuery.data;
@@ -348,7 +368,17 @@ export default function RecipeJobStatus({ recipeId }: { recipeId: number }) {
     }
     const useAgentic = isAgenticJob;
     setRetrying(true);
+    setPollJob(true);
     jobWatcher.resetLogs();
+    utils.recipes.detail.setData({ id: recipeId }, (current) =>
+      current
+        ? {
+            ...current,
+            status: RecipeDetectionStatus.WAITING,
+            detectionFailureReason: null,
+          }
+        : current
+    );
     try {
       if (useAgentic) {
         const result = await reconfigureAgenticRecipe.mutateAsync({
@@ -358,7 +388,7 @@ export default function RecipeJobStatus({ recipeId }: { recipeId: number }) {
           kind: "agentic",
           state: "waiting",
           progress: null,
-          model: agenticModel,
+          model: agenticModel ?? "",
           ...result,
         });
       } else {
@@ -370,10 +400,14 @@ export default function RecipeJobStatus({ recipeId }: { recipeId: number }) {
           ...result,
         });
       }
+      jobWatcher.resumeWatching();
       await Promise.all([recipeQuery.refetch(), jobStatusQuery.refetch()]);
       setRetrying(false);
     } catch (err) {
+      setPollJob(false);
+      jobWatcher.resumeWatching();
       setRetrying(false);
+      await Promise.all([recipeQuery.refetch(), jobStatusQuery.refetch()]);
       toast({
         title: useAgentic
           ? "Could not retry agentic configuration"
