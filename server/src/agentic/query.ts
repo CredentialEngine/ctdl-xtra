@@ -6,6 +6,7 @@ import {
   type AgentEvent,
   type AgentRunResult,
 } from "./types";
+import { mcpToolDisplayName } from "./permissions";
 import { serverPackageRoot } from "./paths";
 
 export interface AgentQueryRequest {
@@ -58,12 +59,17 @@ export async function runAgentQuery(
       },
     },
   })) {
-    collectToolNames(message, toolNames);
-
     if (message.type === "assistant") {
       const text = assistantText(message);
       if (text) {
         log({ type: "assistant", message: text });
+      }
+      for (const name of toolUseNames(message)) {
+        toolNames.add(name);
+        const toolName = mcpToolDisplayName(name);
+        if (toolName) {
+          log({ type: "toolCall", message: toolName });
+        }
       }
     }
 
@@ -182,18 +188,19 @@ function toolResultText(message: unknown): string | null {
   return joined.slice(0, 800);
 }
 
-function collectToolNames(message: unknown, into: Set<string>) {
+function toolUseNames(message: unknown): string[] {
   const typed = message as {
     type?: string;
     message?: { content?: unknown };
   };
   if (typed.type !== "assistant") {
-    return;
+    return [];
   }
   const content = typed.message?.content;
   if (!Array.isArray(content)) {
-    return;
+    return [];
   }
+  const names: string[] = [];
   for (const block of content) {
     if (
       block &&
@@ -201,7 +208,8 @@ function collectToolNames(message: unknown, into: Set<string>) {
       (block as { type?: string }).type === "tool_use" &&
       typeof (block as { name?: string }).name === "string"
     ) {
-      into.add((block as { name: string }).name);
+      names.push((block as { name: string }).name);
     }
   }
+  return names;
 }

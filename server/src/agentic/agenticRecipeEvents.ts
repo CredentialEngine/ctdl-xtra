@@ -22,6 +22,7 @@ export interface ParsedXtraEvent {
 
 export type FormattedAgentLog =
   | { kind: "status"; message: string }
+  | { kind: "tool"; message: string }
   | { kind: "stage"; stage: AgenticRecipeStage }
   | { kind: "plain"; message: string };
 
@@ -39,6 +40,8 @@ export function parseXtraToolResult(message: string): ParsedXtraEvent | null {
       message?: string;
       matchCount?: number;
       extracted?: boolean;
+      url?: unknown;
+      linkRegexp?: unknown;
     };
     if (!parsed.xtraEvent || !parsed.kind) {
       return null;
@@ -57,7 +60,17 @@ export function parseXtraToolResult(message: string): ParsedXtraEvent | null {
       kind: parsed.kind,
       stage: isAgenticRecipeStage(parsed.stage) ? parsed.stage : undefined,
       changed: parsed.changed,
-      message: parsed.message,
+      message:
+        parsed.kind === "verify"
+          ? formatVerifyLogMessage({
+              matchCount: parsed.matchCount,
+              url: typeof parsed.url === "string" ? parsed.url : undefined,
+              linkRegexp:
+                typeof parsed.linkRegexp === "string"
+                  ? parsed.linkRegexp
+                  : undefined,
+            })
+          : parsed.message,
       matchCount: parsed.matchCount,
       extracted: parsed.extracted,
     };
@@ -71,6 +84,9 @@ export function formatAgentEventForPublicLog(
 ): FormattedAgentLog | null {
   if (event.type === "status") {
     return { kind: "status", message: event.message };
+  }
+  if (event.type === "toolCall") {
+    return { kind: "tool", message: event.message };
   }
   if (event.type === "assistant") {
     const trimmed = event.message.trim();
@@ -90,15 +106,11 @@ export function formatAgentEventForPublicLog(
       }
       return { kind: "stage", stage: parsed.stage };
     }
-    if (parsed.kind === "progress" && parsed.message) {
+    if (
+      (parsed.kind === "progress" || parsed.kind === "verify") &&
+      parsed.message
+    ) {
       return { kind: "plain", message: parsed.message };
-    }
-    if (parsed.kind === "verify") {
-      const count = parsed.matchCount ?? 0;
-      return {
-        kind: "plain",
-        message: `Verification found ${count} matching link${count === 1 ? "" : "s"}.`,
-      };
     }
     if (parsed.kind === "submit" && parsed.message) {
       return { kind: "plain", message: parsed.message };
@@ -119,8 +131,24 @@ export function formatAgentEventForPublicLog(
   return null;
 }
 
+function formatVerifyLogMessage(input: {
+  matchCount?: number;
+  url?: string;
+  linkRegexp?: string;
+}): string {
+  const count = input.matchCount ?? 0;
+  const links = `matching link${count === 1 ? "" : "s"}`;
+  const regexp = input.linkRegexp ?? "";
+  const page = input.url ? `[this page](${input.url})` : "this page";
+  return `Verification found ${count} ${links} by using Regex (${regexp}) on ${page}`;
+}
+
 export function statusLog(message: string): string {
   return `<status>${message}</status>`;
+}
+
+export function toolLog(message: string): string {
+  return `<tool>${message}</tool>`;
 }
 
 export function stageLog(stage: AgenticRecipeStage): string {

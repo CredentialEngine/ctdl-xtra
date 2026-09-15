@@ -10,6 +10,7 @@ export {
   parseXtraToolResult,
   statusLog,
   stageLog,
+  toolLog,
 } from "./agenticRecipeEvents";
 export { verifyRecipeLinks } from "./verifyRecipeLinks";
 export { testExtraction } from "./testExtraction";

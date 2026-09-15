@@ -1,3 +1,4 @@
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -5,8 +6,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
 import { AGENTIC_RECIPE_CONFIG_JOB_RETENTION_HOURS } from "@common/recipe";
-import { useEffect, useRef, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 
 interface JobOutputModalProps {
   open: boolean;
@@ -14,6 +16,7 @@ interface JobOutputModalProps {
   logs: string[];
   isRunning: boolean;
   renderLine?: (line: string) => ReactNode;
+  isStageOrStatusLine?: (line: string) => boolean;
 }
 
 export default function JobOutputModal({
@@ -22,16 +25,24 @@ export default function JobOutputModal({
   logs,
   isRunning,
   renderLine,
+  isStageOrStatusLine,
 }: JobOutputModalProps) {
   const outputRef = useRef<HTMLDivElement>(null);
-  const logText = logs.join("\n");
+  const [showAll, setShowAll] = useState(false);
+  const displayedLogs = useMemo(() => {
+    if (showAll || !isStageOrStatusLine) {
+      return logs;
+    }
+    return logs.filter(isStageOrStatusLine);
+  }, [isStageOrStatusLine, logs, showAll]);
+  const displayedLogText = displayedLogs.join("\n");
 
   useEffect(() => {
     if (!open || !isRunning || !outputRef.current) {
       return;
     }
     outputRef.current.scrollTop = outputRef.current.scrollHeight;
-  }, [open, isRunning, logText]);
+  }, [open, isRunning, displayedLogText]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -44,6 +55,16 @@ export default function JobOutputModal({
             hours.
           </DialogDescription>
         </DialogHeader>
+        <div className="flex items-center space-x-2">
+          <Checkbox
+            id="show-all-output"
+            checked={showAll}
+            onCheckedChange={(checked) => setShowAll(checked === true)}
+          />
+          <Label htmlFor="show-all-output" className="font-normal">
+            Show all
+          </Label>
+        </div>
         <div
           ref={outputRef}
           className="mt-4 flex-1 min-h-[240px] max-h-[50vh] overflow-y-auto rounded-md border bg-muted/40 p-4"
@@ -54,10 +75,10 @@ export default function JobOutputModal({
             </p>
           ) : (
             <div className="font-serif text-sm space-y-1">
-              {logs.map((line, index) => (
-                <p key={index} className="whitespace-pre-wrap">
+              {displayedLogs.map((line, index) => (
+                <div key={index} className="whitespace-pre-wrap">
                   {renderLine ? renderLine(line) : line}
-                </p>
+                </div>
               ))}
             </div>
           )}

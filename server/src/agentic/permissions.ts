@@ -11,6 +11,19 @@ export const AGENTIC_RECIPE_ALLOWED_TOOLS = [
   "mcp__xtra__*",
 ];
 
+export function mcpToolDisplayName(toolName: string): string | null {
+  if (toolName.startsWith(PUPPETEER_TOOL_PREFIX)) {
+    return toolName.slice(PUPPETEER_TOOL_PREFIX.length) || null;
+  }
+  if (toolName.startsWith(XTRA_TOOL_PREFIX)) {
+    return toolName.slice(XTRA_TOOL_PREFIX.length) || null;
+  }
+  if (toolName.startsWith("puppeteer_") || toolName.startsWith("xtra_")) {
+    return toolName;
+  }
+  return null;
+}
+
 export const allowPuppeteerTools: CanUseTool = async (toolName) => {
   if (toolName === "ToolSearch" || toolName.startsWith(PUPPETEER_TOOL_PREFIX)) {
     return { behavior: "allow" };

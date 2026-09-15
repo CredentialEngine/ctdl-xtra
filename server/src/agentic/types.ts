@@ -27,6 +27,7 @@ export interface AgentBrowserOptions {
 
 export type AgentEvent =
   | { type: "status"; message: string }
+  | { type: "toolCall"; message: string }
   | { type: "assistant"; message: string }
   | { type: "tool"; message: string; isError?: boolean };
 

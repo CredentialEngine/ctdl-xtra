@@ -33,6 +33,8 @@ import { Fragment, useEffect, useState, type ReactNode } from "react";
 
 const STATUS_PREFIX = "<status>";
 const STATUS_SUFFIX = "</status>";
+const TOOL_PREFIX = "<tool>";
+const TOOL_SUFFIX = "</tool>";
 
 const STAGE_STATE_STYLES: Record<
   AgenticRecipeStageUiState,
@@ -84,16 +86,35 @@ function StageIndicator({ state }: { state: AgenticRecipeStageUiState }) {
   );
 }
 
-function parseStatusLogMessage(line: string): string | null {
-  if (!line.startsWith(STATUS_PREFIX)) {
+function parseTaggedLogMessage(
+  line: string,
+  prefix: string,
+  suffix: string
+): string | null {
+  if (!line.startsWith(prefix)) {
     return null;
   }
-  let message = line.slice(STATUS_PREFIX.length);
-  if (message.endsWith(STATUS_SUFFIX)) {
-    message = message.slice(0, -STATUS_SUFFIX.length);
+  let message = line.slice(prefix.length);
+  if (message.endsWith(suffix)) {
+    message = message.slice(0, -suffix.length);
   }
   message = message.trim();
   return message || null;
+}
+
+function parseStatusLogMessage(line: string): string | null {
+  return parseTaggedLogMessage(line, STATUS_PREFIX, STATUS_SUFFIX);
+}
+
+function isStageOrStatusLog(line: string): boolean {
+  return (
+    parseAgenticRecipeStageLog(line) !== null ||
+    parseStatusLogMessage(line) !== null
+  );
+}
+
+function parseToolLogMessage(line: string): string | null {
+  return parseTaggedLogMessage(line, TOOL_PREFIX, TOOL_SUFFIX);
 }
 
 function isSafeHttpUrl(href: string): boolean {
@@ -106,7 +127,7 @@ function isSafeHttpUrl(href: string): boolean {
 }
 
 function renderInlineMarkdown(text: string, keyPrefix = "md"): ReactNode {
-  const pattern = /\[([^\]]*)\]\(([^)]+)\)|\*\*(.+?)\*\*/g;
+  const pattern = /\[([^\]]*)\]\(([^)]+)\)|`([^`]+)`|\*\*(.+?)\*\*/g;
   const nodes: ReactNode[] = [];
   let lastIndex = 0;
   let matchIndex = 0;
@@ -138,10 +159,16 @@ function renderInlineMarkdown(text: string, keyPrefix = "md"): ReactNode {
       } else {
         nodes.push(<Fragment key={key}>{match[0]}</Fragment>);
       }
+    } else if (match[3] !== undefined) {
+      nodes.push(
+        <pre key={key} className="inline whitespace-pre-wrap font-mono">
+          {match[3]}
+        </pre>
+      );
     } else {
       nodes.push(
         <strong key={key}>
-          {renderInlineMarkdown(match[3] ?? "", key)}
+          {renderInlineMarkdown(match[4] ?? "", key)}
         </strong>
       );
     }
@@ -172,6 +199,15 @@ function renderRecipeJobLogLine(line: string) {
       <>
         <em className="text-green-800">Status changed:</em>{" "}
         {renderInlineMarkdown(statusMessage)}
+      </>
+    );
+  }
+  const toolMessage = parseToolLogMessage(line);
+  if (toolMessage) {
+    return (
+      <>
+        <em className="text-fuchsia-700">Tool:</em>{" "}
+        {renderInlineMarkdown(toolMessage)}
       </>
     );
   }
@@ -481,6 +517,7 @@ export default function RecipeJobStatus({ recipeId }: { recipeId: number }) {
         logs={jobWatcher.logs}
         isRunning={!jobWatcher.isTerminal}
         renderLine={renderRecipeJobLogLine}
+        isStageOrStatusLine={isStageOrStatusLog}
       />
     </>
   );

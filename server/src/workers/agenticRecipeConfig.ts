@@ -16,6 +16,7 @@ import {
   formatAgentEventForPublicLog,
   stageLog,
   statusLog,
+  toolLog,
 } from "../agentic/agenticRecipeEvents";
 import type { AgentEvent } from "../agentic/types";
 import { findRecipeById, updateRecipe } from "../data/recipes";
@@ -47,6 +48,14 @@ function createPublicLogHandler(
         message: AGENTIC_RECIPE_STAGE_LABELS[formatted.stage],
         status: "info",
       });
+      return;
+    }
+    if (formatted.kind === "tool") {
+      void publicLog(
+        job as PublicLoggableJob,
+        logger,
+        toolLog(formatted.message)
+      );
       return;
     }
     void publicLog(
