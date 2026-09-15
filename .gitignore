@@ -34,6 +34,9 @@ lerna-debug.log*
 !.env.example
 !**/.env.example
 
+# Local Docker Compose (copy from docker-compose.example.yml)
+docker-compose.yml
+
 # Build/test output
 dist/
 dist-ssr/
@@ -61,25 +64,4 @@ override.tf.json
 *_override.tf.json
 .terraformrc
 terraform.rc
-
-# Visual Studio
-.vs/
-
-# Python
-__pycache__/
-*.py[cod]
-*.egg-info/
-.venv/
-venv/
-.pytest_cache/
-.mypy_cache/
-.ruff_cache/
-
-# Local extraction file store (EXTRACTION_FILES_PATH)
-**/.extraction-files/
-
-# Nested standalone repo, tracked separately
-/xTRA-Scoring/
-
-# Claude Code local settings
-.claude/settings.local.json
+.pnpm-store

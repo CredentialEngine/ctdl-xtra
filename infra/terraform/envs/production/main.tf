@@ -8,6 +8,11 @@ locals {
     environment = local.env
     managed-by  = "terraform"
   }
+
+  # PROD runs in a single AZ (us-east-1a) at this stage: HA is kept within the
+  # zone (2 nodes per group, 2 replicas), but not across zones. Revisit when the
+  # app scales up. private_subnet_ids is ordered by var.azs, so [0] == us-east-1a.
+  single_az_private_subnet_ids = [module.vpc.private_subnet_ids[0]]
 }
 
 # ---------------------------------------------------------------

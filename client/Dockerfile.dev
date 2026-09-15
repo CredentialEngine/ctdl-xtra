@@ -1,0 +1,12 @@
+FROM node:20-alpine
+
+RUN npm install -g pnpm
+
+WORKDIR /app
+
+COPY client/package.json client/pnpm-lock.yaml client/pnpm-workspace.yaml ./
+RUN pnpm install
+
+EXPOSE 80
+
+CMD ["pnpm", "exec", "vite", "--host", "0.0.0.0", "--port", "80"]

@@ -66,5 +66,6 @@ module "eks" {
   external_secrets_secret_name_prefixes       = var.external_secrets_secret_name_prefixes
   external_secrets_ssm_parameter_prefixes     = var.external_secrets_ssm_parameter_prefixes
   enable_efs_csi_driver                       = var.enable_efs_csi_driver
+  enable_prefix_delegation                    = true
   common_tags                                 = local.common_tags
 }

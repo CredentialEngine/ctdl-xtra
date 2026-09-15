@@ -1,0 +1,42 @@
+# Dev API server image — same Puppeteer/Chrome setup as worker.Dockerfile;
+# source is bind-mounted and built at container start via docker-dev-entrypoint.sh.
+FROM --platform=linux/amd64 node:20
+
+ARG DEV_UID=1000
+ARG DEV_GID=1000
+
+ENV LANG=en_US.UTF-8
+
+RUN apt-get update \
+  && apt-get install -y wget gnupg \
+  && wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | gpg --dearmor -o /usr/share/keyrings/googlechrome-linux-keyring.gpg \
+  && sh -c 'echo "deb [arch=amd64 signed-by=/usr/share/keyrings/googlechrome-linux-keyring.gpg] https://dl-ssl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google.list' \
+  && apt-get update \
+  && apt-get install -y google-chrome-stable fonts-ipafont-gothic fonts-wqy-zenhei fonts-thai-tlwg fonts-khmeros fonts-kacst fonts-freefont-ttf libxss1 dbus dbus-x11 \
+  --no-install-recommends \
+  && rm -rf /var/lib/apt/lists/* \
+  && groupadd -r pptruser && useradd -rm -g pptruser -G audio,video pptruser
+
+RUN usermod -u "${DEV_UID}" pptruser \
+  && usermod -g "${DEV_GID}" pptruser \
+  && chown -R pptruser:pptruser /home/pptruser
+
+RUN npm install pm2 -g
+RUN npm install pnpm -g
+
+COPY server/package.json server/pnpm-lock.yaml server/pnpm-workspace.yaml /build/app/server/
+RUN cd /build/app/server && pnpm install
+
+USER pptruser
+RUN /build/app/server/node_modules/.bin/rebrowser-puppeteer browsers install chrome
+RUN /build/app/server/node_modules/.bin/rebrowser-puppeteer browsers install chrome-headless-shell
+
+USER root
+RUN mkdir -p /app \
+  && cp -R /build/app/server/node_modules /app/node_modules \
+  && cp /build/app/server/package.json /build/app/server/pnpm-lock.yaml /build/app/server/pnpm-workspace.yaml /app/
+
+WORKDIR /app
+
+ENTRYPOINT ["sh", "/app/docker-dev-entrypoint.sh"]
+CMD ["pnpm", "run", "dev"]

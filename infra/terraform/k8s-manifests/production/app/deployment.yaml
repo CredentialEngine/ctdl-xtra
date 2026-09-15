@@ -30,6 +30,16 @@ spec:
       serviceAccountName: ctdl-xtra
       nodeSelector:
         nodepool: app
+      # Spread the 2 replicas across the 2 app nodes so a node loss keeps one up
+      # (intra-AZ HA). Soft so a single-node window during maintenance still runs.
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              app.kubernetes.io/name: ctdl-xtra
+              app.kubernetes.io/component: api
       containers:
         - name: api
           image: 996810415034.dkr.ecr.us-east-1.amazonaws.com/ctdl-xtra/api:${IMAGE_TAG}
@@ -80,10 +90,10 @@ spec:
           resources:
             requests:
               cpu: 500m
-              memory: 1Gi
+              memory: 768Mi
             limits:
-              cpu: "2"
-              memory: 3Gi
+              cpu: "1"
+              memory: 1536Mi
       volumes:
         - name: extraction-files
           persistentVolumeClaim:
@@ -124,6 +134,16 @@ spec:
       serviceAccountName: ctdl-xtra
       nodeSelector:
         nodepool: app
+      # Spread the 2 replicas across the 2 app nodes so a node loss keeps one up
+      # (intra-AZ HA). Soft so a single-node window during maintenance still runs.
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              app.kubernetes.io/name: ctdl-xtra
+              app.kubernetes.io/component: worker
       terminationGracePeriodSeconds: 60
       containers:
         - name: worker
@@ -147,10 +167,10 @@ spec:
           resources:
             requests:
               cpu: 750m
-              memory: 2Gi
+              memory: 1536Mi
             limits:
-              cpu: "2"
-              memory: 4Gi
+              cpu: "1500m"
+              memory: 2560Mi
       volumes:
         - name: extraction-files
           persistentVolumeClaim:

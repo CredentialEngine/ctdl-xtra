@@ -59,8 +59,8 @@ helm upgrade --install metrics-server metrics-server/metrics-server \
   --wait \
   --timeout 5m
 
-kubectl --context "${CONTEXT}" apply -f "${SCRIPT_DIR}/cluster-autoscaler.yaml"
-kubectl --context "${CONTEXT}" -n kube-system rollout status deployment/cluster-autoscaler --timeout=180s
+# cluster-autoscaler intentionally not deployed on TEST: the node group is fixed
+# at a single node (min=max=desired=1), so there is nothing to scale.
 
 kubectl --context "${CONTEXT}" apply -f "${SCRIPT_DIR}/skooner.yaml"
 kubectl --context "${CONTEXT}" -n kube-system rollout status deployment/skooner --timeout=180s

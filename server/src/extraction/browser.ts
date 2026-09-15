@@ -99,6 +99,7 @@ export async function getCluster(proxyUrl?: string) {
       ignoreHTTPSErrors: true,
       dumpio: true, // Pipe Chrome process stdout/stderr to console when DEBUG=1
       args: [
+        "--disable-dev-shm-usage",
         "--font-render-hinting=none",
         "--force-gpu-mem-available-mb=4096",
         "--ignore-certificate-errors",
