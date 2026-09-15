@@ -358,6 +358,7 @@ async function handleToolCall(name: string, args: Record<string, unknown>) {
             kind: "submit",
             recipeId,
             message: summary,
+            configuration,
           })
         );
       } catch (error) {
