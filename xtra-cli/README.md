@@ -27,6 +27,50 @@ Azurite (local Azure Blob emulator), same as ceops:
 export AZURE_STORAGE_CONNECTION_STRING="UseDevelopmentStorage=true"
 ```
 
+## Windows
+
+PowerShell, from the repo root:
+
+```powershell
+py -3 -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install -e ".\xtra-cli[dev]"
+python -m playwright install chromium
+
+xtra --version
+xtra environment set dev --data-uri .\xtra-cache
+xtra catalog crawl --with-playwright --url https://catalog.brookdalecc.edu --limit 5 --discover-only --min-interval 0
+```
+
+If activation is blocked, run `Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass`
+first. In `cmd.exe` the activate line is `.\.venv\Scripts\activate.bat`.
+
+Environment variables are set per shell:
+
+```powershell
+$env:AZURE_STORAGE_CONNECTION_STRING = "UseDevelopmentStorage=true"
+$env:XTRA_ENV = "test"
+$env:XTRA_CONFIG_DIR = "C:\ci\xtra-config"
+$env:LOG_LEVEL = "DEBUG"
+```
+
+In `cmd.exe` use `set NAME=value`, and `setx NAME value` to persist across sessions.
+
+Two Windows differences to expect:
+
+- **Run folders use hyphens.** NTFS rejects `:` in a filename, so `run_id_for_path` turns
+  `2026-09-15T03:27:43Z` into `2026-09-15T03-27-43Z` for the folder name. You still pass
+  `--run-id` with colons and the JSON keeps the colon form, so copy the `run_id` from the
+  crawl output as printed. Azure Blob accepts colons, so a Windows machine writing to
+  Azure produces the same blob names as macOS.
+- **The config file is not permission protected.** `save_config` calls `chmod(0o600)`,
+  which on Windows only toggles the read-only bit. `%USERPROFILE%\.xtra\config.json`
+  holds no secret, only the name of the variable that does, but do not treat its
+  permissions as equivalent to POSIX.
+
+Local paths work in both forms: `.\xtra-cache`, `C:\xtra-cache`, or
+`file:///C:/xtra-cache`.
+
 ## Environments
 
 An xTRA environment names *where a run is written*: the storage container and the variable holding its secret. Same verbs as `ceops environment`:
@@ -168,16 +212,7 @@ file:///absolute/path
 
 Pass `--azure-storage-connection-string` or set `AZURE_STORAGE_CONNECTION_STRING`. Production reads and writes Azure Blob containers. Tests use `file://` plus mocked Blob clients; set the connection string to `UseDevelopmentStorage=true` to exercise Azurite (`pytest -m integration`).
 
-## Answers to the design questions
 
-1. **Packs.** A pack was a working directory plus an implied zip of a small slice. That does not scale to “any catalog of any size” and zip/pack folders add copies. This CLI does not take `--pack`. The run id is an ISO8601 UTC timestamp `yyyy-MM-ddTHH:mm:ssZ`. Artifacts are objects in `--target-uri`.
-2. **Crawl strategies.** `xtra catalog crawl --with-playwright --url ...` selects Playwright today. `--with-ai-agent` and `--with-third-party` are the extension points.
-3. **Extract / transform.** Same flag pattern: `--with-template` / `--with-ctdl` now; `--with-ai-agent` later.
-4. **`--limit 5`.** Page cap for tests. Not a pack size.
-5. **Concurrency and politeness.** `--concurrency` (default 1) and `--min-interval` (default 180s) plus exponential backoff. Long-running cache refresh should stay at those defaults.
-6. **Folder structure.** `src/xtra/catalog/crawl.py` and `tests/xtra/catalog/test_crawl.py`, matching ceops `src/ceops/<noun>/<noun>/<verb>.py`.
-7. **Azure Blob.** `src/common/azure_storage_*.py` is adapted from ceops. Local tests use Azurite (`UseDevelopmentStorage=true`) or `file://`. Production uses the account connection string and container URIs. `xtra environment set|show|list` picks the target account per environment (dev, test, sandbox, prod) exactly like `ceops environment`, and `--env` overrides it for one run.
-8. **When in doubt.** Storage URIs, Click groups, lazy command loading, and test paths follow ceops.
 
 ## Tests
 
