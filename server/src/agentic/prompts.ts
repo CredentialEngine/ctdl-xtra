@@ -15,7 +15,7 @@ Recipes work when the catalogue exposes a **stable URL map**:
 - Pagination changes the address bar using \`page_num\` (\`?page=2\`) or \`offset\` (\`?offset=20\`) patterns.
 - Links are real href destinations, OR dynamic catalogue mode applies (click produces a new URL).
 - Do not confuse dynamically rendered pages with catalogues that do not use regular URLs. As long as the dynamic
-  logic renders regular URLs that is still usable by extra (see wait time)
+  logic renders regular URLs that is still usable by xTRA (see wait time)
 
 Recipes do **not** work when:
 - The site is a SPA that never changes URL and clicks do not produce linkable addresses.
@@ -71,6 +71,8 @@ Each recipe level has a \`pageType\` that tells xTRA what is on the page and wha
 - Required for \`CATEGORY_LINKS\` and \`DETAIL_LINKS\`.
 - JavaScript RegExp syntax; escape \`/\` as \`\\/\`.
 - Should match target links but avoid nav/footer noise.
+- Prefer Regexp that will hold better for changes, for example if the target is '/content.php?catoid=13&navoid=664', use 'content\\.php\\?catoid=\\d+&navoid=\\d+' instead of '/content.php?catoid=13&navoid=\\d+'
+- Never use full URLs in the link regexp, all paths are matched against the URI so https://example.com/path is visible as /path to xTRA and the regex logic
 `.trim();
 
 export function agenticRecipeConfigurationPrompt(input: {
@@ -145,10 +147,11 @@ Guidelines:
 - Include \`pagination\` only when \`${AgenticRecipeStage.ASSESS_USABILITY}\` confirmed compatible pagination.
 - Include \`clickSelector\` / \`clickOptions\` only when dynamic catalogue is required.
 - Set \`pageLoadWaitTime\` if content appears after load delay.
+- Never asses yourself if a DETAIL page contains what is needed. Use the xtra_test_extraction tool to verify.
 
 ## Stage ${AgenticRecipeStage.VERIFY_RECIPE} — ${AGENTIC_RECIPE_STAGE_LABELS[AgenticRecipeStage.VERIFY_RECIPE]}
 
-Dry-run verification (do **not** enqueue pages):
+Verification:
 
 1. For each non-DETAIL level, call \`xtra_verify_recipe_links\` with that level's URL, \`linkRegexp\`, and dynamic options.
 2. Compare returned URLs to what you expect from browsing.
