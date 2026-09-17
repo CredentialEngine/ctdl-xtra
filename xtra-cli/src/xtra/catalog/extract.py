@@ -1,6 +1,9 @@
 """xtra catalog extract
 
-  xtra catalog extract --with-template --source-uri URI --target-uri URI --catalog-id ID --run-id TS
+  xtra catalog extract --with-template --catalog-id ID --run-id TS
+
+Works from the list discovery produced, so it no longer guesses which saved
+pages are courses.
 """
 
 from __future__ import annotations
@@ -10,9 +13,21 @@ import logging
 
 import click
 
-from common.keys import page_html_key, record_key, run_prefix
+from common.keys import (
+    discovery_key,
+    extract_report_key,
+    page_html_key,
+    page_meta_key,
+    record_key,
+)
 from common.object_store import open_store
-from implementations.extract import extract_record, slot_from_dict
+from implementations.discover import (
+    LABELS_FILE,
+    latest_discovery_run_id,
+    sample_file_name,
+)
+from implementations.discover_rules import LABEL_COURSE
+from implementations.extract import extract_record, slot_from_labels_entry
 from implementations.strategies import unimplemented_message
 from xtra.click import (
     env_option,
@@ -27,14 +42,10 @@ from xtra.click import (
 
 logger = logging.getLogger(__name__)
 
-
-def legacy_slots_key(catalog_id: str, run_id: str) -> str:
-    """slots.json from a run made before the crawler stopped writing one.
-
-    The crawler now saves pages and nothing else, so this key is local to
-    extract until discovery produces the page list it will read instead.
-    """
-    return f"{run_prefix(catalog_id, run_id)}/slots.json"
+REPORT_SCHEMA = "xtra-extract-report-1"
+REASON_MULTI_COURSE = "multi_course_page"
+REASON_NO_COURSE_BLOCK = "no_course_block"
+REASON_NO_TEMPLATE = "no_matching_template"
 
 
 @click.command(name="extract")
@@ -43,7 +54,17 @@ def legacy_slots_key(catalog_id: str, run_id: str) -> str:
 @source_uri_option()
 @target_uri_option()
 @click.option("--catalog-id", required=True)
-@click.option("--run-id", required=True, help="ISO8601 UTC run id from catalog crawl.")
+@click.option("--run-id", required=True, help="Crawl run id from catalog crawl.")
+@click.option(
+    "--discovery-run-id",
+    default=None,
+    help="Which discovery run to read. Default: the newest one.",
+)
+@click.option(
+    "--only-golden-sample",
+    is_flag=True,
+    help="Extract only the pages in the golden sample for review.",
+)
 @storage_connection_options()
 def main(
     strategy: str | None,
@@ -52,9 +73,17 @@ def main(
     target_uri: str | None,
     catalog_id: str,
     run_id: str,
+    discovery_run_id: str | None,
+    only_golden_sample: bool,
     azure_storage_connection_string: str | None,
 ) -> None:
-    """Transcribe printed course fields from frozen HTML. Candidate status only."""
+    """Transcribe printed course fields from saved HTML. Candidate status only.
+
+    Reads labels.json from the newest discovery run and processes the pages
+    it labelled Course with exactly one course block. Anything skipped is
+    written to extract-report.json, beside records/ and never inside it,
+    because transform reads every JSON file under records/.
+    """
     strategy = require_strategy(strategy, example="--with-template")
     if strategy != "template":
         raise click.ClickException(
@@ -66,24 +95,92 @@ def main(
     azure_storage_connection_string = resolve_connection(
         azure_storage_connection_string, env_name=env_name
     )
-
     source = open_store(
-        source_uri,
-        azure_storage_connection_string=azure_storage_connection_string,
+        source_uri, azure_storage_connection_string=azure_storage_connection_string
     )
     target = open_store(
-        target_uri,
-        azure_storage_connection_string=azure_storage_connection_string,
+        target_uri, azure_storage_connection_string=azure_storage_connection_string
     )
-    payload = source.get_json(legacy_slots_key(catalog_id, run_id))
-    slots = payload.get("slots") or []
-    written = []
-    for raw in slots:
-        slot = slot_from_dict(raw)
-        html = source.get_text(page_html_key(catalog_id, run_id, slot.stem))
-        record = extract_record(slot, html, retrieved_at=raw.get("retrieved_at"))
-        target.put_json(record_key(catalog_id, run_id, slot.record_id), record)
-        written.append(slot.record_id)
+
+    discovery_run_id = discovery_run_id or latest_discovery_run_id(
+        source, catalog_id, run_id
+    )
+    if not discovery_run_id:
+        raise click.ClickException(
+            f"no discovery run for {catalog_id} {run_id}. "
+            "Run xtra catalog discover first."
+        )
+
+    labels = source.get_json(
+        discovery_key(catalog_id, run_id, discovery_run_id, LABELS_FILE)
+    )
+    entries = [
+        entry
+        for entry in labels.get("pages") or []
+        if LABEL_COURSE in (entry.get("labels") or [])
+    ]
+    if only_golden_sample:
+        sample = source.get_json(
+            discovery_key(
+                catalog_id,
+                run_id,
+                discovery_run_id,
+                sample_file_name(LABEL_COURSE),
+            )
+        )
+        wanted = {page["stem"] for page in sample.get("pages") or []}
+        entries = [entry for entry in entries if entry["stem"] in wanted]
+
+    written: list[str] = []
+    skipped: list[dict[str, str]] = []
+    for entry in entries:
+        stem = entry["stem"]
+        blocks = entry.get("course_block_count") or 0
+        if blocks != 1:
+            skipped.append(
+                {
+                    "stem": stem,
+                    "url": entry.get("url", ""),
+                    "reason": (
+                        REASON_MULTI_COURSE if blocks > 1 else REASON_NO_COURSE_BLOCK
+                    ),
+                    "detail": f"{blocks} course block(s)",
+                }
+            )
+            continue
+
+        html = source.get_text(page_html_key(catalog_id, run_id, stem))
+        retrieved_at = _retrieved_at(source, catalog_id, run_id, stem)
+        slot = slot_from_labels_entry(entry, retrieved_at=retrieved_at)
+        try:
+            record = extract_record(
+                slot, html, retrieved_at=retrieved_at, stem=stem
+            )
+        except Exception as exc:  # noqa: BLE001 - the lib raises its own type
+            skipped.append(
+                {
+                    "stem": stem,
+                    "url": entry.get("url", ""),
+                    "reason": REASON_NO_TEMPLATE,
+                    "detail": str(exc).splitlines()[0],
+                }
+            )
+            continue
+        target.put_json(record_key(catalog_id, run_id, record["record_id"]), record)
+        written.append(record["record_id"])
+
+    report = {
+        "schema": REPORT_SCHEMA,
+        "catalog_folder": catalog_id,
+        "run_id": run_id,
+        "discovery_run_id": discovery_run_id,
+        "only_golden_sample": only_golden_sample,
+        "pages_considered": len(entries),
+        "records_written": len(written),
+        "skipped_by_reason": _counted(skipped),
+        "skipped": skipped,
+    }
+    target.put_json(extract_report_key(catalog_id, run_id), report)
 
     click.echo(
         json.dumps(
@@ -91,11 +188,32 @@ def main(
                 "strategy": strategy,
                 "catalog_id": catalog_id,
                 "run_id": run_id,
+                "discovery_run_id": discovery_run_id,
+                "only_golden_sample": only_golden_sample,
                 "records": written,
+                "skipped_by_reason": report["skipped_by_reason"],
             },
             indent=2,
         )
     )
+
+
+def _retrieved_at(
+    source: object, catalog_id: str, run_id: str, stem: str
+) -> str | None:
+    """When the crawl captured this page, from its sidecar."""
+    try:
+        meta = source.get_json(page_meta_key(catalog_id, run_id, stem))
+    except (FileNotFoundError, ValueError):
+        return None
+    return meta.get("retrieved_at")
+
+
+def _counted(skipped: list[dict[str, str]]) -> dict[str, int]:
+    counts: dict[str, int] = {}
+    for item in skipped:
+        counts[item["reason"]] = counts.get(item["reason"], 0) + 1
+    return dict(sorted(counts.items()))
 
 
 if __name__ == "__main__":

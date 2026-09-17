@@ -90,6 +90,35 @@ def page_meta_key(catalog_folder: str, run_id: str, stem: str) -> str:
     return f"{run_prefix(catalog_folder, run_id)}/pages/{stem}.meta.json"
 
 
+def discovery_root(catalog_folder: str, run_id: str) -> str:
+    """Where every discovery run of one crawl run lives, side by side."""
+    return f"{run_prefix(catalog_folder, run_id)}/discovery"
+
+
+def discovery_prefix(
+    catalog_folder: str, run_id: str, discovery_run_id: str
+) -> str:
+    return (
+        f"{discovery_root(catalog_folder, run_id)}/"
+        f"{run_id_for_path(discovery_run_id)}"
+    )
+
+
+def discovery_key(
+    catalog_folder: str, run_id: str, discovery_run_id: str, name: str
+) -> str:
+    return f"{discovery_prefix(catalog_folder, run_id, discovery_run_id)}/{name}"
+
+
+def extract_report_key(catalog_folder: str, run_id: str) -> str:
+    """Skipped pages live beside records/, never inside it.
+
+    transform reads every JSON file under records/, so a report stored there
+    would be transformed as if it were a course.
+    """
+    return f"{run_prefix(catalog_folder, run_id)}/extract-report.json"
+
+
 def record_key(catalog_folder: str, run_id: str, record_id: str) -> str:
     return f"{run_prefix(catalog_folder, run_id)}/records/{record_id}.json"
 

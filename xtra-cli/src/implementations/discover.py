@@ -1,0 +1,471 @@
+"""Read a whole crawl and say what is in it.
+
+Discovery never fetches anything. It reads every page the crawl saved, works
+out what each one is, groups the pages that share a shape, names the shapes
+that are unusual, and picks a sample that covers all of them. The result is
+a preprocessed list extraction can work from, and a report a person can read
+before trusting any of it.
+"""
+
+from __future__ import annotations
+
+import csv
+import io
+import json
+import logging
+import subprocess
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Any
+
+from common.keys import (
+    discovery_key,
+    discovery_root,
+    page_html_key,
+    run_prefix,
+)
+from common.storage_uri import join_storage_uri
+from implementations.discover_page import PageProfile, profile_page
+from implementations.discover_patterns import (
+    CATALOG_YEAR,
+    Pattern,
+    Vocabulary,
+    assign_patterns,
+    build_patterns,
+    build_stats,
+    build_vocabulary,
+)
+from implementations.discover_rules import (
+    DEFAULT_SAMPLE_LABEL,
+    DEFAULT_SAMPLE_SIZE,
+    MARKER_MEANING,
+    RARE_LABEL_SHARE,
+)
+from implementations.discover_sample import GoldenSample, choose_sample
+
+logger = logging.getLogger(__name__)
+
+DISCOVERY_SCHEMA = "xtra-discovery-1"
+LABELS_SCHEMA = "xtra-labels-1"
+PAGES_FILE = "pages.jsonl"
+SUMMARY_FILE = "summary.json"
+LABELS_FILE = "labels.json"
+FIELD_LABELS_FILE = "field-labels.csv"
+PATTERNS_JSON_FILE = "patterns.json"
+PATTERNS_MD_FILE = "patterns.md"
+EMPTY_OR_ERROR = "empty_or_error_page"
+_CLI_ROOT = Path(__file__).resolve().parents[2]
+
+
+class NoPagesError(RuntimeError):
+    """The crawl run has no saved pages to read."""
+
+
+@dataclass(frozen=True)
+class DiscoverSettings:
+    catalog_folder: str
+    run_id: str
+    discovery_run_id: str
+    source_uri: str
+    sample_label: str = DEFAULT_SAMPLE_LABEL
+    sample_size: int = DEFAULT_SAMPLE_SIZE
+
+
+@dataclass
+class DiscoveryOutcome:
+    summary: dict[str, Any]
+    profiles: list[PageProfile]
+    patterns: list[Pattern]
+    sample: GoldenSample
+    table: str
+
+
+def git_commit() -> str | None:
+    """The commit these rules came from, so a report can be reproduced."""
+    try:
+        finished = subprocess.run(
+            ["git", "rev-parse", "HEAD"],
+            capture_output=True,
+            text=True,
+            timeout=10,
+            check=False,
+            cwd=_CLI_ROOT,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return None
+    return finished.stdout.strip() or None
+
+
+def read_saved_pages(
+    source: Any, catalog_folder: str, run_id: str
+) -> list[tuple[dict[str, Any], str]]:
+    """Every page of the crawl run, in a stable order. No sampling here.
+
+    Profiling the whole run is the point: a special case that only shows up
+    on page 700 cannot be found by looking at the first ten.
+    """
+    prefix = f"{run_prefix(catalog_folder, run_id)}/pages"
+    meta_keys = sorted(
+        key for key in source.list_keys(under=prefix) if key.endswith(".meta.json")
+    )
+    pages: list[tuple[dict[str, Any], str]] = []
+    for key in meta_keys:
+        meta = source.get_json(key)
+        stem = meta.get("stem") or key.rsplit("/", 1)[-1][: -len(".meta.json")]
+        html = source.get_text(page_html_key(catalog_folder, run_id, stem))
+        pages.append((meta, html))
+    return pages
+
+
+def mark_duplicates(profiles: list[PageProfile]) -> int:
+    """The second copy of the same text points at the first."""
+    first_seen: dict[str, str] = {}
+    duplicates = 0
+    for profile in profiles:
+        original = first_seen.get(profile.text_sha256)
+        if original is None:
+            first_seen[profile.text_sha256] = profile.stem
+        else:
+            profile.duplicate_of = original
+            duplicates += 1
+    return duplicates
+
+
+def dominant_page_type(label: str, stats: Any) -> str:
+    """The page type a label mostly appears on, which is what rarity means."""
+    best_type, best_count = "", -1
+    for page_type, counter in stats.label_pages_by_type.items():
+        count = counter.get(label, 0)
+        if count > best_count:
+            best_type, best_count = page_type, count
+    return best_type
+
+
+def field_labels_csv(vocabulary: Vocabulary, stats: Any) -> str:
+    """Rarest first: that is the order a reviewer wants to read it in."""
+    buffer = io.StringIO(newline="")
+    writer = csv.writer(buffer, lineterminator="\n")
+    writer.writerow(
+        [
+            "label",
+            "pages",
+            "share",
+            "is_chrome",
+            "is_rare",
+            "example_url",
+            "example_stem",
+        ]
+    )
+    rows = sorted(
+        vocabulary.label_pages.items(), key=lambda item: (item[1], item[0])
+    )
+    for label, count in rows:
+        page_type = dominant_page_type(label, stats)
+        example_url, example_stem = vocabulary.label_examples.get(label, ("", ""))
+        writer.writerow(
+            [
+                label,
+                count,
+                f"{vocabulary.share(label):.4f}",
+                label in vocabulary.chrome,
+                stats.label_share(page_type, label) < RARE_LABEL_SHARE,
+                example_url,
+                example_stem,
+            ]
+        )
+
+    writer.writerow([])
+    writer.writerow(["heading", "pages"])
+    for heading, count in sorted(
+        vocabulary.heading_pages.items(), key=lambda item: (-item[1], item[0])
+    ):
+        writer.writerow([heading, count])
+    return buffer.getvalue()
+
+
+def patterns_markdown(
+    patterns: list[Pattern],
+    *,
+    settings: DiscoverSettings,
+) -> str:
+    """The demo document: special patterns first, with evidence and links."""
+    special = [pattern for pattern in patterns if pattern.special]
+    ordinary = [pattern for pattern in patterns if not pattern.special]
+    lines = [
+        f"# Patterns in {settings.catalog_folder} {settings.run_id}",
+        "",
+        (
+            f"Discovery run `{settings.discovery_run_id}`. "
+            f"{len(patterns)} patterns, {len(special)} special."
+        ),
+        "",
+        (
+            "A pattern is special when it is a small share of its page "
+            "type, carries a rare field label or an uncommon marker, is "
+            "empty or archived, or belongs to a different catalog year."
+        ),
+        "",
+    ]
+    for title, group in (("Special patterns", special), ("Other patterns", ordinary)):
+        lines.append(f"## {title}")
+        lines.append("")
+        if not group:
+            lines.append("None.")
+            lines.append("")
+            continue
+        for pattern in group:
+            lines.extend(_pattern_section(pattern, settings))
+    return "\n".join(lines).rstrip() + "\n"
+
+
+def _pattern_section(
+    pattern: Pattern, settings: DiscoverSettings
+) -> list[str]:
+    lines = [
+        f"### `{pattern.pattern_id}` {pattern.page_type}",
+        "",
+        (
+            f"{pattern.count} pages, {pattern.share:.1%} of the run, "
+            f"{pattern.share_of_page_type:.1%} of {pattern.page_type} pages."
+        ),
+        "",
+    ]
+    if pattern.special_because:
+        lines.append("Why it is special:")
+        lines.append("")
+        lines.extend(f"- {reason}" for reason in pattern.special_because)
+        lines.append("")
+    if pattern.rare_field_labels:
+        lines.append(
+            "Rare field labels: "
+            + ", ".join(f"`{label}`" for label in pattern.rare_field_labels)
+        )
+        lines.append("")
+    if pattern.markers:
+        lines.append("Markers:")
+        lines.append("")
+        for marker, quote in pattern.markers.items():
+            meaning = MARKER_MEANING.get(marker, "")
+            lines.append(f"- **{marker}**: `{quote}`")
+            if meaning:
+                lines.append(f"  - {meaning}")
+        lines.append("")
+    lines.append("Examples:")
+    lines.append("")
+    for url, stem in zip(pattern.urls[:3], pattern.stems[:3]):
+        path = join_storage_uri(
+            settings.source_uri,
+            page_html_key(settings.catalog_folder, settings.run_id, stem),
+        )
+        lines.append(f"- {url}")
+        lines.append(f"  - `{path}`")
+    lines.append("")
+    return lines
+
+
+def patterns_table(patterns: list[Pattern]) -> str:
+    """The one screen of output an operator reads before anything else."""
+    header = f"{'pattern':<10} {'page_type':<20} {'count':>6} {'share':>7}  special  markers"
+    rows = [header, "-" * len(header)]
+    for pattern in patterns:
+        markers = ", ".join(
+            name for name in pattern.markers if name != CATALOG_YEAR
+        )[:60]
+        rows.append(
+            f"{pattern.pattern_id:<10} {pattern.page_type:<20} "
+            f"{pattern.count:>6} {pattern.share:>6.1%}  "
+            f"{'yes' if pattern.special else 'no ':<7}  {markers}"
+        )
+    return "\n".join(rows)
+
+
+def build_summary(
+    settings: DiscoverSettings,
+    profiles: list[PageProfile],
+    patterns: list[Pattern],
+    duplicates: int,
+    version: str,
+) -> dict[str, Any]:
+    page_types: dict[str, int] = {}
+    for profile in profiles:
+        page_types[profile.page_type] = page_types.get(profile.page_type, 0) + 1
+    total = len(profiles) or 1
+    empty = sum(1 for profile in profiles if EMPTY_OR_ERROR in profile.markers)
+    return {
+        "schema": DISCOVERY_SCHEMA,
+        "catalog_folder": settings.catalog_folder,
+        "run_id": settings.run_id,
+        "discovery_run_id": settings.discovery_run_id,
+        "pages": len(profiles),
+        "duplicates": duplicates,
+        "pages_by_page_type": dict(sorted(page_types.items())),
+        "patterns_total": len(patterns),
+        "patterns_special": sum(1 for pattern in patterns if pattern.special),
+        "empty_or_error_pages": empty,
+        "unknown_share": round(page_types.get("Unknown", 0) / total, 4),
+        "sample_label": settings.sample_label,
+        "sample_size": settings.sample_size,
+        "git_commit": git_commit(),
+        "xtra_version": version,
+    }
+
+
+def labels_document(
+    settings: DiscoverSettings, profiles: list[PageProfile]
+) -> dict[str, Any]:
+    """The preprocessed list extraction reads instead of guessing again."""
+    return {
+        "schema": LABELS_SCHEMA,
+        "catalog_folder": settings.catalog_folder,
+        "run_id": settings.run_id,
+        "discovery_run_id": settings.discovery_run_id,
+        "pages": [
+            {
+                "url": profile.url,
+                "stem": profile.stem,
+                "page_type": profile.page_type,
+                "labels": profile.labels,
+                "course_block_count": profile.course_block_count,
+                "pattern_id": profile.pattern_id,
+            }
+            for profile in profiles
+        ],
+    }
+
+
+def sample_file_name(label: str) -> str:
+    return f"golden-sample-{label.lower()}.json"
+
+
+def latest_discovery_run_id(
+    source: Any, catalog_folder: str, run_id: str
+) -> str | None:
+    """The newest discovery run of a crawl run, by its timestamped folder."""
+    root = discovery_root(catalog_folder, run_id)
+    ids = {
+        key[len(root) + 1 :].split("/", 1)[0]
+        for key in source.list_keys(under=root)
+        if key.startswith(f"{root}/")
+    }
+    return max(ids) if ids else None
+
+
+def run_discovery(
+    settings: DiscoverSettings,
+    *,
+    source: Any,
+    target: Any,
+    version: str = "",
+) -> DiscoveryOutcome:
+    """Profile every saved page, then write the reports. Nothing is fetched."""
+    summary_key = discovery_key(
+        settings.catalog_folder,
+        settings.run_id,
+        settings.discovery_run_id,
+        SUMMARY_FILE,
+    )
+    if target.exists(summary_key):
+        raise FileExistsError(summary_key)
+
+    pages = read_saved_pages(source, settings.catalog_folder, settings.run_id)
+    if not pages:
+        raise NoPagesError(
+            f"{run_prefix(settings.catalog_folder, settings.run_id)} has no saved pages"
+        )
+    logger.info("READ %s saved pages", len(pages))
+
+    profiles = [
+        profile_page(
+            url=meta.get("requested_url") or meta.get("final_url") or "",
+            html=html,
+            stem=meta.get("stem") or "",
+            final_url=meta.get("final_url") or "",
+            http_status=meta.get("http_status"),
+            byte_size=meta.get("bytes"),
+        )
+        for meta, html in pages
+    ]
+    duplicates = mark_duplicates(profiles)
+    vocabulary = build_vocabulary(profiles)
+    assign_patterns(profiles, vocabulary)
+    stats = build_stats(profiles, vocabulary)
+    patterns = build_patterns(profiles, vocabulary, stats)
+    sample = choose_sample(
+        profiles,
+        vocabulary,
+        label=settings.sample_label,
+        size=settings.sample_size,
+        patterns_total=len(patterns),
+    )
+    summary = build_summary(settings, profiles, patterns, duplicates, version)
+    logger.info(
+        "PROFILED pages=%s duplicates=%s patterns=%s special=%s unknown=%s",
+        summary["pages"],
+        duplicates,
+        summary["patterns_total"],
+        summary["patterns_special"],
+        summary["pages_by_page_type"].get("Unknown", 0),
+    )
+
+    def write(name: str, body: str, content_type: str) -> None:
+        target.put_text(
+            discovery_key(
+                settings.catalog_folder,
+                settings.run_id,
+                settings.discovery_run_id,
+                name,
+            ),
+            body,
+            content_type,
+        )
+
+    write(
+        PAGES_FILE,
+        "".join(
+            json.dumps(profile.as_dict(), ensure_ascii=False) + "\n"
+            for profile in profiles
+        ),
+        "application/x-ndjson",
+    )
+    write(
+        PATTERNS_JSON_FILE,
+        json.dumps(
+            [pattern.as_dict() for pattern in patterns], indent=2, ensure_ascii=False
+        )
+        + "\n",
+        "application/json",
+    )
+    write(
+        PATTERNS_MD_FILE,
+        patterns_markdown(patterns, settings=settings),
+        "text/markdown; charset=utf-8",
+    )
+    write(
+        FIELD_LABELS_FILE,
+        field_labels_csv(vocabulary, stats),
+        "text/csv; charset=utf-8",
+    )
+    write(
+        LABELS_FILE,
+        json.dumps(labels_document(settings, profiles), indent=2, ensure_ascii=False)
+        + "\n",
+        "application/json",
+    )
+    write(
+        sample_file_name(settings.sample_label),
+        json.dumps(sample.as_dict(), indent=2, ensure_ascii=False) + "\n",
+        "application/json",
+    )
+    write(
+        SUMMARY_FILE,
+        json.dumps(summary, indent=2, ensure_ascii=False) + "\n",
+        "application/json",
+    )
+
+    return DiscoveryOutcome(
+        summary=summary,
+        profiles=profiles,
+        patterns=patterns,
+        sample=sample,
+        table=patterns_table(patterns),
+    )

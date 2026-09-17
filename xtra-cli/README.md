@@ -120,6 +120,7 @@ Filesystem path matches invocation, the same way ceops does (`ceops elasticsearc
 ```text
 xtra environment set    -> src/xtra/environment.py
 xtra catalog crawl      -> src/xtra/catalog/crawl.py
+xtra catalog discover   -> src/xtra/catalog/discover.py
 xtra catalog extract    -> src/xtra/catalog/extract.py
 xtra catalog transform  -> src/xtra/catalog/transform.py
 ```
@@ -269,6 +270,119 @@ After 20 URLs fail in a row the run stops, checkpoints, and reports
 | `1` | pages failed, or the run ended `incomplete`; one line on stderr says which |
 | `130` | Ctrl+C. The checkpoint is written, so the same `--run-id` resumes |
 
+### Discover
+
+```bash
+xtra catalog discover \
+  --catalog-id catalog-brookdalecc-edu \
+  --run-id 2026-09-17T14:20:01Z \
+  --source-uri "$TARGET" --target-uri "$TARGET" \
+  --sample-size 30
+```
+
+Discovery reads **every** page the crawl saved, works out what each one is,
+groups the pages that share a shape, names the shapes that are unusual, and
+picks a sample that covers all of them. It fetches nothing and it samples
+nothing while profiling: a special case that only appears on page 700 cannot
+be found by looking at the first ten.
+
+| Flag | Default | What it does |
+| --- | --- | --- |
+| `--catalog-id` | required | The catalog folder the crawl wrote. |
+| `--run-id` | required | The crawl run to read. |
+| `--sample-label` | `Course` | Which label the golden sample is drawn from. |
+| `--sample-size` | `30` | How many pages the sample should reach. |
+
+Text is normalized in memory with the same normalizer the extractors use.
+No normalized file is written; only its SHA-256 is kept, which is what
+identifies two copies of one page.
+
+Every regex, keyword list, and threshold lives in one module,
+`src/implementations/discover_rules.py`. When a page is labelled wrong the
+fix is a rule there, plus a fixture in `tests/fixtures/html` that proves it.
+
+#### What a page gets labelled
+
+| Label | Fires when |
+| --- | --- |
+| `Course` | at least one course block, with the code in the title, the `h1`, or the first 300 visible characters; or two or more course blocks |
+| `LearningOpportunity` | two or more different program terms, or a URL template containing `program`, `degree`, `certificate`, `major`, or `preview_program` |
+| `Competency` | an outcomes, objectives, or competencies heading followed by two or more list items |
+
+A course block is a course code with a credits, units, or hours value within
+400 characters of it. A code on its own is a cross-reference; a code with a
+value is the course being described.
+
+`page_type` is the label when exactly one fired, `Multiple` when several did,
+and `Unknown` when none did. `rules_fired` keeps the evidence for each.
+
+#### Markers: the special cases a sample has to contain
+
+`lecture_lab_credit_numbers`, `lab_clinical_field_study_hours`,
+`printed_zero_hours`, `ceu`, `prerequisite`, `corequisite`,
+`prerequisite_corequisite_combined`, `recommended`, `learning_outcomes`,
+`program_markers`, `tabs_present`, `archived`, `catalog_year`,
+`policy_or_definition_page`, `multi_course_page`, `empty_or_error_page`.
+
+Each one is stored with a quote of up to 80 characters showing why it fired,
+and `patterns.md` prints one line per marker on what it costs an extractor
+that ignores it.
+
+#### Patterns
+
+A field label on more than 90 percent of pages is site chrome, and a label on
+exactly one page cannot group anything. Both stay in `field-labels.csv` for
+review and leave the signature.
+
+```text
+signature  = page_type + sorted remaining field labels + sorted marker names
+pattern_id = first 8 hex characters of sha256(signature)
+```
+
+Headings never take part. A course title is written as a heading on most
+catalogs, so including them would give every course its own pattern.
+
+A pattern is **special** when any of these hold: it is under 5 percent of its
+page type; it carries a field label found on under 5 percent of its page
+type; it carries a marker found on under 20 percent of its page type; it is
+empty or archived; or its catalog year differs from the run's most common
+one. `patterns.md` lists the special ones first.
+
+#### The golden sample
+
+Coverage first, representation second.
+
+1. **Coverage.** Until every feature is covered, take the page that covers the
+   most uncovered features, each weighted by how rare it is in the
+   population. A case that never appears in the sample is a case nobody
+   checks.
+2. **Representation.** Fill to `--sample-size` by pattern share, using the
+   largest remainder method, so the sample still looks like the catalog.
+
+The population is the pages carrying `--sample-label`, minus duplicates and
+empty or error pages. Every tie is broken by the SHA-256 of the URL, so the
+same pages and the same code always give the same sample. If coverage alone
+needs more than `--sample-size` pages they are all kept, and the features that
+forced the extra pages are listed. If the population is smaller than
+`--sample-size` the whole of it is taken and the report says so.
+
+#### What it writes
+
+```text
+{catalog-folder}/{run-id}/discovery/{discovery-run-id}/
+  summary.json                 counts, unknown share, git commit, version
+  pages.jsonl                  one profile per page
+  labels.json                  the preprocessed list extraction reads
+  field-labels.csv             vocabulary, rarest first, then headings
+  patterns.json                every pattern as data
+  patterns.md                  the demo document, special patterns first
+  golden-sample-course.json    the sample, with a reason per page
+```
+
+The discovery run id is the UTC start time. A discovery run is never
+overwritten, so two runs sit side by side and a rule change can be compared
+against what it replaced.
+
 ### Extract and transform
 
 Same `--with-<strategy>` pattern:
@@ -276,14 +390,37 @@ Same `--with-<strategy>` pattern:
 ```bash
 xtra catalog extract --with-template \
   --source-uri "$TARGET" --target-uri "$TARGET" \
-  --catalog-id brookdalecc --run-id 2026-09-14T18:12:00Z
+  --catalog-id catalog-brookdalecc-edu --run-id 2026-09-17T14:20:01Z
 
 xtra catalog transform --with-ctdl \
   --source-uri "$TARGET" --target-uri "$TARGET" \
-  --catalog-id brookdalecc --run-id 2026-09-14T18:12:00Z
+  --catalog-id catalog-brookdalecc-edu --run-id 2026-09-17T14:20:01Z
 ```
 
-`--with-template` is the current deterministic CMS extractors (Clean Catalog, Coursedog, Acalog). `--with-ctdl` maps printed labels to CTDL JSON-LD and never writes a CTID. `--with-ai-agent` is reserved on both verbs.
+`--with-template` is the current deterministic CMS extractors (Clean Catalog,
+Coursedog, Acalog). `--with-ctdl` maps printed labels to CTDL JSON-LD and
+never writes a CTID. `--with-ai-agent` is reserved on both verbs.
+
+Extract works from the list discovery produced rather than guessing which
+saved pages are courses. It reads `labels.json` from the newest discovery run
+of the crawl run, or from `--discovery-run-id` when you name one, and
+processes the pages labelled `Course` that hold exactly one course block.
+
+| Flag | What it does |
+| --- | --- |
+| `--discovery-run-id` | Read this discovery run instead of the newest. |
+| `--only-golden-sample` | Extract only the pages in `golden-sample-course.json`, for review. |
+
+A page that matches no known template, and a page holding several courses,
+are skipped and recorded in `{catalog-folder}/{run-id}/extract-report.json`
+with the reason. That file sits **beside** `records/` and never inside it,
+because transform reads every JSON file under `records/` and would treat a
+report as a course.
+
+Pages are read by the stem discovery lists, which is the stem the crawler
+saved them under. The `Slot.stem` property in `lib/` still slugs the URL the
+old way, so it is never used for a storage key, and the record carries the
+crawl stem instead.
 
 ## Object layout (not packs)
 
@@ -296,6 +433,11 @@ xtra catalog transform --with-ctdl \
   failed.jsonl
   pages/{stem}.html
   pages/{stem}.meta.json
+  discovery/{discovery-run-id}/summary.json
+  discovery/{discovery-run-id}/labels.json
+  discovery/{discovery-run-id}/patterns.md
+  discovery/{discovery-run-id}/golden-sample-course.json
+  extract-report.json
   records/{record-id}.json
   jsonld/{record-id}.json
   expected/{record-id}.json
@@ -344,3 +486,4 @@ Network is not required. Playwright harvest is monkeypatched. Azurite tests are 
 - LLM classification or extraction (the `--with-ai-agent` flags are stubs)
 - Zip or pack a catalog run
 - Normalize, classify, or template-match inside the crawler
+- Decide what a page is with a model: discovery is rules in one file

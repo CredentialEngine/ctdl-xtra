@@ -41,6 +41,7 @@ def cli() -> None:
     \b
       xtra environment set prod --data-uri <storage-uri>
       xtra catalog crawl --with-playwright --url <catalog-url> --limit 5
+      xtra catalog discover --catalog-id ID --run-id TS
       xtra catalog extract --with-template --catalog-id ID --run-id TS
       xtra catalog transform --with-ctdl --catalog-id ID --run-id TS
 
@@ -53,10 +54,11 @@ def cli() -> None:
 
 @cli.group(name="catalog")
 def catalog_group() -> None:
-    """Crawl, extract, and transform one catalog of any size."""
+    """Crawl, discover, extract, and transform one catalog of any size."""
 
 
 cli.add_command(environment_group)
 catalog_group.add_command(_load_command("xtra.catalog.crawl"))
+catalog_group.add_command(_load_command("xtra.catalog.discover"))
 catalog_group.add_command(_load_command("xtra.catalog.extract"))
 catalog_group.add_command(_load_command("xtra.catalog.transform"))

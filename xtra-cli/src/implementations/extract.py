@@ -34,11 +34,40 @@ def slot_from_dict(payload: dict[str, Any]) -> Slot:
     )
 
 
+def slot_from_labels_entry(
+    entry: dict[str, Any],
+    *,
+    retrieved_at: str | None = None,
+) -> Slot:
+    """One queued page from the discovery list.
+
+    Institution, family, and template are left empty on purpose. Discovery
+    says what a page is about; which extractor fits is still decided by
+    detect_template reading the page, in one place.
+    """
+    stem = entry["stem"]
+    return Slot(
+        stem,
+        "Course",
+        entry["url"],
+        "",
+        "",
+        "",
+        "1",
+        stem,
+        None,
+        retrieved_at,
+        False,
+        "",
+    )
+
+
 def extract_record(
     slot: Slot,
     html: str,
     *,
     retrieved_at: str | None = None,
+    stem: str | None = None,
 ) -> dict[str, Any]:
     text = normalize_html(html)
     template_id = detect_template(text) or slot.template_id
@@ -72,7 +101,9 @@ def extract_record(
         "source_url": slot.requested_url,
         "institution_name": slot.institution_name,
         "template_id": template_id,
-        "stem": slot.stem or slug_url(slot.requested_url),
+        # Slot.stem is the old slug. Storage keys use the crawl stem, so
+        # the record has to carry that one or nothing can find its page.
+        "stem": stem or slot.stem or slug_url(slot.requested_url),
         "retrieved_at": retrieved_at or utc_timestamp(),
         "verification": {"status": "candidate"},
         "source_expected": {"fields": fields},

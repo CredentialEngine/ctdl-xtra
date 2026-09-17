@@ -1,3 +1,5 @@
+# ruff: noqa: I001 - importing implementations.extract is what puts lib/
+# on sys.path, so the engine import below cannot be sorted above it.
 from __future__ import annotations
 
 import pytest

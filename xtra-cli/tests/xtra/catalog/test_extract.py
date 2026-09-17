@@ -3,46 +3,62 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import pytest
 from click.testing import CliRunner
+from discovery_doubles import seed_crawl_page
 
-from common.keys import page_html_key, run_prefix
+from common.keys import run_prefix
 from common.object_store import open_store
-from xtra.catalog.extract import legacy_slots_key
 from xtra.cli import cli
 
-SEED = "https://catalog.example.edu"
-RUN_ID = "2026-09-14T18:12:00Z"
-CATALOG_ID = "example"
+FOLDER = "catalog-example-edu"
+RUN = "2026-09-17T14:20:01Z"
+RUN_PATH = "2026-09-17T14-20-01Z"
+
+# A page each extractor path has to deal with: one it can read, one that
+# holds several courses, and one whose markup matches no known template.
+PAGES = {
+    "engl101-aaaaaaaaaa": "course-clean-catalog.html",
+    "multi-bbbbbbbbbb": "multi-course.html",
+    "single-cccccccccc": "course-single.html",
+    "program-dddddddddd": "program.html",
+}
 
 
-def _seed_run(tmp_path: Path, engl101_html: str, engl101_slot: dict) -> None:
+def seed(tmp_path: Path, fixture_html_dir: Path) -> None:
     store = open_store(str(tmp_path))
-    from html_text import slug_url
+    for stem, name in PAGES.items():
+        seed_crawl_page(
+            store,
+            FOLDER,
+            RUN,
+            stem,
+            (fixture_html_dir / name).read_text(encoding="utf-8"),
+            f"https://catalog.example.edu/{stem}",
+        )
 
-    raw = dict(engl101_slot)
-    stem = slug_url(raw["requested_url"])
-    raw["stem"] = stem
-    store.put_json(
-        legacy_slots_key(CATALOG_ID, RUN_ID),
-        {
-            "schema": "xtra-slots-1",
-            "catalog_id": CATALOG_ID,
-            "run_id": RUN_ID,
-            "slots": [raw],
-        },
+
+def discover(tmp_path: Path, *extra: str):
+    return CliRunner().invoke(
+        cli,
+        [
+            "catalog",
+            "discover",
+            "--source-uri",
+            str(tmp_path),
+            "--target-uri",
+            str(tmp_path),
+            "--catalog-id",
+            FOLDER,
+            "--run-id",
+            RUN,
+            *extra,
+        ],
     )
-    store.put_text(
-        page_html_key(CATALOG_ID, RUN_ID, stem),
-        engl101_html,
-        "text/html",
-    )
 
 
-def test_extract_template_writes_candidate_record(
-    tmp_path: Path, engl101_html: str, engl101_slot: dict
-) -> None:
-    _seed_run(tmp_path, engl101_html, engl101_slot)
-    result = CliRunner().invoke(
+def extract(tmp_path: Path, *extra: str):
+    return CliRunner().invoke(
         cli,
         [
             "catalog",
@@ -53,27 +69,207 @@ def test_extract_template_writes_candidate_record(
             "--target-uri",
             str(tmp_path),
             "--catalog-id",
-            CATALOG_ID,
+            FOLDER,
             "--run-id",
-            RUN_ID,
+            RUN,
+            *extra,
         ],
     )
-    assert result.exit_code == 0, result.output
-    record_path = (
-        tmp_path
-        / run_prefix(CATALOG_ID, RUN_ID)
-        / "records"
-        / "example-engl101-course.json"
+
+
+def run_dir(tmp_path: Path) -> Path:
+    return tmp_path / run_prefix(FOLDER, RUN)
+
+
+def report_of(tmp_path: Path) -> dict:
+    return json.loads(
+        (run_dir(tmp_path) / "extract-report.json").read_text(encoding="utf-8")
     )
-    record = json.loads(record_path.read_text(encoding="utf-8"))
+
+
+@pytest.fixture
+def discovered(tmp_path: Path, fixture_html_dir: Path) -> Path:
+    seed(tmp_path, fixture_html_dir)
+    assert discover(tmp_path).exit_code == 0
+    return tmp_path
+
+
+def test_extract_writes_a_record_for_each_single_course_page(
+    discovered: Path,
+) -> None:
+    result = extract(discovered)
+    assert result.exit_code == 0, result.output
+    payload = json.loads(result.output)
+    assert payload["records"] == ["engl101-aaaaaaaaaa"]
+
+    record = json.loads(
+        (run_dir(discovered) / "records" / "engl101-aaaaaaaaaa.json").read_text(
+            encoding="utf-8"
+        )
+    )
     assert record["verification"]["status"] == "candidate"
-    labels = {
-        field["canonical_label"]: field["value"]
-        for field in record["source_expected"]["fields"]
+    assert record["expected"]["course_id"] == "ENGL101"
+    assert record["expected"]["course_credits"] == 3
+
+
+def test_the_record_carries_the_crawl_stem_not_the_old_slug(
+    discovered: Path,
+) -> None:
+    """Slot.stem still slugs the URL, which finds nothing in storage."""
+    extract(discovered)
+    record = json.loads(
+        (run_dir(discovered) / "records" / "engl101-aaaaaaaaaa.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    assert record["stem"] == "engl101-aaaaaaaaaa"
+    assert record["record_id"] == "engl101-aaaaaaaaaa"
+    assert "catalog-example-edu-engl101" not in record["stem"]
+
+
+def test_the_record_takes_its_time_from_the_sidecar(discovered: Path) -> None:
+    extract(discovered)
+    record = json.loads(
+        (run_dir(discovered) / "records" / "engl101-aaaaaaaaaa.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    assert record["retrieved_at"] == "2026-09-17T14:20:05Z"
+    assert record["institution_name"] == ""
+
+
+def test_a_multi_course_page_is_skipped_with_its_reason(
+    discovered: Path,
+) -> None:
+    extract(discovered)
+    report = report_of(discovered)
+    skip = next(
+        item for item in report["skipped"] if item["stem"] == "multi-bbbbbbbbbb"
+    )
+    assert skip["reason"] == "multi_course_page"
+    assert "3 course block" in skip["detail"]
+
+
+def test_a_page_matching_no_template_is_skipped_with_its_reason(
+    discovered: Path,
+) -> None:
+    extract(discovered)
+    report = report_of(discovered)
+    skip = next(
+        item for item in report["skipped"] if item["stem"] == "single-cccccccccc"
+    )
+    assert skip["reason"] == "no_matching_template"
+    assert "template" in skip["detail"]
+
+
+def test_a_page_that_is_not_a_course_is_never_considered(
+    discovered: Path,
+) -> None:
+    extract(discovered)
+    report = report_of(discovered)
+    stems = {item["stem"] for item in report["skipped"]}
+    assert "program-dddddddddd" not in stems
+    assert report["pages_considered"] == 3
+
+
+def test_the_report_sits_beside_records_and_never_inside_it(
+    discovered: Path,
+) -> None:
+    """transform reads every JSON under records/, so a report there is a course."""
+    extract(discovered)
+    assert (run_dir(discovered) / "extract-report.json").is_file()
+    assert not (run_dir(discovered) / "records" / "extract-report.json").exists()
+    record_files = sorted(
+        path.name for path in (run_dir(discovered) / "records").iterdir()
+    )
+    assert record_files == ["engl101-aaaaaaaaaa.json"]
+
+
+def test_the_report_counts_the_skips_by_reason(discovered: Path) -> None:
+    extract(discovered)
+    report = report_of(discovered)
+    assert report["schema"] == "xtra-extract-report-1"
+    assert report["records_written"] == 1
+    assert report["skipped_by_reason"] == {
+        "multi_course_page": 1,
+        "no_matching_template": 1,
     }
-    assert labels["course_id"] == "ENGL101"
-    assert labels["course_name"] == "Composition I"
-    assert labels["course_credits"] == 3
+
+
+def test_extract_reads_the_newest_discovery_run(
+    discovered: Path, monkeypatch
+) -> None:
+    """A rule change means a new discovery run, and extract follows it."""
+    monkeypatch.setattr(
+        "xtra.catalog.discover.utc_timestamp", lambda: "2036-09-19T09:00:00Z"
+    )
+    assert discover(discovered).exit_code == 0
+    result = extract(discovered)
+    assert result.exit_code == 0, result.output
+    assert json.loads(result.output)["discovery_run_id"] == "2036-09-19T09-00-00Z"
+
+
+def test_a_named_discovery_run_wins_over_the_newest(
+    discovered: Path, monkeypatch
+) -> None:
+    first = json.loads(extract(discovered).output)["discovery_run_id"]
+    monkeypatch.setattr(
+        "xtra.catalog.discover.utc_timestamp", lambda: "2036-09-19T09:00:00Z"
+    )
+    assert discover(discovered).exit_code == 0
+    result = extract(discovered, "--discovery-run-id", first)
+    assert json.loads(result.output)["discovery_run_id"] == first
+
+
+def test_only_golden_sample_limits_extraction_to_the_sample(
+    tmp_path: Path, fixture_html_dir
+) -> None:
+    seed(tmp_path, fixture_html_dir)
+    assert discover(tmp_path, "--sample-size", "1").exit_code == 0
+
+    sample_stems = {
+        page["stem"]
+        for page in json.loads(
+            next(
+                (tmp_path / run_prefix(FOLDER, RUN) / "discovery").iterdir()
+            ).joinpath("golden-sample-course.json").read_text(encoding="utf-8")
+        )["pages"]
+    }
+    result = extract(tmp_path, "--only-golden-sample")
+    assert result.exit_code == 0, result.output
+    report = report_of(tmp_path)
+    assert report["only_golden_sample"] is True
+    assert report["pages_considered"] == len(sample_stems)
+    assert report["pages_considered"] < 3
+
+
+def test_extract_without_a_discovery_run_says_what_to_do(
+    tmp_path: Path, fixture_html_dir
+) -> None:
+    seed(tmp_path, fixture_html_dir)
+    result = extract(tmp_path)
+    assert result.exit_code != 0
+    assert "xtra catalog discover" in result.output
+
+
+def test_extract_requires_a_strategy(tmp_path: Path) -> None:
+    result = CliRunner().invoke(
+        cli,
+        [
+            "catalog",
+            "extract",
+            "--source-uri",
+            str(tmp_path),
+            "--target-uri",
+            str(tmp_path),
+            "--catalog-id",
+            FOLDER,
+            "--run-id",
+            RUN,
+        ],
+    )
+    assert result.exit_code != 0
+    assert "--with-template" in result.output
 
 
 def test_extract_ai_agent_is_stub(tmp_path: Path) -> None:
@@ -88,30 +284,16 @@ def test_extract_ai_agent_is_stub(tmp_path: Path) -> None:
             "--target-uri",
             str(tmp_path),
             "--catalog-id",
-            CATALOG_ID,
+            FOLDER,
             "--run-id",
-            RUN_ID,
+            RUN,
         ],
     )
     assert result.exit_code != 0
     assert "not implemented" in result.output.lower()
 
 
-def test_extract_requires_strategy(tmp_path: Path) -> None:
-    result = CliRunner().invoke(
-        cli,
-        [
-            "catalog",
-            "extract",
-            "--source-uri",
-            str(tmp_path),
-            "--target-uri",
-            str(tmp_path),
-            "--catalog-id",
-            CATALOG_ID,
-            "--run-id",
-            RUN_ID,
-        ],
-    )
-    assert result.exit_code != 0
-    assert "--with-template" in result.output
+def test_extract_help_lists_the_new_flags() -> None:
+    help_text = CliRunner().invoke(cli, ["catalog", "extract", "--help"]).output
+    assert "--only-golden-sample" in help_text
+    assert "--discovery-run-id" in help_text
