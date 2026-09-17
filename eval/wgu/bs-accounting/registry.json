@@ -1,0 +1,329 @@
+{
+    "@id": "https://credentialengineregistry.org/resources/ce-b75970c9-d352-46a0-b67d-3256c9cdbb31",
+    "@type": "ceterms:BachelorOfScienceDegree",
+    "@context": "https://credreg.net/ctdl/schema/context/json",
+    "ceterms:ctid": "ce-b75970c9-d352-46a0-b67d-3256c9cdbb31",
+    "ceterms:name": {
+        "en-US": "Bachelor of Science, Accounting (BSACC_202503)"
+    },
+    "ceterms:keyword": {
+        "en-US": [
+            "Accounting",
+            "Accounting Information Systems",
+            "Accounting Software",
+            "Asset Management",
+            "Assets",
+            "Auditing",
+            "Auditing Standards",
+            "Balance Sheets",
+            "Budgeting",
+            "Business Acumen",
+            "Business Analytics",
+            "Business Communication",
+            "Business Environment",
+            "Business Ethics",
+            "Business Law",
+            "Business Leadership",
+            "Business Management",
+            "Business Mathematics",
+            "Business Regulations",
+            "Business Reporting",
+            "Business Strategy",
+            "Business Technology",
+            "Cash Flow Statements",
+            "Communication Skills",
+            "Corporate Finance",
+            "Corporate Governance",
+            "Cost Accounting",
+            "Cost Management",
+            "Critical Thinking",
+            "Data Analysis",
+            "Decision Making",
+            "Economic Principles",
+            "Economics",
+            "Equity",
+            "Ethics in Accounting",
+            "Ethics in Finance",
+            "Expenses",
+            "Financial Accounting",
+            "Financial Analysis",
+            "Financial Control",
+            "Financial Forecasting",
+            "Financial Institutions",
+            "Financial Management",
+            "Financial Markets",
+            "Financial Modeling",
+            "Financial Planning",
+            "Financial Reporting",
+            "Financial Statement Analysis",
+            "Financial Statements",
+            "Financial Statements Analysis",
+            "Financial Strategy",
+            "Forensic Accounting",
+            "Fraud Examination",
+            "Governance",
+            "Income Statements",
+            "Income Tax",
+            "Internal Controls",
+            "International Accounting",
+            "Investment",
+            "Leadership",
+            "Liabilities",
+            "Managerial Accounting",
+            "Problem Solving",
+            "Professional Ethics",
+            "Professionalism",
+            "Revenue",
+            "Risk Management",
+            "Spreadsheet Skills",
+            "Strategic Planning",
+            "Tax Compliance",
+            "Tax Law",
+            "Tax Planning",
+            "Taxation",
+            "Teamwork"
+        ]
+    },
+    "ceterms:ownedBy": [
+        "https://credentialengineregistry.org/resources/ce-036d082d-d80e-41a7-99a0-2d63a4ad3a4a"
+    ],
+    "ceterms:requires": [
+        {
+            "@type": "ceterms:ConditionProfile",
+            "ceterms:name": {
+                "en-US": "Requires"
+            },
+            "ceterms:description": {
+                "en-US": "The learner must have satisfied the indicated learning opportunities, or an approved equivalent, in order to be awarded the credential."
+            },
+            "ceterms:targetLearningOpportunity": [
+                "https://credentialengineregistry.org/resources/ce-5b093c10-217b-4d7e-86f5-25376ac89b07",
+                "https://credentialengineregistry.org/resources/ce-8dd33052-0f9c-4e71-bd3e-e868549f41d0",
+                "https://credentialengineregistry.org/resources/ce-5deb62f4-b89d-4a6f-bf37-9c8e2fdb9720",
+                "https://credentialengineregistry.org/resources/ce-7e4381c5-9a54-4701-a853-b7a76d04d151",
+                "https://credentialengineregistry.org/resources/ce-d2b1a93c-040c-49ea-8b0b-e32d57751e38",
+                "https://credentialengineregistry.org/resources/ce-9cebc40c-9525-4473-9973-3e5f1d4d2f60",
+                "https://credentialengineregistry.org/resources/ce-69450eae-2ac4-4e72-b4b3-8fb464787df5",
+                "https://credentialengineregistry.org/resources/ce-73bceff0-f882-4569-8541-a053135b4f93",
+                "https://credentialengineregistry.org/resources/ce-54ead282-dc37-4d6e-9053-a245a4c63835",
+                "https://credentialengineregistry.org/resources/ce-1ddbaa6d-bb36-4f7f-b047-3bc283ddc768",
+                "https://credentialengineregistry.org/resources/ce-100206e9-fb73-4571-8993-999eb768b834",
+                "https://credentialengineregistry.org/resources/ce-2fbe510e-2b82-4e9f-af15-1be7c6a4b754",
+                "https://credentialengineregistry.org/resources/ce-c9f87bcd-c529-40b1-a0a0-254dbbac161e",
+                "https://credentialengineregistry.org/resources/ce-33b5a880-f023-4880-80b9-3f9d75175f0b",
+                "https://credentialengineregistry.org/resources/ce-cb39803e-78e8-4961-9481-4a9ac662288f",
+                "https://credentialengineregistry.org/resources/ce-76a5b390-2ea7-447f-8865-59f3d6d432bb",
+                "https://credentialengineregistry.org/resources/ce-8110dbe8-499d-4a00-9f7d-d66b91fc8ec7",
+                "https://credentialengineregistry.org/resources/ce-c3c7ef28-317d-4cf1-baa9-903987ba4be9",
+                "https://credentialengineregistry.org/resources/ce-ffc82825-cf81-4564-9ecd-9776963106ca",
+                "https://credentialengineregistry.org/resources/ce-b6e63af1-7886-47a5-bef7-b42f45ec792e",
+                "https://credentialengineregistry.org/resources/ce-6593cd8c-2c51-47ff-badc-897f253ad7e6",
+                "https://credentialengineregistry.org/resources/ce-59ea7912-c875-4644-84c7-f9ffbaed1235",
+                "https://credentialengineregistry.org/resources/ce-94cb0e56-cb18-4332-b131-4b7b6985f251",
+                "https://credentialengineregistry.org/resources/ce-1ef7d78c-30c2-4e53-9552-470e23b22707",
+                "https://credentialengineregistry.org/resources/ce-3ed25638-0b9d-4d9a-b358-d58c58936e41",
+                "https://credentialengineregistry.org/resources/ce-9f33d264-abea-47c1-abad-b3157fe4a25f",
+                "https://credentialengineregistry.org/resources/ce-dcf17b57-0a02-4e5e-a17d-625e54b67728",
+                "https://credentialengineregistry.org/resources/ce-d494e69f-cb4c-4cac-8760-6f5baa3bbf65",
+                "https://credentialengineregistry.org/resources/ce-0082066f-b048-4b1b-b12a-5f7137ae46dc",
+                "https://credentialengineregistry.org/resources/ce-87d51b64-ec96-485b-a2bc-f8316c38855b",
+                "https://credentialengineregistry.org/resources/ce-e2131694-1df9-4839-96ed-fa727a0c22ca",
+                "https://credentialengineregistry.org/resources/ce-46797bd6-203e-45ed-999b-c128d1ee5e3b",
+                "https://credentialengineregistry.org/resources/ce-7a7ee3f7-7d7e-485f-94fe-16b22d7eb919",
+                "https://credentialengineregistry.org/resources/ce-60fa6738-c6f2-426f-93aa-bbee79317530",
+                "https://credentialengineregistry.org/resources/ce-4e756d1b-99d2-4e6b-8155-4dde7d72d254",
+                "https://credentialengineregistry.org/resources/ce-c49434bd-4262-42d0-a3ef-81664768736b",
+                "https://credentialengineregistry.org/resources/ce-e35cb848-f028-4131-8f08-6534ed2cccb0",
+                "https://credentialengineregistry.org/resources/ce-15b0d8b5-5fe0-4236-a620-7cb05a5bb296",
+                "https://credentialengineregistry.org/resources/ce-7e8d8137-f035-4722-b578-0ecafdced5a7",
+                "https://credentialengineregistry.org/resources/ce-32275cb6-d288-414e-b675-d7e98122ea59"
+            ]
+        }
+    ],
+    "ceterms:offeredBy": [
+        "https://credentialengineregistry.org/resources/ce-036d082d-d80e-41a7-99a0-2d63a4ad3a4a"
+    ],
+    "ceterms:revokedBy": [
+        "https://credentialengineregistry.org/resources/ce-036d082d-d80e-41a7-99a0-2d63a4ad3a4a"
+    ],
+    "ceterms:inLanguage": [
+        "en"
+    ],
+    "ceterms:supersedes": "https://credentialfinder.org/Credential/65182",
+    "ceterms:degreeMajor": [
+        {
+            "@type": "ceterms:CredentialAlignmentObject",
+            "ceterms:targetNodeName": {
+                "en-US": "Accounting"
+            }
+        }
+    ],
+    "ceterms:description": {
+        "en-US": "The Bachelor of Science in Accounting is a competency-based program that prepares graduates for a wide variety of careers in the field of accounting in public, private and non-profit entities. The Accounting program combines general business competencies with a specialized set of in-depth technical accounting competencies. These prepare graduates for positions such as staff accountant, general ledger accountant, tax associate, or auditor. The competencies in the Accounting program help you develop the skills necessary for leadership positions in accountings such as accounting manager, assistant controller, or controller."
+    },
+    "ceterms:accreditedBy": [
+        "_:7ce97f7f-7820-b83d-b30f-19339fda4b07"
+    ],
+    "ceterms:industryType": [
+        {
+            "@type": "ceterms:CredentialAlignmentObject",
+            "ceterms:framework": "https://www.census.gov/naics/",
+            "ceterms:targetNode": "https://www.census.gov/naics/?input=54&year=2022&details=54",
+            "ceterms:codedNotation": "54",
+            "ceterms:frameworkName": {
+                "en-US": "NAICS"
+            },
+            "ceterms:targetNodeName": {
+                "en-US": "Professional, Scientific, and Technical Services"
+            },
+            "ceterms:targetNodeDescription": {
+                "en-US": "Professional, Scientific, and Technical Services"
+            }
+        }
+    ],
+    "ceterms:alternateName": {
+        "en-US": [
+            "BSACC_202503"
+        ]
+    },
+    "ceterms:dateEffective": "2025-03-01",
+    "ceterms:estimatedCost": [
+        {
+            "@type": "ceterms:CostProfile",
+            "ceterms:name": {
+                "en-US": "WGU Tuition"
+            },
+            "ceterms:currency": "USD",
+            "ceterms:costDetails": "https://www.wgu.edu/financial-aid-tuition.html",
+            "ceterms:description": {
+                "en-US": "Each six-month term includes costs for tuition, an e-books and resources fee, and a program fee. Please see site for details."
+            }
+        }
+    ],
+    "ceterms:occupationType": [
+        {
+            "@type": "ceterms:CredentialAlignmentObject",
+            "ceterms:framework": "https://www.onetcenter.org/taxonomy.html",
+            "ceterms:targetNode": "https://www.onetonline.org/link/summary/13-2011.00",
+            "ceterms:codedNotation": "13-2011.00",
+            "ceterms:frameworkName": {
+                "en-US": "Standard Occupational Classification"
+            },
+            "ceterms:targetNodeName": {
+                "en-US": "Accountants and Auditors"
+            },
+            "ceterms:targetNodeDescription": {
+                "en-US": "Examine, analyze, and interpret accounting records to prepare financial statements, give advice, or audit and evaluate statements prepared by others. Install or advise on systems of recording costs or other financial and budgetary data."
+            }
+        }
+    ],
+    "ceterms:subjectWebpage": "https://www.wgu.edu/online-business-degrees/bachelors-programs.html",
+    "ceterms:copyrightHolder": [
+        "https://credentialengineregistry.org/resources/ce-036d082d-d80e-41a7-99a0-2d63a4ad3a4a"
+    ],
+    "ceterms:audienceLevelType": [
+        {
+            "@type": "ceterms:CredentialAlignmentObject",
+            "ceterms:framework": "https://credreg.net/ctdl/terms/AudienceLevel",
+            "ceterms:targetNode": "audLevel:BachelorsDegreeLevel",
+            "ceterms:frameworkName": {
+                "en-US": "Audience Level"
+            },
+            "ceterms:targetNodeName": {
+                "en-US": "Bachelors Degree Level"
+            },
+            "ceterms:targetNodeDescription": {
+                "en-US": "Intended for those completing college/university-level programs within approximately three to four years where course work and activities advance skills from a lower-division or generalist level to an upper-division level."
+            }
+        },
+        {
+            "@type": "ceterms:CredentialAlignmentObject",
+            "ceterms:framework": "https://credreg.net/ctdl/terms/AudienceLevel",
+            "ceterms:targetNode": "audLevel:UndergraduateLevel",
+            "ceterms:frameworkName": {
+                "en-US": "Audience Level"
+            },
+            "ceterms:targetNodeName": {
+                "en-US": "Undergraduate Level"
+            },
+            "ceterms:targetNodeDescription": {
+                "en-US": "Intended for those who are enrolled in a degree program or other formal program at or below the baccalaureate, such as an associate's degree, vocational, or technical program."
+            }
+        }
+    ],
+    "ceterms:availableOnlineAt": [
+        "http://www.wgu.edu"
+    ],
+    "ceterms:estimatedDuration": [
+        {
+            "@type": "ceterms:DurationProfile",
+            "ceterms:description": {
+                "en-US": "By charging per term rather than per credit-and empowering students to accelerate through material they know well or learn quickly-WGU helps students control the ultimate cost of their degrees. The faster you complete your program, the less you pay for your degree."
+            },
+            "ceterms:exactDuration": "P4Y"
+        }
+    ],
+    "ceterms:credentialStatusType": {
+        "@type": "ceterms:CredentialAlignmentObject",
+        "ceterms:framework": "https://credreg.net/ctdl/terms/CredentialStatus",
+        "ceterms:targetNode": "credentialStat:Active",
+        "ceterms:frameworkName": {
+            "en-US": "Credential Status"
+        },
+        "ceterms:targetNodeName": {
+            "en-US": "Active"
+        },
+        "ceterms:targetNodeDescription": {
+            "en-US": "Awards of the credential are ongoing."
+        }
+    },
+    "ceterms:learningDeliveryType": [
+        {
+            "@type": "ceterms:CredentialAlignmentObject",
+            "ceterms:framework": "https://credreg.net/ctdl/terms/Delivery",
+            "ceterms:targetNode": "deliveryType:OnlineOnly",
+            "ceterms:frameworkName": {
+                "en-US": "Delivery Type"
+            },
+            "ceterms:targetNodeName": {
+                "en-US": "Online Only"
+            },
+            "ceterms:targetNodeDescription": {
+                "en-US": "Delivery is only via the Internet."
+            }
+        }
+    ],
+    "ceterms:assessmentDeliveryType": [
+        {
+            "@type": "ceterms:CredentialAlignmentObject",
+            "ceterms:framework": "https://credreg.net/ctdl/terms/Delivery",
+            "ceterms:targetNode": "deliveryType:OnlineOnly",
+            "ceterms:frameworkName": {
+                "en-US": "Delivery Type"
+            },
+            "ceterms:targetNodeName": {
+                "en-US": "Online Only"
+            },
+            "ceterms:targetNodeDescription": {
+                "en-US": "Delivery is only via the Internet."
+            }
+        }
+    ],
+    "ceterms:instructionalProgramType": [
+        {
+            "@type": "ceterms:CredentialAlignmentObject",
+            "ceterms:framework": "https://nces.ed.gov/ipeds/cipcode/Default.aspx?y=56",
+            "ceterms:targetNode": "https://nces.ed.gov/ipeds/cipcode/cipdetail.aspx?y=56&cip=52.0301",
+            "ceterms:codedNotation": "52.0301",
+            "ceterms:frameworkName": {
+                "en-US": "Classification of Instructional Programs"
+            },
+            "ceterms:targetNodeName": {
+                "en-US": "Accounting"
+            },
+            "ceterms:targetNodeDescription": {
+                "en-US": "A program that prepares individuals to practice the profession of accounting and to perform related business functions.  Includes instruction in accounting principles and theory, financial accounting, managerial accounting, cost accounting, budget control, tax accounting, legal aspects of accounting, auditing, reporting procedures, statement analysis, planning and consulting, business information systems, accounting research methods, professional standards and ethics, and applications to specific for-profit, public, and non-profit organizations."
+            }
+        }
+    ]
+}
