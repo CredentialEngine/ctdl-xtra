@@ -77,7 +77,9 @@ def check_scope_prefix(url: str, scope_prefix: str | None) -> None:
 
 
 @click.command(name="crawl")
-@strategy_options("playwright", "http", "firecrawl", "ai-agent", "third-party")
+@strategy_options(
+    "playwright", "crawl4ai", "firecrawl", "ai-agent", "third-party"
+)
 @click.option("--url", required=True, help="Catalog URL the crawl starts from.")
 @env_option()
 @target_uri_option()

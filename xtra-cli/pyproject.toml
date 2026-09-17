@@ -23,6 +23,11 @@ xtra-cli = "xtra.cli:cli"
 azure = [
   "azure-storage-blob>=12.19.0",
 ]
+# --with-crawl4ai only. Kept out of the default install because it pulls
+# a large tree, including LLM clients this project never calls.
+crawl4ai = [
+  "crawl4ai>=0.9",
+]
 dev = [
   "pytest>=8.0",
   "ruff>=0.6",

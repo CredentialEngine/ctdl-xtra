@@ -21,6 +21,13 @@ Azure Blob (production or Azurite) needs the extra:
 python3 -m pip install -e ".[dev,azure]"
 ```
 
+`--with-crawl4ai` is a separate extra, kept out of the default install
+because it pulls a large dependency tree:
+
+```bash
+python3 -m pip install -e ".[crawl4ai]"
+```
+
 Azurite (local Azure Blob emulator), same as ceops:
 
 ```bash
@@ -121,7 +128,7 @@ Filesystem path matches invocation, the same way ceops does (`ceops elasticsearc
 xtra environment set    -> src/xtra/environment.py
 xtra catalog crawl      -> src/xtra/catalog/crawl.py
   --with-playwright     -> src/implementations/crawl_browser.py
-  --with-http           -> src/implementations/crawl_http.py
+  --with-crawl4ai       -> src/implementations/crawl_crawl4ai.py
   --with-firecrawl      -> src/implementations/crawl_firecrawl.py
 xtra catalog discover   -> src/xtra/catalog/discover.py
 xtra catalog extract    -> src/xtra/catalog/extract.py
@@ -170,38 +177,56 @@ whichever one runs: the frontier, the scope rules, robots.txt, the retry
 ladder, the pacing, the checkpoints, the log lines, and everything discovery
 reads afterwards. A strategy only decides how one URL becomes one saved page.
 
-| Flag | Renders JS | Cost | Pick it when |
+| Flag | Key needed | Install | Pick it when |
 | --- | --- | --- | --- |
-| `--with-playwright` | yes | a browser per worker | You do not know yet. It works everywhere. |
-| `--with-http` | no | none | The catalog is server-rendered. Far cheaper and it scales to real concurrency. |
-| `--with-firecrawl` | yes | per page, to a third party | The site blocks the browser we drive, or we cannot run one. |
+| `--with-playwright` | no | included | The default. A browser we drive ourselves, with nothing between us and the page. |
+| `--with-crawl4ai` | no | optional extra | A site blocks the plain browser, or the pages need clicking through before the HTML is worth taking. |
+| `--with-firecrawl` | yes | included | Neither of the above can run, or the site needs a residential exit. Costs money per page. |
 
 `--with-ai-agent` and `--with-third-party` stay registered and fail closed
 with a message naming the three that work.
 
-**Start with `--with-playwright`.** Then find out whether you need it: run
-five pages each way into two run ids and compare.
+**Start with `--with-playwright`.** It is the default because it has the
+fewest moving parts and no dependency beyond the browser. Reach for another
+only when it fails, and say so in the run notes when you do.
+
+`crawl.json` records `strategy`, `pages_saved` and `total_bytes`, so two
+small runs into two run ids settle any argument about which one is getting
+more of a given catalog.
 
 ```bash
 xtra catalog crawl --with-playwright --url "$CATALOG" --run-id "$A" --limit 5 --target-uri "$TARGET"
-xtra catalog crawl --with-http       --url "$CATALOG" --run-id "$B" --limit 5 --target-uri "$TARGET"
+xtra catalog crawl --with-crawl4ai   --url "$CATALOG" --run-id "$B" --limit 5 --target-uri "$TARGET"
 ```
 
-`crawl.json` records `strategy`, `pages_saved` and `total_bytes`, so the two
-runs are directly comparable. If `total_bytes` is close, the browser is
-buying nothing and `--with-http` is the better job. If the `--with-http` run
-saved a fraction of the bytes, the catalog renders in the client and
-Playwright is doing real work.
+On the catalog tested here the two agreed to within half a percent of bytes,
+which is the expected result when a site is not fighting back. The difference
+only shows up when one is.
 
-On the two catalogs tested here, `--with-http` captured the same content: the
-same visible text to within a few characters and the same in-scope links,
-with byte counts inside one percent. That will not hold for every catalog, so
-measure rather than assume.
+#### Crawl4AI
 
-A browser is still the right default because the failure is silent. A page
-that renders in the client returns HTTP 200 and a near-empty shell, so an
-`--with-http` crawl of the wrong catalog looks like a success and produces
-nothing to extract.
+An open-source crawler, Apache 2.0, no key and no bill. It drives a browser
+the way the playwright strategy does, but brings stealth handling and hooks
+for running JavaScript on the page before the HTML is taken. That last part
+is the reason it is here: a catalog that hides its course list behind a Next
+button cannot be reached by fetching alone, and no amount of better rendering
+changes that.
+
+```bash
+python -m pip install -e ".[crawl4ai]"
+xtra catalog crawl --with-crawl4ai --url "$CATALOG" --target-uri "$TARGET" --limit 5
+```
+
+It is an optional extra on purpose. The package pulls about 75 dependencies,
+among them LLM clients, scientific computing libraries, and a second
+Playwright fork. None of that belongs in a default install of a deterministic
+ETL tool, and nothing in this repository calls a model. Installing the extra
+is a deliberate act; the import is deferred until a crawl actually asks for
+the strategy, and a clear error names the install command if it is missing.
+
+Its own cache is always bypassed. The crawl decides what it already has from
+storage, and a cached hit would report a status and a latency that never
+happened on this run.
 
 #### Firecrawl
 
@@ -212,7 +237,8 @@ xtra catalog crawl --with-firecrawl --url "$CATALOG" --target-uri "$TARGET" --li
 
 The key comes from `--firecrawl-api-key` or `FIRECRAWL_API_KEY` and is sent
 in one header. It is never logged and never written to `crawl.json`.
-`--firecrawl-api-url` points at a self-hosted instance.
+`--firecrawl-api-url` points at a self-hosted instance, which is the way to
+use Firecrawl without a key at all.
 
 Only the HTTP shape is implemented, with no SDK, so this adds no dependency.
 Two things to know before reaching for it: every crawled URL goes to a third

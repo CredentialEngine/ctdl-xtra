@@ -9,7 +9,7 @@ from implementations.strategies import (
 
 
 def test_crawl_strategies_include_the_backends_and_the_placeholders() -> None:
-    for working in ("playwright", "http", "firecrawl"):
+    for working in ("playwright", "crawl4ai", "firecrawl"):
         assert working in CRAWL_STRATEGIES
     for reserved in ("ai-agent", "third-party"):
         assert reserved in CRAWL_STRATEGIES

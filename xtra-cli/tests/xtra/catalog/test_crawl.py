@@ -325,7 +325,7 @@ def test_the_removed_flags_are_gone(tmp_path: Path) -> None:
 
 def test_the_help_offers_three_working_strategies() -> None:
     help_text = CliRunner().invoke(cli, ["catalog", "crawl", "--help"]).output
-    for flag in ("--with-playwright", "--with-http", "--with-firecrawl"):
+    for flag in ("--with-playwright", "--with-crawl4ai", "--with-firecrawl"):
         assert flag in help_text
     assert "--firecrawl-api-key" in help_text
     assert "--firecrawl-api-url" in help_text
@@ -341,7 +341,7 @@ def test_the_strategy_chosen_is_recorded_in_crawl_json(
         [
             "catalog",
             "crawl",
-            "--with-http",
+            "--with-crawl4ai",
             "--url",
             SEED,
             "--target-uri",
@@ -353,7 +353,7 @@ def test_the_strategy_chosen_is_recorded_in_crawl_json(
         ],
     )
     assert result.exit_code == 0, result.output
-    assert json.loads(result.output)["strategy"] == "http"
+    assert json.loads(result.output)["strategy"] == "crawl4ai"
 
 
 def test_firecrawl_without_a_key_is_a_usage_error(tmp_path: Path) -> None:

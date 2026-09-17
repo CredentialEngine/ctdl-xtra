@@ -13,20 +13,20 @@ from collections.abc import Callable
 from typing import Any
 
 from implementations.crawl_browser import playwright_fetcher_factory
+from implementations.crawl_crawl4ai import crawl4ai_fetcher_factory
 from implementations.crawl_firecrawl import (
     DEFAULT_API_URL as DEFAULT_FIRECRAWL_API_URL,
 )
 from implementations.crawl_firecrawl import firecrawl_fetcher_factory
-from implementations.crawl_http import http_fetcher_factory
 from implementations.strategies import unimplemented_message
 
 STRATEGY_PLAYWRIGHT = "playwright"
-STRATEGY_HTTP = "http"
+STRATEGY_CRAWL4AI = "crawl4ai"
 STRATEGY_FIRECRAWL = "firecrawl"
 
 IMPLEMENTED_CRAWL_STRATEGIES = (
     STRATEGY_PLAYWRIGHT,
-    STRATEGY_HTTP,
+    STRATEGY_CRAWL4AI,
     STRATEGY_FIRECRAWL,
 )
 
@@ -37,9 +37,10 @@ STRATEGY_GUIDANCE = {
         "Renders JavaScript in a real browser. Slowest and heaviest, works "
         "on every catalog. The default choice when you do not know."
     ),
-    STRATEGY_HTTP: (
-        "Plain HTTP, no browser. Far faster and cheaper, but returns an "
-        "empty shell for a catalog that renders in the client."
+    STRATEGY_CRAWL4AI: (
+        "An open-source crawler, no key and no bill. Brings stealth "
+        "handling and hooks for clicking through a page before the HTML is "
+        'taken. Optional extra: pip install -e ".[crawl4ai]"'
     ),
     STRATEGY_FIRECRAWL: (
         "A hosted crawler. Costs money per page and sends every URL to a "
@@ -65,8 +66,8 @@ def fetcher_factory_for(
     """The factory a WorkerPool should build its per-thread fetchers from."""
     if strategy == STRATEGY_PLAYWRIGHT:
         return playwright_fetcher_factory()
-    if strategy == STRATEGY_HTTP:
-        return http_fetcher_factory()
+    if strategy == STRATEGY_CRAWL4AI:
+        return crawl4ai_fetcher_factory()
     if strategy == STRATEGY_FIRECRAWL:
         if not firecrawl_api_key:
             raise StrategyOptionError(
@@ -80,6 +81,6 @@ def fetcher_factory_for(
         unimplemented_message(
             "crawl",
             strategy,
-            implemented="playwright, --with-http, or --with-firecrawl",
+            implemented="playwright, --with-crawl4ai, or --with-firecrawl",
         )
     )
