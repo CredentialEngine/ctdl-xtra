@@ -10,7 +10,7 @@ import logging
 
 import click
 
-from common.keys import page_html_key, record_key, slots_key
+from common.keys import page_html_key, record_key, run_prefix
 from common.object_store import open_store
 from implementations.extract import extract_record, slot_from_dict
 from implementations.strategies import unimplemented_message
@@ -26,6 +26,15 @@ from xtra.click import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+def legacy_slots_key(catalog_id: str, run_id: str) -> str:
+    """slots.json from a run made before the crawler stopped writing one.
+
+    The crawler now saves pages and nothing else, so this key is local to
+    extract until discovery produces the page list it will read instead.
+    """
+    return f"{run_prefix(catalog_id, run_id)}/slots.json"
 
 
 @click.command(name="extract")
@@ -66,7 +75,7 @@ def main(
         target_uri,
         azure_storage_connection_string=azure_storage_connection_string,
     )
-    payload = source.get_json(slots_key(catalog_id, run_id))
+    payload = source.get_json(legacy_slots_key(catalog_id, run_id))
     slots = payload.get("slots") or []
     written = []
     for raw in slots:

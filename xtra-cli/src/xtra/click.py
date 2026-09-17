@@ -11,8 +11,8 @@ from xtra.config.settings import ConfigNotFoundError
 POSITIVE_INT = click.IntRange(min=1)
 
 DEFAULT_MIN_INTERVAL_SECONDS = 180.0
-DEFAULT_BACKOFF_BASE_SECONDS = 180.0
-DEFAULT_BACKOFF_MAX_SECONDS = 3600.0
+DEFAULT_MAX_INTERVAL_SECONDS = 3600.0
+DEFAULT_MAX_RETRIES = 5
 
 
 def non_empty_string(ctx, param, value):
@@ -122,48 +122,52 @@ def resolve_connection(
     return resolve_connection_string(explicit, env_name=env_name)
 
 
-def polite_options():
+def crawl_pacing_options():
+    """How fast a crawl may go and how hard it tries again.
+
+    The minimum interval is both the gap between one worker's GETs and the
+    first retry wait; retries double from there up to the maximum.
+    """
+
     def decorator(func):
         options = [
             click.option(
-                "--concurrency",
+                "--concurrency-limit",
                 type=POSITIVE_INT,
                 default=1,
                 show_default=True,
                 help=(
-                    "Max in-flight page fetches. Keep at 1 so catalog sites "
-                    "are not overloaded."
+                    "Pages to download in parallel. Each worker runs its own "
+                    "browser, so keep this small for one catalog host."
                 ),
             ),
             click.option(
-                "--min-interval",
+                "--min-interval-in-seconds",
                 type=click.FloatRange(min=0),
                 default=DEFAULT_MIN_INTERVAL_SECONDS,
                 show_default=True,
                 help=(
-                    "Minimum seconds between page fetches. Default is 3 minutes "
-                    "so long-running cache refreshes stay polite."
+                    "Smallest gap between one worker's GETs, and the first "
+                    "retry wait. Raised to robots.txt Crawl-delay when that "
+                    "is larger."
                 ),
             ),
             click.option(
-                "--backoff-base",
+                "--max-interval-in-seconds",
                 type=click.FloatRange(min=0),
-                default=DEFAULT_BACKOFF_BASE_SECONDS,
+                default=DEFAULT_MAX_INTERVAL_SECONDS,
                 show_default=True,
-                help="First retry wait in seconds. Doubles after each failure.",
-            ),
-            click.option(
-                "--backoff-max",
-                type=click.FloatRange(min=0),
-                default=DEFAULT_BACKOFF_MAX_SECONDS,
-                show_default=True,
-                help="Cap for exponential backoff in seconds.",
+                help="Cap on the exponential backoff between retries.",
             ),
             click.option(
                 "--max-retries",
                 type=POSITIVE_INT,
-                default=5,
+                default=DEFAULT_MAX_RETRIES,
                 show_default=True,
+                help=(
+                    "Retries after the first attempt, for network errors, "
+                    "timeouts, HTTP 429, and HTTP 5xx."
+                ),
             ),
         ]
         for option in reversed(options):
@@ -178,5 +182,5 @@ def limit_option():
         "--limit",
         type=POSITIVE_INT,
         required=False,
-        help="Cap discovered or downloaded pages. Use 5 while testing.",
+        help="Stop after this many pages are saved in the run. Use 5 while testing.",
     )

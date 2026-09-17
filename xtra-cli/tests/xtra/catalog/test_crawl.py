@@ -3,60 +3,49 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import pytest
 from click.testing import CliRunner
+from crawl_doubles import FakePage, fetcher_factory, no_site_documents
 
-from implementations.crawl import harvest_from_html, slot_to_dict
+from xtra.catalog.crawl import read_seed_urls
 from xtra.cli import cli
 from xtra.config.settings import StoredConfig, save_config
 
-SEED = "https://catalog.example.edu"
-RUN_ID = "2026-09-14T18:12:00Z"
+SEED = "https://catalog.example.edu/"
+FOLDER = "catalog-example-edu"
+RUN = "2026-09-17T14:20:01Z"
+RUN_PATH = "2026-09-17T14-20-01Z"
+
+PAGES = {
+    SEED: FakePage(html='<a href="/courses/engl101">ENGL</a>'),
+    "https://catalog.example.edu/courses/engl101": FakePage(html="<h1>ENGL 101</h1>"),
+}
 
 
-def test_crawl_requires_strategy(tmp_path: Path) -> None:
-    result = CliRunner().invoke(
-        cli,
-        [
-            "catalog",
-            "crawl",
-            "--url",
-            SEED,
-            "--target-uri",
-            str(tmp_path),
-        ],
-    )
-    assert result.exit_code != 0
-    assert "--with-playwright" in result.output
-
-
-def test_unimplemented_ai_agent_strategy(tmp_path: Path) -> None:
-    result = CliRunner().invoke(
-        cli,
-        [
-            "catalog",
-            "crawl",
-            "--with-ai-agent",
-            "--url",
-            SEED,
-            "--target-uri",
-            str(tmp_path),
-            "--min-interval",
-            "0",
-        ],
-    )
-    assert result.exit_code != 0
-    assert "not implemented" in result.output.lower()
-
-
-def test_crawl_playwright_writes_slots_without_pack(
-    tmp_path: Path, catalog_home_html: str, monkeypatch
+def patch_crawl(
+    monkeypatch,
+    pages: dict,
+    *,
+    calls: list[str] | None = None,
+    resolve_url=None,
 ) -> None:
-    def fake_harvest(seed_url, **kwargs):
-        return harvest_from_html(catalog_home_html, seed_url, limit=5)
+    """Run the real crawler with a fake browser and no network."""
+    from implementations import crawl as engine
 
-    monkeypatch.setattr("xtra.catalog.crawl.harvest_playwright", fake_harvest)
+    real = engine.run_crawl
 
-    result = CliRunner().invoke(
+    def fake(settings, **kwargs):
+        kwargs.setdefault("fetcher_factory", fetcher_factory(pages, calls=calls))
+        kwargs.setdefault("url_fetch", no_site_documents)
+        kwargs.setdefault("resolve_url", resolve_url or (lambda url: url))
+        kwargs.setdefault("sleep", lambda seconds: None)
+        return real(settings, **kwargs)
+
+    monkeypatch.setattr("xtra.catalog.crawl.run_crawl", fake)
+
+
+def invoke(tmp_path: Path, *extra: str):
+    return CliRunner().invoke(
         cli,
         [
             "catalog",
@@ -67,47 +56,157 @@ def test_crawl_playwright_writes_slots_without_pack(
             "--target-uri",
             str(tmp_path),
             "--run-id",
-            RUN_ID,
-            "--limit",
-            "5",
-            "--discover-only",
-            "--min-interval",
+            RUN,
+            "--min-interval-in-seconds",
             "0",
-            "--backoff-base",
+            "--max-interval-in-seconds",
+            "1",
+            *extra,
+        ],
+    )
+
+
+def test_crawl_saves_pages_under_the_catalog_folder(tmp_path: Path, monkeypatch) -> None:
+    patch_crawl(monkeypatch, PAGES)
+    result = invoke(tmp_path)
+    assert result.exit_code == 0, result.output
+
+    doc = json.loads(result.output)
+    assert doc["schema"] == "xtra-crawl-2"
+    assert doc["catalog_folder"] == FOLDER
+    assert doc["run_id"] == RUN
+    assert doc["pages_saved"] == 2
+    assert doc["status"] == "complete"
+
+    run_dir = tmp_path / FOLDER / RUN_PATH
+    assert (run_dir / "crawl.json").is_file()
+    assert (run_dir / "state.json").is_file()
+    assert len(list((run_dir / "pages").glob("*.html"))) == 2
+    assert list((run_dir / "pages").glob("*.txt")) == []
+    assert not (run_dir / "slots.json").exists()
+
+
+def test_the_catalog_folder_comes_from_the_url_as_typed(
+    tmp_path: Path, monkeypatch
+) -> None:
+    pages = {"https://catalog.atlanticcape.edu/": FakePage(html="<p>hi</p>")}
+    patch_crawl(monkeypatch, pages)
+    result = CliRunner().invoke(
+        cli,
+        [
+            "catalog",
+            "crawl",
+            "--with-playwright",
+            "--url",
+            "https://catalog.atlanticcape.edu/",
+            "--target-uri",
+            str(tmp_path),
+            "--run-id",
+            RUN,
+            "--min-interval-in-seconds",
             "0",
         ],
     )
     assert result.exit_code == 0, result.output
-    payload = json.loads(result.output)
-    assert payload["run_id"] == RUN_ID
-    assert payload["catalog_id"] == "example"
-    assert payload["kept"] >= 1
-    assert "pack" not in payload
-
-    slots_path = tmp_path / "example" / RUN_ID / "slots.json"
-    assert slots_path.is_file()
-    slots = json.loads(slots_path.read_text(encoding="utf-8"))
-    urls = [row["requested_url"] for row in slots["slots"]]
-    assert "https://catalog.example.edu/english/engl101" in urls
+    assert (tmp_path / "catalog-atlanticcape-edu" / RUN_PATH).is_dir()
 
 
-def test_slot_to_dict_round_trip(catalog_home_html: str) -> None:
-    report = harvest_from_html(catalog_home_html, SEED, limit=2)
-    as_dict = slot_to_dict(report["slots"][0])
-    assert as_dict["entity_type"] == "Course"
-    assert as_dict["requested_url"].startswith("https://catalog.example.edu/")
+def test_a_run_id_with_hyphens_is_accepted_and_reported_with_colons(
+    tmp_path: Path, monkeypatch
+) -> None:
+    patch_crawl(monkeypatch, PAGES)
+    result = invoke(tmp_path)
+    assert json.loads(result.output)["run_id"] == RUN
 
-
-def test_crawl_errors_when_no_course_urls(tmp_path: Path, monkeypatch) -> None:
-    monkeypatch.setattr(
-        "xtra.catalog.crawl.harvest_playwright",
-        lambda *args, **kwargs: {
-            "slots": [],
-            "discovered": 0,
-            "family": "custom_html",
-            "institution_name": "Example",
-        },
+    hyphen = CliRunner().invoke(
+        cli,
+        [
+            "catalog",
+            "crawl",
+            "--with-playwright",
+            "--url",
+            SEED,
+            "--target-uri",
+            str(tmp_path),
+            "--run-id",
+            RUN_PATH,
+            "--min-interval-in-seconds",
+            "0",
+        ],
     )
+    assert hyphen.exit_code == 0, hyphen.output
+    assert json.loads(hyphen.output)["run_id"] == RUN
+
+
+def test_a_run_id_that_is_not_a_timestamp_is_rejected(tmp_path: Path) -> None:
+    result = invoke(tmp_path.parent, "--run-id", "yesterday")
+    assert result.exit_code != 0
+    assert "2026-09-17T14:20:01Z" in result.output
+
+
+def test_the_limit_caps_the_run(tmp_path: Path, monkeypatch) -> None:
+    patch_crawl(monkeypatch, PAGES)
+    result = invoke(tmp_path, "--limit", "1")
+    assert result.exit_code == 0, result.output
+    doc = json.loads(result.output)
+    assert doc["pages_saved"] == 1
+    assert doc["status"] == "limit_reached"
+    assert doc["limit"] == 1
+
+
+def test_rerunning_the_same_run_reads_saved_pages_back(
+    tmp_path: Path, monkeypatch
+) -> None:
+    patch_crawl(monkeypatch, PAGES)
+    invoke(tmp_path, "--limit", "1")
+
+    calls: list[str] = []
+    patch_crawl(monkeypatch, PAGES, calls=calls)
+    result = invoke(tmp_path, "--limit", "5")
+    assert result.exit_code == 0, result.output
+    assert json.loads(result.output)["pages_saved"] == 2
+    assert SEED not in calls
+
+
+def test_a_seed_urls_file_adds_start_urls(tmp_path: Path, monkeypatch) -> None:
+    hidden = "https://catalog.example.edu/hidden/engl999"
+    pages = dict(PAGES)
+    pages[hidden] = FakePage(html="<h1>ENGL 999</h1>")
+    seeds = tmp_path / "seeds.txt"
+    seeds.write_text(
+        f"# extra entry points\n\n{hidden}\n", encoding="utf-8"
+    )
+    patch_crawl(monkeypatch, pages)
+    result = invoke(tmp_path, "--seed-urls-file", str(seeds))
+    assert result.exit_code == 0, result.output
+    assert json.loads(result.output)["pages_saved"] == 3
+
+
+def test_read_seed_urls_ignores_blanks_and_comments(tmp_path: Path) -> None:
+    path = tmp_path / "seeds.txt"
+    path.write_text("# note\n\n  https://a.edu/x  \nhttps://a.edu/y\n", encoding="utf-8")
+    assert read_seed_urls(path) == ("https://a.edu/x", "https://a.edu/y")
+    assert read_seed_urls(None) == ()
+
+
+def test_include_and_exclude_regexes_are_recorded(tmp_path: Path, monkeypatch) -> None:
+    patch_crawl(monkeypatch, PAGES)
+    result = invoke(
+        tmp_path, "--include-regex", "courses", "--exclude-regex", "print=1"
+    )
+    assert result.exit_code == 0, result.output
+    doc = json.loads(result.output)
+    assert doc["include_regex"] == ["courses"]
+    assert doc["exclude_regex"] == ["print=1"]
+
+
+def test_a_broken_regex_is_a_usage_error(tmp_path: Path) -> None:
+    result = invoke(tmp_path, "--include-regex", "cat(oid")
+    assert result.exit_code != 0
+    assert "--include-regex" in result.output
+
+
+def test_a_min_above_the_max_is_a_usage_error(tmp_path: Path) -> None:
     result = CliRunner().invoke(
         cli,
         [
@@ -118,116 +217,104 @@ def test_crawl_errors_when_no_course_urls(tmp_path: Path, monkeypatch) -> None:
             SEED,
             "--target-uri",
             str(tmp_path),
-            "--discover-only",
-            "--min-interval",
-            "0",
+            "--min-interval-in-seconds",
+            "600",
+            "--max-interval-in-seconds",
+            "60",
         ],
     )
     assert result.exit_code != 0
-    assert "no course urls" in result.output.lower()
+    assert "--min-interval-in-seconds" in result.output
+    assert "--max-interval-in-seconds" in result.output
+
+
+def test_a_scope_prefix_on_another_host_is_a_usage_error(tmp_path: Path) -> None:
+    result = invoke(tmp_path, "--scope-prefix", "https://other.edu/courses/")
+    assert result.exit_code != 0
+    assert "one host" in result.output
+
+
+def test_a_failed_page_gives_a_non_zero_exit_and_one_line(
+    tmp_path: Path, monkeypatch
+) -> None:
+    pages = {
+        SEED: FakePage(html='<a href="/courses/gone">gone</a>'),
+        "https://catalog.example.edu/courses/gone": FakePage(status=404, html=""),
+    }
+    patch_crawl(monkeypatch, pages)
+    result = invoke(tmp_path, "--max-retries", "1")
+    assert result.exit_code == 1
+    assert "failed.jsonl" in result.output
+
+
+def test_crawl_writes_to_the_active_environment(tmp_path: Path, monkeypatch) -> None:
+    save_config(StoredConfig(env_name="dev", data_uri=str(tmp_path)))
+    patch_crawl(monkeypatch, PAGES)
+    result = CliRunner().invoke(
+        cli,
+        [
+            "catalog",
+            "crawl",
+            "--with-playwright",
+            "--url",
+            SEED,
+            "--run-id",
+            RUN,
+            "--min-interval-in-seconds",
+            "0",
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    assert (tmp_path / FOLDER / RUN_PATH / "crawl.json").is_file()
 
 
 def test_crawl_without_target_uri_or_environment_explains_itself() -> None:
     result = CliRunner().invoke(
-        cli,
-        ["catalog", "crawl", "--with-playwright", "--url", SEED, "--discover-only"],
+        cli, ["catalog", "crawl", "--with-playwright", "--url", SEED]
     )
     assert result.exit_code != 0
     assert "--target-uri is required" in result.output
     assert "xtra environment set" in result.output
 
 
-def test_crawl_writes_to_the_active_environment(
-    tmp_path: Path, catalog_home_html: str, monkeypatch
-) -> None:
-    monkeypatch.setattr(
-        "xtra.catalog.crawl.harvest_playwright",
-        lambda seed_url, **kwargs: harvest_from_html(catalog_home_html, seed_url, limit=1),
-    )
-    save_config(StoredConfig(env_name="test", data_uri=str(tmp_path)))
-
+def test_crawl_requires_a_strategy(tmp_path: Path) -> None:
     result = CliRunner().invoke(
-        cli,
-        [
-            "catalog",
-            "crawl",
-            "--with-playwright",
-            "--url",
-            SEED,
-            "--run-id",
-            RUN_ID,
-            "--discover-only",
-            "--min-interval",
-            "0",
-        ],
-    )
-    assert result.exit_code == 0, result.output
-    assert (tmp_path / "example" / RUN_ID / "slots.json").is_file()
-
-
-def test_crawl_env_flag_overrides_the_active_environment(
-    tmp_path: Path, catalog_home_html: str, monkeypatch
-) -> None:
-    monkeypatch.setattr(
-        "xtra.catalog.crawl.harvest_playwright",
-        lambda seed_url, **kwargs: harvest_from_html(catalog_home_html, seed_url, limit=1),
-    )
-    save_config(StoredConfig(env_name="prod", data_uri=str(tmp_path)))
-
-    result = CliRunner().invoke(
-        cli,
-        [
-            "catalog",
-            "crawl",
-            "--with-playwright",
-            "--env",
-            "sandbox",
-            "--url",
-            SEED,
-            "--discover-only",
-            "--min-interval",
-            "0",
-        ],
+        cli, ["catalog", "crawl", "--url", SEED, "--target-uri", str(tmp_path)]
     )
     assert result.exit_code != 0
-    assert "environment set sandbox" in result.output
-    assert not list(tmp_path.iterdir())
+    assert "--with-playwright" in result.output
 
 
-def test_crawl_downloads_pages_when_not_discover_only(
-    tmp_path: Path, catalog_home_html: str, engl101_html: str, monkeypatch
-) -> None:
-    def fake_harvest(seed_url, **kwargs):
-        return harvest_from_html(catalog_home_html, seed_url, limit=1)
-
-    def fake_download(url, **kwargs):
-        stem = "catalog-example-edu-english-engl101"
-        return engl101_html, {"http_status": 200, "requested_url": url}, "ENGL101:\n", stem
-
-    monkeypatch.setattr("xtra.catalog.crawl.harvest_playwright", fake_harvest)
-    monkeypatch.setattr("xtra.catalog.crawl.download_one", fake_download)
+@pytest.mark.parametrize("flag", ["--with-ai-agent", "--with-third-party"])
+def test_the_reserved_strategies_fail_closed(tmp_path: Path, flag: str) -> None:
     result = CliRunner().invoke(
         cli,
-        [
-            "catalog",
-            "crawl",
-            "--with-playwright",
-            "--url",
-            SEED,
-            "--target-uri",
-            str(tmp_path),
-            "--run-id",
-            RUN_ID,
-            "--limit",
-            "1",
-            "--min-interval",
-            "0",
-            "--backoff-base",
-            "0",
-        ],
+        ["catalog", "crawl", flag, "--url", SEED, "--target-uri", str(tmp_path)],
     )
-    assert result.exit_code == 0, result.output
-    payload = json.loads(result.output)
-    assert payload["downloaded"] == 1
-    pages = list((tmp_path / "example" / RUN_ID / "pages").glob("*.html"))
-    assert pages
+    assert result.exit_code != 0
+    assert "not implemented" in result.output.lower()
+
+
+def test_the_removed_flags_are_gone(tmp_path: Path) -> None:
+    help_text = CliRunner().invoke(cli, ["catalog", "crawl", "--help"]).output
+    for flag in (
+        "--all",
+        "--discover-only",
+        "--institution",
+        "--catalog-id",
+        "--backoff-base",
+        "--backoff-max",
+    ):
+        assert flag not in help_text
+    for flag in (
+        "--limit",
+        "--concurrency-limit",
+        "--min-interval-in-seconds",
+        "--max-interval-in-seconds",
+        "--max-retries",
+        "--scope-prefix",
+        "--include-regex",
+        "--exclude-regex",
+        "--seed-urls-file",
+    ):
+        assert flag in help_text

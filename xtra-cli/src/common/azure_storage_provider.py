@@ -33,11 +33,24 @@ class AzureBlobStorageProvider:
             self.container_name,
         )
 
-    def iter_keys(self) -> Iterator[str]:
-        for blob in self.container_client.list_blobs(
-            name_starts_with=self.prefix_path,
-        ):
+    def iter_keys(self, *, name_starts_with: str | None = None) -> Iterator[str]:
+        """Blob names under `name_starts_with`, or under the whole prefix.
+
+        The narrower prefix is handed to Azure rather than filtered in
+        Python, so listing one run does not page through the container.
+        """
+        prefix = self.prefix_path if name_starts_with is None else name_starts_with
+        for blob in self.container_client.list_blobs(name_starts_with=prefix):
             yield blob.name
+
+    def exists(self, key: str) -> bool:
+        """True when the blob is there. Missing is False; nothing else is.
+
+        The blob client answers from a HEAD, so resume does not download a
+        page to discover it already has it, and a credential or network
+        fault is raised instead of being read as "not saved yet".
+        """
+        return bool(self.container_client.get_blob_client(key).exists())
 
     def load_batch(
         self,

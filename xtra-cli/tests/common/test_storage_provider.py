@@ -10,6 +10,7 @@ def test_storage_provider_protocol_lists_batch_methods() -> None:
     names = set(StorageProvider.__dict__) | set(dir(StorageProvider))
     for method in (
         "iter_keys",
+        "exists",
         "load_batch",
         "load_binary_batch",
         "delete_batch",
@@ -24,6 +25,7 @@ def test_local_provider_matches_protocol_shape(tmp_path) -> None:
     )
     for method in (
         "iter_keys",
+        "exists",
         "load_batch",
         "load_binary_batch",
         "delete_batch",

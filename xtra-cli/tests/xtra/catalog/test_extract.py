@@ -5,9 +5,9 @@ from pathlib import Path
 
 from click.testing import CliRunner
 
-from common.keys import page_html_key, slots_key
+from common.keys import page_html_key, run_prefix
 from common.object_store import open_store
-from implementations.crawl import harvest_from_html, slot_to_dict
+from xtra.catalog.extract import legacy_slots_key
 from xtra.cli import cli
 
 SEED = "https://catalog.example.edu"
@@ -15,23 +15,15 @@ RUN_ID = "2026-09-14T18:12:00Z"
 CATALOG_ID = "example"
 
 
-def _seed_run(tmp_path: Path, engl101_html: str, catalog_home_html: str) -> None:
+def _seed_run(tmp_path: Path, engl101_html: str, engl101_slot: dict) -> None:
     store = open_store(str(tmp_path))
-    report = harvest_from_html(catalog_home_html, SEED, limit=1)
-    slot = report["slots"][0]
-    # Point the only slot at the ENGL101 fixture URL/html.
-    raw = slot_to_dict(slot)
-    raw["requested_url"] = "https://catalog.example.edu/english/engl101"
-    raw["record_id"] = "example-engl101-course"
-    raw["page_id"] = "example-engl101"
-    raw["template_id"] = "clean_catalog_course_detail"
-    raw["source_family"] = "custom_html"
     from html_text import slug_url
 
+    raw = dict(engl101_slot)
     stem = slug_url(raw["requested_url"])
     raw["stem"] = stem
     store.put_json(
-        slots_key(CATALOG_ID, RUN_ID),
+        legacy_slots_key(CATALOG_ID, RUN_ID),
         {
             "schema": "xtra-slots-1",
             "catalog_id": CATALOG_ID,
@@ -47,9 +39,9 @@ def _seed_run(tmp_path: Path, engl101_html: str, catalog_home_html: str) -> None
 
 
 def test_extract_template_writes_candidate_record(
-    tmp_path: Path, engl101_html: str, catalog_home_html: str
+    tmp_path: Path, engl101_html: str, engl101_slot: dict
 ) -> None:
-    _seed_run(tmp_path, engl101_html, catalog_home_html)
+    _seed_run(tmp_path, engl101_html, engl101_slot)
     result = CliRunner().invoke(
         cli,
         [
@@ -67,7 +59,12 @@ def test_extract_template_writes_candidate_record(
         ],
     )
     assert result.exit_code == 0, result.output
-    record_path = tmp_path / CATALOG_ID / RUN_ID / "records" / "example-engl101-course.json"
+    record_path = (
+        tmp_path
+        / run_prefix(CATALOG_ID, RUN_ID)
+        / "records"
+        / "example-engl101-course.json"
+    )
     record = json.loads(record_path.read_text(encoding="utf-8"))
     assert record["verification"]["status"] == "candidate"
     labels = {

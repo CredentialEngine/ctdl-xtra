@@ -7,7 +7,9 @@ from common.models import DownloadedResource
 
 
 class StorageProvider(Protocol):
-    def iter_keys(self) -> Iterator[str]: ...
+    def iter_keys(self, *, name_starts_with: str | None = None) -> Iterator[str]: ...
+
+    def exists(self, key: str) -> bool: ...
 
     def load_batch(
         self,

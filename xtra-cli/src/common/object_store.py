@@ -65,17 +65,21 @@ class ObjectStore:
         return json.loads(self.get_text(key))
 
     def exists(self, key: str) -> bool:
-        try:
-            self.get_bytes(key)
-            return True
-        except FileNotFoundError:
-            return False
+        """True when the object is stored, without downloading it.
+
+        A crawl asks this once per frontier URL on resume, so reading the
+        whole page to answer it was both slow and wrong: it turned a
+        credential or network fault into "not saved yet" and refetched a
+        page the run already had.
+        """
+        return bool(self.provider.exists(self._load_key(key)))
 
     def list_keys(self, under: str = "") -> list[str]:
         prefix = getattr(self.provider, "prefix_path", "") or ""
         needle = under.strip("/")
+        start = self._load_key(needle) if needle else prefix
         out: list[str] = []
-        for name in self.provider.iter_keys():
+        for name in self.provider.iter_keys(name_starts_with=start):
             rel = name
             if prefix and (
                 name == prefix or name.startswith(prefix.rstrip("/") + "/")

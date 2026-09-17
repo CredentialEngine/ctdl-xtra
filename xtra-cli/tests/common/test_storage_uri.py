@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from pathlib import Path
+
 from common.storage_uri import (
     join_storage_uri,
     parse_azure_storage_uri,
@@ -24,8 +26,9 @@ def test_parse_azurite_uri() -> None:
 
 
 def test_parse_file_uri(tmp_path) -> None:
+    """The URI form keeps forward slashes, which Windows accepts as a path."""
     parsed = parse_file_storage_uri(tmp_path.as_uri())
-    assert parsed.local_path == str(tmp_path)
+    assert Path(parsed.local_path) == tmp_path
 
 
 def test_join_storage_uri() -> None:

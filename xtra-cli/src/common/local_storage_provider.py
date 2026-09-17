@@ -28,13 +28,26 @@ class LocalStorageProvider:
         self.batch_size = batch_size
         self.read_concurrency = read_concurrency
 
-    def iter_keys(self) -> Iterator[str]:
+    def iter_keys(self, *, name_starts_with: str | None = None) -> Iterator[str]:
+        prefix = (name_starts_with or "").lstrip("/")
         if self.single_file_name is not None:
-            yield self.single_file_name
+            if self.single_file_name.startswith(prefix):
+                yield self.single_file_name
             return
         for path in self.root_path.rglob("*"):
-            if path.is_file():
-                yield str(path.relative_to(self.root_path)).replace("\\", "/")
+            if not path.is_file():
+                continue
+            key = str(path.relative_to(self.root_path)).replace("\\", "/")
+            if key.startswith(prefix):
+                yield key
+
+    def exists(self, key: str) -> bool:
+        """True when the object is there. Missing is False; nothing else is.
+
+        `Path.is_file` answers for a stored object without reading it, which
+        is what the crawl needs on resume: one question per frontier URL.
+        """
+        return (self.root_path / key).is_file()
 
     def load_batch(
         self,

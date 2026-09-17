@@ -5,3 +5,7 @@ out/
 cache/
 snapshots/
 normalized/
+xtra-cache/
+.vs/
+*.egg-info/
+PR_COMMENT_DRAFT.md

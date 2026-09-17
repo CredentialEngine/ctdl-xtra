@@ -16,6 +16,9 @@ def configure_logging() -> None:
         level=level,
         format="%(asctime)s %(levelname)s %(name)s %(message)s",
     )
+    # The Azure SDK logs every request and response at INFO, which buries the
+    # one line per page this CLI exists to print.
+    logging.getLogger("azure").setLevel(logging.WARNING)
 
 
 def _load_command(module_path: str) -> click.Command:
@@ -53,13 +56,7 @@ def catalog_group() -> None:
     """Crawl, extract, and transform one catalog of any size."""
 
 
-@cli.group(name="page")
-def page_group() -> None:
-    """Download individual catalog pages into object storage."""
-
-
 cli.add_command(environment_group)
 catalog_group.add_command(_load_command("xtra.catalog.crawl"))
 catalog_group.add_command(_load_command("xtra.catalog.extract"))
 catalog_group.add_command(_load_command("xtra.catalog.transform"))
-page_group.add_command(_load_command("xtra.page.download"))

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import stat
 from pathlib import Path
 
@@ -51,6 +52,10 @@ def test_save_then_load_round_trips() -> None:
     assert stored.data_uri == PROD_URI
 
 
+@pytest.mark.skipif(
+    os.name == "nt",
+    reason="Windows chmod only toggles the read-only bit, so 0o600 cannot hold",
+)
 def test_saved_config_is_owner_only() -> None:
     path = save_config(StoredConfig(env_name="test"))
     assert stat.S_IMODE(path.stat().st_mode) == 0o600

@@ -1,10 +1,33 @@
 from __future__ import annotations
 
+import urllib.request
 from pathlib import Path
 
 import pytest
 
 FIXTURES = Path(__file__).resolve().parent / "fixtures"
+
+
+@pytest.fixture(autouse=True)
+def no_network(request, monkeypatch) -> None:
+    """Fail loudly if a unit test reaches the network.
+
+    A crawler is all network calls, so an injected fake that is forgotten in
+    one place would quietly start hitting a real college site. Tests marked
+    `integration` opt out.
+    """
+    if request.node.get_closest_marker("integration"):
+        return
+
+    def refuse(*args, **kwargs):
+        target = args[0] if args else ""
+        url = getattr(target, "full_url", target)
+        raise AssertionError(
+            f"a unit test tried to open {url!r}. Inject a fake instead, or "
+            "mark the test with @pytest.mark.integration."
+        )
+
+    monkeypatch.setattr(urllib.request, "urlopen", refuse)
 
 
 @pytest.fixture(autouse=True)

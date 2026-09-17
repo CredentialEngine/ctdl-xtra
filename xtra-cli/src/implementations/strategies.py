@@ -1,5 +1,8 @@
 """Strategy names for crawl / extract / transform.
 
+Review: keep the same --with-<strategy> pattern so new backends can be
+added later (Playwright today; AI-agent and third-party crawlers when
+ready).
 """
 
 from __future__ import annotations
@@ -7,7 +10,6 @@ from __future__ import annotations
 CRAWL_STRATEGIES = ("playwright", "ai-agent", "third-party")
 EXTRACT_STRATEGIES = ("template", "ai-agent")
 TRANSFORM_STRATEGIES = ("ctdl", "ai-agent")
-DOWNLOAD_STRATEGIES = ("playwright", "ai-agent", "third-party")
 
 
 def unimplemented_message(verb: str, strategy: str, *, implemented: str) -> str:

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from click.testing import CliRunner
 import pytest
+from click.testing import CliRunner
 
 from xtra.cli import cli
 from xtra.version import get_version
@@ -11,7 +11,6 @@ def test_cli_returns_zero_for_top_level_help() -> None:
     result = CliRunner().invoke(cli, ["--help"])
     assert result.exit_code == 0
     assert "catalog" in result.output
-    assert "page" in result.output
     assert "environment" in result.output
 
 
@@ -51,8 +50,9 @@ def test_catalog_crawl_help_lists_strategies() -> None:
     assert "--with-playwright" in result.output
     assert "--with-ai-agent" in result.output
     assert "--with-third-party" in result.output
-    assert "--min-interval" in result.output
-    assert "--concurrency" in result.output
+    assert "--min-interval-in-seconds" in result.output
+    assert "--max-interval-in-seconds" in result.output
+    assert "--concurrency-limit" in result.output
     assert "--limit" in result.output
     assert "--target-uri" in result.output
     assert "--env" in result.output
@@ -65,7 +65,6 @@ def test_catalog_crawl_help_lists_strategies() -> None:
         ["catalog", "crawl"],
         ["catalog", "extract"],
         ["catalog", "transform"],
-        ["page", "download"],
     ],
 )
 def test_every_etl_command_accepts_env(args: list[str]) -> None:
@@ -88,11 +87,11 @@ def test_catalog_transform_help_lists_strategies() -> None:
     assert "--with-ai-agent" in result.output
 
 
-def test_page_download_help_lists_strategies() -> None:
-    result = CliRunner().invoke(cli, ["page", "download", "--help"])
-    assert result.exit_code == 0
-    assert "--with-playwright" in result.output
-    assert "--min-interval" in result.output
+def test_page_download_is_gone() -> None:
+    """Crawl saves pages and resumes, so the separate step was removed."""
+    top = CliRunner().invoke(cli, ["--help"])
+    assert "page" not in top.output.split("Commands:")[1]
+    assert CliRunner().invoke(cli, ["page", "download", "--help"]).exit_code != 0
 
 
 def test_configure_logging_accepts_env(monkeypatch) -> None:

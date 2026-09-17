@@ -45,3 +45,31 @@ def test_single_file_root(tmp_path) -> None:
     )
     assert list(provider.iter_keys()) == ["one.json"]
     assert str(path) in provider.describe_location()
+
+
+def test_iter_keys_can_be_narrowed_to_one_prefix(tmp_path) -> None:
+    root = tmp_path / "cache"
+    for rel in ("a/run/one.json", "a/run/two.json", "b/run/three.json"):
+        path = root / rel
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text("{}", encoding="utf-8")
+    provider = LocalStorageProvider(
+        root_path=str(root), batch_size=10, read_concurrency=1
+    )
+    assert sorted(provider.iter_keys(name_starts_with="a/run")) == [
+        "a/run/one.json",
+        "a/run/two.json",
+    ]
+
+
+def test_exists_is_true_only_for_a_stored_file(tmp_path) -> None:
+    root = tmp_path / "cache"
+    (root / "a" / "run").mkdir(parents=True)
+    (root / "a" / "run" / "one.json").write_text("{}", encoding="utf-8")
+    provider = LocalStorageProvider(
+        root_path=str(root), batch_size=10, read_concurrency=1
+    )
+    assert provider.exists("a/run/one.json")
+    assert not provider.exists("a/run/missing.json")
+    # A folder is not a stored object.
+    assert not provider.exists("a/run")

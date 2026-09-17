@@ -5,11 +5,13 @@ import pytest
 from click.testing import CliRunner
 
 from xtra.click import (
+    DEFAULT_MAX_INTERVAL_SECONDS,
+    DEFAULT_MAX_RETRIES,
     DEFAULT_MIN_INTERVAL_SECONDS,
+    crawl_pacing_options,
     env_option,
     limit_option,
     non_empty_string,
-    polite_options,
     require_strategy,
     resolve_connection,
     resolve_uri,
@@ -55,16 +57,32 @@ def test_strategy_options_are_mutually_exclusive() -> None:
     assert last_wins.output.strip() == "ai-agent"
 
 
-def test_polite_and_limit_defaults() -> None:
+def test_crawl_pacing_and_limit_defaults() -> None:
+    """A rare, one-time crawl is slow by default so nobody has to redo it."""
+
     @click.command()
-    @polite_options()
+    @crawl_pacing_options()
     @limit_option()
-    def cmd(concurrency, min_interval, backoff_base, backoff_max, max_retries, limit):
-        click.echo(f"{concurrency},{min_interval},{limit}")
+    def cmd(
+        concurrency_limit,
+        min_interval_in_seconds,
+        max_interval_in_seconds,
+        max_retries,
+        limit,
+    ):
+        click.echo(
+            f"{concurrency_limit},{min_interval_in_seconds},"
+            f"{max_interval_in_seconds},{max_retries},{limit}"
+        )
 
     result = CliRunner().invoke(cmd, [])
     assert result.exit_code == 0
-    assert result.output.strip() == f"1,{DEFAULT_MIN_INTERVAL_SECONDS},None"
+    assert result.output.strip() == (
+        f"1,{DEFAULT_MIN_INTERVAL_SECONDS},{DEFAULT_MAX_INTERVAL_SECONDS},"
+        f"{DEFAULT_MAX_RETRIES},None"
+    )
+    assert DEFAULT_MIN_INTERVAL_SECONDS == 180.0
+    assert DEFAULT_MAX_INTERVAL_SECONDS == 3600.0
 
 
 def test_uri_options_are_optional_and_stripped() -> None:

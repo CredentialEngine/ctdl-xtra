@@ -5,7 +5,7 @@ from pathlib import Path
 
 from click.testing import CliRunner
 
-from common.keys import record_key
+from common.keys import record_key, run_prefix
 from common.object_store import open_store
 from xtra.cli import cli
 
@@ -58,26 +58,19 @@ def test_transform_ctdl_writes_jsonld_without_ctid(tmp_path: Path) -> None:
         ],
     )
     assert result.exit_code == 0, result.output
+    run_dir = tmp_path / run_prefix(CATALOG_ID, RUN_ID)
     node = json.loads(
-        (
-            tmp_path
-            / CATALOG_ID
-            / RUN_ID
-            / "jsonld"
-            / "example-engl101-course.json"
-        ).read_text(encoding="utf-8")
+        (run_dir / "jsonld" / "example-engl101-course.json").read_text(
+            encoding="utf-8"
+        )
     )
     assert node["@type"] == "ceterms:Course"
     assert "ceterms:ctid" not in node
     assert node["ceterms:codedNotation"] == "ENGL101"
     expected = json.loads(
-        (
-            tmp_path
-            / CATALOG_ID
-            / RUN_ID
-            / "expected"
-            / "example-engl101-course.json"
-        ).read_text(encoding="utf-8")
+        (run_dir / "expected" / "example-engl101-course.json").read_text(
+            encoding="utf-8"
+        )
     )
     assert expected["catalogue_type"] == "COURSES"
     assert expected["expected"]["course_id"] == "ENGL101"
