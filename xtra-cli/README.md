@@ -120,6 +120,9 @@ Filesystem path matches invocation, the same way ceops does (`ceops elasticsearc
 ```text
 xtra environment set    -> src/xtra/environment.py
 xtra catalog crawl      -> src/xtra/catalog/crawl.py
+  --with-playwright     -> src/implementations/crawl_browser.py
+  --with-http           -> src/implementations/crawl_http.py
+  --with-firecrawl      -> src/implementations/crawl_firecrawl.py
 xtra catalog discover   -> src/xtra/catalog/discover.py
 xtra catalog extract    -> src/xtra/catalog/extract.py
 xtra catalog transform  -> src/xtra/catalog/transform.py
@@ -160,8 +163,65 @@ xtra catalog crawl --with-playwright \
 A crawl is a rare, one-time job, so the defaults are slow on purpose: one
 page every three minutes, one worker. Getting it wrong means doing it again.
 
-`--with-ai-agent` and `--with-third-party` are reserved strategy flags. They
-fail closed with a clear message until those backends exist.
+#### Which strategy to pick
+
+Three backends fetch pages. Everything else about a crawl is identical
+whichever one runs: the frontier, the scope rules, robots.txt, the retry
+ladder, the pacing, the checkpoints, the log lines, and everything discovery
+reads afterwards. A strategy only decides how one URL becomes one saved page.
+
+| Flag | Renders JS | Cost | Pick it when |
+| --- | --- | --- | --- |
+| `--with-playwright` | yes | a browser per worker | You do not know yet. It works everywhere. |
+| `--with-http` | no | none | The catalog is server-rendered. Far cheaper and it scales to real concurrency. |
+| `--with-firecrawl` | yes | per page, to a third party | The site blocks the browser we drive, or we cannot run one. |
+
+`--with-ai-agent` and `--with-third-party` stay registered and fail closed
+with a message naming the three that work.
+
+**Start with `--with-playwright`.** Then find out whether you need it: run
+five pages each way into two run ids and compare.
+
+```bash
+xtra catalog crawl --with-playwright --url "$CATALOG" --run-id "$A" --limit 5 --target-uri "$TARGET"
+xtra catalog crawl --with-http       --url "$CATALOG" --run-id "$B" --limit 5 --target-uri "$TARGET"
+```
+
+`crawl.json` records `strategy`, `pages_saved` and `total_bytes`, so the two
+runs are directly comparable. If `total_bytes` is close, the browser is
+buying nothing and `--with-http` is the better job. If the `--with-http` run
+saved a fraction of the bytes, the catalog renders in the client and
+Playwright is doing real work.
+
+On the two catalogs tested here, `--with-http` captured the same content: the
+same visible text to within a few characters and the same in-scope links,
+with byte counts inside one percent. That will not hold for every catalog, so
+measure rather than assume.
+
+A browser is still the right default because the failure is silent. A page
+that renders in the client returns HTTP 200 and a near-empty shell, so an
+`--with-http` crawl of the wrong catalog looks like a success and produces
+nothing to extract.
+
+#### Firecrawl
+
+```bash
+export FIRECRAWL_API_KEY="fc-..."
+xtra catalog crawl --with-firecrawl --url "$CATALOG" --target-uri "$TARGET" --limit 5
+```
+
+The key comes from `--firecrawl-api-key` or `FIRECRAWL_API_KEY` and is sent
+in one header. It is never logged and never written to `crawl.json`.
+`--firecrawl-api-url` points at a self-hosted instance.
+
+Only the HTTP shape is implemented, with no SDK, so this adds no dependency.
+Two things to know before reaching for it: every crawled URL goes to a third
+party, and it renders the same page a browser would, so it does not reach
+content that sits behind pagination or a button.
+
+A rejected key is not retried. Six retries a page on a bad key would spend a
+whole crawl's budget before anyone noticed, so only HTTP 429 and 5xx from the
+service are waited out.
 
 #### What stays in scope
 

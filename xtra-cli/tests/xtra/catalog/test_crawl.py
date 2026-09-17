@@ -35,7 +35,7 @@ def patch_crawl(
     real = engine.run_crawl
 
     def fake(settings, **kwargs):
-        kwargs.setdefault("fetcher_factory", fetcher_factory(pages, calls=calls))
+        kwargs["fetcher_factory"] = fetcher_factory(pages, calls=calls)
         kwargs.setdefault("url_fetch", no_site_documents)
         kwargs.setdefault("resolve_url", resolve_url or (lambda url: url))
         kwargs.setdefault("sleep", lambda seconds: None)
@@ -318,3 +318,109 @@ def test_the_removed_flags_are_gone(tmp_path: Path) -> None:
         "--seed-urls-file",
     ):
         assert flag in help_text
+
+
+# --- choosing a backend -----------------------------------------------------
+
+
+def test_the_help_offers_three_working_strategies() -> None:
+    help_text = CliRunner().invoke(cli, ["catalog", "crawl", "--help"]).output
+    for flag in ("--with-playwright", "--with-http", "--with-firecrawl"):
+        assert flag in help_text
+    assert "--firecrawl-api-key" in help_text
+    assert "--firecrawl-api-url" in help_text
+
+
+def test_the_strategy_chosen_is_recorded_in_crawl_json(
+    tmp_path: Path, monkeypatch
+) -> None:
+    """Two small runs are comparable only if each says which backend ran."""
+    patch_crawl(monkeypatch, PAGES)
+    result = CliRunner().invoke(
+        cli,
+        [
+            "catalog",
+            "crawl",
+            "--with-http",
+            "--url",
+            SEED,
+            "--target-uri",
+            str(tmp_path),
+            "--run-id",
+            RUN,
+            "--min-interval-in-seconds",
+            "0",
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    assert json.loads(result.output)["strategy"] == "http"
+
+
+def test_firecrawl_without_a_key_is_a_usage_error(tmp_path: Path) -> None:
+    result = CliRunner().invoke(
+        cli,
+        [
+            "catalog",
+            "crawl",
+            "--with-firecrawl",
+            "--url",
+            SEED,
+            "--target-uri",
+            str(tmp_path),
+        ],
+    )
+    assert result.exit_code != 0
+    assert "--firecrawl-api-key" in result.output
+
+
+def test_firecrawl_takes_its_key_from_the_environment(
+    tmp_path: Path, monkeypatch
+) -> None:
+    monkeypatch.setenv("FIRECRAWL_API_KEY", "fc-from-env")
+    patch_crawl(monkeypatch, PAGES)
+    result = CliRunner().invoke(
+        cli,
+        [
+            "catalog",
+            "crawl",
+            "--with-firecrawl",
+            "--url",
+            SEED,
+            "--target-uri",
+            str(tmp_path),
+            "--run-id",
+            RUN,
+            "--min-interval-in-seconds",
+            "0",
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    assert json.loads(result.output)["strategy"] == "firecrawl"
+
+
+def test_the_api_key_never_reaches_the_run_report(
+    tmp_path: Path, monkeypatch
+) -> None:
+    patch_crawl(monkeypatch, PAGES)
+    result = CliRunner().invoke(
+        cli,
+        [
+            "catalog",
+            "crawl",
+            "--with-firecrawl",
+            "--firecrawl-api-key",
+            "fc-secret-value",
+            "--url",
+            SEED,
+            "--target-uri",
+            str(tmp_path),
+            "--run-id",
+            RUN,
+            "--min-interval-in-seconds",
+            "0",
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    assert "fc-secret-value" not in result.output
+    stored = (tmp_path / FOLDER / RUN_PATH / "crawl.json").read_text(encoding="utf-8")
+    assert "fc-secret-value" not in stored

@@ -19,7 +19,12 @@ from common.clock import is_iso8601_utc, utc_timestamp
 from common.keys import catalog_folder_name
 from common.object_store import open_store
 from implementations.crawl import CrawlSettings, run_crawl
-from implementations.strategies import unimplemented_message
+from implementations.crawl_fetchers import (
+    DEFAULT_FIRECRAWL_API_URL,
+    StrategyNotImplementedError,
+    StrategyOptionError,
+    fetcher_factory_for,
+)
 from xtra.click import (
     crawl_pacing_options,
     env_option,
@@ -72,7 +77,7 @@ def check_scope_prefix(url: str, scope_prefix: str | None) -> None:
 
 
 @click.command(name="crawl")
-@strategy_options("playwright", "ai-agent", "third-party")
+@strategy_options("playwright", "http", "firecrawl", "ai-agent", "third-party")
 @click.option("--url", required=True, help="Catalog URL the crawl starts from.")
 @env_option()
 @target_uri_option()
@@ -114,6 +119,18 @@ def check_scope_prefix(url: str, scope_prefix: str | None) -> None:
     default=None,
     help="Extra start URLs, one per line, for pages no link reaches.",
 )
+@click.option(
+    "--firecrawl-api-key",
+    envvar="FIRECRAWL_API_KEY",
+    required=False,
+    help="API key for --with-firecrawl. Never logged and never stored.",
+)
+@click.option(
+    "--firecrawl-api-url",
+    default=DEFAULT_FIRECRAWL_API_URL,
+    show_default=True,
+    help="Firecrawl endpoint, for a self-hosted instance.",
+)
 @storage_connection_options()
 def main(
     strategy: str | None,
@@ -130,6 +147,8 @@ def main(
     include_regex: tuple[str, ...],
     exclude_regex: tuple[str, ...],
     seed_urls_file: Path | None,
+    firecrawl_api_key: str | None,
+    firecrawl_api_url: str,
     azure_storage_connection_string: str | None,
 ) -> None:
     """Download every page of one catalog and save it.
@@ -140,10 +159,16 @@ def main(
     already saved are read back from storage instead of fetched again.
     """
     strategy = require_strategy(strategy, example="--with-playwright")
-    if strategy != "playwright":
-        raise click.ClickException(
-            unimplemented_message("crawl", strategy, implemented="playwright")
+    try:
+        fetcher_factory = fetcher_factory_for(
+            strategy,
+            firecrawl_api_key=firecrawl_api_key,
+            firecrawl_api_url=firecrawl_api_url,
         )
+    except StrategyNotImplementedError as exc:
+        raise click.ClickException(str(exc)) from exc
+    except StrategyOptionError as exc:
+        raise click.UsageError(str(exc)) from exc
 
     run_id = run_id or utc_timestamp()
     if not is_iso8601_utc(run_id):
@@ -185,7 +210,7 @@ def main(
         azure_storage_connection_string=azure_storage_connection_string,
         concurrency=concurrency_limit,
     )
-    outcome = run_crawl(settings, store=store)
+    outcome = run_crawl(settings, store=store, fetcher_factory=fetcher_factory)
     click.echo(json.dumps(outcome.crawl_doc, indent=2))
     if outcome.exit_code:
         click.echo(outcome.reason, err=True)

@@ -5,6 +5,8 @@ from pathlib import Path
 
 import pytest
 
+from implementations import crawl_browser
+
 FIXTURES = Path(__file__).resolve().parent / "fixtures"
 
 
@@ -27,7 +29,16 @@ def no_network(request, monkeypatch) -> None:
             "mark the test with @pytest.mark.integration."
         )
 
+    def refuse_browser(*args, **kwargs):
+        raise AssertionError(
+            "a unit test tried to start a real browser. Pass a fake "
+            "fetcher_factory, or mark the test with @pytest.mark.integration."
+        )
+
     monkeypatch.setattr(urllib.request, "urlopen", refuse)
+    monkeypatch.setattr(
+        crawl_browser.PlaywrightFetcher, "__init__", refuse_browser
+    )
 
 
 @pytest.fixture(autouse=True)
