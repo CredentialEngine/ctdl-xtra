@@ -1,0 +1,38 @@
+{
+    "dependencies": {
+        "redis": "^6.2.1"
+    },
+    "devDependencies": {
+        "@types/node": "^26",
+        "typescript": "^6"
+    },
+    "exports": {
+        ".": {
+            "default": "./dist/index.js",
+            "import": "./dist/index.js",
+            "types": "./dist/index.d.ts"
+        }
+    },
+    "files": [
+        "dist"
+    ],
+    "main": "./dist/index.js",
+    "name": "@credentialengine/redis-client",
+    "private": true,
+    "scripts": {
+        "build": "tsc",
+        "clean": "node -e \"require('fs').rmSync('dist', { recursive: true, force: true })\"",
+        "lint": "eslint .",
+        "lint:fix": "eslint . --fix",
+        "prettier": "prettier --config ../../prettier.config.cjs --ignore-path ../../.prettierignore --write .",
+        "prettier:check": "prettier --config ../../prettier.config.cjs --ignore-path ../../.prettierignore --check .",
+        "format": "npm run prettier",
+        "format:check": "npm run prettier:check",
+        "typecheck": "tsc --noEmit",
+        "test": "npm run build && node --experimental-vm-modules ../../node_modules/jest/bin/jest.js --config ../../jest.config.mjs --selectProjects redis-client --runInBand",
+        "check": "npm run prettier:check && npm run lint && npm run typecheck && npm run test"
+    },
+    "type": "module",
+    "types": "./dist/index.d.ts",
+    "version": "1.0.0"
+}

@@ -17,6 +17,8 @@ node_modules/
 .yarn/install-state.gz
 .pnpm-store
 
+.next
+
 # Logs
 logs/
 *.log
@@ -65,3 +67,7 @@ override.tf.json
 .terraformrc
 terraform.rc
 .pnpm-store
+*__azurite_*
+*__blobstorage__*
+next-env.d.ts
+*.log
