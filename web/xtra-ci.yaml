@@ -1,0 +1,119 @@
+trigger: none
+
+pr:
+    branches:
+        include:
+            - main
+    paths:
+        include:
+            - web/**
+
+pool:
+    vmImage: ubuntu-latest
+
+variables:
+    nodeVersion: "26.x"
+    VersionNumber: $[format('{0:yyyy}.{0:MM}.{0:dd}.{1}', pipeline.startTime, variables['Build.BuildId'])]
+    xtraImageName: "ce/xtra"
+
+jobs:
+    - job: Build_Test
+      displayName: Build & Test xTRA
+      steps:
+          - checkout: self
+            fetchDepth: 1
+
+          - task: PowerShell@2
+            displayName: Set Build Number
+            inputs:
+                targetType: inline
+                script: |
+                    Write-Host "##vso[build.updatebuildnumber]$(VersionNumber)"
+
+          - bash: |
+                set -euo pipefail
+                docker run --rm \
+                  -v "$(System.DefaultWorkingDirectory)/web:/src" \
+                  -w /src \
+                  semgrep/semgrep semgrep scan \
+                    --error \
+                    --config "p/secrets" \
+                    --config "p/security-audit" \
+                    --config "p/javascript" \
+                    --config "p/typescript" \
+                    --config "p/react" \
+                    --config "p/nodejs" \
+                    --config "p/dockerfile" \
+                    xtra components
+            displayName: Semgrep scan
+
+          - task: UseNode@1
+            displayName: Use Node.js
+            inputs:
+                version: "$(nodeVersion)"
+
+          - task: Npm@1
+            displayName: Clean Install
+            inputs:
+                command: ci
+                workingDir: web
+
+          - task: Npm@1
+            displayName: Audit
+            inputs:
+                command: custom
+                customCommand: audit --audit-level=moderate
+                workingDir: web
+
+          - task: Npm@1
+            displayName: Prettier Check
+            inputs:
+                command: custom
+                customCommand: run prettier:check
+                workingDir: web
+
+          - task: Npm@1
+            displayName: Lint
+            inputs:
+                command: custom
+                customCommand: run lint
+                workingDir: web
+
+          - task: Npm@1
+            displayName: Typecheck
+            inputs:
+                command: custom
+                customCommand: run typecheck
+                workingDir: web
+
+          - task: Npm@1
+            displayName: Test
+            inputs:
+                command: custom
+                customCommand: run test
+                workingDir: web
+
+          - task: Npm@1
+            displayName: Build xTRA
+            inputs:
+                command: custom
+                customCommand: run build:xtra
+                workingDir: web
+
+    - job: Docker_Build
+      displayName: Build xTRA Docker Image
+      dependsOn: Build_Test
+      steps:
+          - checkout: self
+            fetchDepth: 1
+
+          - task: Docker@2
+            displayName: Build xTRA Image
+            inputs:
+                command: build
+                Dockerfile: web/xtra/Dockerfile
+                buildContext: web
+                repository: "$(xtraImageName)"
+                tags: |
+                    $(VersionNumber)
+                    latest

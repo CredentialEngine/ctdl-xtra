@@ -1,0 +1,44 @@
+{
+    "dependencies": {
+        "@azure/monitor-opentelemetry": "^1.18.1",
+        "@opentelemetry/api": "^1.9.1",
+        "@opentelemetry/api-logs": "^0.219.0",
+        "@opentelemetry/resources": "^2.8.0",
+        "@opentelemetry/semantic-conventions": "^1.41.1",
+        "server-only": "^0.0.1"
+    },
+    "devDependencies": {
+        "@types/node": "^20.19.43",
+        "typescript": "^6"
+    },
+    "exports": {
+        ".": {
+            "default": "./dist/index.js",
+            "import": "./dist/index.js",
+            "types": "./dist/index.d.ts"
+        }
+    },
+    "files": [
+        "dist"
+    ],
+    "main": "./dist/index.js",
+    "module": "./dist/index.js",
+    "name": "@credentialengine/telemetry",
+    "private": true,
+    "scripts": {
+        "build": "tsc",
+        "clean": "node -e \"require('fs').rmSync('dist', { recursive: true, force: true })\"",
+        "lint": "eslint .",
+        "lint:fix": "eslint . --fix",
+        "prettier": "prettier --config ../../prettier.config.cjs --ignore-path ../../.prettierignore --write .",
+        "prettier:check": "prettier --config ../../prettier.config.cjs --ignore-path ../../.prettierignore --check .",
+        "format": "npm run prettier",
+        "format:check": "npm run prettier:check",
+        "typecheck": "tsc --noEmit",
+        "test": "npm run build && node --experimental-vm-modules ../../node_modules/jest/bin/jest.js --config ../../jest.config.mjs --selectProjects telemetry --runInBand",
+        "check": "npm run prettier:check && npm run lint && npm run typecheck && npm run test"
+    },
+    "type": "module",
+    "types": "./dist/index.d.ts",
+    "version": "1.0.0"
+}
