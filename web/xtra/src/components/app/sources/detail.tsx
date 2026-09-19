@@ -1,13 +1,17 @@
+import MuiBox from "@mui/material/Box";
+import MuiTypography from "@mui/material/Typography";
+import { Box } from "@mui/material";
 import type { TableColumnsType } from "antd";
-import { ExternalLink, Trash2 } from "lucide-react";
+import ExternalLink from "@mui/icons-material/OpenInNew";
+import Trash2 from "@mui/icons-material/Delete";
 import BreadcrumbTrail from "@/components/ui/breadcrumb-trail";
 import { useState } from "react";
-import Link from "next/link";
+import Link from "@/components/ui/route-link";
 import { useParams } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import ResizableTable from "@/components/ui/resizable-table";
-import { useToast } from "@/components/ui/use-toast";
+import { useSnackbar } from "@/components/ui/snackbar-provider";
 import { crawlRuns as crawlRunFixtures, sources } from "@/mock-control-plane";
 import type { CrawlRun, DiscoverStatus } from "@/domain";
 
@@ -50,7 +54,7 @@ function formatDuration(seconds?: number) {
 
 export default function SourceDetail() {
     const { sourceId } = useParams<{ sourceId: string }>();
-    const { toast } = useToast();
+    const { showSnackbar } = useSnackbar();
     const source = sources.find((item) => item.id === sourceId);
     const [crawlRuns, setCrawlRuns] = useState<CrawlRun[]>(() =>
         crawlRunFixtures.filter((run) => run.sourceId === sourceId),
@@ -60,13 +64,13 @@ export default function SourceDetail() {
     // TODO(source-db): GET Source metadata including latest successful crawl id and selected LKG crawl/cache id from PostgreSQL.
     // TODO(crawl-db): GET all crawl runs for this Source, including strategy snapshots, crawl progress, discovery progress, cache paths, timestamps, errors, and metrics.
     // TODO(argo-events): Argo callbacks update crawl/discovery run state through the API; active pages should refresh from persisted DB state.
-    if (!source) return <div>Source not found.</div>;
+    if (!source) return <Box>Source not found.</Box>;
 
     function setLkg(run: CrawlRun) {
         if (run.status !== "succeeded" || !run.cacheTimestamp) return;
         // TODO(source-db): PATCH the Source lkgCrawlRunId / effective cache timestamp in PostgreSQL.
         setLkgRunId(run.id);
-        toast({
+        showSnackbar({
             title: "LKG cache selected",
             description: new Date(run.cacheTimestamp).toLocaleString(),
         });
@@ -74,11 +78,11 @@ export default function SourceDetail() {
 
     function deleteCrawl(run: CrawlRun) {
         if (run.status === "running" || run.status === "queued") {
-            toast({ title: "Active crawls cannot be deleted" });
+            showSnackbar({ title: "Active crawls cannot be deleted" });
             return;
         }
         if (run.id === lkgRunId) {
-            toast({
+            showSnackbar({
                 title: "LKG crawl cannot be deleted",
                 description: "Choose another LKG cache first.",
             });
@@ -93,7 +97,7 @@ export default function SourceDetail() {
     }
 
     return (
-        <div className="space-y-7">
+        <Box className="space-y-7">
             <BreadcrumbTrail
                 items={[
                     { label: "Sources", href: "/sources" },
@@ -101,12 +105,16 @@ export default function SourceDetail() {
                 ]}
             />
 
-            <div className="flex flex-wrap items-start justify-between gap-4">
-                <div>
-                    <div className="flex flex-wrap items-center gap-2">
-                        <h1 className="text-2xl font-semibold">
+            <Box className="flex flex-wrap items-start justify-between gap-4">
+                <Box>
+                    <Box className="flex flex-wrap items-center gap-2">
+                        <MuiTypography
+                            variant="h1"
+                            component="h1"
+                            className="text-2xl font-semibold"
+                        >
                             {source.name}
-                        </h1>
+                        </MuiTypography>
                         <Badge variant="outline">
                             {source.organizationName}
                         </Badge>
@@ -115,7 +123,7 @@ export default function SourceDetail() {
                                 {tag}
                             </Badge>
                         ))}
-                    </div>
+                    </Box>
                     <a
                         className="mt-1 inline-flex items-center gap-1 text-sm text-muted-foreground hover:underline"
                         href={source.url}
@@ -125,40 +133,46 @@ export default function SourceDetail() {
                         {source.url}
                         <ExternalLink className="h-3.5 w-3.5" />
                     </a>
-                </div>
-                <div className="flex gap-2">
+                </Box>
+                <Box className="flex gap-2">
                     <Button variant="outline" asChild>
                         <Link href={`/sources/${source.id}/edit`}>
                             Edit source
                         </Link>
                     </Button>
-                </div>
-            </div>
+                </Box>
+            </Box>
 
-            <section
+            <MuiBox
+                component="section"
                 aria-labelledby="source-crawl-runs-heading"
                 className="space-y-3"
             >
-                <div className="flex flex-wrap items-end justify-between gap-3">
-                    <div>
-                        <h2
+                <Box className="flex flex-wrap items-end justify-between gap-3">
+                    <Box>
+                        <MuiTypography
+                            variant="h2"
+                            component="h2"
                             id="source-crawl-runs-heading"
                             className="text-base font-semibold"
                         >
                             Crawl runs
-                        </h2>
-                        <p className="mt-1 text-sm text-muted-foreground">
+                        </MuiTypography>
+                        <MuiTypography
+                            component="p"
+                            className="mt-1 text-sm text-muted-foreground"
+                        >
                             Start crawls when you need them. Each successful run
                             keeps its own timestamped cache; discovery is a
                             separate manual step for that run.
-                        </p>
-                    </div>
+                        </MuiTypography>
+                    </Box>
                     <Button asChild>
                         <Link href={`/crawls/new?sourceId=${source.id}`}>
                             Start another crawl
                         </Link>
                     </Button>
-                </div>
+                </Box>
                 <ResizableTable<CrawlRun>
                     ariaLabel="Crawl runs for this Source"
                     rowKey="id"
@@ -329,7 +343,7 @@ export default function SourceDetail() {
                                 key: "review",
                                 width: 210,
                                 render: (_, run) => (
-                                    <div className="flex items-center gap-1">
+                                    <Box className="flex items-center gap-1">
                                         <Button
                                             size="sm"
                                             variant="ghost"
@@ -355,7 +369,7 @@ export default function SourceDetail() {
                                                 </Link>
                                             </Button>
                                         )}
-                                    </div>
+                                    </Box>
                                 ),
                             },
                             {
@@ -381,7 +395,7 @@ export default function SourceDetail() {
                         ] as TableColumnsType<CrawlRun>
                     }
                 />
-            </section>
-        </div>
+            </MuiBox>
+        </Box>
     );
 }

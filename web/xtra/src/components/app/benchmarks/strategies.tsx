@@ -1,8 +1,8 @@
-import ResizableTable from "@/components/ui/resizable-table";
 import { Badge } from "@/components/ui/badge";
 import BreadcrumbTrail from "@/components/ui/breadcrumb-trail";
 import { Button } from "@/components/ui/button";
-import { useToast } from "@/components/ui/use-toast";
+import ResizableTable from "@/components/ui/resizable-table";
+import { useSnackbar } from "@/components/ui/snackbar-provider";
 import {
     benchmarkRuns,
     benchmarkStrategies,
@@ -12,21 +12,25 @@ import {
     sources,
     transformStrategies,
 } from "@/mock-control-plane";
-import { Plus } from "lucide-react";
+import Plus from "@mui/icons-material/Add";
+import { Box } from "@mui/material";
+import MuiBox from "@mui/material/Box";
+import Tooltip from "@mui/material/Tooltip";
+import MuiTypography from "@mui/material/Typography";
 
 function optionName(options: { id: string; name: string }[], id: string) {
     return options.find((option) => option.id === id)?.name ?? id;
 }
 
 export default function BenchmarkStrategies() {
-    const { toast } = useToast();
+    const { showSnackbar } = useSnackbar();
     // TODO(strategy-api): GET global immutable ETL strategy definitions and available extractor/transform/publish-ready choices.
     // TODO(strategy-db): Persist strategy definitions independently of Sources.
     // TODO(benchmark-db): Load latest benchmark summaries by strategy across Sources.
     // TODO(source-strategy-db): Load admin-approved Source ↔ Strategy assignments used by Publishing.
 
     function createStrategy() {
-        toast({
+        showSnackbar({
             title: "Strategy editor not connected",
             description:
                 "Would create a global ETL strategy independent of any Source.",
@@ -44,48 +48,63 @@ export default function BenchmarkStrategies() {
     });
 
     return (
-        <div className="space-y-6">
+        <Box className="space-y-6">
             <BreadcrumbTrail
                 items={[
                     { label: "Benchmarks", href: "/benchmarks" },
                     { label: "Strategies", href: "/benchmarks/strategies" },
                 ]}
             />
-            <div className="flex flex-wrap items-end justify-between gap-4">
-                <div>
-                    <h1 className="text-2xl font-semibold">Strategies</h1>
-                    <p className="mt-1 max-w-3xl text-sm text-muted-foreground">
+            <Box className="flex flex-wrap items-end justify-between gap-4">
+                <Box>
+                    <MuiTypography
+                        variant="h1"
+                        component="h1"
+                        className="text-2xl font-semibold"
+                    >
+                        Strategies
+                    </MuiTypography>
+                    <MuiTypography
+                        component="p"
+                        className="mt-1 max-w-3xl text-sm text-muted-foreground"
+                    >
                         Strategies are reusable Extract → Transform →
                         Publish-ready definitions. They do not belong to a
                         Source. Benchmark Runs test them against the Promoted
                         Golden Samples for a Source.
-                    </p>
-                </div>
-                <div className="flex flex-wrap items-center gap-2">
+                    </MuiTypography>
+                </Box>
+                <Box className="flex flex-wrap items-center gap-2">
                     <Button variant="outline" onClick={createStrategy}>
                         <Plus className="mr-2 h-4 w-4" />
                         New strategy
                     </Button>
-                </div>
-            </div>
+                </Box>
+            </Box>
 
-            <section
+            <MuiBox
+                component="section"
                 aria-labelledby="strategies-table-heading"
                 className="space-y-3"
             >
-                <div>
-                    <h2
+                <Box>
+                    <MuiTypography
+                        variant="h2"
+                        component="h2"
                         id="strategies-table-heading"
                         className="text-base font-semibold"
                     >
                         Strategies
-                    </h2>
-                    <p className="mt-1 text-sm text-muted-foreground">
+                    </MuiTypography>
+                    <MuiTypography
+                        component="p"
+                        className="mt-1 text-sm text-muted-foreground"
+                    >
                         Admins can promote/link a proven strategy to a Source
                         from a completed Benchmark Report. That link is what
                         makes it selectable in Publishing.
-                    </p>
-                </div>
+                    </MuiTypography>
+                </Box>
                 <ResizableTable
                     ariaLabel="Strategies"
                     rowKey="id"
@@ -101,14 +120,23 @@ export default function BenchmarkStrategies() {
                                 multiple: 6,
                             },
                             render: (_, row) => (
-                                <div>
-                                    <div className="font-medium">
+                                <Tooltip
+                                    title={row.description}
+                                    arrow
+                                    describeChild
+                                >
+                                    <Box
+                                        component="span"
+                                        tabIndex={0}
+                                        className="font-medium"
+                                        sx={{
+                                            display: "inline-block",
+                                            cursor: "help",
+                                        }}
+                                    >
                                         {row.name}
-                                    </div>
-                                    <div className="mt-0.5 text-xs text-muted-foreground">
-                                        {row.description}
-                                    </div>
-                                </div>
+                                    </Box>
+                                </Tooltip>
                             ),
                         },
                         {
@@ -215,7 +243,7 @@ export default function BenchmarkStrategies() {
                             },
                             render: (_, row) =>
                                 row.assignments.length ? (
-                                    <div className="flex flex-wrap gap-1">
+                                    <Box className="flex flex-wrap gap-1">
                                         {row.assignments.map((assignment) => (
                                             <Badge
                                                 key={assignment.sourceId}
@@ -228,16 +256,19 @@ export default function BenchmarkStrategies() {
                                                 )?.name ?? assignment.sourceId}
                                             </Badge>
                                         ))}
-                                    </div>
+                                    </Box>
                                 ) : (
-                                    <span className="text-sm text-muted-foreground">
+                                    <MuiTypography
+                                        component="span"
+                                        className="text-sm text-muted-foreground"
+                                    >
                                         None
-                                    </span>
+                                    </MuiTypography>
                                 ),
                         },
                     ]}
                 />
-            </section>
-        </div>
+            </MuiBox>
+        </Box>
     );
 }

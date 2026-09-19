@@ -1,10 +1,12 @@
+import MuiTypography from "@mui/material/Typography";
+import { Box } from "@mui/material";
 import BreadcrumbTrail from "@/components/ui/breadcrumb-trail";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import ResizableTable from "@/components/ui/resizable-table";
 import { crawlRuns } from "@/mock-control-plane";
 import type { CrawlRun } from "@/domain";
-import Link from "next/link";
+import Link from "@/components/ui/route-link";
 
 function RunStatus({ status }: { status: CrawlRun["status"] }) {
     const variant =
@@ -45,26 +47,35 @@ export default function CrawlRuns() {
     );
 
     return (
-        <div className="space-y-6">
+        <Box className="space-y-6">
             <BreadcrumbTrail
                 items={[
                     { label: "Sources", href: "/sources" },
                     { label: "Crawl Runs", href: "/crawls" },
                 ]}
             />
-            <div className="flex flex-wrap items-end justify-between gap-4">
-                <div>
-                    <h1 className="text-2xl font-semibold">Crawl Runs</h1>
-                    <p className="mt-1 max-w-3xl text-sm text-muted-foreground">
+            <Box className="flex flex-wrap items-end justify-between gap-4">
+                <Box>
+                    <MuiTypography
+                        variant="h1"
+                        component="h1"
+                        className="text-2xl font-semibold"
+                    >
+                        Crawl Runs
+                    </MuiTypography>
+                    <MuiTypography
+                        component="p"
+                        className="mt-1 max-w-3xl text-sm text-muted-foreground"
+                    >
                         Track crawl jobs across Sources. Crawling and discovery
                         are separate manual steps; open a run to start or review
                         discovery for that timestamped cache.
-                    </p>
-                </div>
+                    </MuiTypography>
+                </Box>
                 <Button asChild>
                     <Link href="/crawls/new">Start crawl</Link>
                 </Button>
-            </div>
+            </Box>
             <ResizableTable<CrawlRun>
                 ariaLabel="Crawl runs"
                 rowKey="id"
@@ -215,6 +226,6 @@ export default function CrawlRuns() {
                     },
                 ]}
             />
-        </div>
+        </Box>
     );
 }

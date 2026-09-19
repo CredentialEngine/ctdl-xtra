@@ -1,3 +1,5 @@
+import MuiTypography from "@mui/material/Typography";
+import { Box } from "@mui/material";
 import BreadcrumbTrail from "@/components/ui/breadcrumb-trail";
 import { Button } from "@/components/ui/button";
 import {
@@ -16,13 +18,13 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
-import { useToast } from "@/components/ui/use-toast";
+import { useSnackbar } from "@/components/ui/snackbar-provider";
 import { organizations } from "@/mock-control-plane";
 import { useState } from "react";
-import Link from "next/link";
+import Link from "@/components/ui/route-link";
 
 export default function CreateSource() {
-    const { toast } = useToast();
+    const { showSnackbar } = useSnackbar();
     const [organizationId, setOrganizationId] = useState("");
     const [name, setName] = useState("");
     const [url, setUrl] = useState("");
@@ -32,7 +34,7 @@ export default function CreateSource() {
     function save() {
         // TODO(source-db): POST { organizationId, name, url, tags } to the source API and INSERT it into the new PostgreSQL source table.
         // TODO(source-api): Validate URL uniqueness/canonicalization and return the newly-created source id.
-        toast({
+        showSnackbar({
             title: "Source database not connected",
             description:
                 "The form is ready for the new PostgreSQL-backed source endpoint.",
@@ -40,20 +42,29 @@ export default function CreateSource() {
     }
 
     return (
-        <div className="mx-auto max-w-2xl space-y-6">
+        <Box className="mx-auto max-w-2xl space-y-6">
             <BreadcrumbTrail
                 items={[
                     { label: "Sources", href: "/sources" },
                     { label: "Add source", href: "/sources/new" },
                 ]}
             />
-            <div>
-                <h1 className="text-2xl font-semibold">Add source</h1>
-                <p className="mt-1 text-sm text-muted-foreground">
+            <Box>
+                <MuiTypography
+                    variant="h1"
+                    component="h1"
+                    className="text-2xl font-semibold"
+                >
+                    Add source
+                </MuiTypography>
+                <MuiTypography
+                    component="p"
+                    className="mt-1 text-sm text-muted-foreground"
+                >
                     A source is a public website URL associated with an
                     organization.
-                </p>
-            </div>
+                </MuiTypography>
+            </Box>
             <Card>
                 <CardHeader>
                     <CardTitle>Source details</CardTitle>
@@ -62,7 +73,7 @@ export default function CreateSource() {
                     </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-5">
-                    <div className="space-y-2">
+                    <Box className="space-y-2">
                         <Label>Organization</Label>
                         <Select
                             value={organizationId}
@@ -79,8 +90,8 @@ export default function CreateSource() {
                                 ))}
                             </SelectContent>
                         </Select>
-                    </div>
-                    <div className="space-y-2">
+                    </Box>
+                    <Box className="space-y-2">
                         <Label htmlFor="name">Source name</Label>
                         <Input
                             id="name"
@@ -88,8 +99,8 @@ export default function CreateSource() {
                             onChange={(e) => setName(e.target.value)}
                             placeholder="2026 Academic Source"
                         />
-                    </div>
-                    <div className="space-y-2">
+                    </Box>
+                    <Box className="space-y-2">
                         <Label htmlFor="url">Website URL</Label>
                         <Input
                             id="url"
@@ -97,8 +108,8 @@ export default function CreateSource() {
                             onChange={(e) => setUrl(e.target.value)}
                             placeholder="https://source.example.edu"
                         />
-                    </div>
-                    <div className="space-y-2">
+                    </Box>
+                    <Box className="space-y-2">
                         <Label htmlFor="tags">Tags</Label>
                         <Input
                             id="tags"
@@ -106,11 +117,14 @@ export default function CreateSource() {
                             onChange={(e) => setTags(e.target.value)}
                             placeholder="higher-ed, courses, pilot"
                         />
-                        <p className="text-xs text-muted-foreground">
+                        <MuiTypography
+                            component="p"
+                            className="text-xs text-muted-foreground"
+                        >
                             Enter comma-separated tags.
-                        </p>
-                    </div>
-                    <div className="flex justify-end gap-2">
+                        </MuiTypography>
+                    </Box>
+                    <Box className="flex justify-end gap-2">
                         <Button variant="outline" asChild>
                             <Link href="/sources">Cancel</Link>
                         </Button>
@@ -120,9 +134,9 @@ export default function CreateSource() {
                         >
                             Create source
                         </Button>
-                    </div>
+                    </Box>
                 </CardContent>
             </Card>
-        </div>
+        </Box>
     );
 }

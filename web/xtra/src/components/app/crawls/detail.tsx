@@ -1,3 +1,6 @@
+import MuiBox from "@mui/material/Box";
+import MuiTypography from "@mui/material/Typography";
+import { Box } from "@mui/material";
 import type { TableColumnsType } from "antd";
 import { Badge } from "@/components/ui/badge";
 import BreadcrumbTrail from "@/components/ui/breadcrumb-trail";
@@ -6,7 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import ResizableTable from "@/components/ui/resizable-table";
 import type { DiscoveredPage, DiscoveredPageLabel } from "@/domain";
 import { crawlRuns, discoveredPages } from "@/mock-control-plane";
-import Link from "next/link";
+import Link from "@/components/ui/route-link";
 import { useParams } from "next/navigation";
 
 export default function CrawlRunDetail() {
@@ -15,7 +18,7 @@ export default function CrawlRunDetail() {
     // TODO(blob-store): Resolve the crawl cache artifact path and cached-page inventory from blob storage.
     // TODO(discovery-db): Load discovered/classified pages only for this exact crawlRunId. Never combine pages across crawl caches.
     const run = crawlRuns.find((item) => item.id === runId);
-    if (!run) return <div>Crawl run not found.</div>;
+    if (!run) return <Box>Crawl run not found.</Box>;
 
     const classifiedPages = discoveredPages.filter(
         (page) => page.crawlRunId === run.id,
@@ -42,12 +45,12 @@ export default function CrawlRunDetail() {
                 multiple: 4,
             },
             render: (_, page) => (
-                <div>
-                    <div className="font-medium">{page.title}</div>
-                    <div className="max-w-[700px] truncate text-xs text-muted-foreground">
+                <Box>
+                    <Box className="font-medium">{page.title}</Box>
+                    <Box className="max-w-[700px] truncate text-xs text-muted-foreground">
                         {page.url}
-                    </div>
-                </div>
+                    </Box>
+                </Box>
             ),
         },
         {
@@ -61,7 +64,7 @@ export default function CrawlRunDetail() {
             onFilter: (value, page) =>
                 page.labels.includes(String(value) as DiscoveredPageLabel),
             render: (labels: DiscoveredPageLabel[]) => (
-                <div className="flex flex-wrap gap-1">
+                <Box className="flex flex-wrap gap-1">
                     {labels.map((label) => (
                         <Badge
                             key={label}
@@ -72,7 +75,7 @@ export default function CrawlRunDetail() {
                             {label}
                         </Badge>
                     ))}
-                </div>
+                </Box>
             ),
         },
         {
@@ -90,7 +93,7 @@ export default function CrawlRunDetail() {
     ];
 
     return (
-        <div className="space-y-6">
+        <Box className="space-y-6">
             <BreadcrumbTrail
                 items={[
                     { label: "Sources", href: "/sources" },
@@ -101,23 +104,38 @@ export default function CrawlRunDetail() {
                     },
                 ]}
             />
-            <div className="flex flex-wrap items-start justify-between gap-4">
-                <div>
-                    <h1 className="text-2xl font-semibold">{run.id}</h1>
-                    <p className="mt-1 text-sm text-muted-foreground">
+            <Box className="flex flex-wrap items-start justify-between gap-4">
+                <Box>
+                    <MuiTypography
+                        variant="h1"
+                        component="h1"
+                        className="text-2xl font-semibold"
+                    >
+                        {run.id}
+                    </MuiTypography>
+                    <MuiTypography
+                        component="p"
+                        className="mt-1 text-sm text-muted-foreground"
+                    >
                         {run.sourceName} ·{" "}
                         {new Date(crawlTimestamp).toLocaleString()} ·{" "}
                         {run.strategyName}
-                    </p>
-                    <p className="mt-2 max-w-4xl break-all text-sm">
-                        <span className="text-muted-foreground">
+                    </MuiTypography>
+                    <MuiTypography
+                        component="p"
+                        className="mt-2 max-w-4xl break-all text-sm"
+                    >
+                        <MuiTypography
+                            component="span"
+                            className="text-muted-foreground"
+                        >
                             Blob path:{" "}
-                        </span>
+                        </MuiTypography>
                         {run.cachePath ??
                             "Not available until the crawl succeeds"}
-                    </p>
-                </div>
-                <div className="flex items-center gap-2">
+                    </MuiTypography>
+                </Box>
+                <Box className="flex items-center gap-2">
                     <Button variant="outline" asChild>
                         <Link href={`/sources/${run.sourceId}`}>
                             Back to Source
@@ -132,10 +150,10 @@ export default function CrawlRunDetail() {
                             </Link>
                         </Button>
                     )}
-                </div>
-            </div>
+                </Box>
+            </Box>
 
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <Box className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                 <Card>
                     <CardHeader>
                         <CardTitle className="text-sm">Crawl status</CardTitle>
@@ -172,60 +190,69 @@ export default function CrawlRunDetail() {
                         {run.pagesFailed}
                     </CardContent>
                 </Card>
-            </div>
+            </Box>
 
             <Card>
                 <CardHeader>
                     <CardTitle className="text-base">Discovery</CardTitle>
-                    <p className="text-sm text-muted-foreground">
+                    <MuiTypography
+                        component="p"
+                        className="text-sm text-muted-foreground"
+                    >
                         Discovery is not automatic. Open it when this crawl
                         cache is ready to classify.
-                    </p>
+                    </MuiTypography>
                 </CardHeader>
                 <CardContent className="grid gap-4 sm:grid-cols-3">
-                    <div>
-                        <div className="text-xs text-muted-foreground">
+                    <Box>
+                        <Box className="text-xs text-muted-foreground">
                             Status
-                        </div>
-                        <div className="mt-1 font-medium">{discoveryLabel}</div>
-                    </div>
-                    <div>
-                        <div className="text-xs text-muted-foreground">
+                        </Box>
+                        <Box className="mt-1 font-medium">{discoveryLabel}</Box>
+                    </Box>
+                    <Box>
+                        <Box className="text-xs text-muted-foreground">
                             Classified pages
-                        </div>
-                        <div className="mt-1 font-medium">
+                        </Box>
+                        <Box className="mt-1 font-medium">
                             {run.pagesClassified ?? classifiedPages.length}
-                        </div>
-                    </div>
-                    <div>
-                        <div className="text-xs text-muted-foreground">
+                        </Box>
+                    </Box>
+                    <Box>
+                        <Box className="text-xs text-muted-foreground">
                             Interesting pages
-                        </div>
-                        <div className="mt-1 font-medium">
+                        </Box>
+                        <Box className="mt-1 font-medium">
                             {run.interestingPages ?? interestingPages.length}
-                        </div>
-                    </div>
+                        </Box>
+                    </Box>
                 </CardContent>
             </Card>
 
             {run.discoveryStatus !== "not_started" && (
-                <section
+                <MuiBox
+                    component="section"
                     aria-labelledby="crawl-discovered-pages-heading"
                     className="space-y-3"
                 >
-                    <div>
-                        <h2
+                    <Box>
+                        <MuiTypography
+                            variant="h2"
+                            component="h2"
                             id="crawl-discovered-pages-heading"
                             className="text-base font-semibold"
                         >
                             Discovered pages
-                        </h2>
-                        <p className="mt-1 text-sm text-muted-foreground">
+                        </MuiTypography>
+                        <MuiTypography
+                            component="p"
+                            className="mt-1 text-sm text-muted-foreground"
+                        >
                             Classifications belong only to this timestamped
                             crawl cache ·{" "}
                             {new Date(crawlTimestamp).toLocaleString()}.
-                        </p>
-                    </div>
+                        </MuiTypography>
+                    </Box>
                     <ResizableTable<DiscoveredPage>
                         ariaLabel={`Discovered pages for crawl ${run.id}`}
                         rowKey="id"
@@ -241,7 +268,7 @@ export default function CrawlRunDetail() {
                             showSizeChanger: true,
                         }}
                     />
-                </section>
+                </MuiBox>
             )}
 
             {run.error && (
@@ -266,6 +293,6 @@ export default function CrawlRunDetail() {
                     </CardContent>
                 </Card>
             )}
-        </div>
+        </Box>
     );
 }

@@ -3,6 +3,7 @@
 @tailwind utilities;
 
 :root {
+    font-size: 100%;
     --background: 0 0% 100%;
     --foreground: 207 74% 15%;
     --card: 0 0% 100%;
@@ -79,6 +80,18 @@ a {
 }
 .animate-fadeIn {
     animation: fadeIn 1s forwards;
+}
+
+/* Ant Design is used only for tables. Keep table text aligned with the MUI
+   typography scale and never below the 1rem regular-text minimum. */
+.ant-table,
+.ant-table-thead > tr > th,
+.ant-table-tbody > tr > td,
+.ant-table-summary > tr > td,
+.ant-pagination,
+.ant-table-filter-dropdown,
+.ant-dropdown-menu {
+    font-size: 1rem !important;
 }
 
 /* Accessible Ant Design table column resizing. */

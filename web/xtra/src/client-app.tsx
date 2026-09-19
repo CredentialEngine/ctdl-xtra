@@ -6,6 +6,7 @@ import { useXtraAuth } from "../app/components/auth/AuthProvider";
 import { Dashboard } from "@/components/app/dashboard";
 import Unauthenticated from "@/components/app/unauthenticated";
 import Logout from "@/components/app/logout";
+import { AppLoadingScreen } from "@/components/ui/loading-state";
 
 const SESSION_KEEPALIVE_MS = 2 * 60 * 1000;
 
@@ -34,7 +35,7 @@ export default function ClientApp({
         return () => window.clearInterval(keepAlive);
     }, [login, refresh, user]);
 
-    if (isLoading) return null;
+    if (isLoading) return <AppLoadingScreen label="Loading your session" />;
     if (!user) return <Unauthenticated />;
     if (pathname === "/logout") return <Logout />;
 

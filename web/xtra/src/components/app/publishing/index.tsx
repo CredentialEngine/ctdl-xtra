@@ -1,10 +1,12 @@
+import MuiTypography from "@mui/material/Typography";
+import { Box } from "@mui/material";
 import { Badge } from "@/components/ui/badge";
 import BreadcrumbTrail from "@/components/ui/breadcrumb-trail";
 import { Button } from "@/components/ui/button";
 import ResizableTable from "@/components/ui/resizable-table";
 import type { PublishRun } from "@/domain";
 import { publishRuns } from "@/mock-control-plane";
-import Link from "next/link";
+import Link from "@/components/ui/route-link";
 
 function PublishStatus({ status }: { status: PublishRun["status"] }) {
     const variant =
@@ -31,26 +33,35 @@ export default function Publishing() {
     );
 
     return (
-        <div className="space-y-6">
+        <Box className="space-y-6">
             <BreadcrumbTrail
                 items={[
                     { label: "Publishing", href: "/publishing" },
                     { label: "ETL Runs", href: "/publishing" },
                 ]}
             />
-            <div className="flex flex-wrap items-end justify-between gap-4">
-                <div>
-                    <h1 className="text-2xl font-semibold">ETL Runs</h1>
-                    <p className="mt-1 max-w-3xl text-sm text-muted-foreground">
+            <Box className="flex flex-wrap items-end justify-between gap-4">
+                <Box>
+                    <MuiTypography
+                        variant="h1"
+                        component="h1"
+                        className="text-2xl font-semibold"
+                    >
+                        ETL Runs
+                    </MuiTypography>
+                    <MuiTypography
+                        component="p"
+                        className="mt-1 max-w-3xl text-sm text-muted-foreground"
+                    >
                         Track publishing ETL runs through extraction,
                         transformation, publish-ready output, and the final
                         publisher-project iteration.
-                    </p>
-                </div>
+                    </MuiTypography>
+                </Box>
                 <Button asChild>
                     <Link href="/publishing/new">Start ETL run</Link>
                 </Button>
-            </div>
+            </Box>
             <ResizableTable<PublishRun>
                 ariaLabel="Publishing ETL runs"
                 rowKey="id"
@@ -174,6 +185,6 @@ export default function Publishing() {
                     },
                 ]}
             />
-        </div>
+        </Box>
     );
 }

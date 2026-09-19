@@ -6,6 +6,7 @@ import { AnalyticsWithConfig } from "./components/Analytics";
 import { XtraAuthProvider } from "./components/auth/AuthProvider";
 import { ConfigContextProvider } from "./components/providers/ConfigProvider";
 import ThemeRegistry from "./themeRegistry";
+import { SnackbarProvider } from "@/components/ui/snackbar-provider";
 
 export default function Providers({ children }: { children: React.ReactNode }) {
     return (
@@ -13,10 +14,12 @@ export default function Providers({ children }: { children: React.ReactNode }) {
             <ThemeRegistry>
                 <BffAuthProvider unauthorizedBehavior="anonymous">
                     <XtraAuthProvider>
-                        <Suspense fallback={null}>
-                            <AnalyticsWithConfig />
-                        </Suspense>
-                        {children}
+                        <SnackbarProvider>
+                            <Suspense fallback={null}>
+                                <AnalyticsWithConfig />
+                            </Suspense>
+                            {children}
+                        </SnackbarProvider>
                     </XtraAuthProvider>
                 </BffAuthProvider>
             </ThemeRegistry>

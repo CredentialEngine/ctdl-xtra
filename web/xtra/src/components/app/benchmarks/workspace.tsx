@@ -1,3 +1,6 @@
+import MuiBox from "@mui/material/Box";
+import MuiTypography from "@mui/material/Typography";
+import { ButtonBase, Box } from "@mui/material";
 import ResizableTable from "@/components/ui/resizable-table";
 import type { DiscoveredPageLabel } from "@/domain";
 import { Badge } from "@/components/ui/badge";
@@ -11,7 +14,7 @@ import {
     sources,
 } from "@/mock-control-plane";
 import { useState, type Key } from "react";
-import Link from "next/link";
+import Link from "@/components/ui/route-link";
 import { useParams } from "next/navigation";
 
 export default function BenchmarkWorkspace() {
@@ -21,7 +24,7 @@ export default function BenchmarkWorkspace() {
     // TODO(source-db): GET the Source and its discovered-page inventory from PostgreSQL.
     // TODO(benchmark-db): GET the Source Promoted Golden Sample Set and Source-scoped benchmark history.
     const source = sources.find((item) => item.id === sourceId);
-    if (!source) return <div>Benchmark workspace not found.</div>;
+    if (!source) return <Box>Benchmark workspace not found.</Box>;
 
     const effectiveCrawlRunId = getEffectiveCrawlRunId(sourceId);
     const pages = getEffectiveDiscoveredPages(sourceId).filter(
@@ -40,7 +43,7 @@ export default function BenchmarkWorkspace() {
     const candidateCount = pages.filter((page) => !page.isGolden).length;
 
     return (
-        <div className="space-y-6">
+        <Box className="space-y-6">
             <BreadcrumbTrail
                 items={[
                     { label: "Benchmarks", href: "/benchmarks" },
@@ -52,18 +55,30 @@ export default function BenchmarkWorkspace() {
                 ]}
             />
 
-            <div>
-                <h1 className="text-2xl font-semibold">{source.name}</h1>
-                <p className="mt-1 text-sm text-muted-foreground">
+            <Box>
+                <MuiTypography
+                    variant="h1"
+                    component="h1"
+                    className="text-2xl font-semibold"
+                >
+                    {source.name}
+                </MuiTypography>
+                <MuiTypography
+                    component="p"
+                    className="mt-1 text-sm text-muted-foreground"
+                >
                     {source.url}
-                </p>
-                <p className="mt-1 text-xs text-muted-foreground">
+                </MuiTypography>
+                <MuiTypography
+                    component="p"
+                    className="mt-1 text-xs text-muted-foreground"
+                >
                     Using discovered pages from crawl cache:{" "}
                     {effectiveCrawlRunId ?? "none"}
-                </p>
-            </div>
+                </MuiTypography>
+            </Box>
 
-            <div
+            <Box
                 className="grid gap-3 sm:grid-cols-3"
                 aria-label="Discovered page quick filters"
             >
@@ -72,21 +87,21 @@ export default function BenchmarkWorkspace() {
                         goldenFilter === null ? "ring-2 ring-primary/30" : ""
                     }
                 >
-                    <button
+                    <ButtonBase
                         type="button"
                         className="block w-full text-left"
                         aria-pressed={goldenFilter === null}
                         onClick={() => setGoldenFilter(null)}
                     >
                         <CardContent className="p-4">
-                            <div className="text-xs text-muted-foreground">
+                            <Box className="text-xs text-muted-foreground">
                                 All discovered pages
-                            </div>
-                            <div className="mt-1 text-2xl font-semibold">
+                            </Box>
+                            <Box className="mt-1 text-2xl font-semibold">
                                 {pages.length}
-                            </div>
+                            </Box>
                         </CardContent>
-                    </button>
+                    </ButtonBase>
                 </Card>
                 <Card
                     className={
@@ -95,21 +110,21 @@ export default function BenchmarkWorkspace() {
                             : ""
                     }
                 >
-                    <button
+                    <ButtonBase
                         type="button"
                         className="block w-full text-left"
                         aria-pressed={Boolean(goldenFilter?.includes("golden"))}
                         onClick={() => setGoldenFilter(["golden"])}
                     >
                         <CardContent className="p-4">
-                            <div className="text-xs text-muted-foreground">
+                            <Box className="text-xs text-muted-foreground">
                                 Promoted Golden
-                            </div>
-                            <div className="mt-1 text-2xl font-semibold">
+                            </Box>
+                            <Box className="mt-1 text-2xl font-semibold">
                                 {promotedCount}
-                            </div>
+                            </Box>
                         </CardContent>
-                    </button>
+                    </ButtonBase>
                 </Card>
                 <Card
                     className={
@@ -118,7 +133,7 @@ export default function BenchmarkWorkspace() {
                             : ""
                     }
                 >
-                    <button
+                    <ButtonBase
                         type="button"
                         className="block w-full text-left"
                         aria-pressed={Boolean(
@@ -127,42 +142,48 @@ export default function BenchmarkWorkspace() {
                         onClick={() => setGoldenFilter(["candidate"])}
                     >
                         <CardContent className="p-4">
-                            <div className="text-xs text-muted-foreground">
+                            <Box className="text-xs text-muted-foreground">
                                 Candidates
-                            </div>
-                            <div className="mt-1 text-2xl font-semibold">
+                            </Box>
+                            <Box className="mt-1 text-2xl font-semibold">
                                 {candidateCount}
-                            </div>
+                            </Box>
                         </CardContent>
-                    </button>
+                    </ButtonBase>
                 </Card>
-            </div>
+            </Box>
 
-            <div className="flex justify-end">
+            <Box className="flex justify-end">
                 <Button variant="outline" asChild>
                     <Link href={`/benchmarks/workspaces/${source.id}/golden`}>
                         View Promoted Golden Samples
                     </Link>
                 </Button>
-            </div>
+            </Box>
 
-            <section
+            <MuiBox
+                component="section"
                 aria-labelledby="discovered-pages-heading"
                 className="space-y-3"
             >
-                <div>
-                    <h2
+                <Box>
+                    <MuiTypography
+                        variant="h2"
+                        component="h2"
                         id="discovered-pages-heading"
                         className="text-base font-semibold"
                     >
                         Discovered pages
-                    </h2>
-                    <p className="mt-1 text-sm text-muted-foreground">
+                    </MuiTypography>
+                    <MuiTypography
+                        component="p"
+                        className="mt-1 text-sm text-muted-foreground"
+                    >
                         Run ETL with an existing Strategy on any page, then
                         audit the generated stage outputs before promoting it to
                         the Golden Sample Set.
-                    </p>
-                </div>
+                    </MuiTypography>
+                </Box>
                 <ResizableTable
                     ariaLabel="Discovered pages"
                     rowKey="id"
@@ -187,14 +208,14 @@ export default function BenchmarkWorkspace() {
                                 multiple: 4,
                             },
                             render: (_, page) => (
-                                <div>
-                                    <div className="font-medium">
+                                <Box>
+                                    <Box className="font-medium">
                                         {page.title}
-                                    </div>
-                                    <div className="max-w-[720px] truncate text-xs text-muted-foreground">
+                                    </Box>
+                                    <Box className="max-w-[720px] truncate text-xs text-muted-foreground">
                                         {page.url}
-                                    </div>
-                                </div>
+                                    </Box>
+                                </Box>
                             ),
                         },
                         {
@@ -220,13 +241,13 @@ export default function BenchmarkWorkspace() {
                                 multiple: 3,
                             },
                             render: (values) => (
-                                <div className="flex flex-wrap gap-1">
+                                <Box className="flex flex-wrap gap-1">
                                     {values.map((value: string) => (
                                         <Badge key={value} variant="outline">
                                             {value}
                                         </Badge>
                                     ))}
-                                </div>
+                                </Box>
                             ),
                         },
                         {
@@ -259,7 +280,7 @@ export default function BenchmarkWorkspace() {
                             key: "actions",
                             width: 170,
                             render: (_, page) => (
-                                <div className="flex gap-2">
+                                <Box className="flex gap-2">
                                     <Button size="sm" variant="outline" asChild>
                                         <Link
                                             href={`/benchmarks/workspaces/${source.id}/pages/${page.id}`}
@@ -274,12 +295,12 @@ export default function BenchmarkWorkspace() {
                                             Run
                                         </Link>
                                     </Button>
-                                </div>
+                                </Box>
                             ),
                         },
                     ]}
                 />
-            </section>
-        </div>
+            </MuiBox>
+        </Box>
     );
 }

@@ -14,6 +14,11 @@ module.exports = {
             screens: { "2xl": "1400px" },
         },
         extend: {
+            fontSize: {
+                xs: ["1rem", { lineHeight: "1.5rem" }],
+                sm: ["1rem", { lineHeight: "1.5rem" }],
+                base: ["1rem", { lineHeight: "1.5rem" }],
+            },
             colors: {
                 border: "hsl(var(--border))",
                 input: "hsl(var(--input))",

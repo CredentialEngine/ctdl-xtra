@@ -15,7 +15,12 @@ import {
     useSyncExternalStore,
 } from "react";
 
-import { applyColorSchemeVariables, createAppTheme } from "./theme";
+import {
+    applyColorSchemeVariables,
+    createAppTheme,
+    darkPalette,
+    lightPalette,
+} from "./theme";
 
 const ThemeModeContext = createContext<{ mode: "light" | "dark" } | null>(null);
 
@@ -46,6 +51,7 @@ export default function ThemeRegistry({
     const prefersDark = useIsDarkMode();
     const mode: "light" | "dark" = prefersDark ? "dark" : "light";
     const theme = useMemo(() => createAppTheme(mode), [mode]);
+    const palette = mode === "dark" ? darkPalette : lightPalette;
 
     useEffect(() => {
         // Appearance follows the operating-system/browser color-scheme preference only.
@@ -97,45 +103,29 @@ export default function ThemeRegistry({
                                     ? antTheme.darkAlgorithm
                                     : antTheme.defaultAlgorithm,
                             token: {
-                                colorPrimary:
-                                    mode === "dark" ? "#99F3F0" : "#0A2942",
-                                colorBgBase:
-                                    mode === "dark" ? "#07131D" : "#FFFFFF",
-                                colorBgContainer:
-                                    mode === "dark" ? "#102332" : "#FFFFFF",
-                                colorBgElevated:
-                                    mode === "dark" ? "#172F41" : "#FFFFFF",
-                                colorFillAlter:
-                                    mode === "dark" ? "#17384C" : "#F7F9FA",
-                                colorText:
-                                    mode === "dark" ? "#FFFFFF" : "#0A2942",
-                                colorTextSecondary:
-                                    mode === "dark" ? "#E7EEF3" : "#314A5E",
-                                colorBorder:
-                                    mode === "dark" ? "#355367" : "#C4CDD4",
-                                colorBorderSecondary:
-                                    mode === "dark" ? "#29475A" : "#D2D9DE",
+                                colorPrimary: palette.primary,
+                                colorBgBase: palette.background,
+                                colorBgContainer: palette.paper,
+                                colorBgElevated: palette.surface,
+                                colorFillAlter: palette.surface,
+                                colorText: palette.text,
+                                colorTextSecondary: palette.textSecondary,
+                                colorBorder: palette.border,
+                                colorBorderSecondary: palette.divider,
                                 borderRadius: 8,
                                 fontFamily: theme.typography.fontFamily,
                             },
                             components: {
                                 Table: {
-                                    headerBg:
-                                        mode === "dark" ? "#17384C" : "#F7F9FA",
-                                    headerColor:
-                                        mode === "dark" ? "#FFFFFF" : "#0A2942",
-                                    headerSortActiveBg:
-                                        mode === "dark" ? "#1D465E" : "#EEF3F6",
-                                    headerSortHoverBg:
-                                        mode === "dark" ? "#214E67" : "#E8EEF2",
-                                    rowHoverBg:
-                                        mode === "dark" ? "#17384C" : "#F7F9FA",
-                                    borderColor:
-                                        mode === "dark" ? "#29475A" : "#D2D9DE",
+                                    headerBg: palette.surface,
+                                    headerColor: palette.text,
+                                    headerSortActiveBg: palette.cardSelectedBg,
+                                    headerSortHoverBg: palette.cardSelectedBg,
+                                    rowHoverBg: palette.surface,
+                                    borderColor: palette.divider,
                                 },
                                 Pagination: {
-                                    itemBg:
-                                        mode === "dark" ? "#102332" : "#FFFFFF",
+                                    itemBg: palette.paper,
                                 },
                             },
                         }}

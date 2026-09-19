@@ -1,3 +1,6 @@
+import MuiBox from "@mui/material/Box";
+import MuiTypography from "@mui/material/Typography";
+import { Box } from "@mui/material";
 import { Badge } from "@/components/ui/badge";
 import BreadcrumbTrail from "@/components/ui/breadcrumb-trail";
 import {
@@ -8,13 +11,11 @@ import {
     CardTitle,
 } from "@/components/ui/card";
 import { benchmarkRuns, goldenSamples } from "@/mock-control-plane";
-import {
-    ArrowDown,
-    CheckCircle2,
-    FileCode2,
-    FileText,
-    XCircle,
-} from "lucide-react";
+import ArrowDown from "@mui/icons-material/ArrowDownward";
+import CheckCircle2 from "@mui/icons-material/CheckCircle";
+import FileCode2 from "@mui/icons-material/DataObject";
+import FileText from "@mui/icons-material/Description";
+import XCircle from "@mui/icons-material/Cancel";
 import { useParams } from "next/navigation";
 
 export default function BenchmarkRunSample() {
@@ -27,10 +28,10 @@ export default function BenchmarkRunSample() {
     const sample = goldenSamples.find(
         (item) => item.id === sampleId && item.sourceId === run?.sourceId,
     );
-    if (!run || !sample) return <div>Benchmark sample result not found.</div>;
+    if (!run || !sample) return <Box>Benchmark sample result not found.</Box>;
 
     return (
-        <div className="space-y-6">
+        <Box className="space-y-6">
             <BreadcrumbTrail
                 items={[
                     { label: "Benchmarks", href: "/benchmarks" },
@@ -42,16 +43,25 @@ export default function BenchmarkRunSample() {
                     },
                 ]}
             />
-            <div className="flex flex-wrap items-end justify-between gap-4">
-                <div>
-                    <h1 className="text-2xl font-semibold">Sample Audit</h1>
-                    <p className="mt-1 text-sm text-muted-foreground">
+            <Box className="flex flex-wrap items-end justify-between gap-4">
+                <Box>
+                    <MuiTypography
+                        variant="h1"
+                        component="h1"
+                        className="text-2xl font-semibold"
+                    >
+                        Sample Audit
+                    </MuiTypography>
+                    <MuiTypography
+                        component="p"
+                        className="mt-1 text-sm text-muted-foreground"
+                    >
                         {sample.pageTitle}
-                    </p>
-                </div>
-            </div>
+                    </MuiTypography>
+                </Box>
+            </Box>
 
-            <div className="grid gap-6 xl:grid-cols-2 xl:items-start">
+            <Box className="grid gap-6 xl:grid-cols-2 xl:items-start">
                 <Card className="xl:sticky xl:top-24">
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2 text-base">
@@ -64,21 +74,24 @@ export default function BenchmarkRunSample() {
                         </CardDescription>
                     </CardHeader>
                     <CardContent>
-                        <pre className="max-h-[720px] overflow-auto rounded-md bg-muted p-4 text-xs leading-relaxed whitespace-pre-wrap">{`SOURCE: ${sample.pageUrl}\n\n${sample.pageTitle}`}</pre>
+                        <MuiBox
+                            component="pre"
+                            className="max-h-[720px] overflow-auto rounded-md bg-muted p-4 text-xs leading-relaxed whitespace-pre-wrap"
+                        >{`SOURCE: ${sample.pageUrl}\n\n${sample.pageTitle}`}</MuiBox>
                     </CardContent>
                 </Card>
 
-                <div className="space-y-4">
+                <Box className="space-y-4">
                     {sample.stages.map((stage, index) => (
-                        <div key={stage.stage}>
+                        <Box key={stage.stage}>
                             {index > 0 && (
-                                <div className="flex justify-center py-1">
+                                <Box className="flex justify-center py-1">
                                     <ArrowDown className="h-5 w-5 text-muted-foreground" />
-                                </div>
+                                </Box>
                             )}
                             <Card>
                                 <CardHeader>
-                                    <div className="flex items-center justify-between gap-3">
+                                    <Box className="flex items-center justify-between gap-3">
                                         <CardTitle className="flex items-center gap-2 text-base capitalize">
                                             <FileCode2 className="h-4 w-4" />
                                             {stage.stage.replace("-", " ")}
@@ -97,7 +110,7 @@ export default function BenchmarkRunSample() {
                                             )}
                                             {stage.status}
                                         </Badge>
-                                    </div>
+                                    </Box>
                                     <CardDescription>
                                         Generated result compared with the
                                         approved Golden artifact ·{" "}
@@ -105,30 +118,36 @@ export default function BenchmarkRunSample() {
                                     </CardDescription>
                                 </CardHeader>
                                 <CardContent className="grid gap-3 md:grid-cols-2">
-                                    <div>
-                                        <div className="mb-1 text-xs font-medium text-muted-foreground">
+                                    <Box>
+                                        <Box className="mb-1 text-xs font-medium text-muted-foreground">
                                             ACTUAL
-                                        </div>
-                                        <pre className="min-h-[180px] overflow-auto rounded-md bg-muted p-3 text-xs whitespace-pre-wrap">
+                                        </Box>
+                                        <MuiBox
+                                            component="pre"
+                                            className="min-h-[180px] overflow-auto rounded-md bg-muted p-3 text-xs whitespace-pre-wrap"
+                                        >
                                             {stage.actualSummary ??
                                                 "Generated artifact"}
-                                        </pre>
-                                    </div>
-                                    <div>
-                                        <div className="mb-1 text-xs font-medium text-muted-foreground">
+                                        </MuiBox>
+                                    </Box>
+                                    <Box>
+                                        <Box className="mb-1 text-xs font-medium text-muted-foreground">
                                             GOLDEN
-                                        </div>
-                                        <pre className="min-h-[180px] overflow-auto rounded-md bg-muted p-3 text-xs whitespace-pre-wrap">
+                                        </Box>
+                                        <MuiBox
+                                            component="pre"
+                                            className="min-h-[180px] overflow-auto rounded-md bg-muted p-3 text-xs whitespace-pre-wrap"
+                                        >
                                             {stage.goldenSummary ??
                                                 "Golden artifact"}
-                                        </pre>
-                                    </div>
+                                        </MuiBox>
+                                    </Box>
                                 </CardContent>
                             </Card>
-                        </div>
+                        </Box>
                     ))}
-                </div>
-            </div>
-        </div>
+                </Box>
+            </Box>
+        </Box>
     );
 }

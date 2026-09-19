@@ -1,3 +1,6 @@
+import MuiBox from "@mui/material/Box";
+import MuiTypography from "@mui/material/Typography";
+import { Box } from "@mui/material";
 import { Badge } from "@/components/ui/badge";
 import BreadcrumbTrail from "@/components/ui/breadcrumb-trail";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11,10 +14,10 @@ export default function PublishRunDetail() {
     // TODO(argo-events): Persist workflow stage events so this view can refresh from the DB without talking directly to Argo.
     // TODO(publisher-api): Store the publisher project response and created iteration id when the final handoff succeeds.
     const run = publishRuns.find((item) => item.id === runId);
-    if (!run) return <div>Publish run not found.</div>;
+    if (!run) return <Box>Publish run not found.</Box>;
 
     return (
-        <div className="space-y-6">
+        <Box className="space-y-6">
             <BreadcrumbTrail
                 items={[
                     { label: "Publishing", href: "/publishing" },
@@ -22,13 +25,22 @@ export default function PublishRunDetail() {
                     { label: run.id, href: `/publishing/${run.id}` },
                 ]}
             />
-            <div>
-                <h1 className="text-2xl font-semibold">{run.id}</h1>
-                <p className="mt-1 text-sm text-muted-foreground">
+            <Box>
+                <MuiTypography
+                    variant="h1"
+                    component="h1"
+                    className="text-2xl font-semibold"
+                >
+                    {run.id}
+                </MuiTypography>
+                <MuiTypography
+                    component="p"
+                    className="mt-1 text-sm text-muted-foreground"
+                >
                     {run.sourceName} · {run.strategyName} · {run.projectName}
-                </p>
-            </div>
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                </MuiTypography>
+            </Box>
+            <Box className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                 <Card>
                     <CardHeader>
                         <CardTitle className="text-sm">Status</CardTitle>
@@ -65,23 +77,29 @@ export default function PublishRunDetail() {
                         {run.failedPages}
                     </CardContent>
                 </Card>
-            </div>
-            <section
+            </Box>
+            <MuiBox
+                component="section"
                 className="space-y-3"
                 aria-labelledby="publish-stage-heading"
             >
-                <div>
-                    <h2
+                <Box>
+                    <MuiTypography
+                        variant="h2"
+                        component="h2"
                         id="publish-stage-heading"
                         className="text-base font-semibold"
                     >
                         ETL workflow progress
-                    </h2>
-                    <p className="mt-1 text-sm text-muted-foreground">
+                    </MuiTypography>
+                    <MuiTypography
+                        component="p"
+                        className="mt-1 text-sm text-muted-foreground"
+                    >
                         Progress from extraction through the publisher-project
                         handoff.
-                    </p>
-                </div>
+                    </MuiTypography>
+                </Box>
                 <ResizableTable
                     ariaLabel="Publishing ETL stages"
                     rowKey="stage"
@@ -129,7 +147,7 @@ export default function PublishRunDetail() {
                         },
                     ]}
                 />
-            </section>
+            </MuiBox>
             {run.publisherIterationId && (
                 <Card>
                     <CardHeader>
@@ -138,12 +156,15 @@ export default function PublishRunDetail() {
                         </CardTitle>
                     </CardHeader>
                     <CardContent className="text-sm">
-                        <span className="text-muted-foreground">
+                        <MuiTypography
+                            component="span"
+                            className="text-muted-foreground"
+                        >
                             Created iteration:{" "}
-                        </span>
-                        <span className="font-mono">
+                        </MuiTypography>
+                        <MuiTypography component="span" className="font-mono">
                             {run.publisherIterationId}
-                        </span>
+                        </MuiTypography>
                     </CardContent>
                 </Card>
             )}
@@ -157,6 +178,6 @@ export default function PublishRunDetail() {
                     </CardContent>
                 </Card>
             )}
-        </div>
+        </Box>
     );
 }

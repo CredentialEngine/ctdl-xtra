@@ -84,7 +84,7 @@ export function XtraAuthProvider({
         window.location.replace(callbackUrl);
     }, []);
 
-    const isLoading = authLoading || !csrfToken;
+    const isLoading = authLoading;
     const value = useMemo(
         () => ({
             user,
@@ -99,8 +99,6 @@ export function XtraAuthProvider({
     );
 
     return (
-        <AuthContext.Provider value={value}>
-            {csrfToken ? children : null}
-        </AuthContext.Provider>
+        <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
     );
 }
