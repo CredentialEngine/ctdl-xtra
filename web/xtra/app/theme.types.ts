@@ -2,6 +2,14 @@ import "@mui/material/styles";
 
 declare module "@mui/material/styles" {
     interface Palette {
+        blueDark: string;
+        brown: string;
+        greyDark: string;
+        greyLight: string;
+        aquaDark: string;
+        aquaLight: string;
+        white: string;
+        selected: string;
         sidebar: {
             background: string;
             border: string;
@@ -21,6 +29,14 @@ declare module "@mui/material/styles" {
     }
 
     interface PaletteOptions {
+        blueDark?: string;
+        brown?: string;
+        greyDark?: string;
+        greyLight?: string;
+        aquaDark?: string;
+        aquaLight?: string;
+        white?: string;
+        selected?: string;
         sidebar?: {
             background?: string;
             border?: string;

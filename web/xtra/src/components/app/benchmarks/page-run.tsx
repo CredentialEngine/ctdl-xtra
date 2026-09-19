@@ -1,3 +1,5 @@
+import MuiTypography from "@mui/material/Typography";
+import { Box } from "@mui/material";
 import { Badge } from "@/components/ui/badge";
 import BreadcrumbTrail from "@/components/ui/breadcrumb-trail";
 import { Button } from "@/components/ui/button";
@@ -16,7 +18,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
-import { useToast } from "@/components/ui/use-toast";
+import { useSnackbar } from "@/components/ui/snackbar-provider";
 import {
     benchmarkStrategies,
     discoveredPages,
@@ -26,7 +28,7 @@ import {
     transformStrategies,
 } from "@/mock-control-plane";
 import { useMemo, useState } from "react";
-import Link from "next/link";
+import Link, { startNavigation } from "@/components/ui/route-link";
 import { useParams, useRouter } from "next/navigation";
 
 function optionName(options: { id: string; name: string }[], id?: string) {
@@ -39,7 +41,7 @@ export default function BenchmarkPageRun() {
         pageId: string;
     }>();
     const router = useRouter();
-    const { toast } = useToast();
+    const { showSnackbar } = useSnackbar();
     const source = sources.find((item) => item.id === sourceId);
     const page = discoveredPages.find(
         (item) => item.id === pageId && item.sourceId === sourceId,
@@ -53,7 +55,7 @@ export default function BenchmarkPageRun() {
         [strategies, strategyId],
     );
 
-    if (!source || !page) return <div>Discovered page not found.</div>;
+    if (!source || !page) return <Box>Discovered page not found.</Box>;
     const currentSource = source;
     const currentPage = page;
 
@@ -61,18 +63,18 @@ export default function BenchmarkPageRun() {
         if (!strategyId) return;
         // TODO(benchmark-api): POST a repeatable single-page ETL execution with { sourceId, pageId, strategyId }.
         // Persist an immutable Strategy snapshot plus Source/Extract/Transform/Publish-ready artifacts and return executionId.
-        toast({
+        showSnackbar({
             title: "Single-page ETL endpoint not connected",
             description: `Would run ${strategy?.name} on ${currentPage.title}.`,
         });
         // TODO(benchmark-api): navigate with the returned executionId so Audit can inspect that exact execution rather than "latest".
-        router.push(
-            `/benchmarks/workspaces/${currentSource.id}/pages/${currentPage.id}`,
-        );
+        const destination = `/benchmarks/workspaces/${currentSource.id}/pages/${currentPage.id}`;
+        startNavigation(destination);
+        router.push(destination);
     }
 
     return (
-        <div className="mx-auto max-w-3xl space-y-6">
+        <Box className="mx-auto max-w-3xl space-y-6">
             <BreadcrumbTrail
                 items={[
                     { label: "Benchmarks", href: "/benchmarks" },
@@ -92,26 +94,35 @@ export default function BenchmarkPageRun() {
                 ]}
             />
 
-            <div>
-                <h1 className="text-2xl font-semibold">{source.name}</h1>
-                <p className="mt-1 text-sm text-muted-foreground">
+            <Box>
+                <MuiTypography
+                    variant="h1"
+                    component="h1"
+                    className="text-2xl font-semibold"
+                >
+                    {source.name}
+                </MuiTypography>
+                <MuiTypography
+                    component="p"
+                    className="mt-1 text-sm text-muted-foreground"
+                >
                     {source.url}
-                </p>
-            </div>
+                </MuiTypography>
+            </Box>
 
-            <div className="rounded-lg bg-muted/35 p-4">
-                <div className="font-semibold">{page.title}</div>
-                <div className="mt-1 text-xs text-muted-foreground">
+            <Box className="rounded-lg bg-muted/35 p-4">
+                <Box className="font-semibold">{page.title}</Box>
+                <Box className="mt-1 text-xs text-muted-foreground">
                     {page.url}
-                </div>
-                <div className="mt-3 flex flex-wrap gap-1">
+                </Box>
+                <Box className="mt-3 flex flex-wrap gap-1">
                     {page.labels.map((label) => (
                         <Badge key={label} variant="outline">
                             {label}
                         </Badge>
                     ))}
-                </div>
-            </div>
+                </Box>
+            </Box>
 
             <Card>
                 <CardHeader>
@@ -125,7 +136,7 @@ export default function BenchmarkPageRun() {
                     </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-5">
-                    <div className="space-y-2">
+                    <Box className="space-y-2">
                         <Label>Strategy</Label>
                         <Select
                             value={strategyId}
@@ -142,47 +153,47 @@ export default function BenchmarkPageRun() {
                                 ))}
                             </SelectContent>
                         </Select>
-                    </div>
+                    </Box>
 
                     {strategy && (
-                        <div className="grid gap-3 rounded-lg bg-muted/35 p-4 md:grid-cols-3">
-                            <div>
-                                <div className="text-xs text-muted-foreground">
+                        <Box className="grid gap-3 rounded-lg bg-muted/35 p-4 md:grid-cols-3">
+                            <Box>
+                                <Box className="text-xs text-muted-foreground">
                                     Extract
-                                </div>
-                                <div className="mt-1 text-sm font-medium">
+                                </Box>
+                                <Box className="mt-1 text-sm font-medium">
                                     {optionName(
                                         extractStrategies,
                                         strategy.extractOptionId,
                                     )}
-                                </div>
-                            </div>
-                            <div>
-                                <div className="text-xs text-muted-foreground">
+                                </Box>
+                            </Box>
+                            <Box>
+                                <Box className="text-xs text-muted-foreground">
                                     Transform
-                                </div>
-                                <div className="mt-1 text-sm font-medium">
+                                </Box>
+                                <Box className="mt-1 text-sm font-medium">
                                     {optionName(
                                         transformStrategies,
                                         strategy.transformOptionId,
                                     )}
-                                </div>
-                            </div>
-                            <div>
-                                <div className="text-xs text-muted-foreground">
+                                </Box>
+                            </Box>
+                            <Box>
+                                <Box className="text-xs text-muted-foreground">
                                     Publish-ready
-                                </div>
-                                <div className="mt-1 text-sm font-medium">
+                                </Box>
+                                <Box className="mt-1 text-sm font-medium">
                                     {optionName(
                                         publishStrategies,
                                         strategy.publishReadyOptionId,
                                     )}
-                                </div>
-                            </div>
-                        </div>
+                                </Box>
+                            </Box>
+                        </Box>
                     )}
 
-                    <div className="flex justify-end gap-2">
+                    <Box className="flex justify-end gap-2">
                         <Button variant="outline" asChild>
                             <Link href={`/benchmarks/workspaces/${source.id}`}>
                                 Cancel
@@ -191,9 +202,9 @@ export default function BenchmarkPageRun() {
                         <Button onClick={runEtl} disabled={!strategyId}>
                             Run ETL
                         </Button>
-                    </div>
+                    </Box>
                 </CardContent>
             </Card>
-        </div>
+        </Box>
     );
 }

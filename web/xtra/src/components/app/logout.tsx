@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import { useXtraAuth } from "../../../app/components/auth/AuthProvider";
+import { AppLoadingScreen } from "@/components/ui/loading-state";
 
 export default function Logout() {
     const { logout } = useXtraAuth();
@@ -12,5 +13,5 @@ export default function Logout() {
         });
     }, [logout]);
 
-    return null;
+    return <AppLoadingScreen label="Signing you out" />;
 }

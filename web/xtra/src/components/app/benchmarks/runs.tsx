@@ -1,10 +1,13 @@
+import MuiBox from "@mui/material/Box";
+import MuiTypography from "@mui/material/Typography";
+import { Box } from "@mui/material";
 import ResizableTable from "@/components/ui/resizable-table";
 import { Badge } from "@/components/ui/badge";
 import BreadcrumbTrail from "@/components/ui/breadcrumb-trail";
 import { Button } from "@/components/ui/button";
 import { benchmarkRuns } from "@/mock-control-plane";
-import { Clock3 } from "lucide-react";
-import Link from "next/link";
+import Clock3 from "@mui/icons-material/Schedule";
+import Link from "@/components/ui/route-link";
 
 function score(run: (typeof benchmarkRuns)[number]) {
     if (!run.samples) return 0;
@@ -19,27 +22,36 @@ export default function BenchmarkRuns() {
     );
 
     return (
-        <div className="space-y-6">
+        <Box className="space-y-6">
             <BreadcrumbTrail
                 items={[
                     { label: "Benchmarks", href: "/benchmarks" },
                     { label: "Runs", href: "/benchmarks/runs" },
                 ]}
             />
-            <div className="flex flex-wrap items-end justify-between gap-4">
-                <div>
-                    <h1 className="text-2xl font-semibold">Runs</h1>
-                    <p className="mt-1 max-w-3xl text-sm text-muted-foreground">
+            <Box className="flex flex-wrap items-end justify-between gap-4">
+                <Box>
+                    <MuiTypography
+                        variant="h1"
+                        component="h1"
+                        className="text-2xl font-semibold"
+                    >
+                        Runs
+                    </MuiTypography>
+                    <MuiTypography
+                        component="p"
+                        className="mt-1 max-w-3xl text-sm text-muted-foreground"
+                    >
                         Monitor benchmark jobs that run a selected Strategy
                         against a Source&apos;s Promoted Golden Sample Set.
-                    </p>
-                </div>
+                    </MuiTypography>
+                </Box>
                 <Button asChild>
                     <Link href="/benchmarks/runs/new">Start benchmark run</Link>
                 </Button>
-            </div>
+            </Box>
 
-            <section aria-label="Benchmark run history">
+            <MuiBox component="section" aria-label="Benchmark run history">
                 <ResizableTable
                     ariaLabel="Benchmark runs"
                     rowKey="id"
@@ -168,18 +180,21 @@ export default function BenchmarkRuns() {
                             },
                             defaultSortOrder: "descend" as const,
                             render: (value) => (
-                                <span className="inline-flex items-center gap-1.5 text-sm">
+                                <MuiTypography
+                                    component="span"
+                                    className="inline-flex items-center gap-1.5 text-sm"
+                                >
                                     <Clock3
                                         className="h-3.5 w-3.5 text-muted-foreground"
                                         aria-hidden="true"
                                     />
                                     {new Date(value).toLocaleString()}
-                                </span>
+                                </MuiTypography>
                             ),
                         },
                     ]}
                 />
-            </section>
-        </div>
+            </MuiBox>
+        </Box>
     );
 }

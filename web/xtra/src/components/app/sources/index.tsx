@@ -1,4 +1,6 @@
 "use client";
+import MuiBox from "@mui/material/Box";
+import MuiTypography from "@mui/material/Typography";
 import ResizableTable from "@/components/ui/resizable-table";
 
 import { Button } from "@/components/ui/button";
@@ -11,6 +13,7 @@ import {
 } from "@/mock-control-plane";
 import {
     Box,
+    Button as MuiButton,
     Chip,
     IconButton,
     Popover,
@@ -19,20 +22,18 @@ import {
     Tooltip,
     Typography,
 } from "@mui/material";
-import { Input as AntInput, type TableColumnsType } from "antd";
+import type { TableColumnsType } from "antd";
 import type { FilterDropdownProps } from "antd/es/table/interface";
-import {
-    AlertTriangle,
-    CheckCircle2,
-    Circle,
-    Loader2,
-    Pencil,
-    Plus,
-    Search,
-    Tags,
-} from "lucide-react";
+import AlertTriangle from "@mui/icons-material/WarningAmber";
+import CheckCircle2 from "@mui/icons-material/CheckCircle";
+import Circle from "@mui/icons-material/RadioButtonUnchecked";
+import Loader2 from "@mui/icons-material/Autorenew";
+import Pencil from "@mui/icons-material/Edit";
+import Plus from "@mui/icons-material/Add";
+import Search from "@mui/icons-material/Search";
+import Tags from "@mui/icons-material/LocalOffer";
 import { useMemo, useState } from "react";
-import Link from "next/link";
+import Link from "@/components/ui/route-link";
 
 function CrawlStatusCell({ status }: { status: CrawlStatus }) {
     const icon =
@@ -80,12 +81,14 @@ function textFilterDropdown(placeholder: string) {
         close,
     }: FilterDropdownProps) {
         return (
-            <div
+            <Box
                 className="w-64 p-2"
                 onKeyDown={(event) => event.stopPropagation()}
             >
-                <AntInput
+                <TextField
                     autoFocus
+                    fullWidth
+                    size="small"
                     placeholder={placeholder}
                     value={(selectedKeys[0] as string) ?? ""}
                     onChange={(event) =>
@@ -93,31 +96,33 @@ function textFilterDropdown(placeholder: string) {
                             event.target.value ? [event.target.value] : [],
                         )
                     }
-                    onPressEnter={() => confirm()}
+                    onKeyDown={(event) => {
+                        if (event.key === "Enter") confirm();
+                    }}
                 />
-                <div className="mt-2 flex justify-end gap-2">
-                    <button
-                        type="button"
-                        className="rounded px-2 py-1 text-xs hover:bg-muted"
+                <Box className="mt-2 flex justify-end gap-2">
+                    <MuiButton
+                        variant="text"
+                        size="small"
                         onClick={() => {
                             clearFilters?.();
                             confirm();
                         }}
                     >
                         Reset
-                    </button>
-                    <button
-                        type="button"
-                        className="rounded border px-2 py-1 text-xs"
+                    </MuiButton>
+                    <MuiButton
+                        variant="outlined"
+                        size="small"
                         onClick={() => {
                             confirm();
                             close();
                         }}
                     >
                         Apply
-                    </button>
-                </div>
-            </div>
+                    </MuiButton>
+                </Box>
+            </Box>
         );
     }
     TextFilterDropdown.displayName = "TextFilterDropdown";
@@ -259,7 +264,7 @@ export default function Sources() {
             filterDropdown: textFilterDropdown("Search source"),
             filterIcon: (filtered) => (
                 <Search
-                    size={14}
+                    sx={{ fontSize: "1rem" }}
                     className={filtered ? "text-primary" : undefined}
                 />
             ),
@@ -286,7 +291,7 @@ export default function Sources() {
             filterDropdown: textFilterDropdown("Search organization"),
             filterIcon: (filtered) => (
                 <Search
-                    size={14}
+                    sx={{ fontSize: "1rem" }}
                     className={filtered ? "text-primary" : undefined}
                 />
             ),
@@ -305,7 +310,7 @@ export default function Sources() {
             filterDropdown: textFilterDropdown("Search URL"),
             filterIcon: (filtered) => (
                 <Search
-                    size={14}
+                    sx={{ fontSize: "1rem" }}
                     className={filtered ? "text-primary" : undefined}
                 />
             ),
@@ -336,7 +341,7 @@ export default function Sources() {
             filterDropdown: textFilterDropdown("Search tags"),
             filterIcon: (filtered) => (
                 <Search
-                    size={14}
+                    sx={{ fontSize: "1rem" }}
                     className={filtered ? "text-primary" : undefined}
                 />
             ),
@@ -372,7 +377,7 @@ export default function Sources() {
                                 openTagEditor(record.id, event.currentTarget);
                             }}
                         >
-                            <Tags size={16} />
+                            <Tags sx={{ fontSize: "1rem" }} />
                         </IconButton>
                     </Tooltip>
                 </Stack>
@@ -413,7 +418,7 @@ export default function Sources() {
                                 size="small"
                                 aria-label={`Edit ${record.name}`}
                             >
-                                <Pencil size={17} />
+                                <Pencil sx={{ fontSize: "1.0625rem" }} />
                             </IconButton>
                         </Link>
                     </Tooltip>
@@ -488,25 +493,38 @@ export default function Sources() {
         : undefined;
 
     return (
-        <div className="space-y-6">
-            <div className="flex flex-wrap items-start justify-between gap-4">
-                <div>
-                    <h1 className="text-2xl font-semibold">Sources</h1>
-                    <p className="mt-1 text-sm text-muted-foreground">
+        <Box className="space-y-6">
+            <Box className="flex flex-wrap items-start justify-between gap-4">
+                <Box>
+                    <MuiTypography
+                        variant="h1"
+                        component="h1"
+                        className="text-2xl font-semibold"
+                    >
+                        Sources
+                    </MuiTypography>
+                    <MuiTypography
+                        component="p"
+                        className="mt-1 text-sm text-muted-foreground"
+                    >
                         Add a Source, open it to manage its crawl runs, then
                         open a completed crawl when you are ready to run
                         discovery.
-                    </p>
-                </div>
+                    </MuiTypography>
+                </Box>
                 <Button asChild>
                     <Link href="/sources/new">
                         <Plus className="mr-2 h-4 w-4" />
                         Add source
                     </Link>
                 </Button>
-            </div>
+            </Box>
 
-            <section aria-label="Sources table" className="space-y-2">
+            <MuiBox
+                component="section"
+                aria-label="Sources table"
+                className="space-y-2"
+            >
                 <Box
                     sx={{
                         py: 1,
@@ -515,7 +533,7 @@ export default function Sources() {
                         gap: 1,
                     }}
                 >
-                    <Search size={17} />
+                    <Search sx={{ fontSize: "1.0625rem" }} />
                     <TextField
                         variant="standard"
                         fullWidth
@@ -548,7 +566,7 @@ export default function Sources() {
                         showTotal: (total) => `${total} sources`,
                     }}
                 />
-            </section>
+            </MuiBox>
 
             <Popover
                 disableScrollLock
@@ -606,6 +624,6 @@ export default function Sources() {
                     </Stack>
                 </Box>
             </Popover>
-        </div>
+        </Box>
     );
 }

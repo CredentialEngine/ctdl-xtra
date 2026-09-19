@@ -1,4 +1,6 @@
 "use client";
+import MuiTypography from "@mui/material/Typography";
+import { Box } from "@mui/material";
 
 import {
     Card,
@@ -14,8 +16,14 @@ export default function MyProfile() {
 
     return (
         <>
-            <h1 className="text-lg font-semibold md:text-2xl">My Profile</h1>
-            <div className="w-full max-w-2xl">
+            <MuiTypography
+                variant="h1"
+                component="h1"
+                className="text-lg font-semibold md:text-2xl"
+            >
+                My Profile
+            </MuiTypography>
+            <Box className="w-full max-w-2xl">
                 <Card>
                     <CardHeader>
                         <CardTitle className="text-lg">
@@ -27,17 +35,27 @@ export default function MyProfile() {
                         </CardDescription>
                     </CardHeader>
                     <CardContent className="grid gap-3 text-sm">
-                        <div>
-                            <span className="font-medium">Name:</span>{" "}
+                        <Box>
+                            <MuiTypography
+                                component="span"
+                                className="font-medium"
+                            >
+                                Name:
+                            </MuiTypography>{" "}
                             {user?.name || "—"}
-                        </div>
-                        <div>
-                            <span className="font-medium">Email:</span>{" "}
+                        </Box>
+                        <Box>
+                            <MuiTypography
+                                component="span"
+                                className="font-medium"
+                            >
+                                Email:
+                            </MuiTypography>{" "}
                             {user?.email || "—"}
-                        </div>
+                        </Box>
                     </CardContent>
                 </Card>
-            </div>
+            </Box>
         </>
     );
 }

@@ -1,12 +1,14 @@
 "use client";
 
 import {
+    Box,
     Button,
     Checkbox,
-    Popover,
-    Table as AntTable,
-    type TableProps,
-} from "antd";
+    ListItemText,
+    Menu,
+    MenuItem,
+} from "@mui/material";
+import { Table as AntTable, type TableProps } from "antd";
 import type { ColumnType, ColumnsType } from "antd/es/table";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 
@@ -73,7 +75,8 @@ function ResizeHeaderCell({
         >
             {children}
             {columnKey != null && onColumnResize && (
-                <span
+                <Box
+                    component="span"
                     role="separator"
                     aria-orientation="vertical"
                     aria-label={`Resize ${columnLabel ?? String(columnKey)} column`}
@@ -132,10 +135,9 @@ function getColumnLabel<RecordType extends object>(
 }
 
 /**
- * Shared Ant table with multi-column sort/filter support, resizable columns,
- * and a consistent column visibility control for every table in the app.
- * Ant Table does not ship a built-in column chooser, so this wrapper provides
- * one centrally instead of reimplementing it on each page.
+ * Shared Ant Design table with multi-column sort/filter support and resizable
+ * columns. All surrounding controls are MUI so Ant Design is limited to the
+ * table itself.
  */
 export default function ResizableTable<RecordType extends object>({
     columns = [],
@@ -164,6 +166,9 @@ export default function ResizableTable<RecordType extends object>({
     const [widths, setWidths] = useState<Record<string, number>>({});
     const [hasUserResized, setHasUserResized] = useState(false);
     const [availableWidth, setAvailableWidth] = useState(0);
+    const [columnsAnchor, setColumnsAnchor] = useState<HTMLElement | null>(
+        null,
+    );
     const regionRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
@@ -250,63 +255,69 @@ export default function ResizableTable<RecordType extends object>({
           ? { y: scroll.y }
           : undefined;
 
-    const columnChooser = (
-        <div
-            className="min-w-52 space-y-1 p-1"
-            role="group"
-            aria-label={`Visible columns for ${ariaLabel}`}
-        >
-            {allColumnOptions.map((option) => {
-                const checked = !hiddenColumns.has(option.key);
-                const visibleCount =
-                    allColumnOptions.length - hiddenColumns.size;
-                return (
-                    <label
-                        key={option.key}
-                        className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 hover:bg-[var(--ce-surface)]"
-                    >
-                        <Checkbox
-                            checked={checked}
-                            disabled={checked && visibleCount === 1}
-                            onChange={(event) => {
-                                setHiddenColumns((current) => {
-                                    const next = new Set(current);
-                                    if (event.target.checked)
-                                        next.delete(option.key);
-                                    else next.add(option.key);
-                                    return next;
-                                });
-                            }}
-                        />
-                        <span>{option.label}</span>
-                    </label>
-                );
-            })}
-        </div>
-    );
-
     return (
-        <div
+        <Box
             ref={regionRef}
             role="region"
             aria-label={ariaLabel}
-            className="min-w-0"
+            sx={{ minWidth: 0 }}
         >
-            <div className="mb-2 flex justify-end">
-                <Popover
-                    placement="bottomRight"
-                    trigger="click"
-                    content={columnChooser}
-                    title="Show / hide columns"
+            <Box sx={{ mb: 1, display: "flex", justifyContent: "flex-end" }}>
+                <Button
+                    size="small"
+                    variant="outlined"
+                    aria-label={`Show or hide columns in ${ariaLabel}`}
+                    aria-haspopup="menu"
+                    aria-expanded={Boolean(columnsAnchor)}
+                    onClick={(event) => setColumnsAnchor(event.currentTarget)}
                 >
-                    <Button
-                        size="small"
-                        aria-label={`Show or hide columns in ${ariaLabel}`}
-                    >
-                        Columns
-                    </Button>
-                </Popover>
-            </div>
+                    Columns
+                </Button>
+                <Menu
+                    anchorEl={columnsAnchor}
+                    open={Boolean(columnsAnchor)}
+                    onClose={() => setColumnsAnchor(null)}
+                    slotProps={{
+                        list: {
+                            "aria-label": `Visible columns for ${ariaLabel}`,
+                        },
+                    }}
+                >
+                    {allColumnOptions.map((option) => {
+                        const checked = !hiddenColumns.has(option.key);
+                        const visibleCount =
+                            allColumnOptions.length - hiddenColumns.size;
+                        return (
+                            <MenuItem
+                                key={option.key}
+                                dense
+                                disabled={checked && visibleCount === 1}
+                                onClick={() => {
+                                    setHiddenColumns((current) => {
+                                        const next = new Set(current);
+                                        if (checked) next.add(option.key);
+                                        else next.delete(option.key);
+                                        return next;
+                                    });
+                                }}
+                            >
+                                <Checkbox
+                                    edge="start"
+                                    checked={checked}
+                                    tabIndex={-1}
+                                    disableRipple
+                                    slotProps={{
+                                        input: {
+                                            "aria-label": `${checked ? "Hide" : "Show"} ${option.label} column`,
+                                        },
+                                    }}
+                                />
+                                <ListItemText primary={option.label} />
+                            </MenuItem>
+                        );
+                    })}
+                </Menu>
+            </Box>
             <AntTable<RecordType>
                 {...props}
                 columns={resizableColumns}
@@ -314,6 +325,6 @@ export default function ResizableTable<RecordType extends object>({
                 scroll={effectiveScroll}
                 tableLayout="auto"
             />
-        </div>
+        </Box>
     );
 }

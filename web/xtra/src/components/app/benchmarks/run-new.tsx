@@ -1,3 +1,5 @@
+import MuiTypography from "@mui/material/Typography";
+import { Box } from "@mui/material";
 import BreadcrumbTrail from "@/components/ui/breadcrumb-trail";
 import { Button } from "@/components/ui/button";
 import {
@@ -15,7 +17,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
-import { useToast } from "@/components/ui/use-toast";
+import { useSnackbar } from "@/components/ui/snackbar-provider";
 import {
     benchmarkStrategies,
     getEffectiveDiscoveredPages,
@@ -23,12 +25,12 @@ import {
     sources,
 } from "@/mock-control-plane";
 import { useState } from "react";
-import Link from "next/link";
+import Link, { startNavigation } from "@/components/ui/route-link";
 import { useRouter } from "next/navigation";
 
 export default function BenchmarkRunNew() {
     const router = useRouter();
-    const { toast } = useToast();
+    const { showSnackbar } = useSnackbar();
     const [sourceId, setSourceId] = useState("");
     const [strategyId, setStrategyId] = useState("");
     const activeStrategies = benchmarkStrategies.filter(
@@ -47,15 +49,16 @@ export default function BenchmarkRunNew() {
         if (!sourceId || !strategyId) return;
         // TODO(benchmark-api): POST { sourceId, strategyId }. Resolve the current Promoted Golden Sample Set,
         // resolve each Golden Sample source document against the Source effective crawl cache (LKG, otherwise latest successful), snapshot the Strategy, enqueue one benchmark job, and return benchmarkRunId.
-        toast({
+        showSnackbar({
             title: "Benchmark endpoint not connected",
             description: `Would run ${selectedStrategy?.name} against ${goldenCount} promoted Golden Samples for ${selectedSource?.name}.`,
         });
+        startNavigation("/benchmarks/runs");
         router.push("/benchmarks/runs");
     }
 
     return (
-        <div className="mx-auto max-w-3xl space-y-6">
+        <Box className="mx-auto max-w-3xl space-y-6">
             <BreadcrumbTrail
                 items={[
                     { label: "Benchmarks", href: "/benchmarks" },
@@ -63,14 +66,23 @@ export default function BenchmarkRunNew() {
                     { label: "Start run", href: "/benchmarks/runs/new" },
                 ]}
             />
-            <div>
-                <h1 className="text-2xl font-semibold">Start benchmark run</h1>
-                <p className="mt-1 text-sm text-muted-foreground">
+            <Box>
+                <MuiTypography
+                    variant="h1"
+                    component="h1"
+                    className="text-2xl font-semibold"
+                >
+                    Start benchmark run
+                </MuiTypography>
+                <MuiTypography
+                    component="p"
+                    className="mt-1 text-sm text-muted-foreground"
+                >
                     Choose a Source and an existing Strategy. The benchmark runs
                     that Strategy against the Source&apos;s complete Promoted
                     Golden Sample Set.
-                </p>
-            </div>
+                </MuiTypography>
+            </Box>
 
             <Card>
                 <CardHeader>
@@ -83,7 +95,7 @@ export default function BenchmarkRunNew() {
                     </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-5">
-                    <div className="space-y-2">
+                    <Box className="space-y-2">
                         <Label>Source</Label>
                         <Select value={sourceId} onValueChange={setSourceId}>
                             <SelectTrigger aria-label="Source">
@@ -114,8 +126,8 @@ export default function BenchmarkRunNew() {
                                     ))}
                             </SelectContent>
                         </Select>
-                    </div>
-                    <div className="space-y-2">
+                    </Box>
+                    <Box className="space-y-2">
                         <Label>Strategy</Label>
                         <Select
                             value={strategyId}
@@ -135,16 +147,19 @@ export default function BenchmarkRunNew() {
                                 ))}
                             </SelectContent>
                         </Select>
-                    </div>
+                    </Box>
                     {sourceId && (
-                        <div className="rounded-md bg-muted/40 p-3 text-sm">
-                            <span className="font-medium">
+                        <Box className="rounded-md bg-muted/40 p-3 text-sm">
+                            <MuiTypography
+                                component="span"
+                                className="font-medium"
+                            >
                                 Promoted Golden Samples in scope:
-                            </span>{" "}
+                            </MuiTypography>{" "}
                             {goldenCount}
-                        </div>
+                        </Box>
                     )}
-                    <div className="flex justify-end gap-2">
+                    <Box className="flex justify-end gap-2">
                         <Button variant="outline" asChild>
                             <Link href="/benchmarks/runs">Cancel</Link>
                         </Button>
@@ -154,9 +169,9 @@ export default function BenchmarkRunNew() {
                         >
                             Run benchmark
                         </Button>
-                    </div>
+                    </Box>
                 </CardContent>
             </Card>
-        </div>
+        </Box>
     );
 }

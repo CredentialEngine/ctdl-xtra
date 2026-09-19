@@ -5,6 +5,7 @@ import {
     InputLabel,
     MenuItem,
     Select as MuiSelect,
+    Typography,
     type SelectChangeEvent,
 } from "@mui/material";
 import React from "react";
@@ -172,7 +173,9 @@ const SelectTrigger = React.forwardRef<HTMLDivElement, SelectTriggerProps>(
                         (selected ? (
                             String(selected)
                         ) : (
-                            <span style={{ opacity: 0.7 }}>{placeholder}</span>
+                            <Typography component="span" color="text.secondary">
+                                {placeholder}
+                            </Typography>
                         ))
                     }
                 >

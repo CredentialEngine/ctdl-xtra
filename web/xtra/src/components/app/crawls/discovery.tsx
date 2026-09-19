@@ -1,12 +1,14 @@
-import { Select as AntSelect } from "antd";
+import MuiBox from "@mui/material/Box";
+import MuiTypography from "@mui/material/Typography";
+import { Box, Checkbox, ListItemText, MenuItem, Select } from "@mui/material";
 import { useMemo, useState } from "react";
-import Link from "next/link";
+import Link from "@/components/ui/route-link";
 import { useParams } from "next/navigation";
 import BreadcrumbTrail from "@/components/ui/breadcrumb-trail";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import ResizableTable from "@/components/ui/resizable-table";
-import { useToast } from "@/components/ui/use-toast";
+import { useSnackbar } from "@/components/ui/snackbar-provider";
 import { crawlRuns, discoveredPages } from "@/mock-control-plane";
 import type {
     DiscoveredPage,
@@ -40,7 +42,7 @@ function DiscoveryStatus({ status }: { status: DiscoverStatus }) {
 
 export default function CrawlDiscovery() {
     const { runId } = useParams<{ runId: string }>();
-    const { toast } = useToast();
+    const { showSnackbar } = useSnackbar();
     const run = crawlRuns.find((item) => item.id === runId);
     const [status, setStatus] = useState<DiscoverStatus>(
         run?.discoveryStatus ?? "not_started",
@@ -74,7 +76,7 @@ export default function CrawlDiscovery() {
 
     // TODO(discovery-db): Load the cached-page inventory and persisted multi-label classifications for this exact crawlRunId.
     // TODO(blob-store): Enumerate the downloaded cached page artifacts for the crawl run so every cached page can be reviewed/classified.
-    if (!run) return <div>Crawl run not found.</div>;
+    if (!run) return <Box>Crawl run not found.</Box>;
     const currentRun = run;
 
     function runDiscovery() {
@@ -83,7 +85,7 @@ export default function CrawlDiscovery() {
         // TODO(argo-events): Persist queued/running/completed/failed discovery workflow events and counters for this crawl run.
         // TODO(discovery-db): Upsert the discovered-page rows and their labels against crawlRunId; keep prior manual overrides according to backend policy.
         setStatus("running");
-        toast({
+        showSnackbar({
             title: "Discovery queued",
             description: "Classification will run against this crawl cache.",
         });
@@ -102,7 +104,7 @@ export default function CrawlDiscovery() {
     }
 
     return (
-        <div className="space-y-6">
+        <Box className="space-y-6">
             <BreadcrumbTrail
                 items={[
                     { label: "Sources", href: "/sources" },
@@ -117,21 +119,33 @@ export default function CrawlDiscovery() {
                 ]}
             />
 
-            <div className="flex flex-wrap items-start justify-between gap-4">
-                <div>
-                    <h1 className="text-2xl font-semibold">Discovery</h1>
-                    <p className="mt-1 text-sm text-muted-foreground">
+            <Box className="flex flex-wrap items-start justify-between gap-4">
+                <Box>
+                    <MuiTypography
+                        variant="h1"
+                        component="h1"
+                        className="text-2xl font-semibold"
+                    >
+                        Discovery
+                    </MuiTypography>
+                    <MuiTypography
+                        component="p"
+                        className="mt-1 text-sm text-muted-foreground"
+                    >
                         {run.sourceName} · cache{" "}
                         {run.cacheTimestamp
                             ? new Date(run.cacheTimestamp).toLocaleString()
                             : "not available"}
-                    </p>
-                    <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
+                    </MuiTypography>
+                    <MuiTypography
+                        component="p"
+                        className="mt-2 max-w-2xl text-sm text-muted-foreground"
+                    >
                         This is a separate manual phase for this crawl only.
                         Nothing starts until you choose Run discovery.
-                    </p>
-                </div>
-                <div className="flex items-center gap-2">
+                    </MuiTypography>
+                </Box>
+                <Box className="flex items-center gap-2">
                     <DiscoveryStatus status={status} />
                     <Button
                         onClick={runDiscovery}
@@ -143,51 +157,57 @@ export default function CrawlDiscovery() {
                             ? "Run discovery again"
                             : "Run discovery"}
                     </Button>
-                </div>
-            </div>
+                </Box>
+            </Box>
 
-            <div className="grid gap-3 sm:grid-cols-3">
-                <div className="rounded-lg bg-muted/40 p-4">
-                    <div className="text-xs text-muted-foreground">
+            <Box className="grid gap-3 sm:grid-cols-3">
+                <Box className="rounded-lg bg-muted/40 p-4">
+                    <Box className="text-xs text-muted-foreground">
                         Interesting pages
-                    </div>
-                    <div className="mt-1 text-2xl font-semibold">
+                    </Box>
+                    <Box className="mt-1 text-2xl font-semibold">
                         {interesting.length}
-                    </div>
-                </div>
-                <div className="rounded-lg bg-muted/40 p-4">
-                    <div className="text-xs text-muted-foreground">
+                    </Box>
+                </Box>
+                <Box className="rounded-lg bg-muted/40 p-4">
+                    <Box className="text-xs text-muted-foreground">
                         Unclassified
-                    </div>
-                    <div className="mt-1 text-2xl font-semibold">
+                    </Box>
+                    <Box className="mt-1 text-2xl font-semibold">
                         {unclassified.length}
-                    </div>
-                </div>
-                <div className="rounded-lg bg-muted/40 p-4">
-                    <div className="text-xs text-muted-foreground">Ignored</div>
-                    <div className="mt-1 text-2xl font-semibold">
+                    </Box>
+                </Box>
+                <Box className="rounded-lg bg-muted/40 p-4">
+                    <Box className="text-xs text-muted-foreground">Ignored</Box>
+                    <Box className="mt-1 text-2xl font-semibold">
                         {ignored.length}
-                    </div>
-                </div>
-            </div>
+                    </Box>
+                </Box>
+            </Box>
 
-            <section
+            <MuiBox
+                component="section"
                 aria-labelledby="cached-pages-heading"
                 className="space-y-3"
             >
-                <div>
-                    <h2
+                <Box>
+                    <MuiTypography
+                        variant="h2"
+                        component="h2"
                         id="cached-pages-heading"
                         className="text-base font-semibold"
                     >
                         Cached pages
-                    </h2>
-                    <p className="mt-1 text-sm text-muted-foreground">
+                    </MuiTypography>
+                    <MuiTypography
+                        component="p"
+                        className="mt-1 text-sm text-muted-foreground"
+                    >
                         Review the pages downloaded by this crawl and correct
                         labels manually when automated discovery misses or
                         misclassifies a page.
-                    </p>
-                </div>
+                    </MuiTypography>
+                </Box>
                 <ResizableTable<DiscoveredPage>
                     ariaLabel="Cached page discovery classifications"
                     rowKey="id"
@@ -208,10 +228,10 @@ export default function CrawlDiscovery() {
                                 multiple: 4,
                             },
                             render: (_, page) => (
-                                <div>
-                                    <div className="font-medium">
+                                <Box>
+                                    <Box className="font-medium">
                                         {page.title}
-                                    </div>
+                                    </Box>
                                     <a
                                         className="block max-w-[720px] truncate text-xs text-muted-foreground hover:underline"
                                         href={page.url}
@@ -220,7 +240,7 @@ export default function CrawlDiscovery() {
                                     >
                                         {page.url}
                                     </a>
-                                </div>
+                                </Box>
                             ),
                         },
                         {
@@ -245,20 +265,36 @@ export default function CrawlDiscovery() {
                                 multiple: 3,
                             },
                             render: (values: DiscoveredPageLabel[], page) => (
-                                <AntSelect
-                                    aria-label={`Labels for ${page.title}`}
-                                    mode="multiple"
+                                <Select<DiscoveredPageLabel[]>
+                                    multiple
+                                    size="small"
+                                    fullWidth
                                     value={values}
-                                    onChange={(next) =>
-                                        updateLabels(page.id, next)
+                                    inputProps={{
+                                        "aria-label": `Labels for ${page.title}`,
+                                    }}
+                                    onChange={(event) => {
+                                        const next = event.target.value;
+                                        updateLabels(
+                                            page.id,
+                                            typeof next === "string"
+                                                ? next.split(",")
+                                                : next,
+                                        );
+                                    }}
+                                    renderValue={(selected) =>
+                                        selected.join(", ")
                                     }
-                                    options={labelOptions.map((value) => ({
-                                        label: value,
-                                        value,
-                                    }))}
-                                    maxTagCount="responsive"
-                                    style={{ width: "100%" }}
-                                />
+                                >
+                                    {labelOptions.map((value) => (
+                                        <MenuItem key={value} value={value}>
+                                            <Checkbox
+                                                checked={values.includes(value)}
+                                            />
+                                            <ListItemText primary={value} />
+                                        </MenuItem>
+                                    ))}
+                                </Select>
                             ),
                         },
                         {
@@ -278,13 +314,13 @@ export default function CrawlDiscovery() {
                         },
                     ]}
                 />
-            </section>
+            </MuiBox>
 
-            <div className="flex justify-end">
+            <Box className="flex justify-end">
                 <Button variant="outline" asChild>
                     <Link href={`/crawls/${run.id}`}>Back to crawl run</Link>
                 </Button>
-            </div>
-        </div>
+            </Box>
+        </Box>
     );
 }

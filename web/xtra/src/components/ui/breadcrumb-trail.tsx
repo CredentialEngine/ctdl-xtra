@@ -1,7 +1,7 @@
 "use client";
 
-import { Breadcrumbs, Typography } from "@mui/material";
-import Link from "next/link";
+import { Breadcrumbs, Link as MuiLink, Typography } from "@mui/material";
+import Link from "@/components/ui/route-link";
 
 export interface BreadcrumbTrailProps {
     items: {
@@ -33,13 +33,16 @@ export default function BreadcrumbTrail({ items }: BreadcrumbTrailProps) {
                         {item.label}
                     </Typography>
                 ) : (
-                    <Link
+                    <MuiLink
                         key={`${item.href}-${item.label}`}
+                        component={Link}
                         href={item.href}
-                        className="text-sm text-muted-foreground hover:underline"
+                        color="text.secondary"
+                        underline="hover"
+                        variant="body2"
                     >
                         {item.label}
-                    </Link>
+                    </MuiLink>
                 );
             })}
         </Breadcrumbs>

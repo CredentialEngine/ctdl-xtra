@@ -1,15 +1,8 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
-import { Geist } from "next/font/google";
 import "@/main.css";
 import Providers from "./providers";
 import ClientApp from "@/client-app";
-
-const geistSans = Geist({
-    variable: "--font-geist-sans",
-    subsets: ["latin"],
-    preload: false,
-});
 
 export const metadata: Metadata = {
     title: "CTDL xTRA",
@@ -22,7 +15,7 @@ export default function RootLayout({
 }: Readonly<{ children: ReactNode }>) {
     return (
         <html lang="en">
-            <body className={geistSans.variable}>
+            <body>
                 <Providers>
                     <ClientApp>{children}</ClientApp>
                 </Providers>

@@ -1,9 +1,12 @@
+import MuiBox from "@mui/material/Box";
+import MuiTypography from "@mui/material/Typography";
+import { Box } from "@mui/material";
 import ResizableTable from "@/components/ui/resizable-table";
 import type { DiscoveredPageLabel } from "@/domain";
 import { Badge } from "@/components/ui/badge";
 import BreadcrumbTrail from "@/components/ui/breadcrumb-trail";
 import { goldenSamples, sources } from "@/mock-control-plane";
-import Link from "next/link";
+import Link from "@/components/ui/route-link";
 import { useParams } from "next/navigation";
 
 export default function BenchmarkWorkspaceGolden() {
@@ -11,13 +14,13 @@ export default function BenchmarkWorkspaceGolden() {
     // TODO(source-db): GET Source metadata.
     // TODO(benchmark-db): GET the Source Promoted Golden Sample Set with promotion metadata and artifact references.
     const source = sources.find((item) => item.id === sourceId);
-    if (!source) return <div>Benchmark workspace not found.</div>;
+    if (!source) return <Box>Benchmark workspace not found.</Box>;
     const samples = goldenSamples.filter(
         (sample) => sample.sourceId === sourceId,
     );
 
     return (
-        <div className="space-y-6">
+        <Box className="space-y-6">
             <BreadcrumbTrail
                 items={[
                     { label: "Benchmarks", href: "/benchmarks" },
@@ -32,30 +35,45 @@ export default function BenchmarkWorkspaceGolden() {
                     },
                 ]}
             />
-            <div>
-                <h1 className="text-2xl font-semibold">{source.name}</h1>
-                <p className="mt-1 text-sm text-muted-foreground">
+            <Box>
+                <MuiTypography
+                    variant="h1"
+                    component="h1"
+                    className="text-2xl font-semibold"
+                >
+                    {source.name}
+                </MuiTypography>
+                <MuiTypography
+                    component="p"
+                    className="mt-1 text-sm text-muted-foreground"
+                >
                     {source.url}
-                </p>
-            </div>
+                </MuiTypography>
+            </Box>
 
-            <section
+            <MuiBox
+                component="section"
                 aria-labelledby="golden-table-heading"
                 className="space-y-3"
             >
-                <div>
-                    <h2
+                <Box>
+                    <MuiTypography
+                        variant="h2"
+                        component="h2"
                         id="golden-table-heading"
                         className="text-base font-semibold"
                     >
                         {samples.length || source.goldenSamples} Promoted Golden
                         Samples
-                    </h2>
-                    <p className="mt-1 text-sm text-muted-foreground">
+                    </MuiTypography>
+                    <MuiTypography
+                        component="p"
+                        className="mt-1 text-sm text-muted-foreground"
+                    >
                         Each sample preserves the reviewed source document and
                         approved Extract, Transform, and Publish-ready outputs.
-                    </p>
-                </div>
+                    </MuiTypography>
+                </Box>
                 <ResizableTable
                     ariaLabel="Promoted Golden Samples"
                     rowKey="id"
@@ -72,17 +90,17 @@ export default function BenchmarkWorkspaceGolden() {
                                 multiple: 4,
                             },
                             render: (_, sample) => (
-                                <div>
+                                <Box>
                                     <Link
                                         href={`/benchmarks/workspaces/${source.id}/pages/${sample.pageId}`}
                                         className="font-medium hover:underline"
                                     >
                                         {sample.pageTitle}
                                     </Link>
-                                    <div className="max-w-[700px] truncate text-xs text-muted-foreground">
+                                    <Box className="max-w-[700px] truncate text-xs text-muted-foreground">
                                         {sample.pageUrl}
-                                    </div>
-                                </div>
+                                    </Box>
+                                </Box>
                             ),
                         },
                         {
@@ -107,13 +125,13 @@ export default function BenchmarkWorkspaceGolden() {
                                 multiple: 3,
                             },
                             render: (values) => (
-                                <div className="flex flex-wrap gap-1">
+                                <Box className="flex flex-wrap gap-1">
                                     {values.map((value: string) => (
                                         <Badge key={value} variant="outline">
                                             {value}
                                         </Badge>
                                     ))}
-                                </div>
+                                </Box>
                             ),
                         },
                         {
@@ -121,9 +139,12 @@ export default function BenchmarkWorkspaceGolden() {
                             key: "artifacts",
                             width: 290,
                             render: () => (
-                                <span className="text-xs text-muted-foreground">
+                                <MuiTypography
+                                    component="span"
+                                    className="text-xs text-muted-foreground"
+                                >
                                     Source → Extract → Transform → Publish-ready
-                                </span>
+                                </MuiTypography>
                             ),
                         },
                         {
@@ -146,7 +167,7 @@ export default function BenchmarkWorkspaceGolden() {
                             "No Promoted Golden Samples yet. Promote reviewed discovered pages from Discovered Pages.",
                     }}
                 />
-            </section>
-        </div>
+            </MuiBox>
+        </Box>
     );
 }

@@ -1,3 +1,5 @@
+import MuiTypography from "@mui/material/Typography";
+import { Box } from "@mui/material";
 import ResizableTable from "@/components/ui/resizable-table";
 import { Badge } from "@/components/ui/badge";
 import BreadcrumbTrail from "@/components/ui/breadcrumb-trail";
@@ -7,8 +9,8 @@ import {
     goldenSamples,
     sources,
 } from "@/mock-control-plane";
-import { FileSearch } from "lucide-react";
-import Link from "next/link";
+import FileSearch from "@mui/icons-material/FindInPage";
+import Link from "@/components/ui/route-link";
 
 export default function BenchmarkWorkspaces() {
     // TODO(source-db): Load benchmarkable Sources and discovery summary from PostgreSQL.
@@ -34,22 +36,31 @@ export default function BenchmarkWorkspaces() {
     });
 
     return (
-        <div className="space-y-6">
+        <Box className="space-y-6">
             <BreadcrumbTrail
                 items={[
                     { label: "Benchmarks", href: "/benchmarks" },
                     { label: "Workspaces", href: "/benchmarks/workspaces" },
                 ]}
             />
-            <div>
-                <h1 className="text-2xl font-semibold">Workspaces</h1>
-                <p className="mt-1 max-w-3xl text-sm text-muted-foreground">
+            <Box>
+                <MuiTypography
+                    variant="h1"
+                    component="h1"
+                    className="text-2xl font-semibold"
+                >
+                    Workspaces
+                </MuiTypography>
+                <MuiTypography
+                    component="p"
+                    className="mt-1 max-w-3xl text-sm text-muted-foreground"
+                >
                     Start from a Source, review the discovered pages from its
                     effective crawl cache, and build its Promoted Golden Sample
                     Set. Reusable ETL strategies are managed separately under
                     Strategies.
-                </p>
-            </div>
+                </MuiTypography>
+            </Box>
 
             <ResizableTable
                 ariaLabel="Benchmark workspaces"
@@ -66,17 +77,17 @@ export default function BenchmarkWorkspaces() {
                             multiple: 5,
                         },
                         render: (_, row) => (
-                            <div>
+                            <Box>
                                 <Link
                                     href={`/benchmarks/workspaces/${row.id}`}
                                     className="font-medium hover:underline focus-visible:underline"
                                 >
                                     {row.name}
                                 </Link>
-                                <div className="mt-0.5 max-w-[520px] truncate text-xs text-muted-foreground">
+                                <Box className="mt-0.5 max-w-[520px] truncate text-xs text-muted-foreground">
                                     {row.url}
-                                </div>
-                            </div>
+                                </Box>
+                            </Box>
                         ),
                     },
                     {
@@ -101,10 +112,13 @@ export default function BenchmarkWorkspaces() {
                             multiple: 3,
                         },
                         render: (value) => (
-                            <span className="inline-flex items-center gap-1.5">
+                            <MuiTypography
+                                component="span"
+                                className="inline-flex items-center gap-1.5"
+                            >
                                 <FileSearch className="h-4 w-4 text-muted-foreground" />
                                 {value}
-                            </span>
+                            </MuiTypography>
                         ),
                     },
                     {
@@ -116,7 +130,11 @@ export default function BenchmarkWorkspaces() {
                             compare: (a, b) => a.goldenCount - b.goldenCount,
                             multiple: 2,
                         },
-                        render: (value) => <span>{value}</span>,
+                        render: (value) => (
+                            <MuiTypography component="span">
+                                {value}
+                            </MuiTypography>
+                        ),
                     },
                     {
                         title: "Latest run",
@@ -147,13 +165,16 @@ export default function BenchmarkWorkspaces() {
                                     {row.latestRun.status}
                                 </Badge>
                             ) : (
-                                <span className="text-sm text-muted-foreground">
+                                <MuiTypography
+                                    component="span"
+                                    className="text-sm text-muted-foreground"
+                                >
                                     No runs
-                                </span>
+                                </MuiTypography>
                             ),
                     },
                 ]}
             />
-        </div>
+        </Box>
     );
 }

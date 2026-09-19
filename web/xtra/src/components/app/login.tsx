@@ -2,10 +2,19 @@
 
 import { useXtraAuth } from "../../../app/components/auth/AuthProvider";
 import LoginIcon from "@mui/icons-material/Login";
-import { Box, Button, Card, CardContent, Typography } from "@mui/material";
+import {
+    Box,
+    Button,
+    Card,
+    CardContent,
+    CircularProgress,
+    Typography,
+} from "@mui/material";
+import { useState } from "react";
 
 export default function Login() {
     const { login } = useXtraAuth();
+    const [signingIn, setSigningIn] = useState(false);
 
     return (
         <Card
@@ -72,10 +81,22 @@ export default function Login() {
                     variant="contained"
                     fullWidth
                     size="large"
-                    startIcon={<LoginIcon />}
-                    onClick={() => login("/")}
+                    disabled={signingIn}
+                    startIcon={
+                        signingIn ? (
+                            <CircularProgress size={18} color="inherit" />
+                        ) : (
+                            <LoginIcon />
+                        )
+                    }
+                    onClick={() => {
+                        setSigningIn(true);
+                        login("/");
+                    }}
                 >
-                    Sign in with Credential Engine
+                    {signingIn
+                        ? "Redirecting to sign in…"
+                        : "Sign in with Credential Engine"}
                 </Button>
             </CardContent>
         </Card>

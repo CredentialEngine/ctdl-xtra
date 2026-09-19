@@ -1,3 +1,5 @@
+import MuiTypography from "@mui/material/Typography";
+import { Box } from "@mui/material";
 import { Badge } from "@/components/ui/badge";
 import BreadcrumbTrail from "@/components/ui/breadcrumb-trail";
 import { Button } from "@/components/ui/button";
@@ -16,7 +18,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
-import { useToast } from "@/components/ui/use-toast";
+import { useSnackbar } from "@/components/ui/snackbar-provider";
 import {
     benchmarkStrategies,
     extractStrategies,
@@ -28,7 +30,7 @@ import {
     transformStrategies,
 } from "@/mock-control-plane";
 import { useMemo, useState } from "react";
-import Link from "next/link";
+import Link, { startNavigation } from "@/components/ui/route-link";
 import { useRouter } from "next/navigation";
 
 function optionName(options: { id: string; name: string }[], id: string) {
@@ -37,7 +39,7 @@ function optionName(options: { id: string; name: string }[], id: string) {
 
 export default function PublishRunNew() {
     const router = useRouter();
-    const { toast } = useToast();
+    const { showSnackbar } = useSnackbar();
     const eligibleSources = sources.filter((source) =>
         getEffectiveDiscoveredPages(source.id).some(
             (page) =>
@@ -85,16 +87,17 @@ export default function PublishRunNew() {
         // TODO(argo-events): Accept workflow events in the API and update persisted stage progress/status as Extract, Transform, Publish-ready, and Publisher stages advance.
         // TODO(publisher-api): Call the destination project endpoint with the final artifact and persist the created project iteration id.
         // TODO(publishing-db): Persist run status, per-page ETL artifacts, counters, failures, immutable strategy snapshot, publisher responses, and iteration id for audit.
-        toast({
+        showSnackbar({
             title: "Publishing endpoint not connected",
             description:
                 "Would run the promoted strategy across every publishable page in this Source.",
         });
+        startNavigation("/publishing");
         router.push("/publishing");
     }
 
     return (
-        <div className="mx-auto max-w-3xl space-y-6">
+        <Box className="mx-auto max-w-3xl space-y-6">
             <BreadcrumbTrail
                 items={[
                     { label: "Publishing", href: "/publishing" },
@@ -102,13 +105,22 @@ export default function PublishRunNew() {
                     { label: "Start run", href: "/publishing/new" },
                 ]}
             />
-            <div>
-                <h1 className="text-2xl font-semibold">Start ETL run</h1>
-                <p className="mt-1 max-w-3xl text-sm text-muted-foreground">
+            <Box>
+                <MuiTypography
+                    variant="h1"
+                    component="h1"
+                    className="text-2xl font-semibold"
+                >
+                    Start ETL run
+                </MuiTypography>
+                <MuiTypography
+                    component="p"
+                    className="mt-1 max-w-3xl text-sm text-muted-foreground"
+                >
                     Choose a Source, an admin-approved Strategy for that Source,
                     and a destination project.
-                </p>
-            </div>
+                </MuiTypography>
+            </Box>
 
             <Card>
                 <CardHeader>
@@ -119,7 +131,7 @@ export default function PublishRunNew() {
                     </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
-                    <div className="space-y-2">
+                    <Box className="space-y-2">
                         <Label>Source</Label>
                         <Select value={sourceId} onValueChange={changeSource}>
                             <SelectTrigger>
@@ -148,9 +160,9 @@ export default function PublishRunNew() {
                                 })}
                             </SelectContent>
                         </Select>
-                    </div>
+                    </Box>
 
-                    <div className="space-y-2">
+                    <Box className="space-y-2">
                         <Label>Strategy</Label>
                         <Select
                             value={strategyId}
@@ -175,74 +187,77 @@ export default function PublishRunNew() {
                             </SelectContent>
                         </Select>
                         {sourceId && !promotedStrategies.length && (
-                            <p className="text-xs text-muted-foreground">
+                            <MuiTypography
+                                component="p"
+                                className="text-xs text-muted-foreground"
+                            >
                                 No promoted Strategies yet. Benchmark and
                                 promote a Strategy before publishing this
                                 Source.
-                            </p>
+                            </MuiTypography>
                         )}
-                    </div>
+                    </Box>
 
                     {strategy && (
-                        <div className="rounded-lg bg-muted/40 p-4">
-                            <div className="flex items-center gap-2">
-                                <div className="font-semibold">
+                        <Box className="rounded-lg bg-muted/40 p-4">
+                            <Box className="flex items-center gap-2">
+                                <Box className="font-semibold">
                                     {strategy.name}
-                                </div>
+                                </Box>
                                 <Badge>Promoted</Badge>
-                            </div>
-                            <div className="mt-4 grid gap-3 md:grid-cols-3">
-                                <div>
-                                    <div className="text-xs text-muted-foreground">
+                            </Box>
+                            <Box className="mt-4 grid gap-3 md:grid-cols-3">
+                                <Box>
+                                    <Box className="text-xs text-muted-foreground">
                                         Extract
-                                    </div>
-                                    <div className="mt-1 text-sm font-medium">
+                                    </Box>
+                                    <Box className="mt-1 text-sm font-medium">
                                         {optionName(
                                             extractStrategies,
                                             strategy.extractOptionId,
                                         )}
-                                    </div>
-                                </div>
-                                <div>
-                                    <div className="text-xs text-muted-foreground">
+                                    </Box>
+                                </Box>
+                                <Box>
+                                    <Box className="text-xs text-muted-foreground">
                                         Transform
-                                    </div>
-                                    <div className="mt-1 text-sm font-medium">
+                                    </Box>
+                                    <Box className="mt-1 text-sm font-medium">
                                         {optionName(
                                             transformStrategies,
                                             strategy.transformOptionId,
                                         )}
-                                    </div>
-                                </div>
-                                <div>
-                                    <div className="text-xs text-muted-foreground">
+                                    </Box>
+                                </Box>
+                                <Box>
+                                    <Box className="text-xs text-muted-foreground">
                                         Publish-ready
-                                    </div>
-                                    <div className="mt-1 text-sm font-medium">
+                                    </Box>
+                                    <Box className="mt-1 text-sm font-medium">
                                         {optionName(
                                             publishStrategies,
                                             strategy.publishReadyOptionId,
                                         )}
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
+                                    </Box>
+                                </Box>
+                            </Box>
+                        </Box>
                     )}
 
                     {sourceId && (
-                        <div className="rounded-lg bg-muted/40 p-4 text-sm">
-                            <div className="font-medium">
+                        <Box className="rounded-lg bg-muted/40 p-4 text-sm">
+                            <Box className="font-medium">
                                 Effective crawl cache
-                            </div>
-                            <div className="mt-1 text-muted-foreground">
+                            </Box>
+                            <Box className="mt-1 text-muted-foreground">
                                 {effectiveCrawlRunId ?? "None"} ·{" "}
                                 {selectedPages.length} publishable discovered
                                 pages
-                            </div>
-                        </div>
+                            </Box>
+                        </Box>
                     )}
 
-                    <div className="space-y-2">
+                    <Box className="space-y-2">
                         <Label>Destination project</Label>
                         <Select value={projectId} onValueChange={setProjectId}>
                             <SelectTrigger>
@@ -254,9 +269,9 @@ export default function PublishRunNew() {
                                 </SelectItem>
                             </SelectContent>
                         </Select>
-                    </div>
+                    </Box>
 
-                    <div className="flex justify-end gap-2">
+                    <Box className="flex justify-end gap-2">
                         <Button variant="outline" asChild>
                             <Link href="/publishing">Cancel</Link>
                         </Button>
@@ -266,9 +281,9 @@ export default function PublishRunNew() {
                         >
                             Start ETL run
                         </Button>
-                    </div>
+                    </Box>
                 </CardContent>
             </Card>
-        </div>
+        </Box>
     );
 }

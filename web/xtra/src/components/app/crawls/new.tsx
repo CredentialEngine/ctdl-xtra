@@ -1,3 +1,5 @@
+import MuiTypography from "@mui/material/Typography";
+import { Box } from "@mui/material";
 import BreadcrumbTrail from "@/components/ui/breadcrumb-trail";
 import { Button } from "@/components/ui/button";
 import {
@@ -15,16 +17,16 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
-import { useToast } from "@/components/ui/use-toast";
+import { useSnackbar } from "@/components/ui/snackbar-provider";
 import { crawlStrategies, sources } from "@/mock-control-plane";
 import { useState } from "react";
-import Link from "next/link";
+import Link, { startNavigation } from "@/components/ui/route-link";
 import { useRouter, useSearchParams } from "next/navigation";
 
 export default function CrawlRunNew() {
     const router = useRouter();
     const searchParams = useSearchParams();
-    const { toast } = useToast();
+    const { showSnackbar } = useSnackbar();
     const querySourceId = searchParams.get("sourceId") ?? "";
     const [sourceId, setSourceId] = useState(querySourceId);
     const [strategyId, setStrategyId] = useState("");
@@ -35,15 +37,17 @@ export default function CrawlRunNew() {
         // TODO(crawl-api): POST { sourceId, strategyId } to create the crawl run and launch its Argo workflow.
         // TODO(crawl-db): Persist the crawl run, strategy snapshot, initial queued status, progress counters, and workflow id in PostgreSQL.
         // TODO(argo-events): Accept workflow events in the API and update status/progress/error/timestamps as the crawl advances.
-        toast({
+        showSnackbar({
             title: "Crawl run queued",
             description: "The backend integration is not connected yet.",
         });
-        router.push(sourceId ? `/sources/${sourceId}` : "/crawls");
+        const destination = sourceId ? `/sources/${sourceId}` : "/crawls";
+        startNavigation(destination);
+        router.push(destination);
     }
 
     return (
-        <div className="mx-auto max-w-3xl space-y-6">
+        <Box className="mx-auto max-w-3xl space-y-6">
             <BreadcrumbTrail
                 items={
                     selectedSource
@@ -62,14 +66,23 @@ export default function CrawlRunNew() {
                           ]
                 }
             />
-            <div>
-                <h1 className="text-2xl font-semibold">Start crawl</h1>
-                <p className="mt-1 text-sm text-muted-foreground">
+            <Box>
+                <MuiTypography
+                    variant="h1"
+                    component="h1"
+                    className="text-2xl font-semibold"
+                >
+                    Start crawl
+                </MuiTypography>
+                <MuiTypography
+                    component="p"
+                    className="mt-1 text-sm text-muted-foreground"
+                >
                     Choose the Source and crawler strategy. Starting a crawl
                     only queues that crawl; discovery will not start
                     automatically.
-                </p>
-            </div>
+                </MuiTypography>
+            </Box>
             <Card>
                 <CardHeader>
                     <CardTitle className="text-base">Crawl inputs</CardTitle>
@@ -79,7 +92,7 @@ export default function CrawlRunNew() {
                     </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
-                    <div className="space-y-2">
+                    <Box className="space-y-2">
                         <Label>Source</Label>
                         <Select value={sourceId} onValueChange={setSourceId}>
                             <SelectTrigger>
@@ -96,8 +109,8 @@ export default function CrawlRunNew() {
                                 ))}
                             </SelectContent>
                         </Select>
-                    </div>
-                    <div className="space-y-2">
+                    </Box>
+                    <Box className="space-y-2">
                         <Label>Crawl strategy</Label>
                         <Select
                             value={strategyId}
@@ -122,17 +135,17 @@ export default function CrawlRunNew() {
                                     ))}
                             </SelectContent>
                         </Select>
-                    </div>
+                    </Box>
                     {strategyId && (
-                        <div className="rounded-md bg-muted/50 p-4 text-sm text-muted-foreground">
+                        <Box className="rounded-md bg-muted/50 p-4 text-sm text-muted-foreground">
                             {
                                 crawlStrategies.find(
                                     (strategy) => strategy.id === strategyId,
                                 )?.description
                             }
-                        </div>
+                        </Box>
                     )}
-                    <div className="flex justify-end gap-2">
+                    <Box className="flex justify-end gap-2">
                         <Button variant="outline" asChild>
                             <Link
                                 href={
@@ -150,9 +163,9 @@ export default function CrawlRunNew() {
                         >
                             Start crawl
                         </Button>
-                    </div>
+                    </Box>
                 </CardContent>
             </Card>
-        </div>
+        </Box>
     );
 }

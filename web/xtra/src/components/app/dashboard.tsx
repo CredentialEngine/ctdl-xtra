@@ -23,6 +23,7 @@ import {
     ListItemButton,
     ListItemIcon,
     ListItemText,
+    LinearProgress,
     Menu,
     MenuItem,
     Toolbar,
@@ -39,9 +40,8 @@ import {
     type PointerEvent as ReactPointerEvent,
     type ReactNode,
 } from "react";
-import Link from "next/link";
+import Link, { NAVIGATION_START_EVENT } from "@/components/ui/route-link";
 import { usePathname } from "next/navigation";
-import { Toaster } from "../ui/toaster";
 
 const defaultExpandedWidth = 280;
 const collapsedWidth = 72;
@@ -110,6 +110,11 @@ export function Dashboard({ children }: Readonly<{ children: ReactNode }>) {
     const mobileMenuButtonRef = useRef<HTMLButtonElement>(null);
     const mobileNavigationRef = useRef<HTMLElement>(null);
     const [userAnchor, setUserAnchor] = useState<null | HTMLElement>(null);
+    const [navigationTarget, setNavigationTarget] = useState<string | null>(
+        null,
+    );
+    const navigationPending =
+        navigationTarget !== null && navigationTarget !== location;
     const drawerWidth = collapsed ? collapsedWidth : expandedWidth;
     const iconOnlyNavigation = collapsed;
     const lastComfortableExpandedWidth = useRef(defaultExpandedWidth);
@@ -141,6 +146,21 @@ export function Dashboard({ children }: Readonly<{ children: ReactNode }>) {
             navPreferencesLoaded.current = true;
         });
         return () => window.cancelAnimationFrame(frame);
+    }, []);
+
+    useEffect(() => {
+        const handleNavigationStart = (event: Event) => {
+            const navigationEvent = event as CustomEvent<{ pathname?: string }>;
+            setNavigationTarget(
+                navigationEvent.detail?.pathname ?? window.location.pathname,
+            );
+        };
+        window.addEventListener(NAVIGATION_START_EVENT, handleNavigationStart);
+        return () =>
+            window.removeEventListener(
+                NAVIGATION_START_EVENT,
+                handleNavigationStart,
+            );
     }, []);
 
     useEffect(() => {
@@ -181,7 +201,17 @@ export function Dashboard({ children }: Readonly<{ children: ReactNode }>) {
     };
 
     const closeMobileNavigation = (restoreFocus = true) => {
+        // The temporary MUI Drawer remains mounted while its closing transition
+        // runs. If focus is still inside the Drawer when MUI marks the hidden
+        // modal aria-hidden, browsers correctly warn that focused content has
+        // been hidden from assistive technology. Clear focus before closing and
+        // restore it to the menu button after the close has been committed.
+        if (document.activeElement instanceof HTMLElement) {
+            document.activeElement.blur();
+        }
+
         setMobileOpen(false);
+
         if (restoreFocus) {
             window.requestAnimationFrame(() =>
                 mobileMenuButtonRef.current?.focus(),
@@ -459,7 +489,7 @@ export function Dashboard({ children }: Readonly<{ children: ReactNode }>) {
                                                 primary: {
                                                     noWrap: true,
                                                     sx: {
-                                                        fontSize: 14,
+                                                        fontSize: "1rem",
                                                         fontWeight: selected
                                                             ? 700
                                                             : 500,
@@ -692,11 +722,28 @@ export function Dashboard({ children }: Readonly<{ children: ReactNode }>) {
                 </Toolbar>
             </AppBar>
 
+            {navigationPending && (
+                <LinearProgress
+                    aria-label="Loading page"
+                    sx={{
+                        position: "fixed",
+                        top: 64,
+                        left: { xs: 0, md: `${drawerWidth}px` },
+                        right: 0,
+                        zIndex: (t) => t.zIndex.drawer + 2,
+                        transition: resizingNav ? "none" : "left 120ms ease",
+                    }}
+                />
+            )}
+
             <Drawer
                 variant={isDesktop ? "permanent" : "temporary"}
                 open={isDesktop || mobileOpen}
                 onClose={() => closeMobileNavigation()}
-                ModalProps={{ keepMounted: true }}
+                ModalProps={{
+                    keepMounted: true,
+                    disableRestoreFocus: true,
+                }}
                 sx={{
                     width: isDesktop ? drawerWidth : defaultExpandedWidth,
                     flexShrink: 0,
@@ -791,7 +838,6 @@ export function Dashboard({ children }: Readonly<{ children: ReactNode }>) {
                     {children}
                 </Box>
             </Box>
-            <Toaster />
         </Box>
     );
 }

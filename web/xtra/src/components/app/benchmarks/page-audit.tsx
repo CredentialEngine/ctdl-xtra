@@ -1,3 +1,6 @@
+import MuiBox from "@mui/material/Box";
+import MuiTypography from "@mui/material/Typography";
+import { Box } from "@mui/material";
 import { Badge } from "@/components/ui/badge";
 import BreadcrumbTrail from "@/components/ui/breadcrumb-trail";
 import { Button } from "@/components/ui/button";
@@ -8,7 +11,7 @@ import {
     CardHeader,
     CardTitle,
 } from "@/components/ui/card";
-import { useToast } from "@/components/ui/use-toast";
+import { useSnackbar } from "@/components/ui/snackbar-provider";
 import {
     benchmarkStrategies,
     discoveredPages,
@@ -17,8 +20,11 @@ import {
     sources,
     transformStrategies,
 } from "@/mock-control-plane";
-import { ArrowDown, FileCode2, FileText, Sparkles } from "lucide-react";
-import Link from "next/link";
+import ArrowDown from "@mui/icons-material/ArrowDownward";
+import FileCode2 from "@mui/icons-material/DataObject";
+import FileText from "@mui/icons-material/Description";
+import Sparkles from "@mui/icons-material/AutoAwesome";
+import Link from "@/components/ui/route-link";
 import { useParams } from "next/navigation";
 
 function optionName(options: { id: string; name: string }[], id?: string) {
@@ -34,7 +40,7 @@ export default function BenchmarkPageAudit() {
         sourceId: string;
         pageId: string;
     }>();
-    const { toast } = useToast();
+    const { showSnackbar } = useSnackbar();
     // TODO(source-db): GET the cached source-document artifact for this discovered page/crawl snapshot.
     // TODO(benchmark-db): GET prior single-page ETL executions, select the requested/latest execution, and load any Golden Sample record.
     const source = sources.find((item) => item.id === sourceId);
@@ -45,14 +51,14 @@ export default function BenchmarkPageAudit() {
         (item) => item.status === "active",
     );
 
-    if (!source || !page) return <div>Discovered page not found.</div>;
+    if (!source || !page) return <Box>Discovered page not found.</Box>;
 
     const hasRun =
         page.validationStatus === "ready_for_review" || page.isGolden;
 
     function promoteGolden() {
         // TODO(benchmark-db): Persist the source document, exact Strategy snapshot, and manually approved Extract/Transform/Publish-ready outputs as a Promoted Golden Sample for this Source.
-        toast({
+        showSnackbar({
             title: "Golden Sample endpoint not connected",
             description:
                 "Would promote this page and the reviewed outputs into the Source Promoted Golden Sample Set.",
@@ -105,7 +111,7 @@ export default function BenchmarkPageAudit() {
     ];
 
     return (
-        <div className="space-y-6">
+        <Box className="space-y-6">
             <BreadcrumbTrail
                 items={[
                     { label: "Benchmarks", href: "/benchmarks" },
@@ -121,13 +127,22 @@ export default function BenchmarkPageAudit() {
                 ]}
             />
 
-            <div className="flex flex-wrap items-end justify-between gap-4">
-                <div>
-                    <h1 className="text-2xl font-semibold">{source.name}</h1>
-                    <p className="mt-1 text-sm text-muted-foreground">
+            <Box className="flex flex-wrap items-end justify-between gap-4">
+                <Box>
+                    <MuiTypography
+                        variant="h1"
+                        component="h1"
+                        className="text-2xl font-semibold"
+                    >
+                        {source.name}
+                    </MuiTypography>
+                    <MuiTypography
+                        component="p"
+                        className="mt-1 text-sm text-muted-foreground"
+                    >
                         {source.url}
-                    </p>
-                </div>
+                    </MuiTypography>
+                </Box>
                 <Button asChild>
                     <Link
                         href={`/benchmarks/workspaces/${source.id}/pages/${page.id}/run`}
@@ -135,78 +150,81 @@ export default function BenchmarkPageAudit() {
                         Run again
                     </Link>
                 </Button>
-            </div>
+            </Box>
 
-            <div className="rounded-lg bg-muted/35 p-4">
-                <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            <Box className="rounded-lg bg-muted/35 p-4">
+                <Box className="flex flex-wrap items-center gap-2">
+                    <MuiTypography
+                        component="span"
+                        className="text-xs font-medium uppercase tracking-wide text-muted-foreground"
+                    >
                         Page under review
-                    </span>
-                    <div className="flex flex-wrap gap-1">
+                    </MuiTypography>
+                    <Box className="flex flex-wrap gap-1">
                         {page.labels.map((label) => (
                             <Badge key={label} variant="outline">
                                 {label}
                             </Badge>
                         ))}
-                    </div>
+                    </Box>
                     {page.isGolden && <Badge>Promoted Golden</Badge>}
-                </div>
-                <div className="mt-1 font-semibold">{page.title}</div>
-                <div className="mt-0.5 max-w-5xl truncate text-xs text-muted-foreground">
+                </Box>
+                <Box className="mt-1 font-semibold">{page.title}</Box>
+                <Box className="mt-0.5 max-w-5xl truncate text-xs text-muted-foreground">
                     {page.url}
-                </div>
-            </div>
+                </Box>
+            </Box>
 
             {strategy && hasRun && (
-                <div
+                <Box
                     className="grid gap-3 rounded-lg bg-muted/30 p-4 md:grid-cols-4"
                     aria-label="Latest ETL execution strategy"
                 >
-                    <div>
-                        <div className="text-xs text-muted-foreground">
+                    <Box>
+                        <Box className="text-xs text-muted-foreground">
                             Strategy
-                        </div>
-                        <div className="mt-1 text-sm font-medium">
+                        </Box>
+                        <Box className="mt-1 text-sm font-medium">
                             {strategy.name}
-                        </div>
-                    </div>
-                    <div>
-                        <div className="text-xs text-muted-foreground">
+                        </Box>
+                    </Box>
+                    <Box>
+                        <Box className="text-xs text-muted-foreground">
                             Extract
-                        </div>
-                        <div className="mt-1 text-sm font-medium">
+                        </Box>
+                        <Box className="mt-1 text-sm font-medium">
                             {optionName(
                                 extractStrategies,
                                 strategy.extractOptionId,
                             )}
-                        </div>
-                    </div>
-                    <div>
-                        <div className="text-xs text-muted-foreground">
+                        </Box>
+                    </Box>
+                    <Box>
+                        <Box className="text-xs text-muted-foreground">
                             Transform
-                        </div>
-                        <div className="mt-1 text-sm font-medium">
+                        </Box>
+                        <Box className="mt-1 text-sm font-medium">
                             {optionName(
                                 transformStrategies,
                                 strategy.transformOptionId,
                             )}
-                        </div>
-                    </div>
-                    <div>
-                        <div className="text-xs text-muted-foreground">
+                        </Box>
+                    </Box>
+                    <Box>
+                        <Box className="text-xs text-muted-foreground">
                             Publish-ready
-                        </div>
-                        <div className="mt-1 text-sm font-medium">
+                        </Box>
+                        <Box className="mt-1 text-sm font-medium">
                             {optionName(
                                 publishStrategies,
                                 strategy.publishReadyOptionId,
                             )}
-                        </div>
-                    </div>
-                </div>
+                        </Box>
+                    </Box>
+                </Box>
             )}
 
-            <div className="grid gap-6 xl:grid-cols-2 xl:items-start">
+            <Box className="grid gap-6 xl:grid-cols-2 xl:items-start">
                 <Card className="xl:sticky xl:top-24">
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2 text-base">
@@ -219,22 +237,25 @@ export default function BenchmarkPageAudit() {
                         </CardDescription>
                     </CardHeader>
                     <CardContent>
-                        <pre className="max-h-[720px] overflow-auto rounded-md bg-muted p-4 text-xs leading-relaxed whitespace-pre-wrap">
+                        <MuiBox
+                            component="pre"
+                            className="max-h-[720px] overflow-auto rounded-md bg-muted p-4 text-xs leading-relaxed whitespace-pre-wrap"
+                        >
                             {mockSourceDocument(page.title, page.url)}
-                        </pre>
+                        </MuiBox>
                     </CardContent>
                 </Card>
 
-                <div className="space-y-4">
+                <Box className="space-y-4">
                     {artifacts.map((artifact, index) => (
-                        <div key={artifact.label}>
+                        <Box key={artifact.label}>
                             {index > 0 && (
-                                <div className="flex justify-center py-1">
+                                <Box className="flex justify-center py-1">
                                     <ArrowDown
                                         className="h-5 w-5 text-muted-foreground"
                                         aria-hidden="true"
                                     />
-                                </div>
+                                </Box>
                             )}
                             <Card>
                                 <CardHeader>
@@ -250,30 +271,33 @@ export default function BenchmarkPageAudit() {
                                 </CardHeader>
                                 <CardContent>
                                     {hasRun ? (
-                                        <pre className="max-h-[260px] overflow-auto rounded-md bg-muted p-4 text-xs leading-relaxed whitespace-pre-wrap">
+                                        <MuiBox
+                                            component="pre"
+                                            className="max-h-[260px] overflow-auto rounded-md bg-muted p-4 text-xs leading-relaxed whitespace-pre-wrap"
+                                        >
                                             {artifact.body}
-                                        </pre>
+                                        </MuiBox>
                                     ) : (
-                                        <div className="rounded-md border border-dashed p-8 text-center text-sm text-muted-foreground">
+                                        <Box className="rounded-md border border-dashed p-8 text-center text-sm text-muted-foreground">
                                             No artifact generated yet.
-                                        </div>
+                                        </Box>
                                     )}
                                 </CardContent>
                             </Card>
-                        </div>
+                        </Box>
                     ))}
 
                     <Card className="border-primary/30">
                         <CardContent className="flex flex-wrap items-center justify-between gap-4 p-5">
-                            <div>
-                                <div className="font-medium">
+                            <Box>
+                                <Box className="font-medium">
                                     Ready to make this a Golden example?
-                                </div>
-                                <div className="mt-1 text-sm text-muted-foreground">
+                                </Box>
+                                <Box className="mt-1 text-sm text-muted-foreground">
                                     Promote only after manually validating the
                                     source and all three generated outputs.
-                                </div>
-                            </div>
+                                </Box>
+                            </Box>
                             <Button
                                 onClick={promoteGolden}
                                 disabled={!hasRun || page.isGolden}
@@ -285,8 +309,8 @@ export default function BenchmarkPageAudit() {
                             </Button>
                         </CardContent>
                     </Card>
-                </div>
-            </div>
-        </div>
+                </Box>
+            </Box>
+        </Box>
     );
 }
