@@ -1,0 +1,4 @@
+# Python 3.9+. From this folder: python3 -m pip install -r requirements.txt && python3 -m playwright install chrome
+playwright>=1.40
+jsonschema>=4.0
+rapidfuzz>=3.0
