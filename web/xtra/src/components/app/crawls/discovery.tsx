@@ -285,6 +285,9 @@ export default function CrawlDiscovery() {
                                     renderValue={(selected) =>
                                         selected.join(", ")
                                     }
+                                    MenuProps={{
+                                        disableScrollLock: true,
+                                    }}
                                 >
                                     {labelOptions.map((value) => (
                                         <MenuItem key={value} value={value}>

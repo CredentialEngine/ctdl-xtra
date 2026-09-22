@@ -1,19 +1,21 @@
 import {
-    createEncryptedServerSessionStore,
-    createJsonServerSessionStore,
-    type ServerSessionStore,
-} from "@credentialengine/server-session";
+    createRedisClient,
+    type RedisClient,
+} from "@credentialengine/redis-client";
 import NextAuth, {
     getServerSession,
     type NextAuthOptions,
     type Session,
 } from "next-auth";
-import { getToken, type JWT } from "next-auth/jwt";
+import type { AdapterAccount } from "next-auth/adapters";
 import KeycloakProvider from "next-auth/providers/keycloak";
 import { headers } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
-import { randomUUID } from "node:crypto";
 import "server-only";
+import {
+    createRedisNextAuthStore,
+    type RedisNextAuthStore,
+} from "./store-adapter.js";
 
 export type SecretResolver = string | (() => string | Promise<string>);
 
@@ -24,17 +26,6 @@ export type AuthenticatedUser = {
     roles: string[];
 };
 
-export type ServerTokenSession = {
-    accessToken: string;
-    refreshToken?: string;
-    idToken?: string;
-    /** Epoch seconds — when the access token expires. */
-    expiresAtEpochSec: number;
-    /** Epoch milliseconds — when the overall BFF session expires. */
-    sessionExpiresAtMs: number;
-    roles: string[];
-};
-
 export type KeycloakBffOptions = {
     clientId?: string;
     issuer?: string;
@@ -42,9 +33,12 @@ export type KeycloakBffOptions = {
     refreshBufferMs?: number;
     providerId?: string;
     sessionMaxAgeSeconds?: number;
-    tokenStore: ServerSessionStore<string>;
-    /** Overrides BFF_SESSION_ENCRYPTION when provided. Encryption defaults to enabled. */
-    encryptTokenStore?: boolean;
+    redisUrl?: string;
+    redisNamespace?: string;
+    /** Primarily for tests or applications that already own the Redis client. */
+    redisClient?: RedisClient;
+    /** Overrides BFF_TOKEN_ENCRYPTION when provided. Token encryption defaults to enabled. */
+    encryptTokens?: boolean;
 };
 
 export type ClientTokenConfig = {
@@ -75,23 +69,25 @@ class ReauthenticationRequiredError extends Error {
 }
 
 const DEFAULT_SESSION_MAX_AGE_SECONDS = 30 * 24 * 60 * 60;
-const configStores = new WeakMap<
-    NextAuthOptions,
-    ServerSessionStore<ServerTokenSession>
->();
 
-type JwtWithServerId = JWT & { bffSessionId?: string };
+type AuthState = {
+    store: RedisNextAuthStore;
+    providerId: string;
+    clientId: string;
+    issuer: string;
+    refreshBufferMs: number;
+};
 
-function getTokenStore(
-    config: NextAuthOptions,
-): ServerSessionStore<ServerTokenSession> {
-    const store = configStores.get(config);
-    if (!store) {
+const configStores = new WeakMap<NextAuthOptions, AuthState>();
+
+function getAuthState(config: NextAuthOptions): AuthState {
+    const state = configStores.get(config);
+    if (!state) {
         throw new Error(
-            "No server token store is registered for this auth configuration.",
+            "No Redis-backed auth state is registered for this auth configuration.",
         );
     }
-    return store;
+    return state;
 }
 
 function rolesFromToken(accessToken: string, clientId: string): string[] {
@@ -123,24 +119,13 @@ async function resolveSecret(secret: SecretResolver): Promise<string> {
     return value;
 }
 
-function remainingSessionTtlSeconds(session: ServerTokenSession): number {
-    return Math.max(
-        1,
-        Math.ceil((session.sessionExpiresAtMs - Date.now()) / 1000),
-    );
-}
-
 function isExpiredJwt(token: string): boolean {
     const parts = token.split(".");
-    if (parts.length !== 3) {
-        return false;
-    }
+    if (parts.length !== 3) return false;
     try {
         const payload = JSON.parse(
             Buffer.from(parts[1], "base64url").toString("utf8"),
-        ) as {
-            exp?: number;
-        };
+        ) as { exp?: number };
         return (
             typeof payload.exp === "number" && payload.exp * 1000 <= Date.now()
         );
@@ -158,48 +143,67 @@ function refreshWasRejected(status: number, error?: string): boolean {
     );
 }
 
-async function refreshServerSession(
-    sessionId: string,
-    store: ServerSessionStore<ServerTokenSession>,
-    clientId: string,
-    issuer: string,
-    refreshBufferMs: number,
-): Promise<ServerTokenSession> {
-    return store.withLock(sessionId, async () => {
-        // Re-read after acquiring the distributed lock. Another pod may already have
-        // refreshed and rotated the refresh token while this request was waiting.
-        const current = await store.get(sessionId);
-        if (!current) {
-            throw new Error("Missing server session.");
+function accountExpiresAtEpochSec(account: {
+    expires_at?: number | null;
+    expires_in?: number | string | null;
+}): number {
+    if (typeof account.expires_at === "number") return account.expires_at;
+    const expiresIn = Number(account.expires_in);
+    return (
+        Math.floor(Date.now() / 1000) +
+        (Number.isFinite(expiresIn) ? expiresIn : 300)
+    );
+}
+
+async function accountForUser(
+    state: AuthState,
+    userId: string,
+): Promise<AdapterAccount | undefined> {
+    const accounts = await state.store.getAccountsForUser(userId);
+    return (
+        accounts.find((account) => account.provider === state.providerId) ??
+        accounts[0]
+    );
+}
+
+async function refreshAccountTokens(
+    state: AuthState,
+    account: AdapterAccount,
+): Promise<AdapterAccount> {
+    const lockName = `refresh:${account.provider}:${account.providerAccountId}`;
+    return state.store.withLock(lockName, async () => {
+        const current = await state.store.getAccount(
+            account.provider,
+            account.providerAccountId,
+        );
+        if (!current?.access_token) {
+            throw new ReauthenticationRequiredError(
+                "OAuth account token state is missing.",
+            );
         }
 
-        if (current.sessionExpiresAtMs <= Date.now()) {
-            await store.delete(sessionId);
-            throw new Error("Server session expired.");
-        }
-
-        if (Date.now() < current.expiresAtEpochSec * 1000 - refreshBufferMs) {
+        const currentExpiresAt = accountExpiresAtEpochSec(current);
+        if (Date.now() < currentExpiresAt * 1000 - state.refreshBufferMs) {
             return current;
         }
 
-        if (!current.refreshToken || isExpiredJwt(current.refreshToken)) {
-            await store.delete(sessionId);
+        if (!current.refresh_token || isExpiredJwt(current.refresh_token)) {
             throw new ReauthenticationRequiredError(
                 "Refresh token is missing or expired.",
             );
         }
 
         const response = await fetch(
-            `${issuer}/protocol/openid-connect/token`,
+            `${state.issuer}/protocol/openid-connect/token`,
             {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/x-www-form-urlencoded",
                 },
                 body: new URLSearchParams({
-                    client_id: clientId,
+                    client_id: state.clientId,
                     grant_type: "refresh_token",
-                    refresh_token: current.refreshToken,
+                    refresh_token: current.refresh_token,
                 }),
                 cache: "no-store",
             },
@@ -220,28 +224,43 @@ async function refreshServerSession(
                 body.error ??
                 `Token refresh failed (${response.status})`;
             if (refreshWasRejected(response.status, body.error)) {
-                await store.delete(sessionId);
                 throw new ReauthenticationRequiredError(message);
             }
             throw new Error(message);
         }
 
-        const updated: ServerTokenSession = {
-            accessToken: body.access_token,
-            refreshToken: body.refresh_token ?? current.refreshToken,
-            idToken: body.id_token ?? current.idToken,
-            expiresAtEpochSec: Math.floor(Date.now() / 1000) + body.expires_in,
-            sessionExpiresAtMs: current.sessionExpiresAtMs,
-            roles: rolesFromToken(body.access_token, clientId),
+        const updated: AdapterAccount = {
+            ...current,
+            access_token: body.access_token,
+            refresh_token: body.refresh_token ?? current.refresh_token,
+            id_token: body.id_token ?? current.id_token,
+            expires_at: Math.floor(Date.now() / 1000) + body.expires_in,
         };
-
-        await store.set(
-            sessionId,
-            updated,
-            remainingSessionTtlSeconds(updated),
-        );
+        await state.store.upsertAccount(updated);
         return updated;
     });
+}
+
+async function currentAccount(
+    state: AuthState,
+    userId: string,
+): Promise<AdapterAccount | undefined> {
+    let account = await accountForUser(state, userId);
+    if (!account?.access_token) return account;
+
+    if (
+        Date.now() >=
+        accountExpiresAtEpochSec(account) * 1000 - state.refreshBufferMs
+    ) {
+        account = await refreshAccountTokens(state, account);
+    }
+    return account;
+}
+
+function tokenEncryptionEnabled(explicit?: boolean): boolean {
+    if (explicit !== undefined) return explicit;
+    const value = process.env.BFF_TOKEN_ENCRYPTION?.trim().toLowerCase();
+    return !["false", "0", "off", "no"].includes(value ?? "");
 }
 
 export async function createKeycloakBffAuth(
@@ -256,158 +275,162 @@ export async function createKeycloakBffAuth(
     }
 
     const secret = await resolveSecret(options.secret);
-    const encryptionEnv =
-        process.env.BFF_SESSION_ENCRYPTION?.trim().toLowerCase();
-    const encryptTokenStore =
-        options.encryptTokenStore ??
-        !["false", "0", "off", "no"].includes(encryptionEnv ?? "");
+    const redisUrl = options.redisUrl ?? process.env.REDIS_URL;
+    const redis =
+        options.redisClient ??
+        (redisUrl ? createRedisClient({ url: redisUrl }) : undefined);
+    if (!redis) {
+        throw new Error(
+            "REDIS_URL must be configured for NextAuth database sessions.",
+        );
+    }
 
-    // OAuth tokens always remain backend-only. Encryption controls only how the
-    // server-side backing store persists the token-session payload.
-    const store = encryptTokenStore
-        ? createEncryptedServerSessionStore<ServerTokenSession>(
-              options.tokenStore,
-              {
-                  secret,
-                  purpose: `oauth-tokens:${clientId}`,
-              },
-          )
-        : createJsonServerSessionStore<ServerTokenSession>(options.tokenStore);
-
-    console.info("[auth] Server token-store persistence", {
-        encrypted: encryptTokenStore,
-    });
-    const refreshBufferMs = options.refreshBufferMs ?? 30_000;
+    const encryptTokens = tokenEncryptionEnabled(options.encryptTokens);
     const sessionMaxAgeSeconds =
         options.sessionMaxAgeSeconds ?? DEFAULT_SESSION_MAX_AGE_SECONDS;
+    const refreshBufferMs = options.refreshBufferMs ?? 30_000;
+    const redisNamespace =
+        options.redisNamespace ??
+        process.env.BFF_SESSION_NAMESPACE ??
+        "credentialengine:xtra";
+
+    const store = createRedisNextAuthStore({
+        redis,
+        namespace: redisNamespace,
+        encryptTokens,
+        encryptionSecret: secret,
+    });
+
+    console.info("[auth] Redis NextAuth persistence", {
+        tokenEncryption: encryptTokens,
+        sessionStrategy: "database",
+        namespace: redisNamespace,
+    });
+
+    const keycloakProvider = {
+        ...KeycloakProvider({
+            clientId,
+            clientSecret: "",
+            issuer,
+            client: { token_endpoint_auth_method: "none" },
+            checks: ["pkce", "state"],
+        }),
+        ...(options.providerId ? { id: options.providerId } : {}),
+    };
+
+    const state: AuthState = {
+        store,
+        providerId: keycloakProvider.id,
+        clientId,
+        issuer,
+        refreshBufferMs,
+    };
 
     const config: NextAuthOptions = {
         secret,
-        session: { strategy: "jwt", maxAge: sessionMaxAgeSeconds },
-        providers: [
-            KeycloakProvider({
-                clientId,
-                clientSecret: "",
-                issuer,
-                client: { token_endpoint_auth_method: "none" },
-                checks: ["pkce", "state"],
-            }),
-        ],
+        adapter: store.adapter,
+        session: {
+            strategy: "database",
+            maxAge: sessionMaxAgeSeconds,
+            updateAge: 60 * 60,
+        },
+        providers: [keycloakProvider],
         callbacks: {
-            async jwt({ token, account, trigger, session: updateData }) {
-                const jwt = token as JwtWithServerId;
+            async signIn({ account }) {
+                if (!account) return true;
 
-                // Defensive migration cleanup: never persist OAuth token material in the
-                // NextAuth JWT cookie. Only the opaque bffSessionId is browser-held.
-                delete jwt.accessToken;
-                delete jwt.refreshToken;
-                delete jwt.idToken;
-                delete jwt.expiresAt;
+                // On the first login NextAuth's adapter linkAccount() persists the
+                // account with the canonical database userId. On a repeat login,
+                // refresh token fields on that already-linked account without
+                // creating a second user/account index from the provider profile id.
+                const existing = await store.getAccount(
+                    account.provider,
+                    account.providerAccountId,
+                );
+                if (existing) {
+                    const persisted: AdapterAccount = {
+                        ...existing,
+                        ...account,
+                        userId: existing.userId,
+                        expires_at: accountExpiresAtEpochSec(account),
+                    };
+                    await store.upsertAccount(persisted);
+                }
+                return true;
+            },
+
+            async session(params) {
+                const session = params.session;
+                if (!("user" in params) || !params.user) return session;
+                const user = params.user;
+                const trigger =
+                    "trigger" in params ? params.trigger : undefined;
+                const newSession =
+                    "newSession" in params ? params.newSession : undefined;
+
+                session.userId = user.id;
+                const sessionToken = await getDatabaseSessionToken(config);
+                if (!sessionToken) {
+                    session.error = "MissingDatabaseSession";
+                    session.roles = [];
+                    return session;
+                }
 
                 if (
                     trigger === "update" &&
-                    updateData &&
-                    "activeTenantId" in updateData
+                    newSession &&
+                    typeof newSession === "object" &&
+                    "activeTenantId" in newSession
                 ) {
-                    jwt.activeTenantId = updateData.activeTenantId || undefined;
-                    return jwt;
-                }
-
-                if (account?.access_token) {
-                    const sessionId = jwt.bffSessionId ?? randomUUID();
-                    const expiresIn =
-                        typeof account.expires_in === "number"
-                            ? account.expires_in
-                            : Number(account.expires_in);
-                    const expiresAtEpochSec =
-                        typeof account.expires_at === "number"
-                            ? account.expires_at
-                            : Math.floor(Date.now() / 1000) +
-                              (Number.isFinite(expiresIn) ? expiresIn : 300);
-                    const sessionExpiresAtMs =
-                        Date.now() + sessionMaxAgeSeconds * 1000;
-
-                    const serverSession: ServerTokenSession = {
-                        accessToken: account.access_token,
-                        refreshToken: account.refresh_token,
-                        idToken: account.id_token,
-                        expiresAtEpochSec,
-                        sessionExpiresAtMs,
-                        roles: rolesFromToken(account.access_token, clientId),
-                    };
-
-                    await store.set(
-                        sessionId,
-                        serverSession,
-                        sessionMaxAgeSeconds,
+                    const metadata =
+                        await store.getSessionMetadata(sessionToken);
+                    const requestedTenant = (
+                        newSession as {
+                            activeTenantId?: unknown;
+                        }
+                    ).activeTenantId;
+                    metadata.activeTenantId =
+                        typeof requestedTenant === "string" && requestedTenant
+                            ? requestedTenant
+                            : undefined;
+                    await store.setSessionMetadata(
+                        sessionToken,
+                        metadata,
+                        new Date(session.expires),
                     );
-                    jwt.bffSessionId = sessionId;
-                    jwt.error = undefined;
-                    return jwt;
                 }
 
-                if (!jwt.bffSessionId) {
-                    jwt.error = "MissingServerSession";
-                    return jwt;
-                }
-
-                const serverSession = await store.get(jwt.bffSessionId);
-                if (!serverSession) {
-                    jwt.error = "MissingServerSession";
-                    return jwt;
-                }
-
-                if (serverSession.sessionExpiresAtMs <= Date.now()) {
-                    await store.delete(jwt.bffSessionId);
-                    jwt.error = "ExpiredServerSession";
-                    return jwt;
-                }
-
-                if (
-                    Date.now() <
-                    serverSession.expiresAtEpochSec * 1000 - refreshBufferMs
-                ) {
-                    jwt.error = undefined;
-                    return jwt;
-                }
+                const metadata = await store.getSessionMetadata(sessionToken);
+                session.activeTenantId = metadata.activeTenantId;
 
                 try {
-                    await refreshServerSession(
-                        jwt.bffSessionId,
-                        store,
+                    const account = await currentAccount(state, user.id);
+                    if (!account?.access_token) {
+                        session.error = "MissingOAuthAccount";
+                        session.roles = [];
+                        return session;
+                    }
+                    session.error = undefined;
+                    session.roles = rolesFromToken(
+                        account.access_token,
                         clientId,
-                        issuer,
-                        refreshBufferMs,
                     );
-                    jwt.error = undefined;
                 } catch (error) {
                     console.error("[auth] access token refresh failed", error);
                     if (error instanceof ReauthenticationRequiredError) {
-                        jwt.error = "ReauthenticationRequired";
+                        await config.adapter?.deleteSession?.(sessionToken);
+                        session.error = "ReauthenticationRequired";
                     } else {
-                        jwt.error = "RefreshAccessTokenError";
+                        session.error = "RefreshAccessTokenError";
                     }
+                    session.roles = [];
                 }
-                return jwt;
-            },
-
-            async session({ session, token }) {
-                const jwt = token as JwtWithServerId;
-                const serverSession = jwt.bffSessionId
-                    ? await store.get(jwt.bffSessionId)
-                    : undefined;
-
-                session.error = jwt.error as string | undefined;
-                session.userId = jwt.sub;
-                session.roles = serverSession?.roles ?? [];
-                session.activeTenantId = jwt.activeTenantId as
-                    string | undefined;
                 return session;
             },
         },
     };
 
-    configStores.set(config, store);
+    configStores.set(config, state);
     return config;
 }
 
@@ -421,63 +444,78 @@ export function createNextAuthRoute(getConfig: () => Promise<NextAuthOptions>) {
     };
 }
 
-async function getRequestJwt(
+async function getDatabaseSessionToken(
     config: NextAuthOptions,
     request?: NextRequest,
-): Promise<JwtWithServerId | null> {
-    if (request) {
-        return (await getToken({
-            req: request,
-            secret: String(config.secret),
-        })) as JwtWithServerId | null;
-    }
+): Promise<string | undefined> {
+    const names = [
+        config.cookies?.sessionToken?.name,
+        "__Secure-next-auth.session-token",
+        "next-auth.session-token",
+    ].filter((name): name is string => Boolean(name));
 
-    const requestHeaders = await headers();
-    const syntheticRequest = new NextRequest("http://localhost", {
-        headers: new Headers(requestHeaders),
-    });
-    return (await getToken({
-        req: syntheticRequest,
-        secret: String(config.secret),
-    })) as JwtWithServerId | null;
+    const source =
+        request ??
+        new NextRequest("http://localhost", {
+            headers: new Headers(await headers()),
+        });
+
+    for (const name of names) {
+        const value = source.cookies.get(name)?.value;
+        if (value) return value;
+    }
+    return undefined;
 }
 
-async function getServerTokenSession(
+async function accountForAuthenticatedSession(
     config: NextAuthOptions,
     request?: NextRequest,
-): Promise<ServerTokenSession | undefined> {
+): Promise<AdapterAccount | undefined> {
     const session = await getServerSession(config);
-    const jwt = await getRequestJwt(config, request);
-
-    if (!jwt?.bffSessionId) {
-        return undefined;
-    }
-    if (!session || session.error) {
+    if (!session) return undefined;
+    if (session.error || !session.userId) {
         throw new BffUnauthorizedError(
             "Authentication expired. Sign in again.",
             "SESSION_EXPIRED",
         );
     }
 
-    const serverSession = await getTokenStore(config).get(jwt.bffSessionId);
-    if (!serverSession) {
+    const sessionToken = await getDatabaseSessionToken(config, request);
+    if (!sessionToken) {
         throw new BffUnauthorizedError(
-            "Authentication expired. Sign in again.",
+            "Authentication session cookie is missing.",
             "SESSION_EXPIRED",
         );
     }
-    return serverSession;
+
+    const state = getAuthState(config);
+    try {
+        const account = await currentAccount(state, session.userId);
+        if (!account?.access_token) {
+            throw new BffUnauthorizedError(
+                "Authentication provider token state is missing.",
+                "SESSION_EXPIRED",
+            );
+        }
+        return account;
+    } catch (error) {
+        if (error instanceof ReauthenticationRequiredError) {
+            await config.adapter?.deleteSession?.(sessionToken);
+            throw new BffUnauthorizedError(
+                "Authentication expired. Sign in again.",
+                "SESSION_EXPIRED",
+            );
+        }
+        throw error;
+    }
 }
 
 export async function getAccessToken(
     config: NextAuthOptions,
     request?: NextRequest,
 ): Promise<string | undefined> {
-    const session = await getServerTokenSession(config, request);
-    if (!session) {
-        return undefined;
-    }
-    return session.accessToken;
+    const account = await accountForAuthenticatedSession(config, request);
+    return account?.access_token;
 }
 
 export async function requireAccessToken(
@@ -485,46 +523,45 @@ export async function requireAccessToken(
     request?: NextRequest,
 ): Promise<string> {
     const accessToken = await getAccessToken(config, request);
-    if (!accessToken) {
-        throw new BffUnauthorizedError();
-    }
+    if (!accessToken) throw new BffUnauthorizedError();
     return accessToken;
 }
 
 /**
- * Compatibility helper for code that also needs normal session metadata.
- * OAuth tokens in this returned object exist only in server memory for this call;
- * refresh tokens are never returned by this API.
+ * Compatibility helper for server code that needs normal session metadata plus
+ * the current provider access/id token. Refresh tokens are never returned.
  */
 export async function getBffSession(
     config: NextAuthOptions,
     request?: NextRequest,
 ): Promise<Session & { accessToken?: string; idToken?: string }> {
+    // Kept for API compatibility with callers that pass the current request.
+    // getServerSession reads the active request context directly.
+    void request;
     const session = await getServerSession(config);
     const baseSession = session ?? ({ expires: "" } as Session);
-    if (!session || session.error) {
+    if (!session || session.error || !session.userId) return { ...baseSession };
+
+    try {
+        const account = await currentAccount(
+            getAuthState(config),
+            session.userId,
+        );
+        return {
+            ...baseSession,
+            accessToken: account?.access_token,
+            idToken: account?.id_token,
+        };
+    } catch {
         return { ...baseSession };
     }
-
-    const jwt = await getRequestJwt(config, request);
-    const serverSession = jwt?.bffSessionId
-        ? await getTokenStore(config).get(jwt.bffSessionId)
-        : undefined;
-
-    return {
-        ...baseSession,
-        accessToken: serverSession?.accessToken,
-        idToken: serverSession?.idToken,
-    };
 }
 
 export async function getAuthenticatedSession(
     config: NextAuthOptions,
 ): Promise<Session | undefined> {
     const session = await getServerSession(config);
-    if (!session || session.error || !session.userId) {
-        return undefined;
-    }
+    if (!session || session.error || !session.userId) return undefined;
     return session;
 }
 
@@ -532,21 +569,21 @@ export async function getAuthenticatedUser(
     config: NextAuthOptions,
 ): Promise<AuthenticatedUser | undefined> {
     const session = await getServerSession(config);
-    const serverTokenSession = await getServerTokenSession(config);
-
-    if (!serverTokenSession) {
+    if (!session || session.error || !session.user?.email || !session.userId) {
         return undefined;
     }
 
-    if (!session || !session.user?.email || !session.userId) {
-        return undefined;
-    }
+    const account = await currentAccount(getAuthState(config), session.userId);
+    if (!account?.access_token) return undefined;
 
     return {
         id: session.userId,
         email: session.user.email,
         name: session.user.name ?? null,
-        roles: serverTokenSession.roles,
+        roles: rolesFromToken(
+            account.access_token,
+            getAuthState(config).clientId,
+        ),
     };
 }
 
@@ -561,10 +598,7 @@ function clearAuthCookies(request: NextRequest, response: NextResponse) {
     ];
 
     for (const cookie of request.cookies.getAll()) {
-        const isAuthCookie = authPrefixes.some((prefix) =>
-            cookie.name.startsWith(prefix),
-        );
-        if (isAuthCookie) {
+        if (authPrefixes.some((prefix) => cookie.name.startsWith(prefix))) {
             response.cookies.set(cookie.name, "", {
                 expires: new Date(0),
                 httpOnly: true,
@@ -579,37 +613,32 @@ function clearAuthCookies(request: NextRequest, response: NextResponse) {
 export function createLogoutRoute(getConfig: () => Promise<NextAuthOptions>) {
     return async (request: NextRequest) => {
         const config = await getConfig();
-        const jwt = await getRequestJwt(config, request);
-        const sessionId = jwt?.bffSessionId;
-        const store = getTokenStore(config);
-        let serverSession: ServerTokenSession | undefined;
+        const state = getAuthState(config);
+        const sessionToken = await getDatabaseSessionToken(config, request);
+        let account: AdapterAccount | undefined;
 
-        if (sessionId) {
-            // Serialize logout with token refresh. A refresh that began just before
-            // logout cannot write a new token record back after this deletion.
-            await store.withLock(sessionId, async () => {
-                serverSession = await store.get(sessionId);
-                await store.delete(sessionId);
-            });
-            console.info("[bff-auth] Server session deleted", {
-                sessionIdPresent: true,
+        if (sessionToken) {
+            const sessionAndUser =
+                await config.adapter?.getSessionAndUser?.(sessionToken);
+            if (sessionAndUser?.user.id) {
+                account = await accountForUser(state, sessionAndUser.user.id);
+            }
+            await config.adapter?.deleteSession?.(sessionToken);
+            console.info("[bff-auth] Database session deleted", {
+                sessionTokenPresent: true,
             });
         }
 
-        const issuer = process.env.OIDC_AUTHORITY;
-        const clientId = process.env.OIDC_CLIENT_ID;
-
-        // The BFF session has already been destroyed above. Retain the idToken only
-        // in this request-local variable for a best-effort IdP logout.
-        if (serverSession?.idToken && issuer && clientId) {
-            await fetch(`${issuer}/protocol/openid-connect/logout`, {
+        // Delete the local database session first. Provider logout is best-effort.
+        if (account?.id_token) {
+            await fetch(`${state.issuer}/protocol/openid-connect/logout`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/x-www-form-urlencoded",
                 },
                 body: new URLSearchParams({
-                    id_token_hint: serverSession.idToken,
-                    client_id: clientId,
+                    id_token_hint: account.id_token,
+                    client_id: state.clientId,
                 }),
                 cache: "no-store",
             }).catch((error) => {
@@ -835,18 +864,5 @@ declare module "next-auth" {
         userId?: string;
         roles?: string[];
         activeTenantId?: string;
-    }
-}
-
-declare module "next-auth/jwt" {
-    interface JWT {
-        bffSessionId?: string;
-        error?: string;
-        activeTenantId?: string;
-        // Legacy fields are declared only so old cookies can be safely stripped.
-        accessToken?: string;
-        refreshToken?: string;
-        expiresAt?: number;
-        idToken?: string;
     }
 }

@@ -1,6 +1,5 @@
 "use client";
 
-import AccountCircleIcon from "@mui/icons-material/AccountCircle";
 import ExpandLessIcon from "@mui/icons-material/ChevronLeft";
 import ExpandMoreIcon from "@mui/icons-material/ChevronRight";
 import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
@@ -12,11 +11,8 @@ import WorkspacesIcon from "@mui/icons-material/SpaceDashboard";
 import RunsIcon from "@mui/icons-material/FactCheck";
 import StrategiesIcon from "@mui/icons-material/AccountTree";
 import PublishIcon from "@mui/icons-material/Publish";
-import MenuIcon from "@mui/icons-material/Menu";
 import {
-    AppBar,
     Box,
-    Divider,
     Drawer,
     IconButton,
     List,
@@ -24,9 +20,6 @@ import {
     ListItemIcon,
     ListItemText,
     LinearProgress,
-    Menu,
-    MenuItem,
-    Toolbar,
     Tooltip,
     useMediaQuery,
     useTheme,
@@ -36,12 +29,13 @@ import {
     useRef,
     useState,
     type KeyboardEvent as ReactKeyboardEvent,
-    type MouseEvent as ReactMouseEvent,
     type PointerEvent as ReactPointerEvent,
     type ReactNode,
 } from "react";
 import Link, { NAVIGATION_START_EVENT } from "@/components/ui/route-link";
 import { usePathname } from "next/navigation";
+import { useXtraAuth } from "../../../app/components/auth/AuthProvider";
+import Header, { type HeaderLink } from "@/components/app/header";
 
 const defaultExpandedWidth = 280;
 const collapsedWidth = 72;
@@ -52,7 +46,7 @@ const navCollapsedStorageKey = "ctdl-xtra-nav-collapsed";
 
 const sourceItems = [
     {
-        to: "/sources",
+        to: "/sources/all",
         label: "All Sources",
         icon: <LanguageIcon fontSize="small" />,
     },
@@ -83,7 +77,7 @@ const benchmarkItems = [
 
 const publishingItems = [
     {
-        to: "/publishing",
+        to: "/publishing/runs",
         label: "ETL Runs",
         icon: <RunsIcon fontSize="small" />,
     },
@@ -95,10 +89,23 @@ type NavigationChild = {
     icon: ReactNode;
 };
 
+const headerLinks: HeaderLink[] = [{ href: "/about", label: "About" }];
+
+// Header destinations use the full-width content layout. The primary left
+// navigation is reserved for the application's main workspace routes.
+const headerOnlyRoutes = new Set([
+    ...headerLinks.map((link) => link.href),
+    "/profile",
+]);
+
 export function Dashboard({ children }: Readonly<{ children: ReactNode }>) {
     const location = usePathname();
+    const { user } = useXtraAuth();
+    const authenticated = Boolean(user);
+    const showPrimaryNavigation =
+        authenticated && !headerOnlyRoutes.has(location);
     const theme = useTheme();
-    const isDesktop = useMediaQuery(theme.breakpoints.up("md"));
+    const isDesktop = useMediaQuery("(min-width:1000px)");
     const [collapsed, setCollapsed] = useState(false);
     const [expandedWidth, setExpandedWidth] = useState(defaultExpandedWidth);
     const [resizingNav, setResizingNav] = useState(false);
@@ -109,7 +116,6 @@ export function Dashboard({ children }: Readonly<{ children: ReactNode }>) {
     const [mobileOpen, setMobileOpen] = useState(false);
     const mobileMenuButtonRef = useRef<HTMLButtonElement>(null);
     const mobileNavigationRef = useRef<HTMLElement>(null);
-    const [userAnchor, setUserAnchor] = useState<null | HTMLElement>(null);
     const [navigationTarget, setNavigationTarget] = useState<string | null>(
         null,
     );
@@ -155,12 +161,22 @@ export function Dashboard({ children }: Readonly<{ children: ReactNode }>) {
                 navigationEvent.detail?.pathname ?? window.location.pathname,
             );
         };
+        const handleHistoryNavigation = () => {
+            // Browser Back/Forward does not emit NAVIGATION_START_EVENT. Clear
+            // any target left by the previous in-app navigation so the progress
+            // bar cannot remain pending after a popstate navigation.
+            setNavigationTarget(null);
+        };
+
         window.addEventListener(NAVIGATION_START_EVENT, handleNavigationStart);
-        return () =>
+        window.addEventListener("popstate", handleHistoryNavigation);
+        return () => {
             window.removeEventListener(
                 NAVIGATION_START_EVENT,
                 handleNavigationStart,
             );
+            window.removeEventListener("popstate", handleHistoryNavigation);
+        };
     }, []);
 
     useEffect(() => {
@@ -187,13 +203,11 @@ export function Dashboard({ children }: Readonly<{ children: ReactNode }>) {
             lastComfortableExpandedWidth.current = nextWidth;
     };
 
-    const openMobileNavigation = (
-        event: ReactMouseEvent<HTMLButtonElement>,
-    ) => {
+    const openMobileNavigation = () => {
         // MUI's temporary Drawer hides the rest of the application from assistive
         // technology while open. Move focus out of that soon-to-be-hidden tree
         // before opening the modal, then place focus inside the drawer.
-        event.currentTarget.blur();
+        mobileMenuButtonRef.current?.blur();
         setMobileOpen(true);
         window.requestAnimationFrame(() =>
             mobileNavigationRef.current?.focus(),
@@ -279,6 +293,7 @@ export function Dashboard({ children }: Readonly<{ children: ReactNode }>) {
 
     const navGroup = ({
         id,
+        rootPath,
         label,
         icon,
         active,
@@ -287,6 +302,7 @@ export function Dashboard({ children }: Readonly<{ children: ReactNode }>) {
         items,
     }: {
         id: string;
+        rootPath: string;
         label: string;
         icon: ReactNode;
         active: boolean;
@@ -296,16 +312,15 @@ export function Dashboard({ children }: Readonly<{ children: ReactNode }>) {
     }) => (
         <Box sx={{ mb: 0.5 }}>
             {iconOnlyNavigation ? (
-                <Tooltip
-                    title={`${expanded ? "Collapse" : "Expand"} ${label}`}
-                    placement="right"
-                >
+                <Tooltip title={`Open ${label}`} placement="right">
                     <ListItemButton
+                        component={Link}
+                        href={rootPath}
                         selected={active}
-                        aria-label={`${expanded ? "Collapse" : "Expand"} ${label}`}
-                        aria-expanded={expanded}
-                        aria-controls={`${id}-navigation-items`}
-                        onClick={() => setExpanded((value) => !value)}
+                        aria-label={`Open ${label}`}
+                        aria-current={
+                            location === rootPath ? "page" : undefined
+                        }
                         sx={{
                             borderRadius: 1,
                             minHeight: 46,
@@ -313,20 +328,6 @@ export function Dashboard({ children }: Readonly<{ children: ReactNode }>) {
                             justifyContent: "center",
                             mb: 0.25,
                             position: "relative",
-                            "&::after": {
-                                content: '""',
-                                position: "absolute",
-                                right: 6,
-                                top: "50%",
-                                width: 5,
-                                height: 5,
-                                borderRight: "1.5px solid currentColor",
-                                borderBottom: "1.5px solid currentColor",
-                                transform: expanded
-                                    ? "translateY(-65%) rotate(45deg)"
-                                    : "translateY(-50%) rotate(-45deg)",
-                                color: "text.secondary",
-                            },
                         }}
                     >
                         <ListItemIcon
@@ -343,49 +344,59 @@ export function Dashboard({ children }: Readonly<{ children: ReactNode }>) {
                     </ListItemButton>
                 </Tooltip>
             ) : (
-                <ListItemButton
-                    selected={active}
-                    onClick={() => setExpanded((value) => !value)}
-                    aria-expanded={expanded}
-                    aria-controls={`${id}-navigation-items`}
+                <Box
                     sx={{
-                        borderRadius: 1,
-                        minHeight: 46,
-                        px: 2,
-                        mb: 0.25,
                         display: "grid",
-                        gridTemplateColumns: "40px minmax(0, 1fr) 28px",
-                        alignItems: "center",
-                        columnGap: 0,
+                        gridTemplateColumns: "minmax(0, 1fr) 40px",
+                        alignItems: "stretch",
+                        mb: 0.25,
+                        bgcolor: active ? "action.selected" : "transparent",
                     }}
                 >
-                    <ListItemIcon
+                    <ListItemButton
+                        component={Link}
+                        href={rootPath}
+                        selected={location === rootPath}
+                        aria-current={
+                            location === rootPath ? "page" : undefined
+                        }
                         sx={{
-                            minWidth: 0,
-                            color: active ? "secondary.main" : "text.secondary",
-                            justifyContent: "flex-start",
+                            minHeight: 46,
+                            px: 2,
+                            display: "grid",
+                            gridTemplateColumns: "40px minmax(0, 1fr)",
+                            alignItems: "center",
+                            borderRadius: 0,
                         }}
                     >
-                        {icon}
-                    </ListItemIcon>
-                    <ListItemText
-                        primary={label}
-                        sx={{ minWidth: 0, m: 0 }}
-                        slotProps={{
-                            primary: {
-                                noWrap: true,
-                                sx: { fontWeight: active ? 700 : 500 },
-                            },
-                        }}
-                    />
-                    <Box
-                        sx={{
-                            width: 28,
-                            height: 28,
-                            display: "grid",
-                            placeItems: "center",
-                            justifySelf: "end",
-                        }}
+                        <ListItemIcon
+                            sx={{
+                                minWidth: 0,
+                                color: active
+                                    ? "secondary.main"
+                                    : "text.secondary",
+                                justifyContent: "flex-start",
+                            }}
+                        >
+                            {icon}
+                        </ListItemIcon>
+                        <ListItemText
+                            primary={label}
+                            sx={{ minWidth: 0, m: 0 }}
+                            slotProps={{
+                                primary: {
+                                    noWrap: true,
+                                    sx: { fontWeight: active ? 700 : 500 },
+                                },
+                            }}
+                        />
+                    </ListItemButton>
+                    <IconButton
+                        aria-label={`${expanded ? "Collapse" : "Expand"} ${label}`}
+                        aria-expanded={expanded}
+                        aria-controls={`${id}-navigation-items`}
+                        onClick={() => setExpanded((value) => !value)}
+                        sx={{ borderRadius: 0 }}
                     >
                         {expanded ? (
                             <KeyboardArrowDownIcon
@@ -398,11 +409,11 @@ export function Dashboard({ children }: Readonly<{ children: ReactNode }>) {
                                 aria-hidden="true"
                             />
                         )}
-                    </Box>
-                </ListItemButton>
+                    </IconButton>
+                </Box>
             )}
 
-            {expanded && (
+            {(expanded || iconOnlyNavigation) && (
                 <Box
                     id={`${id}-navigation-items`}
                     aria-label={`${label} navigation`}
@@ -444,29 +455,17 @@ export function Dashboard({ children }: Readonly<{ children: ReactNode }>) {
                                             "background-color 120ms ease, color 120ms ease",
                                         "&:last-of-type": { mb: 0 },
                                         "&.Mui-selected": {
-                                            bgcolor: "secondary.main",
-                                            color: "secondary.contrastText",
+                                            bgcolor:
+                                                "var(--ce-panel-strong-bg)",
+                                            color: "var(--ce-panel-strong-text)",
                                             "&:hover": {
-                                                bgcolor: "secondary.main",
+                                                bgcolor:
+                                                    "var(--ce-panel-strong-bg)",
                                             },
                                             "& .MuiListItemIcon-root": {
-                                                color: "secondary.contrastText",
+                                                color: "var(--ce-panel-strong-text)",
                                             },
                                         },
-                                        "&.Mui-selected::before":
-                                            iconOnlyNavigation
-                                                ? undefined
-                                                : {
-                                                      content: '""',
-                                                      position: "absolute",
-                                                      left: 0,
-                                                      top: 7,
-                                                      bottom: 7,
-                                                      width: 3,
-                                                      borderRadius: 999,
-                                                      bgcolor:
-                                                          "secondary.contrastText",
-                                                  },
                                     }}
                                 >
                                     <ListItemIcon
@@ -535,6 +534,7 @@ export function Dashboard({ children }: Readonly<{ children: ReactNode }>) {
             <List sx={{ p: 1.5, flex: 1 }}>
                 {navGroup({
                     id: "sources",
+                    rootPath: "/sources",
                     label: "Sources",
                     icon: <LanguageIcon />,
                     active: sourceActive,
@@ -545,6 +545,7 @@ export function Dashboard({ children }: Readonly<{ children: ReactNode }>) {
 
                 {navGroup({
                     id: "benchmarks",
+                    rootPath: "/benchmarks",
                     label: "Benchmarks",
                     icon: <ScienceIcon />,
                     active: benchmarkActive,
@@ -555,6 +556,7 @@ export function Dashboard({ children }: Readonly<{ children: ReactNode }>) {
 
                 {navGroup({
                     id: "publishing",
+                    rootPath: "/publishing",
                     label: "Publishing",
                     icon: <PublishIcon />,
                     active: publishingActive,
@@ -584,8 +586,18 @@ export function Dashboard({ children }: Readonly<{ children: ReactNode }>) {
                             right: collapsed ? "50%" : 12,
                             bottom: 12,
                             transform: collapsed ? "translateX(50%)" : "none",
-                            width: 32,
-                            height: 32,
+                            width: 34,
+                            height: 34,
+                            minWidth: 34,
+                            maxWidth: 34,
+                            minHeight: 34,
+                            maxHeight: 34,
+                            p: 0,
+                            aspectRatio: "1 / 1",
+                            boxSizing: "border-box",
+                            flex: "0 0 34px",
+                            borderRadius: "9999px !important",
+                            overflow: "hidden",
                             border: 1,
                             borderColor: "sidebar.border",
                             bgcolor: "background.paper",
@@ -632,97 +644,14 @@ export function Dashboard({ children }: Readonly<{ children: ReactNode }>) {
                 Skip to main content
             </Box>
 
-            <AppBar
-                component="header"
-                position="fixed"
-                sx={{ zIndex: (t) => t.zIndex.drawer + 1 }}
-            >
-                <Toolbar sx={{ minHeight: "64px !important", gap: 1.5 }}>
-                    {!isDesktop && (
-                        <IconButton
-                            ref={mobileMenuButtonRef}
-                            color="inherit"
-                            edge="start"
-                            aria-label="Open navigation"
-                            onClick={openMobileNavigation}
-                        >
-                            <MenuIcon aria-hidden="true" />
-                        </IconButton>
-                    )}
+            <Header
+                links={headerLinks}
+                showNavigationMenu={showPrimaryNavigation}
+                onNavigationMenuClick={openMobileNavigation}
+                navigationMenuButtonRef={mobileMenuButtonRef}
+            />
 
-                    <Link
-                        href="/"
-                        aria-label="CTDL Xtra home"
-                        style={{
-                            display: "inline-flex",
-                            alignItems: "center",
-                            color: "inherit",
-                            textDecoration: "none",
-                        }}
-                    >
-                        <Box
-                            component="img"
-                            src="/logo.png"
-                            alt="CTDL Xtra"
-                            sx={{
-                                height: "3rem",
-                                width: "auto",
-                                maxWidth: { xs: "2rem", sm: "9rem" },
-                                objectFit: "contain",
-                                bgcolor: "common.white",
-                                borderRadius: 0.5,
-                                px: 1,
-                                py: 0.5,
-                            }}
-                        />
-                    </Link>
-                    <Box sx={{ flexGrow: 1 }} />
-
-                    <IconButton
-                        color="inherit"
-                        aria-label="Open profile menu"
-                        aria-haspopup="menu"
-                        aria-expanded={Boolean(userAnchor)}
-                        aria-controls={userAnchor ? "profile-menu" : undefined}
-                        onClick={(e) => setUserAnchor(e.currentTarget)}
-                    >
-                        <AccountCircleIcon aria-hidden="true" />
-                    </IconButton>
-                    <Menu
-                        id="profile-menu"
-                        disableScrollLock
-                        anchorEl={userAnchor}
-                        open={Boolean(userAnchor)}
-                        onClose={() => setUserAnchor(null)}
-                        anchorOrigin={{
-                            vertical: "bottom",
-                            horizontal: "right",
-                        }}
-                        transformOrigin={{
-                            vertical: "top",
-                            horizontal: "right",
-                        }}
-                    >
-                        <MenuItem
-                            component={Link}
-                            href="/profile"
-                            onClick={() => setUserAnchor(null)}
-                        >
-                            My Profile
-                        </MenuItem>
-                        <Divider />
-                        <MenuItem
-                            component={Link}
-                            href="/logout"
-                            onClick={() => setUserAnchor(null)}
-                        >
-                            Logout
-                        </MenuItem>
-                    </Menu>
-                </Toolbar>
-            </AppBar>
-
-            {navigationPending && (
+            {showPrimaryNavigation && navigationPending && (
                 <LinearProgress
                     aria-label="Loading page"
                     sx={{
@@ -736,95 +665,104 @@ export function Dashboard({ children }: Readonly<{ children: ReactNode }>) {
                 />
             )}
 
-            <Drawer
-                variant={isDesktop ? "permanent" : "temporary"}
-                open={isDesktop || mobileOpen}
-                onClose={() => closeMobileNavigation()}
-                ModalProps={{
-                    keepMounted: true,
-                    disableRestoreFocus: true,
-                }}
-                sx={{
-                    width: isDesktop ? drawerWidth : defaultExpandedWidth,
-                    flexShrink: 0,
-                    "& .MuiDrawer-paper": {
+            {showPrimaryNavigation && (
+                <Drawer
+                    variant={isDesktop ? "permanent" : "temporary"}
+                    open={isDesktop || mobileOpen}
+                    onClose={() => closeMobileNavigation()}
+                    ModalProps={{
+                        keepMounted: true,
+                        disableRestoreFocus: true,
+                    }}
+                    sx={{
                         width: isDesktop ? drawerWidth : defaultExpandedWidth,
-                        boxSizing: "border-box",
-                        mt: "64px",
-                        height: "calc(100% - 64px)",
-                        borderRightColor: "sidebar.border",
-                        transition: resizingNav
-                            ? "none"
-                            : theme.transitions.create("width", {
-                                  duration: theme.transitions.duration.shorter,
-                              }),
-                        overflowX: "hidden",
-                    },
-                }}
-            >
-                {navigation}
-                {isDesktop && (
-                    <Box
-                        role="separator"
-                        aria-label="Resize primary navigation"
-                        aria-orientation="vertical"
-                        aria-valuemin={collapsedWidth}
-                        aria-valuemax={maxExpandedWidth}
-                        aria-valuenow={drawerWidth}
-                        aria-valuetext={
-                            collapsed
-                                ? "Navigation collapsed to icons"
-                                : `Navigation width ${drawerWidth} pixels`
-                        }
-                        tabIndex={0}
-                        onPointerDown={beginNavigationResize}
-                        onKeyDown={handleNavigationResizeKeyDown}
-                        sx={{
-                            position: "absolute",
-                            top: 0,
-                            right: 0,
-                            bottom: 0,
-                            width: 8,
-                            cursor: "col-resize",
-                            zIndex: 2,
-                            touchAction: "none",
-                            outline: "none",
-                            "&::after": {
-                                content: '""',
+                        flexShrink: 0,
+                        "& .MuiDrawer-paper": {
+                            width: isDesktop
+                                ? drawerWidth
+                                : defaultExpandedWidth,
+                            boxSizing: "border-box",
+                            mt: "64px",
+                            height: "calc(100% - 64px)",
+                            borderRightColor: "sidebar.border",
+                            transition: resizingNav
+                                ? "none"
+                                : theme.transitions.create("width", {
+                                      duration:
+                                          theme.transitions.duration.shorter,
+                                  }),
+                            overflowX: "hidden",
+                        },
+                    }}
+                >
+                    {navigation}
+                    {isDesktop && (
+                        <Box
+                            role="separator"
+                            aria-label="Resize primary navigation"
+                            aria-orientation="vertical"
+                            aria-valuemin={collapsedWidth}
+                            aria-valuemax={maxExpandedWidth}
+                            aria-valuenow={drawerWidth}
+                            aria-valuetext={
+                                collapsed
+                                    ? "Navigation collapsed to icons"
+                                    : `Navigation width ${drawerWidth} pixels`
+                            }
+                            tabIndex={0}
+                            onPointerDown={beginNavigationResize}
+                            onKeyDown={handleNavigationResizeKeyDown}
+                            sx={{
                                 position: "absolute",
                                 top: 0,
+                                right: 0,
                                 bottom: 0,
-                                left: "50%",
-                                width: 2,
-                                transform: "translateX(-50%)",
-                                bgcolor: resizingNav
-                                    ? "secondary.main"
-                                    : "transparent",
-                                transition: theme.transitions.create(
-                                    "background-color",
-                                    {
-                                        duration:
-                                            theme.transitions.duration.shortest,
-                                    },
-                                ),
-                            },
-                            "&:hover::after, &:focus-visible::after": {
-                                bgcolor: "secondary.main",
-                            },
-                            "&:focus-visible": {
-                                boxShadow: `0 0 0 2px ${theme.palette.secondary.main}`,
-                            },
-                        }}
-                    />
-                )}
-            </Drawer>
+                                width: 8,
+                                cursor: "col-resize",
+                                zIndex: 2,
+                                touchAction: "none",
+                                outline: "none",
+                                "&::after": {
+                                    content: '""',
+                                    position: "absolute",
+                                    top: 0,
+                                    bottom: 0,
+                                    left: "50%",
+                                    width: 2,
+                                    transform: "translateX(-50%)",
+                                    bgcolor: resizingNav
+                                        ? "secondary.main"
+                                        : "transparent",
+                                    transition: theme.transitions.create(
+                                        "background-color",
+                                        {
+                                            duration:
+                                                theme.transitions.duration
+                                                    .shortest,
+                                        },
+                                    ),
+                                },
+                                "&:hover::after, &:focus-visible::after": {
+                                    bgcolor: "secondary.main",
+                                },
+                                "&:focus-visible": {
+                                    boxShadow: `0 0 0 2px ${theme.palette.secondary.main}`,
+                                },
+                            }}
+                        />
+                    )}
+                </Drawer>
+            )}
 
             <Box
                 component="main"
                 id="main-content"
                 tabIndex={-1}
                 sx={{
-                    ml: isDesktop ? `${drawerWidth}px` : 0,
+                    ml:
+                        showPrimaryNavigation && isDesktop
+                            ? `${drawerWidth}px`
+                            : 0,
                     pt: "64px",
                     minHeight: "100vh",
                     transition: resizingNav
@@ -834,7 +772,18 @@ export function Dashboard({ children }: Readonly<{ children: ReactNode }>) {
                           }),
                 }}
             >
-                <Box sx={{ p: { xs: 2, md: 3 }, maxWidth: 1600, mx: "auto" }}>
+                <Box
+                    sx={{
+                        p: { xs: 2, md: 3 },
+                        maxWidth: 1600,
+                        mx: "auto",
+                        color: "text.primary",
+                        "& .MuiTypography-root": { color: "inherit" },
+                        "& .MuiTypography-colorTextSecondary": {
+                            color: "text.secondary",
+                        },
+                    }}
+                >
                     {children}
                 </Box>
             </Box>

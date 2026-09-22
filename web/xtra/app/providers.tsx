@@ -7,12 +7,17 @@ import { XtraAuthProvider } from "./components/auth/AuthProvider";
 import { ConfigContextProvider } from "./components/providers/ConfigProvider";
 import ThemeRegistry from "./themeRegistry";
 import { SnackbarProvider } from "@/components/ui/snackbar-provider";
+import { bffFetch } from "@/security/bffFetch";
 
 export default function Providers({ children }: { children: React.ReactNode }) {
     return (
         <ConfigContextProvider>
             <ThemeRegistry>
-                <BffAuthProvider unauthorizedBehavior="anonymous">
+                <BffAuthProvider
+                    unauthorizedBehavior="home"
+                    logoutCallbackUrl="/"
+                    fetcher={bffFetch}
+                >
                     <XtraAuthProvider>
                         <SnackbarProvider>
                             <Suspense fallback={null}>

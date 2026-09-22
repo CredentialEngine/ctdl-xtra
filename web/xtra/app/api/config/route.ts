@@ -1,8 +1,12 @@
-import { NextResponse } from "next/server";
+import { rejectInvalidRequest } from "@server/security/csrf";
+import { NextRequest, NextResponse } from "next/server";
 
 export const dynamic = "force-dynamic";
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+    const csrfRejection = rejectInvalidRequest(request);
+    if (csrfRejection) return csrfRejection;
+
     return NextResponse.json(
         {
             NEXT_PUBLIC_APPLICATION_INSIGHTS_CONNECTION_STRING:

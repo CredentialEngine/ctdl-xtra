@@ -27,7 +27,7 @@ export function hasValidCsrfToken(request: NextRequest): boolean {
     );
 }
 
-export function rejectInvalidMutation(
+export function rejectInvalidRequest(
     request: NextRequest,
 ): NextResponse | null {
     if (!hasValidCsrfToken(request)) {
@@ -39,3 +39,6 @@ export function rejectInvalidMutation(
 
     return null;
 }
+
+/** @deprecated Use rejectInvalidRequest; CSRF is required for all SPA BFF requests. */
+export const rejectInvalidMutation = rejectInvalidRequest;

@@ -1,5 +1,6 @@
 "use client";
 
+import { bffFetch } from "@/security/bffFetch";
 import {
     createContext,
     type ReactNode,
@@ -30,7 +31,7 @@ let runtimeConfigPromise: Promise<RuntimeConfig> | null = null;
 
 function loadRuntimeConfig(): Promise<RuntimeConfig> {
     if (!runtimeConfigPromise) {
-        runtimeConfigPromise = fetch("/api/config", { cache: "no-store" })
+        runtimeConfigPromise = bffFetch("/api/config", { cache: "no-store" })
             .then(async (response) => {
                 if (!response.ok) {
                     throw new Error(

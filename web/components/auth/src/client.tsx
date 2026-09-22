@@ -49,6 +49,7 @@ function getCurrentCallbackUrl(): string {
 export function redirectToBffHome(
     sessionExpired = false,
     logoutPath = "/api/auth/logout",
+    fetcher: typeof fetch = fetch,
 ) {
     if (typeof window === "undefined") {
         return;
@@ -61,9 +62,9 @@ export function redirectToBffHome(
         return;
     }
 
-    void fetch(logoutPath, {
+    void fetcher(logoutPath, {
         method: "POST",
-        credentials: "include",
+        credentials: "same-origin",
         cache: "no-store",
     })
         .catch(() => undefined)
@@ -72,9 +73,12 @@ export function redirectToBffHome(
         });
 }
 
-async function loadCurrentUser(mePath: string): Promise<MeResult> {
-    const response = await fetch(mePath, {
-        credentials: "include",
+async function loadCurrentUser(
+    mePath: string,
+    fetcher: typeof fetch,
+): Promise<MeResult> {
+    const response = await fetcher(mePath, {
+        credentials: "same-origin",
         cache: "no-store",
     });
 
@@ -105,6 +109,7 @@ export function BffAuthProvider({
     fallback = null,
     unauthorizedBehavior = "anonymous",
     logoutCallbackUrl,
+    fetcher = fetch,
 }: Readonly<{
     children: ReactNode;
     logoutPath?: string;
@@ -112,6 +117,7 @@ export function BffAuthProvider({
     fallback?: ReactNode;
     unauthorizedBehavior?: "anonymous" | "login" | "home";
     logoutCallbackUrl?: string;
+    fetcher?: typeof fetch;
 }>) {
     const [user, setUser] = useState<AuthenticatedUser | undefined>(undefined);
     const [isLoading, setLoading] = useState(true);
@@ -148,12 +154,12 @@ export function BffAuthProvider({
                     unauthorizedBehavior === "home" &&
                     result.sessionExpired
                 ) {
-                    redirectToBffHome(true);
+                    redirectToBffHome(true, logoutPath, fetcher);
                 }
             }
             return result.authenticated;
         },
-        [unauthorizedBehavior],
+        [fetcher, logoutPath, unauthorizedBehavior],
     );
 
     const refresh = useCallback(async () => {
@@ -161,7 +167,9 @@ export function BffAuthProvider({
         // consumers use that flag for the initial auth gate, and changing it here
         // would unmount/remount the application shell every time /api/me runs.
         try {
-            const authenticated = applyMeResult(await loadCurrentUser(mePath));
+            const authenticated = applyMeResult(
+                await loadCurrentUser(mePath, fetcher),
+            );
             if (authenticated) {
                 setError(undefined);
             }
@@ -170,11 +178,11 @@ export function BffAuthProvider({
             setError(err instanceof Error ? err.message : String(err));
             return false;
         }
-    }, [applyMeResult, mePath]);
+    }, [applyMeResult, mePath, fetcher]);
 
     useEffect(() => {
         let active = true;
-        initialLoadRef.current ??= loadCurrentUser(mePath);
+        initialLoadRef.current ??= loadCurrentUser(mePath, fetcher);
         initialLoadRef.current
             .then((result) => {
                 if (active) {
@@ -194,7 +202,7 @@ export function BffAuthProvider({
         return () => {
             active = false;
         };
-    }, [applyMeResult, mePath]);
+    }, [applyMeResult, mePath, fetcher]);
 
     const login = useCallback(
         (
@@ -214,9 +222,9 @@ export function BffAuthProvider({
 
     const logout = useCallback(async () => {
         const callbackUrl = logoutCallbackUrl ?? getCurrentCallbackUrl();
-        const response = await fetch(logoutPath, {
+        const response = await fetcher(logoutPath, {
             method: "POST",
-            credentials: "include",
+            credentials: "same-origin",
             cache: "no-store",
         });
         if (!response.ok) {
@@ -224,7 +232,7 @@ export function BffAuthProvider({
         }
         setUser(undefined);
         window.location.replace(callbackUrl);
-    }, [logoutCallbackUrl, logoutPath]);
+    }, [fetcher, logoutCallbackUrl, logoutPath]);
 
     const hasRole = useCallback(
         (role: string) => {

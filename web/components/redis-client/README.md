@@ -29,7 +29,7 @@ Call `connect()` when an application wants to establish the connection explicitl
 
 ## Package dependency
 
-Libraries such as `@credentialengine/server-session` should depend on this package instead of importing or creating a Redis client directly.
+Server-side libraries such as `@credentialengine/auth` should depend on this package instead of importing or creating a Redis client directly.
 
 ```json
 {
@@ -48,7 +48,7 @@ import {
 } from "@credentialengine/redis-client";
 ```
 
-For example, `@credentialengine/server-session` uses this package for Redis connection management while keeping session persistence, encryption, TTL handling, and distributed locking within the server-session library.
+For example, `@credentialengine/auth` uses this package for Redis connection management while keeping NextAuth persistence, token-field encryption, TTL handling, and refresh locking in the auth layer.
 
 ## Testing
 

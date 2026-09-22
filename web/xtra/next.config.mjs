@@ -23,7 +23,7 @@ const nextConfig = {
         "@credentialengine/app-insights",
         "@credentialengine/telemetry",
         "@credentialengine/auth",
-        "@credentialengine/server-session",
+        "@credentialengine/redis-client",
     ],
 };
 

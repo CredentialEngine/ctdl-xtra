@@ -11,8 +11,10 @@ import {
     useContext,
     useEffect,
     useMemo,
+    useRef,
     useState,
 } from "react";
+import { bffFetch } from "@/security/bffFetch";
 import { getClientCsrfToken } from "@/security/csrfClient";
 
 type AuthContextValue = {
@@ -46,6 +48,7 @@ export function XtraAuthProvider({
         hasRole,
     } = useBffAuth();
     const [csrfToken, setCsrfToken] = useState<string | undefined>();
+    const logoutPromiseRef = useRef<Promise<void> | null>(null);
 
     useEffect(() => {
         let cancelled = false;
@@ -63,25 +66,29 @@ export function XtraAuthProvider({
         };
     }, []);
 
-    const logout = useCallback(async () => {
-        const callbackUrl = "/";
-        const freshCsrfToken = await getClientCsrfToken(true);
-        setCsrfToken(freshCsrfToken);
-
-        const response = await fetch("/api/auth/logout", {
-            method: "POST",
-            credentials: "include",
-            cache: "no-store",
-            headers: {
-                "X-CSRF-Token": freshCsrfToken,
-            },
-        });
-
-        if (!response.ok) {
-            throw new Error(`Logout failed (HTTP ${response.status})`);
+    const logout = useCallback(() => {
+        if (logoutPromiseRef.current) {
+            return logoutPromiseRef.current;
         }
 
-        window.location.replace(callbackUrl);
+        const logoutPromise = (async () => {
+            const response = await bffFetch("/api/auth/logout", {
+                method: "POST",
+                cache: "no-store",
+            });
+
+            if (!response.ok) {
+                throw new Error(`Logout failed (HTTP ${response.status})`);
+            }
+
+            window.location.replace("/");
+        })();
+
+        logoutPromiseRef.current = logoutPromise;
+        void logoutPromise.catch(() => {
+            logoutPromiseRef.current = null;
+        });
+        return logoutPromise;
     }, []);
 
     const isLoading = authLoading;

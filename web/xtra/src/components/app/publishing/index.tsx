@@ -37,7 +37,7 @@ export default function Publishing() {
             <BreadcrumbTrail
                 items={[
                     { label: "Publishing", href: "/publishing" },
-                    { label: "ETL Runs", href: "/publishing" },
+                    { label: "ETL Runs", href: "/publishing/runs" },
                 ]}
             />
             <Box className="flex flex-wrap items-end justify-between gap-4">

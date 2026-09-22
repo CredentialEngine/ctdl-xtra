@@ -1,7 +1,7 @@
 {
     "dependencies": {
-        "@credentialengine/server-session": "*",
-        "server-only": "^0.0.1"
+        "server-only": "^0.0.1",
+        "@credentialengine/redis-client": "*"
     },
     "devDependencies": {
         "@types/node": "^26",
@@ -40,7 +40,6 @@
     },
     "private": true,
     "scripts": {
-        "prebuild": "npm --prefix ../.. run build --workspace=@credentialengine/server-session",
         "build": "tsc",
         "clean": "node -e \"require('fs').rmSync('dist', { recursive: true, force: true })\"",
         "lint": "eslint .",
@@ -49,7 +48,6 @@
         "prettier:check": "prettier --config ../../prettier.config.cjs --ignore-path ../../.prettierignore --check .",
         "format": "npm run prettier",
         "format:check": "npm run prettier:check",
-        "pretypecheck": "npm --prefix ../.. run build --workspace=@credentialengine/server-session",
         "typecheck": "tsc --noEmit",
         "test": "npm run build && node --experimental-vm-modules ../../node_modules/jest/bin/jest.js --config ../../jest.config.mjs --selectProjects auth --runInBand",
         "check": "npm run prettier:check && npm run lint && npm run typecheck && npm run test"

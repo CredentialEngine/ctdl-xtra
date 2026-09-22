@@ -1,7 +1,7 @@
 "use client";
 
-import PageComponent from "@/components/app/publishing/index";
+import PublishingSummary from "@/components/app/publishing/summary";
 
 export default function Page() {
-    return <PageComponent />;
+    return <PublishingSummary />;
 }

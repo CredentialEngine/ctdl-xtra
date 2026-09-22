@@ -19,13 +19,6 @@ const config = {
     projects: [
         {
             ...common,
-            displayName: "server-session",
-            testMatch: [
-                "<rootDir>/components/server-session/src/**/*.test.mjs",
-            ],
-        },
-        {
-            ...common,
             displayName: "auth",
             testMatch: ["<rootDir>/components/auth/src/**/*.test.mjs"],
         },

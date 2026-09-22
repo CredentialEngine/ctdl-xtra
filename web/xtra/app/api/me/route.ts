@@ -1,13 +1,18 @@
 import { getAuthConfig } from "@/config/auth";
+import { rejectInvalidRequest } from "@server/security/csrf";
 import {
     BffUnauthorizedError,
     getAuthenticatedUser,
 } from "@credentialengine/auth/server";
+import { NextRequest } from "next/server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+    const csrfRejection = rejectInvalidRequest(request);
+    if (csrfRejection) return csrfRejection;
+
     try {
         const user = await getAuthenticatedUser(await getAuthConfig());
         if (!user) {

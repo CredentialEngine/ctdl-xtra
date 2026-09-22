@@ -5,71 +5,76 @@ import {
 } from "@mui/material/styles";
 
 export const lightPalette = {
+    // Credential Engine brand palette:
+    // navy #23375C, green #45A085, orange #E8A66B, white #FFFFFF.
     background: "#FFFFFF",
     paper: "#FFFFFF",
-    surface: "#F7FAFC",
-    text: "#0A2942",
-    textSecondary: "#314A5E",
-    primary: "#0A2942",
+    surface: "rgba(35, 55, 92, 0.05)",
+    text: "#000000",
+    textSecondary: "#000000",
+    primary: "#23375C",
     primaryContrast: "#FFFFFF",
-    secondary: "#005D5B",
-    secondaryContrast: "#FFFFFF",
-    accent: "#005D5B",
-    aquaDark: "#005D5B",
-    accentSoft: "#D8F4F3",
-    border: "#7B8B98",
-    divider: "#C4CDD4",
-    link: "#063C68",
-    focus: "#6A3D12",
-    actionAquaBg: "#005D5B",
-    actionAquaText: "#FFFFFF",
-    actionBlueBg: "#0A2942",
+    secondary: "#45A085",
+    secondaryContrast: "#000000",
+    accent: "#E8A66B",
+    aquaDark: "#45A085",
+    accentSoft: "rgba(232, 166, 107, 0.18)",
+    border: "#23375C",
+    divider: "rgba(35, 55, 92, 0.30)",
+    link: "#000000",
+    focus: "#E8A66B",
+    actionAquaBg: "#45A085",
+    actionAquaText: "#000000",
+    actionBlueBg: "#23375C",
     actionBlueText: "#FFFFFF",
-    actionBrownBg: "#6A3D12",
-    actionBrownText: "#FFFFFF",
-    panelStrongBg: "#005D5B",
-    panelStrongText: "#FFFFFF",
-    cardSelectedBg: "#E8EEF2",
-    sidebar: "#F7FBFA",
-    sidebarBorder: "#C4CDD4",
-    sidebarHover: "#E8EEF2",
-    footer: "#F0F0F0",
-    envDev: { background: "#FFF3CD", text: "#000000" },
-    envStaging: { background: "#D1ECF1", text: "#000000" },
+    actionBrownBg: "#E8A66B",
+    actionBrownText: "#000000",
+    panelStrongBg: "#45A085",
+    panelStrongText: "#000000",
+    cardSelectedBg: "rgba(69, 160, 133, 0.16)",
+    sidebar: "#FFFFFF",
+    sidebarBorder: "rgba(35, 55, 92, 0.30)",
+    sidebarHover: "rgba(69, 160, 133, 0.14)",
+    footer: "rgba(35, 55, 92, 0.05)",
+    envDev: { background: "#E8A66B", text: "#000000" },
+    envStaging: { background: "#45A085", text: "#000000" },
 };
 
 export const darkPalette = {
-    background: "#07131D",
-    paper: "#102332",
-    surface: "#172F41",
+    // Keep the page canvas deliberately darker than the Credential Engine
+    // brand navy. The brand navy belongs to the logo/identity; green and
+    // orange carry interaction while white remains the dark-mode text color.
+    background: "#071821",
+    paper: "#0C2230",
+    surface: "#132E40",
     text: "#FFFFFF",
-    textSecondary: "#E7EEF3",
-    primary: "#FFFFFF",
-    primaryContrast: "#07131D",
-    secondary: "#99F3F0",
-    secondaryContrast: "#07131D",
-    accent: "#99F3F0",
-    aquaDark: "#005D5B",
-    accentSoft: "#143B47",
-    border: "#F1F6F9",
-    divider: "#D7E3EA",
-    link: "#B7F7F5",
-    focus: "#FFD89A",
-    actionAquaBg: "#005D5B",
-    actionAquaText: "#FFFFFF",
-    actionBlueBg: "#FFFFFF",
-    actionBlueText: "#07131D",
-    actionBrownBg: "#FFD89A",
-    actionBrownText: "#07131D",
-    panelStrongBg: "#005D5B",
+    textSecondary: "#FFFFFF",
+    primary: "#45A085",
+    primaryContrast: "#000000",
+    secondary: "#E8A66B",
+    secondaryContrast: "#000000",
+    accent: "#E8A66B",
+    aquaDark: "#45A085",
+    accentSoft: "rgba(232, 166, 107, 0.18)",
+    border: "#3C5668",
+    divider: "#2B4557",
+    link: "#FFFFFF",
+    focus: "#E8A66B",
+    actionAquaBg: "#45A085",
+    actionAquaText: "#000000",
+    actionBlueBg: "#132E40",
+    actionBlueText: "#FFFFFF",
+    actionBrownBg: "#E8A66B",
+    actionBrownText: "#000000",
+    panelStrongBg: "#45A085",
     panelStrongText: "#FFFFFF",
-    cardSelectedBg: "#1F3B4E",
-    sidebar: "#0D1F2D",
-    sidebarBorder: "#1F3B4E",
-    sidebarHover: "#1F3B4E",
-    footer: "#0D1F2D",
-    envDev: { background: "#5c4a00", text: "#FFF3CD" },
-    envStaging: { background: "#0c4a5e", text: "#D1ECF1" },
+    cardSelectedBg: "rgba(69, 160, 133, 0.24)",
+    sidebar: "#0B202E",
+    sidebarBorder: "#294558",
+    sidebarHover: "#153548",
+    footer: "#0B202E",
+    envDev: { background: "#E8A66B", text: "#000000" },
+    envStaging: { background: "#45A085", text: "#000000" },
 };
 
 export const applyColorSchemeVariables = (mode: PaletteMode) => {
@@ -81,8 +86,6 @@ export const applyColorSchemeVariables = (mode: PaletteMode) => {
     root.dataset.theme = mode;
     root.classList.toggle("dark", mode === "dark");
     root.style.colorScheme = mode;
-    root.style.setProperty("--background", palette.background);
-    root.style.setProperty("--foreground", palette.text);
     root.style.setProperty("--ce-background", palette.background);
     root.style.setProperty("--ce-paper", palette.paper);
     root.style.setProperty("--ce-surface", palette.surface);
@@ -180,7 +183,7 @@ export const createAppTheme = (mode: PaletteMode = "light") => {
                 background: palette.footer,
             },
             link: {
-                default: palette.text,
+                default: palette.link,
                 hover: palette.link,
             },
             blueDark: "var(--ce-blue-dark)",
@@ -198,6 +201,9 @@ export const createAppTheme = (mode: PaletteMode = "light") => {
                 styleOverrides: {
                     html: {
                         fontSize: "75%",
+                        // Keep the viewport gutter stable so overlays never
+                        // resize the page when they open or close.
+                        scrollbarGutter: "stable",
                     },
                     body: {
                         backgroundColor: palette.background,
@@ -209,6 +215,33 @@ export const createAppTheme = (mode: PaletteMode = "light") => {
                         outline: `3px solid ${palette.focus}`,
                         outlineOffset: "3px",
                     },
+                },
+            },
+            // MUI overlays normally lock document scrolling while open. That
+            // removes the browser scrollbar and causes the entire layout to
+            // jump horizontally. Disable scroll locking once at the theme
+            // level so every menu, select, popover and modal-based overlay
+            // keeps the page width stable.
+            MuiModal: {
+                defaultProps: { disableScrollLock: true },
+            },
+            MuiPopover: {
+                defaultProps: { disableScrollLock: true },
+            },
+            MuiMenu: {
+                defaultProps: { disableScrollLock: true },
+            },
+            MuiDialog: {
+                defaultProps: { disableScrollLock: true },
+            },
+            MuiDrawer: {
+                defaultProps: {
+                    ModalProps: { disableScrollLock: true },
+                },
+            },
+            MuiSelect: {
+                defaultProps: {
+                    MenuProps: { disableScrollLock: true },
                 },
             },
             MuiContainer: {
@@ -223,12 +256,6 @@ export const createAppTheme = (mode: PaletteMode = "light") => {
                         fontWeight: 700,
                         textTransform: "none",
                     },
-                },
-            },
-            MuiChip: {
-                styleOverrides: {
-                    root: { minHeight: "2rem" },
-                    label: { fontSize: "1rem", lineHeight: 1.5 },
                 },
             },
             MuiFormHelperText: {
@@ -252,12 +279,9 @@ export const createAppTheme = (mode: PaletteMode = "light") => {
                         backgroundColor:
                             theme.palette.mode === "dark"
                                 ? theme.palette.background.default
-                                : theme.palette.primary.main,
-                        color:
-                            theme.palette.mode === "dark"
-                                ? theme.palette.text.primary
-                                : theme.palette.primary.contrastText,
-                        borderBottom: "none",
+                                : palette.paper,
+                        color: theme.palette.text.primary,
+                        borderBottom: `1px solid ${palette.divider}`,
                         boxShadow: "none",
                     }),
                 },
@@ -284,6 +308,29 @@ export const createAppTheme = (mode: PaletteMode = "light") => {
             },
             MuiOutlinedInput: {
                 styleOverrides: { root: { backgroundColor: palette.paper } },
+            },
+            MuiIconButton: {
+                styleOverrides: {
+                    root: {
+                        color: palette.text,
+                        "&:hover": { backgroundColor: palette.sidebarHover },
+                    },
+                },
+            },
+            MuiChip: {
+                styleOverrides: {
+                    root: {
+                        minHeight: "2rem",
+                        ...(mode === "dark"
+                            ? {
+                                  borderColor: palette.border,
+                                  color: palette.text,
+                                  backgroundColor: "transparent",
+                              }
+                            : {}),
+                    },
+                    label: { fontSize: "1rem", lineHeight: 1.5 },
+                },
             },
             MuiListItemButton: {
                 styleOverrides: {

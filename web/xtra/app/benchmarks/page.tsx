@@ -1,7 +1,7 @@
 "use client";
 
-import PageComponent from "@/components/app/benchmarks/index";
+import BenchmarksSummary from "@/components/app/benchmarks/summary";
 
 export default function Page() {
-    return <PageComponent />;
+    return <BenchmarksSummary />;
 }

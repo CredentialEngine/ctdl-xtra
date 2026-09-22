@@ -273,6 +273,7 @@ export default function Sources() {
                 <Link
                     className="font-medium hover:underline"
                     href={`/sources/${record.id}`}
+                    style={{ color: "var(--ce-link)" }}
                 >
                     {value}
                 </Link>
@@ -501,7 +502,7 @@ export default function Sources() {
                         component="h1"
                         className="text-2xl font-semibold"
                     >
-                        Sources
+                        All Sources
                     </MuiTypography>
                     <MuiTypography
                         component="p"
@@ -546,7 +547,11 @@ export default function Sources() {
                     <Typography
                         variant="caption"
                         color="text.secondary"
-                        sx={{ ml: "auto", whiteSpace: "nowrap" }}
+                        sx={{
+                            ml: "auto",
+                            whiteSpace: "nowrap",
+                            color: "text.secondary",
+                        }}
                     >
                         Use column headers to filter/sort; use Columns to show
                         or hide fields.

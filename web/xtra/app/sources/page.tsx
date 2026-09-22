@@ -1,7 +1,7 @@
 "use client";
 
-import PageComponent from "@/components/app/sources/index";
+import SourcesSummary from "@/components/app/sources/summary";
 
 export default function Page() {
-    return <PageComponent />;
+    return <SourcesSummary />;
 }

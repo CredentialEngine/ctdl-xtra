@@ -18,7 +18,6 @@ COPY package.json package-lock.json ./
 COPY components/appInsights/package.json ./components/appInsights/
 COPY components/auth/package.json ./components/auth/
 COPY components/redis-client/package.json ./components/redis-client/
-COPY components/server-session/package.json ./components/server-session/
 COPY components/telemetry/package.json ./components/telemetry/
 COPY xtra/package.json ./xtra/
 
@@ -35,7 +34,6 @@ RUN --mount=type=secret,id=npmrc,target=/root/.npmrc,required=false \
 COPY components/appInsights ./components/appInsights
 COPY components/auth ./components/auth
 COPY components/redis-client ./components/redis-client
-COPY components/server-session ./components/server-session
 COPY components/telemetry ./components/telemetry
 
 # Copy xTRA source and configuration.

@@ -16,7 +16,7 @@ export function getClientCsrfToken(forceRefresh = false): Promise<string> {
     if (csrfRequest) return csrfRequest;
 
     csrfRequest = fetch("/api/csrf", {
-        credentials: "include",
+        credentials: "same-origin",
         cache: "no-store",
     })
         .then(async (response) => {

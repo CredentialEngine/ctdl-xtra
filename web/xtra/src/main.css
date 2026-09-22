@@ -2,50 +2,54 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Credential Engine brand palette: #23375C navy, #45A085 green,
+   #E8A66B orange, #FFFFFF white. Body text is black in light mode
+   and white in dark mode. */
+
 :root {
     font-size: 100%;
     --background: 0 0% 100%;
-    --foreground: 207 74% 15%;
+    --foreground: 0 0% 0%;
     --card: 0 0% 100%;
-    --card-foreground: 207 74% 15%;
+    --card-foreground: 0 0% 0%;
     --popover: 0 0% 100%;
-    --popover-foreground: 207 74% 15%;
-    --primary: 207 74% 15%;
+    --popover-foreground: 0 0% 0%;
+    --primary: 219 45% 25%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 179 100% 18%;
-    --secondary-foreground: 0 0% 100%;
-    --muted: 204 33% 98%;
-    --muted-foreground: 207 31% 28%;
-    --accent: 178 56% 90%;
-    --accent-foreground: 179 100% 18%;
-    --destructive: 0 100% 27%;
+    --secondary: 162 40% 45%;
+    --secondary-foreground: 0 0% 0%;
+    --muted: 219 45% 96%;
+    --muted-foreground: 0 0% 0%;
+    --accent: 28 73% 67%;
+    --accent-foreground: 0 0% 0%;
+    --destructive: 0 72% 42%;
     --destructive-foreground: 0 0% 100%;
-    --border: 204 14% 80%;
-    --input: 204 14% 80%;
-    --ring: 29 69% 24%;
+    --border: 219 45% 25%;
+    --input: 219 45% 25%;
+    --ring: 28 73% 67%;
     --radius: 0.5rem;
 }
 
 html.dark {
-    --background: 205 61% 7%;
+    --background: 198 65% 8%;
     --foreground: 0 0% 100%;
-    --card: 204 52% 13%;
+    --card: 203 60% 12%;
     --card-foreground: 0 0% 100%;
-    --popover: 204 52% 13%;
+    --popover: 203 60% 12%;
     --popover-foreground: 0 0% 100%;
-    --primary: 0 0% 100%;
-    --primary-foreground: 205 61% 7%;
-    --secondary: 178 72% 78%;
-    --secondary-foreground: 205 61% 7%;
-    --muted: 204 47% 17%;
-    --muted-foreground: 202 29% 92%;
-    --accent: 194 49% 18%;
-    --accent-foreground: 178 72% 78%;
-    --destructive: 5 100% 85%;
-    --destructive-foreground: 0 100% 9%;
-    --border: 204 28% 27%;
-    --input: 204 28% 27%;
-    --ring: 37 100% 80%;
+    --primary: 162 40% 45%;
+    --primary-foreground: 0 0% 0%;
+    --secondary: 28 73% 67%;
+    --secondary-foreground: 0 0% 0%;
+    --muted: 202 55% 16%;
+    --muted-foreground: 0 0% 100%;
+    --accent: 28 73% 67%;
+    --accent-foreground: 0 0% 0%;
+    --destructive: 0 72% 65%;
+    --destructive-foreground: 0 0% 0%;
+    --border: 205 27% 32%;
+    --input: 205 27% 32%;
+    --ring: 28 73% 67%;
 }
 
 html,
@@ -62,7 +66,7 @@ body {
 body {
     margin: 0;
     background: var(--ce-background, #fff);
-    color: var(--ce-text, #0a2942);
+    color: var(--ce-text, #000000);
 }
 
 a {
@@ -92,6 +96,35 @@ a {
 .ant-table-filter-dropdown,
 .ant-dropdown-menu {
     font-size: 1rem !important;
+}
+
+/* Dark-mode safety net for Ant Design tables and plain Next.js links.
+   Ant can render its own anchor colors inside cells, so keep links visibly
+   interactive without falling back to the light-theme navy. */
+html.dark .ant-table-wrapper a,
+html.dark .ant-table a {
+    color: var(--ce-link) !important;
+}
+
+html.dark .ant-table-wrapper a:hover,
+html.dark .ant-table a:hover {
+    color: #ffffff !important;
+    text-decoration: underline;
+}
+
+html.dark .ant-table-thead > tr > th,
+html.dark .ant-table-tbody > tr > td {
+    border-color: var(--ce-border) !important;
+}
+
+html.dark .ant-table-tbody > tr.ant-table-row:hover > td {
+    background: var(--ce-surface) !important;
+}
+
+html.dark .ant-pagination,
+html.dark .ant-pagination a,
+html.dark .ant-pagination button {
+    color: var(--ce-text) !important;
 }
 
 /* Accessible Ant Design table column resizing. */
@@ -137,12 +170,84 @@ a {
     }
 }
 
-/* Keep page and table headings readable in either system color scheme. */
+/* Keep page and section headings readable in both light and dark mode. */
 h1,
 h2,
 h3,
 h4,
 h5,
 h6 {
-    color: hsl(var(--foreground));
+    color: var(--ce-text, #000000);
+}
+
+/* Left navigation rows use the full drawer width for hover/selected states. */
+[aria-label="Primary navigation"] > .MuiList-root {
+    padding-inline: 0 !important;
+}
+
+[aria-label="Primary navigation"] > .MuiList-root > .MuiBox-root {
+    margin-bottom: 0 !important;
+}
+
+[aria-label="Primary navigation"]
+    > .MuiList-root
+    > .MuiBox-root
+    > .MuiListItemButton-root {
+    margin-bottom: 0 !important;
+    border-radius: 0 !important;
+}
+
+[aria-label="Primary navigation"] [aria-label$=" navigation"] {
+    margin-top: 0 !important;
+    padding: 0 !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+}
+
+[aria-label="Primary navigation"]
+    [aria-label$=" navigation"]
+    .MuiListItemButton-root {
+    margin-bottom: 0 !important;
+    border-radius: 0 !important;
+}
+
+/* Dark-mode text safety: page content should never inherit light-theme navy.
+   Tailwind utility text classes are used throughout the app alongside MUI. */
+html.dark body,
+html.dark #main-content {
+    color: var(--ce-text) !important;
+}
+
+html.dark #main-content .text-foreground,
+html.dark #main-content .text-card-foreground,
+html.dark #main-content .text-popover-foreground {
+    color: var(--ce-text) !important;
+}
+
+html.dark #main-content .text-muted-foreground {
+    color: var(--ce-text-secondary) !important;
+}
+
+html.dark
+    #main-content
+    .MuiTypography-root:not(.MuiTypography-colorTextSecondary) {
+    color: var(--ce-text);
+}
+
+html.dark #main-content .MuiTypography-colorTextSecondary {
+    color: var(--ce-text-secondary) !important;
+}
+
+html.dark #main-content .MuiCard-root,
+html.dark #main-content .MuiPaper-root {
+    color: var(--ce-text);
+}
+
+html.dark #main-content .MuiButton-outlined {
+    color: var(--ce-link);
+    border-color: var(--ce-border);
+}
+
+html.dark #main-content .MuiButton-outlined:hover {
+    border-color: var(--ce-link);
 }

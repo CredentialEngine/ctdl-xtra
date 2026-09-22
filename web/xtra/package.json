@@ -2,7 +2,6 @@
     "dependencies": {
         "@credentialengine/app-insights": "*",
         "@credentialengine/auth": "*",
-        "@credentialengine/server-session": "*",
         "@credentialengine/telemetry": "*",
         "@emotion/cache": "^11.14.0",
         "@emotion/react": "^11.14.0",
@@ -42,7 +41,6 @@
         "predev": "npm --prefix .. run build:components",
         "prettier": "prettier --config ../prettier.config.cjs --ignore-path ../.prettierignore --write .",
         "prettier:check": "prettier --config ../prettier.config.cjs --ignore-path ../.prettierignore --check .",
-        "pretypecheck": "npm --prefix .. run build:components",
         "start": "next start",
         "test": "npm run typecheck",
         "typecheck": "tsc --noEmit"
