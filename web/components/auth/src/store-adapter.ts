@@ -22,6 +22,8 @@ const USER_ACCOUNTS_PREFIX = "nextauth:user-accounts:";
 const VERIFICATION_PREFIX = "nextauth:verification:";
 const SESSION_METADATA_PREFIX = "nextauth:session-metadata:";
 const ENCRYPTED_VALUE_PREFIX = "enc:v1:";
+const GCM_IV_LENGTH_BYTES = 12;
+const GCM_AUTH_TAG_LENGTH_BYTES = 16;
 
 type CreateUserInput = Parameters<NonNullable<Adapter["createUser"]>>[0];
 type LinkAccountInput = Parameters<NonNullable<Adapter["linkAccount"]>>[0];
@@ -117,8 +119,10 @@ function deriveEncryptionKey(secret: string): Buffer {
 }
 
 function encryptValue(value: string, key: Buffer): string {
-    const iv = randomBytes(12);
-    const cipher = createCipheriv("aes-256-gcm", key, iv);
+    const iv = randomBytes(GCM_IV_LENGTH_BYTES);
+    const cipher = createCipheriv("aes-256-gcm", key, iv, {
+        authTagLength: GCM_AUTH_TAG_LENGTH_BYTES,
+    });
     const ciphertext = Buffer.concat([
         cipher.update(value, "utf8"),
         cipher.final(),
@@ -135,12 +139,18 @@ function decryptValue(value: string, key: Buffer): string {
         throw new Error("Invalid encrypted OAuth token field.");
     }
     const [ivPart, tagPart, ciphertextPart] = parts;
-    const decipher = createDecipheriv(
-        "aes-256-gcm",
-        key,
-        Buffer.from(ivPart, "base64url"),
-    );
-    decipher.setAuthTag(Buffer.from(tagPart, "base64url"));
+    const iv = Buffer.from(ivPart, "base64url");
+    const tag = Buffer.from(tagPart, "base64url");
+    if (
+        iv.length !== GCM_IV_LENGTH_BYTES ||
+        tag.length !== GCM_AUTH_TAG_LENGTH_BYTES
+    ) {
+        throw new Error("Invalid encrypted OAuth token field.");
+    }
+    const decipher = createDecipheriv("aes-256-gcm", key, iv, {
+        authTagLength: GCM_AUTH_TAG_LENGTH_BYTES,
+    });
+    decipher.setAuthTag(tag);
     return Buffer.concat([
         decipher.update(Buffer.from(ciphertextPart, "base64url")),
         decipher.final(),

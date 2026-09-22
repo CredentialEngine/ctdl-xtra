@@ -1,6 +1,6 @@
 import { getAuthConfig } from "@/config/auth";
-import { createLogoutRoute } from "@credentialengine/auth/server";
 import { rejectInvalidRequest } from "@server/security/csrf";
+import { createLogoutRoute } from "@credentialengine/auth/server";
 import { NextRequest } from "next/server";
 
 export const runtime = "nodejs";
