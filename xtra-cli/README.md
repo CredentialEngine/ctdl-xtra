@@ -6,6 +6,12 @@ The layout follows **ceops**: Click commands live at `src/xtra/<noun>/<verb>.py`
 
 This CLI does not invent CTIDs and does not publish to the Credential Registry.
 
+> **Architecture and ETL pipeline:** [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) —
+> how the five stages (crawl → discover → extract → transform → score) fit together,
+> with flow charts, the storage layout, the data contracts between stages, and what
+> lives in `src/common/` versus `lib/`. Read that first if you are new to the repo;
+> this README is the operator's reference for the flags.
+
 ## Install
 
 Python 3.10+. From this directory:
@@ -83,7 +89,7 @@ xtra environment set prod --data-uri azure://https://ACCOUNT.blob.core.windows.n
 xtra environment show
 ```
 
-`set` saves the active environment to `~/.xtra/config.json` (`XTRA_CONFIG_DIR` relocates it for CI and containers). Only the *name* of the secret variable is stored; the connection string itself never touches disk.
+`set` saves the active environment to `~/.xtra/config.json` (`XTRA_CONFIG_DIR` relocates it for CI and containers). Only the *name* of the secret variable is stored; the connection string itself never touches disk. Running `set` again for the environment that is already active keeps its saved `--data-uri` and `--connection-string-env` unless you pass new ones.
 
 `dev` is the only environment with a built-in container (Azurite at `127.0.0.1:10000`). `test`, `sandbox`, and `prod` ship blank on purpose so nobody guesses a real account name; give each one a `--data-uri` once.
 
@@ -192,7 +198,12 @@ only when it fails, and say so in the run notes when you do.
 
 `crawl.json` records `strategy`, `pages_saved` and `total_bytes`, so two
 small runs into two run ids settle any argument about which one is getting
-more of a given catalog.
+more of a given catalog. It also records `strategy_version`, read from the
+installed packages rather than written down anywhere, `strategy_settings`,
+what the backend was handed, and `strategy_notes`, the places where a
+backend honours one of those settings only approximately. Every saved page
+carries its `strategy` in the sidecar, so one page can be traced back to the
+backend that fetched it.
 
 ```bash
 xtra catalog crawl --with-playwright --url "$CATALOG" --run-id "$A" --limit 5 --target-uri "$TARGET"
@@ -279,8 +290,15 @@ navigation that starts a download, are skipped with reason `non_html`. A
 redirect that lands off the site is skipped with reason
 `redirect_out_of_scope`.
 
-The frontier starts from `--url`, every line of `--seed-urls-file`, and the
-same-host URLs in `/sitemap.xml` and in any `Sitemap:` line of `robots.txt`.
+The frontier starts from `--url`, then the same-host URLs in `/sitemap.xml`
+and in any `Sitemap:` line of `robots.txt`, then every line of
+`--seed-urls-file`, then the links found on the pages themselves in document
+order. That order is recorded as `frontier_order` in `crawl.json`. The
+sitemap is the site's own index of its content pages, so a limited run
+reaches real content first and a full run ends up with the same pages either
+way. A resume reorders what it reads back the same way, so sitemap URLs do
+not wait behind a section the first pass queued.
+
 Sitemap index files and `.gz` sitemaps are followed. `robots.txt` is fetched
 with `urllib` and the shared browser user agent; a 4xx means the site
 published no rules, and a 5xx or a network error means the same plus a
@@ -324,6 +342,13 @@ navigation start to the HTML being in hand. The path is the full URI of the
 saved object. `PROGRESS` is logged every 25 saved pages, and `eta` is
 `frontier x effective minimum interval / --concurrency-limit`.
 
+Two warnings say out loud when a run is narrower than its name suggests. A
+`FOLDER` line when the host that answers is not the host `--url` named: the
+folder name is kept as typed, so the run id stays stable, and `crawl.json`
+records `resolved_seed_url` and `catalog_folder_matches_resolved_host`. A
+`SCOPE` line when `--url` has a path, because the crawl then covers that
+section of the catalog and nothing above it.
+
 Skips that are ordinary scope decisions (`out_of_scope`, `duplicate`,
 `extension`, `include_rule`, `exclude_rule`, `scheme`) log at DEBUG, because
 on a real catalog they outnumber the GET lines many times over. The
@@ -335,9 +360,16 @@ surprises (`robots`, `non_html`, `redirect_out_of_scope`) stay at INFO. Set
 #### Resume
 
 Rerun with the same `--url` and the same `--run-id`. `state.json` carries
-the frontier, the seen set, and the failed URLs; `state.json`, `failed.jsonl`
-and `crawl.json` are rewritten every 25 saved pages, on Ctrl+C, when the run
-gives up, and at the end.
+the frontier, the seen set, the failed URLs, and the strategy that fetched
+them. `state.json`, `failed.jsonl` and `crawl.json` are written once at
+startup before the first GET, again after the first saved page, then every
+25 saved pages, on Ctrl+C, when the run gives up, and at the end. A run that
+is killed outright still leaves a manifest saying what it was and that it
+did not finish.
+
+A resume may not change the backend: a rerun with a different
+`--with-<strategy>` stops with an error naming both, because one run folder
+must not mix rendered sources.
 
 A frontier URL whose `.html` is already in storage is not fetched again: its
 HTML is read back and its links are still followed, so a resume re-checks
@@ -376,28 +408,146 @@ be found by looking at the first ten.
 | --- | --- | --- |
 | `--catalog-id` | required | The catalog folder the crawl wrote. |
 | `--run-id` | required | The crawl run to read. |
+| `--stem` | none | Repeatable. Read only this saved page, by the stem the crawl wrote it under. |
 | `--sample-label` | `Course` | Which label the golden sample is drawn from. |
 | `--sample-size` | `30` | How many pages the sample should reach. |
+
+`--stem` answers the one question the whole run cannot be read to answer
+quickly: why is *this* page labelled that way. The same reports are written,
+and `summary.json` carries `whole_run: false` and the stems asked for,
+because every share, every rare marker and every special pattern in them is
+then counted over those pages alone. A stem the run never saved is an error
+rather than a report about nothing.
+
+```bash
+xtra catalog discover --catalog-id catalog-atlanticcape-edu   --run-id 2026-09-18T08:25:01Z --stem catalog-atlantic-edu-biology-21d07fde95
+```
+
+The stem is the `stem` field of the page's `.meta.json`, and `html_path`
+there is the whole path to the page it describes.
 
 Text is normalized in memory with the same normalizer the extractors use.
 No normalized file is written; only its SHA-256 is kept, which is what
 identifies two copies of one page.
 
-Every regex, keyword list, and threshold lives in one module,
-`src/implementations/discover_rules.py`. When a page is labelled wrong the
-fix is a rule there, plus a fixture in `tests/fixtures/html` that proves it.
+Every regex, keyword list, threshold, and markup selector lives in one
+module, `src/implementations/discover_rules.py`. When a page is labelled
+wrong the fix is a rule there, plus a fixture in `tests/fixtures/html` that
+proves it.
+
+Two readings of each page use those rules. `discover_dom.py` parses the
+markup as a tree with BeautifulSoup, over lxml where it is installed, and
+reports what the publisher marked up: the page's own content with the
+menus dropped, the elements that are course descriptions, the tables that
+are requirement lists, and any machine-readable declaration of what the
+page is. `discover_page.py` reads the flattened text for everything a
+sentence says. Where the two overlap the markup is believed first, because
+a page that marks its course descriptions up has said where they are; the
+prose rules are what answer for the many catalogs that mark up nothing.
+
+What only the tree can say:
+
+| Signal | Where it comes from | What it settles |
+| --- | --- | --- |
+| Course description block | `courseblock`, `course-description`, `node--type-class`, and the like | This run of text describes one course, whether or not a credits value is printed anywhere near it |
+| Requirement list | `sc_courselist`, `program-requirements`, `plangrid`, and any course table with an hours column | These course codes are references to courses described elsewhere, and the page printing them is a program |
+| Course reference | `a.bubblelink.code`, `td.codecol` | A cross-listed course named inside a description is not a second course on the page |
+| Declared type | JSON-LD `@type`, microdata `itemtype` | The publisher's own answer, in the one form on the page that was not written to be read as prose |
+| CMS page type | `node--type-*`, `post-type-*` on the rendered node | Reported and used for grouping only. The taxonomy is the college's own, so `degree` on one site is a credential and on the next is the department that grants it |
 
 #### What a page gets labelled
 
-| Label | Fires when |
-| --- | --- |
-| `Course` | at least one course block, with the code in the title, the `h1`, or the first 300 visible characters; or two or more course blocks |
-| `LearningOpportunity` | two or more different program terms, or a URL template containing `program`, `degree`, `certificate`, `major`, or `preview_program` |
-| `Competency` | an outcomes, objectives, or competencies heading followed by two or more list items |
+Four labels, one per entity `lib/mapping.py` can write CTDL for. They are
+tried in this order, and the first three are exclusive: a page has one
+subject, and only a competency list rides along with it.
 
-A course block is a course code with a credits, units, or hours value within
-400 characters of it. A code on its own is a cross-reference; a code with a
-value is the course being described.
+| Label | CTDL class | Fires when |
+| --- | --- | --- |
+| `Course` | `ceterms:Course` | at least one course block, with the code in the title, the `h1`, or the heading lines of the page's own content; or one or more course descriptions the platform marked up, on a page that is not printing its own requirements; or two or more course blocks on such a page; or three or more course codes under a `/courses/` path |
+| `Credential` | `ceterms:Credential` | the page's name names one award; or the page prints its own requirements and names the award beside its name, in a section heading, after "Degrees Conferred", or in its first paragraph; failing both, a program or award URL segment plus an award the page names, then the URL segment alone |
+| `LearningOpportunity` | `ceterms:LearningProgram` | the page prints its own requirements and names no award (a minor, a pre-professional track, a non-credit program, a "Program (not a degree)"); or a program URL segment such as `/programs/…`, `/majors/…`, `/programs-by-program/…`, or `preview_program.php` and nothing else |
+| `Competency` | `ceasn:Competency` | a lead-in that names or introduces learning outcomes ("Student Learning Outcomes", "Upon completion of this program students will be able to:") followed directly by two or more outcomes, in list items or as lines that open with an action verb or "An ability to" |
+
+A course block is an element the platform marked up as a course
+description, when the page marks any. Otherwise it is a course code with a
+credits, units, or hours value within 400 characters of it: a code on its
+own is a cross-reference; a code with a value is the course being
+described. Codes inside a requirement list or a course-reference link are
+never counted, however they are printed.
+
+Before the tree reading, a whole catalog could be missed on the printed
+form alone. A CourseLeaf graduate subject page numbers its courses with
+five digits (`ASTR 50303`), which the course-code rule did not match, and
+prints its credits inside the description rather than in a field; 104 of
+the 303 course listings at the University of Arkansas held no course code
+at all and none of them could be a `Course` page.
+
+`Credential` and `LearningOpportunity` are the same page shape told apart by
+one thing: whether the page names the award it leads to. The award is what
+gets published, so a program page that names one is a credential page and a
+program page that names none is a learning opportunity.
+
+Both are read from the page's own content. Menus, sidebars, footers, the
+site banner (`nav`, `aside`, `footer`, and their ARIA roles) and the
+furniture a site names rather than marks up (breadcrumbs, skip links, nav
+bars) are dropped first, and the text inside the page's main container is
+used when it has one, because every page of a catalog links to "Degrees &
+Certificates" and "Degree Requirements". The main container is `<main>` or
+`role="main"`, or failing those the ids and classes the platforms use
+instead (Coursedog's `id="main-content"`, Drupal's `region-content`).
+
+The page's own name is its `h1` inside that container, or the first one
+outside the menus, and never one from the menus: Coursedog prints the
+college's name as the only `<h1>` on every page, inside the sidebar, which
+named all 62 pages of one catalog after the college.
+
+What is left has to show both of these:
+
+- **It prints a program's requirements**: a requirement list the platform
+  marked up, a credit total with its number (`Total Credits 60`), a
+  requirements heading over a list of courses, a term-by-term plan, or a
+  `Degrees Conferred:` line with an award after it. Prose that mentions
+  "degree requirements" or "Fall semester" is not enough, and neither is
+  any other table of course codes: a requirement list says what each of
+  its courses is worth, and a transfer equivalency table is two columns of
+  codes and nothing else.
+- **Where it names the award**: its name (`Accounting (A.A.S.)`), the badge
+  beside the name (Clean Catalog's `Associate in Science`), a section
+  heading (CourseLeaf's `Requirements for B.S. in Chemical Engineering`),
+  the `Degrees Conferred:` line, or its first paragraph (`This degree...`).
+  A badge is a line that is nothing but an award; CourseLeaf prints its
+  contacts in the same place, and `Ph.D. Program Director` or `504 J.B. Hunt
+  Building` names no award of the program's.
+
+A name that lists (`Degrees and Certificates`, `Graduate Certificates`),
+states a rule (`Graduation Requirements`), or is only an award type
+(`Associate in Applied Science`) names no credential, and neither does a
+college's or school's own page unless it prints the requirements of one
+named award, and only one — a school offering four degrees is nobody's
+credential page.
+
+A URL segment counts whole and with a page under it, or by its words when
+it is a phrase and one of them is a section noun in the **plural**:
+`programs-by-program` and `academic-programs` are sections holding many,
+and `academic-english-language-program` is one programme's own folder with
+its course pages underneath. `/honors-program` is not a program and
+`/programs` is the list of them.
+
+The first paragraph is the page's own prose, not the contact block a
+bulletin opens with. A line naming a role *and* carrying a telephone
+number or an email address is how to reach someone — "Dr. David Welky,
+Chair, Department of History, Irby 105B, (501) 450-5624" — and reading it
+as the first paragraph both described a minor with telephone numbers and
+hid the sentence below it that said which award the page was about.
+
+`Competency` rides along with any of the others: a program page that lists
+what its students will be able to do is `Credential` and `Competency`, so
+its `page_type` is `Multiple`. The outcomes are read from the page's own
+lines, whatever element holds them, and they have to be about the learner:
+a course titled "Psychotherapy Outcomes", a college's "Mission and
+Objectives", a program's "objectives are to: provide...", admission
+technical standards, and the ABET program educational objectives are not
+competency lists.
 
 `page_type` is the label when exactly one fired, `Multiple` when several did,
 and `Unknown` when none did. `rules_fired` keeps the evidence for each.
@@ -407,7 +557,8 @@ and `Unknown` when none did. `rules_fired` keeps the evidence for each.
 `lecture_lab_credit_numbers`, `lab_clinical_field_study_hours`,
 `printed_zero_hours`, `ceu`, `prerequisite`, `corequisite`,
 `prerequisite_corequisite_combined`, `recommended`, `learning_outcomes`,
-`program_markers`, `tabs_present`, `archived`, `catalog_year`,
+`program_markers`, `credential_award`, `course_requirement_list`,
+`published_as`, `tabs_present`, `archived`, `catalog_year`,
 `policy_or_definition_page`, `multi_course_page`, `empty_or_error_page`.
 
 Each one is stored with a quote of up to 80 characters showing why it fired,
@@ -469,6 +620,18 @@ The discovery run id is the UTC start time. A discovery run is never
 overwritten, so two runs sit side by side and a rule change can be compared
 against what it replaced.
 
+`summary.json` carries a `crawl` block read from the run's `crawl.json`: the
+strategy, the seed URL and the URL it resolved to, the effective minimum
+interval, the crawl status, and how many pages it saved. `patterns.md`
+repeats it at the top, under **Where these pages came from**. When
+`crawl.json` is missing the fields are null and both files say so, because a
+report that cannot name its crawl should not look as if it can.
+
+Discovery exits non-zero when the golden sample is empty, after writing every
+report, and names the label it looked for and the page types it found
+instead. When the population is smaller than `--sample-size` it warns with
+both numbers and takes the whole population.
+
 ### Extract and transform
 
 Same `--with-<strategy>` pattern:
@@ -483,25 +646,61 @@ xtra catalog transform --with-ctdl \
   --catalog-id catalog-brookdalecc-edu --run-id 2026-09-17T14:20:01Z
 ```
 
-`--with-template` is the current deterministic CMS extractors (Clean Catalog,
-Coursedog, Acalog). `--with-ctdl` maps printed labels to CTDL JSON-LD and
-never writes a CTID. `--with-ai-agent` is reserved on both verbs.
+`--with-template` is the deterministic reading: the CMS extractors (Clean
+Catalog, Coursedog, Acalog) and, for what they do not match, the page's own
+markup. `--with-ctdl` maps printed labels to CTDL JSON-LD and never writes a
+CTID. `--with-ai-agent` is reserved on both verbs. No LLM reads a page at
+either stage.
 
-Extract works from the list discovery produced rather than guessing which
-saved pages are courses. It reads `labels.json` from the newest discovery run
-of the crawl run, or from `--discovery-run-id` when you name one, and
-processes the pages labelled `Course` that hold exactly one course block.
+Extract works from the list discovery produced rather than guessing what a
+saved page is. It reads `labels.json` from the newest discovery run of the
+crawl run, or from `--discovery-run-id` when you name one, and processes
+every page discovery gave an entity to.
+
+| Label | Record | CTDL class |
+| --- | --- | --- |
+| `Course` | one course, when the page holds exactly one course block | `ceterms:Course` |
+| `Credential` | the award the page grants | `ceterms:Credential` |
+| `LearningOpportunity` | the programme of instruction | `ceterms:LearningProgram` |
+| `Competency` | one competency per outcome the page lists | `ceasn:Competency` |
+
+A page that is two of those is two records. Every program page at Atlantic
+Cape prints both the credential and the list of what its students will be
+able to do, and a single record has nowhere to put the second; the page's own
+id belongs to what it is mainly about, and the other gets `{stem}--{entity}`.
+
+#### Two readings, in order
+
+A course page goes to the college templates in `lib/templates` first. They
+are the verified path and they have fixtures behind them, so where one
+matches it is the answer.
+
+Everything else is read from the markup by
+`src/implementations/extract_dom.py`, which is the same tree reading
+discovery uses. Every catalog platform marks a field up, names its label and
+names its value beside it — Drupal writes `field__label` and `field__item`,
+Coursedog writes `field-label` and `field-value`, CourseLeaf prints a course
+block whose title line carries the code, the name and the credits together,
+and the rest of the web writes a definition list or a table row. Reading
+those needs no rule per college, and it is the only way the three entities
+beside `Course` are read at all: the templates are course templates, and a
+credential page has no course block for them to find.
+
+Each field records the element it came from, so a reviewer can go and look.
+A page that prints too little to be a record — one field, which every page
+has, because every page has a name — is skipped rather than written as an
+empty record that looks extracted.
 
 | Flag | What it does |
 | --- | --- |
 | `--discovery-run-id` | Read this discovery run instead of the newest. |
 | `--only-golden-sample` | Extract only the pages in `golden-sample-course.json`, for review. |
 
-A page that matches no known template, and a page holding several courses,
-are skipped and recorded in `{catalog-folder}/{run-id}/extract-report.json`
-with the reason. That file sits **beside** `records/` and never inside it,
-because transform reads every JSON file under `records/` and would treat a
-report as a course.
+A page holding several courses, a page holding several credentials, and a
+page nothing could read are skipped and recorded in
+`{catalog-folder}/{run-id}/extract-report.json` with the reason. That file
+sits **beside** `records/` and never inside it, because transform reads every
+JSON file under `records/` and would treat a report as a course.
 
 Pages are read by the stem discovery lists, which is the stem the crawler
 saved them under. The `Slot.stem` property in `lib/` still slugs the URL the
@@ -552,6 +751,8 @@ file:///absolute/path
 ./relative-path
 ```
 
+The container URL the Azure portal shows, `https://account.blob.core.windows.net/container/prefix`, is read as the `azure://https://` form above.
+
 Pass `--azure-storage-connection-string` or set `AZURE_STORAGE_CONNECTION_STRING`. Production reads and writes Azure Blob containers. Tests use `file://` plus mocked Blob clients; set the connection string to `UseDevelopmentStorage=true` to exercise Azurite (`pytest -m integration`).
 
 
@@ -564,6 +765,31 @@ python3 -m pytest tests -q
 ```
 
 Network is not required. Playwright harvest is monkeypatched. Azurite tests are marked `integration` and skip unless `AZURE_STORAGE_CONNECTION_STRING` is set.
+
+CI runs these checks, and fails when coverage of `src/` drops under 80 percent:
+
+```bash
+python3 -m pip install -e ".[dev,azure]"
+ruff check .
+ruff format . --check
+pytest -m "not integration" --cov=src --cov-report=term-missing --cov-report=html --cov-fail-under=80
+```
+
+The report lands in `htmlcov/index.html`. Without the `azure` extra the Blob tests skip. The workflows are described in [`CI-CD.md`](../CI-CD.md#xtra-cli).
+
+## Docker
+
+```bash
+docker build -t xtra-cli .
+docker run --rm xtra-cli --version
+docker run --rm -e AZURE_STORAGE_CONNECTION_STRING xtra-cli catalog crawl \
+  --with-playwright --url https://catalog.brookdalecc.edu --limit 5 \
+  --target-uri azure://https://ACCOUNT.blob.core.windows.net/xtra
+```
+
+The entrypoint is `xtra`. The image carries Chrome, Playwright's chromium, and the `azure` extra, but not `crawl4ai`. It runs as uid 1001 in `/data`, so a relative `--target-uri ./xtra-cache` lands in a volume mounted there. An environment saved with `xtra environment set` lives only as long as the container unless `/home/xtra/.xtra` is mounted, so prefer `--target-uri`.
+
+The CLI is installed editable from the source tree on purpose: `lib/` is not a package, so a wheel cannot import the extractors. On arm64 build with `--build-arg PLAYWRIGHT_BROWSERS=chromium`, because Google ships Chrome for amd64 only.
 
 ## Non-goals
 

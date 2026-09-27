@@ -103,6 +103,26 @@ ECR repositories written to:
 
 ---
 
+## xtra-cli
+
+The Python CLI in `xtra-cli/` has three workflows of its own, ported from the ceops pipelines in `ce-registry`.
+
+| Workflow | Trigger | What it does |
+|----------|---------|-------------|
+| CI - xtra-cli (`ci-xtra-cli.yml`) | PR to `main` touching `xtra-cli/**` | `ruff check`, `ruff format --check`, unit tests with coverage of `src/` (fails under 80%); the HTML report is uploaded as `xtra-cli-coverage-html` |
+| CI - Semgrep (`ci-semgrep.yml`) | Every PR to `main` | Semgrep scan of the whole repository with `p/secrets`, `p/security-audit`, `p/python`, `p/kubernetes`, and `p/terraform`. Findings are reported; the job fails only if Semgrep itself errors |
+| Release - xtra-cli (`release-xtra-cli.yml`) | Push to `main` touching `xtra-cli/**`; PRs touching the workflow or `xtra-cli/Dockerfile`; manual | The same checks, then stamps `yyyy.mm.dd.<run>` into `pyproject.toml` and `src/xtra/_generated_version.py` and builds `xtra-cli/Dockerfile`. Only a manual run pushes the image and creates the `xtra-cli-<version>` GitHub release |
+
+A manual release pushes two tags to TEST ECR:
+- `ctdl-xtra-test/cli:xtra-cli-<yyyy.mm.dd.run>`, immutable
+- `ctdl-xtra-test/cli:xtra-cli-latest`, floating
+
+The `ctdl-xtra-test/cli` repository has to exist before the first manual release: add `"cli"` to the `for_each` set in `infra/terraform/envs/test/app-deps.tf` and apply. The CI role can already push to `ctdl-xtra-test/*`.
+
+No wheel is attached to the release. `lib/` is not a Python package, so a wheel cannot import the extractors; the image installs the CLI editable from the source tree instead.
+
+---
+
 ## Deployment Model
 
 Manifests in `infra/terraform/k8s-manifests/{test,sandbox,production}/app/` are **templates**, not state snapshots. The image reference is left as a placeholder:
