@@ -16,7 +16,7 @@ FAMILY = "acalog"
 
 
 _BERGEN_HEAD = re.compile(
-    r"^([A-Z]{2,4}-\d{3}) (.+?)(\d+(?:\.\d+)?) Credit\(s\)$", re.M
+    r"^([A-Z]{2,4}-\d{3}) (.+?)(\d+(?:\.\d+)?) Credit\(s\)$", re.MULTILINE
 )
 
 _RARITAN_TITLE = re.compile(r"^([A-Z]{2,5} \d{3})\xa0-\xa0(.+)$")
@@ -29,23 +29,23 @@ _RARITAN_INLINE_HOURS = re.compile(
 
 _HCC_HEAD_GLUED = re.compile(
     r"^([A-Z]{2,5} \d{4})\xa0-\xa0(.+?) Credits: (\d+(?:\.\d+)?)$",
-    re.M,
+    re.MULTILINE,
 )
-_HCC_HEAD = re.compile(r"^([A-Z]{2,5} \d{4})\xa0-\xa0(.+)$", re.M)
-_HCC_CREDITS_LINE = re.compile(r"^Credits: (\d+(?:\.\d+)?)$", re.M)
-_HCC_LECTURE = re.compile(r"^Lecture: (\d+(?:\.\d+)?)$", re.M)
-_HCC_LAB = re.compile(r"^Lab: (\d+(?:\.\d+)?)$", re.M)
-_HCC_CEU = re.compile(r"^(\d+(?:\.\d+)?) CEUs$", re.M)
-_HCC_PREREQ = re.compile(r"^Prerequisite\(s\): (.+)$", re.M)
+_HCC_HEAD = re.compile(r"^([A-Z]{2,5} \d{4})\xa0-\xa0(.+)$", re.MULTILINE)
+_HCC_CREDITS_LINE = re.compile(r"^Credits: (\d+(?:\.\d+)?)$", re.MULTILINE)
+_HCC_LECTURE = re.compile(r"^Lecture: (\d+(?:\.\d+)?)$", re.MULTILINE)
+_HCC_LAB = re.compile(r"^Lab: (\d+(?:\.\d+)?)$", re.MULTILINE)
+_HCC_CEU = re.compile(r"^(\d+(?:\.\d+)?) CEUs$", re.MULTILINE)
+_HCC_PREREQ = re.compile(r"^Prerequisite\(s\): (.+)$", re.MULTILINE)
 _UNITS_HEAD = re.compile(
     r"^([A-Z]{1,6} \d{1,4})\xa0-\xa0(.+?)(\d+(?:\.\d+)?) units?$",
-    re.M,
+    re.MULTILINE,
 )
 _LECTURE_LAB = re.compile(
     r"^(\d+(?:\.\d+)?) hours? lecture(?:, (\d+(?:\.\d+)?) hours? lab)?$",
-    re.M,
+    re.MULTILINE,
 )
-_LAB_ONLY = re.compile(r"^(\d+(?:\.\d+)?) hours? lab$", re.M)
+_LAB_ONLY = re.compile(r"^(\d+(?:\.\d+)?) hours? lab$", re.MULTILINE)
 
 
 def detect(text: str) -> str | None:
@@ -354,7 +354,7 @@ def extract_bergen(text: str) -> list[FieldDraft]:
         ("Lab Hour(s)", "course_lab_hours"),
         ("Lecture Hour(s)", "course_lecture_hours"),
     ):
-        pat = re.compile(rf"^(\d+(?:\.\d+)?) {re.escape(label)}$", re.M)
+        pat = re.compile(rf"^(\d+(?:\.\d+)?) {re.escape(label)}$", re.MULTILINE)
         hm = pat.search(text)
         if hm:
             _add(
@@ -368,14 +368,8 @@ def extract_bergen(text: str) -> list[FieldDraft]:
             )
     desc = None
     for nxt in lines[hi + 1 :]:
-        if (
-            nxt.startswith("This ")
-            or nxt.startswith("The ")
-            or (
-                len(nxt) > 60
-                and "Hour(s)" not in nxt
-                and "Credit(s)" not in nxt
-            )
+        if nxt.startswith(("This ", "The ")) or (
+            len(nxt) > 60 and "Hour(s)" not in nxt and "Credit(s)" not in nxt
         ):
             desc = nxt
             break
@@ -526,10 +520,8 @@ def extract_raritan(text: str) -> list[FieldDraft]:
         )
     desc = None
     for ln in lines[start + 1 :]:
-        if (
-            ln.startswith("This ")
-            or ln.startswith("English Composition I is")
-            or ln.startswith("Introduction to")
+        if ln.startswith(
+            ("This ", "English Composition I is", "Introduction to")
         ):
             desc = ln
             break

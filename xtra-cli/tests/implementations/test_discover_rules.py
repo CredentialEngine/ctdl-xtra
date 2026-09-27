@@ -333,12 +333,18 @@ def test_a_term_sequence_alone_does_not_make_a_page_a_program() -> None:
         # The sentence that introduces it.
         "Upon completion of this program students will be able to:",
         "Upon completion of the program, graduates will be able to:",
-        "Completion of the degree requirements provides graduates with the "
-        "following learning outcomes:",
-        "The faculty has adopted the following learning outcomes for our J.D. "
-        "program:",
-        "All programs leading to an associate degree include the following "
-        "competencies:",
+        (
+            "Completion of the degree requirements provides graduates with the "
+            "following learning outcomes:"
+        ),
+        (
+            "The faculty has adopted the following learning outcomes for our J.D. "
+            "program:"
+        ),
+        (
+            "All programs leading to an associate degree include the following "
+            "competencies:"
+        ),
     ],
 )
 def test_a_competency_list_is_led_in_the_ways_catalogs_print(line: str) -> None:
@@ -361,8 +367,10 @@ def test_a_competency_list_is_led_in_the_ways_catalogs_print(line: str) -> None:
         "The main objectives of the center are to:",
         # Rules and standards.
         "Objectives and Regulations",
-        "The following abilities and expectations must be met by all students "
-        "admitted to the program:",
+        (
+            "The following abilities and expectations must be met by all students "
+            "admitted to the program:"
+        ),
         # A mention, not a lead-in.
         "Students will be able to",
         "Upon successful completion",
@@ -794,9 +802,11 @@ def test_a_credit_total_is_a_line_not_a_clause() -> None:
     assert (
         total_credits_line(
             [
-                "FILM 4V70 Advanced Film Production 3 Credits. Individual "
-                "projects. Prerequisites: FILM 2310 and 45 total credit "
-                "hours completed."
+                (
+                    "FILM 4V70 Advanced Film Production 3 Credits. Individual "
+                    "projects. Prerequisites: FILM 2310 and 45 total credit "
+                    "hours completed."
+                )
             ]
         )
         == ""
@@ -810,8 +820,10 @@ def test_a_structure_term_counts_only_where_a_heading_could_be() -> None:
     assert (
         program_structure_terms(
             [
-                "Students who transfer must have completed the degree "
-                "requirements of the sending institution before applying."
+                (
+                    "Students who transfer must have completed the degree "
+                    "requirements of the sending institution before applying."
+                )
             ]
         )
         == []

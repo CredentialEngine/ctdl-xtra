@@ -244,6 +244,7 @@ def fetch_missing() -> list[dict]:
     if not missing:
         return []
     try:
+        from playwright.sync_api import Error as PlaywrightError
         from playwright.sync_api import TimeoutError as PlaywrightTimeout
         from playwright.sync_api import sync_playwright
     except ImportError as exc:
@@ -256,7 +257,7 @@ def fetch_missing() -> list[dict]:
     with sync_playwright() as p:
         try:
             browser = p.chromium.launch(headless=True, channel="chrome")
-        except Exception:
+        except PlaywrightError:
             browser = p.chromium.launch(headless=True)
         context = browser.new_context(
             viewport={"width": 1400, "height": 1800},

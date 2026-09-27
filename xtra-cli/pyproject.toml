@@ -79,6 +79,7 @@ ignore = ["E501"]
 # load_engine() has to put lib/ on sys.path before the bare-name imports.
 "src/implementations/extract.py" = ["E402"]
 "src/implementations/transform.py" = ["E402"]
+"lib/union_fields.py" = ["E402"]
 # pytest.importorskip() has to run before the module that needs the SDK.
 "tests/common/test_azure_storage_provider.py" = ["E402"]
 "tests/common/test_azure_storage_writer.py" = ["E402"]

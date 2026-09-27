@@ -21,8 +21,8 @@ def detect(text: str) -> str | None:
     if "Course Long Title" in text or "(Credit Hours) Min" in text:
         return "coursedog_rcbc_course_detail"
     if (
-        re.search(r"^Subject Code$", text, re.M)
-        and re.search(r"^Course Number$", text, re.M)
+        re.search(r"^Subject Code$", text, re.MULTILINE)
+        and re.search(r"^Course Number$", text, re.MULTILINE)
         and "Course Description" in text
     ):
         return "coursedog_mccc_course_detail"
@@ -362,9 +362,7 @@ def _mccc_this_course_requirement(
             continue
         if ln.strip() in {"Course Requirements", "Courses", "Collapse All"}:
             continue
-        if ln.startswith("Earn a minimum") or ln.startswith(
-            "Enroll in the following"
-        ):
+        if ln.startswith(("Earn a minimum", "Enroll in the following")):
             header = ln
             continue
         if re.match(r"^[A-Z]{2,6}\d{3} - ", ln):

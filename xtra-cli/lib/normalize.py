@@ -5,12 +5,20 @@ from __future__ import annotations
 import hashlib
 import re
 from html.parser import HTMLParser
+from typing import ClassVar
 
 from html_text import SCRIPT_STYLE
 
 
 class _VisibleText(HTMLParser):
-    SKIP = {"script", "style", "noscript", "svg", "head", "iframe"}
+    SKIP: ClassVar[set[str]] = {
+        "script",
+        "style",
+        "noscript",
+        "svg",
+        "head",
+        "iframe",
+    }
 
     def __init__(self) -> None:
         super().__init__(convert_charrefs=True)

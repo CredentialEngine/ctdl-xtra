@@ -40,7 +40,7 @@ class LocalStorageWriter:
                 key = futures[future]
                 try:
                     uploaded_keys.append(future.result())
-                except Exception as exc:
+                except Exception as exc:  # noqa: BLE001 - one key's failure is recorded, not raised
                     errors.append(f"{key}: {exc}")
         return uploaded_keys
 
@@ -74,7 +74,7 @@ class LocalStorageWriter:
                 key = futures[future]
                 try:
                     deleted_keys.append(future.result())
-                except Exception as exc:
+                except Exception as exc:  # noqa: BLE001 - one key's failure is recorded, not raised
                     errors.append(f"{key}: {exc}")
         return deleted_keys
 

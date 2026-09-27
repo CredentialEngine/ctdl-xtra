@@ -6,7 +6,7 @@ import re
 from urllib.parse import parse_qs, urljoin, urlparse, urlunparse
 
 CLEAN_COURSE_PATH = re.compile(
-    r"^/([a-z0-9-]+)/([a-z]{2,6}\d{2,4}[a-z]?)/?$", re.I
+    r"^/([a-z0-9-]+)/([a-z]{2,6}\d{2,4}[a-z]?)/?$", re.IGNORECASE
 )
 # Catalog codes like ENGL121 / ENG101. Not Coursedog document ids (LJdUL84T, JDbDH653).
 COURSEDOG_COURSE_CODE = re.compile(
@@ -17,16 +17,15 @@ COURSEDOG_COURSE_PATH = re.compile(
 )
 ACALOG_COURSE = re.compile(
     r"preview_course(?:_nopop)?\.php\?[^'\"\s<>]*catoid=\d+[^'\"\s<>]*coid=\d+",
-    re.I,
+    re.IGNORECASE,
 )
 
 
 def college_slug(url: str) -> str:
     host = (urlparse(url).hostname or "catalog").lower()
     for prefix in ("catalog.", "www.", "coursecatalog.", "bulletin."):
-        if host.startswith(prefix):
-            host = host[len(prefix) :]
-    if host.endswith(".edu") or host.endswith(".org"):
+        host = host.removeprefix(prefix)
+    if host.endswith((".edu", ".org")):
         host = host[:-4]
     slug = re.sub(r"[^a-z0-9]+", "-", host).strip("-")
     return slug or "college"
@@ -126,18 +125,22 @@ def page_id_for(record_id: str) -> str:
 
 
 def institution_from_html(html: str, fallback: str) -> str:
-    m = re.search(r'property="og:site_name"\s+content="([^"]+)"', html, re.I)
-    if m:
-        return _clean_inst(m.group(1))
     m = re.search(
-        r'<meta[^>]+name="og:site_name"[^>]+content="([^"]+)"', html, re.I
+        r'property="og:site_name"\s+content="([^"]+)"', html, re.IGNORECASE
     )
     if m:
         return _clean_inst(m.group(1))
-    m = re.search(r"<title>([^<]+)</title>", html, re.I)
+    m = re.search(
+        r'<meta[^>]+name="og:site_name"[^>]+content="([^"]+)"',
+        html,
+        re.IGNORECASE,
+    )
+    if m:
+        return _clean_inst(m.group(1))
+    m = re.search(r"<title>([^<]+)</title>", html, re.IGNORECASE)
     if m:
         title = re.split(r"\s+[|\-–]\s+", m.group(1).strip())[0]
-        title = re.sub(r"\s+Catalog.*$", "", title, flags=re.I).strip()
+        title = re.sub(r"\s+Catalog.*$", "", title, flags=re.IGNORECASE).strip()
         if title and title.lower() not in {"courses", "catalog", "home"}:
             return _clean_inst(title)
     return fallback

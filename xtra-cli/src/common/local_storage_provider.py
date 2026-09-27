@@ -66,7 +66,7 @@ class LocalStorageProvider:
                         content=(self.root_path / key).read_bytes(),
                     )
                 )
-            except Exception as exc:
+            except Exception as exc:  # noqa: BLE001 - one key's failure is recorded, not raised
                 errors.append(f"{key}: {exc}")
         return resources
 
@@ -89,7 +89,7 @@ class LocalStorageProvider:
             try:
                 (self.root_path / key).unlink(missing_ok=True)
                 deleted_keys.append(key)
-            except Exception as exc:
+            except Exception as exc:  # noqa: BLE001 - one key's failure is recorded, not raised
                 errors.append(f"{key}: {exc}")
         return deleted_keys
 

@@ -18,9 +18,7 @@ def _f(
         field_id=field_id,
         canonical_label=label,
         value=value,
-        raw_text=raw
-        if raw is not None
-        else (excerpt if isinstance(value, str) else excerpt),
+        raw_text=raw if raw is not None else excerpt,
         excerpt=excerpt,
         locator_strategy="text_anchor",
         locator_value=loc,

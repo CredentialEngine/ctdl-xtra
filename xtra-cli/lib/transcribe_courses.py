@@ -24,17 +24,17 @@ from templates.coursedog import extract_brookdale, extract_mccc, extract_rcbc
 from transcribe_lib import FieldDraft, TranscriptionError
 
 __all__ = [
-    "TEMPLATE",
     "FAMILY_OF",
+    "TEMPLATE",
     "detect_template",
-    "extract_course",
-    "extract_clean_catalog",
-    "extract_brookdale",
-    "extract_mccc",
-    "extract_rcbc",
     "extract_bergen",
+    "extract_brookdale",
+    "extract_clean_catalog",
+    "extract_course",
     "extract_hcc",
+    "extract_mccc",
     "extract_raritan",
+    "extract_rcbc",
     "extract_units",
 ]
 

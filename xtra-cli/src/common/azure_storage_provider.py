@@ -67,7 +67,7 @@ class AzureBlobStorageProvider:
                 blob = self.container_client.get_blob_client(key)
                 content = blob.download_blob().readall()
                 return DownloadedResource(key=key, content=content)
-            except Exception as exc:
+            except Exception as exc:  # noqa: BLE001 - one key's failure is recorded, not raised
                 errors.append(f"{key}: {exc}")
                 return None
 
@@ -104,7 +104,7 @@ class AzureBlobStorageProvider:
                 key = futures[future]
                 try:
                     deleted_keys.append(future.result())
-                except Exception as exc:
+                except Exception as exc:  # noqa: BLE001 - one key's failure is recorded, not raised
                     errors.append(f"{key}: {exc}")
         return deleted_keys
 

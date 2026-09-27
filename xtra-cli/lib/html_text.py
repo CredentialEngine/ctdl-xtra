@@ -12,7 +12,7 @@ NON_SLUG = re.compile(r"[^a-zA-Z0-9]+")
 
 SCRIPT_STYLE = re.compile(
     r"<(script|style|noscript)\b[^>]*>.*?</\1>",
-    re.I | re.S,
+    re.IGNORECASE | re.DOTALL,
 )
 
 

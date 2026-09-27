@@ -18,15 +18,15 @@ FAMILY = "custom_html"
 def detect(text: str) -> str | None:
     """Return this family's template id, or None."""
     heading = "Course Catalog Software by Clean Catalog" in text or re.search(
-        r"^[A-Z]{2,5}\d{3}:\s*$", text, re.M
+        r"^[A-Z]{2,5}\d{3}:\s*$", text, re.MULTILINE
     )
-    if heading and re.search(r"^Credits$", text, re.M):
+    if heading and re.search(r"^Credits$", text, re.MULTILINE):
         return "clean_catalog_course_detail"
     return None
 
 
 def extract_clean_catalog(text: str) -> list[FieldDraft]:
-    m = re.search(r"^([A-Z]{2,5}\d{3}):\s*$", text, re.M)
+    m = re.search(r"^([A-Z]{2,5}\d{3}):\s*$", text, re.MULTILINE)
     if not m:
         raise TranscriptionError("no CODE: heading")
     code = m.group(1)

@@ -20,9 +20,8 @@ def college_slug(url: str) -> str:
     """Hostname → folder slug. Kept here so run.py can pick --out before importing the engine."""
     host = (urlparse(url).hostname or "catalog").lower()
     for prefix in ("catalog.", "www.", "coursecatalog.", "bulletin."):
-        if host.startswith(prefix):
-            host = host[len(prefix) :]
-    if host.endswith(".edu") or host.endswith(".org"):
+        host = host.removeprefix(prefix)
+    if host.endswith((".edu", ".org")):
         host = host[:-4]
     slug = re.sub(r"[^a-z0-9]+", "-", host).strip("-")
     return slug or "college"

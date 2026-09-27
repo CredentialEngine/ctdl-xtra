@@ -393,30 +393,42 @@ def test_an_outcome_does_not_have_to_be_a_list_item() -> None:
     "html",
     [
         # A course title with the word in it, over a course description.
-        "<main><p><strong>PSYC 62103. Psychotherapy Outcomes. 3 Hours.</strong>"
-        "</p><p>Review of research on the outcomes of psychotherapy.</p>"
-        "<p><strong>PSYC 62203. Research Methods. 3 Hours.</strong></p></main>",
+        (
+            "<main><p><strong>PSYC 62103. Psychotherapy Outcomes. 3 Hours.</strong>"
+            "</p><p>Review of research on the outcomes of psychotherapy.</p>"
+            "<p><strong>PSYC 62203. Research Methods. 3 Hours.</strong></p></main>"
+        ),
         # The same title in a requirements table, with its credits.
-        "<main><table><tr><td>PSYC 62103</td><td>Psychotherapy Outcomes</td>"
-        "<td>3</td></tr><tr><td>PSYC 62203</td><td>Research Methods</td>"
-        "<td>3</td></tr></table></main>",
+        (
+            "<main><table><tr><td>PSYC 62103</td><td>Psychotherapy Outcomes</td>"
+            "<td>3</td></tr><tr><td>PSYC 62203</td><td>Research Methods</td>"
+            "<td>3</td></tr></table></main>"
+        ),
         # A college's mission, whose bullets read like outcomes.
-        "<main><h2>Mission and Objectives</h2><ul>"
-        "<li>Advance impactful research in education and health.</li>"
-        "<li>Expand service to the state through partnerships.</li></ul></main>",
+        (
+            "<main><h2>Mission and Objectives</h2><ul>"
+            "<li>Advance impactful research in education and health.</li>"
+            "<li>Expand service to the state through partnerships.</li></ul></main>"
+        ),
         # What a program does, not what its students learn.
-        "<main><p>The major objectives of the program are as follows:</p><ul>"
-        "<li>To provide a broad flexible program for public service careers</li>"
-        "<li>To prepare scholars for further graduate study</li></ul></main>",
+        (
+            "<main><p>The major objectives of the program are as follows:</p><ul>"
+            "<li>To provide a broad flexible program for public service careers</li>"
+            "<li>To prepare scholars for further graduate study</li></ul></main>"
+        ),
         # Admission standards, not outcomes.
-        "<main><p>The following abilities and expectations must be met by all "
-        "students admitted to the program:</p><ul>"
-        "<li>The mental capacity to assimilate and analyze concepts</li>"
-        "<li>Sufficient motor coordination to use equipment</li></ul></main>",
+        (
+            "<main><p>The following abilities and expectations must be met by all "
+            "students admitted to the program:</p><ul>"
+            "<li>The mental capacity to assimilate and analyze concepts</li>"
+            "<li>Sufficient motor coordination to use equipment</li></ul></main>"
+        ),
         # A general education category, followed by the courses in it.
-        "<main><h3>Technological Competency (IT) - 3 credits</h3><ul>"
-        "<li>CISM 125 Computer Concepts</li><li>CISM 130 Spreadsheets</li>"
-        "</ul></main>",
+        (
+            "<main><h3>Technological Competency (IT) - 3 credits</h3><ul>"
+            "<li>CISM 125 Computer Concepts</li><li>CISM 130 Spreadsheets</li>"
+            "</ul></main>"
+        ),
     ],
 )
 def test_a_list_that_only_mentions_outcomes_is_not_a_competency_list(

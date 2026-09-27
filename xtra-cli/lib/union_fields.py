@@ -25,7 +25,7 @@ ROOT = CLI_ROOT.parent
 if str(HERE) not in sys.path:
     sys.path.insert(0, str(HERE))
 
-from lib import _display_pack, load_url_file, resolve_pack  # noqa: E402
+from lib import _display_pack, load_url_file, resolve_pack
 
 
 def count_pack(pack: Path) -> dict:
@@ -85,7 +85,11 @@ def run_one(url: str, *, limit: int) -> dict:
         str(pack),
     ]
     proc = subprocess.run(
-        cmd, cwd=str(CLI_ROOT), capture_output=True, text=True
+        cmd,
+        cwd=str(CLI_ROOT),
+        capture_output=True,
+        text=True,
+        check=False,
     )
     row = {
         "url": url,

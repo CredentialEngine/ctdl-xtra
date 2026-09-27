@@ -26,7 +26,7 @@ from catalog import (
 from config import BROWSER_USER_AGENT
 from slots import Slot
 
-HREF = re.compile(r"""href=["']([^"'#]+)["']""", re.I)
+HREF = re.compile(r"""href=["']([^"'#]+)["']""", re.IGNORECASE)
 COURSE_CODE = COURSEDOG_COURSE_CODE
 
 # Real catalog used in docs. Fixture tests may still use catalog.example.edu.
@@ -65,7 +65,7 @@ def iter_json_codes(obj, acc: list[str]) -> None:
 def hrefs_from_html(html: str, base: str) -> list[str]:
     out = []
     for href in HREF.findall(html):
-        if href.startswith("javascript:") or href.startswith("mailto:"):
+        if href.startswith(("javascript:", "mailto:")):
             continue
         out.append(abs_url(base, href))
     return out
@@ -98,7 +98,7 @@ def acalog_listing_url(html: str, page_url: str) -> str | None:
     m = re.search(
         r'href="([^"]*content\.php\?catoid=\d+&amp;navoid=\d+)"[^>]*>\s*Courses',
         html,
-        re.I,
+        re.IGNORECASE,
     )
     if m:
         return abs_url(page_url, m.group(1).replace("&amp;", "&"))
@@ -123,7 +123,10 @@ def acalog_max_page(html: str) -> int:
         int(n)
         for n in re.findall(r"filter(?:\[|%5B)cpage(?:\]|%5D)=(\d+)", html)
     ]
-    nums += [int(n) for n in re.findall(r"Page\s+\d+\s+of\s+(\d+)", html, re.I)]
+    nums += [
+        int(n)
+        for n in re.findall(r"Page\s+\d+\s+of\s+(\d+)", html, re.IGNORECASE)
+    ]
     return max(nums) if nums else 1
 
 
@@ -221,7 +224,7 @@ def harvest_with_playwright(
     with sync_playwright() as p:
         try:
             browser = p.chromium.launch(headless=True, channel="chrome")
-        except Exception:
+        except PlaywrightError:
             browser = p.chromium.launch(headless=True)
         context = browser.new_context(
             viewport={"width": 1400, "height": 1800},
@@ -238,7 +241,9 @@ def harvest_with_playwright(
                     return
                 data = resp.json()
                 iter_json_codes(data, json_codes)
-            except Exception:
+            # A response handler that raises would stop the crawl over
+            # one unreadable body.
+            except Exception:  # noqa: BLE001
                 return
 
         page.on("response", on_response)
@@ -322,7 +327,7 @@ def harvest_with_playwright(
                         loc.first.click(timeout=2000)
                         page.wait_for_timeout(900)
                         moved = True
-                    except Exception:
+                    except PlaywrightError:
                         moved = False
                 if not moved:
                     page.mouse.wheel(0, 3500)

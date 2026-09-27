@@ -95,8 +95,7 @@ def check_xtra_course_exports(pack: Path) -> list[str]:
             continue
         if (
             Path(proof).is_absolute()
-            or proof.startswith("~")
-            or proof.startswith("/")
+            or proof.startswith(("~", "/"))
             or (len(proof) >= 2 and proof[1] == ":")
         ):
             errors.append(

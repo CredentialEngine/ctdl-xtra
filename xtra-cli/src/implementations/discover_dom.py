@@ -142,7 +142,8 @@ def parse(html: str) -> BeautifulSoup:
     for parser in _PARSERS:
         try:
             return BeautifulSoup(html or "", parser)
-        except Exception as exc:  # pragma: no cover - lxml missing or broken
+        # Any parser failure means try the next one, not give up.
+        except Exception as exc:  # noqa: BLE001  # pragma: no cover
             last = exc
     raise RuntimeError(f"no usable HTML parser: {last}")
 
