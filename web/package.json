@@ -1,0 +1,73 @@
+{
+    "devDependencies": {
+        "@types/node": "^26",
+        "@types/react": "^19",
+        "@types/react-dom": "^19",
+        "eslint": "^10.10.0",
+        "eslint-config-next": "16.3.4",
+        "jest": "^30.2.0",
+        "prettier": "^3.9.6",
+        "typescript": "6.0.3"
+    },
+    "engines": {
+        "node": ">=26.8.1",
+        "npm": ">=11.19.0"
+    },
+    "name": "web",
+    "overrides": {
+        "@opentelemetry/propagator-jaeger": ">=2.9.0",
+        "brace-expansion": "^5.0.9",
+        "js-yaml": "^4.2.1",
+        "minimatch": "^10.0.0",
+        "postcss": "^8.5.25",
+        "sharp": "^0.35.3",
+        "shell-quote": "^1.8.5",
+        "typescript": "6.0.3",
+        "uuid": "^14.0.0"
+    },
+    "packageManager": "npm@11.19.0",
+    "private": true,
+    "scripts": {
+        "build": "npm run build:xtra",
+        "build:app-insights": "npm run build --workspace=@credentialengine/app-insights",
+        "build:auth": "npm run build --workspace=@credentialengine/auth",
+        "build:components": "npm run build:redis-client && npm run build:auth && npm run build:app-insights && npm run build:telemetry",
+        "build:redis-client": "npm run build --workspace=@credentialengine/redis-client",
+        "build:telemetry": "npm run build --workspace=@credentialengine/telemetry",
+        "build:xtra": "npm run build --workspace=xtra",
+        "check": "npm run prettier:check && npm run lint && npm run typecheck && npm run test",
+        "dev:xtra": "npm run dev --workspace=xtra",
+        "format": "npm run prettier",
+        "format:check": "npm run prettier:check",
+        "lint": "eslint .",
+        "lint:app-insights": "npm run lint --workspace=@credentialengine/app-insights",
+        "lint:auth": "npm run lint --workspace=@credentialengine/auth",
+        "lint:fix": "eslint . --fix",
+        "lint:redis-client": "npm run lint --workspace=@credentialengine/redis-client",
+        "lint:telemetry": "npm run lint --workspace=@credentialengine/telemetry",
+        "lint:xtra": "npm run lint --workspace=xtra",
+        "prettier": "prettier --write .",
+        "prettier:app-insights": "npm run prettier --workspace=@credentialengine/app-insights",
+        "prettier:auth": "npm run prettier --workspace=@credentialengine/auth",
+        "prettier:check": "prettier --check .",
+        "prettier:redis-client": "npm run prettier --workspace=@credentialengine/redis-client",
+        "prettier:telemetry": "npm run prettier --workspace=@credentialengine/telemetry",
+        "prettier:xtra": "npm run prettier --workspace=xtra",
+        "test": "npm run test:redis-client && npm run test:auth && npm run test:app-insights && npm run test:telemetry && npm run test:xtra",
+        "test:app-insights": "npm run test --workspace=@credentialengine/app-insights",
+        "test:auth": "npm run test --workspace=@credentialengine/auth",
+        "test:redis-client": "npm run test --workspace=@credentialengine/redis-client",
+        "test:telemetry": "npm run test --workspace=@credentialengine/telemetry",
+        "test:xtra": "npm run test --workspace=xtra",
+        "typecheck": "npm run build:components && npm run typecheck:xtra",
+        "typecheck:app-insights": "npm run typecheck --workspace=@credentialengine/app-insights",
+        "typecheck:auth": "npm run typecheck --workspace=@credentialengine/auth",
+        "typecheck:redis-client": "npm run typecheck --workspace=@credentialengine/redis-client",
+        "typecheck:telemetry": "npm run typecheck --workspace=@credentialengine/telemetry",
+        "typecheck:xtra": "npm run typecheck --workspace=xtra"
+    },
+    "workspaces": [
+        "components/*",
+        "xtra"
+    ]
+}

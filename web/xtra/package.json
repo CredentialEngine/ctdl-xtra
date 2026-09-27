@@ -1,0 +1,49 @@
+{
+    "dependencies": {
+        "@credentialengine/app-insights": "*",
+        "@credentialengine/auth": "*",
+        "@credentialengine/telemetry": "*",
+        "@emotion/cache": "^11.14.0",
+        "@emotion/react": "^11.14.0",
+        "@emotion/styled": "^11.14.1",
+        "@mui/icons-material": "^9.1.1",
+        "@mui/material": "^9.1.1",
+        "antd": "6.6.4",
+        "next": "^16.3.3",
+        "next-auth": "4.24.15",
+        "react": "19.2.7",
+        "react-dom": "19.2.7"
+    },
+    "devDependencies": {
+        "@types/node": "^26",
+        "@types/react": "^19",
+        "@types/react-dom": "^19",
+        "autoprefixer": "^10.4.19",
+        "eslint": "10.10.0",
+        "eslint-config-next": "16.3.3",
+        "postcss": "^8.4.38",
+        "prettier": "^3.8.4",
+        "tailwindcss": "^3.4.3",
+        "typescript": "6.0.3"
+    },
+    "name": "xtra",
+    "private": true,
+    "scripts": {
+        "build": "next build",
+        "check": "npm run prettier:check && npm run lint && npm run typecheck",
+        "clean": "node -e \"require('fs').rmSync('.next', { recursive: true, force: true })\"",
+        "dev": "next dev",
+        "format": "npm run prettier",
+        "format:check": "npm run prettier:check",
+        "lint": "eslint .",
+        "lint:fix": "eslint . --fix",
+        "prebuild": "npm --prefix .. run build:components",
+        "predev": "npm --prefix .. run build:components",
+        "prettier": "prettier --config ../prettier.config.cjs --ignore-path ../.prettierignore --write .",
+        "prettier:check": "prettier --config ../prettier.config.cjs --ignore-path ../.prettierignore --check .",
+        "start": "next start",
+        "test": "npm run typecheck",
+        "typecheck": "tsc --noEmit"
+    },
+    "version": "2.0.0"
+}
