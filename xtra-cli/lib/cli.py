@@ -7,8 +7,8 @@ import json
 import sys
 from pathlib import Path
 
-from config import NORMALIZED_DIR, PACK, SLOTS_NAME
 from active import active_slots, unique_pages
+from config import NORMALIZED_DIR, PACK, SLOTS_NAME
 from freeze import freeze_all, meta_path, snapshot_path
 from inventory import csv_text as inventory_csv
 from normalize import normalize_html, sha256_text
@@ -58,14 +58,31 @@ def cmd_crawl(args: argparse.Namespace) -> int:
         print("no course URLs discovered", file=sys.stderr)
         return 1
     dest = write_slots(all_slots, extra={"discovery": reports})
-    print(json.dumps({"slots": len(all_slots), "path": str(dest), "discovery": reports}, indent=2))
+    print(
+        json.dumps(
+            {"slots": len(all_slots), "path": str(dest), "discovery": reports},
+            indent=2,
+        )
+    )
     return 0
 
 
 def cmd_freeze(_: argparse.Namespace) -> int:
     report = freeze_all()
-    print(json.dumps({k: len(v) if isinstance(v, list) else v for k, v in report.items()}, indent=2))
-    failed = [row for row in report.get("fetched", []) if row.get("status") not in {"ok", "refused"}]
+    print(
+        json.dumps(
+            {
+                k: len(v) if isinstance(v, list) else v
+                for k, v in report.items()
+            },
+            indent=2,
+        )
+    )
+    failed = [
+        row
+        for row in report.get("fetched", [])
+        if row.get("status") not in {"ok", "refused"}
+    ]
     return 1 if failed else 0
 
 
@@ -105,7 +122,9 @@ def cmd_classify(_: argparse.Namespace) -> int:
     path = slots_path()
     if SLOTS_NAME == "dynamic" and path.is_file():
         payload = json.loads(path.read_text(encoding="utf-8"))
-        extra = {k: v for k, v in payload.items() if k not in {"schema", "slots"}}
+        extra = {
+            k: v for k, v in payload.items() if k not in {"schema", "slots"}
+        }
         write_slots(classified, extra=extra or None)
     print(
         json.dumps(
@@ -192,14 +211,20 @@ def _add_url_flags(parser: argparse.ArgumentParser) -> None:
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Course pack candidate tooling")
+    parser = argparse.ArgumentParser(
+        description="Course pack candidate tooling"
+    )
     sub = parser.add_subparsers(dest="cmd", required=True)
     crawl = sub.add_parser("crawl", help="Discover course URLs → slots.json")
     _add_url_flags(crawl)
-    sub.add_parser("freeze", help="Cache HTML under cache/{yyyy-mm-dd}/; skip existing")
+    sub.add_parser(
+        "freeze", help="Cache HTML under cache/{yyyy-mm-dd}/; skip existing"
+    )
     sub.add_parser("normalize", help="HTML snapshots -> normalized/*.txt")
     sub.add_parser("classify", help="Stamp template_id from freeze text")
-    sub.add_parser("build", help="Write candidate JSON from freeze + transcriptions")
+    sub.add_parser(
+        "build", help="Write candidate JSON from freeze + transcriptions"
+    )
     sub.add_parser("hydrate", help="Fill evidence offsets and excerpt hashes")
     val = sub.add_parser("validate", help="Runtime + schema-shaped checks")
     val.add_argument(
@@ -208,7 +233,9 @@ def main(argv: list[str] | None = None) -> int:
         help="Fail on signed-gold gates (reviewers, template 5-10). Default is candidate gates.",
     )
     sub.add_parser("assemble", help="Write MANIFEST.json and xTRA scoring JSON")
-    sub.add_parser("registry", help="Exact ceterms:subjectWebpage Registry lookup")
+    sub.add_parser(
+        "registry", help="Exact ceterms:subjectWebpage Registry lookup"
+    )
     inv = sub.add_parser("write-inventory", help="Write FIELD_INVENTORY.csv")
     inv.add_argument("--out", default=str(PACK / "FIELD_INVENTORY.csv"))
     args = parser.parse_args(argv)

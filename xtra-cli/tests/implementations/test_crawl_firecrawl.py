@@ -83,7 +83,9 @@ def test_the_request_asks_for_raw_html_at_the_scrape_endpoint() -> None:
 
 def test_a_self_hosted_endpoint_is_used_when_given() -> None:
     seen: dict = {}
-    fetcher(answering(OK, seen), api_url="http://firecrawl.internal:3002/").fetch(URL)
+    fetcher(
+        answering(OK, seen), api_url="http://firecrawl.internal:3002/"
+    ).fetch(URL)
     assert seen["url"] == "http://firecrawl.internal:3002/v1/scrape"
 
 
@@ -99,7 +101,10 @@ def test_the_key_travels_in_one_header_and_nowhere_else(caplog) -> None:
 def test_the_page_status_comes_from_the_metadata_not_the_api_call() -> None:
     payload = {
         "success": True,
-        "data": {"rawHtml": "", "metadata": {"statusCode": 404, "sourceURL": URL}},
+        "data": {
+            "rawHtml": "",
+            "metadata": {"statusCode": 404, "sourceURL": URL},
+        },
     }
     assert fetcher(answering(payload)).fetch(URL).http_status == 404
 
@@ -108,7 +113,10 @@ def test_a_redirect_the_service_followed_is_reported() -> None:
     landed = "https://catalog.example.edu/courses/engl101/"
     payload = {
         "success": True,
-        "data": {"rawHtml": HTML, "metadata": {"statusCode": 200, "sourceURL": landed}},
+        "data": {
+            "rawHtml": HTML,
+            "metadata": {"statusCode": 200, "sourceURL": landed},
+        },
     }
     assert fetcher(answering(payload)).fetch(URL).final_url == landed
 

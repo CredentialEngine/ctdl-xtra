@@ -62,7 +62,9 @@ def page_stem(url: str) -> str:
     """File name for one saved page: readable slug plus a collision guard."""
     key = dedupe_key(url)
     slug = hyphenate(key)[:STEM_SLUG_LIMIT].rstrip("-")
-    digest = hashlib.sha256(key.encode("utf-8")).hexdigest()[:STEM_DIGEST_LENGTH]
+    digest = hashlib.sha256(key.encode("utf-8")).hexdigest()[
+        :STEM_DIGEST_LENGTH
+    ]
     return f"{slug}-{digest}" if slug else digest
 
 
@@ -107,7 +109,9 @@ def discovery_prefix(
 def discovery_key(
     catalog_folder: str, run_id: str, discovery_run_id: str, name: str
 ) -> str:
-    return f"{discovery_prefix(catalog_folder, run_id, discovery_run_id)}/{name}"
+    return (
+        f"{discovery_prefix(catalog_folder, run_id, discovery_run_id)}/{name}"
+    )
 
 
 def extract_report_key(catalog_folder: str, run_id: str) -> str:

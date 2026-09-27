@@ -5,8 +5,9 @@ from __future__ import annotations
 import re
 from urllib.parse import parse_qs, urljoin, urlparse, urlunparse
 
-
-CLEAN_COURSE_PATH = re.compile(r"^/([a-z0-9-]+)/([a-z]{2,6}\d{2,4}[a-z]?)/?$", re.I)
+CLEAN_COURSE_PATH = re.compile(
+    r"^/([a-z0-9-]+)/([a-z]{2,6}\d{2,4}[a-z]?)/?$", re.I
+)
 # Catalog codes like ENGL121 / ENG101. Not Coursedog document ids (LJdUL84T, JDbDH653).
 COURSEDOG_COURSE_CODE = re.compile(
     r"^(?:[A-Z]{2,8}|[a-z]{2,8})[-_]?\d{3,4}[A-Za-z]?$"
@@ -25,9 +26,7 @@ def college_slug(url: str) -> str:
     for prefix in ("catalog.", "www.", "coursecatalog.", "bulletin."):
         if host.startswith(prefix):
             host = host[len(prefix) :]
-    if host.endswith(".edu"):
-        host = host[:-4]
-    elif host.endswith(".org"):
+    if host.endswith(".edu") or host.endswith(".org"):
         host = host[:-4]
     slug = re.sub(r"[^a-z0-9]+", "-", host).strip("-")
     return slug or "college"
@@ -91,10 +90,19 @@ def normalize_course_url(url: str) -> str:
         coid = (qs.get("coid") or [""])[0]
         if catoid and coid:
             return urlunparse(
-                (parsed.scheme, parsed.netloc, path, "", f"catoid={catoid}&coid={coid}", "")
+                (
+                    parsed.scheme,
+                    parsed.netloc,
+                    path,
+                    "",
+                    f"catoid={catoid}&coid={coid}",
+                    "",
+                )
             )
     if COURSEDOG_COURSE_PATH.match(path) or CLEAN_COURSE_PATH.match(path):
-        return urlunparse((parsed.scheme, parsed.netloc, path.rstrip("/") or path, "", "", ""))
+        return urlunparse(
+            (parsed.scheme, parsed.netloc, path.rstrip("/") or path, "", "", "")
+        )
     return url.split("#", 1)[0]
 
 
@@ -121,7 +129,9 @@ def institution_from_html(html: str, fallback: str) -> str:
     m = re.search(r'property="og:site_name"\s+content="([^"]+)"', html, re.I)
     if m:
         return _clean_inst(m.group(1))
-    m = re.search(r'<meta[^>]+name="og:site_name"[^>]+content="([^"]+)"', html, re.I)
+    m = re.search(
+        r'<meta[^>]+name="og:site_name"[^>]+content="([^"]+)"', html, re.I
+    )
     if m:
         return _clean_inst(m.group(1))
     m = re.search(r"<title>([^<]+)</title>", html, re.I)

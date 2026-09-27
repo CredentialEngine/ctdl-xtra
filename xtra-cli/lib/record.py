@@ -4,7 +4,12 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
-from config import MAPPING_VERSION, NORMALIZER_TOOL, NORMALIZER_VERSION, SCHEMA_RELEASE
+from config import (
+    MAPPING_VERSION,
+    NORMALIZER_TOOL,
+    NORMALIZER_VERSION,
+    SCHEMA_RELEASE,
+)
 from slots import Slot
 
 ANNOTATOR = {
@@ -15,7 +20,12 @@ ANNOTATOR = {
 
 
 def _now() -> str:
-    return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+    return (
+        datetime.now(timezone.utc)
+        .replace(microsecond=0)
+        .isoformat()
+        .replace("+00:00", "Z")
+    )
 
 
 def empty_checklist() -> dict:
@@ -90,7 +100,9 @@ def locator(strategy: str, value: str, occurrence: int | None = None) -> dict:
     }
 
 
-def shell(slot: Slot, *, source: dict, page: dict, annotation_scope: dict) -> dict:
+def shell(
+    slot: Slot, *, source: dict, page: dict, annotation_scope: dict
+) -> dict:
     completed = _now()
     annotator = dict(ANNOTATOR)
     annotator["completed_at"] = completed

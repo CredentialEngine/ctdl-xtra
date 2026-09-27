@@ -131,7 +131,9 @@ def test_coverage_may_need_more_pages_than_asked_for() -> None:
     assert len(sample.pages) == 12
     assert sample.features_covered_count == sample.feature_count
     assert sample.coverage_forced_extra
-    assert all(name.startswith("marker:") for name in sample.coverage_forced_extra)
+    assert all(
+        name.startswith("marker:") for name in sample.coverage_forced_extra
+    )
 
 
 def test_the_same_pages_always_give_the_same_sample() -> None:

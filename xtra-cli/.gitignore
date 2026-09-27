@@ -9,3 +9,6 @@ xtra-cache/
 .vs/
 *.egg-info/
 PR_COMMENT_DRAFT.md
+.coverage
+htmlcov/
+src/xtra/_generated_version.py

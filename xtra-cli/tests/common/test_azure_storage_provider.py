@@ -29,6 +29,31 @@ class FakeBlobItem:
         self.name = name
 
 
+class FakeDeniedBlobClient:
+    def download_blob(self):
+        raise RuntimeError("403 This request is not authorized")
+
+
+def _provider(monkeypatch, container, *, prefix_path="catalogs/"):
+    class FakeService:
+        def get_container_client(self, container_name):
+            return container
+
+    monkeypatch.setattr(
+        "azure.storage.blob.BlobServiceClient.from_connection_string",
+        lambda connection_string: FakeService(),
+    )
+    return AzureBlobStorageProvider(
+        container_name="xtra",
+        prefix_path=prefix_path,
+        batch_size=100,
+        read_concurrency=2,
+        azure_configuration=AzureStorageConfiguration(
+            connection_string="UseDevelopmentStorage=true"
+        ),
+    )
+
+
 def test_provider_iter_keys(monkeypatch) -> None:
     class FakeContainer:
         def list_blobs(self, *, name_starts_with):
@@ -136,3 +161,75 @@ def test_exists_uses_the_blob_client_and_never_downloads(monkeypatch) -> None:
     assert not provider.exists("catalogs/b.json")
     with pytest.raises(RuntimeError, match="credential expired"):
         provider.exists("boom")
+
+
+def test_load_batch_records_a_failed_download_and_keeps_the_rest(
+    monkeypatch,
+) -> None:
+    class FakeContainer:
+        def get_blob_client(self, key):
+            if key == "catalogs/denied.json":
+                return FakeDeniedBlobClient()
+            return FakeProviderBlobClient(b"abc")
+
+    provider = _provider(monkeypatch, FakeContainer())
+    errors: list[str] = []
+    rows = provider.load_batch(
+        keys=["catalogs/a.json", "catalogs/denied.json"], errors=errors
+    )
+    assert [row.key for row in rows] == ["catalogs/a.json"]
+    assert errors == [
+        "catalogs/denied.json: 403 This request is not authorized"
+    ]
+
+
+def test_load_binary_batch_downloads_bytes_the_same_way(monkeypatch) -> None:
+    class FakeContainer:
+        def get_blob_client(self, key):
+            return FakeProviderBlobClient(b"%PDF-1.7")
+
+    provider = _provider(monkeypatch, FakeContainer())
+    errors: list[str] = []
+    rows = provider.load_binary_batch(keys=["catalogs/a.pdf"], errors=errors)
+    assert not errors
+    assert rows[0].content == b"%PDF-1.7"
+
+
+def test_delete_batch_counts_a_missing_blob_as_deleted(monkeypatch) -> None:
+    """Missing is the goal of a delete; any other failure is reported."""
+    from azure.core.exceptions import ResourceNotFoundError
+
+    class FakeContainer:
+        def __init__(self) -> None:
+            self.deleted: list[str] = []
+
+        def delete_blob(self, key):
+            if key == "catalogs/gone.json":
+                raise ResourceNotFoundError("BlobNotFound")
+            if key == "catalogs/leased.json":
+                raise RuntimeError("409 There is currently a lease")
+            self.deleted.append(key)
+
+    container = FakeContainer()
+    provider = _provider(monkeypatch, container)
+    errors: list[str] = []
+    deleted = provider.delete_batch(
+        keys=["catalogs/a.json", "catalogs/gone.json", "catalogs/leased.json"],
+        errors=errors,
+    )
+    assert sorted(deleted) == ["catalogs/a.json", "catalogs/gone.json"]
+    assert container.deleted == ["catalogs/a.json"]
+    assert errors == ["catalogs/leased.json: 409 There is currently a lease"]
+
+
+def test_describe_location_names_the_container_and_any_prefix(
+    monkeypatch,
+) -> None:
+    assert (
+        _provider(monkeypatch, object()).describe_location()
+        == "azure://xtra/catalogs/"
+    )
+    assert (
+        _provider(monkeypatch, object(), prefix_path="").describe_location()
+        == "azure://xtra"
+    )

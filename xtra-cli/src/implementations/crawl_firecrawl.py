@@ -88,7 +88,9 @@ class FirecrawlFetcher:
         except (OSError, http.client.HTTPException) as exc:
             raise FetchError(str(exc) or exc.__class__.__name__) from exc
         except ValueError as exc:
-            raise FetchError(f"Firecrawl sent something that is not JSON: {exc}") from exc
+            raise FetchError(
+                f"Firecrawl sent something that is not JSON: {exc}"
+            ) from exc
 
         latency_ms = int((time.perf_counter() - started) * 1000)
         return self._read(url, payload, latency_ms)
@@ -100,7 +102,11 @@ class FirecrawlFetcher:
         a whole budget, so only the statuses worth waiting out are retried.
         """
         retryable = status == 429 or status >= 500
-        detail = "rate limited or unavailable" if retryable else "rejected the request"
+        detail = (
+            "rate limited or unavailable"
+            if retryable
+            else "rejected the request"
+        )
         return FetchError(
             f"Firecrawl {detail} (HTTP {status})", retryable=retryable
         )

@@ -1,3 +1,4 @@
-from xtra.cli import cli
+if __name__ == "__main__":
+    from xtra.cli import cli
 
-cli()
+    cli()

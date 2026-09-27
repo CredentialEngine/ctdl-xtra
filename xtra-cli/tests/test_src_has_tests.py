@@ -21,5 +21,8 @@ def test_every_src_module_has_matching_test_file() -> None:
     assert missing == [], (
         "Each src module needs tests/<same-folders>/test_<name>.py.\n"
         "Missing:\n  "
-        + "\n  ".join(f"{src} -> {test}" for src, test in zip(extra_note, missing))
+        + "\n  ".join(
+            f"{src} -> {test}"
+            for src, test in zip(extra_note, missing, strict=True)
+        )
     )

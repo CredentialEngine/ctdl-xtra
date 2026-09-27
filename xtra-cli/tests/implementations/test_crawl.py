@@ -3,7 +3,9 @@ from __future__ import annotations
 import gzip
 import json
 import logging
+import platform
 import threading
+from importlib.metadata import version
 from pathlib import Path
 
 import pytest
@@ -17,14 +19,17 @@ from crawl_doubles import (
 from common.keys import page_html_key, page_stem, state_key
 from common.object_store import open_store
 from implementations.crawl import (
+    FRONTIER_ORDER,
     STATUS_COMPLETE,
     STATUS_INCOMPLETE,
     STATUS_LIMIT_REACHED,
     CrawlSettings,
+    StrategyMismatchError,
     format_duration,
     is_retryable_status,
     run_crawl,
 )
+from implementations.crawl_browser import DEFAULT_TIMEOUT_MS, VIEWPORT
 
 SEED = "https://catalog.example.edu/"
 FOLDER = "catalog-example-edu"
@@ -82,13 +87,17 @@ def run_dir(tmp_path: Path) -> Path:
 # --- what a crawl saves ----------------------------------------------------
 
 
-def test_a_crawl_saves_html_and_a_sidecar_and_nothing_else(tmp_path: Path) -> None:
+def test_a_crawl_saves_html_and_a_sidecar_and_nothing_else(
+    tmp_path: Path,
+) -> None:
     outcome = crawl(tmp_path, PAGES)
     assert outcome.crawl_doc["status"] == STATUS_COMPLETE
     assert outcome.crawl_doc["pages_saved"] == 3
     assert outcome.exit_code == 0
 
-    names = sorted(path.name for path in run_dir(tmp_path).rglob("*") if path.is_file())
+    names = sorted(
+        path.name for path in run_dir(tmp_path).rglob("*") if path.is_file()
+    )
     assert [name for name in names if name.endswith(".txt")] == []
     assert "slots.json" not in names
     assert {"crawl.json", "state.json", "failed.jsonl"} <= set(names)
@@ -96,7 +105,9 @@ def test_a_crawl_saves_html_and_a_sidecar_and_nothing_else(tmp_path: Path) -> No
     assert len([name for name in names if name.endswith(".meta.json")]) == 3
 
 
-def test_crawl_json_has_no_family_template_or_institution(tmp_path: Path) -> None:
+def test_crawl_json_has_no_family_template_or_institution(
+    tmp_path: Path,
+) -> None:
     doc = crawl(tmp_path, PAGES).crawl_doc
     assert doc["schema"] == "xtra-crawl-2"
     for gone in (
@@ -117,9 +128,13 @@ def test_the_sidecar_records_what_the_fetch_cost(tmp_path: Path) -> None:
     crawl(tmp_path, PAGES)
     stem = page_stem("https://catalog.example.edu/courses/engl101")
     meta = json.loads(
-        (run_dir(tmp_path) / "pages" / f"{stem}.meta.json").read_text(encoding="utf-8")
+        (run_dir(tmp_path) / "pages" / f"{stem}.meta.json").read_text(
+            encoding="utf-8"
+        )
     )
-    assert meta["requested_url"] == "https://catalog.example.edu/courses/engl101"
+    assert (
+        meta["requested_url"] == "https://catalog.example.edu/courses/engl101"
+    )
     assert meta["http_status"] == 200
     assert meta["bytes"] == len(ENGL.html.encode("utf-8"))
     assert meta["latency_ms"] == 7
@@ -127,6 +142,27 @@ def test_the_sidecar_records_what_the_fetch_cost(tmp_path: Path) -> None:
     assert meta["stem"] == stem
     assert len(meta["sha256"]) == 64
     assert "normalized" not in json.dumps(meta)
+
+
+def test_the_sidecar_says_where_the_page_it_describes_is(
+    tmp_path: Path,
+) -> None:
+    """A sidecar read on its own has to name the bytes it is about.
+
+    The key is what every later stage looks the page up by; the path is
+    the same key against the URI this run wrote to, so a person reading
+    one sidecar can open the page without reconstructing the layout.
+    """
+    crawl(tmp_path, PAGES)
+    stem = page_stem("https://catalog.example.edu/courses/engl101")
+    meta = json.loads(
+        (run_dir(tmp_path) / "pages" / f"{stem}.meta.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    assert meta["html_key"] == page_html_key(FOLDER, RUN, stem)
+    assert meta["html_path"] == f"{tmp_path}/{page_html_key(FOLDER, RUN, stem)}"
+    assert Path(meta["html_path"]).is_file()
 
 
 def test_the_get_line_names_the_url_status_size_time_and_destination(
@@ -145,11 +181,17 @@ def test_the_get_line_names_the_url_status_size_time_and_destination(
     assert f"{len(ENGL.html.encode('utf-8'))} bytes" in line
     assert "7 ms ->" in line
     assert line.rstrip().endswith(
-        page_html_key(FOLDER, RUN, page_stem("https://catalog.example.edu/courses/engl101"))
+        page_html_key(
+            FOLDER,
+            RUN,
+            page_stem("https://catalog.example.edu/courses/engl101"),
+        )
     )
 
 
-def test_progress_is_logged_with_elapsed_and_an_eta(tmp_path: Path, caplog) -> None:
+def test_progress_is_logged_with_elapsed_and_an_eta(
+    tmp_path: Path, caplog
+) -> None:
     with caplog.at_level(logging.INFO):
         crawl(tmp_path, PAGES)
     progress = [
@@ -212,7 +254,8 @@ def test_a_redirect_off_the_site_is_not_saved(tmp_path: Path) -> None:
     pages = {
         SEED: FakePage(html='<a href="/courses/engl101">ENGL</a>'),
         "https://catalog.example.edu/courses/engl101": FakePage(
-            html="<h1>moved</h1>", final_url="https://vendor.example.com/engl101"
+            html="<h1>moved</h1>",
+            final_url="https://vendor.example.com/engl101",
         ),
     }
     doc = crawl(tmp_path, pages).crawl_doc
@@ -244,7 +287,9 @@ def test_a_navigation_that_starts_a_download_is_skipped(tmp_path: Path) -> None:
     assert doc["pages_failed"] == 0
 
 
-def test_an_include_regex_narrows_what_links_are_followed(tmp_path: Path) -> None:
+def test_an_include_regex_narrows_what_links_are_followed(
+    tmp_path: Path,
+) -> None:
     seed = "https://catalog.bergen.edu/"
     pages = {
         seed: FakePage(
@@ -277,7 +322,9 @@ def test_the_seed_is_crawled_even_when_it_fails_its_own_include_regex(
     assert doc["pages_saved"] == 2
 
 
-def test_a_scope_prefix_keeps_the_crawl_inside_one_section(tmp_path: Path) -> None:
+def test_a_scope_prefix_keeps_the_crawl_inside_one_section(
+    tmp_path: Path,
+) -> None:
     pages = {
         SEED: FakePage(
             html='<a href="/courses/engl101">ENGL</a><a href="/athletics/x">A</a>'
@@ -304,7 +351,9 @@ def test_extra_seed_urls_reach_pages_no_link_points_at(tmp_path: Path) -> None:
 # --- robots and sitemaps ---------------------------------------------------
 
 
-def test_robots_disallow_keeps_a_section_out_of_the_crawl(tmp_path: Path) -> None:
+def test_robots_disallow_keeps_a_section_out_of_the_crawl(
+    tmp_path: Path,
+) -> None:
     documents = {
         "https://catalog.example.edu/robots.txt": b"User-agent: *\nDisallow: /private/\n"
     }
@@ -321,7 +370,9 @@ def test_robots_disallow_keeps_a_section_out_of_the_crawl(tmp_path: Path) -> Non
     assert "https://catalog.example.edu/private/x" not in calls
 
 
-def test_a_robots_crawl_delay_raises_the_effective_minimum(tmp_path: Path) -> None:
+def test_a_robots_crawl_delay_raises_the_effective_minimum(
+    tmp_path: Path,
+) -> None:
     documents = {
         "https://catalog.example.edu/robots.txt": b"User-agent: *\nCrawl-delay: 7\n"
     }
@@ -337,7 +388,9 @@ def test_a_robots_crawl_delay_raises_the_effective_minimum(tmp_path: Path) -> No
     assert doc["effective_min_interval_in_seconds"] == 7.0
 
 
-def test_a_larger_min_interval_wins_over_a_smaller_crawl_delay(tmp_path: Path) -> None:
+def test_a_larger_min_interval_wins_over_a_smaller_crawl_delay(
+    tmp_path: Path,
+) -> None:
     documents = {
         "https://catalog.example.edu/robots.txt": b"User-agent: *\nCrawl-delay: 2\n"
     }
@@ -351,7 +404,9 @@ def test_a_larger_min_interval_wins_over_a_smaller_crawl_delay(tmp_path: Path) -
     assert doc["effective_min_interval_in_seconds"] == 30
 
 
-def test_a_403_robots_is_recorded_and_treated_as_no_rules(tmp_path: Path) -> None:
+def test_a_403_robots_is_recorded_and_treated_as_no_rules(
+    tmp_path: Path,
+) -> None:
     def forbidden(url: str) -> tuple[int, bytes]:
         return (403, b"nope") if url.endswith("robots.txt") else (404, b"")
 
@@ -381,7 +436,7 @@ def test_sitemap_urls_join_the_frontier_and_off_site_entries_do_not(
 ) -> None:
     ns = 'xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"'
     index = (
-        f'<sitemapindex {ns}><sitemap>'
+        f"<sitemapindex {ns}><sitemap>"
         "<loc>https://catalog.example.edu/sitemap-1.xml.gz</loc>"
         "</sitemap></sitemapindex>"
     ).encode()
@@ -419,7 +474,9 @@ def test_is_retryable_status() -> None:
     assert not is_retryable_status(None)
 
 
-def test_retries_back_off_from_the_minimum_up_to_the_maximum(tmp_path: Path) -> None:
+def test_retries_back_off_from_the_minimum_up_to_the_maximum(
+    tmp_path: Path,
+) -> None:
     pages = {SEED: FakePage(status=503, html="")}
     sleeps: list[float] = []
     outcome = crawl(
@@ -465,7 +522,9 @@ def test_a_retry_after_header_lengthens_one_wait_but_not_past_the_maximum(
 def test_a_404_is_not_retried(tmp_path: Path) -> None:
     pages = {
         SEED: FakePage(html='<a href="/courses/gone">gone</a>'),
-        "https://catalog.example.edu/courses/gone": FakePage(status=404, html=""),
+        "https://catalog.example.edu/courses/gone": FakePage(
+            status=404, html=""
+        ),
     }
     calls: list[str] = []
     sleeps: list[float] = []
@@ -475,19 +534,30 @@ def test_a_404_is_not_retried(tmp_path: Path) -> None:
     assert outcome.crawl_doc["failed_by_status"] == {"404": 1}
 
 
-def test_a_retry_line_names_the_attempt_and_the_wait(tmp_path: Path, caplog) -> None:
+def test_a_retry_line_names_the_attempt_and_the_wait(
+    tmp_path: Path, caplog
+) -> None:
     pages = {SEED: [FakePage(status=429, html=""), FakePage(html="<p>ok</p>")]}
     with caplog.at_level(logging.INFO):
-        crawl(tmp_path, pages, min_interval_in_seconds=1, max_interval_in_seconds=5)
+        crawl(
+            tmp_path,
+            pages,
+            min_interval_in_seconds=1,
+            max_interval_in_seconds=5,
+        )
     retries = [
         record.getMessage()
         for record in caplog.records
         if record.getMessage().startswith("RETRY ")
     ]
-    assert retries == [f"RETRY {SEED} attempt 2 of 6 after HTTP 429, waiting 1 s"]
+    assert retries == [
+        f"RETRY {SEED} attempt 2 of 6 after HTTP 429, waiting 1 s"
+    ]
 
 
-def test_a_fail_line_names_the_attempts_and_the_reason(tmp_path: Path, caplog) -> None:
+def test_a_fail_line_names_the_attempts_and_the_reason(
+    tmp_path: Path, caplog
+) -> None:
     with caplog.at_level(logging.WARNING):
         crawl(tmp_path, {SEED: FakePage(status=503, html="")}, max_retries=5)
     fails = [
@@ -498,11 +568,15 @@ def test_a_fail_line_names_the_attempts_and_the_reason(tmp_path: Path, caplog) -
     assert fails == [f"FAIL {SEED} after 6 attempts: HTTP 503"]
 
 
-def test_failed_urls_are_written_one_json_object_per_line(tmp_path: Path) -> None:
+def test_failed_urls_are_written_one_json_object_per_line(
+    tmp_path: Path,
+) -> None:
     crawl(tmp_path, {SEED: FakePage(status=503, html="")}, max_retries=1)
-    lines = (run_dir(tmp_path) / "failed.jsonl").read_text(
-        encoding="utf-8"
-    ).splitlines()
+    lines = (
+        (run_dir(tmp_path) / "failed.jsonl")
+        .read_text(encoding="utf-8")
+        .splitlines()
+    )
     assert len(lines) == 1
     record = json.loads(lines[0])
     assert record["url"] == SEED
@@ -548,7 +622,9 @@ def test_a_success_clears_the_run_of_failures(tmp_path: Path) -> None:
 # --- concurrency ------------------------------------------------------------
 
 
-def test_three_workers_fetch_three_pages_at_the_same_time(tmp_path: Path) -> None:
+def test_three_workers_fetch_three_pages_at_the_same_time(
+    tmp_path: Path,
+) -> None:
     """The barrier only releases when all three are inside fetch at once."""
     gate = threading.Barrier(3, timeout=10)
     pages = {
@@ -642,7 +718,9 @@ def test_a_saved_page_still_hands_over_its_links_when_the_checkpoint_is_gone(
 def test_a_resume_queues_a_retryable_failure_once_more(tmp_path: Path) -> None:
     pages = {
         SEED: FakePage(html='<a href="/courses/engl101">ENGL</a>'),
-        "https://catalog.example.edu/courses/engl101": FakePage(status=503, html=""),
+        "https://catalog.example.edu/courses/engl101": FakePage(
+            status=503, html=""
+        ),
     }
     first = crawl(tmp_path, pages, max_retries=1)
     assert first.crawl_doc["pages_failed"] == 1
@@ -657,7 +735,9 @@ def test_a_resume_queues_a_retryable_failure_once_more(tmp_path: Path) -> None:
     assert second.exit_code == 0
 
 
-def test_the_checkpoint_carries_the_frontier_and_the_seen_set(tmp_path: Path) -> None:
+def test_the_checkpoint_carries_the_frontier_and_the_seen_set(
+    tmp_path: Path,
+) -> None:
     crawl(tmp_path, PAGES, limit=1)
     state = json.loads(
         (tmp_path / state_key(FOLDER, RUN)).read_text(encoding="utf-8")
@@ -696,9 +776,14 @@ def test_a_run_id_typed_with_hyphens_lands_in_the_same_folder(
     assert outcome.crawl_doc["run_id"] == RUN
 
 
-def test_the_coverage_count_groups_urls_by_their_top_folder(tmp_path: Path) -> None:
+def test_the_coverage_count_groups_urls_by_their_top_folder(
+    tmp_path: Path,
+) -> None:
     doc = crawl(tmp_path, PAGES).crawl_doc
-    assert doc["discovered_by_first_path_segment"] == {"courses": 2, "(root)": 1}
+    assert doc["discovered_by_first_path_segment"] == {
+        "courses": 2,
+        "(root)": 1,
+    }
 
 
 # --- a catalog that answers somewhere else ---------------------------------
@@ -826,3 +911,294 @@ def test_a_stale_sitemap_on_the_old_host_still_feeds_the_crawl(
     assert doc["pages_saved"] == 2
     assert calls == [answers, "https://catalog.newname.edu/courses/engl101"]
     assert doc["skipped_by_reason"].get("out_of_scope") is None
+
+
+# --- the manifest a run leaves behind ---------------------------------------
+
+
+def test_a_manifest_exists_before_the_first_get_and_after_the_first_page(
+    tmp_path: Path,
+) -> None:
+    """A run killed at page two still has to describe itself.
+
+    crawl.json used to appear at the 25th saved page, on Ctrl+C, or at the
+    end, so a short run left saved pages that nothing accounted for.
+    """
+    seen: dict[str, dict] = {}
+
+    def snapshot(url: str) -> None:
+        folder = run_dir(tmp_path)
+        seen[url] = {
+            name: (
+                json.loads((folder / name).read_text(encoding="utf-8"))
+                if (folder / name).is_file()
+                else None
+            )
+            for name in ("crawl.json", "state.json")
+        }
+
+    crawl(tmp_path, PAGES, before=snapshot)
+
+    at_start = seen[SEED]
+    assert at_start["crawl.json"]["status"] == STATUS_INCOMPLETE
+    assert at_start["crawl.json"]["pages_saved"] == 0
+    assert at_start["state.json"]["schema"] == "xtra-crawl-state-1"
+
+    after_one = seen["https://catalog.example.edu/courses/engl101"]
+    assert after_one["crawl.json"]["status"] == STATUS_INCOMPLETE
+    assert after_one["crawl.json"]["pages_saved"] == 1
+    assert after_one["state.json"]["saved"] == [SEED]
+    assert after_one["state.json"]["frontier"]
+
+
+def test_a_startup_manifest_alone_is_not_something_to_resume_from(
+    tmp_path: Path,
+) -> None:
+    """The seed still has to be queued after a run that saved nothing."""
+    store = open_store(str(tmp_path))
+    store.put_json(
+        state_key(FOLDER, RUN),
+        {
+            "schema": "xtra-crawl-state-1",
+            "strategy": "playwright",
+            "frontier": [],
+            "seen": [],
+            "saved": [],
+            "failed": [],
+        },
+    )
+    outcome = crawl(tmp_path, PAGES)
+    assert outcome.crawl_doc["pages_saved"] == 3
+    assert outcome.crawl_doc["status"] == STATUS_COMPLETE
+
+
+# --- which backend fetched which page ---------------------------------------
+
+
+def test_the_sidecar_names_the_backend_that_fetched_the_page(
+    tmp_path: Path,
+) -> None:
+    crawl(tmp_path, PAGES, strategy="crawl4ai")
+    stem = page_stem("https://catalog.example.edu/courses/engl101")
+    meta = json.loads(
+        (run_dir(tmp_path) / "pages" / f"{stem}.meta.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    assert meta["strategy"] == "crawl4ai"
+
+
+def test_crawl_json_records_the_versions_that_actually_ran(
+    tmp_path: Path,
+) -> None:
+    """Read from the installed packages, so it cannot drift from reality."""
+    doc = crawl(tmp_path, PAGES).crawl_doc
+    assert doc["strategy_version"]["python"] == platform.python_version()
+    assert doc["strategy_version"]["playwright"] == version("playwright")
+
+
+def test_crawl_json_records_what_the_backend_was_given(tmp_path: Path) -> None:
+    settings = crawl(tmp_path, PAGES).crawl_doc["strategy_settings"]
+    assert settings["timeout_ms"] == DEFAULT_TIMEOUT_MS
+    assert settings["viewport"] == VIEWPORT
+    assert settings["user_agent"]
+
+
+def test_crawl_json_says_what_the_backend_only_approximates(
+    tmp_path: Path,
+) -> None:
+    notes = crawl(tmp_path, PAGES).crawl_doc["strategy_notes"]
+    assert notes
+    assert all(isinstance(note, str) for note in notes)
+    assert any("DOMContentLoaded" in note for note in notes)
+
+
+def test_a_resume_with_another_backend_is_refused(tmp_path: Path) -> None:
+    """One run folder is one rendered source, or nothing downstream holds."""
+    crawl(tmp_path, PAGES, limit=1, strategy="playwright")
+    state = json.loads(
+        (run_dir(tmp_path) / "state.json").read_text(encoding="utf-8")
+    )
+    assert state["strategy"] == "playwright"
+
+    with pytest.raises(StrategyMismatchError) as refused:
+        crawl(tmp_path, PAGES, strategy="crawl4ai")
+    message = str(refused.value)
+    assert "--with-playwright" in message
+    assert "--with-crawl4ai" in message
+
+    resumed = crawl(tmp_path, PAGES, strategy="playwright")
+    assert resumed.crawl_doc["pages_saved"] == 3
+
+
+# --- saying so when the folder or the scope does not match the catalog ------
+
+
+def test_a_folder_named_after_a_host_that_does_not_answer_says_so(
+    tmp_path: Path, caplog
+) -> None:
+    typed = "https://catalog.oldname.edu"
+    answers = "https://catalog.newname.edu/"
+    with caplog.at_level(logging.WARNING):
+        doc = crawl(
+            tmp_path,
+            {answers: FakePage(html="<p>one page</p>")},
+            seed_url=typed,
+            resolve_url=lambda url: answers,
+        ).crawl_doc
+    folder = [
+        record.getMessage()
+        for record in caplog.records
+        if record.getMessage().startswith("FOLDER ")
+    ]
+    assert len(folder) == 1
+    assert FOLDER in folder[0]
+    assert "catalog.oldname.edu" in folder[0]
+    assert "catalog.newname.edu" in folder[0]
+    assert doc["catalog_folder_matches_resolved_host"] is False
+    assert doc["resolved_seed_url"] == answers
+
+
+def test_a_folder_that_matches_the_host_that_answers_says_nothing(
+    tmp_path: Path, caplog
+) -> None:
+    with caplog.at_level(logging.WARNING):
+        doc = crawl(tmp_path, PAGES).crawl_doc
+    assert doc["catalog_folder_matches_resolved_host"] is True
+    assert not [
+        record
+        for record in caplog.records
+        if record.getMessage().startswith("FOLDER ")
+    ]
+
+
+def test_a_scope_narrower_than_the_site_root_says_so(
+    tmp_path: Path, caplog
+) -> None:
+    seed = "https://catalog.example.edu/psychology/psyc101"
+    with caplog.at_level(logging.WARNING):
+        doc = crawl(
+            tmp_path, {seed: FakePage(html="<p>one page</p>")}, seed_url=seed
+        ).crawl_doc
+    scope = [
+        record.getMessage()
+        for record in caplog.records
+        if record.getMessage().startswith("SCOPE ")
+    ]
+    assert len(scope) == 1
+    assert "the scope prefix is /psychology/" in scope[0]
+    assert "--scope-prefix https://catalog.example.edu/" in scope[0]
+    assert doc["scope_prefix"] == "/psychology/"
+
+
+def test_a_crawl_of_a_whole_site_says_nothing_about_the_scope(
+    tmp_path: Path, caplog
+) -> None:
+    with caplog.at_level(logging.WARNING):
+        crawl(tmp_path, PAGES)
+    assert not [
+        record
+        for record in caplog.records
+        if record.getMessage().startswith("SCOPE ")
+    ]
+
+
+# --- what the frontier reaches first ----------------------------------------
+
+SITEMAP_NS = 'xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"'
+HANDBOOK_LINKS = (
+    '<a href="/handbook/1">1</a><a href="/handbook/2">2</a>'
+    '<a href="/handbook/3">3</a>'
+)
+
+
+def urlset(*paths: str) -> bytes:
+    entries = "".join(
+        f"<url><loc>https://catalog.example.edu{path}</loc></url>"
+        for path in paths
+    )
+    return f"<urlset {SITEMAP_NS}>{entries}</urlset>".encode()
+
+
+def handbook_and_courses() -> dict:
+    pages = {SEED: FakePage(html=HANDBOOK_LINKS)}
+    for path in ("/handbook/1", "/handbook/2", "/handbook/3"):
+        pages[f"https://catalog.example.edu{path}"] = FakePage(html="<p>h</p>")
+    for path in ("/courses/a", "/courses/b", "/courses/c"):
+        pages[f"https://catalog.example.edu{path}"] = ENGL
+    return pages
+
+
+def test_the_sitemap_is_reached_before_links_found_on_the_way(
+    tmp_path: Path,
+) -> None:
+    """A limited run spends its pages on the site's own index of content."""
+    documents = {
+        "https://catalog.example.edu/robots.txt": b"User-agent: *\n",
+        "https://catalog.example.edu/sitemap.xml": urlset(
+            "/courses/a", "/courses/b", "/courses/c"
+        ),
+    }
+    calls: list[str] = []
+    doc = crawl(
+        tmp_path,
+        handbook_and_courses(),
+        documents=documents,
+        calls=calls,
+        limit=4,
+    ).crawl_doc
+    assert doc["pages_saved"] == 4
+    assert calls == [
+        SEED,
+        "https://catalog.example.edu/courses/a",
+        "https://catalog.example.edu/courses/b",
+        "https://catalog.example.edu/courses/c",
+    ]
+    assert doc["frontier_order"] == FRONTIER_ORDER
+
+
+def test_a_resume_puts_sitemap_urls_ahead_of_the_old_frontier(
+    tmp_path: Path,
+) -> None:
+    """The first pass queued one section; the sitemap must not wait for it."""
+    pages = handbook_and_courses()
+    first = crawl(tmp_path, pages, limit=1)
+    assert first.crawl_doc["frontier_remaining"] == 3
+
+    documents = {
+        "https://catalog.example.edu/robots.txt": b"User-agent: *\n",
+        "https://catalog.example.edu/sitemap.xml": urlset(
+            "/courses/a", "/courses/b", "/courses/c"
+        ),
+    }
+    calls: list[str] = []
+    doc = crawl(
+        tmp_path, pages, documents=documents, calls=calls, limit=3
+    ).crawl_doc
+    assert calls == [
+        "https://catalog.example.edu/courses/a",
+        "https://catalog.example.edu/courses/b",
+    ]
+    assert doc["pages_saved"] == 3
+
+
+def test_a_seed_urls_file_is_queued_after_the_sitemap(tmp_path: Path) -> None:
+    documents = {
+        "https://catalog.example.edu/robots.txt": b"User-agent: *\n",
+        "https://catalog.example.edu/sitemap.xml": urlset("/courses/a"),
+    }
+    pages = handbook_and_courses()
+    calls: list[str] = []
+    crawl(
+        tmp_path,
+        pages,
+        documents=documents,
+        calls=calls,
+        limit=3,
+        seed_urls=("https://catalog.example.edu/courses/b",),
+    )
+    assert calls == [
+        SEED,
+        "https://catalog.example.edu/courses/a",
+        "https://catalog.example.edu/courses/b",
+    ]

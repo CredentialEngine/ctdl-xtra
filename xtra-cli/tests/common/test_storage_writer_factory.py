@@ -32,6 +32,15 @@ def test_factory_azure_requires_connection_string() -> None:
         )
 
 
+def test_factory_reads_a_portal_container_url_as_azure() -> None:
+    """Reaching the Azure branch is what asks for a connection string."""
+    with pytest.raises(ValueError, match="connection string"):
+        create_storage_writer(
+            target_uri="https://account.blob.core.windows.net/xtra",
+            write_concurrency=1,
+        )
+
+
 def test_factory_rejects_http_uri() -> None:
     with pytest.raises(ValueError, match="Unsupported storage URI"):
         create_storage_writer(

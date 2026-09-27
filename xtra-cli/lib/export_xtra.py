@@ -30,7 +30,10 @@ CATALOGUE = {
 
 
 def _fields(rec: dict) -> dict:
-    return {f["canonical_label"]: f["value"] for f in rec["source_expected"]["fields"]}
+    return {
+        f["canonical_label"]: f["value"]
+        for f in rec["source_expected"]["fields"]
+    }
 
 
 def _expected(rec: dict) -> dict:
@@ -71,7 +74,9 @@ def _expected(rec: dict) -> dict:
         if "learning_program_id" in src:
             out["learning_program_id"] = src["learning_program_id"]
         if "learning_program_description" in src:
-            out["learning_program_description"] = src["learning_program_description"]
+            out["learning_program_description"] = src[
+                "learning_program_description"
+            ]
         return out
     if et == "Credential":
         out = {"credential_name": src["credential_name"]}
@@ -115,14 +120,18 @@ def _transcription_method(snap: str) -> str:
 
 
 def _assert_in_freeze(rec: dict, expected: dict) -> None:
-    text = pack_join(PACK, rec["source"]["normalized_text_path"]).read_text(encoding="utf-8")
+    text = pack_join(PACK, rec["source"]["normalized_text_path"]).read_text(
+        encoding="utf-8"
+    )
     for key, val in expected.items():
         if key in SKIP_FREEZE_CHECK:
             continue
         if not isinstance(val, str):
             continue
         if val not in text:
-            raise ValueError(f"{rec['record_id']} {key} not in freeze: {val[:120]!r}")
+            raise ValueError(
+                f"{rec['record_id']} {key} not in freeze: {val[:120]!r}"
+            )
 
 
 def _drop_nested_html_copy() -> None:
@@ -193,7 +202,10 @@ def export_xtra_courses() -> list[Path]:
         }
         _assert_in_freeze(rec, row["expected"])
         dest = folder / f"{rec['record_id']}.json"
-        dest.write_text(json.dumps(row, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+        dest.write_text(
+            json.dumps(row, indent=2, ensure_ascii=False) + "\n",
+            encoding="utf-8",
+        )
         written.append(dest)
         keep[FOLDER[et]].add(dest.name)
         rows.append(
@@ -214,7 +226,14 @@ def export_xtra_courses() -> list[Path]:
     with csv_path.open("w", encoding="utf-8", newline="") as fh:
         w = csv.DictWriter(
             fh,
-            fieldnames=["id", "catalogue_type", "institution", "source_url", "pile", "proof_html"],
+            fieldnames=[
+                "id",
+                "catalogue_type",
+                "institution",
+                "source_url",
+                "pile",
+                "proof_html",
+            ],
         )
         w.writeheader()
         w.writerows(rows)

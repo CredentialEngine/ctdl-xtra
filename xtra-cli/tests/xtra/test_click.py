@@ -113,7 +113,9 @@ def test_env_option_rejects_unknown_environment() -> None:
 
 def test_resolve_uri_prefers_the_flag_then_the_environment() -> None:
     save_config(StoredConfig(env_name="prod", data_uri=PROD_URI))
-    assert resolve_uri("./cache", env_name=None, flag="--target-uri") == "./cache"
+    assert (
+        resolve_uri("./cache", env_name=None, flag="--target-uri") == "./cache"
+    )
     assert resolve_uri(None, env_name=None, flag="--target-uri") == PROD_URI
     assert resolve_uri(None, env_name="dev", flag="--target-uri").startswith(
         "azure://http://127.0.0.1"
@@ -135,6 +137,8 @@ def test_resolve_connection_prefers_the_flag(monkeypatch) -> None:
     assert resolve_connection(None, env_name=None) == "from-env"
 
 
-def test_resolve_connection_is_none_when_nothing_is_configured(monkeypatch) -> None:
+def test_resolve_connection_is_none_when_nothing_is_configured(
+    monkeypatch,
+) -> None:
     monkeypatch.delenv("AZURE_STORAGE_CONNECTION_STRING", raising=False)
     assert resolve_connection(None, env_name=None) is None

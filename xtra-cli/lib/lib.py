@@ -22,9 +22,7 @@ def college_slug(url: str) -> str:
     for prefix in ("catalog.", "www.", "coursecatalog.", "bulletin."):
         if host.startswith(prefix):
             host = host[len(prefix) :]
-    if host.endswith(".edu"):
-        host = host[:-4]
-    elif host.endswith(".org"):
+    if host.endswith(".edu") or host.endswith(".org"):
         host = host[:-4]
     slug = re.sub(r"[^a-z0-9]+", "-", host).strip("-")
     return slug or "college"
@@ -36,7 +34,9 @@ def configure(pack: Path) -> None:
     os.environ["XTRA_PACK"] = str(pack)
     os.environ["XTRA_SLOTS"] = "dynamic"
     os.environ["XTRA_MODE"] = "college"
-    if not (os.environ.get("XTRA_PILE") or os.environ.get("GOLDEN_SET_PILE") or "").strip():
+    if not (
+        os.environ.get("XTRA_PILE") or os.environ.get("GOLDEN_SET_PILE") or ""
+    ).strip():
         os.environ["XTRA_PILE"] = pack.name
     pack.mkdir(parents=True, exist_ok=True)
     if SCHEMA_SRC.is_file():
@@ -78,7 +78,9 @@ def resolve_pack(out: str | None, urls: list[str]) -> Path:
     home = pack_home()
     if out:
         pack = Path(out).expanduser()
-        return pack.absolute() if pack.is_absolute() else (home / pack).absolute()
+        return (
+            pack.absolute() if pack.is_absolute() else (home / pack).absolute()
+        )
     if len(urls) == 1:
         return (home / f"{college_slug(urls[0])}_courses").absolute()
     return (home / "courses_mix").absolute()
@@ -135,11 +137,15 @@ def _check_pack_college(pack: Path) -> list[str]:
     rec_dir = pack / "records"
     course_dir = pack / "courses"
     recs = sorted(rec_dir.glob("*.json")) if rec_dir.is_dir() else []
-    course_files = sorted(course_dir.glob("*.json")) if course_dir.is_dir() else []
+    course_files = (
+        sorted(course_dir.glob("*.json")) if course_dir.is_dir() else []
+    )
     if not recs:
         errors.append("no records/*.json - capture did not extract any course")
     if course_files and recs and len(course_files) != len(recs):
-        errors.append(f"courses/ has {len(course_files)} files but records/ has {len(recs)}")
+        errors.append(
+            f"courses/ has {len(course_files)} files but records/ has {len(recs)}"
+        )
     for path in course_files:
         row = json.loads(path.read_text(encoding="utf-8"))
         rid = row.get("id") or path.stem
@@ -161,20 +167,27 @@ def _check_pack_college(pack: Path) -> list[str]:
     return errors
 
 
-def write_check(pack: Path, errors: list[str], extra: int | None = None) -> Path:
+def write_check(
+    pack: Path, errors: list[str], extra: int | None = None
+) -> Path:
     rec_dir = pack / "records"
-    n = extra if extra is not None else (
-        len(list(rec_dir.glob("*.json"))) if rec_dir.is_dir() else 0
+    n = (
+        extra
+        if extra is not None
+        else (len(list(rec_dir.glob("*.json"))) if rec_dir.is_dir() else 0)
     )
     dest = pack / "CHECK.json"
     dest.write_text(
-        json.dumps({"ok": not errors, "records": n, "errors": errors}, indent=2) + "\n",
+        json.dumps({"ok": not errors, "records": n, "errors": errors}, indent=2)
+        + "\n",
         encoding="utf-8",
     )
     return dest
 
 
-def write_pack_readme(pack: Path, *, seeds: list[str], errors: list[str]) -> Path:
+def write_pack_readme(
+    pack: Path, *, seeds: list[str], errors: list[str]
+) -> Path:
     rec_dir = pack / "records"
     n = len(list(rec_dir.glob("*.json"))) if rec_dir.is_dir() else 0
     status = "READY_FOR_HUMAN_REVIEW" if not errors else "FAILED_CHECKS"

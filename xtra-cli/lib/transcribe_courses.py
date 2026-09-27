@@ -12,11 +12,16 @@ from __future__ import annotations
 import sys
 
 from slots import Slot
-from transcribe_lib import FieldDraft, TranscriptionError
 from templates import FAMILY_OF, TEMPLATE, detect_template
-from templates.acalog import extract_bergen, extract_hcc, extract_raritan, extract_units
+from templates.acalog import (
+    extract_bergen,
+    extract_hcc,
+    extract_raritan,
+    extract_units,
+)
 from templates.clean_catalog import extract_clean_catalog
 from templates.coursedog import extract_brookdale, extract_mccc, extract_rcbc
+from transcribe_lib import FieldDraft, TranscriptionError
 
 __all__ = [
     "TEMPLATE",

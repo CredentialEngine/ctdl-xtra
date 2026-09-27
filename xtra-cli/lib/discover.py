@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import re
 from collections.abc import Callable
+from contextlib import suppress
 from urllib.parse import parse_qs, urlparse
 
 from catalog import (
@@ -18,11 +19,12 @@ from catalog import (
     is_course_detail_url,
     normalize_course_url,
     origin_of,
+    page_id_for,
+    record_id_for,
     sample_urls,
 )
-from slots import Slot
-from catalog import page_id_for, record_id_for
 from config import BROWSER_USER_AGENT
+from slots import Slot
 
 HREF = re.compile(r"""href=["']([^"'#]+)["']""", re.I)
 COURSE_CODE = COURSEDOG_COURSE_CODE
@@ -70,15 +72,22 @@ def hrefs_from_html(html: str, base: str) -> list[str]:
 
 
 def acalog_listing_url(html: str, page_url: str) -> str | None:
-    origin = origin_of(page_url)
     best = None
     for href in HREF.findall(html):
         full = abs_url(page_url, href)
         if "content.php" not in full or "catoid=" not in full:
             continue
-        low = href.lower()
-        parent = html[max(0, html.lower().find(href.lower()) - 120) : html.lower().find(href.lower()) + 160].lower()
-        if "courses (a-z)" in parent or "courses a-z" in parent or ">courses<" in parent:
+        parent = html[
+            max(0, html.lower().find(href.lower()) - 120) : html.lower().find(
+                href.lower()
+            )
+            + 160
+        ].lower()
+        if (
+            "courses (a-z)" in parent
+            or "courses a-z" in parent
+            or ">courses<" in parent
+        ):
             if "discipline" in parent:
                 continue
             best = full
@@ -103,12 +112,17 @@ def acalog_listing_url(html: str, page_url: str) -> str | None:
 def acalog_course_urls(html: str, page_url: str) -> list[str]:
     found = []
     for raw in ACALOG_COURSE.findall(html):
-        found.append(normalize_course_url(abs_url(page_url, raw.replace("&amp;", "&"))))
+        found.append(
+            normalize_course_url(abs_url(page_url, raw.replace("&amp;", "&")))
+        )
     return list(dict.fromkeys(found))
 
 
 def acalog_max_page(html: str) -> int:
-    nums = [int(n) for n in re.findall(r"filter(?:\[|%5B)cpage(?:\]|%5D)=(\d+)", html)]
+    nums = [
+        int(n)
+        for n in re.findall(r"filter(?:\[|%5B)cpage(?:\]|%5D)=(\d+)", html)
+    ]
     nums += [int(n) for n in re.findall(r"Page\s+\d+\s+of\s+(\d+)", html, re.I)]
     return max(nums) if nums else 1
 
@@ -146,7 +160,11 @@ def clean_subject_urls(html: str, page_url: str) -> list[str]:
         if p.netloc != urlparse(origin).netloc:
             continue
         parts = [x for x in p.path.split("/") if x]
-        if len(parts) == 1 and re.fullmatch(r"[a-z][a-z0-9-]{2,40}", parts[0]) and parts[0] not in skip:
+        if (
+            len(parts) == 1
+            and re.fullmatch(r"[a-z][a-z0-9-]{2,40}", parts[0])
+            and parts[0] not in skip
+        ):
             found.append(f"{origin}/{parts[0]}")
     return list(dict.fromkeys(found))
 
@@ -243,11 +261,15 @@ def harvest_with_playwright(
                 except PlaywrightError as exc:
                     last_exc = exc
                     page.wait_for_timeout(800)
-            raise HarvestError(navigation_failure(url, last_exc or RuntimeError("empty page"))) from None
+            raise HarvestError(
+                navigation_failure(url, last_exc or RuntimeError("empty page"))
+            ) from None
 
         html = goto(seed_url)
         family = detect_family(html, seed_url)
-        institution = institution_from_html(html, college_slug(seed_url).replace("-", " ").title())
+        institution = institution_from_html(
+            html, college_slug(seed_url).replace("-", " ").title()
+        )
         urls: list[str] = []
 
         if is_course_detail_url(seed_url, family):
@@ -256,10 +278,10 @@ def harvest_with_playwright(
             listing = acalog_listing_url(html, seed_url) or seed_url
             if listing != seed_url:
                 goto(listing)
-            try:
-                page.wait_for_selector('a[href*="preview_course"]', timeout=12000)
-            except PlaywrightTimeout:
-                pass
+            with suppress(PlaywrightTimeout):
+                page.wait_for_selector(
+                    'a[href*="preview_course"]', timeout=12000
+                )
             listing_html = page.content()
             live_listing = page.url or listing
             origin = origin_of(live_listing)
@@ -275,9 +297,7 @@ def harvest_with_playwright(
                 # filter[cpage]=1 on http Acalog hosts can abort the harvest.
                 start = 2 if urls else 1
                 for n in range(start, last + 1):
-                    page_url = (
-                        f"{origin}/content.php?catoid={catoid}&navoid={navoid}&filter[cpage]={n}"
-                    )
+                    page_url = f"{origin}/content.php?catoid={catoid}&navoid={navoid}&filter[cpage]={n}"
                     try:
                         ph = goto(page_url)
                     except HarvestError as exc:
@@ -310,7 +330,9 @@ def harvest_with_playwright(
                 html_now = page.content()
                 urls.extend(coursedog_course_urls(html_now, courses_home))
                 for code in json_codes:
-                    urls.append(normalize_course_url(f"{origin}/courses/{code}"))
+                    urls.append(
+                        normalize_course_url(f"{origin}/courses/{code}")
+                    )
                 if len(dict.fromkeys(urls)) >= buffer:
                     break
         elif family == "custom_html":
@@ -327,12 +349,25 @@ def harvest_with_playwright(
 
         browser.close()
 
-    urls = [normalize_course_url(u) for u in urls if is_course_detail_url(u, family if family != "unknown" else None)]
+    urls = [
+        normalize_course_url(u)
+        for u in urls
+        if is_course_detail_url(u, family if family != "unknown" else None)
+    ]
     urls = list(dict.fromkeys(urls))
     chosen = urls if fetch_all else sample_urls(urls, want)
-    family_out = family if family != "unknown" else detect_family("", chosen[0] if chosen else seed_url)
+    family_out = (
+        family
+        if family != "unknown"
+        else detect_family("", chosen[0] if chosen else seed_url)
+    )
     slots = [
-        make_slot(u, institution=institution, family=family_out, template_id=family_out)
+        make_slot(
+            u,
+            institution=institution,
+            family=family_out,
+            template_id=family_out,
+        )
         for u in chosen
     ]
     return {

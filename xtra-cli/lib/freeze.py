@@ -10,14 +10,13 @@ relative path. Unset means local only.
 from __future__ import annotations
 
 import json
-import os
 import re
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
-from config import BROWSER_USER_AGENT, PACK, REPO_ROOT, SNAPSHOT_DIR, env_get
 from active import active_slots, unique_pages
+from config import BROWSER_USER_AGENT, PACK, REPO_ROOT, SNAPSHOT_DIR, env_get
 from normalize import sha256_bytes
 
 _DAY = re.compile(r"^\d{4}-\d{2}-\d{2}$")
@@ -52,7 +51,12 @@ def redirect_urls(resp) -> list[str]:
 
 
 def _now() -> str:
-    return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+    return (
+        datetime.now(timezone.utc)
+        .replace(microsecond=0)
+        .isoformat()
+        .replace("+00:00", "Z")
+    )
 
 
 def utc_day() -> str:
@@ -155,9 +159,24 @@ def _existing_html(slot) -> Path | None:
     if slot.copy_html is not None:
         candidates.append(Path(slot.copy_html))
     candidates.append(SNAPSHOT_DIR / f"{slot.stem}.html")
-    candidates.append((REPO_ROOT / "handoff" / "golden_set_v4" / "snapshots" / f"{slot.stem}.html").absolute())
     candidates.append(
-        (REPO_ROOT / "golden_sets" / "sources" / "html" / f"{slot.stem}.html" / f"{slot.stem}.html").absolute()
+        (
+            REPO_ROOT
+            / "handoff"
+            / "golden_set_v4"
+            / "snapshots"
+            / f"{slot.stem}.html"
+        ).absolute()
+    )
+    candidates.append(
+        (
+            REPO_ROOT
+            / "golden_sets"
+            / "sources"
+            / "html"
+            / f"{slot.stem}.html"
+            / f"{slot.stem}.html"
+        ).absolute()
     )
     for path in candidates:
         if path.is_file():
@@ -173,14 +192,22 @@ def copy_existing() -> list[dict]:
             continue
         dest = snapshot_path(slot.stem)
         if dest.is_file():
-            rows.append({"stem": slot.stem, "status": "reused", "path": portable_path(dest)})
+            rows.append(
+                {
+                    "stem": slot.stem,
+                    "status": "reused",
+                    "path": portable_path(dest),
+                }
+            )
             print(f"reused {dest}", flush=True)
             continue
         html = src.read_text(encoding="utf-8", errors="replace")
         retrieved = slot.retrieved_at
         sibling_meta = src.parent / f"{src.stem}.meta.json"
         if (not retrieved) and sibling_meta.is_file():
-            retrieved = json.loads(sibling_meta.read_text(encoding="utf-8")).get("retrieved_at")
+            retrieved = json.loads(
+                sibling_meta.read_text(encoding="utf-8")
+            ).get("retrieved_at")
         if not retrieved:
             retrieved = _now()
         wrote = write_snapshot(
@@ -239,7 +266,9 @@ def fetch_missing() -> list[dict]:
         page = context.new_page()
         page.set_default_timeout(60000)
         for i, slot in enumerate(missing, start=1):
-            print(f"[{i}/{len(missing)}] fetch {slot.requested_url}", flush=True)
+            print(
+                f"[{i}/{len(missing)}] fetch {slot.requested_url}", flush=True
+            )
             status = "ok"
             error = None
             html = ""
@@ -250,9 +279,15 @@ def fetch_missing() -> list[dict]:
             dest = snapshot_path(slot.stem)
             try:
                 try:
-                    resp = page.goto(slot.requested_url, wait_until="load", timeout=60000)
+                    resp = page.goto(
+                        slot.requested_url, wait_until="load", timeout=60000
+                    )
                 except PlaywrightTimeout:
-                    resp = page.goto(slot.requested_url, wait_until="domcontentloaded", timeout=60000)
+                    resp = page.goto(
+                        slot.requested_url,
+                        wait_until="domcontentloaded",
+                        timeout=60000,
+                    )
                     page.wait_for_timeout(1500)
                 if resp is not None:
                     http_status = resp.status

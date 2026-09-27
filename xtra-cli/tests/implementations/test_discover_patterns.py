@@ -22,7 +22,9 @@ def run_of(profiles):
 def test_a_label_on_nearly_every_page_is_site_chrome() -> None:
     """A menu heading is printed everywhere and distinguishes nothing."""
     profiles = [
-        make_profile(f"course{index}", field_labels=["search catalog", "credits"])
+        make_profile(
+            f"course{index}", field_labels=["search catalog", "credits"]
+        )
         for index in range(10)
     ]
     profiles.extend(
@@ -36,8 +38,13 @@ def test_a_label_on_nearly_every_page_is_site_chrome() -> None:
     assert "credits" in vocabulary.signature_labels
 
 
-def test_a_label_on_one_page_stays_in_the_report_but_not_the_signature() -> None:
-    profiles = [make_profile(f"p{index}", field_labels=["credits"]) for index in range(9)]
+def test_a_label_on_one_page_stays_in_the_report_but_not_the_signature() -> (
+    None
+):
+    profiles = [
+        make_profile(f"p{index}", field_labels=["credits"])
+        for index in range(9)
+    ]
     profiles.append(make_profile("odd", field_labels=["credits", "studio fee"]))
     vocabulary = build_vocabulary(profiles)
     assert "studio fee" in vocabulary.single_page
@@ -65,8 +72,12 @@ def test_a_signature_is_the_page_type_its_labels_and_its_markers() -> None:
 def test_the_catalog_year_is_left_out_of_the_signature() -> None:
     """Otherwise every page of a second catalog year is its own pattern."""
     profiles = [
-        make_profile("a", field_labels=["credits"], markers={"catalog_year": "2026-2027"}),
-        make_profile("b", field_labels=["credits"], markers={"catalog_year": "2025-2026"}),
+        make_profile(
+            "a", field_labels=["credits"], markers={"catalog_year": "2026-2027"}
+        ),
+        make_profile(
+            "b", field_labels=["credits"], markers={"catalog_year": "2025-2026"}
+        ),
     ]
     _, _, patterns = run_of(profiles)
     assert len(patterns) == 1
@@ -74,9 +85,12 @@ def test_the_catalog_year_is_left_out_of_the_signature() -> None:
 
 def test_pages_of_the_same_shape_land_in_one_pattern() -> None:
     profiles = [
-        make_profile(f"p{index}", field_labels=["credits"]) for index in range(5)
+        make_profile(f"p{index}", field_labels=["credits"])
+        for index in range(5)
     ]
-    profiles.append(make_profile("odd", field_labels=["credits"], markers={"ceu": "CEU"}))
+    profiles.append(
+        make_profile("odd", field_labels=["credits"], markers={"ceu": "CEU"})
+    )
     _, _, patterns = run_of(profiles)
     assert [pattern.count for pattern in patterns] == [5, 1]
     assert patterns[0].page_type == "Course"
@@ -84,9 +98,12 @@ def test_pages_of_the_same_shape_land_in_one_pattern() -> None:
 
 def test_a_small_pattern_is_special() -> None:
     profiles = [
-        make_profile(f"p{index}", field_labels=["credits"]) for index in range(40)
+        make_profile(f"p{index}", field_labels=["credits"])
+        for index in range(40)
     ]
-    profiles.append(make_profile("odd", field_labels=["credits"], markers={"ceu": "CEU"}))
+    profiles.append(
+        make_profile("odd", field_labels=["credits"], markers={"ceu": "CEU"})
+    )
     _, _, patterns = run_of(profiles)
     odd = next(pattern for pattern in patterns if pattern.count == 1)
     assert odd.special
@@ -96,10 +113,13 @@ def test_a_small_pattern_is_special() -> None:
 
 def test_a_marker_on_half_the_page_type_is_not_uncommon() -> None:
     profiles = [
-        make_profile(f"p{index}", field_labels=["credits"]) for index in range(10)
+        make_profile(f"p{index}", field_labels=["credits"])
+        for index in range(10)
     ]
     profiles.extend(
-        make_profile(f"q{index}", field_labels=["credits"], markers={"ceu": "CEU"})
+        make_profile(
+            f"q{index}", field_labels=["credits"], markers={"ceu": "CEU"}
+        )
         for index in range(10)
     )
     _, _, patterns = run_of(profiles)
@@ -138,11 +158,14 @@ def test_a_pattern_with_a_rare_field_label_is_special() -> None:
     for index in range(2):
         profiles.append(
             make_profile(
-                f"rare{index}", field_labels=["credits", "studio fee", "department"]
+                f"rare{index}",
+                field_labels=["credits", "studio fee", "department"],
             )
         )
     _, stats, patterns = run_of(profiles)
-    odd = next(pattern for pattern in patterns if "studio fee" in pattern.field_labels)
+    odd = next(
+        pattern for pattern in patterns if "studio fee" in pattern.field_labels
+    )
     assert odd.rare_field_labels == ["studio fee"]
     assert odd.special
     assert stats.label_share("Course", "studio fee") < 0.05
@@ -150,7 +173,10 @@ def test_a_pattern_with_a_rare_field_label_is_special() -> None:
 
 def test_an_archived_or_empty_pattern_is_always_special() -> None:
     profiles = [make_profile(f"p{index}") for index in range(10)]
-    for name, marker in (("arch", "archived"), ("empty", "empty_or_error_page")):
+    for name, marker in (
+        ("arch", "archived"),
+        ("empty", "empty_or_error_page"),
+    ):
         profiles.extend(
             make_profile(f"{name}{index}", markers={marker: "x"})
             for index in range(10)
@@ -178,16 +204,23 @@ def test_a_pattern_from_another_catalog_year_is_special() -> None:
         )
     )
     _, _, patterns = run_of(profiles)
-    odd = next(pattern for pattern in patterns if "2019-2020" in pattern.catalog_years)
+    odd = next(
+        pattern for pattern in patterns if "2019-2020" in pattern.catalog_years
+    )
     assert odd.special
     assert any("2019-2020" in reason for reason in odd.special_because)
 
 
 def test_rarity_is_measured_inside_a_page_type_not_across_the_run() -> None:
     """One rare Competency label must not look common next to 90 courses."""
-    profiles = [make_profile(f"c{index}", field_labels=["credits"]) for index in range(90)]
+    profiles = [
+        make_profile(f"c{index}", field_labels=["credits"])
+        for index in range(90)
+    ]
     profiles.extend(
-        make_profile(f"k{index}", page_type="Competency", field_labels=["outcome"])
+        make_profile(
+            f"k{index}", page_type="Competency", field_labels=["outcome"]
+        )
         for index in range(10)
     )
     _, stats, _ = run_of(profiles)
@@ -196,8 +229,13 @@ def test_rarity_is_measured_inside_a_page_type_not_across_the_run() -> None:
 
 
 def test_patterns_are_reported_largest_first_and_stay_stable() -> None:
-    profiles = [make_profile(f"p{index}", field_labels=["credits"]) for index in range(3)]
-    profiles.append(make_profile("odd", field_labels=["credits"], markers={"ceu": "c"}))
+    profiles = [
+        make_profile(f"p{index}", field_labels=["credits"])
+        for index in range(3)
+    ]
+    profiles.append(
+        make_profile("odd", field_labels=["credits"], markers={"ceu": "c"})
+    )
     _, _, first = run_of(profiles)
     _, _, second = run_of(profiles)
     assert [p.pattern_id for p in first] == [p.pattern_id for p in second]
@@ -206,7 +244,11 @@ def test_patterns_are_reported_largest_first_and_stay_stable() -> None:
 
 def test_a_pattern_carries_evidence_and_examples() -> None:
     profiles = [
-        make_profile(f"p{index}", field_labels=["credits"], markers={"ceu": f"quote {index}"})
+        make_profile(
+            f"p{index}",
+            field_labels=["credits"],
+            markers={"ceu": f"quote {index}"},
+        )
         for index in range(4)
     ]
     _, _, patterns = run_of(profiles)

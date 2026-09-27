@@ -39,7 +39,9 @@ def browser_user_agent() -> str:
     return BROWSER_USER_AGENT
 
 
-def fetch_url(url: str, *, timeout: int = ROBOTS_TIMEOUT_SECONDS) -> tuple[int, bytes]:
+def fetch_url(
+    url: str, *, timeout: int = ROBOTS_TIMEOUT_SECONDS
+) -> tuple[int, bytes]:
     """GET one small document. Returns (status, body); 4xx and 5xx included."""
     request = urllib.request.Request(
         url, headers={"User-Agent": browser_user_agent()}
@@ -118,7 +120,9 @@ def read_robots(
     try:
         status, body = fetch(url)
     except SiteFetchError as exc:
-        logger.warning("ROBOTS %s unreachable (%s), crawling with no rules", url, exc)
+        logger.warning(
+            "ROBOTS %s unreachable (%s), crawling with no rules", url, exc
+        )
         return SiteRules(robots=no_rules(), robots_status=None)
 
     if status >= 500:
@@ -127,7 +131,9 @@ def read_robots(
         )
         return SiteRules(robots=no_rules(), robots_status=status)
     if status >= 400:
-        logger.info("ROBOTS %s returned HTTP %s, no rules published", url, status)
+        logger.info(
+            "ROBOTS %s returned HTTP %s, no rules published", url, status
+        )
         return SiteRules(robots=no_rules(), robots_status=status)
 
     parser = RobotFileParser()
@@ -208,7 +214,12 @@ def collect_sitemap_urls(
             logger.warning("SITEMAP %s is not readable gzip (%s)", url, exc)
             continue
         kind, locations = parse_sitemap(body)
-        logger.info("SITEMAP %s -> %s %s entries", url, kind or "unknown", len(locations))
+        logger.info(
+            "SITEMAP %s -> %s %s entries",
+            url,
+            kind or "unknown",
+            len(locations),
+        )
         for location in locations:
             if kind == "sitemapindex":
                 pending.append(location)

@@ -18,6 +18,7 @@ from common.object_store import open_store
 from implementations.discover import (
     DiscoverSettings,
     NoPagesError,
+    UnknownStemError,
     run_discovery,
 )
 from implementations.discover_rules import (
@@ -28,6 +29,7 @@ from xtra.click import (
     POSITIVE_INT,
     env_option,
     non_empty_string,
+    non_empty_strings,
     resolve_connection,
     resolve_uri,
     source_uri_option,
@@ -50,6 +52,17 @@ logger = logging.getLogger(__name__)
     help="Catalog folder the crawl wrote, for example catalog-example-edu.",
 )
 @click.option("--run-id", required=True, help="Crawl run id to read.")
+@click.option(
+    "--stem",
+    "stems",
+    multiple=True,
+    callback=non_empty_strings,
+    help=(
+        "Read only this saved page, by the stem the crawl wrote it under. "
+        "Repeatable. Default: every page of the run, which is the only "
+        "way the shares and the special patterns mean anything."
+    ),
+)
 @click.option(
     "--sample-label",
     default=DEFAULT_SAMPLE_LABEL,
@@ -74,6 +87,7 @@ def main(
     target_uri: str | None,
     catalog_id: str,
     run_id: str,
+    stems: tuple[str, ...],
     sample_label: str,
     sample_size: int,
     azure_storage_connection_string: str | None,
@@ -83,6 +97,11 @@ def main(
     Writes to {catalog-id}/{run-id}/discovery/{discovery-run-id}/. Each run
     gets its own folder, so an earlier one is never overwritten and two runs
     can be compared after a rule changes.
+
+    With --stem it reads only the pages named, which answers why one page
+    is labelled the way it is without rereading the crawl. The reports are
+    written the same way and say they cover a subset, because every share
+    and every rare marker in them is then counted over those pages alone.
     """
     if not is_iso8601_utc(run_id):
         raise click.UsageError(
@@ -96,10 +115,12 @@ def main(
         azure_storage_connection_string, env_name=env_name
     )
     source = open_store(
-        source_uri, azure_storage_connection_string=azure_storage_connection_string
+        source_uri,
+        azure_storage_connection_string=azure_storage_connection_string,
     )
     target = open_store(
-        target_uri, azure_storage_connection_string=azure_storage_connection_string
+        target_uri,
+        azure_storage_connection_string=azure_storage_connection_string,
     )
 
     settings = DiscoverSettings(
@@ -109,6 +130,7 @@ def main(
         source_uri=source_uri,
         sample_label=sample_label,
         sample_size=sample_size,
+        stems=tuple(stems),
     )
     try:
         outcome = run_discovery(
@@ -117,6 +139,12 @@ def main(
     except NoPagesError as exc:
         raise click.ClickException(
             f"{exc}. Run xtra catalog crawl for this run id first."
+        ) from exc
+    except UnknownStemError as exc:
+        raise click.ClickException(
+            f"{exc}. A stem is the name the crawl saved the page under, "
+            "without the .html; it is the `stem` field of the page's "
+            ".meta.json, and `html_path` there says where the page is."
         ) from exc
     except FileExistsError as exc:
         raise click.ClickException(
@@ -127,6 +155,9 @@ def main(
     click.echo(outcome.table)
     click.echo("")
     click.echo(json.dumps(outcome.summary, indent=2))
+    if outcome.exit_code:
+        click.echo(outcome.reason, err=True)
+        raise SystemExit(outcome.exit_code)
 
 
 if __name__ == "__main__":

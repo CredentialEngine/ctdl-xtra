@@ -24,6 +24,15 @@ def non_empty_string(ctx, param, value):
     return normalized
 
 
+def non_empty_strings(ctx, param, value):
+    """The same, for a repeatable option, which arrives as a tuple."""
+    if not value:
+        return ()
+    return tuple(
+        non_empty_string(ctx, param, item) for item in value if item is not None
+    )
+
+
 def strategy_options(*names: str):
     """Mutually exclusive --with-<strategy> flags sharing dest `strategy`."""
 
@@ -43,9 +52,7 @@ def strategy_options(*names: str):
 def require_strategy(strategy: str | None, *, example: str) -> str:
     if strategy:
         return strategy
-    raise click.UsageError(
-        f"Specify a strategy, for example {example}."
-    )
+    raise click.UsageError(f"Specify a strategy, for example {example}.")
 
 
 def storage_connection_options():
@@ -86,6 +93,7 @@ def target_uri_option():
             "Where to write this run. Not a pack folder and not a zip. "
             "Defaults to the active environment's data URI. Examples:\n"
             "  azure://https://account.blob.core.windows.net/xtra\n"
+            "  https://account.blob.core.windows.net/xtra\n"
             "  azure://http://127.0.0.1:10000/devstoreaccount1/xtra\n"
             "  file:///tmp/xtra\n"
             "  ./xtra-cache"
@@ -105,7 +113,9 @@ def source_uri_option():
     )
 
 
-def resolve_uri(explicit: str | None, *, env_name: str | None, flag: str) -> str:
+def resolve_uri(
+    explicit: str | None, *, env_name: str | None, flag: str
+) -> str:
     """Storage URI for `flag`, falling back to the selected environment."""
     try:
         return resolve_data_uri(explicit, env_name=env_name)

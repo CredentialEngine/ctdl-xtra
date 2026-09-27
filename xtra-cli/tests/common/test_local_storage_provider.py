@@ -21,7 +21,9 @@ def test_iter_load_and_delete(tmp_path) -> None:
         keys=["example/run/slots.json"], errors=errors
     )
     assert binary[0].content == b"{}"
-    deleted = provider.delete_batch(keys=["example/run/slots.json"], errors=errors)
+    deleted = provider.delete_batch(
+        keys=["example/run/slots.json"], errors=errors
+    )
     assert deleted == ["example/run/slots.json"]
     assert not (nested / "slots.json").exists()
     assert "cache" in provider.describe_location()

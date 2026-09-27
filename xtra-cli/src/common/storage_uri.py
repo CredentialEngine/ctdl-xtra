@@ -4,6 +4,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from urllib.parse import unquote, urlparse
 
+AZURE_BLOB_HOST_SUFFIX = ".blob.core.windows.net"
+
 
 @dataclass(frozen=True)
 class ParsedFileStorageUri:
@@ -95,6 +97,21 @@ def parse_azure_storage_uri(uri: str) -> ParsedAzureStorageUri:
         container_name=container_name,
         prefix_path="/".join(prefix_segments),
     )
+
+
+def normalize_storage_uri(uri: str) -> str:
+    """Read a pasted Azure container URL as the azure:// URI it names.
+
+    The Azure portal shows a container as
+    https://<account>.blob.core.windows.net/<container>, so that is what gets
+    pasted. It becomes azure://https://...; every other URI is returned
+    unchanged, so https://example.edu/... is still rejected as storage.
+    """
+    parsed = urlparse(uri)
+    host = (parsed.hostname or "").lower()
+    if parsed.scheme == "https" and host.endswith(AZURE_BLOB_HOST_SUFFIX):
+        return f"azure://{uri}"
+    return uri
 
 
 def parse_local_path_if_supported(uri: str) -> str | None:

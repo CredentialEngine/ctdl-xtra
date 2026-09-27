@@ -50,13 +50,17 @@ class ObjectStore:
 
     def get_bytes(self, key: str) -> bytes:
         errors: list[str] = []
-        rows = self.provider.load_batch(keys=[self._load_key(key)], errors=errors)
+        rows = self.provider.load_batch(
+            keys=[self._load_key(key)], errors=errors
+        )
         if not rows:
             rows = self.provider.load_batch(keys=[key], errors=errors)
         if not rows:
             raise FileNotFoundError(key)
         content = rows[0].content
-        return content if isinstance(content, bytes) else content.encode("utf-8")
+        return (
+            content if isinstance(content, bytes) else content.encode("utf-8")
+        )
 
     def get_text(self, key: str) -> str:
         return self.get_bytes(key).decode("utf-8")

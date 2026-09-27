@@ -24,25 +24,41 @@ INVENTORY: dict[str, tuple[tuple[str, ...], str, str | None]] = {
     "course_long_title": (("Course",), "string", None),
     "course_academic_level": (("Course",), "string", None),
     "course_general_education": (("Course",), "string", None),
-    "learning_program_id": (("LearningProgram",), "string", "ceterms:codedNotation"),
+    "learning_program_id": (
+        ("LearningProgram",),
+        "string",
+        "ceterms:codedNotation",
+    ),
     "learning_program_name": (("LearningProgram",), "string", "ceterms:name"),
-    "learning_program_description": (("LearningProgram",), "string", "ceterms:description"),
+    "learning_program_description": (
+        ("LearningProgram",),
+        "string",
+        "ceterms:description",
+    ),
     "credential_name": (("Credential",), "string", "ceterms:name"),
-    "credential_description": (("Credential",), "string", "ceterms:description"),
-    "competency_framework_name": (("CompetencyFramework",), "string", "ceasn:name"),
+    "credential_description": (
+        ("Credential",),
+        "string",
+        "ceterms:description",
+    ),
+    "competency_framework_name": (
+        ("CompetencyFramework",),
+        "string",
+        "ceasn:name",
+    ),
     "competency_text": (("Competency",), "string", "ceasn:competencyText"),
     "relationship_heading": (("Link",), "string", None),
 }
 
-CSV_HEADER = (
-    "canonical_label,target_classes,value_kind,ctdl_property,notes\n"
-)
+CSV_HEADER = "canonical_label,target_classes,value_kind,ctdl_property,notes\n"
 
 
 def csv_text() -> str:
     lines = [CSV_HEADER]
     for label, (classes, kind, prop) in INVENTORY.items():
-        notes = "Omit when not printed. Never invent min/max from a single credit."
+        notes = (
+            "Omit when not printed. Never invent min/max from a single credit."
+        )
         if label == "course_credits":
             notes = "Single printed credit is one value. Do not emit min/max unless the freeze prints a range or both bounds."
         elif label == "course_credits_min":
@@ -60,4 +76,8 @@ def csv_text() -> str:
 
 
 def allowed_for(entity_type: str) -> set[str]:
-    return {label for label, (classes, _, _) in INVENTORY.items() if entity_type in classes}
+    return {
+        label
+        for label, (classes, _, _) in INVENTORY.items()
+        if entity_type in classes
+    }

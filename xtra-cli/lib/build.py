@@ -5,17 +5,17 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from active import active_slots
 from config import PACK, RECORD_DIR
 from evidence import hydrate_evidence
 from freeze import meta_path, snapshot_path, snapshot_rel
+from html_text import pack_join
 from inventory import csv_text as inventory_csv
 from mapping import map_fields
 from normalize import sha256_bytes, sha256_text
 from record import locator, shell, source_block
-from active import active_slots
 from transcribe import entities_for_page, transcribe_slot
 from transcribe_lib import TranscriptionError
-from html_text import pack_join
 
 
 def _meta(stem: str) -> dict:
@@ -136,7 +136,9 @@ def _scope(slot, text: str) -> dict:
     return {
         "mode": "complete",
         "entity_boundary": boundary,
-        "included_regions": [locator("whole_document", "in-scope entity block")],
+        "included_regions": [
+            locator("whole_document", "in-scope entity block")
+        ],
         "excluded_regions": [],
         "partial_reason": None,
         "completeness_attested": None,
@@ -172,7 +174,8 @@ def _links(slot, fields: list[dict]) -> list[dict]:
         return []
     subj, obj = _link_endpoints(slot)
     heading = next(
-        (f for f in fields if f["canonical_label"] == "relationship_heading"), None
+        (f for f in fields if f["canonical_label"] == "relationship_heading"),
+        None,
     )
     if heading is None:
         raise TranscriptionError(
@@ -204,7 +207,10 @@ def build_pack() -> list[str]:
         try:
             rec = build_record(slot)
             dest = RECORD_DIR / f"{slot.record_id}.json"
-            dest.write_text(json.dumps(rec, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+            dest.write_text(
+                json.dumps(rec, indent=2, ensure_ascii=False) + "\n",
+                encoding="utf-8",
+            )
             print(f"wrote {dest.name}")
         except Exception as exc:  # noqa: BLE001
             errors.append(f"{slot.record_id}: {exc}")
@@ -225,7 +231,9 @@ def hydrate_pack() -> list[str]:
     errors = []
     for path in sorted(RECORD_DIR.glob("*.json")):
         rec = json.loads(path.read_text(encoding="utf-8"))
-        text = pack_join(PACK, rec["source"]["normalized_text_path"]).read_text(encoding="utf-8")
+        text = pack_join(PACK, rec["source"]["normalized_text_path"]).read_text(
+            encoding="utf-8"
+        )
         try:
             for field in rec["source_expected"]["fields"]:
                 for ev in field["evidence"]:
@@ -233,14 +241,20 @@ def hydrate_pack() -> list[str]:
                         evidence_id=ev["evidence_id"],
                         excerpt=ev["excerpt"],
                         snapshot_sha256=rec["source"]["snapshot_sha256"],
-                        normalized_text_sha256=rec["source"]["normalized_text_sha256"],
+                        normalized_text_sha256=rec["source"][
+                            "normalized_text_sha256"
+                        ],
                         locator_strategy=ev["locator"]["strategy"],
                         locator_value=ev["locator"]["value"],
-                        occurrence=ev.get("occurrence") or ev["locator"].get("occurrence"),
+                        occurrence=ev.get("occurrence")
+                        or ev["locator"].get("occurrence"),
                         normalized=text,
                     )
                     ev.update(hydrated)
-            path.write_text(json.dumps(rec, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+            path.write_text(
+                json.dumps(rec, indent=2, ensure_ascii=False) + "\n",
+                encoding="utf-8",
+            )
         except Exception as exc:  # noqa: BLE001
             errors.append(f"{path.name}: {exc}")
     return errors

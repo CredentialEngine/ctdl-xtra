@@ -33,13 +33,17 @@ class AzureBlobStorageProvider:
             self.container_name,
         )
 
-    def iter_keys(self, *, name_starts_with: str | None = None) -> Iterator[str]:
+    def iter_keys(
+        self, *, name_starts_with: str | None = None
+    ) -> Iterator[str]:
         """Blob names under `name_starts_with`, or under the whole prefix.
 
         The narrower prefix is handed to Azure rather than filtered in
         Python, so listing one run does not page through the container.
         """
-        prefix = self.prefix_path if name_starts_with is None else name_starts_with
+        prefix = (
+            self.prefix_path if name_starts_with is None else name_starts_with
+        )
         for blob in self.container_client.list_blobs(name_starts_with=prefix):
             yield blob.name
 

@@ -17,13 +17,28 @@ class _VisibleText(HTMLParser):
         self.skip = 0
         self.parts: list[str] = []
 
-    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+    def handle_starttag(
+        self, tag: str, attrs: list[tuple[str, str | None]]
+    ) -> None:
         if tag in self.SKIP:
             self.skip += 1
             return
         if self.skip:
             return
-        if tag in {"p", "div", "br", "tr", "li", "h1", "h2", "h3", "h4", "h5", "h6", "section"}:
+        if tag in {
+            "p",
+            "div",
+            "br",
+            "tr",
+            "li",
+            "h1",
+            "h2",
+            "h3",
+            "h4",
+            "h5",
+            "h6",
+            "section",
+        }:
             self.parts.append("\n")
 
     def handle_endtag(self, tag: str) -> None:
@@ -36,7 +51,9 @@ class _VisibleText(HTMLParser):
 
     def text(self) -> str:
         raw = "".join(self.parts)
-        lines = [re.sub(r"[ \t]+", " ", line).strip() for line in raw.splitlines()]
+        lines = [
+            re.sub(r"[ \t]+", " ", line).strip() for line in raw.splitlines()
+        ]
         return "\n".join(line for line in lines if line) + "\n"
 
 

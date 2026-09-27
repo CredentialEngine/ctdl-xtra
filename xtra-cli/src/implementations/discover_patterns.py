@@ -128,7 +128,9 @@ class RunStats:
         return self.catalog_years.most_common(1)[0][0]
 
 
-def build_stats(profiles: list[PageProfile], vocabulary: Vocabulary) -> RunStats:
+def build_stats(
+    profiles: list[PageProfile], vocabulary: Vocabulary
+) -> RunStats:
     stats = RunStats()
     for profile in profiles:
         stats.page_type_pages[profile.page_type] += 1
@@ -229,7 +231,8 @@ def build_patterns(
             marker
             for marker in sorted(pattern.markers)
             if marker != CATALOG_YEAR
-            and stats.marker_share(pattern.page_type, marker) < RARE_MARKER_SHARE
+            and stats.marker_share(pattern.page_type, marker)
+            < RARE_MARKER_SHARE
         ]
         pattern.catalog_years = sorted(
             {

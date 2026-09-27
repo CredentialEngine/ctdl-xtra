@@ -259,17 +259,11 @@ def choose_sample(
 
     if len(chosen) > size:
         sample.coverage_forced_extra = sorted(
-            {
-                name
-                for page in chosen[size:]
-                for name in page.features_covered
-            }
+            {name for page in chosen[size:] for name in page.features_covered}
         )
     else:
         chosen.extend(
-            _fill_proportionally(
-                population, chosen, taken, size - len(chosen)
-            )
+            _fill_proportionally(population, chosen, taken, size - len(chosen))
         )
 
     sample.pages = chosen

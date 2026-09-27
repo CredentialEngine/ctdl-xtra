@@ -23,7 +23,9 @@ def test_backoff_uses_production_defaults() -> None:
 
 def test_retry_after_lengthens_one_wait_but_never_past_the_maximum() -> None:
     assert backoff_delay(1, min_interval=1, max_interval=5, retry_after=3) == 3
-    assert backoff_delay(1, min_interval=1, max_interval=5, retry_after=900) == 5
+    assert (
+        backoff_delay(1, min_interval=1, max_interval=5, retry_after=900) == 5
+    )
     # A Retry-After shorter than the backoff does not shorten it.
     assert backoff_delay(3, min_interval=1, max_interval=5, retry_after=1) == 4
 
@@ -43,9 +45,7 @@ def test_the_first_fetch_of_a_worker_never_waits() -> None:
 def test_a_worker_waits_out_its_own_interval_before_the_next_fetch() -> None:
     slept: list[float] = []
     clock = [100.0]
-    pacer = WorkerPacer(
-        180, sleep=slept.append, monotonic=lambda: clock[0]
-    )
+    pacer = WorkerPacer(180, sleep=slept.append, monotonic=lambda: clock[0])
     pacer.wait()
     pacer.record_fetch()
     clock[0] = 150.0

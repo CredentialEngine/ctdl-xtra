@@ -4,6 +4,7 @@ from urllib.parse import urlparse
 
 from common.local_storage_writer import LocalStorageWriter
 from common.storage_uri import (
+    normalize_storage_uri,
     parse_azure_storage_uri,
     parse_file_storage_uri,
     parse_local_path_if_supported,
@@ -17,6 +18,7 @@ def create_storage_writer(
     write_concurrency: int,
     azure_storage_connection_string: str | None = None,
 ) -> StorageWriter:
+    target_uri = normalize_storage_uri(target_uri)
     parsed = urlparse(target_uri)
     scheme = parsed.scheme.lower()
 

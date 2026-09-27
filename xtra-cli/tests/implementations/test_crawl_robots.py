@@ -55,8 +55,12 @@ def test_rules_crawl_delay_and_sitemaps_are_read() -> None:
     rules = read_robots(SEED, fetch=lambda url: (200, body))
     assert rules.robots_status == 200
     assert rules.crawl_delay == 7.0
-    assert rules.sitemap_urls == ("https://catalog.example.edu/sitemap-news.xml",)
-    assert not rules.robots.can_fetch("*", "https://catalog.example.edu/private/x")
+    assert rules.sitemap_urls == (
+        "https://catalog.example.edu/sitemap-news.xml",
+    )
+    assert not rules.robots.can_fetch(
+        "*", "https://catalog.example.edu/private/x"
+    )
     assert rules.robots.can_fetch("*", "https://catalog.example.edu/courses/x")
 
 
@@ -115,8 +119,12 @@ def test_a_sitemap_index_is_followed_and_gzip_is_unwrapped() -> None:
 
 
 def test_a_missing_sitemap_yields_nothing() -> None:
-    assert collect_sitemap_urls(["https://x.edu/sitemap.xml"],
-                               fetch=lambda url: (404, b"")) == []
+    assert (
+        collect_sitemap_urls(
+            ["https://x.edu/sitemap.xml"], fetch=lambda url: (404, b"")
+        )
+        == []
+    )
 
 
 def test_an_unreachable_sitemap_is_warned_about_not_raised(caplog) -> None:
@@ -124,7 +132,10 @@ def test_an_unreachable_sitemap_is_warned_about_not_raised(caplog) -> None:
         raise SiteFetchError("timed out")
 
     with caplog.at_level("WARNING"):
-        assert collect_sitemap_urls(["https://x.edu/sitemap.xml"], fetch=boom) == []
+        assert (
+            collect_sitemap_urls(["https://x.edu/sitemap.xml"], fetch=boom)
+            == []
+        )
     assert "unreachable" in caplog.text
 
 
@@ -140,7 +151,9 @@ def test_a_self_referencing_index_cannot_loop() -> None:
         calls.append(url)
         return 200, self_index
 
-    assert collect_sitemap_urls(["https://x.edu/sitemap.xml"], fetch=fetch) == []
+    assert (
+        collect_sitemap_urls(["https://x.edu/sitemap.xml"], fetch=fetch) == []
+    )
     assert calls == ["https://x.edu/sitemap.xml"]
 
 
@@ -166,7 +179,9 @@ def test_resolve_final_url_reports_where_a_seed_answers(monkeypatch) -> None:
     assert resolve_final_url(SEED) == "https://catalog.new.edu/"
 
 
-def test_resolve_final_url_falls_back_to_the_url_it_was_given(monkeypatch) -> None:
+def test_resolve_final_url_falls_back_to_the_url_it_was_given(
+    monkeypatch,
+) -> None:
     """A site that refuses urllib is still crawled from the typed URL."""
 
     def boom(request, timeout=None):

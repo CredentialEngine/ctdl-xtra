@@ -1,8 +1,8 @@
 """xtra environment set | show | list
 
-  xtra environment set prod --data-uri azure://https://ACCOUNT.blob.core.windows.net/xtra
-  xtra environment show
-  xtra environment list
+xtra environment set prod --data-uri azure://https://ACCOUNT.blob.core.windows.net/xtra
+xtra environment show
+xtra environment list
 """
 
 from __future__ import annotations
@@ -34,7 +34,9 @@ def environment_group() -> None:
     help=(
         "Storage container for this environment, used when a command omits "
         "--target-uri. Example: "
-        "azure://https://ACCOUNT.blob.core.windows.net/xtra"
+        "azure://https://ACCOUNT.blob.core.windows.net/xtra, or the "
+        "portal's https://ACCOUNT.blob.core.windows.net/xtra. Omit it to "
+        "keep the URI already saved for this environment."
     ),
 )
 @click.option(
@@ -50,11 +52,18 @@ def environment_set(
     data_uri: str,
     connection_string_env: str,
 ) -> None:
-    """Set the active environment (dev, test, sandbox, prod)."""
+    """Set the active environment (dev, test, sandbox, prod).
+
+    Setting the environment that is already active keeps its saved data URI
+    and secret variable unless new ones are given.
+    """
+    current = environment_for(env_name)
     environment = build_environment(
         env_name=env_name,
-        data_uri=data_uri,
-        connection_string_env=connection_string_env,
+        data_uri=data_uri or current.data_uri,
+        connection_string_env=(
+            connection_string_env or current.connection_string_env
+        ),
     )
 
     path = save_config(
@@ -91,8 +100,7 @@ def environment_show(env_name: str | None) -> None:
     click.echo(f"Data URI:    {environment.data_uri or '(not set)'}")
     click.echo(f"Secret from: {environment.connection_string_env}")
     click.echo(
-        "Secret set:  "
-        + ("yes" if environment.connection_string() else "no")
+        "Secret set:  " + ("yes" if environment.connection_string() else "no")
     )
 
 

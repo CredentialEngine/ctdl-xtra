@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import re
 from dataclasses import dataclass
 
 
@@ -25,7 +24,9 @@ class FieldDraft:
 
 def must_find(text: str, excerpt: str, *, where: str) -> str:
     if excerpt not in text:
-        raise TranscriptionError(f"{where}: excerpt not in freeze: {excerpt[:120]!r}")
+        raise TranscriptionError(
+            f"{where}: excerpt not in freeze: {excerpt[:120]!r}"
+        )
     return excerpt
 
 
@@ -48,7 +49,9 @@ def line_after_label(text: str, label: str) -> str | None:
     return None
 
 
-def after_heading(text: str, heading: str, skip_empty: bool = True) -> str | None:
+def after_heading(
+    text: str, heading: str, skip_empty: bool = True
+) -> str | None:
     lines = text.splitlines()
     for i, line in enumerate(lines):
         if line.strip() == heading:

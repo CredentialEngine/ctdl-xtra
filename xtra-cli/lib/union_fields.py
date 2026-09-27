@@ -38,13 +38,20 @@ def count_pack(pack: Path) -> dict:
         files = sorted(rec_dir.glob("*.json"))
     else:
         files = []
-        for folder in ("courses", "learning_programs", "credentials", "competencies"):
+        for folder in (
+            "courses",
+            "learning_programs",
+            "credentials",
+            "competencies",
+        ):
             files.extend(sorted((pack / folder).glob("*.json")))
     for path in files:
         rec = json.loads(path.read_text(encoding="utf-8"))
         records += 1
         src = rec.get("source") or {}
-        templates[src.get("template_id") or rec.get("template_id") or "unknown"] += 1
+        templates[
+            src.get("template_id") or rec.get("template_id") or "unknown"
+        ] += 1
         families[src.get("source_family") or "unknown"] += 1
         fields = (rec.get("source_expected") or {}).get("fields") or []
         if fields:
@@ -77,7 +84,9 @@ def run_one(url: str, *, limit: int) -> dict:
         "--out",
         str(pack),
     ]
-    proc = subprocess.run(cmd, cwd=str(CLI_ROOT), capture_output=True, text=True)
+    proc = subprocess.run(
+        cmd, cwd=str(CLI_ROOT), capture_output=True, text=True
+    )
     row = {
         "url": url,
         "pack": str(_display_pack(pack)),
@@ -101,7 +110,9 @@ def run_one(url: str, *, limit: int) -> dict:
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Union of course labels across catalogs")
+    parser = argparse.ArgumentParser(
+        description="Union of course labels across catalogs"
+    )
     parser.add_argument("--url", action="append", dest="urls")
     parser.add_argument("--url-file")
     parser.add_argument("--limit", type=int, default=5)

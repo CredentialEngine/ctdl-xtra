@@ -18,13 +18,18 @@ import click
 from common.clock import is_iso8601_utc, utc_timestamp
 from common.keys import catalog_folder_name
 from common.object_store import open_store
-from implementations.crawl import CrawlSettings, run_crawl
+from implementations.crawl import (
+    CrawlSettings,
+    StrategyMismatchError,
+    run_crawl,
+)
 from implementations.crawl_fetchers import (
     DEFAULT_FIRECRAWL_API_URL,
     StrategyNotImplementedError,
     StrategyOptionError,
     fetcher_factory_for,
 )
+from implementations.crawl_strategy import strategy_facts
 from xtra.click import (
     crawl_pacing_options,
     env_option,
@@ -58,7 +63,9 @@ def compile_rules(patterns: tuple[str, ...], flag: str) -> tuple[str, ...]:
         try:
             re.compile(pattern)
         except re.error as exc:
-            raise click.UsageError(f"{flag} {pattern!r} is not a regex: {exc}") from exc
+            raise click.UsageError(
+                f"{flag} {pattern!r} is not a regex: {exc}"
+            ) from exc
     return patterns
 
 
@@ -212,7 +219,15 @@ def main(
         azure_storage_connection_string=azure_storage_connection_string,
         concurrency=concurrency_limit,
     )
-    outcome = run_crawl(settings, store=store, fetcher_factory=fetcher_factory)
+    try:
+        outcome = run_crawl(
+            settings,
+            store=store,
+            fetcher_factory=fetcher_factory,
+            facts=strategy_facts(strategy, firecrawl_api_url=firecrawl_api_url),
+        )
+    except StrategyMismatchError as exc:
+        raise click.ClickException(str(exc)) from exc
     click.echo(json.dumps(outcome.crawl_doc, indent=2))
     if outcome.exit_code:
         click.echo(outcome.reason, err=True)

@@ -15,13 +15,18 @@ FOLDER = "catalog-example-edu"
 RUN = "2026-09-17T14:20:01Z"
 RUN_PATH = "2026-09-17T14-20-01Z"
 
-# A page each extractor path has to deal with: one it can read, one that
-# holds several courses, and one whose markup matches no known template.
+# A page each extractor path has to deal with: one a college template
+# reads, one that holds several courses, one whose text no template
+# matches and whose markup does, a credential, a learning opportunity, a
+# competency list, and a department page holding several credentials.
 PAGES = {
     "engl101-aaaaaaaaaa": "course-clean-catalog.html",
     "multi-bbbbbbbbbb": "multi-course.html",
     "single-cccccccccc": "course-single.html",
     "program-dddddddddd": "program.html",
+    "minor-eeeeeeeeee": "minor-requirements.html",
+    "outcomes-ffffffffff": "outcomes-only.html",
+    "department-gggggggggg": "department-multi-credential.html",
 }
 
 
@@ -100,7 +105,7 @@ def test_extract_writes_a_record_for_each_single_course_page(
     result = extract(discovered)
     assert result.exit_code == 0, result.output
     payload = json.loads(result.output)
-    assert payload["records"] == ["engl101-aaaaaaaaaa"]
+    assert "engl101-aaaaaaaaaa" in payload["records"]
 
     record = json.loads(
         (run_dir(discovered) / "records" / "engl101-aaaaaaaaaa.json").read_text(
@@ -150,26 +155,84 @@ def test_a_multi_course_page_is_skipped_with_its_reason(
     assert "3 course block" in skip["detail"]
 
 
-def test_a_page_matching_no_template_is_skipped_with_its_reason(
+def test_a_page_matching_no_template_is_read_from_its_markup(
     discovered: Path,
 ) -> None:
+    """The college templates are not the only reading any more.
+
+    This page matches none of them. Its markup labels its fields, which
+    is all any of them was ever reading for.
+    """
+    extract(discovered)
+    record = json.loads(
+        (run_dir(discovered) / "records" / "single-cccccccccc.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    assert record["template_id"] == "markup"
+    assert record["entity_type"] == "Course"
+    assert record["expected"]["course_credits"] == 3
+    assert record["expected"]["course_department"] == "English"
+
+
+def test_each_entity_discovery_labels_becomes_its_own_record(
+    discovered: Path,
+) -> None:
+    """Discovery labels four entities, and all four are extracted now.
+
+    A credential and a learning opportunity were labelled and then went
+    nowhere: the templates are course templates, so nothing downstream
+    could read either of them.
+    """
+    extract(discovered)
+    entities = {}
+    for path in (run_dir(discovered) / "records").iterdir():
+        record = json.loads(path.read_text(encoding="utf-8"))
+        entities[path.stem] = (
+            record["entity_type"],
+            record["ctdl_expected"]["class_uri"],
+        )
+    assert entities["program-dddddddddd"] == (
+        "Credential",
+        "ceterms:Credential",
+    )
+    assert entities["minor-eeeeeeeeee"] == (
+        "LearningProgram",
+        "ceterms:LearningProgram",
+    )
+    assert entities["outcomes-ffffffffff"] == ("Competency", "ceasn:Competency")
+
+
+def test_a_competency_record_carries_one_competency_per_outcome(
+    discovered: Path,
+) -> None:
+    extract(discovered)
+    record = json.loads(
+        (
+            run_dir(discovered) / "records" / "outcomes-ffffffffff.json"
+        ).read_text(encoding="utf-8")
+    )
+    texts = [
+        prop["value"]
+        for prop in record["ctdl_expected"]["properties"]
+        if prop["property"] == "ceasn:competencyText"
+    ]
+    assert len(texts) >= 2
+    assert all(isinstance(text, str) and text for text in texts)
+
+
+def test_a_page_of_several_credentials_is_skipped_with_its_reason(
+    discovered: Path,
+) -> None:
+    """The same rule as a page of several courses, one entity up."""
     extract(discovered)
     report = report_of(discovered)
     skip = next(
-        item for item in report["skipped"] if item["stem"] == "single-cccccccccc"
+        item
+        for item in report["skipped"]
+        if item["stem"] == "department-gggggggggg"
     )
-    assert skip["reason"] == "no_matching_template"
-    assert "template" in skip["detail"]
-
-
-def test_a_page_that_is_not_a_course_is_never_considered(
-    discovered: Path,
-) -> None:
-    extract(discovered)
-    report = report_of(discovered)
-    stems = {item["stem"] for item in report["skipped"]}
-    assert "program-dddddddddd" not in stems
-    assert report["pages_considered"] == 3
+    assert skip["reason"] == "multi_credential_page"
 
 
 def test_the_report_sits_beside_records_and_never_inside_it(
@@ -178,21 +241,24 @@ def test_the_report_sits_beside_records_and_never_inside_it(
     """transform reads every JSON under records/, so a report there is a course."""
     extract(discovered)
     assert (run_dir(discovered) / "extract-report.json").is_file()
-    assert not (run_dir(discovered) / "records" / "extract-report.json").exists()
+    assert not (
+        run_dir(discovered) / "records" / "extract-report.json"
+    ).exists()
     record_files = sorted(
         path.name for path in (run_dir(discovered) / "records").iterdir()
     )
-    assert record_files == ["engl101-aaaaaaaaaa.json"]
+    assert "extract-report.json" not in record_files
+    assert "engl101-aaaaaaaaaa.json" in record_files
 
 
 def test_the_report_counts_the_skips_by_reason(discovered: Path) -> None:
     extract(discovered)
     report = report_of(discovered)
     assert report["schema"] == "xtra-extract-report-1"
-    assert report["records_written"] == 1
+    assert report["records_written"] == 5
     assert report["skipped_by_reason"] == {
         "multi_course_page": 1,
-        "no_matching_template": 1,
+        "multi_credential_page": 1,
     }
 
 
@@ -206,7 +272,9 @@ def test_extract_reads_the_newest_discovery_run(
     assert discover(discovered).exit_code == 0
     result = extract(discovered)
     assert result.exit_code == 0, result.output
-    assert json.loads(result.output)["discovery_run_id"] == "2036-09-19T09-00-00Z"
+    assert (
+        json.loads(result.output)["discovery_run_id"] == "2036-09-19T09-00-00Z"
+    )
 
 
 def test_a_named_discovery_run_wins_over_the_newest(
@@ -230,9 +298,9 @@ def test_only_golden_sample_limits_extraction_to_the_sample(
     sample_stems = {
         page["stem"]
         for page in json.loads(
-            next(
-                (tmp_path / run_prefix(FOLDER, RUN) / "discovery").iterdir()
-            ).joinpath("golden-sample-course.json").read_text(encoding="utf-8")
+            next((tmp_path / run_prefix(FOLDER, RUN) / "discovery").iterdir())
+            .joinpath("golden-sample-course.json")
+            .read_text(encoding="utf-8")
         )["pages"]
     }
     result = extract(tmp_path, "--only-golden-sample")

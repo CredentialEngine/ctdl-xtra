@@ -12,6 +12,7 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass
 
+from common.storage_uri import normalize_storage_uri
 from xtra.config.environments import (
     DEFAULT_CONNECTION_STRING_ENV,
     ENV_NAMES,
@@ -58,7 +59,7 @@ def build_environment(
 
     return EnvironmentConfig(
         name=key,
-        data_uri=data_uri or values["data_uri"],
+        data_uri=normalize_storage_uri(data_uri or values["data_uri"]),
         connection_string_env=(
             connection_string_env or values["connection_string_env"]
         ),
@@ -98,7 +99,9 @@ def environment_for(env_name: str | None) -> EnvironmentConfig:
     )
 
 
-def resolve_data_uri(explicit: str | None, *, env_name: str | None = None) -> str:
+def resolve_data_uri(
+    explicit: str | None, *, env_name: str | None = None
+) -> str:
     """Storage URI for this run, from the flag or the environment."""
     if explicit:
         return explicit

@@ -18,7 +18,9 @@ RUN_PATH = "2026-09-17T14-20-01Z"
 
 PAGES = {
     SEED: FakePage(html='<a href="/courses/engl101">ENGL</a>'),
-    "https://catalog.example.edu/courses/engl101": FakePage(html="<h1>ENGL 101</h1>"),
+    "https://catalog.example.edu/courses/engl101": FakePage(
+        html="<h1>ENGL 101</h1>"
+    ),
 }
 
 
@@ -66,7 +68,9 @@ def invoke(tmp_path: Path, *extra: str):
     )
 
 
-def test_crawl_saves_pages_under_the_catalog_folder(tmp_path: Path, monkeypatch) -> None:
+def test_crawl_saves_pages_under_the_catalog_folder(
+    tmp_path: Path, monkeypatch
+) -> None:
     patch_crawl(monkeypatch, PAGES)
     result = invoke(tmp_path)
     assert result.exit_code == 0, result.output
@@ -173,9 +177,7 @@ def test_a_seed_urls_file_adds_start_urls(tmp_path: Path, monkeypatch) -> None:
     pages = dict(PAGES)
     pages[hidden] = FakePage(html="<h1>ENGL 999</h1>")
     seeds = tmp_path / "seeds.txt"
-    seeds.write_text(
-        f"# extra entry points\n\n{hidden}\n", encoding="utf-8"
-    )
+    seeds.write_text(f"# extra entry points\n\n{hidden}\n", encoding="utf-8")
     patch_crawl(monkeypatch, pages)
     result = invoke(tmp_path, "--seed-urls-file", str(seeds))
     assert result.exit_code == 0, result.output
@@ -184,12 +186,16 @@ def test_a_seed_urls_file_adds_start_urls(tmp_path: Path, monkeypatch) -> None:
 
 def test_read_seed_urls_ignores_blanks_and_comments(tmp_path: Path) -> None:
     path = tmp_path / "seeds.txt"
-    path.write_text("# note\n\n  https://a.edu/x  \nhttps://a.edu/y\n", encoding="utf-8")
+    path.write_text(
+        "# note\n\n  https://a.edu/x  \nhttps://a.edu/y\n", encoding="utf-8"
+    )
     assert read_seed_urls(path) == ("https://a.edu/x", "https://a.edu/y")
     assert read_seed_urls(None) == ()
 
 
-def test_include_and_exclude_regexes_are_recorded(tmp_path: Path, monkeypatch) -> None:
+def test_include_and_exclude_regexes_are_recorded(
+    tmp_path: Path, monkeypatch
+) -> None:
     patch_crawl(monkeypatch, PAGES)
     result = invoke(
         tmp_path, "--include-regex", "courses", "--exclude-regex", "print=1"
@@ -228,7 +234,9 @@ def test_a_min_above_the_max_is_a_usage_error(tmp_path: Path) -> None:
     assert "--max-interval-in-seconds" in result.output
 
 
-def test_a_scope_prefix_on_another_host_is_a_usage_error(tmp_path: Path) -> None:
+def test_a_scope_prefix_on_another_host_is_a_usage_error(
+    tmp_path: Path,
+) -> None:
     result = invoke(tmp_path, "--scope-prefix", "https://other.edu/courses/")
     assert result.exit_code != 0
     assert "one host" in result.output
@@ -239,7 +247,9 @@ def test_a_failed_page_gives_a_non_zero_exit_and_one_line(
 ) -> None:
     pages = {
         SEED: FakePage(html='<a href="/courses/gone">gone</a>'),
-        "https://catalog.example.edu/courses/gone": FakePage(status=404, html=""),
+        "https://catalog.example.edu/courses/gone": FakePage(
+            status=404, html=""
+        ),
     }
     patch_crawl(monkeypatch, pages)
     result = invoke(tmp_path, "--max-retries", "1")
@@ -247,7 +257,9 @@ def test_a_failed_page_gives_a_non_zero_exit_and_one_line(
     assert "failed.jsonl" in result.output
 
 
-def test_crawl_writes_to_the_active_environment(tmp_path: Path, monkeypatch) -> None:
+def test_crawl_writes_to_the_active_environment(
+    tmp_path: Path, monkeypatch
+) -> None:
     save_config(StoredConfig(env_name="dev", data_uri=str(tmp_path)))
     patch_crawl(monkeypatch, PAGES)
     result = CliRunner().invoke(
@@ -289,7 +301,15 @@ def test_crawl_requires_a_strategy(tmp_path: Path) -> None:
 def test_the_reserved_strategies_fail_closed(tmp_path: Path, flag: str) -> None:
     result = CliRunner().invoke(
         cli,
-        ["catalog", "crawl", flag, "--url", SEED, "--target-uri", str(tmp_path)],
+        [
+            "catalog",
+            "crawl",
+            flag,
+            "--url",
+            SEED,
+            "--target-uri",
+            str(tmp_path),
+        ],
     )
     assert result.exit_code != 0
     assert "not implemented" in result.output.lower()
@@ -422,5 +442,48 @@ def test_the_api_key_never_reaches_the_run_report(
     )
     assert result.exit_code == 0, result.output
     assert "fc-secret-value" not in result.output
-    stored = (tmp_path / FOLDER / RUN_PATH / "crawl.json").read_text(encoding="utf-8")
+    stored = (tmp_path / FOLDER / RUN_PATH / "crawl.json").read_text(
+        encoding="utf-8"
+    )
     assert "fc-secret-value" not in stored
+
+
+def test_a_resume_with_another_backend_is_a_clean_error(
+    tmp_path: Path, monkeypatch
+) -> None:
+    """Naming both backends is the whole point: one of them is a typo."""
+    patch_crawl(monkeypatch, PAGES)
+    assert invoke(tmp_path, "--limit", "1").exit_code == 0
+    result = CliRunner().invoke(
+        cli,
+        [
+            "catalog",
+            "crawl",
+            "--with-crawl4ai",
+            "--url",
+            SEED,
+            "--target-uri",
+            str(tmp_path),
+            "--run-id",
+            RUN,
+            "--min-interval-in-seconds",
+            "0",
+        ],
+    )
+    assert result.exit_code != 0
+    assert "--with-playwright" in result.output
+    assert "--with-crawl4ai" in result.output
+    assert "Traceback" not in result.output
+
+
+def test_crawl_json_carries_the_versions_and_settings_of_the_backend(
+    tmp_path: Path, monkeypatch
+) -> None:
+    patch_crawl(monkeypatch, PAGES)
+    doc = json.loads(invoke(tmp_path).output)
+    assert doc["strategy"] == "playwright"
+    assert doc["strategy_version"]["playwright"]
+    assert doc["strategy_settings"]["headless"] is True
+    assert doc["strategy_notes"]
+    assert doc["frontier_order"] == "sitemap_first"
+    assert doc["catalog_folder_matches_resolved_host"] is True

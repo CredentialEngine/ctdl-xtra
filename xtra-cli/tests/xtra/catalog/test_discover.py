@@ -4,7 +4,7 @@ import json
 from pathlib import Path
 
 from click.testing import CliRunner
-from discovery_doubles import seed_crawl_page
+from discovery_doubles import seed_crawl_manifest, seed_crawl_page
 
 from common.object_store import open_store
 from xtra.cli import cli
@@ -214,10 +214,13 @@ def test_discover_uses_the_active_environment(
 
 
 def test_discover_help_lists_its_flags() -> None:
-    help_text = CliRunner().invoke(cli, ["catalog", "discover", "--help"]).output
+    help_text = (
+        CliRunner().invoke(cli, ["catalog", "discover", "--help"]).output
+    )
     for flag in (
         "--catalog-id",
         "--run-id",
+        "--stem",
         "--sample-label",
         "--sample-size",
         "--source-uri",
@@ -225,3 +228,65 @@ def test_discover_help_lists_its_flags() -> None:
         "--env",
     ):
         assert flag in help_text
+
+
+def test_an_empty_golden_sample_exits_non_zero_and_still_writes_the_reports(
+    tmp_path: Path, fixture_html_dir
+) -> None:
+    """Nothing to review is a result, and a result has to be noticed."""
+    seed(tmp_path, fixture_html_dir)
+    result = invoke(tmp_path, "--sample-label", "Rubric")
+    assert result.exit_code == 1
+    assert "golden sample is empty" in result.output
+    assert "Course 5" in result.output
+
+    written = [path.name for path in discovery_runs(tmp_path)[0].iterdir()]
+    assert "golden-sample-rubric.json" in written
+    assert "summary.json" in written
+
+
+def test_the_summary_says_which_crawl_these_pages_came_from(
+    tmp_path: Path, fixture_html_dir
+) -> None:
+    seed(tmp_path, fixture_html_dir)
+    seed_crawl_manifest(open_store(str(tmp_path)), FOLDER, RUN)
+    result = invoke(tmp_path)
+    assert result.exit_code == 0, result.output
+    crawl = summary_of(result)["crawl"]
+    assert crawl["crawl_json_found"] is True
+    assert crawl["strategy"] == "playwright"
+    assert crawl["status"] == "complete"
+
+
+def test_stem_reads_one_page_of_the_run(
+    tmp_path: Path, fixture_html_dir
+) -> None:
+    """Why is this page labelled that way, without rereading the crawl."""
+    seed(tmp_path, fixture_html_dir)
+    result = invoke(tmp_path, "--stem", "course-single")
+    assert result.exit_code == 0, result.output
+
+    summary = summary_of(result)
+    assert summary["pages"] == 1
+    assert summary["stems_requested"] == ["course-single"]
+    assert summary["whole_run"] is False
+
+
+def test_stem_is_repeatable(tmp_path: Path, fixture_html_dir) -> None:
+    seed(tmp_path, fixture_html_dir)
+    result = invoke(tmp_path, "--stem", "course-single", "--stem", "program")
+    assert result.exit_code == 0, result.output
+    assert summary_of(result)["stems_requested"] == [
+        "course-single",
+        "program",
+    ]
+
+
+def test_a_stem_the_crawl_never_saved_says_where_stems_come_from(
+    tmp_path: Path, fixture_html_dir
+) -> None:
+    seed(tmp_path, fixture_html_dir)
+    result = invoke(tmp_path, "--stem", "not-a-page")
+    assert result.exit_code != 0
+    assert "not-a-page" in result.output
+    assert ".meta.json" in result.output

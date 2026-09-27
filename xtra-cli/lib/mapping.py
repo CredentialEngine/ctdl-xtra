@@ -83,5 +83,7 @@ def map_fields(entity_type: str, fields: list[dict]) -> dict:
         "schema_release": "ctdl-json-2026-09-07-audit-pin",
         "mapping_version": "v4-pilot-0.1",
         "properties": [] if entity_type == "Link" else props,
-        "unmapped_source_field_refs": unmapped if entity_type != "Link" else [f["field_id"] for f in fields],
+        "unmapped_source_field_refs": unmapped
+        if entity_type != "Link"
+        else [f["field_id"] for f in fields],
     }

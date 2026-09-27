@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
-from record import locator
 from active import active_slots
+from record import locator
 from slots import Slot
-from transcribe_lib import FieldDraft, TranscriptionError
 from transcribe_courses import extract_course
+from transcribe_lib import FieldDraft, TranscriptionError
 
 
 def transcribe_slot(slot: Slot, text: str) -> list[FieldDraft]:
@@ -15,7 +15,9 @@ def transcribe_slot(slot: Slot, text: str) -> list[FieldDraft]:
         raise TranscriptionError(f"{slot.record_id}: no fields transcribed")
     for d in drafts:
         if d.excerpt not in text:
-            raise TranscriptionError(f"{slot.record_id}: excerpt missing {d.excerpt[:160]!r}")
+            raise TranscriptionError(
+                f"{slot.record_id}: excerpt missing {d.excerpt[:160]!r}"
+            )
     return drafts
 
 

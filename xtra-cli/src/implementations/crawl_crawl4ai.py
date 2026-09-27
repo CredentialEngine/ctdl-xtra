@@ -114,7 +114,9 @@ class Crawl4aiFetcher:
             content_type=_header(headers, "content-type") or "text/html",
             html=getattr(result, "html", "") or "",
             latency_ms=latency_ms,
-            retry_after=retry_after_seconds(_header(headers, "retry-after") or None),
+            retry_after=retry_after_seconds(
+                _header(headers, "retry-after") or None
+            ),
         )
 
     def close(self) -> None:

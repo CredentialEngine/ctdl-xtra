@@ -151,7 +151,11 @@ class PlaywrightFetcher:
     def close(self) -> None:
         from playwright.sync_api import Error as PlaywrightError
 
-        closers = (self._context.close, self._browser.close, self._playwright.stop)
+        closers = (
+            self._context.close,
+            self._browser.close,
+            self._playwright.stop,
+        )
         for shut in closers:
             with suppress(PlaywrightError):
                 shut()

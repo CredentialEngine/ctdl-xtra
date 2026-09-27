@@ -153,7 +153,9 @@ def test_an_unsuccessful_crawl_says_why(monkeypatch) -> None:
         made.fetch(URL)
 
 
-def test_an_unsuccessful_crawl_with_no_message_still_raises(monkeypatch) -> None:
+def test_an_unsuccessful_crawl_with_no_message_still_raises(
+    monkeypatch,
+) -> None:
     made, crawler = fetcher(monkeypatch)
     crawler.result = FakeResult(success=False, error_message="", html="")
     with pytest.raises(FetchError, match="could not fetch"):
@@ -215,7 +217,9 @@ def test_the_real_library_renders_a_local_file(tmp_path) -> None:
     """The only test that uses the installed package, and it stays offline."""
     pytest.importorskip("crawl4ai")
     page = tmp_path / "page.html"
-    page.write_text("<html><body><h1>ENGL 101</h1></body></html>", encoding="utf-8")
+    page.write_text(
+        "<html><body><h1>ENGL 101</h1></body></html>", encoding="utf-8"
+    )
     made = Crawl4aiFetcher(user_agent="xtra-test")
     try:
         result = made.fetch(page.as_uri())

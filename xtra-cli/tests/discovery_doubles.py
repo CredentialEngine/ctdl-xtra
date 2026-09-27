@@ -25,7 +25,9 @@ def make_profile(
     text_sha256: str = "",
 ) -> PageProfile:
     resolved_labels = (
-        list(labels) if labels is not None else ([page_type] if page_type else [])
+        list(labels)
+        if labels is not None
+        else ([page_type] if page_type else [])
     )
     return PageProfile(
         url=url or f"https://catalog.example.edu/{stem}",
@@ -79,3 +81,23 @@ def seed_crawl_page(
             "stem": stem,
         },
     )
+
+
+def seed_crawl_manifest(store, folder: str, run_id: str, **overrides) -> dict:
+    """Write the crawl.json a finished crawl run would have left behind."""
+    from common.keys import crawl_key
+
+    document = {
+        "schema": "xtra-crawl-2",
+        "catalog_folder": folder,
+        "run_id": run_id,
+        "strategy": "playwright",
+        "seed_url": "https://catalog.example.edu/",
+        "resolved_seed_url": "https://catalog.example.edu/",
+        "effective_min_interval_in_seconds": 10.0,
+        "status": "complete",
+        "pages_saved": 10,
+    }
+    document.update(overrides)
+    store.put_json(crawl_key(folder, run_id), document)
+    return document

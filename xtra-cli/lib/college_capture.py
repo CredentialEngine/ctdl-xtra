@@ -7,8 +7,8 @@ import shutil
 import sys
 from pathlib import Path
 
-from config import HERE, PACK, RECORD_DIR
 from catalog import college_slug
+from config import HERE, PACK, RECORD_DIR
 from discover import HarvestError, harvest_with_playwright
 from dynamic_slots import write_slots
 from freeze import freeze_all, meta_path, snapshot_path
@@ -22,7 +22,9 @@ def _is_dead_html(html: str, http_status: int | None) -> bool:
     title = ""
     low = html.lower()
     if "<title>" in low:
-        title = html[low.find("<title>") + 7 : low.find("</title>", low.find("<title>"))].lower()
+        title = html[
+            low.find("<title>") + 7 : low.find("</title>", low.find("<title>"))
+        ].lower()
     return "404" in title or "not found" in title or "course not found" in title
 
 
@@ -36,7 +38,9 @@ def drop_dead_slots(slots: list[Slot]) -> list[Slot]:
         status = None
         mp = meta_path(slot.stem)
         if mp.is_file():
-            status = json.loads(mp.read_text(encoding="utf-8")).get("http_status")
+            status = json.loads(mp.read_text(encoding="utf-8")).get(
+                "http_status"
+            )
         if _is_dead_html(html, status):
             print(f"drop 404 {slot.requested_url}")
             continue
@@ -146,9 +150,9 @@ def run_college_capture(
     institution: str | None,
     skip_registry: bool = False,
 ) -> dict:
-    from config import NORMALIZED_DIR
     from build import assemble_manifest, build_pack
     from cli import cmd_normalize
+    from config import NORMALIZED_DIR
     from quality import cross_check_pack
     from validate import validate_pack
 
@@ -198,7 +202,14 @@ def run_college_capture(
             if path.stem not in keep:
                 path.unlink()
         all_slots = trimmed
-    write_slots(all_slots, extra={"discovery": reports, "final": True, "dropped_extract_errors": errors})
+    write_slots(
+        all_slots,
+        extra={
+            "discovery": reports,
+            "final": True,
+            "dropped_extract_errors": errors,
+        },
+    )
     if not all_slots:
         raise SystemExit("every freeze failed transcription")
 

@@ -31,7 +31,9 @@ def test_set_writes_the_active_environment(isolated_config_dir: Path) -> None:
     }
 
 
-def test_set_accepts_a_custom_secret_variable(isolated_config_dir: Path) -> None:
+def test_set_accepts_a_custom_secret_variable(
+    isolated_config_dir: Path,
+) -> None:
     result = run(
         "set",
         "sandbox",
@@ -47,6 +49,55 @@ def test_set_accepts_a_custom_secret_variable(isolated_config_dir: Path) -> None
         (isolated_config_dir / "config.json").read_text(encoding="utf-8")
     )
     assert stored["connection_string_env"] == "CE_SANDBOX_STORAGE"
+
+
+def test_set_saves_a_portal_container_url_as_azure(
+    isolated_config_dir: Path,
+) -> None:
+    result = run(
+        "set", "prod", "--data-uri", "https://ceprod.blob.core.windows.net/xtra"
+    )
+
+    assert result.exit_code == 0, result.output
+    assert f"Data URI:    {PROD_URI}" in result.output
+    stored = json.loads(
+        (isolated_config_dir / "config.json").read_text(encoding="utf-8")
+    )
+    assert stored["data_uri"] == PROD_URI
+
+
+def test_setting_the_active_environment_again_keeps_its_settings() -> None:
+    run(
+        "set",
+        "test",
+        "--data-uri",
+        PROD_URI,
+        "--connection-string-env",
+        "CE_TEST_STORAGE",
+    )
+
+    result = run("set", "test")
+
+    assert result.exit_code == 0, result.output
+    assert f"Data URI:    {PROD_URI}" in result.output
+    assert "Secret from: CE_TEST_STORAGE" in result.output
+
+
+def test_switching_environments_does_not_carry_settings_over() -> None:
+    run(
+        "set",
+        "test",
+        "--data-uri",
+        PROD_URI,
+        "--connection-string-env",
+        "CE_TEST_STORAGE",
+    )
+
+    result = run("set", "prod")
+
+    assert result.exit_code == 0, result.output
+    assert "Data URI:    (not set)" in result.output
+    assert "Secret from: AZURE_STORAGE_CONNECTION_STRING" in result.output
 
 
 def test_set_dev_needs_no_data_uri() -> None:

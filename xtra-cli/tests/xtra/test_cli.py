@@ -16,9 +16,15 @@ def test_cli_returns_zero_for_top_level_help() -> None:
 
 def test_top_level_help_keeps_examples_on_their_own_lines() -> None:
     """Click rewraps any example paragraph that is not preceded by \\b."""
-    lines = [line.strip() for line in CliRunner().invoke(cli, ["--help"]).output.splitlines()]
+    lines = [
+        line.strip()
+        for line in CliRunner().invoke(cli, ["--help"]).output.splitlines()
+    ]
     assert "xtra environment set prod --data-uri <storage-uri>" in lines
-    assert "xtra catalog crawl --with-playwright --url <catalog-url> --limit 5" in lines
+    assert (
+        "xtra catalog crawl --with-playwright --url <catalog-url> --limit 5"
+        in lines
+    )
 
 
 def test_environment_help_lists_verbs() -> None:
@@ -91,7 +97,9 @@ def test_page_download_is_gone() -> None:
     """Crawl saves pages and resumes, so the separate step was removed."""
     top = CliRunner().invoke(cli, ["--help"])
     assert "page" not in top.output.split("Commands:")[1]
-    assert CliRunner().invoke(cli, ["page", "download", "--help"]).exit_code != 0
+    assert (
+        CliRunner().invoke(cli, ["page", "download", "--help"]).exit_code != 0
+    )
 
 
 def test_configure_logging_accepts_env(monkeypatch) -> None:

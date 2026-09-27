@@ -27,7 +27,9 @@ class _NeverDownloads:
 
     prefix_path = "catalogs"
 
-    def __init__(self, present: set[str], error: Exception | None = None) -> None:
+    def __init__(
+        self, present: set[str], error: Exception | None = None
+    ) -> None:
         self.present = present
         self.error = error
         self.listed: list[str | None] = []
@@ -40,7 +42,9 @@ class _NeverDownloads:
     def load_batch(self, *, keys, errors):
         raise AssertionError("exists must not download the object")
 
-    def iter_keys(self, *, name_starts_with: str | None = None) -> Iterator[str]:
+    def iter_keys(
+        self, *, name_starts_with: str | None = None
+    ) -> Iterator[str]:
         self.listed.append(name_starts_with)
         yield from sorted(self.present)
 

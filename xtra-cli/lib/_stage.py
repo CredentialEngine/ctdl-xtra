@@ -35,11 +35,17 @@ def configure_pack(pack_arg: str) -> Path:
         pack = pack_home() / pack
     pack = pack.absolute()
     os.environ["XTRA_PACK"] = str(pack)
-    if not (os.environ.get("XTRA_SLOTS") or os.environ.get("GOLDEN_SET_SLOTS") or "").strip():
+    if not (
+        os.environ.get("XTRA_SLOTS") or os.environ.get("GOLDEN_SET_SLOTS") or ""
+    ).strip():
         os.environ["XTRA_SLOTS"] = "dynamic"
-    if not (os.environ.get("XTRA_MODE") or os.environ.get("GOLDEN_SET_MODE") or "").strip():
+    if not (
+        os.environ.get("XTRA_MODE") or os.environ.get("GOLDEN_SET_MODE") or ""
+    ).strip():
         os.environ["XTRA_MODE"] = "college"
-    if not (os.environ.get("XTRA_PILE") or os.environ.get("GOLDEN_SET_PILE") or "").strip():
+    if not (
+        os.environ.get("XTRA_PILE") or os.environ.get("GOLDEN_SET_PILE") or ""
+    ).strip():
         os.environ["XTRA_PILE"] = pack.name
     pack.mkdir(parents=True, exist_ok=True)
     schema = HERE / "record.schema.json"

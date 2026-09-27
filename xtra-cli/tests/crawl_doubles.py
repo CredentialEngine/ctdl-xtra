@@ -97,7 +97,9 @@ def no_site_documents(url: str) -> tuple[int, bytes]:
     return 404, b""
 
 
-def site_documents(documents: dict[str, bytes]) -> Callable[[str], tuple[int, bytes]]:
+def site_documents(
+    documents: dict[str, bytes],
+) -> Callable[[str], tuple[int, bytes]]:
     """Serve canned robots.txt and sitemap bodies; anything else is a 404."""
 
     def fetch(url: str) -> tuple[int, bytes]:

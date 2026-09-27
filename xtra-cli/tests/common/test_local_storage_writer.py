@@ -22,7 +22,9 @@ def test_upload_text_and_bytes(tmp_path) -> None:
 
 def test_open_binary_writer_and_delete(tmp_path) -> None:
     writer = LocalStorageWriter(root_path=str(tmp_path), write_concurrency=1)
-    with writer.open_binary_writer(key="run/page.html", content_type="text/html") as stream:
+    with writer.open_binary_writer(
+        key="run/page.html", content_type="text/html"
+    ) as stream:
         stream.write(b"<html/>")
     assert (tmp_path / "run" / "page.html").read_bytes() == b"<html/>"
     errors: list[str] = []

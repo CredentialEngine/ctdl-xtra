@@ -7,7 +7,6 @@ import os
 import urllib.error
 import urllib.request
 from datetime import datetime, timezone
-from pathlib import Path
 
 from config import PACK, RECORD_DIR, REGISTRY_USER_AGENT
 from normalize import sha256_bytes
@@ -17,7 +16,12 @@ GRAPH_URL = "https://credentialengineregistry.org/graph"
 
 
 def _now() -> str:
-    return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+    return (
+        datetime.now(timezone.utc)
+        .replace(microsecond=0)
+        .isoformat()
+        .replace("+00:00", "Z")
+    )
 
 
 def _api_key() -> str | None:
@@ -53,7 +57,11 @@ def _ctid_of(obj: dict) -> str | None:
         val = obj.get(key)
         if isinstance(val, str) and "ce-" in val:
             start = val.find("ce-")
-            return val[start : start + 39] if len(val) >= start + 39 else val[start:]
+            return (
+                val[start : start + 39]
+                if len(val) >= start + 39
+                else val[start:]
+            )
     return None
 
 
@@ -81,8 +89,12 @@ def _post_search(catalog_url: str) -> tuple[int, dict | str]:
         "User-Agent": REGISTRY_USER_AGENT,
     }
     if key:
-        headers["Authorization"] = key if key.lower().startswith("bearer ") else f"Bearer {key}"
-    req = urllib.request.Request(SEARCH_URL, data=body, headers=headers, method="POST")
+        headers["Authorization"] = (
+            key if key.lower().startswith("bearer ") else f"Bearer {key}"
+        )
+    req = urllib.request.Request(
+        SEARCH_URL, data=body, headers=headers, method="POST"
+    )
     try:
         with urllib.request.urlopen(req, timeout=45) as resp:
             raw = resp.read()
@@ -111,8 +123,12 @@ def lookup_url(catalog_url: str) -> dict:
         "http_status": status,
         "api_key_present": bool(_api_key()),
         "search_url": SEARCH_URL,
-        "exact_subjectWebpage_hits": len({_ctid_of(obj) or u for u, obj in exact}),
-        "payload": payload if not isinstance(payload, str) or len(payload) < 8000 else payload[:8000],
+        "exact_subjectWebpage_hits": len(
+            {_ctid_of(obj) or u for u, obj in exact}
+        ),
+        "payload": payload
+        if not isinstance(payload, str) or len(payload) < 8000
+        else payload[:8000],
     }
     if status in {401, 403} or not _api_key():
         result["decision"] = "not_checked"
@@ -123,7 +139,9 @@ def lookup_url(catalog_url: str) -> dict:
         return result
     if status != 200:
         result["decision"] = "not_checked"
-        result["notes"] = f"Registry search HTTP {status}. Exact subjectWebpage query only; not a name match."
+        result["notes"] = (
+            f"Registry search HTTP {status}. Exact subjectWebpage query only; not a name match."
+        )
         return result
     if not exact:
         result["decision"] = "record_not_found"
@@ -141,12 +159,16 @@ def lookup_url(catalog_url: str) -> dict:
     return result
 
 
-def apply_to_record(rec: dict, lookup: dict, *, rel_path: str, sha256: str | None) -> None:
+def apply_to_record(
+    rec: dict, lookup: dict, *, rel_path: str, sha256: str | None
+) -> None:
     decision = lookup["decision"]
     rec["registry_expected"] = {
         "status": decision,
         "checked_at": _now() if decision != "not_checked" else None,
-        "registry_ctid": lookup.get("registry_ctid") if decision == "matched" else None,
+        "registry_ctid": lookup.get("registry_ctid")
+        if decision == "matched"
+        else None,
         "registry_url": (
             f"https://credentialengineregistry.org/resources/{lookup['registry_ctid']}"
             if decision == "matched" and lookup.get("registry_ctid")
@@ -177,7 +199,10 @@ def lookup_pack() -> list[dict]:
         dest.write_bytes(blob)
         rel = f"registry/{rec['record_id']}.json"
         apply_to_record(rec, lookup, rel_path=rel, sha256=sha256_bytes(blob))
-        path.write_text(json.dumps(rec, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+        path.write_text(
+            json.dumps(rec, indent=2, ensure_ascii=False) + "\n",
+            encoding="utf-8",
+        )
         rows.append(
             {
                 "record_id": rec["record_id"],
@@ -185,6 +210,10 @@ def lookup_pack() -> list[dict]:
                 "http_status": lookup["http_status"],
             }
         )
-        print(f"registry {rec['record_id']} {lookup['decision']} http={lookup['http_status']}")
-    (out_dir / "summary.json").write_text(json.dumps(rows, indent=2) + "\n", encoding="utf-8")
+        print(
+            f"registry {rec['record_id']} {lookup['decision']} http={lookup['http_status']}"
+        )
+    (out_dir / "summary.json").write_text(
+        json.dumps(rows, indent=2) + "\n", encoding="utf-8"
+    )
     return rows

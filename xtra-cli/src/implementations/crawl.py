@@ -61,6 +61,7 @@ from implementations.crawl_scope import (
     extract_links,
     first_path_segment,
 )
+from implementations.crawl_strategy import StrategyFacts, strategy_facts
 
 logger = logging.getLogger(__name__)
 
@@ -76,6 +77,14 @@ MAX_CONSECUTIVE_FAILURES = 20
 POLL_SECONDS = 1.0
 TOP_PATH_SEGMENTS = 20
 EXIT_INTERRUPTED = 130
+
+# --url first, then the sitemap, then --seed-urls-file, then links in
+# document order. Recorded so a run says which rule ordered its frontier.
+FRONTIER_ORDER = "sitemap_first"
+
+
+class StrategyMismatchError(RuntimeError):
+    """A resume that would mix two rendered sources in one run folder."""
 
 
 def format_duration(seconds: float) -> str:
@@ -144,7 +153,9 @@ def is_retryable_status(status: int | None) -> bool:
     return status is not None and (status == 429 or status >= 500)
 
 
-def fetch_page(state: WorkerState, url: str, policy: FetchPolicy) -> PageOutcome:
+def fetch_page(
+    state: WorkerState, url: str, policy: FetchPolicy
+) -> PageOutcome:
     """Fetch one URL with this worker's pacing and backoff. No storage here."""
     total_attempts = policy.max_retries + 1
     attempts = 0
@@ -243,6 +254,7 @@ class Crawler:
         sleep: Callable[[float], None] = time.sleep,
         monotonic: Callable[[], float] = time.monotonic,
         now: Callable[[], str] = utc_timestamp,
+        facts: StrategyFacts | None = None,
     ) -> None:
         self.settings = settings
         self.store = store
@@ -251,6 +263,7 @@ class Crawler:
         self.monotonic = monotonic
         self.now = now
         self.fetcher_factory = fetcher_factory or playwright_fetcher_factory()
+        self.facts = facts or strategy_facts(settings.strategy)
 
         self.frontier: deque[str] = deque()
         self.seen: set[str] = set()
@@ -273,9 +286,12 @@ class Crawler:
         self.effective_min_interval = settings.min_interval_in_seconds
         self.sitemap_urls_found = 0
 
+        self.resolved_host_differs = False
+
         self.started_at = self.now()
         self._started_mono = self.monotonic()
         self._next_checkpoint = CHECKPOINT_EVERY
+        self._first_page_checkpointed = False
         self._consecutive_failures = 0
         self.stopped = False
         self.resumed = False
@@ -356,11 +372,22 @@ class Crawler:
         answering_host = (urlsplit(resolved).hostname or "").lower()
         if not answering_host or answering_host == typed_host:
             return resolved
+        self.resolved_host_differs = True
         logger.warning(
             "ENTRY %s answers as %s, so the crawl follows %s",
             self.settings.seed_url,
             resolved,
             answering_host,
+        )
+        logger.warning(
+            "FOLDER %s is named after the typed host %s, but the pages come "
+            "from %s. The folder name is kept as typed so the run id stays "
+            "stable; crawl.json records resolved_seed_url %s and "
+            "catalog_folder_matches_resolved_host false.",
+            self.settings.catalog_folder,
+            typed_host,
+            answering_host,
+            resolved,
         )
         self.scope = Scope.from_seed(
             resolved,
@@ -371,6 +398,24 @@ class Crawler:
         self.host_aliases.add(typed_host)
         self._recanonicalize()
         return resolved
+
+    def _warn_when_scope_is_not_the_site_root(self, seed_url: str) -> None:
+        """A narrowed scope is a choice, so it is never made silently.
+
+        A --url with a path crawls that section and nothing above it,
+        which is right when it is meant and invisible when it is not.
+        """
+        prefix = self.scope.path_prefix
+        if prefix == "/":
+            return
+        parsed = urlsplit(seed_url)
+        root = f"{parsed.scheme or 'https'}://{parsed.netloc}/"
+        logger.warning(
+            "SCOPE the scope prefix is %s, so only that part of the catalog "
+            "will be crawled; pass --scope-prefix %s to crawl all of it",
+            prefix,
+            root,
+        )
 
     def canonical_url(self, url: str) -> str:
         """Rewrite a known alias host to the host that answers.
@@ -417,11 +462,31 @@ class Crawler:
 
     # -- resume ------------------------------------------------------------
 
+    def _check_strategy(self, previous: Any) -> None:
+        """One run folder is one backend, so a resume may not change it.
+
+        Two backends render differently. A folder holding pages from both
+        is not one crawl of one catalog, and nothing downstream could tell
+        which page came from which.
+        """
+        recorded = str(previous or "").strip()
+        if not recorded or recorded == self.settings.strategy:
+            return
+        raise StrategyMismatchError(
+            f"run {run_id_for_json(self.settings.run_id)} of "
+            f"{self.settings.catalog_folder} was crawled with "
+            f"--with-{recorded}, and this run asked for "
+            f"--with-{self.settings.strategy}. One run folder must not mix "
+            f"rendered sources. Continue it with --with-{recorded}, or "
+            "start a new --run-id."
+        )
+
     def load_state(self) -> bool:
         key = self._run_key(state_key)
         if not self.store.exists(key):
             return False
         payload = self.store.get_json(key)
+        self._check_strategy(payload.get("strategy"))
         self.seen = set(payload.get("seen") or ())
         self.saved = list(payload.get("saved") or ())
         self._saved_set = set(self.saved)
@@ -448,6 +513,11 @@ class Crawler:
                 self._requeue(url)
             else:
                 self.failed[url] = record
+        if not (self.saved or self.frontier or self.failed):
+            # The manifest written at startup, before the first page. There
+            # is nothing to resume from, so this is still a fresh run and
+            # the seed URL still has to be queued.
+            return False
         self.resumed = True
         logger.info(
             "RESUME %s saved=%s frontier=%s failed=%s",
@@ -474,6 +544,32 @@ class Crawler:
         self._maybe_checkpoint()
         return True
 
+    def _sitemap_first(self, sitemap_pages: list[str]) -> None:
+        """On a resume, move sitemap URLs ahead of the old frontier.
+
+        A resumed run reads its frontier back in the order it was left, so
+        links found inside one section would be fetched for days before
+        the site's own index of its content pages was reached again. Pages
+        this run already saved stay in front of both: they answer from
+        storage and cost no GET.
+        """
+        if not sitemap_pages:
+            return
+        declared = {
+            dedupe_key(self.canonical_url(url)) for url in sitemap_pages
+        }
+        saved: list[str] = []
+        sitemap: list[str] = []
+        rest: list[str] = []
+        for url in self.frontier:
+            if url in self._saved_set:
+                saved.append(url)
+            elif dedupe_key(url) in declared:
+                sitemap.append(url)
+            else:
+                rest.append(url)
+        self.frontier = deque(saved + sitemap + rest)
+
     # -- results -----------------------------------------------------------
 
     def _save(self, result: FetchResult, attempts: int) -> None:
@@ -491,6 +587,14 @@ class Crawler:
             "attempts": attempts,
             "sha256": hashlib.sha256(body).hexdigest(),
             "stem": stem,
+            # Where this stem's page is, whole, so a sidecar read on its
+            # own says where to find the bytes it describes. It is the
+            # URI this run wrote to, so it is right until someone copies
+            # the run somewhere else; `stem` is what every later stage
+            # keys on, and it survives the copy.
+            "html_key": html_key,
+            "html_path": join_storage_uri(self.settings.target_uri, html_key),
+            "strategy": self.settings.strategy,
         }
         self.store.put_text(html_key, result.html, "text/html; charset=utf-8")
         self.store.put_json(self._meta_key(result.requested_url), meta)
@@ -619,10 +723,16 @@ class Crawler:
             "run_id": run_id_for_json(self.settings.run_id),
             "seed_url": self.settings.seed_url,
             "resolved_seed_url": self.resolved_seed_url,
+            "catalog_folder_matches_resolved_host": (
+                not self.resolved_host_differs
+            ),
             "scope_prefix": self.scope.path_prefix,
             "include_regex": list(self.settings.include_regex),
             "exclude_regex": list(self.settings.exclude_regex),
             "strategy": self.settings.strategy,
+            "strategy_version": dict(self.facts.version),
+            "strategy_settings": dict(self.facts.settings),
+            "strategy_notes": list(self.facts.notes),
             "started_at": self.started_at,
             "updated_at": stamp,
             "finished_at": stamp if finished else None,
@@ -635,6 +745,7 @@ class Crawler:
             "robots_crawl_delay": self.robots_crawl_delay,
             "effective_min_interval_in_seconds": self.effective_min_interval,
             "sitemap_urls_found": self.sitemap_urls_found,
+            "frontier_order": FRONTIER_ORDER,
             "pages_saved": self.totals.pages_saved,
             "pages_failed": len(self.failed),
             "failed_by_status": self._failed_by_status(),
@@ -649,6 +760,7 @@ class Crawler:
             "schema": STATE_SCHEMA,
             "catalog_folder": self.settings.catalog_folder,
             "run_id": run_id_for_json(self.settings.run_id),
+            "strategy": self.settings.strategy,
             "started_at": self.started_at,
             "updated_at": self.now(),
             "pages_saved": self.totals.pages_saved,
@@ -661,7 +773,9 @@ class Crawler:
             "failed": list(self.failed.values()),
         }
 
-    def checkpoint(self, status: str, *, finished: bool = False) -> dict[str, Any]:
+    def checkpoint(
+        self, status: str, *, finished: bool = False
+    ) -> dict[str, Any]:
         """Write state.json, failed.jsonl, and crawl.json as one snapshot."""
         doc = self.crawl_doc(status, finished=finished)
         self.store.put_json(self._run_key(state_key), self._state_doc())
@@ -677,8 +791,15 @@ class Crawler:
 
     def _maybe_checkpoint(self) -> None:
         if self.totals.pages_saved < self._next_checkpoint:
+            # The first page is worth a checkpoint of its own. A run killed
+            # at page two used to leave saved pages that no manifest
+            # described, which is not something a reader can recover from.
+            if self.totals.pages_saved and not self._first_page_checkpointed:
+                self._first_page_checkpointed = True
+                self.checkpoint(STATUS_INCOMPLETE)
             return
         self._next_checkpoint = self.totals.pages_saved + CHECKPOINT_EVERY
+        self._first_page_checkpointed = True
         self.checkpoint(STATUS_INCOMPLETE)
         self._progress()
 
@@ -686,7 +807,9 @@ class Crawler:
 
     def _limit_blocks(self, in_flight: int) -> bool:
         limit = self.settings.limit
-        return limit is not None and self.totals.pages_saved + in_flight >= limit
+        return (
+            limit is not None and self.totals.pages_saved + in_flight >= limit
+        )
 
     def work(self, pool: WorkerPool, policy: FetchPolicy) -> str:
         in_flight: dict[Future, str] = {}
@@ -715,7 +838,9 @@ class Crawler:
                 return STATUS_COMPLETE
 
             done, _ = wait_for_futures(
-                set(in_flight), timeout=POLL_SECONDS, return_when=FIRST_COMPLETED
+                set(in_flight),
+                timeout=POLL_SECONDS,
+                return_when=FIRST_COMPLETED,
             )
             for future in done:
                 url = in_flight.pop(future)
@@ -733,14 +858,26 @@ class Crawler:
 
     def run(self) -> CrawlOutcome:
         resumed = self.load_state()
+        # Before the first GET, so a run that is hard-killed after two
+        # pages still leaves a manifest saying what it was and that it did
+        # not finish.
+        self.checkpoint(STATUS_INCOMPLETE)
+        self._first_page_checkpointed = self.totals.pages_saved > 0
         seed_url = self.resolve_entry_point()
+        self._warn_when_scope_is_not_the_site_root(seed_url)
         sitemap_pages = self.read_site_rules(seed_url)
+        # The sitemap is the site's own index of its content pages, so it
+        # is reached before any link found on the way. A full run ends up
+        # with the same pages either way; a limited one does not.
         if not resumed:
             self.enqueue(seed_url, operator_seed=True)
-            for url in self.settings.seed_urls:
-                self.enqueue(url, operator_seed=True)
         for url in sitemap_pages:
             self.enqueue(url)
+        if not resumed:
+            for url in self.settings.seed_urls:
+                self.enqueue(url, operator_seed=True)
+        else:
+            self._sitemap_first(sitemap_pages)
 
         policy = FetchPolicy(
             min_interval=self.effective_min_interval,

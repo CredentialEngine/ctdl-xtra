@@ -110,7 +110,10 @@ def validate_record(rec: dict, *, pack: Path) -> list[str]:
                 errors.append(f"{eid} excerpt_sha256 mismatch")
             if ev.get("snapshot_sha256") != rec["source"]["snapshot_sha256"]:
                 errors.append(f"{eid} snapshot hash drift")
-            if ev.get("normalized_text_sha256") != rec["source"]["normalized_text_sha256"]:
+            if (
+                ev.get("normalized_text_sha256")
+                != rec["source"]["normalized_text_sha256"]
+            ):
                 errors.append(f"{eid} normalized hash drift")
             if excerpt not in text:
                 errors.append(f"{eid} excerpt not in normalized text")
@@ -152,7 +155,6 @@ def validate_pack(pack: Path, *, strict_promotion: bool = False) -> list[str]:
     ids = [r["record_id"] for r in records]
     if len(ids) != len(set(ids)):
         errors.append("duplicate record_id")
-    hashes = Counter(r["source"]["snapshot_sha256"] for r in records)
     page_counts = Counter()
     for r in records:
         page_counts[r["source"]["snapshot_sha256"]] += 1
@@ -160,7 +162,10 @@ def validate_pack(pack: Path, *, strict_promotion: bool = False) -> list[str]:
         sha = rec["source"]["snapshot_sha256"]
         if page_counts[sha] > 3:
             notes = rec.get("annotation_scope", {}).get("entity_boundary", "")
-            if "multi-entity" not in notes.lower() and "multi_entity" not in notes.lower():
+            if (
+                "multi-entity" not in notes.lower()
+                and "multi_entity" not in notes.lower()
+            ):
                 errors.append(
                     f"{rec['record_id']}: page has {page_counts[sha]} records; "
                     "mark multi-entity bundle in annotation_scope.entity_boundary or keep ≤3"
@@ -172,10 +177,16 @@ def validate_pack(pack: Path, *, strict_promotion: bool = False) -> list[str]:
     elif strict_promotion:
         for tid, count in templates.items():
             if count < 5 or count > 10:
-                errors.append(f"template_id {tid} has {count} records (need 5-10)")
-        errors.append("strict-promotion also requires dual human reviewers; this pack is candidate-only")
+                errors.append(
+                    f"template_id {tid} has {count} records (need 5-10)"
+                )
+        errors.append(
+            "strict-promotion also requires dual human reviewers; this pack is candidate-only"
+        )
     else:
         for tid, count in templates.items():
             if count < 5 or count > 10:
-                errors.append(f"warning-as-error: template_id {tid} has {count} records (need 5-10 for promotion)")
+                errors.append(
+                    f"warning-as-error: template_id {tid} has {count} records (need 5-10 for promotion)"
+                )
     return errors

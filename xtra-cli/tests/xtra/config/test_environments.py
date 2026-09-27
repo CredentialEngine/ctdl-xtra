@@ -13,7 +13,11 @@ def test_env_names_cover_dev_through_prod() -> None:
 
 
 def test_every_environment_declares_the_same_keys() -> None:
-    expected = {"data_uri", "connection_string_env", "fallback_connection_string"}
+    expected = {
+        "data_uri",
+        "connection_string_env",
+        "fallback_connection_string",
+    }
     for name, values in ENVIRONMENTS.items():
         assert set(values) == expected, name
         assert values["connection_string_env"] == DEFAULT_CONNECTION_STRING_ENV

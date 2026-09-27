@@ -28,7 +28,9 @@ class LocalStorageProvider:
         self.batch_size = batch_size
         self.read_concurrency = read_concurrency
 
-    def iter_keys(self, *, name_starts_with: str | None = None) -> Iterator[str]:
+    def iter_keys(
+        self, *, name_starts_with: str | None = None
+    ) -> Iterator[str]:
         prefix = (name_starts_with or "").lstrip("/")
         if self.single_file_name is not None:
             if self.single_file_name.startswith(prefix):

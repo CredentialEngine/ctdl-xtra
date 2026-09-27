@@ -11,12 +11,16 @@ import re
 from transcribe_lib import FieldDraft, TranscriptionError
 
 
-def _f(field_id, label, value, excerpt, loc, *, raw=None, notes=None, occ=None) -> FieldDraft:
+def _f(
+    field_id, label, value, excerpt, loc, *, raw=None, notes=None, occ=None
+) -> FieldDraft:
     return FieldDraft(
         field_id=field_id,
         canonical_label=label,
         value=value,
-        raw_text=raw if raw is not None else (excerpt if isinstance(value, str) else excerpt),
+        raw_text=raw
+        if raw is not None
+        else (excerpt if isinstance(value, str) else excerpt),
         excerpt=excerpt,
         locator_strategy="text_anchor",
         locator_value=loc,
@@ -51,7 +55,15 @@ def _num(txt: str):
     raise TranscriptionError(f"not a number: {txt!r}")
 
 
-def _add(drafts: list[FieldDraft], label: str, value, excerpt: str, loc: str, text: str, **kwargs) -> None:
+def _add(
+    drafts: list[FieldDraft],
+    label: str,
+    value,
+    excerpt: str,
+    loc: str,
+    text: str,
+    **kwargs,
+) -> None:
     drafts.append(
         _f(
             f"src_{len(drafts) + 1:03d}",

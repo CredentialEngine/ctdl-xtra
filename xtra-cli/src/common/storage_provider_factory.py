@@ -5,6 +5,7 @@ from urllib.parse import urlparse
 from common.local_storage_provider import LocalStorageProvider
 from common.storage_configuration import AzureStorageConfiguration
 from common.storage_uri import (
+    normalize_storage_uri,
     parse_azure_storage_uri,
     parse_file_storage_uri,
     parse_local_path_if_supported,
@@ -18,6 +19,7 @@ def create_storage_provider(
     read_concurrency: int,
     azure_storage_connection_string: str | None = None,
 ):
+    source_uri = normalize_storage_uri(source_uri)
     parsed = urlparse(source_uri)
     scheme = parsed.scheme.lower()
 

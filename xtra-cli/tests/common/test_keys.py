@@ -37,7 +37,10 @@ RUN_PATH = "2026-09-14T18-12-00Z"
             "https://www.example.edu/academics/catalog/2026-2027/",
             "www-example-edu-academics-catalog-2026-2027",
         ),
-        ("HTTP://Catalog.Example.EDU/Courses/#top", "catalog-example-edu-courses"),
+        (
+            "HTTP://Catalog.Example.EDU/Courses/#top",
+            "catalog-example-edu-courses",
+        ),
     ],
 )
 def test_catalog_folder_name_examples(url: str, folder: str) -> None:

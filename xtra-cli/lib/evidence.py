@@ -9,7 +9,9 @@ class EvidenceError(ValueError):
     pass
 
 
-def find_excerpt(normalized: str, excerpt: str, occurrence: int | None = None) -> tuple[int, int]:
+def find_excerpt(
+    normalized: str, excerpt: str, occurrence: int | None = None
+) -> tuple[int, int]:
     if not excerpt:
         raise EvidenceError("empty excerpt")
     starts: list[int] = []
@@ -28,7 +30,9 @@ def find_excerpt(normalized: str, excerpt: str, occurrence: int | None = None) -
         )
     idx = 0 if occurrence is None else occurrence - 1
     if idx < 0 or idx >= len(starts):
-        raise EvidenceError(f"occurrence {occurrence} out of range for {excerpt[:80]!r}")
+        raise EvidenceError(
+            f"occurrence {occurrence} out of range for {excerpt[:80]!r}"
+        )
     start = starts[idx]
     return start, start + len(excerpt)
 

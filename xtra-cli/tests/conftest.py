@@ -57,7 +57,9 @@ def fixture_html_dir() -> Path:
 
 @pytest.fixture
 def engl101_html(fixture_html_dir: Path) -> str:
-    return (fixture_html_dir / "example-engl101.html").read_text(encoding="utf-8")
+    return (fixture_html_dir / "example-engl101.html").read_text(
+        encoding="utf-8"
+    )
 
 
 @pytest.fixture

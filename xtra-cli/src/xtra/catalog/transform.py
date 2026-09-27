@@ -1,6 +1,6 @@
 """xtra catalog transform
 
-  xtra catalog transform --with-ctdl --source-uri URI --target-uri URI --catalog-id ID --run-id TS
+xtra catalog transform --with-ctdl --source-uri URI --target-uri URI --catalog-id ID --run-id TS
 """
 
 from __future__ import annotations
@@ -11,8 +11,8 @@ import click
 
 from common.keys import expected_key, jsonld_key, record_key, run_prefix
 from common.object_store import open_store
-from implementations.transform import to_expected, to_jsonld
 from implementations.strategies import unimplemented_message
+from implementations.transform import to_expected, to_jsonld
 from xtra.click import (
     env_option,
     require_strategy,
@@ -31,7 +31,9 @@ from xtra.click import (
 @source_uri_option()
 @target_uri_option()
 @click.option("--catalog-id", required=True)
-@click.option("--run-id", required=True, help="ISO8601 UTC run id from catalog crawl.")
+@click.option(
+    "--run-id", required=True, help="ISO8601 UTC run id from catalog crawl."
+)
 @storage_connection_options()
 def main(
     strategy: str | None,
@@ -65,7 +67,9 @@ def main(
     )
     prefix = f"{run_prefix(catalog_id, run_id)}/records/"
     written = []
-    for key in source.list_keys(under=f"{run_prefix(catalog_id, run_id)}/records"):
+    for key in source.list_keys(
+        under=f"{run_prefix(catalog_id, run_id)}/records"
+    ):
         if not key.endswith(".json"):
             continue
         record = source.get_json(key)

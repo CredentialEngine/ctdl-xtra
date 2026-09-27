@@ -101,19 +101,25 @@ def test_include_and_exclude_regexes_apply_to_the_whole_url() -> None:
         exclude_regex=("print=1",),
     )
     assert scope.allows("https://catalog.bergen.edu/content.php?catoid=13&n=1")
-    assert scope.rejection("https://catalog.bergen.edu/content.php?catoid=12") == (
-        REASON_INCLUDE_RULE
-    )
     assert scope.rejection(
-        "https://catalog.bergen.edu/content.php?catoid=13&print=1"
-    ) == REASON_EXCLUDE_RULE
+        "https://catalog.bergen.edu/content.php?catoid=12"
+    ) == (REASON_INCLUDE_RULE)
+    assert (
+        scope.rejection(
+            "https://catalog.bergen.edu/content.php?catoid=13&print=1"
+        )
+        == REASON_EXCLUDE_RULE
+    )
 
 
 def test_robots_disallow_is_honoured() -> None:
     robots = RobotFileParser()
     robots.parse(["User-agent: *", "Disallow: /private/"])
     scope = Scope.from_seed("https://catalog.example.edu/").with_robots(robots)
-    assert scope.rejection("https://catalog.example.edu/private/x") == REASON_ROBOTS
+    assert (
+        scope.rejection("https://catalog.example.edu/private/x")
+        == REASON_ROBOTS
+    )
     assert scope.allows("https://catalog.example.edu/public/x")
 
 
@@ -141,7 +147,9 @@ def test_links_come_from_anchors_areas_and_rel_next() -> None:
     <a href="mailto:x@y.z">mail</a>
     <a>no href</a>
     """
-    links = extract_links(html, "https://catalog.example.edu/courses/index.html")
+    links = extract_links(
+        html, "https://catalog.example.edu/courses/index.html"
+    )
     assert links == [
         "https://catalog.example.edu/courses/engl101",
         "https://catalog.example.edu/courses/math101",
@@ -156,7 +164,9 @@ def test_a_base_href_decides_where_relative_links_point() -> None:
         '<base href="https://catalog.example.edu/v2/">'
         '<a href="a">A</a><a href="#top">T</a>'
     )
-    links = extract_links(html, "https://catalog.example.edu/courses/index.html")
+    links = extract_links(
+        html, "https://catalog.example.edu/courses/index.html"
+    )
     assert links == [
         "https://catalog.example.edu/v2/a",
         "https://catalog.example.edu/v2/",

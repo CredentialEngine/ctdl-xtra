@@ -1,0 +1,25 @@
+name: CI - Semgrep
+
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  semgrep:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    container:
+      image: semgrep/semgrep
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Scan
+        run: |
+          semgrep scan \
+            --config "p/secrets" \
+            --config "p/security-audit" \
+            --config "p/python" \
+            --config "p/kubernetes" \
+            --config "p/terraform" \
+            .

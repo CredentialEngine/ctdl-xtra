@@ -16,9 +16,26 @@ from urllib.parse import urldefrag, urljoin, urlsplit
 # Extensions a browser would download rather than render.
 SKIP_EXTENSIONS = frozenset(
     {
-        "pdf", "doc", "docx", "xls", "xlsx", "ppt", "pptx", "zip",
-        "jpg", "jpeg", "png", "gif", "svg", "webp", "ico",
-        "css", "js", "xml", "mp3", "mp4",
+        "pdf",
+        "doc",
+        "docx",
+        "xls",
+        "xlsx",
+        "ppt",
+        "pptx",
+        "zip",
+        "jpg",
+        "jpeg",
+        "png",
+        "gif",
+        "svg",
+        "webp",
+        "ico",
+        "css",
+        "js",
+        "xml",
+        "mp3",
+        "mp4",
     }
 )
 

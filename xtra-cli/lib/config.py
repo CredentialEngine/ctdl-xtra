@@ -74,9 +74,19 @@ SLOTS_NAME: str
 
 def bind_runtime_paths() -> None:
     """Re-read XTRA_PACK / XTRA_SLOTS into the module globals this process uses."""
-    global PACK, SCHEMA_PATH, SNAPSHOT_DIR, NORMALIZED_DIR, RECORD_DIR, SLOTS_NAME
+    global \
+        PACK, \
+        SCHEMA_PATH, \
+        SNAPSHOT_DIR, \
+        NORMALIZED_DIR, \
+        RECORD_DIR, \
+        SLOTS_NAME
     _pack = env_get("XTRA_PACK")
-    PACK = Path(_pack).expanduser().absolute() if _pack else (CLI_ROOT / "out").absolute()
+    PACK = (
+        Path(_pack).expanduser().absolute()
+        if _pack
+        else (CLI_ROOT / "out").absolute()
+    )
     SCHEMA_PATH = PACK / "record.schema.json"
     SNAPSHOT_DIR = PACK / "snapshots"
     NORMALIZED_DIR = PACK / "normalized"
