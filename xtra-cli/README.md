@@ -565,6 +565,35 @@ Each one is stored with a quote of up to 80 characters showing why it fired,
 and `patterns.md` prints one line per marker on what it costs an extractor
 that ignores it.
 
+#### Named entities
+
+Markers say what is *true* of a page. Entities say what it *names*. Six
+kinds, written to `entities.csv` with a quote for each, and by value alone
+into `pages.jsonl` and `labels.json`:
+
+| kind | example | where it is read |
+| --- | --- | --- |
+| `AWARD` | `Associate in Applied Science` | the marked-up award field, a JSON-LD declaration, then the page's own content |
+| `COURSE_CODE` | `ENGL 101` | course blocks first, then references in a requirement list, then the content |
+| `CREDITS` | `3 credits` → `3`, `1-3 credits` → `1-3` | the marked-up credits field, then the content |
+| `TERM` | `Fall 2026`, `First Semester`, `2026-2027` | term headings, seasons with a noun or a year, the catalog year |
+| `ORG` | `Atlantic Cape Community College` | the site name, then names in the content |
+| `OCCUPATION` | `Registered Nurse` | a career sentence, or a list under a career heading |
+
+Nothing here is a model and nothing is downloaded. Every span is found by
+the vocabulary in `discover_rules.py` that the labels already use, so an
+entity a reviewer disagrees with is one line to find and one line to
+change. A statistical recogniser would offer `ORG` and `DATE` and never
+`AWARD` or `COURSE_CODE`, which are the two a credential catalog exists for.
+
+Two rules keep the noise down. Entities are read from **the page's own
+content**, because the menu says "Degrees & Certificates" on every page of a
+catalog. And an occupation needs **two signals, never one**: a head noun
+from the gazetteer *and* a sentence that introduces work ("prepares
+students for careers as…") or a heading standing over a list of jobs. On
+the head noun alone, "Nurse Education" is a nurse and every program
+coordinator is an officer.
+
 #### Patterns
 
 A field label on more than 90 percent of pages is site chrome, and a label on
@@ -611,6 +640,7 @@ forced the extra pages are listed. If the population is smaller than
   pages.jsonl                  one profile per page
   labels.json                  the preprocessed list extraction reads
   field-labels.csv             vocabulary, rarest first, then headings
+  entities.csv                 what each page names, by kind, with a quote
   patterns.json                every pattern as data
   patterns.md                  the demo document, special patterns first
   golden-sample-course.json    the sample, with a reason per page

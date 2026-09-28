@@ -54,7 +54,23 @@ RARE_PATTERN_SHARE = 0.05
 
 EMPTY_PAGE_CHARS = 500
 # How far a credits value may sit from the course code it belongs to.
+# Wide on purpose: a Coursedog course page prints "Credits: 3" 202
+# characters after the code, on the far side of the description.
 COURSE_BLOCK_WINDOW = 400
+# How long the line holding that value may be. A course prints its
+# credits as a field, a heading, or a table row - its own short line. A
+# sentence that happens to name a number of credits is not a course's
+# value, however close it falls: the graduation policy at Atlantic Cape
+# says "students transferring from another institution must complete at
+# least 30 credits", and three course codes named in the sentence before
+# it were counted as three described courses because of it.
+#
+# This is the rule total_credits_line already follows one entity up, for
+# the same reason and after the same defect. Measured over every saved
+# crawl held locally, every credits value that really did belong to a
+# course sat on a line of 80 characters or less; the only ones past it
+# were that policy sentence.
+COURSE_CREDITS_LINE_CHARS = 80
 # "Near the top" for deciding the page is about one course, and the same
 # window for deciding the page names the award it is about. Both questions
 # are about the heading area, not the body.
@@ -1191,6 +1207,38 @@ PROGRAM_URL_ENDPOINT_RE = re.compile(
 # MIN_COURSE_LIST_CODES distinct codes on the page.
 COURSE_URL_RE = re.compile(r"course|subject", re.IGNORECASE)
 
+# A vendor's one address for every page of a kind: Acalog's
+# preview_course.php, and the .aspx and .jsp a few others serve. There the
+# last segment is the only segment there is, so it does name the kind.
+VENDOR_ENDPOINT_RE = re.compile(r"\.(?:php|aspx?|jsp|cgi|do)$", re.IGNORECASE)
+
+
+def path_names_courses(template: str) -> bool:
+    """True when the URL puts this page under a section naming courses.
+
+    Every segment but the last, for the reason url_label gives: the last
+    segment is the page's own name, and a page named "course-descriptions"
+    is the index of them rather than one of them. Reading it whole labelled
+    Atlantic Cape's "Course Descriptions", "General Education Courses" and
+    "Basic Skills Course Selections" as runs of course descriptions, when
+    each lists codes and describes nothing.
+
+    The vendor endpoints are the exception, and the query with them:
+    Acalog keeps every course at preview_course.php?coid=N, where the last
+    segment is the whole address.
+    """
+    path, _, query = template.partition("?")
+    segments = [segment for segment in path.split("/") if segment]
+    if not segments:
+        return False
+    if any(COURSE_URL_RE.search(segment) for segment in segments[:-1]):
+        return True
+    if VENDOR_ENDPOINT_RE.search(segments[-1]):
+        return bool(
+            COURSE_URL_RE.search(segments[-1]) or COURSE_URL_RE.search(query)
+        )
+    return False
+
 
 def has_program_structure(terms: list[str]) -> bool:
     """True when the page talks about its own requirements.
@@ -1282,6 +1330,25 @@ def singular_award(text: str) -> str | None:
         if not PLURAL_AWARD_RE.match(match.group(0).strip()):
             return match.group(0)
     return None
+
+
+def named_awards(text: str) -> list[str]:
+    """Every award this text names that says which award it is.
+
+    The same three filters singular_award applies, over all of them
+    rather than the first: an award the text says it is not does not
+    count, "degree" and "credential" do not say which, "Certificates" in
+    the plural is the menu naming a list, and "Associate in" is a level
+    with no field after it. What is left is the awards the page names.
+    """
+    found = _specific(award_matches(_blank_negations(text or "")))
+    named: list[str] = []
+    for match in found:
+        award = match.group(0).strip()
+        if PLURAL_AWARD_RE.match(award) or BARE_AWARD_LEVEL_RE.match(award):
+            continue
+        named.append(match.group(0))
+    return named
 
 
 def award_family(award: str) -> str:
@@ -1749,10 +1816,31 @@ def course_block_count(text: str, ignore: set[str] | None = None) -> int:
     """
     described: set[str] = set()
     for match in COURSE_CODE_RE.finditer(text):
-        window = text[match.end() : match.end() + COURSE_BLOCK_WINDOW]
-        if CREDIT_VALUE_RE.search(window):
-            described.add(normalize_course_code(match.group(0)))
+        start = match.end()
+        window = text[start : start + COURSE_BLOCK_WINDOW]
+        # Every value in the window, not just the first: a course whose
+        # description mentions a number of hours in a sentence still
+        # prints its own credits as a field further down.
+        for hit in CREDIT_VALUE_RE.finditer(window):
+            if on_a_field_line(text, start + hit.start()):
+                described.add(normalize_course_code(match.group(0)))
+                break
     return len(described - (ignore or set()))
+
+
+def on_a_field_line(text: str, position: int) -> bool:
+    """True when this position sits on a line short enough to be a field.
+
+    A field, a heading and a table row each come out of the normalizer as
+    a line of their own. A paragraph comes out as one long line, so a
+    number named inside a sentence is told apart from a printed value by
+    the length of the line holding it. See COURSE_CREDITS_LINE_CHARS.
+    """
+    start = text.rfind("\n", 0, position) + 1
+    end = text.find("\n", position)
+    if end == -1:
+        end = len(text)
+    return end - start <= COURSE_CREDITS_LINE_CHARS
 
 
 def near_course_code(text: str, match: re.Match[str]) -> bool:
@@ -1838,3 +1926,570 @@ def distinct_awards(awards: list[str]) -> list[str]:
         if not BARE_AWARD_LEVEL_RE.match(award.strip())
     ]
     return sorted(specific or seen.values())
+
+
+# --- named entities -----------------------------------------------------------
+
+# The six things a catalog page names that a reader of the reports wants
+# listed rather than inferred: which award it grants, how many credits it
+# is worth, which courses it names, which term they run in, whose page it
+# is, and what work it leads to.
+#
+# Every one of them is read from vocabulary already above, with two
+# exceptions that had none: an organization's name and an occupation's.
+# Nothing here is a model. Each entity is a span of the page's own
+# content, with the words around it kept, so a wrong one is read and
+# fixed rather than retrained.
+
+ENTITY_AWARD = "AWARD"
+ENTITY_COURSE_CODE = "COURSE_CODE"
+ENTITY_CREDITS = "CREDITS"
+ENTITY_OCCUPATION = "OCCUPATION"
+ENTITY_ORGANIZATION = "ORG"
+ENTITY_TERM = "TERM"
+
+ENTITY_KINDS = (
+    ENTITY_AWARD,
+    ENTITY_COURSE_CODE,
+    ENTITY_CREDITS,
+    ENTITY_OCCUPATION,
+    ENTITY_ORGANIZATION,
+    ENTITY_TERM,
+)
+
+# One line per kind on what having it listed saves a reader.
+ENTITY_MEANING = {
+    ENTITY_AWARD: (
+        "The award the page grants, as printed. A page naming two is a "
+        "department's, and one record from it is wrong."
+    ),
+    ENTITY_COURSE_CODE: (
+        "The courses the page names. On a course page they are its own; "
+        "on a program page they are the courses it requires."
+    ),
+    ENTITY_CREDITS: (
+        "Every credits value printed, with its number. A page printing "
+        "one is a course; a page printing a total is a program."
+    ),
+    ENTITY_OCCUPATION: (
+        "The work the page says its graduates go into, which is what a "
+        "credential is published for."
+    ),
+    ENTITY_ORGANIZATION: (
+        "Whose page it is. A college's page lists every program under it "
+        "and is not itself a program."
+    ),
+    ENTITY_TERM: (
+        "The terms the page names: a plan of study's semesters, or the "
+        "catalog year the page belongs to."
+    ),
+}
+
+# How far into a line an entity may sit and still be quoted whole.
+ENTITY_QUOTE_CHARS = 80
+# The most of any one kind kept per page. A program's requirement table
+# names eighty courses, and a reader needs the list, not all of it.
+ENTITY_LIMIT = 40
+
+# The number inside a printed credits value: "3", "1-3", "Credits: 4.0".
+CREDIT_NUMBER_RE = re.compile(r"\d+(?:\.\d+)?")
+
+# A term a catalog prints. A season needs a term noun or a year after it,
+# because "fall" on its own is what a grade does ("students who fall
+# below a 2.0"), and every refund schedule prints the word.
+SEASON_TERM_RE = re.compile(
+    r"\b(?:fall|spring|summer|winter|intersession|maymester)"
+    r"\s+(?:semesters?|terms?|quarters?|sessions?)\b"
+    r"|\b(?:fall|spring|summer|winter|intersession|maymester)"
+    r"\s+20\d{2}\b",
+    re.IGNORECASE,
+)
+
+# An organization's name as a catalog prints it: a proper name ending in
+# an organization noun, or the noun with a field after it. Case-sensitive,
+# because "the college" in a sentence is not a name and appears on every
+# page ever written.
+_ORGANIZATION_NOUNS = (
+    r"Colleges?|Universit(?:y|ies)|Schools?|Departments?|Divisions?"
+    r"|Institutes?|Academ(?:y|ies)|Seminar(?:y|ies)|Conservator(?:y|ies)"
+)
+_PROPER_WORD = r"[A-Z][\w&.'’-]*"
+
+# Words in front of an organization noun that do not name one. A page
+# writes "the College" and "Other Colleges" about a college it has
+# already named, "High School" is a kind of school rather than one, and
+# "PDF" is the Download as PDF link printed above the name on every Clean
+# Catalog page.
+ORGANIZATION_NON_NAME_WORDS = frozenset(
+    {
+        "a",
+        "an",
+        "all",
+        "any",
+        "area",
+        "both",
+        "current",
+        "download",
+        "each",
+        "former",
+        "four",
+        "high",
+        "its",
+        "local",
+        "many",
+        "most",
+        "new",
+        "other",
+        "others",
+        "our",
+        "pdf",
+        "print",
+        "some",
+        "that",
+        "the",
+        "their",
+        "these",
+        "this",
+        "those",
+        "two",
+        "view",
+        "year",
+        "your",
+    }
+)
+ORGANIZATION_RE = re.compile(
+    rf"\b(?:{_PROPER_WORD}\s+){{1,6}}(?:{_ORGANIZATION_NOUNS})\b"
+    rf"(?:\s+of\s+(?:{_PROPER_WORD}\s*){{1,4}})?"
+    rf"|\b(?:{_ORGANIZATION_NOUNS})\s+of\s+(?:{_PROPER_WORD}\s*){{1,4}}"
+)
+
+# The organization noun on its own, for cutting a match down to one name.
+ORGANIZATION_NOUN_RE = re.compile(rf"^(?:{_ORGANIZATION_NOUNS})$")
+
+# The most words of a name kept in front of its noun, and the most kept
+# after "of". "Atlantic Cape Community College" is three and none;
+# "Rutgers University-Edward J. Bloustein School of Planning" is the
+# longest real one seen.
+ORGANIZATION_NAME_WORDS = 4
+ORGANIZATION_OF_WORDS = 3
+
+# The last word of a job title. A title is recognised by its head noun and
+# never by its shape: "Registered Nurse" and "Diesel Technician" look like
+# any other two capitalised words, and so does "Academic Calendar".
+#
+# The risky ones - assistant, manager, worker, officer, specialist - earn
+# their place because a catalog names them constantly ("Medical
+# Assistant", "Office Manager"), and are safe only because a cue is
+# required as well. See OCCUPATION_CUE_RE.
+OCCUPATION_HEAD_NOUNS = frozenset(
+    {
+        "accountant",
+        "administrator",
+        "aide",
+        "analyst",
+        "apprentice",
+        "architect",
+        "artist",
+        "assistant",
+        "attendant",
+        "auditor",
+        "baker",
+        "bookkeeper",
+        "broker",
+        "carpenter",
+        "cashier",
+        "chef",
+        "clerk",
+        "coach",
+        "consultant",
+        "cook",
+        "coordinator",
+        "counselor",
+        "dentist",
+        "designer",
+        "developer",
+        "dietitian",
+        "dispatcher",
+        "drafter",
+        "driver",
+        "educator",
+        "electrician",
+        "engineer",
+        "esthetician",
+        "examiner",
+        "firefighter",
+        "guard",
+        "hygienist",
+        "inspector",
+        "installer",
+        "instructor",
+        "interpreter",
+        "journalist",
+        "laborer",
+        "librarian",
+        "machinist",
+        "manager",
+        "mechanic",
+        "midwife",
+        "nurse",
+        "nutritionist",
+        "officer",
+        "operator",
+        "optician",
+        "paralegal",
+        "paramedic",
+        "pharmacist",
+        "phlebotomist",
+        "photographer",
+        "physician",
+        "pilot",
+        "plumber",
+        "practitioner",
+        "programmer",
+        "receptionist",
+        "recruiter",
+        "representative",
+        "scientist",
+        "secretary",
+        "specialist",
+        "supervisor",
+        "surgeon",
+        "surveyor",
+        "technician",
+        "technologist",
+        "teacher",
+        "therapist",
+        "trainer",
+        "translator",
+        "veterinarian",
+        "welder",
+        "worker",
+        "writer",
+    }
+)
+
+_OCCUPATION_HEAD = "|".join(sorted(OCCUPATION_HEAD_NOUNS))
+# The head noun on its own. The words in front of it are taken by
+# occupation_titles rather than by this pattern, because which of them
+# belong to the title is a question about capitals and this has to stay
+# case-insensitive to find the noun at all.
+#
+# Matching the qualifiers here instead read a sentence as a job title:
+# `[A-Z][\w-]*` under re.IGNORECASE matches any word whatever, so
+# "in an effort to encourage nurse educators" gave "Effort To Encourage
+# Nurse" and "earn a Commercial Pilot certificate" gave "Earn A
+# Commercial Pilot".
+OCCUPATION_TITLE_RE = re.compile(
+    rf"\b(?:{_OCCUPATION_HEAD})s?\b", re.IGNORECASE
+)
+
+# How many words in front of the head noun may belong to the title:
+# "Certified Occupational Therapy Assistant" is four words in all.
+OCCUPATION_QUALIFIER_WORDS = 3
+
+# The lowercase words that are part of a job title even so, for the
+# sentences that print one without capitals: "may work as a licensed
+# practical nurse", "employed as a registered dental hygienist".
+OCCUPATION_MODIFIERS = frozenset(
+    {
+        "administrative",
+        "certified",
+        "chief",
+        "civil",
+        "clinical",
+        "dental",
+        "diagnostic",
+        "electrical",
+        "environmental",
+        "executive",
+        "forensic",
+        "general",
+        "head",
+        "industrial",
+        "legal",
+        "licensed",
+        "mechanical",
+        "medical",
+        "occupational",
+        "physical",
+        "practical",
+        "professional",
+        "registered",
+        "respiratory",
+        "senior",
+        "surgical",
+        "technical",
+        "veterinary",
+    }
+)
+
+# One word of a line, kept with its capitals so the walk back can tell a
+# name from a sentence.
+_WORD_RE = re.compile(r"[\w][\w'’-]*")
+
+# The sentence that introduces an occupation. A catalog page names a job
+# only in these places, and a head noun found anywhere else is a
+# department ("Nurse Education"), a person's title in a contact block, or
+# a course about the work rather than the work.
+OCCUPATION_CUE_RE = re.compile(
+    r"\bcareers?\s+(?:as|in|include|such\s+as|opportunities|options|paths?)\b"
+    r"|\b(?:job|employment|occupational?)\s+"
+    r"(?:titles?|opportunities|options|outlook|settings?|areas?)\b"
+    r"|\bemploy(?:ment|ed|ees?)?\s+as\b"
+    r"|\bwork(?:s|ing)?\s+as\b"
+    r"|\bpositions?\s+(?:as|such\s+as|include)\b"
+    r"|\bprepares?\s+(?:students|graduates|you|individuals)\s+"
+    r"(?:for|to\s+(?:work|become|enter))\b"
+    r"|\bgraduates?\s+(?:may|can|are|will|find|often|typically|qualify)\b"
+    r"|\beligible\s+to\s+(?:sit\s+for|apply\s+for|work|become)\b"
+    r"|\bqualif(?:y|ies|ied)\s+(?:for|as)\b"
+    r"|\blicensure\s+as\b"
+    r"|\bcertified\s+as\b",
+    re.IGNORECASE,
+)
+
+# A heading over a list of jobs, which is the other place they are named.
+# The list items under it carry no cue of their own.
+OCCUPATION_HEADING_RE = re.compile(
+    r"^(?:(?:potential|possible|sample|related|typical|future)\s+)?"
+    r"(?:careers?|occupations?|job\s+titles?|employment"
+    r"|career\s+(?:opportunities|options|paths?|outlook)"
+    r"|(?:job|employment)\s+(?:opportunities|options|outlook)"
+    r"|where\s+(?:do\s+)?graduates\s+work)"
+    r"\s*[:?]?\s*$",
+    re.IGNORECASE,
+)
+
+# Words that look like a job title and are not one on a catalog page.
+# "Program Coordinator" and "Department Chair" name the person to email,
+# not the work the credential leads to; "Faculty Advisor" is the same.
+# "Student Worker" and "Teacher Education" are a job on campus and a
+# department, not an occupation a program prepares for.
+#
+# Searched anywhere in the span, not anchored at its front. The title
+# pattern reaches back three words and a sentence fills them with its
+# own: "contact the Program Coordinator" is a title starting with a verb,
+# and anchoring the test at the front let every one of them through.
+NOT_AN_OCCUPATION_RE = re.compile(
+    r"\b(?:program|department|division|faculty|academic|admissions?"
+    r"|financial\s+aid|student|campus|college|university|catalog"
+    r"|enrollment|registrar|advising|athletic)\b",
+    re.IGNORECASE,
+)
+
+# The plural the head noun takes, undone so "Registered Nurses" and
+# "Registered Nurse" are one occupation. The singular is whichever of
+# these the gazetteer knows, tried in order, because one rule does not
+# cover "Nurses", "Technologies" and "Apprentices" at once. A blind
+# strip of "es" turns Nurses into Nurs and the word stops being a job.
+_PLURAL_ENDINGS = (("ies", "y"), ("es", ""), ("s", ""))
+
+# The words a sentence puts in front of a job title that are not part of
+# it. The title pattern takes up to three capitalised words before the
+# head noun, and a sentence capitalises its own: "Career options include
+# Computer Server Administrator" gave "Include Computer Server
+# Administrator", and "employment as Medical Laboratory Technician" gave
+# "As Medical Laboratory Technician". Stripped one at a time from the
+# front, because a line may stack two ("such as a Registered Nurse").
+_LEADING_NON_TITLE_RE = re.compile(
+    r"^(?:an?|the|as|such|includ(?:e|es|ing)|other|various|many|several"
+    r"|some|and|or|in|for|to|of|be|become|becomes|becoming|are|is|was"
+    r"|were|both|either|any|all|these|those|this|that"
+    # The possessives, which a sentence capitalises when it opens with
+    # one: "Their FAA Remote Pilot certificate is required".
+    r"|their|its|his|her|our|your|my)\s+",
+    re.IGNORECASE,
+)
+
+
+def credit_amounts(printed: str) -> tuple[str, str]:
+    """The low and high of a printed credits value.
+
+    "3 credits" is 3 to 3; "1-3 credits" is 1 to 3; "Credit Hours Min: 3"
+    is 3 to 3. A value with no number in it is not a value.
+    """
+    numbers = CREDIT_NUMBER_RE.findall(printed or "")
+    if not numbers:
+        return "", ""
+    return numbers[0], numbers[-1]
+
+
+def occupation_value(title: str) -> str:
+    """A job title as one name: no sentence words, singular, in title case.
+
+    Only the head noun is made singular. "Emergency Medical Services
+    Technicians" is one occupation whose middle word is plural already.
+    """
+    name = collapse(title or "").strip(" ,.;:-")
+    while True:
+        trimmed = _LEADING_NON_TITLE_RE.sub("", name, count=1)
+        if trimmed == name:
+            break
+        name = trimmed
+    name = name.strip(" ,.;:-")
+    if not name:
+        return ""
+    words = name.split()
+    words[-1] = _singular_head(words[-1])
+    return " ".join(word if word.isupper() else word.title() for word in words)
+
+
+def _singular_head(word: str) -> str:
+    """The head noun in the singular, when the gazetteer knows one."""
+    if word.lower() in OCCUPATION_HEAD_NOUNS:
+        return word
+    for ending, replacement in _PLURAL_ENDINGS:
+        if not word.lower().endswith(ending):
+            continue
+        candidate = word[: -len(ending)] + replacement
+        if candidate.lower() in OCCUPATION_HEAD_NOUNS:
+            return candidate
+    return word
+
+
+def is_occupation_context(line: str) -> bool:
+    """True when this line is one a catalog names a job on."""
+    return bool(OCCUPATION_CUE_RE.search(line or ""))
+
+
+def names_a_career_list(heading: str) -> bool:
+    """True when this heading stands over a list of jobs."""
+    return bool(OCCUPATION_HEADING_RE.match(heading_body(heading or "")))
+
+
+def occupation_titles(line: str) -> list[str]:
+    """Every job title on one line, as printed, in order.
+
+    The caller decides whether the line is one a job may be named on.
+    This only says which spans read as titles.
+
+    A title is the head noun with the words in front of it that belong to
+    it: the ones the page capitalised, and the lowercase adjectives a job
+    is described with. The walk stops at the first word that is neither,
+    which is where the sentence ends and the title begins - "graduates
+    earn a Commercial Pilot certificate" stops at "a".
+    """
+    text = line or ""
+    words = list(_WORD_RE.finditer(text))
+    found: list[str] = []
+    for match in OCCUPATION_TITLE_RE.finditer(text):
+        before = [word for word in words if word.end() <= match.start()]
+        start = match.start()
+        for word in reversed(before[-OCCUPATION_QUALIFIER_WORDS:]):
+            body = word.group(0)
+            between = text[word.end() : start]
+            # Only a run of spaces joins a qualifier to what follows it.
+            # A comma or a full stop ends the title.
+            if between.strip():
+                break
+            if not (body[:1].isupper() or body.lower() in OCCUPATION_MODIFIERS):
+                break
+            start = word.start()
+        title = text[start : match.end()].strip()
+        if NOT_AN_OCCUPATION_RE.search(title):
+            continue
+        found.append(title)
+    return found
+
+
+def organization_names(text: str) -> list[str]:
+    """Every organization named in this text, as printed, in order.
+
+    A span carrying a course code is a course title, not a name: "PHYS125
+    College Physics I" reads as an organization called "PHYS125 College"
+    on the shape alone, and a plan of study prints a dozen of them.
+
+    A name also has to name someone. "The College" and "Other Colleges"
+    are how a page refers back to a college it has already named, "High
+    School" is a kind of school, and "PDF" is the Download as PDF link
+    Clean Catalog prints directly above the college's name on every page.
+    What is left after those words is the name, and if nothing is left
+    there was never one.
+    """
+    found: list[str] = []
+    for match in ORGANIZATION_RE.finditer(text or ""):
+        name = collapse(match.group(0)).strip(" ,.;:-")
+        if not name or COURSE_CODE_RE.search(name):
+            continue
+        name = _without_leading_non_names(_one_organization(name))
+        if name and _names_an_organization(name):
+            found.append(name)
+    return found
+
+
+def _ends_a_sentence(word: str) -> bool:
+    """True when this word closes a sentence rather than abbreviating.
+
+    "Education." ends one. "U.S.", "N.J." and "St." do not: an initialism
+    keeps its dots inside, and an abbreviation is short.
+    """
+    if not word.endswith("."):
+        return False
+    body = word[:-1]
+    return len(body) > 2 and "." not in body
+
+
+def _one_organization(name: str) -> str:
+    """One name out of a span that may have run on into the next thing.
+
+    The pattern reaches six words back and four forward, which on a
+    transfer table reads "AAS Nursing Widener University" as one
+    organization and on a faculty list reads "University of Maryland
+    Noelle Gaetano". Cut at the first organization noun, keep the "of"
+    phrase belonging to it, and stop at any word that closed a sentence.
+    """
+    words = name.split()
+    for index, word in enumerate(words):
+        if not ORGANIZATION_NOUN_RE.match(word.strip(".,;:")):
+            continue
+        start = max(0, index - ORGANIZATION_NAME_WORDS)
+        for back in range(index - 1, start - 1, -1):
+            if _ends_a_sentence(words[back]):
+                start = back + 1
+                break
+        end = index + 1
+        if end < len(words) and words[end].lower() == "of":
+            end += 1
+            taken = 0
+            while (
+                end < len(words)
+                and taken < ORGANIZATION_OF_WORDS
+                and words[end][:1].isupper()
+            ):
+                closes = _ends_a_sentence(words[end])
+                end += 1
+                taken += 1
+                if closes:
+                    break
+        return " ".join(words[start:end]).strip(" ,.;:-")
+    return name
+
+
+def _without_leading_non_names(name: str) -> str:
+    """The name with the words in front of it that are not part of it."""
+    words = name.split()
+    while words and words[0].lower() in ORGANIZATION_NON_NAME_WORDS:
+        words = words[1:]
+    return " ".join(words)
+
+
+def _names_an_organization(name: str) -> bool:
+    """True when what is left is a name and not just the noun.
+
+    "Academy of Culinary Arts" names one with no word in front of it, so
+    the field after the noun counts as much as a proper word before it.
+    """
+    words = name.split()
+    if len(words) < 2:
+        return False
+    if " of " in f" {name.lower()} ":
+        return True
+    return any(word[:1].isupper() for word in words[:-1])
+
+
+def term_values(text: str) -> list[str]:
+    """Every academic term this text names, as printed, in order."""
+    return [
+        collapse(match.group(0))
+        for match in SEASON_TERM_RE.finditer(text or "")
+    ]

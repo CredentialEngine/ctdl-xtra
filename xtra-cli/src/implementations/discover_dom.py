@@ -197,6 +197,9 @@ class Markup:
     reference_codes: set[str] = field(default_factory=set)
     declarations: list[Declaration] = field(default_factory=list)
     cms_page_type: str = ""
+    # The printed label/value pairs, read once here so the entity reader
+    # does not parse the page a second time to find a credits field.
+    field_pairs: list[FieldPair] = field(default_factory=list)
 
     @property
     def described_course_count(self) -> int:
@@ -798,4 +801,5 @@ def read_markup(html: str) -> Markup:
     )
     markup.declarations = read_declarations(soup)
     markup.cms_page_type = read_cms_page_type(soup)
+    markup.field_pairs = read_field_pairs(soup)
     return markup

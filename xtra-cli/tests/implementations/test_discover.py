@@ -5,7 +5,11 @@ import logging
 from pathlib import Path
 
 import pytest
-from discovery_doubles import seed_crawl_manifest, seed_crawl_page
+from discovery_doubles import (
+    fixture_url,
+    seed_crawl_manifest,
+    seed_crawl_page,
+)
 
 from common.keys import discovery_key
 from common.object_store import open_store
@@ -66,10 +70,10 @@ def seed_run(
     pages = {Path(name).stem: name for name in names}
     for stem, name in pages.items():
         html = (fixture_html_dir / name).read_text(encoding="utf-8")
-        _put(store, stem, html, f"https://catalog.example.edu/{stem}")
+        _put(store, stem, html, fixture_url(stem))
     for stem, name in (extra or {}).items():
         html = (fixture_html_dir / name).read_text(encoding="utf-8")
-        _put(store, stem, html, f"https://catalog.example.edu/{stem}")
+        _put(store, stem, html, fixture_url(stem))
     return store
 
 
@@ -118,6 +122,7 @@ def test_discovery_writes_every_report(
 
     written = sorted(path.name for path in discovery_dir(tmp_path).iterdir())
     assert written == [
+        "entities.csv",
         "field-labels.csv",
         "golden-sample-course.json",
         "labels.json",
@@ -217,6 +222,9 @@ def test_labels_json_is_the_preprocessed_list_for_extraction(
         # Names only. Extract reads them to skip a page holding several
         # entities; the evidence for each marker is in patterns.md.
         "markers",
+        # Values only, by kind, for the same reason. The quote showing
+        # where each one was found is in entities.csv.
+        "entities",
         "pattern_id",
     }
     assert all(isinstance(name, str) for name in entry["markers"])

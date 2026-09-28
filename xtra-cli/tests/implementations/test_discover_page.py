@@ -3,6 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
+from discovery_doubles import fixture_url
 
 from implementations.discover_page import (
     field_labels_of,
@@ -270,7 +271,7 @@ FILLER = (
 
 def profile_fixture(fixture_html_dir: Path, name: str):
     return profile_page(
-        url=f"https://catalog.example.edu/{Path(name).stem}",
+        url=fixture_url(Path(name).stem),
         html=(fixture_html_dir / name).read_text(encoding="utf-8"),
         stem=Path(name).stem,
     )

@@ -87,6 +87,7 @@ def test_discover_profiles_the_run_and_writes_a_report(
     runs = discovery_runs(tmp_path)
     assert len(runs) == 1
     assert sorted(path.name for path in runs[0].iterdir()) == [
+        "entities.csv",
         "field-labels.csv",
         "golden-sample-course.json",
         "labels.json",

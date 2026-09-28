@@ -26,6 +26,7 @@ from common.keys import (
     run_prefix,
 )
 from common.storage_uri import join_storage_uri
+from implementations.discover_ner import entities_by_kind
 from implementations.discover_page import PageProfile, profile_page
 from implementations.discover_patterns import (
     CATALOG_YEAR,
@@ -39,6 +40,8 @@ from implementations.discover_patterns import (
 from implementations.discover_rules import (
     DEFAULT_SAMPLE_LABEL,
     DEFAULT_SAMPLE_SIZE,
+    ENTITY_KINDS,
+    ENTITY_MEANING,
     MARKER_MEANING,
     RARE_LABEL_SHARE,
 )
@@ -56,6 +59,7 @@ PAGES_FILE = "pages.jsonl"
 SUMMARY_FILE = "summary.json"
 LABELS_FILE = "labels.json"
 FIELD_LABELS_FILE = "field-labels.csv"
+ENTITIES_FILE = "entities.csv"
 PATTERNS_JSON_FILE = "patterns.json"
 PATTERNS_MD_FILE = "patterns.md"
 EMPTY_OR_ERROR = "empty_or_error_page"
@@ -347,6 +351,65 @@ def field_labels_csv(vocabulary: Vocabulary, stats: Any) -> str:
     return buffer.getvalue()
 
 
+def entities_csv(profiles: list[PageProfile]) -> str:
+    """Every entity every page names, by kind, with the words around it.
+
+    Grouped by kind and then by value, because the question a reviewer
+    brings to this file is about a kind: which awards does this catalog
+    grant, which jobs does it name, which organizations turn up. The
+    quote is here rather than in pages.jsonl for the same reason a
+    marker's evidence is in patterns.md - one line per page stays
+    readable only if the evidence lives somewhere else.
+    """
+    buffer = io.StringIO(newline="")
+    writer = csv.writer(buffer, lineterminator="\n")
+    writer.writerow(
+        ["kind", "value", "pages", "text", "source", "stem", "url", "quote"]
+    )
+    rows: list[tuple[str, str, str, str, str, str, str]] = []
+    pages_per_value: dict[tuple[str, str], set[str]] = {}
+    for profile in profiles:
+        for entity in profile.entities:
+            key = (entity.kind, entity.value)
+            pages_per_value.setdefault(key, set()).add(profile.stem)
+            rows.append(
+                (
+                    entity.kind,
+                    entity.value,
+                    entity.text,
+                    entity.source,
+                    profile.stem,
+                    profile.url,
+                    entity.quote,
+                )
+            )
+    for kind, value, text, source, stem, url, quote in sorted(rows):
+        writer.writerow(
+            [
+                kind,
+                value,
+                len(pages_per_value[(kind, value)]),
+                text,
+                source,
+                stem,
+                url,
+                quote,
+            ]
+        )
+
+    writer.writerow([])
+    writer.writerow(["kind", "pages", "distinct_values", "meaning"])
+    for kind in ENTITY_KINDS:
+        pages = sum(
+            1
+            for profile in profiles
+            if any(entity.kind == kind for entity in profile.entities)
+        )
+        distinct = sum(1 for found in pages_per_value if found[0] == kind)
+        writer.writerow([kind, pages, distinct, ENTITY_MEANING.get(kind, "")])
+    return buffer.getvalue()
+
+
 def patterns_markdown(
     patterns: list[Pattern],
     *,
@@ -476,6 +539,17 @@ def build_summary(
         "patterns_special": sum(1 for pattern in patterns if pattern.special),
         "empty_or_error_pages": empty,
         "unknown_share": round(page_types.get("Unknown", 0) / total, 4),
+        # How many pages name each kind of entity. A catalog where no page
+        # names an award, or none names a job, has a reading problem the
+        # label counts alone do not show.
+        "pages_naming_entity": {
+            kind: sum(
+                1
+                for profile in profiles
+                if any(entity.kind == kind for entity in profile.entities)
+            )
+            for kind in ENTITY_KINDS
+        },
         "sample_label": settings.sample_label,
         "sample_size": settings.sample_size,
         "sample_population": len(
@@ -512,6 +586,11 @@ def labels_document(
                 # a page holds several courses, and patterns.md is where
                 # the evidence for each one is read.
                 "markers": sorted(profile.markers),
+                # The same rule as the markers: the values, not the
+                # quotes. Extraction reads the award and the credits it
+                # needs from here rather than finding them again, and
+                # entities.csv is where the evidence for each one is read.
+                "entities": entities_by_kind(profile.entities),
                 "pattern_id": profile.pattern_id,
             }
             for profile in profiles
@@ -648,6 +727,11 @@ def run_discovery(
     write(
         FIELD_LABELS_FILE,
         field_labels_csv(vocabulary, stats),
+        "text/csv; charset=utf-8",
+    )
+    write(
+        ENTITIES_FILE,
+        entities_csv(profiles),
         "text/csv; charset=utf-8",
     )
     write(

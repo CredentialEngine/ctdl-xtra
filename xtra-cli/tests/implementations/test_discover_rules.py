@@ -35,6 +35,7 @@ from implementations.discover_rules import (
     names_an_organization_or_policy,
     normalize_course_code,
     normalize_field_label,
+    path_names_courses,
     program_structure_terms,
     program_terms,
     singular_award,
@@ -509,6 +510,34 @@ def test_the_url_rules_read_a_path_and_say_which_kind_it_is() -> None:
     assert url_label("/graduatecatalog/programsofstudy/libs/") == program
     assert COURSE_URL_RE.search("/course-descriptions/phys/")
     assert not COURSE_URL_RE.search("/catalog/majors/arts/arts/")
+
+
+def test_a_section_naming_courses_puts_its_pages_under_it() -> None:
+    assert path_names_courses("/course-descriptions/phys/")
+    assert path_names_courses("/coursesofinstruction/engl")
+    assert path_names_courses("/subjects/biol/")
+    assert not path_names_courses("/catalog/majors/arts/arts/")
+
+
+def test_a_page_named_after_courses_is_the_index_of_them() -> None:
+    """The last segment is the page's own name, not a section of the site.
+
+    Atlantic Cape keeps three such pages. Each lists course codes and
+    describes none of them, and reading the whole path called all three
+    runs of course descriptions.
+    """
+    assert not path_names_courses("/{n}-catalog/course-descriptions")
+    assert not path_names_courses("/{n}-catalog/basic-skills-course-selections")
+    assert not path_names_courses(
+        "/{n}-catalog/general-education-courses-at-atlantic-cape"
+    )
+
+
+def test_a_vendor_endpoint_is_the_whole_address() -> None:
+    """Acalog keeps every course at one address, so its last segment counts."""
+    assert path_names_courses("/preview_course.php?catoid={n}&coid={n}")
+    assert path_names_courses("/content.php?catoid={n}&navoid={n}&courses=1")
+    assert not path_names_courses("/preview_program.php?catoid={n}")
 
 
 @pytest.mark.parametrize(

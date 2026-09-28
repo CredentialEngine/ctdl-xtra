@@ -52,6 +52,22 @@ def make_profile(
     )
 
 
+# Where a fixture's page would really be served from, for the fixtures
+# whose address is part of what they pin. A fixture is otherwise served
+# from its own name, which is enough while no rule under test reads the
+# path - and misleading once one does: a page of course descriptions
+# lives under a section naming courses, never at a one-segment address
+# that happens to carry the word because the file is called that.
+FIXTURE_PATHS = {
+    "course-list-no-credits": "coursesofinstruction/phys",
+}
+
+
+def fixture_url(stem: str) -> str:
+    """The address the page of this fixture would really be served from."""
+    return f"https://catalog.example.edu/{FIXTURE_PATHS.get(stem, stem)}"
+
+
 def seed_crawl_page(
     store,
     folder: str,

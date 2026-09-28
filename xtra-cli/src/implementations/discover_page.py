@@ -17,11 +17,17 @@ prose rules are what answer for the many catalogs that mark up nothing.
 
 from __future__ import annotations
 
+import dataclasses
 import hashlib
 from dataclasses import dataclass
 from typing import Any, NamedTuple
 
 from implementations.discover_dom import Markup, read_markup
+from implementations.discover_ner import (
+    Entity,
+    entities_by_kind,
+    read_entities,
+)
 from implementations.discover_rules import (
     ARCHIVED_RE,
     AWARD_DECLARATION_RE,
@@ -30,7 +36,6 @@ from implementations.discover_rules import (
     COURSE_CODE_HEAD_CHARS,
     COURSE_CODE_RE,
     COURSE_TITLE_RE,
-    COURSE_URL_RE,
     DECLARATION_REACH_CHARS,
     DECLARATION_REACH_LINES,
     EMPTY_OR_ERROR_RE,
@@ -83,6 +88,7 @@ from implementations.discover_rules import (
     near_course_code,
     normalize_course_code,
     normalize_field_label,
+    path_names_courses,
     program_structure_terms,
     quote_around,
     singular_award,
@@ -735,7 +741,7 @@ def course_label(
         return f"{blocks} course blocks"
     if (
         codes >= MIN_COURSE_LIST_CODES
-        and COURSE_URL_RE.search(template)
+        and path_names_courses(template)
         and not lists_its_own_requirements
     ):
         # No credits anywhere, so no course blocks. Texas A&M International
@@ -844,6 +850,10 @@ class PageProfile:
     labels: list[str]
     page_type: str
     rules_fired: dict[str, str]
+    # What the page names, typed. Written out by kind, because the quote
+    # for each one belongs in entities.csv the way a marker's belongs in
+    # patterns.md - see entities_csv in discover.py.
+    entities: list[Entity] = dataclasses.field(default_factory=list)
     duplicate_of: str | None = None
     signature: str = ""
     pattern_id: str = ""
@@ -869,6 +879,7 @@ class PageProfile:
             "labels": self.labels,
             "page_type": self.page_type,
             "rules_fired": self.rules_fired,
+            "entities": entities_by_kind(self.entities),
             "signature": self.signature,
             "pattern_id": self.pattern_id,
         }
@@ -939,4 +950,5 @@ def profile_page(
         labels=labels,
         page_type=page_type_of(labels),
         rules_fired=fired,
+        entities=read_entities(structure),
     )
