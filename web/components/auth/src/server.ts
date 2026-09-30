@@ -4,10 +4,10 @@ import {
 } from "@credentialengine/redis-client";
 import NextAuth, {
     getServerSession,
+    type Account,
     type NextAuthOptions,
     type Session,
 } from "next-auth";
-import type { AdapterAccount } from "next-auth/adapters";
 import KeycloakProvider from "next-auth/providers/keycloak";
 import { headers } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
@@ -15,6 +15,7 @@ import "server-only";
 import {
     createRedisNextAuthStore,
     type RedisNextAuthStore,
+    type SessionTokens,
 } from "./store-adapter.js";
 
 export type SecretResolver = string | (() => string | Promise<string>);
@@ -34,10 +35,8 @@ export type KeycloakBffOptions = {
     providerId?: string;
     sessionMaxAgeSeconds?: number;
     redisUrl?: string;
-    redisNamespace?: string;
-    /** Primarily for tests or applications that already own the Redis client. */
+    redisNamespace: string;
     redisClient?: RedisClient;
-    /** Overrides BFF_TOKEN_ENCRYPTION when provided. Token encryption defaults to enabled. */
     encryptTokens?: boolean;
 };
 
@@ -155,39 +154,43 @@ function accountExpiresAtEpochSec(account: {
     );
 }
 
-async function accountForUser(
-    state: AuthState,
-    userId: string,
-): Promise<AdapterAccount | undefined> {
-    const accounts = await state.store.getAccountsForUser(userId);
-    return (
-        accounts.find((account) => account.provider === state.providerId) ??
-        accounts[0]
-    );
+function tokensFromLogin(account: Account): SessionTokens | undefined {
+    if (!account.access_token) {
+        return undefined;
+    }
+    return {
+        provider: account.provider,
+        providerAccountId: account.providerAccountId,
+        accessToken: account.access_token,
+        refreshToken: account.refresh_token,
+        idToken: account.id_token,
+        expiresAtEpochSec: accountExpiresAtEpochSec(account),
+    };
 }
 
-async function refreshAccountTokens(
+function needsRefresh(state: AuthState, tokens: SessionTokens): boolean {
+    const refreshAtMs = tokens.expiresAtEpochSec * 1000 - state.refreshBufferMs;
+    return Date.now() >= refreshAtMs;
+}
+
+async function refreshSessionTokens(
     state: AuthState,
-    account: AdapterAccount,
-): Promise<AdapterAccount> {
-    const lockName = `refresh:${account.provider}:${account.providerAccountId}`;
+    sessionToken: string,
+): Promise<SessionTokens> {
+    const lockName = `refresh:${sessionToken}`;
     return state.store.withLock(lockName, async () => {
-        const current = await state.store.getAccount(
-            account.provider,
-            account.providerAccountId,
-        );
-        if (!current?.access_token) {
+        const current = await state.store.getSessionTokens(sessionToken);
+        if (!current) {
             throw new ReauthenticationRequiredError(
-                "OAuth account token state is missing.",
+                "Session token state is missing.",
             );
         }
 
-        const currentExpiresAt = accountExpiresAtEpochSec(current);
-        if (Date.now() < currentExpiresAt * 1000 - state.refreshBufferMs) {
+        if (!needsRefresh(state, current)) {
             return current;
         }
 
-        if (!current.refresh_token || isExpiredJwt(current.refresh_token)) {
+        if (!current.refreshToken || isExpiredJwt(current.refreshToken)) {
             throw new ReauthenticationRequiredError(
                 "Refresh token is missing or expired.",
             );
@@ -203,7 +206,7 @@ async function refreshAccountTokens(
                 body: new URLSearchParams({
                     client_id: state.clientId,
                     grant_type: "refresh_token",
-                    refresh_token: current.refresh_token,
+                    refresh_token: current.refreshToken,
                 }),
                 cache: "no-store",
             },
@@ -229,32 +232,30 @@ async function refreshAccountTokens(
             throw new Error(message);
         }
 
-        const updated: AdapterAccount = {
+        const updated: SessionTokens = {
             ...current,
-            access_token: body.access_token,
-            refresh_token: body.refresh_token ?? current.refresh_token,
-            id_token: body.id_token ?? current.id_token,
-            expires_at: Math.floor(Date.now() / 1000) + body.expires_in,
+            accessToken: body.access_token,
+            refreshToken: body.refresh_token ?? current.refreshToken,
+            idToken: body.id_token ?? current.idToken,
+            expiresAtEpochSec: Math.floor(Date.now() / 1000) + body.expires_in,
         };
-        await state.store.upsertAccount(updated);
+        await state.store.setSessionTokens(sessionToken, updated);
         return updated;
     });
 }
 
-async function currentAccount(
+async function currentTokens(
     state: AuthState,
-    userId: string,
-): Promise<AdapterAccount | undefined> {
-    let account = await accountForUser(state, userId);
-    if (!account?.access_token) return account;
-
-    if (
-        Date.now() >=
-        accountExpiresAtEpochSec(account) * 1000 - state.refreshBufferMs
-    ) {
-        account = await refreshAccountTokens(state, account);
+    sessionToken: string,
+): Promise<SessionTokens | undefined> {
+    const tokens = await state.store.getSessionTokens(sessionToken);
+    if (!tokens) {
+        return undefined;
     }
-    return account;
+    if (!needsRefresh(state, tokens)) {
+        return tokens;
+    }
+    return refreshSessionTokens(state, sessionToken);
 }
 
 function tokenEncryptionEnabled(explicit?: boolean): boolean {
@@ -289,10 +290,12 @@ export async function createKeycloakBffAuth(
     const sessionMaxAgeSeconds =
         options.sessionMaxAgeSeconds ?? DEFAULT_SESSION_MAX_AGE_SECONDS;
     const refreshBufferMs = options.refreshBufferMs ?? 30_000;
-    const redisNamespace =
-        options.redisNamespace ??
-        process.env.BFF_SESSION_NAMESPACE ??
-        "credentialengine:xtra";
+    const redisNamespace = options.redisNamespace?.trim();
+    if (!redisNamespace) {
+        throw new Error(
+            "redisNamespace is required. Each app must pass its own namespace.",
+        );
+    }
 
     const store = createRedisNextAuthStore({
         redis,
@@ -337,24 +340,16 @@ export async function createKeycloakBffAuth(
         providers: [keycloakProvider],
         callbacks: {
             async signIn({ account }) {
-                if (!account) return true;
+                if (!account) {
+                    return true;
+                }
 
-                // On the first login NextAuth's adapter linkAccount() persists the
-                // account with the canonical database userId. On a repeat login,
-                // refresh token fields on that already-linked account without
-                // creating a second user/account index from the provider profile id.
-                const existing = await store.getAccount(
-                    account.provider,
-                    account.providerAccountId,
-                );
-                if (existing) {
-                    const persisted: AdapterAccount = {
-                        ...existing,
-                        ...account,
-                        userId: existing.userId,
-                        expires_at: accountExpiresAtEpochSec(account),
-                    };
-                    await store.upsertAccount(persisted);
+                // NextAuth calls createSession after this callback, in the same
+                // login request. The store attaches these tokens to that new
+                // session, so every login keeps its own tokens.
+                const tokens = tokensFromLogin(account);
+                if (tokens) {
+                    await store.stashLoginTokens(tokens);
                 }
                 return true;
             },
@@ -404,15 +399,15 @@ export async function createKeycloakBffAuth(
                 session.activeTenantId = metadata.activeTenantId;
 
                 try {
-                    const account = await currentAccount(state, user.id);
-                    if (!account?.access_token) {
+                    const tokens = await currentTokens(state, sessionToken);
+                    if (!tokens) {
                         session.error = "MissingOAuthAccount";
                         session.roles = [];
                         return session;
                     }
                     session.error = undefined;
                     session.roles = rolesFromToken(
-                        account.access_token,
+                        tokens.accessToken,
                         clientId,
                     );
                 } catch (error) {
@@ -467,10 +462,10 @@ async function getDatabaseSessionToken(
     return undefined;
 }
 
-async function accountForAuthenticatedSession(
+async function tokensForAuthenticatedSession(
     config: NextAuthOptions,
     request?: NextRequest,
-): Promise<AdapterAccount | undefined> {
+): Promise<SessionTokens | undefined> {
     const session = await getServerSession(config);
     if (!session) return undefined;
     if (session.error || !session.userId) {
@@ -490,14 +485,14 @@ async function accountForAuthenticatedSession(
 
     const state = getAuthState(config);
     try {
-        const account = await currentAccount(state, session.userId);
-        if (!account?.access_token) {
+        const tokens = await currentTokens(state, sessionToken);
+        if (!tokens) {
             throw new BffUnauthorizedError(
                 "Authentication provider token state is missing.",
                 "SESSION_EXPIRED",
             );
         }
-        return account;
+        return tokens;
     } catch (error) {
         if (error instanceof ReauthenticationRequiredError) {
             await config.adapter?.deleteSession?.(sessionToken);
@@ -514,8 +509,8 @@ export async function getAccessToken(
     config: NextAuthOptions,
     request?: NextRequest,
 ): Promise<string | undefined> {
-    const account = await accountForAuthenticatedSession(config, request);
-    return account?.access_token;
+    const tokens = await tokensForAuthenticatedSession(config, request);
+    return tokens?.accessToken;
 }
 
 export async function requireAccessToken(
@@ -535,22 +530,23 @@ export async function getBffSession(
     config: NextAuthOptions,
     request?: NextRequest,
 ): Promise<Session & { accessToken?: string; idToken?: string }> {
-    // Kept for API compatibility with callers that pass the current request.
-    // getServerSession reads the active request context directly.
-    void request;
     const session = await getServerSession(config);
     const baseSession = session ?? ({ expires: "" } as Session);
-    if (!session || session.error || !session.userId) return { ...baseSession };
+    if (!session || session.error || !session.userId) {
+        return { ...baseSession };
+    }
+
+    const sessionToken = await getDatabaseSessionToken(config, request);
+    if (!sessionToken) {
+        return { ...baseSession };
+    }
 
     try {
-        const account = await currentAccount(
-            getAuthState(config),
-            session.userId,
-        );
+        const tokens = await currentTokens(getAuthState(config), sessionToken);
         return {
             ...baseSession,
-            accessToken: account?.access_token,
-            idToken: account?.id_token,
+            accessToken: tokens?.accessToken,
+            idToken: tokens?.idToken,
         };
     } catch {
         return { ...baseSession };
@@ -573,17 +569,22 @@ export async function getAuthenticatedUser(
         return undefined;
     }
 
-    const account = await currentAccount(getAuthState(config), session.userId);
-    if (!account?.access_token) return undefined;
+    const sessionToken = await getDatabaseSessionToken(config);
+    if (!sessionToken) {
+        return undefined;
+    }
+
+    const state = getAuthState(config);
+    const tokens = await currentTokens(state, sessionToken);
+    if (!tokens) {
+        return undefined;
+    }
 
     return {
         id: session.userId,
         email: session.user.email,
         name: session.user.name ?? null,
-        roles: rolesFromToken(
-            account.access_token,
-            getAuthState(config).clientId,
-        ),
+        roles: rolesFromToken(tokens.accessToken, state.clientId),
     };
 }
 
@@ -615,14 +616,11 @@ export function createLogoutRoute(getConfig: () => Promise<NextAuthOptions>) {
         const config = await getConfig();
         const state = getAuthState(config);
         const sessionToken = await getDatabaseSessionToken(config, request);
-        let account: AdapterAccount | undefined;
+        let idToken: string | undefined;
 
         if (sessionToken) {
-            const sessionAndUser =
-                await config.adapter?.getSessionAndUser?.(sessionToken);
-            if (sessionAndUser?.user.id) {
-                account = await accountForUser(state, sessionAndUser.user.id);
-            }
+            const tokens = await state.store.getSessionTokens(sessionToken);
+            idToken = tokens?.idToken;
             await config.adapter?.deleteSession?.(sessionToken);
             console.info("[bff-auth] Database session deleted", {
                 sessionTokenPresent: true,
@@ -630,14 +628,14 @@ export function createLogoutRoute(getConfig: () => Promise<NextAuthOptions>) {
         }
 
         // Delete the local database session first. Provider logout is best-effort.
-        if (account?.id_token) {
+        if (idToken) {
             await fetch(`${state.issuer}/protocol/openid-connect/logout`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/x-www-form-urlencoded",
                 },
                 body: new URLSearchParams({
-                    id_token_hint: account.id_token,
+                    id_token_hint: idToken,
                     client_id: state.clientId,
                 }),
                 cache: "no-store",

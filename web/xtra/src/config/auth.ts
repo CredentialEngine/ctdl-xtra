@@ -1,34 +1,30 @@
 import { createKeycloakBffAuth } from "@credentialengine/auth/server";
 import type { NextAuthOptions } from "next-auth";
 
-let cachedConfig: NextAuthOptions | null = null;
-let configPromise: Promise<NextAuthOptions> | null = null;
+const SESSION_MAX_AGE_SECONDS = 8 * 60 * 60;
 
-export async function getAuthConfig(): Promise<NextAuthOptions> {
-    if (cachedConfig) return cachedConfig;
-    if (configPromise) return configPromise;
+let configPromise: Promise<NextAuthOptions> | undefined;
 
-    configPromise = createKeycloakBffAuth({
-        redisUrl: process.env.REDIS_URL,
-        redisNamespace:
-            process.env.BFF_SESSION_NAMESPACE ?? "credentialengine:xtra",
-        sessionMaxAgeSeconds: 8 * 60 * 60,
-        secret: () => {
-            const secret = process.env.NEXTAUTH_SECRET;
-            if (!secret) {
-                throw new Error(
-                    "NEXTAUTH_SECRET must be provided by the runtime environment.",
-                );
-            }
-            return secret;
-        },
-    });
-
-    try {
-        const config = await configPromise;
-        cachedConfig = config;
-        return config;
-    } finally {
-        configPromise = null;
+function readRequiredEnvVar(name: string): string {
+    const value = process.env[name];
+    if (!value?.trim()) {
+        throw new Error(`${name} must be configured for xTRA.`);
     }
+    return value;
+}
+
+async function buildConfig(): Promise<NextAuthOptions> {
+    return createKeycloakBffAuth({
+        redisUrl: readRequiredEnvVar("REDIS_URL"),
+        redisNamespace: readRequiredEnvVar("BFF_SESSION_NAMESPACE"),
+        secret: readRequiredEnvVar("NEXTAUTH_SECRET"),
+        sessionMaxAgeSeconds: SESSION_MAX_AGE_SECONDS,
+    });
+}
+
+export function getAuthConfig(): Promise<NextAuthOptions> {
+    if (!configPromise) {
+        configPromise = buildConfig();
+    }
+    return configPromise;
 }

@@ -6,28 +6,47 @@ Shared Keycloak/NextAuth BFF authentication for the Next.js applications.
 
 The package uses NextAuth v4's standard **database** session strategy. The browser receives only NextAuth's opaque `sessionToken` cookie. Users, linked provider accounts, and database-session records are persisted by a NextAuth `Adapter` backed directly by `@credentialengine/redis-client`.
 
-The xTRA configuration supplies `REDIS_URL` and a namespace to `createKeycloakBffAuth`. NextAuth owns the session lifecycle through the Adapter methods `createSession`, `getSessionAndUser`, `updateSession`, and `deleteSession`. OAuth access/refresh/ID tokens are persisted on the standard NextAuth Account record; `BFF_TOKEN_ENCRYPTION=true` encrypts those token fields before they are written to Redis. Logout or session expiry removes all Redis auth state for that login.
+The app supplies `REDIS_URL` and a namespace (`BFF_SESSION_NAMESPACE`) to `createKeycloakBffAuth`. NextAuth owns the session lifecycle through the Adapter methods `createSession`, `getSessionAndUser`, `updateSession`, and `deleteSession`.
 
-OAuth access, refresh, and ID tokens are **not** exposed through the NextAuth session and are intentionally not written into the Adapter account record. They are kept in an encrypted, server-only token vault keyed by the opaque NextAuth database session token. This preserves server-side refresh-token handling without maintaining a second custom authentication session.
+OAuth access, refresh, and ID tokens are **per login**. Each NextAuth database session has its own token record, keyed by the session token. They are never exposed through the NextAuth session and are not stored on the Account record. So a user signed in on two devices has two independent token sets: logging out, expiring, or refreshing on one device does not affect the other.
+
+Because NextAuth passes the login tokens to the `signIn` callback before it creates the session, the tokens wait briefly in a pending record (60 seconds) that `createSession` then moves onto the new session. If the same user completes two logins at the same instant, one of them may need to sign in again.
 
 BFF code should prefer:
 
 - `getAccessToken(config, request)` for endpoints where authentication is optional.
 - `requireAccessToken(config, request)` for endpoints where authentication is mandatory.
 
-Token refresh happens server-side. Refresh operations execute under the backing store's per-session lock, then re-read the token record before using the refresh token. With Redis this protects refresh-token rotation across Kubernetes replicas.
+Token refresh happens server-side under a per-session Redis lock. The token record is re-read after the lock is taken, so concurrent requests and Kubernetes replicas never use the same refresh token twice.
 
 ## Redis records
 
-Within the configured namespace, the logical records include:
+Within the configured namespace:
+
+Per person:
 
 - `nextauth:user:<id>` — NextAuth user
-- `nextauth:account:<provider>:<providerAccountId>` — provider-to-user linkage (OAuth token fields excluded)
-- `nextauth:db-session:<sessionToken>` — standard NextAuth database session
+- `nextauth:user-email:<email>` — email lookup for the user
+- `nextauth:account:<provider>:<providerAccountId>` — link from the provider identity to the user (no tokens)
+- `nextauth:user-accounts:<userId>` — the user's linked accounts
+
+Per login:
+
+- `nextauth:session:<sessionToken>` — standard NextAuth database session
+- `nextauth:session-tokens:<sessionToken>` — this login's OAuth tokens
 - `nextauth:session-metadata:<sessionToken>` — application session metadata such as the active tenant
 
-Database-session and token records expire with the NextAuth session. User/account linkage records do not expire automatically.
+Short-lived:
 
-## Server-side token encryption
+- `nextauth:pending-tokens:<provider>:<providerAccountId>` — tokens waiting for `createSession` during login
+- `nextauth:lock:refresh:<sessionToken>` — refresh lock
 
-After resolving the backend-only NextAuth secret, the auth package wraps the configured backing store with `createEncryptedServerSessionStore` for OAuth token material. Access, refresh, and ID tokens are serialized and encrypted with AES-256-GCM before Redis sees them. The browser cookie contains only NextAuth's opaque database session token.
+Per-login records expire with their session. Per-person records expire with the user's longest-lived session. Logout and session expiry remove only that login's records.
+
+## Token encryption
+
+Token records are encrypted with AES-256-GCM using a key derived from the NextAuth secret. Encryption is on by default. Set `BFF_TOKEN_ENCRYPTION=false` (or pass `encryptTokens: false`) to store them in plain JSON, for local debugging only. Records written in either mode stay readable after switching.
+
+## Upgrading from tokens on the Account record
+
+Existing sessions have no token record, so their users are asked to sign in once more after deploying. Token fields left on old Account records are removed on each user's next login.
