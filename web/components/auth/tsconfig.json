@@ -3,11 +3,7 @@
         "declaration": true,
         "esModuleInterop": true,
         "jsx": "react-jsx",
-        "lib": [
-            "ES2022",
-            "DOM",
-            "DOM.Iterable"
-        ],
+        "lib": ["ES2022", "DOM", "DOM.Iterable"],
         "module": "ESNext",
         "moduleResolution": "Bundler",
         "outDir": "dist",
@@ -16,8 +12,5 @@
         "strict": true,
         "target": "ES2022"
     },
-    "include": [
-        "src/**/*.ts",
-        "src/**/*.tsx"
-    ]
+    "include": ["src/**/*.ts", "src/**/*.tsx"]
 }
