@@ -1,7 +1,7 @@
 {
     "dependencies": {
-        "server-only": "^0.0.1",
-        "@credentialengine/redis-client": "*"
+        "@credentialengine/redis-client": "*",
+        "server-only": "^0.0.1"
     },
     "devDependencies": {
         "@types/node": "^26",
@@ -41,16 +41,16 @@
     "private": true,
     "scripts": {
         "build": "tsc",
+        "check": "npm run prettier:check && npm run lint && npm run typecheck && npm run test",
         "clean": "node -e \"require('fs').rmSync('dist', { recursive: true, force: true })\"",
+        "format": "npm run prettier",
+        "format:check": "npm run prettier:check",
         "lint": "eslint .",
         "lint:fix": "eslint . --fix",
         "prettier": "prettier --config ../../prettier.config.cjs --ignore-path ../../.prettierignore --write .",
         "prettier:check": "prettier --config ../../prettier.config.cjs --ignore-path ../../.prettierignore --check .",
-        "format": "npm run prettier",
-        "format:check": "npm run prettier:check",
-        "typecheck": "tsc --noEmit",
         "test": "npm run build && node --experimental-vm-modules ../../node_modules/jest/bin/jest.js --config ../../jest.config.mjs --selectProjects auth --runInBand",
-        "check": "npm run prettier:check && npm run lint && npm run typecheck && npm run test"
+        "typecheck": "tsc --noEmit"
     },
     "type": "module",
     "types": "./dist/index.d.ts",

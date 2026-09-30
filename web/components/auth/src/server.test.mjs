@@ -76,6 +76,46 @@ function jwt(payload) {
     return `x.${Buffer.from(JSON.stringify(payload)).toString("base64url")}.y`;
 }
 
+const NAMESPACE = "credentialengine:test";
+const ACCOUNT_KEY = `${NAMESPACE}:nextauth:account:keycloak:keycloak-user-1`;
+
+function sessionKey(sessionToken) {
+    return `${NAMESPACE}:nextauth:session:${sessionToken}`;
+}
+
+function sessionTokensKey(sessionToken) {
+    return `${NAMESPACE}:nextauth:session-tokens:${sessionToken}`;
+}
+
+function requestFor(sessionToken, path = "/api/test", init = {}) {
+    return new NextRequest(`http://localhost${path}`, {
+        ...init,
+        headers: { cookie: `next-auth.session-token=${sessionToken}` },
+    });
+}
+
+async function secondLogin(
+    { config, user, account },
+    sessionToken,
+    overrides = {},
+) {
+    const second = {
+        ...account,
+        access_token: jwt({ realm_access: { roles: ["second-login"] } }),
+        refresh_token: jwt({ exp: Math.floor(Date.now() / 1000) + 3600 }),
+        id_token: "id-token-second",
+        expires_in: 300,
+        ...overrides,
+    };
+    await config.callbacks.signIn({ user, account: second });
+    await config.adapter.createSession({
+        sessionToken,
+        userId: user.id,
+        expires: new Date(Date.now() + 8 * 60 * 60 * 1000),
+    });
+    return second;
+}
+
 async function loginConfig({ encrypted = true, expiresIn = 300 } = {}) {
     const backing = fakeRedis();
     const config = await createKeycloakBffAuth({
@@ -137,7 +177,7 @@ beforeEach(() => {
     getServerSessionMock.mockResolvedValue(null);
 });
 
-test("createKeycloakBffAuth uses NextAuth database sessions and encrypts OAuth token fields in Account rows", async () => {
+test("createKeycloakBffAuth uses NextAuth database sessions and stores encrypted tokens per session, not on the Account", async () => {
     const { backing, config, account, sessionToken } = await loginConfig();
 
     expect(config.session).toEqual(
@@ -150,26 +190,41 @@ test("createKeycloakBffAuth uses NextAuth database sessions and encrypts OAuth t
         ),
     ).toBe(true);
 
-    const accountRow = backing.values.get(
-        "credentialengine:test:nextauth:account:keycloak:keycloak-user-1",
-    );
+    const accountRow = backing.values.get(ACCOUNT_KEY);
     expect(typeof accountRow).toBe("string");
     expect(accountRow).not.toContain(account.access_token);
-    expect(accountRow).toContain("enc:v1:");
+    expect(accountRow).not.toContain("access_token");
+
+    const tokensRow = backing.values.get(sessionTokensKey(sessionToken));
+    expect(typeof tokensRow).toBe("string");
+    expect(tokensRow).not.toContain(account.access_token);
+    expect(tokensRow).toContain("enc:v1:");
     expect(keycloakProviderMock).toHaveBeenCalledWith(
         expect.objectContaining({ clientId: "finder-client" }),
     );
 });
 
-test("OAuth Account token encryption can be explicitly disabled", async () => {
-    const { backing, account } = await loginConfig({
+test("createKeycloakBffAuth requires a namespace", async () => {
+    for (const redisNamespace of [undefined, "", "   "]) {
+        await expect(
+            createKeycloakBffAuth({
+                clientId: "finder-client",
+                issuer: "https://id.example.test/realms/test",
+                secret: "unit-secret",
+                redisClient: fakeRedis(),
+                redisNamespace,
+            }),
+        ).rejects.toThrow("redisNamespace is required");
+    }
+});
+
+test("session token encryption can be explicitly disabled", async () => {
+    const { backing, account, sessionToken } = await loginConfig({
         encrypted: false,
     });
-    expect(
-        backing.values.get(
-            "credentialengine:test:nextauth:account:keycloak:keycloak-user-1",
-        ),
-    ).toContain(account.access_token);
+    expect(backing.values.get(sessionTokensKey(sessionToken))).toContain(
+        account.access_token,
+    );
 });
 
 test("database session callback exposes roles and identity metadata but no OAuth tokens", async () => {
@@ -200,13 +255,9 @@ test("getAccessToken and requireAccessToken resolve from the database session to
     );
 });
 
-test("missing OAuth Account token state is surfaced as SESSION_EXPIRED", async () => {
+test("missing session token state is surfaced as SESSION_EXPIRED", async () => {
     const { config, backing, sessionToken } = await loginConfig();
-    const accountKey =
-        "credentialengine:test:nextauth:account:keycloak:keycloak-user-1";
-    const row = JSON.parse(backing.values.get(accountKey));
-    delete row.access_token;
-    backing.values.set(accountKey, JSON.stringify(row));
+    backing.values.delete(sessionTokensKey(sessionToken));
     await expect(
         getAccessToken(
             config,
@@ -238,10 +289,11 @@ test("getAuthenticatedUser returns database identity and backend roles without r
 });
 
 test("refresh is performed under the token-store lock and rotates backend tokens", async () => {
-    const { backing, config, user, adapterSession } = await loginConfig({
-        encrypted: false,
-        expiresIn: -1,
-    });
+    const { backing, config, user, adapterSession, sessionToken } =
+        await loginConfig({
+            encrypted: false,
+            expiresIn: -1,
+        });
     globalThis.fetch = jest.fn(
         async () =>
             new Response(
@@ -273,12 +325,12 @@ test("refresh is performed under the token-store lock and rotates backend tokens
 
     expect(backing.calls.locks).toBeGreaterThan(0);
     const stored = JSON.parse(
-        backing.values.get(
-            "credentialengine:test:nextauth:account:keycloak:keycloak-user-1",
-        ),
+        backing.values.get(sessionTokensKey(sessionToken)),
     );
-    expect(stored.access_token).toContain(".");
-    expect(stored.expires_at).toBeGreaterThan(Math.floor(Date.now() / 1000));
+    expect(stored.accessToken).toContain(".");
+    expect(stored.expiresAtEpochSec).toBeGreaterThan(
+        Math.floor(Date.now() / 1000),
+    );
 });
 
 test("rejected refresh invalidates the NextAuth database session", async () => {
@@ -309,10 +361,11 @@ test("rejected refresh invalidates the NextAuth database session", async () => {
     ).toBe(false);
 });
 
-test("logout is idempotent, deletes the NextAuth database session and clears auth cookies", async () => {
+test("logout deletes only this login's session and tokens, keeps the user, and clears auth cookies", async () => {
     const { backing, config, sessionToken, user } = await loginConfig({
         encrypted: false,
     });
+    globalThis.fetch = jest.fn(async () => new Response(null, { status: 204 }));
     process.env.OIDC_AUTHORITY = "";
     process.env.OIDC_CLIENT_ID = "";
     const route = createLogoutRoute(async () => config);
@@ -324,29 +377,17 @@ test("logout is idempotent, deletes the NextAuth database session and clears aut
     });
     const response = await route(request);
 
+    expect(backing.values.has(sessionKey(sessionToken))).toBe(false);
+    expect(backing.values.has(sessionTokensKey(sessionToken))).toBe(false);
+
+    // The user and account link are per person and outlive a single login.
+    expect(backing.values.has(ACCOUNT_KEY)).toBe(true);
+    expect(backing.values.has(`${NAMESPACE}:nextauth:user:${user.id}`)).toBe(
+        true,
+    );
     expect(
-        backing.values.has(
-            `credentialengine:test:nextauth:session:${sessionToken}`,
-        ),
-    ).toBe(false);
-    expect(
-        backing.values.has(
-            "credentialengine:test:nextauth:account:keycloak:keycloak-user-1",
-        ),
-    ).toBe(false);
-    expect(
-        backing.values.has(`credentialengine:test:nextauth:user:${user.id}`),
-    ).toBe(false);
-    expect(
-        backing.values.has(
-            "credentialengine:test:nextauth:user-email:user%40example.test",
-        ),
-    ).toBe(false);
-    expect(
-        backing.values.has(
-            `credentialengine:test:nextauth:user-accounts:${user.id}`,
-        ),
-    ).toBe(false);
+        backing.values.has(`${NAMESPACE}:nextauth:user-accounts:${user.id}`),
+    ).toBe(true);
     expect(response.status).toBe(204);
     expect(response.headers.get("location")).toBeNull();
     expect(response.headers.get("set-cookie")).toContain(
@@ -392,4 +433,82 @@ test("BFF proxy sends the per-database-session access token and preserves upstre
     );
     expect(response.status).toBe(202);
     expect(response.headers.get("etag")).toBe("abc");
+});
+
+describe("tokens are per login, not per person", () => {
+    test("a second login does not overwrite the first login's tokens", async () => {
+        const first = await loginConfig();
+        const second = await secondLogin(first, "session-b");
+
+        expect(
+            await getAccessToken(first.config, requestFor(first.sessionToken)),
+        ).toBe(first.account.access_token);
+        expect(
+            await getAccessToken(first.config, requestFor("session-b")),
+        ).toBe(second.access_token);
+    });
+
+    test("logging out one login leaves the user's other login working", async () => {
+        const first = await loginConfig();
+        const second = await secondLogin(first, "session-b");
+        globalThis.fetch = jest.fn(
+            async () => new Response(null, { status: 204 }),
+        );
+
+        const logout = createLogoutRoute(async () => first.config);
+        const response = await logout(
+            requestFor(first.sessionToken, "/api/auth/logout", {
+                method: "POST",
+            }),
+        );
+        expect(response.status).toBe(204);
+
+        // Keycloak was told to end the first login's session, not the second's.
+        expect(globalThis.fetch).toHaveBeenCalledTimes(1);
+        const [, init] = globalThis.fetch.mock.calls[0];
+        expect(new URLSearchParams(init.body).get("id_token_hint")).toBe(
+            first.account.id_token,
+        );
+
+        await expect(
+            getAccessToken(first.config, requestFor(first.sessionToken)),
+        ).rejects.toMatchObject({ code: "SESSION_EXPIRED", status: 401 });
+        expect(
+            await getAccessToken(first.config, requestFor("session-b")),
+        ).toBe(second.access_token);
+    });
+
+    test("refreshing one login does not change the other login's tokens", async () => {
+        const first = await loginConfig({ expiresIn: -1 });
+        const second = await secondLogin(first, "session-b", {
+            expires_in: 300,
+        });
+        const refreshedAccessToken = jwt({
+            realm_access: { roles: ["refreshed"] },
+        });
+        globalThis.fetch = jest.fn(
+            async () =>
+                new Response(
+                    JSON.stringify({
+                        access_token: refreshedAccessToken,
+                        refresh_token: jwt({
+                            exp: Math.floor(Date.now() / 1000) + 7200,
+                        }),
+                        expires_in: 600,
+                    }),
+                    {
+                        status: 200,
+                        headers: { "content-type": "application/json" },
+                    },
+                ),
+        );
+
+        expect(
+            await getAccessToken(first.config, requestFor(first.sessionToken)),
+        ).toBe(refreshedAccessToken);
+        expect(
+            await getAccessToken(first.config, requestFor("session-b")),
+        ).toBe(second.access_token);
+        expect(globalThis.fetch).toHaveBeenCalledTimes(1);
+    });
 });
