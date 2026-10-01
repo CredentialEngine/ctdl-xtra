@@ -44,6 +44,11 @@ from implementations.crawl_browser import (
     WorkerState,
     playwright_fetcher_factory,
 )
+from implementations.crawl_challenge import challenge_kind
+from implementations.crawl_curriqunet import (
+    CurriqunetIndex,
+    read_curriqunet_index,
+)
 from implementations.crawl_robots import (
     collect_sitemap_urls,
     default_sitemap_url,
@@ -78,9 +83,17 @@ POLL_SECONDS = 1.0
 TOP_PATH_SEGMENTS = 20
 EXIT_INTERRUPTED = 130
 
-# --url first, then the sitemap, then --seed-urls-file, then links in
-# document order. Recorded so a run says which rule ordered its frontier.
+# --url first, then the sitemap, then the site's own page index (a
+# CurriQunet catalog's navigation tree), then --seed-urls-file, then links
+# in document order. Both declarations are the site's list of its pages, so
+# they come ahead of anything found on the way. Recorded so a run says
+# which rule ordered its frontier.
 FRONTIER_ORDER = "sitemap_first"
+
+# Index documents are small JSON, and like sitemap documents they are not
+# paced by --min-interval-in-seconds. Half a second keeps the walk gentler
+# than the page renders it replaces, each of which fires ~20 XHRs.
+INDEX_INTERVAL_SECONDS = 0.5
 
 
 class StrategyMismatchError(RuntimeError):
@@ -205,6 +218,14 @@ def fetch_page(
             last_error = f"HTTP {last_status}"
             retry_after = result.retry_after
             continue
+        # An interstitial is not the page that was asked for, whatever its
+        # status says: AWS WAF sends 202. The browser strategy waits one out
+        # on its own; this is what keeps every strategy from saving one.
+        # Spent retries leave it retryable, so a resume asks again.
+        kind = challenge_kind(last_status, {}, result.html)
+        if kind is not None:
+            last_error = f"{kind} challenge page"
+            continue
         return PageOutcome(
             url=url,
             result=result,
@@ -285,6 +306,7 @@ class Crawler:
         self.robots_crawl_delay: float | None = None
         self.effective_min_interval = settings.min_interval_in_seconds
         self.sitemap_urls_found = 0
+        self.site_index: CurriqunetIndex | None = None
 
         self.resolved_host_differs = False
 
@@ -460,6 +482,32 @@ class Crawler:
         self.sitemap_urls_found = len(pages)
         return pages
 
+    def read_site_index(self, seed_url: str) -> list[str]:
+        """The page index a catalog's seed page declares, as page URLs.
+
+        A CurriQunet catalog has no sitemap and no href links; its shell
+        names the JSON tree its script navigates by, and that tree is the
+        catalog's list of its pages. For any other site this is one GET of
+        the seed URL and an empty list.
+
+        That GET is of a page, not of a site document, so robots.txt has a
+        say: a seed it disallows is not read here either.
+        """
+        robots = self.scope.robots
+        if robots is not None and not robots.can_fetch("*", seed_url):
+            logger.info(
+                "INDEX %s is disallowed by robots.txt, no site index read",
+                seed_url,
+            )
+            self.site_index = None
+            return []
+        self.site_index = read_curriqunet_index(
+            seed_url,
+            fetch=self.url_fetch,
+            pause=lambda: self.sleep(INDEX_INTERVAL_SECONDS),
+        )
+        return list(self.site_index.urls) if self.site_index else []
+
     # -- resume ------------------------------------------------------------
 
     def _check_strategy(self, previous: Any) -> None:
@@ -544,31 +592,32 @@ class Crawler:
         self._maybe_checkpoint()
         return True
 
-    def _sitemap_first(self, sitemap_pages: list[str]) -> None:
-        """On a resume, move sitemap URLs ahead of the old frontier.
+    def _sitemap_first(self, declared_pages: list[str]) -> None:
+        """On a resume, move declared pages ahead of the old frontier.
 
-        A resumed run reads its frontier back in the order it was left, so
-        links found inside one section would be fetched for days before
-        the site's own index of its content pages was reached again. Pages
-        this run already saved stay in front of both: they answer from
-        storage and cost no GET.
+        Declared means the sitemap and the site's page index. A resumed run
+        reads its frontier back in the order it was left, so links found
+        inside one section would be fetched for days before the site's own
+        index of its content pages was reached again. Pages this run
+        already saved stay in front of both: they answer from storage and
+        cost no GET.
         """
-        if not sitemap_pages:
+        if not declared_pages:
             return
         declared = {
-            dedupe_key(self.canonical_url(url)) for url in sitemap_pages
+            dedupe_key(self.canonical_url(url)) for url in declared_pages
         }
         saved: list[str] = []
-        sitemap: list[str] = []
+        listed: list[str] = []
         rest: list[str] = []
         for url in self.frontier:
             if url in self._saved_set:
                 saved.append(url)
             elif dedupe_key(url) in declared:
-                sitemap.append(url)
+                listed.append(url)
             else:
                 rest.append(url)
-        self.frontier = deque(saved + sitemap + rest)
+        self.frontier = deque(saved + listed + rest)
 
     # -- results -----------------------------------------------------------
 
@@ -596,6 +645,10 @@ class Crawler:
             "html_path": join_storage_uri(self.settings.target_uri, html_key),
             "strategy": self.settings.strategy,
         }
+        if result.render is not None:
+            # How the backend decided the page was ready, so a page taken
+            # at a wait's cap rather than at its signal can be found later.
+            meta["render"] = result.render
         self.store.put_text(html_key, result.html, "text/html; charset=utf-8")
         self.store.put_json(self._meta_key(result.requested_url), meta)
 
@@ -745,6 +798,11 @@ class Crawler:
             "robots_crawl_delay": self.robots_crawl_delay,
             "effective_min_interval_in_seconds": self.effective_min_interval,
             "sitemap_urls_found": self.sitemap_urls_found,
+            # The page index the seed declared and what reading it cost, or
+            # null for a site that declares none, which is most of them.
+            "site_index": (
+                self.site_index.to_json() if self.site_index else None
+            ),
             "frontier_order": FRONTIER_ORDER,
             "pages_saved": self.totals.pages_saved,
             "pages_failed": len(self.failed),
@@ -866,18 +924,22 @@ class Crawler:
         seed_url = self.resolve_entry_point()
         self._warn_when_scope_is_not_the_site_root(seed_url)
         sitemap_pages = self.read_site_rules(seed_url)
-        # The sitemap is the site's own index of its content pages, so it
-        # is reached before any link found on the way. A full run ends up
-        # with the same pages either way; a limited one does not.
+        index_pages = self.read_site_index(seed_url)
+        # The sitemap and the page index are the site's own lists of its
+        # content pages, so they are reached before any link found on the
+        # way. A full run ends up with the same pages either way; a limited
+        # one does not. Both are read again on a resume, which is how a run
+        # started before the index was read still gets its pages.
+        declared_pages = sitemap_pages + index_pages
         if not resumed:
             self.enqueue(seed_url, operator_seed=True)
-        for url in sitemap_pages:
+        for url in declared_pages:
             self.enqueue(url)
         if not resumed:
             for url in self.settings.seed_urls:
                 self.enqueue(url, operator_seed=True)
         else:
-            self._sitemap_first(sitemap_pages)
+            self._sitemap_first(declared_pages)
 
         policy = FetchPolicy(
             min_interval=self.effective_min_interval,

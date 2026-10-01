@@ -19,7 +19,22 @@ from importlib.metadata import PackageNotFoundError
 from importlib.metadata import version as installed_version
 from typing import Any
 
-from implementations.crawl_browser import DEFAULT_TIMEOUT_MS, VIEWPORT
+from implementations.crawl_browser import (
+    CHALLENGE_WAIT_MS,
+    CONTENT_ATTEMPTS,
+    DEFAULT_TIMEOUT_MS,
+    DOM_QUIET_CAP_MS,
+    DOM_QUIET_MS,
+    MAX_CHALLENGE_ROUNDS,
+    NETWORKIDLE_TIMEOUT_MS,
+    VIEWPORT,
+)
+from implementations.crawl_challenge import (
+    CHALLENGE_AWS_WAF,
+    CHALLENGE_AWS_WAF_CAPTCHA,
+    CHALLENGE_CLOUDFLARE,
+    CHALLENGE_TOKEN_COOKIES,
+)
 from implementations.crawl_crawl4ai import (
     DEFAULT_TIMEOUT_MS as CRAWL4AI_TIMEOUT_MS,
 )
@@ -48,10 +63,23 @@ STRATEGY_PACKAGES = {
 # is already in strategy_settings and needs no explaining.
 STRATEGY_NOTES = {
     STRATEGY_PLAYWRIGHT: (
+        # The 500 ms between requests is Playwright's own definition of
+        # network idle, not a setting of this crawler.
         (
-            "The HTML is taken when the load event fires, or at "
-            "DOMContentLoaded when load times out, so two pages of one "
-            "catalog are not always caught at the same point in loading."
+            "The HTML is taken after the load event (or DOMContentLoaded "
+            "when load times out), then once the network has gone idle, "
+            f"waited for up to {NETWORKIDLE_TIMEOUT_MS // 1000} s, then once "
+            f"the DOM has gone {DOM_QUIET_MS} ms without a content change, "
+            f"waited for up to {DOM_QUIET_CAP_MS // 1000} s. A page that "
+            "never goes network-idle is captured at the cap, and a page "
+            "that pauses more than 500 ms between its own requests can be "
+            "captured before the later ones."
+        ),
+        (
+            "A bot-challenge interstitial is waited out in the same browser "
+            "context and never saved. Every new browser context (each "
+            "worker, each run) is challenged once per host, so the first "
+            "page a worker fetches from a protected host takes longer."
         ),
         (
             "A navigation the browser turns into a download is recorded as "
@@ -118,6 +146,23 @@ def _settings(
             "browser_channel": "chrome, falling back to chromium",
             "viewport": dict(VIEWPORT),
             "wait_until": "load, then domcontentloaded when load times out",
+            "ready_wait": {
+                "networkidle_timeout_ms": NETWORKIDLE_TIMEOUT_MS,
+                "dom_quiet_ms": DOM_QUIET_MS,
+                "dom_quiet_cap_ms": DOM_QUIET_CAP_MS,
+                "dom_quiet_mutations": ["childList", "characterData"],
+                "content_attempts": CONTENT_ATTEMPTS,
+            },
+            "challenge_wait": {
+                "detects": [
+                    CHALLENGE_AWS_WAF,
+                    CHALLENGE_AWS_WAF_CAPTCHA,
+                    CHALLENGE_CLOUDFLARE,
+                ],
+                "wait_ms": CHALLENGE_WAIT_MS,
+                "max_rounds": MAX_CHALLENGE_ROUNDS,
+                "token_cookies": list(CHALLENGE_TOKEN_COOKIES),
+            },
             "timeout_ms": DEFAULT_TIMEOUT_MS,
             "ignore_https_errors": True,
             "accept_downloads": False,

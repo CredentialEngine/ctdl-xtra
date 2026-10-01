@@ -3,11 +3,23 @@
 from __future__ import annotations
 
 import inspect
+import json
 import platform
 from importlib.metadata import version
 
 from implementations import crawl_strategy
-from implementations.crawl_browser import DEFAULT_TIMEOUT_MS, VIEWPORT
+from implementations.crawl_browser import (
+    CHALLENGE_WAIT_MS,
+    CONTENT_ATTEMPTS,
+    DEFAULT_TIMEOUT_MS,
+    DOM_QUIET_CAP_MS,
+    DOM_QUIET_MS,
+    MAX_CHALLENGE_ROUNDS,
+    MUTATION_CLOCK_JS,
+    NETWORKIDLE_TIMEOUT_MS,
+    VIEWPORT,
+)
+from implementations.crawl_challenge import CHALLENGE_TOKEN_COOKIES
 from implementations.crawl_strategy import (
     STRATEGY_NOTES,
     StrategyFacts,
@@ -54,6 +66,60 @@ def test_the_playwright_settings_are_the_ones_the_fetcher_is_built_with() -> (
     assert settings["headless"] is True
     assert settings["accept_downloads"] is False
     assert settings["user_agent"].startswith("Mozilla/")
+
+
+def test_the_playwright_settings_record_how_long_a_page_is_waited_for() -> None:
+    settings = strategy_facts("playwright").settings
+    assert settings["ready_wait"] == {
+        "networkidle_timeout_ms": NETWORKIDLE_TIMEOUT_MS,
+        "dom_quiet_ms": DOM_QUIET_MS,
+        "dom_quiet_cap_ms": DOM_QUIET_CAP_MS,
+        "dom_quiet_mutations": ["childList", "characterData"],
+        "content_attempts": CONTENT_ATTEMPTS,
+    }
+
+
+def test_the_recorded_mutations_are_the_ones_the_page_clock_watches() -> None:
+    """A setting the browser script does not honour would be a false record."""
+    mutations = strategy_facts("playwright").settings["ready_wait"][
+        "dom_quiet_mutations"
+    ]
+    for mutation in mutations:
+        assert f"{mutation}: true" in MUTATION_CLOCK_JS
+
+
+def test_the_playwright_settings_record_which_challenges_are_waited_out() -> (
+    None
+):
+    settings = strategy_facts("playwright").settings
+    assert settings["challenge_wait"] == {
+        "detects": ["aws-waf", "aws-waf-captcha", "cloudflare"],
+        "wait_ms": CHALLENGE_WAIT_MS,
+        "max_rounds": MAX_CHALLENGE_ROUNDS,
+        "token_cookies": list(CHALLENGE_TOKEN_COOKIES),
+    }
+
+
+def test_the_playwright_settings_can_be_written_to_crawl_json() -> None:
+    settings = strategy_facts("playwright").settings
+    assert json.loads(json.dumps(settings)) == settings
+
+
+def test_the_playwright_notes_say_when_the_html_is_taken() -> None:
+    taken = STRATEGY_NOTES["playwright"][0]
+    assert "DOMContentLoaded" in taken
+    assert f"up to {NETWORKIDLE_TIMEOUT_MS // 1000} s" in taken
+    assert f"{DOM_QUIET_MS} ms without a content change" in taken
+    assert f"up to {DOM_QUIET_CAP_MS // 1000} s" in taken
+    assert "captured at the cap" in taken
+
+
+def test_the_playwright_notes_say_a_challenge_is_never_saved() -> None:
+    notes = STRATEGY_NOTES["playwright"]
+    challenge = [note for note in notes if "challenge" in note]
+    assert len(challenge) == 1
+    assert "never saved" in challenge[0]
+    assert "once per host" in challenge[0]
 
 
 def test_the_crawl4ai_settings_say_its_cache_is_bypassed() -> None:

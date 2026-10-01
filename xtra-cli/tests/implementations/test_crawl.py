@@ -10,7 +10,10 @@ from pathlib import Path
 
 import pytest
 from crawl_doubles import (
+    CQ_CATALOG,
     FakePage,
+    cq_node,
+    curriqunet_documents,
     fetcher_factory,
     no_site_documents,
     site_documents,
@@ -20,6 +23,7 @@ from common.keys import page_html_key, page_stem, state_key
 from common.object_store import open_store
 from implementations.crawl import (
     FRONTIER_ORDER,
+    INDEX_INTERVAL_SECONDS,
     STATUS_COMPLETE,
     STATUS_INCOMPLETE,
     STATUS_LIMIT_REACHED,
@@ -30,6 +34,8 @@ from implementations.crawl import (
     run_crawl,
 )
 from implementations.crawl_browser import DEFAULT_TIMEOUT_MS, VIEWPORT
+from implementations.crawl_curriqunet import INDEX_KIND
+from implementations.crawl_strategy import strategy_facts
 
 SEED = "https://catalog.example.edu/"
 FOLDER = "catalog-example-edu"
@@ -54,12 +60,17 @@ def crawl(
     *,
     documents: dict | None = None,
     calls: list[str] | None = None,
+    url_calls: list[str] | None = None,
     before=None,
     sleeps: list[float] | None = None,
     resolve_url=None,
     **settings,
 ):
-    """Run one crawl into tmp_path with a fake browser and no network."""
+    """Run one crawl into tmp_path with a fake browser and no network.
+
+    `calls` records what the browser rendered and `url_calls` what was
+    read without one: robots.txt, sitemaps, and the seed's page index.
+    """
     store = open_store(str(tmp_path))
     settings.setdefault("min_interval_in_seconds", 0)
     settings.setdefault("max_interval_in_seconds", 1)
@@ -74,7 +85,7 @@ def crawl(
         config,
         store=store,
         fetcher_factory=fetcher_factory(pages, calls=calls, before=before),
-        url_fetch=site_documents(documents) if documents else no_site_documents,
+        url_fetch=site_documents(documents or {}, calls=url_calls),
         resolve_url=resolve_url or (lambda url: url),
         sleep=sleeps.append if sleeps is not None else (lambda seconds: None),
     )
@@ -1010,7 +1021,7 @@ def test_crawl_json_says_what_the_backend_only_approximates(
     notes = crawl(tmp_path, PAGES).crawl_doc["strategy_notes"]
     assert notes
     assert all(isinstance(note, str) for note in notes)
-    assert any("DOMContentLoaded" in note for note in notes)
+    assert notes == list(strategy_facts("playwright").notes)
 
 
 def test_a_resume_with_another_backend_is_refused(tmp_path: Path) -> None:
@@ -1202,3 +1213,235 @@ def test_a_seed_urls_file_is_queued_after_the_sitemap(tmp_path: Path) -> None:
         "https://catalog.example.edu/courses/a",
         "https://catalog.example.edu/courses/b",
     ]
+
+
+# --- a catalog that lists its pages in its own shell -------------------------
+
+ROBOTS = "https://catalog.example.edu/robots.txt"
+SITEMAP = "https://catalog.example.edu/sitemap.xml"
+INDEXED = (
+    "https://catalog.example.edu/iq/10",
+    "https://catalog.example.edu/iq/20",
+)
+
+
+def curriqunet_site(seed: str = SEED) -> dict[str, bytes]:
+    """A CurriQunet shell at the seed whose index lists two pages."""
+    roots = [
+        cq_node(10, "10", "root", text="Cover"),
+        cq_node(20, "20", "root", text="Programs"),
+    ]
+    return curriqunet_documents(seed, roots)
+
+
+def indexed_pages() -> dict:
+    """The handbook site, plus the two pages the index lists."""
+    pages = handbook_and_courses()
+    for url in INDEXED:
+        pages[url] = FakePage(html="<p>rendered by the browser</p>")
+    return pages
+
+
+def test_index_pages_come_after_the_sitemap_and_before_seed_urls(
+    tmp_path: Path,
+) -> None:
+    documents = {
+        ROBOTS: b"User-agent: *\n",
+        SITEMAP: urlset("/courses/a"),
+        **curriqunet_site(),
+    }
+    calls: list[str] = []
+    crawl(
+        tmp_path,
+        indexed_pages(),
+        documents=documents,
+        calls=calls,
+        limit=5,
+        seed_urls=("https://catalog.example.edu/courses/b",),
+    )
+    assert calls == [
+        SEED,
+        "https://catalog.example.edu/courses/a",
+        *INDEXED,
+        "https://catalog.example.edu/courses/b",
+    ]
+
+
+def test_crawl_json_records_the_index_the_seed_declared(
+    tmp_path: Path,
+) -> None:
+    doc = crawl(
+        tmp_path, indexed_pages(), documents=curriqunet_site()
+    ).crawl_doc
+    index = doc["site_index"]
+    assert index["kind"] == INDEX_KIND
+    assert index["catalog_id"] == CQ_CATALOG
+    assert index["url_base"] == "https://catalog.example.edu/iq/"
+    assert index["urls_found"] == 2
+    assert index["errors"] == 0
+    assert doc["schema"] == "xtra-crawl-2"
+    assert doc["pages_saved"] == 6
+
+
+def test_the_index_walk_is_paced_between_its_requests(tmp_path: Path) -> None:
+    sleeps: list[float] = []
+    doc = crawl(
+        tmp_path, indexed_pages(), documents=curriqunet_site(), sleeps=sleeps
+    ).crawl_doc
+    requests = doc["site_index"]["requests"]
+    assert requests > 1
+    assert sleeps.count(INDEX_INTERVAL_SECONDS) == requests - 1
+
+
+def test_a_site_without_an_index_records_null_after_one_get_of_the_seed(
+    tmp_path: Path,
+) -> None:
+    url_calls: list[str] = []
+    doc = crawl(tmp_path, PAGES, url_calls=url_calls).crawl_doc
+    assert doc["site_index"] is None
+    assert url_calls == [ROBOTS, SITEMAP, SEED]
+
+
+def test_a_seed_robots_disallows_is_not_read_for_an_index_either(
+    tmp_path: Path,
+) -> None:
+    documents = {ROBOTS: b"User-agent: *\nDisallow: /\n", **curriqunet_site()}
+    url_calls: list[str] = []
+    doc = crawl(
+        tmp_path, indexed_pages(), documents=documents, url_calls=url_calls
+    ).crawl_doc
+    assert SEED not in url_calls
+    assert doc["site_index"] is None
+    assert doc["pages_saved"] == 0
+
+
+def test_index_pages_outside_the_scope_prefix_are_skipped(
+    tmp_path: Path,
+) -> None:
+    seed = "https://catalog.example.edu/catalog/view/"
+    roots = [
+        cq_node(10, "10", "root", text="Cover"),
+        cq_node(20, "20", "root", text="Programs"),
+    ]
+    children = {20: [cq_node(21, "20/21"), cq_node(22, "20/22")]}
+    base = "https://catalog.example.edu/catalog/view/iq/"
+    pages = {seed: HOME}
+    for path in ("10", "20", "20/21", "20/22"):
+        pages[base + path] = FakePage(html="<p>page</p>")
+    calls: list[str] = []
+    doc = crawl(
+        tmp_path,
+        pages,
+        documents=curriqunet_documents(seed, roots, children),
+        calls=calls,
+        seed_url=seed,
+        scope_prefix=base + "20/",
+    ).crawl_doc
+    assert doc["site_index"]["urls_found"] == 4
+    assert calls == [base + "20/21", base + "20/22"]
+    # The seed, the cover, and the programs page sit above the prefix.
+    assert doc["skipped_by_reason"]["out_of_scope"] == 3
+
+
+def test_a_resume_reads_the_index_and_puts_it_ahead_of_the_old_frontier(
+    tmp_path: Path,
+) -> None:
+    """A run started before the index was read still gets its pages first."""
+    pages = indexed_pages()
+    first = crawl(tmp_path, pages, limit=1)
+    assert first.crawl_doc["site_index"] is None
+    assert first.crawl_doc["frontier_remaining"] == 3
+
+    calls: list[str] = []
+    doc = crawl(
+        tmp_path, pages, documents=curriqunet_site(), calls=calls, limit=3
+    ).crawl_doc
+    assert calls == list(INDEXED)
+    assert doc["site_index"]["urls_found"] == 2
+    assert doc["pages_saved"] == 3
+
+
+# --- what the backend says about how it rendered -----------------------------
+
+
+def test_the_render_record_lands_in_the_sidecar(tmp_path: Path) -> None:
+    render = {"waited_for": "network_idle", "capped": False, "waited_ms": 840}
+    pages = dict(PAGES)
+    pages[SEED] = FakePage(html=HOME.html, render=render)
+    crawl(tmp_path, pages)
+
+    def meta(url: str) -> dict:
+        path = run_dir(tmp_path) / "pages" / f"{page_stem(url)}.meta.json"
+        return json.loads(path.read_text(encoding="utf-8"))
+
+    assert meta(SEED)["render"] == render
+    assert "render" not in meta("https://catalog.example.edu/courses/engl101")
+
+
+# --- a firewall's interstitial is not a page ---------------------------------
+
+# What AWS WAF served, with HTTP 202, for every page of one Acalog catalog.
+AWS_WAF_PAGE = (
+    "<html><head><script>window.gokuProps = {};</script>"
+    '<script src="https://x.token.awswaf.com/x/challenge.js"></script>'
+    '</head><body><div id="challenge-container"></div>'
+    "<script>AwsWafIntegration.getToken()</script></body></html>"
+)
+CLOUDFLARE_PAGE = (
+    "<html><head><title>Just a moment...</title></head><body>"
+    "<script>window._cf_chl_opt={cvId:'3'};</script></body></html>"
+)
+
+
+@pytest.mark.parametrize(
+    ("status", "html", "kind"),
+    [(202, AWS_WAF_PAGE, "aws-waf"), (200, CLOUDFLARE_PAGE, "cloudflare")],
+)
+def test_a_challenge_page_is_retried_and_never_saved(
+    tmp_path: Path, status: int, html: str, kind: str
+) -> None:
+    calls: list[str] = []
+    sleeps: list[float] = []
+    outcome = crawl(
+        tmp_path,
+        {SEED: FakePage(status=status, html=html)},
+        calls=calls,
+        sleeps=sleeps,
+        max_retries=2,
+        min_interval_in_seconds=1,
+        max_interval_in_seconds=5,
+    )
+    assert calls == [SEED, SEED, SEED]
+    assert sleeps == [1, 2]
+    assert outcome.crawl_doc["pages_saved"] == 0
+    assert outcome.exit_code == 1
+    assert not list((run_dir(tmp_path) / "pages").glob("*.html"))
+    lines = (
+        (run_dir(tmp_path) / "failed.jsonl")
+        .read_text(encoding="utf-8")
+        .splitlines()
+    )
+    record = json.loads(lines[0])
+    assert record["url"] == SEED
+    assert record["error"] == f"{kind} challenge page"
+    assert record["http_status"] == status
+    # Retryable, so a resume asks for the page again.
+    assert record["retryable"] is True
+
+
+def test_a_challenge_followed_by_the_real_page_saves_the_real_page(
+    tmp_path: Path, caplog
+) -> None:
+    pages = dict(PAGES)
+    pages[SEED] = [FakePage(status=202, html=AWS_WAF_PAGE), HOME]
+    with caplog.at_level(logging.INFO):
+        doc = crawl(tmp_path, pages).crawl_doc
+    assert doc["pages_saved"] == 3
+    assert doc["pages_failed"] == 0
+    saved = (run_dir(tmp_path) / "pages" / f"{page_stem(SEED)}.html").read_text(
+        encoding="utf-8"
+    )
+    assert saved == HOME.html
+    assert f"RETRY {SEED} attempt 2 of 6 after aws-waf challenge page" in (
+        caplog.text
+    )
