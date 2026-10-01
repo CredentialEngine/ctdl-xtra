@@ -7,14 +7,7 @@ on:
     paths:
       - xtra-cli/**
 
-  pull_request:
-    branches:
-      - main
-    paths:
-      - .github/workflows/release-xtra-cli.yml
-      - xtra-cli/Dockerfile
-      - xtra-cli/.dockerignore
-
+  
   workflow_dispatch:
 
 env:
