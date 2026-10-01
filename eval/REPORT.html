@@ -1,0 +1,383 @@
+<title>CTDL xTRA — WGU Evaluation & Improvement Proposal</title>
+<style>
+:root {
+  --paper: #fbfaf8;
+  --ink: #1f2937;
+  --ink-mute: #5b6572;
+  --accent: #1e5f8c;
+  --accent-tint: #eaf2f8;
+  --rule: #e2ddd3;
+  --ok: #1a7f4f;
+  --bad: #b8502e;
+  --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --serif: Charter, "Iowan Old Style", "Palatino Linotype", ui-serif, Georgia, serif;
+  --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --paper: #16191e; --ink: #e5e2da; --ink-mute: #9aa1ab;
+    --accent: #6aa8d4; --accent-tint: #1b2b38; --rule: #2b3039;
+    --ok: #4ec089; --bad: #e08a68;
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #16191e; --ink: #e5e2da; --ink-mute: #9aa1ab;
+  --accent: #6aa8d4; --accent-tint: #1b2b38; --rule: #2b3039;
+  --ok: #4ec089; --bad: #e08a68;
+}
+:root[data-theme="light"] {
+  --paper: #fbfaf8; --ink: #1f2937; --ink-mute: #5b6572;
+  --accent: #1e5f8c; --accent-tint: #eaf2f8; --rule: #e2ddd3;
+  --ok: #1a7f4f; --bad: #b8502e;
+}
+
+* { box-sizing: border-box; }
+html, body { background: var(--paper); color: var(--ink); }
+body {
+  font: 16px/1.65 var(--sans);
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 48px 24px 96px;
+}
+h1, h2, h3 { font-family: var(--serif); font-weight: 600; text-wrap: balance; letter-spacing: -0.01em; }
+h1 { font-size: 2rem; line-height: 1.2; margin: 0 0 0.25rem; }
+h2 { font-size: 1.5rem; margin: 3rem 0 0.75rem; padding-top: 1.25rem; border-top: 1px solid var(--rule); }
+h3 { font-size: 1.15rem; margin: 2rem 0 0.5rem; }
+p, ul, ol { margin: 0 0 1rem; max-width: 68ch; }
+ul, ol { padding-left: 1.4rem; }
+li { margin-bottom: 0.35rem; }
+a { color: var(--accent); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+code {
+  font: 0.9em var(--mono);
+  background: var(--accent-tint);
+  padding: 0.1em 0.35em;
+  border-radius: 3px;
+}
+strong { font-weight: 600; }
+
+.eyebrow {
+  font: 600 0.78rem/1 var(--sans);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-mute);
+  margin-bottom: 0.75rem;
+}
+.byline { color: var(--ink-mute); font-size: 0.95rem; margin-bottom: 2.5rem; }
+
+.finding {
+  background: var(--accent-tint);
+  border-left: 3px solid var(--accent);
+  padding: 1.1rem 1.25rem;
+  margin: 1.25rem 0;
+}
+.finding h3 { margin: 0 0 0.4rem; font-family: var(--sans); font-size: 0.82rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--accent); }
+.finding p:last-child { margin-bottom: 0; }
+.finding .metric { font: 600 1.8rem/1 var(--serif); font-variant-numeric: tabular-nums; display: block; margin-bottom: 0.4rem; }
+
+.tbl-wrap { overflow-x: auto; margin: 1rem 0 1.5rem; }
+table {
+  border-collapse: collapse;
+  font-size: 0.92rem;
+  width: 100%;
+  font-variant-numeric: tabular-nums;
+}
+th, td {
+  padding: 0.55rem 0.75rem;
+  text-align: left;
+  border-bottom: 1px solid var(--rule);
+  vertical-align: top;
+}
+th {
+  font: 600 0.76rem/1.3 var(--sans);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ink-mute);
+  border-bottom: 2px solid var(--ink);
+}
+td.num, th.num { text-align: right; }
+td.bad { color: var(--bad); }
+td.ok { color: var(--ok); }
+.impact { letter-spacing: 0.15em; color: var(--accent); white-space: nowrap; }
+.tag {
+  display: inline-block;
+  font: 600 0.72rem/1 var(--sans);
+  padding: 0.25em 0.55em;
+  border-radius: 3px;
+  background: var(--accent-tint);
+  color: var(--accent);
+  letter-spacing: 0.03em;
+}
+table.grid td { text-align: center; font: 0.78rem/1 var(--mono); padding: 0.45rem 0.4rem; }
+table.grid td:first-child { text-align: left; font: 0.86rem var(--mono); }
+table.grid th { text-align: center; }
+table.grid th:first-child { text-align: left; }
+td.v-ok { background: color-mix(in srgb, var(--ok) 15%, var(--paper)); color: var(--ok); }
+td.v-part { background: color-mix(in srgb, var(--ok) 6%, var(--paper)); color: var(--ink-mute); }
+td.v-fmt { background: color-mix(in srgb, var(--bad) 18%, var(--paper)); color: var(--bad); }
+td.v-gap { background: var(--paper); color: var(--rule); }
+td.v-na { background: var(--paper); color: var(--rule); }
+.legend span { display: inline-block; margin-right: 1.2rem; font-size: 0.84rem; }
+.legend i { display: inline-block; width: 0.9rem; height: 0.9rem; vertical-align: -0.15em; margin-right: 0.35rem; border: 1px solid var(--rule); }
+blockquote.prompt {
+  border-left: 3px solid var(--bad);
+  background: color-mix(in srgb, var(--bad) 6%, var(--paper));
+  margin: 0.75rem 0 1rem;
+  padding: 0.8rem 1rem;
+  font: 0.88rem/1.5 var(--mono);
+  white-space: pre-wrap;
+}
+hr { border: none; border-top: 1px solid var(--rule); margin: 2rem 0; }
+.appendix li { font-size: 0.92rem; }
+</style>
+
+<div class="eyebrow">Evaluation · July 2026</div>
+<h1>CTDL xTRA — where Claude can help</h1>
+<p class="byline">Test institution: Western Governors University · Repo: <a href="https://github.com/CredentialEngine/ctdl-xtra">CredentialEngine/ctdl-xtra</a></p>
+
+<h2 style="border-top:none; padding-top:0; margin-top:1rem">Executive summary</h2>
+
+<p>We cloned and reviewed <code>ctdl-xtra</code>, ran its extraction design against five WGU program pages, and compared the output to what's actually on each page and to WGU's own hand-published CTDL records in the Credential Registry.</p>
+
+<div class="finding">
+  <h3>Finding 1 · Coverage</h3>
+  <span class="metric">8.3% → 90.5% recall</span>
+  <p>xTRA's Credential schema requests <strong>4 fields</strong>. A WGU program page has evidence for <strong>14–18 CTDL properties</strong>; WGU's Registry records populate <strong>24–27</strong>. Cost, duration, delivery mode, admission requirements, courses, competencies, occupations, and accreditation are <strong>not attempted</strong>. An expanded 22-field schema on the same inputs lifts field-level recall from <strong>8.3% to 90.5%</strong> — with correctly typed values (ISO 8601 durations, structured cost profiles, controlled-vocabulary enums).</p>
+</div>
+
+<div class="finding">
+  <h3>Finding 2 · Convention mismatch on name &amp; language</h3>
+  <span class="metric">name 5/5 · language 5/5</span>
+  <p>xTRA's prompt deliberately strips the degree type from <code>credential_name</code> ("Computer Science") and asks for language "in full" ("English"). WGU's Registry records — and the CTDL spec for <code>ceterms:name</code> / <code>ceterms:inLanguage</code> — use the full title and BCP-47 (<code>en</code>). This is a <strong>policy question for CE</strong>, not a model failure; xTRA's own golden test flags the stripped names as <code>// TODO: this is not the correct credential name</code>, which suggests the current convention wasn't fully intentional.</p>
+</div>
+
+<p><strong>Recommended first move:</strong> widen <code>common/catalogueTypes.ts</code> from 4 to ~22 fields, fix the credential-name prompt, and add Claude as a provider alongside OpenAI. This is a schema/prompt edit — no new architecture — and closes most of the coverage gap in one PR.</p>
+
+<h2>1 · How xTRA works today</h2>
+
+<p>xTRA is a two-phase system. <strong>Recipe detection</strong> uses an LLM to reverse-engineer an institution's catalog structure (page types, pagination, URL regexes) into a reusable crawl plan — this part is clever and works well. <strong>Extraction</strong> then fetches each detail page (Puppeteer + stealth), simplifies HTML to Markdown, and calls the LLM once with a per-catalogue-type prompt and JSON schema. Results export as Registry Bulk-Upload CSVs.</p>
+
+<p><strong>LLM layer:</strong> OpenAI only (<code>enum Provider { OpenAI }</code> — single member). Default model <code>gpt-5.4-mini</code>. No system message; single user turn. Default <code>temperature: 1</code>. Output via forced tool-call or <code>response_format: json_schema</code>.</p>
+
+<p><strong>xTRA has four separate extractors</strong>, one per <code>CatalogueType</code>. A page is classified into exactly one type, and only that type's schema runs. WGU degree pages classify as <code>CREDENTIALS</code>, so only the 4-field Credential schema applies — the 9-field Course schema is for individual course-catalog entries (a different URL surface, e.g. <code>catalog.wgu.edu/courses/D288</code>).</p>
+
+<div class="tbl-wrap"><table>
+<thead><tr><th>CatalogueType</th><th>Runs on</th><th>Schema fields</th><th class="num">Count</th></tr></thead>
+<tbody>
+<tr><td><strong>Credential</strong></td><td>degree/cert program pages ← <strong>WGU test</strong></td><td><code>credential_name</code>, <code>credential_description</code>, <code>credential_type</code>, <code>language</code></td><td class="num"><strong>4</strong></td></tr>
+<tr><td>Learning&nbsp;Program</td><td>program-overview pages</td><td><code>learning_program_id</code>, <code>_name</code>, <code>_description</code></td><td class="num">3</td></tr>
+<tr><td>Course</td><td>single-course catalog entries</td><td><code>course_id</code>, <code>_name</code>, <code>_description</code>, <code>_prerequisites</code>, <code>_credits_min/max/type</code>, <code>_ceu_credits</code>, <code>_non_credit</code></td><td class="num">9</td></tr>
+<tr><td>Competency</td><td>learning-outcome lists</td><td><code>text</code>, <code>competency_framework</code>, <code>competency_category</code>, <code>language</code></td><td class="num">4</td></tr>
+</tbody>
+</table></div>
+<p style="font-size:0.85rem; color:var(--ink-mute)">Source: <code>common/catalogueTypes.ts:194-547</code>. The 4+3+9+4 = 20 fields are the <em>entire</em> extraction surface across all four types.</p>
+
+<p>Hallucination is guarded by a verbatim-substring check (<code>reportTextInclusion</code>) with ≤3 retries. This catches fabrication but not wrong-field routing or paraphrase.</p>
+
+<h2>2 · Code-review findings</h2>
+
+<div class="tbl-wrap"><table>
+<thead><tr><th></th><th>Finding</th><th>Impact</th><th>Evidence</th></tr></thead>
+<tbody>
+<tr><td><strong>H1</strong></td><td>Schema attempts 4 credential fields; ~18 present on page</td><td><span class="impact">●●●●●</span></td><td><code>common/types.ts:222</code></td></tr>
+<tr><td><strong>H2</strong></td><td>Prompt strips degree type from name; contradicts own enum ("Do not list Certifications" but <code>Certification</code> is a valid type)</td><td><span class="impact">●●●●</span></td><td><code>catalogueTypes.ts:447-459</code></td></tr>
+<tr><td><strong>H3</strong></td><td><code>temperature: 1</code> default for extraction</td><td><span class="impact">●●●</span></td><td><code>openai.ts:135</code>; issue #134</td></tr>
+<tr><td><strong>H4</strong></td><td>All non-enum fields typed <code>string</code> — no numbers, durations, nested profiles</td><td><span class="impact">●●●</span></td><td><code>extractEntityData.ts:258</code></td></tr>
+<tr><td><strong>H5</strong></td><td>Single-page extraction; sibling tuition/admissions tabs never followed</td><td><span class="impact">●●●●</span></td><td><code>exploreDuringExtraction</code> Competencies-only</td></tr>
+<tr><td><strong>H6</strong></td><td>Verbatim-substring check misses wrong-field routing</td><td><span class="impact">●●●</span></td><td>issue #34</td></tr>
+<tr><td><strong>H7</strong></td><td>No CTDL schema validation before export</td><td><span class="impact">●●</span></td><td><code>csv.ts</code></td></tr>
+<tr><td><strong>H8</strong></td><td>LLM-generated split regex; 1000-token chunk threshold</td><td><span class="impact">●●</span></td><td><code>splitChunks.ts</code></td></tr>
+<tr><td><strong>H9</strong></td><td>LLM-generated URL regex for link discovery</td><td><span class="impact">●●</span></td><td><code>detectUrlRegexp.ts</code></td></tr>
+<tr><td><strong>H10</strong></td><td>No per-field confidence or source citation</td><td><span class="impact">●●</span></td><td><code>csv.ts</code></td></tr>
+</tbody>
+</table></div>
+
+<p>Twelve of the repo's 46 open issues are extraction-accuracy bugs (hallucination #63, field-bleed #34, inconsistency #134, boilerplate-on-empty #249/#253).</p>
+
+<h2>3 · Experiment setup &amp; WGU results</h2>
+
+<h3>3.0 · Method</h3>
+<p>Five WGU program pages spanning bachelor's, master's, healthcare, and non-degree. For each, four things are compared:</p>
+<div class="tbl-wrap"><table>
+<thead><tr><th></th><th>Source</th><th>How obtained</th></tr></thead>
+<tbody>
+<tr><td><strong>On-page</strong></td><td>wgu.edu program page</td><td>Saved raw HTML, hand-annotated every fact that maps to a CTDL property (<code>wgu/&lt;slug&gt;/page-annotated.md</code>)</td></tr>
+<tr><td><strong>Registry</strong></td><td>WGU's own published CTDL record</td><td>Credential Registry API — see below</td></tr>
+<tr><td><strong>Baseline</strong></td><td>xTRA's design</td><td>xTRA's verbatim <code>CREDENTIALS</code> prompt + 4-field schema from <code>common/catalogueTypes.ts:431-546</code>, applied via Claude tool-use</td></tr>
+<tr><td><strong>Enhanced</strong></td><td>proposed design</td><td>22-field CTDL-aligned schema (<code>harness/enhanced-schema.mjs</code>) with typed nested profiles, CTDL enums, and a CTDL-aware system message — same input, same model, one call</td></tr>
+</tbody>
+</table></div>
+
+<p><strong>Ground truth — pulling WGU's Registry records.</strong> Credential Finder (credentialfinder.org) is a JS SPA — <code>curl</code>/WebFetch on its detail pages returns the app shell, not data. The reliable path is the Credential Registry REST API (no auth required):</p>
+<ol>
+<li><strong>Find WGU's org CTID</strong> — <code>GET https://credentialengineregistry.org/ce-registry/search?resource_type=organization&amp;fts=Western+Governors+University</code>. Response is an array of <em>envelope</em> objects; the CTID is at <code>[0].envelope_ceterms_ctid</code> → <code>ce-036d082d-d80e-41a7-99a0-2d63a4ad3a4a</code>.</li>
+<li><strong>Search WGU's credentials by name</strong> — <code>GET .../ce-registry/search?owned_by=&lt;org-ctid&gt;&amp;fts=computer+science</code>. Each hit's CTID is <code>.envelope_ceterms_ctid</code>; the JSON-LD is at <code>.decoded_resource["@graph"][0]</code>. Filter by <code>.envelope_ctdl_type</code> (e.g. <code>ceterms:BachelorOfScienceDegree</code>) since the search also returns Collections and Learning Opportunities.</li>
+<li><strong>Fetch the record</strong> — <code>GET https://credentialengineregistry.org/resources/&lt;ctid&gt;</code> returns the plain JSON-LD (no envelope). This is what's saved as <code>wgu/&lt;slug&gt;/registry.json</code>.</li>
+</ol>
+<p>WGU publishes ~1,500 credentials (each catalog revision gets its own CTID; the record's <code>ceterms:alternateName</code> carries a <code>_YYYYMM</code> version suffix like <code>BSCS_202412</code>); the newest active version of each target was selected. All five records + a field-population matrix are under <code>wgu/</code> (see <code>wgu/README.md</code> for the per-credential file layout). Spot-checked live: re-fetching <code>ce-8f5a2e25-…</code> today returns the same 28-key <code>BachelorOfScienceDegree</code> record that's saved.</p>
+
+<p><strong>Pipeline.</strong> Mirrors xTRA's exactly: saved HTML → <code>simplifyHtml</code> (cheerio: strip head/script/nav/footer, drop attrs≠href, collapse divs) → <code>turndown</code> → simplified Markdown → LLM tool-call. <code>harness/simplify.mjs</code> reproduces <code>server/src/extraction/browser.ts:simplifiedMarkdown</code> step-for-step, so the model sees the same input xTRA's worker would.</p>
+
+<p><strong>Running it.</strong> <code>cd harness &amp;&amp; npm install &amp;&amp; ANTHROPIC_API_KEY=sk-... node run.mjs bs-computer-science ../wgu/bs-computer-science/page.html</code> — writes <code>../wgu/&lt;slug&gt;/extracted.json</code> and the exact model input to <code>model-input.md</code>.</p>
+
+<p><strong>Cost</strong> (<code>claude-opus-4-5</code>, all 5 pages × 3 configs): ~152k tokens total. Baseline ≈ 3–8s and 5–12k input / ~200 output per page; enhanced ≈ 18–36s and 6–14k input / 1.3–2.2k output per page — roughly 3–4× the tokens for ~11× the correct fields.</p>
+
+<h3>3.1 · Coverage</h3>
+<div class="tbl-wrap"><table>
+<thead><tr><th>Page</th><th class="num">On-page fields</th><th class="num">Baseline correct</th><th class="num">Enhanced correct</th><th class="num">Baseline recall</th><th class="num">Enhanced recall</th></tr></thead>
+<tbody>
+<tr><td>B.S. Computer Science</td><td class="num">18</td><td class="num bad">1</td><td class="num ok">15</td><td class="num bad">5.6%</td><td class="num ok">83.3%</td></tr>
+<tr><td>MBA</td><td class="num">16</td><td class="num bad">2</td><td class="num ok">16</td><td class="num bad">12.5%</td><td class="num ok">100.0%</td></tr>
+<tr><td>M.S. Nursing – Education</td><td class="num">18</td><td class="num bad">1</td><td class="num ok">16</td><td class="num bad">5.6%</td><td class="num ok">88.9%</td></tr>
+<tr><td>B.S. Accounting</td><td class="num">18</td><td class="num bad">1</td><td class="num ok">16</td><td class="num bad">5.6%</td><td class="num ok">88.9%</td></tr>
+<tr><td>Leadership Certificate</td><td class="num">14</td><td class="num bad">2</td><td class="num ok">13</td><td class="num bad">14.3%</td><td class="num ok">92.9%</td></tr>
+<tr style="border-top:2px solid var(--ink)"><td><strong>Total</strong></td><td class="num"><strong>84</strong></td><td class="num bad"><strong>7</strong></td><td class="num ok"><strong>76</strong></td><td class="num bad"><strong>8.3%</strong></td><td class="num ok"><strong>90.5%</strong></td></tr>
+</tbody>
+</table></div>
+<p style="font-size:0.85rem; color:var(--ink-mute)">Baseline populates 4 fields on every page but only <code>description</code> is reliably correct (5/5); <code>credential_name</code> (0/5), <code>inLanguage</code> (0/5, wrong format), and <code>credentialType</code> (2/5) drag it down.</p>
+
+<h3>3.2 · Baseline verdict, field × program</h3>
+<p>Every cell is one of the 18 CTDL fields on one of the 5 pages. The four highlighted rows are the only fields xTRA's Credential schema attempts; everything below the line is a schema gap.</p>
+<div class="tbl-wrap"><table class="grid">
+<thead><tr><th>CTDL field</th><th>BS&nbsp;CS</th><th>MBA</th><th>MSN&nbsp;Ed</th><th>BS&nbsp;Acct</th><th>Cert</th></tr></thead>
+<tbody>
+<tr><td>name</td><td class="v-fmt">wrong</td><td class="v-fmt">wrong</td><td class="v-fmt">wrong</td><td class="v-fmt">wrong</td><td class="v-fmt">wrong</td></tr>
+<tr><td>description</td><td class="v-ok">✓</td><td class="v-ok">✓</td><td class="v-ok">✓</td><td class="v-ok">✓</td><td class="v-ok">✓</td></tr>
+<tr><td>credentialType</td><td class="v-part">partial</td><td class="v-ok">✓</td><td class="v-part">partial</td><td class="v-part">partial</td><td class="v-ok">✓</td></tr>
+<tr><td>inLanguage</td><td class="v-fmt">wrong</td><td class="v-fmt">wrong</td><td class="v-fmt">wrong</td><td class="v-fmt">wrong</td><td class="v-fmt">wrong</td></tr>
+<tr style="border-top:2px solid var(--ink)"><td>subjectWebpage</td><td class="v-gap">—</td><td class="v-gap">—</td><td class="v-gap">—</td><td class="v-gap">—</td><td class="v-gap">—</td></tr>
+<tr><td>credentialStatusType</td><td class="v-gap">—</td><td class="v-gap">—</td><td class="v-gap">—</td><td class="v-gap">—</td><td class="v-gap">—</td></tr>
+<tr><td>learningDeliveryType</td><td class="v-gap">—</td><td class="v-gap">—</td><td class="v-gap">—</td><td class="v-gap">—</td><td class="v-gap">—</td></tr>
+<tr><td>audienceLevelType</td><td class="v-gap">—</td><td class="v-gap">—</td><td class="v-gap">—</td><td class="v-gap">—</td><td class="v-na">n/a</td></tr>
+<tr><td>estimatedDuration</td><td class="v-gap">—</td><td class="v-gap">—</td><td class="v-gap">—</td><td class="v-gap">—</td><td class="v-gap">—</td></tr>
+<tr><td>creditValue</td><td class="v-gap">—</td><td class="v-na">n/a</td><td class="v-gap">—</td><td class="v-gap">—</td><td class="v-gap">—</td></tr>
+<tr><td>estimatedCost</td><td class="v-gap">—</td><td class="v-gap">—</td><td class="v-gap">—</td><td class="v-gap">—</td><td class="v-gap">—</td></tr>
+<tr><td>requires</td><td class="v-gap">—</td><td class="v-gap">—</td><td class="v-gap">—</td><td class="v-gap">—</td><td class="v-gap">—</td></tr>
+<tr><td>teaches</td><td class="v-gap">—</td><td class="v-gap">—</td><td class="v-gap">—</td><td class="v-gap">—</td><td class="v-gap">—</td></tr>
+<tr><td>occupationType</td><td class="v-gap">—</td><td class="v-gap">—</td><td class="v-gap">—</td><td class="v-gap">—</td><td class="v-na">n/a</td></tr>
+<tr><td>industryType</td><td class="v-gap">—</td><td class="v-gap">—</td><td class="v-gap">—</td><td class="v-gap">—</td><td class="v-gap">—</td></tr>
+<tr><td>hasPart</td><td class="v-gap">—</td><td class="v-gap">—</td><td class="v-gap">—</td><td class="v-gap">—</td><td class="v-gap">—</td></tr>
+<tr><td>accreditedBy</td><td class="v-gap">—</td><td class="v-gap">—</td><td class="v-gap">—</td><td class="v-gap">—</td><td class="v-na">n/a</td></tr>
+<tr><td>industryCertifications</td><td class="v-gap">—</td><td class="v-na">n/a</td><td class="v-gap">—</td><td class="v-gap">—</td><td class="v-na">n/a</td></tr>
+</tbody>
+</table></div>
+<p class="legend">
+<span><i style="background:color-mix(in srgb, var(--ok) 15%, var(--paper))"></i>correct</span>
+<span><i style="background:color-mix(in srgb, var(--ok) 6%, var(--paper))"></i>partial</span>
+<span><i style="background:color-mix(in srgb, var(--bad) 18%, var(--paper))"></i>wrong (prompt bug)</span>
+<span><i style="background:var(--paper)"></i>— schema gap (not attempted)</span>
+<span><i style="background:var(--paper)"></i>n/a (not on page)</span>
+</p>
+
+<h3>3.3 · Why name and language diverge from the Registry</h3>
+<p>The model isn't hallucinating — it's <strong>following the prompt exactly</strong>. The prompt text (<code>common/catalogueTypes.ts:456-475</code>, verbatim including typos):</p>
+<blockquote class="prompt">credential_name: name for the credential or certificate (example: "Computer Science"). <strong>Don not include the type of credential in the name.</strong> Do not confuse the category of the credential with the specific name.</blockquote>
+<blockquote class="prompt">language: The language in full <strong>(example: 'English', 'Spanish', 'German', etc.)</strong></blockquote>
+<p>So the extractor returns <code>"Computer Science"</code> and <code>"English"</code> — exactly as instructed. WGU's manually-published Registry records use the full title ("Bachelor of Science, Computer Science") and BCP-47 (<code>en</code>).</p>
+<p><strong>This is a convention decision, not a model failure.</strong> Whether xTRA <em>should</em> emit the full title and BCP-47 is a policy question for CE. Three data points suggest yes: (a) the Registry Minimum Data Policy defines <code>ceterms:name</code> as the credential's title as awarded; (b) <code>ceterms:inLanguage</code> is spec'd as a BCP-47 tag; (c) xTRA's own golden test <code>ivytech.test.ts</code> comments <code>// TODO: this is not the correct credential name</code> on the stripped values. If CE prefers the stripped form for a downstream reason (dedup? display?), the CSV export could emit both and let the Registry-upload step choose. Either way it's a one-line prompt edit — the point here is that the divergence is deliberate and predictable, not extraction noise.</p>
+<p>The <code>credentialType</code> partials are similar: xTRA's enum has <code>BachelorDegree</code>/<code>MasterDegree</code> but not the CTDL sub-types <code>BachelorOfScienceDegree</code>/<code>MasterOfScienceDegree</code> that WGU publishes — the model picks the closest available parent.</p>
+
+<h3>3.3b · Would running xTRA's other extractors close the gap?</h3>
+<p>xTRA runs one extractor per page. If it ran <strong>all four</strong> on the same WGU degree page, how many of the 14 not-attempted CTDL fields get covered?</p>
+<div class="tbl-wrap"><table>
+<thead><tr><th>Not-attempted CTDL field</th><th>Any extractor field maps?</th><th>Fit</th></tr></thead>
+<tbody>
+<tr><td><code>teaches</code></td><td class="ok">Competency <code>text</code></td><td><strong>good</strong> — Competency extractor already has presence-check + explore logic for outcome bullets</td></tr>
+<tr><td><code>creditValue</code></td><td>Course <code>credits_min/max/type</code></td><td>poor — course-level credits, not program totals</td></tr>
+<tr><td><code>requires</code></td><td>Course <code>course_prerequisites</code></td><td>poor — prompt is course-prereq specific</td></tr>
+<tr><td><code>hasPart</code></td><td>Course <code>course_id/name</code></td><td>partial — expects one page per course</td></tr>
+<tr><td><code>subjectWebpage</code>, <code>credentialStatusType</code>, <code>learningDeliveryType</code>, <code>audienceLevelType</code>, <code>estimatedDuration</code>, <code>estimatedCost</code>, <code>occupationType</code>, <code>industryType</code>, <code>accreditedBy</code>, <code>industryCertifications</code></td><td class="bad">none</td><td>no field in any of the four schemas</td></tr>
+</tbody>
+</table></div>
+<p><strong>1 clean win, 3 poor-fit partials, 10 with no home in any extractor.</strong> Running Competency alongside Credential <em>would</em> recover <code>teaches</code> — a cheap real improvement. But 10 of 14 gap fields don't exist anywhere in <code>catalogueTypes.ts</code>. So "expand which extractors run" and "widen the schema" are <strong>complementary, not alternatives</strong>. The strongest version does both — see P1 and P1b below.</p>
+
+<h3>3.4 · The <code>credential_name</code> bug — 5/5 concrete</h3>
+<div class="tbl-wrap"><table>
+<thead><tr><th>Page</th><th>Baseline <code>credential_name</code></th><th>Registry <code>ceterms:name</code></th></tr></thead>
+<tbody>
+<tr><td>B.S. CS</td><td class="bad">Computer Science</td><td>Bachelor of Science, Computer Science</td></tr>
+<tr><td>MBA</td><td class="bad">Business Administration</td><td>Master of Business Administration</td></tr>
+<tr><td>MSN – Ed</td><td class="bad">Nursing Education (BSN to MSN)</td><td>Master of Science, Nursing - Education (BSN to MSN)</td></tr>
+<tr><td>B.S. Accounting</td><td class="bad">Accounting</td><td>Bachelor of Science, Accounting</td></tr>
+<tr><td>Leadership Cert</td><td class="bad">Business Leadership</td><td>— (Business Leadership Certificate on page)</td></tr>
+</tbody>
+</table></div>
+
+<h3>3.5 · What the enhanced schema captures</h3>
+<ul>
+<li><strong>B.S. CS</strong> — 37 courses in <code>hasPart</code>; <code>estimatedCost</code> = Tuition $4,125 + TechnologyFee $200 per 6-month term; <code>accreditedBy: ABET</code>; 5 industry certifications; 5 occupation types.</li>
+<li><strong>MBA</strong> — <code>estimatedDuration.minimumDuration = "P12M"</code> with source quote; ACBSP accreditation; 11 courses; 3 cost profiles.</li>
+<li><strong>MSN</strong> — <code>requires.prerequisiteCredentials: ["BSN", "current unencumbered RN license"]</code> (the licensure gate CTDL cares most about for healthcare); CCNE accreditation with URL; note that this MSN does not satisfy NP "3 Ps."</li>
+<li><strong>Leadership Cert</strong> — <code>P4M</code> duration, 9 credits, and the extractor <strong>flagged a pricing discrepancy on the source page</strong> in <code>_extractionNotes</code>.</li>
+</ul>
+
+<h3>3.6 · Failure taxonomy — baseline, 84 on-page cells</h3>
+<p style="font-size:0.88rem; color:var(--ink-mute)">Denominator = the 84 field×page cells where the field has evidence <em>on the wgu.edu page</em>. (The full grid is 5×18 = 90 cells; 6 are n/a — the field isn't on that page — and are excluded here.)</p>
+<div class="tbl-wrap"><table>
+<thead><tr><th>Bucket</th><th class="num">Count</th><th class="num">of 84</th><th>Example</th></tr></thead>
+<tbody>
+<tr><td>Not-attempted (schema gap)</td><td class="num bad">64</td><td class="num">76%</td><td><code>estimatedCost</code> on any page — no cost field in schema</td></tr>
+<tr><td>Wrong-format (prompt bug)</td><td class="num bad">10</td><td class="num">12%</td><td><code>name</code> = "Computer Science"; <code>inLanguage</code> = "English"</td></tr>
+<tr><td>Partial (enum too coarse)</td><td class="num bad">3</td><td class="num">4%</td><td><code>credentialType</code> = BachelorDegree; Registry has BachelorOfScienceDegree</td></tr>
+<tr><td>Correct</td><td class="num ok">7</td><td class="num">8%</td><td><code>description</code> (5/5), <code>credentialType</code> (2/5)</td></tr>
+<tr><td>Hallucinated / on-page-but-missed</td><td class="num ok">0</td><td class="num">—</td><td>—</td></tr>
+</tbody>
+</table></div>
+<p>Of the <strong>77 baseline misses</strong>, 64 (83%) are schema gaps — the model was never asked. The other 13 are prompt/enum defects that a text edit fixes. Zero hallucinations, zero cases where the model was asked and the fact was on the page but it failed to find it — <strong>this isn't a model-capability problem</strong>.</p>
+
+<h2>4 · Improvement proposal</h2>
+
+<h3>P1 · Widen the extraction schema <span class="tag">effort S</span></h3>
+<p>Extend <code>CredentialStructuredData</code> and <code>LearningProgramStructuredData</code> in <code>common/catalogueTypes.ts</code> to ~22 CTDL-aligned fields with proper types: <code>estimatedDuration</code> (DurationProfile), <code>estimatedCost</code> (CostProfile[]), <code>requires</code> (ConditionProfile), <code>learningDeliveryType</code>/<code>audienceLevelType</code> (enums), <code>teaches</code>, <code>occupationType</code>, <code>industryType</code>, <code>hasPart</code>, <code>accreditedBy</code>, <code>creditValue</code>. Add matching columns to <code>csv.ts</code>. <em>Closes ~78% of the gap — every "not-attempted" cell.</em></p>
+
+<h3>P1b · Run Competency as a companion extractor on Credential pages <span class="tag">effort XS</span></h3>
+<p>Enable <code>exploreDuringExtraction</code> on the Credential type (or add a <code>companionExtractors: [COMPETENCIES]</code> field to <code>CatalogueTypeDefinition</code>) so program pages also get the Competency pass. Recovers <code>teaches</code> using logic that already exists and is tested. Complementary to P1.</p>
+
+<h3>P2 · Align name/language conventions with Registry <span class="tag">effort XS</span></h3>
+<p>If CE agrees the Registry convention is the target: emit full title for <code>credential_name</code>, BCP-47 for <code>language</code>, and add the missing degree sub-types to the <code>credential_type</code> enum. Resolve the "Do not list Certifications" contradiction and "Ignore stackable certificates" (or document why). Add 2–3 few-shot examples from real Registry records. Set <code>temperature: 0</code>. <em>Aligns all 5 name/language values with WGU's published records; addresses open issue #134.</em></p>
+
+<h3>P3 · Add Claude as a provider <span class="tag">effort S</span></h3>
+<p><code>Provider</code> enum has one member. Add <code>Anthropic</code> and a <code>server/src/anthropic.ts</code> sibling to <code>openai.ts</code> (~200 lines mirroring the existing wrapper via Claude tool-use). Makes P1 and P4 practical: the wider schema and multi-page context both benefit from Claude's larger context window and instruction-following on structured output.</p>
+
+<h3>P4 · Multi-page gather step <span class="tag">effort M</span></h3>
+<p>Generalize <code>exploreDuringExtraction</code>: before extraction, follow same-origin links whose anchor text matches tuition / admission / requirements / courses / careers, concatenate their simplified markdown, extract once. Captures the ~20% of fields that live on sibling tabs at institutions less consolidated than WGU.</p>
+
+<h3>P5 · Field-level validator pass <span class="tag">effort S</span></h3>
+<p>After extraction, a second cheap-model call scores each field 0–1 against its CTDL definition and cites the source sentence. Emit <code>{value, confidence, sourceQuote}</code>. Replaces substring-only <code>reportTextInclusion</code>. <em>Addresses open issues #34, #63, #249/#253.</em></p>
+
+<h3>P6 · Emit CTDL JSON-LD alongside CSV <span class="tag">effort S</span></h3>
+<p>Wrap each record in <code>{"@context": "https://credreg.net/ctdl/schema/context/json", "@type": "ceterms:…", …}</code> and validate against <code>CTDL_Json_Validation_Schema</code> before export.</p>
+
+<h3>Suggested pilot</h3>
+<p>One PR covering P1 + P1b + P2 + P3, benchmarked on the 14 institutions already in <code>server/tests/extractions/credentials/</code> plus WGU. Metric: field-level recall/precision against Registry records. Estimate: 2–3 engineering days.</p>
+
+<h3>Beyond the pilot: a benchmark CE can hill-climb against</h3>
+<p>The current test suite fetches live URLs and asserts a handful of fields with <code>expect.like(...)</code>; several assertions are commented out as <code>[volatile]</code>. A robust eval turns "we added fields" into "recall 8% → 90% on N pages" — a number CE can publish and A/B model choices against.</p>
+
+<p><strong>Golden set = the Registry itself.</strong> The truth data already exists: any credential an institution has manually published to the Registry is a labelled (webpage → CTDL record) pair. Pull ~120 of these — CE is best placed to nominate which publishers' records are highest quality and most current — save each <code>ceterms:subjectWebpage</code> as an HTML fixture, and store the Registry JSON-LD alongside it. Stratify by catalogue vendor (Acalog, CourseLeaf, Kuali, Coursedog, custom) since page structure clusters by vendor. The 35 institutions already in <code>server/tests/extractions/</code> plus WGU/SNHU/ASU are a natural start. No hand-labelling needed except where the Registry record is thin.</p>
+
+<p><strong>Why a judge (and only where needed).</strong> Scoring is per field:</p>
+<ul>
+<li><strong>Enums &amp; identifiers</strong> — <code>credentialType</code>, <code>learningDeliveryType</code>, <code>audienceLevelType</code>, <code>credentialStatusType</code>, <code>inLanguage</code>: exact match (with a small parent/child allowance like <code>BachelorDegree</code> ⊆ <code>BachelorOfScienceDegree</code>).</li>
+<li><strong>Numerics</strong> — <code>estimatedCost.price</code>, <code>creditValue.value</code>, ISO durations: normalize and compare.</li>
+<li><strong>Free text</strong> — <code>description</code>, <code>teaches[]</code>, <code>requires.description</code>, <code>occupationType[]</code>, cost <code>paymentPattern</code>: this is where a judge is needed. "Tuition: $4,125 per 6-month term" and "$4125/term (six months)" should both count as correct; "Software Developer" and "Software Development Engineer" probably should too. A cheap model answers a binary question — <em>does the extracted value express the same fact as the reference?</em> — so semantically-equivalent variants aren't scored as misses. xTRA already ships <code>similarEmbedding</code> in <code>tests/assertions.ts</code>; the judge is the natural extension. Calibrate it on ~30 human-labelled pairs and report agreement (κ) so the judge itself is trusted.</li>
+</ul>
+
+<p><strong>CI wiring.</strong> <code>pnpm test:eval</code> runs the frozen set, writes <code>eval-results/&lt;git-sha&gt;.csv</code>, and fails the build on &gt;2pp recall regression. A <code>scripts/compare-eval.ts</code> diffs two result CSVs and prints exactly which field×page cells moved — the thing you actually look at when a PR changes the number.</p>
+
+<h2>5 · Assumptions &amp; limitations</h2>
+<ul>
+<li>Baseline runs used Claude with xTRA's exact prompt/schema (no <code>OPENAI_API_KEY</code> available). Coverage findings are model-independent — the 4-field ceiling is set by the schema. For a strict apples-to-apples on <code>gpt-5.4-mini</code>, run <code>harness/run.mjs --provider openai</code> with a key.</li>
+<li>WGU's Registry records are used as reference, not gospel — several are dated (<code>MBA_201404</code>), and <code>subjectWebpage</code> on all four degree records points to a college-level index page rather than the program page.</li>
+<li>Five pages is a demonstration, not a benchmark. The harness and saved inputs are ready to scale.</li>
+</ul>
+
+<h2>Appendix — supporting materials</h2>
+<ul class="appendix">
+<li><code>README.md</code> — entry point + quick-start</li>
+<li><code>wgu/&lt;slug&gt;/</code> — one dir per credential: <code>page.html</code> · <code>page-annotated.md</code> · <code>model-input.md</code> · <code>registry.json</code> · <code>extracted.json</code> (see <code>wgu/README.md</code>)</li>
+<li><code>harness/</code> — standalone extraction runner (Node, verified against the Anthropic API)</li>
+<li><code>scoring/</code> — 90-cell field matrix, scorecards, multi-extractor coverage</li>
+<li><code>code-review/</code> — <code>01-architecture.md</code>, <code>02-hypotheses.md</code> (10 findings, file:line), <code>00-open-issues.md</code></li>
+<li><code>ctdl-reference/field-spec.md</code> — CTDL field checklist &amp; Registry policy</li>
+</ul>
