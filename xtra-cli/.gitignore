@@ -1,0 +1,14 @@
+__pycache__/
+*.pyc
+.venv/
+out/
+cache/
+snapshots/
+normalized/
+xtra-cache/
+.vs/
+*.egg-info/
+PR_COMMENT_DRAFT.md
+.coverage
+htmlcov/
+src/xtra/_generated_version.py

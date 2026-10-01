@@ -1,0 +1,56 @@
+name: CI - xtra-cli
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - xtra-cli/**
+      - .github/workflows/ci-xtra-cli.yml
+
+jobs:
+  test:
+    name: Lint & Test
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: xtra-cli
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+
+      # The azure extra is optional at runtime, but the Blob tests skip
+      # without it.
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev,azure]"
+
+      - name: Lint
+        run: ruff check .
+
+      - name: Format check
+        run: ruff format . --check
+
+      - name: Run unit tests
+        run: |
+          pytest \
+            -m "not integration" \
+            --tb=short \
+            --cov=src \
+            --cov-report=term-missing \
+            --cov-report=html \
+            --cov-fail-under=80
+
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: xtra-cli-coverage-html
+          path: xtra-cli/htmlcov
+          if-no-files-found: warn

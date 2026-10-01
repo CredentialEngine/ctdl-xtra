@@ -8,6 +8,7 @@
 *.ntvs*
 *.njsproj
 *.sln
+.vs/
 
 # Dependencies
 node_modules/

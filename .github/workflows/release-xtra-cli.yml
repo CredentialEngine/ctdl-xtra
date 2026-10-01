@@ -1,0 +1,151 @@
+name: Release - xtra-cli
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - xtra-cli/**
+
+  
+  workflow_dispatch:
+
+env:
+  AWS_REGION: us-east-1
+  ECR_REGISTRY: 996810415034.dkr.ecr.us-east-1.amazonaws.com
+  ECR_REPOSITORY: ctdl-xtra-test/cli
+  IMAGE_TAG_PREFIX: xtra-cli
+
+jobs:
+  release:
+    name: Test, Image, and Release
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+      id-token: write
+
+    defaults:
+      run:
+        working-directory: xtra-cli
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Generate release version
+        id: version
+        working-directory: .
+        run: |
+          release_version="$(date -u +'%Y.%m.%d').${GITHUB_RUN_NUMBER}"
+          package_version="$(date -u +'%Y.%-m.%-d').${GITHUB_RUN_NUMBER}"
+
+          echo "release-version=${release_version}" >> "${GITHUB_OUTPUT}"
+          echo "package-version=${package_version}" >> "${GITHUB_OUTPUT}"
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev,azure]"
+
+      - name: Lint
+        run: ruff check .
+
+      - name: Format check
+        run: ruff format . --check
+
+      - name: Run unit tests
+        run: |
+          pytest \
+            -m "not integration" \
+            --tb=short \
+            --cov=src \
+            --cov-report=term-missing \
+            --cov-report=html \
+            --cov-fail-under=80
+
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: xtra-cli-coverage-html
+          path: xtra-cli/htmlcov
+          if-no-files-found: warn
+
+      - name: Stamp release version
+        run: |
+          python - <<'PY'
+          import os
+          import re
+          from pathlib import Path
+
+          pyproject_path = Path("pyproject.toml")
+
+          pyproject, stamped = re.subn(
+              r'^version = "[^"]*"',
+              f'version = "{os.environ["PACKAGE_VERSION"]}"',
+              pyproject_path.read_text(),
+              count=1,
+              flags=re.MULTILINE,
+          )
+          if stamped != 1:
+              raise SystemExit("pyproject.toml has no version line to stamp")
+
+          pyproject_path.write_text(pyproject)
+
+          generated_version_path = Path(
+              "src/xtra/_generated_version.py"
+          )
+
+          generated_version_path.write_text(
+              f'VERSION = "{os.environ["RELEASE_VERSION"]}"\n',
+          )
+          PY
+        env:
+          PACKAGE_VERSION: ${{ steps.version.outputs.package-version }}
+          RELEASE_VERSION: ${{ steps.version.outputs.release-version }}
+
+      - name: Configure AWS credentials
+        if: github.event_name == 'workflow_dispatch'
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        if: github.event_name == 'workflow_dispatch'
+        uses: aws-actions/amazon-ecr-login@v2
+
+      # Unlike ceops, no wheel is released: lib/ is not a package, so the
+      # wheel cannot start the CLI. The image installs from the source tree.
+      - name: Build CLI image
+        id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: xtra-cli
+          push: ${{ github.event_name == 'workflow_dispatch' }}
+          tags: |
+            ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG_PREFIX }}-${{ steps.version.outputs.release-version }}
+            ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG_PREFIX }}-latest
+
+      - name: Create GitHub Release
+        if: github.event_name == 'workflow_dispatch'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: xtra-cli-${{ steps.version.outputs.release-version }}
+          name: xtra-cli ${{ steps.version.outputs.release-version }}
+          target_commitish: ${{ github.sha }}
+          generate_release_notes: true
+          body: |
+            xtra-cli release `${{ steps.version.outputs.release-version }}`
+
+            Outputs:
+            - CLI image:
+              `${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG_PREFIX }}-${{ steps.version.outputs.release-version }}`
+            - CLI image digest:
+              `${{ steps.build.outputs.digest }}`

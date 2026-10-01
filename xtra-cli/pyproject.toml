@@ -1,0 +1,91 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "xtra-cli"
+version = "0.2.0"
+description = "Credential Engine xTRA CLI: catalog crawl, extract, and transform."
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = [
+  # Discovery reads saved pages as a tree, not as a string: see
+  # src/implementations/discover_dom.py. lxml is what recovers from the
+  # unclosed tags a real catalog page is full of; BeautifulSoup falls back
+  # to html.parser without it, and reads those pages the way the
+  # hand-written parser used to.
+  "beautifulsoup4>=4.12",
+  "click>=8.1.0",
+  "jsonschema>=4.0",
+  "lxml>=5.0",
+  "playwright>=1.40",
+  "rapidfuzz>=3.0",
+]
+
+[project.scripts]
+xtra = "xtra.cli:cli"
+xtra-cli = "xtra.cli:cli"
+
+[project.optional-dependencies]
+azure = [
+  "azure-storage-blob>=12.19.0",
+]
+# --with-crawl4ai only. Kept out of the default install because it pulls
+# a large tree, including LLM clients this project never calls.
+crawl4ai = [
+  "crawl4ai>=0.9",
+]
+dev = [
+  "coverage[toml]>=7.16.1",
+  "pytest>=8.0",
+  "pytest-cov>=7.1.0",
+  # One minor release only: ruff restyles its formatter between minors, and
+  # CI fails on any file `ruff format --check` would change.
+  "ruff>=0.16.7,<0.17",
+]
+
+[tool.setuptools]
+package-dir = { "" = "src" }
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src", "tests"]
+testpaths = ["tests"]
+addopts = ["--import-mode=importlib"]
+markers = [
+  "integration: tests that need Azurite or another live service",
+]
+
+[tool.coverage.run]
+source = ["src"]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = false
+
+[tool.ruff]
+line-length = 80
+target-version = "py310"
+extend-exclude = ["htmlcov"]
+
+[tool.ruff.lint]
+# The ceops rule set, listed so a ruff upgrade cannot change what CI checks.
+select = ["E", "F", "I", "UP", "B", "SIM"]
+ignore = ["E501"]
+
+[tool.ruff.lint.per-file-ignores]
+# load_engine() has to put lib/ on sys.path before the bare-name imports.
+"src/implementations/extract.py" = ["E402"]
+"src/implementations/transform.py" = ["E402"]
+"lib/union_fields.py" = ["E402"]
+# pytest.importorskip() has to run before the module that needs the SDK.
+"tests/common/test_azure_storage_provider.py" = ["E402"]
+"tests/common/test_azure_storage_writer.py" = ["E402"]
+# The shim puts src/ on sys.path before it can import the CLI.
+"xtra_cli.py" = ["E402"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"

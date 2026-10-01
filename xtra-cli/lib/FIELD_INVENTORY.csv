@@ -1,0 +1,28 @@
+canonical_label,target_classes,value_kind,ctdl_property,notes
+course_id,Course,string,ceterms:codedNotation,Omit when not printed. Never invent min/max from a single credit.
+course_name,Course,string,ceterms:name,Omit when not printed. Never invent min/max from a single credit.
+course_description,Course,string,ceterms:description,Omit when not printed. Never invent min/max from a single credit.
+course_credits,Course,number,ceterms:creditValue,Single printed credit is one value. Do not emit min/max unless the freeze prints a range or both bounds.
+course_credits_min,Course,number,ceterms:creditValue,Only when the freeze prints an explicit minimum bound (Min, range start).
+course_credits_max,Course,number,ceterms:creditValue,Only when the freeze prints an explicit maximum bound (Max, range end).
+course_prerequisites,Course,string,ceterms:requires,Omit when not printed. Never invent min/max from a single credit.
+course_corequisites,Course,string,,Omit when not printed. Never invent min/max from a single credit.
+course_lecture_hours,Course,number,,Omit when not printed. Never invent min/max from a single credit.
+course_lab_hours,Course,number,,Omit when not printed. Never invent min/max from a single credit.
+course_program,Course,string,,Omit when not printed. Never invent min/max from a single credit.
+course_department,Course,string,,Omit when not printed. Never invent min/max from a single credit.
+course_school,Course,string,,Omit when not printed. Never invent min/max from a single credit.
+course_division,Course,string,,Omit when not printed. Never invent min/max from a single credit.
+course_subject_code,Course,string,,Omit when not printed. Never invent min/max from a single credit.
+course_number,Course,string,,Omit when not printed. Never invent min/max from a single credit.
+course_long_title,Course,string,,Omit when not printed. Never invent min/max from a single credit.
+course_academic_level,Course,string,,Omit when not printed. Never invent min/max from a single credit.
+course_general_education,Course,string,,Omit when not printed. Never invent min/max from a single credit.
+learning_program_id,LearningProgram,string,ceterms:codedNotation,Omit when not printed. Never invent min/max from a single credit.
+learning_program_name,LearningProgram,string,ceterms:name,Omit when not printed. Never invent min/max from a single credit.
+learning_program_description,LearningProgram,string,ceterms:description,Omit when not printed. Never invent min/max from a single credit.
+credential_name,Credential,string,ceterms:name,Omit when not printed. Never invent min/max from a single credit.
+credential_description,Credential,string,ceterms:description,Omit when not printed. Never invent min/max from a single credit.
+competency_framework_name,CompetencyFramework,string,ceasn:name,Omit when not printed. Never invent min/max from a single credit.
+competency_text,Competency,string,ceasn:competencyText,Omit when not printed. Never invent min/max from a single credit.
+relationship_heading,Link,string,,Printed heading that names the program and the award; used only as link evidence.
