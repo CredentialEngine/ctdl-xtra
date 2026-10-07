@@ -4,7 +4,7 @@ on:
   workflow_run:
     workflows: ["Release"]
     types: [completed]
-    branches: [main]
+    branches: [xtra-backup]
   workflow_dispatch:
     inputs:
       image_tag:

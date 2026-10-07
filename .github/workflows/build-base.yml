@@ -2,7 +2,7 @@ name: Build Base Image
 
 on:
   push:
-    branches: [main]
+    branches: [xtra-backup]
     paths:
       - base.Dockerfile
   workflow_dispatch:

@@ -7,9 +7,9 @@ feature/* or fix/*
        │
        │  Pull Request
        ▼
-     main  ──────────────────────────────────────────────────────────►  git history
+  xtra-backup  ─────────────────────────────────────────────────────►  git history
        │
-       │  Merge to main (automatic)
+       │  Merge to xtra-backup (automatic)
        ▼
   [Release workflow]
   Build images → push to TEST ECR
@@ -32,7 +32,7 @@ feature/* or fix/*
   envsubst + kubectl apply → ctdl-xtra-prod cluster
 ```
 
-All development happens on short-lived branches off `main`. There is no long-lived branch — environment promotion is controlled through GitHub Actions workflows, not through git branches.
+All development happens on short-lived branches off `xtra-backup`. That branch is the integration branch for this application; `main` is a separate line and does not build or deploy these images. Environment promotion is controlled through GitHub Actions workflows, not through additional long-lived git branches.
 
 This mirrors the environment model in the xTRA Design Document: `DEVELOPMENT → TEST → SANDBOX → PRODUCTION`.
 
@@ -42,7 +42,7 @@ This mirrors the environment model in the xTRA Design Document: `DEVELOPMENT →
 
 ### CI (`ci.yml`) — Pull Request
 
-Runs on every PR. Blocks merge if any job fails.
+Runs on every pull request into `xtra-backup`. Blocks merge if any job fails.
 
 | Job | What it does |
 |-----|-------------|
@@ -50,22 +50,22 @@ Runs on every PR. Blocks merge if any job fails.
 | Test | Vitest on the `server/` workspace |
 | Build images | Docker build for API and Worker (no push, uses GHA layer cache) |
 
-### Build Base Image (`build-base.yml`) — Push to `main` (path-filtered)
+### Build Base Image (`build-base.yml`) — Push to `xtra-backup` (path-filtered)
 
 Triggers only when `base.Dockerfile` changes. Builds the shared base image (system Chrome, fonts, pm2, pnpm, pre-downloaded Chrome binaries) and pushes to `ctdl-xtra-test/base:latest`. Both `Dockerfile` and `worker.Dockerfile` `FROM` this base, so app builds skip the heavy apt + Chrome install.
 
 The base image lives in TEST's ECR namespace because that's where builds happen. SANDBOX and PRODUCTION never pull from it — base layers are baked into the api/worker image manifests at `docker build` time, so promoted images are self-contained.
 
-### Release (`release.yml`) — Push to `main`
+### Release (`release.yml`) — Push to `xtra-backup`
 
-Runs automatically on every merge to `main`. Lint and Test run in parallel (non-blocking via `continue-on-error`); `publish` runs independently.
+Runs automatically on every merge to `xtra-backup`. Lint and Test run in parallel (non-blocking via `continue-on-error`); `publish` runs independently.
 
 Produces two image tags per service and pushes to TEST ECR:
 
 | Tag | Purpose |
 |-----|---------|
 | `sha-<7char>` | Immutable reference to this exact commit, used for promotion |
-| `main-latest` | Floating tag, always points to the latest main build |
+| `main-latest` | Floating tag, always points to the latest `xtra-backup` build. The tag name is unchanged so existing ECR lifecycle rules keep matching it. |
 
 ECR repositories written to:
 - `ctdl-xtra-test/api`
@@ -123,7 +123,7 @@ At deploy time, `deploy-app.sh` substitutes `${IMAGE_TAG}` with the requested ta
 
 ## Key Principles
 
-- **Build once.** Images are built only on merge to `main`. Every promotion copies via `crane`; the image is never rebuilt and the digest never changes from TEST through PRODUCTION.
+- **Build once.** Images are built only on merge to `xtra-backup`. Every promotion copies via `crane`; the image is never rebuilt and the digest never changes from TEST through PRODUCTION.
 - **Immutable tags.** `sha-*` tags are never overwritten. Only `main-latest` floats (TEST only).
 - **Specific sha in production.** Production deploys always specify an exact `sha-*` tag.
 - **Manual gates above TEST.** TEST auto-deploys; SANDBOX and PRODUCTION require a human to trigger.
