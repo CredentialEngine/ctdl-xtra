@@ -27,6 +27,7 @@ import {
   SubmitJobsItem,
   submitRepeatableJob,
 } from "../workers";
+import { resolveExtractionModel } from "./defaultExtractionModel";
 
 const logger = getLogger("extraction.startExtraction");
 
@@ -47,7 +48,10 @@ export async function startExtraction(
   if (recipe.status != RecipeDetectionStatus.SUCCESS) {
     throw new Error(`Recipe ${recipeId} hasn't been configured for extraction`);
   }
-  const extraction = await createExtraction(recipe.id, model);
+  const extraction = await createExtraction(
+    recipe.id,
+    await resolveExtractionModel(model)
+  );
 
   // Log audit entry if user is provided
   if (userId) {
