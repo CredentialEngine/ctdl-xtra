@@ -1,0 +1,200 @@
+# xtra-cli release pipeline.
+
+trigger:
+  branches:
+    include:
+      - main
+  paths:
+    include:
+      - xtra-cli/**
+    exclude:
+      - xtra-cli/xtra-cli-ci.yml
+      - xtra-cli/xtra-cli-release.yml
+
+pr: none
+
+pool:
+  vmImage: "ubuntu-latest"
+
+variables:
+  pythonVersion: "3.14"
+  imageRepository: "ce/xtra-cli"
+  imageTag: "$(VersionNumber)"
+  acrName: "cetestimages.azurecr.io"
+  deploymentPipelineName: "Deployment-ImageTag-Update"
+  VersionNumber: $[format('{0:yyyy}.{0:MM}.{0:dd}.{1}', pipeline.startTime, variables['Build.BuildId'])]
+
+jobs:
+  - job: Build_Test
+    displayName: "Build & Test"
+    steps:
+      - checkout: self
+        fetchDepth: 1
+
+      - task: PowerShell@2
+        displayName: "Set Build Number"
+        inputs:
+          targetType: inline
+          pwsh: true
+          script: |
+            Write-Host "##vso[build.updatebuildnumber]$(VersionNumber)"
+
+      - bash: |
+          set -euo pipefail
+          docker run --rm \
+            -v "$(Build.SourcesDirectory)/xtra-cli:/src" \
+            -w /src \
+            semgrep/semgrep semgrep scan \
+              --verbose \
+              --error \
+              --config "p/secrets" \
+              --config "p/security-audit" \
+              --config "p/python" \
+              --config "p/dockerfile" \
+              src tests lib Dockerfile
+        displayName: "Semgrep scan - xtra-cli"
+
+      - task: UsePythonVersion@0
+        displayName: "Use Python $(pythonVersion)"
+        inputs:
+          versionSpec: "$(pythonVersion)"
+          addToPath: true
+
+      - bash: |
+          set -euo pipefail
+          python -m pip install --upgrade pip
+          pip install -e ".[dev,azure]"
+        displayName: "Install dependencies"
+        workingDirectory: "$(Build.SourcesDirectory)/xtra-cli"
+
+      - bash: |
+          set -euo pipefail
+          ruff check .
+          ruff format . --check
+        displayName: "Lint and format check"
+        workingDirectory: "$(Build.SourcesDirectory)/xtra-cli"
+
+      - bash: |
+          set -euo pipefail
+          pytest \
+            -m "not integration" \
+            --tb=short \
+            --cov=src \
+            --cov-report=term-missing \
+            --cov-report=html \
+            --cov-fail-under=80
+        displayName: "Run unit tests"
+        workingDirectory: "$(Build.SourcesDirectory)/xtra-cli"
+
+      - bash: |
+          set -euo pipefail
+          python -m build
+        displayName: "Build Python package"
+        workingDirectory: "$(Build.SourcesDirectory)/xtra-cli"
+
+      - task: PublishPipelineArtifact@1
+        displayName: "Publish Build Artifacts"
+        inputs:
+          targetPath: "$(Build.SourcesDirectory)/xtra-cli/dist"
+          artifact: "xtra-cli-drop"
+          publishLocation: "pipeline"
+
+      - task: PublishPipelineArtifact@1
+        displayName: "Publish coverage report"
+        condition: always()
+        inputs:
+          targetPath: "$(Build.SourcesDirectory)/xtra-cli/htmlcov"
+          artifact: "xtra-cli-coverage-html"
+          publishLocation: "pipeline"
+
+  - job: Docker_Build_Push
+    displayName: "Build & Push Image to ACR"
+    dependsOn: Build_Test
+    condition: succeeded()
+    steps:
+      - checkout: self
+        fetchDepth: 1
+
+      # Match the GitHub xtra-cli release version stamp. Docker COPY picks up
+      # both the package metadata and runtime version from this workspace.
+      - bash: |
+          set -euo pipefail
+          python - <<'PYCODE'
+          import os
+          import re
+          from pathlib import Path
+
+          version = os.environ["IMAGE_TAG"]
+          pyproject = Path("pyproject.toml")
+          contents, count = re.subn(
+              r'^version = "[^"]*"',
+              f'version = "{version}"',
+              pyproject.read_text(),
+              count=1,
+              flags=re.MULTILINE,
+          )
+          if count != 1:
+              raise SystemExit("Unable to stamp pyproject.toml")
+          pyproject.write_text(contents)
+          Path("src/xtra/_generated_version.py").write_text(
+              f'VERSION = "{version}"\n'
+          )
+          PYCODE
+        displayName: "Stamp release version"
+        workingDirectory: "$(Build.SourcesDirectory)/xtra-cli"
+        env:
+          IMAGE_TAG: $(imageTag)
+
+      - task: Docker@2
+        displayName: "Login to Azure Container Registry"
+        inputs:
+          command: login
+          containerRegistry: "$(acrServiceConnection)"
+
+      - task: Docker@2
+        displayName: "Build $(imageRepository)"
+        inputs:
+          command: build
+          containerRegistry: "$(acrServiceConnection)"
+          Dockerfile: "$(Build.SourcesDirectory)/xtra-cli/Dockerfile"
+          buildContext: "$(Build.SourcesDirectory)/xtra-cli"
+          repository: "$(imageRepository)"
+          tags: |
+            $(imageTag)
+            latest
+
+      - task: Docker@2
+        displayName: "Push $(imageRepository) to ACR"
+        inputs:
+          command: push
+          containerRegistry: "$(acrServiceConnection)"
+          repository: "$(imageRepository)"
+          tags: |
+            $(imageTag)
+            latest
+
+  - job: TriggerDeployment
+    displayName: "Trigger xtra-cli deployment image-tag update"
+    dependsOn: Docker_Build_Push
+    condition: succeeded()
+    steps:
+      - checkout: none
+
+      - task: PowerShell@2
+        displayName: "Run deployment image-tag update pipeline"
+        env:
+          AZURE_DEVOPS_EXT_PAT: $(System.AccessToken)
+        inputs:
+          targetType: inline
+          pwsh: true
+          script: |
+            $ErrorActionPreference = 'Stop'
+            $env:AZURE_DEVOPS_EXT_PAT | az devops login --organization "https://dev.azure.com/Credential-Engine/"
+            $result = az pipelines run `
+              --organization "https://dev.azure.com/Credential-Engine/" `
+              --project "CredentialEngine" `
+              --name "$(deploymentPipelineName)" `
+              --branch main `
+              --parameters imageTag=$(imageTag) imageName=$(imageRepository)
+            Write-Host $result
+            Write-Host "Triggered $(deploymentPipelineName) for $(acrLoginServer)/$(imageRepository):$(imageTag)."

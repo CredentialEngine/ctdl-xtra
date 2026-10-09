@@ -1,0 +1,113 @@
+# xtra-cli PR validation; no image push or deployment.
+
+trigger: none
+
+pr:
+  branches:
+    include:
+      - main
+  paths:
+    include:
+      - xtra-cli/**
+
+pool:
+  vmImage: "ubuntu-latest"
+
+variables:
+  pythonVersion: "3.14"
+  imageRepository: "ce/xtra-cli"
+  imageTag: "$(VersionNumber)"
+  VersionNumber: $[format('{0:yyyy}.{0:MM}.{0:dd}.{1}', pipeline.startTime, variables['Build.BuildId'])]
+
+jobs:
+  - job: Build_Test
+    displayName: "Build & Test"
+    steps:
+      - checkout: self
+        fetchDepth: 1
+
+      - bash: |
+          set -euo pipefail
+          docker run --rm \
+            -v "$(Build.SourcesDirectory)/xtra-cli:/src" \
+            -w /src \
+            semgrep/semgrep semgrep scan \
+              --verbose \
+              --error \
+              --config "p/secrets" \
+              --config "p/security-audit" \
+              --config "p/python" \
+              --config "p/dockerfile" \
+              src tests lib Dockerfile
+        displayName: "Semgrep scan - xtra-cli"
+
+      - task: UsePythonVersion@0
+        displayName: "Use Python $(pythonVersion)"
+        inputs:
+          versionSpec: "$(pythonVersion)"
+          addToPath: true
+
+      - bash: |
+          set -euo pipefail
+          python -m pip install --upgrade pip
+          pip install -e ".[dev,azure]"
+        displayName: "Install dependencies"
+        workingDirectory: "$(Build.SourcesDirectory)/xtra-cli"
+
+      - bash: |
+          set -euo pipefail
+          ruff check .
+          ruff format . --check
+        displayName: "Lint and format check"
+        workingDirectory: "$(Build.SourcesDirectory)/xtra-cli"
+
+      - bash: |
+          set -euo pipefail
+          pytest \
+            -m "not integration" \
+            --tb=short \
+            --cov=src \
+            --cov-report=term-missing \
+            --cov-report=html \
+            --cov-fail-under=80
+        displayName: "Run unit tests"
+        workingDirectory: "$(Build.SourcesDirectory)/xtra-cli"
+
+      - bash: |
+          set -euo pipefail
+          python -m build
+        displayName: "Build Python package"
+        workingDirectory: "$(Build.SourcesDirectory)/xtra-cli"
+
+      - task: PublishPipelineArtifact@1
+        displayName: "Publish Build Artifacts"
+        inputs:
+          targetPath: "$(Build.SourcesDirectory)/xtra-cli/dist"
+          artifact: "xtra-cli-drop"
+          publishLocation: "pipeline"
+
+      - task: PublishPipelineArtifact@1
+        displayName: "Publish coverage report"
+        condition: always()
+        inputs:
+          targetPath: "$(Build.SourcesDirectory)/xtra-cli/htmlcov"
+          artifact: "xtra-cli-coverage-html"
+          publishLocation: "pipeline"
+
+  - job: Docker_Build
+    displayName: "Build Docker Image"
+    dependsOn: Build_Test
+    condition: succeeded()
+    steps:
+      - checkout: self
+        fetchDepth: 1
+
+      - task: Docker@2
+        displayName: "Build Docker Image $(imageRepository)"
+        inputs:
+          command: build
+          Dockerfile: "$(Build.SourcesDirectory)/xtra-cli/Dockerfile"
+          buildContext: "$(Build.SourcesDirectory)/xtra-cli"
+          repository: "$(imageRepository)"
+          tags: |
+            $(imageTag)
