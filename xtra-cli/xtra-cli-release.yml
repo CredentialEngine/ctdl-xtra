@@ -115,7 +115,7 @@ jobs:
       - checkout: self
         fetchDepth: 1
 
-      # Match the GitHub xtra-cli release version stamp. Docker COPY picks up
+      # Match the xtra-cli release version stamp. Docker COPY picks up
       # both the package metadata and runtime version from this workspace.
       - bash: |
           set -euo pipefail
@@ -146,16 +146,15 @@ jobs:
           IMAGE_TAG: $(imageTag)
 
       - task: Docker@2
-        displayName: "Login to Azure Container Registry"
+        displayName: "Login to ACR"
         inputs:
           command: login
-          containerRegistry: "$(acrServiceConnection)"
+          containerRegistry: "$(acrName)"
 
       - task: Docker@2
-        displayName: "Build $(imageRepository)"
+        displayName: "Build Docker Image $(imageRepository)"
         inputs:
           command: build
-          containerRegistry: "$(acrServiceConnection)"
           Dockerfile: "$(Build.SourcesDirectory)/xtra-cli/Dockerfile"
           buildContext: "$(Build.SourcesDirectory)/xtra-cli"
           repository: "$(imageRepository)"
@@ -164,24 +163,24 @@ jobs:
             latest
 
       - task: Docker@2
-        displayName: "Push $(imageRepository) to ACR"
+        displayName: "Push Docker Image to ACR"
         inputs:
           command: push
-          containerRegistry: "$(acrServiceConnection)"
+          containerRegistry: "$(acrName)"
           repository: "$(imageRepository)"
           tags: |
             $(imageTag)
             latest
 
   - job: TriggerDeployment
-    displayName: "Trigger xtra-cli deployment image-tag update"
-    dependsOn: Docker_Build_Push
+    displayName: "Trigger xtra-cli Deployment"
+    dependsOn: Docker_Build
     condition: succeeded()
     steps:
       - checkout: none
 
       - task: PowerShell@2
-        displayName: "Run deployment image-tag update pipeline"
+        displayName: "Trigger xtra-cli task-image update"
         env:
           AZURE_DEVOPS_EXT_PAT: $(System.AccessToken)
         inputs:
@@ -189,12 +188,17 @@ jobs:
           pwsh: true
           script: |
             $ErrorActionPreference = 'Stop'
-            $env:AZURE_DEVOPS_EXT_PAT | az devops login --organization "https://dev.azure.com/Credential-Engine/"
+
+            echo "$env:AZURE_DEVOPS_EXT_PAT" | az devops login --debug
+
             $result = az pipelines run `
               --organization "https://dev.azure.com/Credential-Engine/" `
               --project "CredentialEngine" `
               --name "$(deploymentPipelineName)" `
               --branch main `
-              --parameters imageTag=$(imageTag) imageName=$(imageRepository)
+              --parameters imageTag=$(imageTag) imageName=$(imageRepository) `
+              --debug
+
+            Write-Host "Pipeline run command completed. Result:"
             Write-Host $result
-            Write-Host "Triggered $(deploymentPipelineName) for $(acrLoginServer)/$(imageRepository):$(imageTag)."
+            Write-Host "Triggered $(deploymentPipelineName) for $(imageRepository):$(imageTag)."
