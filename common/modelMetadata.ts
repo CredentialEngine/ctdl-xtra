@@ -14,6 +14,25 @@ export interface ModelMetadata {
 
 export const MODEL_METADATA: ModelMetadata[] = [
   {
+    model: ProviderModel.Gpt6Astra,
+    label: "GPT-6 Astra",
+    releaseDate: "2026-09-03",
+    provider: Provider.OpenAI,
+    isFlagship: true,
+  },
+  {
+    model: ProviderModel.Gpt61Sol,
+    label: "GPT-6.1 Sol",
+    releaseDate: "2026-09-29",
+    provider: Provider.OpenAI,
+  },
+  {
+    model: ProviderModel.Gpt6Luna,
+    label: "GPT-6 Luna",
+    releaseDate: "2026-09-22",
+    provider: Provider.OpenAI,
+  },
+  {
     model: ProviderModel.Gpt5Nano,
     label: "GPT-5 Nano",
     releaseDate: "2024-05-31",
@@ -44,7 +63,6 @@ export const MODEL_METADATA: ModelMetadata[] = [
     label: "GPT-5.4",
     releaseDate: "2025-03-01",
     provider: Provider.OpenAI,
-    isFlagship: true,
   },
   {
     model: ProviderModel.Gpt4o,
@@ -71,11 +89,29 @@ export const MODEL_METADATA: ModelMetadata[] = [
     provider: Provider.OpenAI,
   },
   {
+    model: ProviderModel.ClaudeHaiku55,
+    label: "Claude Haiku 5.5",
+    releaseDate: "2026-10-07",
+    provider: Provider.Anthropic,
+    hint: "fastest",
+  },
+  {
+    model: ProviderModel.ClaudeSonnet55,
+    label: "Claude Sonnet 5.5",
+    releaseDate: "2026-09-28",
+    provider: Provider.Anthropic,
+  },
+  {
+    model: ProviderModel.ClaudeOpus55,
+    label: "Claude Opus 5.5",
+    releaseDate: "2026-09-22",
+    provider: Provider.Anthropic,
+  },
+  {
     model: ProviderModel.ClaudeHaiku45,
     label: "Claude Haiku 4.5",
     releaseDate: "2025-10-15",
     provider: Provider.Anthropic,
-    hint: "fastest",
   },
   {
     model: ProviderModel.ClaudeSonnet5,
@@ -94,12 +130,15 @@ export const MODEL_METADATA: ModelMetadata[] = [
     label: "Claude Fable 5.1",
     releaseDate: "2026-09-01",
     provider: Provider.Anthropic,
-    hint: "newest",
   },
 ];
 
 export const DEFAULT_EXTRACTION_MODEL: ProviderModel =
   MODEL_METADATA.find((m) => m.bestValue)?.model ?? ProviderModel.Gpt54Mini;
+
+/** Claude model used for agentic recipe configuration when no setting is stored. */
+export const DEFAULT_AGENTIC_RECIPE_MODEL: ProviderModel =
+  ProviderModel.ClaudeSonnet55;
 
 export function isProviderModel(value: unknown): value is ProviderModel {
   return (
@@ -115,6 +154,16 @@ export function coerceProviderModel(
   return isProviderModel(value) ? value : fallback;
 }
 
+export function coerceAnthropicModel(
+  value: unknown,
+  fallback: ProviderModel = DEFAULT_AGENTIC_RECIPE_MODEL
+): ProviderModel {
+  return isProviderModel(value) &&
+    providerForModel(value) === Provider.Anthropic
+    ? value
+    : fallback;
+}
+
 export function providerForModel(model: ProviderModel): Provider {
   return String(model).startsWith("claude-")
     ? Provider.Anthropic
@@ -127,9 +176,7 @@ export const PROVIDER_LABELS: Record<Provider, string> = {
 };
 
 export function modelLabel(model: ProviderModel | string): string {
-  return (
-    MODEL_METADATA.find((m) => m.model === model)?.label ?? String(model)
-  );
+  return MODEL_METADATA.find((m) => m.model === model)?.label ?? String(model);
 }
 
 export function modelsForProvider(provider: Provider): ModelMetadata[] {

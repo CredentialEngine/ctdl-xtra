@@ -1,12 +1,5 @@
-import {
-  SelectGroup,
-  SelectItem,
-  SelectLabel,
-} from "@/components/ui/select";
-import {
-  PROVIDER_LABELS,
-  modelsForProvider,
-} from "@common/modelMetadata";
+import { SelectGroup, SelectItem, SelectLabel } from "@/components/ui/select";
+import { PROVIDER_LABELS, modelsForProvider } from "@common/modelMetadata";
 import { Provider } from "@common/types";
 
 function formatReleaseDate(releaseDate: string) {
@@ -17,10 +10,13 @@ function formatReleaseDate(releaseDate: string) {
   });
 }
 
-export function ModelSelectGroups() {
+export function ModelSelectGroups({
+  provider: onlyProvider,
+}: { provider?: Provider } = {}) {
+  const providers = onlyProvider ? [onlyProvider] : Object.values(Provider);
   return (
     <>
-      {Object.values(Provider).map((provider) => (
+      {providers.map((provider) => (
         <SelectGroup key={provider}>
           <SelectLabel>{PROVIDER_LABELS[provider]}</SelectLabel>
           {modelsForProvider(provider).map((meta) => (

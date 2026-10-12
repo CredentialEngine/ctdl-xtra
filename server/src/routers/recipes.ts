@@ -1,6 +1,12 @@
 import { z } from "zod";
 import { publicProcedure, router } from ".";
-import { CatalogueType, PageType, RecipeConfiguration, RecipeDetectionStatus, UrlPatternType } from "../../../common/types";
+import {
+  CatalogueType,
+  PageType,
+  RecipeConfiguration,
+  RecipeDetectionStatus,
+  UrlPatternType,
+} from "../../../common/types";
 import { AppError, AppErrors } from "../appErrors";
 import {
   createRecipe,
@@ -26,6 +32,7 @@ import {
 } from "../extraction/robotsParser";
 import { submitRecipeDetection } from "../extraction/submitRecipeDetection";
 import { submitAgenticRecipeDetection } from "../extraction/submitAgenticRecipeDetection";
+import { resolveAgenticRecipeModel } from "../agentic/resolveAgenticRecipeModel";
 import { resolveAgentModel } from "../agentic/types";
 import { toWatchRef } from "../jobWatching";
 import getLogger from "../logging";
@@ -75,7 +82,11 @@ const PageSetupConfigSchema = z
           });
         }
       } else if (step.type === "wait") {
-        if (!Number.isFinite(step.seconds) || step.seconds <= 0 || step.seconds > 600) {
+        if (
+          !Number.isFinite(step.seconds) ||
+          step.seconds <= 0 ||
+          step.seconds > 600
+        ) {
           ctx.addIssue({
             code: z.ZodIssueCode.custom,
             message: "Wait seconds must be between 1 and 600",
@@ -147,15 +158,17 @@ export const recipesRouter = router({
 
           // Check if configuration is provided and valid (has pageType at minimum)
           // This ensures template and manual modes don't trigger background detection tasks
-          const hasValidConfiguration = 
-            opts.input.configuration && 
-            typeof opts.input.configuration === 'object' &&
-            'pageType' in opts.input.configuration &&
+          const hasValidConfiguration =
+            opts.input.configuration &&
+            typeof opts.input.configuration === "object" &&
+            "pageType" in opts.input.configuration &&
             opts.input.configuration.pageType !== undefined &&
             opts.input.configuration.pageType !== null;
 
           if (hasValidConfiguration && opts.input.configuration) {
-            logger.info(`Creating recipe with provided configuration (template/manual mode). No background tasks will be triggered.`);
+            logger.info(
+              `Creating recipe with provided configuration (template/manual mode). No background tasks will be triggered.`
+            );
             const recipe = await createRecipe(
               opts.input.catalogueId,
               opts.input.url,
@@ -165,22 +178,31 @@ export const recipesRouter = router({
               opts.input.name,
               opts.input.description
             );
-            logger.info(`Created recipe ${recipe.id} without background detection tasks`);
+            logger.info(
+              `Created recipe ${recipe.id} without background detection tasks`
+            );
             return {
               id: recipe.id,
             };
           } else {
             // Only trigger detection if configuration is explicitly not provided (detect mode)
             // If configuration is provided but invalid, reject the request to prevent accidental detection
-            if (opts.input.configuration !== undefined && opts.input.configuration !== null) {
-              logger.warn(`Invalid configuration provided. Rejecting recipe creation to prevent accidental background detection.`);
+            if (
+              opts.input.configuration !== undefined &&
+              opts.input.configuration !== null
+            ) {
+              logger.warn(
+                `Invalid configuration provided. Rejecting recipe creation to prevent accidental background detection.`
+              );
               throw new AppError(
                 "Invalid recipe configuration provided. Please ensure the configuration includes a valid pageType.",
                 AppErrors.BAD_REQUEST
               );
             }
 
-            logger.info(`No configuration provided. Starting recipe detection with background tasks (${opts.input.mode ?? "detect"} mode).`);
+            logger.info(
+              `No configuration provided. Starting recipe detection with background tasks (${opts.input.mode ?? "detect"} mode).`
+            );
             const submitDetection =
               opts.input.mode === "agentic"
                 ? submitAgenticRecipeDetection
@@ -317,7 +339,7 @@ export const recipesRouter = router({
         {
           recipeId: opts.input.id,
           triggeredByUserId: opts.ctx.user?.id ?? null,
-          model: resolveAgentModel(),
+          model: await resolveAgenticRecipeModel(),
         },
         jobId
       );
@@ -331,7 +353,9 @@ export const recipesRouter = router({
       })
     )
     .mutation(async (opts) => {
-      const { content, screenshot } = await fetchBrowserPage({ url: opts.input.url });
+      const { content, screenshot } = await fetchBrowserPage({
+        url: opts.input.url,
+      });
       const markdownContent = await simplifiedMarkdown(content);
       return detectPagination(
         {
@@ -407,28 +431,28 @@ export const recipesRouter = router({
 
       // Build update object with only provided fields
       const updateData: any = {};
-      
+
       if (opts.input.update.url !== undefined) {
         updateData.url = opts.input.update.url;
       }
-      
+
       if (opts.input.update.configuration !== undefined) {
         // If configuration is provided, use it directly (full replacement)
         updateData.configuration = opts.input.update.configuration;
       }
-      
+
       if (opts.input.update.isTemplate !== undefined) {
         updateData.isTemplate = opts.input.update.isTemplate;
       }
-      
+
       if (opts.input.update.name !== undefined) {
         updateData.name = opts.input.update.name;
       }
-      
+
       if (opts.input.update.description !== undefined) {
         updateData.description = opts.input.update.description;
       }
-      
+
       return updateRecipe(recipe.id, updateData);
     }),
   destroy: publicProcedure
@@ -481,7 +505,7 @@ export const recipesRouter = router({
             clickOptions: opts.input.clickOptions,
             pageSetup: opts.input.pageSetup,
           });
-          
+
           // If regex is provided, filter the discovered URLs by the regex
           if (regexp) {
             const testRegex = new RegExp(regexp, "g");
@@ -509,7 +533,10 @@ export const recipesRouter = router({
         } else {
           // Use traditional regex-based extraction (regex is required when no clickSelector)
           if (!regexp) {
-            throw new AppError("Regex is required when clickSelector is not provided", AppErrors.BAD_REQUEST);
+            throw new AppError(
+              "Regex is required when clickSelector is not provided",
+              AppErrors.BAD_REQUEST
+            );
           }
           const { content } = await fetchBrowserPage({
             url: opts.input.url,
@@ -522,12 +549,18 @@ export const recipesRouter = router({
 
           const testRegex = new RegExp(regexp, "g");
           const extractor = createUrlExtractor(testRegex);
-          const extractedUrls = await extractor(opts.input.url, markdownContent, opts.input.exactLinkPatternMatch ?? false);
+          const extractedUrls = await extractor(
+            opts.input.url,
+            markdownContent,
+            opts.input.exactLinkPatternMatch ?? false
+          );
           urls = extractedUrls.filter((url): url is string => url !== null);
         }
 
         // Normalize all extracted URLs using the input URL as the base
-        const normalizedUrls = urls.map((url) => normalizeUrl(url, opts.input.url));
+        const normalizedUrls = urls.map((url) =>
+          normalizeUrl(url, opts.input.url)
+        );
 
         return {
           regexp: regexp || "",

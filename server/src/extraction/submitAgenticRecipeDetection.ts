@@ -1,5 +1,5 @@
 import { PageType } from "../../../common/types";
-import { resolveAgentModel } from "../agentic/types";
+import { resolveAgenticRecipeModel } from "../agentic/resolveAgenticRecipeModel";
 import { findCatalogueById } from "../data/catalogues";
 import { startRecipe } from "../data/recipes";
 import { toWatchRef } from "../jobWatching";
@@ -31,7 +31,7 @@ export async function submitAgenticRecipeDetection(
     {
       recipeId: id,
       triggeredByUserId: triggeredByUserId ?? null,
-      model: resolveAgentModel(),
+      model: await resolveAgenticRecipeModel(),
     },
     jobId
   );

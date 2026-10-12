@@ -82,24 +82,24 @@ export interface RecipeConfiguration<
   /**
    * When true, the links gathered from the page
    * will be the sub-segment that exactly matches the link pattern.
-   * 
+   *
    * So for example, if the link pattern is course\/([A-Za-z0-9]+)
    * and the URL is /2025-2026/course/acb then the page enqueued
-   * will be /course/acb instead of /2025-2026/course/acb which 
+   * will be /course/acb instead of /2025-2026/course/acb which
    * is the default behavior without this flag.
-   * 
+   *
    * This is needed when catalogues use links that are not
    * correctly resolved by the NodeJS URL class.
-   * 
+   *
    * For example, The Antelope Valley College uses links such as
-   * 2025-2026/course/acb in its courses index page but the 
+   * 2025-2026/course/acb in its courses index page but the
    * catalogue index page already contains the 2025-2026 segment
    * segment leading to URLs being formed to /2025-2026/2025-2026/course/acb
    * instead of /2025-2026/course/acb.
-   * 
-   * For some reason browsers handle this correctly but NodeJS URL 
+   *
+   * For some reason browsers handle this correctly but NodeJS URL
    * keeps the duplicate segment.
-   * 
+   *
    */
   exactLinkPatternMatch?: boolean;
 }
@@ -131,9 +131,15 @@ export enum ProviderModel {
   Gpt54 = "gpt-5.4",
   Gpt54Mini = "gpt-5.4-mini",
   Gpt54Nano = "gpt-5.4-nano",
+  Gpt6Astra = "gpt-6-astra",
+  Gpt61Sol = "gpt-6.1-sol",
+  Gpt6Luna = "gpt-6-luna",
   ClaudeHaiku45 = "claude-haiku-4-5",
+  ClaudeHaiku55 = "claude-haiku-5-5",
   ClaudeSonnet5 = "claude-sonnet-5",
+  ClaudeSonnet55 = "claude-sonnet-5-5",
   ClaudeOpus5 = "claude-opus-5",
+  ClaudeOpus55 = "claude-opus-5-5",
   ClaudeFable51 = "claude-fable-5-1",
 }
 

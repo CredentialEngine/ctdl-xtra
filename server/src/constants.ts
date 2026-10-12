@@ -1,4 +1,7 @@
-import { DEFAULT_EXTRACTION_MODEL } from "../../common/modelMetadata";
+import {
+  DEFAULT_AGENTIC_RECIPE_MODEL,
+  DEFAULT_EXTRACTION_MODEL,
+} from "../../common/modelMetadata";
 
 export const SETTING_DEFAULTS = {
   MAX_EXTRACTION_BUDGET: 50,
@@ -7,4 +10,5 @@ export const SETTING_DEFAULTS = {
   OPENAI_API_KEY: "",
   ANTHROPIC_API_KEY: "",
   DEFAULT_EXTRACTION_MODEL,
+  AGENTIC_RECIPE_MODEL: DEFAULT_AGENTIC_RECIPE_MODEL,
 };
