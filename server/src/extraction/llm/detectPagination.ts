@@ -1,15 +1,10 @@
-import {
-  ChatCompletionContentPart,
-  ChatCompletionMessageParam,
-} from "openai/resources/chat/completions";
-import { DefaultLlmPageOptions } from ".";
+import { DefaultLlmPageOptions, userPageMessage } from ".";
 import {
   CatalogueType,
   PageType,
   PaginationConfiguration,
   UrlPatternType,
 } from "../../../../common/types";
-import getLogger from "../../logging";
 import {
   BadToolCallResponseError,
   UnknownPaginationTypeError,
@@ -17,8 +12,9 @@ import {
   assertNumber,
   assertString,
   assertStringEnum,
-  simpleToolCompletion,
-} from "../../openai";
+} from "../../llm/assert";
+import { simpleToolCompletion } from "../../llm/LLMProviderApi";
+import getLogger from "../../logging";
 import { getCatalogueTypeDefinition } from "../catalogueTypes";
 
 const logger = getLogger("extraction.llm.detectPagination");
@@ -136,27 +132,11 @@ ${defaultOptions.content}
 </website_content>
 `;
 
-  const completionContent: ChatCompletionContentPart[] = [
-    {
-      type: "text",
-      text: isPaginated ? hasPaginationPrompt : prompt,
-    },
-  ];
-
-  if (defaultOptions.screenshot) {
-    completionContent.push({
-      type: "image_url",
-      image_url: {
-        url: `data:image/webp;base64,${defaultOptions.screenshot}`,
-      },
-    });
-  }
-
-  const messages: ChatCompletionMessageParam[] = [
-    {
-      role: "user",
-      content: completionContent,
-    },
+  const messages = [
+    userPageMessage(
+      isPaginated ? hasPaginationPrompt : prompt,
+      defaultOptions.screenshot
+    ),
   ];
   const response = await simpleToolCompletion({
     messages,

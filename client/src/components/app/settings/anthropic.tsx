@@ -45,7 +45,8 @@ export function AnthropicApiKeyForm() {
         <CardHeader>
           <CardTitle>Anthropic API Key</CardTitle>
           <CardDescription>
-            The API key that will used for Anthropic requests. <br />
+            The API key used for Anthropic requests, including Claude catalogue
+            extractions and agentic recipes. <br />
             {settingQuery.data?.encryptedPreview && (
               <>
                 The key is currently set to{" "}

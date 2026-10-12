@@ -1,8 +1,8 @@
-import { ChatCompletionContentPart } from "openai/resources/chat/completions";
-import { DefaultLlmPageOptions } from ".";
+import { DefaultLlmPageOptions, userPageMessage } from ".";
 import { ProviderModel } from "../../../../common/types";
+import { assertNumber, assertString } from "../../llm/assert";
+import { simpleToolCompletion } from "../../llm/LLMProviderApi";
 import getLogger from "../../logging";
-import { assertNumber, assertString, simpleToolCompletion } from "../../openai";
 
 const logger = getLogger("extraction.llm.detectChunkSplitRegexp");
 
@@ -92,29 +92,8 @@ export default async function detectChunkSplitRegexp(
     ${defaultOptions.content}
   `;
 
-  const completionContent: ChatCompletionContentPart[] = [
-    {
-      type: "text",
-      text: prompt,
-    },
-  ];
-
-  if (defaultOptions.screenshot) {
-    completionContent.push({
-      type: "image_url",
-      image_url: {
-        url: `data:image/webp;base64,${defaultOptions.screenshot}`,
-      },
-    });
-  }
-
   const result = await simpleToolCompletion({
-    messages: [
-      {
-        role: "user",
-        content: completionContent,
-      },
-    ],
+    messages: [userPageMessage(prompt, defaultOptions.screenshot)],
     model: ProviderModel.Gpt5,
     toolName: "regexp",
     parameters: {

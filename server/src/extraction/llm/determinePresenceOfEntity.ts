@@ -1,10 +1,7 @@
-import {
-  ChatCompletionContentPart,
-  ChatCompletionMessageParam,
-} from "openai/resources/chat/completions";
-import { DefaultLlmPageOptions, MD_START, MD_END } from ".";
+import { DefaultLlmPageOptions, MD_START, MD_END, userPageMessage } from ".";
 import { ProviderModel } from "../../../../common/types";
-import { structuredCompletion } from "../../openai";
+import { structuredCompletion } from "../../llm/LLMProviderApi";
+import { supportsTopP } from "../../llm/models";
 import { CatalogueTypeDefinition } from "../catalogueTypes";
 
 /**
@@ -33,27 +30,8 @@ ${options.content}
 ${MD_END}
 `;
 
-  const completionContent: ChatCompletionContentPart[] = [
-    {
-      type: "text",
-      text: prompt,
-    },
-  ];
-
-  if (options.screenshot && !entityDef.skipScreenshot) {
-    completionContent.push({
-      type: "image_url",
-      image_url: {
-        url: `data:image/webp;base64,${options.screenshot}`,
-      },
-    });
-  }
-
-  const messages: ChatCompletionMessageParam[] = [
-    {
-      role: "user",
-      content: completionContent,
-    },
+  const messages = [
+    userPageMessage(prompt, options.screenshot, entityDef.skipScreenshot),
   ];
 
   const model =
@@ -91,7 +69,7 @@ ${MD_END}
       : undefined,
   };
 
-  if (model !== ProviderModel.Gpt5) {
+  if (supportsTopP(model)) {
     requestOptions.top_p = 0.3;
   }
 

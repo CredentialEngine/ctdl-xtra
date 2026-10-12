@@ -21,6 +21,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { ModelSelectGroups } from "@/components/app/ModelSelect";
 import {
   Tooltip,
   TooltipContent,
@@ -28,9 +29,10 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import {
+  coerceProviderModel,
   DEFAULT_EXTRACTION_MODEL,
-  MODEL_METADATA,
 } from "@common/modelMetadata";
+import { ProviderModel } from "@common/types";
 import { Recipe, RecipeDetectionStatus, trpc } from "@/utils";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { HelpCircle, Pickaxe } from "lucide-react";
@@ -42,17 +44,7 @@ import { displayRecipeDetails } from "../recipes/util";
 
 const FormSchema = z.object({
   recipeId: z.string(),
-  model: z.enum([
-    "gpt-4o",
-    "gpt-4.1",
-    "o3-mini",
-    "o4-mini",
-    "gpt-5",
-    "gpt-5-nano",
-    "gpt-5.4",
-    "gpt-5.4-mini",
-    "gpt-5.4-nano",
-  ]),
+  model: z.nativeEnum(ProviderModel),
 });
 
 export default function CatalogueCreateExtraction() {
@@ -63,11 +55,17 @@ export default function CatalogueCreateExtraction() {
     { enabled: !!parseInt(catalogueId || "") }
   );
   const createExtraction = trpc.extractions.create.useMutation();
+  const defaultModelSetting = trpc.settings.detail.useQuery({
+    key: "DEFAULT_EXTRACTION_MODEL",
+  });
+  const defaultModel = coerceProviderModel(
+    defaultModelSetting.data?.value ?? DEFAULT_EXTRACTION_MODEL
+  );
   const form = useForm<z.infer<typeof FormSchema>>({
     resolver: zodResolver(FormSchema),
     defaultValues: {
       recipeId: recipeId || "",
-      model: DEFAULT_EXTRACTION_MODEL,
+      model: defaultModel,
     },
   });
   const [_location, navigate] = useLocation();
@@ -75,21 +73,23 @@ export default function CatalogueCreateExtraction() {
   useEffect(() => {
     if (!catalogueDetail.data) {
       setRecipe(null);
-      form.reset({ recipeId: "", model: DEFAULT_EXTRACTION_MODEL });
-    } else {
-      const parsedRecipeId = parseInt(recipeId || "");
-      const foundRecipe = parsedRecipeId
-        ? catalogueDetail.data.recipes.find((r) => r.id == parsedRecipeId)
-        : catalogueDetail.data.recipes.find((r) => r.isDefault);
-      if (foundRecipe) {
-        setRecipe(foundRecipe as Recipe);
-        form.reset({
-          recipeId: foundRecipe.id.toString(),
-          model: DEFAULT_EXTRACTION_MODEL,
-        });
-      }
+      form.setValue("recipeId", "");
+      return;
+    }
+    const parsedRecipeId = parseInt(recipeId || "");
+    const foundRecipe = parsedRecipeId
+      ? catalogueDetail.data.recipes.find((r) => r.id == parsedRecipeId)
+      : catalogueDetail.data.recipes.find((r) => r.isDefault);
+    if (foundRecipe) {
+      setRecipe(foundRecipe as Recipe);
+      form.setValue("recipeId", foundRecipe.id.toString());
     }
   }, [catalogueDetail.data, recipeId]);
+
+  useEffect(() => {
+    if (form.getFieldState("model").isDirty) return;
+    form.setValue("model", defaultModel);
+  }, [defaultModel]);
 
   async function onSubmit(data: z.infer<typeof FormSchema>) {
     await createExtraction.mutateAsync({
@@ -139,27 +139,12 @@ export default function CatalogueCreateExtraction() {
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            {MODEL_METADATA.map((meta) => (
-                              <SelectItem
-                                key={meta.model}
-                                value={meta.model}
-                                className="cursor-pointer"
-                              >
-                                {meta.label}
-                                {meta.isCheapest ? " (Lowest cost)" : ""}
-                                {meta.bestValue ? " (Best Value)" : ""}
-                                {meta.isFlagship ? " (Flagship)" : ""}
-                                <span className="opacity-60">
-                                  {" — "}
-                                  {new Date(meta.releaseDate).toLocaleDateString(
-                                    "en-US",
-                                    { year: "numeric", month: "short", day: "numeric" }
-                                  )}
-                                </span>
-                              </SelectItem>
-                            ))}
+                            <ModelSelectGroups />
                           </SelectContent>
                         </Select>
+                        <FormDescription>
+                          Defaults to the model chosen in Settings.
+                        </FormDescription>
                         <FormMessage />
                       </FormItem>
                     )}

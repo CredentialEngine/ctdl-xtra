@@ -141,6 +141,13 @@
       "when": 1774706058290,
       "tag": "0019_funny_starhawk",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1778520000000,
+      "tag": "0020_add_anthropic_provider",
+      "breakpoints": true
     }
   ]
 }

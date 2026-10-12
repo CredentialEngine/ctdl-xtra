@@ -2,6 +2,7 @@ import { AnthropicApiKeyForm } from "./anthropic";
 import { OpenAIApiKeyForm } from "./openapi";
 import { ProxySettingsForm } from "./proxy";
 import { MaxExtractionBudgetForm } from "./budget";
+import { DefaultExtractionModelForm } from "./defaultModel";
 
 export default function Settings() {
   return (
@@ -14,6 +15,7 @@ export default function Settings() {
         <AnthropicApiKeyForm />
         <ProxySettingsForm />
         <MaxExtractionBudgetForm />
+        <DefaultExtractionModelForm />
       </div>
     </>
   );

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { ProviderModel } from "../../../common/types";
 import { publicProcedure, router } from ".";
 import { createOrUpdate, findSetting } from "../data/settings";
 import { SETTING_DEFAULTS } from "../constants";
@@ -10,6 +11,7 @@ const DetailQuerySchema = z.object({
     "OPENAI_API_KEY",
     "ANTHROPIC_API_KEY",
     "MAX_EXTRACTION_BUDGET",
+    "DEFAULT_EXTRACTION_MODEL",
   ]),
 });
 
@@ -135,6 +137,14 @@ export const settingsRouter = router({
         value: updated,
         isEncrypted: true,
         encryptedPreview: updated.length > 0 ? JSON.stringify(previews) : null,
+      });
+    }),
+  setDefaultExtractionModel: publicProcedure
+    .input(z.nativeEnum(ProviderModel))
+    .mutation(async (opts) => {
+      await createOrUpdate({
+        key: "DEFAULT_EXTRACTION_MODEL",
+        value: opts.input,
       });
     }),
   setMaxExtractionBudget: publicProcedure

@@ -30,7 +30,7 @@ import { findSetting } from "../data/settings";
 import { sendEmailToAll } from "../email";
 import ExtractionComplete from "../emails/extractionComplete";
 import getLogger from "../logging";
-import { estimateCost } from "../openai";
+import { estimateCost } from "../llm/LLMProviderApi";
 
 const logger = getLogger("workers.updateExtractionCompletion");
 

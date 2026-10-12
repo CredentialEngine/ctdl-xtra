@@ -1,9 +1,6 @@
-import {
-  ChatCompletionContentPart,
-  ChatCompletionMessageParam,
-} from "openai/resources/chat/completions";
-import { DefaultLlmPageOptions } from ".";
-import { assertBool, assertNumber, simpleToolCompletion } from "../../openai";
+import { DefaultLlmPageOptions, userPageMessage } from ".";
+import { assertBool, assertNumber } from "../../llm/assert";
+import { simpleToolCompletion } from "../../llm/LLMProviderApi";
 
 export async function detectPageCount(
   defaultOptions: DefaultLlmPageOptions,
@@ -25,28 +22,7 @@ WEBSITE CONTENT:
 ${defaultOptions.content}
 `;
 
-  const completionContent: ChatCompletionContentPart[] = [
-    {
-      type: "text",
-      text: prompt,
-    },
-  ];
-
-  if (defaultOptions.screenshot) {
-    completionContent.push({
-      type: "image_url",
-      image_url: {
-        url: `data:image/webp;base64,${defaultOptions.screenshot}`,
-      },
-    });
-  }
-
-  const messages: ChatCompletionMessageParam[] = [
-    {
-      role: "user",
-      content: completionContent,
-    },
-  ];
+  const messages = [userPageMessage(prompt, defaultOptions.screenshot)];
   const result = await simpleToolCompletion({
     messages,
     toolName: "submit_detected_page_count",

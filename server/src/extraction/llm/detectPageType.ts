@@ -1,15 +1,12 @@
-import {
-  ChatCompletionContentPart,
-  ChatCompletionMessageParam,
-} from "openai/resources/chat/completions";
-import { DefaultLlmPageOptions } from ".";
+import { DefaultLlmPageOptions, userPageMessage } from ".";
 import { CatalogueType, PageType } from "../../../../common/types";
 import {
   assertStringEnum,
   BadToolCallResponseError,
-  simpleToolCompletion,
-} from "../../openai";
+} from "../../llm/assert";
+import { simpleToolCompletion } from "../../llm/LLMProviderApi";
 import { getCatalogueTypeDefinition } from "../catalogueTypes";
+
 export async function detectPageType(
   defaultOptions: DefaultLlmPageOptions & { catalogueType: CatalogueType }
 ) {
@@ -126,27 +123,8 @@ export async function detectPageType(
   ${defaultOptions.content}
 `;
 
-  const completionContent: ChatCompletionContentPart[] = [
-    {
-      type: "text",
-      text: prompt,
-    },
-  ];
-
-  if (defaultOptions.screenshot) {
-    completionContent.push({
-      type: "image_url",
-      image_url: {
-        url: `data:image/webp;base64,${defaultOptions.screenshot}`,
-      },
-    });
-  }
-
-  const messages: ChatCompletionMessageParam[] = [
-    {
-      role: "user",
-      content: completionContent,
-    },
+  const messages = [
+    userPageMessage(prompt, defaultOptions.screenshot),
   ];
 
   const result = await simpleToolCompletion({

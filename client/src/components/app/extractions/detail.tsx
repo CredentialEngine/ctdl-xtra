@@ -38,6 +38,7 @@ import {
   resolveCrawlPageUrl,
   trpc,
 } from "@/utils";
+import { modelLabel } from "@common/modelMetadata";
 import { CookingPot, LibraryBig, List, Pipette } from "lucide-react";
 import { useState } from "react";
 import { Bar, BarChart, XAxis, YAxis } from "recharts";
@@ -457,7 +458,7 @@ export default function ExtractionDetail() {
                         )
                       ),
                     ].map((m) => (
-                      <Badge key={`model-${m}`}>{m}</Badge>
+                      <Badge key={`model-${m}`}>{modelLabel(m)}</Badge>
                     ))}
                   </div>
                 </div>
@@ -850,7 +851,7 @@ export default function ExtractionDetail() {
                                     key={`${callSite.callSite}-${callSite.model}`}
                                   >
                                     <TableCell>{callSite.callSite}</TableCell>
-                                    <TableCell>{callSite.model}</TableCell>
+                                    <TableCell>{modelLabel(callSite.model)}</TableCell>
                                     <TableCell>
                                       {callSite.totalInputTokens}
                                     </TableCell>

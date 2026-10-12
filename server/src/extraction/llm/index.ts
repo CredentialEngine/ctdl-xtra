@@ -1,4 +1,5 @@
 import { CatalogueType, ProviderModel } from "../../../../common/types";
+import { LlmContentPart, LlmMessage } from "../../llm/types";
 import getLogger from "../../logging";
 import { SimplifiedMarkdown } from "../../types";
 
@@ -40,6 +41,22 @@ export function dedupUrls(urls: string[]): string[] {
       return false;
     }
   });
+}
+
+export function userPageMessage(
+  prompt: string,
+  screenshot?: string,
+  skipScreenshot?: boolean
+): LlmMessage {
+  const content: LlmContentPart[] = [{ type: "text", text: prompt }];
+  if (!skipScreenshot && screenshot) {
+    content.push({
+      type: "image",
+      mediaType: "image/webp",
+      data: screenshot,
+    });
+  }
+  return { role: "user", content };
 }
 
 export function filterUrlsByOrigin(urls: string[], hostname: string) {
