@@ -4,6 +4,19 @@
 resource "aws_launch_template" "node" {
   name_prefix = "${local.cluster_name}-node-"
 
+  # The node group's disk_size is ignored when a launch template is set, so the
+  # root volume has to be sized here or the node gets the AMI's 20 GiB default.
+  block_device_mappings {
+    device_name = "/dev/xvda"
+
+    ebs {
+      volume_size           = var.app_node_disk_size
+      volume_type           = "gp3"
+      encrypted             = true
+      delete_on_termination = true
+    }
+  }
+
   # AL2023 NodeConfig merged by the managed node group bootstrap.
   user_data = base64encode(<<-EOT
     MIME-Version: 1.0
