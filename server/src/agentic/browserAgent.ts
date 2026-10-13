@@ -10,6 +10,7 @@ import {
   allowAgenticRecipeTools,
   allowPuppeteerTools,
 } from "./permissions";
+import { mergeMcpSubprocessEnv } from "./mcpEntry";
 import { xtraMcpCommand, xtraMcpEnv } from "./xtraMcp";
 import {
   PROXY_ROTATE_PREFIX,
@@ -144,7 +145,7 @@ async function runBrowserAgentOnce(
     puppeteer: {
       command: mcp.command,
       args: mcp.args,
-      env: mcpEnv,
+      env: mergeMcpSubprocessEnv(mcpEnv),
     },
   };
   if (agenticRecipe) {
@@ -152,13 +153,13 @@ async function runBrowserAgentOnce(
     mcpServers.xtra = {
       command: xtra.command,
       args: xtra.args,
-      env: {
-        ...xtraMcpEnv({
+      env: mergeMcpSubprocessEnv(
+        xtraMcpEnv({
           recipeId: agenticRecipe.recipeId,
           pageLoadWaitTime: browser.pageLoadWaitTime,
           pageSetup: browser.pageSetup,
-        }),
-      },
+        })
+      ),
     };
   }
 

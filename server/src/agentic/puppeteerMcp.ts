@@ -1,39 +1,13 @@
-import { existsSync } from "fs";
-import path from "path";
 import type { PageSetupConfig } from "../../../common/types";
 import type { AgentChromeSession } from "./chrome";
+import { resolveAgentMcpCommand } from "./mcpEntry";
 import { PUPPETEER_PROXY_AUTH_ENV } from "./proxyAuthHook";
-import { serverPackageRoot } from "./paths";
 
 export const PUPPETEER_PAGE_SETUP_ENV = "PUPPETEER_PAGE_SETUP";
 export const PUPPETEER_PAGE_LOAD_WAIT_ENV = "PUPPETEER_PAGE_LOAD_WAIT_TIME";
 
 export function puppeteerMcpCommand(): { command: string; args: string[] } {
-  const sourceEntry = path.join(
-    serverPackageRoot(),
-    "src",
-    "agentic",
-    "puppeteerMcpServer.ts"
-  );
-  const tsxCli = path.join(
-    serverPackageRoot(),
-    "node_modules",
-    "tsx",
-    "dist",
-    "cli.mjs"
-  );
-  if (existsSync(sourceEntry) && existsSync(tsxCli)) {
-    return { command: process.execPath, args: [tsxCli, sourceEntry] };
-  }
-
-  const compiledEntry = path.join(__dirname, "puppeteerMcpServer.js");
-  if (existsSync(compiledEntry)) {
-    return { command: process.execPath, args: [compiledEntry] };
-  }
-
-  throw new Error(
-    "Could not resolve Puppeteer MCP entry (run pnpm run build in server/)"
-  );
+  return resolveAgentMcpCommand("puppeteerMcpServer", __dirname);
 }
 
 export function puppeteerMcpEnv(
