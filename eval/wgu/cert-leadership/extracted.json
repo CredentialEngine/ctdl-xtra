@@ -1,0 +1,319 @@
+{
+  "slug": "cert-leadership",
+  "url": "file://page.html",
+  "model": "claude-opus-4-5",
+  "sourceMarkdownChars": 12574,
+  "results": {
+    "baseline_credential": {
+      "items": [
+        {
+          "credential_name": "Business Leadership",
+          "credential_description": "Enhance your résumé with the help of a business leadership certificate from the School of Business. This new certificate will expose you to foundational leadership principles such as: A comprehensive introduction to business fundamentals, Key concepts of organizational behavior, Execution in values-based leadership, Application of management strategies, Critical business concepts and theories. This certificate also offers a skills-based curriculum aligned with employer demand. And upon completion, some courses may transfer competency units towards a WGU School of Business degree program.",
+          "credential_type": "Certificate",
+          "language": "English"
+        }
+      ]
+    },
+    "baseline_learning_program": {
+      "items": [
+        {
+          "learning_program_id": "Business Leadership Certificate",
+          "learning_program_name": "Business Leadership Certificate",
+          "learning_program_description": "Enhance your résumé with the help of a business leadership certificate from the School of Business. This new certificate will expose you to foundational leadership principles such as:\n\n*   A comprehensive introduction to business fundamentals\n*   Key concepts of organizational behavior\n*   Execution in values-based leadership\n*   Application of management strategies\n*   Critical business concepts and theories\n\nThis certificate also offers a skills-based curriculum aligned with employer demand.  And upon completion, some courses may transfer competency units towards a WGU School of Business degree program."
+        }
+      ]
+    },
+    "enhanced": {
+      "name": "Business Leadership Certificate",
+      "description": "Enhance your résumé with the help of a business leadership certificate from the School of Business. This new certificate will expose you to foundational leadership principles such as:\n\n- A comprehensive introduction to business fundamentals\n- Key concepts of organizational behavior\n- Execution in values-based leadership\n- Application of management strategies\n- Critical business concepts and theories\n\nThis certificate also offers a skills-based curriculum aligned with employer demand. And upon completion, some courses may transfer competency units towards a WGU School of Business degree program.",
+      "credentialType": "Certificate",
+      "subjectWebpage": "file://page.html",
+      "inLanguage": "en",
+      "credentialStatusType": "Active",
+      "audienceLevelType": [
+        "PostSecondaryLevel"
+      ],
+      "learningDeliveryType": [
+        "OnlineOnly"
+      ],
+      "estimatedDuration": {
+        "description": "4 Months. Learners should plan to dedicate 15–20 hours a week to the program.",
+        "exactDuration": "P4M"
+      },
+      "estimatedCost": [
+        {
+          "costType": "Tuition",
+          "currency": "USD",
+          "price": 1125,
+          "description": "Total cost | No additional fees. Tuition covers costs for any e-textbooks or other resources.",
+          "paymentPattern": "total"
+        },
+        {
+          "costType": "Tuition",
+          "currency": "USD",
+          "price": 499,
+          "description": "If you need more time, your enrollment will automatically transition to a $499 monthly subscription until you're finished.",
+          "paymentPattern": "per month"
+        }
+      ],
+      "creditValue": {
+        "value": 9,
+        "creditUnitType": "CompetencyCredit",
+        "description": "This certificate has 3 courses, with 9 total credits."
+      },
+      "hasPart": [
+        {
+          "name": "Fundamentals for Success in Business",
+          "codedNotation": null
+        },
+        {
+          "name": "Organizational Behavior",
+          "codedNotation": null
+        },
+        {
+          "name": "Values-Based Leadership",
+          "codedNotation": null
+        }
+      ],
+      "teaches": [
+        "A comprehensive introduction to business fundamentals",
+        "Key concepts of organizational behavior",
+        "Execution in values-based leadership",
+        "Application of management strategies",
+        "Critical business concepts and theories",
+        "Overview of the field of business",
+        "How management, organizational structure, communication, and leadership styles affect the business environment",
+        "Time management, problem-solving, emotional intelligence, and innovation",
+        "Importance of ethics in business",
+        "How to lead and manage effectively in diverse business environments",
+        "Individual behavior and how groups develop",
+        "Nature of work teams, organizational culture, leadership, and performance improvement",
+        "Apply organizational leadership theories and management strategies in a series of scenario-based problems",
+        "Values-based leadership through reflection, design, and scenario planning",
+        "Foundations of creating a culture of care",
+        "Identify and define personal values through an assessment and reflection process",
+        "Values-based leadership in goal setting and problem-solving at an organizational level"
+      ],
+      "industryType": [
+        "Finance and Banking",
+        "Healthcare",
+        "Manufacturing",
+        "IT",
+        "Consulting",
+        "Nonprofit",
+        "Government"
+      ],
+      "requires": {
+        "description": "This program does not require a bachelor's degree. To successfully complete this course, you must have internet access, a computer, and an external webcam. Chromebooks are not compatible with the online proctoring service. Operating System Windows 8 or later; Mac OS X 10.11 or later. Web Browser Latest Chrome (Preferred), Edge, Firefox or Safari browser. Cookies Enabled.",
+        "prerequisiteCredentials": null,
+        "minimumAge": null,
+        "yearsOfExperience": null
+      },
+      "keyword": [
+        "Business",
+        "Leadership",
+        "Management",
+        "Organizational Behavior",
+        "Values-Based Leadership"
+      ],
+      "_extractionNotes": "The page mentions an installment plan of \"4 monthly payments of $281.25\" but also states \"4 payments of $562.50\" in another section - there appears to be an inconsistency in the installment amounts listed. The program is offered through WGU Academy and provides transferable competency units towards WGU School of Business degree programs. Financial aid is not available for this certificate. The program is targeted at emerging leaders."
+    }
+  },
+  "baseline": {
+    "items": [
+      {
+        "credential_name": "Business Leadership",
+        "credential_description": "Enhance your résumé with the help of a business leadership certificate from the School of Business. This new certificate will expose you to foundational leadership principles such as: A comprehensive introduction to business fundamentals, Key concepts of organizational behavior, Execution in values-based leadership, Application of management strategies, Critical business concepts and theories. This certificate also offers a skills-based curriculum aligned with employer demand. And upon completion, some courses may transfer competency units towards a WGU School of Business degree program.",
+        "credential_type": "Certificate",
+        "language": "English"
+      }
+    ]
+  },
+  "enhanced": {
+    "name": "Business Leadership Certificate",
+    "description": "Enhance your résumé with the help of a business leadership certificate from the School of Business. This new certificate will expose you to foundational leadership principles such as:\n\n- A comprehensive introduction to business fundamentals\n- Key concepts of organizational behavior\n- Execution in values-based leadership\n- Application of management strategies\n- Critical business concepts and theories\n\nThis certificate also offers a skills-based curriculum aligned with employer demand. And upon completion, some courses may transfer competency units towards a WGU School of Business degree program.",
+    "credentialType": "Certificate",
+    "subjectWebpage": "file://page.html",
+    "inLanguage": "en",
+    "credentialStatusType": "Active",
+    "audienceLevelType": [
+      "PostSecondaryLevel"
+    ],
+    "learningDeliveryType": [
+      "OnlineOnly"
+    ],
+    "estimatedDuration": {
+      "description": "4 Months. Learners should plan to dedicate 15–20 hours a week to the program.",
+      "exactDuration": "P4M"
+    },
+    "estimatedCost": [
+      {
+        "costType": "Tuition",
+        "currency": "USD",
+        "price": 1125,
+        "description": "Total cost | No additional fees. Tuition covers costs for any e-textbooks or other resources.",
+        "paymentPattern": "total"
+      },
+      {
+        "costType": "Tuition",
+        "currency": "USD",
+        "price": 499,
+        "description": "If you need more time, your enrollment will automatically transition to a $499 monthly subscription until you're finished.",
+        "paymentPattern": "per month"
+      }
+    ],
+    "creditValue": {
+      "value": 9,
+      "creditUnitType": "CompetencyCredit",
+      "description": "This certificate has 3 courses, with 9 total credits."
+    },
+    "hasPart": [
+      {
+        "name": "Fundamentals for Success in Business",
+        "codedNotation": null
+      },
+      {
+        "name": "Organizational Behavior",
+        "codedNotation": null
+      },
+      {
+        "name": "Values-Based Leadership",
+        "codedNotation": null
+      }
+    ],
+    "teaches": [
+      "A comprehensive introduction to business fundamentals",
+      "Key concepts of organizational behavior",
+      "Execution in values-based leadership",
+      "Application of management strategies",
+      "Critical business concepts and theories",
+      "Overview of the field of business",
+      "How management, organizational structure, communication, and leadership styles affect the business environment",
+      "Time management, problem-solving, emotional intelligence, and innovation",
+      "Importance of ethics in business",
+      "How to lead and manage effectively in diverse business environments",
+      "Individual behavior and how groups develop",
+      "Nature of work teams, organizational culture, leadership, and performance improvement",
+      "Apply organizational leadership theories and management strategies in a series of scenario-based problems",
+      "Values-based leadership through reflection, design, and scenario planning",
+      "Foundations of creating a culture of care",
+      "Identify and define personal values through an assessment and reflection process",
+      "Values-based leadership in goal setting and problem-solving at an organizational level"
+    ],
+    "industryType": [
+      "Finance and Banking",
+      "Healthcare",
+      "Manufacturing",
+      "IT",
+      "Consulting",
+      "Nonprofit",
+      "Government"
+    ],
+    "requires": {
+      "description": "This program does not require a bachelor's degree. To successfully complete this course, you must have internet access, a computer, and an external webcam. Chromebooks are not compatible with the online proctoring service. Operating System Windows 8 or later; Mac OS X 10.11 or later. Web Browser Latest Chrome (Preferred), Edge, Firefox or Safari browser. Cookies Enabled.",
+      "prerequisiteCredentials": null,
+      "minimumAge": null,
+      "yearsOfExperience": null
+    },
+    "keyword": [
+      "Business",
+      "Leadership",
+      "Management",
+      "Organizational Behavior",
+      "Values-Based Leadership"
+    ],
+    "_extractionNotes": "The page mentions an installment plan of \"4 monthly payments of $281.25\" but also states \"4 payments of $562.50\" in another section - there appears to be an inconsistency in the installment amounts listed. The program is offered through WGU Academy and provides transferable competency units towards WGU School of Business degree programs. Financial aid is not available for this certificate. The program is targeted at emerging leaders."
+  },
+  "_meta": [
+    {
+      "id": "baseline_credential",
+      "usage": {
+        "input_tokens": 4562,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 0,
+          "ephemeral_1h_input_tokens": 0
+        },
+        "iterations": [
+          {
+            "input_tokens": 4562,
+            "output_tokens": 166,
+            "cache_read_input_tokens": 0,
+            "cache_creation_input_tokens": 0,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 0
+            },
+            "type": "message"
+          }
+        ],
+        "output_tokens": 166,
+        "service_tier": "standard",
+        "inference_geo": "not_available"
+      },
+      "latencyMs": 2985,
+      "stopReason": "tool_use"
+    },
+    {
+      "id": "baseline_learning_program",
+      "usage": {
+        "input_tokens": 4115,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 0,
+          "ephemeral_1h_input_tokens": 0
+        },
+        "iterations": [
+          {
+            "input_tokens": 4115,
+            "output_tokens": 191,
+            "cache_read_input_tokens": 0,
+            "cache_creation_input_tokens": 0,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 0
+            },
+            "type": "message"
+          }
+        ],
+        "output_tokens": 191,
+        "service_tier": "standard",
+        "inference_geo": "not_available"
+      },
+      "latencyMs": 3261,
+      "stopReason": "tool_use"
+    },
+    {
+      "id": "enhanced",
+      "usage": {
+        "input_tokens": 5970,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 0,
+          "ephemeral_1h_input_tokens": 0
+        },
+        "iterations": [
+          {
+            "input_tokens": 5970,
+            "output_tokens": 1146,
+            "cache_read_input_tokens": 0,
+            "cache_creation_input_tokens": 0,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 0
+            },
+            "type": "message"
+          }
+        ],
+        "output_tokens": 1146,
+        "service_tier": "standard",
+        "inference_geo": "not_available"
+      },
+      "latencyMs": 23736,
+      "stopReason": "tool_use"
+    }
+  ]
+}

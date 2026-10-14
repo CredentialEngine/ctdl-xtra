@@ -1,0 +1,259 @@
+{
+  "slug": "mba",
+  "url": "file://mba.html",
+  "model": "claude-opus-4-5",
+  "sourceMarkdownChars": 27172,
+  "baseline": {
+    "items": [
+      {
+        "credential_name": "Business Administration",
+        "credential_description": "An Online MBA That Delivers Real-World Leadership Skills. Built with insight from industry leaders, WGU's MBA equips you with the strategies, skills, and confidence employers expect from leaders today. Every course is designed around the demands of business today—finance, operations, HR, marketing, and technology—so you graduate prepared to make an immediate impact. Recognized by The Wall Street Journal as one of the top return-on-investment MBA programs, WGU helps you gain the cross-functional business expertise to stay agile, lead teams, and drive results in a changing marketplace.",
+        "credential_type": "MasterDegree",
+        "language": "English"
+      }
+    ]
+  },
+  "baselineProgram": {
+    "items": [
+      {
+        "learning_program_id": "Master of Business Administration",
+        "learning_program_name": "Master of Business Administration",
+        "learning_program_description": "Built with insight from industry leaders, WGU's MBA equips you with the strategies, skills, and confidence employers expect from leaders today. Every course is designed around the demands of business today—finance, operations, HR, marketing, and technology—so you graduate prepared to make an immediate impact.\n\nRecognized by The Wall Street Journal as one of the top return-on-investment MBA programs, WGU helps you gain the cross-functional business expertise to stay agile, lead teams, and drive results in a changing marketplace."
+      }
+    ]
+  },
+  "enhanced": {
+    "name": "Master of Business Administration",
+    "alternateName": "MBA",
+    "description": "Built with insight from industry leaders, WGU's MBA equips you with the strategies, skills, and confidence employers expect from leaders today. Every course is designed around the demands of business today—finance, operations, HR, marketing, and technology—so you graduate prepared to make an immediate impact.\n\nRecognized by The Wall Street Journal as one of the top return-on-investment MBA programs, WGU helps you gain the cross-functional business expertise to stay agile, lead teams, and drive results in a changing marketplace.\n\nAn online Master of Business Administration degree from WGU could help elevate your career, too. Get an MBA online that prepares you to lead cross-functional teams with the agility to adapt to the ever-changing world of business.\n\nWGU's online MBA degree is designed for business professionals who want to graduate with career-ready skills. Hone the management and strategy skills to take charge in finance, operations, marketing, HR, and technology. Become the business leader your organization needs.",
+    "credentialType": "MasterDegree",
+    "credentialStatusType": "Active",
+    "subjectWebpage": "file://mba.html",
+    "inLanguage": "en",
+    "audienceLevelType": [
+      "GraduateLevel",
+      "MastersDegreeLevel"
+    ],
+    "learningDeliveryType": [
+      "OnlineOnly"
+    ],
+    "estimatedDuration": {
+      "description": "Graduates can finish within 12 months. Program can be completed in as little as 12 months. Approximately 2 years at traditional universities, minimal acceleration options.",
+      "minimumDuration": "P12M"
+    },
+    "estimatedCost": [
+      {
+        "costType": "Tuition",
+        "currency": "USD",
+        "price": 4805,
+        "paymentPattern": "per 6-month term",
+        "description": "Tuition per six-month term"
+      },
+      {
+        "costType": "BooksAndSupplies",
+        "currency": "USD",
+        "price": 200,
+        "paymentPattern": "per 6-month term",
+        "description": "E-Books & Resources Fee"
+      },
+      {
+        "costType": "AggregateCost",
+        "currency": "USD",
+        "price": 9610,
+        "paymentPattern": "total",
+        "description": "Total cost for 12-month completion (two 6-month terms)"
+      }
+    ],
+    "requires": {
+      "description": "To be considered for this program, you must: Submit all transcripts verifying receipt of your bachelor's degree from a recognized, accredited institution. NOTE: You do not need to take the GRE or GMAT to be admitted to this program.",
+      "prerequisiteCredentials": [
+        "bachelor's degree"
+      ]
+    },
+    "hasPart": [
+      {
+        "name": "Managing Organizations and Leading People",
+        "codedNotation": null
+      },
+      {
+        "name": "Managing Human Capital",
+        "codedNotation": null
+      },
+      {
+        "name": "Management Communication",
+        "codedNotation": null
+      },
+      {
+        "name": "Operations Management",
+        "codedNotation": null
+      },
+      {
+        "name": "Global Economics for Managers",
+        "codedNotation": null
+      },
+      {
+        "name": "Marketing",
+        "codedNotation": null
+      },
+      {
+        "name": "Accounting for Decision Makers",
+        "codedNotation": null
+      },
+      {
+        "name": "Ethical Leadership",
+        "codedNotation": null
+      },
+      {
+        "name": "Financial Management",
+        "codedNotation": null
+      },
+      {
+        "name": "Data-Driven Decision Making",
+        "codedNotation": null
+      },
+      {
+        "name": "MBA Capstone",
+        "codedNotation": null
+      }
+    ],
+    "teaches": [
+      "Management: Identified and determined the resources required to effectively support an organization or process, ensuring optimal functionality and efficiency.",
+      "Operations: Developed comprehensive systems with standard operating procedures (SOPs) for distinct parts of a business, promoting consistency, compliance, and operational excellence.",
+      "Communication: Leveraged appropriate communication techniques to effectively persuade and guide outcomes.",
+      "Data Analysis: Applied analytical and logical reasoning skills to uncover valuable information crucial for decision-making processes.",
+      "Written Communication: Addressed internal and external stakeholders using the most suitable written communication strategy for each audience, fostering effective communication and engagement.",
+      "Business Development: Developed strategic plans for acquiring new business and expanding existing business in collaboration with the business development team."
+    ],
+    "occupationType": [
+      "Owner",
+      "President and CEO",
+      "Vice president",
+      "Executive director",
+      "Chief strategic officer",
+      "Chief executive officer",
+      "Chief financial officer",
+      "Marketing manager",
+      "International business development",
+      "Chief marketing officer",
+      "Sales manager",
+      "Operations manager",
+      "Human resources manager"
+    ],
+    "industryType": [
+      "Private companies",
+      "Healthcare organizations",
+      "Nonprofit organizations",
+      "Government",
+      "Colleges and universities"
+    ],
+    "accreditedBy": [
+      "ACBSP"
+    ],
+    "keyword": [
+      "business administration",
+      "leadership",
+      "management",
+      "finance",
+      "operations",
+      "HR",
+      "marketing",
+      "technology",
+      "strategy"
+    ],
+    "creditValue": null,
+    "industryCertifications": null,
+    "_extractionNotes": "The page mentions WGU uses competency-based education but does not specify the number of competency units/credits for the program. Course codes are not provided on the page. The program consists of 11 courses. Top employers mentioned include American Airlines, Yahoo!, Edward Jones, Intermountain Healthcare, and Mayo Clinic. The $14,025 average salary increase is cited from WGU Internal Data. The page references a Program Guide link but details were not included in the provided content."
+  },
+  "_meta": [
+    {
+      "config": "baseline-credential",
+      "usage": {
+        "input_tokens": 7878,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 0,
+          "ephemeral_1h_input_tokens": 0
+        },
+        "iterations": [
+          {
+            "input_tokens": 7878,
+            "output_tokens": 188,
+            "cache_read_input_tokens": 0,
+            "cache_creation_input_tokens": 0,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 0
+            },
+            "type": "message"
+          }
+        ],
+        "output_tokens": 188,
+        "service_tier": "standard",
+        "inference_geo": "not_available"
+      },
+      "latencyMs": 7188,
+      "stopReason": "tool_use"
+    },
+    {
+      "config": "baseline-learning_program",
+      "usage": {
+        "input_tokens": 7431,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 0,
+          "ephemeral_1h_input_tokens": 0
+        },
+        "iterations": [
+          {
+            "input_tokens": 7431,
+            "output_tokens": 182,
+            "cache_read_input_tokens": 0,
+            "cache_creation_input_tokens": 0,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 0
+            },
+            "type": "message"
+          }
+        ],
+        "output_tokens": 182,
+        "service_tier": "standard",
+        "inference_geo": "not_available"
+      },
+      "latencyMs": 5135,
+      "stopReason": "tool_use"
+    },
+    {
+      "config": "enhanced",
+      "usage": {
+        "input_tokens": 9293,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 0,
+          "ephemeral_1h_input_tokens": 0
+        },
+        "iterations": [
+          {
+            "input_tokens": 9293,
+            "output_tokens": 1471,
+            "cache_read_input_tokens": 0,
+            "cache_creation_input_tokens": 0,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 0
+            },
+            "type": "message"
+          }
+        ],
+        "output_tokens": 1471,
+        "service_tier": "standard",
+        "inference_geo": "not_available"
+      },
+      "latencyMs": 28445,
+      "stopReason": "tool_use"
+    }
+  ]
+}
