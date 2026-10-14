@@ -1,6 +1,8 @@
 controller:
   # TEST runs on a single consolidated node group (nodepool: app), no HA.
-  replicaCount: 1
+  # Two replicas anyway: the chart's PDB (minAvailable: 1) blocks node drains
+  # when only one replica runs.
+  replicaCount: 2
   nodeSelector:
     nodepool: app
   service:

@@ -4,6 +4,19 @@
 resource "aws_launch_template" "node" {
   name_prefix = "${local.cluster_name}-node-"
 
+  # The node group's disk_size is ignored when a launch template is set, so the
+  # root volume has to be sized here or the node gets the AMI's 20 GiB default.
+  block_device_mappings {
+    device_name = "/dev/xvda"
+
+    ebs {
+      volume_size           = var.app_node_disk_size
+      volume_type           = "gp3"
+      encrypted             = true
+      delete_on_termination = true
+    }
+  }
+
   # AL2023 NodeConfig merged by the managed node group bootstrap.
   user_data = base64encode(<<-EOT
     MIME-Version: 1.0
@@ -37,7 +50,9 @@ resource "aws_eks_node_group" "app" {
   cluster_name    = module.eks.cluster_id
   node_group_name = "${local.cluster_name}-app"
   node_role_arn   = module.eks.nodegroup_role_arn
-  subnet_ids      = module.vpc.private_subnet_ids
+  # One AZ only (us-east-1a): Redis keeps its data on a zonal EBS volume, and a
+  # replacement node landing in another AZ cannot attach it.
+  subnet_ids = [module.vpc.private_subnet_ids[0]]
 
   ami_type      = "AL2023_x86_64_STANDARD"
   capacity_type = "ON_DEMAND"
