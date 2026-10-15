@@ -1,6 +1,7 @@
+import { DEFAULT_AGENTIC_RECIPE_MODEL } from "../../../common/modelMetadata";
 import type { PageSetupConfig } from "../../../common/types";
 
-export const DEFAULT_AGENT_MODEL = "haiku";
+export const DEFAULT_AGENT_MODEL = DEFAULT_AGENTIC_RECIPE_MODEL;
 export const DEFAULT_MAX_TURNS = 24;
 export const DEFAULT_MAX_BUDGET_USD = 5;
 export const AGENT_SMOKE_URL = "https://www.google.com";

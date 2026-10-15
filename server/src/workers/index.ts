@@ -184,7 +184,7 @@ export interface AgenticRecipeConfigJob {
   recipeId: number;
   /** User who requested agentic configuration; omitted on older queued jobs. */
   triggeredByUserId?: number | null;
-  /** Claude model slug used for this run; omitted on older queued jobs. */
+  /** Claude model id used for this run; omitted on older queued jobs. */
   model?: string;
 }
 
@@ -204,14 +204,14 @@ export interface UpdateExtractionCompletionJob {
   extractionId: number;
 }
 
-export interface DetectConfigurationProgress extends BaseProgress { }
+export interface DetectConfigurationProgress extends BaseProgress {}
 export interface AgenticRecipeConfigProgress extends BaseProgress {
   elapsedSeconds?: number;
   step?: number;
 }
-export interface FetchPageProgress extends BaseProgress { }
-export interface ExtractDataProgress extends BaseProgress { }
-export interface UpdateExtractionCompletionProgress extends BaseProgress { }
+export interface FetchPageProgress extends BaseProgress {}
+export interface ExtractDataProgress extends BaseProgress {}
+export interface UpdateExtractionCompletionProgress extends BaseProgress {}
 
 const connection = getRedisConnection();
 
@@ -229,8 +229,10 @@ const defaultJobOptions: DefaultJobOptions = {
 
 /** BullMQ `age` is seconds. keepLogs caps the Redis list while the job exists. */
 const agenticRecipeConfigJobRetentionSeconds =
-  +(process.env.AGENTIC_RECIPE_CONFIG_JOB_RETENTION_MS ??
-    AGENTIC_RECIPE_CONFIG_JOB_RETENTION_MS) / 1000;
+  +(
+    process.env.AGENTIC_RECIPE_CONFIG_JOB_RETENTION_MS ??
+    AGENTIC_RECIPE_CONFIG_JOB_RETENTION_MS
+  ) / 1000;
 
 const agenticRecipeConfigJobOptions: DefaultJobOptions = {
   attempts: 1,
@@ -262,8 +264,7 @@ export async function detectExtractionJobs(extractionId: number) {
         break;
       }
       for (const job of jobs) {
-        if (!job || !job.data)
-          continue;
+        if (!job || !job.data) continue;
 
         if (job.data.extractionId === extractionId) {
           return true;
@@ -317,10 +318,9 @@ export async function getPageIdsWithExistingJobs(
   return result;
 }
 
-async function collectJobsForExtraction<T extends { extractionId: number; crawlPageId: number }>(
-  queue: Queue<T>,
-  extractionId: number
-): Promise<Array<{ data: T }>> {
+async function collectJobsForExtraction<
+  T extends { extractionId: number; crawlPageId: number },
+>(queue: Queue<T>, extractionId: number): Promise<Array<{ data: T }>> {
   const jobs: Array<{ data: T }> = [];
   let start = 0,
     end = 100;
@@ -337,7 +337,9 @@ async function collectJobsForExtraction<T extends { extractionId: number; crawlP
       if (job?.data?.extractionId === extractionId) {
         jobs.push({ data: job.data });
       } else {
-        logger.info(`Skipping job ${job.id} for extraction ${extractionId} because it's not for the same extraction`);
+        logger.info(
+          `Skipping job ${job.id} for extraction ${extractionId} because it's not for the same extraction`
+        );
         logger.info(`Job data: \n${inspect(job.data)}`);
       }
     }

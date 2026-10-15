@@ -3,6 +3,18 @@ import { ProviderModel } from "../../../common/types";
 export const ModelPrices: Partial<
   Record<ProviderModel, { per1MInput: number; per1MOutput: number }>
 > = {
+  [ProviderModel.Gpt6Astra]: {
+    per1MInput: 10.0,
+    per1MOutput: 50.0,
+  },
+  [ProviderModel.Gpt61Sol]: {
+    per1MInput: 2.0,
+    per1MOutput: 10.0,
+  },
+  [ProviderModel.Gpt6Luna]: {
+    per1MInput: 0.1,
+    per1MOutput: 0.5,
+  },
   [ProviderModel.Gpt54]: {
     per1MInput: 2.5,
     per1MOutput: 15.0,
@@ -43,13 +55,25 @@ export const ModelPrices: Partial<
     per1MInput: 1.0,
     per1MOutput: 5.0,
   },
+  [ProviderModel.ClaudeHaiku55]: {
+    per1MInput: 0.1,
+    per1MOutput: 0.5,
+  },
   [ProviderModel.ClaudeSonnet5]: {
+    per1MInput: 2.0,
+    per1MOutput: 10.0,
+  },
+  [ProviderModel.ClaudeSonnet55]: {
     per1MInput: 2.0,
     per1MOutput: 10.0,
   },
   [ProviderModel.ClaudeOpus5]: {
     per1MInput: 5.0,
     per1MOutput: 25.0,
+  },
+  [ProviderModel.ClaudeOpus55]: {
+    per1MInput: 4.0,
+    per1MOutput: 20.0,
   },
   [ProviderModel.ClaudeFable51]: {
     per1MInput: 10.0,

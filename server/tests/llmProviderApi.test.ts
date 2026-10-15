@@ -12,9 +12,8 @@ import {
 import { LlmMessage } from "../src/llm/types";
 
 vi.mock("../src/utils", async () => {
-  const actual = await vi.importActual<typeof import("../src/utils")>(
-    "../src/utils"
-  );
+  const actual =
+    await vi.importActual<typeof import("../src/utils")>("../src/utils");
   return {
     ...actual,
     exponentialRetry: async <T>(fn: () => Promise<T>) => fn(),
@@ -34,9 +33,10 @@ vi.mock("../src/openai", () => ({
 
 const getAnthropic = vi.fn();
 vi.mock("../src/anthropic", async () => {
-  const actual = await vi.importActual<typeof import("../src/anthropic")>(
-    "../src/anthropic"
-  );
+  const actual =
+    await vi.importActual<typeof import("../src/anthropic")>(
+      "../src/anthropic"
+    );
   return {
     ...actual,
     getAnthropic: (...args: unknown[]) => getAnthropic(...args),
@@ -121,9 +121,15 @@ describe("providerForModel", () => {
       [ProviderModel.Gpt54]: Provider.OpenAI,
       [ProviderModel.Gpt54Mini]: Provider.OpenAI,
       [ProviderModel.Gpt54Nano]: Provider.OpenAI,
+      [ProviderModel.Gpt6Astra]: Provider.OpenAI,
+      [ProviderModel.Gpt61Sol]: Provider.OpenAI,
+      [ProviderModel.Gpt6Luna]: Provider.OpenAI,
       [ProviderModel.ClaudeHaiku45]: Provider.Anthropic,
+      [ProviderModel.ClaudeHaiku55]: Provider.Anthropic,
       [ProviderModel.ClaudeSonnet5]: Provider.Anthropic,
+      [ProviderModel.ClaudeSonnet55]: Provider.Anthropic,
       [ProviderModel.ClaudeOpus5]: Provider.Anthropic,
+      [ProviderModel.ClaudeOpus55]: Provider.Anthropic,
       [ProviderModel.ClaudeFable51]: Provider.Anthropic,
     };
 
@@ -196,9 +202,9 @@ describe("estimateCost", () => {
   });
 
   it("throws when a model has no prices", () => {
-    expect(() =>
-      estimateCost("not-a-model" as ProviderModel, 1, 1)
-    ).toThrow(/No pricing configured/);
+    expect(() => estimateCost("not-a-model" as ProviderModel, 1, 1)).toThrow(
+      /No pricing configured/
+    );
   });
 });
 
@@ -233,7 +239,9 @@ describe("LLMProviderApi", () => {
   });
 
   it("logs Anthropic completions as Provider.Anthropic", async () => {
-    const create = vi.fn().mockResolvedValue(anthropicToolResponse({ ok: true }));
+    const create = vi
+      .fn()
+      .mockResolvedValue(anthropicToolResponse({ ok: true }));
     getAnthropic.mockResolvedValue({ messages: { create } });
 
     await simpleToolCompletion({
@@ -256,7 +264,9 @@ describe("LLMProviderApi", () => {
   });
 
   it("sends Anthropic max_tokens and omits sampling knobs", async () => {
-    const create = vi.fn().mockResolvedValue(anthropicTextResponse('{"items":[]}'));
+    const create = vi
+      .fn()
+      .mockResolvedValue(anthropicTextResponse('{"items":[]}'));
     getAnthropic.mockResolvedValue({ messages: { create } });
 
     await structuredCompletion({
@@ -324,7 +334,9 @@ describe("LLMProviderApi", () => {
   it("parses Anthropic structured JSON from text blocks", async () => {
     const create = vi
       .fn()
-      .mockResolvedValue(anthropicTextResponse('{"present":true,"explanation":"yes"}'));
+      .mockResolvedValue(
+        anthropicTextResponse('{"present":true,"explanation":"yes"}')
+      );
     getAnthropic.mockResolvedValue({ messages: { create } });
 
     const result = await structuredCompletion({
@@ -361,7 +373,9 @@ describe("LLMProviderApi", () => {
     expect(result.toolCallArgs).toEqual({ items: ["a"] });
     expect(create.mock.calls[0][0].tools).toBeUndefined();
     expect(create.mock.calls[0][0].tool_choice).toBeUndefined();
-    expect(create.mock.calls[0][0].output_config.format.type).toBe("json_schema");
+    expect(create.mock.calls[0][0].output_config.format.type).toBe(
+      "json_schema"
+    );
   });
 
   it("strips image parts after an invalid OpenAI screenshot error", async () => {
