@@ -1,0 +1,26 @@
+{
+  "model": "qwen3.5:9b",
+  "promptVersion": "prerequisite-structure/1",
+  "task": "corequisite sentence",
+  "sentence": "CHEM 36053 and related course component drill for CHEM 36053.",
+  "courseCodes": [
+    "CHEM 36053",
+    "CHEM 36053"
+  ],
+  "structure": {
+    "kind": "all_of",
+    "quote": "",
+    "items": [
+      {
+        "kind": "course",
+        "quote": "CHEM 36053"
+      },
+      {
+        "kind": "text",
+        "quote": "related course component drill for CHEM 36053"
+      }
+    ]
+  },
+  "argument": "The sentence contains the conjunction 'and' connecting two distinct requirements: the course code and the text description. According to the CTDL definition of ceterms:alternativeCondition, which applies when 'more than one alternative condition or path has been defined', the presence of 'and' in this context (linking a specific course to its required component drill) implies that both conditions must be met simultaneously to satisfy the corequisite requirement. Therefore, the structure is an 'all_of' node where every item under it is required.",
+  "seconds": 3.1
+}

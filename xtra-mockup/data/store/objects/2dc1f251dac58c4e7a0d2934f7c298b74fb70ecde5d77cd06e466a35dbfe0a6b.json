@@ -1,0 +1,15 @@
+{
+  "digest": "2dc1f251dac58c4e7a0d2934f7c298b74fb70ecde5d77cd06e466a35dbfe0a6b",
+  "size": 110388,
+  "fetches": [
+    {
+      "requested": "https://catalog.uark.edu/undergraduatecatalog/coursesofinstruction/csce/",
+      "final": "https://catalog.uark.edu/undergraduatecatalog/coursesofinstruction/csce/",
+      "time": "2026-10-07T23:17:43+00:00",
+      "status": 200,
+      "contentType": "text/html; charset=UTF-8",
+      "size": 110388,
+      "digest": "2dc1f251dac58c4e7a0d2934f7c298b74fb70ecde5d77cd06e466a35dbfe0a6b"
+    }
+  ]
+}

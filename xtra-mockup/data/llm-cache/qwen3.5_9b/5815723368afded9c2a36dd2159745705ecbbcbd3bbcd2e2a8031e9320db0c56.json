@@ -1,0 +1,37 @@
+{
+  "model": "qwen3.5:9b",
+  "promptVersion": "prerequisite-structure/1",
+  "task": "prerequisite sentence",
+  "sentence": "ELEG 32103 or ELEG 39903 and MATH 25804",
+  "courseCodes": [
+    "ELEG 32103",
+    "ELEG 39903",
+    "MATH 25804"
+  ],
+  "structure": {
+    "kind": "any_of",
+    "quote": "",
+    "items": [
+      {
+        "kind": "course",
+        "quote": "ELEG 32103"
+      },
+      {
+        "kind": "all_of",
+        "quote": "",
+        "items": [
+          {
+            "kind": "course",
+            "quote": "ELEG 39903"
+          },
+          {
+            "kind": "course",
+            "quote": "MATH 25804"
+          }
+        ]
+      }
+    ]
+  },
+  "argument": "The sentence begins with 'or', which groups the first item ('ELEG 32103') and the subsequent clause as alternatives; per CTDL ceterms:alternativeCondition, this creates an 'any_of' node where one path fulfills the requirement. The second part of the sentence contains 'and' joining 'ELEG 39903' and 'MATH 25804'; per CTDL ceterms:requires and standard logical grouping for prerequisites joined by 'and', this forms an 'all_of' node where every item is required.",
+  "seconds": 3.8
+}

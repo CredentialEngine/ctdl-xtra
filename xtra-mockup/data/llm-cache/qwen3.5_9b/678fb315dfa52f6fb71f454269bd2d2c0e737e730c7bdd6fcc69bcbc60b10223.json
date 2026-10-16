@@ -1,0 +1,25 @@
+{
+  "model": "qwen3.5:9b",
+  "promptVersion": "prerequisite-structure/1",
+  "task": "prerequisite sentence",
+  "sentence": "Admission to the NURSBS-PLRN program and MATH 11003.",
+  "courseCodes": [
+    "MATH 11003"
+  ],
+  "structure": {
+    "kind": "all_of",
+    "quote": "",
+    "items": [
+      {
+        "kind": "text",
+        "quote": "Admission to the NURSBS-PLRN program"
+      },
+      {
+        "kind": "course",
+        "quote": "MATH 11003"
+      }
+    ]
+  },
+  "argument": "The sentence uses 'and' to connect two distinct requirements: 'Admission to the NURSBS-PLRN program' and 'MATH 11003'. According to the CTDL definition of ceterms:alternativeCondition, this structure implies that any one path fulfills the parent condition; however, in standard logical parsing for prerequisites where items are joined by 'and', it signifies that every item is required (ceterms:requires). The first item is a text condition regarding admission, and the second is a specific course code. Therefore, the root node is an 'all_of' group containing both the text requirement and the course requirement.",
+  "seconds": 7.7
+}

@@ -1,0 +1,23 @@
+{
+  "model": "qwen3.5:9b",
+  "promptVersion": "prerequisite-structure/1",
+  "task": "prerequisite sentence",
+  "sentence": "Reading knowledge of a foreign language and Creative Writing MFA students only.",
+  "courseCodes": [],
+  "structure": {
+    "kind": "all_of",
+    "quote": "",
+    "items": [
+      {
+        "kind": "text",
+        "quote": "Reading knowledge of a foreign language"
+      },
+      {
+        "kind": "text",
+        "quote": "Creative Writing MFA students only"
+      }
+    ]
+  },
+  "argument": "The sentence contains the conjunction 'and' connecting two distinct conditions: 'Reading knowledge of a foreign language' and 'Creative Writing MFA students only'. According to the CTDL definition of ceterms:alternativeCondition, which describes constraints where 'any one path fulfills the parent condition', the presence of 'and' in this context implies that both conditions must be satisfied simultaneously to meet the requirement. Therefore, the logical structure is an 'all_of' node containing these two text items.",
+  "seconds": 6.7
+}

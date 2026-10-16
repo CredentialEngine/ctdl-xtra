@@ -1,0 +1,27 @@
+{
+  "model": "qwen3.5:9b",
+  "promptVersion": "prerequisite-structure/1",
+  "task": "corequisite sentence",
+  "sentence": "CHEM 37203 and related course component drill sections for CHEM 37203 and CHEM 37202.",
+  "courseCodes": [
+    "CHEM 37203",
+    "CHEM 37203",
+    "CHEM 37202"
+  ],
+  "structure": {
+    "kind": "all_of",
+    "quote": "",
+    "items": [
+      {
+        "kind": "course",
+        "quote": "CHEM 37203"
+      },
+      {
+        "kind": "text",
+        "quote": "related course component drill sections for CHEM 37203 and CHEM 37202"
+      }
+    ]
+  },
+  "argument": "The sentence begins with 'CHEM 37203', which is a single course code, forming the first item. The remainder of the sentence, 'related course component drill sections for CHEM 37203 and CHEM 37202', describes a condition involving specific components and other courses but does not constitute a standalone course code node itself; thus, it is treated as a text node containing the full phrase. Since the two items are joined by 'and' at the top level without brackets indicating an alternative (any_of) relationship, they form an 'all_of' group where both must be satisfied, per the definition of ceterms:requires implying a set of requirements where all listed conditions apply.",
+  "seconds": 3.7
+}

@@ -1,0 +1,68 @@
+{
+  "model": "qwen3.5:9b",
+  "promptVersion": "prerequisite-structure/1",
+  "task": "prerequisite sentence",
+  "sentence": "Chemistry major or minor and (CHEM 14203 and CHEM 14201) or (CHEM 142H3 and CHEM 142H1) or (CHEM 12283 and CHEM 12281).",
+  "courseCodes": [
+    "CHEM 14203",
+    "CHEM 14201",
+    "CHEM 142H3",
+    "CHEM 142H1",
+    "CHEM 12283",
+    "CHEM 12281"
+  ],
+  "structure": {
+    "kind": "any_of",
+    "quote": "",
+    "items": [
+      {
+        "kind": "text",
+        "quote": "Chemistry major or minor"
+      },
+      {
+        "kind": "all_of",
+        "quote": "",
+        "items": [
+          {
+            "kind": "course",
+            "quote": "CHEM 14203"
+          },
+          {
+            "kind": "course",
+            "quote": "CHEM 14201"
+          }
+        ]
+      },
+      {
+        "kind": "all_of",
+        "quote": "",
+        "items": [
+          {
+            "kind": "course",
+            "quote": "CHEM 142H3"
+          },
+          {
+            "kind": "course",
+            "quote": "CHEM 142H1"
+          }
+        ]
+      },
+      {
+        "kind": "all_of",
+        "quote": "",
+        "items": [
+          {
+            "kind": "course",
+            "quote": "CHEM 12283"
+          },
+          {
+            "kind": "course",
+            "quote": "CHEM 12281"
+          }
+        ]
+      }
+    ]
+  },
+  "argument": "The top-level 'or' connects four distinct paths: the text condition, the first course pair, the second course pair, and the third course pair. According to the CTDL definition of ceterms:alternativeCondition, this structure represents a context where more than one alternative path fulfills the parent requirement, making it an 'any_of'. The parentheses group specific courses together connected by 'and'. Per the CTDL definition of ceterms:requires, these grouped items form a set of requirements where every item is mandatory, creating an 'all_of' node for each pair.",
+  "seconds": 5.5
+}

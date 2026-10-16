@@ -1,0 +1,46 @@
+{
+  "model": "qwen3.5:9b",
+  "promptVersion": "prerequisite-structure/1",
+  "task": "prerequisite sentence",
+  "sentence": "NURS 43233, and NURS 31151 and admission to the Online Undergraduate BSN Professional Program or permission by the instructor or department head.",
+  "courseCodes": [
+    "NURS 43233",
+    "NURS 31151"
+  ],
+  "structure": {
+    "kind": "all_of",
+    "quote": "",
+    "items": [
+      {
+        "kind": "course",
+        "quote": "NURS 43233"
+      },
+      {
+        "kind": "all_of",
+        "quote": "",
+        "items": [
+          {
+            "kind": "course",
+            "quote": "NURS 31151"
+          },
+          {
+            "kind": "text",
+            "quote": "admission to the Online Undergraduate BSN Professional Program"
+          }
+        ]
+      },
+      {
+        "kind": "any_of",
+        "quote": "",
+        "items": [
+          {
+            "kind": "text",
+            "quote": "permission by the instructor or department head"
+          }
+        ]
+      }
+    ]
+  },
+  "argument": "The sentence begins with 'NURS 43233, and NURS 31151', which establishes an 'all_of' relationship between these two courses because they are joined by a comma followed by 'and'. The next part is 'admission to the Online Undergraduate BSN Professional Program or permission by the instructor or department head'. According to the CTDL definition of ceterms:alternativeCondition, this represents a set where 'any one path fulfills the parent condition', indicated here by the word 'or'. Therefore, the admission requirement and the permission requirement form an 'any_of' group. The final structure combines the initial 'all_of' (both courses) with the subsequent 'any_of' (admission OR permission), resulting in a top-level 'all_of' node containing the two courses as direct items and the alternative conditions as a third item.",
+  "seconds": 11.9
+}

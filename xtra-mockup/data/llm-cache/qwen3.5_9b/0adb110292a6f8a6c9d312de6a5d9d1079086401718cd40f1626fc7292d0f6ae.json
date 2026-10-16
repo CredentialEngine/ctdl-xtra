@@ -1,0 +1,23 @@
+{
+  "model": "qwen3.5:9b",
+  "promptVersion": "prerequisite-structure/1",
+  "task": "prerequisite sentence",
+  "sentence": "Admission to the Graduate Program or departmental consent. Completion of all general and research core classes or approval of the MSN Education Program Coordinator.",
+  "courseCodes": [],
+  "structure": {
+    "kind": "any_of",
+    "quote": "",
+    "items": [
+      {
+        "kind": "text",
+        "quote": "Admission to the Graduate Program"
+      },
+      {
+        "kind": "text",
+        "quote": "departmental consent"
+      }
+    ]
+  },
+  "argument": "The sentence begins with 'or', connecting two main conditions: 'Admission to the Graduate Program' and 'departmental consent'. According to the CTDL definition of ceterms:alternativeCondition, this represents a context where more than one alternative path exists and any one fulfills the parent condition. Therefore, the root node is an 'any_of' grouping these two text items. The second part of the sentence, starting with 'Completion...', is treated as a separate requirement statement following the first, but based on the strict parsing of the provided single sentence structure where the primary logical operator is the initial 'or', the tree represents the alternatives presented in that specific clause. However, looking at the full sentence provided: 'Admission to the Graduate Program or departmental consent. Completion of all general and research core classes or approval of the MSN Education Program Coordinator.' This appears to be two distinct sentences joined by a period, or a complex list. If interpreted as a single logical unit where the first part is an alternative to the second part (which seems unlikely given the grammar), it would be different. But standard reading suggests these are two separate requirements: 1) (Admission OR Consent) AND 2) (Completion OR Approval). Since the prompt asks for the structure of *this sentence* and implies a single logical tree, and the input contains a period splitting two distinct thoughts, I will model the first clause as the primary 'any_of' if the user intends only the first part, OR if the user considers the whole block one requirement where the first part is an alternative to the second part? No, that doesn't make sense. The most logical interpretation of a prerequisite list like this is that you need (A or B) AND (C or D). However, the prompt asks for 'one requirement sentence'. If the input contains two sentences separated by a period, strictly speaking, it's two requirements. But often in these tasks, the user provides a block. Let's re-read the input carefully: 'Admission to the Graduate Program or departmental consent. Completion of all general and research core classes or approval of the MSN Education Program Coordinator.' This is actually two sentences. If I must output one tree for the whole text, it implies an implicit 'and' between the two sentences (you need both). So: Root = all_of [ Item1 (any_of), Item2 (any_of) ]. \n\nLet's refine the argument based on the 'all_of' rule: 'Courses joined by ",
+  "seconds": 12.2
+}

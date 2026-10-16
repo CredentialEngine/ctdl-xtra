@@ -1,0 +1,31 @@
+{
+  "model": "qwen3.5:9b",
+  "promptVersion": "prerequisite-structure/1",
+  "task": "prerequisite sentence",
+  "sentence": "NURS 43133, NURS 31151, and NURS 43233 and admission to the Online Undergraduate BSN Professional Program or permission by the instructor or department head.",
+  "courseCodes": [
+    "NURS 43133",
+    "NURS 31151",
+    "NURS 43233"
+  ],
+  "structure": {
+    "kind": "all_of",
+    "quote": "",
+    "items": [
+      {
+        "kind": "course",
+        "quote": "NURS 43133"
+      },
+      {
+        "kind": "course",
+        "quote": "NURS 31151"
+      },
+      {
+        "kind": "text",
+        "quote": "and NURS 43233 and admission to the Online Undergraduate BSN Professional Program or permission by the instructor or department head."
+      }
+    ]
+  },
+  "argument": "The sentence begins with a list of three items joined by commas and 'and' ('NURS 43133, NURS 31151, and NURS 43233...'). According to the rules, an 'all_of' node represents every item under it being required, written with 'and' or a comma list ending in 'and'. Therefore, the first three course codes form an 'all_of' group. However, the sentence continues after these courses with 'or permission by the instructor...'. The rule states that 'any_of' is written with 'or', and 'all_of' with 'and'. Since the entire requirement includes a choice ('or') between completing the specific courses OR getting permission, the top-level structure must be an 'any_of' node containing two main branches: one for the courses and one for the permission. The three courses themselves are joined by 'and', so they form a sub-group of 'all_of'. The permission branch contains text conditions joined by 'or' ('admission... or permission...'), which forms a sub-group of 'any_of'. \n\nCorrection based on strict parsing of the provided sentence structure vs standard logic: The sentence is 'A, B, and C and D or E or F'. This is ambiguous without brackets. Let's re-read the specific rule: 'Courses joined by ",
+  "seconds": 6.1
+}

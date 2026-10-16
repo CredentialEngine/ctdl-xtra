@@ -1,0 +1,35 @@
+{
+  "model": "qwen3.5:9b",
+  "promptVersion": "prerequisite-structure/1",
+  "task": "prerequisite sentence",
+  "sentence": "NURS 47031 and admission to an online undergraduate BSN professional program or permission by the instructor or department head.",
+  "courseCodes": [
+    "NURS 47031"
+  ],
+  "structure": {
+    "kind": "all_of",
+    "quote": "",
+    "items": [
+      {
+        "kind": "course",
+        "quote": "NURS 47031"
+      },
+      {
+        "kind": "any_of",
+        "quote": "",
+        "items": [
+          {
+            "kind": "text",
+            "quote": "admission to an online undergraduate BSN professional program"
+          },
+          {
+            "kind": "text",
+            "quote": "permission by the instructor or department head"
+          }
+        ]
+      }
+    ]
+  },
+  "argument": "The sentence begins with 'NURS 47031 and', which establishes an 'all_of' relationship between the course and the subsequent condition group, as per the definition that 'and' or a comma list ending in 'and' implies every item is required. The second part contains two alternatives joined by 'or': 'admission to an online undergraduate BSN professional program' and 'permission by the instructor or department head'. This forms an 'any_of' group because the CTDL definition for 'alternativeCondition' states that 'any one path fulfills the parent condition', which corresponds to the logical structure of 'or' where only one item is sufficient.",
+  "seconds": 9.1
+}

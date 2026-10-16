@@ -1,0 +1,27 @@
+{
+  "model": "qwen3.5:9b",
+  "promptVersion": "prerequisite-structure/1",
+  "task": "corequisite sentence",
+  "sentence": "CHEM 37202 and related course component drill sections for CHEM 37203 and CHEM 37202.",
+  "courseCodes": [
+    "CHEM 37202",
+    "CHEM 37203",
+    "CHEM 37202"
+  ],
+  "structure": {
+    "kind": "all_of",
+    "quote": "",
+    "items": [
+      {
+        "kind": "course",
+        "quote": "CHEM 37202"
+      },
+      {
+        "kind": "text",
+        "quote": "related course component drill sections for CHEM 37203 and CHEM 37202"
+      }
+    ]
+  },
+  "argument": "The sentence begins with 'CHEM 37202', which is a single course code, forming the first item. The remainder of the sentence, 'related course component drill sections for CHEM 37203 and CHEM 37202', contains no standalone course codes at the start of that phrase but includes references to other courses within a descriptive text string; per Rule 1 and Rule 2, this entire descriptive segment is treated as a single 'text' node because it is not a discrete course code entity itself. Since the sentence uses 'and' to join these two distinct parts without brackets indicating an 'any_of' relationship, they form an 'all_of' group under Rule 4 and Rule 5.",
+  "seconds": 4.1
+}

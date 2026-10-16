@@ -1,0 +1,1351 @@
+
+ Credential Engine Registry | All Schemas Handbook 
+ Menu 
+ Technical Information
+ Home 
+ Technical Services 
+ Announcements 
+ CTDL Advisory Group 
+ CTDL Task Groups 
+ Schema Policy Information
+ Namespace Policy 
+ Schema Update Process 
+ Minimum Data and Currency Policy 
+ Meta Schema
+ Terms 
+ Serializations 
+ CTDL
+ Handbook 
+ Terms 
+ About the CTID 
+ Serializations 
+ Mapping Guidance 
+ Release History 
+ Release Timeline 
+ Types List 
+ CTDL-ASN
+ Handbook 
+ Terms 
+ Serializations 
+ Mapping Guidance 
+ Release History 
+ QData
+ Handbook 
+ Terms 
+ Serializations 
+ Mapping Guidance 
+ Release History 
+ Credential Engine Registry
+ Introduction 
+ Handbook 
+ Minimum Data and Currency Policy 
+ Benchmark Models 
+ Trusted Partner Handbook 
+ Publishing Assistant API Guide 
+ Publishing Competencies and Concepts 
+ Search API Guide 
+ Issuer Identity Registry
+ Issuer Identity Registry Handbook 
+ IIR Governance Policy 
+ Quick Start Guidance
+ Quick Start Publishing 
+ Quick Start Consuming 
+ Use Cases 
+ CTDL Explorer 
+ Query Helper 
+ Github 
+ Project Pages
+ Traversing Data Landscapes 
+ Learning and Employment Record Guide 
+ Credential Engine Schemas Handbook
+ Last Updated on 2/20/2024
+ About This Handbook
+ This document is intended to introduce newcomers to the basics of Credential Transparency Description Language (CTDL) and to provide those familiar with the description language with a means for quick reference and example solutions in describing credentials and other key entities in the credentialing ecosystem. It is not intended to be a complete guide for using all of the properties in the dictionary of the description language. The CTDL is designed to enable:
+ Creation of simple descriptions and to serve as a basis for website markup; and
+ Rich descriptions to support fairly refined comparisons among credentials.
+ Editors:
+ Jeanne Kitchens, Chief Technology Services Officer, Credential Engine
+ Stuart A. Sutton, Emeritus Faculty, Information School, University of Washington
+ Phil Barker, Consultant, Cetis LLP
+ Status:
+ Published
+ Important Background Information
+ The items in this section cover critical ideas, patterns, and contextual information that you will need to familiarize yourself with in order to get the most out of the CTDL family of specifications.
+ Frequently Used Terms
+ This handbook uses many technical terms that refer to notions like RDF, JSON-LD, Schemas, Graphs, Nodes, and so on, as well as references to various external specifications and standards. Some of these terms are described below. For more information, see the References section and the W3C Linked Data Glossary .
+ Identifiers
+ The CTDL family of specifications is intended to describe "things" such as a Credential, Organization, Assessment, Learning Opportunity, Competency, and so on. One of the most important aspects of describing "things" is to identify them. Identifiers in the CTDL family of specifications take on many forms, some of which can be used to reference the identified "thing" from anywhere else in the world via the Internet. The most common types of identifiers are:
+ URI: A URI is a string of characters that provides a name that is unique within a scheme and identifies either a resource or a term used to describe a resource (such as a property, class, or concept). In our context, URIs leverage namespaces and strict formatting rules that are described below.
+ URL: A URL is a specific subset of URIs (almost always beginning with either http:// or https:// ) which should lead to some kind of data, such as a webpage or JSON document. "URI" and "URL" are sometimes used interchangeably. Unless otherwise specified, any reference in this guide to a "URI" means a URL, often a Resource URI.
+ CTID: A Credential Transparency Identifier (CTID) is a string of characters made up of a UUIDv4 prefixed with ce- , for example: ce-2c2b00f7-bb83-4047-956b-cfc1135b8245 .
+ Resource URI: In the Credential Registry context, a Resource URI is a URL that features a CTID appended to https://credentialengineregistry.org/resources/ , for example: https://credentialengineregistry.org/resources/ce-2c2b00f7-bb83-4047-956b-cfc1135b8245 . Such a Resource URI can be used to retrieve the data for a resource directly from the Registry. Many of the examples in this guide use res: as a shorthand for https://credentialengineregistry.org/resources/ .
+ Graph URI: In the Credential Registry context, a Graph URI is a URL that features a CTID appended to https://credentialengineregistry.org/graph/ , for example: https://credentialengineregistry.org/graph/ce-2c2b00f7-bb83-4047-956b-cfc1135b8245 . Such a Graph URI can be used to retrieve the data for a resource, as well as any blank nodes tied to that resource, directly from the Registry; this data is the graph.
+ Blank Node Identifier: A blank node , or "BNode", is a special type of resource representation that is only identified, referenced, or retrievable in the context of the graph in which it is found. Blank node identifiers have a special syntax that begins with _: followed by some string of characters that are unique within that context, such as _:resource1 or _:abc123 , or most often, a UUID (e.g., _:734ca853-f178-4ffc-a102-88cb8eed6942 ).
+ Many other identifiers, such as DUNS , IPEDS ID , CIP Codes , etc., have specific properties assigned to them. For those that do not, CTDL provides the Identifier Value class to enable providing the textual identifier and its origin.
+ RDF and Linked Data
+ The CTDL family of specifications is built on the principles of the Resource Description Framework (RDF) approach to describing data.
+ The "triple" is the basic grammatical construct in making RDF data assertions about "things" and consists of three simple components: a subject , a predicate and an object . Some find it useful to think of the subject as the thing being described and the predicate and object as an "attribute-value" pair. A set of RDF triples that form a description of one or more things is known in RDF as a graph, which can be thought of as a data record or collection of data records.
+ The following table contains a simple set of such three-part assertions about a dental assisting certificate. The entities (things) in the set are a:
+ A Credentialing Organization
+ A Credential (Certificate)
+ A required Learning Opportunity Profile
+ A required Competency
+ A Quality Assurance Organization
+ Subject Predicate Object 
+ Thing-1 type CredentialOrganization 
+ Thing-1 name Santa Rosa Junior College 
+ Thing-1 offers Thing-2 
+ Thing-1 accreditedBy Thing-5 
+ Thing-2 type Certificate 
+ Thing-2 name Dental Assisting 
+ Thing-2 requires Thing-3 
+ Thing-2 requires Thing-4 
+ Thing-3 type LearningOpportunityProfile 
+ Thing-3 name Applied Dental Science 
+ Thing-3 teaches Thing-4 
+ Thing-4 type Competency 
+ Thing-4 competencyText Demonstrate problem-solving through independent and critical thinking. 
+ Thing-5 type QualityAssuranceOrganization 
+ Thing-5 name American Dental Association, Commission on Dental Accreditation. 
+ This set of terse statements in the 3-part grammatical form of triples is expressed in the abstract syntax of the directed graph below. Where relevant, the icons for the JSON-LD and Turtle concrete syntaxes appear below the figure.
+ In the figure above, each arc or arrow represents the predicate in a triple and points to the object of that triple. The arc or arrow is outbound from the triple's subject . A triple is the smallest possible graph in RDF linked data. More complex graphs are formed when an entity that plays the object role in one triple plays the subject role in another triple. The graph below illustrates this notion with the Credential entity playing the object role in Triple 1 and the subject role in Triple 2. Through this simple means, triples - known as statements in RDF - can be woven together into graphs that range from the simple to the very complex. All data based in CTDL are graphs of this sort.
+ Namespaces and Borrowed Terms
+ URIs provide unambiguous identification through the use of names that are unique within their own naming schemes, or namespaces. Each namespace will have its own identifier, to which the name of a resource can be appended to create a unique identifier that is a combination of namespace+name. In the case of URLs, the namespace identifier will specify the protocol that may be used to retrieve a representation of the resource being identified, thus URLs that use the HTTP or HTTPS protocols begin with http: and https: , respectively. In order to assist readability it is common practice to provide an abbreviated prefix for the namespace part of the URI. These prefixes must be declared in the data where they are used, and so may vary from instance to instance, however it is conventional to use familiar prefixes suggested by the specifications that define the namespaces.
+ So, W3C Recommendation RDF Schema , which specifies a vocabulary for describing terms used in RDF, defines the namespace that is identified with the URI http://www.w3.org/2000/01/rdf-schema# , and often abbreviated as rdfs: . The term within that namespace called label , is identified with the URI http://www.w3.org/2000/01/rdf-schema#label or the abbreviation rdfs:label .
+ The CTDL family of specifications defines the following namespaces for properties and classes, with suggested abbreviated prefixes:
+ Namespace URI Abbreviation Comment 
+ https://purl.org/ctdl/terms/ ceterms: Used to identify classes and properties in the CTDL vocabulary. 
+ https://purl.org/ctdlasn/terms/ ceasn: CTDL Profile of ASN-DL (CTDL-ASN) Schema, see below . 
+ https://credreg.net/qdata/terms/ qdata: The CTDL Quantitative Data schema (QData for short) is intended to describe aggregate / statistical data related to credentials and other such information. 
+ https://credreg.net/meta/terms/ meta: Terms and classes used to aid in the management of schemas by the Credential Engine. Not intended for external implementation. 
+ Other namespaces are used for concept schemes that form part of CTDL; see below .
+ RDFS and terms from many other specifications are used in defining CTDL; these are listed in the references section of the CTDL Schema .
+ Where possible, CTDL adopts terms from other well known and widely implemented RDF vocabularies. This enhances interoperability because it means that some terms used in CTDL descriptions can be immediately understood by the many applications that understand those vocabularies. We do however have to be careful not to damage the interoperability from which we wish to benefit. Thus we are cautious when we need to adapt an existing term from another vocabulary to meet our own purposes, while still acknowledging the source of the term we have borrowed. As a result you will see in the term definitions for CTDL:
+ Some terms and concepts that have been used as-is, and are identified with URIs from their original vocabulary
+ Some terms and concepts in the CTDL namespaces that are defined as being equivalent or exact matches for terms and concepts in other namespaces
+ Some terms and concepts in the CTDL namespaces that are defined as being broader or narrower than terms and concepts in other namespaces
+ Some terms and concepts where the definition acknowledges a source in some other vocabulary or that the term or concept is based on one in another namespace
+ Further information on the reasons behind these choices can be found in the Namespace Policy .
+ Even beyond what is explicitly included in vocabulary, CTDL allows the use of terms from other RDF specifications when describing resources. In some cases CTDL has been designed in the expectation that this will happen. So rather than having terms in CTDL for everything, the recommendation is that terms from some other specification should be used. For example, in the Education to Work context, Occupations and Jobs may be classified according to category; if they are, it is recommended that the W3C Simple Knowledge Organization System (SKOS) vocabulary is used to describe these categories. An introduction to SKOS is provided by the SKOS Primer .
+ For more information, see the Borrowed Terms section of the Namespace Policy .
+ Concept Schemes for Controlled Vocabularies
+ Where the value for a property is to be drawn from an enumeration of predefined terms (i.e. a controlled vocabulary) these terms are defined using the W3C Simple Knowledge Organization System (SKOS) vocabulary. SKOS allows Concepts to be identified with terms (such as words or alphanumeric codes), defined, labeled, related to each other and collected in schemes (i.e. Concept Schemes). CTDL defines many such enumerations or schemes, each in its own namespace. The URIs for CTDL concepts all begin https://purl.org/ctdl/vocabs/ , which is followed by a name for the relevant concept scheme. The name of the term appended to the concept scheme URI gives a unique URI for the term that can be resolved to obtain all the encoded information about the term.
+ Note: The URIs for the Concept Schemes all start with https://purl.org/ctdl/terms/ followed by the name of the scheme.
+ For historic reasons, a common pattern in CTDL is for properties that take a value from controlled vocabulary do so with that value provided as a CredentialAlignmentObject . This allows for a label, a definition and a source for the term to be provided even where the concept term is not defined using SKOS; however for a few properties the SKOS vocabulary is used to do the same.
+ Concept Scheme using SKOS
+ The Class Hierarchy
+ There are many classes in CTDL, each one identifies a type of resource that can be described. The class of a resource determines the properties that will be available to describe it.
+ The image above shows a handful of classes from the credential hierarchy. The hierarchy is taxonomic, as you progress down the hierarchy the classes represent more specific subtypes of the same class as the parent. Anything described as an Associate Degree or a Bachelor's Degree is also a Degree and a Credential.
+ We do not have "Other not elsewhere defined" classes. If there is no specific subtype for the thing being described, any broader type can be used. So there is no "Other Degree" class; you should use "Degree" if the degree you are describing doesn't fit into any of the subclasses we have.
+ Where relevant the sections of this handbook document the subtypes for the class they deal with, and the full class hierarchy is documented in a separate page .
+ Primary and Secondary Classes
+ It is common in both Registry and non-Registry contexts to group the various CTDL classes into two basic categories:
+ "Primary" or "Top-Level" classes
+ "Secondary", "Support", or "Utility" classes
+ These designations are informal and occasionally inconsistent or context-dependent, but generally, "Primary" classes refer to classes with a CTID (and, by extension, a Registry URI) while "Secondary" classes are, in essence, everything else. The "Primary" classes tend to serve as entry points into a graph of data and are often the focus of the data itself, whereas the "Secondary" classes act to support or enhance the description of the data in the "Primary" classes. Additionally, "Secondary" classes often appear in more than one context, and the nature of that context usually depends on whatever property references that class.
+ For example, the "Primary" class of Certificate might have a set of requirements and a set of recommendations that are both described using the "Secondary" ConditionProfile class, but each instance of ConditionProfile is contextualized by the property that points to it ( requires and recommends , respectively). This allows the Certificate to, for instance, require one set of competencies and recommend a second set using the same data structure.
+ Another common example is the CredentialAlignmentObject class, which serves the function of "referencing and/or identifying something else" in a wide variety of contexts (controlled vocabularies, competencies, external classifications, and so on).
+ Some classes occupy both designations depending on how they are used: For instance, a Competency has a CTID and a Registry URI just like a "Primary" class, but is often used as a "Secondary" class for the also "Primary" CompetencyFramework class. In the Registry, Competency Frameworks and their member Competencies are published in the same JSON-LD Graph, but each can be independently retrieved (and retrieving the Graph for the Competency Framework will return its Competencies as well). The same mixed designation and Registry behaviors follow for other "framework-like" collections of closely-related classes, such as Concept Schemes and their member Concepts , as well as Pathways and their member PathwayComponents .
+ Further blurring the line is the Registry's use of RDF Blank Nodes , which often represent would-be instances of "Primary" classes but have no assigned CTID or Registry URI. An example of such usage is described here . This highlights the informal nature of these designations. Nevertheless, they are useful conversational aides and worth being aware of.
+ The following diagram depicts common designations of a selection of "Primary" and "Secondary" classes, along with a partial list of connections between them to give a sense of how highly interconnected the CTDL schema is. Note that for readability, this graph also omits connections between "Primary" classes (such as an Organization owning a Credential), as well as connections between "Secondary" classes (such as a ConditionProfile using a CredentialAlignmentObject to indicate its audienceLevelType ).
+ JSON-LD
+ RDF can be expressed in a number of formats, including triples , Turtle , and XML , but the most common format used for CTDL data is JSON-LD . JSON-LD is a specification that builds upon normal JSON to enable a standardized way to express RDF data.
+ In some cases, the JSON-LD specification offers multiple options for expressing data that are equally valid. This handbook (along with the other technical data on this site) and the data in the Credential Registry usually follows the following conventions:
+ Context Files: Records typically link to an external @context file, most often either https://credreg.net/ctdl/schema/context/json or https://credreg.net/ctdlasn/schema/context/json . This reference is found at the outermost object in the data. See " Referencing a JSON-LD context ".
+ Graphs: Examples on this page make use of the @graph feature of JSON-LD, which enables putting multiple related objects into the same array. Data in the Credential Registry is available using this feature if you use "graph" instead of "resources" in the URI for that data. See " Using @graph to explicitly express the default graph ".
+ Namespace Prefixes: Examples on this page and data in the Credential Registry use namespaced properties (via shorthand URIs that can be expanded via the @context), even where only one namespace is used. This is done to provide absolute clarity as to the meaning of a given property, consistency of data when publishing or consuming, and to encourage good habits in terms of format, capitalization, and so on. For example: { "ceterms:ctid": "ce-c6bffa5f-be74-4f98-963f-1cc536328c73" } instead of { "ctid": "ce-c6bffa5f-be74-4f98-963f-1cc536328c73" } . See " Expansion within a Context ".
+ Language Maps: Examples on this page and data in the Credential Registry uses the compact form of language maps where the value of language-dependent properties such as "name" or "description" is an object with one or more key-value pairs consisting of a BCP 47 language code key and a value that is either a string or an array of strings. For example: { "ceterms:name": { "en": "Credential Name" }, "ceterms:keyword": { "en": [ "keyword one", "keyword two" ] } } . See " Indexing language-tagged strings in JSON-LD ".
+ In RDF, several statements can be made about the same resource using the same predicate; JSON, on the other hand, does not allow for property names to be repeated within an object. Where multiple values for a predicate are required in JSON-LD these are represented as an array value for a single instance of the JSON property. It is important to note that while JSON arrays are ordered, the RDF statements that are represented by using an array in JSON-LD are not ordered. However, when rendering CTDL data, in the absence of any other means of determining order, it is best to represent the values in the order they appear in the JSON array as this may have been the intent when the data were generated. Where ordering is crucial to the meaning of the data (e.g. in ProgressionLevels and Pathways) we provide properties to indicate the required order.
+ Data in the Wild vs Data in the Credential Registry
+ Credential Engine maintains a centralized repository of information that uses the CTDL family of specifications. This repository, and its related services, are called the Credential Registry .
+ Credential Engine puts a great deal of focus on using CTDL in and with the Credential Registry. However, the CTDL family of specifications is explicitly designed to function as an openly licensed, standalone set of schemas for use by anyone in any context in which it is deemed useful. Credential Engine encourages such use for the following reasons:
+ It increases interoperability across the credentialing ecosystem
+ It becomes easier to publish to and consume from any CTDL-conformant system (including Credential Engine's Credential Registry) when an organization's own systems are already using CTDL
+ Communication and data exchange between organizations becomes easier when those organizations are already using the same terms to describe their data
+ CTDL is designed to be compatible with major search engine crawlers, meaning that organizations that use CTDL embedded in their website data stand to benefit as search engines begin to recognize CTDL terms
+ In general, this handbook covers the CTDL family of specifications as a standalone set of schemas. Where information in this handbook is specific to the Credential Registry, it will be noted.
+ Application Profiles
+ Any implementation of CTDL is likely to need some additional constraints that are specific to that application. Collectively, these constraints make up an "Application Profile" of CTDL. Since these constraints are "local" to a specific application, they are deliberately not part of the CTDL itself. Examples of such constraints include:
+ Certain terms being required
+ Certain terms not being used at all
+ Determining which properties allow multiple values
+ Limits on the maximum or minimum number of values for a property, such as the maximum number of keywords or the minimum length of a description
+ Permitting only certain subsets of a property's range as valid values for that property
+ Extensions to the schema(s) that are specific to that application, such as properties and classes defined in its own or some 3rd party's namespace 
+ Checks for valid values, such as working links or correctly-formatted email addresses
+ Determining when to embed data directly (such as a nested object in JSON) vs. when to reference it by a URI or blank node ID 
+ As noted above, the Credential Registry uses the CTDL family of specifications. However, the Credential Registry implementation of CTDL has some additional constraints that are not part of these specifications. These constraints make up the Registry's "Application Profile" of CTDL. For a more detailed listing of the constraints in place for the Registry, consult the Policy Page .
+ For more information about constructing your own Application Profile, see the DCAP Process .
+ Credential Transparency Description Language (CTDL) Schema
+ The Credential Transparency Description Language (CTDL) is a vocabulary of terms that are useful in making assertions about a Credential and its relationships to other entities. The word "vocabulary" is used here to refer specifically to a set of terms, a set in which the members are properties, classes, concept schemes, and/or data types.
+ In a sense, the CTDL is like a dictionary of nouns (classes) and verbs (properties) that allow us to make simple statements, which, in aggregate, enable rich description of credential-related resources including credentialing organizations and specific subclasses of credential such as degrees, certificates, certifications, and digital badges. Credentials are related (linked) to other entities in the credentialing ecosystem such as Assessments , Learning Opportunities , and a myriad of conceptual frameworks such as Competencies , assessment rubrics, and conceptual entities including formal classifications of occupations and instructional programs. The CTDL provides the terms to assert relationships among all of these entities.
+ Beyond defining the meaning and relationships among the terms—properties and classes—in this 'dictionary', the CTDL does not prescribe constraints on how those terms are used to create descriptions of resources. The CTDL does not define "records" and their accompanying constraints such as optionality and cardinality. Instead, CTDL leaves the definition and publication of such constraints to profiles developed by communities of practice and organizations. This allows the CTDL to be tailored to specific needs while promoting maximum data interoperability among these profiles.
+ One such community profile is the CTDL-CR defining constraints on the language for resource descriptions intended for publication in the Credential Engine Registry (CER).
+ The scope of the CTDL is description of credentials offered and does not include description of credentials awarded. While the language will prove useful to others for generation of verifiable claims of a credential holder, full description of such claims is outside the scope of the CTDL.
+ The CTDL is modeled as a directed graph using the W3C's Resource Description Framework [ RDF ] for describing data on the Web.
+ The Resource Description Framework (RDF) is an entity-centric framework for expressing information about resources. Resources can be anything, including documents, people, physical objects, and abstract concepts. 
+ RDF is intended for situations in which information on the Web needs to be processed by applications, rather than being only displayed to people. RDF provides a common framework for expressing this information so it can be exchanged between applications without loss of meaning. Since it is a common framework, application designers can leverage the availability of common RDF parsers and processing tools. The ability to exchange information between different applications means that the information may be made available to applications other than those for which it was originally created. [ RDF PRIMER ] 
+ RDF extends the linking structure of the Web to use URIs to name the relationship between things as well as the two ends of the link (this is usually referred to as a "triple"). Using this simple model, RDF allows structured and semi-structured data to be mixed, exposed, and shared across different applications.
+ This linking structure forms a directed, labeled graph, where the edges represent the named link between two resources, represented by the graph nodes. This graph view is the easiest possible mental model for RDF and is often used in easy-to-understand visual explanations. This Guide uses this visual form of explanation as an abstract syntax for its figures. Where relevant, this abstract syntax of the Guide figures is accompanied by concrete syntaxes in JSONLD and RDF Turtle.
+ Many of the properties in CTDL have multiple domains and ranges. To avoid unintended semantic inferencing, CTDL defines properties using schema.org's domainIncludes and rangeIncludes instead of RDF Schema's domain and range .
+ Organization
+ In CTDL, the notion of organizations fall under the umbrella of the Agent superclass, which is broadly defined as "The direct performer or driver of the action (animate or inanimate)." The Agent superclass is subclassed into CredentialPerson and Organization . The CredentialPerson class is intended to serve as a bridge between CTDL and other schemas that more directly deal with individuals, and is beyond the scope of this handbook. The Organization class covers any kind of organization and is equivalent to schema:Organization .
+ The example below shows an Organization playing the roles of an employer offering a job, the provider of a credential needed for that job, and the provider of an assessment needed to earn that credential.
+ Broad Organization Class
+ Broad Organization Class
+ More targeted subclasses have been defined for use in describing organizations playing key roles in the lifecycle of Credential development, maintenance, and application:
+ Credential Organization 
+ QA Credential Organization 
+ The figure below illustrates an instance of the Credential Organization subclass and includes a few of the available properties including the name of the organization, its webpage ( subjectWebpage ), a number of official identifiers ( fein , opeID , and ipedsID ), a reference to the organization's postal address ( address ), and a reference to one of its offered certificates ( Certificate ). For additional information about the Agent class and its subclasses, and additional properties, see the Agent schema tables as well as additional properties available for use in describing relevant organizations and persons.
+ Figure 2.1.1A
+ Santa Rosa Junior College as Credential Organization
+ The example below shows an state board accrediting a school and approving of one of its credentials.
+ Quality Assurance Organization
+ Quality Assurance Organization
+ Credential
+ We define a Credential as:
+ “A qualification, achievement, personal or organizational quality, or aspect of an identity typically used to indicate suitability.”
+ This broad definition encompasses many entities, including some beyond the scope of the Credential Transparency Description Language (CTDL)—such as passports, birth certificates, and other forms of identity or authorization not typically considered educational or occupational credentials.
+ Note: While many systems distinguish between the terms credential and qualification qualification, in CTDL we treat these terms as roughly synonymous.
+ Within CTDL, we refine this broad concept by distinguishing between two key constructs:
+ Credential Classes: These describe the general kinds of credentials—such as Degrees, Diplomas, Certificates, and Badges—that are owned and awarded by various types of organizations around the world. Credential Classes group credentials that are broadly similar based on shared characteristics. They are used in linked data with the rdf:type property (or @type in JSON-LD).
+ Credential Types: These provide more specific descriptions of credentials as defined by an authoritative body within a particular education or qualification system. Credential Types reflect how credentials are formally regulated and recognized in national or regional contexts, and often include legal or policy-based distinctions.
+ In the Credential Registry, individual credentials must be assigned the appropriate Credential Class . The general Credential superclass should not be used by itself in published CTDL records.
+ Where relevant, descriptions of Credential Types can also be published and linked to in descriptions of individual credentials to reflect their official type within a given qualification system.
+ Credential Classes
+ CTDL defines the following Credential subclasses for use in resource descriptions by the credentialing community. Where a specific subclass does not exist for the type of credential being described, the nearest parent class should be used. For example, a "Bachelor of Architecture" is neither a Bachelor of Science nor a Bachelor of Arts and so should be described as a Bachelor Degree .
+ Badge 
+ Recognition designed to be displayed as a marker of accomplishment, activity, achievement, skill, interest, association, or identity.
+ Digital Badge 
+ Badge offered in digital form.
+ Open Badge 
+ Visual symbol containing verifiable claims in accordance with the Open Badges specification and delivered digitally.
+ Certificate 
+ Credential which designates participation in, completion of, or demonstration of requisite knowledge and skills for a formal academic or training program, an occupation, or non-formal learning.
+ Distinct from degrees of higher education and typically non-renewable. For degrees of higher education use an appropriate type from the Degree hierarchy.
+ Academic Certificate 
+ Credential awarded for successful completion of a formal education program, demonstrating requisite knowledge and skills.
+ Formal education programs include academic, career, technical programs with defined completion requirements and often require approvals by provincial or federal government.
+ Basic Technical Certificate 
+ Credential awarded at a postsecondary level for successful completion of a formal education program that is completed within one semester, demonstrating competencies within a specific occupational area, indicating job readiness.
+ Typically equivalent to a United States IPEDS level 1a that specifies postsecondary certificates of less than 300 clock hours, or less than 9 semester or trimester credit hours, or less than 13 quarter credit hours and UNESCO ISCED 2011 Levels 3 or 4.
+ General Education Level 1 Certificate 
+ Credential award at a postsecondary level for successful completion of general education courses that cover a broad range of foundational academic skills and takes less than 1 year.
+ Can lead to a General Education Certificate Level 2 or a degree. Equivalent to a United States IPEDS Award Level 1b that specifies postsecondary certificates of 300-899 clock hours, or 9-29 semester or trimester credit hours, or 13-44 quarter credit hours and UNESCO ISCED 2011 Level 4.
+ If the competencies are related to a specific subject area or occupational area use the Technical Level 1 or use a Higher Education Certificate.
+ General Education Level 2 Certificate 
+ Credential award at a postsecondary level for successful completion of general education courses that takes at least 1 year that cover a broad range of foundational academic skills and takes less than 2 years to complete.
+ Can lead to a degree. Equivalent to a United States IPEDS Award Level 2 that specifies postsecondary certificates of at least 900 but less than 1,800 clock hours, or at least 30 but less than 60 semester or trimester credit hours, or at least 45 but less than 90 quarter credit hours and UNESCO ISCED 2011 Level 4.
+ If the competencies are related to a specific subject area or occupational area use the Technical Level 2 or use a Higher Education Certificate.
+ Higher Education Level 1 Certificate 
+ Credential awarded at the postsecondary level for successful completion of a formal higher education program that takes about one year in a specific subject.
+ Typically equivalent to 60 ECTS Credits at Level 5 in the European Qualifications Framework or UNESCO ISCED 2011 Level 5.
+ Higher Education Level 2 Certificate 
+ Credential awarded at the postsecondary level for successful completion of a formal higher education program that takes about two years in a specific subject.
+ Typically equivalent to 120 ECTS Credits at Level 5 in the European Qualifications Framework and the Short Cycle in the Qualifications Framework of the European Higher Education Area, or UNESCO ISCED 2011 Level 5.
+ Post-Baccalaureate Certificate 
+ Credential award that requires completion of an organized program of study at a level beyond that of a bachelor's degree, which is designed for persons who have completed a baccalaureate degree but does not meet the requirements of a master's degree.
+ This may include certificates that are for specialties within an occupational field or occupational program of study. Equivalent to a United States IPEDS Award Level 6 and UNESCO ISCED 2011 Level 7.
+ Post-Master Certificate 
+ Credential award that requires completion of an organized program of study beyond that of a master's degree, which is designed for persons who have completed a master's degree but does not meet the requirements of a doctor's degree.
+ This may include certificates that are for specialties within an occupational field or occupational program of study and can include post-doctoral first professional certificates such as healthcare and law. Equivalent to a United States IPEDS Award Level 7 or 17, 18, and 19, and UNESCO ISCED 2011 Level 8.
+ Secondary Education Certificate 
+ Credential for successful completion of a formal secondary-level education program that is less than a diploma and does not indicate completion of secondary education graduation requirements.
+ Use Diploma or General Education Development to indicate completion of secondary education graduation requirements.
+ Technical Level 1 Certificate 
+ Credential award at a postsecondary level for successful completion of a formal education program that is more than one semester and less than 1 year, demonstrating competencies within a specific subject area or an occupational area indicating job readiness.
+ Can lead to a Technical Certificate Level 2 or a degree. Equivalent to a United States IPEDS Award Level 1b that specifies postsecondary certificates of 300-899 clock hours, or 9-29 semester or trimester credit hours, or 13-44 quarter credit hours and UNESCO ISCED 2011 Level 4.
+ Technical Level 2 Certificate 
+ Credential award at a postsecondary level for successful completion of a formal education program that is at least 1 year but less than 2 years, demonstrating competencies within a specific subject area or in an occupational area indicating job readiness.
+ Can lead to a degree. Equivalent to a United States IPEDS Award Level 2 that specifies postsecondary certificates of at least 900 but less than 1,800 clock hours, or at least 30 but less than 60 semester or trimester credit hours, or at least 45 but less than 90 quarter credit hours and UNESCO ISCED 2011 Level 4.
+ Technical Level 3 Certificate 
+ Credential award at a postsecondary level for successful completion of a formal education program that is at least 2 years but less than 4 years, demonstrating competencies within specific occupational areas indicating job readiness.
+ Can lead to a degree. Equivalent to a United States IPEDS Award Level 4 that specifies certificates of 1,800 or more clock hours, or 60 or more semester or trimester credit hours, or 90 or more quarter credit hours and UNESCO ISCED 2011 Level 5.
+ Certificate of Completion 
+ Credential that acknowledges completion of an assignment, training or other activity.
+ A record of the activity may or may not exist, and the credential may or may not be designed as preparation for another resource such as a credential, assessment, or learning opportunity.
+ Certificate of Participation 
+ Credential that acknowledges attendance and/or engagement in an activity.
+ These certificates do not imply completion, or mastery of specific skills, or that a grade has been awarded, but recognize the individual's active participation with an activity. A record of the activity may or may not exist, and the credential may or may not be designed as preparation for another resource such as a credential, assessment, or learning opportunity.
+ Professional Certificate 
+ Credential awarded for demonstrating competencies in a profession or particular occupational field, including job readiness.
+ These certificates validate competency in tasks, tools, software, or procedures within a particular industry and are often awarded by training centers, career and technical education, industry organizations, or businesses.
+ Proficiency Certificate 
+ Credential awarded after assessment of skills in a specific area defined by a recognized body of experts, without regard for how the skills were learned.
+ Examples of specific areas include language, typing, music, and dance.
+ Work-Based Learning Certificate 
+ Credential awarded for work-based learning and earn-and-learn models that meet standards and are applicable to industry, trades, occupations, and professions.
+ Work-based learning includes many types of skills training that are occupation specific including, but not limited to apprenticeships.
+ Apprentice Certificate 
+ Credential awarded at the Apprentice level for successful completion of an apprenticeship program in industry trades and professions.
+ Journeyman Certificate 
+ Credential awarded at the Journeyman level for successful completion of an apprenticeship program in industry trades and professions.
+ Master Trade Certificate 
+ Credential awarded at the Master level for demonstration of the highest level of skills and performance in industry trades and professions.
+ Pre-Apprenticeship Certificate 
+ Credential awarded to indicate readiness for an apprentice-level program.
+ Certification 
+ Time-limited, revocable, renewable credential awarded by an authoritative body for demonstrating the knowledge, skills, and abilities to perform specific tasks or an occupation.
+ Certifications can typically be revoked if not renewed, for a violation of a code of ethics (if applicable) or proven incompetence after due process. Description of revocation criteria for a specific Certification should be defined using Revocation Profile.
+ Degree 
+ Academic credential conferred upon completion of a program or course of study, typically over multiple years at a college or university.
+ Associate Degree 
+ College/university award for students typically completing the first two years of full-time postsecondary school education.
+ Equivalent to an award at UNESCO ISCED 2011, Level 5, and United States IPEDS Award Level 3.
+ Use this class for types of Associate Degrees that are not covered by more specific subtypes.
+ Associate of Applied Arts Degree 
+ College/university award for students typically completing two years of full-time postsecondary school education in a technical, professional, or vocational program with an emphasis on direct employment in the arts and social sciences fields.
+ Equivalent to an award at UNESCO ISCED 2011, Level 5, and United States IPEDS Award Level 3.
+ Use the name property to capture local variations on what this class covers.
+ Associate of Applied Science Degree 
+ College/university award for students typically completing two years of full-time postsecondary school education in a technical, professional, or vocational program with an emphasis on direct employment in applied scientific and technological fields.
+ Equivalent to an award at UNESCO ISCED 2011, Level 5, and United States IPEDS Award Level 3.
+ Use the name property to capture local variations on what this class covers.
+ Associate of Arts Degree 
+ College/university award for students typically completing the first two years of full-time postsecondary school education with an emphasis in the liberal arts and sciences such as the humanities and social science fields.
+ Equivalent to an award at UNESCO ISCED 2011, Level 5, and United States IPEDS Award Level 3.
+ Use the name property to capture local variations on what this class covers.
+ Associate of Science Degree 
+ College/university award for students typically completing the first two years of full-time postsecondary school education with an emphasis in scientific and technical fields and professional fields of study.
+ Equivalent to an award at UNESCO ISCED 2011, Level 5, and United States IPEDS Award Level 3.
+ Use the name property to capture local variations on what this class covers.
+ Bachelor's Degree 
+ College/university award for students typically completing three to five years of education where course work and activities advance skills beyond those of the first one to two years of college/university study.
+ Equivalent to an award at UNESCO ISCED 2011, Level 6, and United States IPEDS Award Level 5.
+ Use for 5-year cooperative (work-study) programs. A cooperative plan provides for alternate class attendance and employment in business, industry, or government; thus, it allows students to combine actual work experience with their college studies. Also includes bachelor's degrees in which the normal 4 years of work are completed in 3 years.
+ Bachelor of Arts Degree 
+ College/university award for students typically completing three to five years of education where course work and activities advance skills beyond those of the first one to two years of college/university study, with an emphasis in the liberal arts and sciences such as the humanities and social science fields.
+ Equivalent to an award at UNESCO ISCED 2011, Level 6, and United States IPEDS Award Level 5.
+ Use the name property to capture local variations on what this class covers.
+ Bachelor of Science Degree 
+ College/university award for students typically completing three to five years of education where course work and activities advance skills beyond those of the first one to two years of college/university study, with an emphasis in scientific and technical fields and professional fields of study.
+ Equivalent to an award at UNESCO ISCED 2011, Level 6, and United States IPEDS Award Level 5.
+ Use the name property to capture local variations on what this class covers.
+ Doctoral Degree 
+ Highest credential award for students who have completed both a bachelor's degree and a master's degree or their equivalent as well as independent research and/or a significant project or paper.
+ Equivalent to UNESCO ISCED, Level 8 and United States IPEDS Award Levels 17, 18, and 19.
+ Use the name property to capture local variations on what this class covers.
+ Professional Doctorate 
+ Doctoral degree conferred upon completion of a program providing the knowledge and skills for the recognition, credential, or license required for professional practice.
+ Equivalent to UNESCO ISCED, Level 8 and United States IPEDS Award Level 18.
+ Use the name property to capture local variations on what this class covers.
+ Research Doctorate 
+ Doctoral degree conferred for advanced work beyond the master level, including the preparation and defense of a thesis or dissertation based on original research, or the planning and execution of an original project demonstrating substantial artistic or scholarly achievement.
+ Equivalent to UNESCO ISCED, Level 8 and United States IPEDS Award Level 17.
+ Use the name property to capture local variations on what this class covers.
+ Master's Degree 
+ Credential awarded for a graduate level course of study where course work and activities advance skills beyond those of the bachelor's degree or its equivalent.
+ Equivalent to an award at UNESCO ISCED 2011, Level 7, and United States IPEDS Award Level 7.
+ Master of Arts Degree 
+ Credential awarded for a graduate level course of study where course work and activities advance skills beyond those of the bachelor's degree or its equivalent, with an emphasis in the liberal arts and sciences such as the humanities and social science fields.
+ Equivalent to an award at UNESCO ISCED 2011, Level 7, and United States IPEDS Award Level 7.
+ Use the name property to capture local variations on what this class covers.
+ Master of Science Degree 
+ Credential awarded for a graduate level course of study where course work and activities advance skills beyond those of the bachelor's degree or its equivalent, with an emphasis in scientific and technical fields and professional fields of study.
+ Equivalent to an award at UNESCO ISCED 2011, Level 7, and United States IPEDS Award Level 7.
+ Use the name property to capture local variations on what this class covers.
+ Specialist Degree 
+ Credential awarded for a graduate level course of study where course work and activities advance skills beyond those of the master’s degree and less than a doctoral degree and provide specific preparation for advanced careers in a specialist field.
+ Equivalent to UNESCO ISCED, Level 8, and United States IPEDS Award Level 8.
+ Use the name property to capture local variations on what this class covers.
+ Diploma 
+ Credential awarded by educational institutions for successful completion of a course of study or its equivalent.
+ General Education Development (GED) 
+ Credential awarded by examination that demonstrates that an individual has acquired secondary school-level academic skills.
+ Equivalent to a secondary school diploma, based on passing a state- or province-selected examination such as GED, HiSET, or TASC; or to an award at UNESCO ISCED 2011 Levels 2 or 3.
+ Secondary School Diploma 
+ Diploma awarded by secondary education institutions for successful completion of a secondary school program of study.
+ Equivalent to an award at UNESCO ISCED 2011 Levels 2 or 3.
+ License 
+ Credential awarded by a government agency or other authorized organization that constitutes legal authority to do a specific job and/or utilize a specific item, system or infrastructure and are typically earned through some combination of degree or certificate attainment, certifications, assessments, work experience, and/or fees, and are time-limited and must be renewed periodically.
+ Micro-Credential 
+ Credential that addresses a subset of field-specific knowledge, skills, or competencies; often developmental with relationships to other micro-credentials and field credentials.
+ Quality Assurance Credential 
+ Credential assuring that an organization, program, or awarded credential meets prescribed requirements and may include development and administration of qualifying examinations.
+ Credential Types
+ Many national and regional education or qualification systems define credential types in detail that goes beyond the general classification provided by the CTDL Credential Classes. These types often include attributes specific to the local system, and may differ from credential types in other jurisdictions. Such credential types usually have a formal definition, legal standing, and are regulated by an authoritative organization within the qualification system.
+ Credential Types are often defined and regulated in conjunction with Qualifications Frameworks. This relationship is discussed further in Qualifications Frameworks as Data .
+ To support this, CTDL provides the Credential Type class, defined as:
+ “Type of credential as defined by an authoritative body for use within an officially regulated qualification system.” 
+ Instances of CredentialType can be described using properties similar to those used for instances of Credential subclasses — but these descriptions represent the type of credential, not individual awarded credentials.
+ Example: Honours Degree in Erewhon 
+ Imagine a country called Erewhon, where a designated body named Erewhon Education Agency is responsible for defining official types of credentials. It defines an Honours Degree as a specific type of Bachelor Degree, classified as a Higher Education credential.
+ In this system:
+ The official definition of the Honours Degree credential type—as established by
+ Erewhon Education Agency—is represented as an instance of CredentialType.
+ All Erewhon Honours Degrees should be classed as ceterms:BachelorDegree, which may be indicated using the subclassOf property in the description of the Honours Degree CredentialType.
+ Erewhon Education Agency regulates which universities are accredited to offer each type of credential.
+ Erewhon University offers a BSc (Hons) in Accountancy, which is classified under the official Honours Degree
+ Figure 3.2.2A
+ Example CTDL representation of an Honours Degree Credential Type in Erewhon.
+ Assessment Profile
+ The AssessmentProfile is defined as a resource that "describes the key characteristics of an assessment for a credential." The figure below illustrates the use of Assessment Profile to describe a summative ( Summative ) performance ( Performance ) evaluation called "Modern Dance Performance Final (Recital)" required by a course ( LearningOpportunityProfile ) named "Modern Dance VI". The concept values for both the assessment use and the assessment method are drawn from controlled vocabularies described using the CredentialAlignmentObject .
+ Figure 2.3A
+ Assessment of a Learning Opportunity (Dance)
+ For more information on CredentialAlignmentObject , see this section .
+ Assessments are often used in conjunction with rubrics, for example to describe the marking scheme. Rubrics are described in detail in this section .
+ Learning Opportunity Profile
+ A LearningOpportunityProfile is defined as a resource "describing an educational or training opportunity." Learning opportunities include required and optional programs, courses of study, apprenticeships, and any other structured experiences intended to serve as educational or training events.
+ Figure 2.4A
+ Condition Profile referencing a Learning Opportunity Profile
+ Learning Opportunity Classes
+ CTDL allows for two subclasses of Learning Opportunity to be identified as distinct classes: Learning Program and Course .
+ The difference is that a Learning Program is a learning opportunity that comprises several other learning opportunities (typically courses, maybe work placements and other opportunities) whereas a Course is a single coherent unit. Not all Courses are part of a Learning Program. Furthermore, the Course and Learning Program classes do not cover all types of Learning Opportunity: many learning opportunities, especially informal ones, will best be described with the Learning Opportunity Profile class. Just as with Learning Opportunity Programs, both Learning Programs and Courses may have competencies (learning objectives/outcomes), assessments, credentials etc. as well as a wide range of descriptive terms associated with them. The Learning Program and Course classes are defined as follows:
+ Learning Program 
+ Set of learning opportunities that leads to an outcome, usually a credential like a degree or certificate.
+ Course 
+ Single structured sequence of one or more educational activities that aims to develop a prescribed set of competencies of learners.
+ Course is distinct from Program, which aggregates several courses.
+ Figure
+ Learning Program comprising four Courses
+ Scheduling Patterns
+ It is frequently useful to give an indication of aspects of the scheduling of a Learning Opportunity, Learning Program, Course or Assessment in order to inform potential students on how frequently such an opportunity is offered and when and how frequently they would have to attend events during the opportunity. For example, a course may be offered once a year or every quarter and attendance may be required several times a week in the evening. To accommodate this, CTDL has properties and concept schemes to describe offer frequency type , schedule frequency type , and schedule timing type via the associated concept schemes Schedule Frequency and Schedule Timing . As scheduling often varies when opportunities are offered in more than one location or through more than one delivery mode, CTDL also provides Scheduled Offering , which can be used (where necessary) to provide information about an offering with a specific scheduling pattern, location or modality. ScheduledOffering also allows for different costs, durations and aggregate outcome data for different locations, scheduling patterns or modality, for example if the duration of course taken part-time in evening classes is longer than the same course taken full time.
+ Scheduled Offering 
+ Offering of a Learning Opportunity or Assessment with a schedule associated with a specified location or modality.
+ Provides data specific to a given scheduled offering; the Learning Opportunity (including Course and Learning Program) or Assessment being offered provides all data that is shared between different offerings.
+ Rather than repeating data, only use this class if the data differs from the data provided by the resource for which this is an offer.
+ Offer Frequency Type 
+ Type of frequency at which a resource is offered; select from an existing enumeration of such types.
+ This relates to how often something starts.
+ For information relating to the frequency of events associated with a resource when it is running, use ceterms:scheduleFrequencyType.
+ Schedule Frequency Type 
+ Type of frequency indicating the cadence at which events associated with a resource typically occur; select from an existing enumeration of such types.
+ This relates to the frequency of events associated with a resource once it is running.
+ For information relating to how often something starts, use ceterms:offerFrequencyType.
+ Schedule Timing Type 
+ Type of time at which events typically occur; select from an existing enumeration of such types.
+ Has Offering 
+ Indicates an offering and typical schedule.
+ Only use this property when it is necessary and useful to provide data about specific offerings of a learning opportunity or assessment, such as particular combinations of schedule, location, and delivery.
+ The property has offering can be used to indicate a ScheduledOffering from a LearningOpportunity, LearningProgram, Course or AssessmentProfile.
+ Note: it is not the intention to provide as much information about scheduling as would be required for something like a calendaring app, the idea is merely to indicate the pattern. Further detail may be provided using vocabularies such as schema.org/Schedule, if required.
+ Scheduling Pattern Examples
+ The first example shows a simple case of a course that is offered at a single location; the course is offered once a year, and attendance is weekly during the day. As there is no variation of scheduling pattern with location the scheduling properties can be associated directly with the Course object.
+ Figure
+ Schedule Example 1
+ In the second example, a course is offered in two locations, in one attendance is on a weekly basis in the evening, in the other it is weekly in the daytime. The scheduling pattern for each location is provided as a distinct ScheduledOffering.
+ Figure
+ Schedule Example 2
+ Education to Work Classes
+ CTDL includes classes and properties for describing how credentials, learning opportunities, assessments, and competencies relate to industries, occupations, jobs, work roles, and tasks.
+ This allows education to be connected to work.
+ This information helps show the value of credentials in relation to employment. Individuals can identify learning opportunities that support their goals. Education and training providers can better understand workforce needs. Employers can identify credentials and programs that align with the jobs they offer.
+ CTDL also supports the description of rubrics, which may be used to evaluate a person’s readiness for a job or their performance on a task. Rubrics are described in this section .
+ The CTDL classes used to describe work include:
+ Industry 
+ Broad category of economic activities encompassing various sectors.
+ Occupation 
+ Profession, trade, or career field that may involve training and/or a formal qualification.
+ Job 
+ Set of responsibilities based on work roles within an occupation as defined by an employer.
+ Job describes an abstraction or template that specific job postings or openings could be instances of.
+ Work Role 
+ Collection of tasks and competencies that embody a particular function in one or more jobs.
+ Task 
+ Specific activity, typically related to performing a function or achieving a goal.
+ The example below illustrates relationships between Occupation, Work Role and Task and the Competencies that are embodied by the Task. For simplicity only one Work Role is shown for the Occupation, and one Task for that Work Role, though in reality there would be many Work Roles each with many Tasks.
+ The relationships between these work-related classes and other CTDL classes such as competencies, concepts, identifiers, and agents are shown in the image below.
+ Competencies are a key link between education and work. They may describe learning outcomes, requirements for assessments, or requirements for earning a credential, and they may also be linked to industries, occupations, jobs, work roles, or tasks. The way competencies are linked depends on context. For example, an employer may define competencies at the task level and group them into work roles and jobs, while in other cases competencies may be linked directly to a job.
+ Industries, occupations, and jobs may be associated with each other. More complex requirements can be described using Condition Profiles and Condition Manifests , which are not shown in the diagram below.
+ Schematic representation of Education to Work classes and their relationships with each other and with other CTDL classes.
+ NICE Framework
+ NICE Framework
+ Industry
+ An Industry is defined as a broad category of economic activities encompassing various sectors.
+ The Industry class represents an economic sector or area of economic activity, such as healthcare, manufacturing, or information technology. It provides a structured way to describe and organize industries as identifiable resources that can be referenced, compared, and linked across systems and data environments.
+ Industries can be referenced using a classification system (e.g., ESCO or NAICS) or represented as fully described resources. This flexibility supports consistent alignment of credentials, learning programs, competencies, occupations, and other resources to the economic sectors they serve.
+ When industries are modeled as resources using the Industry class, they enable richer connections across data. For example, multiple credentials, occupations, and learning opportunities can be linked to the same industry, supporting analysis of education and workforce alignment within and across sectors.
+ Industries can be organized into hierarchies using the hasSpecialization and isSpecializationOf properties. These relationships support the representation of broader and narrower industry groupings.
+ Resources may relate to industries in two ways. They may reference a classification value using the industryType property, or they may link directly to an Industry resource using the hasIndustry property. The hasIndustry property should be used when the industry is modeled as a resource and participates in broader relationships across linked data.
+ Industries may also recognize resources such as learning opportunities or credentials. This can be described using the recognizedForIndustry property. In some cases, an industry-recognized credential may be required for work in an occupation or job related to that industry.
+ Care should be taken not to imply that a specific resource, such as a credential, is universally required when similar credentials may meet the same need. For example, a diving license from a specific organization may be required for work in a particular industry within a specific jurisdiction, but not in that industry globally.
+ Industries
+ Example showing an industry recognized credential that is required for an occupation
+ Occupation
+ An Occupation is defined as a profession, trade, or career field that may involve training and/or a formal qualification. An occupation does not have to have a direct correspondence to an entry in a formal classification scheme such as ONet, ESCO or military occupation systems, but if it does then this relationship can be shown. Some occupations are specializations of others. Occupations may be related to Jobs, Work Roles and Tasks, and embody certain competencies that are required of a person working in said occupation.
+ Different organizations may wish to use similar but distinct definitions of occupations while maintaining information to indicate that the occupations are closely related. The assertedBy property can be used to show who has created the definition of the Occupation. The properties sameAs , isSpecializationOf and isSimilarTo may be used to indicate the relationship. The example below shows the relationship of a specialized Occupation to one that is more general in scope and defined by a different organization.
+ Example showing two related occupations.
+ Occupations
+ Related Occupations
+ Job
+ A Job is defined as a set of responsibilities based on work roles within an occupation as defined by an employer; it describes an abstraction or template of which specific job postings or openings could be instances. A job may correspond to an entry in a formal classification scheme of occupations or an occupation, or may be related to an occupation that is not described in such a scheme. Like an occupation, a job may be related to Jobs, Work Roles and Tasks, and embody certain competencies that are required of a person working in said occupation. A key difference between a Job and an Occupation is that a Job is offered by an Agent (an employer) that defines the specific scope in terms of Work Roles and Tasks.
+ The pay associated with a Job may be described using the PayProfile class, see section 3.15.10, Pay for Jobs and Other Work.
+ An example description of a Job is given below, focusing on the relationship between a Job and a Credential. In this case the job requires a "license to Practice" that is recognized in the relevant Jurisdiction. No further information is provided about this Credential, which is a useful pattern when there might be several specific options that would fit the requirement. A full example could also include Work Roles and/or Tasks involved in this Job and the Competencies embodied by these tasks.
+ Job Requiring a License to Practice
+ Job Requiring a License to Practice
+ Work Role
+ A Work Role is defined as a collection of tasks and competencies that embody a particular function in one or more jobs. Work roles are related to tasks and may embody certain competencies that are required to complete these tasks.
+ Task
+ A Task is defined as a specific activity, typically related to performing a function or achieving a goal. Tasks may be decomposed into sub tasks. A task may embody certain competencies that are required to complete it successfully.
+ The example below illustrates how a task can comprise a sequence of sub-tasks, note the use of listID to specify the ordering of the sub-tasks. This example also shows how a task can be classified against a Concept Scheme.
+ Navy Maintenance Tasks
+ Navy Maintenance Tasks
+ Collection
+ A Collection is defined as an aggregation of related member resources. As the name of the class indicates, it is a resource that "collects" already existing instances of resource types including Competency, Course, Job, Learning Opportunity Profile, Learning Program, Task and Work Role. These instances may be members of one or more Collections. A Collection may be defined for any useful purpose.
+ The figure below illustrates a collection with an array of differently typed members.
+ See the Collection section under CTDL-ASN for more information.
+ Collection and Approval Lists
+ State and federal government agencies and other organizations are tasked with providing approved list of credentials, assessments, learning opportunities, and related competencies that are recognized by that agency as meeting the requirements for some purpose (such as a state's Eligible Training Provider List). CTDL enables capturing this kind of information via the ceterms:Collection class, which provides both the capability of creating a list of resources and describing that list.
+ For example, in the ETPL use case, a Collection would be published by a state agency, using the ceterms:hasMember property to reference the resources (either directly or via ceterms:CollectionMember - see below) and the ceterms:collectionType property to reference the collectionCategory:ETPL Concept. This combination of terms indicates to a consumer of the data that the Collection represents that state's ETPL.
+ ETPL with Direct Membership
+ In some cases, it is necessary to indicate when a given resource's membership in a list begins and/or ends. In these cases, the ceterms:CollectionMember class is used as a member of the Collection and acts as a proxy for the resource in question. You should only use CollectionMember if you need to indicate the ceterms:startDate and/or ceterms:endDate of that resource's membership in that Collection.
+ ETPL with Collection Member
+ A detailed example in section 6.10 shows the use of a Collection object to indicate workforce demand by using it to list resources such as credentials, competencies or occupations that have a particular status relating to demand, wage, skill, etc.
+ Pathway Classes
+ Note: For more in-depth coverage of Pathways, see the CTDL Pathways Overview .
+ In the context of CTDL, a pathway consists of a structured set of objectives and qualifying conditions defining points (milestones) along a route to fulfillment of a job, occupation or career. Qualifying conditions include homogeneous or heterogeneous sets of prescribed, preferred or recommended evidentiary artifacts such as competencies attained (knowledge, skills, abilities), relevant awards, other forms of recognition such as credentials earned and relevant experience.
+ The Pathways ecosystem is composed of the following classes representing the key types in the CTDL data model:
+ Pathway 
+ Resource composed of a structured set of PathwayComponents defining points along a route to fulfillment of a goal or objective.
+ Pathway Set 
+ A roadmap of multiple related pathways that lead to one or more destinations.
+ Pathway Component 
+ Resource that serves as a defined point along the route of a Pathway which describes an objective and its completion requirements through reference to one or more instances of ComponentCondition.
+ An instance of PathwayComponent may serve as the goal or destination node of a Pathway.
+ PathwayComponent is a super-type that represents a family of more precise sub-types. In pathway descriptions, always use the sub-type of PathwayComponent appropriate to your circumstances, e.g., AssessmentComponent, CocurricularComponent, CompetencyComponent, CourseComponent, CredentialComponent, ExtracurricularComponent, JobComponent, and WorkExperienceComponent. Use BasicComponent for types of entities not covered by the current set of sub-types.
+ Assessment Component 
+ Resource that identifies a direct, indirect, formative, and summative evaluation or estimation of the nature, ability, or quality of a resource, performance, or outcome of an action.
+ Instances act as proxies or stand-ins for other resources in the context of a particular pathway so that relationships between them as components of that pathway can be stated without implying that the those relationships are true of the resources in other contexts.
+ Basic Component 
+ Resource that identifies a resource not otherwise covered by the enumerated PathwayComponent subclasses.
+ Instances act as proxies or stand-ins for other resources in the context of a particular pathway so that relationships between them as components of that pathway can be stated without implying that the those relationships are true of the resources in other contexts.
+ Cocurricular Component 
+ Resource that identifies an activity, program, or informal learning experience such as a civic or service activity that supplements and complements the curriculum.
+ Instances act as proxies or stand-ins for other resources in the context of a particular pathway so that relationships between them as components of that pathway can be stated without implying that the those relationships are true of the resources in other contexts.
+ Competency Component 
+ Resource that identifies a measurable or observable knowledge, skill, or ability necessary to successful performance of a person in a given context.
+ Competency is broadly defined to include assertions of academic, professional, occupational, vocational and life goals, outcomes, and standards, however labeled. Instances act as proxies or stand-ins for other resources in the context of a particular pathway so that relationships between them as components of that pathway can be stated without implying that the those relationships are true of the resources in other contexts.
+ Course Component 
+ Resource that identifies a structured sequence of one or more learning activities that aims to develop a prescribed set of knowledge, skill, or ability of learners.
+ Instances act as proxies or stand-ins for other resources in the context of a particular pathway so that relationships between them as components of that pathway can be stated without implying that the those relationships are true of the resources in other contexts.
+ Credential Component 
+ Resource that identifies another resource that describes qualification, achievement, personal or organizational quality, or aspect of an identity typically used to indicate suitability.
+ The ceterms:Credential class is broadly defined to encompass credentials used across domains and communities of practice. Subclasses of ceterms:Credential as defined by Credential Engine (or other communities) should be referenced. Instances act as proxies or stand-ins for other resources in the context of a particular pathway so that relationships between them as components of that pathway can be stated without implying that the those relationships are true of the resources in other contexts.
+ Extracurricular Component 
+ Resource that identifies an activity, program, or informal learning experience that may be offered or provided by a school, college, or other organization that is not connected to a curriculum.
+ Instances act as proxies or stand-ins for other resources in the context of a particular pathway so that relationships between them as components of that pathway can be stated without implying that the those relationships are true of the resources in other contexts.
+ Job Component 
+ Resource that identifies a work position, employment, or occupation.
+ Instances act as proxies or stand-ins for other resources in the context of a particular pathway so that relationships between them as components of that pathway can be stated without implying that the those relationships are true of the resources in other contexts.
+ Selection Component 
+ Component which provides a condition which references an array of other components from which components must be selected.
+ Work Experience Component 
+ Resource describing an activity or training through which a person gains job experience.
+ Instances act as proxies or stand-ins for other resources in the context of a particular pathway so that relationships between them as components of that pathway can be stated without implying that the those relationships are true of the resources in other contexts.
+ Component Condition 
+ Resource that describes what must be done to complete a PathwayComponent, or part thereof, as determined by the issuer of the Pathway.
+ A ComponentCondition references a single RuleSet defining appropriate values fulfilling the condition.
+ Constraint 
+ Resource that identifies the parameters defining a limitation or restriction applicable to candidate pathway components.
+ PathwayComponent is a supertype that represents a family of more precise subtypes. In pathway descriptions, always use the subtype of PathwayComponent appropriate to your circumstances, e.g., AssessmentComponent, CocurricularComponent, CompetencyComponent, CourseComponent, CredentialComponent, ExtracurricularComponent, JobComponent, and WorkExperienceComponent. Use BasicComponent to define types of entities not covered by the current set of subtypes.
+ The Pathways model does not define any properties for the Agent class and assumes that appropriate agents defined within relevant contexts will be referenced from the Pathway entity via the ownedBy property of the Pathway. For example, an instance of the CTDL CredentialOrganization class could use a owns property to reference one of its pathways. In like fashion, that Pathway instance could reference its owner via ownedBy - as illustrated in the JSON-LD code snippet in the following section.
+ The PathwayComponent (and its subtypes) are stand-ins or proxies for actual resource descriptions that may or may not exist in some web accessible repository. For example, a Course Component entity in a pathway is a proxy for a canonical resource description of a Course in an accessible data store on the Web. This separation of the canonical resource description from its proxy in a pathway makes it possible to include pathway-specific attributes in the proxy that are not present in the canonical resource description. The following diagram illustrates the relationship between the pathway-specific description and the canonical description using the proxyFor and hasProxy properties. 
+ Pathway Expressions
+ A Pathway Expression is an informal notion of a machine actionable encoding of either a single Pathway or an aggregation of logically related Pathways (a PathwaySet ) defining alternative paths that are bound together in a single expression.
+ As defined, the basic building blocks of a Pathway form an (RDF) directed graph as illustrated by the following figure where we see a Pathway pointing to a Pathway Component identified as the destination milestone or root node of the pathway (e.g., a bachelor degree in nursing) and a set of preceding Pathway Components defining earlier milestones back to an origin (e.g., a high school diploma).
+ However, a Pathway Expression may describe more complex circumstances such as alternative paths to the same destination, or a destination may be more diverse - e.g., a career cluster or a more general destination such as programming and software development. A PathwaySet may provide multiple routes from a single origin to a single destination, multiple routes from a single origin to multiple destinations or multiple origins to a single destination. A pathway set may also express multiple paths that cross-connect providing lateral movement as part of the journey from origin to destination. The next two figures illustrate instances of PathwaySet.
+ The following figure illustrates a pathway modeling of alternative paths to the same destination.
+ Pathways may also be logically aggregated into Pathway Sets (sometimes called roadmaps) with no intersections as illustrated in the following figure:
+ Pathways support a variety of use cases, such as:
+ Education & Career Planning
+ Support students and workers search and plan for career pathways including pathway options through stackable and latticed credentials and career clusters.
+ Credential Discovery
+ Find one or more types of credentials that best meet a person’s career and/or education goals along career and education pathways that provide the:
+ Best transfer value for credentials they have already earned
+ Potential to stack and build on other credentials
+ Education & Career Transitions
+ Identify education and career paths or progressions based on:
+ Degree of transfer value
+ Potential to stack and build on other credentials
+ Competency Analysis
+ Identify education and career paths in terms of the competencies that they require
+ Represent current achievement of desired competencies based on competency alignments of held credentials
+ Discover relevant credentials for each competency on a pathway/job profile from multiple providers
+ Levels of Expressivity and Complexity
+ The CTDL pathways specification enables the description of pathways at three levels of expressivity depending on the needs of the pathway creator. Movement from Level 1 through Level 3 expressivity is accompanied by increased levels of complexity as instances of ComponentCondition and Constraint are added to the PathwayComponent. In essence, the more expressivity, the more complexity. The following figure illustrates the three levels and the relationship of the PathwayComponent being described to ConditionComponent and Constraint.
+ To illustrate these levels and to provide a framework for the subsequent sections, we will use a relatively simple example of a credential pathway that is earned by passing a performance assessment. There are alternative paths for qualifying a person to sit for the assessment:
+ Alternative One: Successfully complete two out of three substantive courses (CourseComponent "B", CourseComponent "C", and CourseComponent "D") that must all have a credit value greater-than-or-equal-to "2"; or
+ Alternative Two: Successfully complete an assessment preparation course (CourseComponent "A") and two out of three substantive courses (CourseComponent "B", CourseComponent "C", and CourseComponent "D") that must have a credit value greater-than-or-equal-to "2".
+ Level 1: Pathway Skeleton
+ Level 1 is the simplest level of complexity and provides the minimum level of expressivity. Using our transit map analogy, this level identifies the station-stops and the route that ties the point of entry to the destination. As shown below, this basic skeleton structure is very useful in setting the stage for viewers of the pathway since they can identify the points of achievement and the progression through those points to the journey’s Credential destination. Depending on an organization’s use cases, the skeleton’s Level 1 expression may be sufficient.
+ Read from the top to bottom, Figure 10 illustrates the requirements of our example pathway where the CredentialComponent is earned by successfully completing a performance Assessment. The meanings of the labeled arrows (arcs) in the figure are relatively intuitive; but are defined in Table 2.
+ While the skeleton gives us a general sense of the pathway, it leaves unstated how we are to interpret the positioning of CourseComponent "A" outside the strong vertical axis of the figure. The pathway’s notion of "alternative" is graphically present but not coherently expressed. Also unstated are certain constraints including the performance type requirement of the AssessmentComponent and the requirement that the CourseComponent entities must all have a credit value greater-than-or-equal-to "2". The notion of the example credential’s alternatives will be concretely expressed in Level 2 and the constraints in Level 3.
+ Level 2: Component Conditions
+ Since the expressivity levels of the pathway build on each other, Level 2 in Figure 11 includes the Level 1 skeleton and adds five ComponentCondition instances in green. The function of the ComponentCondition is to define:
+ Required Number: 
+ The required number of PathwayComponent entities to select from an array of candidate PathwayComponent entities identified via the targetComponent property - e.g., "select 3 out of 5"; and/or
+ Optional Constraints on Candidate Pathway Components: 
+ One or more Constraint instances that must be satisfied by each candidate PathwayComponent entity based on specific attributes and values in those candidate descriptions; and/or
+ Complex constraints using nested ComponentCondition entities that can be combined by using logical operators such as "Or", and "And".
+ With functions 2a and 2b, and ComponentCondition nesting, relatively complex selection rules can be expressed that can inform machine processing as well as provide sentential or phrasal (pidgin) descriptions of a Constraint to end users.
+ A ComponentCondition may reference one or more ComponentCondition instances supporting the nesting of constraints as noted above. The form of these more complex expressions are identified in the figure below with ComponentCondition "B" on the AssessmentComponent instance that nests ComponentCondition "D" and "E" using the hasCondition property.
+ With the exception of CourseComponent "B", "C" and "D" at the bottom of the figure, all other PathwayComponent instances have at least one hasCondition property relating it to an instance of ComponentCondition. ComponentCondition instances describe the requirements for selecting from the array of one or more PathwayComponent instance subclasses identified by the targetComponent property. For example, the CredentialComponent uses the hasCondition property to identify ComponentCondition "A" that defines the requirement for satisfying the CredentialComponent. ComponentCondition "A" has a requiredNumber property with a value of "1" indicating that the CredentialComponent is satisfied by selecting one AssessmentComponent instance identified via one or more targetComponent properties. Since ComponentCondition "A" identifies only one AssessmentComponent via the targetComponent property, the condition requires selecting "1 out of 1" AssessmentComponent instances.
+ Following the same pattern, the AssessmentComponent references ComponentCondition "B" using its hasCondition property. Unlike ComponentCondition "A", ComponentCondition "B" references two nested conditions - ComponentCondition "D" and ComponentCondition "E" using the hasCondition property. In addition, there is a yellow circle in Figure 9 accenting the value "Or" for a logicalOperator property indicating that the student must choose either ComponentCondition "D" or ComponentCondition "E":
+ If the student choice is ComponentCondition "E", he or she must complete 2 Course Component instances (requiredNumber) from the array of 3 candidate instances identified with the targetComponent property - i.e., select 2 courses out of the "B", "C", "D" array of CourseComponent instances.
+ If, instead, the student chooses ComponentCondition "D", he or she must complete the exam preparation CourseComponent "A" that also requires selecting and successfully completing 2 (requiredNumber) courses out of the "B", "C", "D" array of CourseComponent instances.
+ Level 3: Constraints
+ Level 3 builds on Level 2 by adding Constraint instances to the example using the hasConstraint property on ComponentCondition instances as illustrated in the following figure.
+ While the ComponentCondition instances in the figure each have a single Constraint, they may each have two or more Constraints as seen in the Logical Constraints section.
+ Constraint "A" defines a single requirement that the AssessmentComponent identified by the targetComponent of ComponentCondition "A" must satisfy. The requirement here is that the target AssessmentComponent must have an assessmentMethodType of "Performance".
+ ComponentCondition "C" and "E" are identical and require the student to select two courses (requiredNumber) from the array of candidate CourseComponents "B", "C", and "D". Constraint instances "B" and "C" require each course in the target array to have a creditValue greater-than-or-equal-to "2".
+ The atomic structure of the Constraint class is a triple with leftSource, comparator and rightSource properties enabling sentential or phrasal (pidgeon) statements of a Constraint instance for use by both machines and humans in a manner similar to W3C’s RDF statement structure of subject, predicate and object. The Constraint data structure is "atomic" since a statement is incomplete without a subject (leftSource), a predicate (comparator), or an object (rightSource). An example of this triple structure is illustrated below stating in "A" that a creditValue must be greater-than-or-equal-to "2".
+ Part "B" defines a Constraint quad in which multiple values of the rightSource property financialAssistanceType ("StateGrant", "StateLoan" and "StateScholarship") have been qualified through application of the action anyOf meaning that the Constraint is satisfied by any of the enumerated financial assistance types.
+ Logical Operations
+ It is frequently necessary to relate ComponentCondition entities and Constraint entities using logical operators such as "and" and "or". Logically relating both ComponentCondition entities and Constraint entities can be seen below.
+ ComponentCondition "1" uses the logicalOperator "or" to define alternative conditions between ComponentCondition "2" and ComponentCondition "3". ComponentCondition "2" uses the logicalOperator "and" to relate Constraint "1" and Constraint "2". The result is then related to Constraint 3 via the "or" value on ComponentCondition "1".
+ Complete Pathway Diagram
+ Use of Progression Models in Pathways
+ Progression Models (covered fully in the section below) may be used under certain circumstances to establish the progressions of a pathway. When a ProgressionModel is used, the hasProgressionLevel property on the PathwayComponent subtype associates it to a particular ProgressionLevel concept in the model. Use of the precedes and precededBy properties on the ProgressionLevels defines the direction of the progression.
+ A Progression Model may not be used if any ProgressionLevel in the progression requires the use of a ComponentCondition. In such a case, the BasicComponent should be used for the level to particularize the component (e.g., "Semester 1") since it supports the application of ComponentCondition and Constraint types using via the components hasCondition property.
+ In cases where either a Progression Model or Basic Component to establish a progression is applicable - i.e., there are no ComponentConditionconstraining the component- defaulting to the use of ProgressionModel is recommended.
+ Progression Model and Progression Level
+ A ProgressionModel formally defines points along a developmental progression such as increasing levels of competence, complexity, or achievement in a schema. For example, an assessment rubric may define a set of criteria that must be achieved while providing an array of levels denoting different degrees of accomplishment with accompanying scores for each level. Such descriptions are of the class Progression Model. The following figure illustrates a simple example of a progression model - "Beginner", "Intermediate", "Advanced", "Expert" - in an imaginary pathway roadmap.
+ Simple Progression Model
+ Progression models themselves are being defined at various levels of complexity. The graphic above is a simple example of a progression model. However, not all progression models are simple. Below are two images of a progression model used in the European Commission's EntreComp (Entrepreneurship Competency Framework). The first image presents a slightly incomplete statement of the model circled in green in the context of the competency framework. The second image is of the complete progression model (note that the Commission calls it a "progression model").
+ Support Service
+ A Support Service describes a service or set of services intended to support the efforts of someone who is pursuing a credential, program, course, or other resource. Support Services are primarily intended to enable equal access for all participants, and usually consist of some combination of:
+ Academic and/or Career guidance, counseling, Job information/placement, and related informative services
+ Physical features of or modifications to facilities, particularly for individuals with disabilities or other needs
+ Adaptive technologies or alternative offerings of resources and media to maximize its usefulness to all individuals
+ Physical, mental, and/or behavioral healthcare and therapy
+ Provision of tangible resources, such as housing, clothing, food, work equipment, and learning resources
+ Temporary, periodic, and/or crisis relief services, including care for children or other family members
+ And many more - see the Support Service Category and Accommodation Concept Schemes for more comprehensive lists
+ Support Services may be broad and high level (such as a general description of services provided by an organization) or granular and specific (such as a list of particular services offered during a particular instance of a particular course at a particular location along with an indication of the audience to which those services are available) or anywhere in between.
+ Simple Support Service example
+ The Support Service class leverages connections to a number of other CTDL classes to contexualize itself to a degree appropriate for the available information. In the diagram below, several instances of Support Service appear at different levels of specificity in order to describe different kinds of support available for each of those resources. In particular, note:
+ The usage of Condition Profile to describe the applicability of a given Support Service to a particular audience
+ Three of the Support Services are offered by the "Support Agency" organization in the center of the diagram, even though they are referenced from other resources offered by the "College" organization on the left side of the diagram
+ The usage of Schedule Offering to limit the scope of a Support Service to a particular offering of a Course
+ Complex Support Service example
+ In addition to the above, the hasSupportService property can be used to construct a hierarchy of Support Service instances, enabling another way to describe services at the appropriate level of specificity. The example below shows one overarching support service with a number of more specific services underneath it, even though one of them is offered by a separate agency.
+ Hierarchical Support Service example
+ Manifest Classes
+ While classes like ConditionProfile and CostProfile are useful for describing particular credentials, there are frequent circumstances where many credentials share the same data (in whole or in part) for these classes. As such, it would be redundant to repeat this data in the records for each credential, and incur a maintenance penalty any time the data (such as the tuition costs for a college program) changes. To help solve this problem, CTDL provides a set of "manifest" classes that enable multiple credentials to reference the same data for conditions and/or costs. These manifest classes have their own URI and contain their own profiles.
+ When consuming the data from a manifest class, it should be treated as though it were part of the relevant credential's data (with data in the actual credential record taking priority in the event that manifest data conflicts with credential data). In other words, you would, for example, combine the cost profiles described by a manifest (such as base tuition fees that apply across an institution) with the cost profiles that are part of a particular applicable credential (such as unique learning resource fees specific to that credential) in order to determine the full set of cost information for that credential.
+ Condition Manifest
+ The ConditionManifest class addresses the description of institution- or program-wide condition sets. In the figure below, we see Western Governors University and its College of Information Technology. Each of these entities has a ConditionManifest. While the College has its own ConditionManifest, it shares the University’s ConditionManifest as required commonConditions .
+ The College offers a bachelor's degree that is subject to the College’s ConditionManifest, and, indirectly, subject to the requirements of the University’s ConditionManifest. While not illustrated here, the bachelor’s degree can have a ConditionProfile containing conditions not covered by either controlling ConditionManifest. Thus, the degree has a cumulative set of conditions:
+ unique conditions peculiar to itself
+ its College's conditions
+ its University's conditions
+ Figure 2.2.6A
+ Parent and sub-organization, each with condition manifests
+ Cost Manifest
+ The CostManifest class addresses the description of institution- or program-wide costs.
+ Figure 3.1.2A
+ Brandman University example of a cross-program Cost Manifest.
+ Recognition of Prior Learning
+ People develop knowledge, skills, and competencies through many kinds of learning activities. These may include formal education, non-formal instruction, semi-formal training, workplace experience, military training, community-based learning, or informal learning that occurs through daily life. These examples are not exhaustive; learning happens continuously and in many environments.
+ Across education, training, and work, learning often occurs at different times and in different ways. As roles and technologies evolve, individuals need to draw on this varied learning to re-skill, upskill, and apply their capabilities in new contexts.
+ Organizations responsible for recognizing prior learning benefit from information that is structured, consistent and machine-actionable. Clear data supports reliable evaluation processes and transparent decision-making. Individuals also need transparent and accessible information to understand how their prior learning is reviewed, what determinations may be made, and how those determinations could be applied, for example toward program enrollment, credit, placement, or other forms of recognition.
+ CTDL covers a wide range of information needed to represent Recognition of Prior Learning (RPL), including:
+ Policies that govern recognition of prior learning.
+ Transfer Agreements between organizations describing how learning achievements are recognized or transferred
+ Structured Statements used to encode detailed elements of policies and agreements.
+ Transfer Value Profiles that define how learning from one context applies in another 
+ Conditions associated with the use of recognized or transferred value
+ Evaluation Outcomes and supporting evidence used to justify recognition decisions
+ Support Services that assist individuals with recognition processes
+ The following subsections describe the CTDL classes and properties used to represent Recognition of Prior Learning and explain how these descriptions can be published as consistent, interoperable, machine-actionable linked data.
+ The key classes and a few of their related properties are illustrated below and will be described in detail in the following sections.
+ The key classes for representing data about Recognition of Prior Learning.
+ Transfer Value Profile
+ At the core of recognition of prior learning is the transfer of credit or other value from one context to another. Importantly these contexts are not just those of formal education and training but include workplace learning, non-formal and informal learning: in short, any experience that can be recognized as forming what falls under a broad definition of "competence".
+ The simplest and most familiar scenario is the transfer of credit earned in courses from one provider towards a credential offered by another organization, however the CTDL enables many other forms of "value" not just traditional credits, and allows the encoding of learning from many types of learning experiences other than courses and formal education (as shown in the box on the left of the diagram below). Information may be provided about additional requirements relating to the transfer of value using a ConditionProfile, about its applicability using a Credential Alignment Object and about the evaluation evidence that lead to the amount of value that was judged to be appropriate using an Evaluation Outcome.
+ The details of the classes related to Value Transfer are shown below in the diagram, with the key classes in blue. All classes and properties are defined in the CTDL Terms pages, but a brief summary of key points follows the diagram.
+ In order to specify a value and other details about how learning achievements from one context can be applied to other contexts in order to further education and career advancement CTDL has the TransferValueProfile class.
+ TransferValueProfile : Value that may be transferred.
+ The value being transferred is indicated using the transferValue property and described as a ValueProfile , which allows ranges of values, relevant subjects, credit units and levels to be specified. More information about the ValueProfile class is provided in the section of this handbook on Supporting Classes, below.
+ The properties transferValueFrom and transferValueFor allow the source of the value and what it may be used for to to be specified.
+ Transfer values are often decided on the basis of an evaluation of the resource that is the source of the value being transferred and its suitability for providing similar learning to the resource for which it is providing value. The evidence for such evaluations may be provided using the evaluationEvidence property and an EvaluationOutcome .
+ EvaluationOutcome : Entity that describes the results of a valuation or appraisal of a resource.
+ There may be conditions that must be met in order for the transfer to be accepted, these can be described using the requires property and a ConditionProfile or the commonCondition property and a ConditionsManifest if these conditions are shared between many resources. There may be restrictions on how the value can be used to meet requirements once it is transferred, these can be indicated using the applicability property and described using a CredentialAlignmentObject .
+ The following example shows the basic parts of a Transfer Value Profile in a simple scenario where passing a specific assessment in Finance at one institution provides 3 Degree Credits at Lower Division Level for a Learning Program on Accountancy offered by a different institution.
+ Example of value transferred from an assessment to a Learning Program.
+ Note that in the example above the Transfer Value Profile is not owned by either the institution that provides the assessment nor the institution that provides the learning program. It would be reasonable to ask how the organization that created Transfer Value Profile justifies its assertion that the assessment is worth those 3 degree credits. This information can be provided as an Evaluation Outcome. Furthermore, there may be conditions or requirements such as a minimum grade attained in the assessment, which can be specified using a Condition Profile. Finally, the organization to which the credit is transferred may wish to indicate the applicability of the credit to meeting certain requirements of the program to which it is transferred. So, in addition to the data represented above we could have:
+ Example of value transferred specifying conditions and applicability.
+ A similar approach can be taken to represent the credit value that is available for previous experience in an occupation. The example below shows credit being awarded to those who have the Navy occupation of Information Systems Technician at level E1. Other examples could include requirements for the number of years experience or experience with specific tasks.
+ Example Transfer Value Profile for credit being awarded as a result of occupational experience.
+ Prior Learning Policies
+ It is possible to create both descriptive metadata about Prior Learning Policies and represent the content of those policies using CTDL. The descriptive metadata supports a range of discovery-to-use use cases by providing information about the identity, ownership, recognition, lifecycle, licensing and availability of the policy whereas providing the content of the policy in CTDL allows for full transparency, machine processing and reuse of the policy as data in different contexts.
+ In order to identify policies that relate to prior learning and to provide the relevant information, CTDL has a class
+ PriorLearningPolicy :
+ Prior Learning Policy : Authoritative statement of rules, principles, or procedures adopted by an organization to govern decisions and actions within the scope of prior learning.
+ The diagram below shows the properties of this class, definitions of which are to be found in the CTDL terms pages.
+ Structured Statements allow for the content of the policy to be encoded,  see the section of this handbook on Supporting Classes, below for full details.
+ An important feature of this model is the capability to classify the types of evidence for prior learning and source of prior learning accepted, the methods used to evaluate the evidence, and the potential outcomes of the evaluation. Further details regarding these aspects of the policy can be provided by including the relevant part of the policy as a Structured Statement with the appropriate classification using statementType . The table below shows the relevant properties and the controlled vocabulary that should be used for values for each one, along with the value for the statementType property that would indicate a Structured Statement that has content from the policy about that aspect of the policy.
+ Property Name 
+ Definition 
+ Controlled value vocabulary 
+ Structured statement type 
+ (from the Statement Category vocabulary)
+ Learning Recognition Evidence Type 
+ Type of prior learning evidence accepted for evaluation under the policy; select from an existing enumeration of such types.
+ Learning Recognition Evidence Category 
+ Learning Recognition Evidence Related 
+ Learning Recognition Method Type 
+ Type of method used to evaluate and recognize prior learning; select from an existing enumeration of such types.
+ Learning Recognition Method Category 
+ Learning Recognition Method Related 
+ Learning Recognition Outcome Type 
+ Type of outcome governed or permitted by the policy; select from an existing enumeration of such types.
+ Learning Recognition Outcome Category 
+ Learning Recognition Outcome Related 
+ Learning Recognition Source Type 
+ Type of context from which prior learning may be recognized; select from an existing enumeration of such types.
+ Learning Recognition Source Category 
+ Learning Recognition Source Related 
+ The diagram below shows an example of a Prior Learning Policy that includes mention of a specific learning recognition method (Individualized Prior Learning Assessment) and a structured statement about the learning recognition method. Note how the statementType property is used to indicate that the text of the Structured Statement shown is relevant to the method used to evaluate and recognize prior learning while the learningRecognitionMethodType property for the PriorLearningPolicy provides a classification using a term from a controlled value.
+ Example Transfer Value Profile for credit being awarded as a result of occupational experience.
+ Transfer Agreement
+ Often transfer agreements or articulation agreements exist between institutions so that people who start at one organization can easily transfer to the other and their prior learning be recognized. These are formal documents to which two or more organizations sign up. Typically the parties to the agreement include what are known as "sending organizations" and "receiving organizations" depending on whether they "send" or "receive" individuals under the terms of the agreement (and a single organization may fall under both categories). Often the agreements are bipartite but in some cases they may be "multi-party agreements" with many organizations involved, and sometimes the terms of the agreement are drawn up by an organization, such as a local or national education department or agency, that is not a sending or receiving party to the agreement. They typically include similar material to Prior Learning Policies around recognition of prior learning but they also include information about what the parties agree to do, requirements on the subject of the transfer (typically students or workers), and detailed information about the pathways or articulation between learning activities at the sending organization and those at the receiving organization. These activities can be formal courses and learning programs or non-formal and informal education.
+ The key class for representing Transfer Agreements as data in CTDL is TransferAgreement 
+ Transfer Agreement : Formal agreement between two or more parties that specifies how prior learning is recognized, including its transfer and applicability for credit.
+ May include articulation agreements, memoranda of understanding, or similar arrangements that govern how learning achievements are recognized across organizations or other boundaries.
+ The key related properties and classes are shown below:
+ It is possible to create both descriptive metadata about Transfer Agreements  and represent the content of policies using CTDL in much the same way as for Prior Learning Agreements, as described above. 
+ The heart of a Transfer Agreement are the sending and receiving parties, which may be represented using the properties sendingOrganization , sendingProgram , sendingDepartment and receivingOrganization , receivingProgram , receivingDepartment , and the articulation or agreed equivalency in value between learning activities which are represented by Transfer Value Profiles (described above in this section the handbook). These are illustrated in the example below, which shows how the same Transfer Value Profile described in the example above is part of a Transfer Agreement between Erewhon College and Erewhon University that has been created by the Erewhon Education Agency. In reality, the agreement would reference many such Transfer Value Profiles, that together form articulation pathways from the Business Studies Learning Program offered by the Business and Management department of Erewhon College to the Accountancy Learning Program offered by the Business School at Erewhon University.
+ Example of a Transfer Agreement showing one route for credit transfer.
+ Prior Learning Support Services
+ Very often organizations offer support related to recognition of prior learning and the resulting transfer of value. The section of this handbook on Support Services describes how such support can be described in CTDL.  It should be noted that there are several support service categories that can be used to classify a support service to show that it is relevant to the Recognition of Prior Learning, including support:TransferAdmission and support:TransferAdvising.  Support Services that are relevant to a specific Prior Learning Policy or Transfer Agreement can be indicated in the description of the Policy or Agreement using the hasSupportService property.
+ Example of a Transfer Agreement showing a related service offering advice about transfers.
+ Qualifications Frameworks as Data
+ Qualifications Frameworks are used in many jurisdictions around the world. A Global Inventory jointly published by UNESCO (United Nations Educational, Scientific and Cultural Organization), CEDEFOP (European Centre for Development of Vocational Training) and EFT (European Training Foundation) defines them as:
+ Tools for describing qualifications of an education or training system by classifying them into levels. Each level provides a clear description of what the holder of a qualification knows, understands and is able to do. They are important tools for making qualifications transparent and comprehensible, within and across borders, and for promoting lifelong learning.
+ [Source: Global Inventory of National and Regional Qualifications Frameworks 2022: Volume II National and Regional case studies , available online https://doi.org/10.54675/UAZR7454 ]
+ Broadly speaking, a Qualification can be equated with a Credential as understood for CTDL, especially where the Credential is part of a regulated education system. It is important to note that Qualifications Frameworks differ from Competency Frameworks in general in that they describe broad learning outcomes that are required for classes of qualifications but not the specific requirements of any particular qualification or credential. Qualifications Frameworks play a different role in education systems to that of most Competency Frameworks.
+ The UNESCO CEDEFOP ETF Inventory referenced above provides many examples of Qualifications Frameworks and case studies of their implementation and impact: it is recommended reading for anyone who wishes to learn more about Qualifications Frameworks. This section describes how Qualifications Frameworks can be represented as data in CTDL. It does not attempt to explain or exemplify their use in detail.
+ Describing Qualifications Frameworks
+ Qualifications frameworks are formal documents developed, approved, published and maintained by organizations, often according to documented processes. Knowing the version being described and its relationship to other versions may be important. They are often legally applicable within a defined jurisdiction, though they may be recognized in others. As with any document, a certain amount of metadata can be useful in discovering, locating and using a qualifications framework.
+ In order to identify qualifications frameworks as such and to provide the information outlined in the previous paragraph, CTDL has a class QualificationsFramework:
+ Qualifications Framework 
+ Instrument for developing, classifying and issuing qualifications at international, national, regional or sectoral levels according to a set of criteria (such as descriptors) applicable to specified levels of learning outcomes.
+ The diagram below illustrates the properties that are available for use with the QualificationsFramework class to describe the characteristics of a qualifications framework and its relationships to other entities.
+ The definitions of all these properties can be found via the Qualifications Framework table on the CTDL Terms page.
+ An example of a simple description of a qualifications framework is illustrated below, showing that the (fictional) "Erewhon Qualifications Framework" was approved and published by the Erewhon Education Agency, became effective on 15 January 2025 and is for the jurisdiction of Erewhon.
+ Erewhon Qualifications Framework
+ The Components of a Qualifications Framework
+ The descriptive properties outlined in the previous sections are sufficient to locate and provide information about a qualifications framework, which can be useful if one is requiring the text for reference but does not help if one wants to use the qualifications framework for data about a credential. In order to be able to reference credentials and other resources of an education system against the levels of the relevant qualifications frameworks it is necessary that the content of that framework be represented as data.
+ The central component of a qualifications framework is a set of progression levels, each representing a higher level of qualification than the previous, against which various types of credential, learning opportunities, assessments, occupations, work roles and jobs may be classified. Each level may be defined in terms of a set of learning outcomes addressing different facets or aspects of learning (for example, outcomes relating to "Knowledge", "Application of Knowledge", "Personal Attributes" and so on). We use the ProgressionLevels of a ProgressionModel in CTDL to represent the levels in a qualifications framework. We provide a property ( ceterms:facetedDescription ) to indicate instances of Competency that are used as level descriptors. These competencies are classified according to a Concept Scheme representing the different facets or aspects of learning.
+ We can add some Progression Levels and their descriptors to our Erewhon Qualifications Framework example. The triples diagram below represents the first three levels as defined in the following table:
+ Knowledge Application of knowledge Personal Attributes 
+ Level 1 
+ Basic general knowledge. 
+ Basic skills required to carry out simple tasks. 
+ Work or study under direct supervision in a structured context. 
+ Level 2 
+ Basic factual knowledge of a field of work or study. 
+ Basic cognitive and practical skills required to use relevant information in order to carry out tasks and solve routine problems using simple rules and tools. 
+ Work or study under supervision with some autonomy. 
+ Level 3 
+ Knowledge of facts, principles, processes and general concepts relevant to a field of work or study. 
+ A range of cognitive and practical skills required to accomplish tasks and solve problems under supervision. 
+ Take responsibility for completion of tasks in work or study; adapt own behaviour to circumstances in solving problems. 
+ Knowledge is defined as understanding theoretical and/or factual information.
+ Application of knowledge is defined as the ability to use knowledge to achieve desired outcomes
+ Personal Attributes are defined as developed traits and abilities of an individual that are important in personal and social functioning.
+ Erewhon Progression Model
+ It is also common for qualifications frameworks to include glossaries that define what various terms and abbreviations mean within the context of the framework. Glossaries are represented in CTDL using skos:ConceptSchemes with each term being represented by a skos:Concept. There is a property ceterms:hasGlossary which may be used to indicate the concept schemes used as glossaries by a given framework.
+ See Concept Schemes for Controlled Vocabularies for more details on SKOS.
+ Indicating the Level of a Resource
+ One of the main applications of a qualifications framework is to indicate the level of a qualification/credential or other relevant resource within a system that references qualifications. As well as straightforwardly indicating the level of a credential, descriptions of learning opportunities (courses and learning programs) and assessments may reference the level of credential that they lead to; and description of jobs, occupations and work roles may reference the level of credential that they require. In all cases the CTDL property atLevel is used for this. The CredentialAlignmentObject may be used to provide additional information about the alignment such as the date on which it was asserted and the weight of the alignment (that is, the strength of the comparison, or confidence in the asserted alignment).
+ A simple example stating that a Certificate is at Level 3 of our Erewhon Qualifications Framework is illustrated below. It may be assumed that data about the Erewhon Qualifications Framework and associated progression model is available as linked data, e.g. from the Credential Registry. The alignment object may be used to provide information about the level and progression model so that systems using the data do not have to access that information from the registry.
+ QF Credential Level
+ In order to justify such an alignment to a level it is necessary to show that the competencies required by the Credential (or those assessed by the assessment, taught by the learning opportunity, etc.) are sufficiently aligned with those used as descriptors for the appropriate level. If it is desirable to publish such detailed data, then the alignment properties that exist for showing relationships between Competencies in different CompetencyFrameworks can be used, as described in Cross-Framework Mapping .
+ Mapping between Qualifications Frameworks
+ One of the aims of Qualifications Frameworks is to provide tools for making credentials transparent and comprehensible across borders. It is not envisaged that this will be achieved by everyone using the same Qualifications Framework. Sometimes the intention is that different jurisdictions use the same Qualifications Framework, but more often several countries will map to a shared regional qualifications framework or directly to each other's frameworks. In order to make such mappings machine actionable and so promote the creation of tools to help understand the levels of credentials across jurisdictions we can represent these mappings in CTDL.
+ Mappings between qualifications frameworks are often published as formal documents with the same metadata coverage regarding identification, description, lifecycle, methodology and authority as the frameworks themselves. We therefore represent the mappings as an object of type AlignmentMap, with similar properties for describing a formal document as is described for QualificationsFramework above.
+ Alignment Map 
+ Entity comprised of a set of alignment or mapping assertions between two existing entities.
+ Alignment maps provide the means for parties to assert sets of alignments between already existing entities created by themselves or other parties.
+ The key part of an alignment mapping is a set of assertions of alignments between the levels in the frameworks being mapped. These are represented using the AlignmentObject class:
+ Alignment Object 
+ Entity describing the relationship between two nodes in different frameworks.
+ "Frameworks" may be interpreted broadly to include any scheme or schema for organizing and referencing resources.
+ Used to compare concepts in concept schemes, levels in progression models, types of resource in an ontology etc.
+ Alignment Objects have properties to indicate the source node and framework, the target node and framework and the semantic alignment from the source to the target. The semantic alignment is indicated using concepts with the same meanings as the SKOS alignment properties.
+ We can illustrate alignment maps if we compare the Erewhon Qualifications Framework with the equally fictional Utopia Regional Qualifications Framework, looking at just the first three levels we can represent the alignment of the levels as shown below:
+ Level A covers the same range as Level 1, so Level A is an exact match for level 1.
+ Level B covers all of Level 2 and some more, so Level B is a broad match for level 2.
+ Level C covers a narrower range within that of level 3 so Level C is a narrow match for level 3.
+ Level B and Level 3 overlap in range but neither is entirely within the scope of the other, so Level B is a related match for level 3.
+ The diagram below represents only the part of the alignment map showing the first of these. It is assumed that further information about the Erewhon and Utopian qualifications frameworks, progression models and level are available as linked data in a registry.
+ QF Credential Level
+ Credential Types and Qualifications Frameworks
+ Credential Types, as discussed above , are instances of the CredentialType class, defined as:
+ “Type of credential as defined by an authoritative body for use within an officially regulated qualification system.” 
+ In contrast, Credential Classes also discussed above , serve as broad groupings of similar credentials, applicable across different jurisdictions and contexts, regardless of local variations in how credentials are defined or regulated. 
+ Credential Types are often defined with explicit reference to Qualifications Frameworks. This section illustrates some common patterns for that relationship.
+ It is very common for Qualifications Frameworks to include references to relevant Credential Types for each Progression Level within their Progression Model. CTDL provides the property ceterms:indicativeCredentialType to support this connection.
+ Some Qualification Frameworks organize Credential Types into distinct "sub-frameworks" corresponding to different learning contexts, for example:
+ General Education (e.g., school qualifications, adult education)
+ Higher & Further Education (e.g., university degrees, college diplomas)
+ Technical and Vocational Education and Training (TVET) (e.g., apprenticeships, workplace learning certificates)
+ Each sub-framework may be regulated by a different organization, but all may reference a shared Progression Model. CTDL supports representing these domains as a Concept Scheme , using the property ceterms:hasSubFrameworkScheme to differentiate parts of a framework that are somewhat independent.
+ The example below illustrates how indicativeCredentialType relationships can be used for the first four levels of the Erewhon Qualifications Framework, and how these Credential Types are classified into distinct sub-frameworks (Erewhon Learning Sectors).
+ Example of Credential Types and sub-frameworks linked to levels of the Erewhon Qualifications Framework.
+ Comparing Credential Types
+ International mobility of learners and workers often requires that a credential earned in one country be understood and recognized in another. Because Credential Types vary across education and qualification systems, evaluators and recognition bodies must compare and interpret these types in order to support cross-border recognition and portability.
+ To aid this process, credential evaluators often compare Credential Types defined in different countries and publish information about their equivalencies or levels of similarity. CTDL enables these comparisons to be published as linked data, using the same structures, classes, and properties that support comparisons within and between Qualifications Frameworks.
+ The Alignment Map structure in CTDL provides a way to represent these comparisons. Each Alignment Object within an Alignment Map relates two Credential Types and specifies the degree of alignment using the alignmentType property.
+ CTDL supports the following alignmentType values , listed in approximate order of decreasing similarity:
+ Exact Match
+ Close Match
+ Broad Match
+ Narrow Match
+ Related Match
+ No Match
+ Additionally, the description property of an Alignment Object can be used to provide further detail about the alignment—for example, explaining important differences when Credential Types are not exact matches.
+ Example: Comparing Credential Types from Erewhon and Utopia 
+ In this example, an Alignment Map is published by the organization Utopia Quals. It compares Credential Types from two countries:
+ The Full Degree Credential Type from Utopia
+ The Honours Degree Credential Type from Erewhon
+ In this case, the Full Degree from Utopia is stated to be a Close Match to the Honours Degree from Erewhon.
+ In practice, an Alignment Map would typically include multiple alignments for a set of related Credential Types across systems.
+ Example Alignment Map comparing Credential Types from Erewhon and Utopia.
+ Action Classes
+ The CredentialingAction class enables Quality Assurance Organizations ( QACredentialOrganization ) to describe "actions" sufficiently to support verification taken on credentials, learning opportunities, assessments, work roles and other entities in the CTDL model. Examples include:
+ Taking an action to describe the current demand level for an occupation
+ The quality rating for a learning opportunity such as the California Community College System’s "Strong Workforce Stars" program awards
+ The placement of an accredited program on probation pending satisfaction of certain requirements
+ Many of these sorts of action are time and geographically limited-e.g., a workforce demand action on an Occupation may be applicable in one geographic area starting on a specific date and not in another.
+ Different kinds of actions are expressed in the CTDL as distinct subclasses of CredentialingAction (see the list below). While simple, direct assertions of fact for most of these kinds of Credentialing Actions are available as RDF assertions (e.g., accredits , approves , revokes , etc.), these Credentialing Action subclasses support more detailed descriptions of actions taken where such detail is justified.
+ The following figure describes a State Department of Labor’s designation of an Occupation (Registered Nurse) as in demand in the San Francisco Bay Area as of September 14, 2000. ( startDate ). The State Department of Labor is the Agent of the action and the Occupation of "Registered Nurse" is the object of the action. Since there is no endDate , the action is ongoing. The object of an action may use the result property or one of its subproperties to directly reference the action taken as illustrated in the figure.
+ Figure
+ Workforce Demand Action
+ Since a Credentialing Action is an assertion by an organization that the organization has taken an action, creators of instances of the Credentialing Action subclasses (e.g., AccreditAction ) should be limited to the agent performing those actions. There are adequate properties for an organization that has been accredited by a quality assurance organization to make that assertion by using the accreditedBy and similar properties relating it to the acting quality assurance organization without resorting to the use of the CredentialingAction subclasses.
+ Credentialing Action and its subclasses are defined as follows:
+ Credentialing Action 
+ Action taken by an agent affecting the status of an object entity.
+ Since an instance of ceterms:CredentialingAction is a claim that a certain agent has taken the action being described, creation of such a ceterms:CredentialingAction should be reserved to the agent of that action.
+ Accredit Action 
+ Action by an independent, neutral, and authoritative agent that certifies an entity as meeting a prescribed set of standards.
+ Since an instance of ceterms:CredentialingAction is a claim that a certain agent has taken the action being described, creation of such a ceterms:CredentialingAction should be reserved to the agent of that action.
+ Advanced Standing Action 
+ Claim by an agent asserting that the object credential of the action provides advanced standing for a credential under the asserting agent's authority.
+ Since an instance of ceterms:CredentialingAction is a claim that a certain agent has taken the action being described, creation of such a ceterms:CredentialingAction should be reserved to the agent of that action.
+ Approve Action 
+ Action by an independent, neutral, and authoritative agent that pronounces a favorable judgment of a credential.
+ Since an instance of ceterms:CredentialingAction is a claim that a certain agent has taken the action being described, creation of such a ceterms:CredentialingAction should be reserved to the agent of that action.
+ Offer Action 
+ Action by an authoritative agent offering access to a entity such as a credential, learning opportunity or assessment.
+ Since an instance of ceterms:CredentialingAction is a claim that a certain agent has taken the action being described, creation of such a ceterms:CredentialingAction should be reserved to the agent of that action.
+ Recognize Action 
+ Action by an independent, neutral, and authoritative agent acknowledging the validity of a resource.
+ Since an instance of ceterms:CredentialingAction is a claim that a certain agent has taken the action being described, creation of such a ceterms:CredentialingAction should be reserved to the agent of that action.
+ Registration Action 
+ Action by an independent, neutral, and authoritative agent that registers a resource that has been vetted, approved, and validated to meet specific criteria.
+ Regulate Action 
+ Action by an independent, neutral, and authoritative agent enforcing the legal requirements of a resource.
+ Since an instance of ceterms:CredentialingAction is a claim that a certain agent has taken the action being described, creation of such a ceterms:CredentialingAction should be reserved to the agent of that action.
+ Renew Action 
+ Action by an agent renewing an existing credential assertion.
+ Since an instance of ceterms:CredentialingAction is a claim that a certain agent has taken the action being described, creation of such a ceterms:CredentialingAction should be reserved to the agent of that action.
+ Revoke Action 
+ Action by an agent removing an awarded credential (credential assertion) from the credential holder based on violations or failure of the holder to renew.
+ Since an instance of ceterms:CredentialingAction is a claim that a certain agent has taken the action being described, creation of such a ceterms:CredentialingAction should be reserved to the agent of that action.
+ Rights Action 
+ Action asserting legal rights by an agent to possess, defend, transfer, license, and grant conditional access to a credential, learning opportunity, or assessment.
+ Since an instance of ceterms:CredentialingAction is a claim that a certain agent has taken the action being described, creation of such a ceterms:CredentialingAction should be reserved to the agent of that action.
+ Workforce Demand Action 
+ Action taken by an agent asserting that the resource being described has a workforce demand level worthy of note.
+ CTDL Support Classes
+ The CTDL Schema maintains a number of classes that support and enhance the data contained in its primary classes. Such "support classes" often appear as the values for multiple properties in various contexts across the schema. This section describes these classes.
+ Credential Alignment Object
+ The CredentialAlignmentObject class is used throughout the CTDL to provide and/or reference values that may or may not exist in structured data sources, such as:
+ Concepts in a concept scheme
+ Competencies in a competency framework
+ Educational subjects
+ Items from an external data source, such as NAICS codes or SOC codes
+ Anywhere else where such a value is necessary
+ Where an external data source, such as a concept, exists, the CredentialAlignmentObject should reference it by its URI via the targetNode property. When no such source exists, the targetNodeName , targetNodeDescription , and codedNotation properties can provide data to stand in for one. In some cases, it is useful to provide both kinds of information, as this can save time (and HTTP calls) when consuming the data. However, doing so will increase the total size of the data and incur a maintenance penalty if the source data changes.
+ Credential Alignment Object
+ Condition Profile
+ The conditions surrounding many actions such as awarding or renewing a credential, transferring credit, entry into a learning program or qualification for financial assistance may be quite complex, involving a number of tightly coupled sets of requirements or conditions that must be met. The ConditionProfile class is used to describe these. Examples of the kind of data described by a ConditionProfile may include constraints on applicable audience, residency requirements, minimum age and experience requirements, credit hour requirements, and jurisdictional restrictions, as well as other resources that must be earned or completed first, such as a required assessment or learning opportunity. It is also possible to describe exceptions to a general requirement, for example when a requirement is met by any Math course except "Access Math". 
+ The conditions related to a resource can be referenced using the
+ requires 
+ property or a number of more specific properties such as
+ entryConditions ,
+ supportServiceCondition ,
+ recommends 
+ etc. depending on the type of the resource or the nature of the condition. For convenience we shall refer to all of these collectively as "requirement properties" in this section.
+ In some cases, there are different means of earning the same credential (e.g., "have 3 years of experience and pass this test, or complete 4 training courses and pass a different test"). ConditionProfile handles these via the
+ alternativeCondition 
+ property, which allows for constructing a branching hierarchy of ConditionProfiles to group different sets of requirements together.
+ ConditionProfiles in the same array for a requirements property should be interpreted as having their conditions aggregated together, while ConditionProfiles in the same array for the
+ alternativeCondition 
+ property should be considered as alternatives for one another (i.e., completing the conditions for just one of the ConditionProfiles is sufficient).
+ If a resource references one or more ConditionProfiles within a
+ ConditionManifest 
+ (via
+ commonConditions 
+ ) as well as one or more ConditionProfiles via a requirement property, then the collection of all of those ConditionProfiles should be interpreted as having their conditions aggregated together (with ConditionProfiles referred to with requirements properties taking priority over the ConditionManifests referred to by commonConditions in the event of any conflicts).
+ Note: For readability, the diagram below omits the instances of
+ CredentialAlignmentObject 
+ that would, in the Registry, exist between the Competencies and the objects that reference those Competencies.
+ Condition Profile Depicting Requirements for a Nursing Certificate
+ Contact Point
+ Large Agents frequently have numerous important contact points handling specific activities such as application, credential verification, and general information. The ContactPoint class provides an array of properties for describing such contact points.
+ Organization with multiple Contact Points
+ Cost Profile
+ The CTDL provides the ceterms:CostProfile class to describe various types of costs as reflected in the CostType controlled vocabulary. Some of these costs may be applicable to a specific Credential or its associated AssessmentProfile or LearningOpportunityProfile classes. Such credential-level costs are illustrated in the example below. However, other costs are more broadly applicable institutionally or programmatically across an array of Credential, AssessmentProfile, or LearningOpportunityProfile classes. Such institutional or programmatic costs are covered in this section .
+ Some costs are unique to a Credential, Assessment Profile or a Learning Opportunity Profile. These costs can be defined by their respective profiles via the Cost Profile class.
+ Figure 3.1.1A
+ Total tuition for a full-time, in-state student.
+ Duration Profile
+ Many entities in the CTDL model have temporal aspects - i.e., durations, dates, start and end times. The DurationProfile supports description of these temporal aspects. Aspects of time are expressed using the ISO 8601 Data Elements and Interchange Formats - Information Interchange - Representation of Dates and Times . Temporal values encoded using ISO 8601 can be parsed and displayed in a manner suitable for particular audiences. For example, the letter "P" (period) in the temporal values in the following figure is the duration designator and starts values denoting a specific duration. "T" (time) is the time designator that precedes the time components of the representation and the "H" is the ISO 8601 hour designator.
+ Figure 3.2A
+ Duration of a self-paced course.
+ Evaluation Evidence
+ Resources can be evaluated in order to ascertain or justify their value or appropriateness (for CTDL such evaluations do not include the assessment or appraisal of people). The result of these evaluations can be conveyed using the ceterms:EvaluationOutcome class:
+ Evaluation Outcome Entity that describes the results of a valuation or appraisal of a resource. 
+ Do not use for test results or other outcomes of assessments of people.
+ A link to the content of the Evaluation Outcome can be provided using the subjectWebpage property and/or the content can be reproduced using StructuredStatements. The process used to arrive at an evaluation outcome can be indicated using the developmentProcess property; and that process can also be indicated using the evaluationProcess property on the resource being evaluated. The isEvaluationOf and evaluationEvidence properties provide links between the resource being evaluated and the Evaluation Outcome in either direction.
+ Figure 3.1.1A
+ Example of an Evaluation Outcome indicating the evidence and process that was used to evaluate the value appropriate for a Transfer Value Profile.
+ Financial Assistance Profile
+ The Financial Assistance Profile class provides a way to summarize the nature of financial assistance available for a wide range of activities related to pursuing learning and career pathways. A Financial Assistance Profile may include information about the type of the assistance available, e.g. whether it is a loan or grant, using the Financial Assistance Type property and the Financial Assistance concept scheme. It may also include information about what the assistance is available for, e.g. child care costs or travel costs, using the Financial Assistance For Type property and the Cost Type concept scheme. Conditions placed on the eligibility for financial assistance may be indicated using the requires property.
+ The diagram below illustrates a Learning Program with two instances of Financial Assistance Profile.
+ Financial Assistance Profile
+ Example of Financial Assistance Profile
+ In some cases financial assistance may be offered by an organization other than that which is offering a program or credential and be anyone who meets certain conditions. In such cases the Financial Assistance Profile can be a stand-alone object with a CTID so that a link to it may be included in the descriptions of many resources. The offersFinancialAssistance property may be used to indicate that an organization offers the financial assistance described in the profile.
+ The example below shows financial assistance available for travel, provided by the Erewhon Department of Education as a loan to those who live more than a certain distance from where they study.
+ Example showing financial assistance available for travel and not tied to a specific program or institution.
+ Financial Assistance Profile
+ Example of Financial Assistance Avaliable For Travel
+ There may be cases where something about an existing stand-alone Financial Assistance Profile is modified for a specific instance. For example, an organization may place further restrictions beyond those described in the existing profile. In such cases a new Financial Assistance Profile may be created and the derivedFrom property used to indicate the original profile which has been modified.
+ Identifier Value
+ As covered in the Identifiers section, identifiers come in many forms. For identifiers that do not have specific properties assigned to them, CTDL provides the IdentifierValue class and associated identifier property to reference it. This class contains properties designed to enable providing an otherwise-obscure textual identifier, such as 123.sys-abc along with references to where that identifier came from, such as a framework of identifiers or a source that issued it. This class should be considered an identifier of last resort where no property exists that would be appropriate to use instead.
+ Figure 4.3.3A
+ Local identifier definition and value.
+ Jurisdiction Profile
+ The JurisdictionProfile class is used throughout the CTDL to describe geographic and geo-political regions where a Credential is available or useful. The Profile supports description of the main region ( mainJurisdiction ) as well as any exceptions to that main region ( jurisdictionException ). The figure below illustrates a main region of "United States" with the exception of "Texas". JurisdictionProfile also supports a narrative description of the region as well as the ability to assert global applicability or utility ( globalJurisdiction ).
+ Figure 3.5A
+ Jurisdiction with an exception.
+ Pay for Jobs and Other Work
+ The PayProfile class is used to describe the wage or salary offered in return for work performed as part of a Job or some Learning Opportunities such as Apprenticeships. It has properties for expressing the amount of money that is offered, the base period that is covered (that is, whether the figure quoted is per annum, per month, or on some other basis) and how frequently the payments will be made. The amount offered can be in any specified currency and may be an exact value or a range. The PayProfile may be linked to requirements and may be stated to be valid from the date effective and may have an expiration date. A pay band, which may be related to a job level, may be indicated using a user-published Concept Scheme. These properties are shown in the diagram below. 
+ Domain model for classes and properties around work and pay.
+ The example below shows a job for which the pay between April 2026 to March 2027 is US$75,000 per annum, which is Grade 7 of the Erewhon Research Pay Scheme, paid monthly, on the condition that the job holder has a PhD. It would be possible to provide a second instance of the PayProfile to show what the pay would be for those who do not have a PhD.
+ Figure 3.15.10
+ Example showing details and conditions of the pay for a Job
+ Process Profile
+ The ProcessProfile class supports description of development, maintenance, and administrative processes in the lifecycle of instances of the Credential class. The Profile provides for identification of relevant Agents, frequency and nature of required processes, required standards to be applied in these processes, and the forms of external inputs into development, maintenance, and administration. Any constraints on processes in terms of temporal or spatial factors can be identified and described.
+ The following figure illustrates a simple use of the ProcessProfile class in describing the maintenance of a Certification ( Certification ). It identifies a frequency of "annual review and update" and requires external input from "subject matter experts" in that process. It uses the CredentialAlignmentObject to identify the type of external input as defined in the CTDL ExternalInput type vocabulary where the concept of "Expert" is identified by URI (for use in Linked Data) and its semantics defined.
+ Figure 3.6A
+ Process Profile for a Maintenance Process
+ The CTDL defines the following properties for referencing an instance of ProcessProfile from a Credential:
+ Administration Process 
+ Description of a process by which a resource is administered.
+ Processes described include the execution of events and the development of resources in the lifecycle of a credential or organization, such as the process for the proctoring of assessments.
+ For assessments and rubrics, this can be used to indicate the scoring algorithm.
+ Appeal Process 
+ Description of a formal process for objecting to decisions of an organization.
+ Complaint Process 
+ Description of a process for handling complaints about a resource or related resources.
+ Development Process 
+ Description of a process by which a resource was created.
+ Evaluation Process 
+ Description of a process used to appraise this resource.
+ Is Similar To 
+ Another functionally similar entity.
+ The property is generally applicable in describing the similarity between any two entities.
+ Maintenance Process 
+ Description of a process by which a resource is maintained, including review and updating.
+ Such maintenance does not include renewal of a credential by an individual holder.
+ Review Process 
+ Description of a process by which a resource is reviewed.
+ Revocation Process 
+ Entity describing the process by which the credential is revoked.
+ Revocation Profile
+ The RevocationProfile class describes the "conditions and methods by which a credential can be removed from a holder". The Profile provides the means to describe the revocation criteria, reference webpages with detailed information, any jurisdiction or region of applicability, and effective date. The figure below describes the revocation information for a Certificate.
+ Figure 3.7A
+ Credential revocation information.
+ Rule Set Profile
+ In the Pathway section , we defined a Ruleset as an entity that "identifies the rules by which other PathwayComponent instances may satisfy a PathwayComponent objective". While it is anticipated that there will be RuleSet libraries developed by Credential Engine and other parties for handling complex circumstances and choices, the Simple Count Rule has been deemed generally useful and is defined directly in the ComponentCondition . The Component Condition example illustrates use of this Simple Count Rule making it possible to define a required number of PathwayComponents to select from an array of PathwayComponents that satisfies the rule. With the exception of the Simple Rule Set integrated into ComponentCondition, other RuleSets are referenced from the ComponentCondition using the alternativeRuleSet property.
+ While it is anticipated that other forms of rules will arise as more Pathways are modeled using CTDL, the simple Count Rule is the only one currently embodied in the schema.
+ Structured Statements
+ Sometimes a simple single-string description does not convey enough information about a resource. In such cases an instance of the CTDL StructuredStatement class may be used.
+ Structured Statement A statement provided verbatim or by reference, with additional context such as type, source, or citation. 
+ Do not use a StructureStatement if a property such as ceterms:description is adequate. When using ceterms:StructuredStatement use ceterms:statementText for the text in a document. Use ceterms:description and ceterms:subjectWebpage when a link is needed to the text in a document. The link should be directly to the relevant section of the document.
+ An example of where a StructuredStatement would be appropriate is to convey the content of a resource such as a Prior Learning Policy. In such cases the content can be reproduced as the value of the statementText property or linked to using the subjectWebpage property. It can also be useful to classify the StructuredStatement, for example to indicate a property of the resource to which the statement relates. The example below shows one statement from a Transfer Agreement, clause 5.6 of which is an obligation on both parties to maintain contact points for students.
+ Figure 3.1.1A
+ Example of a Structured Statement about a mutual obligation in a Transfer Agreement.
+ Value Profile
+ A value or a range of values can be represented by the
+ ValueProfile 
+ class, for example to represent the credit value of a course or the value of learning that is required for a Credential or for a step in a pathway, or the value that may be transferred from a learning activity to count towards some outcome. This will normally include the numerical
+ value 
+ and, optionally, an indication of the
+ creditUnitType 
+ and/or
+ creditLevelType .
+ CTDL provides a
+ CreditUnit 
+ concept scheme that can be used to specify the creditUnitType, though other schemes may be used instead. Any Progression Level (for example from a Qualifications Framework) or any value from the
+ AudienceLevel 
+ concept scheme may be used to indicate the creditLevelType. Sometimes the value is represented as a percentage; the most common use case for this is when the learning from which the value is transferred is worth 100% of what is required for the thing to which it is transferred. Where the value is associated with a specific subject, this too can be noted.
+ The example below shows a value of 3
+ Degree Credits 
+ at the
+ Lower Division Level 
+ for the subject of "Finance".
+ Value Profile
+ Example of a Value Profile.
+ Verification Service Profile
+ The VerificationServiceProfile class describes "the means by which someone can verify whether a credential has been attained". The Profile includes properties for providing a narrative description, whether the holder must authorize any verifications, jurisdiction or region of application, the type of a claim, and any related costs for the service. The figure below documents the verification service of a Credential Organization that requires the holder of a credential to authorize the organization to provide the verification service, the $25 fee charged for the service, the type of verification (through transcript) and its description.
+ Figure 3.8A
+ Verification by transcript.
+ CTDL Profile of ASN-DL (CTDL-ASN) Schema
+ In order to describe competency frameworks in as interoperable a manner as possible, Credential Engine builds on an existing description language called Achievement Standards Network Description Language (ASN-DL) that was developed under funding from the U.S. National Science Foundation (NSF) between 1999-2013 for the description of logically related sets of knowledge, skill and ability assertions. The ASN-DL is designed using the W3C's Resource Description Framework (RDF) for describing Linked Data on the open Web. The CTDL-ASN Profile adopts most of the set of properties and classes defined in the ASN-DL and is judiciously extending that set through property and class refinements as well as the addition of new properties and classes defined in CE's own Credential Transparency Description Language (CTDL).
+ Basic CTDL-ASN Architecture
+ The ASN Description Language (ASN-DL) is made up of two fundamental entities: (1) the Standards Document - a competency framework as a whole, and (2) the Statement - the individual assertions of knowledge, skill, and abilities of which a Standards Document is comprised. These two entities - documents and statements - are modeled in terms of an entity-relationship model (ER) and embodied as a directed graph using W3C's Resource Description Language (RDF). An extensible set of structural and semantic relationships between the ASN's primary competency framework entities - the standards document entity and its atomic statement entities - have been defined.
+ Following that pattern, CTDL-ASN is made up of its own two fundamental entities: (1) the Competency Framework, which serves as a means of describing and referencing the entire framework as a whole, and (2) the Competency, which is an individual assertion of knowledge, skill, ability, behavior, attitude, or other attributes that would fall under the broad notion of a competency. These entities closely follow the ASN-DL's modeling as an entity-relationship model.
+ The following diagram illustrates example encodings of a competency in the Degree Qualification Profile (DQP) using CTDL-ASN:
+ Degree Qualification Profile Sample Expressed with CTDL-ASN
+ Note that each entity has been assigned a unique identifier in the form of a Uniform Resource Identifier ( URI ) using the HTTP protocol. This means that each resource is a "first class citizen" on the open Web and can be openly referenced and linked too.
+ Competency Framework
+ The CompetencyFramework class embodies a set of related Competencies arranged in some meaningful structure. A framework of competencies may be as simple as a flat list or as complex as a deep hierarchy. In rare cases, a competency framework may even be a non-hierarchical graph of competencies. The exact nature of the connections between the competencies are described by the competencies themselves (see below); the competency framework class exists simply as a way to identify, describe, and reference its competencies as a single entity.
+ Competency Framework with two Competencies
+ Competency
+ The Competency class embodies a particular knowledge, skill, ability, behavior, attitude, etc. A competency may exist at a high level (e.g., "Can fly an airplane"), a very granular level (e.g. "Can correctly interpret an altitude gauge"), or anywhere in between (e.g. "Can maintain level flight in clear conditions"). The most important property of the competency class is the competencyText property, which provides the normative text of the competency itself. The competency class also provides a simple competencyLabel property to enable giving a competency a shorthand name, as well as a non-normative comment to better describe or disambiguate the competencyText.
+ This class also has a set of properties that enable connecting multiple instances of competency together in integral/structural and non-integral/alignment related ways. See the next section for details on how these properties are used.
+ Relationships Between a Competency Framework and Competencies
+ CTDL-ASN inherits ASN-DL's "two object model" nature. This means that while the CompetencyFramework allows for describing the whole set of Competencies , it is up to the competencies themselves to describe their relationships to each other. CTDL-ASN provides the following properties to connect a framework to its competencies:
+ Has Top Child 
+ Top-level child competency of a competency framework.
+ Is Top Child Of 
+ Indicates that this competency is at the top of some arbitrary hierarchy.
+ Is Part Of 
+ Competency framework that this competency is a part of.
+ This property does not indicate whether or not this statement is a top-level statement in the referenced competency framework; only that it is in some way a part of that framework. To indicate that this statement is a top-level statement, use both this property and the isChildOf property.
+ In addition to non-structural alignment properties , the competency class has two properties to enable connecting competencies together in an integral, structural fashion:
+ Has Child 
+ The referenced resource is lower in some arbitrary hierarchy than this resource.
+ This property identifies a child node in the downward path in the chain of resources in a taxon path.
+ Is Child Of 
+ The referenced resource is higher in some arbitrary hierarchy than this resource.
+ Is Top Child Of 
+ Indicates that this competency is at the top of some arbitrary hierarchy.
+ As shown in the Competency Framework example above, these properties allow connecting competencies together into a meaningful structure.
+ Extending the Granularity of a CTDL-ASN Taxon Path
+ For some uses of a particular ASN-modeled competency framework, the level of granularity of leaf competencies in the canonical version may not be sufficiently granular. For example, a specific competency may aggregate several skills that some 3rd party creator of assessment instruments may wish to handle separately. The ASN-DL model makes it possible to increase the granularity of expression of a competency by distinguishing between canonical (original) competencies as promulgated by the authors of the framework and non-canonical (derived) statements added by 3rd parties. Derived 3rd party ASN statements "refine" original statements by making more specific granular assertions. Since derived statements are treated as first-class entities in the ASN, they are assigned URIs in the same manner as original statements and clearly identified as "derived". Of course, derived statements can be easily eliminated, not display, or treated in some manner as simple annotations by services consuming the standards documents.
+ As a result of this extensibility, any 3rd party may create more granular statements without authorization in its own 3rd party namespace and relate those statements to the canonical (original) statements while identifying such competencies as "derived". Of course, since 3rd party statements are in different namespaces than the canonical version, 3rd party provenance is machine identifiable. The following figure illustrates this 3rd party "annotation" process.
+ Extending the Granularity of a Competency Framework with CTDL-ASN
+ Cross-Framework Mapping
+ Because every CTDL-ASN Competency Framework resource and every CTDL-ASN Competency resource is identified by URI, competency frameworks and their individual competencies can be mapped to each other regardless of where the frameworks are located on the open Web. The following figure asserts an exact match relationship between a competency in a Brandman University competency framework and a competency in the Degree Qualification Profile (DQP):
+ Competency to Competency Mapping Across Frameworks with CTDL-ASN
+ The ASN-DL offers a range of properties to express different degrees of similarity between competencies; additional mapping properties can be defined in the CTDL-ASN Profile as needs arise.
+ Collection
+ While Competency Frameworks are similar to Collections of competencies - i.e., both aggregate resources, they are significantly different in how they are developed. Competency Frameworks and their associated competencies are created top-down as a whole even though there may be an intention that the Framework’s Competencies be reused in other contexts. At the level of the Framework, the audience and purpose should be defined and relationships to other contextualizing resources are established with the assumption that these attributes carry down into the Framework’s Competencies. In a sense, we might say that first comes the contextualizing Competency Framework followed by its Competencies.
+ Since the potential members preexist any Collections in which they might later be identified, we can characterize the creation of a Collection as bottom-up. Since nothing requires a resource to ever be a member of a Collection, the burden of contextualization for each member, which would otherwise be carried by the Competency Framework, falls to the individual members of the Collection. This burden of member contextualization is illustrated in the diagram below through the outbound substantiating arcs (arrows).
+ Expressing "Strength of Fit" (Degrees of Similarity)
+ Frequently, it is useful to map from one resource to another to express the level of useful similarity between the two nodes. Such mappings may be from one competency framework node to another node in the same or another framework (i.e., competency-to-competency), or to map from a learning resource to a competency node (i.e., learning resource-to-competency). In ASN, the utility of that mapping is a function of its "strength of fit". The ASN ontology provides an array of properties that express this strength of fit relationship in competency-to-competency mappings (called "alignments" in ASN) and learning resource-to-competency mappings (called "correlations" in ASN).
+ The table below includes brief descriptions of the current competency-to-competency mapping predicates. For the full description of both the competency-to-competency mapping properties and the learning resource-to-competency mapping properties, see CTDL-ASN Profile .
+ Align To 
+ A competency framework or competency to which this competency framework or competency is aligned.
+ An alignment is an assertion of some degree of equivalency between the subject and the object of the assertion.
+ Align From 
+ A competency framework or competency from which this competency framework or competency is aligned.
+ An alignment is an assertion of some degree of equivalency between the subject and the object of the assertion.
+ Broad Alignment 
+ The referenced competency covers all of the relevant concepts in this competency as well as relevant concepts not found in this competency.
+ Exact Alignment 
+ The relevant concepts in this competency and the referenced competency are coextensive.
+ Major Alignment 
+ Major overlap of relevant concepts between this competency and the referenced competency.
+ Minor Alignment 
+ Minor overlap of relevant concepts between this competency and the referenced competency.
+ Narrow Alignment 
+ This competency covers all of the relevant concepts in the referenced competency as well as relevant concepts not found in the referenced competency.
+ Prerequisite Alignment 
+ The referenced resource is a prerequisite to this resource.
+ Rubrics
+ Rubrics are key to understanding competencies in relation to credentials and jobs. They may specify the observable behaviors that indicate a person has reached a certain level of competence. As such, rubrics may support processes such as the assessment of learning outcomes from a learning opportunity, the appraisal of task performance in a job, etc. CTDL is capable of describing credentials, competencies, assessments and tasks; the inclusion of rubrics enables further transparency regarding the competencies that are required in a specific context and how they are assessed. The CTDL model for rubrics has been defined so that it is widely applicable beyond people and competences, so it is also relevant to appraising organizational capabilities and measures of quality or suitability of products, services and other things.
+ Where a rubric is used to assess the performance of individuals in an assessment, learning opportunity, job, task or for the attainment of any form of credential, the ceterms:hasRubric property may be used to indicate this relationship, as illustrated below. The diagram also shows that the ceterms:targetOccupation property may be used to indicate that a rubric has been created to assess an individual for a specific occupation, which in turn may be associated with Jobs and Tasks that use this Rubric.
+ If a rubric is created to evaluate a credential, learning opportunity or other artifact as part of a QA process, this can be indicated by including a reference to the rubric in the ProcessProfile associated with this using ceterms:instrument .
+ There are several pre-existing data standards for Rubrics and the development of the Rubrics classes in CTDL recognized and built on the following:
+ Panulla and Kohler (2010), An Ontology for Open Rubric Exchange on the Web 
+ Achievement Standards Network (ASN), Model for ASN Rubrics 
+ Common Educational Data Standards (CEDS), Rubrics Elements 
+ 1EdTech, IMS Competencies and Academic Standards Exchange (CASE) 
+ IEEE, 1484.20.3­—2022 Data Model for Shareable Competency Definitions 
+ A mapping of all these standards to a common "spine" which informed the creation of the Rubrics classes and properties in CTDL is available. View the Rubric mapping here (Select Rubric Mapping for CTDL from the drop down menu) .
+ Rubrics are often displayed in a tabular format showing Criteria that should be met as rows and the levels of achievement that may be attained against those criteria as columns. The CTDL model for rubrics (shown below) follows this with classes for the Rubric as a whole, a Rubric Criterion, a Rubric Level and a Criterion Level which is for the intersection of a Criterion with a Level, that is a single cell in a tabular Rubric. Strictly speaking such a tabular form only applies to analytic rubrics but other types of rubric may be modeled using these classes; for example a holistic rubric can be modeled as one with a single overarching criterion. If the rubric criteria are grouped thematically this can be indicated using a skos:Concept .
+ Rubric 
+ A structured and systematic evaluation tool used to assess performance, quality, and/or criteria.
+ Rubric Criterion 
+ Resource providing explicit criteria for ensuring specific and measurable evaluation.
+ Rubric Level 
+ Level or quality indicator used with Rubric Criteria.
+ Criterion Level 
+ An individual component or specific element within a criterion that defines a particular aspect or standard for evaluation.
+ The data for a simplified rubric comprising two criteria and three levels is shown below, first in overview showing the whole structure then focusing in on the data for one of the CriterionLevels.
+ Simplified Rubric
+ Note: in the diagram above, the arrows marked hasCriterionLevel join RubricCriterion and RubricLevel objects to all the CriterionLevel objects in a row or column though it is not possible to show them passing behind the objects in the way.
+ Single Criterion Level
+ In the view of the single criterion level we can see some of the properties available for describing a criterion level, notably the benchmark statement for achieving that level and the percentage points awarded for such, in this case 100%. Alternatively it is possible to provide a numerical score for the performance or a range or either percentage or scores. The weighting of scores for each criterion is indicated on the Criterion object, in this case both happen to carry equal weight.
+ Many other properties can be used with Rubric classes, for example, hasRubric can point to a Rubric object to associate it with an AssessmentProfile, Job, Credential, LearningOpportunityProfile, Course, Program, CompetencyFramework or Task. Other properties associate a Rubric with an organization as the creator, publisher or rights holder, or show the type of audience, delivery method, education level industry, occupation or subject associated with the rubric. Information about how scores are calculated can be indicated in a process profile. At the RubricCriterion level, the tasks or competencies that are relevant can be indicated. Examples showing some of these properties are provided in the section below on Detailed Examples.
+ Quantitative Data (QData) Schema
+ Full transparency in describing credentials and other education and career development opportunities requires not only descriptions of provenance, nature and purpose, but also requires descriptions of the educational and employment outcomes and other factors. Such data may relate to acceptance rates for admission to a program, outcomes such as pass rates, employability, financial costs and benefits and many other metrics of success. To handle this Credential Engine has created a separate Quantitative Data namespace (QData) with terms that may be used along with those from other namespaces to provide the necessary transparency. 
+ The QData schema, in common with Credential Engine's use of CTDL in general, does not deal with data about individuals. The target data is aggregate data such as the average grades on entry to a program of learning, percentage pass rates for an assessment, overall employability and median earnings for holders of a credential. Typically, this data will be historical data relating to previous participants or credential awardees. The data may be collected using different methods and may come from a wide variety of sources, ranging from individual credential organizations to national agencies.
+ QData meets two high-level use cases: the provision of data about educational and occupational outcomes, and the discovery of such data. Along with these high-level use cases, many detailed use cases are covered with regard to understanding the data, including:
+ who created it and the data processing that has been carried out on it;
+ how it is made available;
+ the fine details of the metrics used; and,
+ the meaning of individual observations.
+ Through the input of the Education and Employment Outcomes Metrics Task Group, in August 2024 the QData schema was revised to allow simple data to be provided more directly, and for more extensive data sets to be provided in more detail. This resulted in changes to how the data is modeled and to some terms being deprecated. Deprecating a term simply means that, while the term remains in the namespace with the same URI, we do not use it and do not recommend others use it.
+ Data Sets, Metrics and Observations
+ QData is built around the concepts of data sets and metrics for which there are observations. As illustrated below, a data set is a collection of data which is described using the QData DataSetProfile class, and a Metric is what is being measured and the method of measurement used for observations within a data set. A data set may be relevant to one or more instances of several relevant CTDL classes. Within a data set there will be at least one Observation relating to each metric providing data about that metric.
+ DataSetProfile is defined as the particular characteristics or properties of a data set and its records. It has properties that allow the data set as a whole to be both described and connected to an entity to which it is relevant. There are properties relating to temporal and geographic coverage, ownership and lifecycle processes such as creation, update, review, policies for withholding data, etc.
+ Metric is defined as the combination of "what is being measured?" and "what is the method of measurement used for the observations within a data set?". Even for common metrics, such as the typical earnings of holders of a credential, there can be many factors that need to be understood in order to make sense of an observation. For example, it may be necessary to understand how the data was collected to answer questions such as:
+ Was it by self-reporting, or was it from tax records or similar sources?
+ How long after the award was the data gathered?
+ What definition of "earnings" was used?
+ Were the values adjusted for inflation?
+ And so on.
+ Sometimes the same detailed metric is used across many data sets, for example when prescribed by a national or regulatory authority in order to allow detailed comparison across credentialing organizations or through time sequences. In such cases it can be useful for the metric data to be reusable across many data sets. In other cases a metric may be specific to a single data set. In order that data sets with metrics relating to similar things may be easily discovered, the type of metric may be classified using the Metric Category concept scheme.
+ Observation is used to record a single or set of related values observed for a metric for a relevant entity using properties that indicate what the values represent, for example mean, median, percentage, various percentiles and so on. There are also properties necessary for understanding the values observed, the currency used for monetary amounts, the number of data points observed, the size of the population, the reason why data is withheld.
+ Single Observation
+ In the simplest case there will be one metric and one observation for one entity, for example to say that the completion rate for a college program is 80% we would provide the following data.
+ QData - Simple Example
+ Note that the data is provided by the same organization that offers the program that the data is about, and that the sizeOfdata and the sizeOfPopulation are 145, meaning that the measurement of the completion rate of 80% was based on all the relevant participants. Both these factors may affect our willingness to trust the data.
+ It is possible to provide data for observations of more than one metric using this pattern, for example we could easily include observations of the pass rate for students who complete the program, the number of students on the program and the acceptance rate for applicants to the program simply by adding more Observations and their respective Metrics. However if a data provider wishes to provide data specific to more than one Learning Program, or wishes to break down the data by demographic categories or year of study then we need to build out a slightly more complex approach, as described in the next section.
+ Representing Multidimensional Data
+ In many cases a data set has observations relating to more than one entity, for example a single data set might have the completion rates for several programs. Furthermore there might be data that shows how the completion rate varies year by year, or varies with demographic factors. The table below shows an imaginary example of such data, indicating the completion rate by year and gender for three programs. Gender indicated for male (M), female (F), other/undisclosed (X). A dash (-) in the data cell indicates that no data is provided.
+ Such a data set can be considered multidimensional, with the relevant dimensions being the Program, the year, and Gender. This is illustrated below, where the data is shown with each year stacked on the previous year.
+ To encode this data we use the QData class of Dimension , which represents a collection of instances of any class or concepts from any concept scheme. The individual instances can be thought of (and are referred to in the model as) points along the dimension.
+ Any observation in a multidimensional data set can be referred to via the points on each of the relevant dimensions, much like coordinates in a cartesian space or indices in a matrix. So in our example above, the value for the completion metric for Program = Accounting Assistant, Gender = M, Year = 2023 is 80%. Real data sets may have any number of dimensions, and more than one metric, leading to a very large number of observations. Representing so much data in a diagram is not possible, so the diagram below shows only one observation and two dimensions, though the data sample shows all the data in the table above.
+ QData - Multidimensional Example
+ Data Policies and Other Information
+ Very often the gathering, processing and dissemination of data will be governed by policies that aim to ensure that the data is reliable, current and conforms to relevant privacy legislation and other concerns.
+ For data sets as a whole, the following properties can be used to provide this information for a DataSetProfile :
+ License 
+ A legal document giving official permission to do something with this resource.
+ Value must be the URI to a license document (e.g., Creative Commons license or bespoke license).
+ Rights 
+ Information about rights held in and over this resource.
+ Administration Process 
+ Description of a process by which a resource is administered.
+ Processes described include the execution of events and the development of resources in the lifecycle of a credential or organization, such as the process for the proctoring of assessments.
+ For assessments and rubrics, this can be used to indicate the scoring algorithm.
+ Maintenance Process 
+ Description of a process by which a resource is maintained, including review and updating.
+ Such maintenance does not include renewal of a credential by an individual holder.
+ Review Process 
+ Description of a process by which a resource is reviewed.
+ Data Suppression Policy 
+ Description of a data suppression policy for earnings and employment data when cell size is below a certain threshold to ensure an individual's privacy and security.
+ Information regarding individual observations that may be crucial to understanding and using the data, such as the sample size and why observations are missing, can be provided using these provided using the following properties for an Observation :
+ Size of Data 
+ Number of subjects from the population for which data was obtained to calculate the observed value.
+ For the number of subjects in the sample for which no data was available use sizeOfNoData, and for the total number of subjects available use sizeOfPopulation.
+ Size of No Data 
+ Number of subjects in the sample for which no data was obtained.
+ This is relevant for surveys or other forms of data gathering where a bias may be introduced by non-response or similar omissions.
+ For the number of subjects for which data was available, use sizeOfData, and for the total number of subjects available use sizeOfPopulation.
+ Size of Population 
+ The total number of subjects in the relevant population.
+ For the number of subjects for which data was available, use sizeOfData, and for the number of subjects for which no data was available, use sizeOfNoData.
+ Data Withholding Type 
+ Type of suppression, masking, or other modification made to the data to protect the identities of its subjects.
+ Data Sets can be extensive and may comprise many megabytes worth of observations. In such cases the data may be distributed in various formats and there may be specialist services such as dashboards for exploring the data. QData has two classes for describing the distribution of data and services associated with the data:
+ Data Set Distribution 
+ A specific representation of a dataset.
+ Data Set Service 
+ A service that provides access to one or more datasets or data processing functions.
+ DataSetDistribution is used to describe a data file that is available for download and has properties that allow the location of the relevant file, information about rights and licenses, the data encoding used and data standards (such as CTDL) to which it conforms. DataSetService is used to describe services such as dashboards for analysis and exploration of data. These classes are based on the W3C Data Catalog Vocabulary classes dcat:DataService and dcat:Distribution . They are related to DataSetProfile as shown below:
+ As an example, we can consider a large, national data set which is accessible through an analytics dashboard and may be downloaded in two formats:
+ QData - Service and Distribution
+ Data Discovery
+ Researchers may want to find data dealing with their research interests, e.g. based on metrics relating to employability, earnings etc, with observations relating to gender, family background, and covering specific geographic areas or time spans. QData includes a number of properties aimed to enable such data discovery. For example, the diagram below shows that:
+ A Data Set Profile itself may be directly connected to credentials, learning opportunities, and other CTDL information via relevantDataSetFor and hasRelevantDataSet , enabling users to find data sets tied to such resources.
+ A Data Set Profile may reference its own metrics and dimensions, which are further categorized by metricType and dimensionType , enabling users to find data sets that deal with those categories of information. See below for more information on how Metrics and Dimensions are classified.
+ A Data Set Profile may reference spatial information with dataSetSpatialCoverage and temporal information with dataSetTemporalCoverage . These two properties are intended to reference broad summary data applicable to (or aggregated from) the contents of the Data Set Profile, to make such data easier to find.
+ A more advanced query might inspect the contents of the Data Set Profile, including its metrics, dimensions, and their categories, to look for highly-specific data sets using properties not shown below such as the name , description , dateEffective , and about properties.
+ Many researchers will be interested in specific types of metric or the analysis of data according to a specific type of demographic dimension. Metrics may be classified using the metricType property and a value from the MetricCategory concept scheme which includes many terms for categorizing what is being measured, such as Earnings, Employment, PassRate, Retention, Student Financials and many more. Similarly Dimensions can be categorized by using the dimensionType property to indicate how the observations are being analyzed according to demographic or other factors. The dimensionType property may point to an existing CTDL class, such as Industry or LearningProgram to indicate the observations are broken down according entities of that type, or may point to a ConceptScheme to the observations are broken down concepts from that scheme, and the same property may be used to point to a concept from the DimensionCategory scheme to indicate a class of demographic that is being used in the analysis. The dimensionType property is used in the example illustrating Dimensions (above) to show that the data is broken down to:
+ individual Learning Programs,
+ dates, and
+ a concept scheme which relates to the demographic category of Gender.
+ Finally, as an aid to discovering data sets that relate to widely used Metrics, such as those defined by National, Regional or State policies or legislation, Metrics can be published as stand-alone objects and data sets can either reference these as they are published or can use a derivative metric based on the published Metric connected to it using the derivedFrom property.
+ Detailed Examples
+ This section contains detailed examples from across the schemas that show how various use cases are handled.
+ Describing Requirements
+ The most common use of ConditionProfile is to describe the requirements to earn a credential. The following examples show various ways in which this occur.
+ Alternate Routes to Earn a Credential
+ A set of conditions represented by a ConditionProfile may have sub-sets of conditions defined by additional instances of the ConditionProfile class. In other words, a ConditionProfile may branch into two or more optional instances of the ConditionProfile class—each option defining a different aggregate set of conditions. The following figure illustrates a Certificate that has entry condition property ( entryCondition ) pointing to a Condition Profile requiring submission of transcripts ( submissionOf ) and the taking of a targetAssessment .
+ Through use of the alternative condition ( alternativeCondition ) property, this Condition Profile branches to separate instances of the ConditionProfile class: one branch points to a ConditionProfile requiring a Master's Degree ( MasterDegree ) and the other branch requires both a Bachelor's Degree ( BachelorDegree ) and 2 years of experience in a relevant field. The result is aggregate condition sets for two entry options:
+ Option 1: 
+ Transcripts
+ Assessment
+ Master's Degree
+ Option 2: 
+ Transcripts
+ Assessment
+ Bachelor's Degree
+ 2 Years Experience
+ Figure 2.2B
+ Credential with two Sub-Conditions
+ Referencing Competencies
+ One of the most pervasive uses in CTDL of the CredentialAlignmentObject class (see the Credential Alignment Object section for more details) is relating various entities in the CTDL model to CompetencyFrameworks and their member competencies Competencies .
+ The following examples illustrate how this works using a Competency node in the DQP Framework. The description properties for this Competency include:
+ frameworkName for the framework's name
+ framework for the URI that identifies the framework
+ targetNode for the URI that identifies the target node within the framework
+ targetNodeDescription that provides a copy of the text of the competency
+ Referencing Competencies from Credentials
+ The Credential classes can use a ConditionProfile to reference competencies via the targetCompetency property and a CredentialAlignmentObject . The intended meaning of the reference to the Competency is conveyed by the property that references the ConditionProfile. In the example below, the requires property is used to mean "This credential requires the following conditions, among which is the indicated targetCompetency."
+ Any class (including AssessmentProfile and LearningOpportunityProfile ) that uses a ConditionProfile can follow this approach.
+ Figure 4.1A1
+ Credential that requires a Competency via a Condition Profile.
+ While the Credential Registry requires the use of a ConditionProfile in cases like the one above, CTDL allows properties like requires to bypass the ConditionProfile and directly use a CredentialAlignmentObject.
+ Figure 4.1A1A
+ Credential that requires a Competency directly.
+ Referencing Competencies from Assessment Profiles
+ In addition to the ConditionProfile -based approach described above, the AssessmentProfile class can more directly reference competencies via its assesses property and a CredentialAlignmentObject .
+ Figure 4.1A2
+ Assessment Profile that assesses a Competency.
+ Referencing Competencies from Learning Opportunity Profiles
+ In addition to the ConditionProfile -based approach described above, the LearningOpportunityProfile class can more directly reference competencies via its teaches property and a CredentialAlignmentObject .
+ Figure 4.1A3
+ Learning Opportunity Profile that teaches a Competency.
+ Referencing Concept Schemes (Controlled Vocabularies)
+ The following example follows the exact same pattern of use but adds the targetNodeDescription and codedNotation properties to more fully describe the instructional program type of the Learning Opportunity being profiled. The framework being used is the Classification of Instructional Programs (CIP) and the specific CIP program is Engine Machinist .
+ Figure 4.1C
+ Credential alignment object referencing CIP instructional program type.
+ In addition, the CTDL has created nearly 20 concept schemes defining values to be used with specific properties. In CTDL conformant data, those values are expressed in resource descriptions using the Credential Alignment Object class in the manner illustrated below.
+ Figure 4.1D
+ Organization referencing a Concept.
+ Referencing External Concept Schemes
+ The following graphic illustrates the use of the CredentialAlignmentObject to assert that a certain instance of the Credential class has an occupationType of "Deaf-blind interpreter" as defined in the RDF-based European Skills/Competences, qualifications and Occupations (ESCO) and identified with the URI of http://data.europa.eu/esco/occupations/18622 .
+ Figure 4.1B
+ Credential alignment object referencing ESCO occupation.
+ Describing Transfer Value
+ The figure below shows the transfer value provided by ( transferValueFrom ) a "Principles of Finance" course.
+ Figure 5.1
+ Transfer Value Profile
+ Degree with Concentrations
+ Degrees frequently provide more than one prescribed path to earning the degree. These options, while variously named, are referred to in CTDL as concentrations. The following figure illustrates a Bachelor of Science in Data Science that provides a choice of concentrations, one in Business Analytics the other in Geographic Information Systems (GUS). The common set of courses that all students take is represented in the Condition Profile by a single Learning Opportunity Profile (in reality there may be several of these). The optional courses for each concentration are shown as alternativeConditions, each with an array of learning opportunities.
+ Figure 2.2C
+ Bachelor Degree with with two subconditions defining degree concentrations
+ Degree Requiring a Set of Certifications
+ Some degrees are primarily or solely comprised of certificates earned. Those certificates may or may not be developed and controlled by the entity awarding the degree. The figure below illustrates a set of conditions wherein the learner takes required courses, some of which prepare him or her for required CompTIA certification.
+ Figure 2.2D
+ Two required Conditions - Courses + Certifications
+ Dependent Dual Degrees
+ Dependent dual degrees are two degrees that are tailored to go together—e.g., a Master of Architecture and a Master of Science in Civil Engineering. Dual degrees are described in CTDL as two separate degrees and mutually related through through an instance of ConditionProfile . The following figure illustrates such dependent dual degrees with an intersecting ConditionProfile describing the condition set identifying requirements with a description property stating that "[a] maximum of 15 credits may be used to satisfy requirements of both Architecture and Engineering degrees".
+ Figure 2.2E
+ A tailored dual degree program permitting students to obtain both an Master of Architecture and a Master of Science in Civil Engineering
+ Life Cycles
+ The current stage of credentials, learning opportunities, and organizations in their life cycle can be indicated using the lifeCycleStatusType property for learning opportunities and organizations or its sub-property credentialStatusType for credentials. These point via a CredentialAlignmentObject to terms from the LifeCycleStatus or CredentialStatus concept schemes that indicate where a resource is in its passage from being developed, being offered and finally withdrawn. The example below shows a certificate and associated learning program that have been permanently withdrawn, and which were offered by a credential organization that no longer operates (for simplicity, not all properties are shown in the diagram).
+ Figure
+ Life Cycle Status
+ Rubrics
+ Holistic Rubric
+ Holistic rubrics do not break the appraisal into separate criteria, instead they offer a set of benchmarks and levels for the appraisal as a whole. The CTDL Rubric classes can be used for Holistic Rubrics by treating them as applying a single "holistic" Criterion. The example below, which is based on one from the Cult of Pedagogy also illustrates that not every Rubric needs to have RubricLevels, being simply a selection of scores available for meeting various benchmarks.
+ Figure
+ Holistic Rubric
+;
+ Reusing Criteria Levels and Pass/Fail criteria
+ Sometimes the specification of a level is the same for all criteria or even may be implicit in the criteria and the levels. This commonly arises when the rubric criteria are phrased in such a way that all that matters is whether the thing being appraised passes or not, or when the rubric levels are described in such a way that it is not necessary to provide specific details on how each criterion might relate to that level. In such a case all RubricCriterion objects can reference the same CriterionLevel objects (this is because the CriterionLevel objects record the possible values, not the actual values attained) and the labels used for the options can be recorded as the names of the RubricLevel objects. The diagram and data below shows an example where there is a choice between two RubricLevels indicating that the criterion has been met or not ("go" and "no go").
+ Figure
+ Reusing Criterion Levels
+;
+ Classifying Criteria
+ It is sometimes useful to be able to classify RubricCriteria objects into notional groupings. These groupings may be used to display criteria that relate to a similar theme under headings for that theme, or the groupings may be important for analysis of the rubric but not affect the display at all. In order to achieve this a skos:ConceptScheme is created with the skos:Concepts containing the label and any descriptive information needed for the classification; the property ceasn:hasCriterionCategorySet is used on the Rubric object to indicate the concept scheme used to classify the criteria and the property ceasn:hasCriterionCategory is used on Criterion objects to indicate their classification. The example below shows how the criteria in the previous example are classified.
+ Figure
+ Classifying Criteria
+;
+ Essay Evaluation Rubric
+ The example below shows a very straightforward, table-based Rubric and the way the CTDL data for it would be structured.
+ Essay Evaluation Rubric
+ The example below shows a Rubric with multiple Rubric Criterion that reference the same Criterion Levels.
+ Using Collections to Indicate Workforce Demand 
+ Collections can be used to describe workforce demand for credentials, competencies, occupations, and related resources. Examples include skills that are in demand, occupations that are high wage, or roles that are considered high skill.
+ These types of designations are often defined and maintained by authoritative or governmental bodies for a specific jurisdiction, based on workforce data and established criteria. In CTDL, these can be modeled as Collections where the collectionType property indicates the nature of the designation, such as In Demand , HighWage , or HighSkill .
+ The organization responsible for the designation and the region where it applies can be described using the ownedBy and jurisdiction properties. The criteria used to determine which resources are included in the collection can be described using the membershipCondition property, and the process used to make those determinations can be described using the developmentProcess property.
+ Condition and process profiles may include references to the metrics and data used to support the designation. For example, a condition profile may reference a Metric that defines what qualifies as “in demand,” and a process profile may reference a DatasetProfile used to evaluate which resources meet that criteria.
+ The example below shows a collection of occupations that have been designated as In Demand by the Erewhon Department of Labor for the jurisdiction of Erewhon. The development process links to a dataset used to determine which occupations are in demand, and the membership condition links to the metric used to define that designation.
+ CollectionMember objects are used to provide additional information about each member of the collection. In this example, they are used to record the date on which each occupation met the criteria for being designated as In Demand.
+ Example of a collection being used to indicate which occupations are in demand in Erewhon based on workforce data
+ Example of a collection being used to indicate which occupations are in demand in Erewhon based on workforce data
+;
+ References
+ BCP 47:
+ Best Current Practice 47 - Language Tags
+ https://tools.ietf.org/html/bcp47 
+ bNode:
+ In RDF, a blank node (also called bnode) is a node in an RDF graph representing a resource for which a URI or literal is not given.
+ https://en.wikipedia.org/wiki/Blank_node 
+ bNode ID:
+ For handling bNodes in JSON-LD, see the relevant portion of the JSON-LD specification.
+ https://json-ld.org/spec/latest/json-ld/#identifying-blank-nodes 
+ DCAT:
+ W3C Data Catalog Vocabulary
+ https://www.w3.org/TR/vocab-dcat-3/ 
+ Qualifications frameworks:
+ Qualifications Frameworks as defined by the European Centre for Development of Vocational Training and the European Training Foundation
+ https://doi.org/10.54675/UAZR7454 
+ ISO 8601:
+ Data elements and interchange formats - Information interchange - Representation of dates and times:
+ https://en.wikipedia.org/wiki/ISO_8601 
+ JSON-LD:
+ JSON Linked Data Specification
+ https://json-ld.org/ 
+ Progression Model:
+ ASN Progression Model Specification
+ http://standards.asn.desire2learn.com/rubric.html#pm 
+ RDF:
+ Resource Description Framework (RDF)
+ https://www.w3.org/RDF/ 
+ RDF PRIMER:
+ Latest "RDF Primer" versions
+ https://www.w3.org/TR/rdf-primer/ 
+ SKOS:
+ Simple Knowledge Organization System (SKOS)
+ https://www.w3.org/2004/02/skos/ 
+ SKOS PRIMER:
+ SKOS (Simple Knowledge Organization System) Primer
+ https://www.w3.org/TR/2009/NOTE-skos-primer-20090818/ 
+ SKOS REF:
+ SKOS (Simple Knowledge Organization System) Reference
+ https://www.w3.org/TR/2009/REC-skos-reference-20090818/ 
+ URI:
+ Uniform Resource Identifier
+ https://en.wikipedia.org/wiki/Uniform_Resource_Identifier 
+ URN:
+ Uniform Resource Name
+ https://en.wikipedia.org/wiki/Uniform_Resource_Name 
+ URL:
+ Uniform Resource Locator
+ https://en.wikipedia.org/wiki/URL 
+ UUID:
+ Universally Unique Identifier
+ https://en.wikipedia.org/wiki/Universally_unique_identifier 
+ W3C LD Glossary:
+ World Wide Web Consortium Linked Data Glossary
+ https://www.w3.org/TR/ld-glossary/ 
+ Learn more about the Credential Engine 
+ Follow Us:
+ Twitter 
+ Facebook 
+ YouTube 
+ LinkedIn 
+ Contact Us:
+ Email Us 
+ Policies and Terms of Use:
+ Credential Transparency Description Language (CTDL) by Credential Engine is licensed under a Creative Commons Attribution 4.0 International License .
+ Privacy Policy 
+ Terms of Use 
+ Publishers Agreement 
+ Minimum Data Policy 
+ Data Currency Policy 
+ Websites:
+ Credential Engine 
+ Credential Engine Accounts 
+ Credential Publisher 
+ Credential Finder 
+ Supported By:
+ Credential Engine Funders 
+ Login 
+ 

@@ -1,0 +1,26 @@
+{
+  "model": "qwen3.5:9b",
+  "promptVersion": "prerequisite-structure/1",
+  "task": "pre-or-corequisite sentence",
+  "sentence": "Completion of NURS 50733 or NURS 50933.",
+  "courseCodes": [
+    "NURS 50733",
+    "NURS 50933"
+  ],
+  "structure": {
+    "kind": "any_of",
+    "quote": "",
+    "items": [
+      {
+        "kind": "course",
+        "quote": "NURS 50733"
+      },
+      {
+        "kind": "course",
+        "quote": "NURS 50933"
+      }
+    ]
+  },
+  "argument": "The sentence uses the word 'or' to connect two course codes, indicating that satisfying either one is sufficient. According to the CTDL definition of ceterms:alternativeCondition, this represents a context where 'any one path fulfills the parent condition,' which maps to an 'any_of' node in the logical structure. The individual items are identified as 'course' nodes because they match the format of specific course codes.",
+  "seconds": 2.7
+}

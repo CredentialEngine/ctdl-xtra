@@ -1,0 +1,23 @@
+{
+  "model": "qwen3.5:9b",
+  "promptVersion": "prerequisite-structure/1",
+  "task": "prerequisite sentence",
+  "sentence": "Admission to an online undergraduate BSN professional program or permission by the instructor or department head.",
+  "courseCodes": [],
+  "structure": {
+    "kind": "any_of",
+    "quote": "",
+    "items": [
+      {
+        "kind": "text",
+        "quote": "Admission to an online undergraduate BSN professional program"
+      },
+      {
+        "kind": "text",
+        "quote": "permission by the instructor or department head"
+      }
+    ]
+  },
+  "argument": "The sentence uses 'or' to connect two distinct conditions ('Admission...' and 'permission...'), meaning satisfying either one is sufficient. According to the CTDL definition of ceterms:alternativeCondition, this represents a context where 'more than one alternative condition or path has been defined and from which any one path fulfills the parent condition.' Therefore, the root node is an 'any_of' grouping these two text items.",
+  "seconds": 2.5
+}

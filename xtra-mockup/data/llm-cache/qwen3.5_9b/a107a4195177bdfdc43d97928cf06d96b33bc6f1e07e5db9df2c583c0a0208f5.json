@@ -1,0 +1,100 @@
+{
+  "model": "qwen3.5:9b",
+  "promptVersion": "prerequisite-structure/1",
+  "task": "prerequisite sentence",
+  "sentence": "CHEM 14103 (or CHEM 12073, or satisfactory performance on the chemistry proficiency exam) and MATH 11003 or higher, or AP Calculus AB 3C or higher, or AP Calculus BC 4C or higher, or MATH 11003 CLEP with a score of  54 or higher, or UA Math Placement 46 or higher, or ACT MATH 22 or higher, or new SAT MATH 540/old SAT Math 540 or higher.",
+  "courseCodes": [
+    "CHEM 14103",
+    "CHEM 12073",
+    "MATH 11003",
+    "MATH 11003"
+  ],
+  "structure": {
+    "kind": "any_of",
+    "quote": "",
+    "items": [
+      {
+        "kind": "all_of",
+        "quote": "",
+        "items": [
+          {
+            "kind": "course",
+            "quote": "CHEM 14103"
+          },
+          {
+            "kind": "any_of",
+            "quote": "",
+            "items": [
+              {
+                "kind": "course",
+                "quote": "CHEM 12073"
+              },
+              {
+                "kind": "text",
+                "quote": "satisfactory performance on the chemistry proficiency exam"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "kind": "course",
+        "quote": "MATH 11003"
+      },
+      {
+        "kind": "text",
+        "quote": "or higher"
+      },
+      {
+        "kind": "course",
+        "quote": "AP Calculus AB 3C"
+      },
+      {
+        "kind": "text",
+        "quote": "or higher"
+      },
+      {
+        "kind": "course",
+        "quote": "AP Calculus BC 4C"
+      },
+      {
+        "kind": "text",
+        "quote": "or higher"
+      },
+      {
+        "kind": "course",
+        "quote": "MATH 11003"
+      },
+      {
+        "kind": "text",
+        "quote": "CLEP with a score of  54 or higher"
+      },
+      {
+        "kind": "course",
+        "quote": "UA Math Placement 46"
+      },
+      {
+        "kind": "text",
+        "quote": "or higher"
+      },
+      {
+        "kind": "course",
+        "quote": "ACT MATH 22"
+      },
+      {
+        "kind": "text",
+        "quote": "or higher"
+      },
+      {
+        "kind": "course",
+        "quote": "new SAT MATH 540/old SAT Math 540"
+      },
+      {
+        "kind": "text",
+        "quote": "or higher"
+      }
+    ]
+  },
+  "argument": "The sentence begins with a top-level 'or' connecting multiple distinct paths, establishing the root as an 'any_of' node per the definition of ceterms:alternativeCondition. The first path contains 'CHEM 14103 (or CHEM 12073, or satisfactory performance on the chemistry proficiency exam)'. The parentheses and internal 'or's indicate a group where any single item suffices, forming an 'any_of' node under the first course. This entire group is then joined by 'and' to 'MATH 11003', creating an 'all_of' requirement for that specific path per the definition of ceterms:requires. The remaining items ('AP Calculus AB...', 'AP Calculus BC...', etc.) are separated from the first path and from each other by top-level 'or's, meaning they are alternative options to the first path, maintaining the root 'any_of' structure.",
+  "seconds": 9.4
+}

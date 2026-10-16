@@ -1,0 +1,15 @@
+{
+  "digest": "2bebcbc013418b2095cb8c6ba438206259d989f34dc03b0eb0120e2293ebc119",
+  "size": 47536,
+  "fetches": [
+    {
+      "requested": "https://catalog.uark.edu/undergraduatecatalog/coursesofinstruction/",
+      "final": "https://catalog.uark.edu/undergraduatecatalog/coursesofinstruction/",
+      "time": "2026-10-07T23:17:40+00:00",
+      "status": 200,
+      "contentType": "text/html; charset=UTF-8",
+      "size": 47536,
+      "digest": "2bebcbc013418b2095cb8c6ba438206259d989f34dc03b0eb0120e2293ebc119"
+    }
+  ]
+}

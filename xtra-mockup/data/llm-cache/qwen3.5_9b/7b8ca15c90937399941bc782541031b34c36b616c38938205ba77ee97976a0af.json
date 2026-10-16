@@ -1,0 +1,74 @@
+{
+  "model": "qwen3.5:9b",
+  "promptVersion": "prerequisite-structure/1",
+  "task": "prerequisite sentence",
+  "sentence": "Honors candidacy and (CHEM 36203 and CHEM 36201) or (CHEM 362H3 and CHEM 362H2) or (CHEM 37203 and CHEM 37202).",
+  "courseCodes": [
+    "CHEM 36203",
+    "CHEM 36201",
+    "CHEM 362H3",
+    "CHEM 362H2",
+    "CHEM 37203",
+    "CHEM 37202"
+  ],
+  "structure": {
+    "kind": "any_of",
+    "quote": "",
+    "items": [
+      {
+        "kind": "all_of",
+        "quote": "",
+        "items": [
+          {
+            "kind": "text",
+            "quote": "Honors candidacy"
+          },
+          {
+            "kind": "all_of",
+            "quote": "",
+            "items": [
+              {
+                "kind": "course",
+                "quote": "CHEM 36203"
+              },
+              {
+                "kind": "course",
+                "quote": "CHEM 36201"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "kind": "all_of",
+        "quote": "",
+        "items": [
+          {
+            "kind": "course",
+            "quote": "CHEM 362H3"
+          },
+          {
+            "kind": "course",
+            "quote": "CHEM 362H2"
+          }
+        ]
+      },
+      {
+        "kind": "all_of",
+        "quote": "",
+        "items": [
+          {
+            "kind": "course",
+            "quote": "CHEM 37203"
+          },
+          {
+            "kind": "course",
+            "quote": "CHEM 37202"
+          }
+        ]
+      }
+    ]
+  },
+  "argument": "The top-level 'or' connects three distinct paths, meaning any one of them satisfies the requirement (ceterms:alternativeCondition). The first path requires 'Honors candidacy' AND a specific pair of courses. The second and third paths each require a specific pair of courses joined by 'and'. Within the nested groups like '(CHEM 36203 and CHEM 36201)', the 'and' indicates that every item must be completed (ceterms:requires), forming an 'all_of' group.",
+  "seconds": 5.8
+}

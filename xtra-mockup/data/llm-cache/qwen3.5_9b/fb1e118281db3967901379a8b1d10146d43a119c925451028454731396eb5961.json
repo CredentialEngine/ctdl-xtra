@@ -1,0 +1,23 @@
+{
+  "model": "qwen3.5:9b",
+  "promptVersion": "prerequisite-structure/1",
+  "task": "prerequisite sentence",
+  "sentence": "Computer Science Computer Engineering (CSCE) graduate standing or Electrical Engineering (ELEG) graduate standing.",
+  "courseCodes": [],
+  "structure": {
+    "kind": "any_of",
+    "quote": "",
+    "items": [
+      {
+        "kind": "text",
+        "quote": "Computer Science Computer Engineering (CSCE) graduate standing"
+      },
+      {
+        "kind": "text",
+        "quote": "Electrical Engineering (ELEG) graduate standing"
+      }
+    ]
+  },
+  "argument": "The sentence uses the word 'or' to connect two distinct conditions, which corresponds to the CTDL definition of ceterms:alternativeCondition ('...from which any one path fulfills the parent condition'). Therefore, the root node is an 'any_of'. The components connected by 'or' are descriptive phrases regarding student standing rather than specific course codes (as confirmed by the input list of course codes being empty), so they are categorized as 'text' nodes per the rule that text includes conditions like class standing.",
+  "seconds": 6.4
+}

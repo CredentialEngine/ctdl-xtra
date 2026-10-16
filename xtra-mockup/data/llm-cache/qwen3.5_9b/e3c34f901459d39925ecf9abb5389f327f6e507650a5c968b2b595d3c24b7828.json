@@ -1,0 +1,14 @@
+{
+  "model": "qwen3.5:9b",
+  "promptVersion": "prerequisite-structure/1",
+  "task": "prerequisite sentence",
+  "sentence": "Level I courses.",
+  "courseCodes": [],
+  "structure": {
+    "kind": "text",
+    "quote": "Level I courses.",
+    "items": []
+  },
+  "argument": "The sentence contains no logical operators ('and' or 'or') and no course codes. According to the rules, any condition that is not a course code is treated as a 'text' node. Therefore, the entire phrase 'Level I courses.' is captured as a single text item with an empty items list.",
+  "seconds": 1.4
+}

@@ -1,0 +1,23 @@
+{
+  "model": "qwen3.5:9b",
+  "promptVersion": "prerequisite-structure/1",
+  "task": "prerequisite sentence",
+  "sentence": "Admission to the Graduate Program or departmental consent.",
+  "courseCodes": [],
+  "structure": {
+    "kind": "any_of",
+    "quote": "",
+    "items": [
+      {
+        "kind": "text",
+        "quote": "Admission to the Graduate Program"
+      },
+      {
+        "kind": "text",
+        "quote": "departmental consent"
+      }
+    ]
+  },
+  "argument": "The sentence uses 'or' to connect two distinct conditions ('Admission to the Graduate Program' and 'departmental consent'), meaning satisfying either one is sufficient. According to the CTDL definition of ceterms:alternativeCondition, this represents a context where 'more than one alternative condition or path has been defined and from which any one path fulfills the parent condition.' Therefore, the root node is an 'any_of' grouping these two text items.",
+  "seconds": 2.2
+}

@@ -1,0 +1,33 @@
+{
+  "model": "qwen3.5:9b",
+  "promptVersion": "prerequisite-structure/1",
+  "task": "prerequisite sentence",
+  "sentence": "Admission to the Online Undergraduate BSN Professional Program or permission by the instructor or department head, and students must have completed all University core and program prerequisites.",
+  "courseCodes": [],
+  "structure": {
+    "kind": "all_of",
+    "quote": "",
+    "items": [
+      {
+        "kind": "any_of",
+        "quote": "",
+        "items": [
+          {
+            "kind": "text",
+            "quote": "Admission to the Online Undergraduate BSN Professional Program"
+          },
+          {
+            "kind": "text",
+            "quote": "permission by the instructor or department head"
+          }
+        ]
+      },
+      {
+        "kind": "text",
+        "quote": "and students must have completed all University core and program prerequisites."
+      }
+    ]
+  },
+  "argument": "The sentence contains a top-level 'and' connecting two main clauses: the first clause offers alternatives ('Admission...' or 'permission...'), and the second clause states a mandatory condition ('students must have completed...'). According to the CTDL definition of ceterms:alternativeCondition, the 'or' within the first clause creates an 'any_of' group where one path fulfills that part. The top-level 'and' implies that both the result of the 'any_of' group AND the second text condition are required, forming a root 'all_of' node per the definition of ceterms:requires.",
+  "seconds": 9.5
+}

@@ -1,0 +1,46 @@
+{
+  "model": "qwen3.5:9b",
+  "promptVersion": "prerequisite-structure/1",
+  "task": "prerequisite sentence",
+  "sentence": "Honors candidacy and CHEM 14103 (or CHEM 12073, or satisfactory performance on the chemistry proficiency exam).",
+  "courseCodes": [
+    "CHEM 14103",
+    "CHEM 12073"
+  ],
+  "structure": {
+    "kind": "all_of",
+    "quote": "",
+    "items": [
+      {
+        "kind": "text",
+        "quote": "Honors candidacy"
+      },
+      {
+        "kind": "all_of",
+        "quote": "",
+        "items": [
+          {
+            "kind": "course",
+            "quote": "CHEM 14103"
+          },
+          {
+            "kind": "any_of",
+            "quote": "",
+            "items": [
+              {
+                "kind": "course",
+                "quote": "CHEM 12073"
+              },
+              {
+                "kind": "text",
+                "quote": "satisfactory performance on the chemistry proficiency exam"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "argument": "The sentence begins with 'Honors candidacy and', which links two main requirements. According to the CTDL definition of ceterms:alternativeCondition, where multiple paths exist and any one fulfills the parent, the structure implies an 'all_of' relationship for the top level because the word 'and' connects the first item ('Honors candidacy') with the second complex group (the parenthetical). The second group is enclosed in parentheses containing items joined by 'or' ('CHEM 12073, or satisfactory performance...'). Under the rule that courses joined by 'or' inside brackets form an 'any_of', this creates a nested 'any_of' node. Finally, within that 'any_of' node, 'CHEM 12073' is a course code and 'satisfactory performance on the chemistry proficiency exam' is a text condition, both listed as alternatives.",
+  "seconds": 5.4
+}

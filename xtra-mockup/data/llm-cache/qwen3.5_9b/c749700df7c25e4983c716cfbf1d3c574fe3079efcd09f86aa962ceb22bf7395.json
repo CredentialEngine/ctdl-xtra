@@ -1,0 +1,13 @@
+{
+  "model": "qwen3.5:9b",
+  "promptVersion": "prerequisite-structure/1",
+  "task": "prerequisite sentence",
+  "sentence": "Computer Science Computer Engineering(CSCE) graduate standing.",
+  "courseCodes": [],
+  "structure": {
+    "kind": "text",
+    "quote": "Computer Science Computer Engineering(CSCE) graduate standing."
+  },
+  "argument": "The sentence contains no course codes (as confirmed by the input list being empty). According to rule #1, I must copy every quote character for character. Since there are no 'and' or 'or' conjunctions connecting distinct items, and no brackets grouping alternatives, the entire string is treated as a single condition rather than a composite logical structure. Per rule #4, without grouping operators, it does not form an 'all_of' or 'any_of' node. Therefore, per rule #5, it is classified as a 'text' node containing the exact words of the requirement.",
+  "seconds": 5.1
+}

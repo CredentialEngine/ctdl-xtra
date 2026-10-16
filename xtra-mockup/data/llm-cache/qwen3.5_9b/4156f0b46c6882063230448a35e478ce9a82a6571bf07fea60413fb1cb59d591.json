@@ -1,0 +1,41 @@
+{
+  "model": "qwen3.5:9b",
+  "promptVersion": "prerequisite-structure/1",
+  "task": "prerequisite sentence",
+  "sentence": "(ELEG 32103 or ELEG 39903) and MATH 25804 or Computer Science Computer Engineering(CSCE) graduate standing.",
+  "courseCodes": [
+    "ELEG 32103",
+    "ELEG 39903",
+    "MATH 25804"
+  ],
+  "structure": {
+    "kind": "any_of",
+    "quote": "",
+    "items": [
+      {
+        "kind": "all_of",
+        "quote": "",
+        "items": [
+          {
+            "kind": "course",
+            "quote": "ELEG 32103"
+          },
+          {
+            "kind": "course",
+            "quote": "ELEG 39903"
+          }
+        ]
+      },
+      {
+        "kind": "course",
+        "quote": "MATH 25804"
+      },
+      {
+        "kind": "text",
+        "quote": "Computer Science Computer Engineering(CSCE) graduate standing."
+      }
+    ]
+  },
+  "argument": "The sentence contains the word 'or' at the very beginning, grouping '(ELEG 32103 or ELEG 39903)', 'MATH 25804', and 'Computer Science Computer Engineering(CSCE) graduate standing.' as alternatives where any one path fulfills the requirement. According to the CTDL definition of ceterms:alternativeCondition, this represents a context where more than one alternative condition or path has been defined and from which any one path fulfills the parent condition. Inside the first group, the word 'or' joins two courses, making it an 'any_of' node, but since the outer structure also uses 'or' to separate the three main components, the entire root is an 'any_of'. The definition of ceterms:requires indicates this is a set of requirements. The phrase '(ELEG 32103 or ELEG 39903)' is enclosed in brackets with 'or', which typically implies an 'any_of' group, but the prompt's example structure for similar cases often treats the immediate grouping inside parentheses as the unit. However, looking closely at the provided sentence structure '(A or B) and C or D', the logical parsing depends on precedence. If we strictly follow the visual grouping of brackets: The bracketed part `(ELEG 32103 or ELEG 39903)` is an 'any_of'. Then we have `and MATH 25804`. Then `or Computer Science...`. This creates ambiguity without standard operator precedence rules. However, re-reading the prompt's specific instruction: 'Courses joined by ",
+  "seconds": 23.0
+}

@@ -1,0 +1,45 @@
+{
+  "model": "qwen3.5:9b",
+  "promptVersion": "prerequisite-structure/1",
+  "task": "prerequisite sentence",
+  "sentence": "NURS 31151, NURS 43233, NURS 43133, and admission to the Online Undergraduate BSN Professional Program or permission by the instructor or department head.",
+  "courseCodes": [
+    "NURS 31151",
+    "NURS 43233",
+    "NURS 43133"
+  ],
+  "structure": {
+    "kind": "all_of",
+    "quote": "",
+    "items": [
+      {
+        "kind": "course",
+        "quote": "NURS 31151"
+      },
+      {
+        "kind": "course",
+        "quote": "NURS 43233"
+      },
+      {
+        "kind": "course",
+        "quote": "NURS 43133"
+      },
+      {
+        "kind": "any_of",
+        "quote": "",
+        "items": [
+          {
+            "kind": "text",
+            "quote": "admission to the Online Undergraduate BSN Professional Program"
+          },
+          {
+            "kind": "text",
+            "quote": "permission by the instructor or department head"
+          }
+        ]
+      }
+    ]
+  },
+  "argument": "The sentence lists three course codes followed by 'and', which groups them as a required set (all_of). The final item is an 'or' construction between two text conditions, grouping them as alternatives (any_of). According to the CTDL definition of ceterms:alternativeCondition, the 'or' creates a path where any one option fulfills the parent condition, while the initial 'and' implies all preceding items are required per the standard interpretation of comma-separated lists ending in 'and' within prerequisite logic.",
+  "seconds": 4.2
+}

@@ -1,0 +1,37 @@
+{
+  "model": "qwen3.5:9b",
+  "promptVersion": "prerequisite-structure/1",
+  "task": "prerequisite sentence",
+  "sentence": "CHEM 22671 and PHYS 20201 (or PHYS 20404).",
+  "courseCodes": [
+    "CHEM 22671",
+    "PHYS 20201",
+    "PHYS 20404"
+  ],
+  "structure": {
+    "kind": "all_of",
+    "quote": "",
+    "items": [
+      {
+        "kind": "course",
+        "quote": "CHEM 22671"
+      },
+      {
+        "kind": "any_of",
+        "quote": "",
+        "items": [
+          {
+            "kind": "course",
+            "quote": "PHYS 20201"
+          },
+          {
+            "kind": "course",
+            "quote": "PHYS 20404"
+          }
+        ]
+      }
+    ]
+  },
+  "argument": "The top-level 'and' connects 'CHEM 22671' with the parenthetical group '(or PHYS 20201, or PHYS 20404)', forming an 'all_of' requirement where both sides must be met. The parentheses contain an 'or' relationship between 'PHYS 20201' and 'PHYS 20404', forming an 'any_of' group where meeting either is sufficient, consistent with the definition of ceterms:alternativeCondition which allows any one path to fulfill the parent condition.",
+  "seconds": 3.7
+}

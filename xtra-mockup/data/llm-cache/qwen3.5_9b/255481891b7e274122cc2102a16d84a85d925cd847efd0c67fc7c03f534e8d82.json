@@ -1,0 +1,26 @@
+{
+  "model": "qwen3.5:9b",
+  "promptVersion": "prerequisite-structure/1",
+  "task": "corequisite sentence",
+  "sentence": "CHEM 14201 and related course component drill section for CHEM 14203.",
+  "courseCodes": [
+    "CHEM 14201",
+    "CHEM 14203"
+  ],
+  "structure": {
+    "kind": "all_of",
+    "quote": "",
+    "items": [
+      {
+        "kind": "course",
+        "quote": "CHEM 14201"
+      },
+      {
+        "kind": "text",
+        "quote": "related course component drill section for CHEM 14203"
+      }
+    ]
+  },
+  "argument": "The sentence contains the conjunction 'and' connecting two distinct requirements: taking 'CHEM 14201' and satisfying the condition of a 'related course component drill section for CHEM 14203'. According to the CTDL definition of ceterms:alternativeCondition, this structure implies that multiple paths exist where any one path fulfills the parent condition; however, in standard academic catalog syntax, when items are joined by 'and' without explicit grouping brackets indicating an 'any_of' relationship (like 'A or B'), they form a single mandatory set. The prompt's instruction states: 'Courses joined by ",
+  "seconds": 3.9
+}

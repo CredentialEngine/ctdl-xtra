@@ -1,0 +1,14 @@
+{
+  "model": "qwen3.5:9b",
+  "promptVersion": "prerequisite-structure/1",
+  "task": "prerequisite sentence",
+  "sentence": "Candidacy.",
+  "courseCodes": [],
+  "structure": {
+    "kind": "text",
+    "quote": "Candidacy.",
+    "items": []
+  },
+  "argument": "The sentence contains no logical operators ('and' or 'or') and no course codes. According to the rules, any condition that is not a course code is treated as a 'text' node. The definition of 'ceterms:ConditionProfile' confirms this can represent an entry condition or requirement. Since there are no items to group under 'all_of' or 'any_of', the entire sentence is a single text node.",
+  "seconds": 1.9
+}

@@ -1,0 +1,23 @@
+{
+  "model": "qwen3.5:9b",
+  "promptVersion": "prerequisite-structure/1",
+  "task": "prerequisite sentence",
+  "sentence": "Admission to the graduate program or by permission of the instructor.",
+  "courseCodes": [],
+  "structure": {
+    "kind": "any_of",
+    "quote": "",
+    "items": [
+      {
+        "kind": "text",
+        "quote": "Admission to the graduate program"
+      },
+      {
+        "kind": "text",
+        "quote": "by permission of the instructor"
+      }
+    ]
+  },
+  "argument": "The sentence presents two distinct paths ('Admission to the graduate program' and 'by permission of the instructor') connected by the word 'or'. According to the CTDL definition of ceterms:alternativeCondition, this represents a context where more than one alternative condition exists and any one path fulfills the parent requirement. Therefore, the logical structure is an 'any_of' node containing these two text items.",
+  "seconds": 2.1
+}

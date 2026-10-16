@@ -1,0 +1,29 @@
+{
+  "model": "qwen3.5:9b",
+  "promptVersion": "prerequisite-structure/1",
+  "task": "corequisite sentence",
+  "sentence": "Chemistry majors and chemistry minors must enroll in CHEM 34601 concurrently.",
+  "courseCodes": [
+    "CHEM 34601"
+  ],
+  "structure": {
+    "kind": "all_of",
+    "quote": "",
+    "items": [
+      {
+        "kind": "text",
+        "quote": "Chemistry majors and chemistry minors must enroll in"
+      },
+      {
+        "kind": "course",
+        "quote": "CHEM 34601"
+      },
+      {
+        "kind": "text",
+        "quote": "concurrently."
+      }
+    ]
+  },
+  "argument": "The sentence contains a single requirement ('must enroll in CHEM 34601 concurrently') that applies to the group defined by 'Chemistry majors and chemistry minors'. Since the condition requires the subject to be either a Chemistry major OR a Chemistry minor (an alternative condition where any one path fulfills the parent), the logical structure is an 'any_of' node for the subjects. However, the prompt asks to parse the sentence as a whole requirement. The requirement itself is that the student must enroll in the course. The phrase 'Chemistry majors and chemistry minors' acts as a text description of the target audience. According to CTDL definitions, this represents an entry condition where the constraint applies to specific groups. The structure reflects that the entire statement is one cohesive requirement (all_of) containing the descriptive text, the specific course code, and the timing condition.",
+  "seconds": 4.3
+}

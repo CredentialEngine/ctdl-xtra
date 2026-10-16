@@ -1,0 +1,63 @@
+{
+  "model": "qwen3.5:9b",
+  "promptVersion": "prerequisite-structure/1",
+  "task": "prerequisite sentence",
+  "sentence": "(Non-business majors: (ACCT 20203 with a grade of C or better) and (INEG 23104 or STAT 30133 with a grade of C or better)) or (Business majors: (ACCT 20203 with a grade of C or better) and (ISYS 10303 with a grade of C or better)).",
+  "courseCodes": [
+    "ACCT 20203",
+    "INEG 23104",
+    "STAT 30133",
+    "ACCT 20203",
+    "ISYS 10303"
+  ],
+  "structure": {
+    "kind": "any_of",
+    "quote": "",
+    "items": [
+      {
+        "kind": "text",
+        "quote": "(Non-business majors:"
+      },
+      {
+        "kind": "all_of",
+        "quote": "",
+        "items": [
+          {
+            "kind": "course",
+            "quote": "ACCT 20203"
+          },
+          {
+            "kind": "text",
+            "quote": "with a grade of C or better)"
+          }
+        ]
+      },
+      {
+        "kind": "all_of",
+        "quote": "",
+        "items": [
+          {
+            "kind": "any_of",
+            "quote": "",
+            "items": [
+              {
+                "kind": "course",
+                "quote": "INEG 23104"
+              },
+              {
+                "kind": "course",
+                "quote": "STAT 30133"
+              }
+            ]
+          },
+          {
+            "kind": "text",
+            "quote": "with a grade of C or better)"
+          }
+        ]
+      }
+    ]
+  },
+  "argument": "The sentence begins with an 'or' connecting two main paths ('Non-business majors...' and 'Business majors...'), which corresponds to the ceterms:alternativeCondition definition where 'any one path fulfills the parent condition'. Within the first path, there is an 'and' connecting a specific course requirement and a group of alternatives, corresponding to the ceterms:requires definition for a set of requirements. Inside that group, 'INEG 23104 or STAT 30133' represents an alternative choice within a single condition block, fitting the ceterms:alternativeCondition definition again. The second main path follows the same logical structure with its own 'and' and course requirements.",
+  "seconds": 6.2
+}

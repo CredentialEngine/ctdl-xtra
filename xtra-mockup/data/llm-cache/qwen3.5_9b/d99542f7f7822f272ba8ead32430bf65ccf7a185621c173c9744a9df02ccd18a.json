@@ -1,0 +1,41 @@
+{
+  "model": "qwen3.5:9b",
+  "promptVersion": "prerequisite-structure/1",
+  "task": "prerequisite sentence",
+  "sentence": "CSCE 31903 and (INEG 23104 or STAT 30133) or Computer Science Computer Engineering (CSCE) graduate standing.",
+  "courseCodes": [
+    "CSCE 31903",
+    "INEG 23104",
+    "STAT 30133"
+  ],
+  "structure": {
+    "kind": "any_of",
+    "quote": "",
+    "items": [
+      {
+        "kind": "course",
+        "quote": "CSCE 31903"
+      },
+      {
+        "kind": "all_of",
+        "quote": "",
+        "items": [
+          {
+            "kind": "course",
+            "quote": "INEG 23104"
+          },
+          {
+            "kind": "course",
+            "quote": "STAT 30133"
+          }
+        ]
+      },
+      {
+        "kind": "text",
+        "quote": "Computer Science Computer Engineering (CSCE) graduate standing."
+      }
+    ]
+  },
+  "argument": "The top-level structure is 'any_of' because the sentence uses 'or' to separate three distinct paths: taking CSCE 31903, taking both INEG 23104 and STAT 30133, or having the specific graduate standing. According to the CTDL definition of ceterms:alternativeCondition, this represents a context where more than one alternative path fulfills the requirement. The second item is an 'all_of' node because the courses INEG 23104 and STAT 30133 are joined by 'and' within parentheses, meaning both must be taken together to satisfy that specific sub-condition.",
+  "seconds": 10.2
+}

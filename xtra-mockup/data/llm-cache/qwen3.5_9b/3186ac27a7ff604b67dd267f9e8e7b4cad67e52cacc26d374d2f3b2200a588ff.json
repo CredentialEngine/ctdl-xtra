@@ -1,0 +1,36 @@
+{
+  "model": "qwen3.5:9b",
+  "promptVersion": "prerequisite-structure/1",
+  "task": "prerequisite sentence",
+  "sentence": "Admission to the nursing program and completion of NURS 34232 and NURS 34244.",
+  "courseCodes": [
+    "NURS 34232",
+    "NURS 34244"
+  ],
+  "structure": {
+    "kind": "all_of",
+    "quote": "",
+    "items": [
+      {
+        "kind": "text",
+        "quote": "Admission to the nursing program"
+      },
+      {
+        "kind": "all_of",
+        "quote": "",
+        "items": [
+          {
+            "kind": "course",
+            "quote": "NURS 34232"
+          },
+          {
+            "kind": "course",
+            "quote": "NURS 34244"
+          }
+        ]
+      }
+    ]
+  },
+  "argument": "The sentence begins with 'Admission to the nursing program and completion of...', where the word 'and' connects two distinct requirements, forming an 'all_of' node per CTDL definition ceterms:requires. The second requirement is 'completion of NURS 34232 and NURS 34244'. Within this phrase, the word 'and' connects two specific course codes without any 'or' or brackets suggesting alternatives; therefore, both courses must be completed, forming a nested 'all_of' node containing the two 'course' items as defined by CTDL ceterms:alternativeCondition (which implies multiple paths) but here resolved to a single mandatory path due to the absence of 'or'. The final structure reflects that admission is required AND (NURS 34232 is required AND NURS 34244 is required).",
+  "seconds": 11.0
+}

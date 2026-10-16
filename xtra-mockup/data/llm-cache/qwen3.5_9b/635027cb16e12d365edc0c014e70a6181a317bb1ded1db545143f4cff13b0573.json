@@ -1,0 +1,26 @@
+{
+  "model": "qwen3.5:9b",
+  "promptVersion": "prerequisite-structure/1",
+  "task": "prerequisite sentence",
+  "sentence": "MATH 24005 or MATH 24004, each with a grade of C or higher.",
+  "courseCodes": [
+    "MATH 24005",
+    "MATH 24004"
+  ],
+  "structure": {
+    "kind": "any_of",
+    "quote": "",
+    "items": [
+      {
+        "kind": "course",
+        "quote": "MATH 24005"
+      },
+      {
+        "kind": "text",
+        "quote": ", each with a grade of C or higher."
+      }
+    ]
+  },
+  "argument": "The sentence uses 'or' to connect two distinct paths: taking MATH 24005 OR taking MATH 24004. According to the CTDL definition of ceterms:alternativeCondition, this represents a context where more than one alternative path is defined and any one path fulfills the parent condition, which maps to an 'any_of' node. The phrase ', each with a grade of C or higher.' applies to both alternatives within that 'or' group; since it is not separated by 'and' into two distinct requirements for a single course, but rather describes the condition for the selection made in the 'any_of' group, it is attached as a text item alongside the first course code under the 'any_of' parent. The definition of ceterms:requires confirms this structure represents the set of requirements where selecting either option satisfies the prerequisite.",
+  "seconds": 3.9
+}

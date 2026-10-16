@@ -1,0 +1,25 @@
+{
+  "model": "qwen3.5:9b",
+  "promptVersion": "prerequisite-structure/1",
+  "task": "corequisite sentence",
+  "sentence": "CHEM 360H3 and related drill components.",
+  "courseCodes": [
+    "CHEM 360H3"
+  ],
+  "structure": {
+    "kind": "all_of",
+    "quote": "",
+    "items": [
+      {
+        "kind": "course",
+        "quote": "CHEM 360H3"
+      },
+      {
+        "kind": "text",
+        "quote": "related drill components."
+      }
+    ]
+  },
+  "argument": "The sentence contains 'and' connecting 'CHEM 360H3' and 'related drill components.' According to the CTDL definition of ceterms:alternativeCondition, this structure implies that all listed items must be satisfied to fulfill the parent condition. Therefore, the logical operator is 'all_of'. The course code 'CHEM 360H3' is extracted as a 'course' node, and the remaining text 'related drill components.' is extracted as a 'text' node.",
+  "seconds": 2.6
+}

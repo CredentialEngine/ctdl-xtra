@@ -1,0 +1,33 @@
+{
+  "model": "qwen3.5:9b",
+  "promptVersion": "prerequisite-structure/1",
+  "task": "prerequisite sentence",
+  "sentence": "Admission to an online undergraduate BSN professional program or permission by the instructor or department head, and all university core and program prerequisites.",
+  "courseCodes": [],
+  "structure": {
+    "kind": "any_of",
+    "quote": "",
+    "items": [
+      {
+        "kind": "text",
+        "quote": "Admission to an online undergraduate BSN professional program"
+      },
+      {
+        "kind": "all_of",
+        "quote": "",
+        "items": [
+          {
+            "kind": "text",
+            "quote": "permission by the instructor or department head"
+          },
+          {
+            "kind": "text",
+            "quote": "and all university core and program prerequisites"
+          }
+        ]
+      }
+    ]
+  },
+  "argument": "The sentence begins with 'or', connecting two main alternatives: the first is 'Admission to an online undergraduate BSN professional program' (a text condition), and the second is a compound requirement starting with 'and'. According to the CTDL definition of ceterms:alternativeCondition, this structure implies that fulfilling either the first alternative or the second path satisfies the parent condition. The second path uses 'and' to connect 'permission by the instructor or department head' with 'all university core and program prerequisites', which aligns with the ceterms:requires definition where multiple requirements must be met simultaneously within a single constraint profile.",
+  "seconds": 3.8
+}

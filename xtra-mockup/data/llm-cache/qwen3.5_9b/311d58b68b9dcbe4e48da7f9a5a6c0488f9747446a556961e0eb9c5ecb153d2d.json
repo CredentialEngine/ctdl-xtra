@@ -1,0 +1,41 @@
+{
+  "model": "qwen3.5:9b",
+  "promptVersion": "prerequisite-structure/1",
+  "task": "prerequisite sentence",
+  "sentence": "ENGL 10103 and (ENGL 10203 or ENGL 10303 or equivalent).",
+  "courseCodes": [
+    "ENGL 10103",
+    "ENGL 10203",
+    "ENGL 10303"
+  ],
+  "structure": {
+    "kind": "all_of",
+    "quote": "",
+    "items": [
+      {
+        "kind": "course",
+        "quote": "ENGL 10103"
+      },
+      {
+        "kind": "any_of",
+        "quote": "",
+        "items": [
+          {
+            "kind": "course",
+            "quote": "ENGL 10203"
+          },
+          {
+            "kind": "course",
+            "quote": "ENGL 10303"
+          },
+          {
+            "kind": "text",
+            "quote": "equivalent"
+          }
+        ]
+      }
+    ]
+  },
+  "argument": "The top-level 'and' connects 'ENGL 10103' with the parenthetical group, creating an 'all_of' structure where both sides must be satisfied (ceterms:requires). The parentheses contain a list joined by 'or', which defines an 'any_of' structure where satisfying any single item within that group fulfills the condition (ceterms:alternativeCondition).",
+  "seconds": 8.3
+}

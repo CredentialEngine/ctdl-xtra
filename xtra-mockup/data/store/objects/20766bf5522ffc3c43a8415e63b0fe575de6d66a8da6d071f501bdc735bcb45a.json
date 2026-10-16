@@ -1,0 +1,15 @@
+{
+  "digest": "20766bf5522ffc3c43a8415e63b0fe575de6d66a8da6d071f501bdc735bcb45a",
+  "size": 165813,
+  "fetches": [
+    {
+      "requested": "https://catalog.uark.edu/undergraduatecatalog/coursesofinstruction/nurs/",
+      "final": "https://catalog.uark.edu/undergraduatecatalog/coursesofinstruction/nurs/",
+      "time": "2026-10-07T23:17:46+00:00",
+      "status": 200,
+      "contentType": "text/html; charset=UTF-8",
+      "size": 165813,
+      "digest": "20766bf5522ffc3c43a8415e63b0fe575de6d66a8da6d071f501bdc735bcb45a"
+    }
+  ]
+}

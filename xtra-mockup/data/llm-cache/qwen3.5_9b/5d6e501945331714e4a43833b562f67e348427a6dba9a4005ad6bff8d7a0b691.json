@@ -1,0 +1,23 @@
+{
+  "model": "qwen3.5:9b",
+  "promptVersion": "prerequisite-structure/1",
+  "task": "prerequisite sentence",
+  "sentence": "Admission to DNP program or permission of instructor.",
+  "courseCodes": [],
+  "structure": {
+    "kind": "any_of",
+    "quote": "",
+    "items": [
+      {
+        "kind": "text",
+        "quote": "Admission to DNP program"
+      },
+      {
+        "kind": "text",
+        "quote": "permission of instructor"
+      }
+    ]
+  },
+  "argument": "The sentence contains the word 'or' connecting two distinct conditions: 'Admission to DNP program' and 'permission of instructor'. According to the CTDL definition of ceterms:alternativeCondition, this represents a context where more than one alternative path is defined and any one path fulfills the parent condition. Therefore, the logical structure is an 'any_of' node containing these two items as alternatives.",
+  "seconds": 2.3
+}

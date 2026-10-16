@@ -1,0 +1,64 @@
+{
+  "model": "qwen3.5:9b",
+  "promptVersion": "prerequisite-structure/1",
+  "task": "prerequisite sentence",
+  "sentence": "CHEM 36203 and CHEM 36201, (or CHEM 362H3 or CHEM 362H2), (or CHEM 37203 and CHEM 37202).",
+  "courseCodes": [
+    "CHEM 36203",
+    "CHEM 36201",
+    "CHEM 362H3",
+    "CHEM 362H2",
+    "CHEM 37203",
+    "CHEM 37202"
+  ],
+  "structure": {
+    "kind": "all_of",
+    "quote": "",
+    "items": [
+      {
+        "kind": "course",
+        "quote": "CHEM 36203"
+      },
+      {
+        "kind": "course",
+        "quote": "CHEM 36201"
+      },
+      {
+        "kind": "any_of",
+        "quote": "",
+        "items": [
+          {
+            "kind": "course",
+            "quote": "CHEM 362H3"
+          },
+          {
+            "kind": "course",
+            "quote": "CHEM 362H2"
+          }
+        ]
+      },
+      {
+        "kind": "any_of",
+        "quote": "",
+        "items": [
+          {
+            "kind": "all_of",
+            "quote": "",
+            "items": [
+              {
+                "kind": "course",
+                "quote": "CHEM 37203"
+              },
+              {
+                "kind": "course",
+                "quote": "CHEM 37202"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "argument": "The top-level 'and' connects the first two courses and the subsequent parenthetical groups, meaning all three main components must be satisfied (ceterms:requires). The first parenthesis contains an 'or', creating an 'any_of' node where either CHEM 362H3 or CHEM 362H2 suffices (ceterms:alternativeCondition). The second parenthesis contains an 'and' inside brackets, creating an 'all_of' node where both CHEM 37203 and CHEM 37202 must be taken together to satisfy that specific alternative path.",
+  "seconds": 5.5
+}

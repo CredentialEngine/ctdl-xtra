@@ -1,0 +1,50 @@
+{
+  "model": "qwen3.5:9b",
+  "promptVersion": "prerequisite-structure/1",
+  "task": "prerequisite sentence",
+  "sentence": "NURS 37732, NURS 37832, NURS 43233, NURS 31151 and admission to the Online Undergraduate BSN Professional Program or permission by the instructor or department head.",
+  "courseCodes": [
+    "NURS 37732",
+    "NURS 37832",
+    "NURS 43233",
+    "NURS 31151"
+  ],
+  "structure": {
+    "kind": "all_of",
+    "quote": "",
+    "items": [
+      {
+        "kind": "course",
+        "quote": "NURS 37732"
+      },
+      {
+        "kind": "course",
+        "quote": "NURS 37832"
+      },
+      {
+        "kind": "course",
+        "quote": "NURS 43233"
+      },
+      {
+        "kind": "course",
+        "quote": "NURS 31151"
+      },
+      {
+        "kind": "any_of",
+        "quote": "",
+        "items": [
+          {
+            "kind": "text",
+            "quote": "admission to the Online Undergraduate BSN Professional Program"
+          },
+          {
+            "kind": "text",
+            "quote": "permission by the instructor or department head"
+          }
+        ]
+      }
+    ]
+  },
+  "argument": "The sentence lists four specific courses separated by commas and concludes with 'and', which groups all preceding items as required simultaneously, forming an 'all_of' structure per CTDL definition ceterms:requires. The final item contains the word 'or' between two distinct conditions ('admission...' and 'permission...'), indicating that satisfying either one is sufficient to meet that specific part of the requirement, forming an 'any_of' structure per CTDL definition ceterms:alternativeCondition.",
+  "seconds": 4.5
+}

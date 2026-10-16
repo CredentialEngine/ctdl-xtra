@@ -1,0 +1,28 @@
+{
+  "model": "qwen3.5:9b",
+  "promptVersion": "prerequisite-structure/1",
+  "task": "prerequisite sentence",
+  "sentence": "CHEM 12073 and CHEM 12071 (or CHEM 14103 and CHEM 14101).",
+  "courseCodes": [
+    "CHEM 12073",
+    "CHEM 12071",
+    "CHEM 14103",
+    "CHEM 14101"
+  ],
+  "structure": {
+    "kind": "all_of",
+    "quote": "",
+    "items": [
+      {
+        "kind": "course",
+        "quote": "CHEM 12073"
+      },
+      {
+        "kind": "course",
+        "quote": "CHEM 12071"
+      }
+    ]
+  },
+  "argument": "The outer structure is an 'all_of' node because the two main components are joined by 'and', meaning both must be satisfied. The first component is a group of courses joined by implicit conjunction within the parentheses, which functions as an 'any_of' (one of them) or 'all_of' depending on interpretation, but here the text says '(or CHEM 14103 and CHEM 14101)'. Wait, let's re-read carefully. The sentence is: 'CHEM 12073 and CHEM 12071 (or CHEM 14103 and CHEM 14101)'. This implies the first part 'CHEM 12073 and CHEM 12071' is one option, and the second part inside parentheses 'CHEM 14103 and CHEM 14101' is the alternative. However, standard English parsing of 'A and B (or C and D)' usually means you must do A and B, OR you must do C and D. So the top level is 'any_of'. Inside the first group, 'CHEM 12073 and CHEM 12071' are joined by 'and', so they form an 'all_of'. Inside the second group (in parentheses), 'CHEM 14103 and CHEM 14101' are joined by 'and', so they also form an 'all_of'. Therefore, the root is 'any_of' containing two items: one 'all_of' node with courses 12073 and 12071, and another 'all_of' node with courses 14103 and 14101. \n\nCorrection on logic based on strict reading: The sentence structure is [Item 1] (or [Item 2]). Item 1 is 'CHEM 12073 and CHEM 12071'. Item 2 is 'CHEM 14103 and CHEM 14101'. Since the choice between Item 1 and Item 2 is governed by 'or', the root node is 'any_of'. Within Item 1, the courses are joined by 'and', making it an 'all_of' group. Within Item 2, the courses are joined by 'and', making it an 'all_of' group.\n\nArgument: The root node is 'any_of' because the sentence presents two distinct paths connected by 'or': either complete the first set or complete the second set (ceterms:alternativeCondition). The first path consists of 'CHEM 12073 and CHEM 12071', where 'and' indicates all items are required, forming an 'all_of' node. The second path consists of 'CHEM 14103 and CHEM 14101', similarly joined by 'and', forming another 'all_of' node.",
+  "seconds": 10.0
+}

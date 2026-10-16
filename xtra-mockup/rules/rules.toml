@@ -1,0 +1,408 @@
+# The rule registry (specification section 5.2).
+#
+# Rules are data. Each [[rule]] says which CTDL property it feeds, where it looks, the pattern it
+# matches, and a plain description that the viewer shows word for word. To change what is
+# extracted, change this file; the code only knows how to apply a pattern to a place.
+#
+#   name         a stable identifier, shown in the viewer
+#   feeds        the CTDL property it feeds (or "left out", for things recognised but not recorded)
+#   where        which text the pattern is run against:
+#                  title-line    the heading of one course block
+#                  description   the paragraph of one course block
+#                  subject-page  the whole text of the subject page
+#                  index-page    the whole text of the index page
+#                  page-source   the stored HTML source of the subject page (for markup)
+#   where_plain  the same, in words
+#   pattern      a regular expression; the group called "quote" is the evidence (if there is no
+#                such group, the whole match is)
+#   description  one or two sentences a novice can follow
+#   says         the sentence shown beside the evidence; {quote} is the matched text
+#   expect       "every course" if a course without a match is a problem; "some" otherwise
+#   near_miss    for "some" rules: a looser pattern. A course that matches this but not `pattern`
+#                is listed as a miss, so variants in unseen subjects show up as numbers (risk R4)
+
+# ------------------------------------------------------------------------------------ title line
+
+[[rule]]
+name = "title-line.form"
+feeds = "(all title-line fields)"
+where = "title-line"
+where_plain = "The title line of a course block"
+pattern = '''^(?P<subject>[A-Z]{3,4})\s(?P<number>\d{3}[\dH][\dV])\.\s+(?P<name>.+?)(?:\s*\((?P<acts>ACTS[^)]*)\))?\.\s+(?P<credit>\d+(?:-\d+)?)\s+Hours?\.\s*$'''
+description = "Every title line has the same form: subject, number, name, an optional transfer tag in brackets, and credit. This rule only checks that form; the rules below read the parts."
+says = "The title line has the expected form."
+expect = "every course"
+
+[[rule]]
+name = "title-line.code"
+feeds = "ceterms:codedNotation"
+where = "title-line"
+where_plain = "The title line of a course block"
+pattern = '''^(?P<quote>(?P<subject>[A-Z]{3,4})\s(?P<number>\d{3}[\dH][\dV]))\.'''
+description = "The title line begins with the course code: a subject of three or four capital letters, then a five-character number, then a full stop. An H in fourth place marks an honors course; a V in last place marks variable credit."
+says = "“{quote}” opens this course's title line."
+expect = "every course"
+
+[[rule]]
+name = "title-line.name"
+feeds = "ceterms:name"
+where = "title-line"
+where_plain = "The title line of a course block"
+pattern = '''^[A-Z]{3,4}\s\S+\.\s+(?P<quote>.+?)(?:\s*\(ACTS[^)]*\))?\.\s+\d+(?:-\d+)?\s+Hours?\.\s*$'''
+description = "The name is everything between the course code and the credit statement, leaving out the transfer tag in brackets if there is one."
+says = "“{quote}” is in this course's title line."
+expect = "every course"
+
+[[rule]]
+name = "title-line.credit"
+feeds = "ceterms:creditValue"
+where = "title-line"
+where_plain = "The title line of a course block"
+pattern = '''(?P<quote>(?P<min>\d+)(?:-(?P<max>\d+))?\s+Hours?\.)\s*$'''
+description = "The title line of every course block ends with a credit statement. The rule reads the number before “Hour” or “Hours”. Two numbers joined by a hyphen are a range."
+says = "“{quote}” in the title line gives the number."
+expect = "every course"
+
+[[rule]]
+name = "title-line.acts"
+feeds = "ceterms:identifier"
+where = "title-line"
+where_plain = "The title line of a course block"
+pattern = '''\(ACTS(?: Equivalency| Equiv)?\s*=\s*(?P<quote>[^)]+?)\s*\)'''
+description = "Some title lines carry a transfer tag in brackets, in three spellings: “ACTS Equivalency =”, “ACTS Equiv=” and “ACTS =”. What follows the equals sign is the course's number in the Arkansas Course Transfer System."
+says = "“{quote}” follows “ACTS … =” in the title line."
+expect = "some"
+near_miss = '''ACTS'''
+
+# ----------------------------------------------------------------------------------- description
+
+[[rule]]
+name = "description.whole"
+feeds = "ceterms:description"
+where = "description"
+where_plain = "The description paragraph of a course block"
+pattern = '''(?s)^\s*(?P<quote>\S.*?)\s*$'''
+description = "The description is the whole paragraph beneath the title line, word for word, including its labelled sentences (decision D3)."
+says = "The whole paragraph under the title line, kept word for word."
+expect = "every course"
+
+[[rule]]
+name = "description.prerequisite"
+feeds = "ceterms:requires"
+where = "description"
+where_plain = "The description paragraph of a course block"
+pattern = '''(?s)\bPrerequisites?:\s*(?P<quote>\S.*?)\s*(?=\bPrerequisites?:|\bPrerequisite or Corequisite:|\bPre-? ?or [Cc]orequisite:|\bCorequisites?:|\(Typically offered|$)'''
+description = "A sentence that opens with the label “Prerequisite:”. It runs until the next labelled sentence, the “(Typically offered…)” note, or the end of the paragraph."
+says = "The sentence after “Prerequisite:”, kept word for word."
+expect = "some"
+near_miss = '''(?i)\bprerequisites?\b(?! or)'''
+
+[[rule]]
+name = "description.corequisite"
+feeds = "ceterms:corequisite"
+where = "description"
+where_plain = "The description paragraph of a course block"
+pattern = '''(?s)(?<!or )\bCorequisites?:\s*(?P<quote>\S.*?)\s*(?=\bPrerequisites?:|\bPrerequisite or Corequisite:|\bPre-? ?or [Cc]orequisite:|(?<!or )\bCorequisites?:|\(Typically offered|$)'''
+description = "A sentence that opens with the label “Corequisite:” (and not “Pre- or Corequisite:”). It runs until the next labelled sentence, the “(Typically offered…)” note, or the end of the paragraph."
+says = "The sentence after “Corequisite:”, kept word for word."
+expect = "some"
+near_miss = '''(?i)(?<!or )(?<!pre)(?<!pre-)\bcorequisites?\b'''
+
+[[rule]]
+name = "description.pre-or-corequisite"
+feeds = "ceterms:coPrerequisite"
+where = "description"
+where_plain = "The description paragraph of a course block"
+pattern = '''(?s)\b(?:Pre-? ?or [Cc]orequisite|Prerequisite or Corequisite):\s*(?P<quote>\S.*?)\s*(?=\bPrerequisites?:|\bPrerequisite or Corequisite:|\bPre-? ?or [Cc]orequisite:|(?<!or )\bCorequisites?:|\(Typically offered|$)'''
+description = "A sentence that opens with a label meaning “before or alongside”. Four spellings are known: “Pre- or Corequisite:”, “Pre- or corequisite:”, “Pre or Corequisite:” and “Prerequisite or Corequisite:”."
+says = "The sentence after “Pre- or Corequisite:”, kept word for word."
+expect = "some"
+near_miss = '''(?i)\bpre-? ?or co-?requisite|prerequisite or corequisite'''
+
+[[rule]]
+name = "description.typically-offered"
+feeds = "ceterms:offerFrequencyType"
+where = "description"
+where_plain = "The description paragraph of a course block"
+pattern = '''\(Typically offered:\s*(?P<quote>[^)]*?)\s*\)'''
+description = "Nearly every description carries a note in brackets, “(Typically offered: …)”, naming the terms the course usually runs in. The rule reads the wording; a table then maps the wording to a CTDL value."
+says = "“{quote}” follows “Typically offered:” in the description."
+expect = "every course"
+
+[[rule]]
+name = "description.cross-listed"
+feeds = "ceterms:isSimilarTo"
+where = "description"
+where_plain = "The description paragraph of a course block"
+pattern = '''This course is cross-listed with (?P<quote>[^.]*)\.'''
+description = "A sentence of fixed form saying the same course is offered under another subject code. The courses it names are links on the page."
+says = "“{quote}” follows “This course is cross-listed with”."
+expect = "some"
+near_miss = '''(?i)cross-?listed'''
+
+[[rule]]
+name = "description.equivalent"
+feeds = "ceterms:isSimilarTo"
+where = "description"
+where_plain = "The description paragraph of a course block"
+pattern = '''This course is equivalent to (?P<quote>[^.]*)\.'''
+description = "A sentence of fixed form naming an equivalent course, most often a course's honors twin. The courses it names are links on the page."
+says = "“{quote}” follows “This course is equivalent to”."
+expect = "some"
+near_miss = '''(?i)\bequivalent to\b'''
+
+# -------------------------------------------------------- on the page, but not put in the record
+
+[[rule]]
+name = "left-out.repeatable"
+feeds = "left out"
+where = "description"
+where_plain = "The description paragraph of a course block"
+pattern = '''(?P<quote>May be repeated for (?:up to (?P<hours>\d+) hours of )?degree credit\.)'''
+description = "A sentence saying the course can be taken more than once for credit, sometimes up to a number of hours."
+says = "“{quote}”"
+expect = "some"
+near_miss = '''(?i)\brepeated\b'''
+left_out_reason = "CTDL has no property for it. It remains inside the description."
+
+[[rule]]
+name = "left-out.no-double-credit"
+feeds = "left out"
+where = "description"
+where_plain = "The description paragraph of a course block"
+pattern = '''(?P<quote>Graduate degree credit will not be given for both [^.]*\.)'''
+description = "A sentence saying graduate credit is not given for both of two named courses."
+says = "“{quote}”"
+expect = "some"
+near_miss = '''(?i)credit will not be given'''
+left_out_reason = "No CTDL property found. It remains inside the description."
+
+[[rule]]
+name = "left-out.contact-hours"
+feeds = "left out"
+where = "description"
+where_plain = "The description paragraph of a course block"
+pattern = '''(?P<quote>Lecture \d+ hours?[^.]*?per week\.)'''
+description = "A sentence giving weekly lecture and laboratory hours."
+says = "“{quote}”"
+expect = "some"
+near_miss = '''(?i)\bhours? per week\b'''
+left_out_reason = "A candidate for ceterms:learningMethodType; left for later."
+
+[[rule]]
+name = "left-out.level"
+feeds = "left out"
+where = "title-line"
+where_plain = "The title line of a course block"
+pattern = '''^[A-Z]{3,4}\s(?P<quote>\d)'''
+description = "The first digit of the course number appears to track the level of the course."
+says = "First digit of the course number: “{quote}”"
+expect = "every course"
+left_out_reason = "Unverified (decision D11): ceterms:audienceLevelType would be a guess until the catalog's numbering policy is read."
+
+[[rule]]
+name = "unrecognised-label"
+feeds = "(reporting only)"
+where = "description"
+where_plain = "The description paragraph of a course block"
+pattern = '''(?:^\s*|[.)]\s+)\(?(?P<quote>[A-Z][A-Za-z\- ]{2,40}):'''
+description = "Any sentence that opens with a label and a colon. Labels that no rule above recognises are counted and listed, so new variants are noticed."
+says = "“{quote}:”"
+expect = "some"
+recognised = ["Prerequisite", "Prerequisites", "Corequisite", "Corequisites", "Pre- or Corequisite", "Pre- or corequisite", "Pre or Corequisite", "Prerequisite or Corequisite", "Typically offered"]
+
+# ---------------------------------------------------------------------- facts about a whole page
+
+[[rule]]
+name = "page.language"
+feeds = "ceterms:inLanguage"
+where = "page-source"
+where_plain = "The opening <html> tag of the subject page"
+pattern = '''<html\b[^>]*?\blang="(?P<quote>[A-Za-z-]+)"'''
+description = "Every page declares its language in the lang attribute of its opening <html> tag. This is markup, so it cannot be seen on the rendered page."
+says = "The page declares lang=\"{quote}\" on its <html> element."
+expect = "every course"
+element = "html"
+attribute = "lang"
+
+[[rule]]
+name = "page.title-organisation"
+feeds = "ceterms:ownedBy"
+where = "page-source"
+where_plain = "The <title> element of the subject page"
+pattern = '''<title>[^<]*?&lt;\s*(?P<quote>University of Arkansas)\s*</title>'''
+description = "The title of every catalog page ends with the name of the institution."
+says = "The page's <title> ends “< {quote}”."
+expect = "every course"
+element = "title"
+
+[[rule]]
+name = "page.edition"
+feeds = "ceterms:versionIdentifier"
+where = "subject-page"
+where_plain = "The edition label in the page's side menu"
+pattern = '''(?P<quote>(?P<edition>\d{4}-\d{2}) Edition)'''
+description = "Every catalog page is labelled with its edition, for example “2026-27 Edition”. The rule takes the first such label on the page."
+says = "“{quote}” labels this page of the catalog."
+expect = "every course"
+
+[[rule]]
+name = "catalog.credit-unit"
+feeds = "ceterms:creditValue"
+where = "index-page"
+where_plain = "The introduction on the catalog's Courses of Instruction index page"
+pattern = '''earns a specified number of (?P<quote>semester hours) of credit'''
+description = "The title line does not say what kind of hour. The index page does, once, for every course: “Successful completion of a class usually earns a specified number of semester hours of credit toward a degree.”"
+says = "“{quote}” on the index page gives the unit."
+expect = "every course"
+
+[[rule]]
+name = "catalog.approved-for-offering"
+feeds = "ceterms:lifeCycleStatusType"
+where = "index-page"
+where_plain = "The introduction on the catalog's Courses of Instruction index page"
+pattern = '''(?P<quote>all courses approved for offering by (?P<organisation>the University of Arkansas))'''
+description = "The index page says what the listing is: “all courses approved for offering by the University of Arkansas”. That one phrase supports two facts: the courses are current, and the university offers them."
+says = "“{quote}” on the index page."
+expect = "every course"
+
+# ----------------------------------------------------------------------------------------- tables
+# A lookup table maps a wording on the page to a CTDL value (decision D9). Each row says whether
+# a person has reviewed it. `concept = ""` means no CTDL value fits and the property is left out.
+
+[table.offer-frequency]
+feeds = "ceterms:offerFrequencyType"
+scheme = "ceterms:ScheduleFrequency"
+description = "CTDL's list speaks in cadences (how many times a year), not in named terms. Each wording is mapped to the cadence it implies. Which terms they are is lost."
+
+[[table.offer-frequency.row]]
+wording = "Irregular"
+concept = "scheduleFrequency:Irregular"
+because = "The same word."
+loses = ""
+reviewed_by_a_person = false
+
+[[table.offer-frequency.row]]
+wording = "Fall, Spring and Summer"
+concept = "scheduleFrequency:Quarterly"
+because = "Three starts a year. CTDL defines Quarterly as “typically occurring three or four times per year”."
+loses = "which terms (Fall, Spring and Summer)"
+reviewed_by_a_person = false
+
+[[table.offer-frequency.row]]
+wording = "Fall and Spring"
+concept = "scheduleFrequency:SemiAnnually"
+because = "Two starts a year."
+loses = "which terms (Fall and Spring)"
+reviewed_by_a_person = false
+
+[[table.offer-frequency.row]]
+wording = "Fall and Summer"
+concept = "scheduleFrequency:SemiAnnually"
+because = "Two starts a year."
+loses = "which terms (Fall and Summer)"
+reviewed_by_a_person = false
+
+[[table.offer-frequency.row]]
+wording = "Spring and Summer"
+concept = "scheduleFrequency:SemiAnnually"
+because = "Two starts a year."
+loses = "which terms (Spring and Summer)"
+reviewed_by_a_person = false
+
+[[table.offer-frequency.row]]
+wording = "Fall"
+concept = "scheduleFrequency:Annually"
+because = "One start a year."
+loses = "which term (Fall)"
+reviewed_by_a_person = false
+
+[[table.offer-frequency.row]]
+wording = "Spring"
+concept = "scheduleFrequency:Annually"
+because = "One start a year."
+loses = "which term (Spring)"
+reviewed_by_a_person = false
+
+[[table.offer-frequency.row]]
+wording = "Summer"
+concept = "scheduleFrequency:Annually"
+because = "One start a year."
+loses = "which term (Summer)"
+reviewed_by_a_person = false
+
+[[table.offer-frequency.row]]
+wording = "Fall Even Years"
+concept = ""
+because = "Once every two years. CTDL's list has no value for that, so the property is left out."
+loses = ""
+reviewed_by_a_person = false
+
+[[table.offer-frequency.row]]
+wording = "Fall Odd Years"
+concept = ""
+because = "Once every two years. CTDL's list has no value for that, so the property is left out."
+loses = ""
+reviewed_by_a_person = false
+
+[[table.offer-frequency.row]]
+wording = "Spring Even Years"
+concept = ""
+because = "Once every two years. CTDL's list has no value for that, so the property is left out."
+loses = ""
+reviewed_by_a_person = false
+
+[[table.offer-frequency.row]]
+wording = "Spring Odd Years"
+concept = ""
+because = "Once every two years. CTDL's list has no value for that, so the property is left out."
+loses = ""
+reviewed_by_a_person = false
+
+# ------------------------------------------------------------- phrases the prerequisite parser knows
+# The parser reads a sentence only if it is made of nothing but course codes, "and", "or",
+# commas, brackets and the phrases below (specification section 7.2). Anything else and it
+# declines; it never guesses.
+#
+#   condition  stands where a course could stand: "Honors standing and ACCT 20103"
+#   modifier   follows a course or a list and narrows it: "ACCT 20103 with a grade of C or better"
+
+[[phrase]]
+text = "each with a grade of C or better"
+role = "modifier"
+
+[[phrase]]
+text = "with a grade of C or better"
+role = "modifier"
+
+[[phrase]]
+text = "Honors standing"
+role = "condition"
+
+[[phrase]]
+text = "Junior standing"
+role = "condition"
+
+[[phrase]]
+text = "Senior standing"
+role = "condition"
+
+[[phrase]]
+text = "Graduate standing"
+role = "condition"
+
+[[phrase]]
+text = "Honors candidacy"
+role = "condition"
+
+[[phrase]]
+text = "Department consent"
+role = "condition"
+
+[[phrase]]
+text = "Departmental consent"
+role = "condition"
+
+[[phrase]]
+text = "Instructor consent"
+role = "condition"

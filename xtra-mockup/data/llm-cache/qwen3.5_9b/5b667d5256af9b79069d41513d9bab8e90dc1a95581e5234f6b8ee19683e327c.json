@@ -1,0 +1,25 @@
+{
+  "model": "qwen3.5:9b",
+  "promptVersion": "prerequisite-structure/1",
+  "task": "pre-or-corequisite sentence",
+  "sentence": "MATH 13004 or higher.",
+  "courseCodes": [
+    "MATH 13004"
+  ],
+  "structure": {
+    "kind": "any_of",
+    "quote": "",
+    "items": [
+      {
+        "kind": "course",
+        "quote": "MATH 13004"
+      },
+      {
+        "kind": "text",
+        "quote": "higher."
+      }
+    ]
+  },
+  "argument": "The sentence contains 'or', which indicates an alternative condition where any one path fulfills the requirement, matching the definition of ceterms:alternativeCondition. Therefore, the root node is 'any_of'. The first item is a specific course code 'MATH 13004', making it a 'course' node. The second item is the text phrase 'higher.', which describes a condition relative to the course but is not a course code itself, making it a 'text' node.",
+  "seconds": 2.6
+}

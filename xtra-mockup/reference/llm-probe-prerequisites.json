@@ -1,0 +1,581 @@
+[
+ {
+  "title": "CSCE 56503.  Network Security.  3 Hours.",
+  "prereq": "Graduate standing in Computer Engineering, Computer Science, or Electrical Engineering.",
+  "result": {
+   "alternatives": [
+    {
+     "all_of": [
+      {
+       "kind": "standing_or_admission",
+       "course_codes": [],
+       "min_grade": "",
+       "quote": "Graduate standing"
+      },
+      {
+       "kind": "one_of_courses",
+       "course_codes": [
+        "Computer Engineering",
+        "Computer Science",
+        "Electrical Engineering"
+       ],
+       "min_grade": "",
+       "quote": "Computer Engineering, Computer Science, or Electrical Engineering"
+      }
+     ]
+    }
+   ],
+   "reasoning": "The prerequisite requires the student to have 'Graduate standing' AND belong to one of the three listed departments ('Computer Engineering', 'Computer Science', or 'Electrical Engineering'). The 'or' within the department list creates a single alternative path where any one of those majors satisfies the condition."
+  },
+  "quotes_ok": 2,
+  "quotes_total": 2,
+  "codes_missing": [],
+  "codes_invented": [
+   "Computer Engineering",
+   "Computer Science",
+   "Electrical Engineering"
+  ],
+  "secs": 7.1
+ },
+ {
+  "title": "CHEM 38103.  Elements of Biochemistry.  3 Hours.",
+  "prereq": "(CHEM 36203 and CHEM 36201) or (CHEM 362H3 and CHEM 362H2) or (CHEM 37203 and CHEM 37202) or (CHEM 26103 and CHEM 26101).",
+  "result": {
+   "alternatives": [
+    {
+     "all_of": [
+      {
+       "kind": "one_of_courses",
+       "course_codes": [
+        "CHEM 36203",
+        "CHEM 36201"
+       ],
+       "min_grade": "",
+       "quote": "(CHEM 36203 and CHEM 36201)"
+      }
+     ]
+    },
+    {
+     "all_of": [
+      {
+       "kind": "one_of_courses",
+       "course_codes": [
+        "CHEM 362H3",
+        "CHEM 362H2"
+       ],
+       "min_grade": "",
+       "quote": "(CHEM 362H3 and CHEM 362H2)"
+      }
+     ]
+    },
+    {
+     "all_of": [
+      {
+       "kind": "one_of_courses",
+       "course_codes": [
+        "CHEM 37203",
+        "CHEM 37202"
+       ],
+       "min_grade": "",
+       "quote": "(CHEM 37203 and CHEM 37202)"
+      }
+     ]
+    },
+    {
+     "all_of": [
+      {
+       "kind": "one_of_courses",
+       "course_codes": [
+        "CHEM 26103",
+        "CHEM 26101"
+       ],
+       "min_grade": "",
+       "quote": "(CHEM 26103 and CHEM 26101)"
+      }
+     ]
+    }
+   ],
+   "reasoning": "The prerequisite sentence uses 'or' to separate four distinct groups, meaning satisfying any single group is sufficient. Within each group, the courses are joined by 'and', indicating that every course in that specific group must be completed."
+  },
+  "quotes_ok": 4,
+  "quotes_total": 4,
+  "codes_missing": [],
+  "codes_invented": [],
+  "secs": 5.4
+ },
+ {
+  "title": "ENGL 41153.  Undergraduate Independent Study.  3 Hours.",
+  "prereq": "'B' average and two-thirds (21 hours) of regular requirements for English major completed. Departmental approval and instructor approval required.",
+  "result": {
+   "alternatives": [
+    {
+     "all_of": [
+      {
+       "kind": "course",
+       "course_codes": [],
+       "min_grade": "B",
+       "quote": "'B' average"
+      },
+      {
+       "kind": "course",
+       "course_codes": [],
+       "min_grade": "21 hours",
+       "quote": "two-thirds (21 hours) of regular requirements for English major completed"
+      }
+     ]
+    }
+   ],
+   "reasoning": "The sentence requires both a 'B' average AND the completion of two-thirds (21 hours) of regular requirements; these are independent conditions that must all be met simultaneously rather than alternatives."
+  },
+  "quotes_ok": 2,
+  "quotes_total": 2,
+  "codes_missing": [],
+  "codes_invented": [],
+  "secs": 2.2
+ },
+ {
+  "title": "ACCT 54603.  Financial Statement Analysis.  3 Hours.",
+  "prereq": "Graduate standing in the Master of Accountancy or Master of Professional Accounting program.",
+  "result": {
+   "alternatives": [
+    {
+     "all_of": [
+      {
+       "kind": "standing_or_admission",
+       "course_codes": [],
+       "min_grade": "",
+       "quote": "Graduate standing in the Master of Accountancy or Master of Professional Accounting program."
+      }
+     ]
+    }
+   ],
+   "reasoning": "The prerequisite requires a single condition: holding graduate standing in one of two specific programs. The 'or' within the sentence indicates that satisfying either the Master of Accountancy OR the Master of Professional Accounting requirement is sufficient, so this entire phrase forms a single path where the alternative choices are embedded within the requirement definition rather than split into separate paths."
+  },
+  "quotes_ok": 1,
+  "quotes_total": 1,
+  "codes_missing": [],
+  "codes_invented": [],
+  "secs": 2.4
+ },
+ {
+  "title": "ACCT 58503.  State and Local Taxation.  3 Hours.",
+  "prereq": "Graduate standing in the Master of Accountancy or Master of Professional Accounting program.",
+  "result": {
+   "alternatives": [
+    {
+     "all_of": [
+      {
+       "kind": "standing_or_admission",
+       "course_codes": [],
+       "min_grade": "",
+       "quote": "Graduate standing in the Master of Accountancy or Master of Professional Accounting program."
+      }
+     ]
+    }
+   ],
+   "reasoning": "The prerequisite requires 'Graduate standing' which is a single condition; the 'or' within the sentence specifies that the student must be admitted to either the Master of Accountancy OR the Master of Professional Accounting program, meaning only one of these two specific programs needs to be satisfied."
+  },
+  "quotes_ok": 1,
+  "quotes_total": 1,
+  "codes_missing": [],
+  "codes_invented": [],
+  "secs": 2.2
+ },
+ {
+  "title": "NURS 46033.  Nursing Concepts:  Community.  3 Hours.",
+  "prereq": "Completion of Level I courses and NURS 41152, NURS 41534, NURS 41634, NURS 42432, NURS 42532, and NURS 42632.",
+  "result": {
+   "alternatives": [
+    {
+     "all_of": [
+      {
+       "kind": "one_of_courses",
+       "course_codes": [
+        "NURS 41152",
+        "NURS 41534",
+        "NURS 41634",
+        "NURS 42432",
+        "NURS 42532",
+        "NURS 42632"
+       ],
+       "min_grade": "",
+       "quote": "NURS 41152, NURS 41534, NURS 41634, NURS 42432, NURS 42532, and NURS 42632"
+      },
+      {
+       "kind": "one_of_courses",
+       "course_codes": [
+        "NURS 40001",
+        "NURS 40002",
+        "NURS 40003",
+        "NURS 40004",
+        "NURS 40005"
+       ],
+       "min_grade": "",
+       "quote": "Level I courses"
+      }
+     ]
+    }
+   ],
+   "reasoning": "The sentence requires the completion of two distinct groups: 'Level I courses' AND any one of the specific listed NURS codes. The structure implies that satisfying both the Level I requirement and at least one of the specific course codes is necessary."
+  },
+  "quotes_ok": 2,
+  "quotes_total": 2,
+  "codes_missing": [],
+  "codes_invented": [
+   "NURS 40001",
+   "NURS 40002",
+   "NURS 40003",
+   "NURS 40004",
+   "NURS 40005"
+  ],
+  "secs": 4.4
+ },
+ {
+  "title": "CHEM 12073.  Chemistry for Majors I.  3 Hours.",
+  "prereq": "MATH 11003 or higher, or AP Calculus AB 3C or higher, or AP Calculus BC 4C or higher, or MATH 11003 CLEP with a score of 54 or higher, or UA Math Placement 46 or higher, or ACT MATH 22 or higher, or new SAT MATH 540/old SAT MATH 540 or higher.",
+  "result": {
+   "alternatives": [
+    {
+     "all_of": [
+      {
+       "kind": "course",
+       "course_codes": [
+        "MATH 11003"
+       ],
+       "min_grade": "higher",
+       "quote": "MATH 11003 or higher"
+      }
+     ]
+    },
+    {
+     "all_of": [
+      {
+       "kind": "course",
+       "course_codes": [
+        "AP Calculus AB"
+       ],
+       "min_grade": "3C or higher",
+       "quote": "AP Calculus AB 3C or higher"
+      }
+     ]
+    },
+    {
+     "all_of": [
+      {
+       "kind": "course",
+       "course_codes": [
+        "AP Calculus BC"
+       ],
+       "min_grade": "4C or higher",
+       "quote": "AP Calculus BC 4C or higher"
+      }
+     ]
+    },
+    {
+     "all_of": [
+      {
+       "kind": "course",
+       "course_codes": [
+        "MATH 11003"
+       ],
+       "min_grade": "CLEP with a score of 54 or higher",
+       "quote": "MATH 11003 CLEP with a score of 54 or higher"
+      }
+     ]
+    },
+    {
+     "all_of": [
+      {
+       "kind": "course",
+       "course_codes": [
+        "UA Math Placement"
+       ],
+       "min_grade": "46 or higher",
+       "quote": "UA Math Placement 46 or higher"
+      }
+     ]
+    },
+    {
+     "all_of": [
+      {
+       "kind": "test_score",
+       "course_codes": [
+        "ACT MATH"
+       ],
+       "min_grade": "22 or higher",
+       "quote": "ACT MATH 22 or higher"
+      }
+     ]
+    },
+    {
+     "all_of": [
+      {
+       "kind": "test_score",
+       "course_codes": [
+        "new SAT MATH"
+       ],
+       "min_grade": "540 or higher",
+       "quote": "new SAT MATH 540/old SAT MATH 540 or higher"
+      }
+     ]
+    },
+    {
+     "all_of": [
+      {
+       "kind": "test_score",
+       "course_codes": [
+        "old SAT MATH"
+       ],
+       "min_grade": "540 or higher",
+       "quote": "new SAT MATH 540/old SAT MATH 540 or higher"
+      }
+     ]
+    }
+   ],
+   "reasoning": "The prerequisite lists multiple distinct options separated by 'or', meaning satisfying any single option is sufficient. Each option internally contains a specific course or test score requirement that must be met (e.g., taking the specific course with the specified grade threshold)."
+  },
+  "quotes_ok": 8,
+  "quotes_total": 8,
+  "codes_missing": [],
+  "codes_invented": [
+   "ACT MATH",
+   "AP Calculus AB",
+   "AP Calculus BC",
+   "UA Math Placement",
+   "new SAT MATH",
+   "old SAT MATH"
+  ],
+  "secs": 8.0
+ },
+ {
+  "title": "CSCE 58303.  Computer Architecture Security.  3 Hours.",
+  "prereq": "CSCE 42103 or graduate standing in Computer Science Computer Engineering (CSCE).",
+  "result": {
+   "alternatives": [
+    {
+     "all_of": [
+      {
+       "kind": "one_of_courses",
+       "course_codes": [
+        "CSCE 42103"
+       ],
+       "min_grade": "",
+       "quote": "CSCE 42103"
+      }
+     ]
+    },
+    {
+     "all_of": [
+      {
+       "kind": "standing_or_admission",
+       "course_codes": [],
+       "min_grade": "",
+       "quote": "graduate standing in Computer Science Computer Engineering (CSCE)"
+      }
+     ]
+    }
+   ],
+   "reasoning": "The prerequisite uses 'or' to create two distinct alternative paths: either taking the specific course CSCE 42103, or having graduate standing in the relevant departments. Each path requires satisfying its single condition."
+  },
+  "quotes_ok": 2,
+  "quotes_total": 2,
+  "codes_missing": [],
+  "codes_invented": [],
+  "secs": 2.7
+ },
+ {
+  "title": "NURS 50633.  Health Care Policy.  3 Hours.",
+  "prereq": "Admission to the graduate program or by permission of the instructor.",
+  "result": {
+   "alternatives": [
+    {
+     "all_of": [
+      {
+       "kind": "course",
+       "course_codes": [],
+       "min_grade": "",
+       "quote": "Admission to the graduate program"
+      }
+     ]
+    },
+    {
+     "all_of": [
+      {
+       "kind": "course",
+       "course_codes": [],
+       "min_grade": "",
+       "quote": "by permission of the instructor"
+      }
+     ]
+    }
+   ],
+   "reasoning": "The prerequisite allows for two distinct paths: either obtaining admission to the graduate program OR receiving permission from the instructor. Since these are presented as alternatives satisfying the condition, they form separate paths where each path contains a single requirement that must be met."
+  },
+  "quotes_ok": 2,
+  "quotes_total": 2,
+  "codes_missing": [],
+  "codes_invented": [],
+  "secs": 2.5
+ },
+ {
+  "title": "ACCT 5490V.  Special Topics in Accounting.  1-3 Hour.",
+  "prereq": "Graduate standing in the Master of Accountancy or Master of Professional Accounting program.",
+  "result": {
+   "alternatives": [
+    {
+     "all_of": [
+      {
+       "kind": "standing_or_admission",
+       "course_codes": [],
+       "min_grade": "",
+       "quote": "Graduate standing in the Master of Accountancy or Master of Professional Accounting program."
+      }
+     ]
+    }
+   ],
+   "reasoning": "The prerequisite requires a single condition: holding graduate standing in either the Master of Accountancy OR the Master of Professional Accounting program. Since 'or' connects two specific programs within one logical unit, it is treated as an alternative path for the 'standing_or_admission' kind rather than splitting into separate courses."
+  },
+  "quotes_ok": 1,
+  "quotes_total": 1,
+  "codes_missing": [],
+  "codes_invented": [],
+  "secs": 2.2
+ },
+ {
+  "title": "NURS 35403.  Chronic and Palliative Nursing Care Practicum.  3 Hours.",
+  "prereq": "NURS 32503 and NURS 32803.",
+  "result": {
+   "alternatives": [
+    {
+     "all_of": [
+      {
+       "kind": "course",
+       "course_codes": [
+        "NURS 32503"
+       ],
+       "min_grade": "",
+       "quote": "NURS 32503"
+      },
+      {
+       "kind": "course",
+       "course_codes": [
+        "NURS 32803"
+       ],
+       "min_grade": "",
+       "quote": "NURS 32803"
+      }
+     ]
+    }
+   ],
+   "reasoning": "The sentence uses 'and' to connect two specific course codes, indicating that both NURS 32503 and NURS 32803 must be completed (an AND structure) rather than providing alternatives. Since no grade minimums are specified, the requirement is simply completion of these courses."
+  },
+  "quotes_ok": 2,
+  "quotes_total": 2,
+  "codes_missing": [],
+  "codes_invented": [],
+  "secs": 3.0
+ },
+ {
+  "title": "CSCE 44203.  Computer Systems Modeling.  3 Hours.",
+  "prereq": "CSCE 31903 or CSCE 319H3, each with a grade of C or better.",
+  "result": {
+   "alternatives": [
+    {
+     "all_of": [
+      {
+       "kind": "one_of_courses",
+       "course_codes": [
+        "CSCE 31903",
+        "CSCE 319H3"
+       ],
+       "min_grade": "C",
+       "quote": "CSCE 31903 or CSCE 319H3, each with a grade of C or better."
+      }
+     ]
+    }
+   ],
+   "reasoning": "The sentence specifies an OR condition between two course codes (CSCE 31903 or CSCE 319H3), but the 'each' keyword indicates that whichever course is chosen must satisfy the same AND condition of having a grade of C or better."
+  },
+  "quotes_ok": 1,
+  "quotes_total": 1,
+  "codes_missing": [],
+  "codes_invented": [],
+  "secs": 2.4
+ },
+ {
+  "title": "ACCT 49603.  Audit and Assurance Services.  3 Hours.",
+  "prereq": "ACCT 37203 with a grade of C or better.",
+  "result": {
+   "alternatives": [
+    {
+     "all_of": [
+      {
+       "kind": "one_of_courses",
+       "course_codes": [
+        "ACCT 37203"
+       ],
+       "min_grade": "C",
+       "quote": "ACCT 37203 with a grade of C or better"
+      }
+     ]
+    }
+   ],
+   "reasoning": "The prerequisite specifies a single course requirement where the student must complete ACCT 37203 and achieve a minimum grade of C. Since there are no alternative courses listed, this forms a single path with one mandatory condition."
+  },
+  "quotes_ok": 1,
+  "quotes_total": 1,
+  "codes_missing": [],
+  "codes_invented": [],
+  "secs": 1.9
+ },
+ {
+  "title": "CHEM 36201.  Organic Chemistry II Laboratory.  1 Hour.",
+  "prereq": "CHEM 36051.",
+  "result": {
+   "alternatives": [
+    {
+     "all_of": [
+      {
+       "kind": "course",
+       "course_codes": [
+        "CHEM 36051"
+       ],
+       "min_grade": "",
+       "quote": "CHEM 36051."
+      }
+     ]
+    }
+   ],
+   "reasoning": "The prerequisite consists of a single course requirement with no logical operators (AND/OR) indicating multiple paths or alternative courses. Therefore, the only path requires taking CHEM 36051."
+  },
+  "quotes_ok": 1,
+  "quotes_total": 1,
+  "codes_missing": [],
+  "codes_invented": [],
+  "secs": 1.8
+ },
+ {
+  "title": "NURS 20332.  Therapeutic and Interprofessional Communication.  2 Hours.",
+  "prereq": "Admission to the NURS-PLRN major.",
+  "result": {
+   "alternatives": [
+    {
+     "all_of": [
+      {
+       "kind": "other",
+       "course_codes": [],
+       "min_grade": "",
+       "quote": "Admission to the NURS-PLRN major."
+      }
+     ]
+    }
+   ],
+   "reasoning": "The prerequisite consists of a single condition requiring admission to a specific major, with no alternative paths or multiple courses listed. Therefore, the entire sentence forms one path where this single requirement must be met."
+  },
+  "quotes_ok": 1,
+  "quotes_total": 1,
+  "codes_missing": [],
+  "codes_invented": [],
+  "secs": 1.7
+ }
+]

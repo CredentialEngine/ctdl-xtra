@@ -1,0 +1,45 @@
+{
+  "model": "qwen3.5:9b",
+  "promptVersion": "prerequisite-structure/1",
+  "task": "prerequisite sentence",
+  "sentence": "NURS 40033, NURS 40133, NURS 48433 and admission to an online undergraduate BSN professional program or permission by the instructor or department head.",
+  "courseCodes": [
+    "NURS 40033",
+    "NURS 40133",
+    "NURS 48433"
+  ],
+  "structure": {
+    "kind": "all_of",
+    "quote": "",
+    "items": [
+      {
+        "kind": "course",
+        "quote": "NURS 40033"
+      },
+      {
+        "kind": "course",
+        "quote": "NURS 40133"
+      },
+      {
+        "kind": "course",
+        "quote": "NURS 48433"
+      },
+      {
+        "kind": "any_of",
+        "quote": "",
+        "items": [
+          {
+            "kind": "text",
+            "quote": "admission to an online undergraduate BSN professional program"
+          },
+          {
+            "kind": "text",
+            "quote": "permission by the instructor or department head"
+          }
+        ]
+      }
+    ]
+  },
+  "argument": "The sentence begins with a comma-separated list of three courses ('NURS 40033', 'NURS 40133', 'NURS 48433') followed by the word 'and'. According to the CTDL definition of ceterms:alternativeCondition, this structure implies that all items in the initial group are required simultaneously. Therefore, these three courses form an 'all_of' node. The text following 'and' presents two distinct options separated by 'or': 'admission to an online undergraduate BSN professional program' and 'permission by the instructor or department head'. Since only one of these alternatives is sufficient to satisfy the condition, they form an 'any_of' node under the main requirement.",
+  "seconds": 12.6
+}

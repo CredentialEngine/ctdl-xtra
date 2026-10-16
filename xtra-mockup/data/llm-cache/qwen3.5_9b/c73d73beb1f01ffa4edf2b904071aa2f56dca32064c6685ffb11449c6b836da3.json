@@ -1,0 +1,26 @@
+{
+  "model": "qwen3.5:9b",
+  "promptVersion": "prerequisite-structure/1",
+  "task": "corequisite sentence",
+  "sentence": "CHEM 142H1 and related course component drill section for CHEM 142H3.",
+  "courseCodes": [
+    "CHEM 142H1",
+    "CHEM 142H3"
+  ],
+  "structure": {
+    "kind": "all_of",
+    "quote": "",
+    "items": [
+      {
+        "kind": "course",
+        "quote": "CHEM 142H1"
+      },
+      {
+        "kind": "text",
+        "quote": "and related course component drill section for CHEM 142H3"
+      }
+    ]
+  },
+  "argument": "The sentence contains the conjunction 'and' connecting 'CHEM 142H1' and the phrase 'related course component drill section for CHEM 142H3'. According to the CTDL definition of ceterms:alternativeCondition, this structure implies that both conditions must be met simultaneously (an 'all_of' relationship), as opposed to an 'any_of' relationship where only one would suffice. The first item is a course code ('CHEM 142H1'), and the second item is a descriptive text condition involving the second course code ('CHEM 142H3').",
+  "seconds": 3.2
+}

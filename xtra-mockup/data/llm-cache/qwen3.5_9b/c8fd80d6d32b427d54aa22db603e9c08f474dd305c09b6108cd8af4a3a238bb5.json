@@ -1,0 +1,40 @@
+{
+  "model": "qwen3.5:9b",
+  "promptVersion": "prerequisite-structure/1",
+  "task": "prerequisite sentence",
+  "sentence": "CHEM 26103, or CHEM 36203 (recommended), or CHEM 362H3, or CHEM 37203.",
+  "courseCodes": [
+    "CHEM 26103",
+    "CHEM 36203",
+    "CHEM 362H3",
+    "CHEM 37203"
+  ],
+  "structure": {
+    "kind": "any_of",
+    "quote": "",
+    "items": [
+      {
+        "kind": "course",
+        "quote": "CHEM 26103"
+      },
+      {
+        "kind": "text",
+        "quote": "or CHEM 36203 (recommended), or"
+      },
+      {
+        "kind": "course",
+        "quote": "CHEM 362H3"
+      },
+      {
+        "kind": "text",
+        "quote": ", or"
+      },
+      {
+        "kind": "course",
+        "quote": "CHEM 37203"
+      }
+    ]
+  },
+  "argument": "The sentence lists four distinct options separated by the word 'or', indicating that satisfying any single one of them fulfills the requirement. According to the CTDL definition of ceterms:alternativeCondition, this represents a context where 'more than one alternative condition or path has been defined and from which any one path fulfills the parent condition.' Therefore, the root node is an 'any_of' structure containing the individual courses and the connecting text as items.",
+  "seconds": 3.7
+}

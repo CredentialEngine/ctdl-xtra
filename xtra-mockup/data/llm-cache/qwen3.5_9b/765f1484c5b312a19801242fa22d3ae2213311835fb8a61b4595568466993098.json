@@ -1,0 +1,66 @@
+{
+  "model": "qwen3.5:9b",
+  "promptVersion": "prerequisite-structure/1",
+  "task": "prerequisite sentence",
+  "sentence": "NURS 48433, NURS 40133, NURS 33332, NURS 41032, NURS 41234, and NURS 41433 and admission to the Online Undergraduate BSN Professional Program or permission by the instructor or department head.",
+  "courseCodes": [
+    "NURS 48433",
+    "NURS 40133",
+    "NURS 33332",
+    "NURS 41032",
+    "NURS 41234",
+    "NURS 41433"
+  ],
+  "structure": {
+    "kind": "all_of",
+    "quote": "",
+    "items": [
+      {
+        "kind": "course",
+        "quote": "NURS 48433"
+      },
+      {
+        "kind": "course",
+        "quote": "NURS 40133"
+      },
+      {
+        "kind": "course",
+        "quote": "NURS 33332"
+      },
+      {
+        "kind": "course",
+        "quote": "NURS 41032"
+      },
+      {
+        "kind": "course",
+        "quote": "NURS 41234"
+      },
+      {
+        "kind": "all_of",
+        "quote": "",
+        "items": [
+          {
+            "kind": "course",
+            "quote": "NURS 41433"
+          },
+          {
+            "kind": "text",
+            "quote": "admission to the Online Undergraduate BSN Professional Program"
+          }
+        ]
+      },
+      {
+        "kind": "any_of",
+        "quote": "",
+        "items": [
+          {
+            "kind": "text",
+            "quote": "permission by the instructor or department head"
+          }
+        ]
+      }
+    ]
+  },
+  "argument": "The sentence begins with a list of courses joined by commas and ending with 'and', which according to rule 4 forms an 'all_of' group containing all listed items. The last item in this initial list is 'NURS 41433 and admission to the Online Undergraduate BSN Professional Program'. Since these two are joined by 'and' within a bracketed logical unit (implied by the structure of the requirement), they form an 'all_of' group where both must be met. Following this, the word 'or' introduces a final alternative condition: 'permission by the instructor or department head'. This creates an 'any_of' group containing that text, meaning one of the two paths (the complex 'and' path or the permission path) is sufficient to satisfy the top-level requirement.",
+  "seconds": 15.7
+}

@@ -1,0 +1,15 @@
+{
+  "digest": "04e3b39d740489968cca4bcc0161cdc3579793a4aab008c0074af5954675e64c",
+  "size": 108902,
+  "fetches": [
+    {
+      "requested": "https://catalog.uark.edu/undergraduatecatalog/coursesofinstruction/chem/",
+      "final": "https://catalog.uark.edu/undergraduatecatalog/coursesofinstruction/chem/",
+      "time": "2026-10-07T23:17:42+00:00",
+      "status": 200,
+      "contentType": "text/html; charset=UTF-8",
+      "size": 108902,
+      "digest": "04e3b39d740489968cca4bcc0161cdc3579793a4aab008c0074af5954675e64c"
+    }
+  ]
+}

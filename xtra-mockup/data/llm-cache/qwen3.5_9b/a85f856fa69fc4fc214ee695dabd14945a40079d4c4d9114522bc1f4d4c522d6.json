@@ -1,0 +1,55 @@
+{
+  "model": "qwen3.5:9b",
+  "promptVersion": "prerequisite-structure/1",
+  "task": "prerequisite sentence",
+  "sentence": "NURS 33332, NURS 32932, NURS 43133, and admission to the Online Undergraduate BSN Professional Program or permission by the instructor or department head.",
+  "courseCodes": [
+    "NURS 33332",
+    "NURS 32932",
+    "NURS 43133"
+  ],
+  "structure": {
+    "kind": "all_of",
+    "quote": "",
+    "items": [
+      {
+        "kind": "course",
+        "quote": "NURS 33332"
+      },
+      {
+        "kind": "course",
+        "quote": "NURS 32932"
+      },
+      {
+        "kind": "course",
+        "quote": "NURS 43133"
+      },
+      {
+        "kind": "all_of",
+        "quote": "",
+        "items": [
+          {
+            "kind": "text",
+            "quote": "admission to the Online Undergraduate BSN Professional Program"
+          },
+          {
+            "kind": "any_of",
+            "quote": "",
+            "items": [
+              {
+                "kind": "text",
+                "quote": "permission by the instructor"
+              },
+              {
+                "kind": "text",
+                "quote": "or department head"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "argument": "The sentence begins with a comma-separated list of three courses followed by 'and', which groups the entire list into an 'all_of' requirement per CTDL definition ceterms:requires. The final item in this list is a compound condition joined by 'or'. This outer 'or' connects 'admission to the Online Undergraduate BSN Professional Program' with the phrase 'permission by the instructor or department head'. Within that second phrase, the word 'or' connects 'permission by the instructor' and 'department head', creating an inner 'any_of' group. Thus, the structure is: [Course A] AND [Course B] AND [Course C] AND ([Text X] OR ([Text Y] OR [Text Z])). Note: The prompt's example sentence uses 'or department head' as a distinct item in the inner 'any_of', implying the phrase 'permission by the instructor or department head' is parsed as two alternatives: 1) permission by the instructor, and 2) (by) department head. However, strictly following the text 'permission by the instructor or department head', the logical split is between 'permission by the instructor' and 'department head'. The structure above reflects this parsing.",
+  "seconds": 17.3
+}

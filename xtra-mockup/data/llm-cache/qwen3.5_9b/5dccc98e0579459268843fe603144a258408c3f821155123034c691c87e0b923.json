@@ -1,0 +1,40 @@
+{
+  "model": "qwen3.5:9b",
+  "promptVersion": "prerequisite-structure/1",
+  "task": "prerequisite sentence",
+  "sentence": "Admission into the BSN professional program of studies, BIOL 24003, BIOL 24001, BIOL 24103 and BIOL 24101.",
+  "courseCodes": [
+    "BIOL 24003",
+    "BIOL 24001",
+    "BIOL 24103",
+    "BIOL 24101"
+  ],
+  "structure": {
+    "kind": "all_of",
+    "quote": "",
+    "items": [
+      {
+        "kind": "text",
+        "quote": "Admission into the BSN professional program of studies"
+      },
+      {
+        "kind": "course",
+        "quote": "BIOL 24003"
+      },
+      {
+        "kind": "course",
+        "quote": "BIOL 24001"
+      },
+      {
+        "kind": "course",
+        "quote": "BIOL 24103"
+      },
+      {
+        "kind": "course",
+        "quote": "BIOL 24101"
+      }
+    ]
+  },
+  "argument": "The sentence lists a text condition followed by four course codes joined by the word 'and'. According to the CTDL definition of ceterms:requires, this represents a set of requirements where every item is necessary. The presence of 'and' between the items indicates an 'all_of' logical structure, meaning all listed conditions must be met. This aligns with the rule that courses joined by 'and' inside a list form one 'all_of' node.",
+  "seconds": 10.8
+}

@@ -1,0 +1,112 @@
+{
+  "addresses": {
+    "https://catalog.uark.edu/robots.txt": [
+      {
+        "requested": "https://catalog.uark.edu/robots.txt",
+        "final": "https://catalog.uark.edu/robots.txt",
+        "time": "2026-10-07T23:17:38+00:00",
+        "status": 200,
+        "contentType": "text/plain; charset=UTF-8",
+        "size": 667,
+        "digest": "a7854858127ca2ad9e701b8dbc75597b5374a63bee98295346f4422811aa4b42",
+        "error": null
+      }
+    ],
+    "https://catalog.uark.edu/undergraduatecatalog/coursesofinstruction/": [
+      {
+        "requested": "https://catalog.uark.edu/undergraduatecatalog/coursesofinstruction/",
+        "final": "https://catalog.uark.edu/undergraduatecatalog/coursesofinstruction/",
+        "time": "2026-10-07T23:17:40+00:00",
+        "status": 200,
+        "contentType": "text/html; charset=UTF-8",
+        "size": 47536,
+        "digest": "2bebcbc013418b2095cb8c6ba438206259d989f34dc03b0eb0120e2293ebc119",
+        "error": null
+      }
+    ],
+    "https://catalog.uark.edu/undergraduatecatalog/coursesofinstruction/acct/": [
+      {
+        "requested": "https://catalog.uark.edu/undergraduatecatalog/coursesofinstruction/acct/",
+        "final": "https://catalog.uark.edu/undergraduatecatalog/coursesofinstruction/acct/",
+        "time": "2026-10-07T23:17:41+00:00",
+        "status": 200,
+        "contentType": "text/html; charset=UTF-8",
+        "size": 55728,
+        "digest": "67207a837cf5b6d25db694130d2f445bded7a9332c708600e9856a7972b8cbdb",
+        "error": null
+      }
+    ],
+    "https://catalog.uark.edu/undergraduatecatalog/coursesofinstruction/chem/": [
+      {
+        "requested": "https://catalog.uark.edu/undergraduatecatalog/coursesofinstruction/chem/",
+        "final": "https://catalog.uark.edu/undergraduatecatalog/coursesofinstruction/chem/",
+        "time": "2026-10-07T23:17:42+00:00",
+        "status": 200,
+        "contentType": "text/html; charset=UTF-8",
+        "size": 108902,
+        "digest": "04e3b39d740489968cca4bcc0161cdc3579793a4aab008c0074af5954675e64c",
+        "error": null
+      }
+    ],
+    "https://catalog.uark.edu/undergraduatecatalog/coursesofinstruction/csce/": [
+      {
+        "requested": "https://catalog.uark.edu/undergraduatecatalog/coursesofinstruction/csce/",
+        "final": "https://catalog.uark.edu/undergraduatecatalog/coursesofinstruction/csce/",
+        "time": "2026-10-07T23:17:43+00:00",
+        "status": 200,
+        "contentType": "text/html; charset=UTF-8",
+        "size": 110388,
+        "digest": "2dc1f251dac58c4e7a0d2934f7c298b74fb70ecde5d77cd06e466a35dbfe0a6b",
+        "error": null
+      }
+    ],
+    "https://catalog.uark.edu/undergraduatecatalog/coursesofinstruction/engl/": [
+      {
+        "requested": "https://catalog.uark.edu/undergraduatecatalog/coursesofinstruction/engl/",
+        "final": "https://catalog.uark.edu/undergraduatecatalog/coursesofinstruction/engl/",
+        "time": "2026-10-07T23:17:45+00:00",
+        "status": 200,
+        "contentType": "text/html; charset=UTF-8",
+        "size": 110423,
+        "digest": "7b88f273d05f4b34dd8482ab7f1c475b772b8348c0b2789016a094f188547a14",
+        "error": null
+      }
+    ],
+    "https://catalog.uark.edu/undergraduatecatalog/coursesofinstruction/nurs/": [
+      {
+        "requested": "https://catalog.uark.edu/undergraduatecatalog/coursesofinstruction/nurs/",
+        "final": "https://catalog.uark.edu/undergraduatecatalog/coursesofinstruction/nurs/",
+        "time": "2026-10-07T23:17:46+00:00",
+        "status": 200,
+        "contentType": "text/html; charset=UTF-8",
+        "size": 165813,
+        "digest": "20766bf5522ffc3c43a8415e63b0fe575de6d66a8da6d071f501bdc735bcb45a",
+        "error": null
+      }
+    ],
+    "https://credentialengineregistry.org/robots.txt": [
+      {
+        "requested": "https://credentialengineregistry.org/robots.txt",
+        "final": null,
+        "time": "2026-10-07T23:17:47+00:00",
+        "status": 404,
+        "contentType": null,
+        "size": null,
+        "digest": null,
+        "error": "HTTP 404"
+      }
+    ],
+    "https://credentialengineregistry.org/resources/ce-57603921-78ce-455c-88b5-00506fb33701": [
+      {
+        "requested": "https://credentialengineregistry.org/resources/ce-57603921-78ce-455c-88b5-00506fb33701",
+        "final": "https://credentialengineregistry.org/resources/ce-57603921-78ce-455c-88b5-00506fb33701",
+        "time": "2026-10-07T23:17:48+00:00",
+        "status": 200,
+        "contentType": "application/json",
+        "size": 55671,
+        "digest": "e71f35afe7c1085ea57e13f56f16adc34a444b026d0308a155ab59e891159b81",
+        "error": null
+      }
+    ]
+  }
+}

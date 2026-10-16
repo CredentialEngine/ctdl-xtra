@@ -1,0 +1,50 @@
+{
+  "model": "qwen3.5:9b",
+  "promptVersion": "prerequisite-structure/1",
+  "task": "prerequisite sentence",
+  "sentence": "Completion of Level I courses and NURS 41152, NURS 41534, NURS 41634, NURS 42432, NURS 42532, NURS 42632.",
+  "courseCodes": [
+    "NURS 41152",
+    "NURS 41534",
+    "NURS 41634",
+    "NURS 42432",
+    "NURS 42532",
+    "NURS 42632"
+  ],
+  "structure": {
+    "kind": "all_of",
+    "quote": "",
+    "items": [
+      {
+        "kind": "text",
+        "quote": "Completion of Level I courses"
+      },
+      {
+        "kind": "course",
+        "quote": "NURS 41152"
+      },
+      {
+        "kind": "course",
+        "quote": "NURS 41534"
+      },
+      {
+        "kind": "course",
+        "quote": "NURS 41634"
+      },
+      {
+        "kind": "course",
+        "quote": "NURS 42432"
+      },
+      {
+        "kind": "course",
+        "quote": "NURS 42532"
+      },
+      {
+        "kind": "course",
+        "quote": "NURS 42632"
+      }
+    ]
+  },
+  "argument": "The sentence lists items separated by commas ending with 'and', which implies a conjunction of all listed items. According to the CTDL definition of ceterms:alternativeCondition, this structure represents a set where every path must be fulfilled (an 'all_of' relationship). The first item is a text condition ('Completion of Level I courses'), followed by six specific course codes in order.",
+  "seconds": 4.0
+}

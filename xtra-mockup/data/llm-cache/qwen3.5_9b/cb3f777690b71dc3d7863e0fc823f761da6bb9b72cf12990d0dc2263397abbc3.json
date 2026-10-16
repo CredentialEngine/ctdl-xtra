@@ -1,0 +1,36 @@
+{
+  "model": "qwen3.5:9b",
+  "promptVersion": "prerequisite-structure/1",
+  "task": "prerequisite sentence",
+  "sentence": "(CSCE 36103 or CSCE 361H3) and completion of 72 credit hours.",
+  "courseCodes": [
+    "CSCE 36103",
+    "CSCE 361H3"
+  ],
+  "structure": {
+    "kind": "all_of",
+    "quote": "",
+    "items": [
+      {
+        "kind": "any_of",
+        "quote": "",
+        "items": [
+          {
+            "kind": "course",
+            "quote": "CSCE 36103"
+          },
+          {
+            "kind": "course",
+            "quote": "CSCE 361H3"
+          }
+        ]
+      },
+      {
+        "kind": "text",
+        "quote": "completion of 72 credit hours"
+      }
+    ]
+  },
+  "argument": "The sentence contains an 'and' connecting two main components: the parenthetical group '(CSCE 36103 or CSCE 361H3)' and the phrase 'completion of 72 credit hours'. According to the CTDL definition of ceterms:alternativeCondition, which applies to the parenthetical group containing 'or', this represents a set where 'any one path fulfills the parent condition', thus forming an 'any_of' node. The outer 'and' connects these two distinct requirements, meaning every item under it is required, forming an 'all_of' node per the CTDL definition of ceterms:requires.",
+  "seconds": 3.7
+}

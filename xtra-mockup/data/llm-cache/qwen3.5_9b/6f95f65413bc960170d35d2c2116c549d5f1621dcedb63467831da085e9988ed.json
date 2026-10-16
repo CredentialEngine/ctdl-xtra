@@ -1,0 +1,13 @@
+{
+  "model": "qwen3.5:9b",
+  "promptVersion": "prerequisite-structure/1",
+  "task": "prerequisite sentence",
+  "sentence": "Admission to the NURSBS-RNBN program.",
+  "courseCodes": [],
+  "structure": {
+    "kind": "text",
+    "quote": "Admission to the NURSBS-RNBN program."
+  },
+  "argument": "The sentence contains no logical operators ('and' or 'or') and no course codes. According to the rules, any condition that is not a course code is treated as a 'text' node with its exact words as the quote. Therefore, the entire sentence is parsed as a single text node.",
+  "seconds": 1.4
+}

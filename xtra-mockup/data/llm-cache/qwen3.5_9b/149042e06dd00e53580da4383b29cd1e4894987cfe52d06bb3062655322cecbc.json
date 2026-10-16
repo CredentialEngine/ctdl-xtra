@@ -1,0 +1,70 @@
+{
+  "model": "qwen3.5:9b",
+  "promptVersion": "prerequisite-structure/1",
+  "task": "prerequisite sentence",
+  "sentence": "MATH 11003 or higher, or AP Calculus AB 3C or higher, or AP Calculus BC 4C or higher, or MATH 11003 CLEP 54 or higher, or UA Math Placement 46 or higher,  or ACT MATH 22 or higher, or new SAT MATH 540/old SAT MATH 540 or higher.",
+  "courseCodes": [
+    "MATH 11003",
+    "MATH 11003"
+  ],
+  "structure": {
+    "kind": "any_of",
+    "quote": "",
+    "items": [
+      {
+        "kind": "text",
+        "quote": "MATH 11003 or higher"
+      },
+      {
+        "kind": "course",
+        "quote": "AP Calculus AB 3C"
+      },
+      {
+        "kind": "text",
+        "quote": "or higher"
+      },
+      {
+        "kind": "course",
+        "quote": "AP Calculus BC 4C"
+      },
+      {
+        "kind": "text",
+        "quote": "or higher"
+      },
+      {
+        "kind": "course",
+        "quote": "MATH 11003 CLEP 54"
+      },
+      {
+        "kind": "text",
+        "quote": "or higher"
+      },
+      {
+        "kind": "course",
+        "quote": "UA Math Placement 46"
+      },
+      {
+        "kind": "text",
+        "quote": "or higher"
+      },
+      {
+        "kind": "course",
+        "quote": "ACT MATH 22"
+      },
+      {
+        "kind": "text",
+        "quote": "or higher"
+      },
+      {
+        "kind": "course",
+        "quote": "new SAT MATH 540/old SAT MATH 540"
+      },
+      {
+        "kind": "text",
+        "quote": "or higher"
+      }
+    ]
+  },
+  "argument": "The sentence lists multiple options separated by 'or' (e.g., 'MATH 11003 or higher, or AP Calculus AB...'). According to the CTDL definition of ceterms:alternativeCondition, this represents a context where 'any one path fulfills the parent condition,' which maps to an 'any_of' node. The individual items within this list are distinct conditions (some containing course codes like 'MATH 11003 CLEP 54' and others containing text descriptions like 'ACT MATH 22 or higher'), so they are parsed as separate 'course' or 'text' nodes under the parent 'any_of' node.",
+  "seconds": 6.7
+}

@@ -1,0 +1,25 @@
+{
+  "model": "qwen3.5:9b",
+  "promptVersion": "prerequisite-structure/1",
+  "task": "prerequisite sentence",
+  "sentence": "ENGL 30103 or equivalent.",
+  "courseCodes": [
+    "ENGL 30103"
+  ],
+  "structure": {
+    "kind": "any_of",
+    "quote": "",
+    "items": [
+      {
+        "kind": "course",
+        "quote": "ENGL 30103"
+      },
+      {
+        "kind": "text",
+        "quote": "or equivalent."
+      }
+    ]
+  },
+  "argument": "The sentence contains 'or', which indicates an alternative condition where any one path fulfills the requirement, matching the definition of ceterms:alternativeCondition. Therefore, the root node is 'any_of'. The first item is a specific course code 'ENGL 30103', making it a 'course' node. The second item is the phrase 'equivalent.', which is not a course code but a condition description, making it a 'text' node.",
+  "seconds": 5.6
+}

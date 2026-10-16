@@ -1,0 +1,27 @@
+{
+  "model": "qwen3.5:9b",
+  "promptVersion": "prerequisite-structure/1",
+  "task": "corequisite sentence",
+  "sentence": "CHEM 362H2 and related course component drill sections for CHEM 362H3 and CHEM 362H2.",
+  "courseCodes": [
+    "CHEM 362H2",
+    "CHEM 362H3",
+    "CHEM 362H2"
+  ],
+  "structure": {
+    "kind": "all_of",
+    "quote": "",
+    "items": [
+      {
+        "kind": "course",
+        "quote": "CHEM 362H2"
+      },
+      {
+        "kind": "text",
+        "quote": "related course component drill sections for CHEM 362H3 and CHEM 362H2"
+      }
+    ]
+  },
+  "argument": "The sentence begins with 'CHEM 362H2 and...', indicating an 'all_of' relationship where every item must be satisfied. The first item is the course code 'CHEM 362H2'. The second item is the text phrase 'related course component drill sections for CHEM 362H3 and CHEM 362H2', which contains internal 'and's but functions as a single textual condition describing the requirement. According to the CTDL definition of ceterms:requires, this entire structure represents a set of requirements where all listed components are necessary.",
+  "seconds": 3.2
+}

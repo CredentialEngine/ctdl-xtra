@@ -1,0 +1,55 @@
+{
+  "model": "qwen3.5:9b",
+  "promptVersion": "prerequisite-structure/1",
+  "task": "prerequisite sentence",
+  "sentence": "NURS 31151, NURS 37732, NURS 37832, NURS 40033, NURS 43233 and admission to an online undergraduate BSN professional program or permission by the instructor or department head.",
+  "courseCodes": [
+    "NURS 31151",
+    "NURS 37732",
+    "NURS 37832",
+    "NURS 40033",
+    "NURS 43233"
+  ],
+  "structure": {
+    "kind": "all_of",
+    "quote": "",
+    "items": [
+      {
+        "kind": "course",
+        "quote": "NURS 31151"
+      },
+      {
+        "kind": "course",
+        "quote": "NURS 37732"
+      },
+      {
+        "kind": "course",
+        "quote": "NURS 37832"
+      },
+      {
+        "kind": "course",
+        "quote": "NURS 40033"
+      },
+      {
+        "kind": "course",
+        "quote": "NURS 43233"
+      },
+      {
+        "kind": "any_of",
+        "quote": "",
+        "items": [
+          {
+            "kind": "text",
+            "quote": "admission to an online undergraduate BSN professional program"
+          },
+          {
+            "kind": "text",
+            "quote": "permission by the instructor or department head"
+          }
+        ]
+      }
+    ]
+  },
+  "argument": "The sentence lists five specific course codes followed by 'and', which groups them as a required set (all_of) according to the definition of ceterms:requires implying a conjunction of requirements. The final element is an 'or' phrase containing two distinct conditions ('admission...' and 'permission...'), which constitutes an alternative condition (any_of) per the definition of ceterms:alternativeCondition, where any one path fulfills the parent condition.",
+  "seconds": 4.6
+}

@@ -1,0 +1,29 @@
+{
+  "model": "qwen3.5:9b",
+  "promptVersion": "prerequisite-structure/1",
+  "task": "prerequisite sentence",
+  "sentence": "CSCE 20104 with a grade of C or better or Computer Science Computer Engineering (CSCE) graduate standing.",
+  "courseCodes": [
+    "CSCE 20104"
+  ],
+  "structure": {
+    "kind": "any_of",
+    "quote": "",
+    "items": [
+      {
+        "kind": "course",
+        "quote": "CSCE 20104"
+      },
+      {
+        "kind": "text",
+        "quote": "with a grade of C or better"
+      },
+      {
+        "kind": "text",
+        "quote": "or Computer Science Computer Engineering (CSCE) graduate standing"
+      }
+    ]
+  },
+  "argument": "The sentence contains the word 'or' connecting three distinct conditions: taking the course, achieving a specific grade, or having a specific standing. According to the CTDL definition of ceterms:alternativeCondition, this represents a context where 'more than one alternative condition... has been defined and from which any one path fulfills the parent condition.' Therefore, the logical structure is an 'any_of' node containing these three items. The first item is the course code 'CSCE 20104'. The second and third items are text descriptions of the grade requirement and the standing requirement, respectively.",
+  "seconds": 8.0
+}

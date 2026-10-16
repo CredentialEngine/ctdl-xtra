@@ -1,0 +1,33 @@
+{
+  "model": "qwen3.5:9b",
+  "promptVersion": "prerequisite-structure/1",
+  "task": "prerequisite sentence",
+  "sentence": "Honors candidacy, chemistry major and junior or senior standing.",
+  "courseCodes": [],
+  "structure": {
+    "kind": "all_of",
+    "quote": "",
+    "items": [
+      {
+        "kind": "text",
+        "quote": "Honors candidacy"
+      },
+      {
+        "kind": "all_of",
+        "quote": "",
+        "items": [
+          {
+            "kind": "text",
+            "quote": "chemistry major"
+          },
+          {
+            "kind": "text",
+            "quote": "junior or senior standing"
+          }
+        ]
+      }
+    ]
+  },
+  "argument": "The sentence begins with 'Honors candidacy', which is a text condition. It is followed by 'and', indicating an 'all_of' relationship between the first item and the subsequent group. The subsequent group is enclosed in brackets (implied by the grouping of conditions) containing 'chemistry major' and 'junior or senior standing'. Within this second group, the word 'or' connects two text conditions ('chemistry major' and 'junior or senior standing'), forming an 'any_of' relationship. Therefore, the top level is 'all_of' (requiring Honors candidacy AND the result of the inner group), and the inner level is 'any_of' (requiring EITHER chemistry major OR junior/senior standing).",
+  "seconds": 4.3
+}

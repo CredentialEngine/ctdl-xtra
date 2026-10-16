@@ -1,0 +1,15 @@
+{
+  "digest": "e71f35afe7c1085ea57e13f56f16adc34a444b026d0308a155ab59e891159b81",
+  "size": 55671,
+  "fetches": [
+    {
+      "requested": "https://credentialengineregistry.org/resources/ce-57603921-78ce-455c-88b5-00506fb33701",
+      "final": "https://credentialengineregistry.org/resources/ce-57603921-78ce-455c-88b5-00506fb33701",
+      "time": "2026-10-07T23:17:48+00:00",
+      "status": 200,
+      "contentType": "application/json",
+      "size": 55671,
+      "digest": "e71f35afe7c1085ea57e13f56f16adc34a444b026d0308a155ab59e891159b81"
+    }
+  ]
+}

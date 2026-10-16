@@ -1,0 +1,77 @@
+{
+  "model": "qwen3.5:9b",
+  "promptVersion": "prerequisite-structure/1",
+  "task": "prerequisite sentence",
+  "sentence": "NURS 40033, NURS 48433, NURS 40133, (ESRM 24003 or MATH 21003) and admission to an online undergraduate BSN professional program or permission by the instructor or department head and (NURS 33332, NURS 41032, NURS 41234, and NURS 41433 for LNBN students only).",
+  "courseCodes": [
+    "NURS 40033",
+    "NURS 48433",
+    "NURS 40133",
+    "ESRM 24003",
+    "MATH 21003",
+    "NURS 33332",
+    "NURS 41032",
+    "NURS 41234",
+    "NURS 41433"
+  ],
+  "structure": {
+    "kind": "all_of",
+    "quote": "",
+    "items": [
+      {
+        "kind": "course",
+        "quote": "NURS 40033"
+      },
+      {
+        "kind": "course",
+        "quote": "NURS 48433"
+      },
+      {
+        "kind": "course",
+        "quote": "NURS 40133"
+      },
+      {
+        "kind": "all_of",
+        "quote": "",
+        "items": [
+          {
+            "kind": "course",
+            "quote": "ESRM 24003"
+          },
+          {
+            "kind": "course",
+            "quote": "MATH 21003"
+          }
+        ]
+      },
+      {
+        "kind": "text",
+        "quote": "admission to an online undergraduate BSN professional program or permission by the instructor or department head"
+      },
+      {
+        "kind": "all_of",
+        "quote": "",
+        "items": [
+          {
+            "kind": "course",
+            "quote": "NURS 33332"
+          },
+          {
+            "kind": "course",
+            "quote": "NURS 41032"
+          },
+          {
+            "kind": "course",
+            "quote": "NURS 41234"
+          },
+          {
+            "kind": "course",
+            "quote": "NURS 41433"
+          }
+        ]
+      }
+    ]
+  },
+  "argument": "The sentence begins with a list of three courses joined by commas, which implies an 'all_of' relationship (every item is required). Following this is a parenthetical group '(ESRM 24003 or MATH 21003)'; the word 'or' inside brackets indicates an 'any_of' relationship where only one of those courses is needed. Next, there is a text condition containing the word 'or', but it connects two distinct requirements ('admission...' and 'permission...') within a single logical block that must be satisfied alongside the other items; however, strictly following the rule that 'or' inside brackets creates an 'any_of', this specific text segment acts as a single unit of text. Finally, there is another parenthetical group '(NURS 33332, NURS 41032, NURS 41234, and NURS 41433...)' where the items are joined by commas and 'and', indicating an 'all_of' relationship for those specific courses. The top-level structure connects these three main components (the initial list, the middle text block, and the final parenthetical list) with commas and the word 'and', establishing that all three major sections must be satisfied.",
+  "seconds": 21.6
+}

@@ -1,0 +1,25 @@
+{
+  "model": "qwen3.5:9b",
+  "promptVersion": "prerequisite-structure/1",
+  "task": "prerequisite sentence",
+  "sentence": "CSCE 35103 or Computer Science Computer Engineering (CSCE) graduate standing.",
+  "courseCodes": [
+    "CSCE 35103"
+  ],
+  "structure": {
+    "kind": "any_of",
+    "quote": "",
+    "items": [
+      {
+        "kind": "course",
+        "quote": "CSCE 35103"
+      },
+      {
+        "kind": "text",
+        "quote": "Computer Science Computer Engineering (CSCE) graduate standing."
+      }
+    ]
+  },
+  "argument": "The sentence uses the word 'or' to connect two distinct conditions, which defines an 'any_of' relationship where satisfying either condition is sufficient. According to the CTDL definition of ceterms:alternativeCondition, this represents a context where 'more than one alternative condition or path has been defined and from which any one path fulfills the parent condition.' The first item is identified as a 'course' because it matches the provided course code 'CSCE 35103'. The second item is identified as 'text' because it describes a class standing ('graduate standing') associated with a specific program, rather than being a standalone course code.",
+  "seconds": 7.0
+}

@@ -1,0 +1,67 @@
+{
+  "model": "qwen3.5:9b",
+  "promptVersion": "prerequisite-structure/1",
+  "task": "prerequisite sentence",
+  "sentence": "MATH 24005, MATH 24004, or MATH 240H4 each with a grade of C or better, and must be a student in ENGR, ENGRFR, EXPLEN, or CSCE-Minor.",
+  "courseCodes": [
+    "MATH 24005",
+    "MATH 24004",
+    "MATH 240H4"
+  ],
+  "structure": {
+    "kind": "all_of",
+    "quote": "",
+    "items": [
+      {
+        "kind": "any_of",
+        "quote": "",
+        "items": [
+          {
+            "kind": "course",
+            "quote": "MATH 24005"
+          },
+          {
+            "kind": "course",
+            "quote": "MATH 24004"
+          },
+          {
+            "kind": "course",
+            "quote": "MATH 240H4"
+          }
+        ]
+      },
+      {
+        "kind": "text",
+        "quote": "each with a grade of C or better"
+      },
+      {
+        "kind": "text",
+        "quote": "and must be a student in"
+      },
+      {
+        "kind": "any_of",
+        "quote": "",
+        "items": [
+          {
+            "kind": "text",
+            "quote": "ENGR"
+          },
+          {
+            "kind": "text",
+            "quote": "ENGRFR"
+          },
+          {
+            "kind": "text",
+            "quote": "EXPLEN"
+          },
+          {
+            "kind": "text",
+            "quote": "CSCE-Minor"
+          }
+        ]
+      }
+    ]
+  },
+  "argument": "The sentence begins with a list of courses joined by 'or' ('MATH 24005, MATH 24004, or MATH 240H4'), which constitutes an 'any_of' condition per the definition of ceterms:alternativeCondition where 'any one path fulfills the parent condition'. This entire course selection is then joined by 'and' to a second set of conditions (grade requirement and student status), forming an 'all_of' structure as defined by ceterms:requires, where 'every item under it is required'. The final part lists specific groups ('ENGR', etc.) joined by 'or', creating another nested 'any_of' block for the student status condition.",
+  "seconds": 6.2
+}

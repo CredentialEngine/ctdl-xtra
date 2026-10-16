@@ -1,0 +1,27 @@
+{
+  "model": "qwen3.5:9b",
+  "promptVersion": "prerequisite-structure/1",
+  "task": "prerequisite sentence",
+  "sentence": "Graduate standing in the Master of Accountancy or Master of Professional Accounting program.",
+  "courseCodes": [],
+  "structure": {
+    "kind": "any_of",
+    "quote": "",
+    "items": [
+      {
+        "kind": "text",
+        "quote": "Graduate standing in the Master of Accountancy"
+      },
+      {
+        "kind": "text",
+        "quote": "or"
+      },
+      {
+        "kind": "text",
+        "quote": "Master of Professional Accounting program"
+      }
+    ]
+  },
+  "argument": "The sentence contains the word 'or' connecting two distinct conditions ('Graduate standing in the Master of Accountancy' and 'Master of Professional Accounting program'). According to the CTDL definition of ceterms:alternativeCondition, this represents a context where more than one alternative path is defined and any one path fulfills the parent condition. Therefore, the logical structure is an 'any_of' node containing these two text items.",
+  "seconds": 2.7
+}

@@ -1,0 +1,13 @@
+{
+  "model": "qwen3.5:9b",
+  "promptVersion": "prerequisite-structure/1",
+  "task": "prerequisite sentence",
+  "sentence": "Creative Writing MFA students only.",
+  "courseCodes": [],
+  "structure": {
+    "kind": "text",
+    "quote": "Creative Writing MFA students only."
+  },
+  "argument": "The sentence contains no course codes, so it cannot be parsed as a 'course' node. According to the rules, any condition that is not a course code (such as a group of students or a restriction) must be treated as a 'text' node. The entire phrase 'Creative Writing MFA students only.' is copied exactly as the quote for this single text node.",
+  "seconds": 4.1
+}

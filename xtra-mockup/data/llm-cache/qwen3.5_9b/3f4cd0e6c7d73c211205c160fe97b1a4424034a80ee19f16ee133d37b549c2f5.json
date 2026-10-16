@@ -1,0 +1,36 @@
+{
+  "model": "qwen3.5:9b",
+  "promptVersion": "prerequisite-structure/1",
+  "task": "prerequisite sentence",
+  "sentence": "NURS 58333 and NURS 58433 or admission to MSN-DNP program.",
+  "courseCodes": [
+    "NURS 58333",
+    "NURS 58433"
+  ],
+  "structure": {
+    "kind": "any_of",
+    "quote": "",
+    "items": [
+      {
+        "kind": "all_of",
+        "quote": "",
+        "items": [
+          {
+            "kind": "course",
+            "quote": "NURS 58333"
+          },
+          {
+            "kind": "course",
+            "quote": "NURS 58433"
+          }
+        ]
+      },
+      {
+        "kind": "text",
+        "quote": "admission to MSN-DNP program"
+      }
+    ]
+  },
+  "argument": "The sentence contains 'and' joining two course codes, which according to the definition of ceterms:alternativeCondition implies a context where multiple alternatives exist; however, the 'and' itself groups those specific items into a single required set (an 'all_of' node) because they must both be taken together. The outer structure uses 'or' to separate this combined course requirement from the alternative text condition ('admission to MSN-DNP program'), creating an 'any_of' node where satisfying either the inner 'all_of' group or the text condition fulfills the prerequisite.",
+  "seconds": 4.0
+}

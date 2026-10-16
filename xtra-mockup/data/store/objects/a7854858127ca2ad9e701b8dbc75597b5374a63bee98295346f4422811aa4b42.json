@@ -1,0 +1,15 @@
+{
+  "digest": "a7854858127ca2ad9e701b8dbc75597b5374a63bee98295346f4422811aa4b42",
+  "size": 667,
+  "fetches": [
+    {
+      "requested": "https://catalog.uark.edu/robots.txt",
+      "final": "https://catalog.uark.edu/robots.txt",
+      "time": "2026-10-07T23:17:38+00:00",
+      "status": 200,
+      "contentType": "text/plain; charset=UTF-8",
+      "size": 667,
+      "digest": "a7854858127ca2ad9e701b8dbc75597b5374a63bee98295346f4422811aa4b42"
+    }
+  ]
+}

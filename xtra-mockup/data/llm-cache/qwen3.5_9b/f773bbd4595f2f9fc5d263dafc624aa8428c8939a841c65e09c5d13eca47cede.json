@@ -1,0 +1,57 @@
+{
+  "model": "qwen3.5:9b",
+  "promptVersion": "prerequisite-structure/1",
+  "task": "prerequisite sentence",
+  "sentence": "CSCE 20004 with a C or better, and must be a student in ENGR, ENGRFR, EXPLEN, or CSCE-Minor.",
+  "courseCodes": [
+    "CSCE 20004"
+  ],
+  "structure": {
+    "kind": "all_of",
+    "quote": "",
+    "items": [
+      {
+        "kind": "course",
+        "quote": "CSCE 20004"
+      },
+      {
+        "kind": "text",
+        "quote": "with a C or better"
+      },
+      {
+        "kind": "all_of",
+        "quote": "",
+        "items": [
+          {
+            "kind": "text",
+            "quote": "must be a student in"
+          },
+          {
+            "kind": "any_of",
+            "quote": "",
+            "items": [
+              {
+                "kind": "text",
+                "quote": "ENGR"
+              },
+              {
+                "kind": "text",
+                "quote": "ENGRFR"
+              },
+              {
+                "kind": "text",
+                "quote": "EXPLEN"
+              },
+              {
+                "kind": "text",
+                "quote": "or CSCE-Minor"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "argument": "The sentence begins with 'CSCE 20004', which is a course code, followed by 'with a C or better'. The conjunction 'and' connects the grade requirement to the student status requirement ('must be a student in...'), creating an 'all_of' relationship per the definition of ceterms:requires where multiple conditions must be met. Within the student status clause, the list 'ENGR, ENGRFR, EXPLEN, or CSCE-Minor' uses commas and the word 'or' to indicate that satisfying any single option is sufficient, creating an 'any_of' relationship per the definition of ceterms:alternativeCondition where any one path fulfills the parent condition.",
+  "seconds": 5.2
+}

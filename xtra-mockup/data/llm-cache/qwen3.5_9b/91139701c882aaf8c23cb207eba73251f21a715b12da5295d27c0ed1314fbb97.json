@@ -1,0 +1,36 @@
+{
+  "model": "qwen3.5:9b",
+  "promptVersion": "prerequisite-structure/1",
+  "task": "prerequisite sentence",
+  "sentence": "CSCE 31903 and INEG 23104 or Computer Science Computer Engineering (CSCE) graduate standing.",
+  "courseCodes": [
+    "CSCE 31903",
+    "INEG 23104"
+  ],
+  "structure": {
+    "kind": "any_of",
+    "quote": "",
+    "items": [
+      {
+        "kind": "all_of",
+        "quote": "",
+        "items": [
+          {
+            "kind": "course",
+            "quote": "CSCE 31903"
+          },
+          {
+            "kind": "course",
+            "quote": "INEG 23104"
+          }
+        ]
+      },
+      {
+        "kind": "text",
+        "quote": "Computer Science Computer Engineering (CSCE) graduate standing."
+      }
+    ]
+  },
+  "argument": "The sentence contains 'and' joining two course codes and 'or' separating that group from a text condition. According to the CTDL definition of ceterms:alternativeCondition, this represents a context where more than one alternative path exists (the 'or'). The items joined by 'and' within the first path form a single requirement set where every item is needed, matching the ceterms:requires definition for a set of requirements. Therefore, the structure is an 'any_of' node containing an 'all_of' node (for the courses) and a 'text' node (for the standing).",
+  "seconds": 10.0
+}

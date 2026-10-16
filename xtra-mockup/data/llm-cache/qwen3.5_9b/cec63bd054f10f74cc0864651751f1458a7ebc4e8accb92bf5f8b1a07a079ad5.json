@@ -1,0 +1,45 @@
+{
+  "model": "qwen3.5:9b",
+  "promptVersion": "prerequisite-structure/1",
+  "task": "pre-or-corequisite sentence",
+  "sentence": "ENGL 00001 or 19 or above on ACT English; or 490 or above on SAT Evidence-Based Reading and Writing; or 80 or above on Compass Writing Skills; or 83 or above on Accuplacer Sentence Skills; or above 255 on Accuplacer Next Generation Writing; or High School GPA of 3 point 20 or above.",
+  "courseCodes": [
+    "ENGL 00001"
+  ],
+  "structure": {
+    "kind": "any_of",
+    "quote": "",
+    "items": [
+      {
+        "kind": "course",
+        "quote": "ENGL 00001"
+      },
+      {
+        "kind": "text",
+        "quote": "19 or above on ACT English"
+      },
+      {
+        "kind": "text",
+        "quote": "490 or above on SAT Evidence-Based Reading and Writing"
+      },
+      {
+        "kind": "text",
+        "quote": "80 or above on Compass Writing Skills"
+      },
+      {
+        "kind": "text",
+        "quote": "83 or above on Accuplacer Sentence Skills"
+      },
+      {
+        "kind": "text",
+        "quote": "above 255 on Accuplacer Next Generation Writing"
+      },
+      {
+        "kind": "text",
+        "quote": "High School GPA of 3 point 20 or above"
+      }
+    ]
+  },
+  "argument": "The sentence uses multiple 'or' conjunctions to separate distinct conditions (e.g., 'ENGL 00001 or 19 or above...', '...English; or 490 or above...'). According to the CTDL definition of ceterms:alternativeCondition, this represents a context where 'more than one alternative condition or path has been defined and from which any one path fulfills the parent condition.' Therefore, the root node is an 'any_of' group containing all listed items. The first item is the course code 'ENGL 00001'. All subsequent items are descriptive conditions (grades, test scores, GPA) rather than specific course codes, so they are classified as 'text' nodes with their exact wording preserved.",
+  "seconds": 12.2
+}

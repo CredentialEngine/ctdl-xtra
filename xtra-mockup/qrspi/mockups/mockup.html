@@ -1,0 +1,526 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>xTRA mockup: specification frames</title>
+<!--
+  Static mockup for qrspi/03-specification.md. Not the application.
+  Each <section class="frame"> is one screenshot. Open with ?f=01 to show a single frame.
+  Regenerate the PNG files with ./render.sh
+-->
+<style>
+:root{
+  --bg:#f4f5f7; --panel:#fff; --line:#d9dce3; --line2:#eceef2; --ink:#1c2230; --ink2:#566074; --ink3:#8a93a5;
+  --accent:#3b4cca; --accent-bg:#eef0fd;
+  --e1:#ffe08a; --e1b:#b8860b; --e2:#a8e6d9; --e2b:#0f766e; --e3:#d9c8ff; --e3b:#6d3fd1;
+  --rule:#1d6f42; --rule-bg:#e3f4ea; --lm:#8a3ffc; --lm-bg:#f1e8ff; --look:#0b62a8; --look-bg:#e2f0fb;
+  --mint:#9a5b00; --mint-bg:#fdf0d5; --fixed:#566074; --fixed-bg:#eceef2; --table:#0f766e; --table-bg:#dff5f1;
+  --warn:#a23b00; --warn-bg:#fff1e6; --ok:#1d6f42;
+  --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:#fff;color:var(--ink);font:13px/1.45 var(--sans)}
+.frame{position:relative;overflow:hidden;background:var(--bg);margin:0 0 40px}
+body.single .frame{display:none;margin:0}
+body.single .frame.on{display:block}
+code,.mono{font-family:var(--mono);font-size:12px}
+a{color:var(--accent);text-decoration:none}
+
+/* generic */
+.pill{display:inline-block;font:600 10px/16px var(--sans);padding:0 6px;border-radius:8px;letter-spacing:.02em;white-space:nowrap}
+.pill.rule{color:var(--rule);background:var(--rule-bg)} .pill.lm{color:var(--lm);background:var(--lm-bg)}
+.pill.look{color:var(--look);background:var(--look-bg)} .pill.mint{color:var(--mint);background:var(--mint-bg)}
+.pill.fixed{color:var(--fixed);background:var(--fixed-bg)} .pill.table{color:var(--table);background:var(--table-bg)}
+.pill.warn{color:var(--warn);background:var(--warn-bg)} .pill.ok{color:var(--ok);background:var(--rule-bg)}
+.n{display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:50%;font:700 10px/1 var(--sans);color:#fff;vertical-align:1px;margin:0 3px 0 0}
+.n.a{background:var(--e1b)} .n.b{background:var(--e2b)} .n.c{background:var(--e3b)}
+mark{color:inherit;border-radius:2px;padding:1px 0}
+mark.a{background:var(--e1);box-shadow:0 0 0 1px var(--e1b)} mark.b{background:var(--e2);box-shadow:0 0 0 1px var(--e2b)} mark.c{background:var(--e3);box-shadow:0 0 0 1px var(--e3b)}
+mark.soft{background:#fff6d6}
+.btn{display:inline-block;border:1px solid var(--line);background:#fff;border-radius:6px;padding:2px 8px;font-size:12px;color:var(--ink2)}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:6px;overflow:hidden;font-size:12px}
+.seg span{padding:2px 9px;color:var(--ink2);background:#fff} .seg span.on{background:var(--accent);color:#fff}
+.muted{color:var(--ink2)} .faint{color:var(--ink3)}
+.cap{position:absolute;left:0;right:0;bottom:0;padding:5px 12px;font-size:11px;color:var(--ink3);background:#fff;border-top:1px solid var(--line2)}
+
+/* app shell */
+.app{display:flex;flex-direction:column;height:100%}
+.topbar{display:flex;align-items:center;gap:12px;height:44px;padding:0 14px;background:#1c2230;color:#fff;flex:none}
+.topbar .brand{font-weight:700;letter-spacing:.02em}
+.topbar .sel{background:#2c3447;border-radius:6px;padding:3px 10px;font-size:12px}
+.topbar .sp{flex:1}
+.topbar .notpub{background:#5a2a00;color:#ffd9b0;border-radius:6px;padding:3px 10px;font-size:12px;font-weight:600}
+.cols{display:flex;flex:1;min-height:0}
+.pane{display:flex;flex-direction:column;background:var(--panel);min-width:0;min-height:0}
+.pane + .pane{border-left:1px solid var(--line)}
+.ph{flex:none;padding:8px 12px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.ph h2{font-size:12px;margin:0;text-transform:uppercase;letter-spacing:.06em;color:var(--ink2)}
+.ph .sp{flex:1}
+.docmeta{flex:none;padding:6px 12px;background:#fafbfc;border-bottom:1px solid var(--line2);font-size:11.5px;color:var(--ink2);display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+.doctab{display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border:1px solid var(--line);border-radius:6px 6px 0 0;border-bottom:none;font-size:12px;background:#fafbfc;color:var(--ink2)}
+.doctab.on{background:#fff;color:var(--ink);font-weight:600;border-color:var(--accent);box-shadow:inset 0 2px 0 var(--accent)}
+
+/* catalog page imitation */
+.src{flex:1;overflow:hidden;padding:16px 26px;font:14px/1.5 Roboto, Helvetica, Arial, sans-serif;color:#222;background:#fff}
+.src .crumb{font-size:11.5px;color:#777;margin-bottom:6px}
+.src h1{font-size:25px;font-weight:500;margin:0 0 4px;color:#9d2235}
+.src h3{font-size:17px;margin:14px 0 8px;border-bottom:1px solid #ddd;padding-bottom:4px}
+.src .cb{margin:0 0 14px}
+.src .cbt{font-weight:700;margin:0 0 2px}
+.src .cbd{margin:0}
+.src .lnk{color:#9d2235;text-decoration:underline}
+.src .edition{float:right;font-size:11.5px;color:#fff;background:#9d2235;padding:2px 8px;border-radius:2px}
+.src.dim .cb:not(.focus){opacity:.42}
+
+/* json */
+.json{flex:1;overflow:hidden;padding:8px 0;font:12px/20px var(--mono);background:#fff}
+.jl{display:flex;align-items:flex-start;padding:0 10px 0 0;border-left:3px solid transparent}
+.jl .g{flex:none;width:58px;text-align:right;padding-right:8px}
+.jl .c{white-space:pre-wrap;word-break:break-word;flex:1}
+.jl.sel{background:var(--accent-bg);border-left-color:var(--accent)}
+.jl.hov{background:#f6f7f9}
+.k{color:#7a2e8e} .s{color:#0b5c2e} .num{color:#b0420a} .p{color:var(--ink3)}
+.chip{display:inline-block;font:600 11px/17px var(--sans);padding:0 7px;border:1px solid #b9c0f2;background:var(--accent-bg);color:#2a3691;border-radius:9px}
+.json.tight .jl .c{white-space:pre;overflow:hidden;text-overflow:ellipsis}
+.ph-note{font:11px/1.3 var(--sans);color:var(--ink3)}
+.tag-ph{font:600 10px/15px var(--sans);color:var(--mint);background:var(--mint-bg);border-radius:3px;padding:0 5px;margin-left:6px}
+
+/* why panel */
+.why{flex:1;overflow:hidden;padding:0;background:#fff}
+.why .hd{padding:10px 14px;border-bottom:1px solid var(--line2);display:flex;gap:8px;align-items:baseline;flex-wrap:wrap}
+.why .hd .prop{font:600 14px var(--mono)} .why .hd .val{font-size:13px;color:var(--ink2)}
+.why .sec{padding:9px 14px;border-bottom:1px solid var(--line2)}
+.why .sec h4{margin:0 0 4px;font-size:10.5px;text-transform:uppercase;letter-spacing:.07em;color:var(--ink3)}
+.why .sec p{margin:0 0 4px} .why .sec p:last-child{margin-bottom:0}
+.why blockquote{margin:0 0 4px;padding:2px 0 2px 10px;border-left:3px solid var(--line);color:var(--ink)}
+.why ul{margin:0;padding-left:18px} .why li{margin:1px 0}
+.ev{display:flex;gap:6px;margin:0 0 5px} .ev:last-child{margin-bottom:0} .ev .q{font-family:var(--mono);font-size:12px}
+.ev .where{font-size:11.5px;color:var(--ink2)}
+.pat{display:block;font:11.5px/1.5 var(--mono);background:#f6f7f9;border:1px solid var(--line2);border-radius:4px;padding:4px 8px;margin:4px 0 0;white-space:pre-wrap;word-break:break-all}
+.chk{display:flex;gap:6px} .chk .t{color:var(--ok);font-weight:700} .chk .x{color:var(--warn);font-weight:700}
+.alt{display:grid;grid-template-columns:150px 1fr;gap:2px 10px;font-size:12.5px}
+.alt b{font-weight:600}
+
+/* html tree */
+.tree{flex:1;overflow:hidden;padding:12px 16px;font:12px/21px var(--mono);background:#fbfbfd;color:#33405a;white-space:pre}
+.tree .t{color:#8b1f66} .tree .at{color:#935f00} .tree .v{color:#0b5c2e} .tree .tx{color:#222} .tree .tw{color:var(--ink3)}
+.note{margin:10px 12px;padding:8px 10px;border:1px solid #cfd5f7;background:var(--accent-bg);border-radius:6px;font-size:12px}
+
+/* cards */
+.cards{display:flex;gap:14px;padding:14px;height:100%}
+.card{flex:1;background:#fff;border:1px solid var(--line);border-radius:8px;overflow:hidden;display:flex;flex-direction:column}
+.card .why{flex:1}
+.kv{display:grid;grid-template-columns:96px 1fr;gap:2px 10px;font-size:12.5px} .kv span:nth-child(odd){color:var(--ink2)}
+.chain{display:flex;flex-direction:column;gap:4px}
+.chain .step{border:1px solid var(--line);border-radius:6px;padding:6px 9px;background:#fafbfc}
+.chain .arrow{color:var(--ink3);padding-left:14px;font-size:12px}
+
+/* prerequisite tree */
+.rt{font-size:12.5px;line-height:1.5}
+.rt .node{margin:3px 0 3px 0;padding:4px 8px;border:1px solid var(--line);border-radius:6px;background:#fff}
+.rt .kids{margin-left:14px;padding-left:12px;border-left:2px solid var(--line)}
+.rt .op{font:700 10.5px var(--sans);letter-spacing:.06em;padding:1px 6px;border-radius:4px;margin-right:6px}
+.rt .op.any{background:#e2f0fb;color:#0b62a8} .rt .op.all{background:#e3f4ea;color:#1d6f42}
+.rt .course{display:inline-block;font:600 11.5px var(--mono);border:1px solid var(--line);border-radius:4px;padding:0 5px;margin:1px 3px 1px 0;background:#fafbfc}
+.rt .course.ext{border-style:dashed;color:var(--ink2)}
+.rt .txt{font-style:italic;color:var(--ink)}
+
+/* tables */
+table{border-collapse:collapse;width:100%;font-size:12.5px}
+th{font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--ink3);text-align:left;font-weight:600;padding:5px 10px;border-bottom:1px solid var(--line)}
+td{padding:5px 10px;border-bottom:1px solid var(--line2);vertical-align:top}
+tr.sel td{background:var(--accent-bg)}
+td.mono{white-space:nowrap}
+td.r,th.r{text-align:right;font-variant-numeric:tabular-nums}
+
+/* pipeline */
+.pipe{display:flex;align-items:stretch;gap:0;padding:26px 22px 0;height:100%}
+.pipe .col{flex:1;display:flex;flex-direction:column;gap:10px}
+.pipe .arrow{flex:none;width:44px;display:flex;align-items:center;justify-content:center;color:var(--ink3);font-size:22px;padding-bottom:70px}
+.box{border:1px solid var(--line);border-radius:8px;background:#fff;padding:10px 12px}
+.box h5{margin:0 0 4px;font-size:13px} .box p{margin:0;font-size:12px;color:var(--ink2)}
+.box.step{border-color:var(--accent);box-shadow:inset 0 3px 0 var(--accent)}
+.box.store{background:#fafbfc;border-style:dashed}
+.box.ext{background:#fff8ec;border-color:#e6c98f}
+.zone{font-size:10.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--ink3);font-weight:700;margin-bottom:2px}
+
+/* --- calmer shell (second draft) --- */
+.topbar{background:#fff;color:var(--ink);border-bottom:1px solid var(--line);height:42px}
+.topbar .sel{background:none;border:1px solid var(--line);color:var(--ink)}
+.topbar .notpub{background:none;border:1px solid #e6c98f;color:var(--mint);font-weight:600;font-size:11.5px}
+.topbar .nav{color:var(--ink2);font-size:16px;padding:0 2px}
+.topbar .title{font-weight:600}
+.ico{display:inline-flex;align-items:center;justify-content:center;width:26px;height:24px;border-radius:5px;color:var(--ink2);font-size:15px}
+.ico.on{background:var(--accent-bg);color:var(--accent)}
+.docs{display:flex;gap:2px;align-items:center}
+.doc{display:inline-flex;align-items:center;gap:5px;padding:2px 9px;border-radius:12px;font-size:12px;color:var(--ink2)}
+.doc.on{background:var(--fixed-bg);color:var(--ink);font-weight:600}
+.dot{display:inline-block;width:7px;height:7px;border-radius:50%}
+.dot.lm{background:var(--lm)} .dot.flag{border:1.5px solid var(--warn);background:#fff}
+.jl .g{width:26px;text-align:center;padding:0}
+.jl .c{white-space:pre;overflow:hidden;text-overflow:ellipsis}
+.json{padding:10px 0}
+.lang{font:10px var(--sans);color:var(--ink3);margin-left:6px}
+.foot{flex:none;height:32px;display:flex;align-items:center;gap:14px;padding:0 14px;border-top:1px solid var(--line);background:#fafbfc;font-size:12px;color:var(--ink2)}
+.foot .sp{flex:1}
+kbd{font:600 10.5px var(--sans);border:1px solid var(--line);border-bottom-width:2px;border-radius:4px;padding:0 5px;background:#fff;color:var(--ink)}
+.empty{flex:1;display:flex;align-items:center;justify-content:center;text-align:center;color:var(--ink3);font-size:13px;line-height:1.9}
+.q2{display:grid;grid-template-columns:58px 1fr;gap:10px 10px;padding:12px 14px}
+.q2 .lab{font:700 10.5px var(--sans);letter-spacing:.07em;text-transform:uppercase;color:var(--ink3);padding-top:3px}
+.q2 p{margin:0 0 3px} .q2 p:last-child{margin:0}
+.more{padding:8px 14px;border-top:1px solid var(--line2);color:var(--ink3);font-size:12.5px}
+.more a{margin-right:14px}
+.fold{padding:8px 14px;border-top:1px solid var(--line2);color:var(--ink2);font-size:12.5px}
+.peek{flex:none;margin:0 14px 12px;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.peek .pt{padding:5px 10px;background:#fafbfc;border-bottom:1px solid var(--line2);font-size:12px;color:var(--ink2);display:flex;gap:6px;align-items:center}
+.peek .pb{padding:8px 12px;font:13.5px/1.5 Roboto,Helvetica,Arial,sans-serif;color:#222}
+.pop{position:absolute;right:12px;top:40px;width:330px;background:#fff;border:1px solid var(--line);border-radius:8px;box-shadow:0 6px 24px rgba(20,30,60,.16);padding:10px 12px;font-size:12px;z-index:5}
+.pop .kv{grid-template-columns:70px 1fr;font-size:12px}
+.lbl{font:700 10.5px var(--sans);letter-spacing:.07em;text-transform:uppercase;color:var(--ink3);margin:0 0 8px}
+.why .hd{border-bottom:none;padding-bottom:0}
+.ph{min-height:39px}
+</style>
+</head>
+<body>
+
+<!-- ============ 00 pipeline ============ -->
+<section class="frame" id="f00" style="width:1280px;height:330px">
+  <div class="pipe">
+    <div class="col" style="flex:.8">
+      <div class="zone">The internet</div>
+      <div class="box ext"><h5>catalog.uark.edu</h5><p>Index page and subject pages. <code>robots.txt</code> is read first and obeyed.</p></div>
+      <div class="box ext"><h5>Credential Registry</h5><p>The University of Arkansas organisation record. Read only. Nothing is ever sent.</p></div>
+    </div>
+    <div class="arrow">→</div>
+    <div class="col">
+      <div class="zone">Step 1 · the only step that goes online</div>
+      <div class="box step"><h5>Crawl</h5><p>Fetches each address once, one request per second. Consults the lookup before every fetch.</p></div>
+      <div class="box store"><h5>Page store <span class="faint">(written once)</span></h5><p>Exact bytes of every document, named by their digest, each with a sidecar: address, time, status, headers. Plus the address-to-digest lookup.</p></div>
+    </div>
+    <div class="arrow">→</div>
+    <div class="col" style="flex:1.25">
+      <div class="zone">Step 2 · offline, repeatable</div>
+      <div class="box step"><h5>Extract</h5><p>Rule registry → prerequisite parser → language model for what is left → guards → conformance checks. Every value leaves with its evidence and its reasoning.</p></div>
+      <div style="display:flex;gap:10px">
+        <div class="box store" style="flex:1"><h5>CTID ledger</h5><p>Organisation + course code → CTID. Mint once, remember.</p></div>
+        <div class="box store" style="flex:1"><h5>Language model cache</h5><p>Answers kept by model, prompt version and input.</p></div>
+      </div>
+    </div>
+    <div class="arrow">→</div>
+    <div class="col">
+      <div class="zone">Step 3 · static files, no backend</div>
+      <div class="box store"><h5>Output</h5><p>One file per course: the CTDL record plus a provenance entry for each field. Display copies of the source documents. A run report.</p></div>
+      <div class="box step"><h5>Viewer</h5><p>Source on the left, JSON-LD on the right, “Why this value” beneath it. Read-only.</p></div>
+    </div>
+  </div>
+  <div class="cap">Figure 1. The three steps and what each one is allowed to touch.</div>
+</section>
+
+
+<!-- ============ 01 first arrival ============ -->
+<section class="frame" id="f01" style="width:1440px;height:800px">
+<div class="app"><div class="topbar"><span class="brand">xTRA mockup</span><span class="nav">‹</span><span class="title">ACCT 20103 · Accounting Principles</span><span class="nav">›</span><span class="faint">1 of 46</span><span class="sp"></span><span class="notpub">Not published</span><span class="ico">☰</span></div>
+  <div class="cols">
+    <div class="pane" style="flex:0 0 56%"><div class="ph"><h2>Source</h2><span class="docs"><span class="doc on">Subject page</span><span class="doc">Index page</span><span class="doc">Registry record</span></span><span class="sp"></span><span class="seg"><span class=on>Page</span><span>HTML</span></span><span class="ico">ⓘ</span></div><div class="src dim"><span class="edition">2026-27 Edition</span>
+        <div class="crumb">Home › Undergraduate Catalog › Courses of Instruction › Accounting (ACCT)</div>
+        <h1>Accounting (ACCT)</h1><h3>Courses</h3>
+        <div class="cb focus"><p class="cbt">ACCT&nbsp;20103. Accounting Principles (ACTS Equivalency = ACCT 2003). 3 Hours.</p><p class="cbd">Introduction of the overall purpose, meaning, interpretation, and use of accounting information. The course focuses on understanding financial statements, and the production and use of accounting information in planning, controlling and decision making. Prerequisite: (Walton College Majors: <span class="lnk">ISYS&nbsp;11203</span>, <span class="lnk">BUSI&nbsp;11101</span>, and (<span class="lnk">MATH&nbsp;20503</span> or <span class="lnk">MATH&nbsp;22003</span> or <span class="lnk">MATH&nbsp;24004</span>) each with a grade of C or better); (Non-Business Majors: (<span class="lnk">ISYS&nbsp;11203</span> or <span class="lnk">DASC&nbsp;10003</span> or <span class="lnk">ASTM&nbsp;29003</span> or <span class="lnk">INEG&nbsp;21003</span>) and (<span class="lnk">MATH&nbsp;20503</span> or <span class="lnk">MATH&nbsp;22003</span> or <span class="lnk">MATH&nbsp;24004</span> or higher) each with a grade of C or better). (Typically offered: Fall, Spring and Summer)</p></div>
+        <div class="cb"><p class="cbt">ACCT&nbsp;201H3. Honors Accounting Principles. 3 Hours.</p>
+          <p class="cbd">Introduction of the overall purpose, meaning, interpretation, and use of accounting information. The course focuses on understanding financial statements, and the production and use of accounting information in planning, controlling and decision making. Prerequisite: (Business majors: Honors standing, (<span class="lnk">ISYS&nbsp;11203</span> with a grade of C or better …</p></div>
+        <div class="cb"><p class="cbt">ACCT&nbsp;20203. Accounting Principles II (ACTS Equivalency = ACCT 2013). 3 Hours.</p>
+          <p class="cbd">In this course we study managerial accounting concepts and their use in business decisions. We will examine the development and analysis of cost information for management use in decision-making, income determination, and performance evaluation. Prerequisite: <span class="lnk">ACCT&nbsp;20103</span> with a grade of C or better. (Typically offered: Fall, Spring and Summer)</p></div>
+        <div class="cb"><p class="cbt">ACCT&nbsp;202H3. Honors Accounting Principles II. 3 Hours.</p>
+          <p class="cbd">Overview of accounting as an information system with emphasis on processing and presenting information in the form of financial statements for use in decision making. The course emphasizes business processes and double entry accounting. (Typically offered: Fall, Spring and Summer) This course is equivalent to <span class="lnk">ACCT&nbsp;20203</span>.</p></div>
+      </div></div>
+    <div class="pane" style="flex:1"><div class="ph"><h2>Record</h2><span class="muted" style="font-size:12px">ceterms:Course</span><span class="sp"></span><span class="faint" style="font-size:12px">✓ valid</span><span class="ico" title="Unfold all">⇕</span><span class="ico" title="Copy">⧉</span></div><div class="json" style="flex:0 0 388px"><div class="jl"><span class="g"></span><span class="c"><span class="p">{</span></span></div><div class="jl"><span class="g"></span><span class="c">  <span class="k">"@type"</span>: <span class="s">"ceterms:Course"</span>,</span></div><div class="jl"><span class="g"></span><span class="c">  <span class="k">"ceterms:ctid"</span>: <span class="s">"ce-3f0c9a52-7d1e-4b8a-9c46-0e5d2a71b3f8"</span>,</span></div><div class="jl"><span class="g"></span><span class="c">  <span class="k">"ceterms:name"</span>: <span class="s">"Accounting Principles"</span>,</span></div><div class="jl"><span class="g"></span><span class="c">  <span class="k">"ceterms:codedNotation"</span>: <span class="s">"ACCT 20103"</span>,</span></div><div class="jl"><span class="g"></span><span class="c">  <span class="k">"ceterms:description"</span>: <span class="s">"Introduction of the overall purpose, meaning, interpretation…"</span>,</span></div><div class="jl"><span class="g"></span><span class="c">  <span class="k">"ceterms:creditValue"</span>: <span class="chip">3 · Semester Hour</span>,</span></div><div class="jl"><span class="g"></span><span class="c">  <span class="k">"ceterms:identifier"</span>: <span class="chip">ACTS · ACCT 2003</span>,</span></div><div class="jl"><span class="g"><span class="dot lm"></span></span><span class="c">  <span class="k">"ceterms:requires"</span>: <span class="chip">Prerequisite · any one of 2 groups</span>,</span></div><div class="jl"><span class="g"><span class="dot flag"></span></span><span class="c">  <span class="k">"ceterms:offerFrequencyType"</span>: <span class="chip">Quarterly</span>,</span></div><div class="jl"><span class="g"></span><span class="c">  <span class="k">"ceterms:inLanguage"</span>: <span class="s">"en"</span>,</span></div><div class="jl"><span class="g"></span><span class="c">  <span class="k">"ceterms:lifeCycleStatusType"</span>: <span class="chip">Active</span>,</span></div><div class="jl"><span class="g"></span><span class="c">  <span class="k">"ceterms:ownedBy"</span>: <span class="chip">University of Arkansas Fayetteville</span>,</span></div><div class="jl"><span class="g"></span><span class="c">  <span class="k">"ceterms:offeredBy"</span>: <span class="chip">University of Arkansas Fayetteville</span>,</span></div><div class="jl"><span class="g"></span><span class="c">  <span class="k">"ceterms:subjectWebpage"</span>: <span class="s">"catalog.uark.edu/…/coursesofinstruction/acct/"</span>,</span></div><div class="jl"><span class="g"></span><span class="c">  <span class="k">"ceterms:inCatalog"</span>: <span class="s">"catalog.uark.edu/undergraduatecatalog/"</span>,</span></div><div class="jl"><span class="g"></span><span class="c">  <span class="k">"ceterms:versionIdentifier"</span>: <span class="chip">Catalog edition · 2026-27</span></span></div><div class="jl"><span class="g"></span><span class="c"><span class="p">}</span></span></div></div>
+      <div class="ph" style="border-top:1px solid var(--line)"><h2>Why this value</h2></div>
+      <div class="empty"><div>Click a value in the record,<br>or press <kbd>Tab</kbd> to walk through them one at a time.</div></div>
+    </div>
+  </div><div class="foot"><span><kbd>Tab</kbd> next stop</span><span><kbd>⇧ Tab</kbd> back</span><span><kbd>Enter</kbd> next course</span><span class="sp"></span><span></span><span>Walk through</span><span class="seg"><span class=on>Everything · 21</span><span>Judgement calls · 1</span></span></div>
+</div></section>
+
+<!-- ============ 02 one value selected, brief ============ -->
+<section class="frame" id="f02" style="width:1440px;height:800px">
+<div class="app"><div class="topbar"><span class="brand">xTRA mockup</span><span class="nav">‹</span><span class="title">ACCT 20103 · Accounting Principles</span><span class="nav">›</span><span class="faint">1 of 46</span><span class="sp"></span><span class="notpub">Not published</span><span class="ico">☰</span></div>
+  <div class="cols">
+    <div class="pane" style="flex:0 0 56%"><div class="ph"><h2>Source</h2><span class="docs"><span class="doc on"><span class="n a" style="margin:0">1</span>Subject page</span><span class="doc">Index page</span><span class="doc">Registry record</span></span><span class="sp"></span><span class="seg"><span class=on>Page</span><span>HTML</span></span><span class="ico">ⓘ</span></div><div class="src dim"><span class="edition">2026-27 Edition</span>
+        <div class="crumb">Home › Undergraduate Catalog › Courses of Instruction › Accounting (ACCT)</div>
+        <h1>Accounting (ACCT)</h1><h3>Courses</h3>
+        <div class="cb focus"><p class="cbt">ACCT&nbsp;20103. <mark class="a">Accounting Principles</mark> (ACTS Equivalency = ACCT 2003). 3 Hours.</p><p class="cbd">Introduction of the overall purpose, meaning, interpretation, and use of accounting information. The course focuses on understanding financial statements, and the production and use of accounting information in planning, controlling and decision making. Prerequisite: (Walton College Majors: <span class="lnk">ISYS&nbsp;11203</span>, <span class="lnk">BUSI&nbsp;11101</span>, and (<span class="lnk">MATH&nbsp;20503</span> or <span class="lnk">MATH&nbsp;22003</span> or <span class="lnk">MATH&nbsp;24004</span>) each with a grade of C or better); (Non-Business Majors: (<span class="lnk">ISYS&nbsp;11203</span> or <span class="lnk">DASC&nbsp;10003</span> or <span class="lnk">ASTM&nbsp;29003</span> or <span class="lnk">INEG&nbsp;21003</span>) and (<span class="lnk">MATH&nbsp;20503</span> or <span class="lnk">MATH&nbsp;22003</span> or <span class="lnk">MATH&nbsp;24004</span> or higher) each with a grade of C or better). (Typically offered: Fall, Spring and Summer)</p></div>
+        <div class="cb"><p class="cbt">ACCT&nbsp;201H3. Honors Accounting Principles. 3 Hours.</p>
+          <p class="cbd">Introduction of the overall purpose, meaning, interpretation, and use of accounting information. The course focuses on understanding financial statements, and the production and use of accounting information in planning, controlling and decision making. Prerequisite: (Business majors: Honors standing, (<span class="lnk">ISYS&nbsp;11203</span> with a grade of C or better …</p></div>
+        <div class="cb"><p class="cbt">ACCT&nbsp;20203. Accounting Principles II (ACTS Equivalency = ACCT 2013). 3 Hours.</p>
+          <p class="cbd">In this course we study managerial accounting concepts and their use in business decisions. We will examine the development and analysis of cost information for management use in decision-making, income determination, and performance evaluation. Prerequisite: <span class="lnk">ACCT&nbsp;20103</span> with a grade of C or better. (Typically offered: Fall, Spring and Summer)</p></div>
+        <div class="cb"><p class="cbt">ACCT&nbsp;202H3. Honors Accounting Principles II. 3 Hours.</p>
+          <p class="cbd">Overview of accounting as an information system with emphasis on processing and presenting information in the form of financial statements for use in decision making. The course emphasizes business processes and double entry accounting. (Typically offered: Fall, Spring and Summer) This course is equivalent to <span class="lnk">ACCT&nbsp;20203</span>.</p></div>
+      </div></div>
+    <div class="pane" style="flex:1"><div class="ph"><h2>Record</h2><span class="muted" style="font-size:12px">ceterms:Course</span><span class="sp"></span><span class="faint" style="font-size:12px">✓ valid</span><span class="ico" title="Unfold all">⇕</span><span class="ico" title="Copy">⧉</span></div><div class="json" style="flex:0 0 388px"><div class="jl"><span class="g"></span><span class="c"><span class="p">{</span></span></div><div class="jl"><span class="g"></span><span class="c">  <span class="k">"@type"</span>: <span class="s">"ceterms:Course"</span>,</span></div><div class="jl"><span class="g"></span><span class="c">  <span class="k">"ceterms:ctid"</span>: <span class="s">"ce-3f0c9a52-7d1e-4b8a-9c46-0e5d2a71b3f8"</span>,</span></div><div class="jl sel"><span class="g"></span><span class="c">  <span class="k">"ceterms:name"</span>: <span class="s">"Accounting Principles"</span>,</span></div><div class="jl"><span class="g"></span><span class="c">  <span class="k">"ceterms:codedNotation"</span>: <span class="s">"ACCT 20103"</span>,</span></div><div class="jl"><span class="g"></span><span class="c">  <span class="k">"ceterms:description"</span>: <span class="s">"Introduction of the overall purpose, meaning, interpretation…"</span>,</span></div><div class="jl"><span class="g"></span><span class="c">  <span class="k">"ceterms:creditValue"</span>: <span class="chip">3 · Semester Hour</span>,</span></div><div class="jl"><span class="g"></span><span class="c">  <span class="k">"ceterms:identifier"</span>: <span class="chip">ACTS · ACCT 2003</span>,</span></div><div class="jl"><span class="g"><span class="dot lm"></span></span><span class="c">  <span class="k">"ceterms:requires"</span>: <span class="chip">Prerequisite · any one of 2 groups</span>,</span></div><div class="jl"><span class="g"><span class="dot flag"></span></span><span class="c">  <span class="k">"ceterms:offerFrequencyType"</span>: <span class="chip">Quarterly</span>,</span></div><div class="jl"><span class="g"></span><span class="c">  <span class="k">"ceterms:inLanguage"</span>: <span class="s">"en"</span>,</span></div><div class="jl"><span class="g"></span><span class="c">  <span class="k">"ceterms:lifeCycleStatusType"</span>: <span class="chip">Active</span>,</span></div><div class="jl"><span class="g"></span><span class="c">  <span class="k">"ceterms:ownedBy"</span>: <span class="chip">University of Arkansas Fayetteville</span>,</span></div><div class="jl"><span class="g"></span><span class="c">  <span class="k">"ceterms:offeredBy"</span>: <span class="chip">University of Arkansas Fayetteville</span>,</span></div><div class="jl"><span class="g"></span><span class="c">  <span class="k">"ceterms:subjectWebpage"</span>: <span class="s">"catalog.uark.edu/…/coursesofinstruction/acct/"</span>,</span></div><div class="jl"><span class="g"></span><span class="c">  <span class="k">"ceterms:inCatalog"</span>: <span class="s">"catalog.uark.edu/undergraduatecatalog/"</span>,</span></div><div class="jl"><span class="g"></span><span class="c">  <span class="k">"ceterms:versionIdentifier"</span>: <span class="chip">Catalog edition · 2026-27</span></span></div><div class="jl"><span class="g"></span><span class="c"><span class="p">}</span></span></div></div>
+      <div style="border-top:1px solid var(--line)"></div><div class="ph"><h2>Why this value</h2><span class="sp"></span><span class="seg"><span class=on>Brief</span><span>Standard</span><span>Full</span></span></div>
+      <div class="why"><div class="hd"><span class="prop">ceterms:name</span><span class="val">“Accounting Principles”</span></div>
+  <div class="q2">
+    <span class="lab">Value</span><div><p><span class="n a">1</span><span class="mono">“Accounting Principles”</span> is in this course's title line. A rule read it.</p></div>
+    <span class="lab">Choice</span><div><p>CTDL: <i>“Name or title of the resource.”</i> The code and the transfer tag were left out. Each has a field of its own.</p></div>
+  </div><div class="more"><a>▸ What CTDL says</a><a>▸ How it was found</a><a>▸ Alternatives</a><a>▸ Checks · 2 ✓</a></div></div>
+    </div>
+  </div><div class="foot"><span><kbd>Tab</kbd> next stop</span><span><kbd>⇧ Tab</kbd> back</span><span><kbd>Enter</kbd> next course</span><span class="sp"></span><span>Stop 3 of 21</span><span>Walk through</span><span class="seg"><span class=on>Everything · 21</span><span>Judgement calls · 1</span></span></div>
+</div></section>
+
+<!-- ============ 03 three levels of detail ============ -->
+<section class="frame" id="f03" style="width:1440px;height:850px">
+<div class="cards" style="align-items:flex-start;padding-bottom:40px">
+  <div class="card" style="flex:.8"><div style="padding:10px 14px 0"><div class="lbl" style="margin:0">Brief · the default</div></div>
+    <div class="why"><div class="hd"><span class="prop">ceterms:creditValue</span><span class="val">3 · Semester Hour</span></div><div class="q2">
+    <span class="lab">Value</span><div><p><span class="n a">1</span><span class="mono">“3 Hours.”</span> in the title line gives the number.</p><p><span class="n b">2</span><span class="mono">“semester hours”</span> on the index page gives the unit. Rules read both.</p></div>
+    <span class="lab">Choice</span><div><p>CTDL: <i>“A credit-related value.”</i> It is written as a number together with its unit, not as a bare 3.</p></div>
+  </div><div class="more"><a>▸ What CTDL says</a><a>▸ How it was found</a><a>▸ Alternatives</a><a>▸ Checks · 3 ✓</a></div></div></div>
+  <div class="card"><div style="padding:10px 14px 0"><div class="lbl" style="margin:0">Standard</div></div>
+    <div class="why"><div class="hd"><span class="prop">ceterms:creditValue</span><span class="val">3 · Semester Hour</span></div><div class="q2">
+    <span class="lab">Value</span><div><p><span class="n a">1</span><span class="mono">“3 Hours.”</span> in the title line gives the number.</p><p><span class="n b">2</span><span class="mono">“semester hours”</span> on the index page gives the unit. Rules read both.</p></div>
+    <span class="lab">Choice</span><div><p>CTDL: <i>“A credit-related value.”</i> It is written as a number together with its unit, not as a bare 3.</p></div>
+  </div><div class="sec" style="border-top:1px solid var(--line2)"><h4>▾ What CTDL says</h4>
+    <p>The value must be a <b>ValueProfile</b>: “A description of value awarded for, required by, or otherwise related to the resource.”</p>
+    <p class="muted">Examples: <code>3</code> semester hours · <code>1</code> to <code>3</code> semester hours · <code>4.5</code> quarter hours.<br><a>creditValue ↗</a> · <a>ValueProfile ↗</a> · <a>All 15 credit units ↗</a> <span class="faint">· schema copy of 2026-06-07</span></p></div><div class="sec"><h4>▾ Alternatives</h4>
+    <div class="alt" style="grid-template-columns:118px 1fr">
+      <b>A bare 3</b><span>Does not say three of what.</span>
+      <b>Two entries for a range</b><span>“1-3 hours” is one statement with a minimum and a maximum.</span>
+      <b>Another unit</b><span>Quarter Hour, Contact Hour and 12 others. The index page says “semester hours”.</span>
+    </div></div><div class="more"><a>▸ How it was found</a><a>▸ Checks · 3 ✓</a></div></div></div>
+  <div class="card" style="flex:1.15"><div style="padding:10px 14px 0"><div class="lbl" style="margin:0">Full</div></div>
+    <div class="why"><div class="hd"><span class="prop">ceterms:creditValue</span><span class="val">3 · Semester Hour</span></div><div class="q2">
+    <span class="lab">Value</span><div><p><span class="n a">1</span><span class="mono">“3 Hours.”</span> in the title line gives the number.</p><p><span class="n b">2</span><span class="mono">“semester hours”</span> on the index page gives the unit. Rules read both.</p></div>
+    <span class="lab">Choice</span><div><p>CTDL: <i>“A credit-related value.”</i> It is written as a number together with its unit, not as a bare 3.</p></div>
+  </div><div class="sec" style="border-top:1px solid var(--line2)"><h4>▾ What CTDL says</h4>
+    <p>The value must be a <b>ValueProfile</b>: “A description of value awarded for, required by, or otherwise related to the resource.”</p>
+    <p class="muted">Examples: <code>3</code> semester hours · <code>1</code> to <code>3</code> semester hours · <code>4.5</code> quarter hours.<br><a>creditValue ↗</a> · <a>ValueProfile ↗</a> · <a>All 15 credit units ↗</a> <span class="faint">· schema copy of 2026-06-07</span></p></div><div class="sec"><h4>▾ Alternatives</h4>
+    <div class="alt" style="grid-template-columns:118px 1fr">
+      <b>A bare 3</b><span>Does not say three of what.</span>
+      <b>Two entries for a range</b><span>“1-3 hours” is one statement with a minimum and a maximum.</span>
+      <b>Another unit</b><span>Quarter Hour, Contact Hour and 12 others. The index page says “semester hours”.</span>
+    </div></div><div class="sec"><h4>▾ How it was found</h4>
+    <p><b>Rule <code>title-line.credit</code>.</b> The title line of every course block ends with a credit statement. The rule reads the number before “Hour” or “Hours”.</p>
+    <code class="pat">(?P&lt;min&gt;\d+)(?:-(?P&lt;max&gt;\d+))?\s+Hours?\.\s*$</code>
+    <p style="margin-top:5px"><b>Rule <code>catalog.credit-unit</code>.</b> The title line does not say what kind of hour. The index page does, once, for every course.</p></div><div class="sec"><h4>▾ Evidence, in full</h4>
+    <div class="ev"><span class="n a">1</span><div><span class="q">“3 Hours.”</span><div class="where">Subject page · characters 2,268–2,276 · sha256 9f3c…e21a · <a>open original ↗</a></div></div></div>
+    <div class="ev"><span class="n b">2</span><div><span class="q">“semester hours”</span><div class="where">Index page · characters 1,902–1,916 · sha256 41b7…0c9d · <a>open original ↗</a></div></div></div></div><div class="sec"><h4>▾ Checks</h4>
+    <div class="chk"><span class="t">✓</span><span>The course number <code>20103</code> ends in 3 and the title line says 3 Hours.</span></div>
+    <div class="chk"><span class="t">✓</span><span>The text at each recorded position equals the recorded quote.</span></div>
+    <div class="chk"><span class="t">✓</span><span><code>creditUnit:SemesterHour</code> is a member of the Credit Unit list.</span></div></div></div></div>
+</div>
+<div class="cap">Figure 4. The same stop at three levels of detail. Any single section can also be opened on its own.</div>
+</section>
+
+<!-- ============ 04 documents ============ -->
+<section class="frame" id="f04" style="width:900px;height:440px">
+<div class="app"><div class="pane" style="flex:1;position:relative">
+  <div class="ph"><h2>Source</h2><span class="docs"><span class="doc on"><span class="n a" style="margin:0">1</span>Subject page</span><span class="doc"><span class="n b" style="margin:0">2</span>Index page</span><span class="doc">Registry record</span></span><span class="sp"></span><span class="seg"><span class=on>Page</span><span>HTML</span></span><span class="ico on">ⓘ</span></div>
+  <div class="pop"><div class="lbl">Subject page</div>
+    <div class="kv"><span>Address</span><span class="mono" style="word-break:break-all">catalog.uark.edu/undergraduatecatalog/coursesofinstruction/acct/</span>
+    <span>Fetched</span><span>2026-10-07 14:02</span><span>Digest</span><span class="mono">sha256 9f3c…e21a</span></div>
+    <p style="margin:8px 0 0"><a>Open original at this text ↗</a><br><a>Open the single-course page ↗</a></p>
+    <p class="faint" style="margin:6px 0 0">You are looking at the stored copy, not the live site.</p></div>
+  <div class="src dim">
+        <div class="cb focus"><p class="cbt">ACCT&nbsp;20103. Accounting Principles (ACTS Equivalency = ACCT 2003). <mark class="a">3 Hours.</mark></p><p class="cbd">Introduction of the overall purpose, meaning, interpretation, and use of accounting information. The course focuses on understanding financial statements, and the production and use of accounting information in planning, controlling and decision making. Prerequisite: (Walton College Majors: …</p></div>
+      </div>
+  <div class="peek"><div class="pt"><span class="n b">2</span><b style="color:var(--ink)">Index page</b><span class="sp" style="flex:1"></span><a>Open ▸</a></div>
+    <div class="pb">Successful completion of a class usually earns a specified number of <mark class="b">semester hours</mark> of credit toward a degree.</div></div>
+  <div style="flex:none;height:30px"></div>
+</div></div>
+<div class="cap">Figure 5. Every document behind this course is named in one row. Numbers mark the ones the selected value draws on. Details sit behind ⓘ.</div>
+</section>
+
+<!-- ============ 05 html view ============ -->
+<section class="frame" id="f05" style="width:900px;height:400px">
+<div class="app"><div class="pane" style="flex:1">
+  <div class="ph"><h2>Source</h2><span class="docs"><span class="doc on"><span class="n a" style="margin:0">1</span>Subject page</span><span class="doc">Index page</span><span class="doc">Registry record</span></span><span class="sp"></span><span class="seg"><span>Page</span><span class=on>HTML</span></span><span class="ico">ⓘ</span></div>
+  <div class="note" style="margin-bottom:0">This evidence is markup, not visible text, so the HTML view has opened.</div>
+  <div class="tree">▾ <span class="t">&lt;html</span> <span class="at">class</span>=<span class="v">"no-js"</span> <span class="at">xml:lang</span>=<span class="v">"en"</span> <mark class="a"><span class="at">lang</span>=<span class="v">"en"</span></mark> <span class="at">dir</span>=<span class="v">"ltr"</span><span class="t">&gt;</span>
+  ▸ <span class="t">&lt;head&gt;</span> <span class="tw">… 31 elements</span>
+  ▾ <span class="t">&lt;body&gt;</span>
+      ▸ <span class="t">&lt;header</span> <span class="at">id</span>=<span class="v">"header"</span><span class="t">&gt;</span> <span class="tw">…</span>
+      ▾ <span class="t">&lt;div</span> <span class="at">id</span>=<span class="v">"courseinventorycontainer"</span> <span class="at">class</span>=<span class="v">"page_content"</span><span class="t">&gt;</span>
+          ▾ <span class="t">&lt;div</span> <span class="at">class</span>=<span class="v">"courseblock"</span><span class="t">&gt;</span>
+              ▸ <span class="t">&lt;p</span> <span class="at">class</span>=<span class="v">"courseblocktitle"</span><span class="t">&gt;</span> <span class="tx">ACCT 20103.  Accounting Principles (ACTS Equivalency = …</span>
+              ▸ <span class="t">&lt;p</span> <span class="at">class</span>=<span class="v">"courseblockdesc"</span><span class="t">&gt;</span> <span class="tx">Introduction of the overall purpose, meaning, …</span>
+          ▸ <span class="t">&lt;div</span> <span class="at">class</span>=<span class="v">"courseblock"</span><span class="t">&gt;</span> <span class="tw">… 45 more</span></div>
+</div></div>
+<div class="cap">Figure 6. The HTML view: the stored page as a collapsible tree, opened to the evidence.</div>
+</section>
+
+<!-- ============ 06 folded and unfolded ============ -->
+<section class="frame" id="f06" style="width:1320px;height:640px">
+<div class="cards" style="padding-bottom:40px">
+  <div class="card"><div class="ph"><h2>Record</h2><span class="muted" style="font-size:12px">ceterms:Course</span><span class="sp"></span><span class="faint" style="font-size:12px">✓ valid</span><span class="ico" title="Unfold all">⇕</span><span class="ico" title="Copy">⧉</span></div><div class="json" style=""><div class="jl"><span class="g"></span><span class="c"><span class="p">{</span></span></div><div class="jl"><span class="g"></span><span class="c">  <span class="k">"@type"</span>: <span class="s">"ceterms:Course"</span>,</span></div><div class="jl"><span class="g"></span><span class="c">  <span class="k">"ceterms:ctid"</span>: <span class="s">"ce-3f0c9a52-7d1e-4b8a-9c46-0e5d2a71b3f8"</span>,</span></div><div class="jl"><span class="g"></span><span class="c">  <span class="k">"ceterms:name"</span>: <span class="s">"Accounting Principles"</span>,</span></div><div class="jl"><span class="g"></span><span class="c">  <span class="k">"ceterms:codedNotation"</span>: <span class="s">"ACCT 20103"</span>,</span></div><div class="jl"><span class="g"></span><span class="c">  <span class="k">"ceterms:description"</span>: <span class="s">"Introduction of the overall purpose, meaning, interpretation…"</span>,</span></div><div class="jl sel"><span class="g"></span><span class="c">  <span class="k">"ceterms:creditValue"</span>: <span class="chip">3 · Semester Hour</span>,</span></div><div class="jl"><span class="g"></span><span class="c">  <span class="k">"ceterms:identifier"</span>: <span class="chip">ACTS · ACCT 2003</span>,</span></div><div class="jl"><span class="g"><span class="dot lm"></span></span><span class="c">  <span class="k">"ceterms:requires"</span>: <span class="chip">Prerequisite · any one of 2 groups</span>,</span></div><div class="jl"><span class="g"><span class="dot flag"></span></span><span class="c">  <span class="k">"ceterms:offerFrequencyType"</span>: <span class="chip">Quarterly</span>,</span></div><div class="jl"><span class="g"></span><span class="c">  <span class="k">"ceterms:inLanguage"</span>: <span class="s">"en"</span>,</span></div><div class="jl"><span class="g"></span><span class="c">  <span class="k">"ceterms:lifeCycleStatusType"</span>: <span class="chip">Active</span>,</span></div><div class="jl"><span class="g"></span><span class="c">  <span class="k">"ceterms:ownedBy"</span>: <span class="chip">University of Arkansas Fayetteville</span>,</span></div><div class="jl"><span class="g"></span><span class="c">  <span class="k">"ceterms:offeredBy"</span>: <span class="chip">University of Arkansas Fayetteville</span>,</span></div><div class="jl"><span class="g"></span><span class="c">  <span class="k">"ceterms:subjectWebpage"</span>: <span class="s">"catalog.uark.edu/…/coursesofinstruction/acct/"</span>,</span></div><div class="jl"><span class="g"></span><span class="c">  <span class="k">"ceterms:inCatalog"</span>: <span class="s">"catalog.uark.edu/undergraduatecatalog/"</span>,</span></div><div class="jl"><span class="g"></span><span class="c">  <span class="k">"ceterms:versionIdentifier"</span>: <span class="chip">Catalog edition · 2026-27</span></span></div><div class="jl"><span class="g"></span><span class="c"><span class="p">}</span></span></div></div></div>
+  <div class="card"><div class="ph"><h2>Record</h2><span class="muted" style="font-size:12px">ceterms:Course</span><span class="sp"></span><span class="faint" style="font-size:12px">✓ valid</span><span class="ico on" title="Unfold all">⇕</span><span class="ico" title="Copy">⧉</span></div>
+    <div class="json">
+<div class="jl"><span class="g"></span><span class="c"><span class="p">{</span></span></div>
+<div class="jl"><span class="g"></span><span class="c">  <span class="k">"@context"</span>: <span class="s">"https://credreg.net/ctdl/schema/context/json"</span>,</span></div>
+<div class="jl"><span class="g"></span><span class="c">  <span class="k">"@id"</span>: <span class="s">"https://credentialengineregistry.org/resources/ce-3f0c9a52-7d1e-…"</span>,</span></div>
+<div class="jl"><span class="g"></span><span class="c">  <span class="k">"@type"</span>: <span class="s">"ceterms:Course"</span>,</span></div>
+<div class="jl"><span class="g"></span><span class="c">  <span class="k">"ceterms:ctid"</span>: <span class="s">"ce-3f0c9a52-7d1e-4b8a-9c46-0e5d2a71b3f8"</span>,</span></div>
+<div class="jl"><span class="g"></span><span class="c">  <span class="k">"ceterms:name"</span>: { <span class="k">"en-US"</span>: <span class="s">"Accounting Principles"</span> },</span></div>
+<div class="jl"><span class="g"></span><span class="c">  <span class="k">"ceterms:codedNotation"</span>: <span class="s">"ACCT 20103"</span>,</span></div>
+<div class="jl"><span class="g"></span><span class="c">  <span class="k">"ceterms:description"</span>: { <span class="k">"en-US"</span>: <span class="s">"Introduction of the overall purpose, meaning, …"</span> },</span></div>
+<div class="jl"><span class="g"></span><span class="c">  <span class="k">"ceterms:creditValue"</span>: [</span></div>
+<div class="jl"><span class="g"></span><span class="c">    {</span></div>
+<div class="jl"><span class="g"></span><span class="c">      <span class="k">"@type"</span>: <span class="s">"ceterms:ValueProfile"</span>,</span></div>
+<div class="jl sel"><span class="g"></span><span class="c">      <span class="k">"schema:value"</span>: <span class="num">3</span>,</span></div>
+<div class="jl"><span class="g"></span><span class="c">      <span class="k">"ceterms:creditUnitType"</span>: [</span></div>
+<div class="jl"><span class="g"></span><span class="c">        {</span></div>
+<div class="jl"><span class="g"></span><span class="c">          <span class="k">"@type"</span>: <span class="s">"ceterms:CredentialAlignmentObject"</span>,</span></div>
+<div class="jl"><span class="g"></span><span class="c">          <span class="k">"ceterms:framework"</span>: <span class="s">"https://credreg.net/ctdl/terms/CreditUnit"</span>,</span></div>
+<div class="jl"><span class="g"></span><span class="c">          <span class="k">"ceterms:targetNode"</span>: <span class="s">"creditUnit:SemesterHour"</span>,</span></div>
+<div class="jl"><span class="g"></span><span class="c">          <span class="k">"ceterms:targetNodeName"</span>: { <span class="k">"en-US"</span>: <span class="s">"Semester Hour"</span> }</span></div>
+<div class="jl"><span class="g"></span><span class="c">        }</span></div>
+<div class="jl"><span class="g"></span><span class="c">      ]</span></div>
+<div class="jl"><span class="g"></span><span class="c">    }</span></div>
+<div class="jl"><span class="g"></span><span class="c">  ],</span></div>
+<div class="jl"><span class="g"></span><span class="c">  <span class="k">"ceterms:identifier"</span>: [</span></div>
+<div class="jl"><span class="g"></span><span class="c">    {</span></div>
+<div class="jl"><span class="g"></span><span class="c">      <span class="k">"@type"</span>: <span class="s">"ceterms:IdentifierValue"</span>,</span></div>
+<div class="jl"><span class="g"></span><span class="c">      <span class="faint">…</span></span></div>
+    </div></div>
+</div>
+<div class="cap">Figure 7. Left: folded, the default, one line per field. Right: after “unfold all” (⇕), the record exactly as written to disk. The same value is selected in both.</div>
+</section>
+
+<!-- ============ 07 a judgement call ============ -->
+<section class="frame" id="f07" style="width:1440px;height:900px">
+<div class="app"><div class="topbar"><span class="brand">xTRA mockup</span><span class="nav">‹</span><span class="title">ACCT 20103 · Accounting Principles</span><span class="nav">›</span><span class="faint">1 of 46</span><span class="sp"></span><span class="notpub">Not published</span><span class="ico">☰</span></div>
+  <div class="cols">
+    <div class="pane" style="flex:0 0 50%"><div class="ph"><h2>Source</h2><span class="docs"><span class="doc on"><span class="n a" style="margin:0">1</span>Subject page</span><span class="doc">Index page</span><span class="doc">Registry record</span></span><span class="sp"></span><span class="seg"><span class=on>Page</span><span>HTML</span></span><span class="ico">ⓘ</span></div><div class="src dim"><span class="edition">2026-27 Edition</span>
+        <div class="crumb">Home › Undergraduate Catalog › Courses of Instruction › Accounting (ACCT)</div>
+        <h1>Accounting (ACCT)</h1><h3>Courses</h3>
+        <div class="cb focus"><p class="cbt">ACCT&nbsp;20103. Accounting Principles (ACTS Equivalency = ACCT 2003). 3 Hours.</p><p class="cbd" style="line-height:1.9">Introduction of the overall purpose, meaning, interpretation, and use of accounting information. The course focuses on understanding financial statements, and the production and use of accounting information in planning, controlling and decision making. <mark class="a">Prerequisite: (<mark class="c">Walton College Majors:</mark> <mark class="b">ISYS&nbsp;11203</mark>, <mark class="b">BUSI&nbsp;11101</mark>, and (<mark class="b">MATH&nbsp;20503</mark> or <mark class="b">MATH&nbsp;22003</mark> or <mark class="b">MATH&nbsp;24004</mark>) each with a grade of C or better); (<mark class="c">Non-Business Majors:</mark> (<mark class="b">ISYS&nbsp;11203</mark> or <mark class="b">DASC&nbsp;10003</mark> or <mark class="b">ASTM&nbsp;29003</mark> or <mark class="b">INEG&nbsp;21003</mark>) and (<mark class="b">MATH&nbsp;20503</mark> or <mark class="b">MATH&nbsp;22003</mark> or <mark class="b">MATH&nbsp;24004</mark> or higher) each with a grade of C or better).</mark> (Typically offered: Fall, Spring and Summer)</p></div>
+        <div class="cb"><p class="cbt">ACCT&nbsp;201H3. Honors Accounting Principles. 3 Hours.</p>
+          <p class="cbd">Introduction of the overall purpose, meaning, interpretation, and use of accounting information. The course focuses on understanding financial statements, and the production and use of accounting information in planning, controlling and decision making. Prerequisite: (Business majors: Honors standing, (<span class="lnk">ISYS&nbsp;11203</span> with a grade of C or better …</p></div>
+        <div class="cb"><p class="cbt">ACCT&nbsp;20203. Accounting Principles II (ACTS Equivalency = ACCT 2013). 3 Hours.</p>
+          <p class="cbd">In this course we study managerial accounting concepts and their use in business decisions. We will examine the development and analysis of cost information for management use in decision-making, income determination, and performance evaluation. Prerequisite: <span class="lnk">ACCT&nbsp;20103</span> with a grade of C or better. (Typically offered: Fall, Spring and Summer)</p></div>
+        <div class="cb"><p class="cbt">ACCT&nbsp;202H3. Honors Accounting Principles II. 3 Hours.</p>
+          <p class="cbd">Overview of accounting as an information system with emphasis on processing and presenting information in the form of financial statements for use in decision making. The course emphasizes business processes and double entry accounting. (Typically offered: Fall, Spring and Summer) This course is equivalent to <span class="lnk">ACCT&nbsp;20203</span>.</p></div>
+      </div></div>
+    <div class="pane" style="flex:1"><div class="ph"><h2>Record</h2><span class="muted" style="font-size:12px">ceterms:Course</span><span class="sp"></span><span class="faint" style="font-size:12px">✓ valid</span><span class="ico" title="Unfold all">⇕</span><span class="ico" title="Copy">⧉</span></div><div class="json" style="flex:none"><div class="jl"><span class="g"></span><span class="c">  <span class="k">"ceterms:identifier"</span>: <span class="chip">ACTS · ACCT 2003</span>,</span></div><div class="jl sel"><span class="g"><span class="dot lm"></span></span><span class="c">  <span class="k">"ceterms:requires"</span>: <span class="chip">Prerequisite · any one of 2 groups</span>,</span></div><div class="jl"><span class="g"><span class="dot flag"></span></span><span class="c">  <span class="k">"ceterms:offerFrequencyType"</span>: <span class="chip">Quarterly</span>,</span></div></div>
+      <div style="border-top:1px solid var(--line)"></div><div class="ph"><h2>Why this value</h2><span class="sp"></span><span class="seg"><span>Brief</span><span class=on>Standard</span><span>Full</span></span></div>
+      <div class="why">
+        <div class="hd"><span class="prop">ceterms:requires</span><span class="val">Prerequisite · any one of 2 groups</span></div>
+        <div class="q2">
+          <span class="lab">Value</span><div>
+            <p><span class="n a">1</span>The sentence, kept word for word. <span class="n b" style="margin-left:6px">2</span>The 12 course links in it. Rules read both.</p>
+            <p><span class="dot lm" style="margin-right:6px"></span><b>The structure below is the language model's reading. No person has confirmed it.</b></p>
+            <div style="margin-top:8px"><div class="rt">
+  <div class="node"><span class="op any">ANY ONE OF</span><span class="muted">two groups of students</span></div>
+  <div class="kids">
+    <div class="node"><span class="op all">ALL OF</span><span class="txt">“Walton College Majors”</span></div>
+    <div class="kids">
+      <div class="node"><span class="course">ISYS 11203</span><span class="course">BUSI 11101</span></div>
+      <div class="node"><span class="op any">ANY ONE OF</span><span class="course">MATH 20503</span><span class="course">MATH 22003</span><span class="course">MATH 24004</span></div>
+      <div class="node"><span class="txt">“each with a grade of C or better”</span></div>
+    </div>
+    <div class="node"><span class="op all">ALL OF</span><span class="txt">“Non-Business Majors”</span></div>
+    <div class="kids">
+      <div class="node"><span class="op any">ANY ONE OF</span><span class="course">ISYS 11203</span><span class="course">DASC 10003</span><span class="course">ASTM 29003</span><span class="course">INEG 21003</span></div>
+      <div class="node"><span class="op any">ANY ONE OF</span><span class="course">MATH 20503</span><span class="course">MATH 22003</span><span class="course">MATH 24004</span><span class="txt">“or higher”</span></div>
+      <div class="node"><span class="txt">“each with a grade of C or better”</span></div>
+    </div>
+  </div></div></div>
+            <p class="faint" style="margin-top:5px">Point at any part to light up its words on the left.</p></div>
+          <span class="lab">Choice</span><div><p>CTDL: <i>“Requirement or set of requirements for this resource.”</i> The narrower field, <code>ceterms:prerequisite</code>, can only list courses. This sentence also has grades and groups of students.</p></div>
+        </div>
+        <div class="more"><a>▸ What CTDL says</a><a>▸ How it was found</a><a>▸ The language model's argument</a><a>▸ Checks · 3 ✓ · 2 to know about</a></div>
+      </div>
+    </div>
+  </div><div class="foot"><span><kbd>Tab</kbd> next stop</span><span><kbd>⇧ Tab</kbd> back</span><span><kbd>Enter</kbd> next course</span><span class="sp"></span><span>Stop 1 of 1</span><span>Walk through</span><span class="seg"><span>Everything · 21</span><span class=on>Judgement calls · 1</span></span></div>
+</div></section>
+
+<!-- ============ 08 stops that are not a highlight ============ -->
+<section class="frame" id="f08" style="width:1440px;height:400px">
+<div class="cards" style="padding-bottom:40px">
+  <div class="card"><div class="why">
+    <div class="hd"><span class="prop">@type</span><span class="val">ceterms:Course</span></div>
+    <div class="q2">
+      <span class="lab">Value</span><div><p class="muted">Nothing was read from the page here. This stop is a choice only.</p></div>
+      <span class="lab">Choice</span><div><p>CTDL: <i>“Single structured sequence of one or more educational activities…”</i></p><p><span class="n a">1</span>The catalog agrees: <span class="mono">“The word ‘course’ refers to a unit of academic instruction”</span>.</p><p class="muted">Not chosen: LearningProgram, LearningOpportunityProfile, CourseComponent.</p></div>
+    </div><div class="more"><a>▸ What CTDL says</a><a>▸ Alternatives</a></div></div></div>
+  <div class="card"><div class="why">
+    <div class="hd"><span class="prop">ceterms:ctid</span><span class="val">ce-3f0c9a52-…</span></div>
+    <div class="q2">
+      <span class="lab">Value</span><div><p><b>There is no source.</b> This tool made the identifier for University of Arkansas + ACCT 20103. Every later run returns the same one.</p><p><span class="pill mint">placeholder</span> Nothing is published, so the Registry does not know it.</p></div>
+      <span class="lab">Choice</span><div><p>CTDL requires a CTID on every record.</p></div>
+    </div><div class="more"><a>▸ What CTDL says</a><a>▸ How it was made</a></div></div></div>
+  <div class="card"><div class="why">
+    <div class="hd"><span class="prop">ceterms:ownedBy</span><span class="val">University of Arkansas Fayetteville</span></div>
+    <div class="q2">
+      <span class="lab">Value</span><div><p><span class="n a">1</span>A record in the Credential Registry, read during the crawl.</p><p><span class="n b">2</span><span class="mono">“all courses approved for offering by the University of Arkansas”</span>, on the index page.</p></div>
+      <span class="lab">Choice</span><div><p>CTDL: <i>“Agent with an enforceable claim or legal title to the resource.”</i></p></div>
+    </div><div class="more"><a>▸ The stored record</a><a>▸ Near misses ruled out</a></div></div></div>
+  <div class="card"><div class="why">
+    <div class="hd"><span class="prop">ceterms:offerFrequencyType</span><span class="val">Quarterly</span></div>
+    <div class="q2">
+      <span class="lab">Value</span><div><p><span class="n a">1</span><span class="mono">“(Typically offered: Fall, Spring and Summer)”</span> → a reviewed table → <b>Quarterly</b>.</p><p><span class="dot flag" style="margin-right:6px"></span>Loses detail: CTDL records how often, not which terms.</p></div>
+      <span class="lab">Choice</span><div><p>CTDL: <i>“Type of frequency at which a resource is offered…”</i> No field names the terms themselves.</p></div>
+    </div><div class="more"><a>▸ All the options</a><a>▸ The table</a></div></div></div>
+</div>
+<div class="cap">Figure 9. Four stops whose evidence is not a simple highlight: a choice of class, a value with no source, an outside record, and a value worked out from another.</div>
+</section>
+
+<!-- ============ 08 course list + run report ============ -->
+<section class="frame" id="f09" style="width:1320px;height:650px">
+<div class="app">
+  <div class="topbar"><span class="brand">xTRA mockup</span><span class="title">Run report</span><span class="sp"></span><span class="faint">Run of 2026-10-07 · 5 subjects · 546 courses</span><span class="notpub">Not published</span></div>
+  <div class="cols">
+    <div class="pane" style="flex:0 0 52%">
+      <div class="ph"><h2>Courses</h2><span class="sel btn">ACCT · 46 ▾</span><span class="btn">Filter: all ▾</span><span class="sp"></span><span class="ph-note">click a row to open it</span></div>
+      <div style="flex:1;overflow:hidden">
+      <table>
+        <tr><th>Code</th><th>Name</th><th class="r">Credit</th><th>Prerequisite</th><th>Checks</th></tr>
+        <tr class="sel"><td class="mono">ACCT 20103</td><td>Accounting Principles</td><td class="r">3</td><td><span class="pill lm">LM</span> <span class="pill warn">partly structured</span></td><td><span class="pill ok">14 / 14</span></td></tr>
+        <tr><td class="mono">ACCT 201H3</td><td>Honors Accounting Principles</td><td class="r">3</td><td><span class="pill lm">LM</span></td><td><span class="pill ok">14 / 14</span></td></tr>
+        <tr><td class="mono">ACCT 20203</td><td>Accounting Principles II</td><td class="r">3</td><td><span class="pill rule">parser</span></td><td><span class="pill ok">14 / 14</span></td></tr>
+        <tr><td class="mono">ACCT 202H3</td><td>Honors Accounting Principles II</td><td class="r">3</td><td class="faint">none on page</td><td><span class="pill ok">13 / 13</span></td></tr>
+        <tr><td class="mono">ACCT 24003</td><td>Accounting Fundamentals for Planning and Control</td><td class="r">3</td><td><span class="pill rule">parser</span></td><td><span class="pill ok">14 / 14</span></td></tr>
+        <tr><td class="mono">ACCT 3100V</td><td>Accounting Internship</td><td class="r">1–3</td><td><span class="pill lm">LM</span></td><td><span class="pill ok">14 / 14</span></td></tr>
+        <tr><td class="mono">ACCT 310HV</td><td>Honors Accounting Internship</td><td class="r">1–3</td><td><span class="pill fixed">text only</span> <span class="pill warn">guard failed</span></td><td><span class="pill warn">13 / 14</span></td></tr>
+        <tr><td class="mono">ACCT 35303</td><td>Accounting Technology</td><td class="r">3</td><td><span class="pill rule">parser</span></td><td><span class="pill ok">14 / 14</span></td></tr>
+        <tr><td class="mono">ACCT 35403</td><td>Accounting Analytics</td><td class="r">3</td><td><span class="pill rule">parser</span></td><td><span class="pill ok">14 / 14</span></td></tr>
+        <tr><td class="mono">ACCT 37203</td><td>Intermediate Accounting I</td><td class="r">3</td><td><span class="pill rule">parser</span></td><td><span class="pill ok">14 / 14</span></td></tr>
+        <tr><td class="mono">ACCT 37503</td><td>Intermediate Accounting II</td><td class="r">3</td><td><span class="pill rule">parser</span></td><td><span class="pill ok">14 / 14</span></td></tr>
+        <tr><td class="mono">ACCT 38403</td><td>Fundamentals of Taxation I</td><td class="r">3</td><td><span class="pill rule">parser</span></td><td><span class="pill ok">14 / 14</span></td></tr>
+        <tr><td class="mono">ACCT 400H3</td><td>Honors Accounting Colloquium</td><td class="r">3</td><td><span class="pill lm">LM</span></td><td><span class="pill ok">14 / 14</span></td></tr>
+        <tr><td class="mono">ACCT 4100V</td><td>Special Topics in Accounting</td><td class="r">1–3</td><td><span class="pill rule">parser</span></td><td><span class="pill ok">14 / 14</span></td></tr>
+      </table></div>
+    </div>
+    <div class="pane" style="flex:1">
+      <div class="ph"><h2>What the rules matched</h2><span class="sp"></span><span class="ph-note">all 5 subjects</span></div>
+      <div style="flex:none">
+      <table>
+        <tr><th>Rule</th><th class="r">Matched</th><th class="r">Not matched</th><th></th></tr>
+        <tr><td><code>title-line</code> <span class="muted">code, name, transfer tag, credit</span></td><td class="r">546</td><td class="r">0</td><td></td></tr>
+        <tr><td><code>desc.typically-offered</code></td><td class="r">546</td><td class="r">0</td><td></td></tr>
+        <tr><td><code>offer-frequency</code> table <span class="muted">12 wordings</span></td><td class="r">541</td><td class="r">5</td><td><a>list ▸</a></td></tr>
+        <tr><td><code>desc.prerequisite</code> <span class="muted">sentence found</span></td><td class="r">337</td><td class="r">—</td><td></td></tr>
+        <tr><td>&nbsp;&nbsp;↳ structure by parser</td><td class="r">163</td><td class="r"></td><td></td></tr>
+        <tr><td>&nbsp;&nbsp;↳ structure by language model</td><td class="r">152</td><td class="r"></td><td></td></tr>
+        <tr><td>&nbsp;&nbsp;↳ text only, guards failed</td><td class="r">22</td><td class="r"></td><td><a>list ▸</a></td></tr>
+        <tr><td><code>desc.unrecognised-label</code> <span class="muted">a “Word:” opener no rule knows</span></td><td class="r">3</td><td class="r"></td><td><a>list ▸</a></td></tr>
+      </table></div>
+      <div class="ph" style="border-top:1px solid var(--line)"><h2>On the page, not in the record</h2><span class="sp"></span><span class="ph-note">all 5 subjects</span></div>
+      <div style="flex:1;overflow:hidden">
+      <table>
+        <tr><th>What the page says</th><th class="r">Courses</th><th>Why it is not in the record</th></tr>
+        <tr><td>“May be repeated for [up to N hours of] degree credit.”</td><td class="r">134</td><td>CTDL has no property for it. It stays in the description.</td></tr>
+        <tr><td>“Graduate degree credit will not be given for both X and Y.”</td><td class="r">21</td><td>No CTDL property found. It stays in the description.</td></tr>
+        <tr><td>“Lecture N hours, laboratory N hours per week.”</td><td class="r">20</td><td>Left for a later version.</td></tr>
+        <tr><td>Course level, from the first digit of the number</td><td class="r">546</td><td>The catalog's numbering policy has not been found. Not verified, so not emitted.</td></tr>
+      </table></div>
+    </div>
+  </div>
+</div>
+<div class="cap">Figure 10. Course list and run report. Counts for title lines, sentences and “not in the record” come from the research; the split of prerequisite structure and the check totals are invented for illustration.</div>
+</section>
+
+<script>
+const f=new URLSearchParams(location.search).get('f');
+if(f){document.body.classList.add('single');const el=document.getElementById('f'+f);if(el)el.classList.add('on');}
+</script>
+</body>
+</html>

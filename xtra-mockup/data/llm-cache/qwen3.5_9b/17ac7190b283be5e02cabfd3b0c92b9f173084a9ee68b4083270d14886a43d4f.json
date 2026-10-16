@@ -1,0 +1,27 @@
+{
+  "model": "qwen3.5:9b",
+  "promptVersion": "prerequisite-structure/1",
+  "task": "prerequisite sentence",
+  "sentence": "Graduate standing in Computer Engineering, Computer Science, or Electrical Engineering.",
+  "courseCodes": [],
+  "structure": {
+    "kind": "any_of",
+    "quote": "",
+    "items": [
+      {
+        "kind": "text",
+        "quote": "Graduate standing in Computer Engineering"
+      },
+      {
+        "kind": "text",
+        "quote": "Computer Science"
+      },
+      {
+        "kind": "text",
+        "quote": "Electrical Engineering"
+      }
+    ]
+  },
+  "argument": "The sentence lists three distinct conditions separated by 'or' ('Computer Engineering', 'Computer Science', 'Electrical Engineering'). According to the CTDL definition of ceterms:alternativeCondition, this represents a context where more than one alternative path is defined and any one path fulfills the parent condition. Therefore, the logical structure is an 'any_of' node containing these three items as alternatives.",
+  "seconds": 5.8
+}

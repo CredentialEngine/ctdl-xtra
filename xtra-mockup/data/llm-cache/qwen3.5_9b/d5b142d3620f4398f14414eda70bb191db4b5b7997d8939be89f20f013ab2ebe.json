@@ -1,0 +1,25 @@
+{
+  "model": "qwen3.5:9b",
+  "promptVersion": "prerequisite-structure/1",
+  "task": "prerequisite sentence",
+  "sentence": "NURS 50533 or admission to MSN - DNP program.",
+  "courseCodes": [
+    "NURS 50533"
+  ],
+  "structure": {
+    "kind": "any_of",
+    "quote": "",
+    "items": [
+      {
+        "kind": "course",
+        "quote": "NURS 50533"
+      },
+      {
+        "kind": "text",
+        "quote": "admission to MSN - DNP program."
+      }
+    ]
+  },
+  "argument": "The sentence contains the word 'or' connecting two distinct conditions, which maps to the ceterms:alternativeCondition definition where 'any one path fulfills the parent condition.' Therefore, the root node is an 'any_of'. The first item is a specific course code 'NURS 50533', making it a 'course' node. The second item describes a program admission status, which is not a course code, making it a 'text' node.",
+  "seconds": 2.6
+}

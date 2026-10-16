@@ -1,0 +1,35 @@
+{
+  "model": "qwen3.5:9b",
+  "promptVersion": "prerequisite-structure/1",
+  "task": "prerequisite sentence",
+  "sentence": "NURS 62434, admission to the University of Arkansas Graduate School, and the Eleanor Mann School of Nursing Graduate Program or permission of faculty teaching the course.",
+  "courseCodes": [
+    "NURS 62434"
+  ],
+  "structure": {
+    "kind": "all_of",
+    "quote": "",
+    "items": [
+      {
+        "kind": "course",
+        "quote": "NURS 62434"
+      },
+      {
+        "kind": "text",
+        "quote": "admission to the University of Arkansas Graduate School, and the Eleanor Mann School of Nursing Graduate Program"
+      },
+      {
+        "kind": "any_of",
+        "quote": "",
+        "items": [
+          {
+            "kind": "text",
+            "quote": "permission of faculty teaching the course"
+          }
+        ]
+      }
+    ]
+  },
+  "argument": "The sentence begins with 'NURS 62434', which is a course code, followed by a comma. The next segment is 'admission to the University of Arkansas Graduate School, and the Eleanor Mann School of Nursing Graduate Program'. According to CTDL definitions, this segment represents a set of requirements where every item must be met (an 'all_of' relationship), indicated by the conjunction 'and' connecting two distinct conditions. Following this group, the word 'or' introduces an alternative path: 'permission of faculty teaching the course'. Since 'or' indicates that only one of the options under it is sufficient, this forms an 'any_of' node. The structure is therefore a top-level 'all_of' containing the course, the admission requirements (as a group), and the permission requirement as an alternative.",
+  "seconds": 4.7
+}

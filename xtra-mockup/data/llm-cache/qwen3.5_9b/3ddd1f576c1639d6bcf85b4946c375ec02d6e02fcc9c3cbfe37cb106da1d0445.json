@@ -1,0 +1,23 @@
+{
+  "model": "qwen3.5:9b",
+  "promptVersion": "prerequisite-structure/1",
+  "task": "prerequisite sentence",
+  "sentence": "Admission to an online undergraduate BSN professional program, or instructor or departmental consent.",
+  "courseCodes": [],
+  "structure": {
+    "kind": "any_of",
+    "quote": "",
+    "items": [
+      {
+        "kind": "text",
+        "quote": "Admission to an online undergraduate BSN professional program"
+      },
+      {
+        "kind": "text",
+        "quote": "instructor or departmental consent"
+      }
+    ]
+  },
+  "argument": "The sentence uses the word 'or' to connect two distinct conditions: 'Admission to an online undergraduate BSN professional program' and 'instructor or departmental consent'. According to the CTDL definition of ceterms:alternativeCondition, this represents a context where more than one alternative condition is defined and any one path fulfills the parent requirement. Therefore, the logical structure is an 'any_of' node containing these two text items.",
+  "seconds": 5.7
+}

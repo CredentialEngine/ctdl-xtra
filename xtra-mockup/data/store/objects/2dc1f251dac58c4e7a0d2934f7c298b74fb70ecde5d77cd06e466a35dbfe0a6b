@@ -1,0 +1,866 @@
+
+
+<!doctype html>
+<html class="no-js" xml:lang="en" lang="en" dir="ltr">
+
+<head>
+<meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+<meta name="searchCrawler:site" content="https://catalog.uark.edu/">
+<meta name="searchCrawler:sectionType" content="Catalog of Studies">
+<title>Computer Science and Computer Engineering (CSCE) &lt; University of Arkansas</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<meta property="og:site_name" content="Academic Catalog" />
+<meta name="description" content="Courses available in Computer Science and Computer Engineering." />
+<link rel="search" type="application/opensearchdescription+xml"
+			href="/search/opensearch.xml" title="Catalog" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0" />
+<link href="/images/favicon.ico" rel="shortcut icon" />
+<link rel="stylesheet" type="text/css" href="/css/reset.css" />
+<link href="https://fonts.googleapis.com/css?family=Roboto:400,400i,500,500i,700,700i" rel="stylesheet">
+<link rel="stylesheet" type="text/css" href="/fonts/font-awesome/font-awesome.min.css" />
+<link rel="stylesheet" type="text/css" href="/css/courseleaf.css?v=1786050808000" />
+<link rel="stylesheet" type="text/css" href="/css/screen.css?v=1786050808000" media="screen" />
+<link rel="stylesheet" type="text/css" href="/css/print.css?v=1786050808000" media="print" />
+<script type="text/javascript" src="/js/jquery.js"></script>
+<script type="text/javascript" src="/js/lfjs.js"></script>
+<script type="text/javascript" src="/js/lfjs_any.js"></script>
+<link rel="stylesheet" type="text/css" href="/js/lfjs.css?v=1786050812000" />
+<script type="text/javascript" src="/js/courseleaf.js?v=1786050812000"></script>
+<script type="text/javascript" src="/js/custom.js?v=1786050812000"></script>
+<script type="text/javascript">var gakey = "GTM-N5Z7HW";</script><script type="text/javascript" src="/js/analytics.js"></script>
+
+
+
+<!-- Google Tag Manager -->
+<script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+})(window,document,'script','dataLayer','GTM-N5Z7HW');</script>
+<!-- End Google Tag Manager -->
+
+
+
+
+
+
+
+
+
+</head>
+
+
+
+<body class="">
+
+
+
+
+	<nav aria-label="Skip content menu" class="accessible">
+		<div class="accessible-menu">
+			<ul>
+				<li><a href="#contentarea" rel="section">Skip to Content</a></li>
+				<li><a href="/azindex/">AZ Index</a></li>
+				<li><a href="/">Catalog Home</a></li>
+			</ul>
+		</div>
+	</nav>
+
+	<header id="header">
+		<div class="wrap">
+		<div class="header-title">
+			<div id="logo">
+				<a href="https://www.uark.edu/"><img src="/images/logo.svg" alt="University of Arkansas Logo" /></a>
+			</div>
+			
+			<a href="/" class="catalog-text">Catalog of Studies</a>
+		</div>
+
+			<div class="desktop__sub-menu">
+				<button
+				id="dropdown-button"
+				class="link-dropdown"
+				aria-controls="link-list"
+    			aria-expanded="false"
+				data-toggle="#link-list"
+				><span aria-hidden="true" class="fas fa-angle-double-down"></span>LINKS</button>
+
+				<ul id="link-list">
+					<div>
+						<li><a href="https://www.uark.edu/a-to-z.php">A-Z Index</a></li>
+						<li><a href="https://learn.uark.edu/">Blackboard Learn</a></li>
+						<li><a href="https://campusmaps.uark.edu/">Campus Map</a></li>
+						<li><a href="https://uaconnect.uark.edu/">UAConnect</a></li>
+					</div>
+					<div>
+						<li><a href="https://directory.uark.edu/">Directory</a></li>
+						<li><a href="https://outlook.office.com">Email</a></li>
+						<li><a href="https://myapps.microsoft.com/">myApps</a></li>
+						<li><a href="https://wd5.myworkday.com/wday/authgwy/uasys/login-saml2.htmld">Workday</a></li>
+					</div>
+				</ul>
+
+				<div class="desktop__search" id="cat-search">
+					<form action="/search/">
+						<label for="cat-search-term-desktop" class="sr-only">Search catalog</label>
+						<input class="search-field" type="text" name="search" id="cat-search-term-desktop" placeholder="Search this site" />
+						<button class="search-button" type="submit">
+							<span class="fa fa-search" aria-hidden="true"></span>
+							<span class="sr-only">Submit search</span>
+						</button>
+<!-- <input type="hidden" name="caturl" value="/undergraduatecatalog" /> -->
+					</form>
+				</div>
+			</div>
+
+			<div class="menu-button">
+				<button
+				id="menu-button--open"
+				aria-controls="example-div"
+				aria-expanded="false"
+				data-toggle="#example-div">MENU <span class="fa fa-bars" aria-hidden="true"></span></button>
+			</div>
+		</div>
+
+		<section id="local-header">
+			<div class="wrap">
+				<nav id="navigation" aria-label="Secondary" aria-hidden="false">
+					<ul id="main-nav" class="clearfix">
+						<li><a href="/">Home</a></li>
+						<li><a href="/generalinfo">General Info</a></li>
+						<li><a href="/undergraduatecatalog">Undergraduate Catalog</a></li>
+						<li><a href="/graduatecatalog">Graduate Catalog</a></li>
+						<li><a href="/lawcatalog">Law Catalog</a></li>
+						<li><a href="/archives">Archive</a></li>
+						<li><button onclick="showPrintDialog(); return false;">Print</button></li>
+					</ul>
+				</nav>
+			</div>
+		</section>
+	</header>
+	
+	<div class="menu-modal"></div>
+	
+	<section
+		id="example-div"
+		class="mobile-nav-wrapper"
+		aria-hidden="true"
+		aria-controls="example-div"
+		aria-expanded="false" >
+		<div class="mobile-nav--close">
+			<button id="menu-button--close">CLOSE <span class="fa-solid fa-circle-xmark" aria-hidden="true"></span></button>
+		</div>
+
+		<div class="search" id="cat-search">
+			<form action="/search/">
+				<label for="cat-search-term" class="sr-only">Search catalog</label>
+				<input class="search-field" type="text" name="search" id="cat-search-term" placeholder="Search this site" />
+				<button class="search-button" type="submit">SEARCH
+					<span class="sr-only">Submit search</span>
+				</button>
+			</form>
+		</div>
+
+		<nav class="mobile-nav--main-menu">
+			<ul>
+				<li><a href="/">Home</a></li>
+				<li><a href="/generalinfo">General Info</a></li>
+				<li><a href="/undergraduatecatalog">Undergraduate Catalog</a></li>
+				<li><a href="/graduatecatalog">Graduate Catalog</a></li>
+				<li><a href="/lawcatalog">Law Catalog</a></li>
+				<li><a href="/archives">Archive</a></li>
+				<li><button onclick="showPrintDialog(); return false;">Print</button></li>
+			</ul>
+		</nav>
+
+		<div class="mobile-nav--sub-menu">
+			<nav>
+				<ul>
+					<li><a href="https://www.uark.edu/a-to-z.php">A-Z Index</a></li>
+					<li><a href="https://learn.uark.edu/">Blackboard Learn</a></li>
+					<li><a href="https://campusmaps.uark.edu/">Campus Map</a></li>
+					<li><a href="https://uaconnect.uark.edu/">UAConnect</a></li>
+					<li><a href="https://directory.uark.edu/">Directory</a></li>
+					<li><a href="https://outlook.office.com">Email</a></li>
+					<li><a href="https://myapps.microsoft.com/">myApps</a></li>
+					<li><a href="https://wd5.myworkday.com/wday/authgwy/uasys/login-saml2.htmld">Workday</a></li>
+				</ul>
+			</nav>
+
+			<picture>
+				<source type="image/webp" srcset="https://includes.uark.edu/assets/tower-grey.webp">
+				<source type="image/jpeg" srcset="https://includes.uark.edu/assets/tower-grey.png"><img src="https://includes.uark.edu/assets/tower-grey.png" alt="">
+			</picture>
+		</div>
+	</section>
+
+<section id="content-container">
+   <div class="wrap">
+      <div id="col-nav">
+         <button id="sidebar-toggle" aria-expanded="false" data-toggle="#sidebar">
+            <span class="fa fa-bars" aria-hidden="true"></span>
+            <span>2026-27 Edition</span>
+         </button>
+         <aside id="sidebar">
+            <div class="sidebar-item">
+               <h2 id="edition" class="sidebar-header"><a href="/">2026-27 Edition</a></h2>
+               <nav id="cl-menu" aria-label="Primary">
+<ul class="nav levelzero" id="/">
+	<li class="isparent"><a href="/generalinfo/">General Information</a></li>
+	<li class="active isparent"><a href="/undergraduatecatalog/">Undergraduate Catalog</a>
+	<ul class="nav levelone" id="/undergraduatecatalog/">
+		<li><a href="/undergraduatecatalog/contactinformation/">Contact Information</a></li>
+		<li><a href="/undergraduatecatalog/fieldsofstudy/">Programs of Study</a></li>
+		<li class="isparent"><a href="/undergraduatecatalog/enrollmentservices/">Enrollment Services</a></li>
+		<li class="isparent"><a href="/undergraduatecatalog/financialaidandscholarships/">Financial Aid and Scholarships</a></li>
+		<li class="isparent"><a href="/undergraduatecatalog/orientationandregistration/">Registration</a></li>
+		<li class="isparent"><a href="/undergraduatecatalog/feeandcosts/">Fees &amp;&#8203; Cost Estimates</a></li>
+		<li class="isparent"><a href="/undergraduatecatalog/academicregulations/">Academic Regulations</a></li>
+		<li class="isparent"><a href="/undergraduatecatalog/collegesandschools/">Colleges and Schools</a></li>
+		<li class="isparent"><a href="/undergraduatecatalog/reserveofficertrainingcorps/">ROTC</a></li>
+		<li><a href="/undergraduatecatalog/servicelearning/">Service Learning</a></li>
+		<li><a href="/undergraduatecatalog/faculty/">Undergraduate Faculty</a></li>
+		<li class="active isparent"><a href="/undergraduatecatalog/coursesofinstruction/">Courses of Instruction</a>
+		<ul class="nav leveltwo" id="/undergraduatecatalog/coursesofinstruction/">
+			<li class="active self"><a href="#" onclick="return false;">Computer Science and Computer Engineering (CSCE)</a></li>
+		</ul>
+		</li>
+		<li><a href="/undergraduatecatalog/glossary/">Glossary</a></li>
+	</ul>
+	</li>
+	<li class="isparent"><a href="/graduatecatalog/">Graduate Catalog</a></li>
+	<li class="isparent"><a href="/lawcatalog/">School of Law</a></li>
+	<li><a href="/archives/">Archives</a></li>
+</ul>
+               </nav>
+            </div>
+
+            <button id="print-btn" href="#print-dialog" onclick="showPrintDialog(); return false;">
+               <span class="fa fa-print" aria-hidden="true"></span> Print Options
+            </button>
+         </aside>
+      </div> <!-- end col-nav -->
+      <div id="col-content">
+			<main id="contentarea">
+			
+			
+				<header>
+					<h1 class="page-title">Computer Science and Computer Engineering (CSCE)</h1>
+				</header>
+				
+<nav id="breadcrumb" aria-label="Breadcrumbs">
+<ul><li><a href="/">Catalog&nbsp;Home</a><span class="crumbsep">›</span></li><li><a href="/undergraduatecatalog/">Undergraduate&nbsp;Catalog</a><span class="crumbsep">›</span></li><li><a href="/undergraduatecatalog/coursesofinstruction/">Courses&nbsp;of&nbsp;Instruction</a><span class="crumbsep">›</span></li><li><span class="active">Computer Science and Computer Engineering (CSCE)</span></li></ul>
+</nav>
+
+
+
+
+
+<div id="textcontainer" class="page_content">
+
+</div><!--end #textcontainer -->
+
+<div id="courseinventorycontainer" class="page_content"><a name="courseinventory"></a>
+<div class="courses">
+<div class="notinpdf"><a name="cscecourses"></a></div>
+<h3>Courses</h3>
+
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>CSCE&#160;20004.  Programming Foundations I.  4 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Introductory programming course for students majoring in computer science or computer engineering. Software development process: problem specification, program design, implementation, testing and documentation. Programming topics: data representation, conditional and iterative statements, functions, arrays, strings, file I/O and classes. Using C++ in a UNIX environment.  Corequisite:  Lab component. Prerequisite:  <a href="/search/?P=MATH%2024005" title="MATH&#160;24005" class="bubblelink code" onclick="return showCourse(this, 'MATH 24005');">MATH&#160;24005</a> or <a href="/search/?P=MATH%2024004" title="MATH&#160;24004" class="bubblelink code" onclick="return showCourse(this, 'MATH 24004');">MATH&#160;24004</a> each with a grade of C or better, and must be a student in ENGR, ENGRFR, EXPLEN, MATHBS, MATHBA, or CSCE-Minor. (Typically offered: Fall and Spring)<br />
+</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>CSCE&#160;20104.  Programming Foundations II.  4 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+This course continues developing problem solving techniques by focusing on fundamental data structures and associated algorithms. Topics include: abstract data types, introduction to object-oriented programming, linked lists, stacks, queues, hash tables, binary trees, graphs, recursion, and searching and sorting algorithms. Using C++ in a UNIX environment. Corequisite:  Lab component. Prerequisite:  <a href="/search/?P=CSCE%2020004" title="CSCE&#160;20004" class="bubblelink code" onclick="return showCourse(this, 'CSCE 20004');">CSCE&#160;20004</a> with a C or better, and must be a student in ENGR, ENGRFR, EXPLEN, or CSCE-Minor. (Typically offered: Fall and Spring)<br />
+</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>CSCE&#160;20203.  Introduction to Programming in Java.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Introduction to programming in Java with emphasis on engineering applications. Programming techniques: data representation and expressions, conditional and iterative statements, arrays, lists, file I/O, methods. Object oriented programming: designing, implementing and using classes, collections and composite objects. Students will gain hands-on programming experience and exposure to classic engineering problem solving techniques. Prerequisite:  <a href="/search/?P=MATH%2024005" title="MATH&#160;24005" class="bubblelink code" onclick="return showCourse(this, 'MATH 24005');">MATH&#160;24005</a> or <a href="/search/?P=MATH%2024004" title="MATH&#160;24004" class="bubblelink code" onclick="return showCourse(this, 'MATH 24004');">MATH&#160;24004</a>, each with a grade of C or higher. (Typically offered: Irregular)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>CSCE&#160;21104.  Digital Design.  4 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Introduction to the hardware aspects of digital computers, logic gates, flip-flops, reduction, finite state machines, sequential logic design, digital systems, software design tools, hardware description language (VHDL), and implementation technologies. Corequisite:  Lab component. Prerequisite:  <a href="/search/?P=MATH%2024005" title="MATH&#160;24005" class="bubblelink code" onclick="return showCourse(this, 'MATH 24005');">MATH&#160;24005</a>, <a href="/search/?P=MATH%2024004" title="MATH&#160;24004" class="bubblelink code" onclick="return showCourse(this, 'MATH 24004');">MATH&#160;24004</a>, or <a href="/search/?P=MATH%20240H4" title="MATH&#160;240H4" class="bubblelink code" onclick="return showCourse(this, 'MATH 240H4');">MATH&#160;240H4</a> each with a grade of C or better, and must be a student in ENGR, ENGRFR, EXPLEN, or CSCE-Minor. (Typically offered: Fall and Spring)<br />
+This course is cross-listed with <a href="/search/?P=ELEG%2029004" title="ELEG&#160;29004" class="bubblelink code" onclick="return showCourse(this, 'ELEG 29004');">ELEG&#160;29004</a>.<br />
+</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>CSCE&#160;22104.  Computer Organization.  4 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Presents the relationship between computing hardware and software with a focus on the concepts for current computers. CPU design topics are covered including various techniques for microprocessor design and performance evaluation. Corequisite:  Lab component. Prerequisite:  <a href="/search/?P=CSCE%2021104" title="CSCE&#160;21104" class="bubblelink code" onclick="return showCourse(this, 'CSCE 21104');">CSCE&#160;21104</a> with a grade of C or better. (Typically offered: Fall and Spring)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>CSCE&#160;31903.  Programming Paradigms.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Programming in different paradigms with emphasis on object oriented programming and network programming. Survey of programming languages, event driven programming,  and concurrency. Prerequisite:  <a href="/search/?P=CSCE%2020104" title="CSCE&#160;20104" class="bubblelink code" onclick="return showCourse(this, 'CSCE 20104');">CSCE&#160;20104</a> or <a href="/search/?P=DASC%2021003" title="DASC&#160;21003" class="bubblelink code" onclick="return showCourse(this, 'DASC 21003');">DASC&#160;21003</a> each with a grade of C or better, and must be a student in ENGR, ENGRFR, EXPLEN, or CSCE-Minor. (Typically offered: Fall and Spring)<br />
+</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>CSCE&#160;319H3.  Honors Programming Paradigms.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Programming in different paradigms with emphasis on object oriented programming and network programming. Survey of programming languages, event driven programming,  and concurrency. Prerequisite:  Honors standing and (<a href="/search/?P=CSCE%2020104" title="CSCE&#160;20104" class="bubblelink code" onclick="return showCourse(this, 'CSCE 20104');">CSCE&#160;20104</a> or <a href="/search/?P=DASC%2021003" title="DASC&#160;21003" class="bubblelink code" onclick="return showCourse(this, 'DASC 21003');">DASC&#160;21003</a>, each with a grade of C or better). (Typically offered: Fall and Spring)<br />
+This course is equivalent to <a href="/search/?P=CSCE%2031903" title="CSCE&#160;31903" class="bubblelink code" onclick="return showCourse(this, 'CSCE 31903');">CSCE&#160;31903</a>.<br />
+</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>CSCE&#160;35103.  Software Engineering.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+A modern approach to the current techniques used in software design and development. This course emphasizes the use of modern software development tools, multi-module programming, and team design and engineering. Prerequisite: <a href="/search/?P=CSCE%2031903" title="CSCE&#160;31903" class="bubblelink code" onclick="return showCourse(this, 'CSCE 31903');">CSCE&#160;31903</a> or <a href="/search/?P=CSCE%20319H3" title="CSCE&#160;319H3" class="bubblelink code" onclick="return showCourse(this, 'CSCE 319H3');">CSCE&#160;319H3</a> or <a href="/search/?P=DASC%2021003" title="DASC&#160;21003" class="bubblelink code" onclick="return showCourse(this, 'DASC 21003');">DASC&#160;21003</a>, each with a grade of C or better. (Typically offered: Fall and Spring)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>CSCE&#160;36103.  Operating Systems.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+An introduction to operating systems including topics in system structures, process management, storage management, files, distributed systems, and case studies. Prerequisite:  <a href="/search/?P=CSCE%2020104" title="CSCE&#160;20104" class="bubblelink code" onclick="return showCourse(this, 'CSCE 20104');">CSCE&#160;20104</a> and <a href="/search/?P=CSCE%2022104" title="CSCE&#160;22104" class="bubblelink code" onclick="return showCourse(this, 'CSCE 22104');">CSCE&#160;22104</a>, each with a grade of C or better. (Typically offered: Fall and Spring)<br />
+</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>CSCE&#160;361H3.  Honors Operating Systems.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+An introduction to operating systems including topics in system structures, process management, storage management, files, distributed systems, and case studies. Prerequisite:  <a href="/search/?P=CSCE%2020104" title="CSCE&#160;20104" class="bubblelink code" onclick="return showCourse(this, 'CSCE 20104');">CSCE&#160;20104</a> and <a href="/search/?P=CSCE%2022104" title="CSCE&#160;22104" class="bubblelink code" onclick="return showCourse(this, 'CSCE 22104');">CSCE&#160;22104</a>, each with a grade of C or better. (Typically offered: Spring)<br />
+This course is equivalent to <a href="/search/?P=CSCE%2036103" title="CSCE&#160;36103" class="bubblelink code" onclick="return showCourse(this, 'CSCE 36103');">CSCE&#160;36103</a>.<br />
+</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>CSCE&#160;39503.  System Synthesis and Modeling.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+This course instructs the students in the use of modern synthesis and modeling languages and approaches for design automation. This course will teach students the use of HDLs and modeling languages for representing and implementing digital computer systems.  Prerequisite:  <a href="/search/?P=CSCE%2022104" title="CSCE&#160;22104" class="bubblelink code" onclick="return showCourse(this, 'CSCE 22104');">CSCE&#160;22104</a> with a grade of C or better. (Typically offered: Fall)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>CSCE&#160;40103.  Special Topics.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Consideration of computer science topics not covered in other courses. Prerequisite:  <a href="/search/?P=CSCE%2031903" title="CSCE&#160;31903" class="bubblelink code" onclick="return showCourse(this, 'CSCE 31903');">CSCE&#160;31903</a> or <a href="/search/?P=CSCE%20319H3" title="CSCE&#160;319H3" class="bubblelink code" onclick="return showCourse(this, 'CSCE 319H3');">CSCE&#160;319H3</a> or <a href="/search/?P=DASC%2021003" title="DASC&#160;21003" class="bubblelink code" onclick="return showCourse(this, 'DASC 21003');">DASC&#160;21003</a>, each with a grade of C or better. (Typically offered: Irregular)&#160;May be repeated for up to 12 hours of degree credit.</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>CSCE&#160;40403.  RFID Information Systems Security.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Radio frequency identification (RFID) information systems provide information to users about objects with RFID tags. They require the application of information systems security (INFOSEC) to protect the information from tampering, unauthorized information disclosure, and denial of service to authorized users. This course addresses security and privacy in an RFID system. Prerequisite:  <a href="/search/?P=INEG%2023104" title="INEG&#160;23104" class="bubblelink code" onclick="return showCourse(this, 'INEG 23104');">INEG&#160;23104</a>. (Typically offered: Irregular)<br />
+</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>CSCE&#160;41104.  Embedded Systems.  4 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+The architecture, software, and hardware of embedded systems. Involves a mixture of hardware and software for the control of a system (including electrical, electro-mechanical, and electro-chemical systems). They are found in a variety of products including cars, VCRs, HDTVs, cell phones, pacemakers, spacecraft, missile systems, and robots for factory automation. Corequisite:  Lab component. Prerequisite: <a href="/search/?P=CSCE%2022104" title="CSCE&#160;22104" class="bubblelink code" onclick="return showCourse(this, 'CSCE 22104');">CSCE&#160;22104</a> with a grade of C or better. (Typically offered: Fall)<br />
+</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>CSCE&#160;41203.  Programming Challenges.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+This course studies the principle methods used in the solution of programming contest problems, e.g., data structures strings, sorting, machine arithmetic and algebra, combinatorics, number theory, backtracking, graph traversal, graph algorithms, dynamic programming, grids, and computational geometry. Prerequisite:  <a href="/search/?P=CSCE%2031903" title="CSCE&#160;31903" class="bubblelink code" onclick="return showCourse(this, 'CSCE 31903');">CSCE&#160;31903</a> or <a href="/search/?P=CSCE%20319H3" title="CSCE&#160;319H3" class="bubblelink code" onclick="return showCourse(this, 'CSCE 319H3');">CSCE&#160;319H3</a>, each with a grade of C or better. (Typically offered: Irregular)<br />
+</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>CSCE&#160;41303.  Algorithms.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Provides an introduction to formal techniques for analyzing the complexity of algorithms. The course surveys important classes of algorithms used in computer science and engineering. Prerequisite:  (<a href="/search/?P=CSCE%2031903" title="CSCE&#160;31903" class="bubblelink code" onclick="return showCourse(this, 'CSCE 31903');">CSCE&#160;31903</a> or <a href="/search/?P=CSCE%20319H3" title="CSCE&#160;319H3" class="bubblelink code" onclick="return showCourse(this, 'CSCE 319H3');">CSCE&#160;319H3</a> or <a href="/search/?P=DASC%2021003" title="DASC&#160;21003" class="bubblelink code" onclick="return showCourse(this, 'DASC 21003');">DASC&#160;21003</a>, each with a grade of C or better) and (<a href="/search/?P=MATH%2026103" title="MATH&#160;26103" class="bubblelink code" onclick="return showCourse(this, 'MATH 26103');">MATH&#160;26103</a> or <a href="/search/?P=MATH%2028003" title="MATH&#160;28003" class="bubblelink code" onclick="return showCourse(this, 'MATH 28003');">MATH&#160;28003</a>). (Typically offered: Fall)<br />
+</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>CSCE&#160;41403.  Data Mining.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+The course focuses on the principles, theory, design, and implementation of data mining algorithms for large-scale data. Topics include foundations of data mining; preprocessing; mining frequent patterns, associations and correlations; supervised learning including decision tree induction, naïve Bayesian classification, support vector machine, logistic regression, Bayesian network, and K-nearest neighbor learning; unsupervised learning including K-means clustering, hierarchical clustering, density-based clustering, and grid-based clustering; outlier analysis; graph mining; scalable and distributed data mining. Prerequisite:  (<a href="/search/?P=CSCE%2031903" title="CSCE&#160;31903" class="bubblelink code" onclick="return showCourse(this, 'CSCE 31903');">CSCE&#160;31903</a> or <a href="/search/?P=CSCE%20319H3" title="CSCE&#160;319H3" class="bubblelink code" onclick="return showCourse(this, 'CSCE 319H3');">CSCE&#160;319H3</a> or <a href="/search/?P=DASC%2021003" title="DASC&#160;21003" class="bubblelink code" onclick="return showCourse(this, 'DASC 21003');">DASC&#160;21003</a>) or (<a href="/search/?P=CSCE%2020104" title="CSCE&#160;20104" class="bubblelink code" onclick="return showCourse(this, 'CSCE 20104');">CSCE&#160;20104</a> and <a href="/search/?P=INEG%2023303" title="INEG&#160;23303" class="bubblelink code" onclick="return showCourse(this, 'INEG 23303');">INEG&#160;23303</a> and <a href="/search/?P=INEG%2023104" title="INEG&#160;23104" class="bubblelink code" onclick="return showCourse(this, 'INEG 23104');">INEG&#160;23104</a>) or (<a href="/search/?P=CSCE%2020104" title="CSCE&#160;20104" class="bubblelink code" onclick="return showCourse(this, 'CSCE 20104');">CSCE&#160;20104</a> and <a href="/search/?P=STAT%2030133" title="STAT&#160;30133" class="bubblelink code" onclick="return showCourse(this, 'STAT 30133');">STAT&#160;30133</a> and <a href="/search/?P=STAT%2030043" title="STAT&#160;30043" class="bubblelink code" onclick="return showCourse(this, 'STAT 30043');">STAT&#160;30043</a>)). (Typically offered: Fall)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>CSCE&#160;42103.  Computer Architecture.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+The architecture of modern scalar and parallel computing systems. Techniques for dynamic instruction scheduling, branch prediction, instruction level parallelism, shared and distributed memory multiprocessor systems, array processors, and memory hierarchies. Prerequisite:  <a href="/search/?P=CSCE%2022104" title="CSCE&#160;22104" class="bubblelink code" onclick="return showCourse(this, 'CSCE 22104');">CSCE&#160;22104</a> with a grade of C or better. (Typically offered: Spring)<br />
+This course is cross-listed with <a href="/search/?P=ELEG%2049803" title="ELEG&#160;49803" class="bubblelink code" onclick="return showCourse(this, 'ELEG 49803');">ELEG&#160;49803</a>.<br />
+</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>CSCE&#160;42303.  Low Power Digital Systems.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+The reduction of power consumption is rapidly becoming one of the key issues in digital system design. Traditionally, digital system design has mainly focused on performance and area trade-offs. This course will provide a thorough introduction to digital design for lower consumption at the circuit, logic, and architectural level. Prerequisite:  <a href="/search/?P=CSCE%2022104" title="CSCE&#160;22104" class="bubblelink code" onclick="return showCourse(this, 'CSCE 22104');">CSCE&#160;22104</a> with a grade of C or better. (Typically offered: Irregular)<br />
+</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>CSCE&#160;42503.  Concurrent Computing.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Programming concurrent processes; computer interconnection network topologies; loosely coupled and tightly coupled paralleled computer architectures; designing algorithms for concurrency; distributed computer architectures. Prerequisite:  <a href="/search/?P=CSCE%2031903" title="CSCE&#160;31903" class="bubblelink code" onclick="return showCourse(this, 'CSCE 31903');">CSCE&#160;31903</a> or <a href="/search/?P=CSCE%20319H3" title="CSCE&#160;319H3" class="bubblelink code" onclick="return showCourse(this, 'CSCE 319H3');">CSCE&#160;319H3</a> or <a href="/search/?P=DASC%2021003" title="DASC&#160;21003" class="bubblelink code" onclick="return showCourse(this, 'DASC 21003');">DASC&#160;21003</a>, each with a grade of C or better. (Typically offered: Irregular)<br />
+</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>CSCE&#160;42603.  Advanced Data Structures.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+This course continues the study of data structures, algorithmic analysis for these data structures, and their efficient implementation to support standard library in programming languages. Topics include: AVL trees, Red-Black trees, Splay trees, Optimal Binary Search trees, 2-3 tree, 2-3-4 tree, B-trees, Segment trees, Leftist Heaps, Binomial Heaps, Fibonacci Heap, Disjoint Set, Hashing, and big integer with hundreds to thousands of digits. Prerequisite:  <a href="/search/?P=CSCE%2031903" title="CSCE&#160;31903" class="bubblelink code" onclick="return showCourse(this, 'CSCE 31903');">CSCE&#160;31903</a> or <a href="/search/?P=CSCE%20319H3" title="CSCE&#160;319H3" class="bubblelink code" onclick="return showCourse(this, 'CSCE 319H3');">CSCE&#160;319H3</a>, each with a grade of C or better. (Typically offered: Irregular)<br />
+</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>CSCE&#160;42703.  Big Data Analytics and Management.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Introduction to tools and techniques for distributed data computing and management, big data analytics, scalable machine learning, and real-time streaming data analysis. Students cannot receive credit for both <a href="/search/?P=CSCE%2042703" title="CSCE&#160;42703" class="bubblelink code" onclick="return showCourse(this, 'CSCE 42703');">CSCE&#160;42703</a> and <a href="/search/?P=CSCE%2052703" title="CSCE&#160;52703" class="bubblelink code" onclick="return showCourse(this, 'CSCE 52703');">CSCE&#160;52703</a>. Prerequisite:  <a href="/search/?P=CSCE%2031903" title="CSCE&#160;31903" class="bubblelink code" onclick="return showCourse(this, 'CSCE 31903');">CSCE&#160;31903</a> or <a href="/search/?P=CSCE%20319H3" title="CSCE&#160;319H3" class="bubblelink code" onclick="return showCourse(this, 'CSCE 319H3');">CSCE&#160;319H3</a> or <a href="/search/?P=DASC%2021003" title="DASC&#160;21003" class="bubblelink code" onclick="return showCourse(this, 'DASC 21003');">DASC&#160;21003</a>, each with a grade of C or better. (Typically offered: Irregular)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>CSCE&#160;43203.  Formal Languages and Computability.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Finite Automata and regular languages, regular expressions, context-free languages and pushdown automata, nondeterminism, grammars, and Turing machines. Church's thesis, halting problem, time complexity, space complexity and undecidability. Prerequisite:  (<a href="/search/?P=CSCE%2031903" title="CSCE&#160;31903" class="bubblelink code" onclick="return showCourse(this, 'CSCE 31903');">CSCE&#160;31903</a> or <a href="/search/?P=CSCE%20319H3" title="CSCE&#160;319H3" class="bubblelink code" onclick="return showCourse(this, 'CSCE 319H3');">CSCE&#160;319H3</a>, each with a grade of C or better) and (<a href="/search/?P=MATH%2026103" title="MATH&#160;26103" class="bubblelink code" onclick="return showCourse(this, 'MATH 26103');">MATH&#160;26103</a> or <a href="/search/?P=MATH%2028003" title="MATH&#160;28003" class="bubblelink code" onclick="return showCourse(this, 'MATH 28003');">MATH&#160;28003</a>). (Typically offered: Spring)<br />
+</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>CSCE&#160;43303.  Introduction to Integrated Circuit Design.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Design and layout of large scale digital integrated circuits using CMOS technology. Topics include MOS devices and basic circuits, integrated circuit layout and fabrication, dynamic logic, circuit design and layout strategies for large scale CMOS circuits. Students may not receive credit for both <a href="/search/?P=CSCE%2043303" title="CSCE&#160;43303" class="bubblelink code" onclick="return showCourse(this, 'CSCE 43303');">CSCE&#160;43303</a> and <a href="/search/?P=CSCE%2052203" title="CSCE&#160;52203" class="bubblelink code" onclick="return showCourse(this, 'CSCE 52203');">CSCE&#160;52203</a>. Prerequisite:  <a href="/search/?P=ELEG%2032103" title="ELEG&#160;32103" class="bubblelink code" onclick="return showCourse(this, 'ELEG 32103');">ELEG&#160;32103</a> or <a href="/search/?P=ELEG%2039903" title="ELEG&#160;39903" class="bubblelink code" onclick="return showCourse(this, 'ELEG 39903');">ELEG&#160;39903</a> and <a href="/search/?P=MATH%2025804" title="MATH&#160;25804" class="bubblelink code" onclick="return showCourse(this, 'MATH 25804');">MATH&#160;25804</a> (Typically offered: Fall)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>CSCE&#160;43503.  CPLD/FPGA-Based System Design.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Field Programmable Logic devices (FPGAs/CPLDs) have become extremely popular as basic building blocks for digital systems. They offer a general architecture that users can customize by inducing permanent or reversible physical changes. This course will deal with the implementation of logic options using these devices. Prerequisite: <a href="/search/?P=CSCE%2022104" title="CSCE&#160;22104" class="bubblelink code" onclick="return showCourse(this, 'CSCE 22104');">CSCE&#160;22104</a> with a grade of C or better. (Typically offered: Irregular)<br />
+This course is cross-listed with <a href="/search/?P=ELEG%2049603" title="ELEG&#160;49603" class="bubblelink code" onclick="return showCourse(this, 'ELEG 49603');">ELEG&#160;49603</a>.<br />
+</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>CSCE&#160;43703.  Electronic Design Automation.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+This course studies physical design, analysis and optimization of VLSI circuits and systems with emphasis on computational realizations and optimization. We start with some related topics such as graph algorithms and discuss various well-known algorithms and methodologies in the design process of VLSI circuits, including design partitioning, logic synthesis, floorplanning, routing, static timing analysis and performance-driven layout. It requires a basic knowledge of digital circuit design, data structure, and object-oriented programming. Students cannot receive credit for both <a href="/search/?P=CSCE%2043703" title="CSCE&#160;43703" class="bubblelink code" onclick="return showCourse(this, 'CSCE 43703');">CSCE&#160;43703</a> and <a href="/search/?P=CSCE%2053703" title="CSCE&#160;53703" class="bubblelink code" onclick="return showCourse(this, 'CSCE 53703');">CSCE&#160;53703</a>. Prerequisite:  <a href="/search/?P=CSCE%2039503" title="CSCE&#160;39503" class="bubblelink code" onclick="return showCourse(this, 'CSCE 39503');">CSCE&#160;39503</a> and <a href="/search/?P=CSCE%2031903" title="CSCE&#160;31903" class="bubblelink code" onclick="return showCourse(this, 'CSCE 31903');">CSCE&#160;31903</a>, each with a C or higher. (Typically offered: Irregular)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>CSCE&#160;44203.  Computer Systems Modeling.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Basic concepts of problem analysis, model design, and simulation experiments. A simulation will be introduced and used in this course. Prerequisite:  <a href="/search/?P=CSCE%2031903" title="CSCE&#160;31903" class="bubblelink code" onclick="return showCourse(this, 'CSCE 31903');">CSCE&#160;31903</a> or <a href="/search/?P=CSCE%20319H3" title="CSCE&#160;319H3" class="bubblelink code" onclick="return showCourse(this, 'CSCE 319H3');">CSCE&#160;319H3</a>, each with a grade of C or better. (Typically offered: Irregular)<br />
+</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>CSCE&#160;44303.  Cryptography.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+This course provides a general introduction to modern cryptography. Topics include: stream ciphers, block ciphers, message authentication codes, public key encryption, key exchange, and signature schemes.  Prerequisite:  (<a href="/search/?P=CSCE%2031903" title="CSCE&#160;31903" class="bubblelink code" onclick="return showCourse(this, 'CSCE 31903');">CSCE&#160;31903</a> or <a href="/search/?P=CSCE%20319H3" title="CSCE&#160;319H3" class="bubblelink code" onclick="return showCourse(this, 'CSCE 319H3');">CSCE&#160;319H3</a> or <a href="/search/?P=DASC%2021003" title="DASC&#160;21003" class="bubblelink code" onclick="return showCourse(this, 'DASC 21003');">DASC&#160;21003</a>, each with a grade of C or better) and (<a href="/search/?P=MATH%2026103" title="MATH&#160;26103" class="bubblelink code" onclick="return showCourse(this, 'MATH 26103');">MATH&#160;26103</a> or <a href="/search/?P=MATH%2028003" title="MATH&#160;28003" class="bubblelink code" onclick="return showCourse(this, 'MATH 28003');">MATH&#160;28003</a>). (Typically offered: Irregular)<br />
+</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>CSCE&#160;44803.  Wearable and Ubiquitous Computing.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+This course will introduce wearable and ubiquitous computing paradigms with emphasis on the engineering and development. Three key themes that will be taught during this course the systems and infrastructures which compose IoT and wearable systems, the devices and techniques for gathering data and communicating with the user, and the applications of these technologies including the user experience. Students cannot receive credit for both <a href="/search/?P=CSCE%2044803" title="CSCE&#160;44803" class="bubblelink code" onclick="return showCourse(this, 'CSCE 44803');">CSCE&#160;44803</a> and <a href="/search/?P=CSCE%2054803" title="CSCE&#160;54803" class="bubblelink code" onclick="return showCourse(this, 'CSCE 54803');">CSCE&#160;54803</a>. Prerequisite:  <a href="/search/?P=CSCE%2031903" title="CSCE&#160;31903" class="bubblelink code" onclick="return showCourse(this, 'CSCE 31903');">CSCE&#160;31903</a> or <a href="/search/?P=CSCE%20319H3" title="CSCE&#160;319H3" class="bubblelink code" onclick="return showCourse(this, 'CSCE 319H3');">CSCE&#160;319H3</a>, each with a grade of C or better. (Typically offered: Irregular)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>CSCE&#160;45203.  Database Management Systems.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Introduction to database management systems, architecture, storage structures, indexing, relational data model, E-R diagrams, query languages, SQL, ODBC, transaction management, integrity, and security. Students may not receive credit for both <a href="/search/?P=CSCE%2045203" title="CSCE&#160;45203" class="bubblelink code" onclick="return showCourse(this, 'CSCE 45203');">CSCE&#160;45203</a> and <a href="/search/?P=CSCE%2055203" title="CSCE&#160;55203" class="bubblelink code" onclick="return showCourse(this, 'CSCE 55203');">CSCE&#160;55203</a>.  Prerequisite: <a href="/search/?P=CSCE%2031903" title="CSCE&#160;31903" class="bubblelink code" onclick="return showCourse(this, 'CSCE 31903');">CSCE&#160;31903</a> or <a href="/search/?P=CSCE%20319H3" title="CSCE&#160;319H3" class="bubblelink code" onclick="return showCourse(this, 'CSCE 319H3');">CSCE&#160;319H3</a>, each with a grade of C or better. (Typically offered: Spring)<br />
+</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>CSCE&#160;45403.  Software Architecture.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+A study of software architecture through the use of case studies drawn from real systems designed to solve real problems from technical as well as managerial perspectives. Techniques for designing, building, and evaluating software architectures. Prerequisite:  <a href="/search/?P=CSCE%2041303" title="CSCE&#160;41303" class="bubblelink code" onclick="return showCourse(this, 'CSCE 41303');">CSCE&#160;41303</a> and <a href="/search/?P=CSCE%2035103" title="CSCE&#160;35103" class="bubblelink code" onclick="return showCourse(this, 'CSCE 35103');">CSCE&#160;35103</a>. (Typically offered: Irregular)<br />
+</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>CSCE&#160;45503.  Information Retrieval.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+The objective of this course is to give students a hands-on introduction to information retrieval systems. Classical textual information retrieval systems are studied, including text preprocessing, file structures, term-weighting schemes, and web search engines. Students may not receive credit for both <a href="/search/?P=CSCE%2045503" title="CSCE&#160;45503" class="bubblelink code" onclick="return showCourse(this, 'CSCE 45503');">CSCE&#160;45503</a> and <a href="/search/?P=CSCE%2055303" title="CSCE&#160;55303" class="bubblelink code" onclick="return showCourse(this, 'CSCE 55303');">CSCE&#160;55303</a>. Prerequisite:  <a href="/search/?P=CSCE%2031903" title="CSCE&#160;31903" class="bubblelink code" onclick="return showCourse(this, 'CSCE 31903');">CSCE&#160;31903</a> or <a href="/search/?P=CSCE%20319H3" title="CSCE&#160;319H3" class="bubblelink code" onclick="return showCourse(this, 'CSCE 319H3');">CSCE&#160;319H3</a>, each with a grade of C or better. (Typically offered: Irregular)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>CSCE&#160;45601.  Capstone I.  1 Hour.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Students complete a comprehensive software capstone project during their final year of undergraduate studies. The project is done over 2 semesters in phases: concept, formal proposal, implementation, and presentation. The projects include and may require the integration of software and human factors and hardware elements and are developed to software engineering methodologies. Pre- or Corequisite:  <a href="/search/?P=CSCE%2035103" title="CSCE&#160;35103" class="bubblelink code" onclick="return showCourse(this, 'CSCE 35103');">CSCE&#160;35103</a>. Prerequisite:  (<a href="/search/?P=CSCE%2036103" title="CSCE&#160;36103" class="bubblelink code" onclick="return showCourse(this, 'CSCE 36103');">CSCE&#160;36103</a> or <a href="/search/?P=CSCE%20361H3" title="CSCE&#160;361H3" class="bubblelink code" onclick="return showCourse(this, 'CSCE 361H3');">CSCE&#160;361H3</a>) and completion of 72 credit hours. (Typically offered: Fall)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>CSCE&#160;46103.  Artificial Intelligence.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Introduction to intelligent agents, AI languages, search, first order logic, knowledge representation, ontologies, problem solving, natural language processing, machine vision, machine learning, and robotics.  Prerequisite:  <a href="/search/?P=CSCE%2031903" title="CSCE&#160;31903" class="bubblelink code" onclick="return showCourse(this, 'CSCE 31903');">CSCE&#160;31903</a> or <a href="/search/?P=CSCE%20319H3" title="CSCE&#160;319H3" class="bubblelink code" onclick="return showCourse(this, 'CSCE 319H3');">CSCE&#160;319H3</a> or <a href="/search/?P=DASC%2021003" title="DASC&#160;21003" class="bubblelink code" onclick="return showCourse(this, 'DASC 21003');">DASC&#160;21003</a>, each with a grade of C or better. (Typically offered: Irregular)<br />
+</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>CSCE&#160;46203.  Mobile Programming.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+An introduction to software development on mobile devices. The major topics covered in this course include underlying concepts and principles in mobile programming, as well as hands-on programming experience on mobile devices with an emphasis on smartphones. Prerequisite:  <a href="/search/?P=CSCE%2031903" title="CSCE&#160;31903" class="bubblelink code" onclick="return showCourse(this, 'CSCE 31903');">CSCE&#160;31903</a> or <a href="/search/?P=CSCE%20319H3" title="CSCE&#160;319H3" class="bubblelink code" onclick="return showCourse(this, 'CSCE 319H3');">CSCE&#160;319H3</a>, each with a grade of C or better. (Typically offered: Irregular)<br />
+</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>CSCE&#160;46403.  Graphics Processing Units Programming.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+This course provides an introduction to massively parallel programming using Graphics Processing Units (GPUs). Topics include basic programming model, GPU thread hierarchy, GPU memory architecture, and performance optimization techniques and parallel patterns needed to develop real-life applications. Prerequisite:  <a href="/search/?P=CSCE%2020104" title="CSCE&#160;20104" class="bubblelink code" onclick="return showCourse(this, 'CSCE 20104');">CSCE&#160;20104</a> with a grade of C or better. (Typically offered: Irregular)<br />
+</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>CSCE&#160;47503.  Computer Networks.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+This course is an introductory course on computer networks. Using the Internet as a vehicle, this course introduces underlying concepts and principles of modern computer networks, with emphasis on protocols, architectures, and implementation issues. Students cannot receive graduate credit for <a href="/search/?P=CSCE%2047503" title="CSCE&#160;47503" class="bubblelink code" onclick="return showCourse(this, 'CSCE 47503');">CSCE&#160;47503</a>. Prerequisite:  <a href="/search/?P=CSCE%2031903" title="CSCE&#160;31903" class="bubblelink code" onclick="return showCourse(this, 'CSCE 31903');">CSCE&#160;31903</a> or <a href="/search/?P=CSCE%20319H3" title="CSCE&#160;319H3" class="bubblelink code" onclick="return showCourse(this, 'CSCE 319H3');">CSCE&#160;319H3</a>, each with a grade of C or better. (Typically offered: Irregular)<br />
+</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>CSCE&#160;47803.  Cloud Computing and Security.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Cloud computing has entered the mainstream of information technology, providing highly elastic scalability in delivery of enterprise applications and services. In this course, we will focus on the architecture of today's cloud computing, the technologies used within them, application development using contemporary cloud computing tools, and the security risks and management in the cloud. Students cannot receive credit for both <a href="/search/?P=CSCE%2047803" title="CSCE&#160;47803" class="bubblelink code" onclick="return showCourse(this, 'CSCE 47803');">CSCE&#160;47803</a> and <a href="/search/?P=CSCE%2057803" title="CSCE&#160;57803" class="bubblelink code" onclick="return showCourse(this, 'CSCE 57803');">CSCE&#160;57803</a>. Prerequisite:  <a href="/search/?P=CSCE%2036103" title="CSCE&#160;36103" class="bubblelink code" onclick="return showCourse(this, 'CSCE 36103');">CSCE&#160;36103</a> or <a href="/search/?P=CSCE%20361H3" title="CSCE&#160;361H3" class="bubblelink code" onclick="return showCourse(this, 'CSCE 361H3');">CSCE&#160;361H3</a>, each with a grade of C or better. (Typically offered: Irregular)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>CSCE&#160;48103.  Computer Graphics.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Introduction to the theory and algorithms used in computer graphics systems and applications. Topics include: 2D and 3D geometric models (points, lines, polygons, surfaces), affine transformations (rotation, translation, scaling), viewpoint calculation (clipping, projection), lighting models (light-material interactions, illumination and shadow calculation). Students will implement their own graphics pipeline to demonstrate many of these techniques. Higher level computer graphics applications will be created using OpenGL. Prerequisite:  <a href="/search/?P=CSCE%2031903" title="CSCE&#160;31903" class="bubblelink code" onclick="return showCourse(this, 'CSCE 31903');">CSCE&#160;31903</a> or <a href="/search/?P=CSCE%20319H3" title="CSCE&#160;319H3" class="bubblelink code" onclick="return showCourse(this, 'CSCE 319H3');">CSCE&#160;319H3</a>, each with a grade of C or better. (Typically offered: Irregular)<br />
+</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>CSCE&#160;48503.  Information Security.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+This course covers principles, mechanisms, and policies governing confidentiality, integrity, and availability of digital information. Topics to be covered include security concepts and mechanisms, security policies, multilevel security models, system vulnerability, threat and risk assessment, basic cryptography and its applications, intrusion detection systems. Prerequisite:  <a href="/search/?P=CSCE%2031903" title="CSCE&#160;31903" class="bubblelink code" onclick="return showCourse(this, 'CSCE 31903');">CSCE&#160;31903</a> or <a href="/search/?P=CSCE%20319H3" title="CSCE&#160;319H3" class="bubblelink code" onclick="return showCourse(this, 'CSCE 319H3');">CSCE&#160;319H3</a> or <a href="/search/?P=DASC%2021003" title="DASC&#160;21003" class="bubblelink code" onclick="return showCourse(this, 'DASC 21003');">DASC&#160;21003</a>, each with a grade of C or better. (Typically offered: Irregular)<br />
+</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>CSCE&#160;4900V.  Individual Study.  1-6 Hour.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Individual study directed by faculty in current research topics, state of the art, or advanced methodology in one of the major computer science or computer engineering areas. (Typically offered: Irregular)&#160;May be repeated for up to 6 hours of degree credit.</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>CSCE&#160;49104.  Advanced Digital Design.  4 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+To master advanced logic design concepts, including the design and testing of synchronous and asynchronous combinational and sequential circuits using state of the art CAD tools. Corequisite:  Lab component.  Prerequisite:  <a href="/search/?P=CSCE%2021104" title="CSCE&#160;21104" class="bubblelink code" onclick="return showCourse(this, 'CSCE 21104');">CSCE&#160;21104</a> or <a href="/search/?P=ELEG%2029004" title="ELEG&#160;29004" class="bubblelink code" onclick="return showCourse(this, 'ELEG 29004');">ELEG&#160;29004</a>. (Typically offered: Irregular)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>CSCE&#160;491HV.  Honors Thesis.  1-3 Hour.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+To provide honors students with experience in presenting their research accomplishments to their peers and faculty. Prerequisite:  Honors standing. (Typically offered: Fall and Spring)&#160;May be repeated for up to 3 hours of degree credit.</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>CSCE&#160;49603.  Capstone II.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+CSCE students complete a comprehensive capstone project during their final year of undergraduate studies. The project is done over two consecutive semesters in phases: concepts, formal proposal, implementation, and presentation. The projects include and may require the integration of software, human factors, and hardware elements and are developed using software engineering methodologies. Prerequisite:  <a href="/search/?P=CSCE%2045601" title="CSCE&#160;45601" class="bubblelink code" onclick="return showCourse(this, 'CSCE 45601');">CSCE&#160;45601</a>. (Typically offered: Spring)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>CSCE&#160;50103.  Advanced Special Topics in Computer Science or Computer Engineering.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Consideration of current computer engineering or computer science topics not covered in other courses. Prerequisite:   Graduate standing in Computer Science Computer Engineering. (Typically offered: Irregular)&#160;May be repeated for up to 18 hours of degree credit.</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>CSCE&#160;50303.  Advanced Algorithms.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Design of computer algorithms, with primary emphasis on the development of efficient implementation. Prerequisite:  Graduate standing in Computer Science Computer Engineering. (Typically offered: Irregular)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>CSCE&#160;50603.  Machine Learning.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+An introduction to machine learning, with particular emphasis on neural network techniques. This course presents the basic principles underlying algorithms that improve with experience, and covers using them effectively for modeling data and making predictions. Prerequisite:  Computer Science Computer Engineering(CSCE) graduate standing. (Typically offered: Irregular)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>CSCE&#160;50703.  Data Mining.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+This course surveys the most common methods used in data mining and machine learning. It involves several projects in which students will implement tools that are useful for mining knowledge from data and making predictions. The course will study both heuristic algorithms and statistical techniques. Prerequisite:  <a href="/search/?P=CSCE%2031903" title="CSCE&#160;31903" class="bubblelink code" onclick="return showCourse(this, 'CSCE 31903');">CSCE&#160;31903</a> and (<a href="/search/?P=INEG%2023104" title="INEG&#160;23104" class="bubblelink code" onclick="return showCourse(this, 'INEG 23104');">INEG&#160;23104</a> or <a href="/search/?P=STAT%2030133" title="STAT&#160;30133" class="bubblelink code" onclick="return showCourse(this, 'STAT 30133');">STAT&#160;30133</a>) or Computer Science Computer Engineering (CSCE) graduate standing. (Typically offered: Irregular)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>CSCE&#160;50903.  Concurrent Computing.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Programming concurrent processes; computer interconnection network topologies; loosely coupled and tightly coupled paralleled computer architectures; designing algorithms for concurrency; distributed computer architectures. Graduate degree credit will not be given for both <a href="/search/?P=CSCE%2042503" title="CSCE&#160;42503" class="bubblelink code" onclick="return showCourse(this, 'CSCE 42503');">CSCE&#160;42503</a> and <a href="/search/?P=CSCE%2050903" title="CSCE&#160;50903" class="bubblelink code" onclick="return showCourse(this, 'CSCE 50903');">CSCE&#160;50903</a>. Prerequisite:  <a href="/search/?P=CSCE%2031903" title="CSCE&#160;31903" class="bubblelink code" onclick="return showCourse(this, 'CSCE 31903');">CSCE&#160;31903</a> or Computer Science Computer Engineering (CSCE) graduate standing. (Typically offered: Irregular)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>CSCE&#160;51104.  Embedded Systems.  4 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+The architecture, software, and hardware of embedded systems. Involves a mixture of hardware and software for the control of a system (including electrical, electro-mechanical, and electro-chemical systems). They are found in a variety of products including cars, VCRs, HDTVs, cell phones, pacemakers, spacecraft, missile systems, and robots for factory automation. Graduate degree credit will not be given for both <a href="/search/?P=CSCE%2041104" title="CSCE&#160;41104" class="bubblelink code" onclick="return showCourse(this, 'CSCE 41104');">CSCE&#160;41104</a> and <a href="/search/?P=CSCE%2051104" title="CSCE&#160;51104" class="bubblelink code" onclick="return showCourse(this, 'CSCE 51104');">CSCE&#160;51104</a>.  Corequisite:  Lab component. Prerequisite:  <a href="/search/?P=CSCE%2022104" title="CSCE&#160;22104" class="bubblelink code" onclick="return showCourse(this, 'CSCE 22104');">CSCE&#160;22104</a> with a grade of C or better or Computer Science Computer Engineering (CSCE) graduate standing. (Typically offered: Fall)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>CSCE&#160;51303.  Algorithms.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Provides an introduction to formal techniques for analyzing the complexity of algorithms. The course surveys important classes of algorithms used in computer science and engineering. Graduate degree credit will not be given for both <a href="/search/?P=CSCE%2041303" title="CSCE&#160;41303" class="bubblelink code" onclick="return showCourse(this, 'CSCE 41303');">CSCE&#160;41303</a> and <a href="/search/?P=CSCE%2051303" title="CSCE&#160;51303" class="bubblelink code" onclick="return showCourse(this, 'CSCE 51303');">CSCE&#160;51303</a>. Prerequisite:  ((<a href="/search/?P=CSCE%2031903" title="CSCE&#160;31903" class="bubblelink code" onclick="return showCourse(this, 'CSCE 31903');">CSCE&#160;31903</a> and (<a href="/search/?P=MATH%2026103" title="MATH&#160;26103" class="bubblelink code" onclick="return showCourse(this, 'MATH 26103');">MATH&#160;26103</a> or <a href="/search/?P=MATH%2028003" title="MATH&#160;28003" class="bubblelink code" onclick="return showCourse(this, 'MATH 28003');">MATH&#160;28003</a>)) or (<a href="/search/?P=MATH%2044203" title="MATH&#160;44203" class="bubblelink code" onclick="return showCourse(this, 'MATH 44203');">MATH&#160;44203</a>) or (Computer Science/Computer Engineering(CS/CE) graduate standing). (Typically offered: Fall)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>CSCE&#160;51703.  Formal Languages and Computability.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Finite Automata and regular languages, regular expressions, context-free languages and pushdown automata, nondeterminism, grammars, and Turing machines. Church's thesis, halting problem, and undecidability. Graduate degree credit will not be given for both <a href="/search/?P=CSCE%2043203" title="CSCE&#160;43203" class="bubblelink code" onclick="return showCourse(this, 'CSCE 43203');">CSCE&#160;43203</a> and <a href="/search/?P=CSCE%2051703" title="CSCE&#160;51703" class="bubblelink code" onclick="return showCourse(this, 'CSCE 51703');">CSCE&#160;51703</a>. Prerequisite:  <a href="/search/?P=CSCE%2041303" title="CSCE&#160;41303" class="bubblelink code" onclick="return showCourse(this, 'CSCE 41303');">CSCE&#160;41303</a> or <a href="/search/?P=CSCE%2051303" title="CSCE&#160;51303" class="bubblelink code" onclick="return showCourse(this, 'CSCE 51303');">CSCE&#160;51303</a>. (Typically offered: Spring)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>CSCE&#160;51803.  Advanced Data Structures.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+This course continues the study of data structures, algorithmic analysis for these data structures, and their efficient implementation to support standard library in programming languages. Topics include: AVL trees, Red-Black trees, Splay trees, Optimal Binary Search trees, 2-3 tree, 2-3-4 tree, B-trees, Segment trees, Leftist Heaps, Binomial Heaps, Fibonacci Heap, Disjoint Set, Hashing, and big integer with hundreds to thousands of digits. Graduate degree credit will not be given for both <a href="/search/?P=CSCE%2042603" title="CSCE&#160;42603" class="bubblelink code" onclick="return showCourse(this, 'CSCE 42603');">CSCE&#160;42603</a> and <a href="/search/?P=CSCE%2051803" title="CSCE&#160;51803" class="bubblelink code" onclick="return showCourse(this, 'CSCE 51803');">CSCE&#160;51803</a>. Prerequisite:  <a href="/search/?P=CSCE%2031903" title="CSCE&#160;31903" class="bubblelink code" onclick="return showCourse(this, 'CSCE 31903');">CSCE&#160;31903</a> or Computer Science Computer Engineering(CSCE) graduate standing. (Typically offered: Irregular)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>CSCE&#160;52003.  Advanced Database Systems.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Topics include: object databases, distributed databases, XML query, data warehouses, network as database systems, peer-peer data sharing architectures, data grids, data mining, logic foundations, semantic databases, spatial and temporal databases, and knowledge bases. Prerequisite:  <a href="/search/?P=CSCE%2045203" title="CSCE&#160;45203" class="bubblelink code" onclick="return showCourse(this, 'CSCE 45203');">CSCE&#160;45203</a> or <a href="/search/?P=CSCE%2055203" title="CSCE&#160;55203" class="bubblelink code" onclick="return showCourse(this, 'CSCE 55203');">CSCE&#160;55203</a>. (Typically offered: Irregular)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>CSCE&#160;52203.  Introduction to Integrated Circuit Design.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Design and layout of large scale digital integrated circuits using CMOS technology. Topics include MOS devices and basic circuits, integrated circuit layout and fabrication, dynamic logic, circuit design, and layout strategies for large scale CMOS circuits. Students may not receive credit for both <a href="/search/?P=CSCE%2043303" title="CSCE&#160;43303" class="bubblelink code" onclick="return showCourse(this, 'CSCE 43303');">CSCE&#160;43303</a> and <a href="/search/?P=CSCE%2052203" title="CSCE&#160;52203" class="bubblelink code" onclick="return showCourse(this, 'CSCE 52203');">CSCE&#160;52203</a>. Prerequisite:  (<a href="/search/?P=ELEG%2032103" title="ELEG&#160;32103" class="bubblelink code" onclick="return showCourse(this, 'ELEG 32103');">ELEG&#160;32103</a> or <a href="/search/?P=ELEG%2039903" title="ELEG&#160;39903" class="bubblelink code" onclick="return showCourse(this, 'ELEG 39903');">ELEG&#160;39903</a>) and <a href="/search/?P=MATH%2025804" title="MATH&#160;25804" class="bubblelink code" onclick="return showCourse(this, 'MATH 25804');">MATH&#160;25804</a> or Computer Science Computer Engineering(CSCE) graduate standing. (Typically offered: Fall)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>CSCE&#160;52303.  Low Power Digital Systems.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+The reduction of power consumption is rapidly becoming one of the key issues in digital system design. Traditionally, digital system design has mainly focused on performance and area trade-offs. This course will provide a thorough introduction to digital design for lower consumption at the circuit, logic, and architectural level. Graduate degree credit will not be given for both <a href="/search/?P=CSCE%2042303" title="CSCE&#160;42303" class="bubblelink code" onclick="return showCourse(this, 'CSCE 42303');">CSCE&#160;42303</a> and <a href="/search/?P=CSCE%2052303" title="CSCE&#160;52303" class="bubblelink code" onclick="return showCourse(this, 'CSCE 52303');">CSCE&#160;52303</a>. Prerequisite:  <a href="/search/?P=CSCE%2022104" title="CSCE&#160;22104" class="bubblelink code" onclick="return showCourse(this, 'CSCE 22104');">CSCE&#160;22104</a> with a grade of C or better or graduate standing in Computer Science Computer Engineering (CSCE) or graduate standing in Electrical Engineering (ELEG). (Typically offered: Irregular)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>CSCE&#160;52503.  Integrated Circuit Design Laboratory I.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Design and layout of large scale digital integrated circuits. Students design, check and simulate digital integrated circuits which will be fabricated, and tested in I.C. Design Laboratory II. Topics include computer aided design, circuit timing, and wire delay. Prerequisite:  <a href="/search/?P=CSCE%2043303" title="CSCE&#160;43303" class="bubblelink code" onclick="return showCourse(this, 'CSCE 43303');">CSCE&#160;43303</a> or <a href="/search/?P=CSCE%2052203" title="CSCE&#160;52203" class="bubblelink code" onclick="return showCourse(this, 'CSCE 52203');">CSCE&#160;52203</a> or <a href="/search/?P=ELEG%2042303" title="ELEG&#160;42303" class="bubblelink code" onclick="return showCourse(this, 'ELEG 42303');">ELEG&#160;42303</a> or <a href="/search/?P=ELEG%2059203" title="ELEG&#160;59203" class="bubblelink code" onclick="return showCourse(this, 'ELEG 59203');">ELEG&#160;59203</a>. (Typically offered: Irregular)<br />
+This course is cross-listed with <a href="/search/?P=ELEG%2052503" title="ELEG&#160;52503" class="bubblelink code" onclick="return showCourse(this, 'ELEG 52503');">ELEG&#160;52503</a>.<br />
+</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>CSCE&#160;52603.  Computational Complexity.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Turing machines, recursion theory and computability, complexity measures, NP-completeness, analysis on NP-complete problems, pseudo-polynomial and approximation. Prerequisite:  Computer Science Computer Engineering (CSCE) graduate standing. (Typically offered: Irregular)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>CSCE&#160;52703.  Big Data Analytics and Management.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Topics include principles of distributed data computing and management, design and implementation of non-relational data systems, crowd sourcing and human computation, big data analytics and scalable machine learning, real-time streaming data analysis, and social aware computing. Prerequisite:  <a href="/search/?P=CSCE%2031903" title="CSCE&#160;31903" class="bubblelink code" onclick="return showCourse(this, 'CSCE 31903');">CSCE&#160;31903</a> and <a href="/search/?P=INEG%2023104" title="INEG&#160;23104" class="bubblelink code" onclick="return showCourse(this, 'INEG 23104');">INEG&#160;23104</a> or Computer Science Computer Engineering (CSCE) graduate standing. (Typically offered: Irregular)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>CSCE&#160;52803.  Graph and Combinatorial Algorithms.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Advanced topics in graph and combinatorial optimization problems. Traditional approach section: P and NP problems, proof of NP-completeness, approximation algorithms for solving NP hard problems. Machine learning-based approach section: graph neural networks, deep reinforcement learning, state-of-the-art machine learning approaches for solving graph and combinatorial optimization problems. Prerequisite:  Graduate standing in CSCE Department. (Typically offered: Irregular)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>CSCE&#160;52903.  Computer Architecture.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+The architecture of modern scalar and parallel computing systems. Techniques for dynamic instruction scheduling, branch prediction, instruction level parallelism, shared and distributed memory multiprocessor systems, array processors, and memory hierarchies. Graduate degree credit will not be given for both <a href="/search/?P=CSCE%2042103" title="CSCE&#160;42103" class="bubblelink code" onclick="return showCourse(this, 'CSCE 42103');">CSCE&#160;42103</a> and <a href="/search/?P=CSCE%2052903" title="CSCE&#160;52903" class="bubblelink code" onclick="return showCourse(this, 'CSCE 52903');">CSCE&#160;52903</a>. Prerequisite:  <a href="/search/?P=CSCE%2022104" title="CSCE&#160;22104" class="bubblelink code" onclick="return showCourse(this, 'CSCE 22104');">CSCE&#160;22104</a> with a grade of C or better or Computer Science Computer Engineering(CSCE) graduate standing. (Typically offered: Spring)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>CSCE&#160;53203.  Computer Security.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+This course covers a broad selection of contemporary issues in computer security. Topics include security concepts and mechanisms, access control, security policies, authentication methods, basic cryptography, secure system design, and information assurance. Prerequisite: Graduate standing in CSCE department. (Typically offered: Irregular)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>CSCE&#160;53303.  Computer Forensics.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Various methods for identification, preservation, and extraction of electronic evidence at a computer crime scene. Specific topics include auditing and investigation of network and host intrusions, computer forensics tools, resources for system administrators and information security officers, legal issues related to computer and network forensics. Prerequisite:  <a href="/search/?P=CSCE%2053203" title="CSCE&#160;53203" class="bubblelink code" onclick="return showCourse(this, 'CSCE 53203');">CSCE&#160;53203</a>. (Typically offered: Irregular)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>CSCE&#160;53403.  Advanced Software Engineering.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+This course is about software metrics and models. It will focus on quantitative methods and techniques for management of software projects, design of software systems, and improvement of software quality. The material covered will be metrics and models used in the software lifecycle, such as software requirements metrics, design metrics, implementation metrics, testing metrics, effort estimation model. Prerequisite:  <a href="/search/?P=CSCE%2035103" title="CSCE&#160;35103" class="bubblelink code" onclick="return showCourse(this, 'CSCE 35103');">CSCE&#160;35103</a> or Computer Science Computer Engineering (CSCE) graduate standing. (Typically offered: Irregular)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>CSCE&#160;53503.  CPLD/FPGA-Based System Design.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Field Programmable Logic devices (FPGAs/CPLDs) have become extremely popular as basic building blocks for digital systems. They offer a general architecture that users can customize by inducing permanent or reversible physical changes. This course will deal with the implementation of logic options using these devices. Graduate degree credit will not be given for both <a href="/search/?P=CSCE%2043503" title="CSCE&#160;43503" class="bubblelink code" onclick="return showCourse(this, 'CSCE 43503');">CSCE&#160;43503</a> and <a href="/search/?P=CSCE%2053503" title="CSCE&#160;53503" class="bubblelink code" onclick="return showCourse(this, 'CSCE 53503');">CSCE&#160;53503</a>. Prerequisite:  <a href="/search/?P=CSCE%2022104" title="CSCE&#160;22104" class="bubblelink code" onclick="return showCourse(this, 'CSCE 22104');">CSCE&#160;22104</a> with a grade of C or better or Computer Science Computer Engineering (CSCE) graduate standing. (Typically offered: Irregular)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>CSCE&#160;53703.  Electronic Design Automation.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+This course studies physical design, analysis and optimization of VLSI circuits and systems with emphasis on computational realizations and optimization. We start with some related topics such as graph algorithms and discuss various well-known algorithms and methodologies in the design process of VLSI circuits, including design partitioning, logic synthesis, floorplanning, routing, static timing analysis and performance-driven layout. It requires a basic knowledge of digital circuit design, data structure, and object-oriented programming. Students cannot receive credit for both <a href="/search/?P=CSCE%2043703" title="CSCE&#160;43703" class="bubblelink code" onclick="return showCourse(this, 'CSCE 43703');">CSCE&#160;43703</a> and <a href="/search/?P=CSCE%2053703" title="CSCE&#160;53703" class="bubblelink code" onclick="return showCourse(this, 'CSCE 53703');">CSCE&#160;53703</a>. Prerequisite:  Graduate standing in Computer Engineering, Computer Science, or Electrical Engineering. (Typically offered: Irregular)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>CSCE&#160;53803.  Malware Analysis.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+This course discusses fundamental concepts on malicious software, otherwise known as malware, which play a major role in intrusion into computer systems. Various malware analysis tools and techniques are explored. A major focus of this course is providing hands-on laboratory activities, which include dissecting software binary and understanding how to detect and eliminate malicious codes. Prerequisite:  Graduate standing in CSCE Department. (Typically offered: Irregular)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>CSCE&#160;54203.  Cryptography.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+This course provides an introduction to cryptography and its applications and practices. Topics covered include cryptography basics, symmetric key cryptography, public-key cryptography, cryptographic hash function, digital signature, message authentication, key management, password security, SSL/TLS, IPsec, cryptography-assisted anonymous communications, cryptocurrency, and privacy-aware computing. Graduate degree credit will not be given for both <a href="/search/?P=CSCE%2044303" title="CSCE&#160;44303" class="bubblelink code" onclick="return showCourse(this, 'CSCE 44303');">CSCE&#160;44303</a> and <a href="/search/?P=CSCE%2054203" title="CSCE&#160;54203" class="bubblelink code" onclick="return showCourse(this, 'CSCE 54203');">CSCE&#160;54203</a>. Prerequisite: Graduate standing in any of these programs: MS in Computer Science (CSCEMS), PhD in Computer Science (CSCEPH), MS in Computer Engineering (CENGMS), or PhD in Computer Engineering (CENGPH). (Typically offered: Irregular)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>CSCE&#160;54803.  Wearable and Ubiquitous Computing.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+This course will introduce wearable and ubiquitous computing paradigms with emphasis on the engineering and development. Three key themes that will be taught during this course the systems and infrastructures which compose IoT and wearable systems, the devices and techniques for gathering data and communicating with the user, and the applications of these technologies including the user experience. Students cannot receive credit for both <a href="/search/?P=CSCE%2044803" title="CSCE&#160;44803" class="bubblelink code" onclick="return showCourse(this, 'CSCE 44803');">CSCE&#160;44803</a> and <a href="/search/?P=CSCE%2054803" title="CSCE&#160;54803" class="bubblelink code" onclick="return showCourse(this, 'CSCE 54803');">CSCE&#160;54803</a>. Prerequisite:  Graduate standing in Computer Engineering, Computer Science, or Electrical Engineering. (Typically offered: Irregular)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>CSCE&#160;55203.  Database Management Systems.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Introduction to database management systems, architecture, storage structures, indexing, relational data model, E-R diagrams, query languages, SQL, ODBC, transaction management, integrity, and security. Graduate degree credit will not be given for both <a href="/search/?P=CSCE%2045203" title="CSCE&#160;45203" class="bubblelink code" onclick="return showCourse(this, 'CSCE 45203');">CSCE&#160;45203</a> and <a href="/search/?P=CSCE%2055203" title="CSCE&#160;55203" class="bubblelink code" onclick="return showCourse(this, 'CSCE 55203');">CSCE&#160;55203</a>.  Prerequisite: Graduate standing in CSCE Department. (Typically offered: Spring)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>CSCE&#160;55303.  Advanced Information Retrieval.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Study of the architecture, implementation, and evaluation of current information retrieval systems. Students will apply their knowledge of programming and data structures to implement a large system with an emphasis on efficiency and scalability. They will study current research in the field and implement individual or group projects on advanced topics. Prerequisite:  Computer Science Computer Engineering (CSCE) graduate standing. (Typically offered: Irregular)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>CSCE&#160;55403.  Statistical Natural Language Processing.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Introduction to statistical natural language processing (NLP). Covers the theory and algorithms needed for building NLP tools, provides broad coverage of mathematical and linguistic foundations, and detailed discussion of statistical methods for text mining and information extraction. Current research and applications of statistical NLP will be discussed. Prerequisite:  <a href="/search/?P=CSCE%2020104" title="CSCE&#160;20104" class="bubblelink code" onclick="return showCourse(this, 'CSCE 20104');">CSCE&#160;20104</a> and (<a href="/search/?P=STAT%2030133" title="STAT&#160;30133" class="bubblelink code" onclick="return showCourse(this, 'STAT 30133');">STAT&#160;30133</a> or <a href="/search/?P=INEG%2023104" title="INEG&#160;23104" class="bubblelink code" onclick="return showCourse(this, 'INEG 23104');">INEG&#160;23104</a>) or Computer Science Computer Engineering (CSCE) graduate standing. (Typically offered: Irregular)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>CSCE&#160;55503.  Software Architecture.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+A study of software architecture through the use of case studies drawn from real systems designed to solve real problems from technical as well as managerial perspectives. Techniques for designing, building, and evaluating software architectures. Graduate degree credit will not be given for both <a href="/search/?P=CSCE%2045403" title="CSCE&#160;45403" class="bubblelink code" onclick="return showCourse(this, 'CSCE 45403');">CSCE&#160;45403</a> and <a href="/search/?P=CSCE%2055503" title="CSCE&#160;55503" class="bubblelink code" onclick="return showCourse(this, 'CSCE 55503');">CSCE&#160;55503</a>. Prerequisite:  Graduate standing in MS in Computer Science (CSCEMS), PhD in Computer Science (CSCEPH), MS in Computer Engineering (CENGMS), or PhD in Computer Engineering (CENGPH) programs. (Typically offered: Irregular)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>CSCE&#160;55603.  Introduction to Deep Learning.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+The course aims at understanding the fundamental of deep learning and its application in computer vision, natural language understanding and game theory. The course starts with basic multi layer perceptron and then moves towards other complicated models such as convolutional neural networks, recurrent neural networks, attention, and generative adversarial network models. The course will end with deep reinforcement learning. The course provides required steps for building deep learning models. Prerequisite:  Computer Science Computer Engineering (CSCE) Graduate Standing. (Typically offered: Irregular)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>CSCE&#160;56103.  Artificial Intelligence.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Introduction to intelligent agents, AI languages, search, first order logic, knowledge representation, ontologies, problem solving, natural language processing, machine vision, machine learning, and robotics. Prerequisite: Graduate standing in CSCE Department. (Typically offered: Irregular)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>CSCE&#160;56203.  Secure Digital System Design.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+This course is to give graduate students an insight of contemporary security-related issues in modern digital systems. In addition to lectures, students will be practicing secure digital system design during a project. Prerequisite:  Computer Science Computer Engineering (CSCE) graduate standing or Electrical Engineering (ELEG) graduate standing. (Typically offered: Irregular)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>CSCE&#160;56503.  Network Security.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+This course will be a programming-based, learn-by-doing-oriented course focused on applying foundational principles in security to real networked systems. It will study and simulate genuine attacks across computer systems, networks, and the web. Students will not only understand how these attacks operate but will also gain the skills to prevent, detect, and mitigate them. Additionally, this course offers a comprehensive exploration of various attack case studies and defense strategies, providing students with a holistic perspective on the ever-evolving landscape of network security. Prerequisite:  Graduate standing in Computer Engineering, Computer Science, or Electrical Engineering. (Typically offered: Irregular)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>CSCE&#160;56703.  Mobile Programming.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+An introduction to software development on mobile devices. The major topics covered in this course include underlying concepts and principles in mobile programming, as well as hands-on programming experience on mobile devices with an emphasis on smartphones. Graduate degree credit will not be given for both <a href="/search/?P=CSCE%2046203" title="CSCE&#160;46203" class="bubblelink code" onclick="return showCourse(this, 'CSCE 46203');">CSCE&#160;46203</a> and <a href="/search/?P=CSCE%2056703" title="CSCE&#160;56703" class="bubblelink code" onclick="return showCourse(this, 'CSCE 56703');">CSCE&#160;56703</a>. Prerequisite:  Graduate standing in MS in Computer Science (CSCEMS), PhD in Computer Science (CSCEPH), MS in Computer Engineering (CENGMS), or PhD in Computer Engineering (CENGPH) programs. (Typically offered: Irregular)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>CSCE&#160;56803.  Image Processing.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+The objective of this class is to give students a hands-on introduction to the fundamentals of image processing. A variety of image processing techniques and applications will be discussed including image enhancement, noise removal, spatial domain and frequency domain filtering, image restoration, color image processing, image compression, edge detection and image segmentation. Prerequisite:  <a href="/search/?P=CSCE%2031903" title="CSCE&#160;31903" class="bubblelink code" onclick="return showCourse(this, 'CSCE 31903');">CSCE&#160;31903</a> or Computer Science Computer Engineering (CSCE) graduate standing. (Typically offered: Irregular)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>CSCE&#160;56903.  Graphics Processing Units Programming.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+This course provides an introduction to massively parallel programming using Graphics Processing Units (GPUs). Topics include basic programming model, GPU thread hierarchy, GPU memory architecture, and performance optimization techniques and parallel patterns needed to develop real-life applications. Graduate degree credit will not be given for both <a href="/search/?P=CSCE%2046403" title="CSCE&#160;46403" class="bubblelink code" onclick="return showCourse(this, 'CSCE 46403');">CSCE&#160;46403</a> and <a href="/search/?P=CSCE%2056903" title="CSCE&#160;56903" class="bubblelink code" onclick="return showCourse(this, 'CSCE 56903');">CSCE&#160;56903</a>. Prerequisite:  <a href="/search/?P=CSCE%2020104" title="CSCE&#160;20104" class="bubblelink code" onclick="return showCourse(this, 'CSCE 20104');">CSCE&#160;20104</a> with a grade of C or better or Computer Science Computer Engineering (CSCE) graduate standing. (Typically offered: Irregular)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>CSCE&#160;57003.  Computer Vision.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+The objective of this course is to give students a hands-on introduction to the fundamentals of computer vision. Topics include image formation, object modeling, image processing, feature and edge detection, image segmentation, motion estimation, depth from stereo, shape description and object recognition. Prerequisite:  <a href="/search/?P=CSCE%2031903" title="CSCE&#160;31903" class="bubblelink code" onclick="return showCourse(this, 'CSCE 31903');">CSCE&#160;31903</a> and <a href="/search/?P=CSCE%2046103" title="CSCE&#160;46103" class="bubblelink code" onclick="return showCourse(this, 'CSCE 46103');">CSCE&#160;46103</a> or Computer Science Computer Engineering (CSCE) graduate standing. (Typically offered: Irregular)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>CSCE&#160;57503.  Wireless Systems Security.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Wireless systems such as wireless local area networks, cellular and mobile networks, and sensor networks are vulnerable to attacks. The goal of the class is for students to understand how to design secure wireless systems. Security topics include confidentiality, integrity, availability, privacy, and control of fraudulent usage of networks. Issues addressed include basic wireless theory, cryptography, threat modeling, risks, and mitigation techniques. Prerequisite:  Graduate standing in Computer Science Computer Engineering (CSCE). (Typically offered: Irregular)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>CSCE&#160;57603.  Privacy Enhancing Technologies.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+This course introduces privacy enhancing technologies and hot privacy topics in modern computing systems. Students will be exposed to many interesting privacy problems, study privacy enhancing technologies, and apply their knowledge to explore an open research problem in a research-oriented project. After completing this course, students will gain broad knowledge of the state-of-the-art privacy enhancing technologies and open research problems. They will also develop skills and enhance potentials to do research on privacy and security. Prerequisite:  Must be a graduate student in Computer Science Computer Engineering (CSCE). (Typically offered: Irregular)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>CSCE&#160;57703.  Computer Networks.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+This course is an introductory course on computer networks. Using the Internet as a vehicle, this course introduces underlying concepts and principles of modern computer networks, with emphasis on protocols, architectures, and implementation issues. Graduate degree credit will not be given for both <a href="/search/?P=CSCE%2047503" title="CSCE&#160;47503" class="bubblelink code" onclick="return showCourse(this, 'CSCE 47503');">CSCE&#160;47503</a> and <a href="/search/?P=CSCE%2057703" title="CSCE&#160;57703" class="bubblelink code" onclick="return showCourse(this, 'CSCE 57703');">CSCE&#160;57703</a>. Prerequisite:  Graduate standing in MS in Computer Science (CSCEMS), PhD in Computer Science (CSCEPH), MS in Computer Engineering (CENGMS), or PhD in Computer Engineering (CENGPH) programs. (Typically offered: Irregular)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>CSCE&#160;57803.  Cloud Computing and Security.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Cloud computing has entered the mainstream of information technology, providing highly elastic scalability in delivery of enterprise applications and services. In this course, we will focus on the architecture of today's cloud computing, the technologies used within them, application development using contemporary cloud computing tools, and the security risks and management in the cloud. Graduate degree credit will not be given for both <a href="/search/?P=CSCE%2047803" title="CSCE&#160;47803" class="bubblelink code" onclick="return showCourse(this, 'CSCE 47803');">CSCE&#160;47803</a> and <a href="/search/?P=CSCE%2057803" title="CSCE&#160;57803" class="bubblelink code" onclick="return showCourse(this, 'CSCE 57803');">CSCE&#160;57803</a>. Prerequisite:  <a href="/search/?P=CSCE%2036103" title="CSCE&#160;36103" class="bubblelink code" onclick="return showCourse(this, 'CSCE 36103');">CSCE&#160;36103</a> or graduate standing in Computer Science Computer Engineering(CSCE). (Typically offered: Irregular)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>CSCE&#160;57903.  Advanced Network Security.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+This course will teach various topics in computer network security. It will provide a thorough grounding in cyber-security for students who are interested in conducting research and development work on network and system security, and for students who are more broadly interested in real-world security issues and techniques. Students will also be looking at various case studies of attacks and defense strategies, including known exploit proofs-of-concept, published papers, and documents from security agencies and cyber-security research firms. Prerequisite:  Graduate standing in Computer Engineering, Computer Science, or Electrical Engineering. (Typically offered: Irregular)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>CSCE&#160;58103.  Computer Graphics.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Introduction to the theory and algorithms used in computer graphics systems and applications. Topics include: 2D and 3D geometric models (points, lines, polygons, surfaces), affine transformations (rotation, translation, scaling), viewpoint calculation (clipping, projection), lighting models (light-material interactions, illumination and shadow calculation). Students will implement their own graphics pipeline to demonstrate many of these techniques. Higher level computer graphics applications will be created using OpenGL. Graduate degree credit will not be given for both <a href="/search/?P=CSCE%2048103" title="CSCE&#160;48103" class="bubblelink code" onclick="return showCourse(this, 'CSCE 48103');">CSCE&#160;48103</a> and <a href="/search/?P=CSCE%2058103" title="CSCE&#160;58103" class="bubblelink code" onclick="return showCourse(this, 'CSCE 58103');">CSCE&#160;58103</a>. Prerequisite: Graduate standing in MS in Computer Science (CSCEMS), PhD in Computer Science (CSCEPH), MS in Computer Engineering (CENGMS), or PhD in Computer Engineering (CENGPH) programs. (Typically offered: Irregular)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>CSCE&#160;58203.  Multiprocessor Systems on Chip.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+This course covers the latest trends in advanced computer architecture for multiprocessor systems on chip for embedded and real time systems. Topics covered include multicore architectures, modeling abstractions, run time systems, and MIMD/SIMD heterogeneous architectures, Hw/Sw co-design techniques. Prerequisite:  <a href="/search/?P=CSCE%2036103" title="CSCE&#160;36103" class="bubblelink code" onclick="return showCourse(this, 'CSCE 36103');">CSCE&#160;36103</a> and <a href="/search/?P=CSCE%2042103" title="CSCE&#160;42103" class="bubblelink code" onclick="return showCourse(this, 'CSCE 42103');">CSCE&#160;42103</a>. (Typically offered: Irregular)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>CSCE&#160;58303.  Computer Architecture Security.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+This course will cover fundamental principles and emerging implementation strategies to reason about, design and construct architecture level security capabilities in the manycore era. Coverage includes formal security models, new and emerging considerations for heterogeneous multiprocessor system on chip architectures, hardware and software implementation methods, operating systems for run time security enforcement. Prerequisite:  <a href="/search/?P=CSCE%2042103" title="CSCE&#160;42103" class="bubblelink code" onclick="return showCourse(this, 'CSCE 42103');">CSCE&#160;42103</a> or graduate standing in Computer Science Computer Engineering (CSCE). (Typically offered: Irregular)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>CSCE&#160;58403.  Reconfigurable Computing.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+This course will cover emerging and proposed techniques and issues in Reconfigurable Computing. Topics will include FPGA technologies, CAD/CAE tools, Hw/Sw co-design, system level synthesis, programming models and abstractions. Prerequisite:  Graduate standing in CSCE Department. (Typically offered: Irregular)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>CSCE&#160;58503.  Information Security.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+This course covers principles, mechanisms, and policies governing confidentiality, integrity, and availability of digital information. Topics to be covered include security concepts and mechanisms, security policies, multilevel security models, system vulnerability, threat and risk assessment, basic cryptography and its applications, intrusion detection systems. Graduate degree credit will not be given for both <a href="/search/?P=CSCE%2048503" title="CSCE&#160;48503" class="bubblelink code" onclick="return showCourse(this, 'CSCE 48503');">CSCE&#160;48503</a> and <a href="/search/?P=CSCE%2058503" title="CSCE&#160;58503" class="bubblelink code" onclick="return showCourse(this, 'CSCE 58503');">CSCE&#160;58503</a>. Prerequisite:  <a href="/search/?P=CSCE%2031903" title="CSCE&#160;31903" class="bubblelink code" onclick="return showCourse(this, 'CSCE 31903');">CSCE&#160;31903</a> or Computer Science Computer Engineering (CSCE) graduate standing. (Typically offered: Irregular)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>CSCE&#160;5900V.  Advanced Individual Study.  1-3 Hour.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Advanced graduate level individual study directed by faculty in current research topics, state of the art, or advanced methodology in one of the major computer science or computer engineering areas. (Typically offered: Irregular)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>CSCE&#160;59104.  Advanced Digital Design.  4 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+To master advanced logic design concepts, including the design and testing of synchronous and asynchronous combinational and sequential circuits using state of the art CAD tools. Graduate degree credit will not be given for both <a href="/search/?P=CSCE%2059104" title="CSCE&#160;59104" class="bubblelink code" onclick="return showCourse(this, 'CSCE 59104');">CSCE&#160;59104</a> and <a href="/search/?P=CSCE%2049104" title="CSCE&#160;49104" class="bubblelink code" onclick="return showCourse(this, 'CSCE 49104');">CSCE&#160;49104</a>. Corequisite:  Lab component.  Prerequisite:  Graduate students majoring in Computer Engineering, Computer Science, or Electrical Engineering. (Typically offered: Irregular)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>CSCE&#160;59403.  Computer Arithmetic Circuits.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Examination of fundamental principles of algorithms for performing arithmetic operations in computers. This course provides sufficient theoretical and practical information to prepare the digital design engineer with an awareness of basic techniques for the realization of arithmetic circuits. Prerequisite:  Computer Science Computer Engineering (CSCE) graduate standing. (Typically offered: Irregular)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>CSCE&#160;6100V.  Master's Thesis.  1-6 Hour.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Master's thesis. (Typically offered: Fall and Spring)&#160;May be repeated for degree credit.</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>CSCE&#160;6200V.  Post-Master's Research.  1-18 Hour.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Post-master's research. (Typically offered: Fall and Spring)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>CSCE&#160;6900V.  Doctoral Individual Study.  1-3 Hour.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Advanced doctoral level individual study directed by faculty in current research topics, state of the art, or advanced methodology in one of the major computer science or computer engineering areas. (Typically offered: Irregular)&#160;May be repeated for up to 6 hours of degree credit.</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>CSCE&#160;7000V.  Doctoral Dissertation.  1-18 Hour.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Doctoral Dissertation. (Typically offered: Fall, Spring and Summer)&#160;May be repeated for degree credit.</p></div>
+
+</div>
+</div>
+
+         </main>
+      </div> <!-- end col-content -->
+   </div>
+</section>
+
+	<footer id="footer">
+		<div class="wrap">
+			<div class="footer-logo">
+				<a title="University of Arkansas Home Page" href="https://www.uark.edu">UNIVERSITY OF ARKANSAS</a>
+			</div>
+
+			<div class="footer-top-row">
+				<ul class="college-links">
+					<li>
+						<a title="University of Arkansas Admissions" href="https://www.uark.edu/admissions/index.php">Admissions</a>
+					</li>
+					<li>
+						<a title="University of Arkansas Academics" href="https://www.uark.edu/academics/index.php">Academics</a>
+					</li>
+					<li>
+						<a title="Campus Life at the University of Arkansas" href="https://www.uark.edu/campus-life/index.php">Campus Life</a>
+					</li>
+					<li>
+						<a title="University of Arkansas Research" href="https://www.uark.edu/research/index.php">Research</a>
+					</li>
+					<li>
+						<a title="University of Arkansas Athletics" href="https://www.uark.edu/athletics/index.php">Athletics</a>
+					</li>
+					<li>
+						<a title="About the University of Arkansas" href="https://www.uark.edu/about/index.php">About</a>
+					</li>
+				</ul>
+
+				<ul class="social-media">
+					<li>
+						<a href="https://www.facebook.com/UofArkansas">
+							<span aria-hidden="true" class="fa fa-facebook"></span>
+							<span class="sr-only">Like us on Facebook</span>
+     		 			</a>
+    				</li>
+					<li>
+						<a href="https://twitter.com/uarkansas">
+							<span aria-hidden="true" class="fa fa-twitter"></span>
+							<span class="sr-only">Follow us on Twitter</span>
+     		 			</a>
+    				</li>
+					<li>
+						<a href="https://www.youtube.com/user/UniversityArkansas">
+							<span aria-hidden="true" class="fa fa-youtube-play"></span>
+							<span class="sr-only">Watch us on YouTube</span>
+     		 			</a>
+    				</li>
+					<li>
+						<a href="https://instagram.com/uarkansas">
+							<span aria-hidden="true" class="fa fa-instagram"></span>
+							<span class="sr-only">See us on Instagram</span>
+     		 			</a>
+    				</li>
+					<li>
+						<a href="https://www.linkedin.com/company/university-of-arkansas">
+							<span aria-hidden="true" class="fa fa-linkedin-square"></span>
+							<span class="sr-only">Connect with us on LinkedIn</span>
+     		 			</a>
+    				</li>
+				</ul>
+			</div>
+
+			<hr />
+
+			<div class="footer-main-wrapper">
+				<div class="section-address">
+					<div class="address-map">
+						<a class="map-icon" title="View Campus Maps" href="https://campusmaps.uark.edu/">
+							<span class="fa-duotone fa-map-location-dot"></span>
+						</a>
+
+						<address>
+							1 University of Arkansas
+							<br>
+							Fayetteville, AR 72701
+							<br>
+							<a class="d-inline-block d-lg-none" title="View Campus Maps" href="https://campusmaps.uark.edu/">View Campus Maps</a>
+							<br class="d-block d-lg-none">
+							<a href="tel:+1-479-575-2000" aria-label="4 7 9. 5 7 5. 2 0 0 0. ">479-575-2000</a>
+						  </address>
+					</div>
+					<img class="img-responsive" src="//www.uark.edu/_resources/img/map.png" alt="Map of University of Arkansas Campus">
+				</div>
+
+				<div class="section-news">
+					<a class="sub-header" href="https://news.uark.edu/">NEWS</a>
+					<ul>
+						<li>
+							<a href="https://news.uark.edu/articles/67914/schmieding-foundation-major-and-career-studio-dedicated-in-the-cord" onclick="gaSendEvent(this.href, 'footer-global-links', 'news.uark.edu/articles/67914/schmieding-foundation-major-and-career-studio-dedicated-in-the-cord');">Schmieding Foundation Major and Career Studio Dedicated in the CORD</a>
+						</li>
+						<li>
+							<a href="https://news.uark.edu/articles/67916/community-design-center-s-housing-greenhouse-project-wins-2023-future-house-award" onclick="gaSendEvent(this.href, 'footer-global-links', 'news.uark.edu/articles/67916/community-design-center-s-housing-greenhouse-project-wins-2023-future-house-award');">Community Design Center's Housing, Greenhouse Project Wins 2023 Future House Award</a>
+						</li>
+						<li>
+							<a href="https://news.uark.edu/articles/67915/discover-red-good-vibrations" onclick="gaSendEvent(this.href, 'footer-global-links', 'news.uark.edu/articles/67915/discover-red-good-vibrations');">Discover RED: Good Vibrations</a>
+						</li>
+					</ul>
+				</div>
+
+				<div class="section-news">
+					<a class="sub-header" href="https://calendars.uark.edu/">UPCOMING EVENTS</a>
+					<ul>
+						<li>
+							<a href="https://calendars.uark.edu/event/mydw_fall_workshop_series?utm_campaign=widget&utm_medium=widget&utm_source=University+of+Arkansas">Making Your Day Work: Fall Workshop Series</a>
+						</li>
+						<li>
+							<a href="https://calendars.uark.edu/event/ofa_funding_informational_session_1112?utm_campaign=widget&utm_medium=widget&utm_source=University+of+Arkansas">OFA Funding Informational Session</a>
+						</li>
+						<li>
+							<a href="https://calendars.uark.edu/event/spanish_center_for_tutoring?utm_campaign=widget&utm_medium=widget&utm_source=University+of+Arkansas">Spanish Center for Tutoring</a>
+						</li>
+						<li>
+							<a href="https://calendars.uark.edu/event/invest_for_success_fine-tuning_your_retirement_strategy?utm_campaign=widget&utm_medium=widget&utm_source=University+of+Arkansas">Invest for success: Fine-tuning your retirement strategy</a>
+						</li>
+					</ul>
+				</div>
+
+				<div class="section-button-list">
+					<a href="https://application.uark.edu/"><span aria-hidden="true" class="fas fa-check"></span><strong>APPLY </strong>Online</a>
+					<a href="https://visit.uark.edu/"><span aria-hidden="true" class="fas fa-calendar-alt"></span><strong>Schedule </strong>a Visit</a>
+					<a href="https://onlinegiving.uark.edu/"><span aria-hidden="true" class="fas fa-gift"></span>Make a <strong>Gift </strong></a>
+				</div>
+			</div>
+
+			<hr />
+
+			<ul class="footer-bottom-row">
+				<li><a href="https://emergency.uark.edu/">Emergency Information</a></li>
+				<li><a href="https://report.uark.edu/">Report a Concern</a></li>
+				<li><a href="https://titleix.uark.edu/">Title IX</a></li>
+				<li><a href="https://accessibility.uark.edu/">Accessibility</a></li>
+				<li><a href="https://www.uark.edu/privacy-policy/index.php">Privacy Policy</a></li>
+				<li><a href="https://www.uark.edu/contact-us.php">Contact Us</a></li>
+				<li><a href="https://jobs.uark.edu">Jobs</a></li>
+				<li><a href="https://www.uark.edu/mobile/">Mobile</a></li>
+			</ul>
+
+			<a class="copyright" rel="nofollow" href="https://a.cms.omniupdate.com/11/?skin=uark&amp;account=www&amp;site=www&amp;action=de&amp;path=/index.pcf">
+				Copyright of University of Arkansas
+			</a>
+		</div>
+
+		<a href="#header" id="totop"><span class="sr-only">Back to top</span></a>
+	</footer>
+
+<div id="print-dialog" aria-labelledby="dialog-title" class="screen" role="dialog">
+   <div class="print-header">
+      <button onclick="hidePrintDialog(); return false;" aria-controls="#print-dialog">
+         <span class="sr-only">Close this window</span>
+      </button>
+      <h2 id="dialog-title">Print Options</h2>
+   </div>
+   <div class="print-body">
+      <ul>
+         <li>
+            <p><a class="option-name" href="#"  role="button" onclick="hidePrintDialog();window.print();return false">Send Page to Printer</a></p>
+            <p class="option-desc">Print this page.</p>
+         </li>
+<li><p><a class="option-name" href="/undergraduatecatalog/coursesofinstruction/csce/csce.pdf" role="button">Download Page (PDF)</a></p><p class="option-desc">The PDF will include all information unique to this page.</p></li><li><p><a class="option-name" href="/pdf/UARK-Undergrad_2025-26.pdf" target="_blank">Undergraduate Catalog</a></p><p class="option-desc">A PDF of the entire 2025-26 Undergraduate catalog.</p></li><li><p><a class="option-name" href="/pdf/UARK-Grad Catalog_2025-26.pdf" target="_blank">Graduate Catalog</a></p><p class="option-desc">A PDF of the entire 2025-26 Graduate catalog.</p></li><li><p><a class="option-name" href="/pdf/UARK-Law Catalog_2025-26.pdf" target="_blank">Law Catalog</a></p><p class="option-desc">A PDF of the entire 2025-26 Law catalog.</p></li>      </ul>
+   </div>
+</div>
+
+</body>
+</html>

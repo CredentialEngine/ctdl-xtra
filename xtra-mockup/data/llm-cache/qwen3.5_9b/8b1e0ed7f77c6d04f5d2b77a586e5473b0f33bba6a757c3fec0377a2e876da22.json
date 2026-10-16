@@ -1,0 +1,52 @@
+{
+  "model": "qwen3.5:9b",
+  "promptVersion": "prerequisite-structure/1",
+  "task": "prerequisite sentence",
+  "sentence": "((CSCE 31903 and (MATH 26103 or MATH 28003)) or (MATH 44203) or (Computer Science/Computer Engineering(CS/CE) graduate standing).",
+  "courseCodes": [
+    "CSCE 31903",
+    "MATH 26103",
+    "MATH 28003",
+    "MATH 44203"
+  ],
+  "structure": {
+    "kind": "any_of",
+    "quote": "",
+    "items": [
+      {
+        "kind": "all_of",
+        "quote": "",
+        "items": [
+          {
+            "kind": "course",
+            "quote": "CSCE 31903"
+          },
+          {
+            "kind": "any_of",
+            "quote": "",
+            "items": [
+              {
+                "kind": "course",
+                "quote": "MATH 26103"
+              },
+              {
+                "kind": "course",
+                "quote": "MATH 28003"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "kind": "course",
+        "quote": "MATH 44203"
+      },
+      {
+        "kind": "text",
+        "quote": "Computer Science/Computer Engineering(CS/CE) graduate standing"
+      }
+    ]
+  },
+  "argument": "The outermost structure is an 'any_of' because the sentence uses 'or' to connect three distinct paths: the first complex path, 'MATH 44203', and the standing requirement. According to the CTDL definition of ceterms:alternativeCondition, this represents a context where more than one alternative path fulfills the parent condition. Inside the first path, 'CSCE 31903' is connected to the group '(MATH 26103 or MATH 28003)' by 'and', forming an 'all_of' node per the definition of ceterms:requires, meaning both must be satisfied. Within that inner group, 'MATH 26103' and 'MATH 28003' are connected by 'or', forming an 'any_of' node.",
+  "seconds": 15.8
+}

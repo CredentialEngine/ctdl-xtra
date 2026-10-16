@@ -1,0 +1,43 @@
+{
+  "model": "qwen3.5:9b",
+  "promptVersion": "prerequisite-structure/1",
+  "task": "prerequisite sentence",
+  "sentence": "ENGL 10103 or the equivalent, ACT English scores of 28 or above or SAT Evidence-Based Reading and Writing scores of 630 or above and honors student.",
+  "courseCodes": [
+    "ENGL 10103"
+  ],
+  "structure": {
+    "kind": "any_of",
+    "quote": "",
+    "items": [
+      {
+        "kind": "course",
+        "quote": "ENGL 10103"
+      },
+      {
+        "kind": "text",
+        "quote": "the equivalent"
+      },
+      {
+        "kind": "any_of",
+        "quote": "",
+        "items": [
+          {
+            "kind": "text",
+            "quote": "ACT English scores of 28 or above"
+          },
+          {
+            "kind": "text",
+            "quote": "SAT Evidence-Based Reading and Writing scores of 630 or above"
+          }
+        ]
+      },
+      {
+        "kind": "text",
+        "quote": "and honors student"
+      }
+    ]
+  },
+  "argument": "The sentence begins with 'ENGL 10103 or the equivalent', establishing an 'any_of' relationship between the course and the text 'the equivalent'. Following this, there is a complex group: 'ACT English scores of 28 or above or SAT Evidence-Based Reading and Writing scores of 630 or above'. The word 'or' connecting these two score conditions indicates an 'any_of' node for these specific texts. Finally, the phrase 'and honors student' connects to the preceding groups. According to the CTDL definition of ceterms:alternativeCondition ('...from which any one path fulfills the parent condition'), the initial 'or' creates a top-level 'any_of'. The subsequent 'or' between the ACT and SAT scores creates a nested 'any_of'. The final 'and' connects the result of the score alternatives to the requirement for being an honors student. Since the sentence structure implies that satisfying *either* the course/equivalent path *or* the (score alternative AND honors) path is sufficient, the top-level logic is 'any_of', containing the first option and a second option which itself requires both the score alternative (an 'any_of') and the text condition.",
+  "seconds": 16.6
+}

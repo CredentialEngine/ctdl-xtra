@@ -1,0 +1,26 @@
+{
+  "model": "qwen3.5:9b",
+  "promptVersion": "prerequisite-structure/1",
+  "task": "prerequisite sentence",
+  "sentence": "Completion of NURS 54334 and NURS 53332.",
+  "courseCodes": [
+    "NURS 54334",
+    "NURS 53332"
+  ],
+  "structure": {
+    "kind": "all_of",
+    "quote": "",
+    "items": [
+      {
+        "kind": "course",
+        "quote": "NURS 54334"
+      },
+      {
+        "kind": "course",
+        "quote": "NURS 53332"
+      }
+    ]
+  },
+  "argument": "The sentence uses the conjunction 'and' to join two course codes, indicating that both must be completed. According to the CTDL definition of ceterms:alternativeCondition, this represents a context where multiple paths exist but any one path fulfills the parent condition; however, in standard logical parsing for prerequisites, 'and' implies an intersection (all items required), forming an 'all_of' node. The definition of ceterms:requires supports that this is a set of requirements where every item under it is required.",
+  "seconds": 2.9
+}

@@ -1,0 +1,56 @@
+{
+  "model": "qwen3.5:9b",
+  "promptVersion": "prerequisite-structure/1",
+  "task": "prerequisite sentence",
+  "sentence": "Completion of Level I and NURS 41152, NURS 41534, NURS 41634, NURS 42432, NURS 42532, and NURS 42632.",
+  "courseCodes": [
+    "NURS 41152",
+    "NURS 41534",
+    "NURS 41634",
+    "NURS 42432",
+    "NURS 42532",
+    "NURS 42632"
+  ],
+  "structure": {
+    "kind": "all_of",
+    "quote": "",
+    "items": [
+      {
+        "kind": "text",
+        "quote": "Completion of Level I"
+      },
+      {
+        "kind": "course",
+        "quote": "NURS 41152"
+      },
+      {
+        "kind": "all_of",
+        "quote": "",
+        "items": [
+          {
+            "kind": "course",
+            "quote": "NURS 41534"
+          },
+          {
+            "kind": "course",
+            "quote": "NURS 41634"
+          },
+          {
+            "kind": "course",
+            "quote": "NURS 42432"
+          },
+          {
+            "kind": "course",
+            "quote": "NURS 42532"
+          },
+          {
+            "kind": "course",
+            "quote": "NURS 42632"
+          }
+        ]
+      }
+    ]
+  },
+  "argument": "The sentence begins with 'Completion of Level I', which is a text condition, followed by 'and'. According to the CTDL definition of ceterms:requires, this implies an 'all_of' relationship where every item must be satisfied. The list following the first 'and' contains 'NURS 41152' and then a comma-separated list ending in 'and NURS 42632'. In standard logical parsing for course catalogs, a comma list ending in 'and' (Oxford comma style) groups those items as a single required set. Therefore, the structure is: [Text Condition] AND [Course A] AND [Group of Courses B-E]. The group of courses B-E (NURS 41534 through NURS 42632) are joined by commas and an implicit 'and' at the end, forming a single 'all_of' node containing all five course codes. The final structure represents that one must complete Level I, take NURS 41152, AND take all courses in the second group.",
+  "seconds": 6.3
+}

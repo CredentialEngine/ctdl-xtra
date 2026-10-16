@@ -1,0 +1,29 @@
+{
+  "model": "qwen3.5:9b",
+  "promptVersion": "prerequisite-structure/1",
+  "task": "corequisite sentence",
+  "sentence": "Chemistry majors and chemistry minors must enroll in CHEM 35102 concurrently.",
+  "courseCodes": [
+    "CHEM 35102"
+  ],
+  "structure": {
+    "kind": "all_of",
+    "quote": "",
+    "items": [
+      {
+        "kind": "text",
+        "quote": "Chemistry majors and chemistry minors must enroll in"
+      },
+      {
+        "kind": "course",
+        "quote": "CHEM 35102"
+      },
+      {
+        "kind": "text",
+        "quote": "concurrently."
+      }
+    ]
+  },
+  "argument": "The sentence contains a single requirement ('must enroll in CHEM 35102 concurrently') that applies to a group defined by 'Chemistry majors and chemistry minors'. According to the CTDL definition of ceterms:requires, this is a set of requirements where every item under it is required. The phrase 'and' within the subject group ('Chemistry majors and chemistry minors') defines the scope of the students who must satisfy the condition, but logically, the requirement itself (enrolling in the course) is an 'all_of' constraint for that specific group; one cannot be a Chemistry major or minor without satisfying the enrollment requirement. The structure groups the entire sentence as an 'all_of' because the condition applies universally to the defined set of students.",
+  "seconds": 4.1
+}

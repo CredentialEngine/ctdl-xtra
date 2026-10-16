@@ -1,0 +1,13 @@
+{
+  "model": "qwen3.5:9b",
+  "promptVersion": "prerequisite-structure/1",
+  "task": "prerequisite sentence",
+  "sentence": "Graduate standing in any of these programs: MS in Computer Science (CSCEMS), PhD in Computer Science (CSCEPH), MS in Computer Engineering (CENGMS), or PhD in Computer Engineering (CENGPH).",
+  "courseCodes": [],
+  "structure": {
+    "kind": "text",
+    "quote": "Graduate standing in any of these programs: MS in Computer Science (CSCEMS), PhD in Computer Science (CSCEPH), MS in Computer Engineering (CENGMS), or PhD in Computer Engineering (CENGPH)."
+  },
+  "argument": "The sentence contains no course codes; it describes a condition ('Graduate standing') and lists program names. According to the rules, any condition that is not a course code is treated as 'text'. The list of programs joined by 'or' represents alternatives within this single text node, but since there are no distinct course codes to parse into separate 'course' or grouped 'all_of'/'any_of' nodes, the entire sentence remains a single 'text' node.",
+  "seconds": 5.5
+}

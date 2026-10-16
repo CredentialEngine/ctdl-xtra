@@ -1,0 +1,25 @@
+{
+  "model": "qwen3.5:9b",
+  "promptVersion": "prerequisite-structure/1",
+  "task": "prerequisite sentence",
+  "sentence": "Chemistry major or minor and CHEM 37072.",
+  "courseCodes": [
+    "CHEM 37072"
+  ],
+  "structure": {
+    "kind": "any_of",
+    "quote": "",
+    "items": [
+      {
+        "kind": "text",
+        "quote": "Chemistry major or minor"
+      },
+      {
+        "kind": "course",
+        "quote": "CHEM 37072"
+      }
+    ]
+  },
+  "argument": "The sentence uses 'or' to connect two distinct paths: 'Chemistry major or minor' and 'CHEM 37072'. According to the CTDL definition of ceterms:alternativeCondition, this represents a context where more than one alternative path is defined and any one path fulfills the parent condition. Therefore, the root node is an 'any_of' node. The first item is a text description ('Chemistry major or minor') because it describes a group of students rather than a specific course code. The second item is a 'course' node with the quote 'CHEM 37072', as it matches the format of a single course code exactly.",
+  "seconds": 2.9
+}

@@ -1,0 +1,40 @@
+{
+  "model": "qwen3.5:9b",
+  "promptVersion": "prerequisite-structure/1",
+  "task": "prerequisite sentence",
+  "sentence": "Honors standing, ENGL 10103 and ENGL 10203, or equivalent in both.",
+  "courseCodes": [
+    "ENGL 10103",
+    "ENGL 10203"
+  ],
+  "structure": {
+    "kind": "any_of",
+    "quote": "",
+    "items": [
+      {
+        "kind": "text",
+        "quote": "Honors standing"
+      },
+      {
+        "kind": "all_of",
+        "quote": "",
+        "items": [
+          {
+            "kind": "course",
+            "quote": "ENGL 10103"
+          },
+          {
+            "kind": "course",
+            "quote": "ENGL 10203"
+          }
+        ]
+      },
+      {
+        "kind": "text",
+        "quote": "or equivalent in both"
+      }
+    ]
+  },
+  "argument": "The sentence is parsed as an 'any_of' structure because the main connector is 'or', meaning satisfying any of the listed paths fulfills the requirement. The first item is a text condition ('Honors standing'). The second item is an 'all_of' group containing two courses joined by 'and' (ENGL 10103 and ENGL 10203), requiring both to be taken. The third item is a text condition ('or equivalent in both') which acts as the alternative path alongside the first item, completing the 'any_of' logic where one must choose between having Honors standing, taking both specific courses, or meeting an equivalent requirement.",
+  "seconds": 9.4
+}

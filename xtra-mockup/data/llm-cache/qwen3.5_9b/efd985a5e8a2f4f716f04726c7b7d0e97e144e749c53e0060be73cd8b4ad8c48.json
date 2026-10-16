@@ -1,0 +1,27 @@
+{
+  "model": "qwen3.5:9b",
+  "promptVersion": "prerequisite-structure/1",
+  "task": "corequisite sentence",
+  "sentence": "CHEM 360H2 and related course component drill sections for CHEM 360H3 and CHEM 360H2.",
+  "courseCodes": [
+    "CHEM 360H2",
+    "CHEM 360H3",
+    "CHEM 360H2"
+  ],
+  "structure": {
+    "kind": "all_of",
+    "quote": "",
+    "items": [
+      {
+        "kind": "course",
+        "quote": "CHEM 360H2"
+      },
+      {
+        "kind": "text",
+        "quote": "and related course component drill sections for CHEM 360H3 and CHEM 360H2."
+      }
+    ]
+  },
+  "argument": "The sentence begins with 'CHEM 360H2', which is a specific course code, followed by the conjunction 'and'. According to the rules, items joined by 'and' form an 'all_of' group. The text following the first 'and' describes a condition involving other courses ('CHEM 360H3' and 'CHEM 360H2') but is not itself a single course code node; it is a textual description of a requirement. Therefore, the structure is an 'all_of' node containing the first course as one item and the remaining text as the second item. The internal 'and' within the text ('CHEM 360H3 and CHEM 360H2') is part of the quoted text string and does not create a new logical grouping outside the quote, as per Rule 1 to copy quotes character for character.",
+  "seconds": 4.1
+}

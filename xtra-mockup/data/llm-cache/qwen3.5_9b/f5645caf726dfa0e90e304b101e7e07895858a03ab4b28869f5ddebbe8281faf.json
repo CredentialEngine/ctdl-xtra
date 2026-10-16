@@ -1,0 +1,30 @@
+{
+  "model": "qwen3.5:9b",
+  "promptVersion": "prerequisite-structure/1",
+  "task": "prerequisite sentence",
+  "sentence": "NURS 43233 and NURS 31151 and admission to the Online Undergraduate BSN Professional Program or permission by the instructor or department head.",
+  "courseCodes": [
+    "NURS 43233",
+    "NURS 31151"
+  ],
+  "structure": {
+    "kind": "all_of",
+    "quote": "",
+    "items": [
+      {
+        "kind": "course",
+        "quote": "NURS 43233"
+      },
+      {
+        "kind": "course",
+        "quote": "NURS 31151"
+      },
+      {
+        "kind": "text",
+        "quote": "admission to the Online Undergraduate BSN Professional Program or permission by the instructor or department head"
+      }
+    ]
+  },
+  "argument": "The sentence begins with 'NURS 43233 and NURS 31151', which establishes an initial 'all_of' relationship between these two courses. However, the phrase following them is connected by 'or' ('...Program or permission...'). According to the CTDL definition of ceterms:alternativeCondition, this indicates a context where more than one alternative path exists and any one path fulfills the parent condition. Therefore, the entire group (the two specific courses AND the admission/permission requirement) forms a single 'all_of' node because the sentence structure implies that to satisfy the prerequisite, one must complete the course block OR meet the admission/permission criteria? Wait, re-evaluating based on standard catalog syntax vs strict logical parsing of the provided text.\n\nCorrection on Logic: The sentence is 'A and B and C or D'. In natural language requirements, this usually means (A and B) are required, AND then you need either C OR D. However, looking at the specific phrasing 'NURS 43233 and NURS 31151 and admission... or permission...', there is a potential ambiguity. Let's look closer at the grouping.\n\nActually, standard interpretation of 'X and Y and Z or W' in prerequisites often implies (X and Y) are mandatory, and then (Z or W) is the second mandatory step. But if the prompt asks for a tree based on the text provided without external context implying parentheses:\n\nIf we treat the whole sentence as one logical unit: Is it (A and B and C) OR D? Or is it (A and B) AND (C or D)?\n\nLet's re-read the specific instruction: ",
+  "seconds": 12.7
+}

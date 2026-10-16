@@ -1,0 +1,27 @@
+{
+  "model": "qwen3.5:9b",
+  "promptVersion": "prerequisite-structure/1",
+  "task": "corequisite sentence",
+  "sentence": "CHEM 37072 and related course component drill sections for CHEM 37073 and CHEM 37072.",
+  "courseCodes": [
+    "CHEM 37072",
+    "CHEM 37073",
+    "CHEM 37072"
+  ],
+  "structure": {
+    "kind": "all_of",
+    "quote": "",
+    "items": [
+      {
+        "kind": "course",
+        "quote": "CHEM 37072"
+      },
+      {
+        "kind": "text",
+        "quote": "related course component drill sections for CHEM 37073 and CHEM 37072"
+      }
+    ]
+  },
+  "argument": "The sentence begins with 'CHEM 37072', which is a specific course code, followed by the text 'related course component drill sections for CHEM 37073 and CHEM 37072'. Since there are no brackets explicitly grouping these items under an 'or' condition, and the structure implies a single requirement consisting of both the course and the related sections, they form an 'all_of' relationship. According to the CTDL definition of ceterms:requires, this represents a set of requirements where every item must be satisfied. The internal 'and' within the text string ('CHEM 37073 and CHEM 37072') is part of the descriptive text defining the 'related course component drill sections', not a logical operator separating distinct alternative conditions for the parent requirement, as per the rule that brackets group items joined by 'and' or 'or'. Therefore, the top-level structure is an 'all_of' node containing the first course and the descriptive text.",
+  "seconds": 4.4
+}

@@ -1,0 +1,33 @@
+{
+  "model": "qwen3.5:9b",
+  "promptVersion": "prerequisite-structure/1",
+  "task": "prerequisite sentence",
+  "sentence": "STEM Education Minor or STEM Education Certificate and 8 hours of CHEM courses.",
+  "courseCodes": [],
+  "structure": {
+    "kind": "any_of",
+    "quote": "",
+    "items": [
+      {
+        "kind": "text",
+        "quote": "STEM Education Minor"
+      },
+      {
+        "kind": "all_of",
+        "quote": "",
+        "items": [
+          {
+            "kind": "text",
+            "quote": "STEM Education Certificate"
+          },
+          {
+            "kind": "text",
+            "quote": "and 8 hours of CHEM courses"
+          }
+        ]
+      }
+    ]
+  },
+  "argument": "The sentence begins with 'or', which connects two main alternatives: 'STEM Education Minor' and the subsequent phrase. According to the CTDL definition of ceterms:alternativeCondition, this indicates an 'any_of' structure where fulfilling either path satisfies the requirement. The second path contains the word 'and' connecting 'STEM Education Certificate' with '8 hours of CHEM courses'. Per the rule that 'and' inside brackets (or logical groupings) creates an 'all_of', these two items are grouped together as a single required set within the alternative.",
+  "seconds": 3.7
+}

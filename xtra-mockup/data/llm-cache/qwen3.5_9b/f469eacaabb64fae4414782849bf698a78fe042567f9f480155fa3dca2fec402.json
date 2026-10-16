@@ -1,0 +1,26 @@
+{
+  "model": "qwen3.5:9b",
+  "promptVersion": "prerequisite-structure/1",
+  "task": "corequisite sentence",
+  "sentence": "CHEM 26103 and related course component drill for CHEM 26103.",
+  "courseCodes": [
+    "CHEM 26103",
+    "CHEM 26103"
+  ],
+  "structure": {
+    "kind": "all_of",
+    "quote": "",
+    "items": [
+      {
+        "kind": "course",
+        "quote": "CHEM 26103"
+      },
+      {
+        "kind": "text",
+        "quote": "and related course component drill for CHEM 26103"
+      }
+    ]
+  },
+  "argument": "The sentence contains the conjunction 'and' connecting a course code and a descriptive text phrase. According to the CTDL definition of ceterms:requires, this represents a set of requirements where every item must be satisfied. Therefore, the structure is an 'all_of' node containing the specific course 'CHEM 26103' and the condition 'related course component drill for CHEM 26103'. The definition of ceterms:alternativeCondition is not applicable because 'and' implies necessity of all parts, whereas 'or' would imply sufficiency of any single part.",
+  "seconds": 3.3
+}

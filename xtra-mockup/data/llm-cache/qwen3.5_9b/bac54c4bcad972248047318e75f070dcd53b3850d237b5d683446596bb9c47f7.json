@@ -1,0 +1,13 @@
+{
+  "model": "qwen3.5:9b",
+  "promptVersion": "prerequisite-structure/1",
+  "task": "prerequisite sentence",
+  "sentence": "Chemistry graduate student.",
+  "courseCodes": [],
+  "structure": {
+    "kind": "text",
+    "quote": "Chemistry graduate student."
+  },
+  "argument": "The sentence contains no 'and' or 'or' conjunctions to group multiple items into an 'all_of' or 'any_of' structure. It describes a single condition regarding the student's status ('Chemistry graduate student') without listing alternatives or mandatory combinations of separate requirements. Therefore, per the definition that 'text' is any condition not a course code, this entire phrase is treated as a single text node.",
+  "seconds": 2.0
+}

@@ -1,0 +1,13 @@
+{
+  "model": "qwen3.5:9b",
+  "promptVersion": "prerequisite-structure/1",
+  "task": "prerequisite sentence",
+  "sentence": "Must be a graduate student in Computer Science Computer Engineering (CSCE).",
+  "courseCodes": [],
+  "structure": {
+    "kind": "text",
+    "quote": "Must be a graduate student in Computer Science Computer Engineering (CSCE)."
+  },
+  "argument": "The sentence contains no course codes; it is entirely a condition describing the required class standing and major. According to the rules, any condition that is not a course code is treated as 'text'. Therefore, the entire sentence is wrapped in a single 'text' node with the exact quote provided.",
+  "seconds": 3.4
+}

@@ -1,0 +1,23 @@
+{
+  "model": "qwen3.5:9b",
+  "promptVersion": "prerequisite-structure/1",
+  "task": "prerequisite sentence",
+  "sentence": "Departmental approval and instructor approval required.",
+  "courseCodes": [],
+  "structure": {
+    "kind": "all_of",
+    "quote": "",
+    "items": [
+      {
+        "kind": "text",
+        "quote": "Departmental approval"
+      },
+      {
+        "kind": "text",
+        "quote": "and instructor approval required"
+      }
+    ]
+  },
+  "argument": "The sentence contains the word 'and' connecting two conditions ('Departmental approval' and 'instructor approval required'). According to the CTDL definition of ceterms:alternativeCondition, this structure implies a set where every item must be satisfied (an 'all_of' relationship), as opposed to an 'any_of' relationship which would use 'or'. The text nodes capture the exact wording without paraphrasing.",
+  "seconds": 6.4
+}

@@ -1,0 +1,40 @@
+{
+  "model": "qwen3.5:9b",
+  "promptVersion": "prerequisite-structure/1",
+  "task": "prerequisite sentence",
+  "sentence": "CSCE 20104 or DASC 21003 each with a grade of C or better, and must be a student in ENGR, ENGRFR, EXPLEN, or CSCE-Minor.",
+  "courseCodes": [
+    "CSCE 20104",
+    "DASC 21003"
+  ],
+  "structure": {
+    "kind": "all_of",
+    "quote": "",
+    "items": [
+      {
+        "kind": "any_of",
+        "quote": "",
+        "items": [
+          {
+            "kind": "course",
+            "quote": "CSCE 20104"
+          },
+          {
+            "kind": "course",
+            "quote": "DASC 21003"
+          }
+        ]
+      },
+      {
+        "kind": "text",
+        "quote": "each with a grade of C or better"
+      },
+      {
+        "kind": "text",
+        "quote": "and must be a student in ENGR, ENGRFR, EXPLEN, or CSCE-Minor."
+      }
+    ]
+  },
+  "argument": "The sentence begins with 'CSCE 20104 or DASC 21003', which defines an alternative set of courses; according to the CTDL definition of ceterms:alternativeCondition, this forms an 'any_of' node where one path fulfills the requirement. The subsequent clauses ('each with a grade...' and 'and must be a student...') are joined by 'and', indicating that both conditions must be met simultaneously for either course chosen; per the CTDL definition of ceterms:requires, this entire structure constitutes an 'all_of' node where every item is required.",
+  "seconds": 4.2
+}

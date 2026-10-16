@@ -1,0 +1,25 @@
+{
+  "model": "qwen3.5:9b",
+  "promptVersion": "prerequisite-structure/1",
+  "task": "prerequisite sentence",
+  "sentence": "ENGL 10103 or the equivalent.",
+  "courseCodes": [
+    "ENGL 10103"
+  ],
+  "structure": {
+    "kind": "any_of",
+    "quote": "",
+    "items": [
+      {
+        "kind": "course",
+        "quote": "ENGL 10103"
+      },
+      {
+        "kind": "text",
+        "quote": "the equivalent"
+      }
+    ]
+  },
+  "argument": "The sentence uses 'or' to connect two distinct options, meaning only one needs to be satisfied. According to the CTDL definition of ceterms:alternativeCondition, this represents a context where 'any one path fulfills the parent condition,' which maps to an 'any_of' node. The first item is the specific course code 'ENGL 10103', identified as a 'course'. The second item is the phrase 'the equivalent', which is not a course code and represents a general condition, identified as 'text'.",
+  "seconds": 6.2
+}

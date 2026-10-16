@@ -1,0 +1,41 @@
+{
+  "model": "qwen3.5:9b",
+  "promptVersion": "prerequisite-structure/1",
+  "task": "prerequisite sentence",
+  "sentence": "NURS 21403 or NURS 30303 or NURS 45103 and honors standing.",
+  "courseCodes": [
+    "NURS 21403",
+    "NURS 30303",
+    "NURS 45103"
+  ],
+  "structure": {
+    "kind": "any_of",
+    "quote": "",
+    "items": [
+      {
+        "kind": "course",
+        "quote": "NURS 21403"
+      },
+      {
+        "kind": "course",
+        "quote": "NURS 30303"
+      },
+      {
+        "kind": "all_of",
+        "quote": "",
+        "items": [
+          {
+            "kind": "course",
+            "quote": "NURS 45103"
+          },
+          {
+            "kind": "text",
+            "quote": "and honors standing"
+          }
+        ]
+      }
+    ]
+  },
+  "argument": "The sentence begins with 'or' connecting three distinct options, which aligns with the CTDL definition of ceterms:alternativeCondition where 'any one path fulfills the parent condition,' establishing a top-level 'any_of' node. However, the third option ('NURS 45103 and honors standing') contains the word 'and'. According to the rules, courses joined by 'and' inside brackets (or in this case, forming a single logical unit) constitute an 'all_of' requirement where every item is required. Therefore, selecting NURS 45103 necessitates also having 'honors standing,' creating a nested 'all_of' structure for that specific alternative.",
+  "seconds": 9.3
+}

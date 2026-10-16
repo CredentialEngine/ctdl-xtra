@@ -1,0 +1,25 @@
+{
+  "model": "qwen3.5:9b",
+  "promptVersion": "prerequisite-structure/1",
+  "task": "corequisite sentence",
+  "sentence": "Chemistry majors and chemistry minors must enroll in CHEM 34603 concurrently.",
+  "courseCodes": [
+    "CHEM 34603"
+  ],
+  "structure": {
+    "kind": "all_of",
+    "quote": "",
+    "items": [
+      {
+        "kind": "text",
+        "quote": "Chemistry majors and chemistry minors must enroll in"
+      },
+      {
+        "kind": "course",
+        "quote": "CHEM 34603"
+      }
+    ]
+  },
+  "argument": "The sentence contains a single requirement where the subject ('Chemistry majors and chemistry minors') is joined by 'and' to form a group that must satisfy the condition together, followed by the action of enrolling in a specific course. According to the CTDL definition of ceterms:requires, this represents a set of requirements where every item under it is required. The phrase 'Chemistry majors and chemistry minors' functions as a text condition describing the target group, and 'CHEM 34603' is the specific course code. Since the entire sentence describes one mandatory path (enrolling in the course) applicable to the combined group of majors and minors, the structure is an 'all_of' node containing the text condition and the course code.",
+  "seconds": 3.5
+}

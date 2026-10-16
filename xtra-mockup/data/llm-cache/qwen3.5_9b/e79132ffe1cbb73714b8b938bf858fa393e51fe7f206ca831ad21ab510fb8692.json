@@ -1,0 +1,36 @@
+{
+  "model": "qwen3.5:9b",
+  "promptVersion": "prerequisite-structure/1",
+  "task": "prerequisite sentence",
+  "sentence": "ENGL 10103 and ENGL 10203, or equivalent in both.",
+  "courseCodes": [
+    "ENGL 10103",
+    "ENGL 10203"
+  ],
+  "structure": {
+    "kind": "any_of",
+    "quote": "",
+    "items": [
+      {
+        "kind": "all_of",
+        "quote": "",
+        "items": [
+          {
+            "kind": "course",
+            "quote": "ENGL 10103"
+          },
+          {
+            "kind": "course",
+            "quote": "ENGL 10203"
+          }
+        ]
+      },
+      {
+        "kind": "text",
+        "quote": "equivalent in both"
+      }
+    ]
+  },
+  "argument": "The sentence contains 'or', which according to the CTDL definition of ceterms:alternativeCondition implies that any one path fulfills the parent condition, establishing an 'any_of' node at the root. The first item before the comma is a list joined by 'and'. According to the CTDL definition of ceterms:requires and the rule that courses joined by 'and' inside brackets (or lists functioning as such) form an 'all_of', this creates an 'all_of' node containing the two specific course codes. The second item after the comma is a condition describing equivalence, which fits the definition of ceterms:ConditionProfile as a constraint or requirement not being a specific course code, thus forming a 'text' node.",
+  "seconds": 9.8
+}

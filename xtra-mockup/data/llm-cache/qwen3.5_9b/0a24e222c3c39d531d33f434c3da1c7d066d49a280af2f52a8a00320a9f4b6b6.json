@@ -1,0 +1,36 @@
+{
+  "model": "qwen3.5:9b",
+  "promptVersion": "prerequisite-structure/1",
+  "task": "prerequisite sentence",
+  "sentence": "CSCE 31903 and CSCE 46103 or Computer Science Computer Engineering (CSCE) graduate standing.",
+  "courseCodes": [
+    "CSCE 31903",
+    "CSCE 46103"
+  ],
+  "structure": {
+    "kind": "any_of",
+    "quote": "",
+    "items": [
+      {
+        "kind": "all_of",
+        "quote": "",
+        "items": [
+          {
+            "kind": "course",
+            "quote": "CSCE 31903"
+          },
+          {
+            "kind": "course",
+            "quote": "CSCE 46103"
+          }
+        ]
+      },
+      {
+        "kind": "text",
+        "quote": "Computer Science Computer Engineering (CSCE) graduate standing."
+      }
+    ]
+  },
+  "argument": "The sentence contains 'and' joining two course codes, which according to the definition of ceterms:alternativeCondition implies a context where multiple alternatives exist; however, within that specific group joined by 'and', the definition of ceterms:requires suggests every item is required. Thus, 'CSCE 31903 and CSCE 46103' forms an 'all_of' node because both must be taken together. The word 'or' separates this combined requirement from the text describing graduate standing. According to the definition of ceterms:alternativeCondition, since more than one alternative path is defined (taking both courses OR having the standing), and any one path fulfills the parent condition, the root node is an 'any_of'. The text portion is parsed as a single unit because it describes a specific class standing condition without internal logical operators separating distinct requirements.",
+  "seconds": 11.8
+}

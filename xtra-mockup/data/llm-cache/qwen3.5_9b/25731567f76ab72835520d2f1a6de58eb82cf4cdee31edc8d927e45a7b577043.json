@@ -1,0 +1,192 @@
+{
+  "model": "qwen3.5:9b",
+  "promptVersion": "prerequisite-structure/1",
+  "task": "prerequisite sentence",
+  "sentence": "((CHEM 14203 and CHEM 14201) or (CHEM 142H3 and CHEM 142H1) or (CHEM 12283 and CHEM 12281) or (CHEM 12103 and CHEM 12101)) and ((MATH 11003 or higher) or (AP Calculus AB 3C or higher) or (AP Calculus BC 4C or higher) or (MATH 11003 CLEP score of College Algebra 54 or higher) or (UA Math Placement 46 or higher) or (ACT MATH 22 or higher) or (old/new SAT MATH of 540 or higher)).",
+  "courseCodes": [
+    "CHEM 14203",
+    "CHEM 14201",
+    "CHEM 142H3",
+    "CHEM 142H1",
+    "CHEM 12283",
+    "CHEM 12281",
+    "CHEM 12103",
+    "CHEM 12101",
+    "MATH 11003",
+    "MATH 11003"
+  ],
+  "structure": {
+    "kind": "all_of",
+    "quote": "",
+    "items": [
+      {
+        "kind": "any_of",
+        "quote": "",
+        "items": [
+          {
+            "kind": "all_of",
+            "quote": "",
+            "items": [
+              {
+                "kind": "course",
+                "quote": "CHEM 14203"
+              },
+              {
+                "kind": "course",
+                "quote": "CHEM 14201"
+              }
+            ]
+          },
+          {
+            "kind": "all_of",
+            "quote": "",
+            "items": [
+              {
+                "kind": "course",
+                "quote": "CHEM 142H3"
+              },
+              {
+                "kind": "course",
+                "quote": "CHEM 142H1"
+              }
+            ]
+          },
+          {
+            "kind": "all_of",
+            "quote": "",
+            "items": [
+              {
+                "kind": "course",
+                "quote": "CHEM 12283"
+              },
+              {
+                "kind": "course",
+                "quote": "CHEM 12281"
+              }
+            ]
+          },
+          {
+            "kind": "all_of",
+            "quote": "",
+            "items": [
+              {
+                "kind": "course",
+                "quote": "CHEM 12103"
+              },
+              {
+                "kind": "course",
+                "quote": "CHEM 12101"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "kind": "all_of",
+        "quote": "",
+        "items": [
+          {
+            "kind": "any_of",
+            "quote": "",
+            "items": [
+              {
+                "kind": "course",
+                "quote": "MATH 11003"
+              },
+              {
+                "kind": "text",
+                "quote": "higher"
+              }
+            ]
+          },
+          {
+            "kind": "any_of",
+            "quote": "",
+            "items": [
+              {
+                "kind": "text",
+                "quote": "AP Calculus AB 3C"
+              },
+              {
+                "kind": "text",
+                "quote": "higher"
+              }
+            ]
+          },
+          {
+            "kind": "any_of",
+            "quote": "",
+            "items": [
+              {
+                "kind": "text",
+                "quote": "AP Calculus BC 4C"
+              },
+              {
+                "kind": "text",
+                "quote": "higher"
+              }
+            ]
+          },
+          {
+            "kind": "any_of",
+            "quote": "",
+            "items": [
+              {
+                "kind": "text",
+                "quote": "MATH 11003 CLEP score of College Algebra 54"
+              },
+              {
+                "kind": "text",
+                "quote": "higher"
+              }
+            ]
+          },
+          {
+            "kind": "any_of",
+            "quote": "",
+            "items": [
+              {
+                "kind": "text",
+                "quote": "UA Math Placement 46"
+              },
+              {
+                "kind": "text",
+                "quote": "higher"
+              }
+            ]
+          },
+          {
+            "kind": "any_of",
+            "quote": "",
+            "items": [
+              {
+                "kind": "text",
+                "quote": "ACT MATH 22"
+              },
+              {
+                "kind": "text",
+                "quote": "higher"
+              }
+            ]
+          },
+          {
+            "kind": "any_of",
+            "quote": "",
+            "items": [
+              {
+                "kind": "text",
+                "quote": "old/new SAT MATH of 540"
+              },
+              {
+                "kind": "text",
+                "quote": "higher"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "argument": "The outermost structure is an 'all_of' because the two main groups are joined by 'and', meaning both must be satisfied. The first group contains four alternatives joined by 'or', making it an 'any_of'. Inside these alternatives, pairs of courses (e.g., CHEM 14203 and CHEM 14201) are joined by 'and' within brackets, forming 'all_of' sub-groups. Similarly, the second main group is an 'all_of' containing seven alternatives joined by 'or', making it an 'any_of'. Within these alternatives, items like 'MATH 11003 or higher' are joined by 'or', forming 'any_of' sub-groups where one condition suffices.",
+  "seconds": 13.5
+}

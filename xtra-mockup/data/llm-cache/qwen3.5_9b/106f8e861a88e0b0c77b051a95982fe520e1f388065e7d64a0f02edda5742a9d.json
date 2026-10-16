@@ -1,0 +1,70 @@
+{
+  "model": "qwen3.5:9b",
+  "promptVersion": "prerequisite-structure/1",
+  "task": "prerequisite sentence",
+  "sentence": "NURS 31151, NURS 33332, NURS 41032, NURS 43233, NURS 41234, NURS 41433, NURS 32932, NURS 43133, and admission to the Online Undergraduate BSN Professional Program or permission by the instructor or department head.",
+  "courseCodes": [
+    "NURS 31151",
+    "NURS 33332",
+    "NURS 41032",
+    "NURS 43233",
+    "NURS 41234",
+    "NURS 41433",
+    "NURS 32932",
+    "NURS 43133"
+  ],
+  "structure": {
+    "kind": "all_of",
+    "quote": "",
+    "items": [
+      {
+        "kind": "course",
+        "quote": "NURS 31151"
+      },
+      {
+        "kind": "course",
+        "quote": "NURS 33332"
+      },
+      {
+        "kind": "course",
+        "quote": "NURS 41032"
+      },
+      {
+        "kind": "course",
+        "quote": "NURS 43233"
+      },
+      {
+        "kind": "course",
+        "quote": "NURS 41234"
+      },
+      {
+        "kind": "course",
+        "quote": "NURS 41433"
+      },
+      {
+        "kind": "course",
+        "quote": "NURS 32932"
+      },
+      {
+        "kind": "course",
+        "quote": "NURS 43133"
+      },
+      {
+        "kind": "any_of",
+        "quote": "",
+        "items": [
+          {
+            "kind": "text",
+            "quote": "admission to the Online Undergraduate BSN Professional Program"
+          },
+          {
+            "kind": "text",
+            "quote": "permission by the instructor or department head"
+          }
+        ]
+      }
+    ]
+  },
+  "argument": "The sentence lists eight specific course codes separated by commas and concludes with 'and', which groups all preceding items as a single required set (an 'all_of' relationship) according to the definition that comma lists ending in 'and' represent conjunctions. The final item is a compound condition introduced by 'or', offering two distinct paths ('admission...' or 'permission...') where satisfying either one fulfills the requirement, which maps to an 'any_of' relationship per the definition of alternative conditions where any one path fulfills the parent.",
+  "seconds": 5.9
+}

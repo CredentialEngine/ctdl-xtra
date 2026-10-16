@@ -1,0 +1,36 @@
+{
+  "model": "qwen3.5:9b",
+  "promptVersion": "prerequisite-structure/1",
+  "task": "prerequisite sentence",
+  "sentence": "MATH 24005 or MATH 24004 each with a grade of C or better, and must be a student in ENGR, ENGRFR, EXPLEN, MATHBS, MATHBA, or CSCE-Minor.",
+  "courseCodes": [
+    "MATH 24005",
+    "MATH 24004"
+  ],
+  "structure": {
+    "kind": "all_of",
+    "quote": "",
+    "items": [
+      {
+        "kind": "any_of",
+        "quote": "",
+        "items": [
+          {
+            "kind": "course",
+            "quote": "MATH 24005"
+          },
+          {
+            "kind": "text",
+            "quote": "or MATH 24004 each with a grade of C or better"
+          }
+        ]
+      },
+      {
+        "kind": "text",
+        "quote": "and must be a student in ENGR, ENGRFR, EXPLEN, MATHBS, MATHBA, or CSCE-Minor."
+      }
+    ]
+  },
+  "argument": "The sentence contains the conjunction 'and' connecting two main clauses: (1) taking specific math courses with a grade requirement, and (2) being a student in specific departments. According to the CTDL definition of ceterms:requires, this implies an 'all_of' structure where every item must be satisfied. The first clause uses 'or' between 'MATH 24005' and 'MATH 24004 each with a grade of C or better', which aligns with the CTDL definition of ceterms:alternativeCondition, creating an 'any_of' structure where satisfying either path fulfills that part of the requirement. The second clause lists specific departments joined by commas and 'or', which is interpreted as a single text condition describing the group of eligible students.",
+  "seconds": 4.8
+}

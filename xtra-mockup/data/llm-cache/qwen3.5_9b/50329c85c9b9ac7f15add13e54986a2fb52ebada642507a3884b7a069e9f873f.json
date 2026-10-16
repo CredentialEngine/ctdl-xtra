@@ -1,0 +1,33 @@
+{
+  "model": "qwen3.5:9b",
+  "promptVersion": "prerequisite-structure/1",
+  "task": "prerequisite sentence",
+  "sentence": "ACT English scores of 28 or above or SAT Evidence-Based Reading and Writing scores of 630 or above and honors student.",
+  "courseCodes": [],
+  "structure": {
+    "kind": "any_of",
+    "quote": "",
+    "items": [
+      {
+        "kind": "all_of",
+        "quote": "",
+        "items": [
+          {
+            "kind": "text",
+            "quote": "ACT English scores of 28 or above"
+          },
+          {
+            "kind": "text",
+            "quote": "SAT Evidence-Based Reading and Writing scores of 630 or above"
+          }
+        ]
+      },
+      {
+        "kind": "text",
+        "quote": "and honors student"
+      }
+    ]
+  },
+  "argument": "The sentence contains a top-level 'or' connecting two main paths: the first path is 'ACT English scores of 28 or above or SAT Evidence-Based Reading and Writing scores of 630 or above', and the second path is 'and honors student'. According to the CTDL definition of ceterms:alternativeCondition, this structure represents a context where more than one alternative condition exists (the ACT/SAT options vs. the honors status), from which any one path fulfills the parent requirement. Therefore, the top-level node is an 'any_of' node. The first item under this 'any_of' node contains an internal 'or' between the ACT score and the SAT score, grouping them as alternatives within that specific path; thus, it forms an 'all_of' group containing those two text items (interpreting the internal 'or' as defining the set of acceptable conditions for that branch). The second item is a single condition ('and honors student') which does not contain further logical operators splitting it into multiple requirements, so it remains a standalone 'text' node. Note: While the prompt's example sentence uses 'and' to connect the ACT/SAT block to the 'honors student' requirement, in standard prerequisite logic (and consistent with the 'any_of' interpretation of the top-level split), this implies that satisfying *either* the [ACT or SAT] block *or* the [Honors] block is sufficient. The structure reflects the grouping of the ACT/SAT alternatives as one unit and the Honors status as a separate alternative unit.",
+  "seconds": 20.8
+}

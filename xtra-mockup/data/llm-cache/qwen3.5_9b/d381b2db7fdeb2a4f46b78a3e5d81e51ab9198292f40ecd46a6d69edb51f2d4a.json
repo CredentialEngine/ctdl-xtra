@@ -1,0 +1,59 @@
+{
+  "model": "qwen3.5:9b",
+  "promptVersion": "prerequisite-structure/1",
+  "task": "prerequisite sentence",
+  "sentence": "CHEM 22673 and PHYS 20203 (or PHYS 20404), and MATH 24004 (or MATH 22003).",
+  "courseCodes": [
+    "CHEM 22673",
+    "PHYS 20203",
+    "PHYS 20404",
+    "MATH 24004",
+    "MATH 22003"
+  ],
+  "structure": {
+    "kind": "all_of",
+    "quote": "",
+    "items": [
+      {
+        "kind": "course",
+        "quote": "CHEM 22673"
+      },
+      {
+        "kind": "any_of",
+        "quote": "",
+        "items": [
+          {
+            "kind": "course",
+            "quote": "PHYS 20203"
+          },
+          {
+            "kind": "course",
+            "quote": "PHYS 20404"
+          }
+        ]
+      },
+      {
+        "kind": "all_of",
+        "quote": "",
+        "items": [
+          {
+            "kind": "course",
+            "quote": "MATH 24004"
+          },
+          {
+            "kind": "any_of",
+            "quote": "",
+            "items": [
+              {
+                "kind": "course",
+                "quote": "MATH 22003"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "argument": "The top-level 'and' connecting the three main components (CHEM 22673, the PHYS group, and the MATH group) indicates an 'all_of' relationship per CTDL definition ceterms:alternativeCondition, where all paths must be satisfied. The first parenthetical '(or PHYS 20404)' creates an 'any_of' node for PHYS courses, as only one is needed. The second parenthetical '(or MATH 22003)' creates an 'any_of' node for the specific MATH requirement, but since it is joined by 'and' to MATH 24004 outside the parenthesis, the outer grouping becomes an 'all_of' containing both the course and the alternative option.",
+  "seconds": 5.5
+}

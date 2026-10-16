@@ -1,0 +1,13 @@
+{
+  "model": "qwen3.5:9b",
+  "promptVersion": "prerequisite-structure/1",
+  "task": "prerequisite sentence",
+  "sentence": "Admission into BSN professional program.",
+  "courseCodes": [],
+  "structure": {
+    "kind": "text",
+    "quote": "Admission into BSN professional program."
+  },
+  "argument": "The sentence contains no course codes, so it cannot be parsed as a 'course' node. It is a single condition describing an entry requirement ('Admission into BSN professional program'), which fits the definition of a 'text' node: any condition that is not a course code.",
+  "seconds": 3.2
+}

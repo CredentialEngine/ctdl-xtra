@@ -1,0 +1,15 @@
+{
+  "digest": "67207a837cf5b6d25db694130d2f445bded7a9332c708600e9856a7972b8cbdb",
+  "size": 55728,
+  "fetches": [
+    {
+      "requested": "https://catalog.uark.edu/undergraduatecatalog/coursesofinstruction/acct/",
+      "final": "https://catalog.uark.edu/undergraduatecatalog/coursesofinstruction/acct/",
+      "time": "2026-10-07T23:17:41+00:00",
+      "status": 200,
+      "contentType": "text/html; charset=UTF-8",
+      "size": 55728,
+      "digest": "67207a837cf5b6d25db694130d2f445bded7a9332c708600e9856a7972b8cbdb"
+    }
+  ]
+}

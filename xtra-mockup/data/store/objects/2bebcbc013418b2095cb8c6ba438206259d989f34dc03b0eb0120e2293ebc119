@@ -1,0 +1,682 @@
+
+
+<!doctype html>
+<html class="no-js" xml:lang="en" lang="en" dir="ltr">
+
+<head>
+<meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+<meta name="searchCrawler:site" content="https://catalog.uark.edu/">
+<meta name="searchCrawler:sectionType" content="Catalog of Studies">
+<title>Courses of Instruction &lt; University of Arkansas</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<meta property="og:site_name" content="Academic Catalog" />
+<link rel="search" type="application/opensearchdescription+xml"
+			href="/search/opensearch.xml" title="Catalog" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0" />
+<link href="/images/favicon.ico" rel="shortcut icon" />
+<link rel="stylesheet" type="text/css" href="/css/reset.css" />
+<link href="https://fonts.googleapis.com/css?family=Roboto:400,400i,500,500i,700,700i" rel="stylesheet">
+<link rel="stylesheet" type="text/css" href="/fonts/font-awesome/font-awesome.min.css" />
+<link rel="stylesheet" type="text/css" href="/css/courseleaf.css?v=1786050808000" />
+<link rel="stylesheet" type="text/css" href="/css/screen.css?v=1786050808000" media="screen" />
+<link rel="stylesheet" type="text/css" href="/css/print.css?v=1786050808000" media="print" />
+<script type="text/javascript" src="/js/jquery.js"></script>
+<script type="text/javascript" src="/js/lfjs.js"></script>
+<script type="text/javascript" src="/js/lfjs_any.js"></script>
+<link rel="stylesheet" type="text/css" href="/js/lfjs.css?v=1786050812000" />
+<script type="text/javascript" src="/js/courseleaf.js?v=1786050812000"></script>
+<script type="text/javascript" src="/js/custom.js?v=1786050812000"></script>
+<script type="text/javascript">var gakey = "GTM-N5Z7HW";</script><script type="text/javascript" src="/js/analytics.js"></script>
+
+
+
+<!-- Google Tag Manager -->
+<script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+})(window,document,'script','dataLayer','GTM-N5Z7HW');</script>
+<!-- End Google Tag Manager -->
+
+
+
+
+
+
+
+
+
+</head>
+
+
+
+<body class="">
+
+
+
+
+	<nav aria-label="Skip content menu" class="accessible">
+		<div class="accessible-menu">
+			<ul>
+				<li><a href="#contentarea" rel="section">Skip to Content</a></li>
+				<li><a href="/azindex/">AZ Index</a></li>
+				<li><a href="/">Catalog Home</a></li>
+			</ul>
+		</div>
+	</nav>
+
+	<header id="header">
+		<div class="wrap">
+		<div class="header-title">
+			<div id="logo">
+				<a href="https://www.uark.edu/"><img src="/images/logo.svg" alt="University of Arkansas Logo" /></a>
+			</div>
+			
+			<a href="/" class="catalog-text">Catalog of Studies</a>
+		</div>
+
+			<div class="desktop__sub-menu">
+				<button
+				id="dropdown-button"
+				class="link-dropdown"
+				aria-controls="link-list"
+    			aria-expanded="false"
+				data-toggle="#link-list"
+				><span aria-hidden="true" class="fas fa-angle-double-down"></span>LINKS</button>
+
+				<ul id="link-list">
+					<div>
+						<li><a href="https://www.uark.edu/a-to-z.php">A-Z Index</a></li>
+						<li><a href="https://learn.uark.edu/">Blackboard Learn</a></li>
+						<li><a href="https://campusmaps.uark.edu/">Campus Map</a></li>
+						<li><a href="https://uaconnect.uark.edu/">UAConnect</a></li>
+					</div>
+					<div>
+						<li><a href="https://directory.uark.edu/">Directory</a></li>
+						<li><a href="https://outlook.office.com">Email</a></li>
+						<li><a href="https://myapps.microsoft.com/">myApps</a></li>
+						<li><a href="https://wd5.myworkday.com/wday/authgwy/uasys/login-saml2.htmld">Workday</a></li>
+					</div>
+				</ul>
+
+				<div class="desktop__search" id="cat-search">
+					<form action="/search/">
+						<label for="cat-search-term-desktop" class="sr-only">Search catalog</label>
+						<input class="search-field" type="text" name="search" id="cat-search-term-desktop" placeholder="Search this site" />
+						<button class="search-button" type="submit">
+							<span class="fa fa-search" aria-hidden="true"></span>
+							<span class="sr-only">Submit search</span>
+						</button>
+<!-- <input type="hidden" name="caturl" value="/undergraduatecatalog" /> -->
+					</form>
+				</div>
+			</div>
+
+			<div class="menu-button">
+				<button
+				id="menu-button--open"
+				aria-controls="example-div"
+				aria-expanded="false"
+				data-toggle="#example-div">MENU <span class="fa fa-bars" aria-hidden="true"></span></button>
+			</div>
+		</div>
+
+		<section id="local-header">
+			<div class="wrap">
+				<nav id="navigation" aria-label="Secondary" aria-hidden="false">
+					<ul id="main-nav" class="clearfix">
+						<li><a href="/">Home</a></li>
+						<li><a href="/generalinfo">General Info</a></li>
+						<li><a href="/undergraduatecatalog">Undergraduate Catalog</a></li>
+						<li><a href="/graduatecatalog">Graduate Catalog</a></li>
+						<li><a href="/lawcatalog">Law Catalog</a></li>
+						<li><a href="/archives">Archive</a></li>
+						<li><button onclick="showPrintDialog(); return false;">Print</button></li>
+					</ul>
+				</nav>
+			</div>
+		</section>
+	</header>
+	
+	<div class="menu-modal"></div>
+	
+	<section
+		id="example-div"
+		class="mobile-nav-wrapper"
+		aria-hidden="true"
+		aria-controls="example-div"
+		aria-expanded="false" >
+		<div class="mobile-nav--close">
+			<button id="menu-button--close">CLOSE <span class="fa-solid fa-circle-xmark" aria-hidden="true"></span></button>
+		</div>
+
+		<div class="search" id="cat-search">
+			<form action="/search/">
+				<label for="cat-search-term" class="sr-only">Search catalog</label>
+				<input class="search-field" type="text" name="search" id="cat-search-term" placeholder="Search this site" />
+				<button class="search-button" type="submit">SEARCH
+					<span class="sr-only">Submit search</span>
+				</button>
+			</form>
+		</div>
+
+		<nav class="mobile-nav--main-menu">
+			<ul>
+				<li><a href="/">Home</a></li>
+				<li><a href="/generalinfo">General Info</a></li>
+				<li><a href="/undergraduatecatalog">Undergraduate Catalog</a></li>
+				<li><a href="/graduatecatalog">Graduate Catalog</a></li>
+				<li><a href="/lawcatalog">Law Catalog</a></li>
+				<li><a href="/archives">Archive</a></li>
+				<li><button onclick="showPrintDialog(); return false;">Print</button></li>
+			</ul>
+		</nav>
+
+		<div class="mobile-nav--sub-menu">
+			<nav>
+				<ul>
+					<li><a href="https://www.uark.edu/a-to-z.php">A-Z Index</a></li>
+					<li><a href="https://learn.uark.edu/">Blackboard Learn</a></li>
+					<li><a href="https://campusmaps.uark.edu/">Campus Map</a></li>
+					<li><a href="https://uaconnect.uark.edu/">UAConnect</a></li>
+					<li><a href="https://directory.uark.edu/">Directory</a></li>
+					<li><a href="https://outlook.office.com">Email</a></li>
+					<li><a href="https://myapps.microsoft.com/">myApps</a></li>
+					<li><a href="https://wd5.myworkday.com/wday/authgwy/uasys/login-saml2.htmld">Workday</a></li>
+				</ul>
+			</nav>
+
+			<picture>
+				<source type="image/webp" srcset="https://includes.uark.edu/assets/tower-grey.webp">
+				<source type="image/jpeg" srcset="https://includes.uark.edu/assets/tower-grey.png"><img src="https://includes.uark.edu/assets/tower-grey.png" alt="">
+			</picture>
+		</div>
+	</section>
+
+<section id="content-container">
+   <div class="wrap">
+      <div id="col-nav">
+         <button id="sidebar-toggle" aria-expanded="false" data-toggle="#sidebar">
+            <span class="fa fa-bars" aria-hidden="true"></span>
+            <span>2026-27 Edition</span>
+         </button>
+         <aside id="sidebar">
+            <div class="sidebar-item">
+               <h2 id="edition" class="sidebar-header"><a href="/">2026-27 Edition</a></h2>
+               <nav id="cl-menu" aria-label="Primary">
+<ul class="nav levelzero" id="/">
+	<li class="isparent"><a href="/generalinfo/">General Information</a></li>
+	<li class="active isparent"><a href="/undergraduatecatalog/">Undergraduate Catalog</a>
+	<ul class="nav levelone" id="/undergraduatecatalog/">
+		<li><a href="/undergraduatecatalog/contactinformation/">Contact Information</a></li>
+		<li><a href="/undergraduatecatalog/fieldsofstudy/">Programs of Study</a></li>
+		<li class="isparent"><a href="/undergraduatecatalog/enrollmentservices/">Enrollment Services</a></li>
+		<li class="isparent"><a href="/undergraduatecatalog/financialaidandscholarships/">Financial Aid and Scholarships</a></li>
+		<li class="isparent"><a href="/undergraduatecatalog/orientationandregistration/">Registration</a></li>
+		<li class="isparent"><a href="/undergraduatecatalog/feeandcosts/">Fees &amp;&#8203; Cost Estimates</a></li>
+		<li class="isparent"><a href="/undergraduatecatalog/academicregulations/">Academic Regulations</a></li>
+		<li class="isparent"><a href="/undergraduatecatalog/collegesandschools/">Colleges and Schools</a></li>
+		<li class="isparent"><a href="/undergraduatecatalog/reserveofficertrainingcorps/">ROTC</a></li>
+		<li><a href="/undergraduatecatalog/servicelearning/">Service Learning</a></li>
+		<li><a href="/undergraduatecatalog/faculty/">Undergraduate Faculty</a></li>
+		<li class="active isparent self"><a href="#" onclick="return false;">Courses of Instruction</a>
+		<ul class="nav leveltwo" id="/undergraduatecatalog/coursesofinstruction/">
+		</ul>
+		</li>
+		<li><a href="/undergraduatecatalog/glossary/">Glossary</a></li>
+	</ul>
+	</li>
+	<li class="isparent"><a href="/graduatecatalog/">Graduate Catalog</a></li>
+	<li class="isparent"><a href="/lawcatalog/">School of Law</a></li>
+	<li><a href="/archives/">Archives</a></li>
+</ul>
+               </nav>
+            </div>
+
+            <button id="print-btn" href="#print-dialog" onclick="showPrintDialog(); return false;">
+               <span class="fa fa-print" aria-hidden="true"></span> Print Options
+            </button>
+         </aside>
+      </div> <!-- end col-nav -->
+      <div id="col-content">
+			<main id="contentarea">
+			
+			
+				<header>
+					<h1 class="page-title">Courses of Instruction</h1>
+				</header>
+				
+<nav id="breadcrumb" aria-label="Breadcrumbs">
+<ul><li><a href="/">Catalog&nbsp;Home</a><span class="crumbsep">›</span></li><li><a href="/undergraduatecatalog/">Undergraduate&nbsp;Catalog</a><span class="crumbsep">›</span></li><li><span class="active">Courses of Instruction</span></li></ul>
+</nav>
+
+
+
+
+<div id="tab-sidebar">
+<script type="text/javascript">
+//<![CDATA[
+	var defshow = "text";
+	var bodycontainer = "#body";
+	var validhashes = ",text,coursenumberingtext,";
+
+if(window.location.hash.length) {
+	var hash = cleanHash(window.location.hash);
+	if(validhashes.indexOf("," + hash + ",") != -1)
+		defshow = hash;	
+}
+var ss = document.styleSheets;
+var workss = null;
+for(var i=0; i < ss.length; i++) {
+	var currmedia = "";
+	if (typeof ss[i].media == "string") 
+		currmedia = ss[i].media
+	else if (typeof ss[i].media == "object" && ss[i].media.mediaText) 
+		currmedia = ss[i].media.mediaText;
+	
+	if((currmedia == "screen" || currmedia == "all") && (ss[i].href.indexOf("/") == 0 || ss[i].href.indexOf(document.location.host) >= 0)) {
+		workss = ss[i];
+		break;	
+	}
+}
+if(workss && workss.insertRule) {
+	workss.insertRule(".tab_content { display: none; }", workss.cssRules.length)
+	workss.insertRule(".sectionheader { display: none; }", workss.cssRules.length)
+	workss.insertRule("#" + defshow + "container { display: block; }", workss.cssRules.length)
+} else if(workss && workss.addRule) {
+	workss.addRule(".tab_content", "display: none");
+	workss.addRule(".sectionheader", "display: none");
+	workss.addRule("#" + defshow + "container", "display: block");
+}
+else {
+	if (window.console)
+		window.console.log('screen.css <link> needs attribute media="screen"');
+}
+//]]>
+</script>
+
+
+	<nav id="tabs" aria-label="Page content tabs">
+		<ul class="clearfix" role="tablist">
+			<li id="texttab" role="presentation">
+<a href="#textcontainer" role="tab" aria-controls="textcontainer" onclick="return showSection('text');">Overview</a></li>
+			<li id="coursenumberingtexttab" role="presentation">
+<a href="#coursenumberingtextcontainer" role="tab" aria-controls="coursenumberingtextcontainer" onclick="return showSection('coursenumberingtext');" >Course Numbering</a></li>
+		</ul>
+	</nav>
+</div>
+
+<div id="textcontainer" class="page_content tab_content" role="tabpanel" aria-labelledby="texttab">
+
+<p>Courses listed in this section describe all courses approved for offering by the University of Arkansas. The courses are listed alphabetically by subject with the subject code in parenthesis following. The word “course” refers to a unit of academic instruction, while the word “class” refers to a course that has been scheduled during a semester or summer session with a certain number of prescribed meetings each week. Many courses are offered as classes every semester while many others are offered less frequently. Successful completion of a class usually earns a specified number of semester hours of credit toward a degree.</p><div class="sitemap">
+<h3>Courses of Instruction</h3>
+<table>
+<tr><td><h4>By Subject</h4></td></tr>
+<tr><td><a href="/undergraduatecatalog/coursesofinstruction/acct/" class="sitemaplink">Accounting (ACCT)</a></td></tr>
+<tr><td><a href="/undergraduatecatalog/coursesofinstruction/adll/" class="sitemaplink">Adult and Lifelong Learning (ADLL)</a></td></tr>
+<tr><td><a href="/undergraduatecatalog/coursesofinstruction/adpr/" class="sitemaplink">Advertising/Public Relations (ADPR)</a></td></tr>
+<tr><td><a href="/undergraduatecatalog/coursesofinstruction/aast/" class="sitemaplink">African and African American Studies (AAST)</a></td></tr>
+<tr><td><a href="/undergraduatecatalog/coursesofinstruction/acom/" class="sitemaplink">Agricultural Communications (ACOM)</a></td></tr>
+<tr><td><a href="/undergraduatecatalog/coursesofinstruction/agec/" class="sitemaplink">Agricultural Economics (AGEC)</a></td></tr>
+<tr><td><a href="/undergraduatecatalog/coursesofinstruction/aged/" class="sitemaplink">Agricultural Education (AGED)</a></td></tr>
+<tr><td><a href="/undergraduatecatalog/coursesofinstruction/aect/" class="sitemaplink">Agricultural Education, Communications and Technology (AECT)</a></td></tr>
+<tr><td><a href="/undergraduatecatalog/coursesofinstruction/agle/" class="sitemaplink">Agricultural Leadership (AGLE)</a></td></tr>
+<tr><td><a href="/undergraduatecatalog/coursesofinstruction/agst/" class="sitemaplink">Agricultural Statistics (AGST)</a></td></tr>
+<tr><td><a href="/undergraduatecatalog/coursesofinstruction/astm/" class="sitemaplink">Agricultural Systems Technology Management (ASTM)</a></td></tr>
+<tr><td><a href="/undergraduatecatalog/coursesofinstruction/afls/" class="sitemaplink">Agriculture, Food and Life Sciences (AFLS)</a></td></tr>
+<tr><td><a href="/undergraduatecatalog/coursesofinstruction/aero/" class="sitemaplink">Air Force ROTC (AERO)</a></td></tr>
+<tr><td><a href="/undergraduatecatalog/coursesofinstruction/ansc/" class="sitemaplink">Animal Science (ANSC)</a></td></tr>
+<tr><td><a href="/undergraduatecatalog/coursesofinstruction/anth/" class="sitemaplink">Anthropology (ANTH)</a></td></tr>
+<tr><td><a href="/undergraduatecatalog/coursesofinstruction/ampd/" class="sitemaplink">Apparel Merchandising and Product Development (AMPD)</a></td></tr>
+<tr><td><a href="/undergraduatecatalog/coursesofinstruction/muac/" class="sitemaplink">Applied Music (Class) (MUAC)</a></td></tr>
+<tr><td><a href="/undergraduatecatalog/coursesofinstruction/muap/" class="sitemaplink">Applied Music (Private Instruction) (MUAP)</a></td></tr>
+<tr><td><a href="/undergraduatecatalog/coursesofinstruction/arab/" class="sitemaplink">Arabic (ARAB)</a></td></tr>
+<tr><td><a href="/undergraduatecatalog/coursesofinstruction/ards/" class="sitemaplink">Architecture and Design (ARDS)</a></td></tr>
+<tr><td><a href="/undergraduatecatalog/coursesofinstruction/arch/" class="sitemaplink">Architecture (ARCH)</a></td></tr>
+<tr><td><a href="/undergraduatecatalog/coursesofinstruction/mils/" class="sitemaplink">Army ROTC (MILS)</a></td></tr>
+<tr><td><a href="/undergraduatecatalog/coursesofinstruction/arts/" class="sitemaplink">Art (ARTS)</a></td></tr>
+<tr><td><a href="/undergraduatecatalog/coursesofinstruction/ared/" class="sitemaplink">Art Education (ARED)</a></td></tr>
+<tr><td><a href="/undergraduatecatalog/coursesofinstruction/arhs/" class="sitemaplink">Art History (ARHS)</a></td></tr>
+<tr><td><a href="/undergraduatecatalog/coursesofinstruction/arsc/" class="sitemaplink">Arts and Sciences (ARSC)</a></td></tr>
+<tr><td><a href="/undergraduatecatalog/coursesofinstruction/aist/" class="sitemaplink">Asian Studies (AIST)</a></td></tr>
+<tr><td><a href="/undergraduatecatalog/coursesofinstruction/astr/" class="sitemaplink">Astronomy (ASTR)</a></td></tr>
+<tr><td><a href="/undergraduatecatalog/coursesofinstruction/attr/" class="sitemaplink">Athletic Training (ATTR)</a></td></tr>
+<tr><td><a href="/undergraduatecatalog/coursesofinstruction/beng/" class="sitemaplink">Biological Engineering (BENG)</a></td></tr>
+<tr><td><a href="/undergraduatecatalog/coursesofinstruction/biol/" class="sitemaplink">Biology (BIOL)</a></td></tr>
+<tr><td><a href="/undergraduatecatalog/coursesofinstruction/bmeg/" class="sitemaplink">Biomedical Engineering (BMEG)</a></td></tr>
+<tr><td><a href="/undergraduatecatalog/coursesofinstruction/brew/" class="sitemaplink">Brewing Science (BREW)</a></td></tr>
+<tr><td><a href="/undergraduatecatalog/coursesofinstruction/badm/" class="sitemaplink">Business Administration (BADM)</a></td></tr>
+<tr><td><a href="/undergraduatecatalog/coursesofinstruction/busi/" class="sitemaplink">Business (BUSI)</a></td></tr>
+<tr><td><a href="/undergraduatecatalog/coursesofinstruction/blaw/" class="sitemaplink">Business Law (BLAW)</a></td></tr>
+<tr><td><a href="/undergraduatecatalog/coursesofinstruction/cate/" class="sitemaplink">Career and Technical Education (CATE)</a></td></tr>
+<tr><td><a href="/undergraduatecatalog/coursesofinstruction/cemb/" class="sitemaplink">Cell and Molecular Biology (CEMB)</a></td></tr>
+<tr><td><a href="/undergraduatecatalog/coursesofinstruction/cheg/" class="sitemaplink">Chemical Engineering (CHEG)</a></td></tr>
+<tr><td><a href="/undergraduatecatalog/coursesofinstruction/chem/" class="sitemaplink">Chemistry and Biochemistry (CHEM)</a></td></tr>
+<tr><td><a href="/undergraduatecatalog/coursesofinstruction/chrk/" class="sitemaplink">Cherokee (CHRK)</a></td></tr>
+<tr><td><a href="/undergraduatecatalog/coursesofinstruction/chin/" class="sitemaplink">Chinese (CHIN)</a></td></tr>
+<tr><td><a href="/undergraduatecatalog/coursesofinstruction/cveg/" class="sitemaplink">Civil Engineering (CVEG)</a></td></tr>
+<tr><td><a href="/undergraduatecatalog/coursesofinstruction/clst/" class="sitemaplink">Classical Studies (CLST)</a></td></tr>
+<tr><td><a href="/undergraduatecatalog/coursesofinstruction/comm/" class="sitemaplink">Communication (COMM)</a></td></tr>
+<tr><td><a href="/undergraduatecatalog/coursesofinstruction/cdis/" class="sitemaplink">Communication Sciences and Disorders (CSDI)</a></td></tr>
+<tr><td><a href="/undergraduatecatalog/coursesofinstruction/ccle/" class="sitemaplink">Community College Leadership (CCLE)</a></td></tr>
+<tr><td><a href="/undergraduatecatalog/coursesofinstruction/chlp/" class="sitemaplink">Community Health Promotion (CHLP)</a></td></tr>
+<tr><td><a href="/undergraduatecatalog/coursesofinstruction/clcs/" class="sitemaplink">Comparative Literature and Cultural Studies (CLCS)</a></td></tr>
+<tr><td><a href="/undergraduatecatalog/coursesofinstruction/csce/" class="sitemaplink">Computer Science and Computer Engineering (CSCE)</a></td></tr>
+<tr><td><a href="/undergraduatecatalog/coursesofinstruction/cned/" class="sitemaplink">Counselor Education (CNED)</a></td></tr>
+<tr><td><a href="/undergraduatecatalog/coursesofinstruction/crim/" class="sitemaplink">Criminology (CRIM)</a></td></tr>
+<tr><td><a href="/undergraduatecatalog/coursesofinstruction/cses/" class="sitemaplink">Crop, Soil and Environmental Sciences (CSES)</a></td></tr>
+<tr><td><a href="/undergraduatecatalog/coursesofinstruction/cied/" class="sitemaplink">Curriculum and Instruction (CIED)</a></td></tr>
+<tr><td><a href="/undergraduatecatalog/coursesofinstruction/danc/" class="sitemaplink">Dance (DANC)</a></td></tr>
+<tr><td><a href="/undergraduatecatalog/coursesofinstruction/dasc/" class="sitemaplink">Data Science (DASC)</a></td></tr>
+<tr><td><a href="/undergraduatecatalog/coursesofinstruction/econ/" class="sitemaplink">Economics (ECON)</a></td></tr>
+<tr><td><a href="/undergraduatecatalog/coursesofinstruction/edhp/" class="sitemaplink">Education (EDHP)</a></td></tr>
+<tr><td><a href="/undergraduatecatalog/coursesofinstruction/edre/" class="sitemaplink">Education Reform (EDRE)</a></td></tr>
+<tr><td><a href="/undergraduatecatalog/coursesofinstruction/edeq/" class="sitemaplink">Educational Equity (EDEQ)</a></td></tr>
+<tr><td><a href="/undergraduatecatalog/coursesofinstruction/edfd/" class="sitemaplink">Educational Foundations (EDFD)</a></td></tr>
+<tr><td><a href="/undergraduatecatalog/coursesofinstruction/edle/" class="sitemaplink">Educational Leadership (EDLE)</a></td></tr>
+<tr><td><a href="/undergraduatecatalog/coursesofinstruction/esrm/" class="sitemaplink">Educational Statistics and Research Methods (ESRM)</a></td></tr>
+<tr><td><a href="/undergraduatecatalog/coursesofinstruction/edst/" class="sitemaplink">Educational Studies (EDST)</a></td></tr>
+<tr><td><a href="/undergraduatecatalog/coursesofinstruction/etec/" class="sitemaplink">Educational Technology (ETEC)</a></td></tr>
+<tr><td><a href="/undergraduatecatalog/coursesofinstruction/eleg/" class="sitemaplink">Electrical Engineering (ELEG)</a></td></tr>
+<tr><td><a href="/undergraduatecatalog/coursesofinstruction/emgt/" class="sitemaplink">Engineering Management (EMGT)</a></td></tr>
+<tr><td><a href="/undergraduatecatalog/coursesofinstruction/engl/" class="sitemaplink">English (ENGL)</a></td></tr>
+<tr><td><a href="/undergraduatecatalog/coursesofinstruction/elac/" class="sitemaplink">English Language and Cultural Studies (ELAC)</a></td></tr>
+<tr><td><a href="/undergraduatecatalog/coursesofinstruction/ento/" class="sitemaplink">Entomology (ENTO)</a></td></tr>
+<tr><td><a href="/undergraduatecatalog/coursesofinstruction/endy/" class="sitemaplink">Environmental Dynamics (ENDY)</a></td></tr>
+<tr><td><a href="/undergraduatecatalog/coursesofinstruction/enre/" class="sitemaplink">Environmental Resiliency (ENRE)</a></td></tr>
+<tr><td><a href="/undergraduatecatalog/coursesofinstruction/ensc/" class="sitemaplink">Environmental Science (ENSC)</a></td></tr>
+<tr><td><a href="/undergraduatecatalog/coursesofinstruction/musy/" class="sitemaplink">Ethnomusicology (MUSY)</a></td></tr>
+<tr><td><a href="/undergraduatecatalog/coursesofinstruction/exsc/" class="sitemaplink">Exercise Science (EXSC)</a></td></tr>
+<tr><td><a href="/undergraduatecatalog/coursesofinstruction/exed/" class="sitemaplink">Extension Education (EXED)</a></td></tr>
+<tr><td><a href="/undergraduatecatalog/coursesofinstruction/finn/" class="sitemaplink">Finance (FINN)</a></td></tr>
+<tr><td><a href="/undergraduatecatalog/coursesofinstruction/fdsc/" class="sitemaplink">Food Science (FDSC)</a></td></tr>
+<tr><td><a href="/undergraduatecatalog/coursesofinstruction/fren/" class="sitemaplink">French (FREN)</a></td></tr>
+<tr><td><a href="/undergraduatecatalog/coursesofinstruction/gnst/" class="sitemaplink">Gender Studies (GNST)</a></td></tr>
+<tr><td><a href="/undergraduatecatalog/coursesofinstruction/gneg/" class="sitemaplink">General Engineering (GNEG)</a></td></tr>
+<tr><td><a href="/undergraduatecatalog/coursesofinstruction/geog/" class="sitemaplink">Geography (GEOG)</a></td></tr>
+<tr><td><a href="/undergraduatecatalog/coursesofinstruction/geol/" class="sitemaplink">Geology (GEOL)</a></td></tr>
+<tr><td><a href="/undergraduatecatalog/coursesofinstruction/geos/" class="sitemaplink">Geosciences (GEOS)</a></td></tr>
+<tr><td><a href="/undergraduatecatalog/coursesofinstruction/germ/" class="sitemaplink">German (GERM)</a></td></tr>
+<tr><td><a href="/undergraduatecatalog/coursesofinstruction/grsd/" class="sitemaplink">Graduate Education Courses (GRSD)</a></td></tr>
+<tr><td><a href="/undergraduatecatalog/coursesofinstruction/gdes/" class="sitemaplink">Graphic Design (GDES)</a></td></tr>
+<tr><td><a href="/undergraduatecatalog/coursesofinstruction/grek/" class="sitemaplink">Greek (GREK)</a></td></tr>
+<tr><td><a href="/undergraduatecatalog/coursesofinstruction/hhpr/" class="sitemaplink">Health, Human Performance and Recreation (HHPR)</a></td></tr>
+<tr><td><a href="/undergraduatecatalog/coursesofinstruction/hied/" class="sitemaplink">Higher Education (HIED)</a></td></tr>
+<tr><td><a href="/undergraduatecatalog/coursesofinstruction/hist/" class="sitemaplink">History (HIST)</a></td></tr>
+<tr><td><a href="/undergraduatecatalog/coursesofinstruction/hnrs/" class="sitemaplink">Honors College (HNRS)</a></td></tr>
+<tr><td><a href="/undergraduatecatalog/coursesofinstruction/hort/" class="sitemaplink">Horticulture (HORT)</a></td></tr>
+<tr><td><a href="/undergraduatecatalog/coursesofinstruction/hosp/" class="sitemaplink">Hospitality Management (HOSP)</a></td></tr>
+<tr><td><a href="/undergraduatecatalog/coursesofinstruction/hdfs/" class="sitemaplink">Human Development and Family Sciences (HDFS)</a></td></tr>
+<tr><td><a href="/undergraduatecatalog/coursesofinstruction/hesc/" class="sitemaplink">Human Environmental Sciences (HESC)</a></td></tr>
+<tr><td><a href="/undergraduatecatalog/coursesofinstruction/hrde/" class="sitemaplink">Human Resource Development (HRDE)</a></td></tr>
+<tr><td><a href="/undergraduatecatalog/coursesofinstruction/humn/" class="sitemaplink">Humanities (HUMN)</a></td></tr>
+<tr><td><a href="/undergraduatecatalog/coursesofinstruction/ineg/" class="sitemaplink">Industrial Engineering (INEG)</a></td></tr>
+<tr><td><a href="/undergraduatecatalog/coursesofinstruction/isys/" class="sitemaplink">Information Systems (ISYS)</a></td></tr>
+<tr><td><a href="/undergraduatecatalog/coursesofinstruction/idst/" class="sitemaplink">Interdisciplinary Studies (IDST)</a></td></tr>
+<tr><td><a href="/undergraduatecatalog/coursesofinstruction/iard/" class="sitemaplink">Interior Architecture and Design (IARD)</a></td></tr>
+<tr><td><a href="/undergraduatecatalog/coursesofinstruction/inst/" class="sitemaplink">International and Global Studies (INST)</a></td></tr>
+<tr><td><a href="/undergraduatecatalog/coursesofinstruction/ital/" class="sitemaplink">Italian (ITAL)</a></td></tr>
+<tr><td><a href="/undergraduatecatalog/coursesofinstruction/japn/" class="sitemaplink">Japanese (JAPN)</a></td></tr>
+<tr><td><a href="/undergraduatecatalog/coursesofinstruction/jwst/" class="sitemaplink">Jewish Studies (JWST)</a></td></tr>
+<tr><td><a href="/undergraduatecatalog/coursesofinstruction/jour/" class="sitemaplink">Journalism (JOUR)</a></td></tr>
+<tr><td><a href="/undergraduatecatalog/coursesofinstruction/kins/" class="sitemaplink">Kinesiology (KINS)</a></td></tr>
+<tr><td><a href="/undergraduatecatalog/coursesofinstruction/larc/" class="sitemaplink">Landscape Architecture (LARC)</a></td></tr>
+<tr><td><a href="/undergraduatecatalog/coursesofinstruction/lals/" class="sitemaplink">Latin American and Latino Studies (LALS)</a></td></tr>
+<tr><td><a href="/undergraduatecatalog/coursesofinstruction/latn/" class="sitemaplink">Latin (LATN)</a></td></tr>
+<tr><td><a href="/undergraduatecatalog/coursesofinstruction/laww/" class="sitemaplink">Law (LAWW)</a></td></tr>
+<tr><td><a href="/undergraduatecatalog/coursesofinstruction/mgmt/" class="sitemaplink">Management (MGMT)</a></td></tr>
+<tr><td><a href="/undergraduatecatalog/coursesofinstruction/mktg/" class="sitemaplink">Marketing (MKTG)</a></td></tr>
+<tr><td><a href="/undergraduatecatalog/coursesofinstruction/msen/" class="sitemaplink">Materials Science and Engineering (MSEN)</a></td></tr>
+<tr><td><a href="/undergraduatecatalog/coursesofinstruction/math/" class="sitemaplink">Mathematics (MATH)</a></td></tr>
+<tr><td><a href="/undergraduatecatalog/coursesofinstruction/meeg/" class="sitemaplink">Mechanical Engineering (MEEG)</a></td></tr>
+<tr><td><a href="/undergraduatecatalog/coursesofinstruction/medh/" class="sitemaplink">Medical Humanities (MEDH)</a></td></tr>
+<tr><td><a href="/undergraduatecatalog/coursesofinstruction/mrst/" class="sitemaplink">Medieval and Renaissance Studies (MRST)</a></td></tr>
+<tr><td><a href="/undergraduatecatalog/coursesofinstruction/mest/" class="sitemaplink">Middle East Studies (MEST)</a></td></tr>
+<tr><td><a href="/undergraduatecatalog/coursesofinstruction/mued/" class="sitemaplink">Music Education (MUED)</a></td></tr>
+<tr><td><a href="/undergraduatecatalog/coursesofinstruction/muen/" class="sitemaplink">Music Ensemble (MUEN)</a></td></tr>
+<tr><td><a href="/undergraduatecatalog/coursesofinstruction/muhs/" class="sitemaplink">Music History (MUHS)</a></td></tr>
+<tr><td><a href="/undergraduatecatalog/coursesofinstruction/muin/" class="sitemaplink">Music Industry (MUIN)</a></td></tr>
+<tr><td><a href="/undergraduatecatalog/coursesofinstruction/musc/" class="sitemaplink">Music (MUSC)</a></td></tr>
+<tr><td><a href="/undergraduatecatalog/coursesofinstruction/mupd/" class="sitemaplink">Music Pedagogy (MUPD)</a></td></tr>
+<tr><td><a href="/undergraduatecatalog/coursesofinstruction/muth/" class="sitemaplink">Music Theory (MUTH)</a></td></tr>
+<tr><td><a href="/undergraduatecatalog/coursesofinstruction/nurs/" class="sitemaplink">Nursing (NURS)</a></td></tr>
+<tr><td><a href="/undergraduatecatalog/coursesofinstruction/nutr/" class="sitemaplink">Nutrition (NUTR)</a></td></tr>
+<tr><td><a href="/undergraduatecatalog/coursesofinstruction/octh/" class="sitemaplink">Occupational Therapy (OCTH)</a></td></tr>
+<tr><td><a href="/undergraduatecatalog/coursesofinstruction/opan/" class="sitemaplink">Operations Analytics (OPAN)</a></td></tr>
+<tr><td><a href="/undergraduatecatalog/coursesofinstruction/omgt/" class="sitemaplink">Operations Management (OMGT)</a></td></tr>
+<tr><td><a href="/undergraduatecatalog/coursesofinstruction/orst/" class="sitemaplink">Outdoor Recreation and Sport Tourism (ORST)</a></td></tr>
+<tr><td><a href="/undergraduatecatalog/coursesofinstruction/phil/" class="sitemaplink">Philosophy (PHIL)</a></td></tr>
+<tr><td><a href="/undergraduatecatalog/coursesofinstruction/peac/" class="sitemaplink">Physical Education Activity (PEAC)</a></td></tr>
+<tr><td><a href="/undergraduatecatalog/coursesofinstruction/phed/" class="sitemaplink">Physical Education (PHED)</a></td></tr>
+<tr><td><a href="/undergraduatecatalog/coursesofinstruction/phys/" class="sitemaplink">Physics (PHYS)</a></td></tr>
+<tr><td><a href="/undergraduatecatalog/coursesofinstruction/plpa/" class="sitemaplink">Plant Pathology (PLPA)</a></td></tr>
+<tr><td><a href="/undergraduatecatalog/coursesofinstruction/ptsc/" class="sitemaplink">Plant Sciences (PTSC)</a></td></tr>
+<tr><td><a href="/undergraduatecatalog/coursesofinstruction/plsc/" class="sitemaplink">Political Science (PLSC)</a></td></tr>
+<tr><td><a href="/undergraduatecatalog/coursesofinstruction/port/" class="sitemaplink">Portuguese (PORT)</a></td></tr>
+<tr><td><a href="/undergraduatecatalog/coursesofinstruction/posc/" class="sitemaplink">Poultry Science (POSC)</a></td></tr>
+<tr><td><a href="/undergraduatecatalog/coursesofinstruction/psyc/" class="sitemaplink">Psychology (PSYC)</a></td></tr>
+<tr><td><a href="/undergraduatecatalog/coursesofinstruction/padm/" class="sitemaplink">Public Administration (PADM)</a></td></tr>
+<tr><td><a href="/undergraduatecatalog/coursesofinstruction/pbhl/" class="sitemaplink">Public Health (PBHL)</a></td></tr>
+<tr><td><a href="/undergraduatecatalog/coursesofinstruction/pubp/" class="sitemaplink">Public Policy (PUBP)</a></td></tr>
+<tr><td><a href="/undergraduatecatalog/coursesofinstruction/resm/" class="sitemaplink">Recreation and Sport Management (RESM)</a></td></tr>
+<tr><td><a href="/undergraduatecatalog/coursesofinstruction/russ/" class="sitemaplink">Russian (RUSS)</a></td></tr>
+<tr><td><a href="/undergraduatecatalog/coursesofinstruction/seed/" class="sitemaplink">Secondary Education (SEED)</a></td></tr>
+<tr><td><a href="/undergraduatecatalog/coursesofinstruction/scwk/" class="sitemaplink">Social Work (SCWK)</a></td></tr>
+<tr><td><a href="/undergraduatecatalog/coursesofinstruction/soci/" class="sitemaplink">Sociology (SOCI)</a></td></tr>
+<tr><td><a href="/undergraduatecatalog/coursesofinstruction/sost/" class="sitemaplink">Southern Studies (SOST)</a></td></tr>
+<tr><td><a href="/undergraduatecatalog/coursesofinstruction/spac/" class="sitemaplink">Space and Planetary Sciences (SPAC)</a></td></tr>
+<tr><td><a href="/undergraduatecatalog/coursesofinstruction/span/" class="sitemaplink">Spanish (SPAN)</a></td></tr>
+<tr><td><a href="/undergraduatecatalog/coursesofinstruction/sped/" class="sitemaplink">Special Education (SPED)</a></td></tr>
+<tr><td><a href="/undergraduatecatalog/coursesofinstruction/spch/" class="sitemaplink">Speech and Communications (SPCH)</a></td></tr>
+<tr><td><a href="/undergraduatecatalog/coursesofinstruction/spmt/" class="sitemaplink">Sport Management (SPMT)</a></td></tr>
+<tr><td><a href="/undergraduatecatalog/coursesofinstruction/stan/" class="sitemaplink">Statistics and Analytics (STAN)</a></td></tr>
+<tr><td><a href="/undergraduatecatalog/coursesofinstruction/stat/" class="sitemaplink">Statistics (STAT)</a></td></tr>
+<tr><td><a href="/undergraduatecatalog/coursesofinstruction/stem/" class="sitemaplink">STEM Education (STEM)</a></td></tr>
+<tr><td><a href="/undergraduatecatalog/coursesofinstruction/sevi/" class="sitemaplink">Strategy, Entrepreneurship and Venture Innovation (SEVI)</a></td></tr>
+<tr><td><a href="/undergraduatecatalog/coursesofinstruction/scmt/" class="sitemaplink">Supply Chain Management (SCMT)</a></td></tr>
+<tr><td><a href="/undergraduatecatalog/coursesofinstruction/sust/" class="sitemaplink">Sustainability (SUST)</a></td></tr>
+<tr><td><a href="/undergraduatecatalog/coursesofinstruction/swah/" class="sitemaplink">Swahili (SWAH)</a></td></tr>
+<tr><td><a href="/undergraduatecatalog/coursesofinstruction/teed/" class="sitemaplink">Technology Education (TEED)</a></td></tr>
+<tr><td><a href="/undergraduatecatalog/coursesofinstruction/thtr/" class="sitemaplink">Theatre (THTR)</a></td></tr>
+<tr><td><a href="/undergraduatecatalog/coursesofinstruction/univ/" class="sitemaplink">University (UNIV)</a></td></tr>
+<tr><td><a href="/undergraduatecatalog/coursesofinstruction/wllc/" class="sitemaplink">World Languages, Literatures and Cultures (WLLC)</a></td></tr>
+</table>
+
+</div>
+</div><!--end #textcontainer -->
+
+			<div id="coursenumberingtextcontainer" class="page_content tab_content" role="tabpanel" aria-labelledby="coursenumberingtexttab" aria-hidden="true">
+				<a name="coursenumberingtext"></a><h2>How to Read a Course Description</h2>
+<p>Courses listed in this section describe all courses approved for offering by the University of Arkansas. The word “course” refers to a unit of academic instruction, while the word “class” refers to a course scheduled during a semester or summer session with a certain number of prescribed meetings each week. Successful completion of a class usually earns a specified number of semester hours of credit toward a degree.</p>
+<p>The Schedule of Classes lists classes available in a specific semester, along with the instructor of record, time and place the class is being held.</p>
+<h3>Course Description Explanations</h3>
+<p>A course listing comprises the following elements, in order:</p>
+<h4><strong>Course Prefix</strong></h4>
+<p>This alpha descriptor is the first identifying part of a course. This four-letter code represents the course prefix name. Usually the course prefix will be the same as the department offering the course, but occasionally the prefix is one of many different courses offered in a single department. For example, ARAB refers to Arabic courses, which are offered through the Department of World Languages, Literatures and Cultures; HIST refers to History courses.</p>
+<h4><strong>Course Number</strong></h4>
+<p>Beginning in Fall 2024, each course will be designated by a five-digit number. The first digit identifies the level of the course: 1, freshman level; 2, sophomore level; 3 and 4, junior-senior level; 5, 6, and 7, graduate level. Any exceptions to this practice are stated in the course descriptions.</p>
+<p>Students desiring admission to courses offered at levels beyond their standing should request the instructor’s permission to enroll. (For definitions of academic level see <a href="/undergraduatecatalog/orientationandregistration/studentclassification/">Student Classification</a>.)</p>
+<p>The fifth digit identifies the semester-hour value of the course. Credit for certain courses does not count toward some degrees.</p>
+<p>Normally, courses meet once each week for 50 minutes for each hour of course credit. Laboratory, drill and other kinds of activity courses typically meet for two 50-minute periods per week for each hour of credit.</p>
+<p>The letter ‘V’ is used in place of the last digit for those courses in which credit is variable. The minimum and maximum credit hours possible are given in parentheses after the course title.</p>
+<p><strong style="color:rgb(98, 0, 16); font-family:lato,segoe ui,roboto; font-size:calc(1.275rem + 0.3vw)">Honors Courses</strong></p>
+<p>The letter &quot;H&quot; is placed in the fourth-digit for honors courses.  </p>
+<p><strong>Course Title</strong></p>
+<p>The title of the course is printed in bold letters.</p>
+<h4><strong>Course Description</strong></h4>
+<p>A brief description of the course content and its major emphasis are stated. If the course is cross-listed (also offered under another subject) a statement to that effect will be included in the description.  Likewise, if the course is equivalent to another course (such as an honors and non-honors offering) a statement to that effect will also be included. If the course is eligible to be repeated for degree credit more than once, a statement will appear to indicate the total hours or times a course may be repeated. If no repeat statement is listed, the course may be used for degree credit only once.</p>
+<h4><strong>Requisites</strong></h4>
+<p>Requisites are requirements that must be fulfilled either before a course may be taken or at the same time a course is taken. It is the student's responsibility to make sure the proper prerequisites have been completed before enrolling in any class. Prerequisites are courses or requirements that must be completed prior to enrolling in a certain course. Courses may have prerequisites from inside and outside the department. It is the student’s responsibility to make sure he/she has completed the proper prerequisites before enrolling in any class. Courses listed as corequisite are to be taken in the same semester as the course desired.</p>
+<p>A course listed as  a pre- or corequisite to another course means that it must be taken during the same semester as that course, unless it has been completed in a previous term.</p>
+<p>Students may not enroll in courses for which they do not have the necessary requisites. Students who are in doubt concerning their eligibility to enroll in specific courses should consult with their academic adviser. Students may be dropped from courses for which they do not have the necessary requisites.</p>
+			</div>
+
+         </main>
+      </div> <!-- end col-content -->
+   </div>
+</section>
+
+	<footer id="footer">
+		<div class="wrap">
+			<div class="footer-logo">
+				<a title="University of Arkansas Home Page" href="https://www.uark.edu">UNIVERSITY OF ARKANSAS</a>
+			</div>
+
+			<div class="footer-top-row">
+				<ul class="college-links">
+					<li>
+						<a title="University of Arkansas Admissions" href="https://www.uark.edu/admissions/index.php">Admissions</a>
+					</li>
+					<li>
+						<a title="University of Arkansas Academics" href="https://www.uark.edu/academics/index.php">Academics</a>
+					</li>
+					<li>
+						<a title="Campus Life at the University of Arkansas" href="https://www.uark.edu/campus-life/index.php">Campus Life</a>
+					</li>
+					<li>
+						<a title="University of Arkansas Research" href="https://www.uark.edu/research/index.php">Research</a>
+					</li>
+					<li>
+						<a title="University of Arkansas Athletics" href="https://www.uark.edu/athletics/index.php">Athletics</a>
+					</li>
+					<li>
+						<a title="About the University of Arkansas" href="https://www.uark.edu/about/index.php">About</a>
+					</li>
+				</ul>
+
+				<ul class="social-media">
+					<li>
+						<a href="https://www.facebook.com/UofArkansas">
+							<span aria-hidden="true" class="fa fa-facebook"></span>
+							<span class="sr-only">Like us on Facebook</span>
+     		 			</a>
+    				</li>
+					<li>
+						<a href="https://twitter.com/uarkansas">
+							<span aria-hidden="true" class="fa fa-twitter"></span>
+							<span class="sr-only">Follow us on Twitter</span>
+     		 			</a>
+    				</li>
+					<li>
+						<a href="https://www.youtube.com/user/UniversityArkansas">
+							<span aria-hidden="true" class="fa fa-youtube-play"></span>
+							<span class="sr-only">Watch us on YouTube</span>
+     		 			</a>
+    				</li>
+					<li>
+						<a href="https://instagram.com/uarkansas">
+							<span aria-hidden="true" class="fa fa-instagram"></span>
+							<span class="sr-only">See us on Instagram</span>
+     		 			</a>
+    				</li>
+					<li>
+						<a href="https://www.linkedin.com/company/university-of-arkansas">
+							<span aria-hidden="true" class="fa fa-linkedin-square"></span>
+							<span class="sr-only">Connect with us on LinkedIn</span>
+     		 			</a>
+    				</li>
+				</ul>
+			</div>
+
+			<hr />
+
+			<div class="footer-main-wrapper">
+				<div class="section-address">
+					<div class="address-map">
+						<a class="map-icon" title="View Campus Maps" href="https://campusmaps.uark.edu/">
+							<span class="fa-duotone fa-map-location-dot"></span>
+						</a>
+
+						<address>
+							1 University of Arkansas
+							<br>
+							Fayetteville, AR 72701
+							<br>
+							<a class="d-inline-block d-lg-none" title="View Campus Maps" href="https://campusmaps.uark.edu/">View Campus Maps</a>
+							<br class="d-block d-lg-none">
+							<a href="tel:+1-479-575-2000" aria-label="4 7 9. 5 7 5. 2 0 0 0. ">479-575-2000</a>
+						  </address>
+					</div>
+					<img class="img-responsive" src="//www.uark.edu/_resources/img/map.png" alt="Map of University of Arkansas Campus">
+				</div>
+
+				<div class="section-news">
+					<a class="sub-header" href="https://news.uark.edu/">NEWS</a>
+					<ul>
+						<li>
+							<a href="https://news.uark.edu/articles/67914/schmieding-foundation-major-and-career-studio-dedicated-in-the-cord" onclick="gaSendEvent(this.href, 'footer-global-links', 'news.uark.edu/articles/67914/schmieding-foundation-major-and-career-studio-dedicated-in-the-cord');">Schmieding Foundation Major and Career Studio Dedicated in the CORD</a>
+						</li>
+						<li>
+							<a href="https://news.uark.edu/articles/67916/community-design-center-s-housing-greenhouse-project-wins-2023-future-house-award" onclick="gaSendEvent(this.href, 'footer-global-links', 'news.uark.edu/articles/67916/community-design-center-s-housing-greenhouse-project-wins-2023-future-house-award');">Community Design Center's Housing, Greenhouse Project Wins 2023 Future House Award</a>
+						</li>
+						<li>
+							<a href="https://news.uark.edu/articles/67915/discover-red-good-vibrations" onclick="gaSendEvent(this.href, 'footer-global-links', 'news.uark.edu/articles/67915/discover-red-good-vibrations');">Discover RED: Good Vibrations</a>
+						</li>
+					</ul>
+				</div>
+
+				<div class="section-news">
+					<a class="sub-header" href="https://calendars.uark.edu/">UPCOMING EVENTS</a>
+					<ul>
+						<li>
+							<a href="https://calendars.uark.edu/event/mydw_fall_workshop_series?utm_campaign=widget&utm_medium=widget&utm_source=University+of+Arkansas">Making Your Day Work: Fall Workshop Series</a>
+						</li>
+						<li>
+							<a href="https://calendars.uark.edu/event/ofa_funding_informational_session_1112?utm_campaign=widget&utm_medium=widget&utm_source=University+of+Arkansas">OFA Funding Informational Session</a>
+						</li>
+						<li>
+							<a href="https://calendars.uark.edu/event/spanish_center_for_tutoring?utm_campaign=widget&utm_medium=widget&utm_source=University+of+Arkansas">Spanish Center for Tutoring</a>
+						</li>
+						<li>
+							<a href="https://calendars.uark.edu/event/invest_for_success_fine-tuning_your_retirement_strategy?utm_campaign=widget&utm_medium=widget&utm_source=University+of+Arkansas">Invest for success: Fine-tuning your retirement strategy</a>
+						</li>
+					</ul>
+				</div>
+
+				<div class="section-button-list">
+					<a href="https://application.uark.edu/"><span aria-hidden="true" class="fas fa-check"></span><strong>APPLY </strong>Online</a>
+					<a href="https://visit.uark.edu/"><span aria-hidden="true" class="fas fa-calendar-alt"></span><strong>Schedule </strong>a Visit</a>
+					<a href="https://onlinegiving.uark.edu/"><span aria-hidden="true" class="fas fa-gift"></span>Make a <strong>Gift </strong></a>
+				</div>
+			</div>
+
+			<hr />
+
+			<ul class="footer-bottom-row">
+				<li><a href="https://emergency.uark.edu/">Emergency Information</a></li>
+				<li><a href="https://report.uark.edu/">Report a Concern</a></li>
+				<li><a href="https://titleix.uark.edu/">Title IX</a></li>
+				<li><a href="https://accessibility.uark.edu/">Accessibility</a></li>
+				<li><a href="https://www.uark.edu/privacy-policy/index.php">Privacy Policy</a></li>
+				<li><a href="https://www.uark.edu/contact-us.php">Contact Us</a></li>
+				<li><a href="https://jobs.uark.edu">Jobs</a></li>
+				<li><a href="https://www.uark.edu/mobile/">Mobile</a></li>
+			</ul>
+
+			<a class="copyright" rel="nofollow" href="https://a.cms.omniupdate.com/11/?skin=uark&amp;account=www&amp;site=www&amp;action=de&amp;path=/index.pcf">
+				Copyright of University of Arkansas
+			</a>
+		</div>
+
+		<a href="#header" id="totop"><span class="sr-only">Back to top</span></a>
+	</footer>
+
+<div id="print-dialog" aria-labelledby="dialog-title" class="screen" role="dialog">
+   <div class="print-header">
+      <button onclick="hidePrintDialog(); return false;" aria-controls="#print-dialog">
+         <span class="sr-only">Close this window</span>
+      </button>
+      <h2 id="dialog-title">Print Options</h2>
+   </div>
+   <div class="print-body">
+      <ul>
+         <li>
+            <p><a class="option-name" href="#"  role="button" onclick="hidePrintDialog();window.print();return false">Send Page to Printer</a></p>
+            <p class="option-desc">Print this page.</p>
+         </li>
+<li><p><a class="option-name" href="/undergraduatecatalog/coursesofinstruction/coursesofinstruction.pdf" role="button">Download Page (PDF)</a></p><p class="option-desc">The PDF will include all information unique to this page.</p></li><li><p><a class="option-name" href="/pdf/UARK-Undergrad_2025-26.pdf" target="_blank">Undergraduate Catalog</a></p><p class="option-desc">A PDF of the entire 2025-26 Undergraduate catalog.</p></li><li><p><a class="option-name" href="/pdf/UARK-Grad Catalog_2025-26.pdf" target="_blank">Graduate Catalog</a></p><p class="option-desc">A PDF of the entire 2025-26 Graduate catalog.</p></li><li><p><a class="option-name" href="/pdf/UARK-Law Catalog_2025-26.pdf" target="_blank">Law Catalog</a></p><p class="option-desc">A PDF of the entire 2025-26 Law catalog.</p></li>      </ul>
+   </div>
+</div>
+
+</body>
+</html>

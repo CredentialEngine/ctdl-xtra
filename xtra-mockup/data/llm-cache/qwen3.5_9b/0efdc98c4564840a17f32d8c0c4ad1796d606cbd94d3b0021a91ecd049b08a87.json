@@ -1,0 +1,13 @@
+{
+  "model": "qwen3.5:9b",
+  "promptVersion": "prerequisite-structure/1",
+  "task": "prerequisite sentence",
+  "sentence": "Graduate standing in CSCE department.",
+  "courseCodes": [],
+  "structure": {
+    "kind": "text",
+    "quote": "Graduate standing in CSCE department."
+  },
+  "argument": "The sentence contains no 'and' or 'or' conjunctions connecting multiple items, nor does it contain any course codes. According to the rules, any condition that is not a course code (such as a class standing requirement) must be represented as a single 'text' node with its exact wording as the quote.",
+  "seconds": 3.4
+}

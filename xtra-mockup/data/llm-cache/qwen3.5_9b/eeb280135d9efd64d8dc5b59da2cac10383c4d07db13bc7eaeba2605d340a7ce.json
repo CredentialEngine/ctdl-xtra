@@ -1,0 +1,39 @@
+{
+  "model": "qwen3.5:9b",
+  "promptVersion": "prerequisite-structure/1",
+  "task": "prerequisite sentence",
+  "sentence": "CSCE 22104 with a grade of C or better or graduate standing in Computer Science Computer Engineering (CSCE) or graduate standing in Electrical Engineering (ELEG).",
+  "courseCodes": [
+    "CSCE 22104"
+  ],
+  "structure": {
+    "kind": "any_of",
+    "quote": "",
+    "items": [
+      {
+        "kind": "course",
+        "quote": "CSCE 22104"
+      },
+      {
+        "kind": "text",
+        "quote": "with a grade of C or better"
+      },
+      {
+        "kind": "any_of",
+        "quote": "",
+        "items": [
+          {
+            "kind": "text",
+            "quote": "graduate standing in Computer Science Computer Engineering (CSCE)"
+          },
+          {
+            "kind": "text",
+            "quote": "graduate standing in Electrical Engineering (ELEG)"
+          }
+        ]
+      }
+    ]
+  },
+  "argument": "The sentence begins with 'CSCE 22104', which is a course code, followed by 'with a grade of C or better'. These two are joined by the word 'or', indicating that either taking the course OR having the specific grade satisfies the condition. According to the CTDL definition of ceterms:alternativeCondition ('...from which any one path fulfills the parent condition'), this forms an 'any_of' node containing the course and the text condition. The second part of the sentence, 'graduate standing in Computer Science Computer Engineering (CSCE) or graduate standing in Electrical Engineering (ELEG)', contains two distinct conditions joined by 'or'. Since only one of these standing requirements is needed to satisfy that sub-group, this forms a nested 'any_of' node containing two text items. The outer structure remains an 'any_of' because the initial course/grade option and the graduate standing options are alternatives to each other.",
+  "seconds": 12.4
+}

@@ -1,0 +1,68 @@
+{
+  "model": "qwen3.5:9b",
+  "promptVersion": "prerequisite-structure/1",
+  "task": "prerequisite sentence",
+  "sentence": "(Walton College Majors: ISYS 11203, BUSI 11101, and (MATH 20503 or MATH 22003 or MATH 24004) each with a grade of C or better); (Non-Business Majors: (ISYS 11203 or DASC 10003 or ASTM 29003 or INEG 21003) and (MATH 20503 or MATH 22003 or MATH 24004 or higher) each with a grade of C or better).",
+  "courseCodes": [
+    "ISYS 11203",
+    "BUSI 11101",
+    "MATH 20503",
+    "MATH 22003",
+    "MATH 24004",
+    "ISYS 11203",
+    "DASC 10003",
+    "ASTM 29003",
+    "INEG 21003",
+    "MATH 20503",
+    "MATH 22003",
+    "MATH 24004"
+  ],
+  "structure": {
+    "kind": "all_of",
+    "quote": "",
+    "items": [
+      {
+        "kind": "text",
+        "quote": "Walton College Majors:"
+      },
+      {
+        "kind": "all_of",
+        "quote": "",
+        "items": [
+          {
+            "kind": "course",
+            "quote": "ISYS 11203"
+          },
+          {
+            "kind": "course",
+            "quote": "BUSI 11101"
+          },
+          {
+            "kind": "all_of",
+            "quote": "",
+            "items": [
+              {
+                "kind": "course",
+                "quote": "MATH 20503"
+              },
+              {
+                "kind": "course",
+                "quote": "MATH 22003"
+              },
+              {
+                "kind": "course",
+                "quote": "MATH 24004"
+              }
+            ]
+          },
+          {
+            "kind": "text",
+            "quote": "each with a grade of C or better"
+          }
+        ]
+      }
+    ]
+  },
+  "argument": "The sentence begins with 'Walton College Majors:', which is a text condition. Following this, there is a list separated by a comma and the word 'and', implying an 'all_of' relationship between the first group (ISYS 11203, BUSI 11101) and the second group (the math courses). Within the second group, the math courses are joined by 'or' inside parentheses, forming an 'any_of'. Finally, the phrase 'each with a grade of C or better' applies to the entire preceding group as a text condition. The second major part of the sentence starts with '(Non-Business Majors:', which is a text condition. Inside this parenthesis, there are two groups joined by 'and', forming an 'all_of'. The first group contains courses joined by 'or' (ISYS 11203 or DASC 10003 or ASTM 29003 or INEG 21003), forming an 'any_of'. The second group contains courses joined by 'or' (MATH 20503 or MATH 22003 or MATH 24004 or higher), forming an 'any_of'. Both groups in the Non-Business Majors section are followed by the text condition 'each with a grade of C or better'. The top-level structure connects these two main parts (Walton College Majors and Non-Business Majors) with a comma, which in this context implies they are alternative paths ('any_of') for the overall requirement, though the prompt's specific sentence structure suggests a single complex requirement where the user must satisfy one of the two major categories. However, strictly following the linear parsing of the provided text without assuming external logical operators between the two main parenthetical blocks unless explicitly stated as 'or', the structure represents the sequence of conditions. Re-evaluating the top level: The sentence presents two distinct scenarios separated by a semicolon or implied choice? Actually, looking at the syntax `(A); (B)`, this usually implies an 'any_of' between A and B in prerequisite logic (satisfy A OR satisfy B). But the prompt asks to parse the *sentence* as given. If the sentence is a single requirement block, the top level might be `any_of` if it offers a choice between majors. Let's look closer: 'Walton College Majors: ...'; 'Non-Business Majors: ...'. This is a choice. You are either a Walton College Major OR a Non-Business Major. Thus, the root should be `any_of`. Wait, the prompt says 'Write its logical structure as a tree'. If the sentence offers two mutually exclusive paths (Major type A vs Major type B), the root is `any_of`. Let's re-read the input sentence carefully. It lists two blocks separated by a semicolon. In academic catalogs, this denotes an alternative: satisfy block 1 OR satisfy block 2. Therefore, the root is `any_of` with items being the two main blocks. Each block starts with a text label ('Walton College Majors:', 'Non-Business Majors:') followed by an `all_of` of specific course groups and grade conditions.\n\nCorrection on Root Logic: The sentence presents two distinct sets of requirements separated by a semicolon. In prerequisite logic, this typically means the student must meet *one* of the sets (Any of). Set 1 is for Walton College Majors. Set 2 is for Non-Business Majors. Therefore, the root node is `any_of`. Item 1 is the text 'Walton College Majors:' followed by an `all_of` group containing ISYS/BUSI and the Math `any_of`, plus the grade text. Item 2 is the text 'Non-Business Majors:' followed by an `all_of` group containing the first `any_of` (ISYS/DASC/ASTM/INEG) and the second `any_of` (Math or higher), plus the grade text.\n\nWait, looking at the provided sentence again: `(Walton College Majors: ...); (Non-Business Majors: ...)`. The semicolon separates two alternatives. So Root = `any_of`. \nItem 1: Text 'Walton College Majors:', then an `all_of` containing [ISYS, BUSI, Math-AnyOf], then text 'each with a grade of C or better'.\nItem 2: Text 'Non-Business Majors:', then an `all_of` containing [Math-Courses-AnyOf AND Math-Higher-AnyOf? No, let's parse the inner structure of Non-Business]. \nInner Non-Business: `(ISYS 11203 or DASC 10003 or ASTM 29003 or INEG 21003)` AND `(MATH 20503 or MATH 22003 or MATH 24004 or higher)`. These two groups are joined by 'and', so they form an `all_of`. The first group is an `any_of` of courses. The second group is an `any_of` of courses and text ('higher'). Then the whole thing has the grade condition.\n\nLet's refine the tree based on strict syntax:\nRoot: `any_of` (because of the semicolon separating two major paths).\n  Item 1: Text 'Walton College Majors:'\n    Sub-item: `all_of` (implied by the list structure before the semicolon? No, usually a list like A, B, and C is an all_of. Here we have Group1; Group2. This is Any_Of at the root level).\n    Actually, let's look at the internal structure of the first part: `ISYS 11203, BUSI 11101, and (MATH ... or ...)`. The comma and 'and' before the parenthesis indicates an `all_of` relationship between the first two courses and the parenthesized group. So inside the Walton block, it is an `all_of`.\n    Inside the Non-Business block: `(Group A) and (Group B)`. This is explicitly an `all_of`.\n\nFinal Plan:\nRoot: `any_of` (The sentence offers two paths separated by a semicolon).\n  Item 1: Text 'Walton College Majors:'\n    Item 2: `all_of` (ISYS, BUSI, and the Math group)\n      - Course ISYS 11203\n      - Course BUSI 11101\n      - `any_of` (MATH 20503, MATH 22003, MATH 24004)\n    Item 3: Text 'each with a grade of C or better'\n  Item 2: Text 'Non-Business Majors:'\n    Item 3: `all_of` (Group A and Group B)\n      - `any_of` (ISYS, DASC, ASTM, INEG)\n      - `any_of` (MATH 20503, MATH 22003, MATH 24004, higher)\n    Item 4: Text 'each with a grade of C or better'",
+  "seconds": 31.8
+}

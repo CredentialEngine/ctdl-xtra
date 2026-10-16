@@ -1,0 +1,36 @@
+{
+  "model": "qwen3.5:9b",
+  "promptVersion": "prerequisite-structure/1",
+  "task": "prerequisite sentence",
+  "sentence": "Chemistry major or minor and CHEM 37073 and CHEM 37072.",
+  "courseCodes": [
+    "CHEM 37073",
+    "CHEM 37072"
+  ],
+  "structure": {
+    "kind": "any_of",
+    "quote": "",
+    "items": [
+      {
+        "kind": "text",
+        "quote": "Chemistry major or minor"
+      },
+      {
+        "kind": "all_of",
+        "quote": "",
+        "items": [
+          {
+            "kind": "course",
+            "quote": "CHEM 37073"
+          },
+          {
+            "kind": "course",
+            "quote": "CHEM 37072"
+          }
+        ]
+      }
+    ]
+  },
+  "argument": "The sentence begins with 'Chemistry major or minor', which represents a choice between two conditions, establishing an 'any_of' node at the root level. The remaining part of the sentence is 'CHEM 37073 and CHEM 37072'. According to the CTDL definition of ceterms:alternativeCondition, where 'more than one alternative condition... has been defined', the initial 'or' creates the top-level branching. However, the subsequent 'and' connecting the two specific course codes indicates that both must be satisfied simultaneously within that branch. Per the rule that courses joined by 'and' inside brackets (or a logical group) form an 'all_of', these two courses are grouped under an 'all_of' node. Therefore, the structure requires either satisfying the text condition OR satisfying the combined requirement of both courses.",
+  "seconds": 4.8
+}

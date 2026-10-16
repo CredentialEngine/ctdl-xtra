@@ -1,0 +1,26 @@
+{
+  "model": "qwen3.5:9b",
+  "promptVersion": "prerequisite-structure/1",
+  "task": "prerequisite sentence",
+  "sentence": "CSCE 39503 and CSCE 31903, each with a C or higher.",
+  "courseCodes": [
+    "CSCE 39503",
+    "CSCE 31903"
+  ],
+  "structure": {
+    "kind": "all_of",
+    "quote": "",
+    "items": [
+      {
+        "kind": "course",
+        "quote": "CSCE 39503"
+      },
+      {
+        "kind": "text",
+        "quote": ", each with a C or higher."
+      }
+    ]
+  },
+  "argument": "The sentence uses 'and' to connect two distinct requirements: taking CSCE 39503 and taking CSCE 31903. According to the CTDL definition of ceterms:requires, this forms a set where every item is required (an 'all_of' relationship). The phrase ', each with a C or higher.' applies as a condition to both courses within that group. The 'or' inside the text string 'C or higher' describes the grade threshold for a single course, not an alternative between courses.",
+  "seconds": 3.1
+}

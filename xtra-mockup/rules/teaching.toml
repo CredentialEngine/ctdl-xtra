@@ -1,0 +1,499 @@
+# Teaching notes (specification decision D12, section 9.5).
+#
+# Written by hand, once per place in the record, and the same for every course. The CTDL
+# definitions themselves are NOT typed here: the extract step copies them word for word from the
+# schema copy in reference/ctdl/, so a definition on screen is always a quotation.
+#
+#   label     a plain name for the field, shown on its card
+#   term      the CTDL term whose definition is quoted (a property or a class)
+#   plain     for JSON-LD keywords, which CTDL does not define: a sentence in our own words
+#   choice    one sentence: why this field, class or structure
+#   examples  example values, shown under "What CTDL says"
+#   options   a second CTDL term whose page lists every allowed value (for pick-from-a-list fields)
+#   [[…alternative]]  what else was considered, and why it was not used
+#
+# In any text: `like this` is shown as code, and [[Like this]] links to the glossary below.
+
+# ------------------------------------------------------------------------------- JSON-LD keywords
+
+[slot.context]
+label = "Vocabulary"
+plain = "A JSON-LD keyword. It names the vocabulary that every key in the record comes from, so that `ceterms:name` means the same thing to every reader."
+choice = "Every CTDL record points at the same published context. Nothing was read from the page."
+examples = "https://credreg.net/ctdl/schema/context/json"
+
+[slot.id]
+label = "Record address"
+plain = "A JSON-LD keyword: the address that identifies this record. In the Registry it is the Registry's resource address followed by the record's [[CTID]]."
+choice = "It is written in the form a published record would have (decision D14), but nothing has been published, so the address does not exist."
+examples = "https://credentialengineregistry.org/resources/ce-a1dff327-b792-406a-9547-edc9c803a78f"
+
+[[slot.id.alternative]]
+name = "An address that is visibly not real"
+why_not = "Could never be mistaken for a published record, but is not the form “valid CTDL” was defined as. Still an open question (specification section 12, question 8)."
+
+[slot.Course]
+label = "Kind of record"
+term = "ceterms:Course"
+choice = "The catalog's own index page says “the word ‘course’ refers to a unit of academic instruction”: the durable unit, not a scheduled class. That is this [[Class]]."
+examples = "48,580 records in the Registry have this type (counted 2026-10-07)."
+
+[[slot.Course.alternative]]
+name = "`ceterms:LearningOpportunityProfile`"
+why_not = "The general parent class. Course is its subclass, so choosing the parent throws information away, and only a Course may carry `ceterms:prerequisite`."
+
+[[slot.Course.alternative]]
+name = "`ceterms:LearningProgram`"
+why_not = "A set of learning opportunities leading to an outcome such as a degree. That is a major, not a course."
+
+[[slot.Course.alternative]]
+name = "`ceterms:CourseComponent`"
+why_not = "A stand-in for a course inside a pathway diagram. Not the course itself."
+
+# -------------------------------------------------------------------------------- simple values
+
+[slot.ctid]
+label = "Identifier (CTID)"
+term = "ceterms:ctid"
+choice = "The university has published no courses, so there is no existing [[CTID]] to reuse. One is made once per course code and remembered in a ledger; running again never changes it."
+examples = "ce-57603921-78ce-455c-88b5-00506fb33701 (the University of Arkansas itself)"
+
+[[slot.ctid.alternative]]
+name = "A new CTID for each catalog edition"
+why_not = "Would break every link between courses each year. The edition is recorded in `ceterms:versionIdentifier` (decision D6). Credential Engine has not been asked which they recommend (risk R9)."
+
+[[slot.ctid.alternative]]
+name = "Never inventing a CTID"
+why_not = "This is the rule Credential Engine's own tool follows. It works only when a published record already exists to look up; here none does."
+
+[slot.name]
+label = "Course name"
+term = "ceterms:name"
+choice = "The code and the transfer tag were left out. Each has a field of its own."
+examples = "“Accounting Principles” · “Honors University Chemistry II”"
+
+[[slot.name.alternative]]
+name = "“ACCT 20103 - Accounting Principles”"
+why_not = "Some publishers put the code in the name. With `ceterms:codedNotation` carrying the code, that would say it twice (decision D2)."
+
+[slot.codedNotation]
+label = "Course code"
+term = "ceterms:codedNotation"
+choice = "The course code is the university's own identifier for the course, with no outside scheme to name. This is the field for exactly that."
+examples = "“ACCT 20103” · “CHEM 142H3” (honors) · “ACCT 3100V” (variable credit)"
+
+[[slot.codedNotation.alternative]]
+name = "`ceterms:identifier`"
+why_not = "For codes that come from a named scheme outside the owner. It is used here for the statewide transfer number, not for the university's own code."
+
+[[slot.codedNotation.alternative]]
+name = "Inside `ceterms:name`"
+why_not = "A code inside a name cannot be searched or sorted as a code."
+
+[slot.description]
+label = "Description"
+term = "ceterms:description"
+choice = "The whole paragraph is kept, including sentences such as “May be repeated…” that CTDL has no field for, so that nothing on the page is lost (decision D3, not yet confirmed)."
+examples = "A paragraph of prose. Text is wrapped as a [[Language map]]."
+
+[[slot.description.alternative]]
+name = "Prose only, with the labelled sentences cut off"
+why_not = "Cleaner, and it would not repeat the prerequisite sentence. But the repeat rule and the offering note would then appear nowhere in the record."
+
+# --------------------------------------------------------------------------------------- credit
+
+[slot.creditValue]
+label = "Credit"
+term = "ceterms:creditValue"
+choice = "It is written as a number together with its unit, not as a bare 3."
+examples = "3 semester hours · 1 to 3 semester hours · 4.5 quarter hours"
+options = "ceterms:CreditUnit"
+
+[[slot.creditValue.alternative]]
+name = "A bare 3"
+why_not = "Does not say three of what."
+
+[[slot.creditValue.alternative]]
+name = "Two entries for a range"
+why_not = "“1-3 hours” is one statement with a minimum and a maximum. A second entry would mean a second, separate statement of credit, such as contact hours."
+
+[[slot.creditValue.alternative]]
+name = "Another unit"
+why_not = "Quarter Hour, Contact Hour and 12 others exist. The index page says “semester hours”."
+
+[slot.ValueProfile]
+label = "Kind of object"
+term = "ceterms:ValueProfile"
+choice = "The schema allows only this [[Class]] as the value of `ceterms:creditValue`. It holds a number or a range, and optionally a unit, a level and a subject."
+examples = "The handbook's own example: “3 Degree Credits at the Lower Division Level for the subject of Finance”."
+
+[[slot.ValueProfile.alternative]]
+name = "A plain number"
+why_not = "The schema does not allow it here, and it could not carry the unit."
+
+[slot.value]
+label = "Credit amount"
+term = "schema:value"
+choice = "This course has one fixed amount of credit, so it carries a single number."
+examples = "3 · 1 · 4"
+
+[[slot.value.alternative]]
+name = "`schema:minValue` and `schema:maxValue`"
+why_not = "Those are for a range, such as “1-3 Hour”. CTDL's usage note: “for single values, use schema:value; for ranges, use schema:minValue and schema:maxValue.”"
+
+[slot.minValue]
+label = "Credit, minimum"
+term = "schema:minValue"
+choice = "The title line gives a range, so the single `schema:value` is left out and the two ends of the range are given."
+examples = "1 (of “1-3 Hour”)"
+
+[[slot.minValue.alternative]]
+name = "`schema:value` with the smaller number"
+why_not = "Would say the course is worth exactly that much. Omit, never invent."
+
+[slot.maxValue]
+label = "Credit, maximum"
+term = "schema:maxValue"
+choice = "The larger number of the range in the title line."
+examples = "3 (of “1-3 Hour”)"
+
+[slot.creditUnitType]
+label = "Credit unit"
+term = "ceterms:creditUnitType"
+choice = "The title line says “Hours” without saying what kind. The catalog's index page says “semester hours”, once, for every course."
+examples = "Semester Hour · Quarter Hour · Contact Hour"
+options = "ceterms:CreditUnit"
+
+[[slot.creditUnitType.alternative]]
+name = "Leaving the unit out"
+why_not = "The number alone is ambiguous, and the evidence for the unit exists; it is only on a different page."
+
+[[slot.creditUnitType.alternative]]
+name = "`ceterms:creditUnitTypeDescription`"
+why_not = "Free text, for units that are not in CTDL's list. Semester Hour is in the list."
+
+[slot.CredentialAlignmentObject]
+label = "Kind of object"
+term = "ceterms:CredentialAlignmentObject"
+choice = "CTDL writes every pick-from-a-list value as this small labelled card: which list, which entry, and the entry's name. It is an [[Alignment object]]."
+examples = "{ framework: Credit Unit, targetNode: creditUnit:SemesterHour, targetNodeName: “Semester Hour” }"
+
+[[slot.CredentialAlignmentObject.alternative]]
+name = "A bare word, such as “SemesterHour”"
+why_not = "Would not say which list the word comes from. The same card can also point at lists CTDL does not own, so one wrapper serves every such field."
+
+[slot.targetNode]
+label = "Chosen entry"
+term = "ceterms:targetNode"
+choice = "It names the one entry chosen from the list. The entry's name and definition are copied beside it from the schema, so the record can be read without looking them up."
+examples = "creditUnit:SemesterHour · lifeCycle:Active · scheduleFrequency:Annually"
+
+# --------------------------------------------------------------------------- the transfer number
+
+[slot.identifier]
+label = "Transfer number"
+term = "ceterms:identifier"
+choice = "The tag gives this course's number in the Arkansas Course Transfer System ([[ACTS]]), a scheme outside the university. This field names both the scheme and the number."
+examples = "ACTS · “ACCT 2003”"
+
+[[slot.identifier.alternative]]
+name = "`ceterms:codedNotation`"
+why_not = "Already holds the university's own code. This is a different code from a different body."
+
+[[slot.identifier.alternative]]
+name = "A `ceterms:TransferValueProfile`"
+why_not = "CTDL's formal way to describe transfer credit. It is a separate, heavier record that the state would own, and none were found in the Registry for ACTS."
+
+[[slot.identifier.alternative]]
+name = "Leaving it in the name"
+why_not = "The tag is not part of the course's name."
+
+[slot.IdentifierValue]
+label = "Kind of object"
+term = "ceterms:IdentifierValue"
+choice = "The schema allows only this [[Class]] here. It pairs a code with the name of the scheme the code belongs to."
+examples = "{ identifierTypeName: “Catalog Year”, identifierValueCode: “2024-2025 Catalog” } (from a published course)"
+
+[slot.identifierTypeName]
+label = "Identifier scheme"
+term = "ceterms:identifierTypeName"
+choice = "It names the scheme, so that the code beside it can be understood. The wording is ours, fixed for every course; it is not read from the page."
+examples = "“ISBN” · “Catalog Year”"
+
+[slot.identifierValueCode]
+label = "Identifier code"
+term = "ceterms:identifierValueCode"
+choice = "The code itself, as the page gives it."
+examples = "“ACCT 2003” · “2026-27”"
+
+# -------------------------------------------------------------------------------- requirements
+
+[slot.requires]
+label = "Prerequisite"
+term = "ceterms:requires"
+choice = "The narrower field, `ceterms:prerequisite`, can only list courses. A [[ConditionProfile]] under this field can also hold grades, groups of students, and “or”."
+examples = "One [[ConditionProfile]] per sentence. Published courses nearly always give only the sentence as text; the structure here goes further."
+
+[[slot.requires.alternative]]
+name = "The sentence as text only"
+why_not = "Always correct, and what every publisher in the sample does. But a program cannot tell which courses are involved. The sentence is kept word for word as well, so nothing is risked by adding structure."
+
+[[slot.requires.alternative]]
+name = "A flat list of the linked courses"
+why_not = "Courses listed together read as “all required”. For a sentence with “or” in it, that would state something false."
+
+[[slot.requires.alternative]]
+name = "`ceterms:entryCondition`"
+why_not = "The schema says: “For Courses required to be taken before entry into another Course, use prerequisite.”"
+
+[slot.corequisite]
+label = "Corequisite"
+term = "ceterms:corequisite"
+choice = "The page labels the sentence “Corequisite:”: something to be taken in the same term. This is the field for exactly that. See [[Corequisite]]."
+examples = "A laboratory that must be taken with its lecture."
+
+[[slot.corequisite.alternative]]
+name = "`ceterms:requires`"
+why_not = "More general. The schema advises using the more specific field where one fits."
+
+[slot.coPrerequisite]
+label = "Pre- or corequisite"
+term = "ceterms:coPrerequisite"
+choice = "The page labels the sentence “Pre- or Corequisite:”: it may be taken before or alongside. This is the field for exactly that. The schema marks the field unstable, meaning it may still change."
+examples = "A course that may be taken earlier or in the same term."
+
+[[slot.coPrerequisite.alternative]]
+name = "`ceterms:corequisite`"
+why_not = "Would say it must be taken at the same time, which is stricter than the page."
+
+[[slot.coPrerequisite.alternative]]
+name = "`ceterms:requires`"
+why_not = "Would say it must be finished first, which is also stricter than the page."
+
+[slot.ConditionProfile]
+label = "Kind of object"
+term = "ceterms:ConditionProfile"
+choice = "The schema allows only this [[Class]] here. One profile is one set of requirements; profiles listed under `ceterms:alternativeCondition` are choices between which any one is enough."
+examples = "The CTDL handbook: profiles side by side are “aggregated together”; profiles under alternativeCondition are “alternatives for one another”."
+
+[[slot.ConditionProfile.alternative]]
+name = "A direct link to a course"
+why_not = "Allowed by the schema, but it cannot say “or”, carry a grade, or keep the sentence."
+
+[slot.conditionName]
+label = "Requirement label"
+term = "ceterms:name"
+choice = "A short label saying which kind of requirement the profile is. It repeats the label that introduced the sentence on the page."
+examples = "“Prerequisite” · “Corequisite”"
+
+[slot.conditionDescription]
+label = "Requirement sentence"
+term = "ceterms:description"
+choice = "The sentence is kept word for word. This is the floor that is always present: whatever happens to the structure, the page's own words are in the record."
+examples = "“ACCT 20103 with a grade of C or better.”"
+
+[slot.targetLearningOpportunity]
+label = "Required course"
+term = "ceterms:targetLearningOpportunity"
+choice = "Each course the sentence requires outright is given as a link to that course's record. The page marks every course code up as a link, so no course is guessed from text."
+examples = "The address of another course's record."
+
+[[slot.targetLearningOpportunity.alternative]]
+name = "The course code as text"
+why_not = "A program could not follow it to the other course."
+
+[slot.condition]
+label = "Other condition"
+term = "ceterms:condition"
+choice = "Anything in the sentence that is not a course is kept as its exact words: a grade, a class standing, a group of students. CTDL has no structured field for a minimum grade."
+examples = "“with a grade of C or better” · “Honors standing”"
+
+[[slot.condition.alternative]]
+name = "Dropping it"
+why_not = "The requirement would then read as weaker than the page states."
+
+[slot.alternativeCondition]
+label = "Choices"
+term = "ceterms:alternativeCondition"
+choice = "The sentence says “or”. Each choice is written as its own nested [[ConditionProfile]]; meeting any one of them is enough."
+examples = "“MATH 20503 or MATH 22003 or MATH 24004” becomes three nested profiles, one per course."
+
+[[slot.alternativeCondition.alternative]]
+name = "Listing the courses together in one profile"
+why_not = "Courses in one list are all required. That would turn “or” into “and”."
+
+[slot.prerequisite]
+label = "Prerequisite courses"
+term = "ceterms:prerequisite"
+choice = "A rule could prove that the sentence is a plain list of courses, with no “or”, no grade and no other condition. Only then are direct links given, in addition to the profile under `ceterms:requires`."
+examples = "A list of addresses of other courses' records."
+
+[[slot.prerequisite.alternative]]
+name = "Giving direct links for every sentence"
+why_not = "The field cannot say “or”. For most sentences it would state something false (decision D7)."
+
+# ------------------------------------------------------------------------------- offering, similar
+
+[slot.offerFrequencyType]
+label = "How often offered"
+term = "ceterms:offerFrequencyType"
+choice = "The page names the terms the course usually runs in. CTDL has no field for named terms, only for how often something starts, so the wording is mapped to a cadence and the names of the terms are lost."
+examples = "Annually · Semi-Annually · Quarterly · Irregular"
+options = "ceterms:ScheduleFrequency"
+
+[[slot.offerFrequencyType.alternative]]
+name = "Leaving it out"
+why_not = "Loses nothing, but then the record says nothing at all about how often the course runs. The wording is still in the description."
+
+[[slot.offerFrequencyType.alternative]]
+name = "Asking the language model to choose"
+why_not = "There are only 12 distinct wordings. A table can be checked completely by a person; a language model's choice cannot (decision D9)."
+
+[[slot.offerFrequencyType.alternative]]
+name = "`ceterms:scheduleFrequencyType`"
+why_not = "That is for how often meetings happen while the course is running, not for how often it starts."
+
+[slot.isSimilarTo]
+label = "Similar course"
+term = "ceterms:isSimilarTo"
+choice = "The page says the course is cross-listed with, or equivalent to, another. CTDL has no field for either. This is the weakest claim that is still true (decision D10)."
+examples = "An honors course and its ordinary twin."
+
+[[slot.isSimilarTo.alternative]]
+name = "`ceterms:sameAs`"
+why_not = "CTDL: “Another source of information about the entity being described.” That says the two records describe one thing, which is more than the page says."
+
+# ------------------------------------------------------------------- facts the page does not state
+
+[slot.inLanguage]
+label = "Language"
+term = "ceterms:inLanguage"
+choice = "It is the language the course is delivered in, not the subject taught. CTDL's own note: “A course offered in English to teach Spanish would have an inLanguage of English.”"
+examples = "[\"en\"] on every one of 1,000 published courses sampled."
+
+[[slot.inLanguage.alternative]]
+name = "Assuming English without evidence"
+why_not = "The page declares its language in markup, so there is no need to assume."
+
+[[slot.inLanguage.alternative]]
+name = "Naming the language taught, for language courses"
+why_not = "Not what the field means; see the note above."
+
+[slot.lifeCycleStatusType]
+label = "Status"
+term = "ceterms:lifeCycleStatusType"
+choice = "The page is in the current edition of the catalog, and the index page calls its listing “all courses approved for offering”. Active is the closest value in CTDL's list."
+examples = "Active · Ceased · Suspended · Developing"
+options = "ceterms:LifeCycleStatus"
+
+[[slot.lifeCycleStatusType.alternative]]
+name = "Suspended, for courses offered irregularly"
+why_not = "Suspended means “temporarily not active”. A course that is approved but seldom scheduled is still on offer."
+
+[slot.ownedBy]
+label = "Owner"
+term = "ceterms:ownedBy"
+choice = "The university designs these courses and controls their content. It already has a record in the Registry, so the value is that record's address; no new organisation record is made."
+examples = "999 of 1,000 published courses sampled give `ceterms:ownedBy` alone."
+
+[[slot.ownedBy.alternative]]
+name = "A different University of Arkansas record"
+why_not = "The Registry has separate records for Little Rock, Fort Smith, Pine Bluff, Monticello and others. This catalog is Fayetteville's."
+
+[slot.offeredBy]
+label = "Offered by"
+term = "ceterms:offeredBy"
+choice = "The index page says these are courses “approved for offering by the University of Arkansas”, so the university is also the one that teaches them. Both fields are given (decision D5, not yet confirmed)."
+examples = "Owner and offerer differ when one body writes a curriculum and others teach it."
+
+[[slot.offeredBy.alternative]]
+name = "`ceterms:ownedBy` alone"
+why_not = "What nearly all publishers do, and enough to satisfy the policy. Leaving this out would be simpler but would say less than the page does."
+
+[slot.subjectWebpage]
+label = "Web page"
+term = "ceterms:subjectWebpage"
+choice = "Courses in this catalog have no page or anchor of their own, so the nearest thing is the subject page the course was read from."
+examples = "https://catalog.uark.edu/undergraduatecatalog/coursesofinstruction/acct/"
+
+[[slot.subjectWebpage.alternative]]
+name = "The catalog's single-course search address"
+why_not = "It shows one course, but the site asks automated programs to stay out of `/search/`, so it was never stored and cannot be evidence."
+
+[slot.inCatalog]
+label = "Catalog"
+term = "ceterms:inCatalog"
+choice = "The listing these courses were read from is the catalog's Courses of Instruction index, the page the crawl started at. The schema marks the field unstable, meaning it may still change."
+examples = "https://catalog.uark.edu/undergraduatecatalog/coursesofinstruction/"
+
+[slot.versionIdentifier]
+label = "Catalog edition"
+term = "ceterms:versionIdentifier"
+choice = "The catalog edition says which year's wording this record reflects. The course keeps one [[CTID]] across editions, and the edition goes here (decision D6)."
+examples = "“2024-2025 Catalog” on a published course from another college."
+
+[[slot.versionIdentifier.alternative]]
+name = "A new CTID for each edition"
+why_not = "See `ceterms:ctid`. Links between courses would break every year."
+
+[[slot.versionIdentifier.alternative]]
+name = "`ceterms:dateEffective`"
+why_not = "That is the date the course itself came into force, which the page does not state."
+
+# ------------------------------------------------------------------------------------- glossary
+# One paragraph and an example each (requirement WH6).
+
+[[glossary]]
+term = "Class"
+text = "A kind of thing. It goes in `@type`. The class decides which fields the thing may carry."
+example = "`ceterms:Course`, `ceterms:CredentialOrganization`"
+
+[[glossary]]
+term = "Property"
+text = "A fact about a thing: one key in the record. The schema says which classes may carry each property and what kind of value it takes."
+example = "`ceterms:creditValue` is allowed on a Course, and its value must be a ValueProfile."
+
+[[glossary]]
+term = "CTID"
+text = "A Credential Transparency Identifier: a globally unique ID made of `ce-` followed by a random UUID. Because it is random, the only way to give a course the same one twice is to remember it. Every CTID this tool shows was made here and is a placeholder; nothing has been published."
+example = "`ce-57603921-78ce-455c-88b5-00506fb33701`"
+
+[[glossary]]
+term = "Language map"
+text = "CTDL wraps every piece of text in a small object that says what language it is in, so that the same field can hold several translations."
+example = "`\"ceterms:name\": { \"en-US\": \"Accounting Principles\" }`"
+
+[[glossary]]
+term = "ValueProfile"
+text = "A small nested object that describes one amount: a number or a range, and optionally a unit, a level and a subject."
+example = "3, with the unit Semester Hour"
+
+[[glossary]]
+term = "ConditionProfile"
+text = "A small nested object that describes one requirement or set of requirements. It can hold free text, links to courses, and nested profiles that are alternatives to each other. Profiles side by side mean “and”; profiles under `ceterms:alternativeCondition` mean “or”."
+example = "A prerequisite sentence becomes one ConditionProfile."
+
+[[glossary]]
+term = "Alignment object"
+text = "The wrapper CTDL uses to pick one value from a fixed list. Where it could have written a bare word, it writes a small card saying which list, which entry, and the entry's name. The same card can point at any list, including ones CTDL does not own."
+example = "“the value is Semester Hour, and it comes from the list called Credit Unit”"
+
+[[glossary]]
+term = "Concept scheme"
+text = "A fixed list of allowed values for a field."
+example = "The Credit Unit list holds Semester Hour, Quarter Hour and 13 others."
+
+[[glossary]]
+term = "Registry"
+text = "The Credential Registry: the public database, run by Credential Engine, where organisations publish CTDL records. The University of Arkansas has a record there, with 298 degrees and certificates and no courses. This tool reads that one record and publishes nothing."
+example = "https://credentialengineregistry.org/resources/ce-57603921-78ce-455c-88b5-00506fb33701"
+
+[[glossary]]
+term = "ACTS"
+text = "The Arkansas Course Transfer System: the state's list of courses guaranteed to transfer between Arkansas public institutions. “ACTS Equivalency = ACCT 2003” says this course is the university's version of statewide course ACCT 2003."
+example = "ACCT 2003"
+
+[[glossary]]
+term = "Corequisite"
+text = "A course that must be taken in the same term. A “pre- or corequisite” may be taken before or alongside."
+example = "A laboratory taken with its lecture."

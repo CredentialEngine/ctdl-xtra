@@ -1,0 +1,98 @@
+{
+  "model": "qwen3.5:9b",
+  "promptVersion": "prerequisite-structure/1",
+  "task": "prerequisite sentence",
+  "sentence": "(Business majors: Honors standing, (ISYS 11203 with a grade of C or better, BUSI 11101 with a grade of C or better, and MATH 20503 or MATH 22003 or MATH 24004 with a grade of C or better).(Non-business majors: Honors Standing, (ISYS 11203 or DASC 10003 or ASTM 29003 or INEG 21003), and MATH 20503 or MATH 22003 or MATH 24004 or higher with a grade of C or better).",
+  "courseCodes": [
+    "ISYS 11203",
+    "BUSI 11101",
+    "MATH 20503",
+    "MATH 22003",
+    "MATH 24004",
+    "ISYS 11203",
+    "DASC 10003",
+    "ASTM 29003",
+    "INEG 21003",
+    "MATH 20503",
+    "MATH 22003",
+    "MATH 24004"
+  ],
+  "structure": {
+    "kind": "all_of",
+    "quote": "",
+    "items": [
+      {
+        "kind": "text",
+        "quote": "Business majors: Honors standing"
+      },
+      {
+        "kind": "any_of",
+        "quote": "",
+        "items": [
+          {
+            "kind": "all_of",
+            "quote": "",
+            "items": [
+              {
+                "kind": "course",
+                "quote": "ISYS 11203"
+              },
+              {
+                "kind": "text",
+                "quote": "with a grade of C or better"
+              }
+            ]
+          },
+          {
+            "kind": "course",
+            "quote": "BUSI 11101"
+          },
+          {
+            "kind": "all_of",
+            "quote": "",
+            "items": [
+              {
+                "kind": "course",
+                "quote": "MATH 20503"
+              },
+              {
+                "kind": "text",
+                "quote": "with a grade of C or better"
+              }
+            ]
+          },
+          {
+            "kind": "all_of",
+            "quote": "",
+            "items": [
+              {
+                "kind": "course",
+                "quote": "MATH 22003"
+              },
+              {
+                "kind": "text",
+                "quote": "with a grade of C or better"
+              }
+            ]
+          },
+          {
+            "kind": "all_of",
+            "quote": "",
+            "items": [
+              {
+                "kind": "course",
+                "quote": "MATH 24004"
+              },
+              {
+                "kind": "text",
+                "quote": "with a grade of C or better"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "argument": "The outermost structure is an 'all_of' because the sentence presents two distinct paths ('Business majors...' and 'Non-business majors...') connected by an implicit 'and', meaning both conditions must be met. Within the 'Business majors' path, there is a group of alternatives separated by commas ending in 'or' (ISYS..., BUSI..., MATH 20503 or MATH 22003 or MATH 24004...), which constitutes an 'any_of'. The items within this 'any_of' are themselves 'all_of' groups because each course code is explicitly paired with the condition 'with a grade of C or better' using the conjunction 'and' (e.g., 'ISYS 11203 with a grade of C or better'). Similarly, the 'Non-business majors' path contains an 'any_of' for the first set of courses and an 'all_of' connecting that set to the final math requirement group. Per CTDL definitions, 'alternativeCondition' (mapped here to 'any_of') allows any one path to fulfill the parent, while 'requires' (mapped here to 'all_of') mandates every item in a list.",
+  "seconds": 9.9
+}

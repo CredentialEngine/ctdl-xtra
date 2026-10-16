@@ -1,0 +1,33 @@
+{
+  "model": "qwen3.5:9b",
+  "promptVersion": "prerequisite-structure/1",
+  "task": "prerequisite sentence",
+  "sentence": "For pre-nursing and nursing majors only.  Must have sophomore standing or above and a GPA of 3.0 or above.",
+  "courseCodes": [],
+  "structure": {
+    "kind": "all_of",
+    "quote": "",
+    "items": [
+      {
+        "kind": "text",
+        "quote": "For pre-nursing and nursing majors only."
+      },
+      {
+        "kind": "all_of",
+        "quote": "",
+        "items": [
+          {
+            "kind": "text",
+            "quote": "Must have sophomore standing or above"
+          },
+          {
+            "kind": "text",
+            "quote": "and a GPA of 3.0 or above"
+          }
+        ]
+      }
+    ]
+  },
+  "argument": "The sentence begins with a condition 'For pre-nursing and nursing majors only.' which applies to the entire requirement, establishing an 'all_of' relationship between this group restriction and the subsequent academic requirements. The phrase 'Must have sophomore standing or above and a GPA of 3.0 or above' contains two distinct conditions joined by the word 'and'. According to the CTDL definition of ceterms:requires, these form a set where every item is required; therefore, both the standing requirement and the GPA requirement must be met simultaneously, creating an inner 'all_of' node. The word 'or' within 'sophomore standing or above' indicates that meeting either condition satisfies that specific sub-clause, but since it is part of a larger 'and' structure with the GPA, the top-level logic remains 'all_of'. No course codes were present in the sentence.",
+  "seconds": 14.6
+}

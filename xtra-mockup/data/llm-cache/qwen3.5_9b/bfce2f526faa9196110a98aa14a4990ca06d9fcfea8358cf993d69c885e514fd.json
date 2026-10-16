@@ -1,0 +1,13 @@
+{
+  "model": "qwen3.5:9b",
+  "promptVersion": "prerequisite-structure/1",
+  "task": "prerequisite sentence",
+  "sentence": "Computer Science Computer Engineering (CSCE) Graduate Standing.",
+  "courseCodes": [],
+  "structure": {
+    "kind": "text",
+    "quote": "Computer Science Computer Engineering (CSCE) Graduate Standing."
+  },
+  "argument": "The sentence contains no course codes; it is a single condition describing a class standing. According to the rules, any condition that is not a course code is treated as a 'text' node with its exact words as the quote. Since there are no 'and' or 'or' conjunctions connecting multiple items, no 'all_of' or 'any_of' grouping is necessary.",
+  "seconds": 3.9
+}

@@ -1,0 +1,30 @@
+{
+  "model": "qwen3.5:9b",
+  "promptVersion": "prerequisite-structure/1",
+  "task": "prerequisite sentence",
+  "sentence": "NURS 43133, NURS 32932 and admission to the Online Undergraduate BSN Professional Program or permission by the instructor or department head.",
+  "courseCodes": [
+    "NURS 43133",
+    "NURS 32932"
+  ],
+  "structure": {
+    "kind": "all_of",
+    "quote": "",
+    "items": [
+      {
+        "kind": "course",
+        "quote": "NURS 43133"
+      },
+      {
+        "kind": "course",
+        "quote": "NURS 32932"
+      },
+      {
+        "kind": "text",
+        "quote": "admission to the Online Undergraduate BSN Professional Program or permission by the instructor or department head"
+      }
+    ]
+  },
+  "argument": "The sentence begins with a comma-separated list of two courses ('NURS 43133', 'NURS 32932') followed by the word 'and'. According to the rules, items joined by 'and' (or a comma list ending in 'and') form an 'all_of' node, meaning every item must be satisfied. The third item is a complex condition containing internal 'or' statements ('admission... or permission...'), but since it is not enclosed in brackets separating alternatives from the preceding courses, it is treated as a single text requirement within the main 'all_of' group. Therefore, the top-level structure requires both courses AND the text condition.",
+  "seconds": 12.4
+}

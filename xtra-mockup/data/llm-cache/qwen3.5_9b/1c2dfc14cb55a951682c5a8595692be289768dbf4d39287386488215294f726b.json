@@ -1,0 +1,76 @@
+{
+  "model": "qwen3.5:9b",
+  "promptVersion": "prerequisite-structure/1",
+  "task": "prerequisite sentence",
+  "sentence": "NURS 31151, NURS 33332, NURS 41032, NURS 43233, NURS 41234, NURS 41433, NURS 32932, and NURS 43133 and admission to the Online Undergraduate BSN Professional Program or permission by the instructor or department head.",
+  "courseCodes": [
+    "NURS 31151",
+    "NURS 33332",
+    "NURS 41032",
+    "NURS 43233",
+    "NURS 41234",
+    "NURS 41433",
+    "NURS 32932",
+    "NURS 43133"
+  ],
+  "structure": {
+    "kind": "all_of",
+    "quote": "",
+    "items": [
+      {
+        "kind": "course",
+        "quote": "NURS 31151"
+      },
+      {
+        "kind": "course",
+        "quote": "NURS 33332"
+      },
+      {
+        "kind": "course",
+        "quote": "NURS 41032"
+      },
+      {
+        "kind": "course",
+        "quote": "NURS 43233"
+      },
+      {
+        "kind": "course",
+        "quote": "NURS 41234"
+      },
+      {
+        "kind": "course",
+        "quote": "NURS 41433"
+      },
+      {
+        "kind": "course",
+        "quote": "NURS 32932"
+      },
+      {
+        "kind": "all_of",
+        "quote": "",
+        "items": [
+          {
+            "kind": "course",
+            "quote": "NURS 43133"
+          },
+          {
+            "kind": "text",
+            "quote": "admission to the Online Undergraduate BSN Professional Program"
+          }
+        ]
+      },
+      {
+        "kind": "any_of",
+        "quote": "",
+        "items": [
+          {
+            "kind": "text",
+            "quote": "permission by the instructor or department head"
+          }
+        ]
+      }
+    ]
+  },
+  "argument": "The sentence begins with a list of courses joined by commas and ending with 'and', which according to rule 4 forms an 'all_of' group requiring every listed course. Within this main group, the last item is itself a compound requirement: 'NURS 43133 and admission to the Online Undergraduate BSN Professional Program'. The word 'and' here joins two specific conditions that must both be met, forming a nested 'all_of' node containing the course code and the text condition. Finally, this entire block of requirements is followed by 'or permission by the instructor or department head'. The word 'or' connects the large block of courses/admissions with the final permission option. Since only one path needs to be fulfilled to satisfy the overall requirement (the big block OR the permission), the top-level structure containing the final alternative is an 'any_of' node, while the internal connection between the course and admission text remains 'all_of'.",
+  "seconds": 7.8
+}

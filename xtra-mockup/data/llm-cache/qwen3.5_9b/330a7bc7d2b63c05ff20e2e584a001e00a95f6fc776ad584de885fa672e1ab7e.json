@@ -1,0 +1,19 @@
+{
+  "model": "qwen3.5:9b",
+  "promptVersion": "prerequisite-structure/1",
+  "task": "prerequisite sentence",
+  "sentence": "Graduate standing in MS in Computer Science (CSCEMS), PhD in Computer Science (CSCEPH), MS in Computer Engineering (CENGMS), or PhD in Computer Engineering (CENGPH) programs.",
+  "courseCodes": [],
+  "structure": {
+    "kind": "any_of",
+    "quote": "",
+    "items": [
+      {
+        "kind": "text",
+        "quote": "Graduate standing in MS in Computer Science (CSCEMS), PhD in Computer Science (CSCEPH), MS in Computer Engineering (CENGMS), or PhD in Computer Engineering (CENGPH) programs."
+      }
+    ]
+  },
+  "argument": "The sentence lists four distinct academic standing options separated by commas and the word 'or'. According to the CTDL definition of ceterms:alternativeCondition, this represents a context where 'more than one alternative condition or path has been defined and from which any one path fulfills the parent condition.' Therefore, the logical structure is an 'any_of' node containing the single text item representing the entire list. No course codes are present to be parsed individually.",
+  "seconds": 6.0
+}

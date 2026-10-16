@@ -1,0 +1,26 @@
+{
+  "model": "qwen3.5:9b",
+  "promptVersion": "prerequisite-structure/1",
+  "task": "corequisite sentence",
+  "sentence": "CHEM 12281 and related course component drill section for CHEM 12283.",
+  "courseCodes": [
+    "CHEM 12281",
+    "CHEM 12283"
+  ],
+  "structure": {
+    "kind": "all_of",
+    "quote": "",
+    "items": [
+      {
+        "kind": "course",
+        "quote": "CHEM 12281"
+      },
+      {
+        "kind": "text",
+        "quote": "related course component drill section for CHEM 12283"
+      }
+    ]
+  },
+  "argument": "The sentence uses the conjunction 'and' to join two distinct requirements: taking CHEM 12281 and completing a specific related section for CHEM 12283. According to the CTDL definition of ceterms:alternativeCondition, this structure implies that multiple paths exist where any one path fulfills the parent condition; however, in standard academic catalog syntax, 'and' between two distinct items (a course and a text description) without an explicit 'or' or bracketed grouping usually denotes an 'all_of' relationship where both must be satisfied. The definition of ceterms:requires supports this by stating it is a requirement or set of requirements for the resource, implying all listed components are necessary to fulfill the corequisite condition.",
+  "seconds": 3.7
+}

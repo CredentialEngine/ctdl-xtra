@@ -1,0 +1,25 @@
+{
+  "model": "qwen3.5:9b",
+  "promptVersion": "prerequisite-structure/1",
+  "task": "prerequisite sentence",
+  "sentence": "ENGL 10203 and advanced standing.",
+  "courseCodes": [
+    "ENGL 10203"
+  ],
+  "structure": {
+    "kind": "all_of",
+    "quote": "",
+    "items": [
+      {
+        "kind": "course",
+        "quote": "ENGL 10203"
+      },
+      {
+        "kind": "text",
+        "quote": "advanced standing"
+      }
+    ]
+  },
+  "argument": "The sentence contains 'and' connecting two items, which according to the CTDL definition of ceterms:requires implies that every item under it is required. Therefore, the root node is an 'all_of' node containing both the course code and the text condition.",
+  "seconds": 4.4
+}

@@ -1,0 +1,36 @@
+{
+  "model": "qwen3.5:9b",
+  "promptVersion": "prerequisite-structure/1",
+  "task": "prerequisite sentence",
+  "sentence": "ENGL 10103 and ENGL 10203 or equivalent.",
+  "courseCodes": [
+    "ENGL 10103",
+    "ENGL 10203"
+  ],
+  "structure": {
+    "kind": "any_of",
+    "quote": "",
+    "items": [
+      {
+        "kind": "all_of",
+        "quote": "",
+        "items": [
+          {
+            "kind": "course",
+            "quote": "ENGL 10103"
+          },
+          {
+            "kind": "course",
+            "quote": "ENGL 10203"
+          }
+        ]
+      },
+      {
+        "kind": "text",
+        "quote": "or equivalent"
+      }
+    ]
+  },
+  "argument": "The sentence contains 'and' joining two course codes, which according to the rules forms an 'all_of' group requiring both. This entire group is joined by 'or' with the text 'equivalent', forming an 'any_of' structure where either the pair of courses or the equivalent condition satisfies the requirement.",
+  "seconds": 6.7
+}

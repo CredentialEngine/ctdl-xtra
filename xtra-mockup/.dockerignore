@@ -1,0 +1,7 @@
+# The image needs only viewer/ and data/out/.
+*
+!viewer/
+!data/out/
+viewer/node_modules/
+viewer/dist/
+viewer/dist-single/

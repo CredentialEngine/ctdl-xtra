@@ -1,0 +1,68 @@
+{
+  "model": "qwen3.5:9b",
+  "promptVersion": "prerequisite-structure/1",
+  "task": "prerequisite sentence",
+  "sentence": "Admission to the NURSBS-PLRN program, (BIOL 24003 and BIOL 24001), (BIOL 24103 and BIOL 24101), and (BIOL 20003 and BIOL 20001).",
+  "courseCodes": [
+    "BIOL 24003",
+    "BIOL 24001",
+    "BIOL 24103",
+    "BIOL 24101",
+    "BIOL 20003",
+    "BIOL 20001"
+  ],
+  "structure": {
+    "kind": "all_of",
+    "quote": "",
+    "items": [
+      {
+        "kind": "text",
+        "quote": "Admission to the NURSBS-PLRN program,"
+      },
+      {
+        "kind": "all_of",
+        "quote": "",
+        "items": [
+          {
+            "kind": "course",
+            "quote": "BIOL 24003"
+          },
+          {
+            "kind": "course",
+            "quote": "BIOL 24001"
+          }
+        ]
+      },
+      {
+        "kind": "all_of",
+        "quote": "",
+        "items": [
+          {
+            "kind": "course",
+            "quote": "BIOL 24103"
+          },
+          {
+            "kind": "course",
+            "quote": "BIOL 24101"
+          }
+        ]
+      },
+      {
+        "kind": "all_of",
+        "quote": "",
+        "items": [
+          {
+            "kind": "course",
+            "quote": "BIOL 20003"
+          },
+          {
+            "kind": "course",
+            "quote": "BIOL 20001"
+          }
+        ]
+      }
+    ]
+  },
+  "argument": "The top-level 'and' connecting the three parenthetical groups indicates that all three groups must be satisfied, forming an 'all_of' structure. Within each parenthesis, the 'and' connecting two specific course codes indicates that both courses in that pair are required, forming nested 'all_of' structures for each pair.",
+  "seconds": 10.9
+}

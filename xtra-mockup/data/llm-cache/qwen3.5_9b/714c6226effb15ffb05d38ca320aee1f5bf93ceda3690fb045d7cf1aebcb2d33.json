@@ -1,0 +1,25 @@
+{
+  "model": "qwen3.5:9b",
+  "promptVersion": "prerequisite-structure/1",
+  "task": "prerequisite sentence",
+  "sentence": "Honors candidacy, Nursing Bachelor of Science (NURSBS) major, and NURS 384H2.",
+  "courseCodes": [
+    "NURS 384H2"
+  ],
+  "structure": {
+    "kind": "all_of",
+    "quote": "",
+    "items": [
+      {
+        "kind": "text",
+        "quote": "Honors candidacy, Nursing Bachelor of Science (NURSBS) major"
+      },
+      {
+        "kind": "course",
+        "quote": "NURS 384H2"
+      }
+    ]
+  },
+  "argument": "The sentence uses the conjunction 'and' to connect two distinct requirements: a text condition ('Honors candidacy, Nursing Bachelor of Science (NURSBS) major') and a specific course code ('NURS 384H2'). According to the CTDL definition of ceterms:requires, this forms a set where every item is required. Furthermore, the instruction states that courses joined by 'and' inside brackets (or in a list ending in 'and') constitute an 'all_of' node. Therefore, both the text condition and the course code must be satisfied.",
+  "seconds": 3.1
+}

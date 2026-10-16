@@ -1,0 +1,1036 @@
+
+
+<!doctype html>
+<html class="no-js" xml:lang="en" lang="en" dir="ltr">
+
+<head>
+<meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+<meta name="searchCrawler:site" content="https://catalog.uark.edu/">
+<meta name="searchCrawler:sectionType" content="Catalog of Studies">
+<title>Nursing (NURS) &lt; University of Arkansas</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<meta property="og:site_name" content="Academic Catalog" />
+<meta name="description" content="Courses available in Nursing." />
+<link rel="search" type="application/opensearchdescription+xml"
+			href="/search/opensearch.xml" title="Catalog" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0" />
+<link href="/images/favicon.ico" rel="shortcut icon" />
+<link rel="stylesheet" type="text/css" href="/css/reset.css" />
+<link href="https://fonts.googleapis.com/css?family=Roboto:400,400i,500,500i,700,700i" rel="stylesheet">
+<link rel="stylesheet" type="text/css" href="/fonts/font-awesome/font-awesome.min.css" />
+<link rel="stylesheet" type="text/css" href="/css/courseleaf.css?v=1786050808000" />
+<link rel="stylesheet" type="text/css" href="/css/screen.css?v=1786050808000" media="screen" />
+<link rel="stylesheet" type="text/css" href="/css/print.css?v=1786050808000" media="print" />
+<script type="text/javascript" src="/js/jquery.js"></script>
+<script type="text/javascript" src="/js/lfjs.js"></script>
+<script type="text/javascript" src="/js/lfjs_any.js"></script>
+<link rel="stylesheet" type="text/css" href="/js/lfjs.css?v=1786050812000" />
+<script type="text/javascript" src="/js/courseleaf.js?v=1786050812000"></script>
+<script type="text/javascript" src="/js/custom.js?v=1786050812000"></script>
+<script type="text/javascript">var gakey = "GTM-N5Z7HW";</script><script type="text/javascript" src="/js/analytics.js"></script>
+
+
+
+<!-- Google Tag Manager -->
+<script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+})(window,document,'script','dataLayer','GTM-N5Z7HW');</script>
+<!-- End Google Tag Manager -->
+
+
+
+
+
+
+
+
+
+</head>
+
+
+
+<body class="">
+
+
+
+
+	<nav aria-label="Skip content menu" class="accessible">
+		<div class="accessible-menu">
+			<ul>
+				<li><a href="#contentarea" rel="section">Skip to Content</a></li>
+				<li><a href="/azindex/">AZ Index</a></li>
+				<li><a href="/">Catalog Home</a></li>
+			</ul>
+		</div>
+	</nav>
+
+	<header id="header">
+		<div class="wrap">
+		<div class="header-title">
+			<div id="logo">
+				<a href="https://www.uark.edu/"><img src="/images/logo.svg" alt="University of Arkansas Logo" /></a>
+			</div>
+			
+			<a href="/" class="catalog-text">Catalog of Studies</a>
+		</div>
+
+			<div class="desktop__sub-menu">
+				<button
+				id="dropdown-button"
+				class="link-dropdown"
+				aria-controls="link-list"
+    			aria-expanded="false"
+				data-toggle="#link-list"
+				><span aria-hidden="true" class="fas fa-angle-double-down"></span>LINKS</button>
+
+				<ul id="link-list">
+					<div>
+						<li><a href="https://www.uark.edu/a-to-z.php">A-Z Index</a></li>
+						<li><a href="https://learn.uark.edu/">Blackboard Learn</a></li>
+						<li><a href="https://campusmaps.uark.edu/">Campus Map</a></li>
+						<li><a href="https://uaconnect.uark.edu/">UAConnect</a></li>
+					</div>
+					<div>
+						<li><a href="https://directory.uark.edu/">Directory</a></li>
+						<li><a href="https://outlook.office.com">Email</a></li>
+						<li><a href="https://myapps.microsoft.com/">myApps</a></li>
+						<li><a href="https://wd5.myworkday.com/wday/authgwy/uasys/login-saml2.htmld">Workday</a></li>
+					</div>
+				</ul>
+
+				<div class="desktop__search" id="cat-search">
+					<form action="/search/">
+						<label for="cat-search-term-desktop" class="sr-only">Search catalog</label>
+						<input class="search-field" type="text" name="search" id="cat-search-term-desktop" placeholder="Search this site" />
+						<button class="search-button" type="submit">
+							<span class="fa fa-search" aria-hidden="true"></span>
+							<span class="sr-only">Submit search</span>
+						</button>
+<!-- <input type="hidden" name="caturl" value="/undergraduatecatalog" /> -->
+					</form>
+				</div>
+			</div>
+
+			<div class="menu-button">
+				<button
+				id="menu-button--open"
+				aria-controls="example-div"
+				aria-expanded="false"
+				data-toggle="#example-div">MENU <span class="fa fa-bars" aria-hidden="true"></span></button>
+			</div>
+		</div>
+
+		<section id="local-header">
+			<div class="wrap">
+				<nav id="navigation" aria-label="Secondary" aria-hidden="false">
+					<ul id="main-nav" class="clearfix">
+						<li><a href="/">Home</a></li>
+						<li><a href="/generalinfo">General Info</a></li>
+						<li><a href="/undergraduatecatalog">Undergraduate Catalog</a></li>
+						<li><a href="/graduatecatalog">Graduate Catalog</a></li>
+						<li><a href="/lawcatalog">Law Catalog</a></li>
+						<li><a href="/archives">Archive</a></li>
+						<li><button onclick="showPrintDialog(); return false;">Print</button></li>
+					</ul>
+				</nav>
+			</div>
+		</section>
+	</header>
+	
+	<div class="menu-modal"></div>
+	
+	<section
+		id="example-div"
+		class="mobile-nav-wrapper"
+		aria-hidden="true"
+		aria-controls="example-div"
+		aria-expanded="false" >
+		<div class="mobile-nav--close">
+			<button id="menu-button--close">CLOSE <span class="fa-solid fa-circle-xmark" aria-hidden="true"></span></button>
+		</div>
+
+		<div class="search" id="cat-search">
+			<form action="/search/">
+				<label for="cat-search-term" class="sr-only">Search catalog</label>
+				<input class="search-field" type="text" name="search" id="cat-search-term" placeholder="Search this site" />
+				<button class="search-button" type="submit">SEARCH
+					<span class="sr-only">Submit search</span>
+				</button>
+			</form>
+		</div>
+
+		<nav class="mobile-nav--main-menu">
+			<ul>
+				<li><a href="/">Home</a></li>
+				<li><a href="/generalinfo">General Info</a></li>
+				<li><a href="/undergraduatecatalog">Undergraduate Catalog</a></li>
+				<li><a href="/graduatecatalog">Graduate Catalog</a></li>
+				<li><a href="/lawcatalog">Law Catalog</a></li>
+				<li><a href="/archives">Archive</a></li>
+				<li><button onclick="showPrintDialog(); return false;">Print</button></li>
+			</ul>
+		</nav>
+
+		<div class="mobile-nav--sub-menu">
+			<nav>
+				<ul>
+					<li><a href="https://www.uark.edu/a-to-z.php">A-Z Index</a></li>
+					<li><a href="https://learn.uark.edu/">Blackboard Learn</a></li>
+					<li><a href="https://campusmaps.uark.edu/">Campus Map</a></li>
+					<li><a href="https://uaconnect.uark.edu/">UAConnect</a></li>
+					<li><a href="https://directory.uark.edu/">Directory</a></li>
+					<li><a href="https://outlook.office.com">Email</a></li>
+					<li><a href="https://myapps.microsoft.com/">myApps</a></li>
+					<li><a href="https://wd5.myworkday.com/wday/authgwy/uasys/login-saml2.htmld">Workday</a></li>
+				</ul>
+			</nav>
+
+			<picture>
+				<source type="image/webp" srcset="https://includes.uark.edu/assets/tower-grey.webp">
+				<source type="image/jpeg" srcset="https://includes.uark.edu/assets/tower-grey.png"><img src="https://includes.uark.edu/assets/tower-grey.png" alt="">
+			</picture>
+		</div>
+	</section>
+
+<section id="content-container">
+   <div class="wrap">
+      <div id="col-nav">
+         <button id="sidebar-toggle" aria-expanded="false" data-toggle="#sidebar">
+            <span class="fa fa-bars" aria-hidden="true"></span>
+            <span>2026-27 Edition</span>
+         </button>
+         <aside id="sidebar">
+            <div class="sidebar-item">
+               <h2 id="edition" class="sidebar-header"><a href="/">2026-27 Edition</a></h2>
+               <nav id="cl-menu" aria-label="Primary">
+<ul class="nav levelzero" id="/">
+	<li class="isparent"><a href="/generalinfo/">General Information</a></li>
+	<li class="active isparent"><a href="/undergraduatecatalog/">Undergraduate Catalog</a>
+	<ul class="nav levelone" id="/undergraduatecatalog/">
+		<li><a href="/undergraduatecatalog/contactinformation/">Contact Information</a></li>
+		<li><a href="/undergraduatecatalog/fieldsofstudy/">Programs of Study</a></li>
+		<li class="isparent"><a href="/undergraduatecatalog/enrollmentservices/">Enrollment Services</a></li>
+		<li class="isparent"><a href="/undergraduatecatalog/financialaidandscholarships/">Financial Aid and Scholarships</a></li>
+		<li class="isparent"><a href="/undergraduatecatalog/orientationandregistration/">Registration</a></li>
+		<li class="isparent"><a href="/undergraduatecatalog/feeandcosts/">Fees &amp;&#8203; Cost Estimates</a></li>
+		<li class="isparent"><a href="/undergraduatecatalog/academicregulations/">Academic Regulations</a></li>
+		<li class="isparent"><a href="/undergraduatecatalog/collegesandschools/">Colleges and Schools</a></li>
+		<li class="isparent"><a href="/undergraduatecatalog/reserveofficertrainingcorps/">ROTC</a></li>
+		<li><a href="/undergraduatecatalog/servicelearning/">Service Learning</a></li>
+		<li><a href="/undergraduatecatalog/faculty/">Undergraduate Faculty</a></li>
+		<li class="active isparent"><a href="/undergraduatecatalog/coursesofinstruction/">Courses of Instruction</a>
+		<ul class="nav leveltwo" id="/undergraduatecatalog/coursesofinstruction/">
+			<li class="active self"><a href="#" onclick="return false;">Nursing (NURS)</a></li>
+		</ul>
+		</li>
+		<li><a href="/undergraduatecatalog/glossary/">Glossary</a></li>
+	</ul>
+	</li>
+	<li class="isparent"><a href="/graduatecatalog/">Graduate Catalog</a></li>
+	<li class="isparent"><a href="/lawcatalog/">School of Law</a></li>
+	<li><a href="/archives/">Archives</a></li>
+</ul>
+               </nav>
+            </div>
+
+            <button id="print-btn" href="#print-dialog" onclick="showPrintDialog(); return false;">
+               <span class="fa fa-print" aria-hidden="true"></span> Print Options
+            </button>
+         </aside>
+      </div> <!-- end col-nav -->
+      <div id="col-content">
+			<main id="contentarea">
+			
+			
+				<header>
+					<h1 class="page-title">Nursing (NURS)</h1>
+				</header>
+				
+<nav id="breadcrumb" aria-label="Breadcrumbs">
+<ul><li><a href="/">Catalog&nbsp;Home</a><span class="crumbsep">›</span></li><li><a href="/undergraduatecatalog/">Undergraduate&nbsp;Catalog</a><span class="crumbsep">›</span></li><li><a href="/undergraduatecatalog/coursesofinstruction/">Courses&nbsp;of&nbsp;Instruction</a><span class="crumbsep">›</span></li><li><span class="active">Nursing (NURS)</span></li></ul>
+</nav>
+
+
+
+
+
+<div id="textcontainer" class="page_content">
+
+</div><!--end #textcontainer -->
+
+<div id="courseinventorycontainer" class="page_content"><a name="courseinventory"></a>
+<div class="courses">
+<div class="notinpdf"><a name="nurscourses"></a></div>
+<h3>Courses</h3>
+
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>NURS&#160;20132.  Nursing Informatics.  2 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+This course focuses on how information technology is used in the health care system. The course describes how nursing informatics is currently being used by healthcare professionals and speculates about future applications.  Prerequisite:  Admission to the NURS-PLRN major. (Typically offered: Fall, Spring and Summer)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>NURS&#160;20232.  Introduction to Professional Nursing Concepts.  2 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+The course presents an overview of theories, principles and concepts essential to professional nursing practice. It includes ethical and legal implications relevant to health care systems. Focus is on the nursing process as the organizing framework for the delivery of care. It also explores the role of the professional nurse. This is a pre-nursing course. Prerequisite:  For pre-nursing and nursing majors only.  Must have sophomore standing or above and a GPA of 3.0 or above. (Typically offered: Fall, Spring and Summer)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>NURS&#160;20332.  Therapeutic and Interprofessional Communication.  2 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Focuses on intrapersonal and interpersonal strategies necessary for effective nurse-client interactions. Introduces a variety of communication techniques skills including group process and dynamics. This is a pre-nursing course.  Prerequisite:  Admission to the NURS-PLRN major. (Typically offered: Fall, Spring and Summer)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>NURS&#160;20503.  Math and Medical Terminology for Nurses.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Acquire language and mathematics skills needed to perform care of patients as a registered nurse. Utilize conversions and computational methods to determine medication dosage. Investigate techniques for administering medications through multiple routes. Explore basic statistical concepts to interpret findings presented in scientific studies and evaluate data. Form a basic understanding of medical language and utilize knowledge gained to interpret medical terminology encountered in the practice of nursing. Prerequisite:  Admission to the NURSBS-PLRN program and <a href="/search/?P=MATH%2011003" title="MATH&#160;11003" class="bubblelink code" onclick="return showCourse(this, 'MATH 11003');">MATH&#160;11003</a>. (Typically offered: Fall and Spring)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>NURS&#160;21403.  Introduction to Nursing.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Discover the roles of the professional Nurse. Explore the development of professional nursing throughout history, governance of the nursing profession, and nursing roles. Investigate the nursing scope of practice, theoretical frameworks of nursing, and the nursing licensure exam. Learn strategies for professional self-awareness and communication. Prerequisite:  Admission to the NURSBS-PLRN program. (Typically offered: Fall and Spring)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>NURS&#160;24203.  Pathophysiology and Pharmacology I.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Explore foundational pathophysiologic and pharmacokinetic concepts across the life span. Determine factors that contribute to altered physiological functioning and the body's adaptive and compensatory mechanisms. Discover how medications affect selected body processes based on a variety of factors including genetics. Learn rationales for preventive and therapeutic pharmacologic and non-pharmacologic nursing interventions in health and illness. Prerequisite:  Admission to the NURSBS-PLRN program, (<a href="/search/?P=BIOL%2024003" title="BIOL&#160;24003" class="bubblelink code" onclick="return showCourse(this, 'BIOL 24003');">BIOL&#160;24003</a> and <a href="/search/?P=BIOL%2024001" title="BIOL&#160;24001" class="bubblelink code" onclick="return showCourse(this, 'BIOL 24001');">BIOL&#160;24001</a>), (<a href="/search/?P=BIOL%2024103" title="BIOL&#160;24103" class="bubblelink code" onclick="return showCourse(this, 'BIOL 24103');">BIOL&#160;24103</a> and <a href="/search/?P=BIOL%2024101" title="BIOL&#160;24101" class="bubblelink code" onclick="return showCourse(this, 'BIOL 24101');">BIOL&#160;24101</a>) and (<a href="/search/?P=BIOL%2020003" title="BIOL&#160;20003" class="bubblelink code" onclick="return showCourse(this, 'BIOL 20003');">BIOL&#160;20003</a> and <a href="/search/?P=BIOL%2020001" title="BIOL&#160;20001" class="bubblelink code" onclick="return showCourse(this, 'BIOL 20001');">BIOL&#160;20001</a>). (Typically offered: Fall and Spring)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>NURS&#160;30203.  Math and Medications for Nurses.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Review best practices for calculating medication dosages. Explore indications, safety and monitoring for commonly prescribed medications used across the lifespan. Learn medication management principles and practices for the Registered Nurse. Apply evidence-based practice to nursing medication management. Explore basic statistical concepts to interpret findings presented in scientific studies and evaluate data. Prerequisite:  Admission to the NURSBS-LNBN program and <a href="/search/?P=MATH%2011003" title="MATH&#160;11003" class="bubblelink code" onclick="return showCourse(this, 'MATH 11003');">MATH&#160;11003</a>. (Typically offered: Fall and Summer)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>NURS&#160;30303.  Transforming Professional Nursing Practice.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Explore the evolution of professional nursing over time. Build on nursing knowledge to deliver holistic, evidence-based nursing care. Discover strategies to optimize healthcare communication, and teamwork. Advance clinical reasoning and critical thinking skills. Gain increased understanding of the impact technology and information management has healthcare. Learn strategies to remain resilient in the nursing school and the nursing profession. Prerequisite:  Admission to the NURSBS-LNBN program. (Typically offered: Fall and Spring)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>NURS&#160;31151.  Clinical Skills for Professional Nurses.  1 Hour.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Students apply nursing concepts and skills with emphasis on the caregiver role transition and use of the nursing process. Prerequisite:  Admission to the Online Undergraduate BSN Professional Program or permission by the instructor or department head, and students must have completed all University core and program prerequisites. Pre- or Corequisite:  <a href="/search/?P=NURS%2043233" title="NURS&#160;43233" class="bubblelink code" onclick="return showCourse(this, 'NURS 43233');">NURS&#160;43233</a>. (Typically offered: Fall and Spring)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>NURS&#160;31903.  Theories and Frameworks for Practice.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Apply relevant nursing, health promotion, and teaching and learning theories to nursing care. Discover frameworks to promote belonging, acceptance and equity in healthcare. Explore social determinants of health and strategies to create cultural safety and provide trauma-informed care. Determine environmental interventions that promote individual, community, population, global, and planetary health. Pre- or corequisite:  <a href="/search/?P=NURS%2037303" title="NURS&#160;37303" class="bubblelink code" onclick="return showCourse(this, 'NURS 37303');">NURS&#160;37303</a>. (Typically offered: Fall, Spring and Summer)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>NURS&#160;32303.  Pathophysiology for Nurses.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Explore foundational pathophysiologic concepts. Discover factors that contribute to altered physiological functioning and the body's adaptive and compensatory mechanisms. Learn rationales for preventive and therapeutic nursing interventions in health and illness. Prerequisite:  Admission to the NURSBS-RNBN or NURSBS-LNBN program. (Typically offered: Fall and Spring)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>NURS&#160;32403.  Nursing Care for Chronic Conditions.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Advance knowledge and skills in care of chronically ill people and communities. Learn to maximize client outcomes by increasing knowledge of chronic disease management. Partner with clients and their support systems to minimize negative sequelae of chronic illness. Diversify care for chronically ill adults, children, pregnant people, older adults, and populations. Increase knowledge of palliative and supportive care techniques and strategies to care for terminally ill people. This is a concept-based course using case-based learning. Prerequisite:  <a href="/search/?P=NURS%2032503" title="NURS&#160;32503" class="bubblelink code" onclick="return showCourse(this, 'NURS 32503');">NURS&#160;32503</a> and <a href="/search/?P=NURS%2032803" title="NURS&#160;32803" class="bubblelink code" onclick="return showCourse(this, 'NURS 32803');">NURS&#160;32803</a>. (Typically offered: Fall and Spring)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>NURS&#160;32503.  Wellness and Disease Prevention.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Understand principles of wellness, health promotion, and disease prevention across the lifespan. Examine the role of the nurse in promoting health and wellness in the primary care setting. Explore distinct considerations for pediatric, adult, older adult, pregnant individuals and populations. Learn how nurses can promote well-being for themselves. Develop skills to promote health for the local and global community. Corequisite:  <a href="/search/?P=NURS%2031903" title="NURS&#160;31903" class="bubblelink code" onclick="return showCourse(this, 'NURS 31903');">NURS&#160;31903</a> and (<a href="/search/?P=NURS%2043303" title="NURS&#160;43303" class="bubblelink code" onclick="return showCourse(this, 'NURS 43303');">NURS&#160;43303</a> or <a href="/search/?P=NURS%2034302" title="NURS&#160;34302" class="bubblelink code" onclick="return showCourse(this, 'NURS 34302');">NURS&#160;34302</a>). Prerequisite:  <a href="/search/?P=NURS%2032303" title="NURS&#160;32303" class="bubblelink code" onclick="return showCourse(this, 'NURS 32303');">NURS&#160;32303</a> or <a href="/search/?P=NURS%2024203" title="NURS&#160;24203" class="bubblelink code" onclick="return showCourse(this, 'NURS 24203');">NURS&#160;24203</a>. (Typically offered: Fall, Spring and Summer)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>NURS&#160;32606.  Chronic and Palliative Nursing Care.  6 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Build a foundation for care of the chronically ill patient based on knowledge of Pathophysiology and Pharmacology. Explore various concepts of chronic disease and how Nursing planning and care in partnership with the client, can maximize health outcomes. Discover techniques to employ for chronically ill adults, children, pregnant people, older adults, and populations. Learn palliative care techniques and strategies to care for terminally ill people. Prerequisite:  <a href="/search/?P=NURS%2032503" title="NURS&#160;32503" class="bubblelink code" onclick="return showCourse(this, 'NURS 32503');">NURS&#160;32503</a> and <a href="/search/?P=NURS%2032803" title="NURS&#160;32803" class="bubblelink code" onclick="return showCourse(this, 'NURS 32803');">NURS&#160;32803</a>. (Typically offered: Fall and Spring)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>NURS&#160;32706.  Holistic Nursing Care.  6 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Learn best practices to deliver holistic nursing care. Utilize established frameworks to develop and deliver high quality care to individuals. Discover strategies to optimize healthcare communication and teamwork. Improve clinical reasoning skills. Understand the impact of technology and information management in healthcare. Explore strategies for maintaining professional resilience and wellness through self-care. Prerequisite:  <a href="/search/?P=NURS%2032803" title="NURS&#160;32803" class="bubblelink code" onclick="return showCourse(this, 'NURS 32803');">NURS&#160;32803</a>. (Typically offered: Fall and Spring)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>NURS&#160;327H6.  Honors Holistic Nursing Care.  6 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Learn best practices to deliver holistic nursing care. Utilize established frameworks to develop and deliver high quality care to individuals. Discover strategies to optimize healthcare communication and teamwork. Improve clinical reasoning skills. Understand the impact of technology and information management in healthcare. Explore strategies for maintaining professional resilience and wellness through self-care. Prerequisite:  <a href="/search/?P=NURS%2032803" title="NURS&#160;32803" class="bubblelink code" onclick="return showCourse(this, 'NURS 32803');">NURS&#160;32803</a> and Honors Standing. (Typically offered: Fall and Spring)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>NURS&#160;32803.  Wellness and Disease Prevention Practicum.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Apply principles of wellness and health promotion across the lifespan. Experience the role of the registered nurse in the primary care and community health setting. Deliver nursing care to generally healthy individuals across the lifespan. Promote health for the local and global community. Pre- or Corequisite:  <a href="/search/?P=NURS%2031903" title="NURS&#160;31903" class="bubblelink code" onclick="return showCourse(this, 'NURS 31903');">NURS&#160;31903</a> and (<a href="/search/?P=NURS%2034302" title="NURS&#160;34302" class="bubblelink code" onclick="return showCourse(this, 'NURS 34302');">NURS&#160;34302</a> or <a href="/search/?P=NURS%2043303" title="NURS&#160;43303" class="bubblelink code" onclick="return showCourse(this, 'NURS 43303');">NURS&#160;43303</a>). Prerequisite:  (<a href="/search/?P=NURS%2024203" title="NURS&#160;24203" class="bubblelink code" onclick="return showCourse(this, 'NURS 24203');">NURS&#160;24203</a> or <a href="/search/?P=NURS%2032303" title="NURS&#160;32303" class="bubblelink code" onclick="return showCourse(this, 'NURS 32303');">NURS&#160;32303</a>) and (<a href="/search/?P=NURS%2030203" title="NURS&#160;30203" class="bubblelink code" onclick="return showCourse(this, 'NURS 30203');">NURS&#160;30203</a> or <a href="/search/?P=NURS%2020503" title="NURS&#160;20503" class="bubblelink code" onclick="return showCourse(this, 'NURS 20503');">NURS&#160;20503</a>). (Typically offered: Fall, Spring and Summer)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>NURS&#160;32932.  Older Adult Nursing.  2 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+This course builds on previous nursing knowledge by focusing on gerontologic theories, concepts, and principles as they relate to nursing care of older adults. Students explore socio-cultural context of gerontologic nursing, professional standards of practice, common health concerns, and future considerations. Prerequisite:  <a href="/search/?P=NURS%2043233" title="NURS&#160;43233" class="bubblelink code" onclick="return showCourse(this, 'NURS 43233');">NURS&#160;43233</a>, <a href="/search/?P=NURS%2043133" title="NURS&#160;43133" class="bubblelink code" onclick="return showCourse(this, 'NURS 43133');">NURS&#160;43133</a> and admission of to the Online Undergraduate BSN Professional Program or permission by the instructor or department head. (Typically offered: Fall, Spring and Summer)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>NURS&#160;33174.  Pathophysiology.  4 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+The course focuses on underlying concepts common to pathophysiologic processes across the life span. Factors that contribute to altered physiological functioning and the body's adaptive and compensatory mechanisms are studied. Emphasizes concepts essential for understanding the rationale for preventive and therapeutic nursing interventions in health and illness. This is a Level I course. Prerequisite:  Admission into BSN professional program. (Typically offered: Fall and Spring)<br />
+</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>NURS&#160;33183.  Pharmacology in Nursing.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+The use of therapeutic drugs in health care is the focus of the course. Nursing assessment, safety measures and client education related to drug therapy are emphasized. This is a Level I course. Prerequisite:  Admission into the BSN professional program. (Typically offered: Fall and Spring)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>NURS&#160;33231.  Health Assessment Practicum.  1 Hour.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+The course focuses on the implementation of concepts and principles of health assessment, preparing students to complete a holistic health assessment of the well person. This is a Level I course. Corequisite:  <a href="/search/?P=NURS%2033432" title="NURS&#160;33432" class="bubblelink code" onclick="return showCourse(this, 'NURS 33432');">NURS&#160;33432</a>. Prerequisite:  <a href="/search/?P=BIOL%2024003" title="BIOL&#160;24003" class="bubblelink code" onclick="return showCourse(this, 'BIOL 24003');">BIOL&#160;24003</a>, <a href="/search/?P=BIOL%2024001" title="BIOL&#160;24001" class="bubblelink code" onclick="return showCourse(this, 'BIOL 24001');">BIOL&#160;24001</a>, <a href="/search/?P=BIOL%2024103" title="BIOL&#160;24103" class="bubblelink code" onclick="return showCourse(this, 'BIOL 24103');">BIOL&#160;24103</a>, <a href="/search/?P=BIOL%2024101" title="BIOL&#160;24101" class="bubblelink code" onclick="return showCourse(this, 'BIOL 24101');">BIOL&#160;24101</a>, and admission to the BSN professional program. (Typically offered: Fall, Spring and Summer)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>NURS&#160;33332.  Adult Health I for Nurses.  2 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+The course focuses on the experience of acute problems across the health-illness continuum. Students learn to utilize the nursing process through care planning and case studies while focusing on the adult population. Prerequisite:  <a href="/search/?P=NURS%2043133" title="NURS&#160;43133" class="bubblelink code" onclick="return showCourse(this, 'NURS 43133');">NURS&#160;43133</a>, <a href="/search/?P=NURS%2032932" title="NURS&#160;32932" class="bubblelink code" onclick="return showCourse(this, 'NURS 32932');">NURS&#160;32932</a> and admission to the Online Undergraduate BSN Professional Program or permission by the instructor or department head. (Typically offered: Fall, Spring and Summer)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>NURS&#160;33432.  Health Assessment.  2 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+This course focuses on concepts and principles of health assessment in a well person. Health status, environment, physical and psychosocial findings, and medical terminology are emphasized to create a holistic health assessment plan. This is a Level I course. Prerequisite:  Admission into the BSN professional program of studies, <a href="/search/?P=BIOL%2024003" title="BIOL&#160;24003" class="bubblelink code" onclick="return showCourse(this, 'BIOL 24003');">BIOL&#160;24003</a>, <a href="/search/?P=BIOL%2024001" title="BIOL&#160;24001" class="bubblelink code" onclick="return showCourse(this, 'BIOL 24001');">BIOL&#160;24001</a>, <a href="/search/?P=BIOL%2024103" title="BIOL&#160;24103" class="bubblelink code" onclick="return showCourse(this, 'BIOL 24103');">BIOL&#160;24103</a> and <a href="/search/?P=BIOL%2024101" title="BIOL&#160;24101" class="bubblelink code" onclick="return showCourse(this, 'BIOL 24101');">BIOL&#160;24101</a>. Corequisite:  <a href="/search/?P=NURS%2033231" title="NURS&#160;33231" class="bubblelink code" onclick="return showCourse(this, 'NURS 33231');">NURS&#160;33231</a>. (Typically offered: Fall and Spring)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>NURS&#160;34032.  Nursing Concepts: Older Adult.  2 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+This course focuses on gerontologic theories, concepts, and principles as they relate to nursing care of older adults. Students explore socio-cultural context of gerontologic nursing, professional standards of practice, common health concerns, and future considerations. This is a Level I course. Prerequisite:  Admission into the BSN Professional Program of Studies. (Typically offered: Fall and Spring)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>NURS&#160;34103.  Pathophysiology and Pharmacology II.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Further explore how medications affect an expanded selection of body processes based on a variety of factors including genetics. Apply foundational pathophysiologic and pharmacokinetic concepts to disease management. Expand knowledge of rationales for preventive and therapeutic pharmacologic and non-pharmacologic nursing interventions in health and illness. Prerequisite:  <a href="/search/?P=NURS%2024203" title="NURS&#160;24203" class="bubblelink code" onclick="return showCourse(this, 'NURS 24203');">NURS&#160;24203</a>. (Typically offered: Fall and Spring)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>NURS&#160;34232.  Nursing Concepts: Foundations of Professional Practice.  2 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Introduction to the nursing process and the scope of basic human needs. The student learns to use nursing diagnoses and care plans in case studies. This is a Level I course. Corequisite:  <a href="/search/?P=NURS%2034244" title="NURS&#160;34244" class="bubblelink code" onclick="return showCourse(this, 'NURS 34244');">NURS&#160;34244</a>. Prerequisite:  Admission to BSN professional program. (Typically offered: Fall and Spring)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>NURS&#160;34244.  Professional Role Implementation I: Caregiver.  4 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Students apply basic nursing concepts and skills in laboratory and clinical settings. Emphasis is on the role of nurse as caregiver and use of the nursing process in the delivery of care. This is a Level I course. Pre- or Corequisite:  <a href="/search/?P=NURS%2034232" title="NURS&#160;34232" class="bubblelink code" onclick="return showCourse(this, 'NURS 34232');">NURS&#160;34232</a>, <a href="/search/?P=NURS%2033231" title="NURS&#160;33231" class="bubblelink code" onclick="return showCourse(this, 'NURS 33231');">NURS&#160;33231</a>, and <a href="/search/?P=NURS%2033183" title="NURS&#160;33183" class="bubblelink code" onclick="return showCourse(this, 'NURS 33183');">NURS&#160;33183</a>. Prerequisite: Admission to the BSN program. (Typically offered: Fall and Spring)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>NURS&#160;34302.  Health Assessment Across the Lifespan.  2 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Learn concepts and principles of health assessment in a well person across the lifespan. Using correct medical terminology, synthesize health status, environment, physical, and psychosocial findings to create a holistic picture of health and wellness for an individual. Corequisite:  <a href="/search/?P=NURS%2034401" title="NURS&#160;34401" class="bubblelink code" onclick="return showCourse(this, 'NURS 34401');">NURS&#160;34401</a>. Prerequisite: Admission to the NURSBS-PLRN program, (<a href="/search/?P=BIOL%2024003" title="BIOL&#160;24003" class="bubblelink code" onclick="return showCourse(this, 'BIOL 24003');">BIOL&#160;24003</a> and <a href="/search/?P=BIOL%2024001" title="BIOL&#160;24001" class="bubblelink code" onclick="return showCourse(this, 'BIOL 24001');">BIOL&#160;24001</a>), (<a href="/search/?P=BIOL%2024103" title="BIOL&#160;24103" class="bubblelink code" onclick="return showCourse(this, 'BIOL 24103');">BIOL&#160;24103</a> and <a href="/search/?P=BIOL%2024101" title="BIOL&#160;24101" class="bubblelink code" onclick="return showCourse(this, 'BIOL 24101');">BIOL&#160;24101</a>), and (<a href="/search/?P=BIOL%2020003" title="BIOL&#160;20003" class="bubblelink code" onclick="return showCourse(this, 'BIOL 20003');">BIOL&#160;20003</a> and <a href="/search/?P=BIOL%2020001" title="BIOL&#160;20001" class="bubblelink code" onclick="return showCourse(this, 'BIOL 20001');">BIOL&#160;20001</a>). (Typically offered: Fall and Spring)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>NURS&#160;34401.  Health Assessment Across the Lifespan Lab.  1 Hour.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Learn concepts and principles of health assessment in a well person across the lifespan. Using correct medical terminology, synthesize health status, environment, physical, and psychosocial findings to create a holistic picture of health and wellness for an individual. Corequisite:  <a href="/search/?P=NURS%2034302" title="NURS&#160;34302" class="bubblelink code" onclick="return showCourse(this, 'NURS 34302');">NURS&#160;34302</a>. Prerequisite:  Admission to the NURSBS-PLRN program, (<a href="/search/?P=BIOL%2024003" title="BIOL&#160;24003" class="bubblelink code" onclick="return showCourse(this, 'BIOL 24003');">BIOL&#160;24003</a> and <a href="/search/?P=BIOL%2024001" title="BIOL&#160;24001" class="bubblelink code" onclick="return showCourse(this, 'BIOL 24001');">BIOL&#160;24001</a>), (<a href="/search/?P=BIOL%2024103" title="BIOL&#160;24103" class="bubblelink code" onclick="return showCourse(this, 'BIOL 24103');">BIOL&#160;24103</a> and <a href="/search/?P=BIOL%2024101" title="BIOL&#160;24101" class="bubblelink code" onclick="return showCourse(this, 'BIOL 24101');">BIOL&#160;24101</a>), and (<a href="/search/?P=BIOL%2020003" title="BIOL&#160;20003" class="bubblelink code" onclick="return showCourse(this, 'BIOL 20003');">BIOL&#160;20003</a> and <a href="/search/?P=BIOL%2020001" title="BIOL&#160;20001" class="bubblelink code" onclick="return showCourse(this, 'BIOL 20001');">BIOL&#160;20001</a>). (Typically offered: Fall and Spring)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>NURS&#160;35403.  Chronic and Palliative Nursing Care Practicum.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Apply clinical judgement and nursing knowledge to the care of people with chronic illness across the lifespan. Utilize strategies for treating and preventing complications of chronic illness in the community healthcare setting. Learn techniques to optimize health outcomes for people with chronic illness. Prerequisite:  <a href="/search/?P=NURS%2032503" title="NURS&#160;32503" class="bubblelink code" onclick="return showCourse(this, 'NURS 32503');">NURS&#160;32503</a> and <a href="/search/?P=NURS%2032803" title="NURS&#160;32803" class="bubblelink code" onclick="return showCourse(this, 'NURS 32803');">NURS&#160;32803</a>. Pre- or corequisite:  <a href="/search/?P=NURS%2032606" title="NURS&#160;32606" class="bubblelink code" onclick="return showCourse(this, 'NURS 32606');">NURS&#160;32606</a> or <a href="/search/?P=NURS%2032403" title="NURS&#160;32403" class="bubblelink code" onclick="return showCourse(this, 'NURS 32403');">NURS&#160;32403</a>. (Typically offered: Fall, Spring and Summer)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>NURS&#160;35503.  Leading in Wellness, Chronic, and Palliative Care Practicum.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Apply principles of wellness and health promotion to well and chronically ill people. Implement leadership strategies as a registered nurse in the primary care setting to promote health and quality care. Promote health and prevent illness and injury for the local community. Use evidence-based palliative care strategies in nursing care. Pre- or corequisite:  <a href="/search/?P=NURS%2032503" title="NURS&#160;32503" class="bubblelink code" onclick="return showCourse(this, 'NURS 32503');">NURS&#160;32503</a>. (Typically offered: Fall, Spring and Summer)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>NURS&#160;36334.  Nursing Concepts: Adult Health and Illness I.  4 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Focuses on the adult population experiencing acute problems in the health-illness continuum. Utilizing the nursing process, nursing, and medical treatments of selected conditions that will be emphasized in the acute care setting. This is a Level I course. Corequisite:  <a href="/search/?P=NURS%2036434" title="NURS&#160;36434" class="bubblelink code" onclick="return showCourse(this, 'NURS 36434');">NURS&#160;36434</a>. Prerequisite:  <a href="/search/?P=NURS%2033183" title="NURS&#160;33183" class="bubblelink code" onclick="return showCourse(this, 'NURS 33183');">NURS&#160;33183</a>, <a href="/search/?P=NURS%2033174" title="NURS&#160;33174" class="bubblelink code" onclick="return showCourse(this, 'NURS 33174');">NURS&#160;33174</a>, <a href="/search/?P=NURS%2033231" title="NURS&#160;33231" class="bubblelink code" onclick="return showCourse(this, 'NURS 33231');">NURS&#160;33231</a>, <a href="/search/?P=NURS%2034032" title="NURS&#160;34032" class="bubblelink code" onclick="return showCourse(this, 'NURS 34032');">NURS&#160;34032</a>, and <a href="/search/?P=NURS%2034232" title="NURS&#160;34232" class="bubblelink code" onclick="return showCourse(this, 'NURS 34232');">NURS&#160;34232</a>. (Typically offered: Fall and Spring)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>NURS&#160;36434.  Professional Role Implementation II: Caregiver.  4 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Emphasizes the role of caregiver in acute care settings. Course expands on assessment and includes advanced clinical skills. Emphasizes the use of clinical judgment to promote optimal health for adults experiencing illness and/or undergoing surgery. This is a Level I course. Pre- or Corequisite:  <a href="/search/?P=NURS%2036334" title="NURS&#160;36334" class="bubblelink code" onclick="return showCourse(this, 'NURS 36334');">NURS&#160;36334</a>.  Prerequisite:  <a href="/search/?P=NURS%2033183" title="NURS&#160;33183" class="bubblelink code" onclick="return showCourse(this, 'NURS 33183');">NURS&#160;33183</a>, <a href="/search/?P=NURS%2033174" title="NURS&#160;33174" class="bubblelink code" onclick="return showCourse(this, 'NURS 33174');">NURS&#160;33174</a>, <a href="/search/?P=NURS%2033231" title="NURS&#160;33231" class="bubblelink code" onclick="return showCourse(this, 'NURS 33231');">NURS&#160;33231</a>, <a href="/search/?P=NURS%2034032" title="NURS&#160;34032" class="bubblelink code" onclick="return showCourse(this, 'NURS 34032');">NURS&#160;34032</a>, <a href="/search/?P=NURS%2034232" title="NURS&#160;34232" class="bubblelink code" onclick="return showCourse(this, 'NURS 34232');">NURS&#160;34232</a>, and <a href="/search/?P=NURS%2034244" title="NURS&#160;34244" class="bubblelink code" onclick="return showCourse(this, 'NURS 34244');">NURS&#160;34244</a>. (Typically offered: Fall and Spring)<br />
+</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>NURS&#160;37303.  Nurse Think and Inquiry.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Develop critical thinking, ethical reasoning, and evidence appraisal skills in the nursing student. Learn standardized methods for logical thinking in nursing scenarios. Apply the nursing process and the clinical judgment model. Examine personal biases and how to reduce the impact of these biases when interacting with others. Explore ethical reasoning models and utilize a systematic approach to manage ethical dilemmas. Appraise evidence using theoretical, methodological, and analytical approaches. Acquire basic competencies in evaluating, interpreting, and applying evidence-based knowledge for use in professional nursing practice. Prerequisite:  <a href="/search/?P=NURS%2021403" title="NURS&#160;21403" class="bubblelink code" onclick="return showCourse(this, 'NURS 21403');">NURS&#160;21403</a> or <a href="/search/?P=NURS%2030303" title="NURS&#160;30303" class="bubblelink code" onclick="return showCourse(this, 'NURS 30303');">NURS&#160;30303</a> or <a href="/search/?P=NURS%2045103" title="NURS&#160;45103" class="bubblelink code" onclick="return showCourse(this, 'NURS 45103');">NURS&#160;45103</a>. (Typically offered: Fall, Spring and Summer)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>NURS&#160;373H3.  Honors Nurse Think and Inquiry.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Develop critical thinking, ethical reasoning, and evidence appraisal skills in the nursing student. Learn standardized methods for logical thinking in nursing scenarios. Apply the nursing process and the clinical judgment model. Examine personal biases and how to reduce the impact of these biases when interacting with others. Explore ethical reasoning models and utilize a systematic approach to manage ethical dilemmas. Appraise evidence using theoretical, methodological, and analytical approaches. Acquire basic competencies in evaluating, interpreting, and applying evidence-based knowledge for use in professional nursing practice. Prerequisite:  <a href="/search/?P=NURS%2021403" title="NURS&#160;21403" class="bubblelink code" onclick="return showCourse(this, 'NURS 21403');">NURS&#160;21403</a> or <a href="/search/?P=NURS%2030303" title="NURS&#160;30303" class="bubblelink code" onclick="return showCourse(this, 'NURS 30303');">NURS&#160;30303</a> or <a href="/search/?P=NURS%2045103" title="NURS&#160;45103" class="bubblelink code" onclick="return showCourse(this, 'NURS 45103');">NURS&#160;45103</a> and honors standing. (Typically offered: Fall, Spring and Summer)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>NURS&#160;37432.  Nursing Concepts: Mental Health and Illness.  2 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Presents the basic concepts and theories of mental health and illness. Examines various therapeutic modalities in the care of clients experiencing mental health or psychosocial disorders. This is a Level I course.  Corequisite:  <a href="/search/?P=NURS%2037532" title="NURS&#160;37532" class="bubblelink code" onclick="return showCourse(this, 'NURS 37532');">NURS&#160;37532</a>. Prerequisite:  <a href="/search/?P=NURS%2033183" title="NURS&#160;33183" class="bubblelink code" onclick="return showCourse(this, 'NURS 33183');">NURS&#160;33183</a>, <a href="/search/?P=NURS%2033174" title="NURS&#160;33174" class="bubblelink code" onclick="return showCourse(this, 'NURS 33174');">NURS&#160;33174</a>, <a href="/search/?P=NURS%2033231" title="NURS&#160;33231" class="bubblelink code" onclick="return showCourse(this, 'NURS 33231');">NURS&#160;33231</a>, <a href="/search/?P=NURS%2034032" title="NURS&#160;34032" class="bubblelink code" onclick="return showCourse(this, 'NURS 34032');">NURS&#160;34032</a>, and <a href="/search/?P=NURS%2034232" title="NURS&#160;34232" class="bubblelink code" onclick="return showCourse(this, 'NURS 34232');">NURS&#160;34232</a>. (Typically offered: Fall and Spring)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>NURS&#160;37532.  Professional Role Implementation III: Caregiver.  2 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Students work with clients who have mental health problems, observe group process in therapy sessions, and develop interpersonal communication skills. Students apply research-based knowledge in assisting assigned clients to meet mental and other health care needs. The caregiver role is emphasized. This is a Level I course.  Pre- or Corequisite:  <a href="/search/?P=NURS%2037432" title="NURS&#160;37432" class="bubblelink code" onclick="return showCourse(this, 'NURS 37432');">NURS&#160;37432</a>. Prerequisite: <a href="/search/?P=NURS%2033183" title="NURS&#160;33183" class="bubblelink code" onclick="return showCourse(this, 'NURS 33183');">NURS&#160;33183</a>, <a href="/search/?P=NURS%2033174" title="NURS&#160;33174" class="bubblelink code" onclick="return showCourse(this, 'NURS 33174');">NURS&#160;33174</a>, <a href="/search/?P=NURS%2033231" title="NURS&#160;33231" class="bubblelink code" onclick="return showCourse(this, 'NURS 33231');">NURS&#160;33231</a>, <a href="/search/?P=NURS%2034032" title="NURS&#160;34032" class="bubblelink code" onclick="return showCourse(this, 'NURS 34032');">NURS&#160;34032</a>, <a href="/search/?P=NURS%2034232" title="NURS&#160;34232" class="bubblelink code" onclick="return showCourse(this, 'NURS 34232');">NURS&#160;34232</a>, and <a href="/search/?P=NURS%2034244" title="NURS&#160;34244" class="bubblelink code" onclick="return showCourse(this, 'NURS 34244');">NURS&#160;34244</a>. (Typically offered: Fall and Spring)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>NURS&#160;37732.  Mental Health Nursing.  2 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+This course presents basic concepts and theories of mental health and illness. Students examine nursing care of clients with various mental health and psychosocial disorders. Therapeutic modalities and their use in a variety of settings are explored. Prerequisite:  <a href="/search/?P=NURS%2043233" title="NURS&#160;43233" class="bubblelink code" onclick="return showCourse(this, 'NURS 43233');">NURS&#160;43233</a> and <a href="/search/?P=NURS%2031151" title="NURS&#160;31151" class="bubblelink code" onclick="return showCourse(this, 'NURS 31151');">NURS&#160;31151</a> and admission to the Online Undergraduate BSN Professional Program or permission by the instructor or department head. (Typically offered: Fall, Spring and Summer)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>NURS&#160;37832.  Mental Health Practicum.  2 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Students will apply the theoretical principles learned in the <a href="/search/?P=NURS%2037732" title="NURS&#160;37732" class="bubblelink code" onclick="return showCourse(this, 'NURS 37732');">NURS&#160;37732</a>: Mental Health Nursing to the care of clients with mental health disorders in a variety of settings. Prerequisite:  <a href="/search/?P=NURS%2043233" title="NURS&#160;43233" class="bubblelink code" onclick="return showCourse(this, 'NURS 43233');">NURS&#160;43233</a>, and <a href="/search/?P=NURS%2031151" title="NURS&#160;31151" class="bubblelink code" onclick="return showCourse(this, 'NURS 31151');">NURS&#160;31151</a> and admission to the Online Undergraduate BSN Professional Program or permission by the instructor or department head. Pre- or Corequisite:  <a href="/search/?P=NURS%2037732" title="NURS&#160;37732" class="bubblelink code" onclick="return showCourse(this, 'NURS 37732');">NURS&#160;37732</a>. (Typically offered: Fall, Spring and Summer)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>NURS&#160;38432.  Foundations of Scientific Evidence in Nursing Practice.  2 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Introduction to the use of scientific evidence in nursing through a comparative analysis of selected studies. Theoretical, methodological, and analytical approaches are explored. Students acquire basic competencies in evaluating, interpreting, and applying evidence-based knowledge for use in professional nursing practice. This is a Level I course. (Typically offered: Fall and Spring)<br />
+</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>NURS&#160;384H2.  Honors Foundations of Scientific Evidence in Nursing Practice.  2 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Introduction to the use of scientific evidence in nursing through a comparative analysis of selected studies. Theoretical, methodological, and analytical approaches are explored. Students acquire basic competencies in evaluating, interpreting, and applying evidence-based knowledge for use in professional nursing practice. This is a Level I course. (Typically offered: Fall and Spring)<br />
+This course is equivalent to <a href="/search/?P=NURS%2038432" title="NURS&#160;38432" class="bubblelink code" onclick="return showCourse(this, 'NURS 38432');">NURS&#160;38432</a>.<br />
+</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>NURS&#160;40033.  Transition to Professional Nursing Practice.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+This course supports educational mobility building on a core of common knowledge and skill from previous nursing education. The course emphasizes a transition to the professional nursing roles and competencies associated with professional nursing practice. Prerequisite:  Admission to an online undergraduate BSN professional program, or instructor or departmental consent. (Typically offered: Fall and Spring)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>NURS&#160;40133.  Informatics for the Professional Nurse.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+This course focuses on how information technology is used in the health care system. The course describes how nursing informatics is currently being used by healthcare professionals, and speculates about future applications. Prerequisite:  Admission to an online undergraduate BSN professional program, or instructor or departmental consent. (Typically offered: Fall and Spring)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>NURS&#160;40233.  Health Promotion Across the Lifespan.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+This course introduces theories and concepts of teaching and learning, health and wellness, and health behavior in the context of health promotion in nursing. The complex relationships that exist among culture, family, community, and health are explored. Students apply evidence-based strategies to assess, implement, and evaluate health promotion interventions for individuals, families, communities, and populations. Prerequisite:  <a href="/search/?P=NURS%2040033" title="NURS&#160;40033" class="bubblelink code" onclick="return showCourse(this, 'NURS 40033');">NURS&#160;40033</a>, <a href="/search/?P=NURS%2040133" title="NURS&#160;40133" class="bubblelink code" onclick="return showCourse(this, 'NURS 40133');">NURS&#160;40133</a>, <a href="/search/?P=NURS%2048433" title="NURS&#160;48433" class="bubblelink code" onclick="return showCourse(this, 'NURS 48433');">NURS&#160;48433</a> and admission to an online undergraduate BSN professional program or permission by the instructor or department head. (Typically offered: Fall, Spring and Summer)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>NURS&#160;40406.  Navigating and Managing Health Systems.  6 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Discover how structures, systems, politics, rules, and regulations contribute to the health outcomes of individual patients, populations, and communities at a local, national, and global level. Explore topics of structural racism, cost containment, resource allocation, systemic inequity, and interdisciplinary collaboration. Develop advocacy skills to help ensure the delivery of high quality, equitable, and safe healthcare. Learn skills required to manage, transition, and coordinate healthcare to improve outcomes. Expand knowledge of professional role development. Prerequisite:  <a href="/search/?P=NURS%2031903" title="NURS&#160;31903" class="bubblelink code" onclick="return showCourse(this, 'NURS 31903');">NURS&#160;31903</a> and (<a href="/search/?P=NURS%2035403" title="NURS&#160;35403" class="bubblelink code" onclick="return showCourse(this, 'NURS 35403');">NURS&#160;35403</a> or <a href="/search/?P=NURS%2045103" title="NURS&#160;45103" class="bubblelink code" onclick="return showCourse(this, 'NURS 45103');">NURS&#160;45103</a>). (Typically offered: Fall, Spring and Summer)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>NURS&#160;40633.  Population and Community Health Nursing.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+This course introduces general principles of population and community health nursing to provide a theoretical base for the care of families, aggregates, communities, and populations. Students apply the concepts of disease prevention and assessment to plan, implement, and evaluate interventions to address diverse health care issues across the lifespan. Prerequisite:  <a href="/search/?P=NURS%2040033" title="NURS&#160;40033" class="bubblelink code" onclick="return showCourse(this, 'NURS 40033');">NURS&#160;40033</a>, <a href="/search/?P=NURS%2048433" title="NURS&#160;48433" class="bubblelink code" onclick="return showCourse(this, 'NURS 48433');">NURS&#160;48433</a>, <a href="/search/?P=NURS%2040133" title="NURS&#160;40133" class="bubblelink code" onclick="return showCourse(this, 'NURS 40133');">NURS&#160;40133</a>, (<a href="/search/?P=ESRM%2024003" title="ESRM&#160;24003" class="bubblelink code" onclick="return showCourse(this, 'ESRM 24003');">ESRM&#160;24003</a> or <a href="/search/?P=MATH%2021003" title="MATH&#160;21003" class="bubblelink code" onclick="return showCourse(this, 'MATH 21003');">MATH&#160;21003</a>) and admission to an online undergraduate BSN professional program or permission by the instructor or department head and (<a href="/search/?P=NURS%2033332" title="NURS&#160;33332" class="bubblelink code" onclick="return showCourse(this, 'NURS 33332');">NURS&#160;33332</a>, <a href="/search/?P=NURS%2041032" title="NURS&#160;41032" class="bubblelink code" onclick="return showCourse(this, 'NURS 41032');">NURS&#160;41032</a>, <a href="/search/?P=NURS%2041234" title="NURS&#160;41234" class="bubblelink code" onclick="return showCourse(this, 'NURS 41234');">NURS&#160;41234</a>, and <a href="/search/?P=NURS%2041433" title="NURS&#160;41433" class="bubblelink code" onclick="return showCourse(this, 'NURS 41433');">NURS&#160;41433</a> for LNBN students only). (Typically offered: Fall, Spring and Summer)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>NURS&#160;40733.  Population and Community Health Practicum.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Practicum basis for applying knowledge from public health and nursing theory. Learners utilize evidence-based strategies for disease prevention and health promotion with individuals, families, and populations in a variety of community health settings. Prerequisite:  <a href="/search/?P=NURS%2048433" title="NURS&#160;48433" class="bubblelink code" onclick="return showCourse(this, 'NURS 48433');">NURS&#160;48433</a>, <a href="/search/?P=NURS%2040133" title="NURS&#160;40133" class="bubblelink code" onclick="return showCourse(this, 'NURS 40133');">NURS&#160;40133</a>, <a href="/search/?P=NURS%2033332" title="NURS&#160;33332" class="bubblelink code" onclick="return showCourse(this, 'NURS 33332');">NURS&#160;33332</a>, <a href="/search/?P=NURS%2041032" title="NURS&#160;41032" class="bubblelink code" onclick="return showCourse(this, 'NURS 41032');">NURS&#160;41032</a>, <a href="/search/?P=NURS%2041234" title="NURS&#160;41234" class="bubblelink code" onclick="return showCourse(this, 'NURS 41234');">NURS&#160;41234</a>, and <a href="/search/?P=NURS%2041433" title="NURS&#160;41433" class="bubblelink code" onclick="return showCourse(this, 'NURS 41433');">NURS&#160;41433</a> and admission to the Online Undergraduate BSN Professional Program or permission by the instructor or department head. Pre- or Corequisite:  <a href="/search/?P=NURS%2040633" title="NURS&#160;40633" class="bubblelink code" onclick="return showCourse(this, 'NURS 40633');">NURS&#160;40633</a>. (Typically offered: Fall, Spring and Summer)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>NURS&#160;40932.  Professional Role Practicum.  2 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+This clinical practicum provides the licensed nursing student with an opportunity to synthesize and apply knowledge of concepts developed throughout the nursing program. Evidence based practice will guide development of a quality improvement project in an area of student's interest. The course provides an opportunity to collaborate with a mentor/preceptor and reflect professional goals. Requires a total of 75 clinical hours. Prerequisite:  <a href="/search/?P=NURS%2047031" title="NURS&#160;47031" class="bubblelink code" onclick="return showCourse(this, 'NURS 47031');">NURS&#160;47031</a> and admission to an online undergraduate BSN professional program or permission by the instructor or department head. (Typically offered: Fall, Spring and Summer)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>NURS&#160;41032.  Adult Health II for Nurses.  2 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Focuses on the adult population experiencing chronic problems in the health-illness continuum. Utilizing the nursing process, nursing and medical treatment of selected conditions will be emphasized across transitional care settings. Prerequisite:  <a href="/search/?P=NURS%2033332" title="NURS&#160;33332" class="bubblelink code" onclick="return showCourse(this, 'NURS 33332');">NURS&#160;33332</a>, <a href="/search/?P=NURS%2032932" title="NURS&#160;32932" class="bubblelink code" onclick="return showCourse(this, 'NURS 32932');">NURS&#160;32932</a>, <a href="/search/?P=NURS%2043133" title="NURS&#160;43133" class="bubblelink code" onclick="return showCourse(this, 'NURS 43133');">NURS&#160;43133</a>, and admission to the Online Undergraduate BSN Professional Program or permission by the instructor or department head. (Typically offered: Fall, Spring and Summer)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>NURS&#160;41152.  Nursing Concepts: Teaching and Health Promotion.  2 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+The course focuses on teaching/learning and the professional nurse's role in health promotion and disease prevention. A variety of health education and health promotion strategies are presented and evaluated. This is a Level I course. Prerequisite:  Admission to the nursing program and completion of <a href="/search/?P=NURS%2034232" title="NURS&#160;34232" class="bubblelink code" onclick="return showCourse(this, 'NURS 34232');">NURS&#160;34232</a> and <a href="/search/?P=NURS%2034244" title="NURS&#160;34244" class="bubblelink code" onclick="return showCourse(this, 'NURS 34244');">NURS&#160;34244</a>. (Typically offered: Fall and Spring)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>NURS&#160;41234.  Child and Family Nursing.  4 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Students explore theory and evidence-based knowledge regarding holistic nursing care of children and families. Principles of health promotion and health education are utilized throughout the course. Prerequisite:  <a href="/search/?P=NURS%2043133" title="NURS&#160;43133" class="bubblelink code" onclick="return showCourse(this, 'NURS 43133');">NURS&#160;43133</a>, <a href="/search/?P=NURS%2031151" title="NURS&#160;31151" class="bubblelink code" onclick="return showCourse(this, 'NURS 31151');">NURS&#160;31151</a>, and <a href="/search/?P=NURS%2043233" title="NURS&#160;43233" class="bubblelink code" onclick="return showCourse(this, 'NURS 43233');">NURS&#160;43233</a> and admission to the Online Undergraduate BSN Professional Program or permission by the instructor or department head. (Typically offered: Fall and Spring)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>NURS&#160;41433.  Child and Family Practicum.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Clinical practicum experience for application of evidence-based knowledge and skills in the nursing care of children and families. Pre- or Corequisite:  <a href="/search/?P=NURS%2041234" title="NURS&#160;41234" class="bubblelink code" onclick="return showCourse(this, 'NURS 41234');">NURS&#160;41234</a>. Prerequisite:  <a href="/search/?P=NURS%2031151" title="NURS&#160;31151" class="bubblelink code" onclick="return showCourse(this, 'NURS 31151');">NURS&#160;31151</a>, <a href="/search/?P=NURS%2043233" title="NURS&#160;43233" class="bubblelink code" onclick="return showCourse(this, 'NURS 43233');">NURS&#160;43233</a>, <a href="/search/?P=NURS%2043133" title="NURS&#160;43133" class="bubblelink code" onclick="return showCourse(this, 'NURS 43133');">NURS&#160;43133</a>, and admission to the Online Undergraduate BSN Professional Program or permission by the instructor or department head. (Typically offered: Fall and Spring)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>NURS&#160;41534.  Nursing Concepts: Children and Family.  4 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+This course provides theory and research-based knowledge regarding holistic nursing care of children and families. Principles of health promotion and health education for expanding families are integral to this course. This is a Level II course. Corequisite:  <a href="/search/?P=NURS%2041634" title="NURS&#160;41634" class="bubblelink code" onclick="return showCourse(this, 'NURS 41634');">NURS&#160;41634</a>. Pre- or Corequisite:  <a href="/search/?P=NURS%2041152" title="NURS&#160;41152" class="bubblelink code" onclick="return showCourse(this, 'NURS 41152');">NURS&#160;41152</a>. (Typically offered: Fall and Spring)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>NURS&#160;41634.  Professional Role Implementation IV: Teacher.  4 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Clinical and laboratory experience for application of research-based knowledge and skills in the nursing care of children and families. Emphasis is on teaching role of the nurse. This is a Level II course. Pre- or Corequisite:  <a href="/search/?P=NURS%2041534" title="NURS&#160;41534" class="bubblelink code" onclick="return showCourse(this, 'NURS 41534');">NURS&#160;41534</a>. Prerequisite:  Completion of Level I courses. (Typically offered: Fall and Spring)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>NURS&#160;42033.  Leadership for Professional Nurses.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+This course introduces theories and principles of management and leadership and the professional nurse's role within the health care system. Social issues, economic policy, and regulatory requirements are used to explore healthcare delivery systems and access, quality improvement, and patient safety. This course includes strategies for monitoring delivery of care, outcomes, and evaluating program effectiveness. Prerequisite:  <a href="/search/?P=NURS%2031151" title="NURS&#160;31151" class="bubblelink code" onclick="return showCourse(this, 'NURS 31151');">NURS&#160;31151</a>, <a href="/search/?P=NURS%2037732" title="NURS&#160;37732" class="bubblelink code" onclick="return showCourse(this, 'NURS 37732');">NURS&#160;37732</a>, <a href="/search/?P=NURS%2037832" title="NURS&#160;37832" class="bubblelink code" onclick="return showCourse(this, 'NURS 37832');">NURS&#160;37832</a>, <a href="/search/?P=NURS%2040033" title="NURS&#160;40033" class="bubblelink code" onclick="return showCourse(this, 'NURS 40033');">NURS&#160;40033</a>, <a href="/search/?P=NURS%2043233" title="NURS&#160;43233" class="bubblelink code" onclick="return showCourse(this, 'NURS 43233');">NURS&#160;43233</a> and admission to an online undergraduate BSN professional program or permission by the instructor or department head. (Typically offered: Fall, Spring and Summer)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>NURS&#160;42152.  Leadership Practicum.  2 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Students will apply the theoretical principles learned in <a href="/search/?P=NURS%2042033" title="NURS&#160;42033" class="bubblelink code" onclick="return showCourse(this, 'NURS 42033');">NURS&#160;42033</a> to the delivery of healthcare. Prerequisite:  <a href="/search/?P=NURS%2037732" title="NURS&#160;37732" class="bubblelink code" onclick="return showCourse(this, 'NURS 37732');">NURS&#160;37732</a>, <a href="/search/?P=NURS%2037832" title="NURS&#160;37832" class="bubblelink code" onclick="return showCourse(this, 'NURS 37832');">NURS&#160;37832</a>, <a href="/search/?P=NURS%2043233" title="NURS&#160;43233" class="bubblelink code" onclick="return showCourse(this, 'NURS 43233');">NURS&#160;43233</a>, <a href="/search/?P=NURS%2031151" title="NURS&#160;31151" class="bubblelink code" onclick="return showCourse(this, 'NURS 31151');">NURS&#160;31151</a> and admission to the Online Undergraduate BSN Professional Program or permission by the instructor or department head. Pre- or Corequisite:  <a href="/search/?P=NURS%2042033" title="NURS&#160;42033" class="bubblelink code" onclick="return showCourse(this, 'NURS 42033');">NURS&#160;42033</a>. (Typically offered: Fall, Spring and Summer)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>NURS&#160;42206.  Acute Nursing Care.  6 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Explore nursing care of individuals experiencing critical or trauma events, who have complex acute care needs, who experience acute exacerbations of chronic conditions, or who are physiologically unstable. Discover acute nursing care techniques for people across the lifespan including adults, older adults, children, and pregnant people. Plan nursing care with an aim to regenerate and restore health. This is a concept-based course using case-based learning. Prerequisite:  <a href="/search/?P=NURS%2035403" title="NURS&#160;35403" class="bubblelink code" onclick="return showCourse(this, 'NURS 35403');">NURS&#160;35403</a>. (Typically offered: Fall and Spring)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>NURS&#160;42432.  Leadership in Nursing.  2 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Introduces principles of leadership and the professional nurse's roles in the health care system. Considers the perspectives of management, organization, and change theory. Includes strategies for monitoring delivery of care, outcomes and evaluating program effectiveness. This is a Level II course. (Typically offered: Fall and Spring)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>NURS&#160;42532.  Professional Role Implementation V: Manager.  2 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Students will apply the theoretical principles learned in <a href="/search/?P=NURS%2042432" title="NURS&#160;42432" class="bubblelink code" onclick="return showCourse(this, 'NURS 42432');">NURS&#160;42432</a> and <a href="/search/?P=NURS%2042632" title="NURS&#160;42632" class="bubblelink code" onclick="return showCourse(this, 'NURS 42632');">NURS&#160;42632</a> to the delivery of care to adults with chronic conditions across transitions of care settings. The manager will be emphasized. This is a Level II course.  Prerequisite:  Completion of Level I courses.  Pre- or Corequisite:  <a href="/search/?P=NURS%2042432" title="NURS&#160;42432" class="bubblelink code" onclick="return showCourse(this, 'NURS 42432');">NURS&#160;42432</a> and <a href="/search/?P=NURS%2042632" title="NURS&#160;42632" class="bubblelink code" onclick="return showCourse(this, 'NURS 42632');">NURS&#160;42632</a>. (Typically offered: Fall and Spring)<br />
+</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>NURS&#160;42632.  Nursing Concepts:  Adult Health and Illness II.  2 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Focuses on the adult population experiencing chronic problems in the health-illness continuum. Utilizing the nursing process, nursing and medical treatment of selected conditions will be emphasized across transitional care settings. This is a Level II course. Prerequisite:  Level I courses. (Typically offered: Fall and Spring)<br />
+</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>NURS&#160;426H2.  Honors Nursing Concepts:  Adult Health and Illness II.  2 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Focuses on the adult population experiencing chronic problems in the health-illness continuum. Utilizing the nursing process, nursing and medical treatment of selected conditions will be emphasized across transitional care settings. This is a Level II course. Prerequisite:  Level I courses. (Typically offered: Fall and Spring)<br />
+This course is equivalent to <a href="/search/?P=NURS%2042632" title="NURS&#160;42632" class="bubblelink code" onclick="return showCourse(this, 'NURS 42632');">NURS&#160;42632</a>.<br />
+</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>NURS&#160;42703.  Acute Nursing Care Practicum.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Apply clinical judgement and nursing knowledge to the care of people in acute health settings. Experience acute nursing care across the lifespan. Learn techniques and strategies to optimize acute nursing care through experiential clinical learning. Prerequisite:  <a href="/search/?P=NURS%2035403" title="NURS&#160;35403" class="bubblelink code" onclick="return showCourse(this, 'NURS 35403');">NURS&#160;35403</a>. Pre- or corequisite:  <a href="/search/?P=NURS%2042206" title="NURS&#160;42206" class="bubblelink code" onclick="return showCourse(this, 'NURS 42206');">NURS&#160;42206</a>. (Typically offered: Fall, Spring and Summer)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>NURS&#160;43133.  Pathophysiology in Nursing.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+The course focuses on the study of the underlying concepts of physiological functioning and the body's adaptive and compensatory mechanisms within a systems framework. Learners examine aspects of disease processes including etiology, pathogenesis, and clinical manifestations, as it applies to current nursing practice with diverse clients across the lifespan. Prerequisite:  Admission to an online undergraduate BSN professional program or permission by the instructor or department head. (Typically offered: Fall, Spring and Summer)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>NURS&#160;43233.  Health Assessment and Clinical Reasoning.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+This 3-credit theory course focuses on increasing knowledge of health assessment skills. Emphasis is placed on strengthening clinical reasoning skills through identifying normal findings, interpreting abnormal findings, and applying principles of evidence-based practice to the health assessment process. The role of documentation of assessment findings to third-party reimbursement is also explored. Prerequisite:  Admission to an online undergraduate BSN professional program or permission by the instructor or department head. (Typically offered: Fall, Spring and Summer)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>NURS&#160;43303.  Health Assessment Throughout The Lifespan.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Explore concepts and principles of health assessment of a well person used in nursing practice. Learn techniques needed to complete a comprehensive and holistic health assessment of well persons. Discover methods for individualizing the health assessment for children, adults, older adults, and pregnant people. Prerequisite:  Admission to NURSBS-LNBN program. (Typically offered: Fall and Spring)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>NURS&#160;44003.  Leadership and Role Preparation.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Explore the application of leadership science in healthcare. Learn and apply methods for identifying and improving efficiency and effectiveness of healthcare delivery. Discover strategies to promote self-awareness and work/life balance in the professional environment. Finalize preparation to transition into the role of professional nurse. Pre- or corequisite:  <a href="/search/?P=NURS%2042703" title="NURS&#160;42703" class="bubblelink code" onclick="return showCourse(this, 'NURS 42703');">NURS&#160;42703</a>. Prerequisite:  <a href="/search/?P=NURS%2031903" title="NURS&#160;31903" class="bubblelink code" onclick="return showCourse(this, 'NURS 31903');">NURS&#160;31903</a> and <a href="/search/?P=NURS%2040406" title="NURS&#160;40406" class="bubblelink code" onclick="return showCourse(this, 'NURS 40406');">NURS&#160;40406</a>. (Typically offered: Fall, Spring and Summer)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>NURS&#160;44432.  Nursing Concepts: Critical Care.  2 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Focuses on the adult population experiencing multiple or critical illnesses or conditions necessitating admission to a critical care unit. The course emphasizes both nursing and medical treatment of selected conditions. This is a Level II course. Corequisite:  <a href="/search/?P=NURS%2044532" title="NURS&#160;44532" class="bubblelink code" onclick="return showCourse(this, 'NURS 44532');">NURS&#160;44532</a>. Prerequisite:  Completion of Level I courses and <a href="/search/?P=NURS%2041152" title="NURS&#160;41152" class="bubblelink code" onclick="return showCourse(this, 'NURS 41152');">NURS&#160;41152</a>, <a href="/search/?P=NURS%2041534" title="NURS&#160;41534" class="bubblelink code" onclick="return showCourse(this, 'NURS 41534');">NURS&#160;41534</a>, <a href="/search/?P=NURS%2041634" title="NURS&#160;41634" class="bubblelink code" onclick="return showCourse(this, 'NURS 41634');">NURS&#160;41634</a>, <a href="/search/?P=NURS%2042432" title="NURS&#160;42432" class="bubblelink code" onclick="return showCourse(this, 'NURS 42432');">NURS&#160;42432</a>, <a href="/search/?P=NURS%2042532" title="NURS&#160;42532" class="bubblelink code" onclick="return showCourse(this, 'NURS 42532');">NURS&#160;42532</a>, and <a href="/search/?P=NURS%2042632" title="NURS&#160;42632" class="bubblelink code" onclick="return showCourse(this, 'NURS 42632');">NURS&#160;42632</a>. (Typically offered: Fall and Spring)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>NURS&#160;44532.  Professional Role Implementation VI: Role Synthesis.  2 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Clinical learning is focused on further developing and refining the knowledge, skills, and attitudes necessary to manage the care of an acutely ill or complex patient and/or family within the context of an inter-professional team. This is a Level II course.  Prerequisite or Corequisite:  <a href="/search/?P=NURS%2044432" title="NURS&#160;44432" class="bubblelink code" onclick="return showCourse(this, 'NURS 44432');">NURS&#160;44432</a>. Prerequisite:  Completion of Level I and <a href="/search/?P=NURS%2041152" title="NURS&#160;41152" class="bubblelink code" onclick="return showCourse(this, 'NURS 41152');">NURS&#160;41152</a>, <a href="/search/?P=NURS%2041534" title="NURS&#160;41534" class="bubblelink code" onclick="return showCourse(this, 'NURS 41534');">NURS&#160;41534</a>, <a href="/search/?P=NURS%2041634" title="NURS&#160;41634" class="bubblelink code" onclick="return showCourse(this, 'NURS 41634');">NURS&#160;41634</a>, <a href="/search/?P=NURS%2042432" title="NURS&#160;42432" class="bubblelink code" onclick="return showCourse(this, 'NURS 42432');">NURS&#160;42432</a>, <a href="/search/?P=NURS%2042532" title="NURS&#160;42532" class="bubblelink code" onclick="return showCourse(this, 'NURS 42532');">NURS&#160;42532</a>, and <a href="/search/?P=NURS%2042632" title="NURS&#160;42632" class="bubblelink code" onclick="return showCourse(this, 'NURS 42632');">NURS&#160;42632</a>. (Typically offered: Fall and Spring)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>NURS&#160;44603.  Advancing Clinical Judgement.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Apply clinical judgement to nursing care scenarios across the lifespan. Employ evidence-based strategies to prioritize nursing care. Synthesize knowledge to effectively determine nursing care of people and communities. Pre- or Corequisite:  <a href="/search/?P=NURS%2045206" title="NURS&#160;45206" class="bubblelink code" onclick="return showCourse(this, 'NURS 45206');">NURS&#160;45206</a> or <a href="/search/?P=NURS%2045709" title="NURS&#160;45709" class="bubblelink code" onclick="return showCourse(this, 'NURS 45709');">NURS&#160;45709</a>. Prerequisite:  Departmental Consent. (Typically offered: Fall, Spring and Summer)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>NURS&#160;45033.  Introduction to Health Care Policy.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+This course provides an overview of health care policy orienting students to the political and social processes impacting the current health care environment. The course provides a basic framework for understanding the role of nursing in advocacy, leadership, economics and ethics associated with influencing health care policy. Recognizing the financing of health care and the impact on quality through policy changes will be discussed. Prerequisite:   Admission to an online undergraduate BSN professional program or permission by the instructor or department head. (Typically offered: Fall, Spring and Summer)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>NURS&#160;45103.  Elevating Professional Nursing Practice.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Build on established practice as a Registered Nurse to further understand factors that impact nursing care. Learn to articulate nursing's distinctive role on the healthcare team while exploring ways to maximize outcomes by working with other professions. Discover best practices and scientific foundations for planning, delivering, and evaluating nursing care to people and communities. Prerequisite:  Admission to the NURSBS-RNBN program. (Typically offered: Fall, Spring and Summer)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>NURS&#160;45206.  LPN-BSN Capstone Practicum.  6 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Apply clinical judgement and nursing knowledge to the care of people and communities. Gain experiential knowledge in the practice of a registered nurse in a selected setting. Work with members of the healthcare team to improve healthcare outcomes of people and communities. Prerequisite:  <a href="/search/?P=NURS%2042703" title="NURS&#160;42703" class="bubblelink code" onclick="return showCourse(this, 'NURS 42703');">NURS&#160;42703</a>. Pre- or corequisite:  <a href="/search/?P=NURS%2044003" title="NURS&#160;44003" class="bubblelink code" onclick="return showCourse(this, 'NURS 44003');">NURS&#160;44003</a>. (Typically offered: Fall and Spring)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>NURS&#160;45303.  Leading in Acute Care and Quality Improvement Practicum.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Apply leadership skills and nursing knowledge to the care of people with acute health issues. Collaborate with the healthcare team to implement and evaluate a quality improvement initiative. Translate evidence into practice to improve healthcare outcomes. Deliver care to people and families who are experiencing death and dying. Pre- or Corequisite:  <a href="/search/?P=NURS%2044003" title="NURS&#160;44003" class="bubblelink code" onclick="return showCourse(this, 'NURS 44003');">NURS&#160;44003</a>. Prerequisite:  <a href="/search/?P=NURS%2040406" title="NURS&#160;40406" class="bubblelink code" onclick="return showCourse(this, 'NURS 40406');">NURS&#160;40406</a> and <a href="/search/?P=NURS%2035503" title="NURS&#160;35503" class="bubblelink code" onclick="return showCourse(this, 'NURS 35503');">NURS&#160;35503</a>. (Typically offered: Fall, Spring and Summer)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>NURS&#160;45432.  Critical Care Nursing.  2 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Focuses on the adult population experiencing multiple or critical illnesses or conditions necessitating admission to a critical care unit. The course emphasizes both nursing and medical treatment of selected conditions. Prerequisite:  <a href="/search/?P=NURS%2031151" title="NURS&#160;31151" class="bubblelink code" onclick="return showCourse(this, 'NURS 31151');">NURS&#160;31151</a>, <a href="/search/?P=NURS%2033332" title="NURS&#160;33332" class="bubblelink code" onclick="return showCourse(this, 'NURS 33332');">NURS&#160;33332</a>, <a href="/search/?P=NURS%2041032" title="NURS&#160;41032" class="bubblelink code" onclick="return showCourse(this, 'NURS 41032');">NURS&#160;41032</a>, <a href="/search/?P=NURS%2043233" title="NURS&#160;43233" class="bubblelink code" onclick="return showCourse(this, 'NURS 43233');">NURS&#160;43233</a>, <a href="/search/?P=NURS%2041234" title="NURS&#160;41234" class="bubblelink code" onclick="return showCourse(this, 'NURS 41234');">NURS&#160;41234</a>, <a href="/search/?P=NURS%2041433" title="NURS&#160;41433" class="bubblelink code" onclick="return showCourse(this, 'NURS 41433');">NURS&#160;41433</a>, <a href="/search/?P=NURS%2032932" title="NURS&#160;32932" class="bubblelink code" onclick="return showCourse(this, 'NURS 32932');">NURS&#160;32932</a>, <a href="/search/?P=NURS%2043133" title="NURS&#160;43133" class="bubblelink code" onclick="return showCourse(this, 'NURS 43133');">NURS&#160;43133</a>, and admission to the Online Undergraduate BSN Professional Program or permission by the instructor or department head. (Typically offered: Fall, Spring and Summer)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>NURS&#160;45532.  Critical Care Practicum.  2 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Clinical learning is focused on further developing and refining the knowledge, skills, and attitudes necessary to manage the care of an acutely ill or complex patient and/or family within the context of an inter-professional team. Prerequisite:  <a href="/search/?P=NURS%2031151" title="NURS&#160;31151" class="bubblelink code" onclick="return showCourse(this, 'NURS 31151');">NURS&#160;31151</a>, <a href="/search/?P=NURS%2033332" title="NURS&#160;33332" class="bubblelink code" onclick="return showCourse(this, 'NURS 33332');">NURS&#160;33332</a>, <a href="/search/?P=NURS%2041032" title="NURS&#160;41032" class="bubblelink code" onclick="return showCourse(this, 'NURS 41032');">NURS&#160;41032</a>, <a href="/search/?P=NURS%2043233" title="NURS&#160;43233" class="bubblelink code" onclick="return showCourse(this, 'NURS 43233');">NURS&#160;43233</a>, <a href="/search/?P=NURS%2041234" title="NURS&#160;41234" class="bubblelink code" onclick="return showCourse(this, 'NURS 41234');">NURS&#160;41234</a>, <a href="/search/?P=NURS%2041433" title="NURS&#160;41433" class="bubblelink code" onclick="return showCourse(this, 'NURS 41433');">NURS&#160;41433</a>, <a href="/search/?P=NURS%2032932" title="NURS&#160;32932" class="bubblelink code" onclick="return showCourse(this, 'NURS 32932');">NURS&#160;32932</a>, and <a href="/search/?P=NURS%2043133" title="NURS&#160;43133" class="bubblelink code" onclick="return showCourse(this, 'NURS 43133');">NURS&#160;43133</a> and admission to the Online Undergraduate BSN Professional Program or permission by the instructor or department head. Pre- or Corequisite:  <a href="/search/?P=NURS%2045432" title="NURS&#160;45432" class="bubblelink code" onclick="return showCourse(this, 'NURS 45432');">NURS&#160;45432</a>. (Typically offered: Fall, Spring and Summer)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>NURS&#160;45709.  Pre-licensure Capstone Practicum.  9 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Experience the role of the registered nurse in a healthcare setting. Apply nursing knowledge and clinical judgement to care for people and communities. Collaborate with nurses and other healthcare professionals to improve healthcare outcomes. Prerequisite:  <a href="/search/?P=NURS%2042703" title="NURS&#160;42703" class="bubblelink code" onclick="return showCourse(this, 'NURS 42703');">NURS&#160;42703</a>. Pre- or corequisite:  <a href="/search/?P=NURS%2044003" title="NURS&#160;44003" class="bubblelink code" onclick="return showCourse(this, 'NURS 44003');">NURS&#160;44003</a>. (Typically offered: Fall and Spring)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>NURS&#160;46033.  Nursing Concepts:  Community.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+The course focuses on theories and concepts in community health nursing. Health resources are explored in a variety of settings. This is a Level II course. Corequisite:  <a href="/search/?P=NURS%2046133" title="NURS&#160;46133" class="bubblelink code" onclick="return showCourse(this, 'NURS 46133');">NURS&#160;46133</a>. Prerequisite:  Completion of Level I courses and <a href="/search/?P=NURS%2041152" title="NURS&#160;41152" class="bubblelink code" onclick="return showCourse(this, 'NURS 41152');">NURS&#160;41152</a>, <a href="/search/?P=NURS%2041534" title="NURS&#160;41534" class="bubblelink code" onclick="return showCourse(this, 'NURS 41534');">NURS&#160;41534</a>, <a href="/search/?P=NURS%2041634" title="NURS&#160;41634" class="bubblelink code" onclick="return showCourse(this, 'NURS 41634');">NURS&#160;41634</a>, <a href="/search/?P=NURS%2042432" title="NURS&#160;42432" class="bubblelink code" onclick="return showCourse(this, 'NURS 42432');">NURS&#160;42432</a>, <a href="/search/?P=NURS%2042532" title="NURS&#160;42532" class="bubblelink code" onclick="return showCourse(this, 'NURS 42532');">NURS&#160;42532</a>, and <a href="/search/?P=NURS%2042632" title="NURS&#160;42632" class="bubblelink code" onclick="return showCourse(this, 'NURS 42632');">NURS&#160;42632</a>. (Typically offered: Fall, Spring and Summer)<br />
+</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>NURS&#160;460H3.  Honors Nursing Concepts:  Community.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+The course focuses on theories and concepts in community health nursing. Health resources are explored in a variety of settings. This is a Level II course. Corequisite:  <a href="/search/?P=NURS%2046133" title="NURS&#160;46133" class="bubblelink code" onclick="return showCourse(this, 'NURS 46133');">NURS&#160;46133</a>. Prerequisite:  Completion of Level I courses and <a href="/search/?P=NURS%2041152" title="NURS&#160;41152" class="bubblelink code" onclick="return showCourse(this, 'NURS 41152');">NURS&#160;41152</a>, <a href="/search/?P=NURS%2041534" title="NURS&#160;41534" class="bubblelink code" onclick="return showCourse(this, 'NURS 41534');">NURS&#160;41534</a>, <a href="/search/?P=NURS%2041634" title="NURS&#160;41634" class="bubblelink code" onclick="return showCourse(this, 'NURS 41634');">NURS&#160;41634</a>, <a href="/search/?P=NURS%2042432" title="NURS&#160;42432" class="bubblelink code" onclick="return showCourse(this, 'NURS 42432');">NURS&#160;42432</a>, <a href="/search/?P=NURS%2042532" title="NURS&#160;42532" class="bubblelink code" onclick="return showCourse(this, 'NURS 42532');">NURS&#160;42532</a>, and <a href="/search/?P=NURS%2042632" title="NURS&#160;42632" class="bubblelink code" onclick="return showCourse(this, 'NURS 42632');">NURS&#160;42632</a>. (Typically offered: Fall, Spring and Summer)<br />
+This course is equivalent to <a href="/search/?P=NURS%2046033" title="NURS&#160;46033" class="bubblelink code" onclick="return showCourse(this, 'NURS 46033');">NURS&#160;46033</a>.<br />
+</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>NURS&#160;46133.  Professional Role Implementation VII: Role Synthesis.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Application of community health concepts and the nursing process to promote community health and to restore health in a variety of settings. This is a Level II course.  Pre- or Corequisite:  <a href="/search/?P=NURS%2046033" title="NURS&#160;46033" class="bubblelink code" onclick="return showCourse(this, 'NURS 46033');">NURS&#160;46033</a>.  Prerequisite: Completion of Level I courses and <a href="/search/?P=NURS%2041152" title="NURS&#160;41152" class="bubblelink code" onclick="return showCourse(this, 'NURS 41152');">NURS&#160;41152</a>, <a href="/search/?P=NURS%2041534" title="NURS&#160;41534" class="bubblelink code" onclick="return showCourse(this, 'NURS 41534');">NURS&#160;41534</a>, <a href="/search/?P=NURS%2041634" title="NURS&#160;41634" class="bubblelink code" onclick="return showCourse(this, 'NURS 41634');">NURS&#160;41634</a>, <a href="/search/?P=NURS%2042432" title="NURS&#160;42432" class="bubblelink code" onclick="return showCourse(this, 'NURS 42432');">NURS&#160;42432</a>, <a href="/search/?P=NURS%2042532" title="NURS&#160;42532" class="bubblelink code" onclick="return showCourse(this, 'NURS 42532');">NURS&#160;42532</a>, <a href="/search/?P=NURS%2042632" title="NURS&#160;42632" class="bubblelink code" onclick="return showCourse(this, 'NURS 42632');">NURS&#160;42632</a>. (Typically offered: Fall and Spring)<br />
+</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>NURS&#160;47031.  Professional Nursing Synthesis.  1 Hour.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+The course emphasizes reflection, integration, and synthesis of concepts from previous courses. Course enrollment occurs in the last semester of the program. Prerequisite:  Admission to an online undergraduate BSN professional program or permission by the instructor or department head, and all university core and program prerequisites. (Typically offered: Fall, Spring and Summer)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>NURS&#160;47132.  Seminar in Nursing.  2 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Focuses on integrating the nursing caregiver, teacher and manager roles. Prepares students to analyze practice issues, trends and future demands. Explores the roles of baccalaureate prepared professional nurses and facilitates students to incorporate those roles as they enter professional practice. Must be taken in the final semester of the Professional Program of Study. This is a Level II course. Corequisite:  <a href="/search/?P=NURS%2047232" title="NURS&#160;47232" class="bubblelink code" onclick="return showCourse(this, 'NURS 47232');">NURS&#160;47232</a>. Prerequisite:  Completion of Level I courses and <a href="/search/?P=NURS%2041152" title="NURS&#160;41152" class="bubblelink code" onclick="return showCourse(this, 'NURS 41152');">NURS&#160;41152</a>, <a href="/search/?P=NURS%2041534" title="NURS&#160;41534" class="bubblelink code" onclick="return showCourse(this, 'NURS 41534');">NURS&#160;41534</a>, <a href="/search/?P=NURS%2041634" title="NURS&#160;41634" class="bubblelink code" onclick="return showCourse(this, 'NURS 41634');">NURS&#160;41634</a>, <a href="/search/?P=NURS%2042432" title="NURS&#160;42432" class="bubblelink code" onclick="return showCourse(this, 'NURS 42432');">NURS&#160;42432</a>, <a href="/search/?P=NURS%2042532" title="NURS&#160;42532" class="bubblelink code" onclick="return showCourse(this, 'NURS 42532');">NURS&#160;42532</a>, and <a href="/search/?P=NURS%2042632" title="NURS&#160;42632" class="bubblelink code" onclick="return showCourse(this, 'NURS 42632');">NURS&#160;42632</a>. (Typically offered: Fall and Spring)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>NURS&#160;47232.  Professional Role Implementation VIII: Role Synthesis.  2 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Clinical immersion experience that approximates the role of a beginning BSN nurse generalist. Corequisite:  <a href="/search/?P=NURS%2047132" title="NURS&#160;47132" class="bubblelink code" onclick="return showCourse(this, 'NURS 47132');">NURS&#160;47132</a>. Prerequisite:  Completion of Level I courses and <a href="/search/?P=NURS%2041152" title="NURS&#160;41152" class="bubblelink code" onclick="return showCourse(this, 'NURS 41152');">NURS&#160;41152</a>, <a href="/search/?P=NURS%2041534" title="NURS&#160;41534" class="bubblelink code" onclick="return showCourse(this, 'NURS 41534');">NURS&#160;41534</a>, <a href="/search/?P=NURS%2041634" title="NURS&#160;41634" class="bubblelink code" onclick="return showCourse(this, 'NURS 41634');">NURS&#160;41634</a>, <a href="/search/?P=NURS%2042432" title="NURS&#160;42432" class="bubblelink code" onclick="return showCourse(this, 'NURS 42432');">NURS&#160;42432</a>, <a href="/search/?P=NURS%2042532" title="NURS&#160;42532" class="bubblelink code" onclick="return showCourse(this, 'NURS 42532');">NURS&#160;42532</a>, <a href="/search/?P=NURS%2042632" title="NURS&#160;42632" class="bubblelink code" onclick="return showCourse(this, 'NURS 42632');">NURS&#160;42632</a>. (Typically offered: Fall and Spring)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>NURS&#160;4813V.  Special Topics in Nursing.  1-6 Hour.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+This course is the study of a special topic(s) in nursing.  Content varies. (Typically offered: Irregular)&#160;May be repeated for up to 6 hours of degree credit.</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>NURS&#160;48433.  Scientific Foundation for Professional Nursing Practice.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+This course introduces the research process through a comparative analysis of selected studies exemplifying various theoretical, methodological, and analytical approaches. Students acquire the basic competencies to critically read, evaluate and interpret nursing research studies for use in professional nursing practice. Prerequisite:  Admission to an online undergraduate BSN professional program or permission by the instructor or department head. (Typically offered: Fall and Spring)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>NURS&#160;4913V.  Independent Study in Nursing.  1-6 Hour.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+A selected learning experience in nursing to enhance knowledge and/or practice of the profession. Objectives and experiences are designed on an individual basis with a faculty adviser. May be taken with any 3500-level nursing course or above. (Typically offered: Fall, Spring and Summer)<br />
+</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>NURS&#160;491HV.  Honors Independent Study in Nursing.  1-6 Hour.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+A selected learning experience in nursing to enhance knowledge and/or practice of the profession. Objectives and experiences are designed on an individual basis with a faculty adviser. May be taken with any 3500-level nursing course or above. (Typically offered: Irregular)<br />
+This course is equivalent to <a href="/search/?P=NURS%204913V" title="NURS&#160;4913V" class="bubblelink code" onclick="return showCourse(this, 'NURS 4913V');">NURS&#160;4913V</a>.<br />
+</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>NURS&#160;498HV.  Nursing Honors Thesis/Project.  1-3 Hour.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Designed to provide facilitation of the Honors Thesis/Project. Students and faculty work &quot;one-on-one to complete the honors thesis/project. Prerequisite:  Honors candidacy, Nursing Bachelor of Science (NURSBS) major, and <a href="/search/?P=NURS%20384H2" title="NURS&#160;384H2" class="bubblelink code" onclick="return showCourse(this, 'NURS 384H2');">NURS&#160;384H2</a>. (Typically offered: Fall, Spring and Summer)&#160;May be repeated for up to 3 hours of degree credit.</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>NURS&#160;50133.  Writing for Scholarship in Nursing.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+In this course, students will acquire skills to build a foundation in scholarly writing, critical thinking, and synthesis to make research-based recommendations to improve clinical practice. Prerequisite:  Admission to the graduate nursing program or permission of the instructor. (Typically offered: Summer)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>NURS&#160;50234.  Advanced Pathophysiology, Pharmacology, and Health Assessment for the Masters Prepared Nurse.  4 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+This four credit graduate-level course provides a comprehensive understanding of the interrelationships between advanced physical assessment, pathophysiology, and pharmacology (3Ps) in preparation to teach prelicensure nursing students. The course builds foundational and advanced knowledge in disease mechanisms, drug actions, and complex patient assessment. Students apply knowledge to clinical scenarios through case studies and interactive activities. This course does not meet requirements for advanced clinical practice licensure. (Typically offered: Spring)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>NURS&#160;50333.  Scientific Foundations and Role Development in Advanced Practice Nursing.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Examines development of the advanced practice nursing role and evolution of the Doctor of Nursing Practice (DNP). Concepts include scientific foundations of practice, role development, interdisciplinary collaborative strategies, advanced scope of practice, patient advocacy, and legal/ethical principles in the advanced practice role. Prerequisite:  Admission to the graduate program or by permission of the instructor. (Typically offered: Fall)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>NURS&#160;50433.  Diagnostic Reasoning I: Health Promotion Across the Lifespan.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Provides a theoretical base for health promotion, disease prevention and risk reduction at the individual, family and community levels. Identifies a cross-disciplinary approach to achieve or preserve health across the lifespan. Addresses the factors contributing to morbidity and mortality in diverse populations including epidemiology, psychosocial issues, social determinants of health, and health disparities. Provides opportunity to explore program planning, development, and evaluation methods for interventions. Prerequisite:  Admission to the graduate program or by permission of the instructor. (Typically offered: Spring)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>NURS&#160;50533.  Evidence-Based Practice and Innovation in Nursing.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Examines models and strategies for leadership in evidence-based practice and innovation, outcomes management, and translational scholarship. The emphasis of this course is on problem identification, information retrieval, critical appraisal, and synthesis of a body of evidence. It provides the student with the foundation for MSN and DNP evidence-based projects. Prerequisite:  Admission to the graduate program or by permission of the instructor. (Typically offered: Spring)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>NURS&#160;50633.  Health Care Policy.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Provides knowledge and understanding needed to participate in policy development analysis and implementation. Provides an overview of the political process, health care policy, advocacy, leadership roles, legislative and regulatory issues, health care financing, and evaluating outcomes. Access, cost, and quality of health care are major foci in this course.  Prerequisite:  Admission to the graduate program or by permission of the instructor. (Typically offered: Fall)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>NURS&#160;50733.  Curriculum Design and Development in Nursing Education.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+This course provides the essential elements that define and operationalize the process of curriculum design and development. Students will examine curriculum theories, models, and concepts from the perspective of nursing education. They will analyze factors that influence program and curriculum development. Historical and philosophical foundations of nursing practice and educational principles are examined. The application and synthesis of curriculum theory and their application to nursing is emphasized. The role of the educator in the dynamic relationship between the practice setting, research, and curriculum is examined. Students will participate in the design of curriculum which reflects professional nursing practice, standards, theory, and research. Prerequisite:  Admission to the Graduate Program or departmental consent. Completion of all general and research core classes or approval of the MSN Education Program Coordinator. (Typically offered: Fall and Spring)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>NURS&#160;50833.  Methods of Assessment and Evaluation in Nursing Education.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+This course is one of four offered in the nursing education concentration in preparation for the role of educator in academic and clinical settings. Students explore theories, models, and evidence for best practice in assessing learning - including constructing exam items and creating tools for assessing writing assignments. Students discuss grading and other concepts related to assessment and evaluation as it relates to nursing education. Pre- or Corequisite:  Completion of <a href="/search/?P=NURS%2050733" title="NURS&#160;50733" class="bubblelink code" onclick="return showCourse(this, 'NURS 50733');">NURS&#160;50733</a> or <a href="/search/?P=NURS%2050933" title="NURS&#160;50933" class="bubblelink code" onclick="return showCourse(this, 'NURS 50933');">NURS&#160;50933</a>. Prerequisite: Admission to the Masters of Science in Nursing or the Doctor of Nursing Practice Program. (Typically offered: Summer)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>NURS&#160;50933.  Instructional Design and Delivery in Nursing Education.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+This course is one of four offered in the nursing education concentration in preparation for the role of educator in academic and clinical settings. Students explore teaching and learning theories and other evidence to guide practice in the advanced role of the educator. Students gain competencies in the knowledge and skills necessary for delivering evidence-based teaching and learning strategies in a variety of learning environments. Prerequisite:  Admission to the Graduate Program or departmental consent. (Typically offered: Spring)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>NURS&#160;51061.  Advanced Health Assessment and Diagnostic Reasoning.  1 Hour.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Applies health assessment, physical examination techniques, clinical decision making, and diagnostic reasoning to formulate a culturally-sensitive, individualized plan of care, which includes health promotion and disease prevention. Corequisite:  <a href="/search/?P=NURS%2051172" title="NURS&#160;51172" class="bubblelink code" onclick="return showCourse(this, 'NURS 51172');">NURS&#160;51172</a>. (Typically offered: Fall)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>NURS&#160;51172.  Advanced Health Assessment and Diagnostic Reasoning Clinical Practicum.  2 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Focus is on the application of clinical decision making, diagnostic reasoning, and advanced physical examination techniques to develop differential diagnoses, problem list, and a plan of care for individual clients. Corequisite:  <a href="/search/?P=NURS%2051061" title="NURS&#160;51061" class="bubblelink code" onclick="return showCourse(this, 'NURS 51061');">NURS&#160;51061</a>. (Typically offered: Fall)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>NURS&#160;51253.  Advanced Pharmacology.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Provides advanced concepts and application of pharmacology for broad categories of agents used in disease management. Establishes the relationship between pharmacologic agents and physiologic/pathologic responses. It assists students with the development of knowledge and skills to prescribe and manage a client's health in a safe, high quality, and cost-effective manner. Prerequisite:  Admission to the graduate program or by permission of the instructor. (Typically offered: Spring)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>NURS&#160;51332.  Advanced Health Assessment and Diagnostic Reasoning.  2 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Applies essential knowledge and skills to perform comprehensive health assessments across the lifespan. Building on foundational assessment techniques, the course emphasizes advanced interviewing and history-taking, refined physical examination skills, and the integration of physical, psychosocial, cultural, and developmental assessments. Students will enhance their diagnostic reasoning abilities, learning to synthesize assessment data and formulate evidence-based differential diagnoses while focusing on health promotion and disease prevention strategies. Corequisite:  <a href="/search/?P=NURS%2052331" title="NURS&#160;52331" class="bubblelink code" onclick="return showCourse(this, 'NURS 52331');">NURS&#160;52331</a>. Prerequisite:  <a href="/search/?P=NURS%2051534" title="NURS&#160;51534" class="bubblelink code" onclick="return showCourse(this, 'NURS 51534');">NURS&#160;51534</a> and <a href="/search/?P=NURS%2051253" title="NURS&#160;51253" class="bubblelink code" onclick="return showCourse(this, 'NURS 51253');">NURS&#160;51253</a>. (Typically offered: Fall)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>NURS&#160;51534.  Advanced Pathophysiology.  4 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Provides a comprehensive understanding of normal physiologic and pathologic mechanisms of disease that serves as a foundation for clinical assessment, decision making, and management of individuals. Includes mechanisms of disease, genetic susceptibility, and immune responses in selected disorders. This course includes concepts of pathophysiology across the lifespan. Prerequisite:  Admission to the graduate program or by permission of the instructor. (Typically offered: Fall)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>NURS&#160;52132.  Genetics, Genomes, and Epigenetics of Human Health and Disease.  2 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+In this course, students will explore principles of genetics and genomics related to advanced nursing practice for individuals, families, and populations. Clinical and ethical topics in genetics as related to advanced assessments, disease prevention, and therapeutic interventions are studied. (Typically offered: Summer)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>NURS&#160;52331.  Advanced Health Assessment Practicum.  1 Hour.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Under the guidance of a clinical faculty instructor and experienced preceptor, the student will participate in 60 hours of clinical experience in adult, pediatric, women's health or family medicine settings. Students will focus on the application of skilled critical thinking, clinical decision- making, diagnostic reasoning, and advanced physical examination techniques to develop differential diagnoses, problem lists, and a plan of care for individual clients. This online course requires 1 visit to campus. Corequisite:  <a href="/search/?P=NURS%2051332" title="NURS&#160;51332" class="bubblelink code" onclick="return showCourse(this, 'NURS 51332');">NURS&#160;51332</a>. Prerequisite:  <a href="/search/?P=NURS%2051534" title="NURS&#160;51534" class="bubblelink code" onclick="return showCourse(this, 'NURS 51534');">NURS&#160;51534</a> and <a href="/search/?P=NURS%2051253" title="NURS&#160;51253" class="bubblelink code" onclick="return showCourse(this, 'NURS 51253');">NURS&#160;51253</a>. (Typically offered: Fall)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>NURS&#160;53332.  Common Problems in Acute Care in Adult and Gerontology Populations Clinical Practicum.  2 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Focuses on the management of adult-gerontology patients with common acute illnesses. Emphasizes the application of principles of pathologic mechanisms of disease, history taking, physical examination, and clinical decision making. Corequisite:  <a href="/search/?P=NURS%2054334" title="NURS&#160;54334" class="bubblelink code" onclick="return showCourse(this, 'NURS 54334');">NURS&#160;54334</a>. Prerequisite:  <a href="/search/?P=NURS%2051061" title="NURS&#160;51061" class="bubblelink code" onclick="return showCourse(this, 'NURS 51061');">NURS&#160;51061</a> and <a href="/search/?P=NURS%2051172" title="NURS&#160;51172" class="bubblelink code" onclick="return showCourse(this, 'NURS 51172');">NURS&#160;51172</a>. (Typically offered: Spring)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>NURS&#160;53433.  Specialty Development I.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+This course will include two foci, academic teaching and clinical practicum specialty development. A focused field experience will allow student to integrate knowledge and skills in a specialty clinical area of nursing in preparation for the nurse educator role. An additional practice experience will be completed in an academic role. Preceptors will be used for both experiences. Prerequisite:  <a href="/search/?P=NURS%2050733" title="NURS&#160;50733" class="bubblelink code" onclick="return showCourse(this, 'NURS 50733');">NURS&#160;50733</a>, <a href="/search/?P=NURS%2050833" title="NURS&#160;50833" class="bubblelink code" onclick="return showCourse(this, 'NURS 50833');">NURS&#160;50833</a> and <a href="/search/?P=NURS%2050933" title="NURS&#160;50933" class="bubblelink code" onclick="return showCourse(this, 'NURS 50933');">NURS&#160;50933</a>. (Typically offered: Fall)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>NURS&#160;54334.  Common Problems in Acute Care in Adult and Gerontology Populations.  4 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Examine principles of pathologic mechanisms of disease, refine skills for history taking, physical examination, and clinical decision making for adult and geriatric individuals with common acute illnesses. Corequisite:  <a href="/search/?P=NURS%2054433" title="NURS&#160;54433" class="bubblelink code" onclick="return showCourse(this, 'NURS 54433');">NURS&#160;54433</a>. Prerequisite:  <a href="/search/?P=NURS%2051061" title="NURS&#160;51061" class="bubblelink code" onclick="return showCourse(this, 'NURS 51061');">NURS&#160;51061</a> and <a href="/search/?P=NURS%2051172" title="NURS&#160;51172" class="bubblelink code" onclick="return showCourse(this, 'NURS 51172');">NURS&#160;51172</a>. (Typically offered: Spring)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>NURS&#160;54433.  Chronic Health Problems in Adult and Gerontology Populations.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Explores evidence-based models for the management of selected chronic conditions, focusing on assessment and treatment of individuals and families. Utilizes advanced theories, concepts, knowledge, and skill in the care of diverse adult and geriatric populations with complex chronic health problems. Corequisite:  <a href="/search/?P=NURS%2054534" title="NURS&#160;54534" class="bubblelink code" onclick="return showCourse(this, 'NURS 54534');">NURS&#160;54534</a>. Prerequisite:  Completion of <a href="/search/?P=NURS%2054334" title="NURS&#160;54334" class="bubblelink code" onclick="return showCourse(this, 'NURS 54334');">NURS&#160;54334</a> and <a href="/search/?P=NURS%2053332" title="NURS&#160;53332" class="bubblelink code" onclick="return showCourse(this, 'NURS 53332');">NURS&#160;53332</a>. (Typically offered: Fall)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>NURS&#160;54534.  Chronic Health Problems in Adult and Gerontology Populations Clinical Practicum.  4 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Focuses on the management of adult-gerontology populations with complex, chronic health problems. Emphasis is on the application of theoretical concepts, assessment skills, clinical decision making, and evidence-based standards to formulate diagnoses, clinical impressions, treatment, and evaluation plans in the acute or out-patient setting. Corequisite:  <a href="/search/?P=NURS%2054433" title="NURS&#160;54433" class="bubblelink code" onclick="return showCourse(this, 'NURS 54433');">NURS&#160;54433</a>. Prerequisite:  <a href="/search/?P=NURS%2054334" title="NURS&#160;54334" class="bubblelink code" onclick="return showCourse(this, 'NURS 54334');">NURS&#160;54334</a> and <a href="/search/?P=NURS%2053332" title="NURS&#160;53332" class="bubblelink code" onclick="return showCourse(this, 'NURS 53332');">NURS&#160;53332</a>. (Typically offered: Fall)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>NURS&#160;54833.  Common Problems in Primary Care.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Examines principles of pathological mechanisms of disease, refines knowledge for thorough history taking, physical examination, and clinical decision-making for men, women, and families with common illnesses treated in primary care. Includes anticipatory guidance, health promotion, disease prevention, and reproductive health. Corequisite:  <a href="/search/?P=NURS%2054935" title="NURS&#160;54935" class="bubblelink code" onclick="return showCourse(this, 'NURS 54935');">NURS&#160;54935</a>. Prerequisite:  <a href="/search/?P=NURS%2051061" title="NURS&#160;51061" class="bubblelink code" onclick="return showCourse(this, 'NURS 51061');">NURS&#160;51061</a> and <a href="/search/?P=NURS%2051172" title="NURS&#160;51172" class="bubblelink code" onclick="return showCourse(this, 'NURS 51172');">NURS&#160;51172</a>. (Typically offered: Spring)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>NURS&#160;54935.  Common Problems in Primary Care Clinical Practicum.  5 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Clinical component to <a href="/search/?P=NURS%2054833" title="NURS&#160;54833" class="bubblelink code" onclick="return showCourse(this, 'NURS 54833');">NURS&#160;54833</a> Common Problems Primary Care. Refines skills for thorough history taking, physical examination, and clinical decision-making for men, women, and families with common illnesses treated in primary care as well as health promotion, disease prevention, and reproductive health needs. Corequisite:  <a href="/search/?P=NURS%2054833" title="NURS&#160;54833" class="bubblelink code" onclick="return showCourse(this, 'NURS 54833');">NURS&#160;54833</a>. Prerequisite:  <a href="/search/?P=NURS%2051061" title="NURS&#160;51061" class="bubblelink code" onclick="return showCourse(this, 'NURS 51061');">NURS&#160;51061</a> and <a href="/search/?P=NURS%2051172" title="NURS&#160;51172" class="bubblelink code" onclick="return showCourse(this, 'NURS 51172');">NURS&#160;51172</a>. (Typically offered: Spring)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>NURS&#160;55233.  Application of Health Informatics.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+This course prepares graduate students to advance their understanding of health informatics and application within healthcare. The course focuses on the use of technology to support and improve education, patient care, and healthcare systems. Assists students in evaluating and integrating qualified technologies into various practice settings. Students will explore current and emerging trends in healthcare informatics and their role in legal, ethical, regulatory, and security implications. Prerequisite:  Admission to the graduate program or by permission of the instructor. (Typically offered: Summer)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>NURS&#160;55433.  Primary Care of Children.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Focuses on evidence-based models for the management of children from diverse cultures with common conditions in primary care. Includes anticipatory guidance, health promotion, and disease prevention. Emphasis on application of theoretical concepts, assessment skills, clinical decision-making, and evidence-based standards to formulate differential diagnoses, clinical impressions, treatment, and evaluation plans in primary care. Corequisite:  <a href="/search/?P=NURS%2056833" title="NURS&#160;56833" class="bubblelink code" onclick="return showCourse(this, 'NURS 56833');">NURS&#160;56833</a>. Prerequisite:  <a href="/search/?P=NURS%2058733" title="NURS&#160;58733" class="bubblelink code" onclick="return showCourse(this, 'NURS 58733');">NURS&#160;58733</a> and <a href="/search/?P=NURS%2058834" title="NURS&#160;58834" class="bubblelink code" onclick="return showCourse(this, 'NURS 58834');">NURS&#160;58834</a>. (Typically offered: Spring)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>NURS&#160;56333.  Diagnostic Reasoning II Growth and Development - Birth to Young Adult.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Provides comprehensive knowledge of growth and development from birth to young adulthood including anticipatory guidance, health promotion, and disease prevention. Focuses on the management of infants, children, and adolescents with common acute and chronic conditions in primary care. Emphasis on application of theoretical concepts, assessment skills, critical thinking, and evidence-based standards to formulate differential diagnoses, clinical impressions, treatment, and evaluation plans for both the pediatric client and their family within the family practice setting. Corequisite:  <a href="/search/?P=NURS%2056433" title="NURS&#160;56433" class="bubblelink code" onclick="return showCourse(this, 'NURS 56433');">NURS&#160;56433</a>. Prerequisite:  <a href="/search/?P=NURS%2051332" title="NURS&#160;51332" class="bubblelink code" onclick="return showCourse(this, 'NURS 51332');">NURS&#160;51332</a> and <a href="/search/?P=NURS%2052331" title="NURS&#160;52331" class="bubblelink code" onclick="return showCourse(this, 'NURS 52331');">NURS&#160;52331</a>. (Typically offered: Spring)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>NURS&#160;56433.  Primary Care Clinical Practicum I.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Guided by a clinical faculty instructor and an experienced preceptor, students will engage in 180 hours of supervised clinical experience. Provides comprehensive knowledge of growth and development from birth to young adulthood including anticipatory guidance, health promotion, and disease prevention. Focuses on the management of infants, children, and adolescents with common acute and chronic conditions in primary care. Emphasis on application of theoretical concepts, assessment skills, critical thinking, and evidence-based standards to formulate differential diagnoses, clinical impressions, treatment, and evaluation plans for both the pediatric client and their family within the family practice setting. Corequisite:  <a href="/search/?P=NURS%2056333" title="NURS&#160;56333" class="bubblelink code" onclick="return showCourse(this, 'NURS 56333');">NURS&#160;56333</a>. Prerequisite:  <a href="/search/?P=NURS%2051534" title="NURS&#160;51534" class="bubblelink code" onclick="return showCourse(this, 'NURS 51534');">NURS&#160;51534</a>, <a href="/search/?P=NURS%2051332" title="NURS&#160;51332" class="bubblelink code" onclick="return showCourse(this, 'NURS 51332');">NURS&#160;51332</a> and <a href="/search/?P=NURS%2051253" title="NURS&#160;51253" class="bubblelink code" onclick="return showCourse(this, 'NURS 51253');">NURS&#160;51253</a>. (Typically offered: Spring)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>NURS&#160;56833.  Primary Care of Children Clinical Practicum.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Focuses on the management of children in the clinical setting with emphasis on holistic assessment and treatment of this population and their families. Students will engage in the assessment, diagnosis and treatment of conditions common to primary practice in pediatric clinics. This course will consist of 135 contact hours. Corequisite:  <a href="/search/?P=NURS%2055433" title="NURS&#160;55433" class="bubblelink code" onclick="return showCourse(this, 'NURS 55433');">NURS&#160;55433</a>. Prerequisite:   <a href="/search/?P=NURS%2058733" title="NURS&#160;58733" class="bubblelink code" onclick="return showCourse(this, 'NURS 58733');">NURS&#160;58733</a> and <a href="/search/?P=NURS%2058834" title="NURS&#160;58834" class="bubblelink code" onclick="return showCourse(this, 'NURS 58834');">NURS&#160;58834</a>. (Typically offered: Spring)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>NURS&#160;57003.  Nurse Educator Scholarly Project.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+The Nurse Educator Scholarly Project identifies and addresses practice issues in nursing education and includes a thorough search, analysis, synthesis and a plan for dissemination of the best available evidence. Students build upon knowledge and skills from previous coursework to complete the project over one or two semesters. Prerequisite:  <a href="/search/?P=NURS%2050933" title="NURS&#160;50933" class="bubblelink code" onclick="return showCourse(this, 'NURS 50933');">NURS&#160;50933</a> and <a href="/search/?P=NURS%2050833" title="NURS&#160;50833" class="bubblelink code" onclick="return showCourse(this, 'NURS 50833');">NURS&#160;50833</a>. Pre- or Corequisite:  <a href="/search/?P=NURS%2053433" title="NURS&#160;53433" class="bubblelink code" onclick="return showCourse(this, 'NURS 53433');">NURS&#160;53433</a>. (Typically offered: Fall and Spring)&#160;May be repeated for up to 6 hours of degree credit.</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>NURS&#160;57333.  Diagnostic Reasoning III Primary and Preventive Care.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Provides didactic content to prepare family nurse practitioner students to deliver comprehensive primary care to adult and geriatric patients with common acute illnesses affecting multiple body systems. Integrating evidence-based practices from biomedical, psychological, social, and nursing fields, students will learn to conduct thorough diagnoses, develop management plans, select appropriate diagnostic procedures and tests, and implement effective follow-up care strategies. The curriculum emphasizes health promotion, disease prevention, patient education, and screening protocols for all adult age groups, with a particular focus on underserved populations and diverse cultural backgrounds. By fostering an approach of cultural humility, the course encourages ongoing self-reflection and lifelong learning in providing culturally appropriate care. Upon completion, students will be equipped to offer holistic, person-centered care that addresses complex health needs while promoting overall wellness and health equity across diverse adult populations. Corequisite:  <a href="/search/?P=NURS%2057433" title="NURS&#160;57433" class="bubblelink code" onclick="return showCourse(this, 'NURS 57433');">NURS&#160;57433</a>. Prerequisite:  <a href="/search/?P=NURS%2051332" title="NURS&#160;51332" class="bubblelink code" onclick="return showCourse(this, 'NURS 51332');">NURS&#160;51332</a> and <a href="/search/?P=NURS%2052331" title="NURS&#160;52331" class="bubblelink code" onclick="return showCourse(this, 'NURS 52331');">NURS&#160;52331</a>. (Typically offered: Fall)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>NURS&#160;57433.  Primary Care Clinical Practicum II.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Guided by a clinical faculty instructor and an experienced preceptor, students will engage in 180 hours of supervised clinical experience across adult, women's health, and family medicine settings. The course is designed to enhance students' abilities to diagnose, treat, and provide follow-up care for patients with common acute illnesses throughout the lifespan. It emphasizes the integration of biomedical, psychological, social, and nursing aspects of care, tailored to patients' age, gender, sexuality, culture, and ethnicity. Students will apply and utilize evidence-based practices in various adult healthcare settings, fostering a comprehensive approach to patient care. This hands-on experience aims to cultivate students' clinical skills, cultural humility, and ability to deliver personalized, evidence-informed care across diverse patient populations and healthcare environments. Corequisite:  <a href="/search/?P=NURS%2057333" title="NURS&#160;57333" class="bubblelink code" onclick="return showCourse(this, 'NURS 57333');">NURS&#160;57333</a>. Prerequisite:  <a href="/search/?P=NURS%2051332" title="NURS&#160;51332" class="bubblelink code" onclick="return showCourse(this, 'NURS 51332');">NURS&#160;51332</a> and <a href="/search/?P=NURS%2052331" title="NURS&#160;52331" class="bubblelink code" onclick="return showCourse(this, 'NURS 52331');">NURS&#160;52331</a>. (Typically offered: Fall)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>NURS&#160;5793V.  Independent Study.  1-3 Hour.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Independent study designed by student and faculty advisor. (Typically offered: Fall and Spring)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>NURS&#160;58333.  Diagnostic reasoning IV Chronic Issues in Primary Care.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Provides didactic content to prepare family nurse practitioner students to deliver comprehensive primary care to adult and geriatric patients with chronic complex illnesses affecting one or more body systems. Integrating evidence-based practices tailored to patients' age, gender, sexuality, and social determinants of health, students will develop advanced skills in assessment, diagnosis, and management of chronic health problems. The curriculum emphasizes appropriate diagnostic procedures, laboratory tests, and follow-up care, while promoting health, patient education, and disease prevention across diverse adult populations. Particular attention is given to underserved communities and various cultural backgrounds, fostering cultural humility in care delivery. Corequisite:  <a href="/search/?P=NURS%2058433" title="NURS&#160;58433" class="bubblelink code" onclick="return showCourse(this, 'NURS 58433');">NURS&#160;58433</a>. Prerequisite:  <a href="/search/?P=NURS%2057333" title="NURS&#160;57333" class="bubblelink code" onclick="return showCourse(this, 'NURS 57333');">NURS&#160;57333</a> and <a href="/search/?P=NURS%2057433" title="NURS&#160;57433" class="bubblelink code" onclick="return showCourse(this, 'NURS 57433');">NURS&#160;57433</a>. (Typically offered: Spring)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>NURS&#160;58433.  Primary Care Clinical Practicum III.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Guided by a clinical faculty instructor and an experienced preceptor, students will engage in 180 hours of supervised clinical experience across adult, women's health, and family medicine settings. The course is designed to enhance students' abilities to diagnose, treat, and provide follow-up care for patients with chronic complex illnesses throughout the lifespan. It emphasizes the integration of biomedical, psychological, social, and nursing aspects of care, tailored to patients' age, gender, sexuality, culture, and ethnicity. Students will apply and utilize evidence-based practices in various adult healthcare settings, fostering a comprehensive approach to patient care. This hands-on experience aims to cultivate students' clinical skills, cultural humility, and ability to deliver personalized, evidence-informed care across diverse patient populations and healthcare environments. Corequisite:  <a href="/search/?P=NURS%2058333" title="NURS&#160;58333" class="bubblelink code" onclick="return showCourse(this, 'NURS 58333');">NURS&#160;58333</a>. Prerequisite:  <a href="/search/?P=NURS%2057333" title="NURS&#160;57333" class="bubblelink code" onclick="return showCourse(this, 'NURS 57333');">NURS&#160;57333</a> and <a href="/search/?P=NURS%2057433" title="NURS&#160;57433" class="bubblelink code" onclick="return showCourse(this, 'NURS 57433');">NURS&#160;57433</a>. (Typically offered: Spring)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>NURS&#160;58733.  Complex Problems in Primary Care.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Focuses on application of health promotion and chronic disease management in complex adult patients. Students will utilize evidence-based approaches to health promotion, assessment, differential diagnosis and disease management. Emphasizes clinical decision making, chronic care models, coordination of care, poly-drug therapy and information systems. Corequisite: <a href="/search/?P=NURS%2058834" title="NURS&#160;58834" class="bubblelink code" onclick="return showCourse(this, 'NURS 58834');">NURS&#160;58834</a>. Prerequisite:  <a href="/search/?P=NURS%2054833" title="NURS&#160;54833" class="bubblelink code" onclick="return showCourse(this, 'NURS 54833');">NURS&#160;54833</a> and <a href="/search/?P=NURS%2054935" title="NURS&#160;54935" class="bubblelink code" onclick="return showCourse(this, 'NURS 54935');">NURS&#160;54935</a>. (Typically offered: Fall)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>NURS&#160;58834.  Complex Problems in Primary Care Clinical Practicum.  4 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Clinical component to <a href="/search/?P=NURS%2058733" title="NURS&#160;58733" class="bubblelink code" onclick="return showCourse(this, 'NURS 58733');">NURS&#160;58733</a> Complex Problems in Primary Care. Offers the student an opportunity to exercise critical judgment and implement theoretical knowledge in the management of care of adults experiencing complex health problems. Corequisite:  <a href="/search/?P=NURS%2058733" title="NURS&#160;58733" class="bubblelink code" onclick="return showCourse(this, 'NURS 58733');">NURS&#160;58733</a>. Prerequisite:  <a href="/search/?P=NURS%2054935" title="NURS&#160;54935" class="bubblelink code" onclick="return showCourse(this, 'NURS 54935');">NURS&#160;54935</a> and <a href="/search/?P=NURS%2054833" title="NURS&#160;54833" class="bubblelink code" onclick="return showCourse(this, 'NURS 54833');">NURS&#160;54833</a>. (Typically offered: Fall)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>NURS&#160;5983V.  Nursing Special Topics.  1-6 Hour.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Special Topics course. (Typically offered: Irregular)&#160;May be repeated for up to 6 hours of degree credit.</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>NURS&#160;6003V.  Master's Thesis.  1-3 Hour.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Student research to fulfill degree requirement for the MSN. Prerequisite:  <a href="/search/?P=NURS%2050533" title="NURS&#160;50533" class="bubblelink code" onclick="return showCourse(this, 'NURS 50533');">NURS&#160;50533</a>. (Typically offered: Fall, Spring and Summer)&#160;May be repeated for degree credit.</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>NURS&#160;61233.  Translation of Evidence and Quality Improvement for Advanced Practice.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+This course explores the intersection of evidence-based practice (EBP) and quality improvement (QI) within advanced nursing roles. Students will investigate the methodologies of translating research findings into clinical practice, focusing on strategies that enhance patient outcomes and improve healthcare systems. The course emphasizes the application of EBP theories and frameworks, quality measurement tools, and leadership principles to foster a culture of continuous improvement in healthcare settings. Through case studies, collaborative projects, and practical applications, students will develop the skills necessary to implement, evaluate, and sustain evidence-based interventions that address current healthcare challenges. Prerequisite:  <a href="/search/?P=NURS%2050533" title="NURS&#160;50533" class="bubblelink code" onclick="return showCourse(this, 'NURS 50533');">NURS&#160;50533</a> or admission to MSN - DNP program. (Typically offered: Spring)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>NURS&#160;62234.  DNP Clinical Practicum I.  4 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Provides an opportunity to synthesize advanced knowledge and role behaviors within a specialty concentration. Designed to apply nursing theory, translational research, epidemiologic principles, ethical/legal principles, outcome evaluations, healthcare systems thinking, and economics into a specialized clinical practice role and setting. Depending upon specialty and experience, may require travel to campus. (Typically offered: Summer)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>NURS&#160;62333.  Healthcare Economics and Finance.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+This course provides economic, financial, and business knowledge and skills required for a leadership role in financial planning and decision making within healthcare delivery systems. DNP educated nurses in leadership roles must understand how budgeting, healthcare insurance /reimbursement, and managed care influence the clinical decision-making process. Prerequisite:  Admission to the graduate program or by permission of the instructor. (Typically offered: Summer)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>NURS&#160;62434.  DNP Clinical Practicum II.  4 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Provides an opportunity to synthesize advanced knowledge and role behaviors within a specialty concentration. Designed to apply nursing theory, translational research, epidemiologic principles, ethical/legal principles, outcome evaluations, healthcare systems thinking, and economics into a specialized clinical practice role and setting. Depending upon specialty and experience, may require travel to campus. Corequisite:  <a href="/search/?P=NURS%2071232" title="NURS&#160;71232" class="bubblelink code" onclick="return showCourse(this, 'NURS 71232');">NURS&#160;71232</a>. Prerequisite:  <a href="/search/?P=NURS%2062234" title="NURS&#160;62234" class="bubblelink code" onclick="return showCourse(this, 'NURS 62234');">NURS&#160;62234</a>. (Typically offered: Fall)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>NURS&#160;62633.  Organization Management and Systems Leadership.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Facilitates understanding of how to lead, advocate, and manage innovative responses to organizational needs and challenges. Emphasizes development and evaluation of care delivery models that meet the needs of targeted patient populations by enhancing accountability for effective and efficient healthcare, quality improvement, and patient safety. Prerequisite:  Admission to the graduate program or by permission of the instructor. (Typically offered: Summer)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>NURS&#160;6283V.  DNP Clinical Practicum III.  1-8 Hour.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Allows for the continuation of specialty role development and a more refined and advanced approach to care delivery, systems thinking, and leadership. Allows for the total number of practice hours required for certification and/or degree. (Typically offered: Spring)&#160;May be repeated for up to 8 hours of degree credit.</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>NURS&#160;63433.  Epidemiology, Biostatistics, and Population.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+This course will examine the role of epidemiology and biostatistics in advanced nursing practice. The student will learn how the concepts of epidemiology are used to measure and describe the health of individuals and populations and apply analytical methods to data encountered in clinical practice. Prerequisite:  Admission to the graduate program or by permission of the instructor. (Typically offered: Spring)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>NURS&#160;64432.  DNP Project Design Identification.  2 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+This course is the first DNP project didactic course and is designed to assist the student to develop professional competencies related to the DNP project. Students will conduct both internal and external assessments to identify a gap in system processes leading to poor population health outcomes. Students will participate in quality improvement initiatives and seminars to inform their project's needs and receive guidance through conferences, discussion, and peer feedback. The specific aim and objectives will be determined, laying the foundation for the DNP project. Prerequisite:  <a href="/search/?P=ESRM%2053903" title="ESRM&#160;53903" class="bubblelink code" onclick="return showCourse(this, 'ESRM 53903');">ESRM&#160;53903</a>. (Typically offered: Fall)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>NURS&#160;65443.  DNP Project Design II.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+This course is the second didactic course for the DNP project and applies nursing theory, translational research, epidemiologic principles, ethical/legal principles, outcome evaluations, healthcare systems thinking, and economics to develop the DNP project. During this course, steps in the program planning process will be discussed and the actual project proposal will be written. IRB training and submission is finalized. Upon successful completion of the course, the proposal will be approved by the project committee and the IRB protocol will be submitted. Prerequisite:  <a href="/search/?P=NURS%2064432" title="NURS&#160;64432" class="bubblelink code" onclick="return showCourse(this, 'NURS 64432');">NURS&#160;64432</a>. (Typically offered: Spring)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>NURS&#160;66633.  Emergency Preparedness in Rural United States.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Emergency preparedness in Rural United States is an elective course for graduate nursing students. This course will prepare them for the role of nurse practitioner in rural clinical settings during times when National Incident Management Systems are necessary to manage national disasters, tragedies, or contagion in rural areas of the US. (Typically offered: Fall and Spring)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>NURS&#160;68333.  Rural Primary Care in Arkansas.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+This service-learning course is an elective for graduate nursing students. The purpose of this elective is to prepare students for the role of nurse practitioner educator and clinician in rural communities by providing them additional knowledge and exposure to topics and diseases that are frequently seen in rural primary care in Arkansas. This course requires interaction with a health care site in a rural or medically underserved community. (Typically offered: Fall and Spring)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>NURS&#160;68433.  Opioid Use in Rural Arkansas.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+This opioid use in rural Arkansas course is an elective for graduate nursing students. This course prepares graduate nursing students for the nurse practitioner role in rural settings by providing knowledge, exposure to risk factors, treatment strategies for opioid abuse and misuse, policies and regulations related to prescribing opioids, and gaps in community responses addressing this epidemic in rural primary care in Arkansas. This course requires interaction with a health care site in a rural or medically underserved community. (Typically offered: Fall and Spring)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>NURS&#160;68903.  Poverty and Healthcare in the United States.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Provides a base for understanding poverty and health at the individual, family, and community levels. Identifies a cross-disciplinary approach to address how poverty affects individual and community health. Demonstrates challenges faced by individuals, families, and health providers face when addressing healthcare needs. Addresses the factors contributing to poverty. Provides opportunity to evaluate policies and interventions for individuals and families who live at or below the poverty threshold. Prerequisite:  Admission to DNP program or permission of instructor. (Typically offered: Irregular)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>NURS&#160;69933.  Advanced Practice Registered Nursing (APRN) Residency: A Service-Learning Course.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+The service-learning APRN residency provides students skills to identify potential rural and underserved employment environments, prepare for interviews, and complete pre-employment documents necessary to evolve from graduate DNP students to fully employable, practice-ready APRNs for communities in Arkansas and surrounding states through reflective journaling, discussions, and completion of activities.  Corequisite:  <a href="/search/?P=NURS%206283V" title="NURS&#160;6283V" class="bubblelink code" onclick="return showCourse(this, 'NURS 6283V');">NURS&#160;6283V</a> or special permission of instructor teaching the course. Prerequisite:  <a href="/search/?P=NURS%2062434" title="NURS&#160;62434" class="bubblelink code" onclick="return showCourse(this, 'NURS 62434');">NURS&#160;62434</a>, admission to the University of Arkansas Graduate School, and the Eleanor Mann School of Nursing Graduate Program or permission of faculty teaching the course. (Typically offered: Spring)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>NURS&#160;71232.  DNP Project Implementation I.  2 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Provides necessary support and elements for students to begin execution of the DNP Project in collaboration with the sponsoring site. (Typically offered: Fall)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>NURS&#160;71432.  DNP Project Implementation II.  2 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+This required course is the culmination of the DNP Project courses in the Doctor of Nursing Practice course of study. Students will participate in weekly online group discussions regarding their progress providing peer feedback. The final project is evaluated, analyzed, and disseminated by the student with Faculty and Clinical Advisor guidance in the form of a professional presentation. The final DNP Project report is completed and approved by the Faculty Advisor. Students are strongly encouraged to submit a completed manuscript for publication based on the DNP Project in collaboration with the Faculty Advisor when deemed ready by the Faculty Advisor. Prerequisite:  <a href="/search/?P=NURS%2071232" title="NURS&#160;71232" class="bubblelink code" onclick="return showCourse(this, 'NURS 71232');">NURS&#160;71232</a> and <a href="/search/?P=NURS%2072431" title="NURS&#160;72431" class="bubblelink code" onclick="return showCourse(this, 'NURS 72431');">NURS&#160;72431</a>. (Typically offered: Spring)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>NURS&#160;72431.  DNP Project Implementation Clinical Praticum.  1 Hour.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+This clinical course uses online discussion, seminars, and a project-focused practicum to provide students with the support and direction needed to implement and evaluate an evidence-based project plan under the guidance of their project committee, faculty mentor, and clinical site representatives. Students will assess implementation issues, and utilize skills in leadership, communication, and collaboration to implement the project plan. This course includes 60 contact hours approved for the project. Corequisite:  <a href="/search/?P=NURS%2071232" title="NURS&#160;71232" class="bubblelink code" onclick="return showCourse(this, 'NURS 71232');">NURS&#160;71232</a>.  Prerequisite:  <a href="/search/?P=NURS%2058333" title="NURS&#160;58333" class="bubblelink code" onclick="return showCourse(this, 'NURS 58333');">NURS&#160;58333</a>, <a href="/search/?P=NURS%2058433" title="NURS&#160;58433" class="bubblelink code" onclick="return showCourse(this, 'NURS 58433');">NURS&#160;58433</a> and <a href="/search/?P=NURS%2065443" title="NURS&#160;65443" class="bubblelink code" onclick="return showCourse(this, 'NURS 65443');">NURS&#160;65443</a>. (Typically offered: Fall)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>NURS&#160;73443.  Full- scope DNP/Specialty Clinical Practicum I.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Under the guidance of a clinical faculty instructor and experienced preceptor, the student will participate in 180 hours of an intensive clinical practicum experience in their chosen specialty area. Students will synthesize and apply advanced nursing knowledge and skills to deliver comprehensive, evidence-based care to individuals, families, and populations. The practicum emphasizes development of clinical expertise, leadership abilities, and systems thinking to improve health outcomes and advance nursing practice. Prerequisite:  <a href="/search/?P=NURS%2058333" title="NURS&#160;58333" class="bubblelink code" onclick="return showCourse(this, 'NURS 58333');">NURS&#160;58333</a> and <a href="/search/?P=NURS%2058433" title="NURS&#160;58433" class="bubblelink code" onclick="return showCourse(this, 'NURS 58433');">NURS&#160;58433</a>. (Typically offered: Spring)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>NURS&#160;74433.  Full- scope DNP/Specialty Clinical and Leadership Practicum II.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Under the guidance of a clinical faculty instructor and experienced preceptor, the student will participate in 180 hours of an intensive clinical practicum experience in their chosen specialty area. Students will also explore local experiences that contribute and align with DNP Essential Outcomes for quality improvement and systems thinking, and proactively seek out leaders in various disciplines to ensure diverse learning opportunities. Students will synthesize and apply advanced nursing knowledge and skills to deliver comprehensive, evidence-based care to individuals, families, and populations. The practicum emphasizes development of clinical expertise, leadership abilities, and systems thinking to improve health outcomes and advance nursing practice. Prerequisite:  <a href="/search/?P=NURS%2058333" title="NURS&#160;58333" class="bubblelink code" onclick="return showCourse(this, 'NURS 58333');">NURS&#160;58333</a> and <a href="/search/?P=NURS%2058433" title="NURS&#160;58433" class="bubblelink code" onclick="return showCourse(this, 'NURS 58433');">NURS&#160;58433</a> or admission to MSN-DNP program. (Typically offered: Spring)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>NURS&#160;75432.  Advanced Practice Registered Nursing (APRN) Residency: A Service-Learning Course.  2 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+The service-learning APRN residency provides students skills to identify potential rural and underserved employment environments, prepare for interviews, and complete pre-employment documents necessary to evolve from graduate DNP students to fully employable, practice-ready APRNs for communities in Arkansas and surrounding states through reflective journaling, discussions, and completion of activities. Pre- or Corequisite:  <a href="/search/?P=NURS%2074433" title="NURS&#160;74433" class="bubblelink code" onclick="return showCourse(this, 'NURS 74433');">NURS&#160;74433</a>. Prerequisite:  <a href="/search/?P=NURS%2073443" title="NURS&#160;73443" class="bubblelink code" onclick="return showCourse(this, 'NURS 73443');">NURS&#160;73443</a>. (Typically offered: Spring)</p></div>
+
+</div>
+</div>
+
+         </main>
+      </div> <!-- end col-content -->
+   </div>
+</section>
+
+	<footer id="footer">
+		<div class="wrap">
+			<div class="footer-logo">
+				<a title="University of Arkansas Home Page" href="https://www.uark.edu">UNIVERSITY OF ARKANSAS</a>
+			</div>
+
+			<div class="footer-top-row">
+				<ul class="college-links">
+					<li>
+						<a title="University of Arkansas Admissions" href="https://www.uark.edu/admissions/index.php">Admissions</a>
+					</li>
+					<li>
+						<a title="University of Arkansas Academics" href="https://www.uark.edu/academics/index.php">Academics</a>
+					</li>
+					<li>
+						<a title="Campus Life at the University of Arkansas" href="https://www.uark.edu/campus-life/index.php">Campus Life</a>
+					</li>
+					<li>
+						<a title="University of Arkansas Research" href="https://www.uark.edu/research/index.php">Research</a>
+					</li>
+					<li>
+						<a title="University of Arkansas Athletics" href="https://www.uark.edu/athletics/index.php">Athletics</a>
+					</li>
+					<li>
+						<a title="About the University of Arkansas" href="https://www.uark.edu/about/index.php">About</a>
+					</li>
+				</ul>
+
+				<ul class="social-media">
+					<li>
+						<a href="https://www.facebook.com/UofArkansas">
+							<span aria-hidden="true" class="fa fa-facebook"></span>
+							<span class="sr-only">Like us on Facebook</span>
+     		 			</a>
+    				</li>
+					<li>
+						<a href="https://twitter.com/uarkansas">
+							<span aria-hidden="true" class="fa fa-twitter"></span>
+							<span class="sr-only">Follow us on Twitter</span>
+     		 			</a>
+    				</li>
+					<li>
+						<a href="https://www.youtube.com/user/UniversityArkansas">
+							<span aria-hidden="true" class="fa fa-youtube-play"></span>
+							<span class="sr-only">Watch us on YouTube</span>
+     		 			</a>
+    				</li>
+					<li>
+						<a href="https://instagram.com/uarkansas">
+							<span aria-hidden="true" class="fa fa-instagram"></span>
+							<span class="sr-only">See us on Instagram</span>
+     		 			</a>
+    				</li>
+					<li>
+						<a href="https://www.linkedin.com/company/university-of-arkansas">
+							<span aria-hidden="true" class="fa fa-linkedin-square"></span>
+							<span class="sr-only">Connect with us on LinkedIn</span>
+     		 			</a>
+    				</li>
+				</ul>
+			</div>
+
+			<hr />
+
+			<div class="footer-main-wrapper">
+				<div class="section-address">
+					<div class="address-map">
+						<a class="map-icon" title="View Campus Maps" href="https://campusmaps.uark.edu/">
+							<span class="fa-duotone fa-map-location-dot"></span>
+						</a>
+
+						<address>
+							1 University of Arkansas
+							<br>
+							Fayetteville, AR 72701
+							<br>
+							<a class="d-inline-block d-lg-none" title="View Campus Maps" href="https://campusmaps.uark.edu/">View Campus Maps</a>
+							<br class="d-block d-lg-none">
+							<a href="tel:+1-479-575-2000" aria-label="4 7 9. 5 7 5. 2 0 0 0. ">479-575-2000</a>
+						  </address>
+					</div>
+					<img class="img-responsive" src="//www.uark.edu/_resources/img/map.png" alt="Map of University of Arkansas Campus">
+				</div>
+
+				<div class="section-news">
+					<a class="sub-header" href="https://news.uark.edu/">NEWS</a>
+					<ul>
+						<li>
+							<a href="https://news.uark.edu/articles/67914/schmieding-foundation-major-and-career-studio-dedicated-in-the-cord" onclick="gaSendEvent(this.href, 'footer-global-links', 'news.uark.edu/articles/67914/schmieding-foundation-major-and-career-studio-dedicated-in-the-cord');">Schmieding Foundation Major and Career Studio Dedicated in the CORD</a>
+						</li>
+						<li>
+							<a href="https://news.uark.edu/articles/67916/community-design-center-s-housing-greenhouse-project-wins-2023-future-house-award" onclick="gaSendEvent(this.href, 'footer-global-links', 'news.uark.edu/articles/67916/community-design-center-s-housing-greenhouse-project-wins-2023-future-house-award');">Community Design Center's Housing, Greenhouse Project Wins 2023 Future House Award</a>
+						</li>
+						<li>
+							<a href="https://news.uark.edu/articles/67915/discover-red-good-vibrations" onclick="gaSendEvent(this.href, 'footer-global-links', 'news.uark.edu/articles/67915/discover-red-good-vibrations');">Discover RED: Good Vibrations</a>
+						</li>
+					</ul>
+				</div>
+
+				<div class="section-news">
+					<a class="sub-header" href="https://calendars.uark.edu/">UPCOMING EVENTS</a>
+					<ul>
+						<li>
+							<a href="https://calendars.uark.edu/event/mydw_fall_workshop_series?utm_campaign=widget&utm_medium=widget&utm_source=University+of+Arkansas">Making Your Day Work: Fall Workshop Series</a>
+						</li>
+						<li>
+							<a href="https://calendars.uark.edu/event/ofa_funding_informational_session_1112?utm_campaign=widget&utm_medium=widget&utm_source=University+of+Arkansas">OFA Funding Informational Session</a>
+						</li>
+						<li>
+							<a href="https://calendars.uark.edu/event/spanish_center_for_tutoring?utm_campaign=widget&utm_medium=widget&utm_source=University+of+Arkansas">Spanish Center for Tutoring</a>
+						</li>
+						<li>
+							<a href="https://calendars.uark.edu/event/invest_for_success_fine-tuning_your_retirement_strategy?utm_campaign=widget&utm_medium=widget&utm_source=University+of+Arkansas">Invest for success: Fine-tuning your retirement strategy</a>
+						</li>
+					</ul>
+				</div>
+
+				<div class="section-button-list">
+					<a href="https://application.uark.edu/"><span aria-hidden="true" class="fas fa-check"></span><strong>APPLY </strong>Online</a>
+					<a href="https://visit.uark.edu/"><span aria-hidden="true" class="fas fa-calendar-alt"></span><strong>Schedule </strong>a Visit</a>
+					<a href="https://onlinegiving.uark.edu/"><span aria-hidden="true" class="fas fa-gift"></span>Make a <strong>Gift </strong></a>
+				</div>
+			</div>
+
+			<hr />
+
+			<ul class="footer-bottom-row">
+				<li><a href="https://emergency.uark.edu/">Emergency Information</a></li>
+				<li><a href="https://report.uark.edu/">Report a Concern</a></li>
+				<li><a href="https://titleix.uark.edu/">Title IX</a></li>
+				<li><a href="https://accessibility.uark.edu/">Accessibility</a></li>
+				<li><a href="https://www.uark.edu/privacy-policy/index.php">Privacy Policy</a></li>
+				<li><a href="https://www.uark.edu/contact-us.php">Contact Us</a></li>
+				<li><a href="https://jobs.uark.edu">Jobs</a></li>
+				<li><a href="https://www.uark.edu/mobile/">Mobile</a></li>
+			</ul>
+
+			<a class="copyright" rel="nofollow" href="https://a.cms.omniupdate.com/11/?skin=uark&amp;account=www&amp;site=www&amp;action=de&amp;path=/index.pcf">
+				Copyright of University of Arkansas
+			</a>
+		</div>
+
+		<a href="#header" id="totop"><span class="sr-only">Back to top</span></a>
+	</footer>
+
+<div id="print-dialog" aria-labelledby="dialog-title" class="screen" role="dialog">
+   <div class="print-header">
+      <button onclick="hidePrintDialog(); return false;" aria-controls="#print-dialog">
+         <span class="sr-only">Close this window</span>
+      </button>
+      <h2 id="dialog-title">Print Options</h2>
+   </div>
+   <div class="print-body">
+      <ul>
+         <li>
+            <p><a class="option-name" href="#"  role="button" onclick="hidePrintDialog();window.print();return false">Send Page to Printer</a></p>
+            <p class="option-desc">Print this page.</p>
+         </li>
+<li><p><a class="option-name" href="/undergraduatecatalog/coursesofinstruction/nurs/nurs.pdf" role="button">Download Page (PDF)</a></p><p class="option-desc">The PDF will include all information unique to this page.</p></li><li><p><a class="option-name" href="/pdf/UARK-Undergrad_2025-26.pdf" target="_blank">Undergraduate Catalog</a></p><p class="option-desc">A PDF of the entire 2025-26 Undergraduate catalog.</p></li><li><p><a class="option-name" href="/pdf/UARK-Grad Catalog_2025-26.pdf" target="_blank">Graduate Catalog</a></p><p class="option-desc">A PDF of the entire 2025-26 Graduate catalog.</p></li><li><p><a class="option-name" href="/pdf/UARK-Law Catalog_2025-26.pdf" target="_blank">Law Catalog</a></p><p class="option-desc">A PDF of the entire 2025-26 Law catalog.</p></li>      </ul>
+   </div>
+</div>
+
+</body>
+</html>

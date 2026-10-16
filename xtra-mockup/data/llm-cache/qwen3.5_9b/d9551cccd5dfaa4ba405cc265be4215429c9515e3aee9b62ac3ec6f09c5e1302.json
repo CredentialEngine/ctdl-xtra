@@ -1,0 +1,43 @@
+{
+  "model": "qwen3.5:9b",
+  "promptVersion": "prerequisite-structure/1",
+  "task": "prerequisite sentence",
+  "sentence": "'B' average and two-thirds (21 hours) of regular requirements for English major completed. Departmental approval and instructor approval required.",
+  "courseCodes": [],
+  "structure": {
+    "kind": "all_of",
+    "quote": "",
+    "items": [
+      {
+        "kind": "text",
+        "quote": "'B' average"
+      },
+      {
+        "kind": "all_of",
+        "quote": "",
+        "items": [
+          {
+            "kind": "text",
+            "quote": "two-thirds (21 hours) of regular requirements for English major completed"
+          }
+        ]
+      },
+      {
+        "kind": "all_of",
+        "quote": "",
+        "items": [
+          {
+            "kind": "text",
+            "quote": "Departmental approval"
+          },
+          {
+            "kind": "text",
+            "quote": "and instructor approval required"
+          }
+        ]
+      }
+    ]
+  },
+  "argument": "The sentence begins with 'B' average and two-thirds (21 hours) of regular requirements for English major completed. Departmental approval and instructor approval required.' The first 'and' connects the grade requirement ('B' average') with the coursework completion requirement, forming an 'all_of' group where both must be met. Within the coursework completion phrase, 'two-thirds (21 hours) of regular requirements for English major completed' is a single condition. The second 'and' connects 'Departmental approval' with 'instructor approval required', creating another 'all_of' group where both approvals are mandatory. According to the CTDL definition of ceterms:alternativeCondition, this structure represents a context where multiple conditions (the grade/coursework block AND the dual approval block) must be satisfied, effectively treating the entire sentence as an 'all_of' relationship between its primary components.",
+  "seconds": 12.1
+}

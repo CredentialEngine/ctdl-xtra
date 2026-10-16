@@ -1,0 +1,19 @@
+{
+  "model": "qwen3.5:9b",
+  "promptVersion": "prerequisite-structure/1",
+  "task": "prerequisite sentence",
+  "sentence": "Graduate students majoring in Computer Engineering, Computer Science, or Electrical Engineering.",
+  "courseCodes": [],
+  "structure": {
+    "kind": "any_of",
+    "quote": "",
+    "items": [
+      {
+        "kind": "text",
+        "quote": "Graduate students majoring in Computer Engineering, Computer Science, or Electrical Engineering."
+      }
+    ]
+  },
+  "argument": "The sentence describes a single condition ('Graduate students majoring in...') that applies if the student fits into one of three categories. Since the list uses 'or' to separate the specific majors (Computer Engineering, Computer Science, or Electrical Engineering), this constitutes an 'any_of' relationship where satisfying any one of these descriptions fulfills the requirement. The entire phrase is treated as a single text node because it describes a group of students rather than listing distinct course codes.",
+  "seconds": 5.7
+}

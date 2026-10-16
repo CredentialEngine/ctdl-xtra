@@ -1,0 +1,23 @@
+{
+  "model": "qwen3.5:9b",
+  "promptVersion": "prerequisite-structure/1",
+  "task": "prerequisite sentence",
+  "sentence": "Honors standing or English ACT score of 28 or above.",
+  "courseCodes": [],
+  "structure": {
+    "kind": "any_of",
+    "quote": "",
+    "items": [
+      {
+        "kind": "text",
+        "quote": "Honors standing"
+      },
+      {
+        "kind": "text",
+        "quote": "English ACT score of 28 or above"
+      }
+    ]
+  },
+  "argument": "The sentence uses the word 'or' to connect two distinct conditions ('Honors standing' and 'English ACT score of 28 or above'). According to the CTDL definition of ceterms:alternativeCondition, this represents a context where 'more than one alternative condition... has been defined and from which any one path fulfills the parent condition.' Therefore, the logical structure is an 'any_of' node containing these two text items. No course codes are present in the sentence.",
+  "seconds": 6.0
+}

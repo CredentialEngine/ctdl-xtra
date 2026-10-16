@@ -1,0 +1,828 @@
+
+
+<!doctype html>
+<html class="no-js" xml:lang="en" lang="en" dir="ltr">
+
+<head>
+<meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+<meta name="searchCrawler:site" content="https://catalog.uark.edu/">
+<meta name="searchCrawler:sectionType" content="Catalog of Studies">
+<title>Chemistry and Biochemistry (CHEM) &lt; University of Arkansas</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<meta property="og:site_name" content="Academic Catalog" />
+<meta name="description" content="Courses available in Chemistry and Biochemistry." />
+<link rel="search" type="application/opensearchdescription+xml"
+			href="/search/opensearch.xml" title="Catalog" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0" />
+<link href="/images/favicon.ico" rel="shortcut icon" />
+<link rel="stylesheet" type="text/css" href="/css/reset.css" />
+<link href="https://fonts.googleapis.com/css?family=Roboto:400,400i,500,500i,700,700i" rel="stylesheet">
+<link rel="stylesheet" type="text/css" href="/fonts/font-awesome/font-awesome.min.css" />
+<link rel="stylesheet" type="text/css" href="/css/courseleaf.css?v=1786050808000" />
+<link rel="stylesheet" type="text/css" href="/css/screen.css?v=1786050808000" media="screen" />
+<link rel="stylesheet" type="text/css" href="/css/print.css?v=1786050808000" media="print" />
+<script type="text/javascript" src="/js/jquery.js"></script>
+<script type="text/javascript" src="/js/lfjs.js"></script>
+<script type="text/javascript" src="/js/lfjs_any.js"></script>
+<link rel="stylesheet" type="text/css" href="/js/lfjs.css?v=1786050812000" />
+<script type="text/javascript" src="/js/courseleaf.js?v=1786050812000"></script>
+<script type="text/javascript" src="/js/custom.js?v=1786050812000"></script>
+<script type="text/javascript">var gakey = "GTM-N5Z7HW";</script><script type="text/javascript" src="/js/analytics.js"></script>
+
+
+
+<!-- Google Tag Manager -->
+<script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+})(window,document,'script','dataLayer','GTM-N5Z7HW');</script>
+<!-- End Google Tag Manager -->
+
+
+
+
+
+
+
+
+
+</head>
+
+
+
+<body class="">
+
+
+
+
+	<nav aria-label="Skip content menu" class="accessible">
+		<div class="accessible-menu">
+			<ul>
+				<li><a href="#contentarea" rel="section">Skip to Content</a></li>
+				<li><a href="/azindex/">AZ Index</a></li>
+				<li><a href="/">Catalog Home</a></li>
+			</ul>
+		</div>
+	</nav>
+
+	<header id="header">
+		<div class="wrap">
+		<div class="header-title">
+			<div id="logo">
+				<a href="https://www.uark.edu/"><img src="/images/logo.svg" alt="University of Arkansas Logo" /></a>
+			</div>
+			
+			<a href="/" class="catalog-text">Catalog of Studies</a>
+		</div>
+
+			<div class="desktop__sub-menu">
+				<button
+				id="dropdown-button"
+				class="link-dropdown"
+				aria-controls="link-list"
+    			aria-expanded="false"
+				data-toggle="#link-list"
+				><span aria-hidden="true" class="fas fa-angle-double-down"></span>LINKS</button>
+
+				<ul id="link-list">
+					<div>
+						<li><a href="https://www.uark.edu/a-to-z.php">A-Z Index</a></li>
+						<li><a href="https://learn.uark.edu/">Blackboard Learn</a></li>
+						<li><a href="https://campusmaps.uark.edu/">Campus Map</a></li>
+						<li><a href="https://uaconnect.uark.edu/">UAConnect</a></li>
+					</div>
+					<div>
+						<li><a href="https://directory.uark.edu/">Directory</a></li>
+						<li><a href="https://outlook.office.com">Email</a></li>
+						<li><a href="https://myapps.microsoft.com/">myApps</a></li>
+						<li><a href="https://wd5.myworkday.com/wday/authgwy/uasys/login-saml2.htmld">Workday</a></li>
+					</div>
+				</ul>
+
+				<div class="desktop__search" id="cat-search">
+					<form action="/search/">
+						<label for="cat-search-term-desktop" class="sr-only">Search catalog</label>
+						<input class="search-field" type="text" name="search" id="cat-search-term-desktop" placeholder="Search this site" />
+						<button class="search-button" type="submit">
+							<span class="fa fa-search" aria-hidden="true"></span>
+							<span class="sr-only">Submit search</span>
+						</button>
+<!-- <input type="hidden" name="caturl" value="/undergraduatecatalog" /> -->
+					</form>
+				</div>
+			</div>
+
+			<div class="menu-button">
+				<button
+				id="menu-button--open"
+				aria-controls="example-div"
+				aria-expanded="false"
+				data-toggle="#example-div">MENU <span class="fa fa-bars" aria-hidden="true"></span></button>
+			</div>
+		</div>
+
+		<section id="local-header">
+			<div class="wrap">
+				<nav id="navigation" aria-label="Secondary" aria-hidden="false">
+					<ul id="main-nav" class="clearfix">
+						<li><a href="/">Home</a></li>
+						<li><a href="/generalinfo">General Info</a></li>
+						<li><a href="/undergraduatecatalog">Undergraduate Catalog</a></li>
+						<li><a href="/graduatecatalog">Graduate Catalog</a></li>
+						<li><a href="/lawcatalog">Law Catalog</a></li>
+						<li><a href="/archives">Archive</a></li>
+						<li><button onclick="showPrintDialog(); return false;">Print</button></li>
+					</ul>
+				</nav>
+			</div>
+		</section>
+	</header>
+	
+	<div class="menu-modal"></div>
+	
+	<section
+		id="example-div"
+		class="mobile-nav-wrapper"
+		aria-hidden="true"
+		aria-controls="example-div"
+		aria-expanded="false" >
+		<div class="mobile-nav--close">
+			<button id="menu-button--close">CLOSE <span class="fa-solid fa-circle-xmark" aria-hidden="true"></span></button>
+		</div>
+
+		<div class="search" id="cat-search">
+			<form action="/search/">
+				<label for="cat-search-term" class="sr-only">Search catalog</label>
+				<input class="search-field" type="text" name="search" id="cat-search-term" placeholder="Search this site" />
+				<button class="search-button" type="submit">SEARCH
+					<span class="sr-only">Submit search</span>
+				</button>
+			</form>
+		</div>
+
+		<nav class="mobile-nav--main-menu">
+			<ul>
+				<li><a href="/">Home</a></li>
+				<li><a href="/generalinfo">General Info</a></li>
+				<li><a href="/undergraduatecatalog">Undergraduate Catalog</a></li>
+				<li><a href="/graduatecatalog">Graduate Catalog</a></li>
+				<li><a href="/lawcatalog">Law Catalog</a></li>
+				<li><a href="/archives">Archive</a></li>
+				<li><button onclick="showPrintDialog(); return false;">Print</button></li>
+			</ul>
+		</nav>
+
+		<div class="mobile-nav--sub-menu">
+			<nav>
+				<ul>
+					<li><a href="https://www.uark.edu/a-to-z.php">A-Z Index</a></li>
+					<li><a href="https://learn.uark.edu/">Blackboard Learn</a></li>
+					<li><a href="https://campusmaps.uark.edu/">Campus Map</a></li>
+					<li><a href="https://uaconnect.uark.edu/">UAConnect</a></li>
+					<li><a href="https://directory.uark.edu/">Directory</a></li>
+					<li><a href="https://outlook.office.com">Email</a></li>
+					<li><a href="https://myapps.microsoft.com/">myApps</a></li>
+					<li><a href="https://wd5.myworkday.com/wday/authgwy/uasys/login-saml2.htmld">Workday</a></li>
+				</ul>
+			</nav>
+
+			<picture>
+				<source type="image/webp" srcset="https://includes.uark.edu/assets/tower-grey.webp">
+				<source type="image/jpeg" srcset="https://includes.uark.edu/assets/tower-grey.png"><img src="https://includes.uark.edu/assets/tower-grey.png" alt="">
+			</picture>
+		</div>
+	</section>
+
+<section id="content-container">
+   <div class="wrap">
+      <div id="col-nav">
+         <button id="sidebar-toggle" aria-expanded="false" data-toggle="#sidebar">
+            <span class="fa fa-bars" aria-hidden="true"></span>
+            <span>2026-27 Edition</span>
+         </button>
+         <aside id="sidebar">
+            <div class="sidebar-item">
+               <h2 id="edition" class="sidebar-header"><a href="/">2026-27 Edition</a></h2>
+               <nav id="cl-menu" aria-label="Primary">
+<ul class="nav levelzero" id="/">
+	<li class="isparent"><a href="/generalinfo/">General Information</a></li>
+	<li class="active isparent"><a href="/undergraduatecatalog/">Undergraduate Catalog</a>
+	<ul class="nav levelone" id="/undergraduatecatalog/">
+		<li><a href="/undergraduatecatalog/contactinformation/">Contact Information</a></li>
+		<li><a href="/undergraduatecatalog/fieldsofstudy/">Programs of Study</a></li>
+		<li class="isparent"><a href="/undergraduatecatalog/enrollmentservices/">Enrollment Services</a></li>
+		<li class="isparent"><a href="/undergraduatecatalog/financialaidandscholarships/">Financial Aid and Scholarships</a></li>
+		<li class="isparent"><a href="/undergraduatecatalog/orientationandregistration/">Registration</a></li>
+		<li class="isparent"><a href="/undergraduatecatalog/feeandcosts/">Fees &amp;&#8203; Cost Estimates</a></li>
+		<li class="isparent"><a href="/undergraduatecatalog/academicregulations/">Academic Regulations</a></li>
+		<li class="isparent"><a href="/undergraduatecatalog/collegesandschools/">Colleges and Schools</a></li>
+		<li class="isparent"><a href="/undergraduatecatalog/reserveofficertrainingcorps/">ROTC</a></li>
+		<li><a href="/undergraduatecatalog/servicelearning/">Service Learning</a></li>
+		<li><a href="/undergraduatecatalog/faculty/">Undergraduate Faculty</a></li>
+		<li class="active isparent"><a href="/undergraduatecatalog/coursesofinstruction/">Courses of Instruction</a>
+		<ul class="nav leveltwo" id="/undergraduatecatalog/coursesofinstruction/">
+			<li class="active self"><a href="#" onclick="return false;">Chemistry and Biochemistry (CHEM)</a></li>
+		</ul>
+		</li>
+		<li><a href="/undergraduatecatalog/glossary/">Glossary</a></li>
+	</ul>
+	</li>
+	<li class="isparent"><a href="/graduatecatalog/">Graduate Catalog</a></li>
+	<li class="isparent"><a href="/lawcatalog/">School of Law</a></li>
+	<li><a href="/archives/">Archives</a></li>
+</ul>
+               </nav>
+            </div>
+
+            <button id="print-btn" href="#print-dialog" onclick="showPrintDialog(); return false;">
+               <span class="fa fa-print" aria-hidden="true"></span> Print Options
+            </button>
+         </aside>
+      </div> <!-- end col-nav -->
+      <div id="col-content">
+			<main id="contentarea">
+			
+			
+				<header>
+					<h1 class="page-title">Chemistry and Biochemistry (CHEM)</h1>
+				</header>
+				
+<nav id="breadcrumb" aria-label="Breadcrumbs">
+<ul><li><a href="/">Catalog&nbsp;Home</a><span class="crumbsep">›</span></li><li><a href="/undergraduatecatalog/">Undergraduate&nbsp;Catalog</a><span class="crumbsep">›</span></li><li><a href="/undergraduatecatalog/coursesofinstruction/">Courses&nbsp;of&nbsp;Instruction</a><span class="crumbsep">›</span></li><li><span class="active">Chemistry and Biochemistry (CHEM)</span></li></ul>
+</nav>
+
+
+
+
+
+<div id="textcontainer" class="page_content">
+
+</div><!--end #textcontainer -->
+
+<div id="courseinventorycontainer" class="page_content"><a name="courseinventory"></a>
+<div class="courses">
+<div class="notinpdf"><a name="chemcourses"></a></div>
+<h3>Courses</h3>
+
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>CHEM&#160;10001.  Chemistry in the Modern World Laboratory (ACTS Equivalency = CHEM 1004 Lab).  1 Hour.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Basic laboratory exercises involving measurements of mass and volume, acids and bases, hardness of water, energy content in fuel, sugar content in drinks, and radioactivity. Meets 2 hours per week. Corequisite:  <a href="/search/?P=CHEM%2010003" title="CHEM&#160;10003" class="bubblelink code" onclick="return showCourse(this, 'CHEM 10003');">CHEM&#160;10003</a>. (Typically offered: Fall and Spring)<br />
+</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>CHEM&#160;10003.  Chemistry in the Modern World (ACTS Equivalency = CHEM 1004 Lecture).  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+The impact of chemical developments upon contemporary society. Chemical problems of ecological, environmental, nutritional, economic, and sociological concern. Designed for non-science majors. Lecture 3 hours per week. Corequisite:  <a href="/search/?P=CHEM%2010001" title="CHEM&#160;10001" class="bubblelink code" onclick="return showCourse(this, 'CHEM 10001');">CHEM&#160;10001</a>. (Typically offered: Fall and Spring)<br />
+</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>CHEM&#160;12071.  Chemistry for Majors I Laboratory.  1 Hour.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Laboratory exercises involving density, types of chemical reactions separations and chromatography, solubility, waters of hydration, freezing point depression, gas laws, and data interpretation. Laboratory notebooks are required as part of every experiment. Laboratory 3 hours per week. Students may not receive credit for both <a href="/search/?P=CHEM%2012071" title="CHEM&#160;12071" class="bubblelink code" onclick="return showCourse(this, 'CHEM 12071');">CHEM&#160;12071</a> and <a href="/search/?P=CHEM%2014101" title="CHEM&#160;14101" class="bubblelink code" onclick="return showCourse(this, 'CHEM 14101');">CHEM&#160;14101</a>.  Corequisite:  <a href="/search/?P=CHEM%2012073" title="CHEM&#160;12073" class="bubblelink code" onclick="return showCourse(this, 'CHEM 12073');">CHEM&#160;12073</a> and related course component drill for <a href="/search/?P=CHEM%2012073" title="CHEM&#160;12073" class="bubblelink code" onclick="return showCourse(this, 'CHEM 12073');">CHEM&#160;12073</a>. (Typically offered: Fall)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>CHEM&#160;12073.  Chemistry for Majors I.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+The first half of a two-semester course designed especially for students planning to major in chemistry or biochemistry. Students may not receive credit for both <a href="/search/?P=CHEM%2012073" title="CHEM&#160;12073" class="bubblelink code" onclick="return showCourse(this, 'CHEM 12073');">CHEM&#160;12073</a> and <a href="/search/?P=CHEM%2014103" title="CHEM&#160;14103" class="bubblelink code" onclick="return showCourse(this, 'CHEM 14103');">CHEM&#160;14103</a>. Corequisite:  <a href="/search/?P=CHEM%2012071" title="CHEM&#160;12071" class="bubblelink code" onclick="return showCourse(this, 'CHEM 12071');">CHEM&#160;12071</a> and related course component drill section for <a href="/search/?P=CHEM%2012073" title="CHEM&#160;12073" class="bubblelink code" onclick="return showCourse(this, 'CHEM 12073');">CHEM&#160;12073</a>. Prerequisite:  <a href="/search/?P=MATH%2011003" title="MATH&#160;11003" class="bubblelink code" onclick="return showCourse(this, 'MATH 11003');">MATH&#160;11003</a> or higher, or AP Calculus AB 3C or higher, or AP Calculus BC 4C or higher, or <a href="/search/?P=MATH%2011003" title="MATH&#160;11003" class="bubblelink code" onclick="return showCourse(this, 'MATH 11003');">MATH&#160;11003</a> CLEP with a score of 54 or higher, or UA Math Placement 46 or higher, or ACT MATH 22 or higher, or new SAT MATH 540/old SAT MATH 540 or higher. (Typically offered: Fall)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>CHEM&#160;12101.  Fundamentals of Chemistry Laboratory (ACTS Equivalency = CHEM 1214 Lab).  1 Hour.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Laboratory exercises in principles and practices of Fundamental Chemistry.  Corequisite:  <a href="/search/?P=CHEM%2012103" title="CHEM&#160;12103" class="bubblelink code" onclick="return showCourse(this, 'CHEM 12103');">CHEM&#160;12103</a>. (Typically offered: Fall)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>CHEM&#160;12103.  Fundamentals of Chemistry (ACTS Equivalency = CHEM 1214 Lecture).  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+One-semester introductory-level general chemistry course introducing select fundamental concepts and related problem-solving for atomic and molecular structures, nomenclature, dimensional analysis, chemical reactions, chemical bonding, intermolecular forces, states of matter, solutions, acid-base reactions, redox reactions, kinetics, thermochemistry, and chemical equilibrium. Corequisite:  <a href="/search/?P=CHEM%2012101" title="CHEM&#160;12101" class="bubblelink code" onclick="return showCourse(this, 'CHEM 12101');">CHEM&#160;12101</a> and related course component drill section for <a href="/search/?P=CHEM%2012103" title="CHEM&#160;12103" class="bubblelink code" onclick="return showCourse(this, 'CHEM 12103');">CHEM&#160;12103</a>. (Typically offered: Fall and Summer)<br />
+</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>CHEM&#160;12281.  Chemistry for Majors II Laboratory.  1 Hour.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Qualitative and quantitative laboratory with data interpretation and exercises covering the topics of stoichiometry, thermodynamics, kinetics, chemical equilibrium, pH, and descriptive inorganic chemistry. Laboratory notebooks are required as part of every experiment. Laboratory 3 hours per week. Students may not receive credit for both <a href="/search/?P=CHEM%2012281" title="CHEM&#160;12281" class="bubblelink code" onclick="return showCourse(this, 'CHEM 12281');">CHEM&#160;12281</a> and <a href="/search/?P=CHEM%2014201" title="CHEM&#160;14201" class="bubblelink code" onclick="return showCourse(this, 'CHEM 14201');">CHEM&#160;14201</a>. Corequisite:  <a href="/search/?P=CHEM%2012283" title="CHEM&#160;12283" class="bubblelink code" onclick="return showCourse(this, 'CHEM 12283');">CHEM&#160;12283</a> and related course component drill for <a href="/search/?P=CHEM%2012283" title="CHEM&#160;12283" class="bubblelink code" onclick="return showCourse(this, 'CHEM 12283');">CHEM&#160;12283</a>. (Typically offered: Spring)<br />
+This course is equivalent to <a href="/search/?P=CHEM%2014201" title="CHEM&#160;14201" class="bubblelink code" onclick="return showCourse(this, 'CHEM 14201');">CHEM&#160;14201</a>.<br />
+</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>CHEM&#160;12283.  Chemistry for Majors II.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+The second half of a two-semester course designed specifically for students planning to major in chemistry or biochemistry. Students may not receive credit for both <a href="/search/?P=CHEM%2012283" title="CHEM&#160;12283" class="bubblelink code" onclick="return showCourse(this, 'CHEM 12283');">CHEM&#160;12283</a> and <a href="/search/?P=CHEM%2014203" title="CHEM&#160;14203" class="bubblelink code" onclick="return showCourse(this, 'CHEM 14203');">CHEM&#160;14203</a>.  Pre- or Corequisite:  <a href="/search/?P=MATH%2013004" title="MATH&#160;13004" class="bubblelink code" onclick="return showCourse(this, 'MATH 13004');">MATH&#160;13004</a> or higher. Corequisite:  <a href="/search/?P=CHEM%2012281" title="CHEM&#160;12281" class="bubblelink code" onclick="return showCourse(this, 'CHEM 12281');">CHEM&#160;12281</a> and related course component drill section for <a href="/search/?P=CHEM%2012283" title="CHEM&#160;12283" class="bubblelink code" onclick="return showCourse(this, 'CHEM 12283');">CHEM&#160;12283</a>. Prerequisite:  <a href="/search/?P=CHEM%2012073" title="CHEM&#160;12073" class="bubblelink code" onclick="return showCourse(this, 'CHEM 12073');">CHEM&#160;12073</a> and <a href="/search/?P=CHEM%2012071" title="CHEM&#160;12071" class="bubblelink code" onclick="return showCourse(this, 'CHEM 12071');">CHEM&#160;12071</a> (or <a href="/search/?P=CHEM%2014103" title="CHEM&#160;14103" class="bubblelink code" onclick="return showCourse(this, 'CHEM 14103');">CHEM&#160;14103</a> and <a href="/search/?P=CHEM%2014101" title="CHEM&#160;14101" class="bubblelink code" onclick="return showCourse(this, 'CHEM 14101');">CHEM&#160;14101</a>). (Typically offered: Spring)<br />
+This course is equivalent to <a href="/search/?P=CHEM%2014203" title="CHEM&#160;14203" class="bubblelink code" onclick="return showCourse(this, 'CHEM 14203');">CHEM&#160;14203</a>.<br />
+</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>CHEM&#160;14101.  University Chemistry I Laboratory (ACTS Equivalency = CHEM 1414 Lab).  1 Hour.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Laboratory exercises involving density, types of chemical reactions separations and chromatography, solubility, waters of hydration, freezing point depression, gas laws, and data interpretation. Meets 3 hours per week for 1 hour credit. Pre- or Corequisite:  <a href="/search/?P=CHEM%2014103" title="CHEM&#160;14103" class="bubblelink code" onclick="return showCourse(this, 'CHEM 14103');">CHEM&#160;14103</a>. (Typically offered: Fall, Spring and Summer)<br />
+</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>CHEM&#160;14103.  University Chemistry I (ACTS Equivalency = CHEM 1414 Lecture).  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+An introductory course for science, engineering or agriculture majors. Atomic structure, electron configurations and periodic properties, nomenclature and bonding in compounds, Lewis structure and resonance forms, molecular geometries and polarity, stoichiometry, solution chemistry and aqueous reactions, thermochemistry, gas laws and kinetic molecular theory. Corequisite:  Drill component. Prerequisite:  <a href="/search/?P=MATH%2011003" title="MATH&#160;11003" class="bubblelink code" onclick="return showCourse(this, 'MATH 11003');">MATH&#160;11003</a> or higher, or AP Calculus AB 3C or higher, or AP Calculus BC 4C or higher, or <a href="/search/?P=MATH%2011003" title="MATH&#160;11003" class="bubblelink code" onclick="return showCourse(this, 'MATH 11003');">MATH&#160;11003</a> CLEP 54 or higher, or UA Math Placement 46 or higher,  or ACT MATH 22 or higher, or new SAT MATH 540/old SAT MATH 540 or higher. (Typically offered: Fall, Spring and Summer)<br />
+</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>CHEM&#160;14201.  University Chemistry II Laboratory (ACTS Equivalency = CHEM 1424 Lab).  1 Hour.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Quantitative laboratory with data interpretation and exercises covering the topics of stoichiometry, thermodynamics, kinetics, chemical equilibrium, pH, and descriptive inorganic chemistry. Laboratory 3 hours per week. Upon completion of <a href="/search/?P=CHEM%2014201" title="CHEM&#160;14201" class="bubblelink code" onclick="return showCourse(this, 'CHEM 14201');">CHEM&#160;14201</a> on the UAF campus with a grade of &quot;C&quot; or better, credit for <a href="/search/?P=CHEM%2014101" title="CHEM&#160;14101" class="bubblelink code" onclick="return showCourse(this, 'CHEM 14101');">CHEM&#160;14101</a> can be requested. Corequisite:  <a href="/search/?P=CHEM%2014203" title="CHEM&#160;14203" class="bubblelink code" onclick="return showCourse(this, 'CHEM 14203');">CHEM&#160;14203</a> and related course component drill section for <a href="/search/?P=CHEM%2014203" title="CHEM&#160;14203" class="bubblelink code" onclick="return showCourse(this, 'CHEM 14203');">CHEM&#160;14203</a>. (Typically offered: Fall, Spring and Summer)<br />
+</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>CHEM&#160;14203.  University Chemistry II (ACTS Equivalency = CHEM 1424 Lecture).  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Introductory course for science, engineering or agriculture majors. Liquids, solids, intermolecular forces, phase diagrams, solution chemistry, solubility, colligative properties, chemical kinetics, chemical equilibria, acid-base equilibria, aqueous ionic equilibria, titrations, buffers, solubility equilibria, thermodynamics, electrochemistry, and nuclear chemistry.  Lecture 3 hours per week. Corequisite:  <a href="/search/?P=CHEM%2014201" title="CHEM&#160;14201" class="bubblelink code" onclick="return showCourse(this, 'CHEM 14201');">CHEM&#160;14201</a> and related course component drill section for <a href="/search/?P=CHEM%2014203" title="CHEM&#160;14203" class="bubblelink code" onclick="return showCourse(this, 'CHEM 14203');">CHEM&#160;14203</a>.  Prerequisite:  <a href="/search/?P=CHEM%2014103" title="CHEM&#160;14103" class="bubblelink code" onclick="return showCourse(this, 'CHEM 14103');">CHEM&#160;14103</a> (or <a href="/search/?P=CHEM%2012073" title="CHEM&#160;12073" class="bubblelink code" onclick="return showCourse(this, 'CHEM 12073');">CHEM&#160;12073</a>, or satisfactory performance on the chemistry proficiency exam) and <a href="/search/?P=MATH%2011003" title="MATH&#160;11003" class="bubblelink code" onclick="return showCourse(this, 'MATH 11003');">MATH&#160;11003</a> or higher, or AP Calculus AB 3C or higher, or AP Calculus BC 4C or higher, or <a href="/search/?P=MATH%2011003" title="MATH&#160;11003" class="bubblelink code" onclick="return showCourse(this, 'MATH 11003');">MATH&#160;11003</a> CLEP with a score of  54 or higher, or UA Math Placement 46 or higher, or ACT MATH 22 or higher, or new SAT MATH 540/old SAT Math 540 or higher. (Typically offered: Fall, Spring and Summer)<br />
+</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>CHEM&#160;142H1.  Honors University Chemistry II Laboratory.  1 Hour.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Qualitative and quantitative laboratory with data interpretation and exercises covering the topics of stoichiometry, thermodynamics, kinetics, chemical equilibrium, pH, and descriptive inorganic chemistry. Laboratory notebooks are required as part of every experiment. Designed for students in the honors programs. Laboratory 3 hours per week. Corequisite:  <a href="/search/?P=CHEM%20142H3" title="CHEM&#160;142H3" class="bubblelink code" onclick="return showCourse(this, 'CHEM 142H3');">CHEM&#160;142H3</a> and related course component drill for <a href="/search/?P=CHEM%20142H3" title="CHEM&#160;142H3" class="bubblelink code" onclick="return showCourse(this, 'CHEM 142H3');">CHEM&#160;142H3</a>. (Typically offered: Fall and Spring)<br />
+This course is equivalent to <a href="/search/?P=CHEM%2014201" title="CHEM&#160;14201" class="bubblelink code" onclick="return showCourse(this, 'CHEM 14201');">CHEM&#160;14201</a>.<br />
+</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>CHEM&#160;142H3.  Honors University Chemistry II.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Presents the topics of periodicity, bonding, stoichiometry, thermodynamics, kinetics, and chemical equilibrium in detail. Lecture 3 hours per week. Students with satisfactory performance on the proficiency exam and who complete <a href="/search/?P=CHEM%20142H3" title="CHEM&#160;142H3" class="bubblelink code" onclick="return showCourse(this, 'CHEM 142H3');">CHEM&#160;142H3</a> on the UAF campus with a grade of &quot;C&quot; or better can request credit for <a href="/search/?P=CHEM%2014103" title="CHEM&#160;14103" class="bubblelink code" onclick="return showCourse(this, 'CHEM 14103');">CHEM&#160;14103</a>. Pre- or Corequisite:  <a href="/search/?P=MATH%2013004" title="MATH&#160;13004" class="bubblelink code" onclick="return showCourse(this, 'MATH 13004');">MATH&#160;13004</a> or higher. Corequisite:  <a href="/search/?P=CHEM%20142H1" title="CHEM&#160;142H1" class="bubblelink code" onclick="return showCourse(this, 'CHEM 142H1');">CHEM&#160;142H1</a> and related course component drill section for <a href="/search/?P=CHEM%20142H3" title="CHEM&#160;142H3" class="bubblelink code" onclick="return showCourse(this, 'CHEM 142H3');">CHEM&#160;142H3</a>. Prerequisite:  Honors candidacy and <a href="/search/?P=CHEM%2014103" title="CHEM&#160;14103" class="bubblelink code" onclick="return showCourse(this, 'CHEM 14103');">CHEM&#160;14103</a> (or <a href="/search/?P=CHEM%2012073" title="CHEM&#160;12073" class="bubblelink code" onclick="return showCourse(this, 'CHEM 12073');">CHEM&#160;12073</a>, or satisfactory performance on the chemistry proficiency exam). (Typically offered: Fall, Spring and Summer)<br />
+This course is equivalent to <a href="/search/?P=CHEM%2014203" title="CHEM&#160;14203" class="bubblelink code" onclick="return showCourse(this, 'CHEM 14203');">CHEM&#160;14203</a>.<br />
+</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>CHEM&#160;22671.  Analytical Chemistry Laboratory.  1 Hour.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Covers techniques of classical and instrumental methods of chemical separation and analysis. Laboratory 4 hours per week. Chemistry Majors/Minors must take analytical lecture and lab prior to any physical chemistry course. Chemistry Majors/Minors should take analytical lecture and lab together. Pre- or Corequisite:  <a href="/search/?P=CHEM%2022673" title="CHEM&#160;22673" class="bubblelink code" onclick="return showCourse(this, 'CHEM 22673');">CHEM&#160;22673</a>. Prerequisite: (<a href="/search/?P=CHEM%2014203" title="CHEM&#160;14203" class="bubblelink code" onclick="return showCourse(this, 'CHEM 14203');">CHEM&#160;14203</a> and <a href="/search/?P=CHEM%2014201" title="CHEM&#160;14201" class="bubblelink code" onclick="return showCourse(this, 'CHEM 14201');">CHEM&#160;14201</a>) or (<a href="/search/?P=CHEM%20142H3" title="CHEM&#160;142H3" class="bubblelink code" onclick="return showCourse(this, 'CHEM 142H3');">CHEM&#160;142H3</a> and <a href="/search/?P=CHEM%20142H1" title="CHEM&#160;142H1" class="bubblelink code" onclick="return showCourse(this, 'CHEM 142H1');">CHEM&#160;142H1</a>) or (<a href="/search/?P=CHEM%2012283" title="CHEM&#160;12283" class="bubblelink code" onclick="return showCourse(this, 'CHEM 12283');">CHEM&#160;12283</a> and <a href="/search/?P=CHEM%2012281" title="CHEM&#160;12281" class="bubblelink code" onclick="return showCourse(this, 'CHEM 12281');">CHEM&#160;12281</a>) or (<a href="/search/?P=CHEM%2012103" title="CHEM&#160;12103" class="bubblelink code" onclick="return showCourse(this, 'CHEM 12103');">CHEM&#160;12103</a> and <a href="/search/?P=CHEM%2012101" title="CHEM&#160;12101" class="bubblelink code" onclick="return showCourse(this, 'CHEM 12101');">CHEM&#160;12101</a>) and <a href="/search/?P=MATH%2011003" title="MATH&#160;11003" class="bubblelink code" onclick="return showCourse(this, 'MATH 11003');">MATH&#160;11003</a> or higher, or AP Calculus AB 3C or higher, or AP Calculus BC 4C or higher, or CLEP College Algebra 54 or higher. (Typically offered: Fall and Spring)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>CHEM&#160;22673.  Analytical Chemistry Lecture.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Principles of chemical separations, analysis by classical and instrumental methods, and chemical equilibrium in physical and biological systems. Lecture 3 hours per week. Chemistry Majors/Minors must take analytical lecture and lab prior to any physical chemistry course. Chemistry Majors/Minors should take analytical lecture and lab together. Prerequisite: ((<a href="/search/?P=CHEM%2014203" title="CHEM&#160;14203" class="bubblelink code" onclick="return showCourse(this, 'CHEM 14203');">CHEM&#160;14203</a> and <a href="/search/?P=CHEM%2014201" title="CHEM&#160;14201" class="bubblelink code" onclick="return showCourse(this, 'CHEM 14201');">CHEM&#160;14201</a>) or (<a href="/search/?P=CHEM%20142H3" title="CHEM&#160;142H3" class="bubblelink code" onclick="return showCourse(this, 'CHEM 142H3');">CHEM&#160;142H3</a> and <a href="/search/?P=CHEM%20142H1" title="CHEM&#160;142H1" class="bubblelink code" onclick="return showCourse(this, 'CHEM 142H1');">CHEM&#160;142H1</a>) or (<a href="/search/?P=CHEM%2012283" title="CHEM&#160;12283" class="bubblelink code" onclick="return showCourse(this, 'CHEM 12283');">CHEM&#160;12283</a> and <a href="/search/?P=CHEM%2012281" title="CHEM&#160;12281" class="bubblelink code" onclick="return showCourse(this, 'CHEM 12281');">CHEM&#160;12281</a>) or (<a href="/search/?P=CHEM%2012103" title="CHEM&#160;12103" class="bubblelink code" onclick="return showCourse(this, 'CHEM 12103');">CHEM&#160;12103</a> and <a href="/search/?P=CHEM%2012101" title="CHEM&#160;12101" class="bubblelink code" onclick="return showCourse(this, 'CHEM 12101');">CHEM&#160;12101</a>)) and ((<a href="/search/?P=MATH%2011003" title="MATH&#160;11003" class="bubblelink code" onclick="return showCourse(this, 'MATH 11003');">MATH&#160;11003</a> or higher) or (AP Calculus AB 3C or higher) or (AP Calculus BC 4C or higher) or (<a href="/search/?P=MATH%2011003" title="MATH&#160;11003" class="bubblelink code" onclick="return showCourse(this, 'MATH 11003');">MATH&#160;11003</a> CLEP score of College Algebra 54 or higher) or (UA Math Placement 46 or higher) or (ACT MATH 22 or higher) or (old/new SAT MATH of 540 or higher)). (Typically offered: Fall and Spring)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>CHEM&#160;26101.  Organic Physiological Chemistry Laboratory (ACTS Equivalency = CHEM 1224 Lab).  1 Hour.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+A focus on properties of organic compounds as well as reactions of organic compounds with an emphasis on functional groups along with some classifications of certain types of compounds. Laboratory 3 hours per week. Corequisite:  <a href="/search/?P=CHEM%2026103" title="CHEM&#160;26103" class="bubblelink code" onclick="return showCourse(this, 'CHEM 26103');">CHEM&#160;26103</a> and related course component drill for <a href="/search/?P=CHEM%2026103" title="CHEM&#160;26103" class="bubblelink code" onclick="return showCourse(this, 'CHEM 26103');">CHEM&#160;26103</a>. (Typically offered: Fall, Spring and Summer)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>CHEM&#160;26103.  Organic Physiological Chemistry (ACTS Equivalency = CHEM 1224 Lecture).  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+One semester survey of organic chemistry necessary for understanding of biological systems, with some related physiological chemistry. Lecture 3 hours per week. Corequisite:  <a href="/search/?P=CHEM%2026101" title="CHEM&#160;26101" class="bubblelink code" onclick="return showCourse(this, 'CHEM 26101');">CHEM&#160;26101</a> and related course component drill section for <a href="/search/?P=CHEM%2026103" title="CHEM&#160;26103" class="bubblelink code" onclick="return showCourse(this, 'CHEM 26103');">CHEM&#160;26103</a>. Prerequisite:  (<a href="/search/?P=CHEM%2012103" title="CHEM&#160;12103" class="bubblelink code" onclick="return showCourse(this, 'CHEM 12103');">CHEM&#160;12103</a> and <a href="/search/?P=CHEM%2012101" title="CHEM&#160;12101" class="bubblelink code" onclick="return showCourse(this, 'CHEM 12101');">CHEM&#160;12101</a>) or (<a href="/search/?P=CHEM%2014203" title="CHEM&#160;14203" class="bubblelink code" onclick="return showCourse(this, 'CHEM 14203');">CHEM&#160;14203</a> and <a href="/search/?P=CHEM%2014201" title="CHEM&#160;14201" class="bubblelink code" onclick="return showCourse(this, 'CHEM 14201');">CHEM&#160;14201</a>) or (<a href="/search/?P=CHEM%20142H3" title="CHEM&#160;142H3" class="bubblelink code" onclick="return showCourse(this, 'CHEM 142H3');">CHEM&#160;142H3</a> and <a href="/search/?P=CHEM%20142H1" title="CHEM&#160;142H1" class="bubblelink code" onclick="return showCourse(this, 'CHEM 142H1');">CHEM&#160;142H1</a>) or (<a href="/search/?P=CHEM%2012283" title="CHEM&#160;12283" class="bubblelink code" onclick="return showCourse(this, 'CHEM 12283');">CHEM&#160;12283</a> and <a href="/search/?P=CHEM%2012281" title="CHEM&#160;12281" class="bubblelink code" onclick="return showCourse(this, 'CHEM 12281');">CHEM&#160;12281</a>). (Typically offered: Fall, Spring and Summer)<br />
+</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>CHEM&#160;32003.  Forensic Chemistry.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Survey of chemistry used in criminal investigations.  Topics may include detection and identification of drugs, alcohol, toxins, explosives and gun powder residue.  Chemical analysis of paint, ink, paper, soil, glass and fibers. Chemical detection of blood and fingerprints.  Extraction of DNA from evidence, DNA fingerprinting. Prerequisite:  <a href="/search/?P=CHEM%2026103" title="CHEM&#160;26103" class="bubblelink code" onclick="return showCourse(this, 'CHEM 26103');">CHEM&#160;26103</a>, or <a href="/search/?P=CHEM%2036203" title="CHEM&#160;36203" class="bubblelink code" onclick="return showCourse(this, 'CHEM 36203');">CHEM&#160;36203</a> (recommended), or <a href="/search/?P=CHEM%20362H3" title="CHEM&#160;362H3" class="bubblelink code" onclick="return showCourse(this, 'CHEM 362H3');">CHEM&#160;362H3</a>, or <a href="/search/?P=CHEM%2037203" title="CHEM&#160;37203" class="bubblelink code" onclick="return showCourse(this, 'CHEM 37203');">CHEM&#160;37203</a>. (Typically offered: Irregular)<br />
+</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>CHEM&#160;32703.  Inquiry and Modeling in Science Education.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Study of science practices with emphasis on modeling and inquiry for learning/teaching. Includes practical, philosophical, cognitive, and disciplinary specific dimensions of doing science in academic and nonacademic settings. Includes planning and implementing multiple scientific inquiries, engaging in reflective practices, writing and presenting scientific information. Safety and ethical issues are included. Corequisite: Drill component. Prerequisite:  STEM Education Minor or STEM Education Certificate and 8 hours of CHEM courses. (Typically offered: Fall and Spring)<br />
+This course is equivalent to <a href="/search/?P=BIOL%2032773" title="BIOL&#160;32773" class="bubblelink code" onclick="return showCourse(this, 'BIOL 32773');">BIOL&#160;32773</a>.<br />
+</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>CHEM&#160;34601.  Elements of Physical Chemistry Laboratory.  1 Hour.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Experimental measurements of the physical properties, chemical systems, error analysis and report writing. Experiments cover topics in thermochemistry, heat capacity, chemical kinetics, spectroscopy, and phase/chemical equilibrium using a variety of physical chemistry techniques. Laboratory 3 hours per week. Corequisite:  Chemistry majors and chemistry minors must enroll in <a href="/search/?P=CHEM%2034603" title="CHEM&#160;34603" class="bubblelink code" onclick="return showCourse(this, 'CHEM 34603');">CHEM&#160;34603</a> concurrently. Prerequisite:  <a href="/search/?P=CHEM%2022671" title="CHEM&#160;22671" class="bubblelink code" onclick="return showCourse(this, 'CHEM 22671');">CHEM&#160;22671</a> and <a href="/search/?P=PHYS%2020201" title="PHYS&#160;20201" class="bubblelink code" onclick="return showCourse(this, 'PHYS 20201');">PHYS&#160;20201</a> (or <a href="/search/?P=PHYS%2020404" title="PHYS&#160;20404" class="bubblelink code" onclick="return showCourse(this, 'PHYS 20404');">PHYS&#160;20404</a>). (Typically offered: Fall)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>CHEM&#160;34603.  Elements of Physical Chemistry.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+One semester accelerated course in physical chemistry primarily for students majoring/minoring in chemistry with biochemistry option, or pre-professional and agriculture students. Topics include thermodynamics, phase &amp; chemical equilibrium, chemical kinetics, quantum chemistry and spectroscopy. Presented at the same level as the 2-semester course with some recourse to calculus, although covering fewer topics in quantum chemistry. Lecture 3 hours per week. Students cannot earn credit for both <a href="/search/?P=CHEM%2034603" title="CHEM&#160;34603" class="bubblelink code" onclick="return showCourse(this, 'CHEM 34603');">CHEM&#160;34603</a> and <a href="/search/?P=CHEM%2035204" title="CHEM&#160;35204" class="bubblelink code" onclick="return showCourse(this, 'CHEM 35204');">CHEM&#160;35204</a>. Corequisite:  Chemistry majors and chemistry minors must enroll in <a href="/search/?P=CHEM%2034601" title="CHEM&#160;34601" class="bubblelink code" onclick="return showCourse(this, 'CHEM 34601');">CHEM&#160;34601</a> concurrently. Prerequisite:  <a href="/search/?P=CHEM%2022673" title="CHEM&#160;22673" class="bubblelink code" onclick="return showCourse(this, 'CHEM 22673');">CHEM&#160;22673</a> and <a href="/search/?P=PHYS%2020203" title="PHYS&#160;20203" class="bubblelink code" onclick="return showCourse(this, 'PHYS 20203');">PHYS&#160;20203</a> (or <a href="/search/?P=PHYS%2020404" title="PHYS&#160;20404" class="bubblelink code" onclick="return showCourse(this, 'PHYS 20404');">PHYS&#160;20404</a>), and <a href="/search/?P=MATH%2024004" title="MATH&#160;24004" class="bubblelink code" onclick="return showCourse(this, 'MATH 24004');">MATH&#160;24004</a> (or <a href="/search/?P=MATH%2022003" title="MATH&#160;22003" class="bubblelink code" onclick="return showCourse(this, 'MATH 22003');">MATH&#160;22003</a>). (Typically offered: Fall)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>CHEM&#160;35004.  Physical Chemistry I.  4 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+First semester of a 2-semester course in physical chemistry designed for chemistry majors and chemistry minors with topics covering wave-particle duality, quantum chemistry, atomic and molecular structure, bonding, spectroscopy and elementary statistical mechanics. Lecture and recitation 4 hours per week. Pre- or Corequisite:  <a href="/search/?P=MATH%2025004" title="MATH&#160;25004" class="bubblelink code" onclick="return showCourse(this, 'MATH 25004');">MATH&#160;25004</a>. Prerequisite:  <a href="/search/?P=CHEM%2022673" title="CHEM&#160;22673" class="bubblelink code" onclick="return showCourse(this, 'CHEM 22673');">CHEM&#160;22673</a> and <a href="/search/?P=PHYS%2020404" title="PHYS&#160;20404" class="bubblelink code" onclick="return showCourse(this, 'PHYS 20404');">PHYS&#160;20404</a>. (Typically offered: Fall)<br />
+</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>CHEM&#160;35102.  Physical Chemistry Laboratory.  2 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Experimental studies of molecular structure, thermochemistry, and chemical kinetics, and the determination of other physicochemical properties of matter. Laboratory 8 hours per week. Students cannot earn credit for both <a href="/search/?P=CHEM%2034601" title="CHEM&#160;34601" class="bubblelink code" onclick="return showCourse(this, 'CHEM 34601');">CHEM&#160;34601</a> and <a href="/search/?P=CHEM%2035102" title="CHEM&#160;35102" class="bubblelink code" onclick="return showCourse(this, 'CHEM 35102');">CHEM&#160;35102</a>. Corequisite:  Chemistry majors and chemistry minors must take <a href="/search/?P=CHEM%2035204" title="CHEM&#160;35204" class="bubblelink code" onclick="return showCourse(this, 'CHEM 35204');">CHEM&#160;35204</a> concurrently. Prerequisite:  <a href="/search/?P=CHEM%2022671" title="CHEM&#160;22671" class="bubblelink code" onclick="return showCourse(this, 'CHEM 22671');">CHEM&#160;22671</a> and <a href="/search/?P=PHYS%2020201" title="PHYS&#160;20201" class="bubblelink code" onclick="return showCourse(this, 'PHYS 20201');">PHYS&#160;20201</a> (or <a href="/search/?P=PHYS%2020404" title="PHYS&#160;20404" class="bubblelink code" onclick="return showCourse(this, 'PHYS 20404');">PHYS&#160;20404</a>). (Typically offered: Spring)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>CHEM&#160;35204.  Physical Chemistry II.  4 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Second semester of a 2-semester course in physical chemistry aimed for B.S. chemistry majors/minors with topics covering the laws of thermodynamics, phase &amp; chemical equilibria; structure and properties of solutions, chemical potential, and chemical kinetics. Lecture and recitation 4 hours per week. Students cannot earn credit for both <a href="/search/?P=CHEM%2034603" title="CHEM&#160;34603" class="bubblelink code" onclick="return showCourse(this, 'CHEM 34603');">CHEM&#160;34603</a> and <a href="/search/?P=CHEM%2035204" title="CHEM&#160;35204" class="bubblelink code" onclick="return showCourse(this, 'CHEM 35204');">CHEM&#160;35204</a>. Corequisite:  Chemistry majors and chemistry minors must enroll in <a href="/search/?P=CHEM%2035102" title="CHEM&#160;35102" class="bubblelink code" onclick="return showCourse(this, 'CHEM 35102');">CHEM&#160;35102</a> concurrently. Prerequisite:  <a href="/search/?P=CHEM%2035004" title="CHEM&#160;35004" class="bubblelink code" onclick="return showCourse(this, 'CHEM 35004');">CHEM&#160;35004</a>. (Typically offered: Spring)<br />
+</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>CHEM&#160;36051.  Organic Chemistry I Laboratory.  1 Hour.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Introduction to basic techniques for separation, purification, and identification of organic compounds. Laboratory exercises in organic chemistry. Meets 3 hours per week. Corequisite:  <a href="/search/?P=CHEM%2036053" title="CHEM&#160;36053" class="bubblelink code" onclick="return showCourse(this, 'CHEM 36053');">CHEM&#160;36053</a> and related course component drill for <a href="/search/?P=CHEM%2036053" title="CHEM&#160;36053" class="bubblelink code" onclick="return showCourse(this, 'CHEM 36053');">CHEM&#160;36053</a>. (Typically offered: Fall and Summer)<br />
+</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>CHEM&#160;36053.  Organic Chemistry I.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Introduction to organic compounds including alkanes, haloalkanes, alkenes and alkynes; properties including basic stereochemistry and reactions including nucleophilic substitution, elimination, and electrophilic addition reactions. Lecture 3 hours per week.  Corequisite:  <a href="/search/?P=CHEM%2036051" title="CHEM&#160;36051" class="bubblelink code" onclick="return showCourse(this, 'CHEM 36051');">CHEM&#160;36051</a> and related course component drill section for <a href="/search/?P=CHEM%2036053" title="CHEM&#160;36053" class="bubblelink code" onclick="return showCourse(this, 'CHEM 36053');">CHEM&#160;36053</a>. Prerequisite:  (<a href="/search/?P=CHEM%2014203" title="CHEM&#160;14203" class="bubblelink code" onclick="return showCourse(this, 'CHEM 14203');">CHEM&#160;14203</a> and <a href="/search/?P=CHEM%2014201" title="CHEM&#160;14201" class="bubblelink code" onclick="return showCourse(this, 'CHEM 14201');">CHEM&#160;14201</a>) or (<a href="/search/?P=CHEM%20142H3" title="CHEM&#160;142H3" class="bubblelink code" onclick="return showCourse(this, 'CHEM 142H3');">CHEM&#160;142H3</a> and <a href="/search/?P=CHEM%20142H1" title="CHEM&#160;142H1" class="bubblelink code" onclick="return showCourse(this, 'CHEM 142H1');">CHEM&#160;142H1</a>) or (<a href="/search/?P=CHEM%2012283" title="CHEM&#160;12283" class="bubblelink code" onclick="return showCourse(this, 'CHEM 12283');">CHEM&#160;12283</a> and <a href="/search/?P=CHEM%2012281" title="CHEM&#160;12281" class="bubblelink code" onclick="return showCourse(this, 'CHEM 12281');">CHEM&#160;12281</a>). (Typically offered: Fall and Summer)<br />
+</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>CHEM&#160;360H2.  Honors Organic Chemistry I Laboratory.  2 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Introduction to basic techniques for separation, purification, and identification of organic compounds. Drill lecture-discussion (1hr/wk) and laboratory (4hr/wk). Writing component. Required drill. Corequisite:  <a href="/search/?P=CHEM%20360H3" title="CHEM&#160;360H3" class="bubblelink code" onclick="return showCourse(this, 'CHEM 360H3');">CHEM&#160;360H3</a> and related drill components.  Prerequisite:  Honors candidacy. (Typically offered: Fall and Summer)<br />
+This course is equivalent to <a href="/search/?P=CHEM%2036051" title="CHEM&#160;36051" class="bubblelink code" onclick="return showCourse(this, 'CHEM 36051');">CHEM&#160;36051</a>.<br />
+</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>CHEM&#160;360H3.  Honors Organic Chemistry I.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+In-depth introduction to organic compounds; properties and reactions. Including alkanes, haloalkanes, alkenes and alkynes; nucleophilic substitution, elimination, and electrophilic addition reactions. Lecture 3 hours per week. Corequisite:  <a href="/search/?P=CHEM%20360H2" title="CHEM&#160;360H2" class="bubblelink code" onclick="return showCourse(this, 'CHEM 360H2');">CHEM&#160;360H2</a> and related course component drill sections for <a href="/search/?P=CHEM%20360H3" title="CHEM&#160;360H3" class="bubblelink code" onclick="return showCourse(this, 'CHEM 360H3');">CHEM&#160;360H3</a> and <a href="/search/?P=CHEM%20360H2" title="CHEM&#160;360H2" class="bubblelink code" onclick="return showCourse(this, 'CHEM 360H2');">CHEM&#160;360H2</a>. Prerequisite:  Honors candidacy and ((<a href="/search/?P=CHEM%2014203" title="CHEM&#160;14203" class="bubblelink code" onclick="return showCourse(this, 'CHEM 14203');">CHEM&#160;14203</a> and <a href="/search/?P=CHEM%2014201" title="CHEM&#160;14201" class="bubblelink code" onclick="return showCourse(this, 'CHEM 14201');">CHEM&#160;14201</a>) or (<a href="/search/?P=CHEM%20142H3" title="CHEM&#160;142H3" class="bubblelink code" onclick="return showCourse(this, 'CHEM 142H3');">CHEM&#160;142H3</a> and <a href="/search/?P=CHEM%20142H1" title="CHEM&#160;142H1" class="bubblelink code" onclick="return showCourse(this, 'CHEM 142H1');">CHEM&#160;142H1</a>) or (<a href="/search/?P=CHEM%2012283" title="CHEM&#160;12283" class="bubblelink code" onclick="return showCourse(this, 'CHEM 12283');">CHEM&#160;12283</a> and <a href="/search/?P=CHEM%2012281" title="CHEM&#160;12281" class="bubblelink code" onclick="return showCourse(this, 'CHEM 12281');">CHEM&#160;12281</a>)). (Typically offered: Fall and Summer)<br />
+This course is equivalent to <a href="/search/?P=CHEM%2036053" title="CHEM&#160;36053" class="bubblelink code" onclick="return showCourse(this, 'CHEM 36053');">CHEM&#160;36053</a>.<br />
+</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>CHEM&#160;36201.  Organic Chemistry II Laboratory.  1 Hour.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Continuation of <a href="/search/?P=CHEM%2036051" title="CHEM&#160;36051" class="bubblelink code" onclick="return showCourse(this, 'CHEM 36051');">CHEM&#160;36051</a> and introduction to basic techniques of synthesis, isolation, and determination of structure and reactivity of organic compounds. Laboratory exercises in organic chemistry. Meets 3 hours per week. Corequisite:  <a href="/search/?P=CHEM%2036203" title="CHEM&#160;36203" class="bubblelink code" onclick="return showCourse(this, 'CHEM 36203');">CHEM&#160;36203</a> and related course component drill for <a href="/search/?P=CHEM%2036203" title="CHEM&#160;36203" class="bubblelink code" onclick="return showCourse(this, 'CHEM 36203');">CHEM&#160;36203</a>. Prerequisite:  <a href="/search/?P=CHEM%2036051" title="CHEM&#160;36051" class="bubblelink code" onclick="return showCourse(this, 'CHEM 36051');">CHEM&#160;36051</a>. (Typically offered: Spring and Summer)<br />
+</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>CHEM&#160;36203.  Organic Chemistry II.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Basic chemistry of aromatic and carbonyl compounds: properties and reactions. Lecture 3 hours per week.  Corequisite:  <a href="/search/?P=CHEM%2036201" title="CHEM&#160;36201" class="bubblelink code" onclick="return showCourse(this, 'CHEM 36201');">CHEM&#160;36201</a> and related course component drill section for <a href="/search/?P=CHEM%2036203" title="CHEM&#160;36203" class="bubblelink code" onclick="return showCourse(this, 'CHEM 36203');">CHEM&#160;36203</a>. Prerequisite:  (<a href="/search/?P=CHEM%2036053" title="CHEM&#160;36053" class="bubblelink code" onclick="return showCourse(this, 'CHEM 36053');">CHEM&#160;36053</a> and <a href="/search/?P=CHEM%2036051" title="CHEM&#160;36051" class="bubblelink code" onclick="return showCourse(this, 'CHEM 36051');">CHEM&#160;36051</a>) or (<a href="/search/?P=CHEM%20360H3" title="CHEM&#160;360H3" class="bubblelink code" onclick="return showCourse(this, 'CHEM 360H3');">CHEM&#160;360H3</a> and <a href="/search/?P=CHEM%20360H2" title="CHEM&#160;360H2" class="bubblelink code" onclick="return showCourse(this, 'CHEM 360H2');">CHEM&#160;360H2</a>) or (<a href="/search/?P=CHEM%2037073" title="CHEM&#160;37073" class="bubblelink code" onclick="return showCourse(this, 'CHEM 37073');">CHEM&#160;37073</a> and <a href="/search/?P=CHEM%2037072" title="CHEM&#160;37072" class="bubblelink code" onclick="return showCourse(this, 'CHEM 37072');">CHEM&#160;37072</a>). (Typically offered: Spring and Summer)<br />
+</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>CHEM&#160;362H2.  Honors Organic Chemistry II Laboratory.  2 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Continuation of <a href="/search/?P=CHEM%20360H2" title="CHEM&#160;360H2" class="bubblelink code" onclick="return showCourse(this, 'CHEM 360H2');">CHEM&#160;360H2</a> and introduction to basic techniques of synthesis, isolation, and determination of structure and reactivity of organic compounds. Drill lecture-discussion (1 hour/wk) and laboratory (4 hours/wk). Writing component. Drill required. Corequisite:  <a href="/search/?P=CHEM%20362H3" title="CHEM&#160;362H3" class="bubblelink code" onclick="return showCourse(this, 'CHEM 362H3');">CHEM&#160;362H3</a> and related course component drill sections for <a href="/search/?P=CHEM%20362H2" title="CHEM&#160;362H2" class="bubblelink code" onclick="return showCourse(this, 'CHEM 362H2');">CHEM&#160;362H2</a> and <a href="/search/?P=CHEM%20362H3" title="CHEM&#160;362H3" class="bubblelink code" onclick="return showCourse(this, 'CHEM 362H3');">CHEM&#160;362H3</a>. Prerequisite:  Honors candidacy and <a href="/search/?P=CHEM%20360H2" title="CHEM&#160;360H2" class="bubblelink code" onclick="return showCourse(this, 'CHEM 360H2');">CHEM&#160;360H2</a>. (Typically offered: Spring and Summer)<br />
+This course is equivalent to <a href="/search/?P=CHEM%2036201" title="CHEM&#160;36201" class="bubblelink code" onclick="return showCourse(this, 'CHEM 36201');">CHEM&#160;36201</a>.<br />
+</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>CHEM&#160;362H3.  Honors Organic Chemistry II.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+In-depth coverage of the basic chemistry of aromatic and carbonyl compounds; properties and reactions. Lecture 3 hours per week. Corequisite:  <a href="/search/?P=CHEM%20362H2" title="CHEM&#160;362H2" class="bubblelink code" onclick="return showCourse(this, 'CHEM 362H2');">CHEM&#160;362H2</a> and related course component drill sections for <a href="/search/?P=CHEM%20362H3" title="CHEM&#160;362H3" class="bubblelink code" onclick="return showCourse(this, 'CHEM 362H3');">CHEM&#160;362H3</a> and <a href="/search/?P=CHEM%20362H2" title="CHEM&#160;362H2" class="bubblelink code" onclick="return showCourse(this, 'CHEM 362H2');">CHEM&#160;362H2</a>. Prerequisite:  Honors candidacy and <a href="/search/?P=CHEM%20360H3" title="CHEM&#160;360H3" class="bubblelink code" onclick="return showCourse(this, 'CHEM 360H3');">CHEM&#160;360H3</a> and <a href="/search/?P=CHEM%20360H2" title="CHEM&#160;360H2" class="bubblelink code" onclick="return showCourse(this, 'CHEM 360H2');">CHEM&#160;360H2</a>. (Typically offered: Spring and Summer)<br />
+This course is equivalent to <a href="/search/?P=CHEM%2036203" title="CHEM&#160;36203" class="bubblelink code" onclick="return showCourse(this, 'CHEM 36203');">CHEM&#160;36203</a>.<br />
+</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>CHEM&#160;37072.  Organic Chemistry I Lab for Chemistry Majors.  2 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Introduction to basic techniques for separation, purification, and identification of organic compounds. Drill lecture-discussion (1hr/wk) and laboratory (4hr/wk). Writing component. Required drill. Corequisite:  <a href="/search/?P=CHEM%2037073" title="CHEM&#160;37073" class="bubblelink code" onclick="return showCourse(this, 'CHEM 37073');">CHEM&#160;37073</a> and related course component drill sections for <a href="/search/?P=CHEM%2037073" title="CHEM&#160;37073" class="bubblelink code" onclick="return showCourse(this, 'CHEM 37073');">CHEM&#160;37073</a> and <a href="/search/?P=CHEM%2037072" title="CHEM&#160;37072" class="bubblelink code" onclick="return showCourse(this, 'CHEM 37072');">CHEM&#160;37072</a>. Prerequisite:  Chemistry major or minor. (Typically offered: Fall)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>CHEM&#160;37073.  Organic Chemistry I Lecture for Chemistry Majors.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+In-depth introduction to organic compounds including alkanes, haloalkanes, alkenes and alkynes; properties including basic stereochemistry and reactions including nucleophilic substitution, elimination, and electrophilic addition. Lecture 3 hours per week. Corequisite:  <a href="/search/?P=CHEM%2037072" title="CHEM&#160;37072" class="bubblelink code" onclick="return showCourse(this, 'CHEM 37072');">CHEM&#160;37072</a> and related course component drill sections for <a href="/search/?P=CHEM%2037073" title="CHEM&#160;37073" class="bubblelink code" onclick="return showCourse(this, 'CHEM 37073');">CHEM&#160;37073</a> and <a href="/search/?P=CHEM%2037072" title="CHEM&#160;37072" class="bubblelink code" onclick="return showCourse(this, 'CHEM 37072');">CHEM&#160;37072</a>. Prerequisite:  Chemistry major or minor and (<a href="/search/?P=CHEM%2014203" title="CHEM&#160;14203" class="bubblelink code" onclick="return showCourse(this, 'CHEM 14203');">CHEM&#160;14203</a> and <a href="/search/?P=CHEM%2014201" title="CHEM&#160;14201" class="bubblelink code" onclick="return showCourse(this, 'CHEM 14201');">CHEM&#160;14201</a>) or (<a href="/search/?P=CHEM%20142H3" title="CHEM&#160;142H3" class="bubblelink code" onclick="return showCourse(this, 'CHEM 142H3');">CHEM&#160;142H3</a> and <a href="/search/?P=CHEM%20142H1" title="CHEM&#160;142H1" class="bubblelink code" onclick="return showCourse(this, 'CHEM 142H1');">CHEM&#160;142H1</a>) or (<a href="/search/?P=CHEM%2012283" title="CHEM&#160;12283" class="bubblelink code" onclick="return showCourse(this, 'CHEM 12283');">CHEM&#160;12283</a> and <a href="/search/?P=CHEM%2012281" title="CHEM&#160;12281" class="bubblelink code" onclick="return showCourse(this, 'CHEM 12281');">CHEM&#160;12281</a>). (Typically offered: Fall)<br />
+This course is equivalent to <a href="/search/?P=CHEM%2036053" title="CHEM&#160;36053" class="bubblelink code" onclick="return showCourse(this, 'CHEM 36053');">CHEM&#160;36053</a>.<br />
+</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>CHEM&#160;37202.  Organic Chemistry II Lab for Chemistry Majors.  2 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Continuation of <a href="/search/?P=CHEM%2037072" title="CHEM&#160;37072" class="bubblelink code" onclick="return showCourse(this, 'CHEM 37072');">CHEM&#160;37072</a> and introduction to basic techniques of synthesis, isolation, and determination of structure and reactivity of organic compounds. Drill lecture-discussion (1 hour/wk) and laboratory (4 hours/wk). Writing component. Drill required. Corequisite:  <a href="/search/?P=CHEM%2037203" title="CHEM&#160;37203" class="bubblelink code" onclick="return showCourse(this, 'CHEM 37203');">CHEM&#160;37203</a> and related course component drill sections for <a href="/search/?P=CHEM%2037203" title="CHEM&#160;37203" class="bubblelink code" onclick="return showCourse(this, 'CHEM 37203');">CHEM&#160;37203</a> and <a href="/search/?P=CHEM%2037202" title="CHEM&#160;37202" class="bubblelink code" onclick="return showCourse(this, 'CHEM 37202');">CHEM&#160;37202</a>. Prerequisite:  Chemistry major or minor and <a href="/search/?P=CHEM%2037072" title="CHEM&#160;37072" class="bubblelink code" onclick="return showCourse(this, 'CHEM 37072');">CHEM&#160;37072</a>. (Typically offered: Spring)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>CHEM&#160;37203.  Organic Chemistry II  Lecture for Chemistry Majors.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Continuation of in-depth coverage of the basic chemistry of the compounds of carbon. Properties and reactions of aromatic and carbonyl functional groups. Lecture 3 hours per week. Corequisite:  <a href="/search/?P=CHEM%2037202" title="CHEM&#160;37202" class="bubblelink code" onclick="return showCourse(this, 'CHEM 37202');">CHEM&#160;37202</a> and related course component drill sections for <a href="/search/?P=CHEM%2037203" title="CHEM&#160;37203" class="bubblelink code" onclick="return showCourse(this, 'CHEM 37203');">CHEM&#160;37203</a> and <a href="/search/?P=CHEM%2037202" title="CHEM&#160;37202" class="bubblelink code" onclick="return showCourse(this, 'CHEM 37202');">CHEM&#160;37202</a>. Prerequisite:  Chemistry major or minor and <a href="/search/?P=CHEM%2037073" title="CHEM&#160;37073" class="bubblelink code" onclick="return showCourse(this, 'CHEM 37073');">CHEM&#160;37073</a> and <a href="/search/?P=CHEM%2037072" title="CHEM&#160;37072" class="bubblelink code" onclick="return showCourse(this, 'CHEM 37072');">CHEM&#160;37072</a>. (Typically offered: Spring)<br />
+This course is equivalent to <a href="/search/?P=CHEM%2036203" title="CHEM&#160;36203" class="bubblelink code" onclick="return showCourse(this, 'CHEM 36203');">CHEM&#160;36203</a>.<br />
+</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>CHEM&#160;38103.  Elements of Biochemistry.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+One semester survey course of the fundamentals of biochemistry. Structures, properties, and reactions of major classes of biomolecules. Basics of enzyme catalysis. Overview of metabolism. Credit for both <a href="/search/?P=CHEM%2038103" title="CHEM&#160;38103" class="bubblelink code" onclick="return showCourse(this, 'CHEM 38103');">CHEM&#160;38103</a> and <a href="/search/?P=CHEM%20481H3" title="CHEM&#160;481H3" class="bubblelink code" onclick="return showCourse(this, 'CHEM 481H3');">CHEM&#160;481H3</a> may not be counted toward a chemistry degree. Lecture 3 hours per week.  Prerequisite:  (<a href="/search/?P=CHEM%2036203" title="CHEM&#160;36203" class="bubblelink code" onclick="return showCourse(this, 'CHEM 36203');">CHEM&#160;36203</a> and <a href="/search/?P=CHEM%2036201" title="CHEM&#160;36201" class="bubblelink code" onclick="return showCourse(this, 'CHEM 36201');">CHEM&#160;36201</a>) or (<a href="/search/?P=CHEM%20362H3" title="CHEM&#160;362H3" class="bubblelink code" onclick="return showCourse(this, 'CHEM 362H3');">CHEM&#160;362H3</a> and <a href="/search/?P=CHEM%20362H2" title="CHEM&#160;362H2" class="bubblelink code" onclick="return showCourse(this, 'CHEM 362H2');">CHEM&#160;362H2</a>) or (<a href="/search/?P=CHEM%2037203" title="CHEM&#160;37203" class="bubblelink code" onclick="return showCourse(this, 'CHEM 37203');">CHEM&#160;37203</a> and <a href="/search/?P=CHEM%2037202" title="CHEM&#160;37202" class="bubblelink code" onclick="return showCourse(this, 'CHEM 37202');">CHEM&#160;37202</a>) or (<a href="/search/?P=CHEM%2026103" title="CHEM&#160;26103" class="bubblelink code" onclick="return showCourse(this, 'CHEM 26103');">CHEM&#160;26103</a> and <a href="/search/?P=CHEM%2026101" title="CHEM&#160;26101" class="bubblelink code" onclick="return showCourse(this, 'CHEM 26101');">CHEM&#160;26101</a>). (Typically offered: Fall, Spring and Summer)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>CHEM&#160;392H3.  Honors Colloquium.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Covers a special topic or issue. Offered as a part of the honors program. Prerequisite:  Honors candidacy. (Typically offered: Fall, Spring and Summer)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>CHEM&#160;4000V.  Chemistry Research.  1-4 Hour.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Research problems. Students need to enroll in their supervising faculty mentor's section. CHBC students conducting research under a faculty mentor outside of CHBC must enroll in the CHBC chair's section. Additionally, honors students need the approval of the CHBC department honors advisor. Honors students must complete thesis in senior year. (Typically offered: Fall, Spring and Summer)&#160;May be repeated for degree credit.<br />
+</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>CHEM&#160;400HV.  Honors Chemistry Research.  1-4 Hour.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Research problems. Students need to enroll in their supervising faculty mentor's section. CHBC students conducting research under a faculty mentor outside of CHBC must enroll in the CHBC chair's section. Additionally, honors students need the approval of the CHBC department honors advisor. Honors students must complete thesis in senior year. (Typically offered: Fall, Spring and Summer)&#160;May be repeated for degree credit.<br />
+This course is equivalent to <a href="/search/?P=CHEM%204000V" title="CHEM&#160;4000V" class="bubblelink code" onclick="return showCourse(this, 'CHEM 4000V');">CHEM&#160;4000V</a>.<br />
+</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>CHEM&#160;401H1.  Honors Seminar.  1 Hour.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Research seminar for chemistry majors enrolled in the honors program. Enrollment is required the spring semester of the junior and senior years for honors students. Senior honors students must make one research presentation to graduate with honors. Prerequisite:  Honors candidacy, chemistry major and junior or senior standing. (Typically offered: Spring)&#160;May be repeated for up to 2 hours of degree credit.</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>CHEM&#160;4050V.  Special Topics in Chemistry.  1-4 Hour.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Potential topics include: advanced spectroscopic methods, bioanalytical chemistry, bioinorganic chemistry, bioorganic chemistry, biophysical chemistry, chemical sensors, drug discovery and design, nanomaterials, pharmaceutical chemistry, process analytical chemistry, and protein folding and design. (Typically offered: Irregular)<br />
+</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>CHEM&#160;41203.  Advanced Inorganic Chemistry I.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Reactions and properties of inorganic compounds from the standpoint of electronic structure and the periodic table. Emphasis on recent developments. Prerequisite:  <a href="/search/?P=CHEM%2034603" title="CHEM&#160;34603" class="bubblelink code" onclick="return showCourse(this, 'CHEM 34603');">CHEM&#160;34603</a> or <a href="/search/?P=CHEM%2035204" title="CHEM&#160;35204" class="bubblelink code" onclick="return showCourse(this, 'CHEM 35204');">CHEM&#160;35204</a>. (Typically offered: Fall)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>CHEM&#160;42101.  Instrumental Analysis Laboratory.  1 Hour.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Provides laboratory experience in parallel with the lecture material in <a href="/search/?P=CHEM%2042203" title="CHEM&#160;42203" class="bubblelink code" onclick="return showCourse(this, 'CHEM 42203');">CHEM&#160;42203</a>. Laboratory 3 hours per week. Corequisite:   <a href="/search/?P=CHEM%2042203" title="CHEM&#160;42203" class="bubblelink code" onclick="return showCourse(this, 'CHEM 42203');">CHEM&#160;42203</a>. (Typically offered: Fall and Spring)<br />
+</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>CHEM&#160;42203.  Instrumental Analysis.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Provides students, especially those in the agricultural, biological, and physical sciences, with an understanding of modern instrumental techniques of analysis. Lecture 3 hours per week. Corequisite:  <a href="/search/?P=CHEM%2042101" title="CHEM&#160;42101" class="bubblelink code" onclick="return showCourse(this, 'CHEM 42101');">CHEM&#160;42101</a>. Prerequisite:   (<a href="/search/?P=CHEM%2022673" title="CHEM&#160;22673" class="bubblelink code" onclick="return showCourse(this, 'CHEM 22673');">CHEM&#160;22673</a> and <a href="/search/?P=CHEM%2022671" title="CHEM&#160;22671" class="bubblelink code" onclick="return showCourse(this, 'CHEM 22671');">CHEM&#160;22671</a>) and ((<a href="/search/?P=CHEM%2036203" title="CHEM&#160;36203" class="bubblelink code" onclick="return showCourse(this, 'CHEM 36203');">CHEM&#160;36203</a> and <a href="/search/?P=CHEM%2036201" title="CHEM&#160;36201" class="bubblelink code" onclick="return showCourse(this, 'CHEM 36201');">CHEM&#160;36201</a>) or (<a href="/search/?P=CHEM%20362H3" title="CHEM&#160;362H3" class="bubblelink code" onclick="return showCourse(this, 'CHEM 362H3');">CHEM&#160;362H3</a> and <a href="/search/?P=CHEM%20362H2" title="CHEM&#160;362H2" class="bubblelink code" onclick="return showCourse(this, 'CHEM 362H2');">CHEM&#160;362H2</a>) or (<a href="/search/?P=CHEM%2037203" title="CHEM&#160;37203" class="bubblelink code" onclick="return showCourse(this, 'CHEM 37203');">CHEM&#160;37203</a> and <a href="/search/?P=CHEM%2037202" title="CHEM&#160;37202" class="bubblelink code" onclick="return showCourse(this, 'CHEM 37202');">CHEM&#160;37202</a>)). (Typically offered: Fall and Spring)<br />
+</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>CHEM&#160;42803.  Energy Conversion and Storage.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Fundamental and applied concepts of energy storage and conversion, with sustainability implications. Chemical reactions (kinetics, thermodynamics, mass transfer), emphasizing oxidation-reduction, electrochemical, and interfacial processes, and impact on performance of fuel and biofuel cells, batteries, supercapacitors, and photochemical conversion. Prerequisite:  <a href="/search/?P=CHEM%2014203" title="CHEM&#160;14203" class="bubblelink code" onclick="return showCourse(this, 'CHEM 14203');">CHEM&#160;14203</a> and <a href="/search/?P=PHYS%2020404" title="PHYS&#160;20404" class="bubblelink code" onclick="return showCourse(this, 'PHYS 20404');">PHYS&#160;20404</a>. (Typically offered: Fall Even Years)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>CHEM&#160;47203.  Experimental Methods in Organic Chemistry.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Introduction to the application of synthetic and spectroscopic methods in organic chemistry, including mass spectrometry, infrared spectroscopy, and nuclear magnetic resonance spectrometry. Other laboratory techniques applicable to chemical research will be included. Lecture 3 hours and laboratory 3 hours per week. Lecture only meets the first half of the term. Laboratory meets the entire term. Corequisite:  Lab component. Prerequisite:  <a href="/search/?P=CHEM%2036203" title="CHEM&#160;36203" class="bubblelink code" onclick="return showCourse(this, 'CHEM 36203');">CHEM&#160;36203</a> and <a href="/search/?P=CHEM%2036201" title="CHEM&#160;36201" class="bubblelink code" onclick="return showCourse(this, 'CHEM 36201');">CHEM&#160;36201</a>, (or <a href="/search/?P=CHEM%20362H3" title="CHEM&#160;362H3" class="bubblelink code" onclick="return showCourse(this, 'CHEM 362H3');">CHEM&#160;362H3</a> or <a href="/search/?P=CHEM%20362H2" title="CHEM&#160;362H2" class="bubblelink code" onclick="return showCourse(this, 'CHEM 362H2');">CHEM&#160;362H2</a>), (or <a href="/search/?P=CHEM%2037203" title="CHEM&#160;37203" class="bubblelink code" onclick="return showCourse(this, 'CHEM 37203');">CHEM&#160;37203</a> and <a href="/search/?P=CHEM%2037202" title="CHEM&#160;37202" class="bubblelink code" onclick="return showCourse(this, 'CHEM 37202');">CHEM&#160;37202</a>). (Typically offered: Fall)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>CHEM&#160;481H3.  Honors Biochemistry I.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+The first of a two-course series covering biochemistry for undergraduate students in biology, agriculture, and chemistry. Topics covered include protein structure and function, enzyme kinetics, enzyme mechanisms, and nucleic acid and carbohydrate structures. Credit cannot be earned in both <a href="/search/?P=CHEM%2038103" title="CHEM&#160;38103" class="bubblelink code" onclick="return showCourse(this, 'CHEM 38103');">CHEM&#160;38103</a> and <a href="/search/?P=CHEM%20481H3" title="CHEM&#160;481H3" class="bubblelink code" onclick="return showCourse(this, 'CHEM 481H3');">CHEM&#160;481H3</a>. Additional honors-level work required in this section. Prerequisite:  Honors candidacy and (<a href="/search/?P=CHEM%2036203" title="CHEM&#160;36203" class="bubblelink code" onclick="return showCourse(this, 'CHEM 36203');">CHEM&#160;36203</a> and <a href="/search/?P=CHEM%2036201" title="CHEM&#160;36201" class="bubblelink code" onclick="return showCourse(this, 'CHEM 36201');">CHEM&#160;36201</a>) or (<a href="/search/?P=CHEM%20362H3" title="CHEM&#160;362H3" class="bubblelink code" onclick="return showCourse(this, 'CHEM 362H3');">CHEM&#160;362H3</a> and <a href="/search/?P=CHEM%20362H2" title="CHEM&#160;362H2" class="bubblelink code" onclick="return showCourse(this, 'CHEM 362H2');">CHEM&#160;362H2</a>) or (<a href="/search/?P=CHEM%2037203" title="CHEM&#160;37203" class="bubblelink code" onclick="return showCourse(this, 'CHEM 37203');">CHEM&#160;37203</a> and <a href="/search/?P=CHEM%2037202" title="CHEM&#160;37202" class="bubblelink code" onclick="return showCourse(this, 'CHEM 37202');">CHEM&#160;37202</a>). (Typically offered: Fall)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>CHEM&#160;484H3.  Honors Biochemistry II.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+A continuation of <a href="/search/?P=CHEM%20481H3" title="CHEM&#160;481H3" class="bubblelink code" onclick="return showCourse(this, 'CHEM 481H3');">CHEM&#160;481H3</a> covering topics including biological membranes and bioenergetics, photosynthesis, lipids and lipid metabolism, nucleic acid structure, structure and synthesis, and molecular biology. Credit cannot be earned in both <a href="/search/?P=CHEM%2038103" title="CHEM&#160;38103" class="bubblelink code" onclick="return showCourse(this, 'CHEM 38103');">CHEM&#160;38103</a> and <a href="/search/?P=CHEM%20484H3" title="CHEM&#160;484H3" class="bubblelink code" onclick="return showCourse(this, 'CHEM 484H3');">CHEM&#160;484H3</a>. Additional honors-level work required in this section. Prerequisite:  Honors candidacy and <a href="/search/?P=CHEM%20481H3" title="CHEM&#160;481H3" class="bubblelink code" onclick="return showCourse(this, 'CHEM 481H3');">CHEM&#160;481H3</a>. (Typically offered: Spring)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>CHEM&#160;48503.  Biochemical Techniques.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Techniques for handling, purifying and analyzing enzymes, structural proteins, and nucleic acids. Lecture 1 hour, laboratory 6 hours per week. Corequisite:  Lab component. Pre or Corequisite:  <a href="/search/?P=CHEM%2038103" title="CHEM&#160;38103" class="bubblelink code" onclick="return showCourse(this, 'CHEM 38103');">CHEM&#160;38103</a> or <a href="/search/?P=CHEM%20484H3" title="CHEM&#160;484H3" class="bubblelink code" onclick="return showCourse(this, 'CHEM 484H3');">CHEM&#160;484H3</a>. (Typically offered: Spring)<br />
+</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>CHEM&#160;5050V.  Special Topics in Chemistry.  1-4 Hour.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Potential topics include: advanced spectroscopic methods, bioanalytical chemistry, bioinorganic chemistry, bioorganic chemistry, biophysical chemistry, chemical sensors, drug discovery and design, nanomaterials, pharmaceutical chemistry, process analytical chemistry, and protein folding and design. Graduate degree credit will not be given for both <a href="/search/?P=CHEM%204050V" title="CHEM&#160;4050V" class="bubblelink code" onclick="return showCourse(this, 'CHEM 4050V');">CHEM&#160;4050V</a> and <a href="/search/?P=CHEM%205050V" title="CHEM&#160;5050V" class="bubblelink code" onclick="return showCourse(this, 'CHEM 5050V');">CHEM&#160;5050V</a>. Prerequisite:  Instructor consent. (Typically offered: Irregular)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>CHEM&#160;51001.  Introduction to Research.  1 Hour.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+This eight week course introduces new graduate students to research opportunities and skills in chemistry and biochemistry. Meets 2 hours per week in the first half of the semester. Safety and ethics in research and scholarship are discussed. Students learn about research programs in the department to aid in choosing an advisor. (Typically offered: Fall)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>CHEM&#160;51203.  Advanced Inorganic Chemistry.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Reactions and properties of inorganic compounds from the standpoint of electronic structure and the periodic table. Emphasis on recent developments. Knowledge comparable to material in <a href="/search/?P=CHEM%2034603" title="CHEM&#160;34603" class="bubblelink code" onclick="return showCourse(this, 'CHEM 34603');">CHEM&#160;34603</a> is recommended. (Typically offered: Fall)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>CHEM&#160;51403.  Advanced Inorganic Chemistry II.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Chemistry of metallic and non-metallic elements emphasizing molecular structure, bonding and the classification of reactions. Knowledge of inorganic chemistry comparable to material in <a href="/search/?P=CHEM%2041203" title="CHEM&#160;41203" class="bubblelink code" onclick="return showCourse(this, 'CHEM 41203');">CHEM&#160;41203</a> and <a href="/search/?P=CHEM%2051203" title="CHEM&#160;51203" class="bubblelink code" onclick="return showCourse(this, 'CHEM 51203');">CHEM&#160;51203</a> is recommended. (Typically offered: Irregular)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>CHEM&#160;51503.  Structural Chemistry.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Determination of molecular structure by diffraction, spectroscopic, and other techniques. Illustrative examples will be chosen from inorganic chemistry and biochemistry. (Typically offered: Irregular)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>CHEM&#160;52103.  Instrumental Analysis.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Provides students, especially those in the physical, agricultural, and biological sciences, with an understanding of the theory and practice of modern instrumental techniques of analysis. Lecture 3 hours per week. Knowledge comparable to material in <a href="/search/?P=CHEM%2022673" title="CHEM&#160;22673" class="bubblelink code" onclick="return showCourse(this, 'CHEM 22673');">CHEM&#160;22673</a> and <a href="/search/?P=CHEM%2036053" title="CHEM&#160;36053" class="bubblelink code" onclick="return showCourse(this, 'CHEM 36053');">CHEM&#160;36053</a> is recommended. (Typically offered: Fall and Spring)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>CHEM&#160;52303.  Chemical Separations.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Modern separation methods including liquid chromatography (adsorption, liquid-liquid partition, ion exchange, exclusion) and gas chromatography. Theory and instrumentation is discussed with emphasis on practical aspects of separation science. (Typically offered: Fall Even Years)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>CHEM&#160;52403.  Electrochemical Methods of Analysis.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Topics will include diffusion, electron transfer kinetics, and reversible and irreversible electrode processes followed by a discussion of chronoamperometry, chronocoulometry, polarography, voltammetry, and chronopotentiometry. Knowledge of analytical chemistry comparable to material in <a href="/search/?P=CHEM%2042203" title="CHEM&#160;42203" class="bubblelink code" onclick="return showCourse(this, 'CHEM 42203');">CHEM&#160;42203</a> is recommended. (Typically offered: Spring Even Years)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>CHEM&#160;52503.  Spectrochemical Methods of Analysis.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Principles and methods of modern spectroscopic analysis. Optics and instrumentation necessary for spectroscopy is also discussed. Topics include atomic and molecular absorption and emission techniques in the ultraviolet, visible, and infrared spectral regions. Knowledge of analytical chemistry comparable to material in <a href="/search/?P=CHEM%2042203" title="CHEM&#160;42203" class="bubblelink code" onclick="return showCourse(this, 'CHEM 42203');">CHEM&#160;42203</a> is recommended. (Typically offered: Fall Odd Years)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>CHEM&#160;52803.  Energy Conversion and Storage.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Fundamental and applied concepts of energy storage and conversion with sustainability implications. Chemical reactions (kinetics, thermodynamics, mass transfer), emphasizing oxidation-reduction, electrochemical, and interfacial processes, and impact on performance of fuel and biofuel cells, batteries, supercapacitors, and photochemical conversion. (Typically offered: Fall Even Years)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>CHEM&#160;54403.  Physical Chemistry of Materials.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Physical and chemical characteristics of materials and discussion of the science behind materials engineering and performance. Topics include theory, principles of characterization methods, modeling, and applications in the context of materials. Knowledge comparable to material in <a href="/search/?P=CHEM%2035204" title="CHEM&#160;35204" class="bubblelink code" onclick="return showCourse(this, 'CHEM 35204');">CHEM&#160;35204</a> and <a href="/search/?P=CHEM%2035004" title="CHEM&#160;35004" class="bubblelink code" onclick="return showCourse(this, 'CHEM 35004');">CHEM&#160;35004</a> or <a href="/search/?P=CHEM%2034603" title="CHEM&#160;34603" class="bubblelink code" onclick="return showCourse(this, 'CHEM 34603');">CHEM&#160;34603</a> or <a href="/search/?P=CHEG%2037103" title="CHEG&#160;37103" class="bubblelink code" onclick="return showCourse(this, 'CHEG 37103');">CHEG&#160;37103</a> or <a href="/search/?P=MEEG%2024003" title="MEEG&#160;24003" class="bubblelink code" onclick="return showCourse(this, 'MEEG 24003');">MEEG&#160;24003</a> is recommended. (Typically offered: Irregular)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>CHEM&#160;54503.  Quantum  Chemistry I.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Fundamental quantum theory: Hamiltonian formalism in classical mechanics, Schrodinger equation, operators, angular momentum, harmonic oscillator, barrier problems, rigid rotator, hydrogen atom, and interaction of matter with radiation.  Knowledge of physical chemistry comparable to material in <a href="/search/?P=CHEM%2035004" title="CHEM&#160;35004" class="bubblelink code" onclick="return showCourse(this, 'CHEM 35004');">CHEM&#160;35004</a> is recommended. (Typically offered: Spring Odd Years)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>CHEM&#160;54703.  Chemical Kinetics.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Theory and applications of the principles of kinetics to reactions between substances, both in the gaseous state and in solution. Knowledge of physical chemistry comparable to material in <a href="/search/?P=CHEM%2035204" title="CHEM&#160;35204" class="bubblelink code" onclick="return showCourse(this, 'CHEM 35204');">CHEM&#160;35204</a> is recommended. (Typically offered: Spring)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>CHEM&#160;55703.  Statistical Thermodynamics.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Covers fundamentals in thermodynamics, molecular dynamics, Monte Carlo, phase transitions, behavior of gases and liquids and basic concepts in chemical kinetics and physical kinetics. Knowledge comparable to physical chemistry materials in <a href="/search/?P=CHEM%2035204" title="CHEM&#160;35204" class="bubblelink code" onclick="return showCourse(this, 'CHEM 35204');">CHEM&#160;35204</a> is recommended. (Typically offered: Irregular)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>CHEM&#160;56003.  Physical Organic Chemistry.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Introduction to the theoretical interpretation of reactivity, reaction mechanisms, and molecular structure of organic compounds. Application of theories of electronic structure; emphasis on recent developments. Knowledge of material comparable to <a href="/search/?P=CHEM%2036203" title="CHEM&#160;36203" class="bubblelink code" onclick="return showCourse(this, 'CHEM 36203');">CHEM&#160;36203</a>, <a href="/search/?P=CHEM%20362H3" title="CHEM&#160;362H3" class="bubblelink code" onclick="return showCourse(this, 'CHEM 362H3');">CHEM&#160;362H3</a>, <a href="/search/?P=CHEM%2037203" title="CHEM&#160;37203" class="bubblelink code" onclick="return showCourse(this, 'CHEM 37203');">CHEM&#160;37203</a> and <a href="/search/?P=CHEM%2035204" title="CHEM&#160;35204" class="bubblelink code" onclick="return showCourse(this, 'CHEM 35204');">CHEM&#160;35204</a> is recommended. (Typically offered: Fall)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>CHEM&#160;56303.  Organic Reactions.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+The more important types of organic reactions and their applications to various classes of compounds. Knowledge of organic chemistry comparable to material in <a href="/search/?P=CHEM%2036053" title="CHEM&#160;36053" class="bubblelink code" onclick="return showCourse(this, 'CHEM 36053');">CHEM&#160;36053</a> is recommended. (Typically offered: Irregular)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>CHEM&#160;56403.  Chemistry of Carbohydrates.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Introduction to carbohydrate chemistry including structures of mono-, di- and oligosaccharides; properties including stereochemistry; characterization including spectroscopy, and molecular recognition; and real life examples including blood groups; current strategies, research groups and topics at the forefront in the field. (Typically offered: Spring Even Years)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>CHEM&#160;57203.  Experimental Methods in Organic Chemistry.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Introduction to the application of synthetic and spectroscopic methods in organic chemistry, including mass spectrometry, infrared spectroscopy, and nuclear magnetic resonance spectrometry. Lecture 3 hours per week. Knowledge comparable to material in <a href="/search/?P=CHEM%2036203" title="CHEM&#160;36203" class="bubblelink code" onclick="return showCourse(this, 'CHEM 36203');">CHEM&#160;36203</a> is recommended. (Typically offered: Fall)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>CHEM&#160;57503.  Methods of Organic Analysis.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Interpretation of physical measurements of organic compounds in terms of molecular structure. Emphasis on spectroscopic methods (infrared, ultraviolet, magnet resonance, and mass spectra). Knowledge of organic chemistry comparable to material in <a href="/search/?P=CHEM%2036053" title="CHEM&#160;36053" class="bubblelink code" onclick="return showCourse(this, 'CHEM 36053');">CHEM&#160;36053</a> is recommended. (Typically offered: Fall)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>CHEM&#160;58103.  Biochemistry I.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+The first of a two-course series covering biochemistry for graduate students in biology, agriculture, and chemistry. Topics covered include protein structure and function, enzyme kinetics, enzyme mechanisms, and nucleic acid and carbohydrate structures. Knowledge of organic chemistry comparable to material in <a href="/search/?P=CHEM%2036203" title="CHEM&#160;36203" class="bubblelink code" onclick="return showCourse(this, 'CHEM 36203');">CHEM&#160;36203</a> is recommended. (Typically offered: Fall)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>CHEM&#160;58403.  Biochemistry II.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+A continuation of <a href="/search/?P=CHEM%2058103" title="CHEM&#160;58103" class="bubblelink code" onclick="return showCourse(this, 'CHEM 58103');">CHEM&#160;58103</a> covering topics including biological membranes and bioenergetics, photosynthesis, lipids and lipid metabolism, nucleic acid and amino acid metabolism, and molecular biology. Knowledge of organic chemistry comparable to material in <a href="/search/?P=CHEM%2036203" title="CHEM&#160;36203" class="bubblelink code" onclick="return showCourse(this, 'CHEM 36203');">CHEM&#160;36203</a> is recommended. Prerequisite:  <a href="/search/?P=CHEM%2058103" title="CHEM&#160;58103" class="bubblelink code" onclick="return showCourse(this, 'CHEM 58103');">CHEM&#160;58103</a>. (Typically offered: Spring)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>CHEM&#160;6000V.  Master's Thesis.  1-6 Hour.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Master's Thesis. Chemistry graduate students enroll in this course as needed until all CUMES are passed and the student is officially a doctoral candidate. Prerequisite:  Chemistry graduate student. (Typically offered: Fall, Spring and Summer)&#160;May be repeated for degree credit.</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>CHEM&#160;60101.  Chemistry Seminar.  1 Hour.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Weekly discussion of current chemical research. Departmental and divisional seminars in analytical chemistry, biochemistry, inorganic, organic, and physical chemistry are held weekly. Seminar credit does not count toward the minimum hourly requirements for any chemistry graduate degree. (Typically offered: Fall and Spring)&#160;May be repeated for degree credit.</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>CHEM&#160;6190V.  Special Topics in Inorganic Chemistry.  1-3 Hour.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Topics which have been covered in the past include: technique and theory of x-ray diffraction, electronic structure of transition metal complexes, inorganic reaction mechanisms, and physical methods in inorganic chemistry. (Typically offered: Irregular)&#160;May be repeated for degree credit.</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>CHEM&#160;62803.  Mass Spectrometry.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+This course is devoted to the fundamental principles and applications of analytical mass spectrometry. Interactions of ions with magnetic and electric fields and the implications with respect to mass spectrometer design are considered, as are the various types of mass spectrometer sources. Representative applications of mass spectrometry in chemical analysis are also discussed. Prerequisite:  Graduate standing. (Typically offered: Spring Odd Years)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>CHEM&#160;6290V.  Special Topics in Analytical Chemistry.  1-3 Hour.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Topics that have been presented in the past include: electroanalytical techniques, kinetics of crystal growth, studies of electrode processes, lasers in chemical analysis, nucleosynthesis and isotopic properties of meteorites, thermoluminescence of geological materials, early solar system chemistry and  analytical cosmochemistry. (Typically offered: Irregular)&#160;May be repeated for degree credit.</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>CHEM&#160;6490V.  Special Topics in Physical Chemistry.  1-3 Hour.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Topics which have been covered in the past include advanced kinetics, solution chemistry, molecular spectra, nuclear magnetic resonance spectroscopy, and methods of theoretical chemistry. (Typically offered: Irregular)&#160;May be repeated for degree credit.</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>CHEM&#160;66303.  Chemistry of Organic Natural Products.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Selected topics concerned with structure elucidation and synthesis of such compounds as alkaloids, antibiotics, bacterial metabolites, plant pigments, steroids, terpenoids, etc. Prerequisite:  <a href="/search/?P=CHEM%2056003" title="CHEM&#160;56003" class="bubblelink code" onclick="return showCourse(this, 'CHEM 56003');">CHEM&#160;56003</a> and <a href="/search/?P=CHEM%2056303" title="CHEM&#160;56303" class="bubblelink code" onclick="return showCourse(this, 'CHEM 56303');">CHEM&#160;56303</a>. (Typically offered: Irregular)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>CHEM&#160;66403.  Organometallic Chemistry.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Theories and principles of organometallic chemistry. Concepts include bonding, stereochemistry, structure and reactivity, stereochemical principles, conformational, steric and stereoelectronic effects. Transition metal catalysis of organic reactions will also be described. Knowledge of material comparable to <a href="/search/?P=CHEM%2037203" title="CHEM&#160;37203" class="bubblelink code" onclick="return showCourse(this, 'CHEM 37203');">CHEM&#160;37203</a> and <a href="/search/?P=CHEM%2035204" title="CHEM&#160;35204" class="bubblelink code" onclick="return showCourse(this, 'CHEM 35204');">CHEM&#160;35204</a> is recommended. (Typically offered: Irregular)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>CHEM&#160;6690V.  Special Topics in Organic Chemistry.  1-3 Hour.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Topics which have been presented in the past include heterogeneous catalysis, isotope effect studies of organic reaction mechanisms, organometallic chemistry, stereochemistry, photochemistry, and carbanion chemistry. (Typically offered: Irregular)&#160;May be repeated for degree credit.</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>CHEM&#160;68203.  Physical Biochemistry.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Physical chemistry of proteins, nucleic acids, and biological membranes. Ultracentrifugation, absorption and fluorescent spectrophotometry, nuclear magnetic resonance spectroscopy, x-ray diffraction, and other techniques. Prerequisite:  <a href="/search/?P=CHEM%2058103" title="CHEM&#160;58103" class="bubblelink code" onclick="return showCourse(this, 'CHEM 58103');">CHEM&#160;58103</a>. (Typically offered: Fall Even Years)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>CHEM&#160;68603.  Enzymes.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Isolation, characterization, and general chemical and biochemical properties of enzymes. Kinetics, mechanisms, and control of enzyme reactions. Prerequisite:  <a href="/search/?P=CHEM%2058103" title="CHEM&#160;58103" class="bubblelink code" onclick="return showCourse(this, 'CHEM 58103');">CHEM&#160;58103</a> and <a href="/search/?P=CHEM%2058403" title="CHEM&#160;58403" class="bubblelink code" onclick="return showCourse(this, 'CHEM 58403');">CHEM&#160;58403</a>. (Typically offered: Fall Odd Years)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>CHEM&#160;68703.  Molecular Biochemistry.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Nucleic acid chemistry in vitro and in vivo, synthesis of DNA and RNA, genetic diseases, cancer biochemistry and genetic engineering. Prerequisite:  <a href="/search/?P=CHEM%2058103" title="CHEM&#160;58103" class="bubblelink code" onclick="return showCourse(this, 'CHEM 58103');">CHEM&#160;58103</a> and <a href="/search/?P=CHEM%2058403" title="CHEM&#160;58403" class="bubblelink code" onclick="return showCourse(this, 'CHEM 58403');">CHEM&#160;58403</a>. (Typically offered: Spring Odd Years)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>CHEM&#160;68803.  Bioenergetics and Biomembranes.  3 Hours.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Cellular energy metabolism, photosynthesis, membrane transport, properties of membrane proteins, and the application of thermodynamics to biological systems. Prerequisite:  <a href="/search/?P=CHEM%2058103" title="CHEM&#160;58103" class="bubblelink code" onclick="return showCourse(this, 'CHEM 58103');">CHEM&#160;58103</a> and <a href="/search/?P=CHEM%2058403" title="CHEM&#160;58403" class="bubblelink code" onclick="return showCourse(this, 'CHEM 58403');">CHEM&#160;58403</a>. (Typically offered: Spring Even Years)</p></div>
+<div class="courseblock">
+<p font-size="7pt" class="courseblocktitle"><strong>CHEM&#160;7000V.  Doctoral Dissertation.  1-12 Hour.</strong></p>
+<p font-size="7pt" class="courseblockdesc">
+Doctoral Dissertation. For chemistry graduate students who have passed all CUMES and have officially been admitted to doctoral candidacy. Prerequisite:  Chemistry graduate student. (Typically offered: Fall, Spring and Summer)&#160;May be repeated for degree credit.</p></div>
+
+</div>
+</div>
+
+         </main>
+      </div> <!-- end col-content -->
+   </div>
+</section>
+
+	<footer id="footer">
+		<div class="wrap">
+			<div class="footer-logo">
+				<a title="University of Arkansas Home Page" href="https://www.uark.edu">UNIVERSITY OF ARKANSAS</a>
+			</div>
+
+			<div class="footer-top-row">
+				<ul class="college-links">
+					<li>
+						<a title="University of Arkansas Admissions" href="https://www.uark.edu/admissions/index.php">Admissions</a>
+					</li>
+					<li>
+						<a title="University of Arkansas Academics" href="https://www.uark.edu/academics/index.php">Academics</a>
+					</li>
+					<li>
+						<a title="Campus Life at the University of Arkansas" href="https://www.uark.edu/campus-life/index.php">Campus Life</a>
+					</li>
+					<li>
+						<a title="University of Arkansas Research" href="https://www.uark.edu/research/index.php">Research</a>
+					</li>
+					<li>
+						<a title="University of Arkansas Athletics" href="https://www.uark.edu/athletics/index.php">Athletics</a>
+					</li>
+					<li>
+						<a title="About the University of Arkansas" href="https://www.uark.edu/about/index.php">About</a>
+					</li>
+				</ul>
+
+				<ul class="social-media">
+					<li>
+						<a href="https://www.facebook.com/UofArkansas">
+							<span aria-hidden="true" class="fa fa-facebook"></span>
+							<span class="sr-only">Like us on Facebook</span>
+     		 			</a>
+    				</li>
+					<li>
+						<a href="https://twitter.com/uarkansas">
+							<span aria-hidden="true" class="fa fa-twitter"></span>
+							<span class="sr-only">Follow us on Twitter</span>
+     		 			</a>
+    				</li>
+					<li>
+						<a href="https://www.youtube.com/user/UniversityArkansas">
+							<span aria-hidden="true" class="fa fa-youtube-play"></span>
+							<span class="sr-only">Watch us on YouTube</span>
+     		 			</a>
+    				</li>
+					<li>
+						<a href="https://instagram.com/uarkansas">
+							<span aria-hidden="true" class="fa fa-instagram"></span>
+							<span class="sr-only">See us on Instagram</span>
+     		 			</a>
+    				</li>
+					<li>
+						<a href="https://www.linkedin.com/company/university-of-arkansas">
+							<span aria-hidden="true" class="fa fa-linkedin-square"></span>
+							<span class="sr-only">Connect with us on LinkedIn</span>
+     		 			</a>
+    				</li>
+				</ul>
+			</div>
+
+			<hr />
+
+			<div class="footer-main-wrapper">
+				<div class="section-address">
+					<div class="address-map">
+						<a class="map-icon" title="View Campus Maps" href="https://campusmaps.uark.edu/">
+							<span class="fa-duotone fa-map-location-dot"></span>
+						</a>
+
+						<address>
+							1 University of Arkansas
+							<br>
+							Fayetteville, AR 72701
+							<br>
+							<a class="d-inline-block d-lg-none" title="View Campus Maps" href="https://campusmaps.uark.edu/">View Campus Maps</a>
+							<br class="d-block d-lg-none">
+							<a href="tel:+1-479-575-2000" aria-label="4 7 9. 5 7 5. 2 0 0 0. ">479-575-2000</a>
+						  </address>
+					</div>
+					<img class="img-responsive" src="//www.uark.edu/_resources/img/map.png" alt="Map of University of Arkansas Campus">
+				</div>
+
+				<div class="section-news">
+					<a class="sub-header" href="https://news.uark.edu/">NEWS</a>
+					<ul>
+						<li>
+							<a href="https://news.uark.edu/articles/67914/schmieding-foundation-major-and-career-studio-dedicated-in-the-cord" onclick="gaSendEvent(this.href, 'footer-global-links', 'news.uark.edu/articles/67914/schmieding-foundation-major-and-career-studio-dedicated-in-the-cord');">Schmieding Foundation Major and Career Studio Dedicated in the CORD</a>
+						</li>
+						<li>
+							<a href="https://news.uark.edu/articles/67916/community-design-center-s-housing-greenhouse-project-wins-2023-future-house-award" onclick="gaSendEvent(this.href, 'footer-global-links', 'news.uark.edu/articles/67916/community-design-center-s-housing-greenhouse-project-wins-2023-future-house-award');">Community Design Center's Housing, Greenhouse Project Wins 2023 Future House Award</a>
+						</li>
+						<li>
+							<a href="https://news.uark.edu/articles/67915/discover-red-good-vibrations" onclick="gaSendEvent(this.href, 'footer-global-links', 'news.uark.edu/articles/67915/discover-red-good-vibrations');">Discover RED: Good Vibrations</a>
+						</li>
+					</ul>
+				</div>
+
+				<div class="section-news">
+					<a class="sub-header" href="https://calendars.uark.edu/">UPCOMING EVENTS</a>
+					<ul>
+						<li>
+							<a href="https://calendars.uark.edu/event/mydw_fall_workshop_series?utm_campaign=widget&utm_medium=widget&utm_source=University+of+Arkansas">Making Your Day Work: Fall Workshop Series</a>
+						</li>
+						<li>
+							<a href="https://calendars.uark.edu/event/ofa_funding_informational_session_1112?utm_campaign=widget&utm_medium=widget&utm_source=University+of+Arkansas">OFA Funding Informational Session</a>
+						</li>
+						<li>
+							<a href="https://calendars.uark.edu/event/spanish_center_for_tutoring?utm_campaign=widget&utm_medium=widget&utm_source=University+of+Arkansas">Spanish Center for Tutoring</a>
+						</li>
+						<li>
+							<a href="https://calendars.uark.edu/event/invest_for_success_fine-tuning_your_retirement_strategy?utm_campaign=widget&utm_medium=widget&utm_source=University+of+Arkansas">Invest for success: Fine-tuning your retirement strategy</a>
+						</li>
+					</ul>
+				</div>
+
+				<div class="section-button-list">
+					<a href="https://application.uark.edu/"><span aria-hidden="true" class="fas fa-check"></span><strong>APPLY </strong>Online</a>
+					<a href="https://visit.uark.edu/"><span aria-hidden="true" class="fas fa-calendar-alt"></span><strong>Schedule </strong>a Visit</a>
+					<a href="https://onlinegiving.uark.edu/"><span aria-hidden="true" class="fas fa-gift"></span>Make a <strong>Gift </strong></a>
+				</div>
+			</div>
+
+			<hr />
+
+			<ul class="footer-bottom-row">
+				<li><a href="https://emergency.uark.edu/">Emergency Information</a></li>
+				<li><a href="https://report.uark.edu/">Report a Concern</a></li>
+				<li><a href="https://titleix.uark.edu/">Title IX</a></li>
+				<li><a href="https://accessibility.uark.edu/">Accessibility</a></li>
+				<li><a href="https://www.uark.edu/privacy-policy/index.php">Privacy Policy</a></li>
+				<li><a href="https://www.uark.edu/contact-us.php">Contact Us</a></li>
+				<li><a href="https://jobs.uark.edu">Jobs</a></li>
+				<li><a href="https://www.uark.edu/mobile/">Mobile</a></li>
+			</ul>
+
+			<a class="copyright" rel="nofollow" href="https://a.cms.omniupdate.com/11/?skin=uark&amp;account=www&amp;site=www&amp;action=de&amp;path=/index.pcf">
+				Copyright of University of Arkansas
+			</a>
+		</div>
+
+		<a href="#header" id="totop"><span class="sr-only">Back to top</span></a>
+	</footer>
+
+<div id="print-dialog" aria-labelledby="dialog-title" class="screen" role="dialog">
+   <div class="print-header">
+      <button onclick="hidePrintDialog(); return false;" aria-controls="#print-dialog">
+         <span class="sr-only">Close this window</span>
+      </button>
+      <h2 id="dialog-title">Print Options</h2>
+   </div>
+   <div class="print-body">
+      <ul>
+         <li>
+            <p><a class="option-name" href="#"  role="button" onclick="hidePrintDialog();window.print();return false">Send Page to Printer</a></p>
+            <p class="option-desc">Print this page.</p>
+         </li>
+<li><p><a class="option-name" href="/undergraduatecatalog/coursesofinstruction/chem/chem.pdf" role="button">Download Page (PDF)</a></p><p class="option-desc">The PDF will include all information unique to this page.</p></li><li><p><a class="option-name" href="/pdf/UARK-Undergrad_2025-26.pdf" target="_blank">Undergraduate Catalog</a></p><p class="option-desc">A PDF of the entire 2025-26 Undergraduate catalog.</p></li><li><p><a class="option-name" href="/pdf/UARK-Grad Catalog_2025-26.pdf" target="_blank">Graduate Catalog</a></p><p class="option-desc">A PDF of the entire 2025-26 Graduate catalog.</p></li><li><p><a class="option-name" href="/pdf/UARK-Law Catalog_2025-26.pdf" target="_blank">Law Catalog</a></p><p class="option-desc">A PDF of the entire 2025-26 Law catalog.</p></li>      </ul>
+   </div>
+</div>
+
+</body>
+</html>

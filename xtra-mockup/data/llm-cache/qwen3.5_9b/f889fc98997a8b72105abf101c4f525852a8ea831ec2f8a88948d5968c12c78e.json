@@ -1,0 +1,97 @@
+{
+  "model": "qwen3.5:9b",
+  "promptVersion": "prerequisite-structure/1",
+  "task": "prerequisite sentence",
+  "sentence": "(CHEM 14203 and CHEM 14201) or (CHEM 142H3 and CHEM 142H1) or (CHEM 12283 and CHEM 12281) or (CHEM 12103 and CHEM 12101) and MATH 11003 or higher, or AP Calculus AB 3C or higher, or AP Calculus BC 4C or higher, or CLEP College Algebra 54 or higher.",
+  "courseCodes": [
+    "CHEM 14203",
+    "CHEM 14201",
+    "CHEM 142H3",
+    "CHEM 142H1",
+    "CHEM 12283",
+    "CHEM 12281",
+    "CHEM 12103",
+    "CHEM 12101",
+    "MATH 11003"
+  ],
+  "structure": {
+    "kind": "any_of",
+    "quote": "",
+    "items": [
+      {
+        "kind": "all_of",
+        "quote": "",
+        "items": [
+          {
+            "kind": "course",
+            "quote": "CHEM 14203"
+          },
+          {
+            "kind": "course",
+            "quote": "CHEM 14201"
+          }
+        ]
+      },
+      {
+        "kind": "all_of",
+        "quote": "",
+        "items": [
+          {
+            "kind": "course",
+            "quote": "CHEM 142H3"
+          },
+          {
+            "kind": "course",
+            "quote": "CHEM 142H1"
+          }
+        ]
+      },
+      {
+        "kind": "all_of",
+        "quote": "",
+        "items": [
+          {
+            "kind": "course",
+            "quote": "CHEM 12283"
+          },
+          {
+            "kind": "course",
+            "quote": "CHEM 12281"
+          }
+        ]
+      },
+      {
+        "kind": "all_of",
+        "quote": "",
+        "items": [
+          {
+            "kind": "course",
+            "quote": "CHEM 12103"
+          },
+          {
+            "kind": "course",
+            "quote": "CHEM 12101"
+          }
+        ]
+      },
+      {
+        "kind": "text",
+        "quote": "MATH 11003 or higher"
+      },
+      {
+        "kind": "text",
+        "quote": "AP Calculus AB 3C or higher"
+      },
+      {
+        "kind": "text",
+        "quote": "AP Calculus BC 4C or higher"
+      },
+      {
+        "kind": "text",
+        "quote": "CLEP College Algebra 54 or higher"
+      }
+    ]
+  },
+  "argument": "The sentence begins with a sequence of four parenthetical groups joined by 'or', followed by several text conditions also joined by 'or'. According to the CTDL definition of ceterms:alternativeCondition, this structure represents a context where more than one alternative path fulfills the parent condition, mapping to an 'any_of' node. The first four items are parenthetical groups containing course codes joined by 'and'. Per the rule that brackets group items and courses joined by 'and' inside brackets form an 'all_of', these map to 'all_of' nodes. The remaining items ('MATH 11003 or higher', etc.) are not enclosed in brackets joining multiple courses with 'and', so they are treated as individual text conditions under the main 'any_of' node.",
+  "seconds": 8.3
+}

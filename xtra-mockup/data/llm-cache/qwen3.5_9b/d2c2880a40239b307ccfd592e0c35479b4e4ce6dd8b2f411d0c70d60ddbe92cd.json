@@ -1,0 +1,27 @@
+{
+  "model": "qwen3.5:9b",
+  "promptVersion": "prerequisite-structure/1",
+  "task": "prerequisite sentence",
+  "sentence": "Admission to the Masters of Science in Nursing or the Doctor of Nursing Practice Program.",
+  "courseCodes": [],
+  "structure": {
+    "kind": "any_of",
+    "quote": "",
+    "items": [
+      {
+        "kind": "text",
+        "quote": "Admission to the Masters of Science in Nursing"
+      },
+      {
+        "kind": "text",
+        "quote": "or"
+      },
+      {
+        "kind": "text",
+        "quote": "the Doctor of Nursing Practice Program"
+      }
+    ]
+  },
+  "argument": "The sentence presents two distinct paths ('Admission to the Masters of Science in Nursing' and 'the Doctor of Nursing Practice Program') connected by the word 'or'. According to the CTDL definition of ceterms:alternativeCondition, this represents a context where 'more than one alternative condition or path has been defined and from which any one path fulfills the parent condition.' Therefore, the logical structure is an 'any_of' node. Since neither item contains a specific course code (as noted in the input constraints), they are treated as 'text' nodes containing the exact phrases provided.",
+  "seconds": 3.0
+}

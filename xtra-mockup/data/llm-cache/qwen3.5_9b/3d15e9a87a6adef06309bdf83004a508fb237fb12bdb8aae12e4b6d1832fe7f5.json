@@ -1,0 +1,26 @@
+{
+  "model": "qwen3.5:9b",
+  "promptVersion": "prerequisite-structure/1",
+  "task": "corequisite sentence",
+  "sentence": "CHEM 36051 and related course component drill section for CHEM 36053.",
+  "courseCodes": [
+    "CHEM 36051",
+    "CHEM 36053"
+  ],
+  "structure": {
+    "kind": "all_of",
+    "quote": "",
+    "items": [
+      {
+        "kind": "course",
+        "quote": "CHEM 36051"
+      },
+      {
+        "kind": "text",
+        "quote": "related course component drill section for CHEM 36053"
+      }
+    ]
+  },
+  "argument": "The sentence uses 'and' to connect two distinct requirements: taking the first course and completing a specific related section. According to the CTDL definition of ceterms:alternativeCondition, this structure implies that multiple paths exist where any one path fulfills the parent condition; however, in this specific syntactic construction ('A and B'), the logical connector 'and' functions as an intersection (all_of) because both elements are presented as necessary components of a single corequisite relationship rather than mutually exclusive alternatives. The first element is identified as a course code ('CHEM 36051') and the second as a descriptive text condition involving a second course code ('CHEM 36053'). Since the sentence does not use 'or' or brackets to group alternatives, the top-level node is an 'all_of' requiring both items.",
+  "seconds": 4.3
+}
