@@ -1,0 +1,1319 @@
+{
+  "schemaCopyDate": "2026-06-07",
+  "slots": {
+    "context": {
+      "label": "Vocabulary",
+      "plain": "A JSON-LD keyword. It names the vocabulary that every key in the record comes from, so that `ceterms:name` means the same thing to every reader.",
+      "choice": "Every CTDL record points at the same published context. Nothing was read from the page.",
+      "examples": "https://credreg.net/ctdl/schema/context/json",
+      "alternatives": []
+    },
+    "id": {
+      "label": "Record address",
+      "plain": "A JSON-LD keyword: the address that identifies this record. In the Registry it is the Registry's resource address followed by the record's [[CTID]].",
+      "choice": "It is written in the form a published record would have (decision D14), but nothing has been published, so the address does not exist.",
+      "examples": "https://credentialengineregistry.org/resources/ce-a1dff327-b792-406a-9547-edc9c803a78f",
+      "alternatives": [
+        {
+          "name": "An address that is visibly not real",
+          "why_not": "Could never be mistaken for a published record, but is not the form “valid CTDL” was defined as. Still an open question (specification section 12, question 8)."
+        }
+      ]
+    },
+    "Course": {
+      "label": "Kind of record",
+      "term": "ceterms:Course",
+      "choice": "The catalog's own index page says “the word ‘course’ refers to a unit of academic instruction”: the durable unit, not a scheduled class. That is this [[Class]].",
+      "examples": "48,580 records in the Registry have this type (counted 2026-10-07).",
+      "alternatives": [
+        {
+          "name": "`ceterms:LearningOpportunityProfile`",
+          "why_not": "The general parent class. Course is its subclass, so choosing the parent throws information away, and only a Course may carry `ceterms:prerequisite`."
+        },
+        {
+          "name": "`ceterms:LearningProgram`",
+          "why_not": "A set of learning opportunities leading to an outcome such as a degree. That is a major, not a course."
+        },
+        {
+          "name": "`ceterms:CourseComponent`",
+          "why_not": "A stand-in for a course inside a pathway diagram. Not the course itself."
+        }
+      ],
+      "ctdl": {
+        "term": "ceterms:Course",
+        "label": "Course",
+        "kind": "class",
+        "definition": "Single structured sequence of one or more educational activities that aims to develop a prescribed set of competencies of learners.",
+        "page": "https://credreg.net/ctdl/terms/Course",
+        "unstable": false,
+        "note": "Course is distinct from Program, which aggregates several courses."
+      }
+    },
+    "ctid": {
+      "label": "Identifier (CTID)",
+      "term": "ceterms:ctid",
+      "choice": "The university has published no courses, so there is no existing [[CTID]] to reuse. One is made once per course code and remembered in a ledger; running again never changes it.",
+      "examples": "ce-57603921-78ce-455c-88b5-00506fb33701 (the University of Arkansas itself)",
+      "alternatives": [
+        {
+          "name": "A new CTID for each catalog edition",
+          "why_not": "Would break every link between courses each year. The edition is recorded in `ceterms:versionIdentifier` (decision D6). Credential Engine has not been asked which they recommend (risk R9)."
+        },
+        {
+          "name": "Never inventing a CTID",
+          "why_not": "This is the rule Credential Engine's own tool follows. It works only when a published record already exists to look up; here none does."
+        }
+      ],
+      "ctdl": {
+        "term": "ceterms:ctid",
+        "label": "CTID",
+        "kind": "property",
+        "definition": "Globally unique Credential Transparency Identifier (CTID) by which the creator, owner or provider of a resource recognizes it in transactions with the external environment (e.g., in verifiable claims involving the resource).",
+        "page": "https://credreg.net/ctdl/terms/ctid",
+        "unstable": false,
+        "note": "The CTID is the equivalent of a version identifier for the resource. Different versions of a resource are considered distinct expressions and each must be assigned its own CTID. Each version of a resource can have only one CTID assigned. However, a single version of a resource may have distinct identifier values for both the ctid property and the credentialId property. In such a case both identifiers will be recognized by the resource creator/owner/provider in transactions with the external environment.",
+        "range": [
+          "xsd:string"
+        ]
+      }
+    },
+    "name": {
+      "label": "Course name",
+      "term": "ceterms:name",
+      "choice": "The code and the transfer tag were left out. Each has a field of its own.",
+      "examples": "“Accounting Principles” · “Honors University Chemistry II”",
+      "alternatives": [
+        {
+          "name": "“ACCT 20103 - Accounting Principles”",
+          "why_not": "Some publishers put the code in the name. With `ceterms:codedNotation` carrying the code, that would say it twice (decision D2)."
+        }
+      ],
+      "ctdl": {
+        "term": "ceterms:name",
+        "label": "Name",
+        "kind": "property",
+        "definition": "Name or title of the resource.",
+        "page": "https://credreg.net/ctdl/terms/name",
+        "unstable": false,
+        "range": [
+          "rdf:langString"
+        ]
+      }
+    },
+    "codedNotation": {
+      "label": "Course code",
+      "term": "ceterms:codedNotation",
+      "choice": "The course code is the university's own identifier for the course, with no outside scheme to name. This is the field for exactly that.",
+      "examples": "“ACCT 20103” · “CHEM 142H3” (honors) · “ACCT 3100V” (variable credit)",
+      "alternatives": [
+        {
+          "name": "`ceterms:identifier`",
+          "why_not": "For codes that come from a named scheme outside the owner. It is used here for the statewide transfer number, not for the university's own code."
+        },
+        {
+          "name": "Inside `ceterms:name`",
+          "why_not": "A code inside a name cannot be searched or sorted as a code."
+        }
+      ],
+      "ctdl": {
+        "term": "ceterms:codedNotation",
+        "label": "Coded Notation",
+        "kind": "property",
+        "definition": "Set of alpha-numeric symbols as defined by the body responsible for this resource that uniquely identifies this resource and supports its discovery and use.",
+        "page": "https://credreg.net/ctdl/terms/codedNotation",
+        "unstable": false,
+        "note": "Examples include course codes (e.g., \"ENG101\"), US Standard Occupation Codes (e.g., \"31-9091\"), North American Industry Classification System codes (e.g., \"236117\"), or any other bespoke code used by the provider of the resource to identify it.",
+        "usageNote": "For identifiers that come from a recognized identification scheme use the specific property for that identifier type, such as ceterms:opeID, ceterms:ncesID, ceterms:leiCode, etc., or use ceterms:identifier so that the identification schema can be named.",
+        "range": [
+          "xsd:string"
+        ]
+      }
+    },
+    "description": {
+      "label": "Description",
+      "term": "ceterms:description",
+      "choice": "The whole paragraph is kept, including sentences such as “May be repeated…” that CTDL has no field for, so that nothing on the page is lost (decision D3, not yet confirmed).",
+      "examples": "A paragraph of prose. Text is wrapped as a [[Language map]].",
+      "alternatives": [
+        {
+          "name": "Prose only, with the labelled sentences cut off",
+          "why_not": "Cleaner, and it would not repeat the prerequisite sentence. But the repeat rule and the offering note would then appear nowhere in the record."
+        }
+      ],
+      "ctdl": {
+        "term": "ceterms:description",
+        "label": "Description",
+        "kind": "property",
+        "definition": "Statement, characterization or account of the entity.",
+        "page": "https://credreg.net/ctdl/terms/description",
+        "unstable": false,
+        "range": [
+          "rdf:langString"
+        ]
+      }
+    },
+    "creditValue": {
+      "label": "Credit",
+      "term": "ceterms:creditValue",
+      "choice": "It is written as a number together with its unit, not as a bare 3.",
+      "examples": "3 semester hours · 1 to 3 semester hours · 4.5 quarter hours",
+      "options": "ceterms:CreditUnit",
+      "alternatives": [
+        {
+          "name": "A bare 3",
+          "why_not": "Does not say three of what."
+        },
+        {
+          "name": "Two entries for a range",
+          "why_not": "“1-3 hours” is one statement with a minimum and a maximum. A second entry would mean a second, separate statement of credit, such as contact hours."
+        },
+        {
+          "name": "Another unit",
+          "why_not": "Quarter Hour, Contact Hour and 12 others exist. The index page says “semester hours”."
+        }
+      ],
+      "ctdl": {
+        "term": "ceterms:creditValue",
+        "label": "Credit Value",
+        "kind": "property",
+        "definition": "A credit-related value.",
+        "page": "https://credreg.net/ctdl/terms/creditValue",
+        "unstable": false,
+        "range": [
+          "ceterms:ValueProfile"
+        ]
+      }
+    },
+    "ValueProfile": {
+      "label": "Kind of object",
+      "term": "ceterms:ValueProfile",
+      "choice": "The schema allows only this [[Class]] as the value of `ceterms:creditValue`. It holds a number or a range, and optionally a unit, a level and a subject.",
+      "examples": "The handbook's own example: “3 Degree Credits at the Lower Division Level for the subject of Finance”.",
+      "alternatives": [
+        {
+          "name": "A plain number",
+          "why_not": "The schema does not allow it here, and it could not carry the unit."
+        }
+      ],
+      "ctdl": {
+        "term": "ceterms:ValueProfile",
+        "label": "Value Profile",
+        "kind": "class",
+        "definition": "A description of value awarded for, required by, or otherwise related to the resource.",
+        "page": "https://credreg.net/ctdl/terms/ValueProfile",
+        "unstable": false
+      }
+    },
+    "value": {
+      "label": "Credit amount",
+      "term": "schema:value",
+      "choice": "This course has one fixed amount of credit, so it carries a single number.",
+      "examples": "3 · 1 · 4",
+      "alternatives": [
+        {
+          "name": "`schema:minValue` and `schema:maxValue`",
+          "why_not": "Those are for a range, such as “1-3 Hour”. CTDL's usage note: “for single values, use schema:value; for ranges, use schema:minValue and schema:maxValue.”"
+        }
+      ],
+      "ctdl": {
+        "term": "schema:value",
+        "label": "Value",
+        "kind": "property",
+        "definition": "The value of the property value node.",
+        "page": "https://credreg.net/ctdl/terms/value",
+        "unstable": false,
+        "usageNote": "In CTDL: for single values, use schema:value; for ranges, use schema:minValue and schema:maxValue.",
+        "range": [
+          "xsd:float"
+        ]
+      }
+    },
+    "minValue": {
+      "label": "Credit, minimum",
+      "term": "schema:minValue",
+      "choice": "The title line gives a range, so the single `schema:value` is left out and the two ends of the range are given.",
+      "examples": "1 (of “1-3 Hour”)",
+      "alternatives": [
+        {
+          "name": "`schema:value` with the smaller number",
+          "why_not": "Would say the course is worth exactly that much. Omit, never invent."
+        }
+      ],
+      "ctdl": {
+        "term": "schema:minValue",
+        "label": "Minimum Value",
+        "kind": "property",
+        "definition": "The lower value of some characteristic or property.",
+        "page": "https://credreg.net/ctdl/terms/minValue",
+        "unstable": false,
+        "usageNote": "In CTDL: for single values, use schema:value; for ranges, use schema:minValue and schema:maxValue.",
+        "range": [
+          "xsd:float"
+        ]
+      }
+    },
+    "maxValue": {
+      "label": "Credit, maximum",
+      "term": "schema:maxValue",
+      "choice": "The larger number of the range in the title line.",
+      "examples": "3 (of “1-3 Hour”)",
+      "alternatives": [],
+      "ctdl": {
+        "term": "schema:maxValue",
+        "label": "Maximum Value",
+        "kind": "property",
+        "definition": "The upper value of some characteristic or property.",
+        "page": "https://credreg.net/ctdl/terms/maxValue",
+        "unstable": false,
+        "usageNote": "In CTDL: for single values, use schema:value; for ranges, use schema:minValue and schema:maxValue.",
+        "range": [
+          "xsd:float"
+        ]
+      }
+    },
+    "creditUnitType": {
+      "label": "Credit unit",
+      "term": "ceterms:creditUnitType",
+      "choice": "The title line says “Hours” without saying what kind. The catalog's index page says “semester hours”, once, for every course.",
+      "examples": "Semester Hour · Quarter Hour · Contact Hour",
+      "options": "ceterms:CreditUnit",
+      "alternatives": [
+        {
+          "name": "Leaving the unit out",
+          "why_not": "The number alone is ambiguous, and the evidence for the unit exists; it is only on a different page."
+        },
+        {
+          "name": "`ceterms:creditUnitTypeDescription`",
+          "why_not": "Free text, for units that are not in CTDL's list. Semester Hour is in the list."
+        }
+      ],
+      "ctdl": {
+        "term": "ceterms:creditUnitType",
+        "label": "Credit Unit Type",
+        "kind": "property",
+        "definition": "The type of credit associated with the credit awarded or required.",
+        "page": "https://credreg.net/ctdl/terms/creditUnitType",
+        "unstable": false,
+        "range": [
+          "skos:Concept"
+        ],
+        "scheme": "ceterms:CreditUnit"
+      }
+    },
+    "CredentialAlignmentObject": {
+      "label": "Kind of object",
+      "term": "ceterms:CredentialAlignmentObject",
+      "choice": "CTDL writes every pick-from-a-list value as this small labelled card: which list, which entry, and the entry's name. It is an [[Alignment object]].",
+      "examples": "{ framework: Credit Unit, targetNode: creditUnit:SemesterHour, targetNodeName: “Semester Hour” }",
+      "alternatives": [
+        {
+          "name": "A bare word, such as “SemesterHour”",
+          "why_not": "Would not say which list the word comes from. The same card can also point at lists CTDL does not own, so one wrapper serves every such field."
+        }
+      ],
+      "ctdl": {
+        "term": "ceterms:CredentialAlignmentObject",
+        "label": "Credential Alignment Object",
+        "kind": "class",
+        "definition": "Entity describing an affiliation or association between an entity such as a credential, learning opportunity or assessment and another entity in a structured framework such as a concept scheme, enumerated list, or competency framework.",
+        "page": "https://credreg.net/ctdl/terms/CredentialAlignmentObject",
+        "unstable": false
+      }
+    },
+    "targetNode": {
+      "label": "Chosen entry",
+      "term": "ceterms:targetNode",
+      "choice": "It names the one entry chosen from the list. The entry's name and definition are copied beside it from the schema, so the record can be read without looking them up.",
+      "examples": "creditUnit:SemesterHour · lifeCycle:Active · scheduleFrequency:Annually",
+      "alternatives": [],
+      "ctdl": {
+        "term": "ceterms:targetNode",
+        "label": "Target Node",
+        "kind": "property",
+        "definition": "Individual entry in a formally defined framework that is the target of an alignment.",
+        "page": "https://credreg.net/ctdl/terms/targetNode",
+        "unstable": false,
+        "note": "The target node returned must be the exact competency or concept being described and no other competency or concept. References to data or a document that returns all of the competencies or concepts in the framework to which the target node belongs should use the ceterms:framework property.",
+        "usageNote": "\"Framework\" may be interpreted broadly to include any scheme or schema for organizing and referencing resources.",
+        "range": [
+          "xsd:anyURI"
+        ]
+      }
+    },
+    "identifier": {
+      "label": "Transfer number",
+      "term": "ceterms:identifier",
+      "choice": "The tag gives this course's number in the Arkansas Course Transfer System ([[ACTS]]), a scheme outside the university. This field names both the scheme and the number.",
+      "examples": "ACTS · “ACCT 2003”",
+      "alternatives": [
+        {
+          "name": "`ceterms:codedNotation`",
+          "why_not": "Already holds the university's own code. This is a different code from a different body."
+        },
+        {
+          "name": "A `ceterms:TransferValueProfile`",
+          "why_not": "CTDL's formal way to describe transfer credit. It is a separate, heavier record that the state would own, and none were found in the Registry for ACTS."
+        },
+        {
+          "name": "Leaving it in the name",
+          "why_not": "The tag is not part of the course's name."
+        }
+      ],
+      "ctdl": {
+        "term": "ceterms:identifier",
+        "label": "Identifier",
+        "kind": "property",
+        "definition": "Alphanumeric token that identifies this resource and information about the token's originating context or scheme.",
+        "page": "https://credreg.net/ctdl/terms/identifier",
+        "unstable": false,
+        "usageNote": "Where a specific property for the originating context or scheme exists, such as ceterms:opeID, ceterms:ncesID, ceterms:leiCode, etc., use that property instead of this one. Where the identifier has no nameable originating context or scheme other than that of the resource being identified, ceterms:codedNotation may be used.",
+        "range": [
+          "ceterms:IdentifierValue"
+        ]
+      }
+    },
+    "IdentifierValue": {
+      "label": "Kind of object",
+      "term": "ceterms:IdentifierValue",
+      "choice": "The schema allows only this [[Class]] here. It pairs a code with the name of the scheme the code belongs to.",
+      "examples": "{ identifierTypeName: “Catalog Year”, identifierValueCode: “2024-2025 Catalog” } (from a published course)",
+      "alternatives": [],
+      "ctdl": {
+        "term": "ceterms:IdentifierValue",
+        "label": "Identifier Value",
+        "kind": "class",
+        "definition": "Means of identifying a resource, typically consisting of an alphanumeric token and a context or scheme from which that token originates.",
+        "page": "https://credreg.net/ctdl/terms/IdentifierValue",
+        "unstable": false,
+        "usageNote": "Where a formal identification system exists for the identifier, recommended best practice is to use a string conforming to that system."
+      }
+    },
+    "identifierTypeName": {
+      "label": "Identifier scheme",
+      "term": "ceterms:identifierTypeName",
+      "choice": "It names the scheme, so that the code beside it can be understood. The wording is ours, fixed for every course; it is not read from the page.",
+      "examples": "“ISBN” · “Catalog Year”",
+      "alternatives": [],
+      "ctdl": {
+        "term": "ceterms:identifierTypeName",
+        "label": "Identifier Type Name",
+        "kind": "property",
+        "definition": "Formal name or acronym of the framework, scheme, type, or other organizing principle of this identifier, such as ISBN or ISSN.",
+        "page": "https://credreg.net/ctdl/terms/identifierTypeName",
+        "unstable": false,
+        "range": [
+          "rdf:langString"
+        ]
+      }
+    },
+    "identifierValueCode": {
+      "label": "Identifier code",
+      "term": "ceterms:identifierValueCode",
+      "choice": "The code itself, as the page gives it.",
+      "examples": "“ACCT 2003” · “2026-27”",
+      "alternatives": [],
+      "ctdl": {
+        "term": "ceterms:identifierValueCode",
+        "label": "Identifier Value Code",
+        "kind": "property",
+        "definition": "Alphanumeric string identifier of the entity.",
+        "page": "https://credreg.net/ctdl/terms/identifierValueCode",
+        "unstable": false,
+        "note": "Where a formal identification system exists for the identifier, recommended best practice is to use a string conforming to that system.",
+        "range": [
+          "xsd:string"
+        ]
+      }
+    },
+    "requires": {
+      "label": "Prerequisite",
+      "term": "ceterms:requires",
+      "choice": "The narrower field, `ceterms:prerequisite`, can only list courses. A [[ConditionProfile]] under this field can also hold grades, groups of students, and “or”.",
+      "examples": "One [[ConditionProfile]] per sentence. Published courses nearly always give only the sentence as text; the structure here goes further.",
+      "alternatives": [
+        {
+          "name": "The sentence as text only",
+          "why_not": "Always correct, and what every publisher in the sample does. But a program cannot tell which courses are involved. The sentence is kept word for word as well, so nothing is risked by adding structure."
+        },
+        {
+          "name": "A flat list of the linked courses",
+          "why_not": "Courses listed together read as “all required”. For a sentence with “or” in it, that would state something false."
+        },
+        {
+          "name": "`ceterms:entryCondition`",
+          "why_not": "The schema says: “For Courses required to be taken before entry into another Course, use prerequisite.”"
+        }
+      ],
+      "ctdl": {
+        "term": "ceterms:requires",
+        "label": "Requires",
+        "kind": "property",
+        "definition": "Requirement or set of requirements for this resource.",
+        "page": "https://credreg.net/ctdl/terms/requires",
+        "unstable": false,
+        "usageNote": "Consider using the more specific subproperties of requires such as prerequisite, coPrerequisite, entryCondition, and corequisite, where appropriate.",
+        "range": [
+          "ceasn:Competency",
+          "ceterms:AcademicCertificate",
+          "ceterms:ApprenticeshipCertificate",
+          "ceterms:AssessmentProfile",
+          "ceterms:AssociateDegree",
+          "ceterms:AssociateOfAppliedArtsDegree",
+          "ceterms:AssociateOfAppliedScienceDegree",
+          "ceterms:AssociateOfArtsDegree",
+          "ceterms:AssociateOfScienceDegree",
+          "ceterms:BachelorDegree",
+          "ceterms:BachelorOfArtsDegree",
+          "ceterms:BachelorOfScienceDegree",
+          "ceterms:Badge",
+          "ceterms:BasicTechnicalCertificate",
+          "ceterms:Certificate",
+          "ceterms:CertificateOfCompletion",
+          "ceterms:CertificateOfParticipation",
+          "ceterms:Certification",
+          "ceterms:ConditionProfile",
+          "ceterms:Course",
+          "ceterms:Credential",
+          "ceterms:CredentialAlignmentObject",
+          "ceterms:Degree",
+          "ceterms:DigitalBadge",
+          "ceterms:Diploma",
+          "ceterms:DoctoralDegree",
+          "ceterms:GeneralEducationDevelopment",
+          "ceterms:GeneralEducationLevel1Certificate",
+          "ceterms:GeneralEducationLevel2Certificate",
+          "ceterms:HigherEducationLevel1Certificate",
+          "ceterms:HigherEducationLevel2Certificate",
+          "ceterms:Job",
+          "ceterms:JourneymanCertificate",
+          "ceterms:LearningOpportunityProfile",
+          "ceterms:LearningProgram",
+          "ceterms:License",
+          "ceterms:MasterCertificate",
+          "ceterms:MasterDegree",
+          "ceterms:MasterOfArtsDegree",
+          "ceterms:MasterOfScienceDegree",
+          "ceterms:MicroCredential",
+          "ceterms:Occupation",
+          "ceterms:OpenBadge",
+          "ceterms:PostBaccalaureateCertificate",
+          "ceterms:PostMasterCertificate",
+          "ceterms:PreApprenticeshipCertificate",
+          "ceterms:ProfessionalCertificate",
+          "ceterms:ProfessionalDoctorate",
+          "ceterms:ProficiencyCertificate",
+          "ceterms:QualityAssuranceCredential",
+          "ceterms:ResearchDoctorate",
+          "ceterms:SecondaryEducationCertificate",
+          "ceterms:SecondarySchoolDiploma",
+          "ceterms:SpecialistDegree",
+          "ceterms:TechnicalLevel1Certificate",
+          "ceterms:TechnicalLevel2Certificate",
+          "ceterms:TechnicalLevel3Certificate",
+          "ceterms:WorkBasedLearningCertificate",
+          "ceterms:WorkRole"
+        ]
+      }
+    },
+    "corequisite": {
+      "label": "Corequisite",
+      "term": "ceterms:corequisite",
+      "choice": "The page labels the sentence “Corequisite:”: something to be taken in the same term. This is the field for exactly that. See [[Corequisite]].",
+      "examples": "A laboratory that must be taken with its lecture.",
+      "alternatives": [
+        {
+          "name": "`ceterms:requires`",
+          "why_not": "More general. The schema advises using the more specific field where one fits."
+        }
+      ],
+      "ctdl": {
+        "term": "ceterms:corequisite",
+        "label": "Corequisite",
+        "kind": "property",
+        "definition": "Resources that must be pursued concurrently.",
+        "page": "https://credreg.net/ctdl/terms/corequisite",
+        "unstable": false,
+        "note": "Includes dual (double) degrees that cannot be earned independently of each other.",
+        "range": [
+          "ceterms:ConditionProfile"
+        ]
+      }
+    },
+    "coPrerequisite": {
+      "label": "Pre- or corequisite",
+      "term": "ceterms:coPrerequisite",
+      "choice": "The page labels the sentence “Pre- or Corequisite:”: it may be taken before or alongside. This is the field for exactly that. The schema marks the field unstable, meaning it may still change.",
+      "examples": "A course that may be taken earlier or in the same term.",
+      "alternatives": [
+        {
+          "name": "`ceterms:corequisite`",
+          "why_not": "Would say it must be taken at the same time, which is stricter than the page."
+        },
+        {
+          "name": "`ceterms:requires`",
+          "why_not": "Would say it must be finished first, which is also stricter than the page."
+        }
+      ],
+      "ctdl": {
+        "term": "ceterms:coPrerequisite",
+        "label": "Co-Prerequisite",
+        "kind": "property",
+        "definition": "Resource that must be completed prior to, or pursued at the same time as, this resource.",
+        "page": "https://credreg.net/ctdl/terms/coPrerequisite",
+        "unstable": true,
+        "range": [
+          "ceterms:ConditionProfile"
+        ]
+      }
+    },
+    "ConditionProfile": {
+      "label": "Kind of object",
+      "term": "ceterms:ConditionProfile",
+      "choice": "The schema allows only this [[Class]] here. One profile is one set of requirements; profiles listed under `ceterms:alternativeCondition` are choices between which any one is enough.",
+      "examples": "The CTDL handbook: profiles side by side are “aggregated together”; profiles under alternativeCondition are “alternatives for one another”.",
+      "alternatives": [
+        {
+          "name": "A direct link to a course",
+          "why_not": "Allowed by the schema, but it cannot say “or”, carry a grade, or keep the sentence."
+        }
+      ],
+      "ctdl": {
+        "term": "ceterms:ConditionProfile",
+        "label": "Condition Profile",
+        "kind": "class",
+        "definition": "Entity describing a constraint, prerequisite, entry condition, or requirement.",
+        "page": "https://credreg.net/ctdl/terms/ConditionProfile",
+        "unstable": false,
+        "note": "Constraints exist with credentials, learning opportunities, assessments and other entities to which they are subject during their lifecycles. In certain circumstances, the condition profile can be read as a description of a Person who meets the conditions."
+      }
+    },
+    "conditionName": {
+      "label": "Requirement label",
+      "term": "ceterms:name",
+      "choice": "A short label saying which kind of requirement the profile is. It repeats the label that introduced the sentence on the page.",
+      "examples": "“Prerequisite” · “Corequisite”",
+      "alternatives": [],
+      "ctdl": {
+        "term": "ceterms:name",
+        "label": "Name",
+        "kind": "property",
+        "definition": "Name or title of the resource.",
+        "page": "https://credreg.net/ctdl/terms/name",
+        "unstable": false,
+        "range": [
+          "rdf:langString"
+        ]
+      }
+    },
+    "conditionDescription": {
+      "label": "Requirement sentence",
+      "term": "ceterms:description",
+      "choice": "The sentence is kept word for word. This is the floor that is always present: whatever happens to the structure, the page's own words are in the record.",
+      "examples": "“ACCT 20103 with a grade of C or better.”",
+      "alternatives": [],
+      "ctdl": {
+        "term": "ceterms:description",
+        "label": "Description",
+        "kind": "property",
+        "definition": "Statement, characterization or account of the entity.",
+        "page": "https://credreg.net/ctdl/terms/description",
+        "unstable": false,
+        "range": [
+          "rdf:langString"
+        ]
+      }
+    },
+    "targetLearningOpportunity": {
+      "label": "Required course",
+      "term": "ceterms:targetLearningOpportunity",
+      "choice": "Each course the sentence requires outright is given as a link to that course's record. The page marks every course code up as a link, so no course is guessed from text.",
+      "examples": "The address of another course's record.",
+      "alternatives": [
+        {
+          "name": "The course code as text",
+          "why_not": "A program could not follow it to the other course."
+        }
+      ],
+      "ctdl": {
+        "term": "ceterms:targetLearningOpportunity",
+        "label": "Target Learning Opportunity",
+        "kind": "property",
+        "definition": "Learning opportunity that is the focus of a condition, process or another learning opportunity.",
+        "page": "https://credreg.net/ctdl/terms/targetLearningOpportunity",
+        "unstable": false,
+        "range": [
+          "ceterms:Course",
+          "ceterms:LearningOpportunity",
+          "ceterms:LearningOpportunityProfile",
+          "ceterms:LearningProgram"
+        ]
+      }
+    },
+    "condition": {
+      "label": "Other condition",
+      "term": "ceterms:condition",
+      "choice": "Anything in the sentence that is not a course is kept as its exact words: a grade, a class standing, a group of students. CTDL has no structured field for a minimum grade.",
+      "examples": "“with a grade of C or better” · “Honors standing”",
+      "alternatives": [
+        {
+          "name": "Dropping it",
+          "why_not": "The requirement would then read as weaker than the page states."
+        }
+      ],
+      "ctdl": {
+        "term": "ceterms:condition",
+        "label": "Condition",
+        "kind": "property",
+        "definition": "Single constraint, prerequisite, entry condition, requirement, or cost.",
+        "page": "https://credreg.net/ctdl/terms/condition",
+        "unstable": false,
+        "range": [
+          "rdf:langString"
+        ]
+      }
+    },
+    "alternativeCondition": {
+      "label": "Choices",
+      "term": "ceterms:alternativeCondition",
+      "choice": "The sentence says “or”. Each choice is written as its own nested [[ConditionProfile]]; meeting any one of them is enough.",
+      "examples": "“MATH 20503 or MATH 22003 or MATH 24004” becomes three nested profiles, one per course.",
+      "alternatives": [
+        {
+          "name": "Listing the courses together in one profile",
+          "why_not": "Courses in one list are all required. That would turn “or” into “and”."
+        }
+      ],
+      "ctdl": {
+        "term": "ceterms:alternativeCondition",
+        "label": "Alternative Condition",
+        "kind": "property",
+        "definition": "Constraints, prerequisites, entry conditions, or requirements in a context where more than one alternative condition or path has been defined and from which any one path fulfills the parent condition.",
+        "page": "https://credreg.net/ctdl/terms/alternativeCondition",
+        "unstable": false,
+        "note": "A set of alternative conditions are not necessarily mutually exclusive paths; for example, a set of alternative concentrations for a degree may allow a person to optionally complete more than one concentration even though only one is required to earn the degree.",
+        "range": [
+          "ceterms:ConditionProfile"
+        ]
+      }
+    },
+    "prerequisite": {
+      "label": "Prerequisite courses",
+      "term": "ceterms:prerequisite",
+      "choice": "A rule could prove that the sentence is a plain list of courses, with no “or”, no grade and no other condition. Only then are direct links given, in addition to the profile under `ceterms:requires`.",
+      "examples": "A list of addresses of other courses' records.",
+      "alternatives": [
+        {
+          "name": "Giving direct links for every sentence",
+          "why_not": "The field cannot say “or”. For most sentences it would state something false (decision D7)."
+        }
+      ],
+      "ctdl": {
+        "term": "ceterms:prerequisite",
+        "label": "Prerequisite",
+        "kind": "property",
+        "definition": "Course that is required as a prior condition to this course.",
+        "page": "https://credreg.net/ctdl/terms/prerequisite",
+        "unstable": false,
+        "usageNote": "Conditions of entry into Programs can be specified with entryCondition; requirements for Courses other than prerequisite Courses (e.g., Competencies) can be specified with requires.",
+        "range": [
+          "ceterms:Course"
+        ]
+      }
+    },
+    "offerFrequencyType": {
+      "label": "How often offered",
+      "term": "ceterms:offerFrequencyType",
+      "choice": "The page names the terms the course usually runs in. CTDL has no field for named terms, only for how often something starts, so the wording is mapped to a cadence and the names of the terms are lost.",
+      "examples": "Annually · Semi-Annually · Quarterly · Irregular",
+      "options": "ceterms:ScheduleFrequency",
+      "alternatives": [
+        {
+          "name": "Leaving it out",
+          "why_not": "Loses nothing, but then the record says nothing at all about how often the course runs. The wording is still in the description."
+        },
+        {
+          "name": "Asking the language model to choose",
+          "why_not": "There are only 12 distinct wordings. A table can be checked completely by a person; a language model's choice cannot (decision D9)."
+        },
+        {
+          "name": "`ceterms:scheduleFrequencyType`",
+          "why_not": "That is for how often meetings happen while the course is running, not for how often it starts."
+        }
+      ],
+      "ctdl": {
+        "term": "ceterms:offerFrequencyType",
+        "label": "Offer Frequency Type",
+        "kind": "property",
+        "definition": "Type of frequency at which a resource is offered; select from an existing enumeration of such types.",
+        "page": "https://credreg.net/ctdl/terms/offerFrequencyType",
+        "unstable": true,
+        "note": "This relates to how often something starts.",
+        "usageNote": "For information relating to the frequency of events associated with a resource when it is running, use ceterms:scheduleFrequencyType.",
+        "range": [
+          "ceterms:CredentialAlignmentObject"
+        ],
+        "scheme": "ceterms:ScheduleFrequency"
+      }
+    },
+    "isSimilarTo": {
+      "label": "Similar course",
+      "term": "ceterms:isSimilarTo",
+      "choice": "The page says the course is cross-listed with, or equivalent to, another. CTDL has no field for either. This is the weakest claim that is still true (decision D10).",
+      "examples": "An honors course and its ordinary twin.",
+      "alternatives": [
+        {
+          "name": "`ceterms:sameAs`",
+          "why_not": "CTDL: “Another source of information about the entity being described.” That says the two records describe one thing, which is more than the page says."
+        }
+      ],
+      "ctdl": {
+        "term": "ceterms:isSimilarTo",
+        "label": "Is Similar To",
+        "kind": "property",
+        "definition": "Another functionally similar entity.",
+        "page": "https://credreg.net/ctdl/terms/isSimilarTo",
+        "unstable": false,
+        "note": "The property is generally applicable in describing the similarity between any two entities.",
+        "range": [
+          "ceasn:CompetencyFramework",
+          "ceasn:Rubric",
+          "ceasn:RubricCriterion",
+          "ceterms:AcademicCertificate",
+          "ceterms:AccreditAction",
+          "ceterms:AdvancedStandingAction",
+          "ceterms:ApprenticeshipCertificate",
+          "ceterms:ApproveAction",
+          "ceterms:AssessmentProfile",
+          "ceterms:AssociateDegree",
+          "ceterms:AssociateOfAppliedArtsDegree",
+          "ceterms:AssociateOfAppliedScienceDegree",
+          "ceterms:AssociateOfArtsDegree",
+          "ceterms:AssociateOfScienceDegree",
+          "ceterms:BachelorDegree",
+          "ceterms:BachelorOfArtsDegree",
+          "ceterms:BachelorOfScienceDegree",
+          "ceterms:Badge",
+          "ceterms:BasicTechnicalCertificate",
+          "ceterms:Certificate",
+          "ceterms:CertificateOfCompletion",
+          "ceterms:CertificateOfParticipation",
+          "ceterms:Certification",
+          "ceterms:Course",
+          "ceterms:Credential",
+          "ceterms:CredentialingAction",
+          "ceterms:CredentialType",
+          "ceterms:CredentialType",
+          "ceterms:Degree",
+          "ceterms:DigitalBadge",
+          "ceterms:Diploma",
+          "ceterms:DoctoralDegree",
+          "ceterms:GeneralEducationDevelopment",
+          "ceterms:GeneralEducationLevel1Certificate",
+          "ceterms:GeneralEducationLevel2Certificate",
+          "ceterms:HigherEducationLevel1Certificate",
+          "ceterms:HigherEducationLevel2Certificate",
+          "ceterms:Industry",
+          "ceterms:Job",
+          "ceterms:JourneymanCertificate",
+          "ceterms:LearningOpportunityProfile",
+          "ceterms:LearningProgram",
+          "ceterms:License",
+          "ceterms:MasterCertificate",
+          "ceterms:MasterDegree",
+          "ceterms:MasterOfArtsDegree",
+          "ceterms:MasterOfScienceDegree",
+          "ceterms:MicroCredential",
+          "ceterms:Occupation",
+          "ceterms:OfferAction",
+          "ceterms:OpenBadge",
+          "ceterms:PostBaccalaureateCertificate",
+          "ceterms:PostMasterCertificate",
+          "ceterms:PreApprenticeshipCertificate",
+          "ceterms:PriorLearningPolicy",
+          "ceterms:ProcessProfile",
+          "ceterms:ProfessionalCertificate",
+          "ceterms:ProfessionalDoctorate",
+          "ceterms:ProficiencyCertificate",
+          "ceterms:QualificationsFramework",
+          "ceterms:QualityAssuranceCredential",
+          "ceterms:RecognizeAction",
+          "ceterms:RegulateAction",
+          "ceterms:RenewAction",
+          "ceterms:ResearchDoctorate",
+          "ceterms:RevokeAction",
+          "ceterms:RightsAction",
+          "ceterms:ScheduledOffering",
+          "ceterms:SecondaryEducationCertificate",
+          "ceterms:SecondarySchoolDiploma",
+          "ceterms:SpecialistDegree",
+          "ceterms:SupportService",
+          "ceterms:Task",
+          "ceterms:TechnicalLevel1Certificate",
+          "ceterms:TechnicalLevel2Certificate",
+          "ceterms:TechnicalLevel3Certificate",
+          "ceterms:TransferAgreement",
+          "ceterms:VerificationServiceProfile",
+          "ceterms:WorkBasedLearningCertificate",
+          "ceterms:WorkRole",
+          "qdata:Metric",
+          "rdfs:Resource",
+          "skos:ConceptScheme",
+          "xsd:anyURI"
+        ]
+      }
+    },
+    "inLanguage": {
+      "label": "Language",
+      "term": "ceterms:inLanguage",
+      "choice": "It is the language the course is delivered in, not the subject taught. CTDL's own note: “A course offered in English to teach Spanish would have an inLanguage of English.”",
+      "examples": "[\"en\"] on every one of 1,000 published courses sampled.",
+      "alternatives": [
+        {
+          "name": "Assuming English without evidence",
+          "why_not": "The page declares its language in markup, so there is no need to assume."
+        },
+        {
+          "name": "Naming the language taught, for language courses",
+          "why_not": "Not what the field means; see the note above."
+        }
+      ],
+      "ctdl": {
+        "term": "ceterms:inLanguage",
+        "label": "In Language",
+        "kind": "property",
+        "definition": "The primary language or languages of the entity, even if it makes use of other languages.",
+        "page": "https://credreg.net/ctdl/terms/inLanguage",
+        "unstable": false,
+        "usageNote": "A course offered in English to teach Spanish would have an inLanguage of English, while a credential in Quebec could have an inLanguage of both French and English.",
+        "range": [
+          "xsd:language"
+        ]
+      }
+    },
+    "lifeCycleStatusType": {
+      "label": "Status",
+      "term": "ceterms:lifeCycleStatusType",
+      "choice": "The page is in the current edition of the catalog, and the index page calls its listing “all courses approved for offering”. Active is the closest value in CTDL's list.",
+      "examples": "Active · Ceased · Suspended · Developing",
+      "options": "ceterms:LifeCycleStatus",
+      "alternatives": [
+        {
+          "name": "Suspended, for courses offered irregularly",
+          "why_not": "Suspended means “temporarily not active”. A course that is approved but seldom scheduled is still on offer."
+        }
+      ],
+      "ctdl": {
+        "term": "ceterms:lifeCycleStatusType",
+        "label": "Life Cycle Status Type",
+        "kind": "property",
+        "definition": "Type of state of the resource in terms of its stage in a life cycle; select from an enumeration of such types.",
+        "page": "https://credreg.net/ctdl/terms/lifeCycleStatusType",
+        "unstable": true,
+        "range": [
+          "ceterms:CredentialAlignmentObject"
+        ],
+        "scheme": "ceterms:LifeCycleStatus"
+      }
+    },
+    "ownedBy": {
+      "label": "Owner",
+      "term": "ceterms:ownedBy",
+      "choice": "The university designs these courses and controls their content. It already has a record in the Registry, so the value is that record's address; no new organisation record is made.",
+      "examples": "999 of 1,000 published courses sampled give `ceterms:ownedBy` alone.",
+      "alternatives": [
+        {
+          "name": "A different University of Arkansas record",
+          "why_not": "The Registry has separate records for Little Rock, Fort Smith, Pine Bluff, Monticello and others. This catalog is Fayetteville's."
+        }
+      ],
+      "ctdl": {
+        "term": "ceterms:ownedBy",
+        "label": "Owned By",
+        "kind": "property",
+        "definition": "Agent with an enforceable claim or legal title to the resource.",
+        "page": "https://credreg.net/ctdl/terms/ownedBy",
+        "unstable": false,
+        "note": "Agent includes credentialing organizations, quality assurance organizations and persons. It does not not include credential holders.",
+        "range": [
+          "ceterms:CredentialOrganization",
+          "ceterms:Organization",
+          "ceterms:QACredentialOrganization"
+        ]
+      }
+    },
+    "offeredBy": {
+      "label": "Offered by",
+      "term": "ceterms:offeredBy",
+      "choice": "The index page says these are courses “approved for offering by the University of Arkansas”, so the university is also the one that teaches them. Both fields are given (decision D5, not yet confirmed).",
+      "examples": "Owner and offerer differ when one body writes a curriculum and others teach it.",
+      "alternatives": [
+        {
+          "name": "`ceterms:ownedBy` alone",
+          "why_not": "What nearly all publishers do, and enough to satisfy the policy. Leaving this out would be simpler but would say less than the page does."
+        }
+      ],
+      "ctdl": {
+        "term": "ceterms:offeredBy",
+        "label": "Offered By",
+        "kind": "property",
+        "definition": "Agent that offers the resource.",
+        "page": "https://credreg.net/ctdl/terms/offeredBy",
+        "unstable": false,
+        "range": [
+          "ceterms:CredentialOrganization",
+          "ceterms:Organization",
+          "ceterms:QACredentialOrganization"
+        ]
+      }
+    },
+    "subjectWebpage": {
+      "label": "Web page",
+      "term": "ceterms:subjectWebpage",
+      "choice": "Courses in this catalog have no page or anchor of their own, so the nearest thing is the subject page the course was read from.",
+      "examples": "https://catalog.uark.edu/undergraduatecatalog/coursesofinstruction/acct/",
+      "alternatives": [
+        {
+          "name": "The catalog's single-course search address",
+          "why_not": "It shows one course, but the site asks automated programs to stay out of `/search/`, so it was never stored and cannot be evidence."
+        }
+      ],
+      "ctdl": {
+        "term": "ceterms:subjectWebpage",
+        "label": "Subject Webpage",
+        "kind": "property",
+        "definition": "Webpage that describes this entity.",
+        "page": "https://credreg.net/ctdl/terms/subjectWebpage",
+        "unstable": false,
+        "note": "The web page being referenced describes the entity. The value of subjectWebpage is an authoritative location for information about the subject but should not be assumed to be a persistent identifier of the subject.",
+        "range": [
+          "xsd:anyURI"
+        ]
+      }
+    },
+    "inCatalog": {
+      "label": "Catalog",
+      "term": "ceterms:inCatalog",
+      "choice": "The listing these courses were read from is the catalog's Courses of Instruction index, the page the crawl started at. The schema marks the field unstable, meaning it may still change.",
+      "examples": "https://catalog.uark.edu/undergraduatecatalog/coursesofinstruction/",
+      "alternatives": [],
+      "ctdl": {
+        "term": "ceterms:inCatalog",
+        "label": "In Catalog",
+        "kind": "property",
+        "definition": "An inventory or listing of resources that includes this resource.",
+        "page": "https://credreg.net/ctdl/terms/inCatalog",
+        "unstable": true,
+        "range": [
+          "xsd:anyURI"
+        ]
+      }
+    },
+    "versionIdentifier": {
+      "label": "Catalog edition",
+      "term": "ceterms:versionIdentifier",
+      "choice": "The catalog edition says which year's wording this record reflects. The course keeps one [[CTID]] across editions, and the edition goes here (decision D6).",
+      "examples": "“2024-2025 Catalog” on a published course from another college.",
+      "alternatives": [
+        {
+          "name": "A new CTID for each edition",
+          "why_not": "See `ceterms:ctid`. Links between courses would break every year."
+        },
+        {
+          "name": "`ceterms:dateEffective`",
+          "why_not": "That is the date the course itself came into force, which the page does not state."
+        }
+      ],
+      "ctdl": {
+        "term": "ceterms:versionIdentifier",
+        "label": "Version Identifier",
+        "kind": "property",
+        "definition": "Alphanumeric identifier of the version of the resource and information about the identifier's originating context or scheme.",
+        "page": "https://credreg.net/ctdl/terms/versionIdentifier",
+        "unstable": false,
+        "usageNote": "Use versionCode for any local identifier of the version of the resource that come from the organizational context its owner and which do not need the context of other information in order to be interpreted.",
+        "range": [
+          "ceterms:IdentifierValue"
+        ]
+      }
+    }
+  },
+  "schemes": {
+    "ceterms:CreditUnit": {
+      "term": "ceterms:CreditUnit",
+      "label": "Credit Unit",
+      "kind": "list",
+      "definition": "Broad descriptions of units used to measure credit associated with a resource.",
+      "page": "https://credreg.net/ctdl/terms/CreditUnit",
+      "unstable": false,
+      "concepts": [
+        {
+          "term": "creditUnit:AcademicYear",
+          "label": "Academic Year",
+          "definition": "Credit that is issued or accepted as being related to one or more academic years."
+        },
+        {
+          "term": "creditUnit:CarnegieUnit",
+          "label": "Carnegie Unit",
+          "definition": "Credit that is based on 120 hours of contact time or class time with an instructor."
+        },
+        {
+          "term": "creditUnit:CertificateCredit",
+          "label": "Certificate Credit",
+          "definition": "Credit that is issued or accepted for certificates."
+        },
+        {
+          "term": "creditUnit:ClockHour",
+          "label": "Clock Hour",
+          "definition": "Credit that is issued or accepted as being related to one or more temporal hours."
+        },
+        {
+          "term": "creditUnit:CompetencyCredit",
+          "label": "Competency Credit",
+          "definition": "Credit that is issued or accepted for a particular competency or set of competencies."
+        },
+        {
+          "term": "creditUnit:ContactHour",
+          "label": "Contact Hour",
+          "definition": "Credit that is issued or accepted as being related to one or more temporal hours of instruction presented to students."
+        },
+        {
+          "term": "creditUnit:ContinuingEducationUnit",
+          "label": "Continuing Education Unit",
+          "definition": "Credit that is issued or is accepted as education units for meeting professional development requirements."
+        },
+        {
+          "term": "creditUnit:DegreeCredit",
+          "label": "Degree Credit",
+          "definition": "Credit that is issued or is accepted as credit for earning a college-level degree."
+        },
+        {
+          "term": "creditUnit:DualCredit",
+          "label": "Dual Credit",
+          "definition": "Credit that is applicable to two different educational levels."
+        },
+        {
+          "term": "creditUnit:QuarterHour",
+          "label": "Quarter Hour",
+          "definition": "Credit that is issued or accepted at an academic quarter level."
+        },
+        {
+          "term": "creditUnit:RequirementCredit",
+          "label": "Requirement Credit",
+          "definition": "Credit that is issued or accepted for some type of requirement."
+        },
+        {
+          "term": "creditUnit:SecondaryDiplomaCredit",
+          "label": "Secondary Diploma Credit",
+          "definition": "Credit that is issued or accepted for a secondary diploma."
+        },
+        {
+          "term": "creditUnit:SemesterHour",
+          "label": "Semester Hour",
+          "definition": "Credit that is issued or accepted at a semester level."
+        },
+        {
+          "term": "creditUnit:TimeBasedCredit",
+          "label": "Time-Based Credit",
+          "definition": "Credit with a unit of measurement based on time, either figuratively or literally."
+        },
+        {
+          "term": "creditUnit:TypeBasedCredit",
+          "label": "Type-Based Credit",
+          "definition": "Credit with a unit of measurement based on the type of credit."
+        }
+      ]
+    },
+    "ceterms:LifeCycleStatus": {
+      "term": "ceterms:LifeCycleStatus",
+      "label": "Life Cycle Status",
+      "kind": "list",
+      "definition": "Types of states of a resource in terms of its stage in a life cycle.",
+      "page": "https://credreg.net/ctdl/terms/LifeCycleStatus",
+      "unstable": true,
+      "concepts": [
+        {
+          "term": "lifeCycle:Active",
+          "label": "Active",
+          "definition": "Resource is active, current, ongoing, offered, operational, or available."
+        },
+        {
+          "term": "lifeCycle:Ceased",
+          "label": "Ceased",
+          "definition": "Resource is permanently no longer active, current, ongoing, offered, operational, or available."
+        },
+        {
+          "term": "lifeCycle:Ceasing",
+          "label": "Ceasing",
+          "definition": "Resource is in the process of becoming no longer active, current, ongoing, offered, operational, or available."
+        },
+        {
+          "term": "lifeCycle:Developing",
+          "label": "Developing",
+          "definition": "Resource is under development and may or may not become active, current, ongoing, offered, operational, or available."
+        },
+        {
+          "term": "lifeCycle:Suspended",
+          "label": "Suspended",
+          "definition": "Resource is temporarily not active, current, ongoing, offered, operational, or available."
+        },
+        {
+          "term": "lifeCycle:TeachOut",
+          "label": "Teach Out",
+          "definition": "Arrangement by which an educational institution provides its current students with the opportunity to complete their course of study when the program, institution or location offering access closes."
+        }
+      ]
+    },
+    "ceterms:ScheduleFrequency": {
+      "term": "ceterms:ScheduleFrequency",
+      "label": "Schedule Frequency",
+      "kind": "list",
+      "definition": "Types for how often events occur.",
+      "page": "https://credreg.net/ctdl/terms/ScheduleFrequency",
+      "unstable": true,
+      "concepts": [
+        {
+          "term": "scheduleFrequency:Annually",
+          "label": "Annually",
+          "definition": "Schedule is on an annual basis, typically occurring once per year."
+        },
+        {
+          "term": "scheduleFrequency:BiMonthly",
+          "label": "Bi-Monthly",
+          "definition": "Schedule is on a bi-monthly basis, typically occurring every other month."
+        },
+        {
+          "term": "scheduleFrequency:BiWeekly",
+          "label": "Bi-Weekly",
+          "definition": "Schedule is on a bi-weekly basis, typically occurring every other week."
+        },
+        {
+          "term": "scheduleFrequency:Daily",
+          "label": "Daily",
+          "definition": "Schedule is on a daily basis, typically occurring once per day."
+        },
+        {
+          "term": "scheduleFrequency:EventBased",
+          "label": "Event-Based",
+          "definition": "Schedule is determined or triggered by other events, such as completion of activities, completion of the resource, events external to the resource, or other events; refer to the resource's information for details."
+        },
+        {
+          "term": "scheduleFrequency:Hourly",
+          "label": "Hourly",
+          "definition": "Schedule is on a hourly basis, typically occurring once per hour."
+        },
+        {
+          "term": "scheduleFrequency:Irregular",
+          "label": "Irregular",
+          "definition": "Schedule has no significant pattern."
+        },
+        {
+          "term": "scheduleFrequency:Monthly",
+          "label": "Monthly",
+          "definition": "Schedule is on a monthly basis, typically occurring once per month."
+        },
+        {
+          "term": "scheduleFrequency:MultiplePerWeek",
+          "label": "Multiple Per Week",
+          "definition": "Schedule is more frequent than a weekly basis."
+        },
+        {
+          "term": "scheduleFrequency:OnDemand",
+          "label": "On-Demand",
+          "definition": "Schedule allows the participant to choose when the resource begins."
+        },
+        {
+          "term": "scheduleFrequency:OpenEntryExit",
+          "label": "Open Entry/Exit",
+          "definition": "Schedule allows for the participant to enter, participate with, and complete the resource during any period of the resource's run time."
+        },
+        {
+          "term": "scheduleFrequency:Quarterly",
+          "label": "Quarterly",
+          "definition": "Schedule is on an quarterly basis, typically occurring three or four times per year."
+        },
+        {
+          "term": "scheduleFrequency:SelfPaced",
+          "label": "Self-Paced",
+          "definition": "Schedule allows for participation at a self-determined pace, though some specific dates and deadlines may be involved."
+        },
+        {
+          "term": "scheduleFrequency:SemiAnnually",
+          "label": "Semi-Annually",
+          "definition": "Schedule is on an semi-annual basis, typically occurring twice per year."
+        },
+        {
+          "term": "scheduleFrequency:SemiMonthly",
+          "label": "Semi-Monthly",
+          "definition": "Schedule is on a semi-monthly basis, typically occurring twice per month."
+        },
+        {
+          "term": "scheduleFrequency:SingleInstance",
+          "label": "Single Instance",
+          "definition": "Schedule is a single instance of this event."
+        },
+        {
+          "term": "scheduleFrequency:Weekly",
+          "label": "Weekly",
+          "definition": "Schedule is on a weekly basis, typically occurring once per week."
+        }
+      ]
+    }
+  },
+  "glossary": [
+    {
+      "term": "Class",
+      "text": "A kind of thing. It goes in `@type`. The class decides which fields the thing may carry.",
+      "example": "`ceterms:Course`, `ceterms:CredentialOrganization`"
+    },
+    {
+      "term": "Property",
+      "text": "A fact about a thing: one key in the record. The schema says which classes may carry each property and what kind of value it takes.",
+      "example": "`ceterms:creditValue` is allowed on a Course, and its value must be a ValueProfile."
+    },
+    {
+      "term": "CTID",
+      "text": "A Credential Transparency Identifier: a globally unique ID made of `ce-` followed by a random UUID. Because it is random, the only way to give a course the same one twice is to remember it. Every CTID this tool shows was made here and is a placeholder; nothing has been published.",
+      "example": "`ce-57603921-78ce-455c-88b5-00506fb33701`"
+    },
+    {
+      "term": "Language map",
+      "text": "CTDL wraps every piece of text in a small object that says what language it is in, so that the same field can hold several translations.",
+      "example": "`\"ceterms:name\": { \"en-US\": \"Accounting Principles\" }`"
+    },
+    {
+      "term": "ValueProfile",
+      "text": "A small nested object that describes one amount: a number or a range, and optionally a unit, a level and a subject.",
+      "example": "3, with the unit Semester Hour"
+    },
+    {
+      "term": "ConditionProfile",
+      "text": "A small nested object that describes one requirement or set of requirements. It can hold free text, links to courses, and nested profiles that are alternatives to each other. Profiles side by side mean “and”; profiles under `ceterms:alternativeCondition` mean “or”.",
+      "example": "A prerequisite sentence becomes one ConditionProfile."
+    },
+    {
+      "term": "Alignment object",
+      "text": "The wrapper CTDL uses to pick one value from a fixed list. Where it could have written a bare word, it writes a small card saying which list, which entry, and the entry's name. The same card can point at any list, including ones CTDL does not own.",
+      "example": "“the value is Semester Hour, and it comes from the list called Credit Unit”"
+    },
+    {
+      "term": "Concept scheme",
+      "text": "A fixed list of allowed values for a field.",
+      "example": "The Credit Unit list holds Semester Hour, Quarter Hour and 13 others."
+    },
+    {
+      "term": "Registry",
+      "text": "The Credential Registry: the public database, run by Credential Engine, where organisations publish CTDL records. The University of Arkansas has a record there, with 298 degrees and certificates and no courses. This tool reads that one record and publishes nothing.",
+      "example": "https://credentialengineregistry.org/resources/ce-57603921-78ce-455c-88b5-00506fb33701"
+    },
+    {
+      "term": "ACTS",
+      "text": "The Arkansas Course Transfer System: the state's list of courses guaranteed to transfer between Arkansas public institutions. “ACTS Equivalency = ACCT 2003” says this course is the university's version of statewide course ACCT 2003.",
+      "example": "ACCT 2003"
+    },
+    {
+      "term": "Corequisite",
+      "text": "A course that must be taken in the same term. A “pre- or corequisite” may be taken before or alongside.",
+      "example": "A laboratory taken with its lecture."
+    }
+  ]
+}

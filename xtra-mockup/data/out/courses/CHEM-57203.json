@@ -1,0 +1,1563 @@
+{
+  "id": "CHEM-57203",
+  "code": "CHEM 57203",
+  "subject": "CHEM",
+  "ordinal": 69,
+  "documents": [
+    "04e3b39d740489968cca4bcc0161cdc3579793a4aab008c0074af5954675e64c",
+    "2bebcbc013418b2095cb8c6ba438206259d989f34dc03b0eb0120e2293ebc119",
+    "e71f35afe7c1085ea57e13f56f16adc34a444b026d0308a155ab59e891159b81"
+  ],
+  "block": {
+    "document": "04e3b39d740489968cca4bcc0161cdc3579793a4aab008c0074af5954675e64c",
+    "start": 34130,
+    "end": 34502
+  },
+  "record": {
+    "@context": "https://credreg.net/ctdl/schema/context/json",
+    "@id": "https://credentialengineregistry.org/resources/ce-5252fe95-82d4-4316-b474-efe07b3ee7dc",
+    "@type": "ceterms:Course",
+    "ceterms:ctid": "ce-5252fe95-82d4-4316-b474-efe07b3ee7dc",
+    "ceterms:name": {
+      "en-US": "Experimental Methods in Organic Chemistry"
+    },
+    "ceterms:codedNotation": "CHEM 57203",
+    "ceterms:description": {
+      "en-US": "Introduction to the application of synthetic and spectroscopic methods in organic chemistry, including mass spectrometry, infrared spectroscopy, and nuclear magnetic resonance spectrometry. Lecture 3 hours per week. Knowledge comparable to material in CHEM 36203 is recommended. (Typically offered: Fall)"
+    },
+    "ceterms:creditValue": [
+      {
+        "@type": "ceterms:ValueProfile",
+        "schema:value": 3,
+        "ceterms:creditUnitType": [
+          {
+            "@type": "ceterms:CredentialAlignmentObject",
+            "ceterms:framework": "https://credreg.net/ctdl/terms/CreditUnit",
+            "ceterms:targetNode": "creditUnit:SemesterHour",
+            "ceterms:frameworkName": {
+              "en-US": "Credit Unit"
+            },
+            "ceterms:targetNodeName": {
+              "en-US": "Semester Hour"
+            },
+            "ceterms:targetNodeDescription": {
+              "en-US": "Credit that is issued or accepted at a semester level."
+            }
+          }
+        ]
+      }
+    ],
+    "ceterms:offerFrequencyType": [
+      {
+        "@type": "ceterms:CredentialAlignmentObject",
+        "ceterms:framework": "https://credreg.net/ctdl/terms/ScheduleFrequency",
+        "ceterms:targetNode": "scheduleFrequency:Annually",
+        "ceterms:frameworkName": {
+          "en-US": "Schedule Frequency"
+        },
+        "ceterms:targetNodeName": {
+          "en-US": "Annually"
+        },
+        "ceterms:targetNodeDescription": {
+          "en-US": "Schedule is on an annual basis, typically occurring once per year."
+        }
+      }
+    ],
+    "ceterms:inLanguage": [
+      "en"
+    ],
+    "ceterms:lifeCycleStatusType": {
+      "@type": "ceterms:CredentialAlignmentObject",
+      "ceterms:framework": "https://credreg.net/ctdl/terms/LifeCycleStatus",
+      "ceterms:targetNode": "lifeCycle:Active",
+      "ceterms:frameworkName": {
+        "en-US": "Life Cycle Status"
+      },
+      "ceterms:targetNodeName": {
+        "en-US": "Active"
+      },
+      "ceterms:targetNodeDescription": {
+        "en-US": "Resource is active, current, ongoing, offered, operational, or available."
+      }
+    },
+    "ceterms:ownedBy": [
+      "https://credentialengineregistry.org/resources/ce-57603921-78ce-455c-88b5-00506fb33701"
+    ],
+    "ceterms:offeredBy": [
+      "https://credentialengineregistry.org/resources/ce-57603921-78ce-455c-88b5-00506fb33701"
+    ],
+    "ceterms:subjectWebpage": "https://catalog.uark.edu/undergraduatecatalog/coursesofinstruction/chem/",
+    "ceterms:inCatalog": "https://catalog.uark.edu/undergraduatecatalog/coursesofinstruction/",
+    "ceterms:versionIdentifier": [
+      {
+        "@type": "ceterms:IdentifierValue",
+        "ceterms:identifierTypeName": {
+          "en-US": "Catalog edition"
+        },
+        "ceterms:identifierValueCode": "2026-27"
+      }
+    ]
+  },
+  "provenance": {
+    "/@context": {
+      "slot": "context",
+      "method": "fixed",
+      "producedBy": "decision",
+      "how": "Fixed by design: the same for every CTDL record.",
+      "evidence": [
+        {
+          "kind": "none",
+          "role": "no source",
+          "says": "Nothing was read. Every CTDL record names the same context.",
+          "n": 1
+        }
+      ],
+      "checks": [],
+      "flags": [],
+      "choiceOnly": true,
+      "confidence": {
+        "level": "high",
+        "why": "A design decision, the same for every course."
+      },
+      "judgement": false
+    },
+    "/@id": {
+      "slot": "id",
+      "method": "minted",
+      "producedBy": "the CTID service",
+      "how": "The Registry's address form, followed by this course's CTID.",
+      "evidence": [
+        {
+          "kind": "none",
+          "role": "no source",
+          "says": "There is no source. Made by the CTID service from two inputs: the organisation (ce-57603921-78ce-455c-88b5-00506fb33701) and the course code (CHEM 57203).",
+          "n": 1
+        }
+      ],
+      "checks": [
+        {
+          "text": "The address ends with the record's CTID.",
+          "status": "pass"
+        }
+      ],
+      "flags": [
+        {
+          "id": "placeholder",
+          "text": "Made here, never published. A placeholder (decision D14)."
+        }
+      ],
+      "confidence": {
+        "level": "medium",
+        "why": "Nothing on the page was read. The identifier was made here and is a placeholder."
+      },
+      "judgement": false
+    },
+    "/@type": {
+      "slot": "Course",
+      "method": "fixed",
+      "producedBy": "decision D1",
+      "how": "Fixed by design: every catalog entry is a course.",
+      "evidence": [
+        {
+          "kind": "none",
+          "role": "no source",
+          "says": "Nothing was read. Every entry in this catalog is written as a Course (decision D1).",
+          "n": 1
+        }
+      ],
+      "checks": [],
+      "flags": [],
+      "choiceOnly": true,
+      "confidence": {
+        "level": "high",
+        "why": "A design decision, the same for every course."
+      },
+      "judgement": false
+    },
+    "/ceterms:ctid": {
+      "slot": "ctid",
+      "method": "minted",
+      "producedBy": "the CTID service",
+      "how": "Minted once and remembered in the ledger; running again returns the same one.",
+      "evidence": [
+        {
+          "kind": "none",
+          "role": "no source",
+          "says": "There is no source. Made by the CTID service from two inputs: the organisation (ce-57603921-78ce-455c-88b5-00506fb33701) and the course code (CHEM 57203).",
+          "n": 1
+        }
+      ],
+      "checks": [
+        {
+          "text": "It has the form “ce-” plus a UUID.",
+          "status": "pass"
+        },
+        {
+          "text": "The ledger holds it under this organisation and course code.",
+          "status": "pass"
+        }
+      ],
+      "flags": [
+        {
+          "id": "placeholder",
+          "text": "Made here, never published. A placeholder (decision D14)."
+        }
+      ],
+      "confidence": {
+        "level": "medium",
+        "why": "Nothing on the page was read. The identifier was made here and is a placeholder."
+      },
+      "judgement": false
+    },
+    "/ceterms:name": {
+      "slot": "name",
+      "method": "rule",
+      "producedBy": "title-line.name",
+      "how": "A rule read it.",
+      "evidence": [
+        {
+          "kind": "text",
+          "document": "04e3b39d740489968cca4bcc0161cdc3579793a4aab008c0074af5954675e64c",
+          "role": "the name",
+          "says": "“Experimental Methods in Organic Chemistry” is in this course's title line.",
+          "rule": "title-line.name",
+          "segments": [
+            {
+              "start": 34144,
+              "end": 34185,
+              "quote": "Experimental Methods in Organic Chemistry",
+              "before": "pring Even Years)\n\nCHEM 57203.  ",
+              "after": ".  3 Hours.\n\nIntroduction to the"
+            }
+          ],
+          "matched": {
+            "start": 34131,
+            "end": 34196,
+            "text": "CHEM 57203.  Experimental Methods in Organic Chemistry.  3 Hours.",
+            "parts": [
+              {
+                "name": "quote",
+                "start": 34144,
+                "end": 34185
+              }
+            ]
+          },
+          "n": 1
+        }
+      ],
+      "checks": [
+        {
+          "text": "The text at each recorded position equals the recorded quote.",
+          "status": "pass"
+        }
+      ],
+      "flags": [],
+      "confidence": {
+        "level": "high",
+        "why": "Read by a rule from one place on the page, and every check passed."
+      },
+      "judgement": false
+    },
+    "/ceterms:codedNotation": {
+      "slot": "codedNotation",
+      "method": "rule",
+      "producedBy": "title-line.code",
+      "how": "A rule read it.",
+      "evidence": [
+        {
+          "kind": "text",
+          "document": "04e3b39d740489968cca4bcc0161cdc3579793a4aab008c0074af5954675e64c",
+          "role": "the code",
+          "says": "“CHEM 57203” opens this course's title line.",
+          "rule": "title-line.code",
+          "segments": [
+            {
+              "start": 34131,
+              "end": 34141,
+              "quote": "CHEM 57203",
+              "before": "ly offered: Spring Even Years)\n\n",
+              "after": ".  Experimental Methods in Organ"
+            }
+          ],
+          "matched": {
+            "start": 34131,
+            "end": 34142,
+            "text": "CHEM 57203.",
+            "parts": [
+              {
+                "name": "quote",
+                "start": 34131,
+                "end": 34141
+              },
+              {
+                "name": "subject",
+                "start": 34131,
+                "end": 34135
+              },
+              {
+                "name": "number",
+                "start": 34136,
+                "end": 34141
+              }
+            ]
+          },
+          "n": 1
+        }
+      ],
+      "checks": [
+        {
+          "text": "The text at each recorded position equals the recorded quote.",
+          "status": "pass"
+        }
+      ],
+      "flags": [],
+      "normalised": "The page writes the code with a non-breaking space; the record uses an ordinary space.",
+      "confidence": {
+        "level": "high",
+        "why": "Read by a rule from one place on the page, and every check passed."
+      },
+      "judgement": false
+    },
+    "/ceterms:description": {
+      "slot": "description",
+      "method": "rule",
+      "producedBy": "description.whole",
+      "how": "A rule read it.",
+      "evidence": [
+        {
+          "kind": "text",
+          "document": "04e3b39d740489968cca4bcc0161cdc3579793a4aab008c0074af5954675e64c",
+          "role": "the paragraph",
+          "says": "The whole paragraph under the title line, kept word for word.",
+          "rule": "description.whole",
+          "segments": [
+            {
+              "start": 34198,
+              "end": 34502,
+              "quote": "Introduction to the application of synthetic and spectroscopic methods in organic chemistry, including mass spectrometry, infrared spectroscopy, and nuclear magnetic resonance spectrometry. Lecture 3 hours per week. Knowledge comparable to material in CHEM 36203 is recommended. (Typically offered: Fall)",
+              "before": "n Organic Chemistry.  3 Hours.\n\n",
+              "after": "\n\nCHEM 57503.  Methods of Organi"
+            }
+          ],
+          "matched": {
+            "start": 34197,
+            "end": 34502,
+            "text": "\nIntroduction to the application of synthetic and spectroscopic methods in organic chemistry, including mass spectrometry, infrared spectroscopy, and nuclear magnetic resonance spectrometry. Lecture 3 hours per week. Knowledge comparable to material in CHEM 36203 is recommended. (Typically offered: Fall)",
+            "parts": [
+              {
+                "name": "quote",
+                "start": 34198,
+                "end": 34502
+              }
+            ]
+          },
+          "n": 1
+        }
+      ],
+      "checks": [
+        {
+          "text": "The text at each recorded position equals the recorded quote.",
+          "status": "pass"
+        }
+      ],
+      "flags": [],
+      "normalised": "Line breaks, repeated spaces and non-breaking spaces on the page became single spaces.",
+      "confidence": {
+        "level": "high",
+        "why": "Read by a rule from one place on the page, and every check passed."
+      },
+      "judgement": false
+    },
+    "/ceterms:creditValue": {
+      "slot": "creditValue",
+      "method": "rule",
+      "producedBy": "title-line.credit, catalog.credit-unit",
+      "how": "Rules read both.",
+      "evidence": [
+        {
+          "kind": "text",
+          "document": "04e3b39d740489968cca4bcc0161cdc3579793a4aab008c0074af5954675e64c",
+          "role": "gives the number",
+          "says": "“3 Hours.” in the title line gives the number.",
+          "rule": "title-line.credit",
+          "segments": [
+            {
+              "start": 34188,
+              "end": 34196,
+              "quote": "3 Hours.",
+              "before": " Methods in Organic Chemistry.  ",
+              "after": "\n\nIntroduction to the applicatio"
+            }
+          ],
+          "matched": {
+            "start": 34188,
+            "end": 34196,
+            "text": "3 Hours.",
+            "parts": [
+              {
+                "name": "quote",
+                "start": 34188,
+                "end": 34196
+              },
+              {
+                "name": "min",
+                "start": 34188,
+                "end": 34189
+              }
+            ]
+          },
+          "n": 1
+        },
+        {
+          "kind": "text",
+          "document": "2bebcbc013418b2095cb8c6ba438206259d989f34dc03b0eb0120e2293ebc119",
+          "role": "gives the unit",
+          "says": "“semester hours” on the index page gives the unit.",
+          "rule": "catalog.credit-unit",
+          "segments": [
+            {
+              "start": 2361,
+              "end": 2375,
+              "quote": "semester hours",
+              "before": "lly earns a specified number of ",
+              "after": " of credit toward a degree.\nCour"
+            }
+          ],
+          "matched": {
+            "start": 2333,
+            "end": 2385,
+            "text": "earns a specified number of semester hours of credit",
+            "parts": [
+              {
+                "name": "quote",
+                "start": 2361,
+                "end": 2375
+              }
+            ]
+          },
+          "n": 2
+        }
+      ],
+      "checks": [
+        {
+          "text": "The course number 57203 ends in 3 and the title line says 3 Hours.",
+          "status": "pass"
+        },
+        {
+          "text": "The text at each recorded position equals the recorded quote.",
+          "status": "pass"
+        }
+      ],
+      "flags": [],
+      "chip": "3 · Semester Hour",
+      "confidence": {
+        "level": "high",
+        "why": "Read by a rule from one place on the page, and every check passed."
+      },
+      "judgement": false
+    },
+    "/ceterms:creditValue/0/@type": {
+      "slot": "ValueProfile",
+      "method": "fixed",
+      "producedBy": "the schema",
+      "how": "Nothing was read. The schema allows only this class here.",
+      "evidence": [
+        {
+          "kind": "none",
+          "role": "no source",
+          "says": "A choice of class. Nothing was read from the page.",
+          "n": 1
+        }
+      ],
+      "checks": [],
+      "flags": [],
+      "choiceOnly": true,
+      "confidence": {
+        "level": "high",
+        "why": "A design decision, the same for every course."
+      },
+      "judgement": false
+    },
+    "/ceterms:creditValue/0/schema:value": {
+      "slot": "value",
+      "method": "rule",
+      "producedBy": "title-line.credit",
+      "how": "A rule read it.",
+      "evidence": [
+        {
+          "kind": "text",
+          "document": "04e3b39d740489968cca4bcc0161cdc3579793a4aab008c0074af5954675e64c",
+          "role": "the number",
+          "says": "“3 Hours.” in the title line gives the number.",
+          "rule": "title-line.credit",
+          "segments": [
+            {
+              "start": 34188,
+              "end": 34189,
+              "quote": "3",
+              "before": " Methods in Organic Chemistry.  ",
+              "after": " Hours.\n\nIntroduction to the app"
+            }
+          ],
+          "matched": {
+            "start": 34188,
+            "end": 34196,
+            "text": "3 Hours.",
+            "parts": [
+              {
+                "name": "quote",
+                "start": 34188,
+                "end": 34196
+              },
+              {
+                "name": "min",
+                "start": 34188,
+                "end": 34189
+              }
+            ]
+          },
+          "n": 1
+        }
+      ],
+      "checks": [
+        {
+          "text": "The course number 57203 ends in 3 and the title line says 3 Hours.",
+          "status": "pass"
+        },
+        {
+          "text": "The text at each recorded position equals the recorded quote.",
+          "status": "pass"
+        }
+      ],
+      "flags": [],
+      "confidence": {
+        "level": "high",
+        "why": "Read by a rule from one place on the page, and every check passed."
+      },
+      "judgement": false
+    },
+    "/ceterms:creditValue/0/ceterms:creditUnitType": {
+      "slot": "creditUnitType",
+      "method": "rule",
+      "producedBy": "catalog.credit-unit",
+      "how": "A rule read it, on the index page.",
+      "evidence": [
+        {
+          "kind": "text",
+          "document": "2bebcbc013418b2095cb8c6ba438206259d989f34dc03b0eb0120e2293ebc119",
+          "role": "gives the unit",
+          "says": "“semester hours” on the index page gives the unit.",
+          "rule": "catalog.credit-unit",
+          "segments": [
+            {
+              "start": 2361,
+              "end": 2375,
+              "quote": "semester hours",
+              "before": "lly earns a specified number of ",
+              "after": " of credit toward a degree.\nCour"
+            }
+          ],
+          "matched": {
+            "start": 2333,
+            "end": 2385,
+            "text": "earns a specified number of semester hours of credit",
+            "parts": [
+              {
+                "name": "quote",
+                "start": 2361,
+                "end": 2375
+              }
+            ]
+          },
+          "n": 1
+        }
+      ],
+      "checks": [
+        {
+          "text": "The text at each recorded position equals the recorded quote.",
+          "status": "pass"
+        }
+      ],
+      "flags": [],
+      "chip": "Semester Hour",
+      "concept": "creditUnit:SemesterHour",
+      "scheme": "ceterms:CreditUnit",
+      "confidence": {
+        "level": "high",
+        "why": "Read by a rule from one place on the page, and every check passed."
+      },
+      "judgement": false
+    },
+    "/ceterms:creditValue/0/ceterms:creditUnitType/0/@type": {
+      "slot": "CredentialAlignmentObject",
+      "method": "fixed",
+      "producedBy": "the schema",
+      "how": "Nothing was read. The schema allows only this class here.",
+      "evidence": [
+        {
+          "kind": "none",
+          "role": "no source",
+          "says": "A choice of class. Nothing was read from the page.",
+          "n": 1
+        }
+      ],
+      "checks": [],
+      "flags": [],
+      "choiceOnly": true,
+      "confidence": {
+        "level": "high",
+        "why": "A design decision, the same for every course."
+      },
+      "judgement": false
+    },
+    "/ceterms:creditValue/0/ceterms:creditUnitType/0/ceterms:targetNode": {
+      "slot": "targetNode",
+      "method": "rule",
+      "producedBy": "catalog.credit-unit",
+      "how": "A rule read it, on the index page.",
+      "evidence": [
+        {
+          "kind": "text",
+          "document": "2bebcbc013418b2095cb8c6ba438206259d989f34dc03b0eb0120e2293ebc119",
+          "role": "gives the unit",
+          "says": "“semester hours” on the index page gives the unit.",
+          "rule": "catalog.credit-unit",
+          "segments": [
+            {
+              "start": 2361,
+              "end": 2375,
+              "quote": "semester hours",
+              "before": "lly earns a specified number of ",
+              "after": " of credit toward a degree.\nCour"
+            }
+          ],
+          "matched": {
+            "start": 2333,
+            "end": 2385,
+            "text": "earns a specified number of semester hours of credit",
+            "parts": [
+              {
+                "name": "quote",
+                "start": 2361,
+                "end": 2375
+              }
+            ]
+          },
+          "n": 1
+        }
+      ],
+      "checks": [
+        {
+          "text": "creditUnit:SemesterHour is a member of the Credit Unit list.",
+          "status": "pass"
+        },
+        {
+          "text": "The text at each recorded position equals the recorded quote.",
+          "status": "pass"
+        }
+      ],
+      "flags": [],
+      "concept": "creditUnit:SemesterHour",
+      "scheme": "ceterms:CreditUnit",
+      "confidence": {
+        "level": "high",
+        "why": "Read by a rule from one place on the page, and every check passed."
+      },
+      "judgement": false
+    },
+    "/ceterms:offerFrequencyType": {
+      "slot": "offerFrequencyType",
+      "method": "table",
+      "producedBy": "description.typically-offered, then the offer-frequency table",
+      "how": "A rule found the wording; a table mapped it.",
+      "evidence": [
+        {
+          "kind": "text",
+          "document": "04e3b39d740489968cca4bcc0161cdc3579793a4aab008c0074af5954675e64c",
+          "role": "the wording",
+          "says": "“Fall” follows “Typically offered:” in the description.",
+          "rule": "description.typically-offered",
+          "segments": [
+            {
+              "start": 34497,
+              "end": 34501,
+              "quote": "Fall",
+              "before": "ecommended. (Typically offered: ",
+              "after": ")\n\nCHEM 57503.  Methods of Organ"
+            }
+          ],
+          "matched": {
+            "start": 34477,
+            "end": 34502,
+            "text": "(Typically offered: Fall)",
+            "parts": [
+              {
+                "name": "quote",
+                "start": 34497,
+                "end": 34501
+              }
+            ]
+          },
+          "n": 1
+        },
+        {
+          "kind": "derived",
+          "role": "the table row",
+          "says": "The offer-frequency table maps that wording to Annually.",
+          "from": "“Fall”",
+          "step": "One start a year.",
+          "result": "Annually (scheduleFrequency:Annually)",
+          "table": "offer-frequency",
+          "n": 2
+        }
+      ],
+      "checks": [
+        {
+          "text": "This row of the table has not yet been reviewed by a person.",
+          "status": "note"
+        },
+        {
+          "text": "The text at each recorded position equals the recorded quote.",
+          "status": "pass"
+        }
+      ],
+      "flags": [
+        {
+          "id": "loses-detail",
+          "text": "Loses detail: which term (Fall). The wording is still in the description."
+        }
+      ],
+      "chip": "Annually",
+      "concept": "scheduleFrequency:Annually",
+      "scheme": "ceterms:ScheduleFrequency",
+      "unstable": true,
+      "confidence": {
+        "level": "medium",
+        "why": "The mapping is sound but loses detail that the page gives."
+      },
+      "judgement": true
+    },
+    "/ceterms:offerFrequencyType/0/@type": {
+      "slot": "CredentialAlignmentObject",
+      "method": "fixed",
+      "producedBy": "the schema",
+      "how": "Nothing was read. The schema allows only this class here.",
+      "evidence": [
+        {
+          "kind": "none",
+          "role": "no source",
+          "says": "A choice of class. Nothing was read from the page.",
+          "n": 1
+        }
+      ],
+      "checks": [],
+      "flags": [],
+      "choiceOnly": true,
+      "confidence": {
+        "level": "high",
+        "why": "A design decision, the same for every course."
+      },
+      "judgement": false
+    },
+    "/ceterms:offerFrequencyType/0/ceterms:targetNode": {
+      "slot": "targetNode",
+      "method": "table",
+      "producedBy": "the offer-frequency table",
+      "how": "A rule found the wording; a table mapped it.",
+      "evidence": [
+        {
+          "kind": "text",
+          "document": "04e3b39d740489968cca4bcc0161cdc3579793a4aab008c0074af5954675e64c",
+          "role": "the wording",
+          "says": "“Fall” follows “Typically offered:” in the description.",
+          "rule": "description.typically-offered",
+          "segments": [
+            {
+              "start": 34497,
+              "end": 34501,
+              "quote": "Fall",
+              "before": "ecommended. (Typically offered: ",
+              "after": ")\n\nCHEM 57503.  Methods of Organ"
+            }
+          ],
+          "matched": {
+            "start": 34477,
+            "end": 34502,
+            "text": "(Typically offered: Fall)",
+            "parts": [
+              {
+                "name": "quote",
+                "start": 34497,
+                "end": 34501
+              }
+            ]
+          },
+          "n": 1
+        },
+        {
+          "kind": "derived",
+          "role": "the table row",
+          "says": "The offer-frequency table maps that wording to Annually.",
+          "from": "“Fall”",
+          "step": "One start a year.",
+          "result": "Annually (scheduleFrequency:Annually)",
+          "table": "offer-frequency",
+          "n": 2
+        }
+      ],
+      "checks": [
+        {
+          "text": "scheduleFrequency:Annually is a member of the Schedule Frequency list.",
+          "status": "pass"
+        },
+        {
+          "text": "This row of the table has not yet been reviewed by a person.",
+          "status": "note"
+        },
+        {
+          "text": "The text at each recorded position equals the recorded quote.",
+          "status": "pass"
+        }
+      ],
+      "flags": [
+        {
+          "id": "loses-detail",
+          "text": "Loses detail: which term (Fall). The wording is still in the description."
+        }
+      ],
+      "concept": "scheduleFrequency:Annually",
+      "scheme": "ceterms:ScheduleFrequency",
+      "confidence": {
+        "level": "medium",
+        "why": "The mapping is sound but loses detail that the page gives."
+      },
+      "judgement": true
+    },
+    "/ceterms:inLanguage": {
+      "slot": "inLanguage",
+      "method": "rule",
+      "producedBy": "page.language",
+      "how": "A rule read it, from the page's markup.",
+      "evidence": [
+        {
+          "kind": "markup",
+          "document": "04e3b39d740489968cca4bcc0161cdc3579793a4aab008c0074af5954675e64c",
+          "role": "the page's declared language",
+          "says": "The page declares lang=\"en\" on its <html> element.",
+          "rule": "page.language",
+          "element": "html",
+          "attribute": "lang",
+          "source": {
+            "start": 48,
+            "end": 50,
+            "quote": "en",
+            "of": "the stored HTML source"
+          },
+          "n": 1
+        }
+      ],
+      "checks": [],
+      "flags": [],
+      "confidence": {
+        "level": "high",
+        "why": "Read by a rule from the page's own markup."
+      },
+      "judgement": false
+    },
+    "/ceterms:lifeCycleStatusType": {
+      "slot": "lifeCycleStatusType",
+      "method": "rule",
+      "producedBy": "page.edition, catalog.approved-for-offering",
+      "how": "Rules read both; that they add up to Active is a design decision.",
+      "evidence": [
+        {
+          "kind": "text",
+          "document": "04e3b39d740489968cca4bcc0161cdc3579793a4aab008c0074af5954675e64c",
+          "role": "the current edition",
+          "says": "“2026-27 Edition” labels this page: it is in the current catalog.",
+          "rule": "page.edition",
+          "segments": [
+            {
+              "start": 1023,
+              "end": 1038,
+              "quote": "2026-27 Edition",
+              "before": "      \n            \n            ",
+              "after": "\n         \n         \n           "
+            }
+          ],
+          "matched": {
+            "start": 1023,
+            "end": 1038,
+            "text": "2026-27 Edition",
+            "parts": [
+              {
+                "name": "quote",
+                "start": 1023,
+                "end": 1038
+              },
+              {
+                "name": "edition",
+                "start": 1023,
+                "end": 1030
+              }
+            ]
+          },
+          "n": 1
+        },
+        {
+          "kind": "text",
+          "document": "2bebcbc013418b2095cb8c6ba438206259d989f34dc03b0eb0120e2293ebc119",
+          "role": "approved for offering",
+          "says": "The index page calls the listing “all courses approved for offering”.",
+          "rule": "catalog.approved-for-offering",
+          "segments": [
+            {
+              "start": 1814,
+              "end": 1877,
+              "quote": "all courses approved for offering by the University of Arkansas",
+              "before": "listed in this section describe ",
+              "after": ". The courses are listed alphabe"
+            }
+          ],
+          "matched": {
+            "start": 1814,
+            "end": 1877,
+            "text": "all courses approved for offering by the University of Arkansas",
+            "parts": [
+              {
+                "name": "quote",
+                "start": 1814,
+                "end": 1877
+              },
+              {
+                "name": "organisation",
+                "start": 1851,
+                "end": 1877
+              }
+            ]
+          },
+          "n": 2
+        }
+      ],
+      "checks": [
+        {
+          "text": "The text at each recorded position equals the recorded quote.",
+          "status": "pass"
+        }
+      ],
+      "flags": [],
+      "chip": "Active",
+      "concept": "lifeCycle:Active",
+      "scheme": "ceterms:LifeCycleStatus",
+      "unstable": true,
+      "confidence": {
+        "level": "medium",
+        "why": "The page does not state a status. Active is inferred from two pieces of wording."
+      },
+      "judgement": false
+    },
+    "/ceterms:lifeCycleStatusType/@type": {
+      "slot": "CredentialAlignmentObject",
+      "method": "fixed",
+      "producedBy": "the schema",
+      "how": "Nothing was read. The schema allows only this class here.",
+      "evidence": [
+        {
+          "kind": "none",
+          "role": "no source",
+          "says": "A choice of class. Nothing was read from the page.",
+          "n": 1
+        }
+      ],
+      "checks": [],
+      "flags": [],
+      "choiceOnly": true,
+      "confidence": {
+        "level": "high",
+        "why": "A design decision, the same for every course."
+      },
+      "judgement": false
+    },
+    "/ceterms:lifeCycleStatusType/ceterms:targetNode": {
+      "slot": "targetNode",
+      "method": "rule",
+      "producedBy": "page.edition, catalog.approved-for-offering",
+      "how": "Rules read both; that they add up to Active is a design decision.",
+      "evidence": [
+        {
+          "kind": "text",
+          "document": "04e3b39d740489968cca4bcc0161cdc3579793a4aab008c0074af5954675e64c",
+          "role": "the current edition",
+          "says": "“2026-27 Edition” labels this page: it is in the current catalog.",
+          "rule": "page.edition",
+          "segments": [
+            {
+              "start": 1023,
+              "end": 1038,
+              "quote": "2026-27 Edition",
+              "before": "      \n            \n            ",
+              "after": "\n         \n         \n           "
+            }
+          ],
+          "matched": {
+            "start": 1023,
+            "end": 1038,
+            "text": "2026-27 Edition",
+            "parts": [
+              {
+                "name": "quote",
+                "start": 1023,
+                "end": 1038
+              },
+              {
+                "name": "edition",
+                "start": 1023,
+                "end": 1030
+              }
+            ]
+          },
+          "n": 1
+        },
+        {
+          "kind": "text",
+          "document": "2bebcbc013418b2095cb8c6ba438206259d989f34dc03b0eb0120e2293ebc119",
+          "role": "approved for offering",
+          "says": "The index page calls the listing “all courses approved for offering”.",
+          "rule": "catalog.approved-for-offering",
+          "segments": [
+            {
+              "start": 1814,
+              "end": 1877,
+              "quote": "all courses approved for offering by the University of Arkansas",
+              "before": "listed in this section describe ",
+              "after": ". The courses are listed alphabe"
+            }
+          ],
+          "matched": {
+            "start": 1814,
+            "end": 1877,
+            "text": "all courses approved for offering by the University of Arkansas",
+            "parts": [
+              {
+                "name": "quote",
+                "start": 1814,
+                "end": 1877
+              },
+              {
+                "name": "organisation",
+                "start": 1851,
+                "end": 1877
+              }
+            ]
+          },
+          "n": 2
+        }
+      ],
+      "checks": [
+        {
+          "text": "lifeCycle:Active is a member of the Life Cycle Status list.",
+          "status": "pass"
+        },
+        {
+          "text": "The text at each recorded position equals the recorded quote.",
+          "status": "pass"
+        }
+      ],
+      "flags": [],
+      "concept": "lifeCycle:Active",
+      "scheme": "ceterms:LifeCycleStatus",
+      "confidence": {
+        "level": "high",
+        "why": "Read by a rule from one place on the page, and every check passed."
+      },
+      "judgement": false
+    },
+    "/ceterms:ownedBy": {
+      "slot": "ownedBy",
+      "method": "lookup",
+      "producedBy": "the stored Registry record",
+      "how": "Looked up in the stored Registry record; supported by the page.",
+      "evidence": [
+        {
+          "kind": "record",
+          "document": "e71f35afe7c1085ea57e13f56f16adc34a444b026d0308a155ab59e891159b81",
+          "role": "the organisation's Registry record",
+          "says": "The Registry already holds a record for “University of Arkansas Fayetteville”. Its address is the value.",
+          "address": "https://credentialengineregistry.org/resources/ce-57603921-78ce-455c-88b5-00506fb33701",
+          "readAt": "2026-10-07T23:17:48+00:00",
+          "fields": [
+            {
+              "path": "ceterms:name",
+              "value": "University of Arkansas Fayetteville"
+            },
+            {
+              "path": "ceterms:ctid",
+              "value": "ce-57603921-78ce-455c-88b5-00506fb33701"
+            },
+            {
+              "path": "@type",
+              "value": "ceterms:CredentialOrganization"
+            },
+            {
+              "path": "@id",
+              "value": "https://credentialengineregistry.org/resources/ce-57603921-78ce-455c-88b5-00506fb33701"
+            }
+          ],
+          "n": 1
+        },
+        {
+          "kind": "text",
+          "document": "2bebcbc013418b2095cb8c6ba438206259d989f34dc03b0eb0120e2293ebc119",
+          "role": "names the institution",
+          "says": "The index page says the courses are “approved for offering by the University of Arkansas”.",
+          "rule": "catalog.approved-for-offering",
+          "segments": [
+            {
+              "start": 1851,
+              "end": 1877,
+              "quote": "the University of Arkansas",
+              "before": "ourses approved for offering by ",
+              "after": ". The courses are listed alphabe"
+            }
+          ],
+          "matched": {
+            "start": 1814,
+            "end": 1877,
+            "text": "all courses approved for offering by the University of Arkansas",
+            "parts": [
+              {
+                "name": "quote",
+                "start": 1814,
+                "end": 1877
+              },
+              {
+                "name": "organisation",
+                "start": 1851,
+                "end": 1877
+              }
+            ]
+          },
+          "n": 2
+        },
+        {
+          "kind": "markup",
+          "document": "04e3b39d740489968cca4bcc0161cdc3579793a4aab008c0074af5954675e64c",
+          "role": "names the institution",
+          "says": "The page's <title> ends “< University of Arkansas”.",
+          "rule": "page.title-organisation",
+          "element": "title",
+          "attribute": null,
+          "source": {
+            "start": 321,
+            "end": 343,
+            "quote": "University of Arkansas",
+            "of": "the stored HTML source"
+          },
+          "n": 3
+        }
+      ],
+      "checks": [
+        {
+          "text": "The Registry record is of type ceterms:CredentialOrganization.",
+          "status": "pass"
+        },
+        {
+          "text": "The text at each recorded position equals the recorded quote.",
+          "status": "pass"
+        }
+      ],
+      "flags": [],
+      "chip": "University of Arkansas Fayetteville",
+      "confidence": {
+        "level": "medium",
+        "why": "Looked up in an outside record, and supported by the page."
+      },
+      "judgement": false
+    },
+    "/ceterms:offeredBy": {
+      "slot": "offeredBy",
+      "method": "lookup",
+      "producedBy": "the stored Registry record",
+      "how": "Looked up in the stored Registry record; supported by the page.",
+      "evidence": [
+        {
+          "kind": "record",
+          "document": "e71f35afe7c1085ea57e13f56f16adc34a444b026d0308a155ab59e891159b81",
+          "role": "the organisation's Registry record",
+          "says": "The Registry already holds a record for “University of Arkansas Fayetteville”. Its address is the value.",
+          "address": "https://credentialengineregistry.org/resources/ce-57603921-78ce-455c-88b5-00506fb33701",
+          "readAt": "2026-10-07T23:17:48+00:00",
+          "fields": [
+            {
+              "path": "ceterms:name",
+              "value": "University of Arkansas Fayetteville"
+            },
+            {
+              "path": "ceterms:ctid",
+              "value": "ce-57603921-78ce-455c-88b5-00506fb33701"
+            },
+            {
+              "path": "@type",
+              "value": "ceterms:CredentialOrganization"
+            },
+            {
+              "path": "@id",
+              "value": "https://credentialengineregistry.org/resources/ce-57603921-78ce-455c-88b5-00506fb33701"
+            }
+          ],
+          "n": 1
+        },
+        {
+          "kind": "text",
+          "document": "2bebcbc013418b2095cb8c6ba438206259d989f34dc03b0eb0120e2293ebc119",
+          "role": "names the institution",
+          "says": "The index page says the courses are “approved for offering by the University of Arkansas”.",
+          "rule": "catalog.approved-for-offering",
+          "segments": [
+            {
+              "start": 1851,
+              "end": 1877,
+              "quote": "the University of Arkansas",
+              "before": "ourses approved for offering by ",
+              "after": ". The courses are listed alphabe"
+            }
+          ],
+          "matched": {
+            "start": 1814,
+            "end": 1877,
+            "text": "all courses approved for offering by the University of Arkansas",
+            "parts": [
+              {
+                "name": "quote",
+                "start": 1814,
+                "end": 1877
+              },
+              {
+                "name": "organisation",
+                "start": 1851,
+                "end": 1877
+              }
+            ]
+          },
+          "n": 2
+        },
+        {
+          "kind": "markup",
+          "document": "04e3b39d740489968cca4bcc0161cdc3579793a4aab008c0074af5954675e64c",
+          "role": "names the institution",
+          "says": "The page's <title> ends “< University of Arkansas”.",
+          "rule": "page.title-organisation",
+          "element": "title",
+          "attribute": null,
+          "source": {
+            "start": 321,
+            "end": 343,
+            "quote": "University of Arkansas",
+            "of": "the stored HTML source"
+          },
+          "n": 3
+        }
+      ],
+      "checks": [
+        {
+          "text": "The Registry record is of type ceterms:CredentialOrganization.",
+          "status": "pass"
+        },
+        {
+          "text": "The text at each recorded position equals the recorded quote.",
+          "status": "pass"
+        }
+      ],
+      "flags": [],
+      "chip": "University of Arkansas Fayetteville",
+      "confidence": {
+        "level": "medium",
+        "why": "Looked up in an outside record, and supported by the page."
+      },
+      "judgement": false
+    },
+    "/ceterms:subjectWebpage": {
+      "slot": "subjectWebpage",
+      "method": "lookup",
+      "producedBy": "the page store's sidecar",
+      "how": "Taken from the stored page's own record of where it was fetched from.",
+      "evidence": [
+        {
+          "kind": "address",
+          "document": "04e3b39d740489968cca4bcc0161cdc3579793a4aab008c0074af5954675e64c",
+          "role": "the page's address",
+          "says": "It is the address this subject page was fetched from.",
+          "address": "https://catalog.uark.edu/undergraduatecatalog/coursesofinstruction/chem/",
+          "n": 1
+        }
+      ],
+      "checks": [],
+      "flags": [],
+      "confidence": {
+        "level": "high",
+        "why": "It is the address of the page the course was read from."
+      },
+      "judgement": false
+    },
+    "/ceterms:inCatalog": {
+      "slot": "inCatalog",
+      "method": "lookup",
+      "producedBy": "the crawl's starting point",
+      "how": "Taken from the crawl's starting point.",
+      "evidence": [
+        {
+          "kind": "address",
+          "document": "2bebcbc013418b2095cb8c6ba438206259d989f34dc03b0eb0120e2293ebc119",
+          "role": "the index page's address",
+          "says": "It is the address of the index page, where the crawl started.",
+          "address": "https://catalog.uark.edu/undergraduatecatalog/coursesofinstruction/",
+          "n": 1
+        }
+      ],
+      "checks": [],
+      "flags": [],
+      "unstable": true,
+      "confidence": {
+        "level": "medium",
+        "why": "The address is certain; whether this page is the right “catalog” for the field is a judgement."
+      },
+      "judgement": false
+    },
+    "/ceterms:versionIdentifier": {
+      "slot": "versionIdentifier",
+      "method": "rule",
+      "producedBy": "page.edition",
+      "how": "A rule read it.",
+      "evidence": [
+        {
+          "kind": "text",
+          "document": "04e3b39d740489968cca4bcc0161cdc3579793a4aab008c0074af5954675e64c",
+          "role": "the edition",
+          "says": "“2026-27 Edition” labels this page of the catalog.",
+          "rule": "page.edition",
+          "segments": [
+            {
+              "start": 1023,
+              "end": 1030,
+              "quote": "2026-27",
+              "before": "      \n            \n            ",
+              "after": " Edition\n         \n         \n   "
+            }
+          ],
+          "matched": {
+            "start": 1023,
+            "end": 1038,
+            "text": "2026-27 Edition",
+            "parts": [
+              {
+                "name": "quote",
+                "start": 1023,
+                "end": 1038
+              },
+              {
+                "name": "edition",
+                "start": 1023,
+                "end": 1030
+              }
+            ]
+          },
+          "n": 1
+        }
+      ],
+      "checks": [
+        {
+          "text": "The text at each recorded position equals the recorded quote.",
+          "status": "pass"
+        }
+      ],
+      "flags": [],
+      "chip": "Catalog edition · 2026-27",
+      "confidence": {
+        "level": "high",
+        "why": "Read by a rule from one place on the page, and every check passed."
+      },
+      "judgement": false
+    },
+    "/ceterms:versionIdentifier/0/@type": {
+      "slot": "IdentifierValue",
+      "method": "fixed",
+      "producedBy": "the schema",
+      "how": "Nothing was read. The schema allows only this class here.",
+      "evidence": [
+        {
+          "kind": "none",
+          "role": "no source",
+          "says": "A choice of class. Nothing was read from the page.",
+          "n": 1
+        }
+      ],
+      "checks": [],
+      "flags": [],
+      "choiceOnly": true,
+      "confidence": {
+        "level": "high",
+        "why": "A design decision, the same for every course."
+      },
+      "judgement": false
+    },
+    "/ceterms:versionIdentifier/0/ceterms:identifierTypeName": {
+      "slot": "identifierTypeName",
+      "method": "fixed",
+      "producedBy": "decision",
+      "how": "Fixed wording, the same for every course.",
+      "evidence": [
+        {
+          "kind": "none",
+          "role": "no source",
+          "says": "The scheme's name is ours. Nothing was read.",
+          "n": 1
+        }
+      ],
+      "checks": [],
+      "flags": [],
+      "confidence": {
+        "level": "high",
+        "why": "A design decision, the same for every course."
+      },
+      "judgement": false
+    },
+    "/ceterms:versionIdentifier/0/ceterms:identifierValueCode": {
+      "slot": "identifierValueCode",
+      "method": "rule",
+      "producedBy": "page.edition",
+      "how": "A rule read it.",
+      "evidence": [
+        {
+          "kind": "text",
+          "document": "04e3b39d740489968cca4bcc0161cdc3579793a4aab008c0074af5954675e64c",
+          "role": "the edition",
+          "says": "“2026-27 Edition” labels this page of the catalog.",
+          "rule": "page.edition",
+          "segments": [
+            {
+              "start": 1023,
+              "end": 1030,
+              "quote": "2026-27",
+              "before": "      \n            \n            ",
+              "after": " Edition\n         \n         \n   "
+            }
+          ],
+          "matched": {
+            "start": 1023,
+            "end": 1038,
+            "text": "2026-27 Edition",
+            "parts": [
+              {
+                "name": "quote",
+                "start": 1023,
+                "end": 1038
+              },
+              {
+                "name": "edition",
+                "start": 1023,
+                "end": 1030
+              }
+            ]
+          },
+          "n": 1
+        }
+      ],
+      "checks": [
+        {
+          "text": "The text at each recorded position equals the recorded quote.",
+          "status": "pass"
+        }
+      ],
+      "flags": [],
+      "confidence": {
+        "level": "high",
+        "why": "Read by a rule from one place on the page, and every check passed."
+      },
+      "judgement": false
+    }
+  },
+  "leftOut": [
+    {
+      "what": "Lecture 3 hours per week.",
+      "reason": "A candidate for ceterms:learningMethodType; left for later.",
+      "rule": "left-out.contact-hours",
+      "segment": {
+        "start": 34388,
+        "end": 34413,
+        "quote": "Lecture 3 hours per week.",
+        "before": "agnetic resonance spectrometry. ",
+        "after": " Knowledge comparable to materia"
+      },
+      "document": "04e3b39d740489968cca4bcc0161cdc3579793a4aab008c0074af5954675e64c"
+    },
+    {
+      "what": "Course level, suggested by the first digit of the number (5)",
+      "reason": "Unverified (decision D11): ceterms:audienceLevelType would be a guess until the catalog's numbering policy is read.",
+      "rule": "left-out.level",
+      "segment": {
+        "start": 34136,
+        "end": 34137,
+        "quote": "5",
+        "before": "fered: Spring Even Years)\n\nCHEM ",
+        "after": "7203.  Experimental Methods in O"
+      },
+      "document": "04e3b39d740489968cca4bcc0161cdc3579793a4aab008c0074af5954675e64c"
+    }
+  ],
+  "references": {},
+  "conformance": [
+    {
+      "id": "V1",
+      "text": "The record is well-formed JSON-LD with the CTDL context.",
+      "status": "pass",
+      "detail": []
+    },
+    {
+      "id": "V2",
+      "text": "Every key is a real CTDL property, allowed on the class it appears on.",
+      "status": "pass",
+      "detail": []
+    },
+    {
+      "id": "V3",
+      "text": "Every value is of a kind the schema allows for its property.",
+      "status": "pass",
+      "detail": []
+    },
+    {
+      "id": "V4",
+      "text": "Every value chosen from a fixed list is a member of that list.",
+      "status": "pass",
+      "detail": []
+    },
+    {
+      "id": "V5",
+      "text": "The six properties required by the Minimum Data Policy are present.",
+      "status": "pass",
+      "detail": []
+    },
+    {
+      "id": "V6",
+      "text": "Text values are wrapped by language.",
+      "status": "pass",
+      "detail": []
+    },
+    {
+      "id": "V7",
+      "text": "Every CTID has the form “ce-” plus a UUID.",
+      "status": "pass",
+      "detail": []
+    },
+    {
+      "id": "V8",
+      "text": "Every link to another course points at a CTID the ledger knows.",
+      "status": "pass",
+      "detail": []
+    }
+  ],
+  "unstableTerms": [
+    "ceterms:offerFrequencyType",
+    "ceterms:lifeCycleStatusType",
+    "ceterms:inCatalog"
+  ]
+}

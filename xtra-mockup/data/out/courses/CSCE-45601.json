@@ -1,0 +1,2427 @@
+{
+  "id": "CSCE-45601",
+  "code": "CSCE 45601",
+  "subject": "CSCE",
+  "ordinal": 33,
+  "documents": [
+    "2dc1f251dac58c4e7a0d2934f7c298b74fb70ecde5d77cd06e466a35dbfe0a6b",
+    "2bebcbc013418b2095cb8c6ba438206259d989f34dc03b0eb0120e2293ebc119",
+    "e71f35afe7c1085ea57e13f56f16adc34a444b026d0308a155ab59e891159b81"
+  ],
+  "block": {
+    "document": "2dc1f251dac58c4e7a0d2934f7c298b74fb70ecde5d77cd06e466a35dbfe0a6b",
+    "start": 17004,
+    "end": 17556
+  },
+  "record": {
+    "@context": "https://credreg.net/ctdl/schema/context/json",
+    "@id": "https://credentialengineregistry.org/resources/ce-a5e27943-5417-43f7-9809-ed4f0313be05",
+    "@type": "ceterms:Course",
+    "ceterms:ctid": "ce-a5e27943-5417-43f7-9809-ed4f0313be05",
+    "ceterms:name": {
+      "en-US": "Capstone I"
+    },
+    "ceterms:codedNotation": "CSCE 45601",
+    "ceterms:description": {
+      "en-US": "Students complete a comprehensive software capstone project during their final year of undergraduate studies. The project is done over 2 semesters in phases: concept, formal proposal, implementation, and presentation. The projects include and may require the integration of software and human factors and hardware elements and are developed to software engineering methodologies. Pre- or Corequisite: CSCE 35103. Prerequisite: (CSCE 36103 or CSCE 361H3) and completion of 72 credit hours. (Typically offered: Fall)"
+    },
+    "ceterms:creditValue": [
+      {
+        "@type": "ceterms:ValueProfile",
+        "schema:value": 1,
+        "ceterms:creditUnitType": [
+          {
+            "@type": "ceterms:CredentialAlignmentObject",
+            "ceterms:framework": "https://credreg.net/ctdl/terms/CreditUnit",
+            "ceterms:targetNode": "creditUnit:SemesterHour",
+            "ceterms:frameworkName": {
+              "en-US": "Credit Unit"
+            },
+            "ceterms:targetNodeName": {
+              "en-US": "Semester Hour"
+            },
+            "ceterms:targetNodeDescription": {
+              "en-US": "Credit that is issued or accepted at a semester level."
+            }
+          }
+        ]
+      }
+    ],
+    "ceterms:requires": [
+      {
+        "@type": "ceterms:ConditionProfile",
+        "ceterms:name": {
+          "en-US": "Prerequisite"
+        },
+        "ceterms:description": {
+          "en-US": "(CSCE 36103 or CSCE 361H3) and completion of 72 credit hours."
+        },
+        "ceterms:condition": {
+          "en-US": [
+            "completion of 72 credit hours"
+          ]
+        },
+        "ceterms:alternativeCondition": [
+          {
+            "@type": "ceterms:ConditionProfile",
+            "ceterms:targetLearningOpportunity": [
+              "https://credentialengineregistry.org/resources/ce-f247b0f0-a5b2-4110-8f74-4e5d65a2e0b3"
+            ]
+          },
+          {
+            "@type": "ceterms:ConditionProfile",
+            "ceterms:targetLearningOpportunity": [
+              "https://credentialengineregistry.org/resources/ce-99b6fe0b-61ac-4008-9f88-90898eaf54f1"
+            ]
+          }
+        ]
+      }
+    ],
+    "ceterms:coPrerequisite": [
+      {
+        "@type": "ceterms:ConditionProfile",
+        "ceterms:name": {
+          "en-US": "Pre- or corequisite"
+        },
+        "ceterms:description": {
+          "en-US": "CSCE 35103."
+        },
+        "ceterms:targetLearningOpportunity": [
+          "https://credentialengineregistry.org/resources/ce-e9bb3376-0adb-4ed8-8baf-0dc2fdb19c63"
+        ]
+      }
+    ],
+    "ceterms:offerFrequencyType": [
+      {
+        "@type": "ceterms:CredentialAlignmentObject",
+        "ceterms:framework": "https://credreg.net/ctdl/terms/ScheduleFrequency",
+        "ceterms:targetNode": "scheduleFrequency:Annually",
+        "ceterms:frameworkName": {
+          "en-US": "Schedule Frequency"
+        },
+        "ceterms:targetNodeName": {
+          "en-US": "Annually"
+        },
+        "ceterms:targetNodeDescription": {
+          "en-US": "Schedule is on an annual basis, typically occurring once per year."
+        }
+      }
+    ],
+    "ceterms:inLanguage": [
+      "en"
+    ],
+    "ceterms:lifeCycleStatusType": {
+      "@type": "ceterms:CredentialAlignmentObject",
+      "ceterms:framework": "https://credreg.net/ctdl/terms/LifeCycleStatus",
+      "ceterms:targetNode": "lifeCycle:Active",
+      "ceterms:frameworkName": {
+        "en-US": "Life Cycle Status"
+      },
+      "ceterms:targetNodeName": {
+        "en-US": "Active"
+      },
+      "ceterms:targetNodeDescription": {
+        "en-US": "Resource is active, current, ongoing, offered, operational, or available."
+      }
+    },
+    "ceterms:ownedBy": [
+      "https://credentialengineregistry.org/resources/ce-57603921-78ce-455c-88b5-00506fb33701"
+    ],
+    "ceterms:offeredBy": [
+      "https://credentialengineregistry.org/resources/ce-57603921-78ce-455c-88b5-00506fb33701"
+    ],
+    "ceterms:subjectWebpage": "https://catalog.uark.edu/undergraduatecatalog/coursesofinstruction/csce/",
+    "ceterms:inCatalog": "https://catalog.uark.edu/undergraduatecatalog/coursesofinstruction/",
+    "ceterms:versionIdentifier": [
+      {
+        "@type": "ceterms:IdentifierValue",
+        "ceterms:identifierTypeName": {
+          "en-US": "Catalog edition"
+        },
+        "ceterms:identifierValueCode": "2026-27"
+      }
+    ]
+  },
+  "provenance": {
+    "/@context": {
+      "slot": "context",
+      "method": "fixed",
+      "producedBy": "decision",
+      "how": "Fixed by design: the same for every CTDL record.",
+      "evidence": [
+        {
+          "kind": "none",
+          "role": "no source",
+          "says": "Nothing was read. Every CTDL record names the same context.",
+          "n": 1
+        }
+      ],
+      "checks": [],
+      "flags": [],
+      "choiceOnly": true,
+      "confidence": {
+        "level": "high",
+        "why": "A design decision, the same for every course."
+      },
+      "judgement": false
+    },
+    "/@id": {
+      "slot": "id",
+      "method": "minted",
+      "producedBy": "the CTID service",
+      "how": "The Registry's address form, followed by this course's CTID.",
+      "evidence": [
+        {
+          "kind": "none",
+          "role": "no source",
+          "says": "There is no source. Made by the CTID service from two inputs: the organisation (ce-57603921-78ce-455c-88b5-00506fb33701) and the course code (CSCE 45601).",
+          "n": 1
+        }
+      ],
+      "checks": [
+        {
+          "text": "The address ends with the record's CTID.",
+          "status": "pass"
+        }
+      ],
+      "flags": [
+        {
+          "id": "placeholder",
+          "text": "Made here, never published. A placeholder (decision D14)."
+        }
+      ],
+      "confidence": {
+        "level": "medium",
+        "why": "Nothing on the page was read. The identifier was made here and is a placeholder."
+      },
+      "judgement": false
+    },
+    "/@type": {
+      "slot": "Course",
+      "method": "fixed",
+      "producedBy": "decision D1",
+      "how": "Fixed by design: every catalog entry is a course.",
+      "evidence": [
+        {
+          "kind": "none",
+          "role": "no source",
+          "says": "Nothing was read. Every entry in this catalog is written as a Course (decision D1).",
+          "n": 1
+        }
+      ],
+      "checks": [],
+      "flags": [],
+      "choiceOnly": true,
+      "confidence": {
+        "level": "high",
+        "why": "A design decision, the same for every course."
+      },
+      "judgement": false
+    },
+    "/ceterms:ctid": {
+      "slot": "ctid",
+      "method": "minted",
+      "producedBy": "the CTID service",
+      "how": "Minted once and remembered in the ledger; running again returns the same one.",
+      "evidence": [
+        {
+          "kind": "none",
+          "role": "no source",
+          "says": "There is no source. Made by the CTID service from two inputs: the organisation (ce-57603921-78ce-455c-88b5-00506fb33701) and the course code (CSCE 45601).",
+          "n": 1
+        }
+      ],
+      "checks": [
+        {
+          "text": "It has the form “ce-” plus a UUID.",
+          "status": "pass"
+        },
+        {
+          "text": "The ledger holds it under this organisation and course code.",
+          "status": "pass"
+        }
+      ],
+      "flags": [
+        {
+          "id": "placeholder",
+          "text": "Made here, never published. A placeholder (decision D14)."
+        }
+      ],
+      "confidence": {
+        "level": "medium",
+        "why": "Nothing on the page was read. The identifier was made here and is a placeholder."
+      },
+      "judgement": false
+    },
+    "/ceterms:name": {
+      "slot": "name",
+      "method": "rule",
+      "producedBy": "title-line.name",
+      "how": "A rule read it.",
+      "evidence": [
+        {
+          "kind": "text",
+          "document": "2dc1f251dac58c4e7a0d2934f7c298b74fb70ecde5d77cd06e466a35dbfe0a6b",
+          "role": "the name",
+          "says": "“Capstone I” is in this course's title line.",
+          "rule": "title-line.name",
+          "segments": [
+            {
+              "start": 17018,
+              "end": 17028,
+              "quote": "Capstone I",
+              "before": "fered: Irregular)\n\nCSCE 45601.  ",
+              "after": ".  1 Hour.\n\nStudents complete a "
+            }
+          ],
+          "matched": {
+            "start": 17005,
+            "end": 17038,
+            "text": "CSCE 45601.  Capstone I.  1 Hour.",
+            "parts": [
+              {
+                "name": "quote",
+                "start": 17018,
+                "end": 17028
+              }
+            ]
+          },
+          "n": 1
+        }
+      ],
+      "checks": [
+        {
+          "text": "The text at each recorded position equals the recorded quote.",
+          "status": "pass"
+        }
+      ],
+      "flags": [],
+      "confidence": {
+        "level": "high",
+        "why": "Read by a rule from one place on the page, and every check passed."
+      },
+      "judgement": false
+    },
+    "/ceterms:codedNotation": {
+      "slot": "codedNotation",
+      "method": "rule",
+      "producedBy": "title-line.code",
+      "how": "A rule read it.",
+      "evidence": [
+        {
+          "kind": "text",
+          "document": "2dc1f251dac58c4e7a0d2934f7c298b74fb70ecde5d77cd06e466a35dbfe0a6b",
+          "role": "the code",
+          "says": "“CSCE 45601” opens this course's title line.",
+          "rule": "title-line.code",
+          "segments": [
+            {
+              "start": 17005,
+              "end": 17015,
+              "quote": "CSCE 45601",
+              "before": "(Typically offered: Irregular)\n\n",
+              "after": ".  Capstone I.  1 Hour.\n\nStudent"
+            }
+          ],
+          "matched": {
+            "start": 17005,
+            "end": 17016,
+            "text": "CSCE 45601.",
+            "parts": [
+              {
+                "name": "quote",
+                "start": 17005,
+                "end": 17015
+              },
+              {
+                "name": "subject",
+                "start": 17005,
+                "end": 17009
+              },
+              {
+                "name": "number",
+                "start": 17010,
+                "end": 17015
+              }
+            ]
+          },
+          "n": 1
+        }
+      ],
+      "checks": [
+        {
+          "text": "The text at each recorded position equals the recorded quote.",
+          "status": "pass"
+        }
+      ],
+      "flags": [],
+      "normalised": "The page writes the code with a non-breaking space; the record uses an ordinary space.",
+      "confidence": {
+        "level": "high",
+        "why": "Read by a rule from one place on the page, and every check passed."
+      },
+      "judgement": false
+    },
+    "/ceterms:description": {
+      "slot": "description",
+      "method": "rule",
+      "producedBy": "description.whole",
+      "how": "A rule read it.",
+      "evidence": [
+        {
+          "kind": "text",
+          "document": "2dc1f251dac58c4e7a0d2934f7c298b74fb70ecde5d77cd06e466a35dbfe0a6b",
+          "role": "the paragraph",
+          "says": "The whole paragraph under the title line, kept word for word.",
+          "rule": "description.whole",
+          "segments": [
+            {
+              "start": 17040,
+              "end": 17556,
+              "quote": "Students complete a comprehensive software capstone project during their final year of undergraduate studies. The project is done over 2 semesters in phases: concept, formal proposal, implementation, and presentation. The projects include and may require the integration of software and human factors and hardware elements and are developed to software engineering methodologies. Pre- or Corequisite:  CSCE 35103. Prerequisite:  (CSCE 36103 or CSCE 361H3) and completion of 72 credit hours. (Typically offered: Fall)",
+              "before": "E 45601.  Capstone I.  1 Hour.\n\n",
+              "after": "\n\nCSCE 46103.  Artificial Intell"
+            }
+          ],
+          "matched": {
+            "start": 17039,
+            "end": 17556,
+            "text": "\nStudents complete a comprehensive software capstone project during their final year of undergraduate studies. The project is done over 2 semesters in phases: concept, formal proposal, implementation, and presentation. The projects include and may require the integration of software and human factors and hardware elements and are developed to software engineering methodologies. Pre- or Corequisite:  CSCE 35103. Prerequisite:  (CSCE 36103 or CSCE 361H3) and completion of 72 credit hours. (Typically offered: Fall)",
+            "parts": [
+              {
+                "name": "quote",
+                "start": 17040,
+                "end": 17556
+              }
+            ]
+          },
+          "n": 1
+        }
+      ],
+      "checks": [
+        {
+          "text": "The text at each recorded position equals the recorded quote.",
+          "status": "pass"
+        }
+      ],
+      "flags": [],
+      "normalised": "Line breaks, repeated spaces and non-breaking spaces on the page became single spaces.",
+      "confidence": {
+        "level": "high",
+        "why": "Read by a rule from one place on the page, and every check passed."
+      },
+      "judgement": false
+    },
+    "/ceterms:creditValue": {
+      "slot": "creditValue",
+      "method": "rule",
+      "producedBy": "title-line.credit, catalog.credit-unit",
+      "how": "Rules read both.",
+      "evidence": [
+        {
+          "kind": "text",
+          "document": "2dc1f251dac58c4e7a0d2934f7c298b74fb70ecde5d77cd06e466a35dbfe0a6b",
+          "role": "gives the number",
+          "says": "“1 Hour.” in the title line gives the number.",
+          "rule": "title-line.credit",
+          "segments": [
+            {
+              "start": 17031,
+              "end": 17038,
+              "quote": "1 Hour.",
+              "before": "lar)\n\nCSCE 45601.  Capstone I.  ",
+              "after": "\n\nStudents complete a comprehens"
+            }
+          ],
+          "matched": {
+            "start": 17031,
+            "end": 17038,
+            "text": "1 Hour.",
+            "parts": [
+              {
+                "name": "quote",
+                "start": 17031,
+                "end": 17038
+              },
+              {
+                "name": "min",
+                "start": 17031,
+                "end": 17032
+              }
+            ]
+          },
+          "n": 1
+        },
+        {
+          "kind": "text",
+          "document": "2bebcbc013418b2095cb8c6ba438206259d989f34dc03b0eb0120e2293ebc119",
+          "role": "gives the unit",
+          "says": "“semester hours” on the index page gives the unit.",
+          "rule": "catalog.credit-unit",
+          "segments": [
+            {
+              "start": 2361,
+              "end": 2375,
+              "quote": "semester hours",
+              "before": "lly earns a specified number of ",
+              "after": " of credit toward a degree.\nCour"
+            }
+          ],
+          "matched": {
+            "start": 2333,
+            "end": 2385,
+            "text": "earns a specified number of semester hours of credit",
+            "parts": [
+              {
+                "name": "quote",
+                "start": 2361,
+                "end": 2375
+              }
+            ]
+          },
+          "n": 2
+        }
+      ],
+      "checks": [
+        {
+          "text": "The course number 45601 ends in 1 and the title line says 1 Hour.",
+          "status": "pass"
+        },
+        {
+          "text": "The text at each recorded position equals the recorded quote.",
+          "status": "pass"
+        }
+      ],
+      "flags": [],
+      "chip": "1 · Semester Hour",
+      "confidence": {
+        "level": "high",
+        "why": "Read by a rule from one place on the page, and every check passed."
+      },
+      "judgement": false
+    },
+    "/ceterms:creditValue/0/@type": {
+      "slot": "ValueProfile",
+      "method": "fixed",
+      "producedBy": "the schema",
+      "how": "Nothing was read. The schema allows only this class here.",
+      "evidence": [
+        {
+          "kind": "none",
+          "role": "no source",
+          "says": "A choice of class. Nothing was read from the page.",
+          "n": 1
+        }
+      ],
+      "checks": [],
+      "flags": [],
+      "choiceOnly": true,
+      "confidence": {
+        "level": "high",
+        "why": "A design decision, the same for every course."
+      },
+      "judgement": false
+    },
+    "/ceterms:creditValue/0/schema:value": {
+      "slot": "value",
+      "method": "rule",
+      "producedBy": "title-line.credit",
+      "how": "A rule read it.",
+      "evidence": [
+        {
+          "kind": "text",
+          "document": "2dc1f251dac58c4e7a0d2934f7c298b74fb70ecde5d77cd06e466a35dbfe0a6b",
+          "role": "the number",
+          "says": "“1 Hour.” in the title line gives the number.",
+          "rule": "title-line.credit",
+          "segments": [
+            {
+              "start": 17031,
+              "end": 17032,
+              "quote": "1",
+              "before": "lar)\n\nCSCE 45601.  Capstone I.  ",
+              "after": " Hour.\n\nStudents complete a comp"
+            }
+          ],
+          "matched": {
+            "start": 17031,
+            "end": 17038,
+            "text": "1 Hour.",
+            "parts": [
+              {
+                "name": "quote",
+                "start": 17031,
+                "end": 17038
+              },
+              {
+                "name": "min",
+                "start": 17031,
+                "end": 17032
+              }
+            ]
+          },
+          "n": 1
+        }
+      ],
+      "checks": [
+        {
+          "text": "The course number 45601 ends in 1 and the title line says 1 Hour.",
+          "status": "pass"
+        },
+        {
+          "text": "The text at each recorded position equals the recorded quote.",
+          "status": "pass"
+        }
+      ],
+      "flags": [],
+      "confidence": {
+        "level": "high",
+        "why": "Read by a rule from one place on the page, and every check passed."
+      },
+      "judgement": false
+    },
+    "/ceterms:creditValue/0/ceterms:creditUnitType": {
+      "slot": "creditUnitType",
+      "method": "rule",
+      "producedBy": "catalog.credit-unit",
+      "how": "A rule read it, on the index page.",
+      "evidence": [
+        {
+          "kind": "text",
+          "document": "2bebcbc013418b2095cb8c6ba438206259d989f34dc03b0eb0120e2293ebc119",
+          "role": "gives the unit",
+          "says": "“semester hours” on the index page gives the unit.",
+          "rule": "catalog.credit-unit",
+          "segments": [
+            {
+              "start": 2361,
+              "end": 2375,
+              "quote": "semester hours",
+              "before": "lly earns a specified number of ",
+              "after": " of credit toward a degree.\nCour"
+            }
+          ],
+          "matched": {
+            "start": 2333,
+            "end": 2385,
+            "text": "earns a specified number of semester hours of credit",
+            "parts": [
+              {
+                "name": "quote",
+                "start": 2361,
+                "end": 2375
+              }
+            ]
+          },
+          "n": 1
+        }
+      ],
+      "checks": [
+        {
+          "text": "The text at each recorded position equals the recorded quote.",
+          "status": "pass"
+        }
+      ],
+      "flags": [],
+      "chip": "Semester Hour",
+      "concept": "creditUnit:SemesterHour",
+      "scheme": "ceterms:CreditUnit",
+      "confidence": {
+        "level": "high",
+        "why": "Read by a rule from one place on the page, and every check passed."
+      },
+      "judgement": false
+    },
+    "/ceterms:creditValue/0/ceterms:creditUnitType/0/@type": {
+      "slot": "CredentialAlignmentObject",
+      "method": "fixed",
+      "producedBy": "the schema",
+      "how": "Nothing was read. The schema allows only this class here.",
+      "evidence": [
+        {
+          "kind": "none",
+          "role": "no source",
+          "says": "A choice of class. Nothing was read from the page.",
+          "n": 1
+        }
+      ],
+      "checks": [],
+      "flags": [],
+      "choiceOnly": true,
+      "confidence": {
+        "level": "high",
+        "why": "A design decision, the same for every course."
+      },
+      "judgement": false
+    },
+    "/ceterms:creditValue/0/ceterms:creditUnitType/0/ceterms:targetNode": {
+      "slot": "targetNode",
+      "method": "rule",
+      "producedBy": "catalog.credit-unit",
+      "how": "A rule read it, on the index page.",
+      "evidence": [
+        {
+          "kind": "text",
+          "document": "2bebcbc013418b2095cb8c6ba438206259d989f34dc03b0eb0120e2293ebc119",
+          "role": "gives the unit",
+          "says": "“semester hours” on the index page gives the unit.",
+          "rule": "catalog.credit-unit",
+          "segments": [
+            {
+              "start": 2361,
+              "end": 2375,
+              "quote": "semester hours",
+              "before": "lly earns a specified number of ",
+              "after": " of credit toward a degree.\nCour"
+            }
+          ],
+          "matched": {
+            "start": 2333,
+            "end": 2385,
+            "text": "earns a specified number of semester hours of credit",
+            "parts": [
+              {
+                "name": "quote",
+                "start": 2361,
+                "end": 2375
+              }
+            ]
+          },
+          "n": 1
+        }
+      ],
+      "checks": [
+        {
+          "text": "creditUnit:SemesterHour is a member of the Credit Unit list.",
+          "status": "pass"
+        },
+        {
+          "text": "The text at each recorded position equals the recorded quote.",
+          "status": "pass"
+        }
+      ],
+      "flags": [],
+      "concept": "creditUnit:SemesterHour",
+      "scheme": "ceterms:CreditUnit",
+      "confidence": {
+        "level": "high",
+        "why": "Read by a rule from one place on the page, and every check passed."
+      },
+      "judgement": false
+    },
+    "/ceterms:requires": {
+      "slot": "requires",
+      "method": "language model",
+      "producedBy": "description.prerequisite; structure by language model",
+      "how": "Rules read both.",
+      "evidence": [
+        {
+          "kind": "text",
+          "document": "2dc1f251dac58c4e7a0d2934f7c298b74fb70ecde5d77cd06e466a35dbfe0a6b",
+          "role": "the sentence",
+          "says": "The sentence, kept word for word.",
+          "rule": "description.prerequisite",
+          "segments": [
+            {
+              "start": 17469,
+              "end": 17530,
+              "quote": "(CSCE 36103 or CSCE 361H3) and completion of 72 credit hours.",
+              "before": "te:  CSCE 35103. Prerequisite:  ",
+              "after": " (Typically offered: Fall)\n\nCSCE"
+            }
+          ],
+          "n": 1
+        },
+        {
+          "kind": "text",
+          "document": "2dc1f251dac58c4e7a0d2934f7c298b74fb70ecde5d77cd06e466a35dbfe0a6b",
+          "role": "the course links",
+          "says": "The 2 course links in it.",
+          "rule": null,
+          "segments": [
+            {
+              "start": 17470,
+              "end": 17480,
+              "quote": "CSCE 36103",
+              "before": "e:  CSCE 35103. Prerequisite:  (",
+              "after": " or CSCE 361H3) and completion o"
+            },
+            {
+              "start": 17484,
+              "end": 17494,
+              "quote": "CSCE 361H3",
+              "before": ". Prerequisite:  (CSCE 36103 or ",
+              "after": ") and completion of 72 credit ho"
+            }
+          ],
+          "n": 2
+        },
+        {
+          "kind": "text",
+          "document": "2dc1f251dac58c4e7a0d2934f7c298b74fb70ecde5d77cd06e466a35dbfe0a6b",
+          "role": "other conditions",
+          "says": "1 condition that is not a course.",
+          "rule": null,
+          "segments": [
+            {
+              "start": 17500,
+              "end": 17529,
+              "quote": "completion of 72 credit hours",
+              "before": " (CSCE 36103 or CSCE 361H3) and ",
+              "after": ". (Typically offered: Fall)\n\nCSC"
+            }
+          ],
+          "n": 3
+        }
+      ],
+      "checks": [
+        {
+          "id": "G1",
+          "text": "The proposal is in the agreed form, and every quote is word for word in the sentence.",
+          "status": "pass",
+          "detail": ""
+        },
+        {
+          "id": "G2",
+          "text": "Every course in the structure is a link in the sentence.",
+          "status": "pass",
+          "detail": ""
+        },
+        {
+          "id": "G3",
+          "text": "Every link in the sentence appears in the structure.",
+          "status": "pass",
+          "detail": ""
+        },
+        {
+          "id": "G4",
+          "text": "Where the parser read a bracketed group on its own, the structure agrees with it.",
+          "status": "pass",
+          "detail": ""
+        },
+        {
+          "id": "G5",
+          "text": "The structure's parts appear in the sentence's order and do not overlap.",
+          "status": "pass",
+          "detail": ""
+        },
+        {
+          "text": "The guards do not prove that “and” and “or” were read correctly outside bracketed groups.",
+          "status": "note"
+        },
+        {
+          "text": "The text at each recorded position equals the recorded quote.",
+          "status": "pass"
+        }
+      ],
+      "flags": [
+        {
+          "id": "language-model",
+          "text": "The structure is the language model's reading. No person has confirmed it."
+        }
+      ],
+      "chip": "Prerequisite · all of 2 parts",
+      "structure": [
+        {
+          "sentence": {
+            "start": 17469,
+            "end": 17530,
+            "quote": "(CSCE 36103 or CSCE 361H3) and completion of 72 credit hours.",
+            "before": "te:  CSCE 35103. Prerequisite:  ",
+            "after": " (Typically offered: Fall)\n\nCSCE"
+          },
+          "builtBy": "language model",
+          "tree": {
+            "kind": "all_of",
+            "start": 17470,
+            "end": 17529,
+            "quote": "CSCE 36103 or CSCE 361H3) and completion of 72 credit hours",
+            "children": [
+              {
+                "kind": "any_of",
+                "start": 17470,
+                "end": 17494,
+                "quote": "CSCE 36103 or CSCE 361H3",
+                "landed": {
+                  "path": "/ceterms:requires/0/ceterms:alternativeCondition",
+                  "how": "alternatives"
+                },
+                "children": [
+                  {
+                    "kind": "course",
+                    "start": 17470,
+                    "end": 17480,
+                    "quote": "CSCE 36103",
+                    "code": "CSCE 36103",
+                    "uri": "https://credentialengineregistry.org/resources/ce-f247b0f0-a5b2-4110-8f74-4e5d65a2e0b3",
+                    "hasRecord": true,
+                    "landed": {
+                      "path": "/ceterms:requires/0/ceterms:alternativeCondition/0/ceterms:targetLearningOpportunity/0",
+                      "how": "course"
+                    }
+                  },
+                  {
+                    "kind": "course",
+                    "start": 17484,
+                    "end": 17494,
+                    "quote": "CSCE 361H3",
+                    "code": "CSCE 361H3",
+                    "uri": "https://credentialengineregistry.org/resources/ce-99b6fe0b-61ac-4008-9f88-90898eaf54f1",
+                    "hasRecord": true,
+                    "landed": {
+                      "path": "/ceterms:requires/0/ceterms:alternativeCondition/1/ceterms:targetLearningOpportunity/0",
+                      "how": "course"
+                    }
+                  }
+                ]
+              },
+              {
+                "kind": "text",
+                "start": 17500,
+                "end": 17529,
+                "quote": "completion of 72 credit hours",
+                "landed": {
+                  "path": "/ceterms:requires/0/ceterms:condition/en-US/0",
+                  "how": "condition"
+                }
+              }
+            ]
+          },
+          "guards": [
+            {
+              "id": "G1",
+              "text": "The proposal is in the agreed form, and every quote is word for word in the sentence.",
+              "status": "pass",
+              "detail": ""
+            },
+            {
+              "id": "G2",
+              "text": "Every course in the structure is a link in the sentence.",
+              "status": "pass",
+              "detail": ""
+            },
+            {
+              "id": "G3",
+              "text": "Every link in the sentence appears in the structure.",
+              "status": "pass",
+              "detail": ""
+            },
+            {
+              "id": "G4",
+              "text": "Where the parser read a bracketed group on its own, the structure agrees with it.",
+              "status": "pass",
+              "detail": ""
+            },
+            {
+              "id": "G5",
+              "text": "The structure's parts appear in the sentence's order and do not overlap.",
+              "status": "pass",
+              "detail": ""
+            }
+          ],
+          "partlyStructured": false,
+          "summary": "all of 2 parts",
+          "languageModel": {
+            "name": "qwen3.5:9b",
+            "promptVersion": "prerequisite-structure/1",
+            "argument": "The sentence contains an 'and' connecting two main components: the parenthetical group '(CSCE 36103 or CSCE 361H3)' and the phrase 'completion of 72 credit hours'. According to the CTDL definition of ceterms:alternativeCondition, which applies to the parenthetical group containing 'or', this represents a set where 'any one path fulfills the parent condition', thus forming an 'any_of' node. The outer 'and' connects these two distinct requirements, meaning every item under it is required, forming an 'all_of' node per the CTDL definition of ceterms:requires."
+          }
+        }
+      ],
+      "confidence": {
+        "level": "low",
+        "why": "A language model proposed it, and no person has confirmed it."
+      },
+      "judgement": true
+    },
+    "/ceterms:requires/0/@type": {
+      "slot": "ConditionProfile",
+      "method": "fixed",
+      "producedBy": "the schema",
+      "how": "Nothing was read. The schema allows only this class here.",
+      "evidence": [
+        {
+          "kind": "none",
+          "role": "no source",
+          "says": "A choice of class. Nothing was read from the page.",
+          "n": 1
+        }
+      ],
+      "checks": [],
+      "flags": [],
+      "choiceOnly": true,
+      "confidence": {
+        "level": "high",
+        "why": "A design decision, the same for every course."
+      },
+      "judgement": false
+    },
+    "/ceterms:requires/0/ceterms:name": {
+      "slot": "conditionName",
+      "method": "fixed",
+      "producedBy": "decision",
+      "how": "Fixed wording for sentences labelled “Prerequisite”.",
+      "evidence": [
+        {
+          "kind": "none",
+          "role": "no source",
+          "says": "Nothing was read. It repeats the label that introduced the sentence.",
+          "n": 1
+        }
+      ],
+      "checks": [],
+      "flags": [],
+      "confidence": {
+        "level": "high",
+        "why": "A design decision, the same for every course."
+      },
+      "judgement": false
+    },
+    "/ceterms:requires/0/ceterms:description": {
+      "slot": "conditionDescription",
+      "method": "rule",
+      "producedBy": "description.prerequisite",
+      "how": "A rule read it.",
+      "evidence": [
+        {
+          "kind": "text",
+          "document": "2dc1f251dac58c4e7a0d2934f7c298b74fb70ecde5d77cd06e466a35dbfe0a6b",
+          "role": "the sentence",
+          "says": "The sentence after “Prerequisite:”, kept word for word.",
+          "rule": "description.prerequisite",
+          "segments": [
+            {
+              "start": 17469,
+              "end": 17530,
+              "quote": "(CSCE 36103 or CSCE 361H3) and completion of 72 credit hours.",
+              "before": "te:  CSCE 35103. Prerequisite:  ",
+              "after": " (Typically offered: Fall)\n\nCSCE"
+            }
+          ],
+          "matched": {
+            "start": 17454,
+            "end": 17531,
+            "text": "Prerequisite:  (CSCE 36103 or CSCE 361H3) and completion of 72 credit hours. ",
+            "parts": [
+              {
+                "name": "quote",
+                "start": 17469,
+                "end": 17530
+              }
+            ]
+          },
+          "n": 1
+        }
+      ],
+      "checks": [
+        {
+          "text": "The text at each recorded position equals the recorded quote.",
+          "status": "pass"
+        }
+      ],
+      "flags": [],
+      "confidence": {
+        "level": "high",
+        "why": "Read by a rule from one place on the page, and every check passed."
+      },
+      "judgement": false
+    },
+    "/ceterms:requires/0/ceterms:alternativeCondition": {
+      "slot": "alternativeCondition",
+      "method": "language model",
+      "producedBy": "qwen3.5:9b",
+      "how": "Read by the language model qwen3.5:9b.",
+      "evidence": [
+        {
+          "kind": "text",
+          "document": "2dc1f251dac58c4e7a0d2934f7c298b74fb70ecde5d77cd06e466a35dbfe0a6b",
+          "role": "the choices",
+          "says": "“CSCE 36103 or CSCE 361H3” in the sentence.",
+          "rule": null,
+          "segments": [
+            {
+              "start": 17470,
+              "end": 17494,
+              "quote": "CSCE 36103 or CSCE 361H3",
+              "before": "e:  CSCE 35103. Prerequisite:  (",
+              "after": ") and completion of 72 credit ho"
+            }
+          ],
+          "n": 1
+        }
+      ],
+      "checks": [
+        {
+          "text": "The text at each recorded position equals the recorded quote.",
+          "status": "pass"
+        }
+      ],
+      "flags": [],
+      "chip": "any one of 2",
+      "confidence": {
+        "level": "low",
+        "why": "A language model proposed it, and no person has confirmed it."
+      },
+      "judgement": true
+    },
+    "/ceterms:requires/0/ceterms:alternativeCondition/0": {
+      "slot": "ConditionProfile",
+      "method": "language model",
+      "producedBy": "qwen3.5:9b",
+      "how": "Read by the language model qwen3.5:9b.",
+      "evidence": [
+        {
+          "kind": "text",
+          "document": "2dc1f251dac58c4e7a0d2934f7c298b74fb70ecde5d77cd06e466a35dbfe0a6b",
+          "role": "one choice",
+          "says": "“CSCE 36103” in the sentence.",
+          "rule": null,
+          "segments": [
+            {
+              "start": 17470,
+              "end": 17480,
+              "quote": "CSCE 36103",
+              "before": "e:  CSCE 35103. Prerequisite:  (",
+              "after": " or CSCE 361H3) and completion o"
+            }
+          ],
+          "n": 1
+        }
+      ],
+      "checks": [
+        {
+          "text": "The text at each recorded position equals the recorded quote.",
+          "status": "pass"
+        }
+      ],
+      "flags": [],
+      "chip": "CSCE 36103",
+      "confidence": {
+        "level": "low",
+        "why": "A language model proposed it, and no person has confirmed it."
+      },
+      "judgement": true
+    },
+    "/ceterms:requires/0/ceterms:alternativeCondition/0/ceterms:targetLearningOpportunity/0": {
+      "slot": "targetLearningOpportunity",
+      "method": "language model",
+      "producedBy": "qwen3.5:9b",
+      "how": "Read by the language model qwen3.5:9b.",
+      "evidence": [
+        {
+          "kind": "text",
+          "document": "2dc1f251dac58c4e7a0d2934f7c298b74fb70ecde5d77cd06e466a35dbfe0a6b",
+          "role": "the course link",
+          "says": "“CSCE 36103” is a link in the sentence.",
+          "rule": null,
+          "segments": [
+            {
+              "start": 17470,
+              "end": 17480,
+              "quote": "CSCE 36103",
+              "before": "e:  CSCE 35103. Prerequisite:  (",
+              "after": " or CSCE 361H3) and completion o"
+            }
+          ],
+          "n": 1
+        }
+      ],
+      "checks": [
+        {
+          "text": "The text at each recorded position equals the recorded quote.",
+          "status": "pass"
+        }
+      ],
+      "flags": [],
+      "chip": "CSCE 36103",
+      "confidence": {
+        "level": "low",
+        "why": "A language model proposed it, and no person has confirmed it."
+      },
+      "judgement": true
+    },
+    "/ceterms:requires/0/ceterms:alternativeCondition/1": {
+      "slot": "ConditionProfile",
+      "method": "language model",
+      "producedBy": "qwen3.5:9b",
+      "how": "Read by the language model qwen3.5:9b.",
+      "evidence": [
+        {
+          "kind": "text",
+          "document": "2dc1f251dac58c4e7a0d2934f7c298b74fb70ecde5d77cd06e466a35dbfe0a6b",
+          "role": "one choice",
+          "says": "“CSCE 361H3” in the sentence.",
+          "rule": null,
+          "segments": [
+            {
+              "start": 17484,
+              "end": 17494,
+              "quote": "CSCE 361H3",
+              "before": ". Prerequisite:  (CSCE 36103 or ",
+              "after": ") and completion of 72 credit ho"
+            }
+          ],
+          "n": 1
+        }
+      ],
+      "checks": [
+        {
+          "text": "The text at each recorded position equals the recorded quote.",
+          "status": "pass"
+        }
+      ],
+      "flags": [],
+      "chip": "CSCE 361H3",
+      "confidence": {
+        "level": "low",
+        "why": "A language model proposed it, and no person has confirmed it."
+      },
+      "judgement": true
+    },
+    "/ceterms:requires/0/ceterms:alternativeCondition/1/ceterms:targetLearningOpportunity/0": {
+      "slot": "targetLearningOpportunity",
+      "method": "language model",
+      "producedBy": "qwen3.5:9b",
+      "how": "Read by the language model qwen3.5:9b.",
+      "evidence": [
+        {
+          "kind": "text",
+          "document": "2dc1f251dac58c4e7a0d2934f7c298b74fb70ecde5d77cd06e466a35dbfe0a6b",
+          "role": "the course link",
+          "says": "“CSCE 361H3” is a link in the sentence.",
+          "rule": null,
+          "segments": [
+            {
+              "start": 17484,
+              "end": 17494,
+              "quote": "CSCE 361H3",
+              "before": ". Prerequisite:  (CSCE 36103 or ",
+              "after": ") and completion of 72 credit ho"
+            }
+          ],
+          "n": 1
+        }
+      ],
+      "checks": [
+        {
+          "text": "The text at each recorded position equals the recorded quote.",
+          "status": "pass"
+        }
+      ],
+      "flags": [],
+      "chip": "CSCE 361H3",
+      "confidence": {
+        "level": "low",
+        "why": "A language model proposed it, and no person has confirmed it."
+      },
+      "judgement": true
+    },
+    "/ceterms:requires/0/ceterms:condition/en-US/0": {
+      "slot": "condition",
+      "method": "language model",
+      "producedBy": "qwen3.5:9b",
+      "how": "Read by the language model qwen3.5:9b.",
+      "evidence": [
+        {
+          "kind": "text",
+          "document": "2dc1f251dac58c4e7a0d2934f7c298b74fb70ecde5d77cd06e466a35dbfe0a6b",
+          "role": "the condition",
+          "says": "“completion of 72 credit hours” in the sentence.",
+          "rule": null,
+          "segments": [
+            {
+              "start": 17500,
+              "end": 17529,
+              "quote": "completion of 72 credit hours",
+              "before": " (CSCE 36103 or CSCE 361H3) and ",
+              "after": ". (Typically offered: Fall)\n\nCSC"
+            }
+          ],
+          "n": 1
+        }
+      ],
+      "checks": [
+        {
+          "text": "The text at each recorded position equals the recorded quote.",
+          "status": "pass"
+        }
+      ],
+      "flags": [],
+      "confidence": {
+        "level": "low",
+        "why": "A language model proposed it, and no person has confirmed it."
+      },
+      "judgement": true
+    },
+    "/ceterms:coPrerequisite": {
+      "slot": "coPrerequisite",
+      "method": "rule",
+      "producedBy": "description.pre-or-corequisite; structure by parser",
+      "how": "Rules read both.",
+      "evidence": [
+        {
+          "kind": "text",
+          "document": "2dc1f251dac58c4e7a0d2934f7c298b74fb70ecde5d77cd06e466a35dbfe0a6b",
+          "role": "the sentence",
+          "says": "The sentence, kept word for word.",
+          "rule": "description.pre-or-corequisite",
+          "segments": [
+            {
+              "start": 17442,
+              "end": 17453,
+              "quote": "CSCE 35103.",
+              "before": "dologies. Pre- or Corequisite:  ",
+              "after": " Prerequisite:  (CSCE 36103 or C"
+            }
+          ],
+          "n": 1
+        },
+        {
+          "kind": "text",
+          "document": "2dc1f251dac58c4e7a0d2934f7c298b74fb70ecde5d77cd06e466a35dbfe0a6b",
+          "role": "the course links",
+          "says": "The 1 course link in it.",
+          "rule": null,
+          "segments": [
+            {
+              "start": 17442,
+              "end": 17452,
+              "quote": "CSCE 35103",
+              "before": "dologies. Pre- or Corequisite:  ",
+              "after": ". Prerequisite:  (CSCE 36103 or "
+            }
+          ],
+          "n": 2
+        }
+      ],
+      "checks": [
+        {
+          "id": "G1",
+          "text": "The proposal is in the agreed form, and every quote is word for word in the sentence.",
+          "status": "pass",
+          "detail": ""
+        },
+        {
+          "id": "G2",
+          "text": "Every course in the structure is a link in the sentence.",
+          "status": "pass",
+          "detail": ""
+        },
+        {
+          "id": "G3",
+          "text": "Every link in the sentence appears in the structure.",
+          "status": "pass",
+          "detail": ""
+        },
+        {
+          "id": "G4",
+          "text": "Where the parser read a bracketed group on its own, the structure agrees with it.",
+          "status": "pass",
+          "detail": ""
+        },
+        {
+          "id": "G5",
+          "text": "The structure's parts appear in the sentence's order and do not overlap.",
+          "status": "pass",
+          "detail": ""
+        },
+        {
+          "text": "The text at each recorded position equals the recorded quote.",
+          "status": "pass"
+        }
+      ],
+      "flags": [],
+      "chip": "Pre- or corequisite · CSCE 35103",
+      "structure": [
+        {
+          "sentence": {
+            "start": 17442,
+            "end": 17453,
+            "quote": "CSCE 35103.",
+            "before": "dologies. Pre- or Corequisite:  ",
+            "after": " Prerequisite:  (CSCE 36103 or C"
+          },
+          "builtBy": "parser",
+          "tree": {
+            "kind": "course",
+            "start": 17442,
+            "end": 17452,
+            "quote": "CSCE 35103",
+            "code": "CSCE 35103",
+            "uri": "https://credentialengineregistry.org/resources/ce-e9bb3376-0adb-4ed8-8baf-0dc2fdb19c63",
+            "hasRecord": true,
+            "landed": {
+              "path": "/ceterms:coPrerequisite/0/ceterms:targetLearningOpportunity/0",
+              "how": "course"
+            }
+          },
+          "guards": [
+            {
+              "id": "G1",
+              "text": "The proposal is in the agreed form, and every quote is word for word in the sentence.",
+              "status": "pass",
+              "detail": ""
+            },
+            {
+              "id": "G2",
+              "text": "Every course in the structure is a link in the sentence.",
+              "status": "pass",
+              "detail": ""
+            },
+            {
+              "id": "G3",
+              "text": "Every link in the sentence appears in the structure.",
+              "status": "pass",
+              "detail": ""
+            },
+            {
+              "id": "G4",
+              "text": "Where the parser read a bracketed group on its own, the structure agrees with it.",
+              "status": "pass",
+              "detail": ""
+            },
+            {
+              "id": "G5",
+              "text": "The structure's parts appear in the sentence's order and do not overlap.",
+              "status": "pass",
+              "detail": ""
+            }
+          ],
+          "partlyStructured": false,
+          "summary": "CSCE 35103"
+        }
+      ],
+      "unstable": true,
+      "confidence": {
+        "level": "high",
+        "why": "Read by a rule from one place on the page, and every check passed."
+      },
+      "judgement": false
+    },
+    "/ceterms:coPrerequisite/0/@type": {
+      "slot": "ConditionProfile",
+      "method": "fixed",
+      "producedBy": "the schema",
+      "how": "Nothing was read. The schema allows only this class here.",
+      "evidence": [
+        {
+          "kind": "none",
+          "role": "no source",
+          "says": "A choice of class. Nothing was read from the page.",
+          "n": 1
+        }
+      ],
+      "checks": [],
+      "flags": [],
+      "choiceOnly": true,
+      "confidence": {
+        "level": "high",
+        "why": "A design decision, the same for every course."
+      },
+      "judgement": false
+    },
+    "/ceterms:coPrerequisite/0/ceterms:name": {
+      "slot": "conditionName",
+      "method": "fixed",
+      "producedBy": "decision",
+      "how": "Fixed wording for sentences labelled “Pre- or corequisite”.",
+      "evidence": [
+        {
+          "kind": "none",
+          "role": "no source",
+          "says": "Nothing was read. It repeats the label that introduced the sentence.",
+          "n": 1
+        }
+      ],
+      "checks": [],
+      "flags": [],
+      "confidence": {
+        "level": "high",
+        "why": "A design decision, the same for every course."
+      },
+      "judgement": false
+    },
+    "/ceterms:coPrerequisite/0/ceterms:description": {
+      "slot": "conditionDescription",
+      "method": "rule",
+      "producedBy": "description.pre-or-corequisite",
+      "how": "A rule read it.",
+      "evidence": [
+        {
+          "kind": "text",
+          "document": "2dc1f251dac58c4e7a0d2934f7c298b74fb70ecde5d77cd06e466a35dbfe0a6b",
+          "role": "the sentence",
+          "says": "The sentence after “Pre- or Corequisite:”, kept word for word.",
+          "rule": "description.pre-or-corequisite",
+          "segments": [
+            {
+              "start": 17442,
+              "end": 17453,
+              "quote": "CSCE 35103.",
+              "before": "dologies. Pre- or Corequisite:  ",
+              "after": " Prerequisite:  (CSCE 36103 or C"
+            }
+          ],
+          "matched": {
+            "start": 17420,
+            "end": 17454,
+            "text": "Pre- or Corequisite:  CSCE 35103. ",
+            "parts": [
+              {
+                "name": "quote",
+                "start": 17442,
+                "end": 17453
+              }
+            ]
+          },
+          "n": 1
+        }
+      ],
+      "checks": [
+        {
+          "text": "The text at each recorded position equals the recorded quote.",
+          "status": "pass"
+        }
+      ],
+      "flags": [],
+      "confidence": {
+        "level": "high",
+        "why": "Read by a rule from one place on the page, and every check passed."
+      },
+      "judgement": false
+    },
+    "/ceterms:coPrerequisite/0/ceterms:targetLearningOpportunity/0": {
+      "slot": "targetLearningOpportunity",
+      "method": "rule",
+      "producedBy": "the prerequisite parser",
+      "how": "Read by the parser.",
+      "evidence": [
+        {
+          "kind": "text",
+          "document": "2dc1f251dac58c4e7a0d2934f7c298b74fb70ecde5d77cd06e466a35dbfe0a6b",
+          "role": "the course link",
+          "says": "“CSCE 35103” is a link in the sentence.",
+          "rule": null,
+          "segments": [
+            {
+              "start": 17442,
+              "end": 17452,
+              "quote": "CSCE 35103",
+              "before": "dologies. Pre- or Corequisite:  ",
+              "after": ". Prerequisite:  (CSCE 36103 or "
+            }
+          ],
+          "n": 1
+        }
+      ],
+      "checks": [
+        {
+          "text": "The text at each recorded position equals the recorded quote.",
+          "status": "pass"
+        }
+      ],
+      "flags": [],
+      "chip": "CSCE 35103",
+      "confidence": {
+        "level": "high",
+        "why": "Read by a rule from one place on the page, and every check passed."
+      },
+      "judgement": false
+    },
+    "/ceterms:offerFrequencyType": {
+      "slot": "offerFrequencyType",
+      "method": "table",
+      "producedBy": "description.typically-offered, then the offer-frequency table",
+      "how": "A rule found the wording; a table mapped it.",
+      "evidence": [
+        {
+          "kind": "text",
+          "document": "2dc1f251dac58c4e7a0d2934f7c298b74fb70ecde5d77cd06e466a35dbfe0a6b",
+          "role": "the wording",
+          "says": "“Fall” follows “Typically offered:” in the description.",
+          "rule": "description.typically-offered",
+          "segments": [
+            {
+              "start": 17551,
+              "end": 17555,
+              "quote": "Fall",
+              "before": "edit hours. (Typically offered: ",
+              "after": ")\n\nCSCE 46103.  Artificial Intel"
+            }
+          ],
+          "matched": {
+            "start": 17531,
+            "end": 17556,
+            "text": "(Typically offered: Fall)",
+            "parts": [
+              {
+                "name": "quote",
+                "start": 17551,
+                "end": 17555
+              }
+            ]
+          },
+          "n": 1
+        },
+        {
+          "kind": "derived",
+          "role": "the table row",
+          "says": "The offer-frequency table maps that wording to Annually.",
+          "from": "“Fall”",
+          "step": "One start a year.",
+          "result": "Annually (scheduleFrequency:Annually)",
+          "table": "offer-frequency",
+          "n": 2
+        }
+      ],
+      "checks": [
+        {
+          "text": "This row of the table has not yet been reviewed by a person.",
+          "status": "note"
+        },
+        {
+          "text": "The text at each recorded position equals the recorded quote.",
+          "status": "pass"
+        }
+      ],
+      "flags": [
+        {
+          "id": "loses-detail",
+          "text": "Loses detail: which term (Fall). The wording is still in the description."
+        }
+      ],
+      "chip": "Annually",
+      "concept": "scheduleFrequency:Annually",
+      "scheme": "ceterms:ScheduleFrequency",
+      "unstable": true,
+      "confidence": {
+        "level": "medium",
+        "why": "The mapping is sound but loses detail that the page gives."
+      },
+      "judgement": true
+    },
+    "/ceterms:offerFrequencyType/0/@type": {
+      "slot": "CredentialAlignmentObject",
+      "method": "fixed",
+      "producedBy": "the schema",
+      "how": "Nothing was read. The schema allows only this class here.",
+      "evidence": [
+        {
+          "kind": "none",
+          "role": "no source",
+          "says": "A choice of class. Nothing was read from the page.",
+          "n": 1
+        }
+      ],
+      "checks": [],
+      "flags": [],
+      "choiceOnly": true,
+      "confidence": {
+        "level": "high",
+        "why": "A design decision, the same for every course."
+      },
+      "judgement": false
+    },
+    "/ceterms:offerFrequencyType/0/ceterms:targetNode": {
+      "slot": "targetNode",
+      "method": "table",
+      "producedBy": "the offer-frequency table",
+      "how": "A rule found the wording; a table mapped it.",
+      "evidence": [
+        {
+          "kind": "text",
+          "document": "2dc1f251dac58c4e7a0d2934f7c298b74fb70ecde5d77cd06e466a35dbfe0a6b",
+          "role": "the wording",
+          "says": "“Fall” follows “Typically offered:” in the description.",
+          "rule": "description.typically-offered",
+          "segments": [
+            {
+              "start": 17551,
+              "end": 17555,
+              "quote": "Fall",
+              "before": "edit hours. (Typically offered: ",
+              "after": ")\n\nCSCE 46103.  Artificial Intel"
+            }
+          ],
+          "matched": {
+            "start": 17531,
+            "end": 17556,
+            "text": "(Typically offered: Fall)",
+            "parts": [
+              {
+                "name": "quote",
+                "start": 17551,
+                "end": 17555
+              }
+            ]
+          },
+          "n": 1
+        },
+        {
+          "kind": "derived",
+          "role": "the table row",
+          "says": "The offer-frequency table maps that wording to Annually.",
+          "from": "“Fall”",
+          "step": "One start a year.",
+          "result": "Annually (scheduleFrequency:Annually)",
+          "table": "offer-frequency",
+          "n": 2
+        }
+      ],
+      "checks": [
+        {
+          "text": "scheduleFrequency:Annually is a member of the Schedule Frequency list.",
+          "status": "pass"
+        },
+        {
+          "text": "This row of the table has not yet been reviewed by a person.",
+          "status": "note"
+        },
+        {
+          "text": "The text at each recorded position equals the recorded quote.",
+          "status": "pass"
+        }
+      ],
+      "flags": [
+        {
+          "id": "loses-detail",
+          "text": "Loses detail: which term (Fall). The wording is still in the description."
+        }
+      ],
+      "concept": "scheduleFrequency:Annually",
+      "scheme": "ceterms:ScheduleFrequency",
+      "confidence": {
+        "level": "medium",
+        "why": "The mapping is sound but loses detail that the page gives."
+      },
+      "judgement": true
+    },
+    "/ceterms:inLanguage": {
+      "slot": "inLanguage",
+      "method": "rule",
+      "producedBy": "page.language",
+      "how": "A rule read it, from the page's markup.",
+      "evidence": [
+        {
+          "kind": "markup",
+          "document": "2dc1f251dac58c4e7a0d2934f7c298b74fb70ecde5d77cd06e466a35dbfe0a6b",
+          "role": "the page's declared language",
+          "says": "The page declares lang=\"en\" on its <html> element.",
+          "rule": "page.language",
+          "element": "html",
+          "attribute": "lang",
+          "source": {
+            "start": 48,
+            "end": 50,
+            "quote": "en",
+            "of": "the stored HTML source"
+          },
+          "n": 1
+        }
+      ],
+      "checks": [],
+      "flags": [],
+      "confidence": {
+        "level": "high",
+        "why": "Read by a rule from the page's own markup."
+      },
+      "judgement": false
+    },
+    "/ceterms:lifeCycleStatusType": {
+      "slot": "lifeCycleStatusType",
+      "method": "rule",
+      "producedBy": "page.edition, catalog.approved-for-offering",
+      "how": "Rules read both; that they add up to Active is a design decision.",
+      "evidence": [
+        {
+          "kind": "text",
+          "document": "2dc1f251dac58c4e7a0d2934f7c298b74fb70ecde5d77cd06e466a35dbfe0a6b",
+          "role": "the current edition",
+          "says": "“2026-27 Edition” labels this page: it is in the current catalog.",
+          "rule": "page.edition",
+          "segments": [
+            {
+              "start": 1023,
+              "end": 1038,
+              "quote": "2026-27 Edition",
+              "before": "      \n            \n            ",
+              "after": "\n         \n         \n           "
+            }
+          ],
+          "matched": {
+            "start": 1023,
+            "end": 1038,
+            "text": "2026-27 Edition",
+            "parts": [
+              {
+                "name": "quote",
+                "start": 1023,
+                "end": 1038
+              },
+              {
+                "name": "edition",
+                "start": 1023,
+                "end": 1030
+              }
+            ]
+          },
+          "n": 1
+        },
+        {
+          "kind": "text",
+          "document": "2bebcbc013418b2095cb8c6ba438206259d989f34dc03b0eb0120e2293ebc119",
+          "role": "approved for offering",
+          "says": "The index page calls the listing “all courses approved for offering”.",
+          "rule": "catalog.approved-for-offering",
+          "segments": [
+            {
+              "start": 1814,
+              "end": 1877,
+              "quote": "all courses approved for offering by the University of Arkansas",
+              "before": "listed in this section describe ",
+              "after": ". The courses are listed alphabe"
+            }
+          ],
+          "matched": {
+            "start": 1814,
+            "end": 1877,
+            "text": "all courses approved for offering by the University of Arkansas",
+            "parts": [
+              {
+                "name": "quote",
+                "start": 1814,
+                "end": 1877
+              },
+              {
+                "name": "organisation",
+                "start": 1851,
+                "end": 1877
+              }
+            ]
+          },
+          "n": 2
+        }
+      ],
+      "checks": [
+        {
+          "text": "The text at each recorded position equals the recorded quote.",
+          "status": "pass"
+        }
+      ],
+      "flags": [],
+      "chip": "Active",
+      "concept": "lifeCycle:Active",
+      "scheme": "ceterms:LifeCycleStatus",
+      "unstable": true,
+      "confidence": {
+        "level": "medium",
+        "why": "The page does not state a status. Active is inferred from two pieces of wording."
+      },
+      "judgement": false
+    },
+    "/ceterms:lifeCycleStatusType/@type": {
+      "slot": "CredentialAlignmentObject",
+      "method": "fixed",
+      "producedBy": "the schema",
+      "how": "Nothing was read. The schema allows only this class here.",
+      "evidence": [
+        {
+          "kind": "none",
+          "role": "no source",
+          "says": "A choice of class. Nothing was read from the page.",
+          "n": 1
+        }
+      ],
+      "checks": [],
+      "flags": [],
+      "choiceOnly": true,
+      "confidence": {
+        "level": "high",
+        "why": "A design decision, the same for every course."
+      },
+      "judgement": false
+    },
+    "/ceterms:lifeCycleStatusType/ceterms:targetNode": {
+      "slot": "targetNode",
+      "method": "rule",
+      "producedBy": "page.edition, catalog.approved-for-offering",
+      "how": "Rules read both; that they add up to Active is a design decision.",
+      "evidence": [
+        {
+          "kind": "text",
+          "document": "2dc1f251dac58c4e7a0d2934f7c298b74fb70ecde5d77cd06e466a35dbfe0a6b",
+          "role": "the current edition",
+          "says": "“2026-27 Edition” labels this page: it is in the current catalog.",
+          "rule": "page.edition",
+          "segments": [
+            {
+              "start": 1023,
+              "end": 1038,
+              "quote": "2026-27 Edition",
+              "before": "      \n            \n            ",
+              "after": "\n         \n         \n           "
+            }
+          ],
+          "matched": {
+            "start": 1023,
+            "end": 1038,
+            "text": "2026-27 Edition",
+            "parts": [
+              {
+                "name": "quote",
+                "start": 1023,
+                "end": 1038
+              },
+              {
+                "name": "edition",
+                "start": 1023,
+                "end": 1030
+              }
+            ]
+          },
+          "n": 1
+        },
+        {
+          "kind": "text",
+          "document": "2bebcbc013418b2095cb8c6ba438206259d989f34dc03b0eb0120e2293ebc119",
+          "role": "approved for offering",
+          "says": "The index page calls the listing “all courses approved for offering”.",
+          "rule": "catalog.approved-for-offering",
+          "segments": [
+            {
+              "start": 1814,
+              "end": 1877,
+              "quote": "all courses approved for offering by the University of Arkansas",
+              "before": "listed in this section describe ",
+              "after": ". The courses are listed alphabe"
+            }
+          ],
+          "matched": {
+            "start": 1814,
+            "end": 1877,
+            "text": "all courses approved for offering by the University of Arkansas",
+            "parts": [
+              {
+                "name": "quote",
+                "start": 1814,
+                "end": 1877
+              },
+              {
+                "name": "organisation",
+                "start": 1851,
+                "end": 1877
+              }
+            ]
+          },
+          "n": 2
+        }
+      ],
+      "checks": [
+        {
+          "text": "lifeCycle:Active is a member of the Life Cycle Status list.",
+          "status": "pass"
+        },
+        {
+          "text": "The text at each recorded position equals the recorded quote.",
+          "status": "pass"
+        }
+      ],
+      "flags": [],
+      "concept": "lifeCycle:Active",
+      "scheme": "ceterms:LifeCycleStatus",
+      "confidence": {
+        "level": "high",
+        "why": "Read by a rule from one place on the page, and every check passed."
+      },
+      "judgement": false
+    },
+    "/ceterms:ownedBy": {
+      "slot": "ownedBy",
+      "method": "lookup",
+      "producedBy": "the stored Registry record",
+      "how": "Looked up in the stored Registry record; supported by the page.",
+      "evidence": [
+        {
+          "kind": "record",
+          "document": "e71f35afe7c1085ea57e13f56f16adc34a444b026d0308a155ab59e891159b81",
+          "role": "the organisation's Registry record",
+          "says": "The Registry already holds a record for “University of Arkansas Fayetteville”. Its address is the value.",
+          "address": "https://credentialengineregistry.org/resources/ce-57603921-78ce-455c-88b5-00506fb33701",
+          "readAt": "2026-10-07T23:17:48+00:00",
+          "fields": [
+            {
+              "path": "ceterms:name",
+              "value": "University of Arkansas Fayetteville"
+            },
+            {
+              "path": "ceterms:ctid",
+              "value": "ce-57603921-78ce-455c-88b5-00506fb33701"
+            },
+            {
+              "path": "@type",
+              "value": "ceterms:CredentialOrganization"
+            },
+            {
+              "path": "@id",
+              "value": "https://credentialengineregistry.org/resources/ce-57603921-78ce-455c-88b5-00506fb33701"
+            }
+          ],
+          "n": 1
+        },
+        {
+          "kind": "text",
+          "document": "2bebcbc013418b2095cb8c6ba438206259d989f34dc03b0eb0120e2293ebc119",
+          "role": "names the institution",
+          "says": "The index page says the courses are “approved for offering by the University of Arkansas”.",
+          "rule": "catalog.approved-for-offering",
+          "segments": [
+            {
+              "start": 1851,
+              "end": 1877,
+              "quote": "the University of Arkansas",
+              "before": "ourses approved for offering by ",
+              "after": ". The courses are listed alphabe"
+            }
+          ],
+          "matched": {
+            "start": 1814,
+            "end": 1877,
+            "text": "all courses approved for offering by the University of Arkansas",
+            "parts": [
+              {
+                "name": "quote",
+                "start": 1814,
+                "end": 1877
+              },
+              {
+                "name": "organisation",
+                "start": 1851,
+                "end": 1877
+              }
+            ]
+          },
+          "n": 2
+        },
+        {
+          "kind": "markup",
+          "document": "2dc1f251dac58c4e7a0d2934f7c298b74fb70ecde5d77cd06e466a35dbfe0a6b",
+          "role": "names the institution",
+          "says": "The page's <title> ends “< University of Arkansas”.",
+          "rule": "page.title-organisation",
+          "element": "title",
+          "attribute": null,
+          "source": {
+            "start": 336,
+            "end": 358,
+            "quote": "University of Arkansas",
+            "of": "the stored HTML source"
+          },
+          "n": 3
+        }
+      ],
+      "checks": [
+        {
+          "text": "The Registry record is of type ceterms:CredentialOrganization.",
+          "status": "pass"
+        },
+        {
+          "text": "The text at each recorded position equals the recorded quote.",
+          "status": "pass"
+        }
+      ],
+      "flags": [],
+      "chip": "University of Arkansas Fayetteville",
+      "confidence": {
+        "level": "medium",
+        "why": "Looked up in an outside record, and supported by the page."
+      },
+      "judgement": false
+    },
+    "/ceterms:offeredBy": {
+      "slot": "offeredBy",
+      "method": "lookup",
+      "producedBy": "the stored Registry record",
+      "how": "Looked up in the stored Registry record; supported by the page.",
+      "evidence": [
+        {
+          "kind": "record",
+          "document": "e71f35afe7c1085ea57e13f56f16adc34a444b026d0308a155ab59e891159b81",
+          "role": "the organisation's Registry record",
+          "says": "The Registry already holds a record for “University of Arkansas Fayetteville”. Its address is the value.",
+          "address": "https://credentialengineregistry.org/resources/ce-57603921-78ce-455c-88b5-00506fb33701",
+          "readAt": "2026-10-07T23:17:48+00:00",
+          "fields": [
+            {
+              "path": "ceterms:name",
+              "value": "University of Arkansas Fayetteville"
+            },
+            {
+              "path": "ceterms:ctid",
+              "value": "ce-57603921-78ce-455c-88b5-00506fb33701"
+            },
+            {
+              "path": "@type",
+              "value": "ceterms:CredentialOrganization"
+            },
+            {
+              "path": "@id",
+              "value": "https://credentialengineregistry.org/resources/ce-57603921-78ce-455c-88b5-00506fb33701"
+            }
+          ],
+          "n": 1
+        },
+        {
+          "kind": "text",
+          "document": "2bebcbc013418b2095cb8c6ba438206259d989f34dc03b0eb0120e2293ebc119",
+          "role": "names the institution",
+          "says": "The index page says the courses are “approved for offering by the University of Arkansas”.",
+          "rule": "catalog.approved-for-offering",
+          "segments": [
+            {
+              "start": 1851,
+              "end": 1877,
+              "quote": "the University of Arkansas",
+              "before": "ourses approved for offering by ",
+              "after": ". The courses are listed alphabe"
+            }
+          ],
+          "matched": {
+            "start": 1814,
+            "end": 1877,
+            "text": "all courses approved for offering by the University of Arkansas",
+            "parts": [
+              {
+                "name": "quote",
+                "start": 1814,
+                "end": 1877
+              },
+              {
+                "name": "organisation",
+                "start": 1851,
+                "end": 1877
+              }
+            ]
+          },
+          "n": 2
+        },
+        {
+          "kind": "markup",
+          "document": "2dc1f251dac58c4e7a0d2934f7c298b74fb70ecde5d77cd06e466a35dbfe0a6b",
+          "role": "names the institution",
+          "says": "The page's <title> ends “< University of Arkansas”.",
+          "rule": "page.title-organisation",
+          "element": "title",
+          "attribute": null,
+          "source": {
+            "start": 336,
+            "end": 358,
+            "quote": "University of Arkansas",
+            "of": "the stored HTML source"
+          },
+          "n": 3
+        }
+      ],
+      "checks": [
+        {
+          "text": "The Registry record is of type ceterms:CredentialOrganization.",
+          "status": "pass"
+        },
+        {
+          "text": "The text at each recorded position equals the recorded quote.",
+          "status": "pass"
+        }
+      ],
+      "flags": [],
+      "chip": "University of Arkansas Fayetteville",
+      "confidence": {
+        "level": "medium",
+        "why": "Looked up in an outside record, and supported by the page."
+      },
+      "judgement": false
+    },
+    "/ceterms:subjectWebpage": {
+      "slot": "subjectWebpage",
+      "method": "lookup",
+      "producedBy": "the page store's sidecar",
+      "how": "Taken from the stored page's own record of where it was fetched from.",
+      "evidence": [
+        {
+          "kind": "address",
+          "document": "2dc1f251dac58c4e7a0d2934f7c298b74fb70ecde5d77cd06e466a35dbfe0a6b",
+          "role": "the page's address",
+          "says": "It is the address this subject page was fetched from.",
+          "address": "https://catalog.uark.edu/undergraduatecatalog/coursesofinstruction/csce/",
+          "n": 1
+        }
+      ],
+      "checks": [],
+      "flags": [],
+      "confidence": {
+        "level": "high",
+        "why": "It is the address of the page the course was read from."
+      },
+      "judgement": false
+    },
+    "/ceterms:inCatalog": {
+      "slot": "inCatalog",
+      "method": "lookup",
+      "producedBy": "the crawl's starting point",
+      "how": "Taken from the crawl's starting point.",
+      "evidence": [
+        {
+          "kind": "address",
+          "document": "2bebcbc013418b2095cb8c6ba438206259d989f34dc03b0eb0120e2293ebc119",
+          "role": "the index page's address",
+          "says": "It is the address of the index page, where the crawl started.",
+          "address": "https://catalog.uark.edu/undergraduatecatalog/coursesofinstruction/",
+          "n": 1
+        }
+      ],
+      "checks": [],
+      "flags": [],
+      "unstable": true,
+      "confidence": {
+        "level": "medium",
+        "why": "The address is certain; whether this page is the right “catalog” for the field is a judgement."
+      },
+      "judgement": false
+    },
+    "/ceterms:versionIdentifier": {
+      "slot": "versionIdentifier",
+      "method": "rule",
+      "producedBy": "page.edition",
+      "how": "A rule read it.",
+      "evidence": [
+        {
+          "kind": "text",
+          "document": "2dc1f251dac58c4e7a0d2934f7c298b74fb70ecde5d77cd06e466a35dbfe0a6b",
+          "role": "the edition",
+          "says": "“2026-27 Edition” labels this page of the catalog.",
+          "rule": "page.edition",
+          "segments": [
+            {
+              "start": 1023,
+              "end": 1030,
+              "quote": "2026-27",
+              "before": "      \n            \n            ",
+              "after": " Edition\n         \n         \n   "
+            }
+          ],
+          "matched": {
+            "start": 1023,
+            "end": 1038,
+            "text": "2026-27 Edition",
+            "parts": [
+              {
+                "name": "quote",
+                "start": 1023,
+                "end": 1038
+              },
+              {
+                "name": "edition",
+                "start": 1023,
+                "end": 1030
+              }
+            ]
+          },
+          "n": 1
+        }
+      ],
+      "checks": [
+        {
+          "text": "The text at each recorded position equals the recorded quote.",
+          "status": "pass"
+        }
+      ],
+      "flags": [],
+      "chip": "Catalog edition · 2026-27",
+      "confidence": {
+        "level": "high",
+        "why": "Read by a rule from one place on the page, and every check passed."
+      },
+      "judgement": false
+    },
+    "/ceterms:versionIdentifier/0/@type": {
+      "slot": "IdentifierValue",
+      "method": "fixed",
+      "producedBy": "the schema",
+      "how": "Nothing was read. The schema allows only this class here.",
+      "evidence": [
+        {
+          "kind": "none",
+          "role": "no source",
+          "says": "A choice of class. Nothing was read from the page.",
+          "n": 1
+        }
+      ],
+      "checks": [],
+      "flags": [],
+      "choiceOnly": true,
+      "confidence": {
+        "level": "high",
+        "why": "A design decision, the same for every course."
+      },
+      "judgement": false
+    },
+    "/ceterms:versionIdentifier/0/ceterms:identifierTypeName": {
+      "slot": "identifierTypeName",
+      "method": "fixed",
+      "producedBy": "decision",
+      "how": "Fixed wording, the same for every course.",
+      "evidence": [
+        {
+          "kind": "none",
+          "role": "no source",
+          "says": "The scheme's name is ours. Nothing was read.",
+          "n": 1
+        }
+      ],
+      "checks": [],
+      "flags": [],
+      "confidence": {
+        "level": "high",
+        "why": "A design decision, the same for every course."
+      },
+      "judgement": false
+    },
+    "/ceterms:versionIdentifier/0/ceterms:identifierValueCode": {
+      "slot": "identifierValueCode",
+      "method": "rule",
+      "producedBy": "page.edition",
+      "how": "A rule read it.",
+      "evidence": [
+        {
+          "kind": "text",
+          "document": "2dc1f251dac58c4e7a0d2934f7c298b74fb70ecde5d77cd06e466a35dbfe0a6b",
+          "role": "the edition",
+          "says": "“2026-27 Edition” labels this page of the catalog.",
+          "rule": "page.edition",
+          "segments": [
+            {
+              "start": 1023,
+              "end": 1030,
+              "quote": "2026-27",
+              "before": "      \n            \n            ",
+              "after": " Edition\n         \n         \n   "
+            }
+          ],
+          "matched": {
+            "start": 1023,
+            "end": 1038,
+            "text": "2026-27 Edition",
+            "parts": [
+              {
+                "name": "quote",
+                "start": 1023,
+                "end": 1038
+              },
+              {
+                "name": "edition",
+                "start": 1023,
+                "end": 1030
+              }
+            ]
+          },
+          "n": 1
+        }
+      ],
+      "checks": [
+        {
+          "text": "The text at each recorded position equals the recorded quote.",
+          "status": "pass"
+        }
+      ],
+      "flags": [],
+      "confidence": {
+        "level": "high",
+        "why": "Read by a rule from one place on the page, and every check passed."
+      },
+      "judgement": false
+    }
+  },
+  "leftOut": [
+    {
+      "what": "Course level, suggested by the first digit of the number (4)",
+      "reason": "Unverified (decision D11): ceterms:audienceLevelType would be a guess until the catalog's numbering policy is read.",
+      "rule": "left-out.level",
+      "segment": {
+        "start": 17010,
+        "end": 17011,
+        "quote": "4",
+        "before": "cally offered: Irregular)\n\nCSCE ",
+        "after": "5601.  Capstone I.  1 Hour.\n\nStu"
+      },
+      "document": "2dc1f251dac58c4e7a0d2934f7c298b74fb70ecde5d77cd06e466a35dbfe0a6b"
+    }
+  ],
+  "references": {
+    "https://credentialengineregistry.org/resources/ce-f247b0f0-a5b2-4110-8f74-4e5d65a2e0b3": {
+      "code": "CSCE 36103",
+      "hasRecord": true
+    },
+    "https://credentialengineregistry.org/resources/ce-99b6fe0b-61ac-4008-9f88-90898eaf54f1": {
+      "code": "CSCE 361H3",
+      "hasRecord": true
+    },
+    "https://credentialengineregistry.org/resources/ce-e9bb3376-0adb-4ed8-8baf-0dc2fdb19c63": {
+      "code": "CSCE 35103",
+      "hasRecord": true
+    }
+  },
+  "conformance": [
+    {
+      "id": "V1",
+      "text": "The record is well-formed JSON-LD with the CTDL context.",
+      "status": "pass",
+      "detail": []
+    },
+    {
+      "id": "V2",
+      "text": "Every key is a real CTDL property, allowed on the class it appears on.",
+      "status": "pass",
+      "detail": []
+    },
+    {
+      "id": "V3",
+      "text": "Every value is of a kind the schema allows for its property.",
+      "status": "pass",
+      "detail": []
+    },
+    {
+      "id": "V4",
+      "text": "Every value chosen from a fixed list is a member of that list.",
+      "status": "pass",
+      "detail": []
+    },
+    {
+      "id": "V5",
+      "text": "The six properties required by the Minimum Data Policy are present.",
+      "status": "pass",
+      "detail": []
+    },
+    {
+      "id": "V6",
+      "text": "Text values are wrapped by language.",
+      "status": "pass",
+      "detail": []
+    },
+    {
+      "id": "V7",
+      "text": "Every CTID has the form “ce-” plus a UUID.",
+      "status": "pass",
+      "detail": []
+    },
+    {
+      "id": "V8",
+      "text": "Every link to another course points at a CTID the ledger knows.",
+      "status": "pass",
+      "detail": []
+    }
+  ],
+  "unstableTerms": [
+    "ceterms:coPrerequisite",
+    "ceterms:offerFrequencyType",
+    "ceterms:lifeCycleStatusType",
+    "ceterms:inCatalog"
+  ]
+}

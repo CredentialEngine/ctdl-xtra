@@ -1,0 +1,6 @@
+courses: 546  ACCT 46  CHEM 86  CSCE 98  ENGL 171  NURS 145
+  ceterms:requires: 337 sentences · parser 144 · language model 171 · sentence only 22
+  ceterms:corequisite: 83 sentences · parser 43 · language model 18 · sentence only 22
+  ceterms:coPrerequisite: 35 sentences · parser 31 · language model 4 · sentence only 0
+  language model qwen3.5:9b: 68 calls, 164 from cache, 5 errors
+  conformance failures: 0   values without provenance: 0   segment mismatches: 0 of 13755
