@@ -1445,3 +1445,306 @@ def test_a_challenge_followed_by_the_real_page_saves_the_real_page(
     assert f"RETRY {SEED} attempt 2 of 6 after aws-waf challenge page" in (
         caplog.text
     )
+
+
+# --- a challenge page an older crawl saved is fetched again ------------------
+
+ENGL_URL = "https://catalog.example.edu/courses/engl101"
+MATH_URL = "https://catalog.example.edu/courses/math101"
+POISONED = {**PAGES, ENGL_URL: FakePage(status=202, html=AWS_WAF_PAGE)}
+
+
+def crawl_before_challenges_were_caught(
+    tmp_path: Path, pages: dict, **settings
+):
+    """A run made by code that saved challenge pages as if they were pages.
+
+    That code is gone, so it is played by switching the check off.
+    """
+    with pytest.MonkeyPatch.context() as old_code:
+        old_code.setattr(
+            "implementations.crawl.challenge_kind", lambda *args: None
+        )
+        return crawl(tmp_path, pages, **settings)
+
+
+def saved_html(tmp_path: Path, url: str) -> str:
+    path = run_dir(tmp_path) / "pages" / f"{page_stem(url)}.html"
+    return path.read_text(encoding="utf-8")
+
+
+def saved_state(tmp_path: Path) -> dict:
+    path = tmp_path / state_key(FOLDER, RUN)
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
+def test_a_resume_fetches_a_stored_challenge_page_again_and_counts_it_once(
+    tmp_path: Path, caplog
+) -> None:
+    first = crawl_before_challenges_were_caught(tmp_path, POISONED).crawl_doc
+    assert first["pages_saved"] == 3
+    assert saved_html(tmp_path, ENGL_URL) == AWS_WAF_PAGE
+
+    calls: list[str] = []
+    with caplog.at_level(logging.INFO):
+        doc = crawl(tmp_path, PAGES, calls=calls).crawl_doc
+    assert calls == [ENGL_URL]
+    assert doc["status"] == STATUS_COMPLETE
+    assert doc["pages_saved"] == 3
+    assert doc["total_bytes"] == sum(
+        len(page.html.encode("utf-8")) for page in PAGES.values()
+    )
+    assert saved_html(tmp_path, ENGL_URL) == ENGL.html
+    assert sorted(saved_state(tmp_path)["saved"]) == sorted(PAGES)
+
+    refetch = [
+        record
+        for record in caplog.records
+        if record.getMessage().startswith("REFETCH ")
+    ]
+    assert len(refetch) == 1
+    assert refetch[0].levelno == logging.WARNING
+    assert (
+        refetch[0]
+        .getMessage()
+        .startswith(
+            f"REFETCH {ENGL_URL} stored page is a bot challenge (aws-waf)"
+        )
+    )
+    assert f"FROM-STORAGE {SEED} " in caplog.text
+    assert f"FROM-STORAGE {ENGL_URL} " not in caplog.text
+
+
+def test_a_stored_challenge_page_still_challenged_is_a_failure_not_a_page(
+    tmp_path: Path,
+) -> None:
+    crawl_before_challenges_were_caught(tmp_path, POISONED)
+
+    still = crawl(tmp_path, POISONED, max_retries=1)
+    assert still.crawl_doc["pages_saved"] == 2
+    assert still.crawl_doc["pages_failed"] == 1
+    assert still.exit_code == 1
+    state = saved_state(tmp_path)
+    assert ENGL_URL not in state["saved"]
+    assert [record["url"] for record in state["failed"]] == [ENGL_URL]
+    assert state["failed"][0]["error"] == "aws-waf challenge page"
+    assert state["failed"][0]["retryable"] is True
+
+    # Counted once when it finally comes through, not once per resume.
+    calls: list[str] = []
+    healed = crawl(tmp_path, PAGES, calls=calls)
+    assert calls == [ENGL_URL]
+    assert healed.crawl_doc["pages_saved"] == 3
+    assert healed.crawl_doc["pages_failed"] == 0
+    assert healed.exit_code == 0
+
+
+def test_a_limited_resume_counts_only_the_real_pages(tmp_path: Path) -> None:
+    """Counting the challenge page would have spent the limit before it."""
+    crawl_before_challenges_were_caught(tmp_path, POISONED)
+    calls: list[str] = []
+    doc = crawl(tmp_path, PAGES, calls=calls, limit=3).crawl_doc
+    assert calls == [ENGL_URL]
+    assert doc["pages_saved"] == 3
+    assert doc["status"] == STATUS_COMPLETE
+
+
+def test_repairing_a_run_still_checkpoints_every_so_many_saves(
+    tmp_path: Path, caplog, monkeypatch
+) -> None:
+    """Each repair takes a page off the total and puts it back.
+
+    A checkpoint due at a total the run already had was never reached,
+    so a long repair went without a checkpoint or a PROGRESS line.
+    """
+    monkeypatch.setattr("implementations.crawl.CHECKPOINT_EVERY", 2)
+    leaves = [f"https://catalog.example.edu/courses/c{n}" for n in range(6)]
+    seed = FakePage(html="".join(f'<a href="{url}">c</a>' for url in leaves))
+    walled = {url: FakePage(status=202, html=AWS_WAF_PAGE) for url in leaves}
+    crawl_before_challenges_were_caught(tmp_path, {SEED: seed, **walled})
+
+    real = {url: FakePage(html=f"<h1>{url}</h1>") for url in leaves}
+    caplog.clear()
+    with caplog.at_level(logging.INFO):
+        doc = crawl(tmp_path, {SEED: seed, **real}).crawl_doc
+    assert doc["pages_saved"] == 7
+    progress = [
+        record.getMessage()
+        for record in caplog.records
+        if record.getMessage().startswith("PROGRESS ")
+    ]
+    # One every two of the six repairs, and the one at the end.
+    assert len(progress) == 4
+
+
+def test_pages_read_back_from_storage_do_not_hide_a_site_that_blocks_every_fetch(
+    tmp_path: Path,
+) -> None:
+    """A replay is not a GET, so it must not reset the failures in a row."""
+    links: list[str] = []
+    pages: dict = {}
+    for n in range(21):
+        real = f"https://catalog.example.edu/courses/r{n}"
+        walled = f"https://catalog.example.edu/courses/c{n}"
+        links += [real, walled]
+        pages[real] = FakePage(html=f"<h1>R{n}</h1>")
+        pages[walled] = FakePage(status=202, html=AWS_WAF_PAGE)
+    pages[SEED] = FakePage(
+        html="".join(f'<a href="{url}">x</a>' for url in links)
+    )
+    crawl_before_challenges_were_caught(tmp_path, pages)
+
+    outcome = crawl(tmp_path, pages, max_retries=0)
+    assert outcome.crawl_doc["status"] == STATUS_INCOMPLETE
+    assert outcome.crawl_doc["pages_failed"] == 20
+    assert outcome.exit_code == 1
+
+
+def test_ctrl_c_keeps_the_page_being_fetched_for_the_resume(
+    tmp_path: Path,
+) -> None:
+    """The page in flight was in seen but in no list, so it was lost."""
+    from concurrent.futures import wait as real_wait
+
+    engl_in_flight = threading.Event()
+
+    def note_engl(url: str) -> None:
+        if url == ENGL_URL:
+            engl_in_flight.set()
+
+    def ctrl_c_once_engl_is_in_flight(*args, **kwargs):
+        done = real_wait(*args, **kwargs)
+        if engl_in_flight.is_set():
+            raise KeyboardInterrupt
+        return done
+
+    with pytest.MonkeyPatch.context() as keyboard:
+        keyboard.setattr(
+            "implementations.crawl.wait_for_futures",
+            ctrl_c_once_engl_is_in_flight,
+        )
+        stopped = crawl(tmp_path, PAGES, before=note_engl)
+    assert stopped.exit_code == 130
+    assert stopped.crawl_doc["frontier_remaining"] == 2
+    state = saved_state(tmp_path)
+    assert state["saved"] == [SEED]
+    assert state["frontier"] == [ENGL_URL, MATH_URL]
+
+    calls: list[str] = []
+    resumed = crawl(tmp_path, PAGES, calls=calls)
+    assert calls == [ENGL_URL, MATH_URL]
+    assert resumed.crawl_doc["pages_saved"] == 3
+    assert resumed.exit_code == 0
+
+
+def test_ctrl_c_checkpoints_before_waiting_for_the_browsers_to_close(
+    tmp_path: Path,
+) -> None:
+    """Closing waits for the fetch in flight, and the run can die meanwhile.
+
+    ENGL is saved after the first-page checkpoint and MATH is in flight
+    when Ctrl+C lands, so only a checkpoint written before the close
+    names both.
+    """
+    from concurrent.futures import wait as real_wait
+
+    from implementations.crawl_browser import WorkerPool
+
+    math_in_flight = threading.Event()
+
+    def note_math(url: str) -> None:
+        if url == MATH_URL:
+            math_in_flight.set()
+
+    def ctrl_c_once_math_is_in_flight(*args, **kwargs):
+        done = real_wait(*args, **kwargs)
+        if math_in_flight.is_set():
+            raise KeyboardInterrupt
+        return done
+
+    class KilledWhileClosing(WorkerPool):
+        def close(self) -> None:
+            super().close()
+            raise RuntimeError("killed while the browsers close")
+
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setattr(
+            "implementations.crawl.wait_for_futures",
+            ctrl_c_once_math_is_in_flight,
+        )
+        patch.setattr("implementations.crawl.WorkerPool", KilledWhileClosing)
+        with pytest.raises(RuntimeError, match="killed while the browsers"):
+            crawl(tmp_path, PAGES, before=note_math)
+    state = saved_state(tmp_path)
+    assert state["saved"] == [SEED, ENGL_URL]
+    assert state["frontier"] == [MATH_URL]
+    assert state["pages_saved"] == 2
+
+
+def test_a_page_listed_as_saved_and_queued_goes_back_once_on_resume(
+    tmp_path: Path,
+) -> None:
+    """A checkpoint written before a page is read back lists it twice.
+
+    Every resume's startup checkpoint does, and so does each one written
+    while a repair is still reading pages back. Queued twice, a stored
+    challenge page was fetched twice and, with two workers, counted twice.
+    """
+    crawl_before_challenges_were_caught(tmp_path, POISONED)
+    path = tmp_path / state_key(FOLDER, RUN)
+    state = json.loads(path.read_text(encoding="utf-8"))
+    state["frontier"] = list(state["saved"])
+    path.write_text(json.dumps(state), encoding="utf-8")
+
+    calls: list[str] = []
+    doc = crawl(tmp_path, PAGES, calls=calls, concurrency_limit=2).crawl_doc
+    assert calls == [ENGL_URL]
+    assert doc["pages_saved"] == 3
+    assert doc["total_bytes"] == sum(
+        len(page.html.encode("utf-8")) for page in PAGES.values()
+    )
+    assert sorted(saved_state(tmp_path)["saved"]) == sorted(PAGES)
+
+
+def test_a_saved_page_missing_from_storage_is_fetched_and_counted_once(
+    tmp_path: Path,
+) -> None:
+    """Saving a URL the run already counted replaces it, not adds to it."""
+    crawl(tmp_path, PAGES)
+    (run_dir(tmp_path) / "pages" / f"{page_stem(ENGL_URL)}.html").unlink()
+
+    calls: list[str] = []
+    doc = crawl(tmp_path, PAGES, calls=calls).crawl_doc
+    assert calls == [ENGL_URL]
+    assert doc["pages_saved"] == 3
+    assert saved_html(tmp_path, ENGL_URL) == ENGL.html
+
+
+def test_pages_read_back_without_a_checkpoint_still_checkpoint_as_they_go(
+    tmp_path: Path, caplog, monkeypatch
+) -> None:
+    """With state.json gone, the pages read back are this run's saves."""
+    monkeypatch.setattr("implementations.crawl.CHECKPOINT_EVERY", 2)
+    leaves = [f"https://catalog.example.edu/courses/l{n}" for n in range(4)]
+    pages = {
+        SEED: FakePage(
+            html="".join(f'<a href="{url}">l</a>' for url in leaves)
+        ),
+        **{url: FakePage(html=f"<h1>{url}</h1>") for url in leaves},
+    }
+    crawl(tmp_path, pages)
+    (tmp_path / state_key(FOLDER, RUN)).unlink()
+
+    calls: list[str] = []
+    caplog.clear()
+    with caplog.at_level(logging.INFO):
+        doc = crawl(tmp_path, pages, calls=calls).crawl_doc
+    assert calls == []
+    assert doc["pages_saved"] == 5
+    progress = [
+        record.getMessage()
+        for record in caplog.records
+        if record.getMessage().startswith("PROGRESS ")
+    ]
+    # After the 2nd and 4th pages read back past the first, and at the end.
+    assert len(progress) == 3

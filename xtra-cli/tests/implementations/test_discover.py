@@ -13,6 +13,7 @@ from discovery_doubles import (
 
 from common.keys import discovery_key
 from common.object_store import open_store
+from common.storage_uri import join_storage_uri
 from implementations.discover import (
     DiscoverSettings,
     NoPagesError,
@@ -557,6 +558,96 @@ def test_a_sample_the_population_can_fill_says_nothing(
     ]
 
 
+# --- bot-challenge pages an older crawl saved -------------------------------
+
+# What AWS WAF served in place of a page of catalog.ualr.edu, cut down.
+AWS_WAF_PAGE = (
+    '<!DOCTYPE html><html lang="en"><head><title></title>'
+    '<script>window.gokuProps = {"key":"AQID","iv":"CgAE","context":"Mbf2"};'
+    "</script>"
+    '<script src="https://x.token.awswaf.com/x/y/z/challenge.js"></script>'
+    '</head><body><div id="challenge-container"></div>'
+    "<script>AwsWafIntegration.getToken().then(() => "
+    "{ window.location.reload(true); });</script>"
+    "<noscript><h1>JavaScript is disabled</h1></noscript></body></html>"
+)
+
+
+def test_saved_challenge_pages_are_counted_and_named_with_what_to_do(
+    tmp_path: Path, fixture_html_dir, caplog
+) -> None:
+    store = seed_run(tmp_path, fixture_html_dir)
+    _put(store, "waf", AWS_WAF_PAGE, fixture_url("waf"))
+    with caplog.at_level(logging.WARNING):
+        outcome = run_discovery(settings(), source=store, target=store)
+    assert outcome.exit_code == 0
+    assert outcome.summary["challenge_pages"] == 1
+    warnings = [
+        record.getMessage()
+        for record in caplog.records
+        if record.getMessage().startswith("CHALLENGE ")
+    ]
+    assert len(warnings) == 1
+    assert warnings[0].startswith(
+        f"CHALLENGE 1 of {len(ALL_FIXTURES) + 1} saved pages"
+    )
+    assert "new --run-id" in warnings[0]
+
+
+def test_a_run_without_challenge_pages_says_nothing_about_them(
+    tmp_path: Path, fixture_html_dir, caplog
+) -> None:
+    store = seed_run(tmp_path, fixture_html_dir)
+    with caplog.at_level(logging.WARNING):
+        outcome = run_discovery(settings(), source=store, target=store)
+    assert outcome.summary["challenge_pages"] == 0
+    assert "CHALLENGE" not in caplog.text
+
+
+def test_an_empty_sample_of_challenge_pages_says_to_crawl_again(
+    tmp_path: Path, caplog
+) -> None:
+    """Tuning the rules cannot bring back pages that were never fetched."""
+    store = open_store(str(tmp_path))
+    for n in range(3):
+        _put(store, f"waf-{n}", AWS_WAF_PAGE, fixture_url(f"waf-{n}"))
+    with caplog.at_level(logging.ERROR):
+        outcome = run_discovery(settings(), source=store, target=store)
+    assert outcome.exit_code == 1
+    assert "3 saved pages are bot-challenge pages" in outcome.reason
+    assert "new --run-id" in outcome.reason
+    errors = [
+        record.getMessage()
+        for record in caplog.records
+        if record.levelno >= logging.ERROR
+    ]
+    assert len(errors) == 1
+    assert "new --run-id" in errors[0]
+    assert "discover_rules.py" not in errors[0]
+
+
+def test_a_few_challenge_pages_do_not_take_the_blame_for_an_empty_sample(
+    tmp_path: Path, fixture_html_dir, caplog
+) -> None:
+    """A label no page carries is a rules question, whatever else is saved."""
+    store = seed_run(tmp_path, fixture_html_dir)
+    _put(store, "waf", AWS_WAF_PAGE, fixture_url("waf"))
+    with caplog.at_level(logging.ERROR):
+        outcome = run_discovery(
+            settings(sample_label="Rubric"), source=store, target=store
+        )
+    assert outcome.exit_code == 1
+    assert outcome.summary["challenge_pages"] == 1
+    assert "new --run-id" not in outcome.reason
+    errors = [
+        record.getMessage()
+        for record in caplog.records
+        if record.levelno >= logging.ERROR
+    ]
+    assert len(errors) == 1
+    assert "discover_rules.py" in errors[0]
+
+
 # --- reading named pages instead of the whole run ---------------------------
 
 
@@ -621,3 +712,106 @@ def test_reading_named_stems_warns_that_the_shares_are_narrowed(
         "counted over those pages alone" in record.getMessage()
         for record in caplog.records
     )
+
+
+# --- what the log says while a run goes -------------------------------------
+
+
+def _info_lines(caplog) -> list[str]:
+    return [
+        record.getMessage()
+        for record in caplog.records
+        if record.name == "implementations.discover"
+        and record.levelno == logging.INFO
+    ]
+
+
+def test_every_phase_logs_a_line_in_the_order_it_runs(
+    tmp_path: Path, fixture_html_dir, caplog
+) -> None:
+    """A run read from Azure used to say nothing for minutes at a time."""
+    store = seed_run(tmp_path, fixture_html_dir)
+    with caplog.at_level(logging.INFO, logger="implementations.discover"):
+        run_discovery(settings(), source=store, target=store)
+
+    lines = _info_lines(caplog)
+    phases = list(dict.fromkeys(line.split(" ", 1)[0] for line in lines))
+    assert phases == [
+        "LIST",
+        "READ",
+        "PROFILE",
+        "PATTERNS",
+        "SAMPLE",
+        "PROFILED",
+        "WRITE",
+        "DONE",
+    ]
+    assert lines[0] == (
+        f"LIST {len(ALL_FIXTURES)} saved pages under {FOLDER}/{RUN_PATH}/pages"
+    )
+    first_write = next(line for line in lines if line.startswith("WRITE "))
+    assert first_write.endswith(
+        f"-> {discovery_key(FOLDER, RUN, DISCOVERY, 'pages.jsonl')}"
+    )
+    assert lines[-1].startswith(f"DONE discovery run {DISCOVERY} in 00:00:")
+
+
+def test_reading_and_profiling_say_how_far_they_have_got(
+    tmp_path: Path, fixture_html_dir, caplog, monkeypatch
+) -> None:
+    monkeypatch.setattr("implementations.discover.PROGRESS_EVERY", 5)
+    store = seed_run(tmp_path, fixture_html_dir)
+    with caplog.at_level(logging.INFO, logger="implementations.discover"):
+        run_discovery(settings(), source=store, target=store)
+
+    lines = _info_lines(caplog)
+    total = len(ALL_FIXTURES)
+    expected = list(range(5, total + 1, 5))
+    if total % 5:
+        expected.append(total)
+    for phase in ("READ", "PROFILE"):
+        steps = [line for line in lines if line.startswith(f"{phase} ")]
+        assert [line.split(" (", 1)[0] for line in steps] == [
+            f"{phase} {done}/{total}" for done in expected
+        ]
+        assert steps[-1].startswith(f"{phase} {total}/{total} (100%) elapsed=")
+        assert all(" eta=" in line for line in steps)
+
+
+def test_each_report_is_logged_with_its_size_and_where_it_went(
+    tmp_path: Path, fixture_html_dir, caplog
+) -> None:
+    store = seed_run(tmp_path, fixture_html_dir)
+    target_uri = str(tmp_path)
+    with caplog.at_level(logging.INFO, logger="implementations.discover"):
+        run_discovery(
+            settings(target_uri=target_uri), source=store, target=store
+        )
+
+    writes = [line for line in _info_lines(caplog) if line.startswith("WRITE ")]
+    names = [line.split(" ")[1] for line in writes]
+    assert sorted(names) == sorted(
+        path.name for path in discovery_dir(tmp_path).iterdir()
+    )
+    for line, name in zip(writes, names, strict=True):
+        written = (discovery_dir(tmp_path) / name).read_text(encoding="utf-8")
+        assert line.split(" ")[2] == str(len(written.encode("utf-8")))
+        assert line.split(" -> ", 1)[1] == join_storage_uri(
+            target_uri, discovery_key(FOLDER, RUN, DISCOVERY, name)
+        )
+
+
+def test_a_run_of_named_stems_lists_how_many_of_the_saved_pages_it_reads(
+    tmp_path: Path, fixture_html_dir, caplog
+) -> None:
+    store = seed_run(tmp_path, fixture_html_dir)
+    with caplog.at_level(logging.INFO, logger="implementations.discover"):
+        run_discovery(
+            settings(stems=("course-single",)), source=store, target=store
+        )
+    assert [
+        line for line in _info_lines(caplog) if line.startswith("LIST ")
+    ] == [
+        f"LIST 1 of {len(ALL_FIXTURES)} saved pages, the stems asked for, "
+        f"under {FOLDER}/{RUN_PATH}/pages"
+    ]

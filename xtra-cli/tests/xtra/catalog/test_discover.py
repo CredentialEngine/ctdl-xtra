@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import logging
 from pathlib import Path
 
 from click.testing import CliRunner
@@ -291,3 +292,21 @@ def test_a_stem_the_crawl_never_saved_says_where_stems_come_from(
     assert result.exit_code != 0
     assert "not-a-page" in result.output
     assert ".meta.json" in result.output
+
+
+def test_the_log_says_where_each_report_was_written(
+    tmp_path: Path, fixture_html_dir, caplog
+) -> None:
+    """The WRITE lines name the --target-uri, so the files can be found."""
+    seed(tmp_path, fixture_html_dir)
+    with caplog.at_level(logging.INFO, logger="implementations.discover"):
+        result = invoke(tmp_path)
+    assert result.exit_code == 0, result.output
+
+    writes = [
+        record.getMessage()
+        for record in caplog.records
+        if record.getMessage().startswith("WRITE ")
+    ]
+    assert len(writes) == 8
+    assert all(f"-> {tmp_path}/{FOLDER}/" in line for line in writes)

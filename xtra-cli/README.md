@@ -167,7 +167,7 @@ xtra catalog crawl --with-playwright \
 | `--concurrency-limit` | `1` | Pages downloaded in parallel. Each worker runs its own browser. |
 | `--min-interval-in-seconds` | `180` | Smallest gap between one worker's GETs, and the first retry wait. |
 | `--max-interval-in-seconds` | `3600` | Cap on the exponential backoff between retries. |
-| `--max-retries` | `5` | Retries after the first attempt, for network errors, timeouts, HTTP 429, and HTTP 5xx. |
+| `--max-retries` | `5` | Retries after the first attempt, for network errors, timeouts, HTTP 429, HTTP 5xx, and bot-challenge pages that were not waited out. |
 | `--scope-prefix` | directory of `--url` | Keep only URLs whose path starts with this URL's path. |
 | `--include-regex` | none | Repeatable. A followed URL is kept only when it matches one of these. |
 | `--exclude-regex` | none | Repeatable. A followed URL is dropped when it matches one of these. |
@@ -315,14 +315,22 @@ host, inside the scope prefix, and allowed by `robots.txt`.
 #### Catalogs that keep several years
 
 Some hosts publish every catalog year on one site. That is an operator
-decision, not something the crawler guesses, so narrow the run with a regex:
+decision, not something the crawler guesses, so narrow the run with a regex.
+It is searched anywhere in the full URL, so bound the number, or `catoid=13`
+also keeps `catoid=130`; the `;` covers links written with a stray `&amp;`:
 
 ```bash
 xtra catalog crawl --with-playwright \
-  --url https://catalog.bergen.edu/content.php?catoid=13&navoid=664 \
-  --include-regex "catoid=13" \
+  --url "https://catalog.bergen.edu/content.php?catoid=13&navoid=664" \
+  --include-regex '[?&;]catoid=13(?!\d)' \
   --target-uri ./xtra-cache
 ```
+
+Start URLs skip the regex, but the links that lead to the catalog have to
+pass it. When the start page links only to other years, as the home page of
+catalog.ualr.edu does (its current catalogs are only in a drop-down), put
+each wanted catalog's `index.php?catoid=N` page in `--seed-urls-file`, or the
+run saves the start page and ends `complete`.
 
 #### What the log says
 
@@ -334,8 +342,19 @@ RETRY https://catalog.example.edu/english/engl102 attempt 2 of 6 after HTTP 429,
 FAIL https://catalog.example.edu/english/engl103 after 6 attempts: HTTP 503
 SKIP https://catalog.example.edu/private/x reason=robots
 FROM-STORAGE https://catalog.example.edu/english/engl101 (already saved, no GET)
+RETRY https://catalog.example.edu/english/engl104 attempt 2 of 6 after aws-waf challenge did not resolve within 30 s, waiting 180 s
+REFETCH https://catalog.example.edu/english/engl105 stored page is a bot challenge (aws-waf), not the catalog page, so it is fetched again
 PROGRESS saved=120 failed=2 skipped=340 frontier=880 elapsed=06:01:10 eta=44:00:00
 ```
+
+A firewall's bot challenge, the script page AWS WAF serves with HTTP 202 or
+Cloudflare's "Just a moment...", is never saved, whatever the strategy. With
+`--with-playwright` it is waited out in the browser, and a page that needed
+one says so under `render.challenge` in its sidecar; the other strategies
+detect the challenge page and retry it. One that does not clear is a
+retryable failure. Runs crawled before challenges were waited out
+(2026-10-01) can hold saved challenge pages; on a resume each one is logged
+as a `REFETCH` WARNING and fetched again.
 
 `bytes` is the size of the saved HTML in UTF-8. `latency_ms` runs from
 navigation start to the HTML being in hand. The path is the full URI of the
@@ -373,12 +392,24 @@ must not mix rendered sources.
 
 A frontier URL whose `.html` is already in storage is not fetched again: its
 HTML is read back and its links are still followed, so a resume re-checks
-coverage without touching the site. Failed URLs whose error was retryable are
+coverage without touching the site. The exception is a stored bot-challenge
+page: it is logged as `REFETCH`, taken out of `pages_saved` and
+`total_bytes`, and fetched again. Failed URLs whose error was retryable are
 queued once more. `--limit` counts pages saved across the whole run, so
 rerunning with a higher limit continues where the last one stopped.
 
+URLs read back from `state.json` are not tested against `--include-regex` or
+`--exclude-regex` again, but links found during the resume are filtered by
+the regexes given to the resume, and the URLs in `--seed-urls-file` are
+queued on a fresh run only. So resume with the same flags. Resuming repairs
+a run whose scope was right, challenge pages included; start a new
+`--run-id` to change the scope, or for a run made by one crawler version
+from start to end. A page being fetched when Ctrl+C lands is written to the
+frontier, so the resume asks for it again.
+
 After 20 URLs fail in a row the run stops, checkpoints, and reports
-`incomplete`, on the assumption that the site is blocking it.
+`incomplete`, on the assumption that the site is blocking it. Pages read back
+from storage do not reset that count.
 
 #### Exit codes
 
@@ -386,7 +417,7 @@ After 20 URLs fail in a row the run stops, checkpoints, and reports
 | --- | --- |
 | `0` | `status` is `complete` or `limit_reached`, and no page failed |
 | `1` | pages failed, or the run ended `incomplete`; one line on stderr says which |
-| `130` | Ctrl+C. The checkpoint is written, so the same `--run-id` resumes |
+| `130` | Ctrl+C. The checkpoint is written, with the page being fetched still in the frontier, so the same `--run-id` resumes |
 
 ### Discover
 
@@ -661,6 +692,42 @@ Discovery exits non-zero when the golden sample is empty, after writing every
 report, and names the label it looked for and the page types it found
 instead. When the population is smaller than `--sample-size` it warns with
 both numbers and takes the whole population.
+
+Saved pages that are a firewall's bot-challenge page, which runs crawled
+before challenges were waited out can hold, are counted in a `CHALLENGE`
+warning and as `challenge_pages` in `summary.json`. Any above 0 means the
+crawl has to be run again, or resumed to fetch them again: whatever those
+pages would have linked to was never fetched, so tuning the rules cannot
+help. Discovery still exits 0 unless the sample is empty, so check
+`challenge_pages`. When an empty sample comes with challenge pages making up
+at least half the run, its error says to crawl again instead of tuning the
+rules.
+
+#### What the log says
+
+One INFO line per phase, so a run read from Azure is never silent for
+minutes:
+
+```text
+LIST 556 saved pages under catalog-atu-edu/2026-09-27T07-46-53Z/pages
+READ 100/556 (17%) elapsed=00:00:11 eta=00:00:54
+READ 556/556 (100%) elapsed=00:01:06 eta=00:00:00
+PROFILE 100/556 (17%) elapsed=00:00:05 eta=00:00:26
+PROFILE 556/556 (100%) elapsed=00:00:30 eta=00:00:00
+PATTERNS 148 groups of pages, 130 special
+SAMPLE 30 pages from the 130 labelled Course, covering 32 of 32 features
+PROFILED pages=556 duplicates=1 patterns=148 special=130 unknown=96
+WRITE pages.jsonl 916618 bytes -> azure://https://ACCOUNT.blob.core.windows.net/xtra/catalog-atu-edu/2026-09-27T07-46-53Z/discovery/2026-10-13T16-14-07Z/pages.jsonl
+DONE discovery run 2026-10-13T16-14-07Z in 00:01:38
+```
+
+`READ` and `PROFILE` report every 100 pages and at the last one, with the
+time spent and an estimate of the time left. Reading is the slow phase when
+the run is in Azure, one request per file; profiling is the slow phase on a
+local folder. A `WRITE` line follows each of the eight reports with its size
+and where it went. The `CRAWL`, `STEMS`, `CHALLENGE` and `SAMPLE` warnings
+still appear when `crawl.json` is missing, `--stem` narrows the run, saved
+pages are bot-challenge pages, or the golden sample is empty or short.
 
 ### Extract and transform
 
