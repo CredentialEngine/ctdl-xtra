@@ -1,0 +1,18 @@
+# Build context for the image: only what it needs.
+.venv/
+**/__pycache__/
+**/*.pyc
+.pytest_cache/
+.ruff_cache/
+.coverage
+*.egg-info/
+web/node_modules/
+web/dist/
+server/tests/
+**/.playwright-mcp/
+.git/
+.gitignore
+README.md
+ITERATE.md
+Dockerfile
+compose.yaml

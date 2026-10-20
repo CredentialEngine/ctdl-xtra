@@ -1,0 +1,28 @@
+# A self-contained sandbox: the app plus an Azure storage emulator (Azurite).
+#   podman compose up --build        then open http://localhost:8001
+# Seed it once (template + rulesets), then publish crawls into the emulator:
+#   podman compose run --rm app template publish /app/templates/course.properties.json
+# To use real Azure instead, drop the `azurite` service and set REVIEW_UI_ROOT and
+# AZURE_STORAGE_CONNECTION_STRING for `app` (export it in your shell; never write it here).
+services:
+  azurite:
+    image: mcr.microsoft.com/azure-storage/azurite
+    command: azurite-blob --blobHost 0.0.0.0 --disableProductStyleUrl --skipApiVersionCheck
+    volumes:
+      - azurite-data:/data
+    working_dir: /data
+
+  app:
+    build: .
+    depends_on:
+      - azurite
+    ports:
+      - "8001:8001"
+    environment:
+      REVIEW_UI_ROOT: azure://http://azurite:10000/devstoreaccount1/xtra-cli-output
+    volumes:
+      - page-cache:/cache
+
+volumes:
+  azurite-data:
+  page-cache:
