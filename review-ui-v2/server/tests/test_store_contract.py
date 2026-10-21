@@ -139,3 +139,11 @@ def test_open_store_returns_an_existing_store_unchanged(tmp_path):
     local = LocalStore(tmp_path)
     assert open_store(local) is local
     assert isinstance(open_store(str(tmp_path)), LocalStore)
+
+
+def test_appending_to_a_file_that_was_uploaded_whole_keeps_its_lines(store):
+    """A review folder copied up with az/azcopy/the portal is a plain (block) blob."""
+    store.write_text("log/e.jsonl", '{"n": 0}\n{"n": 1}\n')
+    store.append_jsonl("log/e.jsonl", {"n": 2})
+    store.append_jsonl("log/e.jsonl", {"n": 3})
+    assert [e["n"] for e in store.read_jsonl("log/e.jsonl")] == [0, 1, 2, 3]

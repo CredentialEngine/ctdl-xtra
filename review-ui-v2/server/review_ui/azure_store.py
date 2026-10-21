@@ -34,6 +34,8 @@ from azure.storage.blob import ContainerClient, ContentSettings
 
 from .store import SKIP_DIRS
 
+_APPEND_BLOCK = 4 * 1024 * 1024  # an Append Block holds at most 4 MiB
+
 CONNECTION_STRING_ENV = "AZURE_STORAGE_CONNECTION_STRING"
 # Azurite's published development account; not a secret.
 _AZURITE_KEY = "Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw=="
@@ -197,6 +199,34 @@ class AzureBlobStore:
             except ResourceExistsError:
                 pass
             blob.append_block(data)
+        except HttpResponseError as exc:
+            if getattr(exc, "error_code", None) != "InvalidBlobType":
+                raise
+            self._convert_to_append_blob(key)  # an uploaded copy is a block blob
+            blob.append_block(data)
+
+    def _convert_to_append_blob(self, key: str) -> None:
+        """Turn a block blob (what az/azcopy/portal uploads create) into an append blob with
+        the same content. Azure cannot change a blob's type in place, so the block blob is
+        deleted and recreated; the delete only happens if the blob has not changed since it
+        was read, so no write is lost. If another process converted it first this does
+        nothing."""
+        blob = self._container.get_blob_client(self._name(key))
+        downloader = blob.download_blob()
+        etag, content = downloader.properties.etag, downloader.readall()
+        try:
+            blob.delete_blob(etag=etag, match_condition=MatchConditions.IfNotModified)
+        except (ResourceModifiedError, ResourceNotFoundError):
+            return  # someone else changed or converted it first
+        try:
+            blob.create_append_blob(
+                content_settings=self._settings(key),
+                match_condition=MatchConditions.IfMissing,
+            )
+        except ResourceExistsError:
+            pass  # a racing appender already recreated it
+        for start in range(0, len(content), _APPEND_BLOCK):
+            blob.append_block(content[start : start + _APPEND_BLOCK])
 
     def read_jsonl(self, key: str) -> list[Any]:
         try:
