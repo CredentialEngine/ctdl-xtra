@@ -131,6 +131,7 @@ def main(
         sample_label=sample_label,
         sample_size=sample_size,
         stems=tuple(stems),
+        target_uri=target_uri,
     )
     try:
         outcome = run_discovery(

@@ -14,10 +14,12 @@ import io
 import json
 import logging
 import subprocess
+import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from common.clock import format_duration
 from common.keys import (
     crawl_key,
     discovery_key,
@@ -26,6 +28,7 @@ from common.keys import (
     run_prefix,
 )
 from common.storage_uri import join_storage_uri
+from implementations.crawl_challenge import challenge_kind
 from implementations.discover_ner import entities_by_kind
 from implementations.discover_page import PageProfile, profile_page
 from implementations.discover_patterns import (
@@ -64,6 +67,11 @@ PATTERNS_JSON_FILE = "patterns.json"
 PATTERNS_MD_FILE = "patterns.md"
 EMPTY_OR_ERROR = "empty_or_error_page"
 
+# How often a long phase says how far it has got. Reading a run from Azure
+# is one request per file, about 0.15 s a page, so a 2,000-page run used to
+# say nothing for five minutes; at this interval it reports every 15 s.
+PROGRESS_EVERY = 100
+
 # What a reader has to know about the crawl to trust a discovery report,
 # none of which can be worked out from the saved pages themselves.
 PROVENANCE_FIELDS = (
@@ -101,6 +109,9 @@ class DiscoverSettings:
     # rather than about the run. Empty means the whole run, which is the
     # only way the report means what it says - see read_saved_pages.
     stems: tuple[str, ...] = ()
+    # Where the reports go, so each WRITE line in the log says where to
+    # find the file. Empty means the line names the key inside the store.
+    target_uri: str = ""
 
 
 @dataclass
@@ -112,6 +123,35 @@ class DiscoveryOutcome:
     table: str
     exit_code: int = 0
     reason: str = ""
+
+
+class _Progress:
+    """How far one phase has got through the pages, as a log line.
+
+    One INFO line every PROGRESS_EVERY pages and one at the last page, in
+    the shape of the crawl's PROGRESS line, so whoever is watching a run
+    can tell which phase it is in and roughly how long it has left.
+    """
+
+    def __init__(self, phase: str, total: int) -> None:
+        self.phase = phase
+        self.total = total
+        self.started = time.monotonic()
+
+    def step(self, done: int) -> None:
+        if done % PROGRESS_EVERY and done != self.total:
+            return
+        elapsed = time.monotonic() - self.started
+        eta = elapsed / done * (self.total - done)
+        logger.info(
+            "%s %s/%s (%s%%) elapsed=%s eta=%s",
+            self.phase,
+            done,
+            self.total,
+            done * 100 // self.total,
+            format_duration(elapsed),
+            format_duration(eta),
+        )
 
 
 def git_commit() -> str | None:
@@ -199,15 +239,34 @@ def provenance_lines(provenance: dict[str, Any]) -> list[str]:
     return lines
 
 
+def count_challenge_pages(pages: list[tuple[dict[str, Any], str]]) -> int:
+    """How many saved pages are a firewall's interstitial, not a page.
+
+    Read with the crawler's own test, on the raw HTML, so the two never
+    disagree. The crawler no longer saves these, but runs it made before
+    it learned to wait them out can be full of them.
+    """
+    return sum(
+        1
+        for _meta, html in pages
+        if challenge_kind(None, None, html) is not None
+    )
+
+
 def sample_verdict(
     settings: DiscoverSettings,
     sample: GoldenSample,
     page_types: dict[str, int],
+    *,
+    challenge_pages: int = 0,
 ) -> tuple[int, str]:
     """Say out loud when the golden sample is not worth reviewing.
 
     An empty sample used to be an exit code of 0 and a file holding
-    nothing, which is how a run with no course pages went unnoticed.
+    nothing, which is how a run with no course pages went unnoticed. When
+    at least half the run is bot-challenge pages, the crawl is what failed,
+    and the advice says so instead of sending anyone to tune the rules. A
+    few stray ones leave the usual advice; the CHALLENGE warning names them.
     """
     if sample.population_size == 0:
         found = (
@@ -216,6 +275,23 @@ def sample_verdict(
             )
             or "none"
         )
+        if challenge_pages and challenge_pages * 2 >= sum(page_types.values()):
+            logger.error(
+                "SAMPLE no page is labelled %s, so the golden sample is "
+                "empty, and %s saved pages are bot-challenge pages instead "
+                "of catalog pages. Page types found instead: %s. The crawl "
+                "is what went wrong: crawl the catalog again into a new "
+                "--run-id.",
+                settings.sample_label,
+                challenge_pages,
+                found,
+            )
+            return 1, (
+                "the golden sample is empty: no page is labelled "
+                f"{settings.sample_label}, and {challenge_pages} saved pages "
+                "are bot-challenge pages. Crawl again into a new --run-id. "
+                f"Page types found: {found}."
+            )
         logger.error(
             "SAMPLE no page is labelled %s, so the golden sample is empty. "
             "Page types found instead: %s. The reports are written anyway; "
@@ -256,6 +332,9 @@ def read_saved_pages(
     the site's furniture, which markers are rare, which patterns are
     special - is counted over what was read, so a narrowed run says so
     in its summary and its shares mean nothing on their own.
+
+    Reading is the slow part of a run kept in Azure, one request per file,
+    so this logs how many pages it found and then how far it has got.
     """
     prefix = f"{run_prefix(catalog_folder, run_id)}/pages"
     meta_keys = sorted(
@@ -274,12 +353,22 @@ def read_saved_pages(
                 + ", ".join(sorted(missing))
             )
         meta_keys = [by_stem[stem] for stem in sorted(set(stems))]
+        logger.info(
+            "LIST %s of %s saved pages, the stems asked for, under %s",
+            len(meta_keys),
+            len(by_stem),
+            prefix,
+        )
+    else:
+        logger.info("LIST %s saved pages under %s", len(meta_keys), prefix)
+    progress = _Progress("READ", len(meta_keys))
     pages: list[tuple[dict[str, Any], str]] = []
-    for key in meta_keys:
+    for done, key in enumerate(meta_keys, start=1):
         meta = source.get_json(key)
         stem = meta.get("stem") or key.rsplit("/", 1)[-1][: -len(".meta.json")]
         html = source.get_text(page_html_key(catalog_folder, run_id, stem))
         pages.append((meta, html))
+        progress.step(done)
     return pages
 
 
@@ -516,6 +605,7 @@ def build_summary(
     duplicates: int,
     version: str,
     provenance: dict[str, Any] | None = None,
+    challenge_pages: int = 0,
 ) -> dict[str, Any]:
     page_types: dict[str, int] = {}
     for profile in profiles:
@@ -538,6 +628,9 @@ def build_summary(
         "patterns_total": len(patterns),
         "patterns_special": sum(1 for pattern in patterns if pattern.special),
         "empty_or_error_pages": empty,
+        # Firewall interstitials saved as if they were pages. Anything above
+        # 0 means the crawl has to be run again; the rules cannot help.
+        "challenge_pages": challenge_pages,
         "unknown_share": round(page_types.get("Unknown", 0) / total, 4),
         # How many pages name each kind of entity. A catalog where no page
         # names an award, or none names a job, has a reading problem the
@@ -622,7 +715,13 @@ def run_discovery(
     target: Any,
     version: str = "",
 ) -> DiscoveryOutcome:
-    """Profile every saved page, then write the reports. Nothing is fetched."""
+    """Profile every saved page, then write the reports. Nothing is fetched.
+
+    Each phase logs as it goes or as it finishes - LIST, READ, PROFILE,
+    PATTERNS, SAMPLE, WRITE, DONE - so a run that takes minutes always
+    says which part of the work it is doing.
+    """
+    started = time.monotonic()
     summary_key = discovery_key(
         settings.catalog_folder,
         settings.run_id,
@@ -646,27 +745,44 @@ def run_discovery(
             "over those pages alone and not over the crawl.",
             len(pages),
         )
-    logger.info("READ %s saved pages", len(pages))
     provenance = provenance_from_crawl(
         read_crawl_document(source, settings.catalog_folder, settings.run_id)
     )
 
-    profiles = [
-        profile_page(
-            url=meta.get("requested_url") or meta.get("final_url") or "",
-            html=html,
-            stem=meta.get("stem") or "",
-            final_url=meta.get("final_url") or "",
-            http_status=meta.get("http_status"),
-            byte_size=meta.get("bytes"),
+    progress = _Progress("PROFILE", len(pages))
+    profiles: list[PageProfile] = []
+    for done, (meta, html) in enumerate(pages, start=1):
+        profiles.append(
+            profile_page(
+                url=meta.get("requested_url") or meta.get("final_url") or "",
+                html=html,
+                stem=meta.get("stem") or "",
+                final_url=meta.get("final_url") or "",
+                http_status=meta.get("http_status"),
+                byte_size=meta.get("bytes"),
+            )
         )
-        for meta, html in pages
-    ]
+        progress.step(done)
+    challenge_pages = count_challenge_pages(pages)
+    if challenge_pages:
+        logger.warning(
+            "CHALLENGE %s of %s saved pages are bot-challenge pages, not "
+            "catalog pages, and nothing they would have linked to was "
+            "crawled. Crawl the catalog again into a new --run-id; tuning "
+            "discover_rules.py cannot bring those pages back.",
+            challenge_pages,
+            len(pages),
+        )
     duplicates = mark_duplicates(profiles)
     vocabulary = build_vocabulary(profiles)
     assign_patterns(profiles, vocabulary)
     stats = build_stats(profiles, vocabulary)
     patterns = build_patterns(profiles, vocabulary, stats)
+    logger.info(
+        "PATTERNS %s groups of pages, %s special",
+        len(patterns),
+        sum(1 for pattern in patterns if pattern.special),
+    )
     sample = choose_sample(
         profiles,
         vocabulary,
@@ -674,11 +790,28 @@ def run_discovery(
         size=settings.sample_size,
         patterns_total=len(patterns),
     )
+    logger.info(
+        "SAMPLE %s pages from the %s labelled %s, covering %s of %s features",
+        len(sample.pages),
+        sample.population_size,
+        settings.sample_label,
+        sample.features_covered_count,
+        sample.feature_count,
+    )
     summary = build_summary(
-        settings, profiles, patterns, duplicates, version, provenance
+        settings,
+        profiles,
+        patterns,
+        duplicates,
+        version,
+        provenance,
+        challenge_pages=challenge_pages,
     )
     exit_code, reason = sample_verdict(
-        settings, sample, summary["pages_by_page_type"]
+        settings,
+        sample,
+        summary["pages_by_page_type"],
+        challenge_pages=challenge_pages,
     )
     logger.info(
         "PROFILED pages=%s duplicates=%s patterns=%s special=%s unknown=%s",
@@ -690,15 +823,22 @@ def run_discovery(
     )
 
     def write(name: str, body: str, content_type: str) -> None:
-        target.put_text(
-            discovery_key(
-                settings.catalog_folder,
-                settings.run_id,
-                settings.discovery_run_id,
-                name,
+        key = discovery_key(
+            settings.catalog_folder,
+            settings.run_id,
+            settings.discovery_run_id,
+            name,
+        )
+        target.put_text(key, body, content_type)
+        logger.info(
+            "WRITE %s %s bytes -> %s",
+            name,
+            len(body.encode("utf-8")),
+            (
+                join_storage_uri(settings.target_uri, key)
+                if settings.target_uri
+                else key
             ),
-            body,
-            content_type,
         )
 
     write(
@@ -751,6 +891,11 @@ def run_discovery(
         SUMMARY_FILE,
         json.dumps(summary, indent=2, ensure_ascii=False) + "\n",
         "application/json",
+    )
+    logger.info(
+        "DONE discovery run %s in %s",
+        settings.discovery_run_id,
+        format_duration(time.monotonic() - started),
     )
 
     return DiscoveryOutcome(

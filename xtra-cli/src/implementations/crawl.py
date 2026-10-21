@@ -25,7 +25,7 @@ from dataclasses import dataclass, field
 from typing import Any
 from urllib.parse import urlsplit, urlunsplit
 
-from common.clock import run_id_for_json, utc_timestamp
+from common.clock import format_duration, run_id_for_json, utc_timestamp
 from common.keys import (
     crawl_key,
     dedupe_key,
@@ -98,13 +98,6 @@ INDEX_INTERVAL_SECONDS = 0.5
 
 class StrategyMismatchError(RuntimeError):
     """A resume that would mix two rendered sources in one run folder."""
-
-
-def format_duration(seconds: float) -> str:
-    total = max(0, int(seconds))
-    hours, rest = divmod(total, 3600)
-    minutes, secs = divmod(rest, 60)
-    return f"{hours:02d}:{minutes:02d}:{secs:02d}"
 
 
 def format_seconds(value: float) -> str:
@@ -312,9 +305,16 @@ class Crawler:
 
         self.started_at = self.now()
         self._started_mono = self.monotonic()
-        self._next_checkpoint = CHECKPOINT_EVERY
+        # Saves since the last periodic checkpoint. Counted, not read off
+        # pages_saved: repairing a stored challenge page takes one off the
+        # total and puts it back, so a target on the total is never reached.
+        self._saves_since_checkpoint = 0
         self._first_page_checkpointed = False
         self._consecutive_failures = 0
+        # The URLs workers are fetching right now. They are in no other
+        # list, so a checkpoint has to name them or a resume never asks
+        # for them again.
+        self._in_flight: dict[Future, str] = {}
         self.stopped = False
         self.resumed = False
 
@@ -370,10 +370,20 @@ class Crawler:
         self.totals.segments[first_path_segment(url)] += 1
         return True
 
-    def _requeue(self, url: str) -> None:
-        """Put a URL back without the duplicate test, for a resume."""
+    def _requeue(self, url: str, queued: set[str]) -> None:
+        """Put a URL back for a resume, once.
+
+        seen cannot be the test, because state.json lists every URL in it.
+        A page checkpointed before it was read back is under both saved and
+        frontier, and a stored challenge page queued twice would be fetched
+        twice, so `queued` keeps each URL to one place in the frontier.
+        """
         url = self.canonical_url(url)
-        self.seen.add(dedupe_key(url))
+        key = dedupe_key(url)
+        if key in queued:
+            return
+        queued.add(key)
+        self.seen.add(key)
         self.frontier.append(url)
 
     def _follow(self, html: str, base_url: str) -> None:
@@ -545,20 +555,20 @@ class Crawler:
             payload.get("discovered_by_first_path_segment") or {}
         )
         self.started_at = payload.get("started_at") or self.started_at
-        self._next_checkpoint = self.totals.pages_saved + CHECKPOINT_EVERY
 
         # Saved pages first: they answer from storage, so a resume re-follows
         # their links without a single GET.
+        queued: set[str] = set()
         for url in self.saved:
-            self._requeue(url)
+            self._requeue(url, queued)
         for url in payload.get("frontier") or ():
-            self._requeue(url)
+            self._requeue(url, queued)
         for record in payload.get("failed") or ():
             url = record.get("url")
             if not url:
                 continue
             if record.get("retryable"):
-                self._requeue(url)
+                self._requeue(url, queued)
             else:
                 self.failed[url] = record
         if not (self.saved or self.frontier or self.failed):
@@ -577,20 +587,55 @@ class Crawler:
         return True
 
     def _replay_from_storage(self, url: str) -> bool:
-        """Read a page this run already saved instead of fetching it again."""
+        """Read a page this run already saved instead of fetching it again.
+
+        A stored bot-challenge page is not a saved page. Runs crawled
+        before challenges were caught kept them, and replaying one would
+        keep it for good, so it is fetched again instead, the way
+        fetch_page treats one it has just been served.
+        """
         key = self._html_key(url)
         if not self.store.exists(key):
             return False
         html = self.store.get_text(key)
+        kind = challenge_kind(None, None, html)
+        if kind is not None:
+            self._forget_challenge_page(url, kind, html)
+            return False
         logger.info("FROM-STORAGE %s (already saved, no GET)", url)
         if url not in self._saved_set:
             self._saved_set.add(url)
             self.saved.append(url)
             self.totals.pages_saved += 1
-        self._consecutive_failures = 0
+            self._saves_since_checkpoint += 1
+        # The failure streak is not reset: a replay is not a GET, and a
+        # site that refuses every fetch still has to stop the run.
         self._follow(html, url)
         self._maybe_checkpoint()
         return True
+
+    def _forget_challenge_page(self, url: str, kind: str, html: str) -> None:
+        """Take a stored challenge page out of the run so it is fetched again.
+
+        Only what this run counted is undone: a page found in storage with
+        no state.json behind it was never counted. seen keeps the URL, so
+        links to it stay duplicates, and the files stay until the real page
+        overwrites them.
+        """
+        logger.warning(
+            "REFETCH %s stored page is a bot challenge (%s), not the catalog "
+            "page, so it is fetched again",
+            url,
+            kind,
+        )
+        if url not in self._saved_set:
+            return
+        self._saved_set.discard(url)
+        self.saved.remove(url)
+        self.totals.pages_saved = max(0, self.totals.pages_saved - 1)
+        self.totals.total_bytes = max(
+            0, self.totals.total_bytes - len(html.encode("utf-8"))
+        )
 
     def _sitemap_first(self, declared_pages: list[str]) -> None:
         """On a resume, move declared pages ahead of the old frontier.
@@ -655,8 +700,11 @@ class Crawler:
         if result.requested_url not in self._saved_set:
             self._saved_set.add(result.requested_url)
             self.saved.append(result.requested_url)
-        self.totals.pages_saved += 1
-        self.totals.total_bytes += len(body)
+            # Once per URL. A page fetched again overwrites its own files,
+            # so counting it again would only inflate the run.
+            self.totals.pages_saved += 1
+            self.totals.total_bytes += len(body)
+        self._saves_since_checkpoint += 1
         self._consecutive_failures = 0
         logger.info(
             "GET %s -> %s %s bytes %s ms -> %s",
@@ -808,7 +856,7 @@ class Crawler:
             "pages_failed": len(self.failed),
             "failed_by_status": self._failed_by_status(),
             "skipped_by_reason": dict(sorted(self.totals.skipped.items())),
-            "frontier_remaining": len(self.frontier),
+            "frontier_remaining": len(self.frontier) + len(self._in_flight),
             "total_bytes": self.totals.total_bytes,
             "discovered_by_first_path_segment": dict(segments),
         }
@@ -825,7 +873,9 @@ class Crawler:
             "total_bytes": self.totals.total_bytes,
             "skipped_by_reason": dict(self.totals.skipped),
             "discovered_by_first_path_segment": dict(self.totals.segments),
-            "frontier": list(self.frontier),
+            # A URL a worker is fetching is in no other list. Naming it
+            # first is what lets a run stopped mid-fetch ask for it again.
+            "frontier": [*self._in_flight.values(), *self.frontier],
             "seen": sorted(self.seen),
             "saved": list(self.saved),
             "failed": list(self.failed.values()),
@@ -848,7 +898,7 @@ class Crawler:
         return doc
 
     def _maybe_checkpoint(self) -> None:
-        if self.totals.pages_saved < self._next_checkpoint:
+        if self._saves_since_checkpoint < CHECKPOINT_EVERY:
             # The first page is worth a checkpoint of its own. A run killed
             # at page two used to leave saved pages that no manifest
             # described, which is not something a reader can recover from.
@@ -856,7 +906,7 @@ class Crawler:
                 self._first_page_checkpointed = True
                 self.checkpoint(STATUS_INCOMPLETE)
             return
-        self._next_checkpoint = self.totals.pages_saved + CHECKPOINT_EVERY
+        self._saves_since_checkpoint = 0
         self._first_page_checkpointed = True
         self.checkpoint(STATUS_INCOMPLETE)
         self._progress()
@@ -870,7 +920,7 @@ class Crawler:
         )
 
     def work(self, pool: WorkerPool, policy: FetchPolicy) -> str:
-        in_flight: dict[Future, str] = {}
+        in_flight = self._in_flight
         limit_reached = False
         while True:
             while (
@@ -960,6 +1010,10 @@ class Crawler:
             interrupted = True
             status = STATUS_INCOMPLETE
             logger.warning("INTERRUPTED checkpointing so this run can resume")
+            # Now, not only after the browsers close: closing waits for the
+            # fetch in flight, pacing sleep included, and the process can be
+            # killed during that wait.
+            self.checkpoint(status)
         finally:
             pool.close()
 
