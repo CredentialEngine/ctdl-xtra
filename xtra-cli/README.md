@@ -126,6 +126,16 @@ xtra environment set prod \
 export CE_PROD_STORAGE="DefaultEndpointsProtocol=https;AccountName=...;AccountKey=..."
 ```
 
+Scoring reads the verified golden sets from their own container. Save it per
+environment the same way, with `--golden-uri` (or pass `--golden-uri` or
+`XTRA_GOLDEN_URI` on the command). It uses the same connection string as the
+data URI:
+
+```bash
+xtra environment set test \
+  --golden-uri azure://https://ACCOUNT.blob.core.windows.net/xtra-golden-sets-verified
+```
+
 ## Commands
 
 Filesystem path matches invocation, the same way ceops does (`ceops elasticsearch graphs create` → `src/ceops/elasticsearch/graphs/create.py`):
@@ -138,6 +148,8 @@ xtra catalog crawl      -> src/xtra/catalog/crawl.py
   --with-firecrawl      -> src/implementations/crawl_firecrawl.py
 xtra catalog discover   -> src/xtra/catalog/discover.py
 xtra catalog extract    -> src/xtra/catalog/extract.py
+xtra catalog score      -> src/xtra/catalog/score.py
+  --extraction          -> src/implementations/extraction_score.py
 xtra catalog transform  -> src/xtra/catalog/transform.py
 ```
 
@@ -725,6 +737,8 @@ empty record that looks extracted.
 | --- | --- |
 | `--discovery-run-id` | Read this discovery run instead of the newest. |
 | `--only-golden-sample` | Extract only the pages in `golden-sample-course.json`, for review. |
+| `--with-scoring` | After the records are written, score them against the golden sets. See [Scoring](#scoring-extraction-against-the-golden-sets). |
+| `--golden-uri` | Where the golden sets live. Default: the environment's golden URI. Needed with `--with-scoring`. |
 
 A page holding several courses, a page holding several credentials, and a
 page nothing could read are skipped and recorded in
@@ -736,6 +750,78 @@ Pages are read by the stem discovery lists, which is the stem the crawler
 saved them under. The `Slot.stem` property in `lib/` still slugs the URL the
 old way, so it is never used for a storage key, and the record carries the
 crawl stem instead.
+
+### Scoring extraction against the golden sets
+
+```bash
+xtra catalog extract --with-template --with-scoring \
+  --catalog-id avc-elumenapp-com-catalog-2026-27-welcome --run-id 2026-10-12T20:59:13Z
+
+xtra catalog score --extraction \
+  --catalog-id avc-elumenapp-com-catalog-2026-27-welcome --run-id 2026-10-12T20:59:13Z
+```
+
+The second form scores records that are already written, so a corrected
+golden set can be scored again without extracting again. Both write the same
+report.
+
+The golden container is filed by the same catalog folder and run id as the
+extraction, one folder per page, and the golden file is named for its page:
+
+```text
+{golden-uri}/{catalog-folder}/{yyyy-MM-ddTHH-mm-ssZ}/{stem}/{stem}.json
+{golden-uri}/{catalog-folder}/{yyyy-MM-ddTHH-mm-ssZ}/{stem}/{stem}.html
+```
+
+A golden file is a list of entities, each a list of
+`{ctdl_property, value, source_url}`. A page's first golden entity is
+compared with its own record and later ones with its `{stem}--{entity}`
+records, in order. The golden HTML is not read, and `source_url` is not used:
+scoring compares values only.
+
+**The score is recall over the golden fields.** Every golden field weighs the
+same. Each is matched against the values the record's `ctdl_expected` holds
+for that property, and each extracted value can satisfy only one golden value,
+so one prerequisite cannot cover three.
+
+| Outcome | Meaning |
+| --- | --- |
+| `match` | The value scores 0.95 or more. |
+| `partial` | 0.6 up to 0.95. A description missing a sentence lands here. |
+| `wrong` | A value was extracted and scores below 0.6. |
+| `missing` | The extractor emitted nothing for the property. Scores 0. |
+
+Numbers compare as numbers, so `"1.0"` is `1`. Text is lower-cased, has its
+whitespace collapsed and is compared with a fuzzy ratio, which gives the
+partial credit; a code also matches with its punctuation and spaces removed,
+so `ACCT 199` is `ACCT199`. A nested `creditValue` is read the way the golden
+set prints it: a single credit of 3 is both `creditMinValue` and
+`creditMaxValue`, and `subjectWebpage` is read from the record's `source_url`.
+A controlled-vocabulary term and its label (`English` and `en`) are not yet
+treated as equal.
+
+A property the record has and the golden set does not is listed as
+`unscored_extras` and costs nothing; the golden set may simply be incomplete.
+
+Each golden page falls in one of three groups:
+
+- **scored**: extract wrote a record for it.
+- **skipped**: extract considered the page and skipped it (multi-course page,
+  nothing read). It scores 0, because that is an extractor miss.
+- **out of scope**: extract never considered it, because it is outside
+  discovery or `--only-golden-sample`. It is listed and left out of the mean.
+
+The overall score is the mean of the page scores, so every page weighs the
+same. The report is `{catalog-folder}/{run-id}/extraction-score-report.json`,
+beside `records/` like `extract-report.json`, with the overall score,
+per-property tallies, and every field of every page. The stdout JSON gains
+an `extraction_score` summary and a table of the same numbers goes to stderr.
+
+The records are written before anything is scored. If the golden container has
+no files for the run, or cannot be reached, the command exits non-zero with
+the records in place. A malformed golden file is listed in the report under
+`malformed` and skipped. A missing golden URI is the exception: it is reported
+before any page is read.
 
 ## Object layout (not packs)
 
@@ -753,6 +839,7 @@ crawl stem instead.
   discovery/{discovery-run-id}/patterns.md
   discovery/{discovery-run-id}/golden-sample-course.json
   extract-report.json
+  extraction-score-report.json
   records/{record-id}.json
   jsonld/{record-id}.json
   expected/{record-id}.json

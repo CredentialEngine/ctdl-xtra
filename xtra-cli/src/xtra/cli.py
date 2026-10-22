@@ -44,6 +44,7 @@ def cli() -> None:
       xtra catalog discover --catalog-id ID --run-id TS
       xtra catalog extract --with-template --catalog-id ID --run-id TS
       xtra catalog transform --with-ctdl --catalog-id ID --run-id TS
+      xtra catalog score --extraction --catalog-id ID --run-id TS
 
     \b
     Those stages read and write the active environment. Pass --target-uri to
@@ -61,4 +62,5 @@ cli.add_command(environment_group)
 catalog_group.add_command(_load_command("xtra.catalog.crawl"))
 catalog_group.add_command(_load_command("xtra.catalog.discover"))
 catalog_group.add_command(_load_command("xtra.catalog.extract"))
+catalog_group.add_command(_load_command("xtra.catalog.score"))
 catalog_group.add_command(_load_command("xtra.catalog.transform"))

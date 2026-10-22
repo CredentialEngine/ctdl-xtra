@@ -123,8 +123,12 @@ def extract_report_key(catalog_folder: str, run_id: str) -> str:
     return f"{run_prefix(catalog_folder, run_id)}/extract-report.json"
 
 
+def records_prefix(catalog_folder: str, run_id: str) -> str:
+    return f"{run_prefix(catalog_folder, run_id)}/records"
+
+
 def record_key(catalog_folder: str, run_id: str, record_id: str) -> str:
-    return f"{run_prefix(catalog_folder, run_id)}/records/{record_id}.json"
+    return f"{records_prefix(catalog_folder, run_id)}/{record_id}.json"
 
 
 def jsonld_key(catalog_folder: str, run_id: str, record_id: str) -> str:
@@ -133,3 +137,17 @@ def jsonld_key(catalog_folder: str, run_id: str, record_id: str) -> str:
 
 def expected_key(catalog_folder: str, run_id: str, record_id: str) -> str:
     return f"{run_prefix(catalog_folder, run_id)}/expected/{record_id}.json"
+
+
+def extraction_score_report_key(catalog_folder: str, run_id: str) -> str:
+    """Beside records/ for the same reason as the extract report."""
+    return f"{run_prefix(catalog_folder, run_id)}/extraction-score-report.json"
+
+
+def golden_run_prefix(catalog_folder: str, run_id: str) -> str:
+    """Where the golden sets of one run live, in the golden container."""
+    return run_prefix(catalog_folder, run_id)
+
+
+def golden_record_key(catalog_folder: str, run_id: str, stem: str) -> str:
+    return f"{golden_run_prefix(catalog_folder, run_id)}/{stem}/{stem}.json"

@@ -44,6 +44,7 @@ def test_save_then_load_round_trips() -> None:
     assert json.loads(path.read_text(encoding="utf-8")) == {
         "env_name": "prod",
         "data_uri": PROD_URI,
+        "golden_uri": "",
         "connection_string_env": "AZURE_STORAGE_CONNECTION_STRING",
     }
 

@@ -40,6 +40,15 @@ def environment_group() -> None:
     ),
 )
 @click.option(
+    "--golden-uri",
+    default="",
+    help=(
+        "Storage container holding the verified golden sets, used when "
+        "scoring omits --golden-uri. Omit it to keep the URI already saved "
+        "for this environment."
+    ),
+)
+@click.option(
     "--connection-string-env",
     default="",
     help=(
@@ -50,6 +59,7 @@ def environment_group() -> None:
 def environment_set(
     env_name: str,
     data_uri: str,
+    golden_uri: str,
     connection_string_env: str,
 ) -> None:
     """Set the active environment (dev, test, sandbox, prod).
@@ -61,6 +71,7 @@ def environment_set(
     environment = build_environment(
         env_name=env_name,
         data_uri=data_uri or current.data_uri,
+        golden_uri=golden_uri or current.golden_uri,
         connection_string_env=(
             connection_string_env or current.connection_string_env
         ),
@@ -70,12 +81,14 @@ def environment_set(
         StoredConfig(
             env_name=environment.name,
             data_uri=environment.data_uri,
+            golden_uri=environment.golden_uri,
             connection_string_env=environment.connection_string_env,
         )
     )
 
     click.echo(f"Active environment set to {environment.name}.")
     click.echo(f"Data URI:    {environment.data_uri or '(not set)'}")
+    click.echo(f"Golden URI:  {environment.golden_uri or '(not set)'}")
     click.echo(f"Secret from: {environment.connection_string_env}")
     click.echo(f"Config:      {path}")
 
@@ -98,6 +111,7 @@ def environment_show(env_name: str | None) -> None:
 
     click.echo(f"Environment: {environment.name}")
     click.echo(f"Data URI:    {environment.data_uri or '(not set)'}")
+    click.echo(f"Golden URI:  {environment.golden_uri or '(not set)'}")
     click.echo(f"Secret from: {environment.connection_string_env}")
     click.echo(
         "Secret set:  " + ("yes" if environment.connection_string() else "no")

@@ -14,6 +14,7 @@ from xtra.click import (
     non_empty_string,
     require_strategy,
     resolve_connection,
+    resolve_golden,
     resolve_uri,
     source_uri_option,
     strategy_options,
@@ -142,3 +143,14 @@ def test_resolve_connection_is_none_when_nothing_is_configured(
 ) -> None:
     monkeypatch.delenv("AZURE_STORAGE_CONNECTION_STRING", raising=False)
     assert resolve_connection(None, env_name=None) is None
+
+
+def test_resolve_golden_prefers_the_flag_and_reports_a_missing_one() -> None:
+    assert (
+        resolve_golden(
+            "azure://https://a.blob.core.windows.net/g", env_name="test"
+        )
+        == "azure://https://a.blob.core.windows.net/g"
+    )
+    with pytest.raises(click.UsageError, match="--golden-uri is required"):
+        resolve_golden(None, env_name="test")

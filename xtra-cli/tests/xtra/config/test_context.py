@@ -9,6 +9,7 @@ from xtra.config.context import (
     get_current_environment,
     resolve_connection_string,
     resolve_data_uri,
+    resolve_golden_uri,
 )
 from xtra.config.environments import AZURITE_CONNECTION_STRING
 from xtra.config.settings import ConfigNotFoundError, StoredConfig, save_config
@@ -165,3 +166,28 @@ def test_resolve_connection_string_is_none_when_unset(monkeypatch) -> None:
     save_config(StoredConfig(env_name="prod", data_uri=PROD_URI))
     monkeypatch.delenv("AZURE_STORAGE_CONNECTION_STRING", raising=False)
     assert resolve_connection_string(None) is None
+
+
+GOLDEN_URI = (
+    "azure://https://ceprod.blob.core.windows.net/xtra-golden-sets-verified"
+)
+
+
+def test_resolve_golden_uri_prefers_the_flag() -> None:
+    assert resolve_golden_uri(GOLDEN_URI, env_name="test") == GOLDEN_URI
+
+
+def test_resolve_golden_uri_reads_the_saved_environment(
+    isolated_config_dir,
+) -> None:
+    save_config(
+        StoredConfig(env_name="prod", data_uri=PROD_URI, golden_uri=GOLDEN_URI)
+    )
+
+    assert resolve_golden_uri(None) == GOLDEN_URI
+    assert environment_for("prod").golden_uri == GOLDEN_URI
+
+
+def test_resolve_golden_uri_when_env_has_no_golden_container() -> None:
+    with pytest.raises(ConfigNotFoundError, match="--golden-uri"):
+        resolve_golden_uri(None, env_name="test")
