@@ -1,0 +1,926 @@
+[
+ {
+  "name": "External Identifier",
+  "term": "ceterms:identifier",
+  "section": "Required Properties",
+  "required": true,
+  "multiple": false
+ },
+ {
+  "name": "Learning Type",
+  "term": null,
+  "section": "Required Properties",
+  "required": true,
+  "multiple": false
+ },
+ {
+  "name": "Learning Opportunity Name",
+  "term": "ceterms:name",
+  "section": "Required Properties",
+  "required": true,
+  "multiple": false
+ },
+ {
+  "name": "Description",
+  "term": "ceterms:description",
+  "section": "Required Properties",
+  "required": true,
+  "multiple": false
+ },
+ {
+  "name": "Subject Webpage",
+  "term": "ceterms:subjectWebpage",
+  "section": "Required Properties",
+  "required": true,
+  "multiple": false
+ },
+ {
+  "name": "Life Cycle Status Type",
+  "term": "ceterms:lifeCycleStatusType",
+  "section": "Required Properties",
+  "required": true,
+  "multiple": false
+ },
+ {
+  "name": "Language",
+  "term": "ceterms:inLanguage",
+  "section": "Required Properties",
+  "required": true,
+  "multiple": true
+ },
+ {
+  "name": "Available Online At",
+  "term": "ceterms:availableOnlineAt",
+  "section": "Availability and Offering",
+  "required": false,
+  "multiple": false
+ },
+ {
+  "name": "Availability Listing",
+  "term": "ceterms:availabilityListing",
+  "section": "Availability and Offering",
+  "required": false,
+  "multiple": false
+ },
+ {
+  "name": "Available At",
+  "term": "ceterms:availableAt",
+  "section": "Availability and Offering",
+  "required": false,
+  "multiple": true
+ },
+ {
+  "name": "Available At Codes",
+  "term": null,
+  "section": "Availability and Offering",
+  "required": false,
+  "multiple": true
+ },
+ {
+  "name": "Available At Offered By Orgs",
+  "term": null,
+  "section": "Availability and Offering",
+  "required": false,
+  "multiple": true
+ },
+ {
+  "name": "Offered By",
+  "term": "ceterms:offeredBy",
+  "section": "Availability and Offering",
+  "required": false,
+  "multiple": true
+ },
+ {
+  "name": "Offered In",
+  "term": "ceterms:offeredIn",
+  "section": "Availability and Offering",
+  "required": false,
+  "multiple": true
+ },
+ {
+  "name": "Jurisdiction",
+  "term": "ceterms:jurisdiction",
+  "section": "Availability and Offering",
+  "required": false,
+  "multiple": true
+ },
+ {
+  "name": "Accredited In",
+  "term": "ceterms:accreditedIn",
+  "section": "Availability and Offering",
+  "required": false,
+  "multiple": true
+ },
+ {
+  "name": "Approved In",
+  "term": "ceterms:approvedIn",
+  "section": "Availability and Offering",
+  "required": false,
+  "multiple": true
+ },
+ {
+  "name": "Recognized In",
+  "term": "ceterms:recognizedIn",
+  "section": "Availability and Offering",
+  "required": false,
+  "multiple": true
+ },
+ {
+  "name": "Regulated In",
+  "term": "ceterms:regulatedIn",
+  "section": "Availability and Offering",
+  "required": false,
+  "multiple": true
+ },
+ {
+  "name": "Learning Opportunity Type",
+  "term": "ceterms:learningOpportunityType",
+  "section": "Descriptors and Identifiers",
+  "required": false,
+  "multiple": false
+ },
+ {
+  "name": "CIP List",
+  "term": null,
+  "section": "Descriptors and Identifiers",
+  "required": false,
+  "multiple": true
+ },
+ {
+  "name": "Instructional Program Type",
+  "term": "ceterms:instructionalProgramType",
+  "section": "Descriptors and Identifiers",
+  "required": false,
+  "multiple": true
+ },
+ {
+  "name": "NAICS List",
+  "term": null,
+  "section": "Descriptors and Identifiers",
+  "required": false,
+  "multiple": true
+ },
+ {
+  "name": "Industry Type",
+  "term": "ceterms:industryType",
+  "section": "Descriptors and Identifiers",
+  "required": false,
+  "multiple": true
+ },
+ {
+  "name": "O*NET List",
+  "term": null,
+  "section": "Descriptors and Identifiers",
+  "required": false,
+  "multiple": true
+ },
+ {
+  "name": "Occupation Type",
+  "term": "ceterms:occupationType",
+  "section": "Descriptors and Identifiers",
+  "required": false,
+  "multiple": true
+ },
+ {
+  "name": "Keywords",
+  "term": "ceterms:keyword",
+  "section": "Descriptors and Identifiers",
+  "required": false,
+  "multiple": true
+ },
+ {
+  "name": "Subjects",
+  "term": "ceterms:subject",
+  "section": "Descriptors and Identifiers",
+  "required": false,
+  "multiple": true
+ },
+ {
+  "name": "Content Description",
+  "term": "ceterms:contentDescription",
+  "section": "Descriptors and Identifiers",
+  "required": false,
+  "multiple": false
+ },
+ {
+  "name": "At Level",
+  "term": "ceterms:atLevel",
+  "section": "Descriptors and Identifiers",
+  "required": false,
+  "multiple": true
+ },
+ {
+  "name": "Identifier",
+  "term": "ceterms:identifier",
+  "section": "Descriptors and Identifiers",
+  "required": false,
+  "multiple": true
+ },
+ {
+  "name": "Coded Notation",
+  "term": "ceterms:codedNotation",
+  "section": "Descriptors and Identifiers",
+  "required": false,
+  "multiple": false
+ },
+ {
+  "name": "In Catalog",
+  "term": "ceterms:inCatalog",
+  "section": "Descriptors and Identifiers",
+  "required": false,
+  "multiple": false
+ },
+ {
+  "name": "Alternate Name",
+  "term": "ceterms:alternateName",
+  "section": "Descriptors and Identifiers",
+  "required": false,
+  "multiple": true
+ },
+ {
+  "name": "Version Identifier",
+  "term": "ceterms:versionIdentifier",
+  "section": "Descriptors and Identifiers",
+  "required": false,
+  "multiple": true
+ },
+ {
+  "name": "Superseded By",
+  "term": "ceterms:supersededBy",
+  "section": "Descriptors and Identifiers",
+  "required": false,
+  "multiple": false
+ },
+ {
+  "name": "Supersedes",
+  "term": "ceterms:supersedes",
+  "section": "Descriptors and Identifiers",
+  "required": false,
+  "multiple": false
+ },
+ {
+  "name": "Credit Unit Type",
+  "term": "ceterms:creditUnitType",
+  "section": "Credits, Duration, and Dates",
+  "required": false,
+  "multiple": false
+ },
+ {
+  "name": "Credit Value",
+  "term": "ceterms:creditValue",
+  "section": "Credits, Duration, and Dates",
+  "required": false,
+  "multiple": false
+ },
+ {
+  "name": "Credit Unit Min Value",
+  "term": "ceterms:creditMinValue",
+  "section": "Credits, Duration, and Dates",
+  "required": false,
+  "multiple": false
+ },
+ {
+  "name": "Credit Unit Max Value",
+  "term": "ceterms:creditMaxValue",
+  "section": "Credits, Duration, and Dates",
+  "required": false,
+  "multiple": false
+ },
+ {
+  "name": "Credit Unit Type Description",
+  "term": "ceterms:creditUnitTypeDescription",
+  "section": "Credits, Duration, and Dates",
+  "required": false,
+  "multiple": false
+ },
+ {
+  "name": "Is Non-Credit",
+  "term": "ceterms:isNonCredit",
+  "section": "Credits, Duration, and Dates",
+  "required": false,
+  "multiple": false
+ },
+ {
+  "name": "Is Registered Apprenticeship",
+  "term": "ceterms:isRegisteredApprenticeship",
+  "section": "Credits, Duration, and Dates",
+  "required": false,
+  "multiple": false
+ },
+ {
+  "name": "Estimated Duration",
+  "term": "ceterms:estimatedDuration",
+  "section": "Credits, Duration, and Dates",
+  "required": false,
+  "multiple": true
+ },
+ {
+  "name": "Estimated Duration Description",
+  "term": "ceterms:description",
+  "section": "Credits, Duration, and Dates",
+  "required": false,
+  "multiple": false
+ },
+ {
+  "name": "Date Effective",
+  "term": "ceterms:dateEffective",
+  "section": "Credits, Duration, and Dates",
+  "required": false,
+  "multiple": false
+ },
+ {
+  "name": "Expiration Date",
+  "term": "ceterms:expirationDate",
+  "section": "Credits, Duration, and Dates",
+  "required": false,
+  "multiple": false
+ },
+ {
+  "name": "Learning Method Type",
+  "term": "ceterms:learningMethodType",
+  "section": "Learning Method, Delivery, and Audience",
+  "required": false,
+  "multiple": true
+ },
+ {
+  "name": "Learning Method Description",
+  "term": "ceterms:learningMethodDescription",
+  "section": "Learning Method, Delivery, and Audience",
+  "required": false,
+  "multiple": false
+ },
+ {
+  "name": "Delivery Type",
+  "term": "ceterms:deliveryType",
+  "section": "Learning Method, Delivery, and Audience",
+  "required": false,
+  "multiple": true
+ },
+ {
+  "name": "Delivery Type Description",
+  "term": "ceterms:deliveryTypeDescription",
+  "section": "Learning Method, Delivery, and Audience",
+  "required": false,
+  "multiple": false
+ },
+ {
+  "name": "Audience Type",
+  "term": "ceterms:audienceType",
+  "section": "Learning Method, Delivery, and Audience",
+  "required": false,
+  "multiple": true
+ },
+ {
+  "name": "Audience Level Type",
+  "term": "ceterms:audienceLevelType",
+  "section": "Learning Method, Delivery, and Audience",
+  "required": false,
+  "multiple": true
+ },
+ {
+  "name": "Common Costs",
+  "term": "ceterms:commonCosts",
+  "section": "Cost",
+  "required": false,
+  "multiple": true
+ },
+ {
+  "name": "Cost: External Identifier",
+  "term": null,
+  "section": "Cost",
+  "required": false,
+  "multiple": false
+ },
+ {
+  "name": "Cost: Name",
+  "term": "ceterms:name",
+  "section": "Cost",
+  "required": false,
+  "multiple": false
+ },
+ {
+  "name": "Cost: Description",
+  "term": "ceterms:description",
+  "section": "Cost",
+  "required": false,
+  "multiple": false
+ },
+ {
+  "name": "Cost: Details Url",
+  "term": "ceterms:costDetails",
+  "section": "Cost",
+  "required": false,
+  "multiple": false
+ },
+ {
+  "name": "Currency Type",
+  "term": "ceterms:currency",
+  "section": "Cost",
+  "required": false,
+  "multiple": false
+ },
+ {
+  "name": "Cost: Types List",
+  "term": "ceterms:directCostType",
+  "section": "Cost",
+  "required": false,
+  "multiple": true
+ },
+ {
+  "name": "Cost: Residency Type",
+  "term": "ceterms:residencyType",
+  "section": "Cost",
+  "required": false,
+  "multiple": false
+ },
+ {
+  "name": "Cost: Audience Type",
+  "term": "ceterms:audienceType",
+  "section": "Cost",
+  "required": false,
+  "multiple": true
+ },
+ {
+  "name": "Financial Assistance: External Identifier",
+  "term": null,
+  "section": "Financial Assistance",
+  "required": false,
+  "multiple": false
+ },
+ {
+  "name": "Financial Assistance: Name",
+  "term": "ceterms:name",
+  "section": "Financial Assistance",
+  "required": false,
+  "multiple": false
+ },
+ {
+  "name": "Financial Assistance: Description",
+  "term": "ceterms:description",
+  "section": "Financial Assistance",
+  "required": false,
+  "multiple": false
+ },
+ {
+  "name": "Financial Assistance: Subject Webpage",
+  "term": "ceterms:subjectWebpage",
+  "section": "Financial Assistance",
+  "required": false,
+  "multiple": false
+ },
+ {
+  "name": "Financial Assistance: Type",
+  "term": "ceterms:financialAssistanceType",
+  "section": "Financial Assistance",
+  "required": false,
+  "multiple": true
+ },
+ {
+  "name": "Financial Assistance For Type",
+  "term": "ceterms:financialAssistanceForType",
+  "section": "Financial Assistance",
+  "required": false,
+  "multiple": true
+ },
+ {
+  "name": "Financial Assistance: Value",
+  "term": "ceterms:financialAssistanceValue",
+  "section": "Financial Assistance",
+  "required": false,
+  "multiple": false
+ },
+ {
+  "name": "Accredited By",
+  "term": "ceterms:accreditedBy",
+  "section": "Quality Assurance",
+  "required": false,
+  "multiple": true
+ },
+ {
+  "name": "Approved By",
+  "term": "ceterms:approvedBy",
+  "section": "Quality Assurance",
+  "required": false,
+  "multiple": true
+ },
+ {
+  "name": "Regulated By",
+  "term": "ceterms:regulatedBy",
+  "section": "Quality Assurance",
+  "required": false,
+  "multiple": true
+ },
+ {
+  "name": "Recognized By",
+  "term": "ceterms:recognizedBy",
+  "section": "Quality Assurance",
+  "required": false,
+  "multiple": true
+ },
+ {
+  "name": "Teaches Competency Framework",
+  "term": null,
+  "section": "Connections",
+  "required": false,
+  "multiple": true
+ },
+ {
+  "name": "Teaches Competencies",
+  "term": null,
+  "section": "Connections",
+  "required": false,
+  "multiple": true
+ },
+ {
+  "name": "Receives Transfer Value From",
+  "term": "ceterms:receivesTransferValueFrom",
+  "section": "Connections",
+  "required": false,
+  "multiple": true
+ },
+ {
+  "name": "Provides Transfer Value For",
+  "term": "ceterms:providesTransferValueFor",
+  "section": "Connections",
+  "required": false,
+  "multiple": true
+ },
+ {
+  "name": "Prerequisite",
+  "term": "ceterms:prerequisite",
+  "section": "Connections",
+  "required": false,
+  "multiple": true
+ },
+ {
+  "name": "Corequisite",
+  "term": "ceterms:corequisite",
+  "section": "Connections",
+  "required": false,
+  "multiple": true
+ },
+ {
+  "name": "Co-Prerequisite",
+  "term": "ceterms:coPrerequisite",
+  "section": "Connections",
+  "required": false,
+  "multiple": true
+ },
+ {
+  "name": "Results In Credential",
+  "term": "ceterms:resultsInCredential",
+  "section": "Connections",
+  "required": false,
+  "multiple": true
+ },
+ {
+  "name": "Target Credentials",
+  "term": null,
+  "section": "Connections",
+  "required": false,
+  "multiple": true
+ },
+ {
+  "name": "Target Credential Relationship",
+  "term": null,
+  "section": "Connections",
+  "required": false,
+  "multiple": false
+ },
+ {
+  "name": "Included Credentials",
+  "term": "ceterms:hasPart",
+  "section": "Connections",
+  "required": false,
+  "multiple": true
+ },
+ {
+  "name": "Has Support Service",
+  "term": "ceterms:hasSupportService",
+  "section": "Connections",
+  "required": false,
+  "multiple": true
+ },
+ {
+  "name": "Has Rubric",
+  "term": "ceterms:hasRubric",
+  "section": "Connections",
+  "required": false,
+  "multiple": true
+ },
+ {
+  "name": "Recognized For Industry",
+  "term": "ceterms:recognizedForIndustry",
+  "section": "Connections",
+  "required": false,
+  "multiple": true
+ },
+ {
+  "name": "Object Of Action",
+  "term": "ceterms:objectOfAction",
+  "section": "Connections",
+  "required": false,
+  "multiple": true
+ },
+ {
+  "name": "Is Similar To",
+  "term": "ceterms:isSimilarTo",
+  "section": "Connections",
+  "required": false,
+  "multiple": true
+ },
+ {
+  "name": "Common Conditions",
+  "term": "ceterms:commonConditions",
+  "section": "Connections",
+  "required": false,
+  "multiple": true
+ },
+ {
+  "name": "Condition Profile: External Identifier",
+  "term": null,
+  "section": "Condition Profile",
+  "required": false,
+  "multiple": false
+ },
+ {
+  "name": "Condition Profile: Condition Type",
+  "term": null,
+  "section": "Condition Profile",
+  "required": false,
+  "multiple": false
+ },
+ {
+  "name": "ConditionProfile: Name",
+  "term": "ceterms:name",
+  "section": "Condition Profile",
+  "required": false,
+  "multiple": false
+ },
+ {
+  "name": "ConditionProfile: Description",
+  "term": "ceterms:description",
+  "section": "Condition Profile",
+  "required": false,
+  "multiple": false
+ },
+ {
+  "name": "ConditionProfile: Subject Webpage",
+  "term": "ceterms:subjectWebpage",
+  "section": "Condition Profile",
+  "required": false,
+  "multiple": false
+ },
+ {
+  "name": "Condition Profile: Target Credential",
+  "term": "ceterms:targetCredential",
+  "section": "Condition Profile",
+  "required": false,
+  "multiple": true
+ },
+ {
+  "name": "Condition Profile: Target Assessment",
+  "term": "ceterms:targetAssessment",
+  "section": "Condition Profile",
+  "required": false,
+  "multiple": true
+ },
+ {
+  "name": "Condition Profile: Target Learning Opportunity",
+  "term": "ceterms:targetLearningOpportunity",
+  "section": "Condition Profile",
+  "required": false,
+  "multiple": true
+ },
+ {
+  "name": "Condition Profile: Target Occupation",
+  "term": "ceterms:targetOccupation",
+  "section": "Condition Profile",
+  "required": false,
+  "multiple": true
+ },
+ {
+  "name": "Condition Profile: Target Job",
+  "term": "ceterms:targetJob",
+  "section": "Condition Profile",
+  "required": false,
+  "multiple": true
+ },
+ {
+  "name": "Condition Profile: Target Metric",
+  "term": "ceterms:targetMetric",
+  "section": "Condition Profile",
+  "required": false,
+  "multiple": false
+ },
+ {
+  "name": "Condition Profile: Target Task",
+  "term": "ceterms:targetTask",
+  "section": "Condition Profile",
+  "required": false,
+  "multiple": false
+ },
+ {
+  "name": "Condition Profile: Required Competency Framework",
+  "term": null,
+  "section": "Condition Profile",
+  "required": false,
+  "multiple": true
+ },
+ {
+  "name": "Condition Profile: Target Competencies",
+  "term": "ceterms:targetCompetency",
+  "section": "Condition Profile",
+  "required": false,
+  "multiple": true
+ },
+ {
+  "name": "Condition Profile: Simple Target Competency",
+  "term": "ceterms:targetCompetency",
+  "section": "Condition Profile",
+  "required": false,
+  "multiple": true
+ },
+ {
+  "name": "Condition Profile: Condition Items",
+  "term": "ceterms:condition",
+  "section": "Condition Profile",
+  "required": false,
+  "multiple": true
+ },
+ {
+  "name": "Condition Profile: Submission Of Items",
+  "term": "ceterms:submissionOf",
+  "section": "Condition Profile",
+  "required": false,
+  "multiple": true
+ },
+ {
+  "name": "Condition Profile: Submission Of Description",
+  "term": "ceterms:submissionOfDescription",
+  "section": "Condition Profile",
+  "required": false,
+  "multiple": false
+ },
+ {
+  "name": "Condition Profile: Condition Excludes",
+  "term": "ceterms:conditionExcludes",
+  "section": "Condition Profile",
+  "required": false,
+  "multiple": true
+ },
+ {
+  "name": "Condition Profile: Affiliation",
+  "term": "ceterms:affiliation",
+  "section": "Condition Profile",
+  "required": false,
+  "multiple": false
+ },
+ {
+  "name": "Condition Profile: Experience",
+  "term": "ceterms:experience",
+  "section": "Condition Profile",
+  "required": false,
+  "multiple": false
+ },
+ {
+  "name": "Condition Profile: Years Of Experience",
+  "term": "ceterms:yearsOfExperience",
+  "section": "Condition Profile",
+  "required": false,
+  "multiple": false
+ },
+ {
+  "name": "Condition Profile: Audience Type",
+  "term": null,
+  "section": "Condition Profile",
+  "required": false,
+  "multiple": true
+ },
+ {
+  "name": "Condition Profile: Audience Level Type",
+  "term": null,
+  "section": "Condition Profile",
+  "required": false,
+  "multiple": true
+ },
+ {
+  "name": "Condition Profile: Credit Unit Type",
+  "term": null,
+  "section": "Condition Profile",
+  "required": false,
+  "multiple": false
+ },
+ {
+  "name": "Condition Profile: Credit Value",
+  "term": "schema:value",
+  "section": "Condition Profile",
+  "required": false,
+  "multiple": false
+ },
+ {
+  "name": "Condition Profile: Credit Unit Max Value",
+  "term": "schema:maxValue",
+  "section": "Condition Profile",
+  "required": false,
+  "multiple": false
+ },
+ {
+  "name": "Condition Profile: Credit Unit Type Description",
+  "term": "ceterms:creditUnitTypeDescription",
+  "section": "Condition Profile",
+  "required": false,
+  "multiple": false
+ },
+ {
+  "name": "Connection Profile: External Identifier",
+  "term": null,
+  "section": "Connection Profile",
+  "required": false,
+  "multiple": false
+ },
+ {
+  "name": "Connection Profile: Connection Type",
+  "term": null,
+  "section": "Connection Profile",
+  "required": false,
+  "multiple": false
+ },
+ {
+  "name": "Connection Profile: Name",
+  "term": "ceterms:name",
+  "section": "Connection Profile",
+  "required": false,
+  "multiple": false
+ },
+ {
+  "name": "Connection Profile: Description",
+  "term": "ceterms:description",
+  "section": "Connection Profile",
+  "required": false,
+  "multiple": false
+ },
+ {
+  "name": "Connection Profile: Target Credential",
+  "term": "ceterms:targetCredential",
+  "section": "Connection Profile",
+  "required": false,
+  "multiple": true
+ },
+ {
+  "name": "Connection Profile: Target Assessment",
+  "term": "ceterms:targetAssessment",
+  "section": "Connection Profile",
+  "required": false,
+  "multiple": true
+ },
+ {
+  "name": "Connection Profile: Target Learning Opportunity",
+  "term": "ceterms:targetLearningOpportunity",
+  "section": "Connection Profile",
+  "required": false,
+  "multiple": true
+ },
+ {
+  "name": "Connection Profile: Target Occupation",
+  "term": "ceterms:targetOccupation",
+  "section": "Connection Profile",
+  "required": false,
+  "multiple": true
+ },
+ {
+  "name": "Connection Profile: Target Job",
+  "term": "ceterms:targetJob",
+  "section": "Connection Profile",
+  "required": false,
+  "multiple": true
+ },
+ {
+  "name": "Connection Profile: Credit Unit Type",
+  "term": "ceterms:creditUnitType",
+  "section": "Connection Profile",
+  "required": false,
+  "multiple": false
+ },
+ {
+  "name": "Connection Profile: Credit Value",
+  "term": "ceterms:creditValue",
+  "section": "Connection Profile",
+  "required": false,
+  "multiple": false
+ },
+ {
+  "name": "Connection Profile: Credit Unit Max Value",
+  "term": "ceterms:creditValue",
+  "section": "Connection Profile",
+  "required": false,
+  "multiple": false
+ },
+ {
+  "name": "Connection Profile: Credit Unit Type Description",
+  "term": "ceterms:creditUnitTypeDescription",
+  "section": "Connection Profile",
+  "required": false,
+  "multiple": false
+ }
+]

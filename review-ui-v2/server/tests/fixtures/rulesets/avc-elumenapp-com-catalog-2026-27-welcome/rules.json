@@ -1,0 +1,423 @@
+{
+  "ruleset_id": "avc-elumenapp-com-catalog-2026-27-welcome",
+  "version": 1,
+  "catalog_folder": "avc-elumenapp-com-catalog-2026-27-welcome",
+  "entity_type": "Course",
+  "content_root": "#mainContent",
+  "page_types": [
+    {
+      "type": "course",
+      "url_regex": "/catalog/[^/]+/course/[^/?#]+$"
+    },
+    {
+      "type": "program",
+      "url_regex": "/catalog/[^/]+/program/[^/?#]+$"
+    },
+    {
+      "type": "department",
+      "url_regex": "/catalog/[^/]+/department[/,][^/?#]+$"
+    },
+    {
+      "type": "pathways",
+      "url_regex": "/catalog/[^/]+/pathways"
+    }
+  ],
+  "sample": {
+    "quotas": {
+      "course": 14,
+      "program": 8,
+      "department": 3,
+      "pathways": 1,
+      "info": 4
+    },
+    "strata": {
+      "course": [
+        {
+          "name": "range units",
+          "quota": 3,
+          "pattern": "header-x-meta\">\\s*[^<]*-[^<]*<"
+        },
+        {
+          "name": "zero units",
+          "quota": 3,
+          "pattern": "header-x-meta\">\\s*0(\\.0+)?\\s"
+        },
+        {
+          "name": "fixed units",
+          "quota": 8
+        }
+      ]
+    },
+    "spread": {
+      "course": "/course/([a-z]+)"
+    }
+  },
+  "pane_css": ".accordionheader-x-toggle,.u-visuallyhidden,svg{display:none!important}.accordionheader-x-nested{display:block!important;max-height:none!important;height:auto!important;overflow:visible!important;visibility:visible!important;opacity:1!important}.row{display:flex;gap:24px;flex-wrap:wrap;margin:6px 0}",
+  "page_title": [
+    {
+      "selector": "header.header h2",
+      "transforms": [
+        "collapse_ws"
+      ]
+    }
+  ],
+  "label_vocabulary": [
+    "Course",
+    "Program",
+    "Credential",
+    "LearningOpportunity",
+    "Competency"
+  ],
+  "label_rules": [
+    {
+      "rule_id": "label-course-page",
+      "label": "Course",
+      "description": "An eLumen course page: /course/<code> with a course header.",
+      "url_regex": "/catalog/[^/]+/course/[^/?#]+$",
+      "requires_selector": "#mainContent header.header h3"
+    },
+    {
+      "rule_id": "label-program-page",
+      "label": "Program",
+      "description": "An eLumen program page carrying a requirements builder.",
+      "url_regex": "/catalog/[^/]+/program/[^/?#]+$",
+      "requires_selector": "#mainContent #accordion-program-builder-rules"
+    },
+    {
+      "rule_id": "label-course-on-program-page",
+      "label": "Course",
+      "description": "A program page that lists courses in its requirement rules.",
+      "url_regex": "/catalog/[^/]+/program/[^/?#]+$",
+      "requires_selector": "#mainContent #accordion-program-builder-rules .new-rule"
+    }
+  ],
+  "field_rules": [
+    {
+      "entity_type": "Rule",
+      "rule_id": "course-name",
+      "rule_type": "css",
+      "canonical_label": "Learning Opportunity Name",
+      "ctdl_property": "ceterms:name",
+      "applies_to": [
+        "label-course-page"
+      ],
+      "properties": {
+        "selector": "header.header h2",
+        "transforms": [
+          "strip"
+        ]
+      },
+      "description": "Course title is the h2 in the course header.",
+      "example_input": "  Basic Auto Body Repair ",
+      "example_output": "Basic Auto Body Repair"
+    },
+    {
+      "entity_type": "Rule",
+      "rule_id": "course-code",
+      "rule_type": "css",
+      "canonical_label": "Coded Notation",
+      "ctdl_property": "ceterms:codedNotation",
+      "applies_to": [
+        "label-course-page"
+      ],
+      "properties": {
+        "selector": "header.header h3",
+        "transforms": [
+          "strip",
+          "rstrip::",
+          "strip"
+        ]
+      },
+      "description": "Course code is the h3 in the course header, e.g. 'ABDY 113:'. Trailing colon removed.",
+      "example_input": "ABDY 113:",
+      "example_output": "ABDY 113"
+    },
+    {
+      "entity_type": "Rule",
+      "rule_id": "course-external-id",
+      "rule_type": "css",
+      "canonical_label": "External Identifier",
+      "ctdl_property": "ceterms:identifier",
+      "applies_to": [
+        "label-course-page"
+      ],
+      "properties": {
+        "selector": "header.header h3",
+        "transforms": [
+          "strip",
+          "rstrip::",
+          "remove_spaces"
+        ]
+      },
+      "description": "External identifier is the course code with spaces removed.",
+      "example_input": "ABDY 113:",
+      "example_output": "ABDY113"
+    },
+    {
+      "entity_type": "Rule",
+      "rule_id": "course-description",
+      "rule_type": "css",
+      "canonical_label": "Description",
+      "ctdl_property": "ceterms:description",
+      "applies_to": [
+        "label-course-page"
+      ],
+      "properties": {
+        "selector": ".introtext",
+        "transforms": [
+          "strip"
+        ]
+      },
+      "description": "Whole intro block verbatim, including any 'Prerequisite:' line (prerequisites are handled in a later iteration).",
+      "example_input": "Prerequisite: Completion of ABDY 112\nA continuation of ABDY 112.",
+      "example_output": "Prerequisite: Completion of ABDY 112\nA continuation of ABDY 112."
+    },
+    {
+      "entity_type": "Rule",
+      "rule_id": "course-credit-value",
+      "rule_type": "css+regex",
+      "canonical_label": "Credit Value",
+      "ctdl_property": "ceterms:creditValue",
+      "applies_to": [
+        "label-course-page"
+      ],
+      "properties": {
+        "selector": "header.header p.header-x-meta",
+        "regex": "^\\s*(\\d+(?:\\.\\d+)?)\\s*Units\\s*$",
+        "group": 1
+      },
+      "description": "Single credit value, e.g. '5.0 Units'. Does not match ranges.",
+      "example_input": "5.0 Units",
+      "example_output": "5.0"
+    },
+    {
+      "entity_type": "Rule",
+      "rule_id": "course-credit-min",
+      "rule_type": "css+regex",
+      "canonical_label": "Credit Unit Min Value",
+      "ctdl_property": "ceterms:creditMinValue",
+      "applies_to": [
+        "label-course-page"
+      ],
+      "properties": {
+        "selector": "header.header p.header-x-meta",
+        "regex": "^\\s*(\\d+(?:\\.\\d+)?)\\s*-\\s*\\d+(?:\\.\\d+)?\\s*Units\\s*$",
+        "group": 1
+      },
+      "description": "Minimum of a credit range, e.g. '1.0 - 8.0 Units'.",
+      "example_input": "1.0 - 8.0 Units",
+      "example_output": "1.0"
+    },
+    {
+      "entity_type": "Rule",
+      "rule_id": "course-credit-max",
+      "rule_type": "css+regex",
+      "canonical_label": "Credit Unit Max Value",
+      "ctdl_property": "ceterms:creditMaxValue",
+      "applies_to": [
+        "label-course-page"
+      ],
+      "properties": {
+        "selector": "header.header p.header-x-meta",
+        "regex": "^\\s*\\d+(?:\\.\\d+)?\\s*-\\s*(\\d+(?:\\.\\d+)?)\\s*Units\\s*$",
+        "group": 1
+      },
+      "description": "Maximum of a credit range, e.g. '1.0 - 8.0 Units'.",
+      "example_input": "1.0 - 8.0 Units",
+      "example_output": "8.0"
+    },
+    {
+      "entity_type": "Rule",
+      "rule_id": "course-credit-unit-desc",
+      "rule_type": "css+regex",
+      "canonical_label": "Credit Unit Type Description",
+      "ctdl_property": "ceterms:creditUnitTypeDescription",
+      "applies_to": [
+        "label-course-page"
+      ],
+      "properties": {
+        "selector": "header.header p.header-x-meta",
+        "regex": "(Units)\\s*$",
+        "group": 1
+      },
+      "description": "The unit word as published by the catalog (free text; the controlled Credit Unit Type is not guessed).",
+      "example_input": "5.0 Units",
+      "example_output": "Units"
+    },
+    {
+      "entity_type": "Rule",
+      "rule_id": "course-subject-webpage",
+      "rule_type": "source_url",
+      "canonical_label": "Subject Webpage",
+      "ctdl_property": "ceterms:subjectWebpage",
+      "applies_to": [
+        "label-course-page"
+      ],
+      "properties": {},
+      "description": "The page URL."
+    },
+    {
+      "entity_type": "Rule",
+      "rule_id": "course-learning-type",
+      "rule_type": "constant",
+      "canonical_label": "Learning Type",
+      "ctdl_property": null,
+      "applies_to": [
+        "label-course-page"
+      ],
+      "properties": {
+        "value": "Course"
+      },
+      "description": "Every record from this ruleset is a Course."
+    },
+    {
+      "entity_type": "Rule",
+      "rule_id": "course-lifecycle",
+      "rule_type": "constant",
+      "canonical_label": "Life Cycle Status Type",
+      "ctdl_property": "ceterms:lifeCycleStatusType",
+      "applies_to": [
+        "label-course-page"
+      ],
+      "properties": {
+        "value": "Active"
+      },
+      "description": "A published current catalog lists active courses."
+    },
+    {
+      "entity_type": "Rule",
+      "rule_id": "course-language",
+      "rule_type": "constant",
+      "canonical_label": "Language",
+      "ctdl_property": "ceterms:inLanguage",
+      "applies_to": [
+        "label-course-page"
+      ],
+      "properties": {
+        "value": "English"
+      },
+      "description": "Template default when no language is given."
+    },
+    {
+      "entity_type": "Rule",
+      "rule_id": "stub-name",
+      "rule_type": "css+regex",
+      "canonical_label": "Learning Opportunity Name",
+      "ctdl_property": "ceterms:name",
+      "applies_to": [
+        "label-course-on-program-page"
+      ],
+      "properties": {
+        "repeat": "#accordion-program-builder-rules .new-rule",
+        "selector": ".rule-name",
+        "regex": "^\\s*[A-Za-z]+\\s*[A-Za-z]?\\d+[A-Za-z]*\\s+-\\s+(.+?)\\s*$",
+        "group": 1,
+        "transforms": [
+          "strip"
+        ],
+        "repeat_filter": {
+          "selector": ".rule-name",
+          "regex": "^\\s*[A-Za-z]+\\s*[A-Za-z]?\\d+[A-Za-z]*\\s+-\\s+"
+        }
+      },
+      "description": "Course name after the ' - ' in a program requirement line.",
+      "example_input": "\n   AJ101 - Introduction to Administration of Justice\n  ",
+      "example_output": "Introduction to Administration of Justice"
+    },
+    {
+      "entity_type": "Rule",
+      "rule_id": "stub-code",
+      "rule_type": "css+regex",
+      "canonical_label": "Coded Notation",
+      "ctdl_property": "ceterms:codedNotation",
+      "applies_to": [
+        "label-course-on-program-page"
+      ],
+      "properties": {
+        "repeat": "#accordion-program-builder-rules .new-rule",
+        "selector": ".rule-name",
+        "regex": "^\\s*([A-Za-z]+\\s*[A-Za-z]?\\d+[A-Za-z]*)\\s+-\\s+",
+        "group": 1,
+        "transforms": [
+          "strip"
+        ],
+        "repeat_filter": {
+          "selector": ".rule-name",
+          "regex": "^\\s*[A-Za-z]+\\s*[A-Za-z]?\\d+[A-Za-z]*\\s+-\\s+"
+        }
+      },
+      "description": "Course code before the ' - ' in a program requirement line.",
+      "example_input": "\n   AJ101 - Introduction to Administration of Justice\n  ",
+      "example_output": "AJ101"
+    },
+    {
+      "entity_type": "Rule",
+      "rule_id": "stub-external-id",
+      "rule_type": "css+regex",
+      "canonical_label": "External Identifier",
+      "ctdl_property": "ceterms:identifier",
+      "applies_to": [
+        "label-course-on-program-page"
+      ],
+      "properties": {
+        "repeat": "#accordion-program-builder-rules .new-rule",
+        "selector": ".rule-name",
+        "regex": "^\\s*([A-Za-z]+\\s*[A-Za-z]?\\d+[A-Za-z]*)\\s+-\\s+",
+        "group": 1,
+        "transforms": [
+          "strip",
+          "remove_spaces"
+        ],
+        "repeat_filter": {
+          "selector": ".rule-name",
+          "regex": "^\\s*[A-Za-z]+\\s*[A-Za-z]?\\d+[A-Za-z]*\\s+-\\s+"
+        }
+      },
+      "description": "Course code with spaces removed.",
+      "example_input": "AJ 101 - Intro",
+      "example_output": "AJ101"
+    },
+    {
+      "entity_type": "Rule",
+      "rule_id": "stub-credit-value",
+      "rule_type": "css+regex",
+      "canonical_label": "Credit Value",
+      "ctdl_property": "ceterms:creditValue",
+      "applies_to": [
+        "label-course-on-program-page"
+      ],
+      "properties": {
+        "repeat": "#accordion-program-builder-rules .new-rule",
+        "selector": ".rule-credits",
+        "regex": "^\\s*(\\d+(?:\\.\\d+)?)\\s*$",
+        "group": 1,
+        "repeat_filter": {
+          "selector": ".rule-name",
+          "regex": "^\\s*[A-Za-z]+\\s*[A-Za-z]?\\d+[A-Za-z]*\\s+-\\s+"
+        }
+      },
+      "description": "Credits shown beside a program requirement line.",
+      "example_input": " 3 ",
+      "example_output": "3"
+    },
+    {
+      "entity_type": "Rule",
+      "rule_id": "stub-learning-type",
+      "rule_type": "constant",
+      "canonical_label": "Learning Type",
+      "ctdl_property": null,
+      "applies_to": [
+        "label-course-on-program-page"
+      ],
+      "properties": {
+        "repeat": "#accordion-program-builder-rules .new-rule",
+        "value": "Course",
+        "repeat_filter": {
+          "selector": ".rule-name",
+          "regex": "^\\s*[A-Za-z]+\\s*[A-Za-z]?\\d+[A-Za-z]*\\s+-\\s+"
+        }
+      },
+      "description": "Requirement lines name courses."
+    }
+  ]
+}
