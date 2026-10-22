@@ -818,6 +818,7 @@ def test_a_word_in_the_url_slug_is_not_a_program() -> None:
     )
     assert profile.labels == []
 
+
 PLATFORM_FIXTURES = {
     "platform-courseleaf.html": "courseleaf",
     "platform-acalog.html": "acalog",

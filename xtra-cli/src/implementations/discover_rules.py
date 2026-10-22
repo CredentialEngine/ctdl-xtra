@@ -952,8 +952,8 @@ CMS_FULL_VIEW_RE = re.compile(r"\bview-mode-full\b|\bnode--view-mode-full\b")
 # its comment. Each pattern is matched against one source at a time, so a
 # hit is a thing the page has, not a count of how often it repeats.
 #
-# An example on how we can use this finerprint is in cases where we want platform-specific 
-# regex for finding elements on a page. 
+# An example on how we can use this finerprint is in cases where we want platform-specific
+# regex for finding elements on a page.
 # We can create a factory method that takes the platform and returns the regex.
 PLATFORM_COURSELEAF = "courseleaf"
 PLATFORM_ACALOG = "acalog"
