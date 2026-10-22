@@ -46,8 +46,10 @@ WEB_DIST = Path(os.environ.get("REVIEW_UI_WEB_DIST") or PROJECT / "web" / "dist"
 # Pages keep their own stylesheets and inline styles; this only adds a margin and the
 # highlight, with !important so the page's CSS can't override it. A ruleset's
 # ``pane_css`` is appended for platform quirks (e.g. content hidden behind a click).
+# ``display:block`` because some platforms (Acalog) hide ``body`` until their own
+# script runs, and the pane strips scripts.
 _PANE_CSS = """
-body{margin:14px!important;background:#fff!important}
+body{margin:14px!important;background:#fff!important;display:block!important}
 .xtra-hl{outline:3px solid #d97706!important;outline-offset:2px;
 background:rgba(251,191,36,.35)!important}
 """
