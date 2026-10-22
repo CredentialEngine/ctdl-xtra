@@ -1,5 +1,6 @@
 import { z } from "zod";
-import { ProviderModel } from "../../../common/types";
+import { providerForModel } from "../../../common/modelMetadata";
+import { Provider, ProviderModel } from "../../../common/types";
 import { publicProcedure, router } from ".";
 import { createOrUpdate, findSetting } from "../data/settings";
 import { SETTING_DEFAULTS } from "../constants";
@@ -12,6 +13,7 @@ const DetailQuerySchema = z.object({
     "ANTHROPIC_API_KEY",
     "MAX_EXTRACTION_BUDGET",
     "DEFAULT_EXTRACTION_MODEL",
+    "AGENTIC_RECIPE_MODEL",
   ]),
 });
 
@@ -144,6 +146,21 @@ export const settingsRouter = router({
     .mutation(async (opts) => {
       await createOrUpdate({
         key: "DEFAULT_EXTRACTION_MODEL",
+        value: opts.input,
+      });
+    }),
+  setAgenticRecipeModel: publicProcedure
+    .input(
+      z
+        .nativeEnum(ProviderModel)
+        .refine(
+          (model) => providerForModel(model) === Provider.Anthropic,
+          "Agentic recipe configuration uses a Claude model."
+        )
+    )
+    .mutation(async (opts) => {
+      await createOrUpdate({
+        key: "AGENTIC_RECIPE_MODEL",
         value: opts.input,
       });
     }),

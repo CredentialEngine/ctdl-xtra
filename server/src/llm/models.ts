@@ -11,6 +11,9 @@ const NO_TOP_P = new Set<ProviderModel>([
   ProviderModel.Gpt54,
   ProviderModel.Gpt54Mini,
   ProviderModel.Gpt54Nano,
+  ProviderModel.Gpt6Astra,
+  ProviderModel.Gpt61Sol,
+  ProviderModel.Gpt6Luna,
 ]);
 
 export function supportsTopP(model: ProviderModel): boolean {
