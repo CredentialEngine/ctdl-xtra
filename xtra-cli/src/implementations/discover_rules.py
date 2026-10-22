@@ -942,6 +942,147 @@ CMS_NODE_TYPE_RE = re.compile(
 # subject; a teaser is one row of a listing.
 CMS_FULL_VIEW_RE = re.compile(r"\bview-mode-full\b|\bnode--view-mode-full\b")
 
+# --- platform fingerprint ----------------------------------------------------
+#
+# Which catalog product published the page. No crawled catalog prints a
+# <meta name="generator">, so the name is read from what the product cannot
+# help printing: the hosts and paths of its scripts and stylesheets, the ids
+# and classes it stamps on its own furniture, and the credit line some of
+# them print. Every pattern below was taken from a crawled page, named in
+# its comment. Each pattern is matched against one source at a time, so a
+# hit is a thing the page has, not a count of how often it repeats.
+#
+# An example on how we can use this finerprint is in cases where we want platform-specific 
+# regex for finding elements on a page. 
+# We can create a factory method that takes the platform and returns the regex.
+PLATFORM_COURSELEAF = "courseleaf"
+PLATFORM_ACALOG = "acalog"
+PLATFORM_COURSEDOG = "coursedog"
+PLATFORM_ELUMEN = "elumen"
+PLATFORM_CURRIQUNET = "curriqunet"
+PLATFORM_KUALI = "kuali"
+PLATFORM_SMARTCATALOG = "smartcatalog"
+PLATFORM_CLEAN_CATALOG = "clean_catalog"
+PLATFORM_DRUPAL = "drupal"
+PLATFORM_WORDPRESS = "wordpress"
+
+# The order is the tie-break: a platform listed first wins a tie.
+PLATFORM_NAMES = {
+    PLATFORM_COURSELEAF: "CourseLeaf",
+    PLATFORM_ACALOG: "Acalog",
+    PLATFORM_COURSEDOG: "Coursedog",
+    PLATFORM_ELUMEN: "eLumen",
+    PLATFORM_CURRIQUNET: "CurriQunet",
+    PLATFORM_KUALI: "Kuali",
+    PLATFORM_SMARTCATALOG: "SmartCatalog IQ",
+    PLATFORM_CLEAN_CATALOG: "Clean Catalog",
+    PLATFORM_DRUPAL: "Drupal",
+    PLATFORM_WORDPRESS: "WordPress",
+}
+
+# A generic CMS says less than a catalog product built on it: Clean Catalog
+# is a Drupal site, and prints node--type-* on every page, and UCF embeds
+# its Kuali catalog in a WordPress page. A weak platform is named only
+# when no other platform has any evidence.
+PLATFORM_WEAK = frozenset({PLATFORM_DRUPAL, PLATFORM_WORDPRESS})
+
+# What a script's src, a stylesheet's href, or an inline script's text
+# says. Inline text is read because a single-page app names its host there
+# before any content is drawn: eLumen's loadContent('https://api-prod.
+# elumenapp.com/...'). Taken from marshall and wvu (CourseLeaf), ualr
+# (Acalog), hccc (Coursedog), avc (eLumen), bcc and ccsf (CurriQunet).
+# The platforms with no crawl here were read from live catalogs: Kuali from
+# catalog.unm.edu and www.ucf.edu/catalog, SmartCatalog IQ from
+# iq2.smartcatalogiq.com (Linn-Benton), craftonhills.smartcatalogiq.com and
+# cptc.smartcatalogiq.com, WordPress from tillamookbaycc.edu and ucf.edu.
+# A <meta name="generator"> is read the same way, as a source of its own.
+PLATFORM_ASSET_RE = {
+    PLATFORM_COURSELEAF: re.compile(
+        r"/js/courseleaf\.js|/css/courseleaf\.css|/js/lfjs(?:_any)?\.js",
+        re.IGNORECASE,
+    ),
+    PLATFORM_ACALOG: re.compile(
+        r"acalog-clients\.s3\.amazonaws\.com|/gateway-javascript\.js"
+        r"|/gateway-styles\.css",
+        re.IGNORECASE,
+    ),
+    PLATFORM_COURSEDOG: re.compile(
+        r"static\.catalog\.prod\.coursedog\.com|coursedog-images-public",
+        re.IGNORECASE,
+    ),
+    PLATFORM_ELUMEN: re.compile(
+        r"elumencatalog\.s3[a-z0-9.-]*\.amazonaws\.com|elumenapp\.com",
+        re.IGNORECASE,
+    ),
+    PLATFORM_CURRIQUNET: re.compile(
+        r"/bundles/curriqunet|curriqunet\.com|curricunet\.com",
+        re.IGNORECASE,
+    ),
+    PLATFORM_KUALI: re.compile(r"\b[a-z0-9-]+\.kuali\.co\b", re.IGNORECASE),
+    PLATFORM_SMARTCATALOG: re.compile(
+        r"smartcatalogiq\.com|/Institutions/[^/]+/(?:styles|scripts)/"
+        r"|/scripts/(?:treeListCDN|coursepopup|insertHeaderFooter)\.js",
+        re.IGNORECASE,
+    ),
+    PLATFORM_DRUPAL: re.compile(
+        r"/core/misc/drupal\.js|/sites/default/files/|\bdrupalSettings\b"
+        r"|^Drupal\b",
+        re.IGNORECASE,
+    ),
+    PLATFORM_WORDPRESS: re.compile(
+        r"/wp-content/|/wp-includes/|api\.w\.org|^WordPress\b",
+        re.IGNORECASE,
+    ),
+}
+
+# What an element's own name says: its tag, one class word, its id, or the
+# name of one of its attributes, matched a token at a time. CourseLeaf's
+# id="textcontainer" is on 912 of Marshall's 914 pages, and Acalog's body
+# class "acalog-catalog-home" and Coursedog's "coursedog-only-fields" are
+# the platforms naming their own parts.
+PLATFORM_MARKUP_RE = {
+    PLATFORM_COURSELEAF: re.compile(
+        r"^(?:textcontainer|sc_courselist|sc_plangrid)$", re.IGNORECASE
+    ),
+    PLATFORM_ACALOG: re.compile(r"^acalog-|^gateway-toolbar", re.IGNORECASE),
+    PLATFORM_COURSEDOG: re.compile(r"^coursedog-", re.IGNORECASE),
+    PLATFORM_ELUMEN: re.compile(r"^(?:app-public|public-view)$", re.IGNORECASE),
+    PLATFORM_CURRIQUNET: re.compile(
+        r"^(?:data-paneltypeid|data-iq-container|multipane-list"
+        r"|curriculum-presentation-item-wrapper)$",
+        re.IGNORECASE,
+    ),
+    PLATFORM_KUALI: re.compile(r"^kuali-catalog$", re.IGNORECASE),
+    PLATFORM_SMARTCATALOG: re.compile(
+        r"^(?:scHeaderPlaceholder|scFooterPlaceholder|catalogBaseUrl"
+        r"|currentCatalogID|catalogJsonPath|sc-top-links|sc-rightpanel-top"
+        r"|sc-childlinks|sc-parentlink)$",
+        re.IGNORECASE,
+    ),
+    PLATFORM_DRUPAL: re.compile(
+        r"^node--type-|^field--name-|^data-drupal-", re.IGNORECASE
+    ),
+    PLATFORM_WORDPRESS: re.compile(
+        r"^wp-(?:singular|theme-|child-theme-)", re.IGNORECASE
+    ),
+}
+
+# What the page prints: its <title> or any line of its text. CurriQunet
+# titles every page "View - CurriQunet META"; Clean Catalog credits itself
+# in the footer.
+PLATFORM_TEXT_RE = {
+    PLATFORM_CURRIQUNET: re.compile(r"CurriQunet META", re.IGNORECASE),
+    PLATFORM_SMARTCATALOG: re.compile(
+        r"Powered by SmartCatalog IQ", re.IGNORECASE
+    ),
+    PLATFORM_CLEAN_CATALOG: re.compile(
+        r"Course Catalog Software by Clean Catalog", re.IGNORECASE
+    ),
+}
+
+# How many quotes a page keeps to show why it was named.
+PLATFORM_EVIDENCE_LIMIT = 3
+
 # --- printed fields ----------------------------------------------------------
 #
 # How a catalog platform marks up a label and the value beside it. Every

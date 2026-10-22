@@ -817,3 +817,40 @@ def test_a_word_in_the_url_slug_is_not_a_program() -> None:
         url="https://catalog.example.edu/2026-2027-catalog/honors-program",
     )
     assert profile.labels == []
+
+PLATFORM_FIXTURES = {
+    "platform-courseleaf.html": "courseleaf",
+    "platform-acalog.html": "acalog",
+    "platform-coursedog.html": "coursedog",
+    "platform-elumen.html": "elumen",
+    "platform-curriqunet.html": "curriqunet",
+    "platform-kuali.html": "kuali",
+    "platform-smartcatalog.html": "smartcatalog",
+    "platform-wordpress.html": "wordpress",
+    "course-clean-catalog.html": "clean_catalog",
+    "program-award-badge.html": "clean_catalog",
+}
+
+
+@pytest.mark.parametrize("name", sorted(PLATFORM_FIXTURES))
+def test_a_page_profile_names_the_platform_that_published_it(
+    fixture_html_dir: Path, name: str
+) -> None:
+    profile = profile_fixture(fixture_html_dir, name)
+    assert profile.platform == PLATFORM_FIXTURES[name]
+    assert profile.platform_evidence
+    assert profile.as_dict()["platform"] == PLATFORM_FIXTURES[name]
+
+
+def test_a_page_with_no_platform_markup_has_an_empty_platform(
+    fixture_html_dir: Path,
+) -> None:
+    profile = profile_fixture(fixture_html_dir, "course-single.html")
+    assert profile.platform == ""
+    assert profile.platform_evidence == []
+
+
+def test_the_platform_is_not_a_marker(fixture_html_dir: Path) -> None:
+    """Every marker joins the pattern signature; a platform must not."""
+    profile = profile_fixture(fixture_html_dir, "platform-courseleaf.html")
+    assert not [name for name in profile.markers if "platform" in name]
