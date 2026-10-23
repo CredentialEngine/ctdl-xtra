@@ -190,6 +190,14 @@ class Markup:
     tabs_evidence: str = ""
     outcomes_evidence: str = ""
     content_text: str = ""
+    # Everything the main container prints, its own sidebars included, and
+    # empty when the page has no main container. content_text drops an
+    # <aside> inside <main> as furniture; this keeps it, because Arapahoe
+    # prints a course's credits there. What it is for is the opposite
+    # question: which codes the page prints only outside its container.
+    # eLumen prints its whole catalog menu, every course in it, beside
+    # <main> on every page.
+    main_text: str = ""
     content_headings: list[str] = field(default_factory=list)
     list_items: list[str] = field(default_factory=list)
     course_blocks: list[CourseBlock] = field(default_factory=list)
@@ -313,6 +321,8 @@ class _Reader:
         self.main = main
         self.markup = Markup()
         self._parts: list[str] = []
+        # The same walk, chrome and all: Markup.main_text.
+        self._main_parts: list[str] = []
         self._content_h1s: list[str] = []
         self._main_h1s: list[str] = []
 
@@ -325,25 +335,33 @@ class _Reader:
         self._walk(root, in_chrome=False)
         markup = self.markup
         markup.content_text = _lines("".join(self._parts))
+        if self.main is not None:
+            markup.main_text = _lines("".join(self._main_parts))
         markup.h1 = (self._main_h1s or self._content_h1s or [""])[0]
         return markup
 
     def _walk(self, node: Tag, *, in_chrome: bool) -> None:
         for child in node.children:
             if type(child) is NavigableString:
+                text = WHITESPACE_RE.sub(" ", str(child))
+                self._main_parts.append(text)
                 if not in_chrome:
-                    self._parts.append(WHITESPACE_RE.sub(" ", str(child)))
+                    self._parts.append(text)
                 continue
             if not isinstance(child, Tag) or child.name in _SKIP_TAGS:
                 continue
             chrome = in_chrome or is_chrome(child)
             self._note_tabs(child)
             breaks = child.name in _CONTENT_BREAK_TAGS
-            if breaks and not chrome:
-                self._parts.append("\n")
+            if breaks:
+                self._main_parts.append("\n")
+                if not chrome:
+                    self._parts.append("\n")
             self._walk(child, in_chrome=chrome)
-            if breaks and not chrome:
-                self._parts.append("\n")
+            if breaks:
+                self._main_parts.append("\n")
+                if not chrome:
+                    self._parts.append("\n")
             self._close(child, chrome=chrome)
 
     def _close(self, tag: Tag, *, chrome: bool) -> None:
@@ -566,7 +584,7 @@ class FieldPair:
     path: str = ""
 
 
-def _element_path(tag: Tag) -> str:
+def element_path(tag: Tag) -> str:
     """A short path to the element, so a reviewer can find the value."""
     parts: list[str] = []
     node: Tag | None = tag
@@ -635,7 +653,7 @@ def read_field_pairs(soup: BeautifulSoup) -> list[FieldPair]:
             value = element_text(wrapper)
             if value:
                 seen.add(id(wrapper))
-                pairs.append(FieldPair("", value, key, _element_path(wrapper)))
+                pairs.append(FieldPair("", value, key, element_path(wrapper)))
             continue
         if value_tag is None:
             continue
@@ -643,7 +661,7 @@ def read_field_pairs(soup: BeautifulSoup) -> list[FieldPair]:
         label = element_text(label_tag) if label_tag is not None else ""
         value = element_text(value_tag)
         if label or key:
-            pairs.append(FieldPair(label, value, key, _element_path(value_tag)))
+            pairs.append(FieldPair(label, value, key, element_path(value_tag)))
     for term in soup.find_all("dt"):
         value = term.find_next_sibling("dd")
         if isinstance(value, Tag):
@@ -651,7 +669,7 @@ def read_field_pairs(soup: BeautifulSoup) -> list[FieldPair]:
                 FieldPair(
                     element_text(term),
                     element_text(value),
-                    path=_element_path(value),
+                    path=element_path(value),
                 )
             )
     for row in soup.find_all("tr"):
@@ -661,7 +679,7 @@ def read_field_pairs(soup: BeautifulSoup) -> list[FieldPair]:
                 FieldPair(
                     element_text(cells[0]),
                     element_text(cells[1]),
-                    path=_element_path(cells[1]),
+                    path=element_path(cells[1]),
                 )
             )
     pairs.extend(_detail_pairs(soup))
@@ -704,7 +722,7 @@ def _detail_pairs(soup: BeautifulSoup) -> list[FieldPair]:
                 label,
                 value,
                 names[0].replace("-", " ").replace("_", " "),
-                _element_path(tag),
+                element_path(tag),
             )
         )
     return pairs

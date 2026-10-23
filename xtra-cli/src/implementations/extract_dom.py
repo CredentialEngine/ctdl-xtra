@@ -14,6 +14,13 @@ the code, the name and the credits together, and the rest of the web
 writes a definition list or a table row. None of that needs to know which
 college it is looking at.
 
+eLumen marks up none of that. It prints a course as a heading group - the
+name, a heading that is nothing but the code, the units on a line of their
+own - and its hours as a heading over a number. Both shapes are read here
+too, still without knowing the college: before they were, every eLumen
+course was named after the catalog's hidden banner, "2026-2027 Catalog",
+and carried no code and no units.
+
 It is also the only way the three entities beside Course get extracted at
 all. Discovery labels credential, learning-opportunity and competency
 pages, and until now nothing downstream could read one: the templates are
@@ -31,10 +38,15 @@ from __future__ import annotations
 
 from typing import Any
 
+from bs4 import NavigableString, Tag
+
 from implementations.discover_dom import (
     FieldPair,
     Markup,
+    element_path,
     element_text,
+    find_main,
+    is_chrome,
     parse,
     read_field_pairs,
 )
@@ -45,11 +57,16 @@ from implementations.discover_page import (
     parse_structure,
 )
 from implementations.discover_rules import (
+    COURSE_BLOCK_CREDITS_RE,
     COURSE_BLOCK_DESC_CLASS_RE,
     COURSE_BLOCK_TITLE_CLASS_RE,
+    COURSE_CODE_RE,
     COURSE_FIELD_LABELS,
+    COURSE_HEADING_REACH,
     ENTITY_TYPE_OF_LABEL,
+    HEADING_GROUP_TAGS,
     NUMERIC_FIELDS,
+    SECTION_HEADING_CHARS,
     collapse,
     normalize_field_label,
     split_course_title,
@@ -229,6 +246,116 @@ def _class_named(tag: Any, pattern: Any) -> bool:
     return bool(classes) and bool(pattern.search(classes))
 
 
+_HEADINGS = ("h1", "h2", "h3", "h4", "h5", "h6")
+
+
+def _content_headings(soup: Any) -> list[Any]:
+    """The page's own headings: inside its main container, never a menu's."""
+    root = find_main(soup) or soup.body or soup
+    return [
+        heading
+        for heading in root.find_all(_HEADINGS)
+        if not any(is_chrome(parent) for parent in heading.parents)
+    ]
+
+
+def _bare_code(text: str) -> str:
+    """The code, when a heading holds nothing else: "ELEC 150:"."""
+    code = text.rstrip(" :.")
+    return code if COURSE_CODE_RE.fullmatch(code) else ""
+
+
+def _first_printed(nodes: Any) -> tuple[str, Any] | None:
+    """The first of these siblings that prints anything, and its element."""
+    for node in nodes:
+        if isinstance(node, Tag):
+            text = element_text(node)
+            if text:
+                return text, node
+        elif type(node) is NavigableString:
+            text = collapse(str(node))
+            if text:
+                return text, node.parent
+    return None
+
+
+def _from_course_heading(soup: Any) -> dict[str, tuple[Any, str, str]]:
+    """The code, name and units eLumen prints as its heading group.
+
+    `<header><h2>Electrical Maintenance</h2><h3>ELEC 150:</h3><p>4.0
+    Units</p></header>` at Antelope Valley and Cabrillo; Bakersfield's
+    theme prints the name in a <p> and the code in the h1, and the units
+    two wrappers below. None of the three is labelled, so the code is the
+    heading that is nothing but a code, the name is what the group prints
+    beside it, and the units are the first line after it that is nothing
+    but units.
+    """
+    found: dict[str, tuple[Any, str, str]] = {}
+    heading = next(
+        (
+            tag
+            for tag in _content_headings(soup)
+            if _bare_code(element_text(tag))
+        ),
+        None,
+    )
+    if heading is None:
+        return found
+    line = element_text(heading)
+    found["course_id"] = (_bare_code(line), line, element_path(heading))
+    beside = (
+        _first_printed(heading.previous_siblings)
+        if heading.parent is not None
+        and heading.parent.name in HEADING_GROUP_TAGS
+        else None
+    )
+    if beside is not None:
+        name, holder = beside
+        # A code beside the code is another course, and a paragraph is the
+        # description; neither is the name.
+        too_long = len(name) > SECTION_HEADING_CHARS
+        if not too_long and not COURSE_CODE_RE.search(name):
+            found["course_name"] = (name, name, element_path(holder))
+    for tag in heading.find_all_next(True, limit=COURSE_HEADING_REACH):
+        text = element_text(tag)
+        units = COURSE_BLOCK_CREDITS_RE.fullmatch(text)
+        if units is not None:
+            credits = units.group("credits")
+            if units.group("maximum"):
+                credits = f"{credits}-{units.group('maximum')}"
+            found["course_credits"] = (
+                _number(credits),
+                text,
+                element_path(tag),
+            )
+            break
+    return found
+
+
+def _from_heading_labels(soup: Any) -> dict[str, tuple[Any, str, str]]:
+    """A number printed under a heading that names it.
+
+    eLumen prints "Total Course Lecture Hours" as an <h5> and "54.0" in the
+    element after it; SmartCatalog prints <h3>Credits</h3> over "3". Only
+    the numeric fields are read this way, and only when the value is a
+    number: Coursedog prints "Credit Hours" over the word "Min", and a
+    heading over a text field is as often a section over a whole page.
+    """
+    found: dict[str, tuple[Any, str, str]] = {}
+    for heading in _content_headings(soup):
+        label = canonical_field(FieldPair(element_text(heading), ""))
+        if label not in NUMERIC_FIELDS or label in found:
+            continue
+        beside = _first_printed(heading.next_siblings)
+        if beside is None:
+            continue
+        printed, holder = beside
+        value = _number(printed)
+        if isinstance(value, (int, float)):
+            found[label] = (value, printed, element_path(holder))
+    return found
+
+
 def _page_fields(
     entity_type: str, markup: Markup
 ) -> dict[str, tuple[Any, str, str]]:
@@ -237,7 +364,7 @@ def _page_fields(
     name = page_name(markup)
     if name and entity_type in NAME_FIELD:
         found[NAME_FIELD[entity_type]] = (name, name, "h1")
-    intro = first_paragraph(markup.content_text)
+    intro = first_paragraph(markup.content_text, limit=None)
     if intro and entity_type in DESCRIPTION_FIELD:
         found[DESCRIPTION_FIELD[entity_type]] = (intro, intro, "main > p")
     return found
@@ -256,14 +383,17 @@ def extract_fields(entity_type: str, html: str) -> list[Any]:
 
     # Strongest source first, and each one fills only what the one before
     # it left empty. A field the page labelled says what it is; the course
-    # block is what CourseLeaf gives instead of labelled fields; the page
-    # itself is the last resort, because the h1 of a CourseLeaf subject
-    # page is the subject's name, not the course's.
+    # block is what CourseLeaf gives instead of labelled fields, and the
+    # heading group what eLumen gives; the page itself is the last resort,
+    # because the h1 of a CourseLeaf subject page is the subject's name,
+    # not the course's, and eLumen's is the catalog's.
     sources: list[dict[str, tuple[Any, str, str]]] = []
     if entity_type == ENTITY_COURSE:
         sources = [
             _from_field_pairs(read_field_pairs(soup)),
             _from_course_block(soup),
+            _from_course_heading(soup),
+            _from_heading_labels(soup),
         ]
     sources.append(_page_fields(entity_type, markup))
     found: dict[str, tuple[Any, str, str]] = {}

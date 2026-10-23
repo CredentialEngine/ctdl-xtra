@@ -24,6 +24,7 @@ from implementations.discover_rules import (
     course_block_count,
     course_codes,
     credential_award,
+    described_course_codes,
     distinct_awards,
     evidence,
     has_program_structure,
@@ -31,6 +32,7 @@ from implementations.discover_rules import (
     is_contact_line,
     is_outcome_statement,
     is_outcomes_lead_in,
+    line_opening_codes,
     names_a_listing,
     names_an_organization_or_policy,
     normalize_course_code,
@@ -235,6 +237,67 @@ def test_one_course_printed_twice_is_still_one_block() -> None:
     assert course_block_count(breadcrumb_then_heading) == 1
     assert course_block_count("ENGL 101\nCredits 3\nENGL101\nCredits 3") == 1
     assert course_block_count("ENGL 101\nCredits 3\nENGL 102\nCredits 3") == 2
+
+
+def test_a_code_after_a_label_or_in_a_sentence_is_a_reference() -> None:
+    """eLumen prints "Minimum Credit Units" under every description.
+
+    Every code in the description then has a value within reach, so at
+    Antelope Valley the prerequisite, the course's old number and its
+    C-ID each read as one more course on the page, and extraction skipped
+    the page as holding four. A course the page describes is printed as a
+    title, its code opening the line; the rest are references to others.
+    """
+    page = (
+        "Basic Auto Body Repair\nABDY 112:\n5.0 Units\n"
+        "Prerequisite: Completion of AM 135A.\n"
+        "Formerly ENGL 103\n"
+        "(C-ID: ENGL 105) (UC, CSU, AVC)\n"
+        "Minimum Credit Units\n5.0"
+    )
+    described, titled = described_course_codes(page)
+    assert described == {"ABDY112", "AM135A", "ENGL103", "ENGL105"}
+    assert titled == {"ABDY112"}
+    assert course_block_count(page) == 1
+
+
+def test_a_page_that_titles_no_course_is_counted_as_before() -> None:
+    """Front Range prints a long description between title and credits.
+
+    The course's own code is too far from its credits to count, and only
+    the code a sentence cites is near them. Counting titles alone there
+    would count nothing, and the course page would lose its course.
+    """
+    page = (
+        "AIR 2002 Development of Air Power II\n"
+        + "Covers the doctrine of air power. " * 15
+        + "\nThis is a continuation of AIR 2001.\nCredits\n1"
+    )
+    described, titled = described_course_codes(page)
+    assert (described, titled) == ({"AIR2001"}, set())
+    assert course_block_count(page) == 1
+
+
+def test_a_code_titled_only_in_the_menu_is_not_titled_on_the_page() -> None:
+    """`titles` is the codes the page's own text prints as titles.
+
+    eLumen's menu lists CHEM 110 on a line of its own, just above a
+    certificate whose name ends "(12 Unit)". A biology course whose
+    prerequisite is CHEM 110 titled two courses on the flattened page.
+    """
+    page = (
+        "CHEM 110 - General Chemistry\n"
+        "Child and Family Education Associate Teacher Certificate (12 Unit)\n"
+        "General Biology\nBIOL 110:\n4.0 Units\n"
+        "Prerequisite: Completion of CHEM 110.\n"
+    )
+    assert course_block_count(page) == 2
+    assert course_block_count(page, titles={"BIOL110"}) == 1
+
+
+def test_only_a_code_that_opens_a_line_is_a_title() -> None:
+    text = "ABDY 112:\nPrerequisite: AM 135A\n  ENGL-101 Composition"
+    assert line_opening_codes(text) == {"ABDY112", "ENGL101"}
 
 
 def test_the_same_code_spelled_three_ways_is_one_course() -> None:
