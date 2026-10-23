@@ -186,6 +186,157 @@ def test_every_field_says_where_it_came_from() -> None:
         assert draft.excerpt
 
 
+# --- eLumen: a heading group instead of labelled fields -----------------------
+
+
+ELUMEN = PAGE.format(
+    title="ELEC 150 - Electrical Maintenance",
+    body="""
+<div id="nav"><a href="/course/elec110">ELEC 110 - Basic Electricity</a></div>
+<main id="landmark-main" role="main">
+  <h1 class="u-visuallyhidden">2026-27 Catalog</h1>
+  <div id="mainContent">
+    <header class="header l-body">
+      <h2>Electrical Maintenance</h2>
+      <h3>ELEC 150:</h3>
+      <p class="header-x-meta">4.0 Units</p>
+    </header>
+    <div class="l-body">
+      <div class="introtext l-introtext"><p>Prerequisite: Completion of or
+      concurrent enrollment in ELEC 110. Students will progress from basic
+      electrical theory to the maintenance of industrial systems.</p></div>
+      <h4>Units and Hours</h4>
+      <h5>Minimum Credit Units</h5><div class="text"><p>4.0</p></div>
+      <h5>Total Course Lecture Hours</h5><div class="text">54.0</div>
+      <h5>Total Course Lab Hours</h5><div class="text">54.0</div>
+    </div>
+  </div>
+</main>""",
+)
+
+# Bakersfield's theme: the name in a <p>, the code in the h1, the units two
+# wrappers below, and its hours as an h3 over a <p>.
+ELUMEN_BAKERSFIELD = PAGE.format(
+    title="FIRE B71A - Seasonal Firefighter Basic Training 1",
+    body="""
+<main role="main">
+  <h1 class="u-visuallyhidden">2026 - 2027 Catalog</h1>
+  <div id="mainContent"><div class="l-body">
+    <header class="header-course l-body">
+      <p class="header-course-name">Seasonal Firefighter Basic Training 1</p>
+      <h1>FIRE B71A</h1>
+    </header>
+    <div><div class="units"><p><strong>2.0 UNITS</strong></p></div>
+      <div class="print-icon-container"><a href="#">Print</a></div></div>
+    <div class="text-format"><p id="description">All of the federal fire
+      agencies recognize this course as the foundation of all later
+      wildland fire training, and it covers the NWCG L180 material.</p></div>
+    <h3 class="introtext course-label">Total Lecture Hours:</h3>
+    <p class="course-content">27.0</p>
+    <h3 class="introtext course-label">Total Lab Hours:</h3>
+    <p class="course-content">27.0</p>
+  </div></div>
+</main>""",
+)
+
+
+def test_an_elumen_course_is_read_from_its_heading_group() -> None:
+    """eLumen labels none of a course's code, name or units.
+
+    Read as a page, every eLumen course was named after the catalog's
+    hidden banner h1, "2026-27 Catalog", and carried its description and
+    nothing else: no code, no units, no hours.
+    """
+    found = values(extract_fields(ENTITY_COURSE, ELUMEN))
+    assert found["course_id"] == "ELEC 150"
+    assert found["course_name"] == "Electrical Maintenance"
+    assert found["course_credits"] == 4.0
+    assert found["course_lecture_hours"] == 54.0
+    assert found["course_lab_hours"] == 54.0
+    assert found["course_description"].startswith("Prerequisite: Completion")
+
+
+def test_the_other_elumen_theme_prints_the_code_in_the_h1() -> None:
+    found = values(extract_fields(ENTITY_COURSE, ELUMEN_BAKERSFIELD))
+    assert found["course_id"] == "FIRE B71A"
+    assert found["course_name"] == "Seasonal Firefighter Basic Training 1"
+    assert found["course_credits"] == 2.0
+    assert found["course_lecture_hours"] == 27.0
+    assert found["course_lab_hours"] == 27.0
+
+
+def test_a_variable_unit_course_keeps_its_range() -> None:
+    """Cabrillo prints "1.0 - 4.0 Units", written the way CourseLeaf's is."""
+    page = PAGE.format(
+        title="COMM 80SB - Special Studies II",
+        body=(
+            "<main><header class='header'><h2>Special Studies II</h2>"
+            "<h3>COMM 80SB:</h3><p class='header-x-meta'>1.0 - 4.0 Units</p>"
+            "</header><p>Independent study in communication studies under "
+            "the direction of a faculty member.</p></main>"
+        ),
+    )
+    assert values(extract_fields(ENTITY_COURSE, page))["course_credits"] == (
+        "1.0-4.0"
+    )
+
+
+def test_a_code_heading_outside_a_heading_group_names_no_course(
+    fixture_html_dir: Path,
+) -> None:
+    """Clean Catalog prints its vendor credit just above <h1>ENGL101:</h1>.
+
+    Only what a heading group prints beside the code is the course's name;
+    anything else beside a bare code is whatever the page put there.
+    """
+    html = (fixture_html_dir / "course-clean-catalog.html").read_text(
+        encoding="utf-8"
+    )
+    found = values(extract_fields(ENTITY_COURSE, html))
+    assert found["course_id"] == "ENGL101"
+    assert found["course_name"] != "Course Catalog Software by Clean Catalog"
+
+
+def test_a_heading_over_a_word_is_not_a_number(fixture_html_dir: Path) -> None:
+    """Coursedog prints "Credit Hours" over "Min", then the number."""
+    html = (fixture_html_dir / "course-coursedog-brookdale.html").read_text(
+        encoding="utf-8"
+    )
+    found = values(extract_fields(ENTITY_COURSE, html))
+    assert found.get("course_credits") != "Min"
+
+
+def test_a_credits_heading_over_its_value_is_read() -> None:
+    """SmartCatalog prints <h3>Credits</h3> over the number, unlabelled."""
+    page = PAGE.format(
+        title="AIR 2002 Development of Air Power II",
+        body=(
+            "<div id='main'><h1>AIR 2002 Development of Air Power II</h1>"
+            "<div class='desc'><p>A continuation of AIR 2001, on the "
+            "doctrine and the history of air power.</p></div>"
+            "<div class='sc_credits'><h3>Credits</h3>"
+            "<div class='credits'>1</div></div></div>"
+        ),
+    )
+    assert values(extract_fields(ENTITY_COURSE, page))["course_credits"] == 1
+
+
+def test_a_description_is_not_cut_at_six_hundred_characters() -> None:
+    """Cut at the length the award rules read, every Cabrillo course
+    description stopped mid-sentence."""
+    description = "Covers cost terminology and cost behavior. " * 20
+    page = PAGE.format(
+        title="ACCT 1B - Managerial Accounting",
+        body=(
+            "<main><header class='header'><h2>Managerial Accounting</h2>"
+            "<h3>ACCT 1B:</h3><p class='header-x-meta'>4.0 Units</p>"
+            f"</header><p>{description}</p></main>"
+        ),
+    )
+    found = values(extract_fields(ENTITY_COURSE, page))
+    assert found["course_description"] == description.strip()
+
+
 # --- the entities the templates never could read ------------------------------
 
 

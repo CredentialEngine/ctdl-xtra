@@ -144,6 +144,49 @@ def test_an_unclosed_tag_in_the_menu_does_not_swallow_the_page() -> None:
     assert "Degrees" not in markup.content_text
 
 
+def test_main_text_keeps_the_pages_own_aside_not_the_sites_menu() -> None:
+    """Two readings of one container, for two different questions.
+
+    content_text drops an <aside> inside <main> as furniture. Arapahoe
+    prints a course's code and credits there, so main_text keeps it: it
+    is what the page prints, as against the catalog menu eLumen prints
+    beside <main> on every page.
+    """
+    markup = read_markup(
+        page(
+            "<div id='nav'><a>CHEM 110 - General Chemistry</a></div>"
+            "<main><h1>Payroll Accounting</h1>"
+            "<aside class='course-full__aside'><p>ACC 115</p>"
+            "<p>Credits 3</p></aside></main>"
+        )
+    )
+    assert "ACC 115" not in markup.content_text
+    assert markup.main_text.splitlines() == [
+        "Payroll Accounting",
+        "ACC 115",
+        "Credits 3",
+    ]
+
+
+def test_a_page_without_a_main_container_has_no_main_text() -> None:
+    """Nothing tells the page from the site there, so nothing is the site."""
+    markup = read_markup(page("<div><p>ENGL 101 Composition I</p></div>"))
+    assert markup.main_text == ""
+
+
+def test_main_text_keeps_a_code_split_across_two_strings_whole() -> None:
+    """CurriQunet prints "APP-" and "450" as two strings.
+
+    Read with a space between every pair, as `get_text(" ")` reads them,
+    the code becomes "APP- 450", which is no course code, and the page's
+    own course would look printed outside its container.
+    """
+    markup = read_markup(
+        page("<main><h2><span>APP-</span><span>450</span></h2></main>")
+    )
+    assert markup.main_text == "APP-450"
+
+
 def test_an_element_reads_the_way_the_content_lines_read() -> None:
     """One stray space and a list item no longer matches its own line.
 

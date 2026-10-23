@@ -1002,6 +1002,17 @@ COURSE_BLOCK_CREDITS_RE = re.compile(
 )
 # What separates the code, the name and the credits on that one line.
 COURSE_TITLE_SPLIT_RE = re.compile(r"\s*[.:–-]\s+|\s*\.\s*")
+# eLumen labels none of a course's code, name or units. It groups them in
+# a <header>: the name, a heading that is nothing but the code ("ELEC
+# 150:"), and the units on a line of their own ("4.0 Units"). Bakersfield's
+# theme puts the code in the h1 and the name above it. The name is read
+# only from inside such a group, because a bare code heading elsewhere has
+# no name beside it: Clean Catalog prints "Course Catalog Software by Clean
+# Catalog" just above its <h1>ENGL101:</h1>.
+HEADING_GROUP_TAGS = frozenset({"header", "hgroup"})
+# How many elements after the code heading the units line may be. Antelope
+# Valley prints it next; Bakersfield two wrappers further down.
+COURSE_HEADING_REACH = 8
 
 # What a printed label means, as one canonical field name per label. The
 # keys are what normalize_field_label returns, so "Credit Hour(s):" and
@@ -1039,6 +1050,14 @@ COURSE_FIELD_LABELS = {
     "laboratory hours": "course_lab_hours",
     "lab/clinical/field study": "course_lab_hours",
     "lab/clinical/field study hours": "course_lab_hours",
+    # eLumen prints the hours for the whole term, as a heading over the
+    # value: "Total Course Lecture Hours" 54.0 at Antelope Valley, "Total
+    # Lecture Hours:" 27.0 at Bakersfield. The labels above usually carry
+    # weekly hours; each is what the page prints under that name.
+    "total course lecture hours": "course_lecture_hours",
+    "total lecture hours": "course_lecture_hours",
+    "total course lab hours": "course_lab_hours",
+    "total lab hours": "course_lab_hours",
     "program": "course_program",
     "department": "course_department",
     "school": "course_school",
@@ -1799,8 +1818,26 @@ def normalize_course_code(code: str) -> str:
     return _CODE_SPACING_RE.sub("", code).upper()
 
 
-def course_block_count(text: str, ignore: set[str] | None = None) -> int:
+def course_block_count(
+    text: str,
+    ignore: set[str] | None = None,
+    titles: set[str] | None = None,
+) -> int:
     """How many distinct courses the page describes.
+
+    The courses described_course_codes finds, counting only the ones the
+    page prints as titles when it titles any.
+    """
+    described, titled = described_course_codes(text, ignore, titles)
+    return len(titled or described)
+
+
+def described_course_codes(
+    text: str,
+    ignore: set[str] | None = None,
+    titles: set[str] | None = None,
+) -> tuple[set[str], set[str]]:
+    """The courses the page describes, and the ones it prints as titles.
 
     A code on its own is a cross-reference; a code with a credits, units,
     or hours value near it is the course being described. The same code
@@ -1809,12 +1846,34 @@ def course_block_count(text: str, ignore: set[str] | None = None) -> int:
     site look like a page holding two, which marked it multi_course_page
     and made extraction skip it.
 
+    A course is titled when its code opens its line, the way a catalog
+    prints the course a block describes: "ABDY 112:" over "5.0 Units". A
+    code after a label or inside a sentence is a cross-reference, however
+    close a credits field sits below it. eLumen prints "Minimum Credit
+    Units" under every description, so at Antelope Valley "Prerequisite:
+    Completion of AM 135A.", "Formerly ENGL 103" and "(C-ID: ENGL 105)"
+    each read as a second course on the page, and extraction skipped the
+    course page as multi_course_page. Once a page titles any course, only
+    the titled ones count.
+
+    A page that titles none is counted as before, cross-references and
+    all. Front Range prints a long description between a course's title
+    and its credits, so the course's own code is never near them and only
+    a code a sentence cites is: counting nothing there loses the course.
+
     `ignore` is the codes the markup shows to be references, which are
     never descriptions however they read once flattened. A transfer
     equivalency table prints a code, a title and a credit count per row,
     so on the text alone every row is a course being described.
+
+    `titles` is the codes that open a line of the page's own text, when
+    that is known. The flattened text holds the site's menus too, and a
+    menu prints its courses one per line: CHEM 110 opens a line in
+    eLumen's menu, so without this a biology course whose prerequisite is
+    CHEM 110 titled two courses and was skipped.
     """
     described: set[str] = set()
+    titled: set[str] = set()
     for match in COURSE_CODE_RE.finditer(text):
         start = match.end()
         window = text[start : start + COURSE_BLOCK_WINDOW]
@@ -1823,9 +1882,31 @@ def course_block_count(text: str, ignore: set[str] | None = None) -> int:
         # prints its own credits as a field further down.
         for hit in CREDIT_VALUE_RE.finditer(window):
             if on_a_field_line(text, start + hit.start()):
-                described.add(normalize_course_code(match.group(0)))
+                code = normalize_course_code(match.group(0))
+                described.add(code)
+                if opens_its_line(text, match.start()) and (
+                    titles is None or code in titles
+                ):
+                    titled.add(code)
                 break
-    return len(described - (ignore or set()))
+    ignored = ignore or set()
+    return described - ignored, titled - ignored
+
+
+def line_opening_codes(text: str) -> set[str]:
+    """The course codes that open a line of this text, normalized."""
+    codes: set[str] = set()
+    for line in text.splitlines():
+        match = COURSE_CODE_RE.match(line.lstrip())
+        if match is not None:
+            codes.add(normalize_course_code(match.group(0)))
+    return codes
+
+
+def opens_its_line(text: str, position: int) -> bool:
+    """True when nothing but space comes before this position on its line."""
+    start = text.rfind("\n", 0, position) + 1
+    return not text[start:position].strip()
 
 
 def on_a_field_line(text: str, position: int) -> bool:
