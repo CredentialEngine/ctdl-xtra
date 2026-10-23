@@ -820,14 +820,14 @@ def test_a_word_in_the_url_slug_is_not_a_program() -> None:
 
 
 PLATFORM_FIXTURES = {
-    "platform-courseleaf.html": "courseleaf",
-    "platform-acalog.html": "acalog",
-    "platform-coursedog.html": "coursedog",
-    "platform-elumen.html": "elumen",
-    "platform-curriqunet.html": "curriqunet",
-    "platform-kuali.html": "kuali",
-    "platform-smartcatalog.html": "smartcatalog",
-    "platform-wordpress.html": "wordpress",
+    "discover/platform-courseleaf.html": "courseleaf",
+    "discover/platform-acalog.html": "acalog",
+    "discover/platform-coursedog.html": "coursedog",
+    "discover/platform-elumen.html": "elumen",
+    "discover/platform-curriqunet.html": "curriqunet",
+    "discover/platform-kuali.html": "kuali",
+    "discover/platform-smartcatalog.html": "smartcatalog",
+    "discover/platform-wordpress.html": "wordpress",
     "course-clean-catalog.html": "clean_catalog",
     "program-award-badge.html": "clean_catalog",
 }
@@ -853,5 +853,7 @@ def test_a_page_with_no_platform_markup_has_an_empty_platform(
 
 def test_the_platform_is_not_a_marker(fixture_html_dir: Path) -> None:
     """Every marker joins the pattern signature; a platform must not."""
-    profile = profile_fixture(fixture_html_dir, "platform-courseleaf.html")
+    profile = profile_fixture(
+        fixture_html_dir, "discover/platform-courseleaf.html"
+    )
     assert not [name for name in profile.markers if "platform" in name]
