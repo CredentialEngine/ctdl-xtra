@@ -126,6 +126,18 @@ xtra environment set prod \
 export CE_PROD_STORAGE="DefaultEndpointsProtocol=https;AccountName=...;AccountKey=..."
 ```
 
+Scoring reads the baseline it compares against from its own container. The
+scorer does not care whether the baseline is verified. Save it per environment
+the same way, with `--baseline-uri` (or pass `--baseline-uri` or
+`XTRA_BASELINE_URI` on the command). By default it uses the same connection
+string as the data URI; pass `--baseline-azure-storage-connection-string` when
+the baseline lives in a different storage account:
+
+```bash
+xtra environment set test \
+  --baseline-uri azure://https://ACCOUNT.blob.core.windows.net/xtra-golden-sets-verified
+```
+
 ## Commands
 
 Filesystem path matches invocation, the same way ceops does (`ceops elasticsearch graphs create` → `src/ceops/elasticsearch/graphs/create.py`):
@@ -139,6 +151,8 @@ xtra catalog crawl      -> src/xtra/catalog/crawl.py
 xtra catalog discover   -> src/xtra/catalog/discover.py
 xtra catalog extract    -> src/xtra/catalog/extract.py
 xtra catalog transform  -> src/xtra/catalog/transform.py
+xtra score extraction match -> src/xtra/scoring/extraction/match.py
+  --exactly / --partially   -> src/implementations/score_extraction_match.py
 ```
 
 ### Crawl
@@ -737,6 +751,105 @@ saved them under. The `Slot.stem` property in `lib/` still slugs the URL the
 old way, so it is never used for a storage key, and the record carries the
 crawl stem instead.
 
+### Scoring extraction against a baseline
+
+Scoring is not part of `catalog`: it can score any stage's output, so it has
+its own `score` noun. Folders are nouns and files are verbs, so this one is
+`xtra score extraction match`.
+
+```bash
+xtra score extraction match --exactly \
+  --catalog-id avc-elumenapp-com-catalog-2026-27-welcome --run-id 2026-10-12T20:59:13Z
+
+xtra score extraction match --partially \
+  --catalog-id avc-elumenapp-com-catalog-2026-27-welcome --run-id 2026-10-12T20:59:13Z
+```
+
+It reads records that are already written, so a corrected baseline can be
+matched again without extracting again. Pick exactly one of `--exactly` and
+`--partially`; each writes its own report.
+
+| Flag | What it does |
+| --- | --- |
+| `--exactly` | Count the extracted values that are identical to the baseline. |
+| `--partially` | Set the exact matches aside and measure how close the other values come. |
+| `--run-id` | The extraction run being scored. The baseline files are filed under the same run id. |
+| `--catalog-id` | The catalog folder. Together with `--run-id` it locates the records and the baseline. |
+| `--source-uri` | Where the records live. Default: the environment's data URI. |
+| `--baseline-uri` | Where the baseline lives. Default: the environment's baseline URI. |
+| `--source-azure-storage-connection-string` | Connection string for `--source-uri`. Default: `AZURE_STORAGE_CONNECTION_STRING`, then the environment's secret. |
+| `--baseline-azure-storage-connection-string` | Connection string for `--baseline-uri`, which may be a different storage account. Same default. |
+
+The baseline container is filed by the same catalog folder and run id as the
+extraction, one folder per page, and the baseline file is named for its page:
+
+```text
+{baseline-uri}/{catalog-folder}/{yyyy-MM-ddTHH-mm-ssZ}/{stem}/{stem}.json
+{baseline-uri}/{catalog-folder}/{yyyy-MM-ddTHH-mm-ssZ}/{stem}/{stem}.html
+```
+
+A baseline file is a list of entities, each a list of
+`{ctdl_property, value, source_url}`. A page's first baseline entity is
+compared with its own record and later ones with its `{stem}--{entity}`
+records, in order. The baseline HTML is not read, and `source_url` is not
+used: matching compares values only.
+
+Each baseline field is matched against the values the record's
+`ctdl_expected` holds for that property, and each extracted value can answer
+only one baseline value, so one prerequisite cannot cover three. A nested
+`creditValue` is read the way the baseline prints it: a single credit of 3 is
+both `creditMinValue` and `creditMaxValue`, and `subjectWebpage` is read from
+the record's `source_url`. A property the record has and the baseline does not
+is listed as `unscored_extras` and costs nothing; the baseline may simply be
+incomplete.
+
+**Exact** is the tier to aim for. A value matches only when it is identical to
+the baseline as printed: no case, spacing or punctuation leniency, and `1.0`
+is not `1`.
+
+| Outcome | Meaning |
+| --- | --- |
+| `match` | Identical to the baseline value. |
+| `mismatch` | A value was extracted but it is not identical. The report keeps its similarity. |
+| `missing` | The extractor emitted nothing for the property. |
+
+**Partial** tells how much non-exactness the extractor shows. Exact matches
+are set aside first (the report counts them as `excluded_exact`), so a pile of
+exact matches cannot hide a partial-match problem. The rest are paired by text
+similarity: rapidfuzz `fuzz.ratio`, the normalized Indel similarity
+(`2 * LCS / (len(a) + len(b))`), on lower-cased, whitespace-collapsed text; a
+code also compares with its punctuation and spaces removed, so `ACCT 199` is
+`ACCT199`. Numbers compare as numbers.
+
+| Outcome | Meaning |
+| --- | --- |
+| `partial` | Similarity of 0.8 or more. A description missing a sentence lands here. |
+| `wrong` | A value was extracted and its similarity is below 0.8. |
+| `missing` | The extractor emitted nothing for the property. |
+
+**Nothing is averaged.** An average hides outliers. The report carries counts
+by outcome, by property and by page, plus `outliers`: every field that is not
+an exact match, worst first (missing, then lowest similarity), each with its
+page, property, baseline value and extracted value. The only ratio is
+`exact_match_rate` (matches over fields) in the exact report.
+
+Each baseline page falls in one of three groups:
+
+- **scored**: extract wrote a record for it.
+- **skipped**: extract considered the page and skipped it (multi-course page,
+  nothing read). All its fields are `missing`, because that is an extractor
+  miss.
+- **out of scope**: extract never considered it, because it is outside
+  discovery or `--only-golden-sample`. It is listed and not counted.
+
+The reports are
+`{catalog-folder}/{run-id}/extraction-match-exact-report.json` and
+`extraction-match-partial-report.json`, beside `records/` like
+`extract-report.json`. The stdout JSON is a short summary and a table of the
+counts and the worst outliers goes to stderr. A baseline with no files for the
+run, or one that cannot be reached, exits non-zero. A malformed baseline file
+is listed in the report under `malformed` and skipped.
+
 ## Object layout (not packs)
 
 `--target-uri` is a ceops storage URI. Runs are keys under the catalog folder and the UTC timestamp:
@@ -753,6 +866,8 @@ crawl stem instead.
   discovery/{discovery-run-id}/patterns.md
   discovery/{discovery-run-id}/golden-sample-course.json
   extract-report.json
+  extraction-match-exact-report.json
+  extraction-match-partial-report.json
   records/{record-id}.json
   jsonld/{record-id}.json
   expected/{record-id}.json

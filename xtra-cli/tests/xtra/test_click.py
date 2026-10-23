@@ -13,6 +13,7 @@ from xtra.click import (
     limit_option,
     non_empty_string,
     require_strategy,
+    resolve_baseline,
     resolve_connection,
     resolve_uri,
     source_uri_option,
@@ -142,3 +143,14 @@ def test_resolve_connection_is_none_when_nothing_is_configured(
 ) -> None:
     monkeypatch.delenv("AZURE_STORAGE_CONNECTION_STRING", raising=False)
     assert resolve_connection(None, env_name=None) is None
+
+
+def test_resolve_baseline_prefers_the_flag_and_reports_a_missing_one() -> None:
+    assert (
+        resolve_baseline(
+            "azure://https://a.blob.core.windows.net/g", env_name="test"
+        )
+        == "azure://https://a.blob.core.windows.net/g"
+    )
+    with pytest.raises(click.UsageError, match="--baseline-uri is required"):
+        resolve_baseline(None, env_name="test")

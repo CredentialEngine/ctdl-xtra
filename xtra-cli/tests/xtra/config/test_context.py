@@ -7,6 +7,7 @@ from xtra.config.context import (
     build_environment,
     environment_for,
     get_current_environment,
+    resolve_baseline_uri,
     resolve_connection_string,
     resolve_data_uri,
 )
@@ -165,3 +166,30 @@ def test_resolve_connection_string_is_none_when_unset(monkeypatch) -> None:
     save_config(StoredConfig(env_name="prod", data_uri=PROD_URI))
     monkeypatch.delenv("AZURE_STORAGE_CONNECTION_STRING", raising=False)
     assert resolve_connection_string(None) is None
+
+
+BASELINE_URI = (
+    "azure://https://ceprod.blob.core.windows.net/xtra-baseline-sets-verified"
+)
+
+
+def test_resolve_baseline_uri_prefers_the_flag() -> None:
+    assert resolve_baseline_uri(BASELINE_URI, env_name="test") == BASELINE_URI
+
+
+def test_resolve_baseline_uri_reads_the_saved_environment(
+    isolated_config_dir,
+) -> None:
+    save_config(
+        StoredConfig(
+            env_name="prod", data_uri=PROD_URI, baseline_uri=BASELINE_URI
+        )
+    )
+
+    assert resolve_baseline_uri(None) == BASELINE_URI
+    assert environment_for("prod").baseline_uri == BASELINE_URI
+
+
+def test_resolve_baseline_uri_when_env_has_no_baseline_container() -> None:
+    with pytest.raises(ConfigNotFoundError, match="--baseline-uri"):
+        resolve_baseline_uri(None, env_name="test")
