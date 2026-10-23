@@ -13,6 +13,8 @@ Two modes, never blended:
   partial, anything lower is wrong. This tells how much non-exactness the
   extractor shows, and exact matches cannot hide it.
 
+- Text similarity - for similarity algorithm See `similarity()`.
+
 Nothing is averaged. A report carries counts, and every field that is not
 an exact match is listed in `outliers`, worst first.
 
@@ -149,7 +151,13 @@ def is_exact(baseline: Any, candidate: Any) -> bool:
 
 
 def similarity(baseline: Any, candidate: Any) -> float:
-    """0..1: how close one extracted value is to one baseline value."""
+    """0..1: how close one extracted value is to one baseline value.
+
+    Numbers compare as numbers: 1.0 when equal, else 0.0. Text is scored
+    with rapidfuzz `fuzz.ratio` (normalized Indel similarity,
+    2 * LCS / (len(a) + len(b))) on the normalized values and on the
+    same values with punctuation and spaces stripped, keeping the higher.
+    """
     baseline_number = as_number(baseline)
     candidate_number = as_number(candidate)
     if baseline_number is not None and candidate_number is not None:

@@ -32,7 +32,6 @@ from xtra.click import (
     resolve_connection,
     resolve_uri,
     source_uri_option,
-    storage_connection_options,
 )
 
 logger = logging.getLogger(__name__)
@@ -106,7 +105,24 @@ def match_summary(report: dict) -> dict:
     required=True,
     help="Extraction run id, the one the baseline files are filed under.",
 )
-@storage_connection_options()
+@click.option(
+    "--source-azure-storage-connection-string",
+    envvar="AZURE_STORAGE_CONNECTION_STRING",
+    required=False,
+    help=(
+        "Azure Blob Storage connection string for --source-uri. "
+        "UseDevelopmentStorage=true for the Azurite emulator."
+    ),
+)
+@click.option(
+    "--baseline-azure-storage-connection-string",
+    envvar="AZURE_STORAGE_CONNECTION_STRING",
+    required=False,
+    help=(
+        "Azure Blob Storage connection string for --baseline-uri. The "
+        "baseline may live in a different storage account than the source."
+    ),
+)
 def main(
     exactly: bool,
     partially: bool,
@@ -115,13 +131,15 @@ def main(
     baseline_uri: str | None,
     catalog_id: str,
     run_id: str,
-    azure_storage_connection_string: str | None,
+    source_azure_storage_connection_string: str | None,
+    baseline_azure_storage_connection_string: str | None,
 ) -> None:
     """Match an extraction run against a baseline.
 
     Reads the records and extract-report.json of the run from --source-uri,
     and the baseline files of the same catalog and run from --baseline-uri.
-    The report is written beside the records.
+    Each URI takes its own connection string, so the two can live in
+    different storage accounts. The report is written beside the records.
     """
     if exactly == partially:
         raise click.UsageError(
@@ -131,16 +149,17 @@ def main(
 
     source_uri = resolve_uri(source_uri, env_name=env_name, flag="--source-uri")
     baseline_uri = resolve_baseline(baseline_uri, env_name=env_name)
-    azure_storage_connection_string = resolve_connection(
-        azure_storage_connection_string, env_name=env_name
-    )
     store = open_store(
         source_uri,
-        azure_storage_connection_string=azure_storage_connection_string,
+        azure_storage_connection_string=resolve_connection(
+            source_azure_storage_connection_string, env_name=env_name
+        ),
     )
     baseline = open_store(
         baseline_uri,
-        azure_storage_connection_string=azure_storage_connection_string,
+        azure_storage_connection_string=resolve_connection(
+            baseline_azure_storage_connection_string, env_name=env_name
+        ),
     )
 
     report = match_and_report(

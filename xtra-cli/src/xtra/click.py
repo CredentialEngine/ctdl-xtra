@@ -125,9 +125,8 @@ def baseline_uri_option():
         callback=non_empty_string,
         help=(
             "Where the baseline files to score against live. Same URI "
-            "schemes and the "
-            "same connection string as --target-uri. Defaults to the active "
-            "environment's baseline URI."
+            "schemes as --target-uri. Defaults to the active environment's "
+            "baseline URI."
         ),
     )
 

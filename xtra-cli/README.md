@@ -129,8 +129,9 @@ export CE_PROD_STORAGE="DefaultEndpointsProtocol=https;AccountName=...;AccountKe
 Scoring reads the baseline it compares against from its own container. The
 scorer does not care whether the baseline is verified. Save it per environment
 the same way, with `--baseline-uri` (or pass `--baseline-uri` or
-`XTRA_BASELINE_URI` on the command). It uses the same connection string as the
-data URI:
+`XTRA_BASELINE_URI` on the command). By default it uses the same connection
+string as the data URI; pass `--baseline-azure-storage-connection-string` when
+the baseline lives in a different storage account:
 
 ```bash
 xtra environment set test \
@@ -776,6 +777,8 @@ matched again without extracting again. Pick exactly one of `--exactly` and
 | `--catalog-id` | The catalog folder. Together with `--run-id` it locates the records and the baseline. |
 | `--source-uri` | Where the records live. Default: the environment's data URI. |
 | `--baseline-uri` | Where the baseline lives. Default: the environment's baseline URI. |
+| `--source-azure-storage-connection-string` | Connection string for `--source-uri`. Default: `AZURE_STORAGE_CONNECTION_STRING`, then the environment's secret. |
+| `--baseline-azure-storage-connection-string` | Connection string for `--baseline-uri`, which may be a different storage account. Same default. |
 
 The baseline container is filed by the same catalog folder and run id as the
 extraction, one folder per page, and the baseline file is named for its page:
@@ -813,7 +816,8 @@ is not `1`.
 **Partial** tells how much non-exactness the extractor shows. Exact matches
 are set aside first (the report counts them as `excluded_exact`), so a pile of
 exact matches cannot hide a partial-match problem. The rest are paired by text
-similarity, from the fuzzy ratio on lower-cased, whitespace-collapsed text; a
+similarity: rapidfuzz `fuzz.ratio`, the normalized Indel similarity
+(`2 * LCS / (len(a) + len(b))`), on lower-cased, whitespace-collapsed text; a
 code also compares with its punctuation and spaces removed, so `ACCT 199` is
 `ACCT199`. Numbers compare as numbers.
 

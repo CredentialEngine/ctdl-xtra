@@ -151,6 +151,36 @@ def test_it_refuses_both_modes_at_once(tmp_path: Path) -> None:
     assert "exactly one of --exactly or --partially" in result.output
 
 
+def test_source_and_baseline_take_their_own_connection_strings(
+    tmp_path: Path, monkeypatch
+) -> None:
+    seed(tmp_path, [field("ceterms:name", "Composition")])
+    opened: dict[str, str | None] = {}
+
+    def recording_open_store(uri, *, azure_storage_connection_string=None):
+        opened[uri] = azure_storage_connection_string
+        return open_store(uri)
+
+    monkeypatch.setattr(
+        "xtra.scoring.extraction.match.open_store", recording_open_store
+    )
+
+    result = match(
+        tmp_path,
+        "--exactly",
+        "--source-azure-storage-connection-string",
+        "source-secret",
+        "--baseline-azure-storage-connection-string",
+        "baseline-secret",
+    )
+
+    assert result.exit_code == 0, result.output
+    assert opened == {
+        str(tmp_path / "data"): "source-secret",
+        str(tmp_path / "baseline"): "baseline-secret",
+    }
+
+
 def test_without_a_baseline_uri_it_says_how_to_set_one(tmp_path: Path) -> None:
     result = CliRunner().invoke(
         cli,
