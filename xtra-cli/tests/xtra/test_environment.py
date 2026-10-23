@@ -27,7 +27,7 @@ def test_set_writes_the_active_environment(isolated_config_dir: Path) -> None:
     assert stored == {
         "env_name": "prod",
         "data_uri": PROD_URI,
-        "golden_uri": "",
+        "baseline_uri": "",
         "connection_string_env": "AZURE_STORAGE_CONNECTION_STRING",
     }
 
@@ -169,39 +169,41 @@ def test_list_marks_the_active_environment() -> None:
     assert "  prod\n" in marked
 
 
-GOLDEN_URI = (
-    "azure://https://ceprod.blob.core.windows.net/xtra-golden-sets-verified"
+BASELINE_URI = (
+    "azure://https://ceprod.blob.core.windows.net/xtra-baseline-sets-verified"
 )
 
 
-def test_set_saves_and_shows_the_golden_uri(isolated_config_dir: Path) -> None:
+def test_set_saves_and_shows_the_baseline_uri(
+    isolated_config_dir: Path,
+) -> None:
     result = run(
-        "set", "prod", "--data-uri", PROD_URI, "--golden-uri", GOLDEN_URI
+        "set", "prod", "--data-uri", PROD_URI, "--baseline-uri", BASELINE_URI
     )
 
     assert result.exit_code == 0, result.output
-    assert f"Golden URI:  {GOLDEN_URI}" in result.output
+    assert f"Baseline URI: {BASELINE_URI}" in result.output
     stored = json.loads(
         (isolated_config_dir / "config.json").read_text(encoding="utf-8")
     )
-    assert stored["golden_uri"] == GOLDEN_URI
-    assert f"Golden URI:  {GOLDEN_URI}" in run("show").output
+    assert stored["baseline_uri"] == BASELINE_URI
+    assert f"Baseline URI: {BASELINE_URI}" in run("show").output
 
 
-def test_set_keeps_the_saved_golden_uri_when_omitted(
+def test_set_keeps_the_saved_baseline_uri_when_omitted(
     isolated_config_dir: Path,
 ) -> None:
-    run("set", "prod", "--golden-uri", GOLDEN_URI)
+    run("set", "prod", "--baseline-uri", BASELINE_URI)
 
     run("set", "prod", "--data-uri", PROD_URI)
 
     stored = json.loads(
         (isolated_config_dir / "config.json").read_text(encoding="utf-8")
     )
-    assert stored["golden_uri"] == GOLDEN_URI
+    assert stored["baseline_uri"] == BASELINE_URI
 
 
-def test_a_config_saved_before_golden_uri_existed_still_loads(
+def test_a_config_saved_before_baseline_uri_existed_still_loads(
     isolated_config_dir: Path,
 ) -> None:
     (isolated_config_dir / "config.json").write_text(
@@ -212,4 +214,4 @@ def test_a_config_saved_before_golden_uri_existed_still_loads(
     result = run("show")
 
     assert result.exit_code == 0, result.output
-    assert "Golden URI:  (not set)" in result.output
+    assert "Baseline URI: (not set)" in result.output

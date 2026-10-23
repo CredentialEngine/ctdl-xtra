@@ -34,13 +34,10 @@ from implementations.extract_dom import (
     entity_types_for,
 )
 from implementations.strategies import unimplemented_message
-from xtra.catalog.score import score_and_report, score_summary
 from xtra.click import (
     env_option,
-    golden_uri_option,
     require_strategy,
     resolve_connection,
-    resolve_golden,
     resolve_uri,
     source_uri_option,
     storage_connection_options,
@@ -77,15 +74,6 @@ MARKER_MULTI_CREDENTIAL = "multi_credential_page"
     is_flag=True,
     help="Extract only the pages in the golden sample for review.",
 )
-@click.option(
-    "--with-scoring",
-    is_flag=True,
-    help=(
-        "After extracting, score the records against the golden sets and "
-        "write extraction-score-report.json beside them."
-    ),
-)
-@golden_uri_option()
 @storage_connection_options()
 def main(
     strategy: str | None,
@@ -96,8 +84,6 @@ def main(
     run_id: str,
     discovery_run_id: str | None,
     only_golden_sample: bool,
-    with_scoring: bool,
-    golden_uri: str | None,
     azure_storage_connection_string: str | None,
 ) -> None:
     """Transcribe printed fields from saved HTML. Candidate status only.
@@ -108,10 +94,6 @@ def main(
     them, and a competency list. Anything skipped is written to
     extract-report.json, beside records/ and never inside it, because
     transform reads every JSON file under records/.
-
-    With --with-scoring the records are then scored against the golden sets
-    of the same catalog and run. The records are written first, so a scoring
-    failure costs no extraction work.
     """
     strategy = require_strategy(strategy, example="--with-template")
     if strategy != "template":
@@ -132,15 +114,6 @@ def main(
         target_uri,
         azure_storage_connection_string=azure_storage_connection_string,
     )
-
-    golden = None
-    if with_scoring:
-        # Resolved before any page is read: a missing golden URI is a
-        # mistake to hear about now, not after the whole run.
-        golden = open_store(
-            resolve_golden(golden_uri, env_name=env_name),
-            azure_storage_connection_string=azure_storage_connection_string,
-        )
 
     discovery_run_id = discovery_run_id or latest_discovery_run_id(
         source, catalog_id, run_id
@@ -230,28 +203,20 @@ def main(
     }
     target.put_json(extract_report_key(catalog_id, run_id), report)
 
-    summary = {
-        "strategy": strategy,
-        "catalog_id": catalog_id,
-        "run_id": run_id,
-        "discovery_run_id": discovery_run_id,
-        "only_golden_sample": only_golden_sample,
-        "records": written,
-        "skipped_by_reason": report["skipped_by_reason"],
-    }
-    score_failure: click.ClickException | None = None
-    if golden is not None:
-        try:
-            score_report = score_and_report(
-                target, golden, catalog_id=catalog_id, run_id=run_id
-            )
-        except click.ClickException as exc:
-            score_failure = exc
-        else:
-            summary["extraction_score"] = score_summary(score_report)
-    click.echo(json.dumps(summary, indent=2))
-    if score_failure is not None:
-        raise score_failure
+    click.echo(
+        json.dumps(
+            {
+                "strategy": strategy,
+                "catalog_id": catalog_id,
+                "run_id": run_id,
+                "discovery_run_id": discovery_run_id,
+                "only_golden_sample": only_golden_sample,
+                "records": written,
+                "skipped_by_reason": report["skipped_by_reason"],
+            },
+            indent=2,
+        )
+    )
 
 
 def _too_many_entities(entry: dict) -> dict[str, str] | None:

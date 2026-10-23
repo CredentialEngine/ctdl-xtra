@@ -7,9 +7,9 @@ from xtra.config.context import (
     build_environment,
     environment_for,
     get_current_environment,
+    resolve_baseline_uri,
     resolve_connection_string,
     resolve_data_uri,
-    resolve_golden_uri,
 )
 from xtra.config.environments import AZURITE_CONNECTION_STRING
 from xtra.config.settings import ConfigNotFoundError, StoredConfig, save_config
@@ -168,26 +168,28 @@ def test_resolve_connection_string_is_none_when_unset(monkeypatch) -> None:
     assert resolve_connection_string(None) is None
 
 
-GOLDEN_URI = (
-    "azure://https://ceprod.blob.core.windows.net/xtra-golden-sets-verified"
+BASELINE_URI = (
+    "azure://https://ceprod.blob.core.windows.net/xtra-baseline-sets-verified"
 )
 
 
-def test_resolve_golden_uri_prefers_the_flag() -> None:
-    assert resolve_golden_uri(GOLDEN_URI, env_name="test") == GOLDEN_URI
+def test_resolve_baseline_uri_prefers_the_flag() -> None:
+    assert resolve_baseline_uri(BASELINE_URI, env_name="test") == BASELINE_URI
 
 
-def test_resolve_golden_uri_reads_the_saved_environment(
+def test_resolve_baseline_uri_reads_the_saved_environment(
     isolated_config_dir,
 ) -> None:
     save_config(
-        StoredConfig(env_name="prod", data_uri=PROD_URI, golden_uri=GOLDEN_URI)
+        StoredConfig(
+            env_name="prod", data_uri=PROD_URI, baseline_uri=BASELINE_URI
+        )
     )
 
-    assert resolve_golden_uri(None) == GOLDEN_URI
-    assert environment_for("prod").golden_uri == GOLDEN_URI
+    assert resolve_baseline_uri(None) == BASELINE_URI
+    assert environment_for("prod").baseline_uri == BASELINE_URI
 
 
-def test_resolve_golden_uri_when_env_has_no_golden_container() -> None:
-    with pytest.raises(ConfigNotFoundError, match="--golden-uri"):
-        resolve_golden_uri(None, env_name="test")
+def test_resolve_baseline_uri_when_env_has_no_baseline_container() -> None:
+    with pytest.raises(ConfigNotFoundError, match="--baseline-uri"):
+        resolve_baseline_uri(None, env_name="test")

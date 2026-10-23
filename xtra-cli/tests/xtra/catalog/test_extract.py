@@ -7,7 +7,7 @@ import pytest
 from click.testing import CliRunner
 from discovery_doubles import seed_crawl_page
 
-from common.keys import golden_record_key, run_prefix
+from common.keys import run_prefix
 from common.object_store import open_store
 from xtra.cli import cli
 
@@ -365,73 +365,3 @@ def test_extract_help_lists_the_new_flags() -> None:
     help_text = CliRunner().invoke(cli, ["catalog", "extract", "--help"]).output
     assert "--only-golden-sample" in help_text
     assert "--discovery-run-id" in help_text
-
-
-def seed_golden(golden_dir: Path, *fields: dict) -> None:
-    open_store(str(golden_dir)).put_json(
-        golden_record_key(FOLDER, RUN, "engl101-aaaaaaaaaa"),
-        [{"fields": list(fields)}],
-    )
-
-
-def golden_field(prop: str, value: str) -> dict:
-    return {"ctdl_property": prop, "value": value, "source_url": "x"}
-
-
-def test_with_scoring_writes_a_score_report_beside_the_records(
-    discovered: Path, tmp_path_factory: pytest.TempPathFactory
-) -> None:
-    golden_dir = tmp_path_factory.mktemp("golden")
-    seed_golden(
-        golden_dir,
-        golden_field("ceterms:codedNotation", "ENGL101"),
-        golden_field("ceterms:inLanguage", "English"),
-    )
-
-    result = extract(
-        discovered, "--with-scoring", "--golden-uri", str(golden_dir)
-    )
-
-    assert result.exit_code == 0, result.output
-    payload = json.loads(result.stdout)
-    assert payload["extraction_score"]["pages_scored"] == 1
-    assert payload["extraction_score"]["overall"] == 0.5
-    report = json.loads(
-        (run_dir(discovered) / "extraction-score-report.json").read_text(
-            encoding="utf-8"
-        )
-    )
-    assert report["by_property"]["ceterms:inLanguage"]["missing"] == 1
-
-
-def test_without_with_scoring_nothing_is_scored(discovered: Path) -> None:
-    result = extract(discovered)
-
-    assert result.exit_code == 0, result.output
-    assert "extraction_score" not in json.loads(result.output)
-    assert not (run_dir(discovered) / "extraction-score-report.json").exists()
-
-
-def test_with_scoring_but_no_golden_files_keeps_the_records_and_fails(
-    discovered: Path, tmp_path_factory: pytest.TempPathFactory
-) -> None:
-    empty = tmp_path_factory.mktemp("golden")
-
-    result = extract(discovered, "--with-scoring", "--golden-uri", str(empty))
-
-    assert result.exit_code != 0
-    assert "no golden files" in result.output
-    assert (
-        run_dir(discovered) / "records" / "engl101-aaaaaaaaaa.json"
-    ).exists()
-    assert json.loads(result.stdout)["records"]
-
-
-def test_with_scoring_and_no_golden_uri_fails_before_extracting(
-    discovered: Path,
-) -> None:
-    result = extract(discovered, "--with-scoring", "--env", "test")
-
-    assert result.exit_code != 0
-    assert "--golden-uri" in result.output
-    assert not (run_dir(discovered) / "records").exists()

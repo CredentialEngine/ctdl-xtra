@@ -15,7 +15,7 @@ def test_env_names_cover_dev_through_prod() -> None:
 def test_every_environment_declares_the_same_keys() -> None:
     expected = {
         "data_uri",
-        "golden_uri",
+        "baseline_uri",
         "connection_string_env",
         "fallback_connection_string",
     }

@@ -27,7 +27,7 @@ class ConfigNotFoundError(Exception):
 class StoredConfig:
     env_name: str
     data_uri: str = ""
-    golden_uri: str = ""
+    baseline_uri: str = ""
     connection_string_env: str = DEFAULT_CONNECTION_STRING_ENV
 
 

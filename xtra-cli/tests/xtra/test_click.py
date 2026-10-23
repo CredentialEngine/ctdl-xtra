@@ -13,8 +13,8 @@ from xtra.click import (
     limit_option,
     non_empty_string,
     require_strategy,
+    resolve_baseline,
     resolve_connection,
-    resolve_golden,
     resolve_uri,
     source_uri_option,
     strategy_options,
@@ -145,12 +145,12 @@ def test_resolve_connection_is_none_when_nothing_is_configured(
     assert resolve_connection(None, env_name=None) is None
 
 
-def test_resolve_golden_prefers_the_flag_and_reports_a_missing_one() -> None:
+def test_resolve_baseline_prefers_the_flag_and_reports_a_missing_one() -> None:
     assert (
-        resolve_golden(
+        resolve_baseline(
             "azure://https://a.blob.core.windows.net/g", env_name="test"
         )
         == "azure://https://a.blob.core.windows.net/g"
     )
-    with pytest.raises(click.UsageError, match="--golden-uri is required"):
-        resolve_golden(None, env_name="test")
+    with pytest.raises(click.UsageError, match="--baseline-uri is required"):
+        resolve_baseline(None, env_name="test")

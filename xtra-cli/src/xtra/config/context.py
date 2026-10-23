@@ -27,7 +27,7 @@ class EnvironmentConfig:
 
     name: str
     data_uri: str = ""
-    golden_uri: str = ""
+    baseline_uri: str = ""
     connection_string_env: str = DEFAULT_CONNECTION_STRING_ENV
     fallback_connection_string: str = ""
 
@@ -46,7 +46,7 @@ def build_environment(
     env_name: str,
     data_uri: str = "",
     connection_string_env: str = "",
-    golden_uri: str = "",
+    baseline_uri: str = "",
 ) -> EnvironmentConfig:
     """Build the named environment, applying any stored overrides."""
     key = env_name.lower()
@@ -62,7 +62,9 @@ def build_environment(
     return EnvironmentConfig(
         name=key,
         data_uri=normalize_storage_uri(data_uri or values["data_uri"]),
-        golden_uri=normalize_storage_uri(golden_uri or values["golden_uri"]),
+        baseline_uri=normalize_storage_uri(
+            baseline_uri or values["baseline_uri"]
+        ),
         connection_string_env=(
             connection_string_env or values["connection_string_env"]
         ),
@@ -77,7 +79,7 @@ def get_current_environment() -> EnvironmentConfig:
     return build_environment(
         env_name=config.env_name,
         data_uri=config.data_uri,
-        golden_uri=config.golden_uri,
+        baseline_uri=config.baseline_uri,
         connection_string_env=config.connection_string_env,
     )
 
@@ -99,7 +101,7 @@ def environment_for(env_name: str | None) -> EnvironmentConfig:
     return build_environment(
         env_name=key,
         data_uri=stored.data_uri,
-        golden_uri=stored.golden_uri,
+        baseline_uri=stored.baseline_uri,
         connection_string_env=stored.connection_string_env,
     )
 
@@ -123,23 +125,23 @@ def resolve_data_uri(
     return environment.data_uri
 
 
-def resolve_golden_uri(
+def resolve_baseline_uri(
     explicit: str | None, *, env_name: str | None = None
 ) -> str:
-    """Storage URI of the golden sets, from the flag or the environment."""
+    """Storage URI of the baseline files, from the flag or the environment."""
     if explicit:
         return explicit
 
     environment = environment_for(env_name)
 
-    if not environment.golden_uri:
+    if not environment.baseline_uri:
         raise ConfigNotFoundError(
-            f"Environment '{environment.name}' has no golden URI. "
+            f"Environment '{environment.name}' has no baseline URI. "
             f"Run 'xtra environment set {environment.name} "
-            f"--golden-uri azure://https://<account>.blob.core.windows.net/<container>'."
+            f"--baseline-uri azure://https://<account>.blob.core.windows.net/<container>'."
         )
 
-    return environment.golden_uri
+    return environment.baseline_uri
 
 
 def resolve_connection_string(
