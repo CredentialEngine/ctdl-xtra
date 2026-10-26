@@ -1,0 +1,313 @@
+{
+    "@id": "https://credentialengineregistry.org/resources/ce-6977cef9-298a-4f1e-bdac-d66509887ebf",
+    "@type": "ceterms:MasterDegree",
+    "@context": "https://credreg.net/ctdl/schema/context/json",
+    "ceterms:ctid": "ce-6977cef9-298a-4f1e-bdac-d66509887ebf",
+    "ceterms:name": {
+        "en-US": "Master of Business Administration (MBA_201404)"
+    },
+    "ceterms:image": "https://www.wgu.edu/content/dam/web-sites/mvp/global/brand/brand-guidelines/WGU-MarketingLogo_Natl_RGB_Owl_NoTag_4-1-2017.jpg",
+    "ceterms:keyword": {
+        "en-US": [
+            "Brand Management",
+            "Business Analytics",
+            "Business Communication",
+            "Business Consulting",
+            "Business Ethics",
+            "Business Law",
+            "Business Leadership",
+            "Business Management Master's Degree",
+            "Business Operations",
+            "Business Strategy",
+            "Change Management",
+            "Communication Skills",
+            "Corporate Finance",
+            "Corporate Social Responsibility",
+            "Data Analysis for Business Decisions",
+            "Decision Making",
+            "E-Commerce",
+            "Entrepreneurship",
+            "Financial Analysis",
+            "Financial Management",
+            "Financial Reporting and Analysis",
+            "Global Business",
+            "Graduate Program in Business",
+            "Human Resource Management",
+            "Innovation and Creativity",
+            "International Business Strategy",
+            "Leadership and Management",
+            "Management Information Systems",
+            "Managerial Accounting",
+            "Managerial Economics",
+            "Market Research",
+            "Marketing Management",
+            "Marketing Strategy",
+            "Master of Business Administration",
+            "MBA",
+            "MBA Curriculum",
+            "Negotiation Skills",
+            "Operations Management",
+            "Organizational Behavior",
+            "Problem Solving",
+            "Project Management",
+            "Risk Management",
+            "Strategic Management",
+            "Strategic Planning",
+            "Supply Chain Management",
+            "Sustainability in Business",
+            "Team Building",
+            "Technology Management"
+        ]
+    },
+    "ceterms:ownedBy": [
+        "https://credentialengineregistry.org/resources/ce-036d082d-d80e-41a7-99a0-2d63a4ad3a4a"
+    ],
+    "ceterms:requires": [
+        {
+            "@type": "ceterms:ConditionProfile",
+            "ceterms:name": {
+                "en-US": "Requires"
+            },
+            "ceterms:assertedBy": [
+                "https://credentialengineregistry.org/resources/ce-036d082d-d80e-41a7-99a0-2d63a4ad3a4a"
+            ],
+            "ceterms:description": {
+                "en-US": "The learner must have satisfied the indicated learning opportunities, or an approved equivalent, in order to be awarded the credential."
+            },
+            "ceterms:audienceLevelType": [
+                {
+                    "@type": "ceterms:CredentialAlignmentObject",
+                    "ceterms:framework": "https://credreg.net/ctdl/terms/AudienceLevel",
+                    "ceterms:targetNode": "audLevel:MastersDegreeLevel",
+                    "ceterms:frameworkName": {
+                        "en-US": "Audience Level"
+                    },
+                    "ceterms:targetNodeName": {
+                        "en-US": "Masters Degree Level"
+                    },
+                    "ceterms:targetNodeDescription": {
+                        "en-US": "Intended for those who have completed a Bachelor's Degree or equivalent."
+                    }
+                },
+                {
+                    "@type": "ceterms:CredentialAlignmentObject",
+                    "ceterms:framework": "https://credreg.net/ctdl/terms/AudienceLevel",
+                    "ceterms:targetNode": "audLevel:GraduateLevel",
+                    "ceterms:frameworkName": {
+                        "en-US": "Audience Level"
+                    },
+                    "ceterms:targetNodeName": {
+                        "en-US": "Graduate Level"
+                    },
+                    "ceterms:targetNodeDescription": {
+                        "en-US": "Intended for those who enrolled in a degree program or other formal program above the baccalaureate level, such as a masters or doctoral degree program."
+                    }
+                }
+            ],
+            "ceterms:targetLearningOpportunity": [
+                "https://credentialengineregistry.org/resources/ce-c65919aa-60df-4269-8b9c-bbb41a1ed4f3",
+                "https://credentialengineregistry.org/resources/ce-ea7c33eb-cb8b-440a-a2fa-67f5ad8b3eba",
+                "https://credentialengineregistry.org/resources/ce-ecbe1200-23d3-4813-98d8-b3e648dfe631",
+                "https://credentialengineregistry.org/resources/ce-9f829271-7f1e-487e-ab9f-a4714dcf01cb",
+                "https://credentialengineregistry.org/resources/ce-bdd128dd-403a-45f3-89fe-f80a8e6b34af",
+                "https://credentialengineregistry.org/resources/ce-bd6bd573-301a-4d0e-a057-a54661afe5d8",
+                "https://credentialengineregistry.org/resources/ce-2d2993ed-5cff-4948-9288-a88f4a7f5196",
+                "https://credentialengineregistry.org/resources/ce-23050966-23ba-468b-b9cd-3f73d31c6bc6",
+                "https://credentialengineregistry.org/resources/ce-08a05ddc-e85e-4f94-a8af-27ae0d94dd75",
+                "https://credentialengineregistry.org/resources/ce-54066679-0da1-483a-b8b8-478302dd6e98",
+                "https://credentialengineregistry.org/resources/ce-c81f1840-4b8f-4f79-a03a-733066820ab9"
+            ]
+        }
+    ],
+    "ceterms:offeredBy": [
+        "https://credentialengineregistry.org/resources/ce-036d082d-d80e-41a7-99a0-2d63a4ad3a4a"
+    ],
+    "ceterms:inLanguage": [
+        "en"
+    ],
+    "ceterms:degreeMajor": [
+        {
+            "@type": "ceterms:CredentialAlignmentObject",
+            "ceterms:targetNodeName": {
+                "en-US": "Business"
+            }
+        }
+    ],
+    "ceterms:description": {
+        "en-US": "You're ready to become a leader and rise to the next level in business. A master's degree in business administration is the step you need to take you further in your professional career and potentially earn a higher salary. A reputable online MBA degree program can be the difference-maker for your future by helping you understand business practices and management skills. This master's in business administration is focused on equipping you with skills and credentials that helps distinguish your value in the business world."
+    },
+    "ceterms:industryType": [
+        {
+            "@type": "ceterms:CredentialAlignmentObject",
+            "ceterms:targetNode": "https://www.census.gov/naics/?input=52&year=2022&details=52",
+            "ceterms:codedNotation": "52",
+            "ceterms:frameworkName": {
+                "en-US": "NAICS"
+            },
+            "ceterms:targetNodeName": {
+                "en-US": "Finance and Insurance"
+            },
+            "ceterms:targetNodeDescription": {
+                "en-US": "Finance and Insurance"
+            }
+        }
+    ],
+    "ceterms:alternateName": {
+        "en-US": [
+            "MBA_201404"
+        ]
+    },
+    "ceterms:dateEffective": "2014-04-01",
+    "ceterms:estimatedCost": [
+        {
+            "@type": "ceterms:CostProfile",
+            "ceterms:name": {
+                "en-US": "WGU Tuition"
+            },
+            "ceterms:currency": "US Dollar",
+            "ceterms:costDetails": "https://www.wgu.edu/financial-aid-tuition.html",
+            "ceterms:description": {
+                "en-US": "Each six-month term includes costs for tuition, an e-books and resources fee, and a program fee. Please see site for details."
+            }
+        }
+    ],
+    "ceterms:occupationType": [
+        {
+            "@type": "ceterms:CredentialAlignmentObject",
+            "ceterms:targetNode": "https://www.onetonline.org/link/summary/11-1011.00",
+            "ceterms:codedNotation": "11-1011.00",
+            "ceterms:frameworkName": {
+                "en-US": "Standard Occupational Classification"
+            },
+            "ceterms:targetNodeName": {
+                "en-US": "Chief Executives"
+            },
+            "ceterms:targetNodeDescription": {
+                "en-US": "Determine and formulate policies and provide overall direction of companies or private and public sector organizations within guidelines set up by a board of directors or similar governing body. Plan, direct, or coordinate operational activities at the highest level of management with the help of subordinate executives and staff managers."
+            }
+        },
+        {
+            "@type": "ceterms:CredentialAlignmentObject",
+            "ceterms:targetNode": "https://www.onetonline.org/link/summary/11-1011.03",
+            "ceterms:codedNotation": "11-1011.03",
+            "ceterms:frameworkName": {
+                "en-US": "Standard Occupational Classification"
+            },
+            "ceterms:targetNodeName": {
+                "en-US": "Chief Sustainability Officers"
+            },
+            "ceterms:targetNodeDescription": {
+                "en-US": "Communicate and coordinate with management, shareholders, customers, and employees to address sustainability issues. Enact or oversee a corporate sustainability strategy."
+            }
+        }
+    ],
+    "ceterms:subjectWebpage": "https://www.wgu.edu/online-business-degrees/masters-programs.html",
+    "ceterms:copyrightHolder": [
+        "https://credentialengineregistry.org/resources/ce-036d082d-d80e-41a7-99a0-2d63a4ad3a4a"
+    ],
+    "ceterms:audienceLevelType": [
+        {
+            "@type": "ceterms:CredentialAlignmentObject",
+            "ceterms:framework": "https://credreg.net/ctdl/terms/AudienceLevel",
+            "ceterms:targetNode": "audLevel:MastersDegreeLevel",
+            "ceterms:frameworkName": {
+                "en-US": "Audience Level"
+            },
+            "ceterms:targetNodeName": {
+                "en-US": "Masters Degree Level"
+            },
+            "ceterms:targetNodeDescription": {
+                "en-US": "Intended for those who have completed a Bachelor's Degree or equivalent."
+            }
+        },
+        {
+            "@type": "ceterms:CredentialAlignmentObject",
+            "ceterms:framework": "https://credreg.net/ctdl/terms/AudienceLevel",
+            "ceterms:targetNode": "audLevel:GraduateLevel",
+            "ceterms:frameworkName": {
+                "en-US": "Audience Level"
+            },
+            "ceterms:targetNodeName": {
+                "en-US": "Graduate Level"
+            },
+            "ceterms:targetNodeDescription": {
+                "en-US": "Intended for those who enrolled in a degree program or other formal program above the baccalaureate level, such as a masters or doctoral degree program."
+            }
+        }
+    ],
+    "ceterms:availableOnlineAt": [
+        "http://www.wgu.edu"
+    ],
+    "ceterms:estimatedDuration": [
+        {
+            "@type": "ceterms:DurationProfile",
+            "ceterms:description": {
+                "en-US": "By charging per term rather than per credit\u2014and empowering students to accelerate through material they know well or learn quickly\u2014WGU helps students control the ultimate cost of their degrees.\u00a0The faster you complete your program, the less you pay for your degree."
+            },
+            "ceterms:exactDuration": "P2Y"
+        }
+    ],
+    "ceterms:credentialStatusType": {
+        "@type": "ceterms:CredentialAlignmentObject",
+        "ceterms:framework": "https://credreg.net/ctdl/terms/CredentialStatus",
+        "ceterms:targetNode": "credentialStat:Active",
+        "ceterms:frameworkName": {
+            "en-US": "Credential Status"
+        },
+        "ceterms:targetNodeName": {
+            "en-US": "Active"
+        },
+        "ceterms:targetNodeDescription": {
+            "en-US": "Awards of the credential are ongoing."
+        }
+    },
+    "ceterms:learningDeliveryType": [
+        {
+            "@type": "ceterms:CredentialAlignmentObject",
+            "ceterms:framework": "https://credreg.net/ctdl/terms/Delivery",
+            "ceterms:targetNode": "deliveryType:OnlineOnly",
+            "ceterms:frameworkName": {
+                "en-US": "Delivery Type"
+            },
+            "ceterms:targetNodeName": {
+                "en-US": "Online Only"
+            },
+            "ceterms:targetNodeDescription": {
+                "en-US": "Delivery is only via the Internet."
+            }
+        }
+    ],
+    "ceterms:assessmentDeliveryType": [
+        {
+            "@type": "ceterms:CredentialAlignmentObject",
+            "ceterms:framework": "https://credreg.net/ctdl/terms/Delivery",
+            "ceterms:targetNode": "deliveryType:OnlineOnly",
+            "ceterms:frameworkName": {
+                "en-US": "Delivery Type"
+            },
+            "ceterms:targetNodeName": {
+                "en-US": "Online Only"
+            },
+            "ceterms:targetNodeDescription": {
+                "en-US": "Delivery is only via the Internet."
+            }
+        }
+    ],
+    "ceterms:instructionalProgramType": [
+        {
+            "@type": "ceterms:CredentialAlignmentObject",
+            "ceterms:framework": "https://nces.ed.gov/ipeds/cipcode/Default.aspx?y=55",
+            "ceterms:targetNode": "https://nces.ed.gov/ipeds/cipcode/cipdetail.aspx?y=56&cip=52.0201",
+            "ceterms:codedNotation": "52.0201",
+            "ceterms:frameworkName": {
+                "en-US": "Classification of Instructional Programs"
+            },
+            "ceterms:targetNodeName": {
+                "en-US": "Business Administration and Management, General"
+            },
+            "ceterms:targetNodeDescription": {
+                "en-US": "A program that generally prepares individuals to plan, organize, direct, and control the functions and processes of a firm or organization.  Includes instruction in management theory, human resources management and behavior, accounting and other quantitative methods, purchasing and logistics, organization and production, marketing, and business decision-making."
+            }
+        }
+    ]
+}

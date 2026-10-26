@@ -1,0 +1,332 @@
+{
+    "@id": "https://credentialengineregistry.org/resources/ce-8f5a2e25-7a30-4eb0-ab9e-ab441ac928c6",
+    "@type": "ceterms:BachelorOfScienceDegree",
+    "@context": "https://credreg.net/ctdl/schema/context/json",
+    "ceterms:ctid": "ce-8f5a2e25-7a30-4eb0-ab9e-ab441ac928c6",
+    "ceterms:name": {
+        "en-US": "Bachelor of Science, Computer Science (BSCS_202412)"
+    },
+    "ceterms:hasPart": [
+        "https://credentialengineregistry.org/resources/ce-775cb611-f56d-4eca-99fb-13ed9ddda230",
+        "https://credentialengineregistry.org/resources/ce-7cd1875a-468a-44b2-b855-96253c9a77ce",
+        "https://credentialengineregistry.org/resources/ce-6f398fb0-b15c-41f1-847e-5e75142a7fa8"
+    ],
+    "ceterms:keyword": {
+        "en-US": [
+            "Algorithm Analysis",
+            "Algorithm Design",
+            "Algorithmic Thinking",
+            "Algorithms",
+            "Artificial Intelligence",
+            "Augmented Reality",
+            "Big Data",
+            "Cloud Computing",
+            "Code Optimization",
+            "Coding",
+            "Computational Mathematics",
+            "Computational Theory",
+            "Computational Thinking",
+            "Computer Algorithms",
+            "Computer Architecture",
+            "Computer Graphics",
+            "Computer Hardware",
+            "Computer Languages",
+            "Computer Science",
+            "Computer Science Careers",
+            "Computer Science Curriculum",
+            "Computer Science Degree",
+            "Computer Science Education",
+            "Computer Science Ethics",
+            "Computer Science Principles",
+            "Computer Science Research",
+            "Computer Science Skills",
+            "Computer Science Trends",
+            "Computer Software",
+            "Computer Systems",
+            "Computer Vision",
+            "Computing",
+            "Computing Innovations",
+            "Critical Thinking",
+            "Cryptography",
+            "Cybersecurity",
+            "Data Analysis",
+            "Data Analytics",
+            "Data Management",
+            "Data Science",
+            "Data Structures",
+            "Database Systems",
+            "Debugging",
+            "Digital Transformation",
+            "Emerging Technologies",
+            "Game Development",
+            "Human-Computer Interaction",
+            "Internet of Things (IoT)",
+            "IT Ethics",
+            "IT Governance",
+            "IT Operations",
+            "IT Project Management",
+            "IT Service Management",
+            "Logical Reasoning",
+            "Machine Learning",
+            "Mobile App Development",
+            "Natural Language Processing",
+            "Networking",
+            "Object-Oriented Programming",
+            "Operating Systems",
+            "Parallel Computing",
+            "Problem Solving",
+            "Programming",
+            "Programming Languages",
+            "Programming Paradigms",
+            "Quality Assurance",
+            "Robotics",
+            "Software Architecture",
+            "Software Development",
+            "Software Development Lifecycle",
+            "Software Development Techniques",
+            "Software Engineering",
+            "Software Maintenance",
+            "Software Testing",
+            "Systems Analysis",
+            "Systems Design",
+            "User Interface Design",
+            "Virtual Reality",
+            "Web Development"
+        ]
+    },
+    "ceterms:ownedBy": [
+        "https://credentialengineregistry.org/resources/ce-036d082d-d80e-41a7-99a0-2d63a4ad3a4a"
+    ],
+    "ceterms:requires": [
+        {
+            "@type": "ceterms:ConditionProfile",
+            "ceterms:name": {
+                "en-US": "Requires"
+            },
+            "ceterms:description": {
+                "en-US": "The learner must have satisfied the indicated learning opportunities, or an approved equivalent, in order to be awarded the credential."
+            },
+            "ceterms:targetLearningOpportunity": [
+                "https://credentialengineregistry.org/resources/ce-7e4381c5-9a54-4701-a853-b7a76d04d151",
+                "https://credentialengineregistry.org/resources/ce-a9c770f5-e550-4e50-89ce-e7e39c339900",
+                "https://credentialengineregistry.org/resources/ce-1cb0c9ef-f7a0-43e6-b719-f4ba9e2e955f",
+                "https://credentialengineregistry.org/resources/ce-a37328b3-7cbb-4243-b653-8f467038fe9e",
+                "https://credentialengineregistry.org/resources/ce-5cafd3aa-f44a-4db7-bd3c-5b1cd1e1cce6",
+                "https://credentialengineregistry.org/resources/ce-c9f5df23-0279-47a6-a10d-36105f57c438",
+                "https://credentialengineregistry.org/resources/ce-c9f87bcd-c529-40b1-a0a0-254dbbac161e",
+                "https://credentialengineregistry.org/resources/ce-24126fc3-297e-4faf-95d6-58bcf87cca49",
+                "https://credentialengineregistry.org/resources/ce-7313f0aa-9868-40aa-9ece-7bcfba432696",
+                "https://credentialengineregistry.org/resources/ce-2cbf6099-32b7-4090-aef5-74c69ce32530",
+                "https://credentialengineregistry.org/resources/ce-83011e37-6540-48bc-be6a-e288f04c96d2",
+                "https://credentialengineregistry.org/resources/ce-ff8b0285-b1d9-4d7e-abdd-3c90d5cefd47",
+                "https://credentialengineregistry.org/resources/ce-e35cb848-f028-4131-8f08-6534ed2cccb0",
+                "https://credentialengineregistry.org/resources/ce-15b0d8b5-5fe0-4236-a620-7cb05a5bb296",
+                "https://credentialengineregistry.org/resources/ce-fae9b9a0-eae8-4af0-9152-8f84fe614572",
+                "https://credentialengineregistry.org/resources/ce-fb455e18-265b-4780-ad11-a23236043703",
+                "https://credentialengineregistry.org/resources/ce-77aeef77-bfcc-4546-a85d-980fd3c2a02c",
+                "https://credentialengineregistry.org/resources/ce-6fbbe839-1661-402b-9422-b24b5070be3c",
+                "https://credentialengineregistry.org/resources/ce-ca14ca5e-24b7-4dee-b4f7-a5d828e56376",
+                "https://credentialengineregistry.org/resources/ce-16d3cbe9-a0c9-4902-a89c-674843f69459",
+                "https://credentialengineregistry.org/resources/ce-e74eb9f1-b2ec-4529-b42d-0b51d2f96c90",
+                "https://credentialengineregistry.org/resources/ce-4f2afba6-36e3-41ce-9d79-8008d8ab46a2",
+                "https://credentialengineregistry.org/resources/ce-31b65094-af19-4c05-846d-36ad4a7bf86a",
+                "https://credentialengineregistry.org/resources/ce-277df8f0-7a5a-41b7-aa86-c20ad7a59704",
+                "https://credentialengineregistry.org/resources/ce-82b50bb8-f131-463a-b778-9c595b38df4d",
+                "https://credentialengineregistry.org/resources/ce-0cb6d7b9-3476-43ca-ba98-c5eb3cb9a111",
+                "https://credentialengineregistry.org/resources/ce-2a6114e1-bff3-4879-a524-3791c3e605b2",
+                "https://credentialengineregistry.org/resources/ce-9ca3257d-8335-4904-b0b7-d6238c57520a",
+                "https://credentialengineregistry.org/resources/ce-899c8faf-5e28-458f-8f9d-5922bdb31b3e",
+                "https://credentialengineregistry.org/resources/ce-0e8c4dc6-d06f-4231-888d-c161ecf0d74b",
+                "https://credentialengineregistry.org/resources/ce-9a73f369-0616-4218-a50c-c5000c9fb5c9",
+                "https://credentialengineregistry.org/resources/ce-ceb7c2b7-ad1b-4853-b604-f4f078f0fb47",
+                "https://credentialengineregistry.org/resources/ce-95880994-d243-4e26-8bdb-ed5486cc37c5",
+                "https://credentialengineregistry.org/resources/ce-d9ae368e-9119-4a3d-acfb-363084224ced",
+                "https://credentialengineregistry.org/resources/ce-b9e06ac1-432a-4f75-a606-4d6fd4f186b7",
+                "https://credentialengineregistry.org/resources/ce-eb5e5007-9824-4f9f-aa6c-51c4c5256f69",
+                "https://credentialengineregistry.org/resources/ce-6aa509f8-39ea-45ae-b0d3-819247cc398c"
+            ]
+        }
+    ],
+    "ceterms:offeredBy": [
+        "https://credentialengineregistry.org/resources/ce-036d082d-d80e-41a7-99a0-2d63a4ad3a4a"
+    ],
+    "ceterms:inLanguage": [
+        "en"
+    ],
+    "ceterms:degreeMajor": [
+        {
+            "@type": "ceterms:CredentialAlignmentObject",
+            "ceterms:targetNodeName": {
+                "en-US": "Computer Science"
+            }
+        }
+    ],
+    "ceterms:description": {
+        "en-US": "Earn your bachelor's degree in computer science from WGU and increase your earning potential, job security, and opportunities for advancement. This degree prepares you to design, develop, and optimize systems that will meet industry needs, and gives you the opportunity to earn multiple\u202findustry-recognized certifications."
+    },
+    "ceterms:accreditedBy": [
+        "_:28bf0ac0-4cf0-a92f-b4bb-0c081de00ac8"
+    ],
+    "ceterms:industryType": [
+        {
+            "@type": "ceterms:CredentialAlignmentObject",
+            "ceterms:framework": "https://www.census.gov/naics/",
+            "ceterms:targetNode": "https://www.census.gov/naics/?input=54&year=2022&details=54",
+            "ceterms:codedNotation": "54",
+            "ceterms:frameworkName": {
+                "en-US": "NAICS"
+            },
+            "ceterms:targetNodeName": {
+                "en-US": "Professional, Scientific, and Technical Services"
+            },
+            "ceterms:targetNodeDescription": {
+                "en-US": "Professional, Scientific, and Technical Services"
+            }
+        }
+    ],
+    "ceterms:alternateName": {
+        "en-US": [
+            "BSCS_202412"
+        ]
+    },
+    "ceterms:dateEffective": "2024-12-01",
+    "ceterms:estimatedCost": [
+        {
+            "@type": "ceterms:CostProfile",
+            "ceterms:name": {
+                "en-US": "WGU Tuition"
+            },
+            "ceterms:currency": "USD",
+            "ceterms:costDetails": "https://www.wgu.edu/financial-aid-tuition.html",
+            "ceterms:description": {
+                "en-US": "Each six-month term includes costs for tuition, an e-books and resources fee, and a program fee. Please see site for details."
+            }
+        }
+    ],
+    "ceterms:occupationType": [
+        {
+            "@type": "ceterms:CredentialAlignmentObject",
+            "ceterms:framework": "https://www.onetcenter.org/taxonomy.html",
+            "ceterms:targetNode": "https://www.onetonline.org/link/summary/15-1131.00",
+            "ceterms:codedNotation": "15-1131.00",
+            "ceterms:frameworkName": {
+                "en-US": "Standard Occupational Classification"
+            },
+            "ceterms:targetNodeName": {
+                "en-US": "Computer Programmers"
+            },
+            "ceterms:targetNodeDescription": {
+                "en-US": "Create, modify, and test the code, forms, and script that allow computer applications to run. Work from specifications drawn up by software developers or other individuals. May assist software developers by analyzing user needs and designing software solutions. May develop and write computer programs to store, locate, and retrieve specific documents, data, and information."
+            }
+        }
+    ],
+    "ceterms:subjectWebpage": "https://www.wgu.edu/online-it-degrees/bachelors-programs.html#_",
+    "ceterms:copyrightHolder": [
+        "https://credentialengineregistry.org/resources/ce-036d082d-d80e-41a7-99a0-2d63a4ad3a4a"
+    ],
+    "ceterms:audienceLevelType": [
+        {
+            "@type": "ceterms:CredentialAlignmentObject",
+            "ceterms:framework": "https://credreg.net/ctdl/terms/AudienceLevel",
+            "ceterms:targetNode": "audLevel:BachelorsDegreeLevel",
+            "ceterms:frameworkName": {
+                "en-US": "Audience Level"
+            },
+            "ceterms:targetNodeName": {
+                "en-US": "Bachelors Degree Level"
+            },
+            "ceterms:targetNodeDescription": {
+                "en-US": "Intended for those completing college/university-level programs within approximately three to four years where course work and activities advance skills from a lower-division or generalist level to an upper-division level."
+            }
+        },
+        {
+            "@type": "ceterms:CredentialAlignmentObject",
+            "ceterms:framework": "https://credreg.net/ctdl/terms/AudienceLevel",
+            "ceterms:targetNode": "audLevel:UndergraduateLevel",
+            "ceterms:frameworkName": {
+                "en-US": "Audience Level"
+            },
+            "ceterms:targetNodeName": {
+                "en-US": "Undergraduate Level"
+            },
+            "ceterms:targetNodeDescription": {
+                "en-US": "Intended for those who are enrolled in a degree program or other formal program at or below the baccalaureate, such as an associate's degree, vocational, or technical program."
+            }
+        }
+    ],
+    "ceterms:availableOnlineAt": [
+        "http://www.wgu.edu"
+    ],
+    "ceterms:estimatedDuration": [
+        {
+            "@type": "ceterms:DurationProfile",
+            "ceterms:description": {
+                "en-US": "By charging per term rather than per credit-and empowering students to accelerate through material they know well or learn quickly-WGU helps students control the ultimate cost of their degrees. The faster you complete your program, the less you pay for your degree."
+            },
+            "ceterms:exactDuration": "P4Y"
+        }
+    ],
+    "ceterms:credentialStatusType": {
+        "@type": "ceterms:CredentialAlignmentObject",
+        "ceterms:framework": "https://credreg.net/ctdl/terms/CredentialStatus",
+        "ceterms:targetNode": "credentialStat:Active",
+        "ceterms:frameworkName": {
+            "en-US": "Credential Status"
+        },
+        "ceterms:targetNodeName": {
+            "en-US": "Active"
+        },
+        "ceterms:targetNodeDescription": {
+            "en-US": "Awards of the credential are ongoing."
+        }
+    },
+    "ceterms:learningDeliveryType": [
+        {
+            "@type": "ceterms:CredentialAlignmentObject",
+            "ceterms:framework": "https://credreg.net/ctdl/terms/Delivery",
+            "ceterms:targetNode": "deliveryType:OnlineOnly",
+            "ceterms:frameworkName": {
+                "en-US": "Delivery Type"
+            },
+            "ceterms:targetNodeName": {
+                "en-US": "Online Only"
+            },
+            "ceterms:targetNodeDescription": {
+                "en-US": "Delivery is only via the Internet."
+            }
+        }
+    ],
+    "ceterms:assessmentDeliveryType": [
+        {
+            "@type": "ceterms:CredentialAlignmentObject",
+            "ceterms:framework": "https://credreg.net/ctdl/terms/Delivery",
+            "ceterms:targetNode": "deliveryType:OnlineOnly",
+            "ceterms:frameworkName": {
+                "en-US": "Delivery Type"
+            },
+            "ceterms:targetNodeName": {
+                "en-US": "Online Only"
+            },
+            "ceterms:targetNodeDescription": {
+                "en-US": "Delivery is only via the Internet."
+            }
+        }
+    ],
+    "ceterms:instructionalProgramType": [
+        {
+            "@type": "ceterms:CredentialAlignmentObject",
+            "ceterms:framework": "https://nces.ed.gov/ipeds/cipcode/Default.aspx?y=56",
+            "ceterms:targetNode": "https://nces.ed.gov/ipeds/cipcode/cipdetail.aspx?y=56&cip=11.0701",
+            "ceterms:codedNotation": "11.0701",
+            "ceterms:frameworkName": {
+                "en-US": "Classification of Instructional Programs"
+            },
+            "ceterms:targetNodeName": {
+                "en-US": "Computer Science"
+            },
+            "ceterms:targetNodeDescription": {
+                "en-US": "A program that focuses on computer theory, computing problems and solutions, and the design of computer systems and user interfaces from a scientific perspective. Includes instruction in the principles of computational science, computer development and programming, and applications to a variety of end-use situations."
+            }
+        }
+    ]
+}
