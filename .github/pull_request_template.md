@@ -1,7 +1,6 @@
 <!--
-PR title: type(area): short summary of the change
-  e.g. fix(xtra-cli): extract course pages instead of skipping them
-  type: feat, fix, docs, test, refactor or chore
+PR title: area: short summary of the change
+  e.g. xtra-cli: Extract course pages instead of skipping them
 -->
 
 ## Why
