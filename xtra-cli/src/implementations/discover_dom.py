@@ -71,6 +71,11 @@ from implementations.discover_rules import (
     MAIN_CONTAINER_IDS,
     MAIN_ROLE,
     MAIN_TAG,
+    PLATFORM_ASSET_RE,
+    PLATFORM_EVIDENCE_LIMIT,
+    PLATFORM_MARKUP_RE,
+    PLATFORM_TEXT_RE,
+    PLATFORM_WEAK,
     REQUIREMENT_LIST_CLASS_RE,
     SCHEMA_AWARD_KEYS,
     SCHEMA_MAX_DEPTH,
@@ -159,6 +164,18 @@ class Declaration:
 
 
 @dataclass
+class Fingerprint:
+    """Which catalog platform published the page, and why we think so.
+
+    `platform` is empty when nothing on the page names one. `evidence` is
+    up to a few short quotes, so a reviewer can see what was matched.
+    """
+
+    platform: str = ""
+    evidence: list[str] = field(default_factory=list)
+
+
+@dataclass
 class CourseBlock:
     """One described course, as the markup marks it."""
 
@@ -197,6 +214,7 @@ class Markup:
     reference_codes: set[str] = field(default_factory=set)
     declarations: list[Declaration] = field(default_factory=list)
     cms_page_type: str = ""
+    fingerprint: Fingerprint = field(default_factory=Fingerprint)
     # The printed label/value pairs, read once here so the entity reader
     # does not parse the page a second time to find a credits field.
     field_pairs: list[FieldPair] = field(default_factory=list)
@@ -775,6 +793,80 @@ def read_cms_page_type(soup: BeautifulSoup) -> str:
     return (match.group(1) or match.group(2) or "").lower() if match else ""
 
 
+def _platform_sources(tag: Tag) -> list[str]:
+    """The strings on one element that can name a platform's assets."""
+    if tag.name == "script":
+        src = tag.get("src")
+        return [src if isinstance(src, str) else tag.get_text()]
+    if tag.name == "link":
+        href = tag.get("href")
+        return [href] if isinstance(href, str) else []
+    if tag.name == "meta" and str(tag.get("name")).lower() == "generator":
+        content = tag.get("content")
+        return [content] if isinstance(content, str) else []
+    return []
+
+
+def _platform_tokens(tag: Tag) -> list[str]:
+    """The names an element gives itself: tag, classes, id, attributes."""
+    identifier = tag.get("id")
+    tokens = [tag.name, *_class_words(tag), *tag.attrs]
+    if isinstance(identifier, str) and identifier:
+        tokens.append(identifier)
+    return tokens
+
+
+def read_fingerprint(soup: BeautifulSoup) -> Fingerprint:
+    """Name the catalog platform from assets, element names and credits.
+
+    Every distinct thing a platform's patterns match is one hit, so a page
+    repeating one class a thousand times counts it once. The platform with
+    the most hits is named; a weak platform (a generic CMS) is named only
+    when no other platform has a hit, because the products built on a CMS
+    carry its markup too. Run before script tags are removed: a script's
+    src is the best evidence a shell page has.
+    """
+    hits: dict[str, dict[str, str]] = {}
+
+    def note(platform: str, key: str, quote: str) -> None:
+        hits.setdefault(platform, {}).setdefault(key, evidence(quote))
+
+    for tag in soup.find_all(True):
+        for source in _platform_sources(tag):
+            for platform, pattern in PLATFORM_ASSET_RE.items():
+                match = pattern.search(source)
+                if match is not None:
+                    note(
+                        platform,
+                        match.group(0).lower(),
+                        f"{tag.name} {evidence(source, match)}",
+                    )
+        for token in _platform_tokens(tag):
+            for platform, pattern in PLATFORM_MARKUP_RE.items():
+                if pattern.search(token):
+                    note(platform, token.lower(), f"markup {token}")
+    printed = [soup.title.get_text(" ")] if soup.title else []
+    printed.extend(
+        line for line in soup.get_text("\n").splitlines() if line.strip()
+    )
+    for line in printed:
+        for platform, pattern in PLATFORM_TEXT_RE.items():
+            match = pattern.search(line)
+            if match is not None:
+                note(
+                    platform,
+                    match.group(0).lower(),
+                    f"text {evidence(line, match)}",
+                )
+    strong = [name for name in hits if name not in PLATFORM_WEAK]
+    candidates = strong or list(hits)
+    if not candidates:
+        return Fingerprint()
+    winner = max(candidates, key=lambda name: len(hits[name]))
+    quotes = list(hits[winner].values())[:PLATFORM_EVIDENCE_LIMIT]
+    return Fingerprint(platform=winner, evidence=quotes)
+
+
 def _site_name(soup: BeautifulSoup) -> str:
     meta = soup.find("meta", attrs={"property": "og:site_name"})
     content = meta.get("content") if isinstance(meta, Tag) else ""
@@ -784,6 +876,9 @@ def _site_name(soup: BeautifulSoup) -> str:
 def read_markup(html: str) -> Markup:
     """Read one page's markup. Nothing is fetched and nothing is written."""
     soup = parse(html)
+    # Both read scripts, so both run before the scripts are removed.
+    fingerprint = read_fingerprint(soup)
+    declarations = read_declarations(soup)
     for tag in soup.find_all(_SKIP_TAGS - {"head"}):
         tag.decompose()
     main = find_main(soup)
@@ -799,7 +894,8 @@ def read_markup(html: str) -> Markup:
     markup.requirement_lists, markup.reference_codes = read_requirement_lists(
         soup
     )
-    markup.declarations = read_declarations(soup)
+    markup.declarations = declarations
+    markup.fingerprint = fingerprint
     markup.cms_page_type = read_cms_page_type(soup)
     markup.field_pairs = read_field_pairs(soup)
     return markup
