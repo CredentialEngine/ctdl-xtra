@@ -794,11 +794,13 @@ compared with its own record and later ones with its `{stem}--{entity}`
 records, in order. The baseline HTML is not read, and `source_url` is not
 used: matching compares values only.
 
-Each baseline field is matched against the values the record's
-`ctdl_expected` holds for that property, and each extracted value can answer
-only one baseline value, so one prerequisite cannot cover three. A nested
-`creditValue` is read the way the baseline prints it: a single credit of 3 is
-both `creditMinValue` and `creditMaxValue`, and `subjectWebpage` is read from
+Each baseline field is matched against the value the record's `expected`
+object holds for that property (`expected` is flat, keyed by ceterms property;
+a record without it scores as all missing), and each extracted value can answer
+only one baseline value, so one prerequisite cannot cover three. A
+`creditValue` is read the way the baseline prints it: a single credit of 3,
+flat or nested, is both `creditMinValue` and `creditMaxValue`, and
+`subjectWebpage` is read from
 the record's `source_url`. A property the record has and the baseline does not
 is listed as `unscored_extras` and costs nothing; the baseline may simply be
 incomplete.

@@ -25,11 +25,9 @@ def seed(tmp_path: Path, baseline_fields: list[dict] | None = None) -> None:
         {
             "record_id": STEM,
             "source_url": f"https://catalog.example.edu/{STEM}",
-            "ctdl_expected": {
-                "properties": [
-                    {"property": "ceterms:name", "value": "Composition"},
-                    {"property": "ceterms:codedNotation", "value": "ENGL101"},
-                ]
+            "expected": {
+                "ceterms:name": "Composition",
+                "ceterms:codedNotation": "ENGL101",
             },
         },
     )

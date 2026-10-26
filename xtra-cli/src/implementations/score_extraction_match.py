@@ -88,27 +88,22 @@ class ExtractionMatchError(Exception):
 
 
 def extracted_values(record: dict) -> dict[str, list[Any]]:
-    """What the record says, as {ctdl property: [values]}.
+    """What the record's `expected` says, as {ctdl property: [values]}.
 
-    Nested profiles are read the way the baseline prints them, so a
-    creditValue of 3 can satisfy a baseline creditMinValue of 3.
+    `expected` is a flat {ceterms property: value} object. Credits are read
+    the way the baseline prints them, so a creditValue of 3 can satisfy a
+    baseline creditMinValue of 3. A record without `expected` has no values.
     """
     pool: dict[str, list[Any]] = {}
 
     def add(prop: str, value: Any) -> None:
         pool.setdefault(prop, []).append(value)
 
-    ctdl = record.get("ctdl_expected") or {}
-    for entry in ctdl.get("properties") or []:
-        prop = entry.get("property")
-        value = entry.get("value")
-        if not prop:
+    for prop, value in (record.get("expected") or {}).items():
+        if value is None:
             continue
-        if isinstance(value, list):
-            for item in value:
-                _add_profile(prop, item, add)
-        else:
-            add(prop, value)
+        for item in value if isinstance(value, list) else [value]:
+            _add_profile(prop, item, add)
 
     if record.get("source_url") and SUBJECT_WEBPAGE not in pool:
         add(SUBJECT_WEBPAGE, record["source_url"])
@@ -118,6 +113,9 @@ def extracted_values(record: dict) -> dict[str, list[Any]]:
 def _add_profile(prop: str, item: Any, add) -> None:
     if not isinstance(item, dict):
         add(prop, item)
+        if prop == CREDIT_VALUE:
+            add(CREDIT_MIN, item)
+            add(CREDIT_MAX, item)
         return
     if prop == CREDIT_VALUE:
         for key, targets in CREDIT_PROFILE_KEYS.items():

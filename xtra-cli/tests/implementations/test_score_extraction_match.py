@@ -59,7 +59,7 @@ def record_of(*properties: dict, record_id: str = STEM) -> dict:
     return {
         "record_id": record_id,
         "source_url": URL,
-        "ctdl_expected": {"properties": list(properties)},
+        "expected": {p["property"]: p["value"] for p in properties},
     }
 
 
@@ -199,6 +199,55 @@ def test_a_single_printed_credit_satisfies_min_and_max() -> None:
     assert set(outcomes_of(result).values()) == {"match"}
 
 
+def test_a_flat_credit_value_satisfies_min_max_and_itself() -> None:
+    record = record_of(prop("ceterms:creditValue", 5.0))
+
+    result = match_entity(
+        [
+            baseline_field("ceterms:creditMinValue", "5.0"),
+            baseline_field("ceterms:creditMaxValue", "5.0"),
+            baseline_field("ceterms:creditValue", "5.0"),
+        ],
+        record,
+        MODE_EXACT,
+    )
+
+    assert set(outcomes_of(result).values()) == {"match"}
+
+
+def test_a_record_without_expected_is_all_missing() -> None:
+    record = {
+        "record_id": STEM,
+        "source_url": URL,
+        "ctdl_expected": {
+            "properties": [prop("ceterms:name", "Work Experience Education")]
+        },
+    }
+
+    result = match_entity(
+        [baseline_field("ceterms:name", "Work Experience Education")],
+        record,
+        MODE_EXACT,
+    )
+
+    assert outcomes_of(result) == {"ceterms:name": "missing"}
+
+
+def test_a_list_value_answers_several_baseline_values() -> None:
+    record = record_of(prop("ceterms:requires", ["MAT-048", "MAT-160"]))
+
+    result = match_entity(
+        [
+            baseline_field("ceterms:requires", "MAT-048"),
+            baseline_field("ceterms:requires", "MAT-160"),
+        ],
+        record,
+        MODE_EXACT,
+    )
+
+    assert set(outcomes_of(result).values()) == {"match"}
+
+
 def test_a_credit_range_fills_min_and_max_separately() -> None:
     record = record_of(
         prop(
@@ -255,10 +304,7 @@ def test_one_extracted_value_answers_only_one_baseline_value() -> None:
 
 
 def test_the_exact_candidate_wins_a_repeated_property() -> None:
-    record = record_of(
-        prop("ceterms:identifier", "OTHER"),
-        prop("ceterms:identifier", "ACCT199"),
-    )
+    record = record_of(prop("ceterms:identifier", ["OTHER", "ACCT199"]))
 
     result = match_entity(
         [baseline_field("ceterms:identifier", "ACCT199")], record, MODE_EXACT
