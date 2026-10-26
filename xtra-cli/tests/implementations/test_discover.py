@@ -820,7 +820,6 @@ def test_a_run_of_named_stems_lists_how_many_of_the_saved_pages_it_reads(
         f"under {FOLDER}/{RUN_PATH}/pages"
     ]
 
-    
 
 def test_a_site_takes_the_platform_most_of_its_pages_name() -> None:
     profiles = [
