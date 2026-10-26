@@ -3,7 +3,7 @@
 
 Live (Playwright, slow):
 
-  python3 xtra-cli/xtra_cli.py field union --url-file xtra-cli/lib/union_fields_urls.txt --limit 5
+  python3 xtra-cli/xtra_cli.py field union --url-file xtra-cli/src/lib/union_fields_urls.txt --limit 5
 
 From an existing pack (no crawl):
 
@@ -20,7 +20,8 @@ from collections import Counter
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
-CLI_ROOT = HERE.parent
+# lib/ sits in xtra-cli/src/, so the CLI root is two levels up.
+CLI_ROOT = HERE.parents[1]
 ROOT = CLI_ROOT.parent
 if str(HERE) not in sys.path:
     sys.path.insert(0, str(HERE))

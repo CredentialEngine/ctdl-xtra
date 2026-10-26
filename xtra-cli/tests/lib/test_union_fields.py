@@ -1,4 +1,4 @@
-"""The label-union report across catalogs (python lib/union_fields.py).
+"""The label-union report across catalogs (python src/lib/union_fields.py).
 Captures run as subprocesses; here subprocess.run is faked."""
 
 from __future__ import annotations

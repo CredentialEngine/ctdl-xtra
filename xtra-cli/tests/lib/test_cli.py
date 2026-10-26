@@ -1,4 +1,4 @@
-"""The pack CLI (python lib/cli.py <command>): its arguments, and the exit
+"""The pack CLI (python src/lib/cli.py <command>): its arguments, and the exit
 code and output of each command with the engine stage behind it faked."""
 
 from __future__ import annotations

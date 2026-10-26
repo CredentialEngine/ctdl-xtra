@@ -9,7 +9,7 @@ This CLI does not invent CTIDs and does not publish to the Credential Registry.
 > **Architecture and ETL pipeline:** [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) —
 > how the five stages (crawl → discover → extract → transform → score) fit together,
 > with flow charts, the storage layout, the data contracts between stages, and what
-> lives in `src/common/` versus `lib/`. Read that first if you are new to the repo;
+> lives in `src/common/` versus `src/lib/`. Read that first if you are new to the repo;
 > this README is the operator's reference for the flags.
 
 ## Install
@@ -488,7 +488,7 @@ What only the tree can say:
 
 #### What a page gets labelled
 
-Four labels, one per entity `lib/mapping.py` can write CTDL for. They are
+Four labels, one per entity `src/lib/mapping.py` can write CTDL for. They are
 tried in this order, and the first three are exclusive: a page has one
 subject, and only a competency list rides along with it.
 
@@ -768,7 +768,7 @@ id belongs to what it is mainly about, and the other gets `{stem}--{entity}`.
 
 #### Two readings, in order
 
-A course page goes to the college templates in `lib/templates` first. They
+A course page goes to the college templates in `src/lib/templates` first. They
 are the verified path and they have fixtures behind them, so where one
 matches it is the answer.
 
@@ -800,7 +800,7 @@ sits **beside** `records/` and never inside it, because transform reads every
 JSON file under `records/` and would treat a report as a course.
 
 Pages are read by the stem discovery lists, which is the stem the crawler
-saved them under. The `Slot.stem` property in `lib/` still slugs the URL the
+saved them under. The `Slot.stem` property in `src/lib/` still slugs the URL the
 old way, so it is never used for a storage key, and the record carries the
 crawl stem instead.
 
@@ -886,7 +886,7 @@ docker run --rm -e AZURE_STORAGE_CONNECTION_STRING xtra-cli catalog crawl \
 
 The entrypoint is `xtra`. The image carries Chrome, Playwright's chromium, and the `azure` extra, but not `crawl4ai`. It runs as uid 1001 in `/data`, so a relative `--target-uri ./xtra-cache` lands in a volume mounted there. An environment saved with `xtra environment set` lives only as long as the container unless `/home/xtra/.xtra` is mounted, so prefer `--target-uri`.
 
-The CLI is installed editable from the source tree on purpose: `lib/` is not a package, so a wheel cannot import the extractors. On arm64 build with `--build-arg PLAYWRIGHT_BROWSERS=chromium`, because Google ships Chrome for amd64 only.
+The CLI is installed editable from the source tree on purpose: `src/lib/` is not a package, so a wheel cannot import the extractors. On arm64 build with `--build-arg PLAYWRIGHT_BROWSERS=chromium`, because Google ships Chrome for amd64 only.
 
 ## Non-goals
 

@@ -84,8 +84,10 @@ def test_a_relative_xtra_pack_is_made_absolute(
 
 def test_the_layout_constants_point_at_this_checkout(lib_dir: Path) -> None:
     assert config.LIB_DIR == config.HERE == lib_dir
-    assert lib_dir.parent == config.CLI_ROOT
-    assert config.REPO_ROOT == config.ROOT == lib_dir.parent.parent
+    # lib/ sits in xtra-cli/src/, two levels below the CLI root.
+    assert lib_dir.parents[1] == config.CLI_ROOT
+    assert (config.CLI_ROOT / "pyproject.toml").is_file()
+    assert config.REPO_ROOT == config.ROOT == lib_dir.parents[2]
 
 
 def test_the_browser_user_agent_reads_as_desktop_chrome() -> None:

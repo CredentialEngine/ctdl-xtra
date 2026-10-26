@@ -45,6 +45,14 @@ from implementations.crawl_browser import (
     playwright_fetcher_factory,
 )
 from implementations.crawl_challenge import challenge_kind
+from implementations.crawl_coursedog import (
+    MAX_LIST_PAGES,
+    PROBLEM_CAPPED,
+    PROBLEM_LOADING,
+    PROBLEM_NO_CURRENT_PAGE,
+    PROBLEM_PAGE_IGNORED,
+    read_list_pages,
+)
 from implementations.crawl_curriqunet import (
     CurriqunetIndex,
     read_curriqunet_index,
@@ -86,8 +94,10 @@ EXIT_INTERRUPTED = 130
 # --url first, then the sitemap, then the site's own page index (a
 # CurriQunet catalog's navigation tree), then --seed-urls-file, then links
 # in document order. Both declarations are the site's list of its pages, so
-# they come ahead of anything found on the way. Recorded so a run says
-# which rule ordered its frontier.
+# they come ahead of anything found on the way. A Coursedog list's later
+# pages are found on the way, from its page buttons, and go ahead of the
+# links of the page that leads to them. Recorded so a run says which rule
+# ordered its frontier.
 FRONTIER_ORDER = "sitemap_first"
 
 # Index documents are small JSON, and like sitemap documents they are not
@@ -386,9 +396,78 @@ class Crawler:
         self.seen.add(key)
         self.frontier.append(url)
 
-    def _follow(self, html: str, base_url: str) -> None:
+    def _follow(self, html: str, base_url: str, page_url: str) -> None:
+        """Queue what one saved page leads to: list pages, then its links.
+
+        A Coursedog list moves between its pages with buttons, not links,
+        so its later pages are read off the buttons and queued ahead of the
+        page's links, which keeps a limited run going down the list. They are built from
+        `page_url`, the URL the page was asked for and the one a resume
+        reads it back under. Links resolve against `base_url`, where the
+        page landed.
+        """
+        self._follow_list(html, page_url)
         for link in extract_links(html, base_url):
             self.enqueue(link)
+
+    def _follow_list(self, html: str, page_url: str) -> None:
+        """Queue the rest of a Coursedog list, and say why when it cannot.
+
+        Read on every saved page, so a resume re-reads a list it already
+        queued; the pages are duplicates by then and nothing is logged.
+        """
+        pages = read_list_pages(html, page_url)
+        if pages is None:
+            return
+        queued = sum(self.enqueue(url) for url in pages.urls)
+        if pages.problem == PROBLEM_LOADING:
+            logger.warning(
+                "LIST %s was saved before its list loaded (Loading "
+                "results...), so the pages after it are not known",
+                page_url,
+            )
+        elif pages.problem == PROBLEM_NO_CURRENT_PAGE:
+            logger.warning(
+                "LIST %s has page buttons up to %s but none marks the page "
+                "on screen, so the rest of the list is not queued",
+                page_url,
+                pages.last,
+            )
+        elif pages.problem == PROBLEM_PAGE_IGNORED:
+            logger.warning(
+                "LIST %s asked for page %s and the site showed page %s, so "
+                "this list does not open by page number and the rest of it "
+                "is not queued",
+                page_url,
+                pages.asked,
+                pages.current,
+            )
+        elif pages.problem == PROBLEM_CAPPED:
+            logger.warning(
+                "LIST %s says the list has %s pages; only pages up to %s are "
+                "queued",
+                page_url,
+                pages.last,
+                MAX_LIST_PAGES,
+            )
+        if not queued:
+            return
+        if pages.asked == 1:
+            logger.info(
+                "LIST %s is page 1 of %s; queued page 2 to check the list "
+                "opens by page number",
+                page_url,
+                pages.last,
+            )
+        else:
+            logger.info(
+                "LIST %s opened as page %s of %s; queued %s more page(s) of "
+                "the list",
+                page_url,
+                pages.current,
+                pages.last,
+                queued,
+            )
 
     # -- site declarations -------------------------------------------------
 
@@ -610,7 +689,7 @@ class Crawler:
             self._saves_since_checkpoint += 1
         # The failure streak is not reset: a replay is not a GET, and a
         # site that refuses every fetch still has to stop the run.
-        self._follow(html, url)
+        self._follow(html, url, url)
         self._maybe_checkpoint()
         return True
 
@@ -714,7 +793,11 @@ class Crawler:
             result.latency_ms,
             join_storage_uri(self.settings.target_uri, html_key),
         )
-        self._follow(result.html, result.final_url or result.requested_url)
+        self._follow(
+            result.html,
+            result.final_url or result.requested_url,
+            result.requested_url,
+        )
         self._maybe_checkpoint()
 
     def _fail(

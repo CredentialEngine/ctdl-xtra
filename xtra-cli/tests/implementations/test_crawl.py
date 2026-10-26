@@ -10,8 +10,12 @@ from pathlib import Path
 
 import pytest
 from crawl_doubles import (
+    COURSEDOG_LOADING,
     CQ_CATALOG,
     FakePage,
+    coursedog_list,
+    coursedog_page,
+    coursedog_row,
     cq_node,
     curriqunet_documents,
     fetcher_factory,
@@ -34,6 +38,7 @@ from implementations.crawl import (
     run_crawl,
 )
 from implementations.crawl_browser import DEFAULT_TIMEOUT_MS, VIEWPORT
+from implementations.crawl_coursedog import MAX_LIST_PAGES
 from implementations.crawl_curriqunet import INDEX_KIND
 from implementations.crawl_strategy import strategy_facts
 
@@ -1748,3 +1753,219 @@ def test_pages_read_back_without_a_checkpoint_still_checkpoint_as_they_go(
     ]
     # After the 2nd and 4th pages read back past the first, and at the end.
     assert len(progress) == 3
+
+
+# --- Coursedog lists ----------------------------------------------------------
+
+LIST = "https://catalog.example.edu/courses"
+
+
+def course_url(code: str) -> str:
+    return f"https://catalog.example.edu/courses/{code}"
+
+
+def coursedog_site(*, opens_by_number: bool = True) -> dict:
+    """A home page that links to a Coursedog course list of three pages.
+
+    Each list page names two courses and lands where the site rewrites it
+    to, ?page=N&cq=. A list that does not open by number shows its first
+    page whatever the address asks for.
+    """
+    pages = {SEED: FakePage(html='<a href="/courses">Courses</a>')}
+    for asked in (1, 2, 3):
+        shown = asked if opens_by_number else 1
+        codes = [f"C{shown}{i}" for i in (1, 2)]
+        pages[LIST if asked == 1 else f"{LIST}?page={asked}"] = FakePage(
+            html=coursedog_list(shown, 3, codes),
+            final_url=f"{LIST}?page={shown}&cq=",
+        )
+        for code in codes:
+            pages[course_url(code)] = FakePage(html=f"<h1>{code}</h1>")
+    return pages
+
+
+def list_lines(caplog, level: int = logging.INFO) -> list[str]:
+    return [
+        record.getMessage()
+        for record in caplog.records
+        if record.levelno >= level and record.getMessage().startswith("LIST ")
+    ]
+
+
+def test_a_coursedog_list_is_crawled_through_its_page_buttons(
+    tmp_path: Path, caplog
+) -> None:
+    calls: list[str] = []
+    with caplog.at_level(logging.INFO):
+        doc = crawl(tmp_path, coursedog_site(), calls=calls).crawl_doc
+    courses = [course_url(f"C{n}{i}") for n in (1, 2, 3) for i in (1, 2)]
+    assert doc["status"] == STATUS_COMPLETE
+    assert doc["pages_saved"] == 10
+    assert sorted(calls) == sorted(
+        [SEED, LIST, f"{LIST}?page=2", f"{LIST}?page=3", *courses]
+    )
+    # The next list page goes ahead of the courses of the page that leads
+    # to it, so a limited run goes down the list.
+    assert calls[:3] == [SEED, LIST, f"{LIST}?page=2"]
+    assert list_lines(caplog) == [
+        f"LIST {LIST} is page 1 of 3; queued page 2 to check the list opens "
+        "by page number",
+        f"LIST {LIST}?page=2 opened as page 2 of 3; queued 1 more page(s) of "
+        "the list",
+    ]
+
+
+def test_a_list_that_ignores_page_numbers_costs_one_page_and_a_warning(
+    tmp_path: Path, caplog
+) -> None:
+    calls: list[str] = []
+    with caplog.at_level(logging.INFO):
+        doc = crawl(
+            tmp_path, coursedog_site(opens_by_number=False), calls=calls
+        ).crawl_doc
+    assert f"{LIST}?page=2" in calls
+    assert f"{LIST}?page=3" not in calls
+    # The home page, the list under two addresses, and its two courses.
+    assert doc["pages_saved"] == 5
+    assert list_lines(caplog, logging.WARNING) == [
+        f"LIST {LIST}?page=2 asked for page 2 and the site showed page 1, so "
+        "this list does not open by page number and the rest of it is not "
+        "queued"
+    ]
+
+
+def test_list_pages_are_built_from_the_address_asked_for(
+    tmp_path: Path,
+) -> None:
+    """Not from where the site rewrote it, which a resume never sees."""
+    site = coursedog_site()
+    site[LIST] = FakePage(
+        html=site[LIST].html, final_url=f"{LIST}?page=1&sort=code"
+    )
+    calls: list[str] = []
+    crawl(tmp_path, site, calls=calls)
+    assert f"{LIST}?page=2" in calls
+    assert not [url for url in calls if "sort=code" in url]
+
+
+def test_a_resume_builds_the_same_list_pages_and_fetches_none_twice(
+    tmp_path: Path, caplog
+) -> None:
+    site = coursedog_site()
+    first: list[str] = []
+    crawl(tmp_path, site, limit=3, calls=first)
+    assert first == [SEED, LIST, f"{LIST}?page=2"]
+
+    second: list[str] = []
+    caplog.clear()
+    with caplog.at_level(logging.INFO):
+        doc = crawl(tmp_path, site, calls=second).crawl_doc
+    assert not set(first) & set(second)
+    assert len(second) == len(set(second)) == 7
+    assert doc["pages_saved"] == 10
+    assert doc["status"] == STATUS_COMPLETE
+    # Reading the saved list pages back queues nothing new, so says nothing.
+    assert list_lines(caplog) == []
+
+
+def test_an_include_regex_still_decides_whether_list_pages_are_followed(
+    tmp_path: Path,
+) -> None:
+    site = coursedog_site()
+    # Landing where it was asked keeps the seed inside "/courses/": the
+    # address the site rewrites it to is tested against the regex too.
+    site[LIST] = FakePage(html=site[LIST].html)
+    calls: list[str] = []
+    doc = crawl(
+        tmp_path,
+        site,
+        seed_url=LIST,
+        include_regex=("/courses/",),
+        calls=calls,
+    ).crawl_doc
+    assert sorted(calls) == sorted([LIST, course_url("C11"), course_url("C12")])
+    assert doc["skipped_by_reason"]["include_rule"] >= 1
+
+
+def test_a_run_narrowed_to_the_course_list_still_pages_through_it(
+    tmp_path: Path,
+) -> None:
+    """--include-regex /courses keeps /courses?page=N and /courses/CODE."""
+    calls: list[str] = []
+    doc = crawl(
+        tmp_path, coursedog_site(), include_regex=("/courses",), calls=calls
+    ).crawl_doc
+    assert doc["pages_saved"] == 10
+    assert f"{LIST}?page=3" in calls
+    assert doc["skipped_by_reason"].get("redirect_out_of_scope", 0) == 0
+
+
+def test_a_list_saved_before_it_loaded_is_warned_about(
+    tmp_path: Path, caplog
+) -> None:
+    pages = {
+        SEED: FakePage(html='<a href="/courses">Courses</a>'),
+        LIST: FakePage(html=coursedog_page(COURSEDOG_LOADING)),
+    }
+    with caplog.at_level(logging.WARNING):
+        doc = crawl(tmp_path, pages).crawl_doc
+    assert doc["pages_saved"] == 2
+    assert list_lines(caplog, logging.WARNING) == [
+        f"LIST {LIST} was saved before its list loaded (Loading results...), "
+        "so the pages after it are not known"
+    ]
+
+
+def test_a_row_that_marks_no_page_is_warned_about(
+    tmp_path: Path, caplog
+) -> None:
+    row = (
+        coursedog_row(1, 3)
+        .replace("btn-primary", "btn-secondary")
+        .replace(' disabled=""', "")
+    )
+    pages = {
+        SEED: FakePage(html='<a href="/courses">Courses</a>'),
+        LIST: FakePage(html=coursedog_page(row)),
+    }
+    calls: list[str] = []
+    with caplog.at_level(logging.WARNING):
+        crawl(tmp_path, pages, calls=calls)
+    assert calls == [SEED, LIST]
+    assert list_lines(caplog, logging.WARNING) == [
+        f"LIST {LIST} has page buttons up to 3 but none marks the page on "
+        "screen, so the rest of the list is not queued"
+    ]
+
+
+def test_a_list_longer_than_the_cap_is_queued_up_to_it_and_says_so(
+    tmp_path: Path, caplog
+) -> None:
+    last = MAX_LIST_PAGES + 1
+    pages = {
+        SEED: FakePage(html='<a href="/courses">Courses</a>'),
+        LIST: FakePage(html=coursedog_list(1, last, ["C11"])),
+        f"{LIST}?page=2": FakePage(html=coursedog_list(2, last, ["C21"])),
+    }
+    with caplog.at_level(logging.WARNING):
+        crawl(tmp_path, pages, limit=3)
+    assert list_lines(caplog, logging.WARNING) == [
+        f"LIST {LIST}?page=2 says the list has {last} pages; only pages up "
+        f"to {MAX_LIST_PAGES} are queued"
+    ]
+    queued = [url for url in saved_state(tmp_path)["frontier"] if "?" in url]
+    assert len(queued) == MAX_LIST_PAGES - 2
+    assert queued[-1] == f"{LIST}?page={MAX_LIST_PAGES}"
+
+
+def test_page_buttons_on_another_platform_queue_nothing(
+    tmp_path: Path,
+) -> None:
+    pages = {
+        SEED: FakePage(html='<a href="/courses">Courses</a>'),
+        LIST: FakePage(html=f"<html><body>{coursedog_row(1, 3)}</body></html>"),
+    }
+    calls: list[str] = []
+    doc = crawl(tmp_path, pages, calls=calls).crawl_doc
+    assert calls == [SEED, LIST]
+    assert doc["pages_saved"] == 2

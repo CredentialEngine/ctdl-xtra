@@ -1,4 +1,4 @@
-"""lib/ resolves where the engine bridge puts it, and nothing shadows it."""
+"""src/lib/ resolves where the engine bridge puts it, and nothing shadows it."""
 
 from __future__ import annotations
 
@@ -41,7 +41,27 @@ def test_the_engine_bridge_appends_lib_after_src_and_tests(
 
 
 def test_nothing_in_src_or_tests_shadows_a_lib_module(lib_dir: Path) -> None:
-    """src/ and tests/ come first on sys.path, so a same-named module wins."""
+    """src/ and tests/ come first on sys.path, so a same-named module wins.
+
+    The src/lib/ and tests/lib/ folders have no __init__.py, so from src/ and
+    tests/ each is only a namespace portion, and a namespace portion loses to
+    lib/lib.py once src/lib/ is on sys.path: the first test above imports lib
+    to prove it. pytest names the test files tests.lib.*, never lib.*, as long
+    as consider_namespace_packages stays off.
+    """
     lib_names = importable_names(lib_dir)
     assert lib_names & importable_names(TESTS) == set()
     assert lib_names & importable_names(CLI_ROOT / "src") == set()
+
+
+def test_every_module_finds_the_cli_root_two_levels_above_lib(
+    lib_dir: Path,
+) -> None:
+    """Modules that work the CLI root out from their own file climb past src/."""
+    import config
+    import union_fields
+
+    import lib
+
+    assert lib_dir == CLI_ROOT / "src" / "lib"
+    assert config.CLI_ROOT == lib.CLI_ROOT == union_fields.CLI_ROOT == CLI_ROOT

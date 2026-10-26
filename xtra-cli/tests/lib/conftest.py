@@ -1,6 +1,6 @@
 """Shared setup for the tests of xtra-cli/lib.
 
-lib/ is a folder of flat modules that import one another by bare name, so
+src/lib/ is a folder of flat modules that import one another by bare name, so
 it has to be on sys.path before any of them loads. load_engine() is the
 same bridge the xtra CLI uses. It runs when pytest imports this conftest,
 which pytest does before it imports any test module below it.
@@ -67,7 +67,7 @@ def refuse_subprocess(*args: Any, **kwargs: Any) -> None:
 
 
 def lib_modules() -> list[types.ModuleType]:
-    """Every loaded module that lives under lib/, templates included."""
+    """Every loaded module that lives under src/lib/, templates included."""
     return [
         module
         for module in list(sys.modules.values())

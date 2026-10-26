@@ -1,9 +1,9 @@
 """Normalized freeze texts for the eight lib course templates.
 
-Each text is what lib/normalize.py makes of a course page: one stripped
+Each text is what src/lib/normalize.py makes of a course page: one stripped
 line per block, no blank lines, a trailing newline. Real Coursedog and
 Acalog pages are not in tests/fixtures, so these are written by hand to
-the layout each template reads, as lib/CLASSIFICATION.md describes it.
+the layout each template reads, as src/lib/CLASSIFICATION.md describes it.
 A non-breaking space is spelled \xa0, as Acalog prints its code-dash-title
 headings. as_html() serves a text as a page, which is how the tests show
 that normalize_html can really produce it.

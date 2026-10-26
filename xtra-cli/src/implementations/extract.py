@@ -1,6 +1,6 @@
 """Deterministic extract, two readings deep. No LLM fallback.
 
-A course page is read by the college templates in lib/templates, which
+A course page is read by the college templates in src/lib/templates, which
 know one college's layout each. What they do not match, and every page
 that is not a course, is read from the markup by extract_dom: the label a
 platform marks up says what the value beside it is, whichever college

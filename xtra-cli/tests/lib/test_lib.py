@@ -57,7 +57,7 @@ def test_without_xtra_home_packs_live_in_xtra_cli_out(
     monkeypatch: pytest.MonkeyPatch, lib_dir: Path
 ) -> None:
     monkeypatch.delenv("XTRA_HOME")
-    assert lib.pack_home() == (lib_dir.parent / "out").absolute()
+    assert lib.pack_home() == (lib_dir.parents[1] / "out").absolute()
 
 
 @pytest.mark.parametrize(

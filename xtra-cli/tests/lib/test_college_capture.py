@@ -1,6 +1,6 @@
 """College capture: harvest seeds, drop dead and unreadable pages, and the
 trimming run_college_capture does around the build. Every engine stage it
-drives is faked here; tests/lib_engine/test_pipeline_offline.py runs the
+drives is faked here; tests/lib/test_pipeline_offline.py runs the
 real ones."""
 
 from __future__ import annotations

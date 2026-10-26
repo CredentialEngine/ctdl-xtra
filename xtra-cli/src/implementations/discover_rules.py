@@ -5,7 +5,7 @@ labelled wrong, the fix is a rule in this file and a fixture next to the
 others that proves it. Nothing else in the discovery code carries a literal
 pattern or a cut-off, so tuning is one file to read and one file to review.
 
-Four entities are recognised, and they are the four `lib/mapping.py` can
+Four entities are recognised, and they are the four `src/lib/mapping.py` can
 write CTDL for:
 
     Course               ceterms:Course          one course, or a page of them
@@ -1006,7 +1006,7 @@ COURSE_TITLE_SPLIT_RE = re.compile(r"\s*[.:–-]\s+|\s*\.\s*")
 # What a printed label means, as one canonical field name per label. The
 # keys are what normalize_field_label returns, so "Credit Hour(s):" and
 # "CREDIT HOURS" are one key. Only labels that map onto a canonical field
-# in lib/FIELD_INVENTORY.csv are here; anything else a page prints is
+# in src/lib/FIELD_INVENTORY.csv are here; anything else a page prints is
 # kept in the report but is not a field.
 COURSE_FIELD_LABELS = {
     "credits": "course_credits",
@@ -1057,7 +1057,7 @@ COURSE_FIELD_LABELS = {
     "general education": "course_general_education",
 }
 # Which record a page carrying each label should produce. The names on
-# the right are what lib/mapping.py maps to a CTDL class, and they are
+# the right are what src/lib/mapping.py maps to a CTDL class, and they are
 # not all spelled the way discovery spells its labels: the page discovery
 # calls a LearningOpportunity becomes a ceterms:LearningProgram.
 #

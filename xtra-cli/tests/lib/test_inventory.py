@@ -15,7 +15,7 @@ D5 = (
     "'(Max, range end)' unquoted, so those rows have six columns"
 )
 D6 = (
-    "D6: lib/FIELD_INVENTORY.csv is stale: it lacks course_ceu_credits, "
+    "D6: src/lib/FIELD_INVENTORY.csv is stale: it lacks course_ceu_credits, "
     "and it carries D5's unquoted commas"
 )
 

@@ -39,7 +39,7 @@ jobs:
           script: |
             Write-Host "##vso[build.updatebuildnumber]$(VersionNumber)"
 
-      # lib/ and the xtra_cli.py shim ship in the image beside src/.
+      # src/ (src/lib/ included) and the xtra_cli.py shim ship in the image.
       - bash: |
           set -euo pipefail
           docker run --rm \
@@ -52,7 +52,7 @@ jobs:
               --config "p/security-audit" \
               --config "p/python" \
               --config "p/dockerfile" \
-              src tests lib xtra_cli.py Dockerfile
+              src tests xtra_cli.py Dockerfile
         displayName: "Semgrep scan - xtra-cli"
 
       - task: UsePythonVersion@0
@@ -89,7 +89,7 @@ jobs:
         displayName: "Run unit tests"
         workingDirectory: "$(Build.SourcesDirectory)/xtra-cli"
 
-      # Unlike ceops, no wheel is built or published: lib/ is not a package,
+      # Unlike ceops, no wheel is built or published: src/lib/ is not a package,
       # so the wheel cannot start the CLI. The image installs from the source
       # tree.
       - task: PublishPipelineArtifact@1

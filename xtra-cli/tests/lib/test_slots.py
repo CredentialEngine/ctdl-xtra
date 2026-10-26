@@ -11,7 +11,7 @@ from slots import Slot
 
 
 def test_slot_keeps_the_field_order_positional_callers_rely_on() -> None:
-    """src/implementations/extract.py and lib/college_capture.py build a
+    """src/implementations/extract.py and src/lib/college_capture.py build a
     Slot positionally, so a reordered field would shift silently."""
     assert [f.name for f in fields(Slot)] == [
         "record_id",

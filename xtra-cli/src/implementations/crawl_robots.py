@@ -32,7 +32,7 @@ class SiteFetchError(RuntimeError):
 
 
 def browser_user_agent() -> str:
-    """The UA string shared with the Playwright context, from lib/config."""
+    """The UA string shared with the Playwright context, from src/lib/config."""
     load_engine()
     from config import BROWSER_USER_AGENT
 

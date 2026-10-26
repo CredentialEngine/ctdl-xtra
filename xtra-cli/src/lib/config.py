@@ -18,7 +18,8 @@ from pathlib import Path
 
 LIB_DIR = Path(__file__).resolve().parent
 HERE = LIB_DIR
-CLI_ROOT = LIB_DIR.parent
+# lib/ sits in xtra-cli/src/, so the CLI root is two levels up.
+CLI_ROOT = LIB_DIR.parents[1]
 REPO_ROOT = CLI_ROOT.parent
 ROOT = REPO_ROOT
 

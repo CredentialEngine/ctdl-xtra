@@ -66,7 +66,7 @@ def test_portable_paths_are_relative_to_the_pack_lib_or_repo(
     assert freeze.portable_path(lib_dir / "record.schema.json") == (
         "record.schema.json"
     )
-    assert freeze.portable_path(lib_dir.parent / "tests" / "x.html") == (
+    assert freeze.portable_path(lib_dir.parents[1] / "tests" / "x.html") == (
         "tests/x.html"
     )
     assert freeze.portable_path(tmp_path / "repo" / "handoff" / "x.html") == (

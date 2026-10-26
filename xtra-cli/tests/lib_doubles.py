@@ -1,6 +1,6 @@
 """Builders and stand-ins shared by the tests of xtra-cli/lib.
 
-lib/ is importable only after load_engine() has put it on sys.path, which
+src/lib/ is importable only after load_engine() has put it on sys.path, which
 tests/lib/conftest.py does first. So every lib import here sits inside the
 function that needs it, and this module can be imported before that.
 

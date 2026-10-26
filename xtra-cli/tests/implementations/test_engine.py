@@ -7,7 +7,7 @@ from implementations.engine import load_engine
 
 def test_load_engine_puts_lib_on_path() -> None:
     lib = load_engine()
-    assert lib.name == "lib"
+    assert lib == Path(__file__).resolve().parents[2] / "src" / "lib"
     assert (lib / "mapping.py").is_file()
     assert (lib / "templates" / "clean_catalog.py").is_file()
     import mapping
