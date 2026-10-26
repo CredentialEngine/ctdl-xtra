@@ -13,6 +13,11 @@ from implementations.discover_rules import (
     LECTURE_LAB_CREDIT_RE,
     MARKER_MEANING,
     MARKER_NAMES,
+    PLATFORM_ASSET_RE,
+    PLATFORM_MARKUP_RE,
+    PLATFORM_NAMES,
+    PLATFORM_TEXT_RE,
+    PLATFORM_WEAK,
     PREREQ_COREQ_COMBINED_RE,
     REQUIREMENTS_HEADING_RE,
     TOTAL_CREDITS_RE,
@@ -942,3 +947,18 @@ def test_a_contact_line_names_a_role_and_how_to_reach_them() -> None:
     # A role with no way to reach them, and a number with no role.
     assert not is_contact_line("Director and Professor of Philosophy")
     assert not is_contact_line("Call (501) 450-5624 for the class schedule")
+
+
+def test_every_platform_pattern_belongs_to_a_named_platform() -> None:
+    for patterns in (PLATFORM_ASSET_RE, PLATFORM_MARKUP_RE, PLATFORM_TEXT_RE):
+        assert set(patterns) <= set(PLATFORM_NAMES)
+    assert set(PLATFORM_NAMES) >= PLATFORM_WEAK
+
+
+def test_every_platform_can_be_recognised_somehow() -> None:
+    for platform in PLATFORM_NAMES:
+        assert (
+            platform in PLATFORM_ASSET_RE
+            or platform in PLATFORM_MARKUP_RE
+            or platform in PLATFORM_TEXT_RE
+        )

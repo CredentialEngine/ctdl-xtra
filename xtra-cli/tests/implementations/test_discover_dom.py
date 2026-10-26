@@ -14,6 +14,7 @@ from implementations.discover_dom import (
     read_cms_page_type,
     read_course_blocks,
     read_declarations,
+    read_fingerprint,
     read_markup,
     read_requirement_lists,
 )
@@ -333,3 +334,147 @@ def test_an_empty_document_reads_as_an_empty_page() -> None:
     assert markup.content_text == ""
     assert markup.h1 == ""
     assert markup.described_course_count == 0
+
+
+def fingerprint(body: str = "", *, title: str = "Example", meta: str = ""):
+    return read_fingerprint(parse(page(body, title=title, meta=meta)))
+
+
+def test_courseleaf_is_named_by_its_script_and_its_container() -> None:
+    found = fingerprint(
+        '<div id="textcontainer"></div>',
+        meta='<script src="/js/courseleaf.js"></script>',
+    )
+    assert found.platform == "courseleaf"
+    assert "script /js/courseleaf.js" in found.evidence
+
+
+def test_acalog_is_named_by_its_gateway_assets() -> None:
+    found = fingerprint(
+        meta=(
+            '<script src="//acalog-clients.s3.amazonaws.com/global/js/'
+            'gateway-javascript.js"></script>'
+        )
+    )
+    assert found.platform == "acalog"
+
+
+def test_a_single_page_app_shell_is_named_before_it_draws_anything() -> None:
+    """Coursedog and eLumen print nothing but assets until script runs."""
+    coursedog = fingerprint(
+        meta=(
+            '<script src="https://static.catalog.prod.coursedog.com/x/_nuxt/'
+            'a.js"></script>'
+        )
+    )
+    elumen = fingerprint(
+        "<script>loadContent('https://api-prod.elumenapp.com:443/c');</script>"
+    )
+    assert coursedog.platform == "coursedog"
+    assert elumen.platform == "elumen"
+
+
+def test_curriqunet_is_named_by_its_title_alone() -> None:
+    found = fingerprint(title="View - CurriQunet META")
+    assert found.platform == "curriqunet"
+
+
+def test_kuali_is_named_even_inside_a_wordpress_page() -> None:
+    """UCF embeds its Kuali catalog in WordPress; the catalog is the answer."""
+    found = fingerprint(
+        '<div id="kuali-catalog"></div>',
+        meta=(
+            '<link href="/wp-content/themes/x/style.css" rel="stylesheet"/>'
+            '<script src="https://ucf.kuali.co/catalog/build/catalog.js">'
+            "</script>"
+        ),
+    )
+    assert found.platform == "kuali"
+
+
+def test_smartcatalog_is_named_by_its_credit_and_its_tenant_paths() -> None:
+    found = fingerprint(
+        '<div id="footerSC">Powered by SmartCatalog IQ</div>',
+        meta='<link href="/Institutions/Linn/styles/a.css" rel="stylesheet"/>',
+    )
+    assert found.platform == "smartcatalog"
+
+
+def test_wordpress_is_named_when_nothing_more_specific_is() -> None:
+    found = fingerprint(
+        meta='<meta name="generator" content="WordPress 6.5" />'
+    )
+    assert found.platform == "wordpress"
+
+
+def test_clean_catalog_beats_the_drupal_it_runs_on() -> None:
+    found = fingerprint(
+        '<article class="node node--type-degree"></article>'
+        "<p>Course Catalog Software by Clean Catalog</p>"
+    )
+    assert found.platform == "clean_catalog"
+
+
+def test_drupal_alone_is_named_drupal() -> None:
+    found = fingerprint('<article class="node node--type-degree"></article>')
+    assert found.platform == "drupal"
+
+
+def test_a_page_that_names_no_platform_reads_as_none() -> None:
+    found = fingerprint("<main><p>Hello.</p></main>")
+    assert found.platform == ""
+    assert found.evidence == []
+
+
+def test_a_repeated_marker_is_one_hit_not_many() -> None:
+    """Twenty Drupal-looking classes must not outvote one platform script."""
+    drupal = "".join(
+        f'<div class="field--name-f{index}"></div>' for index in range(20)
+    )
+    found = fingerprint(
+        drupal, meta='<script src="/js/courseleaf.js"></script>'
+    )
+    assert found.platform == "courseleaf"
+
+
+def test_evidence_is_capped_at_a_few_quotes() -> None:
+    found = fingerprint(
+        '<div id="textcontainer" class="sc_courselist sc_plangrid"></div>',
+        meta=(
+            '<link href="/css/courseleaf.css" rel="stylesheet"/>'
+            '<script src="/js/courseleaf.js"></script>'
+        ),
+    )
+    assert found.platform == "courseleaf"
+    assert len(found.evidence) == 3
+
+
+def test_script_text_is_not_read_as_printed_text() -> None:
+    """A script that mentions a credit line is not the page printing it."""
+    found = fingerprint(
+        "<script>var s = 'Course Catalog Software by Clean Catalog';</script>"
+    )
+    assert found.platform == ""
+
+
+def test_read_markup_carries_the_fingerprint() -> None:
+    markup = read_markup(
+        page("<main></main>", meta='<script src="/js/courseleaf.js"></script>')
+    )
+    assert markup.fingerprint.platform == "courseleaf"
+
+
+def test_json_ld_survives_the_removal_of_script_tags() -> None:
+    """read_markup removes every script, so declarations are read first."""
+    markup = read_markup(
+        page(
+            "<main><h1>Accounting</h1></main>",
+            meta=(
+                '<script type="application/ld+json">'
+                '{"@type": "Course", "name": "Accounting"}</script>'
+            ),
+        )
+    )
+    declaration = markup.declaration()
+    assert declaration is not None
+    assert declaration.source == "json-ld"
