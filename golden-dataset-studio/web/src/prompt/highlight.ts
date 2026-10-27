@@ -34,7 +34,7 @@ export function downloadName(catalogShort: string, scope: string): string {
  * work); `var` comes from the rule and its annotations (each "## Rule" section, "## The N rules", the questions);
  * `def` is the rule's definition itself (the first ```json block of a rule section), what Claude changes. */
 export type LineKind = "boiler" | "var" | "def";
-const VARIABLE = /^## (Rule `|The \d+ rules|Questions for the institution)/;
+const VARIABLE = /^## (Rule `|The \d+ rules|Questions for the institution|Comments on the ruleset)/;
 
 export function lineKinds(text: string): LineKind[] {
   const lines = text.replace(/\n$/, "").split("\n");

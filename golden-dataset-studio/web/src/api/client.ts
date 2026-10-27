@@ -1,6 +1,6 @@
 // Thin fetch wrappers for the Studio API. Every tab uses these; they keep URLs in one place.
 import type {
-  CatalogCard, CatalogDetail, CompareRecords, CompareResponse, CourseDetail, CourseHit, GoldenFileText, GoldenLineage, GoldenResponse,
+  CatalogCard, CatalogDetail, CompareRecords, CompareResponse, Discussion, CourseDetail, CourseHit, GoldenFileText, GoldenLineage, GoldenResponse,
   NewEvent, Overlay,
   PromptResponse, PromptTarget, RuleDetail, RuleSummary, RulesResponse, RowsResponse, UnclassifiedPage,
 } from "./types";
@@ -46,6 +46,7 @@ export const api = {
     }),
   compare: (catalog: string, opts: { a?: number; b?: number; rule?: string } = {}) =>
     call<CompareResponse>(`${c(catalog)}/compare${q(opts)}`),
+  discussion: (catalog: string) => call<Discussion>(`${c(catalog)}/discussion`),
   compareRecords: (catalog: string, o: { a: number; b: number; rule?: string; offset?: number; limit?: number; f?: string[];
                                         order?: string; cross?: string[]; seed?: number }) => {
     const s = new URLSearchParams();

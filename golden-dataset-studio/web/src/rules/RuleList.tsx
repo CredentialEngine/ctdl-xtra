@@ -1,14 +1,22 @@
 // Left column of the Rules tab (spec §7.2): rules by kind, one status icon each, "14 / 1,062 reviewed".
-// Status appears only here.
-import type { RulesResponse } from "../api/types";
+// Status appears only here. With `talk`: the ruleset's thread on top, and a thread per rule (opened under it).
+import { useState } from "react";
+import type { Discussion, RulesResponse, Topic } from "../api/types";
 import { Ico } from "../shell/icons";
 import { fmt } from "../shell/ui";
 import type { RuleSummaryX } from "./api";
+import { Composer, RulesetTalk, Thread } from "./Discussion";
 
-export function RuleList({ rules, active, onPick }: { rules: RulesResponse; active: string | null; onPick: (id: string) => void }) {
+export type PostTalk = (target: { kind: "rule" | "ruleset"; rule_id: string | null }, note: string, topic: Topic) => Promise<boolean>;
+
+export function RuleList({ rules, active, onPick, talk, onTalk }: {
+  rules: RulesResponse; active: string | null; onPick: (id: string) => void; talk?: Discussion | null; onTalk?: PostTalk;
+}) {
   let first = true;
+  const [openTalk, setOpenTalk] = useState<string | null>(null);
   return (
     <div className="rule-list" data-tour="rule-list">
+      {talk && onTalk && <RulesetTalk items={talk.ruleset} onPost={(note, topic) => onTalk({ kind: "ruleset", rule_id: null }, note, topic)} />}
       {rules.groups.map((g) => (
         <div key={g.kind} className="rule-group">
           <div className="group-h"><span className="panel-title">{g.label}</span>
@@ -18,7 +26,8 @@ export function RuleList({ rules, active, onPick }: { rules: RulesResponse; acti
             first = false;
             const notes = r.comments + (r.page_questions ?? 0);
             return (
-              <div key={r.rule_id} className={`rule-item${r.rule_id === active ? " on" : ""}`} role="button" tabIndex={0}
+              <div key={r.rule_id}>
+              <div className={`rule-item${r.rule_id === active ? " on" : ""}`} role="button" tabIndex={0}
                 data-rule={r.rule_id} onClick={() => onPick(r.rule_id)} onKeyDown={(e) => { if (e.key === "Enter") onPick(r.rule_id); }}>
                 <div className="ico" title={r.status} data-tour={tour ? "rule-status" : undefined}><Ico name={r.status} /></div>
                 <div style={{ minWidth: 0 }}>
@@ -29,7 +38,25 @@ export function RuleList({ rules, active, onPick }: { rules: RulesResponse; acti
                   <span className={`rev${r.reviewed ? "" : " none"}`} title="courses with a verdict / all courses"
                     data-tour={tour ? "reviewed-count" : undefined}>{fmt(r.reviewed)} / {fmt(r.total)} reviewed</span>
                   {notes > 0 && <span className="stat open" title="comments and questions for the institution"><Ico name="bubble" />{notes}</span>}
+                  {talk && onTalk && (() => {
+                    const n = talk.rules[r.rule_id]?.length ?? 0;
+                    const on = openTalk === r.rule_id;
+                    return (
+                      <button className={"rule-talk-btn" + (n ? " has" : "") + (on ? " on" : "")} aria-expanded={on}
+                        title={n ? `${n} comment${n === 1 ? "" : "s"} on this whole rule` : "Comment on this whole rule"}
+                        onClick={(e) => { e.stopPropagation(); setOpenTalk(on ? null : r.rule_id); }}>
+                        <Ico name="open" />{n > 0 ? n : "Discuss"}</button>
+                    );
+                  })()}
                 </div>
+              </div>
+              {talk && onTalk && openTalk === r.rule_id && (
+                <div className="rule-talk" data-testid="rule-talk">
+                  <Thread items={talk.rules[r.rule_id] ?? []} />
+                  <Composer placeholder={`A thought about ${r.title} as a whole…`} question
+                    onPost={(note, topic) => onTalk({ kind: "rule", rule_id: r.rule_id }, note, topic)} />
+                </div>
+              )}
               </div>
             );
           })}

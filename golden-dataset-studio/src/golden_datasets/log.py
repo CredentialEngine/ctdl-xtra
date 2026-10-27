@@ -14,7 +14,9 @@ from .storage import Root
 
 EVENT_TYPES = {"verdict", "comment", "approve", "reopen"}
 VERDICTS = {"correct", "wrong", "missing", "question"}
-TARGET_KINDS = {"match", "occurrence", "page", "rule"}
+TARGET_KINDS = {"match", "occurrence", "page", "rule", "ruleset"}
+#: What a comment on a whole rule or on the ruleset is about (Rules tab sidebar).
+TOPICS = {"new-rule", "approach", "question-rule", "other"}
 
 
 def new_id(prefix: str = "an") -> str:
@@ -31,6 +33,10 @@ def validate(event: dict) -> None:
     target = event.get("target") or {}
     if target.get("kind") not in TARGET_KINDS:
         raise ValueError(f"target.kind must be one of {sorted(TARGET_KINDS)}")
+    if target["kind"] == "ruleset" and event["type"] != "comment":
+        raise ValueError("only comments target the ruleset")
+    if event.get("topic") is not None and (event["type"] != "comment" or event["topic"] not in TOPICS):
+        raise ValueError(f"topic is for comments, one of {sorted(TOPICS)}")
     if event["type"] == "verdict" and event["verdict"] == "missing" and target["kind"] not in ("occurrence", "page"):
         raise ValueError("'missing' applies only to record locators (occurrence) and page rules (page)")
     for key in ("annotation_id", "at", "author"):

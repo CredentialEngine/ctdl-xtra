@@ -7,7 +7,7 @@
 // "Reviewed in other fields first" (Rules tab): records not reviewed for this rule yet, but marked or commented on in
 // another rule, come first, so a record's fields get finished together.
 // Filters stay on in every mode. When a filter or Autostratify is on, each record shows its strata tags (StrataTags).
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { filterParams, type FacetFilter, type SampleInfo, type SampleOrder, type StrataTag, type StratumHist } from "../api/types";
 import { fmt } from "./ui";
 import "./sample.css";
@@ -33,10 +33,17 @@ export function toggle(f: FacetFilter, dim: string, bucket: string): FacetFilter
   return next;
 }
 
-export function SampleDrawer({ sample, prefs, onPrefs, modes, storageKey }: {
+export function SampleDrawer({ sample, prefs, onPrefs, modes, storageKey, collapseOn }: {
   sample: SampleInfo | null; prefs: SamplePrefs; onPrefs: (p: SamplePrefs) => void; modes: SampleMode[]; storageKey: string;
+  /** When this changes (the reader moves to another row), the drawer closes: it stays out of the way while reviewing. */
+  collapseOn?: unknown;
 }) {
   const [open, setOpen] = useState<boolean>(() => { try { return localStorage.getItem(storageKey) === "1"; } catch { return false; } });
+  const firstCollapse = useRef(true);
+  useEffect(() => {
+    if (firstCollapse.current) { firstCollapse.current = false; return; }
+    setOpen(false);
+  }, [collapseOn]);
   const setOpenSaved = (v: boolean) => { setOpen(v); try { localStorage.setItem(storageKey, v ? "1" : "0"); } catch { /* private */ } };
   const set = (p: Partial<SamplePrefs>) => onPrefs({ ...prefs, ...p });
   const hs = sample?.histograms ?? [];

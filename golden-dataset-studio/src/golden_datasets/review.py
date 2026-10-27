@@ -186,13 +186,24 @@ class Review:
             return (t.get("rule_id"), t.get("occurrence_key"))
         return (t.get("rule_id"), t.get("page_stem"))
 
+    def discussion(self) -> dict:
+        """Comments on a whole rule or on the ruleset (the Rules tab sidebar), oldest first:
+        {"ruleset": [event, …], "rules": {rule_id: [event, …]}}."""
+        talk = sorted((e for e in self.live if e["type"] == "comment" and e["target"]["kind"] in ("rule", "ruleset")),
+                      key=lambda e: e["at"])
+        rules: dict[str, list[dict]] = defaultdict(list)
+        for e in talk:
+            if e["target"]["kind"] == "rule":
+                rules[e["target"]["rule_id"]].append(e)
+        return {"ruleset": [e for e in talk if e["target"]["kind"] == "ruleset"], "rules": dict(rules)}
+
     def verdicts_for(self, rule_id: str) -> dict:
         """Latest verdict and comments per target of this rule, keyed by occurrence_key / page_stem."""
         latest: dict = {}
         comments = defaultdict(list)
         for e in sorted(self.live, key=lambda x: x["at"]):
             t = e["target"]
-            if t.get("rule_id") != rule_id:
+            if t.get("rule_id") != rule_id or t["kind"] in ("rule", "ruleset"):  # whole-rule talk: see discussion()
                 continue
             k = self._target_key(e)[1]
             if e["type"] == "verdict":

@@ -5,7 +5,7 @@ Deterministic: the same annotations always give the same text (everything is sor
 the setup (install the CLI from this branch with uv, point it at the root; for `target="azure"`, the Azure root after
 `az login`), the limits, each in-scope rule's definition and what / how / why, its open annotations, the values marked
 correct (which must not change) and its signals as tables, the questions for the institution (listed apart, not
-bugs), the `golden-datasets` commands that fetch all of this and more, and the publish rule. No raw HTML: pages are
+bugs), the `golden-datasets` commands that fetch all of this and more, and the publish rule, plus the comments on each rule and on the ruleset (Rules tab sidebar). No raw HTML: pages are
 referenced by stem, fetched with `golden-datasets pages get`.
 """
 
@@ -49,6 +49,8 @@ IN_SCOPE = ", ".join(label for label, _ in model.PROPERTIES)
 REPO = "https://github.com/CredentialEngine/ctdl-xtra.git"
 SUBDIR = "golden-dataset-studio"
 TARGETS = ("local", "azure")
+TOPIC_NAME = {"new-rule": "suggests a new rule", "approach": "suggests an approach",
+              "question-rule": "questions this rule", "other": "comment", None: "comment"}
 
 
 def _git(*args: str) -> str | None:
@@ -255,6 +257,7 @@ def build_prompt(ctx: Ctx, rule: str | None = None, needs_work: bool = False, rv
         L.append("")
 
     questions: dict[str, tuple[str, dict]] = {}
+    discussion = rv.discussion()
     for rid in targets:
         r = snap.rules[rid]
         st = rv.rule_status(rid)
@@ -315,6 +318,18 @@ def build_prompt(ctx: Ctx, rule: str | None = None, needs_work: bool = False, rv
             L.append("")
             L.append(f"**Marked correct, but the value changed since ({len(changed)}); the expert will look again:** "
                      + ", ".join(a["course_key"] or a["page_stem"] for a in changed))
+        talk = discussion["rules"].get(rid, [])
+        if talk:
+            L.append("")
+            L.append(f"### Comments on this rule ({len(talk)})")
+            L.append("")
+            L += table(["From", "When", "About", "Comment"],
+                       [[e["author"], e["at"][:10], TOPIC_NAME.get(e.get("topic"), "comment"),
+                         f"\"{short(e.get('note'), 500)}\""] for e in talk])
+            if any(e.get("topic") == "question-rule" for e in talk):
+                L.append("")
+                L.append("Someone questions whether this rule should exist at all. Don't remove or rewrite it for that: "
+                         "say in your report what you think, and why.")
         sig = _signal_rows(rv, rid)
         if sig:
             L.append("")
@@ -323,6 +338,22 @@ def build_prompt(ctx: Ctx, rule: str | None = None, needs_work: bool = False, rv
             L += table(["Signal", "Rows", "Examples"], sig)
             L.append("")
             L.append(f"Pages behind a signal: `golden-datasets pages sample --rule {rid} --signal <signal> -n 20`.")
+        L.append("")
+
+    if discussion["ruleset"]:
+        L.append("## Comments on the ruleset")
+        L.append("")
+        L.append("About the catalog's rules as a whole: new rules, other approaches, whether a rule is needed. Within the "
+                 "limits above, act on what fits the rule(s) in this prompt, and answer the rest in your report.")
+        L.append("")
+        L.append("A suggested rule may be a domain expert's heuristic rather than something read off the page, e.g. "
+                 "\"every course in this catalog is in English\": that is a field rule with `rule_type` `constant` "
+                 "(or `source_url` for the page's address), applied to every course the locator finds. Use the expert's "
+                 "heuristic when the pages can't contradict it; say so in `why`.")
+        L.append("")
+        L += table(["From", "When", "About", "Comment"],
+                   [[e["author"], e["at"][:10], TOPIC_NAME.get(e.get("topic"), "comment"),
+                     f"\"{short(e.get('note'), 500)}\""] for e in discussion["ruleset"]])
         L.append("")
 
     if questions:

@@ -30,6 +30,7 @@ export interface RuleSummary {
   ctdl_property: string | null; property_label: string | null; locator: string | null;
   status: RuleStatus; reviewed: number; total: number; open_wrong: number; open_missing: number;
   questions: number; approved_by: string | null; approved_at: string | null; comments: number;
+  rule_comments?: number;             // comments on the whole rule (sidebar)
 }
 
 export interface RuleGroup { kind: RuleKind; label: string; rules: RuleSummary[]; approved: number }
@@ -100,10 +101,20 @@ export interface CourseDetail {
 export interface NewEvent {
   type: "verdict" | "comment" | "approve" | "reopen";
   author: string;
-  target: { kind: "match" | "occurrence" | "page" | "rule"; rule_id: string | null;
+  target: { kind: "match" | "occurrence" | "page" | "rule" | "ruleset"; rule_id: string | null;
             occurrence_key?: string | null; page_stem?: string | null };
   verdict?: Verdict; expected?: Expected | null; note?: string | null; supersedes?: string | null;
+  topic?: Topic;                      // comments on a whole rule or on the ruleset
 }
+
+/** What a comment on a whole rule or on the ruleset is about (log.py TOPICS). */
+export type Topic = "new-rule" | "approach" | "question-rule" | "other";
+/** A comment on a whole rule or on the ruleset (routes_review.py `/discussion`). */
+export interface TalkItem {
+  annotation_id: string; author: string; at: string; note: string | null; topic: Topic | null;
+  rule_id: string | null; rule_version_seen: number | null; ruleset_version_seen: number | null;
+}
+export interface Discussion { ruleset: TalkItem[]; rules: Record<string, TalkItem[]> }
 
 // --- Compare (routes_compare.py, scorecard.py) -------------------------------------------------------
 export interface DiffPart { op: "same" | "del" | "add"; text: string }

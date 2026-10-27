@@ -196,3 +196,31 @@ def test_dropping_rules_leaves_nothing_of_them(ctx):
     assert ids["occurrences"] == {"locator-course-page"} and "course-page" in ids["page_labels"]
     failed = [r for r in check.run(ctx) if r[3] > 0 and r[0] not in ("page_assets", "assets")]
     assert not failed, failed
+
+
+@pytest.mark.slow
+def test_rule_and_ruleset_comments(ctx):
+    """Comments on a whole rule and on the ruleset: stored, listed for the sidebar, kept off the rows, in the prompt."""
+    from fastapi.testclient import TestClient
+
+    from golden_datasets.prompt import build_prompt
+    from golden_datasets.server.app import create_app
+
+    c = TestClient(create_app(ctx.root.uri))
+    post = lambda body: c.post("/api/catalogs/avc/annotations", json={"type": "comment", "author": "Eric", **body})  # noqa: E731
+    r = post({"note": "Is a separate Advisory rule worth it?", "topic": "question-rule",
+              "target": {"kind": "rule", "rule_id": "course-description"}})
+    assert r.status_code == 200 and r.json()["rule"]["rule_comments"] == 1
+    assert post({"note": "Add a rule for prerequisites", "topic": "new-rule", "target": {"kind": "ruleset"}}).status_code == 200
+    assert post({"note": "x", "topic": "nope", "target": {"kind": "ruleset"}}).status_code == 400
+    assert c.post("/api/catalogs/avc/annotations", json={"type": "verdict", "verdict": "correct", "author": "E",
+                                                          "target": {"kind": "ruleset"}}).status_code == 400
+    d = c.get("/api/catalogs/avc/discussion").json()
+    assert [e["note"] for e in d["ruleset"]] == ["Add a rule for prerequisites"] and d["ruleset"][0]["topic"] == "new-rule"
+    assert d["rules"]["course-description"][0]["topic"] == "question-rule"
+    rows = c.get("/api/catalogs/avc/rules/course-description/rows", params={"limit": 2000}).json()["rows"]
+    assert not any(cm.get("note") == "Is a separate Advisory rule worth it?" for r in rows for cm in r["comments"])
+    text = build_prompt(Ctx(ctx.root, "avc"), "course-description")["text"]
+    assert "### Comments on this rule (1)" in text and "questions this rule" in text
+    assert "Someone questions whether this rule should exist" in text
+    assert "## Comments on the ruleset" in text and "suggests a new rule" in text

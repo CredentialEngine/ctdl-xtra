@@ -90,6 +90,56 @@ async function render(hash = "#/c/avc/rules/course-description?row=GEOG1") {
 }
 
 describe("RulesTab", () => {
+  it("discusses the ruleset and a whole rule in the sidebar, and posts comments with their topic", async () => {
+    let talk = { ruleset: [] as unknown[], rules: {} as Record<string, unknown[]> };
+    const fetchMock = vi.mocked(fetch);
+    const base = fetchMock.getMockImplementation()!;
+    fetchMock.mockImplementation((url, init) => {
+      if (String(url).endsWith("/discussion")) return json(talk);
+      if (init?.method === "POST") {
+        const ev = JSON.parse(String(init.body));
+        const item = { annotation_id: "an-t", author: ev.author, at: "2026-10-27T10:00:00Z", note: ev.note, topic: ev.topic,
+                       rule_id: ev.target.rule_id, rule_version_seen: ev.target.rule_id ? 2 : null, ruleset_version_seen: 3 };
+        talk = ev.target.kind === "ruleset" ? { ...talk, ruleset: [...talk.ruleset, item] }
+          : { ...talk, rules: { ...talk.rules, [ev.target.rule_id]: [item] } };
+      }
+      return base(url as string, init);
+    });
+    await render();
+    const set = container.querySelector("[data-testid=ruleset-talk]")!;
+    await act(async () => set.querySelector<HTMLButtonElement>(".talk-head")!.click());
+    expect(set.querySelector<HTMLTextAreaElement>(".talk-input")!.placeholder).toContain("in English");  // new rule first
+    const type = async (box: Element, text: string) => {
+      const ta = box.querySelector<HTMLTextAreaElement>(".talk-input")!;
+      const setter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value")!.set!;
+      await act(async () => { setter.call(ta, text); ta.dispatchEvent(new Event("input", { bubbles: true })); });
+      await act(async () => { box.querySelector<HTMLButtonElement>(".talk-actions .btn")!.click(); await new Promise((r) => setTimeout(r, 0)); });
+    };
+    await type(set, "Every course here is in English");
+    expect(posted[posted.length - 1]).toMatchObject({ type: "comment", topic: "new-rule", target: { kind: "ruleset", rule_id: null } });
+    expect(set.querySelector(".talk-note")!.textContent).toBe("Every course here is in English");
+    const btn = container.querySelector<HTMLButtonElement>("[data-rule=course-description] .rule-talk-btn")!;
+    expect(btn.textContent).toBe("Discuss");
+    await act(async () => btn.click());
+    const thread = container.querySelector("[data-testid=rule-talk]")!;
+    await act(async () => thread.querySelector<HTMLInputElement>(".talk-q input")!.click());
+    await type(thread, "Do we need this rule at all?");
+    expect(posted[posted.length - 1]).toMatchObject({ topic: "question-rule", target: { kind: "rule", rule_id: "course-description" } });
+    expect(container.querySelector("[data-rule=course-description] .rule-talk-btn")!.textContent).toBe("1");
+  });
+
+  it("closes the Sample drawer when the reader moves to another row", async () => {
+    const fetchMock = vi.mocked(fetch);
+    const base = fetchMock.getMockImplementation()!;
+    const sample = { order: "review", seed: 0, total: 3, listed: 3, cross: [], cells: [], tag_dims: [], histograms: [] };
+    fetchMock.mockImplementation((url, init) => (String(url).includes("/rows") ? json({ ...rows, sample }) : base(url as string, init)));
+    await render();
+    await act(async () => container.querySelector<HTMLButtonElement>("[data-testid=sample] .sm-tog")!.click());
+    expect(container.querySelector("[data-testid=sample]")!.className).toContain("open");
+    await act(async () => container.querySelectorAll<HTMLElement>(".row")[2].click());
+    expect(container.querySelector("[data-testid=sample]")!.className).not.toContain("open");
+  });
+
   it("shows the selected row's whole value, paragraphs kept, and links to the course on the Records tab", async () => {
     const long = "Advisory: Completion of DA 125.\n\n" + "A long description that goes on. ".repeat(20);
     const fetchMock = vi.mocked(fetch);

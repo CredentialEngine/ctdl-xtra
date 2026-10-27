@@ -170,6 +170,16 @@ async def s17(page, base):
     await page.wait_for_timeout(600)
 
 
+@shot("18-rules-discussion")
+async def s18(page, base):
+    await page.goto(f"{base}/#/c/{CAT}/rules/course-description?row=GEOG222")
+    await page.wait_for_selector(".row.on")
+    await page.click("[data-testid=ruleset-talk] .talk-head")
+    await page.click("[data-rule=course-description] .rule-talk-btn")
+    await page.wait_for_selector("[data-testid=rule-talk]")
+    await wait_pane(page, 600)
+
+
 @shot("08-compare")
 async def s08(page, base):
     await page.goto(f"{base}/#/c/{CAT}/compare?a=1&b=2")

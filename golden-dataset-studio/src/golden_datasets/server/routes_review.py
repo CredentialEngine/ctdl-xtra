@@ -146,14 +146,17 @@ def _rule_summary(rv: Review, rid: str) -> dict:
     rule = rv.snap.rules[rid]
     title, subtitle = rule_title(rule)
     st = rv.rule_status(rid)
-    comments = sum(1 for e in rv.live if e["type"] in ("comment",) and e["target"].get("rule_id") == rid)
+    comments = sum(1 for e in rv.live if e["type"] in ("comment",) and e["target"].get("rule_id") == rid
+                   and e["target"]["kind"] != "rule")
+    rule_comments = sum(1 for e in rv.live if e["type"] == "comment" and e["target"]["kind"] == "rule"
+                        and e["target"].get("rule_id") == rid)
     questions = sum(1 for e in rv.live if e["type"] == "verdict" and e.get("verdict") == "question"
                     and e["target"].get("rule_id") == rid)
     page_q = sum(map(len, _page_questions(rv, rid).values())) if rule["kind"] == "page" else 0
     return {"rule_id": rid, "kind": rule["kind"], "version": rule["version"], "title": title, "subtitle": subtitle,
             "ctdl_property": rule.get("ctdl_property"), "property_label": rule.get("property_label"),
             "locator": rule["definition"].get("locator"), **st, "comments": comments + questions,
-            "page_questions": page_q}
+            "page_questions": page_q, "rule_comments": rule_comments}
 
 
 def _page_questions(rv: Review, rid: str) -> dict[str, list[dict]]:
@@ -428,7 +431,10 @@ def add_annotation(request: Request, catalog: str, event: Annotated[dict, Body()
     snap = rv.snap
     t = dict(event.get("target") or {})
     rid = t.get("rule_id")
-    if t.get("kind") != "page" or rid is not None:
+    if t.get("kind") == "ruleset":  # a comment on the whole ruleset: no rule
+        t["rule_id"] = rid = None
+        t["ruleset_version_seen"] = snap.ruleset_version
+    elif t.get("kind") != "page" or rid is not None:
         if rid not in snap.rules:
             raise HTTPException(400, f"unknown rule {rid}")
         t["rule_version_seen"] = snap.rules[rid]["version"]
@@ -453,6 +459,8 @@ def add_annotation(request: Request, catalog: str, event: Annotated[dict, Body()
             "author": (event.get("author") or "").strip(), "catalog": ctx.catalog, "crawl": ctx.crawl, "target": t,
             "verdict": event.get("verdict"), "expected": event.get("expected"), "note": event.get("note") or None,
             "supersedes": event.get("supersedes")}
+    if event.get("topic"):
+        full["topic"] = event["topic"]
     if full["type"] == "approve":
         st = rv.rule_status(rid)
         if st["open_wrong"] or st["open_missing"]:
@@ -467,6 +475,23 @@ def add_annotation(request: Request, catalog: str, event: Annotated[dict, Body()
     rv2 = _review(request, catalog, snap.ext)
     return {"event": full, "rule": _rule_summary(rv2, rid) if rid else None,
             "elapsed_ms": round(1000 * (time.perf_counter() - t0), 1)}
+
+
+@router.get("/catalogs/{catalog}/discussion")
+def discussion(request: Request, catalog: str) -> dict:
+    """Comments on a whole rule or on the ruleset (the Rules tab sidebar): {ruleset: [...], rules: {rule_id: [...]}}.
+    Each: annotation_id, author, at, note, topic (new-rule · approach · question-rule · other), rule_version_seen."""
+    rv = _review(request, catalog)
+
+    def brief(e: dict) -> dict:
+        t = e["target"]
+        return {"annotation_id": e["annotation_id"], "author": e["author"], "at": e["at"], "note": e.get("note"),
+                "topic": e.get("topic"), "rule_id": t.get("rule_id"), "rule_version_seen": t.get("rule_version_seen"),
+                "ruleset_version_seen": t.get("ruleset_version_seen")}
+
+    d = rv.discussion()
+    return {"ruleset": [brief(e) for e in d["ruleset"]],
+            "rules": {rid: [brief(e) for e in es] for rid, es in d["rules"].items()}}
 
 
 @router.get("/catalogs/{catalog}/annotations")

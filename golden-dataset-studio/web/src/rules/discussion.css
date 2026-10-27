@@ -1,0 +1,34 @@
+/* Talk about whole rules and the ruleset (Discussion.tsx), in the Rules tab's rule list */
+.talk-ruleset { border: 1px solid var(--line); border-radius: 9px; background: var(--surface); margin: 0 0 10px; }
+.talk-ruleset.open { border-color: color-mix(in srgb, var(--accent) 40%, var(--line)); }
+.talk-head { display: flex; align-items: center; gap: 6px; width: 100%; border: 0; background: none; font: inherit; color: var(--ink);
+  padding: 7px 10px; cursor: pointer; text-align: left; }
+.talk-head .tw { width: 10px; color: var(--faint); font-size: 10px; }
+.talk-head .ico svg, .rule-talk-btn .ico svg { width: 14px; height: 14px; display: block; }
+.talk-title { flex: 1; font-weight: 600; font-size: 12.5px; }
+.talk-n { min-width: 18px; height: 18px; border-radius: 9px; background: var(--accent-soft); color: var(--accent); font-size: 11px;
+  font-weight: 700; display: grid; place-items: center; padding: 0 5px; }
+.talk-ruleset > .talk-d, .talk-ruleset > .talk-list, .talk-ruleset > .talk-composer { margin-left: 10px; margin-right: 10px; }
+.talk-d { font-size: 11.5px; color: var(--muted); line-height: 1.45; margin: 0 0 8px; }
+.talk-list { list-style: none; margin: 0 0 8px; padding: 0; display: grid; gap: 6px; }
+.talk-item { border-left: 3px solid var(--line-2); padding: 3px 0 3px 8px; font-size: 12px; }
+.talk-item.q { border-left-color: var(--amber); }
+.talk-meta { color: var(--muted); font-size: 11px; display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+.talk-meta b { color: var(--ink-2); }
+.talk-topic { font-size: 10px; font-weight: 600; border-radius: 4px; padding: 0 5px; background: var(--accent-soft); color: var(--accent); }
+.talk-topic.t-question-rule { background: var(--amber-soft); color: var(--amber); }
+.talk-note { color: var(--ink); white-space: pre-line; line-height: 1.45; overflow-wrap: anywhere; }
+.talk-composer { margin-bottom: 10px; display: grid; gap: 6px; }
+.talk-topics { display: flex; flex-wrap: wrap; }
+.talk-topics button { font-size: 11px; padding: 3px 7px; }
+.talk-input { width: 100%; box-sizing: border-box; font: 12.5px/1.45 var(--sans); padding: 6px 8px; border: 1px solid var(--line-2);
+  border-radius: 6px; background: var(--surface); color: var(--ink); resize: vertical; }
+.talk-actions { display: flex; align-items: center; gap: 8px; justify-content: flex-end; flex-wrap: wrap; }
+.talk-q { flex: 1; display: inline-flex; align-items: center; gap: 5px; font-size: 11.5px; color: var(--muted); cursor: pointer; }
+.btn.sm { padding: 3px 10px; font-size: 12px; }
+/* a rule's own thread, opened under it in the list */
+.rule-talk-btn { display: inline-flex; align-items: center; gap: 3px; border: 0; background: none; color: var(--faint); cursor: pointer;
+  font: inherit; font-size: 11px; padding: 1px 4px; border-radius: 4px; }
+.rule-talk-btn:hover, .rule-talk-btn.has, .rule-talk-btn.on { color: var(--accent); }
+.rule-talk-btn.on { background: var(--accent-soft); }
+.rule-talk { margin: 2px 0 8px 26px; padding: 8px 8px 0; border-left: 2px solid var(--accent); background: var(--surface); border-radius: 0 7px 7px 0; }

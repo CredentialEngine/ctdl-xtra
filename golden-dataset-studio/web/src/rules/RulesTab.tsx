@@ -2,7 +2,7 @@
 // (sorted by the server with the likeliest problems first), the saved page on the right.
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { api } from "../api/client";
-import type { EventBrief, NewEvent, Overlay, RuleDetail, RulesResponse, RuleSummary, SampleInfo, Spread,
+import type { Discussion, EventBrief, NewEvent, Overlay, RuleDetail, RulesResponse, RuleSummary, SampleInfo, Spread,
   UnclassifiedPage } from "../api/types";
 import { PagePane, prefetchPages, type Highlight } from "../pagepane";
 import { Ico } from "../shell/icons";
@@ -19,7 +19,7 @@ import {
 import { MissedCourse, MissedPage, type MissedState } from "./MissedPanel";
 import { Controls, Expansion, HistoryLine, Value } from "./parts";
 import { RuleHead } from "./RuleHead";
-import { RuleList } from "./RuleList";
+import { RuleList, type PostTalk } from "./RuleList";
 import "./rules.css";
 
 const FIRST_PAGE = 100;
@@ -105,6 +105,23 @@ export default function RulesTab({ catalog, route }: TabProps) {
   const filtered = sq.f.length > 0;
 
   useEffect(() => { api.rules(cat).then(setRules, (e) => setError(String(e))); }, [cat]);
+  // comments on whole rules and on the ruleset (the sidebar)
+  const [talk, setTalk] = useState<Discussion | null>(null);
+  const loadTalk = useCallback(() => api.discussion(cat).then((d) => setTalk({ ruleset: d?.ruleset ?? [], rules: d?.rules ?? {} }),
+                                                               () => setTalk({ ruleset: [], rules: {} })), [cat]);
+  useEffect(() => { void loadTalk(); }, [loadTalk]);
+  const postTalk = useCallback<PostTalk>(async (target, note, topic) => {
+    try {
+      const r = await api.annotate(cat, { type: "comment", author: me, target, note, topic });
+      if (r.rule) setRules((rs) => (rs ? replaceSummary(rs, r.rule!) : rs));
+      await loadTalk();
+      toast(target.kind === "ruleset" ? "Comment on the ruleset saved" : "Comment on the rule saved");
+      return true;
+    } catch (e) {
+      toast(`Couldn't save: ${String(e)}`);
+      return false;
+    }
+  }, [cat, me, loadTalk]);
 
   useEffect(() => {
     if (!ruleId) return;
@@ -130,9 +147,12 @@ export default function RulesTab({ catalog, route }: TabProps) {
     }).finally(() => { loadingMore.current = false; });
   }, [cat, ruleId, rows.length, total, sq]);
 
+  // the reader's own moves between rows (click, Tab, arrows): they close the Sample drawer
+  const [moves, setMoves] = useState(0);
   const selectRow = useCallback((i: number) => {
     const j = Math.max(0, Math.min(i, rows.length - 1));
     if (j === sel) return;
+    setMoves((m) => m + 1);
     const prev = rows[sel];
     if (prev) setRecent((r) => pushRecent(r, { stem: prev.page_stem, url: prev.url, title: prev.page_title ?? prev.page_stem }));
     setSel(j); setDraft(null); setMissed(null); setExtraTab(null); setActiveStem(null);
@@ -325,7 +345,8 @@ export default function RulesTab({ catalog, route }: TabProps) {
 
   return (
     <div className="rules-layout w4-rules">
-      <aside className="col">{rules && <RuleList rules={rules} active={ruleId} onPick={(id) => go(href(cat, "rules", id))} />}</aside>
+      <aside className="col">{rules && <RuleList rules={rules} active={ruleId} onPick={(id) => go(href(cat, "rules", id))}
+        talk={talk} onTalk={postTalk} />}</aside>
       <section className="col mid">
         {detail && <RuleHead catalog={catalog} rule={detail} busy={busy} onApprove={() => approve("approve")} onReopen={() => approve("reopen")} />}
         {detail && <div className="rows-bar"><span><b>{fmt(total)}</b> {unitWord(detail.kind, detail.locator)}{filtered && <> · <b>filtered</b> by strata</>}{prefs.prior && <> · reviewed in other fields first</>} · {
@@ -333,7 +354,7 @@ export default function RulesTab({ catalog, route }: TabProps) {
           : sq.order === "shuffle" ? "shuffled"
           : <>discussed first, then the likeliest problems{spread && spread.groups.length > 1 && !filtered && <>, with every 5th row from a <SpreadNote spread={spread} /></>}</>}</span></div>}
         {detail && <SampleDrawer sample={sample} prefs={prefs} onPrefs={setPrefs} modes={["review", "auto", "shuffle", "manual"]}
-          storageKey="studio.rules.sample" />}
+          storageKey="studio.rules.sample" collapseOn={moves} />}
         <div className="rows" data-tour="rows" ref={rowsRef} onScroll={(e) => {
           const el = e.currentTarget;
           if (el.scrollTop + el.clientHeight > el.scrollHeight - 600) loadMore();

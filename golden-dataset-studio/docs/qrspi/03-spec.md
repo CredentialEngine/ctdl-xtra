@@ -152,7 +152,7 @@ These are the only nouns the UI, CLI, files and this spec use. Each one is defin
 | **Crawl** | One snapshot of a catalog's saved pages, made by xtra-cli | `2026-10-01T16-02-34Z` | `<catalog>/<crawl>/` |
 | **Page** | One saved HTML page in a crawl | stem `3f9a…` = "Administration of Justice" department page | `pages/<stem>.html` |
 | **Asset** | A CSS, font, image or JS file a page references, archived once by content hash | `a1b2….css` | `assets/` |
-| **Rule** | A named, declarative instruction. Three kinds: **page rule**, **record locator**, **field rule** | `course-code` | `rules/<rule_id>/` |
+| **Rule** | A named, declarative instruction. Three kinds: **page rule**, **record locator**, **field rule**. A rule may also be a domain expert's heuristic rather than something read off the page: "every course in this catalog is in English" is a field rule with a constant value | `course-code` | `rules/<rule_id>/` |
 | **Page rule** | Decides whether a page contains courses (today's label rules) | "URL has `/Department/` and the page has `.course-summary-wrapper`" | |
 | **Record locator** | Decides where each course starts and ends on a page (today's `repeat`) | "each `div.course-summary-wrapper` is one course" | |
 | **Field rule** | Decides where one property is inside one course | "Coded Notation = text before ` - ` in the title row" | |
@@ -164,6 +164,7 @@ These are the only nouns the UI, CLI, files and this spec use. Each one is defin
 | **Match** | One rule's result on one occurrence (or page): a value, or "empty", or "no match" | `course-code` on occurrence … = `ADMJ 51` | `matches.parquet` |
 | **Signal** | A deterministic reason to look at a match: empty, shape outlier, changed since accepted, … | `shape-outlier` | `signals.parquet` |
 | **Annotation** | A person's verdict on a match, occurrence, page or rule, appended to a log, never edited | Jared: `wrong`, expected "ADMJ 51", note | `annotations.jsonl` |
+| **Discussion** | Comments on a **whole rule** (e.g. questioning whether it's needed) or on the **ruleset** (suggesting a new rule or another approach), each with a topic. Shown in the Rules tab's sidebar and sent to Claude in the prompt | Eric on `course-description`: "Do we need a separate Advisory rule?" (questions this rule) | `annotations.jsonl` (`comment`, target `rule` / `ruleset`) |
 | **Verdict** | `correct` · `wrong` · `missing` (record locators and page rules only) · `question` (a comment marked "question for the institution"). A plain comment is a separate `comment` event with no verdict | | annotation field |
 | **Rule status** | `in review` · `needs work` · `approved`, for one rule version | ✓ approved | derived from annotations |
 | **Comparison** | Two ruleset versions (or two versions of one rule) on the same crawl | v6 → v7 | derived |
@@ -302,7 +303,12 @@ extraction **row-identical** to the parent's. `golden-datasets check` verifies t
   - `comment` (a note with no verdict);
   - `approve`;
   - `reopen` (undoes an approve);
-  - targets of kind `match`, `occurrence`, `page` (with `rule_id`, or `null` for a page-level question) and `rule`;
+  - targets of kind `match`, `occurrence`, `page` (with `rule_id`, or `null` for a page-level question), `rule`
+    (approvals, and comments on the whole rule) and `ruleset` (comments on the ruleset as a whole, no `rule_id`; it
+    records `ruleset_version_seen`). Only comments target the ruleset;
+  - a comment on a whole rule or on the ruleset may carry a `topic`: `new-rule` (suggests a new rule, such as a
+    domain expert's heuristic), `approach` (suggests another approach), `question-rule` (questions whether a rule is
+    needed) or `other`. These comments never attach to a row, and they don't change a rule's status;
   - machine authors (`golden-datasets import-v2`) are allowed.
 - **Wrong vs missing:**
   - `wrong` + `expected` is for a field rule's row whose value is wrong. That includes an empty value when the page
@@ -749,6 +755,17 @@ The Rules tab is designed for Jared.
 - Status appears only here, not repeated in the header.
 - Each rule shows how many of its rows have been reviewed, as whole numbers: "14 / 1,062 reviewed". How many courses
   the rule found a value for (its fill rate) is inside "How this rule works".
+- **Discuss the ruleset** (top of the column, collapsed to one line with its count): a thread about the rules as a
+  whole. A comment has a topic: **Suggests a new rule** (the default; a domain expert's heuristic counts, e.g. "every
+  course in this catalog is in English: set `ceterms:inLanguage` to English for all of them"), **Suggests an
+  approach**, or **Comment**.
+- **Discuss** on each rule (its count once it has comments): opens that rule's own thread under it in the list, with
+  a **Question whether this rule is needed** checkbox. A rule questioned this way keeps its status; the question goes
+  to Claude, who answers it in its report rather than removing the rule (that's what happened with the learning-
+  program rules, §12.1).
+- Both threads show author, date, topic and, for a rule, the version it was said about. `⌘ Enter` posts.
+
+![Discuss the ruleset, and a rule's own thread](screens/18-rules-discussion.png)
 
 **Middle column: the selected rule.**
 - **Title:** the CTDL term (`ceterms:description`), linked to its definition, with the plain property name under it.
@@ -771,7 +788,11 @@ controls:
 - **comment** (a speech-bubble icon). It opens a short note with a **question for the institution** checkbox. Jared
   is the domain expert; this is for things only the institution can answer.
 
-Each row shows its verdict and who gave it. **Rows that already have a verdict fade back** (lower opacity, muted
+Each row shows its verdict and who gave it. **The value sits in its own box**, so it stands apart from the caption,
+history and buttons; an empty value's box is dashed ("nothing found"). Unselected rows show its first two lines.
+**The selected row shows the whole value**, its paragraphs kept (the way the Records tab shows a field), in a
+stronger box labelled with the field (DESCRIPTION, CODED NOTATION …, or FOUND on a page rule or locator), and an
+**Open in Records →** button under it opens the course on the Records tab with this field and page selected. **Rows that already have a verdict fade back** (lower opacity, muted
 colour), so the eye goes to the rows still waiting; hovering or focusing one brings it back. Keyboard: `Tab` moves to
 the next row, `1` / `2` record correct / wrong, `3` comments, `H` starts the text selection (`A` / `W` / `C` still
 work). These appear as a single hint line; the Records tab uses the same keys.
@@ -843,7 +864,9 @@ the page, signals and review state. Modes:
   filter (bars of one stratum are ORed, strata ANDed); a stratum's own filter is left out of its counts, so its
   other buckets stay pickable. Strata where every row is in one bucket are listed on one line, set aside.
 
-Filters stay on in every mode and show as removable chips. **A row shows its strata tags only when a filter or
+The drawer **closes by itself as soon as the reader moves to another row** (click, `Tab`, arrows, or the next row
+after a verdict), so it stays out of the way while reviewing; filters and mode stay as set. Filters stay on in every
+mode and show as removable chips. **A row shows its strata tags only when a filter or
 Autostratify is on** (its bucket in each crossed or filtered stratum), so it is clear why it is listed; otherwise
 rows carry no strata labels.
 
@@ -859,8 +882,9 @@ course someone marked or commented on in another rule (or whose page, for page-r
 
 One course with every in-scope field as a card, v2-style. The same page pane shows numbered highlights for each
 field. Verdicts made here are the same `verdict` events, targeting (field rule, occurrence), so both tabs show them
-(D6). **See in Rules →** on the selected value opens that field's rule in the Rules tab with this course selected and
-its page shown:
+(D6). Each value sits in its own box; the selected one shows in full, in a stronger box labelled VALUE, with an
+**Open in Rules →** button under it that opens that field's rule in the Rules tab with this course selected and its
+page shown:
 
 ![Records tab](screens/07-records-tab.png)
 
@@ -916,7 +940,11 @@ give the same prompt. It contains:
 - the values marked correct, which must not change (a table), and the signals (a table);
 - for all rules needing work, a table of those rules first;
 - `golden-datasets` commands as a table (step, command, what it gives), noting that everything above comes from them;
-- the publish rule ("only when nothing correct changes").
+- the publish rule ("only when nothing correct changes");
+- each rule's **comments on the whole rule** (a table; when someone questions whether the rule is needed, Claude is
+  told to answer in its report, not to remove or rewrite the rule for that), and the **comments on the ruleset**
+  (suggested rules and approaches), with a note that a domain expert's heuristic becomes a field rule with
+  `rule_type` `constant` (or `source_url`) when the pages can't contradict it.
 
 There's **no raw HTML**. Pages are referenced by stem, fetched with `golden-datasets pages get`. The left side shows size
 (characters, ≈ tokens) and the number of page references. Buttons: **Copy prompt** and **Download .md**.
@@ -1208,7 +1236,8 @@ descriptions still contain a Prerequisite that comes after one of them.
 - **UALR needs a recrawl.** Many UALR courses appeared only as short entries on program pages, because their course
   pages weren't crawled; with the program rules gone (§12.1) those courses aren't in the dataset at all. Recrawling is
   xtra-cli's job (outside the Studio).
-- **Comments in the prompt.** A comment reaches the prompt only on a row with an open verdict; comments on their own,
+- **Row comments in the prompt.** Comments on a whole rule and on the ruleset now reach the prompt. A comment on a
+  row still reaches it only when the row has an open verdict; comments on their own,
   or on rows already fixed or marked correct, don't. Add a Comments table per rule section.
 - **`sync` with diverged roots** overwrites an immutable file (a rule or ruleset version) whose size differs; it should
   refuse instead.
