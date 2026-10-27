@@ -61,11 +61,13 @@ export default function GoldenTab({ catalog }: TabProps) {
         </div>
         <div>
           <div className="box"><h3>What will be written</h3>
-            <div className="tree">{d.target}{"\n"}
+            <div className="target mono">{d.target}</div>
+            <div className="tree">{"."}{"\n"}
               {"└── <page>/                 "}<span className="c"># one folder per saved page with courses ({fmt(d.pages)})</span>{"\n"}
               {"    ├── <page>.json         "}<span className="c"># [{"{"}golden_id, fields: [{"{"}ctdl_property, property,</span>{"\n"}
               {"    │                       "}<span className="c">#   value, source_url, location{"}"}]{"}"}]</span>{"\n"}
-              {"    └── <page>.html         "}<span className="c"># the page as crawled</span>{"\n\n"}
+              {"    └── <page>.html         "}<span className="c"># the page as crawled, if not there yet: the</span>{"\n"}
+              {"                            "}<span className="c">#   locations above point into it</span>{"\n\n"}
               {"Studio: golden/<publication>/"}{"\n"}
               {"├── lineage.parquet         "}<span className="c"># one row per value → rule, version, occurrence, verdicts</span>{"\n"}
               {"└── publication.json        "}<span className="c"># which extraction and ruleset, approvals</span>

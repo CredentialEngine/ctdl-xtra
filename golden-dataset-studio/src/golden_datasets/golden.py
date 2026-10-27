@@ -117,15 +117,15 @@ def approval(rv: Review) -> tuple[bool, list[dict]]:
     return all(s["status"] == "approved" for s in statuses), statuses
 
 
+GOLDEN_CONTAINER = "azure://https://ceteststorage.blob.core.windows.net/xtra-golden-sets-verified"
+
+
 def default_target(ctx: Ctx) -> str:
-    """Where the UI publishes when GOLDEN_DATASETS_GOLDEN_ROOT isn't set: a folder inside the Studio's root, so
-    nothing outside it is ever written by accident (xtra-golden-sets-verified is chosen explicitly)."""
+    """Where the UI publishes: the xtra-golden-sets-verified container, unless GOLDEN_DATASETS_GOLDEN_ROOT names
+    another root (a local folder or a scratch prefix, for trying a publication out)."""
     import os
 
-    env = os.environ.get("GOLDEN_DATASETS_GOLDEN_ROOT")
-    if env:
-        return env
-    return f"{ctx.root.uri.rstrip('/')}/golden-dataset-studio/golden-out"
+    return os.environ.get("GOLDEN_DATASETS_GOLDEN_ROOT") or GOLDEN_CONTAINER
 
 
 def publish(ctx: Ctx, to: str, by: str, allow_unapproved: bool = False, log=print) -> dict:

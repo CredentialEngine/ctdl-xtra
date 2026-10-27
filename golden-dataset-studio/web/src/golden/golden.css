@@ -1,5 +1,6 @@
 /* Golden tab: long storage paths must not push the right column off screen. */
 .gold-grid > * { min-width: 0; }
 .gold-grid .tree { overflow-x: auto; }
+.gold-grid .target { overflow-wrap: anywhere; font-size: 12.5px; margin-bottom: 6px; }
 .gold-grid .chk .mono, .gold-grid .chk .muted { overflow-wrap: anywhere; }
 .gold-grid .collisions { max-height: 420px; overflow-y: auto; }

@@ -64,6 +64,6 @@ def test_golden_api_blocks_publish_until_approved(ctx):
     d = c.get("/api/catalogs/avc/golden").json()
     assert d["ready"] is False and d["pages"] == 1259 and d["courses"] == 1075
     assert sum(r["status"] == "approved" for r in d["rules"]) == 5 and d["collisions"] == []
-    assert d["target"].endswith("/golden-out/avc-elumenapp-com-catalog-2026-27-welcome/2026-10-12T20-59-13Z/")
+    assert d["target"] == f"{golden.GOLDEN_CONTAINER}/avc-elumenapp-com-catalog-2026-27-welcome/2026-10-12T20-59-13Z/"
     r = c.post("/api/catalogs/avc/golden/publish", json={"author": "Test"})
     assert r.status_code == 409 and "not approved" in r.json()["detail"]
