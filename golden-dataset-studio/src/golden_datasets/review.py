@@ -175,6 +175,7 @@ class Review:
         self.snap, self.events, self.parent = snap, events, parent
         superseded = {e["supersedes"] for e in events if e.get("supersedes")}
         self.live = [e for e in events if e["annotation_id"] not in superseded]
+        self._states: dict[str, dict] = {}  # rule_id → row states of snap.rows(rule_id) (events are fixed per Review)
 
     # -- verdicts on rows ------------------------------------------------------------------------------
     def _target_key(self, e: dict) -> tuple:
@@ -199,6 +200,13 @@ class Review:
         return {"latest": latest, "comments": comments}
 
     def row_states(self, rule_id: str, rows: list[dict]) -> dict[str, RowState]:
+        if rows is self.snap.rows(rule_id):
+            if rule_id not in self._states:
+                self._states[rule_id] = self._row_states(rule_id, rows)
+            return self._states[rule_id]
+        return self._row_states(rule_id, rows)
+
+    def _row_states(self, rule_id: str, rows: list[dict]) -> dict[str, RowState]:
         rule = self.snap.rules[rule_id]
         v = self.verdicts_for(rule_id)
         latest, comments = v["latest"], v["comments"]
@@ -346,6 +354,7 @@ class Loader:
     def __init__(self):
         self._snaps: dict[tuple, Snapshot] = {}
         self._logs: dict[tuple, AnnotationLog] = {}
+        self._reviews: dict[tuple, Review] = {}
 
     def snapshot(self, ctx: Ctx, ext: str) -> Snapshot:
         key = (ctx.root.uri, ctx.catalog, ctx.crawl, ext)
@@ -360,12 +369,20 @@ class Loader:
         return self._logs[key]
 
     def review(self, ctx: Ctx, ext: str | None = None, with_parent: bool = True) -> Review:
+        """The same Review object while the annotation log hasn't grown, so its per-rule work is reused."""
         ext = ext or ctx.latest_extraction()
         snap = self.snapshot(ctx, ext)
         parent = None
         if with_parent and snap.meta.get("parent_extraction"):
             parent = self.snapshot(ctx, snap.meta["parent_extraction"])
-        return Review(snap, self.log(ctx).events(), parent)
+        log = self.log(ctx)
+        events = log.events()
+        key = (ctx.root.uri, ctx.catalog, ctx.crawl, ext, with_parent, log.offset)
+        rv = self._reviews.get(key)
+        if rv is None:
+            self._reviews = {k: v for k, v in self._reviews.items() if k[:5] != key[:5]}  # drop older log offsets
+            rv = self._reviews[key] = Review(snap, events, parent)
+        return rv
 
 
 LOADER = Loader()

@@ -69,6 +69,17 @@ def _event_brief(e: dict | None) -> dict | None:
 # =====================================================================================================
 # Catalogs
 # =====================================================================================================
+def approved_count(ruleset: dict, events: list[dict]) -> int:
+    """Rules of this ruleset whose latest approve / reopen event for their current version is an approve."""
+    superseded = {e["supersedes"] for e in events if e.get("supersedes")}
+    last: dict[tuple, str] = {}
+    for e in sorted((e for e in events if e["annotation_id"] not in superseded), key=lambda e: e["at"]):
+        t = e.get("target") or {}
+        if e["type"] in ("approve", "reopen") and t.get("kind") == "rule":
+            last[(t.get("rule_id"), t.get("rule_version_seen"))] = e["type"]
+    return sum(1 for r in ruleset["rules"] if last.get((r["rule_id"], r["version"])) == "approve")
+
+
 @router.get("/catalogs")
 def catalogs(request: Request) -> list[dict]:
     st = studio(request)
@@ -85,13 +96,15 @@ def catalogs(request: Request) -> list[dict]:
             k = next((c for c in e["crawls"] if c["crawl"] == e.get("current_crawl")), None)
             item.update(pages=(k or {}).get("page_count"), crawl=e.get("current_crawl"))
             if e.get("rulesets") and k and k.get("extractions"):
-                try:
-                    rv = _review(request, folder)
-                    statuses = [rv.rule_status(rid)["status"] for rid in rv.snap.rules]
-                    item.update(status="ready", ruleset_version=rv.snap.ruleset_version, rules_total=len(statuses),
-                                rules_approved=statuses.count("approved"))
-                except HTTPException:
-                    pass
+                # Only the ruleset and the log are needed to count approvals, not the extraction: the picker stays
+                # fast on a cold cache (spec §10).
+                ctx = st.ctx(folder)
+                ext = next((x for x in sorted(k["extractions"], key=lambda x: (x["ruleset_version"], x["extraction"]))
+                            [::-1]), None)
+                rs = ctx.ruleset(ext["ruleset_version"])
+                events = LOADER.log(ctx).events()
+                item.update(status="ready", ruleset_version=rs["version"], rules_total=len(rs["rules"]),
+                            rules_approved=approved_count(rs, events))
         out.append(item)
     return out
 

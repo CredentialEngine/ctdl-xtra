@@ -155,3 +155,17 @@ Plan: [`docs/qrspi/04-plan.md`](docs/qrspi/04-plan.md). Choices where the spec w
 - Checks: `pytest` 49 fast + 26 slow ✓ · storage contract on Azurite + Azure scratch ✓ (18) · ruff ✓ · web
   typecheck ✓, vitest 79 ✓, build ✓ · `check` on all five catalogs ✓ and on the Azure scratch root (56 / 56, 8.8 s).
 - Deviations: build notes 18–22.
+
+## After the build: v2 vs the Studio, opening a catalog cold from Azure
+
+Same catalogs, same storage account, a fresh server with an empty cache (v2 numbers from
+`docs/qrspi/research/speed-storage.md`; the Studio's from `bench/bench_budgets.py` and a cold `GET /api/catalogs`):
+
+| | v2 | Studio | |
+|---|---|---|---|
+| Catalog list | ~27 s (real container) | 1.0 s (warm 0.1 s) | reads the manifest, no listing |
+| Open CCSF | 9.4 s | 1.3 s | 7× |
+| Open WVU (largest) | 47.9 s | 3.0 s | 16× |
+
+WVU's cold open is still over the 2 s budget of §10: about 1 s of it is computing 17 rule statuses over 244,000
+values; warm it is 83 ms (one `Review` is now reused per extraction while the log hasn't grown).
