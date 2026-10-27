@@ -1,13 +1,13 @@
 // Top bar on every screen (spec §7): Studio name, catalog, crawl date, ruleset version, the five tabs,
-// "Reviewing as [name ▾]" and "Show the tour".
+// who is reviewing (name and role, with Switch back to the "Who are you?" screen) and "Show the tour".
 import type { CatalogDetail } from "../api/types";
-import { reviewerNames, setReviewer, useReviewer } from "./reviewer";
+import { forgetIdentity, ROLE_LABEL, ROLE_SHORT, useReviewer, useRole } from "./reviewer";
 import { href, TABS, type Tab } from "./router";
 import { fmtDate } from "./ui";
 
 export function TopBar({ catalog, tab, onTour }: { catalog: CatalogDetail | null; tab: Tab | null; onTour?: () => void }) {
   const me = useReviewer();
-  const names = reviewerNames();
+  const role = useRole();
   return (
     <header className="topbar">
       <a className="brand" href="#/">
@@ -38,17 +38,10 @@ export function TopBar({ catalog, tab, onTour }: { catalog: CatalogDetail | null
         ))}
       </nav>
       <div className="who">
-        <label className="who-l">Reviewing as{" "}
-          <select value={me} onChange={(e) => {
-            if (e.target.value === "__add") {
-              const n = (window.prompt("Name of the reviewer") || "").trim();
-              if (n) setReviewer(n);
-            } else setReviewer(e.target.value);
-          }}>
-            {names.map((n) => <option key={n} value={n}>{n}</option>)}
-            <option value="__add">Add a name…</option>
-          </select>
-        </label>
+        <span className="who-l" title={role ? `${me} · ${ROLE_LABEL[role]}` : me}>
+          <span className="who-name">{me}</span>{role && <span className="who-role">{ROLE_SHORT[role]}</span>}
+          <button className="linkish" onClick={forgetIdentity} title="Pick another profile or role">Switch</button>
+        </span>
         {catalog && onTour && <button className="btn tour-btn" onClick={onTour} data-tour="tour-button">Show the tour</button>}
       </div>
     </header>

@@ -8,6 +8,8 @@ import PromptTab from "./prompt/PromptTab";
 import RecordsTab from "./records/RecordsTab";
 import RulesTab from "./rules/RulesTab";
 import { useRoute } from "./shell/router";
+import { IdentityScreen } from "./shell/Identity";
+import { useHasIdentity } from "./shell/reviewer";
 import { TopBar } from "./shell/TopBar";
 import { ThemeButton } from "./shell/theme";
 import { StorageFiles } from "./files/StorageFiles";
@@ -28,6 +30,8 @@ export default function App() {
   useEffect(load, [load]);
   const tour = useTour(catalog);
   const [files, setFiles] = useState(false);
+  const known = useHasIdentity();
+  if (!known) return <IdentityScreen />;
 
   let body: ReactNode;
   if (!route.catalog) body = <CatalogPicker />;

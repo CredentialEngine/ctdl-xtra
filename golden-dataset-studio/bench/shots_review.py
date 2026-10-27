@@ -252,6 +252,8 @@ async def main(base: str, out: Path, only: str | None) -> None:
             page.on("pageerror", lambda e, n=name: print(f"  [{n}] page error: {e}"))
             loop = "" if name == "01b-loop-modal" else " localStorage.setItem('studio.loop.hidden', '1');"
             await page.add_init_script("try { localStorage.setItem('studio.tour.seen', '1');"
+                                      " localStorage.setItem('studio.reviewer', '\"Jared\"');"
+                                      " localStorage.setItem('studio.role', '\"sme\"');"
                                       f" localStorage.setItem('studio.rules.sample', '{int(name.startswith(('15', '16')))}');"
                                       f" localStorage.setItem('studio.compare.sample', '{int(name.startswith('08c'))}');" + loop +
                                       f" localStorage.setItem('studio.theme', '{THEME.get(name, 'light')}') }} catch (e) {{}}")

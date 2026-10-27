@@ -1,6 +1,7 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { setIdentity } from "../shell/reviewer";
 import type { CatalogDetail, RuleDetail, RulesResponse, RuleSummary } from "../api/types";
 import { parseRoute } from "../shell/router";
 import type { RowX, RowsX } from "./api";
@@ -56,6 +57,7 @@ function json(body: unknown) {
 }
 
 beforeEach(() => {
+  setIdentity("Jared", "sme");
   posted = [];
   vi.stubGlobal("fetch", vi.fn((url: string, init?: RequestInit) => {
     const u = String(url);

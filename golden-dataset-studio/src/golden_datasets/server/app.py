@@ -23,6 +23,7 @@ ROUTERS = [
     "golden_datasets.server.routes_prompt",   # W6: prompt text
     "golden_datasets.server.routes_golden",   # W7: golden publication
     "golden_datasets.server.routes_files",    # storage files: a debugging view of what the Studio keeps
+    "golden_datasets.server.routes_profiles", # profiles: who is reviewing (name + role), shared on the root
 ]
 
 
