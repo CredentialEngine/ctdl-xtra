@@ -111,7 +111,9 @@ def login(request: Request, response: Response, body: Annotated[dict, Body()]) -
         if not verify_password(str(body.get("password") or ""), gate.stored):
             time.sleep(0.5)  # scrypt is already slow; this makes guessing slower still
             raise HTTPException(401, "wrong password")
-        https = request.headers.get("x-forwarded-proto", request.url.scheme) == "https"
+        # behind a proxy the request itself may be http; the browser's Origin says what the user sees
+        https = "https" in (request.url.scheme, request.headers.get("x-forwarded-proto"),
+                            request.headers.get("origin", "").partition(":")[0])
         response.set_cookie(COOKIE, gate.cookie(), max_age=MAX_AGE, httponly=True, samesite="lax", secure=https)
     return {"signed_in": True}
 

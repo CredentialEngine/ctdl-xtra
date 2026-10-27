@@ -52,3 +52,11 @@ def test_cookie_from_another_password_is_refused(tmp_path, monkeypatch):
     monkeypatch.setenv(auth.ENV_HASH, auth.hash_password("new"))
     c2 = TestClient(create_app(str(tmp_path)), cookies=c.cookies)
     assert c2.get("/api/profiles").status_code == 401
+
+
+def test_cookie_is_secure_when_the_browser_is_on_https(tmp_path, monkeypatch):
+    monkeypatch.setenv(auth.ENV_HASH, auth.hash_password("pw"))
+    c = TestClient(create_app(str(tmp_path)))
+    plain = c.post("/api/login", json={"password": "pw"}).headers["set-cookie"]
+    secure = c.post("/api/login", json={"password": "pw"}, headers={"Origin": "https://studio.example"}).headers["set-cookie"]
+    assert "secure" not in plain.lower() and "secure" in secure.lower()
