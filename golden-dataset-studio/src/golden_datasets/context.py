@@ -108,7 +108,11 @@ class Ctx:
 
     def ruleset_rules(self, version: int) -> tuple[dict, dict[str, dict]]:
         rs = self.ruleset(version)
-        return rs, {e["rule_id"]: self.rule(e["rule_id"], e["version"]) for e in rs["rules"]}
+        from concurrent.futures import ThreadPoolExecutor
+
+        with ThreadPoolExecutor(max_workers=16) as pool:  # one round trip each on Azure: fetch them together
+            docs = list(pool.map(lambda e: self.rule(e["rule_id"], e["version"]), rs["rules"]))
+        return rs, {e["rule_id"]: d for e, d in zip(rs["rules"], docs)}
 
     def rule_versions(self, rule_id: str) -> list[int]:
         prefix = f"{layout.catalog_dir(self.catalog)}/rules/{rule_id}/v"

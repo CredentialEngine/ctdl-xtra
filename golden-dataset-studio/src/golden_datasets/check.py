@@ -280,12 +280,12 @@ def golden_file_checks(ctx: Ctx, con) -> list[tuple]:
                 continue
             if not groot.exists(f"{prefix}{stem}/{stem}.html"):
                 bad_files.append(f"{prefix}{stem}/{stem}.html")
+            counts = Counter()  # value_index counts per (golden_id, property) across the page's records
             for rec in records:
                 n_rec += 1
-                counts = Counter()
                 for fld in rec["fields"]:
-                    ids.add((rec["golden_id"], stem, fld["property"], counts[fld["property"]]))
-                    counts[fld["property"]] += 1
+                    ids.add((rec["golden_id"], stem, fld["property"], counts[(rec["golden_id"], fld["property"])]))
+                    counts[(rec["golden_id"], fld["property"])] += 1
                     leaked += sum(k in DOMAIN_LEAKS for k in fld)
                 leaked += sum(k in DOMAIN_LEAKS for k in rec)
         lin = set(con.execute(f"""SELECT golden_id, page_stem, property, value_index FROM lineage

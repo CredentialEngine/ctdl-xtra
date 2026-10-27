@@ -50,9 +50,15 @@ class Snapshot:
         else:
             self.ruleset, self.rules = ruleset, rules
         self.settings = self.ruleset["settings"]
-        if tables is None:
-            tables = {name: ctx.table(ext, name).to_pylist() for name in layout.EXTRACTION_TABLES}
-        pages = ctx.pages()
+        from concurrent.futures import ThreadPoolExecutor
+
+        with ThreadPoolExecutor(max_workers=5) as pool:  # five downloads at once on a cold Azure cache
+            pages_f = pool.submit(ctx.pages)
+            if tables is None:
+                futures = {name: pool.submit(lambda n=name: ctx.table(ext, n).to_pylist())
+                           for name in layout.EXTRACTION_TABLES}
+                tables = {name: f.result() for name, f in futures.items()}
+            pages = pages_f.result()
         self.page = {p["page_stem"]: p for p in pages}
         self.occurrences = {o["occurrence_key"]: o for o in tables["occurrences"]}
         self.matches_by_rule: dict[str, list[dict]] = defaultdict(list)

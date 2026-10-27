@@ -276,11 +276,11 @@ export function PagePane(props: PagePaneProps): JSX.Element {
       </div>
       <div className="gpp-url">
         <div className="gpp-addr" title={active?.url}>{active?.url ?? ""}</div>
-        <div className="gpp-seg" role="group" aria-label="View">
+        <div className="gpp-seg" role="group" aria-label="View" data-tour="page-html-switch">
           <button className={mode === "page" ? "on" : ""} onClick={() => setMode("page")}>Page</button>
           <button className={mode === "html" ? "on" : ""} onClick={() => setMode("html")}>HTML</button>
         </div>
-        <a className="gpp-ext" href={active?.url ?? undefined} target="_blank" rel="noopener noreferrer"
+        <a className="gpp-ext" data-tour="open-live" href={active?.url ?? undefined} target="_blank" rel="noopener noreferrer"
           title="Open the live page">
           <ExtIcon />
         </a>

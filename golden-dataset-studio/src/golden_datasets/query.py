@@ -61,7 +61,8 @@ def connect(ctx: Ctx) -> duckdb.DuckDBPyConnection:
     assets = k.get("assets") or {}
     for name in ("assets", "page_assets"):
         if assets.get(name):
-            con.execute(f"CREATE VIEW {name} AS SELECT * FROM read_parquet({_q(ctx.root.local_path(assets[name]))})")
+            con.execute(f"CREATE VIEW {name} AS SELECT * FROM read_parquet("
+                        f"{_q(ctx.root.local_path(assets[name], mutable=True))})")  # rewritten by assets fetch
     rv = rule_versions_table(ctx)
     con.register("rule_versions", rv)
     rulesets, rr = [], []

@@ -76,3 +76,48 @@ Plan: [`docs/qrspi/04-plan.md`](docs/qrspi/04-plan.md). Choices where the spec w
   descriptions, check, API statuses / rows / verdict / approve refused while wrong).
 - Performance (local): load an extraction into memory 60 ms; all 17 rule statuses 30 ms; order 1,062 rows 2 ms.
 - Deviations: build notes 11–12.
+
+## Wave 4: W4 UI ∥ W5 Compare ∥ W6 Claude loop → **M2 and M3 reached**
+
+- Built (lead, before spawning): the contract — `server/routes_review.py` (catalogs, rules, rows, overlays,
+  courses, annotations), `scorecard.py`, `server/routes_compare.py`, `web/src/api/{types,client}.ts`, the app shell
+  (`web/src/shell/`: routing, top bar, "Reviewing as", key hints, icons), the catalog picker; gzip on the API.
+- Built (W4, subagent): Rules tab (`web/src/rules/`: rule list by kind with status icons and "N / M reviewed",
+  rule head with Improve this rule / Approve (greyed with the reason while anything is wrong or missing) / reopen,
+  "How this rule works ▸", rows ordered by signals that fade once judged, ✓ / ✗ with select-the-right-text,
+  comment + "question for the institution", keyboard Tab/A/W/C/H/Enter/Esc, record-locator view with outlined
+  blocks, marked uncovered codes and "Add a course this rule missed", page-rule view with "Add a page this rule
+  missed", the page pane with prefetch), Records tab (`web/src/records/`), `bench/bench_review.py`,
+  `bench/shots_review.py`, API extensions (`focus=` for "See on page", `page-search`).
+- Built (W5, subagent): Compare tab (`web/src/compare/`), scorecard ordering by history (A4.1), signal lost/gained
+  lists, `bench/bench_compare.py`.
+- Built (W6, subagent): `loop.py` (`rule list / show / annotations / draft / try / publish`, `pages get / sample`),
+  `prompt.py` + `server/routes_prompt.py` + Prompt tab, `bench/bench_loop.py`.
+- **M2**: on AVC the Rules tab shows `course-description` with the full page pane; a verdict made in headless
+  Chromium (wrong + selected text + note) is appended to `annotations.jsonl` and shows after a reload.
+- **M3, the loop closes on the real problem**: the Prompt for `course-description` (11,689 chars ≈ 2,922 tokens,
+  5 page references, no raw HTML) was handed to a **fresh Claude agent with nothing else**. Using only the CLI it
+  ran `rule show / annotations / pages get / sql / rule draft`, six `rule try` iterations, then `rule publish`:
+  ruleset v2 + rs-0002 (course-description rerun on 1,062 pages, 16 rules copied). Scorecard: **5 fixed · 0 still
+  wrong · 0 newly wrong · 9 unchanged**, 265 values changed, contains-label-text 547 → 285. Compare (UI API) shows
+  v1 → v2 with the same numbers; `check` passes, with 18,438 copied rows identical to rs-0001. The rule went from
+  needs work to in review. (The prototype's own v2, in `.data/root-demo`: 278 changed, 547 → 273.)
+- Checks: `pytest` 49 fast + 25 slow ✓ (incl. `test_loop.py`: a draft that also drops "Advisory:" lines is
+  refused because ACCT199, AERO199, CFE114, NS922L would change) · ruff ✓ · web typecheck ✓, vitest 60 ✓, build ✓
+  · `check` on all five catalogs ✓.
+- **Performance vs §10** (`bench/bench_budgets.py`: a fresh `serve` process, empty disk cache, then warm):
+
+  | Action | Azure scratch cold | warm | Local cold | warm | Budget cold / warm |
+  |---|---|---|---|---|---|
+  | Open catalog, rule list shown | 1.33–1.52 s | 89 ms | 183 ms | 15 ms | 2 s / 300 ms |
+  | Switch rule, rows shown | 50 ms | 47 ms | 13 ms | 10 ms | 500 / 150 ms |
+  | Next row, page pane updated | 0.88–0.98 s (not prefetched) | 1.6 ms (prefetched) | 50 ms | 1.4 ms | 1 s / 100 ms |
+  | Record a verdict | 154–160 ms | 135–165 ms | 3 ms | 2 ms | 300 / 300 ms |
+  | Open Compare | 106–109 ms | 39–41 ms | 66 ms | 3.7 ms | 2 s / 300 ms |
+  | `rule try` on WVU (largest) | | | 3.4 s | | 30 s |
+  | `rule publish` upload | | | AVC 0.03 s, WVU 0.23 s | | 15 s |
+
+  In Chromium end to end (W4): next row 96 ms, switch rule 137 ms (warm, local). The first Azure cold run of
+  "open catalog" was 2.1 s; fetching the 17 rule files and 5 Parquet files in parallel brought it to 1.3–1.5 s.
+- Deviations: build notes 23–27; W4's (a "fixed" or "changed since correct" row doesn't fade, it needs a fresh
+  look; the program-page bubble count includes the page-level questions).

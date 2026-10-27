@@ -1,0 +1,23 @@
+"""Prompt API (W6): the text of the Prompt tab's **Copy prompt** button (spec §7.5), the same as
+`golden-datasets prompt`."""
+
+from __future__ import annotations
+
+from fastapi import APIRouter, Request
+
+from ..errors import UserError
+from ..loop import current_review
+from ..prompt import build_prompt
+from .state import not_found, studio
+
+router = APIRouter(prefix="/api")
+
+
+@router.get("/catalogs/{catalog}/prompt")
+def prompt(request: Request, catalog: str, rule: str | None = None, needs_work: bool = False) -> dict:
+    """One rule (`rule=`), or every rule whose status is `needs work` (`needs_work=true`, also the default)."""
+    ctx = studio(request).ctx(catalog)
+    try:
+        return build_prompt(ctx, rule, needs_work, rv=current_review(ctx))
+    except UserError as exc:
+        raise not_found(str(exc)) from None

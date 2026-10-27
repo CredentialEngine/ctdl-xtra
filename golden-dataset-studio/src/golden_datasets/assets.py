@@ -258,6 +258,13 @@ def cmd_fetch(args) -> int:
     finally:
         fetcher.close()
     not_fetched = max(0, len(queue) - max_assets)
+    # URLs over the cap still get a row (status 0, no file): page_assets.url → assets.url holds, and the page pane
+    # uses the live URL for them (spec §9: "if something isn't archived, the live URL is used").
+    for url in queue:
+        if url not in rows:
+            rows[url] = {"crawl": crawl, "url": url, "final_url": None, "status": 0, "content_type": None,
+                         "sha256": None, "bytes": 0, "referenced_by": "page (not fetched: over --max-assets)",
+                         "fetched_at": None}
 
     # 4. tables + manifest
     assets_rows = sorted(rows.values(), key=lambda r: r["url"])
@@ -274,8 +281,9 @@ def cmd_fetch(args) -> int:
     manifest.update(root, change)
     ok = [r for r in assets_rows if r["sha256"]]
     total = sum(r["bytes"] for r in ok)
+    failed = sum(1 for r in assets_rows if not r["sha256"] and r["fetched_at"])
     msg = (f"{catalog}/{crawl}: {len(pages)} pages, {len(page_assets)} page→asset refs, {len(assets_rows)} assets "
-           f"({len(ok)} archived, {len(assets_rows) - len(ok)} failed, {stored} new files, {skipped} already archived), "
+           f"({len(ok)} archived, {failed} failed, {stored} new files, {skipped} already archived), "
            f"{total / 1e6:.1f} MB; discover {t_discover:.1f}s, total {time.time() - t0:.1f}s")
     if not_fetched:
         msg += f"; {not_fetched} URLs over --max-assets {max_assets} not fetched"

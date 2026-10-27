@@ -23,6 +23,8 @@ from .catalogs import resolve
 from .errors import UserError
 from .storage import AzureRoot, LocalRoot, Root, open_root
 
+MUTABLE = ("/assets/assets.parquet", "/assets/page_assets.parquet")
+
 
 def pick_crawl(root: Root, catalog: str, crawl: str | None) -> str:
     """The given crawl, else the manifest's current crawl, else the latest folder that has crawl.json + pages/."""
@@ -86,7 +88,8 @@ def sync_catalog(src: Root, dst: Root, catalog: str, crawl: str | None, pages: s
         src_sizes.update(src.sizes(prefix))
 
     log_path = layout.annotations(catalog)
-    todo = [p for p in plan if p != log_path and have.get(p) != src_sizes.get(p)]
+    # Files rewritten in place (the asset tables) may keep their size; copy them every time.
+    todo = [p for p in plan if p != log_path and (have.get(p) != src_sizes.get(p) or p.endswith(MUTABLE))]
     if pages == "link":
         if not (isinstance(src, LocalRoot) and isinstance(dst, LocalRoot)):
             raise UserError("--pages link works only from a local folder to a local folder")

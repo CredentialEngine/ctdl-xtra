@@ -1,0 +1,48 @@
+/* Rules tab (W4): overrides on top of styles.css (the prototype's sheet). */
+.w4-rules, .w4-records { grid-template-rows: minmax(0, 1fr); height: 100%; min-width: 0; }
+.w4-rules .col.pane { position: relative; }
+.w4-rules .col.mid { min-width: 0; }
+.w4-rules .rule-item .id { overflow: hidden; text-overflow: ellipsis; }
+.w4-rules .rule-item .meta .stat.open svg { width: 12px; height: 12px; }
+.w4-rules .rule-head .rh-top { display: flex; gap: 10px; align-items: flex-start; }
+.w4-rules .rule-head .btn .ico svg, .w4-rules .rule-head .btn svg { width: 14px; height: 14px; }
+.w4-rules .rule-head .term .ico { display: inline-flex; }
+
+.btn.approve.is-approved { cursor: default; }
+.approved-by { display: inline-flex; flex-direction: column; align-items: flex-end; gap: 3px; }
+.approved-by .ab-who { font-size: 11px; color: var(--muted); }
+.linkish { border: 0; background: none; padding: 0; color: var(--accent); font: inherit; cursor: pointer; }
+.linkish:hover { text-decoration: underline; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+/* rows */
+.row.page-row { grid-template-columns: 1fr auto; }
+.row .val .nl { color: var(--faint); }
+.row .ico, .ctl3 .ico { display: inline-grid; place-items: center; }
+.cb .ico svg { width: 14px; height: 14px; display: block; }
+.hist .ico svg { width: 12px; height: 12px; vertical-align: -2px; margin-right: 3px; }
+.hist .h-expert { color: var(--violet); }
+.hist .h-muted { color: var(--faint); }
+.hist .h-comment .ico { color: var(--accent); }
+.hist .h-sep { color: var(--faint); }
+.hist .h-good + .h-note, .hist .h-bad + .h-note { color: var(--muted); }
+.row:focus { outline: none; }
+.row.more-rows { text-align: center; cursor: pointer; color: var(--muted); font-size: 12px; }
+
+/* open "missing" verdicts of a locator / page rule */
+.missing-list { padding: 8px 18px; border-bottom: 1px solid var(--line); background: var(--amber-soft, #fffaeb); font-size: 12px; }
+.missing-list .ml-h { display: flex; gap: 6px; align-items: center; font-weight: 600; color: var(--amber); margin-bottom: 4px; }
+.missing-list .ml-h svg { width: 12px; height: 12px; }
+.missing-list .ml-item { display: flex; justify-content: space-between; gap: 10px; padding: 2px 0; }
+.missing-list .ml-t { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink-2); }
+
+/* page pane legend / banner contents */
+.gpp-ctx .ico svg { width: 14px; height: 14px; display: block; }
+.gpp-ctx .grow { flex: 1; min-width: 0; }
+.gpp-ctx .missed-btn .ico svg { width: 12px; height: 12px; }
+.missed-panel .ico svg { width: 14px; height: 14px; display: block; }
+.missed-panel .mp-item.faint { cursor: default; }
+
+/* key hints in the footer */
+.key-hints { display: inline-flex; gap: 2px 8px; align-items: center; flex-wrap: wrap; }
+.key-hints kbd { margin-left: 6px; }

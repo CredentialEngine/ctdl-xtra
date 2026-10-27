@@ -10,6 +10,7 @@ import importlib
 from pathlib import Path
 
 from fastapi import FastAPI
+from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import FileResponse
 
 from .state import Studio
@@ -27,6 +28,7 @@ ROUTERS = [
 def create_app(root: str) -> FastAPI:
     app = FastAPI(title="CTDL Golden Dataset Studio")
     app.state.studio = Studio(root)
+    app.add_middleware(GZipMiddleware, minimum_size=2048)  # rows, compare and rendered pages compress ~5-20x
 
     @app.get("/api/health")
     def health() -> dict:

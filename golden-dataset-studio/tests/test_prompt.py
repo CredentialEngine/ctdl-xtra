@@ -1,0 +1,93 @@
+"""The prompt for Claude Code (W6, spec §7.5)."""
+
+from __future__ import annotations
+
+import pytest
+
+from golden_datasets.cli import main
+from golden_datasets.context import Ctx
+from golden_datasets.prompt import _location, build_prompt, has_raw_html
+
+OCC = "html > body > main > div:nth-of-type(4)"
+
+
+def test_location_labels():
+    a = {"expected": {"css_path": f"{OCC} > div > div", "char_start": 3, "char_end": 9},
+         "current_css_path": f"{OCC} > div > div", "occurrence_css_path": OCC}
+    assert _location(a) == " (chars 3–9 of the extracted element)"
+    a["current_css_path"] = None
+    assert _location(a) == " (chars 3–9 of `<occurrence> > div > div`)"
+    a["expected"]["css_path"] = None
+    assert _location(a) == ""
+
+
+def test_raw_html_detector():
+    assert has_raw_html("x <div class=a>") and has_raw_html("<HTML>") and not has_raw_html("a < b, `css > div`")
+
+
+@pytest.fixture(scope="module")
+def ctx(tmp_path_factory, avc_v1_root):
+    dst = tmp_path_factory.mktemp("w6p") / "root"
+    assert main(["sync", "--from", str(avc_v1_root), "--to", str(dst), "-c", "avc", "--pages", "link"]) == 0
+    return Ctx(str(dst), "avc")
+
+
+@pytest.mark.slow
+def test_one_rule_prompt(ctx):
+    out = build_prompt(ctx, "course-description")
+    text = out["text"]
+    assert out["rules"] == ["course-description"] and out["annotations"] == 5 and out["page_refs"] == 5
+    assert out["chars"] == len(text) and out["tokens"] == round(len(text) / 4)
+    assert not has_raw_html(text) and "<html" not in text.lower() and "<div" not in text.lower()
+    assert text.startswith("# Improve rule `course-description` — AVC catalog\n")
+    for section in ("## Context", "## Limits", "## Rule `course-description` v1", "### Open annotations (5)",
+                    "**Marked correct — these values must not change (9):**", "## How to work"):
+        assert section in text
+    for code in ("GEOG222", "PHYS102", "DFST202", "AUTO230", "ENGR955"):
+        assert f"**WRONG** — {code}" in text
+    for code in ("ACCT199", "AERO199", "CFE114", "NS922L"):
+        assert f"   - {code}: " in text
+    for cmd in ("rule show", "rule annotations", "rule draft", "rule try", "rule publish", "pages get",
+                "pages sample", "sql"):
+        assert f"golden-datasets {cmd}" in text
+    assert "$GOLDEN_DATASETS_ROOT/avc-elumenapp-com-catalog-2026-27-welcome/2026-10-12T20-59-13Z/pages/" in text
+    assert "BETTER" in text and "Never use `--force`" in text
+    assert "Questions for the institution" not in text  # AVC's questions are on program pages
+
+
+@pytest.mark.slow
+def test_deterministic(ctx):
+    a = build_prompt(ctx, None, True)
+    b = build_prompt(Ctx(ctx.root, "avc"), None, True)
+    assert a == b
+    assert build_prompt(ctx, "course-description")["text"] == build_prompt(ctx, "course-description")["text"]
+
+
+@pytest.mark.slow
+def test_needs_work_scope(ctx):
+    out = build_prompt(ctx, None, True)
+    assert out["rules"] == ["program-page-with-courses", "course-description"]
+    text = out["text"]
+    assert text.startswith("# Improve 2 rules that need work — AVC catalog")
+    assert "## Rule `program-page-with-courses` v1 — page rule" in text and "### Open annotations (7)" in text
+    q = text.split("## Questions for the institution (not bugs)")[1].split("## How to work")[0]
+    assert q.count("\n- ") == 8 and "Should I reject all these properties?" in q
+    assert "QUESTION" not in text.split("## Questions")[0]  # questions aren't listed as bugs
+    assert not has_raw_html(text)
+
+
+@pytest.mark.slow
+def test_cli_and_api_give_the_same_text(ctx, capsys):
+    from fastapi.testclient import TestClient
+
+    from golden_datasets.server.app import create_app
+
+    capsys.readouterr()
+    assert main(["prompt", "--root", ctx.root.uri, "-c", "avc", "--rule", "course-description"]) == 0
+    cli_text = capsys.readouterr().out
+    c = TestClient(create_app(ctx.root.uri))
+    api = c.get("/api/catalogs/avc/prompt", params={"rule": "course-description"}).json()
+    assert api["text"] == cli_text and api["scope"] == {"rule": "course-description", "needs_work": False}
+    assert c.get("/api/catalogs/avc/prompt", params={"needs_work": "true"}).json()["rules"] == \
+        ["program-page-with-courses", "course-description"]
+    assert c.get("/api/catalogs/avc/prompt", params={"rule": "nope"}).status_code == 404

@@ -59,3 +59,45 @@ Each entry: what the spec says (or doesn't), what was built, and why. Newest las
     css_path, char_start`), as spec §4.1 says. `golden-datasets check` groups NULLs as equal.
 17. **Server reads the manifest at most every 3 s** (per catalog `Ctx`), and holds each extraction in memory once
     loaded (`review.Loader`); the annotation log is read incrementally from its byte offset.
+18. **Assets over `--max-assets` still get an `assets` row** (status 0, no file), so `page_assets.url → assets.url`
+    holds; the page pane loads them live (spec §9). `page_assets` stores the canonical URL an asset is archived
+    under (numeric cache-buster queries removed, as `render.py` looks them up). CCSF references 847 distinct
+    assets; 400 are archived by default.
+19. **Golden output location.** Per-page files go to `<golden root>/<catalog>/<crawl>/<stem>/<stem>.{json,html}`,
+    the layout `xtra-golden-sets-verified` already has. `lineage.parquet` and `publication.json` stay in the Studio
+    (`<crawl>/golden-dataset-studio/golden/<pub>/`, spec §5.6 "lineage.parquet stays in the Studio"); the per-page
+    JSON isn't duplicated there (the .html would double the crawl). The UI publishes to
+    `$GOLDEN_DATASETS_GOLDEN_ROOT`, defaulting to `<storage root>/golden-dataset-studio/golden-out` so nothing
+    outside the root is written unless asked for.
+20. **What a publication contains.** Every course entry the locators found: course pages and program-page course
+    lines (UALR's golden set is mostly the latter until it is recrawled, spec §12.3). A course listed twice on one
+    page with identical values is written once; with different values, the second gets `value_index` 1, so
+    lineage's key is `(publication, golden_id, page_stem, property, value_index)` (spec feedback 35). Entries with
+    no `course_key` are left out and counted (`skipped_no_course_key`; UALR 222, WVU 16, Marshall 5).
+21. **`golden_id` collisions, measured.** With spec §4.2's definition (one code, different names among its
+    course-page entries) the current crawls give AVC 0, CCSF 0, Marshall 0, UALR 4, WVU 3, not the "~190" the
+    research estimated for Marshall and WVU: Marshall's crawl has each code on one course page, and WVU's 9,805
+    repeated codes repeat the same name. The Golden tab lists whatever collisions exist.
+22. **`--allow-unapproved`** (CLI only) publishes for testing and records `approval_gate.all_rules_approved: false`
+    in `publication.json` (spec feedback 27). The UI's button stays disabled until every rule is approved.
+23. **Compare's earlier verdicts are ordered by history** (A4.1): newly wrong, still wrong, fixed, unchanged; wrong
+    before correct within each. A `wrong` row whose value didn't change is "unchanged" (as in §5.8's query), so the
+    summary's "still wrong" counts only values that changed but still aren't the expected text. Each signal's
+    lost / gained list is capped at 100 rows in the API (full totals shown); `rule try` gets complete lists.
+24. **Prompt details** (W6): it starts with the `export GOLDEN_DATASETS_ROOT=… GOLDEN_DATASETS_CATALOG=…` lines for
+    the server's real root, so a fresh Claude Code can run commands immediately; it refers only to commands that
+    exist; questions for the institution are listed separately and never as bugs; without a scope it covers all
+    rules needing work. After M3, it also states the order a field rule applies (raw element text → regex → group
+    → transforms → map), what `pages get` prints, and to update an example a fix makes wrong — the three things
+    the M3 agent reported as unclear.
+25. **Drafts.** A draft made from an older ruleset is merged into the latest one (with a warning); `"settings"` in
+    a draft is merged shallowly; bad regexes and selectors are rejected before anything runs; examples must pass
+    (`try` exits 1, `publish` exits 2).
+26. **M3 was run by a fresh agent with only the copied prompt.** Its `course-description` v2 differs from the
+    prototype's: it drops a leading "Prerequisite" line (colon optional, as THA218 needs) but keeps "Corequisite:"
+    lines, which Jared never flagged, so 265 descriptions changed instead of the prototype's 278, and
+    contains-label-text went 547 → 285 (prototype: 273). Same outcome on Jared's verdicts: 5 fixed · 0 still wrong ·
+    0 newly wrong. It also reported ATH102 / ATH103 (now starting "Corequisite:") as a question for Jared, next to
+    spec §12.2 Q2.
+27. **Slow tests build their own AVC v1 root** from the mirror (`tests/conftest.py::avc_v1_root`), so they never
+    depend on what has been published into `.data/root` (which now holds M3's v2).
