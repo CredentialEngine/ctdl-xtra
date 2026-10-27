@@ -84,6 +84,7 @@ EVAL_FIELDS = pa.schema([
     ("golden_value", pa.string()), ("xtra_value", pa.string()), ("outcome", pa.string()), ("similarity", pa.float64()),
     ("page_status", pa.string()), ("approval", pa.string()), ("approved_by", pa.string()), ("approved_at", pa.string()),
     ("template_id", pa.string()), ("source_url", pa.string()),
+    ("golden_css_path", pa.string()), ("golden_char_start", pa.int32()), ("golden_char_end", pa.int32()),
 ])
 TABLE_SCHEMAS = {"page_labels": PAGE_LABELS, "occurrences": OCCURRENCES, "matches": MATCHES, "signals": SIGNALS}
 TABLE_SORT = {

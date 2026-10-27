@@ -47,6 +47,11 @@ DEFAULT_XTRA_REF = "origin/extraction_scoring_cli"  # the scorer isn't on main y
 SHARED_XTRA_ROOT = "azure://https://ceteststorage.blob.core.windows.net/xtra-cli-output"
 VERIFIED_ROOT = "azure://https://ceteststorage.blob.core.windows.net/xtra-golden-sets-verified"
 KINDS = ("hand", "full")
+
+
+def kinds_for(golden: str) -> tuple[str, ...]:
+    """The verified container is all hand-checked: it is one baseline, not a hand and a full one."""
+    return ("hand",) if golden == "verified" else KINDS
 MODES = ("exact", "partial")
 Log = Callable[[str], None]
 
@@ -170,14 +175,23 @@ def mask(line: str) -> str:
     return _SECRET.sub(r"\1=***", line)
 
 
-def shown(argv: list[str], exe: Path) -> str:
-    """The command as someone would run it by hand: `xtra …`, with the connection string left to `az`."""
-    return " ".join(["xtra", *map(shlex.quote, argv)])
+def shown(argv: list[str], exe: Path | None = None) -> str:
+    """The command as someone would run it by hand: `xtra …` with one option per line (the connection string is left to
+    AZURE_STORAGE_CONNECTION_STRING)."""
+    words, groups = [], []
+    for a in argv:
+        if a.startswith("--"):
+            groups.append([a])
+        elif groups:
+            groups[-1].append(shlex.quote(a))
+        else:
+            words.append(a)
+    return " \\\n  ".join([" ".join(["xtra", *words]), *(" ".join(g) for g in groups)])
 
 
 def run_xtra(exe: Path, argv: list[str], log: Log, env: dict[str, str], proc_hook=None) -> str:
     """Run xtra-cli, stream stderr to the log, return stdout. Raises UserError when it fails."""
-    log("$ " + shown(argv, exe))
+    log("$ " + " ".join(["xtra", *map(shlex.quote, argv)]))
     p = subprocess.Popen([str(exe), *argv], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, env=env,
                          cwd=exe.parent.parent.parent)
     if proc_hook:
@@ -207,9 +221,9 @@ def extract_run(ctx: Ctx, ref: str = DEFAULT_XTRA_REF, sample: bool = False, dis
     if discovery_run:
         argv += ["--discovery-run-id", discovery_run]
     started = manifest.now_iso()
-    stdout = run_xtra(exe, argv, log, _conn_env(source, target), proc_hook)
-    report = _json_or_none(stdout) or {}
-    doc = {"id": rid, "kind": "extract", "ref": ref, "commit": sha, "scope": "golden sample" if sample else "all pages",
+    run_xtra(exe, argv, log, _conn_env(source, target), proc_hook)
+    report = ctx.root.read_json(f"{run_dir(ctx, rid)}/out/{ctx.catalog}/{ctx.crawl}/extract-report.json")
+    doc = {"id": rid, "kind": "extract", "ref": ref, "commit": sha, "scope": "sample" if sample else "all",
            "source": source, "discovery_run_id": report.get("discovery_run_id", discovery_run),
            "records_written": report.get("records_written"), "pages_considered": report.get("pages_considered"),
            "skipped_by_reason": report.get("skipped_by_reason"), "started_at": started,
@@ -248,7 +262,7 @@ def import_run(ctx: Ctx, source: str | None = None, by: str = "", log: Log = pri
     doc = {"id": rid, "kind": "import", "source": source, "fingerprint": fingerprint,
            "discovery_run_id": report.get("discovery_run_id"), "records_written": len(sizes),
            "pages_considered": report.get("pages_considered"), "skipped_by_reason": report.get("skipped_by_reason"),
-           "scope": "golden sample" if report.get("only_golden_sample") else "all pages",
+           "scope": "sample" if report.get("only_golden_sample") else "all",
            "started_at": manifest.now_iso(), "finished_at": manifest.now_iso(), "by": by, "commands": []}
     ctx.root.write_json(f"{run_dir(ctx, rid)}/run.json", doc, if_none_match=True)
     _register(ctx, "xtra_runs", {"id": rid, "path": run_dir(ctx, rid)})
@@ -263,13 +277,6 @@ def _fingerprint(sizes: dict[str, int], src: Root, report: str) -> str:
         h.update(f"{p}\t{s}\n".encode())
     h.update(src.read_bytes(report))
     return h.hexdigest()[:16]
-
-
-def _json_or_none(text: str):
-    try:
-        return json.loads(text)
-    except ValueError:
-        return None
 
 
 # --- golden versions ---------------------------------------------------------------------------------
@@ -349,7 +356,8 @@ def baseline(pages: dict[str, list[dict]], kind: str) -> tuple[dict[str, list[di
         for r in records:
             fields = [{"ctdl_property": f["ctdl_property"], "value": f["value"], "source_url": f.get("source_url"),
                        "property": f.get("property"), "approval": f.get("approval", "rule"),
-                       "approved_by": f.get("approved_by"), "approved_at": f.get("approved_at")}
+                       "approved_by": f.get("approved_by"), "approved_at": f.get("approved_at"),
+                       "location": f.get("location")}
                       for f in r.get("fields", [])
                       if f.get("ctdl_property") and (kind == "full" or f.get("approval") == "human")]
             ents.append({"golden_record_id": r.get("golden_record_id") or r.get("golden_id"),
@@ -363,6 +371,55 @@ def baseline(pages: dict[str, list[dict]], kind: str) -> tuple[dict[str, list[di
             continue
         out[stem] = ents
     return out, left_out
+
+
+def baseline_stats(pages: dict[str, list[dict]], kind: str) -> dict:
+    """What a baseline holds: records, fields, fields per property, and the properties the scorer can't score."""
+    base, left_out = baseline(pages, kind)
+    by: Counter = Counter()
+    for ents in base.values():
+        for e in ents:
+            for f in e["fields"]:
+                by[f.get("property") or _label(f["ctdl_property"])] += 1
+    unscored: Counter = Counter()
+    for recs in pages.values():
+        for r in recs:
+            for f in r.get("fields", []):
+                if not f.get("ctdl_property") and (kind == "full" or f.get("approval") == "human"):
+                    unscored[f.get("property") or "?"] += 1
+    order = model.PROPERTY_ORDER
+    return {"records": sum(len(e) for e in base.values()), "pages": len(base), "fields": sum(by.values()),
+            "properties": [{"property": p, "fields": n, "ctdl_property": model.CTDL_TERM.get(p)}
+                           for p, n in sorted(by.items(), key=lambda kv: (order.get(kv[0], 99), kv[0]))],
+            "not_scored": [{"property": p, "fields": n, "why": "no CTDL term"} for p, n in sorted(unscored.items())],
+            "left_out": left_out}
+
+
+def extract_options(ctx: Ctx) -> dict:
+    """What a new extraction can do: the discovery run, its review sample and population, and the records/ xtra-cli
+    last wrote for the crawl."""
+    try:
+        src = open_root(xtra_source(ctx.root))
+    except UserError as e:
+        return {"error": str(e)}
+    prefix = f"{ctx.catalog}/{ctx.crawl}"
+    out: dict = {"source": src.uri}
+    runs_ = sorted(src.list_dirs(f"{prefix}/discovery"))
+    if runs_:
+        out["discovery_run_id"] = runs_[-1]
+        try:
+            sample = src.read_json(f"{prefix}/discovery/{runs_[-1]}/golden-sample-course.json")
+            out["sample_pages"], out["course_pages"] = len(sample.get("pages") or []), sample.get("population_size")
+        except FileNotFoundError:
+            pass
+    try:
+        rep_ = src.read_json(f"{prefix}/extract-report.json")
+        out["latest"] = {"records": rep_.get("records_written"), "pages_considered": rep_.get("pages_considered"),
+                         "discovery_run_id": rep_.get("discovery_run_id"),
+                         "scope": "sample" if rep_.get("only_golden_sample") else "all"}
+    except FileNotFoundError:
+        pass
+    return out
 
 
 # --- evals -------------------------------------------------------------------------------------------
@@ -383,7 +440,7 @@ def run_eval(ctx: Ctx, xtra_run: str, golden: str, ref: str = DEFAULT_XTRA_REF, 
     summary: dict[str, dict] = {}
     commands: list[str] = []
     records = _run_records(ctx, xtra_run)
-    for kind in KINDS:
+    for kind in kinds_for(golden):
         base, left_out = baseline(pages, kind)
         summary[kind] = {"pages": len(base), "left_out": left_out}
         if not base:
@@ -503,6 +560,9 @@ def fields_rows(eid: str, kind: str, base: dict[str, list[dict]], reports: dict[
                     "approval": f.get("approval"), "approved_by": f.get("approved_by"),
                     "approved_at": f.get("approved_at"), "template_id": (rec or {}).get("template_id"),
                     "source_url": f.get("source_url"),
+                    "golden_css_path": (f.get("location") or {}).get("css_path"),
+                    "golden_char_start": (f.get("location") or {}).get("char_start"),
+                    "golden_char_end": (f.get("location") or {}).get("char_end"),
                 })
     counted = [r for r in rows if r["outcome"] not in ("out of scope", "malformed")]
     got = Counter("match" if r["outcome"] == "exact" else "missing" if r["outcome"] == "missing" else "mismatch"

@@ -25,11 +25,35 @@ xtra-runs/x-0001/run.json, out/<catalog>/<crawl>/{records/, extract-report.json}
 evals/ev-0001/eval.json, baseline/{hand,full}/…, reports/{hand,full}-{exact,partial}.json, fields.parquet
 ```
 
-Overview (ev-0002, full golden): ![Overview](screens/01-overview.png)
+## Round 2 (Eric's feedback, 2026-10-27 afternoon)
 
-Drill-down (Description values longer than 500 characters, by subject): ![Drill-down](screens/02-drill-down.png)
+- **`xtra score`'s words throughout:** extraction, baseline, score, match rate, fields, and the outcomes match /
+  partial ≥ 0.8 / wrong < 0.8 / missing. The legend and the bars read in ascending order: missing, wrong, partial,
+  match.
+- **Baselines are separate, each with its own size.** *Full catalog* has every record of a Studio version (AVC rs-0003:
+  1,062 records, 7,434 fields). *Hand-checked* has only the values a person confirmed (16 records, 100 fields).
+  *Verified container* is one baseline (14 records, 108 fields). It used to be scored a second time as "full", which is
+  why both sizes looked the same.
+- **A nav on the left lists the extractions and the baselines.** The selected baseline lists the properties it can
+  score, with counts, plus what it can't score (Learning Type: no CTDL term).
+- **Three plain controls replace the filter builder:** click a property row, pick an outcome, group by one thing
+  (subject, course level, value length, xtra extractor, courses on the page, who approved the value) and click a
+  group. The heatmap, the "disagree most" list and the histogram are gone.
+- **Clicking a row opens the saved page.** The baseline value is highlighted at its recorded location (green), and the
+  extracted value wherever its text is found (pink). xtra's records carry no location, so its value is found by
+  text. Both values sit above the page with a word diff.
+- **New extraction** is a dialog with two choices: run xtra-cli extract (code ref; review sample: the 30 pages
+  discovery picked for review, about 10 s; or all 1,128 course pages, about 8 min), or use xtra-cli's latest
+  extraction (copy the `records/` it last wrote). Either can be scored straight away. **Score** / **Score again**
+  sits in the header.
+- **Run it yourself** is a terminal icon in the header. It opens the exact commands, one option per line with `\`,
+  and a Copy button.
 
-Starting a run from the tab: ![Run panel](screens/03-run-panel.png)
+| | |
+|---|---|
+| ![Score](screens/01-score.png) | ![Group by](screens/02-group-by.png) |
+| ![A row on its page](screens/03-row-on-page.png) | ![Run it yourself](screens/04-run-it-yourself.png) |
+| ![New extraction](screens/05-new-extraction.png) | |
 
 ## Research answers
 
@@ -101,9 +125,8 @@ golden-datasets serve --allow-runs                        # Evals tab: start run
 ## Limits of the POC (for the spec)
 
 - **`published` is the golden container as it is now.** It doesn't rebuild an earlier publication by folding lineage.
-- **Segments are the POC's own twelve dimensions,** not `strata.py`'s. Course level and subject are read from the
-  course code.
-- **No page pane:** a row links to the Records tab for its course.
+- **Group-by choices are the POC's own six,** not `strata.py`'s. Course level and subject are read from the course
+  code.
 - **Jobs live in the server process.** A restart forgets them (runs and evals already written are kept).
 - **No compare-two-evals view and no triage**, as the defaults said for a first version.
 - **Not tried against the Azure root:** `--target-uri azure://…/<prefix>` for an extract into the shared Studio root.

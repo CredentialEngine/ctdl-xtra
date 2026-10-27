@@ -1,6 +1,7 @@
 // The prototype's icon set (docs/qrspi/prototype/ui/static/app.js), as inline SVG strings.
 // Use <Ico name="approved" /> ; the status icons of the rule list are "approved" / "needs work" / "in review".
 export const ICON: Record<string, string> = {
+  terminal: '<svg viewBox="0 0 16 16" fill="none"><rect x="1.5" y="2.5" width="13" height="11" rx="2" stroke="currentColor" stroke-width="1.4"/><path d="m4.5 6 2 2-2 2M8 10.5h3.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>',
   approved: '<svg viewBox="0 0 16 16"><circle cx="8" cy="8" r="7.5" fill="#12805c"/><path d="m4.8 8.2 2.2 2.2 4.2-4.6" stroke="#fff" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>',
   "needs work": '<svg viewBox="0 0 16 16"><circle cx="8" cy="8" r="7.5" fill="#d92d20"/><path d="m5.6 5.6 4.8 4.8m0-4.8-4.8 4.8" stroke="#fff" stroke-width="1.8" stroke-linecap="round"/></svg>',
   "in review": '<svg viewBox="0 0 16 16"><circle cx="8" cy="8" r="6.6" fill="#fff" stroke="#98a2b3" stroke-width="1.6"/><circle cx="8" cy="8" r="2" fill="#98a2b3"/></svg>',

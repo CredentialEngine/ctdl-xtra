@@ -1,11 +1,15 @@
-"""Evals API (docs/qrspi/evals): xtra runs, evals, the jobs that make them, and one view of an eval.
+"""Evals API (docs/qrspi/evals), in `xtra score`'s words: extractions (xtra runs), baselines, and scores.
 
-The view answers everything the tab draws for one eval, one golden (hand / full) and a set of segment filters:
-outcomes by property for both goldens, the similarity histogram, each dimension's buckets, a heatmap of one
-dimension × property, the segments that disagree most, and a page of rows, worst first. An eval has a few thousand
-rows per golden, so it is read once (fields.parquet is immutable) and cut in Python.
+- A **baseline** is what an extraction is scored against: `full` (every record of a Studio golden version: an
+  extraction rs-NNNN or what is published), `hand` (only the values a person confirmed, from the same version), or
+  `verified` (the xtra-golden-sets-verified container, all hand-checked).
+- A **score** is one extraction against one baseline. An eval (ev-NNNN) holds the scores of one extraction against a
+  golden version: `hand` and `full`, or just `verified`.
 
-Filters are `dim=bucket` strings: buckets of one dimension are ORed, dimensions are ANDed (as in the Sample drawer).
+The score view answers what the tab draws for one score and three plain controls (a property, an outcome, and a
+group by with one group picked): the match rate, the property table, the outcome counts, the groups, and a page of
+rows, worst first. An eval has a few thousand rows per baseline, read once (fields.parquet is immutable) and cut in
+Python.
 """
 
 from __future__ import annotations
@@ -14,7 +18,7 @@ import re
 from collections import Counter, defaultdict
 from typing import Annotated
 
-from fastapi import APIRouter, Body, HTTPException, Query, Request
+from fastapi import APIRouter, Body, HTTPException, Request
 
 from .. import evals, model
 from ..errors import UserError
@@ -22,20 +26,8 @@ from .jobs import Jobs
 from .state import not_found, studio
 
 router = APIRouter(prefix="/api")
-COUNTED = ("exact", "partial", "wrong", "missing")
-BINS = 20
-MIN_SEGMENT = 5   # "disagree most" ignores smaller segments
-DISAGREE_SHOWN = 8
-
-
-def _sim(r: dict) -> str:
-    if r["outcome"] == "exact":
-        return "1 (exact)"
-    if r["outcome"] == "missing":
-        return "missing"
-    s = r["similarity"] or 0.0
-    return "0.95–1" if s >= 0.95 else "0.90–0.95" if s >= 0.9 else "0.80–0.90" if s >= 0.8 else \
-        "0.50–0.80" if s >= 0.5 else "< 0.50"
+OUTCOMES = ("missing", "wrong", "partial", "match")  # ascending, as the legend reads
+PAGE = 50
 
 
 def _level(r: dict) -> str:
@@ -43,36 +35,30 @@ def _level(r: dict) -> str:
     if not m:
         return "?"
     d = m.group(0)
-    return f"{d[0]}00s" if len(d) >= 3 else "< 100"
+    return f"{d[0]}00-level" if len(d) >= 3 else "under 100"
 
 
 def _length(r: dict) -> str:
     n = len(r["golden_value"] or "")
-    return "< 20 chars" if n < 20 else "20–99" if n < 100 else "100–499" if n < 500 else "500+"
+    return "under 20 characters" if n < 20 else "20–99 characters" if n < 100 else "100–499 characters" if n < 500 \
+        else "500+ characters"
 
 
-def _on_page(r: dict) -> str:
-    n = r["courses_on_page"] or 1
-    return "1" if n == 1 else "2–5" if n <= 5 else "6+"
-
-
-# id, label, bucket of a row. Order is the order of the filter menus.
-DIMS = [
-    ("property", "Property", lambda r: r["property"]),
-    ("outcome", "Outcome", lambda r: r["outcome"]),
-    ("similarity", "Similarity", _sim),
-    ("approval", "Value approved by", lambda r: r["approval"] or "?"),
-    ("record_approval", "Record approved by", lambda r: r["record_approval"] or "?"),
-    ("approved_by", "Approver", lambda r: r["approved_by"] or "—"),
-    ("template", "Extractor (template)", lambda r: r["template_id"] or "(no record)"),
-    ("page_status", "Page status", lambda r: r["page_status"]),
+# Group-by choices: id, label, the group of a row
+GROUPS = [
     ("subject", "Subject", lambda r: (re.match(r"[A-Za-z]+", r["golden_record_id"] or "") or [None])[0] or "?"),
     ("level", "Course level", _level),
-    ("courses_on_page", "Courses on the page", _on_page),
-    ("length", "Golden value length", _length),
+    ("length", "Length of the baseline value", _length),
+    ("template", "xtra extractor", lambda r: r["template_id"] or "(no record)"),
+    ("on_page", "Courses on the page", lambda r: "one" if (r["courses_on_page"] or 1) == 1 else "several"),
+    ("approval", "Who approved the value", lambda r: f"a person ({r['approved_by']})" if r["approval"] == "human"
+     else "its rule"),
 ]
-DIM = {d[0]: d for d in DIMS}
-NOT_SEGMENTS = ("property", "outcome", "similarity")  # outcomes, not segments: left out of "disagree most"
+GROUP = {g[0]: g for g in GROUPS}
+
+
+def _outcome(r: dict) -> str:
+    return "match" if r["outcome"] == "exact" else r["outcome"]
 
 
 def _jobs(request: Request) -> Jobs:
@@ -90,37 +76,44 @@ def _allowed(request: Request) -> None:
 def _rows(st, ctx, eid: str) -> list[dict]:
     key = ("eval-rows", ctx.catalog, eid)
     if key not in st.cache:
-        rows = ctx.rows(f"{evals.eval_dir(ctx, eid)}/fields.parquet")
+        rows = [r for r in ctx.rows(f"{evals.eval_dir(ctx, eid)}/fields.parquet")
+                if r["outcome"] in ("exact", "partial", "wrong", "missing")]
         for r in rows:
-            r["_b"] = {d: f(r) for d, _, f in DIMS}
+            r["_o"] = _outcome(r)
+            r["_g"] = {g: f(r) for g, _, f in GROUPS}
+            r["key"] = f"{r['page_stem']}|{r['entity']}|{r['ctdl_property']}|{r['value_index']}"
         st.cache[key] = rows
     return st.cache[key]
 
 
-def _parse(filters: list[str]) -> dict[str, set[str]]:
-    out: dict[str, set[str]] = defaultdict(set)
-    for f in filters:
-        d, _, b = f.partition("=")
-        if d in DIM:
-            out[d].add(b)
+def _baseline_id(kind: str, golden: str) -> str:
+    return "verified" if golden == "verified" else kind
+
+
+def _scores(eval_docs: list[dict]) -> list[dict]:
+    out = []
+    for e in eval_docs:
+        g = e["golden"]["golden"]
+        for kind, s in e["summary"].items():
+            if g == "verified" and kind != "hand":
+                continue  # older evals scored the verified container twice
+            out.append({"eval": e["id"], "kind": kind, "baseline": _baseline_id(kind, g), "version": g,
+                        "extraction": e["xtra_run"], "match_rate": s.get("exact_match_rate"),
+                        "fields": s.get("fields_total"), "created_at": e["created_at"], "approved": e["golden"]["approved"]})
     return out
 
 
-def _keep(r: dict, flt: dict[str, set[str]], skip: str | None = None) -> bool:
-    return all(r["_b"][d] in bs for d, bs in flt.items() if d != skip)
-
-
-def _by_property(rows: list[dict]) -> list[dict]:
-    acc: dict[str, Counter] = defaultdict(Counter)
-    for r in rows:
-        acc[r["property"]][r["outcome"]] += 1
-    order = model.PROPERTY_ORDER
-    return [{"property": p, "fields": sum(c[o] for o in COUNTED), **{o: c[o] for o in COUNTED}}
-            for p, c in sorted(acc.items(), key=lambda kv: (order.get(kv[0], 99), kv[0]))]
-
-
-def _rate(rows: list[dict]) -> float | None:
-    return round(sum(r["outcome"] == "exact" for r in rows) / len(rows), 4) if rows else None
+def _run_label(r: dict) -> dict:
+    if r["kind"] == "import":
+        title, detail = "xtra-cli-output records/", "the extraction xtra-cli last wrote for this crawl"
+    else:
+        title = f"{(r.get('ref') or '').removeprefix('origin/')} @ {(r.get('commit') or '')[:7]}"
+        detail = "run by the Studio"
+    scope = {"sample": "review sample", "golden sample": "review sample", "all": "all course pages",
+             "all pages": "all course pages"}.get(r.get("scope"), r.get("scope"))
+    return {"id": r["id"], "kind": r["kind"], "title": title, "detail": detail, "scope": scope,
+            "records": r.get("records_written"), "commit": r.get("commit"), "ref": r.get("ref"),
+            "created_at": r.get("finished_at"), "commands": r.get("commands", [])}
 
 
 @router.get("/catalogs/{catalog}/evals")
@@ -129,32 +122,57 @@ def evals_index(request: Request, catalog: str) -> dict:
     ctx = st.ctx(catalog)
     run_docs = [ctx.read_json(f"{r['path']}/run.json") for r in evals.runs(ctx)]
     eval_docs = [ctx.read_json(f"{e['path']}/eval.json") for e in evals.evals(ctx)]
-    jobs = _jobs(request)
-    return {"runs": run_docs[::-1], "evals": eval_docs[::-1], "goldens": evals.golden_options(ctx),
+    key = ("extract-options", ctx.catalog)
+    if key not in st.cache:
+        st.cache[key] = evals.extract_options(ctx)
+    versions = [{"id": g["id"], "label": g["label"], "approved": g["approved"]}
+                for g in evals.golden_options(ctx) if g["id"] != "verified"]
+    return {"extractions": [_run_label(r) for r in run_docs][::-1], "versions": versions,
+            "scores": _scores(eval_docs)[::-1], "extract_options": st.cache[key],
             "default_ref": evals.DEFAULT_XTRA_REF, "allow_runs": bool(getattr(request.app.state, "allow_runs", False)),
-            "jobs": [j.doc(tail=40) for j in jobs.recent(ctx.catalog)]}
+            "jobs": [j.doc(tail=40) for j in _jobs(request).recent(ctx.catalog)]}
+
+
+@router.get("/catalogs/{catalog}/evals/baseline")
+def baseline_info(request: Request, catalog: str, baseline: str = "full", version: str | None = None) -> dict:
+    """What one baseline holds: records, fields and the fields per property (cached per golden version)."""
+    st = studio(request)
+    ctx = st.ctx(catalog)
+    golden = "verified" if baseline == "verified" else (version or ctx.latest_extraction())
+    pubs = ctx.crawl_entry().get("golden", [])
+    stamp = pubs[-1]["publication"] if golden == "published" and pubs else golden
+    key = ("golden-pages", ctx.catalog, stamp)
+    try:
+        if key not in st.cache:
+            st.cache[key] = evals.load_golden(ctx, golden, log=lambda _: None)
+        pages, meta = st.cache[key]
+    except UserError as e:
+        raise not_found(str(e)) from None
+    kind = "hand" if baseline in ("hand", "verified") else "full"
+    return {"baseline": baseline, "version": golden, "approved": meta.get("approved", True),
+            "from": meta.get("from") or meta.get("extraction"), **evals.baseline_stats(pages, kind)}
 
 
 @router.post("/catalogs/{catalog}/xtra-runs")
 def start_run(request: Request, catalog: str, body: Annotated[dict, Body()]) -> dict:
     _allowed(request)
     ctx = studio(request).ctx(catalog)
-    ref, sample = body.get("ref") or evals.DEFAULT_XTRA_REF, bool(body.get("sample"))
-    then_eval, by, imp = body.get("then_eval"), body.get("by") or "", bool(body.get("import"))
+    ref, sample = body.get("ref") or evals.DEFAULT_XTRA_REF, body.get("scope", "sample") == "sample"
+    then, by, use_latest = body.get("then_score"), body.get("by") or "", body.get("source") == "latest"
 
     def work(job) -> dict:
         hook = lambda p: setattr(job, "proc", p)  # noqa: E731
-        if imp:
+        if use_latest:
             doc = evals.import_run(ctx, by=by, log=job.log)
         else:
-            doc = evals.extract_run(ctx, ref, sample=sample, discovery_run=body.get("discovery_run"), by=by,
-                                    log=job.log, proc_hook=hook)
+            doc = evals.extract_run(ctx, ref, sample=sample, by=by, log=job.log, proc_hook=hook)
         out = {"run": doc["id"]}
-        if then_eval and not job.cancelled:
-            out["eval"] = evals.run_eval(ctx, doc["id"], then_eval, by=by, log=job.log, proc_hook=hook)["id"]
+        if then and not job.cancelled:
+            out["eval"] = evals.run_eval(ctx, doc["id"], then, by=by, log=job.log, proc_hook=hook)["id"]
         return out
 
-    label = "Import records/" if imp else f"xtra extract ({'golden sample' if sample else 'all pages'}) at {ref}"
+    label = "Copy xtra-cli's latest records/" if use_latest else \
+        f"xtra extract, {'review sample' if sample else 'all course pages'}, at {ref.removeprefix('origin/')}"
     try:
         return _jobs(request).start(ctx.catalog, "xtra-run", label, work).doc()
     except UserError as e:
@@ -163,6 +181,7 @@ def start_run(request: Request, catalog: str, body: Annotated[dict, Body()]) -> 
 
 @router.post("/catalogs/{catalog}/evals")
 def start_eval(request: Request, catalog: str, body: Annotated[dict, Body()]) -> dict:
+    """Score an extraction against a golden version (`verified`, `published` or rs-NNNN)."""
     _allowed(request)
     ctx = studio(request).ctx(catalog)
     run, golden, by = body.get("xtra_run"), body.get("golden") or "published", body.get("by") or ""
@@ -174,7 +193,7 @@ def start_eval(request: Request, catalog: str, body: Annotated[dict, Body()]) ->
                                        proc_hook=lambda p: setattr(job, "proc", p))["id"]}
 
     try:
-        return _jobs(request).start(ctx.catalog, "eval", f"Eval {run} vs {golden}", work).doc()
+        return _jobs(request).start(ctx.catalog, "eval", f"Score {run} against {golden}", work).doc()
     except UserError as e:
         raise HTTPException(409, str(e)) from None
 
@@ -196,73 +215,49 @@ def cancel(request: Request, jid: str) -> dict:
     return j.doc()
 
 
+def _counts(rows: list[dict]) -> dict:
+    c = Counter(r["_o"] for r in rows)
+    return {"fields": len(rows), **{o: c[o] for o in OUTCOMES}}
+
+
 @router.get("/catalogs/{catalog}/evals/{eid}")
-def view(request: Request, catalog: str, eid: str, golden: str = "full",
-         f: Annotated[list[str] | None, Query()] = None, dim: str = "template", offset: int = 0,
-         limit: int = 50) -> dict:
+def view(request: Request, catalog: str, eid: str, kind: str = "full", property: str | None = None,
+         outcome: str | None = None, group: str | None = None, value: str | None = None, offset: int = 0) -> dict:
     st = studio(request)
     ctx = st.ctx(catalog)
     if eid not in {e["id"] for e in evals.evals(ctx)}:
         raise not_found(f"{eid}: no such eval")
     doc = ctx.read_json(f"{evals.eval_dir(ctx, eid)}/eval.json")
-    every = [r for r in _rows(st, ctx, eid) if r["outcome"] in COUNTED]
-    flt = _parse(f or [])
-    dim = dim if dim in DIM else "template"
-    mine = [r for r in every if r["golden"] == golden]
-    kept = [r for r in mine if _keep(r, flt)]
+    mine = [r for r in _rows(st, ctx, eid) if r["golden"] == kind]
+    group = group if group in GROUP else None
+    in_group = [r for r in mine if not (group and value is not None) or r["_g"][group] == value]
+    in_prop = [r for r in in_group if not property or r["property"] == property]
+    kept = [r for r in in_prop if not outcome or r["_o"] == outcome]
 
-    goldens = {}
-    for g in evals.KINDS:
-        rows = [r for r in every if r["golden"] == g and _keep(r, flt)]
-        goldens[g] = {"fields": len(rows), "exact_match_rate": _rate(rows), "by_property": _by_property(rows),
-                      "unfiltered_fields": sum(r["golden"] == g for r in every)}
+    order = model.PROPERTY_ORDER
+    by_prop: dict[str, list[dict]] = defaultdict(list)
+    for r in in_group:
+        by_prop[r["property"]].append(r)
+    groups = []
+    if group:
+        acc: dict[str, list[dict]] = defaultdict(list)
+        for r in in_prop:
+            acc[r["_g"][group]].append(r)
+        groups = sorted(({"value": g, **_counts(rs)} for g, rs in acc.items()),
+                        key=lambda x: (-(x["fields"] - x["match"]) / x["fields"], -x["fields"], x["value"]))
 
-    hist = [{"lo": i / BINS, "hi": (i + 1) / BINS, "partial": 0, "wrong": 0} for i in range(BINS)]
-    for r in kept:
-        if r["outcome"] in ("partial", "wrong") and r["similarity"] is not None:
-            hist[min(int(r["similarity"] * BINS), BINS - 1)][r["outcome"]] += 1
+    def worst(r: dict) -> tuple:
+        return (OUTCOMES.index(r["_o"]), r["similarity"] if r["similarity"] is not None else 0, r["page_stem"])
 
-    dims = []
-    for d, label, _ in DIMS:
-        c = Counter(r["_b"][d] for r in mine if _keep(r, flt, skip=d))
-        dims.append({"id": d, "label": label, "selected": sorted(flt.get(d, [])),
-                     "buckets": [{"bucket": b, "n": n} for b, n in sorted(c.items(), key=lambda kv: (-kv[1], kv[0]))]})
-
-    props = [p["property"] for p in _by_property(kept)]
-    base = {p: 1 - (_rate([r for r in kept if r["property"] == p]) or 0) for p in props}
-    cells: dict[str, dict[str, Counter]] = defaultdict(lambda: defaultdict(Counter))
-    for r in kept:
-        c = cells[r["_b"][dim]][r["property"]]
-        c["n"] += 1
-        c["bad"] += r["outcome"] != "exact"
-    heat = sorted(({"bucket": b, "n": sum(c["n"] for c in pc.values()), "bad": sum(c["bad"] for c in pc.values()),
-                    "cells": {p: {"n": c["n"], "bad": c["bad"]} for p, c in pc.items()}} for b, pc in cells.items()),
-                  key=lambda h: (-h["n"], h["bucket"]))
-
-    seg: dict[tuple, Counter] = defaultdict(Counter)
-    for r in kept:
-        for d, _, _ in DIMS:
-            if d in NOT_SEGMENTS or d in flt:
-                continue
-            c = seg[(d, r["_b"][d], r["property"])]
-            c["n"] += 1
-            c["bad"] += r["outcome"] != "exact"
-    disagree = []
-    for (d, b, p), c in seg.items():
-        rate = c["bad"] / c["n"]
-        if c["n"] >= MIN_SEGMENT and rate > base[p] and c["n"] < sum(r["property"] == p for r in kept):
-            disagree.append({"dim": d, "dim_label": DIM[d][1], "bucket": b, "property": p, "n": c["n"],
-                             "bad": c["bad"], "rate": round(rate, 4), "base": round(base[p], 4),
-                             "excess": round(c["bad"] - base[p] * c["n"], 1)})
-    disagree.sort(key=lambda x: -x["excess"])
-
-    def order(r: dict) -> tuple:
-        o = r["outcome"]
-        return (o != "missing", o == "exact", r["similarity"] if r["similarity"] is not None else 0, r["page_stem"])
-
-    page = sorted(kept, key=order)[offset:offset + limit]
-    items = [{k: v for k, v in r.items() if k != "_b"} for r in page]
-    return {"eval": doc, "golden": golden, "filters": {d: sorted(b) for d, b in flt.items()}, "goldens": goldens,
-            "histogram": hist, "dims": dims, "heatmap": {"dim": dim, "label": DIM[dim][1], "properties": props,
-                                                         "base": base, "rows": heat},
-            "disagree": disagree[:DISAGREE_SHOWN], "rows": {"total": len(kept), "offset": offset, "items": items}}
+    page = sorted(kept, key=worst)[offset:offset + PAGE]
+    records = {(r["page_stem"], r["entity"]) for r in mine}
+    return {
+        "eval": doc, "kind": kind, "baseline": _baseline_id(kind, doc["golden"]["golden"]),
+        "total": {**_counts(mine), "records": len(records), "match_rate": doc["summary"][kind].get("exact_match_rate")},
+        "properties": [{"property": p, **_counts(rs)} for p, rs in
+                       sorted(by_prop.items(), key=lambda kv: (order.get(kv[0], 99), kv[0]))],
+        "outcomes": _counts(in_prop), "groups": groups,
+        "group_choices": [{"id": g, "label": label} for g, label, _ in GROUPS],
+        "rows": {"total": len(kept), "offset": offset, "page": PAGE,
+                 "items": [{k: v for k, v in r.items() if k not in ("_g",)} for r in page]},
+    }
