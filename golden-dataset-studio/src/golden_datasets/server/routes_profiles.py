@@ -19,13 +19,14 @@ from .state import studio
 router = APIRouter(prefix="/api")
 PATH = f"{layout.STUDIO}/profiles.json"
 ROLES = ("sme", "engineer")
-DEFAULT = ["Jared", "Cadence", "Nicholas", "Rohit", "Eric", "Seth"]
+DEFAULT = [("Jared", "sme"), ("Cadence", "sme"), ("Nicholas", "engineer"), ("Rohit", "engineer"),
+           ("Eric", "engineer"), ("Seth", "engineer")]
 
 
 def _read(root) -> tuple[list[dict], str | None]:
     st = root.stat(PATH)
     if st is None:
-        return [{"name": n, "role": None} for n in DEFAULT], None
+        return [{"name": n, "role": r} for n, r in DEFAULT], None
     return root.read_json(PATH)["profiles"], st.etag
 
 

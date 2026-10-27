@@ -1,7 +1,8 @@
-// "Who are you?": looks like a sign-in screen, but it only asks which profile you are and your role. There is no
-// password; the choice is remembered in this browser and every annotation is recorded under that name.
+// "Who are you?": looks like a sign-in screen, but it only asks which profile you are (no password). A new profile
+// also gets a role; existing ones keep theirs. The choice is remembered in this browser and every annotation is
+// recorded under that name.
 import { useEffect, useState } from "react";
-import { currentReviewer, currentRole, ROLE_LABEL, setIdentity, type Profile, type Role } from "./reviewer";
+import { currentReviewer, ROLE_LABEL, setIdentity, type Profile, type Role } from "./reviewer";
 import "./identity.css";
 
 const ADD = "__add";
@@ -11,7 +12,7 @@ export function IdentityScreen() {
   const [error, setError] = useState<string | null>(null);
   const [pick, setPick] = useState(currentReviewer());
   const [newName, setNewName] = useState("");
-  const [role, setRole] = useState<Role | null>(currentRole());
+  const [newRole, setNewRole] = useState<Role | null>(null);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
@@ -22,17 +23,16 @@ export function IdentityScreen() {
       }, (e: Error) => setError(`Couldn't load the profiles (${e.message}).`));
   }, []);
 
-  const choose = (name: string) => {
-    setPick(name);
-    const p = profiles?.find((x) => x.name === name);
-    if (p?.role) setRole(p.role);
-  };
   const adding = pick === ADD;
+  const picked = adding ? null : profiles?.find((x) => x.name === pick) ?? null;
+  const askRole = adding || (!!picked && !picked.role);  // a new profile, or an old one saved without a role
+  const role = askRole ? newRole : picked?.role ?? null;
   const name = (adding ? newName : pick).trim().replace(/\s+/g, " ");
   const ready = !!name && !!role && !busy;
 
   const go = async () => {
     if (!ready || !role) return;
+    if (!askRole) { setIdentity(name, role); return; }
     setBusy(true);
     try {
       const r = await fetch("/api/profiles", { method: "POST", headers: { "Content-Type": "application/json" },
@@ -55,12 +55,10 @@ export function IdentityScreen() {
           <span>Golden Rules Studio</span>
         </div>
         <h1>Who are you?</h1>
-        <p className="idn-lead">Your name goes on every verdict and comment you leave, so teammates know who to ask.
-          This browser remembers it.</p>
 
         <label className="idn-field">
           <span>Profile</span>
-          <select value={pick} onChange={(e) => choose(e.target.value)} disabled={!profiles} autoFocus>
+          <select value={pick} onChange={(e) => setPick(e.target.value)} disabled={!profiles} autoFocus>
             <option value="" disabled>{profiles ? "Choose your name…" : "Loading…"}</option>
             {profiles?.map((p) => <option key={p.name} value={p.name}>{p.name}</option>)}
             <option value={ADD}>+ Add a profile…</option>
@@ -73,21 +71,19 @@ export function IdentityScreen() {
           </label>
         )}
 
-        <fieldset className="idn-field">
-          <legend>Your role</legend>
-          {(Object.keys(ROLE_LABEL) as Role[]).map((r) => (
-            <label key={r} className={`idn-radio${role === r ? " on" : ""}`}>
-              <input type="radio" name="role" value={r} checked={role === r} onChange={() => setRole(r)} />
-              <span><b>{ROLE_LABEL[r]}</b>
-                <small>{r === "sme" ? "You know what the catalog means: you judge whether values are right."
-                                    : "You build the rules: you fix them when values are wrong."}</small></span>
-            </label>
-          ))}
-        </fieldset>
+        {askRole && (
+          <fieldset className="idn-field">
+            <legend>Role</legend>
+            {(Object.keys(ROLE_LABEL) as Role[]).map((r) => (
+              <label key={r} className={`idn-radio${newRole === r ? " on" : ""}`}>
+                <input type="radio" name="role" value={r} checked={newRole === r} onChange={() => setNewRole(r)} />
+                <span><b>{ROLE_LABEL[r]}</b></span>
+              </label>
+            ))}
+          </fieldset>)}
 
         {error && <div className="idn-error">{error}</div>}
         <button type="submit" className="btn primary idn-go" disabled={!ready}>{busy ? "Saving…" : "Continue"}</button>
-        <p className="idn-foot">No password: pick the profile that's yours.</p>
       </form>
     </div>
   );
