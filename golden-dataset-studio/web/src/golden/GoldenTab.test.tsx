@@ -44,4 +44,19 @@ describe("Publish tab", () => {
     await act(async () => btn.click());
     expect(publish).toHaveBeenCalledWith("avc", expect.objectContaining({ properties: ["Description"] }));
   });
+
+  it("greys out the button with a check when the chosen properties are already published at these versions", async () => {
+    const done = { publication: "pub-1", published_at: "2026-10-27T10:00:00Z", published_by: "Eric", extraction: "rs-0003", rule_version: 2 };
+    golden.mockImplementation(async () => ({ ...RESP(["Language"]),
+      properties: [prop("Description", "approved"), prop("Language", "approved", done), prop("Name", "needs work")] }));
+    await act(async () => root.render(<GoldenTab catalog={{ short: "avc" } as CatalogDetail} route={parseRoute("#/c/avc/publish")} reload={() => {}} />));
+    await flush();
+    const btn = host.querySelector<HTMLButtonElement>(".gate .btn")!;
+    expect(btn.textContent).toBe("Published");
+    expect(btn.disabled).toBe(true);
+    expect(btn.className).toContain("is-done");
+    expect(host.textContent).not.toContain("One property at a time");
+    expect(host.textContent).not.toContain("Earlier publications");
+    expect(host.textContent).not.toContain("One course code");
+  });
 });
