@@ -108,6 +108,7 @@ COURSELEAF = PAGE.format(
 def test_a_drupal_course_is_read_from_the_fields_it_marks_up() -> None:
     found = values(extract_fields(ENTITY_COURSE, DRUPAL))
     assert found["course_credits"] == 6
+    assert found["course_credits_unit"] == "Credits"
     assert found["course_lecture_hours"] == 6
     assert found["course_prerequisites"] == "Placement Test score"
     assert found["course_description"].startswith("Beginning-level course")
@@ -123,6 +124,7 @@ def test_a_coursedog_course_is_read_by_the_same_code() -> None:
     assert found["course_subject_code"] == "ENG"
     assert found["course_number"] == "102"
     assert found["course_credits"] == 3
+    assert found["course_credits_unit"] == "Credit Hours"
     assert found["course_description"].startswith("Expository writing")
 
 
@@ -132,6 +134,7 @@ def test_a_courseleaf_course_is_read_from_its_block_title() -> None:
     assert found["course_id"] == "BREW 55703"
     assert found["course_name"] == "Production Design and Analysis of Beer"
     assert found["course_credits"] == 3
+    assert found["course_credits_unit"] == "Hours"
     assert found["course_description"].startswith("Production design")
 
 
@@ -251,6 +254,7 @@ def test_an_elumen_course_is_read_from_its_heading_group() -> None:
     assert found["course_id"] == "ELEC 150"
     assert found["course_name"] == "Electrical Maintenance"
     assert found["course_credits"] == 4.0
+    assert found["course_credits_unit"] == "Units"
     assert found["course_lecture_hours"] == 54.0
     assert found["course_lab_hours"] == 54.0
     assert found["course_description"].startswith("Prerequisite: Completion")
@@ -261,6 +265,8 @@ def test_the_other_elumen_theme_prints_the_code_in_the_h1() -> None:
     assert found["course_id"] == "FIRE B71A"
     assert found["course_name"] == "Seasonal Firefighter Basic Training 1"
     assert found["course_credits"] == 2.0
+    # As printed: the unit is what the page says, not a spelling of it.
+    assert found["course_credits_unit"] == "UNITS"
     assert found["course_lecture_hours"] == 27.0
     assert found["course_lab_hours"] == 27.0
 
@@ -276,9 +282,9 @@ def test_a_variable_unit_course_keeps_its_range() -> None:
             "the direction of a faculty member.</p></main>"
         ),
     )
-    assert values(extract_fields(ENTITY_COURSE, page))["course_credits"] == (
-        "1.0-4.0"
-    )
+    found = values(extract_fields(ENTITY_COURSE, page))
+    assert found["course_credits"] == "1.0-4.0"
+    assert found["course_credits_unit"] == "Units"
 
 
 def test_a_code_heading_outside_a_heading_group_names_no_course(
@@ -304,6 +310,7 @@ def test_a_heading_over_a_word_is_not_a_number(fixture_html_dir: Path) -> None:
     )
     found = values(extract_fields(ENTITY_COURSE, html))
     assert found.get("course_credits") != "Min"
+    assert "course_credits_unit" not in found
 
 
 def test_a_credits_heading_over_its_value_is_read() -> None:
@@ -318,7 +325,9 @@ def test_a_credits_heading_over_its_value_is_read() -> None:
             "<div class='credits'>1</div></div></div>"
         ),
     )
-    assert values(extract_fields(ENTITY_COURSE, page))["course_credits"] == 1
+    found = values(extract_fields(ENTITY_COURSE, page))
+    assert found["course_credits"] == 1
+    assert found["course_credits_unit"] == "Credits"
 
 
 def test_a_description_is_not_cut_at_six_hundred_characters() -> None:
@@ -335,6 +344,100 @@ def test_a_description_is_not_cut_at_six_hundred_characters() -> None:
     )
     found = values(extract_fields(ENTITY_COURSE, page))
     assert found["course_description"] == description.strip()
+
+
+# --- the unit the credits are counted in --------------------------------------
+
+
+def drafts_by_label(drafts) -> dict:
+    return {draft.canonical_label: draft for draft in drafts}
+
+
+def test_the_unit_is_read_from_the_line_that_prints_the_credits() -> None:
+    """A reviewer finds the number and its unit in one place."""
+    found = drafts_by_label(extract_fields(ENTITY_COURSE, ELUMEN))
+    unit, credits = found["course_credits_unit"], found["course_credits"]
+    assert unit.value == "Units"
+    assert unit.excerpt == "4.0 Units"
+    assert unit.locator_value == credits.locator_value
+
+
+def test_a_label_gives_its_unit_without_its_qualifier() -> None:
+    """The label "CREDIT HOURS MIN:" counts in credit hours; MIN is a bound."""
+    page = PAGE.format(
+        title="ACC 101 - Accounting I",
+        body=(
+            "<main><h1>ACC 101 Accounting I</h1>"
+            "<dl><dt>CREDIT HOURS MIN:</dt><dd>3</dd></dl></main>"
+        ),
+    )
+    found = drafts_by_label(extract_fields(ENTITY_COURSE, page))
+    assert found["course_credits"].value == 3
+    assert found["course_credits_unit"].value == "CREDIT HOURS"
+    assert found["course_credits_unit"].excerpt == "CREDIT HOURS MIN:"
+
+
+def test_a_value_that_prints_its_unit_is_a_number_and_a_unit() -> None:
+    """Read as one value, "3 Units" was a string where a number belongs."""
+    page = PAGE.format(
+        title="ACC 101 - Accounting I",
+        body=(
+            "<main><h1>ACC 101 Accounting I</h1>"
+            "<dl><dt>Credits</dt><dd>3 Units</dd></dl></main>"
+        ),
+    )
+    found = values(extract_fields(ENTITY_COURSE, page))
+    assert found["course_credits"] == 3
+    assert found["course_credits_unit"] == "Units"
+
+
+# A Drupal credits field with no label over it: only its class names it.
+UNLABELLED_CREDITS = (
+    "<div class='field field--name-field-credits'>"
+    "<div class='field__item'>{credits}</div></div>"
+)
+
+
+def test_a_field_known_only_by_its_class_prints_no_unit() -> None:
+    """The class says the field is credits; nothing printed says in what."""
+    page = PAGE.format(
+        title="AELP060",
+        body=(
+            "<main><h1>AELP060: Elementary I Academic English</h1>"
+            + UNLABELLED_CREDITS.format(credits=6)
+            + "</main>"
+        ),
+    )
+    found = values(extract_fields(ENTITY_COURSE, page))
+    assert found["course_credits"] == 6
+    assert "course_credits_unit" not in found
+
+
+def test_the_unit_comes_from_the_reading_whose_credits_are_kept() -> None:
+    """A labelled field outranks the eLumen header, and so does its silence.
+
+    The header's "Units" belongs to the header's number. Lent to the
+    field's, the record would pair a number and a unit that no element on
+    the page prints together.
+    """
+    page = PAGE.format(
+        title="ELEC 150 - Electrical Maintenance",
+        body=(
+            "<main><header class='header'><h2>Electrical Maintenance</h2>"
+            "<h3>ELEC 150:</h3><p class='header-x-meta'>4.0 Units</p>"
+            "</header>" + UNLABELLED_CREDITS.format(credits=4) + "</main>"
+        ),
+    )
+    found = values(extract_fields(ENTITY_COURSE, page))
+    assert found["course_credits"] == 4
+    assert "course_credits_unit" not in found
+
+
+def test_a_unit_does_not_make_a_record_of_one_field() -> None:
+    """The unit only ever comes with the credits, so it adds no field."""
+    page = PAGE.format(title="", body="<dl><dt>Credits</dt><dd>3</dd></dl>")
+    with pytest.raises(NothingToExtract):
+        extract_fields(ENTITY_COURSE, page)
 
 
 # --- the entities the templates never could read ------------------------------

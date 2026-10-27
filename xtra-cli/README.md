@@ -758,6 +758,17 @@ line of their own (`4.0 Units`) — and its hours as a heading over a number
 ("Total Course Lecture Hours", 54.0), so those two shapes are read as well.
 A description is the whole first paragraph, not its first 600 characters.
 
+Credits keep the word they are counted in. Every reading above writes the
+unit printed with the number as `course_credits_unit`: `Units` from eLumen's
+`4.0 Units`, `UNITS` at Bakersfield, `Hours` from CourseLeaf's `3 Hours.`,
+`Credit Hours` from a field labelled that way. The unit always comes from
+the same reading as the credits, or not at all, and the record keeps the
+word as printed, not as a `creditUnit:` concept, under
+`ceterms:creditUnitType` beside `ceterms:creditValue`. Transform's mapping
+writes the two as one `ceterms:ValueProfile` — `schema:value`, or
+`schema:minValue` and `schema:maxValue` for a printed range — with the word
+in its `ceterms:creditUnitType`. The college templates do not read the unit.
+
 Each field records the element it came from, so a reviewer can go and look.
 A page that prints too little to be a record — one field, which every page
 has, because every page has a name — is skipped rather than written as an
@@ -778,6 +789,42 @@ Pages are read by the stem discovery lists, which is the stem the crawler
 saved them under. The `Slot.stem` property in `lib/` still slugs the URL the
 old way, so it is never used for a storage key, and the record carries the
 crawl stem instead.
+
+#### What a record holds
+
+A record names every field by the CTDL term it goes out under, not by the
+label the reader gave it. Each entry in `source_expected.fields` has a
+`property` such as `ceterms:name`, and `expected` maps the same terms to
+their values. A term read more than once, like the outcomes of a competency
+list, holds every value as a list in the order they were read.
+
+A course carries the minimum data for courses and nothing more:
+
+| Property | CTDL term | Value |
+| --- | --- | --- |
+| External Identifier | `ceterms:identifier` | the printed course code |
+| Name | `ceterms:name` | the printed name |
+| Description | `ceterms:description` | the printed description |
+| Subject Webpage | `ceterms:subjectWebpage` | the page's own URL |
+| Coded Notation | `ceterms:codedNotation` | the printed course code |
+| Credit Value | `ceterms:creditValue` | the credits as printed: `3`, `1.0-4.0` |
+| Credit Unit Type | `ceterms:creditUnitType` | the unit word printed with them |
+| Prerequisite | `ceterms:prerequisite` | the printed prerequisites |
+
+A Coursedog page that prints a minimum and a maximum gives
+`ceterms:creditMinValue` and `ceterms:creditMaxValue` instead, the names the
+Learning Opportunity bulk-upload template uses. The identifier and the
+webpage are the two no page prints as a field, so they come last, with ids
+from `derived_001`. Everything else a course page prints, such as lecture
+and lab hours, the department or the corequisites, is still read, because
+each field counts toward the two a page needs to be a record at all, but
+the record leaves it out. Credentials, learning programs and competencies
+keep every field they have.
+
+Records no longer carry `ctdl_expected`. Transform has not caught up: it
+still maps the old labels, so `xtra catalog transform` stops with
+`KeyError: 'canonical_label'` on a record extracted this way and works only
+on records extracted before.
 
 ## Object layout (not packs)
 

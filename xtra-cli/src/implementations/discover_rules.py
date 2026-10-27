@@ -995,10 +995,18 @@ COURSE_BLOCK_DESC_CLASS_RE = re.compile(
 # "ASTR 50303.  Astrophysics I: Stars and Planetary Systems.  3 Hours."
 # ends "3 Hours."; a variable-credit course ends "1-6 Hour.". A course
 # with no credits printed ends with its name, so this has to be optional.
+# The unit is kept as printed, "Hours" or "UNITS": it is what the credits
+# are counted in.
 COURSE_BLOCK_CREDITS_RE = re.compile(
     r"(?P<credits>\d+(?:\.\d+)?)(?:\s*-\s*(?P<maximum>\d+(?:\.\d+)?))?"
-    r"\s*(?:credit|hour|unit)s?\s*\.?\s*$",
+    r"\s*(?P<unit>(?:credit|hour|unit)s?)\s*\.?\s*$",
     re.IGNORECASE,
+)
+# The unit a credits label names, as printed: "Credits" in "Credits:",
+# "CREDIT HOURS" in "CREDIT HOURS MIN:". The same words a course-block
+# line ends with, so a label and a line give the same kind of answer.
+CREDIT_UNIT_RE = re.compile(
+    rf"\b{_CREDIT_PREFIX}(?:credit|hour|unit)s?\b", re.IGNORECASE
 )
 # What separates the code, the name and the credits on that one line.
 COURSE_TITLE_SPLIT_RE = re.compile(r"\s*[.:–-]\s+|\s*\.\s*")
@@ -1938,27 +1946,38 @@ def program_terms(text: str) -> list[str]:
     )
 
 
-def split_course_title(line: str) -> tuple[str, str, str]:
-    """A course-block title line as its code, its name and its credits.
+def course_block_credits(match: re.Match[str]) -> tuple[str, str]:
+    """A COURSE_BLOCK_CREDITS_RE match as its credits and its unit.
 
-    CourseLeaf prints all three on one line - "ASTR 50303.  Astrophysics
+    "1.0 - 4.0 Units" is ("1.0-4.0", "Units"): a range is written one way
+    whatever spacing the page used, and the unit is as printed.
+    """
+    credits = match.group("credits")
+    if match.group("maximum"):
+        credits = f"{credits}-{match.group('maximum')}"
+    return credits, match.group("unit")
+
+
+def split_course_title(line: str) -> tuple[str, str, str, str]:
+    """A course-block title line as its code, name, credits and unit.
+
+    CourseLeaf prints all of them on one line - "ASTR 50303.  Astrophysics
     I: Stars and Planetary Systems.  3 Hours." - so a course page there
     has no labelled fields at all to read. The credits are optional,
-    because a zero-credit seminar prints none, and so is the name.
+    because a zero-credit seminar prints none, and so is the name; the
+    unit is there whenever the credits are.
     """
     text = collapse(line)
     code_match = COURSE_CODE_RE.search(text)
     if code_match is None or code_match.start() > 0:
-        return "", "", ""
+        return "", "", "", ""
     rest = text[code_match.end() :].strip(" .:-–")
-    credits = ""
+    credits = unit = ""
     credits_match = COURSE_BLOCK_CREDITS_RE.search(rest)
     if credits_match is not None:
-        credits = credits_match.group("credits")
-        if credits_match.group("maximum"):
-            credits = f"{credits}-{credits_match.group('maximum')}"
+        credits, unit = course_block_credits(credits_match)
         rest = rest[: credits_match.start()].strip(" .:-–")
-    return code_match.group(0), rest, credits
+    return code_match.group(0), rest, credits, unit
 
 
 def total_credits_line(lines: list[str]) -> str:

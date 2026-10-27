@@ -6,6 +6,7 @@ from implementations.discover_rules import (
     AWARD_DECLARATION_RE,
     COURSE_TITLE_RE,
     COURSE_URL_RE,
+    CREDIT_UNIT_RE,
     CREDIT_VALUE_RE,
     EMPTY_OR_ERROR_RE,
     LABEL_CREDENTIAL,
@@ -42,6 +43,7 @@ from implementations.discover_rules import (
     program_terms,
     singular_award,
     specific_award,
+    split_course_title,
     total_credits_line,
     url_label,
     url_template,
@@ -128,6 +130,46 @@ def test_a_qualifier_between_the_noun_and_the_value_is_still_a_value(
     Course and none could be sampled.
     """
     assert CREDIT_VALUE_RE.search(printed), printed
+
+
+@pytest.mark.parametrize(
+    ("line", "credits", "unit"),
+    [
+        (
+            "BREW 55703. Production Design and Analysis of Beer. 3 Hours.",
+            "3",
+            "Hours",
+        ),
+        ("ASTR 50303. Variable Topics. 1-6 Hour.", "1-6", "Hour"),
+        ("ASTR 50303. Seminar.", "", ""),
+    ],
+)
+def test_a_course_block_title_gives_its_credits_and_their_unit(
+    line: str, credits: str, unit: str
+) -> None:
+    assert split_course_title(line)[2:] == (credits, unit)
+
+
+@pytest.mark.parametrize(
+    ("label", "unit"),
+    [
+        ("Credits", "Credits"),
+        ("Credit:", "Credit"),
+        ("Credit Hours", "Credit Hours"),
+        ("Credit Hour", "Credit Hour"),
+        ("CREDIT HOURS MIN:", "CREDIT HOURS"),
+        ("Units", "Units"),
+        ("Unit", "Unit"),
+        ("Semester Hours", "Semester Hours"),
+        ("Credits.", "Credits"),
+    ],
+)
+def test_a_credits_label_names_its_unit_as_printed(
+    label: str, unit: str
+) -> None:
+    match = CREDIT_UNIT_RE.search(label)
+    assert match is not None
+    assert match.group(0) == unit
 
 
 def test_a_course_block_needs_a_code_and_a_value_near_it() -> None:

@@ -21,6 +21,10 @@ too, still without knowing the college: before they were, every eLumen
 course was named after the catalog's hidden banner, "2026-2027 Catalog",
 and carried no code and no units.
 
+Credits keep the word they are counted in. "4.0 Units", "3 Hours." and a
+"Credit Hours" label each give the number and, beside it, the unit as
+printed, and the two always come from the same reading.
+
 It is also the only way the three entities beside Course get extracted at
 all. Discovery labels credential, learning-opportunity and competency
 pages, and until now nothing downstream could read one: the templates are
@@ -63,11 +67,13 @@ from implementations.discover_rules import (
     COURSE_CODE_RE,
     COURSE_FIELD_LABELS,
     COURSE_HEADING_REACH,
+    CREDIT_UNIT_RE,
     ENTITY_TYPE_OF_LABEL,
     HEADING_GROUP_TAGS,
     NUMERIC_FIELDS,
     SECTION_HEADING_CHARS,
     collapse,
+    course_block_credits,
     normalize_field_label,
     split_course_title,
 )
@@ -147,6 +153,23 @@ def _number(text: str) -> Any:
         return value
 
 
+def _credits_and_unit(text: str) -> tuple[Any, str] | None:
+    """A line that is nothing but credits, "4.0 Units", as its number and
+    its unit, or None."""
+    match = COURSE_BLOCK_CREDITS_RE.fullmatch(collapse(text))
+    if match is None:
+        return None
+    credits, unit = course_block_credits(match)
+    return _number(credits), unit
+
+
+def _printed_unit(label: str) -> str:
+    """The unit a credits label names, "CREDIT HOURS" in "CREDIT HOURS
+    MIN:", or "" when it names none."""
+    match = CREDIT_UNIT_RE.search(collapse(label))
+    return match.group(0) if match else ""
+
+
 def canonical_field(pair: FieldPair) -> str | None:
     """The canonical field this printed label is, or None.
 
@@ -196,8 +219,35 @@ def _from_field_pairs(
         label = canonical_field(pair)
         if label is None or label in found:
             continue
+        if label == "course_credits":
+            found.update(_credits_from_pair(pair))
+            continue
         value = _number(pair.value) if label in NUMERIC_FIELDS else pair.value
         found[label] = (value, pair.value, pair.path)
+    return found
+
+
+def _credits_from_pair(pair: FieldPair) -> dict[str, tuple[Any, str, str]]:
+    """A labelled credits field, and the unit its credits are counted in.
+
+    The unit is the value's own when the value prints one, "3 Units", and
+    otherwise the label's, "Credit Hours" over a 3. A field the page left
+    unlabelled, known here only by its class name, prints no unit at all.
+    """
+    read = _credits_and_unit(pair.value)
+    if read is not None:
+        credits, unit = read
+        return {
+            "course_credits": (credits, pair.value, pair.path),
+            "course_credits_unit": (unit, pair.value, pair.path),
+        }
+    found: dict[str, tuple[Any, str, str]] = {
+        "course_credits": (_number(pair.value), pair.value, pair.path)
+    }
+    named = normalize_field_label(pair.label) or ""
+    unit = _printed_unit(pair.label)
+    if COURSE_FIELD_LABELS.get(named) == "course_credits" and unit:
+        found["course_credits_unit"] = (unit, pair.label, pair.path)
     return found
 
 
@@ -214,7 +264,7 @@ def _from_course_block(soup: Any) -> dict[str, tuple[Any, str, str]]:
     )
     if title is not None:
         line = element_text(title)
-        code, name, credits = split_course_title(line)
+        code, name, credits, unit = split_course_title(line)
         if code:
             found["course_id"] = (code, line, "p.courseblocktitle")
         if name:
@@ -225,6 +275,7 @@ def _from_course_block(soup: Any) -> dict[str, tuple[Any, str, str]]:
                 line,
                 "p.courseblocktitle",
             )
+            found["course_credits_unit"] = (unit, line, "p.courseblocktitle")
     body = next(
         (
             tag
@@ -288,7 +339,8 @@ def _from_course_heading(soup: Any) -> dict[str, tuple[Any, str, str]]:
     two wrappers below. None of the three is labelled, so the code is the
     heading that is nothing but a code, the name is what the group prints
     beside it, and the units are the first line after it that is nothing
-    but units.
+    but units. That line gives the unit word too, as printed: "Units" at
+    Antelope Valley, "UNITS" at Bakersfield.
     """
     found: dict[str, tuple[Any, str, str]] = {}
     heading = next(
@@ -318,16 +370,11 @@ def _from_course_heading(soup: Any) -> dict[str, tuple[Any, str, str]]:
             found["course_name"] = (name, name, element_path(holder))
     for tag in heading.find_all_next(True, limit=COURSE_HEADING_REACH):
         text = element_text(tag)
-        units = COURSE_BLOCK_CREDITS_RE.fullmatch(text)
-        if units is not None:
-            credits = units.group("credits")
-            if units.group("maximum"):
-                credits = f"{credits}-{units.group('maximum')}"
-            found["course_credits"] = (
-                _number(credits),
-                text,
-                element_path(tag),
-            )
+        read = _credits_and_unit(text)
+        if read is not None:
+            credits, unit = read
+            found["course_credits"] = (credits, text, element_path(tag))
+            found["course_credits_unit"] = (unit, text, element_path(tag))
             break
     return found
 
@@ -339,11 +386,13 @@ def _from_heading_labels(soup: Any) -> dict[str, tuple[Any, str, str]]:
     element after it; SmartCatalog prints <h3>Credits</h3> over "3". Only
     the numeric fields are read this way, and only when the value is a
     number: Coursedog prints "Credit Hours" over the word "Min", and a
-    heading over a text field is as often a section over a whole page.
+    heading over a text field is as often a section over a whole page. A
+    credits heading names the unit as well: SmartCatalog's is "Credits".
     """
     found: dict[str, tuple[Any, str, str]] = {}
     for heading in _content_headings(soup):
-        label = canonical_field(FieldPair(element_text(heading), ""))
+        name = element_text(heading)
+        label = canonical_field(FieldPair(name, ""))
         if label not in NUMERIC_FIELDS or label in found:
             continue
         beside = _first_printed(heading.next_siblings)
@@ -351,8 +400,12 @@ def _from_heading_labels(soup: Any) -> dict[str, tuple[Any, str, str]]:
             continue
         printed, holder = beside
         value = _number(printed)
-        if isinstance(value, (int, float)):
-            found[label] = (value, printed, element_path(holder))
+        if not isinstance(value, (int, float)):
+            continue
+        found[label] = (value, printed, element_path(holder))
+        unit = _printed_unit(name) if label == "course_credits" else ""
+        if unit:
+            found["course_credits_unit"] = (unit, name, element_path(heading))
     return found
 
 
@@ -398,14 +451,25 @@ def extract_fields(entity_type: str, html: str) -> list[Any]:
     sources.append(_page_fields(entity_type, markup))
     found: dict[str, tuple[Any, str, str]] = {}
     for source in sources:
+        # A unit belongs to the number printed with it, so it comes from
+        # the reading whose credits are kept or from none: a credits field
+        # known only by its class name has no unit, and an eLumen header
+        # further down must not lend it one.
+        keeps_credits = (
+            "course_credits" in source and "course_credits" not in found
+        )
         for label, value in source.items():
+            if label == "course_credits_unit" and not keeps_credits:
+                continue
             found.setdefault(label, value)
     # The page's own name is not a record. Every page has one, so a
     # record holding nothing else is an empty record that looks extracted,
-    # which is the one thing this must not produce.
-    if len(found) < MIN_FIELDS:
+    # which is the one thing this must not produce. A unit is not a field
+    # to count either: it is only ever read with the credits.
+    read = len(found.keys() - {"course_credits_unit"})
+    if read < MIN_FIELDS:
         raise NothingToExtract(
-            f"the page prints {len(found)} field(s) this can read from its "
+            f"the page prints {read} field(s) this can read from its "
             f"markup, fewer than the {MIN_FIELDS} a record needs"
         )
     return _collect(found)
