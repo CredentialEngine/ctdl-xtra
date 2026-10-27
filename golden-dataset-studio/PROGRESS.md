@@ -1,4 +1,4 @@
-# Golden Dataset Studio: build progress
+# Golden Rules Studio: build progress
 
 Plan: [`docs/qrspi/04-plan.md`](docs/qrspi/04-plan.md). Choices where the spec was silent:
 [`docs/qrspi/06-build-notes.md`](docs/qrspi/06-build-notes.md).

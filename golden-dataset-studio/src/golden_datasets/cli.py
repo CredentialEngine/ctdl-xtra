@@ -40,7 +40,7 @@ def _cmd(p: argparse.ArgumentParser, target: str) -> None:
 def build_parser() -> argparse.ArgumentParser:
     ap = argparse.ArgumentParser(
         prog="golden-datasets",
-        description="CTDL Golden Dataset Studio: build golden datasets of CTDL Courses by improving rules.",
+        description="CTDL Golden Rules Studio: build golden datasets of CTDL Courses by improving rules.",
     )
     sub = ap.add_subparsers(dest="command", metavar="COMMAND")
 

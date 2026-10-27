@@ -26,7 +26,7 @@ ROUTERS = [
 
 
 def create_app(root: str) -> FastAPI:
-    app = FastAPI(title="CTDL Golden Dataset Studio")
+    app = FastAPI(title="CTDL Golden Rules Studio")
     app.state.studio = Studio(root)
     app.add_middleware(GZipMiddleware, minimum_size=2048)  # rows, compare and rendered pages compress ~5-20x
 

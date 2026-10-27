@@ -107,3 +107,6 @@ Each entry: what the spec says (or doesn't), what was built, and why. Newest las
     off disables the page's stylesheets and `style=""` attributes inside the iframe and adds a small plain-view
     sheet in `<head>`; the Studio's highlight styles stay. Neither changes the page's DOM structure, so css paths,
     highlights and selection capture keep working. Both settings are remembered in the browser.
+29. **Renamed "Golden Rules Studio"** (Eric, after the build): the name people see — the top bar, the browser
+    title, the prompt for Claude, the CLI help, the README. The `golden-datasets` CLI, the Python package and the
+    `golden-dataset-studio/` folders of the storage layout keep their names, so existing roots keep working.

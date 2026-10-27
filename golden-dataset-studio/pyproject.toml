@@ -1,7 +1,7 @@
 [project]
 name = "golden-dataset-studio"
 version = "0.1.0"
-description = "CTDL Golden Dataset Studio: rule-centric review that builds golden datasets of CTDL Courses"
+description = "CTDL Golden Rules Studio: rule-centric review that builds golden datasets of CTDL Courses"
 requires-python = ">=3.12"
 dependencies = [
   "fastapi>=0.115",

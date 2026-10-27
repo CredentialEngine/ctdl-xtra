@@ -20,7 +20,7 @@ from .context import Ctx
 from .loop import current_review, ordered_rule_ids, page_ref, rule_annotations, rule_or_error, short
 from .review import Review, norm
 
-INTRO = ("You are improving the declarative extraction rules of **CTDL Golden Dataset Studio** for one catalog. "
+INTRO = ("You are improving the declarative extraction rules of **CTDL Golden Rules Studio** for one catalog. "
          "A domain expert reviewed the extracted values and left annotations. Your job: change the rule(s) below so "
          "the annotated problems are fixed without breaking anything the expert marked correct, then publish a new "
          "version. Work only through the `golden-datasets` CLI; never edit files in the storage root yourself.")

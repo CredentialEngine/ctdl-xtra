@@ -1,4 +1,4 @@
-# CTDL Golden Dataset Studio
+# CTDL Golden Rules Studio
 
 Build a golden dataset of CTDL Courses for one catalog by improving **rules**, not by editing records. Jared
 reviews one rule at a time across the whole catalog; Claude Code turns his annotations into a new rule version; the
