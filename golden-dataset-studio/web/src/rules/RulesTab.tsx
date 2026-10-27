@@ -2,7 +2,7 @@
 // (sorted by the server with the likeliest problems first), the saved page on the right.
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { api } from "../api/client";
-import type { EventBrief, NewEvent, Overlay, RuleDetail, RulesResponse, RuleSummary, UnclassifiedPage } from "../api/types";
+import type { EventBrief, NewEvent, Overlay, RuleDetail, RulesResponse, RuleSummary, Spread, UnclassifiedPage } from "../api/types";
 import { PagePane, prefetchPages, type Highlight } from "../pagepane";
 import { Ico } from "../shell/icons";
 import { useReviewer } from "../shell/reviewer";
@@ -68,6 +68,7 @@ export default function RulesTab({ catalog, route }: TabProps) {
   const [detail, setDetail] = useState<RuleDetail | null>(null);
   const [rows, setRows] = useState<RowX[]>([]);
   const [total, setTotal] = useState(0);
+  const [spread, setSpread] = useState<Spread | null>(null);
   const [missing, setMissing] = useState<EventBrief[]>([]);
   const [sel, setSel] = useState(0);
   const [draft, setDraft] = useState<Draft | null>(null);
@@ -99,7 +100,7 @@ export default function RulesTab({ catalog, route }: TabProps) {
     setDraft(null); setMissed(null); setExtraTab(null); setActiveStem(null);
     Promise.all([api.rule(cat, ruleId), apiX.rows(cat, ruleId, { limit: FIRST_PAGE, focus })]).then(([d, r]) => {
       if (tok !== token.current) return;
-      setDetail(d); setRows(r.rows); setTotal(r.total); setMissing(r.missing); setSel(r.focus_index ?? 0);
+      setDetail(d); setRows(r.rows); setTotal(r.total); setSpread(r.spread); setMissing(r.missing); setSel(r.focus_index ?? 0);
       centerNext.current = true; setError(null);
       if (rowsRef.current) rowsRef.current.scrollTop = 0;
     }, (e) => setError(String(e)));
@@ -315,7 +316,8 @@ export default function RulesTab({ catalog, route }: TabProps) {
       <aside className="col">{rules && <RuleList rules={rules} active={ruleId} onPick={(id) => go(href(cat, "rules", id))} />}</aside>
       <section className="col mid">
         {detail && <RuleHead catalog={catalog} rule={detail} busy={busy} onApprove={() => approve("approve")} onReopen={() => approve("reopen")} />}
-        {detail && <div className="rows-bar"><span><b>{fmt(total)}</b> {unitWord(detail.kind, detail.locator)} · sorted with the likeliest problems first</span></div>}
+        {detail && <div className="rows-bar"><span><b>{fmt(total)}</b> {unitWord(detail.kind, detail.locator)} · discussed first, then the
+          likeliest problems{spread && spread.groups.length > 1 && <>, with every 5th row from a <SpreadNote spread={spread} /></>}</span></div>}
         <div className="rows" data-tour="rows" ref={rowsRef} onScroll={(e) => {
           const el = e.currentTarget;
           if (el.scrollTop + el.clientHeight > el.scrollHeight - 600) loadMore();
@@ -332,6 +334,7 @@ export default function RulesTab({ catalog, route }: TabProps) {
             </div>
           )}
           {detail && rows.map((r, i) => {
+            const multi = !!spread && spread.groups.length > 1;
             const on = i === sel;
             const val = r.status === "found" ? r.value ?? "" : r.status === "no_match" ? "nothing found" : "empty";
             const settled = isSettled(r.state);
@@ -350,6 +353,7 @@ export default function RulesTab({ catalog, route }: TabProps) {
                                 { prop: kind === "field" ? detail.property_label : null, occ: r.occurrence_key })}
                               onClick={(e) => e.stopPropagation()}>Open record →</a>)}
                         </div></>}
+                  {multi && r.group && <div className="grp-line"><span className="grp" title={`Spread sample group · ${spread?.by}`}>{r.group}</span></div>}
                   <HistoryLine state={r.state} verdict={r.verdict} reattached={r.reattached} comments={r.comments} page_questions={r.page_questions} />
                   {on && draft && <Expansion draft={draft} fieldRule={kind === "field"} emptyValue={r.status !== "found"}
                     onChange={setDraft} onSave={() => void saveRow(i, { draft })} onCancel={() => setDraft(null)} />}
@@ -382,4 +386,12 @@ export default function RulesTab({ catalog, route }: TabProps) {
       </section>
     </div>
   );
+}
+
+/** "spread sample by length", with every group and its size on hover (strata.py). */
+function SpreadNote({ spread }: { spread: Spread }) {
+  const what = spread.by.split(":")[0];
+  const tip = `Rows without signals are grouped by ${spread.by}, and one row from each group is dealt in turn, ` +
+    `so you see every kind of value early.\n\n${spread.groups.map((g) => `${fmt(g.rows).padStart(6)}  ${g.label}`).join("\n")}`;
+  return <span className="spread-note" title={tip}>spread sample by {what} ({spread.groups.length} groups)</span>;
 }

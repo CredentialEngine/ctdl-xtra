@@ -126,3 +126,22 @@ def test_verdict_with_supersedes_and_missing_are_appended(client):
     log = client.root_path_ / AVC / "golden-dataset-studio" / "annotations.jsonl"
     ids = [json.loads(line)["annotation_id"] for line in log.read_text().splitlines()]
     assert first["annotation_id"] in ids and second["event"]["annotation_id"] in ids
+
+
+@pytest.mark.slow
+def test_discussed_rows_come_first_and_rows_carry_their_spread_group(client):
+    r = client.get(f"{B}/rules/course-description/rows", params={"limit": 1000}).json()
+    assert r["spread"]["by"].startswith("length") and len(r["spread"]["groups"]) == 5
+    assert all(row["group"] for row in r["rows"])
+    first_five = {row["group"] for row in r["rows"][:40] if row["state"] is None and not row["signal_count"]}
+    assert len(first_five) >= 3  # the sample mixed in near the top spans several length buckets
+    deep = next(row for row in reversed(r["rows"]) if row["state"] is None and not row["comments"])
+    t = {"kind": "match", "rule_id": "course-description", "occurrence_key": deep["occurrence_key"],
+         "page_stem": deep["page_stem"]}
+    assert client.post(f"{B}/annotations", json={"type": "comment", "author": "Test", "target": t,
+                                                 "note": "Is the prerequisite part of the description?"}).status_code == 200
+    top = client.get(f"{B}/rules/course-description/rows", params={"limit": 1}).json()["rows"][0]
+    assert top["key"] == deep["key"] and top["comments"]
+    client.post(f"{B}/annotations", json={"type": "verdict", "verdict": "correct", "author": "Test", "target": t})
+    top = client.get(f"{B}/rules/course-description/rows", params={"limit": 1}).json()["rows"][0]
+    assert top["key"] != deep["key"]  # marked correct: no longer floated

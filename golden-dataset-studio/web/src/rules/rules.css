@@ -58,3 +58,9 @@
 /* Rules ⇄ Records: a quick link on the selected row / value */
 .xlink { margin-left: 10px; white-space: nowrap; font-weight: 500; color: var(--accent); text-decoration: none; }
 .xlink:hover { text-decoration: underline; }
+
+/* Spread sample (strata.py): the bar names how rows are grouped; each row names its group. */
+.w4-rules .rows-bar .spread-note { text-decoration: underline dotted; text-underline-offset: 3px; cursor: help; color: var(--ink-2); }
+.w4-rules .row .grp-line { margin-top: 3px; }
+.w4-rules .row .grp { display: inline-block; padding: 0 6px; border-radius: 4px; font-size: 10.5px;
+  line-height: 16px; color: var(--violet); background: var(--violet-soft); white-space: nowrap; vertical-align: 1px; }

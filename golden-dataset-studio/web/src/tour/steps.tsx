@@ -83,7 +83,7 @@ export const STEPS: Step[] = [
   },
   {
     id: "rows",
-    title: "One row per course, likeliest problems first",
+    title: "One row per course: discussed, then likeliest problems",
     route: (c) => c.base,
     ready: onBase,
     targets: ["[data-tour=rows]"],
@@ -91,7 +91,9 @@ export const STEPS: Step[] = [
     body: (f) => (
       <>
         <p>Each row is what the selected rule found for one course{f.bar ? <> ({String(f.bar).split(" · ")[0]})</> : null}.
-          They're <b>sorted with the likeliest problems first</b>, so the rows worth checking are at the top.</p>
+          Rows a teammate commented on or was unsure about come <b>first</b>, until someone marks them correct. Then the{" "}
+          <b>likeliest problems</b>, with every 5th row from a <b>spread sample</b>: short and long descriptions, rare
+          values, different subjects, so you see every kind of value early. The purple tag says which group a row is from.</p>
         <p>Rows that already have a verdict fade back, so the eye goes to the rows still waiting. Each shows its verdict
           and who gave it.</p>
         <p>Click a row, or press <kbd>Tab</kbd>, and its value is highlighted on the saved page at the right.</p>

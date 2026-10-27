@@ -34,10 +34,11 @@ const row = (i: number, o: Partial<RowX> = {}): RowX => ({
   key: `p${i}@html`, occurrence_key: `p${i}@html`, course_key: `GEOG${i}`, page_stem: `p${i}`, url: `https://x/p${i}`,
   page_title: `Page ${i}`, value: `Value ${i}`, status: "found", css_path: "html > body:nth-of-type(1)", char_start: 0, char_end: 5,
   occurrence_css_path: "html", context: `GEOG ${i} - Course`, state: null, verdict: null, reattached: false, comments: [],
-  signal_count: 0, other_pages: [], ...o,
+  signal_count: 0, other_pages: [], group: `${i * 20}–${i * 20 + 19} words (percentile ${i * 33}–${i * 33 + 33})`, ...o,
 });
 
 const rows: RowsX = { rule_id: "course-description", extraction: "rs-0002", total: 3, offset: 0, missing: [], elapsed_ms: 1, focus_index: 1,
+  spread: { by: "length: percentiles of the word count", groups: [0, 1, 2].map((i) => ({ label: `${i * 20}–${i * 20 + 19} words (percentile ${i * 33}–${i * 33 + 33})`, rows: 1 })) },
   rows: [
     row(0, { state: "fixed", verdict: { annotation_id: "an-old", type: "verdict", verdict: "wrong", author: "Jared", at: "t", note: "n",
              expected: null, rule_version_seen: 1, value_seen: "x" } }),
@@ -116,7 +117,8 @@ describe("RulesTab", () => {
     expect(r[0].classList.contains("done")).toBe(false);  // fixed: needs a fresh look
     expect(r[2].classList.contains("done")).toBe(true);   // correct: fades back
     expect(r[0].textContent).toContain("Fixed: Jared marked the previous version wrong; this matches the text he selected.");
-    expect(container.querySelector(".rows-bar")?.textContent).toBe("3 courses · sorted with the likeliest problems first");
+    expect(container.querySelector(".rows-bar")?.textContent).toBe("3 courses · discussed first, then the likeliest problems, with every 5th row from a spread sample by length (3 groups)");
+    expect(container.querySelector(".row .grp")?.textContent).toBe("0–19 words (percentile 0–33)");
   });
 
   it("✗ opens the inline expansion; Esc cancels; A records correct and moves on", async () => {

@@ -64,11 +64,16 @@ export interface Row {
   occurrence_css_path: string | null; context: string | null;   // "GEOG 222 - Cartography …" (or the page URL)
   state: RowStateName | null; verdict: EventBrief | null; reattached: boolean; comments: EventBrief[];
   signal_count: number;              // never shown as tags (spec §8); available for debugging only
+  group: string | null;              // its group in the spread sample (strata.py), e.g. "51–67 words (percentile 21–41)"
 }
+
+/** How the rows without signals are spread (strata.py): what they are grouped by, and each group's size. */
+export interface Spread { by: string; groups: { label: string; rows: number }[] }
 
 export interface RowsResponse {
   rule_id: string; extraction: string; total: number; offset: number; rows: Row[];
   missing: EventBrief[];             // open "missing" verdicts of a locator / page rule
+  spread: Spread;
   elapsed_ms: number;
 }
 

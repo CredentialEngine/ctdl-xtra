@@ -7,6 +7,7 @@ incrementally), so a request costs milliseconds once the extraction is loaded (s
 from __future__ import annotations
 
 import time
+from collections import Counter
 from datetime import UTC, datetime
 from typing import Annotated
 
@@ -250,6 +251,7 @@ def rows(request: Request, catalog: str, rule_id: str, ext: str | None = None, o
         limit = focus_index - offset + 20
     page = ordered[offset:offset + limit]
     snap = rv.snap
+    spread_by, group, group_order = rv.spread_groups(rule_id)
     kind = snap.rules[rule_id]["kind"]
     page_q = _page_questions(rv, rule_id) if kind == "page" else {}
     course_pages = _course_pages(request, rv) if kind != "page" else {}
@@ -264,11 +266,15 @@ def rows(request: Request, catalog: str, rule_id: str, ext: str | None = None, o
                     "context": r["context"], "state": s.state, "verdict": _event_brief(s.verdict),
                     "reattached": s.reattached, "comments": [_event_brief(c) for c in s.comments],
                     "signal_count": len(r["signals"]) + len(s.history),
+                    "group": group.get(r["key"]),
                     "page_questions": [_event_brief(e) for e in page_q.get(r["page_stem"], [])],
                     "other_pages": [{"page_stem": st, "url": snap.page[st]["url"], "title": snap.page[st]["title"]}
                                     for st in others]})
     missing = [_event_brief(e) | {"page_stem": e["target"].get("page_stem")} for e in rv.missing_events(rule_id)]
+    sizes = Counter(group.values())
+    spread = {"by": spread_by, "groups": [{"label": g, "rows": sizes[g]} for g in group_order if sizes[g]]}
     return {"rule_id": rule_id, "extraction": snap.ext, "total": len(ordered), "offset": offset, "rows": out,
+            "spread": spread,
             "missing": missing, "focus_index": focus_index, "elapsed_ms": round(1000 * (time.perf_counter() - t0), 1)}
 
 

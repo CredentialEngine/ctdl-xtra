@@ -20,10 +20,10 @@ from __future__ import annotations
 
 import hashlib
 import re
-from collections import defaultdict
+from collections import Counter, defaultdict
 from dataclasses import dataclass, field
 
-from . import layout, model
+from . import layout, model, strata
 from .context import Ctx
 from .log import AnnotationLog
 from .signals import SEVERITY_RANK
@@ -44,6 +44,7 @@ class Snapshot:
         self.ctx, self.ext = ctx, ext
         self.meta = meta if meta is not None else ctx.extraction_meta(ext)
         self._rows: dict[str, list[dict]] = {}
+        self._spread: dict[str, tuple] = {}  # rule_id → strata.groups(...), see Review.spread_groups
         self.ruleset_version = self.meta.get("ruleset_version")
         if rules is None:
             self.ruleset, self.rules = ctx.ruleset_rules(self.ruleset_version)
@@ -308,13 +309,17 @@ class Review:
     # confirmed fade back instead (spec §7.2); Compare orders by every history signal (A4.1).
     RULES_TAB_HISTORY = {"previously-wrong", "changed-since-correct", "new-in-version"}
 
-    def ordered(self, rule_id: str, seed: str = "golden-datasets", boring_every: int = 10,
+    def ordered(self, rule_id: str, seed: str = "golden-datasets", mix_every: int = 5,
                 history: set[str] | None = None) -> list[tuple[dict, RowState]]:
-        """Severity, then signal count, then a seeded random sample of rows without signals; one such "boring"
-        row is mixed in every `boring_every` rows, so a reviewer always sees some."""
+        """Review order of the Rules tab:
+        1. discussed: rows with a comment or an "unsure" verdict that nobody has marked correct, newest first, so
+           teammates see what others asked about;
+        2. rows with signals, by severity then signal count, with every `mix_every`-th row taken from
+        3. a spread sample of the rest (strata.py: length buckets, distinct values or shapes, pages, subjects)."""
         rows = self.snap.rows(rule_id)
         states = self.row_states(rule_id, rows)
         keep = self.RULES_TAB_HISTORY if history is None else history
+        _, label, order = self.spread_groups(rule_id)
 
         def sev(row) -> tuple[int, int]:
             sig = row["signals"] + [h for h in states[row["key"]].history if h["signal"] in keep]
@@ -325,16 +330,36 @@ class Review:
         def rnd(row) -> str:
             return hashlib.sha1(f"{seed}:{row['key']}".encode()).hexdigest()
 
-        flagged = sorted((r for r in rows if sev(r)[0] > 0), key=lambda r: (-sev(r)[0], -sev(r)[1], rnd(r)))
-        boring = sorted((r for r in rows if sev(r)[0] == 0), key=rnd)
-        out, bi = [], 0
+        def last_talk(row) -> str:
+            st = states[row["key"]]
+            ats = [c["at"] for c in st.comments] + ([st.verdict["at"]] if st.state == "question" else [])
+            return max(ats, default="")
+
+        discussed = [r for r in rows if states[r["key"]].state != "correct"
+                     and (states[r["key"]].comments or states[r["key"]].state == "question")]
+        talked = {r["key"] for r in discussed}
+        discussed.sort(key=last_talk, reverse=True)
+        rest = [r for r in rows if r["key"] not in talked]
+        flagged = sorted((r for r in rest if sev(r)[0] > 0), key=lambda r: (-sev(r)[0], -sev(r)[1], rnd(r)))
+        sample = strata.spread([r for r in rest if sev(r)[0] == 0], label, order, rnd)
+        out, si = list(discussed), 0
         for i, r in enumerate(flagged):
-            if i and i % (boring_every - 1) == 0 and bi < len(boring):
-                out.append(boring[bi])
-                bi += 1
+            if i and i % (mix_every - 1) == 0 and si < len(sample):
+                out.append(sample[si])
+                si += 1
             out.append(r)
-        out.extend(boring[bi:])
+        out.extend(sample[si:])
         return [(r, states[r["key"]]) for r in out]
+
+    def spread_groups(self, rule_id: str) -> tuple[str, dict[str, str], list[str]]:
+        """strata.groups for this rule's rows: (grouped by, row key → group, group order). Fixed per snapshot."""
+        cache = self.snap._spread
+        if rule_id not in cache:
+            snap = self.snap
+            kind = snap.rules[rule_id]["kind"]
+            on_page = Counter(o["page_stem"] for o in snap.occurrences.values()) if kind == "page" else None
+            cache[rule_id] = strata.groups(kind, snap.rows(rule_id), on_page)
+        return cache[rule_id]
 
 
 def _overlaps(a: str, b: str) -> bool:
