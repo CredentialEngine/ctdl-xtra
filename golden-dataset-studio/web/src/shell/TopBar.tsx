@@ -16,7 +16,7 @@ export function TopBar({ catalog, tab, onTour }: { catalog: CatalogDetail | null
           <path d="m3 12 9 4.5 9-4.5" stroke="#8a6d12" strokeWidth="1.8" strokeLinejoin="round" />
           <path d="m3 16.5 9 4.5 9-4.5" stroke="#8a6d12" strokeWidth="1.8" strokeLinejoin="round" opacity=".55" />
         </svg>
-        <span className="brand-name">Golden Dataset Studio</span><span className="brand-tag">CTDL</span>
+        <span className="brand-name">Golden Dataset Studio</span>
       </a>
       <nav className="crumbs" data-tour="crumbs">
         {catalog && (
