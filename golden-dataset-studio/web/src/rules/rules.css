@@ -46,3 +46,11 @@
 /* key hints in the footer */
 .key-hints { display: inline-flex; gap: 2px 8px; align-items: center; flex-wrap: wrap; }
 .key-hints kbd { margin-left: 6px; }
+/* Rule head: the title keeps room for its CTDL term; when the buttons (or "Approved by … · Reopen") don't fit
+   beside it, they wrap below it instead of overlapping it. */
+.w4-rules .rule-head .rh-top { flex-wrap: wrap; row-gap: 8px; }
+.w4-rules .rule-head .rh-title { flex: 1 1 15em; min-width: min(15em, 100%); }
+.w4-rules .rule-head .rh-title .term { display: inline-flex; align-items: center; gap: 4px; max-width: 100%; }
+.w4-rules .rule-head .rh-top > .btn, .w4-rules .rule-head .rh-top > .approved-by { flex: none; }
+.w4-rules .rule-head .approved-by .ab-who { max-width: 24em; text-align: right; white-space: normal; }
+.w4-rules .rule-head .rh-top > .approved-by { margin-left: auto; }
