@@ -1,0 +1,46 @@
+[project]
+name = "golden-dataset-studio"
+version = "0.1.0"
+description = "CTDL Golden Dataset Studio: rule-centric review that builds golden datasets of CTDL Courses"
+requires-python = ">=3.12"
+dependencies = [
+  "fastapi>=0.115",
+  "uvicorn>=0.30",
+  "lxml>=5.0",
+  "cssselect>=1.2",
+  "beautifulsoup4>=4.12",
+  "pyarrow>=17",
+  "duckdb>=1.1",
+  "httpx>=0.27",
+  "azure-storage-blob>=12.19",
+]
+
+[dependency-groups]
+dev = ["pytest>=8", "ruff>=0.6"]
+
+[project.scripts]
+golden-datasets = "golden_datasets.cli:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/golden_datasets"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+  "slow: end-to-end tests on real catalog data from the local mirror",
+  "azure: tests that need Azurite or the Azure scratch prefix",
+]
+addopts = "-m 'not slow and not azure'"
+
+[tool.ruff]
+line-length = 110
+src = ["src"]
+exclude = ["docs"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP"]
+ignore = ["E501", "B905"]

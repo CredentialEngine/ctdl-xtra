@@ -1,0 +1,1071 @@
+# S — Spec: CTDL Golden Dataset Studio
+
+Phase 3 of QRSPI. This is the specification for **CTDL Golden Dataset Studio** ("the Studio"), the rule-centric
+successor to review-ui-v2. It's based on [`01-questions.md`](01-questions.md) (Eric's answers),
+[`02-research.md`](02-research.md) (facts and Eric's review of them), and a working prototype whose screenshots and
+example data appear below.
+
+- Written: 2026-10-26
+- Status: **draft for Eric's review.** Nothing here is built yet, apart from the throwaway prototype used for the
+  screenshots.
+- Visual companion: https://claude.ai/artifact/Nco7wuYZyHK9kMDyyzfor8. It combines the playable review flow, the
+  concept map at four zoom levels, the dependency budget, the files, the screens and the order of work.
+
+---
+
+## 0. Why rules, not records
+
+**The problem.** Today Jared reviews a sample of about 20–30 records, page by page, and each verdict improves one
+record. So the golden dataset we get is about as big as the sample. For example, his AVC review in v2 covered 14 of
+AVC's ~1,075 courses. That's a low yield for the limited time of our only domain expert.
+
+**What a golden dataset is.** A golden dataset is **scoped to one institution's catalog** and has two properties:
+
+1. **Complete:** every record (course) in that institution's catalog is in it.
+2. **Correct:** every in-scope field of every record in it is right.
+
+**Golden Dataset Studio is our answer.** It spends Jared's attention on **rules**, not records. Each verdict he gives
+is evidence about a rule, and a fixed rule fixes every record it applies to, across the whole catalog. On AVC, five of
+his verdicts led to one rule change that corrected 278 descriptions.
+
+We refine the rules **together with Jared** in a very fast feedback loop:
+1. he annotates;
+2. Claude Code proposes a new rule version;
+3. it is rerun over the whole catalog in seconds;
+4. he compares the two versions, and approves the rule or annotates again.
+
+When every rule is approved, the full extraction is the golden dataset.
+
+**Why the name leaves out "xtra".** The name deliberately doesn't mention xtra. The rules made in the Studio have
+nothing to do with how the final xtra pipeline will work. They're a means to an end: a way to build golden datasets
+for a few specific institutions. They aren't expected to generalize to other institutions, and we may throw them all
+away. xtra-cli, by contrast, is meant to work for every institution.
+
+**Why it's a new major version, not v2 with changes.** review-ui-v2 is **record-centric**: you review a page's
+records and accept or reject values. In v2, iterating on rules was not straightforward:
+- the export for Claude was hidden;
+- publishing overwrote the ruleset, so there was no history and no diff;
+- a fix's effect outside the sample was invisible.
+
+The Studio is **rule-centric**. Iterating on a rule with Claude Code and inspecting the results across the whole
+catalog is the central design concept.
+
+## 1. What the Studio is for
+
+A domain expert (Jared) and a developer (Eric) build a **golden dataset** of CTDL Courses for **one catalog**. They
+do it by improving **rules**, not by editing data:
+
+1. a ruleset is run over every saved page of the catalog;
+2. Jared reviews the results one rule at a time, starting with the rows most likely to be wrong;
+3. he marks rows **correct / wrong / missing / question** and points at the right text on the page;
+4. the Studio turns those annotations into a prompt;
+5. Claude Code, on Eric's laptop, writes a new rule version and checks it against the annotations;
+6. Claude publishes it, and the Studio reruns it and shows what changed;
+7. when every rule is **approved**, the extraction becomes the golden dataset.
+
+**Extracted values are immutable and disposable. Rules are what changes.**
+
+### 1.1 In scope
+
+- The five catalogs: **AVC** (eLumen), **CCSF** (CurricUNET), **Marshall**, **UALR**, **WVU**.
+- **Course** only, and only the **minimum required fields** for the Course resource type: the seven properties the
+  CTDL template marks as required, plus Coded Notation, because it identifies each course (§4.4):
+  - Learning Opportunity Name (`ceterms:name`)
+  - Description (`ceterms:description`)
+  - External Identifier (`ceterms:identifier`)
+  - Subject Webpage (`ceterms:subjectWebpage`)
+  - Learning Type (no CTDL term)
+  - Life Cycle Status Type (`ceterms:lifeCycleStatusType`)
+  - Language (`ceterms:inLanguage`)
+  - Coded Notation (`ceterms:codedNotation`), which isn't required but is the course's key
+- Running locally against **a local folder** or **an Azure prefix**, with the same code and the same layout (I3).
+- Importing Jared's existing v2 verdicts.
+
+### 1.2 Out of scope
+
+Much of this work is throwaway: it exists to build golden datasets and to test whether rule-centric review works.
+So anything that only matters for a production system is left out. Each item says what we do instead.
+
+- **Changes to xtra-cli, including its crawler.**
+  - Instead, we write our own tools: the Golden Dataset Studio UI and the `golden-datasets` CLI.
+  - xtra-cli is meant for production and for every institution. The Studio's rules are not.
+- **Login and auth.**
+  - Instead, a "Reviewing as [name ▾]" dropdown gives each annotation an author.
+  - It's throwaway work, so it isn't worth securing. It runs behind ngrok basic auth, as v2 does.
+- **Deploying to Azure.**
+  - We may do this eventually. To find out whether the UI is any good, we serve it from a laptop.
+- **Requisites, credit units, and resource types other than Course.**
+  - We test the idea on the minimum required Course fields only (listed in §1.1).
+- **Running Claude from the UI.**
+  - We don't build a runtime for Claude. The UI makes generating the prompt easy, and a developer runs it in Claude
+    Code on their laptop.
+- **Changing v2.**
+  - If the Studio works out, v2 will probably be deleted.
+  - v2's speed fixes were a separate work stream, done in their own Superset workspace (branch
+    `review-ui-v2-speed-fixes`).
+
+### 1.3 Boundaries
+
+Two words are used precisely across the boundary:
+- **import** means reading something the Studio doesn't own, without changing it;
+- **publish** means writing.
+
+The parts, and what crosses between them:
+
+- **xtra-cli (not ours).** Its crawl writes `<catalog>/<crawl>/pages/*.html`, `*.meta.json` and `crawl.json`. The
+  Studio imports these (read-only).
+- **The Studio (ours)** is the `golden-datasets` CLI and the Studio UI. The CLI runs on a laptop. The UI is served from
+  a laptop, over ngrok. Both read and publish (write) to one storage root: a local folder or
+  `azure://…/xtra-cli-output[/prefix]`.
+- **The golden sets container (shared).** The Studio publishes (writes) domain-only output to
+  `xtra-golden-sets-verified`, in the format that container already uses (§5.6).
+- **Claude Code (laptop)** uses the `golden-datasets` CLI only, never the UI or the storage directly.
+- **People** (Jared, Eric) use the UI. Either of them can copy a prompt from it.
+
+```
+┌──────────────── xtra-cli (not ours) ─────────────────────────────────┐
+│ crawl → <catalog>/<crawl>/pages/*.html + *.meta.json + crawl.json     │
+└───────────────────────────────────────────────────────────────────────┘
+                 │ import (read-only)
+┌────────────────▼───────── CTDL Golden Dataset Studio ─────────────────┐
+│ golden-datasets CLI (laptop)        Studio UI (laptop, over ngrok)     │
+│        └──────── both import from and publish (write) to ──────┘       │
+│ storage root = local folder  OR  azure://…/xtra-cli-output[/prefix]    │
+└──────────────────────────────┬────────────────────────────────────────┘
+                               │ publish (write) domain-only output
+                 ┌─────────────▼─────────────┐
+                 │ xtra-golden-sets-verified  │  existing format + location
+                 └────────────────────────────┘
+Claude Code (laptop) ── uses the golden-datasets CLI only
+```
+
+---
+
+## 2. Vocabulary
+
+These are the only nouns the UI, CLI, files and this spec use. Each one is defined once here.
+
+| Term | Meaning | Example | Lives in |
+|---|---|---|---|
+| **Catalog** | One institution's online course catalog | `ccsf-curricunet-com-catalog` | folder name |
+| **Crawl** | One snapshot of a catalog's saved pages, made by xtra-cli | `2026-10-01T16-02-34Z` | `<catalog>/<crawl>/` |
+| **Page** | One saved HTML page in a crawl | stem `3f9a…` = "Administration of Justice" department page | `pages/<stem>.html` |
+| **Asset** | A CSS, font, image or JS file a page references, archived once by content hash | `a1b2….css` | `assets/` |
+| **Rule** | A named, declarative instruction. Three kinds: **page rule**, **record locator**, **field rule** | `course-code` | `rules/<rule_id>/` |
+| **Page rule** | Decides whether a page contains courses (today's label rules) | "URL has `/Department/` and the page has `.course-summary-wrapper`" | |
+| **Record locator** | Decides where each course starts and ends on a page (today's `repeat`) | "each `div.course-summary-wrapper` is one course" | |
+| **Field rule** | Decides where one property is inside one course | "Coded Notation = text before ` - ` in the title row" | |
+| **Rule version** | An immutable snapshot of a rule: definition + **what / how / why** prose + examples. *What* says what the rule finds on the page, in page terms, and never defines the field. *How* says how it finds it. *Why* says why this version is better than the last | `course-code` v3 | `rules/<rule_id>/v0003.json` |
+| **Ruleset version** | An immutable list of rule versions + catalog settings. Every publish makes one | CCSF ruleset v7 | `rulesets/v0007.json` |
+| **Extraction** | The output of running one ruleset version over one crawl. Immutable | CCSF crawl × ruleset v7 | `extractions/rs-0007/` |
+| **Occurrence** | One course block found on one page by a record locator | `3f9a…@html>body>…>div.course-summary-wrapper:nth-of-type(4)` | `occurrences.parquet` |
+| **Course** | Every occurrence that shares a normalized course code. **The unit users see** | `ADMJ51` | derived |
+| **Match** | One rule's result on one occurrence (or page): a value, or "empty", or "no match" | `course-code` on occurrence … = `ADMJ 51` | `matches.parquet` |
+| **Signal** | A deterministic reason to look at a match: empty, shape outlier, changed since accepted, … | `shape-outlier` | `signals.parquet` |
+| **Annotation** | A person's verdict on a match, occurrence, page or rule, appended to a log, never edited | Jared: `wrong`, expected "ADMJ 51", note | `annotations.jsonl` |
+| **Verdict** | `correct` · `wrong` · `missing` (record locators and page rules only) · `question` (a comment marked "question for the institution"). A plain comment is a separate `comment` event with no verdict | | annotation field |
+| **Rule status** | `in review` · `needs work` · `approved`, for one rule version | ✓ approved | derived from annotations |
+| **Comparison** | Two ruleset versions (or two versions of one rule) on the same crawl | v6 → v7 | derived |
+| **Prompt** | Deterministic text built from annotations, for Claude Code | | generated, copied |
+| **Golden publication** | The domain-only dataset, plus a lineage table that traces each value back to its rule | `pub-2026-11-03-ccsf-v9` | §5.6 |
+
+Words the Studio deliberately does **not** use: "review session" (annotations aren't grouped into sessions),
+"accept/reject" (replaced by verdicts), "label" (replaced by "page rule"), "record" (ambiguous: use course or
+occurrence).
+
+---
+
+## 3. Workflow
+
+### 3.1 The loop
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor J as Jared
+    participant UI as Studio UI
+    participant S as Storage root
+    actor E as Eric
+    participant C as Claude Code
+    participant G as golden-datasets CLI
+
+    J->>UI: Rules tab → pick a rule (rows ordered by signals)
+    J->>UI: Verdicts + highlight expected text + notes
+    UI->>S: append annotations.jsonl
+    J->>UI: Prompt → one rule / all rules needing work → Copy
+    J-->>E: hand over the prompt (or Eric copies it from the UI himself)
+    E->>C: run prompt
+    C->>G: golden-datasets rule show / annotations / pages get
+    G->>S: read rules, annotations, pages (cached locally)
+    loop until better
+        C->>C: edit draft (definition + what/how/why)
+        C->>G: golden-datasets rule try draft.json
+        G-->>C: scorecard (fixed / still wrong / newly wrong, signals)
+    end
+    C->>G: golden-datasets rule publish draft.json
+    G->>S: new rule version + ruleset version + extraction (immutable)
+    UI->>S: manifest changed → new version listed
+    J->>UI: Compare v(n-1) → v(n): his past verdicts first
+    J->>UI: Approve rule, or annotate again
+```
+
+Jared doesn't have to be the one who copies the prompt. Eric can open the UI and copy it himself whenever he wants
+to iterate on a rule.
+
+### 3.2 First-time setup for a catalog
+
+1. `golden-datasets init --catalog ccsf` reads the crawl and writes `pages.parquet`.
+2. `golden-datasets assets fetch` archives the CSS, fonts and images.
+3. `golden-datasets import-v2` converts v2's `rules.json` into rule versions (v1, with the locator pulled out, D2) and makes
+   ruleset v1. It also converts v2 decisions into annotations.
+4. `golden-datasets extract` produces extraction `rs-0001`.
+
+---
+
+## 4. Data model
+
+The storage is **files only**:
+- **Parquet** for anything with more than a few hundred rows;
+- **JSON** for small definitions;
+- **JSONL** for the append-only log.
+
+There's no database file. DuckDB is used **only as an in-process query library** over those files, in the server, the
+CLI, and for exploring by hand (Eric's review of R2). Relational integrity is a requirement. Every foreign key below is
+checked by `golden-datasets check`, and by `extract` and `publish` before they write anything.
+
+### 4.1 Entities and keys
+
+```
+catalog 1─* crawl 1─* page 1─* page_asset *─1 asset
+catalog 1─* rule 1─* rule_version *─* ruleset_version   (via ruleset_version.rules[])
+crawl 1─* extraction *─1 ruleset_version               (normally one per ruleset version)
+extraction 1─* page_label      (page rule × page)
+extraction 1─* occurrence      (record locator × page)       ← course_key lives here
+extraction 1─* match           (field rule × occurrence)
+extraction 1─* signal          (on a match, occurrence or page; value/cross-row/page signals only)
+catalog 1─* event              (annotations.jsonl: verdict · approve · reopen; append-only)
+extraction 1─* golden_publication 1─* lineage
+```
+
+| Table (file) | Primary key | Foreign keys | Written by | Mutable? |
+|---|---|---|---|---|
+| `manifest.json` | — | indexes every path below. Nothing is found by listing | every writer (ETag) | yes (small index) |
+| `rules/<rule_id>/v<NNNN>.json` | `(catalog, rule_id, version)` | `depends_on[]` → rule ids in every ruleset that lists it | `rule publish` / `import-v2` | **no** |
+| `rulesets/v<NNNN>.json` | `(catalog, version)` | `rules[] → (rule_id, version, content_hash)`; `parent_version` | `rule publish` | **no** |
+| `pages.parquet` | `(crawl, page_stem)` | `html_path` → saved page file | `init` | no |
+| `assets/page_assets.parquet` | `(crawl, page_stem, url)` | → pages, → assets | `assets fetch` | append-only |
+| `assets/assets.parquet` | `(crawl, url)` | `sha256` → `assets/files/<sha256>` (also fonts referenced from CSS) | `assets fetch` | append-only |
+| `extractions/<id>/extraction.json` | `extraction` (e.g. `rs-0002`; a re-extraction of the same ruleset gets `rs-0002-b`) | → ruleset version, `parent_extraction`; `files{}` with row counts + sha256 | `extract` | **no** |
+| `…/page_labels.parquet` | `(extraction, page_stem, rule_id)` | → pages, → page-rule version in that ruleset | `extract` | **no** |
+| `…/occurrences.parquet` | `(extraction, occurrence_key)` | → pages, → locator version, page rule matched that page | `extract` | **no** |
+| `…/matches.parquet` | `(extraction, rule_id, occurrence_key, value_index)` | → occurrence, → field-rule version, rule's locator = occurrence's locator | `extract` | **no** |
+| `…/signals.parquet` | `(extraction, target_kind, rule_id, occurrence_key, value_index, page_stem, css_path, char_start, signal)`, nullable parts (the location is set only for page-text signals such as `uncovered-code`) | → match / occurrence / page | `extract` | **no** |
+| `annotations.jsonl` | `annotation_id` | → crawl, `(rule_id, rule_version_seen)`, occurrence/match of `extraction_seen`, page, `supersedes` | UI, `import-v2` | **append-only** |
+| `golden/<pub>/lineage.parquet` | `(publication, golden_id, page_stem, property, value_index)` | → match (same value), → annotations | `golden publish` | **no** |
+
+`extraction` isn't stored inside the rows; the folder implies it. That keeps rows that were copied from a parent
+extraction **row-identical** to the parent's. `golden-datasets check` verifies this with `EXCEPT` in both directions.
+
+### 4.2 Keys that cross versions
+
+- **`occurrence_key`** = `<page_stem>@<locator css_path from the document root>`. Rerunning a *field* rule never changes
+  it. A changed *record locator* can change it. Annotations then re-attach through `course_key`, and the UI marks
+  them "re-attached" (D3). Document-root paths are long (AVC: 9 steps, ~200 characters), so:
+  - occurrences store the full path;
+  - matches store `css_path` **relative to their occurrence**;
+  - the UI and the prompt show short labels and resolve paths only when needed.
+
+  Checked in Chromium: 202 of 202 occurrence paths and 652 of 652 match paths resolve on 60 AVC pages.
+- **`course_key`** = the normalized code (spaces removed, upper case). It's stored **only on occurrences**, and
+  matches get it through a join. It's `null` when there's no code. It's what users see and search by. It isn't unique
+  (Marshall and WVU have ~190 codes covering different entries, and WVU lists 88% of its courses on 2+ pages), so it's
+  a grouping key, not a primary key.
+- **Character offsets** are positions in the element's DOM `textContent`. That's what highlight capture produces in
+  the browser. The prototype's v2-style offsets matched the browser for 606 of 652 values. Using `textContent`
+  everywhere removes the mismatch, and the UI still falls back to a text search.
+- **A comparison** joins two extractions' matches on `(rule_id, occurrence_key)`, falling back to `(rule_id,
+  course_key)`. Rows that can't be matched either way are listed as "new" or "vanished" (D9).
+- **`golden_id`** = `course_key`, when every full occurrence with that code has the same name. Otherwise it's
+  `course_key~<n>`, one per distinct name, and the Golden screen lists these for Jared to confirm. AVC, CCSF and UALR
+  have none. Marshall and WVU have ~190.
+
+### 4.3 Rule versions and ruleset versions
+
+- Publishing **always** creates a ruleset version (D11). Changing one rule reuses every other rule version unchanged.
+  So "iterate on one rule" and "publish a batch" are the same operation.
+- **`content_hash`** is computed over the rule's **own** `definition`. It is the rule's identity. It decides the
+  version number and what an approval refers to. `golden-datasets` assigns `version`, never a person or Claude. Publishing an
+  unchanged hash is a no-op. Hashing the dependencies too, as an earlier draft did, re-versioned rules nobody touched
+  and lost their approvals.
+- **`input_hash`**, per rule, per extraction (in `extraction.json`), is computed over the definition, its
+  dependencies' definitions, and `content_root`. It decides **what to rerun**: rules whose `input_hash` is unchanged
+  are copied from the parent extraction. A changed page rule or record locator therefore reruns everything beneath
+  it. A changed field rule reruns only itself. The code rule doesn't need rerunning, because `course_key` lives on
+  occurrences.
+- **Settings-only changes**, such as `pane_css` or signal thresholds, make a new ruleset version with every rule
+  unchanged. Rules are copied, and only the signals are recomputed.
+- **The log's event types:**
+  - `verdict` (correct / wrong / missing / question);
+  - `comment` (a note with no verdict);
+  - `approve`;
+  - `reopen` (undoes an approve);
+  - targets of kind `match`, `occurrence`, `page` (with `rule_id`, or `null` for a page-level question) and `rule`;
+  - machine authors (`golden-datasets import-v2`) are allowed.
+- **Wrong vs missing:**
+  - `wrong` + `expected` is for a field rule's row whose value is wrong. That includes an empty value when the page
+    has one.
+  - `missing` is only for record locators and page rules: a course on a page that no occurrence covers, or a page
+    holding courses that no page rule recognized.
+  - `question` is stored for a comment with "question for the institution" ticked: something only the institution
+    can answer, not Jared. A plain comment is a `comment` event.
+
+  An edit is a new event that `supersedes` the old one.
+- **Rule status** (derived):
+  - `approved` when the latest `approve` / `reopen` for that rule version is `approve`;
+  - otherwise `needs work` when there are open `wrong` / `missing` verdicts;
+  - otherwise `in review`.
+
+  A new version starts at `in review`. Its old verdicts carry forward through the comparison. Constant and URL rules
+  are approved on import.
+
+### 4.4 Fields in scope
+
+| Property | CTDL term | Rule kind in all five catalogs | Starts as |
+|---|---|---|---|
+| Coded Notation | `ceterms:codedNotation` | field (page content). **The key** | in review |
+| External Identifier | `ceterms:identifier` | field, same element as Coded Notation, `remove_spaces` | in review |
+| Learning Opportunity Name | `ceterms:name` | field (page content) | in review |
+| Description | `ceterms:description` | field (page content) | in review |
+| Subject Webpage | `ceterms:subjectWebpage` | page URL | approved |
+| Learning Type | — (no term) | constant `Course` | approved |
+| Life Cycle Status Type | `ceterms:lifeCycleStatusType` | constant `Active` | approved |
+| Language | `ceterms:inLanguage` | constant `English` | approved |
+
+Learning Type has no CTDL term. So the golden output and the lineage are keyed by `property` (the template name), with
+`ctdl_term` as a nullable column.
+
+Plus, per catalog: 1–3 **page rules** and 1–2 **record locators**. AVC imported as 3 page rules (`course-page`,
+`program-page`, `program-page-with-courses`), 2 locators (`locator-course-page`, `locator-program-requirement`) and 12
+field rules (8 for full courses, 4 `stub-*` for courses listed on program pages).
+
+### 4.5 Storage layout
+
+The same layout serves a local folder and an Azure prefix. xtra-cli's crawl is read in place (folders marked
+**read-only**). Everything the Studio writes sits in a `golden-dataset-studio/` folder at three levels: storage root,
+catalog, and crawl. This is the real AVC example built by the prototype:
+
+```text
+<root>/                                   local folder, or azure://…/xtra-cli-output/zz-scratch-review-ui-v3
+├── golden-dataset-studio/
+│   └── manifest.json                       5.8 KB   index of every path below
+└── avc-elumenapp-com-catalog-2026-27-welcome/          ← catalog
+    ├── golden-dataset-studio/                           ← catalog level: rules + human input
+    │   ├── rules/
+    │   │   ├── course-page/v0001.json                    page rule
+    │   │   ├── program-page/v0001.json                   page rule
+    │   │   ├── program-page-with-courses/v0001.json      page rule
+    │   │   ├── locator-course-page/v0001.json            record locator
+    │   │   ├── locator-program-requirement/v0001.json    record locator
+    │   │   ├── course-code/v0001.json                    field rule (the key)
+    │   │   ├── course-description/v0001.json v0002.json  field rule, 2 versions
+    │   │   └── … 10 more field rules (course-*, stub-*)
+    │   ├── rulesets/
+    │   │   ├── v0001.json                      5.3 KB   imported from v2
+    │   │   └── v0002.json                      4.8 KB   course-description → v2
+    │   └── annotations.jsonl                 164 KB   153 events (Jared's v2 verdicts, imported)
+    └── 2026-10-12T20-59-13Z/                             ← crawl (xtra-cli)
+        ├── crawl.json                                    read-only
+        ├── pages/  1,467 × (.html + .meta.json), 3.8 GB  read-only
+        └── golden-dataset-studio/                        ← crawl level: everything derived
+            ├── pages.parquet                 144 KB    1,467 rows
+            ├── assets/
+            │   ├── page_assets.parquet        25 KB    7,335 rows
+            │   ├── assets.parquet              5 KB       18 rows
+            │   └── files/<sha256>             644 KB      18 files (CSS, fonts, icons)
+            ├── extractions/
+            │   ├── rs-0001/                              ruleset v1
+            │   │   ├── extraction.json         1.5 KB
+            │   │   ├── page_labels.parquet      25 KB    4,401 rows
+            │   │   ├── occurrences.parquet      66 KB    3,813 rows
+            │   │   ├── matches.parquet         530 KB   19,500 rows
+            │   │   └── signals.parquet          35 KB    1,366 rows
+            │   └── rs-0002/                              ruleset v2 (2 rules rerun, 15 copied)
+            │       └── … same five files (signals: 1,084 rows)
+            └── golden/
+                └── pub-2026-10-26-avc-rs-0002-example/
+                    ├── publication.json
+                    ├── <page_stem>/<page_stem>.json        one per page, existing golden-set shape
+                    ├── <page_stem>/<page_stem>.html        the page as crawled   → both also written to xtra-golden-sets-verified
+                    └── lineage.parquet                     160 rows
+```
+
+**Size check:** a whole extraction of AVC is **~0.7 MB in five files**. In v2 it was 1,065 record files. Building
+everything from scratch takes ~13 s on Eric's laptop:
+- init: 1.4 s;
+- assets: 3.9 s;
+- extract rs-0001: 3.8 s for 1,467 pages and 17 rules;
+- publish + extract rs-0002: 2.6 s (2 rules rerun on 1,062 pages).
+
+**Boundaries in the layout:**
+- **Inputs** are `crawl.json` and `pages/` (from xtra-cli), and v2's `rules.json` and review folders (imported once).
+- **Human input** is `annotations.jsonl`. It's the only file people change, and they only ever append to it.
+- **Claude's output** is the rule versions plus one ruleset version, and the extraction `golden-datasets` computes from them.
+- **Final output** is the golden publication, written to `xtra-golden-sets-verified` in that container's existing format (§5.6).
+
+---
+
+## 5. Files, with real example data
+
+Every excerpt is real. It was generated from AVC by the prototype ([`prototype/make_example.py`](prototype/make_example.py)).
+All files, with more rows, are in [`prototype/example-data.md`](prototype/example-data.md). The story running through
+them:
+1. Jared marked GEOG222's Description **wrong** because it starts with "Prerequisite: …".
+2. Claude published `course-description` v2.
+3. Extraction `rs-0002` fixed it.
+
+### 5.1 A rule version (`rules/course-description/v0002.json`)
+
+```json
+{
+  "catalog": "avc-elumenapp-com-catalog-2026-27-welcome",
+  "rule_id": "course-description", "version": 2, "parent_version": 1, "kind": "field",
+  "ctdl_property": "ceterms:description", "property_label": "Description",
+  "definition": {
+    "locator": "locator-course-page", "rule_type": "css", "selector": ".introtext", "transforms": ["strip"],
+    "regex": "\\A\\s*(?:(?i:pre-?requisites?|co-?requisites?)\\s*:[^\\n]*?(?:\\.[ \\t]+(?=[A-Z(])|\\n|\\Z)\\s*)*(\\S[\\s\\S]*?)\\s*\\Z",
+    "group": 1
+  },
+  "what": "The intro paragraph(s) under each course's title on a course page, minus any leading 'Prerequisite:' or 'Corequisite:' statement.",
+  "how": "Text of the intro block (.introtext). Skip every leading 'Prerequisite:' or 'Corequisite:' statement … 'Advisory:' and 'Limitation on Enrollment:' lines are kept.",
+  "why": "Jared marked 5 of the 14 descriptions he reviewed wrong (GEOG222, PHYS102, DFST202, AUTO230, ENGR955) because the 'Prerequisite: …' line was included. … A first draft also dropped 'Advisory:' and 'Limitation on Enrollment:' lines; `golden-datasets rule try` showed that changed 4 descriptions Jared had marked correct (ACCT199, AERO199, CFE114, NS922L), so those lines stay until he decides.",
+  "examples": [{"input": "Prerequisite: Completion of DFST 201.\n\nAdvanced study of ASL grammar.",
+                "output": "Advanced study of ASL grammar."}],
+  "depends_on": ["locator-course-page"],
+  "content_hash": "sha256:2a397c7c…",
+  "published_by": "Claude Code (Eric's laptop) via golden-datasets rule publish", "published_at": "2026-10-26T12:00:00Z"
+}
+```
+
+A **record locator**, pulled out of the four `stub-*` rules' identical `repeat` (`rules/locator-program-requirement/v0001.json`):
+
+```json
+{
+  "rule_id": "locator-program-requirement", "version": 1, "kind": "locator",
+  "definition": {"page_rules": ["program-page-with-courses"],
+                 "repeat": "#accordion-program-builder-rules .new-rule",
+                 "repeat_filter": {"selector": ".rule-name", "regex": "^\\s*[A-Za-z]+\\s*[A-Za-z]?\\d+[A-Za-z]*\\s+-\\s+"}},
+  "what": "On a program page, every requirement line that names a course is one course stub.",
+  "how": "Each .new-rule inside #accordion-program-builder-rules is a candidate. Keep it only when its .rule-name text starts with a course code followed by ' - ' …",
+  "depends_on": ["program-page-with-courses"],
+  "imported_from": {"v2_field_rules": ["stub-code", "stub-external-id", "stub-learning-type", "stub-name"], "v2_key": "properties.repeat"}
+}
+```
+
+### 5.2 A ruleset version (`rulesets/v0002.json`, trimmed)
+
+```json
+{
+  "catalog": "avc-elumenapp-com-catalog-2026-27-welcome", "version": 2, "parent_version": 1,
+  "note": "course-description v2: drop leading requisite lines (Jared's 5 'wrong' descriptions).",
+  "settings": {"content_root": "#mainContent", "pane_css": "…reveal accordions…",
+               "signals": {"course_code_pattern": "…", "shape_dominance": 0.5}},
+  "rules": [{"rule_id": "course-page", "version": 1, "content_hash": "sha256:…"},
+            {"rule_id": "course-description", "version": 2, "content_hash": "sha256:2a397c7c…"},
+            "… 15 more"],
+  "changed_rules": ["course-description"]
+}
+```
+
+### 5.3 An extraction (`extractions/rs-0002/extraction.json`, trimmed)
+
+```json
+{
+  "extraction": "rs-0002", "crawl": "2026-10-12T20-59-13Z", "ruleset_version": 2, "parent_extraction": "rs-0001",
+  "rerun_rules": ["course-description"], "rerun_pages": 1062, "copied_from": "rs-0001",
+  "copied_rules": ["course-code", "course-name", "locator-course-page", "… 12 more"],
+  "input_hashes": {"course-description": "sha256:…", "…": "…"},
+  "files": {"matches.parquet": {"rows": 19500, "sha256": "4d35c190…"},
+            "occurrences.parquet": {"rows": 3813, "sha256": "ab942984…"},
+            "page_labels.parquet": {"rows": 4401, "sha256": "1f7e079b…"},
+            "signals.parquet": {"rows": 1084, "sha256": "013f45e9…"}}
+}
+```
+
+### 5.4 Parquet rows
+
+`page_labels.parquet`: one row per page × page rule, matched or not:
+
+| page_stem | rule_id | rule_version | matched | reason |
+|---|---|---|---|---|
+| …course-geog222-c85465e9c2 | course-page | 1 | true | matched |
+| …program-computer-engineering… | course-page | 1 | false | url_mismatch |
+| …program-computer-engineering… | program-page-with-courses | 1 | true | matched |
+
+`occurrences.parquet`, abbreviated. The full GEOG222 key is
+`…course-geog222-c85465e9c2@html > body:nth-of-type(1) > app-root:nth-of-type(1) > app-public:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(2) > main:nth-of-type(1) > div:nth-of-type(4)`:
+
+| occurrence_key | page_rule_id | locator_rule_id | locator_index | course_key |
+|---|---|---|---|---|
+| …geog222…@…main > div:nth-of-type(4) | course-page | locator-course-page | 0 | GEOG222 |
+| …computer-engineering…@…div(2) > div(1) | program-page-with-courses | locator-program-requirement | 0 | MATH150 |
+| …computer-engineering…@…div(3) > div(1) | program-page-with-courses | locator-program-requirement | 1 | MATH150H |
+
+`matches.parquet` (rs-0002, GEOG222). `css_path` is relative to the occurrence:
+
+| rule_id | rule_version | status | value | raw_text | css_path | char_start | char_end |
+|---|---|---|---|---|---|---|---|
+| course-code | 1 | found | GEOG 222 | GEOG 222: | header > h3 | 0 | 9 |
+| course-name | 1 | found | Cartography for Geographic Information Science (GIS) | … | header > h2 | 0 | 52 |
+| course-description | **2** | found | This course provides a general survey of basic… | … | div(1) > div(1) | **70** | 699 |
+| course-lifecycle | 1 | found | Active | Active | ∅ | ∅ | ∅ |
+
+`char_start` 70 is where v2 starts, after the prerequisite line. In rs-0001 it was 0.
+
+`signals.parquet`:
+
+| target_kind | rule_id | course | signal | severity | detail |
+|---|---|---|---|---|---|
+| match | course-description | ABDY113 | contains-label-text | high | value includes the label text 'Prerequisite:' |
+| match | course-code | ARTHC1100 | shape-outlier | medium | shape 'A A9' is 16 of 1062 values; most common 'A 9' |
+| match | course-name | AFAB110 | length-outlier | low | 80 chars; 1st–99th percentile is 9–68 |
+| occurrence | locator-program-requirement | ARTHC1100 | duplicate-occurrence | medium | ARTHC1100 occurs 2× on this page |
+| page | ∅ | (allcourses) | unclassified-page-with-codes | medium | no page rule matched, but the page names 21 course codes |
+
+### 5.5 The annotation log (`annotations.jsonl`, 3 of 153 lines, trimmed)
+
+```jsonl
+{"annotation_id":"an-75aeec940bac","type":"verdict","at":"2026-10-21T20:19:46Z","author":"Jared","crawl":"2026-10-12T20-59-13Z","target":{"kind":"match","rule_id":"course-description","rule_version_seen":1,"extraction_seen":"rs-0001","occurrence_key":"…geog222…@…div:nth-of-type(4)","course_key":"GEOG222","value_index":0,"value_seen":"Prerequisite: Completion of, or concurrent enrollment in, GEOG 205.\n\nThis course provides …"},"verdict":"wrong","expected":{"text":"This course provides a general survey …","css_path":"…div:nth-of-type(4) > div:nth-of-type(1) > div:nth-of-type(1)","char_start":70,"char_end":699,"quote":{"prefix":"ent enrollment in, GEOG 205.\n\n","exact":"This course provides …","suffix":"\n"}},"note":"Prerequisite should be a separate property.","supersedes":null,"imported_from":{"source":"review-ui-v2","session":"2026-10-19T17-27-55Z","decisions":[{"status":"rejected","author":"Jared"},{"status":"missing","author":"Seth"}]}}
+{"annotation_id":"an-48e252fac7e7","type":"verdict","at":"2026-10-22T13:07:46Z","author":"Jared","target":{"kind":"page","rule_id":null,"page_stem":"…program-computer-engineering-as-fall-2026-5a1e6e1354"},"verdict":"question","note":"I have updated the page labels. But properties listed here are all for courses. Should I reject all these properties? Skip this page altogether?"}
+{"annotation_id":"ap-05e602437e48","type":"approve","at":"2026-10-26T12:00:00Z","author":"golden-datasets import-v2","target":{"kind":"rule","rule_id":"course-language","rule_version_seen":1},"note":"Constant / page-URL rule: approved on import."}
+```
+
+**v2 import tally for AVC** (Jared's session: 213 decisions, 21 notes, 8 flags):
+- **153 annotations:** 107 correct, 5 wrong-with-expected (each reject + missing pair joined), 21 + 7 page-rule
+  verdicts, 8 questions for the institution, 5 approve.
+- **Skipped as out of scope:** 52 field decisions, 16 labels and 17 notes.
+
+### 5.6 The golden output and its lineage
+
+The golden output keeps the **existing shape of `xtra-golden-sets-verified`**, so its current readers keep working
+(Eric's decision, §12.1). There's one folder per page, `<page_stem>/<page_stem>.json`, next to `<page_stem>.html`
+(the page as crawled). Each record gains `golden_id`, and each field gains `property` and `location`. It's
+domain-only: **no rule IDs**. GEOG222's file, trimmed:
+
+```json
+[
+  {
+    "golden_id": "GEOG222",
+    "fields": [
+      {"ctdl_property": "ceterms:codedNotation", "property": "Coded Notation", "value": "GEOG 222",
+       "source_url": "https://avc.elumenapp.com/catalog/2026-27/course/geog222",
+       "location": {"css_path": "html > body … > div:nth-of-type(4) > header:nth-of-type(1) > h3:nth-of-type(1)", "char_start": 0, "char_end": 9}},
+      {"ctdl_property": "ceterms:description", "property": "Description",
+       "value": "This course provides a general survey of basic methods used for the presentation of geographic information science (GIS) data and analysis. …",
+       "source_url": "https://avc.elumenapp.com/catalog/2026-27/course/geog222",
+       "location": {"css_path": "html > body … > div:nth-of-type(4) > div:nth-of-type(1) > div:nth-of-type(1)", "char_start": 70, "char_end": 699}},
+      {"ctdl_property": "ceterms:subjectWebpage", "property": "Subject Webpage",
+       "value": "https://avc.elumenapp.com/catalog/2026-27/course/geog222",
+       "source_url": "https://avc.elumenapp.com/catalog/2026-27/course/geog222", "location": null},
+      {"ctdl_property": null, "property": "Learning Type", "value": "Course",
+       "source_url": "https://avc.elumenapp.com/catalog/2026-27/course/geog222", "location": null},
+      "… 4 more fields"
+    ]
+  }
+]
+```
+
+`lineage.parquet` stays in the Studio. It's the association table Eric asked for, so every golden value can be traced
+back to its rule:
+
+| golden_id | page_stem | property | value_index | extraction | rule_id | rule_version | occurrence_key | annotation_ids |
+|---|---|---|---|---|---|---|---|---|
+| GEOG222 | …geog222-c85465e9c2 | Coded Notation | 0 | rs-0002 | course-code | 1 | …geog222…@… | [an-6191f7ba8324] |
+| GEOG222 | …geog222-c85465e9c2 | Description | 0 | rs-0002 | course-description | 2 | …geog222…@… | [an-75aeec940bac] |
+| GEOG222 | …geog222-c85465e9c2 | Learning Type | 0 | rs-0002 | course-learning-type | 1 | …geog222…@… | [an-e65cf5326fb6] |
+
+### 5.7 Relational integrity: `golden-datasets check`
+
+The prototype's checker runs **52 checks in about 0.25 s** on the AVC example. All of them pass. Against a copy with three
+planted faults, it catches all three, failing 5 checks. An excerpt:
+
+```text
+table            kind check                                                                   rows  bad  result
+ruleset_version  FK   rules[] → rule_version (rule_id, version, content_hash)                    2    0  ok
+occurrences      FK   (locator_rule_id, version) → locator in the extraction's ruleset        7626    0  ok
+matches          PK   (extraction, rule_id, occurrence_key, value_index) unique              39000    0  ok
+matches          FK   occurrence_key → occurrences (same extraction)                         39000    0  ok
+matches          CHK  rs-0002: unchanged rules' rows identical to rs-0001                    18438    0  ok
+annotations      FK   occurrence_key → occurrences of extraction_seen, course_key agrees       153    0  ok
+lineage          FK   (extraction, rule_id, occurrence_key, value_index) → matches, same value 160    0  ok
+golden files     CHK  domain-only: no rule ids / occurrence keys / annotation ids               20    0  ok
+52 checks, 0 failed
+```
+
+### 5.8 DuckDB as the query library
+
+Each question the UI asks is one SQL statement over the files. There's no database. The real query behind the
+comparison, which returns 14 rows in 7 ms:
+
+```sql
+WITH ann AS (
+  SELECT target.occurrence_key AS occurrence_key, verdict, expected.text AS expected
+  FROM read_json('<catalog>/golden-dataset-studio/annotations.jsonl')
+  WHERE type = 'verdict' AND target.rule_id = 'course-description')
+SELECT a.verdict, o.course_key, left(v1.value, 38) AS v1, left(v2.value, 38) AS v2,
+       CASE WHEN v1.value = v2.value THEN 'unchanged'
+            WHEN v2.value = a.expected THEN 'fixed'
+            WHEN a.verdict = 'correct' THEN 'newly wrong' ELSE 'still wrong' END AS outcome
+FROM ann a
+JOIN '<crawl>/golden-dataset-studio/extractions/rs-0001/matches.parquet' v1 USING (occurrence_key)
+JOIN '<crawl>/golden-dataset-studio/extractions/rs-0002/matches.parquet' v2 USING (occurrence_key)
+JOIN '<crawl>/golden-dataset-studio/extractions/rs-0002/occurrences.parquet' o USING (occurrence_key)
+WHERE v1.rule_id = 'course-description' AND v2.rule_id = 'course-description';
+```
+
+| verdict | course_key | v1 | v2 | outcome |
+|---|---|---|---|---|
+| wrong | GEOG222 | Prerequisite: Completion of, or concur | This course provides a general survey | fixed |
+| wrong | PHYS102 | Prerequisite: Completion of PHYS 101. | This course is the second part of a tw | fixed |
+| correct | ACCT199 | LIMITATION ON ENROLLMENT: To participa | LIMITATION ON ENROLLMENT: To participa | unchanged |
+| … | | | | 5 fixed · 9 unchanged · 0 newly wrong |
+
+---
+
+
+## 6. CLI: `golden-datasets`
+
+One Python package (`golden-dataset-studio/` in the repo, separate from v2) provides both the CLI and the server.
+Every command takes `--root` (or `GOLDEN_DATASETS_ROOT`):
+- a folder (`~/golden-datasets-data/xtra-cli-output`);
+- or an Azure prefix (`azure://https://ceteststorage.blob.core.windows.net/xtra-cli-output/zz-scratch-review-ui-v3`).
+
+Pages and immutable Parquet files are cached on disk (`~/.cache/golden-datasets`), so the second read of anything costs nothing.
+
+| Group | Command | What it does | Writes |
+|---|---|---|---|
+| Setup | `golden-datasets init --catalog C [--crawl ID]` | Index a crawl's pages into `pages.parquet`, register it in the manifest | pages.parquet, manifest |
+| | `golden-datasets assets fetch --catalog C` | Download each page's CSS, fonts, images and JS once, stored by hash (D7). Never runs JS | assets/ |
+| | `golden-datasets import-v2 --catalog C` | v2 `rules.json` → rule versions v1 (locator pulled out) + ruleset v1. v2 decisions → annotations | rules/, rulesets/, annotations.jsonl |
+| Run | `golden-datasets extract --catalog C [--ruleset N]` | Run a ruleset version over the crawl. Refuses if that extraction exists | extractions/rs-N/ |
+| | `golden-datasets check [--catalog C]` | Validate every primary/foreign key and every hash | — |
+| | `golden-datasets sql "…"` | DuckDB over named views (`pages`, `occurrences`, `matches`, `signals`, `annotations`, `rules`) resolved through the manifest | — |
+| For Claude | `golden-datasets rule list` / `golden-datasets rule show R [--version N]` | Rule definitions, what/how/why, status, fill, signal counts | — |
+| | `golden-datasets rule annotations R [--open]` | Each annotation with the value seen, expected text + location, note, page path | — |
+| | `golden-datasets pages get STEM… [--to DIR]` | Make page files (and their assets) available locally and print their paths | local cache |
+| | `golden-datasets pages sample --rule R [--signal S] [-n 20]` | Page paths where the rule fires, filtered by signal | — |
+| | `golden-datasets rule draft R… > draft.json` | Current versions of one or more rules as an editable draft | — |
+| | `golden-datasets rule try draft.json` | Run the draft over the **whole crawl** on the laptop and print the scorecard. Writes nothing | — |
+| | `golden-datasets rule publish draft.json [--force]` | New rule versions + ruleset version + extraction, uploaded together. Refuses when anything that was `correct` changes, unless `--force` | rules/, rulesets/, extractions/ |
+| Prompt | `golden-datasets prompt --catalog C [--rule R \| --needs-work]` | The same text the UI's **Copy prompt** button gives | — |
+| Golden | `golden-datasets golden publish --catalog C --to ROOT` | Requires every in-scope rule approved. Writes domain-only files to the golden root in its existing format (plus `location` and `golden_id`), lineage to the Studio | golden/ |
+| Local work | `golden-datasets sync --from ROOT --to DIR [--catalog C]` | Copy Studio files and pages between roots (both directions) | target root |
+| | `golden-datasets serve [--port 8000]` | The web UI | annotations.jsonl (via UI) |
+
+**A draft** is one JSON file holding one or more rules. Each has its `definition` plus `what`, `how` and `why`. Claude
+edits the draft; `golden-datasets` assigns versions and hashes. This makes "one rule" and "batch" the same thing (A5.1).
+
+**The scorecard** from `rule try` (and on publish) is the same summary the Compare screen shows:
+
+```
+course-description  v1 → draft
+  annotated rows      12   fixed 5 · still wrong 0 · newly wrong 0 · unchanged 7
+  values changed     214 of 1062 (20%)   new 0 · vanished 0
+  signals            empty 0→0 · contains-label-text 214→0 · length-outlier 9→6
+  verdict            BETTER (fixed > 0, newly wrong = 0)
+```
+
+## 7. The UI
+
+The screenshots are of the **throwaway prototype** (`prototype/ui/`). It runs on the real AVC example data above, and its
+server answers every request with DuckDB queries over those files. Layout, wording and behaviour are part of the
+spec. Pixel details aren't.
+
+**Top bar on every screen:** Studio name, catalog, crawl date, ruleset version, the five tabs, and "Reviewing as
+[name ▾]", and a **Show the tour** button at the top right (§7.8).
+
+| Tab | Job | Default? |
+|---|---|---|
+| **Rules** | Review one rule's results across the whole catalog | **yes** |
+| **Records** | Review one course with all its fields (v2's view, kept) | |
+| **Compare** | Is ruleset/rule version B better than A? | |
+| **Prompt** | Turn annotations into a prompt for Claude Code | |
+| **Golden** | Publish once every rule is approved | |
+
+### 7.1 Catalog picker
+
+![Catalog picker](screens/01-catalog-picker.png)
+
+One card per catalog, laid out the same way on every card:
+- the institution's logo;
+- its name top-left and "N pages saved" top-right;
+- a thin progress bar of approved rules ("5 of 17 rules approved"), the same width and position on every card.
+
+A catalog whose rules haven't been run yet shows an empty bar and "rules not run yet". **Open →** goes to its Rules
+tab. Status comes from the manifest (no listing).
+
+**Who's reviewing:** a "Reviewing as [Jared ▾]" dropdown at the top right. It's a list of names remembered in the
+browser and recorded as each event's `author`. There's no login and no profiles (out of scope), just like v2's
+Seth/Jared switch.
+
+### 7.2 Rules tab (default)
+
+![Rules tab](screens/03-rules-tab-description-v2.png)
+
+The Rules tab is designed for Jared.
+
+**Left column: rules by kind.**
+- Groups: **Page rules**, **Record locators**, **Field rules**.
+- Each rule shows one status icon: green check = approved, red cross = needs work, neutral circle = in review.
+- Status appears only here, not repeated in the header.
+- Each rule shows how many of its rows have been reviewed, as whole numbers: "14 / 1,062 reviewed". How many courses
+  the rule found a value for (its fill rate) is inside "How this rule works".
+
+**Middle column: the selected rule.**
+- **Title:** the CTDL term (`ceterms:description`), linked to its definition, with the plain property name under it.
+- **Buttons:**
+  - **Approve** is greyed out while any course is marked wrong or missing for this rule, with a tooltip saying why.
+    A rule is rejected if even one course is rejected.
+  - **Improve this rule** opens the Prompt tab with this rule selected.
+- **"How this rule works ▸"** (collapsed by default) holds everything about the definition, in plain words: what it
+  finds, how, why this version is better, the selector or regex, the version, the hash and what it depends on.
+- **The current version only.** The Rules tab never shows two versions side by side; differences between versions
+  live in the Compare tab.
+
+**Rows:** one per course, sorted with the likeliest problems first. The ordering comes from signals (§8), but
+signals are never shown as tags: Jared doesn't see or enter them. Annotation happens on the row, with three
+controls:
+- **✓ correct**
+- **✗ wrong.** The row expands inline: "Select the right text on the page →". It shows the captured selection and
+  an optional note. This covers an empty value too: if the rule found nothing but the page has a Description, that's
+  ✗ plus the right text.
+- **comment** (a speech-bubble icon). It opens a short note with a **question for the institution** checkbox. Jared
+  is the domain expert; this is for things only the institution can answer.
+
+Each row shows its verdict and who gave it. **Rows that already have a verdict fade back** (lower opacity, muted
+colour), so the eye goes to the rows still waiting; hovering or focusing one brings it back. Keyboard: `Tab` moves to
+the next row, `A` / `W` record a verdict, `C` comments, `H` starts the text selection. These appear as a single hint
+line.
+
+**"Missing" only exists for the rules that find things.** A field-rule row is a course the record locator already
+found, so nothing on that row can be "missing": an empty value is simply wrong. Something is missing when a whole
+course or page wasn't found:
+- **Record locator** view: its rows are the courses it found on each page. "Add a course this rule missed" lets
+  Jared select a course block on the page that has no row. That's recorded as `missing`.
+- **Page rule** view: its rows are pages. "Add a page this rule missed" records a page that holds courses but wasn't
+  recognized.
+
+**How Jared notices that something is missing.** He can't see what a rule didn't find in a list of what it did find,
+so the page pane shows it:
+- In a record locator's view, every course block the rule found is outlined and numbered.
+- Any text on the page that looks like a course code but sits outside every outlined block is marked in a different
+  style. That's the `uncovered-code` signal (§8), for example "CFE 201 fulfils CORE 8 Requirements" on an AVC program
+  page.
+- A one-line legend says "outlined = found by this rule · marked = looks like a course but wasn't found".
+- Pages with marked text come first in the list.
+- For page rules, the `unclassified-page-with-codes` signal does the same job: pages not recognized as course pages
+  but full of course codes come first.
+
+![Add a missed course](screens/12-locator-add-missed-course.png)
+
+**Right column: the page pane.**
+- The whole saved page, in a browser-like frame: a tab per page in view, the URL, a Page | HTML switch, and "open
+  live".
+- The value for the selected row is highlighted and scrolled into view (§9).
+
+**Highlight to annotate (D5).** Jared selects the right text on the page. The row shows only that text, an optional
+note, and Save / Cancel. Selecting different text replaces it. The `css_path` and offsets are stored, never shown:
+
+![Highlight expected text](screens/04-highlight-to-annotate.png)
+
+**Question for the institution.** A comment with "question for the institution" ticked carries Jared's question. It's left out of the
+prompt's list of rule bugs:
+
+![Question for the institution](screens/05-unsure-needs-expert.png)
+
+**A stub field rule.** Courses listed on a program page, with the program's requirement list revealed by
+`pane_css`:
+
+![Stub name rule](screens/06-rules-tab-stub-name.png)
+
+The screenshot shows the rule after Claude's v2: rows Jared had marked wrong that are now right show **fixed**.
+
+### 7.3 Records tab
+
+One course with every in-scope field as a card, v2-style. The same page pane shows numbered highlights for each
+field. Verdicts made here are the same `verdict` events, targeting (field rule, occurrence), so both tabs show them
+(D6):
+
+![Records tab](screens/07-records-tab.png)
+
+### 7.4 Compare
+
+The top has two dropdowns, **From** and **To** ruleset versions (the latest two by default), and nothing else.
+
+**Left column.** "All changed rules", then each rule that changed between the two versions, by its CTDL term, with a
+count of changed records. Selecting one filters everything on the right.
+
+**Right side, in order:**
+1. **One summary line:** "278 records changed · 5 fixed · 0 still wrong · 0 newly wrong". Zeros are muted inline,
+   not boxed.
+2. **"Why this version ▸"**, collapsed to one line.
+3. **Jared's earlier verdicts**, compact and side by side: old value → new value with a word diff, and the outcome
+   (fixed / still wrong / newly wrong / unchanged). This is Eric's A4.1 ordering.
+4. **Signals, before → after.** Each signal is clickable. It expands into the records that **lost** it (−) and the
+   records that **gained** it (+), each showing old → new with a word diff.
+5. **A sample** of other changed records.
+
+**"See on page →".** Every record in the comparison has this link. It opens the Rules tab with that record selected
+and highlighted on the saved page. Compare has no page pane of its own.
+
+The same numbers are what `golden-datasets rule try` prints.
+
+![Compare](screens/08-compare.png)
+
+Full page: [`screens/08-compare-full.png`](screens/08-compare-full.png)
+
+### 7.5 Prompt
+
+Scope: **one rule** (picker) or **all rules needing work**. The text is deterministic: the same annotations always
+give the same prompt. It contains:
+- the task and its limits;
+- the catalog, crawl, ruleset and storage root;
+- each in-scope rule's definition and what/how/why;
+- every open annotation, with the value seen, expected text + location, note and page path;
+- the values marked correct, which must not change;
+- `golden-datasets` commands for getting more context;
+- the publish rule ("only when nothing correct changes").
+
+There's **no raw HTML**. Pages are referenced by path, resolved against `$GOLDEN_DATASETS_ROOT`. The left side shows size
+(characters, ≈ tokens) and the number of page references. Buttons: **Copy prompt** and **Download .md**.
+
+![Prompt](screens/09-prompt.png)
+
+Full prompt: [`screens/09-prompt-full.png`](screens/09-prompt-full.png)
+
+### 7.6 Golden
+
+Lists each rule version's status. **Publish is disabled until every rule is approved.** The screen shows what will be
+written: the domain-only files to the golden root (existing format, §5.6), and `lineage.parquet` to the Studio. It also lists `golden_id`
+collisions for Jared to confirm (§4.2).
+
+![Golden](screens/10-golden.png)
+
+### 7.7 Page pane: HTML view
+
+The **HTML** switch shows the saved markup around the matched element, with the same numbered highlight. It's for
+cases where the rendered page hides something:
+
+![HTML view](screens/11-page-pane-html-view.png)
+
+### 7.8 The tour
+
+A **Show the tour** button sits at the top right of every screen, as in the v1 mockup. That mockup's version is
+`~/repos/xtra-mockup/viewer/src/Tour.tsx`, also on branch `docs/mockup-human-inputs`; reuse its approach.
+- **How it works.** Each step lights up one area of the real screen and puts a short card beside it. Where it helps,
+  the step *does* the action on real data, as the reader would: selecting a row, highlighting the value on the page,
+  opening "How this rule works". Leaving the step undoes it. `Esc` closes the tour.
+- **When it opens.** Automatically the first time someone opens a catalog in this browser (remembered locally).
+  After that, only from the button.
+- **Steps**, in order:
+  1. the rule list and its status icons (approved, needs work, in review), and "14 / 1,062 reviewed";
+  2. the rows, sorted with the likeliest problems first;
+  3. ✓ and ✗ on a row, and selecting the right text on the page;
+  4. the comment bubble and "question for the institution";
+  5. the page pane: highlight, Page | HTML, open live;
+  6. in a record locator's view, outlined courses, marked text, and "Add a course this rule missed";
+  7. **Improve this rule**, which opens the Prompt tab;
+  8. **Compare** after a new version: Jared's earlier verdicts first, and "See on page";
+  9. **Approve**, and why it's greyed out while any course is wrong.
+
+## 8. Uncertainty signals
+
+A signal is a named, deterministic check (no LLM) that gives `(signal, severity, detail)` for a match, an occurrence
+or a page. **Signals are computed, never entered by people, and never shown to Jared as tags.** They decide the order
+of rows in the Rules tab, and their counts appear in Compare and in `golden-datasets rule try`, so a developer can see
+whether a new version made things better.
+- **Value and comparison signals** are computed at extract time into `signals.parquet`.
+- **History signals** are computed when read, because they depend on annotations and on the version being compared.
+
+The rule view orders rows by severity, then signal count, then a seeded random sample of rows with no signals, so a
+reviewer always sees some "boring" rows. The comparison is the same view sorted by history signals (A4.1). Thresholds
+(for example the catalog's course-code pattern) live in the ruleset `settings.signals`.
+
+| Signal | Applies to | Severity | First release? |
+|---|---|---|---|
+| `empty` / `no-match` | field rule | high | ✓ |
+| `shape-outlier`: value shape (`A`=letter, `9`=digit) is rare for this rule | field rule | medium | ✓ |
+| `length-outlier`: outside the 1st–99th percentile | field rule | low | ✓ |
+| `contains-label-text`: starts with "Description:", "Prerequisite", "Units" … | field rule | medium | ✓ |
+| `duplicate-value`: two different courses share a Description or Name | field rule | low | ✓ |
+| `duplicate-occurrence`: same `course_key` twice on one page | record locator | high | ✓ |
+| `block-count-mismatch`: candidate blocks on the page ≠ occurrences found | record locator | high | ✓ |
+| `uncovered-code`: course-code pattern on the page outside every occurrence ("possible missed course") | record locator | high | ✓ |
+| `unclassified-page-with-codes`: a non-course page with many code patterns ("possible missed page") | page rule | medium | ✓ |
+| `previously-wrong` / `previously-correct` / `changed-since-correct` | any | high | ✓ (history) |
+| `new-in-version` / `vanished-in-version` | any | medium | ✓ (history) |
+| `cross-field-mismatch`, `markup-leak`, `not-in-vocabulary` | field rule | low | later |
+
+What the prototype learned on AVC (rs-0001 → rs-0002):
+- **`contains-label-text` is the most useful signal.** It went from 547 to 273. It also surfaced 174 "Advisory:" and
+  199 "Limitation on Enrollment:" lines that Jared hadn't seen.
+- **`shape-outlier` needs a dominance test.** Applied naively to course names, it flagged 296 of them. It now runs only
+  when the rule's most common shape covers ≥ 50% of values (`settings.signals.shape_dominance`), which is true for codes
+  but not names.
+- **`unclassified-page-with-codes` fires on 129 AVC pages,** most of them legitimate lists (`allcourses`, department
+  indexes, AP/CLEP tables). It needs a per-catalog allow-list (`settings.signals.page_allow`) to be useful.
+- **History signals are computed when read, never stored.** They depend on the mutable log and on which two versions
+  are being compared.
+
+## 9. Page rendering
+
+All of this was measured in the research (`research/rendering.md`).
+
+- **What's shown:** the **whole saved page**. Scripts and inline handlers are removed. Every stylesheet and `<style>`
+  is kept *wherever it is* (AVC's theme is inside `<body>`).
+- **How it's served:** in an iframe sandboxed with `allow-same-origin` only, from the Studio's own URL, with CSP
+  `script-src 'none'`. It's laid out at desktop width and scaled to fit.
+- **The frame:** it imitates the v1 mockup: a tab per page, a Page | HTML switch, and coloured highlights with
+  numbered badges.
+- **Where CSS, fonts and images come from:** the archive written by `golden-datasets assets fetch`, with URLs rewritten to
+  `/assets/<sha256>`. If something isn't archived, the live URL is used. Storing licensed fonts is fine because they
+  aren't redistributed (Eric).
+- **Highlighting:** `element_css_path` is relative to the document root, so it resolves directly. The parent page adds
+  a highlight class and scrolls to it.
+- **Highlight-to-annotate:** the parent reads `iframe.contentWindow.getSelection()` (same origin, page scripts
+  blocked) and stores `{text, css_path of the nearest element, char_start, char_end, prefix, suffix}` as the
+  annotation's `expected`.
+- **Fallback for JavaScript-dependent content.** It's not needed for the five catalogs, because the saved HTML is the
+  rendered page. In order:
+  1. a per-catalog `pane_css` that reveals hidden content;
+  2. a link to the crawled page that holds the content;
+  3. the live page in a new tab.
+
+## 10. Performance budget
+
+The research showed every v2 delay comes from serial storage round trips. The Studio's rules:
+- **no container listing at run time** (the manifest says where everything is);
+- **immutable files are read once and cached on disk**;
+- **the annotation log is read incrementally** (remember the byte offset);
+- **pages are fetched when shown, and the next few rows' pages are prefetched** (Eric's suggestion).
+
+| Action | Budget (Azure scratch, cold server) | Budget (warm) |
+|---|---|---|
+| Open the catalog, rule list shown | ≤ 2 s | ≤ 300 ms |
+| Switch rule (rows shown) | ≤ 500 ms | ≤ 150 ms |
+| Next row (page pane updated) | ≤ 1 s | ≤ 100 ms (prefetched) |
+| Record a verdict | ≤ 300 ms | ≤ 300 ms |
+| Open Compare (two extractions) | ≤ 2 s | ≤ 300 ms |
+| `golden-datasets rule try` on WVU (largest) | ≤ 30 s on a laptop | |
+| `golden-datasets rule publish` upload | ≤ 15 s (a few Parquet files) | |
+
+These budgets are acceptance criteria. Each work stream that touches the hot paths measures them with a script in
+`golden-dataset-studio/bench/`.
+
+## 11. Sequence of work
+
+### 11.1 Work streams
+
+| ID | Work stream | Depends on | Parallel with |
+|---|---|---|---|
+| **V2** | v2 speed fixes. Already running in its own Superset workspace (`review-ui-v2-speed-fixes`) | — | everything |
+| **W0** | Storage layer: local / `azure://` root, disk cache, manifest with ETag, append-only log, `golden-datasets sync` | — | W1 |
+| **W1** | Page pane: whole-page renderer, `golden-datasets assets fetch`, browser frame, highlight + selection capture | W0 (reads pages) | W2, W3 |
+| **W2** | Data model + engine: rule/ruleset versions, `extract` → Parquet (root-relative paths, memoized `css_path`), rerun scope, `golden-datasets check`, `import-v2` | W0 | W1 |
+| **W3** | Signals (value + comparison at extract, history when read) | W2 schema | W1 |
+| **W4** | UI: catalog picker, Rules tab, annotation bar, Records tab | W2, W1, W3 | W5 |
+| **W5** | Compare (UI + scorecard library shared with `rule try`) | W2, W3 | W4 |
+| **W6** | Claude loop: `golden-datasets rule show/annotations/draft/try/publish`, `pages get/sample`, prompt generator (CLI + UI button) | W2, W5 (scorecard) | W4 |
+| **W7** | Golden publication + lineage | W2 | late |
+
+### 11.2 Order
+
+```
+week-ish:   1            2            3            4            5
+V2   ████████████ (separate workspace)
+W0   ██████
+W1         ████████████████
+W2         ████████████████
+W3                     ██████
+W4                          ████████████████
+W5                          ██████████
+W6                                ████████████
+W7                                            ██████
+           ▲ M1          ▲ M2        ▲ M3          ▲ M4
+```
+
+*Weeks only show order and overlap. Eric asked for no dates.*
+
+- **M1, data in place:** `golden-datasets sync`, `init`, `import-v2`, `extract`, `check` work for AVC. `golden-datasets sql` answers "every value
+  of rule X".
+- **M2, thin slice:** the Rules tab shows one rule (`course-description`) on AVC with the full page pane. Annotations
+  are recorded.
+- **M3, the loop closes:** prompt → Claude → `rule try` → `publish` → Compare shows v1 → v2 for the real "prerequisite
+  in Description" problem.
+- **M4, all five catalogs, every in-scope rule, golden publication.**
+
+What can be **parallel**: V2 with everything. W1 with W2 (they only share W0's storage interface). W4 with W5 and W6
+once W2 and W3 have fixed the schema. What's **inherently sequential**: W0 → W2 → W3 → (W4, W5) → W6 → W7, because each
+needs the previous one's files.
+
+### 11.3 How to run the parallel streams
+
+Each stream gets its own Superset workspace and branch (as V2 does), with a bounded prompt that points at this spec.
+The schema in §4–5 is the contract between W1, W2 and W4–W6. Changing it means changing this spec first.
+
+## 12. Decisions and open questions
+
+### 12.1 Decided (Eric, 2026-10-26)
+
+- **Package location:** a top-level `golden-dataset-studio/` folder in the repo, next to `review-ui-v2/`.
+- **Who may approve a rule:** anyone using the UI. The Studio isn't exposed widely, so there's no role check. Every
+  approve event records its author, and the UI shows who approved.
+- **Golden output format:** keep the existing shape of `xtra-golden-sets-verified`, so its current readers keep
+  working, and add `location` to each field and `golden_id` to each record (§5.6).
+- **A v2 reject and its correction by different people** (GEOG222: Jared rejected the value, Seth typed the correct
+  text): the `wrong` verdict's author is the person who rejected it (Jared), and `expected.author` is the person who
+  typed the text (Seth).
+
+### 12.2 Questions for Jared
+
+Both come from his real AVC review in v2, which the prototype imported. Each is written so it can be forwarded to him
+as is.
+
+**Q1. "Course" on program pages.** In v2, AVC program pages (for example *Computer Engineering AS*) showed a page
+label **Course**. v2 meant "this page *lists* courses", because a program's requirements name courses such as MATH150
+and CS150, and v2 extracts those as short course entries. On 7 program pages Jared rejected that "Course" label and
+added Credential or Competency instead. On one of them he also left a flag: *"Properties listed here are all for
+courses. Should I reject all these properties? Skip this page altogether?"*
+
+> *Question for Jared:* When you rejected "Course" on those program pages, did you mean (a) "this page is a program,
+> not a course", or (b) "the courses listed on this page shouldn't be extracted"?
+>
+> If (a), the rule is fine. v2's label wording was misleading, and the Studio fixes that by calling the rule "program
+> page with courses". If (b), the Studio should stop extracting course entries from program pages.
+
+**Until he answers:** the import counts the 7 rejections as **wrong** on the page rule `program-page-with-courses`.
+So that rule shows *needs work*, possibly for a reason that isn't real.
+
+**Q2. "Advisory:" and "Limitation on Enrollment:" lines in AVC descriptions.** Many AVC course descriptions start with
+one or more short lines before the description itself:
+
+| Kind of line | Example (real) | AVC courses |
+|---|---|---|
+| Prerequisite (or Corequisite) | "Prerequisite: Completion of, or concurrent enrollment in, GEOG 205." | 278 (the ones v2 changed) |
+| Advisory | "Advisory: Intermediate computer skills are recommended." | 174 |
+| Limitation on Enrollment | "LIMITATION ON ENROLLMENT: To participate in Cooperative Work Experience, students must…" | 199 |
+
+Jared marked 5 descriptions wrong because they started with a **Prerequisite** line ("Prerequisite should be a
+separate property"). So `course-description` v2 removes Prerequisite lines. But he marked 4 descriptions **correct**
+that start with an Advisory or Limitation line (ACCT199, AERO199, CFE114, NS922L). So v2 keeps those lines, and 138
+descriptions still contain a Prerequisite that comes after one of them.
+
+> *Question for Jared:* Should Advisory and Limitation on Enrollment lines be part of a course's Description, or
+> removed like Prerequisite lines?
+>
+> Either answer is a one-rule change: v3 of `course-description`.
+
+### 12.3 Follow-ups
+
+- **UALR needs a recrawl.** Most UALR courses are only short entries from program pages, because its course pages
+  weren't crawled. Recrawling is xtra-cli's job (outside the Studio). Until it's done, UALR's golden set will be mostly
+  name + code.
