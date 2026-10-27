@@ -6,19 +6,24 @@ from .errors import UserError
 
 CATALOGS = {
     "avc-elumenapp-com-catalog-2026-27-welcome": {
-        "short": "avc", "name": "AVC", "institution": "Antelope Valley College", "platform": "eLumen",
+        "short": "avc", "course_code_pattern": r"\b[A-Z]{2,5} ?\d{3}[A-Z]?\b",
+        "name": "AVC", "institution": "Antelope Valley College", "platform": "eLumen",
         "logo": "avc.png"},
     "ccsf-curricunet-com-catalog": {
-        "short": "ccsf", "name": "CCSF", "institution": "City College of San Francisco", "platform": "CurricUNET",
+        "short": "ccsf", "course_code_pattern": r"\b[A-Z]{2,5} \d{1,3}[A-Z]{0,2}\b",
+        "name": "CCSF", "institution": "City College of San Francisco", "platform": "CurricUNET",
         "logo": "ccsf.svg"},
     "catalog-marshall-edu": {
-        "short": "marshall", "name": "Marshall", "institution": "Marshall University", "platform": "CourseLeaf",
+        "short": "marshall", "course_code_pattern": r"\b[A-Z]{2,4} \d{3}[A-Z]?\b",
+        "name": "Marshall", "institution": "Marshall University", "platform": "CourseLeaf",
         "logo": "marshall.svg"},
     "catalog-ualr-edu": {
-        "short": "ualr", "name": "UALR", "institution": "University of Arkansas at Little Rock", "platform": "Acalog",
+        "short": "ualr", "course_code_pattern": r"\b[A-Z]{2,5} \d{4,5}\b",
+        "name": "UALR", "institution": "University of Arkansas at Little Rock", "platform": "Acalog",
         "logo": "ualr.svg"},
     "catalog-wvu-edu": {
-        "short": "wvu", "name": "WVU", "institution": "West Virginia University", "platform": "CourseLeaf",
+        "short": "wvu", "course_code_pattern": r"\b[A-Z]{2,4} \d{3}[A-Z]?\b",
+        "name": "WVU", "institution": "West Virginia University", "platform": "CourseLeaf",
         "logo": "wvu.png"},
 }
 
