@@ -64,6 +64,20 @@ golden-datasets golden publish -c avc --to <golden root>   # existing xtra-golde
 golden-datasets sql -c avc "SELECT rule_id, count(*) FROM matches_latest WHERE status <> 'found' GROUP BY 1"
 ```
 
+## Evals: score xtra-cli against the golden set (docs/qrspi/evals)
+
+The Studio runs xtra-cli (at a pinned commit) into its own folder and scores the run with xtra's own scorer, against
+the hand-checked values and against the whole golden version. The team's `records/` and reports aren't touched.
+
+```sh
+export GOLDEN_DATASETS_XTRA_SOURCE=~/review-ui-v3-data/xtra-cli-output   # where xtra reads the crawl and discovery
+golden-datasets xtra run --import                      # the team's records/ as run x-NNNN
+golden-datasets xtra run --sample --ref <branch> --then-eval rs-0003
+golden-datasets eval run --xtra-run x-0001 --golden published|verified|rs-NNNN
+golden-datasets eval show
+golden-datasets serve --allow-runs                     # the Evals tab may start runs and evals
+```
+
 ## Develop
 
 ```sh

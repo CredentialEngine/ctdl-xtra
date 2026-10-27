@@ -218,3 +218,44 @@ export interface CompareRecords {
   records: (BriefRow & { rule_id: string; tags: StrataTag[] })[];
   sample: SampleInfo;
 }
+
+// --- Evals (docs/qrspi/evals) -----------------------------------------------------------------------------
+export type EvalOutcome = "exact" | "partial" | "wrong" | "missing";
+export interface XtraRun {
+  id: string; kind: "extract" | "import"; ref?: string; commit?: string; scope: string; source: string;
+  discovery_run_id?: string; records_written?: number; started_at: string; finished_at: string; by: string; commands: string[];
+}
+export interface EvalKindSummary {
+  pages: number; left_out: { stem: string; why: string }[]; fields_total?: number; exact_match_rate?: number | null;
+  outcomes?: Record<string, number>;
+}
+export interface EvalDoc {
+  id: string; xtra_run: string; xtra_commit?: string; scorer_commit: string; created_at: string; by: string; commands: string[];
+  golden: { golden: string; publication?: string; extraction?: string; from?: string; approved: boolean };
+  summary: Record<"hand" | "full", EvalKindSummary>;
+}
+export interface GoldenOption { id: string; label: string; approved: boolean }
+export interface EvalJob {
+  id: string; kind: string; label: string; status: "running" | "done" | "failed" | "cancelled"; error: string | null;
+  result: { run?: string; eval?: string } | null; started: number; finished: number | null; log: string[];
+}
+export interface EvalsIndex {
+  runs: XtraRun[]; evals: EvalDoc[]; goldens: GoldenOption[]; default_ref: string; allow_runs: boolean; jobs: EvalJob[];
+}
+export interface PropertyOutcomes { property: string; fields: number; exact: number; partial: number; wrong: number; missing: number }
+export interface EvalRow {
+  page_stem: string; entity: number; golden_record_id: string | null; record_approval: string | null; courses_on_page: number;
+  property: string; ctdl_property: string; golden_value: string | null; xtra_value: string | null; outcome: EvalOutcome;
+  similarity: number | null; page_status: string; approval: string | null; approved_by: string | null; approved_at: string | null;
+  template_id: string | null; source_url: string | null;
+}
+export interface EvalView {
+  eval: EvalDoc; golden: "hand" | "full"; filters: Record<string, string[]>;
+  goldens: Record<"hand" | "full", { fields: number; exact_match_rate: number | null; by_property: PropertyOutcomes[]; unfiltered_fields: number }>;
+  histogram: { lo: number; hi: number; partial: number; wrong: number }[];
+  dims: { id: string; label: string; selected: string[]; buckets: { bucket: string; n: number }[] }[];
+  heatmap: { dim: string; label: string; properties: string[]; base: Record<string, number>;
+             rows: { bucket: string; n: number; bad: number; cells: Record<string, { n: number; bad: number }> }[] };
+  disagree: { dim: string; dim_label: string; bucket: string; property: string; n: number; bad: number; rate: number; base: number; excess: number }[];
+  rows: { total: number; offset: number; items: EvalRow[] };
+}

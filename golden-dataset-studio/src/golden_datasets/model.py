@@ -76,6 +76,15 @@ LINEAGE = pa.schema([
     ("match_value_index", pa.int32()), ("annotation_ids", pa.list_(pa.string())),
     ("approval", pa.string()), ("approved_by", pa.string()), ("approved_at", pa.string()),
 ])
+# One row per golden field of an eval (evals.py): the golden value, xtra's value, and the scorer's outcome.
+EVAL_FIELDS = pa.schema([
+    ("eval", pa.string()), ("golden", pa.string()), ("page_stem", pa.string()), ("entity", pa.int32()),
+    ("golden_record_id", pa.string()), ("record_approval", pa.string()), ("courses_on_page", pa.int32()),
+    ("property", pa.string()), ("ctdl_property", pa.string()), ("value_index", pa.int32()),
+    ("golden_value", pa.string()), ("xtra_value", pa.string()), ("outcome", pa.string()), ("similarity", pa.float64()),
+    ("page_status", pa.string()), ("approval", pa.string()), ("approved_by", pa.string()), ("approved_at", pa.string()),
+    ("template_id", pa.string()), ("source_url", pa.string()),
+])
 TABLE_SCHEMAS = {"page_labels": PAGE_LABELS, "occurrences": OCCURRENCES, "matches": MATCHES, "signals": SIGNALS}
 TABLE_SORT = {
     "page_labels": ("page_stem", "rule_id"),

@@ -23,12 +23,14 @@ ROUTERS = [
     "golden_datasets.server.routes_prompt",   # W6: prompt text
     "golden_datasets.server.routes_golden",   # W7: golden publication
     "golden_datasets.server.routes_files",    # storage files: a debugging view of what the Studio keeps
+    "golden_datasets.server.routes_evals",    # Evals: xtra runs, evals, jobs (docs/qrspi/evals)
 ]
 
 
-def create_app(root: str, azure_root: str | None = None) -> FastAPI:
+def create_app(root: str, azure_root: str | None = None, allow_runs: bool = False) -> FastAPI:
     app = FastAPI(title="CTDL Golden Rules Studio")
     app.state.studio = Studio(root, azure_root)
+    app.state.allow_runs = allow_runs  # the Evals tab may start xtra runs and evals
     app.add_middleware(GZipMiddleware, minimum_size=2048)  # rows, compare and rendered pages compress ~5-20x
 
     @app.get("/api/health")
@@ -58,5 +60,5 @@ def create_app(root: str, azure_root: str | None = None) -> FastAPI:
 def cmd_serve(args) -> int:
     import uvicorn
 
-    uvicorn.run(create_app(args.root, args.azure_root), host=args.host, port=args.port, log_level="info")
+    uvicorn.run(create_app(args.root, args.azure_root, getattr(args, "allow_runs", False)), host=args.host, port=args.port, log_level="info")
     return 0

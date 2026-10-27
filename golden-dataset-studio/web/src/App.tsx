@@ -3,6 +3,7 @@ import { api } from "./api/client";
 import type { CatalogDetail } from "./api/types";
 import CatalogPicker from "./catalogs/CatalogPicker";
 import CompareTab from "./compare/CompareTab";
+import EvalsTab from "./evals/EvalsTab";
 import GoldenTab from "./golden/GoldenTab";
 import PromptTab from "./prompt/PromptTab";
 import RecordsTab from "./records/RecordsTab";
@@ -36,7 +37,8 @@ export default function App() {
   else {
     const props = { catalog, route, reload: load };
     body = { rules: <RulesTab {...props} />, records: <RecordsTab {...props} />, compare: <CompareTab {...props} />,
-             prompt: <PromptTab {...props} />, publish: <GoldenTab {...props} /> }[route.tab];
+             prompt: <PromptTab {...props} />, publish: <GoldenTab {...props} />,
+             evals: <EvalsTab {...props} /> }[route.tab];
   }
   return (
     <KeysContext.Provider value={setKeys}>

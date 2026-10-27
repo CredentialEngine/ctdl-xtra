@@ -3,8 +3,8 @@
 //           #/c/avc/compare?a=1&b=2&rule=course-description · #/c/avc/prompt?rule=… · #/c/avc/publish
 import { useEffect, useState } from "react";
 
-export type Tab = "rules" | "records" | "compare" | "prompt" | "publish";
-export const TABS: Tab[] = ["rules", "records", "compare", "prompt", "publish"];
+export type Tab = "rules" | "records" | "compare" | "prompt" | "publish" | "evals";
+export const TABS: Tab[] = ["rules", "records", "compare", "prompt", "publish", "evals"];
 /** Old tab names still open the right tab (the Golden tab is now Publish). */
 const RENAMED: Record<string, Tab> = { golden: "publish" };
 

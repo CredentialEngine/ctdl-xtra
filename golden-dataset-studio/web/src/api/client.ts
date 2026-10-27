@@ -1,5 +1,6 @@
 // Thin fetch wrappers for the Studio API. Every tab uses these; they keep URLs in one place.
 import type {
+  EvalJob, EvalsIndex, EvalView,
   CatalogCard, CatalogDetail, CompareRecords, CompareResponse, Discussion, CourseDetail, CourseHit, GoldenFileText, GoldenLineage, GoldenResponse,
   NewEvent, Overlay,
   PromptResponse, PromptTarget, RuleDetail, RuleSummary, RulesResponse, RowsResponse, UnclassifiedPage,
@@ -73,4 +74,16 @@ export const api = {
     call<{ publication: string; path: string; files: number }>(`${c(catalog)}/golden/publish`, {
       method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
     }),
+  evals: (catalog: string) => call<EvalsIndex>(`${c(catalog)}/evals`),
+  evalView: (catalog: string, id: string, o: { golden: string; f: string[]; dim: string; offset?: number; limit?: number }) => {
+    const s = new URLSearchParams({ golden: o.golden, dim: o.dim, offset: String(o.offset ?? 0), limit: String(o.limit ?? 50) });
+    o.f.forEach((x) => s.append("f", x));
+    return call<EvalView>(`${c(catalog)}/evals/${encodeURIComponent(id)}?${s}`);
+  },
+  startXtraRun: (catalog: string, body: { ref?: string; sample?: boolean; import?: boolean; then_eval?: string | null; by: string }) =>
+    call<EvalJob>(`${c(catalog)}/xtra-runs`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }),
+  startEval: (catalog: string, body: { xtra_run: string; golden: string; by: string }) =>
+    call<EvalJob>(`${c(catalog)}/evals`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }),
+  job: (id: string) => call<EvalJob>(`/api/jobs/${encodeURIComponent(id)}`),
+  cancelJob: (id: string) => call<EvalJob>(`/api/jobs/${encodeURIComponent(id)}/cancel`, { method: "POST" }),
 };
