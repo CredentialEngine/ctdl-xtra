@@ -6,7 +6,9 @@ import { parseRoute } from "../shell/router";
 import type { CompareResponseX } from "./types";
 
 const compareMock = vi.fn();
-vi.mock("../api/client", () => ({ api: { compare: (...args: unknown[]) => compareMock(...args) } }));
+const recordsMock = vi.fn();
+vi.mock("../api/client", () => ({ api: { compare: (...args: unknown[]) => compareMock(...args),
+                                         compareRecords: (...args: unknown[]) => recordsMock(...args) } }));
 import CompareTab from "./CompareTab";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -43,6 +45,22 @@ const RESPONSE: CompareResponseX = {
   }],
 };
 
+const SAMPLE = (f: string[], order: string) => ({ order, seed: 0, total: 273, listed: f.length ? 268 : 273, cell_count: 2,
+  cross: order === "auto" ? ["lead_a"] : [], tag_dims: order === "auto" ? ["lead_a"] : f.map((x) => x.split(":")[0]),
+  cells: [{ buckets: { lead_a: "none" }, rows: 5 }, { buckets: { lead_a: "Prerequisite:" }, rows: 268 }],
+  histograms: [
+    { id: "lead_a", label: "Leading label in A", help: "", uniform: false, spread: 0.5,
+      buckets: [{ id: "Prerequisite:", count: 268, on: f.length > 0 }, { id: "none", count: 5, on: false }] },
+    { id: "url", label: "URL pattern", help: "", uniform: true, spread: 0, buckets: [{ id: "/catalog/9-9/course/*", count: 273, on: false }] },
+  ] });
+const records = (offset: number, limit: number, f: string[], order: string) => {
+  const total = f.length ? 268 : 273;
+  return { total, all: 273, offset, limit, sample: SAMPLE(f, order),
+    records: Array.from({ length: Math.min(limit, total - offset) }, (_, i) =>
+      ({ ...brief(`AUTO${offset + i}`, "Prerequisite: X. Theory", "Theory"), rule_id: "course-description",
+         tags: order === "auto" || f.length ? [{ dim: "lead_a", label: "Leading label in A", bucket: "Prerequisite:" }] : [] })) };
+};
+
 const CATALOG = { catalog: "avc-elumenapp-com-catalog-2026-27", short: "avc", name: "AVC" } as CatalogDetail;
 
 let host: HTMLDivElement, root: Root;
@@ -51,6 +69,8 @@ afterEach(() => { act(() => root.unmount()); host.remove(); compareMock.mockRese
 
 async function render(hash: string, resp: CompareResponseX = RESPONSE) {
   compareMock.mockResolvedValue(resp);
+  recordsMock.mockReset().mockImplementation(async (_c: string, o: { offset: number; limit: number; f: string[]; order: string }) =>
+    records(o.offset, o.limit, o.f, o.order));
   await act(async () => {
     root.render(<CompareTab catalog={CATALOG} route={parseRoute(hash)} reload={() => {}} />);
   });
@@ -94,7 +114,43 @@ describe("CompareTab", () => {
     const drill = host.querySelector(".sigdrill")!;
     expect(drill.textContent).toContain("− 274 lost it (first 1)");
     expect(drill.querySelector(".ck")!.textContent).toBe("CS120");
-    expect(host.textContent).toContain("Sample of other changed records 1 of 273, random");
+  });
+
+  it("pages through every other changed record, 50 at a time by default", async () => {
+    await render("#/c/avc/compare");
+    expect(recordsMock).toHaveBeenLastCalledWith("avc", { a: 1, b: 2, rule: undefined, offset: 0, limit: 50, order: "shuffle", f: [], seed: 0 });
+    expect(host.textContent).toContain("Other changed records 273, in random order");
+    expect(host.querySelectorAll(".clist")[1].querySelectorAll(".crec").length).toBe(50);
+    expect(host.querySelector("[data-testid=pager]")!.textContent).toContain("1–50 of 273");
+    const next = [...host.querySelectorAll<HTMLButtonElement>("[data-testid=pager] button")].find((b) => b.textContent === "Next →")!;
+    await act(async () => next.click());
+    expect(recordsMock).toHaveBeenLastCalledWith("avc", expect.objectContaining({ offset: 50, limit: 50 }));
+    const per = host.querySelector<HTMLSelectElement>("select[aria-label='Per page']")!;
+    await act(async () => { per.value = "500"; per.dispatchEvent(new Event("change", { bubbles: true })); });
+    expect(recordsMock).toHaveBeenLastCalledWith("avc", expect.objectContaining({ offset: 0, limit: 500 }));
+    expect(host.querySelector("[data-testid=pager]")!.textContent).toContain("1–273 of 273");
+    try { localStorage.removeItem("studio.compare.pageSize"); } catch { /* jsdom */ }
+  });
+
+  it("samples by autostratify with tags, filters by a bar in manual select, and reshuffles", async () => {
+    await render("#/c/avc/compare");
+    const mode = (name: string) => [...host.querySelectorAll<HTMLButtonElement>(".sm-modes button")].find((b) => b.textContent === name)!;
+    await act(async () => mode("Autostratify").click());
+    expect(recordsMock).toHaveBeenLastCalledWith("avc", expect.objectContaining({ order: "auto", offset: 0 }));
+    expect(host.querySelector("[data-testid=auto-panel]")!.textContent).toContain("Leading label in A: 2 combinations");
+    expect(host.querySelector(".sm-tag")!.textContent).toBe("Leading label in A Prerequisite:");
+    await act(async () => mode("Manual select").click());
+    const bars = host.querySelectorAll<HTMLButtonElement>("[data-testid=sample-bars] .sm-bar");
+    expect([...bars].map((b) => b.querySelector(".sm-c")!.textContent)).toEqual(["268", "5"]); // one bar: how many records
+    expect(host.querySelector("[data-testid=manual-panel]")!.textContent).toContain("Same for every record: URL pattern");
+    await act(async () => bars[0].click());
+    expect(recordsMock).toHaveBeenLastCalledWith("avc", expect.objectContaining({ order: "shuffle", f: ["lead_a:Prerequisite:"] }));
+    expect(host.textContent).toContain("Other changed records 268 of 273");
+    expect(host.querySelector(".sm-chip")!.textContent).toContain("Leading label in A: Prerequisite:");
+    await act(async () => mode("Shuffle").click());
+    const re = [...host.querySelectorAll<HTMLButtonElement>(".sample button")].find((b) => b.textContent === "Reshuffle")!;
+    await act(async () => re.click());
+    expect(recordsMock).toHaveBeenLastCalledWith("avc", expect.objectContaining({ order: "shuffle", seed: 1 }));
   });
 
   it("keeps From / To and the selected rule in the URL", async () => {

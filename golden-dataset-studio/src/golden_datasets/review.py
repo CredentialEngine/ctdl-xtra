@@ -23,7 +23,7 @@ import re
 from collections import Counter, defaultdict
 from dataclasses import dataclass, field
 
-from . import layout, model, strata
+from . import facets, layout, model, strata
 from .context import Ctx
 from .log import AnnotationLog
 from .signals import SEVERITY_RANK
@@ -177,6 +177,7 @@ class Review:
         superseded = {e["supersedes"] for e in events if e.get("supersedes")}
         self.live = [e for e in events if e["annotation_id"] not in superseded]
         self._states: dict[str, dict] = {}  # rule_id → row states of snap.rows(rule_id) (events are fixed per Review)
+        self._facets: dict[str, list[dict]] = {}  # rule_id → facets.dimensions(...), see Review.facet_dims
 
     # -- verdicts on rows ------------------------------------------------------------------------------
     def _target_key(self, e: dict) -> tuple:
@@ -199,6 +200,29 @@ class Review:
             elif e["type"] == "comment":
                 comments[k].append(e)
         return {"latest": latest, "comments": comments}
+
+    def reviewed_elsewhere(self, rule_id: str, rows: list[dict], states: dict[str, RowState]) -> dict[str, list[str]]:
+        """Rows of this rule nobody has reviewed yet (no verdict, no comment) whose record someone reviewed in
+        another rule: row key → those rules. A record matches by its course, or by its page (page-rule verdicts)."""
+        by_course: dict[str, set[str]] = defaultdict(set)
+        by_page: dict[str, set[str]] = defaultdict(set)
+        for e in self.live:
+            t = e["target"]
+            if e["type"] not in ("verdict", "comment") or not t.get("rule_id") or t["rule_id"] == rule_id:
+                continue
+            if t.get("course_key"):
+                by_course[t["course_key"]].add(t["rule_id"])
+            elif t.get("page_stem"):
+                by_page[t["page_stem"]].add(t["rule_id"])
+        out = {}
+        for r in rows:
+            st = states[r["key"]]
+            if st.state is not None or st.comments:
+                continue
+            other = by_course.get(r.get("course_key") or "", set()) | by_page.get(r["page_stem"], set())
+            if other:
+                out[r["key"]] = sorted(other)
+        return out
 
     def row_states(self, rule_id: str, rows: list[dict]) -> dict[str, RowState]:
         if rows is self.snap.rows(rule_id):
@@ -350,6 +374,20 @@ class Review:
             out.append(r)
         out.extend(sample[si:])
         return [(r, states[r["key"]]) for r in out]
+
+    def facet_dims(self, rule_id: str) -> list[dict]:
+        """facets.dimensions over this rule's rows, review states included. Fixed per Review."""
+        if rule_id not in self._facets:
+            snap = self.snap
+            kind = snap.rules[rule_id]["kind"]
+            rows = snap.rows(rule_id)
+            states = self.row_states(rule_id, rows)
+            on_page = Counter(o["page_stem"] for o in snap.occurrences.values()) if kind != "field" else None
+            items = [facets.item(r, snap.page[r["page_stem"]]["url"], state=states[r["key"]].state,
+                                 **({"on_page": on_page.get(r["page_stem"], 0)} if on_page is not None else {}))
+                     for r in rows]
+            self._facets[rule_id] = facets.dimensions(kind, items)
+        return self._facets[rule_id]
 
     def spread_groups(self, rule_id: str) -> tuple[str, dict[str, str], list[str]]:
         """strata.groups for this rule's rows: (grouped by, row key → group, group order). Fixed per snapshot."""

@@ -1,12 +1,14 @@
 // Compare (spec §7.4, screens 08-compare*): is ruleset version B better than A?
 // Top: From / To only. Left: the rules that changed. Right: summary line, why, Jared's earlier verdicts, signals
-// before → after (expandable into the records that lost / gained them), a sample of other changed records.
+// before → after (expandable into the records that lost / gained them), then every other changed record, paged and
+// filterable by strata.
 // Every record links to the Rules tab ("See on page →"); Compare has no page pane.
 import { useEffect, useState, type KeyboardEvent, type ReactNode } from "react";
 import { api } from "../api/client";
-import type { BriefRow, DiffPart } from "../api/types";
+import type { BriefRow, CompareRecords, DiffPart } from "../api/types";
 import { go, href } from "../shell/router";
 import type { TabProps } from "../shell/tabProps";
+import { SampleDrawer, samplePrefs, sampleQuery, StrataTags, type SamplePrefs } from "../shell/Sample";
 import { fmt, Ico, useKeyHints } from "../shell/ui";
 import { compactDiff, delta, outcomeLabel, unchanged } from "./diff";
 import type { AnnotatedRowX, CompareResponseX, RuleCardX, SignalDeltaX } from "./types";
@@ -119,8 +121,6 @@ function Body({ data, short, rule }: { data: CompareResponseX; short: string; ru
   const t = data.totals;
   const verdicts = cards.flatMap((c) => c.annotated_rows.map((r) => ({ r, c })));
   const authors = [...new Set(verdicts.map((v) => v.r.author))];
-  const sampleTotal = cards.reduce((s, c) => s + (c.sample_total ?? c.sample.length), 0);
-  const sample = roundRobin(cards.map((c) => c.sample.map((r) => ({ r, c }))), 12);
   const added = cards.flatMap((c) => c.new_rows.map((r) => ({ r, c })));
   const gone = cards.flatMap((c) => c.vanished_rows.map((r) => ({ r, c })));
   const addedN = cards.reduce((s, c) => s + c.values.new, 0), goneN = cards.reduce((s, c) => s + c.values.vanished, 0);
@@ -163,19 +163,62 @@ function Body({ data, short, rule }: { data: CompareResponseX; short: string; ru
         <div className="clist">{gone.map(({ r, c }) => <RecLine key={c.rule_id + r.key} r={r} card={c} short={short} many={many} />)}</div>
       </>}
 
-      <h2>Sample of other changed records <span className="c">{sample.length} of {fmt(sampleTotal)}, random</span></h2>
-      {sample.length
-        ? <div className="clist">{sample.map(({ r, c }) => <RecLine key={c.rule_id + r.key} r={r} card={c} short={short} many={many} />)}</div>
-        : <p className="muted cmp-none">No other record changed.</p>}
+      <OtherChanged data={data} short={short} rule={rule} many={many} />
     </>
   );
 }
 
-function roundRobin<T>(lists: T[][], n: number): T[] {
-  const out: T[] = [];
-  for (let i = 0; out.length < n && lists.some((l) => i < l.length); i++)
-    for (const l of lists) if (i < l.length && out.length < n) out.push(l[i]);
-  return out;
+export const PAGE_SIZES = [25, 50, 100, 200, 500];
+
+/** Every other changed record, a page at a time, filtered by strata (routes_compare.py `/compare/records`). */
+function OtherChanged({ data, short, rule, many }: { data: CompareResponseX; short: string; rule?: string; many: boolean }) {
+  const [size, setSize] = useState<number>(() => {
+    try { const n = Number(localStorage.getItem("studio.compare.pageSize")); if (PAGE_SIZES.includes(n)) return n; } catch { /* private */ }
+    return 50;
+  });
+  const [offset, setOffset] = useState(0);
+  const [prefs, setPrefs] = useState<SamplePrefs>(() => samplePrefs("shuffle"));
+  const [res, setRes] = useState<CompareRecords | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+  const qKey = JSON.stringify(sampleQuery(prefs, "shuffle"));
+  // another pair of versions or rule: back to the first page, shuffled, unfiltered
+  useEffect(() => { setOffset(0); setPrefs(samplePrefs("shuffle")); }, [short, data.a, data.b, rule]);
+  useEffect(() => {
+    let live = true;
+    api.compareRecords(short, { a: data.a, b: data.b, rule, offset, limit: size, ...JSON.parse(qKey) })
+      .then((r) => { if (live) { setRes(r); setErr(null); } }, (e) => { if (live) setErr(String(e.message ?? e)); });
+    return () => { live = false; };
+  }, [short, data.a, data.b, rule, offset, size, qKey]);
+  const cardOf = (rid: string) => data.rules.find((c) => c.rule_id === rid);
+  const pickSize = (n: number) => { setSize(n); setOffset(0); try { localStorage.setItem("studio.compare.pageSize", String(n)); } catch { /* private */ } };
+  const onPrefs = (p: SamplePrefs) => { setPrefs(p); setOffset(0); };
+  const how = prefs.mode === "auto" ? "autostratified: 3 of each combination, rarest first" : "in random order";
+  const total = res?.total ?? 0;
+  const pager = res && total > 0 && (
+    <div className="cmp-pager" data-testid="pager">
+      <button className="btn" disabled={offset === 0} onClick={() => setOffset(Math.max(0, offset - size))}>← Previous</button>
+      <span>{fmt(offset + 1)}–{fmt(Math.min(total, offset + size))} of {fmt(total)}</span>
+      <button className="btn" disabled={offset + size >= total} onClick={() => setOffset(offset + size)}>Next →</button>
+      <label className="faint">Per page <select aria-label="Per page" value={size} onChange={(e) => pickSize(Number(e.target.value))}>
+        {PAGE_SIZES.map((n) => <option key={n} value={n}>{n}</option>)}</select></label>
+    </div>
+  );
+  return (
+    <>
+      <h2>Other changed records <span className="c">{res ? <>{fmt(total)}{total !== res.all && <> of {fmt(res.all)}</>}, {how}</> : "…"}</span></h2>
+      {err && <p className="cmp-error">{err}</p>}
+      {res && res.all > 0 && <SampleDrawer sample={res.sample} prefs={prefs} onPrefs={onPrefs} modes={["auto", "shuffle", "manual"]}
+        storageKey="studio.compare.sample" />}
+      {pager}
+      {res && (res.records.length
+        ? <div className="clist">{res.records.map((r) => {
+            const c = cardOf(r.rule_id);
+            return c ? <RecLine key={r.rule_id + r.key} r={r} card={c} short={short} many={many}><StrataTags tags={r.tags} /></RecLine> : null;
+          })}</div>
+        : <p className="muted cmp-none">{res.all ? "No changed record is in every stratum you picked." : "No other record changed."}</p>)}
+      {res && res.records.length > 10 && pager}
+    </>
+  );
 }
 
 const Dot = () => <span className="dot">·</span>;

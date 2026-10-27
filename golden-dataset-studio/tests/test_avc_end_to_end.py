@@ -125,3 +125,51 @@ def test_api_rules_rows_compare_and_verdict(ctx):
     approve = c.post("/api/catalogs/avc/annotations", json={
         "type": "approve", "author": "Test", "target": {"kind": "rule", "rule_id": "program-page-with-courses"}})
     assert approve.status_code == 409  # 7 wrong verdicts: Approve is refused
+
+
+@pytest.mark.slow
+def test_api_strata_on_rows_and_compare_records(ctx):
+    from fastapi.testclient import TestClient
+
+    from golden_datasets.server.app import create_app
+
+    c = TestClient(create_app(ctx.root.uri))
+    url = "/api/catalogs/avc/rules/course-description/rows"
+    first = c.get(url, params={"limit": 5}).json()
+    sm = first["sample"]
+    assert sm["total"] == sm["listed"] == 1062 and sm["order"] == "review"
+    by_id = {h["id"]: h for h in sm["histograms"]}
+    assert {"length", "paragraphs", "lead", "subject", "url", "signals", "review"} <= set(by_id)
+    assert by_id["url"]["uniform"]
+    bucket = by_id["length"]["buckets"][0]
+    filtered = c.get(url, params={"limit": 5, "f": f"length:{bucket['id']}"}).json()
+    assert filtered["total"] == bucket["count"] and filtered["rows"][0]["tags"][0]["bucket"] == bucket["id"]
+    auto = c.get(url, params={"limit": 5, "order": "auto"}).json()
+    assert auto["total"] == 1062 and auto["sample"]["cross"] and len(auto["rows"][0]["tags"]) == len(auto["sample"]["cross"])
+    assert c.get(url, params={"offset": 5, "limit": 5}).json()["sample"] is None  # only the first page has it
+    assert c.get(url, params={"order": "nope"}).status_code == 422
+    # a comment on one field puts the course first in another field's list, tagged with where it was reviewed
+    some = c.get("/api/catalogs/avc/rules/course-name/rows", params={"limit": 400}).json()["rows"]
+    target = next(r for r in reversed(some) if r["state"] is None and not r["comments"])
+    desc = next(r for r in c.get(url, params={"q": target["course_key"]}).json()["rows"]
+                if r["course_key"] == target["course_key"])
+    assert c.post("/api/catalogs/avc/annotations", json={
+        "type": "comment", "author": "Test", "note": "looks odd",
+        "target": {"kind": "match", "rule_id": "course-description", "occurrence_key": desc["occurrence_key"]}}).status_code == 200
+    first = c.get("/api/catalogs/avc/rules/course-name/rows", params={"limit": 50, "prior": "true"}).json()
+    n = first["sample"]["elsewhere"]
+    lead = first["rows"][:n]
+    assert n >= 1 and all(r["tags"][-1]["dim"] == "elsewhere" for r in lead)
+    mine = next(r for r in lead if r["course_key"] == target["course_key"])
+    assert mine["tags"][-1] == {"dim": "elsewhere", "label": "Reviewed in", "bucket": "Description"}
+    assert not any(t["dim"] == "elsewhere" for r in first["rows"][n:] for t in r["tags"])
+
+    cmp = c.get("/api/catalogs/avc/compare").json()
+    if cmp["a"] == cmp["b"]:
+        return
+    rec = c.get("/api/catalogs/avc/compare/records", params={"a": cmp["a"], "b": cmp["b"], "limit": 500}).json()
+    others = sum(r["sample_total"] for r in cmp["rules"])
+    assert rec["total"] == rec["all"] == others == len(rec["records"])
+    page2 = c.get("/api/catalogs/avc/compare/records", params={"a": cmp["a"], "b": cmp["b"], "offset": 50}).json()
+    assert page2["limit"] == 50 and page2["records"][0]["key"] == rec["records"][50]["key"]
+    assert rec["sample"]["listed"] == others and rec["sample"]["order"] == "shuffle"

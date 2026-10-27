@@ -90,6 +90,35 @@ async function render(hash = "#/c/avc/rules/course-description?row=GEOG1") {
 }
 
 describe("RulesTab", () => {
+  it("sends the Sample drawer's order and filters to /rows and shows the rows' strata tags", async () => {
+    const sample = { order: "review", seed: 0, total: 3, listed: 3, cross: [], cells: [], tag_dims: [], elsewhere: 2, histograms: [
+      { id: "length", label: "Length", help: "", uniform: false, spread: 0.9,
+        buckets: [{ id: "0–9 chars", count: 2, on: false }, { id: "10–19 chars", count: 1, on: false }] }] };
+    const fetchMock = vi.mocked(fetch);
+    const base = fetchMock.getMockImplementation()!;
+    fetchMock.mockImplementation((url, init) => (String(url).includes("/rows")
+      ? json({ ...rows, sample, rows: rows.rows.map((r) => ({ ...r, tags: [{ dim: "length", label: "Length", bucket: "0–9 chars" }] })) })
+      : base(url as string, init)));
+    await render();
+    const last = () => new URLSearchParams(fetchMock.mock.calls.map((c) => String(c[0])).filter((u) => u.includes("/rows")).pop()!.split("?")[1]);
+    expect(last().get("order")).toBe("review");
+    const mode = (name: string) => [...container.querySelectorAll<HTMLButtonElement>(".sm-modes button")].find((b) => b.textContent === name)!;
+    await act(async () => { mode("Manual select").click(); await new Promise((r) => setTimeout(r, 0)); });
+    const bar = container.querySelector<HTMLButtonElement>("[data-testid=sample-bars] .sm-bar")!;
+    await act(async () => { bar.click(); await new Promise((r) => setTimeout(r, 0)); });
+    expect(last().getAll("f")).toEqual(["length:0–9 chars"]);
+    expect(container.querySelector(".rows-bar")!.textContent).toContain("filtered by strata");
+    expect(container.querySelector(".row .sm-tag")!.textContent).toBe("Length 0–9 chars");
+    await act(async () => { mode("Autostratify").click(); await new Promise((r) => setTimeout(r, 0)); });
+    expect(last().get("order")).toBe("auto");
+    expect(last().get("prior")).toBeNull();
+    const prior = container.querySelector<HTMLInputElement>(".sm-prior input")!;
+    expect(container.querySelector(".sm-prior")!.textContent).toContain("Reviewed in other fields first (2)");
+    await act(async () => { prior.click(); await new Promise((r) => setTimeout(r, 0)); });
+    expect(last().get("prior")).toBe("true");
+    expect(container.querySelector(".rows-bar")!.textContent).toContain("reviewed in other fields first");
+  });
+
   it("shows rules by kind with status icons and reviewed counts", async () => {
     await render();
     const groups = [...container.querySelectorAll(".group-h")].map((g) => g.textContent);
@@ -118,7 +147,7 @@ describe("RulesTab", () => {
     expect(r[2].classList.contains("done")).toBe(true);   // correct: fades back
     expect(r[0].textContent).toContain("Fixed: Jared marked the previous version wrong; this matches the text he selected.");
     expect(container.querySelector(".rows-bar")?.textContent).toBe("3 courses · discussed first, then the likeliest problems, with every 5th row from a spread sample by length (3 groups)");
-    expect(container.querySelector(".row .grp")?.textContent).toBe("0–19 words (percentile 0–33)");
+    expect(container.querySelector(".row .grp, .row .sm-tag")).toBeNull(); // no strata labels unless filtered or autostratified
   });
 
   it("✗ opens the inline expansion; Esc cancels; A records correct and moves on", async () => {

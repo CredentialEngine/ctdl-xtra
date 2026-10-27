@@ -11,9 +11,9 @@ from collections import Counter
 from datetime import UTC, datetime
 from typing import Annotated
 
-from fastapi import APIRouter, Body, HTTPException, Request
+from fastapi import APIRouter, Body, HTTPException, Query, Request
 
-from .. import layout, model
+from .. import facets, layout, model
 from ..catalogs import CATALOGS, info
 from ..errors import UserError
 from ..log import new_id, validate
@@ -234,9 +234,17 @@ def rule(request: Request, catalog: str, rule_id: str, ext: str | None = None) -
 
 @router.get("/catalogs/{catalog}/rules/{rule_id}/rows")
 def rows(request: Request, catalog: str, rule_id: str, ext: str | None = None, offset: int = 0,
-         limit: int = 200, q: str | None = None, focus: str | None = None) -> dict:
+         limit: int = 200, q: str | None = None, focus: str | None = None,
+         f: Annotated[list[str] | None, Query()] = None, order: str = "review",
+         cross: Annotated[list[str] | None, Query()] = None, seed: int = 0, prior: bool = False) -> dict:
     """One page of a rule's rows in review order. `focus` (a row key, occurrence key, course key or page stem)
-    extends the page so it includes that row, and returns its index as `focus_index` (links from Compare)."""
+    extends the page so it includes that row, and returns its index as `focus_index` (links from Compare).
+    The Sample drawer (facets.py): `f` filters by strata (`f=length:0–99 chars`, repeatable); `order` is `review`
+    (the default above), `auto` (Autostratify: one combination of the `cross` strata after another, rarest first;
+    `cross` omitted = the ones that split the rows most evenly) or `shuffle`, both seeded by `seed`. The first page
+    also returns `sample`: the strata histograms, the crossed strata and their combinations. Rows carry `tags`:
+    their bucket in each crossed or filtered stratum. `prior`: rows not reviewed yet whose record was reviewed in
+    another rule come first (tagged "Reviewed in"); `sample.elsewhere` counts them either way."""
     t0 = time.perf_counter()
     rv = _review(request, catalog, ext)
     if rule_id not in rv.snap.rules:
@@ -246,6 +254,23 @@ def rows(request: Request, catalog: str, rule_id: str, ext: str | None = None, o
         ql = q.lower().replace(" ", "")
         ordered = [(r, s) for r, s in ordered if ql in (r.get("course_key") or "").lower()
                    or ql in (r.get("value") or "").lower().replace(" ", "") or ql in r["page_stem"]]
+    filters = facets.parse_filters(f)
+    if order not in facets.ORDERS:
+        raise HTTPException(status_code=422, detail=f"order must be one of {', '.join(facets.ORDERS)}")
+    dims = rv.facet_dims(rule_id)
+    by_key = {r["key"]: (r, s) for r, s in ordered}
+    keys, sample = facets.sample_order(dims, list(by_key), filters, order,
+                                       None if cross is None else [c for c in cross if c], seed)
+    elsewhere = rv.reviewed_elsewhere(rule_id, rv.snap.rows(rule_id), rv.row_states(rule_id, rv.snap.rows(rule_id)))
+    sample["elsewhere"] = sum(1 for k in keys if k in elsewhere)
+    sample["prior"] = prior
+    if prior:
+        keys = [k for k in keys if k in elsewhere] + [k for k in keys if k not in elsewhere]
+    ordered = [by_key[k] for k in keys]
+
+    def rule_name(rid: str) -> str:
+        r = rv.snap.rules.get(rid)
+        return (r and (r.get("property_label") or rule_title(r)[0])) or rid
     focus_index = _find_row(ordered, focus) if focus else None
     if focus_index is not None and focus_index >= offset + limit:
         limit = focus_index - offset + 20
@@ -266,7 +291,11 @@ def rows(request: Request, catalog: str, rule_id: str, ext: str | None = None, o
                     "context": r["context"], "state": s.state, "verdict": _event_brief(s.verdict),
                     "reattached": s.reattached, "comments": [_event_brief(c) for c in s.comments],
                     "signal_count": len(r["signals"]) + len(s.history),
-                    "group": group.get(r["key"]),
+                    "group": group.get(r["key"]) if order == "review" and not filters else None,
+                    "tags": facets.tags(dims, r["key"], sample["tag_dims"])
+                    + ([{"dim": "elsewhere", "label": "Reviewed in",
+                         "bucket": ", ".join(rule_name(x) for x in elsewhere[r["key"]])}]
+                       if prior and r["key"] in elsewhere else []),
                     "page_questions": [_event_brief(e) for e in page_q.get(r["page_stem"], [])],
                     "other_pages": [{"page_stem": st, "url": snap.page[st]["url"], "title": snap.page[st]["title"]}
                                     for st in others]})
@@ -274,7 +303,7 @@ def rows(request: Request, catalog: str, rule_id: str, ext: str | None = None, o
     sizes = Counter(group.values())
     spread = {"by": spread_by, "groups": [{"label": g, "rows": sizes[g]} for g in group_order if sizes[g]]}
     return {"rule_id": rule_id, "extraction": snap.ext, "total": len(ordered), "offset": offset, "rows": out,
-            "spread": spread,
+            "spread": spread, "sample": sample if offset == 0 else None,
             "missing": missing, "focus_index": focus_index, "elapsed_ms": round(1000 * (time.perf_counter() - t0), 1)}
 
 

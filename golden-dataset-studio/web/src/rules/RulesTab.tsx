@@ -2,10 +2,12 @@
 // (sorted by the server with the likeliest problems first), the saved page on the right.
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { api } from "../api/client";
-import type { EventBrief, NewEvent, Overlay, RuleDetail, RulesResponse, RuleSummary, Spread, UnclassifiedPage } from "../api/types";
+import type { EventBrief, NewEvent, Overlay, RuleDetail, RulesResponse, RuleSummary, SampleInfo, Spread,
+  UnclassifiedPage } from "../api/types";
 import { PagePane, prefetchPages, type Highlight } from "../pagepane";
 import { Ico } from "../shell/icons";
 import { useReviewer } from "../shell/reviewer";
+import { SampleDrawer, samplePrefs, sampleQuery, StrataTags, type SamplePrefs } from "../shell/Sample";
 import { go, href } from "../shell/router";
 import type { TabProps } from "../shell/tabProps";
 import { fmt, toast, useKeyHints } from "../shell/ui";
@@ -40,7 +42,7 @@ export function replaceSummary(rules: RulesResponse, s: RuleSummary): RulesRespo
 
 export const KEY_HINTS = (
   <span className="key-hints">
-    <kbd>Tab</kbd>next <kbd>A</kbd>correct <kbd>W</kbd>wrong <kbd>C</kbd>comment <kbd>H</kbd>select text{" "}
+    <kbd>Tab</kbd>next <kbd>1</kbd>correct <kbd>2</kbd>wrong <kbd>3</kbd>comment <kbd>H</kbd>select text{" "}
     <kbd>Enter</kbd>save <kbd>Esc</kbd>cancel
   </span>
 );
@@ -61,6 +63,8 @@ function useTourAnchors(ref: React.RefObject<HTMLElement>) {
   }, [ref]);
 }
 
+const DEFAULT_PREFS = samplePrefs("review");
+
 export default function RulesTab({ catalog, route }: TabProps) {
   const cat = catalog.short;
   const me = useReviewer();
@@ -69,6 +73,9 @@ export default function RulesTab({ catalog, route }: TabProps) {
   const [rows, setRows] = useState<RowX[]>([]);
   const [total, setTotal] = useState(0);
   const [spread, setSpread] = useState<Spread | null>(null);
+  const [sample, setSample] = useState<SampleInfo | null>(null);
+  // the Sample drawer's choices belong to one rule: another rule starts in review order, unfiltered
+  const [prefsOf, setPrefsOf] = useState<{ rule: string | null; p: SamplePrefs }>({ rule: null, p: DEFAULT_PREFS });
   const [missing, setMissing] = useState<EventBrief[]>([]);
   const [sel, setSel] = useState(0);
   const [draft, setDraft] = useState<Draft | null>(null);
@@ -91,6 +98,11 @@ export default function RulesTab({ catalog, route }: TabProps) {
 
   const ruleId = route.id ?? defaultRule(rules);
   const focus = route.params.get("row");
+  const prefs = prefsOf.rule === ruleId ? prefsOf.p : DEFAULT_PREFS;
+  const setPrefs = useCallback((p: SamplePrefs) => setPrefsOf({ rule: ruleId, p }), [ruleId]);
+  const qKey = JSON.stringify(sampleQuery(prefs, "review"));
+  const sq = useMemo(() => JSON.parse(qKey) as ReturnType<typeof sampleQuery>, [qKey]);
+  const filtered = sq.f.length > 0;
 
   useEffect(() => { api.rules(cat).then(setRules, (e) => setError(String(e))); }, [cat]);
 
@@ -98,13 +110,13 @@ export default function RulesTab({ catalog, route }: TabProps) {
     if (!ruleId) return;
     const tok = ++token.current;
     setDraft(null); setMissed(null); setExtraTab(null); setActiveStem(null);
-    Promise.all([api.rule(cat, ruleId), apiX.rows(cat, ruleId, { limit: FIRST_PAGE, focus })]).then(([d, r]) => {
+    Promise.all([api.rule(cat, ruleId), apiX.rows(cat, ruleId, { limit: FIRST_PAGE, focus, ...sq })]).then(([d, r]) => {
       if (tok !== token.current) return;
-      setDetail(d); setRows(r.rows); setTotal(r.total); setSpread(r.spread); setMissing(r.missing); setSel(r.focus_index ?? 0);
+      setDetail(d); setRows(r.rows); setTotal(r.total); setSpread(r.spread); setSample(r.sample ?? null); setMissing(r.missing); setSel(r.focus_index ?? 0);
       centerNext.current = true; setError(null);
       if (rowsRef.current) rowsRef.current.scrollTop = 0;
     }, (e) => setError(String(e)));
-  }, [cat, ruleId, focus]);
+  }, [cat, ruleId, focus, sq]);
 
   const kind = detail?.kind ?? null;
   const row = detail && detail.rule_id === ruleId ? rows[sel] ?? null : null;
@@ -113,10 +125,10 @@ export default function RulesTab({ catalog, route }: TabProps) {
     if (!ruleId || loadingMore.current || rows.length >= total) return;
     loadingMore.current = true;
     const tok = token.current;
-    apiX.rows(cat, ruleId, { offset: rows.length, limit: MORE }).then((r) => {
+    apiX.rows(cat, ruleId, { offset: rows.length, limit: MORE, ...sq }).then((r) => {
       if (tok === token.current) setRows((prev) => (prev.length === r.offset ? [...prev, ...r.rows] : prev));
     }).finally(() => { loadingMore.current = false; });
-  }, [cat, ruleId, rows.length, total]);
+  }, [cat, ruleId, rows.length, total, sq]);
 
   const selectRow = useCallback((i: number) => {
     const j = Math.max(0, Math.min(i, rows.length - 1));
@@ -316,8 +328,12 @@ export default function RulesTab({ catalog, route }: TabProps) {
       <aside className="col">{rules && <RuleList rules={rules} active={ruleId} onPick={(id) => go(href(cat, "rules", id))} />}</aside>
       <section className="col mid">
         {detail && <RuleHead catalog={catalog} rule={detail} busy={busy} onApprove={() => approve("approve")} onReopen={() => approve("reopen")} />}
-        {detail && <div className="rows-bar"><span><b>{fmt(total)}</b> {unitWord(detail.kind, detail.locator)} · discussed first, then the
-          likeliest problems{spread && spread.groups.length > 1 && <>, with every 5th row from a <SpreadNote spread={spread} /></>}</span></div>}
+        {detail && <div className="rows-bar"><span><b>{fmt(total)}</b> {unitWord(detail.kind, detail.locator)}{filtered && <> · <b>filtered</b> by strata</>}{prefs.prior && <> · reviewed in other fields first</>} · {
+          sq.order === "auto" ? "autostratified: 3 of each combination, rarest first"
+          : sq.order === "shuffle" ? "shuffled"
+          : <>discussed first, then the likeliest problems{spread && spread.groups.length > 1 && !filtered && <>, with every 5th row from a <SpreadNote spread={spread} /></>}</>}</span></div>}
+        {detail && <SampleDrawer sample={sample} prefs={prefs} onPrefs={setPrefs} modes={["review", "auto", "shuffle", "manual"]}
+          storageKey="studio.rules.sample" />}
         <div className="rows" data-tour="rows" ref={rowsRef} onScroll={(e) => {
           const el = e.currentTarget;
           if (el.scrollTop + el.clientHeight > el.scrollHeight - 600) loadMore();
@@ -334,7 +350,6 @@ export default function RulesTab({ catalog, route }: TabProps) {
             </div>
           )}
           {detail && rows.map((r, i) => {
-            const multi = !!spread && spread.groups.length > 1;
             const on = i === sel;
             const val = r.status === "found" ? r.value ?? "" : r.status === "no_match" ? "nothing found" : "empty";
             const settled = isSettled(r.state);
@@ -353,7 +368,7 @@ export default function RulesTab({ catalog, route }: TabProps) {
                                 { prop: kind === "field" ? detail.property_label : null, occ: r.occurrence_key })}
                               onClick={(e) => e.stopPropagation()}>Open record →</a>)}
                         </div></>}
-                  {multi && r.group && <div className="grp-line"><span className="grp" title={`Spread sample group · ${spread?.by}`}>{r.group}</span></div>}
+                  <StrataTags tags={r.tags} />
                   <HistoryLine state={r.state} verdict={r.verdict} reattached={r.reattached} comments={r.comments} page_questions={r.page_questions} />
                   {on && draft && <Expansion draft={draft} fieldRule={kind === "field"} emptyValue={r.status !== "found"}
                     onChange={setDraft} onSave={() => void saveRow(i, { draft })} onCancel={() => setDraft(null)} />}
@@ -364,7 +379,8 @@ export default function RulesTab({ catalog, route }: TabProps) {
             );
           })}
           {detail && rows.length < total && <div className="row more-rows" onClick={loadMore}>+ {fmt(total - rows.length)} more · scroll to load</div>}
-          {detail && total === 0 && <div className="empty-state muted">This rule found nothing in this extraction.</div>}
+          {detail && total === 0 && <div className="empty-state muted">{filtered
+            ? "No row is in every stratum you picked. Remove a filter above." : "This rule found nothing in this extraction."}</div>}
         </div>
       </section>
       <section className="col pane" data-tour="page-pane" ref={paneRef}>

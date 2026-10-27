@@ -13,3 +13,5 @@
 .crec .rtag { display: block; font: 400 10.5px var(--mono); color: var(--faint); margin-top: 2px; }
 .sigrow .rtag-i { color: var(--faint); }
 .crec.cv .vb { flex-wrap: wrap; }
+.cmp-pager { display: flex; align-items: center; gap: 10px; margin: 8px 0; font-size: 12.5px; flex-wrap: wrap; }
+.cmp-pager select { margin-left: 4px; font: inherit; padding: 2px 4px; }
