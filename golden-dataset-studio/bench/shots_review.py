@@ -175,6 +175,15 @@ async def s08c(page, base):
     await page.wait_for_timeout(600)
 
 
+@shot("17-storage-files")
+async def s17(page, base):
+    await page.goto(f"{base}/#/c/{CAT}/rules/course-description")
+    await page.wait_for_selector(".row.on")
+    await page.click(".files-btn")
+    await page.wait_for_selector(".sf-event")
+    await page.wait_for_timeout(600)
+
+
 @shot("08-compare")
 async def s08(page, base):
     await page.goto(f"{base}/#/c/{CAT}/compare")

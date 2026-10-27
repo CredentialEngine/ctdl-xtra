@@ -10,6 +10,7 @@ import RulesTab from "./rules/RulesTab";
 import { useRoute } from "./shell/router";
 import { TopBar } from "./shell/TopBar";
 import { ThemeButton } from "./shell/theme";
+import { StorageFiles } from "./files/StorageFiles";
 import { KeysContext } from "./shell/ui";
 import { Tour, useTour } from "./tour";
 import "./styles.css";
@@ -26,6 +27,7 @@ export default function App() {
   }, [route.catalog]);
   useEffect(load, [load]);
   const tour = useTour(catalog);
+  const [files, setFiles] = useState(false);
 
   let body: ReactNode;
   if (!route.catalog) body = <CatalogPicker />;
@@ -40,8 +42,12 @@ export default function App() {
     <KeysContext.Provider value={setKeys}>
       <TopBar catalog={route.catalog ? catalog : null} tab={route.catalog ? route.tab : null} onTour={tour.open} />
       <main id="app">{body}</main>
-      <footer className="keys"><span className="keys-hints">{keys}</span><ThemeButton /></footer>
+      <footer className="keys"><span className="keys-hints">{keys}</span>
+        {catalog && <button className="files-btn" onClick={() => setFiles(true)}
+          title="Browse the files the Studio keeps for this catalog on its storage root (read-only, for debugging)">Storage files</button>}
+        <ThemeButton /></footer>
       {catalog && <Tour {...tour} catalog={catalog} />}
+      {catalog && files && <StorageFiles catalog={catalog.short} onClose={() => setFiles(false)} />}
     </KeysContext.Provider>
   );
 }

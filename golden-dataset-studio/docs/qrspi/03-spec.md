@@ -982,6 +982,26 @@ A **Show the tour** button sits at the top right of every screen, as in the v1 m
   10. **Compare** after a new version: Jared's earlier verdicts first, and "See on page";
   11. **Approve**, and why it's greyed out while any course is wrong.
 
+### 7.9 Storage files (debugging)
+
+A **Storage files** link in the bottom bar, next to Light / Dark, opens a read-only view of what the Studio keeps for
+the catalog on its storage root, to see how it works under the hood. It is out of the way on purpose: a debugging
+tool, not part of the review.
+- **Left:** the files, grouped: the root's manifest, rules (one file per version), rulesets, the annotation log, the
+  crawl (`crawl.json`, `pages.parquet`, asset tables), extractions (`extraction.json` and their Parquet tables) and
+  golden publications. Not the saved pages or archived asset files. Each file shows its size, and on hover what it
+  is.
+- **Right:** the selected file (the annotation log first), with its full URI and a sentence on what it is. JSON is
+  pretty-printed; the annotation log is one event per line, **newest first**, filterable (an author, a course code, a
+  rule), 100 at a time; Parquet is a table, filterable on any column, 100 rows at a time.
+- **Azure portal links** (when the root is on Azure): the header links to the storage account's Storage browser and
+  each file to its blob page in the portal (both work for whoever is signed in to Azure). The account's resource id
+  comes from `az storage account show`.
+
+The listing lists the root (the Studio itself never does), so it is cached for 10 seconds.
+
+![Storage files](screens/17-storage-files.png)
+
 ## 8. Uncertainty signals
 
 A signal is a named, deterministic check (no LLM) that gives `(signal, severity, detail)` for a match, an occurrence

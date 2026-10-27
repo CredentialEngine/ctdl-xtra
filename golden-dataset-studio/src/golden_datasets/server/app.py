@@ -22,6 +22,7 @@ ROUTERS = [
     "golden_datasets.server.routes_compare",  # W5: comparisons
     "golden_datasets.server.routes_prompt",   # W6: prompt text
     "golden_datasets.server.routes_golden",   # W7: golden publication
+    "golden_datasets.server.routes_files",    # storage files: a debugging view of what the Studio keeps
 ]
 
 
