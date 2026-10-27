@@ -87,8 +87,11 @@ def catalogs(request: Request) -> list[dict]:
     doc = st.ctx(next(iter(CATALOGS))).manifest()
     entries = {c["catalog"]: c for c in doc["catalogs"]}
     out = []
-    for folder in sorted(set(CATALOGS) | set(entries), key=lambda f: info(f)["name"].lower()):
+    shown = lambda f: (info(f)["name"] if f in CATALOGS else (entries[f].get("name") or f)).lower()  # noqa: E731
+    for folder in sorted(set(CATALOGS) | set(entries), key=shown):
         meta, e = info(folder), entries.get(folder)
+        if folder not in CATALOGS and e:  # added from the picker: named from its crawl (crawls.display_name)
+            meta = {**meta, "name": e.get("name") or folder, "institution": e.get("name") or folder}
         item = {"catalog": folder, "short": meta["short"], "name": meta["name"], "institution": meta["institution"],
                 "platform": meta["platform"], "logo": f"/logos/{meta['logo']}" if meta.get("logo") else None,
                 "pages": None, "crawl": None, "ruleset_version": None, "rules_total": 0, "rules_approved": 0,
@@ -107,6 +110,17 @@ def catalogs(request: Request) -> list[dict]:
                 item.update(status="ready", ruleset_version=rs["version"], rules_total=len(rs["rules"]),
                             rules_approved=approved_count(rs, events))
         out.append(item)
+    # catalogs being added from the picker (spec §7.1): a card with their progress until they're in the manifest
+    for job in list(st.adding.values()):
+        if job["step"] == "done" and job["catalog"] in entries:
+            st.adding.pop(job["catalog"], None)
+        elif job["catalog"] not in entries or job["step"] == "failed":
+            out = [c for c in out if c["catalog"] != job["catalog"]]
+            out.append({"catalog": job["catalog"], "short": job["catalog"], "name": job["name"],
+                        "institution": job["name"], "platform": "", "logo": None, "pages": job["pages"],
+                        "crawl": job["crawl"], "ruleset_version": None, "rules_total": 0, "rules_approved": 0,
+                        "status": "failed" if job["step"] == "failed" else "adding",
+                        "adding": {k: job[k] for k in ("step", "done", "total", "error")}})
     return out
 
 

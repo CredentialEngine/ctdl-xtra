@@ -68,6 +68,39 @@ async def s01b(page, base):
     await page.wait_for_timeout(1500)
 
 
+@shot("01c-add-catalog-search")
+async def s01c(page, base):
+    await page.goto(f"{base}/#/")
+    await page.wait_for_selector(".cat.ready")
+    await page.click("text=+ Add a catalog")
+    await page.wait_for_selector(".ac-t tbody tr", timeout=60000)
+    await page.fill(".ac-search", "ca")
+    await page.click(".ac-info")
+    await page.wait_for_timeout(300)
+
+
+@shot("01d-add-catalog-confirm")
+async def s01d(page, base):
+    await page.goto(f"{base}/#/")
+    await page.wait_for_selector(".cat.ready")
+    await page.click("text=+ Add a catalog")
+    await page.wait_for_selector(".ac-t tbody tr", timeout=60000)
+    await page.fill(".ac-search", "cabrillo")
+    await page.press(".ac-search", "Enter")
+    await page.wait_for_selector(".ac-found")
+    await page.wait_for_timeout(300)
+
+
+@shot("01e-add-catalog-adding")
+async def s01e(page, base):
+    # adds a small crawled catalog to the served root: run it against a scratch root, not the shared one
+    await page.request.post(f"{base}/api/crawls/catalog-citruscollege-edu/add", data={"by": "Jared Diener"})
+    await page.goto(f"{base}/#/")
+    await page.wait_for_function("() => /Copying pages… [3-9][0-9]/.test(document.querySelector('.cat.adding')?.textContent ?? '')",
+                                 timeout=60000)
+    await page.wait_for_timeout(300)
+
+
 @shot("03-rules-tab-description-v2")
 async def s03(page, base):
     await page.goto(f"{base}/#/c/{CAT}/rules/course-description?row=GEOG222")

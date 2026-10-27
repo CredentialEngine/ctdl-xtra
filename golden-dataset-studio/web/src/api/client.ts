@@ -1,6 +1,6 @@
 // Thin fetch wrappers for the Studio API. Every tab uses these; they keep URLs in one place.
 import type {
-  CatalogCard, CatalogDetail, CompareRecords, CompareResponse, Discussion, CourseDetail, CourseHit, GoldenFileText, GoldenLineage, GoldenResponse,
+  CatalogCard, CatalogDetail, CrawledCatalog, CompareRecords, CompareResponse, Discussion, CourseDetail, CourseHit, GoldenFileText, GoldenLineage, GoldenResponse,
   NewEvent, Overlay,
   PromptResponse, RuleDetail, RuleSummary, RulesResponse, RowsResponse, UnclassifiedPage,
 } from "./types";
@@ -31,6 +31,12 @@ const c = (catalog: string) => `/api/catalogs/${encodeURIComponent(catalog)}`;
 
 export const api = {
   catalogs: () => call<CatalogCard[]>("/api/catalogs"),
+  crawls: () => call<{ crawls_root: string; items: CrawledCatalog[] }>("/api/crawls"),
+  addCatalog: (catalog: string, body: { crawl?: string; by?: string }) =>
+    call<unknown>(`/api/crawls/${encodeURIComponent(catalog)}/add`, {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
+    }),
+  dismissAdd: (catalog: string) => call<unknown>(`/api/crawls/${encodeURIComponent(catalog)}/add`, { method: "DELETE" }),
   catalog: (catalog: string) => call<CatalogDetail>(c(catalog)),
   rules: (catalog: string, ext?: string | null) => call<RulesResponse>(`${c(catalog)}/rules${q({ ext })}`),
   rule: (catalog: string, ruleId: string, ext?: string | null) =>

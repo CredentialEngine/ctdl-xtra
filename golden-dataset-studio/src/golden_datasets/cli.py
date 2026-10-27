@@ -52,6 +52,12 @@ def _catalog_args(p: argparse.ArgumentParser, required: bool = True) -> None:
     p.add_argument("--crawl", default=None, help="crawl id (default: the catalog's current crawl)")
 
 
+def _crawls_root_args(p: argparse.ArgumentParser) -> None:
+    p.add_argument("--crawls-root", default=os.environ.get("GOLDEN_DATASETS_CRAWLS_ROOT"),
+                   help="where xtra-cli's crawls are (default: $GOLDEN_DATASETS_CRAWLS_ROOT, else the container above "
+                        "an Azure root's prefix, else the root itself)")
+
+
 def _target_args(p: argparse.ArgumentParser, prompt: bool = True) -> None:
     if prompt:
         p.add_argument("--target", choices=["local", "azure"], default="azure",
@@ -85,6 +91,19 @@ def build_parser() -> argparse.ArgumentParser:
     _root_args(p), _catalog_args(p)
     p.add_argument("--max-assets", type=int, default=400, help="safety limit on distinct asset URLs")
     _cmd(p, "golden_datasets.assets:cmd_fetch")
+
+    crawled = sub.add_parser("crawls", help="catalogs xtra-cli has crawled: list, add one to the Studio")
+    csub = crawled.add_subparsers(dest="crawls_command", metavar="ACTION", required=True)
+    p = csub.add_parser("list", help="one line per crawled catalog: its latest crawl's date, pages and status")
+    _root_args(p), _crawls_root_args(p)
+    p.add_argument("q", nargs="?", default=None, help="only catalogs whose name, folder or URL has these words")
+    _cmd(p, "golden_datasets.crawls:cmd_list")
+    p = csub.add_parser("add", help="copy a crawl into the root, index its pages, archive their assets, name it")
+    _root_args(p), _crawls_root_args(p)
+    p.add_argument("catalog", help="the crawled catalog's folder name")
+    p.add_argument("--crawl", default=None, help="crawl id (default: its latest)")
+    p.add_argument("--by", default=None, help="who added it (recorded in the manifest)")
+    _cmd(p, "golden_datasets.crawls:cmd_add")
 
     p = sub.add_parser("import-v2", help="v2 rules.json → rule versions v1 + ruleset v1; v2 decisions → annotations")
     _root_args(p), _catalog_args(p)
@@ -196,6 +215,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--port", type=int, default=DEFAULT_PORT)
     p.add_argument("--host", default="127.0.0.1")
     _target_args(p, prompt=False)
+    _crawls_root_args(p)
     _cmd(p, "golden_datasets.server.app:cmd_serve")
     p = sub.add_parser("hash-password", help="salt and hash the Studio's shared password, for GOLDEN_DATASETS_PASSWORD_HASH")
     _cmd(p, "golden_datasets.server.auth:cmd_hash_password")

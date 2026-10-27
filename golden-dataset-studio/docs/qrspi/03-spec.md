@@ -68,7 +68,8 @@ do it by improving **rules**, not by editing data:
 
 ### 1.1 In scope
 
-- The five catalogs: **AVC** (eLumen), **CCSF** (CurricUNET), **Marshall**, **UALR**, **WVU**.
+- The five catalogs: **AVC** (eLumen), **CCSF** (CurricUNET), **Marshall**, **UALR**, **WVU**. More can be added from
+  the picker, from crawls xtra-cli has already made (§7.1, Add a catalog).
 - **Course** only, and only the **minimum required fields** for the Course resource type: the seven properties the
   CTDL template marks as required, plus Coded Notation, because it identifies each course (§4.4):
   - Learning Opportunity Name (`ceterms:name`)
@@ -689,6 +690,8 @@ saved.
 |---|---|---|---|
 | Setup | `golden-datasets init --catalog C [--crawl ID]` | Index a crawl's pages into `pages.parquet`, register it in the manifest | pages.parquet, manifest |
 | | `golden-datasets assets fetch --catalog C` | Download each page's CSS, fonts, images and JS once, stored by hash (D7). Never runs JS | assets/ |
+| | `golden-datasets crawls list [WORDS] [--crawls-root URI]` | One line per catalog xtra-cli has crawled: its latest crawl's date, pages and status, and whether it's in the Studio. Lists folders (setup only) | — |
+| | `golden-datasets crawls add FOLDER [--crawl ID] [--by NAME]` | What **Add a catalog** does (§7.1): copy the crawl's `crawl.json` and pages into the root, `init`, `assets fetch`, and name the catalog in the manifest. Safe to rerun | pages/, pages.parquet, assets/, manifest |
 | | `golden-datasets import-v2 --catalog C` | v2 `rules.json` → rule versions v1 (locator pulled out) + ruleset v1. v2 decisions → annotations | rules/, rulesets/, annotations.jsonl |
 | Run | `golden-datasets extract --catalog C [--ruleset N]` | Run a ruleset version over the crawl. Refuses if that extraction exists | extractions/rs-N/ |
 | | `golden-datasets check [--catalog C]` | Validate every primary/foreign key and every hash | — |
@@ -703,7 +706,7 @@ saved.
 | Prompt | `golden-datasets prompt --catalog C [--rule R \| --needs-work] [--target local\|azure]` | The same text the UI's **Copy prompt** button gives; `azure` points Claude at the Azure root (`--azure-root`) | — |
 | Golden | `golden-datasets golden publish --catalog C --to ROOT [--property NAME …]` | Publishes the named properties (default: every property whose field rule is approved); each needs its field rule approved, the others keep what earlier publications wrote. Domain-only files to the golden root in its existing format (plus `location` and `golden_record_id`), lineage to the Studio | golden/ |
 | Local work | `golden-datasets sync --from ROOT --to DIR [--catalog C]` | Copy Studio files and pages between roots (both directions) | target root |
-| | `golden-datasets serve [--port 8000] [--azure-root URI]` | The web UI; `--azure-root` is where the prompt's Azure version points (the root itself when it is Azure) | annotations.jsonl (via UI) |
+| | `golden-datasets serve [--port 8000] [--azure-root URI] [--crawls-root URI]` | The web UI; `--azure-root` is where the prompt's Azure version points (the root itself when it is Azure); `--crawls-root` is where Add a catalog looks for crawls | annotations.jsonl (via UI) |
 
 **A draft** is one JSON file holding one or more rules. Each has its `definition` plus `what`, `how` and `why`. Claude
 edits the draft; `golden-datasets` assigns versions and hashes. This makes "one rule" and "batch" the same thing (A5.1).
@@ -766,6 +769,50 @@ width it is a numbered list.
 **Who's reviewing:** a "Reviewing as [Jared ▾]" dropdown at the top right. It's a list of names remembered in the
 browser and recorded as each event's `author`. There's no login and no profiles (out of scope), just like v2's
 Seth/Jared switch.
+
+**Add a catalog.** A **+ Add a catalog** button sits right of the heading. It opens a modal that lists the catalogs
+xtra-cli has already crawled. The Studio never starts a crawl: an **ⓘ** beside the title says "Only catalogs the xTRA
+engine has already crawled can be found here. For a new catalog, ask engineering to crawl it." (on hover or click).
+
+![Add a catalog: search](screens/01c-add-catalog-search.png)
+
+- **Where it looks:** the crawls root, `--crawls-root` / `GOLDEN_DATASETS_CRAWLS_ROOT`, else the container above an
+  Azure root's prefix (the Studio serves `xtra-cli-output/zz-scratch-review-ui-v3`, the crawls are in
+  `xtra-cli-output/`), else the root itself. The server lists it when the modal opens (about 3 s for 60 catalogs on
+  Azure) and keeps the list for 5 minutes; the picker itself still does no listing.
+- **One row per catalog folder, newest crawl first,** showing its latest crawl. Every column comes from that
+  crawl's `crawl.json`; nothing comes from anywhere else and nobody types anything:
+
+  | Column | From `crawl.json` |
+  |---|---|
+  | **Catalog**: a name, and the URL under it | `seed_url`. The name is its host's first label that isn't generic (`www`, `catalog`, `catalogs`, `main`, …): `cuesta`.curriqunet.com → Cuesta, catalog.`ualr`.edu → UALR (in capitals at 4 letters or fewer). The original five keep their names |
+  | **Last crawled** | `finished_at` (else `updated_at`) |
+  | **Pages** | `pages_saved` |
+  | **Crawl** | `status`: Complete, Hit page limit (`limit_reached`), Not finished (`incomplete`) |
+
+- The search box has focus and filters as you type on the name, folder and URL (every word must match; matches are
+  highlighted). ↑/↓ move, Enter picks. A catalog already in the Studio is greyed out as **Already added**; a crawl
+  that saved no pages as **No pages**.
+
+![Add a catalog: confirm](screens/01d-add-catalog-confirm.png)
+
+- **Confirm:** Name, Catalog URL, Crawl (a dropdown, the latest preselected, older crawls below it), Pages, Status.
+  None of it can be edited. A crawl that isn't complete can be added, with "This crawl isn't complete, so the golden
+  dataset won't be either." **Add catalog** starts the work and closes the modal.
+- **What adding does** (`crawls add`, in the background): copy the crawl's `crawl.json` and `pages/` into the root
+  (blob to blob on Azure; nothing when the crawls root is the root; files already there are skipped, so it can be
+  rerun), `init`, `assets fetch`, then write the catalog's `name`, `seed_url`, `crawls_root`, `added_by` and
+  `added_at` into its manifest entry. Anyone can add one; `added_by` is the profile's name.
+
+![Add a catalog: the new card](screens/01e-add-catalog-adding.png)
+
+- **On the picker,** the new catalog's card shows its progress while it's added (Copying pages… N%, Indexing pages…,
+  Saving page styles…), polled every 2 s, then becomes an ordinary card with "rules not run yet". If adding fails the
+  card says "Couldn't add it" (the reason on hover) with **Dismiss**; adding it again resumes. Cards are sorted by
+  the name they show. An added catalog's URL and `--catalog` name is its folder name.
+- **Not covered yet:** a newer crawl of a catalog already in the Studio (its row just says Already added), and a
+  catalog's first rules: an added catalog has no ruleset, so it can't be opened until an engineer writes its first
+  rules (§12.3).
 
 ### 7.2 Rules tab (default)
 
@@ -1232,6 +1279,11 @@ The schema in §4–5 is the contract between W1, W2 and W4–W6. Changing it me
   rows of a rule its ruleset dropped (labels, occurrences, matches, page signals), and `check` compares copied
   tables on the rules that remain.
 
+- **Add a catalog** (Eric, 2026-10-27): from the picker, only from crawls xtra-cli has already made (the Studio never
+  starts one; new catalogs are crawled by engineering). Everything shown comes from `crawl.json`, never typed in and
+  never from the xTRA Sources sheet (the Studio has no Google access). We use the latest crawl; incomplete crawls can be
+  added with a warning; anyone can add one (§7.1).
+
 ### 12.2 Questions for Jared
 
 Both come from his real AVC review in v2, which the prototype imported. Each is written so it can be forwarded to him
@@ -1273,6 +1325,10 @@ descriptions still contain a Prerequisite that comes after one of them.
 
 ### 12.3 Follow-ups
 
+- **A first ruleset for an added catalog.** Added catalogs start with no rules, so their card can't be opened. Options:
+  start from the rules of a catalog on the same platform, or a Prompt that asks Claude Code to write the first rules.
+- **A newer crawl of a catalog already in the Studio:** switching crawls means re-extracting and carrying annotations
+  across crawls.
 - **UALR needs a recrawl.** Many UALR courses appeared only as short entries on program pages, because their course
   pages weren't crawled; with the program rules gone (§12.1) those courses aren't in the dataset at all. Recrawling is
   xtra-cli's job (outside the Studio).

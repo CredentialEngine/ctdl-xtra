@@ -10,7 +10,16 @@ export type RowStateName = Verdict | "fixed" | "still-wrong" | "changed-since-co
 export interface CatalogCard {
   catalog: string; short: string; name: string; institution: string; platform: string; logo: string | null;
   pages: number | null; crawl: string | null; ruleset_version: number | null;
-  rules_total: number; rules_approved: number; status: "ready" | "not imported";
+  rules_total: number; rules_approved: number; status: "ready" | "not imported" | "adding" | "failed";
+  // while a catalog is being added from the picker: what it's doing ("copying", "indexing", "assets") or why it failed
+  adding?: { step: string; done: number; total: number; error: string | null };
+}
+
+export type CrawlStatus = "complete" | "limit_reached" | "incomplete";
+export interface CrawlRun { crawl: string; seed_url: string | null; finished_at: string | null; pages: number; status: CrawlStatus }
+/** A catalog xtra-cli has crawled (Add a catalog): its latest crawl, and every crawl newest first. */
+export interface CrawledCatalog extends CrawlRun {
+  catalog: string; name: string; crawls: CrawlRun[]; added: boolean; adding: boolean;
 }
 
 export interface RulesetInfo {

@@ -25,12 +25,13 @@ ROUTERS = [
     "golden_datasets.server.routes_golden",   # W7: golden publication
     "golden_datasets.server.routes_files",    # storage files: a debugging view of what the Studio keeps
     "golden_datasets.server.routes_profiles", # profiles: who is reviewing (name + role), shared on the root
+    "golden_datasets.server.routes_crawls",   # Add a catalog: search xtra-cli's crawls, add one
 ]
 
 
-def create_app(root: str, azure_root: str | None = None) -> FastAPI:
+def create_app(root: str, azure_root: str | None = None, crawls_root: str | None = None) -> FastAPI:
     app = FastAPI(title="CTDL Golden Rules Studio")
-    app.state.studio = Studio(root, azure_root)
+    app.state.studio = Studio(root, azure_root, crawls_root)
     app.add_middleware(GZipMiddleware, minimum_size=2048)  # rows, compare and rendered pages compress ~5-20x
     auth.install(app)  # the shared password, when the environment sets one
 
@@ -61,5 +62,6 @@ def create_app(root: str, azure_root: str | None = None) -> FastAPI:
 def cmd_serve(args) -> int:
     import uvicorn
 
-    uvicorn.run(create_app(args.root, args.azure_root), host=args.host, port=args.port, log_level="info")
+    app = create_app(args.root, args.azure_root, args.crawls_root)
+    uvicorn.run(app, host=args.host, port=args.port, log_level="info")
     return 0

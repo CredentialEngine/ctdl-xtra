@@ -60,7 +60,7 @@ class Gate:
         self._key = key or (hashlib.sha256(b"studio-session\0" + stored.encode()).digest() if stored else b"")
 
     @classmethod
-    def from_env(cls) -> "Gate":
+    def from_env(cls) -> Gate:
         stored = os.environ.get(ENV_HASH) or None
         if stored is not None:
             if stored.count("$") != 5:
