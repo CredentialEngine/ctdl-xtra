@@ -18,6 +18,7 @@ name gets `course_key~<n>`, and the Golden screen lists them for confirmation.
 
 from __future__ import annotations
 
+import json
 import re
 from collections import Counter, defaultdict
 from datetime import UTC, datetime
@@ -128,14 +129,8 @@ def default_target(ctx: Ctx) -> str:
     return os.environ.get("GOLDEN_DATASETS_GOLDEN_ROOT") or GOLDEN_CONTAINER
 
 
-def publish(ctx: Ctx, to: str, by: str, allow_unapproved: bool = False, log=print) -> dict:
-    rv = LOADER.review(ctx)
-    ok, statuses = approval(rv)
-    if not ok and not allow_unapproved:
-        pending = [s["rule_id"] for s in statuses if s["status"] != "approved"]
-        raise UserError(f"{len(pending)} rule(s) not approved: {', '.join(pending)}; publish needs every rule approved")
-    p = plan(rv)
-    target = open_root(to)
+def publication_name(ctx: Ctx, rv: Review) -> str:
+    """pub-<today>-<catalog short>-<extraction>, with -2, -3… when that name is taken."""
     today = datetime.now(UTC).strftime("%Y-%m-%d")
     short = ctx.catalog.split("-")[0] if ctx.catalog.startswith("catalog-") is False else ctx.catalog.split("-")[1]
     existing = {g["publication"] for g in ctx.crawl_entry().get("golden", [])}
@@ -144,13 +139,46 @@ def publish(ctx: Ctx, to: str, by: str, allow_unapproved: bool = False, log=prin
     while pub in existing:
         pub = f"pub-{today}-{short}-{rv.snap.ext}-{n}"
         n += 1
+    return pub
+
+
+def page_json(records: list[dict]) -> str:
+    """The text of one <page_stem>.json, exactly as written."""
+    return json.dumps(records, indent=2, ensure_ascii=False) + "\n"
+
+
+def publication_doc(ctx: Ctx, rv: Review, p: dict, pub: str, to: str, by: str, ok: bool, statuses: list[dict],
+                    info: dict) -> dict:
+    """publication.json: which extraction and ruleset were published, where to, and the approval gate."""
+    return {"publication": pub, "catalog": ctx.catalog, "crawl": ctx.crawl, "extraction": rv.snap.ext,
+            "ruleset_version": rv.snap.ruleset_version, "published_at": datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
+            "published_by": by, "to": to, "to_prefix": f"{ctx.catalog}/{ctx.crawl}/", "pages": len(p["pages"]),
+            "page_stems": sorted(p["pages"]), "courses": p["courses"], "records": p["records"],
+            "lineage_rows": info["rows"], "lineage_sha256": info["sha256"],
+            "golden_id_collisions": p["collisions"], "skipped_no_course_key": p["skipped_no_course_key"],
+            "format": "xtra-golden-sets-verified per-page shape: <catalog>/<crawl>/<stem>/<stem>.json = "
+                      "[{golden_id, fields: [{ctdl_property, property, value, source_url, location}]}], "
+                      "plus <stem>.html as crawled",
+            "approval_gate": {"all_rules_approved": ok,
+                              "rules": [{k: s[k] for k in ("rule_id", "version", "status", "approved_by")}
+                                        for s in statuses]}}
+
+
+def publish(ctx: Ctx, to: str, by: str, allow_unapproved: bool = False, log=print) -> dict:
+    rv = LOADER.review(ctx)
+    ok, statuses = approval(rv)
+    if not ok and not allow_unapproved:
+        pending = [s["rule_id"] for s in statuses if s["status"] != "approved"]
+        raise UserError(f"{len(pending)} rule(s) not approved: {', '.join(pending)}; publish needs every rule approved")
+    p = plan(rv)
+    target = open_root(to)
+    pub = publication_name(ctx, rv)
     prefix = f"{ctx.catalog}/{ctx.crawl}/"
-    import json as _json
     from concurrent.futures import ThreadPoolExecutor
 
     def write_page(item) -> None:
         stem, records = item
-        target.write_text(f"{prefix}{stem}/{stem}.json", _json.dumps(records, indent=2, ensure_ascii=False) + "\n")
+        target.write_text(f"{prefix}{stem}/{stem}.json", page_json(records))
         html_path = f"{prefix}{stem}/{stem}.html"
         if target.stat(html_path) is None:
             src = layout.page_html(ctx.catalog, ctx.crawl, stem)
@@ -165,18 +193,7 @@ def publish(ctx: Ctx, to: str, by: str, allow_unapproved: bool = False, log=prin
         r["publication"] = pub
     gdir = layout.golden_dir(ctx.catalog, ctx.crawl, pub)
     info = ctx.write_table(f"{gdir}/lineage.parquet", p["lineage"], model.LINEAGE)
-    doc = {"publication": pub, "catalog": ctx.catalog, "crawl": ctx.crawl, "extraction": rv.snap.ext,
-           "ruleset_version": rv.snap.ruleset_version, "published_at": datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
-           "published_by": by, "to": target.uri, "to_prefix": prefix, "pages": len(p["pages"]),
-           "page_stems": sorted(p["pages"]), "courses": p["courses"], "records": p["records"],
-           "lineage_rows": info["rows"], "lineage_sha256": info["sha256"],
-           "golden_id_collisions": p["collisions"], "skipped_no_course_key": p["skipped_no_course_key"],
-           "format": "xtra-golden-sets-verified per-page shape: <catalog>/<crawl>/<stem>/<stem>.json = "
-                     "[{golden_id, fields: [{ctdl_property, property, value, source_url, location}]}], "
-                     "plus <stem>.html as crawled",
-           "approval_gate": {"all_rules_approved": ok,
-                             "rules": [{k: s[k] for k in ("rule_id", "version", "status", "approved_by")}
-                                       for s in statuses]}}
+    doc = publication_doc(ctx, rv, p, pub, target.uri, by, ok, statuses, info)
     try:
         ctx.root.write_json(f"{gdir}/publication.json", doc, if_none_match=True)
     except ConflictError:

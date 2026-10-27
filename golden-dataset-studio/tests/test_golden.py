@@ -67,3 +67,26 @@ def test_golden_api_blocks_publish_until_approved(ctx):
     assert d["target"] == f"{golden.GOLDEN_CONTAINER}/avc-elumenapp-com-catalog-2026-27-welcome/2026-10-12T20-59-13Z/"
     r = c.post("/api/catalogs/avc/golden/publish", json={"author": "Test"})
     assert r.status_code == 409 and "not approved" in r.json()["detail"]
+
+
+@pytest.mark.slow
+def test_golden_file_previews(ctx):
+    from fastapi.testclient import TestClient
+
+    from golden_datasets.server.app import create_app
+
+    c = TestClient(create_app(ctx.root.uri))
+    stems = c.get("/api/catalogs/avc/golden").json()["page_stems"]
+    assert len(stems) == 1259 and all(s["records"] >= 1 for s in stems)
+    stem = stems[0]["stem"]
+    page = c.get(f"/api/catalogs/avc/golden/files/page/{stem}.json").json()
+    assert page["records"] == stems[0]["records"] and json.loads(page["text"])[0]["golden_id"]
+    html = c.get(f"/api/catalogs/avc/golden/files/page/{stem}.html").json()
+    assert "<html" in html["text"].lower()
+    lin = c.get("/api/catalogs/avc/golden/files/lineage", params={"limit": 5}).json()
+    assert lin["total"] == lin["matched"] == 19500 and len(lin["rows"]) == 5 and lin["columns"][0] == "publication"
+    one = c.get("/api/catalogs/avc/golden/files/lineage", params={"q": "GEOG222"}).json()
+    assert 0 < one["matched"] < 50
+    pub = json.loads(c.get("/api/catalogs/avc/golden/files/publication.json", params={"author": "Jared"}).json()["text"])
+    assert pub["published_by"] == "Jared via the Studio UI" and pub["lineage_rows"] == 19500
+    assert c.get("/api/catalogs/avc/golden/files/page/nope.json").status_code == 404

@@ -1,5 +1,6 @@
 // Golden (spec §7.6, screen 10): each rule version's status, Publish disabled until every rule is approved,
-// what will be written, golden_id collisions to confirm, earlier publications.
+// what will be written (each file can be opened as a sample), course codes shared by different courses, earlier
+// publications.
 import { useCallback, useEffect, useState } from "react";
 import { api } from "../api/client";
 import type { GoldenResponse } from "../api/types";
@@ -7,6 +8,8 @@ import { useReviewer } from "../shell/reviewer";
 import { href } from "../shell/router";
 import type { TabProps } from "../shell/tabProps";
 import { fmt, Ico, toast, useKeyHints } from "../shell/ui";
+import { FilePreview } from "./FilePreview";
+import type { GoldenFile } from "./FilePreview";
 import "./golden.css";
 
 const pillClass = (s: string) => (s === "approved" ? "approved" : s === "needs work" ? "needs" : "review");
@@ -16,6 +19,7 @@ export default function GoldenTab({ catalog }: TabProps) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const me = useReviewer();
+  const [open, setOpen] = useState<GoldenFile | null>(null);
   const load = useCallback(() => { api.golden(catalog.short).then(setD, (e) => setError(String(e))); }, [catalog.short]);
   useEffect(load, [load]);
   useKeyHints(<span><span className="mono">golden-datasets golden publish --catalog {catalog.short} --to ROOT</span> does the same from the CLI</span>, [catalog.short]);
@@ -34,8 +38,13 @@ export default function GoldenTab({ catalog }: TabProps) {
     } catch (e) { toast(String(e)); } finally { setBusy(false); }
   };
 
+  const F = ({ f, children }: { f: GoldenFile; children: string }) =>
+    <button className="f" onClick={() => setOpen(f)} title={`Show ${children}`}>{children}</button>;
+
   return (
     <div className="doc"><div className="doc-in">
+      {open && <FilePreview catalog={catalog.short} file={open} stems={d.page_stems} author={me}
+                            onClose={() => setOpen(null)} />}
       <h1>Publish the golden dataset</h1>
       <div className="lead">Turns extraction <span className="mono">{d.extraction}</span> (ruleset v{d.ruleset_version}) into a
         domain-only dataset plus a lineage table. Every rule version in the ruleset must be approved first.</div>
@@ -60,40 +69,42 @@ export default function GoldenTab({ catalog }: TabProps) {
           ))}
         </div>
         <div>
-          <div className="box"><h3>What will be written</h3>
+          <div className="box"><h3>What will be written <span className="h3-note">· click a file to see a sample</span></h3>
             <div className="target mono">{d.target}</div>
             <div className="tree">{"."}{"\n"}
               {"└── <page>/                 "}<span className="c"># one folder per saved page with courses ({fmt(d.pages)})</span>{"\n"}
-              {"    ├── <page>.json         "}<span className="c"># [{"{"}golden_id, fields: [{"{"}ctdl_property, property,</span>{"\n"}
+              {"    ├── "}<F f="page.json">{"<page>.json"}</F>{"         "}<span className="c"># [{"{"}golden_id, fields: [{"{"}ctdl_property, property,</span>{"\n"}
               {"    │                       "}<span className="c">#   value, source_url, location{"}"}]{"}"}]</span>{"\n"}
-              {"    └── <page>.html         "}<span className="c"># the page as crawled, if not there yet: the</span>{"\n"}
+              {"    └── "}<F f="page.html">{"<page>.html"}</F>{"         "}<span className="c"># the page as crawled, if not there yet: the</span>{"\n"}
               {"                            "}<span className="c">#   locations above point into it</span>{"\n\n"}
               {"Studio: golden/<publication>/"}{"\n"}
-              {"├── lineage.parquet         "}<span className="c"># one row per value → rule, version, occurrence, verdicts</span>{"\n"}
-              {"└── publication.json        "}<span className="c"># which extraction and ruleset, approvals</span>
+              {"├── "}<F f="lineage.parquet">{"lineage.parquet"}</F>{"         "}<span className="c"># one row per value → rule, version, occurrence, verdicts</span>{"\n"}
+              {"└── "}<F f="publication.json">{"publication.json"}</F>{"        "}<span className="c"># which extraction and ruleset, approvals</span>
             </div>
             <div className="muted" style={{ fontSize: 12.5, marginTop: 10, lineHeight: 1.55 }}>
               {fmt(d.courses)} courses · {fmt(d.records)} course entries · {fmt(d.fields)} values. Same shape as the golden
               sets saved so far, plus <span className="mono">location</span> (css_path and character offsets on the page) on
-              every value and a <span className="mono">golden_id</span> on every course. Learning Type is kept with{" "}
+              every value and an id on every course (<span className="mono">golden_id</span>: its course code, like{" "}
+              <span className="mono">GEOG222</span>). Learning Type is kept with{" "}
               <span className="mono">ctdl_property: null</span>. Rule ids and verdicts live only in{" "}
               <span className="mono">lineage.parquet</span>, which stays in the Studio.
             </div>
           </div>
-          <div className="box" style={{ marginTop: 18 }}><h3>golden_id collisions to confirm · {d.collisions.length}</h3>
+          <div className="box" style={{ marginTop: 18 }}><h3>One course code, different courses · {d.collisions.length}</h3>
+            <div className="muted" style={{ fontSize: 12.5, marginBottom: 8, lineHeight: 1.55 }}>
+              Each course in the dataset is identified by its course code. When course pages use one code for courses with
+              different names, each name gets its own id (<span className="mono">GEOG222~1</span>,{" "}
+              <span className="mono">GEOG222~2</span>) so they stay apart, and they're listed here so you can check they
+              really are different courses and not one course whose title changed.</div>
             {d.collisions.length === 0
-              ? <div className="muted">None: every course code names one course.</div>
-              : <>
-                  <div className="muted" style={{ fontSize: 12.5, marginBottom: 8 }}>The same code names different courses on its course
-                    pages, so each name gets its own <span className="mono">golden_id</span>. Check that these really are different courses.</div>
-                  <div className="collisions">{d.collisions.slice(0, 200).map((c) => (
-                    <div key={c.course_key} className="chk" style={{ gridTemplateColumns: "auto 1fr" }}>
-                      <b className="mono">{c.course_key}</b>
-                      <span>{c.names.map((n, i) => <div key={i}><span className="mono muted">{c.golden_ids[i]}</span> {n}</div>)}</span>
-                    </div>))}
-                    {d.collisions.length > 200 && <div className="muted">… and {d.collisions.length - 200} more</div>}
-                  </div>
-                </>}
+              ? <div>None in this catalog: every course code is used for one course.</div>
+              : <div className="collisions">{d.collisions.slice(0, 200).map((c) => (
+                  <div key={c.course_key} className="chk" style={{ gridTemplateColumns: "auto 1fr" }}>
+                    <b className="mono">{c.course_key}</b>
+                    <span>{c.names.map((n, i) => <div key={i}>{n} <span className="mono muted">→ {c.golden_ids[i]}</span></div>)}</span>
+                  </div>))}
+                  {d.collisions.length > 200 && <div className="muted">… and {d.collisions.length - 200} more</div>}
+                </div>}
           </div>
           {d.publications.length > 0 && (
             <div className="box" style={{ marginTop: 18 }}><h3>Earlier publications</h3>

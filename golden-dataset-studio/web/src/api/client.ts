@@ -1,6 +1,7 @@
 // Thin fetch wrappers for the Studio API. Every tab uses these; they keep URLs in one place.
 import type {
-  CatalogCard, CatalogDetail, CompareResponse, CourseDetail, CourseHit, GoldenResponse, NewEvent, Overlay,
+  CatalogCard, CatalogDetail, CompareResponse, CourseDetail, CourseHit, GoldenFileText, GoldenLineage, GoldenResponse,
+  NewEvent, Overlay,
   PromptResponse, RuleDetail, RuleSummary, RulesResponse, RowsResponse, UnclassifiedPage,
 } from "./types";
 
@@ -48,6 +49,14 @@ export const api = {
   prompt: (catalog: string, opts: { rule?: string; needs_work?: boolean } = {}) =>
     call<PromptResponse>(`${c(catalog)}/prompt${q(opts)}`),
   golden: (catalog: string) => call<GoldenResponse>(`${c(catalog)}/golden`),
+  goldenPageJson: (catalog: string, stem: string) =>
+    call<GoldenFileText>(`${c(catalog)}/golden/files/page/${encodeURIComponent(stem)}.json`),
+  goldenPageHtml: (catalog: string, stem: string) =>
+    call<GoldenFileText>(`${c(catalog)}/golden/files/page/${encodeURIComponent(stem)}.html`),
+  goldenLineage: (catalog: string, opts: { q?: string; offset?: number; limit?: number } = {}) =>
+    call<GoldenLineage>(`${c(catalog)}/golden/files/lineage${q(opts)}`),
+  goldenPublicationJson: (catalog: string, author: string) =>
+    call<GoldenFileText>(`${c(catalog)}/golden/files/publication.json${q({ author })}`),
   goldenPublish: (catalog: string, body: { author: string; to?: string }) =>
     call<{ publication: string; path: string; files: number }>(`${c(catalog)}/golden/publish`, {
       method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
