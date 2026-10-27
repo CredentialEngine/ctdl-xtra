@@ -19,15 +19,23 @@ from .state import studio
 router = APIRouter(prefix="/api")
 PATH = f"{layout.STUDIO}/profiles.json"
 ROLES = ("sme", "engineer")
-DEFAULT = [("Jared", "sme"), ("Cadence", "sme"), ("Nicholas", "engineer"), ("Rohit", "engineer"),
-           ("Eric", "engineer"), ("Seth", "engineer")]
+DEFAULT = [("Jared Diener", "sme"), ("Cadence Calixto", "sme"), ("Nicolas Soto", "engineer"),
+           ("Rohit Joy", "engineer"), ("Eric Riddoch", "engineer"), ("Seth Alt", "engineer")]
+# The first defaults were first names only (and misspelled Nicolas); a saved list is read with their full names.
+RENAMED = {"Jared": "Jared Diener", "Cadence": "Cadence Calixto", "Nicholas": "Nicolas Soto",
+           "Rohit": "Rohit Joy", "Eric": "Eric Riddoch", "Seth": "Seth Alt"}
 
 
 def _read(root) -> tuple[list[dict], str | None]:
     st = root.stat(PATH)
     if st is None:
         return [{"name": n, "role": r} for n, r in DEFAULT], None
-    return root.read_json(PATH)["profiles"], st.etag
+    items = root.read_json(PATH)["profiles"]
+    names = {p["name"] for p in items}
+    for p in items:
+        if RENAMED.get(p["name"]) not in (None, *names):
+            p["name"] = RENAMED[p["name"]]
+    return items, st.etag
 
 
 @router.get("/profiles")
