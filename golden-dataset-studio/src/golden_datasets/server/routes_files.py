@@ -56,7 +56,13 @@ ABOUT = [
 
 @functools.lru_cache(maxsize=8)
 def account_id(account: str) -> str | None:
-    """The storage account's Azure resource id, from the signed-in Azure CLI (None when it can't say)."""
+    """The storage account's Azure resource id: $GOLDEN_DATASETS_AZURE_ACCOUNT_ID when it names this account (a
+    deployed Studio has no Azure CLI), else from the signed-in Azure CLI (None when neither can say)."""
+    import os
+
+    env = os.environ.get("GOLDEN_DATASETS_AZURE_ACCOUNT_ID", "").strip()
+    if env.lower().endswith(f"/storageaccounts/{account.lower()}"):
+        return env
     try:
         r = subprocess.run(["az", "storage", "account", "show", "-n", account, "--query", "id", "-o", "tsv"],
                            capture_output=True, text=True, timeout=60)

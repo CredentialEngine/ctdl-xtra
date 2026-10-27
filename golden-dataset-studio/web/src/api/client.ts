@@ -30,13 +30,15 @@ const c = (catalog: string) => `/api/catalogs/${encodeURIComponent(catalog)}`;
 export const api = {
   catalogs: () => call<CatalogCard[]>("/api/catalogs"),
   catalog: (catalog: string) => call<CatalogDetail>(c(catalog)),
-  rules: (catalog: string) => call<RulesResponse>(`${c(catalog)}/rules`),
-  rule: (catalog: string, ruleId: string) => call<RuleDetail>(`${c(catalog)}/rules/${encodeURIComponent(ruleId)}`),
+  rules: (catalog: string, ext?: string | null) => call<RulesResponse>(`${c(catalog)}/rules${q({ ext })}`),
+  rule: (catalog: string, ruleId: string, ext?: string | null) =>
+    call<RuleDetail>(`${c(catalog)}/rules/${encodeURIComponent(ruleId)}${q({ ext })}`),
   rows: (catalog: string, ruleId: string, opts: { offset?: number; limit?: number; q?: string } = {}) =>
     call<RowsResponse>(`${c(catalog)}/rules/${encodeURIComponent(ruleId)}/rows${q(opts)}`),
-  overlay: (catalog: string, stem: string, rule: string) =>
-    call<Overlay>(`${c(catalog)}/pages/${encodeURIComponent(stem)}/overlay${q({ rule })}`),
-  unclassifiedPages: (catalog: string) => call<UnclassifiedPage[]>(`${c(catalog)}/unclassified-pages`),
+  overlay: (catalog: string, stem: string, rule: string, ext?: string | null) =>
+    call<Overlay>(`${c(catalog)}/pages/${encodeURIComponent(stem)}/overlay${q({ rule, ext })}`),
+  unclassifiedPages: (catalog: string, ext?: string | null) =>
+    call<UnclassifiedPage[]>(`${c(catalog)}/unclassified-pages${q({ ext })}`),
   courses: (catalog: string, query?: string) => call<CourseHit[]>(`${c(catalog)}/courses${q({ q: query })}`),
   course: (catalog: string, courseKey: string) =>
     call<CourseDetail>(`${c(catalog)}/courses/${encodeURIComponent(courseKey)}`),

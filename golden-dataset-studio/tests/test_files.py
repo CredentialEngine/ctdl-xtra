@@ -65,3 +65,14 @@ def test_list_and_preview(client):
     j = client.get("/api/catalogs/avc/files/content", params={"path": rule}).json()
     assert j["kind"] == "json" and '"rule_id": "course-description"' in j["text"]
     assert client.get("/api/catalogs/avc/files/content", params={"path": "../secrets"}).status_code == 404
+
+
+def test_account_id_from_the_environment(monkeypatch):
+    rid = "/subscriptions/s/resourceGroups/g/providers/Microsoft.Storage/storageAccounts/ceteststorage"
+    monkeypatch.setenv("GOLDEN_DATASETS_AZURE_ACCOUNT_ID", rid)
+    routes_files.account_id.cache_clear()
+    assert routes_files.account_id("ceteststorage") == rid
+    routes_files.account_id.cache_clear()
+    monkeypatch.setenv("PATH", "")  # no az: another account has no id
+    assert routes_files.account_id("otheraccount") is None
+    routes_files.account_id.cache_clear()

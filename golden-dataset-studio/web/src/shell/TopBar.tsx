@@ -22,11 +22,10 @@ export function TopBar({ catalog, tab, onTour }: { catalog: CatalogDetail | null
         {catalog && (
           <>
             <span className="sep">/</span>
-            <a href="#/" className="chip crumb-cat" style={{ textDecoration: "none" }}>
+            <a href="#/" className="chip crumb-cat" style={{ textDecoration: "none" }}
+              title={`pages saved ${fmtDate(catalog.crawl)} · latest ruleset v${catalog.ruleset_version}`}>
               {catalog.logo && <img src={catalog.logo} alt="" />}{catalog.name}
             </a>
-            <span className="muted">pages saved {fmtDate(catalog.crawl)}</span>
-            <span className="muted" title={`extraction ${catalog.extraction}`}>· ruleset v{catalog.ruleset_version}</span>
           </>
         )}
       </nav>
