@@ -343,7 +343,13 @@ export default function RulesTab({ catalog, route }: TabProps) {
                   {kind === "page"
                     ? <><div className="val">{r.page_title ?? r.page_stem}</div><div className="pg">{r.url.replace(/^https?:\/\//, "")}</div></>
                     : <><div className={`val${r.status === "found" ? "" : " empty"}`}><Value text={val} /></div>
-                        <div className="pg">{r.context}</div></>}
+                        <div className="pg">{r.context}
+                          {on && r.course_key && (
+                            <a className="xlink" title="Open this course in the Records tab, with this field selected"
+                              href={href(cat, "records", r.course_key,
+                                { prop: kind === "field" ? detail.property_label : null, occ: r.occurrence_key })}
+                              onClick={(e) => e.stopPropagation()}>Open record →</a>)}
+                        </div></>}
                   <HistoryLine state={r.state} verdict={r.verdict} reattached={r.reattached} comments={r.comments} page_questions={r.page_questions} />
                   {on && draft && <Expansion draft={draft} fieldRule={kind === "field"} emptyValue={r.status !== "found"}
                     onChange={setDraft} onSave={() => void saveRow(i, { draft })} onCancel={() => setDraft(null)} />}

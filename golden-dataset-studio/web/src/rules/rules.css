@@ -54,3 +54,6 @@
 .w4-rules .rule-head .rh-top > .btn, .w4-rules .rule-head .rh-top > .approved-by { flex: none; }
 .w4-rules .rule-head .approved-by .ab-who { max-width: 24em; text-align: right; white-space: normal; }
 .w4-rules .rule-head .rh-top > .approved-by { margin-left: auto; }
+/* Rules ⇄ Records: a quick link on the selected row / value */
+.xlink { margin-left: 10px; white-space: nowrap; font-weight: 500; color: var(--accent); text-decoration: none; }
+.xlink:hover { text-decoration: underline; }

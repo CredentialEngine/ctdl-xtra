@@ -39,6 +39,7 @@ export default function RecordsTab({ catalog, route }: TabProps) {
 
   const courseKey = route.id;
   const wantProp = route.params.get("prop") ?? "Description";
+  const wantOcc = route.params.get("occ");
 
   useEffect(() => {
     let live = true;
@@ -63,8 +64,9 @@ export default function RecordsTab({ catalog, route }: TabProps) {
   useEffect(() => {
     if (!cards.length) return;
     const card = cards.find((c) => c.property === wantProp) ?? cards[0];
-    setSel(valueKey(card.values[0]));
-  }, [cards, wantProp]);
+    // the entry the Rules tab came from (a course can be on several pages), else the first
+    setSel(valueKey(card.values.find((v) => v.occurrence_key === wantOcc) ?? card.values[0]));
+  }, [cards, wantProp, wantOcc]);
 
   useEffect(() => {
     const box = listRef.current;
@@ -194,7 +196,10 @@ export default function RecordsTab({ catalog, route }: TabProps) {
                         onClick={() => { if (!on) { setSel(valueKey(v)); setDraft(null); setActiveStem(null); } }}>
                         <div style={{ minWidth: 0 }}>
                           <div className="tx">{v.status === "found" ? v.value : "(nothing found)"}</div>
-                          <div className="src"><span className="tag">{v.on_course_page ? "course page" : "program page"}</span><span>{shortTitle(v.page_title, 70)}</span></div>
+                          <div className="src"><span className="tag">{v.on_course_page ? "course page" : "program page"}</span><span>{shortTitle(v.page_title, 70)}</span>
+                            {on && <a className="xlink" title="Open this field's rule in the Rules tab, with this course selected"
+                              href={href(cat, "rules", v.rule_id, { row: v.occurrence_key })}
+                              onClick={(e) => e.stopPropagation()}>See in Rules →</a>}</div>
                           <HistoryLine state={v.state} verdict={v.verdict} comments={v.comments} />
                           {on && draft && <Expansion draft={draft} fieldRule emptyValue={v.status !== "found"} onChange={setDraft}
                             onSave={() => void save(v, { draft })} onCancel={() => setDraft(null)} />}
