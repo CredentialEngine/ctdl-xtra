@@ -6,7 +6,6 @@ import { useEffect, useState } from "react";
 export type Role = "sme" | "engineer";
 export interface Profile { name: string; role: Role | null }
 export const ROLE_LABEL: Record<Role, string> = { sme: "Subject matter expert", engineer: "Engineer" };
-export const ROLE_SHORT: Record<Role, string> = { sme: "SME", engineer: "Engineer" };
 
 const KEY = "studio.reviewer";
 const ROLE = "studio.role";
@@ -38,12 +37,6 @@ export function setIdentity(name: string, role: Role): void {
   write(ROLE, role);
   window.dispatchEvent(new Event("studio-reviewer"));
 }
-/** Back to the "Who are you?" screen. */
-export function forgetIdentity(): void {
-  write(ROLE, null);
-  window.dispatchEvent(new Event("studio-reviewer"));
-}
-
 function useIdentityEvent<T>(get: () => T): T {
   const [v, setV] = useState(get);
   useEffect(() => {

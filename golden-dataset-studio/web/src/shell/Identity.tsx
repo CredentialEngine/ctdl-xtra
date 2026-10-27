@@ -87,7 +87,7 @@ export function IdentityScreen() {
 
         {error && <div className="idn-error">{error}</div>}
         <button type="submit" className="btn primary idn-go" disabled={!ready}>{busy ? "Saving…" : "Continue"}</button>
-        <p className="idn-foot">No password: anyone can pick any profile. Switch later from the top bar.</p>
+        <p className="idn-foot">No password: pick the profile that's yours.</p>
       </form>
     </div>
   );

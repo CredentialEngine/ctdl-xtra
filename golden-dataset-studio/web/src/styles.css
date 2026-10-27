@@ -347,7 +347,6 @@ pre.json { margin: 0; font: 11.5px/1.55 var(--mono); color: var(--ink-2); white-
 /* ---- revision 2 ---- */
 .who-l { font-size: 12.5px; color: var(--muted); display: flex; align-items: center; gap: 6px; font-weight: 500; }
 .who-l .who-name { font-weight: 600; color: var(--ink); }
-.who-l .who-role { font-size: 11px; font-weight: 600; color: var(--violet); background: var(--violet-soft); border-radius: 4px; padding: 1px 6px; }
 .crumb-cat { display: inline-flex; align-items: center; gap: 6px; }
 .crumb-cat img { height: 16px; width: auto; max-width: 60px; object-fit: contain; }
 .gds-num { width: 17px; height: 17px; border-radius: 50%; background: #f5a524; color: #fff; font-size: 10px; font-weight: 700; display: inline-grid; place-items: center; flex: none; }

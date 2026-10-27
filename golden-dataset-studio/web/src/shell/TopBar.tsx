@@ -1,7 +1,7 @@
 // Top bar on every screen (spec §7): Studio name, catalog, crawl date, ruleset version, the five tabs,
-// who is reviewing (name and role, with Switch back to the "Who are you?" screen) and "Show the tour".
+// the reviewer's first name (picked once on the "Who are you?" screen; role on hover) and "Show the tour".
 import type { CatalogDetail } from "../api/types";
-import { forgetIdentity, ROLE_LABEL, ROLE_SHORT, useReviewer, useRole } from "./reviewer";
+import { ROLE_LABEL, useReviewer, useRole } from "./reviewer";
 import { href, TABS, type Tab } from "./router";
 import { fmtDate } from "./ui";
 
@@ -38,10 +38,8 @@ export function TopBar({ catalog, tab, onTour }: { catalog: CatalogDetail | null
         ))}
       </nav>
       <div className="who">
-        <span className="who-l" title={role ? `${me} · ${ROLE_LABEL[role]}` : me}>
-          <span className="who-name">{me}</span>{role && <span className="who-role">{ROLE_SHORT[role]}</span>}
-          <button className="linkish" onClick={forgetIdentity} title="Pick another profile or role">Switch</button>
-        </span>
+        {me && <span className="who-l" title={role ? `${me} · ${ROLE_LABEL[role]}` : me}>
+          <span className="who-name">{me.split(" ")[0]}</span></span>}
         {catalog && onTour && <button className="btn tour-btn" onClick={onTour} data-tour="tour-button">Show the tour</button>}
       </div>
     </header>
