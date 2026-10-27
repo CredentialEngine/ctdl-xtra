@@ -25,7 +25,7 @@ export function TopBar({ catalog, tab, onTour }: { catalog: CatalogDetail | null
             <a href="#/" className="chip crumb-cat" style={{ textDecoration: "none" }}>
               {catalog.logo && <img src={catalog.logo} alt="" />}{catalog.name}
             </a>
-            <span className="muted">pages saved {fmtDate(catalog.crawl)}</span>
+            <span className="muted">pages from {fmtDate(catalog.crawl)}</span>
             <span className="muted" title={`extraction ${catalog.extraction}`}>· ruleset v{catalog.ruleset_version}</span>
           </>
         )}

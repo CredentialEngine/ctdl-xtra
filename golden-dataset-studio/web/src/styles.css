@@ -467,7 +467,7 @@ html, body { overflow: hidden; }
 .rh-top h1, .rh-title h1 { overflow-wrap: normal; word-break: normal; } .term { font-size: 16px; white-space: nowrap; } .term.plain { white-space: normal; }
 
 /* ---- revision 3 ---- */
-/* picker: name | pages saved on one line, a thin bar of approved rules under it; columns line up across cards */
+/* picker: name | crawl date on one line, a thin bar of approved rules under it; columns line up across cards */
 .cat { display: grid; grid-template-columns: 140px 1fr 72px; gap: 20px; align-items: center; }
 .cat-logo { width: 140px; }
 .cat-logo img { max-width: 136px; }

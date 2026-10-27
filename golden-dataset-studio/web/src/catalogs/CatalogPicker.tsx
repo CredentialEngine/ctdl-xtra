@@ -1,9 +1,9 @@
-// Catalog picker (spec §7.1, screen 01): one card per catalog, logo, name, pages saved, approved-rules bar.
+// Catalog picker (spec §7.1, screen 01): one card per catalog, logo, name, the date of its crawl, approved-rules bar.
 import { useEffect, useState } from "react";
 import { api } from "../api/client";
 import type { CatalogCard } from "../api/types";
 import { href } from "../shell/router";
-import { fmt } from "../shell/ui";
+import { fmt, fmtDate } from "../shell/ui";
 import { LoopModal, shouldShowLoop } from "./LoopModal";
 
 export default function CatalogPicker() {
@@ -27,7 +27,8 @@ export default function CatalogPicker() {
                 <div className="cat-logo">{c.logo && <img src={c.logo} alt={`${c.name} logo`} />}</div>
                 <div className="cat-main">
                   <div className="cat-row1"><span className="nm">{c.name}</span>
-                    <span className="pages">{c.pages != null ? `${fmt(c.pages)} pages saved` : "pages not indexed"}</span></div>
+                    <span className="pages" title={c.pages != null ? `${fmt(c.pages)} pages in this crawl` : undefined}>
+                      {c.crawl ? `pages from ${fmtDate(c.crawl)}` : "pages not indexed"}</span></div>
                   <div className="cat-row2"><div className="bar"><i style={{ width: `${pct}%` }} /></div>
                     <span className="bar-t">{ready ? `${c.rules_approved} of ${c.rules_total} rules approved` : "rules not run yet"}</span></div>
                 </div>

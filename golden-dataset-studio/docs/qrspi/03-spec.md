@@ -747,7 +747,8 @@ in the page pane keeps the catalog's own colours: it is a picture of the source.
 
 One card per catalog, laid out the same way on every card:
 - the institution's logo;
-- its name top-left and "N pages saved" top-right;
+- its name top-left and "pages from <crawl date>" top-right (the page count on hover): the Studio works on one
+  crawl per catalog;
 - a thin progress bar of approved rules ("5 of 17 rules approved"), the same width and position on every card.
 
 A catalog whose rules haven't been run yet shows an empty bar and "rules not run yet". **Open →** goes to its Rules
