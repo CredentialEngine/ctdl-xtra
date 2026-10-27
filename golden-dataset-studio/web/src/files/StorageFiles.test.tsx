@@ -38,6 +38,7 @@ describe("StorageFiles", () => {
     expect(host.querySelector(".sf-file.on .sf-name")!.textContent).toBe("annotations.jsonl");
     expect([...host.querySelectorAll(".sf-line")].map((l) => l.textContent)).toEqual(["2", "1"]);
     expect(host.querySelector(".sf-root a")!.getAttribute("href")).toContain("storagebrowser");
+    expect(host.querySelector(".sf-root a")!.textContent).toBe("Storage browser ↗");
     expect(host.querySelector(".sf-portal")!.getAttribute("href")).toBe("https://portal/log");
     const files = [...host.querySelectorAll<HTMLButtonElement>(".sf-file")];
     await act(async () => files.find((f) => f.textContent?.includes("matches.parquet"))!.click());

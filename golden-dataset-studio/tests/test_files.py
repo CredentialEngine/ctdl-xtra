@@ -8,6 +8,23 @@ from golden_datasets.cli import main
 from golden_datasets.server.routes_files import about, group
 
 
+def test_portal_links_open_in_the_tenant(monkeypatch):
+    from golden_datasets.server import routes_files
+
+    monkeypatch.setattr(routes_files, "account_id", lambda a: "/subscriptions/s/resourceGroups/g/providers/Microsoft.Storage/storageAccounts/a")
+
+    class Root:
+        account, container_name, prefix = "a", "box", "pre"
+
+    links = routes_files.portal(Root())
+    assert links["browser"] == ("https://portal.azure.com/#@credengine.onmicrosoft.com/resource/subscriptions/s/resourceGroups/g"
+                                "/providers/Microsoft.Storage/storageAccounts/a/storagebrowser")
+    assert links["blob"]("x/y.json").startswith("https://portal.azure.com/#@credengine.onmicrosoft.com/view/")
+    assert "path/box%2Fpre%2Fx%2Fy.json/" in links["blob"]("x/y.json")
+    monkeypatch.setenv("GOLDEN_DATASETS_AZURE_TENANT", "other.onmicrosoft.com")
+    assert routes_files.portal(Root())["browser"].startswith("https://portal.azure.com/#@other.onmicrosoft.com/")
+
+
 def test_about_and_group():
     c = "avc-x"
     assert "immutable" in about(f"{c}/golden-dataset-studio/rules/course-code/v0001.json")

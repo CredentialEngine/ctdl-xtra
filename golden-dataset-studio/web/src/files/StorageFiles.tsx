@@ -11,7 +11,7 @@ import "./files.css";
 
 interface FileItem { path: string; size: number; group: string; about: string; portal?: string }
 interface Listing { root: string; catalog: string; crawl: string; files: FileItem[];
-                    portal: { browser: string; container: string; prefix: string } | null }
+                    portal: { browser: string; container_url?: string; container: string; prefix: string } | null }
 interface Head { path: string; uri: string; size: number; about: string; portal: string | null }
 type Content = Head & (
   | { kind: "json" | "text"; text: string; truncated: boolean }
@@ -96,8 +96,11 @@ export function StorageFiles({ catalog, onClose }: { catalog: string; onClose: (
           <div className="sf-title"><b>Storage files</b> <span className="muted">· what the Studio keeps for this catalog, read-only</span>
             {list && <div className="sf-root"><span className="mono" title={list.root}>{list.root}</span>
               {list.portal && <> · <a href={list.portal.browser} target="_blank" rel="noopener noreferrer"
-                title={`The storage account's Storage browser: container ${list.portal.container}, folder ${list.portal.prefix}/ (sign in to Azure)`}>
-                Azure portal ↗</a></>}</div>}</div>
+                title={`The storage account's Storage browser (sign in to Azure); then Blob containers → ${list.portal.container} → ${list.portal.prefix}/`}>
+                Storage browser ↗</a>
+                {list.portal.container_url && <> · <a href={list.portal.container_url} target="_blank" rel="noopener noreferrer"
+                  title={`The ${list.portal.container} container in the Azure portal; the files are under ${list.portal.prefix}/`}>
+                  container {list.portal.container} ↗</a></>}</>}</div>}</div>
           <button className="btn" onClick={onClose} title="Close (Esc)">Close</button>
         </div>
         <div className="sf-main">

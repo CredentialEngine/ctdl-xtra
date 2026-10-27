@@ -65,6 +65,17 @@ def account_id(account: str) -> str | None:
     return (r.stdout.strip() or None) if r.returncode == 0 else None
 
 
+#: The Azure tenant the portal links open in (its domain or id); without it the portal may open the wrong
+#: directory and not find the resource. GOLDEN_DATASETS_AZURE_TENANT overrides it.
+DEFAULT_TENANT = "credengine.onmicrosoft.com"
+
+
+def tenant() -> str:
+    import os
+
+    return os.environ.get("GOLDEN_DATASETS_AZURE_TENANT") or DEFAULT_TENANT
+
+
 def portal(root) -> dict | None:
     """Links into the Azure portal (they work for whoever is signed in to Azure): the account's storage browser, and
     a function from a root-relative path to that blob's page. None for a local root."""
@@ -76,14 +87,17 @@ def portal(root) -> dict | None:
         return None
     enc = quote(rid, safe="")
     container, prefix = root.container_name, root.prefix
+    base = f"https://portal.azure.com/#@{tenant()}"
 
     def blob(path: str) -> str:
         name = f"{prefix}/{path}" if prefix else path
-        return (f"https://portal.azure.com/#view/Microsoft_Azure_Storage/BlobPropertiesBladeV2/storageAccountId/{enc}"
+        return (f"{base}/view/Microsoft_Azure_Storage/BlobPropertiesBladeV2/storageAccountId/{enc}"
                 f"/path/{quote(f'{container}/{name}', safe='')}/isDeleted~/false/tabToload~/0")
 
-    return {"browser": f"https://portal.azure.com/#@/resource{rid}/storagebrowser", "container": container,
-            "prefix": prefix, "blob": blob}
+    return {"browser": f"{base}/resource{rid}/storagebrowser",
+            "container_url": f"{base}/view/Microsoft_Azure_Storage/ContainerMenuBlade/~/overview/storageAccountId/{enc}"
+                             f"/path/{quote(container, safe='')}",
+            "container": container, "prefix": prefix, "blob": blob}
 
 
 def about(path: str) -> str:
