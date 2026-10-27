@@ -13,6 +13,7 @@ import { useReviewer } from "../shell/reviewer";
 import { go, href } from "../shell/router";
 import type { TabProps } from "../shell/tabProps";
 import { fmt, Ico, toast, useKeyHints } from "../shell/ui";
+import { multiline } from "./commands";
 import { wordDiff } from "./diff";
 import "./evals.css";
 
@@ -352,7 +353,7 @@ function JobBar({ job, onCancel, onClose }: { job: EvalJob; onCancel: () => void
 }
 
 function Commands({ extractionCmds, scoreCmds, onClose }: { extractionCmds: string[]; scoreCmds: string[]; onClose: () => void }) {
-  const all = [...extractionCmds, ...scoreCmds];
+  const all = [...extractionCmds, ...scoreCmds].map(multiline);
   const azure = all.some((c) => c.includes("azure://"));
   const text = [...(azure ? ["az login", 'export AZURE_STORAGE_CONNECTION_STRING="$(az storage account show-connection-string \\\n  -n ceteststorage --query connectionString -o tsv)"'] : []), ...all].join("\n\n");
   return (
