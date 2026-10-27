@@ -43,6 +43,7 @@ async def select_text(page, css_inner: str, needle: str, length: int) -> bool:
 
 
 SHOTS = []
+THEME = {"14-dark-mode": "dark"}
 
 
 def shot(name, height=900):
@@ -179,6 +180,20 @@ async def s13(page, base):
     await page.evaluate("() => { try { localStorage.removeItem('studio.pane.zoom'); localStorage.removeItem('studio.pane.css') } catch (e) {} }")
 
 
+@shot("09b-prompt-rendered")
+async def s09b(page, base):
+    await s09(page, base)
+    await page.click("text=Rendered")
+    await page.wait_for_timeout(600)
+
+
+@shot("14-dark-mode")
+async def s14(page, base):
+    await page.goto(f"{base}/#/c/{CAT}/rules/locator-program-requirement?row=CFE101")
+    await page.wait_for_selector(".row.on")
+    await wait_pane(page)
+
+
 async def main(base: str, out: Path, only: str | None) -> None:
     from playwright.async_api import async_playwright
 
@@ -191,7 +206,8 @@ async def main(base: str, out: Path, only: str | None) -> None:
             ctx = await browser.new_context(viewport={"width": 1440, "height": height}, device_scale_factor=2)
             page = await ctx.new_page()
             page.on("pageerror", lambda e, n=name: print(f"  [{n}] page error: {e}"))
-            await page.add_init_script("try { localStorage.setItem('studio.tour.seen', '1') } catch (e) {}")
+            await page.add_init_script("try { localStorage.setItem('studio.tour.seen', '1');"
+                                      f" localStorage.setItem('studio.theme', '{THEME.get(name, 'light')}') }} catch (e) {{}}")
             await fn(page, base)
             await page.screenshot(path=str(out / f"{name}.png"))
             print("wrote", out / f"{name}.png")

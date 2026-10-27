@@ -76,6 +76,12 @@ export default function PromptTab({ catalog, route }: TabProps) {
   // The rule the "One rule" picker shows: the one in the route, else the first needing work, else the first.
   const oneRule = ruleParam ?? needing[0]?.rule_id ?? rules?.[0]?.rule_id ?? "";
   const lines = useMemo(() => (data ? highlight(data.text) : []), [data]);
+  // keep the selected rule visible in the list (e.g. after "Improve this rule")
+  useEffect(() => {
+    const el = document.querySelector<HTMLElement>(".rule-pick .rp-item.on");
+    const box = el?.closest<HTMLElement>(".rule-pick");
+    if (el && box) box.scrollTop = Math.max(0, el.offsetTop - box.offsetTop - box.clientHeight / 2 + el.clientHeight / 2);
+  }, [groups, oneRule]);
   const scopeName = needsWork ? "needs-work" : ruleParam ?? "";
 
   useKeyHints(<span>Commands Claude uses: <span className="mono">golden-datasets rule show · rule annotations ·

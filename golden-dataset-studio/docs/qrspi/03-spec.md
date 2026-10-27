@@ -1,15 +1,16 @@
-# S — Spec: CTDL Golden Dataset Studio
+# S — Spec: CTDL Golden Rules Studio
 
-Phase 3 of QRSPI. This is the specification for **CTDL Golden Dataset Studio** ("the Studio"), the rule-centric
+Phase 3 of QRSPI. This is the specification for **CTDL Golden Rules Studio** ("the Studio"; called Golden Dataset Studio until the build), the rule-centric
 successor to review-ui-v2. It's based on [`01-questions.md`](01-questions.md) (Eric's answers),
 [`02-research.md`](02-research.md) (facts and Eric's review of them), and a working prototype whose screenshots and
 example data appear below.
 
 - Written: 2026-10-26
-- Status: **draft for Eric's review.** Nothing here is built yet, apart from the throwaway prototype used for the
-  screenshots.
+- Status: **built** (see [`../../PROGRESS.md`](../../PROGRESS.md)). Updated after the build with Eric's tweaks: the
+  name, the page pane's view tools, the Rules ⇄ Records links, the Prompt tab's rule list and rendered preview, and
+  dark mode (§7). The screenshots are now of the built Studio.
 - Visual companion: https://claude.ai/artifact/Nco7wuYZyHK9kMDyyzfor8. It combines the playable review flow, the
-  concept map at four zoom levels, the dependency budget, the files, the screens and the order of work.
+  dependency budget, the files, the screens and the order of work.
 
 ---
 
@@ -24,7 +25,7 @@ AVC's ~1,075 courses. That's a low yield for the limited time of our only domain
 1. **Complete:** every record (course) in that institution's catalog is in it.
 2. **Correct:** every in-scope field of every record in it is right.
 
-**Golden Dataset Studio is our answer.** It spends Jared's attention on **rules**, not records. Each verdict he gives
+**Golden Rules Studio is our answer.** It spends Jared's attention on **rules**, not records. Each verdict he gives
 is evidence about a rule, and a fixed rule fixes every record it applies to, across the whole catalog. On AVC, five of
 his verdicts led to one rule change that corrected 278 descriptions.
 
@@ -87,7 +88,7 @@ Much of this work is throwaway: it exists to build golden datasets and to test w
 So anything that only matters for a production system is left out. Each item says what we do instead.
 
 - **Changes to xtra-cli, including its crawler.**
-  - Instead, we write our own tools: the Golden Dataset Studio UI and the `golden-datasets` CLI.
+  - Instead, we write our own tools: the Golden Rules Studio UI and the `golden-datasets` CLI.
   - xtra-cli is meant for production and for every institution. The Studio's rules are not.
 - **Login and auth.**
   - Instead, a "Reviewing as [name ▾]" dropdown gives each annotation an author.
@@ -127,7 +128,7 @@ The parts, and what crosses between them:
 │ crawl → <catalog>/<crawl>/pages/*.html + *.meta.json + crawl.json     │
 └───────────────────────────────────────────────────────────────────────┘
                  │ import (read-only)
-┌────────────────▼───────── CTDL Golden Dataset Studio ─────────────────┐
+┌────────────────▼────────── CTDL Golden Rules Studio ──────────────────┐
 │ golden-datasets CLI (laptop)        Studio UI (laptop, over ngrok)     │
 │        └──────── both import from and publish (write) to ──────┘       │
 │ storage root = local folder  OR  azure://…/xtra-cli-output[/prefix]    │
@@ -234,18 +235,6 @@ CLI, and for exploring by hand (Eric's review of R2). Relational integrity is a 
 checked by `golden-datasets check`, and by `extract` and `publish` before they write anything.
 
 ### 4.1 Entities and keys
-
-```
-catalog 1─* crawl 1─* page 1─* page_asset *─1 asset
-catalog 1─* rule 1─* rule_version *─* ruleset_version   (via ruleset_version.rules[])
-crawl 1─* extraction *─1 ruleset_version               (normally one per ruleset version)
-extraction 1─* page_label      (page rule × page)
-extraction 1─* occurrence      (record locator × page)       ← course_key lives here
-extraction 1─* match           (field rule × occurrence)
-extraction 1─* signal          (on a match, occurrence or page; value/cross-row/page signals only)
-catalog 1─* event              (annotations.jsonl: verdict · approve · reopen; append-only)
-extraction 1─* golden_publication 1─* lineage
-```
 
 | Table (file) | Primary key | Foreign keys | Written by | Mutable? |
 |---|---|---|---|---|
@@ -676,12 +665,18 @@ course-description  v1 → draft
 
 ## 7. The UI
 
-The screenshots are of the **throwaway prototype** (`prototype/ui/`). It runs on the real AVC example data above, and its
-server answers every request with DuckDB queries over those files. Layout, wording and behaviour are part of the
+The screenshots are of the **built Studio** on AVC (taken with `bench/shots_review.py`; the Prompt screens on AVC at
+ruleset v1, the others after the prototype's `course-description` v2). Layout, wording and behaviour are part of the
 spec. Pixel details aren't.
 
-**Top bar on every screen:** Studio name, catalog, crawl date, ruleset version, the five tabs, and "Reviewing as
-[name ▾]", and a **Show the tour** button at the top right (§7.8).
+**Top bar on every screen:** the Studio's name (no tag beside it), catalog, crawl date, ruleset version, the five
+tabs, "Reviewing as [name ▾]", and a **Show the tour** button at the top right (§7.8).
+
+**Bottom bar on every screen:** the keyboard hints of the current tab and, at the right end, a **Light / Dark**
+button. The choice is remembered in the browser; with none yet, the Studio follows the system setting. The saved page
+in the page pane keeps the catalog's own colours: it is a picture of the source.
+
+![Dark mode](screens/14-dark-mode.png)
 
 | Tab | Job | Default? |
 |---|---|---|
@@ -770,7 +765,20 @@ so the page pane shows it:
 **Right column: the page pane.**
 - The whole saved page, in a browser-like frame: a tab per page in view, the URL, a Page | HTML switch, and "open
   live".
+- A second row of view tools under the URL:
+  - **zoom out / zoom level / zoom in.** Zoom works like browser zoom: the page is laid out narrower and scaled up,
+    so it reflows instead of scrolling sideways. The level shows the real on-screen size; clicking it goes back to
+    fitting the pane.
+  - **Page CSS** (on by default). Off, the page's own stylesheets and inline styles are disabled and a plain,
+    readable style is used, to see the content and its structure. The Studio's highlights stay.
+
+  Neither changes the page's DOM, so css paths, highlights and text selection keep working. Both are remembered in
+  the browser.
 - The value for the selected row is highlighted and scrolled into view (§9).
+- **Open record →** on the selected row opens the course in the Records tab, with this field and this page's entry
+  selected (a course listed on several pages keeps the entry Jared came from).
+
+![Page pane view tools: zoomed in, page CSS off](screens/13-page-pane-view-tools.png)
 
 **Highlight to annotate (D5).** Jared selects the right text on the page. The row shows only that text, an optional
 note, and Save / Cancel. Selecting different text replaces it. The `css_path` and offsets are stored, never shown:
@@ -787,13 +795,15 @@ prompt's list of rule bugs:
 
 ![Stub name rule](screens/06-rules-tab-stub-name.png)
 
-The screenshot shows the rule after Claude's v2: rows Jared had marked wrong that are now right show **fixed**.
+Rows Jared had marked wrong that a new version made right show **fixed** (screen 03 shows them on
+`course-description`).
 
 ### 7.3 Records tab
 
 One course with every in-scope field as a card, v2-style. The same page pane shows numbered highlights for each
 field. Verdicts made here are the same `verdict` events, targeting (field rule, occurrence), so both tabs show them
-(D6):
+(D6). **See in Rules →** on the selected value opens that field's rule in the Rules tab with this course selected and
+its page shown:
 
 ![Records tab](screens/07-records-tab.png)
 
@@ -825,7 +835,9 @@ Full page: [`screens/08-compare-full.png`](screens/08-compare-full.png)
 
 ### 7.5 Prompt
 
-Scope: **one rule** (picker) or **all rules needing work**. The text is deterministic: the same annotations always
+Scope: **one rule** or **all rules needing work**. One rule is picked from a list grouped like the Rules tab (page
+rules, record locators, field rules), each with its status icon, name, CTDL term and count of open verdicts; the
+selected rule is scrolled into view. The text is deterministic: the same annotations always
 give the same prompt. It contains:
 - the task and its limits;
 - the catalog, crawl, ruleset and storage root;
@@ -838,7 +850,13 @@ give the same prompt. It contains:
 There's **no raw HTML**. Pages are referenced by path, resolved against `$GOLDEN_DATASETS_ROOT`. The left side shows size
 (characters, ≈ tokens) and the number of page references. Buttons: **Copy prompt** and **Download .md**.
 
+The preview has a **Raw | Rendered** switch. **Raw** (the default) is the exact Markdown that is copied. **Rendered**
+shows it formatted (headings, lists, code); it never interprets the text as HTML, since the prompt quotes catalog
+pages.
+
 ![Prompt](screens/09-prompt.png)
+
+![Prompt, rendered](screens/09b-prompt-rendered.png)
 
 Full prompt: [`screens/09-prompt-full.png`](screens/09-prompt-full.png)
 

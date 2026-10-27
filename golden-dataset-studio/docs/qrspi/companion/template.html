@@ -1,10 +1,10 @@
-<title>Golden Dataset Studio Map</title>
+<title>Golden Rules Studio Map</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@600;800&family=IBM+Plex+Sans:wght@400;600&family=IBM+Plex+Mono:wght@400;600&display=swap">
 <style>
-/* Layout: one long page; a review-flow chart with a case player, a level-of-abstraction explorer, then budget, files, screens, order of work, glossary. */
+/* Layout: one long page; a review-flow chart with a case player, then budget, files, screens, order of work, glossary. */
 :root {
   --bg: #EFF2F1;
   --panel: #FCFDFC;
@@ -303,9 +303,8 @@ pre.code .k { color: var(--code-key); } pre.code .s { color: var(--code-str); } 
   <header class="top">
     <div class="brand">
       <svg width="34" height="34" viewBox="0 0 34 34" aria-hidden="true"><path d="M17 4 31 11 17 18 3 11Z" fill="var(--l0)"/><path d="M3 17l14 7 14-7" fill="none" stroke="var(--l0)" stroke-width="2.4" stroke-linejoin="round"/><path d="M3 23l14 7 14-7" fill="none" stroke="var(--l0)" stroke-width="2.4" stroke-linejoin="round" opacity=".55"/></svg>
-      <span class="ctdl">CTDL</span>
     </div>
-    <h1>Golden Dataset Studio</h1>
+    <h1>Golden Rules Studio</h1>
   </header>
 
   <section class="chapter" id="context">
@@ -319,8 +318,7 @@ pre.code .k { color: var(--code-key); } pre.code .s { color: var(--code-str); } 
     {{MD:1|intro}}
     {{MD:1.1}}
     {{MD:1.2}}
-    {{MD:1.3|nocode}}
-    <div class="erd-scroll"><div class="erd" data-level="B" style="height:600px"><svg class="edges" aria-hidden="true"></svg></div></div>
+    {{MD:1.3}}
   </section>
 
   <section class="chapter" id="loop">
@@ -374,36 +372,6 @@ pre.code .k { color: var(--code-key); } pre.code .s { color: var(--code-str); } 
     {{MD:7.6}}
     {{MD:7.7}}
     {{MD:7.8}}
-  </section>
-
-  <section class="chapter" id="levels">
-    <span class="eyebrow">Behind the screens</span>
-    <h2>The concepts, one zoom level at a time</h2>
-    <div class="prose"><p>The top level is the whole system. Each level below looks inside one thing from the level above. Use <b>i</b> on a box for its key, its file and a real example.</p></div>
-    <div class="level" id="level-L0" style="--c:var(--l0)">
-      <div class="level-head"><span class="lvl" style="--c:var(--l0)">L0</span><h3>The whole system</h3><span class="level-sub">people, tools and storage</span></div>
-      <div class="erd-scroll"><div class="erd" data-level="L0"><svg class="edges" aria-hidden="true"></svg></div></div>
-      <ul class="level-flows" data-level="L0"></ul>
-      <a class="next-level" href="#level-L1">Look inside the storage root: one catalog ↓</a>
-    </div>
-    <div class="level" id="level-L1" style="--c:var(--l1)">
-      <div class="level-head"><span class="lvl" style="--c:var(--l1)">L1</span><h3>One catalog</h3><span class="level-sub">rules, versions, extractions, the log</span></div>
-      <div class="erd-scroll"><div class="erd" data-level="L1"><svg class="edges" aria-hidden="true"></svg></div></div>
-      <ul class="level-flows" data-level="L1"></ul>
-      <a class="next-level" href="#level-L2">Look inside an extraction ↓</a>
-    </div>
-    <div class="level" id="level-L2" style="--c:var(--l2)">
-      <div class="level-head"><span class="lvl" style="--c:var(--l2)">L2</span><h3>One extraction</h3><span class="level-sub">pages, course blocks, values</span></div>
-      <div class="erd-scroll"><div class="erd" data-level="L2"><svg class="edges" aria-hidden="true"></svg></div></div>
-      <ul class="level-flows" data-level="L2"></ul>
-      <a class="next-level" href="#level-L3">Look inside one value ↓</a>
-    </div>
-    <div class="level" id="level-L3" style="--c:var(--l3)">
-      <div class="level-head"><span class="lvl" style="--c:var(--l3)">L3</span><h3>One value</h3><span class="level-sub">where it came from, the verdict, lineage</span></div>
-      <div class="erd-scroll"><div class="erd" data-level="L3"><svg class="edges" aria-hidden="true"></svg></div></div>
-      <ul class="level-flows" data-level="L3"></ul>
-      <a class="next-level" href="#files">See these values in the real files ↓</a>
-    </div>
   </section>
 
   <section class="chapter" id="model">
@@ -716,100 +684,6 @@ $('#play-stop').addEventListener('click', () => { pi = -1; playRender(); });
 
 
 $('#play-text').textContent = START_TEXT;
-/* ================= 2. Levels (stacked) ================= */
-const LEVELS = {
-  B: { c: 'var(--l1)', group: { x1: 25, y1: 25, x2: 80, y2: 82, label: 'CTDL Golden Dataset Studio · ours' },
-    ents: [
-      { id: 'xtra', n: 'xtra-cli crawl', r: 'not ours · pages + crawl.json', x: 14, y: 12, ext: 1, key: 'catalog / crawl', file: '<catalog>/<crawl>/pages/', eg: '1,467 AVC pages' },
-      { id: 'cli', n: 'golden-datasets CLI', r: 'on a laptop', x: 38, y: 40, link: '#cli', key: '—', file: 'golden-dataset-studio/ (repo)', eg: 'golden-datasets rule publish draft.json' },
-      { id: 'ui', n: 'Studio UI', r: 'served from a laptop, over ngrok', x: 66, y: 40, link: '#s-7-2-rules-tab-default', key: '—', file: 'golden-datasets serve', eg: 'Rules tab is the default' },
-      { id: 'root', n: 'Storage root', r: 'local folder or Azure prefix', x: 52, y: 70, link: '#files', key: 'GOLDEN_DATASETS_ROOT', file: 'golden-dataset-studio/manifest.json', eg: 'azure://…/xtra-cli-output/zz-scratch-review-ui-v3' },
-      { id: 'claude', n: 'Claude Code', r: "on Eric's laptop", x: 11, y: 52, ext: 1, key: '—', file: 'draft.json', eg: 'runs the copied prompt' },
-      { id: 'people', n: 'Jared, Eric', r: 'review · copy the prompt', x: 90, y: 22, ext: 1, key: 'author', file: 'annotations.jsonl', eg: '"Reviewing as" dropdown' },
-      { id: 'golden', n: 'xtra-golden-sets-verified', r: 'shared · courses.json', x: 52, y: 92, ext: 1, key: 'publication', file: 'courses.json', eg: 'domain-only output' },
-    ],
-    edges: [['xtra', 'cli', 'import (read-only)'], ['cli', 'root', 'publish (write)'], ['ui', 'root', 'annotations'], ['root', 'golden', 'publish (write), domain-only', 1], ['claude', 'cli', 'only interface'], ['people', 'ui', 'review']] },
-  L0: { flows: ['xtra-cli crawls a catalog and saves pages, outside the Studio.', 'golden-datasets brings in v2 rules and verdicts, archives page assets, and runs the rules.', 'Jared annotates in the UI, which appends to the log.', 'Claude edits rules through golden-datasets and publishes new versions.', 'golden-datasets publishes the golden dataset to xtra-golden-sets-verified.'],
-    ents: [
-      { id: 'xtra', n: 'xtra-cli crawl', r: 'saved pages + crawl.json', x: 12, y: 18, ext: 1, key: 'catalog / crawl', file: '<catalog>/<crawl>/pages/', eg: '1,467 AVC pages, read in place' },
-      { id: 'root', n: 'Storage root', r: 'local folder or Azure prefix', x: 50, y: 50, link: '#level-L1', key: 'GOLDEN_DATASETS_ROOT', file: 'golden-dataset-studio/manifest.json', eg: 'azure://…/xtra-cli-output/zz-scratch-review-ui-v3' },
-      { id: 'cli', n: 'golden-datasets CLI', r: 'run rules · try · publish · check', x: 50, y: 15, link: '#cli', key: '—', file: 'golden-dataset-studio/ (repo)', eg: 'golden-datasets rule publish draft.json' },
-      { id: 'ui', n: 'Studio UI', r: 'Rules · Records · Compare · Prompt · Golden', x: 84, y: 50, link: '#level-L2', key: '—', file: 'golden-datasets serve', eg: 'Rules tab is the default' },
-      { id: 'jared', n: 'Jared', r: 'domain expert', x: 84, y: 85, ext: 1, key: 'author', file: 'annotations.jsonl', eg: '153 imported verdicts' },
-      { id: 'claude', n: 'Claude Code', r: "on Eric's laptop", x: 16, y: 82, ext: 1, key: '—', file: 'draft.json', eg: 'runs the copied prompt' },
-      { id: 'golden', n: 'Golden sets', r: 'xtra-golden-sets-verified', x: 50, y: 88, ext: 1, key: 'publication', file: 'courses.json', eg: 'domain-only output' },
-    ],
-    edges: [['xtra', 'root', 'import (read-only)'], ['cli', 'root', 'publish (write) versions'], ['ui', 'root', 'reads, appends'], ['jared', 'ui', 'verdicts'], ['claude', 'cli', 'only interface'], ['root', 'golden', 'publish (write)', 1], ['xtra', 'cli', 'import v2 rules, assets', 1]] },
-  L1: { flows: ['Publishing one rule makes a new rule version and a new ruleset version that reuses the rest.', 'Running the rules again reruns only rules whose inputs changed and copies the others row for row.', 'Rule status (approved, needs work, in review) comes from the log.', 'Compare joins two runs over the same crawl.'],
-    ents: [
-      { id: 'crawl', n: 'Crawl', r: 'one snapshot of saved pages', x: 14, y: 22, ext: 1, key: '(catalog, crawl)', file: 'pages.parquet', eg: '2026-10-12T20-59-13Z, 1,467 pages' },
-      { id: 'rule', n: 'Rule', r: 'page rule, locator or field rule', x: 50, y: 14, key: 'rule_id', file: 'rules/<rule_id>/', eg: 'course-description' },
-      { id: 'rv', n: 'Rule version', r: 'definition + what · how · why', x: 84, y: 22, link: '#files', key: '(rule_id, version), content_hash', file: 'rules/course-description/v0002.json', eg: 'v2 skips leading requisites' },
-      { id: 'rsv', n: 'Ruleset version', r: 'exact rule versions + settings', x: 78, y: 62, key: '(catalog, version)', file: 'rulesets/v0002.json', eg: '17 rules, changed: course-description' },
-      { id: 'ext', n: 'Extraction', r: 'one ruleset version run over one crawl', x: 40, y: 60, link: '#level-L2', key: 'extraction (rs-0002)', file: 'extractions/rs-0002/', eg: '5 files, ~0.7 MB' },
-      { id: 'log', n: 'Annotation log', r: 'verdict · approve · reopen', x: 14, y: 82, key: 'annotation_id', file: 'annotations.jsonl', eg: '153 events, append-only' },
-      { id: 'pub', n: 'Golden publication', r: 'courses.json + lineage', x: 66, y: 88, key: 'publication', file: 'golden/<pub>/', eg: '20 courses, 160 lineage rows' },
-    ],
-    edges: [['rule', 'rv', 'has versions'], ['rv', 'rsv', 'listed in'], ['rsv', 'ext', 'run as'], ['crawl', 'ext', 'over'], ['log', 'ext', 'targets rows of', 1], ['ext', 'pub', 'published as'], ['log', 'pub', 'lineage', 1]] },
-  L2: { flows: ['page_labels: every page × page rule, matched or not.', 'occurrences: one row per course block, keyed by page + position on the page.', 'matches: one row per field rule × course block, including empty results.', 'signals: automatic checks that decide row order; never shown as tags.'],
-    ents: [
-      { id: 'page', n: 'Page', r: 'one saved HTML file', x: 12, y: 30, ext: 1, key: '(crawl, page_stem)', file: 'pages.parquet', eg: 'course/geog222' },
-      { id: 'label', n: 'Page label', r: 'page rule × page', x: 38, y: 14, key: '(page_stem, rule_id)', file: 'page_labels.parquet', eg: 'course-page matched' },
-      { id: 'occ', n: 'Occurrence', r: 'one course block on one page', x: 40, y: 52, key: 'occurrence_key = stem@css_path', file: 'occurrences.parquet', eg: 'GEOG222 on course/geog222' },
-      { id: 'course', n: 'Course', r: 'occurrences sharing a code', x: 72, y: 20, key: 'course_key (grouping, not unique)', file: 'derived', eg: 'GEOG222' },
-      { id: 'match', n: 'Match', r: 'field rule × course block', x: 72, y: 60, link: '#level-L3', key: '(rule_id, occurrence_key, value_index)', file: 'matches.parquet', eg: 'Description v2 = "This course provides…"' },
-      { id: 'signal', n: 'Signal', r: 'automatic check, orders rows', x: 88, y: 88, link: '#signals', key: '(target, signal)', file: 'signals.parquet', eg: 'contains-label-text 547 → 273' },
-      { id: 'ann', n: 'Annotation', r: "a person's verdict", x: 40, y: 88, ext: 1, key: 'annotation_id', file: 'annotations.jsonl', eg: 'GEOG222 wrong' },
-    ],
-    edges: [['page', 'label', 'labelled by'], ['page', 'occ', 'contains'], ['occ', 'course', 'grouped as'], ['occ', 'match', 'has'], ['match', 'signal', 'checked by'], ['ann', 'match', 'targets'], ['ann', 'occ', 'or', 1]] },
-  L3: { flows: ['The UI finds the value on the saved page from its css_path and highlights it.', 'A selection becomes expected {text, css_path, char_start, char_end, quote}.', 'Golden courses.json keeps the location, not the rule id.', 'lineage.parquet keeps the rule id, version and annotation ids.'],
-    ents: [
-      { id: 'val', n: 'value', r: 'after transforms', x: 16, y: 20, key: 'match.value', file: 'matches.parquet', eg: 'This course provides a general survey…' },
-      { id: 'raw', n: 'raw_text', r: 'before transforms', x: 16, y: 58, key: 'match.raw_text', file: 'matches.parquet', eg: 'regex group 1' },
-      { id: 'loc', n: 'Location', r: 'css_path + offsets', x: 46, y: 38, key: 'css_path, char_start, char_end', file: 'matches.parquet', eg: '…div(1) > div(1), 70–699' },
-      { id: 'exp', n: 'Expected', r: 'what the expert selected', x: 78, y: 18, key: 'annotation.expected', file: 'annotations.jsonl', eg: 'prefix "…GEOG 205.\\n\\n"' },
-      { id: 'verdict', n: 'Verdict', r: 'correct · wrong · missing · question', x: 80, y: 58, key: 'annotation.verdict', file: 'annotations.jsonl', eg: 'wrong, by Jared' },
-      { id: 'lin', n: 'Lineage row', r: 'golden value → rule', x: 46, y: 86, key: '(publication, golden_id, property, value_index)', file: 'lineage.parquet', eg: 'GEOG222 Description ← course-description v2' },
-    ],
-    edges: [['raw', 'val', 'transforms'], ['val', 'loc', 'found at'], ['exp', 'loc', 'compared with', 1], ['verdict', 'exp', 'carries'], ['loc', 'lin', 'published with'], ['verdict', 'lin', 'annotation_ids', 1]] },
-};
-function drawLevel(id) {
-  const L = LEVELS[id], erd = document.querySelector(`.erd[data-level="${id}"]`), svg = erd.querySelector('.edges');
-  const lvEl = document.getElementById('level-' + id);
-  const c = L.c || getComputedStyle(lvEl).getPropertyValue('--c');
-  erd.querySelectorAll('.grp').forEach(n => n.remove());
-  if (L.group) { const g = L.group; erd.append(el('div', { class: 'grp', style: `left:${g.x1}%;top:${g.y1}%;width:${g.x2 - g.x1}%;height:${g.y2 - g.y1}%;--c:${c}` }, el('span', { class: 'grp-label' }, g.label))); }
-  erd.querySelectorAll('.ent').forEach(n => n.remove());
-  L.ents.forEach(e => {
-    const det = el('div', { class: 'details', hidden: '' },
-      el('span', { class: 'dl' }, 'key'), el('code', {}, e.key), el('span', { class: 'dl' }, 'file'), el('code', {}, e.file), el('span', { class: 'dl' }, 'example'), el('span', {}, e.eg));
-    const info = el('button', { type: 'button', class: 'info', 'aria-expanded': 'false', 'aria-label': `Details for ${e.n}` }, 'i');
-    const card = el('div', { class: 'ent' + (e.link ? ' drillable' : '') + (e.ext ? ' ext' : ''), style: `left:${e.x}%;top:${e.y}%;--c:${e.ext ? 'var(--line-strong)' : c}`, 'data-id': e.id },
-      el('div', { class: 'ent-head' }, el('span', { class: 'ent-name' }, e.n), info), el('span', { class: 'ent-role' }, e.r), det);
-    info.addEventListener('click', () => { const open = det.hidden; det.hidden = !open; info.setAttribute('aria-expanded', open ? 'true' : 'false'); card.classList.toggle('open', open); edges(); });
-    if (e.link) card.append(el('a', { class: 'drill', href: e.link, style: `--to:${c}` }, 'Look inside →'));
-    erd.append(card);
-  });
-  const fl = document.querySelector(`.level-flows[data-level="${id}"]`); if (fl) fl.replaceChildren(...L.flows.map(f => el('li', {}, f)));
-  function edges() {
-    const box = erd.getBoundingClientRect(); const ns = 'http://www.w3.org/2000/svg';
-    svg.setAttribute('viewBox', `0 0 ${box.width} ${box.height}`); svg.replaceChildren();
-    const rect = k => { const n = erd.querySelector(`.ent[data-id="${k}"]`).getBoundingClientRect(); return { x: n.left - box.left, y: n.top - box.top, w: n.width, h: n.height }; };
-    const edgePoint = (r, tx, ty) => { const cx = r.x + r.w / 2, cy = r.y + r.h / 2, dx = tx - cx, dy = ty - cy; const s = Math.min(Math.abs((r.w / 2 + 4) / (dx || 1e-6)), Math.abs((r.h / 2 + 4) / (dy || 1e-6))); return [cx + dx * s, cy + dy * s]; };
-    const defs = document.createElementNS(ns, 'defs');
-    defs.innerHTML = `<marker id="arr-${id}" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--line-strong)"/></marker>`;
-    svg.append(defs);
-    L.edges.forEach(([a, b, label, dash]) => {
-      const ra = rect(a), rb = rect(b);
-      const [x1, y1] = edgePoint(ra, rb.x + rb.w / 2, rb.y + rb.h / 2), [x2, y2] = edgePoint(rb, ra.x + ra.w / 2, ra.y + ra.h / 2);
-      const pth = document.createElementNS(ns, 'path'); pth.setAttribute('d', `M${x1},${y1} L${x2},${y2}`); pth.setAttribute('class', 'edge' + (dash ? ' dash' : '')); pth.setAttribute('marker-end', `url(#arr-${id})`); svg.append(pth);
-      const t = document.createElementNS(ns, 'text'); t.setAttribute('x', (x1 + x2) / 2); t.setAttribute('y', (y1 + y2) / 2 - 4); t.setAttribute('text-anchor', 'middle'); t.setAttribute('class', 'elabel'); t.textContent = label; svg.append(t);
-    });
-  }
-  requestAnimationFrame(edges); window.addEventListener('resize', edges);
-}
-Object.keys(LEVELS).forEach(drawLevel);
-
 /* ================= 4. Files ================= */
 const F = {
   manifest: { name: 'golden-dataset-studio/manifest.json', meta: '5.8 KB · every writer (ETag)', who: 'golden-datasets', about: 'The index. Every path the UI or CLI needs is listed here, so nothing ever lists the Azure container (that costs 23–25 s).',
