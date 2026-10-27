@@ -20,7 +20,7 @@ import { courseHeading, foundOn, groupCards, valueKey, type CardValue } from "./
 import "./records.css";
 
 const HINTS = (
-  <span className="key-hints"><kbd>A</kbd>correct <kbd>W</kbd>wrong <kbd>C</kbd>comment <kbd>Enter</kbd>save{" "}
+  <span className="key-hints"><kbd>1</kbd>correct <kbd>2</kbd>wrong <kbd>3</kbd>comment <kbd>Enter</kbd>save{" "}
     <kbd>Esc</kbd>cancel · same verdicts as the Rules tab</span>
 );
 

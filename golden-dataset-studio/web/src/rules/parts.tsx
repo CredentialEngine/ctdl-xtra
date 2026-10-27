@@ -16,9 +16,9 @@ export function Controls({ state, verdict, comments, draft, onPick, tour }: {
   return (
     <div className="ctl3" data-tour={tour ? "row-controls" : undefined}>
       <div className="btns">
-        <button className={`cb ok${on === "correct" ? " on" : ""}`} title="Correct (A)" aria-label="Correct" onClick={click("correct")}><Ico name="correct" /></button>
-        <button className={`cb no${on === "wrong" ? " on" : ""}`} title="Wrong (W): select the right text on the page" aria-label="Wrong" onClick={click("wrong")}><Ico name="wrong" /></button>
-        <button className={`cb talk ${talk}`} title={state === "question" ? "Question for the institution" : "Comment (C)"} aria-label="Comment"
+        <button className={`cb ok${on === "correct" ? " on" : ""}`} title="Correct (1)" aria-label="Correct" onClick={click("correct")}><Ico name="correct" /></button>
+        <button className={`cb no${on === "wrong" ? " on" : ""}`} title="Wrong (2): select the right text on the page" aria-label="Wrong" onClick={click("wrong")}><Ico name="wrong" /></button>
+        <button className={`cb talk ${talk}`} title={state === "question" ? "Question for the institution" : "Comment (3)"} aria-label="Comment"
           data-tour={tour ? "comment-button" : undefined} onClick={click("comment")}><Ico name="bubble" /></button>
       </div>
       {by && <div className="byline">{by}{state === "question" ? " · question for the institution" : ""}</div>}

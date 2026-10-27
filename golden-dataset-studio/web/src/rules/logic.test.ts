@@ -113,6 +113,10 @@ describe("keyboard", () => {
     expect(keyAction({ key: "W" }, false)).toBe("wrong");
     expect(keyAction({ key: "c" }, false)).toBe("comment");
     expect(keyAction({ key: "h" }, false)).toBe("select");
+    expect([keyAction({ key: "1" }, false), keyAction({ key: "2" }, false), keyAction({ key: "3" }, false)])
+      .toEqual(["correct", "wrong", "comment"]);
+    expect(keyAction({ key: "1" }, true)).toBeNull(); // typing a note
+    expect(keyAction({ key: "4" }, false)).toBeNull();
     expect(keyAction({ key: "Enter" }, true)).toBe("save");
     expect(keyAction({ key: "Escape" }, true)).toBe("cancel");
     expect(keyAction({ key: "a" }, true)).toBeNull();

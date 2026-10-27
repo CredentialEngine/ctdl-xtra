@@ -168,7 +168,7 @@ export function keyAction(e: { key: string; shiftKey?: boolean; metaKey?: boolea
   if (inField || e.metaKey || e.ctrlKey || e.altKey) return null;
   if (e.key === "Tab") return e.shiftKey ? "prev" : "next";
   const k = e.key.toLowerCase();
-  return ({ a: "correct", w: "wrong", c: "comment", h: "select" } as Record<string, KeyAction>)[k] ?? null;
+  return ({ a: "correct", w: "wrong", c: "comment", h: "select", 1: "correct", 2: "wrong", 3: "comment" } as Record<string, KeyAction>)[k] ?? null;
 }
 
 export const isField = (t: EventTarget | null) => {

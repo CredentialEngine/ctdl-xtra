@@ -116,8 +116,8 @@ export const STEPS: Step[] = [
     sides: ["below", "above", "left"],
     body: () => (
       <>
-        <p><I name="correct" /> or <kbd>A</kbd>: the value is right.</p>
-        <p><I name="wrong" /> or <kbd>W</kbd>: it's wrong. It has been pressed for you on this row: the row opens and
+        <p><I name="correct" /> or <kbd>1</kbd>: the value is right.</p>
+        <p><I name="wrong" /> or <kbd>2</kbd>: it's wrong. It has been pressed for you on this row: the row opens and
           asks you to <b>select the right text on the page →</b>. Drag across it on the saved page; the row then shows
           only that text, an optional note, and Save / Cancel.</p>
         <p>An empty value works the same way: if the rule found nothing but the page has one, that's ✗ plus the right text.</p>
@@ -141,7 +141,7 @@ export const STEPS: Step[] = [
     sides: ["below", "above", "right"],
     body: () => (
       <>
-        <p>The speech bubble <I name="bubble" /> (<kbd>C</kbd>) has been clicked for you. It opens a short note for
+        <p>The speech bubble <I name="bubble" /> (<kbd>3</kbd>) has been clicked for you. It opens a short note for
           whoever fixes the rule.</p>
         <p>Tick <b>Question for the institution</b> <I name="inst" /> for things only the college can answer. Its question
           is kept out of the prompt's list of rule bugs.</p>
