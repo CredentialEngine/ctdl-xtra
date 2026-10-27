@@ -205,9 +205,9 @@ async def s09full(page, base):
     await s09(page, base)
 
 
-@shot("10-golden")
+@shot("10-publish")
 async def s10(page, base):
-    await page.goto(f"{base}/#/c/{CAT}/golden")
+    await page.goto(f"{base}/#/c/{CAT}/publish")
     await page.wait_for_selector(".gate")
     await page.wait_for_timeout(800)
 

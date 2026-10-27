@@ -61,7 +61,7 @@ function TextFile({ load, html, deps }: { load: () => Promise<GoldenFileText>; h
   );
 }
 
-function LineageTable({ catalog, onPage }: { catalog: string; onPage: (stem: string) => void }) {
+function LineageTable({ catalog, properties, onPage }: { catalog: string; properties: string[]; onPage: (stem: string) => void }) {
   const [q, setQ] = useState("");
   const [query, setQuery] = useState("");
   const [offset, setOffset] = useState(0);
@@ -71,10 +71,10 @@ function LineageTable({ catalog, onPage }: { catalog: string; onPage: (stem: str
   useEffect(() => { const t = setTimeout(() => { setQuery(q); setOffset(0); }, 250); return () => clearTimeout(t); }, [q]);
   useEffect(() => {
     let live = true;
-    api.goldenLineage(catalog, { q: query || undefined, offset, limit })
+    api.goldenLineage(catalog, { q: query || undefined, offset, limit, properties: properties.join(",") })
       .then((r) => live && setD(r), (e) => live && setError(String(e)));
     return () => { live = false; };
-  }, [catalog, query, offset]);
+  }, [catalog, query, offset, properties]);
   if (error) return <div className="gfp-body"><span className="muted">{error}</span></div>;
   if (!d) return <div className="gfp-body"><span className="muted">Loading…</span></div>;
   const stemCol = d.columns.indexOf("page_stem");
@@ -104,9 +104,9 @@ function LineageTable({ catalog, onPage }: { catalog: string; onPage: (stem: str
   );
 }
 
-export function FilePreview({ catalog, file, stems, initialStem, author, onClose }: {
+export function FilePreview({ catalog, file, stems, initialStem, author, properties, onClose }: {
   catalog: string; file: GoldenFile; stems: { stem: string; records: number }[]; initialStem?: string; author: string;
-  onClose: () => void;
+  properties: string[]; onClose: () => void;
 }) {
   const [which, setWhich] = useState<GoldenFile>(file);
   const [stem, setStem] = useState(initialStem ?? stems[0]?.stem ?? "");
@@ -146,13 +146,15 @@ export function FilePreview({ catalog, file, stems, initialStem, author, onClose
             <button className="btn" onClick={() => step(-1)}>Previous</button>
             <button className="btn" onClick={() => step(1)}>Next</button>
           </div>)}
-        <div className="gfp-name mono">{name}{which === "page.html" && <span className="muted"> · the page as crawled, copied as is</span>}
+        <div className="gfp-name mono">{name}{which === "page.json" && <span className="muted"> · {properties.join(", ")} from this
+          extraction; other properties as the golden set has them</span>}
+          {which === "page.html" && <span className="muted"> · the page as crawled, copied as is</span>}
           {which === "publication.json" && <span className="muted"> · as it would be written now</span>}
           {which === "lineage.parquet" && <span className="muted"> · stays in the Studio; never copied to the golden container</span>}</div>
-        {which === "page.json" && <TextFile load={() => api.goldenPageJson(catalog, stem)} deps={[catalog, stem]} />}
-        {which === "page.html" && <TextFile html load={() => api.goldenPageHtml(catalog, stem)} deps={[catalog, stem]} />}
-        {which === "publication.json" && <TextFile load={() => api.goldenPublicationJson(catalog, author)} deps={[catalog, author]} />}
-        {which === "lineage.parquet" && <LineageTable catalog={catalog} onPage={(s) => { setStem(s); setWhich("page.json"); }} />}
+        {which === "page.json" && <TextFile load={() => api.goldenPageJson(catalog, stem, properties)} deps={[catalog, stem, properties.join()]} />}
+        {which === "page.html" && <TextFile html load={() => api.goldenPageHtml(catalog, stem, properties)} deps={[catalog, stem, properties.join()]} />}
+        {which === "publication.json" && <TextFile load={() => api.goldenPublicationJson(catalog, author, properties)} deps={[catalog, author, properties.join()]} />}
+        {which === "lineage.parquet" && <LineageTable catalog={catalog} properties={properties} onPage={(s) => { setStem(s); setWhich("page.json"); }} />}
       </div>
     </div>
   );

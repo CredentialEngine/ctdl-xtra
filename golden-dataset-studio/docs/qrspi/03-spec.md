@@ -118,8 +118,8 @@ The parts, and what crosses between them:
 - **The Studio (ours)** is the `golden-datasets` CLI and the Studio UI. The CLI runs on a laptop. The UI is served from
   a laptop, over ngrok. Both read and publish (write) to one storage root: a local folder or
   `azure://…/xtra-cli-output[/prefix]`.
-- **The golden sets container (shared).** The Studio publishes (writes) domain-only output to
-  `xtra-golden-sets-verified`, in the format that container already uses (§5.6).
+- **The golden sets container (shared).** The Studio publishes (writes) domain-only output to `xtra-golden-sets`,
+  one property at a time, in the per-page format the golden sets saved so far use (§5.6).
 - **Claude Code (laptop)** uses the `golden-datasets` CLI only, never the UI or the storage directly.
 - **People** (Jared, Eric) use the UI. Either of them can copy a prompt from it.
 
@@ -135,7 +135,7 @@ The parts, and what crosses between them:
 └──────────────────────────────┬────────────────────────────────────────┘
                                │ publish (write) domain-only output
                  ┌─────────────▼─────────────┐
-                 │ xtra-golden-sets-verified  │  existing format + location
+                 │ xtra-golden-sets           │  existing format + location
                  └────────────────────────────┘
 Claude Code (laptop) ── uses the golden-datasets CLI only
 ```
@@ -280,7 +280,7 @@ extraction **row-identical** to the parent's. `golden-datasets check` verifies t
 - **A comparison** joins two extractions' matches on `(rule_id, occurrence_key)`, falling back to `(rule_id,
   course_key)`. Rows that can't be matched either way are listed as "new" or "vanished" (D9).
 - **`golden_id`** = `course_key`, when every full occurrence with that code has the same name. Otherwise it's
-  `course_key~<n>`, one per distinct name, and the Golden screen lists these for Jared to confirm. AVC, CCSF and UALR
+  `course_key~<n>`, one per distinct name, and the Publish screen lists these for Jared to confirm. AVC, CCSF and UALR
   have none. Marshall and WVU have ~190.
 
 ### 4.3 Rule versions and ruleset versions
@@ -396,7 +396,7 @@ catalog, and crawl. This is the real AVC example built by the prototype:
                 └── pub-2026-10-26-avc-rs-0002-example/
                     ├── publication.json
                     ├── <page_stem>/<page_stem>.json        one per page, existing golden-set shape
-                    ├── <page_stem>/<page_stem>.html        the page as crawled   → both also written to xtra-golden-sets-verified
+                    ├── <page_stem>/<page_stem>.html        the page as crawled   → both also written to xtra-golden-sets
                     └── lineage.parquet                     160 rows
 ```
 
@@ -411,7 +411,8 @@ everything from scratch takes ~13 s on Eric's laptop:
 - **Inputs** are `crawl.json` and `pages/` (from xtra-cli), and v2's `rules.json` and review folders (imported once).
 - **Human input** is `annotations.jsonl`. It's the only file people change, and they only ever append to it.
 - **Claude's output** is the rule versions plus one ruleset version, and the extraction `golden-datasets` computes from them.
-- **Final output** is the golden publication, written to `xtra-golden-sets-verified` in that container's existing format (§5.6).
+- **Final output** is the golden publication, written to `xtra-golden-sets` in the existing per-page format (§5.6),
+  one or more properties at a time.
 
 ---
 
@@ -547,8 +548,15 @@ A **record locator**, pulled out of the four `stub-*` rules' identical `repeat` 
 
 ### 5.6 The golden output and its lineage
 
-The golden output keeps the **existing shape of `xtra-golden-sets-verified`**, so its current readers keep working
-(Eric's decision, §12.1). There's one folder per page, `<page_stem>/<page_stem>.json`, next to `<page_stem>.html`
+The golden output keeps the **existing per-page shape of the golden sets saved so far** (in `xtra-golden-sets-verified`),
+so their readers keep working (Eric's decision, §12.1); it is written to the `xtra-golden-sets` container.
+**Published one property at a time:** a publication writes the chosen properties' values from the current extraction
+into each page's file and keeps what earlier publications wrote there for every other property (records pair by
+`golden_id`, in page order), so the golden set fills up property by property. Its `lineage.parquet` covers only the
+properties it published; `publication.json` lists them (`properties`, `property_gate` with each one's rule, version
+and approval) and the status of the page rule and record locator that decide which courses exist
+(`identity_rules`). `golden-datasets check` compares the files with the lineage of the publication that last
+published each property. There's one folder per page, `<page_stem>/<page_stem>.json`, next to `<page_stem>.html`
 (the page as crawled). Each record gains `golden_id`, and each field gains `property` and `location`. It's
 domain-only: **no rule IDs**. GEOG222's file, trimmed:
 
@@ -677,7 +685,7 @@ saved.
 | | `golden-datasets rule try draft.json` | Run the draft over the **whole crawl** on the laptop and print the scorecard. Writes nothing | — |
 | | `golden-datasets rule publish draft.json [--force]` | New rule versions + ruleset version + extraction, uploaded together. Refuses when anything that was `correct` changes, unless `--force` | rules/, rulesets/, extractions/ |
 | Prompt | `golden-datasets prompt --catalog C [--rule R \| --needs-work] [--target local\|azure]` | The same text the UI's **Copy prompt** button gives; `azure` points Claude at the Azure root (`--azure-root`) | — |
-| Golden | `golden-datasets golden publish --catalog C --to ROOT` | Requires every in-scope rule approved. Writes domain-only files to the golden root in its existing format (plus `location` and `golden_id`), lineage to the Studio | golden/ |
+| Golden | `golden-datasets golden publish --catalog C --to ROOT [--property NAME …]` | Publishes the named properties (default: every property whose field rule is approved); each needs its field rule approved, the others keep what earlier publications wrote. Domain-only files to the golden root in its existing format (plus `location` and `golden_id`), lineage to the Studio | golden/ |
 | Local work | `golden-datasets sync --from ROOT --to DIR [--catalog C]` | Copy Studio files and pages between roots (both directions) | target root |
 | | `golden-datasets serve [--port 8000] [--azure-root URI]` | The web UI; `--azure-root` is where the prompt's Azure version points (the root itself when it is Azure) | annotations.jsonl (via UI) |
 
@@ -715,7 +723,7 @@ in the page pane keeps the catalog's own colours: it is a picture of the source.
 | **Records** | Review one course with all its fields (v2's view, kept) | |
 | **Compare** | Is ruleset/rule version B better than A? | |
 | **Prompt** | Turn annotations into a prompt for Claude Code | |
-| **Golden** | Publish once every rule is approved | |
+| **Publish** | Publish a property to the golden dataset once its rule is approved | |
 
 ### 7.1 Catalog picker
 
@@ -964,13 +972,23 @@ unchanged.
 
 Full prompt: [`screens/09-prompt-full.png`](screens/09-prompt-full.png)
 
-### 7.6 Golden
+### 7.6 Publish
 
-Lists each rule version's status. **Publish is disabled until every rule is approved.** The screen shows what will be
-written: the domain-only files to the golden root (existing format, §5.6), and `lineage.parquet` to the Studio. It also lists `golden_id`
-collisions for Jared to confirm (§4.2).
+The tab is called **Publish** (old `#/c/<catalog>/golden` links still open it). It publishes the golden dataset **one
+property at a time**: just because other fields' rules aren't approved yet doesn't hold back a field whose rule is.
+- **Properties:** one line per property (Coded Notation … Language) with a checkbox, its CTDL term, its field rule's
+  status (linked to the rule) and when it was last published ("published 2026-10-27 · v2", or "not published yet").
+  A property can be ticked only when its rule is approved; the approved ones are ticked to start with.
+- **Which courses exist** comes from the page rule and record locator: their status is shown on one line and recorded
+  with each publication, but it doesn't hold a property back.
+- **Publish Description** (or **Publish N properties**) writes the ticked properties from the current extraction to
+  `xtra-golden-sets` and keeps every other property as earlier publications wrote it (§5.6).
+- **What will be written** shows the target and the files; each opens as a sample of what this publication would
+  write: a page's JSON merged with what the golden set already has, its HTML, the lineage rows of the ticked
+  properties, and `publication.json`. It also lists `golden_id` collisions for Jared to confirm (§4.2), and earlier
+  publications.
 
-![Golden](screens/10-golden.png)
+![Publish](screens/10-publish.png)
 
 ### 7.7 Page pane: HTML view
 
@@ -1172,8 +1190,11 @@ The schema in §4–5 is the contract between W1, W2 and W4–W6. Changing it me
 - **Package location:** a top-level `golden-dataset-studio/` folder in the repo, next to `review-ui-v2/`.
 - **Who may approve a rule:** anyone using the UI. The Studio isn't exposed widely, so there's no role check. Every
   approve event records its author, and the UI shows who approved.
-- **Golden output format:** keep the existing shape of `xtra-golden-sets-verified`, so its current readers keep
-  working, and add `location` to each field and `golden_id` to each record (§5.6).
+- **Golden output format:** keep the existing per-page shape of `xtra-golden-sets-verified`, so its current readers
+  keep working, and add `location` to each field and `golden_id` to each record (§5.6).
+- **Golden output place, and publishing per property** (Eric, 2026-10-27): publications go to the `xtra-golden-sets`
+  container, not `xtra-golden-sets-verified`; the Golden tab is now **Publish**, and it publishes one property (or a
+  few) at a time, each once its field rule is approved, whatever the other fields' rules say (§7.6).
 - **A v2 reject and its correction by different people** (GEOG222: Jared rejected the value, Seth typed the correct
   text): the `wrong` verdict's author is the person who rejected it (Jared), and `expected.author` is the person who
   typed the text (Seth).

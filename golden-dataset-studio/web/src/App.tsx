@@ -36,7 +36,7 @@ export default function App() {
   else {
     const props = { catalog, route, reload: load };
     body = { rules: <RulesTab {...props} />, records: <RecordsTab {...props} />, compare: <CompareTab {...props} />,
-             prompt: <PromptTab {...props} />, golden: <GoldenTab {...props} /> }[route.tab];
+             prompt: <PromptTab {...props} />, publish: <GoldenTab {...props} /> }[route.tab];
   }
   return (
     <KeysContext.Provider value={setKeys}>

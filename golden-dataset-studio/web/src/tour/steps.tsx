@@ -395,7 +395,8 @@ export const STEPS: Step[] = [
           : f.blocked ? <p>Here it's <b>greyed out</b>: some courses are still marked wrong or missing, and the reason
               is shown under the button. Approve stays greyed out until none is. Fix the rule with Improve this rule, or change those verdicts.</p>
           : <p>Nothing is marked wrong or missing here, so Approve can be pressed. The tour doesn't press it.</p>}
-        <p>Once every rule is approved, the <b>Golden</b> tab can publish.</p>
+        <p>Once a field's rule is approved, the <b>Publish</b> tab can publish that property into the golden dataset,
+          even while other fields are still being worked on.</p>
       </>
     ),
     absent: () => <p>The rule hasn't loaded.</p>,

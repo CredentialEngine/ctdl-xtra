@@ -157,8 +157,19 @@ export interface PromptResponse {
 }
 
 // --- Golden (routes_golden.py; W7) -------------------------------------------------------------------
+/** A property the field rules fill, and whether it can be published (its rule approved). */
+export interface PublishProperty {
+  property: string; ctdl_property: string | null; rule_id: string; version: number; status: RuleStatus;
+  approved_by: string | null;
+  published: { publication: string; published_at: string | null; published_by: string | null; extraction: string | null;
+               rule_version: number | null } | null;
+}
 export interface GoldenResponse {
-  ready: boolean; extraction: string; ruleset_version: number;
+  ready: boolean;                     // some property can be published
+  all_rules_approved: boolean;
+  chosen: string[];                   // the properties the counts and previews are for
+  properties: PublishProperty[];
+  extraction: string; ruleset_version: number;
   rules: { rule_id: string; title: string; subtitle: string; kind: RuleKind; version: number;
            status: RuleStatus; approved_by: string | null }[];
   target: string;                     // where the per-page files go: <golden root>/<catalog>/<crawl>/
@@ -167,7 +178,7 @@ export interface GoldenResponse {
   page_stems: { stem: string; records: number }[];   // the pages that get a <stem>.json, with their course entries
   publications: { publication: string; extraction: string; ruleset_version: number; published_at: string | null;
                   published_by: string | null; pages: number; courses: number; records: number;
-                  lineage_rows: number; to: string; all_rules_approved: boolean | null }[];
+                  lineage_rows: number; to: string; all_rules_approved: boolean | null; properties?: string[] | null }[];
 }
 
 export interface GoldenFileText { text: string; stem?: string; records?: number; bytes?: number; truncated?: boolean;

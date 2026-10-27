@@ -46,3 +46,12 @@
   overflow: hidden; text-overflow: ellipsis; }
 .gfp-table tr:hover td { background: var(--accent-soft); }
 .gfp-link { font: inherit; color: var(--accent); background: none; border: 0; padding: 0; cursor: pointer; text-decoration: underline dotted; }
+/* Publish: the property chooser */
+.gold-grid .chk.prop { cursor: pointer; grid-template-columns: auto 1fr auto; }
+.gold-grid .chk.prop input { margin-top: 3px; accent-color: var(--accent); }
+.gold-grid .chk.prop.off { cursor: default; opacity: .7; }
+.gold-grid .chk.prop.on { background: var(--accent-soft); border-radius: 7px; }
+.gold-grid .chk.prop .pill { text-decoration: none; }
+.gold-grid .pub-when { display: block; font-size: 11px; color: var(--muted); }
+.gold-grid .identity { font-size: 12px; line-height: 1.5; margin-top: 10px; }
+.gold-grid .identity a { color: var(--accent); }

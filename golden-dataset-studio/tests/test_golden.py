@@ -15,6 +15,8 @@ from golden_datasets.storage import LocalRoot
 from golden_datasets.sync import sync_catalog
 
 DEMO = Path(__file__).resolve().parents[1] / ".data" / "root-demo"
+ALL = ["Coded Notation", "External Identifier", "Learning Opportunity Name", "Description", "Subject Webpage",
+       "Learning Type", "Life Cycle Status Type", "Language"]
 
 
 @pytest.fixture(scope="module")
@@ -27,9 +29,31 @@ def ctx(tmp_path_factory):
 
 
 @pytest.mark.slow
-def test_gate_refuses_until_every_rule_is_approved(ctx, tmp_path):
-    with pytest.raises(UserError, match="not approved"):
-        golden.publish(ctx, str(tmp_path / "out"), "test")
+def test_a_property_is_published_once_its_rule_is_approved(ctx, tmp_path):
+    with pytest.raises(UserError, match="not approved yet: Description"):
+        golden.publish(ctx, str(tmp_path / "out"), "test", properties=["Description"])
+    doc = golden.publish(ctx, str(tmp_path / "out"), "test")  # default: every property whose rule is approved
+    assert doc["properties"] == ["Subject Webpage", "Learning Type", "Life Cycle Status Type", "Language"]
+    assert {r["status"] for r in doc["property_gate"]} == {"approved"}
+    assert {r["rule_id"] for r in doc["identity_rules"]} >= {"course-page", "locator-course-page"}
+
+
+@pytest.mark.slow
+def test_properties_published_one_at_a_time_add_up(ctx, tmp_path):
+    out = tmp_path / "steps"
+    first = golden.publish(ctx, str(out), "test", allow_unapproved=True, properties=["Description"])
+    stem = next(s for s in first["page_stems"] if "course-geog222-" in s)
+    read = lambda: json.loads((out / first["to_prefix"] / stem / f"{stem}.json").read_text())  # noqa: E731
+    assert [f["property"] for f in read()[0]["fields"]] == ["Description"]
+    golden.publish(ctx, str(out), "test", allow_unapproved=True, properties=["Learning Opportunity Name"])
+    assert [f["property"] for f in read()[0]["fields"]] == ["Learning Opportunity Name", "Description"]
+    golden.publish(ctx, str(out), "test", allow_unapproved=True, properties=["Description"])  # again: Name stays
+    assert [f["property"] for f in read()[0]["fields"]] == ["Learning Opportunity Name", "Description"]
+    owner = golden.published_properties(Ctx(ctx.root, "avc"), str(out))
+    assert set(owner) >= {"Description", "Learning Opportunity Name"}
+    results = check.run(Ctx(ctx.root, "avc"))
+    failed = [r for r in results if r[3] and r[0] in ("lineage", "golden page")]
+    assert not failed, failed
 
 
 @pytest.mark.slow
@@ -62,11 +86,17 @@ def test_golden_api_blocks_publish_until_approved(ctx):
 
     c = TestClient(create_app(ctx.root.uri))
     d = c.get("/api/catalogs/avc/golden").json()
-    assert d["ready"] is False and d["pages"] == 1259 and d["courses"] == 1075
-    assert sum(r["status"] == "approved" for r in d["rules"]) == 5 and d["collisions"] == []
+    assert d["ready"] is True and d["all_rules_approved"] is False and d["collisions"] == []
+    assert sum(r["status"] == "approved" for r in d["rules"]) == 5
+    assert [p["property"] for p in d["properties"]][:2] == ["Coded Notation", "External Identifier"]
+    assert d["chosen"] == ["Subject Webpage", "Learning Type", "Life Cycle Status Type", "Language"]
     assert d["target"] == f"{golden.GOLDEN_CONTAINER}/avc-elumenapp-com-catalog-2026-27-welcome/2026-10-12T20-59-13Z/"
-    r = c.post("/api/catalogs/avc/golden/publish", json={"author": "Test"})
+    assert golden.GOLDEN_CONTAINER.endswith("/xtra-golden-sets")
+    assert c.post("/api/catalogs/avc/golden/publish", json={"author": "Test"}).status_code == 400  # no property
+    r = c.post("/api/catalogs/avc/golden/publish", json={"author": "Test", "properties": ["Description"]})
     assert r.status_code == 409 and "not approved" in r.json()["detail"]
+    one = c.get("/api/catalogs/avc/golden", params={"properties": "Description"}).json()
+    assert one["chosen"] == ["Description"] and one["fields"] < d["fields"] * 3
 
 
 @pytest.mark.slow
@@ -76,17 +106,18 @@ def test_golden_file_previews(ctx):
     from golden_datasets.server.app import create_app
 
     c = TestClient(create_app(ctx.root.uri))
-    stems = c.get("/api/catalogs/avc/golden").json()["page_stems"]
+    stems = c.get("/api/catalogs/avc/golden", params={"properties": ",".join(ALL)}).json()["page_stems"]
     assert len(stems) == 1259 and all(s["records"] >= 1 for s in stems)
     stem = stems[0]["stem"]
-    page = c.get(f"/api/catalogs/avc/golden/files/page/{stem}.json").json()
+    page = c.get(f"/api/catalogs/avc/golden/files/page/{stem}.json", params={"properties": ",".join(ALL)}).json()
     assert page["records"] == stems[0]["records"] and json.loads(page["text"])[0]["golden_id"]
     html = c.get(f"/api/catalogs/avc/golden/files/page/{stem}.html").json()
     assert "<html" in html["text"].lower()
-    lin = c.get("/api/catalogs/avc/golden/files/lineage", params={"limit": 5}).json()
+    lin = c.get("/api/catalogs/avc/golden/files/lineage", params={"limit": 5, "properties": ",".join(ALL)}).json()
     assert lin["total"] == lin["matched"] == 19500 and len(lin["rows"]) == 5 and lin["columns"][0] == "publication"
-    one = c.get("/api/catalogs/avc/golden/files/lineage", params={"q": "GEOG222"}).json()
+    one = c.get("/api/catalogs/avc/golden/files/lineage", params={"q": "GEOG222", "properties": ",".join(ALL)}).json()
     assert 0 < one["matched"] < 50
-    pub = json.loads(c.get("/api/catalogs/avc/golden/files/publication.json", params={"author": "Jared"}).json()["text"])
+    pub = json.loads(c.get("/api/catalogs/avc/golden/files/publication.json",
+                           params={"author": "Jared", "properties": ",".join(ALL)}).json()["text"])
     assert pub["published_by"] == "Jared via the Studio UI" and pub["lineage_rows"] == 19500
     assert c.get("/api/catalogs/avc/golden/files/page/nope.json").status_code == 404

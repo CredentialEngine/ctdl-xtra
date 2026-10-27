@@ -168,11 +168,14 @@ def build_parser() -> argparse.ArgumentParser:
     # --- Golden ----------------------------------------------------------------------------------------
     golden = sub.add_parser("golden", help="golden publication")
     gsub = golden.add_subparsers(dest="golden_command", metavar="ACTION", required=True)
-    p = gsub.add_parser("publish", help="domain-only golden files (existing format + location + golden_id) + lineage")
+    p = gsub.add_parser("publish", help="publish properties to the golden set, one or more at a time (domain-only files + lineage)")
     _root_args(p), _catalog_args(p)
     p.add_argument("--to", required=True, help="golden root: a folder or an azure:// prefix")
+    p.add_argument("--property", action="append", default=None, metavar="NAME",
+                   help="a property to publish, e.g. Description (repeatable; default: every property whose rule is "
+                        "approved). The others keep what earlier publications wrote")
     p.add_argument("--allow-unapproved", action="store_true",
-                   help="testing only: publish although some rules aren't approved (recorded in publication.json)")
+                   help="testing only: publish a property although its rule isn't approved (recorded in publication.json)")
     _cmd(p, "golden_datasets.golden:cmd_golden_publish")
 
     # --- Local work ------------------------------------------------------------------------------------

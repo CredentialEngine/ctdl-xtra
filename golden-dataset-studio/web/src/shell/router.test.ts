@@ -14,3 +14,10 @@ describe("routes", () => {
     expect([r.tab, r.params.get("a"), r.params.get("rule")]).toEqual(["compare", "1", "course-description"]);
   });
 });
+
+describe("renamed tabs", () => {
+  it("opens the Publish tab from an old Golden link", () => {
+    expect(parseRoute("#/c/avc/golden").tab).toBe("publish");
+    expect(parseRoute("#/c/avc/publish").tab).toBe("publish");
+  });
+});

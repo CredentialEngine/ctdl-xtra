@@ -1,6 +1,12 @@
 """`golden-datasets golden publish`: the golden dataset and its lineage (spec §4.2 golden_id, §5.6, §7.6).
 
-The output keeps the existing shape of `xtra-golden-sets-verified`, so its readers keep working:
+Published one property (field) at a time: a property can be published once its field rule is approved, whatever
+the other fields' rules say. Publishing writes the chosen properties' values from the current extraction into each
+page's file and keeps what earlier publications put there for the other properties, so the golden set fills up
+property by property. The page rule and record locator (which courses exist) are recorded in publication.json
+with their status; they don't hold a property back.
+
+The output keeps the per-page shape of the golden sets saved so far, in the `xtra-golden-sets` container:
 
     <golden root>/<catalog>/<crawl>/<page_stem>/<page_stem>.json   [{golden_id, fields: [{ctdl_property, property,
                                                                       value, source_url, location}]}]
@@ -65,8 +71,8 @@ def golden_ids(rv: Review) -> tuple[dict[str, str], list[dict]]:
     return out, collisions
 
 
-def plan(rv: Review) -> dict:
-    """Everything a publication would write, without writing it."""
+def plan(rv: Review, properties: set[str] | None = None) -> dict:
+    """Everything a publication would write for these properties (None: all), without writing it."""
     snap = rv.snap
     ids, collisions = golden_ids(rv)
     ann = defaultdict(list)
@@ -91,6 +97,8 @@ def plan(rv: Review) -> dict:
             if m["status"] != "found":
                 continue
             r = snap.rules[rid]
+            if properties is not None and r.get("property_label") not in properties:
+                continue
             loc = ({"css_path": m["full_css_path"], "char_start": m["char_start"], "char_end": m["char_end"]}
                    if m["css_path"] is not None else None)
             fields.append({"ctdl_property": r.get("ctdl_property"), "property": r["property_label"],
@@ -99,6 +107,8 @@ def plan(rv: Review) -> dict:
                          "ctdl_property": r.get("ctdl_property"), "extraction": snap.ext, "rule_id": rid,
                          "rule_version": m["rule_version"], "occurrence_key": key, "match_value_index": m["value_index"],
                          "annotation_ids": sorted(ann.get((rid, key), []))})
+        if properties is not None and not fields:
+            continue  # nothing of the chosen properties for this course
         record = {"golden_id": gid, "fields": fields}
         if any(r["golden_id"] == gid and r == record for r in pages[stem]):
             continue  # the same course listed twice on a page with identical values: once is enough
@@ -112,18 +122,82 @@ def plan(rv: Review) -> dict:
             "courses": len({r["golden_id"] for r in lineage}), "records": sum(len(v) for v in pages.values())}
 
 
+def property_rules(rv: Review) -> list[dict]:
+    """Each property the field rules fill, with its rule and status (for the full courses' locator, i.e. the
+    course pages)."""
+    out = []
+    for rid, r in sorted(rv.snap.rules.items(), key=lambda kv: (model.PROPERTY_ORDER.get(kv[1].get("property_label"), 99),
+                                                                 kv[0])):
+        if r["kind"] != "field" or r["definition"].get("locator") != FULL_LOCATOR:
+            continue
+        st = rv.rule_status(rid)
+        out.append({"property": r["property_label"], "ctdl_property": r.get("ctdl_property"), "rule_id": rid,
+                    "version": r["version"], "status": st["status"], "approved_by": st.get("approved_by")})
+    return out
+
+
+def merge_page(old: list[dict], new: list[dict], properties: set[str]) -> list[dict]:
+    """One page's records after publishing `properties`: their values come from `new`; every other property keeps
+    what `old` (the file already in the golden set) has. Records pair by golden_id, in order on the page."""
+    def order(fields: list[dict]) -> list[dict]:
+        return sorted(fields, key=lambda f: model.PROPERTY_ORDER.get(f["property"], 99))
+
+    seen: Counter = Counter()
+    by_gid: dict[tuple[str, int], dict] = {}
+    for rec in old:
+        by_gid[(rec["golden_id"], seen[rec["golden_id"]])] = rec
+        seen[rec["golden_id"]] += 1
+    seen.clear()
+    used, out = set(), []
+    for rec in new:
+        k = (rec["golden_id"], seen[rec["golden_id"]])
+        seen[rec["golden_id"]] += 1
+        kept = [f for f in by_gid[k]["fields"] if f["property"] not in properties] if k in by_gid else []
+        used.add(k)
+        out.append({"golden_id": rec["golden_id"], "fields": order(kept + rec["fields"])})
+    for k, rec in by_gid.items():  # courses only the earlier publications have: keep their other properties
+        if k in used:
+            continue
+        kept = [f for f in rec["fields"] if f["property"] not in properties]
+        if kept:
+            out.append({"golden_id": rec["golden_id"], "fields": order(kept)})
+    return out
+
+
+def published_properties(ctx: Ctx, to: str) -> dict[str, dict]:
+    """property → the latest publication to `to` that published it (publications before per-property publishing
+    published every property)."""
+    out: dict[str, dict] = {}
+    docs = []
+    for g in ctx.crawl_entry().get("golden", []):
+        if g.get("to", "").rstrip("/") != to.rstrip("/"):
+            continue
+        try:
+            docs.append(ctx.read_json(f"{g['path']}/publication.json"))
+        except FileNotFoundError:
+            continue
+    for d in sorted(docs, key=lambda d: d.get("published_at") or ""):
+        props = d.get("properties") or [r["property"] for r in d.get("property_gate", [])] or list(model.PROPERTY_ORDER)
+        for prop in props:
+            gate = next((r for r in d.get("property_gate", []) if r["property"] == prop), {})
+            out[prop] = {"publication": d["publication"], "published_at": d.get("published_at"),
+                         "published_by": d.get("published_by"), "extraction": d.get("extraction"),
+                         "rule_version": gate.get("version")}
+    return out
+
+
 def approval(rv: Review) -> tuple[bool, list[dict]]:
     statuses = [{"rule_id": rid, "version": r["version"], "kind": r["kind"], **rv.rule_status(rid)}
                 for rid, r in sorted(rv.snap.rules.items(), key=lambda kv: (model.KIND_ORDER[kv[1]["kind"]], kv[0]))]
     return all(s["status"] == "approved" for s in statuses), statuses
 
 
-GOLDEN_CONTAINER = "azure://https://ceteststorage.blob.core.windows.net/xtra-golden-sets-verified"
+GOLDEN_CONTAINER = "azure://https://ceteststorage.blob.core.windows.net/xtra-golden-sets"
 
 
 def default_target(ctx: Ctx) -> str:
-    """Where the UI publishes: the xtra-golden-sets-verified container, unless GOLDEN_DATASETS_GOLDEN_ROOT names
-    another root (a local folder or a scratch prefix, for trying a publication out)."""
+    """Where the UI publishes: the xtra-golden-sets container, unless GOLDEN_DATASETS_GOLDEN_ROOT names another
+    root (a local folder or a scratch prefix, for trying a publication out)."""
     import os
 
     return os.environ.get("GOLDEN_DATASETS_GOLDEN_ROOT") or GOLDEN_CONTAINER
@@ -148,15 +222,21 @@ def page_json(records: list[dict]) -> str:
 
 
 def publication_doc(ctx: Ctx, rv: Review, p: dict, pub: str, to: str, by: str, ok: bool, statuses: list[dict],
-                    info: dict) -> dict:
-    """publication.json: which extraction and ruleset were published, where to, and the approval gate."""
-    return {"publication": pub, "catalog": ctx.catalog, "crawl": ctx.crawl, "extraction": rv.snap.ext,
+                    info: dict, properties: list[str] | None = None) -> dict:
+    """publication.json: which properties, extraction and ruleset were published, where to, and the gates."""
+    props = {r["property"]: r for r in property_rules(rv)}
+    chosen = properties if properties is not None else list(props)
+    return {"publication": pub, "properties": chosen,
+            "property_gate": [{k: props[x][k] for k in ("property", "ctdl_property", "rule_id", "version", "status",
+                                                         "approved_by")} for x in chosen if x in props],
+            "identity_rules": [{k: s[k] for k in ("rule_id", "version", "status", "approved_by")}
+                               for s in statuses if s["kind"] in ("page", "locator")], "catalog": ctx.catalog, "crawl": ctx.crawl, "extraction": rv.snap.ext,
             "ruleset_version": rv.snap.ruleset_version, "published_at": datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
             "published_by": by, "to": to, "to_prefix": f"{ctx.catalog}/{ctx.crawl}/", "pages": len(p["pages"]),
             "page_stems": sorted(p["pages"]), "courses": p["courses"], "records": p["records"],
             "lineage_rows": info["rows"], "lineage_sha256": info["sha256"],
             "golden_id_collisions": p["collisions"], "skipped_no_course_key": p["skipped_no_course_key"],
-            "format": "xtra-golden-sets-verified per-page shape: <catalog>/<crawl>/<stem>/<stem>.json = "
+            "format": "golden sets per-page shape: <catalog>/<crawl>/<stem>/<stem>.json = "
                       "[{golden_id, fields: [{ctdl_property, property, value, source_url, location}]}], "
                       "plus <stem>.html as crawled",
             "approval_gate": {"all_rules_approved": ok,
@@ -164,21 +244,57 @@ def publication_doc(ctx: Ctx, rv: Review, p: dict, pub: str, to: str, by: str, o
                                         for s in statuses]}}
 
 
-def publish(ctx: Ctx, to: str, by: str, allow_unapproved: bool = False, log=print) -> dict:
+def choose(rv: Review, properties: list[str] | None, allow_unapproved: bool = False) -> list[str]:
+    """The properties to publish: those asked for (None: every property whose rule is approved). Each needs its
+    field rule approved, unless `allow_unapproved` (testing)."""
+    rules = {r["property"]: r for r in property_rules(rv)}
+    if properties is None:
+        chosen = [p for p, r in rules.items() if r["status"] == "approved" or allow_unapproved]
+        if not chosen:
+            raise UserError("no property's rule is approved yet; approve one on the Rules tab, then publish it")
+        return chosen
+    unknown = [p for p in properties if p not in rules]
+    if unknown:
+        raise UserError(f"unknown properties: {', '.join(unknown)} (known: {', '.join(rules)})")
+    pending = [p for p in properties if rules[p]["status"] != "approved"]
+    if pending and not allow_unapproved:
+        names = ", ".join(f"{p} ({rules[p]['rule_id']})" for p in pending)
+        raise UserError(f"not approved yet: {names}; a property is published once its rule is approved")
+    return [p for p in rules if p in properties]
+
+
+def merged_page(target, prefix: str, stem: str, records: list[dict], properties: set[str]) -> list[dict]:
+    """A page's records as they will be written: merged with the file the golden set already has."""
+    try:
+        old = json.loads(target.read_text(f"{prefix}{stem}/{stem}.json"))
+    except FileNotFoundError:
+        old = []
+    return merge_page(old, records, properties)
+
+
+def publish(ctx: Ctx, to: str, by: str, allow_unapproved: bool = False, log=print,
+            properties: list[str] | None = None) -> dict:
     rv = LOADER.review(ctx)
     ok, statuses = approval(rv)
-    if not ok and not allow_unapproved:
-        pending = [s["rule_id"] for s in statuses if s["status"] != "approved"]
-        raise UserError(f"{len(pending)} rule(s) not approved: {', '.join(pending)}; publish needs every rule approved")
-    p = plan(rv)
+    chosen = choose(rv, properties, allow_unapproved)
+    p = plan(rv, set(chosen))
     target = open_root(to)
     pub = publication_name(ctx, rv)
     prefix = f"{ctx.catalog}/{ctx.crawl}/"
+    # pages earlier publications wrote but this one has no course on: their chosen properties' old values go
+    earlier = set()
+    for g in ctx.crawl_entry().get("golden", []):
+        if g.get("to", "").rstrip("/") == target.uri.rstrip("/"):
+            try:
+                earlier |= set(ctx.read_json(f"{g['path']}/publication.json").get("page_stems", []))
+            except FileNotFoundError:
+                pass
+    pages = dict(p["pages"]) | {stem: [] for stem in earlier - set(p["pages"])}
     from concurrent.futures import ThreadPoolExecutor
 
     def write_page(item) -> None:
         stem, records = item
-        target.write_text(f"{prefix}{stem}/{stem}.json", page_json(records))
+        target.write_text(f"{prefix}{stem}/{stem}.json", page_json(merged_page(target, prefix, stem, records, set(chosen))))
         html_path = f"{prefix}{stem}/{stem}.html"
         if target.stat(html_path) is None:
             src = layout.page_html(ctx.catalog, ctx.crawl, stem)
@@ -188,12 +304,13 @@ def publish(ctx: Ctx, to: str, by: str, allow_unapproved: bool = False, log=prin
                 target.write_file(html_path, ctx.page_path(stem))
 
     with ThreadPoolExecutor(max_workers=16) as pool:
-        list(pool.map(write_page, sorted(p["pages"].items())))
+        list(pool.map(write_page, sorted(pages.items())))
     for r in p["lineage"]:
         r["publication"] = pub
     gdir = layout.golden_dir(ctx.catalog, ctx.crawl, pub)
     info = ctx.write_table(f"{gdir}/lineage.parquet", p["lineage"], model.LINEAGE)
-    doc = publication_doc(ctx, rv, p, pub, target.uri, by, ok, statuses, info)
+    doc = publication_doc(ctx, rv, p, pub, target.uri, by, ok, statuses, info, chosen)
+    doc["page_stems"] = sorted(set(doc["page_stems"]) | earlier)
     try:
         ctx.root.write_json(f"{gdir}/publication.json", doc, if_none_match=True)
     except ConflictError:
@@ -217,8 +334,8 @@ def cmd_golden_publish(args) -> int:
 
     ctx = Ctx.from_args(args)
     t0 = time.perf_counter()
-    doc = publish(ctx, args.to, "golden-datasets golden publish", args.allow_unapproved)
-    print(f"{doc['publication']}: {doc['pages']:,} pages, {doc['courses']:,} courses, {doc['records']:,} records, "
+    doc = publish(ctx, args.to, "golden-datasets golden publish", args.allow_unapproved, properties=args.property)
+    print(f"{doc['publication']} ({', '.join(doc['properties'])}): {doc['pages']:,} pages, {doc['courses']:,} courses, {doc['records']:,} records, "
           f"{doc['lineage_rows']:,} lineage rows → {doc['to']}/{doc['to_prefix']} "
           f"({time.perf_counter() - t0:.1f}s)")
     if not doc["approval_gate"]["all_rules_approved"]:

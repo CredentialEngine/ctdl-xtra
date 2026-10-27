@@ -1,10 +1,12 @@
 // Hash routes: #/ (catalog picker) · #/c/<catalog>/<tab>/<id>?<params>
 // Examples: #/c/avc/rules/course-description?row=<occurrence_key> · #/c/avc/records/GEOG222
-//           #/c/avc/compare?a=1&b=2&rule=course-description · #/c/avc/prompt?rule=… · #/c/avc/golden
+//           #/c/avc/compare?a=1&b=2&rule=course-description · #/c/avc/prompt?rule=… · #/c/avc/publish
 import { useEffect, useState } from "react";
 
-export type Tab = "rules" | "records" | "compare" | "prompt" | "golden";
-export const TABS: Tab[] = ["rules", "records", "compare", "prompt", "golden"];
+export type Tab = "rules" | "records" | "compare" | "prompt" | "publish";
+export const TABS: Tab[] = ["rules", "records", "compare", "prompt", "publish"];
+/** Old tab names still open the right tab (the Golden tab is now Publish). */
+const RENAMED: Record<string, Tab> = { golden: "publish" };
 
 export interface Route { catalog: string | null; tab: Tab; id: string | null; params: URLSearchParams }
 
@@ -14,7 +16,8 @@ export function parseRoute(hash: string): Route {
   const p = path.split("/").filter(Boolean).map(decodeURIComponent);
   const params = new URLSearchParams(qs || "");
   if (p[0] !== "c" || !p[1]) return { catalog: null, tab: "rules", id: null, params };
-  const tab = (TABS as string[]).includes(p[2]) ? (p[2] as Tab) : "rules";
+  const name = RENAMED[p[2]] ?? p[2];
+  const tab = (TABS as string[]).includes(name) ? (name as Tab) : "rules";
   return { catalog: p[1], tab, id: p[3] ?? null, params };
 }
 

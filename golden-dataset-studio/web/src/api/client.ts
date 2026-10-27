@@ -58,16 +58,18 @@ export const api = {
   },
   prompt: (catalog: string, opts: { rule?: string; needs_work?: boolean; target?: PromptTarget } = {}) =>
     call<PromptResponse>(`${c(catalog)}/prompt${q(opts)}`),
-  golden: (catalog: string) => call<GoldenResponse>(`${c(catalog)}/golden`),
-  goldenPageJson: (catalog: string, stem: string) =>
-    call<GoldenFileText>(`${c(catalog)}/golden/files/page/${encodeURIComponent(stem)}.json`),
-  goldenPageHtml: (catalog: string, stem: string) =>
-    call<GoldenFileText>(`${c(catalog)}/golden/files/page/${encodeURIComponent(stem)}.html`),
-  goldenLineage: (catalog: string, opts: { q?: string; offset?: number; limit?: number } = {}) =>
+  // `properties`: the properties a publication would publish (comma-separated in the query)
+  golden: (catalog: string, properties?: string[]) =>
+    call<GoldenResponse>(`${c(catalog)}/golden${q({ properties: properties?.join(",") })}`),
+  goldenPageJson: (catalog: string, stem: string, properties?: string[]) =>
+    call<GoldenFileText>(`${c(catalog)}/golden/files/page/${encodeURIComponent(stem)}.json${q({ properties: properties?.join(",") })}`),
+  goldenPageHtml: (catalog: string, stem: string, properties?: string[]) =>
+    call<GoldenFileText>(`${c(catalog)}/golden/files/page/${encodeURIComponent(stem)}.html${q({ properties: properties?.join(",") })}`),
+  goldenLineage: (catalog: string, opts: { q?: string; offset?: number; limit?: number; properties?: string } = {}) =>
     call<GoldenLineage>(`${c(catalog)}/golden/files/lineage${q(opts)}`),
-  goldenPublicationJson: (catalog: string, author: string) =>
-    call<GoldenFileText>(`${c(catalog)}/golden/files/publication.json${q({ author })}`),
-  goldenPublish: (catalog: string, body: { author: string; to?: string }) =>
+  goldenPublicationJson: (catalog: string, author: string, properties?: string[]) =>
+    call<GoldenFileText>(`${c(catalog)}/golden/files/publication.json${q({ author, properties: properties?.join(",") })}`),
+  goldenPublish: (catalog: string, body: { author: string; properties: string[]; to?: string }) =>
     call<{ publication: string; path: string; files: number }>(`${c(catalog)}/golden/publish`, {
       method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
     }),

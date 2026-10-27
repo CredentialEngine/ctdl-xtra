@@ -10,7 +10,7 @@ import hashlib
 import json
 import sys
 import time
-from collections import Counter
+from collections import Counter, defaultdict
 
 from . import layout, manifest, model
 from .catalogs import resolve
@@ -265,14 +265,28 @@ DOMAIN_LEAKS = ("rule_id", "rule_version", "occurrence_key", "annotation_ids", "
 
 
 def golden_file_checks(ctx: Ctx, con) -> list[tuple]:
+    """Per golden set (publications to one target): its files now, against the lineage of the publication that last
+    published each property (properties are published one or more at a time; spec §7.6)."""
+    from concurrent.futures import ThreadPoolExecutor
+
+    from .storage import open_root
+
     out = []
+    by_target: dict[str, list[dict]] = defaultdict(list)
     for g in ctx.crawl_entry().get("golden", []):
         pub = ctx.read_json(f"{g['path']}/publication.json")
-        target = pub.get("to")
-        from .storage import open_root
-
+        by_target[(pub.get("to") or "").rstrip("/")].append(pub)
+    all_props = list(model.PROPERTY_ORDER)
+    for target, pubs in by_target.items():
+        pubs.sort(key=lambda d: d.get("published_at") or "")
+        owner: dict[str, str] = {}  # property → the publication that last published it
+        for d in pubs:
+            for prop in d.get("properties") or all_props:
+                owner[prop] = d["publication"]
+        latest = pubs[-1]
         groot = open_root(target) if target else ctx.root
-        prefix = pub.get("to_prefix", "")
+        prefix = latest.get("to_prefix", "")
+        stems = sorted({s for d in pubs for s in d.get("page_stems", [])})
         ids, leaked, n_rec, bad_files = set(), 0, 0, []
 
         def fetch(stem: str, groot=groot, prefix=prefix):  # one round trip each on Azure: run them together
@@ -284,10 +298,8 @@ def golden_file_checks(ctx: Ctx, con) -> list[tuple]:
             html = f"{prefix}{stem}/{stem}.html"
             return stem, data, None if groot.exists(html) else html
 
-        from concurrent.futures import ThreadPoolExecutor
-
         with ThreadPoolExecutor(max_workers=32) as pool:
-            fetched = list(pool.map(fetch, pub.get("page_stems", [])))
+            fetched = list(pool.map(fetch, stems))
         for stem, records, missing in fetched:
             if missing:
                 bad_files.append(missing)
@@ -297,19 +309,22 @@ def golden_file_checks(ctx: Ctx, con) -> list[tuple]:
             for rec in records:
                 n_rec += 1
                 for fld in rec["fields"]:
-                    ids.add((rec["golden_id"], stem, fld["property"], counts[(rec["golden_id"], fld["property"])]))
-                    counts[(rec["golden_id"], fld["property"])] += 1
+                    key = (rec["golden_id"], fld["property"])
+                    ids.add((owner.get(fld["property"]), rec["golden_id"], stem, fld["property"], counts[key]))
+                    counts[key] += 1
                     leaked += sum(k in DOMAIN_LEAKS for k in fld)
                 leaked += sum(k in DOMAIN_LEAKS for k in rec)
-        lin = set(con.execute(f"""SELECT golden_id, page_stem, property, value_index FROM lineage
-                                  WHERE publication = '{g['publication']}'""").fetchall()) \
-            if "lineage" in _tables(con) else set()
-        out.append(("lineage", "FK", f"{g['publication']}: every golden value has one lineage row (and back)",
-                    len(ids ^ lin), len(ids), []))
-        out.append(("golden page", "CHK", f"{g['publication']}: <stem>/<stem>.json + .html per page", len(bad_files),
-                    len(pub.get("page_stems", [])), bad_files[:3]))
-        out.append(("golden page", "CHK", f"{g['publication']}: domain-only (no rule ids / keys / annotation ids)",
-                    leaked, n_rec, []))
+        lin = set()
+        if "lineage" in _tables(con) and owner:
+            pairs = " OR ".join(f"(publication = '{pb}' AND property = '{pr}')" for pr, pb in owner.items())
+            lin = set(con.execute(f"""SELECT publication, golden_id, page_stem, property, value_index FROM lineage
+                                      WHERE {pairs}""").fetchall())
+        name = latest["publication"]
+        out.append(("lineage", "FK", f"{name}: every golden value has one lineage row in the publication that last "
+                    "published its property (and back)", len(ids ^ lin), len(ids), []))
+        out.append(("golden page", "CHK", f"{name}: <stem>/<stem>.json + .html per page", len(bad_files), len(stems),
+                    bad_files[:3]))
+        out.append(("golden page", "CHK", f"{name}: domain-only (no rule ids / keys / annotation ids)", leaked, n_rec, []))
     return out
 
 

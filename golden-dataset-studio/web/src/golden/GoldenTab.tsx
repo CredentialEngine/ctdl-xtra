@@ -1,5 +1,6 @@
-// Golden (spec §7.6, screen 10): each rule version's status, Publish disabled until every rule is approved,
-// what will be written (each file can be opened as a sample), course codes shared by different courses, earlier
+// Publish (spec §7.6, screen 10): publish the golden dataset one property at a time. Each property can be chosen
+// once its field rule is approved, whatever the other fields' rules say; what will be written (each file can be
+// opened as a sample, merged with what the golden set has), course codes shared by different courses, earlier
 // publications.
 import { useCallback, useEffect, useState } from "react";
 import { api } from "../api/client";
@@ -20,20 +21,29 @@ export default function GoldenTab({ catalog }: TabProps) {
   const [error, setError] = useState<string | null>(null);
   const me = useReviewer();
   const [open, setOpen] = useState<GoldenFile | null>(null);
-  const load = useCallback(() => { api.golden(catalog.short).then(setD, (e) => setError(String(e))); }, [catalog.short]);
+  const [chosen, setChosen] = useState<string[] | null>(null);  // null: the server's default (every approved property)
+  const load = useCallback(() => {
+    api.golden(catalog.short, chosen ?? undefined).then((r) => { setD(r); setChosen((c) => c ?? r.chosen); },
+                                                        (e) => setError(String(e)));
+  }, [catalog.short, chosen]);
   useEffect(load, [load]);
-  useKeyHints(<span><span className="mono">golden-datasets golden publish --catalog {catalog.short} --to ROOT</span> does the same from the CLI</span>, [catalog.short]);
+  useKeyHints(<span><span className="mono">golden-datasets golden publish --catalog {catalog.short} --to ROOT --property NAME</span> does the same from the CLI</span>, [catalog.short]);
 
   if (error) return <div className="doc"><div className="doc-in"><p className="muted">{error}</p></div></div>;
   if (!d) return <div className="doc"><div className="doc-in"><h1>Publish the golden dataset</h1></div></div>;
-  const pending = d.rules.filter((r) => r.status !== "approved");
-  const needs = pending.filter((r) => r.status === "needs work").length;
+  const sel = (chosen ?? d.chosen).filter((p) => d.properties.some((x) => x.property === p && x.status === "approved"));
+  const approvable = d.properties.filter((p) => p.status === "approved");
+  const identity = d.rules.filter((r) => r.kind !== "field");
+  const toggle = (p: string) => setChosen((c) => {
+    const cur = c ?? d.chosen;
+    return cur.includes(p) ? cur.filter((x) => x !== p) : d.properties.map((x) => x.property).filter((x) => x === p || cur.includes(x));
+  });
 
   const publish = async () => {
     setBusy(true);
     try {
-      const r = await api.goldenPublish(catalog.short, { author: me });
-      toast(`Published ${r.publication}: ${fmt(r.files)} pages`);
+      const r = await api.goldenPublish(catalog.short, { author: me, properties: sel });
+      toast(`Published ${sel.join(", ")} (${r.publication}): ${fmt(r.files)} pages`);
       load();
     } catch (e) { toast(String(e)); } finally { setBusy(false); }
   };
@@ -43,30 +53,45 @@ export default function GoldenTab({ catalog }: TabProps) {
 
   return (
     <div className="doc"><div className="doc-in">
-      {open && <FilePreview catalog={catalog.short} file={open} stems={d.page_stems} author={me}
+      {open && <FilePreview catalog={catalog.short} file={open} stems={d.page_stems} author={me} properties={sel}
                             onClose={() => setOpen(null)} />}
-      <h1>Publish the golden dataset</h1>
-      <div className="lead">Turns extraction <span className="mono">{d.extraction}</span> (ruleset v{d.ruleset_version}) into a
-        domain-only dataset plus a lineage table. Every rule version in the ruleset must be approved first.</div>
-      <div className={`gate ${d.ready ? "ready" : "blocked"}`}>
+      <h1>Publish to the golden dataset</h1>
+      <div className="lead">One property at a time: a property can be published once its rule is approved, whatever the
+        other fields' rules say. Publishing writes the chosen properties' values from extraction{" "}
+        <span className="mono">{d.extraction}</span> (ruleset v{d.ruleset_version}) into each page's file, and keeps what
+        earlier publications wrote for the other properties.</div>
+      <div className={`gate ${sel.length ? "ready" : "blocked"}`}>
         <Ico name="lock" />
-        <div className="grow">{d.ready
-          ? <><b>Ready to publish:</b> every rule in ruleset v{d.ruleset_version} is approved.</>
-          : <><b>Publishing is blocked:</b> {pending.length} of {d.rules.length} rules are not approved yet
-              ({needs} need work, {pending.length - needs} in review).</>}</div>
-        <button className="btn primary" disabled={!d.ready || busy} onClick={publish} data-tour="golden-publish">
-          {busy ? "Publishing…" : "Publish golden dataset"}</button>
+        <div className="grow">{sel.length
+          ? <><b>Ready to publish {sel.length === 1 ? sel[0] : `${sel.length} properties`}:</b> {sel.length > 1 && <>{sel.join(", ")}. </>}
+              {fmt(d.courses)} courses, {fmt(d.fields)} values.</>
+          : approvable.length
+            ? <><b>Choose a property</b> below to publish.</>
+            : <><b>Nothing to publish yet:</b> no property's rule is approved. Approve one on the Rules tab.</>}</div>
+        <button className="btn primary" disabled={!sel.length || busy} onClick={publish} data-tour="golden-publish">
+          {busy ? "Publishing…" : sel.length === 1 ? `Publish ${sel[0]}` : `Publish ${sel.length || ""} properties`}</button>
       </div>
       <div className="gold-grid">
-        <div className="box"><h3>Rule status · ruleset v{d.ruleset_version}</h3>
-          {d.rules.map((r) => (
-            <a key={r.rule_id} className="chk" href={href(catalog.short, "rules", r.rule_id)} style={{ color: "inherit", textDecoration: "none" }}>
-              <Ico name={r.status} />
-              <span><b>{r.title}</b><span className={`rid ${r.kind === "field" ? "" : "plain"}`}>{r.subtitle}</span></span>
-              <span className={`pill ${pillClass(r.status)}`} title={r.approved_by ? `approved by ${r.approved_by}` : undefined}>
-                <Ico name={r.status} />{r.status}</span>
-            </a>
-          ))}
+        <div className="box"><h3>Properties · ruleset v{d.ruleset_version} <span className="h3-note">· tick the ones to publish</span></h3>
+          {d.properties.map((p) => {
+            const ok = p.status === "approved";
+            const on = sel.includes(p.property);
+            return (
+              <label key={p.property} className={"chk prop" + (ok ? "" : " off") + (on ? " on" : "")} data-property={p.property}
+                title={ok ? `${p.rule_id} v${p.version}, approved by ${p.approved_by}` : `${p.rule_id} v${p.version} isn't approved yet`}>
+                <input type="checkbox" checked={on} disabled={!ok} onChange={() => toggle(p.property)} />
+                <span><b>{p.property}</b><span className={`rid ${p.ctdl_property ? "" : "plain"}`}>{p.ctdl_property ?? "no CTDL term"}</span>
+                  <span className="pub-when">{p.published
+                    ? <>published {p.published.published_at?.slice(0, 10)}{p.published.rule_version != null && <> · v{p.published.rule_version}</>}</>
+                    : "not published yet"}</span></span>
+                <a className={`pill ${pillClass(p.status)}`} href={href(catalog.short, "rules", p.rule_id)} onClick={(e) => e.stopPropagation()}>
+                  <Ico name={p.status} />{p.status}</a>
+              </label>
+            );
+          })}
+          <div className="identity muted">Which courses exist comes from {identity.map((r, i) => (
+            <span key={r.rule_id}>{i > 0 && " and "}<a href={href(catalog.short, "rules", r.rule_id)}>{r.title}</a>{" "}
+              ({r.status})</span>))}: recorded with each publication, but it doesn't hold a property back.</div>
         </div>
         <div>
           <div className="box"><h3>What will be written <span className="h3-note">· click a file to see a sample</span></h3>
