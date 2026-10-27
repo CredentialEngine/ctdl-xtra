@@ -44,10 +44,12 @@ evals/ev-0001/eval.json, baseline/{hand,full}/…, reports/{hand,full}-{exact,pa
   text. Both values sit above the page with a word diff.
 - **New extraction** is a dialog with two choices: run xtra-cli extract (code ref; review sample: the 30 pages
   discovery picked for review, about 10 s; or all 1,128 course pages, about 8 min), or use xtra-cli's latest
-  extraction (copy the `records/` it last wrote). Either can be scored straight away. **Score** / **Score again**
-  sits in the header.
+  extraction (copy the `records/` it last wrote). Either can be scored straight away. **Run xtra score** sits in the
+  header.
+- **Golden dataset baselines** (renamed from baselines), with a one-line definition of each term in the nav. The
+  header button says what it does: **Run xtra score**.
 - **Run it yourself** is a terminal icon in the header. It opens the exact commands, one option per line with `\`,
-  and a Copy button.
+  with Copy at the top right of the code block.
 
 | | |
 |---|---|

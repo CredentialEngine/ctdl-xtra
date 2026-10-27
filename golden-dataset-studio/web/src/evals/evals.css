@@ -23,6 +23,8 @@
 .evx-item.on, .evx-bl.on > .evx-item { background: var(--accent-soft); }
 .evx-item-t { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .evx-item-d { color: var(--muted); font-size: 11.5px; }
+.evx-item-x { color: var(--ink-2); font-size: 11.5px; line-height: 1.35; margin: 1px 0 2px; }
+.evx-def { margin: -2px 8px 8px; color: var(--muted); font-size: 11.5px; line-height: 1.4; }
 .evx-empty { color: var(--muted); margin: 4px 8px; }
 .evx-ver { display: flex; align-items: center; justify-content: space-between; gap: 8px; color: var(--muted); font-size: 12px; margin: 0 8px 6px; }
 .evx-ver select, .evx-group select, .evx-then select { font: 500 12px var(--sans); border: 1px solid var(--line-2); border-radius: 6px; padding: 3px 6px;
@@ -106,7 +108,11 @@
 .evx-cmds { margin: -4px 0 16px; }
 .evx-cmds-h { display: flex; align-items: center; gap: 8px; font-weight: 600; }
 .evx-cmds-h .ico svg { width: 14px; height: 14px; }
-.evx-cmds .btn .ico svg { width: 13px; height: 13px; }
+.evx-code { position: relative; }
+.evx-copy { position: absolute; top: 8px; right: 8px; display: inline-flex; align-items: center; gap: 5px; border: 1px solid #3a4351;
+            background: #1c232c; color: #c3c9d4; border-radius: 6px; padding: 3px 8px; font: 500 11.5px var(--sans); }
+.evx-copy:hover { color: #fff; border-color: #6b7686; }
+.evx-copy .ico svg { width: 12px; height: 12px; }
 
 /* the page */
 .evx-page { border-left: 1px solid var(--line); display: flex; flex-direction: column; min-width: 0; overflow: hidden; background: var(--surface); }

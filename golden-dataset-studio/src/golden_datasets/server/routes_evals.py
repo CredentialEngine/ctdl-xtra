@@ -105,10 +105,10 @@ def _scores(eval_docs: list[dict]) -> list[dict]:
 
 def _run_label(r: dict) -> dict:
     if r["kind"] == "import":
-        title, detail = "xtra-cli-output records/", "the extraction xtra-cli last wrote for this crawl"
+        title, detail = "Copied from xtra-cli-output", "the records/ xtra-cli last wrote for this crawl"
     else:
-        title = f"{(r.get('ref') or '').removeprefix('origin/')} @ {(r.get('commit') or '')[:7]}"
-        detail = "run by the Studio"
+        title = f"xtra-cli {(r.get('ref') or '').removeprefix('origin/')} @ {(r.get('commit') or '')[:7]}"
+        detail = "xtra-cli extract, run by the Studio"
     scope = {"sample": "review sample", "golden sample": "review sample", "all": "all course pages",
              "all pages": "all course pages"}.get(r.get("scope"), r.get("scope"))
     return {"id": r["id"], "kind": r["kind"], "title": title, "detail": detail, "scope": scope,

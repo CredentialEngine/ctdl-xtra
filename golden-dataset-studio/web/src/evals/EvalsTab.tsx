@@ -12,7 +12,7 @@ import { PagePane, type Highlight } from "../pagepane";
 import { useReviewer } from "../shell/reviewer";
 import { go, href } from "../shell/router";
 import type { TabProps } from "../shell/tabProps";
-import { fmt, Ico, toast, useKeyHints } from "../shell/ui";
+import { fmt, fmtDate, Ico, toast, useKeyHints } from "../shell/ui";
 import { multiline } from "./commands";
 import { wordDiff } from "./diff";
 import "./evals.css";
@@ -20,10 +20,16 @@ import "./evals.css";
 const OUTCOMES: ScoreOutcome[] = ["missing", "wrong", "partial", "match"];
 const OUTCOME_LABEL: Record<ScoreOutcome, string> = { missing: "missing", wrong: "wrong < 0.8", partial: "partial ≥ 0.8", match: "match" };
 const BASELINES: { id: BaselineId; name: string; what: string }[] = [
-  { id: "full", name: "Full catalog", what: "Every record of the Studio version, values approved by a person or by their rule" },
-  { id: "hand", name: "Hand-checked", what: "Only the values a person confirmed, from the same Studio version" },
-  { id: "verified", name: "Verified container", what: "xtra-golden-sets-verified: pages checked by hand before the Studio" },
+  { id: "full", name: "Full catalog", what: "Every course in the Studio's golden dataset; each value approved by a person or by its rule" },
+  { id: "hand", name: "Hand-checked", what: "Only the values a person confirmed in the Studio" },
+  { id: "verified", name: "Verified container", what: "Pages checked by hand before the Studio (xtra-golden-sets-verified)" },
 ];
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const when = (iso: string | null | undefined) => {
+  if (!iso) return "";
+  const d = new Date(iso);
+  return `${d.getDate()} ${MONTHS[d.getMonth()]} ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+};
 const pct = (x: number | null | undefined) => (x === null || x === undefined ? "–" : `${Math.round(x * 100)}%`);
 const rate = (c: OutcomeCounts) => (c.fields ? c.match / c.fields : null);
 
@@ -86,7 +92,7 @@ export default function EvalsTab({ catalog, route }: TabProps) {
       if (j.status === "running") return;
       loadIndex();
       if (j.status === "done") {
-        toast(j.result?.eval ? "Scored" : "Extraction ready");
+        toast(j.result?.eval ? "xtra score finished" : "Extraction ready");
         if (j.result?.run) nav({ x: j.result.run, p: null, o: null, gv: null, off: null });
       } else toast(`${j.label}: ${j.status}${j.error ? ` (${j.error})` : ""}`);
     }), 1200);
@@ -113,16 +119,18 @@ export default function EvalsTab({ catalog, route }: TabProps) {
           <button className="evx-link" disabled={!idx.allow_runs || running} onClick={() => setNewOpen(true)}
             title={idx.allow_runs ? "Run xtra-cli extract, or take what it last wrote" : "Start the Studio with --allow-runs to add extractions here"}>+ New</button>
         </div>
+        <p className="evx-def">What xtra-cli extracted from {catalog.name}'s saved pages (crawl of {fmtDate(catalog.crawl)}). Each run is kept.</p>
         {idx.extractions.map((e) => (
           <button key={e.id} className={`evx-item ${e.id === x ? "on" : ""}`} onClick={() => nav({ x: e.id, off: null })}>
             <span className="evx-item-t">{e.title}</span>
-            <span className="evx-item-d">{e.scope} · {fmt(e.records)} records · {e.id}</span>
+            <span className="evx-item-d">{e.scope} · {fmt(e.records)} records · {when(e.created_at)}</span>
           </button>
         ))}
         {!idx.extractions.length && <p className="evx-empty">None yet.</p>}
 
-        <div className="evx-sec-h">Baselines</div>
-        <label className="evx-ver">Studio version
+        <div className="evx-sec-h">Golden dataset baselines</div>
+        <p className="evx-def">What an extraction is compared with: values we trust.</p>
+        <label className="evx-ver" title="Which version of the Studio's golden dataset: an extraction rs-NNNN, or what is published">Studio version
           <select value={v} onChange={(e) => nav({ v: e.target.value, p: null, o: null, gv: null, off: null })}>
             {idx.versions.map((g) => <option key={g.id} value={g.id}>{g.id === "published" ? "published" : g.id}{g.approved ? "" : " (unpublished)"}</option>)}
           </select>
@@ -131,8 +139,9 @@ export default function EvalsTab({ catalog, route }: TabProps) {
           const i = info[z.id === "verified" ? "verified" : `${z.id}@${v}`];
           return (
             <div key={z.id} className={`evx-bl ${z.id === b ? "on" : ""}`}>
-              <button className="evx-item" onClick={() => nav({ b: z.id, p: null, o: null, gv: null, off: null })} title={z.what}>
+              <button className="evx-item" onClick={() => nav({ b: z.id, p: null, o: null, gv: null, off: null })}>
                 <span className="evx-item-t">{z.name}</span>
+                <span className="evx-item-x">{z.what}</span>
                 <span className="evx-item-d">{i ? `${fmt(i.records)} records · ${fmt(i.fields)} fields` : "…"}</span>
               </button>
               {z.id === b && i && (
@@ -152,24 +161,26 @@ export default function EvalsTab({ catalog, route }: TabProps) {
         <header className="evx-head">
           <div className="evx-title">
             <span>{extraction?.title ?? "No extraction"}</span>
-            <span className="evx-arrow">scored against</span>
+            <span className="evx-arrow">compared with</span>
             <span>{bl.name}{b !== "verified" && version ? ` · ${v}` : ""}</span>
             {b !== "verified" && version && !version.approved && <span className="evx-tag" title="An extraction that isn't published: its rules may not be approved">unpublished</span>}
           </div>
           <div className="evx-actions">
             {(score || extraction) && <button className="evx-icon" onClick={() => setCmdOpen(!cmdOpen)} title="Run it yourself"><Ico name="terminal" /></button>}
             {extraction && <button className="btn" disabled={!idx.allow_runs || running}
-              title={idx.allow_runs ? "" : "Start the Studio with --allow-runs to score here"}
-              onClick={() => start(api.startScore(cat, { xtra_run: extraction.id, golden, by: me }))}>{score ? "Score again" : "Score"}</button>}
+              title={idx.allow_runs ? "Runs xtra score extraction match (exact and partial): every field of this extraction against this golden dataset baseline. A few seconds."
+                : "Start the Studio with --allow-runs to run xtra score here"}
+              onClick={() => start(api.startScore(cat, { xtra_run: extraction.id, golden, by: me }))}>{score ? "Run xtra score again" : "Run xtra score"}</button>}
           </div>
         </header>
         {cmdOpen && <Commands extractionCmds={extraction?.commands ?? []} scoreCmds={(view?.eval.commands ?? []).filter((c) => b === "verified" || c.includes(`/baseline/${view?.kind}`))} onClose={() => setCmdOpen(false)} />}
 
         {!score && extraction && (
           <div className="evx-cta">
-            <p>{extraction.title} hasn't been scored against {bl.name.toLowerCase()}{b !== "verified" ? ` (${v})` : ""} yet.</p>
+            <p><b>Not compared yet.</b> Run <span className="mono">xtra score</span> to compare every field of this extraction with the
+              {" "}{bl.name.toLowerCase()} baseline{b !== "verified" ? ` (${v})` : ""}. It takes a few seconds.</p>
             {idx.allow_runs
-              ? <button className="btn primary" disabled={running} onClick={() => start(api.startScore(cat, { xtra_run: extraction.id, golden, by: me }))}>Score it</button>
+              ? <button className="btn primary" disabled={running} onClick={() => start(api.startScore(cat, { xtra_run: extraction.id, golden, by: me }))}>Run xtra score</button>
               : <p className="muted">Start the Studio with <span className="mono">--allow-runs</span>, or run <span className="mono">golden-datasets eval run --xtra-run {extraction.id} --golden {golden}</span>.</p>}
           </div>
         )}
@@ -360,10 +371,12 @@ function Commands({ extractionCmds, scoreCmds, onClose }: { extractionCmds: stri
     <div className="evx-cmds">
       <div className="evx-cmds-h"><Ico name="terminal" /> Run it yourself
         <span className="grow" />
-        <button className="btn sm" onClick={() => navigator.clipboard.writeText(text).then(() => toast("Copied"))}><Ico name="copy" />Copy</button>
         <button className="evx-icon" onClick={onClose} title="Close">✕</button>
       </div>
-      <pre>{text || "# nothing to show: this extraction was copied from xtra-cli-output"}</pre>
+      <div className="evx-code">
+        <pre>{text || "# nothing to show: this extraction was copied from xtra-cli-output"}</pre>
+        {text && <button className="evx-copy" onClick={() => navigator.clipboard.writeText(text).then(() => toast("Copied"))} title="Copy"><Ico name="copy" />Copy</button>}
+      </div>
     </div>
   );
 }
