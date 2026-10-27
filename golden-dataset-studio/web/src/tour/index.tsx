@@ -37,11 +37,25 @@ const CARD_W = 372;
 interface View { boxes: Box[]; accents: Box[]; facts: Facts; state: "waiting" | "found" | "absent"; card: { left: number; top: number } | null }
 const EMPTY: View = { boxes: [], accents: [], facts: {}, state: "waiting", card: null };
 
+/** An element's box on the screen. Inside the page pane's iframe (scaled to fit), it is moved and scaled by the
+ *  iframe's own box, and cut to it. */
+export function screenRect(e: Element): Box | null {
+  const r = e.getBoundingClientRect();
+  const frame = e.ownerDocument.defaultView?.frameElement as HTMLElement | null;
+  if (!frame || e.ownerDocument === document) return { left: r.left, top: r.top, width: r.width, height: r.height };
+  const f = frame.getBoundingClientRect();
+  const k = frame.offsetWidth ? f.width / frame.offsetWidth : 1;
+  const b = { left: f.left + r.left * k, top: f.top + r.top * k, width: r.width * k, height: r.height * k };
+  const pane = frame.parentElement?.getBoundingClientRect() ?? f;  // the iframe may be taller than its pane
+  const left = Math.max(b.left, pane.left), top = Math.max(b.top, pane.top);
+  const right = Math.min(b.left + b.width, pane.right), bottom = Math.min(b.top + b.height, pane.bottom);
+  return right - left > 1 && bottom - top > 1 ? { left, top, width: right - left, height: bottom - top } : null;
+}
+
 function boxOf(t: Target, vp: { width: number; height: number }): Box | null {
   const found = typeof t === "string" ? document.querySelector(t) : t();
   const els = (Array.isArray(found) ? found : found ? [found] : []);
-  const rects = els.map((e) => e.getBoundingClientRect()).filter((r) => r.width > 0 && r.height > 0)
-    .map((r) => ({ left: r.left, top: r.top, width: r.width, height: r.height }));
+  const rects = els.map(screenRect).filter((r): r is Box => !!r && r.width > 0 && r.height > 0);
   const u = union(rects);
   return u ? clip(u, vp, 3) : null;
 }
@@ -86,7 +100,7 @@ function TourRun({ catalog, close, steps }: { catalog: CatalogDetail; close: () 
       const accents = boxes.length ? (step.accents ?? []).map((t) => boxOf(t, vp)).filter((b): b is Box => !!b) : [];
       const state: View["state"] = boxes.length ? "found" : late ? "absent" : "waiting";
       const size = { width: CARD_W, height: card.current?.offsetHeight || 320 };
-      const spot = boxes[0];
+      const spot = (step.anchor && boxes.length ? boxOf(step.anchor, vp) : null) ?? boxes[0];
       const pos = spot ? placeCard(spot, size, vp, step.sides)
         : { left: (vp.width - size.width) / 2, top: Math.max(70, (vp.height - size.height) / 2) };
       const v: View = { boxes, accents, facts: state === "found" && step.read ? step.read(ctx) : {}, state,

@@ -965,14 +965,22 @@ A **Show the tour** button sits at the top right of every screen, as in the v1 m
   After that, only from the button.
 - **Steps**, in order:
   1. the rule list and its status icons (approved, needs work, in review), and "14 / 1,062 reviewed";
-  2. the rows, sorted with the likeliest problems first;
-  3. ✓ and ✗ on a row, and selecting the right text on the page;
-  4. the comment bubble and "question for the institution";
-  5. the page pane: highlight, Page | HTML, open live;
-  6. in a record locator's view, outlined courses, marked text, and "Add a course this rule missed";
-  7. **Improve this rule**, which opens the Prompt tab;
-  8. **Compare** after a new version: Jared's earlier verdicts first, and "See on page";
-  9. **Approve**, and why it's greyed out while any course is wrong.
+  2. **the three kinds of rules**, one after another: page rules pick the pages that hold courses, record locators
+     find where each course starts and ends on them, field rules read one field of each course (with this catalog's
+     own examples and counts). A wrong page rule or locator affects every field after it; "missing" exists only on
+     page rules and locators;
+  3. the rows: discussed first, then the likeliest problems, and the **Sample** drawer that changes the order;
+  4. ✓ and ✗ on a row: ✗ is pressed for the reader, and both **the ✗ button and the value on the saved page** are
+     lit (the highlight inside the page pane's iframe, mapped to the screen), with the card over the rule list so
+     neither is covered. The card says to drag across the text the rule should have found;
+  5. the comment bubble and "question for the institution";
+  6. the page pane: highlight, Page | HTML, open live;
+  7. in a record locator's view, outlined courses, marked text, and "Add a course this rule missed";
+  8. **Improve this rule** and "How this rule works";
+  9. **the Prompt** that Improve this rule opens, before Compare: the raw prompt scrolled to **the reader's feedback**
+     (the "Open annotations" lines, lit), with Copy prompt;
+  10. **Compare** after a new version: Jared's earlier verdicts first, and "See on page";
+  11. **Approve**, and why it's greyed out while any course is wrong.
 
 ## 8. Uncertainty signals
 

@@ -38,3 +38,4 @@
   .tour-card, .tour-ring { transition: none; }
   .tour-accent { animation: none; }
 }
+.tour-kinds { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 6px; }

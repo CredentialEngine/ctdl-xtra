@@ -1,6 +1,6 @@
-// The nine steps of the tour (spec §7.8), in order. Each lights one real area of the screen and, where it helps,
+// The steps of the tour (spec §7.8), in order. Each lights one real area of the screen and, where it helps,
 // does what the reader would do by hand (select a row and press ✗, open the comment, switch to HTML, go to the
-// locator view, open "How this rule works", go to Compare). What a step does, it undoes when the reader leaves it.
+// locator view, open "How this rule works", go to the Prompt, go to Compare). What a step does, it undoes when the reader leaves it.
 // The tour never saves anything: ✓, Save and Approve are never pressed.
 import type { ReactNode } from "react";
 import { Ico } from "../shell/icons";
@@ -16,6 +16,8 @@ export interface Step extends SessionStep {
   title: string;
   targets: Target[];
   accents?: Target[];
+  /** Where the card goes, when not beside the first target (e.g. over the rule list, to keep a row in sight). */
+  anchor?: Target;
   sides?: Side[];
   /** Read from the screen what the card quotes (the real numbers, the real reason). */
   read?(ctx: TourCtx): Facts;
@@ -47,6 +49,33 @@ function verdictBlock(): Element[] | null {
   const rows = qa(".cmp-layout .crec.cv").slice(0, 4);
   return rows.length ? [h, ...rows] : [h, ...(h.nextElementSibling ? [h.nextElementSibling] : [])];
 }
+
+/** The rule's value highlighted on the saved page (inside the page pane's iframe), else the whole page pane. */
+function pageValue(): Element[] | Element | null {
+  const d = q<HTMLIFrameElement>(".gpp-body iframe")?.contentDocument;
+  const marks = d ? [...d.querySelectorAll(".gds-box.gds-value")] : [];
+  return marks.length ? marks : q("[data-tour=page-pane]");
+}
+
+/** The lines of the raw prompt from `heading` (a line that starts with it) to the next heading. */
+function promptSection(heading: RegExp): Element[] | null {
+  const lines = qa(".prompt-pre .ln");
+  const i = lines.findIndex((l) => heading.test(l.textContent ?? ""));
+  if (i < 0) return null;
+  const end = lines.findIndex((l, j) => j > i && /^#{2,3} /.test(l.textContent ?? ""));
+  // only the lines the preview shows (it scrolls; lines scrolled out would light the bar above it)
+  const box = q(".prompt-pre")?.getBoundingClientRect();
+  const shown = (l: Element) => {
+    if (!box || !box.height) return true;
+    const r = l.getBoundingClientRect();
+    return r.bottom > box.top && r.top < box.bottom;
+  };
+  return lines.slice(i, end < 0 ? undefined : end).filter((l) => (l.textContent ?? "").trim() && shown(l));
+}
+const feedback = () => promptSection(/^### Open annotations/);
+
+/** Each group of the rule list (page rules, record locators, field rules). */
+const group = (i: number) => () => qa(".rule-list .rule-group")[i] ?? null;
 
 // --- small pieces of the cards ---------------------------------------------------------------------------------------
 const I = ({ name }: { name: string }) => <span className="tour-ico"><Ico name={name} /></span>;
@@ -82,18 +111,54 @@ export const STEPS: Step[] = [
     absent: () => <p>The rule list hasn't loaded.</p>,
   },
   {
+    id: "kinds",
+    title: "Three kinds of rules, one after another",
+    route: (c) => c.base,
+    ready: (c) => onBase(c) && qa(".rule-list .rule-group").length > 0,
+    targets: [group(0), group(1), group(2)],
+    sides: ["right", "below"],
+    read: () => {
+      const g = qa(".rule-list .rule-group");
+      const first = (i: number) => g[i]?.querySelector(".rule-item .nm")?.textContent?.trim() ?? null;
+      const n = (i: number) => g[i]?.querySelectorAll(".rule-item").length ?? 0;
+      return { page: first(0), pages: n(0), locator: first(1), locators: n(1), field: first(2), fields: n(2) };
+    },
+    body: (f) => (
+      <>
+        <p>A catalog is read in three steps, and each step has its own rules:</p>
+        <ol className="tour-kinds">
+          <li><b>Page rules</b> decide <b>which saved pages</b> hold courses: a course's own page, or a program page that
+            lists courses{f.page ? <> (e.g. “{String(f.page)}”)</> : null}. Their rows are pages.</li>
+          <li><b>Record locators</b> find <b>where each course starts and ends</b> on those pages: one course per course
+            page, or one per requirement line on a program page{f.locator ? <> (e.g. “{String(f.locator)}”)</> : null}.
+            Their rows are courses.</li>
+          <li><b>Field rules</b> read <b>one field</b> (Description, Coded Notation, Name …) inside each course a locator
+            found{f.field ? <> (e.g. “{String(f.field)}”)</> : null}. Their rows are that field's values.</li>
+        </ol>
+        <p>So a wrong page rule or locator affects every field after it. A <b>missing</b> course or page can only be
+          added on a page rule or a locator; on a field rule an empty value is simply wrong.</p>
+        <p className="faint">Here: {Number(f.pages)} page {Number(f.pages) === 1 ? "rule" : "rules"} · {Number(f.locators)} record{" "}
+          {Number(f.locators) === 1 ? "locator" : "locators"} · {Number(f.fields)} field {Number(f.fields) === 1 ? "rule" : "rules"}.</p>
+      </>
+    ),
+    absent: () => <p>The rule list hasn't loaded.</p>,
+  },
+  {
     id: "rows",
     title: "One row per course: discussed, then likeliest problems",
     route: (c) => c.base,
     ready: onBase,
     targets: ["[data-tour=rows]"],
+    accents: ["[data-testid=sample] .sm-head"],
     read: () => ({ bar: text(".rows-bar") }),
     body: (f) => (
       <>
         <p>Each row is what the selected rule found for one course{f.bar ? <> ({String(f.bar).split(" · ")[0]})</> : null}.
           Rows a teammate commented on or was unsure about come <b>first</b>, until someone marks them correct. Then the{" "}
-          <b>likeliest problems</b>, with every 5th row from a <b>spread sample</b>: short and long descriptions, rare
-          values, different subjects, so you see every kind of value early. The purple tag says which group a row is from.</p>
+          <b>likeliest problems</b>, mixed with a spread sample, so you see every kind of value early.</p>
+        <p>The <b>Sample</b> drawer above the rows changes that order: <b>Autostratify</b> goes through a few rows of each
+          kind (by length, leading label, paragraphs …), rarest first; <b>Shuffle</b> is random; <b>Manual select</b>{" "}
+          shows each kind as a bar chart to filter on.</p>
         <p>Rows that already have a verdict fade back, so the eye goes to the rows still waiting. Each shows its verdict
           and who gave it.</p>
         <p>Click a row, or press <kbd>Tab</kbd>, and its value is highlighted on the saved page at the right.</p>
@@ -111,15 +176,18 @@ export const STEPS: Step[] = [
       click(`${ROW} .cb.no`);
       return () => void click(`${ROW} .expand .btn.cancel`);
     },
-    targets: [ROW, "[data-tour=page-pane]"],
-    accents: ["[data-tour=row-controls]"],
-    sides: ["below", "above", "left"],
+    targets: [ROW, pageValue],
+    accents: [`${ROW} .cb.no`, pageValue],
+    // over the rule list: the row, its ✗ and the page beside it all stay in sight
+    anchor: "[data-tour=rule-list]",
+    sides: [],
     body: () => (
       <>
         <p><I name="correct" /> or <kbd>1</kbd>: the value is right.</p>
-        <p><I name="wrong" /> or <kbd>2</kbd>: it's wrong. It has been pressed for you on this row: the row opens and
-          asks you to <b>select the right text on the page →</b>. Drag across it on the saved page; the row then shows
-          only that text, an optional note, and Save / Cancel.</p>
+        <p><I name="wrong" /> or <kbd>2</kbd>: it's wrong. <b>✗ has been pressed for you</b> on this row (lit): the row
+          opens and asks you to <b>select the right text on the page →</b>.</p>
+        <p>On the saved page, the <b>lit area</b> is what the rule found. Drag across the text it <i>should</i> have
+          found, usually in or next to it. The row then shows only your selection, an optional note, and Save / Cancel.</p>
         <p>An empty value works the same way: if the rule found nothing but the page has one, that's ✗ plus the right text.</p>
         <p className="faint">Nothing is saved during the tour.</p>
       </>
@@ -216,11 +284,54 @@ export const STEPS: Step[] = [
         <p><b>How this rule works</b>, opened for you, says in plain words what the rule finds, how, and why this version
           is better, then its selector, how many courses it filled, its version and what it depends on.</p>
         <p>When courses are wrong, <b>Improve this rule</b> <I name="spark" /> opens the <b>Prompt</b> tab with this rule
-          selected. It turns your verdicts, selections and notes into a prompt for Claude Code, which changes the rule and
-          publishes a new version.</p>
+          selected (next step). It turns your verdicts, selections and notes into a prompt for Claude Code, which changes
+          the rule and publishes a new version.</p>
       </>
     ),
     absent: () => <p>The rule hasn't loaded.</p>,
+  },
+  {
+    id: "prompt",
+    title: "The Prompt: your feedback, ready for Claude Code",
+    route: (c) => c.prompt,
+    ready: () => qa(".prompt-pre .ln").length > 0 || !!q("[data-testid=prompt-rendered]"),
+    arrive: () => {
+      // the raw view, where each line can be lit, with the feedback scrolled into view
+      const raw = qa(".prompt-bar .md-seg button").find((b) => b.textContent === "Raw");
+      const wasRendered = !!q("[data-testid=prompt-rendered]");
+      if (wasRendered) raw?.click();
+      // the preview may re-render while it loads: keep scrolling the feedback to the top until it stays there
+      const t0 = Date.now();
+      const id = setInterval(() => {
+        const lines = qa(".prompt-pre .ln");
+        const head = lines.find((l) => /^### Open annotations/.test(l.textContent ?? ""));
+        const pre = q(".prompt-pre");
+        if (head && pre && Math.abs(head.getBoundingClientRect().top - pre.getBoundingClientRect().top) > 4) {
+          head.scrollIntoView({ block: "start" });
+        }
+        if (Date.now() - t0 > 3000) clearInterval(id);
+      }, 150);
+      return () => {
+        clearInterval(id);
+        if (wasRendered) qa(".prompt-bar .md-seg button").find((b) => b.textContent === "Rendered")?.click();
+      };
+    },
+    targets: [feedback],
+    accents: [".prompt-bar .btn.primary"],
+    sides: ["left", "below"],
+    read: () => ({ head: feedback()?.[0]?.textContent ?? null }),
+    body: (f) => (
+      <>
+        <p><b>Improve this rule</b> brings you here, with the rule selected. The prompt turns everyone's verdicts,
+          selections and notes into instructions for Claude Code.</p>
+        <p>The lit lines are <b>your feedback</b>{f.head ? <> (“{String(f.head).replace(/^### /, "")}”)</> : null}: each
+          open verdict with the value seen, the text you selected, and your note. The rule's definition, which Claude
+          changes, is highlighted above it; the template around it is faded.</p>
+        <p><b>Copy prompt</b> and paste it into Claude Code. It installs the <code>golden-datasets</code> CLI, tries a new
+          rule version against every annotation, and publishes it only if nothing marked correct changes.</p>
+      </>
+    ),
+    absent: () => <p>The prompt hasn't loaded.</p>,
   },
   {
     id: "compare",

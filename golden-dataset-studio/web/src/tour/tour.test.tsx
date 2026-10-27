@@ -89,8 +89,17 @@ describe("the Approve step", () => {
 });
 
 describe("the steps", () => {
-  it("are the nine of spec §7.8, in order", () => {
-    expect(STEPS.map((s) => s.id)).toEqual(["rules", "rows", "verdict", "comment", "page", "locator", "improve", "compare", "approve"]);
+  it("light the prompt's feedback: the lines from '### Open annotations' to the next heading", () => {
+    const by = (id: string) => STEPS.find((s) => s.id === id)!;
+    document.body.innerHTML = `<pre class="prompt-pre">${["## Rule `x` v2", "| What | a |", "### Open annotations (1)",
+      "| # | Verdict |", "| 1 | WRONG |", "### Marked correct", "| A | b |"].map((l) => `<span class="ln">${l}\n</span>`).join("")}</pre>`;
+    const feedback = by("prompt").targets[0] as () => Element[];
+    expect(feedback().map((e) => e.textContent?.trim())).toEqual(["### Open annotations (1)", "| # | Verdict |", "| 1 | WRONG |"]);
+    document.body.innerHTML = "";
+  });
+  it("are the eleven of spec §7.8, in order: the Prompt before Compare", () => {
+    expect(STEPS.map((s) => s.id)).toEqual(["rules", "kinds", "rows", "verdict", "comment", "page", "locator", "improve",
+                                            "prompt", "compare", "approve"]);
     for (const s of STEPS) { expect(s.title).toBeTruthy(); expect(s.targets.length).toBeGreaterThan(0); }
   });
   it("go to the locator view and to Compare, and say so when the catalog has neither", () => {
@@ -98,6 +107,7 @@ describe("the steps", () => {
     const by = (id: string) => STEPS.find((s) => s.id === id)!;
     expect(by("locator").route(ctx)).toBe(ctx.locator);
     expect(by("compare").route(ctx)).toBe("#/c/avc/compare");
+    expect(by("prompt").route(ctx)).toBe(`#/c/avc/prompt?rule=${ctx.ruleId}`);
     const bare = { ...ctx, locator: null, compare: null };
     expect(by("locator").route(bare)).toBeNull();
     expect(by("compare").route(bare)).toBeNull();
@@ -270,11 +280,11 @@ describe("Tour", () => {
     await flush();
     expect(localStorage.getItem(SEEN_KEY)).toBe("1");
     expect(location.hash).toBe("#/c/avc/rules/course-description");
-    expect(document.querySelector(".tour-count")?.textContent).toBe("Step 1 of 9");
+    expect(document.querySelector(".tour-count")?.textContent).toBe("Step 1 of 11");
     key("ArrowRight");
-    expect(document.querySelector(".tour-count")?.textContent).toBe("Step 2 of 9");
+    expect(document.querySelector(".tour-count")?.textContent).toBe("Step 2 of 11");
     key("ArrowLeft");
-    expect(document.querySelector(".tour-count")?.textContent).toBe("Step 1 of 9");
+    expect(document.querySelector(".tour-count")?.textContent).toBe("Step 1 of 11");
     const seen = vi.fn();
     window.addEventListener("keydown", seen);
     key("a"); // a verdict key never reaches the screen underneath

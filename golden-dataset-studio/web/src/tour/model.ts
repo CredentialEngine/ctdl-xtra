@@ -36,6 +36,8 @@ export interface TourCtx {
   /** A rule Approve is greyed out on (a course marked wrong or missing): the reader's own if so, else the first. */
   blocked: string;
   blockedId: string | null;
+  /** The Prompt tab with the tour's rule selected (where Improve this rule goes). */
+  prompt: string;
   /** Compare needs two ruleset versions. */
   compare: string | null;
   crawl: string;
@@ -69,6 +71,7 @@ export function makeCtx(catalog: { short: string; crawl: string; ruleset_version
     catalog: cat, base, ruleId, crawl: catalog.crawl,
     locator: loc ? href(cat, "rules", loc.rule_id) : null, locatorId: loc?.rule_id ?? null,
     blocked: blk && blk.rule_id !== ruleId ? href(cat, "rules", blk.rule_id) : base, blockedId: blk?.rule_id ?? ruleId,
+    prompt: href(cat, "prompt", null, { rule: ruleId }),
     compare: twoVersions ? href(cat, "compare") : null,
     headText: Object.fromEntries(list.map((r) => [r.rule_id, headText(r)])),
   };
