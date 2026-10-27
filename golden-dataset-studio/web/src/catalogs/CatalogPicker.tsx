@@ -4,13 +4,16 @@ import { api } from "../api/client";
 import type { CatalogCard } from "../api/types";
 import { href } from "../shell/router";
 import { fmt } from "../shell/ui";
+import { LoopModal, shouldShowLoop } from "./LoopModal";
 
 export default function CatalogPicker() {
   const [cats, setCats] = useState<CatalogCard[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [loop, setLoop] = useState(shouldShowLoop);
   useEffect(() => { api.catalogs().then(setCats, (e) => setError(String(e))); }, []);
-  if (error) return <div className="picker"><div className="picker-in"><p className="muted">{error}</p></div></div>;
-  if (!cats) return <div className="picker"><div className="picker-in"><h1>Choose a catalog</h1></div></div>;
+  const modal = loop && <LoopModal onClose={() => setLoop(false)} />;
+  if (error) return <div className="picker"><div className="picker-in"><p className="muted">{error}</p></div>{modal}</div>;
+  if (!cats) return <div className="picker"><div className="picker-in"><h1>Choose a catalog</h1></div>{modal}</div>;
   return (
     <div className="picker">
       <div className="picker-in">
@@ -36,7 +39,9 @@ export default function CatalogPicker() {
               : <div key={c.catalog} className="cat off">{body}</div>;
           })}
         </div>
+        <button className="loop-again" onClick={() => setLoop(true)}>How the Studio works</button>
       </div>
+      {modal}
     </div>
   );
 }
