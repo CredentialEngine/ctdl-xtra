@@ -197,6 +197,8 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--host", default="127.0.0.1")
     _target_args(p, prompt=False)
     _cmd(p, "golden_datasets.server.app:cmd_serve")
+    p = sub.add_parser("hash-password", help="salt and hash the Studio's shared password, for GOLDEN_DATASETS_PASSWORD_HASH")
+    _cmd(p, "golden_datasets.server.auth:cmd_hash_password")
     return ap
 
 

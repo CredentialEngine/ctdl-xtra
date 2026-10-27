@@ -13,6 +13,7 @@ from fastapi import FastAPI
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import FileResponse
 
+from . import auth
 from .state import Studio
 
 WEB_DIST = Path(__file__).resolve().parents[3] / "web" / "dist"
@@ -31,6 +32,7 @@ def create_app(root: str, azure_root: str | None = None) -> FastAPI:
     app = FastAPI(title="CTDL Golden Rules Studio")
     app.state.studio = Studio(root, azure_root)
     app.add_middleware(GZipMiddleware, minimum_size=2048)  # rows, compare and rendered pages compress ~5-20x
+    auth.install(app)  # the shared password, when the environment sets one
 
     @app.get("/api/health")
     def health() -> dict:

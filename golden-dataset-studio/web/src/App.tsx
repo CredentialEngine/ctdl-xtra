@@ -10,6 +10,7 @@ import RulesTab from "./rules/RulesTab";
 import { useRoute } from "./shell/router";
 import { IdentityScreen } from "./shell/Identity";
 import { useHasIdentity } from "./shell/reviewer";
+import { useSession } from "./shell/session";
 import { TopBar } from "./shell/TopBar";
 import { ThemeButton } from "./shell/theme";
 import { StorageFiles } from "./files/StorageFiles";
@@ -27,11 +28,14 @@ export default function App() {
     if (!route.catalog) { setCatalog(null); return; }
     api.catalog(route.catalog).then((c) => { setCatalog(c); setError(null); }, (e) => setError(String(e)));
   }, [route.catalog]);
-  useEffect(load, [load]);
+  const session = useSession();
+  const signedIn = !!session?.signed_in;
+  useEffect(() => { if (signedIn) load(); }, [load, signedIn]);
   const tour = useTour(catalog);
   const [files, setFiles] = useState(false);
   const known = useHasIdentity();
-  if (!known) return <IdentityScreen />;
+  if (!session) return null;
+  if (!known || !signedIn) return <IdentityScreen needPassword={!signedIn} />;
 
   let body: ReactNode;
   if (!route.catalog) body = <CatalogPicker />;

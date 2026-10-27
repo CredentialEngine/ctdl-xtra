@@ -4,6 +4,7 @@ import type {
   NewEvent, Overlay,
   PromptResponse, RuleDetail, RuleSummary, RulesResponse, RowsResponse, UnclassifiedPage,
 } from "./types";
+import { signedOut } from "../shell/session";
 
 export class ApiError extends Error {
   constructor(public status: number, message: string) { super(message); }
@@ -12,6 +13,7 @@ export class ApiError extends Error {
 async function call<T>(path: string, init?: RequestInit): Promise<T> {
   const r = await fetch(path, init);
   if (!r.ok) {
+    if (r.status === 401) signedOut();
     let detail = r.statusText;
     try { detail = (await r.json()).detail ?? detail; } catch { /* not JSON */ }
     throw new ApiError(r.status, String(detail));
