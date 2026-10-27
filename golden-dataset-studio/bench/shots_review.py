@@ -90,33 +90,19 @@ async def s04(page, base):
 
 @shot("05-unsure-needs-expert")
 async def s05(page, base):
-    await page.goto(f"{base}/#/c/{CAT}/rules/program-page-with-courses?row=avc-elumenapp-com-catalog-2026-27-program-computer-engineering-as-fall-2026-5a1e6e1354")
+    await page.goto(f"{base}/#/c/{CAT}/rules/course-description?row=NS922L")
     await page.wait_for_selector(".row.on")
     await wait_pane(page)
     await page.click(".row.on .cb.talk")
-    await page.fill(".row.on .note", "Does the college treat the courses on this page as part of the program?")
+    await page.fill(".row.on .note", "Is the Advisory line part of the course description, or a separate requirement?")
     await page.check(".row.on .chk-expert input")
     await page.hover(".tipwrap[data-tip]")
     await page.wait_for_timeout(600)
 
 
-@shot("06-rules-tab-stub-name")
-async def s06(page, base):
-    await page.goto(f"{base}/#/c/{CAT}/rules/stub-name")
-    await page.wait_for_selector(".row.on")
-    await wait_pane(page)
-
-
-@shot("12a-locator-program-requirement")
-async def s12(page, base):
-    await page.goto(f"{base}/#/c/{CAT}/rules/locator-program-requirement?row=CFE101")
-    await page.wait_for_selector(".row.on")
-    await wait_pane(page)
-
-
 @shot("12-locator-add-missed-course")
 async def s12b(page, base):
-    await page.goto(f"{base}/#/c/{CAT}/rules/locator-program-requirement?row=CFE101")
+    await page.goto(f"{base}/#/c/{CAT}/rules/locator-course-page?row=GEOG222")
     await page.wait_for_selector(".row.on")
     await wait_pane(page)
     await page.click("[data-tour=add-missed]")
@@ -124,7 +110,7 @@ async def s12b(page, base):
     items = await page.query_selector_all(".mp-item.unc")
     if items:
         await items[0].click()
-    await page.fill(".missed-panel .note", "A requirement line without ' - '; it still names a course.")
+    await page.fill(".missed-panel .note", "A second course on this page that the locator didn't find.")
     await page.wait_for_timeout(1500)
 
 
@@ -166,7 +152,7 @@ async def s16(page, base):
 
 @shot("08c-compare-other-changed", height=1400)
 async def s08c(page, base):
-    await page.goto(f"{base}/#/c/{CAT}/compare")
+    await page.goto(f"{base}/#/c/{CAT}/compare?a=1&b=2")
     await page.wait_for_selector("[data-testid=sample]")
     await page.click(".sm-modes button:has-text('Autostratify')")
     await page.wait_for_selector(".crec .sm-tag")
@@ -186,7 +172,7 @@ async def s17(page, base):
 
 @shot("08-compare")
 async def s08(page, base):
-    await page.goto(f"{base}/#/c/{CAT}/compare")
+    await page.goto(f"{base}/#/c/{CAT}/compare?a=1&b=2")
     await page.wait_for_selector(".ann-row, .cmp-row, .verdicts, h1")
     await page.wait_for_timeout(1500)
 
@@ -237,7 +223,7 @@ async def s09b(page, base):
 
 @shot("14-dark-mode")
 async def s14(page, base):
-    await page.goto(f"{base}/#/c/{CAT}/rules/locator-program-requirement?row=CFE101")
+    await page.goto(f"{base}/#/c/{CAT}/rules/course-description?row=GEOG222")
     await page.wait_for_selector(".row.on")
     await wait_pane(page)
 

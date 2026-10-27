@@ -196,10 +196,13 @@ export default function RecordsTab({ catalog, route }: TabProps) {
                         onClick={() => { if (!on) { setSel(valueKey(v)); setDraft(null); setActiveStem(null); } }}>
                         <div style={{ minWidth: 0 }}>
                           <div className="tx">{v.status === "found" ? v.value : "(nothing found)"}</div>
-                          <div className="src"><span className="tag">{v.on_course_page ? "course page" : "program page"}</span><span>{shortTitle(v.page_title, 70)}</span>
-                            {on && <a className="xlink" title="Open this field's rule in the Rules tab, with this course selected"
-                              href={href(cat, "rules", v.rule_id, { row: v.occurrence_key })}
-                              onClick={(e) => e.stopPropagation()}>See in Rules →</a>}</div>
+                          <div className="src"><span className="tag">{v.on_course_page ? "course page" : "program page"}</span><span>{shortTitle(v.page_title, 70)}</span></div>
+                          {on && (
+                            <div className="row-links">
+                              <a className="xbtn" title="Open this field's rule in the Rules tab, with this course selected"
+                                href={href(cat, "rules", v.rule_id, { row: v.occurrence_key })}
+                                onClick={(e) => e.stopPropagation()}>Open in Rules →</a>
+                            </div>)}
                           <HistoryLine state={v.state} verdict={v.verdict} comments={v.comments} />
                           {on && draft && <Expansion draft={draft} fieldRule emptyValue={v.status !== "found"} onChange={setDraft}
                             onSave={() => void save(v, { draft })} onCancel={() => setDraft(null)} />}

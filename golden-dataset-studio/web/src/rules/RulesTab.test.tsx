@@ -90,6 +90,21 @@ async function render(hash = "#/c/avc/rules/course-description?row=GEOG1") {
 }
 
 describe("RulesTab", () => {
+  it("shows the selected row's whole value, paragraphs kept, and links to the course on the Records tab", async () => {
+    const long = "Advisory: Completion of DA 125.\n\n" + "A long description that goes on. ".repeat(20);
+    const fetchMock = vi.mocked(fetch);
+    const base = fetchMock.getMockImplementation()!;
+    fetchMock.mockImplementation((url, init) => (String(url).includes("/rows")
+      ? json({ ...rows, rows: rows.rows.map((r, i) => (i === 1 ? { ...r, value: long } : r)) }) : base(url as string, init)));
+    await render();
+    const full = container.querySelector<HTMLElement>(".row.on [data-testid=row-full-value]")!;
+    expect(full.textContent).toBe(long);                              // not cut, the line breaks kept for pre-line
+    expect(container.querySelectorAll("[data-testid=row-full-value]").length).toBe(1);  // only the selected row
+    const link = container.querySelector<HTMLAnchorElement>(".row.on .row-links .xbtn")!;
+    expect(link.textContent).toBe("Open in Records →");
+    expect(link.getAttribute("href")).toBe("#/c/avc/records/GEOG1?prop=Description&occ=p1%40html");
+  });
+
   it("sends the Sample drawer's order and filters to /rows and shows the rows' strata tags", async () => {
     const sample = { order: "review", seed: 0, total: 3, listed: 3, cross: [], cells: [], tag_dims: [], elsewhere: 2, histograms: [
       { id: "length", label: "Length", help: "", uniform: false, spread: 0.9,

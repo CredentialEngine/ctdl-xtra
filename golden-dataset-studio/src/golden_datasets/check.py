@@ -234,14 +234,17 @@ def file_checks(ctx: Ctx, con) -> list[tuple]:
             f"SELECT DISTINCT locator_rule_id FROM occurrences WHERE extraction = '{c}'").fetchall()])
         pages_copied = all(r in copied for r in [x[0] for x in con.execute(
             f"SELECT DISTINCT rule_id FROM page_labels WHERE extraction = '{c}'").fetchall()])
-        for t, ok, excl in (("occurrences", locs_copied, "locator_rule_version"), ("page_labels", pages_copied, "rule_version")):
+        for t, ok, excl, col in (("occurrences", locs_copied, "locator_rule_version", "locator_rule_id"),
+                                 ("page_labels", pages_copied, "rule_version", "rule_id")):
             if not ok:
                 continue
+            # the parent's rows of rules still in this ruleset (a rule dropped from the ruleset leaves no rows)
+            kept = f"{col} IN (SELECT DISTINCT {col} FROM {t} WHERE extraction = '{c}')"
             n = con.execute(f"""SELECT count(*) FROM (
-                (SELECT * EXCLUDE (extraction, {excl}) FROM {t} WHERE extraction = '{p}'
+                (SELECT * EXCLUDE (extraction, {excl}) FROM {t} WHERE extraction = '{p}' AND {kept}
                  EXCEPT ALL SELECT * EXCLUDE (extraction, {excl}) FROM {t} WHERE extraction = '{c}')
                 UNION ALL (SELECT * EXCLUDE (extraction, {excl}) FROM {t} WHERE extraction = '{c}'
-                 EXCEPT ALL SELECT * EXCLUDE (extraction, {excl}) FROM {t} WHERE extraction = '{p}'))""").fetchone()[0]
+                 EXCEPT ALL SELECT * EXCLUDE (extraction, {excl}) FROM {t} WHERE extraction = '{p}' AND {kept}))""").fetchone()[0]
             out.append((t, "CHK", f"{c}: copied {t} identical to {p}", n,
                         con.execute(f"SELECT count(*) FROM {t} WHERE extraction = '{c}'").fetchone()[0], []))
     # pages: saved html exists (a sample when the root is remote: listing is what we avoid)

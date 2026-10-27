@@ -173,3 +173,26 @@ def test_api_strata_on_rows_and_compare_records(ctx):
     page2 = c.get("/api/catalogs/avc/compare/records", params={"a": cmp["a"], "b": cmp["b"], "offset": 50}).json()
     assert page2["limit"] == 50 and page2["records"][0]["key"] == rec["records"][50]["key"]
     assert rec["sample"]["listed"] == others and rec["sample"]["order"] == "shuffle"
+
+
+@pytest.mark.slow
+def test_dropping_rules_leaves_nothing_of_them(ctx):
+    """The learning-program rules dropped from a ruleset (out of scope): the next extraction, copied from its parent,
+    keeps no labels, occurrences, matches or signals of theirs, and every key still holds."""
+    drop = {"program-page", "program-page-with-courses", "locator-program-requirement",
+            "stub-code", "stub-external-id", "stub-learning-type", "stub-name"}
+    rs, rules = ctx.ruleset_rules(ctx.latest_ruleset())
+    doc = rulesets.publish(ctx, {k: r for k, r in rules.items() if k not in drop}, rs["settings"], "drop programs", "t")
+    meta = extract.extract(ctx, doc["version"])
+    ext = meta["extraction"]
+    ids = {
+        "page_labels": set(ctx.table(ext, "page_labels").column("rule_id").to_pylist()),
+        "occurrences": set(ctx.table(ext, "occurrences").column("locator_rule_id").to_pylist()),
+        "matches": set(ctx.table(ext, "matches").column("rule_id").to_pylist()),
+        "signals": set(ctx.table(ext, "signals").column("rule_id").to_pylist()) - {None},
+    }
+    for name, seen in ids.items():
+        assert not seen & drop, (name, seen & drop)
+    assert ids["occurrences"] == {"locator-course-page"} and "course-page" in ids["page_labels"]
+    failed = [r for r in check.run(ctx) if r[3] > 0 and r[0] not in ("page_assets", "assets")]
+    assert not failed, failed

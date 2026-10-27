@@ -127,10 +127,10 @@ export const STEPS: Step[] = [
       <>
         <p>A catalog is read in three steps, and each step has its own rules:</p>
         <ol className="tour-kinds">
-          <li><b>Page rules</b> decide <b>which saved pages</b> hold courses: a course's own page, or a program page that
-            lists courses{f.page ? <> (e.g. “{String(f.page)}”)</> : null}. Their rows are pages.</li>
-          <li><b>Record locators</b> find <b>where each course starts and ends</b> on those pages: one course per course
-            page, or one per requirement line on a program page{f.locator ? <> (e.g. “{String(f.locator)}”)</> : null}.
+          <li><b>Page rules</b> decide <b>which saved pages</b> hold courses: the catalog's course pages
+            {f.page ? <> (e.g. “{String(f.page)}”)</> : null}. Their rows are pages.</li>
+          <li><b>Record locators</b> find <b>where each course starts and ends</b> on those pages, whether a page holds
+            one course or many{f.locator ? <> (e.g. “{String(f.locator)}”)</> : null}.
             Their rows are courses.</li>
           <li><b>Field rules</b> read <b>one field</b> (Description, Coded Notation, Name …) inside each course a locator
             found{f.field ? <> (e.g. “{String(f.field)}”)</> : null}. Their rows are that field's values.</li>

@@ -202,8 +202,9 @@ def compute(ctx: Ctx, rules: dict[str, dict], settings: dict, parent_ext: str | 
     if locators_rerun or first:
         tables["occurrences"] = fresh["occurrences"]
     else:
-        tables["occurrences"] = parent_tables["occurrences"]
-        _assert_same_keys(parent_tables["occurrences"], fresh["occurrences"], stems)
+        # a locator no longer in the ruleset leaves no occurrences behind
+        tables["occurrences"] = [o for o in parent_tables["occurrences"] if o["locator_rule_id"] in rules]
+        _assert_same_keys(tables["occurrences"], fresh["occurrences"], stems)
     tables["matches"] = [m for m in parent_tables.get("matches", []) if m["rule_id"] not in fresh_fields] \
         + [m for m in fresh["matches"] if m["rule_id"] in fresh_fields]
     # Rules that are no longer in the ruleset leave no rows behind.
@@ -217,7 +218,8 @@ def compute(ctx: Ctx, rules: dict[str, dict], settings: dict, parent_ext: str | 
         o["locator_rule_version"] = rules[o["locator_rule_id"]]["version"]
 
     facts = [res["facts"] for res in results if res.get("facts") is not None]
-    old_page_signals = None if page_signals else [s for s in parent_tables["signals"] if s["target_kind"] == "page"]
+    old_page_signals = None if page_signals else [s for s in parent_tables["signals"] if s["target_kind"] == "page"
+                                                  and (s.get("rule_id") is None or s["rule_id"] in rules)]
     tables["signals"] = signals.compute(tables, rules, settings, facts, url_of, old_page_signals)
     for name in tables:
         tables[name] = model.sort_rows(name, tables[name])

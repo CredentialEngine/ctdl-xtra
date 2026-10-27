@@ -339,7 +339,9 @@ Learning Type has no CTDL term. So the golden output and the lineage are keyed b
 
 Plus, per catalog: 1–3 **page rules** and 1–2 **record locators**. AVC imported as 3 page rules (`course-page`,
 `program-page`, `program-page-with-courses`), 2 locators (`locator-course-page`, `locator-program-requirement`) and 12
-field rules (8 for full courses, 4 `stub-*` for courses listed on program pages).
+field rules (8 for full courses, 4 `stub-*` for courses listed on program pages). The examples in §4–§5 are that
+imported ruleset. **Since 2026-10-27 the learning-program rules are gone** (§12.1): every catalog now runs 1 page rule
+(`course-page`), 1 record locator (`locator-course-page`) and the 8 course field rules.
 
 ### 4.5 Storage layout
 
@@ -823,11 +825,6 @@ prompt's list of rule bugs:
 
 ![Question for the institution](screens/05-unsure-needs-expert.png)
 
-**A stub field rule.** Courses listed on a program page, with the program's requirement list revealed by
-`pane_css`:
-
-![Stub name rule](screens/06-rules-tab-stub-name.png)
-
 Rows Jared had marked wrong that a new version made right show **fixed** (screen 03 shows them on
 `course-description`).
 
@@ -1159,12 +1156,20 @@ The schema in §4–5 is the contract between W1, W2 and W4–W6. Changing it me
   `course-description` v2, a few comments, and the Marshall and UALR Studio files). The benchmark's "bench: timing a
   write" comments were deleted from the Azure logs.
 
+- **Learning programs are out of scope** (Eric, 2026-10-27). A program's requirement lines aren't courses, so every
+  catalog dropped the 7 learning-program rules: the page rules `program-page` and `program-page-with-courses`, the
+  record locator `locator-program-requirement`, and the field rules `stub-code`, `stub-external-id`,
+  `stub-learning-type` and `stub-name`. Each catalog got a new ruleset version without them (AVC v3, the others v2)
+  and its extraction; the older versions stay on the root, immutable. An extraction copied from its parent keeps no
+  rows of a rule its ruleset dropped (labels, occurrences, matches, page signals), and `check` compares copied
+  tables on the rules that remain.
+
 ### 12.2 Questions for Jared
 
 Both come from his real AVC review in v2, which the prototype imported. Each is written so it can be forwarded to him
 as is.
 
-**Q1. "Course" on program pages.** In v2, AVC program pages (for example *Computer Engineering AS*) showed a page
+**Q1. "Course" on program pages.** *Moot since 2026-10-27: the program-page rules are gone (§12.1).* In v2, AVC program pages (for example *Computer Engineering AS*) showed a page
 label **Course**. v2 meant "this page *lists* courses", because a program's requirements name courses such as MATH150
 and CS150, and v2 extracts those as short course entries. On 7 program pages Jared rejected that "Course" label and
 added Credential or Competency instead. On one of them he also left a flag: *"Properties listed here are all for
@@ -1200,9 +1205,9 @@ descriptions still contain a Prerequisite that comes after one of them.
 
 ### 12.3 Follow-ups
 
-- **UALR needs a recrawl.** Most UALR courses are only short entries from program pages, because its course pages
-  weren't crawled. Recrawling is xtra-cli's job (outside the Studio). Until it's done, UALR's golden set will be mostly
-  name + code.
+- **UALR needs a recrawl.** Many UALR courses appeared only as short entries on program pages, because their course
+  pages weren't crawled; with the program rules gone (§12.1) those courses aren't in the dataset at all. Recrawling is
+  xtra-cli's job (outside the Studio).
 - **Comments in the prompt.** A comment reaches the prompt only on a row with an open verdict; comments on their own,
   or on rows already fixed or marked correct, don't. Add a Comments table per rule section.
 - **`sync` with diverged roots** overwrites an immutable file (a rule or ruleset version) whose size differs; it should
