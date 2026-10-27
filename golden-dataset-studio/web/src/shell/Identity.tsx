@@ -1,5 +1,5 @@
-// "Who are you?": the shared password (when the server has one and this browser isn't signed in), then which profile
-// you are. A new profile also gets a role; existing ones keep theirs. The profile is remembered in this browser and
+// Sign-in: first the shared password (when the server has one and this browser isn't signed in), then "Who are
+// you?", which profile you are. A new profile also gets a role; existing ones keep theirs. The profile is remembered in this browser and
 // every annotation is recorded under that name.
 import { useEffect, useState } from "react";
 import { currentReviewer, ROLE_LABEL, setIdentity, type Profile, type Role } from "./reviewer";
@@ -69,7 +69,7 @@ export function IdentityScreen({ needPassword }: { needPassword: boolean }) {
           </svg>
           <span>Golden Rules Studio</span>
         </div>
-        <h1>Who are you?</h1>
+        <h1>{passwordOk ? "Who are you?" : "Sign in"}</h1>
 
         {!passwordOk && (
           <label className="idn-field">
