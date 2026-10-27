@@ -110,3 +110,10 @@ Each entry: what the spec says (or doesn't), what was built, and why. Newest las
 29. **Renamed "Golden Rules Studio"** (Eric, after the build): the name people see — the top bar, the browser
     title, the prompt for Claude, the CLI help, the README. The `golden-datasets` CLI, the Python package and the
     `golden-dataset-studio/` folders of the storage layout keep their names, so existing roots keep working.
+30. **Dark mode, rendered prompt, rule list** (Eric, after the build): a Light / Dark button at the right end of
+    the bottom bar (remembered in the browser; with no choice yet it follows the system); the saved page keeps its
+    own colours. The Prompt tab has a Raw / Rendered switch (Raw by default) with a small built-in Markdown
+    renderer that never interprets the text as HTML, and picks the rule from a grouped list (status icon, name,
+    CTDL term, open verdicts) instead of a dropdown.
+31. **Rules ⇄ Records links** (Eric): "Open record →" on the selected row of a rule, "See in Rules →" on the
+    selected value of a course; each lands with the same field and page entry selected.

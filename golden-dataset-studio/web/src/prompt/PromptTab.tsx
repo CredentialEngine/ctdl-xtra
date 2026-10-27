@@ -4,11 +4,12 @@
 // `golden-datasets prompt`, so it is deterministic: the same annotations always give the same text.
 import { Fragment, useEffect, useMemo, useState } from "react";
 import { api } from "../api/client";
-import type { PromptResponse, RuleSummary } from "../api/types";
+import type { PromptResponse, RuleGroup } from "../api/types";
 import { go, href } from "../shell/router";
 import type { TabProps } from "../shell/tabProps";
 import { fmt, Ico, toast, useKeyHints } from "../shell/ui";
 import { downloadName, highlight } from "./highlight";
+import { Markdown } from "./markdown";
 import "./prompt.css";
 
 export async function copyText(text: string): Promise<boolean> {
@@ -46,13 +47,18 @@ export default function PromptTab({ catalog, route }: TabProps) {
   const ruleParam = route.params.get("rule");
   const fromRules = route.params.get("from") === "rules";
   const needsWork = !ruleParam;
-  const [rules, setRules] = useState<RuleSummary[] | null>(null);
+  const [groups, setGroups] = useState<RuleGroup[] | null>(null);
+  const rules = useMemo(() => (groups ? groups.flatMap((g) => g.rules) : null), [groups]);
+  const [view, setView] = useState<"raw" | "rendered">(() => {
+    try { return localStorage.getItem("studio.prompt.view") === "rendered" ? "rendered" : "raw"; } catch { return "raw"; }
+  });
+  const pickView = (v: "raw" | "rendered") => { setView(v); try { localStorage.setItem("studio.prompt.view", v); } catch { /* private */ } };
   const [data, setData] = useState<PromptResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let live = true;
-    api.rules(catalog.catalog).then((r) => { if (live) setRules(r.groups.flatMap((g) => g.rules)); },
+    api.rules(catalog.catalog).then((r) => { if (live) setGroups(r.groups); },
                                     (e) => { if (live) setError(String(e)); });
     return () => { live = false; };
   }, [catalog.catalog, catalog.extraction]);
@@ -96,12 +102,23 @@ export default function PromptTab({ catalog, route }: TabProps) {
           <input type="radio" name="scope" checked={!needsWork} onChange={() => oneRule && pickRule(oneRule)} />
           <div className="t">One rule</div>
           <div className="d">Everything about one rule: definition, what/how/why, every annotation, signals.</div>
-          <select aria-label="Rule" value={oneRule} onChange={(e) => pickRule(e.target.value)}>
-            {(rules ?? []).map((r) => (
-              <option key={r.rule_id} value={r.rule_id}>{r.rule_id} v{r.version} · {r.status}</option>
-            ))}
-          </select>
         </label>
+        <div className={"rule-pick" + (needsWork ? " dim" : "")} role="listbox" aria-label="Rule">
+          {(groups ?? []).map((g) => (
+            <div key={g.kind} className="rp-group">
+              <div className="rp-h">{g.label}</div>
+              {g.rules.map((r) => (
+                <button key={r.rule_id} role="option" aria-selected={!needsWork && r.rule_id === oneRule}
+                  className={"rp-item" + (!needsWork && r.rule_id === oneRule ? " on" : "")}
+                  onClick={() => pickRule(r.rule_id)} title={`${r.rule_id} · v${r.version} · ${r.status}`}>
+                  <Ico name={r.status} />
+                  <span className="rp-t">{r.title}<span className="rp-sub">{r.kind === "field" ? (r.ctdl_property ?? "no CTDL term") : r.rule_id}</span></span>
+                  {r.open_wrong + r.open_missing > 0 && <span className="rp-n" title="open wrong / missing verdicts">{r.open_wrong + r.open_missing}</span>}
+                </button>
+              ))}
+            </div>
+          ))}
+        </div>
 
         <label className={"opt" + (needsWork ? " on" : "")} data-testid="scope-needs-work">
           <input type="radio" name="scope" checked={needsWork} onChange={pickNeedsWork} />
@@ -125,11 +142,16 @@ export default function PromptTab({ catalog, route }: TabProps) {
       <section className="prompt-main">
         <div className="prompt-bar">
           <span className="grow">Preview · <span className="mono">{scopeName}</span> · ruleset v{catalog.ruleset_version}</span>
+          <div className="seg md-seg" role="group" aria-label="Preview">
+            <button className={view === "raw" ? "on" : ""} onClick={() => pickView("raw")}>Raw</button>
+            <button className={view === "rendered" ? "on" : ""} onClick={() => pickView("rendered")}>Rendered</button>
+          </div>
           <button className="btn" disabled={!data} onClick={() => data && download(data.text, downloadName(catalog.short, scopeName))}>
             <Ico name="download" />Download .md</button>
           <button className="btn primary" disabled={!data} onClick={onCopy}><Ico name="copy" />Copy prompt</button>
         </div>
         {error && <div className="prompt-error">{error}</div>}
+        {view === "rendered" && data ? <div className="prompt-pre prompt-md" data-testid="prompt-rendered"><Markdown text={data.text} /></div> :
         <pre className={"prompt-pre" + (data ? "" : " loading")} data-testid="prompt-text">
           {data ? lines.map((segs, i) => (
             <Fragment key={i}>
@@ -137,7 +159,7 @@ export default function PromptTab({ catalog, route }: TabProps) {
               {"\n"}
             </Fragment>
           )) : error ? "" : "Building the prompt…"}
-        </pre>
+        </pre>}
       </section>
     </div>
   );

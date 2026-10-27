@@ -9,9 +9,11 @@ import RecordsTab from "./records/RecordsTab";
 import RulesTab from "./rules/RulesTab";
 import { useRoute } from "./shell/router";
 import { TopBar } from "./shell/TopBar";
+import { ThemeButton } from "./shell/theme";
 import { KeysContext } from "./shell/ui";
 import { Tour, useTour } from "./tour";
 import "./styles.css";
+import "./shell/dark.css";
 
 export default function App() {
   const route = useRoute();
@@ -38,7 +40,7 @@ export default function App() {
     <KeysContext.Provider value={setKeys}>
       <TopBar catalog={route.catalog ? catalog : null} tab={route.catalog ? route.tab : null} onTour={tour.open} />
       <main id="app">{body}</main>
-      <footer className="keys">{keys}</footer>
+      <footer className="keys"><span className="keys-hints">{keys}</span><ThemeButton /></footer>
       {catalog && <Tour {...tour} catalog={catalog} />}
     </KeysContext.Provider>
   );

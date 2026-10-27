@@ -14,7 +14,8 @@ import PromptTab from "./PromptTab";
 
 const catalog = { catalog: "avc-elumenapp-com-catalog-2026-27-welcome", short: "avc", name: "AVC", ruleset_version: 1,
                   extraction: "rs-0001" } as unknown as CatalogDetail;
-const rule = (rule_id: string, status: string) => ({ rule_id, status, version: 1, kind: "field" });
+const rule = (rule_id: string, status: string) => ({ rule_id, status, version: 1, kind: "field", title: rule_id,
+  ctdl_property: null, open_wrong: 0, open_missing: 0 });
 const RULES = { extraction: "rs-0001", ruleset_version: 1, groups: [
   { kind: "page", label: "Page rules", approved: 0, rules: [rule("program-page-with-courses", "needs work")] },
   { kind: "field", label: "Field rules", approved: 0, rules: [rule("course-code", "in review"), rule("course-description", "needs work")] },
@@ -53,7 +54,7 @@ describe("PromptTab", () => {
     const facts = host.querySelector(".facts")!.textContent!;
     expect(facts).toContain(`Characters${TEXT.length}`);
     expect(facts).toContain("Page references5");
-    expect((host.querySelector("select") as HTMLSelectElement).value).toBe("course-description");
+    expect(host.querySelector(".rp-item.on")?.getAttribute("title")).toContain("course-description");
   });
 
   it("defaults to all rules needing work and lists them", async () => {
@@ -62,6 +63,15 @@ describe("PromptTab", () => {
     const card = host.querySelector("[data-testid=scope-needs-work]")!;
     expect(card.className).toContain("on");
     expect(card.textContent).toContain("program-page-with-courses, course-description");
+  });
+
+  it("switches between raw and rendered Markdown, raw first", async () => {
+    await render("#/c/avc/prompt?rule=course-description");
+    expect(host.querySelector("[data-testid=prompt-text]")).not.toBeNull();
+    const rendered = [...host.querySelectorAll(".md-seg button")].find((b) => b.textContent === "Rendered")!;
+    act(() => { (rendered as HTMLButtonElement).click(); });
+    expect(host.querySelector("[data-testid=prompt-rendered] .md")).not.toBeNull();
+    try { localStorage.removeItem("studio.prompt.view"); } catch { /* jsdom */ }
   });
 
   it("copies the exact text", async () => {
@@ -75,8 +85,8 @@ describe("PromptTab", () => {
 
   it("switching the rule changes the route", async () => {
     await render("#/c/avc/prompt?rule=course-description");
-    const sel = host.querySelector("select") as HTMLSelectElement;
-    act(() => { sel.value = "course-code"; sel.dispatchEvent(new Event("change", { bubbles: true })); });
+    const item = [...host.querySelectorAll(".rp-item")].find((b) => b.getAttribute("title")?.startsWith("course-code "))!;
+    act(() => { (item as HTMLButtonElement).click(); });
     expect(location.hash).toBe("#/c/avc/prompt?rule=course-code");
   });
 });

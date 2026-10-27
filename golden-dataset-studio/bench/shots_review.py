@@ -1,4 +1,4 @@
-"""Screenshots of the Rules and Records tabs (W4) in headless Chromium, 1440×900 at 2x, like the agreed screens.
+"""Screenshots of every screen of the spec (§7) in headless Chromium, 1440×900 at 2x, like the agreed screens.
 
     uv run --with playwright python bench/shots_review.py --base http://127.0.0.1:8014 --out <dir> [--only 03]
 
@@ -45,9 +45,9 @@ async def select_text(page, css_inner: str, needle: str, length: int) -> bool:
 SHOTS = []
 
 
-def shot(name):
+def shot(name, height=900):
     def deco(fn):
-        SHOTS.append((name, fn))
+        SHOTS.append((name, fn, height))
         return fn
     return deco
 
@@ -98,14 +98,14 @@ async def s06(page, base):
     await wait_pane(page)
 
 
-@shot("12-locator-program-requirement")
+@shot("12a-locator-program-requirement")
 async def s12(page, base):
     await page.goto(f"{base}/#/c/{CAT}/rules/locator-program-requirement?row=CFE101")
     await page.wait_for_selector(".row.on")
     await wait_pane(page)
 
 
-@shot("12b-locator-add-missed-course")
+@shot("12-locator-add-missed-course")
 async def s12b(page, base):
     await page.goto(f"{base}/#/c/{CAT}/rules/locator-program-requirement?row=CFE101")
     await page.wait_for_selector(".row.on")
@@ -135,16 +135,60 @@ async def s11(page, base):
     await page.wait_for_timeout(1500)
 
 
+@shot("08-compare")
+async def s08(page, base):
+    await page.goto(f"{base}/#/c/{CAT}/compare")
+    await page.wait_for_selector(".ann-row, .cmp-row, .verdicts, h1")
+    await page.wait_for_timeout(1500)
+
+
+@shot("08-compare-full", height=2400)
+async def s08full(page, base):
+    await s08(page, base)
+    await page.click("text=contains-label-text")
+    await page.wait_for_timeout(800)
+
+
+@shot("09-prompt")
+async def s09(page, base):
+    await page.goto(f"{base}/#/c/{CAT}/prompt?rule=course-description")
+    await page.wait_for_timeout(2000)
+
+
+@shot("09-prompt-full", height=3200)
+async def s09full(page, base):
+    await s09(page, base)
+
+
+@shot("10-golden")
+async def s10(page, base):
+    await page.goto(f"{base}/#/c/{CAT}/golden")
+    await page.wait_for_selector(".gate")
+    await page.wait_for_timeout(800)
+
+
+@shot("13-page-pane-view-tools")
+async def s13(page, base):
+    await page.goto(f"{base}/#/c/{CAT}/rules/course-description?row=GEOG222")
+    await page.wait_for_selector(".row.on")
+    await wait_pane(page, 800)
+    for _ in range(4):
+        await page.click("button[aria-label='Zoom in']")
+    await page.click(".gpp-check input")
+    await page.wait_for_timeout(2500)
+    await page.evaluate("() => { try { localStorage.removeItem('studio.pane.zoom'); localStorage.removeItem('studio.pane.css') } catch (e) {} }")
+
+
 async def main(base: str, out: Path, only: str | None) -> None:
     from playwright.async_api import async_playwright
 
     out.mkdir(parents=True, exist_ok=True)
     async with async_playwright() as p:
         browser = await p.chromium.launch()
-        for name, fn in SHOTS:
+        for name, fn, height in SHOTS:
             if only and not name.startswith(only):
                 continue
-            ctx = await browser.new_context(viewport={"width": 1440, "height": 900}, device_scale_factor=2)
+            ctx = await browser.new_context(viewport={"width": 1440, "height": height}, device_scale_factor=2)
             page = await ctx.new_page()
             page.on("pageerror", lambda e, n=name: print(f"  [{n}] page error: {e}"))
             await page.add_init_script("try { localStorage.setItem('studio.tour.seen', '1') } catch (e) {}")

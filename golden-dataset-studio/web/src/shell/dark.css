@@ -1,0 +1,78 @@
+/* Dark theme: the tokens of styles.css, then the rules that hard-code light colours. The saved page itself stays
+   as the catalog drew it (it's a picture of the source), so its iframe keeps a white background. */
+:root[data-theme="dark"] {
+  --bg: #0f1419; --surface: #161b22; --surface-2: #1c232c; --line: #29313c; --line-2: #3a4351;
+  --ink: #e6e9ef; --ink-2: #c3c9d4; --muted: #8e98a8; --faint: #6b7686;
+  --accent: #7b96ff; --accent-soft: #1d2747; --green: #4cc38a; --green-soft: #13302a; --red: #f28b70; --red-soft: #3b201b;
+  --amber: #f0b35a; --amber-soft: #382915; --violet: #ab8ffb; --violet-soft: #29214a; --gold: #d8b23c;
+}
+:root[data-theme="dark"] body { background: var(--bg); color: var(--ink); }
+:root[data-theme="dark"] input, :root[data-theme="dark"] select, :root[data-theme="dark"] textarea {
+  background: var(--surface-2); color: var(--ink); border-color: var(--line-2); }
+:root[data-theme="dark"] .btn { background: var(--surface-2); color: var(--ink-2); border-color: var(--line-2); }
+:root[data-theme="dark"] .btn:hover { background: var(--line); }
+:root[data-theme="dark"] .btn.primary { background: var(--accent); border-color: var(--accent); color: #0b1020; }
+:root[data-theme="dark"] .btn.primary:hover { background: #95abff; }
+:root[data-theme="dark"] .btn.approve { border-color: #2e6b52; }
+:root[data-theme="dark"] .btn.approve[disabled] { background: var(--surface-2); border-color: var(--line-2); color: var(--faint); }
+:root[data-theme="dark"] .pill.review, :root[data-theme="dark"] .outcome.still-correct { background: var(--surface-2); color: var(--ink-2); }
+:root[data-theme="dark"] .row:hover { background: var(--surface-2); }
+:root[data-theme="dark"] .row.on { background: #1a2238; }
+:root[data-theme="dark"] .row.done:not(.on) { background: transparent; }
+:root[data-theme="dark"] .chip-s.high { border-color: #6a3326; background: var(--red-soft); }
+:root[data-theme="dark"] .chip-s.medium { border-color: #6a4c1f; background: var(--amber-soft); }
+:root[data-theme="dark"] .chip-s.info { border-color: #24563f; background: var(--green-soft); }
+:root[data-theme="dark"] .vbtn.correct.on, :root[data-theme="dark"] .cb.ok.on { border-color: #2e6b52; }
+:root[data-theme="dark"] .vbtn.wrong.on, :root[data-theme="dark"] .cb.no.on { border-color: #7a3a29; }
+:root[data-theme="dark"] .vbtn.missing.on, :root[data-theme="dark"] .cb.tag.missing { border-color: #6a4c1f; }
+:root[data-theme="dark"] .vbtn.question.on, :root[data-theme="dark"] .cb.tag.question, :root[data-theme="dark"] .cb.talk.inst { border-color: #4b3c86; }
+:root[data-theme="dark"] .cb.talk.on { border-color: #3a4b8c; }
+:root[data-theme="dark"] .hl-btn { border-color: #3a4b8c; background: var(--accent-soft); }
+:root[data-theme="dark"] .hl-btn.on { color: #0b1020; }
+:root[data-theme="dark"] .capture, :root[data-theme="dark"] .sel-quote { border-color: #24563f; background: var(--green-soft); }
+:root[data-theme="dark"] .capture .q mark, :root[data-theme="dark"] .expand .cap mark, :root[data-theme="dark"] .missed-panel .cap mark { background: #1f5a43; color: var(--ink); }
+:root[data-theme="dark"] .expert { border-color: #4b3c86; color: #d6c9ff; }
+:root[data-theme="dark"] .expand { border-color: #7a3a29; background: #241815; }
+:root[data-theme="dark"] .expand.missing { border-color: #6a4c1f; background: #241d12; }
+:root[data-theme="dark"] .expand.question { border-color: #4b3c86; background: #1d1830; }
+:root[data-theme="dark"] .expand.comment { border-color: #3a4b8c; background: #161d33; }
+:root[data-theme="dark"] .v.on, :root[data-theme="dark"] .opt.on { background: #1a2238; }
+:root[data-theme="dark"] .v .src .tag { background: var(--surface-2); }
+:root[data-theme="dark"] .v.v-wrong { border-color: #7a3a29; }
+:root[data-theme="dark"] .v.v-question { border-color: #4b3c86; }
+:root[data-theme="dark"] .diff del { background: #4a2018; color: #ffb6a3; text-decoration-color: rgba(255,182,163,.6); }
+:root[data-theme="dark"] .diff ins { background: #16402f; color: #a6ecc9; }
+:root[data-theme="dark"] .prompt-pre .code { color: #f0b35a; }
+:root[data-theme="dark"] .prompt-pre .cmd { color: #4cc38a; }
+:root[data-theme="dark"] .cat.ready { border-color: #3a4b8c; box-shadow: none; }
+:root[data-theme="dark"] .gate.blocked { border-color: #6a3326; color: #ffb6a3; }
+:root[data-theme="dark"] .bar { background: var(--line); }
+:root[data-theme="dark"] .missed-btn { border-color: #3a4b8c; background: var(--surface-2); }
+:root[data-theme="dark"] .missed-panel { background: var(--surface); border-color: #6a4c1f; }
+:root[data-theme="dark"] .toast, :root[data-theme="dark"] .tipwrap[data-tip]:hover::after, :root[data-theme="dark"] .tipwrap.show::after {
+  background: #e6e9ef; color: #0f1419; }
+:root[data-theme="dark"] .tipwrap[data-tip]:hover::before, :root[data-theme="dark"] .tipwrap.show::before { border-bottom-color: #e6e9ef; }
+/* logos are drawn for white backgrounds: give them a light plate */
+:root[data-theme="dark"] .cat-logo img, :root[data-theme="dark"] .crumb-cat img { background: #f4f5f7; border-radius: 6px; padding: 2px 4px; }
+/* page pane frame (its own tokens) */
+:root[data-theme="dark"] .gpp-browser {
+  --gpp-ink: #e6e9ef; --gpp-ink-2: #c3c9d4; --gpp-muted: #8e98a8; --gpp-faint: #6b7686;
+  --gpp-line: #29313c; --gpp-line-2: #3a4351; --gpp-surface: #161b22; --gpp-surface-2: #1c232c; --gpp-accent: #7b96ff;
+  box-shadow: none;
+}
+:root[data-theme="dark"] .gpp-tabs { background: #0f1419; }
+:root[data-theme="dark"] .gpp-ctx { background: #2a2414; border-color: #4a3f1c; }
+:root[data-theme="dark"] .gpp-ctx.sel { background: var(--accent-soft); border-color: #3a4b8c; }
+:root[data-theme="dark"] .gpp-src { background: #11161c; color: #c3c9d4; }
+:root[data-theme="dark"] .gpp-src .tag { color: #8fa6ff; }
+:root[data-theme="dark"] .gpp-src .attr { color: #f0b35a; }
+:root[data-theme="dark"] .gpp-src .hit { background: #5a4a14; }
+:root[data-theme="dark"] .gpp-src-line.hitline { background: rgba(253,224,120,.08); }
+:root[data-theme="dark"] .gpp-loading, :root[data-theme="dark"] .gpp-empty { background: #161b22; }
+/* the footer's theme button */
+.theme-btn { margin-left: auto; display: inline-flex; align-items: center; gap: 5px; border: 1px solid var(--line-2); background: var(--surface);
+  color: var(--ink-2); border-radius: 6px; padding: 2px 9px; font: 500 12px var(--sans); cursor: pointer; }
+.theme-btn:hover { border-color: var(--accent); color: var(--accent); }
+.keys .keys-hints { display: flex; align-items: center; gap: 16px; min-width: 0; overflow: hidden; white-space: nowrap; }
+/* the "in review" icon has a white disc drawn in its SVG */
+:root[data-theme="dark"] .ico svg circle[fill="#fff"] { fill: var(--surface); }
