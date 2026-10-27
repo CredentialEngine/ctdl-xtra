@@ -168,13 +168,14 @@ export interface GoldenResponse {
   ready: boolean;                     // some property can be published
   all_rules_approved: boolean;
   chosen: string[];                   // the properties the counts and previews are for
+  approvals?: { human: number; rule: number };   // the chosen properties' values, by who approved them
   properties: PublishProperty[];
   extraction: string; ruleset_version: number;
   rules: { rule_id: string; title: string; subtitle: string; kind: RuleKind; version: number;
            status: RuleStatus; approved_by: string | null }[];
   target: string;                     // where the per-page files go: <golden root>/<catalog>/<crawl>/
   pages: number; courses: number; records: number; fields: number; skipped_no_course_key: number;
-  collisions: { course_key: string; golden_ids: string[]; names: string[] }[];
+  collisions: { course_key: string; golden_record_ids: string[]; names: string[] }[];
   page_stems: { stem: string; records: number }[];   // the pages that get a <stem>.json, with their course entries
   publications: { publication: string; extraction: string; ruleset_version: number; published_at: string | null;
                   published_by: string | null; pages: number; courses: number; records: number;

@@ -81,7 +81,7 @@ function LineageTable({ catalog, properties, onPage }: { catalog: string; proper
   return (
     <div className="gfp-body table">
       <div className="gfp-bar">
-        <input className="gfp-filter" placeholder="Filter rows: a golden_id, page, property, rule…" value={q}
+        <input className="gfp-filter" placeholder="Filter rows: a golden_record_id, page, property, rule…" value={q}
                onChange={(e) => setQ(e.target.value)} autoFocus />
         <span className="muted">
           {d.matched === 0 ? "no rows" : `rows ${fmt(d.offset + 1)}–${fmt(Math.min(d.offset + limit, d.matched))} of ${fmt(d.matched)}`}

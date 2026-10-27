@@ -154,8 +154,8 @@ SQL_CHECKS: list[tuple[str, str, str, str, str]] = [
      "annotations"),
 ]
 LINEAGE_CHECKS = [
-    ("lineage", "PK", "(publication, golden_id, page_stem, property, value_index) unique",
-     pk("lineage", "publication, golden_id, page_stem, property, value_index"), "lineage"),
+    ("lineage", "PK", "(publication, golden_record_id, page_stem, property, value_index) unique",
+     pk("lineage", "publication, golden_record_id, page_stem, property, value_index"), "lineage"),
     ("lineage", "FK", "page_stem → pages", "SELECT * FROM lineage WHERE page_stem NOT IN (SELECT page_stem FROM pages)",
      "lineage"),
     ("lineage", "FK", "(extraction, rule_id, occurrence_key, match_value_index) → matches",
@@ -163,7 +163,7 @@ LINEAGE_CHECKS = [
         AND m.occurrence_key = l.occurrence_key AND m.value_index = l.match_value_index WHERE m.rule_id IS NULL""",
      "lineage"),
     ("lineage", "FK", "annotation_ids → annotations",
-     """SELECT l.golden_id, a.id FROM lineage l, UNNEST(l.annotation_ids) AS a(id)
+     """SELECT l.golden_record_id, a.id FROM lineage l, UNNEST(l.annotation_ids) AS a(id)
         WHERE a.id NOT IN (SELECT annotation_id FROM annotations)""", "lineage"),
 ]
 
@@ -305,19 +305,20 @@ def golden_file_checks(ctx: Ctx, con) -> list[tuple]:
                 bad_files.append(missing)
             if records is None:
                 continue
-            counts = Counter()  # value_index counts per (golden_id, property) across the page's records
+            counts = Counter()  # value_index counts per (golden_record_id, property) across the page's records
             for rec in records:
                 n_rec += 1
+                gid = rec.get("golden_record_id", rec.get("golden_id"))  # files before the rename say golden_id
                 for fld in rec["fields"]:
-                    key = (rec["golden_id"], fld["property"])
-                    ids.add((owner.get(fld["property"]), rec["golden_id"], stem, fld["property"], counts[key]))
+                    key = (gid, fld["property"])
+                    ids.add((owner.get(fld["property"]), gid, stem, fld["property"], counts[key]))
                     counts[key] += 1
                     leaked += sum(k in DOMAIN_LEAKS for k in fld)
                 leaked += sum(k in DOMAIN_LEAKS for k in rec)
         lin = set()
         if "lineage" in _tables(con) and owner:
             pairs = " OR ".join(f"(publication = '{pb}' AND property = '{pr}')" for pr, pb in owner.items())
-            lin = set(con.execute(f"""SELECT publication, golden_id, page_stem, property, value_index FROM lineage
+            lin = set(con.execute(f"""SELECT publication, golden_record_id, page_stem, property, value_index FROM lineage
                                       WHERE {pairs}""").fetchall())
         name = latest["publication"]
         out.append(("lineage", "FK", f"{name}: every golden value has one lineage row in the publication that last "

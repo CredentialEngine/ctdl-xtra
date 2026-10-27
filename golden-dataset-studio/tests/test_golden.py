@@ -1,5 +1,5 @@
 """Golden publication on a copy of the AVC demo root (ruleset v1 → v2): the gate, the existing per-page shape plus
-`golden_id` and `location`, lineage complete and domain-only output (spec §5.6, §7.6). Marked `slow`."""
+`golden_record_id` and `location`, lineage complete and domain-only output (spec §5.6, §7.6). Marked `slow`."""
 
 from __future__ import annotations
 
@@ -66,13 +66,28 @@ def test_publication_shape_and_lineage(ctx, tmp_path):
     page = out / doc["to_prefix"] / stem
     records = json.loads((page / f"{stem}.json").read_text())
     assert (page / f"{stem}.html").exists()
-    assert [r["golden_id"] for r in records] == ["GEOG222"]
+    assert [r["golden_record_id"] for r in records] == ["GEOG222"]
     fields = {f["property"]: f for f in records[0]["fields"]}
     assert set(fields) == {"Coded Notation", "External Identifier", "Learning Opportunity Name", "Description",
                            "Subject Webpage", "Learning Type", "Life Cycle Status Type", "Language"}
     assert fields["Learning Type"]["ctdl_property"] is None and fields["Learning Type"]["location"] is None
     assert fields["Description"]["value"].startswith("This course provides")  # v2: no prerequisite line
     assert fields["Description"]["location"]["css_path"].startswith("html > body")
+    # who approved each value: Jared selected GEOG222's description (v2 now gives it), the constant Language is the rule's
+    assert (fields["Description"]["approval"], fields["Description"]["approved_by"]) == ("human", "Jared")
+    assert fields["Language"]["approval"] == "human"  # Jared reviewed every field of GEOG222 in v2
+    assert records[0]["approval"] == "human" and list(records[0])[:2] == ["golden_record_id", "approval"]
+    other = next(s for s in doc["page_stems"] if "course-abdy112-" in s)  # nobody reviewed ABDY112
+    rec = json.loads((out / doc["to_prefix"] / other / f"{other}.json").read_text())[0]
+    lang = next(f for f in rec["fields"] if f["property"] == "Language")
+    assert (lang["approval"], lang["approved_by"]) == ("rule", "golden-datasets import-v2") and rec["approval"] == "rule"
+    assert doc["approvals"]["by_property"]["Description"]["human"] >= 5 and doc["approvals"]["rule"] > doc["approvals"]["human"]
+    import pyarrow.parquet as pq
+
+    lin = pq.read_table(ctx.root.local_path(f"{doc['to_prefix'].split('/')[0]}/{doc['to_prefix'].split('/')[1]}"
+                                            f"/golden-dataset-studio/golden/{doc['publication']}/lineage.parquet")).to_pylist()
+    geog = next(r for r in lin if r["golden_record_id"] == "GEOG222" and r["property"] == "Description")
+    assert (geog["approval"], geog["approved_by"]) == ("human", "Jared") and geog["approved_at"]
     assert not any(k in json.dumps(records) for k in ("rule_id", "occurrence_key", "annotation_ids"))
     failed = [r for r in check.run(Ctx(ctx.root, "avc")) if r[3] and r[0] in ("lineage", "golden page")]
     assert not failed, failed
@@ -110,7 +125,7 @@ def test_golden_file_previews(ctx):
     assert len(stems) == 1259 and all(s["records"] >= 1 for s in stems)
     stem = stems[0]["stem"]
     page = c.get(f"/api/catalogs/avc/golden/files/page/{stem}.json", params={"properties": ",".join(ALL)}).json()
-    assert page["records"] == stems[0]["records"] and json.loads(page["text"])[0]["golden_id"]
+    assert page["records"] == stems[0]["records"] and json.loads(page["text"])[0]["golden_record_id"]
     html = c.get(f"/api/catalogs/avc/golden/files/page/{stem}.html").json()
     assert "<html" in html["text"].lower()
     lin = c.get("/api/catalogs/avc/golden/files/lineage", params={"limit": 5, "properties": ",".join(ALL)}).json()

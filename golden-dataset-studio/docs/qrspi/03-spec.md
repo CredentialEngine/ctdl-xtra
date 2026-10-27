@@ -255,7 +255,7 @@ checked by `golden-datasets check`, and by `extract` and `publish` before they w
 | `…/matches.parquet` | `(extraction, rule_id, occurrence_key, value_index)` | → occurrence, → field-rule version, rule's locator = occurrence's locator | `extract` | **no** |
 | `…/signals.parquet` | `(extraction, target_kind, rule_id, occurrence_key, value_index, page_stem, css_path, char_start, signal)`, nullable parts (the location is set only for page-text signals such as `uncovered-code`) | → match / occurrence / page | `extract` | **no** |
 | `annotations.jsonl` | `annotation_id` | → crawl, `(rule_id, rule_version_seen)`, occurrence/match of `extraction_seen`, page, `supersedes` | UI, `import-v2` | **append-only** |
-| `golden/<pub>/lineage.parquet` | `(publication, golden_id, page_stem, property, value_index)` | → match (same value), → annotations | `golden publish` | **no** |
+| `golden/<pub>/lineage.parquet` | `(publication, golden_record_id, page_stem, property, value_index)` | → match (same value), → annotations | `golden publish` | **no** |
 
 `extraction` isn't stored inside the rows; the folder implies it. That keeps rows that were copied from a parent
 extraction **row-identical** to the parent's. `golden-datasets check` verifies this with `EXCEPT` in both directions.
@@ -279,7 +279,7 @@ extraction **row-identical** to the parent's. `golden-datasets check` verifies t
   everywhere removes the mismatch, and the UI still falls back to a text search.
 - **A comparison** joins two extractions' matches on `(rule_id, occurrence_key)`, falling back to `(rule_id,
   course_key)`. Rows that can't be matched either way are listed as "new" or "vanished" (D9).
-- **`golden_id`** = `course_key`, when every full occurrence with that code has the same name. Otherwise it's
+- **`golden_record_id`** = `course_key`, when every full occurrence with that code has the same name. Otherwise it's
   `course_key~<n>`, one per distinct name, and the Publish screen lists these for Jared to confirm. AVC, CCSF and UALR
   have none. Marshall and WVU have ~190.
 
@@ -552,22 +552,38 @@ The golden output keeps the **existing per-page shape of the golden sets saved s
 so their readers keep working (Eric's decision, §12.1); it is written to the `xtra-golden-sets` container.
 **Published one property at a time:** a publication writes the chosen properties' values from the current extraction
 into each page's file and keeps what earlier publications wrote there for every other property (records pair by
-`golden_id`, in page order), so the golden set fills up property by property. Its `lineage.parquet` covers only the
+`golden_record_id`, in page order), so the golden set fills up property by property. Its `lineage.parquet` covers only the
 properties it published; `publication.json` lists them (`properties`, `property_gate` with each one's rule, version
 and approval) and the status of the page rule and record locator that decide which courses exist
 (`identity_rules`). `golden-datasets check` compares the files with the lineage of the publication that last
 published each property. There's one folder per page, `<page_stem>/<page_stem>.json`, next to `<page_stem>.html`
-(the page as crawled). Each record gains `golden_id`, and each field gains `property` and `location`. It's
-domain-only: **no rule IDs**. GEOG222's file, trimmed:
+(the page as crawled). Each record gains `golden_record_id` (renamed from `golden_id` on 2026-10-27; older files and
+lineage say `golden_id`, and the Studio reads both), and each field gains `property` and `location`. It's
+domain-only: **no rule IDs**.
+
+**Who approved each value** is in every format, so it's clear which values a person confirmed and which only a rule
+vouches for:
+- **each field:** `approval` is `"human"` when a person confirmed that value (marked it correct and it hasn't
+  changed since, or marked it wrong and selected the right text, which the value now is), else `"rule"` (it was
+  published because its rule is approved); `approved_by` and `approved_at` name that person and when, or who
+  approved the rule and when;
+- **each record:** `approval` is `"human"` when every value is, `"rule"` when none is, else `"mixed"`;
+- **the lineage:** the same `approval`, `approved_by` and `approved_at` columns per value;
+- **`publication.json`:** `approvals`, the count of human- and rule-approved values, in all and per property;
+- **the Publish tab:** "1,062 values (14 approved by a person, 1,048 by the rule)".
+
+GEOG222's file, trimmed (Jared reviewed every field of GEOG222, so the record is `human`):
 
 ```json
 [
   {
-    "golden_id": "GEOG222",
+    "golden_record_id": "GEOG222",
+    "approval": "human",
     "fields": [
       {"ctdl_property": "ceterms:codedNotation", "property": "Coded Notation", "value": "GEOG 222",
        "source_url": "https://avc.elumenapp.com/catalog/2026-27/course/geog222",
-       "location": {"css_path": "html > body … > div:nth-of-type(4) > header:nth-of-type(1) > h3:nth-of-type(1)", "char_start": 0, "char_end": 9}},
+       "location": {"css_path": "html > body … > div:nth-of-type(4) > header:nth-of-type(1) > h3:nth-of-type(1)", "char_start": 0, "char_end": 9},
+       "approval": "human", "approved_by": "Jared", "approved_at": "2026-10-21T20:19:46Z"},
       {"ctdl_property": "ceterms:description", "property": "Description",
        "value": "This course provides a general survey of basic methods used for the presentation of geographic information science (GIS) data and analysis. …",
        "source_url": "https://avc.elumenapp.com/catalog/2026-27/course/geog222",
@@ -586,11 +602,11 @@ domain-only: **no rule IDs**. GEOG222's file, trimmed:
 `lineage.parquet` stays in the Studio. It's the association table Eric asked for, so every golden value can be traced
 back to its rule:
 
-| golden_id | page_stem | property | value_index | extraction | rule_id | rule_version | occurrence_key | annotation_ids |
-|---|---|---|---|---|---|---|---|---|
-| GEOG222 | …geog222-c85465e9c2 | Coded Notation | 0 | rs-0002 | course-code | 1 | …geog222…@… | [an-6191f7ba8324] |
-| GEOG222 | …geog222-c85465e9c2 | Description | 0 | rs-0002 | course-description | 2 | …geog222…@… | [an-75aeec940bac] |
-| GEOG222 | …geog222-c85465e9c2 | Learning Type | 0 | rs-0002 | course-learning-type | 1 | …geog222…@… | [an-e65cf5326fb6] |
+| golden_record_id | page_stem | property | value_index | extraction | rule_id | rule_version | occurrence_key | annotation_ids | approval | approved_by |
+|---|---|---|---|---|---|---|---|---|---|---|
+| GEOG222 | …geog222-c85465e9c2 | Coded Notation | 0 | rs-0002 | course-code | 1 | …geog222…@… | [an-6191f7ba8324] | human | Jared |
+| GEOG222 | …geog222-c85465e9c2 | Description | 0 | rs-0002 | course-description | 2 | …geog222…@… | [an-75aeec940bac] | human | Jared |
+| ABDY112 | …abdy112-… | Language | 0 | rs-0003 | course-language | 1 | …abdy112…@… | [] | rule | Eric |
 
 ### 5.7 Relational integrity: `golden-datasets check`
 
@@ -685,7 +701,7 @@ saved.
 | | `golden-datasets rule try draft.json` | Run the draft over the **whole crawl** on the laptop and print the scorecard. Writes nothing | — |
 | | `golden-datasets rule publish draft.json [--force]` | New rule versions + ruleset version + extraction, uploaded together. Refuses when anything that was `correct` changes, unless `--force` | rules/, rulesets/, extractions/ |
 | Prompt | `golden-datasets prompt --catalog C [--rule R \| --needs-work] [--target local\|azure]` | The same text the UI's **Copy prompt** button gives; `azure` points Claude at the Azure root (`--azure-root`) | — |
-| Golden | `golden-datasets golden publish --catalog C --to ROOT [--property NAME …]` | Publishes the named properties (default: every property whose field rule is approved); each needs its field rule approved, the others keep what earlier publications wrote. Domain-only files to the golden root in its existing format (plus `location` and `golden_id`), lineage to the Studio | golden/ |
+| Golden | `golden-datasets golden publish --catalog C --to ROOT [--property NAME …]` | Publishes the named properties (default: every property whose field rule is approved); each needs its field rule approved, the others keep what earlier publications wrote. Domain-only files to the golden root in its existing format (plus `location` and `golden_record_id`), lineage to the Studio | golden/ |
 | Local work | `golden-datasets sync --from ROOT --to DIR [--catalog C]` | Copy Studio files and pages between roots (both directions) | target root |
 | | `golden-datasets serve [--port 8000] [--azure-root URI]` | The web UI; `--azure-root` is where the prompt's Azure version points (the root itself when it is Azure) | annotations.jsonl (via UI) |
 
@@ -985,7 +1001,7 @@ property at a time**: just because other fields' rules aren't approved yet doesn
   `xtra-golden-sets` and keeps every other property as earlier publications wrote it (§5.6).
 - **What will be written** shows the target and the files; each opens as a sample of what this publication would
   write: a page's JSON merged with what the golden set already has, its HTML, the lineage rows of the ticked
-  properties, and `publication.json`. It also lists `golden_id` collisions for Jared to confirm (§4.2), and earlier
+  properties, and `publication.json`. It also lists `golden_record_id` collisions for Jared to confirm (§4.2), and earlier
   publications.
 
 ![Publish](screens/10-publish.png)
@@ -1191,7 +1207,10 @@ The schema in §4–5 is the contract between W1, W2 and W4–W6. Changing it me
 - **Who may approve a rule:** anyone using the UI. The Studio isn't exposed widely, so there's no role check. Every
   approve event records its author, and the UI shows who approved.
 - **Golden output format:** keep the existing per-page shape of `xtra-golden-sets-verified`, so its current readers
-  keep working, and add `location` to each field and `golden_id` to each record (§5.6).
+  keep working, and add `location` to each field and `golden_record_id` to each record (§5.6).
+- **Who approved each value, and `golden_record_id`** (Eric, 2026-10-27): every published value, record, lineage row
+  and publication says whether a person approved the value or its rule did (§5.6); `golden_id` is renamed
+  `golden_record_id`.
 - **Golden output place, and publishing per property** (Eric, 2026-10-27): publications go to the `xtra-golden-sets`
   container, not `xtra-golden-sets-verified`; the Golden tab is now **Publish**, and it publishes one property (or a
   few) at a time, each once its field rule is approved, whatever the other fields' rules say (§7.6).

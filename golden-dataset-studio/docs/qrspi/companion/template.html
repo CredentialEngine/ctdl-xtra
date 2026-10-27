@@ -808,10 +808,10 @@ match        course-code                   ARTHC1100  shape-outlier             
 match        course-name                   AFAB110    length-outlier                low       80 chars; 1st–99th percentile is 9–68
 occurrence   locator-program-requirement   ARTHC1100  duplicate-occurrence          medium    ARTHC1100 occurs 2× on this page
 page         ∅                             —          unclassified-page-with-codes  medium    no page rule matched, but the page names 21 course codes` },
-  courses: { name: 'golden/<pub>/<page_stem>/<page_stem>.json', meta: 'one per page · also written to xtra-golden-sets-verified', who: 'golden-datasets golden publish', about: 'The final output, in the existing xtra-golden-sets-verified shape, so its current readers keep working. Each record gains golden_id, each field gains property and location. No rule ids.',
+  courses: { name: 'golden/<pub>/<page_stem>/<page_stem>.json', meta: 'one per page · also written to xtra-golden-sets-verified', who: 'golden-datasets golden publish', about: 'The final output, in the existing xtra-golden-sets-verified shape, so its current readers keep working. Each record gains golden_record_id, each field gains property and location. No rule ids.',
     body: `[
   {
-    "golden_id": "GEOG222",
+    "golden_record_id": "GEOG222",
     "fields": [
       {"ctdl_property": "ceterms:codedNotation", "property": "Coded Notation", "value": "GEOG 222",
        "source_url": "https://avc.elumenapp.com/catalog/2026-27/course/geog222",
@@ -827,7 +827,7 @@ page         ∅                             —          unclassified-page-with
   }
 ]` },
   lineage: { name: 'golden/<pub>/lineage.parquet', meta: '6.4 KB · 160 rows', who: 'golden-datasets golden publish', about: 'The association table: every golden value traced back to its extraction, rule version, occurrence and annotations.',
-    body: `golden_id  property          extraction  rule_id               rule_version  annotation_ids
+    body: `golden_record_id  property          extraction  rule_id               rule_version  annotation_ids
 GEOG222    Coded Notation    rs-0002     course-code           1             [an-6191f7ba8324]
 GEOG222    Description       rs-0002     course-description    2             [an-75aeec940bac]
 GEOG222    Learning Type     rs-0002     course-learning-type  1             [an-e65cf5326fb6]` },
@@ -913,7 +913,7 @@ F.signals.table = [['target_kind', 'rule_id', 'course', 'signal', 'severity', 'd
   ['occurrence', 'locator-program-requirement', 'ARTHC1100', 'duplicate-occurrence', 'medium', 'ARTHC1100 occurs 2× on this page'],
   ['page', '∅', '—', 'unclassified-page-with-codes', 'medium', 'no page rule matched, but the page names 21 course codes']];
 F.signals.note = 'Computed automatically when the rules run. People never see these as tags; they decide row order and feed the counts in Compare.';
-F.lineage.table = [['golden_id', 'page_stem', 'property', 'extraction', 'rule_id', 'rule_version', 'annotation_ids'],
+F.lineage.table = [['golden_record_id', 'page_stem', 'property', 'extraction', 'rule_id', 'rule_version', 'annotation_ids'],
   ['GEOG222', '…geog222-c85465e9c2', 'Coded Notation', 'rs-0002', 'course-code', 1, '[an-6191f7ba8324]'],
   ['GEOG222', '…geog222-c85465e9c2', 'Description', 'rs-0002', 'course-description', 2, '[an-75aeec940bac]'],
   ['GEOG222', '…geog222-c85465e9c2', 'Learning Type', 'rs-0002', 'course-learning-type', 1, '[an-e65cf5326fb6]'],

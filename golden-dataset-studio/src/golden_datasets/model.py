@@ -70,10 +70,11 @@ PAGE_ASSETS = pa.schema([
     ("crawl", pa.string()), ("page_stem", pa.string()), ("url", pa.string()), ("kind", pa.string()),
 ])
 LINEAGE = pa.schema([
-    ("publication", pa.string()), ("golden_id", pa.string()), ("page_stem", pa.string()), ("property", pa.string()),
+    ("publication", pa.string()), ("golden_record_id", pa.string()), ("page_stem", pa.string()), ("property", pa.string()),
     ("ctdl_property", pa.string()), ("value_index", pa.int32()), ("extraction", pa.string()),
     ("rule_id", pa.string()), ("rule_version", pa.int32()), ("occurrence_key", pa.string()),
     ("match_value_index", pa.int32()), ("annotation_ids", pa.list_(pa.string())),
+    ("approval", pa.string()), ("approved_by", pa.string()), ("approved_at", pa.string()),
 ])
 TABLE_SCHEMAS = {"page_labels": PAGE_LABELS, "occurrences": OCCURRENCES, "matches": MATCHES, "signals": SIGNALS}
 TABLE_SORT = {

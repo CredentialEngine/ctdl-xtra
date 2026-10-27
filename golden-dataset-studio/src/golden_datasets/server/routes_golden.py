@@ -1,5 +1,5 @@
 """Publish API (W7): each property and whether it can be published (its field rule approved), what a publication
-of the chosen properties would write (with a preview of each file, merged with what the golden set has), golden_id
+of the chosen properties would write (with a preview of each file, merged with what the golden set has), golden_record_id
 collisions, and publishing."""
 
 from __future__ import annotations
@@ -62,6 +62,8 @@ def golden_status(request: Request, catalog: str, properties: str | None = None)
     full = _plan(st, ctx, rv, chosen)
     p = {k: full[k] for k in ("collisions", "courses", "records", "skipped_no_course_key")} | {
         "pages": len(full["pages"]), "fields": len(full["lineage"]),
+        "approvals": {"human": sum(r["approval"] == "human" for r in full["lineage"]),
+                      "rule": sum(r["approval"] == "rule" for r in full["lineage"])},
         "page_stems": [{"stem": s, "records": len(r)} for s, r in sorted(full["pages"].items())]}
     rules = []
     for s in statuses:

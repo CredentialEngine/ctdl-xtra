@@ -127,8 +127,16 @@ def connect(ctx: Ctx) -> duckdb.DuckDBPyConnection:
                        occurrence_key VARCHAR, course_key VARCHAR, page_stem VARCHAR, value_index INTEGER,
                        value_seen VARCHAR) target WHERE false""")
     golden = k.get("golden") or []
-    lineage = [f"SELECT * FROM read_parquet({_q(ctx.root.local_path(g['path'] + '/lineage.parquet'))})"
-               for g in golden if ctx.root.exists(g["path"] + "/lineage.parquet")]
+    import pyarrow.parquet as pq
+
+    lineage = []
+    for g in golden:
+        if not ctx.root.exists(g["path"] + "/lineage.parquet"):
+            continue
+        local = ctx.root.local_path(g["path"] + "/lineage.parquet")
+        # publications before the rename call the record id golden_id
+        old = "golden_id" in pq.read_schema(local).names
+        lineage.append(f"SELECT *{' RENAME (golden_id AS golden_record_id)' if old else ''} FROM read_parquet({_q(local)})")
     if lineage:
         con.execute("CREATE VIEW lineage AS " + " UNION ALL BY NAME ".join(lineage))
     return con

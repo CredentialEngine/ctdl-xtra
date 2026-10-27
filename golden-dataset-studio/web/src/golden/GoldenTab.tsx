@@ -64,7 +64,8 @@ export default function GoldenTab({ catalog }: TabProps) {
         <Ico name="lock" />
         <div className="grow">{sel.length
           ? <><b>Ready to publish {sel.length === 1 ? sel[0] : `${sel.length} properties`}:</b> {sel.length > 1 && <>{sel.join(", ")}. </>}
-              {fmt(d.courses)} courses, {fmt(d.fields)} values.</>
+              {fmt(d.courses)} courses, {fmt(d.fields)} values
+              {d.approvals && <> ({fmt(d.approvals.human)} approved by a person, {fmt(d.approvals.rule)} by the rule)</>}.</>
           : approvable.length
             ? <><b>Choose a property</b> below to publish.</>
             : <><b>Nothing to publish yet:</b> no property's rule is approved. Approve one on the Rules tab.</>}</div>
@@ -98,8 +99,9 @@ export default function GoldenTab({ catalog }: TabProps) {
             <div className="target mono">{d.target}</div>
             <div className="tree">{"."}{"\n"}
               {"└── <page>/                 "}<span className="c"># one folder per saved page with courses ({fmt(d.pages)})</span>{"\n"}
-              {"    ├── "}<F f="page.json">{"<page>.json"}</F>{"         "}<span className="c"># [{"{"}golden_id, fields: [{"{"}ctdl_property, property,</span>{"\n"}
-              {"    │                       "}<span className="c">#   value, source_url, location{"}"}]{"}"}]</span>{"\n"}
+              {"    ├── "}<F f="page.json">{"<page>.json"}</F>{"         "}<span className="c"># [{"{"}golden_record_id, approval, fields: [{"{"}ctdl_property,</span>{"\n"}
+              {"    │                       "}<span className="c">#   property, value, source_url, location, approval,</span>{"\n"}
+              {"    │                       "}<span className="c">#   approved_by, approved_at{"}"}]{"}"}]</span>{"\n"}
               {"    └── "}<F f="page.html">{"<page>.html"}</F>{"         "}<span className="c"># the page as crawled, if not there yet: the</span>{"\n"}
               {"                            "}<span className="c">#   locations above point into it</span>{"\n\n"}
               {"Studio: golden/<publication>/"}{"\n"}
@@ -109,10 +111,15 @@ export default function GoldenTab({ catalog }: TabProps) {
             <div className="muted" style={{ fontSize: 12.5, marginTop: 10, lineHeight: 1.55 }}>
               {fmt(d.courses)} courses · {fmt(d.records)} course entries · {fmt(d.fields)} values. Same shape as the golden
               sets saved so far, plus <span className="mono">location</span> (css_path and character offsets on the page) on
-              every value and an id on every course (<span className="mono">golden_id</span>: its course code, like{" "}
+              every value and an id on every course (<span className="mono">golden_record_id</span>: its course code, like{" "}
               <span className="mono">GEOG222</span>). Learning Type is kept with{" "}
-              <span className="mono">ctdl_property: null</span>. Rule ids and verdicts live only in{" "}
-              <span className="mono">lineage.parquet</span>, which stays in the Studio.
+              <span className="mono">ctdl_property: null</span>. Every value says who approved it:{" "}
+              <span className="mono">approval: "human"</span> when a person confirmed that value (marked it correct, or
+              selected the right text it now is), else <span className="mono">"rule"</span> (its rule's approval covers
+              it), with <span className="mono">approved_by</span> and <span className="mono">approved_at</span>; a
+              record's <span className="mono">approval</span> is <span className="mono">human</span>,{" "}
+              <span className="mono">rule</span> or <span className="mono">mixed</span>. Rule ids and verdicts live only
+              in <span className="mono">lineage.parquet</span>, which stays in the Studio.
             </div>
           </div>
           <div className="box" style={{ marginTop: 18 }}><h3>One course code, different courses · {d.collisions.length}</h3>
@@ -126,7 +133,7 @@ export default function GoldenTab({ catalog }: TabProps) {
               : <div className="collisions">{d.collisions.slice(0, 200).map((c) => (
                   <div key={c.course_key} className="chk" style={{ gridTemplateColumns: "auto 1fr" }}>
                     <b className="mono">{c.course_key}</b>
-                    <span>{c.names.map((n, i) => <div key={i}>{n} <span className="mono muted">→ {c.golden_ids[i]}</span></div>)}</span>
+                    <span>{c.names.map((n, i) => <div key={i}>{n} <span className="mono muted">→ {c.golden_record_ids[i]}</span></div>)}</span>
                   </div>))}
                   {d.collisions.length > 200 && <div className="muted">… and {d.collisions.length - 200} more</div>}
                 </div>}
