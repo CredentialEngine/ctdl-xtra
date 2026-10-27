@@ -14,13 +14,15 @@ const STEPS = [
   { n: 3, t: "Apply new rules", where: "Compare tab" },
 ];
 const HOLD = 900, TRAVEL = 1300;                                  // ms: pause on a box, then the dot's run
+const SQUEEZE = 220;                                              // ms: the box squeezes before it fires the dot
 
 const pt = (deg: number) => [CX + R * Math.cos((deg * Math.PI) / 180), CY + R * Math.sin((deg * Math.PI) / 180)];
 function arc(a: number, b: number): string {
   const [x1, y1] = pt(a), [x2, y2] = pt(b);
   return `M ${x1.toFixed(1)} ${y1.toFixed(1)} A ${R} ${R} 0 0 1 ${x2.toFixed(1)} ${y2.toFixed(1)}`;
 }
-const ease = (p: number) => (p < 0.5 ? 2 * p * p : 1 - (-2 * p + 2) ** 2 / 2);
+/** Fired: fast off the box, then a long glide into the next one. */
+const fired = (p: number) => 1 - (1 - p) ** 3.4;
 
 /** How far (degrees) the ring runs from a box's center to its edge, each way: the arrows start and end on the box. */
 export function edgeGap(a: number, hw: number, hh: number, dir: 1 | -1, margin = 1): number {
@@ -85,25 +87,27 @@ export function LoopModal({ onClose }: { onClose: () => void }) {
   useEffect(() => {
     const still = typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
     if (still || typeof requestAnimationFrame !== "function") return;
-    let raf = 0, last = -1;
+    let raf = 0, last = "";
     const t0 = performance.now();
     const frame = (now: number) => {
       const t = (now - t0) % (3 * (HOLD + TRAVEL));
       const k = Math.floor(t / (HOLD + TRAVEL));
       const local = t - k * (HOLD + TRAVEL);
-      const phase = 2 * k + (local < HOLD ? 0 : 1);           // even: holding on box k; odd: running from k
-      if (phase !== last) {
-        pulse(nodes.current[k], phase % 2 === 0 ? "land" : "send");
-        last = phase;
+      // the dot lands (k:land), the box squeezes just before it fires (k:send), the dot shoots out and glides on
+      const event = local < HOLD - SQUEEZE ? `${k}:land` : `${k}:send`;
+      if (event !== last) {
+        pulse(nodes.current[k], event.endsWith("land") ? "land" : "send");
+        last = event;
       }
       const path = paths.current[k], d = dot.current;
       if (path && d) {
         if (local < HOLD) d.style.opacity = "0";
         else {
-          const p = ease((local - HOLD) / TRAVEL);
-          const at = path.getPointAtLength(p * path.getTotalLength());
+          const q = (local - HOLD) / TRAVEL;
+          const at = path.getPointAtLength(fired(q) * path.getTotalLength());
           d.setAttribute("cx", String(at.x));
           d.setAttribute("cy", String(at.y));
+          d.setAttribute("r", String(6 + 4 * Math.max(0, 1 - q / 0.18)));  // a burst at launch, settling to its size
           d.style.opacity = "1";
         }
       }

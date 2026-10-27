@@ -8,13 +8,15 @@
 .loop-head { fill: var(--accent); }
 .loop-node { position: absolute; transform: translate(-50%, -50%); width: 30%; background: var(--surface); border: 1.5px solid var(--accent); border-radius: 12px; padding: 14px 10px 9px; display: grid; gap: 3px; text-align: center; box-shadow: 0 2px 8px rgba(16, 24, 40, .08); line-height: 1.25; }
 .loop-node b { font-size: 13.5px; }
-/* send: a quick press and a tight ring as the dot leaves; land: a swell, a tint and a wide ring as it arrives */
-.loop-node.send { animation: loop-send .45s ease-out; }
+/* send: the box squeezes (anticipation), then springs back with a tight ring as it fires the dot;
+   land: a swell, a tint and a wide ring as the dot arrives */
+.loop-node.send { animation: loop-send .5s cubic-bezier(.3, 0, .2, 1); }
 .loop-node.land { animation: loop-land .8s ease-out; }
 @keyframes loop-send {
-  0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 55%, transparent); transform: translate(-50%, -50%) scale(1); }
-  30% { transform: translate(-50%, -50%) scale(.95); }
-  100% { box-shadow: 0 0 0 7px color-mix(in srgb, var(--accent) 0%, transparent); transform: translate(-50%, -50%) scale(1); }
+  0% { transform: translate(-50%, -50%) scale(1); box-shadow: 0 0 0 0 transparent; }
+  44% { transform: translate(-50%, -50%) scale(.92); box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 60%, transparent); }
+  58% { transform: translate(-50%, -50%) scale(1.04); }
+  100% { transform: translate(-50%, -50%) scale(1); box-shadow: 0 0 0 9px color-mix(in srgb, var(--accent) 0%, transparent); }
 }
 @keyframes loop-land {
   0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 40%, transparent); transform: translate(-50%, -50%) scale(1); }
