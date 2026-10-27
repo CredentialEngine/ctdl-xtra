@@ -8,7 +8,7 @@ import { api } from "../api/client";
 import type { PromptResponse, RuleGroup } from "../api/types";
 import { go, href } from "../shell/router";
 import type { TabProps } from "../shell/tabProps";
-import { fmt, Ico, toast, useKeyHints } from "../shell/ui";
+import { Ico, toast, useKeyHints } from "../shell/ui";
 import { downloadName, highlight, lineKinds, runs } from "./highlight";
 import { Markdown } from "./markdown";
 import "./prompt.css";
@@ -46,7 +46,6 @@ function download(text: string, name: string): void {
 export default function PromptTab({ catalog, route }: TabProps) {
   const cat = route.catalog ?? catalog.short;
   const ruleParam = route.params.get("rule");
-  const fromRules = route.params.get("from") === "rules";
   const needsWork = !ruleParam;
   const [groups, setGroups] = useState<RuleGroup[] | null>(null);
   const rules = useMemo(() => (groups ? groups.flatMap((g) => g.rules) : null), [groups]);
@@ -100,18 +99,6 @@ export default function PromptTab({ catalog, route }: TabProps) {
   return (
     <div className="prompt-layout">
       <aside className="prompt-side">
-        <h1>Prompt for Claude Code</h1>
-        {fromRules && ruleParam && (
-          <div className="prompt-from">Opened from the Rules tab with <b>{ruleParam}</b> selected.</div>
-        )}
-        <div className="lead">Deterministic: the same annotations always give the same text. Paste it into Claude Code:
-          it installs the <span className="mono">golden-datasets</span> CLI from this branch and points it at the root.</div>
-
-        {data?.studio_root && data.studio_root !== data.root &&
-          <div className="prompt-warn" data-testid="root-warn">This Studio serves another root than the Azure one Claude works
-            on: what Claude publishes shows here only after a <span className="mono">golden-datasets sync</span>.</div>}
-        {data?.warning && <div className="prompt-warn" data-testid="prompt-warn">{data.warning}</div>}
-
         <div className="prompt-k">Scope</div>
         <label className={"opt" + (!needsWork ? " on" : "")} data-testid="scope-one">
           <input type="radio" name="scope" checked={!needsWork} onChange={() => oneRule && pickRule(oneRule)} />
@@ -144,16 +131,6 @@ export default function PromptTab({ catalog, route }: TabProps) {
           <div className="d">{needing.map((r) => r.rule_id).join(", ") || "none"}</div>
         </label>
 
-        <dl className="facts">
-          <dt>Characters</dt><dd>{data ? fmt(data.chars) : "…"}</dd>
-          <dt>≈ tokens</dt><dd>{data ? fmt(data.tokens) : "…"}</dd>
-          <dt>Raw HTML included</dt><dd>none</dd>
-          <dt>Page references</dt><dd>{data ? fmt(data.page_refs) : "…"}</dd>
-          <dt>Open annotations</dt><dd>{data ? fmt(data.annotations) : "…"}</dd>
-        </dl>
-        <div className="foot">Claude reads pages with <span className="mono">golden-datasets pages get</span> and tests
-          drafts with <span className="mono">golden-datasets rule try</span> before <span className="mono">golden-datasets
-          rule publish</span>. The new version appears in the Studio when the manifest changes.</div>
       </aside>
 
       <section className="prompt-main">
@@ -167,6 +144,10 @@ export default function PromptTab({ catalog, route }: TabProps) {
             <Ico name="download" />Download .md</button>
           <button className="btn primary" disabled={!data} onClick={onCopy}><Ico name="copy" />Copy prompt</button>
         </div>
+        {data?.studio_root && data.studio_root !== data.root &&
+          <div className="prompt-warn" data-testid="root-warn">This Studio serves another root than the Azure one Claude works
+            on: what Claude publishes shows here only after a <span className="mono">golden-datasets sync</span>.</div>}
+        {data?.warning && <div className="prompt-warn" data-testid="prompt-warn">{data.warning}</div>}
         {error && <div className="prompt-error">{error}</div>}
         {view === "rendered" && data ? <div className="prompt-pre prompt-md" data-testid="prompt-rendered">
           {bands.map((b, i) => <div key={i} className={"band " + b.kind}><Markdown text={b.text} /></div>)}</div> :

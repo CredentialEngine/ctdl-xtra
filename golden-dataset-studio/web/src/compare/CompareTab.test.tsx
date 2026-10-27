@@ -80,6 +80,8 @@ describe("CompareTab", () => {
   it("shows the summary line, the changed rules and the earlier verdicts", async () => {
     await render("#/c/avc/compare");
     expect(compareMock).toHaveBeenCalledWith("avc", { a: undefined, b: undefined, rule: undefined });
+    const to = host.querySelector<HTMLSelectElement>("select[aria-label=to]")!;
+    expect([...to.options].map((o) => o.textContent)).toEqual(["ruleset v1", "ruleset v2 (latest)"]);
     const sum = host.querySelector("[data-testid=sumline]")!;
     expect(sum.textContent).toBe("278 records changed·5 fixed·0 still wrong·0 newly wrong");  // CSS gap spaces the dots
     expect(sum.querySelectorAll(".zero")).toHaveLength(2);       // zeros muted inline

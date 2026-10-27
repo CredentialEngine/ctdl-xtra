@@ -45,17 +45,16 @@ async function render(hash: string) {
 }
 
 describe("PromptTab", () => {
-  it("asks for the rule in the route and shows the text, size and page references", async () => {
+  it("asks for the rule in the route and shows the text; the sidebar is only the scope", async () => {
     await render("#/c/avc/prompt?rule=course-description&from=rules");
     expect(prompt).toHaveBeenCalledWith(catalog.catalog, { rule: "course-description" });
     const pre = host.querySelector("[data-testid=prompt-text]")!;
     expect(pre.textContent).toBe(TEXT);
     expect(pre.querySelector(".h1")?.textContent).toContain("Improve rule");
     expect(pre.querySelector(".cmd")?.textContent).toBe("`golden-datasets rule show course-description`");
-    expect(host.textContent).toContain("Opened from the Rules tab with course-description selected.");
-    const facts = host.querySelector(".facts")!.textContent!;
-    expect(facts).toContain(`Characters${TEXT.length}`);
-    expect(facts).toContain("Page references5");
+    const side = host.querySelector(".prompt-side")!.textContent!;  // the sidebar is only the scope
+    for (const gone of ["Deterministic", "Characters", "Page references", "Opened from", "golden-datasets pages get"])
+      expect(side).not.toContain(gone);
     expect(host.querySelector(".rp-item.on")?.getAttribute("title")).toContain("course-description");
     expect(host.querySelector("[data-testid=root-warn]")).toBeNull();  // the Studio serves the Azure root itself
   });

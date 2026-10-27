@@ -69,9 +69,11 @@ export default function CompareTab({ catalog, route }: TabProps) {
 
 function VersionSelect({ data, value, onChange, name }:
   { data: CompareResponseX; value: number; onChange: (v: number) => void; name: string }) {
+  const latest = Math.max(...data.versions.map((v) => v.version));
   return (
     <select className="vsel" aria-label={name} value={value} onChange={(e) => onChange(Number(e.target.value))}>
-      {data.versions.map((v) => <option key={v.version} value={v.version} title={v.note ?? ""}>ruleset v{v.version}</option>)}
+      {data.versions.map((v) => <option key={v.version} value={v.version} title={v.note ?? ""}>
+        ruleset v{v.version}{v.version === latest ? " (latest)" : ""}</option>)}
     </select>
   );
 }
