@@ -68,6 +68,8 @@ def test_list_and_preview(client):
 
 
 def test_account_id_from_the_environment(monkeypatch):
+    from golden_datasets.server import routes_files
+
     rid = "/subscriptions/s/resourceGroups/g/providers/Microsoft.Storage/storageAccounts/ceteststorage"
     monkeypatch.setenv("GOLDEN_DATASETS_AZURE_ACCOUNT_ID", rid)
     routes_files.account_id.cache_clear()
