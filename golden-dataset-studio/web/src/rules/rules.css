@@ -51,9 +51,10 @@
 .w4-rules .rule-head .rh-top { flex-wrap: wrap; row-gap: 8px; }
 .w4-rules .rule-head .rh-title { flex: 1 1 15em; min-width: min(15em, 100%); }
 .w4-rules .rule-head .rh-title .term { display: inline-flex; align-items: center; gap: 4px; max-width: 100%; }
-.w4-rules .rule-head .rh-top > .btn, .w4-rules .rule-head .rh-top > .approved-by { flex: none; }
-.w4-rules .rule-head .approved-by .ab-who { max-width: 24em; text-align: right; white-space: normal; }
-.w4-rules .rule-head .rh-top > .approved-by { margin-left: auto; }
+/* The buttons stack in one column at the right, whether it sits beside the title or wraps below it. */
+.w4-rules .rule-head .rh-actions { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; margin-left: auto; }
+.w4-rules .rule-head .rh-actions > * { flex: none; }
+.w4-rules .rule-head .approved-by .ab-who { max-width: 18em; text-align: right; white-space: normal; }
 /* Rules ⇄ Records: a quick link on the selected row / value */
 .xlink { margin-left: 10px; white-space: nowrap; font-weight: 500; color: var(--accent); text-decoration: none; }
 .xlink:hover { text-decoration: underline; }

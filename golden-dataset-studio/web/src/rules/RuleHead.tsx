@@ -63,6 +63,7 @@ export function RuleHead({ catalog, rule, onApprove, onReopen, busy }: {
     <div className="rule-head">
       <div className="rh-top">
         <div className="rh-title"><h1>{title}</h1><span className="rh-sub">{sub}</span></div>
+        <div className="rh-actions">
         <a className="btn" href={href(catalog.short, "prompt", null, { rule: rule.rule_id })} data-tour="improve-rule">
           <Ico name="spark" />Improve this rule</a>
         {approved ? (
@@ -78,6 +79,7 @@ export function RuleHead({ catalog, rule, onApprove, onReopen, busy }: {
             {blocked && <span id="approve-why" className="sr-only">{blocked}</span>}
           </span>
         )}
+        </div>
       </div>
       <details className="how" data-tour="how-it-works">
         <summary>How this rule works</summary>
