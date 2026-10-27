@@ -71,3 +71,14 @@
 .xbtn { display: inline-flex; align-items: center; font-size: 12px; font-weight: 550; color: var(--accent); text-decoration: none;
   border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--line)); background: var(--accent-soft); border-radius: 6px; padding: 2px 9px; }
 .xbtn:hover { border-color: var(--accent); }
+/* the value itself, in its own box so it stands apart from the caption, history and buttons around it;
+   the selected one stronger, with a label (Rules and Records tabs) */
+.valbox { position: relative; background: var(--surface); border: 1px solid var(--line-2); border-radius: 7px; padding: 6px 10px; }
+.valbox.on { border: 1.5px solid color-mix(in srgb, var(--accent) 55%, var(--line-2)); padding: 14px 12px 9px;
+  box-shadow: 0 1px 3px rgba(16, 24, 40, .07); }
+.valbox.empty { border-style: dashed; background: transparent; }
+.valbox-k { position: absolute; top: -8px; left: 9px; padding: 0 5px; background: var(--surface); border-radius: 4px;
+  font-size: 10px; letter-spacing: .07em; text-transform: uppercase; font-weight: 650; color: var(--accent); line-height: 15px; }
+.row .valbox + .pg { margin-top: 5px; }
+.v .valbox .tx { margin: 0; }
+.v .valbox + .src { margin-top: 6px; }

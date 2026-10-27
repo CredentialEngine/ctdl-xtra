@@ -195,7 +195,10 @@ export default function RecordsTab({ catalog, route }: TabProps) {
                       <div key={valueKey(v)} className={`v${on ? " on" : ""}${v.verdict ? ` v-${v.verdict.verdict}` : ""}${settled && !(on && draft) ? " done" : ""}`}
                         onClick={() => { if (!on) { setSel(valueKey(v)); setDraft(null); setActiveStem(null); } }}>
                         <div style={{ minWidth: 0 }}>
-                          <div className="tx">{v.status === "found" ? v.value : "(nothing found)"}</div>
+                          <div className={`valbox${on ? " on" : ""}${v.status === "found" ? "" : " empty"}`}>
+                            {on && <span className="valbox-k">Value</span>}
+                            <div className="tx">{v.status === "found" ? v.value : "nothing found"}</div>
+                          </div>
                           <div className="src"><span className="tag">{v.on_course_page ? "course page" : "program page"}</span><span>{shortTitle(v.page_title, 70)}</span></div>
                           {on && (
                             <div className="row-links">

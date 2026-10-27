@@ -360,10 +360,13 @@ export default function RulesTab({ catalog, route }: TabProps) {
                 <div className="body">
                   {kind === "page"
                     ? <><div className="val">{r.page_title ?? r.page_stem}</div><div className="pg">{r.url.replace(/^https?:\/\//, "")}</div></>
-                    : <>{on
+                    : <><div className={`valbox${on ? " on" : ""}${r.status === "found" ? "" : " empty"}`}>
+                        {on && <span className="valbox-k">{kind === "field" ? detail.property_label : "Found"}</span>}
+                        {on
                           // the selected row: the whole value, its paragraphs kept (as the Records tab shows a field)
                           ? <div className={`val full${r.status === "found" ? "" : " empty"}`} data-testid="row-full-value">{val}</div>
                           : <div className={`val${r.status === "found" ? "" : " empty"}`}><Value text={val} /></div>}
+                        </div>
                         <div className="pg">{r.context}</div>
                         {on && r.course_key && (
                           <div className="row-links">
