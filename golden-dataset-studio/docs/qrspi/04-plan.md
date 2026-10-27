@@ -6,6 +6,7 @@ Phase 4 of QRSPI. It turns spec §11 into waves that can be built and checked on
 [`../../PROGRESS.md`](../../PROGRESS.md).
 
 - Written: 2026-10-26, at the start of the build (Eric asked for the build to start without waiting for review).
+- Status: built; all five waves done, M1–M4 reached (see PROGRESS.md).
 - Branch: `golden-dataset-studio` (local commits only, one per wave).
 
 ## 0. Shape of the code

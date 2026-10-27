@@ -1,0 +1,40 @@
+/* The tour (spec §7.8), after the v1 mockup's: the screen dimmed except the lit areas, a ring round each, a pulsing
+   ring round the one small thing the step is about, and a short card beside them. */
+.tour { position: fixed; inset: 0; z-index: 1000; }
+.tour-dim { position: fixed; inset: 0; }
+.tour-ring { position: fixed; border-radius: 8px; box-shadow: 0 0 0 3px var(--accent); pointer-events: none; transition: all .18s ease; }
+.tour-accent { position: fixed; border-radius: 8px; border: 2px solid #f59f00; box-shadow: 0 0 0 4px rgba(245, 159, 0, .28);
+  pointer-events: none; animation: tour-pulse 1.3s ease-in-out infinite; }
+@keyframes tour-pulse { 50% { box-shadow: 0 0 0 9px rgba(245, 159, 0, 0); } }
+
+.tour-card { position: fixed; box-sizing: border-box; background: var(--surface); color: var(--ink); border-radius: 12px;
+  box-shadow: 0 12px 40px rgba(10, 16, 40, .35); padding: 14px 18px 12px; font-size: 13.5px; line-height: 1.5;
+  transition: left .2s ease, top .2s ease; max-height: calc(100vh - 24px); overflow: auto; }
+.tour-card.waiting { visibility: hidden; }
+.tour-card h3 { margin: 2px 0 8px; font-size: 16.5px; line-height: 1.3; }
+.tour-card p { margin: 0 0 8px; }
+.tour-card ul { margin: 0 0 8px; padding-left: 18px; }
+.tour-card li { margin-bottom: 4px; }
+.tour-body { min-height: 24px; }
+.tour-count { font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: var(--faint); font-weight: 600; }
+.tour-card .faint { color: var(--muted); font-size: 12.5px; }
+.tour-card kbd { margin-right: 2px; }
+
+.tour-legend { list-style: none; padding-left: 0 !important; display: flex; flex-direction: column; gap: 3px; }
+.tour-legend li { display: flex; align-items: flex-start; gap: 8px; margin: 0; }
+.tour-legend .ico svg { width: 16px; height: 16px; display: block; margin-top: 2px; }
+.tour-ico { display: inline-flex; vertical-align: -3px; color: var(--ink-2); border: 1px solid var(--line-2); border-radius: 5px;
+  padding: 2px; background: var(--surface); }
+.tour-ico .ico svg { width: 13px; height: 13px; display: block; }
+
+.tour-foot { display: flex; align-items: center; gap: 8px; margin-top: 12px; }
+.tour-dots { flex: 1; display: flex; justify-content: center; gap: 5px; }
+.tour-dots button { width: 7px; height: 7px; padding: 0; border-radius: 50%; border: 0; background: var(--line-2); cursor: pointer; }
+.tour-dots button.on { background: var(--accent); transform: scale(1.25); }
+.tour-dots button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.tour-hint { margin-top: 8px; font-size: 11.5px; color: var(--faint); text-align: right; }
+
+@media (prefers-reduced-motion: reduce) {
+  .tour-card, .tour-ring { transition: none; }
+  .tour-accent { animation: none; }
+}

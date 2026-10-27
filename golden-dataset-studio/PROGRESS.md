@@ -121,3 +121,37 @@ Plan: [`docs/qrspi/04-plan.md`](docs/qrspi/04-plan.md). Choices where the spec w
   "open catalog" was 2.1 s; fetching the 17 rule files and 5 Parquet files in parallel brought it to 1.3–1.5 s.
 - Deviations: build notes 23–27; W4's (a "fixed" or "changed since correct" row doesn't fade, it needs a fresh
   look; the program-page bubble count includes the page-level questions).
+
+## Wave 5: W7 golden publication ∥ the tour; all five catalogs → **M4 reached**
+
+- Built (W7, lead): `golden.py` (`golden publish`: approval gate, per-page files in the existing
+  `xtra-golden-sets-verified` layout `<catalog>/<crawl>/<stem>/<stem>.{json,html}` + `golden_id` + `location`,
+  `lineage.parquet` and `publication.json` in the Studio; server-side page copies when both roots are on Azure),
+  `server/routes_golden.py`, the Golden tab (`web/src/golden/`: rule status, Publish disabled until every rule is
+  approved, what will be written, `golden_id` collisions, earlier publications), lineage and domain-only checks in
+  `golden-datasets check`, `tests/test_golden.py`.
+- Built (tour, subagent): `web/src/tour/` — the nine steps of §7.8 on real data (selects a row, presses ✗ to show
+  text selection, opens the comment box, switches to HTML, goes to the locator view, opens "How this rule works",
+  goes to Compare, shows Approve's greyed-out reason on a rule with wrong verdicts), each undone on leaving; Esc
+  closes and returns the reader where they were; opens by itself once per browser; never writes data.
+  `bench/shots_tour.py` screenshots every step and checks the annotation logs are unchanged.
+- **All five catalogs** (`.data/root`, pages linked to the read-only mirror):
+
+  | Catalog | Pages | Rules | Annotations imported | Courses (golden) | Course entries | `golden_id` collisions | check |
+  |---|---|---|---|---|---|---|---|
+  | AVC | 1,467 | 17 | 153 | 1,075 | 3,813 | 0 | 56 / 56 ✓ |
+  | CCSF | 521 | 17 | 590 | 1,956 | 7,998 | 0 | 53 / 53 ✓ |
+  | Marshall | 914 | 17 | 579 | 6,729 | 16,425 | 0 | 53 / 53 ✓ |
+  | UALR | 4,439 | 17 | 134 | 2,907 | 20,202 | 4 | 53 / 53 ✓ |
+  | WVU | 900 | 17 | 718 | 11,230 | 38,960 | 3 | 53 / 53 ✓ |
+
+  import-v2 (incl. extract rs-0001): 1–4 s per catalog; assets fetch 2.5–6 s.
+- **M4**: every catalog extracted and checked with every in-scope rule; a golden publication of each written to a
+  local folder (`.data/golden-out`; 0.6–3.3 s each) and AVC's also to the Azure scratch prefix
+  (`zz-scratch-review-ui-v3/golden-test/…`, 19 s, pages copied server-side), lineage complete (one row per golden
+  value and back), domain-only. These are **test publications** (`--allow-unapproved`, recorded in
+  `publication.json`): no catalog has every rule approved yet — that is Jared's review. The UI's Publish button
+  stays disabled until then. Nothing was written to `xtra-golden-sets-verified`.
+- Checks: `pytest` 49 fast + 26 slow ✓ · storage contract on Azurite + Azure scratch ✓ (18) · ruff ✓ · web
+  typecheck ✓, vitest 79 ✓, build ✓ · `check` on all five catalogs ✓ and on the Azure scratch root (56 / 56, 8.8 s).
+- Deviations: build notes 18–22.

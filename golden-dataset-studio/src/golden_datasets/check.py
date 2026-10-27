@@ -271,15 +271,25 @@ def golden_file_checks(ctx: Ctx, con) -> list[tuple]:
         groot = open_root(target) if target else ctx.root
         prefix = pub.get("to_prefix", "")
         ids, leaked, n_rec, bad_files = set(), 0, 0, []
-        for stem in pub.get("page_stems", []):
+
+        def fetch(stem: str, groot=groot, prefix=prefix):  # one round trip each on Azure: run them together
             path = f"{prefix}{stem}/{stem}.json"
             try:
-                records = json.loads(groot.read_bytes(path))
+                data = json.loads(groot.read_bytes(path))
             except FileNotFoundError:
-                bad_files.append(path)
+                return stem, None, path
+            html = f"{prefix}{stem}/{stem}.html"
+            return stem, data, None if groot.exists(html) else html
+
+        from concurrent.futures import ThreadPoolExecutor
+
+        with ThreadPoolExecutor(max_workers=32) as pool:
+            fetched = list(pool.map(fetch, pub.get("page_stems", [])))
+        for stem, records, missing in fetched:
+            if missing:
+                bad_files.append(missing)
+            if records is None:
                 continue
-            if not groot.exists(f"{prefix}{stem}/{stem}.html"):
-                bad_files.append(f"{prefix}{stem}/{stem}.html")
             counts = Counter()  # value_index counts per (golden_id, property) across the page's records
             for rec in records:
                 n_rec += 1
