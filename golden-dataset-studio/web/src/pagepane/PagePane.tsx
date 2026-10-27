@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { layoutFor, nextZoom, readSetting, setPageCss, writeSetting, ZOOM_STEPS } from "./view";
 import type { ReactNode } from "react";
 import { blockOf, captureElement, captureSelection, type CapturedSelection } from "./dom";
 import { clear, hoverBox, paint, resolveAll, scrollToRect, type Highlight } from "./paint";
@@ -78,8 +79,10 @@ export function PagePane(props: PagePaneProps): JSX.Element {
   const { catalog, tabs, activeStem, onActivate, highlights, focusId, banner, legend, ruleset } = props;
   const [mode, setMode] = useState<"page" | "html">("page");
   const [loadedSrc, setLoadedSrc] = useState<string | null>(null);
-  const [scale, setScale] = useState(1);
   const [size, setSize] = useState({ w: 0, h: 0 });
+  const [zoom, setZoom] = useState<number>(() => readSetting("zoom", 1));
+  const [pageCss, setPageCssOn] = useState<boolean>(() => readSetting("css", true));
+  const { width: layoutWidth, scale } = layoutFor(size.w, LAYOUT_WIDTH, zoom);
   const [moreOpen, setMoreOpen] = useState(false);
   const bodyRef = useRef<HTMLDivElement>(null);
   const frameRef = useRef<HTMLIFrameElement>(null);
@@ -99,7 +102,6 @@ export function PagePane(props: PagePaneProps): JSX.Element {
       const w = body.clientWidth;
       const h = body.clientHeight;
       setSize({ w, h });
-      setScale(w > 0 ? Math.min(1, w / LAYOUT_WIDTH) : 1);
     };
     fit();
     if (typeof ResizeObserver === "undefined") return;
@@ -147,7 +149,20 @@ export function PagePane(props: PagePaneProps): JSX.Element {
 
   useEffect(() => {
     if (loaded) schedule(false);
-  }, [scale, size.w, loaded, schedule]);
+  }, [scale, layoutWidth, size.w, loaded, schedule]);
+
+  // --- view settings: zoom and the page's own CSS (remembered in this browser) ----------------------
+  const changeZoom = useCallback((z: number) => { setZoom(z); writeSetting("zoom", z); }, []);
+  const toggleCss = useCallback(() => {
+    setPageCssOn((on) => { writeSetting("css", !on); return !on; });
+  }, []);
+  useEffect(() => {
+    const d = doc();
+    if (d && loaded) {
+      setPageCss(d, pageCss);
+      schedule(true); // positions move when the styles change: bring the value back into view
+    }
+  }, [pageCss, loaded, doc, schedule]);
 
   // --- events inside the frame (the page's own scripts never run; these are the parent's listeners) -------
   const onLoad = useCallback(() => {
@@ -231,7 +246,7 @@ export function PagePane(props: PagePaneProps): JSX.Element {
   }, [highlights, focusId]);
 
   const frameStyle = {
-    width: LAYOUT_WIDTH,
+    width: layoutWidth,
     height: size.h > 0 ? size.h / scale : "100%",
     transform: `scale(${scale})`,
     visibility: mode === "page" ? ("visible" as const) : ("hidden" as const),
@@ -285,6 +300,21 @@ export function PagePane(props: PagePaneProps): JSX.Element {
           <ExtIcon />
         </a>
       </div>
+      <div className="gpp-tools" role="toolbar" aria-label="Page view" data-tour="page-view-tools">
+        <button className="gpp-tool" onClick={() => changeZoom(nextZoom(zoom, -1))} disabled={zoom <= ZOOM_STEPS[0]}
+          title="Zoom out" aria-label="Zoom out"><ZoomIcon plus={false} /></button>
+        <button className="gpp-zoom" onClick={() => changeZoom(1)} title="Reset zoom (fit the page to the pane)">
+          {Math.round(scale * 100)}%
+        </button>
+        <button className="gpp-tool" onClick={() => changeZoom(nextZoom(zoom, 1))}
+          disabled={zoom >= ZOOM_STEPS[ZOOM_STEPS.length - 1]} title="Zoom in" aria-label="Zoom in"><ZoomIcon plus /></button>
+        <span className="gpp-tools-sep" />
+        <label className={`gpp-check${pageCss ? "" : " off"}`}
+          title="Turn the page's own styles off to see its plain content and structure (highlights stay)">
+          <input type="checkbox" checked={pageCss} onChange={toggleCss} /> Page CSS
+        </label>
+        {!pageCss && <span className="gpp-tools-note">styles off</span>}
+      </div>
       {legend ? <div className="gpp-ctx sel">{legend}</div> : null}
       {banner ? <div className="gpp-ctx">{banner}</div> : null}
       <div className={`gpp-body${props.pickBlock ? " picking" : ""}`} ref={bodyRef}>
@@ -308,5 +338,15 @@ export function PagePane(props: PagePaneProps): JSX.Element {
         )}
       </div>
     </div>
+  );
+}
+
+function ZoomIcon({ plus }: { plus: boolean }) {
+  return (
+    <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" aria-hidden="true">
+      <circle cx="7" cy="7" r="4.6" />
+      <path d="m10.4 10.4 3.6 3.6M5 7h4" />
+      {plus && <path d="M7 5v4" />}
+    </svg>
   );
 }

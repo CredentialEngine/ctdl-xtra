@@ -101,3 +101,9 @@ Each entry: what the spec says (or doesn't), what was built, and why. Newest las
     spec §12.2 Q2.
 27. **Slow tests build their own AVC v1 root** from the mirror (`tests/conftest.py::avc_v1_root`), so they never
     depend on what has been published into `.data/root` (which now holds M3's v2).
+28. **Page pane view tools** (Eric, after the build): a second row in the pane's browser bar with zoom out /
+    zoom level (click = back to fit) / zoom in, and a "Page CSS" checkbox. Zoom works like browser zoom: the page
+    is laid out narrower (1400 px ÷ zoom) and scaled up, so it reflows instead of scrolling sideways. "Page CSS"
+    off disables the page's stylesheets and `style=""` attributes inside the iframe and adds a small plain-view
+    sheet in `<head>`; the Studio's highlight styles stay. Neither changes the page's DOM structure, so css paths,
+    highlights and selection capture keep working. Both settings are remembered in the browser.

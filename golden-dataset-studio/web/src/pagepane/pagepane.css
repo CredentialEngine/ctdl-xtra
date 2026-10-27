@@ -62,3 +62,14 @@
 .gpp-chip-found { display: inline-block; border: 1.5px solid rgba(47,84,235,.7); border-radius: 3px; padding: 0 5px; color: var(--gpp-accent); font-weight: 600; }
 .gpp-chip-mark { display: inline-block; background: #ffe4ea; color: #9f1239; border: 1.5px solid #e11d48; border-radius: 3px; padding: 0 5px;
   text-decoration: underline wavy #e11d48; text-underline-offset: 3px; font-weight: 600; }
+/* second toolbar row: zoom and page CSS */
+.gpp-tools { display: flex; align-items: center; gap: 4px; padding: 4px 10px; border-bottom: 1px solid var(--gpp-line); background: var(--gpp-surface-2); font-size: 12px; color: var(--gpp-ink-2); }
+.gpp-tool { display: grid; place-items: center; width: 26px; height: 24px; border: 1px solid transparent; border-radius: 6px; background: transparent; color: var(--gpp-ink-2); cursor: pointer; }
+.gpp-tool:hover:not(:disabled) { background: var(--gpp-surface); border-color: var(--gpp-line-2); }
+.gpp-tool:disabled { color: var(--gpp-faint); cursor: default; }
+.gpp-zoom { min-width: 48px; height: 24px; border: 1px solid var(--gpp-line-2); border-radius: 6px; background: var(--gpp-surface); font: 12px var(--gpp-mono); color: var(--gpp-ink-2); cursor: pointer; }
+.gpp-zoom:hover { border-color: var(--gpp-accent); color: var(--gpp-accent); }
+.gpp-tools-sep { width: 1px; height: 16px; background: var(--gpp-line-2); margin: 0 6px; }
+.gpp-check { display: inline-flex; align-items: center; gap: 5px; cursor: pointer; user-select: none; }
+.gpp-check input { margin: 0; accent-color: var(--gpp-accent); }
+.gpp-tools-note { margin-left: 4px; color: #b54708; font-size: 11px; }
