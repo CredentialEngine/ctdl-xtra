@@ -13,7 +13,7 @@ const STEPS = [
   { n: 2, t: "Generate better rules", where: "Claude Code" },
   { n: 3, t: "Apply new rules", where: "Compare tab" },
 ];
-const HOLD = 900, TRAVEL = 1300;                                  // ms: pause on a box, then the dot's run
+const HOLD = 1500, TRAVEL = 1100;                                 // ms: a box holds the dot, then the dot's run
 const SQUEEZE = 220;                                              // ms: the box squeezes before it fires the dot
 
 const pt = (deg: number) => [CX + R * Math.cos((deg * Math.PI) / 180), CY + R * Math.sin((deg * Math.PI) / 180)];
@@ -21,8 +21,9 @@ function arc(a: number, b: number): string {
   const [x1, y1] = pt(a), [x2, y2] = pt(b);
   return `M ${x1.toFixed(1)} ${y1.toFixed(1)} A ${R} ${R} 0 0 1 ${x2.toFixed(1)} ${y2.toFixed(1)}`;
 }
-/** Fired: fast off the box, then a long glide into the next one. */
-const fired = (p: number) => 1 - (1 - p) ** 3.4;
+/** Fired: fast off the box, then still moving when it reaches the next one (no stall at the end of the arrow):
+ *  speed 1.8× the average at launch, 0.35× on arrival. */
+export const fired = (p: number) => 0.65 * (1 - (1 - p) ** 2.2) + 0.35 * p;
 
 /** How far (degrees) the ring runs from a box's center to its edge, each way: the arrows start and end on the box. */
 export function edgeGap(a: number, hw: number, hh: number, dir: 1 | -1, margin = 1): number {
@@ -38,12 +39,14 @@ export function shouldShowLoop(): boolean {
   try { return localStorage.getItem(KEY) !== "1"; } catch { return true; }
 }
 
-/** Pulse a box: `send` (a quick press as the dot leaves) or `land` (a swell and a glow as it arrives). */
+/** Pulse a box: `land` (a swell as the dot arrives; the box then glows while it holds the dot) or `send` (it
+ *  squeezes and fires the dot, and stops glowing). */
 function pulse(el: HTMLElement | null, kind: "send" | "land") {
   if (!el) return;
   el.classList.remove("send", "land");
   void el.offsetWidth;  // restart the animation
   el.classList.add(kind);
+  el.classList.toggle("holding", kind === "land");
 }
 
 export function LoopModal({ onClose }: { onClose: () => void }) {

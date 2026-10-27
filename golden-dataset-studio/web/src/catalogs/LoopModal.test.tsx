@@ -37,3 +37,14 @@ describe("edgeGap", () => {
     expect(edgeGap(-90, 80, 30, -1)).toBe(wide); // the top box is symmetric
   });
 });
+
+import { fired } from "./LoopModal";
+
+describe("fired", () => {
+  it("launches fast and is still moving when it arrives (no stall at the end of the arrow)", () => {
+    expect(fired(0)).toBe(0);
+    expect(fired(1)).toBeCloseTo(1, 10);
+    expect(fired(0.1)).toBeGreaterThan(0.15);            // fast off the box
+    expect(1 - fired(0.9)).toBeGreaterThan(0.03);         // the last tenth still covers ground
+  });
+});

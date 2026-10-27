@@ -18,12 +18,16 @@
   58% { transform: translate(-50%, -50%) scale(1.04); }
   100% { transform: translate(-50%, -50%) scale(1); box-shadow: 0 0 0 9px color-mix(in srgb, var(--accent) 0%, transparent); }
 }
-@keyframes loop-land {
-  0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 40%, transparent); transform: translate(-50%, -50%) scale(1); }
-  30% { background: var(--accent-soft); transform: translate(-50%, -50%) scale(1.08); }
-  100% { box-shadow: 0 0 0 18px color-mix(in srgb, var(--accent) 0%, transparent); background: var(--surface); transform: translate(-50%, -50%) scale(1); }
+@keyframes loop-land {     /* from the first frame: the box takes the dot at once */
+  0% { background: var(--accent-soft); transform: translate(-50%, -50%) scale(1.07);
+       box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 50%, transparent); }
+  100% { transform: translate(-50%, -50%) scale(1); box-shadow: 0 0 0 18px color-mix(in srgb, var(--accent) 0%, transparent); }
 }
-.loop-dot { fill: var(--accent); transition: opacity .15s; }
+.loop-dot { fill: var(--accent); }                /* no fade: it is gone the moment the box takes it */
+/* holding the dot: a soft charged glow until the box fires it */
+.loop-node { transition: background-color .4s, box-shadow .4s; }
+.loop-node.holding { background: color-mix(in srgb, var(--accent) 7%, var(--surface));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent), 0 2px 8px rgba(16, 24, 40, .08); }
 .loop-n { position: absolute; top: -11px; left: 50%; transform: translateX(-50%); width: 22px; height: 22px; border-radius: 50%; background: var(--accent); color: #fff; font-weight: 700; font-size: 12px; display: grid; place-items: center; }
 .loop-w { font-size: 11px; color: var(--accent); font-weight: 600; }
 .loop-center { position: absolute; left: 50%; top: 46%; transform: translate(-50%, -50%); width: 30%; text-align: center; color: var(--ink-2); font-size: 12.5px; line-height: 1.4; }
