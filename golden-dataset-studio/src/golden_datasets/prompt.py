@@ -157,6 +157,7 @@ def _signal_rows(rv: Review, rid: str) -> list[list]:
 
 def _setup(ctx: Ctx, target: str, root_uri: str, first_rule: str) -> list[str]:
     src = cli_source()
+    azure = root_uri.startswith("azure://")  # the root decides: a Studio that serves Azure gives Azure either way
     short_name = info(ctx.catalog)["short"]
     L = ["## Setup", "",
          f"Do this once, in the folder you work in. Your shell commands don't share `export`s, so `golden-datasets` "
@@ -166,7 +167,7 @@ def _setup(ctx: Ctx, target: str, root_uri: str, first_rule: str) -> list[str]:
     L += ["", "   ```sh", f"   uv tool install --reinstall '{src['spec']}'", "   golden-datasets --help", "   ```", "",
           f"   Without installing: `uvx --from '{src['spec']}' golden-datasets …`."]
     n = 2
-    if target == "azure":
+    if azure:
         account = re.sub(r"^azure://https?://([^./]+).*", r"\1", root_uri)
         L.append(f"{n}. Sign in to Azure. `az account show` says whether you are; if not, `az login` (no browser here: "
                  "`az login --use-device-code`, and give the person the code). The CLI reads the storage key through "
@@ -174,10 +175,10 @@ def _setup(ctx: Ctx, target: str, root_uri: str, first_rule: str) -> list[str]:
                  f"can read the keys of the `{account}` storage account. If `az` is missing: "
                  "`brew install azure-cli`, or https://aka.ms/InstallAzureCLI.")
         n += 1
-    L.append(f"{n}. Point the CLI at the {'shared Azure' if target == 'azure' else 'Studio'} root and check it:")
+    L.append(f"{n}. Point the CLI at the {'shared Azure' if azure else 'Studio'} root and check it:")
     L += ["", "   ```sh", f"   cat > {ENV_FILE} <<'EOF'", f"   GOLDEN_DATASETS_ROOT={root_uri}",
           f"   GOLDEN_DATASETS_CATALOG={short_name}", "   EOF", f"   golden-datasets rule show {first_rule}", "   ```", ""]
-    if target == "azure":
+    if azure:
         L.append("   Pages download once into a local cache (`~/.cache/golden-datasets`); `rule publish` uploads the "
                  "new versions, and the Studio shows them when it serves this root.")
     else:

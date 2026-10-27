@@ -58,3 +58,10 @@ describe("markdown", () => {
     expect(container.querySelectorAll("ol > li").length).toBe(2);
   });
 });
+
+describe("numbered lists split by a paragraph", () => {
+  it("keep counting from the number written", () => {
+    const html = renderToStaticMarkup(<Markdown text={"1. one\n\nA paragraph.\n2. two\n3. three\n"} />);
+    expect(html).toContain('<ol start="2">');
+  });
+});

@@ -116,7 +116,7 @@ export default function PromptTab({ catalog, route }: TabProps) {
           <button className={target === "local" ? "on" : ""} onClick={() => pickTarget("local")}>Local</button>
           <button className={target === "azure" ? "on" : ""} onClick={() => pickTarget("azure")}>Azure</button>
         </div>
-        <div className="target-d" data-testid="target-d">{target === "local"
+        <div className="target-d" data-testid="target-d">{target === "local" && !data?.root.startsWith("azure://")
           ? <>On this Studio's root, <span className="mono">{data?.root ?? "…"}</span>: run Claude Code on the machine
             that runs the Studio.</>
           : <>On the shared Azure root, <span className="mono">{data?.root ?? "…"}</span>, after <span className="mono">az

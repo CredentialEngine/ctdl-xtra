@@ -7,7 +7,7 @@ export type Block =
   | { t: "h"; level: number; text: string }
   | { t: "p"; text: string }
   | { t: "code"; text: string; lang: string }
-  | { t: "list"; ordered: boolean; items: { text: string; children: Block[] }[] }
+  | { t: "list"; ordered: boolean; start?: number; items: { text: string; children: Block[] }[] }
   | { t: "table"; head: string[]; rows: string[][] };
 
 const LIST_ITEM = /^(\s*)([-*]|\d+\.)\s+(.*)$/;
@@ -28,6 +28,7 @@ export function parse(md: string): Block[] {
   function parseList(indent: number): Block {
     const first = LIST_ITEM.exec(lines[i])!;
     const ordered = /\d/.test(first[2]);
+    const start = ordered ? parseInt(first[2], 10) : undefined;  // "2." after a paragraph keeps counting
     const items: { text: string; children: Block[] }[] = [];
     while (i < lines.length) {
       const m = LIST_ITEM.exec(lines[i]);
@@ -49,7 +50,7 @@ export function parse(md: string): Block[] {
         if (n && n[1].length === indent) i++;
       }
     }
-    return { t: "list", ordered, items };
+    return { t: "list", ordered, start, items };
   }
 
   const out: Block[] = [];
@@ -124,7 +125,7 @@ function renderBlock(b: Block, key: number): ReactNode {
       return <pre key={key}><code>{b.text}</code></pre>;
     case "list": {
       const L = b.ordered ? "ol" : "ul";
-      return <L key={key}>{b.items.map((it, i) => <li key={i}>{inline(it.text)}{it.children.map(renderBlock)}</li>)}</L>;
+      return <L key={key} start={b.ordered && b.start !== 1 ? b.start : undefined}>{b.items.map((it, i) => <li key={i}>{inline(it.text)}{it.children.map(renderBlock)}</li>)}</L>;
     }
     case "table":
       // a header of empty cells (a two-column "name | value" table) isn't shown
