@@ -1,7 +1,14 @@
 """xtra score extraction match
 
-  xtra score extraction match --exactly --catalog-id ID --run-id TS
-  xtra score extraction match --partially --catalog-id ID --run-id TS
+  xtra score extraction match --exactly --source-uri URI --baseline-uri URI \
+    --source-azure-storage-connection-string CS \
+    --baseline-azure-storage-connection-string CS \
+    --catalog-id ID --run-id TS
+
+  xtra score extraction match --partially --source-uri URI --baseline-uri URI \
+    --source-azure-storage-connection-string CS \
+    --baseline-azure-storage-connection-string CS \
+    --catalog-id ID --run-id TS
 
 Matches the records of one extraction run against a baseline, without
 extracting again. --exactly counts the values identical to the baseline.
@@ -107,7 +114,6 @@ def match_summary(report: dict) -> dict:
 )
 @click.option(
     "--source-azure-storage-connection-string",
-    envvar="AZURE_STORAGE_CONNECTION_STRING",
     required=False,
     help=(
         "Azure Blob Storage connection string for --source-uri. "
@@ -116,7 +122,6 @@ def match_summary(report: dict) -> dict:
 )
 @click.option(
     "--baseline-azure-storage-connection-string",
-    envvar="AZURE_STORAGE_CONNECTION_STRING",
     required=False,
     help=(
         "Azure Blob Storage connection string for --baseline-uri. The "

@@ -1,4 +1,4 @@
-# Score extraction against `expected`, not `ctdl_expected`
+# xtra-cli - Scoring module and cli commands
 
 ## Context
 `xtra score extraction match` read its extracted values from

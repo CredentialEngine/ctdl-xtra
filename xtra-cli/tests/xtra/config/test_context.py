@@ -14,8 +14,9 @@ from xtra.config.context import (
 from xtra.config.environments import AZURITE_CONNECTION_STRING
 from xtra.config.settings import ConfigNotFoundError, StoredConfig, save_config
 
-PROD_URI = "azure://https://ceprod.blob.core.windows.net/xtra"
-PROD_PORTAL_URL = "https://ceprod.blob.core.windows.net/xtra"
+UNIT_TEST_URI = "azure://http://127.0.0.1:10000/devstoreaccount1/xtra"
+PORTAL_URL = "https://unit-test.blob.core.windows.net/xtra"
+PORTAL_AS_AZURE_URI = "azure://https://unit-test.blob.core.windows.net/xtra"
 SANDBOX_URI = "azure://https://cesandbox.blob.core.windows.net/xtra"
 
 
@@ -28,10 +29,10 @@ def test_build_environment_uses_builtin_defaults() -> None:
 
 def test_build_environment_lowercases_and_applies_overrides() -> None:
     prod = build_environment(
-        "PROD", data_uri=PROD_URI, connection_string_env="CE_PROD"
+        "PROD", data_uri=UNIT_TEST_URI, connection_string_env="CE_PROD"
     )
     assert prod.name == "prod"
-    assert prod.data_uri == PROD_URI
+    assert prod.data_uri == UNIT_TEST_URI
     assert prod.connection_string_env == "CE_PROD"
 
 
@@ -45,21 +46,21 @@ def test_local_data_uri_is_not_azure() -> None:
 
 
 def test_portal_container_url_is_azure() -> None:
-    prod = build_environment("prod", data_uri=PROD_PORTAL_URL)
-    assert prod.data_uri == PROD_URI
+    prod = build_environment("prod", data_uri=PORTAL_URL)
+    assert prod.data_uri == PORTAL_AS_AZURE_URI
     assert prod.is_azure is True
 
 
 def test_saved_portal_container_url_resolves_as_azure() -> None:
     """A config.json already holding the bare https:// form still runs."""
-    save_config(StoredConfig(env_name="prod", data_uri=PROD_PORTAL_URL))
-    assert resolve_data_uri(None) == PROD_URI
+    save_config(StoredConfig(env_name="prod", data_uri=PORTAL_URL))
+    assert resolve_data_uri(None) == PORTAL_AS_AZURE_URI
 
 
 def test_connection_string_reads_the_named_variable(monkeypatch) -> None:
     environment = EnvironmentConfig(
         name="prod",
-        data_uri=PROD_URI,
+        data_uri=UNIT_TEST_URI,
         connection_string_env="CE_PROD_STORAGE",
     )
     monkeypatch.setenv("CE_PROD_STORAGE", "  secret  ")
@@ -83,8 +84,8 @@ def test_variable_wins_over_the_azurite_fallback(monkeypatch) -> None:
 
 
 def test_get_current_environment_reads_stored_overrides() -> None:
-    save_config(StoredConfig(env_name="prod", data_uri=PROD_URI))
-    assert get_current_environment().data_uri == PROD_URI
+    save_config(StoredConfig(env_name="prod", data_uri=UNIT_TEST_URI))
+    assert get_current_environment().data_uri == UNIT_TEST_URI
 
 
 def test_get_current_environment_without_config() -> None:
@@ -93,13 +94,13 @@ def test_get_current_environment_without_config() -> None:
 
 
 def test_environment_for_named_env_uses_stored_overrides() -> None:
-    save_config(StoredConfig(env_name="prod", data_uri=PROD_URI))
-    assert environment_for("prod").data_uri == PROD_URI
-    assert environment_for("PROD").data_uri == PROD_URI
+    save_config(StoredConfig(env_name="prod", data_uri=UNIT_TEST_URI))
+    assert environment_for("prod").data_uri == UNIT_TEST_URI
+    assert environment_for("PROD").data_uri == UNIT_TEST_URI
 
 
 def test_environment_for_other_env_ignores_stored_overrides() -> None:
-    save_config(StoredConfig(env_name="prod", data_uri=PROD_URI))
+    save_config(StoredConfig(env_name="prod", data_uri=UNIT_TEST_URI))
     assert environment_for("sandbox").data_uri == ""
     assert environment_for("dev").data_uri.startswith(
         "azure://http://127.0.0.1"
@@ -111,14 +112,14 @@ def test_environment_for_named_env_without_any_config() -> None:
 
 
 def test_resolve_data_uri_prefers_the_explicit_flag() -> None:
-    save_config(StoredConfig(env_name="prod", data_uri=PROD_URI))
+    save_config(StoredConfig(env_name="prod", data_uri=UNIT_TEST_URI))
     assert resolve_data_uri("./cache", env_name="prod") == "./cache"
 
 
 def test_resolve_data_uri_falls_back_to_named_then_active_env() -> None:
-    save_config(StoredConfig(env_name="prod", data_uri=PROD_URI))
-    assert resolve_data_uri(None, env_name="prod") == PROD_URI
-    assert resolve_data_uri(None) == PROD_URI
+    save_config(StoredConfig(env_name="prod", data_uri=UNIT_TEST_URI))
+    assert resolve_data_uri(None, env_name="prod") == UNIT_TEST_URI
+    assert resolve_data_uri(None) == UNIT_TEST_URI
     assert resolve_data_uri(None, env_name="dev").startswith("azure://http://")
 
 
@@ -136,7 +137,7 @@ def test_resolve_connection_string_prefers_the_explicit_flag(
     monkeypatch,
 ) -> None:
     monkeypatch.setenv("AZURE_STORAGE_CONNECTION_STRING", "from-env")
-    save_config(StoredConfig(env_name="prod", data_uri=PROD_URI))
+    save_config(StoredConfig(env_name="prod", data_uri=UNIT_TEST_URI))
     assert resolve_connection_string("from-flag") == "from-flag"
 
 
@@ -163,14 +164,12 @@ def test_resolve_connection_string_is_none_without_config(monkeypatch) -> None:
 
 
 def test_resolve_connection_string_is_none_when_unset(monkeypatch) -> None:
-    save_config(StoredConfig(env_name="prod", data_uri=PROD_URI))
+    save_config(StoredConfig(env_name="prod", data_uri=UNIT_TEST_URI))
     monkeypatch.delenv("AZURE_STORAGE_CONNECTION_STRING", raising=False)
     assert resolve_connection_string(None) is None
 
 
-BASELINE_URI = (
-    "azure://https://ceprod.blob.core.windows.net/xtra-baseline-sets-verified"
-)
+BASELINE_URI = "azure://http://127.0.0.1:10000/devstoreaccount1/xtra-baseline"
 
 
 def test_resolve_baseline_uri_prefers_the_flag() -> None:
@@ -182,7 +181,7 @@ def test_resolve_baseline_uri_reads_the_saved_environment(
 ) -> None:
     save_config(
         StoredConfig(
-            env_name="prod", data_uri=PROD_URI, baseline_uri=BASELINE_URI
+            env_name="prod", data_uri=UNIT_TEST_URI, baseline_uri=BASELINE_URI
         )
     )
 
