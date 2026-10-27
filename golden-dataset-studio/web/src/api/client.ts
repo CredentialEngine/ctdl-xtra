@@ -2,7 +2,7 @@
 import type {
   CatalogCard, CatalogDetail, CompareRecords, CompareResponse, Discussion, CourseDetail, CourseHit, GoldenFileText, GoldenLineage, GoldenResponse,
   NewEvent, Overlay,
-  PromptResponse, PromptTarget, RuleDetail, RuleSummary, RulesResponse, RowsResponse, UnclassifiedPage,
+  PromptResponse, RuleDetail, RuleSummary, RulesResponse, RowsResponse, UnclassifiedPage,
 } from "./types";
 
 export class ApiError extends Error {
@@ -58,7 +58,7 @@ export const api = {
     }
     return call<CompareRecords>(`${c(catalog)}/compare/records?${s}`);
   },
-  prompt: (catalog: string, opts: { rule?: string; needs_work?: boolean; target?: PromptTarget } = {}) =>
+  prompt: (catalog: string, opts: { rule?: string; needs_work?: boolean } = {}) =>
     call<PromptResponse>(`${c(catalog)}/prompt${q(opts)}`),
   // `properties`: the properties a publication would publish (comma-separated in the query)
   golden: (catalog: string, properties?: string[]) =>

@@ -54,8 +54,9 @@ def _catalog_args(p: argparse.ArgumentParser, required: bool = True) -> None:
 
 def _target_args(p: argparse.ArgumentParser, prompt: bool = True) -> None:
     if prompt:
-        p.add_argument("--target", choices=["local", "azure"], default="local",
-                       help="local: Claude works on --root itself; azure: on the Azure root, after a minimal setup")
+        p.add_argument("--target", choices=["local", "azure"], default="azure",
+                       help="azure (default, what the Studio shows): Claude works on the Azure root after a minimal "
+                            "setup; local: on --root itself")
     p.add_argument("--azure-root", default=os.environ.get("GOLDEN_DATASETS_AZURE_ROOT") or DEFAULT_AZURE_ROOT,
                    help="the Azure root the prompt's Azure version points Claude at (default: "
                         "$GOLDEN_DATASETS_AZURE_ROOT, else the team's shared prefix)")

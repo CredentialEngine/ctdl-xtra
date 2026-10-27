@@ -109,8 +109,7 @@ def test_cli_and_api_give_the_same_text(ctx, capsys):
     api = c.get("/api/catalogs/avc/prompt", params={"rule": "course-description"}).json()
     assert api["text"] == cli_text and api["scope"] == {"rule": "course-description", "needs_work": False}
     assert api["studio_root"] == ctx.root.uri
-    azure = c.get("/api/catalogs/avc/prompt", params={"rule": "course-description", "target": "azure"}).json()
-    assert azure["target"] == "azure" and azure["root"].startswith("azure://")
+    assert api["target"] == "azure" and api["root"].startswith("azure://")  # the only version the Studio gives
     assert c.get("/api/catalogs/avc/prompt", params={"needs_work": "true"}).json()["rules"] == \
         ["program-page-with-courses", "course-description"]
     assert c.get("/api/catalogs/avc/prompt", params={"rule": "nope"}).status_code == 404

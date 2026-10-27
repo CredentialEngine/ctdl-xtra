@@ -1,11 +1,11 @@
 // Prompt tab (spec §7.5, screen 09): turn annotations into a prompt for Claude Code.
 // Scope: one rule (picker; "Improve this rule" on the Rules tab opens #/c/<catalog>/prompt?rule=<id>&from=rules)
-// or all rules needing work (no ?rule); for Claude working on this Studio's root (Local) or the shared Azure root
-// (Azure, after a minimal `az login` setup). The text comes from the server (prompt.py), the same as
+// or all rules needing work (no ?rule); Claude always works on the shared Azure root (after a minimal `az login`
+// setup). The text comes from the server (prompt.py), the same as
 // `golden-datasets prompt`, so it is deterministic: the same annotations always give the same text.
 import { Fragment, useEffect, useMemo, useState } from "react";
 import { api } from "../api/client";
-import type { PromptResponse, PromptTarget, RuleGroup } from "../api/types";
+import type { PromptResponse, RuleGroup } from "../api/types";
 import { go, href } from "../shell/router";
 import type { TabProps } from "../shell/tabProps";
 import { fmt, Ico, toast, useKeyHints } from "../shell/ui";
@@ -54,10 +54,6 @@ export default function PromptTab({ catalog, route }: TabProps) {
     try { return localStorage.getItem("studio.prompt.view") === "rendered" ? "rendered" : "raw"; } catch { return "raw"; }
   });
   const pickView = (v: "raw" | "rendered") => { setView(v); try { localStorage.setItem("studio.prompt.view", v); } catch { /* private */ } };
-  const [target, setTarget] = useState<PromptTarget>(() => {
-    try { return localStorage.getItem("studio.prompt.target") === "azure" ? "azure" : "local"; } catch { return "local"; }
-  });
-  const pickTarget = (t: PromptTarget) => { setTarget(t); try { localStorage.setItem("studio.prompt.target", t); } catch { /* private */ } };
   const [data, setData] = useState<PromptResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -72,10 +68,10 @@ export default function PromptTab({ catalog, route }: TabProps) {
     let live = true;
     setData(null);
     setError(null);
-    api.prompt(catalog.catalog, { ...(needsWork ? { needs_work: true } : { rule: ruleParam ?? undefined }), target })
+    api.prompt(catalog.catalog, needsWork ? { needs_work: true } : { rule: ruleParam ?? undefined })
       .then((d) => { if (live) setData(d); }, (e) => { if (live) setError(String(e)); });
     return () => { live = false; };
-  }, [catalog.catalog, catalog.extraction, ruleParam, needsWork, target]);
+  }, [catalog.catalog, catalog.extraction, ruleParam, needsWork]);
 
   const needing = useMemo(() => (rules ?? []).filter((r) => r.status === "needs work"), [rules]);
   // The rule the "One rule" picker shows: the one in the route, else the first needing work, else the first.
@@ -111,20 +107,9 @@ export default function PromptTab({ catalog, route }: TabProps) {
         <div className="lead">Deterministic: the same annotations always give the same text. Paste it into Claude Code:
           it installs the <span className="mono">golden-datasets</span> CLI from this branch and points it at the root.</div>
 
-        <div className="prompt-k">Where Claude works</div>
-        <div className="seg target-seg" role="group" aria-label="Where Claude works">
-          <button className={target === "local" ? "on" : ""} onClick={() => pickTarget("local")}>Local</button>
-          <button className={target === "azure" ? "on" : ""} onClick={() => pickTarget("azure")}>Azure</button>
-        </div>
-        <div className="target-d" data-testid="target-d">{target === "local" && !data?.root.startsWith("azure://")
-          ? <>On this Studio's root, <span className="mono">{data?.root ?? "…"}</span>: run Claude Code on the machine
-            that runs the Studio.</>
-          : <>On the shared Azure root, <span className="mono">{data?.root ?? "…"}</span>, after <span className="mono">az
-            login</span>: works from any machine.{data?.studio_root && data.studio_root !== data.root &&
-            <div className="prompt-warn">This Studio serves another root: the rules and annotations in the prompt are this
-              root's, and what Claude publishes to Azure shows here only after a <span className="mono">golden-datasets
-              sync</span>. Serve the Studio from the Azure root to keep them the same.</div>}</>}
-        </div>
+        {data?.studio_root && data.studio_root !== data.root &&
+          <div className="prompt-warn" data-testid="root-warn">This Studio serves another root than the Azure one Claude works
+            on: what Claude publishes shows here only after a <span className="mono">golden-datasets sync</span>.</div>}
         {data?.warning && <div className="prompt-warn" data-testid="prompt-warn">{data.warning}</div>}
 
         <div className="prompt-k">Scope</div>
@@ -173,12 +158,12 @@ export default function PromptTab({ catalog, route }: TabProps) {
 
       <section className="prompt-main">
         <div className="prompt-bar">
-          <span className="grow">Preview · <span className="mono">{scopeName}</span> · {target === "azure" ? "Azure" : "Local"} · ruleset v{catalog.ruleset_version}</span>
+          <span className="grow">Preview · <span className="mono">{scopeName}</span> · ruleset v{catalog.ruleset_version}</span>
           <div className="seg md-seg" role="group" aria-label="Preview">
             <button className={view === "raw" ? "on" : ""} onClick={() => pickView("raw")}>Raw</button>
             <button className={view === "rendered" ? "on" : ""} onClick={() => pickView("rendered")}>Rendered</button>
           </div>
-          <button className="btn" disabled={!data} onClick={() => data && download(data.text, downloadName(catalog.short, scopeName + (target === "azure" ? "-azure" : "")))}>
+          <button className="btn" disabled={!data} onClick={() => data && download(data.text, downloadName(catalog.short, scopeName))}>
             <Ico name="download" />Download .md</button>
           <button className="btn primary" disabled={!data} onClick={onCopy}><Ico name="copy" />Copy prompt</button>
         </div>

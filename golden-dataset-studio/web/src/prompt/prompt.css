@@ -6,10 +6,6 @@
 .prompt-side .opt input[type="radio"] { position: absolute; left: 12px; top: 12px; margin: 0; width: 15px; height: 15px; accent-color: var(--accent); cursor: pointer; }
 .prompt-side .opt-pick { font-size: 11px; font-weight: 500; color: var(--accent); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
 .prompt-k { font-size: 10.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--faint); font-weight: 600; margin: 18px 0 6px; }
-.target-seg { display: flex; }
-.target-seg button { flex: 1; padding: 5px 10px; }
-.target-d { color: var(--muted); font-size: 12px; line-height: 1.45; margin-top: 6px; overflow-wrap: anywhere; }
-.target-d .mono { font-size: 11px; color: var(--ink); }
 .prompt-warn { margin-top: 8px; font-size: 12px; line-height: 1.4; color: var(--red); background: var(--red-soft); border-radius: 7px; padding: 6px 9px; }
 .prompt-side .opt:focus-within { border-color: var(--accent); }
 .prompt-side .needs-pill { display: inline-flex; align-items: center; gap: 3px; font-size: 11.5px; font-weight: 600;
