@@ -35,10 +35,14 @@ whole list.
 
 from __future__ import annotations
 
+import logging
 import re
+from collections.abc import Callable
 from dataclasses import dataclass
 from html.parser import HTMLParser
 from urllib.parse import urlsplit, urlunsplit
+
+logger = logging.getLogger(__name__)
 
 PAGE_PARAMETER = "page"
 
@@ -273,3 +277,69 @@ def read_list_pages(html: str, url: str) -> ListPages | None:
         urls=tuple(page_url(url, number) for number in numbers),
         problem=PROBLEM_CAPPED if capped else None,
     )
+
+
+def queue_list_pages(
+    html: str, url: str, *, enqueue: Callable[[str], bool]
+) -> int:
+    """Queue the rest of a Coursedog list, and say why when it cannot.
+
+    `enqueue` is the crawler's own: it applies the scope, robots.txt and
+    regex rules, and answers whether the URL was new. The crawler calls this
+    for every saved page, so a resume re-reads a list it already queued; the
+    pages are duplicates by then and nothing is logged. Returns how many
+    pages were new.
+    """
+    pages = read_list_pages(html, url)
+    if pages is None:
+        return 0
+    queued = sum(enqueue(url) for url in pages.urls)
+    if pages.problem == PROBLEM_LOADING:
+        logger.warning(
+            "LIST %s was saved before its list loaded (Loading "
+            "results...), so the pages after it are not known",
+            url,
+        )
+    elif pages.problem == PROBLEM_NO_CURRENT_PAGE:
+        logger.warning(
+            "LIST %s has page buttons up to %s but none marks the page "
+            "on screen, so the rest of the list is not queued",
+            url,
+            pages.last,
+        )
+    elif pages.problem == PROBLEM_PAGE_IGNORED:
+        logger.warning(
+            "LIST %s asked for page %s and the site showed page %s, so "
+            "this list does not open by page number and the rest of it "
+            "is not queued",
+            url,
+            pages.asked,
+            pages.current,
+        )
+    elif pages.problem == PROBLEM_CAPPED:
+        logger.warning(
+            "LIST %s says the list has %s pages; only pages up to %s are "
+            "queued",
+            url,
+            pages.last,
+            MAX_LIST_PAGES,
+        )
+    if not queued:
+        return 0
+    if pages.asked == 1:
+        logger.info(
+            "LIST %s is page 1 of %s; queued page 2 to check the list "
+            "opens by page number",
+            url,
+            pages.last,
+        )
+    else:
+        logger.info(
+            "LIST %s opened as page %s of %s; queued %s more page(s) of "
+            "the list",
+            url,
+            pages.current,
+            pages.last,
+            queued,
+        )
+    return queued

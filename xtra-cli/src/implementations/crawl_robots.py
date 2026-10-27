@@ -24,6 +24,9 @@ logger = logging.getLogger(__name__)
 
 ROBOTS_TIMEOUT_SECONDS = 30
 MAX_SITEMAP_DOCUMENTS = 50
+# The two bytes every gzip file starts with (its "magic number", RFC 1952).
+# _decompress checks for them because a site can serve a gzipped sitemap
+# under a name that does not end in .gz.
 _GZIP_MAGIC = b"\x1f\x8b"
 
 

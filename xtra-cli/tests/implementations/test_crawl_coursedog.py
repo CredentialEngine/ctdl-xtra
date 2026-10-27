@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import logging
+
 import pytest
 from crawl_doubles import (
     COURSEDOG_LOADING,
@@ -15,6 +17,7 @@ from implementations.crawl_coursedog import (
     PROBLEM_PAGE_IGNORED,
     asked_page,
     page_url,
+    queue_list_pages,
     read_bar,
     read_list_pages,
 )
@@ -243,3 +246,79 @@ def test_asked_page(url: str, asked: int | None) -> None:
 )
 def test_page_url(url: str, number: int, expected: str) -> None:
     assert page_url(url, number) == expected
+
+
+# --- queueing through the crawler's enqueue ---------------------------------
+
+
+class FakeQueue:
+    """Stands in for Crawler.enqueue: records each URL, says if it was new."""
+
+    def __init__(self, seen: tuple[str, ...] = ()) -> None:
+        self.seen = set(seen)
+        self.asked: list[str] = []
+
+    def __call__(self, url: str) -> bool:
+        self.asked.append(url)
+        if url in self.seen:
+            return False
+        self.seen.add(url)
+        return True
+
+
+def list_messages(caplog) -> list[str]:
+    return [
+        record.getMessage()
+        for record in caplog.records
+        if record.getMessage().startswith("LIST ")
+    ]
+
+
+def test_the_pages_go_to_enqueue_and_only_the_new_ones_are_counted(
+    caplog,
+) -> None:
+    queue = FakeQueue(seen=(f"{COURSES}?page=4",))
+    with caplog.at_level(logging.INFO):
+        queued = queue_list_pages(
+            coursedog_page(coursedog_row(2, 5)),
+            f"{COURSES}?page=2",
+            enqueue=queue,
+        )
+    assert queue.asked == [f"{COURSES}?page={n}" for n in (3, 4, 5)]
+    assert queued == 2
+    assert list_messages(caplog) == [
+        f"LIST {COURSES}?page=2 opened as page 2 of 5; queued 2 more "
+        "page(s) of the list"
+    ]
+
+
+def test_a_list_already_queued_is_read_again_without_a_word(caplog) -> None:
+    """What a resume does with every list page it reads back."""
+    queue = FakeQueue(seen=(f"{COURSES}?page=2",))
+    with caplog.at_level(logging.INFO):
+        queued = queue_list_pages(
+            coursedog_page(coursedog_row(1, 9)), COURSES, enqueue=queue
+        )
+    assert queued == 0
+    assert list_messages(caplog) == []
+
+
+def test_a_page_that_is_not_a_list_never_reaches_enqueue() -> None:
+    queue = FakeQueue()
+    page = "<html><body>no list</body></html>"
+    assert queue_list_pages(page, COURSES, enqueue=queue) == 0
+    assert queue.asked == []
+
+
+def test_a_list_that_cannot_be_paged_is_warned_about(caplog) -> None:
+    queue = FakeQueue()
+    with caplog.at_level(logging.WARNING):
+        queued = queue_list_pages(
+            coursedog_page(COURSEDOG_LOADING), COURSES, enqueue=queue
+        )
+    assert queued == 0
+    assert queue.asked == []
+    assert list_messages(caplog) == [
+        f"LIST {COURSES} was saved before its list loaded (Loading "
+        "results...), so the pages after it are not known"
+    ]
