@@ -11,7 +11,8 @@ Paths are POSIX strings relative to the root, without a leading slash. The rules
 - the annotation log is append-only and is read incrementally from a byte offset (`append`, `read_from`);
 - small mutable files (the manifest) are written with optimistic concurrency (`write_bytes(if_match=etag)`).
 
-Azure credentials come from `AZURE_STORAGE_CONNECTION_STRING` (or `UseDevelopmentStorage=true` for Azurite).
+Azure credentials come from `AZURE_STORAGE_CONNECTION_STRING` (or `UseDevelopmentStorage=true` for Azurite); when it
+isn't set, from the signed-in Azure CLI (`az login`): `az storage account show-connection-string -n <account>`.
 """
 
 from __future__ import annotations
@@ -22,6 +23,7 @@ import hashlib
 import json
 import os
 import shutil
+import subprocess
 import tempfile
 import threading
 from dataclasses import dataclass
@@ -245,6 +247,27 @@ class LocalRoot(Root):
 # =====================================================================================================
 # Azure Blob prefix
 # =====================================================================================================
+_AZ_CONN: dict[str, str] = {}
+
+
+def _az_connection_string(account: str) -> str:
+    """The account's connection string from the signed-in Azure CLI, once per process (never printed or saved)."""
+    if account not in _AZ_CONN:
+        cmd = ["az", "storage", "account", "show-connection-string", "-n", account,
+               "--query", "connectionString", "-o", "tsv"]
+        try:
+            r = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
+        except FileNotFoundError:
+            raise UserError("AZURE_STORAGE_CONNECTION_STRING is not set and the Azure CLI (`az`) is not installed: "
+                            "install it (https://aka.ms/InstallAzureCLI) and run `az login`") from None
+        if r.returncode != 0 or not r.stdout.strip():
+            why = (r.stderr.strip().splitlines() or ["no output"])[-1]
+            raise UserError(f"AZURE_STORAGE_CONNECTION_STRING is not set and `az` couldn't read the key of storage "
+                            f"account {account!r} ({why}). Run `az login` with an account that can read it.")
+        _AZ_CONN[account] = r.stdout.strip()
+    return _AZ_CONN[account]
+
+
 class AzureRoot(Root):
     def __init__(self, uri: str):
         from azure.storage.blob import BlobServiceClient
@@ -259,9 +282,7 @@ class AzureRoot(Root):
                 conn = AZURITE_CONNECTION
         else:
             account = url.hostname.split(".")[0]
-            conn = os.environ.get("AZURE_STORAGE_CONNECTION_STRING")
-            if not conn:
-                raise UserError("AZURE_STORAGE_CONNECTION_STRING is not set (see the README)")
+            conn = os.environ.get("AZURE_STORAGE_CONNECTION_STRING") or _az_connection_string(account)
         if not parts:
             raise UserError(f"{uri}: no container in the URI")
         self.account = account

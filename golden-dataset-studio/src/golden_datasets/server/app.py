@@ -25,9 +25,9 @@ ROUTERS = [
 ]
 
 
-def create_app(root: str) -> FastAPI:
+def create_app(root: str, azure_root: str | None = None) -> FastAPI:
     app = FastAPI(title="CTDL Golden Rules Studio")
-    app.state.studio = Studio(root)
+    app.state.studio = Studio(root, azure_root)
     app.add_middleware(GZipMiddleware, minimum_size=2048)  # rows, compare and rendered pages compress ~5-20x
 
     @app.get("/api/health")
@@ -57,5 +57,5 @@ def create_app(root: str) -> FastAPI:
 def cmd_serve(args) -> int:
     import uvicorn
 
-    uvicorn.run(create_app(args.root), host=args.host, port=args.port, log_level="info")
+    uvicorn.run(create_app(args.root, args.azure_root), host=args.host, port=args.port, log_level="info")
     return 0

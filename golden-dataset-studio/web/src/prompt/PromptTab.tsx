@@ -1,14 +1,15 @@
 // Prompt tab (spec §7.5, screen 09): turn annotations into a prompt for Claude Code.
 // Scope: one rule (picker; "Improve this rule" on the Rules tab opens #/c/<catalog>/prompt?rule=<id>&from=rules)
-// or all rules needing work (no ?rule). The text comes from the server (prompt.py), the same as
+// or all rules needing work (no ?rule); for Claude working on this Studio's root (Local) or the shared Azure root
+// (Azure, after a minimal `az login` setup). The text comes from the server (prompt.py), the same as
 // `golden-datasets prompt`, so it is deterministic: the same annotations always give the same text.
 import { Fragment, useEffect, useMemo, useState } from "react";
 import { api } from "../api/client";
-import type { PromptResponse, RuleGroup } from "../api/types";
+import type { PromptResponse, PromptTarget, RuleGroup } from "../api/types";
 import { go, href } from "../shell/router";
 import type { TabProps } from "../shell/tabProps";
 import { fmt, Ico, toast, useKeyHints } from "../shell/ui";
-import { downloadName, highlight } from "./highlight";
+import { downloadName, highlight, lineKinds, runs } from "./highlight";
 import { Markdown } from "./markdown";
 import "./prompt.css";
 
@@ -53,6 +54,10 @@ export default function PromptTab({ catalog, route }: TabProps) {
     try { return localStorage.getItem("studio.prompt.view") === "rendered" ? "rendered" : "raw"; } catch { return "raw"; }
   });
   const pickView = (v: "raw" | "rendered") => { setView(v); try { localStorage.setItem("studio.prompt.view", v); } catch { /* private */ } };
+  const [target, setTarget] = useState<PromptTarget>(() => {
+    try { return localStorage.getItem("studio.prompt.target") === "azure" ? "azure" : "local"; } catch { return "local"; }
+  });
+  const pickTarget = (t: PromptTarget) => { setTarget(t); try { localStorage.setItem("studio.prompt.target", t); } catch { /* private */ } };
   const [data, setData] = useState<PromptResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -67,21 +72,23 @@ export default function PromptTab({ catalog, route }: TabProps) {
     let live = true;
     setData(null);
     setError(null);
-    api.prompt(catalog.catalog, needsWork ? { needs_work: true } : { rule: ruleParam ?? undefined })
+    api.prompt(catalog.catalog, { ...(needsWork ? { needs_work: true } : { rule: ruleParam ?? undefined }), target })
       .then((d) => { if (live) setData(d); }, (e) => { if (live) setError(String(e)); });
     return () => { live = false; };
-  }, [catalog.catalog, catalog.extraction, ruleParam, needsWork]);
+  }, [catalog.catalog, catalog.extraction, ruleParam, needsWork, target]);
 
   const needing = useMemo(() => (rules ?? []).filter((r) => r.status === "needs work"), [rules]);
   // The rule the "One rule" picker shows: the one in the route, else the first needing work, else the first.
   const oneRule = ruleParam ?? needing[0]?.rule_id ?? rules?.[0]?.rule_id ?? "";
   const lines = useMemo(() => (data ? highlight(data.text) : []), [data]);
+  const kinds = useMemo(() => (data ? lineKinds(data.text) : []), [data]);
+  const bands = useMemo(() => (data ? runs(data.text) : []), [data]);
   // keep the selected rule visible in the list (e.g. after "Improve this rule")
   useEffect(() => {
     const el = document.querySelector<HTMLElement>(".rule-pick .rp-item.on");
     const box = el?.closest<HTMLElement>(".rule-pick");
     if (el && box) box.scrollTop = Math.max(0, el.offsetTop - box.offsetTop - box.clientHeight / 2 + el.clientHeight / 2);
-  }, [groups, oneRule]);
+  }, [groups, oneRule, needsWork]);
   const scopeName = needsWork ? "needs-work" : ruleParam ?? "";
 
   useKeyHints(<span>Commands Claude uses: <span className="mono">golden-datasets rule show · rule annotations ·
@@ -101,30 +108,49 @@ export default function PromptTab({ catalog, route }: TabProps) {
         {fromRules && ruleParam && (
           <div className="prompt-from">Opened from the Rules tab with <b>{ruleParam}</b> selected.</div>
         )}
-        <div className="lead">Deterministic: the same annotations always give the same text. Paste it into Claude Code
-          on the laptop that has the <span className="mono">golden-datasets</span> CLI.</div>
+        <div className="lead">Deterministic: the same annotations always give the same text. Paste it into Claude Code:
+          it installs the <span className="mono">golden-datasets</span> CLI from this branch and points it at the root.</div>
 
+        <div className="prompt-k">Where Claude works</div>
+        <div className="seg target-seg" role="group" aria-label="Where Claude works">
+          <button className={target === "local" ? "on" : ""} onClick={() => pickTarget("local")}>Local</button>
+          <button className={target === "azure" ? "on" : ""} onClick={() => pickTarget("azure")}>Azure</button>
+        </div>
+        <div className="target-d" data-testid="target-d">{target === "local"
+          ? <>On this Studio's root, <span className="mono">{data?.root ?? "…"}</span>: run Claude Code on the machine
+            that runs the Studio.</>
+          : <>On the shared Azure root, <span className="mono">{data?.root ?? "…"}</span>, after <span className="mono">az
+            login</span>: works from any machine.{data?.studio_root && data.studio_root !== data.root &&
+            <div className="prompt-warn">This Studio serves another root: the rules and annotations in the prompt are this
+              root's, and what Claude publishes to Azure shows here only after a <span className="mono">golden-datasets
+              sync</span>. Serve the Studio from the Azure root to keep them the same.</div>}</>}
+        </div>
+        {data?.warning && <div className="prompt-warn" data-testid="prompt-warn">{data.warning}</div>}
+
+        <div className="prompt-k">Scope</div>
         <label className={"opt" + (!needsWork ? " on" : "")} data-testid="scope-one">
           <input type="radio" name="scope" checked={!needsWork} onChange={() => oneRule && pickRule(oneRule)} />
-          <div className="t">One rule</div>
+          <div className="t">One rule{!needsWork && <span className="opt-pick mono">{oneRule}</span>}</div>
           <div className="d">Everything about one rule: definition, what/how/why, every annotation, signals.</div>
         </label>
-        <div className={"rule-pick" + (needsWork ? " dim" : "")} role="listbox" aria-label="Rule">
-          {(groups ?? []).map((g) => (
-            <div key={g.kind} className="rp-group">
-              <div className="rp-h">{g.label}</div>
-              {g.rules.map((r) => (
-                <button key={r.rule_id} role="option" aria-selected={!needsWork && r.rule_id === oneRule}
-                  className={"rp-item" + (!needsWork && r.rule_id === oneRule ? " on" : "")}
-                  onClick={() => pickRule(r.rule_id)} title={`${r.rule_id} · v${r.version} · ${r.status}`}>
-                  <Ico name={r.status} />
-                  <span className="rp-t">{r.title}<span className="rp-sub">{r.kind === "field" ? (r.ctdl_property ?? "no CTDL term") : r.rule_id}</span></span>
-                  {r.open_wrong + r.open_missing > 0 && <span className="rp-n" title="open wrong / missing verdicts">{r.open_wrong + r.open_missing}</span>}
-                </button>
-              ))}
-            </div>
-          ))}
-        </div>
+        {!needsWork && (
+          <div className="rule-pick" role="listbox" aria-label="Rule">
+            {(groups ?? []).map((g) => (
+              <div key={g.kind} className="rp-group">
+                <div className="rp-h">{g.label}</div>
+                {g.rules.map((r) => (
+                  <button key={r.rule_id} role="option" aria-selected={r.rule_id === oneRule}
+                    className={"rp-item" + (r.rule_id === oneRule ? " on" : "")}
+                    onClick={() => pickRule(r.rule_id)} title={`${r.rule_id} · v${r.version} · ${r.status}`}>
+                    <Ico name={r.status} />
+                    <span className="rp-t">{r.title}<span className="rp-sub">{r.kind === "field" ? (r.ctdl_property ?? "no CTDL term") : r.rule_id}</span></span>
+                    {r.open_wrong + r.open_missing > 0 && <span className="rp-n" title="open wrong / missing verdicts">{r.open_wrong + r.open_missing}</span>}
+                  </button>
+                ))}
+              </div>
+            ))}
+          </div>
+        )}
 
         <label className={"opt" + (needsWork ? " on" : "")} data-testid="scope-needs-work">
           <input type="radio" name="scope" checked={needsWork} onChange={pickNeedsWork} />
@@ -147,23 +173,24 @@ export default function PromptTab({ catalog, route }: TabProps) {
 
       <section className="prompt-main">
         <div className="prompt-bar">
-          <span className="grow">Preview · <span className="mono">{scopeName}</span> · ruleset v{catalog.ruleset_version}</span>
+          <span className="grow">Preview · <span className="mono">{scopeName}</span> · {target === "azure" ? "Azure" : "Local"} · ruleset v{catalog.ruleset_version}</span>
           <div className="seg md-seg" role="group" aria-label="Preview">
             <button className={view === "raw" ? "on" : ""} onClick={() => pickView("raw")}>Raw</button>
             <button className={view === "rendered" ? "on" : ""} onClick={() => pickView("rendered")}>Rendered</button>
           </div>
-          <button className="btn" disabled={!data} onClick={() => data && download(data.text, downloadName(catalog.short, scopeName))}>
+          <button className="btn" disabled={!data} onClick={() => data && download(data.text, downloadName(catalog.short, scopeName + (target === "azure" ? "-azure" : "")))}>
             <Ico name="download" />Download .md</button>
           <button className="btn primary" disabled={!data} onClick={onCopy}><Ico name="copy" />Copy prompt</button>
         </div>
         {error && <div className="prompt-error">{error}</div>}
-        {view === "rendered" && data ? <div className="prompt-pre prompt-md" data-testid="prompt-rendered"><Markdown text={data.text} /></div> :
+        {view === "rendered" && data ? <div className="prompt-pre prompt-md" data-testid="prompt-rendered">
+          {bands.map((b, i) => <div key={i} className={"band " + b.kind}><Markdown text={b.text} /></div>)}</div> :
         <pre className={"prompt-pre" + (data ? "" : " loading")} data-testid="prompt-text">
           {data ? lines.map((segs, i) => (
-            <Fragment key={i}>
+            <span key={i} className={"ln " + kinds[i]}>
               {segs.map((s, j) => (s.cls ? <span key={j} className={s.cls}>{s.text}</span> : <Fragment key={j}>{s.text}</Fragment>))}
               {"\n"}
-            </Fragment>
+            </span>
           )) : error ? "" : "Building the prompt…"}
         </pre>}
       </section>

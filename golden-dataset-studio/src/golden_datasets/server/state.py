@@ -15,8 +15,12 @@ from ..storage import Root, open_root
 
 
 class Studio:
-    def __init__(self, root: Root | str):
+    def __init__(self, root: Root | str, azure_root: str | None = None):
+        from ..cli import DEFAULT_AZURE_ROOT
+
         self.root = open_root(root)
+        # where the Azure version of the prompt points Claude (the root itself when the Studio serves Azure)
+        self.azure_root = self.root.uri if self.root.uri.startswith("azure://") else (azure_root or DEFAULT_AZURE_ROOT)
         self._ctx: dict[str, Ctx] = {}
         self._lock = threading.Lock()
         self.cache: dict = {}  # route modules may memoize derived data here, keyed by tuples

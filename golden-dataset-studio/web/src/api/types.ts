@@ -135,9 +135,14 @@ export interface CompareResponse {
 }
 
 // --- Prompt (routes_prompt.py; W6) -------------------------------------------------------------------
+export type PromptTarget = "local" | "azure";
 export interface PromptResponse {
   scope: { rule: string | null; needs_work: boolean };
   text: string; chars: number; tokens: number; page_refs: number; rules: string[]; annotations: number;
+  target: PromptTarget;
+  root: string;                       // the root the prompt points Claude at
+  studio_root?: string;               // the root this Studio serves
+  warning?: string | null;            // e.g. the branch Claude installs the CLI from has unpushed commits
 }
 
 // --- Golden (routes_golden.py; W7) -------------------------------------------------------------------
@@ -157,3 +162,36 @@ export interface GoldenResponse {
 export interface GoldenFileText { text: string; stem?: string; records?: number; bytes?: number; truncated?: boolean;
                                   truncated_page_stems?: boolean }
 export interface GoldenLineage { columns: string[]; total: number; matched: number; offset: number; rows: unknown[][] }
+
+// --- Sample drawer (facets.py): strata histograms and sample orders; /rows and /compare/records return them ---
+export type SampleOrder = "review" | "auto" | "shuffle";
+export interface StratumHist {
+  id: string; label: string; help: string;
+  uniform: boolean;                   // every row in one bucket: set aside
+  spread: number;                     // how evenly the rows split over the buckets, 0–1
+  buckets: { id: string; count: number; on: boolean }[];   // count: rows in the list (this stratum's own filter left out)
+}
+export interface SampleInfo {
+  order: SampleOrder; seed: number; total: number; listed: number;
+  histograms: StratumHist[];
+  cross: string[];                    // Autostratify: the strata crossed
+  cells: { buckets: Record<string, string>; rows: number }[];   // their combinations, rarest first
+  cell_count?: number;
+  tag_dims: string[];
+  elsewhere?: number;                 // Rules tab: unreviewed rows whose record was reviewed in another rule
+  prior?: boolean;                    // …and they come first
+}
+export interface StrataTag { dim: string; label: string; bucket: string }
+/** {dimension: [bucket, …]}: buckets of one dimension are ORed, dimensions ANDed. */
+export type FacetFilter = Record<string, string[]>;
+export const filterParams = (f: FacetFilter): string[] =>
+  Object.entries(f).flatMap(([d, bs]) => bs.map((b) => `${d}:${b}`));
+
+/** `/compare/records`: every changed record without a verdict, a page at a time (routes_compare.py). */
+export interface CompareRecords {
+  total: number;                      // records in the list (after the strata filters)
+  all: number;                        // records before filtering
+  offset: number; limit: number;
+  records: (BriefRow & { rule_id: string; tags: StrataTag[] })[];
+  sample: SampleInfo;
+}

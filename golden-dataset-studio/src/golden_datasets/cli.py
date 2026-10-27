@@ -2,7 +2,8 @@
 
 Every command takes `--root` (or `GOLDEN_DATASETS_ROOT`): a folder or an `azure://https://…/container[/prefix]` URI.
 Commands that work on one catalog take `--catalog` (or `GOLDEN_DATASETS_CATALOG`), either the folder name or its
-short name (`avc`, `ccsf`, `marshall`, `ualr`, `wvu`).
+short name (`avc`, `ccsf`, `marshall`, `ualr`, `wvu`). Unset variables are read from `golden-datasets.env` (KEY=VALUE
+lines) in the current folder or the nearest parent that has one: Claude Code's shell commands don't share `export`s.
 
 Each command's implementation is imported lazily, so `--help` stays fast.
 """
@@ -13,10 +14,29 @@ import argparse
 import importlib
 import os
 import sys
+from pathlib import Path
 
 from .errors import UserError
 
 DEFAULT_PORT = 8000
+ENV_FILE = "golden-datasets.env"
+# the team's shared Studio root on Azure: the Azure version of the prompt points Claude here
+DEFAULT_AZURE_ROOT = "azure://https://ceteststorage.blob.core.windows.net/xtra-cli-output/zz-scratch-review-ui-v3"
+
+
+def load_env_file(start: Path | None = None) -> Path | None:
+    """Set the unset variables from the nearest `golden-datasets.env`; the environment always wins."""
+    here = (start or Path.cwd()).resolve()
+    for folder in (here, *here.parents):
+        f = folder / ENV_FILE
+        if f.is_file():
+            for line in f.read_text().splitlines():
+                key, sep, value = line.strip().partition("=")
+                key = key.removeprefix("export ").strip()
+                if sep and key and not key.startswith("#"):
+                    os.environ.setdefault(key, value.strip().strip("'\""))
+            return f
+    return None
 
 
 def _root_args(p: argparse.ArgumentParser) -> None:
@@ -30,6 +50,15 @@ def _catalog_args(p: argparse.ArgumentParser, required: bool = True) -> None:
                    required=required and not os.environ.get("GOLDEN_DATASETS_CATALOG"),
                    help="catalog folder or short name (avc, ccsf, marshall, ualr, wvu)")
     p.add_argument("--crawl", default=None, help="crawl id (default: the catalog's current crawl)")
+
+
+def _target_args(p: argparse.ArgumentParser, prompt: bool = True) -> None:
+    if prompt:
+        p.add_argument("--target", choices=["local", "azure"], default="local",
+                       help="local: Claude works on --root itself; azure: on the Azure root, after a minimal setup")
+    p.add_argument("--azure-root", default=os.environ.get("GOLDEN_DATASETS_AZURE_ROOT") or DEFAULT_AZURE_ROOT,
+                   help="the Azure root the prompt's Azure version points Claude at (default: "
+                        "$GOLDEN_DATASETS_AZURE_ROOT, else the team's shared prefix)")
 
 
 def _cmd(p: argparse.ArgumentParser, target: str) -> None:
@@ -133,6 +162,7 @@ def build_parser() -> argparse.ArgumentParser:
     g = p.add_mutually_exclusive_group()
     g.add_argument("--rule", default=None)
     g.add_argument("--needs-work", action="store_true")
+    _target_args(p)
     _cmd(p, "golden_datasets.prompt:cmd_prompt")
 
     # --- Golden ----------------------------------------------------------------------------------------
@@ -161,11 +191,13 @@ def build_parser() -> argparse.ArgumentParser:
     _root_args(p)
     p.add_argument("--port", type=int, default=DEFAULT_PORT)
     p.add_argument("--host", default="127.0.0.1")
+    _target_args(p, prompt=False)
     _cmd(p, "golden_datasets.server.app:cmd_serve")
     return ap
 
 
 def main(argv: list[str] | None = None) -> int:
+    load_env_file()
     ap = build_parser()
     args = ap.parse_args(argv)
     if not getattr(args, "_target", None):

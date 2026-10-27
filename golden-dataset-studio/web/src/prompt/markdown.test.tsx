@@ -20,7 +20,27 @@ Intro with **bold**, *em* and a [link](https://example.org).
 2. second
 `;
 
+const TABLE = `| # | Value | Notes |
+|---|---|---|
+| 1 | \`a \\| b\` | **WRONG** |
+
+|  |  |
+|---|---|
+| What | x |
+`;
+
 describe("markdown", () => {
+  it("parses tables, escaped pipes included, and hides an empty header", () => {
+    const b = parse(TABLE);
+    expect(b.map((x) => x.t)).toEqual(["table", "table"]);
+    expect(b[0].t === "table" && b[0].rows[0]).toEqual(["1", "`a | b`", "**WRONG**"]);
+    const container = document.createElement("div");
+    container.innerHTML = renderToStaticMarkup(<Markdown text={TABLE} />);
+    const [t1, t2] = container.querySelectorAll("table");
+    expect(t1.querySelectorAll("th").length).toBe(3);
+    expect(t1.querySelector("td code")?.textContent).toBe("a | b");
+    expect(t2.querySelector("thead")).toBeNull();
+  });
   it("parses headings, paragraphs, nested lists and fences", () => {
     const b = parse(MD);
     expect(b.map((x) => x.t)).toEqual(["h", "p", "h", "list", "code", "list"]);

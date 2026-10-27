@@ -1,5 +1,5 @@
 // A small Markdown renderer for the prompt preview. It covers what prompt.py writes — headings, paragraphs,
-// nested bullet and numbered lists, fenced code, inline code, bold, italic and links — and builds React elements
+// nested bullet and numbered lists, tables, fenced code, inline code, bold, italic and links — and builds React elements
 // only: the text (which quotes catalog pages) is never interpreted as HTML.
 import { Fragment, type ReactNode } from "react";
 
@@ -7,9 +7,18 @@ export type Block =
   | { t: "h"; level: number; text: string }
   | { t: "p"; text: string }
   | { t: "code"; text: string; lang: string }
-  | { t: "list"; ordered: boolean; items: { text: string; children: Block[] }[] };
+  | { t: "list"; ordered: boolean; items: { text: string; children: Block[] }[] }
+  | { t: "table"; head: string[]; rows: string[][] };
 
 const LIST_ITEM = /^(\s*)([-*]|\d+\.)\s+(.*)$/;
+const TABLE_ROW = /^\s*\|.*\|\s*$/;
+const TABLE_RULE = /^\s*\|(\s*:?-+:?\s*\|)+\s*$/;
+
+/** The cells of `| a | b \| c |`: split on unescaped pipes, `\|` read as `|`. */
+export function cells(line: string): string[] {
+  const inner = line.trim().replace(/^\|/, "").replace(/\|$/, "");
+  return inner.split(/(?<!\\)\|/).map((c) => c.trim().replace(/\\\|/g, "|"));
+}
 
 /** Parse Markdown into blocks. Indentation of 2+ spaces under a list item nests a list (or continues its text). */
 export function parse(md: string): Block[] {
@@ -59,6 +68,14 @@ export function parse(md: string): Block[] {
     }
     const h = /^(#{1,6})\s+(.*)$/.exec(line);
     if (h) { out.push({ t: "h", level: h[1].length, text: h[2] }); i++; continue; }
+    if (TABLE_ROW.test(line) && i + 1 < lines.length && TABLE_RULE.test(lines[i + 1])) {
+      const head = cells(line);
+      i += 2;
+      const rows: string[][] = [];
+      while (i < lines.length && TABLE_ROW.test(lines[i])) { rows.push(cells(lines[i])); i++; }
+      out.push({ t: "table", head, rows });
+      continue;
+    }
     const li = LIST_ITEM.exec(line);
     if (li) { out.push(parseList(li[1].length)); continue; }
     const para: string[] = [line.trim()];
@@ -109,6 +126,14 @@ function renderBlock(b: Block, key: number): ReactNode {
       const L = b.ordered ? "ol" : "ul";
       return <L key={key}>{b.items.map((it, i) => <li key={i}>{inline(it.text)}{it.children.map(renderBlock)}</li>)}</L>;
     }
+    case "table":
+      // a header of empty cells (a two-column "name | value" table) isn't shown
+      return (
+        <div key={key} className="md-table"><table>
+          {b.head.some((h) => h) && <thead><tr>{b.head.map((h, i) => <th key={i}>{inline(h)}</th>)}</tr></thead>}
+          <tbody>{b.rows.map((r, i) => <tr key={i}>{r.map((c, j) => <td key={j}>{inline(c)}</td>)}</tr>)}</tbody>
+        </table></div>
+      );
   }
 }
 

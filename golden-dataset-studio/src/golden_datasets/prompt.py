@@ -1,23 +1,28 @@
 """The prompt for Claude Code (spec §7.5, screen 09): the same text from the UI's **Copy prompt** button and from
 `golden-datasets prompt`.
 
-Deterministic: the same annotations always give the same text (everything is sorted; no "now"). It holds the task
-and its limits, the catalog / crawl / ruleset / storage root, each in-scope rule's definition and what / how / why,
-every open annotation, the values marked correct (which must not change), the questions for the institution
-(listed apart, not bugs), the `golden-datasets` commands for more context, and the publish rule. No raw HTML: pages
-are referenced by path, resolved against `$GOLDEN_DATASETS_ROOT`.
+Deterministic: the same annotations always give the same text (everything is sorted; no "now"). It holds the task,
+the setup (install the CLI from this branch with uv, point it at the root; for `target="azure"`, the Azure root after
+`az login`), the limits, each in-scope rule's definition and what / how / why, its open annotations, the values marked
+correct (which must not change) and its signals as tables, the questions for the institution (listed apart, not
+bugs), the `golden-datasets` commands that fetch all of this and more, and the publish rule. No raw HTML: pages are
+referenced by stem, fetched with `golden-datasets pages get`.
 """
 
 from __future__ import annotations
 
 import json
+import os
 import re
+import subprocess
 import sys
+from pathlib import Path
 
 from . import model
 from .catalogs import info
+from .cli import DEFAULT_AZURE_ROOT, ENV_FILE
 from .context import Ctx
-from .loop import current_review, ordered_rule_ids, page_ref, rule_annotations, rule_or_error, short
+from .loop import current_review, ordered_rule_ids, rule_annotations, rule_or_error, short
 from .review import Review, norm
 
 INTRO = ("You are improving the declarative extraction rules of **CTDL Golden Rules Studio** for one catalog. "
@@ -41,6 +46,44 @@ FORMAT = {
 }
 KIND_NAME = {"page": "page rule", "locator": "record locator", "field": "field rule"}
 IN_SCOPE = ", ".join(label for label, _ in model.PROPERTIES)
+REPO = "https://github.com/CredentialEngine/ctdl-xtra.git"
+SUBDIR = "golden-dataset-studio"
+TARGETS = ("local", "azure")
+
+
+def _git(*args: str) -> str | None:
+    try:
+        r = subprocess.run(["git", "-C", str(Path(__file__).resolve().parent), *args],
+                           capture_output=True, text=True, timeout=5)
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    return r.stdout.strip() if r.returncode == 0 else None
+
+
+def cli_source() -> dict:
+    """Where Claude installs `golden-datasets` from: this checkout's branch on GitHub ($GOLDEN_DATASETS_GIT_REF wins;
+    `main` outside a checkout). `warning` says when the branch has commits GitHub doesn't."""
+    ref = os.environ.get("GOLDEN_DATASETS_GIT_REF") or _git("rev-parse", "--abbrev-ref", "HEAD")
+    warning = None
+    if not ref or ref == "HEAD":
+        ref = "main"
+    elif not os.environ.get("GOLDEN_DATASETS_GIT_REF") and _git("rev-parse", "--git-dir"):
+        ahead = _git("rev-list", "--count", "@{u}..HEAD")
+        if ahead is None:
+            warning = f"Branch {ref} isn't on GitHub: push it, or the install step fails."
+        elif ahead != "0":
+            warning = f"Branch {ref} has {ahead} commit(s) not pushed to GitHub: Claude's CLI won't have them."
+    return {"ref": ref, "spec": f"git+{REPO}@{ref}#subdirectory={SUBDIR}", "warning": warning}
+
+
+def cell(v) -> str:
+    """Text safe inside a Markdown table cell: one line, no bare `|`."""
+    return str(v).replace("\n", "⏎ ").replace("|", "\\|")
+
+
+def table(header: list[str], rows: list[list]) -> list[str]:
+    return ["| " + " | ".join(header) + " |", "|" + "---|" * len(header)] + \
+           ["| " + " | ".join(cell(c) for c in r) + " |" for r in rows]
 
 
 def scope_rules(rv: Review, rule: str | None, needs_work: bool) -> list[str]:
@@ -63,44 +106,42 @@ def _location(a: dict) -> str:
     return f" (chars {exp['char_start']}–{exp['char_end']} {where})"
 
 
-def _annotation_lines(ctx: Ctx, rule: dict, a: dict, n: int, refs: set) -> list[str]:
-    head = a["course_key"] or a["page_title"] or a["page_stem"]
+def _who(a: dict) -> str:
+    return a["course_key"] or a["page_title"] or a["page_stem"] or "—"
+
+
+def _notes(a: dict) -> str:
+    said = [f"{a['author']}: \"{short(a['note'], 300)}\"" if a["note"] else f"by {a['author']}"]
+    said += [f"{c['author']}: \"{short(c['note'], 300)}\"" for c in a["comments"]]
+    return "; ".join(said)
+
+
+def _annotation_row(rule: dict, a: dict, n: int, refs: set) -> list:
     label = {"still-wrong": "STILL WRONG", "missing": "MISSING"}.get(a["state"], (a["verdict"] or "").upper())
-    out = [f"{n}. **{label}** — {head}"]
     if a["page_stem"]:
         refs.add(a["page_stem"])
-        out.append(f"   - page: `{page_ref(ctx, a['page_stem'])}`")
-    if a["url"]:
-        out.append(f"   - url: {a['url']}")
+    page = f"`{a['page_stem']}`" if a["page_stem"] else "—"
     if rule["kind"] == "field":
-        out.append(f"   - extracted (v{a['rule_version_seen']}): \"{short(a['value_seen'], 220)}\"")
-        if a["expected"] and a["expected"].get("text") is not None:
-            out.append(f"   - expected: \"{short(a['expected']['text'], 220)}\"{_location(a)}")
+        seen = f"v{a['rule_version_seen']}: \"{short(a['value_seen'], 200)}\""
         if a["rule_version_seen"] != rule["version"] and a["has_row"]:
-            now = "unchanged" if norm(a["value_seen"]) == norm(a["current_value"]) \
-                else f"\"{short(a['current_value'], 160)}\""
-            out.append(f"   - current (v{rule['version']}): {now}")
-    elif a["verdict"] == "missing":
+            seen += " → now unchanged" if norm(a["value_seen"]) == norm(a["current_value"]) \
+                else f" → now (v{rule['version']}): \"{short(a['current_value'], 140)}\""
         exp = a["expected"] or {}
-        if exp.get("text"):
-            out.append(f"   - not found by the rule: \"{short(exp['text'], 160)}\""
-                       + (f" at `{exp['css_path']}`" if exp.get("css_path") else ""))
-        else:
-            out.append("   - the expert says this rule should find this page (or a course on it), and it doesn't")
+        expected = f"\"{short(exp['text'], 200)}\"{_location(a)}" if exp.get("text") is not None else "—"
+        if a["verdict"] == "missing" and not exp.get("text"):
+            expected = "a value: the rule finds nothing here"
+        return [n, f"**{label}**", _who(a), page, seen, expected, _notes(a)]
+    if a["verdict"] == "missing":
+        exp = a["expected"] or {}
+        problem = (f"not found: \"{short(exp['text'], 160)}\"" + (f" at `{exp['css_path']}`" if exp.get("css_path") else "")
+                   if exp.get("text") else "the rule should find this page (or a course on it) and doesn't")
     else:
         what = "recognises this page" if rule["kind"] == "page" else "finds this course block"
-        seen = f" (it was shown as \"{short(a['value_seen'], 80)}\")" if a["value_seen"] else ""
-        out.append(f"   - the expert marked it wrong that the rule {what}{seen}")
-    if a["note"]:
-        out.append(f"   - note ({a['author']}): \"{short(a['note'], 400)}\"")
-    else:
-        out.append(f"   - by {a['author']}")
-    for c in a["comments"]:
-        out.append(f"   - comment ({c['author']}): \"{short(c['note'], 400)}\"")
-    return out
+        problem = f"wrong that the rule {what}" + (f" (shown as \"{short(a['value_seen'], 80)}\")" if a["value_seen"] else "")
+    return [n, f"**{label}**", _who(a), page, problem, _notes(a)]
 
 
-def _signal_lines(rv: Review, rid: str) -> list[str]:
+def _signal_rows(rv: Review, rid: str) -> list[list]:
     snap = rv.snap
     examples: dict[str, list[tuple[str, str]]] = {}
     for row in snap.rows(rid):
@@ -110,19 +151,55 @@ def _signal_lines(rv: Review, rid: str) -> list[str]:
     out = []
     for name, total in sorted(counts.items(), key=lambda kv: (-kv[1], kv[0])):
         ex = sorted(set(examples.get(name, [])))[:3]
-        tail = (" — e.g. " + "; ".join(f"{who}: {short(d, 90)}" for who, d in ex)) if ex else ""
-        out.append(f"- `{name}` × {total:,}{tail}")
+        out.append([f"`{name}`", f"{total:,}", "; ".join(f"{who}: {short(d, 90)}" for who, d in ex) or "—"])
     return out
 
 
-def build_prompt(ctx: Ctx, rule: str | None = None, needs_work: bool = False, rv: Review | None = None) -> dict:
-    """{text, chars, tokens, page_refs, rules, annotations, scope} (web/src/api/types.ts `PromptResponse`)."""
+def _setup(ctx: Ctx, target: str, root_uri: str, first_rule: str) -> list[str]:
+    src = cli_source()
+    short_name = info(ctx.catalog)["short"]
+    L = ["## Setup", "",
+         f"Do this once, in the folder you work in. Your shell commands don't share `export`s, so `golden-datasets` "
+         f"reads its root and catalog from `{ENV_FILE}` in the current folder (or a parent).", ""]
+    L.append(f"1. Install the CLI from the `{src['ref']}` branch (needs uv; if `uv` is missing: "
+             "`curl -LsSf https://astral.sh/uv/install.sh | sh`):")
+    L += ["", "   ```sh", f"   uv tool install --reinstall '{src['spec']}'", "   golden-datasets --help", "   ```", "",
+          f"   Without installing: `uvx --from '{src['spec']}' golden-datasets …`."]
+    n = 2
+    if target == "azure":
+        account = re.sub(r"^azure://https?://([^./]+).*", r"\1", root_uri)
+        L.append(f"{n}. Sign in to Azure. `az account show` says whether you are; if not, `az login` (no browser here: "
+                 "`az login --use-device-code`, and give the person the code). The CLI reads the storage key through "
+                 f"`az` itself, so nothing secret goes in a file or an `export`: you only need an Azure account that "
+                 f"can read the keys of the `{account}` storage account. If `az` is missing: "
+                 "`brew install azure-cli`, or https://aka.ms/InstallAzureCLI.")
+        n += 1
+    L.append(f"{n}. Point the CLI at the {'shared Azure' if target == 'azure' else 'Studio'} root and check it:")
+    L += ["", "   ```sh", f"   cat > {ENV_FILE} <<'EOF'", f"   GOLDEN_DATASETS_ROOT={root_uri}",
+          f"   GOLDEN_DATASETS_CATALOG={short_name}", "   EOF", f"   golden-datasets rule show {first_rule}", "   ```", ""]
+    if target == "azure":
+        L.append("   Pages download once into a local cache (`~/.cache/golden-datasets`); `rule publish` uploads the "
+                 "new versions, and the Studio shows them when it serves this root.")
+    else:
+        L.append("   This root is a folder on the machine that runs the Studio: run Claude Code on that machine. "
+                 "`rule publish` writes there, and the Studio shows the new version right away.")
+    L.append("")
+    return L
+
+
+def build_prompt(ctx: Ctx, rule: str | None = None, needs_work: bool = False, rv: Review | None = None,
+                 target: str = "local", azure_root: str | None = None) -> dict:
+    """{text, chars, tokens, page_refs, rules, annotations, scope, target, root, warning}
+    (web/src/api/types.ts `PromptResponse`). `target`: Claude works on this root ("local") or the Azure one."""
+    if target not in TARGETS:
+        raise ValueError(f"target must be one of {TARGETS}")
     rv = rv or current_review(ctx)
     needs_work = needs_work or not rule
     targets = scope_rules(rv, rule, needs_work)
     snap = rv.snap
     meta = info(ctx.catalog)
-    short_name = meta["short"]
+    root_uri = ctx.root.uri if target == "local" or ctx.root.uri.startswith("azure://") \
+        else (azure_root or DEFAULT_AZURE_ROOT)
     refs: set[str] = set()
     n_open = 0
     L: list[str] = []
@@ -133,23 +210,19 @@ def build_prompt(ctx: Ctx, rule: str | None = None, needs_work: bool = False, rv
     else:
         L.append(f"# No rule needs work — {meta['name']} catalog")
     L += ["", INTRO, ""]
+    L += _setup(ctx, target, root_uri, targets[0] if targets else "<rule_id>")
 
     L.append("## Context")
+    L.append("")
     platform = f", {meta['platform']} platform" if meta.get("platform") else ""
-    L.append(f"- Catalog: `{ctx.catalog}` ({meta['name']}{platform})")
-    L.append(f"- Crawl: `{ctx.crawl}` — {len(snap.page):,} saved pages")
-    L.append(f"- Current ruleset: v{snap.ruleset_version} (extraction `{snap.ext}`)")
-    L.append("- Storage root: `$GOLDEN_DATASETS_ROOT` (the Studio's root; `golden-datasets` reads it, caches pages "
-             "locally). Before any command:")
+    L += table(["", ""], [
+        ["Catalog", f"`{ctx.catalog}` ({meta['name']}{platform})"],
+        ["Crawl", f"`{ctx.crawl}`, {len(snap.page):,} saved pages (scripts already ran at crawl time)"],
+        ["Ruleset", f"v{snap.ruleset_version} (extraction `{snap.ext}`)"],
+        ["Storage root", f"`{root_uri}`"],
+        ["A saved page", "`golden-datasets pages get <page_stem>` prints its local path and live URL"],
+    ])
     L.append("")
-    L.append("  ```sh")
-    L.append(f"  export GOLDEN_DATASETS_ROOT='{ctx.root.uri}'")
-    L.append(f"  export GOLDEN_DATASETS_CATALOG={short_name}")
-    L.append("  ```")
-    L.append("")
-    L.append(f"- Page files: `$GOLDEN_DATASETS_ROOT/{ctx.catalog}/{ctx.crawl}/pages/<page_stem>.html` (full saved "
-             "page, scripts already ran at crawl time). `golden-datasets pages get <page_stem>` makes one available "
-             "locally and prints its path.")
     for kind in ("page", "locator", "field"):
         if any(snap.rules[t]["kind"] == kind for t in targets):
             L.append(FORMAT[kind])
@@ -169,6 +242,17 @@ def build_prompt(ctx: Ctx, rule: str | None = None, needs_work: bool = False, rv
              "= 0). Never use `--force`.")
     L.append("")
 
+    if len(targets) > 1:
+        L.append(f"## The {len(targets)} rules")
+        L.append("")
+        rows = []
+        for rid in targets:
+            r = snap.rules[rid]
+            n = sum(1 for a in rule_annotations(rv, rid) if a["open"])
+            rows.append([f"`{rid}`", f"v{r['version']}", KIND_NAME[r["kind"]], r.get("property_label") or "—", n])
+        L += table(["Rule", "Version", "Kind", "Property", "Open annotations"], rows)
+        L.append("")
+
     questions: dict[str, tuple[str, dict]] = {}
     for rid in targets:
         r = snap.rules[rid]
@@ -177,11 +261,13 @@ def build_prompt(ctx: Ctx, rule: str | None = None, needs_work: bool = False, rv
         prop = f", {r['property_label']} (`{r.get('ctdl_property') or 'no CTDL term'}`)" if r.get("property_label") else ""
         L.append(f"## Rule `{rid}` v{r['version']} — {KIND_NAME[r['kind']]}{prop} — status: **{st['status']}**")
         L.append("")
-        L.append(f"- **what:** {r.get('what') or '(empty)'}")
-        L.append(f"- **how:** {r.get('how') or '(empty)'}")
-        L.append(f"- **why:** {r.get('why') or '(empty: imported from v2)'}")
-        L.append(f"- depends on: {', '.join(f'`{d}`' for d in r.get('depends_on') or []) or '—'}")
-        L.append(f"- rows: {fill['rows']:,}, with a value: {fill['found']:,}; reviewed {st['reviewed']:,}")
+        L += table(["", ""], [
+            ["**What**", r.get("what") or "(empty)"],
+            ["**How**", r.get("how") or "(empty)"],
+            ["**Why**", r.get("why") or "(empty: imported from v2)"],
+            ["Depends on", ", ".join(f"`{d}`" for d in r.get("depends_on") or []) or "—"],
+            ["Rows", f"{fill['rows']:,}, {fill['found']:,} with a value; {st['reviewed']:,} reviewed"],
+        ])
         L.append("")
         L.append("```json")
         L.append(json.dumps(r["definition"], indent=2, ensure_ascii=False))
@@ -205,26 +291,37 @@ def build_prompt(ctx: Ctx, rule: str | None = None, needs_work: bool = False, rv
         L.append("")
         if not open_:
             L.append("None: every wrong / missing verdict on this rule is fixed.")
-        for i, a in enumerate(open_, 1):
-            L += _annotation_lines(ctx, r, a, i, refs)
+        else:
+            head = ["#", "Verdict", "Course", "Page", "Extracted", "Expected", "Notes"] if r["kind"] == "field" \
+                else ["#", "Verdict", "Course / page", "Page", "Problem", "Notes"]
+            L += table(head, [_annotation_row(r, a, i, refs) for i, a in enumerate(open_, 1)])
+            L.append("")
+            L.append(f"Full css paths, character offsets (DOM textContent) and page paths: "
+                     f"`golden-datasets rule annotations {rid} --open`.")
         n_open += len(open_)
         if correct:
             L.append("")
-            L.append(f"**Marked correct — these values must not change ({len(correct)}):** "
-                     + ", ".join(a["course_key"] or a["page_title"] or a["page_stem"] for a in correct))
+            L.append(f"### Marked correct: must not change ({len(correct)})")
+            L.append("")
             if r["kind"] == "field":
-                for a in correct:
-                    L.append(f"   - {a['course_key'] or a['page_stem']}: \"{short(a['current_value'], 120)}\"")
+                L += table(["Course", "Current value"],
+                           [[_who(a), f"\"{short(a['current_value'], 120)}\""] for a in correct])
+            else:
+                L.append(", ".join(_who(a) for a in correct))
+            L.append("")
+            L.append(f"Every annotation, these included: `golden-datasets rule annotations {rid}`.")
         if changed:
             L.append("")
             L.append(f"**Marked correct, but the value changed since ({len(changed)}); the expert will look again:** "
                      + ", ".join(a["course_key"] or a["page_stem"] for a in changed))
-        sig = _signal_lines(rv, rid)
+        sig = _signal_rows(rv, rid)
         if sig:
             L.append("")
             L.append(f"### Signals on this rule in `{snap.ext}`")
-            L += sig
-            L.append(f"- pages behind a signal: `golden-datasets pages sample --rule {rid} --signal <signal> -n 20`")
+            L.append("")
+            L += table(["Signal", "Rows", "Examples"], sig)
+            L.append("")
+            L.append(f"Pages behind a signal: `golden-datasets pages sample --rule {rid} --signal <signal> -n 20`.")
         L.append("")
 
     if questions:
@@ -232,48 +329,59 @@ def build_prompt(ctx: Ctx, rule: str | None = None, needs_work: bool = False, rv
         L.append("")
         L.append("Only the college can answer these. Don't change a rule for them, but mention them in your report.")
         L.append("")
+        rows = []
         for _, (_rid, a) in sorted(questions.items(), key=lambda kv: (kv[1][1]["page_stem"] or "", kv[0])):
-            head = a["course_key"] or a["page_title"] or a["page_stem"]
             if a["page_stem"]:
                 refs.add(a["page_stem"])
             said = f"\"{short(a['note'], 400)}\"" if a["note"] else "(flagged, no note)"
-            L.append(f"- {head} — page `{page_ref(ctx, a['page_stem'])}` ({a['author']}): {said}")
+            rows.append([_who(a), f"`{a['page_stem']}`" if a["page_stem"] else "—", a["author"], said])
+        L += table(["Course / page", "Page", "From", "Question"], rows)
         L.append("")
 
+    first = targets[0] if targets else "<rule_id>"
     names = " ".join(targets) or "<rule_id>"
     draft = f"drafts/{targets[0]}.json" if len(targets) == 1 else "drafts/needs-work.json"
     L.append("## How to work")
     L.append("")
-    L.append(f"1. `golden-datasets rule show {targets[0] if targets else '<rule_id>'}` — current definition, "
-             "what/how/why, examples, versions, status, fill and signal counts (one rule per call). "
-             "`golden-datasets rule list` — every rule.")
-    L.append("2. `golden-datasets rule annotations <rule_id> --open` — every open annotation above, with full css "
-             "paths, character offsets (DOM textContent) and page paths. Without `--open`: every annotation, "
-             "including the values marked correct.")
-    L.append("3. `golden-datasets pages get <page_stem>` — makes a saved page available locally and prints "
-             "`<path><TAB><url>` per page (a unique part of the stem works, e.g. `course-geog222`). Read the file you need, searching for the "
-             "expected text. `golden-datasets pages sample --rule <rule_id> [--signal <signal>] -n 20` — more pages "
-             "where the rule fires. `golden-datasets sql \"SELECT …\"` — DuckDB over the views `pages`, "
-             "`occurrences`, `matches`, `signals`, `annotations`, `rules` (`--format json` prints one object per line). "
-             "This prompt deliberately contains no raw HTML.")
-    L.append(f"4. `golden-datasets rule draft {names} > {draft}` — the current version(s) as an editable draft. "
-             "Change only `definition`, `what`, `how`, `why` and `examples` (update an example your fix makes wrong). *What* says what the rule finds, in "
-             "page terms; *how* says how; *why* says why this version is better than the last.")
-    L.append(f"5. `golden-datasets rule try {draft}` — reruns the draft over the whole crawl (writes nothing) and "
-             "prints a scorecard per rule: fixed / still wrong / newly wrong (values marked correct that changed), "
-             "values changed, and signal counts before → after. Iterate until every open annotation is fixed and "
-             "nothing marked correct changed.")
-    L.append("6. Fill `why` from the annotations: cite the course codes and the expert's notes. Add one example per "
-             "fix (`examples`: `{\"input\": <the selected text>, \"output\": <the value>}`).")
-    L.append(f"7. `golden-datasets rule publish {draft} --note \"…\"` — writes the new rule version(s), a new ruleset "
-             "version and its extraction (unchanged rules are copied). It refuses when a value marked correct "
-             "changes. Do not commit or push anything.")
+    L.append("Everything above comes from these commands; run them for more, or when the annotations change.")
+    L.append("")
+    L += table(["Step", "Command", "What it gives"], [
+        ["1. Read", f"`golden-datasets rule show {first}`",
+         "definition, what/how/why, examples, versions, status, fill and signal counts (one rule per call); "
+         "`golden-datasets rule list`: every rule"],
+        ["", f"`golden-datasets rule annotations {first} --open`",
+         "every open annotation, with full css paths, character offsets and page paths; without `--open`: every "
+         "annotation, including the values marked correct"],
+        ["", "`golden-datasets pages get <page_stem>`",
+         "makes a saved page available locally and prints `<path><TAB><url>` (a unique part of the stem works, e.g. "
+         "`course-geog222`); read it, searching for the expected text"],
+        ["", f"`golden-datasets pages sample --rule {first} [--signal <signal>] -n 20`", "more pages where the rule fires"],
+        ["", "`golden-datasets sql \"SELECT …\"`",
+         "DuckDB over the views `pages`, `occurrences`, `matches`, `signals`, `annotations`, `rules` "
+         "(`--format json`: one object per line)"],
+        ["2. Draft", f"`golden-datasets rule draft {names} > {draft}`",
+         "the current version(s) as an editable draft. Change only `definition`, `what`, `how`, `why` and `examples` "
+         "(update an example your fix makes wrong)"],
+        ["3. Try", f"`golden-datasets rule try {draft}`",
+         "reruns the draft over the whole crawl (writes nothing): per rule fixed / still wrong / newly wrong (values "
+         "marked correct that changed), values changed, signal counts before → after. Iterate until every open "
+         "annotation is fixed and nothing marked correct changed"],
+        ["4. Publish", f"`golden-datasets rule publish {draft} --note \"…\"`",
+         "new rule version(s), a new ruleset version and its extraction (unchanged rules are copied); refuses when a "
+         "value marked correct changes"],
+    ])
+    L.append("")
+    L.append("Before publishing, fill the draft's text: *what* says what the rule finds, in page terms; *how* says how; "
+             "*why* says why this version is better than the last, citing the course codes and the expert's notes. "
+             "Add one example per fix (`{\"input\": <the selected text>, \"output\": <the value>}`). Do not commit or "
+             "push anything.")
     L.append("")
     L.append("Report back: what changed and why, the final scorecard, and anything you could not fix.")
     text = "\n".join(L) + "\n"
     return {"scope": {"rule": rule if not needs_work else None, "needs_work": needs_work},
             "text": text, "chars": len(text), "tokens": round(len(text) / 4), "page_refs": len(refs),
-            "rules": targets, "annotations": n_open}
+            "rules": targets, "annotations": n_open, "target": target, "root": root_uri,
+            "warning": cli_source()["warning"]}
 
 
 _HTML = re.compile(r"<\s*(html|body|div|span|script|style|head)\b", re.I)
@@ -287,7 +395,7 @@ def cmd_prompt(args) -> int:
     ctx = Ctx.from_args(args)
     if args.rule is None and not args.needs_work:
         args.needs_work = True
-    out = build_prompt(ctx, args.rule, args.needs_work)
+    out = build_prompt(ctx, args.rule, args.needs_work, target=args.target, azure_root=args.azure_root)
     if has_raw_html(out["text"]):
         print("golden-datasets: warning: an annotation quotes something that looks like HTML", file=sys.stderr)
     print(out["text"], end="")

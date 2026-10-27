@@ -24,3 +24,20 @@ describe("prompt highlighting", () => {
     expect(downloadName("avc", "course-description")).toBe("golden-datasets-prompt-avc-course-description.md");
   });
 });
+
+import { lineKinds, runs } from "./highlight";
+
+describe("lineKinds", () => {
+  const P = ["# Improve rule `x`", "", "## Setup", "```sh", "uv tool install", "```", "## Rule `x` v2 — field rule",
+    "| **What** | a |", "```json", "{", "  \"selector\": \".a\"", "}", "```", "Examples:", "```json", "[]", "```",
+    "### Open annotations (1)", "| 1 | WRONG |", "## How to work", "| 1. Read | `golden-datasets rule show x` |"].join("\n") + "\n";
+  it("marks the template, what comes from the annotations, and the rule's definition", () => {
+    const k = lineKinds(P);
+    expect(k.slice(0, 6)).toEqual(["boiler", "boiler", "boiler", "boiler", "boiler", "boiler"]);
+    expect(k.slice(6, 8)).toEqual(["var", "var"]);
+    expect(k.slice(8, 13)).toEqual(["def", "def", "def", "def", "def"]);
+    expect(k.slice(13, 19)).toEqual(["var", "var", "var", "var", "var", "var"]); // examples are not the definition
+    expect(k.slice(19)).toEqual(["boiler", "boiler"]);
+    expect(runs(P).map((r) => r.kind)).toEqual(["boiler", "var", "def", "var", "boiler"]);
+  });
+});

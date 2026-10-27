@@ -1,8 +1,8 @@
 // Thin fetch wrappers for the Studio API. Every tab uses these; they keep URLs in one place.
 import type {
-  CatalogCard, CatalogDetail, CompareResponse, CourseDetail, CourseHit, GoldenFileText, GoldenLineage, GoldenResponse,
+  CatalogCard, CatalogDetail, CompareRecords, CompareResponse, CourseDetail, CourseHit, GoldenFileText, GoldenLineage, GoldenResponse,
   NewEvent, Overlay,
-  PromptResponse, RuleDetail, RuleSummary, RulesResponse, RowsResponse, UnclassifiedPage,
+  PromptResponse, PromptTarget, RuleDetail, RuleSummary, RulesResponse, RowsResponse, UnclassifiedPage,
 } from "./types";
 
 export class ApiError extends Error {
@@ -46,7 +46,16 @@ export const api = {
     }),
   compare: (catalog: string, opts: { a?: number; b?: number; rule?: string } = {}) =>
     call<CompareResponse>(`${c(catalog)}/compare${q(opts)}`),
-  prompt: (catalog: string, opts: { rule?: string; needs_work?: boolean } = {}) =>
+  compareRecords: (catalog: string, o: { a: number; b: number; rule?: string; offset?: number; limit?: number; f?: string[];
+                                        order?: string; cross?: string[]; seed?: number }) => {
+    const s = new URLSearchParams();
+    for (const [k, v] of Object.entries(o)) {
+      if (Array.isArray(v)) v.forEach((x) => s.append(k, x));
+      else if (v !== undefined && v !== null && v !== "") s.set(k, String(v));
+    }
+    return call<CompareRecords>(`${c(catalog)}/compare/records?${s}`);
+  },
+  prompt: (catalog: string, opts: { rule?: string; needs_work?: boolean; target?: PromptTarget } = {}) =>
     call<PromptResponse>(`${c(catalog)}/prompt${q(opts)}`),
   golden: (catalog: string) => call<GoldenResponse>(`${c(catalog)}/golden`),
   goldenPageJson: (catalog: string, stem: string) =>

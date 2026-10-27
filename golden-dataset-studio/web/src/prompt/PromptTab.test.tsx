@@ -22,7 +22,8 @@ const RULES = { extraction: "rs-0001", ruleset_version: 1, groups: [
 ] } as unknown as RulesResponse;
 const TEXT = "# Improve rule `course-description` — AVC catalog\n\n## Context\n- run `golden-datasets rule show course-description`\n";
 const RESP: PromptResponse = { scope: { rule: "course-description", needs_work: false }, text: TEXT, chars: TEXT.length,
-                               tokens: Math.round(TEXT.length / 4), page_refs: 5, rules: ["course-description"], annotations: 5 };
+                               tokens: Math.round(TEXT.length / 4), page_refs: 5, rules: ["course-description"], annotations: 5,
+                               target: "local", root: "/data/root", studio_root: "/data/root", warning: null };
 
 let host: HTMLDivElement;
 let root: Root;
@@ -45,7 +46,7 @@ async function render(hash: string) {
 describe("PromptTab", () => {
   it("asks for the rule in the route and shows the text, size and page references", async () => {
     await render("#/c/avc/prompt?rule=course-description&from=rules");
-    expect(prompt).toHaveBeenCalledWith(catalog.catalog, { rule: "course-description" });
+    expect(prompt).toHaveBeenCalledWith(catalog.catalog, { rule: "course-description", target: "local" });
     const pre = host.querySelector("[data-testid=prompt-text]")!;
     expect(pre.textContent).toBe(TEXT);
     expect(pre.querySelector(".h1")?.textContent).toContain("Improve rule");
@@ -59,10 +60,29 @@ describe("PromptTab", () => {
 
   it("defaults to all rules needing work and lists them", async () => {
     await render("#/c/avc/prompt");
-    expect(prompt).toHaveBeenCalledWith(catalog.catalog, { needs_work: true });
+    expect(prompt).toHaveBeenCalledWith(catalog.catalog, { needs_work: true, target: "local" });
     const card = host.querySelector("[data-testid=scope-needs-work]")!;
     expect(card.className).toContain("on");
+    expect(card.querySelector<HTMLInputElement>("input[type=radio]")!.checked).toBe(true);
     expect(card.textContent).toContain("program-page-with-courses, course-description");
+    expect(host.querySelector(".rule-pick")).toBeNull(); // the rule list shows only under "One rule"
+  });
+
+  it("asks for the Azure version and says where Claude works", async () => {
+    prompt.mockImplementation(async (_c: string, o: { target: string }) => o.target === "azure"
+      ? { ...RESP, target: "azure", root: "azure://https://acct.blob.core.windows.net/c/p", warning: "Branch x has 1 commit(s) not pushed" }
+      : RESP);
+    await render("#/c/avc/prompt?rule=course-description");
+    expect(host.querySelector("[data-testid=target-d]")!.textContent).toContain("/data/root");
+    const azure = [...host.querySelectorAll(".target-seg button")].find((b) => b.textContent === "Azure")!;
+    await act(async () => { (azure as HTMLButtonElement).click(); });
+    await flush();
+    expect(prompt).toHaveBeenLastCalledWith(catalog.catalog, { rule: "course-description", target: "azure" });
+    const d = host.querySelector("[data-testid=target-d]")!.textContent!;
+    expect(d).toContain("azure://https://acct.blob.core.windows.net/c/p");
+    expect(d).toContain("golden-datasets sync");
+    expect(host.querySelector("[data-testid=prompt-warn]")!.textContent).toContain("not pushed");
+    try { localStorage.removeItem("studio.prompt.target"); } catch { /* jsdom */ }
   });
 
   it("switches between raw and rendered Markdown, raw first", async () => {
