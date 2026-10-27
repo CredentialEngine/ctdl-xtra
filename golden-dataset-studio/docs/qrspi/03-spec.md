@@ -213,6 +213,10 @@ sequenceDiagram
 Jared doesn't have to be the one who copies the prompt. Eric can open the UI and copy it himself whenever he wants
 to iterate on a rule.
 
+In three steps, the way the catalog picker shows it (§7.1): **annotate records** matched by a rule → **generate better
+rules** (Claude Code) → **apply new rules** (publish, then Compare), and repeat until every rule for the catalog is
+deemed 100% correct (approved).
+
 ### 3.2 First-time setup for a catalog
 
 1. `golden-datasets init --catalog ccsf` reads the crawl and writes `pages.parquet`.
@@ -630,6 +634,25 @@ Every command takes `--root` (or `GOLDEN_DATASETS_ROOT`):
 
 Pages and immutable Parquet files are cached on disk (`~/.cache/golden-datasets`), so the second read of anything costs nothing.
 
+**Install anywhere, from the branch.** Claude Code may run on any machine, so the prompt (§7.5) installs the CLI
+straight from the branch the Studio runs on:
+
+```sh
+uv tool install --reinstall 'git+https://github.com/CredentialEngine/ctdl-xtra.git@golden-dataset-studio#subdirectory=golden-dataset-studio'
+# or, without installing: uvx --from '<same>' golden-datasets …
+```
+
+The installed package holds the CLI and the API; the web UI's build (`web/dist`) isn't in it, so `serve` needs a
+checkout with the web app built.
+
+**`golden-datasets.env`.** Claude Code's shell commands don't share `export`s, so unset variables
+(`GOLDEN_DATASETS_ROOT`, `GOLDEN_DATASETS_CATALOG`, …) are read from `golden-datasets.env` (KEY=VALUE lines) in the
+current folder or the nearest parent. The environment always wins.
+
+**Azure credentials.** `AZURE_STORAGE_CONNECTION_STRING` if it is set; otherwise the CLI asks the signed-in Azure CLI
+(`az storage account show-connection-string`), so `az login` is the whole setup and nothing secret is exported or
+saved.
+
 | Group | Command | What it does | Writes |
 |---|---|---|---|
 | Setup | `golden-datasets init --catalog C [--crawl ID]` | Index a crawl's pages into `pages.parquet`, register it in the manifest | pages.parquet, manifest |
@@ -645,10 +668,10 @@ Pages and immutable Parquet files are cached on disk (`~/.cache/golden-datasets`
 | | `golden-datasets rule draft R… > draft.json` | Current versions of one or more rules as an editable draft | — |
 | | `golden-datasets rule try draft.json` | Run the draft over the **whole crawl** on the laptop and print the scorecard. Writes nothing | — |
 | | `golden-datasets rule publish draft.json [--force]` | New rule versions + ruleset version + extraction, uploaded together. Refuses when anything that was `correct` changes, unless `--force` | rules/, rulesets/, extractions/ |
-| Prompt | `golden-datasets prompt --catalog C [--rule R \| --needs-work]` | The same text the UI's **Copy prompt** button gives | — |
+| Prompt | `golden-datasets prompt --catalog C [--rule R \| --needs-work] [--target local\|azure]` | The same text the UI's **Copy prompt** button gives; `azure` points Claude at the Azure root (`--azure-root`) | — |
 | Golden | `golden-datasets golden publish --catalog C --to ROOT` | Requires every in-scope rule approved. Writes domain-only files to the golden root in its existing format (plus `location` and `golden_id`), lineage to the Studio | golden/ |
 | Local work | `golden-datasets sync --from ROOT --to DIR [--catalog C]` | Copy Studio files and pages between roots (both directions) | target root |
-| | `golden-datasets serve [--port 8000]` | The web UI | annotations.jsonl (via UI) |
+| | `golden-datasets serve [--port 8000] [--azure-root URI]` | The web UI; `--azure-root` is where the prompt's Azure version points (the root itself when it is Azure) | annotations.jsonl (via UI) |
 
 **A draft** is one JSON file holding one or more rules. Each has its `definition` plus `what`, `how` and `why`. Claude
 edits the draft; `golden-datasets` assigns versions and hashes. This makes "one rule" and "batch" the same thing (A5.1).
@@ -665,8 +688,8 @@ course-description  v1 → draft
 
 ## 7. The UI
 
-The screenshots are of the **built Studio** on AVC (taken with `bench/shots_review.py`; the Prompt screens on AVC at
-ruleset v1, the others after the prototype's `course-description` v2). Layout, wording and behaviour are part of the
+The screenshots are of the **built Studio** on AVC, served from the shared Azure root at ruleset v2 (taken with
+`bench/shots_review.py`, 2026-10-26). Layout, wording and behaviour are part of the
 spec. Pixel details aren't.
 
 **Top bar on every screen:** the Studio's name (no tag beside it), catalog, crawl date, ruleset version, the five
@@ -698,6 +721,16 @@ One card per catalog, laid out the same way on every card:
 A catalog whose rules haven't been run yet shows an empty bar and "rules not run yet". **Open →** goes to its Rules
 tab. Status comes from the manifest (no listing).
 
+**How the Studio works.** When the picker opens, a modal shows the loop as a ring of three boxes, **1 Annotate
+records** (Rules tab) → **2 Generate better rules** (Claude Code) → **3 Apply new rules** (Compare tab), with "↻
+Repeat until every rule is 100% correct for that catalog" inside. A dot leaves each box with a short press, runs
+along the arrow, and lands on the next box with a swell, then pauses (no motion when the system asks for reduced
+motion). The arrows start and end on the boxes' edges. **Got it**, Esc or a click outside closes it; **Don't show this
+again** is remembered in the browser, and a "How the Studio works" link under the cards opens it again. At phone
+width it is a numbered list.
+
+![How the Studio works](screens/01b-loop-modal.png)
+
 **Who's reviewing:** a "Reviewing as [Jared ▾]" dropdown at the top right. It's a list of names remembered in the
 browser and recorded as each event's `author`. There's no login and no profiles (out of scope), just like v2's
 Seth/Jared switch.
@@ -726,7 +759,7 @@ The Rules tab is designed for Jared.
 - **The current version only.** The Rules tab never shows two versions side by side; differences between versions
   live in the Compare tab.
 
-**Rows:** one per course, sorted with the likeliest problems first. The ordering comes from signals (§8), but
+**Rows:** one per course, sorted (by default, "Review order") with the likeliest problems first. The ordering comes from signals (§8), but
 signals are never shown as tags: Jared doesn't see or enter them. Annotation happens on the row, with three
 controls:
 - **✓ correct**
@@ -738,8 +771,8 @@ controls:
 
 Each row shows its verdict and who gave it. **Rows that already have a verdict fade back** (lower opacity, muted
 colour), so the eye goes to the rows still waiting; hovering or focusing one brings it back. Keyboard: `Tab` moves to
-the next row, `A` / `W` record a verdict, `C` comments, `H` starts the text selection. These appear as a single hint
-line.
+the next row, `1` / `2` record correct / wrong, `3` comments, `H` starts the text selection (`A` / `W` / `C` still
+work). These appear as a single hint line; the Records tab uses the same keys.
 
 **"Missing" only exists for the rules that find things.** A field-rule row is a course the record locator already
 found, so nothing on that row can be "missing": an empty value is simply wrong. Something is missing when a whole
@@ -798,6 +831,33 @@ prompt's list of rule bugs:
 Rows Jared had marked wrong that a new version made right show **fixed** (screen 03 shows them on
 `course-description`).
 
+**The Sample drawer** sits above the rows and decides which rows come first. It cuts the rows along several
+**strata** at once: the value's length (an equal-width histogram), paragraphs, leading label ("Prerequisite:",
+"Advisory:", a label of 1–4 words), distinct value or shape (codes, URLs), course subject, URL pattern, courses on
+the page, signals and review state. Modes:
+- **Review order** (the default): discussed rows first, then rows with signals, with every 5th row from a spread
+  sample.
+- **Autostratify:** cross the strata that split the rows most evenly (up to 3, 2–8 buckets each; never review state,
+  signals or rule), or the ones picked in the drawer. Go through **3 rows of each combination**, the rarest
+  combinations first (the ones least like the bulk of the rows), then round again until every row is listed.
+  Empty combinations never show.
+- **Shuffle:** a seeded random order, with **Reshuffle**.
+- **Manual select:** every stratum as a histogram, **one bar per bucket: how many rows fall in it**. Click bars to
+  filter (bars of one stratum are ORed, strata ANDed); a stratum's own filter is left out of its counts, so its
+  other buckets stay pickable. Strata where every row is in one bucket are listed on one line, set aside.
+
+Filters stay on in every mode and show as removable chips. **A row shows its strata tags only when a filter or
+Autostratify is on** (its bucket in each crossed or filtered stratum), so it is clear why it is listed; otherwise
+rows carry no strata labels.
+
+**Reviewed in other fields first** (a checkbox with its count): rows nobody has reviewed for this rule yet, whose
+course someone marked or commented on in another rule (or whose page, for page-rule verdicts), come first, tagged
+"Reviewed in: Description, …". A record's fields get finished together.
+
+![Sample: Autostratify](screens/15-sample-autostratify.png)
+
+![Sample: Manual select, filtered on a leading label](screens/16-sample-manual-select.png)
+
 ### 7.3 Records tab
 
 One course with every in-scope field as a card, v2-style. The same page pane shows numbered highlights for each
@@ -822,7 +882,11 @@ count of changed records. Selecting one filters everything on the right.
    (fixed / still wrong / newly wrong / unchanged). This is Eric's A4.1 ordering.
 4. **Signals, before → after.** Each signal is clickable. It expands into the records that **lost** it (−) and the
    records that **gained** it (+), each showing old → new with a word diff.
-5. **A sample** of other changed records.
+5. **Other changed records:** every changed record without a verdict, a page at a time (**Previous / Next**, 50 per
+   page by default; 25, 50, 100, 200 or 500, remembered in the browser). The same **Sample** drawer as the Rules tab
+   (Autostratify, Shuffle (the default), Manual select), over these records; its strata add how the value changed
+   (shorter, much shorter, emptied …) and the leading label in A. Records show their strata tags when a filter or
+   Autostratify is on.
 
 **"See on page →".** Every record in the comparison has this link. It opens the Rules tab with that record selected
 and highlighted on the saved page. Compare has no page pane of its own.
@@ -833,26 +897,41 @@ The same numbers are what `golden-datasets rule try` prints.
 
 Full page: [`screens/08-compare-full.png`](screens/08-compare-full.png)
 
+![Compare: other changed records, autostratified](screens/08c-compare-other-changed.png)
+
 ### 7.5 Prompt
 
-Scope: **one rule** or **all rules needing work**. One rule is picked from a list grouped like the Rules tab (page
-rules, record locators, field rules), each with its status icon, name, CTDL term and count of open verdicts; the
-selected rule is scrolled into view. The text is deterministic: the same annotations always
+Scope: **one rule** or **all rules needing work**, as two radio buttons. Under **One rule**, and only when it is
+picked, an indented list grouped like the Rules tab (page rules, record locators, field rules) shows each rule with its
+status icon, name, CTDL term and count of open verdicts; the selected rule is scrolled into view.
+
+**Where Claude works: Local | Azure.** Local points Claude at the root the Studio was launched with (no hard-coded
+path); Azure at the shared Azure root (`serve --azure-root`), after `az login`, from any machine. When the Studio
+itself serves Azure, both give the Azure setup. The sidebar warns when the branch has commits GitHub doesn't, and when
+the Studio serves another root than the one Claude would publish to. The text is deterministic: the same annotations always
 give the same prompt. It contains:
 - the task and its limits;
-- the catalog, crawl, ruleset and storage root;
+- **Setup:** install the CLI from this branch with uv (§6), sign in to Azure (Azure only), write `golden-datasets.env`
+  with the root and catalog, and check it with `golden-datasets rule show`;
+- the catalog, crawl, ruleset and storage root (a table);
 - each in-scope rule's definition and what/how/why;
-- every open annotation, with the value seen, expected text + location, note and page path;
-- the values marked correct, which must not change;
-- `golden-datasets` commands for getting more context;
+- every open annotation as a table (verdict, course, page stem, value seen, expected text + location, notes);
+- the values marked correct, which must not change (a table), and the signals (a table);
+- for all rules needing work, a table of those rules first;
+- `golden-datasets` commands as a table (step, command, what it gives), noting that everything above comes from them;
 - the publish rule ("only when nothing correct changes").
 
-There's **no raw HTML**. Pages are referenced by path, resolved against `$GOLDEN_DATASETS_ROOT`. The left side shows size
+There's **no raw HTML**. Pages are referenced by stem, fetched with `golden-datasets pages get`. The left side shows size
 (characters, ≈ tokens) and the number of page references. Buttons: **Copy prompt** and **Download .md**.
 
 The preview has a **Raw | Rendered** switch. **Raw** (the default) is the exact Markdown that is copied. **Rendered**
-shows it formatted (headings, lists, code); it never interprets the text as HTML, since the prompt quotes catalog
-pages.
+shows it formatted (headings, lists, tables, code); it never interprets the text as HTML, since the prompt quotes
+catalog pages.
+
+**What changes is highlighted.** In both views the rule's definition (the first JSON block of a rule section) has the
+strongest highlight, and what comes from the rule and its annotations (each rule section, "The N rules", the questions)
+is tinted. The template (setup, context, limits, how to work) is faded, and comes back on hover. The copied text is
+unchanged.
 
 ![Prompt](screens/09-prompt.png)
 
@@ -1043,6 +1122,12 @@ The schema in §4–5 is the contract between W1, W2 and W4–W6. Changing it me
   text): the `wrong` verdict's author is the person who rejected it (Jared), and `expected.author` is the person who
   typed the text (Seth).
 
+- **One shared root: Azure** (Eric, 2026-10-26). The Studio serves
+  `azure://https://ceteststorage.blob.core.windows.net/xtra-cli-output/zz-scratch-review-ui-v3`; only what is
+  persisted there is kept. The laptop root had diverged from it and was dropped (Claude's laptop-only
+  `course-description` v2, a few comments, and the Marshall and UALR Studio files). The benchmark's "bench: timing a
+  write" comments were deleted from the Azure logs.
+
 ### 12.2 Questions for Jared
 
 Both come from his real AVC review in v2, which the prototype imported. Each is written so it can be forwarded to him
@@ -1087,3 +1172,10 @@ descriptions still contain a Prerequisite that comes after one of them.
 - **UALR needs a recrawl.** Most UALR courses are only short entries from program pages, because its course pages
   weren't crawled. Recrawling is xtra-cli's job (outside the Studio). Until it's done, UALR's golden set will be mostly
   name + code.
+- **Comments in the prompt.** A comment reaches the prompt only on a row with an open verdict; comments on their own,
+  or on rows already fixed or marked correct, don't. Add a Comments table per rule section.
+- **`sync` with diverged roots** overwrites an immutable file (a rule or ruleset version) whose size differs; it should
+  refuse instead.
+- **Marshall and UALR on Azure:** their pages and Studio files exist only in the dropped laptop root; sync them up
+  (about 590 MB) to bring them back.
+- **The web UI in the package**, so `uvx … golden-datasets serve` works for teammates without a checkout.

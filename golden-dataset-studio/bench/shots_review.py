@@ -60,6 +60,14 @@ async def s01(page, base):
     await page.wait_for_timeout(600)
 
 
+@shot("01b-loop-modal")
+async def s01b(page, base):
+    await page.goto(f"{base}/#/")
+    await page.wait_for_selector(".loop-node")
+    # mid-run: the dot on its way from box 1 to box 2 (hold 900 ms, then a 1,300 ms run)
+    await page.wait_for_timeout(1500)
+
+
 @shot("03-rules-tab-description-v2")
 async def s03(page, base):
     await page.goto(f"{base}/#/c/{CAT}/rules/course-description?row=GEOG222")
@@ -136,6 +144,37 @@ async def s11(page, base):
     await page.wait_for_timeout(1500)
 
 
+@shot("15-sample-autostratify")
+async def s15(page, base):
+    await page.goto(f"{base}/#/c/{CAT}/rules/course-description")
+    await page.wait_for_selector(".row.on")
+    await page.click(".sm-modes button:has-text('Autostratify')")
+    await page.wait_for_selector(".row .sm-tag")
+    await wait_pane(page, 800)
+
+
+@shot("16-sample-manual-select")
+async def s16(page, base):
+    await page.goto(f"{base}/#/c/{CAT}/rules/course-description")
+    await page.wait_for_selector(".row.on")
+    await page.click(".sm-modes button:has-text('Manual select')")
+    await page.click(".sm-dim:has-text('Leading label')")
+    await page.click(".sm-bar:has-text('Advisory:')")
+    await page.wait_for_selector(".row .sm-tag")
+    await wait_pane(page, 800)
+
+
+@shot("08c-compare-other-changed", height=1400)
+async def s08c(page, base):
+    await page.goto(f"{base}/#/c/{CAT}/compare")
+    await page.wait_for_selector("[data-testid=sample]")
+    await page.click(".sm-modes button:has-text('Autostratify')")
+    await page.wait_for_selector(".crec .sm-tag")
+    await page.evaluate("() => [...document.querySelectorAll('h2')].find((h) => h.textContent.startsWith('Other changed'))"
+                        ".scrollIntoView()")
+    await page.wait_for_timeout(600)
+
+
 @shot("08-compare")
 async def s08(page, base):
     await page.goto(f"{base}/#/c/{CAT}/compare")
@@ -206,7 +245,10 @@ async def main(base: str, out: Path, only: str | None) -> None:
             ctx = await browser.new_context(viewport={"width": 1440, "height": height}, device_scale_factor=2)
             page = await ctx.new_page()
             page.on("pageerror", lambda e, n=name: print(f"  [{n}] page error: {e}"))
+            loop = "" if name == "01b-loop-modal" else " localStorage.setItem('studio.loop.hidden', '1');"
             await page.add_init_script("try { localStorage.setItem('studio.tour.seen', '1');"
+                                      f" localStorage.setItem('studio.rules.sample', '{int(name.startswith(('15', '16')))}');"
+                                      f" localStorage.setItem('studio.compare.sample', '{int(name.startswith('08c'))}');" + loop +
                                       f" localStorage.setItem('studio.theme', '{THEME.get(name, 'light')}') }} catch (e) {{}}")
             await fn(page, base)
             await page.screenshot(path=str(out / f"{name}.png"))
