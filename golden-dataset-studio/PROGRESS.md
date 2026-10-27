@@ -57,3 +57,22 @@ Plan: [`docs/qrspi/04-plan.md`](docs/qrspi/04-plan.md). Choices where the spec w
   pages 1.8 s · check 0.15 s · page render cold 94 ms, warm 5 ms (Chromium median 41 ms cold, 1.7 ms warm).
 - Deviations: build notes 2–10 and 14–17 (`docs/qrspi/06-build-notes.md`). The one visible difference from the
   prototype's data: description offsets are true DOM textContent offsets (GEOG222 v2 starts at 78, not 70).
+
+## Wave 3: W3 signals
+
+- Built: extract-time signals (`signals.py`, landed with wave 2 because `extract` writes them) and the read model
+  `review.py`: verdicts carried forward to the current rule version (fixed / still wrong / changed since correct),
+  re-attachment by course key + page when an occurrence key changes (D3), history signals at read time
+  (`previously-wrong`, `previously-correct`, `changed-since-correct`, `new-in-version`; `vanished-in-version` in
+  Compare), rule status (approved / needs work / in review) and the Rules tab's row order.
+- **Signal counts on AVC rs-0001 match the prototype** for every signal both have: contains-label-text 547,
+  duplicate-value 397, unclassified-page-with-codes 129, duplicate-occurrence 114, length-outlier 88,
+  shape-outlier 33, uncovered-code 18 (new: block-count-mismatch 1). After the description fix (rs-0002):
+  contains-label-text 273, as in the prototype.
+- Statuses on AVC v1 match the prototype's table: 5 of 17 approved (the constant / URL rules); needs work:
+  `course-description` (5 wrong) and `program-page-with-courses` (Jared's 7 rejections, spec §12.2 Q1). With v2,
+  `course-description` goes back to in review (its 5 wrong rows are fixed).
+- Checks: `pytest -m slow tests/test_avc_end_to_end.py` (4 passed: counts, incremental rs-0002 with 278 changed
+  descriptions, check, API statuses / rows / verdict / approve refused while wrong).
+- Performance (local): load an extraction into memory 60 ms; all 17 rule statuses 30 ms; order 1,062 rows 2 ms.
+- Deviations: build notes 11–12.
