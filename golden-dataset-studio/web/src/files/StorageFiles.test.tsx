@@ -1,7 +1,7 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { shortPath, StorageFiles } from "./StorageFiles";
+import { buildTree, shortPath, StorageFiles } from "./StorageFiles";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 const C = "avc-x", K = "2026";
@@ -32,17 +32,36 @@ describe("StorageFiles", () => {
     const close = vi.fn();
     await act(async () => root.render(<StorageFiles catalog="avc" onClose={close} />));
     await flush(); await flush();
-    expect([...host.querySelectorAll(".sf-gh")].map((g) => g.textContent)).toEqual(["Annotations", "Extractions"]);
-    expect(host.querySelector(".sf-item.on .sf-name")!.textContent).toBe("annotations.jsonl");
+    expect(host.querySelector(".sf-rootrow")!.textContent).toBe("p/");
+    expect([...host.querySelectorAll(".sf-dir .sf-name")].map((d) => d.textContent)).toEqual(
+      [`${C}/`, `${K}/`, "golden-dataset-studio/", "extractions/", "rs-0001/", "golden-dataset-studio/"]);
+    expect(host.querySelector(".sf-file.on .sf-name")!.textContent).toBe("annotations.jsonl");
     expect([...host.querySelectorAll(".sf-line")].map((l) => l.textContent)).toEqual(["2", "1"]);
     expect(host.querySelector(".sf-root a")!.getAttribute("href")).toContain("storagebrowser");
     expect(host.querySelector(".sf-portal")!.getAttribute("href")).toBe("https://portal/log");
-    await act(async () => host.querySelectorAll<HTMLButtonElement>(".sf-item")[1].click());
+    const files = [...host.querySelectorAll<HTMLButtonElement>(".sf-file")];
+    await act(async () => files.find((f) => f.textContent?.includes("matches.parquet"))!.click());
     await flush();
     expect(host.querySelector(".gfp-table td")!.textContent).toBe("course-code");
     expect(host.querySelector(".sf-portal")).toBeNull();
     await act(async () => window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" })));
     expect(close).toHaveBeenCalled();
+  });
+  it("collapses a folder on click, but keeps the selected file's folders open", async () => {
+    await act(async () => root.render(<StorageFiles catalog="avc" onClose={() => {}} />));
+    await flush(); await flush();
+    const dir = (name: string) => [...host.querySelectorAll<HTMLButtonElement>(".sf-dir")].find((d) => d.textContent?.includes(name))!;
+    await act(async () => dir("extractions/").click());
+    expect(host.querySelector(".sf-file .sf-name[class]") && [...host.querySelectorAll(".sf-file")].some((f) => f.textContent?.includes("matches"))).toBe(false);
+    await act(async () => dir(`${C}/`).click()); // holds the selected annotations.jsonl: stays open
+    expect(host.querySelector(".sf-file.on")).not.toBeNull();
+  });
+  it("builds the tree: folders first, counts of the files under each", () => {
+    const t = buildTree(LIST.files);
+    expect(t.children.map((c) => c.name)).toEqual([C]);
+    const cat = t.children[0];
+    expect(cat.files).toBe(2);
+    expect(cat.children.map((c) => c.name)).toEqual([K, "golden-dataset-studio"]);
   });
   it("shortens paths to the catalog or crawl folder", () => {
     expect(shortPath(`${C}/${K}/golden-dataset-studio/extractions/rs-0001/x.parquet`, C, K)).toBe("extractions/rs-0001/x.parquet");

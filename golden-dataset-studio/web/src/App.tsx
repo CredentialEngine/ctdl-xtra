@@ -11,7 +11,7 @@ import { useRoute } from "./shell/router";
 import { TopBar } from "./shell/TopBar";
 import { ThemeButton } from "./shell/theme";
 import { StorageFiles } from "./files/StorageFiles";
-import { KeysContext } from "./shell/ui";
+import { Ico, KeysContext } from "./shell/ui";
 import { Tour, useTour } from "./tour";
 import "./styles.css";
 import "./shell/dark.css";
@@ -44,7 +44,8 @@ export default function App() {
       <main id="app">{body}</main>
       <footer className="keys"><span className="keys-hints">{keys}</span>
         {catalog && <button className="files-btn" onClick={() => setFiles(true)}
-          title="Browse the files the Studio keeps for this catalog on its storage root (read-only, for debugging)">Storage files</button>}
+          title="Browse the files the Studio keeps for this catalog on its storage root (read-only, for debugging)">
+          <Ico name="folder" />Storage files</button>}
         <ThemeButton /></footer>
       {catalog && <Tour {...tour} catalog={catalog} />}
       {catalog && files && <StorageFiles catalog={catalog.short} onClose={() => setFiles(false)} />}

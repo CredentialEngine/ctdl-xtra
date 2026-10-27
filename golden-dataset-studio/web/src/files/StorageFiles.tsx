@@ -1,10 +1,11 @@
 // Storage files (routes_files.py): a debugging view of what the Studio keeps for a catalog on its storage root, to
-// see how it works under the hood. Opened from the bottom bar, out of the way. Left: the files, grouped (root
-// manifest, rules, rulesets, the annotation log, the crawl, extractions, golden publications), each with what it is.
+// see how it works under the hood. Opened from the bottom bar, out of the way. Left: the files as a tree of the
+// storage layout (the root's manifest, then the catalog's rules, rulesets and annotation log, then its crawl with
+// extractions and golden publications), folders collapsible, each file with what it is on hover.
 // Right: the selected file: JSON pretty-printed, the log as events (newest first), Parquet as a table; both filterable.
 import { useEffect, useMemo, useState } from "react";
 import { colorizeJson } from "../golden/FilePreview";
-import { fmt } from "../shell/ui";
+import { fmt, Ico } from "../shell/ui";
 import "../golden/golden.css";
 import "./files.css";
 
@@ -17,7 +18,38 @@ type Content = Head & (
   | { kind: "jsonl"; total: number; matched: number; offset: number; rows: { line: number; event: unknown }[] }
   | { kind: "table"; total: number; matched: number; offset: number; columns: string[]; rows: unknown[][] });
 
-const GROUPS = ["Root", "Rules", "Rulesets", "Annotations", "Crawl", "Extractions", "Golden publications"];
+/** A short note after some folders, to read the layout at a glance. */
+const FOLDER_NOTE: Record<string, string> = {
+  rules: "one folder per rule, one file per version", rulesets: "one file per ruleset version",
+  extractions: "one folder per run of a ruleset", golden: "one folder per publication", assets: "fetched once, by hash",
+};
+
+export interface TreeNode { name: string; path: string; file?: FileItem; children: TreeNode[]; files: number }
+
+/** The listed files as a tree of their folders (root-relative paths); folders first, then files, by name. */
+export function buildTree(files: FileItem[]): TreeNode {
+  const root: TreeNode = { name: "", path: "", children: [], files: 0 };
+  for (const f of files) {
+    const parts = f.path.split("/");
+    let node = root;
+    parts.forEach((part, i) => {
+      node.files++;
+      const path = parts.slice(0, i + 1).join("/");
+      let child = node.children.find((c) => c.name === part && !c.file === (i < parts.length - 1));
+      if (!child) {
+        child = { name: part, path, children: [], files: 0, ...(i === parts.length - 1 ? { file: f } : {}) };
+        node.children.push(child);
+      }
+      node = child;
+    });
+  }
+  const sort = (n: TreeNode) => {
+    n.children.sort((a, b) => (a.file ? 1 : 0) - (b.file ? 1 : 0) || a.name.localeCompare(b.name));
+    n.children.forEach(sort);
+  };
+  sort(root);
+  return root;
+}
 const LIMIT = 100;
 const base = (c: string) => `/api/catalogs/${encodeURIComponent(c)}/files`;
 async function get<T>(url: string): Promise<T> {
@@ -52,8 +84,10 @@ export function StorageFiles({ catalog, onClose }: { catalog: string; onClose: (
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
-  const groups = useMemo(() => GROUPS.map((g) => [g, (list?.files ?? []).filter((f) => f.group === g)] as const)
-    .filter(([, fs]) => fs.length), [list]);
+  const tree = useMemo(() => buildTree(list?.files ?? []), [list]);
+  const [closed, setClosed] = useState<Set<string>>(() => new Set());
+  const toggle = (p: string) => setClosed((c) => { const n = new Set(c); if (n.has(p)) n.delete(p); else n.add(p); return n; });
+  const rootName = list ? (list.root.split("/").filter(Boolean).pop() ?? list.root) : "";
 
   return (
     <div className="gfp-bg" onClick={onClose}>
@@ -70,23 +104,52 @@ export function StorageFiles({ catalog, onClose }: { catalog: string; onClose: (
           <nav className="sf-list" aria-label="Files">
             {error && <div className="muted" style={{ padding: 12 }}>{error}</div>}
             {!list && !error && <div className="muted" style={{ padding: 12 }}>Listing…</div>}
-            {list && groups.map(([g, fs]) => (
-              <div key={g} className="sf-group">
-                <div className="sf-gh">{g}</div>
-                {fs.map((f) => (
-                  <button key={f.path} className={"sf-item" + (f.path === path ? " on" : "")} title={`${f.path}\n${f.about}`}
-                    onClick={() => setPath(f.path)}>
-                    <span className="mono sf-name">{shortPath(f.path, list.catalog, list.crawl)}</span>
-                    <span className="sf-size">{kb(f.size)}</span>
-                  </button>
-                ))}
+            {list && (
+              <div className="sf-tree" role="tree">
+                <div className="sf-row sf-rootrow" title={list.root}><Ico name="folder-open" /><span className="mono">{rootName}/</span></div>
+                <Branch nodes={tree.children} depth={1} closed={closed} toggle={toggle} selected={path} onPick={setPath} />
               </div>
-            ))}
+            )}
           </nav>
           <section className="sf-view">{path ? <Preview key={path} catalog={catalog} path={path} /> : null}</section>
         </div>
       </div>
     </div>
+  );
+}
+
+function Branch({ nodes, depth, closed, toggle, selected, onPick }: {
+  nodes: TreeNode[]; depth: number; closed: Set<string>; toggle: (p: string) => void; selected: string | null;
+  onPick: (p: string) => void;
+}) {
+  return (
+    <ul className="sf-branch" role="group">
+      {nodes.map((n) => {
+        if (n.file) {
+          return (
+            <li key={n.path} role="treeitem" aria-selected={n.path === selected}>
+              <button className={"sf-row sf-file" + (n.path === selected ? " on" : "")} title={`${n.path}\n${n.file.about}`}
+                onClick={() => onPick(n.path)}>
+                <Ico name="file" /><span className="mono sf-name">{n.name}</span><span className="sf-size">{kb(n.file.size)}</span>
+              </button>
+            </li>
+          );
+        }
+        // the selected file's folders always stay open
+        const open = !closed.has(n.path) || (!!selected && selected.startsWith(n.path + "/"));
+        return (
+          <li key={n.path} role="treeitem" aria-expanded={open}>
+            <button className="sf-row sf-dir" onClick={() => toggle(n.path)} title={n.path + "/"}>
+              <span className="sf-chev">{open ? "▾" : "▸"}</span><Ico name={open ? "folder-open" : "folder"} />
+              <span className="mono sf-name">{n.name}/</span>
+              {FOLDER_NOTE[n.name] && <span className="sf-note">{FOLDER_NOTE[n.name]}</span>}
+              <span className="sf-size">{n.files}</span>
+            </button>
+            {open && <Branch nodes={n.children} depth={depth + 1} closed={closed} toggle={toggle} selected={selected} onPick={onPick} />}
+          </li>
+        );
+      })}
+    </ul>
   );
 }
 

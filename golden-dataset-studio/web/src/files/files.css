@@ -6,19 +6,35 @@
 .sf-root a, .sf-portal { color: var(--accent); font-family: var(--sans); white-space: nowrap; }
 .sf-main { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(220px, 300px) 1fr; }
 .sf-list { border-right: 1px solid var(--line); overflow: auto; padding: 6px 0; background: var(--surface); }
-.sf-group + .sf-group { border-top: 1px solid var(--line); margin-top: 4px; padding-top: 4px; }
-.sf-gh { font-size: 10.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--faint); font-weight: 600; padding: 6px 12px 3px; }
-.sf-item { display: flex; align-items: baseline; gap: 8px; width: 100%; border: 0; background: none; text-align: left; padding: 4px 12px; cursor: pointer; color: var(--ink); font: inherit; }
-.sf-item:hover { background: var(--surface-2); }
-.sf-item.on { background: var(--accent-soft); box-shadow: inset 3px 0 0 var(--accent); }
-.sf-name { flex: 1; min-width: 0; font-size: 11.5px; overflow-wrap: anywhere; }
-.sf-size { flex: none; font-size: 11px; color: var(--faint); }
+.sf-main { grid-template-columns: minmax(260px, 360px) 1fr; }
+/* the tree: chevron, folder / file icon, name; guide lines down each open folder */
+.sf-tree { padding: 2px 6px 8px; font-size: 12px; }
+.sf-branch { list-style: none; margin: 0 0 0 13px; padding: 0 0 0 6px; border-left: 1px solid var(--line); }
+.sf-tree > .sf-branch { margin-left: 7px; }
+.sf-row { display: flex; align-items: center; gap: 5px; width: 100%; border: 0; background: none; text-align: left; padding: 3px 6px; cursor: pointer; color: var(--ink); font: inherit; border-radius: 5px; }
+.sf-row:hover { background: var(--surface-2); }
+.sf-row .ico svg { width: 14px; height: 14px; display: block; }
+.sf-dir .ico { color: var(--amber); }
+.sf-file .ico { color: var(--muted); }
+.sf-rootrow { cursor: default; font-weight: 600; }
+.sf-rootrow .ico { color: var(--amber); }
+.sf-rootrow:hover { background: none; }
+.sf-chev { width: 10px; flex: none; color: var(--faint); font-size: 10px; margin-left: -12px; }
+.sf-file.on { background: var(--accent-soft); box-shadow: inset 3px 0 0 var(--accent); }
+.sf-file.on .ico { color: var(--accent); }
+.sf-note { color: var(--faint); font-size: 10.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; flex: 0 1 auto; }
+.sf-name { flex: 0 1 auto; min-width: 0; font-size: 11.5px; overflow-wrap: anywhere; }
+.sf-size { flex: none; margin-left: auto; padding-left: 6px; font-size: 11px; color: var(--faint); }
 .sf-view { min-width: 0; min-height: 0; display: flex; flex-direction: column; }
 .sf-about { padding: 8px 14px; font-size: 12.5px; color: var(--ink-2); border-bottom: 1px solid var(--line); line-height: 1.45; }
 .sf-newest { display: inline-flex; align-items: center; gap: 5px; color: var(--muted); }
 .sf-events { display: grid; gap: 6px; align-content: start; }
 .sf-event { display: grid; grid-template-columns: 3.5em 1fr; gap: 8px; background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; }
 .sf-line { color: var(--faint); font-size: 11px; text-align: right; padding-top: 2px; }
-.files-btn { border: 0; background: none; color: var(--muted); font: inherit; font-size: 12px; cursor: pointer; padding: 3px 8px; border-radius: 6px; margin-right: 6px; }
+.files-btn { display: inline-flex; align-items: center; gap: 5px; border: 0; background: none; color: var(--muted); font: inherit; font-size: 12px; cursor: pointer; padding: 3px 8px; border-radius: 6px; margin-right: 6px; }
+.files-btn .ico svg { width: 14px; height: 14px; display: block; }
 .files-btn:hover { color: var(--ink); background: var(--surface-2); }
 @media (max-width: 700px) { .sf-main { grid-template-columns: 1fr; grid-template-rows: 35% 1fr; } .sf-list { border-right: 0; border-bottom: 1px solid var(--line); } }
+/* folder names stay on one line; the note gives way first */
+.sf-dir .sf-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 0 0 auto; max-width: 75%; }
+.sf-dir .sf-note { flex: 0 100 auto; }

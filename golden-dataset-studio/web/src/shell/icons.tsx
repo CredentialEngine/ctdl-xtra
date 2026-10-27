@@ -19,6 +19,9 @@ export const ICON: Record<string, string> = {
   dots: '<svg viewBox="0 0 16 16" fill="currentColor"><circle cx="3.5" cy="8" r="1.4"/><circle cx="8" cy="8" r="1.4"/><circle cx="12.5" cy="8" r="1.4"/></svg>',
   spark: '<svg viewBox="0 0 16 16" fill="none"><path d="M8 1.8 9.5 6.5 14.2 8 9.5 9.5 8 14.2 6.5 9.5 1.8 8 6.5 6.5 8 1.8Z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>',
   inst: '<svg viewBox="0 0 16 16" fill="none"><path d="M2 6.2 8 2.8l6 3.4M3 6.6h10M4 7v5M6.7 7v5M9.3 7v5M12 7v5M2.5 13.4h11" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  folder: '<svg viewBox="0 0 16 16" fill="none"><path d="M1.8 4.2a1 1 0 0 1 1-1h3.4l1.5 1.6h5.5a1 1 0 0 1 1 1v6.9a1 1 0 0 1-1 1H2.8a1 1 0 0 1-1-1V4.2Z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>',
+  "folder-open": '<svg viewBox="0 0 16 16" fill="none"><path d="M1.8 12.3V4.2a1 1 0 0 1 1-1h3.4l1.5 1.6h5a1 1 0 0 1 1 1v1.1" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/><path d="M1.8 12.7 3.6 7.6a1 1 0 0 1 .9-.7h9.6a.7.7 0 0 1 .7.9l-1.6 4.7a1 1 0 0 1-.9.7H2.3a.5.5 0 0 1-.5-.5Z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>',
+  file: '<svg viewBox="0 0 16 16" fill="none"><path d="M4 1.8h5l3.2 3.2v8.2a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V2.8a1 1 0 0 1 1-1Z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/><path d="M8.8 1.8V5.2h3.4" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>',
   expert: '<svg viewBox="0 0 16 16" fill="none"><circle cx="8" cy="5.5" r="2.7" stroke="currentColor" stroke-width="1.5"/><path d="M2.8 14c.6-2.6 2.7-4.2 5.2-4.2s4.6 1.6 5.2 4.2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>',
 };
 
