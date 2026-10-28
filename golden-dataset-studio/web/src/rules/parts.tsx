@@ -51,8 +51,17 @@ export function Expansion({ draft, fieldRule, emptyValue, onChange, onSave, onCa
   const pick = fieldRule ? "Select the right text on the page →" : "Optional: select text on the page that shows why →";
   return (
     <div className="expand wrong" onClick={stop}>
-      {draft.capture
-        ? <blockquote className="sel-quote" data-testid="capture">{clip(draft.capture.text)}</blockquote>
+      {draft.captures.length
+        ? <>{draft.captures.map((c, i) => (
+              <div className="sel-piece" key={`${c.css_path}|${c.char_start}`}>
+                <blockquote className="sel-quote" data-testid="capture">{clip(c.text)}</blockquote>
+                <button className="sel-x" title="Remove this piece" aria-label={`Remove piece ${i + 1}`}
+                  onClick={() => onChange({ ...draft, captures: draft.captures.filter((_, j) => j !== i) })}>×</button>
+              </div>))}
+            <div className="faint sel-again">{draft.captures.length > 1
+              ? `${draft.captures.length} pieces, joined in page order. `
+              : fieldRule ? "The right value, outlined on the page. " : "Outlined on the page. "}
+              Drag across more text to add a piece; × removes one.</div></>
         : <div className="pick"><Ico name="highlight" /><span>{pick}</span>
             {fieldRule && emptyValue && <span className="faint">(the rule found nothing here; select the value the page shows)</span>}</div>}
       <input ref={note} className="note" placeholder="Note for whoever fixes the rule (optional)" value={draft.note}

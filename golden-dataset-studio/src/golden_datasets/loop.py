@@ -119,7 +119,9 @@ def _record(rv: Review, rule_id: str, e: dict, row: dict | None, state: str | No
         "rule_version": snap.rules[rule_id]["version"], "rule_kind": snap.rules[rule_id]["kind"],
         "has_row": row is not None, "current_value": (row or {}).get("value"),
         "current_css_path": (row or {}).get("css_path"),
-        "expected": None if not exp else {k: exp.get(k) for k in ("text", "css_path", "char_start", "char_end")},
+        "expected": None if not exp else {k: exp.get(k) for k in ("text", "css_path", "char_start", "char_end")}
+        | ({"segments": [{k: s.get(k) for k in ("text", "css_path", "char_start", "char_end")} for s in exp["segments"]]}
+           if exp.get("segments") else {}),
         "note": e.get("note"), "reattached": reattached,
         "comments": [{"author": c["author"], "at": c["at"], "note": c.get("note")} for c in comments],
     }
@@ -240,7 +242,11 @@ def format_annotation(ctx: Ctx, a: dict, i: int | None = None) -> str:
     exp = a["expected"]
     if exp:
         lines.append(f"{pad}expected: {json.dumps(exp['text'], ensure_ascii=False)}")
-        if exp.get("css_path"):
+        if exp.get("segments"):  # the value is in several pieces on the page, joined by line breaks above
+            for i, s in enumerate(exp["segments"], 1):
+                lines.append(f"{pad}expected piece {i}: {s['css_path']} chars {s['char_start']}–{s['char_end']}"
+                             f" (DOM textContent offsets): {json.dumps(s['text'], ensure_ascii=False)}")
+        elif exp.get("css_path"):
             lines.append(f"{pad}expected at: {exp['css_path']} chars {exp['char_start']}–{exp['char_end']}"
                          " (DOM textContent offsets)")
     if a["note"]:

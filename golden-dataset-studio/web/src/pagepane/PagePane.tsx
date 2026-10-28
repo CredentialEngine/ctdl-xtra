@@ -23,6 +23,8 @@ export interface PagePaneProps {
   banner?: ReactNode;
   captureSelection?: boolean;
   onSelection?(sel: CapturedSelection): void;
+  /** The × of a `removable` highlight was clicked. */
+  onRemove?(id: string): void;
   pickBlock?: boolean;
   onPickBlock?(sel: CapturedSelection): void;
   legend?: ReactNode;
@@ -183,9 +185,16 @@ export function PagePane(props: PagePaneProps): JSX.Element {
       "click",
       (e) => {
         const t = e.target as Element | null;
+        const p = latest.current;
+        const x = t && typeof t.closest === "function" ? t.closest(".gds-x") : null;
+        if (x) {
+          e.preventDefault();
+          e.stopPropagation();
+          p.onRemove?.(x.getAttribute("data-id") ?? "");
+          return;
+        }
         const a = t && typeof t.closest === "function" ? t.closest("a, area, form, button, input[type=submit]") : null;
         if (a) e.preventDefault();
-        const p = latest.current;
         if (p.pickBlock && p.onPickBlock && t) {
           const sel = d.getSelection();
           if (sel && !sel.isCollapsed) return; // a drag-selection is handled on mouseup

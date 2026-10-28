@@ -62,6 +62,9 @@ export interface RuleDetail extends RuleSummary {
 export interface Expected {
   text: string; css_path: string | null; char_start: number | null; char_end: number | null;
   quote?: { prefix: string; exact: string; suffix: string } | null; located_by?: string; author?: string;
+  /** A value in several pieces on the page: each piece, in page order (`text` is them joined by line breaks). */
+  segments?: { text: string; css_path: string; char_start: number; char_end: number;
+               quote?: { prefix: string; exact: string; suffix: string } }[];
 }
 
 export interface EventBrief {

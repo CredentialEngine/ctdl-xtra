@@ -8,6 +8,9 @@ export interface CapturedSelection {
   char_end: number;
   prefix: string;
   suffix: string;
+  /** Where it starts and ends in the whole page's text: puts several selections in page order, finds overlaps. */
+  doc_start?: number;
+  doc_end?: number;
 }
 
 const CONTEXT = 30;
@@ -144,11 +147,18 @@ export function captureRange(range: Range): CapturedSelection | null {
   if (range.collapsed) return null;
   const el = containerOf(range);
   if (!el) return null;
-  const start = textOffset(el, range.startContainer, range.startOffset);
-  const end = textOffset(el, range.endContainer, range.endOffset);
   const tc = el.textContent ?? "";
+  // whitespace a drag picks up at either end (the line break after a paragraph, an empty element under it) isn't
+  // part of the selection: left in, it would be outlined (and get its own ×) on the page
+  const lead = (t: string) => t.length - t.trimStart().length;
+  const rawStart = textOffset(el, range.startContainer, range.startOffset);
+  const rawEnd = textOffset(el, range.endContainer, range.endOffset);
+  const raw = tc.slice(rawStart, rawEnd);
+  if (!raw.trim()) return null;
+  const start = rawStart + lead(raw);
+  const end = rawEnd - (raw.length - raw.trimEnd().length);
   const text = tc.slice(start, end);
-  if (!text.trim()) return null;
+  const docStart = textOffset(el.ownerDocument.documentElement, range.startContainer, range.startOffset) + (start - rawStart);
   return {
     text,
     css_path: cssPathOf(el),
@@ -156,6 +166,8 @@ export function captureRange(range: Range): CapturedSelection | null {
     char_end: end,
     prefix: tc.slice(Math.max(0, start - CONTEXT), start),
     suffix: tc.slice(end, end + CONTEXT),
+    doc_start: docStart,
+    doc_end: docStart + text.length,
   };
 }
 

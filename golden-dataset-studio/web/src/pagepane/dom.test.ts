@@ -132,6 +132,19 @@ describe("selection capture", () => {
     expect(cap.css_path.endsWith("b:nth-of-type(1)")).toBe(true);
   });
 
+  it("leaves out whitespace a drag picks up at either end, and says where the text sits in the whole page", () => {
+    const doc = page(BODY);
+    const intro = doc.querySelector(".introtext")!;
+    const r = doc.createRange();
+    r.setStart(intro.firstChild!, 0);
+    r.setEndAfter(intro);  // past the block's end
+    const cap = captureRange(r)!;
+    expect(cap.text).toBe(cap.text.trim());
+    expect(cap.text.startsWith("This course")).toBe(true);
+    expect(rangeFromOffsets(resolvePath(doc, cap.css_path)!, cap.char_start, cap.char_end)!.toString()).toBe(cap.text);
+    expect(doc.documentElement.textContent!.slice(cap.doc_start, cap.doc_end)).toBe(cap.text);
+  });
+
   it("ignores collapsed and whitespace-only selections", () => {
     const doc = page(BODY);
     const r = doc.createRange();

@@ -93,19 +93,46 @@ export function historyItems(r: { state: RowStateName | null; verdict: EventBrie
 
 // --- events ------------------------------------------------------------------------------------------------------
 export type DraftMode = "wrong" | "comment";
-export interface Draft { mode: DraftMode; capture: CapturedSelection | null; note: string; question: boolean }
+/** Text compared the way the server compares values (review.norm): runs of whitespace are one space. */
+export const norm = (v: string | null | undefined): string => (v ?? "").replace(/\s+/g, " ").trim();
+
+/** A draft verdict or comment. `captures`: the right value as the reviewer selected it on the page, one or more
+ * pieces (a value can be split across the page: two paragraphs with a heading between them), in page order. */
+export interface Draft { mode: DraftMode; captures: CapturedSelection[]; note: string; question: boolean }
 
 export const newDraft = (mode: DraftMode, verdict: EventBrief | null, state: RowStateName | null): Draft => ({
-  mode, capture: null,
+  mode, captures: [],
   // editing a question shows its note; anything else starts empty
   note: mode === "comment" && state === "question" ? verdict?.note ?? "" : "",
   question: mode === "comment" && state === "question",
 });
 
-export function expectedOf(c: CapturedSelection | null): Expected | null {
-  if (!c) return null;
-  return { text: c.text, css_path: c.css_path, char_start: c.char_start, char_end: c.char_end,
-           quote: { prefix: c.prefix, exact: c.text, suffix: c.suffix }, located_by: "highlight in the Studio" };
+function overlaps(a: CapturedSelection, b: CapturedSelection): boolean {
+  if (a.doc_start != null && a.doc_end != null && b.doc_start != null && b.doc_end != null)
+    return a.doc_start < b.doc_end && b.doc_start < a.doc_end;
+  return a.css_path === b.css_path && a.char_start < b.char_end && b.char_start < a.char_end;
+}
+
+/** Add a selected piece: it replaces any piece it overlaps (selecting again fixes a piece); pieces stay in page order. */
+export function addCapture(cs: CapturedSelection[], c: CapturedSelection): CapturedSelection[] {
+  const kept = cs.filter((x) => !overlaps(x, c));
+  return [...kept, c].sort((a, b) => (a.doc_start ?? Infinity) - (b.doc_start ?? Infinity));
+}
+
+const located = (c: CapturedSelection) => ({ text: c.text, css_path: c.css_path, char_start: c.char_start, char_end: c.char_end,
+  quote: { prefix: c.prefix, exact: c.text, suffix: c.suffix } });
+
+/** The `expected` of a wrong verdict: one piece as before; several pieces → their text joined by line breaks in page
+ * order (what the rule should extract), located at the first piece, every piece in `segments`. */
+export function expectedOf(c: CapturedSelection | CapturedSelection[] | null): Expected | null {
+  const cs = c === null ? [] : Array.isArray(c) ? c : [c];
+  if (!cs.length) return null;
+  const e: Expected = { ...located(cs[0]), located_by: "highlight in the Studio" };
+  if (cs.length > 1) {
+    e.text = cs.map((x) => x.text.trim()).join("\n");
+    e.segments = cs.map(located);
+  }
+  return e;
 }
 
 export type Target = NewEvent["target"];
@@ -127,7 +154,7 @@ export function verdictEvent(author: string, target: Target, prev: EventBrief | 
   if (d.mode === "comment" && !d.question) return { type: "comment", author, target, note };
   const verdict: Verdict = d.mode === "comment" ? "question" : "wrong";
   return { type: "verdict", author, target, verdict, note, supersedes,
-           expected: verdict === "wrong" ? expectedOf(d.capture) : null };
+           expected: verdict === "wrong" ? expectedOf(d.captures) : null };
 }
 
 /** "Add a course / page this rule missed" (spec §7.2): a `missing` verdict with no occurrence. */

@@ -100,6 +100,13 @@ def scope_rules(rv: Review, rule: str | None, needs_work: bool) -> list[str]:
 
 def _location(a: dict) -> str:
     exp = a["expected"] or {}
+    if exp.get("segments"):  # a value in several pieces on the page
+        return f" ({len(exp['segments'])} pieces: " + "; ".join(
+            _where(a, s).removeprefix(" (").removesuffix(")") for s in exp["segments"]) + ")"
+    return _where(a, exp)
+
+
+def _where(a: dict, exp: dict) -> str:
     if not exp.get("css_path") or exp.get("char_start") is None:
         return ""
     if exp["css_path"] == a["current_css_path"]:

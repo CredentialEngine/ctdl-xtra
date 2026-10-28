@@ -6,6 +6,14 @@ import type { CatalogDetail, RuleDetail, RulesResponse, RuleSummary } from "../a
 import { parseRoute } from "../shell/router";
 import type { RowX, RowsX } from "./api";
 import RulesTab from "./RulesTab";
+import type { PagePaneProps } from "../pagepane/PagePane";
+
+// The page pane is an iframe jsdom doesn't load: a stand-in keeps its latest props and shows its banner and legend.
+const pane: { props: PagePaneProps | null } = { props: null };
+vi.mock("../pagepane", async (orig) => ({
+  ...(await orig<typeof import("../pagepane")>()),
+  PagePane: (p: PagePaneProps) => { pane.props = p; return <div data-testid="pane">{p.banner}{p.legend}</div>; },
+}));
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -183,6 +191,54 @@ describe("RulesTab", () => {
     await act(async () => { prior.click(); await new Promise((r) => setTimeout(r, 0)); });
     expect(last().get("prior")).toBe("true");
     expect(container.querySelector(".rows-bar")!.textContent).toContain("reviewed in other fields first");
+  });
+
+  it("filters to the records I annotated, in any ruleset version, from the Sample drawer", async () => {
+    const sample = { order: "review", seed: 0, total: 3, listed: 3, cross: [], cells: [], tag_dims: [], histograms: [
+      { id: "annotator", label: "Annotated by", help: "", uniform: false, spread: 0.5,
+        buckets: [{ id: "nobody", count: 1, on: false }, { id: "Jared Diener", count: 2, on: false }] }] };
+    const fetchMock = vi.mocked(fetch);
+    const base = fetchMock.getMockImplementation()!;
+    fetchMock.mockImplementation((url, init) => (String(url).includes("/rows") ? json({ ...rows, sample }) : base(url as string, init)));
+    await render();
+    const last = () => new URLSearchParams(fetchMock.mock.calls.map((c) => String(c[0])).filter((u) => u.includes("/rows")).pop()!.split("?")[1]);
+    const box = container.querySelector<HTMLInputElement>(".sm-mine input")!;
+    expect(container.querySelector(".sm-mine")!.textContent).toBe("Annotated by me (2)");
+    expect(box.checked).toBe(false);
+    await act(async () => { box.click(); await new Promise((r) => setTimeout(r, 0)); });
+    expect(last().getAll("f")).toEqual(["annotator:Jared Diener"]);  // the profile "Jared" is Jared Diener
+    expect(container.querySelector<HTMLInputElement>(".sm-mine input")!.checked).toBe(true);
+    expect(container.querySelector(".sm-chip")!.textContent).toContain("Annotated by: Jared Diener");
+  });
+
+  it("marks the right value by selecting it on the page, without pressing ✗ first, in one piece or several", async () => {
+    await render();
+    const p = () => pane.props!;
+    expect(container.querySelector("[data-testid=answer-hint]")!.textContent).toBe("Wrong? Drag across the right text to mark it.");
+    expect(p().captureSelection).toBe(true);
+    const sel = (text: string, at: number) => ({ text, css_path: `html > body > p:nth-of-type(${at})`, char_start: 0,
+      char_end: text.length, prefix: "", suffix: "", doc_start: at * 100, doc_end: at * 100 + text.length });
+    const quotes = () => [...container.querySelectorAll(".row.on [data-testid=capture]")].map((q) => q.textContent);
+    await act(async () => p().onSelection!(sel("Value 1", 1)));  // the value found itself: nothing to fix
+    expect(quotes()).toEqual([]);
+    await act(async () => p().onSelection!(sel("Second part", 3)));
+    expect(container.querySelector(".row.on .cb.no")!.className).toContain(" on");
+    await act(async () => p().onSelection!(sel("First part", 2)));  // another drag adds a piece, kept in page order
+    expect(quotes()).toEqual(["First part", "Second part"]);
+    expect(p().highlights.filter((h) => h.removable).map((h) => h.text)).toEqual(["First part", "Second part"]);
+    expect(container.querySelector("[data-testid=pane]")!.textContent).toContain("Your answer is outlined (2 pieces)");
+    await act(async () => p().onSelection!(sel("Second part, fixed", 3)));  // a drag over a piece replaces it
+    expect(quotes()).toEqual(["First part", "Second part, fixed"]);
+    await act(async () => p().onRemove!("capture-0"));  // × on the page
+    expect(quotes()).toEqual(["Second part, fixed"]);
+    await act(async () => p().onSelection!(sel("Stray", 4)));
+    await act(async () => container.querySelector<HTMLButtonElement>(".row.on [aria-label='Remove piece 2']")!.click());  // × in the row
+    expect(quotes()).toEqual(["Second part, fixed"]);
+    await act(async () => p().onSelection!(sel("First part", 2)));
+    await act(async () => container.querySelector<HTMLButtonElement>(".row.on .save")!.click());
+    expect(posted[posted.length - 1]).toMatchObject({ type: "verdict", verdict: "wrong", expected: {
+      text: "First part\nSecond part, fixed", css_path: "html > body > p:nth-of-type(2)",
+      segments: [{ text: "First part" }, { text: "Second part, fixed", css_path: "html > body > p:nth-of-type(3)" }] } });
   });
 
   it("shows rules by kind with status icons and reviewed counts", async () => {

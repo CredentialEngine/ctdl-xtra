@@ -123,11 +123,27 @@ async def s04(page, base):
     await page.goto(f"{base}/#/c/{CAT}/rules/course-description?row=AM135A")
     await page.wait_for_selector(".row.on")
     await wait_pane(page)
-    await page.click(".row.on .cb.no")
-    await page.wait_for_timeout(400)
+    # no ✗ first: selecting text on the row's page opens the ✗ draft with it
     await select_text(page, "div.introtext", "The course explores", 2000)
     await page.wait_for_timeout(300)
     await page.fill(".row.on .note", "Advisory isn't part of the description either: drop it like the prerequisite.")
+    await page.wait_for_timeout(1500)
+
+
+@shot("04b-highlight-in-pieces")
+async def s04b(page, base):
+    await page.goto(f"{base}/#/c/{CAT}/rules/course-description?row=AM135A")
+    await page.wait_for_selector(".row.on")
+    await wait_pane(page)
+    for _ in range(3):  # zoomed in, so the pieces and their × read at screenshot size
+        await page.click("button[aria-label='Zoom in']")
+    await wait_pane(page, 1500)
+    # two drags, the later text first: the pieces are kept in page order, each with a × on the page and in the row
+    await select_text(page, "div.introtext", "Topics include", 2000)
+    await page.wait_for_timeout(300)
+    await select_text(page, "div.introtext", "The course explores", len("The course explores the use of a 3D CAD environment."))
+    await page.wait_for_timeout(300)
+    await page.evaluate("() => document.querySelector('.row.on .expand')?.scrollIntoView({block: 'center'})")
     await page.wait_for_timeout(1500)
 
 
@@ -189,6 +205,15 @@ async def s16(page, base):
     await page.click(".sm-modes button:has-text('Manual select')")
     await page.click(".sm-dim:has-text('Leading label')")
     await page.click(".sm-bar:has-text('Advisory:')")
+    await page.wait_for_selector(".row .sm-tag")
+    await wait_pane(page, 800)
+
+
+@shot("19-sample-annotated-by-me")
+async def s19(page, base):
+    await page.goto(f"{base}/#/c/{CAT}/rules/course-description")
+    await page.wait_for_selector(".row.on")
+    await page.check(".sm-mine input")
     await page.wait_for_selector(".row .sm-tag")
     await wait_pane(page, 800)
 

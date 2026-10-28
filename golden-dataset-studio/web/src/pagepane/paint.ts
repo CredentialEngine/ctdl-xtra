@@ -18,6 +18,8 @@ export interface Highlight {
   charEnd?: number | null;
   text?: string | null;
   badge?: number | string;
+  /** Draw a × at its end that removes it (PagePane's `onRemove`), e.g. one piece of a reviewer's answer. */
+  removable?: boolean;
 }
 
 export interface Resolved {
@@ -76,7 +78,7 @@ export function clear(doc: Document): void {
   const reg = (win?.CSS as unknown as { highlights?: Map<string, unknown> } | undefined)?.highlights;
   if (reg) Object.values(NAMES).forEach((n) => reg.delete(n));
   const ov = doc.getElementById(OVERLAY_ID);
-  if (ov) ov.querySelectorAll(".gds-box, .gds-badge, .gds-fill").forEach((n) => n.remove());
+  if (ov) ov.querySelectorAll(".gds-box, .gds-badge, .gds-fill, .gds-x").forEach((n) => n.remove());
 }
 
 interface Rect { left: number; top: number; width: number; height: number }
@@ -97,6 +99,19 @@ function box(doc: Document, parent: HTMLElement, cls: string, r: Rect, pad = 0):
   b.style.cssText = `position:absolute;left:${r.left - pad}px;top:${r.top - pad}px;width:${r.width + 2 * pad}px;height:${r.height + 2 * pad}px`;
   parent.appendChild(b);
   return b;
+}
+
+/** A clickable × (the overlay itself lets clicks through to the page; this one doesn't). */
+function removeButton(doc: Document, parent: HTMLElement, id: string, x: number, y: number): void {
+  const b = doc.createElement("div");
+  b.className = "gds-x";
+  b.setAttribute("data-id", id);
+  b.setAttribute("title", "Remove this piece of your answer");
+  b.textContent = "×";
+  b.style.cssText = `position:absolute;left:${x}px;top:${y}px;width:18px;height:18px;border-radius:50%;background:#1f7a55;`
+    + "color:#fff;font:700 14px/18px system-ui,sans-serif;text-align:center;cursor:pointer;pointer-events:auto;"
+    + "box-shadow:0 1px 3px rgba(0,0,0,.35);user-select:none";
+  parent.appendChild(b);
 }
 
 function badge(doc: Document, parent: HTMLElement, kind: string, n: number | string, x: number, y: number): void {
@@ -130,6 +145,10 @@ export function paint(doc: Document, resolved: Resolved[], focusId?: string | nu
         const f = rects[0];
         // top-left corner, so it covers as little of the surrounding text as possible
         badge(doc, ov, kind, h.badge, Math.max(0, f.left - 11), f.top - 14);
+      }
+      if (h.removable) {
+        const l = rects[rects.length - 1];
+        removeButton(doc, ov, h.id, l.left + l.width + 2, l.top - 9);
       }
       if (h.id === focusId) focus = union(rects);
     } else {
