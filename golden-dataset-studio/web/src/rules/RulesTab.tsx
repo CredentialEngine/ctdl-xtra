@@ -20,6 +20,7 @@ import { MissedCourse, MissedPage, type MissedState } from "./MissedPanel";
 import { Controls, Expansion, HistoryLine, Value } from "./parts";
 import { RuleHead } from "./RuleHead";
 import { RuleList, type PostTalk } from "./RuleList";
+import { FixBar } from "../agent/FixBar";
 import "./rules.css";
 
 const FIRST_PAGE = 100;
@@ -349,7 +350,8 @@ export default function RulesTab({ catalog, route }: TabProps) {
     <div className="rules-layout w4-rules">
       <aside className="col">{rules && <RuleList rules={rules} active={ruleId} onPick={(id) => go(href(cat, "rules", id, { ext }))}
         talk={talk} onTalk={postTalk}
-        top={<RulesetPicker catalog={catalog} ext={ext} onPick={(x) => go(href(cat, "rules", ruleId, { ext: x }))} />} />}</aside>
+        top={<RulesetPicker catalog={catalog} ext={ext} onPick={(x) => go(href(cat, "rules", ruleId, { ext: x }))} />}
+        bottom={!ext && <FixBar catalog={cat} name={catalog.name} rules={rules} />} />}</aside>
       <section className="col mid">
         {detail && <RuleHead catalog={catalog} rule={detail} busy={busy} onApprove={() => approve("approve")} onReopen={() => approve("reopen")} />}
         {detail && <div className="rows-bar"><span><b>{fmt(total)}</b> {unitWord(detail.kind, detail.locator)}{filtered && <> · <b>filtered</b> by strata</>}{prefs.prior && <> · reviewed in other fields first</>} · {

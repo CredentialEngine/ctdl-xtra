@@ -1,4 +1,4 @@
-/* Prompt tab (W6). The layout classes (.prompt-layout, .prompt-side, .opt, .facts, .prompt-pre …) come from
+/* The prompt modal (PromptModal.tsx) and the Generate rules prompt. The layout classes (.prompt-pre …) come from
    styles.css, the prototype's stylesheet; only what it lacks is here. */
 .prompt-side .lead { color: var(--muted); font-size: 12.5px; margin-top: 10px; line-height: 1.45; }
 /* scope cards with a visible radio button: pick one rule, or all rules needing work */
@@ -55,3 +55,12 @@
 .prompt-md .band { margin: 0 -14px; padding: 1px 14px; }
 .prompt-md .band.def pre { background: transparent; }
 .prompt-pre .ln.boiler:hover, .prompt-md .band.boiler:hover { opacity: 1; }
+
+/* the prompt modal: wide, with the preview filling the height */
+.ac.prompt-modal { width: min(1040px, 100%); height: calc(100vh - 100px); }
+.prompt-modal .ac-head { gap: 12px; }
+.prompt-modal .ac-head h2 { flex: 1; }
+.prompt-modal .md-seg { flex: none; }
+.pm-body { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 8px; padding: 12px 20px; overflow: hidden; }
+.pm-body .prompt-pre { flex: 1; min-height: 0; }
+.pm-lead { margin: 0; font-size: 13px; color: var(--muted); }

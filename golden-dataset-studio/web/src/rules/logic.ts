@@ -39,7 +39,7 @@ export function approveBlocked(s: Pick<RuleSummary, "open_wrong" | "open_missing
   const n = s.open_wrong + s.open_missing;
   if (!n) return null;
   return `Can't approve yet: ${n.toLocaleString("en-US")} ${n === 1 ? "course is" : "courses are"} marked wrong or missing. ` +
-    "A rule is approved only when none of its courses is. Fix the rule with “Improve this rule”, or change those verdicts.";
+    "A rule is approved only when none of its courses is. Fix it with “Improve all rules”, or change those verdicts.";
 }
 
 // --- row state ---------------------------------------------------------------------------------------------------

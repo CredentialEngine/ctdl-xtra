@@ -4,7 +4,7 @@ import type { CatalogDetail } from "./api/types";
 import CatalogPicker from "./catalogs/CatalogPicker";
 import CompareTab from "./compare/CompareTab";
 import GoldenTab from "./golden/GoldenTab";
-import PromptTab from "./prompt/PromptTab";
+import { OPEN_PROMPT, PromptModal } from "./prompt/PromptModal";
 import RecordsTab from "./records/RecordsTab";
 import RulesTab from "./rules/RulesTab";
 import { useRoute } from "./shell/router";
@@ -16,6 +16,10 @@ import { ThemeButton } from "./shell/theme";
 import { StorageFiles } from "./files/StorageFiles";
 import { Ico, KeysContext } from "./shell/ui";
 import { Tour, useTour } from "./tour";
+import { AgentProvider } from "./agent/state";
+import { RunBar } from "./agent/RunBar";
+import { RunsPanel } from "./agent/RunsPanel";
+import { OPEN_RUNS } from "./agent/api";
 import "./styles.css";
 import "./shell/dark.css";
 
@@ -33,6 +37,28 @@ export default function App() {
   useEffect(() => { if (signedIn) load(); }, [load, signedIn]);
   const tour = useTour(catalog);
   const [files, setFiles] = useState(false);
+  // Past AI runs: undefined = closed, null = the list, a run id = that run
+  const [runsOpen, setRunsOpen] = useState<string | null | undefined>(undefined);
+  useEffect(() => {
+    const on = (e: Event) => setRunsOpen((e as CustomEvent<string | null>).detail ?? null);
+    window.addEventListener(OPEN_RUNS, on);
+    return () => window.removeEventListener(OPEN_RUNS, on);
+  }, []);
+  // the prompt modal: undefined = closed, otherwise the "couldn't connect" warning (null = none)
+  const [promptOpen, setPromptOpen] = useState<string | null | undefined>(undefined);
+  useEffect(() => {
+    const on = (e: Event) => setPromptOpen((e as CustomEvent<{ warning: string | null }>).detail.warning);
+    window.addEventListener(OPEN_PROMPT, on);
+    return () => window.removeEventListener(OPEN_PROMPT, on);
+  }, []);
+  useEffect(() => {  // an old #/c/<catalog>/prompt link (or ?prompt=1): open the modal, then drop the parameter
+    if (!route.params.get("prompt")) return;
+    setPromptOpen(route.params.get("k2err"));
+    const rest = new URLSearchParams(route.params);
+    rest.delete("prompt");
+    rest.delete("k2err");
+    history.replaceState(null, "", location.hash.split("?")[0] + (rest.toString() ? `?${rest}` : ""));
+  }, [route.params]);
   const known = useHasIdentity();
   if (!session) return null;
   if (!known || !signedIn) return <IdentityScreen needPassword={!signedIn} />;
@@ -44,19 +70,28 @@ export default function App() {
   else {
     const props = { catalog, route, reload: load };
     body = { rules: <RulesTab {...props} />, records: <RecordsTab {...props} />, compare: <CompareTab {...props} />,
-             prompt: <PromptTab {...props} />, publish: <GoldenTab {...props} /> }[route.tab];
+             publish: <GoldenTab {...props} /> }[route.tab];
   }
   return (
     <KeysContext.Provider value={setKeys}>
+    <AgentProvider catalog={route.catalog && catalog ? catalog.short : null}>
       <TopBar catalog={route.catalog ? catalog : null} tab={route.catalog ? route.tab : null} onTour={tour.open} />
+      {route.catalog && catalog && <RunBar catalog={catalog.short} />}
       <main id="app">{body}</main>
       <footer className="keys"><span className="keys-hints">{keys}</span>
         {catalog && <button className="files-btn" onClick={() => setFiles(true)}
           title="Browse the files the Studio keeps for this catalog on its storage root (read-only, for debugging)">
           <Ico name="folder" />Storage files</button>}
+        {catalog && <button className="files-btn" onClick={() => setRunsOpen(null)} data-testid="past-runs"
+          title="Every run of Claude on this catalog: outcome, Claude's report, progress notes and the prompt it was given">
+          <Ico name="spark" />Past AI runs</button>}
         <ThemeButton /></footer>
       {catalog && <Tour {...tour} catalog={catalog} />}
       {catalog && files && <StorageFiles catalog={catalog.short} onClose={() => setFiles(false)} />}
+      {catalog && runsOpen !== undefined && <RunsPanel catalog={catalog.short} initial={runsOpen} onClose={() => setRunsOpen(undefined)} />}
+      {catalog && promptOpen !== undefined && <PromptModal catalog={catalog.catalog} short={catalog.short}
+        version={catalog.ruleset_version} warning={promptOpen} onClose={() => setPromptOpen(undefined)} />}
+    </AgentProvider>
     </KeysContext.Provider>
   );
 }

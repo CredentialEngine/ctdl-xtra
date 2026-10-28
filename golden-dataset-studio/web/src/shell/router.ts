@@ -1,10 +1,11 @@
 // Hash routes: #/ (catalog picker) · #/c/<catalog>/<tab>/<id>?<params>
 // Examples: #/c/avc/rules/course-description?row=<occurrence_key> · #/c/avc/records/GEOG222
-//           #/c/avc/compare?a=1&b=2&rule=course-description · #/c/avc/prompt?rule=… · #/c/avc/publish
+//           #/c/avc/compare?a=1&b=2&rule=course-description · #/c/avc/publish
+// The old Prompt tab (#/c/avc/prompt…) opens the Rules tab with the prompt modal (?prompt=1).
 import { useEffect, useState } from "react";
 
-export type Tab = "rules" | "records" | "compare" | "prompt" | "publish";
-export const TABS: Tab[] = ["rules", "records", "compare", "prompt", "publish"];
+export type Tab = "rules" | "records" | "compare" | "publish";
+export const TABS: Tab[] = ["rules", "records", "compare", "publish"];
 /** Old tab names still open the right tab (the Golden tab is now Publish). */
 const RENAMED: Record<string, Tab> = { golden: "publish" };
 
@@ -16,6 +17,11 @@ export function parseRoute(hash: string): Route {
   const p = path.split("/").filter(Boolean).map(decodeURIComponent);
   const params = new URLSearchParams(qs || "");
   if (p[0] !== "c" || !p[1]) return { catalog: null, tab: "rules", id: null, params };
+  if (p[2] === "prompt") {  // the Prompt tab became a modal over the Rules tab
+    params.delete("rule");
+    params.set("prompt", "1");
+    return { catalog: p[1], tab: "rules", id: null, params };
+  }
   const name = RENAMED[p[2]] ?? p[2];
   const tab = (TABS as string[]).includes(name) ? (name as Tab) : "rules";
   return { catalog: p[1], tab, id: p[3] ?? null, params };

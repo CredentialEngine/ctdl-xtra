@@ -1,9 +1,8 @@
 // Middle column header (spec §7.2): the CTDL term linked to its definition, the plain name under it,
-// "Improve this rule", "Approve" (greyed out with the reason while a course is wrong or missing), and
+// "Approve" (greyed out with the reason while a course is wrong or missing), and
 // "How this rule works ▸" (collapsed). The current version only.
 import type { CatalogDetail, RuleDetail } from "../api/types";
 import { Ico } from "../shell/icons";
-import { href } from "../shell/router";
 import { fmt, termUrl } from "../shell/ui";
 import { approveBlocked, whereWord } from "./logic";
 
@@ -64,8 +63,6 @@ export function RuleHead({ catalog, rule, onApprove, onReopen, busy }: {
       <div className="rh-top">
         <div className="rh-title"><h1>{title}</h1><span className="rh-sub">{sub}</span></div>
         <div className="rh-actions">
-        <a className="btn" href={href(catalog.short, "prompt", null, { rule: rule.rule_id })} data-tour="improve-rule">
-          <Ico name="spark" />Improve this rule</a>
         {approved ? (
           <span className="approved-by" data-tour="approve">
             <span className="btn approve is-approved"><Ico name="correct" />Approved</span>

@@ -75,6 +75,28 @@ def test_azure_version(ctx):
 
 
 @pytest.mark.slow
+def test_k2_version_is_a_run(ctx):
+    """target k2 (agent_runs.py): run header and reporting, a folder per run, SAS tokens from K2's file, no az."""
+    azure = "azure://https://acct.blob.core.windows.net/box/prefix"
+    run = {"run_id": "20261028T031209Z-a1b2", "started_by": "Jared Diener", "k2": {"agent": "golden-rules"}}
+    out = build_prompt(ctx, None, True, target="k2", azure_root=azure, run=run)
+    text = out["text"]
+    d = "/var/lib/k2/work/golden-rules/runs/20261028T031209Z-a1b2"
+    assert out["target"] == "k2" and out["root"] == azure
+    assert "az login --use-device-code" not in text and "az account show" not in text
+    assert "## This is a Golden Rules Studio run" in text and "started by Jared Diener" in text
+    assert f'cd {d} && golden-datasets run note --run 20261028T031209Z-a1b2 "<one line>"' in text
+    assert f"mkdir -p {d} && printf '%s\\n' 'GOLDEN_DATASETS_ROOT={azure}' 'GOLDEN_DATASETS_CATALOG=avc' > {d}/golden-datasets.env" in text
+    assert "/var/lib/k2/work/golden-datasets.env" in text and "If the install fails, don't install another version" in text
+    assert "## End the run" in text and f"cd {d} && golden-datasets run done --run 20261028T031209Z-a1b2 --summary-file summary.md --outcome" in text
+    assert f"`{d}/summary.md`" in text
+    assert "Report back:" not in text
+    # the work itself is the same as the Azure version
+    az = build_prompt(ctx, None, True, target="azure", azure_root=azure)["text"]
+    assert text.split("## Limits")[1].split("## End the run")[0] == az.split("## Limits")[1].split("Report back:")[0]
+
+
+@pytest.mark.slow
 def test_deterministic(ctx):
     a = build_prompt(ctx, None, True)
     b = build_prompt(Ctx(ctx.root, "avc"), None, True)

@@ -201,7 +201,7 @@ describe("RulesTab", () => {
     expect(container.querySelector(".rh-sub")?.textContent).toBe("Description · course pages");
     expect(container.querySelector<HTMLDetailsElement>("details.how")?.open).toBe(false);
     expect(container.querySelector<HTMLButtonElement>("button.approve")?.disabled).toBe(false);
-    expect(container.querySelector<HTMLAnchorElement>("[data-tour=improve-rule]")?.getAttribute("href")).toBe("#/c/avc/prompt?rule=course-description");
+    expect(container.querySelector("[data-tour=improve-rule]")).toBeNull();  // improving is one run for every rule, at the bottom of the list
   });
 
   it("selects the row from the route, fades rows with a verdict, writes history lines", async () => {

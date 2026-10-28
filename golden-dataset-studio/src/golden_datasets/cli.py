@@ -3,7 +3,7 @@
 Every command takes `--root` (or `GOLDEN_DATASETS_ROOT`): a folder or an `azure://https://…/container[/prefix]` URI.
 Commands that work on one catalog take `--catalog` (or `GOLDEN_DATASETS_CATALOG`), either the folder name or its
 short name (`avc`, `ccsf`, `marshall`, `ualr`, `wvu`). Unset variables are read from `golden-datasets.env` (KEY=VALUE
-lines) in the current folder or the nearest parent that has one: Claude Code's shell commands don't share `export`s.
+lines) in the current folder and its parents, the nearest first: Claude Code's shell commands don't share `export`s.
 
 Each command's implementation is imported lazily, so `--help` stays fast.
 """
@@ -25,18 +25,21 @@ DEFAULT_AZURE_ROOT = "azure://https://ceteststorage.blob.core.windows.net/xtra-c
 
 
 def load_env_file(start: Path | None = None) -> Path | None:
-    """Set the unset variables from the nearest `golden-datasets.env`; the environment always wins."""
+    """Set the unset variables from every `golden-datasets.env` in the current folder and its parents; the environment
+    always wins, then the nearest file. So a folder's file can hold the root and catalog while a parent's holds shared
+    settings (on K2: the SAS tokens in /var/lib/k2/work). Returns the nearest file read."""
     here = (start or Path.cwd()).resolve()
+    nearest = None
     for folder in (here, *here.parents):
         f = folder / ENV_FILE
         if f.is_file():
+            nearest = nearest or f
             for line in f.read_text().splitlines():
                 key, sep, value = line.strip().partition("=")
                 key = key.removeprefix("export ").strip()
                 if sep and key and not key.startswith("#"):
                     os.environ.setdefault(key, value.strip().strip("'\""))
-            return f
-    return None
+    return nearest
 
 
 def _root_args(p: argparse.ArgumentParser) -> None:
@@ -179,6 +182,32 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("-n", type=int, default=20)
     _cmd(p, "golden_datasets.loop:cmd_pages_sample")
 
+    # --- Agent runs (Claude on the remote agent reports here; docs/qrspi/k2-runs) -----------------------
+    runs = sub.add_parser("run", help="a Studio run on the remote agent: report progress, end it, show it")
+    nsub = runs.add_subparsers(dest="run_command", metavar="ACTION", required=True)
+    p = nsub.add_parser("note", help="one progress line, shown live in the Studio")
+    _root_args(p)
+    _catalog_args(p)
+    p.add_argument("--run", required=True, help="the run id from the prompt")
+    p.add_argument("text", nargs="+")
+    p.add_argument("--by", default="golden-rules agent")
+    _cmd(p, "golden_datasets.agent_runs:cmd_note")
+    p = nsub.add_parser("done", help="end the run with a one-line outcome (--failed if you couldn't publish)")
+    _root_args(p)
+    _catalog_args(p)
+    p.add_argument("--run", required=True)
+    p.add_argument("--outcome", required=True)
+    p.add_argument("--failed", action="store_true")
+    p.add_argument("--summary-file", default=None, metavar="PATH",
+                   help="your full report (Markdown), kept with the run and shown in the Studio; - reads stdin")
+    p.add_argument("--by", default="golden-rules agent")
+    _cmd(p, "golden_datasets.agent_runs:cmd_done")
+    p = nsub.add_parser("show", help="the run record and its notes")
+    _root_args(p)
+    _catalog_args(p)
+    p.add_argument("--run", required=True)
+    _cmd(p, "golden_datasets.agent_runs:cmd_show")
+
     # --- Prompt ----------------------------------------------------------------------------------------
     p = sub.add_parser("prompt", help="the same text the UI's Copy prompt button gives")
     _root_args(p), _catalog_args(p)
@@ -219,6 +248,14 @@ def build_parser() -> argparse.ArgumentParser:
     _root_args(p)
     p.add_argument("--port", type=int, default=DEFAULT_PORT)
     p.add_argument("--host", default="127.0.0.1")
+    p.add_argument("--k2-url", default=os.environ.get("GOLDEN_DATASETS_K2_URL"),
+                   help="K2 server running the remote agent (key: GOLDEN_DATASETS_K2_KEY); unset = runs are off and "
+                        "run buttons open the prompt")
+    p.add_argument("--k2-agent", default=os.environ.get("GOLDEN_DATASETS_K2_AGENT", "golden-rules"),
+                   help="the K2 workspace whose agent runs the prompts")
+    p.add_argument("--agent-run-minutes", type=int, default=90, help="a run ends as timed out after this long")
+    p.add_argument("--prompt-users", default=os.environ.get("GOLDEN_DATASETS_PROMPT_USERS", "Eric Riddoch,Seth Alt"),
+                   help="profiles whose run buttons also offer Open the prompt (comma-separated)")
     _target_args(p, prompt=False)
     _crawls_root_args(p)
     _cmd(p, "golden_datasets.server.app:cmd_serve")

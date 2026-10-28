@@ -15,7 +15,8 @@ from ..storage import Root, open_root
 
 
 class Studio:
-    def __init__(self, root: Root | str, azure_root: str | None = None, crawls_root: str | None = None):
+    def __init__(self, root: Root | str, azure_root: str | None = None, crawls_root: str | None = None,
+                 agent: dict | None = None):
         from ..cli import DEFAULT_AZURE_ROOT
         from ..crawls import default_crawls_root
 
@@ -28,6 +29,19 @@ class Studio:
         # where xtra-cli's crawls are (Add a catalog searches it) and the catalogs being added: {folder: progress}
         self.crawls_root = crawls_root or default_crawls_root(self.root)
         self.adding: dict[str, dict] = {}
+        # runs on the remote agent (agent_runs.py, routes_agent.py): {k2_url, k2_key, k2_agent, minutes, prompt_users}
+        from ..agent_runs import K2
+        agent = agent or {}
+        self.prompt_users: list[str] = [n.strip() for n in agent.get("prompt_users", "").split(",") if n.strip()]
+        self.agent_minutes: int = agent.get("minutes", 90)
+        self.k2: K2 | None = None
+        self.agent_off: str | None = None  # why runs are off, for the config route
+        if not (agent.get("k2_url") and agent.get("k2_key")):
+            self.agent_off = "no K2 server configured (--k2-url and GOLDEN_DATASETS_K2_KEY)"
+        elif not self.root.uri.startswith("azure://"):
+            self.agent_off = "the agent reports to the shared Azure root, and this Studio serves another root"
+        else:
+            self.k2 = K2(agent["k2_url"], agent["k2_key"], agent.get("k2_agent") or "golden-rules")
 
     def warm_crawls(self) -> None:
         """List the crawls once in the background, so Add a catalog opens fast (reading each crawl's name from its

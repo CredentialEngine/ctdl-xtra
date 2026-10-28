@@ -48,7 +48,10 @@ KIND_NAME = {"page": "page rule", "locator": "record locator", "field": "field r
 IN_SCOPE = ", ".join(label for label, _ in model.PROPERTIES)
 REPO = "https://github.com/CredentialEngine/ctdl-xtra.git"
 SUBDIR = "golden-dataset-studio"
-TARGETS = ("local", "azure")
+TARGETS = ("local", "azure", "k2")
+# k2: the remote agent (agent_runs.py) on K2, where SAS tokens for the shared root sit in this file
+K2_WORK = "/var/lib/k2/work"
+K2_SAS_FILE = f"{K2_WORK}/golden-datasets.env"
 TOPIC_NAME = {"new-rule": "suggests a new rule", "approach": "suggests an approach",
               "question-rule": "questions this rule", "other": "comment", None: "comment"}
 
@@ -157,8 +160,11 @@ def _signal_rows(rv: Review, rid: str) -> list[list]:
     return out
 
 
-def _setup(ctx: Ctx, target: str, root_uri: str, first_rule: str, check: str | None = None) -> list[str]:
+def _setup(ctx: Ctx, target: str, root_uri: str, first_rule: str, check: str | None = None,
+           run: dict | None = None) -> list[str]:
     src = cli_source()
+    if target == "k2":
+        return _setup_k2(ctx, root_uri, first_rule, check, run)
     azure = root_uri.startswith("azure://")  # the root decides: a Studio that serves Azure gives Azure either way
     short_name = info(ctx.catalog)["short"]
     L = ["## Setup", "",
@@ -191,8 +197,71 @@ def _setup(ctx: Ctx, target: str, root_uri: str, first_rule: str, check: str | N
     return L
 
 
+def _run_id(run: dict | None) -> str:
+    return run["run_id"] if run else "<run_id>"
+
+
+def _run_dir(run: dict | None) -> str:
+    """This run's folder on K2: absolute, because Claude Code moves the shell back to the workspace folder whenever a
+    command leaves it, so every command `cd`s here first."""
+    agent = ((run or {}).get("k2") or {}).get("agent") or "golden-rules"
+    return f"{K2_WORK}/{agent}/runs/{_run_id(run)}"
+
+
+def _run_header(run: dict | None, ctx: Ctx) -> list[str]:
+    """target k2: who started this run, that nobody will answer, and how to report (agent_runs.py)."""
+    rid, d = _run_id(run), _run_dir(run)
+    who = run["started_by"] if run else "someone"
+    return ["## This is a Golden Rules Studio run", "",
+            f"Run `{rid}`, started by {who} from the Studio. You're working unattended: nobody will answer "
+            "questions, and people are watching your progress notes in the Studio. You may delegate parts of the "
+            "work to subagents; give them the run id and the commands below.", "",
+            "Report as you go, one short line per step: what you're checking, what you found, what you changed, "
+            "what you published. People read these to know you're still working:", "",
+            "```sh", f'cd {d} && golden-datasets run note --run {rid} "<one line>"', "```", "",
+            f"**Start every `golden-datasets` command with `cd {d} && `** (Setup makes the folder). Your shell "
+            "returns to the workspace folder whenever a command leaves it, and only that folder's settings name this "
+            "run's root and catalog. When you finish, the last section says how to end the run. If something blocks "
+            "you, write a note saying what, and end the run as failed rather than working around it (if the install "
+            "itself fails, these commands don't exist: stop and say so in your reply).", ""]
+
+
+def _run_close(run: dict | None) -> list[str]:
+    rid, d = _run_id(run), _run_dir(run)
+    return ["## End the run", "",
+            f"When you have published (or can't), write your full report to `{d}/summary.md`: what changed and why, "
+            "the final scorecard, what people need to decide, and anything you could not fix. People read it in the "
+            "Studio's list of past runs, so write it for them, in Markdown. Then end the run with a one-line outcome "
+            "(the first thing people see, so include the new ruleset version) and the report:", "",
+            "```sh",
+            f'cd {d} && golden-datasets run done --run {rid} --summary-file summary.md --outcome "Published ruleset v7: …"',
+            f'cd {d} && golden-datasets run done --run {rid} --summary-file summary.md --failed '
+            '--outcome "Couldn\'t publish: …"   # if you couldn\'t',
+            "```", "",
+            "Then stop, and give the same report in your reply."]
+
+
+def _setup_k2(ctx: Ctx, root_uri: str, first_rule: str, check: str | None, run: dict | None) -> list[str]:
+    src = cli_source()
+    d, short_name = _run_dir(run), info(ctx.catalog)["short"]
+    return ["## Setup", "",
+            f"`golden-datasets` reads its settings from `{ENV_FILE}` files in the current folder and its parents. "
+            f"Azure access is set up on this machine: SAS tokens for the storage containers are in `{K2_SAS_FILE}`, "
+            "which every folder below it reads. No `az login`.", "",
+            "1. Install the CLI (uv is installed) and make this run's folder with its root and catalog:", "",
+            "   ```sh", f"   uv tool install --reinstall '{src['spec']}'",
+            f"   mkdir -p {d} && printf '%s\\n' 'GOLDEN_DATASETS_ROOT={root_uri}' "
+            f"'GOLDEN_DATASETS_CATALOG={short_name}' > {d}/{ENV_FILE}",
+            f"   cd {d} && {check or f'golden-datasets rule show {first_rule}'}", "   ```", "",
+            f"   If the install fails, don't install another version: `golden-datasets run` exists only on "
+            f"`{src['ref']}`. Stop and say so in your reply.",
+            "",
+            f"2. Keep your drafts in this run's folder (`{d}/drafts/`). Pages download once into a local cache; "
+            "`rule publish` uploads the new versions, and the Studio shows them within seconds.", ""]
+
+
 def build_prompt(ctx: Ctx, rule: str | None = None, needs_work: bool = False, rv: Review | None = None,
-                 target: str = "local", azure_root: str | None = None) -> dict:
+                 target: str = "local", azure_root: str | None = None, run: dict | None = None) -> dict:
     """{text, chars, tokens, page_refs, rules, annotations, scope, target, root, warning}
     (web/src/api/types.ts `PromptResponse`). `target`: Claude works on this root ("local") or the Azure one."""
     if target not in TARGETS:
@@ -214,7 +283,8 @@ def build_prompt(ctx: Ctx, rule: str | None = None, needs_work: bool = False, rv
     else:
         L.append(f"# No rule needs work — {meta['name']} catalog")
     L += ["", INTRO, ""]
-    L += _setup(ctx, target, root_uri, targets[0] if targets else "<rule_id>")
+    L += _run_header(run, ctx) if target == "k2" else []
+    L += _setup(ctx, target, root_uri, targets[0] if targets else "<rule_id>", run=run)
 
     L.append("## Context")
     L.append("")
@@ -409,7 +479,8 @@ def build_prompt(ctx: Ctx, rule: str | None = None, needs_work: bool = False, rv
              "Add one example per fix (`{\"input\": <the selected text>, \"output\": <the value>}`). Do not commit or "
              "push anything.")
     L.append("")
-    L.append("Report back: what changed and why, the final scorecard, and anything you could not fix.")
+    L += _run_close(run) if target == "k2" else \
+        ["Report back: what changed and why, the final scorecard, and anything you could not fix."]
     text = "\n".join(L) + "\n"
     return {"scope": {"rule": rule if not needs_work else None, "needs_work": needs_work},
             "text": text, "chars": len(text), "tokens": round(len(text) / 4), "page_refs": len(refs),
@@ -466,7 +537,8 @@ def template_for(text: str, ready: dict[str, str]) -> tuple[str, str] | None:
     return None
 
 
-def build_first_rules_prompt(ctx: Ctx, target: str = "azure", azure_root: str | None = None) -> dict:
+def build_first_rules_prompt(ctx: Ctx, target: str = "azure", azure_root: str | None = None,
+                             run: dict | None = None) -> dict:
     """The prompt behind **Generate rules** on a new catalog's card: write and publish its first ruleset, starting from
     the rules of a catalog already in the Studio."""
     from .catalogs import CATALOGS
@@ -487,7 +559,8 @@ def build_first_rules_prompt(ctx: Ctx, target: str = "azure", azure_root: str | 
         else (azure_root or DEFAULT_AZURE_ROOT)
     draft = "drafts/first-rules.json"
     L = [f"# Write the first rules — {name} catalog", "", FIRST_INTRO, ""]
-    L += _setup(ctx, target, root_uri, "", check='golden-datasets sql "SELECT count(*) AS pages FROM pages"')
+    L += _run_header(run, ctx) if target == "k2" else []
+    L += _setup(ctx, target, root_uri, "", check='golden-datasets sql "SELECT count(*) AS pages FROM pages"', run=run)
     L += ["## Context", ""]
     L += table(["", ""], [
         ["Catalog", f"`{ctx.catalog}` ({name})"],
@@ -546,9 +619,10 @@ def build_first_rules_prompt(ctx: Ctx, target: str = "azure", azure_root: str | 
         ["5. Publish", f"`golden-datasets rule publish {draft} --note \"First rules, from {tmpl}'s\"`",
          "ruleset v1 and its extraction: the catalog opens in the Studio"],
     ])
-    L += ["", "Do not commit or push anything.", "",
-          "Report back: which template you used and what you changed, the final `rule try` table, and anything you "
-          "couldn't read reliably."]
+    L += ["", "Do not commit or push anything.", ""]
+    L += _run_close(run) if target == "k2" else \
+        ["Report back: which template you used and what you changed, the final `rule try` table, and anything you "
+         "couldn't read reliably."]
     text = "\n".join(L) + "\n"
     return {"text": text, "chars": len(text), "tokens": round(len(text) / 4), "template": tmpl,
             "template_name": info(ready[tmpl])["name"] if tmpl in ready else tmpl,

@@ -10,9 +10,9 @@ import { Composer, Thread } from "./Discussion";
 
 export type PostTalk = (target: { kind: "rule" | "ruleset"; rule_id: string | null }, note: string, topic: Topic) => Promise<boolean>;
 
-export function RuleList({ rules, active, onPick, talk, onTalk, top }: {
+export function RuleList({ rules, active, onPick, talk, onTalk, top, bottom }: {
   rules: RulesResponse; active: string | null; onPick: (id: string) => void; talk?: Discussion | null; onTalk?: PostTalk;
-  top?: ReactNode;
+  top?: ReactNode; /** after every group: the fix bar (Improve all rules), last so labeling comes first */ bottom?: ReactNode;
 }) {
   let first = true;
   const [openTalk, setOpenTalk] = useState<string | null>(null);
@@ -64,6 +64,7 @@ export function RuleList({ rules, active, onPick, talk, onTalk, top }: {
           })}
         </div>
       ))}
+      {bottom}
     </div>
   );
 }
