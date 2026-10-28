@@ -18,6 +18,9 @@ Two modes, never blended:
 Nothing is averaged. A report carries counts, and every field that is not
 an exact match is listed in `outliers`, worst first.
 
+A baseline field with `"location": null` is implied, not printed on the page.
+It is counted under `skipped_implied` and never scored.
+
 A property the extractor never emitted counts as missing, and a property the
 baseline does not have is listed as an extra and never costs anything.
 """
@@ -143,6 +146,11 @@ def normalize(value: Any) -> str:
     return text.rstrip(_TRAILING_PUNCTUATION)
 
 
+def is_implied(field: dict) -> bool:
+    """The golden data says the value is not on the page (location: null)."""
+    return "location" in field and field["location"] is None
+
+
 def is_exact(baseline: Any, candidate: Any) -> bool:
     """Identical as printed. No case, spacing or punctuation leniency."""
     return baseline == candidate or str(baseline) == str(candidate)
@@ -184,8 +192,11 @@ def match_entity(
     Exact pairs are taken first. What is left is paired by similarity, best
     pair first, so each extracted value answers only one baseline value. In
     partial mode the exact pairs are counted but left out of `fields`.
+    Implied baseline fields are not scored, only counted.
     """
-    pool = extracted_values(record) if record else {}
+    skipped_implied = sum(1 for f in baseline_fields if is_implied(f))
+    baseline_fields = [f for f in baseline_fields if not is_implied(f)]
+    pool =extracted_values(record) if record else {}
 
     by_property: dict[str, list[int]] = {}
     for index, field in enumerate(baseline_fields):
@@ -241,6 +252,7 @@ def match_entity(
         "record_id": record.get("record_id") if record else None,
         "fields": fields,
         "excluded_exact": exact_count if mode == MODE_PARTIAL else 0,
+        "skipped_implied": skipped_implied,
         "unscored_extras": sorted(set(pool) - set(by_property)),
     }
 
@@ -350,11 +362,13 @@ def summarize(
     outliers: list[dict] = []
     page_rows: list[dict] = []
     excluded_exact = 0
+    skipped_implied = 0
 
     for page in pages:
         page_fields: list[dict] = []
         for index, entity in enumerate(page["entities"]):
             excluded_exact += entity["excluded_exact"]
+            skipped_implied += entity["skipped_implied"]
             for field in entity["fields"]:
                 page_fields.append(field)
                 by_property.setdefault(field["ctdl_property"], []).append(field)
@@ -389,6 +403,7 @@ def summarize(
         "pages_out_of_scope": len(out_of_scope),
         "fields_total": len(all_fields),
         "outcomes": _counts(outcomes, all_fields),
+        "skipped_implied": skipped_implied,
     }
     if mode == MODE_EXACT:
         matched = report["outcomes"][OUTCOME_MATCH]
@@ -554,7 +569,8 @@ def format_table(report: dict) -> str:
         f"  {report['pages_scored']} scored, "
         f"{report['pages_skipped']} skipped, "
         f"{report['pages_out_of_scope']} out of scope, "
-        f"{len(report['malformed'])} malformed",
+        f"{len(report['malformed'])} malformed, "
+        f"{report['skipped_implied']} implied skipped",
         "",
         f"{'property':<36}{'fields':>7}"
         + "".join(f"{o:>10}" for o in outcomes),
