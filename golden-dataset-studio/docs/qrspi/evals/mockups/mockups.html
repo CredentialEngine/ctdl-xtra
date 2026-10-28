@@ -141,6 +141,10 @@
   .tree a { color:var(--accent); text-decoration:underline dotted; text-underline-offset:3px; }
   .tree .c { color:var(--faint); }
   .tree .t { color:var(--ink); font-weight:600; }
+  .basis { display:inline-flex; align-items:center; gap:8px; font-size:12.5px; color:var(--muted); }
+  .basis .seg b.on { background:#12805c; }
+  .cnt { display:block; font-size:10.5px; color:var(--faint); font-weight:500; }
+  .hand { display:inline-flex; align-items:center; gap:4px; font-size:11px; font-weight:600; color:#12805c; background:#e7f6ef; border-radius:999px; padding:1px 7px; }
   .ann { margin:0 14px 10px; padding:8px 10px; border-radius:8px; background:#fff4f2; border:1px solid #f5c2b8; font-size:12px; color:#7a271a; }
 </style>
 </head>
@@ -182,9 +186,10 @@
       <h1>Catalogs</h1>
       <span class="seg"><b>Golden dataset</b><b class="on">xtra score</b></span>
       <span class="muted" style="font-size:12px">How closely xtra's latest extract output matches each catalog's latest golden dataset.</span>
+      <span style="flex:1"></span><span class="basis">Scored against <span class="seg sm"><b class="on">Hand-checked values</b><b>All values (hand + rule)</b></span><span class="info" style="width:18px;height:18px">i</span></span>
     </div>
     <table class="cat">
-      <thead><tr><th></th><th class="plain">Catalog</th><th class="plain">Exact matches</th>
+      <thead><tr><th></th><th class="plain">Catalog</th><th class="plain">Exact matches <span class="hand">hand-checked</span></th>
         <th class="rot"><span>codedNotation</span></th><th class="rot"><span>identifier</span></th><th class="rot"><span>name</span></th>
         <th class="rot"><span>description</span></th><th class="rot"><span>subjectWebpage</span></th><th class="rot"><span>lifeCycleStatusType</span></th>
         <th class="rot"><span>inLanguage</span></th>
@@ -195,12 +200,12 @@
     <div class="legend"><span class="k" style="--c:var(--match)">match</span><span class="k" style="--c:var(--partial)">partial</span><span class="k" style="--c:var(--wrong)">wrong</span><span class="k" style="--c:var(--missing)">missing</span>
       <span class="faint">— not published yet, or not in this Studio yet · n/s not scored (not read from the page)</span></div>
     <div class="tip up" id="tip2">
-      <div class="hd">description · Antelope Valley College</div>
+      <div class="hd">description · Antelope Valley College · 16 hand-checked values</div>
       <table>
-        <tr><td><span class="sw x"></span>match</td><td class="n">404</td><td>identical to the golden value, as printed</td></tr>
-        <tr><td><span class="sw p"></span>partial</td><td class="n">505</td><td>similar text: similarity 0.8 or more</td></tr>
-        <tr><td><span class="sw w"></span>wrong</td><td class="n">151</td><td>a value, but similarity under 0.8</td></tr>
-        <tr><td><span class="sw m"></span>missing</td><td class="n">2</td><td>nothing extracted</td></tr>
+        <tr><td><span class="sw x"></span>match</td><td class="n">4</td><td>identical to the golden value, as printed</td></tr>
+        <tr><td><span class="sw p"></span>partial</td><td class="n">8</td><td>similar text: similarity 0.8 or more</td></tr>
+        <tr><td><span class="sw w"></span>wrong</td><td class="n">4</td><td>a value, but similarity under 0.8</td></tr>
+        <tr><td><span class="sw m"></span>missing</td><td class="n">0</td><td>nothing extracted</td></tr>
       </table>
       <div class="ft">Similarity: text is compared ignoring case and spacing, and again without punctuation (the higher counts). Numbers either match or are wrong.</div>
     </div>
@@ -210,12 +215,12 @@
 <!-- M3: Evals tab with history -->
 <section class="shot" id="m3">
   <div class="top"><span class="brand"><i></i>Golden Rules Studio</span><span class="muted">/ Antelope Valley College</span>
-    <span class="tabs"><a>Rules</a><a>Records</a><a>Compare</a><a>Publish</a><a class="on">Evals</a></span></div>
+    <span class="tabs"><a>Rules</a><a>Records</a><a>Compare</a><a>Golden datasets</a><a class="on">Evals</a></span></div>
   <div class="page">
     <div class="row ttl">
       <span class="dd"><span class="k">Golden dataset</span><b>ruleset v3</b><span class="muted">(latest)</span></span>
       <span class="muted" style="font-weight:500">vs</span><code class="cmd">xtra catalog extract</code><span>outputs over time</span>
-      <span class="info">i</span>
+      <span class="info">i</span><span style="flex:1"></span><span style="font-weight:400"><span class="basis">Scored against <span class="seg sm"><b class="on">Hand-checked values</b><b>All values (hand + rule)</b></span><span class="info" style="width:18px;height:18px">i</span></span></span>
     </div>
     <div style="margin-top:14px;display:flex;gap:40px;align-items:flex-end">
       <div>
@@ -226,13 +231,13 @@
         <span class="faint" style="max-width:220px">Click a bar to compare with that extract output. A dashed bar hasn't been scored yet.</span></div>
     </div>
     <div class="row" style="margin:18px 0 6px;gap:8px"><span class="gchip">ruleset v3</span><span class="muted">vs</span><span class="xchip"><i><b class="x" style="height:8px"></b><b class="p" style="height:4px"></b><b class="m" style="height:2px"></b></i>28 Oct, 11:49 AM<span class="muted" style="font-weight:400">(latest)</span></span></div>
-    <div class="row rate" style="margin:4px 0 10px"><b>59%</b><span style="font-weight:600">exact matches</span><span class="muted">2,527 of 4,248 values</span></div>
+    <div class="row rate" style="margin:4px 0 10px"><b>65%</b><span style="font-weight:600">exact matches</span><span class="hand">hand-checked</span><span class="muted">49 of 75 values a person confirmed</span></div>
     <table class="plain">
-      <tr><td style="width:220px;font-weight:600">All columns</td><td><div class="bar"><i class="x" style="flex:60"></i><i class="p" style="flex:34"></i><i class="w" style="flex:4"></i><i class="m" style="flex:2"></i></div></td><td class="pct" style="width:60px;text-align:right">59%</td><td class="muted" style="width:70px;text-align:right">4,248</td></tr>
-      <tr><td class="mono">codedNotation</td><td><div class="bar"><i class="x" style="flex:1"></i></div></td><td class="pct" style="text-align:right">100%</td><td class="muted" style="text-align:right">1,062</td></tr>
-      <tr><td class="mono">identifier</td><td><div class="bar"><i class="p" style="flex:1"></i></div></td><td class="pct" style="text-align:right">0%</td><td class="muted" style="text-align:right">1,062</td></tr>
-      <tr><td class="mono">name</td><td><div class="bar"><i class="x" style="flex:99.8"></i><i class="w" style="flex:.2"></i></div></td><td class="pct" style="text-align:right">100%</td><td class="muted" style="text-align:right">1,062</td></tr>
-      <tr style="background:var(--accent-soft)"><td class="mono">description</td><td><div class="bar"><i class="x" style="flex:38"></i><i class="p" style="flex:48"></i><i class="w" style="flex:14"></i><i class="m" style="flex:.2"></i></div></td><td class="pct" style="text-align:right">38%</td><td class="muted" style="text-align:right">1,062</td></tr>
+      <tr><td style="width:220px;font-weight:600">All columns</td><td><div class="bar"><i class="x" style="flex:49"></i><i class="p" style="flex:22"></i><i class="w" style="flex:4"></i></div></td><td class="pct" style="width:60px;text-align:right">65%</td><td class="muted" style="width:90px;text-align:right">75 values</td></tr>
+      <tr><td class="mono">codedNotation</td><td><div class="bar"><i class="x" style="flex:1"></i></div></td><td class="pct" style="text-align:right">100%</td><td class="muted" style="text-align:right">31</td></tr>
+      <tr><td class="mono">identifier</td><td><div class="bar"><i class="p" style="flex:1"></i></div></td><td class="pct" style="text-align:right">0%</td><td class="muted" style="text-align:right">14</td></tr>
+      <tr><td class="mono">name</td><td><div class="bar"><i class="x" style="flex:1"></i></div></td><td class="pct" style="text-align:right">100%</td><td class="muted" style="text-align:right">14</td></tr>
+      <tr style="background:var(--accent-soft)"><td class="mono">description</td><td><div class="bar"><i class="x" style="flex:4"></i><i class="p" style="flex:8"></i><i class="w" style="flex:4"></i></div></td><td class="pct" style="text-align:right">25%</td><td class="muted" style="text-align:right">16</td></tr>
     </table>
     <div class="legend"><span class="faint">not scored: inLanguage, lifeCycleStatusType, subjectWebpage (not read from the page)</span></div>
   </div>
@@ -241,7 +246,7 @@
 <!-- M3c: info modal -->
 <section class="shot" id="m3c" style="height:620px">
   <div class="top"><span class="brand"><i></i>Golden Rules Studio</span><span class="muted">/ Antelope Valley College</span>
-    <span class="tabs"><a>Rules</a><a>Records</a><a>Compare</a><a>Publish</a><a class="on">Evals</a></span></div>
+    <span class="tabs"><a>Rules</a><a>Records</a><a>Compare</a><a>Golden datasets</a><a class="on">Evals</a></span></div>
   <div class="modal-bg"></div>
   <div class="modal">
     <div class="row"><h2 style="flex:1">Where these come from</h2><span class="btn sm">Close</span></div>
@@ -264,7 +269,7 @@
 <!-- M5: a row, unified diff -->
 <section class="shot" id="m5">
   <div class="top"><span class="brand"><i></i>Golden Rules Studio</span><span class="muted">/ Antelope Valley College</span>
-    <span class="tabs"><a>Rules</a><a>Records</a><a>Compare</a><a>Publish</a><a class="on">Evals</a></span></div>
+    <span class="tabs"><a>Rules</a><a>Records</a><a>Compare</a><a>Golden datasets</a><a class="on">Evals</a></span></div>
   <div class="split">
     <div class="left">
       <div class="row" style="gap:8px"><span class="gchip">ruleset v3</span><span class="muted">vs</span><span class="xchip"><i><b class="x" style="height:8px"></b><b class="p" style="height:4px"></b><b class="m" style="height:2px"></b></i>28 Oct, 11:49 AM<span class="muted" style="font-weight:400">(latest)</span></span></div>
@@ -311,7 +316,7 @@ Focus is on the development of nursing skills and basic components of competent 
 <!-- M5b: split diff, after "The golden value is wrong" -->
 <section class="shot" id="m5b" style="height:430px">
   <div class="top"><span class="brand"><i></i>Golden Rules Studio</span><span class="muted">/ Antelope Valley College</span>
-    <span class="tabs"><a>Rules</a><a>Records</a><a>Compare</a><a>Publish</a><a class="on">Evals</a></span></div>
+    <span class="tabs"><a>Rules</a><a>Records</a><a>Compare</a><a>Golden datasets</a><a class="on">Evals</a></span></div>
   <div style="width:680px;margin-left:680px;background:var(--surface);height:382px;border-left:1px solid var(--line)">
     <div class="ph"><b>CHEM110H</b><span class="mono">description</span><span><span class="sw w"></span>wrong · 0.14</span><span style="flex:1"></span><span class="seg sm"><b class="on">Split</b><b>Unified</b></span><span class="btn sm">✕</span></div>
     <div class="gh">
@@ -336,7 +341,7 @@ Focus is on the development of nursing skills and basic components of competent 
 <!-- M6: compare, same diff -->
 <section class="shot" id="m6" style="height:300px">
   <div class="top"><span class="brand"><i></i>Golden Rules Studio</span><span class="muted">/ Antelope Valley College</span>
-    <span class="tabs"><a>Rules</a><a>Records</a><a class="on">Compare</a><a>Publish</a><a>Evals</a></span></div>
+    <span class="tabs"><a>Rules</a><a>Records</a><a class="on">Compare</a><a>Golden datasets</a><a>Evals</a></span></div>
   <div class="page" style="padding-top:16px">
     <div class="row" style="margin-bottom:10px"><span class="dd"><span class="k">From</span><b>ruleset v1</b></span><span class="muted">→</span><span class="dd"><span class="k">To</span><b>ruleset v2</b></span></div>
     <div style="background:var(--surface);border:1px solid var(--line);border-radius:10px;max-width:900px">
@@ -352,39 +357,50 @@ Focus is on the development of nursing skills and basic components of competent 
   </div>
 </section>
 
-<!-- M4: Publish -->
-<section class="shot" id="m4">
+<!-- M4: approve publishes (Rules tab) -->
+<section class="shot" id="m4" style="height:520px">
   <div class="top"><span class="brand"><i></i>Golden Rules Studio</span><span class="muted">/ Antelope Valley College</span>
-    <span class="tabs"><a>Rules</a><a>Records</a><a>Compare</a><a class="on">Publish</a><a>Evals</a></span></div>
-  <div class="page">
-    <h1 style="margin-bottom:14px">Publish the golden dataset</h1>
-    <table class="plain">
-      <tr><td style="width:30px"><input type="checkbox" checked></td><td class="mono" style="width:240px">codedNotation</td><td><span data-i="A"></span> approved</td><td class="muted">not published yet</td></tr>
-      <tr><td><input type="checkbox" disabled></td><td class="mono">description</td><td><span data-i="N"></span> known wrong values</td><td class="muted">not published yet</td></tr>
-      <tr><td><input type="checkbox" checked></td><td class="mono">inLanguage</td><td><span data-i="A"></span> approved</td><td class="muted">in golden dataset ruleset v3</td></tr>
+    <span class="tabs"><a class="on">Rules</a><a>Records</a><a>Compare</a><a>Golden datasets</a><a>Evals</a></span></div>
+  <div class="modal-bg"></div>
+  <div class="modal" style="width:640px;top:70px">
+    <h2>Approve <span class="mono" style="font-size:15px">codedNotation</span> and publish it?</h2>
+    <p class="muted" style="margin:0 0 12px">Approving a column's rule publishes it. Golden dataset <b style="color:var(--ink)">ruleset v3</b> gets this column, then xtra's latest extract output is scored against it.</p>
+    <table class="plain" style="margin-bottom:12px">
+      <tr><th style="width:170px">Golden dataset ruleset v3</th><th>Columns</th></tr>
+      <tr><td>Now</td><td class="mono">inLanguage</td></tr>
+      <tr><td>After approving</td><td class="mono">codedNotation, inLanguage</td></tr>
     </table>
-    <div class="row" style="margin-top:14px"><span class="btn primary">Publish ruleset v4</span>
-      <span class="muted">Writes 2 columns for 1,062 courses, then scores xtra's latest extract output against them.</span>
-      <span class="muted">Where it's written <span class="info">i</span></span></div>
-    <div style="margin-top:14px;max-width:1100px">
-      <div class="muted" style="margin-bottom:6px;font-size:12px">Where it's written (opened from the ⓘ) · click a file to see a sample</div>
+    <p class="muted" style="margin:0 0 14px;font-size:12px">1,062 values: 31 checked by a person, 1,031 by this rule. Where it's written <span class="info" style="width:18px;height:18px">i</span></p>
+    <div class="row" style="justify-content:flex-end;gap:8px"><span class="btn">Cancel</span><span class="btn primary">Approve and publish</span></div>
+  </div>
+</section>
+
+<!-- M4b: the Golden datasets tab (read-only record) -->
+<section class="shot" id="m4b">
+  <div class="top"><span class="brand"><i></i>Golden Rules Studio</span><span class="muted">/ Antelope Valley College</span>
+    <span class="tabs"><a>Rules</a><a>Records</a><a>Compare</a><a class="on">Golden datasets</a><a>Evals</a></span></div>
+  <div class="page">
+    <div class="row" style="margin-bottom:14px"><h1>Golden datasets</h1><span class="muted">Published when a column's rule is approved.</span></div>
+    <table class="plain" style="max-width:1100px">
+      <tr><th style="width:160px">Golden dataset</th><th>Columns</th><th style="width:220px">Values</th><th style="width:200px">xtra score (latest output)</th></tr>
+      <tr><td><b>ruleset v3</b> <span class="muted">latest</span></td><td class="mono">codedNotation, inLanguage</td><td>2,124 · <span class="hand">45 hand-checked</span></td><td><b>100%</b> <span class="muted">exact, hand-checked</span></td></tr>
+      <tr><td><b>ruleset v2</b></td><td class="mono">inLanguage</td><td>1,062 · <span class="hand">14 hand-checked</span></td><td class="muted">not scored (not read from the page)</td></tr>
+    </table>
+    <div style="margin-top:16px;max-width:1100px">
+      <div class="muted" style="margin-bottom:6px;font-size:12px">Where ruleset v3 is written · click a file to see a sample</div>
 <div class="tree"><span class="t">azure://…/xtra-golden-sets/</span>
-├── catalogs/avc-elumenapp-com-catalog-2026-27-welcome/versions/<span class="t">ruleset-v4/</span>   <span class="c"># this version, kept for good</span>
+├── catalogs/avc-elumenapp-com-catalog-2026-27-welcome/versions/<span class="t">ruleset-v3/</span>   <span class="c"># this version, kept for good</span>
 │   └── avc-elumenapp-com-catalog-2026-27-welcome/2026-10-12T20-59-13Z/
 │       └── &lt;page&gt;/                   <span class="c"># one folder per page with courses (1,062)</span>
-│           ├── <a>&lt;page&gt;.json</a>           <span class="c"># [{golden_record_id, approval, fields: [{ctdl_property, value, location, …}]}]</span>
+│           ├── <a>&lt;page&gt;.json</a>           <span class="c"># [{golden_record_id, approval, fields: [{ctdl_property, value, location, approval, …}]}]</span>
 │           └── <a>&lt;page&gt;.html</a>           <span class="c"># the page as crawled; the locations point into it</span>
-└── avc-elumenapp-com-catalog-2026-27-welcome/2026-10-12T20-59-13Z/   <span class="c"># the latest version, replaced whole with ruleset v4</span>
+└── avc-elumenapp-com-catalog-2026-27-welcome/2026-10-12T20-59-13Z/   <span class="c"># the latest version, replaced whole</span>
     └── &lt;page&gt;/ …                     <span class="c"># same files as above</span>
 
-<span class="t">Studio: golden/ruleset-v4/</span>
+<span class="t">Studio: golden/ruleset-v3/</span>
 ├── <a>publication.json</a>                 <span class="c"># which ruleset, columns, approvals, where it was written</span>
 ├── <a>lineage.parquet</a>                  <span class="c"># one row per value → rule, version, occurrence, verdicts</span>
 └── <a>golden.parquet</a>                   <span class="c"># every value of this version, for Evals</span></div>
-    </div>
-    <div class="row" style="margin-top:16px;padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:var(--surface)">
-      <span data-i="A"></span><b>Published ruleset v4.</b><span class="muted">Scored against xtra's latest extract output: 61% exact matches.</span>
-      <span style="flex:1"></span><span>Open in Evals →</span>
     </div>
   </div>
 </section>
@@ -399,7 +415,7 @@ Focus is on the development of nursing skills and basic components of competent 
   document.querySelectorAll("[data-i]").forEach((e) => { e.innerHTML = ICON[e.dataset.i]; });
   const L = "../../../../web/public/logos/";
   const cats = [
-    { logo: "avc.png", name: "Antelope Valley College", date: "12 Oct 2026", cells: "RRRNRRA", score: { rate: "59%", bar: [60, 36, 4, 0], cols: [["100%", "x"], ["0%", "p"], ["100%", "x"], ["38%", "xpw"], "ns", "ns", "ns"] } },
+    { logo: "avc.png", name: "Antelope Valley College", date: "12 Oct 2026", cells: "RRRNRRA", score: { rate: "65%", n: 75, bar: [65, 22, 13, 0], cols: [["100%", "x", 31], ["0%", "p", 14], ["100%", "x", 14], ["25%", "xpw", 16], "ns", "ns", "ns"] } },
     { logo: "ccsf.svg", name: "City College of San Francisco", date: "1 Oct 2026", cells: "RRRRRRR" },
     { logo: "marshall.svg", name: "Marshall University", date: "20 Oct 2026", cells: "RRRNRRR" },
     { logo: "ualr.svg", name: "University of Arkansas at Little Rock", date: "18 Oct 2026", cells: null },
@@ -413,8 +429,8 @@ Focus is on the development of nursing skills and basic components of competent 
   const bars = { x: '<i class="x" style="flex:1"></i>', p: '<i class="p" style="flex:1"></i>', xpw: '<i class="x" style="flex:38"></i><i class="p" style="flex:48"></i><i class="w" style="flex:14"></i>' };
   document.getElementById("m2rows").innerHTML = cats.map((c) => {
     const s = c.score;
-    const rate = s ? `<td style="width:190px"><div class="row" style="gap:8px"><span class="pct">${s.rate}</span><div class="bar" style="flex:1">${s.bar.map((v, i) => v ? `<i class="${"xpwm"[i]}" style="flex:${v}"></i>` : "").join("")}</div></div></td>` : `<td class="faint" style="width:190px">${c.cells ? "nothing published yet" : "no rules yet"}</td>`;
-    const cols = s ? s.cols.map((v, i) => v === "ns" ? '<td class="c faint" style="font-size:11px">n/s</td>' : `<td class="c"${i === 3 ? ' id="desccell"' : ""}><span class="pct">${v[0]}</span><div class="cellbar">${bars[v[1]]}</div></td>`).join("") : '<td class="c faint">—</td>'.repeat(7);
+    const rate = s ? `<td style="width:190px"><div class="row" style="gap:8px"><span class="pct">${s.rate}<span class="cnt">of ${s.n}</span></span><div class="bar" style="flex:1">${s.bar.map((v, i) => v ? `<i class="${"xpwm"[i]}" style="flex:${v}"></i>` : "").join("")}</div></div></td>` : `<td class="faint" style="width:190px">${c.cells ? "nothing published yet" : "no rules yet"}</td>`;
+    const cols = s ? s.cols.map((v, i) => v === "ns" ? '<td class="c faint" style="font-size:11px">n/s</td>' : `<td class="c"${i === 3 ? ' id="desccell"' : ""}><span class="pct">${v[0]}</span><div class="cellbar">${bars[v[1]]}</div><span class="cnt">${v[2]}</span></td>`).join("") : '<td class="c faint">—</td>'.repeat(7);
     return `<tr>${nameCell(c)}${rate}${cols}${ext}<td></td></tr>`;
   }).join("");
   function under(cellId, tipId, shotId) {
@@ -425,7 +441,7 @@ Focus is on the development of nursing skills and basic components of competent 
   }
   under("pubcell", "tip1", "m1"); under("desccell", "tip2", "m2");
   // history: [label, match, partial, wrong, missing] (illustrative)
-  const H = [["2 Oct", 31, 30, 22, 17], ["9 Oct", 38, 32, 18, 12], ["16 Oct", 44, 35, 13, 8], ["20 Oct", null], ["26 Oct", 55, 36, 6, 3], ["28 Oct\n(latest)", 60, 34, 4, 2]];
+  const H = [["2 Oct", 36, 30, 20, 14], ["9 Oct", 44, 30, 16, 10], ["16 Oct", 51, 29, 13, 7], ["20 Oct", null], ["26 Oct", 61, 25, 9, 5], ["28 Oct\n(latest)", 65, 29, 6, 0]];
   document.getElementById("hist").innerHTML = '<div class="gl" style="bottom:42px"></div><div class="gl" style="bottom:117px"></div>' + H.map((h, i) => {
     const sel = i === H.length - 1 ? " sel" : "";
     if (h[1] === null) return `<div class="col"><span class="pc faint">–</span><div class="empty"><span class="btn sm" style="transform:rotate(-90deg)">Score</span></div></div>`;

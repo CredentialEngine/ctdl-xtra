@@ -17,7 +17,7 @@ POC's design ([`poc.md`](poc.md)). **Mockups (§6) come first: review them befor
 | 7 | Keep score results? | **Yes**, with provenance: what was scored, against what, by which xtra-cli version, and the equivalent command. |
 | 8 | After a publish | **Score automatically** against the latest extract output for that catalog. |
 | 9 | All catalogs | **The home page's catalog list becomes a compact table**, with expandable rows that show a short summary. One view shows golden dataset progress and one shows the xtra score (§6.1, §6.2). |
-| 10 | Baselines | **Dropped.** There is one golden dataset. "Approved by a person / by its rule" becomes a filter. |
+| 10 | Baselines | **Dropped.** There is one golden dataset. Revised by row 43: whether values were hand-checked or rule-labelled is now the main switch. |
 | 11 | The old verified container | **Out of scope.** It isn't imported and isn't mentioned. |
 | 12 | Counts | **Values, counted per column.** This view is field-centric, not record-centric. No "N records · M fields" lines. |
 | 13 | Field names | **The CTDL term without its `ceterms:` prefix** (`description`, `codedNotation`) in Evals, Publish and the catalogs table. Rules and Records stay as they are. |
@@ -47,6 +47,8 @@ POC's design ([`poc.md`](poc.md)). **Mockups (§6) come first: review them befor
 | 38 | Where Publish writes | **The file tree, as the Publish tab has it today,** with each file a link to a sample. It covers the version folder, the latest location and the Studio's own files. |
 | 39 | Evals title | **"[Golden dataset ▾] vs `xtra catalog extract` outputs over time"** is the title above the chart. Below the chart, the chosen pair shows as two distinct chips: the golden dataset styled like its dropdown, the extract output styled like the picked bar. No sentence. |
 | 40 | Diff default | **Split**, in Evals and Compare. Unified is the other option. |
+| 42 | Approving publishes | **Yes.** Approving a column's rule publishes that column into the golden dataset of its ruleset, then scores it (§4.1). There's no separate Publish step. The Publish tab becomes **Golden datasets**, a read-only record: each version, its columns, its values and where it's written. |
+| 43 | Hand-checked vs rule-labelled | **Every score says which it's against, and the default is hand-checked**, because the team is skeptical of labelling by rules. A switch, "Scored against: **Hand-checked values** \| All values (hand + rule)", sits on the catalogs table and the Evals tab. Each score is computed both ways and both are kept. |
 | 41 | The "marked wrong" box | **Structured:** a header (✕ Marked wrong · who · when), then rows for right text, note and compared with, then a footer saying the rule now has known wrong values. |
 | 30 | The value diff | **Back, as in the POC:** a GitHub-style diff (red: in the golden dataset, not extracted; green: extracted, not in the golden dataset) and the saved page with both values highlighted. It can be annotated (§4.2). **The same diff serves Compare** (ruleset vs ruleset) and Evals (golden dataset vs extract output). |
 
@@ -62,6 +64,8 @@ POC's design ([`poc.md`](poc.md)). **Mockups (§6) come first: review them befor
 | **Score** | One extract output compared with one golden dataset by `xtra score extraction match`, exact and partial. Kept. |
 | **Column** | A CTDL property of the golden dataset, shown by its term without `ceterms:` (`description`). |
 | **Value** | One column of one course. |
+| **Hand-checked value** | A value a person confirmed: they marked it correct and it hasn't changed since, or they marked it wrong and selected the text it now is (`approval: human`). |
+| **Rule-labelled value** | A value only its rule vouches for (`approval: rule`). |
 | **Outcome** | Per value: **missing** (nothing extracted), **wrong** (similarity < 0.8), **partial** (≥ 0.8), **match** (identical). |
 | **Not scored** | A column whose values aren't read from the page (`location: null`: `inLanguage`, `lifeCycleStatusType`, `subjectWebpage`). xtra's scorer skips these as *implied* (xtra-cli #343). |
 
@@ -120,11 +124,14 @@ POC's design ([`poc.md`](poc.md)). **Mockups (§6) come first: review them befor
 
 | File | Holds |
 |---|---|
-| `score.json` | status, golden dataset version (or draft `rs-NNNN`), extract output identity (path, report ETag, last modified, `discovery_run_id`, records), scorer (xtra-cli commit), whether the output used slot names (so nothing could match), the equivalent `xtra score` commands, who, when |
+| `score.json` | status, the two results (hand-checked values only, and all values), golden dataset version (or draft `rs-NNNN`), extract output identity (path, report ETag, last modified, `discovery_run_id`, records), scorer (xtra-cli commit), whether the output used slot names (so nothing could match), the equivalent `xtra score` commands, who, when |
 | `values.parquet` | one row per scored value: column, course, page, outcome, similarity, golden value, extracted value, golden location, approved by (person / rule) |
 
+- **Each score runs `xtra score` twice:** against the hand-checked values only (the default view), and against all
+  values. Both results are kept. They're computed separately, not filtered from one run, so the counts are exactly
+  the scorer's.
 - **When a score runs:**
-  - **automatically after every publish**, against the catalog's latest extract output (§6.4);
+  - **automatically when a column is approved** (approving publishes it), against the catalog's latest extract output;
   - automatically when the Studio first sees a new extract output, against the latest golden dataset;
   - when someone presses **Score** on a dashed bar in the history chart: an older output against the chosen golden
     dataset, or a draft. A pair is scored once; there is no "Score again".
@@ -156,9 +163,12 @@ POC's design ([`poc.md`](poc.md)). **Mockups (§6) come first: review them befor
     of the current location keep working.
   - **The Studio also keeps a Parquet copy,** `golden/<pub>/golden.parquet` (one row per value, about 1 MB for AVC), so
     Evals can load a version quickly.
-- **Publishing again from the same ruleset** (after approving another column) rewrites that ruleset's version with the
-  extra column. Its existing columns can't change, because their values come from the same immutable extraction.
+- **Approving a column publishes it** into its ruleset's golden dataset. The first approval in a ruleset creates that
+  golden dataset (with every column already approved in it). Later approvals in the same ruleset rewrite that version
+  with the extra column. Its existing columns can't change, because their values come from the same immutable extraction.
   Columns only grow, and each score records the columns it covered.
+- **A column found wrong after publishing stays published.** Its rule shows ✕ until a new rule version fixes it, and
+  approving the fix publishes the column in the new ruleset's golden dataset.
 - **The two existing AVC publications** are rebuilt once from their lineage and the immutable extractions, as ruleset
   v2 and ruleset v3.
 
@@ -194,6 +204,7 @@ POC's design ([`poc.md`](poc.md)). **Mockups (§6) come first: review them befor
 
 ## 5. What goes away
 
+- The Publish button and its checkboxes (approving publishes; the tab becomes Golden datasets).
 - Running extractions from the Studio: "+ New extraction", `golden-datasets xtra run`, `serve --allow-runs`, the
   extraction job runner, and the `xtra-runs/` copies.
 - The left nav and the baselines (full catalog / hand-checked / verified container).
@@ -223,6 +234,8 @@ are illustrative. **The xtra score views and the history are illustrative too:**
 
 ![Home, xtra score](mockups/m2.png)
 
+- **"Scored against: Hand-checked values | All values (hand + rule)"**, hand-checked by default. The exact matches
+  column is labelled **hand-checked** and each figure shows its count (65% of 75).
 - **Exact matches** per catalog, and per column.
 - **Hovering a bar or a legend colour** shows a small table: each outcome, its count and its rule. Underneath, one line
   explains similarity:
@@ -234,6 +247,8 @@ are illustrative. **The xtra score views and the history are illustrative too:**
 
 ![Evals tab](mockups/m3.png)
 
+- **The same switch** sits at the right of the title: **Hand-checked values** by default. The headline reads "65% exact
+  matches · hand-checked · 49 of 75 values a person confirmed".
 - **The title is the comparison:** "[Golden dataset ruleset v3 (latest) ▾] vs `xtra catalog extract` outputs over time",
   above the chart.
   - Each output is a vertical bar: match at the bottom, then partial, wrong and missing.
@@ -274,17 +289,19 @@ are illustrative. **The xtra score views and the history are illustrative too:**
 - **The same component,** Split by default, comparing ruleset v1 with ruleset v2, with **Note…** and **The new value is
   wrong…**.
 
-### 6.6 Publish (scoring included)
+### 6.6 Approving publishes
 
-![Publish](mockups/m4.png)
+![Approve and publish](mockups/m4.png)
 
-- **Columns are listed by field name.** **Publish ruleset v4** writes the golden dataset and then scores xtra's latest
-  extract output against it.
-- **"Where it's written" ⓘ** is the file tree, as on today's Publish tab, with each file a link to a sample:
-  - the version folder (`catalogs/<catalog>/versions/ruleset-v4/…`);
-  - the latest location, replaced whole;
-  - the Studio's `publication.json`, `lineage.parquet` and `golden.parquet`.
-- **When it finishes,** one line gives the exact matches, with **Open in Evals →**.
+- **Approving a column's rule** asks once: it shows the golden dataset's columns now and after, and how many of the
+  column's values a person checked and how many the rule labels. **Approve and publish** publishes the column and then
+  scores it.
+
+![Golden datasets](mockups/m4b.png)
+
+- **The Publish tab becomes Golden datasets,** a read-only record:
+  - one row per version: its columns, its values (with how many are hand-checked) and its latest xtra score;
+  - below, the file tree of where the chosen version is written, each file a link to a sample.
 
 ## 7. Order of work
 
@@ -302,16 +319,14 @@ are illustrative. **The xtra score views and the history are illustrative too:**
 3. **The Evals tab** with its history chart (§6.3), and **the shared value diff with notes** (§6.4, §6.5, §4.2), used
    by Evals and Compare. Keeping a copy of each extract output (§3.1).
 4. **The home table** (§6.1, §6.2).
-5. **Publish:** field names without `ceterms:`, scoring included, and where it's written (§6.6).
+5. **Approving publishes** (§6.6): the approve confirmation, publication and scoring on approval, and the Golden
+   datasets tab with its file tree. Field names without `ceterms:`.
 6. **Tests and checks:** `check` rules (score → golden version and extract identity; values → pages); tour, spec and
    screenshots.
 
 ## 8. Open questions
 
-1. **Should approving a column's rule publish it?** You said publishing should mean the same as the green ✓. Today a rule
-   can be approved and not published (AVC's `codedNotation`). There are two options:
-   - **approving publishes** that column into the ruleset's golden dataset, which removes the "approved, not published"
-     state;
-   - the ✓ shows only once published, and an approved-but-unpublished column shows ○.
-
-   The mockups use the second for now (AVC's `codedNotation` shows ○).
+1. **Do hand-checked values in unpublished columns count?** A person confirmed them, so they don't depend on the rule
+   being right. The mockups assume they do: AVC's hand-checked score covers `identifier`, `name` and `description` (14,
+   14 and 16 values) although only `inLanguage` is published. The alternative is to count only published columns,
+   which would leave AVC's hand-checked score with nothing to score today.
