@@ -3,27 +3,36 @@
 
 from __future__ import annotations
 
-from typing import Literal
-
 from fastapi import APIRouter, Request
 
 from ..errors import UserError
 from ..loop import current_review
-from ..prompt import build_prompt
+from ..prompt import build_first_rules_prompt, build_prompt
 from .state import not_found, studio
 
 router = APIRouter(prefix="/api")
 
 
 @router.get("/catalogs/{catalog}/prompt")
-def prompt(request: Request, catalog: str, rule: str | None = None, needs_work: bool = False,
-           target: Literal["local", "azure"] = "local") -> dict:
-    """One rule (`rule=`), or every rule whose status is `needs work` (`needs_work=true`, also the default).
-    `target=azure`: the version that points Claude at the Azure root (`serve --azure-root`) after a minimal setup."""
+def prompt(request: Request, catalog: str, rule: str | None = None, needs_work: bool = False) -> dict:
+    """One rule (`rule=`), or every rule whose status is `needs work` (`needs_work=true`, also the default). Always the
+    version that points Claude at the Azure root (this Studio's, or `serve --azure-root`) after a minimal setup."""
     st = studio(request)
     ctx = st.ctx(catalog)
     try:
-        out = build_prompt(ctx, rule, needs_work, rv=current_review(ctx), target=target, azure_root=st.azure_root)
+        out = build_prompt(ctx, rule, needs_work, rv=current_review(ctx), target="azure", azure_root=st.azure_root)
+    except UserError as exc:
+        raise not_found(str(exc)) from None
+    return {**out, "studio_root": st.root.uri}
+
+
+@router.get("/catalogs/{catalog}/prompt/first-rules")
+def first_rules_prompt(request: Request, catalog: str) -> dict:
+    """Generate rules (spec §7.1): the prompt that has Claude Code write and publish a new catalog's first ruleset."""
+    st = studio(request)
+    ctx = st.ctx(catalog)
+    try:
+        out = build_first_rules_prompt(ctx, target="azure", azure_root=st.azure_root)
     except UserError as exc:
         raise not_found(str(exc)) from None
     return {**out, "studio_root": st.root.uri}

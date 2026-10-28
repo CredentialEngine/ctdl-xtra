@@ -68,6 +68,49 @@ async def s01b(page, base):
     await page.wait_for_timeout(1500)
 
 
+@shot("01c-add-catalog-search")
+async def s01c(page, base):
+    await page.goto(f"{base}/#/")
+    await page.wait_for_selector(".cat.ready")
+    await page.click("text=+ Add a catalog")
+    await page.wait_for_selector(".ac-t tbody tr", timeout=60000)
+    await page.fill(".ac-search", "ca")
+    await page.click(".ac-info")
+    await page.wait_for_timeout(300)
+
+
+@shot("01d-add-catalog-confirm")
+async def s01d(page, base):
+    await page.goto(f"{base}/#/")
+    await page.wait_for_selector(".cat.ready")
+    await page.click("text=+ Add a catalog")
+    await page.wait_for_selector(".ac-t tbody tr", timeout=60000)
+    await page.fill(".ac-search", "cabrillo")
+    await page.press(".ac-search", "Enter")
+    await page.wait_for_selector(".ac-found")
+    await page.wait_for_timeout(300)
+
+
+@shot("01e-add-catalog-adding")
+async def s01e(page, base):
+    # adds a small crawled catalog to the served root: run it against a scratch root, not the shared one
+    await page.request.post(f"{base}/api/crawls/catalog-citruscollege-edu/add", data={"by": "Jared Diener"})
+    await page.goto(f"{base}/#/")
+    await page.wait_for_function("() => /Copying pages… [3-9][0-9]/.test(document.querySelector('.cat.adding')?.textContent ?? '')",
+                                 timeout=60000)
+    await page.wait_for_timeout(300)
+
+
+@shot("01f-generate-rules")
+async def s01f(page, base):
+    # needs a catalog added from the picker that has no rules yet
+    await page.goto(f"{base}/#/")
+    await page.wait_for_selector(".cat .gen")
+    await page.click(".cat .gen")
+    await page.wait_for_selector("[data-testid=first-rules-prompt] h1")
+    await page.wait_for_timeout(300)
+
+
 @shot("03-rules-tab-description-v2")
 async def s03(page, base):
     await page.goto(f"{base}/#/c/{CAT}/rules/course-description?row=GEOG222")
@@ -252,6 +295,8 @@ async def main(base: str, out: Path, only: str | None) -> None:
             page.on("pageerror", lambda e, n=name: print(f"  [{n}] page error: {e}"))
             loop = "" if name == "01b-loop-modal" else " localStorage.setItem('studio.loop.hidden', '1');"
             await page.add_init_script("try { localStorage.setItem('studio.tour.seen', '1');"
+                                      " localStorage.setItem('studio.reviewer', '\"Jared\"');"
+                                      " localStorage.setItem('studio.role', '\"sme\"');"
                                       f" localStorage.setItem('studio.rules.sample', '{int(name.startswith(('15', '16')))}');"
                                       f" localStorage.setItem('studio.compare.sample', '{int(name.startswith('08c'))}');" + loop +
                                       f" localStorage.setItem('studio.theme', '{THEME.get(name, 'light')}') }} catch (e) {{}}")

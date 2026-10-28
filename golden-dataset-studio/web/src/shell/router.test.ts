@@ -8,6 +8,11 @@ describe("routes", () => {
     expect([r.catalog, r.tab, r.id, r.params.get("row")]).toEqual(["avc", "rules", "course-description", "a@b"]);
     expect(parseRoute("#/c/avc").tab).toBe("rules");
   });
+  it("opens an old Prompt tab link as the prompt modal over the Rules tab", () => {
+    const r = parseRoute("#/c/avc/prompt?rule=course-description&k2err=K2%20down");
+    expect([r.catalog, r.tab, r.id, r.params.get("prompt"), r.params.get("rule"), r.params.get("k2err")])
+      .toEqual(["avc", "rules", null, "1", null, "K2 down"]);
+  });
   it("builds hrefs that parse back", () => {
     const h = href("avc", "compare", null, { a: 1, b: 2, rule: "course-description" });
     const r = parseRoute(h);

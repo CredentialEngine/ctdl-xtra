@@ -57,22 +57,6 @@ function pageValue(): Element[] | Element | null {
   return marks.length ? marks : q("[data-tour=page-pane]");
 }
 
-/** The lines of the raw prompt from `heading` (a line that starts with it) to the next heading. */
-function promptSection(heading: RegExp): Element[] | null {
-  const lines = qa(".prompt-pre .ln");
-  const i = lines.findIndex((l) => heading.test(l.textContent ?? ""));
-  if (i < 0) return null;
-  const end = lines.findIndex((l, j) => j > i && /^#{2,3} /.test(l.textContent ?? ""));
-  // only the lines the preview shows (it scrolls; lines scrolled out would light the bar above it)
-  const box = q(".prompt-pre")?.getBoundingClientRect();
-  const shown = (l: Element) => {
-    if (!box || !box.height) return true;
-    const r = l.getBoundingClientRect();
-    return r.bottom > box.top && r.top < box.bottom;
-  };
-  return lines.slice(i, end < 0 ? undefined : end).filter((l) => (l.textContent ?? "").trim() && shown(l));
-}
-const feedback = () => promptSection(/^### Open annotations/);
 
 /** Each group of the rule list (page rules, record locators, field rules). */
 const group = (i: number) => () => qa(".rule-list .rule-group")[i] ?? null;
@@ -267,7 +251,7 @@ export const STEPS: Step[] = [
   },
   {
     id: "improve",
-    title: "How this rule works, and Improve this rule",
+    title: "How this rule works, and improving rules",
     route: (c) => c.base,
     ready: (c) => onBase(c) && !!q("[data-tour=how-it-works]"),
     arrive: () => {
@@ -277,61 +261,20 @@ export const STEPS: Step[] = [
       return () => { d.open = false; };
     },
     targets: [".rule-head"],
-    accents: ["[data-tour=improve-rule]"],
+    accents: [],
     sides: ["below", "right"],
     body: () => (
       <>
         <p><b>How this rule works</b>, opened for you, says in plain words what the rule finds, how, and why this version
           is better, then its selector, how many courses it filled, its version and what it depends on.</p>
-        <p>When courses are wrong, <b>Improve this rule</b> <I name="spark" /> opens the <b>Prompt</b> tab with this rule
-          selected (next step). It turns your verdicts, selections and notes into a prompt for Claude Code, which changes
-          the rule and publishes a new version.</p>
+        <p>When you've finished labeling for the session, <b>Improve all rules with Claude</b> <I name="spark" />, at the
+          bottom of the rule list, hands every rule that needs work, with everyone's verdicts, selections and notes, to
+          Claude on the Remote AI rule generator. It changes the rules and publishes a new version in a few minutes,
+          while you watch its progress in the bar under the top bar. <b>Past AI runs</b>, in the footer, keeps each
+          run's report.</p>
       </>
     ),
     absent: () => <p>The rule hasn't loaded.</p>,
-  },
-  {
-    id: "prompt",
-    title: "The Prompt: your feedback, ready for Claude Code",
-    route: (c) => c.prompt,
-    ready: () => qa(".prompt-pre .ln").length > 0 || !!q("[data-testid=prompt-rendered]"),
-    arrive: () => {
-      // the raw view, where each line can be lit, with the feedback scrolled into view
-      const raw = qa(".prompt-bar .md-seg button").find((b) => b.textContent === "Raw");
-      const wasRendered = !!q("[data-testid=prompt-rendered]");
-      if (wasRendered) raw?.click();
-      // the preview may re-render while it loads: keep scrolling the feedback to the top until it stays there
-      const t0 = Date.now();
-      const id = setInterval(() => {
-        const lines = qa(".prompt-pre .ln");
-        const head = lines.find((l) => /^### Open annotations/.test(l.textContent ?? ""));
-        const pre = q(".prompt-pre");
-        if (head && pre && Math.abs(head.getBoundingClientRect().top - pre.getBoundingClientRect().top) > 4) {
-          head.scrollIntoView({ block: "start" });
-        }
-        if (Date.now() - t0 > 3000) clearInterval(id);
-      }, 150);
-      return () => {
-        clearInterval(id);
-        if (wasRendered) qa(".prompt-bar .md-seg button").find((b) => b.textContent === "Rendered")?.click();
-      };
-    },
-    targets: [feedback],
-    accents: [".prompt-bar .btn.primary"],
-    sides: ["left", "below"],
-    read: () => ({ head: feedback()?.[0]?.textContent ?? null }),
-    body: (f) => (
-      <>
-        <p><b>Improve this rule</b> brings you here, with the rule selected. The prompt turns everyone's verdicts,
-          selections and notes into instructions for Claude Code.</p>
-        <p>The lit lines are <b>your feedback</b>{f.head ? <> (“{String(f.head).replace(/^### /, "")}”)</> : null}: each
-          open verdict with the value seen, the text you selected, and your note. The rule's definition, which Claude
-          changes, is highlighted above it; the template around it is faded.</p>
-        <p><b>Copy prompt</b> and paste it into Claude Code. It installs the <code>golden-datasets</code> CLI, tries a new
-          rule version against every annotation, and publishes it only if nothing marked correct changes.</p>
-      </>
-    ),
-    absent: () => <p>The prompt hasn't loaded.</p>,
   },
   {
     id: "compare",
@@ -393,7 +336,7 @@ export const STEPS: Step[] = [
         {c.blocked !== c.base && f.rule ? <p>“{String(f.rule)}” has been opened for you.</p> : null}
         {f.approved ? <p>This rule is already approved ({String(f.by ?? "").replace(/\s*·\s*Reopen$/, "")}).</p>
           : f.blocked ? <p>Here it's <b>greyed out</b>: some courses are still marked wrong or missing, and the reason
-              is shown under the button. Approve stays greyed out until none is. Fix the rule with Improve this rule, or change those verdicts.</p>
+              is shown under the button. Approve stays greyed out until none is. Fix it with Improve all rules, or change those verdicts.</p>
           : <p>Nothing is marked wrong or missing here, so Approve can be pressed. The tour doesn't press it.</p>}
         <p>Once a field's rule is approved, the <b>Publish</b> tab can publish that property into the golden dataset,
           even while other fields are still being worked on.</p>

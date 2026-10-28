@@ -41,6 +41,11 @@ golden-datasets serve                          # http://127.0.0.1:8000
 
 Catalogs: `avc`, `ccsf`, `marshall`, `ualr`, `wvu` (or the full folder names).
 
+**Shared password.** `serve` asks for one password before the profile when the environment sets
+`GOLDEN_DATASETS_PASSWORD_HASH` (from `golden-datasets hash-password`, which reads the password and prints a salted
+scrypt hash) or `GOLDEN_DATASETS_PASSWORD` (hashed at startup). With neither, there is no password. Signing in lasts
+30 days in that browser, across restarts, until the password changes.
+
 ## The loop with Claude Code (spec §3.1)
 
 1. In the UI, Jared marks rows ✓ / ✗ (selecting the right text on the page) or asks a question for the institution.

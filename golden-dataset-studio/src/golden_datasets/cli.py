@@ -3,7 +3,7 @@
 Every command takes `--root` (or `GOLDEN_DATASETS_ROOT`): a folder or an `azure://https://…/container[/prefix]` URI.
 Commands that work on one catalog take `--catalog` (or `GOLDEN_DATASETS_CATALOG`), either the folder name or its
 short name (`avc`, `ccsf`, `marshall`, `ualr`, `wvu`). Unset variables are read from `golden-datasets.env` (KEY=VALUE
-lines) in the current folder or the nearest parent that has one: Claude Code's shell commands don't share `export`s.
+lines) in the current folder and its parents, the nearest first: Claude Code's shell commands don't share `export`s.
 
 Each command's implementation is imported lazily, so `--help` stays fast.
 """
@@ -25,18 +25,21 @@ DEFAULT_AZURE_ROOT = "azure://https://ceteststorage.blob.core.windows.net/xtra-c
 
 
 def load_env_file(start: Path | None = None) -> Path | None:
-    """Set the unset variables from the nearest `golden-datasets.env`; the environment always wins."""
+    """Set the unset variables from every `golden-datasets.env` in the current folder and its parents; the environment
+    always wins, then the nearest file. So a folder's file can hold the root and catalog while a parent's holds shared
+    settings (on K2: the SAS tokens in /var/lib/k2/work). Returns the nearest file read."""
     here = (start or Path.cwd()).resolve()
+    nearest = None
     for folder in (here, *here.parents):
         f = folder / ENV_FILE
         if f.is_file():
+            nearest = nearest or f
             for line in f.read_text().splitlines():
                 key, sep, value = line.strip().partition("=")
                 key = key.removeprefix("export ").strip()
                 if sep and key and not key.startswith("#"):
                     os.environ.setdefault(key, value.strip().strip("'\""))
-            return f
-    return None
+    return nearest
 
 
 def _root_args(p: argparse.ArgumentParser) -> None:
@@ -52,10 +55,17 @@ def _catalog_args(p: argparse.ArgumentParser, required: bool = True) -> None:
     p.add_argument("--crawl", default=None, help="crawl id (default: the catalog's current crawl)")
 
 
+def _crawls_root_args(p: argparse.ArgumentParser) -> None:
+    p.add_argument("--crawls-root", default=os.environ.get("GOLDEN_DATASETS_CRAWLS_ROOT"),
+                   help="where xtra-cli's crawls are (default: $GOLDEN_DATASETS_CRAWLS_ROOT, else the container above "
+                        "an Azure root's prefix, else the root itself)")
+
+
 def _target_args(p: argparse.ArgumentParser, prompt: bool = True) -> None:
     if prompt:
-        p.add_argument("--target", choices=["local", "azure"], default="local",
-                       help="local: Claude works on --root itself; azure: on the Azure root, after a minimal setup")
+        p.add_argument("--target", choices=["local", "azure"], default="azure",
+                       help="azure (default, what the Studio shows): Claude works on the Azure root after a minimal "
+                            "setup; local: on --root itself")
     p.add_argument("--azure-root", default=os.environ.get("GOLDEN_DATASETS_AZURE_ROOT") or DEFAULT_AZURE_ROOT,
                    help="the Azure root the prompt's Azure version points Claude at (default: "
                         "$GOLDEN_DATASETS_AZURE_ROOT, else the team's shared prefix)")
@@ -84,6 +94,19 @@ def build_parser() -> argparse.ArgumentParser:
     _root_args(p), _catalog_args(p)
     p.add_argument("--max-assets", type=int, default=400, help="safety limit on distinct asset URLs")
     _cmd(p, "golden_datasets.assets:cmd_fetch")
+
+    crawled = sub.add_parser("crawls", help="catalogs xtra-cli has crawled: list, add one to the Studio")
+    csub = crawled.add_subparsers(dest="crawls_command", metavar="ACTION", required=True)
+    p = csub.add_parser("list", help="one line per crawled catalog: its latest crawl's date, pages and status")
+    _root_args(p), _crawls_root_args(p)
+    p.add_argument("q", nargs="?", default=None, help="only catalogs whose name, folder or URL has these words")
+    _cmd(p, "golden_datasets.crawls:cmd_list")
+    p = csub.add_parser("add", help="copy a crawl into the root, index its pages, archive their assets, name it")
+    _root_args(p), _crawls_root_args(p)
+    p.add_argument("catalog", help="the crawled catalog's folder name")
+    p.add_argument("--crawl", default=None, help="crawl id (default: its latest)")
+    p.add_argument("--by", default=None, help="who added it (recorded in the manifest)")
+    _cmd(p, "golden_datasets.crawls:cmd_add")
 
     p = sub.add_parser("import-v2", help="v2 rules.json → rule versions v1 + ruleset v1; v2 decisions → annotations")
     _root_args(p), _catalog_args(p)
@@ -127,7 +150,10 @@ def build_parser() -> argparse.ArgumentParser:
     _cmd(p, "golden_datasets.loop:cmd_rule_annotations")
     p = rsub.add_parser("draft", help="current versions of one or more rules as an editable draft (JSON on stdout)")
     _root_args(p), _catalog_args(p)
-    p.add_argument("rule_ids", nargs="+")
+    p.add_argument("rule_ids", nargs="*")
+    p.add_argument("--all", action="store_true", help="every rule of the latest ruleset")
+    p.add_argument("--for", dest="for_catalog", default=None, metavar="CATALOG",
+                   help="a template for another catalog's first ruleset: every rule and the settings, for CATALOG")
     _cmd(p, "golden_datasets.loop:cmd_rule_draft")
     p = rsub.add_parser("try", help="run a draft over the whole crawl and print the scorecard; writes nothing")
     _root_args(p), _catalog_args(p)
@@ -156,12 +182,40 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("-n", type=int, default=20)
     _cmd(p, "golden_datasets.loop:cmd_pages_sample")
 
+    # --- Agent runs (Claude on the remote agent reports here; docs/qrspi/k2-runs) -----------------------
+    runs = sub.add_parser("run", help="a Studio run on the remote agent: report progress, end it, show it")
+    nsub = runs.add_subparsers(dest="run_command", metavar="ACTION", required=True)
+    p = nsub.add_parser("note", help="one progress line, shown live in the Studio")
+    _root_args(p)
+    _catalog_args(p)
+    p.add_argument("--run", required=True, help="the run id from the prompt")
+    p.add_argument("text", nargs="+")
+    p.add_argument("--by", default="golden-rules agent")
+    _cmd(p, "golden_datasets.agent_runs:cmd_note")
+    p = nsub.add_parser("done", help="end the run with a one-line outcome (--failed if you couldn't publish)")
+    _root_args(p)
+    _catalog_args(p)
+    p.add_argument("--run", required=True)
+    p.add_argument("--outcome", required=True)
+    p.add_argument("--failed", action="store_true")
+    p.add_argument("--summary-file", default=None, metavar="PATH",
+                   help="your full report (Markdown), kept with the run and shown in the Studio; - reads stdin")
+    p.add_argument("--by", default="golden-rules agent")
+    _cmd(p, "golden_datasets.agent_runs:cmd_done")
+    p = nsub.add_parser("show", help="the run record and its notes")
+    _root_args(p)
+    _catalog_args(p)
+    p.add_argument("--run", required=True)
+    _cmd(p, "golden_datasets.agent_runs:cmd_show")
+
     # --- Prompt ----------------------------------------------------------------------------------------
     p = sub.add_parser("prompt", help="the same text the UI's Copy prompt button gives")
     _root_args(p), _catalog_args(p)
     g = p.add_mutually_exclusive_group()
     g.add_argument("--rule", default=None)
     g.add_argument("--needs-work", action="store_true")
+    g.add_argument("--first-rules", action="store_true",
+                   help="a catalog with no rules yet: write and publish its first ruleset from a template")
     _target_args(p)
     _cmd(p, "golden_datasets.prompt:cmd_prompt")
 
@@ -225,10 +279,21 @@ def build_parser() -> argparse.ArgumentParser:
     _root_args(p)
     p.add_argument("--port", type=int, default=DEFAULT_PORT)
     p.add_argument("--host", default="127.0.0.1")
+    p.add_argument("--k2-url", default=os.environ.get("GOLDEN_DATASETS_K2_URL"),
+                   help="K2 server running the remote agent (key: GOLDEN_DATASETS_K2_KEY); unset = runs are off and "
+                        "run buttons open the prompt")
+    p.add_argument("--k2-agent", default=os.environ.get("GOLDEN_DATASETS_K2_AGENT", "golden-rules"),
+                   help="the K2 workspace whose agent runs the prompts")
+    p.add_argument("--agent-run-minutes", type=int, default=90, help="a run ends as timed out after this long")
+    p.add_argument("--prompt-users", default=os.environ.get("GOLDEN_DATASETS_PROMPT_USERS", "Eric Riddoch,Seth Alt"),
+                   help="profiles whose run buttons also offer Open the prompt (comma-separated)")
     _target_args(p, prompt=False)
+    _crawls_root_args(p)
     p.add_argument("--allow-runs", action="store_true",
                    help="let the Evals tab start xtra runs and evals (off by default: the UI may be reachable over ngrok)")
     _cmd(p, "golden_datasets.server.app:cmd_serve")
+    p = sub.add_parser("hash-password", help="salt and hash the Studio's shared password, for GOLDEN_DATASETS_PASSWORD_HASH")
+    _cmd(p, "golden_datasets.server.auth:cmd_hash_password")
     return ap
 
 

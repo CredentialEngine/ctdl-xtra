@@ -56,13 +56,30 @@ ABOUT = [
 
 @functools.lru_cache(maxsize=8)
 def account_id(account: str) -> str | None:
-    """The storage account's Azure resource id, from the signed-in Azure CLI (None when it can't say)."""
+    """The storage account's Azure resource id: $GOLDEN_DATASETS_AZURE_ACCOUNT_ID when it names this account (a
+    deployed Studio has no Azure CLI), else from the signed-in Azure CLI (None when neither can say)."""
+    import os
+
+    env = os.environ.get("GOLDEN_DATASETS_AZURE_ACCOUNT_ID", "").strip()
+    if env.lower().endswith(f"/storageaccounts/{account.lower()}"):
+        return env
     try:
         r = subprocess.run(["az", "storage", "account", "show", "-n", account, "--query", "id", "-o", "tsv"],
                            capture_output=True, text=True, timeout=60)
     except (OSError, subprocess.TimeoutExpired):
         return None
     return (r.stdout.strip() or None) if r.returncode == 0 else None
+
+
+#: The Azure tenant the portal links open in (its domain or id); without it the portal may open the wrong
+#: directory and not find the resource. GOLDEN_DATASETS_AZURE_TENANT overrides it.
+DEFAULT_TENANT = "credengine.onmicrosoft.com"
+
+
+def tenant() -> str:
+    import os
+
+    return os.environ.get("GOLDEN_DATASETS_AZURE_TENANT") or DEFAULT_TENANT
 
 
 def portal(root) -> dict | None:
@@ -76,14 +93,17 @@ def portal(root) -> dict | None:
         return None
     enc = quote(rid, safe="")
     container, prefix = root.container_name, root.prefix
+    base = f"https://portal.azure.com/#@{tenant()}"
 
     def blob(path: str) -> str:
         name = f"{prefix}/{path}" if prefix else path
-        return (f"https://portal.azure.com/#view/Microsoft_Azure_Storage/BlobPropertiesBladeV2/storageAccountId/{enc}"
+        return (f"{base}/view/Microsoft_Azure_Storage/BlobPropertiesBladeV2/storageAccountId/{enc}"
                 f"/path/{quote(f'{container}/{name}', safe='')}/isDeleted~/false/tabToload~/0")
 
-    return {"browser": f"https://portal.azure.com/#@/resource{rid}/storagebrowser", "container": container,
-            "prefix": prefix, "blob": blob}
+    return {"browser": f"{base}/resource{rid}/storagebrowser",
+            "container_url": f"{base}/view/Microsoft_Azure_Storage/ContainerMenuBlade/~/overview/storageAccountId/{enc}"
+                             f"/path/{quote(container, safe='')}",
+            "container": container, "prefix": prefix, "blob": blob}
 
 
 def about(path: str) -> str:

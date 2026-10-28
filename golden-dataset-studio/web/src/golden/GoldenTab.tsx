@@ -1,7 +1,7 @@
 // Publish (spec §7.6, screen 10): publish the golden dataset one property at a time. Each property can be chosen
-// once its field rule is approved, whatever the other fields' rules say; what will be written (each file can be
-// opened as a sample, merged with what the golden set has), course codes shared by different courses, earlier
-// publications.
+// once its field rule is approved, whatever the other fields' rules say; the button shows ✓ Published once the
+// chosen properties are published from this extraction at their current rule versions. What will be written: the
+// tree, each file can be opened as a sample.
 import { useCallback, useEffect, useState } from "react";
 import { api } from "../api/client";
 import type { GoldenResponse } from "../api/types";
@@ -34,6 +34,11 @@ export default function GoldenTab({ catalog }: TabProps) {
   const sel = (chosen ?? d.chosen).filter((p) => d.properties.some((x) => x.property === p && x.status === "approved"));
   const approvable = d.properties.filter((p) => p.status === "approved");
   const identity = d.rules.filter((r) => r.kind !== "field");
+  // every chosen property already published from this extraction at its current rule version: nothing new to write
+  const done = sel.length > 0 && sel.every((name) => {
+    const p = d.properties.find((x) => x.property === name);
+    return !!p?.published && p.published.extraction === d.extraction && p.published.rule_version === p.version;
+  });
   const toggle = (p: string) => setChosen((c) => {
     const cur = c ?? d.chosen;
     return cur.includes(p) ? cur.filter((x) => x !== p) : d.properties.map((x) => x.property).filter((x) => x === p || cur.includes(x));
@@ -56,21 +61,21 @@ export default function GoldenTab({ catalog }: TabProps) {
       {open && <FilePreview catalog={catalog.short} file={open} stems={d.page_stems} author={me} properties={sel}
                             onClose={() => setOpen(null)} />}
       <h1>Publish to the golden dataset</h1>
-      <div className="lead">One property at a time: a property can be published once its rule is approved, whatever the
-        other fields' rules say. Publishing writes the chosen properties' values from extraction{" "}
-        <span className="mono">{d.extraction}</span> (ruleset v{d.ruleset_version}) into each page's file, and keeps what
-        earlier publications wrote for the other properties.</div>
       <div className={`gate ${sel.length ? "ready" : "blocked"}`}>
         <Ico name="lock" />
-        <div className="grow">{sel.length
+        <div className="grow">{done
+          ? <><b>Already published:</b> {sel.join(", ")} from extraction <span className="mono">{d.extraction}</span>.</>
+          : sel.length
           ? <><b>Ready to publish {sel.length === 1 ? sel[0] : `${sel.length} properties`}:</b> {sel.length > 1 && <>{sel.join(", ")}. </>}
               {fmt(d.courses)} courses, {fmt(d.fields)} values
               {d.approvals && <> ({fmt(d.approvals.human)} approved by a person, {fmt(d.approvals.rule)} by the rule)</>}.</>
           : approvable.length
             ? <><b>Choose a property</b> below to publish.</>
             : <><b>Nothing to publish yet:</b> no property's rule is approved. Approve one on the Rules tab.</>}</div>
-        <button className="btn primary" disabled={!sel.length || busy} onClick={publish} data-tour="golden-publish">
-          {busy ? "Publishing…" : sel.length === 1 ? `Publish ${sel[0]}` : `Publish ${sel.length || ""} properties`}</button>
+        <button className={"btn primary" + (done ? " is-done" : "")} disabled={!sel.length || busy || done} onClick={publish}
+          data-tour="golden-publish" title={done ? "Already published from this extraction at these rule versions" : undefined}>
+          {busy ? "Publishing…" : done ? <><Ico name="correct" />Published</>
+            : sel.length === 1 ? `Publish ${sel[0]}` : `Publish ${sel.length || ""} properties`}</button>
       </div>
       <div className="gold-grid">
         <div className="box"><h3>Properties · ruleset v{d.ruleset_version} <span className="h3-note">· tick the ones to publish</span></h3>
@@ -108,46 +113,7 @@ export default function GoldenTab({ catalog }: TabProps) {
               {"├── "}<F f="lineage.parquet">{"lineage.parquet"}</F>{"         "}<span className="c"># one row per value → rule, version, occurrence, verdicts</span>{"\n"}
               {"└── "}<F f="publication.json">{"publication.json"}</F>{"        "}<span className="c"># which extraction and ruleset, approvals</span>
             </div>
-            <div className="muted" style={{ fontSize: 12.5, marginTop: 10, lineHeight: 1.55 }}>
-              {fmt(d.courses)} courses · {fmt(d.records)} course entries · {fmt(d.fields)} values. Same shape as the golden
-              sets saved so far, plus <span className="mono">location</span> (css_path and character offsets on the page) on
-              every value and an id on every course (<span className="mono">golden_record_id</span>: its course code, like{" "}
-              <span className="mono">GEOG222</span>). Learning Type is kept with{" "}
-              <span className="mono">ctdl_property: null</span>. Every value says who approved it:{" "}
-              <span className="mono">approval: "human"</span> when a person confirmed that value (marked it correct, or
-              selected the right text it now is), else <span className="mono">"rule"</span> (its rule's approval covers
-              it), with <span className="mono">approved_by</span> and <span className="mono">approved_at</span>; a
-              record's <span className="mono">approval</span> is <span className="mono">human</span>,{" "}
-              <span className="mono">rule</span> or <span className="mono">mixed</span>. Rule ids and verdicts live only
-              in <span className="mono">lineage.parquet</span>, which stays in the Studio.
-            </div>
           </div>
-          <div className="box" style={{ marginTop: 18 }}><h3>One course code, different courses · {d.collisions.length}</h3>
-            <div className="muted" style={{ fontSize: 12.5, marginBottom: 8, lineHeight: 1.55 }}>
-              Each course in the dataset is identified by its course code. When course pages use one code for courses with
-              different names, each name gets its own id (<span className="mono">GEOG222~1</span>,{" "}
-              <span className="mono">GEOG222~2</span>) so they stay apart, and they're listed here so you can check they
-              really are different courses and not one course whose title changed.</div>
-            {d.collisions.length === 0
-              ? <div>None in this catalog: every course code is used for one course.</div>
-              : <div className="collisions">{d.collisions.slice(0, 200).map((c) => (
-                  <div key={c.course_key} className="chk" style={{ gridTemplateColumns: "auto 1fr" }}>
-                    <b className="mono">{c.course_key}</b>
-                    <span>{c.names.map((n, i) => <div key={i}>{n} <span className="mono muted">→ {c.golden_record_ids[i]}</span></div>)}</span>
-                  </div>))}
-                  {d.collisions.length > 200 && <div className="muted">… and {d.collisions.length - 200} more</div>}
-                </div>}
-          </div>
-          {d.publications.length > 0 && (
-            <div className="box" style={{ marginTop: 18 }}><h3>Earlier publications</h3>
-              {d.publications.map((p) => (
-                <div key={p.publication} className="chk" style={{ gridTemplateColumns: "1fr auto" }}>
-                  <span><b className="mono">{p.publication}</b><br />
-                    <span className="muted">{fmt(p.courses)} courses · {fmt(p.lineage_rows)} lineage rows · {p.extraction} ·
-                      {" "}{p.published_by} → <span className="mono">{p.to}</span></span></span>
-                  {!p.all_rules_approved && <span className="pill review">test (not all approved)</span>}
-                </div>))}
-            </div>)}
         </div>
       </div>
     </div></div>

@@ -1,7 +1,8 @@
 """Every path of the storage layout (spec §4.5), relative to the storage root.
 
     <root>/golden-dataset-studio/manifest.json
-    <root>/<catalog>/golden-dataset-studio/{rules/<rule_id>/vNNNN.json, rulesets/vNNNN.json, annotations.jsonl}
+    <root>/<catalog>/golden-dataset-studio/{rules/<rule_id>/vNNNN.json, rulesets/vNNNN.json, annotations.jsonl,
+                                          agent-runs/}
     <root>/<catalog>/<crawl>/{crawl.json, pages/}                                  read-only (xtra-cli)
     <root>/<catalog>/<crawl>/golden-dataset-studio/{pages.parquet, assets/, extractions/<id>/, golden/<pub>/}
 """
@@ -26,6 +27,15 @@ def ruleset(catalog: str, version: int) -> str:
 
 def annotations(catalog: str) -> str:
     return f"{catalog_dir(catalog)}/annotations.jsonl"
+
+
+def agent_runs_dir(catalog: str) -> str:
+    """Runs of Claude on the remote agent (agent_runs.py): `current.json` (the lock), `last.json`, `<run_id>/`."""
+    return f"{catalog_dir(catalog)}/agent-runs"
+
+
+def agent_run_dir(catalog: str, run_id: str) -> str:
+    return f"{agent_runs_dir(catalog)}/{run_id}"
 
 
 def crawl_input(catalog: str, crawl: str) -> str:

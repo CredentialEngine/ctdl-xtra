@@ -1,10 +1,11 @@
 // Thin fetch wrappers for the Studio API. Every tab uses these; they keep URLs in one place.
 import type {
   BaselineInfo, EvalJob, EvalsIndex, ScoreView,
-  CatalogCard, CatalogDetail, CompareRecords, CompareResponse, Discussion, CourseDetail, CourseHit, GoldenFileText, GoldenLineage, GoldenResponse,
+  CatalogCard, CatalogDetail, CrawledCatalog, FirstRulesPrompt, CompareRecords, CompareResponse, Discussion, CourseDetail, CourseHit, GoldenFileText, GoldenLineage, GoldenResponse,
   NewEvent, Overlay,
-  PromptResponse, PromptTarget, RuleDetail, RuleSummary, RulesResponse, RowsResponse, UnclassifiedPage,
+  PromptResponse, RuleDetail, RuleSummary, RulesResponse, RowsResponse, UnclassifiedPage,
 } from "./types";
+import { signedOut } from "../shell/session";
 
 export class ApiError extends Error {
   constructor(public status: number, message: string) { super(message); }
@@ -13,6 +14,7 @@ export class ApiError extends Error {
 async function call<T>(path: string, init?: RequestInit): Promise<T> {
   const r = await fetch(path, init);
   if (!r.ok) {
+    if (r.status === 401) signedOut();
     let detail = r.statusText;
     try { detail = (await r.json()).detail ?? detail; } catch { /* not JSON */ }
     throw new ApiError(r.status, String(detail));
@@ -30,14 +32,22 @@ const c = (catalog: string) => `/api/catalogs/${encodeURIComponent(catalog)}`;
 
 export const api = {
   catalogs: () => call<CatalogCard[]>("/api/catalogs"),
+  crawls: () => call<{ crawls_root: string; items: CrawledCatalog[] }>("/api/crawls"),
+  addCatalog: (catalog: string, body: { crawl?: string; by?: string }) =>
+    call<unknown>(`/api/crawls/${encodeURIComponent(catalog)}/add`, {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
+    }),
+  dismissAdd: (catalog: string) => call<unknown>(`/api/crawls/${encodeURIComponent(catalog)}/add`, { method: "DELETE" }),
   catalog: (catalog: string) => call<CatalogDetail>(c(catalog)),
-  rules: (catalog: string) => call<RulesResponse>(`${c(catalog)}/rules`),
-  rule: (catalog: string, ruleId: string) => call<RuleDetail>(`${c(catalog)}/rules/${encodeURIComponent(ruleId)}`),
+  rules: (catalog: string, ext?: string | null) => call<RulesResponse>(`${c(catalog)}/rules${q({ ext })}`),
+  rule: (catalog: string, ruleId: string, ext?: string | null) =>
+    call<RuleDetail>(`${c(catalog)}/rules/${encodeURIComponent(ruleId)}${q({ ext })}`),
   rows: (catalog: string, ruleId: string, opts: { offset?: number; limit?: number; q?: string } = {}) =>
     call<RowsResponse>(`${c(catalog)}/rules/${encodeURIComponent(ruleId)}/rows${q(opts)}`),
-  overlay: (catalog: string, stem: string, rule: string) =>
-    call<Overlay>(`${c(catalog)}/pages/${encodeURIComponent(stem)}/overlay${q({ rule })}`),
-  unclassifiedPages: (catalog: string) => call<UnclassifiedPage[]>(`${c(catalog)}/unclassified-pages`),
+  overlay: (catalog: string, stem: string, rule: string, ext?: string | null) =>
+    call<Overlay>(`${c(catalog)}/pages/${encodeURIComponent(stem)}/overlay${q({ rule, ext })}`),
+  unclassifiedPages: (catalog: string, ext?: string | null) =>
+    call<UnclassifiedPage[]>(`${c(catalog)}/unclassified-pages${q({ ext })}`),
   courses: (catalog: string, query?: string) => call<CourseHit[]>(`${c(catalog)}/courses${q({ q: query })}`),
   course: (catalog: string, courseKey: string) =>
     call<CourseDetail>(`${c(catalog)}/courses/${encodeURIComponent(courseKey)}`),
@@ -57,7 +67,8 @@ export const api = {
     }
     return call<CompareRecords>(`${c(catalog)}/compare/records?${s}`);
   },
-  prompt: (catalog: string, opts: { rule?: string; needs_work?: boolean; target?: PromptTarget } = {}) =>
+  firstRulesPrompt: (catalog: string) => call<FirstRulesPrompt>(`${c(catalog)}/prompt/first-rules`),
+  prompt: (catalog: string, opts: { rule?: string; needs_work?: boolean } = {}) =>
     call<PromptResponse>(`${c(catalog)}/prompt${q(opts)}`),
   // `properties`: the properties a publication would publish (comma-separated in the query)
   golden: (catalog: string, properties?: string[]) =>

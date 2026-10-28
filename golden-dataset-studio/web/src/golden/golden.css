@@ -55,3 +55,7 @@
 .gold-grid .pub-when { display: block; font-size: 11px; color: var(--muted); }
 .gold-grid .identity { font-size: 12px; line-height: 1.5; margin-top: 10px; }
 .gold-grid .identity a { color: var(--accent); }
+/* Publish button once the chosen properties are already published: grey, with a check. */
+.btn.primary.is-done, .btn.primary.is-done:disabled { background: var(--surface-2); color: var(--green); border-color: var(--line-2);
+  opacity: 1; cursor: default; }
+.btn.primary.is-done svg { width: 14px; height: 14px; }

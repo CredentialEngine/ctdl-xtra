@@ -1,6 +1,7 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { setIdentity } from "../shell/reviewer";
 import type { CatalogDetail, RuleDetail, RulesResponse, RuleSummary } from "../api/types";
 import { parseRoute } from "../shell/router";
 import type { RowX, RowsX } from "./api";
@@ -9,7 +10,8 @@ import RulesTab from "./RulesTab";
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 const catalog = { catalog: "avc-x", short: "avc", name: "AVC", institution: "AVC", logo: null, crawl: "2026-10-12T20-59-13Z",
-  crawl_started: "", pages: 1467, extraction: "rs-0002", ruleset_version: 2, extractions: [], rulesets: [], authors: [],
+  crawl_started: "", pages: 1467, extraction: "rs-0002", ruleset_version: 2, extractions: [
+    { extraction: "rs-0001", ruleset_version: 1, parent_extraction: null }, { extraction: "rs-0002", ruleset_version: 2, parent_extraction: "rs-0001" }], rulesets: [], authors: [],
   pane_css: "", root: "" } as CatalogDetail;
 
 const summary = (o: Partial<RuleSummary>): RuleSummary => ({
@@ -56,6 +58,7 @@ function json(body: unknown) {
 }
 
 beforeEach(() => {
+  setIdentity("Jared", "sme");
   posted = [];
   vi.stubGlobal("fetch", vi.fn((url: string, init?: RequestInit) => {
     const u = String(url);
@@ -90,7 +93,7 @@ async function render(hash = "#/c/avc/rules/course-description?row=GEOG1") {
 }
 
 describe("RulesTab", () => {
-  it("discusses the ruleset and a whole rule in the sidebar, and posts comments with their topic", async () => {
+  it("discusses a whole rule in the sidebar, and posts comments with their topic", async () => {
     let talk = { ruleset: [] as unknown[], rules: {} as Record<string, unknown[]> };
     const fetchMock = vi.mocked(fetch);
     const base = fetchMock.getMockImplementation()!;
@@ -106,18 +109,16 @@ describe("RulesTab", () => {
       return base(url as string, init);
     });
     await render();
-    const set = container.querySelector("[data-testid=ruleset-talk]")!;
-    await act(async () => set.querySelector<HTMLButtonElement>(".talk-head")!.click());
-    expect(set.querySelector<HTMLTextAreaElement>(".talk-input")!.placeholder).toContain("in English");  // new rule first
+    expect(container.querySelector("[data-testid=ruleset-talk]")).toBeNull();  // the ruleset's box is gone
+    const pick = container.querySelector<HTMLSelectElement>("[data-testid=ruleset-pick] select")!;
+    expect([...pick.options].map((o) => o.textContent)).toEqual(["v2 (latest)", "v1"]);
+    expect(pick.value).toBe("rs-0002");
     const type = async (box: Element, text: string) => {
       const ta = box.querySelector<HTMLTextAreaElement>(".talk-input")!;
       const setter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value")!.set!;
       await act(async () => { setter.call(ta, text); ta.dispatchEvent(new Event("input", { bubbles: true })); });
       await act(async () => { box.querySelector<HTMLButtonElement>(".talk-actions .btn")!.click(); await new Promise((r) => setTimeout(r, 0)); });
     };
-    await type(set, "Every course here is in English");
-    expect(posted[posted.length - 1]).toMatchObject({ type: "comment", topic: "new-rule", target: { kind: "ruleset", rule_id: null } });
-    expect(set.querySelector(".talk-note")!.textContent).toBe("Every course here is in English");
     const btn = container.querySelector<HTMLButtonElement>("[data-rule=course-description] .rule-talk-btn")!;
     expect(btn.textContent).toBe("Discuss");
     await act(async () => btn.click());
@@ -200,7 +201,7 @@ describe("RulesTab", () => {
     expect(container.querySelector(".rh-sub")?.textContent).toBe("Description · course pages");
     expect(container.querySelector<HTMLDetailsElement>("details.how")?.open).toBe(false);
     expect(container.querySelector<HTMLButtonElement>("button.approve")?.disabled).toBe(false);
-    expect(container.querySelector<HTMLAnchorElement>("[data-tour=improve-rule]")?.getAttribute("href")).toBe("#/c/avc/prompt?rule=course-description");
+    expect(container.querySelector("[data-tour=improve-rule]")).toBeNull();  // improving is one run for every rule, at the bottom of the list
   });
 
   it("selects the row from the route, fades rows with a verdict, writes history lines", async () => {

@@ -4,7 +4,6 @@
 // "ruleset", with a topic) and sent to Claude in the prompt.
 import { useState } from "react";
 import type { TalkItem, Topic } from "../api/types";
-import { Ico } from "../shell/icons";
 import "./discussion.css";
 
 export const TOPIC_LABEL: Record<Topic, string> = {
@@ -60,26 +59,6 @@ export function Composer({ placeholder, topics, question, onPost }: {
           Question whether this rule is needed</label>}
         <button className="btn primary sm" disabled={!note.trim() || busy} onClick={() => void post()}>Post</button>
       </div>
-    </div>
-  );
-}
-
-/** The ruleset's thread, at the top of the rule list: collapsed to one line until opened. */
-export function RulesetTalk({ items, onPost }: { items: TalkItem[]; onPost: (note: string, topic: Topic) => Promise<boolean> }) {
-  const [open, setOpen] = useState(false);
-  return (
-    <div className={"talk-ruleset" + (open ? " open" : "")} data-testid="ruleset-talk">
-      <button className="talk-head" aria-expanded={open} onClick={() => setOpen(!open)}>
-        <span className="tw">{open ? "▾" : "▸"}</span><Ico name="bubble" />
-        <span className="talk-title">Discuss the ruleset</span>
-        {items.length > 0 && <span className="talk-n">{items.length}</span>}
-      </button>
-      {open && <>
-        <p className="talk-d">New rules (a domain expert's heuristic counts), other approaches, whether a rule is needed. Claude
-          reads these in the prompt.</p>
-        <Thread items={items} />
-        <Composer placeholder="A thought about the catalog's rules as a whole…" topics={["new-rule", "approach", "other"]} onPost={onPost} />
-      </>}
     </div>
   );
 }

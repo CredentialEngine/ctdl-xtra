@@ -8,6 +8,23 @@ from golden_datasets.cli import main
 from golden_datasets.server.routes_files import about, group
 
 
+def test_portal_links_open_in_the_tenant(monkeypatch):
+    from golden_datasets.server import routes_files
+
+    monkeypatch.setattr(routes_files, "account_id", lambda a: "/subscriptions/s/resourceGroups/g/providers/Microsoft.Storage/storageAccounts/a")
+
+    class Root:
+        account, container_name, prefix = "a", "box", "pre"
+
+    links = routes_files.portal(Root())
+    assert links["browser"] == ("https://portal.azure.com/#@credengine.onmicrosoft.com/resource/subscriptions/s/resourceGroups/g"
+                                "/providers/Microsoft.Storage/storageAccounts/a/storagebrowser")
+    assert links["blob"]("x/y.json").startswith("https://portal.azure.com/#@credengine.onmicrosoft.com/view/")
+    assert "path/box%2Fpre%2Fx%2Fy.json/" in links["blob"]("x/y.json")
+    monkeypatch.setenv("GOLDEN_DATASETS_AZURE_TENANT", "other.onmicrosoft.com")
+    assert routes_files.portal(Root())["browser"].startswith("https://portal.azure.com/#@other.onmicrosoft.com/")
+
+
 def test_about_and_group():
     c = "avc-x"
     assert "immutable" in about(f"{c}/golden-dataset-studio/rules/course-code/v0001.json")
@@ -48,3 +65,16 @@ def test_list_and_preview(client):
     j = client.get("/api/catalogs/avc/files/content", params={"path": rule}).json()
     assert j["kind"] == "json" and '"rule_id": "course-description"' in j["text"]
     assert client.get("/api/catalogs/avc/files/content", params={"path": "../secrets"}).status_code == 404
+
+
+def test_account_id_from_the_environment(monkeypatch):
+    from golden_datasets.server import routes_files
+
+    rid = "/subscriptions/s/resourceGroups/g/providers/Microsoft.Storage/storageAccounts/ceteststorage"
+    monkeypatch.setenv("GOLDEN_DATASETS_AZURE_ACCOUNT_ID", rid)
+    routes_files.account_id.cache_clear()
+    assert routes_files.account_id("ceteststorage") == rid
+    routes_files.account_id.cache_clear()
+    monkeypatch.setenv("PATH", "")  # no az: another account has no id
+    assert routes_files.account_id("otheraccount") is None
+    routes_files.account_id.cache_clear()

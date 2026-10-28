@@ -2,7 +2,7 @@
 // (sorted by the server with the likeliest problems first), the saved page on the right.
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { api } from "../api/client";
-import type { Discussion, EventBrief, NewEvent, Overlay, RuleDetail, RulesResponse, RuleSummary, SampleInfo, Spread,
+import type { CatalogDetail, Discussion, EventBrief, NewEvent, Overlay, RuleDetail, RulesResponse, RuleSummary, SampleInfo, Spread,
   UnclassifiedPage } from "../api/types";
 import { PagePane, prefetchPages, type Highlight } from "../pagepane";
 import { Ico } from "../shell/icons";
@@ -20,6 +20,7 @@ import { MissedCourse, MissedPage, type MissedState } from "./MissedPanel";
 import { Controls, Expansion, HistoryLine, Value } from "./parts";
 import { RuleHead } from "./RuleHead";
 import { RuleList, type PostTalk } from "./RuleList";
+import { FixBar } from "../agent/FixBar";
 import "./rules.css";
 
 const FIRST_PAGE = 100;
@@ -98,13 +99,15 @@ export default function RulesTab({ catalog, route }: TabProps) {
 
   const ruleId = route.id ?? defaultRule(rules);
   const focus = route.params.get("row");
+  // the extraction being reviewed: ?ext=… picks an older ruleset's, none = the latest (catalog.extraction)
+  const ext = route.params.get("ext");
   const prefs = prefsOf.rule === ruleId ? prefsOf.p : DEFAULT_PREFS;
   const setPrefs = useCallback((p: SamplePrefs) => setPrefsOf({ rule: ruleId, p }), [ruleId]);
   const qKey = JSON.stringify(sampleQuery(prefs, "review"));
   const sq = useMemo(() => JSON.parse(qKey) as ReturnType<typeof sampleQuery>, [qKey]);
   const filtered = sq.f.length > 0;
 
-  useEffect(() => { api.rules(cat).then(setRules, (e) => setError(String(e))); }, [cat]);
+  useEffect(() => { api.rules(cat, ext).then(setRules, (e) => setError(String(e))); }, [cat, ext]);
   // comments on whole rules and on the ruleset (the sidebar)
   const [talk, setTalk] = useState<Discussion | null>(null);
   const loadTalk = useCallback(() => api.discussion(cat).then((d) => setTalk({ ruleset: d?.ruleset ?? [], rules: d?.rules ?? {} }),
@@ -127,13 +130,13 @@ export default function RulesTab({ catalog, route }: TabProps) {
     if (!ruleId) return;
     const tok = ++token.current;
     setDraft(null); setMissed(null); setExtraTab(null); setActiveStem(null);
-    Promise.all([api.rule(cat, ruleId), apiX.rows(cat, ruleId, { limit: FIRST_PAGE, focus, ...sq })]).then(([d, r]) => {
+    Promise.all([api.rule(cat, ruleId, ext), apiX.rows(cat, ruleId, { limit: FIRST_PAGE, focus, ext, ...sq })]).then(([d, r]) => {
       if (tok !== token.current) return;
       setDetail(d); setRows(r.rows); setTotal(r.total); setSpread(r.spread); setSample(r.sample ?? null); setMissing(r.missing); setSel(r.focus_index ?? 0);
       centerNext.current = true; setError(null);
       if (rowsRef.current) rowsRef.current.scrollTop = 0;
     }, (e) => setError(String(e)));
-  }, [cat, ruleId, focus, sq]);
+  }, [cat, ruleId, focus, sq, ext]);
 
   const kind = detail?.kind ?? null;
   const row = detail && detail.rule_id === ruleId ? rows[sel] ?? null : null;
@@ -142,10 +145,10 @@ export default function RulesTab({ catalog, route }: TabProps) {
     if (!ruleId || loadingMore.current || rows.length >= total) return;
     loadingMore.current = true;
     const tok = token.current;
-    apiX.rows(cat, ruleId, { offset: rows.length, limit: MORE, ...sq }).then((r) => {
+    apiX.rows(cat, ruleId, { offset: rows.length, limit: MORE, ext, ...sq }).then((r) => {
       if (tok === token.current) setRows((prev) => (prev.length === r.offset ? [...prev, ...r.rows] : prev));
     }).finally(() => { loadingMore.current = false; });
-  }, [cat, ruleId, rows.length, total, sq]);
+  }, [cat, ruleId, rows.length, total, sq, ext]);
 
   // the reader's own moves between rows (click, Tab, arrows): they close the Sample drawer
   const [moves, setMoves] = useState(0);
@@ -179,12 +182,12 @@ export default function RulesTab({ catalog, route }: TabProps) {
 
   useEffect(() => {
     if (!detail || detail.kind === "field" || !active) return;
-    const key = `${detail.rule_id}|${active}`;
+    const key = `${detail.rule_id}|${active}|${ext ?? ""}`;
     const hit = overlays.current.get(key);
     if (hit) { setOverlay({ key, data: hit }); return; }
-    api.overlay(cat, active, detail.rule_id).then((data) => { overlays.current.set(key, data); setOverlay({ key, data }); }, () => {});
-  }, [cat, detail, active]);
-  const ov = detail && active && overlay?.key === `${detail.rule_id}|${active}` ? overlay.data : null;
+    api.overlay(cat, active, detail.rule_id, ext).then((data) => { overlays.current.set(key, data); setOverlay({ key, data }); }, () => {});
+  }, [cat, detail, active, ext]);
+  const ov = detail && active && overlay?.key === `${detail.rule_id}|${active}|${ext ?? ""}` ? overlay.data : null;
 
   const capture = draft?.capture ?? missed?.capture ?? null;
   const { highlights, focusId } = useMemo(() => {
@@ -270,8 +273,8 @@ export default function RulesTab({ catalog, route }: TabProps) {
   const startMissed = useCallback(() => {
     setDraft(null);
     setMissed({ capture: null, note: "", stem: null, query: "" });
-    if (detail?.kind === "page" && !unclassified) api.unclassifiedPages(cat).then(setUnclassified, () => setUnclassified([]));
-  }, [detail, unclassified, cat]);
+    if (detail?.kind === "page" && !unclassified) api.unclassifiedPages(cat, ext).then(setUnclassified, () => setUnclassified([]));
+  }, [detail, unclassified, cat, ext]);
 
   const approve = useCallback(async (type: "approve" | "reopen") => {
     if (!detail) return;
@@ -345,8 +348,10 @@ export default function RulesTab({ catalog, route }: TabProps) {
 
   return (
     <div className="rules-layout w4-rules">
-      <aside className="col">{rules && <RuleList rules={rules} active={ruleId} onPick={(id) => go(href(cat, "rules", id))}
-        talk={talk} onTalk={postTalk} />}</aside>
+      <aside className="col">{rules && <RuleList rules={rules} active={ruleId} onPick={(id) => go(href(cat, "rules", id, { ext }))}
+        talk={talk} onTalk={postTalk}
+        top={<RulesetPicker catalog={catalog} ext={ext} onPick={(x) => go(href(cat, "rules", ruleId, { ext: x }))} />}
+        bottom={!ext && <FixBar catalog={cat} name={catalog.name} rules={rules} />} />}</aside>
       <section className="col mid">
         {detail && <RuleHead catalog={catalog} rule={detail} busy={busy} onApprove={() => approve("approve")} onReopen={() => approve("reopen")} />}
         {detail && <div className="rows-bar"><span><b>{fmt(total)}</b> {unitWord(detail.kind, detail.locator)}{filtered && <> · <b>filtered</b> by strata</>}{prefs.prior && <> · reviewed in other fields first</>} · {
@@ -438,4 +443,21 @@ function SpreadNote({ spread }: { spread: Spread }) {
   const tip = `Rows without signals are grouped by ${spread.by}, and one row from each group is dealt in turn, ` +
     `so you see every kind of value early.\n\n${spread.groups.map((g) => `${fmt(g.rows).padStart(6)}  ${g.label}`).join("\n")}`;
   return <span className="spread-note" title={tip}>spread sample by {what} ({spread.groups.length} groups)</span>;
+}
+
+/** Top of the sidebar: which ruleset's extraction the tab shows; the newest is "(latest)" and has no ?ext. */
+function RulesetPicker({ catalog, ext, onPick }: { catalog: CatalogDetail; ext: string | null; onPick: (ext: string | null) => void }) {
+  const items = [...catalog.extractions].sort((a, b) => b.ruleset_version - a.ruleset_version || b.extraction.localeCompare(a.extraction));
+  const value = ext ?? catalog.extraction;
+  return (
+    <label className="ruleset-pick" data-testid="ruleset-pick">
+      <span className="panel-title">Ruleset</span>
+      <select value={value} onChange={(e) => onPick(e.target.value === catalog.extraction ? null : e.target.value)}>
+        {items.map((x) => (
+          <option key={x.extraction} value={x.extraction}>
+            v{x.ruleset_version}{x.extraction === catalog.extraction ? " (latest)" : ""}
+          </option>))}
+      </select>
+    </label>
+  );
 }

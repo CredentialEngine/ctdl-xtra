@@ -1,6 +1,4 @@
 /* Talk about whole rules and the ruleset (Discussion.tsx), in the Rules tab's rule list */
-.talk-ruleset { border: 1px solid var(--line); border-radius: 9px; background: var(--surface); margin: 0 0 10px; }
-.talk-ruleset.open { border-color: color-mix(in srgb, var(--accent) 40%, var(--line)); }
 .talk-head { display: flex; align-items: center; gap: 6px; width: 100%; border: 0; background: none; font: inherit; color: var(--ink);
   padding: 7px 10px; cursor: pointer; text-align: left; }
 .talk-head .tw { width: 10px; color: var(--faint); font-size: 10px; }
@@ -8,7 +6,6 @@
 .talk-title { flex: 1; font-weight: 600; font-size: 12.5px; }
 .talk-n { min-width: 18px; height: 18px; border-radius: 9px; background: var(--accent-soft); color: var(--accent); font-size: 11px;
   font-weight: 700; display: grid; place-items: center; padding: 0 5px; }
-.talk-ruleset > .talk-d, .talk-ruleset > .talk-list, .talk-ruleset > .talk-composer { margin-left: 10px; margin-right: 10px; }
 .talk-d { font-size: 11.5px; color: var(--muted); line-height: 1.45; margin: 0 0 8px; }
 .talk-list { list-style: none; margin: 0 0 8px; padding: 0; display: grid; gap: 6px; }
 .talk-item { border-left: 3px solid var(--line-2); padding: 3px 0 3px 8px; font-size: 12px; }

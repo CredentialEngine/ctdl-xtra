@@ -1,22 +1,24 @@
 // Left column of the Rules tab (spec §7.2): rules by kind, one status icon each, "14 / 1,062 reviewed".
-// Status appears only here. With `talk`: the ruleset's thread on top, and a thread per rule (opened under it).
-import { useState } from "react";
+// Status appears only here. `top` sits above the groups (the ruleset picker); with `talk`, a thread per rule
+// (opened under it).
+import { useState, type ReactNode } from "react";
 import type { Discussion, RulesResponse, Topic } from "../api/types";
 import { Ico } from "../shell/icons";
 import { fmt } from "../shell/ui";
 import type { RuleSummaryX } from "./api";
-import { Composer, RulesetTalk, Thread } from "./Discussion";
+import { Composer, Thread } from "./Discussion";
 
 export type PostTalk = (target: { kind: "rule" | "ruleset"; rule_id: string | null }, note: string, topic: Topic) => Promise<boolean>;
 
-export function RuleList({ rules, active, onPick, talk, onTalk }: {
+export function RuleList({ rules, active, onPick, talk, onTalk, top, bottom }: {
   rules: RulesResponse; active: string | null; onPick: (id: string) => void; talk?: Discussion | null; onTalk?: PostTalk;
+  top?: ReactNode; /** after every group: the fix bar (Improve all rules), last so labeling comes first */ bottom?: ReactNode;
 }) {
   let first = true;
   const [openTalk, setOpenTalk] = useState<string | null>(null);
   return (
     <div className="rule-list" data-tour="rule-list">
-      {talk && onTalk && <RulesetTalk items={talk.ruleset} onPost={(note, topic) => onTalk({ kind: "ruleset", rule_id: null }, note, topic)} />}
+      {top}
       {rules.groups.map((g) => (
         <div key={g.kind} className="rule-group">
           <div className="group-h"><span className="panel-title">{g.label}</span>
@@ -62,6 +64,7 @@ export function RuleList({ rules, active, onPick, talk, onTalk }: {
           })}
         </div>
       ))}
+      {bottom}
     </div>
   );
 }

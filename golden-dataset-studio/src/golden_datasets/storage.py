@@ -11,8 +11,10 @@ Paths are POSIX strings relative to the root, without a leading slash. The rules
 - the annotation log is append-only and is read incrementally from a byte offset (`append`, `read_from`);
 - small mutable files (the manifest) are written with optimistic concurrency (`write_bytes(if_match=etag)`).
 
-Azure credentials come from `AZURE_STORAGE_CONNECTION_STRING` (or `UseDevelopmentStorage=true` for Azurite); when it
-isn't set, from the signed-in Azure CLI (`az login`): `az storage account show-connection-string -n <account>`.
+Azure credentials, first found wins: a SAS token for the root's container in `AZURE_STORAGE_SAS_<CONTAINER>` (the
+container name upper-cased, `-` → `_`, e.g. `AZURE_STORAGE_SAS_XTRA_CLI_OUTPUT`: a deployed Studio holds one per
+container instead of the account key); `AZURE_STORAGE_CONNECTION_STRING` (or `UseDevelopmentStorage=true` for
+Azurite); the signed-in Azure CLI (`az login`): `az storage account show-connection-string -n <account>`.
 """
 
 from __future__ import annotations
@@ -22,6 +24,7 @@ import fcntl
 import hashlib
 import json
 import os
+import re
 import shutil
 import subprocess
 import tempfile
@@ -87,6 +90,10 @@ class Root:
     def list(self, prefix: str) -> list[str]:
         """Every file below `prefix` (relative to the root). Setup commands only: never at run time."""
         raise NotImplementedError
+
+    def list_first(self, prefix: str, n: int) -> list[str]:
+        """Up to `n` files below `prefix`, without listing them all (a crawl can hold 50,000). Setup only."""
+        return self.list(prefix)[:n]
 
     def list_dirs(self, prefix: str) -> list[str]:
         """Names of the immediate sub-folders of `prefix`. Setup commands only."""
@@ -268,6 +275,11 @@ def _az_connection_string(account: str) -> str:
     return _AZ_CONN[account]
 
 
+def sas_env(container: str) -> str:
+    """The variable holding a SAS token for one container: xtra-cli-output → AZURE_STORAGE_SAS_XTRA_CLI_OUTPUT."""
+    return "AZURE_STORAGE_SAS_" + re.sub(r"[^A-Z0-9]", "_", container.upper())
+
+
 class AzureRoot(Root):
     def __init__(self, uri: str):
         from azure.storage.blob import BlobServiceClient
@@ -275,19 +287,23 @@ class AzureRoot(Root):
         self.uri = uri.rstrip("/")
         url = urlparse(uri[len("azure://"):])
         parts = [p for p in url.path.split("/") if p]
+        account = conn = None
         if url.hostname in ("127.0.0.1", "localhost"):  # Azurite: /<account>/<container>/<prefix>
             account, parts = parts[0], parts[1:]
             conn = os.environ.get("AZURE_STORAGE_CONNECTION_STRING") or AZURITE_CONNECTION
             if "devstoreaccount1" not in conn and account == "devstoreaccount1":
                 conn = AZURITE_CONNECTION
-        else:
-            account = url.hostname.split(".")[0]
-            conn = os.environ.get("AZURE_STORAGE_CONNECTION_STRING") or _az_connection_string(account)
         if not parts:
             raise UserError(f"{uri}: no container in the URI")
-        self.account = account
+        self.account = account if url.hostname in ("127.0.0.1", "localhost") else url.hostname.split(".")[0]
         self.container_name, self.prefix = parts[0], "/".join(parts[1:])
-        self.service = BlobServiceClient.from_connection_string(conn)
+        sas = os.environ.get(sas_env(self.container_name))
+        if sas and url.hostname not in ("127.0.0.1", "localhost"):
+            self.service = BlobServiceClient(f"https://{url.hostname}", credential=sas.lstrip("?"))
+        else:
+            if url.hostname not in ("127.0.0.1", "localhost"):
+                conn = os.environ.get("AZURE_STORAGE_CONNECTION_STRING") or _az_connection_string(self.account)
+            self.service = BlobServiceClient.from_connection_string(conn)
         self.container = self.service.get_container_client(self.container_name)
         self.cache = cache_home() / hashlib.sha256(self.uri.encode()).hexdigest()[:16]
         self._dl_locks: dict[str, threading.Lock] = {}
@@ -334,6 +350,14 @@ class AzureRoot(Root):
         start = (start.rstrip("/") + "/") if start else ""
         cut = len(self.prefix) + 1 if self.prefix else 0
         return sorted(b.name[cut:] for b in self.container.list_blobs(name_starts_with=start))
+
+    def list_first(self, prefix: str, n: int) -> list[str]:
+        import itertools
+
+        start = (self._name(prefix).rstrip("/") + "/") if prefix else (self.prefix + "/" if self.prefix else "")
+        cut = len(self.prefix) + 1 if self.prefix else 0
+        blobs = self.container.list_blobs(name_starts_with=start, results_per_page=n)
+        return [b.name[cut:] for b in itertools.islice(blobs, n)]
 
     def list_dirs(self, prefix: str) -> list[str]:
         start = self._name(prefix) if prefix else self.prefix
@@ -454,6 +478,8 @@ class AzureRoot(Root):
         from azure.storage.blob import BlobSasPermissions, generate_blob_sas
 
         cred = self.service.credential
+        if not getattr(cred, "account_key", None):  # a SAS-token root: its blob URLs already carry the token
+            return self._blob(path).url
         sas = generate_blob_sas(
             account_name=cred.account_name, container_name=self.container_name, blob_name=self._name(path),
             account_key=cred.account_key, permission=BlobSasPermissions(read=True),

@@ -34,7 +34,7 @@ const qs = (o: Record<string, string | number | boolean | string[] | null | unde
 };
 
 export const apiX = {
-  rows: (catalog: string, ruleId: string, o: { offset?: number; limit?: number; focus?: string | null; f?: string[];
+  rows: (catalog: string, ruleId: string, o: { offset?: number; limit?: number; focus?: string | null; f?: string[]; ext?: string | null;
                                               order?: string; cross?: string[]; seed?: number; prior?: boolean } = {}) =>
     get<RowsX>(`${c(catalog)}/rules/${encodeURIComponent(ruleId)}/rows${qs(o)}`),
   pageSearch: (catalog: string, q: string, rule: string) => get<PageHit[]>(`${c(catalog)}/page-search${qs({ q, rule })}`),

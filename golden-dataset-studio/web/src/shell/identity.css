@@ -1,0 +1,23 @@
+/* "Who are you?" screen: a sign-in-style card over the page background. */
+.idn-bg { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 32px 16px;
+  background: var(--bg); }
+.idn { width: min(440px, 100%); background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
+  padding: 28px 28px 22px; box-shadow: 0 12px 40px rgba(16, 24, 40, .08); display: flex; flex-direction: column; gap: 16px; }
+.idn-brand { display: flex; align-items: center; gap: 10px; font-weight: 600; color: var(--ink); font-size: 15px; }
+.idn h1 { margin: 6px 0 0; font-size: 22px; letter-spacing: -.01em; color: var(--ink); }
+.idn-field { display: flex; flex-direction: column; gap: 6px; border: 0; padding: 0; margin: 0; min-width: 0; }
+.idn-field > span, .idn-field > legend { font-size: 12.5px; font-weight: 600; color: var(--ink-2); padding: 0; margin-bottom: 6px; }
+.idn-field select, .idn-field input:not([type="radio"]) { font: 14px var(--sans); color: var(--ink); background: var(--surface);
+  border: 1px solid var(--line-2); border-radius: 8px; padding: 9px 10px; width: 100%; }
+.idn-field select:focus, .idn-field input:not([type="radio"]):focus { outline: 2px solid var(--accent); outline-offset: 0; border-color: var(--accent); }
+.idn-radio { display: flex; gap: 10px; align-items: center; padding: 10px 12px; border: 1px solid var(--line-2);
+  border-radius: 8px; cursor: pointer; margin-bottom: 8px; }
+.idn-radio:last-child { margin-bottom: 0; }
+.idn-radio.on { border-color: var(--accent); background: var(--accent-soft); }
+.idn-radio input { margin: 0; accent-color: var(--accent); }
+.idn-radio b { display: block; font-size: 14px; color: var(--ink); font-weight: 600; }
+.idn-error { font-size: 13px; color: var(--red); background: var(--red-soft); border-radius: 8px; padding: 8px 10px; }
+.idn-go { justify-content: center; padding: 10px; font-size: 14px; }
+.idn-field select { appearance: none; -webkit-appearance: none; padding-right: 40px; background-repeat: no-repeat;
+  background-position: right 14px center; background-size: 12px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M2 4.5 6 8.5 10 4.5' fill='none' stroke='%23667085' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E"); }
