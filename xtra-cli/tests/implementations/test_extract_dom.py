@@ -217,9 +217,9 @@ ELUMEN = PAGE.format(
 </main>""",
 )
 
-# Bakersfield's theme: the name in a <p>, the code in the h1, the units two
+# A second theme: the name in a <p>, the code in the h1, the units two
 # wrappers below, and its hours as an h3 over a <p>.
-ELUMEN_BAKERSFIELD = PAGE.format(
+ELUMEN_OTHER_THEME = PAGE.format(
     title="FIRE B71A - Seasonal Firefighter Basic Training 1",
     body="""
 <main role="main">
@@ -244,11 +244,10 @@ ELUMEN_BAKERSFIELD = PAGE.format(
 
 
 def test_an_elumen_course_is_read_from_its_heading_group() -> None:
-    """eLumen labels none of a course's code, name or units.
+    """None of the course's code, name or units is labelled.
 
-    Read as a page, every eLumen course was named after the catalog's
-    hidden banner h1, "2026-27 Catalog", and carried its description and
-    nothing else: no code, no units, no hours.
+    Read as a page, the course was named after the hidden banner h1 and
+    had no code, units or hours.
     """
     found = values(extract_fields(ENTITY_COURSE, ELUMEN))
     assert found["course_id"] == "ELEC 150"
@@ -264,7 +263,7 @@ def test_an_elumen_course_is_read_from_its_heading_group() -> None:
 
 
 def test_the_other_elumen_theme_prints_the_code_in_the_h1() -> None:
-    found = values(extract_fields(ENTITY_COURSE, ELUMEN_BAKERSFIELD))
+    found = values(extract_fields(ENTITY_COURSE, ELUMEN_OTHER_THEME))
     assert found["course_id"] == "FIRE B71A"
     assert found["course_name"] == "Seasonal Firefighter Basic Training 1"
     assert found["course_credits"] == 2.0
@@ -275,7 +274,7 @@ def test_the_other_elumen_theme_prints_the_code_in_the_h1() -> None:
 
 
 def test_a_variable_unit_course_keeps_its_range() -> None:
-    """Cabrillo prints "1.0 - 4.0 Units", written the way CourseLeaf's is."""
+    """A range printed "1.0 - 4.0 Units" is kept as "1.0-4.0"."""
     page = PAGE.format(
         title="COMM 80SB - Special Studies II",
         body=(
@@ -308,7 +307,7 @@ def test_a_code_heading_outside_a_heading_group_names_no_course(
 
 def test_a_heading_over_a_word_is_not_a_number(fixture_html_dir: Path) -> None:
     """Coursedog prints "Credit Hours" over "Min", then the number."""
-    html = (fixture_html_dir / "course-coursedog-brookdale.html").read_text(
+    html = (fixture_html_dir / "course-coursedog-credit-hours.html").read_text(
         encoding="utf-8"
     )
     found = values(extract_fields(ENTITY_COURSE, html))
@@ -334,8 +333,8 @@ def test_a_credits_heading_over_its_value_is_read() -> None:
 
 
 def test_a_description_is_not_cut_at_six_hundred_characters() -> None:
-    """Cut at the length the award rules read, every Cabrillo course
-    description stopped mid-sentence."""
+    """Cut at the length the award rules read, a long description stopped
+    mid-sentence."""
     description = "Covers cost terminology and cost behavior. " * 20
     page = PAGE.format(
         title="ACCT 1B - Managerial Accounting",
@@ -525,7 +524,7 @@ def test_a_label_on_the_line_of_its_value_gives_the_rest_of_the_line(
 
 
 def test_a_label_cell_gives_the_cell_beside_it() -> None:
-    """Foothill prints the label in one cell and the value in the next."""
+    """The label is in one cell and the value in the next."""
     body = (
         "<main><h1>AATA 101A</h1><p>Nondestructive testing.</p><table><tr>"
         "<td class='cor_heading'><strong>Prerequisite:</strong></td>"
@@ -535,7 +534,7 @@ def test_a_label_cell_gives_the_cell_beside_it() -> None:
     assert prerequisite(body) == "MATH 105 or MATH 105H"
 
 
-MORGAN = (
+DRUPAL_HEADING = (
     "<main><h1>AAA 0090</h1><div class='degree-class-details'>"
     "<div class='field field--name-field-description field--label-hidden "
     "field__item'>Develops personalized approaches to learn.</div>"
@@ -548,11 +547,13 @@ MORGAN = (
 
 
 def test_a_heading_gives_what_its_own_wrapper_prints_under_it() -> None:
-    """Morgan's heading and value share a wrapper; the hours are outside."""
+    """The heading and its value share a wrapper; the hours are outside."""
     found = values(
         extract_fields(
             ENTITY_COURSE,
-            PAGE.format(title="AAA 0090", body=MORGAN.format(value="MAT 105")),
+            PAGE.format(
+                title="AAA 0090", body=DRUPAL_HEADING.format(value="MAT 105")
+            ),
         )
     )
     assert found["course_prerequisites"] == "MAT 105"
@@ -572,7 +573,7 @@ def test_a_heading_over_a_course_link_gives_the_course() -> None:
     assert prerequisite(body) == "CAD 2220"
 
 
-ARAPAHOE = (
+SIDEBAR = (
     "<main class='main-content'><article class='course-full'>"
     "<h1>ACC 122 Accounting Principles II</h1><div class='course-full__body'>"
     "<p>Continues the study of accounting principles with an emphasis on "
@@ -589,8 +590,8 @@ ARAPAHOE = (
 
 
 def test_a_sidebar_inside_the_page_is_the_pages_own() -> None:
-    """Arapahoe prints each course's prerequisite in an <aside> in <main>."""
-    assert prerequisite(ARAPAHOE) == 'ACC 121 with a grade of "C" or better'
+    """The prerequisite is printed in an <aside> inside <main>."""
+    assert prerequisite(SIDEBAR) == 'ACC 121 with a grade of "C" or better'
 
 
 def test_a_sidebar_beside_the_page_is_still_the_sites() -> None:
@@ -603,7 +604,7 @@ def test_a_sidebar_beside_the_page_is_still_the_sites() -> None:
     assert prerequisite(body) is None
 
 
-CABRILLO = (
+REQUISITES_CARD = (
     "<main><h1>ACCT 463</h1><p>Bookkeeping for small business.</p>"
     "<div class='infocard'><h5>Requisites:</h5><div class='text'>{list}"
     "</div></div><div class='infocard'>"
@@ -617,7 +618,7 @@ def requisite(label: str, course: str) -> str:
 
 
 def test_requisites_a_list_joins_with_or_are_one_prerequisite() -> None:
-    """Cabrillo prints each alternative under a label of its own."""
+    """Each alternative is printed under a label of its own."""
     listed = "<br><p><strong>OR</strong></p><br>".join(
         [
             requisite("Prerequisite", "ACCT451A - Bookkeeping Concepts"),
@@ -625,7 +626,7 @@ def test_requisites_a_list_joins_with_or_are_one_prerequisite() -> None:
             requisite("Prerequisite", "ACCT1A - Financial Accounting"),
         ]
     )
-    assert prerequisite(CABRILLO.format(list=listed)) == (
+    assert prerequisite(REQUISITES_CARD.format(list=listed)) == (
         "ACCT451A - Bookkeeping Concepts OR ACCT151A - Bookkeeping Concepts "
         "OR ACCT1A - Financial Accounting"
     )
@@ -639,13 +640,13 @@ def test_an_and_joining_a_corequisite_is_not_part_of_the_prerequisite() -> None:
         + "<br><p><strong>OR</strong></p><br>"
         + requisite("Prerequisite", "ART95A - Digital Fabrication")
     )
-    assert prerequisite(CABRILLO.format(list=listed)) == (
+    assert prerequisite(REQUISITES_CARD.format(list=listed)) == (
         "ART495A - Digital Fabrication OR ART95A - Digital Fabrication"
     )
 
 
 def test_a_bold_course_under_the_label_is_its_value_not_a_label() -> None:
-    """Bakersfield prints the prerequisite course in bold, under an h3."""
+    """The prerequisite course is printed in bold, under an h3."""
     body = (
         "<main><h1>ARTB55</h1><p>Design.</p><div><br/>"
         "<h3 class='introtext course-label'>Requisites</h3><br/>"
@@ -666,7 +667,7 @@ def test_a_bold_course_under_the_label_is_its_value_not_a_label() -> None:
     )
 
 
-AVC = PAGE.format(
+REQUISITES_IN_DESCRIPTION = PAGE.format(
     title="AFMT 320",
     body=(
         "<main><h1>AFMT 320</h1><div class='introtext'><p>Limitation on "
@@ -679,8 +680,8 @@ AVC = PAGE.format(
 
 
 def test_a_prerequisite_in_a_description_is_copied_out_and_left_there() -> None:
-    """Antelope Valley opens a description with the course's requisites."""
-    found = values(extract_fields(ENTITY_COURSE, AVC))
+    """The description opens with the course's requisites."""
+    found = values(extract_fields(ENTITY_COURSE, REQUISITES_IN_DESCRIPTION))
     assert found["course_prerequisites"] == (
         "Completion of AFAB 210, ENGL 315, and PSY 301."
     )
@@ -739,7 +740,7 @@ def course_item(name: str) -> str:
 
 
 def test_the_printed_statement_wins_over_the_list_of_courses_it_names() -> None:
-    """Atlantic Cape prints the list first and the fuller statement after."""
+    """The list is printed first and the fuller statement after."""
     body = CLEAN_CATALOG.format(
         items=course_item("CRIM101: Introduction to Criminal Justice"),
         statement=(
@@ -788,12 +789,14 @@ def test_a_prerequisite_says_where_it_was_printed() -> None:
     under = drafts_by_label(
         extract_fields(
             ENTITY_COURSE,
-            PAGE.format(title="", body=CABRILLO.format(list=listed)),
+            PAGE.format(title="", body=REQUISITES_CARD.format(list=listed)),
         )
     )["course_prerequisites"]
     assert under.excerpt == "Prerequisite ACCT1A - Financial Accounting"
     assert under.locator_value.endswith("div.text")
-    inline = drafts_by_label(extract_fields(ENTITY_COURSE, AVC))
+    inline = drafts_by_label(
+        extract_fields(ENTITY_COURSE, REQUISITES_IN_DESCRIPTION)
+    )
     line = inline["course_prerequisites"]
     assert line.excerpt == (
         "Prerequisite: Completion of AFAB 210, ENGL 315, and PSY 301."
@@ -835,7 +838,7 @@ def test_a_heading_without_a_wrapper_gives_only_the_block_under_it() -> None:
             "</main>",
             id="curriqunet",
         ),
-        pytest.param(MORGAN.format(value="None"), id="drupal-heading"),
+        pytest.param(DRUPAL_HEADING.format(value="None"), id="drupal-heading"),
         pytest.param(
             "<main><h1>ENG 102</h1><p>Writing.</p><dl><dt>Prerequisites</dt>"
             "<dd>N/A</dd></dl></main>",
@@ -853,15 +856,15 @@ def test_a_prerequisite_printed_as_none_is_left_out(body: str) -> None:
 
 
 def test_none_followed_by_a_note_is_still_no_prerequisite() -> None:
-    """Morgan prints "None" and then a note under the same heading."""
-    body = MORGAN.format(
+    """Under one heading: "None", then a note."""
+    body = DRUPAL_HEADING.format(
         value="None</div><div class='field__item'>Each student is "
         "responsible for completing and passing a background check."
     )
     assert prerequisite(body) is None
 
 
-AVC_PRE_WRAP = (
+PRE_WRAP_DESCRIPTION = (
     "<main><header class='header l-body'><h2>Applications of Robotics</h2>"
     "<h3>ENGR 955:</h3><p class='header-x-meta'>0.0 Units</p></header>"
     "<div class='l-body'><div class='introtext l-introtext' "
@@ -898,14 +901,12 @@ AVC_PRE_WRAP = (
 def test_a_line_break_a_pre_wrap_description_shows_ends_the_prerequisite(
     paragraph: str, expected: str
 ) -> None:
-    """Antelope Valley sets the prerequisite on a line of its own.
-
-    Its descriptions are white-space: pre-wrap, so the newline after the
+    """In a white-space: pre-wrap description, the newline after the
     prerequisite is a line break on screen. Read as one paragraph, the
     prerequisite ran on into the description's first sentence.
     """
     page = PAGE.format(
-        title="ENGR 955", body=AVC_PRE_WRAP.format(paragraph=paragraph)
+        title="ENGR 955", body=PRE_WRAP_DESCRIPTION.format(paragraph=paragraph)
     )
     found = values(extract_fields(ENTITY_COURSE, page))
     assert found["course_prerequisites"] == expected
@@ -929,7 +930,7 @@ def test_a_prerequisite_run_into_the_description_is_not_read() -> None:
         "of equations and systems of equations and inequalities from these "
         "functions; linear programming; and introduction to matrices and "
         "determinants in solving linear systems (C-ID: MATH 150) "
-        "(UC, CSU, AVC)"
+        "(UC, CSU)"
     )
     page = PAGE.format(
         title="MATH 128",
@@ -942,8 +943,8 @@ def test_a_prerequisite_run_into_the_description_is_not_read() -> None:
 
 
 def test_a_prerequisite_that_opens_the_page_is_read_when_it_is_short() -> None:
-    """Acalog prints the prerequisite before the description, on CNCC's
-    pages as the first long line of all."""
+    """Printed before the description, the prerequisite can be the page's
+    first long line."""
     statement = (
         "College Readiness in English and College Readiness in Quantitative "
         "Literacy Math"
@@ -957,7 +958,7 @@ def test_a_prerequisite_that_opens_the_page_is_read_when_it_is_short() -> None:
 
 
 def test_a_long_prerequisite_on_its_own_line_is_read_whole() -> None:
-    """Colorado's colleges list every placement score that admits."""
+    """A prerequisite can list every placement score that admits."""
     statement = " or ".join(
         f"Accuplacer Next Gen Writing with a score of {score}"
         for score in range(240, 260)
@@ -973,7 +974,7 @@ def test_a_long_prerequisite_on_its_own_line_is_read_whole() -> None:
 def test_a_first_prerequisite_of_none_decides_there_is_none() -> None:
     """The first statement is the course's, the way one reading is the
     unit's; a later line naming a course belongs to some other course."""
-    body = MORGAN.format(value="None").replace(
+    body = DRUPAL_HEADING.format(value="None").replace(
         "</main>", "<p>Prerequisite: ENGL 101</p></main>"
     )
     assert prerequisite(body) is None
@@ -1018,7 +1019,7 @@ def test_the_combined_fixture_gives_no_prerequisite(
 
 
 def test_a_value_that_names_both_relations_gives_no_prerequisite() -> None:
-    """Front Range prints a plain heading over a combined statement."""
+    """A plain heading over a combined statement."""
     body = (
         "<div id='main'><h1><span>ASE 1042</span> Brakes</h1>"
         "<div class='desc'><p>Brake systems.</p></div>"

@@ -270,9 +270,8 @@ def first_paragraph(content_text: str, limit: int | None = INTRO_CHARS) -> str:
     description a string of telephone numbers and hid the sentence under
     it that says which award the page is about.
 
-    `limit` is for the award rules, which only read the opening of it.
-    A description is the whole paragraph: cut at INTRO_CHARS, every
-    Cabrillo course description stopped mid-sentence.
+    `limit` is for the award rules, which read only the opening; a
+    description is the whole paragraph.
     """
     for line in content_text.splitlines():
         if len(line) > HEAD_LINE_CHARS and not is_contact_line(line):
@@ -753,13 +752,8 @@ def course_label(
         # No credits anywhere, so no course blocks. Texas A&M International
         # encodes the credit count in the course number and prints nothing
         # else, which left a page of twenty-six course descriptions
-        # labelled as a program. Only then: where one block was found, the
-        # page is that course's, or a listing whose other courses print
-        # their credits in a form the rules cannot read, and the codes
-        # cannot say which. City College of San Francisco prints units as
-        # "VOCN 23 - Nurse Assistant/Convalescent Care (6.5)", so the one
-        # block on its vocational nursing page was a cross-reference, and
-        # twenty-two courses were extracted as one.
+        # labelled as a program. With one block found, the codes cannot
+        # tell a course page from a listing, so this rule stays out.
         return f"{codes} course codes under {template}"
     return None
 
@@ -904,11 +898,8 @@ class PageProfile:
 def furniture_codes(printed: set[str], structure: Markup) -> set[str]:
     """The course codes the page prints only outside its main container.
 
-    Read against main_text rather than content_text: Arapahoe prints a
-    course's credits in an <aside> inside <main>, which content_text
-    drops as furniture, and discounting the codes there lost 49 of its
-    55 course records. A page with no main container has nothing to tell
-    the two apart, so nothing on it is furniture.
+    Read against main_text, which keeps a sidebar inside <main>. A page
+    with no main container has no furniture.
     """
     if not structure.main_text:
         return set()
@@ -941,12 +932,7 @@ def profile_page(
     the page titles when it titles any (see described_course_codes).
 
     Neither count takes a code the page prints only outside its main
-    container. eLumen prints its whole catalog menu beside <main> on every
-    page, and the menu has values in it: six CHEM courses listed just
-    above "Child and Family Education Associate Teacher Certificate (12
-    Unit)" read as six courses described on every page at Antelope
-    Valley, so every page there, its calendar included, was a Course page
-    holding six or more courses and extraction skipped all 1311 of them.
+    container, such as in a site-wide course menu.
     """
     text = normalized_text(html)
     structure = parse_structure(html)

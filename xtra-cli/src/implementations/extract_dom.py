@@ -14,25 +14,17 @@ the code, the name and the credits together, and the rest of the web
 writes a definition list or a table row. None of that needs to know which
 college it is looking at.
 
-eLumen marks up none of that. It prints a course as a heading group - the
-name, a heading that is nothing but the code, the units on a line of their
-own - and its hours as a heading over a number. Both shapes are read here
-too, still without knowing the college: before they were, every eLumen
-course was named after the catalog's hidden banner, "2026-2027 Catalog",
-and carried no code and no units.
+Pages that label nothing are read from their layout: a heading group with
+the name, a heading holding only the code, and the units on their own
+line, and hours printed as a heading over a number.
 
-Credits keep the word they are counted in. "4.0 Units", "3 Hours." and a
-"Credit Hours" label each give the number and, beside it, the unit as
-printed, and the two always come from the same reading.
+Credits keep their unit as printed, taken from the same reading as the
+number.
 
-A course's prerequisite is read wherever its page prints one: as a
-labelled field, under a heading or a bold label of its own, on a line that
-opens "Prerequisite:", or in the run of requisites eLumen opens a
-description with. It is the text after the label, as printed, and there is
-one per course - the first the page prints, with the alternatives an
-eLumen list joins by OR kept together. "None" is no prerequisite, and a
-label naming both relations, "Prerequisite/Corequisite", names neither on
-its own.
+A prerequisite is read wherever the page prints one: a labelled field, a
+heading or bold label over it, or a "Prerequisite:" line. The value is the
+text after the label, one per course. "None", and a label naming both
+relations ("Prerequisite/Corequisite"), give no prerequisite.
 
 It is also the only way the three entities beside Course get extracted at
 all. Discovery labels credential, learning-opportunity and competency
@@ -237,15 +229,11 @@ def _collect(found: dict[str, tuple[Any, str, str]]) -> list[Any]:
 
 
 def _prerequisite_value(text: str) -> str | None:
-    """A printed prerequisite as the record keeps it, or None for none.
-
-    The text after its label, as printed. "None" is no prerequisite, and a
-    statement naming both relations is not a prerequisite on its own.
-    """
+    """The prerequisite as printed after its label, or None for none."""
     value = collapse(text).lstrip(" :").rstrip(" ;,")
     if COMBINED_REQUISITE_RE.match(value):
         return None
-    # Atlantic Cape's BIOL302 prints its label again inside the field.
+    # The value can repeat its own label.
     lead = PREREQUISITE_LEAD_RE.match(value)
     if lead is not None:
         value = value[lead.end() :].rstrip(" ;,")
@@ -359,7 +347,7 @@ def _content_headings(soup: Any) -> list[Any]:
 
 
 def _bare_code(text: str) -> str:
-    """The code, when a heading holds nothing else: "ELEC 150:"."""
+    """The code, when a heading holds nothing else ("ABC 101:")."""
     code = text.rstrip(" :.")
     return code if COURSE_CODE_RE.fullmatch(code) else ""
 
@@ -379,16 +367,11 @@ def _first_printed(nodes: Any) -> tuple[str, Any] | None:
 
 
 def _from_course_heading(soup: Any) -> dict[str, tuple[Any, str, str]]:
-    """The code, name and units eLumen prints as its heading group.
+    """The code, name and units of a course printed as a heading group.
 
-    `<header><h2>Electrical Maintenance</h2><h3>ELEC 150:</h3><p>4.0
-    Units</p></header>` at Antelope Valley and Cabrillo; Bakersfield's
-    theme prints the name in a <p> and the code in the h1, and the units
-    two wrappers below. None of the three is labelled, so the code is the
-    heading that is nothing but a code, the name is what the group prints
-    beside it, and the units are the first line after it that is nothing
-    but units. That line gives the unit word too, as printed: "Units" at
-    Antelope Valley, "UNITS" at Bakersfield.
+    The code is the heading holding only a code, the name is what the group
+    prints beside it, and the units are the first line after it holding
+    only units.
     """
     found: dict[str, tuple[Any, str, str]] = {}
     heading = next(
@@ -430,12 +413,8 @@ def _from_course_heading(soup: Any) -> dict[str, tuple[Any, str, str]]:
 def _from_heading_labels(soup: Any) -> dict[str, tuple[Any, str, str]]:
     """A number printed under a heading that names it.
 
-    eLumen prints "Total Course Lecture Hours" as an <h5> and "54.0" in the
-    element after it; SmartCatalog prints <h3>Credits</h3> over "3". Only
-    the numeric fields are read this way, and only when the value is a
-    number: Coursedog prints "Credit Hours" over the word "Min", and a
-    heading over a text field is as often a section over a whole page. A
-    credits heading names the unit as well: SmartCatalog's is "Credits".
+    Only numeric fields, and only when the value is a number. A credits
+    heading also gives the unit.
     """
     found: dict[str, tuple[Any, str, str]] = {}
     for heading in _content_headings(soup):
@@ -459,16 +438,12 @@ def _from_heading_labels(soup: Any) -> dict[str, tuple[Any, str, str]]:
 
 # --- the prerequisite a course names -------------------------------------------
 
-# What a requisite label is: one naming both relations, Clean Catalog's
-# list of the courses a statement names, the prerequisite itself, or any
-# other of the family, which only ever ends a prerequisite.
+# Kinds of requisite label.
 _BOTH = "both"
 _COURSES = "courses"
 _PREREQUISITE = "prerequisite"
 _OTHER = "other"
-# What may hold a requisite label on its own: a heading, a paragraph or a
-# division whose whole text is the label - Cabrillo's bold-only <p> - and
-# the label cell of a row. Not a list item: in-page tab strips are lists.
+# Elements that can hold a label on its own. Not li: tab strips use it.
 _LABEL_BLOCK_TAGS = frozenset({*_HEADINGS, "p", "div", "td", "th", "dt"})
 # A label inside a link or a button is something to click on.
 _LINK_TAGS = ("a", "button")
@@ -491,13 +466,7 @@ def _label_tier(text: str) -> str | None:
 
 
 def _is_site_furniture(tag: Any, main: Any) -> bool:
-    """True when this element is the site around the page, not the page.
-
-    What is_chrome says, except for a sidebar inside the page's own main
-    container, which belongs to the page: Arapahoe prints every course's
-    credits and prerequisite in an <aside> beside its description, inside
-    <main>. Discovery keeps that sidebar in main_text for the same reason.
-    """
+    """is_chrome, except that a sidebar inside <main> belongs to the page."""
     if (
         tag.name == "aside"
         and main is not None
@@ -510,10 +479,8 @@ def _is_site_furniture(tag: Any, main: Any) -> bool:
 def _label_blocks(soup: Any) -> list[tuple[Any, str]]:
     """Every element whose whole text is a requisite label, in page order.
 
-    The element is the outermost one printing just the label: the <p>
-    around Cabrillo's <strong>Prerequisite</strong>, Foothill's label
-    cell. A bold label sharing its line with the value is not one, and the
-    line reading takes those, so nothing is read twice.
+    A bold label sharing its line with the value is left to the line
+    reading.
     """
     main = find_main(soup)
     root = main or soup.body or soup
@@ -548,12 +515,9 @@ def _label_blocks(soup: Any) -> list[tuple[Any, str]]:
 
 
 def _opens_with_a_label(wrapper: Any) -> bool:
-    """True when what holds a label starts with a requisite label.
+    """True when the label's wrapper starts with a requisite label.
 
-    Then the wrapper is the requisites' own, and everything after the
-    label up to the next one is its value. A wrapper that starts with
-    anything else is the page itself, an h1 above the label, and only the
-    block right under the label is the value.
+    Otherwise only the block right under the label is its value.
     """
     if wrapper is None:
         return False
@@ -564,8 +528,7 @@ def _opens_with_a_label(wrapper: Any) -> bool:
 def _ends_the_value(entry: Any, lines: list[str], first: bool) -> bool:
     """True when this entry under a label is no longer its value.
 
-    The text decides, never the bold: Bakersfield prints the prerequisite
-    course in bold under its label, and it is the value.
+    The text decides, not bold: a bold course title can be the value.
     """
     if entry is not None and entry.name in _VALUE_STOP_TAGS:
         return True
@@ -583,12 +546,9 @@ def _ends_the_value(entry: Any, lines: list[str], first: bool) -> bool:
 def _read_label_block(label: Any, joiner: str) -> tuple[str, str, str] | None:
     """The value under a label, as printed, with its excerpt and locator.
 
-    The value is what the label's wrapper prints after it, up to the next
-    heading or requisite label. A connector joins the next prerequisite on
-    to it - eLumen's "Prerequisite A OR Prerequisite B" is one value - and
-    nothing else: Cabrillo's AND before a Co-Requisite is the
-    corequisite's. Too long to be a prerequisite, the label was a section
-    heading, and nothing is read.
+    It runs to the next heading or requisite label. "Prerequisite A OR
+    Prerequisite B" is one value. Too long a value means the label was a
+    section heading, and nothing is read.
     """
     entries = lines_after(label)
     whole = _opens_with_a_label(label.parent)
@@ -627,8 +587,7 @@ def _read_label_block(label: Any, joiner: str) -> tuple[str, str, str] | None:
             parts.append(connectors[position - 1])
         parts.append(joiner.join(lines))
     value = " ".join(parts)
-    # Morgan prints "None" and then a note under the same heading: the
-    # course has no prerequisite, and the note is not one.
+    # "None" followed by a note is still no prerequisite.
     if statements[0] and NO_PREREQUISITE_RE.fullmatch(statements[0][0]):
         value = statements[0][0]
     if not value or len(value) > PREREQUISITE_MAX_CHARS:
@@ -637,26 +596,13 @@ def _read_label_block(label: Any, joiner: str) -> tuple[str, str, str] | None:
 
 
 def _prerequisite_line(content_text: str) -> tuple[str, str, str] | None:
-    """The first prerequisite a line of the page prints after its label.
+    """The first prerequisite a line prints after its label.
 
-    "Prerequisite: BEH 1001 with a grade of C or better" on a line of its
-    own, as Acalog, CourseLeaf, CurriQunet and WordPress print it, or in
-    the run of requisites eLumen opens a description with: "... to take
-    this course. Prerequisite: Completion of AFAB 210, ENGL 315, and PSY
-    301. Corequisite: ...". A label counts at the start of a line or of a
-    sentence, never inside one, and the value ends at the next requisite
-    label or at the end of its sentence.
-
-    The lines are the ones a browser prints. Antelope Valley's descriptions
-    are white-space: pre-wrap, and put "Prerequisite: Completion of ENGR
-    905" on a line of its own with only a newline before "Building upon
-    the foundational knowledge..."; collapsed into one paragraph, the
-    prerequisite ran on to the end of the description's first sentence.
-
-    Inside the paragraph a description is read from, a prerequisite that
-    nothing ends is read only as long as a prerequisite can be: a page that
-    prints no full stop and no line break between the two would otherwise
-    give the whole description as the prerequisite.
+    "Prerequisite: ABC 101 with a grade of C or better". The label counts
+    at the start of a line or a sentence; the value ends at the next
+    requisite label or the end of its sentence. In the description's
+    paragraph, a value with nothing to end it is read only up to
+    PREREQUISITE_RUN_ON_CHARS.
     """
     opening = first_paragraph(content_text, limit=None)
     for line in content_text.splitlines():
@@ -682,9 +628,7 @@ def _prerequisite_line(content_text: str) -> tuple[str, str, str] | None:
             if line == opening and not ended and run_on:
                 continue
             printed = collapse(f"{lead.group(0)} {value}")
-            # Read whole, a statement naming both relations is turned away
-            # by the cleaner like any other, and still decides there is no
-            # prerequisite.
+            # Kept whole so the cleaner rejects a combined label.
             raw = printed if tier == _BOTH else value
             return raw, printed, f"content line {line[:40]!r}"
     return None
@@ -693,17 +637,11 @@ def _prerequisite_line(content_text: str) -> tuple[str, str, str] | None:
 def _from_prerequisite_labels(
     soup: Any, content_text: str
 ) -> dict[str, tuple[Any, str, str]]:
-    """The course's prerequisite, read from whatever prints it.
+    """The course's prerequisite: one per course, the first the page prints.
 
-    A label over its value first, as eLumen, SmartCatalog and Drupal print
-    one; then a line printing the label and the value together; then
-    Clean Catalog's list of courses, which shortens the statement it sits
-    beside and stands in only when there is no statement. The first
-    statement the page prints decides, one per course, the way the unit
-    comes from one reading: a listing of courses discovery took for one
-    course would otherwise give several courses' prerequisites in one
-    value. A first statement of "None", or naming both relations, decides
-    there is none.
+    Tries a label over its value, then a "Prerequisite:" line, then a
+    "Prerequisite Courses" list. A first statement of "None", or naming
+    both relations, means none.
     """
     courses = None
     reading = None
@@ -756,14 +694,8 @@ def extract_fields(entity_type: str, html: str) -> list[Any]:
     if entity_type == ENTITY_COMPETENCY:
         return _competency_drafts(markup)
 
-    # Strongest source first, and each one fills only what the one before
-    # it left empty. A field the page labelled says what it is; the course
-    # block is what CourseLeaf gives instead of labelled fields, and the
-    # heading group what eLumen gives; the page itself is the last resort,
-    # because the h1 of a CourseLeaf subject page is the subject's name,
-    # not the course's, and eLumen's is the catalog's. A prerequisite
-    # printed any way but as a labelled field is read after all of them,
-    # by its own label; it fills nothing else.
+    # Strongest source first; each fills only what earlier ones left empty.
+    # The page itself is the last resort: its h1 can be a subject's name.
     sources: list[dict[str, tuple[Any, str, str]]] = []
     if entity_type == ENTITY_COURSE:
         sources = [
@@ -771,17 +703,12 @@ def extract_fields(entity_type: str, html: str) -> list[Any]:
             _from_course_block(soup),
             _from_course_heading(soup),
             _from_heading_labels(soup),
-            # Read from the lines a browser prints, so a prerequisite that
-            # a pre-wrap description sets on a line of its own ends there.
             _from_prerequisite_labels(soup, printed_text(soup)),
         ]
     sources.append(_page_fields(entity_type, markup))
     found: dict[str, tuple[Any, str, str]] = {}
     for source in sources:
-        # A unit belongs to the number printed with it, so it comes from
-        # the reading whose credits are kept or from none: a credits field
-        # known only by its class name has no unit, and an eLumen header
-        # further down must not lend it one.
+        # The unit comes only from the reading whose credits are kept.
         keeps_credits = (
             "course_credits" in source and "course_credits" not in found
         )

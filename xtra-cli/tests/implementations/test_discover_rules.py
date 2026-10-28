@@ -407,17 +407,16 @@ def test_one_course_printed_twice_is_still_one_block() -> None:
 def test_a_code_after_a_label_or_in_a_sentence_is_a_reference() -> None:
     """eLumen prints "Minimum Credit Units" under every description.
 
-    Every code in the description then has a value within reach, so at
-    Antelope Valley the prerequisite, the course's old number and its
-    C-ID each read as one more course on the page, and extraction skipped
-    the page as holding four. A course the page describes is printed as a
+    Every code in the description then has a value within reach, so the
+    prerequisite, the course's old number and its C-ID each read as one
+    more course on the page. A course the page describes is printed as a
     title, its code opening the line; the rest are references to others.
     """
     page = (
         "Basic Auto Body Repair\nABDY 112:\n5.0 Units\n"
         "Prerequisite: Completion of AM 135A.\n"
         "Formerly ENGL 103\n"
-        "(C-ID: ENGL 105) (UC, CSU, AVC)\n"
+        "(C-ID: ENGL 105) (UC, CSU)\n"
         "Minimum Credit Units\n5.0"
     )
     described, titled = described_course_codes(page)
@@ -427,7 +426,7 @@ def test_a_code_after_a_label_or_in_a_sentence_is_a_reference() -> None:
 
 
 def test_a_page_that_titles_no_course_is_counted_as_before() -> None:
-    """Front Range prints a long description between title and credits.
+    """A long description can sit between a course's title and its credits.
 
     The course's own code is too far from its credits to count, and only
     the code a sentence cites is near them. Counting titles alone there

@@ -520,10 +520,9 @@ in the page's own text — only those count. A code after a label or inside
 a sentence ("Prerequisite: Completion of AM 135A.", "Formerly ENGL 103") is
 a cross-reference, however close a credits field sits below it; a page
 that titles no course is counted as before. And a code the page prints only
-outside its main container is the site's, not the page's: eLumen prints
-its whole catalog menu beside `<main>` on every page, and before this every
-page at Antelope Valley read as describing six courses or more, so
-extraction skipped all of them.
+outside its main container is the site's, not the page's. Without that, a
+catalog menu printed beside `<main>` on every page makes every course page
+look like it describes several courses, and extraction skips them all.
 
 Before the tree reading, a whole catalog could be missed on the printed
 form alone. A CourseLeaf graduate subject page numbers its courses with
@@ -774,7 +773,7 @@ A description is the whole first paragraph, not its first 600 characters.
 
 Credits keep the word they are counted in. Every reading above writes the
 unit printed with the number as `course_credits_unit`: `Units` from eLumen's
-`4.0 Units`, `UNITS` at Bakersfield, `Hours` from CourseLeaf's `3 Hours.`,
+`4.0 Units`, `UNITS` from `2.0 UNITS`, `Hours` from CourseLeaf's `3 Hours.`,
 `Credit Hours` from a field labelled that way. The unit always comes from
 the same reading as the credits, or not at all, and the record keeps the
 word as printed, not as a `creditUnit:` concept, under
@@ -786,8 +785,8 @@ in its `ceterms:creditUnitType`. The college templates do not read the unit.
 The prerequisite is read the same way, wherever a page prints it:
 - a labelled field: `Prerequisite(s)` and `Prereqs` count too;
 - a bold label with the value on the same line (Acalog, CourseLeaf's `courseblockreqs`, CurriQunet, WordPress);
-- a heading or bold label with the value under it (SmartCatalog, Drupal, eLumen's requisites list), including in a sidebar inside the page's own content (Arapahoe's `<aside>`);
-- a `Prerequisite:` line, including the run of requisites AVC opens a description with.
+- a heading or bold label with the value under it (SmartCatalog, Drupal, eLumen's requisites list), including in a sidebar inside the page's own content (an `<aside>` inside `<main>`);
+- a `Prerequisite:` line, including a run of requisites that opens a description.
 
 The record keeps the text after the label, as printed, as
 `ceterms:prerequisite`. There is one per course: the first the page prints.
@@ -800,8 +799,8 @@ Some things are not read as a prerequisite:
 - A label naming both relations (`Prerequisite/Corequisite`, `Prerequisite and/or Corequisite`) gives nothing: the course may be taken alongside.
 - Corequisites, advisories and recommended preparation are never read as one.
 
-A description that prints the prerequisite keeps it: AVC's descriptions are
-unchanged. The college templates read prerequisites their own way, as before.
+A description that prints the prerequisite keeps it, unchanged. The college
+templates read prerequisites their own way, as before.
 
 Each field records the element it came from, so a reviewer can go and look.
 A page that prints too little to be a record — one field, which every page

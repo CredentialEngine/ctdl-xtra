@@ -330,11 +330,7 @@ def find_main(soup: BeautifulSoup) -> Tag | None:
 
 
 def _keeps_lines(tag: Tag, inherited: bool) -> bool:
-    """Whether a browser shows the newlines inside this element.
-
-    white-space is inherited, so an element keeps its parent's setting
-    unless its own style names one, and a <pre> keeps them by default.
-    """
+    """Whether a browser shows the newlines inside this element."""
     match = WHITE_SPACE_STYLE_RE.search(tag.get("style") or "")
     if match is not None:
         return match.group(1).lower() in LINE_KEEPING_WHITE_SPACE
@@ -344,10 +340,7 @@ def _keeps_lines(tag: Tag, inherited: bool) -> bool:
 class _Reader:
     """One walk of the tree, collecting everything the page prints.
 
-    With `printed_lines`, a newline the page's own styling shows as a line
-    break - inside white-space: pre-wrap, or a <pre> - starts a new line of
-    the content text, as it does on screen. Discovery reads without it, so
-    its labels and reports do not move.
+    `printed_lines` keeps the line breaks a pre-wrap style shows.
     """
 
     def __init__(
@@ -488,39 +481,19 @@ def _lines(raw: str) -> str:
 
 
 def element_lines(tag: Tag) -> list[str]:
-    """One element's text as the lines a browser prints it.
-
-    A line per block and per <br>, and per newline where the styling shows
-    one; inline runs joined; the site's own furniture and scripts left out.
-    element_text joins everything into one string, so a cell printing "MATH
-    105<br>or<br>MATH 105H" reads "MATH 105orMATH 105H"; this keeps its
-    three lines apart.
-    """
+    """One element's text as the lines a browser shows."""
     reader = _Reader(tag, tag, printed_lines=True)
     return reader.read().content_text.splitlines()
 
 
 def printed_text(soup: BeautifulSoup) -> str:
-    """The page's own content as the lines a browser prints it.
-
-    content_text, except that a newline the styling shows - inside
-    white-space: pre-wrap, or a <pre> - is a line break too. Antelope
-    Valley prints a course's prerequisite on a line of its own above the
-    description, with nothing but a newline between them; read as content
-    text, the two are one paragraph and the prerequisite runs on into it.
-    """
+    """content_text, keeping the line breaks a pre-wrap style shows."""
     reader = _Reader(soup, find_main(soup), printed_lines=True)
     return reader.read().content_text
 
 
 def lines_after(tag: Tag) -> list[tuple[Tag | None, list[str]]]:
-    """What the element's parent prints after it, a block at a time.
-
-    One entry per block sibling, with the lines it prints, and one per run
-    of inline text between blocks, which has no element of its own. This
-    is how a label is read: SmartCatalog prints <h2>Prerequisite</h2> and
-    then a bare link, Cabrillo a bold paragraph and the course under it.
-    """
+    """What the element's parent prints after it, one block at a time."""
     entries: list[tuple[Tag | None, list[str]]] = []
     run: list[str] = []
 

@@ -151,10 +151,9 @@ def test_an_unclosed_tag_in_the_menu_does_not_swallow_the_page() -> None:
 def test_main_text_keeps_the_pages_own_aside_not_the_sites_menu() -> None:
     """Two readings of one container, for two different questions.
 
-    content_text drops an <aside> inside <main> as furniture. Arapahoe
-    prints a course's code and credits there, so main_text keeps it: it
-    is what the page prints, as against the catalog menu eLumen prints
-    beside <main> on every page.
+    content_text drops an <aside> inside <main> as furniture. A page can
+    print its course's code and credits there, so main_text keeps it: it
+    is what the page prints, as against a site menu beside <main>.
     """
     markup = read_markup(
         page(
@@ -394,7 +393,7 @@ def test_what_follows_a_label_is_read_one_block_at_a_time() -> None:
 
 
 def test_printed_text_keeps_the_line_breaks_a_pre_wrap_element_shows() -> None:
-    """Antelope Valley sets the prerequisite on a line of its own this way.
+    """A pre-wrap description can set the prerequisite on a line of its own.
 
     Discovery reads the page as it always has: there a newline is a space.
     """

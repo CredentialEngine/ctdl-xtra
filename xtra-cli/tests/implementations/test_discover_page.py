@@ -836,7 +836,9 @@ ELUMEN_MENU = (
     "Exam</a></li>"
     "</ul></div>"
 )
-ELUMEN_COURSE_URL = "https://avc.elumenapp.com/catalog/2026-27/course/biol110"
+ELUMEN_COURSE_URL = (
+    "https://example.elumenapp.com/catalog/2026-27/course/biol110"
+)
 
 
 def elumen_course(description: str) -> str:
@@ -855,12 +857,9 @@ def elumen_course(description: str) -> str:
 
 
 def test_a_catalog_menu_listing_every_course_adds_none_to_the_page() -> None:
-    """Antelope Valley lost every course page to its own menu.
-
-    Read as one string, the menu's CHEM courses sit above "(12 Unit)" and
-    its WELD courses above the page's "4.0 Units", so every page there
-    described five courses or more, and extraction skipped all 1311 of
-    them as multi_course_page.
+    """Read as one string, the menu's CHEM courses sit above "(12 Unit)"
+    and its WELD courses above the page's "4.0 Units", so the page looked
+    like it described five courses or more.
     """
     profile = page(
         elumen_course("Survey of living things, from cells to ecosystems."),
@@ -879,7 +878,7 @@ def test_a_policy_page_under_that_menu_is_not_a_course_page() -> None:
         "<main><h1 class='u-visuallyhidden'>2026-27 Catalog</h1>"
         "<h2>Academic Calendar</h2>"
         "<p>Fall classes begin on the third Monday of August.</p></main>",
-        url="https://avc.elumenapp.com/catalog/2026-27/academiccalendar",
+        url="https://example.elumenapp.com/catalog/2026-27/academiccalendar",
     )
     assert profile.course_block_count == 0
     assert "Course" not in profile.labels
@@ -903,11 +902,10 @@ def test_a_prerequisite_the_menu_also_lists_is_still_a_reference() -> None:
 
 
 def test_a_code_printed_in_the_pages_own_aside_still_counts() -> None:
-    """Arapahoe prints a course's code and credits in an <aside> in <main>.
+    """A page can print its course's code and credits in an <aside> in <main>.
 
     content_text drops that aside as furniture. Read against it, the
-    page's own course looked printed outside the page, and 49 of
-    Arapahoe's 55 course records were lost.
+    page's own course looked printed outside the page.
     """
     profile = page(
         "<title>ACC 115 - Payroll Accounting</title>"
@@ -915,7 +913,7 @@ def test_a_code_printed_in_the_pages_own_aside_still_counts() -> None:
         "<aside class='course-full__aside'><p>ACC 115</p>"
         "<p>Credits 3</p></aside></main>",
         url=(
-            "https://www.arapahoe.edu/academics-programs/catalog/courses/"
+            "https://www.example.edu/academics-programs/catalog/courses/"
             "2018-2019/acc-115-payroll-accounting"
         ),
     )
@@ -924,11 +922,10 @@ def test_a_code_printed_in_the_pages_own_aside_still_counts() -> None:
 
 
 def test_codes_under_a_courses_path_need_no_block_to_be_a_listing() -> None:
-    """City College of San Francisco prints units as "(6.5)".
+    """Units printed as "(6.5)" are not read as a value.
 
-    No rule reads that as a value, so the one block on its vocational
-    nursing page was a cross-reference, and three codes under /courses/
-    then made twenty-two courses one Course page with one course on it.
+    The one block found on this listing is a cross-reference, so the three
+    codes under /courses/ have to make it a listing on their own.
     """
     profile = page(
         "<main><h2>VOCN - Vocational Nursing - Licensed</h2>"
@@ -940,7 +937,7 @@ def test_codes_under_a_courses_path_need_no_block_to_be_a_listing() -> None:
         "skills lab</p>"
         "<p>VOCN 51 - Fundamentals of Nursing (8.0)</p>"
         "<p>Catalog Notes: Replaces VOCN 42A and VOCN 42B</p></main>",
-        url="https://ccsf.curricunet.com/catalog/iq/courses/3/170",
+        url="https://example.curricunet.com/catalog/iq/courses/3/170",
     )
     assert profile.course_code_count == 3
     assert profile.course_block_count == 1
