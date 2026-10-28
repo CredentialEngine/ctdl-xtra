@@ -13,6 +13,7 @@ data for courses and nothing more. See TERMS.
 
 from __future__ import annotations
 
+import re
 from typing import Any
 
 from common.clock import utc_timestamp
@@ -39,6 +40,12 @@ MARKUP_TEMPLATE_ID = "markup"
 CODED_NOTATION = "ceterms:codedNotation"
 IDENTIFIER = "ceterms:identifier"
 SUBJECT_WEBPAGE = "ceterms:subjectWebpage"
+CREDIT_MIN = "ceterms:creditMinValue"
+CREDIT_MAX = "ceterms:creditMaxValue"
+
+# The "low-high" a reader writes a printed credit range as.
+CREDIT_RANGE_RE = re.compile(r"(\d+(?:\.\d+)?)-(\d+(?:\.\d+)?)")
+RANGE_NOTE = "Printed range; its two ends are creditMinValue and creditMaxValue."
 
 # The CTDL term each label the readers write goes out under, as the
 # Learning Opportunity bulk-upload template names them; that template is
@@ -164,6 +171,16 @@ def _field(
     }
 
 
+def _credit_range(draft: Any) -> tuple[float, float] | None:
+    """The two ends of a printed credit range, "1.0-8.0", or None."""
+    if draft.canonical_label != "course_credits":
+        return None
+    match = CREDIT_RANGE_RE.fullmatch(str(draft.value).strip())
+    if match is None:
+        return None
+    return float(match.group(1)), float(match.group(2))
+
+
 def record_fields(
     entity_type: str, drafts: list[Any], source_url: str
 ) -> list[dict[str, Any]]:
@@ -173,17 +190,33 @@ def record_fields(
     states two things its page prints no field for: its code as its
     external identifier, and the page itself as its subject webpage.
     """
-    fields = [
-        _field(
-            draft.field_id or f"f_{index:03d}",
-            TERMS[draft.canonical_label],
-            draft.value,
-            draft.raw_text,
-            draft.notes,
+    fields: list[dict[str, Any]] = []
+    for index, draft in enumerate(drafts, start=1):
+        if draft.canonical_label not in TERMS:
+            continue
+        field_id = draft.field_id or f"f_{index:03d}"
+        bounds = _credit_range(draft)
+        if bounds is None:
+            fields.append(
+                _field(
+                    field_id,
+                    TERMS[draft.canonical_label],
+                    draft.value,
+                    draft.raw_text,
+                    draft.notes,
+                )
+            )
+            continue
+        # A printed range is two values, never one creditValue.
+        low, high = bounds
+        fields.append(
+            _field(field_id, CREDIT_MIN, low, draft.raw_text, RANGE_NOTE)
         )
-        for index, draft in enumerate(drafts, start=1)
-        if draft.canonical_label in TERMS
-    ]
+        fields.append(
+            _field(
+                f"{field_id}_max", CREDIT_MAX, high, draft.raw_text, RANGE_NOTE
+            )
+        )
     if entity_type == ENTITY_COURSE:
         fields.extend(_course_derived(fields, source_url))
     return fields
