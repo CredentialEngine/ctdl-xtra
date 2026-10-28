@@ -14,6 +14,7 @@ from fastapi import APIRouter, Body, HTTPException, Request
 
 from .. import layout
 from ..errors import ConflictError
+from ..log import FULL_NAMES as RENAMED
 from .state import studio
 
 router = APIRouter(prefix="/api")
@@ -22,8 +23,6 @@ ROLES = ("sme", "engineer")
 DEFAULT = [("Jared Diener", "sme"), ("Cadence Calixto", "sme"), ("Nicolas Soto", "engineer"),
            ("Rohit Joy", "engineer"), ("Eric Riddoch", "engineer"), ("Seth Alt", "engineer")]
 # The first defaults were first names only (and misspelled Nicolas); a saved list is read with their full names.
-RENAMED = {"Jared": "Jared Diener", "Cadence": "Cadence Calixto", "Nicholas": "Nicolas Soto",
-           "Rohit": "Rohit Joy", "Eric": "Eric Riddoch", "Seth": "Seth Alt"}
 
 
 def _read(root) -> tuple[list[dict], str | None]:

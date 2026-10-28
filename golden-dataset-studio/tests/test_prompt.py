@@ -19,6 +19,9 @@ def test_location_labels():
     assert _location(a) == " (chars 3–9 of `<occurrence> > div > div`)"
     a["expected"]["css_path"] = None
     assert _location(a) == ""
+    a["expected"] = {"css_path": f"{OCC} > p", "char_start": 0, "char_end": 4, "segments": [
+        {"css_path": f"{OCC} > p", "char_start": 0, "char_end": 4}, {"css_path": f"{OCC} > ul", "char_start": 2, "char_end": 8}]}
+    assert _location(a) == " (2 pieces: chars 0–4 of `<occurrence> > p`; chars 2–8 of `<occurrence> > ul`)"
 
 
 def test_table_cells_stay_on_one_line():

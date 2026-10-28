@@ -28,7 +28,8 @@ ANNOTATION_COLUMNS = """{'annotation_id':'VARCHAR', 'type':'VARCHAR', 'at':'VARC
    occurrence_key VARCHAR, course_key VARCHAR, page_stem VARCHAR, value_index INTEGER, value_seen VARCHAR)',
  'verdict':'VARCHAR',
  'expected':'STRUCT(text VARCHAR, css_path VARCHAR, char_start INTEGER, char_end INTEGER,
-   quote STRUCT(prefix VARCHAR, exact VARCHAR, suffix VARCHAR), located_by VARCHAR, author VARCHAR)',
+   quote STRUCT(prefix VARCHAR, exact VARCHAR, suffix VARCHAR), located_by VARCHAR, author VARCHAR,
+   segments STRUCT(text VARCHAR, css_path VARCHAR, char_start INTEGER, char_end INTEGER)[])',
  'note':'VARCHAR', 'supersedes':'VARCHAR', 'imported_from':'JSON'}"""
 
 

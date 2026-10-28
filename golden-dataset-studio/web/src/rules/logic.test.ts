@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { EventBrief } from "../api/types";
 import {
-  applyEvent, approveBlocked, clip, controlOn, historyItems, isSettled, keyAction, missingEvent, newDraft, paneTabs,
+  addCapture, applyEvent, approveBlocked, clip, controlOn, expectedOf, historyItems, isSettled, keyAction, missingEvent, newDraft, paneTabs,
   parseMark, pushRecent, rowTarget, unitWord, verdictEvent, whereWord,
 } from "./logic";
 
@@ -76,12 +76,23 @@ describe("events", () => {
     expect(verdictEvent("Jared", t, null, { verdict: "correct" }).supersedes).toBeNull();
   });
   it("wrong carries the selection as expected; an empty value is wrong + text", () => {
-    const d = { ...newDraft("wrong", null, null), capture: cap, note: " drop it " };
+    const d = { ...newDraft("wrong", null, null), captures: [cap], note: " drop it " };
     const e = verdictEvent("Jared", t, null, { draft: d });
     expect(e.verdict).toBe("wrong");
     expect(e.note).toBe("drop it");
     expect(e.expected).toMatchObject({ text: cap.text, css_path: cap.css_path, char_start: 3, char_end: 23,
                                        quote: { prefix: "a", exact: cap.text, suffix: "b" } });
+  });
+  it("one piece is expected as before; several are joined in page order, each located in segments", () => {
+    expect(expectedOf([cap])).not.toHaveProperty("segments");
+    expect(expectedOf([])).toBeNull();
+    const b = { ...cap, text: " later ", css_path: "html > body > p:nth-of-type(9)", doc_start: 900, doc_end: 907 };
+    const a = { ...cap, doc_start: 10, doc_end: 30 };
+    const cs = addCapture(addCapture([], b), a);
+    expect(cs.map((c) => c.doc_start)).toEqual([10, 900]);
+    expect(expectedOf(cs)).toMatchObject({ text: `${cap.text.trim()}\nlater`, css_path: cap.css_path,
+      segments: [{ css_path: cap.css_path }, { css_path: b.css_path, text: " later " }] });
+    expect(addCapture(cs, { ...b, text: "replaced", doc_start: 905, doc_end: 950 }).map((c) => c.text)).toEqual([cap.text, "replaced"]);
   });
   it("a comment is a comment event, or a question verdict when ticked", () => {
     const d = newDraft("comment", null, null);

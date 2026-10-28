@@ -261,7 +261,8 @@ def rows(request: Request, catalog: str, rule_id: str, ext: str | None = None, o
     `cross` omitted = the ones that split the rows most evenly) or `shuffle`, both seeded by `seed`. The first page
     also returns `sample`: the strata histograms, the crossed strata and their combinations. Rows carry `tags`:
     their bucket in each crossed or filtered stratum. `prior`: rows not reviewed yet whose record was reviewed in
-    another rule come first (tagged "Reviewed in"); `sample.elsewhere` counts them either way."""
+    another rule come first (tagged "Reviewed in"); `sample.elsewhere` counts them either way. `f=annotator:<name>`
+lists the rows someone marked or commented on in any ruleset version (tagged with the versions: "Annotated in")."""
     t0 = time.perf_counter()
     rv = _review(request, catalog, ext)
     if rule_id not in rv.snap.rules:
@@ -278,6 +279,8 @@ def rows(request: Request, catalog: str, rule_id: str, ext: str | None = None, o
     by_key = {r["key"]: (r, s) for r, s in ordered}
     keys, sample = facets.sample_order(dims, list(by_key), filters, order,
                                        None if cross is None else [c for c in cross if c], seed)
+    if "annotator" in filters and "annotated_in" not in sample["tag_dims"]:  # whose rows: say which ruleset too
+        sample["tag_dims"].append("annotated_in")
     elsewhere = rv.reviewed_elsewhere(rule_id, rv.snap.rows(rule_id), rv.row_states(rule_id, rv.snap.rows(rule_id)))
     sample["elsewhere"] = sum(1 for k in keys if k in elsewhere)
     sample["prior"] = prior
