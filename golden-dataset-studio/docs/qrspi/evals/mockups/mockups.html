@@ -32,7 +32,12 @@
   tr:last-child td { border-bottom:0; }
   th.c, td.c { text-align:center; }
   td.name { font-weight:600; white-space:nowrap; }
+  td.muted { white-space:nowrap; }
   td.name .sub { display:block; font-weight:400; color:var(--muted); font-size:11.5px; }
+  .ri { width:17px; height:17px; vertical-align:middle; }
+  .pubv { display:block; font-size:10.5px; color:var(--muted); font-weight:600; margin-top:1px; }
+  th.ext, td.ext { background:#fafafa; }
+  th.ext { color:var(--faint); font-style:italic; }
   .ic { display:inline-grid; place-items:center; width:18px; height:18px; border-radius:50%; font-size:11px; font-weight:700; }
   .ic.pub { background:var(--match); color:#fff; }
   .ic.ok { border:2px solid var(--match); color:var(--match); width:18px; height:18px; }
@@ -86,34 +91,29 @@
       <span style="flex:1"></span><span class="btn">+ Add a catalog</span>
     </div>
     <table>
-      <thead><tr><th class="chev"></th><th>Catalog</th><th>Pages from</th>
-        <th class="c">codedNotation</th><th class="c">identifier</th><th class="c">name</th><th class="c">description</th>
-        <th class="c">subjectWebpage</th><th class="c">lifeCycleStatusType</th><th class="c">inLanguage</th></tr></thead>
+      <thead><tr><th class="chev"></th><th>Catalog</th><th>Pages from</th><th class="c">codedNotation</th><th class="c">identifier</th><th class="c">name</th><th class="c">description</th><th class="c">subjectWebpage</th><th class="c">lifeCycleStatusType</th><th class="c">inLanguage</th><th class="c ext">creditValue</th><th class="c ext">creditUnitType</th><th class="c ext">prerequisite</th></tr></thead>
       <tbody>
-        <tr class="open"><td class="chev">▾</td><td class="name">Antelope Valley College<span class="sub">ruleset v3 · published v3</span></td><td class="muted">12 Oct 2026</td>
-          <td class="c"><span class="ic ok">✓</span></td><td class="c"><span class="ic rev"></span></td><td class="c"><span class="ic rev"></span></td>
-          <td class="c"><span class="ic bad">✕</span></td><td class="c"><span class="ic rev"></span></td><td class="c"><span class="ic rev"></span></td><td class="c"><span class="ic pub">✓</span></td></tr>
-        <tr><td colspan="10" class="card"><dl>
-          <dt>Golden dataset</dt><dd>published from ruleset v3 on 27 Oct · 1 column (<span class="mono">inLanguage</span>) · 1,062 courses</dd>
-          <dt>Rules</dt><dd>ruleset v3 · 1 approved, 1 needs work, 6 in review</dd>
-          <dt>Next</dt><dd><a href="#">Review description →</a> (6 open verdicts)</dd>
+        <tr class="open"><td class="chev">▾</td><td class="name">Antelope Valley College<span class="sub">ruleset v3 · golden dataset v3</span></td><td class="muted">12 Oct 2026</td><td class="c"><svg class="ri" viewBox="0 0 16 16"><circle cx="8" cy="8" r="7.5" fill="#12805c"/><path d="m4.8 8.2 2.2 2.2 4.2-4.6" stroke="#fff" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></td><td class="c"><svg class="ri" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6.6" fill="#fff" stroke="#98a2b3" stroke-width="1.6"/><circle cx="8" cy="8" r="2" fill="#98a2b3"/></svg></td><td class="c"><svg class="ri" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6.6" fill="#fff" stroke="#98a2b3" stroke-width="1.6"/><circle cx="8" cy="8" r="2" fill="#98a2b3"/></svg></td><td class="c"><svg class="ri" viewBox="0 0 16 16"><circle cx="8" cy="8" r="7.5" fill="#d92d20"/><path d="m5.6 5.6 4.8 4.8m0-4.8-4.8 4.8" stroke="#fff" stroke-width="1.8" stroke-linecap="round"/></svg></td><td class="c"><svg class="ri" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6.6" fill="#fff" stroke="#98a2b3" stroke-width="1.6"/><circle cx="8" cy="8" r="2" fill="#98a2b3"/></svg></td><td class="c"><svg class="ri" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6.6" fill="#fff" stroke="#98a2b3" stroke-width="1.6"/><circle cx="8" cy="8" r="2" fill="#98a2b3"/></svg></td><td class="c"><svg class="ri" viewBox="0 0 16 16"><circle cx="8" cy="8" r="7.5" fill="#12805c"/><path d="m4.8 8.2 2.2 2.2 4.2-4.6" stroke="#fff" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="pubv">v3</span></td><td class="c ext faint">—</td><td class="c ext faint">—</td><td class="c ext faint">—</td></tr>
+
+        <tr><td colspan="13" class="card"><dl>
+          <dt>Golden dataset</dt><dd>v3, published 27 Oct · 1 column (<span class="mono">inLanguage</span>) · 1,062 courses</dd>
+          <dt>Rules</dt><dd>ruleset v3 · 2 approved, 1 needs work, 4 in review</dd>
+          <dt>Next</dt><dd><a href="#">Publish codedNotation →</a> · <a href="#">Review description →</a></dd>
         </dl></td></tr>
-        <tr><td class="chev">▸</td><td class="name">City College of San Francisco<span class="sub">ruleset v2 · not published</span></td><td class="muted">1 Oct 2026</td>
-          <td class="c"><span class="ic ok">✓</span></td><td class="c"><span class="ic ok">✓</span></td><td class="c"><span class="ic rev"></span></td><td class="c"><span class="ic rev"></span></td>
-          <td class="c"><span class="ic rev"></span></td><td class="c"><span class="ic rev"></span></td><td class="c"><span class="ic rev"></span></td></tr>
-        <tr><td class="chev">▸</td><td class="name">Marshall University<span class="sub">ruleset v1 · not published</span></td><td class="muted">20 Oct 2026</td>
-          <td class="c"><span class="ic rev"></span></td><td class="c"><span class="ic rev"></span></td><td class="c"><span class="ic rev"></span></td><td class="c"><span class="ic bad">✕</span></td>
-          <td class="c"><span class="ic rev"></span></td><td class="c"><span class="ic rev"></span></td><td class="c"><span class="ic rev"></span></td></tr>
+        <tr><td class="chev">▸</td><td class="name">City College of San Francisco<span class="sub">ruleset v2 · nothing published</span></td><td class="muted">1 Oct 2026</td><td class="c"><svg class="ri" viewBox="0 0 16 16"><circle cx="8" cy="8" r="7.5" fill="#12805c"/><path d="m4.8 8.2 2.2 2.2 4.2-4.6" stroke="#fff" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></td><td class="c"><svg class="ri" viewBox="0 0 16 16"><circle cx="8" cy="8" r="7.5" fill="#12805c"/><path d="m4.8 8.2 2.2 2.2 4.2-4.6" stroke="#fff" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></td><td class="c"><svg class="ri" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6.6" fill="#fff" stroke="#98a2b3" stroke-width="1.6"/><circle cx="8" cy="8" r="2" fill="#98a2b3"/></svg></td><td class="c"><svg class="ri" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6.6" fill="#fff" stroke="#98a2b3" stroke-width="1.6"/><circle cx="8" cy="8" r="2" fill="#98a2b3"/></svg></td><td class="c"><svg class="ri" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6.6" fill="#fff" stroke="#98a2b3" stroke-width="1.6"/><circle cx="8" cy="8" r="2" fill="#98a2b3"/></svg></td><td class="c"><svg class="ri" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6.6" fill="#fff" stroke="#98a2b3" stroke-width="1.6"/><circle cx="8" cy="8" r="2" fill="#98a2b3"/></svg></td><td class="c"><svg class="ri" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6.6" fill="#fff" stroke="#98a2b3" stroke-width="1.6"/><circle cx="8" cy="8" r="2" fill="#98a2b3"/></svg></td><td class="c ext faint">—</td><td class="c ext faint">—</td><td class="c ext faint">—</td></tr>
+
+        <tr><td class="chev">▸</td><td class="name">Marshall University<span class="sub">ruleset v1 · nothing published</span></td><td class="muted">20 Oct 2026</td><td class="c"><svg class="ri" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6.6" fill="#fff" stroke="#98a2b3" stroke-width="1.6"/><circle cx="8" cy="8" r="2" fill="#98a2b3"/></svg></td><td class="c"><svg class="ri" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6.6" fill="#fff" stroke="#98a2b3" stroke-width="1.6"/><circle cx="8" cy="8" r="2" fill="#98a2b3"/></svg></td><td class="c"><svg class="ri" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6.6" fill="#fff" stroke="#98a2b3" stroke-width="1.6"/><circle cx="8" cy="8" r="2" fill="#98a2b3"/></svg></td><td class="c"><svg class="ri" viewBox="0 0 16 16"><circle cx="8" cy="8" r="7.5" fill="#d92d20"/><path d="m5.6 5.6 4.8 4.8m0-4.8-4.8 4.8" stroke="#fff" stroke-width="1.8" stroke-linecap="round"/></svg></td><td class="c"><svg class="ri" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6.6" fill="#fff" stroke="#98a2b3" stroke-width="1.6"/><circle cx="8" cy="8" r="2" fill="#98a2b3"/></svg></td><td class="c"><svg class="ri" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6.6" fill="#fff" stroke="#98a2b3" stroke-width="1.6"/><circle cx="8" cy="8" r="2" fill="#98a2b3"/></svg></td><td class="c"><svg class="ri" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6.6" fill="#fff" stroke="#98a2b3" stroke-width="1.6"/><circle cx="8" cy="8" r="2" fill="#98a2b3"/></svg></td><td class="c ext faint">—</td><td class="c ext faint">—</td><td class="c ext faint">—</td></tr>
+
         <tr><td class="chev">▸</td><td class="name">University of Arkansas at Little Rock<span class="sub">no rules yet</span></td><td class="muted">18 Oct 2026</td>
-          <td colspan="7" class="c faint">Generate rules →</td></tr>
-        <tr><td class="chev">▸</td><td class="name">West Virginia University<span class="sub">ruleset v1 · not published</span></td><td class="muted">20 Oct 2026</td>
-          <td class="c"><span class="ic rev"></span></td><td class="c"><span class="ic rev"></span></td><td class="c"><span class="ic rev"></span></td><td class="c"><span class="ic rev"></span></td>
-          <td class="c"><span class="ic rev"></span></td><td class="c"><span class="ic rev"></span></td><td class="c"><span class="ic rev"></span></td></tr>
+          <td colspan="7" class="c faint">Generate rules →</td><td class="c ext faint">—</td><td class="c ext faint">—</td><td class="c ext faint">—</td></tr>
+        <tr><td class="chev">▸</td><td class="name">West Virginia University<span class="sub">ruleset v1 · nothing published</span></td><td class="muted">20 Oct 2026</td><td class="c"><svg class="ri" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6.6" fill="#fff" stroke="#98a2b3" stroke-width="1.6"/><circle cx="8" cy="8" r="2" fill="#98a2b3"/></svg></td><td class="c"><svg class="ri" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6.6" fill="#fff" stroke="#98a2b3" stroke-width="1.6"/><circle cx="8" cy="8" r="2" fill="#98a2b3"/></svg></td><td class="c"><svg class="ri" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6.6" fill="#fff" stroke="#98a2b3" stroke-width="1.6"/><circle cx="8" cy="8" r="2" fill="#98a2b3"/></svg></td><td class="c"><svg class="ri" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6.6" fill="#fff" stroke="#98a2b3" stroke-width="1.6"/><circle cx="8" cy="8" r="2" fill="#98a2b3"/></svg></td><td class="c"><svg class="ri" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6.6" fill="#fff" stroke="#98a2b3" stroke-width="1.6"/><circle cx="8" cy="8" r="2" fill="#98a2b3"/></svg></td><td class="c"><svg class="ri" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6.6" fill="#fff" stroke="#98a2b3" stroke-width="1.6"/><circle cx="8" cy="8" r="2" fill="#98a2b3"/></svg></td><td class="c"><svg class="ri" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6.6" fill="#fff" stroke="#98a2b3" stroke-width="1.6"/><circle cx="8" cy="8" r="2" fill="#98a2b3"/></svg></td><td class="c ext faint">—</td><td class="c ext faint">—</td><td class="c ext faint">—</td></tr>
+
       </tbody>
     </table>
-    <div class="row" style="gap:18px;margin-top:10px;font-size:12px;color:var(--ink2)"><span class="row" style="gap:6px"><span class="ic pub">✓</span>published</span>
-      <span class="row" style="gap:6px"><span class="ic ok">✓</span>approved, not published yet</span><span class="row" style="gap:6px"><span class="ic rev"></span>in review</span>
-      <span class="row" style="gap:6px"><span class="ic bad">✕</span>needs work</span></div>
+    <div class="row" style="gap:18px;margin-top:10px;font-size:12px;color:var(--ink2)">
+      <span class="row" style="gap:6px"><svg class="ri" viewBox="0 0 16 16"><circle cx="8" cy="8" r="7.5" fill="#12805c"/><path d="m4.8 8.2 2.2 2.2 4.2-4.6" stroke="#fff" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>approved</span><span class="row" style="gap:6px"><svg class="ri" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6.6" fill="#fff" stroke="#98a2b3" stroke-width="1.6"/><circle cx="8" cy="8" r="2" fill="#98a2b3"/></svg>in review</span><span class="row" style="gap:6px"><svg class="ri" viewBox="0 0 16 16"><circle cx="8" cy="8" r="7.5" fill="#d92d20"/><path d="m5.6 5.6 4.8 4.8m0-4.8-4.8 4.8" stroke="#fff" stroke-width="1.8" stroke-linecap="round"/></svg>needs work</span>
+      <span class="row" style="gap:6px"><svg class="ri" viewBox="0 0 16 16"><circle cx="8" cy="8" r="7.5" fill="#12805c"/><path d="m4.8 8.2 2.2 2.2 4.2-4.6" stroke="#fff" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg><b style="font-size:11px;color:var(--muted)">v3</b> published in golden dataset v3</span>
+      <span class="faint"><i>italic</i> columns: in xtra's extract output, not in the Studio yet</span></div>
   </div>
 </section>
 
@@ -127,30 +127,24 @@
       <span class="note">How closely xtra's latest extract output matches each catalog's latest golden dataset, per column. <span class="info">i</span></span>
     </div>
     <table>
-      <thead><tr><th class="chev"></th><th>Catalog</th><th>Match rate</th>
-        <th class="c">codedNotation</th><th class="c">identifier</th><th class="c">name</th><th class="c">description</th><th class="c">creditValue</th></tr></thead>
+      <thead><tr><th class="chev"></th><th>Catalog</th><th>Match rate</th><th class="c">codedNotation</th><th class="c">identifier</th><th class="c">name</th><th class="c">description</th><th class="c">subjectWebpage</th><th class="c">lifeCycleStatusType</th><th class="c">inLanguage</th><th class="c ext">creditValue</th><th class="c ext">creditUnitType</th><th class="c ext">prerequisite</th></tr></thead>
       <tbody>
         <tr class="open"><td class="chev">▾</td><td class="name">Antelope Valley College<span class="sub">golden v3 · extract 28 Oct 11:49</span></td>
-          <td style="width:230px"><div class="row" style="gap:10px"><span class="pct">59%</span>
-            <div class="bar" style="flex:1"><i class="m" style="flex:0"></i><i class="w" style="flex:4"></i><i class="p" style="flex:36"></i><i class="x" style="flex:60"></i></div></div></td>
-          <td class="c"><span class="pct">100%</span><div class="cellbar"><i class="x" style="flex:1"></i></div></td>
-          <td class="c"><span class="pct">0%</span><div class="cellbar"><i class="p" style="flex:1"></i></div></td>
-          <td class="c"><span class="pct">100%</span><div class="cellbar"><i class="x" style="flex:1"></i></div></td>
-          <td class="c"><span class="pct">38%</span><div class="cellbar"><i class="w" style="flex:14"></i><i class="p" style="flex:48"></i><i class="x" style="flex:38"></i></div></td>
-          <td class="c faint">—</td></tr>
-        <tr><td colspan="8" class="card"><dl>
-          <dt>Golden dataset</dt><dd>published from ruleset v3, 27 Oct (columns published so far)</dd>
-          <dt>Extract output</dt><dd>xtra-cli-output, rewritten 28 Oct 11:49 · 1,065 records</dd>
+          <td style="width:190px"><div class="row" style="gap:8px"><span class="pct">59%</span>
+            <div class="bar" style="flex:1"><i class="w" style="flex:4"></i><i class="p" style="flex:36"></i><i class="x" style="flex:60"></i></div></div></td>
+          <td class="c"><span class="pct">100%</span><div class="cellbar"><i class="x" style="flex:1"></i></div></td><td class="c"><span class="pct">0%</span><div class="cellbar"><i class="p" style="flex:1"></i></div></td><td class="c"><span class="pct">100%</span><div class="cellbar"><i class="x" style="flex:1"></i></div></td>
+          <td class="c"><span class="pct">38%</span><div class="cellbar"><i class="w" style="flex:14"></i><i class="p" style="flex:48"></i><i class="x" style="flex:38"></i></div></td><td class="c faint" style="font-size:11px">not scored</td><td class="c faint" style="font-size:11px">not scored</td><td class="c faint" style="font-size:11px">not scored</td><td class="c ext faint">—</td><td class="c ext faint">—</td><td class="c ext faint">—</td></tr>
+        <tr><td colspan="13" class="card"><dl>
+          <dt>Golden dataset</dt><dd>v3, published 27 Oct</dd>
+          <dt>Extract output</dt><dd>xtra-cli-output, rewritten 28 Oct 11:49</dd>
           <dt>Scored</dt><dd>28 Oct 11:52 · <a href="#">Open in Evals →</a></dd>
         </dl></td></tr>
-        <tr><td class="chev">▸</td><td class="name">City College of San Francisco<span class="sub">nothing published yet</span></td><td class="faint">—</td>
-          <td class="c faint">—</td><td class="c faint">—</td><td class="c faint">—</td><td class="c faint">—</td><td class="c faint">—</td></tr>
-        <tr><td class="chev">▸</td><td class="name">Marshall University<span class="sub">no extract output</span></td><td class="faint">—</td>
-          <td class="c faint">—</td><td class="c faint">—</td><td class="c faint">—</td><td class="c faint">—</td><td class="c faint">—</td></tr>
+        <tr><td class="chev">▸</td><td class="name">City College of San Francisco<span class="sub">nothing published yet</span></td><td class="faint">—</td><td class="c faint">—</td><td class="c faint">—</td><td class="c faint">—</td><td class="c faint">—</td><td class="c faint">—</td><td class="c faint">—</td><td class="c faint">—</td><td class="c ext faint">—</td><td class="c ext faint">—</td><td class="c ext faint">—</td></tr>
+        <tr><td class="chev">▸</td><td class="name">Marshall University<span class="sub">no extract output</span></td><td class="faint">—</td><td class="c faint">—</td><td class="c faint">—</td><td class="c faint">—</td><td class="c faint">—</td><td class="c faint">—</td><td class="c faint">—</td><td class="c faint">—</td><td class="c ext faint">—</td><td class="c ext faint">—</td><td class="c ext faint">—</td></tr>
       </tbody>
     </table>
     <div class="legend"><span style="--c:var(--missing)">missing</span><span style="--c:var(--wrong)">wrong &lt; 0.8</span><span style="--c:var(--partial)">partial ≥ 0.8</span><span style="--c:var(--match)">match</span>
-      <span class="faint">— not published yet, or nothing to score</span></div>
+      <span class="faint">— not published yet · not scored: not read from the page</span></div>
   </div>
 </section>
 
@@ -207,8 +201,8 @@
     <!-- dropdown open -->
     <div class="menu" style="left:28px;top:58px">
       <input value="" placeholder="Search golden dataset versions">
-      <div class="it on"><span><b>v3</b> · published 27 Oct · ruleset v3</span><span class="muted">latest</span></div>
-      <div class="it"><span><b>v2</b> · published 27 Oct · ruleset v2</span><span class="muted"></span></div>
+      <div class="it on"><span><b>v3</b> · published 27 Oct</span><span class="muted">latest</span></div>
+      <div class="it"><span><b>v2</b> · published 27 Oct</span><span class="muted"></span></div>
       <div class="ft">Compare with an unpublished ruleset (draft)… </div>
     </div>
     <div class="pop" style="left:620px;top:58px">
@@ -231,15 +225,15 @@
     <table>
       <thead><tr><th style="width:30px"></th><th>Column</th><th>Rule</th><th>Last published</th></tr></thead>
       <tbody>
-        <tr><td><input type="checkbox" checked></td><td class="mono">codedNotation</td><td><span class="ic ok">✓</span> approved</td><td class="muted">not published yet</td></tr>
-        <tr><td><input type="checkbox" disabled></td><td class="mono">description</td><td><span class="ic bad">✕</span> needs work</td><td class="muted">not published yet</td></tr>
-        <tr><td><input type="checkbox" checked></td><td class="mono">inLanguage</td><td><span class="ic ok">✓</span> approved</td><td class="muted">v3 · 27 Oct</td></tr>
+        <tr><td><input type="checkbox" checked></td><td class="mono">codedNotation</td><td><svg class="ri" viewBox="0 0 16 16"><circle cx="8" cy="8" r="7.5" fill="#12805c"/><path d="m4.8 8.2 2.2 2.2 4.2-4.6" stroke="#fff" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg> approved</td><td class="muted">not published yet</td></tr>
+        <tr><td><input type="checkbox" disabled></td><td class="mono">description</td><td><svg class="ri" viewBox="0 0 16 16"><circle cx="8" cy="8" r="7.5" fill="#d92d20"/><path d="m5.6 5.6 4.8 4.8m0-4.8-4.8 4.8" stroke="#fff" stroke-width="1.8" stroke-linecap="round"/></svg> needs work</td><td class="muted">not published yet</td></tr>
+        <tr><td><input type="checkbox" checked></td><td class="mono">inLanguage</td><td><svg class="ri" viewBox="0 0 16 16"><circle cx="8" cy="8" r="7.5" fill="#12805c"/><path d="m4.8 8.2 2.2 2.2 4.2-4.6" stroke="#fff" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg> approved</td><td class="muted">v3 · 27 Oct</td></tr>
       </tbody>
     </table>
-    <div class="row" style="margin-top:14px"><span class="btn primary">Publish 2 columns</span><span class="muted">as golden dataset v4 (ruleset v3)</span></div>
+    <div class="row" style="margin-top:14px"><span class="btn primary">Publish 2 columns</span><span class="muted">as golden dataset v3.2 (ruleset v3 was already published once, as v3)</span></div>
     <div class="row" style="margin-top:22px;padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:var(--surface)">
       <span style="width:8px;height:8px;border-radius:50%;background:var(--accent)"></span>
-      <b>Published v4.</b><span class="muted">Scoring xtra's latest extract output (28 Oct 11:49) against it…</span>
+      <b>Published v3.2.</b><span class="muted">Scoring xtra's latest extract output (28 Oct 11:49) against it…</span>
       <span style="flex:1"></span><a href="#">Open in Evals →</a>
     </div>
   </div>

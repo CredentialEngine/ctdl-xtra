@@ -12,7 +12,7 @@ POC's design ([`poc.md`](poc.md)). **Mockups (§6) come first: review them befor
 | 2 | Can unpublished rulesets be scored? | **Yes, as clearly marked drafts, and tucked away:** never the first way to do something. |
 | 3 | Can a published column be withdrawn? | **Not for now.** Columns only grow. |
 | 4 | Where are the extract outputs? | **Wherever xtra-cli already writes them in Azure** (§3.1). The UI says where, in an info popover. Ignore the v2 review UI's folders. |
-| 5 | Old extractions score 0 (slot names) | **Check Nicolas's branch** (§3.2). Plan a short-term adapter if needed. |
+| 5 | Old extractions score 0 (slot names) | **Checked: Nicolas's branch fixes it** (§3.2), and it's merged here (row 19), so no adapter is needed. |
 | 6 | How do scores run? | **xtra's scorer, called as a Python library**, with a subprocess only if its logic ends up gated behind the CLI. A durable async job, shown in the UI at the right moments (§4). |
 | 7 | Keep score results? | **Yes**, with provenance: what was scored, against what, by which xtra-cli version, and the equivalent command. |
 | 8 | After a publish | **Score automatically** against the latest extract output for that catalog. |
@@ -23,6 +23,12 @@ POC's design ([`poc.md`](poc.md)). **Mockups (§6) come first: review them befor
 | 13 | `ceterms:` names | **In Evals and Publish.** Rules and Records stay as they are. When the prefix makes a label too long, drop `ceterms:` and keep the rest (`description`). |
 | 14 | Running extractions from the UI | **Removed**, code and CLI included. Engineers run `xtra extract`, and the Studio only reads its output. |
 | 15 | Where to build | In the Superset workspace **evals** (branch `golden-dataset-studio-evals`). |
+| 16 | Publishing | **Never merge in place: every publication writes the full golden dataset** (all columns published so far), and each version is kept (§4.1). |
+| 17 | Version numbers | **The ruleset number**: golden dataset *v3* comes from ruleset v3. One less lookup. If one ruleset is published more than once, the later ones are *v3.2*, *v3.3*. |
+| 18 | xtra-cli in the Studio | **A dependency of the Studio**, from the same repo (`../xtra-cli`). |
+| 19 | Nicolas's branch | **Merged into this branch now** (2026-10-28, `6513231`), since it will become the latest xtra-cli. |
+| 20 | Home table columns | **The seven Course columns, plus the columns the extract output has that the Studio doesn't cover yet** (credits, prerequisites), shown as "—". |
+| 21 | Icons | **The Rules tab's icons** (approved, needs work, in review), reused as they are. |
 
 **Design rule:** simplify and focus. Show one thing well instead of every piece of information.
 
@@ -31,7 +37,7 @@ POC's design ([`poc.md`](poc.md)). **Mockups (§6) come first: review them befor
 | Term | Meaning |
 |---|---|
 | **Extract output** | The records `xtra catalog extract` wrote for one crawl of one catalog. Engineers produce it; the Studio reads it. |
-| **Golden dataset (version)** | One publication: the values the Studio published for one catalog, from one ruleset version. Numbered per catalog: golden dataset v1, v2, … |
+| **Golden dataset (version)** | One publication: the full set of values the Studio published for one catalog, from one ruleset version. Named after the ruleset: *v3* (a second publication from the same ruleset is *v3.2*). |
 | **Draft** | An unpublished ruleset version's extraction (`rs-NNNN`), scored as if it were a golden dataset. Clearly marked. |
 | **Score** | One extract output compared with one golden dataset by `xtra score extraction match`, exact and partial. Kept. |
 | **Column** | A `ceterms:` property of the golden dataset (`ceterms:description`). |
@@ -58,16 +64,14 @@ POC's design ([`poc.md`](poc.md)). **Mockups (§6) come first: review them befor
 
 ### 3.2 Will new extractions score?
 
-- `xtra score` reads each record's `expected`, keyed by `ceterms:` terms.
-- **Main's extractor** writes `expected` under slot names (`course_description`), so its output scores as all missing.
-- **Nicolas's branch** (`fix/xtra-cli-extraction-pages-fix`, 9 commits ahead of main, not merged) maps slot names to
-  `ceterms:` terms in `expected_values()`. That covers `course_name` → `ceterms:name`, `course_description` →
-  `ceterms:description`, credits and prerequisites. It also derives `ceterms:codedNotation`, `ceterms:identifier`
-  and `ceterms:subjectWebpage`. It leaves the scorer unchanged.
-- AVC's output of 28 Oct already has `ceterms:` keys. Cabrillo, Arkansas Tech and Bergen have slot names.
-- **Short-term adapter:** when a record's `expected` has no `ceterms:` keys, the Studio maps slot names with the same
-  table as Nicolas's branch before scoring, and the score says it did ("slot names mapped"). Delete it once his branch
-  is merged.
+- `xtra score` reads each record's `expected`, keyed by `ceterms:` terms. Main's extractor writes slot names
+  (`course_description`), so its output scores as all missing.
+- **Nicolas's branch** (`fix/xtra-cli-extraction-pages-fix`) maps slot names to `ceterms:` terms. It's now merged into
+  this branch (`6513231`). Run on AVC's review sample, it wrote `ceterms:codedNotation`, `identifier`, `name`,
+  `description`, `subjectWebpage`, `creditValue` and `creditUnitType` for all 11 records.
+- AVC's output in the bucket (28 Oct) already has `ceterms:` keys.
+- **So there's no adapter.** If an extract output has no `ceterms:` keys (Cabrillo, Arkansas Tech and Bergen still
+  don't), its score says so: "this output uses slot names; re-extract with the current xtra-cli".
 
 ### 3.3 The scorer as a library
 
@@ -87,7 +91,7 @@ POC's design ([`poc.md`](poc.md)). **Mockups (§6) come first: review them befor
 
 | File | Holds |
 |---|---|
-| `score.json` | status, golden dataset version (or draft `rs-NNNN`), extract output identity (path, report ETag, last modified, `discovery_run_id`, records), scorer (xtra-cli commit), whether slot names were mapped, the equivalent `xtra score` commands, who, when |
+| `score.json` | status, golden dataset version (or draft `rs-NNNN`), extract output identity (path, report ETag, last modified, `discovery_run_id`, records), scorer (xtra-cli commit), whether the output used slot names (so nothing could match), the equivalent `xtra score` commands, who, when |
 | `values.parquet` | one row per scored value: column, course, page, outcome, similarity, golden value, extracted value, golden location, approved by (person / rule) |
 
 - **When a score runs:**
@@ -100,13 +104,28 @@ POC's design ([`poc.md`](poc.md)). **Mockups (§6) come first: review them befor
   - the UI polls `GET …/scores/{id}`;
   - on server start, a `running` score left by a restart becomes `interrupted`, with a **Score again** button;
   - only one score runs per catalog at a time.
-- **The scorer version:** xtra-cli is a dependency of the Studio, pinned to a commit of main (uv git dependency,
-  `subdirectory=xtra-cli`). Moving to a newer scorer is a one-line change, and every score records the commit it
-  used.
-- **Golden dataset versions must be readable as they were.** A publication merges into the files in
-  `xtra-golden-sets`, so "v2" isn't on disk once v3 is published. From now on, each publication also writes a full
-  snapshot, `golden/<pub>/golden.parquet` (one row per value; about 1 MB for AVC). Existing publications are rebuilt
-  once from their lineage and the immutable extractions.
+- **The scorer version:** xtra-cli is a dependency of the Studio, from the same repo (uv path dependency on
+  `../xtra-cli`; resolution checked on 2026-10-28). The scorer is whatever xtra-cli the branch holds, Nicolas's work
+  included, and every score records that commit.
+### 4.1 Golden dataset versions
+
+- **Every publication writes the full golden dataset, and every version is kept.** Today a publication merges its
+  columns into the files in `xtra-golden-sets`, so v2 is gone from disk once v3 is published. That changes:
+  - **Each version is written whole** to its own folder in the shared container, in the layout `xtra score` already
+    reads:
+
+    ```
+    xtra-golden-sets/versions/<catalog>/v3/<catalog>/<crawl>/<stem>/<stem>.json
+    ```
+
+    So an engineer can score against any version with the standard command (`--baseline-uri
+    …/xtra-golden-sets/versions/<catalog>/v3`).
+  - **`xtra-golden-sets/<catalog>/<crawl>/`** keeps holding the latest version, replaced whole, never merged. Readers
+    of the current location keep working.
+  - **The Studio also keeps a Parquet copy,** `golden/<pub>/golden.parquet` (one row per value, about 1 MB for AVC), so
+    Evals can load a version quickly.
+- **The two existing AVC publications** are rebuilt once from their lineage and the immutable extractions, and
+  written as versions v2 and v3.
 
 ## 5. What goes away
 
@@ -119,7 +138,8 @@ POC's design ([`poc.md`](poc.md)). **Mockups (§6) come first: review them befor
 ## 6. Mockups
 
 Static mockups in [`mockups/mockups.html`](mockups/mockups.html). The numbers are AVC's from the POC, and the other
-catalogs' are illustrative.
+catalogs' are illustrative. **M2 and M3 are illustrative too:** they show AVC as if `identifier`, `name` and
+`description` were published (today only `inLanguage` is, and it isn't scored).
 
 ### 6.1 Home: Catalogs, golden dataset progress
 
@@ -127,8 +147,10 @@ catalogs' are illustrative.
 
 - **A compact table instead of cards:** one row per catalog, and one column per `ceterms:` property (prefix dropped to
   fit).
-- **Each cell is that column's rule status,** using the Rules tab's icons: filled green ✓ published, outlined green ✓
-  approved but not published yet, grey ○ in review, red ✕ needs work.
+- **Each cell is that column's rule status,** with the Rules tab's own icons: approved, in review, needs work. A
+  published column also shows the golden dataset version it's in (**v3**) under its icon.
+- **Italic columns** (`creditValue`, `creditUnitType`, `prerequisite`) are in xtra's extract output but not in the Studio
+  yet. They show "—".
 - **Expanding a row** shows three lines: the golden dataset (version, columns, courses), the rules, and what to do
   next.
 
@@ -138,7 +160,8 @@ catalogs' are illustrative.
 
 - **The same table, switched to "xtra score":** match rate and outcome bar per catalog, and match % per column (with
   a thin outcome bar) for the latest golden dataset against the latest extract output.
-- **"—"** means the column isn't published yet, or there's nothing to score.
+- **"—"** means the column isn't published yet (or isn't in the Studio). **"not scored"** marks columns that aren't read
+  from the page.
 - **Expanding a row** shows which golden dataset and which extract output were compared, when, and a link to the
   catalog's Evals tab. That tab is this view filtered to one catalog.
 
@@ -174,12 +197,13 @@ catalogs' are illustrative.
 
 ## 7. Order of work
 
-1. **Golden dataset versions:** a snapshot per publication, with existing ones backfilled from lineage. Draft
-   versions from `rs-NNNN`.
+1. **Golden dataset versions** (§4.1):
+   - Publish writes the full dataset, versioned, plus the Parquet copy;
+   - backfill v2 and v3;
+   - draft versions from `rs-NNNN`.
 2. **Scores:**
-   - xtra-cli as a pinned library;
+   - xtra-cli as a path dependency, called as a library;
    - a store adapter over the Studio's roots;
-   - the slot-name adapter;
    - `scores/` with its durable job;
    - the CLI `golden-datasets score --golden vN|rs-NNNN`.
 
@@ -192,12 +216,7 @@ catalogs' are illustrative.
 
 ## 8. Open questions
 
-1. **Version numbers:** golden dataset versions counted per catalog (v1, v2, …), each showing its ruleset ("v4 ·
-   ruleset v3"). Or use the ruleset number alone, which repeats when one ruleset is published in several steps?
-2. **A snapshot file per publication** (§4): OK to add?
-3. **xtra-cli as a pinned dependency** of the Studio: OK? It brings `playwright`, `lxml`, `rapidfuzz` and others, but
-   no browsers.
-4. **Home table columns:** only the in-scope Course columns (the seven `ceterms:` ones)? Or also columns the extract
-   output has but the Studio doesn't (credits, prerequisites), shown as "—"?
-5. **Rule status icons on the home table** (§6.1): is "approved, not published yet" worth its own icon, or should
-   approved and published share one?
+Resolved on 2026-10-28 (§1, rows 16–21). One small one remains:
+
+1. **Path of the versioned folders:** OK to use `xtra-golden-sets/versions/<catalog>/v3/…`? The extra `<catalog>`
+   level is there so the standard `--baseline-uri` works unchanged.
