@@ -143,6 +143,10 @@
   .tree .t { color:var(--ink); font-weight:600; }
   .basis { display:inline-flex; align-items:center; gap:8px; font-size:12.5px; color:var(--muted); }
   .basis .seg b.on { background:#12805c; }
+  .basis { font-size:11.5px; gap:6px; }
+  .seg.xs { border-radius:6px; }
+  .seg.xs b { padding:1px 8px; font-size:11.5px; line-height:18px; }
+  .tabletitle { font-size:14px; font-weight:600; margin:2px 0 4px; }
   .cnt { display:block; font-size:10.5px; color:var(--faint); font-weight:500; }
   .hand { display:inline-flex; align-items:center; gap:4px; font-size:11px; font-weight:600; color:#12805c; background:#e7f6ef; border-radius:999px; padding:1px 7px; }
   .ann { margin:0 14px 10px; padding:8px 10px; border-radius:8px; background:#fff4f2; border:1px solid #f5c2b8; font-size:12px; color:#7a271a; }
@@ -179,15 +183,15 @@
 </section>
 
 <!-- M2: Catalogs, xtra score -->
-<section class="shot" id="m2" style="height:560px">
+<section class="shot" id="m2" style="height:610px">
   <div class="top"><span class="brand"><i></i>Golden Rules Studio</span></div>
   <div class="page">
     <div class="row" style="margin-bottom:14px">
       <h1>Catalogs</h1>
       <span class="seg"><b>Golden dataset</b><b class="on">xtra score</b></span>
-      <span class="muted" style="font-size:12px">How closely xtra's latest extract output matches each catalog's latest golden dataset.</span>
-      <span style="flex:1"></span><span class="basis">Scored against <span class="seg sm"><b class="on">Hand-checked values</b><b>All values (hand + rule)</b></span><span class="info" style="width:18px;height:18px">i</span></span>
     </div>
+    <div class="tabletitle">How closely xtra's latest extract output matches each catalog's latest golden dataset</div>
+    <div style="margin-bottom:4px"><span class="basis">scored against <span class="seg xs"><b class="on">Hand-checked</b><b>Rule-matched</b></span></span></div>
     <table class="cat">
       <thead><tr><th></th><th class="plain">Catalog</th><th class="plain">Exact matches <span class="hand">hand-checked</span></th>
         <th class="rot"><span>codedNotation</span></th><th class="rot"><span>identifier</span></th><th class="rot"><span>name</span></th>
@@ -220,7 +224,7 @@
     <div class="row ttl">
       <span class="dd"><span class="k">Golden dataset</span><b>ruleset v3</b><span class="muted">(latest)</span></span>
       <span class="muted" style="font-weight:500">vs</span><code class="cmd">xtra catalog extract</code><span>outputs over time</span>
-      <span class="info">i</span><span style="flex:1"></span><span style="font-weight:400"><span class="basis">Scored against <span class="seg sm"><b class="on">Hand-checked values</b><b>All values (hand + rule)</b></span><span class="info" style="width:18px;height:18px">i</span></span></span>
+      <span class="info">i</span><span style="flex:1"></span><span style="font-weight:400"><span class="basis">scored against <span class="seg xs"><b class="on">Hand-checked</b><b>Rule-matched</b></span></span></span>
     </div>
     <div style="margin-top:14px;display:flex;gap:40px;align-items:flex-end">
       <div>

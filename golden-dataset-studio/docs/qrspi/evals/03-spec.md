@@ -48,7 +48,7 @@ POC's design ([`poc.md`](poc.md)). **Mockups (§6) come first: review them befor
 | 39 | Evals title | **"[Golden dataset ▾] vs `xtra catalog extract` outputs over time"** is the title above the chart. Below the chart, the chosen pair shows as two distinct chips: the golden dataset styled like its dropdown, the extract output styled like the picked bar. No sentence. |
 | 40 | Diff default | **Split**, in Evals and Compare. Unified is the other option. |
 | 42 | Approving publishes | **Yes.** Approving a column's rule publishes that column into the golden dataset of its ruleset, then scores it (§4.1). There's no separate Publish step. The Publish tab becomes **Golden datasets**, a read-only record: each version, its columns, its values and where it's written. |
-| 43 | Hand-checked vs rule-labelled | **Every score says which it's against, and the default is hand-checked**, because the team is skeptical of labelling by rules. A switch, "Scored against: **Hand-checked values** \| All values (hand + rule)", sits on the catalogs table and the Evals tab. Each score is computed both ways and both are kept. |
+| 43 | Hand-checked vs rule-labelled | **Every score says which it's against, and the default is hand-checked**, because the team is skeptical of labelling by rules. A slim switch, "scored against **Hand-checked** \| Rule-matched", sits on the catalogs table and the Evals tab. Each score is computed both ways and both are kept. |
 | 41 | The "marked wrong" box | **Structured:** a header (✕ Marked wrong · who · when), then rows for right text, note and compared with, then a footer saying the rule now has known wrong values. |
 | 30 | The value diff | **Back, as in the POC:** a GitHub-style diff (red: in the golden dataset, not extracted; green: extracted, not in the golden dataset) and the saved page with both values highlighted. It can be annotated (§4.2). **The same diff serves Compare** (ruleset vs ruleset) and Evals (golden dataset vs extract output). |
 
@@ -65,7 +65,7 @@ POC's design ([`poc.md`](poc.md)). **Mockups (§6) come first: review them befor
 | **Column** | A CTDL property of the golden dataset, shown by its term without `ceterms:` (`description`). |
 | **Value** | One column of one course. |
 | **Hand-checked value** | A value a person confirmed: they marked it correct and it hasn't changed since, or they marked it wrong and selected the text it now is (`approval: human`). |
-| **Rule-labelled value** | A value only its rule vouches for (`approval: rule`). |
+| **Rule-matched** | Every value the rules matched in the golden dataset, hand-checked or not. In the UI it's the other side of the switch from **Hand-checked**. |
 | **Outcome** | Per value: **missing** (nothing extracted), **wrong** (similarity < 0.8), **partial** (≥ 0.8), **match** (identical). |
 | **Not scored** | A column whose values aren't read from the page (`location: null`: `inLanguage`, `lifeCycleStatusType`, `subjectWebpage`). xtra's scorer skips these as *implied* (xtra-cli #343). |
 
@@ -127,8 +127,8 @@ POC's design ([`poc.md`](poc.md)). **Mockups (§6) come first: review them befor
 | `score.json` | status, the two results (hand-checked values only, and all values), golden dataset version (or draft `rs-NNNN`), extract output identity (path, report ETag, last modified, `discovery_run_id`, records), scorer (xtra-cli commit), whether the output used slot names (so nothing could match), the equivalent `xtra score` commands, who, when |
 | `values.parquet` | one row per scored value: column, course, page, outcome, similarity, golden value, extracted value, golden location, approved by (person / rule) |
 
-- **Each score runs `xtra score` twice:** against the hand-checked values only (the default view), and against all
-  values. Both results are kept. They're computed separately, not filtered from one run, so the counts are exactly
+- **Each score runs `xtra score` twice:** against the hand-checked values only (the default view), and against every
+  rule-matched value. Both results are kept. They're computed separately, not filtered from one run, so the counts are exactly
   the scorer's.
 - **When a score runs:**
   - **automatically when a column is approved** (approving publishes it), against the catalog's latest extract output;
@@ -234,8 +234,10 @@ are illustrative. **The xtra score views and the history are illustrative too:**
 
 ![Home, xtra score](mockups/m2.png)
 
-- **"Scored against: Hand-checked values | All values (hand + rule)"**, hand-checked by default. The exact matches
-  column is labelled **hand-checked** and each figure shows its count (65% of 75).
+- **Under the header,** the table's title, "How closely xtra's latest extract output matches each catalog's latest
+  golden dataset", and under it the slim switch, "scored against **Hand-checked** | Rule-matched" (hand-checked by
+  default).
+- **The exact matches column is labelled hand-checked,** and each figure shows its count (65% of 75).
 - **Exact matches** per catalog, and per column.
 - **Hovering a bar or a legend colour** shows a small table: each outcome, its count and its rule. Underneath, one line
   explains similarity:
@@ -247,7 +249,7 @@ are illustrative. **The xtra score views and the history are illustrative too:**
 
 ![Evals tab](mockups/m3.png)
 
-- **The same switch** sits at the right of the title: **Hand-checked values** by default. The headline reads "65% exact
+- **The same slim switch** sits at the right of the title: **Hand-checked** by default. The headline reads "65% exact
   matches · hand-checked · 49 of 75 values a person confirmed".
 - **The title is the comparison:** "[Golden dataset ruleset v3 (latest) ▾] vs `xtra catalog extract` outputs over time",
   above the chart.
