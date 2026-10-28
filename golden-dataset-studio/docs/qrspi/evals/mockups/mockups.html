@@ -123,6 +123,24 @@
   .rows td { font-size:12.5px; }
   .rows tr.on td { background:var(--accent-soft); }
   .chip { font-size:11px; border:1px solid var(--line2); border-radius:999px; padding:1px 8px; color:var(--ink2); }
+  .ttl { font-size:16px; font-weight:600; gap:10px; }
+  .cmd { font:600 14px var(--mono); background:#eef0f3; border:1px solid var(--line2); border-radius:6px; padding:2px 8px; color:var(--ink); }
+  .gchip { display:inline-flex; align-items:center; gap:6px; border:1px solid #c7d2fe; background:var(--accent-soft); color:#1e3a8a; border-radius:7px; padding:3px 9px; font-weight:600; }
+  .gchip::before { content:""; width:8px; height:8px; border-radius:2px; background:var(--accent); }
+  .xchip { display:inline-flex; align-items:center; gap:6px; background:rgba(16,24,40,.07); border-radius:7px; padding:3px 9px; font-weight:600; }
+  .xchip i { display:inline-flex; flex-direction:column-reverse; width:7px; height:14px; gap:1px; }
+  .xchip i b { display:block; border-radius:1px; }
+  .ann-x { margin:12px 14px; border:1px solid #f5c2b8; border-left:3px solid #d92d20; border-radius:8px; background:#fffbfa; font-size:12.5px; }
+  .ann-x .h { display:flex; align-items:center; gap:8px; padding:8px 12px; border-bottom:1px solid #fbe0da; }
+  .ann-x .h .when { color:var(--muted); margin-left:auto; font-size:12px; }
+  .ann-x table { border-collapse:collapse; width:100%; }
+  .ann-x th { text-align:left; font-weight:500; color:var(--muted); width:120px; padding:6px 12px; vertical-align:top; font-size:12px; }
+  .ann-x td { padding:6px 12px 6px 0; vertical-align:top; }
+  .ann-x .f { display:flex; align-items:center; gap:6px; padding:8px 12px; border-top:1px solid #fbe0da; color:#7a271a; font-size:12px; }
+  .tree { font:12px/1.75 var(--mono); white-space:pre; background:var(--surface); border:1px solid var(--line); border-radius:10px; padding:12px 16px; overflow-x:auto; }
+  .tree a { color:var(--accent); text-decoration:underline dotted; text-underline-offset:3px; }
+  .tree .c { color:var(--faint); }
+  .tree .t { color:var(--ink); font-weight:600; }
   .ann { margin:0 14px 10px; padding:8px 10px; border-radius:8px; background:#fff4f2; border:1px solid #f5c2b8; font-size:12px; color:#7a271a; }
 </style>
 </head>
@@ -194,9 +212,9 @@
   <div class="top"><span class="brand"><i></i>Golden Rules Studio</span><span class="muted">/ Antelope Valley College</span>
     <span class="tabs"><a>Rules</a><a>Records</a><a>Compare</a><a>Publish</a><a class="on">Evals</a></span></div>
   <div class="page">
-    <div class="row">
+    <div class="row ttl">
       <span class="dd"><span class="k">Golden dataset</span><b>ruleset v3</b><span class="muted">(latest)</span></span>
-      <span class="muted">· xtra's extract outputs over time</span>
+      <span class="muted" style="font-weight:500">vs</span><code class="cmd">xtra catalog extract</code><span>outputs over time</span>
       <span class="info">i</span>
     </div>
     <div style="margin-top:14px;display:flex;gap:40px;align-items:flex-end">
@@ -207,7 +225,7 @@
       <div class="legend" style="flex-direction:column;align-items:flex-start;gap:6px;margin:0 0 30px"><span class="k" style="--c:var(--missing)">missing</span><span class="k" style="--c:var(--wrong)">wrong</span><span class="k" style="--c:var(--partial)">partial</span><span class="k" style="--c:var(--match)">match</span>
         <span class="faint" style="max-width:220px">Click a bar to compare with that extract output. A dashed bar hasn't been scored yet.</span></div>
     </div>
-    <div class="row" style="margin:16px 0 6px"><span style="font-weight:600">Golden dataset ruleset v3 vs extract output of 28 Oct, 11:49 AM</span><span class="muted">(latest)</span></div>
+    <div class="row" style="margin:18px 0 6px;gap:8px"><span class="gchip">ruleset v3</span><span class="muted">vs</span><span class="xchip"><i><b class="x" style="height:8px"></b><b class="p" style="height:4px"></b><b class="m" style="height:2px"></b></i>28 Oct, 11:49 AM<span class="muted" style="font-weight:400">(latest)</span></span></div>
     <div class="row rate" style="margin:4px 0 10px"><b>59%</b><span style="font-weight:600">exact matches</span><span class="muted">2,527 of 4,248 values</span></div>
     <table class="plain">
       <tr><td style="width:220px;font-weight:600">All columns</td><td><div class="bar"><i class="x" style="flex:60"></i><i class="p" style="flex:34"></i><i class="w" style="flex:4"></i><i class="m" style="flex:2"></i></div></td><td class="pct" style="width:60px;text-align:right">59%</td><td class="muted" style="width:70px;text-align:right">4,248</td></tr>
@@ -249,7 +267,7 @@
     <span class="tabs"><a>Rules</a><a>Records</a><a>Compare</a><a>Publish</a><a class="on">Evals</a></span></div>
   <div class="split">
     <div class="left">
-      <div class="row"><span style="font-weight:600">Golden dataset ruleset v3 vs extract output of 28 Oct, 11:49 AM</span><span class="muted">(latest)</span></div>
+      <div class="row" style="gap:8px"><span class="gchip">ruleset v3</span><span class="muted">vs</span><span class="xchip"><i><b class="x" style="height:8px"></b><b class="p" style="height:4px"></b><b class="m" style="height:2px"></b></i>28 Oct, 11:49 AM<span class="muted" style="font-weight:400">(latest)</span></span></div>
       <div class="ctrls"><span class="seg"><b>All 17</b><b class="on"><span class="sw w"></span>wrong 17</b></span><span class="chip">description ✕</span><span class="chip">Subject: NS ✕</span></div>
       <table class="plain rows">
         <tr class="on"><td style="width:14px"><span class="sw w"></span></td><td style="width:90px;font-weight:600">NS912L</td><td>Limitation on Enrollment: Formal enrollment in the Associate Degree…</td><td class="muted">0.35</td></tr>
@@ -260,13 +278,14 @@
       </table>
     </div>
     <div class="right">
-      <div class="ph"><b>NS912L</b><span class="mono">description</span><span><span class="sw w"></span>wrong · 0.35</span><span style="flex:1"></span><span class="seg sm"><b class="on">Unified</b><b>Split</b></span><span class="muted" style="font-size:12px">Open in Rules →</span><span class="btn sm">✕</span></div>
+      <div class="ph"><b>NS912L</b><span class="mono">description</span><span><span class="sw w"></span>wrong · 0.35</span><span style="flex:1"></span><span class="seg sm"><b class="on">Split</b><b>Unified</b></span><span class="muted" style="font-size:12px">Open in Rules →</span><span class="btn sm">✕</span></div>
       <div class="gh">
-        <div class="hdr"><span>golden dataset ruleset v3</span><span>→</span><span>extract output 28 Oct</span></div>
-        <div class="ln del"><span class="s">−</span><span>Limitation on Enrollment: Formal enrollment in the Associate Degree Nursing program.<mark>
-Advisory: Concurrent enrollment NS 102A.
-Focus is on the development of nursing skills and basic components of competent nursing care for obstetrical clients. Participation is to develop and enhance skills in a non-threatening environment before the student interacts with clients in the clinical settings. (R unlimited)</mark></span></div>
-        <div class="ln add"><span class="s">+</span><span>Limitation on Enrollment: Formal enrollment in the Associate Degree Nursing program.</span></div>
+        <div class="two">
+          <div><div class="lab">golden dataset ruleset v3</div><div class="ln del" style="grid-template-columns:1fr"><span style="padding:4px 10px">Limitation on Enrollment: Formal enrollment in the Associate Degree Nursing program.
+<mark>Advisory: Concurrent enrollment NS 102A.
+Focus is on the development of nursing skills and basic components of competent nursing care for obstetrical clients. Participation is to develop and enhance skills in a non-threatening environment before the student interacts with clients in the clinical settings. (R unlimited)</mark></span></div></div>
+          <div><div class="lab">extract output 28 Oct</div><div class="ln add" style="grid-template-columns:1fr;height:100%"><span style="padding:4px 10px">Limitation on Enrollment: Formal enrollment in the Associate Degree Nursing program.</span></div></div>
+        </div>
       </div>
       <div class="note">
         <textarea placeholder="Note on this difference">xtra stops at the first paragraph on NS lab courses; the golden value is right.</textarea>
@@ -294,15 +313,23 @@ Focus is on the development of nursing skills and basic components of competent 
   <div class="top"><span class="brand"><i></i>Golden Rules Studio</span><span class="muted">/ Antelope Valley College</span>
     <span class="tabs"><a>Rules</a><a>Records</a><a>Compare</a><a>Publish</a><a class="on">Evals</a></span></div>
   <div style="width:680px;margin-left:680px;background:var(--surface);height:382px;border-left:1px solid var(--line)">
-    <div class="ph"><b>CHEM110H</b><span class="mono">description</span><span><span class="sw w"></span>wrong · 0.14</span><span style="flex:1"></span><span class="seg sm"><b>Unified</b><b class="on">Split</b></span><span class="btn sm">✕</span></div>
+    <div class="ph"><b>CHEM110H</b><span class="mono">description</span><span><span class="sw w"></span>wrong · 0.14</span><span style="flex:1"></span><span class="seg sm"><b class="on">Split</b><b>Unified</b></span><span class="btn sm">✕</span></div>
     <div class="gh">
       <div class="two">
         <div><div class="lab">golden dataset ruleset v3</div><div class="ln del" style="grid-template-columns:1fr"><span style="padding:4px 10px"><mark>This general chemistry honors course, intended for students in the Honors Transfer Program,</mark> introduces the atom and its largest subatomic particles…</span></div></div>
         <div><div class="lab">extract output 28 Oct</div><div class="ln add" style="grid-template-columns:1fr"><span style="padding:4px 10px"><mark>Prerequisite: Completion of Intermediate Algebra or higher or placement by multiple measures.</mark></span></div></div>
       </div>
     </div>
-    <div class="ann"><b>Marked wrong by Jared</b> · the golden value includes the honors intro paragraph that belongs to the program, not the course.<br>
-      The <span class="mono">description</span> rule now shows <span data-i="N"></span> known wrong values until a new rule version fixes it.</div>
+    <div class="ann-x">
+      <div class="h"><span data-i="N"></span><b>Marked wrong</b><span class="muted">· the golden value</span><span class="when">Jared · 28 Oct, 2:41 PM</span></div>
+      <table>
+        <tr><th>Right text</th><td>Introduces the atom and its largest subatomic particles, describes and quantifies, where possible…</td></tr>
+        <tr><th>Note</th><td>The honors intro sentence belongs to the program page, not the course.</td></tr>
+        <tr><th>Compared with</th><td><span class="xchip" style="padding:1px 7px">extract output 28 Oct</span></td></tr>
+      </table>
+      <div class="f"><span data-i="N"></span><span><span class="mono">description</span> rule: known wrong values, until a new rule version fixes it</span></div>
+    </div>
+</div>
   </div>
 </section>
 
@@ -313,10 +340,12 @@ Focus is on the development of nursing skills and basic components of competent 
   <div class="page" style="padding-top:16px">
     <div class="row" style="margin-bottom:10px"><span class="dd"><span class="k">From</span><b>ruleset v1</b></span><span class="muted">→</span><span class="dd"><span class="k">To</span><b>ruleset v2</b></span></div>
     <div style="background:var(--surface);border:1px solid var(--line);border-radius:10px;max-width:900px">
-      <div class="ph"><b>GEOG222</b><span class="mono">description</span><span class="chip">fixed</span><span style="flex:1"></span><span class="seg sm"><b class="on">Unified</b><b>Split</b></span><span class="muted" style="font-size:12px">See on page →</span></div>
+      <div class="ph"><b>GEOG222</b><span class="mono">description</span><span class="chip">fixed</span><span style="flex:1"></span><span class="seg sm"><b class="on">Split</b><b>Unified</b></span><span class="muted" style="font-size:12px">See on page →</span></div>
       <div class="gh" style="margin-bottom:8px">
-        <div class="ln del"><span class="s">−</span><span><mark>Prerequisite: Completion of, or concurrent enrollment in, GEOG 205.</mark> This course provides a general survey of basic methods used for the presentation of geographic information science (GIS) data…</span></div>
-        <div class="ln add"><span class="s">+</span><span>This course provides a general survey of basic methods used for the presentation of geographic information science (GIS) data…</span></div>
+        <div class="two">
+          <div><div class="lab">ruleset v1</div><div class="ln del" style="grid-template-columns:1fr"><span style="padding:4px 10px"><mark>Prerequisite: Completion of, or concurrent enrollment in, GEOG 205.</mark> This course provides a general survey of basic methods used for the presentation of geographic information science (GIS) data…</span></div></div>
+          <div><div class="lab">ruleset v2</div><div class="ln add" style="grid-template-columns:1fr;height:100%"><span style="padding:4px 10px">This course provides a general survey of basic methods used for the presentation of geographic information science (GIS) data…</span></div></div>
+        </div>
       </div>
       <div class="row" style="padding:0 14px 12px;gap:8px"><span class="btn sm">Note…</span><span class="btn sm">The new value is wrong…</span></div>
     </div>
@@ -338,13 +367,20 @@ Focus is on the development of nursing skills and basic components of competent 
       <span class="muted">Writes 2 columns for 1,062 courses, then scores xtra's latest extract output against them.</span>
       <span class="muted">Where it's written <span class="info">i</span></span></div>
     <div style="margin-top:14px;max-width:1100px">
-      <div class="muted" style="margin-bottom:6px;font-size:12px">Where it's written (opened from the ⓘ)</div>
-      <table class="plain">
-        <tr><th style="width:170px">Destination</th><th>Path</th><th style="width:300px">What</th></tr>
-        <tr><td>This version</td><td class="code">xtra-golden-sets/catalogs/avc-elumenapp-com-catalog-2026-27-welcome/versions/ruleset-v4/</td><td>1,062 page files and their HTML, kept for good</td></tr>
-        <tr><td>Latest version</td><td class="code">xtra-golden-sets/avc-elumenapp-com-catalog-2026-27-welcome/2026-10-12T20-59-13Z/</td><td>Replaced whole with ruleset v4</td></tr>
-        <tr><td>This Studio</td><td class="code">…/golden-dataset-studio/golden/ruleset-v4/</td><td><code>publication.json</code>, <code>lineage.parquet</code>, <code>golden.parquet</code></td></tr>
-      </table>
+      <div class="muted" style="margin-bottom:6px;font-size:12px">Where it's written (opened from the ⓘ) · click a file to see a sample</div>
+<div class="tree"><span class="t">azure://…/xtra-golden-sets/</span>
+├── catalogs/avc-elumenapp-com-catalog-2026-27-welcome/versions/<span class="t">ruleset-v4/</span>   <span class="c"># this version, kept for good</span>
+│   └── avc-elumenapp-com-catalog-2026-27-welcome/2026-10-12T20-59-13Z/
+│       └── &lt;page&gt;/                   <span class="c"># one folder per page with courses (1,062)</span>
+│           ├── <a>&lt;page&gt;.json</a>           <span class="c"># [{golden_record_id, approval, fields: [{ctdl_property, value, location, …}]}]</span>
+│           └── <a>&lt;page&gt;.html</a>           <span class="c"># the page as crawled; the locations point into it</span>
+└── avc-elumenapp-com-catalog-2026-27-welcome/2026-10-12T20-59-13Z/   <span class="c"># the latest version, replaced whole with ruleset v4</span>
+    └── &lt;page&gt;/ …                     <span class="c"># same files as above</span>
+
+<span class="t">Studio: golden/ruleset-v4/</span>
+├── <a>publication.json</a>                 <span class="c"># which ruleset, columns, approvals, where it was written</span>
+├── <a>lineage.parquet</a>                  <span class="c"># one row per value → rule, version, occurrence, verdicts</span>
+└── <a>golden.parquet</a>                   <span class="c"># every value of this version, for Evals</span></div>
     </div>
     <div class="row" style="margin-top:16px;padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:var(--surface)">
       <span data-i="A"></span><b>Published ruleset v4.</b><span class="muted">Scored against xtra's latest extract output: 61% exact matches.</span>

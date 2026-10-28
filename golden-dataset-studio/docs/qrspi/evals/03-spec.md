@@ -42,9 +42,12 @@ POC's design ([`poc.md`](poc.md)). **Mockups (§6) come first: review them befor
 | 33 | Outcome definitions | **A tooltip on any bar or legend colour** gives, in a small table, each outcome, its count and its rule, plus one line on how similarity is computed. The catalogs table says **Exact matches** instead of "match rate". |
 | 34 | History | **The Evals tab shows xtra's extract outputs over time** as vertical stacked bars (match at the bottom, then partial, wrong, missing). Clicking a bar picks that extract output; it stays highlighted. An output that hasn't been scored shows a dashed bar with **Score**. That's the only Score button. |
 | 35 | Keeping extract outputs | **The Studio keeps a copy of each extract output it sees** (§3.1), so a past output can still be scored against a newer golden dataset. |
-| 36 | Diff layout | **GitHub-style, Unified or Split.** |
+| 36 | Diff layout | **GitHub-style, Split or Unified** (Split by default, row 40). |
 | 37 | "The golden value is wrong" | **A formal `wrong` verdict on that row,** with the comparison attached (§4.2). The rule then shows ✕ known wrong values, on the Rules tab and the catalogs table, until a new rule version fixes it. No "saved on this row" text. |
-| 38 | Where Publish writes | **A table:** destination, path, what. |
+| 38 | Where Publish writes | **The file tree, as the Publish tab has it today,** with each file a link to a sample. It covers the version folder, the latest location and the Studio's own files. |
+| 39 | Evals title | **"[Golden dataset ▾] vs `xtra catalog extract` outputs over time"** is the title above the chart. Below the chart, the chosen pair shows as two distinct chips: the golden dataset styled like its dropdown, the extract output styled like the picked bar. No sentence. |
+| 40 | Diff default | **Split**, in Evals and Compare. Unified is the other option. |
+| 41 | The "marked wrong" box | **Structured:** a header (✕ Marked wrong · who · when), then rows for right text, note and compared with, then a footer saying the rule now has known wrong values. |
 | 30 | The value diff | **Back, as in the POC:** a GitHub-style diff (red: in the golden dataset, not extracted; green: extracted, not in the golden dataset) and the saved page with both values highlighted. It can be annotated (§4.2). **The same diff serves Compare** (ruleset vs ruleset) and Evals (golden dataset vs extract output). |
 
 **Design rule:** simplify and focus. Show one thing well instead of every piece of information.
@@ -231,14 +234,16 @@ are illustrative. **The xtra score views and the history are illustrative too:**
 
 ![Evals tab](mockups/m3.png)
 
-- **The golden dataset dropdown** (ruleset v3, *latest*) sits above a chart of **xtra's extract outputs over time**.
+- **The title is the comparison:** "[Golden dataset ruleset v3 (latest) ▾] vs `xtra catalog extract` outputs over time",
+  above the chart.
   - Each output is a vertical bar: match at the bottom, then partial, wrong and missing.
   - The match % is on top, and the date (local time) is below.
 - **Clicking a bar picks that extract output.** It stays highlighted in grey, and everything below follows.
 - **A dashed bar** is an output that hasn't been scored against this golden dataset yet. It holds the only **Score**
   button.
-- **Below the chart:** "Golden dataset ruleset v3 vs extract output of 28 Oct, 11:49 AM (latest)", then exact matches,
-  one bar per column, and (scrolled off here) the outcome filter, Group by and the rows.
+- **Below the chart, the chosen pair shows as two chips.** The golden dataset chip (blue, like its dropdown) and the
+  extract output chip (grey with a mini bar, like the picked bar) show where each one is chosen.
+- **Then:** exact matches, one bar per column, and (scrolled off here) the outcome filter, Group by and the rows.
 
 ![Where these come from](mockups/m3c.png)
 
@@ -247,24 +252,26 @@ are illustrative. **The xtra score views and the history are illustrative too:**
 
 ### 6.4 A row: the diff, a note, and the page
 
-![Row detail, unified](mockups/m5.png)
+![Row detail, split](mockups/m5.png)
 
-- **A GitHub-style diff,** **Unified** (shown) or **Split.** It shows `−` the golden value and `+` the extracted value,
-  with the differing words highlighted.
+- **A GitHub-style diff, Split by default** (golden value left, extracted value right, differing words highlighted).
+  **Unified** shows `−` and `+` lines.
 - **A note box:** **Save note** and **The golden value is wrong…**.
 - **The saved page** with the golden value (green) at its recorded location and the extracted value (pink) wherever
   its text is found.
 
 ![Split diff, after "The golden value is wrong"](mockups/m5b.png)
 
-- **Split** puts the two values side by side.
-- **After "The golden value is wrong",** the row shows the verdict, and the rule now shows ✕ known wrong values (§4.2).
+- **After "The golden value is wrong,"** a structured box shows the verdict:
+  - a header (✕ Marked wrong · Jared · when);
+  - rows for the right text, the note and what it was compared with;
+  - a footer saying the rule now has known wrong values (§4.2).
 
 ### 6.5 The same diff in Compare
 
 ![Compare](mockups/m6.png)
 
-- **The same component,** Unified or Split, comparing ruleset v1 with ruleset v2, with **Note…** and **The new value is
+- **The same component,** Split by default, comparing ruleset v1 with ruleset v2, with **Note…** and **The new value is
   wrong…**.
 
 ### 6.6 Publish (scoring included)
@@ -273,7 +280,10 @@ are illustrative. **The xtra score views and the history are illustrative too:**
 
 - **Columns are listed by field name.** **Publish ruleset v4** writes the golden dataset and then scores xtra's latest
   extract output against it.
-- **"Where it's written" ⓘ** is a table: destination, path, what.
+- **"Where it's written" ⓘ** is the file tree, as on today's Publish tab, with each file a link to a sample:
+  - the version folder (`catalogs/<catalog>/versions/ruleset-v4/…`);
+  - the latest location, replaced whole;
+  - the Studio's `publication.json`, `lineage.parquet` and `golden.parquet`.
 - **When it finishes,** one line gives the exact matches, with **Open in Evals →**.
 
 ## 7. Order of work
