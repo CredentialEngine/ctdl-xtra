@@ -337,6 +337,36 @@ def test_an_entity_with_no_record_is_all_missing() -> None:
     assert entity["record_id"] is None
 
 
+def test_a_field_not_on_the_page_is_skipped_not_scored() -> None:
+    implied = {
+        **baseline_field("ceterms:inLanguage", "English"),
+        "location": None,
+    }
+    fields = [baseline_field("ceterms:name", "Main"), implied]
+    record = record_of(prop("ceterms:name", "Main"))
+
+    result = match_entity(fields, record, MODE_EXACT)
+
+    assert outcomes_of(result) == {"ceterms:name": "match"}
+    assert result["skipped_implied"] == 1
+
+
+def test_a_field_with_a_location_or_none_given_is_still_scored() -> None:
+    located = {
+        **baseline_field("ceterms:inLanguage", "English"),
+        "location": "p",
+    }
+    unspecified = baseline_field("ceterms:name", "Main")
+
+    result = match_entity([located, unspecified], record_of(), MODE_EXACT)
+
+    assert outcomes_of(result) == {
+        "ceterms:inLanguage": "missing",
+        "ceterms:name": "missing",
+    }
+    assert result["skipped_implied"] == 0
+
+
 def test_baseline_entities_pair_with_records_in_order() -> None:
     main = record_of(prop("ceterms:name", "Main"), record_id=STEM)
     extra = record_of(
@@ -440,6 +470,30 @@ def test_an_exact_run_counts_outcomes_and_the_exact_rate(
     assert report["exact_match_rate"] == 0.2
     assert report["by_property"]["ceterms:name"]["match"] == 1
     assert report["by_property"]["ceterms:inLanguage"]["missing"] == 1
+
+
+def test_implied_fields_are_counted_but_leave_the_totals_alone(
+    stores: Stores,
+) -> None:
+    implied = {
+        **baseline_field("ceterms:inLanguage", "English"),
+        "location": None,
+    }
+    stores.put_baseline(
+        STEM,
+        [{"fields": [baseline_field("ceterms:name", "Main"), implied]}],
+    )
+    stores.put_record(record_of(prop("ceterms:name", "Main")))
+
+    report = stores.match()
+    table = format_table(report)
+
+    assert report["skipped_implied"] == 1
+    assert report["fields_total"] == 1
+    assert report["exact_match_rate"] == 1.0
+    assert "ceterms:inLanguage" not in report["by_property"]
+    assert report["outliers"] == []
+    assert "1 implied skipped" in table
 
 
 def test_a_report_never_carries_an_average(stores: Stores) -> None:
