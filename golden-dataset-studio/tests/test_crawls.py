@@ -49,8 +49,31 @@ def test_names_come_from_the_seed_url_host():
     assert crawls.short_name("https://www.microsoft.com/en-us/microsoft-learn") == "microsoft"
     assert crawls.display_name("x", "https://cuesta.curriqunet.com/catalog") == "Cuesta"
     assert crawls.display_name("x", "https://catalog.ualr.edu/") == "UALR"
-    assert crawls.display_name("x", "https://cerritos-public.courseleaf.com/") == "Cerritos-Public"
+    assert crawls.display_name("x", "https://cerritos-public.courseleaf.com/") == "Cerritos Public"
+    assert crawls.display_name("x", "https://catalog.canadacollege.edu/current/") == "Canada College"
+    assert crawls.display_name("x", "https://training.uark.edu/portal", "University of Arkansas") == "University of Arkansas"
     assert crawls.display_name("catalog-marshall-edu", "https://catalog.marshall.edu/") == "Marshall"  # configured
+
+
+def test_the_institution_is_read_from_page_titles_and_the_site_name():
+    name = crawls.institution_name
+    # the training portal: titles name the university, the site name says which part of it
+    assert name(["Professional and Workforce Development | University of Arkansas",
+                 "Contract Specialist | Professional and Workforce Development | University of Arkansas"],
+                ["University of Arkansas Professional and Workforce Development"] * 2) == \
+        "University of Arkansas Professional and Workforce Development"
+    # entities in titles, and a generic site name
+    assert name(["Welcome to the University of Arkansas &lt; University of Arkansas",
+                 "Gender Studies (GNST) &lt; University of Arkansas"], ["Academic Catalog"]) == "University of Arkansas"
+    assert name(["West Liberty University&nbsp;-&nbsp;SmartCatalog www.academiccatalog.com",
+                 "West Liberty University&nbsp;-&nbsp;English (B.A.)"], []) == "West Liberty University"
+    assert name(["University of Arkansas - Fort Smith", ""], []) == "University of Arkansas - Fort Smith"
+    assert name(["Citrus College - 2026-2027 Catalog | Citrus College Academic Catalog",
+                 "AUTO 101: Fundamentals | Citrus College Academic Catalog"], ["Citrus College Academic Catalog"]) == \
+        "Citrus College"
+    # platforms that put no name in their titles
+    assert name(["View - CurriQunet META", "View - CurriQunet META"], []) is None
+    assert name(["Academic Calendar", "BIOL 100 - Elementary Human Anatomy and Physiology"], []) is None
 
 
 def test_crawls_root_is_the_container_above_an_azure_prefix(monkeypatch, tmp_path):

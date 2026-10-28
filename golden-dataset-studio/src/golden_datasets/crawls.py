@@ -4,8 +4,9 @@ The crawls root is where xtra-cli writes (`<catalog>/<crawl>/crawl.json + pages/
 when the Studio serves that folder, or the container above the root's prefix on Azure (the Studio's root there is
 `xtra-cli-output/<prefix>`, the crawls are in `xtra-cli-output/`). `GOLDEN_DATASETS_CRAWLS_ROOT` overrides it.
 
-Everything a search row shows comes from `crawl.json`: `seed_url` (the name is read from its host), `finished_at`,
-`pages_saved` and `status`. The Studio never starts a crawl.
+Everything a search row shows comes from the crawl itself: the institution's name from its saved pages (the name
+their titles repeat, or the site name they declare), else from the host of `crawl.json`'s `seed_url`; `finished_at`,
+`pages_saved` and `status` from `crawl.json`. The Studio never starts a crawl.
 
 Adding a catalog copies one crawl's `crawl.json` and `pages/` into the root (server-side on Azure; nothing when
 the crawls root is the root), indexes the pages (`init`), archives their assets, and names the catalog in the
@@ -14,10 +15,12 @@ manifest. It is setup work, so it may list folders; the rest of the Studio never
 
 from __future__ import annotations
 
+import html as htmllib
 import json
 import os
 import re
 import sys
+from collections import Counter
 from concurrent.futures import ThreadPoolExecutor
 from types import SimpleNamespace
 from urllib.parse import urlsplit
@@ -51,13 +54,83 @@ def short_name(seed_url: str) -> str:
     return labels[0] if labels else seed_url
 
 
-def display_name(catalog: str, seed_url: str | None) -> str:
-    """The name on the card: the configured one for the original five, else the short name, capitalized
-    (in capitals when it's 4 letters or fewer: AVC, UALR, Cuesta)."""
+def display_name(catalog: str, seed_url: str | None, institution: str | None = None) -> str:
+    """The name on the card: the configured one for the original five; else the institution's name read from the
+    pages (`institution_name`); else the short name, capitalized (in capitals when it's 4 letters or fewer)."""
     if catalog in CATALOGS:
         return CATALOGS[catalog]["name"]
+    if institution:
+        return institution
     s = short_name(seed_url) if seed_url else catalog
-    return s.upper() if len(s) <= 4 else "-".join(p.capitalize() for p in s.split("-"))
+    if len(s) <= 4:
+        return s.upper()
+    s = re.sub(r"(?<=[a-z])(college|university)$", r"-\1", s)  # canadacollege → Canada College
+    return " ".join(p.capitalize() for p in s.split("-"))
+
+
+# What separates a page's own name from the site's in a <title>: "Gender Studies (GNST) < University of Arkansas",
+# "Contract Specialist | Professional and Workforce Development | University of Arkansas", "X - Lamar Community College".
+TITLE_SEP = re.compile(r"\s*[|<>–—]\s*|\s+-\s+|\u00a0-\u00a0")
+# What a site's name carries that isn't the institution's: the catalog itself, its year, the platform.
+NOISE = re.compile(r"\b(academic\s+)?(catalogs?|bulletins?|addendum|prod)\b|\b\d{4}\s*[-–]\s*\d{2,4}\b|\b20\d\d\b"
+                   r"|smartcatalog\S*|www\.\S+", re.I)
+NOT_A_NAME = re.compile(r"curr?[iq]+[cq]?unet|^(view|home|welcome|search.*|academic calendar)$", re.I)
+INSTITUTION = re.compile(r"\b(university|college|institute|school|district|academy|seminary|polytechnic)\b", re.I)
+
+
+def _clean(text: str) -> str:
+    text = NOISE.sub(" ", htmllib.unescape(text))
+    return re.sub(r"\s+", " ", text).strip(" -–—|:,.\u00a0")
+
+
+def institution_name(titles: list[str], site_names: list[str]) -> str | None:
+    """The institution's name as its pages give it, or None.
+
+    The candidate repeated by the most page titles (a whole title or a part between separators, naming a university,
+    college, …); the site name the pages declare (`og:site_name`) when it says more than that candidate (it contains
+    it) or when the titles name none. "Professional and Workforce Development | University of Arkansas" titles and
+    the site name "University of Arkansas Professional and Workforce Development" give the latter."""
+    counts: Counter = Counter()
+    titles = [htmllib.unescape(t) for t in titles if t]
+    for t in titles:
+        parts = TITLE_SEP.split(t)
+        # the whole title too, unless it's "page | site" ("University of Arkansas - Fort Smith" is one name)
+        for part in {*parts, *([t] if not re.search(r"[|<>–—]", t) else [])}:
+            c = _clean(part)
+            if c and not NOT_A_NAME.search(c) and INSTITUTION.search(c):
+                counts[c] += 1
+    # a name only a few titles carry is a page's name, not the site's
+    need = max(1, (len(titles) + 1) // 2)
+    best = max((c for c in counts if counts[c] >= need), key=lambda c: (counts[c], len(c)), default=None)
+    sites = Counter(c for c in (_clean(htmllib.unescape(s)) for s in site_names)
+                    if len(c) > 2 and not NOT_A_NAME.search(c))
+    site = sites.most_common(1)[0][0] if sites else None
+    if site and (best is None or best.lower() in site.lower()):
+        return site
+    return best
+
+
+_TITLE = re.compile(r"<title[^>]*>(.*?)</title>", re.S | re.I)
+_SITE = re.compile(r"<meta[^>]+property=[\"']og:site_name[\"'][^>]+content=[\"']([^\"']+)", re.I)
+
+
+def read_institution(src: Root, catalog: str, crawl: str, sample: int = 8) -> str | None:
+    """`institution_name` of a few saved pages of a crawl, spread over the first few hundred."""
+    names = [p for p in src.list_first(layout.pages_dir(catalog, crawl), 400) if p.endswith(".html")]
+    if not names:
+        return None
+    picked = names[:: max(1, len(names) // sample)][:sample]
+    titles, sites = [], []
+    for p in picked:
+        try:
+            head = src.read_bytes(p)[:200_000].decode("utf-8", "replace")
+        except FileNotFoundError:
+            continue
+        if m := _TITLE.search(head):
+            titles.append(re.sub(r"\s+", " ", m.group(1)).strip())
+        if m := _SITE.search(head):
+            sites.append(m.group(1))
+    return institution_name(titles, sites)
 
 
 def _crawl_row(src: Root, catalog: str, crawl: str) -> dict | None:
@@ -70,13 +143,20 @@ def _crawl_row(src: Root, catalog: str, crawl: str) -> dict | None:
             "status": doc.get("status") or "incomplete"}
 
 
+_INSTITUTIONS: dict[tuple[str, str, str], str | None] = {}  # (crawls root, catalog, crawl) → name: pages don't change
+
+
 def _catalog_row(src: Root, catalog: str) -> dict | None:
     runs = sorted((d for d in src.list_dirs(catalog) if d[:4].isdigit()), reverse=True)
     crawls = [r for r in (_crawl_row(src, catalog, k) for k in runs) if r]
     if not crawls:
         return None
     latest = crawls[0]
-    return {"catalog": catalog, "name": display_name(catalog, latest["seed_url"]), "seed_url": latest["seed_url"],
+    key = (src.uri, catalog, latest["crawl"])
+    if key not in _INSTITUTIONS and catalog not in CATALOGS:
+        _INSTITUTIONS[key] = read_institution(src, catalog, latest["crawl"])
+    name = display_name(catalog, latest["seed_url"], _INSTITUTIONS.get(key))
+    return {"catalog": catalog, "name": name, "seed_url": latest["seed_url"],
             "crawl": latest["crawl"], "finished_at": latest["finished_at"], "pages": latest["pages"],
             "status": latest["status"], "crawls": crawls}
 
@@ -137,7 +217,9 @@ def add_catalog(root: Root, src: Root, catalog: str, crawl: str | None = None, b
 
     def change(doc: dict) -> None:
         cat = manifest.catalog_entry(doc, catalog)
-        cat.update(name=display_name(catalog, k["seed_url"]), seed_url=k["seed_url"], crawls_root=src.uri,
+        cat.update(name=row["name"] if k is row["crawls"][0] else display_name(
+                       catalog, k["seed_url"], read_institution(src, catalog, crawl)),
+                   seed_url=k["seed_url"], crawls_root=src.uri,
                    added_by=by, added_at=manifest.now_iso())
         doc["catalogs"].sort(key=lambda c: c["name"].lower())
 

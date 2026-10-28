@@ -29,6 +29,19 @@ class Studio:
         self.crawls_root = crawls_root or default_crawls_root(self.root)
         self.adding: dict[str, dict] = {}
 
+    def warm_crawls(self) -> None:
+        """List the crawls once in the background, so Add a catalog opens fast (reading each crawl's name from its
+        pages takes ~15 s the first time)."""
+        def run() -> None:
+            from .routes_crawls import _list
+
+            try:
+                _list(self)
+            except Exception as exc:  # noqa: BLE001 — the modal lists them itself and shows any error
+                print(f"listing crawls: {exc}")
+
+        threading.Thread(target=run, name="warm-crawls", daemon=True).start()
+
     def ctx(self, catalog: str) -> Ctx:
         folder = resolve(catalog)
         with self._lock:

@@ -778,14 +778,14 @@ engine has already crawled can be found here. For a new catalog, ask engineering
 
 - **Where it looks:** the crawls root, `--crawls-root` / `GOLDEN_DATASETS_CRAWLS_ROOT`, else the container above an
   Azure root's prefix (the Studio serves `xtra-cli-output/zz-scratch-review-ui-v3`, the crawls are in
-  `xtra-cli-output/`), else the root itself. The server lists it when the modal opens (about 3 s for 60 catalogs on
-  Azure) and keeps the list for 5 minutes; the picker itself still does no listing.
-- **One row per catalog folder, newest crawl first,** showing its latest crawl. Every column comes from that
-  crawl's `crawl.json`; nothing comes from anywhere else and nobody types anything:
+  `xtra-cli-output/`), else the root itself. The server lists it when it starts and when the modal opens (about 15 s
+  for 60 catalogs on Azure the first time, reading names from pages; then about 3 s) and keeps the list for 5 minutes; the picker itself still does no listing.
+- **One row per catalog folder, newest crawl first,** showing its latest crawl. Every column comes from that crawl
+  itself; nothing comes from anywhere else and nobody types anything:
 
-  | Column | From `crawl.json` |
+  | Column | From the crawl |
   |---|---|
-  | **Catalog**: a name, and the URL under it | `seed_url`. The name is its host's first label that isn't generic (`www`, `catalog`, `catalogs`, `main`, …): `cuesta`.curriqunet.com → Cuesta, catalog.`ualr`.edu → UALR (in capitals at 4 letters or fewer). The original five keep their names |
+  | **Catalog**: the institution's name, and the URL under it | The name its saved pages give (8 pages, read once per crawl): the name that at least half their `<title>`s repeat, as a whole title or a part between separators (`\|`, `<`, `–`, ` - `), naming a university, college, institute, school or district, with "Catalog", "Bulletin" and years removed; or the site name the pages declare (`og:site_name`) when it says more than that (it contains it) or when the titles name nothing. training.uark.edu → "University of Arkansas Professional and Workforce Development", catalog.uark.edu → "University of Arkansas". When the pages give no name (eLumen and CurricUNET titles don't), the host of `crawl.json`'s `seed_url`: its first label that isn't generic (`www`, `catalog`, …), e.g. `cabrillo`.elumenapp.com → Cabrillo (in capitals at 4 letters or fewer). The original five keep their names |
   | **Last crawled** | `finished_at` (else `updated_at`) |
   | **Pages** | `pages_saved` |
   | **Crawl** | `status`: Complete, Hit page limit (`limit_reached`), Not finished (`incomplete`) |

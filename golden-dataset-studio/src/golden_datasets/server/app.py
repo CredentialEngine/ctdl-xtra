@@ -63,5 +63,6 @@ def cmd_serve(args) -> int:
     import uvicorn
 
     app = create_app(args.root, args.azure_root, args.crawls_root)
+    app.state.studio.warm_crawls()
     uvicorn.run(app, host=args.host, port=args.port, log_level="info")
     return 0

@@ -91,6 +91,10 @@ class Root:
         """Every file below `prefix` (relative to the root). Setup commands only: never at run time."""
         raise NotImplementedError
 
+    def list_first(self, prefix: str, n: int) -> list[str]:
+        """Up to `n` files below `prefix`, without listing them all (a crawl can hold 50,000). Setup only."""
+        return self.list(prefix)[:n]
+
     def list_dirs(self, prefix: str) -> list[str]:
         """Names of the immediate sub-folders of `prefix`. Setup commands only."""
         raise NotImplementedError
@@ -346,6 +350,14 @@ class AzureRoot(Root):
         start = (start.rstrip("/") + "/") if start else ""
         cut = len(self.prefix) + 1 if self.prefix else 0
         return sorted(b.name[cut:] for b in self.container.list_blobs(name_starts_with=start))
+
+    def list_first(self, prefix: str, n: int) -> list[str]:
+        import itertools
+
+        start = (self._name(prefix).rstrip("/") + "/") if prefix else (self.prefix + "/" if self.prefix else "")
+        cut = len(self.prefix) + 1 if self.prefix else 0
+        blobs = self.container.list_blobs(name_starts_with=start, results_per_page=n)
+        return [b.name[cut:] for b in itertools.islice(blobs, n)]
 
     def list_dirs(self, prefix: str) -> list[str]:
         start = self._name(prefix) if prefix else self.prefix
