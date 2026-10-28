@@ -134,7 +134,7 @@ def connect(ctx: Ctx) -> duckdb.DuckDBPyConnection:
     for g in golden:
         if not ctx.root.exists(g["path"] + "/lineage.parquet"):
             continue
-        local = ctx.root.local_path(g["path"] + "/lineage.parquet")
+        local = ctx.root.local_path(g["path"] + "/lineage.parquet", mutable=True)  # a version is rewritten per column
         # publications before the rename call the record id golden_id
         old = "golden_id" in pq.read_schema(local).names
         lineage.append(f"SELECT *{' RENAME (golden_id AS golden_record_id)' if old else ''} FROM read_parquet({_q(local)})")

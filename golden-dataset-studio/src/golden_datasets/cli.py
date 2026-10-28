@@ -220,17 +220,25 @@ def build_parser() -> argparse.ArgumentParser:
     _cmd(p, "golden_datasets.prompt:cmd_prompt")
 
     # --- Golden ----------------------------------------------------------------------------------------
-    golden = sub.add_parser("golden", help="golden publication")
+    golden = sub.add_parser("golden", help="golden dataset versions: publish, backfill")
     gsub = golden.add_subparsers(dest="golden_command", metavar="ACTION", required=True)
-    p = gsub.add_parser("publish", help="publish properties to the golden set, one or more at a time (domain-only files + lineage)")
+    to_help = ("golden root: a folder or an azure:// prefix (default: $GOLDEN_DATASETS_GOLDEN_ROOT, else `golden` "
+               "beside a local root, else the xtra-golden-sets container)")
+    p = gsub.add_parser("publish", help="publish properties into the golden dataset of the current ruleset (written "
+                                        "whole: its version folder and the latest location; lineage + golden.parquet)")
     _root_args(p), _catalog_args(p)
-    p.add_argument("--to", required=True, help="golden root: a folder or an azure:// prefix")
+    p.add_argument("--to", default=None, help=to_help)
     p.add_argument("--property", action="append", default=None, metavar="NAME",
                    help="a property to publish, e.g. Description (repeatable; default: every property whose rule is "
-                        "approved). The others keep what earlier publications wrote")
+                        "approved). Columns published earlier in the same ruleset stay")
     p.add_argument("--allow-unapproved", action="store_true",
                    help="testing only: publish a property although its rule isn't approved (recorded in publication.json)")
     _cmd(p, "golden_datasets.golden:cmd_golden_publish")
+    p = gsub.add_parser("backfill", help="rebuild the publications made before versions (pub-…) as golden dataset "
+                                         "versions (ruleset-vN), from their lineage and the immutable extractions")
+    _root_args(p), _catalog_args(p)
+    p.add_argument("--to", default=None, help=to_help)
+    _cmd(p, "golden_datasets.golden:cmd_golden_backfill")
 
     # --- Evals -----------------------------------------------------------------------------------------
     xtra = sub.add_parser("xtra", help="xtra-cli runs the Studio keeps (to evaluate against the golden set)")

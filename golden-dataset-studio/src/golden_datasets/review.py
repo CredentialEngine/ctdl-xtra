@@ -16,6 +16,10 @@ How an old verdict applies to the current row (spec §4.3 "old verdicts carry fo
 Annotations re-attach through `course_key` + page when the occurrence key changed (a changed locator, D3).
 A row's `events` are every verdict and comment on it, whichever ruleset version they were made in: the Sample drawer's
 "Annotated by" and "Annotated in" strata.
+
+Human-reviewed (Evals spec §4.3): only a subject matter expert's verdict makes a value human-reviewed (`RowState.human`).
+An engineer's ✓ is recorded and shown as engineer-checked, waiting for an expert; their ✕ counts against the rule
+like anyone's. An expert's later ✓ supersedes an engineer's; an engineer's later ✓ leaves an expert's standing.
 """
 
 from __future__ import annotations
@@ -28,9 +32,13 @@ from dataclasses import dataclass, field
 from . import facets, layout, model, strata
 from .context import Ctx
 from .log import FULL_NAMES, AnnotationLog
+from .profiles import role_of, roles
 from .signals import SEVERITY_RANK
 
 OPEN = {"wrong", "still-wrong", "missing"}
+#: Row states where a person confirmed the value itself: marked it correct (and it hasn't changed since), or marked
+#: it wrong and selected the right text, which the value now is. From an expert, that makes the value human-reviewed.
+HUMAN_STATES = ("correct", "fixed")
 
 
 def norm(v: str | None) -> str:
@@ -170,13 +178,22 @@ class RowState:
     comments: list = field(default_factory=list)
     events: list = field(default_factory=list)   # every live verdict and comment on the row, oldest first
     history: list = field(default_factory=list)  # history signals: [{"signal", "severity", "detail"}]
+    role: str | None = None           # the verdict's author's role (sme | engineer)
+    human: dict | None = None         # the expert's verdict that makes the value human-reviewed
+
+    @property
+    def engineer_checked(self) -> bool:
+        """Confirmed by someone who isn't an expert: waiting for an expert, still approved by its rule."""
+        return self.state in HUMAN_STATES and self.human is None and self.role != "sme"
 
 
 class Review:
     """A snapshot (+ optional parent snapshot) and the annotation events."""
 
-    def __init__(self, snap: Snapshot, events: list[dict], parent: Snapshot | None = None):
+    def __init__(self, snap: Snapshot, events: list[dict], parent: Snapshot | None = None,
+                 roles: dict[str, str] | None = None):
         self.snap, self.events, self.parent = snap, events, parent
+        self.roles = roles or {}  # name → role (profiles.json), for events without author_role
         superseded = {e["supersedes"] for e in events if e.get("supersedes")}
         self.live = [e for e in events if e["annotation_id"] not in superseded]
         self._states: dict[str, dict] = {}  # rule_id → row states of snap.rows(rule_id) (events are fixed per Review)
@@ -200,10 +217,14 @@ class Review:
                 rules[e["target"]["rule_id"]].append(e)
         return {"ruleset": [e for e in talk if e["target"]["kind"] == "ruleset"], "rules": dict(rules)}
 
+    def role(self, e: dict) -> str | None:
+        return role_of(e, self.roles)
+
     def verdicts_for(self, rule_id: str) -> dict:
-        """Latest verdict, comments and every verdict or comment (`all`) per target of this rule, keyed by
-        occurrence_key / page_stem."""
+        """Latest verdict, latest expert's verdict (`expert`), comments and every verdict or comment (`all`) per
+        target of this rule, keyed by occurrence_key / page_stem."""
         latest: dict = {}
+        expert: dict = {}
         comments = defaultdict(list)
         every = defaultdict(list)
         for e in sorted(self.live, key=lambda x: x["at"]):
@@ -213,12 +234,14 @@ class Review:
             k = self._target_key(e)[1]
             if e["type"] == "verdict":
                 latest[k] = e
+                if self.role(e) == "sme":
+                    expert[k] = e
             elif e["type"] == "comment":
                 comments[k].append(e)
             else:
                 continue
             every[k].append(e)
-        return {"latest": latest, "comments": comments, "all": every}
+        return {"latest": latest, "expert": expert, "comments": comments, "all": every}
 
     def reviewed_elsewhere(self, rule_id: str, rows: list[dict], states: dict[str, RowState]) -> dict[str, list[str]]:
         """Rows of this rule nobody has reviewed yet (no verdict, no comment) whose record someone reviewed in
@@ -253,12 +276,13 @@ class Review:
     def _row_states(self, rule_id: str, rows: list[dict]) -> dict[str, RowState]:
         rule = self.snap.rules[rule_id]
         v = self.verdicts_for(rule_id)
-        latest, comments, every = v["latest"], v["comments"], v["all"]
-        by_course_page = {}
-        for e in latest.values():
-            t = e["target"]
-            if t.get("course_key"):
-                by_course_page[(t["course_key"], t.get("page_stem"))] = e
+        latest, expert, comments, every = v["latest"], v["expert"], v["comments"], v["all"]
+        by_course_page, expert_by_course_page = {}, {}
+        for found, into in ((latest, by_course_page), (expert, expert_by_course_page)):
+            for e in found.values():
+                t = e["target"]
+                if t.get("course_key"):
+                    into[(t["course_key"], t.get("page_stem"))] = e
         # comments and earlier verdicts re-attach the same way, so an older ruleset's annotations stay on the row
         talk_by_course_page: dict[tuple, list] = defaultdict(list)
         every_by_course_page: dict[tuple, list] = defaultdict(list)
@@ -292,6 +316,11 @@ class Review:
             if e is not None:
                 st.verdict = e
                 st.state = self._carry(rule, e, row)
+                st.role = self.role(e)
+                x = e if st.role == "sme" else expert.get(row["key"]) or (
+                    expert_by_course_page.get((row["course_key"], row["page_stem"])) if row.get("course_key") else None)
+                if x is not None and st.state not in OPEN and self._carry(rule, x, row) in HUMAN_STATES:
+                    st.human = x
             if self.parent is not None:
                 if row["key"] not in parent_values and parent_values:
                     st.history.append(_h("new-in-version", f"not in {self.parent.ext}"))
@@ -493,8 +522,12 @@ class Loader:
         rv = self._reviews.get(key)
         if rv is None:
             self._reviews = {k: v for k, v in self._reviews.items() if k[:5] != key[:5]}  # drop older log offsets
-            rv = self._reviews[key] = Review(snap, events, parent)
+            rv = self._reviews[key] = Review(snap, events, parent, roles(ctx.root))  # roles as profiles.json says now
         return rv
+
+    def forget_reviews(self) -> None:
+        """Rebuild every Review on next use (a profile's role changed)."""
+        self._reviews.clear()
 
 
 LOADER = Loader()

@@ -13,10 +13,11 @@ from typing import Annotated
 
 from fastapi import APIRouter, Body, HTTPException, Query, Request
 
-from .. import facets, layout, model
+from .. import facets, golden, layout, model
 from ..catalogs import CATALOGS, info
 from ..errors import UserError
 from ..log import new_id, validate
+from ..profiles import role_of, roles
 from ..review import LOADER, Review
 from .state import not_found, studio
 
@@ -63,8 +64,16 @@ def _event_brief(e: dict | None) -> dict | None:
     if e is None:
         return None
     return {"annotation_id": e["annotation_id"], "type": e["type"], "verdict": e.get("verdict"), "author": e["author"],
-            "at": e["at"], "note": e.get("note"), "expected": e.get("expected"),
+            "author_role": e.get("author_role"), "at": e["at"], "note": e.get("note"), "expected": e.get("expected"),
+            "compared_with": e.get("compared_with"),
             "rule_version_seen": e["target"].get("rule_version_seen"), "value_seen": e["target"].get("value_seen")}
+
+
+def _review_state(s) -> dict:
+    """Whether an expert confirmed the value (human-reviewed), or only an engineer did (waiting for an expert)."""
+    if s is None:
+        return {"human_reviewed": False, "engineer_checked": False, "role": None}
+    return {"human_reviewed": s.human is not None, "engineer_checked": s.engineer_checked, "role": s.role}
 
 
 # =====================================================================================================
@@ -308,7 +317,7 @@ lists the rows someone marked or commented on in any ruleset version (tagged wit
                     "page_stem": r["page_stem"], "url": p["url"], "page_title": p["title"], "value": r["value"],
                     "status": r["status"], "css_path": r["css_path"], "char_start": r["char_start"],
                     "char_end": r["char_end"], "occurrence_css_path": r["occurrence_css_path"],
-                    "context": r["context"], "state": s.state, "verdict": _event_brief(s.verdict),
+                    "context": r["context"], "state": s.state, "verdict": _event_brief(s.verdict), **_review_state(s),
                     "reattached": s.reattached, "comments": [_event_brief(c) for c in s.comments],
                     "signal_count": len(r["signals"]) + len(s.history),
                     "group": group.get(r["key"]) if order == "review" and not filters else None,
@@ -427,6 +436,7 @@ def course(request: Request, catalog: str, course_key: str, ext: str | None = No
                            "ctdl_property": r.get("ctdl_property"), "value": m["value"], "status": m["status"],
                            "css_path": m["full_css_path"], "char_start": m["char_start"], "char_end": m["char_end"],
                            "state": s.state if s else None, "verdict": _event_brief(s.verdict) if s else None,
+                           **_review_state(s),
                            "comments": [_event_brief(c) for c in s.comments] if s else []})
         p = snap.page[o["page_stem"]]
         out.append({"occurrence_key": o["occurrence_key"], "page_stem": o["page_stem"], "url": p["url"],
@@ -442,7 +452,8 @@ def course(request: Request, catalog: str, course_key: str, ext: str | None = No
 def add_annotation(request: Request, catalog: str, event: Annotated[dict, Body()]) -> dict:
     """Append one event (verdict · comment · approve · reopen). The server assigns the id and the time and fills
     the target from the current extraction; the client sends type, author, target {kind, rule_id, key…},
-    verdict, expected, note, supersedes."""
+    verdict, expected, note, supersedes, and optionally author_role (else the author's profile says it) and
+    compared_with. A verdict on a value rewrites its page's file in the latest golden dataset (Evals spec §4.3)."""
     t0 = time.perf_counter()
     rv = _review(request, catalog, event.get("extraction"))
     snap = rv.snap
@@ -478,6 +489,11 @@ def add_annotation(request: Request, catalog: str, event: Annotated[dict, Body()
             "supersedes": event.get("supersedes")}
     if event.get("topic"):
         full["topic"] = event["topic"]
+    role = event.get("author_role") or role_of(full, roles(ctx.root))
+    if role:
+        full["author_role"] = role
+    if event.get("compared_with") is not None:
+        full["compared_with"] = event["compared_with"]
     if full["type"] == "approve":
         st = rv.rule_status(rid)
         if st["open_wrong"] or st["open_missing"]:
@@ -490,7 +506,14 @@ def add_annotation(request: Request, catalog: str, event: Annotated[dict, Body()
     log.append(full)
     log.refresh()
     rv2 = _review(request, catalog, snap.ext)
-    return {"event": full, "rule": _rule_summary(rv2, rid) if rid else None,
+    published = None
+    if full["type"] == "verdict" and kind == "match":
+        try:  # the verdict is saved either way; say if its page's golden file couldn't be rewritten
+            published = golden.publish_page(ctx, t["page_stem"], f"{full['author']} marked {rid} {full['verdict']}",
+                                            f"{full['author']} via the Studio UI", create=role == "sme")
+        except (OSError, UserError) as exc:
+            published = {"error": str(exc)}
+    return {"event": full, "rule": _rule_summary(rv2, rid) if rid else None, "published": published,
             "elapsed_ms": round(1000 * (time.perf_counter() - t0), 1)}
 
 

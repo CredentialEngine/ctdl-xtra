@@ -4,7 +4,8 @@
     <root>/<catalog>/golden-dataset-studio/{rules/<rule_id>/vNNNN.json, rulesets/vNNNN.json, annotations.jsonl,
                                           agent-runs/}
     <root>/<catalog>/<crawl>/{crawl.json, pages/}                                  read-only (xtra-cli)
-    <root>/<catalog>/<crawl>/golden-dataset-studio/{pages.parquet, assets/, extractions/<id>/, golden/<pub>/}
+    <root>/<catalog>/<crawl>/golden-dataset-studio/{pages.parquet, assets/, extractions/<id>/, golden/ruleset-vN/,
+                                                   scores/pending.json}
 """
 
 from __future__ import annotations
@@ -85,6 +86,11 @@ def extraction_file(catalog: str, crawl: str, extraction: str, table: str) -> st
 
 def golden_dir(catalog: str, crawl: str, publication: str) -> str:
     return f"{crawl_dir(catalog, crawl)}/golden/{publication}"
+
+
+def pending_score(catalog: str, crawl: str) -> str:
+    """{due_at, reason}: a score due 5 minutes after the last review (Evals spec §4.3)."""
+    return f"{crawl_dir(catalog, crawl)}/scores/pending.json"
 
 
 EXTRACTION_TABLES = ("page_labels", "occurrences", "matches", "signals")

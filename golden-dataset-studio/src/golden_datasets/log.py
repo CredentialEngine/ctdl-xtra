@@ -1,6 +1,8 @@
 """The append-only annotation log, `<catalog>/golden-dataset-studio/annotations.jsonl` (spec §4.1, §4.3).
 
 People only ever append to it; nothing in it is edited. An edit is a new event whose `supersedes` names the old one.
+Two optional fields pass through untouched (Evals spec §4.2, §4.3): `author_role` (`sme` | `engineer`: the author's
+role when they wrote it) and `compared_with` (what a note on a diff was compared with).
 Readers keep the byte offset they have read up to and fetch only what was appended since (spec §10).
 """
 
@@ -17,6 +19,7 @@ VERDICTS = {"correct", "wrong", "missing", "question"}
 TARGET_KINDS = {"match", "occurrence", "page", "rule", "ruleset"}
 #: What a comment on a whole rule or on the ruleset is about (Rules tab sidebar).
 TOPICS = {"new-rule", "approach", "question-rule", "other"}
+AUTHOR_ROLES = {"sme", "engineer"}
 #: The first profiles were first names only (and misspelled Nicolas): events they wrote keep those names as `author`,
 #: so whoever reads an author by person (profiles, "Annotated by") maps them to the full names.
 FULL_NAMES = {"Jared": "Jared Diener", "Cadence": "Cadence Calixto", "Nicholas": "Nicolas Soto",
@@ -43,6 +46,10 @@ def validate(event: dict) -> None:
         raise ValueError(f"topic is for comments, one of {sorted(TOPICS)}")
     if event["type"] == "verdict" and event["verdict"] == "missing" and target["kind"] not in ("occurrence", "page"):
         raise ValueError("'missing' applies only to record locators (occurrence) and page rules (page)")
+    if event.get("author_role") is not None and event["author_role"] not in AUTHOR_ROLES:
+        raise ValueError(f"author_role must be one of {sorted(AUTHOR_ROLES)}")
+    if event.get("compared_with") is not None and not isinstance(event["compared_with"], dict):
+        raise ValueError("compared_with must be an object")
     for key in ("annotation_id", "at", "author"):
         if not event.get(key):
             raise ValueError(f"event needs {key}")

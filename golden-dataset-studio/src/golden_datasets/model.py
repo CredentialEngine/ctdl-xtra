@@ -76,6 +76,14 @@ LINEAGE = pa.schema([
     ("match_value_index", pa.int32()), ("annotation_ids", pa.list_(pa.string())),
     ("approval", pa.string()), ("approved_by", pa.string()), ("approved_at", pa.string()),
 ])
+# One row per value of a golden dataset version (golden.parquet): what its page files hold, in one read (Evals §4.1).
+GOLDEN = pa.schema([
+    ("catalog", pa.string()), ("crawl", pa.string()), ("stem", pa.string()), ("golden_record_id", pa.string()),
+    ("property", pa.string()), ("ctdl_property", pa.string()), ("value_index", pa.int32()), ("value", pa.string()),
+    ("source_url", pa.string()),
+    ("location", pa.struct([("css_path", pa.string()), ("char_start", pa.int32()), ("char_end", pa.int32())])),
+    ("approval", pa.string()), ("approved_by", pa.string()), ("approved_at", pa.string()),
+])
 # One row per golden field of an eval (evals.py): the golden value, xtra's value, and the scorer's outcome.
 EVAL_FIELDS = pa.schema([
     ("eval", pa.string()), ("golden", pa.string()), ("page_stem", pa.string()), ("entity", pa.int32()),

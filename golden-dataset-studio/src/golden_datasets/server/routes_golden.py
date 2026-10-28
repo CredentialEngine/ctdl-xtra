@@ -1,6 +1,6 @@
 """Publish API (W7): each property and whether it can be published (its field rule approved), what a publication
-of the chosen properties would write (with a preview of each file, merged with what the golden set has), golden_record_id
-collisions, and publishing."""
+of the chosen properties would write (with a preview of each file: the whole golden dataset of the ruleset, never
+merged), golden_record_id collisions, and publishing."""
 
 from __future__ import annotations
 
@@ -73,7 +73,7 @@ def golden_status(request: Request, catalog: str, properties: str | None = None)
     pubs = []
     for g in ctx.crawl_entry().get("golden", []):
         try:
-            doc = ctx.read_json(f"{g['path']}/publication.json")
+            doc = ctx.read_json(f"{g['path']}/publication.json", immutable=False)
         except FileNotFoundError:
             continue
         pubs.append({k: doc.get(k) for k in ("publication", "extraction", "ruleset_version", "published_at",
@@ -110,15 +110,10 @@ def golden_publish(request: Request, catalog: str, body: Annotated[dict, Body()]
 
 @router.get("/catalogs/{catalog}/golden/files/page/{stem}.json")
 def golden_page_json(request: Request, catalog: str, stem: str, properties: str | None = None) -> dict:
-    """The page's file as this publication would write it: the chosen properties from the current extraction,
-    merged with what the golden set already has for the others."""
+    """The page's file as this publication would write it: the chosen properties from the current extraction, and
+    the human-reviewed values."""
     st, ctx, rv = _review(request, catalog)
-    chosen = _props(rv, properties)
-    records = _records(_plan(st, ctx, rv, chosen), stem)
-    from ..storage import open_root
-
-    records = golden.merged_page(open_root(golden.default_target(ctx)), f"{ctx.catalog}/{ctx.crawl}/", stem, records,
-                                 set(chosen))
+    records = _records(_plan(st, ctx, rv, _props(rv, properties)), stem)
     text = golden.page_json(records)
     return {"stem": stem, "records": len(records), "bytes": len(text.encode()), "text": text}
 
@@ -137,7 +132,7 @@ def golden_lineage(request: Request, catalog: str, q: str = "", offset: int = Qu
                    limit: int = Query(100, ge=1, le=500), properties: str | None = None) -> dict:
     """lineage.parquet's rows, as they'd be written: filter by any cell's text, a page of rows at a time."""
     st, ctx, rv = _review(request, catalog)
-    pub = golden.publication_name(ctx, rv)
+    pub = golden.version_name(rv.snap.ruleset_version)
     plan = _plan(st, ctx, rv, _props(rv, properties))
     rows = [{"publication": pub, **r} for r in plan["lineage"]]
     if q:
@@ -156,7 +151,8 @@ def golden_publication_json(request: Request, catalog: str, author: str = "", pr
     p = _plan(st, ctx, rv, chosen)
     ok, statuses = golden.approval(rv)
     by = f"{author} via the Studio UI" if author else "<you> via the Studio UI"
-    doc = golden.publication_doc(ctx, rv, p, golden.publication_name(ctx, rv), golden.default_target(ctx), by, ok,
+    doc = golden.publication_doc(ctx, rv, p, golden.version_name(rv.snap.ruleset_version),
+                                 golden.default_target(ctx), by, ok,
                                  statuses, {"rows": len(p["lineage"]), "sha256": "<computed when written>"}, chosen)
     if len(doc["page_stems"]) > 20:
         doc["page_stems"] = doc["page_stems"][:20] + [f"… {len(p['pages']) - 20:,} more"]

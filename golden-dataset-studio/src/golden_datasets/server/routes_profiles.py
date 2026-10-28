@@ -1,9 +1,9 @@
 """Profiles: who is reviewing, shared by everyone on the same root (the "Who are you?" screen).
 
 There is no login. A profile is a name and a role (`sme`: subject matter expert, or `engineer`); the browser
-remembers which one it is, and events keep recording the name as their `author`. The list lives in
-`golden-dataset-studio/profiles.json` on the root, so a profile one person adds is offered to everyone. It is
-written with the file's ETag, so two people adding a profile at the same moment both land.
+remembers which one it is, and events record the name as their `author` and the role as `author_role`. The list
+lives in `golden-dataset-studio/profiles.json` on the root (profiles.py), so a profile one person adds is offered to
+everyone. It is written with the file's ETag, so two people adding a profile at the same moment both land.
 """
 
 from __future__ import annotations
@@ -12,29 +12,13 @@ from typing import Annotated
 
 from fastapi import APIRouter, Body, HTTPException, Request
 
-from .. import layout
+from .. import profiles as store
 from ..errors import ConflictError
-from ..log import FULL_NAMES as RENAMED
+from ..review import LOADER
 from .state import studio
 
 router = APIRouter(prefix="/api")
-PATH = f"{layout.STUDIO}/profiles.json"
-ROLES = ("sme", "engineer")
-DEFAULT = [("Jared Diener", "sme"), ("Cadence Calixto", "sme"), ("Nicolas Soto", "engineer"),
-           ("Rohit Joy", "engineer"), ("Eric Riddoch", "engineer"), ("Seth Alt", "engineer")]
-# The first defaults were first names only (and misspelled Nicolas); a saved list is read with their full names.
-
-
-def _read(root) -> tuple[list[dict], str | None]:
-    st = root.stat(PATH)
-    if st is None:
-        return [{"name": n, "role": r} for n, r in DEFAULT], None
-    items = root.read_json(PATH)["profiles"]
-    names = {p["name"] for p in items}
-    for p in items:
-        if RENAMED.get(p["name"]) not in (None, *names):
-            p["name"] = RENAMED[p["name"]]
-    return items, st.etag
+PATH, ROLES, DEFAULT, _read = store.PATH, store.ROLES, store.DEFAULT, store.read
 
 
 @router.get("/profiles")
@@ -65,6 +49,7 @@ def save_profile(request: Request, body: Annotated[dict, Body()]) -> dict:
                 root.write_json(PATH, {"profiles": items}, if_none_match=True)
             else:
                 root.write_json(PATH, {"profiles": items}, if_match=etag)
+            LOADER.forget_reviews()  # a role changed: whose checks are human-reviewed changes with it
             return {"profile": found, "profiles": items}
         except ConflictError:
             continue  # someone else saved in between: read again and reapply

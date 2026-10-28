@@ -65,7 +65,17 @@ golden-datasets rule publish draft.json -c avc     # refused if a value marked c
 5. Jared approves the rule or annotates again. When every rule is approved, **Golden** publishes.
 
 ```sh
-golden-datasets golden publish -c avc --to <golden root>   # existing xtra-golden-sets-verified shape + location + golden_id
+golden-datasets golden publish -c avc --property Description   # into ruleset vN's golden dataset, written whole
+golden-datasets golden backfill -c avc     # once: publications from before versions (pub-…) → ruleset-vN
+```
+
+A golden dataset's ID is its ruleset's (`ruleset-v3`). Each version is kept at
+`<golden root>/catalogs/<catalog>/versions/ruleset-vN/<catalog>/<crawl>/`, and the latest replaces
+`<golden root>/<catalog>/<crawl>/` page by page. The golden root defaults to `.data/golden` beside a local root
+(`$GOLDEN_DATASETS_GOLDEN_ROOT` overrides; an Azure root publishes to `xtra-golden-sets`). An expert's verdict rewrites
+that page's file in both places at once (human-reviewed values, any column) and writes `scores/pending.json`.
+
+```sh
 golden-datasets sql -c avc "SELECT rule_id, count(*) FROM matches_latest WHERE status <> 'found' GROUP BY 1"
 ```
 

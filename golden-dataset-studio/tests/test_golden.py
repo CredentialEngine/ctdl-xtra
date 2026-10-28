@@ -1,5 +1,6 @@
 """Golden publication on a copy of the AVC demo root (ruleset v1 → v2): the gate, the existing per-page shape plus
-`golden_record_id` and `location`, lineage complete and domain-only output (spec §5.6, §7.6). Marked `slow`."""
+`golden_record_id` and `location`, lineage complete and domain-only output (spec §5.6, §7.6). Marked `slow`.
+Versions and human-reviewed values on a small catalog: test_golden_versions.py."""
 
 from __future__ import annotations
 
@@ -42,13 +43,15 @@ def test_a_property_is_published_once_its_rule_is_approved(ctx, tmp_path):
 def test_properties_published_one_at_a_time_add_up(ctx, tmp_path):
     out = tmp_path / "steps"
     first = golden.publish(ctx, str(out), "test", allow_unapproved=True, properties=["Description"])
-    stem = next(s for s in first["page_stems"] if "course-geog222-" in s)
-    read = lambda: json.loads((out / first["to_prefix"] / stem / f"{stem}.json").read_text())  # noqa: E731
-    assert [f["property"] for f in read()[0]["fields"]] == ["Description"]
+    stem = next(s for s in first["page_stems"] if "course-abdy112-" in s)  # nobody reviewed ABDY112
+    read = lambda: {f["property"] for f in json.loads(  # noqa: E731
+        (out / first["to_prefix"] / stem / f"{stem}.json").read_text())[0]["fields"]}
+    assert "Description" in read() and "Learning Opportunity Name" not in read()  # (+ columns approved earlier)
     golden.publish(ctx, str(out), "test", allow_unapproved=True, properties=["Learning Opportunity Name"])
-    assert [f["property"] for f in read()[0]["fields"]] == ["Learning Opportunity Name", "Description"]
-    golden.publish(ctx, str(out), "test", allow_unapproved=True, properties=["Description"])  # again: Name stays
-    assert [f["property"] for f in read()[0]["fields"]] == ["Learning Opportunity Name", "Description"]
+    both = read()
+    assert {"Learning Opportunity Name", "Description"} <= both
+    golden.publish(ctx, str(out), "test", allow_unapproved=True, properties=["Description"])  # columns only grow
+    assert read() == both
     owner = golden.published_properties(Ctx(ctx.root, "avc"), str(out))
     assert set(owner) >= {"Description", "Learning Opportunity Name"}
     results = check.run(Ctx(ctx.root, "avc"))
@@ -105,7 +108,7 @@ def test_golden_api_blocks_publish_until_approved(ctx):
     assert sum(r["status"] == "approved" for r in d["rules"]) == 5
     assert [p["property"] for p in d["properties"]][:2] == ["Coded Notation", "External Identifier"]
     assert d["chosen"] == ["Subject Webpage", "Learning Type", "Life Cycle Status Type", "Language"]
-    assert d["target"] == f"{golden.GOLDEN_CONTAINER}/avc-elumenapp-com-catalog-2026-27-welcome/2026-10-12T20-59-13Z/"
+    assert d["target"] == f"{golden.default_target(ctx)}/avc-elumenapp-com-catalog-2026-27-welcome/2026-10-12T20-59-13Z/"
     assert golden.GOLDEN_CONTAINER.endswith("/xtra-golden-sets")
     assert c.post("/api/catalogs/avc/golden/publish", json={"author": "Test"}).status_code == 400  # no property
     r = c.post("/api/catalogs/avc/golden/publish", json={"author": "Test", "properties": ["Description"]})
