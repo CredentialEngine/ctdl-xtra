@@ -8,7 +8,9 @@ after each. Nothing is pushed. Local data only: never write to the shared Azure 
 ```
 xtra-golden-sets/                                       (golden root; local dev: .data/golden)
 ├── <catalog>/<crawl>/<stem>/<stem>.json                latest golden dataset, replaced per page, never merged
-└── catalogs/<catalog>/versions/ruleset-vN/<catalog>/<crawl>/<stem>/<stem>.json
+└── catalogs/<catalog>/versions/ruleset-vN/
+    ├── rule-matched/<catalog>/<crawl>/<stem>/<stem>.json     every value (the latest location mirrors this)
+    └── human-reviewed/<catalog>/<crawl>/<stem>/<stem>.json   approval: human values only
 
 <studio root>/<catalog>/<crawl>/golden-dataset-studio/
 ├── golden/ruleset-vN/{publication.json, lineage.parquet, golden.parquet}

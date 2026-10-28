@@ -158,14 +158,22 @@ POC's design ([`poc.md`](poc.md)). **Mockups (§6) come first: review them befor
     reads:
 
     ```
-    xtra-golden-sets/catalogs/<catalog>/versions/ruleset-v3/<catalog>/<crawl>/<stem>/<stem>.json
+    xtra-golden-sets/catalogs/<catalog>/versions/ruleset-v3/rule-matched/<catalog>/<crawl>/<stem>/<stem>.json
+    xtra-golden-sets/catalogs/<catalog>/versions/ruleset-v3/human-reviewed/<catalog>/<crawl>/<stem>/<stem>.json
     ```
+
+    **Two parallel trees per version** (Eric, 2026-10-28): `rule-matched/` holds every value (rule-matched and
+    human-reviewed); `human-reviewed/` holds only the `approval: human` values, and only pages and records that have
+    one. Same layout, so `xtra score` scores either by pointing `--baseline-uri` at it, and the Studio's two results
+    are exactly those two commands.
 
     The catalog is the outer level and versions sit inside it (Eric, 2026-10-28). `xtra score` always reads
     `{baseline-uri}/{catalog}/{crawl}/{stem}/{stem}.json`, which is why the catalog appears again inside the version.
     So an engineer can score against any version with the standard command (`--baseline-uri
-    …/xtra-golden-sets/catalogs/<catalog>/versions/ruleset-v3`).
-  - **`xtra-golden-sets/<catalog>/<crawl>/`** keeps holding the latest version, replaced whole, never merged. Readers
+    …/xtra-golden-sets/catalogs/<catalog>/versions/ruleset-v3/human-reviewed`).
+  - Values with no CTDL term (Learning Type) aren't written to either tree: `xtra score` rejects a `null`
+    `ctdl_property`. The Studio still keeps them.
+  - **`xtra-golden-sets/<catalog>/<crawl>/`** keeps holding the latest version's `rule-matched/` tree, replaced whole, never merged. Readers
     of the current location keep working.
   - **The Studio also keeps a Parquet copy,** `golden/<pub>/golden.parquet` (one row per value, about 1 MB for AVC), so
     Evals can load a version quickly.
@@ -213,14 +221,15 @@ POC's design ([`poc.md`](poc.md)). **Mockups (§6) come first: review them befor
 **Decided 2026-10-28 (rows 44–48).** A human-reviewed value doesn't depend on its rule being right, so it doesn't wait
 for the rule's approval.
 
-- **Same files as today.** A human-reviewed value goes into the golden dataset's page files with `approval: human`, as
-  it does now, in any column, published or not. Nothing new in `xtra-golden-sets`.
+- **Same files as today, plus a subset.** A human-reviewed value goes into the golden dataset's page files with
+  `approval: human`, as it does now, in any column, published or not; it's also in the version's `human-reviewed/`
+  tree (§4.1).
 - **On each expert verdict** (`correct`, or `wrong` with the right text selected), the Studio rebuilds that one page's
-  file from its state and overwrites it (milliseconds: one small JSON file), in the latest location and in the latest
-  version's folder (§4.1). Undoing a verdict takes the value out the same way. If the catalog has no golden dataset yet,
+  file from its state and overwrites it (milliseconds: small JSON files), in the latest location and in both trees of
+  the latest version (§4.1). Undoing a verdict takes the value out the same way. If the catalog has no golden dataset yet,
   the first review creates the current ruleset's.
-- **Two scores, one per side of the switch:** **Human-reviewed** scores only `approval: human` values; **Rule-matched**
-  scores every value in the files. In Evals, with the switch on **Human-reviewed**, the golden side is a chip,
+- **Two scores, one per side of the switch:** **Human-reviewed** scores the `human-reviewed/` tree; **Rule-matched**
+  scores the `rule-matched/` tree. Each is one plain `xtra score` command. In Evals, with the switch on **Human-reviewed**, the golden side is a chip,
   **Human-reviewed values · as of <time>**, instead of the ruleset dropdown.
 - **Re-scoring 5 minutes after the last review, reliably:**
   - each expert verdict writes `scores/pending.json` (`due_at` = now + 5 min, overwritten by the next verdict);
@@ -242,7 +251,7 @@ for the rule's approval.
 | Path | Why |
 |---|---|
 | `xtra-golden-sets/<catalog>/<crawl>/<stem>/<stem>.json` | Where golden values go today. Readers keep working. Always the latest. |
-| `xtra-golden-sets/catalogs/<catalog>/versions/ruleset-vN/<catalog>/<crawl>/…` | One folder per catalog holds all its versions. `<catalog>/<crawl>` repeats because `xtra score` appends it to `--baseline-uri`, so every version scores with the standard command. |
+| `xtra-golden-sets/catalogs/<catalog>/versions/ruleset-vN/{rule-matched,human-reviewed}/<catalog>/<crawl>/…` | One folder per catalog holds all its versions; two parallel trees, the full set and the human-reviewed subset. `<catalog>/<crawl>` repeats because `xtra score` appends it to `--baseline-uri`, so either tree scores with the standard command. |
 | `<crawl>/golden-dataset-studio/golden/ruleset-vN/golden.parquet` | Evals loads a version in one read instead of 1,062 JSON files. |
 | `<crawl>/golden-dataset-studio/scores/sc-NNNN/` | Beside `extractions/`, numbered the same way, immutable once done. |
 | `<crawl>/golden-dataset-studio/scores/pending.json` | A file, not a timer, so the 5-minute delay survives a restart. |

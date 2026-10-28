@@ -236,7 +236,7 @@
     </div>
     <div class="row" style="margin:18px 0 6px;gap:8px"><span class="gchip">human-reviewed · 28 Oct, 3:40 PM</span><span class="muted">vs</span><span class="xchip"><i><b class="x" style="height:8px"></b><b class="p" style="height:4px"></b><b class="m" style="height:2px"></b></i>28 Oct, 11:49 AM<span class="muted" style="font-weight:400">(latest)</span></span></div>
     <div class="row rate" style="margin:4px 0 10px"><b>65%</b><span style="font-weight:600">exact matches</span><span class="hand">human-reviewed</span><span class="muted">49 of 75 values an expert reviewed</span></div>
-    <div class="dev" style="right:28px;top:118px">Human-reviewed = values with approval: human in xtra-golden-sets/avc/&lt;crawl&gt;/. Rule-matched swaps this chip for the ruleset dropdown. Re-scored 5 min after the last review (scores/pending.json).</div>
+    <div class="dev" style="right:28px;top:118px">Human-reviewed = xtra score --baseline-uri …/ruleset-v3/human-reviewed. Rule-matched swaps this chip for the ruleset dropdown. Re-scored 5 min after the last review (scores/pending.json).</div>
     <table class="plain">
       <tr><td style="width:220px;font-weight:600">All columns</td><td><div class="bar"><i class="x" style="flex:49"></i><i class="p" style="flex:22"></i><i class="w" style="flex:4"></i></div></td><td class="pct" style="width:60px;text-align:right">65%</td><td class="muted" style="width:90px;text-align:right">75 values</td></tr>
       <tr><td class="mono">codedNotation</td><td><div class="bar"><i class="x" style="flex:1"></i></div></td><td class="pct" style="text-align:right">100%</td><td class="muted" style="text-align:right">31</td></tr>
@@ -507,7 +507,7 @@ Focus is on the development of nursing skills and basic components of competent 
         <div class="cap">course page · ARTHC 120 - Survey of Art from Prehistory to Gothic</div>
         <div class="who"><span class="eng">✓ engineer-checked</span><b>Eric Riddoch</b><span class="role">engineer</span><span class="muted">· 21 Oct · waiting for an expert</span></div>
       </div>
-      <div class="dev" style="position:static;max-width:none">Confirm = an expert `correct` → rewrite this page's &lt;stem&gt;.json (latest + versions/ruleset-v3) → scores/pending.json due in 5 min</div>
+      <div class="dev" style="position:static;max-width:none">Confirm = an expert `correct` → rewrite this page's &lt;stem&gt;.json (latest + ruleset-v3/rule-matched + ruleset-v3/human-reviewed) → scores/pending.json due in 5 min</div>
     </div>
     <div class="pane">
       <div class="muted" style="font-size:12px;margin-bottom:8px">The saved page, as today</div>
@@ -575,17 +575,18 @@ Focus is on the development of nursing skills and basic components of competent 
   <div class="page">
     <h1 style="margin-bottom:12px">Where files go, and why</h1>
 <div class="tree"><span class="t">xtra-golden-sets/</span>
-├── &lt;catalog&gt;/&lt;crawl&gt;/&lt;stem&gt;/&lt;stem&gt;.json          <span class="c"># where golden values go today; always the latest; readers keep working</span>
-│                                                 <span class="c"># an expert's review rewrites one page's file here (approval: human)</span>
-└── catalogs/&lt;catalog&gt;/versions/ruleset-vN/
-    └── &lt;catalog&gt;/&lt;crawl&gt;/&lt;stem&gt;/&lt;stem&gt;.json      <span class="c"># all a catalog's versions in one folder; catalog/crawl repeats because</span>
-                                                  <span class="c"># xtra score appends it to --baseline-uri, so any version scores as is</span>
+├── &lt;catalog&gt;/&lt;crawl&gt;/&lt;stem&gt;/&lt;stem&gt;.json                    <span class="c"># where golden values go today; the latest rule-matched set; readers keep working</span>
+└── catalogs/&lt;catalog&gt;/versions/ruleset-vN/                 <span class="c"># all a catalog's versions in one folder</span>
+    ├── rule-matched/&lt;catalog&gt;/&lt;crawl&gt;/&lt;stem&gt;/&lt;stem&gt;.json   <span class="c"># every value: rule-matched + human-reviewed</span>
+    └── human-reviewed/&lt;catalog&gt;/&lt;crawl&gt;/&lt;stem&gt;/&lt;stem&gt;.json  <span class="c"># only approval: human values (only pages that have one)</span>
+                                                            <span class="c"># same layout: xtra score --baseline-uri …/ruleset-vN/human-reviewed (or rule-matched)</span>
+                                                            <span class="c"># catalog/crawl repeats because xtra score appends it to --baseline-uri</span>
 
-<span class="t">&lt;catalog&gt;/&lt;crawl&gt;/golden-dataset-studio/</span>          <span class="c"># the Studio's own files, beside the crawl</span>
-├── golden/ruleset-vN/golden.parquet              <span class="c"># Evals reads a version in one read, not 1,062 JSON files</span>
-├── scores/sc-NNNN/{score.json, values.parquet}   <span class="c"># numbered like extractions/rs-NNNN; immutable once done</span>
-├── scores/pending.json                           <span class="c"># {due_at}: a file, not a timer, so the 5-min re-score survives a restart</span>
-└── extract-outputs/&lt;date&gt;/records/               <span class="c"># xtra overwrites its output in place; this copy keeps old outputs scorable</span></div>
+<span class="t">&lt;catalog&gt;/&lt;crawl&gt;/golden-dataset-studio/</span>                    <span class="c"># the Studio's own files, beside the crawl</span>
+├── golden/ruleset-vN/golden.parquet                        <span class="c"># Evals reads a version in one read, not 1,062 JSON files</span>
+├── scores/sc-NNNN/{score.json, values.parquet}             <span class="c"># numbered like extractions/rs-NNNN; immutable once done</span>
+├── scores/pending.json                                     <span class="c"># {due_at}: a file, not a timer, so the 5-min re-score survives a restart</span>
+└── extract-outputs/&lt;date&gt;/records/                         <span class="c"># xtra overwrites its output in place; this copy keeps old outputs scorable</span></div>
   </div>
 </section>
 
