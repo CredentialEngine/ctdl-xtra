@@ -209,8 +209,9 @@ class Markup:
     tabs_evidence: str = ""
     outcomes_evidence: str = ""
     content_text: str = ""
-    # The text of the page's main content, including its sidebars. Course
-    # codes that appear only in the site's menu, not in here, are ignored.
+    # The text of the page's main content, including its sidebars.
+    # We are skipping and ignoring the course codes that appear only
+    # in the site's menu.
     main_text: str = ""
     content_headings: list[str] = field(default_factory=list)
     list_items: list[str] = field(default_factory=list)
