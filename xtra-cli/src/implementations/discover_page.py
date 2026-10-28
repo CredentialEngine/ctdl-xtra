@@ -717,7 +717,6 @@ def course_label(
     blocks: int,
     codes: int,
     program: ProgramEvidence,
-    cited: set[str] | frozenset[str] = frozenset(),
 ) -> str | None:
     """Why this page is a run of course descriptions, or None.
 
@@ -726,21 +725,10 @@ def course_label(
     the platform marked the requirement list up; otherwise the printed
     structure and the URL do: /programs/ARCH.AS lists fifteen courses and
     describes none of them.
-
-    `cited` is the codes the page only cites while it titles some other
-    course (see described_course_codes). One of those at the top does not
-    name the page's course: Berkeley City College heads its sociology page
-    with "Recommended Preparation: ENGL C1000" and describes SOC 1 to SOC
-    45 under it, in a numbering the course-code rule cannot read, so the
-    one course it can read made the subject read as that course's page.
     """
     code_at_the_top = COURSE_CODE_RE.search(page_head(structure, text))
     lists_its_own_requirements = program.lists_its_own_requirements
-    if (
-        blocks >= 1
-        and code_at_the_top is not None
-        and normalize_course_code(code_at_the_top.group(0)) not in cited
-    ):
+    if blocks >= 1 and code_at_the_top is not None:
         return (
             f"{blocks} course block(s), "
             f"code {code_at_the_top.group(0)} at the top"
@@ -785,7 +773,6 @@ def apply_labels(
     codes: int,
     markers: dict[str, str],
     program: ProgramEvidence,
-    cited: set[str] | frozenset[str] = frozenset(),
 ) -> tuple[list[str], dict[str, str]]:
     """Which entities this page is about, and the evidence for each.
 
@@ -825,7 +812,6 @@ def apply_labels(
             blocks=blocks,
             codes=codes,
             program=program,
-            cited=cited,
         )
         if course is not None:
             labels.append(LABEL_COURSE)
@@ -995,9 +981,6 @@ def profile_page(
         codes=codes,
         markers=markers,
         program=program,
-        # A page that titles no course is read as it always was, so only
-        # one that titles some has codes that are merely cited.
-        cited=(described - titled) if titled else frozenset(),
     )
     return PageProfile(
         url=url,

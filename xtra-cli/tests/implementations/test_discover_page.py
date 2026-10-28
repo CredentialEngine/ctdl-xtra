@@ -923,28 +923,6 @@ def test_a_code_printed_in_the_pages_own_aside_still_counts() -> None:
     assert profile.labels == ["Course"]
 
 
-def test_a_page_headed_by_a_cited_course_is_not_that_courses_page() -> None:
-    """Berkeley City College's sociology page, as the rules can read it.
-
-    It describes SOC 1 to SOC 45, which the course-code rule cannot read,
-    and SOC 120, which it can. Its head names ENGL C1000 only as a
-    recommended preparation, so the one course it titles is not the one
-    at its top, and it is not that course's page.
-    """
-    profile = page(
-        "<title>View - CurriQunet META</title>"
-        "<main><h2>SOC-Sociology</h2>"
-        "<p>SOC 1</p><p>Introduction to Sociology</p>"
-        "<p>3 Units, 3 hours lecture</p>"
-        "<p>Recommended Preparation: ENGL C1000 or ENGL 001AS</p>"
-        "<p>SOC 120</p><p>Sociology of Race and Ethnicity</p><p>3 Units</p>"
-        "</main>",
-        url="https://bcc.curriqunet.com/catalog/iq/39665/39707",
-    )
-    assert profile.course_block_count == 1
-    assert "Course" not in profile.labels
-
-
 def test_codes_under_a_courses_path_need_no_block_to_be_a_listing() -> None:
     """City College of San Francisco prints units as "(6.5)".
 
