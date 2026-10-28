@@ -209,13 +209,8 @@ class Markup:
     tabs_evidence: str = ""
     outcomes_evidence: str = ""
     content_text: str = ""
-    # Everything the main container prints, its own sidebars included, and
-    # empty when the page has no main container. content_text drops an
-    # <aside> inside <main> as furniture; this keeps it, because Arapahoe
-    # prints a course's credits there. What it is for is the opposite
-    # question: which codes the page prints only outside its container.
-    # eLumen prints its whole catalog menu, every course in it, beside
-    # <main> on every page.
+    # The text of the page's main content, including its sidebars. Course
+    # codes that appear only in the site's menu, not in here, are ignored.
     main_text: str = ""
     content_headings: list[str] = field(default_factory=list)
     list_items: list[str] = field(default_factory=list)
