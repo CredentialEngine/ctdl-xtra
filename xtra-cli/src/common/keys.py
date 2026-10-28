@@ -123,8 +123,12 @@ def extract_report_key(catalog_folder: str, run_id: str) -> str:
     return f"{run_prefix(catalog_folder, run_id)}/extract-report.json"
 
 
+def records_prefix(catalog_folder: str, run_id: str) -> str:
+    return f"{run_prefix(catalog_folder, run_id)}/records"
+
+
 def record_key(catalog_folder: str, run_id: str, record_id: str) -> str:
-    return f"{run_prefix(catalog_folder, run_id)}/records/{record_id}.json"
+    return f"{records_prefix(catalog_folder, run_id)}/{record_id}.json"
 
 
 def jsonld_key(catalog_folder: str, run_id: str, record_id: str) -> str:
@@ -133,3 +137,23 @@ def jsonld_key(catalog_folder: str, run_id: str, record_id: str) -> str:
 
 def expected_key(catalog_folder: str, run_id: str, record_id: str) -> str:
     return f"{run_prefix(catalog_folder, run_id)}/expected/{record_id}.json"
+
+
+def extraction_match_report_key(
+    catalog_folder: str, run_id: str, mode: str
+) -> str:
+    """Beside records/ for the same reason as the extract report."""
+    return (
+        f"{run_prefix(catalog_folder, run_id)}"
+        f"/extraction-match-{mode}-report.json"
+    )
+
+
+def baseline_run_prefix(catalog_folder: str, run_id: str) -> str:
+    """Where the baseline files of one run live, in the baseline container."""
+    return run_prefix(catalog_folder, run_id)
+
+
+def baseline_record_key(catalog_folder: str, run_id: str, stem: str) -> str:
+    prefix = baseline_run_prefix(catalog_folder, run_id)
+    return f"{prefix}/{stem}/{stem}.json"

@@ -4,8 +4,11 @@ import pytest
 
 from implementations.discover_rules import (
     AWARD_DECLARATION_RE,
+    COMBINED_REQUISITE_RE,
+    COURSE_FIELD_LABELS,
     COURSE_TITLE_RE,
     COURSE_URL_RE,
+    CREDIT_UNIT_RE,
     CREDIT_VALUE_RE,
     EMPTY_OR_ERROR_RE,
     LABEL_CREDENTIAL,
@@ -13,8 +16,17 @@ from implementations.discover_rules import (
     LECTURE_LAB_CREDIT_RE,
     MARKER_MEANING,
     MARKER_NAMES,
+    NO_PREREQUISITE_RE,
+    PLATFORM_ASSET_RE,
+    PLATFORM_MARKUP_RE,
+    PLATFORM_NAMES,
+    PLATFORM_TEXT_RE,
+    PLATFORM_WEAK,
     PREREQ_COREQ_COMBINED_RE,
+    PREREQUISITE_LABEL_RE,
     REQUIREMENTS_HEADING_RE,
+    REQUISITE_LEAD_RE,
+    SENTENCE_END_RE,
     TOTAL_CREDITS_RE,
     award_in_heading,
     award_in_intro,
@@ -24,6 +36,7 @@ from implementations.discover_rules import (
     course_block_count,
     course_codes,
     credential_award,
+    described_course_codes,
     distinct_awards,
     evidence,
     has_program_structure,
@@ -31,6 +44,7 @@ from implementations.discover_rules import (
     is_contact_line,
     is_outcome_statement,
     is_outcomes_lead_in,
+    line_opening_codes,
     names_a_listing,
     names_an_organization_or_policy,
     normalize_course_code,
@@ -40,6 +54,7 @@ from implementations.discover_rules import (
     program_terms,
     singular_award,
     specific_award,
+    split_course_title,
     total_credits_line,
     url_label,
     url_template,
@@ -128,6 +143,46 @@ def test_a_qualifier_between_the_noun_and_the_value_is_still_a_value(
     assert CREDIT_VALUE_RE.search(printed), printed
 
 
+@pytest.mark.parametrize(
+    ("line", "credits", "unit"),
+    [
+        (
+            "BREW 55703. Production Design and Analysis of Beer. 3 Hours.",
+            "3",
+            "Hours",
+        ),
+        ("ASTR 50303. Variable Topics. 1-6 Hour.", "1-6", "Hour"),
+        ("ASTR 50303. Seminar.", "", ""),
+    ],
+)
+def test_a_course_block_title_gives_its_credits_and_their_unit(
+    line: str, credits: str, unit: str
+) -> None:
+    assert split_course_title(line)[2:] == (credits, unit)
+
+
+@pytest.mark.parametrize(
+    ("label", "unit"),
+    [
+        ("Credits", "Credits"),
+        ("Credit:", "Credit"),
+        ("Credit Hours", "Credit Hours"),
+        ("Credit Hour", "Credit Hour"),
+        ("CREDIT HOURS MIN:", "CREDIT HOURS"),
+        ("Units", "Units"),
+        ("Unit", "Unit"),
+        ("Semester Hours", "Semester Hours"),
+        ("Credits.", "Credits"),
+    ],
+)
+def test_a_credits_label_names_its_unit_as_printed(
+    label: str, unit: str
+) -> None:
+    match = CREDIT_UNIT_RE.search(label)
+    assert match is not None
+    assert match.group(0) == unit
+
+
 def test_a_course_block_needs_a_code_and_a_value_near_it() -> None:
     assert course_block_count("ENGL 101 Composition I\nCredits\n3") == 1
     assert course_block_count("See ENGL 101 for details.") == 0
@@ -152,6 +207,118 @@ def test_a_combined_heading_is_recognised_in_its_usual_spellings() -> None:
         "Pre-requisite or Co-requisite",
     ):
         assert PREREQ_COREQ_COMBINED_RE.search(heading), heading
+
+
+@pytest.mark.parametrize(
+    "label",
+    [
+        "Prerequisite",
+        "Prerequisites:",
+        "Prerequisite(s):",
+        "PREREQUISITES",
+        "Pre-requisite",
+        "Pre requisites",
+        "Prereq",
+    ],
+)
+def test_a_prerequisite_label_is_read_in_every_spelling_catalogs_print(
+    label: str,
+) -> None:
+    assert PREREQUISITE_LABEL_RE.fullmatch(label)
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "Recommended Prerequisite",
+        "Prerequisite Courses",
+        "Prerequisite/Corequisite",
+        "Prerequisite: ENGL 101",
+        "prerequisite skills",
+    ],
+)
+def test_text_that_only_names_a_prerequisite_is_no_label(text: str) -> None:
+    assert not PREREQUISITE_LABEL_RE.fullmatch(text)
+
+
+@pytest.mark.parametrize(
+    "label",
+    [
+        "Prerequisite/Corequisite",
+        "Prerequisite and/or Corequisite",
+        "Prerequisite or Corequisite",
+        "Prerequisite & Corequisite",
+        "Prerequisite(s) and Corequisite(s)",
+        "Pre/Corequisite",
+        "Pre- or Co-requisite",
+    ],
+)
+def test_a_label_naming_both_relations_is_known_however_it_is_cut(
+    label: str,
+) -> None:
+    """Discovery's combined marker misses the shortened first word."""
+    assert COMBINED_REQUISITE_RE.fullmatch(label)
+
+
+@pytest.mark.parametrize(
+    ("text", "none"),
+    [
+        ("None", True),
+        ("None.", True),
+        ("N/A", True),
+        ("No prerequisites", True),
+        ("None required.", True),
+        ("None of the above", False),
+        ("Nonetheless, ENGL 101", False),
+    ],
+)
+def test_a_prerequisite_printed_as_none_says_there_is_none(
+    text: str, none: bool
+) -> None:
+    assert bool(NO_PREREQUISITE_RE.fullmatch(text)) is none
+
+
+def test_every_requisite_label_in_a_run_is_found() -> None:
+    """eLumen prints the requisites as one run; each label ends the last."""
+    line = (
+        "Limitation on Enrollment: Must be selected. Recommended "
+        "Prerequisite: MATH 50. Prerequisite: Completion of PSY 301. "
+        "Corequisite: Concurrent enrollment in AFMT 330."
+    )
+    assert [lead.group(0) for lead in REQUISITE_LEAD_RE.finditer(line)] == [
+        "Limitation on Enrollment:",
+        "Recommended Prerequisite:",
+        "Prerequisite:",
+        "Corequisite:",
+    ]
+
+
+@pytest.mark.parametrize(
+    ("text", "sentence"),
+    [
+        ("Completion of AM 135A. Fee required.", "Completion of AM 135A."),
+        ("Completion of ART 113. Fee required.", "Completion of ART 113."),
+        ("Proof of U.S. citizenship. Then more.", "Proof of U.S. citizenship."),
+    ],
+)
+def test_a_sentence_ends_at_a_full_stop_but_not_after_an_initial(
+    text: str, sentence: str
+) -> None:
+    end = SENTENCE_END_RE.search(text)
+    assert end is not None
+    assert text[: end.start() + 1] == sentence
+
+
+def test_every_prerequisite_field_label_is_a_prerequisite_label() -> None:
+    """The label table and the label reading agree on what a label is.
+
+    "Prerequisite Courses" is not in the table: it lists the courses a
+    statement names, and Clean Catalog prints it before the statement.
+    """
+    for label, field in COURSE_FIELD_LABELS.items():
+        if field == "course_prerequisites":
+            assert PREREQUISITE_LABEL_RE.fullmatch(label), label
+    assert "prerequisite courses" not in COURSE_FIELD_LABELS
 
 
 def test_the_word_as_is_not_a_degree() -> None:
@@ -235,6 +402,67 @@ def test_one_course_printed_twice_is_still_one_block() -> None:
     assert course_block_count(breadcrumb_then_heading) == 1
     assert course_block_count("ENGL 101\nCredits 3\nENGL101\nCredits 3") == 1
     assert course_block_count("ENGL 101\nCredits 3\nENGL 102\nCredits 3") == 2
+
+
+def test_a_code_after_a_label_or_in_a_sentence_is_a_reference() -> None:
+    """eLumen prints "Minimum Credit Units" under every description.
+
+    Every code in the description then has a value within reach, so at
+    Antelope Valley the prerequisite, the course's old number and its
+    C-ID each read as one more course on the page, and extraction skipped
+    the page as holding four. A course the page describes is printed as a
+    title, its code opening the line; the rest are references to others.
+    """
+    page = (
+        "Basic Auto Body Repair\nABDY 112:\n5.0 Units\n"
+        "Prerequisite: Completion of AM 135A.\n"
+        "Formerly ENGL 103\n"
+        "(C-ID: ENGL 105) (UC, CSU, AVC)\n"
+        "Minimum Credit Units\n5.0"
+    )
+    described, titled = described_course_codes(page)
+    assert described == {"ABDY112", "AM135A", "ENGL103", "ENGL105"}
+    assert titled == {"ABDY112"}
+    assert course_block_count(page) == 1
+
+
+def test_a_page_that_titles_no_course_is_counted_as_before() -> None:
+    """Front Range prints a long description between title and credits.
+
+    The course's own code is too far from its credits to count, and only
+    the code a sentence cites is near them. Counting titles alone there
+    would count nothing, and the course page would lose its course.
+    """
+    page = (
+        "AIR 2002 Development of Air Power II\n"
+        + "Covers the doctrine of air power. " * 15
+        + "\nThis is a continuation of AIR 2001.\nCredits\n1"
+    )
+    described, titled = described_course_codes(page)
+    assert (described, titled) == ({"AIR2001"}, set())
+    assert course_block_count(page) == 1
+
+
+def test_a_code_titled_only_in_the_menu_is_not_titled_on_the_page() -> None:
+    """`titles` is the codes the page's own text prints as titles.
+
+    eLumen's menu lists CHEM 110 on a line of its own, just above a
+    certificate whose name ends "(12 Unit)". A biology course whose
+    prerequisite is CHEM 110 titled two courses on the flattened page.
+    """
+    page = (
+        "CHEM 110 - General Chemistry\n"
+        "Child and Family Education Associate Teacher Certificate (12 Unit)\n"
+        "General Biology\nBIOL 110:\n4.0 Units\n"
+        "Prerequisite: Completion of CHEM 110.\n"
+    )
+    assert course_block_count(page) == 2
+    assert course_block_count(page, titles={"BIOL110"}) == 1
+
+
+def test_only_a_code_that_opens_a_line_is_a_title() -> None:
+    text = "ABDY 112:\nPrerequisite: AM 135A\n  ENGL-101 Composition"
+    assert line_opening_codes(text) == {"ABDY112", "ENGL101"}
 
 
 def test_the_same_code_spelled_three_ways_is_one_course() -> None:
@@ -942,3 +1170,18 @@ def test_a_contact_line_names_a_role_and_how_to_reach_them() -> None:
     # A role with no way to reach them, and a number with no role.
     assert not is_contact_line("Director and Professor of Philosophy")
     assert not is_contact_line("Call (501) 450-5624 for the class schedule")
+
+
+def test_every_platform_pattern_belongs_to_a_named_platform() -> None:
+    for patterns in (PLATFORM_ASSET_RE, PLATFORM_MARKUP_RE, PLATFORM_TEXT_RE):
+        assert set(patterns) <= set(PLATFORM_NAMES)
+    assert set(PLATFORM_NAMES) >= PLATFORM_WEAK
+
+
+def test_every_platform_can_be_recognised_somehow() -> None:
+    for platform in PLATFORM_NAMES:
+        assert (
+            platform in PLATFORM_ASSET_RE
+            or platform in PLATFORM_MARKUP_RE
+            or platform in PLATFORM_TEXT_RE
+        )

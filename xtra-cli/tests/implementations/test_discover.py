@@ -7,6 +7,7 @@ from pathlib import Path
 import pytest
 from discovery_doubles import (
     fixture_url,
+    make_profile,
     seed_crawl_manifest,
     seed_crawl_page,
 )
@@ -22,6 +23,8 @@ from implementations.discover import (
     mark_duplicates,
     patterns_markdown,
     patterns_table,
+    platform_line,
+    platform_summary,
     read_saved_pages,
     run_discovery,
     sample_file_name,
@@ -161,6 +164,7 @@ def test_the_summary_counts_what_the_run_contains(
         "Unknown": 3,
     }
     assert summary["empty_or_error_pages"] == 2
+    assert summary["platform"] == {"name": "", "pages": {}, "evidence": []}
     assert summary["unknown_share"] == 0.2
     assert summary["run_id"] == RUN
     assert summary["discovery_run_id"] == DISCOVERY
@@ -621,3 +625,39 @@ def test_reading_named_stems_warns_that_the_shares_are_narrowed(
         "counted over those pages alone" in record.getMessage()
         for record in caplog.records
     )
+
+
+def test_a_site_takes_the_platform_most_of_its_pages_name() -> None:
+    profiles = [
+        make_profile("a", platform="courseleaf"),
+        make_profile("b", platform="courseleaf"),
+        make_profile("c", platform="drupal"),
+        make_profile("d"),
+    ]
+    profiles[0].platform_evidence = ["script /js/courseleaf.js"]
+    summary = platform_summary(profiles)
+    assert summary == {
+        "name": "courseleaf",
+        "pages": {"courseleaf": 2, "drupal": 1},
+        "evidence": ["script /js/courseleaf.js"],
+    }
+
+
+def test_a_site_whose_pages_name_nothing_has_no_platform() -> None:
+    summary = platform_summary([make_profile("a"), make_profile("b")])
+    assert summary == {"name": "", "pages": {}, "evidence": []}
+
+
+def test_the_platform_line_reads_for_a_person() -> None:
+    summary = {"name": "courseleaf", "pages": {"courseleaf": 912}}
+    assert (
+        platform_line(summary, 914) == "Platform: CourseLeaf (912/914 pages)."
+    )
+    assert platform_line({"name": ""}, 3) == "Platform: not identified."
+
+
+def test_patterns_markdown_leads_with_the_platform_line() -> None:
+    markdown = patterns_markdown(
+        [], settings=settings(), platform="Platform: CourseLeaf (2/2 pages)."
+    )
+    assert "Platform: CourseLeaf (2/2 pages)." in markdown

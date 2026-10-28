@@ -7,13 +7,17 @@ page that was read wrong before discovery parsed markup as markup.
 from __future__ import annotations
 
 from implementations.discover_dom import (
+    element_lines,
     element_text,
     find_main,
     is_chrome,
+    lines_after,
     parse,
+    printed_text,
     read_cms_page_type,
     read_course_blocks,
     read_declarations,
+    read_fingerprint,
     read_markup,
     read_requirement_lists,
 )
@@ -142,6 +146,49 @@ def test_an_unclosed_tag_in_the_menu_does_not_swallow_the_page() -> None:
     )
     assert markup.content_headings == ["Program Requirements"]
     assert "Degrees" not in markup.content_text
+
+
+def test_main_text_keeps_the_pages_own_aside_not_the_sites_menu() -> None:
+    """Two readings of one container, for two different questions.
+
+    content_text drops an <aside> inside <main> as furniture. Arapahoe
+    prints a course's code and credits there, so main_text keeps it: it
+    is what the page prints, as against the catalog menu eLumen prints
+    beside <main> on every page.
+    """
+    markup = read_markup(
+        page(
+            "<div id='nav'><a>CHEM 110 - General Chemistry</a></div>"
+            "<main><h1>Payroll Accounting</h1>"
+            "<aside class='course-full__aside'><p>ACC 115</p>"
+            "<p>Credits 3</p></aside></main>"
+        )
+    )
+    assert "ACC 115" not in markup.content_text
+    assert markup.main_text.splitlines() == [
+        "Payroll Accounting",
+        "ACC 115",
+        "Credits 3",
+    ]
+
+
+def test_a_page_without_a_main_container_has_no_main_text() -> None:
+    """Nothing tells the page from the site there, so nothing is the site."""
+    markup = read_markup(page("<div><p>ENGL 101 Composition I</p></div>"))
+    assert markup.main_text == ""
+
+
+def test_main_text_keeps_a_code_split_across_two_strings_whole() -> None:
+    """CurriQunet prints "APP-" and "450" as two strings.
+
+    Read with a space between every pair, as `get_text(" ")` reads them,
+    the code becomes "APP- 450", which is no course code, and the page's
+    own course would look printed outside its container.
+    """
+    markup = read_markup(
+        page("<main><h2><span>APP-</span><span>450</span></h2></main>")
+    )
+    assert markup.main_text == "APP-450"
 
 
 def test_an_element_reads_the_way_the_content_lines_read() -> None:
@@ -318,6 +365,77 @@ def test_a_bold_run_is_a_label_only_when_something_follows_it() -> None:
     assert markup.label_texts == ["Credits", "Prerequisite:"]
 
 
+def test_an_elements_lines_break_where_the_content_text_breaks() -> None:
+    """A cell printing three lines is three lines, not one glued string."""
+    soup = parse(
+        page("<table><tr><td>MATH 105<br>or<br>MATH 105H</td></tr></table>")
+    )
+    cell = soup.find("td")
+    assert element_lines(cell) == ["MATH 105", "or", "MATH 105H"]
+    assert element_text(cell) == "MATH 105orMATH 105H"
+
+
+def test_what_follows_a_label_is_read_one_block_at_a_time() -> None:
+    """A bare link after a heading is a run of its own; a block is a block."""
+    soup = parse(
+        page(
+            "<div><h2>Prerequisite</h2><a href='#'>CAD 2220</a> or "
+            "<a href='#'>CAD 2221</a><p>Taken first.</p><br>"
+            "<script>var x;</script><!-- a note --></div>"
+        )
+    )
+    entries = lines_after(soup.find("h2"))
+    assert [lines for _, lines in entries] == [
+        ["CAD 2220 or CAD 2221"],
+        ["Taken first."],
+    ]
+    assert entries[0][0] is None
+    assert entries[1][0].name == "p"
+
+
+def test_printed_text_keeps_the_line_breaks_a_pre_wrap_element_shows() -> None:
+    """Antelope Valley sets the prerequisite on a line of its own this way.
+
+    Discovery reads the page as it always has: there a newline is a space.
+    """
+    html = page(
+        "<main><div style='white-space: pre-wrap;'><p>Prerequisite: "
+        "Completion of ENGR 905\n\nBuilding upon the basics.</p></div>"
+        "<p>Two\nwords</p></main>"
+    )
+    assert printed_text(parse(html)).splitlines() == [
+        "Prerequisite: Completion of ENGR 905",
+        "Building upon the basics.",
+        "Two words",
+    ]
+    assert read_markup(html).content_text.splitlines() == [
+        "Prerequisite: Completion of ENGR 905 Building upon the basics.",
+        "Two words",
+    ]
+
+
+def test_a_pre_keeps_its_lines_and_a_style_of_its_own_wins() -> None:
+    """white-space is inherited unless an element sets its own."""
+    html = page(
+        "<main><pre>one\ntwo</pre><div style='white-space: pre-wrap'>"
+        "<p style='white-space: normal'>three\nfour</p></div></main>"
+    )
+    assert printed_text(parse(html)).splitlines() == [
+        "one",
+        "two",
+        "three four",
+    ]
+
+
+def test_an_elements_lines_inherit_the_white_space_around_it() -> None:
+    soup = parse(
+        page(
+            "<div style='white-space: pre-wrap'><p>ENGR 905\nENGR 910</p></div>"
+        )
+    )
+    assert element_lines(soup.find("p")) == ["ENGR 905", "ENGR 910"]
+
+
 def test_script_and_style_never_reach_the_text() -> None:
     markup = read_markup(
         page(
@@ -333,3 +451,147 @@ def test_an_empty_document_reads_as_an_empty_page() -> None:
     assert markup.content_text == ""
     assert markup.h1 == ""
     assert markup.described_course_count == 0
+
+
+def fingerprint(body: str = "", *, title: str = "Example", meta: str = ""):
+    return read_fingerprint(parse(page(body, title=title, meta=meta)))
+
+
+def test_courseleaf_is_named_by_its_script_and_its_container() -> None:
+    found = fingerprint(
+        '<div id="textcontainer"></div>',
+        meta='<script src="/js/courseleaf.js"></script>',
+    )
+    assert found.platform == "courseleaf"
+    assert "script /js/courseleaf.js" in found.evidence
+
+
+def test_acalog_is_named_by_its_gateway_assets() -> None:
+    found = fingerprint(
+        meta=(
+            '<script src="//acalog-clients.s3.amazonaws.com/global/js/'
+            'gateway-javascript.js"></script>'
+        )
+    )
+    assert found.platform == "acalog"
+
+
+def test_a_single_page_app_shell_is_named_before_it_draws_anything() -> None:
+    """Coursedog and eLumen print nothing but assets until script runs."""
+    coursedog = fingerprint(
+        meta=(
+            '<script src="https://static.catalog.prod.coursedog.com/x/_nuxt/'
+            'a.js"></script>'
+        )
+    )
+    elumen = fingerprint(
+        "<script>loadContent('https://api-prod.elumenapp.com:443/c');</script>"
+    )
+    assert coursedog.platform == "coursedog"
+    assert elumen.platform == "elumen"
+
+
+def test_curriqunet_is_named_by_its_title_alone() -> None:
+    found = fingerprint(title="View - CurriQunet META")
+    assert found.platform == "curriqunet"
+
+
+def test_kuali_is_named_even_inside_a_wordpress_page() -> None:
+    """UCF embeds its Kuali catalog in WordPress; the catalog is the answer."""
+    found = fingerprint(
+        '<div id="kuali-catalog"></div>',
+        meta=(
+            '<link href="/wp-content/themes/x/style.css" rel="stylesheet"/>'
+            '<script src="https://ucf.kuali.co/catalog/build/catalog.js">'
+            "</script>"
+        ),
+    )
+    assert found.platform == "kuali"
+
+
+def test_smartcatalog_is_named_by_its_credit_and_its_tenant_paths() -> None:
+    found = fingerprint(
+        '<div id="footerSC">Powered by SmartCatalog IQ</div>',
+        meta='<link href="/Institutions/Linn/styles/a.css" rel="stylesheet"/>',
+    )
+    assert found.platform == "smartcatalog"
+
+
+def test_wordpress_is_named_when_nothing_more_specific_is() -> None:
+    found = fingerprint(
+        meta='<meta name="generator" content="WordPress 6.5" />'
+    )
+    assert found.platform == "wordpress"
+
+
+def test_clean_catalog_beats_the_drupal_it_runs_on() -> None:
+    found = fingerprint(
+        '<article class="node node--type-degree"></article>'
+        "<p>Course Catalog Software by Clean Catalog</p>"
+    )
+    assert found.platform == "clean_catalog"
+
+
+def test_drupal_alone_is_named_drupal() -> None:
+    found = fingerprint('<article class="node node--type-degree"></article>')
+    assert found.platform == "drupal"
+
+
+def test_a_page_that_names_no_platform_reads_as_none() -> None:
+    found = fingerprint("<main><p>Hello.</p></main>")
+    assert found.platform == ""
+    assert found.evidence == []
+
+
+def test_a_repeated_marker_is_one_hit_not_many() -> None:
+    """Twenty Drupal-looking classes must not outvote one platform script."""
+    drupal = "".join(
+        f'<div class="field--name-f{index}"></div>' for index in range(20)
+    )
+    found = fingerprint(
+        drupal, meta='<script src="/js/courseleaf.js"></script>'
+    )
+    assert found.platform == "courseleaf"
+
+
+def test_evidence_is_capped_at_a_few_quotes() -> None:
+    found = fingerprint(
+        '<div id="textcontainer" class="sc_courselist sc_plangrid"></div>',
+        meta=(
+            '<link href="/css/courseleaf.css" rel="stylesheet"/>'
+            '<script src="/js/courseleaf.js"></script>'
+        ),
+    )
+    assert found.platform == "courseleaf"
+    assert len(found.evidence) == 3
+
+
+def test_script_text_is_not_read_as_printed_text() -> None:
+    """A script that mentions a credit line is not the page printing it."""
+    found = fingerprint(
+        "<script>var s = 'Course Catalog Software by Clean Catalog';</script>"
+    )
+    assert found.platform == ""
+
+
+def test_read_markup_carries_the_fingerprint() -> None:
+    markup = read_markup(
+        page("<main></main>", meta='<script src="/js/courseleaf.js"></script>')
+    )
+    assert markup.fingerprint.platform == "courseleaf"
+
+
+def test_json_ld_survives_the_removal_of_script_tags() -> None:
+    """read_markup removes every script, so declarations are read first."""
+    markup = read_markup(
+        page(
+            "<main><h1>Accounting</h1></main>",
+            meta=(
+                '<script type="application/ld+json">'
+                '{"@type": "Course", "name": "Accounting"}</script>'
+            ),
+        )
+    )
+    declaration = markup.declaration()
+    assert declaration is not None
+    assert declaration.source == "json-ld"

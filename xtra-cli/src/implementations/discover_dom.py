@@ -67,16 +67,23 @@ from implementations.discover_rules import (
     FIELD_NAME_RE,
     FIELD_VALUE_CLASS_RE,
     FIELD_WRAPPER_CLASS_RE,
+    LINE_KEEPING_WHITE_SPACE,
     MAIN_CONTAINER_CLASSES,
     MAIN_CONTAINER_IDS,
     MAIN_ROLE,
     MAIN_TAG,
+    PLATFORM_ASSET_RE,
+    PLATFORM_EVIDENCE_LIMIT,
+    PLATFORM_MARKUP_RE,
+    PLATFORM_TEXT_RE,
+    PLATFORM_WEAK,
     REQUIREMENT_LIST_CLASS_RE,
     SCHEMA_AWARD_KEYS,
     SCHEMA_MAX_DEPTH,
     SCHEMA_TYPE_LABELS,
     TAB_CLASS_RE,
     TAB_ROLE_RE,
+    WHITE_SPACE_STYLE_RE,
     WHITESPACE_RE,
     collapse,
     evidence,
@@ -159,6 +166,18 @@ class Declaration:
 
 
 @dataclass
+class Fingerprint:
+    """Which catalog platform published the page, and why we think so.
+
+    `platform` is empty when nothing on the page names one. `evidence` is
+    up to a few short quotes, so a reviewer can see what was matched.
+    """
+
+    platform: str = ""
+    evidence: list[str] = field(default_factory=list)
+
+
+@dataclass
 class CourseBlock:
     """One described course, as the markup marks it."""
 
@@ -190,6 +209,10 @@ class Markup:
     tabs_evidence: str = ""
     outcomes_evidence: str = ""
     content_text: str = ""
+    # The text of the page's main content, including its sidebars.
+    # We are skipping and ignoring the course codes that appear only
+    # in the site's menu.
+    main_text: str = ""
     content_headings: list[str] = field(default_factory=list)
     list_items: list[str] = field(default_factory=list)
     course_blocks: list[CourseBlock] = field(default_factory=list)
@@ -197,6 +220,7 @@ class Markup:
     reference_codes: set[str] = field(default_factory=set)
     declarations: list[Declaration] = field(default_factory=list)
     cms_page_type: str = ""
+    fingerprint: Fingerprint = field(default_factory=Fingerprint)
     # The printed label/value pairs, read once here so the entity reader
     # does not parse the page a second time to find a credits field.
     field_pairs: list[FieldPair] = field(default_factory=list)
@@ -305,14 +329,41 @@ def find_main(soup: BeautifulSoup) -> Tag | None:
     return best if best_size else None
 
 
-class _Reader:
-    """One walk of the tree, collecting everything the page prints."""
+def _keeps_lines(tag: Tag, inherited: bool) -> bool:
+    """Whether a browser shows the newlines inside this element.
 
-    def __init__(self, soup: BeautifulSoup, main: Tag | None) -> None:
+    white-space is inherited, so an element keeps its parent's setting
+    unless its own style names one, and a <pre> keeps them by default.
+    """
+    match = WHITE_SPACE_STYLE_RE.search(tag.get("style") or "")
+    if match is not None:
+        return match.group(1).lower() in LINE_KEEPING_WHITE_SPACE
+    return inherited or tag.name == "pre"
+
+
+class _Reader:
+    """One walk of the tree, collecting everything the page prints.
+
+    With `printed_lines`, a newline the page's own styling shows as a line
+    break - inside white-space: pre-wrap, or a <pre> - starts a new line of
+    the content text, as it does on screen. Discovery reads without it, so
+    its labels and reports do not move.
+    """
+
+    def __init__(
+        self,
+        soup: BeautifulSoup,
+        main: Tag | None,
+        *,
+        printed_lines: bool = False,
+    ) -> None:
         self.soup = soup
         self.main = main
         self.markup = Markup()
+        self._printed_lines = printed_lines
         self._parts: list[str] = []
+        # The same walk, chrome and all: Markup.main_text.
+        self._main_parts: list[str] = []
         self._content_h1s: list[str] = []
         self._main_h1s: list[str] = []
 
@@ -322,28 +373,54 @@ class _Reader:
             if self.main is not None
             else (self.soup.body or self.soup)
         )
-        self._walk(root, in_chrome=False)
+        keeps_lines = False
+        if self._printed_lines:
+            for tag in [*reversed(list(root.parents)), root]:
+                keeps_lines = _keeps_lines(tag, keeps_lines)
+        self._walk(root, in_chrome=False, keeps_lines=keeps_lines)
         markup = self.markup
         markup.content_text = _lines("".join(self._parts))
+        if self.main is not None:
+            markup.main_text = _lines("".join(self._main_parts))
         markup.h1 = (self._main_h1s or self._content_h1s or [""])[0]
         return markup
 
-    def _walk(self, node: Tag, *, in_chrome: bool) -> None:
+    def _walk(
+        self, node: Tag, *, in_chrome: bool, keeps_lines: bool = False
+    ) -> None:
         for child in node.children:
             if type(child) is NavigableString:
+                raw = str(child)
+                text = (
+                    "\n".join(
+                        WHITESPACE_RE.sub(" ", part) for part in raw.split("\n")
+                    )
+                    if keeps_lines
+                    else WHITESPACE_RE.sub(" ", raw)
+                )
+                self._main_parts.append(text)
                 if not in_chrome:
-                    self._parts.append(WHITESPACE_RE.sub(" ", str(child)))
+                    self._parts.append(text)
                 continue
             if not isinstance(child, Tag) or child.name in _SKIP_TAGS:
                 continue
             chrome = in_chrome or is_chrome(child)
             self._note_tabs(child)
             breaks = child.name in _CONTENT_BREAK_TAGS
-            if breaks and not chrome:
-                self._parts.append("\n")
-            self._walk(child, in_chrome=chrome)
-            if breaks and not chrome:
-                self._parts.append("\n")
+            if breaks:
+                self._main_parts.append("\n")
+                if not chrome:
+                    self._parts.append("\n")
+            self._walk(
+                child,
+                in_chrome=chrome,
+                keeps_lines=self._printed_lines
+                and _keeps_lines(child, keeps_lines),
+            )
+            if breaks:
+                self._main_parts.append("\n")
+                if not chrome:
+                    self._parts.append("\n")
             self._close(child, chrome=chrome)
 
     def _close(self, tag: Tag, *, chrome: bool) -> None:
@@ -408,6 +485,74 @@ def _bold_is_a_label(tag: Tag, text: str) -> bool:
 def _lines(raw: str) -> str:
     lines = (collapse(line) for line in raw.splitlines())
     return "\n".join(line for line in lines if line)
+
+
+def element_lines(tag: Tag) -> list[str]:
+    """One element's text as the lines a browser prints it.
+
+    A line per block and per <br>, and per newline where the styling shows
+    one; inline runs joined; the site's own furniture and scripts left out.
+    element_text joins everything into one string, so a cell printing "MATH
+    105<br>or<br>MATH 105H" reads "MATH 105orMATH 105H"; this keeps its
+    three lines apart.
+    """
+    reader = _Reader(tag, tag, printed_lines=True)
+    return reader.read().content_text.splitlines()
+
+
+def printed_text(soup: BeautifulSoup) -> str:
+    """The page's own content as the lines a browser prints it.
+
+    content_text, except that a newline the styling shows - inside
+    white-space: pre-wrap, or a <pre> - is a line break too. Antelope
+    Valley prints a course's prerequisite on a line of its own above the
+    description, with nothing but a newline between them; read as content
+    text, the two are one paragraph and the prerequisite runs on into it.
+    """
+    reader = _Reader(soup, find_main(soup), printed_lines=True)
+    return reader.read().content_text
+
+
+def lines_after(tag: Tag) -> list[tuple[Tag | None, list[str]]]:
+    """What the element's parent prints after it, a block at a time.
+
+    One entry per block sibling, with the lines it prints, and one per run
+    of inline text between blocks, which has no element of its own. This
+    is how a label is read: SmartCatalog prints <h2>Prerequisite</h2> and
+    then a bare link, Cabrillo a bold paragraph and the course under it.
+    """
+    entries: list[tuple[Tag | None, list[str]]] = []
+    run: list[str] = []
+
+    def end_run() -> None:
+        text = collapse("".join(run))
+        if text:
+            entries.append((None, [text]))
+        run.clear()
+
+    for sibling in tag.next_siblings:
+        if type(sibling) is NavigableString:
+            run.append(str(sibling))
+            continue
+        if not isinstance(sibling, Tag) or sibling.name in _SKIP_TAGS:
+            continue
+        if is_chrome(sibling):
+            continue
+        if sibling.name in _CONTENT_BREAK_TAGS:
+            end_run()
+            lines = element_lines(sibling)
+            if lines:
+                entries.append((sibling, lines))
+            continue
+        run.append(
+            "".join(
+                str(string)
+                for string in sibling.strings
+                if type(string) is NavigableString
+            )
+        )
+    end_run()
+    return entries
 
 
 def _outermost(soup: BeautifulSoup, pattern: re.Pattern[str]) -> list[Tag]:
@@ -566,7 +711,7 @@ class FieldPair:
     path: str = ""
 
 
-def _element_path(tag: Tag) -> str:
+def element_path(tag: Tag) -> str:
     """A short path to the element, so a reviewer can find the value."""
     parts: list[str] = []
     node: Tag | None = tag
@@ -635,7 +780,7 @@ def read_field_pairs(soup: BeautifulSoup) -> list[FieldPair]:
             value = element_text(wrapper)
             if value:
                 seen.add(id(wrapper))
-                pairs.append(FieldPair("", value, key, _element_path(wrapper)))
+                pairs.append(FieldPair("", value, key, element_path(wrapper)))
             continue
         if value_tag is None:
             continue
@@ -643,7 +788,7 @@ def read_field_pairs(soup: BeautifulSoup) -> list[FieldPair]:
         label = element_text(label_tag) if label_tag is not None else ""
         value = element_text(value_tag)
         if label or key:
-            pairs.append(FieldPair(label, value, key, _element_path(value_tag)))
+            pairs.append(FieldPair(label, value, key, element_path(value_tag)))
     for term in soup.find_all("dt"):
         value = term.find_next_sibling("dd")
         if isinstance(value, Tag):
@@ -651,7 +796,7 @@ def read_field_pairs(soup: BeautifulSoup) -> list[FieldPair]:
                 FieldPair(
                     element_text(term),
                     element_text(value),
-                    path=_element_path(value),
+                    path=element_path(value),
                 )
             )
     for row in soup.find_all("tr"):
@@ -661,7 +806,7 @@ def read_field_pairs(soup: BeautifulSoup) -> list[FieldPair]:
                 FieldPair(
                     element_text(cells[0]),
                     element_text(cells[1]),
-                    path=_element_path(cells[1]),
+                    path=element_path(cells[1]),
                 )
             )
     pairs.extend(_detail_pairs(soup))
@@ -704,7 +849,7 @@ def _detail_pairs(soup: BeautifulSoup) -> list[FieldPair]:
                 label,
                 value,
                 names[0].replace("-", " ").replace("_", " "),
-                _element_path(tag),
+                element_path(tag),
             )
         )
     return pairs
@@ -775,6 +920,80 @@ def read_cms_page_type(soup: BeautifulSoup) -> str:
     return (match.group(1) or match.group(2) or "").lower() if match else ""
 
 
+def _platform_sources(tag: Tag) -> list[str]:
+    """The strings on one element that can name a platform's assets."""
+    if tag.name == "script":
+        src = tag.get("src")
+        return [src if isinstance(src, str) else tag.get_text()]
+    if tag.name == "link":
+        href = tag.get("href")
+        return [href] if isinstance(href, str) else []
+    if tag.name == "meta" and str(tag.get("name")).lower() == "generator":
+        content = tag.get("content")
+        return [content] if isinstance(content, str) else []
+    return []
+
+
+def _platform_tokens(tag: Tag) -> list[str]:
+    """The names an element gives itself: tag, classes, id, attributes."""
+    identifier = tag.get("id")
+    tokens = [tag.name, *_class_words(tag), *tag.attrs]
+    if isinstance(identifier, str) and identifier:
+        tokens.append(identifier)
+    return tokens
+
+
+def read_fingerprint(soup: BeautifulSoup) -> Fingerprint:
+    """Name the catalog platform from assets, element names and credits.
+
+    Every distinct thing a platform's patterns match is one hit, so a page
+    repeating one class a thousand times counts it once. The platform with
+    the most hits is named; a weak platform (a generic CMS) is named only
+    when no other platform has a hit, because the products built on a CMS
+    carry its markup too. Run before script tags are removed: a script's
+    src is the best evidence a shell page has.
+    """
+    hits: dict[str, dict[str, str]] = {}
+
+    def note(platform: str, key: str, quote: str) -> None:
+        hits.setdefault(platform, {}).setdefault(key, evidence(quote))
+
+    for tag in soup.find_all(True):
+        for source in _platform_sources(tag):
+            for platform, pattern in PLATFORM_ASSET_RE.items():
+                match = pattern.search(source)
+                if match is not None:
+                    note(
+                        platform,
+                        match.group(0).lower(),
+                        f"{tag.name} {evidence(source, match)}",
+                    )
+        for token in _platform_tokens(tag):
+            for platform, pattern in PLATFORM_MARKUP_RE.items():
+                if pattern.search(token):
+                    note(platform, token.lower(), f"markup {token}")
+    printed = [soup.title.get_text(" ")] if soup.title else []
+    printed.extend(
+        line for line in soup.get_text("\n").splitlines() if line.strip()
+    )
+    for line in printed:
+        for platform, pattern in PLATFORM_TEXT_RE.items():
+            match = pattern.search(line)
+            if match is not None:
+                note(
+                    platform,
+                    match.group(0).lower(),
+                    f"text {evidence(line, match)}",
+                )
+    strong = [name for name in hits if name not in PLATFORM_WEAK]
+    candidates = strong or list(hits)
+    if not candidates:
+        return Fingerprint()
+    winner = max(candidates, key=lambda name: len(hits[name]))
+    quotes = list(hits[winner].values())[:PLATFORM_EVIDENCE_LIMIT]
+    return Fingerprint(platform=winner, evidence=quotes)
+
+
 def _site_name(soup: BeautifulSoup) -> str:
     meta = soup.find("meta", attrs={"property": "og:site_name"})
     content = meta.get("content") if isinstance(meta, Tag) else ""
@@ -784,6 +1003,9 @@ def _site_name(soup: BeautifulSoup) -> str:
 def read_markup(html: str) -> Markup:
     """Read one page's markup. Nothing is fetched and nothing is written."""
     soup = parse(html)
+    # Both read scripts, so both run before the scripts are removed.
+    fingerprint = read_fingerprint(soup)
+    declarations = read_declarations(soup)
     for tag in soup.find_all(_SKIP_TAGS - {"head"}):
         tag.decompose()
     main = find_main(soup)
@@ -799,7 +1021,8 @@ def read_markup(html: str) -> Markup:
     markup.requirement_lists, markup.reference_codes = read_requirement_lists(
         soup
     )
-    markup.declarations = read_declarations(soup)
+    markup.declarations = declarations
+    markup.fingerprint = fingerprint
     markup.cms_page_type = read_cms_page_type(soup)
     markup.field_pairs = read_field_pairs(soup)
     return markup

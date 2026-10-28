@@ -91,6 +91,15 @@ HEAD_MAX_LINES = 8
 HEAD_LINE_CHARS = 80
 # Longer than this is a sentence, not a heading or a label.
 SECTION_HEADING_CHARS = 120
+# Longer than this, what a "Prerequisites" heading stands over is a section
+# of the page, not a course's prerequisite. The longest real one seen is
+# Atlantic Cape's BIOL220, at 470 characters.
+PREREQUISITE_MAX_CHARS = 600
+# How long a prerequisite may run to the end of the paragraph a description
+# is read from, when no full stop, line break or other requisite label ends
+# it. Across every sampled course page the real ones run 156 characters at
+# most (CCSF); one run on to the end of the paragraph is the description.
+PREREQUISITE_RUN_ON_CHARS = 300
 SHORT_LINE_CHARS = 60
 # How much of the first paragraph may name the program's award, and how
 # far past the page's own name, when the paragraph opens with it.
@@ -251,6 +260,71 @@ RECOMMENDED_RE = re.compile(
     r"\brecommended\b(?:\s+(?:pre[\s-]?requisites?|preparation|background))?",
     re.IGNORECASE,
 )
+
+# Any text naming a requisite at all: where a requisite label can be.
+REQUISITE_WORD_RE = re.compile(r"requisite|prereq", re.IGNORECASE)
+# An element's own white-space setting, and the settings under which a
+# browser shows the newlines in its text as line breaks. Antelope Valley's
+# descriptions are white-space: pre-wrap, and print the prerequisite on a
+# line of its own above the description with only a newline between them.
+WHITE_SPACE_STYLE_RE = re.compile(r"white-space\s*:\s*([\w-]+)", re.IGNORECASE)
+LINE_KEEPING_WHITE_SPACE = frozenset(
+    {"pre", "pre-wrap", "pre-line", "break-spaces"}
+)
+# The label a course's prerequisite is printed under, in every spelling a
+# catalog uses: "Prerequisite", "Prerequisites:", Acalog's
+# "Prerequisite(s):", "Pre-requisite", the short "Prereq". A label is a
+# whole element's text or the head of a line, never a word in a sentence.
+_PREREQUISITE = r"(?:pre[\s-]?requisites?|prereqs?)(?:\s*\(s\))?"
+PREREQUISITE_LABEL_RE = re.compile(rf"{_PREREQUISITE}\s*:?", re.IGNORECASE)
+PREREQUISITE_LEAD_RE = re.compile(rf"\b{_PREREQUISITE}\s*:\s*", re.IGNORECASE)
+# Clean Catalog's second prerequisite field: the courses the statement
+# names, as links. "Prerequisite Courses" over "PSYC101: General
+# Psychology", printed before the statement it shortens.
+PREREQUISITE_COURSES_LABEL_RE = re.compile(
+    rf"{_PREREQUISITE}\s+courses?(?:\s*\(s\))?\s*:?", re.IGNORECASE
+)
+# One label for both relations, which says the course may be taken before
+# or alongside: "Prerequisite/Corequisite" at Front Range, "Prerequisite
+# and/or Corequisite" at CNCC, "Pre/Corequisite", "Pre- or Co-requisite".
+# PREREQ_COREQ_COMBINED_RE is discovery's marker and misses the shortened
+# first word; changing it would change the markers, so this is separate.
+COMBINED_REQUISITE_RE = re.compile(
+    r"\bpre(?:[\s-]?requisites?(?:\s*\(s\))?|-)?\s*"
+    r"(?:\band\s*/\s*or\b|/|&|\band\b|\bor\b)\s*"
+    r"co[\s-]?requisites?(?:\s*\(s\))?",
+    re.IGNORECASE,
+)
+# Every label in the family a prerequisite is printed among, and so every
+# label that ends the prerequisite before it. eLumen prints "Limitation on
+# Enrollment: ... Prerequisite: ... Corequisite: ..." as one run, Cabrillo
+# a Co-Requisite beside it, and a recommendation is not a requirement.
+_REQUISITE_LABELS = (
+    rf"{COMBINED_REQUISITE_RE.pattern}"
+    r"|\b(?:pre|co|anti)[\s-]?requisites?(?:\s*\(s\))?|\bprereqs?\b"
+    r"|\bcoreqs?\b|\brequisites?\b"
+    r"|\brecommended\b(?:\s+(?:preparation|prerequisites?|background"
+    r"|course\w*|skills))?"
+    r"|\badvisor(?:y|ies)\b|\blimitations?\s+on\s+enrollment\b"
+    r"|\benrollment\s+limitations?\b"
+)
+REQUISITE_LABEL_RE = re.compile(rf"(?:{_REQUISITE_LABELS})\s*:?", re.IGNORECASE)
+REQUISITE_LEAD_RE = re.compile(rf"(?:{_REQUISITE_LABELS})\s*:", re.IGNORECASE)
+# What a page prints where a course has no prerequisite: Morgan's "None",
+# RCCD's "None.", "N/A", "No prerequisites".
+NO_PREREQUISITE_RE = re.compile(
+    r"(?:none(?:\s+required)?|n/?a|no\s+pre[\s-]?requisites?(?:\s*\(s\))?)"
+    r"\s*\.?",
+    re.IGNORECASE,
+)
+# The words a requisites list joins two of its items with: Cabrillo prints
+# "Prerequisite", a course, "OR", "Prerequisite", another course.
+REQUISITE_CONNECTOR_RE = re.compile(r"and|or", re.IGNORECASE)
+# Where a sentence ends: a full stop before a capital, unless it closes a
+# one-letter word. "Completion of AM 135A. Instructional materials fee
+# required" ends after 135A; "Proof of U.S. citizenship" does not end
+# inside U.S.
+SENTENCE_END_RE = re.compile(r"(?<!\b[A-Z])[.!?](?=\s+[A-Z])")
 
 # --- outcomes and competencies -----------------------------------------------
 
@@ -942,6 +1016,147 @@ CMS_NODE_TYPE_RE = re.compile(
 # subject; a teaser is one row of a listing.
 CMS_FULL_VIEW_RE = re.compile(r"\bview-mode-full\b|\bnode--view-mode-full\b")
 
+# --- platform fingerprint ----------------------------------------------------
+#
+# Which catalog product published the page. No crawled catalog prints a
+# <meta name="generator">, so the name is read from what the product cannot
+# help printing: the hosts and paths of its scripts and stylesheets, the ids
+# and classes it stamps on its own furniture, and the credit line some of
+# them print. Every pattern below was taken from a crawled page, named in
+# its comment. Each pattern is matched against one source at a time, so a
+# hit is a thing the page has, not a count of how often it repeats.
+#
+# An example on how we can use this finerprint is in cases where we want platform-specific
+# regex for finding elements on a page.
+# We can create a factory method that takes the platform and returns the regex.
+PLATFORM_COURSELEAF = "courseleaf"
+PLATFORM_ACALOG = "acalog"
+PLATFORM_COURSEDOG = "coursedog"
+PLATFORM_ELUMEN = "elumen"
+PLATFORM_CURRIQUNET = "curriqunet"
+PLATFORM_KUALI = "kuali"
+PLATFORM_SMARTCATALOG = "smartcatalog"
+PLATFORM_CLEAN_CATALOG = "clean_catalog"
+PLATFORM_DRUPAL = "drupal"
+PLATFORM_WORDPRESS = "wordpress"
+
+# The order is the tie-break: a platform listed first wins a tie.
+PLATFORM_NAMES = {
+    PLATFORM_COURSELEAF: "CourseLeaf",
+    PLATFORM_ACALOG: "Acalog",
+    PLATFORM_COURSEDOG: "Coursedog",
+    PLATFORM_ELUMEN: "eLumen",
+    PLATFORM_CURRIQUNET: "CurriQunet",
+    PLATFORM_KUALI: "Kuali",
+    PLATFORM_SMARTCATALOG: "SmartCatalog IQ",
+    PLATFORM_CLEAN_CATALOG: "Clean Catalog",
+    PLATFORM_DRUPAL: "Drupal",
+    PLATFORM_WORDPRESS: "WordPress",
+}
+
+# A generic CMS says less than a catalog product built on it: Clean Catalog
+# is a Drupal site, and prints node--type-* on every page, and UCF embeds
+# its Kuali catalog in a WordPress page. A weak platform is named only
+# when no other platform has any evidence.
+PLATFORM_WEAK = frozenset({PLATFORM_DRUPAL, PLATFORM_WORDPRESS})
+
+# What a script's src, a stylesheet's href, or an inline script's text
+# says. Inline text is read because a single-page app names its host there
+# before any content is drawn: eLumen's loadContent('https://api-prod.
+# elumenapp.com/...'). Taken from marshall and wvu (CourseLeaf), ualr
+# (Acalog), hccc (Coursedog), avc (eLumen), bcc and ccsf (CurriQunet).
+# The platforms with no crawl here were read from live catalogs: Kuali from
+# catalog.unm.edu and www.ucf.edu/catalog, SmartCatalog IQ from
+# iq2.smartcatalogiq.com (Linn-Benton), craftonhills.smartcatalogiq.com and
+# cptc.smartcatalogiq.com, WordPress from tillamookbaycc.edu and ucf.edu.
+# A <meta name="generator"> is read the same way, as a source of its own.
+PLATFORM_ASSET_RE = {
+    PLATFORM_COURSELEAF: re.compile(
+        r"/js/courseleaf\.js|/css/courseleaf\.css|/js/lfjs(?:_any)?\.js",
+        re.IGNORECASE,
+    ),
+    PLATFORM_ACALOG: re.compile(
+        r"acalog-clients\.s3\.amazonaws\.com|/gateway-javascript\.js"
+        r"|/gateway-styles\.css",
+        re.IGNORECASE,
+    ),
+    PLATFORM_COURSEDOG: re.compile(
+        r"static\.catalog\.prod\.coursedog\.com|coursedog-images-public",
+        re.IGNORECASE,
+    ),
+    PLATFORM_ELUMEN: re.compile(
+        r"elumencatalog\.s3[a-z0-9.-]*\.amazonaws\.com|elumenapp\.com",
+        re.IGNORECASE,
+    ),
+    PLATFORM_CURRIQUNET: re.compile(
+        r"/bundles/curriqunet|curriqunet\.com|curricunet\.com",
+        re.IGNORECASE,
+    ),
+    PLATFORM_KUALI: re.compile(r"\b[a-z0-9-]+\.kuali\.co\b", re.IGNORECASE),
+    PLATFORM_SMARTCATALOG: re.compile(
+        r"smartcatalogiq\.com|/Institutions/[^/]+/(?:styles|scripts)/"
+        r"|/scripts/(?:treeListCDN|coursepopup|insertHeaderFooter)\.js",
+        re.IGNORECASE,
+    ),
+    PLATFORM_DRUPAL: re.compile(
+        r"/core/misc/drupal\.js|/sites/default/files/|\bdrupalSettings\b"
+        r"|^Drupal\b",
+        re.IGNORECASE,
+    ),
+    PLATFORM_WORDPRESS: re.compile(
+        r"/wp-content/|/wp-includes/|api\.w\.org|^WordPress\b",
+        re.IGNORECASE,
+    ),
+}
+
+# What an element's own name says: its tag, one class word, its id, or the
+# name of one of its attributes, matched a token at a time. CourseLeaf's
+# id="textcontainer" is on 912 of Marshall's 914 pages, and Acalog's body
+# class "acalog-catalog-home" and Coursedog's "coursedog-only-fields" are
+# the platforms naming their own parts.
+PLATFORM_MARKUP_RE = {
+    PLATFORM_COURSELEAF: re.compile(
+        r"^(?:textcontainer|sc_courselist|sc_plangrid)$", re.IGNORECASE
+    ),
+    PLATFORM_ACALOG: re.compile(r"^acalog-|^gateway-toolbar", re.IGNORECASE),
+    PLATFORM_COURSEDOG: re.compile(r"^coursedog-", re.IGNORECASE),
+    PLATFORM_ELUMEN: re.compile(r"^(?:app-public|public-view)$", re.IGNORECASE),
+    PLATFORM_CURRIQUNET: re.compile(
+        r"^(?:data-paneltypeid|data-iq-container|multipane-list"
+        r"|curriculum-presentation-item-wrapper)$",
+        re.IGNORECASE,
+    ),
+    PLATFORM_KUALI: re.compile(r"^kuali-catalog$", re.IGNORECASE),
+    PLATFORM_SMARTCATALOG: re.compile(
+        r"^(?:scHeaderPlaceholder|scFooterPlaceholder|catalogBaseUrl"
+        r"|currentCatalogID|catalogJsonPath|sc-top-links|sc-rightpanel-top"
+        r"|sc-childlinks|sc-parentlink)$",
+        re.IGNORECASE,
+    ),
+    PLATFORM_DRUPAL: re.compile(
+        r"^node--type-|^field--name-|^data-drupal-", re.IGNORECASE
+    ),
+    PLATFORM_WORDPRESS: re.compile(
+        r"^wp-(?:singular|theme-|child-theme-)", re.IGNORECASE
+    ),
+}
+
+# What the page prints: its <title> or any line of its text. CurriQunet
+# titles every page "View - CurriQunet META"; Clean Catalog credits itself
+# in the footer.
+PLATFORM_TEXT_RE = {
+    PLATFORM_CURRIQUNET: re.compile(r"CurriQunet META", re.IGNORECASE),
+    PLATFORM_SMARTCATALOG: re.compile(
+        r"Powered by SmartCatalog IQ", re.IGNORECASE
+    ),
+    PLATFORM_CLEAN_CATALOG: re.compile(
+        r"Course Catalog Software by Clean Catalog", re.IGNORECASE
+    ),
+}
+
+# How many quotes a page keeps to show why it was named.
+PLATFORM_EVIDENCE_LIMIT = 3
+
 # --- printed fields ----------------------------------------------------------
 #
 # How a catalog platform marks up a label and the value beside it. Every
@@ -995,13 +1210,32 @@ COURSE_BLOCK_DESC_CLASS_RE = re.compile(
 # "ASTR 50303.  Astrophysics I: Stars and Planetary Systems.  3 Hours."
 # ends "3 Hours."; a variable-credit course ends "1-6 Hour.". A course
 # with no credits printed ends with its name, so this has to be optional.
+# The unit is kept as printed, "Hours" or "UNITS": it is what the credits
+# are counted in.
 COURSE_BLOCK_CREDITS_RE = re.compile(
     r"(?P<credits>\d+(?:\.\d+)?)(?:\s*-\s*(?P<maximum>\d+(?:\.\d+)?))?"
-    r"\s*(?:credit|hour|unit)s?\s*\.?\s*$",
+    r"\s*(?P<unit>(?:credit|hour|unit)s?)\s*\.?\s*$",
     re.IGNORECASE,
+)
+# The unit a credits label names, as printed: "Credits" in "Credits:",
+# "CREDIT HOURS" in "CREDIT HOURS MIN:". The same words a course-block
+# line ends with, so a label and a line give the same kind of answer.
+CREDIT_UNIT_RE = re.compile(
+    rf"\b{_CREDIT_PREFIX}(?:credit|hour|unit)s?\b", re.IGNORECASE
 )
 # What separates the code, the name and the credits on that one line.
 COURSE_TITLE_SPLIT_RE = re.compile(r"\s*[.:–-]\s+|\s*\.\s*")
+# eLumen labels none of a course's code, name or units. It groups them in
+# a <header>: the name, a heading that is nothing but the code ("ELEC
+# 150:"), and the units on a line of their own ("4.0 Units"). Bakersfield's
+# theme puts the code in the h1 and the name above it. The name is read
+# only from inside such a group, because a bare code heading elsewhere has
+# no name beside it: Clean Catalog prints "Course Catalog Software by Clean
+# Catalog" just above its <h1>ENGL101:</h1>.
+HEADING_GROUP_TAGS = frozenset({"header", "hgroup"})
+# How many elements after the code heading the units line may be. Antelope
+# Valley prints it next; Bakersfield two wrappers further down.
+COURSE_HEADING_REACH = 8
 
 # What a printed label means, as one canonical field name per label. The
 # keys are what normalize_field_label returns, so "Credit Hour(s):" and
@@ -1025,6 +1259,15 @@ COURSE_FIELD_LABELS = {
     "pre-requisite": "course_prerequisites",
     "pre-requisites": "course_prerequisites",
     "prereq": "course_prerequisites",
+    # Acalog prints "Prerequisite(s):", and normalize_field_label keeps the
+    # bracket. "Prerequisite Courses" is not here on purpose: it lists the
+    # courses a statement names, and the statement is what a record wants.
+    "prerequisite(s)": "course_prerequisites",
+    "pre-requisite(s)": "course_prerequisites",
+    "pre requisite": "course_prerequisites",
+    "pre requisites": "course_prerequisites",
+    "pre requisite(s)": "course_prerequisites",
+    "prereqs": "course_prerequisites",
     "corequisite": "course_corequisites",
     "corequisites": "course_corequisites",
     "co-requisite": "course_corequisites",
@@ -1039,6 +1282,14 @@ COURSE_FIELD_LABELS = {
     "laboratory hours": "course_lab_hours",
     "lab/clinical/field study": "course_lab_hours",
     "lab/clinical/field study hours": "course_lab_hours",
+    # eLumen prints the hours for the whole term, as a heading over the
+    # value: "Total Course Lecture Hours" 54.0 at Antelope Valley, "Total
+    # Lecture Hours:" 27.0 at Bakersfield. The labels above usually carry
+    # weekly hours; each is what the page prints under that name.
+    "total course lecture hours": "course_lecture_hours",
+    "total lecture hours": "course_lecture_hours",
+    "total course lab hours": "course_lab_hours",
+    "total lab hours": "course_lab_hours",
     "program": "course_program",
     "department": "course_department",
     "school": "course_school",
@@ -1799,8 +2050,26 @@ def normalize_course_code(code: str) -> str:
     return _CODE_SPACING_RE.sub("", code).upper()
 
 
-def course_block_count(text: str, ignore: set[str] | None = None) -> int:
+def course_block_count(
+    text: str,
+    ignore: set[str] | None = None,
+    titles: set[str] | None = None,
+) -> int:
     """How many distinct courses the page describes.
+
+    The courses described_course_codes finds, counting only the ones the
+    page prints as titles when it titles any.
+    """
+    described, titled = described_course_codes(text, ignore, titles)
+    return len(titled or described)
+
+
+def described_course_codes(
+    text: str,
+    ignore: set[str] | None = None,
+    titles: set[str] | None = None,
+) -> tuple[set[str], set[str]]:
+    """The courses the page describes, and the ones it prints as titles.
 
     A code on its own is a cross-reference; a code with a credits, units,
     or hours value near it is the course being described. The same code
@@ -1809,12 +2078,34 @@ def course_block_count(text: str, ignore: set[str] | None = None) -> int:
     site look like a page holding two, which marked it multi_course_page
     and made extraction skip it.
 
+    A course is titled when its code opens its line, the way a catalog
+    prints the course a block describes: "ABDY 112:" over "5.0 Units". A
+    code after a label or inside a sentence is a cross-reference, however
+    close a credits field sits below it. eLumen prints "Minimum Credit
+    Units" under every description, so at Antelope Valley "Prerequisite:
+    Completion of AM 135A.", "Formerly ENGL 103" and "(C-ID: ENGL 105)"
+    each read as a second course on the page, and extraction skipped the
+    course page as multi_course_page. Once a page titles any course, only
+    the titled ones count.
+
+    A page that titles none is counted as before, cross-references and
+    all. Front Range prints a long description between a course's title
+    and its credits, so the course's own code is never near them and only
+    a code a sentence cites is: counting nothing there loses the course.
+
     `ignore` is the codes the markup shows to be references, which are
     never descriptions however they read once flattened. A transfer
     equivalency table prints a code, a title and a credit count per row,
     so on the text alone every row is a course being described.
+
+    `titles` is the codes that open a line of the page's own text, when
+    that is known. The flattened text holds the site's menus too, and a
+    menu prints its courses one per line: CHEM 110 opens a line in
+    eLumen's menu, so without this a biology course whose prerequisite is
+    CHEM 110 titled two courses and was skipped.
     """
     described: set[str] = set()
+    titled: set[str] = set()
     for match in COURSE_CODE_RE.finditer(text):
         start = match.end()
         window = text[start : start + COURSE_BLOCK_WINDOW]
@@ -1823,9 +2114,31 @@ def course_block_count(text: str, ignore: set[str] | None = None) -> int:
         # prints its own credits as a field further down.
         for hit in CREDIT_VALUE_RE.finditer(window):
             if on_a_field_line(text, start + hit.start()):
-                described.add(normalize_course_code(match.group(0)))
+                code = normalize_course_code(match.group(0))
+                described.add(code)
+                if opens_its_line(text, match.start()) and (
+                    titles is None or code in titles
+                ):
+                    titled.add(code)
                 break
-    return len(described - (ignore or set()))
+    ignored = ignore or set()
+    return described - ignored, titled - ignored
+
+
+def line_opening_codes(text: str) -> set[str]:
+    """The course codes that open a line of this text, normalized."""
+    codes: set[str] = set()
+    for line in text.splitlines():
+        match = COURSE_CODE_RE.match(line.lstrip())
+        if match is not None:
+            codes.add(normalize_course_code(match.group(0)))
+    return codes
+
+
+def opens_its_line(text: str, position: int) -> bool:
+    """True when nothing but space comes before this position on its line."""
+    start = text.rfind("\n", 0, position) + 1
+    return not text[start:position].strip()
 
 
 def on_a_field_line(text: str, position: int) -> bool:
@@ -1857,27 +2170,38 @@ def program_terms(text: str) -> list[str]:
     )
 
 
-def split_course_title(line: str) -> tuple[str, str, str]:
-    """A course-block title line as its code, its name and its credits.
+def course_block_credits(match: re.Match[str]) -> tuple[str, str]:
+    """A COURSE_BLOCK_CREDITS_RE match as its credits and its unit.
 
-    CourseLeaf prints all three on one line - "ASTR 50303.  Astrophysics
+    "1.0 - 4.0 Units" is ("1.0-4.0", "Units"): a range is written one way
+    whatever spacing the page used, and the unit is as printed.
+    """
+    credits = match.group("credits")
+    if match.group("maximum"):
+        credits = f"{credits}-{match.group('maximum')}"
+    return credits, match.group("unit")
+
+
+def split_course_title(line: str) -> tuple[str, str, str, str]:
+    """A course-block title line as its code, name, credits and unit.
+
+    CourseLeaf prints all of them on one line - "ASTR 50303.  Astrophysics
     I: Stars and Planetary Systems.  3 Hours." - so a course page there
     has no labelled fields at all to read. The credits are optional,
-    because a zero-credit seminar prints none, and so is the name.
+    because a zero-credit seminar prints none, and so is the name; the
+    unit is there whenever the credits are.
     """
     text = collapse(line)
     code_match = COURSE_CODE_RE.search(text)
     if code_match is None or code_match.start() > 0:
-        return "", "", ""
+        return "", "", "", ""
     rest = text[code_match.end() :].strip(" .:-–")
-    credits = ""
+    credits = unit = ""
     credits_match = COURSE_BLOCK_CREDITS_RE.search(rest)
     if credits_match is not None:
-        credits = credits_match.group("credits")
-        if credits_match.group("maximum"):
-            credits = f"{credits}-{credits_match.group('maximum')}"
+        credits, unit = course_block_credits(credits_match)
         rest = rest[: credits_match.start()].strip(" .:-–")
-    return code_match.group(0), rest, credits
+    return code_match.group(0), rest, credits, unit
 
 
 def total_credits_line(lines: list[str]) -> str:

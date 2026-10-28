@@ -23,6 +23,7 @@ def make_profile(
     duplicate_of: str | None = None,
     course_block_count: int = 1,
     text_sha256: str = "",
+    platform: str = "",
 ) -> PageProfile:
     resolved_labels = (
         list(labels)
@@ -49,6 +50,7 @@ def make_profile(
         page_type=page_type,
         rules_fired={},
         duplicate_of=duplicate_of,
+        platform=platform,
     )
 
 
