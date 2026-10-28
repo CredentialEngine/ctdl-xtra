@@ -16,7 +16,8 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from urllib.parse import urlsplit
 from urllib.robotparser import RobotFileParser
-from xml.etree import ElementTree
+
+from defusedxml import DefusedXmlException, ElementTree
 
 from implementations.engine import load_engine
 
@@ -24,6 +25,7 @@ logger = logging.getLogger(__name__)
 
 ROBOTS_TIMEOUT_SECONDS = 30
 MAX_SITEMAP_DOCUMENTS = 50
+WEB_SCHEMES = frozenset({"http", "https"})
 _GZIP_MAGIC = b"\x1f\x8b"
 
 
@@ -39,14 +41,23 @@ def browser_user_agent() -> str:
     return BROWSER_USER_AGENT
 
 
+def web_request(url: str) -> urllib.request.Request:
+    """A GET request in which only http and https URLs are allowed."""
+    scheme = urlsplit(url).scheme.lower()
+    if scheme not in WEB_SCHEMES:
+        raise SiteFetchError(f"refusing a {scheme or 'scheme-less'} URL: {url}")
+    return urllib.request.Request(
+        url, headers={"User-Agent": browser_user_agent()}
+    )
+
+
 def fetch_url(
     url: str, *, timeout: int = ROBOTS_TIMEOUT_SECONDS
 ) -> tuple[int, bytes]:
     """GET one small document. Returns (status, body); 4xx and 5xx included."""
-    request = urllib.request.Request(
-        url, headers={"User-Agent": browser_user_agent()}
-    )
+    request = web_request(url)
     try:
+        # nosemgrep: python.lang.security.audit.dynamic-urllib-use-detected.dynamic-urllib-use-detected
         with urllib.request.urlopen(request, timeout=timeout) as response:
             return int(getattr(response, "status", 200) or 200), response.read()
     except urllib.error.HTTPError as exc:
@@ -67,15 +78,19 @@ def resolve_final_url(
     the crawl is scoped to the host that answers, instead of fetching every
     page and then throwing it away as off-site.
     """
-    request = urllib.request.Request(
-        url, headers={"User-Agent": browser_user_agent()}
-    )
     try:
+        request = web_request(url)
+        # nosemgrep: python.lang.security.audit.dynamic-urllib-use-detected.dynamic-urllib-use-detected
         with urllib.request.urlopen(request, timeout=timeout) as response:
             return response.geturl() or url
     except urllib.error.HTTPError as exc:
         return exc.url or url
-    except (OSError, http.client.HTTPException, ValueError) as exc:
+    except (
+        SiteFetchError,
+        OSError,
+        http.client.HTTPException,
+        ValueError,
+    ) as exc:
         logger.warning("ENTRY %s could not be resolved (%s)", url, exc)
         return url
 
@@ -169,7 +184,7 @@ def parse_sitemap(body: bytes) -> tuple[str, list[str]]:
     """Return (document kind, every loc value) for one sitemap document."""
     try:
         root = ElementTree.fromstring(body)
-    except ElementTree.ParseError:
+    except (ElementTree.ParseError, DefusedXmlException):
         return "", []
     locations = [
         element.text.strip()
