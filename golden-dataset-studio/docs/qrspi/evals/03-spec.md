@@ -37,6 +37,14 @@ POC's design ([`poc.md`](poc.md)). **Mockups (§6) come first: review them befor
 | 27 | Score again | **Gone.** A golden dataset is scored against an extract output once, and the score is kept. **Score** appears only for a pair with no score yet. |
 | 28 | ⓘ in Evals | **A modal** with where everything comes from, plus the equivalent command. |
 | 29 | Publish | **Publishing includes scoring.** The Publish tab keeps showing where every file lands (behind an ⓘ is fine). |
+| 31 | Generate rules | **The AI sparkle icon** instead of an arrow. |
+| 32 | Columns not in the Studio | **Shown by the grey "—"**, not italics. The legend says "not in this Studio yet". |
+| 33 | Outcome definitions | **A tooltip on any bar or legend colour** gives, in a small table, each outcome, its count and its rule, plus one line on how similarity is computed. The catalogs table says **Exact matches** instead of "match rate". |
+| 34 | History | **The Evals tab shows xtra's extract outputs over time** as vertical stacked bars (match at the bottom, then partial, wrong, missing). Clicking a bar picks that extract output; it stays highlighted. An output that hasn't been scored shows a dashed bar with **Score**. That's the only Score button. |
+| 35 | Keeping extract outputs | **The Studio keeps a copy of each extract output it sees** (§3.1), so a past output can still be scored against a newer golden dataset. |
+| 36 | Diff layout | **GitHub-style, Unified or Split.** |
+| 37 | "The golden value is wrong" | **A formal `wrong` verdict on that row,** with the comparison attached (§4.2). The rule then shows ✕ known wrong values, on the Rules tab and the catalogs table, until a new rule version fixes it. No "saved on this row" text. |
+| 38 | Where Publish writes | **A table:** destination, path, what. |
 | 30 | The value diff | **Back, as in the POC:** a GitHub-style diff (red: in the golden dataset, not extracted; green: extracted, not in the golden dataset) and the saved page with both values highlighted. It can be annotated (§4.2). **The same diff serves Compare** (ruleset vs ruleset) and Evals (golden dataset vs extract output). |
 
 **Design rule:** simplify and focus. Show one thing well instead of every piece of information.
@@ -72,6 +80,10 @@ POC's design ([`poc.md`](poc.md)). **Mockups (§6) come first: review them befor
   folder holds exactly the 1,065 records its report counts. The Studio compares the file count with the report's
   `records_written` and flags a mismatch. Follow-up for engineers: write each run to its own folder, or list its
   records in the report.
+- **So the Studio keeps a copy of each extract output it sees.** When Evals or Publish finds the report's ETag changed,
+  the Studio copies `records/` and the report into `<crawl>/golden-dataset-studio/extract-outputs/<date>/` (about
+  2–5 MB for AVC), identified by the report's last-modified time. That's what lets the history chart (§6.3) score an
+  older output against a newer golden dataset.
 - **Consequence:** the Studio can't list past outputs from the bucket. Its "extract output" history is the outputs it
   has scored. Each score keeps both values of every row, so a past score stays viewable after the output is
   overwritten.
@@ -110,8 +122,9 @@ POC's design ([`poc.md`](poc.md)). **Mockups (§6) come first: review them befor
 
 - **When a score runs:**
   - **automatically after every publish**, against the catalog's latest extract output (§6.4);
-  - when someone presses **Score**, which appears only when the chosen pair has no score yet (an extract output that
-    changed since, an older output, a draft). A pair is scored once; there is no "Score again".
+  - automatically when the Studio first sees a new extract output, against the latest golden dataset;
+  - when someone presses **Score** on a dashed bar in the history chart: an older output against the chosen golden
+    dataset, or a draft. A pair is scored once; there is no "Score again".
 - **As a durable job:**
   - `POST /api/catalogs/{c}/scores` writes `score.json` with status `running` and runs the score in a worker
     thread; it's a few seconds for AVC;
@@ -166,7 +179,9 @@ POC's design ([`poc.md`](poc.md)). **Mockups (§6) come first: review them befor
 - **The diff panel has two actions:**
   - **Save note** writes a `comment` with `compared_with`;
   - **The golden value is wrong…** (in Compare, **The new value is wrong…**) opens the existing ✗ flow, where you select
-    the right text on the page. It writes a `wrong` verdict, also with `compared_with`.
+    the right text on the page. It writes a formal `wrong` verdict on that row, also with `compared_with`. As with any
+    open `wrong` verdict, the rule's status becomes **needs work**, so it shows ✕ known wrong values on the Rules tab
+    and the catalogs table until a new rule version fixes it.
 - **Where notes show up:**
   - on the row in the Rules and Records tabs, with a short line saying what it was compared with ("while comparing with
     xtra's extract output, 28 Oct");
@@ -185,8 +200,8 @@ POC's design ([`poc.md`](poc.md)). **Mockups (§6) come first: review them befor
 ## 6. Mockups
 
 Static mockups in [`mockups/mockups.html`](mockups/mockups.html). AVC's numbers come from the POC; the other catalogs'
-are illustrative. **The xtra score views are illustrative too:** they show AVC as if `identifier`, `name` and
-`description` were published (today only `inLanguage` is, and it isn't scored).
+are illustrative. **The xtra score views and the history are illustrative too:** they show AVC as if `identifier`,
+`name` and `description` were published, and invent earlier extract outputs.
 
 ### 6.1 Home: Catalogs, golden dataset progress
 
@@ -194,72 +209,72 @@ are illustrative. **The xtra score views are illustrative too:** they show AVC a
 
 - **One compact row per catalog:**
   - the logo first;
-  - the name (it wraps), with **Open →** beside it, or **Generate rules →** for a catalog without rules;
+  - the name (it wraps), with **Open →** beside it, or **✦ Generate rules** for a catalog without rules;
   - the date of its pages;
   - one icon per column.
-
-  No expanding, no chevron.
-- **Column headers are angled** field names (no `ceterms:` prefix), so the columns stay narrow.
-- **No card around the table:** no white panel, border or rounded corners, just row lines. The same goes for the tables in Evals and Publish.
+- **Angled field names** (no `ceterms:` prefix). No card around the table.
 - **The Rules tab's icons:** ✓ published (hover: "Published in golden dataset ruleset v3"), ○ in review, ✕ known wrong
-  values.
-- **Italic columns** are in xtra's extract output but not in the Studio yet ("—").
+  values. A grey "—" means not in this Studio yet (xtra extracts it).
 
 ### 6.2 Home: Catalogs, xtra score (every catalog)
 
 ![Home, xtra score](mockups/m2.png)
 
-- **The same rows,** switched to xtra score: match rate and outcome bar per catalog, match % per column.
-- **"—"** means not published yet. **"n/s"** marks columns that aren't read from the page.
-- **This is the all-catalog Evals view.** A catalog's Evals tab is the same thing filtered to that catalog.
+- **Exact matches** per catalog, and per column.
+- **Hovering a bar or a legend colour** shows a small table: each outcome, its count and its rule. Underneath, one line
+  explains similarity:
+  - text is compared ignoring case and spacing, and again without punctuation, keeping the higher score;
+  - numbers either match or are wrong.
+- **"—"** means not published yet, or not in this Studio yet. **"n/s"** marks columns that aren't read from the page.
 
-### 6.3 A catalog's Evals tab
+### 6.3 A catalog's Evals tab, with history
 
 ![Evals tab](mockups/m3.png)
 
-- **Header:** **Golden dataset** ruleset v3 *(latest)* vs **Extract output** *(latest)*, and an ⓘ.
-- **Below the header:**
-  - the match rate;
-  - one bar per column;
-  - the outcome filter and **Group by**;
-  - the rows.
-
-![Picking an older extract output](mockups/m3b.png)
-
-- **Picking something older shows its date**, in the browser's time zone.
-- **A pair with no score yet** shows **Score**. Nothing else ever asks to score again.
+- **The golden dataset dropdown** (ruleset v3, *latest*) sits above a chart of **xtra's extract outputs over time**.
+  - Each output is a vertical bar: match at the bottom, then partial, wrong and missing.
+  - The match % is on top, and the date (local time) is below.
+- **Clicking a bar picks that extract output.** It stays highlighted in grey, and everything below follows.
+- **A dashed bar** is an output that hasn't been scored against this golden dataset yet. It holds the only **Score**
+  button.
+- **Below the chart:** "Golden dataset ruleset v3 vs extract output of 28 Oct, 11:49 AM (latest)", then exact matches,
+  one bar per column, and (scrolled off here) the outcome filter, Group by and the rows.
 
 ![Where these come from](mockups/m3c.png)
 
-- **The ⓘ opens a modal:** the extract output's path (and that each run overwrites it), the golden dataset's path, when
-  and with which xtra-cli it was scored, and the command, with Copy in the code block's corner.
+- **The ⓘ opens a modal:** a table of where the extract output and the golden dataset are and when the score ran, then
+  the command with Copy.
 
 ### 6.4 A row: the diff, a note, and the page
 
-![Row detail](mockups/m5.png)
+![Row detail, unified](mockups/m5.png)
 
-- **Selecting a row opens the diff:**
-  - the golden value and the extracted value as a word diff (red: in the golden dataset, not extracted; green:
-    extracted, not in the golden dataset);
-  - a note box with **Save note** and **The golden value is wrong…**;
-  - the saved page, with the golden value at its recorded location and the extracted value wherever its text is found.
-- **Notes are stored as in §4.2.**
+- **A GitHub-style diff,** **Unified** (shown) or **Split.** It shows `−` the golden value and `+` the extracted value,
+  with the differing words highlighted.
+- **A note box:** **Save note** and **The golden value is wrong…**.
+- **The saved page** with the golden value (green) at its recorded location and the extracted value (pink) wherever
+  its text is found.
+
+![Split diff, after "The golden value is wrong"](mockups/m5b.png)
+
+- **Split** puts the two values side by side.
+- **After "The golden value is wrong",** the row shows the verdict, and the rule now shows ✕ known wrong values (§4.2).
 
 ### 6.5 The same diff in Compare
 
 ![Compare](mockups/m6.png)
 
-- **The same component** compares ruleset v1 with ruleset v2, with **Note…** and **The new value is wrong…**.
+- **The same component,** Unified or Split, comparing ruleset v1 with ruleset v2, with **Note…** and **The new value is
+  wrong…**.
 
 ### 6.6 Publish (scoring included)
 
 ![Publish](mockups/m4.png)
 
-- **Columns are listed by field name** (`codedNotation`). **Publish ruleset v4** writes the golden dataset and then scores xtra's
-  latest extract output against it.
-- **"Where it's written" ⓘ** lists every destination: the version folder, the current location (replaced whole) and
-  the Studio's own files.
-- **When it finishes,** one line gives the match rate, with **Open in Evals →**.
+- **Columns are listed by field name.** **Publish ruleset v4** writes the golden dataset and then scores xtra's latest
+  extract output against it.
+- **"Where it's written" ⓘ** is a table: destination, path, what.
+- **When it finishes,** one line gives the exact matches, with **Open in Evals →**.
 
 ## 7. Order of work
 
@@ -274,7 +289,8 @@ are illustrative. **The xtra score views are illustrative too:** they show AVC a
    - the CLI `golden-datasets score --ruleset N` (a draft with `--draft`).
 
    Remove the extraction-running code.
-3. **The Evals tab** (§6.3) and **the shared value diff with notes** (§6.4, §6.5, §4.2), used by Evals and Compare.
+3. **The Evals tab** with its history chart (§6.3), and **the shared value diff with notes** (§6.4, §6.5, §4.2), used
+   by Evals and Compare. Keeping a copy of each extract output (§3.1).
 4. **The home table** (§6.1, §6.2).
 5. **Publish:** field names without `ceterms:`, scoring included, and where it's written (§6.6).
 6. **Tests and checks:** `check` rules (score → golden version and extract identity; values → pages); tour, spec and
