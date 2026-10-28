@@ -7,7 +7,7 @@ import type { CourseDetail, EventBrief, NewEvent } from "../api/types";
 import { PagePane, type Highlight } from "../pagepane";
 import { apiX, type CourseHitX } from "../rules/api";
 import {
-  applyEvent, briefOf, isField, isSettled, keyAction, newDraft, scrollWithin, shortTitle, verdictEvent, type Draft,
+  addCapture, applyEvent, briefOf, isField, isSettled, keyAction, newDraft, scrollWithin, shortTitle, verdictEvent, type Draft,
 } from "../rules/logic";
 import { Controls, Expansion, HistoryLine } from "../rules/parts";
 import "../rules/rules.css";
@@ -100,10 +100,11 @@ export default function RecordsTab({ catalog, route }: TabProps) {
       if (v.page_stem !== active || !v.css_path) continue;
       hs.push({ id: valueKey(v), kind: "value", cssPath: v.css_path, charStart: v.char_start, charEnd: v.char_end, text: v.value, badge: card.n });
     }
-    if (draft?.capture) hs.push({ id: "capture", kind: "expected", cssPath: draft.capture.css_path, charStart: draft.capture.char_start, charEnd: draft.capture.char_end, text: draft.capture.text });
+    draft?.captures.forEach((c, i) => hs.push({ id: `capture-${i}`, kind: "expected", cssPath: c.css_path, charStart: c.char_start,
+      charEnd: c.char_end, text: c.text, removable: true }));
     return hs;
   }, [flat, active, draft]);
-  const focusId = draft?.capture ? "capture" : cur && cur.v.page_stem === active ? valueKey(cur.v) : null;
+  const focusId = draft?.captures.length ? "capture-0" : cur && cur.v.page_stem === active ? valueKey(cur.v) : null;
 
   // --- saving ---------------------------------------------------------------------------------------------
   const patch = useCallback((v: CardValue, ev: EventBrief) => {
@@ -223,7 +224,9 @@ export default function RecordsTab({ catalog, route }: TabProps) {
       <section className="col pane">
         <PagePane catalog={cat} tabs={tabs} activeStem={active} onActivate={setActiveStem} highlights={highlights} focusId={focusId}
           banner={banner} legend={legend} ruleset={catalog.ruleset_version}
-          captureSelection={draft?.mode === "wrong"} onSelection={(c) => setDraft((d) => (d && d.mode === "wrong" ? { ...d, capture: c } : d))} />
+          captureSelection={draft?.mode === "wrong"}
+          onSelection={(c) => setDraft((d) => (d && d.mode === "wrong" ? { ...d, captures: addCapture(d.captures, c) } : d))}
+          onRemove={(id) => setDraft((d) => (d ? { ...d, captures: d.captures.filter((_, j) => `capture-${j}` !== id) } : d))} />
       </section>
     </div>
   );

@@ -14,6 +14,8 @@ How an old verdict applies to the current row (spec §4.3 "old verdicts carry fo
 - `wrong` and the value changed: **fixed** when it now equals the expected text, else **still wrong**;
 - `correct` and the value changed: **changed since correct** (needs a fresh look; not counted as wrong).
 Annotations re-attach through `course_key` + page when the occurrence key changed (a changed locator, D3).
+A row's `events` are every verdict and comment on it, whichever ruleset version they were made in: the Sample drawer's
+"Annotated by" and "Annotated in" strata.
 """
 
 from __future__ import annotations
@@ -25,7 +27,7 @@ from dataclasses import dataclass, field
 
 from . import facets, layout, model, strata
 from .context import Ctx
-from .log import AnnotationLog
+from .log import FULL_NAMES, AnnotationLog
 from .signals import SEVERITY_RANK
 
 OPEN = {"wrong", "still-wrong", "missing"}
@@ -166,6 +168,7 @@ class RowState:
     verdict: dict | None = None       # the event it comes from
     reattached: bool = False
     comments: list = field(default_factory=list)
+    events: list = field(default_factory=list)   # every live verdict and comment on the row, oldest first
     history: list = field(default_factory=list)  # history signals: [{"signal", "severity", "detail"}]
 
 
@@ -198,9 +201,11 @@ class Review:
         return {"ruleset": [e for e in talk if e["target"]["kind"] == "ruleset"], "rules": dict(rules)}
 
     def verdicts_for(self, rule_id: str) -> dict:
-        """Latest verdict and comments per target of this rule, keyed by occurrence_key / page_stem."""
+        """Latest verdict, comments and every verdict or comment (`all`) per target of this rule, keyed by
+        occurrence_key / page_stem."""
         latest: dict = {}
         comments = defaultdict(list)
+        every = defaultdict(list)
         for e in sorted(self.live, key=lambda x: x["at"]):
             t = e["target"]
             if t.get("rule_id") != rule_id or t["kind"] in ("rule", "ruleset"):  # whole-rule talk: see discussion()
@@ -210,7 +215,10 @@ class Review:
                 latest[k] = e
             elif e["type"] == "comment":
                 comments[k].append(e)
-        return {"latest": latest, "comments": comments}
+            else:
+                continue
+            every[k].append(e)
+        return {"latest": latest, "comments": comments, "all": every}
 
     def reviewed_elsewhere(self, rule_id: str, rows: list[dict], states: dict[str, RowState]) -> dict[str, list[str]]:
         """Rows of this rule nobody has reviewed yet (no verdict, no comment) whose record someone reviewed in
@@ -245,12 +253,26 @@ class Review:
     def _row_states(self, rule_id: str, rows: list[dict]) -> dict[str, RowState]:
         rule = self.snap.rules[rule_id]
         v = self.verdicts_for(rule_id)
-        latest, comments = v["latest"], v["comments"]
+        latest, comments, every = v["latest"], v["comments"], v["all"]
         by_course_page = {}
         for e in latest.values():
             t = e["target"]
             if t.get("course_key"):
                 by_course_page[(t["course_key"], t.get("page_stem"))] = e
+        # comments and earlier verdicts re-attach the same way, so an older ruleset's annotations stay on the row
+        talk_by_course_page: dict[tuple, list] = defaultdict(list)
+        every_by_course_page: dict[tuple, list] = defaultdict(list)
+        keys = {r["key"] for r in rows}
+        for k, es in every.items():
+            if k in keys:
+                continue
+            for e in es:
+                t = e["target"]
+                if t.get("course_key"):
+                    cp = (t["course_key"], t.get("page_stem"))
+                    every_by_course_page[cp].append(e)
+                    if e["type"] == "comment":
+                        talk_by_course_page[cp].append(e)
         parent_values = {}
         if self.parent is not None and rule_id in self.parent.rules:
             parent_values = {r["key"]: r["value"] for r in self.parent.rows(rule_id)}
@@ -262,6 +284,11 @@ class Review:
                 e = by_course_page.get((row["course_key"], row["page_stem"]))
                 st.reattached = e is not None
             st.comments = comments.get(row["key"], [])
+            st.events = every.get(row["key"], [])
+            if row.get("course_key"):
+                cp = (row["course_key"], row["page_stem"])
+                st.comments = st.comments + talk_by_course_page.get(cp, [])
+                st.events = sorted(st.events + every_by_course_page.get(cp, []), key=lambda x: x["at"])
             if e is not None:
                 st.verdict = e
                 st.state = self._carry(rule, e, row)
@@ -394,11 +421,22 @@ class Review:
             rows = snap.rows(rule_id)
             states = self.row_states(rule_id, rows)
             on_page = Counter(o["page_stem"] for o in snap.occurrences.values()) if kind != "field" else None
+            ruleset_of = {e["extraction"]: e["ruleset_version"] for e in snap.ctx.extractions()}
             items = [facets.item(r, snap.page[r["page_stem"]]["url"], state=states[r["key"]].state,
+                                 **self._annotated(states[r["key"]], ruleset_of),
                                  **({"on_page": on_page.get(r["page_stem"], 0)} if on_page is not None else {}))
                      for r in rows]
             self._facets[rule_id] = facets.dimensions(kind, items)
         return self._facets[rule_id]
+
+    @staticmethod
+    def _annotated(st: RowState, ruleset_of: dict[str, int]) -> dict:
+        """Who marked or commented on the row, and the ruleset versions they did it in (people only: the Studio's
+        own events don't count). First-name authors from the first profiles count as the person's full name."""
+        es = [e for e in st.events if not e["author"].startswith("golden-datasets")]
+        return {"annotators": sorted({FULL_NAMES.get(e["author"], e["author"]) for e in es}),
+                "annotated_in": sorted({ruleset_of.get(e["target"].get("extraction_seen")) for e in es},
+                                       key=lambda v: (v is None, v or 0))}
 
     def spread_groups(self, rule_id: str) -> tuple[str, dict[str, str], list[str]]:
         """strata.groups for this rule's rows: (grouped by, row key → group, group order). Fixed per snapshot."""

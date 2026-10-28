@@ -265,7 +265,8 @@ extraction **row-identical** to the parent's. `golden-datasets check` verifies t
 
 - **`occurrence_key`** = `<page_stem>@<locator css_path from the document root>`. Rerunning a *field* rule never changes
   it. A changed *record locator* can change it. Annotations then re-attach through `course_key`, and the UI marks
-  them "re-attached" (D3). Document-root paths are long (AVC: 9 steps, ~200 characters), so:
+  them "re-attached" (D3). Comments re-attach the same way as verdicts, so a row keeps everything said about it in
+  earlier ruleset versions. Document-root paths are long (AVC: 9 steps, ~200 characters), so:
   - occurrences store the full path;
   - matches store `css_path` **relative to their occurrence**;
   - the UI and the prompt show short labels and resolve paths only when needed.
@@ -313,7 +314,10 @@ extraction **row-identical** to the parent's. `golden-datasets check` verifies t
   - machine authors (`golden-datasets import-v2`) are allowed.
 - **Wrong vs missing:**
   - `wrong` + `expected` is for a field rule's row whose value is wrong. That includes an empty value when the page
-    has one.
+    has one. A right value in **several pieces** on the page (two paragraphs with a heading between them) keeps its
+    shape: `expected.text` is the pieces joined by line breaks in page order (what the rule should extract, and what
+    "fixed" compares with), `css_path` / offsets / `quote` locate the first piece, and `expected.segments` lists
+    every piece (`text`, `css_path`, `char_start`, `char_end`, `quote`). One piece has no `segments`.
   - `missing` is only for record locators and page rules: a course on a page that no occurrence covers, or a page
     holding courses that no page rule recognized.
   - `question` is stored for a comment with "question for the institution" ticked: something only the institution
@@ -865,7 +869,8 @@ controls:
 - **✓ correct**
 - **✗ wrong.** The row expands inline: "Select the right text on the page →". It shows the captured selection and
   an optional note. This covers an empty value too: if the rule found nothing but the page has a Description, that's
-  ✗ plus the right text.
+  ✗ plus the right text. **Selecting text on the row's page does the same without ✗** (see "Highlight to annotate"
+  below).
 - **comment** (a speech-bubble icon). It opens a short note with a **question for the institution** checkbox. Jared
   is the domain expert; this is for things only the institution can answer.
 
@@ -918,9 +923,21 @@ so the page pane shows it:
 ![Page pane view tools: zoomed in, page CSS off](screens/13-page-pane-view-tools.png)
 
 **Highlight to annotate (D5).** Jared selects the right text on the page. The row shows only that text, an optional
-note, and Save / Cancel. Selecting different text replaces it. The `css_path` and offsets are stored, never shown:
+note, and Save / Cancel. The `css_path` and offsets are stored, never shown.
+- **No ✗ needed.** On a field rule, the page banner says "Wrong? Drag across the right text to mark it." Dragging
+  across text on the selected row's own page opens the ✗ draft with that text (✗ turns on). Selecting the value
+  the rule already found does nothing, so copying it doesn't mark the row wrong. Selections count only on the row's
+  own page (tab 1), where the expected text is located; on another tab the banner points back to tab 1.
+- **Several pieces.** Each drag adds a piece of the answer; a drag over a piece replaces it. Pieces stay in page
+  order, whatever order they were selected in, and are saved as one `expected` with `segments` (§4.1). The banner
+  counts them ("Your answer is outlined (2 pieces)").
+- **× to undo.** Every piece has a × at its end on the page and another beside its quote in the row; either removes
+  that piece. Whitespace a drag picks up at either end (the line break after a paragraph) is left out.
+- A saved wrong verdict with several pieces outlines every piece on the page.
 
-![Highlight expected text](screens/04-highlight-to-annotate.png)
+![Highlight expected text, selected without ✗](screens/04-highlight-to-annotate.png)
+
+![The right value in two pieces, each with a × on the page and in the row](screens/04b-highlight-in-pieces.png)
 
 **Question for the institution.** A comment with "question for the institution" ticked carries Jared's question. It's left out of the
 prompt's list of rule bugs:
@@ -933,11 +950,13 @@ Rows Jared had marked wrong that a new version made right show **fixed** (screen
 **The Sample drawer** sits above the rows and decides which rows come first. It cuts the rows along several
 **strata** at once: the value's length (an equal-width histogram), paragraphs, leading label ("Prerequisite:",
 "Advisory:", a label of 1–4 words), distinct value or shape (codes, URLs), course subject, URL pattern, courses on
-the page, signals and review state. Modes:
+the page, signals, review state, **Annotated by** (who marked or commented on the row, in any ruleset version; one
+bucket per person, plus "nobody") and **Annotated in** (the ruleset versions those annotations were made in, plus
+"not annotated"). Modes:
 - **Review order** (the default): discussed rows first, then rows with signals, with every 5th row from a spread
   sample.
 - **Autostratify:** cross the strata that split the rows most evenly (up to 3, 2–8 buckets each; never review state,
-  signals or rule), or the ones picked in the drawer. Go through **3 rows of each combination**, the rarest
+  signals, rule, Annotated by or Annotated in), or the ones picked in the drawer. Go through **3 rows of each combination**, the rarest
   combinations first (the ones least like the bulk of the rows), then round again until every row is listed.
   Empty combinations never show.
 - **Shuffle:** a seeded random order, with **Reshuffle**.
@@ -954,6 +973,13 @@ rows carry no strata labels.
 **Reviewed in other fields first** (a checkbox with its count): rows nobody has reviewed for this rule yet, whose
 course someone marked or commented on in another rule (or whose page, for page-rule verdicts), come first, tagged
 "Reviewed in: Description, …". A record's fields get finished together.
+
+**Annotated by me** (a checkbox with its count): only the rows the reviewer marked or commented on, in this ruleset
+version or an earlier one. It is a filter on Annotated by, so it shows as a chip ("Annotated by: Jared Diener") and
+combines with the other filters; each row is tagged with who annotated it and in which ruleset version ("Annotated
+in: ruleset v1"). Authors from the first, first-name profiles ("Jared") count as the full name.
+
+![Sample: Annotated by me, rows annotated in ruleset v1 while v2 is reviewed](screens/19-sample-annotated-by-me.png)
 
 ![Sample: Autostratify](screens/15-sample-autostratify.png)
 

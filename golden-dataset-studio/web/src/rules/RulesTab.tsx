@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import { api } from "../api/client";
 import type { CatalogDetail, Discussion, EventBrief, NewEvent, Overlay, RuleDetail, RulesResponse, RuleSummary, SampleInfo, Spread,
   UnclassifiedPage } from "../api/types";
-import { PagePane, prefetchPages, type Highlight } from "../pagepane";
+import { PagePane, prefetchPages, type CapturedSelection, type Highlight } from "../pagepane";
 import { Ico } from "../shell/icons";
 import { useReviewer } from "../shell/reviewer";
 import { SampleDrawer, samplePrefs, sampleQuery, StrataTags, type SamplePrefs } from "../shell/Sample";
@@ -13,7 +13,7 @@ import type { TabProps } from "../shell/tabProps";
 import { fmt, toast, useKeyHints } from "../shell/ui";
 import { apiX, type RowX } from "./api";
 import {
-  applyEvent, briefOf, isField, isSettled, keyAction, missingEvent, newDraft, pushRecent, paneTabs, rowTarget,
+  addCapture, applyEvent, briefOf, isField, isSettled, keyAction, missingEvent, newDraft, norm, pushRecent, paneTabs, rowTarget,
   scrollWithin, shortTitle, unitWord, verdictEvent, type Draft, type TabRef,
 } from "./logic";
 import { MissedCourse, MissedPage, type MissedState } from "./MissedPanel";
@@ -189,7 +189,22 @@ export default function RulesTab({ catalog, route }: TabProps) {
   }, [cat, detail, active, ext]);
   const ov = detail && active && overlay?.key === `${detail.rule_id}|${active}|${ext ?? ""}` ? overlay.data : null;
 
-  const capture = draft?.capture ?? missed?.capture ?? null;
+  const captures = draft?.captures.length ? draft.captures : missed?.capture ? [missed.capture] : [];
+  // A field rule's row: selecting text on its page says "this is the right value" (it opens the ✗ draft with it), with
+  // or without pressing ✗ first. Only on the row's own page: the expected text is located on that page.
+  const onRowPage = !!row && active === row.page_stem;
+  const selectAnswer = kind === "field" ? onRowPage && !missed && draft?.mode !== "comment" : draft?.mode === "wrong";
+  const onAnswer = useCallback((c: CapturedSelection) => {
+    if (kind === "field" && !draft && row && norm(c.text) === norm(row.value)) return;  // the value found: nothing to fix
+    setMissed(null);
+    // several drags add pieces of one answer; one over an existing piece replaces it
+    setDraft((d) => (d && d.mode === "wrong" ? { ...d, captures: addCapture(d.captures, c) }
+      : row ? { ...newDraft("wrong", row.verdict, row.state), captures: [c] } : d));
+  }, [kind, draft, row]);
+  const removePiece = useCallback((id: string) => {
+    const i = Number(id.replace(/^capture-/, ""));
+    setDraft((d) => (d ? { ...d, captures: d.captures.filter((_, j) => j !== i) } : d));
+  }, []);
   const { highlights, focusId } = useMemo(() => {
     const hs: Highlight[] = [];
     let fid: string | null = null;
@@ -201,7 +216,8 @@ export default function RulesTab({ catalog, route }: TabProps) {
         }
         const exp = row.verdict?.expected;
         if (exp?.css_path && active === row.page_stem && (row.state === "wrong" || row.state === "still-wrong") && !draft) {
-          hs.push({ id: "expected", kind: "expected", cssPath: exp.css_path, charStart: exp.char_start, charEnd: exp.char_end, text: exp.text, badge: 2 });
+          (exp.segments ?? [exp]).forEach((s, i) => hs.push({ id: `expected-${i}`, kind: "expected", cssPath: s.css_path!,
+            charStart: s.char_start, charEnd: s.char_end, text: s.text, badge: i === 0 ? 2 : undefined }));
         }
       } else if (ov) {
         for (const b of ov.blocks) hs.push({ id: b.occurrence_key, kind: "block", cssPath: b.css_path, badge: b.n });
@@ -214,10 +230,12 @@ export default function RulesTab({ catalog, route }: TabProps) {
           if (e?.css_path && m.page_stem === active) hs.push({ id: `missing-${m.annotation_id}`, kind: "expected", cssPath: e.css_path, text: e.text });
         }
       }
-      if (capture) { hs.push({ id: "capture", kind: "expected", cssPath: capture.css_path, charStart: capture.char_start, charEnd: capture.char_end, text: capture.text }); fid = "capture"; }
+      captures.forEach((c, i) => hs.push({ id: `capture-${i}`, kind: "expected", cssPath: c.css_path, charStart: c.char_start,
+        charEnd: c.char_end, text: c.text, removable: !!draft }));
+      if (captures.length) fid = "capture-0";
     }
     return { highlights: hs, focusId: fid };
-  }, [row, detail, active, ov, capture, draft, missing]);
+  }, [row, detail, active, ov, captures, draft, missing]);
 
   // --- saving ---------------------------------------------------------------------------------------------------
   const post = useCallback(async (ev: NewEvent): Promise<EventBrief | null> => {
@@ -328,8 +346,12 @@ export default function RulesTab({ catalog, route }: TabProps) {
   if (detail && row) {
     const what = kind === "field" ? <><b>{detail.property_label ?? detail.title}</b> · {row.course_key ?? ""}</>
       : kind === "locator" ? <><b>Course</b> · {row.course_key ?? ""}</> : <b>{detail.title}</b>;
-    if (draft?.mode === "wrong") {
-      legend = <><Ico name="highlight" /><span><b>Select the right text</b> on the page for {what}: drag across it.</span></>;
+    if (draft?.mode === "wrong" && kind === "field" && !onRowPage) {
+      legend = <><Ico name="highlight" /><span className="ctx-text"><b>Select the right text</b> for {what} on tab 1, the page this value is from.</span></>;
+    } else if (draft?.mode === "wrong") {
+      const n = draft.captures.length;
+      legend = <><Ico name="highlight" /><span className="ctx-text"><b>{n ? `Your answer is outlined${n > 1 ? ` (${n} pieces)` : ""}` : "Select the right text"}</b> on the page for {what}:
+        {n ? " drag across more text to add a piece, × to remove one, Enter to save." : " drag across it (more drags add more pieces). Zoom in (+) to select precisely."}</span></>;
     } else if (missed && kind === "locator") {
       legend = <>{legendLine}<span className="adding">Adding a missed course…</span></>;
     } else if (missed && kind === "page") {
@@ -340,7 +362,8 @@ export default function RulesTab({ catalog, route }: TabProps) {
       banner = <><span className="gds-num">1</span><span className="grow">{what} — the courses found on this page are outlined.</span>
         {addBtn("Add a page this rule missed")}</>;
     } else if (active === row.page_stem) {
-      banner = <><span className="gds-num">1</span><span className="grow">{what} — {row.css_path ? "the value found is highlighted." : "this value isn't read from the page."}</span></>;
+      banner = <><span className="gds-num">1</span><span className="grow">{what} — {row.css_path ? "the value found is highlighted." : "this rule found nothing on this page."}
+        {" "}<span className="answer-hint" data-testid="answer-hint">{row.css_path ? "Wrong? Drag across the right text to mark it." : "If the page shows it, drag across it to mark it."}</span></span></>;
     } else {
       banner = <span className="grow">{what} — another page this course is on. The value is highlighted on tab 1.</span>;
     }
@@ -419,8 +442,7 @@ export default function RulesTab({ catalog, route }: TabProps) {
       <section className="col pane" data-tour="page-pane" ref={paneRef}>
         <PagePane catalog={cat} tabs={tabs} activeStem={active} onActivate={(s) => setActiveStem(s)}
           highlights={highlights} focusId={focusId} banner={banner} legend={legend} ruleset={catalog.ruleset_version}
-          captureSelection={draft?.mode === "wrong"}
-          onSelection={(c) => setDraft((d) => (d && d.mode === "wrong" ? { ...d, capture: c } : d))}
+          captureSelection={selectAnswer} onSelection={onAnswer} onRemove={removePiece}
           pickBlock={!!missed && kind === "locator"}
           onPickBlock={(c) => setMissed((m) => (m ? { ...m, capture: c } : m))} />
         {missed && kind === "locator" && row && (

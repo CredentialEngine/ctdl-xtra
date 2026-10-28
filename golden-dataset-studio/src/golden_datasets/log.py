@@ -17,6 +17,10 @@ VERDICTS = {"correct", "wrong", "missing", "question"}
 TARGET_KINDS = {"match", "occurrence", "page", "rule", "ruleset"}
 #: What a comment on a whole rule or on the ruleset is about (Rules tab sidebar).
 TOPICS = {"new-rule", "approach", "question-rule", "other"}
+#: The first profiles were first names only (and misspelled Nicolas): events they wrote keep those names as `author`,
+#: so whoever reads an author by person (profiles, "Annotated by") maps them to the full names.
+FULL_NAMES = {"Jared": "Jared Diener", "Cadence": "Cadence Calixto", "Nicholas": "Nicolas Soto",
+              "Rohit": "Rohit Joy", "Eric": "Eric Riddoch", "Seth": "Seth Alt"}
 
 
 def new_id(prefix: str = "an") -> str:

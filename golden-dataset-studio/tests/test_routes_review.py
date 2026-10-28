@@ -83,6 +83,22 @@ def test_rows_carry_other_pages_and_page_questions(client):
 
 
 @pytest.mark.slow
+def test_rows_annotated_by_someone_in_any_ruleset_version(client):
+    """Jared's verdicts were made on ruleset v1; the latest extraction (v2) lists them under "Annotated by" and
+    tags each row with the version."""
+    r = client.get(f"{B}/rules/course-description/rows", params={"limit": 2000}).json()
+    by = next(h for h in r["sample"]["histograms"] if h["id"] == "annotator")
+    jared = next(b for b in by["buckets"] if b["id"] == "Jared Diener")  # the v2 import wrote "Jared"
+    mine = client.get(f"{B}/rules/course-description/rows",
+                      params={"limit": 2000, "f": f"annotator:{jared['id']}"}).json()
+    assert mine["total"] == jared["count"] > 0
+    assert all(r["state"] is not None or r["comments"] for r in mine["rows"])
+    tags = [{t["dim"]: t["bucket"] for t in row["tags"]} for row in mine["rows"]]
+    assert all(jared["id"] in t["annotator"] for t in tags)
+    assert any("ruleset v1" in t["annotated_in"] for t in tags)
+
+
+@pytest.mark.slow
 def test_overlay_for_a_page_rule_outlines_its_locators_blocks(client):
     ov = client.get(f"{B}/pages/{GEOG_PROGRAM}/overlay", params={"rule": "program-page-with-courses"}).json()
     assert len(ov["blocks"]) > 5 and ov["marks"] == []
