@@ -2,7 +2,7 @@
 
 Each row is cut along several dimensions at once: its value's length (an equal-width histogram), paragraphs, leading
 label (`Prerequisite:`, `Advisory:` …), distinct value or shape, course subject, URL pattern, courses on the page,
-signals, review state, who annotated the row and in which ruleset version and, on Compare, how the value changed.
+signals, review state, the ruleset version the row was annotated in and, on Compare, how the value changed.
 
 - `histograms`: each dimension's buckets with how many rows of the list fall in each (a dimension's own filter is
   left out of its counts, so its other buckets stay pickable); a dimension whose rows all fall in one bucket is
@@ -17,8 +17,8 @@ Pure functions, so they are tested without a catalog; the callers (routes_review
 items.
 
 An item is a dict: `key`, `value`, `status`, `course_key`, `page_stem`, `signals` (names), `url`, and optionally
-`state` (review state), `annotators` and `annotated_in` (authors of the row's verdicts and comments, and the ruleset
-versions they were made in), `on_page` (courses on its page), `rule` (rule id), `change` and `before` (Compare: how the
+`state` (review state), `annotated_in` (the ruleset versions the row's verdicts and comments were made in; who made
+them is the Rules tab's "Annotated by" filter, review.annotated_match), `on_page` (courses on its page), `rule` (rule id), `change` and `before` (Compare: how the
 value changed, and the value in A).
 """
 
@@ -34,7 +34,7 @@ from .strata import FEW_VALUES, shape, subject, url_pattern
 MAX_BUCKETS = 12          # categorical dimensions keep their 11 biggest buckets, the rest go to "other"
 BINS = 10                 # a length histogram has about this many bars
 OTHER, EMPTY, NONE = "other", "empty", "none"
-NOBODY, NOT_ANNOTATED = "nobody", "not annotated"
+NOT_ANNOTATED = "not annotated"
 LEAD = re.compile(r"^\s*([A-Z][A-Za-z/()&'-]*(?: [A-Za-z/()&'-]+){0,3})\s*:")  # a label of 1–4 words
 STATE_NAME = {None: "unreviewed", "correct": "marked correct", "wrong": "marked wrong", "fixed": "fixed",
               "still-wrong": "still wrong", "changed-since-correct": "changed since correct", "question": "question",
@@ -164,9 +164,7 @@ def dimensions(kind: str, items: list[dict]) -> list[dict]:
     if any("state" in i for i in items):
         add("review", "Review", "the record's review state",
             *_categorical({i["key"]: [STATE_NAME.get(i.get("state"), i.get("state") or "unreviewed")] for i in items}))
-    if any("annotators" in i for i in items):
-        add("annotator", "Annotated by", "who marked or commented on the record, in any ruleset version",
-            *_categorical({i["key"]: i.get("annotators") or [NOBODY] for i in items}, cap=50))
+    if any("annotated_in" in i for i in items):
         versions = sorted({v for i in items for v in i.get("annotated_in") or []}, key=lambda v: (v is None, v or 0))
         add("annotated_in", "Annotated in", "the ruleset version the record was marked or commented on in",
             {i["key"]: [_version(v) for v in i.get("annotated_in") or []] or [NOT_ANNOTATED] for i in items},
@@ -223,9 +221,9 @@ def histograms(dims: list[dict], keys: list[str] | set[str], filters: dict[str, 
     return out
 
 
-#: Never crossed automatically: one bucket per rule, review state or annotator says nothing about the values, and a
-#: record can have several signals.
-NOT_CROSSED = ("rule", "review", "signals", "annotator", "annotated_in")
+#: Never crossed automatically: one bucket per rule, review state or ruleset annotated in says nothing about the values,
+#: and a record can have several signals.
+NOT_CROSSED = ("rule", "review", "signals", "annotated_in")
 MAX_CROSS, MAX_CROSS_BUCKETS = 3, 8
 
 

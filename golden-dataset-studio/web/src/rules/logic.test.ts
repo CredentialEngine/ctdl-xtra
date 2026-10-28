@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { EventBrief } from "../api/types";
 import {
-  addCapture, applyEvent, approveBlocked, clip, controlOn, expectedOf, historyItems, isSettled, keyAction, missingEvent, newDraft, paneTabs,
+  addCapture, applyEvent, applyReview, approveBlocked, byLabel, canConfirm, shortWhen, clip, controlOn, expectedOf, historyItems, isSettled, keyAction, missingEvent, newDraft, paneTabs,
   parseMark, pushRecent, rowTarget, unitWord, verdictEvent, whereWord,
 } from "./logic";
 
@@ -146,5 +146,29 @@ describe("page tabs", () => {
     r = pushRecent(r, T("d"));
     expect(r.map((t) => t.stem)).toEqual(["d", "a", "b"]);
     expect(pushRecent(r, T("b")).map((t) => t.stem)).toEqual(["b", "d", "a"]);
+  });
+});
+
+describe("human-reviewed and engineer-checked (Evals spec §4.3)", () => {
+  it("an expert's ✓ confirms; an engineer's ✓ waits, or leaves an expert's standing; other verdicts clear both", () => {
+    const eric = ev({ verdict: "correct", author: "Eric Riddoch" });
+    const jared = ev({ verdict: "correct", author: "Jared Diener", annotation_id: "an-2" });
+    const waiting = applyReview({}, eric, "engineer");
+    expect(waiting).toMatchObject({ engineer_checked: true, checked: eric });
+    expect(canConfirm(waiting, "sme")).toBe(true);
+    expect(canConfirm(waiting, "engineer")).toBe(false);
+    const human = applyReview(waiting, jared, "sme");
+    expect(human).toMatchObject({ human_reviewed: true, engineer_checked: false, human: jared, checked: eric });
+    expect(applyReview(human, eric, "engineer")).toBe(human);
+    expect(applyReview(human, ev({ verdict: "wrong" }), "engineer")).toMatchObject({ human_reviewed: false, engineer_checked: false });
+    expect(applyReview(human, ev({ type: "comment", verdict: null }), "engineer")).toBe(human);
+  });
+
+  it("names the filter's choices and dates a check", () => {
+    expect([null, "nobody", "waiting", "Jared Diener"].map(byLabel))
+      .toEqual(["Anyone", "Not annotated yet", "Any engineer · waiting for an expert", "Jared Diener"]);
+    const now = Date.parse("2026-10-28T12:00:00Z");
+    expect(shortWhen("2026-10-28T11:59:30Z", now)).toBe("just now");
+    expect(shortWhen("2026-10-21T10:00:00Z", now)).toBe("21 Oct");
   });
 });

@@ -193,22 +193,66 @@ describe("RulesTab", () => {
     expect(container.querySelector(".rows-bar")!.textContent).toContain("reviewed in other fields first");
   });
 
-  it("filters to the records I annotated, in any ruleset version, from the Sample drawer", async () => {
-    const sample = { order: "review", seed: 0, total: 3, listed: 3, cross: [], cells: [], tag_dims: [], histograms: [
-      { id: "annotator", label: "Annotated by", help: "", uniform: false, spread: 0.5,
-        buckets: [{ id: "nobody", count: 1, on: false }, { id: "Jared Diener", count: 2, on: false }] }] };
+  const people = { people: [{ name: "Jared Diener", role: "sme", values: 112 }, { name: "Cadence Calixto", role: "sme", values: 0 },
+    { name: "Eric Riddoch", role: "engineer", values: 22 }], waiting: 22 };
+  const check = { annotation_id: "an-eric", type: "verdict" as const, verdict: "correct" as const, author: "Eric Riddoch",
+    at: "2026-10-21T10:00:00Z", note: null, expected: null, rule_version_seen: 2, value_seen: "Value 1" };
+  function annotated(counts: Record<string, number> | null) {
     const fetchMock = vi.mocked(fetch);
     const base = fetchMock.getMockImplementation()!;
-    fetchMock.mockImplementation((url, init) => (String(url).includes("/rows") ? json({ ...rows, sample }) : base(url as string, init)));
+    fetchMock.mockImplementation((url, init) => {
+      const u = String(url);
+      if (u.includes("/annotators")) return json({ ...people, rules: counts });
+      if (u.includes("/rows")) return json({ ...rows, rows: rows.rows.map((r, i) => (i === 1
+        ? { ...r, state: "correct", verdict: check, engineer_checked: true, human_reviewed: false, checked: check } : r)) });
+      return base(u, init);
+    });
+    return () => new URLSearchParams(fetchMock.mock.calls.map((c) => String(c[0])).filter((u) => u.includes("/rows")).pop()!.split("?")[1]);
+  }
+
+  it("filters every rule's rows by Annotated by, counts them in the rule list, and lets an expert confirm an engineer's check", async () => {
+    const last = annotated({ "course-description": 17, "course-language": 0, "course-page": 0 });
+    await render("#/c/avc/rules/course-description?row=GEOG1&by=waiting&v=correct");
+    expect(last().get("by")).toBe("waiting");
+    expect(last().get("verdict")).toBe("correct");
+    expect(container.querySelector(".ab-btn")!.textContent).toContain("Any engineer · waiting for an expert");
+    expect(container.querySelector("[data-rule=course-description] .rev")!.textContent).toBe("17");
+    expect(container.querySelector("[data-rule=course-language]")!.className).toContain("dim");
+    expect(container.querySelector("[data-testid=waiting-note]")!.textContent).toContain("22 values an engineer checked are waiting for an expert");
+    expect(container.querySelector("[data-testid=waiting-note] .btn")!.textContent).toBe("Clear filter");
+    expect(container.querySelector(".row.on [data-testid=review-line]")!.textContent)
+      .toBe("✓ engineer-checkedEric Riddochengineer· 21 Oct · waiting for an expert");
+    expect(container.querySelector(".row.on .byline")).toBeNull();  // the review line names who
+    expect(container.querySelector(".row.on .cb.confirm")!.textContent).toBe("Confirm");
+    await act(async () => { window.dispatchEvent(new KeyboardEvent("keydown", { key: "1" })); });
+    await act(async () => { await new Promise((r) => setTimeout(r, 0)); });
+    expect(posted).toEqual([{ type: "verdict", author: "Jared", verdict: "correct", supersedes: "an-eric",
+      target: { kind: "match", rule_id: "course-description", occurrence_key: "p1@html", page_stem: "p1" } }]);
+    const line = container.querySelectorAll("[data-row-index]")[1].querySelector("[data-testid=review-line]")!;
+    expect(line.textContent).toBe("✓ human-reviewed · publishedJaredconfirmed Eric Riddoch's check· just now");
+    // the dropdown: people grouped by role with their values, searchable; picking one keeps it in the URL
+    await act(async () => container.querySelector<HTMLButtonElement>(".ab-btn")!.click());
+    const items = () => [...container.querySelectorAll(".ab-pop .ab-item, .ab-pop .ab-h")].map((x) => x.textContent);
+    expect(items()).toEqual(["Anyone", "Not annotated yet", "Subject matter experts · human-reviewed", "Jared Diener112 values",
+      "Cadence Calixtonone yet", "Engineers · waiting for an expert", "Any engineer · waiting for an expert22 values", "Eric Riddoch22 values"]);
+    const q = container.querySelector<HTMLInputElement>(".ab-q")!;
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(q, "jar");
+      q.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    expect(items()).toEqual(["Subject matter experts · human-reviewed", "Jared Diener112 values", "Engineers · waiting for an expert"]);
+    await act(async () => container.querySelector<HTMLButtonElement>(".ab-pop .ab-item")!.click());
+    expect(location.hash).toBe("#/c/avc/rules/course-description?by=Jared+Diener&v=correct");
+  });
+
+  it("shows an engineer the check waiting, without Confirm or the experts' note", async () => {
+    setIdentity("Eric Riddoch", "engineer");
+    annotated(null);
     await render();
-    const last = () => new URLSearchParams(fetchMock.mock.calls.map((c) => String(c[0])).filter((u) => u.includes("/rows")).pop()!.split("?")[1]);
-    const box = container.querySelector<HTMLInputElement>(".sm-mine input")!;
-    expect(container.querySelector(".sm-mine")!.textContent).toBe("Annotated by me (2)");
-    expect(box.checked).toBe(false);
-    await act(async () => { box.click(); await new Promise((r) => setTimeout(r, 0)); });
-    expect(last().getAll("f")).toEqual(["annotator:Jared Diener"]);  // the profile "Jared" is Jared Diener
-    expect(container.querySelector<HTMLInputElement>(".sm-mine input")!.checked).toBe(true);
-    expect(container.querySelector(".sm-chip")!.textContent).toContain("Annotated by: Jared Diener");
+    expect(container.querySelector("[data-rule=course-description]")!.textContent).toContain("14 / 1,062 reviewed");
+    expect(container.querySelector(".row.on [data-testid=review-line]")!.textContent).toContain("waiting for an expert");
+    expect(container.querySelector(".row.on .cb.confirm")).toBeNull();
+    expect(container.querySelector("[data-testid=waiting-note]")).toBeNull();
   });
 
   it("marks the right value by selecting it on the page, without pressing ✗ first, in one piece or several", async () => {

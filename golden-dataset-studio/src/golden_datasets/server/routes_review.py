@@ -16,9 +16,9 @@ from fastapi import APIRouter, Body, HTTPException, Query, Request
 from .. import facets, golden, layout, model
 from ..catalogs import CATALOGS, info
 from ..errors import UserError
-from ..log import new_id, validate
+from ..log import FULL_NAMES, new_id, validate
 from ..profiles import role_of, roles
-from ..review import LOADER, Review
+from ..review import LOADER, Review, annotated_match
 from .state import not_found, studio
 
 router = APIRouter(prefix="/api")
@@ -70,10 +70,14 @@ def _event_brief(e: dict | None) -> dict | None:
 
 
 def _review_state(s) -> dict:
-    """Whether an expert confirmed the value (human-reviewed), or only an engineer did (waiting for an expert)."""
+    """Whether an expert confirmed the value (human-reviewed: `human` is their verdict), or only an engineer did
+    (waiting for an expert); `checked` is the latest engineer's ✓ (the check an expert confirmed, or waits on)."""
     if s is None:
-        return {"human_reviewed": False, "engineer_checked": False, "role": None}
-    return {"human_reviewed": s.human is not None, "engineer_checked": s.engineer_checked, "role": s.role}
+        return {"human_reviewed": False, "engineer_checked": False, "role": None, "human": None, "checked": None}
+    def who(e: dict | None) -> dict | None:  # first-name authors of the first profiles by their full name
+        return e and {**_event_brief(e), "author": FULL_NAMES.get(e["author"], e["author"])}
+    return {"human_reviewed": s.human is not None, "engineer_checked": s.engineer_checked, "role": s.role,
+            "human": who(s.human), "checked": who(s.checked)}
 
 
 # =====================================================================================================
@@ -262,7 +266,8 @@ def rule(request: Request, catalog: str, rule_id: str, ext: str | None = None) -
 def rows(request: Request, catalog: str, rule_id: str, ext: str | None = None, offset: int = 0,
          limit: int = 200, q: str | None = None, focus: str | None = None,
          f: Annotated[list[str] | None, Query()] = None, order: str = "review",
-         cross: Annotated[list[str] | None, Query()] = None, seed: int = 0, prior: bool = False) -> dict:
+         cross: Annotated[list[str] | None, Query()] = None, seed: int = 0, prior: bool = False,
+         by: str | None = None, verdict: str | None = None) -> dict:
     """One page of a rule's rows in review order. `focus` (a row key, occurrence key, course key or page stem)
     extends the page so it includes that row, and returns its index as `focus_index` (links from Compare).
     The Sample drawer (facets.py): `f` filters by strata (`f=length:0–99 chars`, repeatable); `order` is `review`
@@ -270,8 +275,9 @@ def rows(request: Request, catalog: str, rule_id: str, ext: str | None = None, o
     `cross` omitted = the ones that split the rows most evenly) or `shuffle`, both seeded by `seed`. The first page
     also returns `sample`: the strata histograms, the crossed strata and their combinations. Rows carry `tags`:
     their bucket in each crossed or filtered stratum. `prior`: rows not reviewed yet whose record was reviewed in
-    another rule come first (tagged "Reviewed in"); `sample.elsewhere` counts them either way. `f=annotator:<name>`
-lists the rows someone marked or commented on in any ruleset version (tagged with the versions: "Annotated in")."""
+    another rule come first (tagged "Reviewed in"); `sample.elsewhere` counts them either way. The "Annotated by"
+filter (Evals spec §6.7): `by` = a person (the rows they marked or commented on, in any ruleset version, tagged with
+the versions: "Annotated in"), `nobody` or `waiting` (engineer-checked); `verdict` = correct · wrong · note."""
     t0 = time.perf_counter()
     rv = _review(request, catalog, ext)
     if rule_id not in rv.snap.rules:
@@ -281,6 +287,9 @@ lists the rows someone marked or commented on in any ruleset version (tagged wit
         ql = q.lower().replace(" ", "")
         ordered = [(r, s) for r, s in ordered if ql in (r.get("course_key") or "").lower()
                    or ql in (r.get("value") or "").lower().replace(" ", "") or ql in r["page_stem"]]
+    if by or verdict:
+        ann = rv.annotations(rule_id)
+        ordered = [(r, s) for r, s in ordered if annotated_match(ann[r["key"]], by, verdict)]
     filters = facets.parse_filters(f)
     if order not in facets.ORDERS:
         raise HTTPException(status_code=422, detail=f"order must be one of {', '.join(facets.ORDERS)}")
@@ -288,7 +297,7 @@ lists the rows someone marked or commented on in any ruleset version (tagged wit
     by_key = {r["key"]: (r, s) for r, s in ordered}
     keys, sample = facets.sample_order(dims, list(by_key), filters, order,
                                        None if cross is None else [c for c in cross if c], seed)
-    if "annotator" in filters and "annotated_in" not in sample["tag_dims"]:  # whose rows: say which ruleset too
+    if by not in (None, "", "nobody", "waiting") and "annotated_in" not in sample["tag_dims"]:  # whose rows: say which ruleset too
         sample["tag_dims"].append("annotated_in")
     elsewhere = rv.reviewed_elsewhere(rule_id, rv.snap.rows(rule_id), rv.row_states(rule_id, rv.snap.rows(rule_id)))
     sample["elsewhere"] = sum(1 for k in keys if k in elsewhere)
@@ -334,6 +343,19 @@ lists the rows someone marked or commented on in any ruleset version (tagged wit
     return {"rule_id": rule_id, "extraction": snap.ext, "total": len(ordered), "offset": offset, "rows": out,
             "spread": spread, "sample": sample if offset == 0 else None,
             "missing": missing, "focus_index": focus_index, "elapsed_ms": round(1000 * (time.perf_counter() - t0), 1)}
+
+
+@router.get("/catalogs/{catalog}/annotators")
+def annotators(request: Request, catalog: str, ext: str | None = None, by: str | None = None,
+               verdict: str | None = None) -> dict:
+    """The "Annotated by" dropdown of the Rules and Records tabs (Evals spec §6.7, §6.8): `people` [{name, role,
+    values}] (field values each annotated), `waiting` (values an engineer checked, waiting for an expert) and, with
+    `by` or `verdict`, `rules` {rule_id: rows that pass the filter} for the rule list."""
+    rv = _review(request, catalog, ext)
+    out = rv.people()
+    out["rules"] = ({rid: sum(1 for a in rv.annotations(rid).values() if annotated_match(a, by, verdict))
+                     for rid in rv.snap.rules} if by or verdict else None)
+    return out
 
 
 @router.get("/catalogs/{catalog}/pages/{stem}/overlay")
@@ -391,7 +413,10 @@ def page_search(request: Request, catalog: str, q: str = "", rule: str | None = 
 # Courses (Records tab)
 # =====================================================================================================
 @router.get("/catalogs/{catalog}/courses")
-def courses(request: Request, catalog: str, q: str | None = None, ext: str | None = None, limit: int = 50) -> list[dict]:
+def courses(request: Request, catalog: str, q: str | None = None, ext: str | None = None, limit: int = 50,
+            who: Annotated[str | None, Query(alias="by")] = None, verdict: str | None = None) -> list[dict]:
+    """Courses by code, the annotated first; `by` / `verdict` (the "Annotated by" filter, as on /rows): only the
+    courses with a field value that passes it (`by=nobody`: no field value annotated)."""
     rv = _review(request, catalog, ext)
     by = {}
     for o in rv.snap.occurrences.values():
@@ -408,6 +433,18 @@ def courses(request: Request, catalog: str, q: str | None = None, ext: str | Non
             by[ck]["annotated"] = True
     # courses someone has looked at first (a dot in the list, screen 07), then by code
     items = sorted(by.values(), key=lambda x: (not x["annotated"], x["course_key"]))
+    if who or verdict:
+        snap, keep, touched = rv.snap, set(), set()
+        for rid, r in snap.rules.items():
+            if r["kind"] != "field":
+                continue
+            for k, a in rv.annotations(rid).items():
+                ck = snap.occurrences[k]["course_key"]
+                if a["people"]:
+                    touched.add(ck)
+                if annotated_match(a, who, verdict):
+                    keep.add(ck)
+        items = [i for i in items if (i["course_key"] not in touched if who == "nobody" else i["course_key"] in keep)]
     if q:
         ql = q.lower().replace(" ", "")
         items = [i for i in items if ql in i["course_key"].lower() or ql in (i["line"] or "").lower().replace(" ", "")]
@@ -423,6 +460,7 @@ def course(request: Request, catalog: str, course_key: str, ext: str | None = No
     if not occs:
         raise not_found(course_key)
     states_cache: dict = {}
+    annotations: dict = {}
     out = []
     for o in occs:
         fields = []
@@ -430,13 +468,14 @@ def course(request: Request, catalog: str, course_key: str, ext: str | None = No
                              key=lambda kv: model.PROPERTY_ORDER.get(snap.rules[kv[0]].get("property_label"), 99)):
             if rid not in states_cache:
                 states_cache[rid] = rv.row_states(rid, snap.rows(rid))
+                annotations[rid] = rv.annotations(rid)
             s = states_cache[rid].get(o["occurrence_key"])
             r = snap.rules[rid]
             fields.append({"rule_id": rid, "property_label": r.get("property_label"),
                            "ctdl_property": r.get("ctdl_property"), "value": m["value"], "status": m["status"],
                            "css_path": m["full_css_path"], "char_start": m["char_start"], "char_end": m["char_end"],
                            "state": s.state if s else None, "verdict": _event_brief(s.verdict) if s else None,
-                           **_review_state(s),
+                           **_review_state(s), "annotators": annotations[rid][o["occurrence_key"]]["people"],
                            "comments": [_event_brief(c) for c in s.comments] if s else []})
         p = snap.page[o["page_stem"]]
         out.append({"occurrence_key": o["occurrence_key"], "page_stem": o["page_stem"], "url": p["url"],

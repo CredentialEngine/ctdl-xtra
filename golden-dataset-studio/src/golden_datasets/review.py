@@ -14,12 +14,13 @@ How an old verdict applies to the current row (spec §4.3 "old verdicts carry fo
 - `wrong` and the value changed: **fixed** when it now equals the expected text, else **still wrong**;
 - `correct` and the value changed: **changed since correct** (needs a fresh look; not counted as wrong).
 Annotations re-attach through `course_key` + page when the occurrence key changed (a changed locator, D3).
-A row's `events` are every verdict and comment on it, whichever ruleset version they were made in: the Sample drawer's
-"Annotated by" and "Annotated in" strata.
+A row's `events` are every verdict and comment on it, whichever ruleset version they were made in: the "Annotated by"
+filter of the Rules and Records tabs (`annotations`, `annotated_match`) and the Sample drawer's "Annotated in" stratum.
 
 Human-reviewed (Evals spec §4.3): only a subject matter expert's verdict makes a value human-reviewed (`RowState.human`).
 An engineer's ✓ is recorded and shown as engineer-checked, waiting for an expert; their ✕ counts against the rule
-like anyone's. An expert's later ✓ supersedes an engineer's; an engineer's later ✓ leaves an expert's standing.
+like anyone's. An expert's later verdict supersedes an engineer's; an engineer's later verdict never supersedes an
+expert's (the expert's ✓ stands beside it, so the value stays human-reviewed after an engineer's ✓).
 """
 
 from __future__ import annotations
@@ -39,6 +40,11 @@ OPEN = {"wrong", "still-wrong", "missing"}
 #: Row states where a person confirmed the value itself: marked it correct (and it hasn't changed since), or marked
 #: it wrong and selected the right text, which the value now is. From an expert, that makes the value human-reviewed.
 HUMAN_STATES = ("correct", "fixed")
+#: The "Annotated by" filter's verdict switch: ✓ correct · ✕ wrong · note (a comment or a question for the institution).
+VERDICT_KIND = {"correct": "correct", "fixed": "correct", "wrong": "wrong", "still-wrong": "wrong", "missing": "wrong",
+                "question": "note"}
+#: "Annotated by" choices besides a person's name: nobody yet, and an engineer's check waiting for an expert.
+NOBODY, WAITING = "nobody", "waiting"
 
 
 def norm(v: str | None) -> str:
@@ -180,6 +186,7 @@ class RowState:
     history: list = field(default_factory=list)  # history signals: [{"signal", "severity", "detail"}]
     role: str | None = None           # the verdict's author's role (sme | engineer)
     human: dict | None = None         # the expert's verdict that makes the value human-reviewed
+    checked: dict | None = None       # the latest engineer's ✓ on the row (the check an expert confirms)
 
     @property
     def engineer_checked(self) -> bool:
@@ -194,9 +201,15 @@ class Review:
                  roles: dict[str, str] | None = None):
         self.snap, self.events, self.parent = snap, events, parent
         self.roles = roles or {}  # name → role (profiles.json), for events without author_role
-        superseded = {e["supersedes"] for e in events if e.get("supersedes")}
+        self.by_id = by_id = {e["annotation_id"]: e for e in events}
+
+        def supersedes(e: dict) -> bool:  # an engineer's verdict doesn't take an expert's away (§4.3)
+            old = by_id.get(e["supersedes"])
+            return old is None or old["type"] != "verdict" or self.role(old) != "sme" or self.role(e) == "sme"
+        superseded = {e["supersedes"] for e in events if e.get("supersedes") and supersedes(e)}
         self.live = [e for e in events if e["annotation_id"] not in superseded]
         self._states: dict[str, dict] = {}  # rule_id → row states of snap.rows(rule_id) (events are fixed per Review)
+        self._annotations: dict[str, dict] = {}  # rule_id → Review.annotations(...)
         self._facets: dict[str, list[dict]] = {}  # rule_id → facets.dimensions(...), see Review.facet_dims
 
     # -- verdicts on rows ------------------------------------------------------------------------------
@@ -321,6 +334,11 @@ class Review:
                     expert_by_course_page.get((row["course_key"], row["page_stem"])) if row.get("course_key") else None)
                 if x is not None and st.state not in OPEN and self._carry(rule, x, row) in HUMAN_STATES:
                     st.human = x
+            # the engineer's check: still on the row, or the one an expert's Confirm superseded
+            checks = [*([self.by_id.get(st.human.get("supersedes"))] if st.human and st.human.get("supersedes") else []),
+                      *st.events]
+            st.checked = max((x for x in checks if x and x["type"] == "verdict" and x["verdict"] == "correct"
+                              and self.role(x) != "sme"), key=lambda x: x["at"], default=None)
             if self.parent is not None:
                 if row["key"] not in parent_values and parent_values:
                     st.history.append(_h("new-in-version", f"not in {self.parent.ext}"))
@@ -460,12 +478,55 @@ class Review:
 
     @staticmethod
     def _annotated(st: RowState, ruleset_of: dict[str, int]) -> dict:
-        """Who marked or commented on the row, and the ruleset versions they did it in (people only: the Studio's
-        own events don't count). First-name authors from the first profiles count as the person's full name."""
+        """The ruleset versions people marked or commented on the row in (the Studio's own events don't count)."""
         es = [e for e in st.events if not e["author"].startswith("golden-datasets")]
-        return {"annotators": sorted({FULL_NAMES.get(e["author"], e["author"]) for e in es}),
-                "annotated_in": sorted({ruleset_of.get(e["target"].get("extraction_seen")) for e in es},
+        return {"annotated_in": sorted({ruleset_of.get(e["target"].get("extraction_seen")) for e in es},
                                        key=lambda v: (v is None, v or 0))}
+
+    def annotations(self, rule_id: str) -> dict[str, dict]:
+        """The "Annotated by" filter's data, per row key: `people` {name: {"kinds": [correct|wrong|note], "at"}} (their
+        latest verdict, and note when they commented; the Studio's own events don't count; first names count as the
+        full name), `kinds` (the row's: its verdict, note when discussed) and `waiting` (engineer-checked). Fixed per
+        Review."""
+        if rule_id not in self._annotations:
+            rows = self.snap.rows(rule_id)
+            states = self.row_states(rule_id, rows)
+            out = {}
+            for r in rows:
+                st = states[r["key"]]
+                people: dict[str, dict] = {}
+                for e in st.events:  # oldest first: the latest verdict wins
+                    if e["author"].startswith("golden-datasets"):
+                        continue
+                    p = people.setdefault(FULL_NAMES.get(e["author"], e["author"]), {"verdict": None, "note": False})
+                    if e["type"] == "verdict" and e["verdict"] != "question":
+                        p["verdict"] = VERDICT_KIND.get(e["verdict"])
+                    else:
+                        p["note"] = True
+                    p["at"] = e["at"]
+                kinds = {VERDICT_KIND[st.state]} if st.state in VERDICT_KIND else set()
+                out[r["key"]] = {
+                    "people": {n: {"kinds": [k for k in (p["verdict"], "note" if p["note"] else None) if k],
+                                   "at": p["at"]} for n, p in people.items()},
+                    "kinds": sorted(kinds | ({"note"} if st.comments else set())), "waiting": st.engineer_checked}
+            self._annotations[rule_id] = out
+        return self._annotations[rule_id]
+
+    def people(self) -> dict:
+        """The "Annotated by" dropdown: every profile and everyone who annotated a value, with their role and how many
+        field values they annotated, and how many values an engineer checked are waiting for an expert."""
+        values: Counter = Counter()
+        waiting = 0
+        for rid, r in self.snap.rules.items():
+            if r["kind"] != "field":
+                continue
+            for a in self.annotations(rid).values():
+                values.update(list(a["people"]))
+                waiting += a["waiting"]
+        names = set(self.roles) | set(values)
+        return {"people": sorted(({"name": n, "role": self.roles.get(n) or "engineer", "values": values[n]}
+                                  for n in names), key=lambda p: (p["role"] != "sme", -p["values"], p["name"])),
+                "waiting": waiting}
 
     def spread_groups(self, rule_id: str) -> tuple[str, dict[str, str], list[str]]:
         """strata.groups for this rule's rows: (grouped by, row key → group, group order). Fixed per snapshot."""
@@ -476,6 +537,20 @@ class Review:
             on_page = Counter(o["page_stem"] for o in snap.occurrences.values()) if kind == "page" else None
             cache[rule_id] = strata.groups(kind, snap.rows(rule_id), on_page)
         return cache[rule_id]
+
+
+def annotated_match(a: dict, by: str | None, verdict: str | None) -> bool:
+    """Whether a row (its `Review.annotations` entry) passes the "Annotated by" filter: `by` is a person (their own
+    verdict counts for `verdict`), NOBODY or WAITING (the row's verdict counts), or None (anyone)."""
+    if by == NOBODY:
+        return not a["people"] and not verdict
+    if by == WAITING:
+        ok, kinds = a["waiting"], a["kinds"]
+    elif by:
+        ok, kinds = by in a["people"], a["people"].get(by, {}).get("kinds", [])
+    else:
+        ok, kinds = True, a["kinds"]
+    return ok and (not verdict or verdict in kinds)
 
 
 def _overlaps(a: str, b: str) -> bool:

@@ -70,10 +70,16 @@ export interface Expected {
 export interface EventBrief {
   annotation_id: string; type: "verdict" | "comment" | "approve" | "reopen"; verdict: Verdict | null;
   author: string; at: string; note: string | null; expected: Expected | null;
-  rule_version_seen: number | null; value_seen: string | null; page_stem?: string | null;
+  rule_version_seen: number | null; value_seen: string | null; page_stem?: string | null; author_role?: string | null;
 }
 
-export interface Row {
+/** Evals §4.3: an expert confirmed the value (`human`: their verdict), or only an engineer did, waiting for an expert
+ * (`checked`: the latest engineer's ✓, also the check an expert confirmed). */
+export interface ReviewMarks {
+  human_reviewed?: boolean; engineer_checked?: boolean; human?: EventBrief | null; checked?: EventBrief | null;
+}
+
+export interface Row extends ReviewMarks {
   key: string;                       // occurrence_key (field rules, locators) or page_stem (page rules)
   occurrence_key: string | null; course_key: string | null; page_stem: string; url: string; page_title: string | null;
   value: string | null; status: "found" | "empty" | "no_match";
@@ -103,7 +109,9 @@ export interface Overlay {
 export interface UnclassifiedPage { page_stem: string; url: string; title: string | null; detail: string }
 
 export interface CourseHit { course_key: string; occurrences: number; line: string | null }
-export interface CourseField {
+export interface CourseField extends ReviewMarks {
+  /** who marked or commented on it: their verdict (correct · wrong) and note, and when (the "Annotated by" filter) */
+  annotators?: Record<string, { kinds: string[]; at: string }>;
   rule_id: string; property_label: string | null; ctdl_property: string | null; value: string | null;
   status: string; css_path: string | null; char_start: number | null; char_end: number | null;
   state: RowStateName | null; verdict: EventBrief | null; comments: EventBrief[];

@@ -1,5 +1,5 @@
 // Pure helpers of the Rules and Records tabs (no React, no fetch): wording, verdict events, keyboard, page tabs.
-import type { EventBrief, Expected, NewEvent, RowStateName, RuleKind, RuleSummary, Verdict } from "../api/types";
+import type { EventBrief, Expected, NewEvent, ReviewMarks, RowStateName, RuleKind, RuleSummary, Verdict } from "../api/types";
 import type { CapturedSelection } from "../pagepane";
 
 // --- wording ---------------------------------------------------------------------------------------------------
@@ -181,6 +181,36 @@ export function applyEvent<R extends { state: RowStateName | null; verdict: Even
   if (ev.type === "comment") return { ...row, comments: [...row.comments, ev] };
   if (ev.type !== "verdict" || !ev.verdict) return row;
   return { ...row, verdict: ev, state: ev.verdict, reattached: false };
+}
+
+// --- human-reviewed / engineer-checked (Evals spec §4.3, §6.7) ---------------------------------------------------
+/** An expert can confirm a value only an engineer checked: Confirm (or 1) is an ordinary ✓ by the expert. */
+export const canConfirm = (r: ReviewMarks, role: string | null) => !!r.engineer_checked && role === "sme";
+
+/** A verdict just saved, on the row's marks (as review.py computes them). An expert's ✓ makes the value
+ * human-reviewed; an engineer's ✓ leaves an expert's standing, else waits for an expert; any other verdict clears both. */
+export function applyReview<R extends ReviewMarks>(row: R, ev: EventBrief, role: string | null): R {
+  if (ev.type !== "verdict") return row;
+  if (ev.verdict !== "correct") return { ...row, human_reviewed: false, engineer_checked: false, human: null };
+  if (role === "sme") return { ...row, human_reviewed: true, engineer_checked: false, human: ev };
+  return row.human_reviewed ? row : { ...row, engineer_checked: true, checked: ev };
+}
+
+/** "just now" within a minute, else "21 Oct" (the browser's time zone). */
+export function shortWhen(at: string | null | undefined, now = Date.now()): string {
+  const t = at ? Date.parse(at) : NaN;
+  if (Number.isNaN(t) || now - t < 60_000) return "just now";
+  return new Date(t).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+}
+
+/** The "Annotated by" filter's choices besides a person (review.py NOBODY, WAITING), as the dropdown names them. */
+export const BY_NOBODY = "nobody";
+export const BY_WAITING = "waiting";
+export function byLabel(by: string | null): string {
+  if (!by) return "Anyone";
+  if (by === BY_NOBODY) return "Not annotated yet";
+  if (by === BY_WAITING) return "Any engineer · waiting for an expert";
+  return by;
 }
 
 // --- keyboard ----------------------------------------------------------------------------------------------------

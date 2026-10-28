@@ -94,6 +94,55 @@ def test_an_engineers_check_waits_for_an_expert_whose_check_is_published_at_once
     assert out["published"]["files"] and _page(gold, ctx, "page-0") == [] == _page(gold, ctx, "page-0", 1)
 
 
+def test_an_engineers_check_after_an_experts_leaves_it_human_reviewed(studio):
+    """The UI sends an engineer's ✓ as superseding the row's verdict (the expert's): the expert's still stands."""
+    c, ctx, gold = studio
+    row = _rows(c, "course-name")["page-1"]
+    _mark(c, JARED, "course-name", row, "correct")
+    row = _rows(c, "course-name")["page-1"]
+    _mark(c, ERIC, "course-name", row, "correct", supersedes=row["verdict"]["annotation_id"])
+    row = _rows(c, "course-name")["page-1"]
+    assert (row["human_reviewed"], row["engineer_checked"], row["human"]["author"]) == (True, False, JARED)
+    assert row["checked"]["author"] == ERIC
+    [rec] = _page(gold, ctx, "page-1")
+    assert rec["fields"][0]["approval"] == "human"  # its page file keeps the expert's value
+    # an expert's later verdict wins over an engineer's: Confirm (an expert's ✓) supersedes an engineer's check
+    row2 = _rows(c, "course-name")["page-2"]
+    _mark(c, ERIC, "course-name", row2, "correct")
+    row2 = _rows(c, "course-name")["page-2"]
+    _mark(c, JARED, "course-name", row2, "correct", supersedes=row2["verdict"]["annotation_id"])
+    row2 = _rows(c, "course-name")["page-2"]
+    assert (row2["human_reviewed"], row2["engineer_checked"], row2["checked"]["author"]) == (True, False, ERIC)
+
+
+def test_annotated_by_filters_rows_courses_and_the_rule_list(studio):
+    c, _, _ = studio
+    rows = _rows(c, "course-name")
+    _mark(c, ERIC, "course-name", rows["page-0"], "correct")
+    _mark(c, JARED, "course-name", rows["page-1"], "wrong")
+    c.post(f"{B}/annotations", json={"type": "comment", "author": JARED, "note": "hm", "target": {
+        "kind": "match", "rule_id": "course-code", "occurrence_key": _rows(c, "course-code")["page-2"]["key"]}})
+    a = c.get(f"{B}/annotators").json()
+    people = {p["name"]: (p["role"], p["values"]) for p in a["people"]}
+    assert people[JARED] == ("sme", 2) and people[ERIC] == ("engineer", 1) and people["Cadence Calixto"] == ("sme", 0)
+    assert [p["name"] for p in a["people"]][:2] == [JARED, "Cadence Calixto"]  # experts first, most values first
+    assert a["waiting"] == 1 and a["rules"] is None
+    assert c.get(f"{B}/annotators", params={"by": "waiting"}).json()["rules"]["course-name"] == 1
+    assert c.get(f"{B}/annotators", params={"by": JARED, "verdict": "note"}).json()["rules"] == {
+        "course-page": 0, "locator-course-page": 0, "course-code": 1, "course-name": 0}
+
+    def keys(**params) -> list[str]:
+        return [r["page_stem"] for r in c.get(f"{B}/rules/course-name/rows", params=params).json()["rows"]]
+    assert keys(by="waiting") == ["page-0"]
+    assert keys(by=JARED) == ["page-1"] and keys(by=JARED, verdict="correct") == []
+    assert keys(verdict="wrong") == ["page-1"] and sorted(keys(by="nobody")) == ["page-2"]
+    courses = lambda **p: sorted(x["course_key"] for x in c.get(f"{B}/courses", params=p).json())  # noqa: E731
+    assert len(courses(by=JARED)) == 2 and len(courses(by="waiting")) == 1 and len(courses(by="nobody")) == 0
+    ck = courses(by="waiting")[0]
+    fields = c.get(f"{B}/courses/{ck}").json()["occurrences"][0]["fields"]
+    assert next(f for f in fields if f["rule_id"] == "course-name")["annotators"][ERIC]["kinds"] == ["correct"]
+
+
 def test_an_engineers_cross_still_marks_the_rule_needs_work(studio):
     c, _, _ = studio
     out = _mark(c, ERIC, "course-code", _rows(c, "course-code")["page-1"], "wrong")

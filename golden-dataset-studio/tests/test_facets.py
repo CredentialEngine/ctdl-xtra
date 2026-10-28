@@ -72,13 +72,12 @@ def test_compare_items_get_change_and_rule_dimensions():
     assert ids[:2] == ["rule", "change"] and "lead_a" in ids
 
 
-def test_annotated_by_and_in_which_ruleset():
-    items = [it(0, "a", annotators=["Eric Riddoch", "Jared Diener"], annotated_in=[1, 2]),
-             it(1, "b", annotators=["Eric Riddoch"], annotated_in=[None]), it(2, "c", annotators=[], annotated_in=[])]
+def test_annotated_in_which_ruleset():
+    """Who annotated a row is the "Annotated by" filter (review.annotated_match), not a stratum."""
+    items = [it(0, "a", annotated_in=[1, 2]), it(1, "b", annotated_in=[None]), it(2, "c", annotated_in=[])]
     dims = {d["id"]: d for d in facets.dimensions("field", items)}
-    assert dims["annotator"]["values"] == {"k0": ["Eric Riddoch", "Jared Diener"], "k1": ["Eric Riddoch"], "k2": ["nobody"]}
+    assert "annotator" not in dims
     assert dims["annotated_in"]["order"] == ["ruleset v1", "ruleset v2", "an unknown ruleset", "not annotated"]
-    assert facets.matches(list(dims.values()), {"annotator": {"Eric Riddoch"}}) == {"k0", "k1"}
     assert facets.matches(list(dims.values()), {"annotated_in": {"ruleset v1"}}) == {"k0"}
-    assert "annotator" not in facets.pick_cross(list(dims.values()), ["k0", "k1", "k2"])
-    assert "annotator" not in {d["id"] for d in facets.dimensions("field", [it(0, "a")])}  # Compare: no such stratum
+    assert "annotated_in" not in facets.pick_cross(list(dims.values()), ["k0", "k1", "k2"])
+    assert "annotated_in" not in {d["id"] for d in facets.dimensions("field", [it(0, "a")])}  # Compare: no such stratum

@@ -1,5 +1,6 @@
 // Pure helpers of the Records tab (spec §7.3): one course, every in-scope field as a card.
 import type { CourseDetail, CourseField } from "../api/types";
+import { BY_NOBODY, BY_WAITING } from "../rules/logic";
 
 export interface CardValue extends CourseField {
   occurrence_key: string; page_stem: string; page_title: string | null; url: string; on_course_page: boolean;
@@ -49,3 +50,17 @@ export function courseHeading(cards: Card[], courseKey: string): string {
 }
 
 export const valueKey = (v: { rule_id: string; occurrence_key: string }) => `${v.rule_id}|${v.occurrence_key}`;
+
+/** "Annotated by" on a course (Evals spec §6.8): the cards with a value the filter picks come first, the rest fold away
+ * (`folded`). No filter, or "Not annotated yet": nothing folds. */
+export function splitCards(cards: Card[], by: string | null): { mine: Card[]; folded: Card[] } {
+  if (!by || by === BY_NOBODY) return { mine: cards, folded: [] };
+  const picked = (v: CardValue) => (by === BY_WAITING ? !!v.engineer_checked : !!v.annotators?.[by]);
+  return { mine: cards.filter((c) => c.values.some(picked)), folded: cards.filter((c) => !c.values.some(picked)) };
+}
+
+/** "4 fields Jared Diener didn't annotate". */
+export function foldLine(n: number, by: string): string {
+  const fields = `${n} field${n === 1 ? "" : "s"}`;
+  return by === BY_WAITING ? `${fields} not waiting for an expert` : `${fields} ${by} didn't annotate`;
+}

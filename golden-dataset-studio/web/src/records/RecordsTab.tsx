@@ -1,22 +1,24 @@
 // The Records tab (spec §7.3, screen 07): find a course, see every in-scope field as a card, with the same
 // verdict controls as the Rules tab (the same `verdict` events, targeting (field rule, occurrence)) and the same
-// page pane with numbered highlights for each field.
+// page pane with numbered highlights for each field. "Annotated by" (?by=…, Evals spec §6.8) lists only the courses a
+// person annotated; on a course, their fields come first and the rest fold into one line.
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api } from "../api/client";
 import type { CourseDetail, EventBrief, NewEvent } from "../api/types";
 import { PagePane, type Highlight } from "../pagepane";
-import { apiX, type CourseHitX } from "../rules/api";
+import { AnnotatedBy, PersonLine, ReviewLine } from "../rules/AnnotatedBy";
+import { apiX, type Annotators, type CourseHitX } from "../rules/api";
 import {
-  addCapture, applyEvent, briefOf, isField, isSettled, keyAction, newDraft, scrollWithin, shortTitle, verdictEvent, type Draft,
+  addCapture, applyEvent, applyReview, briefOf, canConfirm, isField, isSettled, keyAction, newDraft, scrollWithin, shortTitle, verdictEvent, type Draft,
 } from "../rules/logic";
 import { Controls, Expansion, HistoryLine } from "../rules/parts";
 import "../rules/rules.css";
 import { Ico } from "../shell/icons";
-import { useReviewer } from "../shell/reviewer";
+import { useReviewer, useRole } from "../shell/reviewer";
 import { go, href } from "../shell/router";
 import type { TabProps } from "../shell/tabProps";
 import { termUrl, toast, useKeyHints } from "../shell/ui";
-import { courseHeading, foundOn, groupCards, valueKey, type CardValue } from "./logic";
+import { courseHeading, foldLine, foundOn, groupCards, splitCards, valueKey, type CardValue } from "./logic";
 import "./records.css";
 
 const HINTS = (
@@ -27,6 +29,7 @@ const HINTS = (
 export default function RecordsTab({ catalog, route }: TabProps) {
   const cat = catalog.short;
   const me = useReviewer();
+  const role = useRole();
   const [q, setQ] = useState("");
   const [hits, setHits] = useState<CourseHitX[] | null>(null);
   const [course, setCourse] = useState<CourseDetail | null>(null);
@@ -38,29 +41,35 @@ export default function RecordsTab({ catalog, route }: TabProps) {
   useKeyHints(HINTS, []);
 
   const courseKey = route.id;
-  const wantProp = route.params.get("prop") ?? "Description";
+  const by = route.params.get("by");
+  const wantProp = route.params.get("prop") ?? (by ? null : "Description");
   const wantOcc = route.params.get("occ");
+  const [people, setPeople] = useState<Annotators | null>(null);
+  const [showAll, setShowAll] = useState(false);
+  useEffect(() => { apiX.annotators(cat).then(setPeople, () => setPeople(null)); }, [cat]);
 
   useEffect(() => {
     let live = true;
-    const t = window.setTimeout(() => apiX.courses(cat, q || undefined).then((h) => { if (live) setHits(h); }, (e) => setError(String(e))), q ? 120 : 0);
+    const t = window.setTimeout(() => apiX.courses(cat, q || undefined, by).then((h) => { if (live) setHits(h); }, (e) => setError(String(e))), q ? 120 : 0);
     return () => { live = false; window.clearTimeout(t); };
-  }, [cat, q]);
+  }, [cat, q, by]);
 
   // no course in the address yet: open the first one in the list
   useEffect(() => {
-    if (!courseKey && hits && hits.length && !q) go(href(cat, "records", hits[0].course_key), true);
-  }, [courseKey, hits, q, cat]);
+    if (!courseKey && hits && hits.length && !q) go(href(cat, "records", hits[0].course_key, { by }), true);
+  }, [courseKey, hits, q, cat, by]);
 
   useEffect(() => {
     if (!courseKey) return;
     let live = true;
-    setDraft(null); setActiveStem(null);
+    setDraft(null); setActiveStem(null); setShowAll(false);
     api.course(cat, courseKey).then((d) => { if (live) { setCourse(d); setError(null); } }, (e) => { if (live) { setCourse(null); setError(String(e)); } });
     return () => { live = false; };
   }, [cat, courseKey]);
 
-  const cards = useMemo(() => (course ? groupCards(course) : []), [course]);
+  const all = useMemo(() => (course ? groupCards(course) : []), [course]);
+  const { mine, folded } = useMemo(() => splitCards(all, by), [all, by]);
+  const cards = useMemo(() => (showAll ? [...mine, ...folded] : mine), [mine, folded, showAll]);
   useEffect(() => {
     if (!cards.length) return;
     const card = cards.find((c) => c.property === wantProp) ?? cards[0];
@@ -109,11 +118,12 @@ export default function RecordsTab({ catalog, route }: TabProps) {
   // --- saving ---------------------------------------------------------------------------------------------
   const patch = useCallback((v: CardValue, ev: EventBrief) => {
     setCourse((d) => d && { ...d, occurrences: d.occurrences.map((o) => o.occurrence_key !== v.occurrence_key ? o
-      : { ...o, fields: o.fields.map((f) => (f.rule_id === v.rule_id ? applyEvent(f, ev) : f)) }) });
-  }, []);
+      : { ...o, fields: o.fields.map((f) => (f.rule_id === v.rule_id ? applyReview(applyEvent(f, ev), ev, role) : f)) }) });
+  }, [role]);
 
   const save = useCallback(async (v: CardValue, what: { verdict: "correct" } | { draft: Draft }) => {
-    if ("verdict" in what && v.state === "correct") { toast("Already correct"); return; }
+    const confirming = "verdict" in what && canConfirm(v, role);
+    if ("verdict" in what && v.state === "correct" && !confirming) { toast("Already correct"); return; }
     const target: NewEvent["target"] = { kind: "match", rule_id: v.rule_id, occurrence_key: v.occurrence_key, page_stem: v.page_stem };
     const ev = verdictEvent(me, target, v.verdict, what);
     try {
@@ -121,11 +131,11 @@ export default function RecordsTab({ catalog, route }: TabProps) {
       patch(v, briefOf(r.event as Parameters<typeof briefOf>[0]));
       setDraft(null);
       toast(ev.type === "comment" ? "Comment saved" : ev.verdict === "question" ? "Question for the institution saved"
-        : `${ev.verdict === "correct" ? "Correct" : "Wrong"} saved · ${v.property_label ?? v.rule_id}`);
+        : `${confirming ? "Confirmed: human-reviewed" : ev.verdict === "correct" ? "Correct saved" : "Wrong saved"} · ${v.property_label ?? v.rule_id}`);
     } catch (e) {
       toast(`Not saved: ${e instanceof Error ? e.message : String(e)}`);
     }
-  }, [cat, me, patch]);
+  }, [cat, me, role, patch]);
 
   const pick = useCallback((v: CardValue, k: "correct" | "wrong" | "comment") => {
     if (valueKey(v) !== sel) { setSel(valueKey(v)); setActiveStem(null); }
@@ -166,20 +176,23 @@ export default function RecordsTab({ catalog, route }: TabProps) {
     <div className="rec-layout w4-records">
       <aside className="col">
         <input className="search" placeholder="Find a course code" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Find a course" />
+        <div className="records-filter">
+          <AnnotatedBy people={people} by={by} me={me} onPick={(x) => go(href(cat, "records", null, { by: x }))} />
+        </div>
         <div className="course-list" ref={listRef}>
           {(hits ?? []).map((h) => (
-            <a key={h.course_key} className={`course-item${h.course_key === courseKey ? " on" : ""}`} href={href(cat, "records", h.course_key)}>
+            <a key={h.course_key} className={`course-item${h.course_key === courseKey ? " on" : ""}`} href={href(cat, "records", h.course_key, { by })}>
               <span className="c">{h.course_key}{h.annotated && <span className="dot" title="has verdicts" />}</span>
               <span className="t">{(h.line ?? "").replace(/^[^-]*-\s*/, "")}</span>
             </a>
           ))}
-          {hits && hits.length === 0 && <div className="faint" style={{ padding: 10 }}>No course matches “{q}”.</div>}
+          {hits && hits.length === 0 && <div className="faint" style={{ padding: 10 }}>{q ? <>No course matches “{q}”.</> : "No course passes the Annotated by filter."}</div>}
         </div>
       </aside>
       <section className="col mid">
         {error && <div className="placeholder muted" style={{ padding: 18 }}>{error}</div>}
         {course && <>
-          <div className="rec-head"><h1>{courseHeading(cards, course.course_key)}</h1><div className="sub">{foundOn(course)}</div></div>
+          <div className="rec-head"><h1>{courseHeading(all, course.course_key)}</h1><div className="sub">{foundOn(course)}</div></div>
           <div className="cards" ref={cardsRef}>
             {cards.map((c) => {
               const url = termUrl(c.ctdl_property);
@@ -207,17 +220,22 @@ export default function RecordsTab({ catalog, route }: TabProps) {
                                 href={href(cat, "rules", v.rule_id, { row: v.occurrence_key })}
                                 onClick={(e) => e.stopPropagation()}>Open in Rules →</a>
                             </div>)}
+                          {v.human_reviewed || v.engineer_checked ? <ReviewLine r={v} />
+                            : by && v.annotators?.[by] ? <PersonLine name={by} a={v.annotators[by]} /> : null}
                           <HistoryLine state={v.state} verdict={v.verdict} comments={v.comments} />
                           {on && draft && <Expansion draft={draft} fieldRule emptyValue={v.status !== "found"} onChange={setDraft}
                             onSave={() => void save(v, { draft })} onCancel={() => setDraft(null)} />}
                         </div>
-                        <Controls state={v.state} verdict={v.verdict} comments={v.comments} draft={on ? draft : null} onPick={(k) => pick(v, k)} />
+                        <Controls state={v.state} verdict={v.verdict} comments={v.comments} draft={on ? draft : null} onPick={(k) => pick(v, k)}
+                          confirm={canConfirm(v, role)} marked={v.human_reviewed || v.engineer_checked} />
                       </div>
                     );
                   })}</div>
                 </div>
               );
             })}
+            {by && folded.length > 0 && !showAll && (
+              <div className="rec-fold" data-testid="fold">{foldLine(folded.length, by)} · <button className="linkish" onClick={() => setShowAll(true)}>show</button></div>)}
           </div>
         </>}
       </section>

@@ -11,6 +11,12 @@ export interface RowsX extends RowsResponse { rows: RowX[]; focus_index?: number
 export interface RuleSummaryX extends RuleSummary { page_questions?: number }
 export interface CourseHitX extends CourseHit { annotated?: boolean }
 export interface PageHit extends PageRef { matched: boolean }
+/** The "Annotated by" dropdown (Evals spec §6.7): people with their role and the field values they annotated, the
+ * values waiting for an expert, and with a filter, each rule's rows that pass it. */
+export interface Annotators {
+  people: { name: string; role: "sme" | "engineer"; values: number }[];
+  waiting: number; rules: Record<string, number> | null;
+}
 
 async function get<T>(path: string): Promise<T> {
   const r = await fetch(path);
@@ -35,8 +41,11 @@ const qs = (o: Record<string, string | number | boolean | string[] | null | unde
 
 export const apiX = {
   rows: (catalog: string, ruleId: string, o: { offset?: number; limit?: number; focus?: string | null; f?: string[]; ext?: string | null;
-                                              order?: string; cross?: string[]; seed?: number; prior?: boolean } = {}) =>
+                                              order?: string; cross?: string[]; seed?: number; prior?: boolean;
+                                              by?: string | null; verdict?: string | null } = {}) =>
     get<RowsX>(`${c(catalog)}/rules/${encodeURIComponent(ruleId)}/rows${qs(o)}`),
   pageSearch: (catalog: string, q: string, rule: string) => get<PageHit[]>(`${c(catalog)}/page-search${qs({ q, rule })}`),
-  courses: (catalog: string, q?: string) => get<CourseHitX[]>(`${c(catalog)}/courses${qs({ q, limit: 400 })}`),
+  courses: (catalog: string, q?: string, by?: string | null) => get<CourseHitX[]>(`${c(catalog)}/courses${qs({ q, limit: 400, by })}`),
+  annotators: (catalog: string, o: { by?: string | null; verdict?: string | null; ext?: string | null } = {}) =>
+    get<Annotators>(`${c(catalog)}/annotators${qs(o)}`),
 };

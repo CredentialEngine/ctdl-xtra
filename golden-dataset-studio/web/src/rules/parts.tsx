@@ -4,19 +4,26 @@ import type { EventBrief, RowStateName } from "../api/types";
 import { Ico } from "../shell/icons";
 import { clip, controlOn, historyItems, type Draft } from "./logic";
 
-export function Controls({ state, verdict, comments, draft, onPick, tour }: {
+export function Controls({ state, verdict, comments, draft, onPick, tour, confirm, marked }: {
   state: RowStateName | null; verdict: EventBrief | null; comments: EventBrief[]; draft: Draft | null;
   onPick: (v: "correct" | "wrong" | "comment") => void; tour?: boolean;
+  /** an engineer-checked value an expert sees: ✓ becomes Confirm (an ordinary ✓ by the expert, Evals spec §6.7) */
+  confirm?: boolean;
+  /** human-reviewed or engineer-checked: the row's review line names who, so no byline here */
+  marked?: boolean;
 }) {
   const on = draft ? (draft.mode === "wrong" ? "wrong" : null) : controlOn(state);
   const talk = state === "question" ? "inst" : comments.length || draft?.mode === "comment" ? "on" : "";
   const settled = state && state !== "fixed" && state !== "changed-since-correct";
-  const by = settled ? verdict?.author : comments[comments.length - 1]?.author;
+  const by = marked ? null : settled ? verdict?.author : comments[comments.length - 1]?.author;
   const click = (v: "correct" | "wrong" | "comment") => (e: React.MouseEvent) => { e.stopPropagation(); onPick(v); };
   return (
     <div className="ctl3" data-tour={tour ? "row-controls" : undefined}>
       <div className="btns">
-        <button className={`cb ok${on === "correct" ? " on" : ""}`} title="Correct (1)" aria-label="Correct" onClick={click("correct")}><Ico name="correct" /></button>
+        {confirm
+          ? <button className="cb confirm" title="Confirm the engineer's check (1): the value becomes human-reviewed" onClick={click("correct")}>
+              <Ico name="correct" />Confirm</button>
+          : <button className={`cb ok${on === "correct" ? " on" : ""}`} title="Correct (1)" aria-label="Correct" onClick={click("correct")}><Ico name="correct" /></button>}
         <button className={`cb no${on === "wrong" ? " on" : ""}`} title="Wrong (2): select the right text on the page" aria-label="Wrong" onClick={click("wrong")}><Ico name="wrong" /></button>
         <button className={`cb talk ${talk}`} title={state === "question" ? "Question for the institution" : "Comment (3)"} aria-label="Comment"
           data-tour={tour ? "comment-button" : undefined} onClick={click("comment")}><Ico name="bubble" /></button>

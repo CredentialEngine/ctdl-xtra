@@ -1,5 +1,6 @@
 // Left column of the Rules tab (spec §7.2): rules by kind, one status icon each, "14 / 1,062 reviewed".
-// Status appears only here. `top` sits above the groups (the ruleset picker); with `talk`, a thread per rule
+// Status appears only here. With the "Annotated by" filter on (`counts`), each rule shows how many of its rows pass it
+// instead, and rules with none are dimmed (Evals spec §6.7). `top` sits above the groups (the ruleset picker); with `talk`, a thread per rule
 // (opened under it).
 import { useState, type ReactNode } from "react";
 import type { Discussion, RulesResponse, Topic } from "../api/types";
@@ -10,8 +11,9 @@ import { Composer, Thread } from "./Discussion";
 
 export type PostTalk = (target: { kind: "rule" | "ruleset"; rule_id: string | null }, note: string, topic: Topic) => Promise<boolean>;
 
-export function RuleList({ rules, active, onPick, talk, onTalk, top, bottom }: {
+export function RuleList({ rules, active, onPick, talk, onTalk, top, bottom, counts }: {
   rules: RulesResponse; active: string | null; onPick: (id: string) => void; talk?: Discussion | null; onTalk?: PostTalk;
+  counts?: Record<string, number> | null;
   top?: ReactNode; /** after every group: the fix bar (Improve all rules), last so labeling comes first */ bottom?: ReactNode;
 }) {
   let first = true;
@@ -29,7 +31,7 @@ export function RuleList({ rules, active, onPick, talk, onTalk, top, bottom }: {
             const notes = r.comments + (r.page_questions ?? 0);
             return (
               <div key={r.rule_id}>
-              <div className={`rule-item${r.rule_id === active ? " on" : ""}`} role="button" tabIndex={0}
+              <div className={`rule-item${r.rule_id === active ? " on" : ""}${counts && !counts[r.rule_id] ? " dim" : ""}`} role="button" tabIndex={0}
                 data-rule={r.rule_id} onClick={() => onPick(r.rule_id)} onKeyDown={(e) => { if (e.key === "Enter") onPick(r.rule_id); }}>
                 <div className="ico" title={r.status} data-tour={tour ? "rule-status" : undefined}><Ico name={r.status} /></div>
                 <div style={{ minWidth: 0 }}>
@@ -37,8 +39,11 @@ export function RuleList({ rules, active, onPick, talk, onTalk, top, bottom }: {
                   <div className={`id${r.kind === "field" ? "" : " plain"}`} title={r.subtitle}>{r.subtitle}</div>
                 </div>
                 <div className="meta">
-                  <span className={`rev${r.reviewed ? "" : " none"}`} title="courses with a verdict / all courses"
-                    data-tour={tour ? "reviewed-count" : undefined}>{fmt(r.reviewed)} / {fmt(r.total)} reviewed</span>
+                  {counts
+                    ? <span className={`rev match${counts[r.rule_id] ? "" : " none"}`} title="rows that pass the Annotated by filter">
+                        {counts[r.rule_id] ? fmt(counts[r.rule_id]) : "—"}</span>
+                    : <span className={`rev${r.reviewed ? "" : " none"}`} title="courses with a verdict / all courses"
+                        data-tour={tour ? "reviewed-count" : undefined}>{fmt(r.reviewed)} / {fmt(r.total)} reviewed</span>}
                   {notes > 0 && <span className="stat open" title="comments and questions for the institution"><Ico name="bubble" />{notes}</span>}
                   {talk && onTalk && (() => {
                     const n = talk.rules[r.rule_id]?.length ?? 0;

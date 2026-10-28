@@ -6,19 +6,18 @@
 // - Manual select: every stratum as a histogram (one bar per bucket: how many records fall in it); click bars to filter.
 // "Reviewed in other fields first" (Rules tab): records not reviewed for this rule yet, but marked or commented on in
 // another rule, come first, so a record's fields get finished together.
-// "Annotated by me" (Rules tab): only the records the reviewer marked or commented on, in any ruleset version (a filter
-// on the "Annotated by" stratum; "Annotated in" says which ruleset version).
+// Who annotated a record isn't a stratum here: it's the Rules tab's "Annotated by" filter above the drawer (one way to
+// do it; "Annotated in" says which ruleset version a record was annotated in).
 // Filters stay on in every mode. When a filter or Autostratify is on, each record shows its strata tags (StrataTags).
 import { useEffect, useRef, useState } from "react";
 import { filterParams, type FacetFilter, type SampleInfo, type SampleOrder, type StrataTag, type StratumHist } from "../api/types";
-import { useReviewer } from "./reviewer";
 import { fmt } from "./ui";
 import "./sample.css";
 
 export type SampleMode = SampleOrder | "manual";
 export interface SamplePrefs { mode: SampleMode; filter: FacetFilter; cross: string[] | null; seed: number; prior: boolean }
 export const samplePrefs = (mode: SampleMode): SamplePrefs => ({ mode, filter: {}, cross: null, seed: 0, prior: false });
-const NOT_CROSSED = ["rule", "review", "signals", "annotator", "annotated_in"];
+const NOT_CROSSED = ["rule", "review", "signals", "annotated_in"];
 const MODE_NAME: Record<SampleMode, string> = { review: "Review order", auto: "Autostratify", shuffle: "Shuffle", manual: "Manual select" };
 
 /** The query parameters of a list request: `manual` keeps the list's default order (`fallback`). */
@@ -52,14 +51,6 @@ export function SampleDrawer({ sample, prefs, onPrefs, modes, storageKey, collap
   const hs = sample?.histograms ?? [];
   const label = (id: string) => hs.find((h) => h.id === id)?.label ?? id;
   const chips = Object.entries(prefs.filter).flatMap(([d, bs]) => bs.map((b) => ({ d, b })));
-  const me = useReviewer();
-  const annotators = hs.find((h) => h.id === "annotator");
-  // a browser that picked its profile when profiles were first names ("Jared") is that person's full name here
-  const myBucket = annotators?.buckets.find((b) => b.id === me)
-    ?? (me.includes(" ") ? undefined : annotators?.buckets.find((b) => b.id.split(" ")[0] === me));
-  const mineId = myBucket?.id ?? me;
-  const mine = myBucket?.count ?? 0;
-  const onlyMine = !!prefs.filter.annotator?.includes(mineId);
   return (
     <div className={"sample" + (open ? " open" : "")} data-testid="sample">
       <div className="sm-head">
@@ -73,12 +64,6 @@ export function SampleDrawer({ sample, prefs, onPrefs, modes, storageKey, collap
           <label className={"sm-prior" + (sample.elsewhere ? "" : " faint")} title="Records nobody has reviewed for this rule yet, but someone marked or commented on in another rule">
             <input type="checkbox" checked={prefs.prior} onChange={(e) => set({ prior: e.target.checked })} />
             Reviewed in other fields first <span className="faint">({fmt(sample.elsewhere)})</span></label>
-        )}
-        {annotators && me && (
-          <label className={"sm-prior sm-mine" + (mine || onlyMine ? "" : " faint")}
-            title="Only the records you marked or commented on, in this ruleset version or an earlier one">
-            <input type="checkbox" checked={onlyMine} onChange={() => set({ filter: toggle(prefs.filter, "annotator", mineId) })} />
-            Annotated by me <span className="faint">({fmt(mine)})</span></label>
         )}
         {sample && <span className="faint sm-n">{fmt(sample.listed)}{sample.listed !== sample.total && <> of {fmt(sample.total)}</>}</span>}
       </div>

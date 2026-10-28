@@ -1,19 +1,21 @@
 // The Rules tab (spec §7.2, screens 03–06, 12): rules by kind on the left, one rule's rows in the middle
-// (sorted by the server with the likeliest problems first), the saved page on the right.
+// (sorted by the server with the likeliest problems first), the saved page on the right. "Annotated by" and its verdict
+// switch (?by=…&v=…, Evals spec §6.7) filter the rows of every rule, and the rule list counts the rows that pass.
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { api } from "../api/client";
 import type { CatalogDetail, Discussion, EventBrief, NewEvent, Overlay, RuleDetail, RulesResponse, RuleSummary, SampleInfo, Spread,
   UnclassifiedPage } from "../api/types";
 import { PagePane, prefetchPages, type CapturedSelection, type Highlight } from "../pagepane";
 import { Ico } from "../shell/icons";
-import { useReviewer } from "../shell/reviewer";
+import { useReviewer, useRole } from "../shell/reviewer";
 import { SampleDrawer, samplePrefs, sampleQuery, StrataTags, type SamplePrefs } from "../shell/Sample";
 import { go, href } from "../shell/router";
 import type { TabProps } from "../shell/tabProps";
 import { fmt, toast, useKeyHints } from "../shell/ui";
-import { apiX, type RowX } from "./api";
+import { AnnotatedBy, ReviewLine, VerdictSwitch, WaitingNote } from "./AnnotatedBy";
+import { apiX, type Annotators, type RowX } from "./api";
 import {
-  addCapture, applyEvent, briefOf, isField, isSettled, keyAction, missingEvent, newDraft, norm, pushRecent, paneTabs, rowTarget,
+  addCapture, applyEvent, applyReview, BY_WAITING, briefOf, canConfirm, isField, isSettled, keyAction, missingEvent, newDraft, norm, pushRecent, paneTabs, rowTarget,
   scrollWithin, shortTitle, unitWord, verdictEvent, type Draft, type TabRef,
 } from "./logic";
 import { MissedCourse, MissedPage, type MissedState } from "./MissedPanel";
@@ -69,6 +71,7 @@ const DEFAULT_PREFS = samplePrefs("review");
 export default function RulesTab({ catalog, route }: TabProps) {
   const cat = catalog.short;
   const me = useReviewer();
+  const role = useRole();
   const [rules, setRules] = useState<RulesResponse | null>(null);
   const [detail, setDetail] = useState<RuleDetail | null>(null);
   const [rows, setRows] = useState<RowX[]>([]);
@@ -101,6 +104,12 @@ export default function RulesTab({ catalog, route }: TabProps) {
   const focus = route.params.get("row");
   // the extraction being reviewed: ?ext=… picks an older ruleset's, none = the latest (catalog.extraction)
   const ext = route.params.get("ext");
+  const by = route.params.get("by");
+  const verdict = route.params.get("v");
+  const setFilter = (o: { by?: string | null; v?: string | null }) => go(href(cat, "rules", ruleId, { ext, by, v: verdict, ...o }));
+  const [people, setPeople] = useState<Annotators | null>(null);
+  const [saved, setSaved] = useState(0);  // verdicts saved here: the rule list's counts and the experts' note follow
+  useEffect(() => { apiX.annotators(cat, { by, verdict, ext }).then(setPeople, () => setPeople(null)); }, [cat, by, verdict, ext, saved]);
   const prefs = prefsOf.rule === ruleId ? prefsOf.p : DEFAULT_PREFS;
   const setPrefs = useCallback((p: SamplePrefs) => setPrefsOf({ rule: ruleId, p }), [ruleId]);
   const qKey = JSON.stringify(sampleQuery(prefs, "review"));
@@ -130,13 +139,13 @@ export default function RulesTab({ catalog, route }: TabProps) {
     if (!ruleId) return;
     const tok = ++token.current;
     setDraft(null); setMissed(null); setExtraTab(null); setActiveStem(null);
-    Promise.all([api.rule(cat, ruleId, ext), apiX.rows(cat, ruleId, { limit: FIRST_PAGE, focus, ext, ...sq })]).then(([d, r]) => {
+    Promise.all([api.rule(cat, ruleId, ext), apiX.rows(cat, ruleId, { limit: FIRST_PAGE, focus, ext, by, verdict, ...sq })]).then(([d, r]) => {
       if (tok !== token.current) return;
       setDetail(d); setRows(r.rows); setTotal(r.total); setSpread(r.spread); setSample(r.sample ?? null); setMissing(r.missing); setSel(r.focus_index ?? 0);
       centerNext.current = true; setError(null);
       if (rowsRef.current) rowsRef.current.scrollTop = 0;
     }, (e) => setError(String(e)));
-  }, [cat, ruleId, focus, sq, ext]);
+  }, [cat, ruleId, focus, sq, ext, by, verdict]);
 
   const kind = detail?.kind ?? null;
   const row = detail && detail.rule_id === ruleId ? rows[sel] ?? null : null;
@@ -145,10 +154,10 @@ export default function RulesTab({ catalog, route }: TabProps) {
     if (!ruleId || loadingMore.current || rows.length >= total) return;
     loadingMore.current = true;
     const tok = token.current;
-    apiX.rows(cat, ruleId, { offset: rows.length, limit: MORE, ext, ...sq }).then((r) => {
+    apiX.rows(cat, ruleId, { offset: rows.length, limit: MORE, ext, by, verdict, ...sq }).then((r) => {
       if (tok === token.current) setRows((prev) => (prev.length === r.offset ? [...prev, ...r.rows] : prev));
     }).finally(() => { loadingMore.current = false; });
-  }, [cat, ruleId, rows.length, total, sq, ext]);
+  }, [cat, ruleId, rows.length, total, sq, ext, by, verdict]);
 
   // the reader's own moves between rows (click, Tab, arrows): they close the Sample drawer
   const [moves, setMoves] = useState(0);
@@ -256,17 +265,19 @@ export default function RulesTab({ catalog, route }: TabProps) {
   const saveRow = useCallback(async (i: number, what: { verdict: "correct" } | { draft: Draft }) => {
     const r = rows[i];
     if (!r || !detail) return;
-    if ("verdict" in what && r.state === "correct") { toast(`Already correct · ${r.course_key ?? shortTitle(r.page_title, 40)}`); selectRow(i + 1); return; }
+    const confirming = "verdict" in what && canConfirm(r, role);
+    if ("verdict" in what && r.state === "correct" && !confirming) { toast(`Already correct · ${r.course_key ?? shortTitle(r.page_title, 40)}`); selectRow(i + 1); return; }
     const ev = verdictEvent(me, rowTarget(detail.kind, detail.rule_id, r), r.verdict, what);
     const brief = await post(ev);
     if (!brief) return;
-    setRows((rs) => rs.map((x, j) => (j === i ? applyEvent(x, brief) : x)));
+    setRows((rs) => rs.map((x, j) => (j === i ? applyReview(applyEvent(x, brief), brief, role) : x)));
     setDraft(null);
+    setSaved((n) => n + 1);
     const label = ev.type === "comment" ? "Comment saved" : ev.verdict === "question" ? "Question for the institution saved"
-      : ev.verdict === "correct" ? "Correct" : "Wrong";
+      : confirming ? "Confirmed: human-reviewed" : ev.verdict === "correct" ? "Correct" : "Wrong";
     toast(`${label} · ${r.course_key ?? shortTitle(r.page_title, 40)}`);
     if (ev.type === "verdict" && ev.verdict !== "question") selectRow(i + 1);
-  }, [rows, detail, me, post, selectRow]);
+  }, [rows, detail, me, role, post, selectRow]);
 
   const saveMissed = useCallback(async () => {
     if (!missed || !detail || !row) return;
@@ -371,16 +382,23 @@ export default function RulesTab({ catalog, route }: TabProps) {
 
   return (
     <div className="rules-layout w4-rules">
-      <aside className="col">{rules && <RuleList rules={rules} active={ruleId} onPick={(id) => go(href(cat, "rules", id, { ext }))}
-        talk={talk} onTalk={postTalk}
-        top={<RulesetPicker catalog={catalog} ext={ext} onPick={(x) => go(href(cat, "rules", ruleId, { ext: x }))} />}
-        bottom={!ext && <FixBar catalog={cat} name={catalog.name} rules={rules} />} />}</aside>
+      <aside className="col">{rules && <RuleList rules={rules} active={ruleId} onPick={(id) => go(href(cat, "rules", id, { ext, by, v: verdict }))}
+        talk={talk} onTalk={postTalk} counts={people?.rules}
+        top={<RulesetPicker catalog={catalog} ext={ext} onPick={(x) => go(href(cat, "rules", ruleId, { ext: x, by, v: verdict }))} />}
+        bottom={<>
+          {role === "sme" && <WaitingNote n={people?.waiting ?? 0} on={by === BY_WAITING}
+            onToggle={() => setFilter({ by: by === BY_WAITING ? null : BY_WAITING, v: null })} />}
+          {!ext && <FixBar catalog={cat} name={catalog.name} rules={rules} />}</>} />}</aside>
       <section className="col mid">
         {detail && <RuleHead catalog={catalog} rule={detail} busy={busy} onApprove={() => approve("approve")} onReopen={() => approve("reopen")} />}
         {detail && <div className="rows-bar"><span><b>{fmt(total)}</b> {unitWord(detail.kind, detail.locator)}{filtered && <> · <b>filtered</b> by strata</>}{prefs.prior && <> · reviewed in other fields first</>} · {
           sq.order === "auto" ? "autostratified: 3 of each combination, rarest first"
           : sq.order === "shuffle" ? "shuffled"
           : <>discussed first, then the likeliest problems{spread && spread.groups.length > 1 && !filtered && <>, with every 5th row from a <SpreadNote spread={spread} /></>}</>}</span></div>}
+        {detail && <div className="ab-bar">
+          <AnnotatedBy people={people} by={by} me={me} onPick={(x) => setFilter({ by: x })} />
+          <VerdictSwitch verdict={verdict} onPick={(x) => setFilter({ v: x })} />
+        </div>}
         {detail && <SampleDrawer sample={sample} prefs={prefs} onPrefs={setPrefs} modes={["review", "auto", "shuffle", "manual"]}
           storageKey="studio.rules.sample" collapseOn={moves} />}
         <div className="rows" data-tour="rows" ref={rowsRef} onScroll={(e) => {
@@ -424,19 +442,21 @@ export default function RulesTab({ catalog, route }: TabProps) {
                                 { prop: kind === "field" ? detail.property_label : null, occ: r.occurrence_key })}
                               onClick={(e) => e.stopPropagation()}>Open in Records →</a>
                           </div>)}</>}
+                  <ReviewLine r={r} />
                   <StrataTags tags={r.tags} />
                   <HistoryLine state={r.state} verdict={r.verdict} reattached={r.reattached} comments={r.comments} page_questions={r.page_questions} />
                   {on && draft && <Expansion draft={draft} fieldRule={kind === "field"} emptyValue={r.status !== "found"}
                     onChange={setDraft} onSave={() => void saveRow(i, { draft })} onCancel={() => setDraft(null)} />}
                 </div>
                 <Controls state={r.state} verdict={r.verdict} comments={r.comments} draft={on ? draft : null}
-                  onPick={(v) => pick(i, v)} tour={on} />
+                  onPick={(v) => pick(i, v)} tour={on} confirm={canConfirm(r, role)} marked={r.human_reviewed || r.engineer_checked} />
               </div>
             );
           })}
           {detail && rows.length < total && <div className="row more-rows" onClick={loadMore}>+ {fmt(total - rows.length)} more · scroll to load</div>}
-          {detail && total === 0 && <div className="empty-state muted">{filtered
-            ? "No row is in every stratum you picked. Remove a filter above." : "This rule found nothing in this extraction."}</div>}
+          {detail && total === 0 && <div className="empty-state muted">{by || verdict
+            ? "No row of this rule passes the Annotated by filter. Pick another rule, or Anyone above."
+            : filtered ? "No row is in every stratum you picked. Remove a filter above." : "This rule found nothing in this extraction."}</div>}
         </div>
       </section>
       <section className="col pane" data-tour="page-pane" ref={paneRef}>
