@@ -67,13 +67,18 @@ golden-datasets rule publish draft.json -c avc     # refused if a value marked c
 ```sh
 golden-datasets golden publish -c avc --property Description   # into ruleset vN's golden dataset, written whole
 golden-datasets golden backfill -c avc     # once: publications from before versions (pub-…) → ruleset-vN
+golden-datasets golden backfill -c avc --again   # also write every version again in the current layout
 ```
 
-A golden dataset's ID is its ruleset's (`ruleset-v3`). Each version is kept at
-`<golden root>/catalogs/<catalog>/versions/ruleset-vN/<catalog>/<crawl>/`, and the latest replaces
-`<golden root>/<catalog>/<crawl>/` page by page. The golden root defaults to `.data/golden` beside a local root
-(`$GOLDEN_DATASETS_GOLDEN_ROOT` overrides; an Azure root publishes to `xtra-golden-sets`). An expert's verdict rewrites
-that page's file in both places at once (human-reviewed values, any column) and writes `scores/pending.json`.
+A golden dataset's ID is its ruleset's (`ruleset-v3`). Each version is kept as two parallel trees,
+`<golden root>/catalogs/<catalog>/versions/ruleset-vN/rule-matched/<catalog>/<crawl>/` (every value) and
+`…/ruleset-vN/human-reviewed/<catalog>/<crawl>/` (only the `approval: human` values, only the pages that have one), and
+the latest version's rule-matched tree replaces `<golden root>/<catalog>/<crawl>/` page by page. Version trees hold
+`<stem>.json` only; `<stem>.html` (the page as crawled) is only at the latest location. Values with no CTDL term
+(Learning Type) stay out of the files (`xtra score` rejects them) and in the Studio's lineage and `golden.parquet`. The
+golden root defaults to `.data/golden` beside a local root (`$GOLDEN_DATASETS_GOLDEN_ROOT` overrides; an Azure root
+publishes to `xtra-golden-sets`). An expert's verdict rewrites that page's file in all three places at once
+(human-reviewed values, any column) and writes `scores/pending.json`.
 
 ```sh
 golden-datasets sql -c avc "SELECT rule_id, count(*) FROM matches_latest WHERE status <> 'found' GROUP BY 1"
@@ -84,8 +89,9 @@ golden-datasets sql -c avc "SELECT rule_id, count(*) FROM matches_latest WHERE s
 The Studio doesn't run xtra: engineers run `xtra catalog extract`, and the Studio reads what it wrote
 (`$GOLDEN_DATASETS_XTRA_SOURCE/<catalog>/<crawl>/records/`, else the shared `xtra-cli-output` container) and scores it
 with xtra's own scorer, called in-process (xtra-cli is a path dependency on `../xtra-cli`). Each score is kept in
-`<crawl>/golden-dataset-studio/scores/sc-NNNN/` (`score.json`, `values.parquet`) with two results: the human-reviewed
-values only, and every rule-matched value. The first time the Studio sees an extract output it copies it into
+`<crawl>/golden-dataset-studio/scores/sc-NNNN/` (`score.json`, `values.parquet`) with two results: the version's
+`human-reviewed/` tree and its `rule-matched/` tree, each exactly what `xtra score extraction match --baseline-uri
+<golden root>/catalogs/<catalog>/versions/ruleset-vN/<tree>` gives (`score.json` holds both commands). The first time the Studio sees an extract output it copies it into
 `extract-outputs/<report last modified>/`, so it stays scorable after xtra overwrites it.
 
 ```sh

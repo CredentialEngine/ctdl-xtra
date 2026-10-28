@@ -55,8 +55,8 @@ def _mark(c, author: str, rule: str, row: dict, verdict: str, supersedes: str | 
     return r.json()
 
 
-def _page(gold, ctx: Ctx, stem: str, version: int | None = None) -> list[dict] | None:
-    prefix = golden.version_prefix(ctx, version) if version else golden.latest_prefix(ctx)
+def _page(gold, ctx: Ctx, stem: str, version: int | None = None, tree: str = golden.RULE_MATCHED) -> list[dict] | None:
+    prefix = golden.version_prefix(ctx, version, tree) if version else golden.latest_prefix(ctx)
     path = gold / prefix / stem / f"{stem}.json"
     return json.loads(path.read_text()) if path.exists() else None
 
@@ -75,11 +75,12 @@ def test_an_engineers_check_waits_for_an_expert_whose_check_is_published_at_once
     assert out["published"]["created"] and out["published"]["publication"] == "ruleset-v1"  # the first review creates it
     row = _rows(c, "course-name")["page-0"]
     assert (row["engineer_checked"], row["human_reviewed"]) == (False, True)
-    for v in (None, 1):  # the latest location and the version's folder
-        [rec] = _page(gold, ctx, "page-0", v)
+    for v, tree in ((None, None), (1, golden.RULE_MATCHED), (1, golden.HUMAN_REVIEWED)):  # latest, both trees
+        [rec] = _page(gold, ctx, "page-0", v, tree)
         assert rec["fields"] == [{**rec["fields"][0], "property": "Learning Opportunity Name", "value": "C 0",
                                   "approval": "human", "approved_by": JARED}]
     assert (gold / golden.latest_prefix(ctx) / "page-0" / "page-0.html").exists()
+    assert not (gold / golden.version_prefix(ctx, 1) / "page-0" / "page-0.html").exists()  # version trees: JSON only
     pending = ctx.root.read_json(layout.pending_score(CAT, ctx.crawl))
     due = datetime.strptime(pending["due_at"], "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=UTC)
     assert 280 < (due - datetime.now(UTC)).total_seconds() <= 300 and "course-name" in pending["reason"]
@@ -91,7 +92,10 @@ def test_an_engineers_check_waits_for_an_expert_whose_check_is_published_at_once
     ann = c.get(f"{B}/annotations", params={"rule": "course-name"}).json()
     jared = next(e for e in ann if e["author"] == JARED)
     out = _mark(c, JARED, "course-name", row, "question", supersedes=jared["annotation_id"])
-    assert out["published"]["files"] and _page(gold, ctx, "page-0") == [] == _page(gold, ctx, "page-0", 1)
+    assert len(out["published"]["files"]) == 3  # no values left: the page's file goes from all three places
+    assert _page(gold, ctx, "page-0") is None and _page(gold, ctx, "page-0", 1) is None
+    assert _page(gold, ctx, "page-0", 1, golden.HUMAN_REVIEWED) is None
+    assert not (gold / golden.latest_prefix(ctx) / "page-0" / "page-0.html").exists()
 
 
 def test_an_engineers_check_after_an_experts_leaves_it_human_reviewed(studio):
@@ -186,7 +190,14 @@ def test_publishing_writes_the_whole_version_and_replaces_the_latest(studio, tmp
     rec = _page(gold, ctx, "page-0", 1)[0]
     assert [f["property"] for f in rec["fields"]] == ["Coded Notation", "Learning Opportunity Name"]
     assert [f["approval"] for f in rec["fields"]] == ["rule", "human"] and rec["approval"] == "mixed"
+    [hr] = _page(gold, ctx, "page-0", 1, golden.HUMAN_REVIEWED)  # only the human-reviewed value, only its page
+    assert [f["property"] for f in hr["fields"]] == ["Learning Opportunity Name"] and hr["approval"] == "human"
+    assert _page(gold, ctx, "page-1", 1, golden.HUMAN_REVIEWED) is None
     assert _page(gold, ctx, "page-1") == _page(gold, ctx, "page-1", 1)
+    assert not list((gold / "catalogs").rglob("*.html"))  # the HTML is only at the latest location
+    assert doc["trees"] == {golden.RULE_MATCHED: {"prefix": golden.version_prefix(ctx, 1), "pages": 3},
+                            golden.HUMAN_REVIEWED: {"prefix": golden.version_prefix(ctx, 1, golden.HUMAN_REVIEWED),
+                                                    "pages": 1}}
     gdir = layout.golden_dir(CAT, ctx.crawl, "ruleset-v1")
     rows = pq.read_table(ctx.root.local_path(f"{gdir}/golden.parquet")).to_pylist()
     assert len(rows) == 4 and {r["stem"] for r in rows} == {"page-0", "page-1", "page-2"}
@@ -210,6 +221,14 @@ def test_publishing_writes_the_whole_version_and_replaces_the_latest(studio, tmp
     assert _page(gold, ctx, "page-1", 1)[0]["fields"][0]["property"] == "Coded Notation"
     assert {g["publication"] for g in Ctx(ctx.root, CAT).crawl_entry()["golden"]} == {"ruleset-v1", "ruleset-v2"}
     assert main(["check", "--root", ctx.root.uri, "--catalog", CAT]) == 0
+    # a stray file in a tree is caught; writing the versions again in the current layout removes it
+    stray = gold / golden.version_prefix(ctx, 1, golden.HUMAN_REVIEWED) / "page-2" / "page-2.json"
+    stray.parent.mkdir(parents=True)
+    stray.write_text(json.dumps(_page(gold, ctx, "page-2", 1)))
+    assert main(["check", "--root", ctx.root.uri, "--catalog", CAT]) == 1
+    assert main(["golden", "backfill", "--root", ctx.root.uri, "--catalog", CAT, "--to", str(gold), "--again"]) == 0
+    assert "ruleset-v2 (Learning Opportunity Name) written again" in capsys.readouterr().out and not stray.exists()
+    assert _page(gold, ctx, "page-1")[0]["fields"][0]["value"] == "1"  # v2 is still the latest
 
 
 def test_backfill_rebuilds_old_publications_as_versions(studio, capsys):

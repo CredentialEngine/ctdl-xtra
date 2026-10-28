@@ -287,7 +287,7 @@ function Commands({ doc, onClose }: { doc: ScoreDoc; onClose: () => void }) {
   const text = [...(azure ? ["az login", 'export AZURE_STORAGE_CONNECTION_STRING="$(az storage account show-connection-string \\\n  -n ceteststorage --query connectionString -o tsv)"'] : []), ...all].join("\n\n");
   return (
     <div className="evx-cmds">
-      <div className="evx-cmds-h"><Ico name="terminal" /> Run it yourself (rule-matched values)
+      <div className="evx-cmds-h"><Ico name="terminal" /> Run it yourself (human-reviewed tree, then rule-matched)
         <span className="grow" />
         <button className="evx-icon" onClick={onClose} title="Close">✕</button>
       </div>

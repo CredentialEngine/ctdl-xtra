@@ -173,6 +173,8 @@ POC's design ([`poc.md`](poc.md)). **Mockups (§6) come first: review them befor
     …/xtra-golden-sets/catalogs/<catalog>/versions/ruleset-v3/human-reviewed`).
   - Values with no CTDL term (Learning Type) aren't written to either tree: `xtra score` rejects a `null`
     `ctdl_property`. The Studio still keeps them.
+  - **Version trees hold `<stem>.json` only.** `<stem>.html` (the page as crawled, ~2.7 MB each) is written once, at
+    the latest location; `xtra score` reads only the JSON, and an HTML copy per version cost 3.2 GB for AVC.
   - **`xtra-golden-sets/<catalog>/<crawl>/`** keeps holding the latest version's `rule-matched/` tree, replaced whole, never merged. Readers
     of the current location keep working.
   - **The Studio also keeps a Parquet copy,** `golden/<pub>/golden.parquet` (one row per value, about 1 MB for AVC), so

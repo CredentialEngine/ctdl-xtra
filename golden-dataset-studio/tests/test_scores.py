@@ -53,8 +53,9 @@ def test_a_score_has_both_results_and_one_row_per_value(scored, capsys):
     assert doc["columns"] == ["codedNotation", "name"] and doc["slot_names"] is False
     assert doc["results"]["rule"]["by_column"]["name"] == {"values": 3, "missing": 1, "wrong": 0, "partial": 1, "match": 1}
     assert doc["output"]["records"] == 3 and not doc["output"]["records_mismatch"]
-    assert doc["commands"][0].startswith("xtra score extraction match --exactly")
-    assert f"--baseline-uri {tmp / 'golden'}/catalogs/{CAT}/versions/ruleset-v1" in doc["commands"][0]
+    assert all(c.startswith("xtra score extraction match --exactly") for c in doc["commands"])
+    for cmd, tree in zip(doc["commands"], ("human-reviewed", "rule-matched"), strict=True):  # one per tree
+        assert f"--baseline-uri {tmp / 'golden'}/catalogs/{CAT}/versions/ruleset-v1/{tree} " in cmd
     rows = {(r["basis"], r["page_stem"], r["column"]): r for r in scores.values(ctx, "sc-0001")}
     assert len(rows) == 7
     assert (rows[("rule", "page-1", "name")]["outcome"], rows[("rule", "page-1", "name")]["extracted_value"]) == ("partial", "C 11")
@@ -98,17 +99,21 @@ def test_store_adapters_map_the_scorers_keys():
         g.get_json("cat/crawl/p2/p2.json")
 
 
-def test_a_basis_keeps_the_scorers_positional_pairing():
+def test_a_tree_keeps_the_scorers_positional_pairing():
     def f(v, approval="rule", term="ceterms:codedNotation"):
         return {"ctdl_property": term, "value": v, "approval": approval}
 
     pages = {"p1": [{"fields": [f("A", "human"), f("Course", term=None)]}],
              "p2": [{"fields": [f("B")]}, {"fields": [f("B2", "human")]}],
-             "p3": [{"fields": [f("C", "human")]}, {"fields": [f("C2")]}]}
-    rule, _ = scores.basis_pages(pages, "rule")
+             "p3": [{"fields": [f("C", "human")]}, {"fields": [f("C2")]}],
+             "p4": [{"fields": [f("Course", term=None)]}]}
+    t = golden.trees(pages)
+    rule = t[golden.RULE_MATCHED]
     assert [x["value"] for x in rule["p1"][0]["fields"]] == ["A"]  # no CTDL term: the scorer would reject the page
-    human, left = scores.basis_pages(pages, "human")
-    assert len(human["p3"]) == 1 and "p2" not in human and left[0]["stem"] == "p2"
+    assert rule["p1"][0]["approval"] == "human" and "p4" not in rule
+    human, left = golden.tree_pages(rule, golden.HUMAN_REVIEWED)
+    assert human == t[golden.HUMAN_REVIEWED] and len(human["p3"]) == 1 and human["p3"][0]["approval"] == "human"
+    assert "p2" not in human and left[0]["stem"] == "p2"
 
 
 def _wait(c, sid: str) -> dict:

@@ -110,10 +110,11 @@ def golden_publish(request: Request, catalog: str, body: Annotated[dict, Body()]
 
 @router.get("/catalogs/{catalog}/golden/files/page/{stem}.json")
 def golden_page_json(request: Request, catalog: str, stem: str, properties: str | None = None) -> dict:
-    """The page's file as this publication would write it: the chosen properties from the current extraction, and
-    the human-reviewed values."""
+    """The page's file as this publication would write it at the latest location (its version's rule-matched tree):
+    the chosen properties from the current extraction, and the human-reviewed values, those with a CTDL term."""
     st, ctx, rv = _review(request, catalog)
-    records = _records(_plan(st, ctx, rv, _props(rv, properties)), stem)
+    records = golden.tree_pages({stem: _records(_plan(st, ctx, rv, _props(rv, properties)), stem)},
+                                golden.RULE_MATCHED)[0].get(stem, [])
     text = golden.page_json(records)
     return {"stem": stem, "records": len(records), "bytes": len(text.encode()), "text": text}
 

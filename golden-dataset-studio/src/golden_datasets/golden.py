@@ -4,15 +4,24 @@
 A golden dataset's ID is its ruleset's: *ruleset v3*. A column (property) is published once its field rule is
 approved; publishing it writes the whole golden dataset of that ruleset again (every column published in it so far,
 all from the same immutable extraction), never merged with what was there. The first publication in a ruleset
-creates its version; later ones rewrite it with the extra column. Every version is kept, and the latest also
-replaces each page's file at the usual location, in the `xtra-golden-sets` container:
+creates its version; later ones rewrite it with the extra column. Every version is kept as two parallel trees, and
+the latest version's rule-matched tree also replaces each page's file at the usual location, in the
+`xtra-golden-sets` container:
 
-    <golden root>/<catalog>/<crawl>/<page_stem>/<page_stem>.json                          the latest version
-    <golden root>/catalogs/<catalog>/versions/ruleset-vN/<catalog>/<crawl>/<page_stem>/<page_stem>.json
+    <golden root>/<catalog>/<crawl>/<page_stem>/<page_stem>.{json,html}                     the latest version
+    <golden root>/catalogs/<catalog>/versions/ruleset-vN/rule-matched/<catalog>/<crawl>/<page_stem>/<page_stem>.json
+    <golden root>/catalogs/<catalog>/versions/ruleset-vN/human-reviewed/<catalog>/<crawl>/<page_stem>/<page_stem>.json
 
-(`<catalog>/<crawl>` repeats so `xtra score --baseline-uri …/versions/ruleset-vN` reads a version as it is.) Each
-file is [{golden_record_id, approval, fields: [{ctdl_property, property, value, source_url, location, approval,
-approved_by, approved_at}]}], with `<page_stem>.html` (the page as crawled) beside it.
+`rule-matched/` holds every value; `human-reviewed/` only the `approval: human` ones, and only the pages and records
+that have one. (`<catalog>/<crawl>` repeats so `xtra score --baseline-uri …/versions/ruleset-vN/<tree>` scores a tree
+as it is.) Each file is [{golden_record_id, approval, fields: [{ctdl_property, property, value, source_url, location,
+approval, approved_by, approved_at}]}]. `<page_stem>.html` (the page as crawled, ~3 MB) is only at the latest
+location: xtra's scorer reads only the JSON, so the version trees hold JSON only.
+
+The files hold what `xtra score` accepts (`tree_pages`): values with no CTDL term (Learning Type) are left out (the
+Studio keeps them in its lineage and golden.parquet); the scorer pairs a page's records with the extract's by
+position and rejects a record with no values, so trailing empty records are dropped and a page whose empty record
+comes before a non-empty one is left out.
 
 Every value says who approved it: `approval` is `human` when a subject matter expert confirmed that value (marked it
 correct and it hasn't changed since, or marked it wrong and selected the text it now is), else `rule` (its rule's
@@ -20,8 +29,8 @@ approval covers it); `approved_by` / `approved_at` name that person and when, or
 `approval` is `human` when every value is, `rule` when none is, else `mixed`. The lineage has the same three columns.
 
 Human-reviewed values have their own life cycle (Evals §4.3): they are in the files in any column, published or not,
-and each verdict rewrites its page's file in the latest version's folder and the latest location (`publish_page`),
-then asks for a score 5 minutes later (`scores/pending.json`).
+and each verdict rewrites its page's file in both trees of the latest version and at the latest location
+(`publish_page`), then asks for a score 5 minutes later (`scores/pending.json`).
 
 The files are domain-only: no rule ids, occurrence keys or annotation ids. The Studio keeps the lineage, which traces
 every golden value back to its match, rule version and annotations, and a Parquet copy of the values:
@@ -52,6 +61,8 @@ from .storage import AzureRoot, LocalRoot, open_root
 FULL_LOCATOR = "locator-course-page"
 VERSION = re.compile(r"ruleset-v(\d+)$")
 RESCORE_AFTER = timedelta(minutes=5)
+RULE_MATCHED, HUMAN_REVIEWED = "rule-matched", "human-reviewed"
+TREES = (RULE_MATCHED, HUMAN_REVIEWED)
 
 
 def record_approval(fields: list[dict]) -> str:
@@ -230,8 +241,53 @@ def latest_prefix(ctx: Ctx) -> str:
     return f"{ctx.catalog}/{ctx.crawl}/"
 
 
-def version_prefix(ctx: Ctx, ruleset_version: int) -> str:
-    return f"catalogs/{ctx.catalog}/versions/{version_name(ruleset_version)}/{ctx.catalog}/{ctx.crawl}/"
+def version_root(ctx: Ctx, ruleset_version: int, tree: str = RULE_MATCHED) -> str:
+    """What `xtra score --baseline-uri` points at (below the golden root) to score one tree of a version."""
+    return f"catalogs/{ctx.catalog}/versions/{version_name(ruleset_version)}/{tree}"
+
+
+def version_prefix(ctx: Ctx, ruleset_version: int, tree: str = RULE_MATCHED) -> str:
+    return f"{version_root(ctx, ruleset_version, tree)}/{ctx.catalog}/{ctx.crawl}/"
+
+
+def tree_pages(pages: dict[str, list[dict]], tree: str) -> tuple[dict[str, list[dict]], list[dict]]:
+    """The pages as one tree holds them (`rule-matched`: every value with a CTDL term; `human-reviewed`: only the
+    `approval: human` ones), and the pages left out (with why). The scorer pairs a page's records with the extract's
+    by position and rejects a record with no values: trailing empty records are dropped, and a page whose empty record
+    comes before a non-empty one is left out."""
+    out, left_out = {}, []
+    for stem, records in pages.items():
+        recs = [_record(r.get("golden_record_id"),
+                        [f for f in r.get("fields", [])
+                         if f.get("ctdl_property") and (tree == RULE_MATCHED or f.get("approval") == "human")])
+                for r in records]
+        while recs and not recs[-1]["fields"]:
+            recs.pop()
+        if not recs:
+            continue
+        if any(not r["fields"] for r in recs):
+            why = "rule-matched" if tree == RULE_MATCHED else "human-reviewed"
+            left_out.append({"stem": stem, "why": f"an earlier course on the page has no {why} values"})
+            continue
+        out[stem] = recs
+    return out, left_out
+
+
+def trees(pages: dict[str, list[dict]]) -> dict[str, dict[str, list[dict]]]:
+    """{tree: pages}: the human-reviewed tree is the `approval: human` subset of the rule-matched one."""
+    rule, _ = tree_pages(pages, RULE_MATCHED)
+    return {RULE_MATCHED: rule, HUMAN_REVIEWED: tree_pages(rule, HUMAN_REVIEWED)[0]}
+
+
+def tree_stems(target, prefix: str) -> list[str]:
+    """The pages that have a file below `prefix`."""
+    prefix = prefix.rstrip("/")
+    out = []
+    for p in target.list(prefix):
+        parts = p[len(prefix) + 1:].split("/")
+        if len(parts) == 2 and parts[1] == f"{parts[0]}.json":
+            out.append(parts[0])
+    return out
 
 
 def versions(ctx: Ctx) -> dict[int, dict]:
@@ -267,7 +323,7 @@ def golden_rows(ctx: Ctx, pages: dict[str, list[dict]]) -> list[dict]:
 
 
 def publication_doc(ctx: Ctx, rv: Review, p: dict, pub: str, to: str, by: str, ok: bool, statuses: list[dict],
-                    info: dict, properties: list[str] | None = None) -> dict:
+                    info: dict, properties: list[str] | None = None, files: dict | None = None) -> dict:
     """publication.json: which properties, extraction and ruleset were published, where to, and the gates."""
     props = {r["property"]: r for r in property_rules(rv)}
     chosen = properties if properties is not None else list(props)
@@ -285,14 +341,19 @@ def publication_doc(ctx: Ctx, rv: Review, p: dict, pub: str, to: str, by: str, o
                                for s in statuses if s["kind"] in ("page", "locator")], "catalog": ctx.catalog, "crawl": ctx.crawl, "extraction": rv.snap.ext,
             "ruleset_version": rv.snap.ruleset_version, "published_at": datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
             "published_by": by, "to": to, "to_prefix": latest_prefix(ctx),
-            "version_prefix": version_prefix(ctx, rv.snap.ruleset_version), "pages": len(p["pages"]),
+            "version_prefix": version_prefix(ctx, rv.snap.ruleset_version),
+            "trees": {t: {"prefix": version_prefix(ctx, rv.snap.ruleset_version, t),
+                          "pages": len((files or {}).get(t, {}))} for t in TREES},
+            "pages": len(p["pages"]),
             "page_stems": sorted(p["pages"]), "courses": p["courses"], "records": p["records"],
             "lineage_rows": info["rows"], "lineage_sha256": info["sha256"],
             "golden_record_id_collisions": p["collisions"], "skipped_no_course_key": p["skipped_no_course_key"],
             "format": "golden sets per-page shape: <catalog>/<crawl>/<stem>/<stem>.json = "
                       "[{golden_record_id, approval, fields: [{ctdl_property, property, value, source_url, location, "
-                      "approval, approved_by, approved_at}]}], "
-                      "plus <stem>.html as crawled; the whole golden dataset of this ruleset, never merged",
+                      "approval, approved_by, approved_at}]}], in two trees (rule-matched: every value; "
+                      "human-reviewed: approval human only), values with a CTDL term only (the rest are in the "
+                      "lineage); <stem>.html as crawled only at the latest location; the whole golden dataset of "
+                      "this ruleset, never merged",
             "approval_gate": {"all_rules_approved": ok,
                               "rules": [{k: s[k] for k in ("rule_id", "version", "status", "approved_by")}
                                         for s in statuses]}}
@@ -327,6 +388,21 @@ def _copy_html(ctx: Ctx, target, path: str, stem: str) -> None:
         target.write_file(path, ctx.page_path(stem))
 
 
+def _write_page(ctx: Ctx, target, folder: str, records: list[dict]) -> None:
+    """One page's file in `folder` (`…/<stem>`), or none when it has no records. The page's HTML goes only to the
+    latest location; version trees are JSON only."""
+    stem = folder.rsplit("/", 1)[1]
+    html = f"{folder}/{stem}.html" if folder.startswith(latest_prefix(ctx)) else None
+    if records:
+        target.write_text(f"{folder}/{stem}.json", page_json(records))
+        if html:
+            _copy_html(ctx, target, html, stem)
+    else:
+        target.delete(f"{folder}/{stem}.json")
+        if html:
+            target.delete(html)
+
+
 def _stems_written(ctx: Ctx, to: str) -> set[str]:
     """Pages any publication to `to` wrote at the latest location."""
     out = set()
@@ -359,30 +435,28 @@ def publish(ctx: Ctx, to: str, by: str, allow_unapproved: bool = False, log=prin
     p = plan(rv, set(columns))
     target = open_root(to)
     latest = n >= max(versions(ctx), default=0)
-    # pages the version (or, at the latest location, any publication to this root) had but has no course on now
-    writes = {f"{version_prefix(ctx, n)}{s}": [] for s in (before or {}).get("page_stems", [])}
+    files = trees(p["pages"])
+    # pages the version's trees (or, at the latest location, any publication to this root) had but don't now
+    writes: dict[str, list[dict]] = {}
+    for t in TREES:
+        writes |= {f"{version_prefix(ctx, n, t)}{s}": [] for s in tree_stems(target, version_prefix(ctx, n, t))}
     if latest:
         writes |= {f"{latest_prefix(ctx)}{s}": [] for s in _stems_written(ctx, target.uri)}
-    for stem, records in p["pages"].items():
-        writes[f"{version_prefix(ctx, n)}{stem}"] = records
-        if latest:
+    for t in TREES:
+        for stem, records in files[t].items():
+            writes[f"{version_prefix(ctx, n, t)}{stem}"] = records
+    if latest:
+        for stem, records in files[RULE_MATCHED].items():
             writes[f"{latest_prefix(ctx)}{stem}"] = records
     from concurrent.futures import ThreadPoolExecutor
 
-    def write_page(item) -> None:
-        folder, records = item
-        stem = folder.rsplit("/", 1)[1]
-        target.write_text(f"{folder}/{stem}.json", page_json(records))
-        if records:
-            _copy_html(ctx, target, f"{folder}/{stem}.html", stem)
-
     with ThreadPoolExecutor(max_workers=16) as pool:
-        list(pool.map(write_page, sorted(writes.items())))
+        list(pool.map(lambda kv: _write_page(ctx, target, kv[0], kv[1]), sorted(writes.items())))
     for r in p["lineage"]:
         r["publication"] = pub
     info = ctx.write_table(f"{gdir}/lineage.parquet", p["lineage"], model.LINEAGE, if_none_match=False)
     ctx.write_table(f"{gdir}/golden.parquet", golden_rows(ctx, p["pages"]), model.GOLDEN, if_none_match=False)
-    doc = publication_doc(ctx, rv, p, pub, target.uri, by, ok, statuses, info, columns)
+    doc = publication_doc(ctx, rv, p, pub, target.uri, by, ok, statuses, info, columns, files)
     if published_at:
         doc["published_at"] = published_at
     if before:
@@ -403,9 +477,9 @@ def publish(ctx: Ctx, to: str, by: str, allow_unapproved: bool = False, log=prin
 
 
 def publish_page(ctx: Ctx, stem: str, reason: str, by: str, create: bool = False) -> dict | None:
-    """After a verdict on a value of this page: rebuild its file from the Studio's state and overwrite it in the
-    latest golden dataset's folder and at the latest location (one small file), then ask for a score 5 minutes
-    from now. With no golden dataset yet, `create` (an expert's verdict) creates the current ruleset's. Returns
+    """After a verdict on a value of this page: rebuild its file from the Studio's state and overwrite it in both
+    trees of the latest golden dataset and at the latest location (small files; a page with no values left in a tree
+    loses its file there), then ask for a score 5 minutes from now. With no golden dataset yet, `create` (an expert's verdict) creates the current ruleset's. Returns
     what changed, or None."""
     vs = versions(ctx)
     if not vs:
@@ -417,19 +491,19 @@ def publish_page(ctx: Ctx, stem: str, reason: str, by: str, create: bool = False
     n = max(vs)
     doc = ctx.read_json(f"{vs[n]['path']}/publication.json", immutable=False)
     rv = LOADER.review(ctx, doc["extraction"])
-    records = plan(rv, set(doc["properties"]))["pages"].get(stem, [])
+    files = trees({stem: plan(rv, set(doc["properties"]))["pages"].get(stem, [])})
     target = open_root(doc["to"])
-    text, changed = page_json(records), []
-    for folder in (f"{version_prefix(ctx, n)}{stem}", f"{latest_prefix(ctx)}{stem}"):
+    changed = []
+    for folder, records in ((f"{version_prefix(ctx, n, RULE_MATCHED)}{stem}", files[RULE_MATCHED].get(stem)),
+                            (f"{version_prefix(ctx, n, HUMAN_REVIEWED)}{stem}", files[HUMAN_REVIEWED].get(stem)),
+                            (f"{latest_prefix(ctx)}{stem}", files[RULE_MATCHED].get(stem))):
         try:
             old = target.read_text(f"{folder}/{stem}.json")
         except FileNotFoundError:
             old = None
-        if old == text or (old is None and not records):
+        if old == (page_json(records) if records else None):
             continue
-        target.write_text(f"{folder}/{stem}.json", text)
-        if records:
-            _copy_html(ctx, target, f"{folder}/{stem}.html", stem)
+        _write_page(ctx, target, folder, records or [])
         changed.append(f"{folder}/{stem}.json")
     if not changed:
         return None
@@ -443,10 +517,11 @@ def request_score(ctx: Ctx, reason: str) -> str:
     return due
 
 
-def backfill(ctx: Ctx, to: str, log=print) -> list[dict]:
+def backfill(ctx: Ctx, to: str, log=print, again: bool = False) -> list[dict]:
     """Rebuild the publications made before golden dataset versions (`pub-…`, merged in place) as versions: each
     ruleset's columns from their lineage, values from the immutable extraction they were published from. The old
-    entries leave the manifest; their folders stay."""
+    entries leave the manifest; their folders stay. `again` also writes every existing version again (oldest first,
+    so the newest ends at the latest location), e.g. after the layout changed."""
     import pyarrow.parquet as pq
 
     old = []
@@ -478,6 +553,19 @@ def backfill(ctx: Ctx, to: str, log=print) -> list[dict]:
 
     manifest.update(ctx.root, change)
     ctx.invalidate()
+    if again:
+        for _, g in sorted(versions(ctx).items()):
+            if g["publication"] in {d["publication"] for d in done}:
+                continue
+            d = ctx.read_json(f"{g['path']}/publication.json", immutable=False)
+            doc = publish(ctx, to, d["published_by"], allow_unapproved=True, properties=d.get("properties") or [],
+                          ext=d["extraction"], published_at=d["published_at"],
+                          note={k: d[k] for k in ("backfilled_from",) if k in d})
+            log(f"{doc['publication']} ({', '.join(doc['properties'])}) written again: "
+                f"{doc['trees'][RULE_MATCHED]['pages']:,} rule-matched pages, "
+                f"{doc['trees'][HUMAN_REVIEWED]['pages']:,} human-reviewed, {doc['lineage_rows']:,} values "
+                f"({doc['approvals']['human']:,} human-reviewed)")
+            done.append(doc)
     return done
 
 
@@ -514,7 +602,7 @@ def cmd_golden_backfill(args) -> int:
     from .query import connect
 
     ctx = Ctx.from_args(args)
-    docs = backfill(ctx, args.to or default_target(ctx))
+    docs = backfill(ctx, args.to or default_target(ctx), again=getattr(args, "again", False))
     if not docs:
         print("nothing to backfill: every publication is a golden dataset version already")
         return 0

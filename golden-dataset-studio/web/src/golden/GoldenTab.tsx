@@ -109,6 +109,9 @@ export default function GoldenTab({ catalog }: TabProps) {
               {"    │                       "}<span className="c">#   approved_by, approved_at{"}"}]{"}"}]</span>{"\n"}
               {"    └── "}<F f="page.html">{"<page>.html"}</F>{"         "}<span className="c"># the page as crawled, if not there yet: the</span>{"\n"}
               {"                            "}<span className="c">#   locations above point into it</span>{"\n\n"}
+              {`Kept too, JSON only: catalogs/<catalog>/versions/ruleset-v${d.ruleset_version}/`}{"\n"}
+              {"├── rule-matched/…/<page>/<page>.json    "}<span className="c"># the same files</span>{"\n"}
+              {"└── human-reviewed/…/<page>/<page>.json  "}<span className="c"># approval: human values only</span>{"\n\n"}
               {"Studio: golden/<publication>/"}{"\n"}
               {"├── "}<F f="lineage.parquet">{"lineage.parquet"}</F>{"         "}<span className="c"># one row per value → rule, version, occurrence, verdicts</span>{"\n"}
               {"└── "}<F f="publication.json">{"publication.json"}</F>{"        "}<span className="c"># which extraction and ruleset, approvals</span>

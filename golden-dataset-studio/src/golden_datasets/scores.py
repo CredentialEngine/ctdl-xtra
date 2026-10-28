@@ -8,15 +8,14 @@ two store adapters (`list_keys`, `get_json`, `describe_location`): `RecordsStore
 `records/` where it is, and never writes; `GoldenStore` serves a golden dataset from memory, as the scorer reads it
 (`<catalog>/<crawl>/<stem>/<stem>.json`). Nothing is written next to the records: the reports stay in memory.
 
-**A golden dataset** is `ruleset-vN` (its version folder in the golden root), `human-reviewed` (the live page files at
-the latest location: each expert verdict rewrites one, so `golden.parquet` would be stale) or a draft `rs-NNNN` (an
-unpublished extraction, planned in memory). **Each score runs the scorer twice**, exact and partial each time: on the
-human-reviewed values only (`approval: human`) and on every rule-matched value. Both results are kept.
+**A golden dataset** is `ruleset-vN` (its version's two trees in the golden root), `human-reviewed` (the latest
+version's trees as they are now: each expert verdict rewrites a page's files, so `golden.parquet` would be stale) or a
+draft `rs-NNNN` (an unpublished extraction, planned in memory into the same two trees). **Each score runs the scorer
+twice**, exact and partial each time: on the `human-reviewed/` tree and on the `rule-matched/` tree, exactly as
+`xtra score --baseline-uri …/ruleset-vN/<tree>` would. Both results are kept.
 
-Values without a CTDL term (Learning Type) are left out: the scorer rejects a page file that has one. A value with
-`location: null` is implied, not on the page, and the scorer skips it (xtra-cli #343). The scorer pairs a page's
-entities with its records by position and rejects an empty entity, so a basis drops trailing empty entities and
-leaves out a page whose empty entity comes before a non-empty one.
+The trees hold only what the scorer accepts (`golden.tree_pages`: no values without a CTDL term, no empty records). A
+value with `location: null` is implied, not on the page, and the scorer skips it (xtra-cli #343).
 
 **An extract output** is what `xtra catalog extract` wrote for the crawl (`$GOLDEN_DATASETS_XTRA_SOURCE`, else the
 shared container). xtra overwrites it in place, so the first time the Studio sees a report (by ETag) it copies
@@ -45,8 +44,9 @@ from .errors import UserError
 from .storage import AzureRoot, Root, open_root
 
 SHARED_XTRA_ROOT = "azure://https://ceteststorage.blob.core.windows.net/xtra-cli-output"
-HUMAN_REVIEWED = "human-reviewed"
+HUMAN_REVIEWED = golden_mod.HUMAN_REVIEWED
 BASES = ("human", "rule")  # the human-reviewed values only; every rule-matched value
+TREE = {"human": golden_mod.HUMAN_REVIEWED, "rule": golden_mod.RULE_MATCHED}  # each basis's tree
 OUTCOMES = ("missing", "wrong", "partial", "match")
 SLOT_NAMES = "this output uses slot names; re-extract with the current xtra-cli"
 
@@ -121,27 +121,6 @@ class GoldenStore:
         return self.where
 
 
-def basis_pages(pages: dict[str, list[dict]], basis: str) -> tuple[dict[str, list[dict]], list[dict]]:
-    """The pages as the scorer reads them for one basis (`human`: only `approval: human` values; `rule`: every
-    value), and the pages left out (with why)."""
-    out, left_out = {}, []
-    for stem, records in pages.items():
-        ents = []
-        for r in records:
-            fields = [f for f in r.get("fields", [])
-                      if f.get("ctdl_property") and (basis == "rule" or f.get("approval") == "human")]
-            ents.append({"golden_record_id": r.get("golden_record_id"), "approval": r.get("approval"), "fields": fields})
-        while ents and not ents[-1]["fields"]:
-            ents.pop()
-        if not ents:
-            continue
-        if any(not e["fields"] for e in ents):
-            left_out.append({"stem": stem, "why": "an earlier course on the page has no values in this basis"})
-            continue
-        out[stem] = ents
-    return out, left_out
-
-
 def is_implied(f: dict) -> bool:
     return "location" in f and f["location"] is None
 
@@ -151,14 +130,15 @@ def is_implied(f: dict) -> bool:
 class Golden:
     id: str                                  # ruleset-vN, human-reviewed or rs-NNNN
     kind: str                                # version, human-reviewed or draft
-    where: str                               # where the page files are (or the extraction, for a draft)
-    pages: dict[str, list[dict]]
+    where: str                               # where the trees are (or the extraction, for a draft)
+    trees: dict[str, dict[str, list[dict]]]  # basis → the pages of its tree, as the scorer reads them
+    left_out: dict[str, list[dict]] = field(default_factory=dict)  # basis → pages its tree leaves out (with why)
     as_of: str = field(default_factory=_now)
-    baseline_uri: str | None = None          # what `xtra score --baseline-uri` would read
+    baseline_uris: dict[str, str] | None = None  # basis → what `xtra score --baseline-uri` reads
 
     @functools.cached_property
     def sha256(self) -> str:
-        return hashlib.sha256(model.canon(self.pages).encode()).hexdigest()
+        return hashlib.sha256(model.canon(self.trees).encode()).hexdigest()
 
 
 def _read_pages(root: Root, prefix: str) -> dict[str, list[dict]]:
@@ -183,27 +163,34 @@ def latest_golden(ctx: Ctx) -> str | None:
     return golden_mod.version_name(max(vs)) if vs else None
 
 
+def _human_left_out(rule: dict[str, list[dict]]) -> list[dict]:
+    """The pages with human-reviewed values that the human-reviewed tree leaves out."""
+    return golden_mod.tree_pages(rule, golden_mod.HUMAN_REVIEWED)[1]
+
+
 def load_golden(ctx: Ctx, gid: str) -> Golden:
     vs = golden_mod.versions(ctx)
-    if gid == HUMAN_REVIEWED:
-        to = vs[max(vs)]["to"] if vs else golden_mod.default_target(ctx)
-        root = open_root(to)
-        return Golden(gid, "human-reviewed", f"{root.uri}/{golden_mod.latest_prefix(ctx)}".rstrip("/"),
-                      _read_pages(root, golden_mod.latest_prefix(ctx)), baseline_uri=root.uri)
     m = golden_mod.VERSION.match(gid)
-    if m:
-        n = int(m.group(1))
+    if gid == HUMAN_REVIEWED or m:
+        if gid == HUMAN_REVIEWED and not vs:
+            raise UserError(f"{ctx.catalog}: no golden dataset yet; an expert's first verdict creates one")
+        n = max(vs) if gid == HUMAN_REVIEWED else int(m.group(1))
         if n not in vs:
             raise UserError(f"{gid}: no such golden dataset (published: "
                             f"{', '.join(golden_mod.version_name(v) for v in sorted(vs)) or 'none'})")
         root = open_root(vs[n]["to"])
-        base = f"{root.uri}/catalogs/{ctx.catalog}/versions/{gid}"
-        return Golden(gid, "version", f"{root.uri}/{golden_mod.version_prefix(ctx, n)}".rstrip("/"),
-                      _read_pages(root, golden_mod.version_prefix(ctx, n)), baseline_uri=base)
+        tree = {b: _read_pages(root, golden_mod.version_prefix(ctx, n, t)) for b, t in TREE.items()}
+        uris = {b: f"{root.uri}/{golden_mod.version_root(ctx, n, t)}" for b, t in TREE.items()}
+        where = f"{root.uri}/catalogs/{ctx.catalog}/versions/{golden_mod.version_name(n)}"
+        return Golden(gid, "human-reviewed" if gid == HUMAN_REVIEWED else "version", where, tree,
+                      {"human": _human_left_out(tree["rule"]), "rule": []}, baseline_uris=uris)
     if gid in {e["extraction"] for e in ctx.extractions()}:
         from .review import LOADER
 
-        return Golden(gid, "draft", f"extraction {gid} (unpublished)", golden_mod.plan(LOADER.review(ctx, gid))["pages"])
+        rule, left = golden_mod.tree_pages(golden_mod.plan(LOADER.review(ctx, gid))["pages"], golden_mod.RULE_MATCHED)
+        human, _ = golden_mod.tree_pages(rule, golden_mod.HUMAN_REVIEWED)
+        return Golden(gid, "draft", f"extraction {gid} (unpublished)", {"human": human, "rule": rule},
+                      {"human": _human_left_out(rule), "rule": left})
     raise UserError(f"{gid}: not a golden dataset (ruleset-vN, {HUMAN_REVIEWED} or a draft rs-NNNN)")
 
 
@@ -390,13 +377,13 @@ def result(pages: dict[str, list[dict]], left_out: list[dict], reports: dict[str
 
 
 def commands(ctx: Ctx, g: Golden, output: dict) -> list[str]:
-    """The `xtra score` commands for the rule-matched result (the human-reviewed one keeps only `approval: human`
-    values, which the CLI can't filter)."""
-    if not g.baseline_uri:
+    """The `xtra score` commands for the two results: the human-reviewed tree, then the rule-matched tree (none for
+    a draft: it has no files)."""
+    if not g.baseline_uris:
         return []
     src = output["path"].removesuffix(f"/{ctx.catalog}/{ctx.crawl}")
-    return [f"xtra score extraction match --{flag} \\\n  --source-uri {src} \\\n  --baseline-uri {g.baseline_uri} \\\n"
-            f"  --catalog-id {ctx.catalog} \\\n  --run-id {ctx.crawl}" for flag in ("exactly", "partially")]
+    return [f"xtra score extraction match --exactly \\\n  --source-uri {src} \\\n  --baseline-uri {g.baseline_uris[b]} \\\n"
+            f"  --catalog-id {ctx.catalog} \\\n  --run-id {ctx.crawl}" for b in BASES]
 
 
 # --- score documents ---------------------------------------------------------------------------------
@@ -480,7 +467,7 @@ def finish(ctx: Ctx, doc: dict, p: Prepared, log=print) -> dict:
         rows: list[dict] = []
         sizes = {}
         for basis in BASES:
-            pages, left_out = basis_pages(p.golden.pages, basis)
+            pages, left_out = p.golden.trees[basis], p.golden.left_out.get(basis, [])
             sizes[basis] = sum(1 for ents in pages.values() for e in ents for f in e["fields"] if not is_implied(f))
             if not sizes[basis]:
                 doc["results"][basis] = None  # nothing to score on this basis

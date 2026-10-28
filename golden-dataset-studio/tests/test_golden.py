@@ -72,8 +72,7 @@ def test_publication_shape_and_lineage(ctx, tmp_path):
     assert [r["golden_record_id"] for r in records] == ["GEOG222"]
     fields = {f["property"]: f for f in records[0]["fields"]}
     assert set(fields) == {"Coded Notation", "External Identifier", "Learning Opportunity Name", "Description",
-                           "Subject Webpage", "Learning Type", "Life Cycle Status Type", "Language"}
-    assert fields["Learning Type"]["ctdl_property"] is None and fields["Learning Type"]["location"] is None
+                           "Subject Webpage", "Life Cycle Status Type", "Language"}  # Learning Type has no CTDL term
     assert fields["Description"]["value"].startswith("This course provides")  # v2: no prerequisite line
     assert fields["Description"]["location"]["css_path"].startswith("html > body")
     # who approved each value: Jared selected GEOG222's description (v2 now gives it), the constant Language is the rule's
@@ -90,6 +89,8 @@ def test_publication_shape_and_lineage(ctx, tmp_path):
     lin = pq.read_table(ctx.root.local_path(f"{doc['to_prefix'].split('/')[0]}/{doc['to_prefix'].split('/')[1]}"
                                             f"/golden-dataset-studio/golden/{doc['publication']}/lineage.parquet")).to_pylist()
     geog = next(r for r in lin if r["golden_record_id"] == "GEOG222" and r["property"] == "Description")
+    lt = next(r for r in lin if r["golden_record_id"] == "GEOG222" and r["property"] == "Learning Type")
+    assert lt["ctdl_property"] is None  # kept in the lineage, not in the files
     assert (geog["approval"], geog["approved_by"]) == ("human", "Jared") and geog["approved_at"]
     assert not any(k in json.dumps(records) for k in ("rule_id", "occurrence_key", "annotation_ids"))
     failed = [r for r in check.run(Ctx(ctx.root, "avc")) if r[3] and r[0] in ("lineage", "golden page")]

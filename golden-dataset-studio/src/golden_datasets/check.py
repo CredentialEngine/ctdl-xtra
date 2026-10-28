@@ -265,12 +265,22 @@ DOMAIN_LEAKS = ("rule_id", "rule_version", "occurrence_key", "annotation_ids", "
 
 
 def golden_file_checks(ctx: Ctx, con) -> list[tuple]:
-    """Per golden dataset version: its folder's files, and the latest location's for the latest version, against
-    the version's lineage. Human-reviewed values outside its columns have no lineage row (their annotations trace
-    them; Evals spec §4.3). Publications from before versions (`pub-…`) are checked at their latest location."""
+    """Per golden dataset version: its rule-matched tree, and the latest location's files for the latest version,
+    against the version's lineage (values with a CTDL term: the rest stay out of the files); its human-reviewed tree
+    is the `approval: human` subset of the rule-matched one; the HTML is only at the latest location. Human-reviewed
+    values outside its columns have no lineage row (their annotations trace them; Evals spec §4.3). Publications
+    from before versions (`pub-…`) are checked at their latest location."""
     from concurrent.futures import ThreadPoolExecutor
 
-    from .golden import VERSION, latest_prefix, version_prefix
+    from .golden import (
+        HUMAN_REVIEWED,
+        RULE_MATCHED,
+        VERSION,
+        latest_prefix,
+        tree_pages,
+        tree_stems,
+        version_prefix,
+    )
     from .storage import open_root
 
     out = []
@@ -281,36 +291,43 @@ def golden_file_checks(ctx: Ctx, con) -> list[tuple]:
         name = d["publication"]
         columns = set(d.get("properties") or model.PROPERTY_ORDER)
         groot = open_root(d["to"]) if d.get("to") else ctx.root
-        stems = sorted(d.get("page_stems", []))
-        if VERSION.match(name):
-            prefixes = [version_prefix(ctx, d["ruleset_version"])]
-            prefixes += [latest_prefix(ctx)] if d["ruleset_version"] == newest else []
+        versioned = bool(VERSION.match(name))
+        if versioned:
+            n = d["ruleset_version"]
+            stems = sorted(tree_stems(groot, version_prefix(ctx, n, RULE_MATCHED)))
+            prefixes = [(version_prefix(ctx, n, RULE_MATCHED), False)]
+            prefixes += [(latest_prefix(ctx), True)] if n == newest else []
         else:
-            prefixes = [d.get("to_prefix", "")]
+            stems = sorted(d.get("page_stems", []))
+            prefixes = [(d.get("to_prefix", ""), True)]
         lin = set()
         if "lineage" in _tables(con) and columns:
             names = ", ".join(f"'{c}'" for c in columns)
+            term = " AND ctdl_property IS NOT NULL" if versioned else ""
             lin = set(con.execute(f"""SELECT golden_record_id, page_stem, property, value_index FROM lineage
-                                      WHERE publication = '{name}' AND property IN ({names})""").fetchall())
-        for prefix in prefixes:
+                                      WHERE publication = '{name}' AND property IN ({names}){term}""").fetchall())
+
+        def fetch(stem: str, prefix: str, html: bool, groot=groot):  # one round trip each on Azure: run them together
+            path = f"{prefix}{stem}/{stem}.json"
+            try:
+                data = json.loads(groot.read_bytes(path))
+            except FileNotFoundError:
+                return stem, None, path
+            has_html = groot.exists(f"{prefix}{stem}/{stem}.html")
+            return stem, data, None if has_html == html else f"{prefix}{stem}/{stem}.html"
+
+        rule_files: dict[str, list] = {}
+        for prefix, html in prefixes:
             ids, leaked, n_rec, bad_files = set(), 0, 0, []
-
-            def fetch(stem: str, groot=groot, prefix=prefix):  # one round trip each on Azure: run them together
-                path = f"{prefix}{stem}/{stem}.json"
-                try:
-                    data = json.loads(groot.read_bytes(path))
-                except FileNotFoundError:
-                    return stem, None, path
-                html = f"{prefix}{stem}/{stem}.html"
-                return stem, data, None if groot.exists(html) else html
-
             with ThreadPoolExecutor(max_workers=32) as pool:
-                fetched = list(pool.map(fetch, stems))
-            for stem, records, missing in fetched:
-                if missing:
-                    bad_files.append(missing)
+                fetched = list(pool.map(lambda s, p=prefix, h=html: fetch(s, p, h), stems))
+            for stem, records, bad in fetched:
+                if bad:
+                    bad_files.append(bad)
                 if records is None:
                     continue
+                if not html:
+                    rule_files[stem] = records
                 counts = Counter()  # value_index counts per (golden_record_id, property) across the page's records
                 for rec in records:
                     n_rec += 1
@@ -325,10 +342,24 @@ def golden_file_checks(ctx: Ctx, con) -> list[tuple]:
             where = f"{name}: {prefix}"
             out.append(("lineage", "FK", f"{where} every value of its columns has one lineage row (and back)",
                         len(ids ^ lin), len(ids), []))
-            out.append(("golden page", "CHK", f"{where} <stem>/<stem>.json + .html per page", len(bad_files),
-                        len(stems), bad_files[:3]))
+            out.append(("golden page", "CHK", f"{where} <stem>/<stem>.json{' + .html' if html else ', no .html'} "
+                        "per page", len(bad_files), len(stems), bad_files[:3]))
             out.append(("golden page", "CHK", f"{where} domain-only (no rule ids / keys / annotation ids)", leaked,
                         n_rec, []))
+        if versioned:
+            prefix = version_prefix(ctx, d["ruleset_version"], HUMAN_REVIEWED)
+            want, _ = tree_pages(rule_files, HUMAN_REVIEWED)
+            have = set(tree_stems(groot, prefix))
+
+            def read(stem: str, prefix=prefix, groot=groot):
+                return stem, json.loads(groot.read_bytes(f"{prefix}{stem}/{stem}.json"))
+
+            with ThreadPoolExecutor(max_workers=32) as pool:
+                got = dict(pool.map(read, sorted(have)))
+            bad = sorted(s for s in have | set(want) if got.get(s) != want.get(s)
+                         or groot.exists(f"{prefix}{s}/{s}.html"))
+            out.append(("golden page", "CHK", f"{name}: {prefix} the approval: human subset of rule-matched, JSON only",
+                        len(bad), len(have | set(want)), bad[:3]))
     return out
 
 

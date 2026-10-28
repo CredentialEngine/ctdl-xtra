@@ -225,7 +225,8 @@ def build_parser() -> argparse.ArgumentParser:
     to_help = ("golden root: a folder or an azure:// prefix (default: $GOLDEN_DATASETS_GOLDEN_ROOT, else `golden` "
                "beside a local root, else the xtra-golden-sets container)")
     p = gsub.add_parser("publish", help="publish properties into the golden dataset of the current ruleset (written "
-                                        "whole: its version folder and the latest location; lineage + golden.parquet)")
+                                        "whole: its version's rule-matched and human-reviewed trees and the latest "
+                                        "location; lineage + golden.parquet)")
     _root_args(p), _catalog_args(p)
     p.add_argument("--to", default=None, help=to_help)
     p.add_argument("--property", action="append", default=None, metavar="NAME",
@@ -238,6 +239,9 @@ def build_parser() -> argparse.ArgumentParser:
                                          "versions (ruleset-vN), from their lineage and the immutable extractions")
     _root_args(p), _catalog_args(p)
     p.add_argument("--to", default=None, help=to_help)
+    p.add_argument("--again", action="store_true",
+                   help="also write every existing version again in the current layout (its columns, extraction and "
+                        "publication time kept); old version folders aren't removed")
     _cmd(p, "golden_datasets.golden:cmd_golden_backfill")
 
     # --- Evals ---------------------------------------------------------------------------------------
@@ -249,7 +253,7 @@ def build_parser() -> argparse.ArgumentParser:
                    help="the golden dataset ruleset vN (default: the latest)")
     g.add_argument("--draft", default=None, metavar="rs-NNNN", help="an unpublished extraction, as if it were published")
     g.add_argument("--human-reviewed", action="store_true",
-                   help="the human-reviewed values as they are now (the latest location's page files)")
+                   help="the human-reviewed values as they are now (the latest version's trees)")
     p.add_argument("--output", default=None, metavar="PATH|ID",
                    help="the extract output: a copy's id (extract-outputs/<id>), or a folder with records/ and "
                         "extract-report.json (default: the latest in $GOLDEN_DATASETS_XTRA_SOURCE, copied when new)")
