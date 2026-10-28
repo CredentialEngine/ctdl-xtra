@@ -196,7 +196,7 @@ def match_entity(
     """
     skipped_implied = sum(1 for f in baseline_fields if is_implied(f))
     baseline_fields = [f for f in baseline_fields if not is_implied(f)]
-    pool =extracted_values(record) if record else {}
+    pool = extracted_values(record) if record else {}
 
     by_property: dict[str, list[int]] = {}
     for index, field in enumerate(baseline_fields):

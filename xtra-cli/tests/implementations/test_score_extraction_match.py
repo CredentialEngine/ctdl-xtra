@@ -338,7 +338,10 @@ def test_an_entity_with_no_record_is_all_missing() -> None:
 
 
 def test_a_field_not_on_the_page_is_skipped_not_scored() -> None:
-    implied = {**baseline_field("ceterms:inLanguage", "English"), "location": None}
+    implied = {
+        **baseline_field("ceterms:inLanguage", "English"),
+        "location": None,
+    }
     fields = [baseline_field("ceterms:name", "Main"), implied]
     record = record_of(prop("ceterms:name", "Main"))
 
@@ -349,7 +352,10 @@ def test_a_field_not_on_the_page_is_skipped_not_scored() -> None:
 
 
 def test_a_field_with_a_location_or_none_given_is_still_scored() -> None:
-    located = {**baseline_field("ceterms:inLanguage", "English"), "location": "p"}
+    located = {
+        **baseline_field("ceterms:inLanguage", "English"),
+        "location": "p",
+    }
     unspecified = baseline_field("ceterms:name", "Main")
 
     result = match_entity([located, unspecified], record_of(), MODE_EXACT)
