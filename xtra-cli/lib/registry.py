@@ -4,10 +4,9 @@ from __future__ import annotations
 
 import json
 import os
-import urllib.error
-import urllib.request
 from datetime import datetime, timezone
 
+import httpx2
 from config import PACK, RECORD_DIR, REGISTRY_USER_AGENT
 from normalize import sha256_bytes
 
@@ -92,25 +91,21 @@ def _post_search(catalog_url: str) -> tuple[int, dict | str]:
         headers["Authorization"] = (
             key if key.lower().startswith("bearer ") else f"Bearer {key}"
         )
-    req = urllib.request.Request(
-        SEARCH_URL, data=body, headers=headers, method="POST"
-    )
     try:
-        # nosemgrep: python.lang.security.audit.dynamic-urllib-use-detected.dynamic-urllib-use-detected
-        with urllib.request.urlopen(req, timeout=45) as resp:
-            raw = resp.read()
-            try:
-                return resp.status, json.loads(raw.decode("utf-8"))
-            except json.JSONDecodeError:
-                return resp.status, raw.decode("utf-8", errors="replace")
-    except urllib.error.HTTPError as exc:
-        raw = exc.read().decode("utf-8", errors="replace")
-        try:
-            return exc.code, json.loads(raw)
-        except json.JSONDecodeError:
-            return exc.code, raw
-    except urllib.error.URLError as exc:
-        return 0, {"error": str(exc.reason)}
+        response = httpx2.post(
+            SEARCH_URL,
+            content=body,
+            headers=headers,
+            timeout=45,
+            follow_redirects=True,
+        )
+    except httpx2.HTTPError as exc:
+        return 0, {"error": str(exc)}
+    text = response.content.decode("utf-8", errors="replace")
+    try:
+        return response.status_code, json.loads(text)
+    except json.JSONDecodeError:
+        return response.status_code, text
 
 
 def lookup_url(catalog_url: str) -> dict:

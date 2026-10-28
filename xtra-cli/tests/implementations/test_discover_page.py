@@ -819,12 +819,7 @@ def test_a_word_in_the_url_slug_is_not_a_program() -> None:
     assert profile.labels == []
 
 
-# --- a catalog menu beside the page -------------------------------------------
-
-# eLumen prints its whole catalog menu beside <main> on every page, one
-# course or program per line. A program's name can end in a value, and the
-# menu's last courses sit just above the page's own units.
-ELUMEN_MENU = (
+SITE_MENU = (
     "<div id='nav'><ul>"
     "<li><a href='/course/chem110'>CHEM 110 - General Chemistry</a></li>"
     "<li><a href='/course/chem120'>CHEM 120 - General Chemistry</a></li>"
@@ -836,15 +831,13 @@ ELUMEN_MENU = (
     "Exam</a></li>"
     "</ul></div>"
 )
-ELUMEN_COURSE_URL = (
-    "https://example.elumenapp.com/catalog/2026-27/course/biol110"
-)
+COURSE_URL = "https://catalog.example.edu/catalog/2026-27/course/biol110"
 
 
-def elumen_course(description: str) -> str:
+def course_with_menu(description: str) -> str:
     return (
         "<title>BIOL 110 - General Biology</title>"
-        f"{ELUMEN_MENU}"
+        f"{SITE_MENU}"
         "<main><h1 class='u-visuallyhidden'>2026-27 Catalog</h1>"
         "<div id='mainContent'><header class='header'>"
         "<h2>General Biology</h2><h3>BIOL 110:</h3>"
@@ -862,8 +855,8 @@ def test_a_catalog_menu_listing_every_course_adds_none_to_the_page() -> None:
     like it described five courses or more.
     """
     profile = page(
-        elumen_course("Survey of living things, from cells to ecosystems."),
-        url=ELUMEN_COURSE_URL,
+        course_with_menu("Survey of living things, from cells to ecosystems."),
+        url=COURSE_URL,
     )
     assert profile.course_block_count == 1
     assert profile.course_code_count == 1
@@ -874,11 +867,11 @@ def test_a_catalog_menu_listing_every_course_adds_none_to_the_page() -> None:
 def test_a_policy_page_under_that_menu_is_not_a_course_page() -> None:
     """The academic calendar was a Course page holding two courses."""
     profile = page(
-        f"<title>Academic Calendar</title>{ELUMEN_MENU}"
+        f"<title>Academic Calendar</title>{SITE_MENU}"
         "<main><h1 class='u-visuallyhidden'>2026-27 Catalog</h1>"
         "<h2>Academic Calendar</h2>"
         "<p>Fall classes begin on the third Monday of August.</p></main>",
-        url="https://example.elumenapp.com/catalog/2026-27/academiccalendar",
+        url="https://catalog.example.edu/catalog/2026-27/academiccalendar",
     )
     assert profile.course_block_count == 0
     assert "Course" not in profile.labels
@@ -891,11 +884,11 @@ def test_a_prerequisite_the_menu_also_lists_is_still_a_reference() -> None:
     is that the page's own text never prints it as a title.
     """
     profile = page(
-        elumen_course(
+        course_with_menu(
             "Prerequisite: Completion of CHEM 110. Survey of living things, "
             "from cells to ecosystems."
         ),
-        url=ELUMEN_COURSE_URL,
+        url=COURSE_URL,
     )
     assert profile.course_block_count == 1
     assert profile.labels == ["Course"]
@@ -937,7 +930,7 @@ def test_codes_under_a_courses_path_need_no_block_to_be_a_listing() -> None:
         "skills lab</p>"
         "<p>VOCN 51 - Fundamentals of Nursing (8.0)</p>"
         "<p>Catalog Notes: Replaces VOCN 42A and VOCN 42B</p></main>",
-        url="https://example.curricunet.com/catalog/iq/courses/3/170",
+        url="https://catalog.example.edu/catalog/iq/courses/3/170",
     )
     assert profile.course_code_count == 3
     assert profile.course_block_count == 1

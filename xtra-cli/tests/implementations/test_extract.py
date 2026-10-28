@@ -19,7 +19,7 @@ from transcribe_lib import FieldDraft, TranscriptionError
 URL = "https://catalog.example.edu/english/engl101"
 
 # The minimum data for courses, and the two ends of a printed credit
-# range the Coursedog templates read as fields of their own.
+# range some templates read as fields of their own.
 COURSE_TERMS = {
     "ceterms:identifier",
     "ceterms:name",
@@ -78,7 +78,7 @@ def test_a_course_states_its_code_and_its_page(
     assert expected["ceterms:subjectWebpage"] == record["source_url"]
 
 
-ELUMEN = (
+HEADING_GROUP = (
     "<html><head><title>ELEC 150 - Electrical Maintenance</title></head>"
     "<body><main><header class='header'><h2>Electrical Maintenance</h2>"
     "<h3>ELEC 150:</h3><p class='header-x-meta'>4.0 Units</p></header>"
@@ -87,11 +87,11 @@ ELUMEN = (
 )
 
 
-def test_an_elumen_course_carries_its_unit_beside_its_credit_value(
+def test_a_markup_course_carries_its_unit_beside_its_credit_value(
     engl101_slot: dict,
 ) -> None:
     slot = slot_from_dict({**engl101_slot, "template_id": ""})
-    record = extract_record(slot, ELUMEN)
+    record = extract_record(slot, HEADING_GROUP)
     assert record["template_id"] == "markup"
     assert record["expected"]["ceterms:creditValue"] == 4.0
     assert record["expected"]["ceterms:creditUnitType"] == "Units"
@@ -194,7 +194,7 @@ def test_only_a_course_states_its_page_as_its_subject_webpage() -> None:
 
 
 def test_a_printed_credit_range_is_its_minimum_and_its_maximum() -> None:
-    """The Coursedog templates read the two ends as fields of their own."""
+    """Some templates read the two ends as fields of their own."""
     expected = expected_values(
         record_fields(
             "Course",

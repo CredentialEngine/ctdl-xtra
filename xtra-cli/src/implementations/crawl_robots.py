@@ -1,6 +1,6 @@
 """What the site itself declares: robots.txt rules and sitemap URLs.
 
-Both are fetched with urllib rather than a browser. They are small text
+Both are fetched with httpx2 rather than a browser. They are small text
 documents, a browser adds nothing, and robots.txt has to be read before the
 first page is rendered.
 """
@@ -8,15 +8,13 @@ first page is rendered.
 from __future__ import annotations
 
 import gzip
-import http.client
 import logging
-import urllib.error
-import urllib.request
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from urllib.parse import urlsplit
 from urllib.robotparser import RobotFileParser
 
+import httpx2
 from defusedxml import DefusedXmlException, ElementTree
 
 from implementations.engine import load_engine
@@ -41,29 +39,28 @@ def browser_user_agent() -> str:
     return BROWSER_USER_AGENT
 
 
-def web_request(url: str) -> urllib.request.Request:
-    """A GET request in which only http and https URLs are allowed."""
+def _get(url: str, timeout: int) -> httpx2.Response:
+    """A GET that follows redirects; only http and https URLs are allowed."""
     scheme = urlsplit(url).scheme.lower()
     if scheme not in WEB_SCHEMES:
         raise SiteFetchError(f"refusing a {scheme or 'scheme-less'} URL: {url}")
-    return urllib.request.Request(
-        url, headers={"User-Agent": browser_user_agent()}
-    )
+    try:
+        return httpx2.get(
+            url,
+            headers={"User-Agent": browser_user_agent()},
+            timeout=timeout,
+            follow_redirects=True,
+        )
+    except (httpx2.HTTPError, httpx2.InvalidURL) as exc:
+        raise SiteFetchError(str(exc)) from exc
 
 
 def fetch_url(
     url: str, *, timeout: int = ROBOTS_TIMEOUT_SECONDS
 ) -> tuple[int, bytes]:
     """GET one small document. Returns (status, body); 4xx and 5xx included."""
-    request = web_request(url)
-    try:
-        # nosemgrep: python.lang.security.audit.dynamic-urllib-use-detected.dynamic-urllib-use-detected
-        with urllib.request.urlopen(request, timeout=timeout) as response:
-            return int(getattr(response, "status", 200) or 200), response.read()
-    except urllib.error.HTTPError as exc:
-        return int(exc.code), exc.read()
-    except (OSError, http.client.HTTPException, ValueError) as exc:
-        raise SiteFetchError(str(exc)) from exc
+    response = _get(url, timeout)
+    return response.status_code, response.content
 
 
 def resolve_final_url(
@@ -79,18 +76,8 @@ def resolve_final_url(
     page and then throwing it away as off-site.
     """
     try:
-        request = web_request(url)
-        # nosemgrep: python.lang.security.audit.dynamic-urllib-use-detected.dynamic-urllib-use-detected
-        with urllib.request.urlopen(request, timeout=timeout) as response:
-            return response.geturl() or url
-    except urllib.error.HTTPError as exc:
-        return exc.url or url
-    except (
-        SiteFetchError,
-        OSError,
-        http.client.HTTPException,
-        ValueError,
-    ) as exc:
+        return str(_get(url, timeout).url)
+    except SiteFetchError as exc:
         logger.warning("ENTRY %s could not be resolved (%s)", url, exc)
         return url
 
@@ -170,8 +157,9 @@ def read_robots(
     )
 
 
-def _decompress(url: str, body: bytes) -> bytes:
-    if body.startswith(_GZIP_MAGIC) or url.lower().endswith(".gz"):
+def _decompress(body: bytes) -> bytes:
+    # httpx2 has already undone a gzip Content-Encoding.
+    if body.startswith(_GZIP_MAGIC):
         return gzip.decompress(body)
     return body
 
@@ -224,7 +212,7 @@ def collect_sitemap_urls(
             logger.info("SITEMAP %s returned HTTP %s", url, status)
             continue
         try:
-            body = _decompress(url, body)
+            body = _decompress(body)
         except (OSError, EOFError) as exc:
             logger.warning("SITEMAP %s is not readable gzip (%s)", url, exc)
             continue

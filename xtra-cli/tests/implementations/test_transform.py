@@ -59,9 +59,6 @@ def test_to_expected_keeps_existing_expected_dict() -> None:
     assert to_expected(record)["expected"] == {"course_id": "KEEP"}
 
 
-# --- credits ------------------------------------------------------------------
-
-
 def field(field_id: str, label: str, value: object) -> dict:
     return {
         "field_id": field_id,

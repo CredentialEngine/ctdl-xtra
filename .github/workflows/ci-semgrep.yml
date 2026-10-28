@@ -17,6 +17,7 @@ jobs:
       - name: Scan
         run: |
           semgrep scan \
+            --error \
             --config "p/secrets" \
             --config "p/security-audit" \
             --config "p/python" \

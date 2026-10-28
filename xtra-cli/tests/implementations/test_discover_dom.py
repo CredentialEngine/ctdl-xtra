@@ -32,9 +32,6 @@ def page(body: str, *, title: str = "Example", meta: str = "") -> str:
     return PAGE.format(title=title, body=body, meta=meta)
 
 
-# --- the page's own name ------------------------------------------------------
-
-
 def test_an_h1_in_the_menu_is_not_the_pages_name() -> None:
     """Coursedog prints the college's name as the only h1 on every page.
 
@@ -84,9 +81,6 @@ def test_an_h1_of_punctuation_is_a_divider_not_a_name() -> None:
         )
     )
     assert markup.h1 == ""
-
-
-# --- the page's own content ---------------------------------------------------
 
 
 def test_the_main_container_is_found_by_id_when_nothing_says_main() -> None:
@@ -178,7 +172,7 @@ def test_a_page_without_a_main_container_has_no_main_text() -> None:
 
 
 def test_main_text_keeps_a_code_split_across_two_strings_whole() -> None:
-    """CurriQunet prints "APP-" and "450" as two strings.
+    """A code can be printed as two strings, "APP-" and "450".
 
     Read with a space between every pair, as `get_text(" ")` reads them,
     the code becomes "APP- 450", which is no course code, and the page's
@@ -198,9 +192,6 @@ def test_an_element_reads_the_way_the_content_lines_read() -> None:
     """
     soup = parse(page("<li>Apply the <em>nursing</em> process;</li>"))
     assert element_text(soup.find("li")) == "Apply the nursing process;"
-
-
-# --- course descriptions and requirement lists --------------------------------
 
 
 COURSEBLOCK = (
@@ -274,9 +265,6 @@ def test_a_list_whose_class_names_requirements_needs_no_hours_column() -> None:
     assert quotes and "NURS 101" in quotes[0]
 
 
-# --- what the publisher declares ----------------------------------------------
-
-
 def test_json_ld_saying_the_page_is_a_course_is_read() -> None:
     soup = parse(
         page(
@@ -348,9 +336,6 @@ def test_a_teaser_does_not_give_the_page_its_type() -> None:
         )
     )
     assert read_cms_page_type(soup) == ""
-
-
-# --- labels and headings ------------------------------------------------------
 
 
 def test_a_bold_run_is_a_label_only_when_something_follows_it() -> None:

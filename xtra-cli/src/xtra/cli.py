@@ -16,9 +16,10 @@ def configure_logging() -> None:
         level=level,
         format="%(asctime)s %(levelname)s %(name)s %(message)s",
     )
-    # The Azure SDK logs every request and response at INFO, which buries the
+    # The Azure SDK and httpx2 log every request at INFO, which buries the
     # one line per page this CLI exists to print.
     logging.getLogger("azure").setLevel(logging.WARNING)
+    logging.getLogger("httpx2").setLevel(logging.WARNING)
 
 
 def _load_command(module_path: str) -> click.Command:

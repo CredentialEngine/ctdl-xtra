@@ -436,8 +436,6 @@ def _from_heading_labels(soup: Any) -> dict[str, tuple[Any, str, str]]:
     return found
 
 
-# --- the prerequisite a course names -------------------------------------------
-
 # Kinds of requisite label.
 _BOTH = "both"
 _COURSES = "courses"

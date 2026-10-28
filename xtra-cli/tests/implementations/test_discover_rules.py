@@ -279,7 +279,7 @@ def test_a_prerequisite_printed_as_none_says_there_is_none(
 
 
 def test_every_requisite_label_in_a_run_is_found() -> None:
-    """eLumen prints the requisites as one run; each label ends the last."""
+    """Requisites printed as one run: each label ends the one before it."""
     line = (
         "Limitation on Enrollment: Must be selected. Recommended "
         "Prerequisite: MATH 50. Prerequisite: Completion of PSY 301. "
@@ -313,7 +313,7 @@ def test_every_prerequisite_field_label_is_a_prerequisite_label() -> None:
     """The label table and the label reading agree on what a label is.
 
     "Prerequisite Courses" is not in the table: it lists the courses a
-    statement names, and Clean Catalog prints it before the statement.
+    statement names, and can be printed before the statement.
     """
     for label, field in COURSE_FIELD_LABELS.items():
         if field == "course_prerequisites":
@@ -405,7 +405,7 @@ def test_one_course_printed_twice_is_still_one_block() -> None:
 
 
 def test_a_code_after_a_label_or_in_a_sentence_is_a_reference() -> None:
-    """eLumen prints "Minimum Credit Units" under every description.
+    """A "Minimum Credit Units" line under the description.
 
     Every code in the description then has a value within reach, so the
     prerequisite, the course's old number and its C-ID each read as one
@@ -445,7 +445,7 @@ def test_a_page_that_titles_no_course_is_counted_as_before() -> None:
 def test_a_code_titled_only_in_the_menu_is_not_titled_on_the_page() -> None:
     """`titles` is the codes the page's own text prints as titles.
 
-    eLumen's menu lists CHEM 110 on a line of its own, just above a
+    A site menu lists CHEM 110 on a line of its own, just above a
     certificate whose name ends "(12 Unit)". A biology course whose
     prerequisite is CHEM 110 titled two courses on the flattened page.
     """

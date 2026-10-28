@@ -27,9 +27,6 @@ def values(drafts) -> dict:
     return {draft.canonical_label: draft.value for draft in drafts}
 
 
-# --- which record a page produces ---------------------------------------------
-
-
 def test_a_pages_labels_decide_which_record_it_produces() -> None:
     assert entity_type_for(["Course"]) == ENTITY_COURSE
     assert entity_type_for(["Credential"]) == ENTITY_CREDENTIAL
@@ -49,10 +46,7 @@ def test_a_page_that_is_two_things_produces_the_first_of_them() -> None:
     assert entity_type_for(["Course", "Competency"]) == ENTITY_COURSE
 
 
-# --- one reading, three platforms ---------------------------------------------
-
-
-DRUPAL = PAGE.format(
+LABELLED_FIELDS = PAGE.format(
     title="AELP060 &lt; Example College",
     body="""
 <main><article class="node node--type-class node--view-mode-full">
@@ -74,7 +68,7 @@ DRUPAL = PAGE.format(
 </article></main>""",
 )
 
-COURSEDOG = PAGE.format(
+FIELD_ROW = PAGE.format(
     title="ENG-102 | Example College Catalog",
     body="""
 <div id="main-content" role="main">
@@ -92,7 +86,7 @@ COURSEDOG = PAGE.format(
 </div>""",
 )
 
-COURSELEAF = PAGE.format(
+COURSE_BLOCK = PAGE.format(
     title="Brewing Science (BREW) &lt; Example University",
     body="""
 <main><h1>Brewing Science (BREW)</h1>
@@ -105,8 +99,8 @@ COURSELEAF = PAGE.format(
 )
 
 
-def test_a_drupal_course_is_read_from_the_fields_it_marks_up() -> None:
-    found = values(extract_fields(ENTITY_COURSE, DRUPAL))
+def test_a_course_is_read_from_the_fields_it_marks_up() -> None:
+    found = values(extract_fields(ENTITY_COURSE, LABELLED_FIELDS))
     assert found["course_credits"] == 6
     assert found["course_credits_unit"] == "Credits"
     assert found["course_lecture_hours"] == 6
@@ -114,13 +108,13 @@ def test_a_drupal_course_is_read_from_the_fields_it_marks_up() -> None:
     assert found["course_description"].startswith("Beginning-level course")
 
 
-def test_a_coursedog_course_is_read_by_the_same_code() -> None:
+def test_other_class_names_are_read_by_the_same_code() -> None:
     """Different class names, same shape: a label and a value beside it.
 
     The three fields in one `field-row` matter: a reading that took the
     row for one field found the subject code and lost the two after it.
     """
-    found = values(extract_fields(ENTITY_COURSE, COURSEDOG))
+    found = values(extract_fields(ENTITY_COURSE, FIELD_ROW))
     assert found["course_subject_code"] == "ENG"
     assert found["course_number"] == "102"
     assert found["course_credits"] == 3
@@ -128,9 +122,9 @@ def test_a_coursedog_course_is_read_by_the_same_code() -> None:
     assert found["course_description"].startswith("Expository writing")
 
 
-def test_a_courseleaf_course_is_read_from_its_block_title() -> None:
-    """CourseLeaf labels nothing: the title line carries all three."""
-    found = values(extract_fields(ENTITY_COURSE, COURSELEAF))
+def test_a_course_is_read_from_its_block_title() -> None:
+    """Nothing is labelled: the title line carries all three."""
+    found = values(extract_fields(ENTITY_COURSE, COURSE_BLOCK))
     assert found["course_id"] == "BREW 55703"
     assert found["course_name"] == "Production Design and Analysis of Beer"
     assert found["course_credits"] == 3
@@ -138,7 +132,7 @@ def test_a_courseleaf_course_is_read_from_its_block_title() -> None:
     assert found["course_description"].startswith("Production design")
 
 
-COURSELEAF_DETAIL = PAGE.format(
+COURSE_BLOCK_PARTS = PAGE.format(
     title="Agriculture Engr (AGEG) &lt; Example University",
     body="""
 <main><h1>Agriculture Engr/Mechanization (AGEG)</h1>
@@ -156,13 +150,11 @@ COURSELEAF_DETAIL = PAGE.format(
 )
 
 
-def test_the_newer_courseleaf_theme_names_each_part_of_the_block() -> None:
-    """Same platform, a theme that labels the parts instead of one line.
-
-    Read as one line the block has no code in it, and the record came out
-    holding the subject's name and nothing else.
+def test_a_block_that_names_each_part_is_read_part_by_part() -> None:
+    """Read as one line, this block has no code in it, and the record came
+    out holding the subject's name and nothing else.
     """
-    found = values(extract_fields(ENTITY_COURSE, COURSELEAF_DETAIL))
+    found = values(extract_fields(ENTITY_COURSE, COURSE_BLOCK_PARTS))
     assert found["course_id"] == "AGEG 3203"
     assert found["course_name"] == "Soil and Water Conservation"
     # The label is not part of the value.
@@ -171,28 +163,25 @@ def test_the_newer_courseleaf_theme_names_each_part_of_the_block() -> None:
 
 
 def test_the_course_name_comes_from_the_block_not_the_page() -> None:
-    """The h1 of a CourseLeaf subject page names the subject, not a course."""
-    found = values(extract_fields(ENTITY_COURSE, COURSELEAF))
+    """A subject page's h1 names the subject, not a course."""
+    found = values(extract_fields(ENTITY_COURSE, COURSE_BLOCK))
     assert found["course_name"] != "Brewing Science (BREW)"
 
 
 def test_a_numeric_field_is_a_number_and_the_rest_are_text() -> None:
-    found = values(extract_fields(ENTITY_COURSE, DRUPAL))
+    found = values(extract_fields(ENTITY_COURSE, LABELLED_FIELDS))
     assert isinstance(found["course_credits"], int)
     assert isinstance(found["course_prerequisites"], str)
 
 
 def test_every_field_says_where_it_came_from() -> None:
-    for draft in extract_fields(ENTITY_COURSE, DRUPAL):
+    for draft in extract_fields(ENTITY_COURSE, LABELLED_FIELDS):
         assert draft.locator_strategy == "dom_path"
         assert draft.locator_value
         assert draft.excerpt
 
 
-# --- eLumen: a heading group instead of labelled fields -----------------------
-
-
-ELUMEN = PAGE.format(
+HEADING_GROUP = PAGE.format(
     title="ELEC 150 - Electrical Maintenance",
     body="""
 <div id="nav"><a href="/course/elec110">ELEC 110 - Basic Electricity</a></div>
@@ -217,9 +206,7 @@ ELUMEN = PAGE.format(
 </main>""",
 )
 
-# A second theme: the name in a <p>, the code in the h1, the units two
-# wrappers below, and its hours as an h3 over a <p>.
-ELUMEN_OTHER_THEME = PAGE.format(
+CODE_IN_H1 = PAGE.format(
     title="FIRE B71A - Seasonal Firefighter Basic Training 1",
     body="""
 <main role="main">
@@ -243,13 +230,13 @@ ELUMEN_OTHER_THEME = PAGE.format(
 )
 
 
-def test_an_elumen_course_is_read_from_its_heading_group() -> None:
+def test_a_course_is_read_from_its_heading_group() -> None:
     """None of the course's code, name or units is labelled.
 
     Read as a page, the course was named after the hidden banner h1 and
     had no code, units or hours.
     """
-    found = values(extract_fields(ENTITY_COURSE, ELUMEN))
+    found = values(extract_fields(ENTITY_COURSE, HEADING_GROUP))
     assert found["course_id"] == "ELEC 150"
     assert found["course_name"] == "Electrical Maintenance"
     assert found["course_credits"] == 4.0
@@ -262,8 +249,8 @@ def test_an_elumen_course_is_read_from_its_heading_group() -> None:
     )
 
 
-def test_the_other_elumen_theme_prints_the_code_in_the_h1() -> None:
-    found = values(extract_fields(ENTITY_COURSE, ELUMEN_OTHER_THEME))
+def test_a_heading_group_can_print_the_code_in_the_h1() -> None:
+    found = values(extract_fields(ENTITY_COURSE, CODE_IN_H1))
     assert found["course_id"] == "FIRE B71A"
     assert found["course_name"] == "Seasonal Firefighter Basic Training 1"
     assert found["course_credits"] == 2.0
@@ -289,25 +276,26 @@ def test_a_variable_unit_course_keeps_its_range() -> None:
     assert found["course_credits_unit"] == "Units"
 
 
-def test_a_code_heading_outside_a_heading_group_names_no_course(
-    fixture_html_dir: Path,
-) -> None:
-    """Clean Catalog prints its vendor credit just above <h1>ENGL101:</h1>.
-
-    Only what a heading group prints beside the code is the course's name;
+def test_a_code_heading_outside_a_heading_group_names_no_course() -> None:
+    """Only what a heading group prints beside the code is the course's name;
     anything else beside a bare code is whatever the page put there.
     """
-    html = (fixture_html_dir / "course-clean-catalog.html").read_text(
-        encoding="utf-8"
+    page = PAGE.format(
+        title="ENGL101 | Example College Catalog",
+        body=(
+            "<p>Catalog software by Example Vendor</p><h1>ENGL101:</h1>"
+            "<p>Composition I</p><p>Credits</p><p>3</p>"
+            "<p>An introduction to college writing.</p>"
+        ),
     )
-    found = values(extract_fields(ENTITY_COURSE, html))
+    found = values(extract_fields(ENTITY_COURSE, page))
     assert found["course_id"] == "ENGL101"
-    assert found["course_name"] != "Course Catalog Software by Clean Catalog"
+    assert found.get("course_name") != "Catalog software by Example Vendor"
 
 
 def test_a_heading_over_a_word_is_not_a_number(fixture_html_dir: Path) -> None:
-    """Coursedog prints "Credit Hours" over "Min", then the number."""
-    html = (fixture_html_dir / "course-coursedog-credit-hours.html").read_text(
+    """A "Credit Hours" heading over "Min", then the number."""
+    html = (fixture_html_dir / "course-credit-hours-heading.html").read_text(
         encoding="utf-8"
     )
     found = values(extract_fields(ENTITY_COURSE, html))
@@ -316,7 +304,6 @@ def test_a_heading_over_a_word_is_not_a_number(fixture_html_dir: Path) -> None:
 
 
 def test_a_credits_heading_over_its_value_is_read() -> None:
-    """SmartCatalog prints <h3>Credits</h3> over the number, unlabelled."""
     page = PAGE.format(
         title="AIR 2002 Development of Air Power II",
         body=(
@@ -348,16 +335,13 @@ def test_a_description_is_not_cut_at_six_hundred_characters() -> None:
     assert found["course_description"] == description.strip()
 
 
-# --- the unit the credits are counted in --------------------------------------
-
-
 def drafts_by_label(drafts) -> dict:
     return {draft.canonical_label: draft for draft in drafts}
 
 
 def test_the_unit_is_read_from_the_line_that_prints_the_credits() -> None:
     """A reviewer finds the number and its unit in one place."""
-    found = drafts_by_label(extract_fields(ENTITY_COURSE, ELUMEN))
+    found = drafts_by_label(extract_fields(ENTITY_COURSE, HEADING_GROUP))
     unit, credits = found["course_credits_unit"], found["course_credits"]
     assert unit.value == "Units"
     assert unit.excerpt == "4.0 Units"
@@ -393,7 +377,6 @@ def test_a_value_that_prints_its_unit_is_a_number_and_a_unit() -> None:
     assert found["course_credits_unit"] == "Units"
 
 
-# A Drupal credits field with no label over it: only its class names it.
 UNLABELLED_CREDITS = (
     "<div class='field field--name-field-credits'>"
     "<div class='field__item'>{credits}</div></div>"
@@ -416,7 +399,7 @@ def test_a_field_known_only_by_its_class_prints_no_unit() -> None:
 
 
 def test_the_unit_comes_from_the_reading_whose_credits_are_kept() -> None:
-    """A labelled field outranks the eLumen header, and so does its silence.
+    """A labelled field outranks the heading group, and so does its silence.
 
     The header's "Units" belongs to the header's number. Lent to the
     field's, the record would pair a number and a unit that no element on
@@ -442,9 +425,6 @@ def test_a_unit_does_not_make_a_record_of_one_field() -> None:
         extract_fields(ENTITY_COURSE, page)
 
 
-# --- the prerequisite a course names ------------------------------------------
-
-
 def prerequisite(body: str, title: str = "ENGL 102") -> object:
     found = drafts_by_label(
         extract_fields(ENTITY_COURSE, PAGE.format(title=title, body=body))
@@ -453,7 +433,7 @@ def prerequisite(body: str, title: str = "ENGL 102") -> object:
     return draft.value if draft is not None else None
 
 
-ACALOG = (
+BOLD_LABEL_LINE = (
     "<table><tr><td class='block_content'>"
     "<h1>ARCH 171 - Graphic Communications II</h1><hr>3 units<br>"
     "2 hours lecture, 4 hours lab<br><strong>Prerequisite:</strong> "
@@ -466,14 +446,18 @@ ACALOG = (
 @pytest.mark.parametrize(
     ("body", "expected"),
     [
-        pytest.param(ACALOG, "ARCH 170 with a minimum grade C", id="acalog"),
+        pytest.param(
+            BOLD_LABEL_LINE,
+            "ARCH 170 with a minimum grade C",
+            id="bold-label-and-link",
+        ),
         pytest.param(
             "<table><tr><td class='block_content'><h1>CSC 2000</h1>"
             "<strong>Credit(s):</strong> <strong>4</strong><br>"
             "<strong>Prerequisite(s):</strong> CSC 1061<br>Formerly CSC 225 "
             "Covers how a computer operates.</td></tr></table>",
             "CSC 1061",
-            id="acalog-ends-at-its-line-break",
+            id="ends-at-its-line-break",
         ),
         pytest.param(
             "<main><h1>Behavioral Health (BEH)</h1><div class='courseblock'>"
@@ -483,7 +467,7 @@ ACALOG = (
             "<a href='#'>BEH 1001</a> with a grade of C or better<br/></p>"
             "</div></main>",
             "BEH 1001 with a grade of C or better",
-            id="courseleaf-requirements",
+            id="requirements-paragraph",
         ),
         pytest.param(
             "<main><h1>ALAN 0300</h1><div class='courseblock'>"
@@ -491,35 +475,34 @@ ACALOG = (
             "<p class='courseblockextra noindent'>Prerequisite: ALAN 0200</p>"
             "</div></main>",
             "ALAN 0200",
-            id="courseleaf-extra",
+            id="plain-paragraph",
         ),
         pytest.param(
             "<main><h1>ASL 051</h1><p>Second semester ASL.</p><div>"
             "<span class='course-Requisite-value'><b>Prerequisite:</b> "
             "ASL 050 or ASL 050B </span></div></main>",
             "ASL 050 or ASL 050B",
-            id="curriqunet-bold",
+            id="bold-label-in-a-span",
         ),
         pytest.param(
             "<main><h1>PE 29B</h1><p>Swimming.</p><div>"
             "<span class='course-requisites'>Prerequisite: PE 29A or "
             "demonstration of exit skills</span></div></main>",
             "PE 29A or demonstration of exit skills",
-            id="curriqunet-plain",
+            id="plain-span",
         ),
         pytest.param(
             "<main><h1>CSL 2069</h1><p>Counseling.</p>"
             "<p class='wp-block-paragraph'><strong>Prerequisite(s):</strong> "
             "CSL 2068</p></main>",
             "CSL 2068",
-            id="wordpress",
+            id="bold-label-in-a-paragraph",
         ),
     ],
 )
 def test_a_label_on_the_line_of_its_value_gives_the_rest_of_the_line(
     body: str, expected: str
 ) -> None:
-    """Acalog, CourseLeaf, CurriQunet and WordPress print it one way."""
     assert prerequisite(body) == expected
 
 
@@ -534,7 +517,7 @@ def test_a_label_cell_gives_the_cell_beside_it() -> None:
     assert prerequisite(body) == "MATH 105 or MATH 105H"
 
 
-DRUPAL_HEADING = (
+WRAPPED_HEADING = (
     "<main><h1>AAA 0090</h1><div class='degree-class-details'>"
     "<div class='field field--name-field-description field--label-hidden "
     "field__item'>Develops personalized approaches to learn.</div>"
@@ -552,7 +535,7 @@ def test_a_heading_gives_what_its_own_wrapper_prints_under_it() -> None:
         extract_fields(
             ENTITY_COURSE,
             PAGE.format(
-                title="AAA 0090", body=DRUPAL_HEADING.format(value="MAT 105")
+                title="AAA 0090", body=WRAPPED_HEADING.format(value="MAT 105")
             ),
         )
     )
@@ -561,7 +544,6 @@ def test_a_heading_gives_what_its_own_wrapper_prints_under_it() -> None:
 
 
 def test_a_heading_over_a_course_link_gives_the_course() -> None:
-    """SmartCatalog prints <h2>Prerequisite</h2> over a bare link."""
     body = (
         "<div id='main'><h1><span>AEC 1232</span> Construction Drawing</h1>"
         "<div class='desc'><p>Examines architectural drawings.</p></div>"
@@ -727,7 +709,7 @@ def test_a_field_label_in_any_spelling_gives_the_prerequisite(
     assert prerequisite(body) == "ENG 101"
 
 
-CLEAN_CATALOG = (
+PREREQUISITE_COURSES = (
     "<main><h1>PSYC 303</h1><p>Abnormal psychology.</p>"
     "<div class='degree-class-details'><div class='field'>"
     "<div class='field__label'>Prerequisite Courses</div>"
@@ -741,7 +723,7 @@ def course_item(name: str) -> str:
 
 def test_the_printed_statement_wins_over_the_list_of_courses_it_names() -> None:
     """The list is printed first and the fuller statement after."""
-    body = CLEAN_CATALOG.format(
+    body = PREREQUISITE_COURSES.format(
         items=course_item("CRIM101: Introduction to Criminal Justice"),
         statement=(
             "<div class='field'><div class='field__label'>Prerequisites</div>"
@@ -753,7 +735,7 @@ def test_the_printed_statement_wins_over_the_list_of_courses_it_names() -> None:
 
 
 def test_the_list_of_courses_stands_in_when_no_statement_is_printed() -> None:
-    body = CLEAN_CATALOG.format(
+    body = PREREQUISITE_COURSES.format(
         items=course_item("PSYC101: General Psychology")
         + course_item("MATH220: Statistical Methods"),
         statement="",
@@ -836,9 +818,11 @@ def test_a_heading_without_a_wrapper_gives_only_the_block_under_it() -> None:
             "<main><h1>ENGL 1A</h1><p>Composition.</p><div>"
             "<i class='course-Requisite-value'>Prerequisite: None.</i></div>"
             "</main>",
-            id="curriqunet",
+            id="italic-line",
         ),
-        pytest.param(DRUPAL_HEADING.format(value="None"), id="drupal-heading"),
+        pytest.param(
+            WRAPPED_HEADING.format(value="None"), id="heading-in-a-wrapper"
+        ),
         pytest.param(
             "<main><h1>ENG 102</h1><p>Writing.</p><dl><dt>Prerequisites</dt>"
             "<dd>N/A</dd></dl></main>",
@@ -857,7 +841,7 @@ def test_a_prerequisite_printed_as_none_is_left_out(body: str) -> None:
 
 def test_none_followed_by_a_note_is_still_no_prerequisite() -> None:
     """Under one heading: "None", then a note."""
-    body = DRUPAL_HEADING.format(
+    body = WRAPPED_HEADING.format(
         value="None</div><div class='field__item'>Each student is "
         "responsible for completing and passing a background check."
     )
@@ -974,7 +958,7 @@ def test_a_long_prerequisite_on_its_own_line_is_read_whole() -> None:
 def test_a_first_prerequisite_of_none_decides_there_is_none() -> None:
     """The first statement is the course's, the way one reading is the
     unit's; a later line naming a course belongs to some other course."""
-    body = DRUPAL_HEADING.format(value="None").replace(
+    body = WRAPPED_HEADING.format(value="None").replace(
         "</main>", "<p>Prerequisite: ENGL 101</p></main>"
     )
     assert prerequisite(body) is None
@@ -1056,9 +1040,6 @@ def test_a_sentence_that_mentions_prerequisites_names_none() -> None:
     assert prerequisite(body) is None
 
 
-# --- the entities the templates never could read ------------------------------
-
-
 def test_a_credential_page_gives_a_credential_its_name_and_description(
     fixture_html_dir: Path,
 ) -> None:
@@ -1100,9 +1081,6 @@ def test_a_competency_page_gives_one_competency_per_outcome(
     assert names == ["Institutional Learning Outcomes"]
 
 
-# --- failing closed -----------------------------------------------------------
-
-
 def test_a_page_printing_nothing_readable_raises() -> None:
     with pytest.raises(NothingToExtract):
         extract_fields(ENTITY_COURSE, "<html><body>unrelated</body></html>")
@@ -1119,7 +1097,7 @@ def test_a_page_with_only_a_name_is_not_a_record() -> None:
 
 def test_a_page_listing_no_outcome_is_not_a_competency() -> None:
     with pytest.raises(NothingToExtract):
-        extract_fields(ENTITY_COMPETENCY, DRUPAL)
+        extract_fields(ENTITY_COMPETENCY, LABELLED_FIELDS)
 
 
 def test_a_description_is_the_pages_prose_not_its_contact_block(
