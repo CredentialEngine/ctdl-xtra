@@ -43,7 +43,7 @@ from .context import Ctx
 from .errors import UserError
 from .storage import AzureRoot, Root, cache_home, open_root
 
-DEFAULT_XTRA_REF = "origin/extraction_scoring_cli"  # the scorer isn't on main yet
+DEFAULT_XTRA_REF = "origin/main"  # the scorer is on main since #314
 SHARED_XTRA_ROOT = "azure://https://ceteststorage.blob.core.windows.net/xtra-cli-output"
 VERIFIED_ROOT = "azure://https://ceteststorage.blob.core.windows.net/xtra-golden-sets-verified"
 KINDS = ("hand", "full")
@@ -357,7 +357,7 @@ def baseline(pages: dict[str, list[dict]], kind: str) -> tuple[dict[str, list[di
             fields = [{"ctdl_property": f["ctdl_property"], "value": f["value"], "source_url": f.get("source_url"),
                        "property": f.get("property"), "approval": f.get("approval", "rule"),
                        "approved_by": f.get("approved_by"), "approved_at": f.get("approved_at"),
-                       "location": f.get("location")}
+                       **({"location": f["location"]} if "location" in f else {})}
                       for f in r.get("fields", [])
                       if f.get("ctdl_property") and (kind == "full" or f.get("approval") == "human")]
             ents.append({"golden_record_id": r.get("golden_record_id") or r.get("golden_id"),
@@ -373,25 +373,35 @@ def baseline(pages: dict[str, list[dict]], kind: str) -> tuple[dict[str, list[di
     return out, left_out
 
 
+def is_implied(field: dict) -> bool:
+    """xtra's scorer skips a value the golden data says isn't on the page (`location: null`, since xtra-cli #343)."""
+    return "location" in field and field["location"] is None
+
+
 def baseline_stats(pages: dict[str, list[dict]], kind: str) -> dict:
-    """What a baseline holds: records, fields, fields per property, and the properties the scorer can't score."""
+    """What a baseline holds: records, the fields xtra's scorer scores, per property, and what it doesn't score."""
     base, left_out = baseline(pages, kind)
     by: Counter = Counter()
+    unscored: dict[tuple[str, str], int] = Counter()
     for ents in base.values():
         for e in ents:
             for f in e["fields"]:
-                by[f.get("property") or _label(f["ctdl_property"])] += 1
-    unscored: Counter = Counter()
+                label = f.get("property") or _label(f["ctdl_property"])
+                if is_implied(f):
+                    unscored[(label, "implied: not read from the page")] += 1
+                else:
+                    by[label] += 1
     for recs in pages.values():
         for r in recs:
             for f in r.get("fields", []):
                 if not f.get("ctdl_property") and (kind == "full" or f.get("approval") == "human"):
-                    unscored[f.get("property") or "?"] += 1
+                    unscored[(f.get("property") or "?", "no CTDL term")] += 1
     order = model.PROPERTY_ORDER
     return {"records": sum(len(e) for e in base.values()), "pages": len(base), "fields": sum(by.values()),
             "properties": [{"property": p, "fields": n, "ctdl_property": model.CTDL_TERM.get(p)}
                            for p, n in sorted(by.items(), key=lambda kv: (order.get(kv[0], 99), kv[0]))],
-            "not_scored": [{"property": p, "fields": n, "why": "no CTDL term"} for p, n in sorted(unscored.items())],
+            "not_scored": [{"property": p, "fields": n, "why": why} for (p, why), n in
+                           sorted(unscored.items(), key=lambda kv: (order.get(kv[0][0], 99), kv[0][0]))],
             "left_out": left_out}
 
 
@@ -541,7 +551,9 @@ def fields_rows(eid: str, kind: str, base: dict[str, list[dict]], reports: dict[
                 seen[f["ctdl_property"]] += 1
                 st = status.get(stem, "out of scope")
                 o = ex[key].pop(0) if ex.get(key) else None
-                if st in ("out of scope", "malformed"):
+                if is_implied(f):
+                    outcome, sim, got = "implied", None, None
+                elif st in ("out of scope", "malformed"):
                     outcome, sim, got = st, None, None
                 elif o is None:
                     outcome, sim, got = "exact", 1.0, _text(f["value"])
@@ -564,7 +576,7 @@ def fields_rows(eid: str, kind: str, base: dict[str, list[dict]], reports: dict[
                     "golden_char_start": (f.get("location") or {}).get("char_start"),
                     "golden_char_end": (f.get("location") or {}).get("char_end"),
                 })
-    counted = [r for r in rows if r["outcome"] not in ("out of scope", "malformed")]
+    counted = [r for r in rows if r["outcome"] not in ("out of scope", "malformed", "implied")]
     got = Counter("match" if r["outcome"] == "exact" else "missing" if r["outcome"] == "missing" else "mismatch"
                   for r in counted)
     if len(counted) != exact["fields_total"] or any(got[k] != v for k, v in exact["outcomes"].items()):

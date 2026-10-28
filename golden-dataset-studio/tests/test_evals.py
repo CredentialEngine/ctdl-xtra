@@ -6,7 +6,7 @@ from __future__ import annotations
 import pytest
 
 from golden_datasets.errors import UserError
-from golden_datasets.evals import baseline, fields_rows, mask
+from golden_datasets.evals import baseline, baseline_stats, fields_rows, mask
 
 
 def f(prop, value, approval="rule", by=None):
@@ -62,6 +62,22 @@ def test_fields_rows_rebuilds_every_field_and_checks_the_counts():
     wrong_counts = report("exact", [miss], 2, {"match": 0, "mismatch": 2, "missing": 0})
     with pytest.raises(UserError, match="don't match the scorer"):
         fields_rows("ev-0001", "full", base, {"exact": wrong_counts, "partial": partial}, {})
+
+
+def test_implied_values_are_not_scored():
+    # a value the golden data says isn't on the page (location: null) is skipped by xtra's scorer (xtra-cli #343)
+    pages = {"p1": [{"golden_record_id": "A1", "approval": "rule", "fields": [
+        f("ceterms:codedNotation", "A 1") | {"location": {"css_path": "h3", "char_start": 0, "char_end": 3}},
+        f("ceterms:inLanguage", "English") | {"location": None}]}]}
+    base, _ = baseline(pages, "full")
+    exact = report("exact", [], 1, {"match": 1, "mismatch": 0, "missing": 0})
+    partial = report("partial", [], 0, {"partial": 0, "wrong": 0, "missing": 0})
+    rows = fields_rows("ev-0001", "full", base, {"exact": exact, "partial": partial}, {})
+    assert {r["ctdl_property"]: r["outcome"] for r in rows} == {"ceterms:codedNotation": "exact",
+                                                                 "ceterms:inLanguage": "implied"}
+    stats = baseline_stats(pages, "full")
+    assert stats["fields"] == 1 and stats["not_scored"] == [{"property": "Language", "fields": 1,
+                                                              "why": "implied: not read from the page"}]
 
 
 def test_connection_strings_are_masked_in_logs():

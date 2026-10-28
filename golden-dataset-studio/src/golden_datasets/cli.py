@@ -184,7 +184,7 @@ def build_parser() -> argparse.ArgumentParser:
     p = xsub.add_parser("run", help="run xtra-cli extract at a pinned commit into the Studio's folder, or import the "
                                     "team's current records/")
     _root_args(p), _catalog_args(p)
-    p.add_argument("--ref", default="origin/extraction_scoring_cli", help="xtra-cli branch, tag or commit")
+    p.add_argument("--ref", default="origin/main", help="xtra-cli branch, tag or commit")
     p.add_argument("--sample", action="store_true", help="only the pages in the golden sample (quick)")
     p.add_argument("--discovery-run", default=None, help="discovery run to read (default: the newest)")
     p.add_argument("--import", dest="import_records", action="store_true",

@@ -105,6 +105,13 @@ evals/ev-0001/eval.json, baseline/{hand,full}/…, reports/{hand,full}-{exact,pa
   have ceterms keys, but that extractor isn't on any branch pushed to GitHub. Until it is, imported runs are the ones
   worth scoring; pass `--ref` once it lands.
 
+- **Update, 2026-10-28: the scorer is on xtra-cli main** (#314), and the default ref is now `origin/main`. Main also
+  skips **implied** values (#343): a baseline field with `location: null` (Language, Life Cycle Status Type, Subject
+  Webpage in the Studio's output) is counted as `skipped_implied` and not scored. The Studio now treats those fields the
+  same way, and the baseline panel lists them as "not scored". Copied records vs rs-0003: 59.5% of 4,248 fields (full),
+  65.3% of 75 (hand-checked). Main's extractor still writes `expected` with slot names, so an extraction run at main
+  scores 0% of 44 fields: the blocker above still stands.
+
 ## How to run it
 
 ```bash
