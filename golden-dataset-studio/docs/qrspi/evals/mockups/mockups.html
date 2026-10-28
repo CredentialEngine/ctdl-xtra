@@ -191,9 +191,9 @@
       <span class="seg"><b>Golden dataset</b><b class="on">xtra score</b></span>
     </div>
     <div class="tabletitle">How closely xtra's latest extract output matches each catalog's latest golden dataset</div>
-    <div style="margin-bottom:4px"><span class="basis">scored against <span class="seg xs"><b class="on">Hand-checked</b><b>Rule-matched</b></span></span></div>
+    <div style="margin-bottom:4px"><span class="basis">scored against <span class="seg xs"><b class="on">Human-reviewed</b><b>Rule-matched</b></span></span></div>
     <table class="cat">
-      <thead><tr><th></th><th class="plain">Catalog</th><th class="plain">Exact matches <span class="hand">hand-checked</span></th>
+      <thead><tr><th></th><th class="plain">Catalog</th><th class="plain">Exact matches <span class="hand">human-reviewed</span></th>
         <th class="rot"><span>codedNotation</span></th><th class="rot"><span>identifier</span></th><th class="rot"><span>name</span></th>
         <th class="rot"><span>description</span></th><th class="rot"><span>subjectWebpage</span></th><th class="rot"><span>lifeCycleStatusType</span></th>
         <th class="rot"><span>inLanguage</span></th>
@@ -204,7 +204,7 @@
     <div class="legend"><span class="k" style="--c:var(--match)">match</span><span class="k" style="--c:var(--partial)">partial</span><span class="k" style="--c:var(--wrong)">wrong</span><span class="k" style="--c:var(--missing)">missing</span>
       <span class="faint">— not published yet, or not in this Studio yet · n/s not scored (not read from the page)</span></div>
     <div class="tip up" id="tip2">
-      <div class="hd">description · Antelope Valley College · 16 hand-checked values</div>
+      <div class="hd">description · Antelope Valley College · 16 human-reviewed values</div>
       <table>
         <tr><td><span class="sw x"></span>match</td><td class="n">4</td><td>identical to the golden value, as printed</td></tr>
         <tr><td><span class="sw p"></span>partial</td><td class="n">8</td><td>similar text: similarity 0.8 or more</td></tr>
@@ -222,9 +222,9 @@
     <span class="tabs"><a>Rules</a><a>Records</a><a>Compare</a><a>Golden datasets</a><a class="on">Evals</a></span></div>
   <div class="page">
     <div class="row ttl">
-      <span class="dd"><span class="k">Golden dataset</span><b>ruleset v3</b><span class="muted">(latest)</span></span>
+      <span class="gchip">Human-reviewed values <span style="font-weight:400">· as of 28 Oct, 3:40 PM</span></span>
       <span class="muted" style="font-weight:500">vs</span><code class="cmd">xtra catalog extract</code><span>outputs over time</span>
-      <span class="info">i</span><span style="flex:1"></span><span style="font-weight:400"><span class="basis">scored against <span class="seg xs"><b class="on">Hand-checked</b><b>Rule-matched</b></span></span></span>
+      <span class="info">i</span><span style="flex:1"></span><span style="font-weight:400"><span class="basis">scored against <span class="seg xs"><b class="on">Human-reviewed</b><b>Rule-matched</b></span></span></span>
     </div>
     <div style="margin-top:14px;display:flex;gap:40px;align-items:flex-end">
       <div>
@@ -234,8 +234,9 @@
       <div class="legend" style="flex-direction:column;align-items:flex-start;gap:6px;margin:0 0 30px"><span class="k" style="--c:var(--missing)">missing</span><span class="k" style="--c:var(--wrong)">wrong</span><span class="k" style="--c:var(--partial)">partial</span><span class="k" style="--c:var(--match)">match</span>
         <span class="faint" style="max-width:220px">Click a bar to compare with that extract output. A dashed bar hasn't been scored yet.</span></div>
     </div>
-    <div class="row" style="margin:18px 0 6px;gap:8px"><span class="gchip">ruleset v3</span><span class="muted">vs</span><span class="xchip"><i><b class="x" style="height:8px"></b><b class="p" style="height:4px"></b><b class="m" style="height:2px"></b></i>28 Oct, 11:49 AM<span class="muted" style="font-weight:400">(latest)</span></span></div>
-    <div class="row rate" style="margin:4px 0 10px"><b>65%</b><span style="font-weight:600">exact matches</span><span class="hand">hand-checked</span><span class="muted">49 of 75 values a person confirmed</span></div>
+    <div class="row" style="margin:18px 0 6px;gap:8px"><span class="gchip">human-reviewed · 28 Oct, 3:40 PM</span><span class="muted">vs</span><span class="xchip"><i><b class="x" style="height:8px"></b><b class="p" style="height:4px"></b><b class="m" style="height:2px"></b></i>28 Oct, 11:49 AM<span class="muted" style="font-weight:400">(latest)</span></span></div>
+    <div class="row rate" style="margin:4px 0 10px"><b>65%</b><span style="font-weight:600">exact matches</span><span class="hand">human-reviewed</span><span class="muted">49 of 75 values an expert reviewed</span></div>
+    <div class="dev" style="right:28px;top:118px">Human-reviewed = values with approval: human in xtra-golden-sets/avc/&lt;crawl&gt;/. Rule-matched swaps this chip for the ruleset dropdown. Re-scored 5 min after the last review (scores/pending.json).</div>
     <table class="plain">
       <tr><td style="width:220px;font-weight:600">All columns</td><td><div class="bar"><i class="x" style="flex:49"></i><i class="p" style="flex:22"></i><i class="w" style="flex:4"></i></div></td><td class="pct" style="width:60px;text-align:right">65%</td><td class="muted" style="width:90px;text-align:right">75 values</td></tr>
       <tr><td class="mono">codedNotation</td><td><div class="bar"><i class="x" style="flex:1"></i></div></td><td class="pct" style="text-align:right">100%</td><td class="muted" style="text-align:right">31</td></tr>
@@ -387,8 +388,8 @@ Focus is on the development of nursing skills and basic components of competent 
     <div class="row" style="margin-bottom:14px"><h1>Golden datasets</h1><span class="muted">Published when a column's rule is approved.</span></div>
     <table class="plain" style="max-width:1100px">
       <tr><th style="width:160px">Golden dataset</th><th>Columns</th><th style="width:220px">Values</th><th style="width:200px">xtra score (latest output)</th></tr>
-      <tr><td><b>ruleset v3</b> <span class="muted">latest</span></td><td class="mono">codedNotation, inLanguage</td><td>2,124 · <span class="hand">45 hand-checked</span></td><td><b>100%</b> <span class="muted">exact, hand-checked</span></td></tr>
-      <tr><td><b>ruleset v2</b></td><td class="mono">inLanguage</td><td>1,062 · <span class="hand">14 hand-checked</span></td><td class="muted">not scored (not read from the page)</td></tr>
+      <tr><td><b>ruleset v3</b> <span class="muted">latest</span></td><td class="mono">codedNotation, inLanguage</td><td>2,124 · <span class="hand">45 human-reviewed</span></td><td><b>100%</b> <span class="muted">exact, human-reviewed</span></td></tr>
+      <tr><td><b>ruleset v2</b></td><td class="mono">inLanguage</td><td>1,062 · <span class="hand">14 human-reviewed</span></td><td class="muted">not scored (not read from the page)</td></tr>
     </table>
     <div style="margin-top:16px;max-width:1100px">
       <div class="muted" style="margin-bottom:6px;font-size:12px">Where ruleset v3 is written · click a file to see a sample</div>
@@ -410,7 +411,9 @@ Focus is on the development of nursing skills and basic components of competent 
 </section>
 
 <style>
-  /* m7–m8: hand-checked lifecycle and exploring annotations */
+  .dev { position:absolute; background:#fff8c5; border:1px solid #e3c55a; color:#4d3800; font:11px/1.45 var(--mono); padding:6px 9px; border-radius:6px; max-width:330px; box-shadow:0 4px 12px rgba(0,0,0,.08); z-index:6; }
+  .dev::before { content:"logic · "; font-weight:700; }
+  /* m7–m8: human-reviewed lifecycle and exploring annotations */
   .stu { display:grid; height:820px; background:var(--surface); }
   .stu .side { border-right:1px solid var(--line); padding:14px 14px; background:var(--surface); display:flex; flex-direction:column; gap:4px; }
   .stu .mid { background:var(--bg); padding:14px 18px; overflow:hidden; border-right:1px solid var(--line); }
@@ -471,7 +474,8 @@ Focus is on the development of nursing skills and basic components of competent 
       <div class="rl dim"><span data-i="R"></span><span class="t">Subject Webpage</span><span class="n">—</span><span class="s">subjectWebpage</span></div>
       <div class="rl dim"><span data-i="R"></span><span class="t">Life Cycle Status Type</span><span class="n">—</span><span class="s">lifeCycleStatusType</span></div>
       <div class="rl dim"><span data-i="A"></span><span class="t">Language</span><span class="n">—</span><span class="s">inLanguage</span></div>
-      <div class="callout"><b>22 values an engineer checked</b> are waiting for an expert. They aren't hand-checked until you confirm them.
+      <div class="dev" style="position:static;margin:auto 0 8px">engineer = event.author_role, else the author's role in profiles.json. An engineer ✕ still marks the rule ✕.</div>
+      <div class="callout" style="margin-top:0"><b>22 values an engineer checked</b> are waiting for an expert. They aren't human-reviewed until you confirm them.
         <div style="margin-top:8px"><span class="btn sm">Clear filter</span></div></div>
     </div>
     <div class="mid">
@@ -479,7 +483,7 @@ Focus is on the development of nursing skills and basic components of competent 
       <div class="fbar"><span class="lab">Annotated by</span><span class="dd act"><span>Any engineer · waiting for an expert</span></span>
         <span class="seg sm"><b class="on">Any</b><b>✓ correct</b><b>✕ wrong</b><b>note</b></span>
         <span style="flex:1"></span><span class="muted" style="font-size:12px">17 rows</span></div>
-      <div class="card on">
+      <div class="card on" style="position:relative">
         <div class="val">BIOL 110</div>
         <div class="acts"><span class="confirm">✓ Confirm</span><span class="vb">✕</span><span class="vb">💬</span></div>
         <div class="cap">course page · BIOL 110 - General Molecular Cell Biology</div>
@@ -489,7 +493,7 @@ Focus is on the development of nursing skills and basic components of competent 
         <div class="val">ACCT 199</div>
         <div class="acts"><span class="vb ok">✓</span><span class="vb">✕</span><span class="vb">💬</span></div>
         <div class="cap">course page · ACCT 199 - Work Experience Education</div>
-        <div class="who"><span class="hand">✓ hand-checked · published</span><b>Jared Diener</b><span class="muted">confirmed Eric Riddoch's check · just now</span></div>
+        <div class="who"><span class="hand">✓ human-reviewed · published</span><b>Jared Diener</b><span class="muted">confirmed Eric Riddoch's check · just now</span></div>
       </div>
       <div class="card">
         <div class="val">ANDI 120</div>
@@ -503,6 +507,7 @@ Focus is on the development of nursing skills and basic components of competent 
         <div class="cap">course page · ARTHC 120 - Survey of Art from Prehistory to Gothic</div>
         <div class="who"><span class="eng">✓ engineer-checked</span><b>Eric Riddoch</b><span class="role">engineer</span><span class="muted">· 21 Oct · waiting for an expert</span></div>
       </div>
+      <div class="dev" style="position:static;max-width:none">Confirm = an expert `correct` → rewrite this page's &lt;stem&gt;.json (latest + versions/ruleset-v3) → scores/pending.json due in 5 min</div>
     </div>
     <div class="pane">
       <div class="muted" style="font-size:12px;margin-bottom:8px">The saved page, as today</div>
@@ -532,17 +537,18 @@ Focus is on the development of nursing skills and basic components of competent 
         <div class="ci"><b>LIB107</b><span>Information Literacy</span></div>
       </div>
       <div class="muted" style="font-size:12px;padding:6px 8px">14 courses Jared Diener annotated</div>
+      <div class="dev" style="position:static;margin-top:auto">#/c/avc/records?by=Jared+Diener · groups by role · counts are field values with a verdict</div>
     </div>
     <div class="mid">
       <div style="font-size:18px;font-weight:650">ACCT 199 · Work Experience Education</div>
       <div class="muted" style="margin-bottom:10px">Found on 1 page: its course page</div>
-      <div class="fld hit"><div class="h"><span class="mono">codedNotation</span><b>Coded Notation</b><span style="flex:1"></span><span class="hand">✓ hand-checked · published</span></div>
+      <div class="fld hit"><div class="h"><span class="mono">codedNotation</span><b>Coded Notation</b><span style="flex:1"></span><span class="hand">✓ human-reviewed · published</span></div>
         <div class="card" style="margin:0;border:0;padding:0"><div class="val">ACCT 199</div><div class="acts"><span class="vb ok">✓</span></div>
         <div class="who" style="border:0;padding:0"><b>Jared Diener</b><span class="muted">· 19 Oct</span></div></div></div>
-      <div class="fld hit"><div class="h"><span class="mono">description</span><b>Description</b><span style="flex:1"></span><span class="hand">✓ hand-checked · published</span></div>
+      <div class="fld hit"><div class="h"><span class="mono">description</span><b>Description</b><span style="flex:1"></span><span class="hand">✓ human-reviewed · published</span></div>
         <div class="card" style="margin:0;border:0;padding:0"><div class="val" style="font-size:12px">LIMITATION ON ENROLLMENT: To participate in work experience education, students must have a paid or unpaid job or internship …</div><div class="acts"><span class="vb ok">✓</span></div>
         <div class="who" style="border:0;padding:0"><b>Jared Diener</b><span class="muted">· 19 Oct</span></div></div></div>
-      <div class="fld hit"><div class="h"><span class="mono">name</span><b>Learning Opportunity Name</b><span style="flex:1"></span><span class="hand">✓ hand-checked · published</span></div>
+      <div class="fld hit"><div class="h"><span class="mono">name</span><b>Learning Opportunity Name</b><span style="flex:1"></span><span class="hand">✓ human-reviewed · published</span></div>
         <div class="card" style="margin:0;border:0;padding:0"><div class="val">Work Experience Education</div><div class="acts"><span class="vb ok">✓</span></div>
         <div class="who" style="border:0;padding:0"><b>Jared Diener</b><span class="muted">· 19 Oct</span></div></div></div>
       <div class="fold">4 fields Jared Diener didn't annotate · <a>show</a></div>
@@ -554,13 +560,32 @@ Focus is on the development of nursing skills and basic components of competent 
       <input value="" placeholder="Search people">
       <div class="o"><span>Anyone</span></div>
       <div class="o"><span>Not annotated yet</span></div>
-      <div class="g">SUBJECT MATTER EXPERTS · hand-checked</div>
+      <div class="g">SUBJECT MATTER EXPERTS · human-reviewed</div>
       <div class="o on"><span>Jared Diener</span><span class="c">112 values</span></div>
       <div class="o"><span>Cadence Calixto</span><span class="c">none yet</span></div>
       <div class="g">ENGINEERS · waiting for an expert</div>
       <div class="o"><span>Any engineer</span><span class="c">22 values</span></div>
       <div class="o"><span>Eric Riddoch</span><span class="c">22 values</span></div>
     </div>
+  </div>
+</section>
+
+<!-- M9: where files go, and why -->
+<section class="shot" id="m9" style="height:380px">
+  <div class="page">
+    <h1 style="margin-bottom:12px">Where files go, and why</h1>
+<div class="tree"><span class="t">xtra-golden-sets/</span>
+├── &lt;catalog&gt;/&lt;crawl&gt;/&lt;stem&gt;/&lt;stem&gt;.json          <span class="c"># where golden values go today; always the latest; readers keep working</span>
+│                                                 <span class="c"># an expert's review rewrites one page's file here (approval: human)</span>
+└── catalogs/&lt;catalog&gt;/versions/ruleset-vN/
+    └── &lt;catalog&gt;/&lt;crawl&gt;/&lt;stem&gt;/&lt;stem&gt;.json      <span class="c"># all a catalog's versions in one folder; catalog/crawl repeats because</span>
+                                                  <span class="c"># xtra score appends it to --baseline-uri, so any version scores as is</span>
+
+<span class="t">&lt;catalog&gt;/&lt;crawl&gt;/golden-dataset-studio/</span>          <span class="c"># the Studio's own files, beside the crawl</span>
+├── golden/ruleset-vN/golden.parquet              <span class="c"># Evals reads a version in one read, not 1,062 JSON files</span>
+├── scores/sc-NNNN/{score.json, values.parquet}   <span class="c"># numbered like extractions/rs-NNNN; immutable once done</span>
+├── scores/pending.json                           <span class="c"># {due_at}: a file, not a timer, so the 5-min re-score survives a restart</span>
+└── extract-outputs/&lt;date&gt;/records/               <span class="c"># xtra overwrites its output in place; this copy keeps old outputs scorable</span></div>
   </div>
 </section>
 
