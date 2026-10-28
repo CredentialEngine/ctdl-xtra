@@ -1,16 +1,7 @@
 <!--
-PR title: area: short summary of the change
+PR title: area: few words of what you did mainly in this PR
   e.g. xtra-cli: Extract course pages instead of skipping them
 -->
 
-## Why
-
-<!-- The problem this solves or the need behind it. Link the issue or ticket if there is one. -->
-
-## What
-
-<!-- The main changes, in a few bullets. Point out anything reviewers should look at closely. -->
-
-## Screenshots
-
-<!-- Add screenshots for a UI change or any other visible change (CLI output, logs), before/after if possible. Otherwise delete this section. -->
+## Summary
+<!-- Add some bullet points to describe for what you did. You can also link the issue or ticket if there's any. Put any screenshots as well if there's any UI change or something can be captured in the screenshot and can add meaning to the PR. -->
