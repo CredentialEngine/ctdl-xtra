@@ -56,6 +56,6 @@ right tools for this.
 - **Confusing counts go.** Counts like "33 records · 75 fields" next to a baseline are moved somewhere they explain
   themselves, or removed.
 
-## Open questions
+## Answers
 
-See the conversation of 2026-10-28; answers will be recorded here.
+The questions of 2026-10-28 and Eric's answers are recorded as decisions in [`03-spec.md`](03-spec.md) §1.
