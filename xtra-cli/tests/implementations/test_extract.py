@@ -195,6 +195,32 @@ def test_a_printed_credit_range_is_its_minimum_and_its_maximum() -> None:
     assert "ceterms:creditValue" not in expected
 
 
+def test_a_credit_range_read_as_one_value_is_split_into_min_and_max() -> None:
+    """eLumen prints "1.0-8.0 Units"; the readers give it as one string."""
+    expected = expected_values(
+        record_fields(
+            "Course",
+            [
+                draft("f_001", "course_credits", "1.0-8.0"),
+                draft("f_002", "course_credits_unit", "Units"),
+            ],
+            URL,
+        )
+    )
+    assert expected["ceterms:creditMinValue"] == 1.0
+    assert expected["ceterms:creditMaxValue"] == 8.0
+    assert expected["ceterms:creditUnitType"] == "Units"
+    assert "ceterms:creditValue" not in expected
+
+
+def test_a_single_credit_stays_a_credit_value() -> None:
+    expected = expected_values(
+        record_fields("Course", [draft("f_001", "course_credits", 3)], URL)
+    )
+    assert expected["ceterms:creditValue"] == 3
+    assert "ceterms:creditMinValue" not in expected
+
+
 def test_a_term_read_more_than_once_keeps_every_value_in_order() -> None:
     """A competency list is several outcomes under one term."""
     fields = record_fields(
