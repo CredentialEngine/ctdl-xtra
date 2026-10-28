@@ -50,6 +50,9 @@ POC's design ([`poc.md`](poc.md)). **Mockups (§6) come first: review them befor
 | 42 | Approving publishes | **Yes.** Approving a column's rule publishes that column into the golden dataset of its ruleset, then scores it (§4.1). There's no separate Publish step. The Publish tab becomes **Golden datasets**, a read-only record: each version, its columns, its values and where it's written. |
 | 43 | Hand-checked vs rule-labelled | **Every score says which it's against, and the default is hand-checked**, because the team is skeptical of labelling by rules. A slim switch, "scored against **Hand-checked** \| Rule-matched", sits on the catalogs table and the Evals tab. Each score is computed both ways and both are kept. |
 | 41 | The "marked wrong" box | **Structured:** a header (✕ Marked wrong · who · when), then rows for right text, note and compared with, then a footer saying the rule now has known wrong values. |
+| 44 | Hand-checked values in unpublished columns | **Count, and are published as soon as they're checked** (Eric, 2026-10-28, answering §8). Hand-checked values have their own life cycle, separate from rules and their approval (§4.3). |
+| 45 | Who hand-checks | **Only subject matter experts.** A check by someone with an engineer profile is recorded as **engineer-checked, waiting for an expert**: it isn't hand-checked or published until an expert confirms it, and it's made visible so an expert can review it later (§4.3, §6.7). |
+| 46 | Exploring annotations | **An "Annotated by" filter on the Rules and Records tabs** (searchable, people grouped by role), with a verdict switch on the Rules tab, so experts can browse what's already annotated and by whom (§6.7, §6.8). |
 | 30 | The value diff | **Back, as in the POC:** a GitHub-style diff (red: in the golden dataset, not extracted; green: extracted, not in the golden dataset) and the saved page with both values highlighted. It can be annotated (§4.2). **The same diff serves Compare** (ruleset vs ruleset) and Evals (golden dataset vs extract output). |
 
 **Design rule:** simplify and focus. Show one thing well instead of every piece of information.
@@ -64,7 +67,8 @@ POC's design ([`poc.md`](poc.md)). **Mockups (§6) come first: review them befor
 | **Score** | One extract output compared with one golden dataset by `xtra score extraction match`, exact and partial. Kept. |
 | **Column** | A CTDL property of the golden dataset, shown by its term without `ceterms:` (`description`). |
 | **Value** | One column of one course. |
-| **Hand-checked value** | A value a person confirmed: they marked it correct and it hasn't changed since, or they marked it wrong and selected the text it now is (`approval: human`). |
+| **Hand-checked value** | A value a subject matter expert confirmed: they marked it correct and it hasn't changed since, or they marked it wrong and selected the text it now is (`approval: human`). Published as soon as it's checked, whatever its rule's status (§4.3). |
+| **Engineer-checked** | A value someone with an engineer profile marked. Recorded, shown, and waiting for an expert; until one confirms it, it counts as rule-matched, not hand-checked (§4.3). |
 | **Rule-matched** | Every value the rules matched in the golden dataset, hand-checked or not. In the UI it's the other side of the switch from **Hand-checked**. |
 | **Outcome** | Per value: **missing** (nothing extracted), **wrong** (similarity < 0.8), **partial** (≥ 0.8), **match** (identical). |
 | **Not scored** | A column whose values aren't read from the page (`location: null`: `inLanguage`, `lifeCycleStatusType`, `subjectWebpage`). xtra's scorer skips these as *implied* (xtra-cli #343). |
@@ -202,6 +206,43 @@ POC's design ([`poc.md`](poc.md)). **Mockups (§6) come first: review them befor
 
   A note about xtra's mistake (the golden value is right) stays a comment. It doesn't count against the rule.
 
+### 4.3 Hand-checked values have their own life cycle
+
+**Decided 2026-10-28 (rows 44, 45).** A hand-checked value doesn't depend on its rule being right, so it doesn't wait
+for the rule's approval.
+
+- **Two things are published, matching the switch's two sides:**
+
+  | | Hand-checked values | Golden dataset (ruleset vN) |
+  |---|---|---|
+  | What | every value an expert checked, in any column | the published columns, every rule-matched value (hand-checked ones say so) |
+  | When | the moment an expert checks it | when a column's rule is approved (§4.1) |
+  | Versions | one living set; each score keeps the values it used | one per ruleset, kept |
+  | Where | `xtra-golden-sets/catalogs/<catalog>/hand-checked/<catalog>/<crawl>/<stem>/<stem>.json` | §4.1 |
+
+  Both use the layout `xtra score` reads, so an engineer can score against either with `--baseline-uri`.
+- **Publishing a check:** an expert's `correct`, or `wrong` with the right text selected, rewrites that one page's
+  file in `hand-checked/` whole, from the Studio's state (never merged). Undoing a verdict, or the value changing in a
+  later extraction, takes it out the same way. The Studio also keeps `golden/hand-checked.parquet`.
+- **The hand-checked score** compares an extract output with the hand-checked set as it stood when the score ran;
+  `values.parquet` keeps those values, and `score.json` records the set's size and the last annotation it includes.
+  After an expert stops checking for 5 minutes, the Studio scores the latest extract output against the new set
+  automatically (one job, §4). In Evals, with the switch on **Hand-checked**, the golden side is the chip **Hand-checked
+  values** with the time of the set, instead of the ruleset dropdown.
+- **Engineer checks wait for an expert:**
+  - Each new event records the author's role, `author_role`, a new optional field like `compared_with`. An older event
+    takes the role its author has in `profiles.json` today. On AVC that makes Eric's 22 field verdicts (codedNotation
+    17, description 5) engineer-checked, so AVC's hand-checked count drops from 75.
+  - An engineer-checked value isn't hand-checked and isn't in `hand-checked/`. In the golden dataset it's `approval:
+    rule` like any other rule-matched value.
+  - An engineer's `wrong` still counts against the rule (needs work, ✕), because it reports a problem; the text the
+    engineer selected waits for an expert like a `correct`.
+  - **An expert confirms it** with ✓ (**Confirm**, or key 1) on the row. That's an ordinary `correct` verdict by the
+    expert, which supersedes the engineer's and publishes the value. ✕ disagrees, as usual.
+  - **Where it shows:** an amber "engineer-checked" chip on the row, with who and when, and "waiting for an expert"; a
+    note at the foot of the Rules tab's rule list for experts ("22 values an engineer checked are waiting for an
+    expert"), which applies the filter (§6.7).
+
 ## 5. What goes away
 
 - The Publish button and its checkboxes (approving publishes; the tab becomes Golden datasets).
@@ -305,9 +346,32 @@ are illustrative. **The xtra score views and the history are illustrative too:**
   - one row per version: its columns, its values (with how many are hand-checked) and its latest xtra score;
   - below, the file tree of where the chosen version is written, each file a link to a sample.
 
+### 6.7 Rules tab: engineer checks waiting for an expert
+
+![Rules tab, waiting for an expert](mockups/m7.png)
+
+- **"Annotated by"** sits above the rows, a searchable dropdown (§6.8), with a verdict switch beside it: **Any** · ✓
+  correct · ✕ wrong · note. Here it's set to **Any engineer · waiting for an expert**.
+- **The rule list follows the filter:** each rule shows how many of its rows match, and rules with none are dimmed, so
+  an expert can walk through every field.
+- **Each engineer-checked row** has the amber chip, the engineer, the date and **Confirm**. Once confirmed it shows
+  "✓ hand-checked · published", who confirmed it and whose check it was.
+
+### 6.8 Records tab: annotated by
+
+![Records tab, annotated by](mockups/m8.png)
+
+- **The same "Annotated by" dropdown** under "Find a course code": Anyone (the default), Not annotated yet, then
+  subject matter experts (hand-checked) and engineers (waiting for an expert), each with how many values they've
+  annotated.
+- **Picking a person lists only the courses they annotated.** On a course, their fields come first with their verdict
+  and date; the other fields fold into one line ("4 fields Jared Diener didn't annotate · show").
+- The choice is kept in the URL, so a filtered view can be shared.
+
 ## 7. Order of work
 
-1. **Golden dataset versions** (§4.1):
+1. **Golden dataset versions** (§4.1) **and hand-checked values** (§4.3):
+   - an expert's check publishes into `hand-checked/`; `author_role` on new events; engineer checks wait;
    - Publish writes the full dataset, versioned, plus the Parquet copy;
    - backfill v2 and v3;
    - draft versions from `rs-NNNN`.
@@ -318,17 +382,20 @@ are illustrative. **The xtra score views and the history are illustrative too:**
    - the CLI `golden-datasets score --ruleset N` (a draft with `--draft`).
 
    Remove the extraction-running code.
-3. **The Evals tab** with its history chart (§6.3), and **the shared value diff with notes** (§6.4, §6.5, §4.2), used
+3. **"Annotated by"** on the Rules and Records tabs, with **Confirm** for engineer checks (§6.7, §6.8).
+4. **The Evals tab** with its history chart (§6.3), and **the shared value diff with notes** (§6.4, §6.5, §4.2), used
    by Evals and Compare. Keeping a copy of each extract output (§3.1).
-4. **The home table** (§6.1, §6.2).
-5. **Approving publishes** (§6.6): the approve confirmation, publication and scoring on approval, and the Golden
+5. **The home table** (§6.1, §6.2).
+6. **Approving publishes** (§6.6): the approve confirmation, publication and scoring on approval, and the Golden
    datasets tab with its file tree. Field names without `ceterms:`.
-6. **Tests and checks:** `check` rules (score → golden version and extract identity; values → pages); tour, spec and
+7. **Tests and checks:** `check` rules (score → golden version and extract identity; values → pages); tour, spec and
    screenshots.
 
 ## 8. Open questions
 
-1. **Do hand-checked values in unpublished columns count?** A person confirmed them, so they don't depend on the rule
+None open. Answered:
+
+1. ~~**Do hand-checked values in unpublished columns count?**~~ **Yes** (rows 44, 45; §4.3). A person confirmed them, so they don't depend on the rule
    being right. The mockups assume they do: AVC's hand-checked score covers `identifier`, `name` and `description` (14,
    14 and 16 values) although only `inLanguage` is published. The alternative is to count only published columns,
    which would leave AVC's hand-checked score with nothing to score today.

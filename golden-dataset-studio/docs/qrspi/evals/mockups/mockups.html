@@ -409,6 +409,161 @@ Focus is on the development of nursing skills and basic components of competent 
   </div>
 </section>
 
+<style>
+  /* m7–m8: hand-checked lifecycle and exploring annotations */
+  .stu { display:grid; height:820px; background:var(--surface); }
+  .stu .side { border-right:1px solid var(--line); padding:14px 14px; background:var(--surface); display:flex; flex-direction:column; gap:4px; }
+  .stu .mid { background:var(--bg); padding:14px 18px; overflow:hidden; border-right:1px solid var(--line); }
+  .stu .pane { background:var(--surface); padding:14px; }
+  .sec { font-size:11px; font-weight:600; letter-spacing:.06em; color:var(--muted); margin:10px 0 4px; display:flex; justify-content:space-between; }
+  .rl { display:grid; grid-template-columns:20px 1fr auto; gap:2px 8px; padding:7px 8px; border-radius:8px; align-items:start; }
+  .rl.on { background:var(--accent-soft); box-shadow:inset 3px 0 0 var(--accent); }
+  .rl .t { font-weight:600; } .rl .s { grid-column:2; font:11px var(--mono); color:var(--faint); }
+  .rl .n { font-size:12px; color:var(--muted); text-align:right; white-space:nowrap; }
+  .rl .n.q { color:#b54708; font-weight:600; }
+  .rl.dim { opacity:.45; }
+  .callout { margin-top:auto; border:1px solid #fedf89; background:#fffaeb; border-radius:10px; padding:10px 12px; font-size:12.5px; color:#7a2e0e; }
+  .callout b { color:#93370d; }
+  .fbar { display:flex; align-items:center; gap:10px; background:var(--surface); border:1px solid var(--line); border-radius:10px; padding:8px 12px; margin:10px 0; }
+  .fbar .lab { color:var(--muted); font-size:12.5px; }
+  .fbar, .fbar * { white-space:nowrap; }
+  .dd.act { border-color:var(--accent); box-shadow:0 0 0 3px rgba(47,84,235,.12); }
+  .card { background:var(--surface); border:1px solid var(--line); border-radius:10px; padding:10px 12px; margin-bottom:10px; display:grid; grid-template-columns:1fr auto; gap:6px 14px; }
+  .card.on { border-color:var(--accent); box-shadow:0 0 0 1px var(--accent); }
+  .card .val { font:13px/1.5 Georgia,serif; border:1px solid var(--line2); border-radius:7px; padding:6px 10px; }
+  .card .cap { grid-column:1; font-size:11.5px; color:var(--muted); }
+  .card .acts { display:flex; gap:6px; align-items:flex-start; }
+  .vb { width:30px; height:30px; border-radius:7px; border:1px solid var(--line2); display:grid; place-items:center; color:var(--muted); background:var(--surface); font-size:14px; }
+  .vb.ok { border-color:#12805c; color:#12805c; background:#e7f6ef; }
+  .confirm { border:1px solid #12805c; background:#12805c; color:#fff; border-radius:7px; padding:5px 11px; font-weight:600; font-size:12.5px; white-space:nowrap; }
+  .who { grid-column:1 / -1; display:flex; align-items:center; gap:8px; font-size:12px; color:var(--ink2); border-top:1px dashed var(--line); padding-top:7px; }
+  .eng { display:inline-flex; align-items:center; gap:4px; font-size:11px; font-weight:600; color:#b54708; background:#fef0c7; border-radius:999px; padding:1px 7px; }
+  .role { font-size:11px; color:var(--muted); border:1px solid var(--line2); border-radius:999px; padding:0 6px; }
+  .menu { position:absolute; width:340px; background:var(--surface); border:1px solid var(--line2); border-radius:10px; box-shadow:0 14px 34px rgba(16,24,40,.18); padding:6px; z-index:4; font-size:12.5px; }
+  .menu input { width:100%; border:1px solid var(--line2); border-radius:7px; padding:6px 9px; font:inherit; margin-bottom:4px; }
+  .menu .g { font-size:10.5px; font-weight:600; letter-spacing:.06em; color:var(--faint); padding:6px 8px 2px; }
+  .menu .o { display:flex; align-items:center; gap:8px; padding:6px 8px; border-radius:6px; }
+  .menu .o.on { background:var(--accent-soft); }
+  .menu .o .c { margin-left:auto; color:var(--muted); font-size:12px; }
+  .clist .ci { display:grid; grid-template-columns:96px 1fr; padding:5px 8px; border-radius:6px; font-size:12.5px; }
+  .clist .ci b { font:600 12px var(--mono); }
+  .clist .ci.on { background:var(--accent-soft); }
+  .fld { background:var(--surface); border:1px solid var(--line); border-radius:10px; padding:9px 12px; margin-bottom:9px; }
+  .fld .h { display:flex; gap:8px; align-items:center; font-size:12.5px; margin-bottom:6px; }
+  .fld .h .mono { color:var(--muted); }
+  .fld.hit { border-color:#12805c; box-shadow:inset 3px 0 0 #12805c; }
+  .fold { font-size:12.5px; color:var(--muted); padding:8px 12px; border:1px dashed var(--line2); border-radius:10px; margin-bottom:9px; }
+  .fold a { color:var(--accent); }
+</style>
+
+<!-- M7: Rules tab, values engineers checked, waiting for an expert -->
+<section class="shot" id="m7">
+  <div class="top"><span class="brand"><i></i>Golden Rules Studio</span><span class="muted">/ Antelope Valley College</span>
+    <span class="tabs"><a class="on">Rules</a><a>Records</a><a>Compare</a><a>Golden datasets</a><a>Evals</a></span><b style="font-size:12.5px">Jared</b></div>
+  <div class="stu" style="grid-template-columns:270px minmax(0,1fr) 320px">
+    <div class="side">
+      <div class="row" style="gap:10px"><span class="sec" style="margin:0">RULESET</span><span class="dd" style="flex:1">v3 (latest)</span></div>
+      <div class="sec"><span>FIELD RULES</span><span style="font-weight:500;letter-spacing:0">waiting for an expert</span></div>
+      <div class="rl on"><span data-i="R"></span><span class="t">Coded Notation</span><span class="n q">17</span><span class="s">codedNotation</span></div>
+      <div class="rl dim"><span data-i="R"></span><span class="t">External Identifier</span><span class="n">—</span><span class="s">identifier</span></div>
+      <div class="rl dim"><span data-i="R"></span><span class="t">Learning Opportunity Name</span><span class="n">—</span><span class="s">name</span></div>
+      <div class="rl"><span data-i="N"></span><span class="t">Description</span><span class="n q">5</span><span class="s">description</span></div>
+      <div class="rl dim"><span data-i="R"></span><span class="t">Subject Webpage</span><span class="n">—</span><span class="s">subjectWebpage</span></div>
+      <div class="rl dim"><span data-i="R"></span><span class="t">Life Cycle Status Type</span><span class="n">—</span><span class="s">lifeCycleStatusType</span></div>
+      <div class="rl dim"><span data-i="A"></span><span class="t">Language</span><span class="n">—</span><span class="s">inLanguage</span></div>
+      <div class="callout"><b>22 values an engineer checked</b> are waiting for an expert. They aren't hand-checked until you confirm them.
+        <div style="margin-top:8px"><span class="btn sm">Clear filter</span></div></div>
+    </div>
+    <div class="mid">
+      <div class="row" style="gap:10px"><span class="mono" style="font-size:15px;font-weight:650;color:var(--accent)">ceterms:codedNotation</span><span class="muted">Coded Notation · course pages</span></div>
+      <div class="fbar"><span class="lab">Annotated by</span><span class="dd act"><span>Any engineer · waiting for an expert</span></span>
+        <span class="seg sm"><b class="on">Any</b><b>✓ correct</b><b>✕ wrong</b><b>note</b></span>
+        <span style="flex:1"></span><span class="muted" style="font-size:12px">17 rows</span></div>
+      <div class="card on">
+        <div class="val">BIOL 110</div>
+        <div class="acts"><span class="confirm">✓ Confirm</span><span class="vb">✕</span><span class="vb">💬</span></div>
+        <div class="cap">course page · BIOL 110 - General Molecular Cell Biology</div>
+        <div class="who"><span class="eng">✓ engineer-checked</span><b>Eric Riddoch</b><span class="role">engineer</span><span class="muted">· 21 Oct · waiting for an expert</span></div>
+      </div>
+      <div class="card">
+        <div class="val">ACCT 199</div>
+        <div class="acts"><span class="vb ok">✓</span><span class="vb">✕</span><span class="vb">💬</span></div>
+        <div class="cap">course page · ACCT 199 - Work Experience Education</div>
+        <div class="who"><span class="hand">✓ hand-checked · published</span><b>Jared Diener</b><span class="muted">confirmed Eric Riddoch's check · just now</span></div>
+      </div>
+      <div class="card">
+        <div class="val">ANDI 120</div>
+        <div class="acts"><span class="confirm">✓ Confirm</span><span class="vb">✕</span><span class="vb">💬</span></div>
+        <div class="cap">course page · ANDI 120 - Non Destructive Inspection</div>
+        <div class="who"><span class="eng">✓ engineer-checked</span><b>Eric Riddoch</b><span class="role">engineer</span><span class="muted">· 21 Oct · waiting for an expert</span></div>
+      </div>
+      <div class="card">
+        <div class="val">ARTHC 120</div>
+        <div class="acts"><span class="confirm">✓ Confirm</span><span class="vb">✕</span><span class="vb">💬</span></div>
+        <div class="cap">course page · ARTHC 120 - Survey of Art from Prehistory to Gothic</div>
+        <div class="who"><span class="eng">✓ engineer-checked</span><b>Eric Riddoch</b><span class="role">engineer</span><span class="muted">· 21 Oct · waiting for an expert</span></div>
+      </div>
+    </div>
+    <div class="pane">
+      <div class="muted" style="font-size:12px;margin-bottom:8px">The saved page, as today</div>
+      <div class="frame" style="margin:0;height:520px"><div class="bar2">avc.elumenapp.com/catalog/2026-27/course/biol110</div>
+        <div class="doc"><div class="hero"><small><span class="hl-g">BIOL 110:</span></small><b>General Molecular Cell Biology</b></div>
+        <div class="body" style="font-size:11px;color:#555">Advisory: Completion of a general biology course is recommended …<br><br>A comprehensive and in-depth introduction for all biology majors …</div></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- M8: Records tab, Annotated by (menu open) -->
+<section class="shot" id="m8">
+  <div class="top"><span class="brand"><i></i>Golden Rules Studio</span><span class="muted">/ Antelope Valley College</span>
+    <span class="tabs"><a>Rules</a><a class="on">Records</a><a>Compare</a><a>Golden datasets</a><a>Evals</a></span><b style="font-size:12.5px">Jared</b></div>
+  <div class="stu" style="grid-template-columns:330px minmax(0,1fr) 380px; position:relative">
+    <div class="side" style="padding:10px">
+      <span class="dd" style="color:var(--faint)">Find a course code</span>
+      <span class="dd act" style="margin-top:6px"><span class="k">Annotated by</span><span>Jared Diener</span></span>
+      <div class="clist" style="margin-top:8px">
+        <div class="ci on"><b>ACCT199</b><span>Work Experience E…</span></div>
+        <div class="ci"><b>BIOL110</b><span>General Molecular …</span></div>
+        <div class="ci"><b>CFE114</b><span>Music and Movem…</span></div>
+        <div class="ci"><b>DFST202</b><span>American Sign Lan…</span></div>
+        <div class="ci"><b>ENGR955</b><span>Applications of Ro…</span></div>
+        <div class="ci"><b>GEOG222</b><span>Cartography for G…</span></div>
+        <div class="ci"><b>KINF244</b><span>Intermediate/Adva…</span></div>
+        <div class="ci"><b>LIB107</b><span>Information Literacy</span></div>
+      </div>
+      <div class="muted" style="font-size:12px;padding:6px 8px">14 courses Jared Diener annotated</div>
+    </div>
+    <div class="mid">
+      <div style="font-size:18px;font-weight:650">ACCT 199 · Work Experience Education</div>
+      <div class="muted" style="margin-bottom:10px">Found on 1 page: its course page</div>
+      <div class="fld hit"><div class="h"><span class="mono">codedNotation</span><b>Coded Notation</b><span style="flex:1"></span><span class="hand">✓ hand-checked · published</span></div>
+        <div class="card" style="margin:0;border:0;padding:0"><div class="val">ACCT 199</div><div class="acts"><span class="vb ok">✓</span></div>
+        <div class="who" style="border:0;padding:0"><b>Jared Diener</b><span class="muted">· 19 Oct</span></div></div></div>
+      <div class="fld hit"><div class="h"><span class="mono">description</span><b>Description</b><span style="flex:1"></span><span class="hand">✓ hand-checked · published</span></div>
+        <div class="card" style="margin:0;border:0;padding:0"><div class="val" style="font-size:12px">LIMITATION ON ENROLLMENT: To participate in work experience education, students must have a paid or unpaid job or internship …</div><div class="acts"><span class="vb ok">✓</span></div>
+        <div class="who" style="border:0;padding:0"><b>Jared Diener</b><span class="muted">· 19 Oct</span></div></div></div>
+      <div class="fld hit"><div class="h"><span class="mono">name</span><b>Learning Opportunity Name</b><span style="flex:1"></span><span class="hand">✓ hand-checked · published</span></div>
+        <div class="card" style="margin:0;border:0;padding:0"><div class="val">Work Experience Education</div><div class="acts"><span class="vb ok">✓</span></div>
+        <div class="who" style="border:0;padding:0"><b>Jared Diener</b><span class="muted">· 19 Oct</span></div></div></div>
+      <div class="fold">4 fields Jared Diener didn't annotate · <a>show</a></div>
+    </div>
+    <div class="pane"><div class="frame" style="margin:0;height:560px"><div class="bar2">avc.elumenapp.com/catalog/2026-27/course/acct199</div>
+      <div class="doc"><div class="hero"><small><span class="hl-g">ACCT 199</span></small><b><span class="hl-g">Work Experience Education</span></b></div>
+      <div class="body" style="font-size:11px;color:#555"><span class="hl-g">LIMITATION ON ENROLLMENT: To participate in work experience education …</span></div></div></div></div>
+    <div class="menu" style="left:10px; top:84px; width:310px">
+      <input value="" placeholder="Search people">
+      <div class="o"><span>Anyone</span></div>
+      <div class="o"><span>Not annotated yet</span></div>
+      <div class="g">SUBJECT MATTER EXPERTS · hand-checked</div>
+      <div class="o on"><span>Jared Diener</span><span class="c">112 values</span></div>
+      <div class="o"><span>Cadence Calixto</span><span class="c">none yet</span></div>
+      <div class="g">ENGINEERS · waiting for an expert</div>
+      <div class="o"><span>Any engineer</span><span class="c">22 values</span></div>
+      <div class="o"><span>Eric Riddoch</span><span class="c">22 values</span></div>
+    </div>
+  </div>
+</section>
+
 <script>
   const ICON = {
     A: '<svg class="ri" viewBox="0 0 16 16"><circle cx="8" cy="8" r="7.5" fill="#12805c"/><path d="m4.8 8.2 2.2 2.2 4.2-4.6" stroke="#fff" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>',
