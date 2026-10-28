@@ -20,7 +20,7 @@ POC's design ([`poc.md`](poc.md)). **Mockups (§6) come first: review them befor
 | 10 | Baselines | **Dropped.** There is one golden dataset. "Approved by a person / by its rule" becomes a filter. |
 | 11 | The old verified container | **Out of scope.** It isn't imported and isn't mentioned. |
 | 12 | Counts | **Values, counted per column.** This view is field-centric, not record-centric. No "N records · M fields" lines. |
-| 13 | `ceterms:` names | **In Evals and Publish.** Rules and Records stay as they are. When the prefix makes a label too long, drop `ceterms:` and keep the rest (`description`). |
+| 13 | Field names | **The CTDL term without its `ceterms:` prefix** (`description`, `codedNotation`) in Evals, Publish and the catalogs table. Rules and Records stay as they are. |
 | 14 | Running extractions from the UI | **Removed**, code and CLI included. Engineers run `xtra extract`, and the Studio only reads its output. |
 | 15 | Where to build | In the Superset workspace **evals** (branch `golden-dataset-studio-evals`). |
 | 16 | Publishing | **Never merge in place: every publication writes the full golden dataset** (all columns published so far), and each version is kept (§4.1). |
@@ -49,7 +49,7 @@ POC's design ([`poc.md`](poc.md)). **Mockups (§6) come first: review them befor
 | **Golden dataset** | One publication: the full set of values the Studio published for one catalog, from one ruleset version. Its ID is the ruleset's: *ruleset v3*. |
 | **Draft** | An unpublished ruleset version's extraction (`rs-NNNN`), scored as if it were a golden dataset. Clearly marked. |
 | **Score** | One extract output compared with one golden dataset by `xtra score extraction match`, exact and partial. Kept. |
-| **Column** | A `ceterms:` property of the golden dataset (`ceterms:description`). |
+| **Column** | A CTDL property of the golden dataset, shown by its term without `ceterms:` (`description`). |
 | **Value** | One column of one course. |
 | **Outcome** | Per value: **missing** (nothing extracted), **wrong** (similarity < 0.8), **partial** (≥ 0.8), **match** (identical). |
 | **Not scored** | A column whose values aren't read from the page (`location: null`: `inLanguage`, `lifeCycleStatusType`, `subjectWebpage`). xtra's scorer skips these as *implied* (xtra-cli #343). |
@@ -199,7 +199,8 @@ are illustrative. **The xtra score views are illustrative too:** they show AVC a
   - one icon per column.
 
   No expanding, no chevron.
-- **Column headers are angled** (`ceterms:` terms), so the columns stay narrow.
+- **Column headers are angled** field names (no `ceterms:` prefix), so the columns stay narrow.
+- **No card around the table:** no white panel, border or rounded corners, just row lines. The same goes for the tables in Evals and Publish.
 - **The Rules tab's icons:** ✓ published (hover: "Published in golden dataset ruleset v3"), ○ in review, ✕ known wrong
   values.
 - **Italic columns** are in xtra's extract output but not in the Studio yet ("—").
@@ -254,7 +255,7 @@ are illustrative. **The xtra score views are illustrative too:** they show AVC a
 
 ![Publish](mockups/m4.png)
 
-- **Columns are listed by `ceterms:` term.** **Publish ruleset v4** writes the golden dataset and then scores xtra's
+- **Columns are listed by field name** (`codedNotation`). **Publish ruleset v4** writes the golden dataset and then scores xtra's
   latest extract output against it.
 - **"Where it's written" ⓘ** lists every destination: the version folder, the current location (replaced whole) and
   the Studio's own files.
@@ -275,7 +276,7 @@ are illustrative. **The xtra score views are illustrative too:** they show AVC a
    Remove the extraction-running code.
 3. **The Evals tab** (§6.3) and **the shared value diff with notes** (§6.4, §6.5, §4.2), used by Evals and Compare.
 4. **The home table** (§6.1, §6.2).
-5. **Publish:** `ceterms:` names, scoring included, and where it's written (§6.6).
+5. **Publish:** field names without `ceterms:`, scoring included, and where it's written (§6.6).
 6. **Tests and checks:** `check` rules (score → golden version and extract identity; values → pages); tour, spec and
    screenshots.
 
