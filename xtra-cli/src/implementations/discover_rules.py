@@ -91,6 +91,15 @@ HEAD_MAX_LINES = 8
 HEAD_LINE_CHARS = 80
 # Longer than this is a sentence, not a heading or a label.
 SECTION_HEADING_CHARS = 120
+# Longer than this, what a "Prerequisites" heading stands over is a section
+# of the page, not a course's prerequisite. The longest real one seen is
+# Atlantic Cape's BIOL220, at 470 characters.
+PREREQUISITE_MAX_CHARS = 600
+# How long a prerequisite may run to the end of the paragraph a description
+# is read from, when no full stop, line break or other requisite label ends
+# it. Across every sampled course page the real ones run 156 characters at
+# most (CCSF); one run on to the end of the paragraph is the description.
+PREREQUISITE_RUN_ON_CHARS = 300
 SHORT_LINE_CHARS = 60
 # How much of the first paragraph may name the program's award, and how
 # far past the page's own name, when the paragraph opens with it.
@@ -251,6 +260,71 @@ RECOMMENDED_RE = re.compile(
     r"\brecommended\b(?:\s+(?:pre[\s-]?requisites?|preparation|background))?",
     re.IGNORECASE,
 )
+
+# Any text naming a requisite at all: where a requisite label can be.
+REQUISITE_WORD_RE = re.compile(r"requisite|prereq", re.IGNORECASE)
+# An element's own white-space setting, and the settings under which a
+# browser shows the newlines in its text as line breaks. Antelope Valley's
+# descriptions are white-space: pre-wrap, and print the prerequisite on a
+# line of its own above the description with only a newline between them.
+WHITE_SPACE_STYLE_RE = re.compile(r"white-space\s*:\s*([\w-]+)", re.IGNORECASE)
+LINE_KEEPING_WHITE_SPACE = frozenset(
+    {"pre", "pre-wrap", "pre-line", "break-spaces"}
+)
+# The label a course's prerequisite is printed under, in every spelling a
+# catalog uses: "Prerequisite", "Prerequisites:", Acalog's
+# "Prerequisite(s):", "Pre-requisite", the short "Prereq". A label is a
+# whole element's text or the head of a line, never a word in a sentence.
+_PREREQUISITE = r"(?:pre[\s-]?requisites?|prereqs?)(?:\s*\(s\))?"
+PREREQUISITE_LABEL_RE = re.compile(rf"{_PREREQUISITE}\s*:?", re.IGNORECASE)
+PREREQUISITE_LEAD_RE = re.compile(rf"\b{_PREREQUISITE}\s*:\s*", re.IGNORECASE)
+# Clean Catalog's second prerequisite field: the courses the statement
+# names, as links. "Prerequisite Courses" over "PSYC101: General
+# Psychology", printed before the statement it shortens.
+PREREQUISITE_COURSES_LABEL_RE = re.compile(
+    rf"{_PREREQUISITE}\s+courses?(?:\s*\(s\))?\s*:?", re.IGNORECASE
+)
+# One label for both relations, which says the course may be taken before
+# or alongside: "Prerequisite/Corequisite" at Front Range, "Prerequisite
+# and/or Corequisite" at CNCC, "Pre/Corequisite", "Pre- or Co-requisite".
+# PREREQ_COREQ_COMBINED_RE is discovery's marker and misses the shortened
+# first word; changing it would change the markers, so this is separate.
+COMBINED_REQUISITE_RE = re.compile(
+    r"\bpre(?:[\s-]?requisites?(?:\s*\(s\))?|-)?\s*"
+    r"(?:\band\s*/\s*or\b|/|&|\band\b|\bor\b)\s*"
+    r"co[\s-]?requisites?(?:\s*\(s\))?",
+    re.IGNORECASE,
+)
+# Every label in the family a prerequisite is printed among, and so every
+# label that ends the prerequisite before it. eLumen prints "Limitation on
+# Enrollment: ... Prerequisite: ... Corequisite: ..." as one run, Cabrillo
+# a Co-Requisite beside it, and a recommendation is not a requirement.
+_REQUISITE_LABELS = (
+    rf"{COMBINED_REQUISITE_RE.pattern}"
+    r"|\b(?:pre|co|anti)[\s-]?requisites?(?:\s*\(s\))?|\bprereqs?\b"
+    r"|\bcoreqs?\b|\brequisites?\b"
+    r"|\brecommended\b(?:\s+(?:preparation|prerequisites?|background"
+    r"|course\w*|skills))?"
+    r"|\badvisor(?:y|ies)\b|\blimitations?\s+on\s+enrollment\b"
+    r"|\benrollment\s+limitations?\b"
+)
+REQUISITE_LABEL_RE = re.compile(rf"(?:{_REQUISITE_LABELS})\s*:?", re.IGNORECASE)
+REQUISITE_LEAD_RE = re.compile(rf"(?:{_REQUISITE_LABELS})\s*:", re.IGNORECASE)
+# What a page prints where a course has no prerequisite: Morgan's "None",
+# RCCD's "None.", "N/A", "No prerequisites".
+NO_PREREQUISITE_RE = re.compile(
+    r"(?:none(?:\s+required)?|n/?a|no\s+pre[\s-]?requisites?(?:\s*\(s\))?)"
+    r"\s*\.?",
+    re.IGNORECASE,
+)
+# The words a requisites list joins two of its items with: Cabrillo prints
+# "Prerequisite", a course, "OR", "Prerequisite", another course.
+REQUISITE_CONNECTOR_RE = re.compile(r"and|or", re.IGNORECASE)
+# Where a sentence ends: a full stop before a capital, unless it closes a
+# one-letter word. "Completion of AM 135A. Instructional materials fee
+# required" ends after 135A; "Proof of U.S. citizenship" does not end
+# inside U.S.
+SENTENCE_END_RE = re.compile(r"(?<!\b[A-Z])[.!?](?=\s+[A-Z])")
 
 # --- outcomes and competencies -----------------------------------------------
 
@@ -1044,6 +1118,15 @@ COURSE_FIELD_LABELS = {
     "pre-requisite": "course_prerequisites",
     "pre-requisites": "course_prerequisites",
     "prereq": "course_prerequisites",
+    # Acalog prints "Prerequisite(s):", and normalize_field_label keeps the
+    # bracket. "Prerequisite Courses" is not here on purpose: it lists the
+    # courses a statement names, and the statement is what a record wants.
+    "prerequisite(s)": "course_prerequisites",
+    "pre-requisite(s)": "course_prerequisites",
+    "pre requisite": "course_prerequisites",
+    "pre requisites": "course_prerequisites",
+    "pre requisite(s)": "course_prerequisites",
+    "prereqs": "course_prerequisites",
     "corequisite": "course_corequisites",
     "corequisites": "course_corequisites",
     "co-requisite": "course_corequisites",

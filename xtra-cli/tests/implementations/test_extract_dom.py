@@ -258,6 +258,9 @@ def test_an_elumen_course_is_read_from_its_heading_group() -> None:
     assert found["course_lecture_hours"] == 54.0
     assert found["course_lab_hours"] == 54.0
     assert found["course_description"].startswith("Prerequisite: Completion")
+    assert found["course_prerequisites"] == (
+        "Completion of or concurrent enrollment in ELEC 110."
+    )
 
 
 def test_the_other_elumen_theme_prints_the_code_in_the_h1() -> None:
@@ -438,6 +441,618 @@ def test_a_unit_does_not_make_a_record_of_one_field() -> None:
     page = PAGE.format(title="", body="<dl><dt>Credits</dt><dd>3</dd></dl>")
     with pytest.raises(NothingToExtract):
         extract_fields(ENTITY_COURSE, page)
+
+
+# --- the prerequisite a course names ------------------------------------------
+
+
+def prerequisite(body: str, title: str = "ENGL 102") -> object:
+    found = drafts_by_label(
+        extract_fields(ENTITY_COURSE, PAGE.format(title=title, body=body))
+    )
+    draft = found.get("course_prerequisites")
+    return draft.value if draft is not None else None
+
+
+ACALOG = (
+    "<table><tr><td class='block_content'>"
+    "<h1>ARCH 171 - Graphic Communications II</h1><hr>3 units<br>"
+    "2 hours lecture, 4 hours lab<br><strong>Prerequisite:</strong> "
+    "<a href='#'>ARCH 170</a><span>&nbsp;</span>&nbsp; with a minimum grade "
+    "C<br>Credit, degree applicable<br>Transfer CSU<br><br>This course "
+    "teaches drawing with an emphasis on design ideas.</td></tr></table>"
+)
+
+
+@pytest.mark.parametrize(
+    ("body", "expected"),
+    [
+        pytest.param(ACALOG, "ARCH 170 with a minimum grade C", id="acalog"),
+        pytest.param(
+            "<table><tr><td class='block_content'><h1>CSC 2000</h1>"
+            "<strong>Credit(s):</strong> <strong>4</strong><br>"
+            "<strong>Prerequisite(s):</strong> CSC 1061<br>Formerly CSC 225 "
+            "Covers how a computer operates.</td></tr></table>",
+            "CSC 1061",
+            id="acalog-ends-at-its-line-break",
+        ),
+        pytest.param(
+            "<main><h1>Behavioral Health (BEH)</h1><div class='courseblock'>"
+            "<p class='courseblocktitle'><strong>BEH 2001 | Crisis</strong>"
+            "</p><p class='courseblockdesc'>Covers a wide range of skills.</p>"
+            "<p class='courseblockreqs'><strong>Prerequisite:</strong> "
+            "<a href='#'>BEH 1001</a> with a grade of C or better<br/></p>"
+            "</div></main>",
+            "BEH 1001 with a grade of C or better",
+            id="courseleaf-requirements",
+        ),
+        pytest.param(
+            "<main><h1>ALAN 0300</h1><div class='courseblock'>"
+            "<p class='courseblockdesc'>Advanced language.</p>"
+            "<p class='courseblockextra noindent'>Prerequisite: ALAN 0200</p>"
+            "</div></main>",
+            "ALAN 0200",
+            id="courseleaf-extra",
+        ),
+        pytest.param(
+            "<main><h1>ASL 051</h1><p>Second semester ASL.</p><div>"
+            "<span class='course-Requisite-value'><b>Prerequisite:</b> "
+            "ASL 050 or ASL 050B </span></div></main>",
+            "ASL 050 or ASL 050B",
+            id="curriqunet-bold",
+        ),
+        pytest.param(
+            "<main><h1>PE 29B</h1><p>Swimming.</p><div>"
+            "<span class='course-requisites'>Prerequisite: PE 29A or "
+            "demonstration of exit skills</span></div></main>",
+            "PE 29A or demonstration of exit skills",
+            id="curriqunet-plain",
+        ),
+        pytest.param(
+            "<main><h1>CSL 2069</h1><p>Counseling.</p>"
+            "<p class='wp-block-paragraph'><strong>Prerequisite(s):</strong> "
+            "CSL 2068</p></main>",
+            "CSL 2068",
+            id="wordpress",
+        ),
+    ],
+)
+def test_a_label_on_the_line_of_its_value_gives_the_rest_of_the_line(
+    body: str, expected: str
+) -> None:
+    """Acalog, CourseLeaf, CurriQunet and WordPress print it one way."""
+    assert prerequisite(body) == expected
+
+
+def test_a_label_cell_gives_the_cell_beside_it() -> None:
+    """Foothill prints the label in one cell and the value in the next."""
+    body = (
+        "<main><h1>AATA 101A</h1><p>Nondestructive testing.</p><table><tr>"
+        "<td class='cor_heading'><strong>Prerequisite:</strong></td>"
+        "<td class='cor_value'>MATH 105<br>or<br>MATH 105H</td></tr></table>"
+        "</main>"
+    )
+    assert prerequisite(body) == "MATH 105 or MATH 105H"
+
+
+MORGAN = (
+    "<main><h1>AAA 0090</h1><div class='degree-class-details'>"
+    "<div class='field field--name-field-description field--label-hidden "
+    "field__item'>Develops personalized approaches to learn.</div>"
+    "<div><h3>Prerequisites</h3><div class='field field--name-field-pr "
+    "field--label-hidden field__item'>{value}</div></div>"
+    "<span class='field field--name-field-lecture-hours'>"
+    "<span class='field__label'>Lecture Hours</span>"
+    "<span class='field__item'>45</span></span></div></main>"
+)
+
+
+def test_a_heading_gives_what_its_own_wrapper_prints_under_it() -> None:
+    """Morgan's heading and value share a wrapper; the hours are outside."""
+    found = values(
+        extract_fields(
+            ENTITY_COURSE,
+            PAGE.format(title="AAA 0090", body=MORGAN.format(value="MAT 105")),
+        )
+    )
+    assert found["course_prerequisites"] == "MAT 105"
+    assert found["course_lecture_hours"] == 45
+
+
+def test_a_heading_over_a_course_link_gives_the_course() -> None:
+    """SmartCatalog prints <h2>Prerequisite</h2> over a bare link."""
+    body = (
+        "<div id='main'><h1><span>AEC 1232</span> Construction Drawing</h1>"
+        "<div class='desc'><p>Examines architectural drawings.</p></div>"
+        "<div class='sc_prereqs'><h2> Prerequisite </h2>"
+        "<a class='sc-courselink' href='#'>CAD 2220</a></div>"
+        "<div class='sc_coreqs'><h2> Corequisite </h2>"
+        "<a href='#'>AEC 1231</a></div></div>"
+    )
+    assert prerequisite(body) == "CAD 2220"
+
+
+ARAPAHOE = (
+    "<main class='main-content'><article class='course-full'>"
+    "<h1>ACC 122 Accounting Principles II</h1><div class='course-full__body'>"
+    "<p>Continues the study of accounting principles with an emphasis on "
+    "corporations, partnerships and financial statement analysis.</p></div>"
+    "<aside class='course-full__aside'><ul><li>"
+    "<span class='course-full__aside__label'>credits | </span>"
+    "<div class='field_credits'>4</div></li><li><div class='prerequisites'>"
+    "<div class='prerequisites__text'><h4>prerequisites</h4>"
+    "<div class='field_prerequisite_text'><p>ACC 121 with a grade of "
+    "\"C\" or better</p></div></div><div class='prerequisites__references'>"
+    "<h5>referenced courses</h5><div><a href='#'>ACC 121 </a></div></div>"
+    "</div></li></ul></aside></article></main>"
+)
+
+
+def test_a_sidebar_inside_the_page_is_the_pages_own() -> None:
+    """Arapahoe prints each course's prerequisite in an <aside> in <main>."""
+    assert prerequisite(ARAPAHOE) == 'ACC 121 with a grade of "C" or better'
+
+
+def test_a_sidebar_beside_the_page_is_still_the_sites() -> None:
+    """With no main container of its own, an <aside> is site furniture."""
+    body = (
+        "<aside><h4>Prerequisites</h4><p>ENGL 101</p></aside>"
+        "<h1>ENGL 102</h1><p>Composition and research writing for students "
+        "who plan to transfer to a four-year college.</p>"
+    )
+    assert prerequisite(body) is None
+
+
+CABRILLO = (
+    "<main><h1>ACCT 463</h1><p>Bookkeeping for small business.</p>"
+    "<div class='infocard'><h5>Requisites:</h5><div class='text'>{list}"
+    "</div></div><div class='infocard'>"
+    "<h5>Additional Requisite Information:</h5><div class='text'>"
+    "<p>None</p></div></div></main>"
+)
+
+
+def requisite(label: str, course: str) -> str:
+    return f"<p><strong>{label}</strong></p><p><a href='#'> {course} </a></p>"
+
+
+def test_requisites_a_list_joins_with_or_are_one_prerequisite() -> None:
+    """Cabrillo prints each alternative under a label of its own."""
+    listed = "<br><p><strong>OR</strong></p><br>".join(
+        [
+            requisite("Prerequisite", "ACCT451A - Bookkeeping Concepts"),
+            requisite("Prerequisite", "ACCT151A - Bookkeeping Concepts"),
+            requisite("Prerequisite", "ACCT1A - Financial Accounting"),
+        ]
+    )
+    assert prerequisite(CABRILLO.format(list=listed)) == (
+        "ACCT451A - Bookkeeping Concepts OR ACCT151A - Bookkeeping Concepts "
+        "OR ACCT1A - Financial Accounting"
+    )
+
+
+def test_an_and_joining_a_corequisite_is_not_part_of_the_prerequisite() -> None:
+    listed = (
+        requisite("Co-Requisite", "ART51L - Museum Viewing Lab")
+        + "<p><strong>AND</strong></p>"
+        + requisite("Prerequisite", "ART495A - Digital Fabrication")
+        + "<br><p><strong>OR</strong></p><br>"
+        + requisite("Prerequisite", "ART95A - Digital Fabrication")
+    )
+    assert prerequisite(CABRILLO.format(list=listed)) == (
+        "ART495A - Digital Fabrication OR ART95A - Digital Fabrication"
+    )
+
+
+def test_a_bold_course_under_the_label_is_its_value_not_a_label() -> None:
+    """Bakersfield prints the prerequisite course in bold, under an h3."""
+    body = (
+        "<main><h1>ARTB55</h1><p>Design.</p><div><br/>"
+        "<h3 class='introtext course-label'>Requisites</h3><br/>"
+        "<h3 class='introtext course-label'>Prerequisite</h3><br/>"
+        "<p><a href='#'><strong>ARTB40 - Digital Illustration</strong></a>"
+        "</p><p class='text-format'>Successful completion of ART B40 with a "
+        "grade of C or better.</p><p>OR</p>"
+        "<h3 class='introtext course-label'>Prerequisite</h3><br/>"
+        "<p><a href='#'><strong>ARTB41 - Advertising Design</strong></a></p>"
+        "<p class='text-format'>Successful completion of ART B41.</p></div>"
+        "<br/><h3 class='introtext course-label'>Materials Fees:</h3>"
+        "<p class='course-content'>None</p></main>"
+    )
+    assert prerequisite(body) == (
+        "ARTB40 - Digital Illustration Successful completion of ART B40 with "
+        "a grade of C or better. OR ARTB41 - Advertising Design Successful "
+        "completion of ART B41."
+    )
+
+
+AVC = PAGE.format(
+    title="AFMT 320",
+    body=(
+        "<main><h1>AFMT 320</h1><div class='introtext'><p>Limitation on "
+        "Enrollment: Must be selected as part of the AFMT BS Degree cohort "
+        "to take this course. Prerequisite: Completion of AFAB 210, ENGL "
+        "315, and PSY 301. Corequisite: Concurrent enrollment in AFMT 330."
+        "<br/> This course focuses on Lean principles.</p></div></main>"
+    ),
+)
+
+
+def test_a_prerequisite_in_a_description_is_copied_out_and_left_there() -> None:
+    """Antelope Valley opens a description with the course's requisites."""
+    found = values(extract_fields(ENTITY_COURSE, AVC))
+    assert found["course_prerequisites"] == (
+        "Completion of AFAB 210, ENGL 315, and PSY 301."
+    )
+    assert found["course_description"].startswith("Limitation on Enrollment:")
+    assert "Prerequisite: Completion of AFAB 210" in found["course_description"]
+
+
+@pytest.mark.parametrize(
+    ("sentence", "expected"),
+    [
+        (
+            "Prerequisite: Completion of ART 113. Instructional materials "
+            "fee required.",
+            "Completion of ART 113.",
+        ),
+        (
+            "Prerequisite: Completion of AM 135A. Students supply tools.",
+            "Completion of AM 135A.",
+        ),
+        (
+            "Prerequisite: Proof of U.S. citizenship. Seats are limited.",
+            "Proof of U.S. citizenship.",
+        ),
+    ],
+)
+def test_a_prerequisite_in_a_paragraph_ends_with_its_sentence(
+    sentence: str, expected: str
+) -> None:
+    body = f"<main><h1>ART 213</h1><p>{sentence}<br/> A course.</p></main>"
+    assert prerequisite(body) == expected
+
+
+@pytest.mark.parametrize(
+    "label", ["Prerequisite(s):", "Pre-requisite(s)", "Prereqs"]
+)
+def test_a_field_label_in_any_spelling_gives_the_prerequisite(
+    label: str,
+) -> None:
+    body = (
+        f"<main><h1>ENG 102</h1><dl><dt>{label}</dt><dd>ENG 101</dd></dl>"
+        "</main>"
+    )
+    assert prerequisite(body) == "ENG 101"
+
+
+CLEAN_CATALOG = (
+    "<main><h1>PSYC 303</h1><p>Abnormal psychology.</p>"
+    "<div class='degree-class-details'><div class='field'>"
+    "<div class='field__label'>Prerequisite Courses</div>"
+    "<div class='field__items'>{items}</div></div>{statement}</div></main>"
+)
+
+
+def course_item(name: str) -> str:
+    return f"<div class='field__item'><a href='#'>{name}</a></div>"
+
+
+def test_the_printed_statement_wins_over_the_list_of_courses_it_names() -> None:
+    """Atlantic Cape prints the list first and the fuller statement after."""
+    body = CLEAN_CATALOG.format(
+        items=course_item("CRIM101: Introduction to Criminal Justice"),
+        statement=(
+            "<div class='field'><div class='field__label'>Prerequisites</div>"
+            "<div class='field__item'>CRIM101 with a grade of C or better."
+            "</div></div>"
+        ),
+    )
+    assert prerequisite(body) == "CRIM101 with a grade of C or better."
+
+
+def test_the_list_of_courses_stands_in_when_no_statement_is_printed() -> None:
+    body = CLEAN_CATALOG.format(
+        items=course_item("PSYC101: General Psychology")
+        + course_item("MATH220: Statistical Methods"),
+        statement="",
+    )
+    assert prerequisite(body) == (
+        "PSYC101: General Psychology; MATH220: Statistical Methods"
+    )
+
+
+def test_a_listing_of_courses_gives_its_first_prerequisite() -> None:
+    """A subject page taken for one course must not mix two courses' own."""
+
+    def block(code: str, required: str) -> str:
+        return (
+            "<div class='courseblock'><p class='courseblocktitle'><strong>"
+            f"{code} | A Course</strong></p><p class='courseblockdesc'>Skills."
+            "</p><p class='courseblockreqs'><strong>Prerequisite:</strong> "
+            f"{required} with a grade of C or better</p></div>"
+        )
+
+    body = (
+        "<main><h1>Behavioral Health (BEH)</h1>"
+        + block("BEH 2001", "BEH 1001")
+        + block("BEH 2040", "BEH 2030")
+        + "</main>"
+    )
+    assert prerequisite(body) == "BEH 1001 with a grade of C or better"
+
+
+def test_a_prerequisite_says_where_it_was_printed() -> None:
+    """A reviewer finds the label and the value in one place."""
+    listed = requisite("Prerequisite", "ACCT1A - Financial Accounting")
+    under = drafts_by_label(
+        extract_fields(
+            ENTITY_COURSE,
+            PAGE.format(title="", body=CABRILLO.format(list=listed)),
+        )
+    )["course_prerequisites"]
+    assert under.excerpt == "Prerequisite ACCT1A - Financial Accounting"
+    assert under.locator_value.endswith("div.text")
+    inline = drafts_by_label(extract_fields(ENTITY_COURSE, AVC))
+    line = inline["course_prerequisites"]
+    assert line.excerpt == (
+        "Prerequisite: Completion of AFAB 210, ENGL 315, and PSY 301."
+    )
+    assert line.locator_value.startswith("content line")
+
+
+def test_a_prerequisite_is_a_field_toward_the_two_a_record_needs() -> None:
+    """Unlike the unit, it is printed on its own, so it counts."""
+    named = "<main><h1>Composition II</h1>{line}</main>"
+    page = PAGE.format(
+        title="", body=named.format(line="<p>Prerequisite: ENGL 101</p>")
+    )
+    assert values(extract_fields(ENTITY_COURSE, page)) == {
+        "course_name": "Composition II",
+        "course_prerequisites": "ENGL 101",
+    }
+    with pytest.raises(NothingToExtract):
+        extract_fields(
+            ENTITY_COURSE, PAGE.format(title="", body=named.format(line=""))
+        )
+
+
+def test_a_heading_without_a_wrapper_gives_only_the_block_under_it() -> None:
+    """Under a page's own heading, the next paragraph is not the value too."""
+    body = (
+        "<h1>ENGL 102</h1><h3>Prerequisites</h3><p>ENGL 101</p>"
+        "<p>Students will write research papers.</p>"
+    )
+    assert prerequisite(body) == "ENGL 101"
+
+
+@pytest.mark.parametrize(
+    "body",
+    [
+        pytest.param(
+            "<main><h1>ENGL 1A</h1><p>Composition.</p><div>"
+            "<i class='course-Requisite-value'>Prerequisite: None.</i></div>"
+            "</main>",
+            id="curriqunet",
+        ),
+        pytest.param(MORGAN.format(value="None"), id="drupal-heading"),
+        pytest.param(
+            "<main><h1>ENG 102</h1><p>Writing.</p><dl><dt>Prerequisites</dt>"
+            "<dd>N/A</dd></dl></main>",
+            id="field-pair",
+        ),
+        pytest.param(
+            "<main><h1>ENG 102</h1><p>Writing.</p>"
+            "<p>Prerequisite: No prerequisites</p></main>",
+            id="line",
+        ),
+    ],
+)
+def test_a_prerequisite_printed_as_none_is_left_out(body: str) -> None:
+    assert prerequisite(body) is None
+
+
+def test_none_followed_by_a_note_is_still_no_prerequisite() -> None:
+    """Morgan prints "None" and then a note under the same heading."""
+    body = MORGAN.format(
+        value="None</div><div class='field__item'>Each student is "
+        "responsible for completing and passing a background check."
+    )
+    assert prerequisite(body) is None
+
+
+AVC_PRE_WRAP = (
+    "<main><header class='header l-body'><h2>Applications of Robotics</h2>"
+    "<h3>ENGR 955:</h3><p class='header-x-meta'>0.0 Units</p></header>"
+    "<div class='l-body'><div class='introtext l-introtext' "
+    "style='white-space: pre-wrap;'><p>{paragraph}</p></div></div></main>"
+)
+
+
+@pytest.mark.parametrize(
+    ("paragraph", "expected"),
+    [
+        pytest.param(
+            "Prerequisite: Completion of ENGR 905\n\nBuilding upon the "
+            "foundational knowledge established in the introductory course, "
+            "this course offers a deeper exploration of robotics.",
+            "Completion of ENGR 905",
+            id="blank-line",
+        ),
+        pytest.param(
+            "Prerequisite: Completion of DM 101\nThis course will focus on "
+            "the fundamentals of video production and editing.",
+            "Completion of DM 101",
+            id="newline",
+        ),
+        pytest.param(
+            "Prerequisite: Completion of Intermediate Algebra or placement by "
+            "multiple measures&nbsp;\nThis course is primarily for students "
+            "who plan to study calculus.",
+            "Completion of Intermediate Algebra or placement by multiple "
+            "measures",
+            id="no-course-code",
+        ),
+    ],
+)
+def test_a_line_break_a_pre_wrap_description_shows_ends_the_prerequisite(
+    paragraph: str, expected: str
+) -> None:
+    """Antelope Valley sets the prerequisite on a line of its own.
+
+    Its descriptions are white-space: pre-wrap, so the newline after the
+    prerequisite is a line break on screen. Read as one paragraph, the
+    prerequisite ran on into the description's first sentence.
+    """
+    page = PAGE.format(
+        title="ENGR 955", body=AVC_PRE_WRAP.format(paragraph=paragraph)
+    )
+    found = values(extract_fields(ENTITY_COURSE, page))
+    assert found["course_prerequisites"] == expected
+    # The description is read as it always was.
+    assert found["course_description"].startswith("Prerequisite: Completion")
+
+
+def test_a_prerequisite_run_into_the_description_is_not_read() -> None:
+    """A page may print nothing at all between the two.
+
+    No full stop and no line break then says where the prerequisite ends,
+    and read to the end of the paragraph it is the whole description; the
+    description itself is read as printed.
+    """
+    paragraph = (
+        "Prerequisite: Completion of Intermediate Algebra or higher or "
+        "placement by multiple measures A college-level course in algebra "
+        "for non-STEM or liberal arts majors covering the properties and "
+        "graphs of polynomial, rational, radical, absolute value, and "
+        "exponential and logarithmic functions; solutions and applications "
+        "of equations and systems of equations and inequalities from these "
+        "functions; linear programming; and introduction to matrices and "
+        "determinants in solving linear systems (C-ID: MATH 150) "
+        "(UC, CSU, AVC)"
+    )
+    page = PAGE.format(
+        title="MATH 128",
+        body=f"<main><h1>MATH 128</h1><div class='introtext'><p>{paragraph}"
+        "</p></div><dl><dt>Units</dt><dd>3</dd></dl></main>",
+    )
+    found = values(extract_fields(ENTITY_COURSE, page))
+    assert "course_prerequisites" not in found
+    assert found["course_description"] == paragraph
+
+
+def test_a_prerequisite_that_opens_the_page_is_read_when_it_is_short() -> None:
+    """Acalog prints the prerequisite before the description, on CNCC's
+    pages as the first long line of all."""
+    statement = (
+        "College Readiness in English and College Readiness in Quantitative "
+        "Literacy Math"
+    )
+    body = (
+        "<table><tr><td class='block_content'><h1>CIS 2002 - Automated "
+        f"Project Management</h1><strong>Prerequisite(s):</strong> {statement}"
+        "<br><br>Covers the tools of project management.</td></tr></table>"
+    )
+    assert prerequisite(body) == statement
+
+
+def test_a_long_prerequisite_on_its_own_line_is_read_whole() -> None:
+    """Colorado's colleges list every placement score that admits."""
+    statement = " or ".join(
+        f"Accuplacer Next Gen Writing with a score of {score}"
+        for score in range(240, 260)
+    )
+    body = (
+        "<main><h1>ENG 1021</h1><p>English Composition I emphasizes the "
+        "planning, writing, and revising of compositions.</p>"
+        f"<p><strong>Prerequisite(s):</strong> {statement}</p></main>"
+    )
+    assert prerequisite(body) == statement
+
+
+def test_a_first_prerequisite_of_none_decides_there_is_none() -> None:
+    """The first statement is the course's, the way one reading is the
+    unit's; a later line naming a course belongs to some other course."""
+    body = MORGAN.format(value="None").replace(
+        "</main>", "<p>Prerequisite: ENGL 101</p></main>"
+    )
+    assert prerequisite(body) is None
+
+
+@pytest.mark.parametrize(
+    "label",
+    [
+        "Prerequisite/Corequisite",
+        "Prerequisite and/or Corequisite",
+        "Pre/Corequisite",
+        "Prerequisite or Corequisite",
+    ],
+)
+@pytest.mark.parametrize("printed_as", ["heading", "inline"])
+def test_a_label_naming_both_relations_gives_no_prerequisite(
+    label: str, printed_as: str
+) -> None:
+    """Taken before or alongside: not a prerequisite on its own."""
+    shape = (
+        "<h3>{label}</h3><p>ACC 1001</p>"
+        if printed_as == "heading"
+        else "<p><strong>{label}:</strong> ACC 1001</p>"
+    )
+    body = (
+        "<main><h1>ACC 2001</h1><p>Intermediate accounting.</p>"
+        + shape.format(label=label)
+        + "</main>"
+    )
+    assert prerequisite(body) is None
+
+
+def test_the_combined_fixture_gives_no_prerequisite(
+    fixture_html_dir: Path,
+) -> None:
+    html = (fixture_html_dir / "course-prereq-coreq-combined.html").read_text(
+        encoding="utf-8"
+    )
+    assert "course_prerequisites" not in values(
+        extract_fields(ENTITY_COURSE, html)
+    )
+
+
+def test_a_value_that_names_both_relations_gives_no_prerequisite() -> None:
+    """Front Range prints a plain heading over a combined statement."""
+    body = (
+        "<div id='main'><h1><span>ASE 1042</span> Brakes</h1>"
+        "<div class='desc'><p>Brake systems.</p></div>"
+        "<div class='sc_prereqs'><h2>Prerequisite</h2>Prerequisite/"
+        "Corequisite: ASE 1041 . This course and ASE 1041 may be taken at "
+        "the same time.</div></div>"
+    )
+    assert prerequisite(body) is None
+
+
+@pytest.mark.parametrize(
+    "line",
+    [
+        "Recommended Prerequisite: MATH 50",
+        "Recommended Preparation: ARCH 121",
+        "Advisory: ENGL 1A",
+        "Corequisite: AEC 1231",
+        "Limitation on Enrollment: Must be selected for the cohort.",
+    ],
+)
+def test_a_recommendation_an_advisory_or_a_corequisite_is_no_prerequisite(
+    line: str,
+) -> None:
+    body = f"<main><h1>ART 213</h1><p>A course.</p><p>{line}</p></main>"
+    assert prerequisite(body) is None
+
+
+def test_a_sentence_that_mentions_prerequisites_names_none() -> None:
+    body = (
+        "<main><h1>CHEM 101</h1><p>Satisfies the chemistry prerequisite or "
+        "requirement for nursing. Covers any prerequisite skills needed by "
+        "the student, with a minimum grade of C in prerequisite.</p></main>"
+    )
+    assert prerequisite(body) is None
 
 
 # --- the entities the templates never could read ------------------------------

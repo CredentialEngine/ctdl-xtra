@@ -173,6 +173,9 @@ def test_a_page_matching_no_template_is_read_from_its_markup(
     assert record["entity_type"] == "Course"
     assert record["expected"]["ceterms:creditValue"] == 3
     assert record["expected"]["ceterms:creditUnitType"] == "Credits"
+    assert record["expected"]["ceterms:prerequisite"] == (
+        "placement into college-level reading."
+    )
     # The department is read, but it is not minimum data for a course.
     assert "English" not in record["expected"].values()
 

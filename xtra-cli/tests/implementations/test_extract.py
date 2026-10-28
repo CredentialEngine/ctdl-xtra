@@ -2,6 +2,8 @@
 # on sys.path, so the engine import below cannot be sorted above it.
 from __future__ import annotations
 
+from pathlib import Path
+
 import pytest
 
 from implementations.extract import (
@@ -93,6 +95,19 @@ def test_an_elumen_course_carries_its_unit_beside_its_credit_value(
     assert record["template_id"] == "markup"
     assert record["expected"]["ceterms:creditValue"] == 4.0
     assert record["expected"]["ceterms:creditUnitType"] == "Units"
+
+
+def test_a_markup_course_carries_its_printed_prerequisite(
+    engl101_slot: dict, fixture_html_dir: Path
+) -> None:
+    """No template matches this page; its prerequisite is a bold label."""
+    html = (fixture_html_dir / "course-single.html").read_text(encoding="utf-8")
+    slot = slot_from_dict({**engl101_slot, "template_id": ""})
+    record = extract_record(slot, html)
+    assert record["template_id"] == "markup"
+    assert record["expected"]["ceterms:prerequisite"] == (
+        "placement into college-level reading."
+    )
 
 
 def test_a_template_record_has_a_credit_value_and_no_unit(

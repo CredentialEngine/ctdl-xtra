@@ -67,6 +67,7 @@ from implementations.discover_rules import (
     FIELD_NAME_RE,
     FIELD_VALUE_CLASS_RE,
     FIELD_WRAPPER_CLASS_RE,
+    LINE_KEEPING_WHITE_SPACE,
     MAIN_CONTAINER_CLASSES,
     MAIN_CONTAINER_IDS,
     MAIN_ROLE,
@@ -77,6 +78,7 @@ from implementations.discover_rules import (
     SCHEMA_TYPE_LABELS,
     TAB_CLASS_RE,
     TAB_ROLE_RE,
+    WHITE_SPACE_STYLE_RE,
     WHITESPACE_RE,
     collapse,
     evidence,
@@ -313,13 +315,38 @@ def find_main(soup: BeautifulSoup) -> Tag | None:
     return best if best_size else None
 
 
-class _Reader:
-    """One walk of the tree, collecting everything the page prints."""
+def _keeps_lines(tag: Tag, inherited: bool) -> bool:
+    """Whether a browser shows the newlines inside this element.
 
-    def __init__(self, soup: BeautifulSoup, main: Tag | None) -> None:
+    white-space is inherited, so an element keeps its parent's setting
+    unless its own style names one, and a <pre> keeps them by default.
+    """
+    match = WHITE_SPACE_STYLE_RE.search(tag.get("style") or "")
+    if match is not None:
+        return match.group(1).lower() in LINE_KEEPING_WHITE_SPACE
+    return inherited or tag.name == "pre"
+
+
+class _Reader:
+    """One walk of the tree, collecting everything the page prints.
+
+    With `printed_lines`, a newline the page's own styling shows as a line
+    break - inside white-space: pre-wrap, or a <pre> - starts a new line of
+    the content text, as it does on screen. Discovery reads without it, so
+    its labels and reports do not move.
+    """
+
+    def __init__(
+        self,
+        soup: BeautifulSoup,
+        main: Tag | None,
+        *,
+        printed_lines: bool = False,
+    ) -> None:
         self.soup = soup
         self.main = main
         self.markup = Markup()
+        self._printed_lines = printed_lines
         self._parts: list[str] = []
         # The same walk, chrome and all: Markup.main_text.
         self._main_parts: list[str] = []
@@ -332,7 +359,11 @@ class _Reader:
             if self.main is not None
             else (self.soup.body or self.soup)
         )
-        self._walk(root, in_chrome=False)
+        keeps_lines = False
+        if self._printed_lines:
+            for tag in [*reversed(list(root.parents)), root]:
+                keeps_lines = _keeps_lines(tag, keeps_lines)
+        self._walk(root, in_chrome=False, keeps_lines=keeps_lines)
         markup = self.markup
         markup.content_text = _lines("".join(self._parts))
         if self.main is not None:
@@ -340,10 +371,19 @@ class _Reader:
         markup.h1 = (self._main_h1s or self._content_h1s or [""])[0]
         return markup
 
-    def _walk(self, node: Tag, *, in_chrome: bool) -> None:
+    def _walk(
+        self, node: Tag, *, in_chrome: bool, keeps_lines: bool = False
+    ) -> None:
         for child in node.children:
             if type(child) is NavigableString:
-                text = WHITESPACE_RE.sub(" ", str(child))
+                raw = str(child)
+                text = (
+                    "\n".join(
+                        WHITESPACE_RE.sub(" ", part) for part in raw.split("\n")
+                    )
+                    if keeps_lines
+                    else WHITESPACE_RE.sub(" ", raw)
+                )
                 self._main_parts.append(text)
                 if not in_chrome:
                     self._parts.append(text)
@@ -357,7 +397,12 @@ class _Reader:
                 self._main_parts.append("\n")
                 if not chrome:
                     self._parts.append("\n")
-            self._walk(child, in_chrome=chrome)
+            self._walk(
+                child,
+                in_chrome=chrome,
+                keeps_lines=self._printed_lines
+                and _keeps_lines(child, keeps_lines),
+            )
             if breaks:
                 self._main_parts.append("\n")
                 if not chrome:
@@ -426,6 +471,74 @@ def _bold_is_a_label(tag: Tag, text: str) -> bool:
 def _lines(raw: str) -> str:
     lines = (collapse(line) for line in raw.splitlines())
     return "\n".join(line for line in lines if line)
+
+
+def element_lines(tag: Tag) -> list[str]:
+    """One element's text as the lines a browser prints it.
+
+    A line per block and per <br>, and per newline where the styling shows
+    one; inline runs joined; the site's own furniture and scripts left out.
+    element_text joins everything into one string, so a cell printing "MATH
+    105<br>or<br>MATH 105H" reads "MATH 105orMATH 105H"; this keeps its
+    three lines apart.
+    """
+    reader = _Reader(tag, tag, printed_lines=True)
+    return reader.read().content_text.splitlines()
+
+
+def printed_text(soup: BeautifulSoup) -> str:
+    """The page's own content as the lines a browser prints it.
+
+    content_text, except that a newline the styling shows - inside
+    white-space: pre-wrap, or a <pre> - is a line break too. Antelope
+    Valley prints a course's prerequisite on a line of its own above the
+    description, with nothing but a newline between them; read as content
+    text, the two are one paragraph and the prerequisite runs on into it.
+    """
+    reader = _Reader(soup, find_main(soup), printed_lines=True)
+    return reader.read().content_text
+
+
+def lines_after(tag: Tag) -> list[tuple[Tag | None, list[str]]]:
+    """What the element's parent prints after it, a block at a time.
+
+    One entry per block sibling, with the lines it prints, and one per run
+    of inline text between blocks, which has no element of its own. This
+    is how a label is read: SmartCatalog prints <h2>Prerequisite</h2> and
+    then a bare link, Cabrillo a bold paragraph and the course under it.
+    """
+    entries: list[tuple[Tag | None, list[str]]] = []
+    run: list[str] = []
+
+    def end_run() -> None:
+        text = collapse("".join(run))
+        if text:
+            entries.append((None, [text]))
+        run.clear()
+
+    for sibling in tag.next_siblings:
+        if type(sibling) is NavigableString:
+            run.append(str(sibling))
+            continue
+        if not isinstance(sibling, Tag) or sibling.name in _SKIP_TAGS:
+            continue
+        if is_chrome(sibling):
+            continue
+        if sibling.name in _CONTENT_BREAK_TAGS:
+            end_run()
+            lines = element_lines(sibling)
+            if lines:
+                entries.append((sibling, lines))
+            continue
+        run.append(
+            "".join(
+                str(string)
+                for string in sibling.strings
+                if type(string) is NavigableString
+            )
+        )
+    end_run()
+    return entries
 
 
 def _outermost(soup: BeautifulSoup, pattern: re.Pattern[str]) -> list[Tag]:

@@ -4,6 +4,8 @@ import pytest
 
 from implementations.discover_rules import (
     AWARD_DECLARATION_RE,
+    COMBINED_REQUISITE_RE,
+    COURSE_FIELD_LABELS,
     COURSE_TITLE_RE,
     COURSE_URL_RE,
     CREDIT_UNIT_RE,
@@ -14,8 +16,12 @@ from implementations.discover_rules import (
     LECTURE_LAB_CREDIT_RE,
     MARKER_MEANING,
     MARKER_NAMES,
+    NO_PREREQUISITE_RE,
     PREREQ_COREQ_COMBINED_RE,
+    PREREQUISITE_LABEL_RE,
     REQUIREMENTS_HEADING_RE,
+    REQUISITE_LEAD_RE,
+    SENTENCE_END_RE,
     TOTAL_CREDITS_RE,
     award_in_heading,
     award_in_intro,
@@ -196,6 +202,118 @@ def test_a_combined_heading_is_recognised_in_its_usual_spellings() -> None:
         "Pre-requisite or Co-requisite",
     ):
         assert PREREQ_COREQ_COMBINED_RE.search(heading), heading
+
+
+@pytest.mark.parametrize(
+    "label",
+    [
+        "Prerequisite",
+        "Prerequisites:",
+        "Prerequisite(s):",
+        "PREREQUISITES",
+        "Pre-requisite",
+        "Pre requisites",
+        "Prereq",
+    ],
+)
+def test_a_prerequisite_label_is_read_in_every_spelling_catalogs_print(
+    label: str,
+) -> None:
+    assert PREREQUISITE_LABEL_RE.fullmatch(label)
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "Recommended Prerequisite",
+        "Prerequisite Courses",
+        "Prerequisite/Corequisite",
+        "Prerequisite: ENGL 101",
+        "prerequisite skills",
+    ],
+)
+def test_text_that_only_names_a_prerequisite_is_no_label(text: str) -> None:
+    assert not PREREQUISITE_LABEL_RE.fullmatch(text)
+
+
+@pytest.mark.parametrize(
+    "label",
+    [
+        "Prerequisite/Corequisite",
+        "Prerequisite and/or Corequisite",
+        "Prerequisite or Corequisite",
+        "Prerequisite & Corequisite",
+        "Prerequisite(s) and Corequisite(s)",
+        "Pre/Corequisite",
+        "Pre- or Co-requisite",
+    ],
+)
+def test_a_label_naming_both_relations_is_known_however_it_is_cut(
+    label: str,
+) -> None:
+    """Discovery's combined marker misses the shortened first word."""
+    assert COMBINED_REQUISITE_RE.fullmatch(label)
+
+
+@pytest.mark.parametrize(
+    ("text", "none"),
+    [
+        ("None", True),
+        ("None.", True),
+        ("N/A", True),
+        ("No prerequisites", True),
+        ("None required.", True),
+        ("None of the above", False),
+        ("Nonetheless, ENGL 101", False),
+    ],
+)
+def test_a_prerequisite_printed_as_none_says_there_is_none(
+    text: str, none: bool
+) -> None:
+    assert bool(NO_PREREQUISITE_RE.fullmatch(text)) is none
+
+
+def test_every_requisite_label_in_a_run_is_found() -> None:
+    """eLumen prints the requisites as one run; each label ends the last."""
+    line = (
+        "Limitation on Enrollment: Must be selected. Recommended "
+        "Prerequisite: MATH 50. Prerequisite: Completion of PSY 301. "
+        "Corequisite: Concurrent enrollment in AFMT 330."
+    )
+    assert [lead.group(0) for lead in REQUISITE_LEAD_RE.finditer(line)] == [
+        "Limitation on Enrollment:",
+        "Recommended Prerequisite:",
+        "Prerequisite:",
+        "Corequisite:",
+    ]
+
+
+@pytest.mark.parametrize(
+    ("text", "sentence"),
+    [
+        ("Completion of AM 135A. Fee required.", "Completion of AM 135A."),
+        ("Completion of ART 113. Fee required.", "Completion of ART 113."),
+        ("Proof of U.S. citizenship. Then more.", "Proof of U.S. citizenship."),
+    ],
+)
+def test_a_sentence_ends_at_a_full_stop_but_not_after_an_initial(
+    text: str, sentence: str
+) -> None:
+    end = SENTENCE_END_RE.search(text)
+    assert end is not None
+    assert text[: end.start() + 1] == sentence
+
+
+def test_every_prerequisite_field_label_is_a_prerequisite_label() -> None:
+    """The label table and the label reading agree on what a label is.
+
+    "Prerequisite Courses" is not in the table: it lists the courses a
+    statement names, and Clean Catalog prints it before the statement.
+    """
+    for label, field in COURSE_FIELD_LABELS.items():
+        if field == "course_prerequisites":
+            assert PREREQUISITE_LABEL_RE.fullmatch(label), label
+    assert "prerequisite courses" not in COURSE_FIELD_LABELS
 
 
 def test_the_word_as_is_not_a_degree() -> None:

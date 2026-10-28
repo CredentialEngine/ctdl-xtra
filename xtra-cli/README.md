@@ -769,6 +769,26 @@ writes the two as one `ceterms:ValueProfile` — `schema:value`, or
 `schema:minValue` and `schema:maxValue` for a printed range — with the word
 in its `ceterms:creditUnitType`. The college templates do not read the unit.
 
+The prerequisite is read the same way, wherever a page prints it:
+- a labelled field: `Prerequisite(s)` and `Prereqs` count too;
+- a bold label with the value on the same line (Acalog, CourseLeaf's `courseblockreqs`, CurriQunet, WordPress);
+- a heading or bold label with the value under it (SmartCatalog, Drupal, eLumen's requisites list), including in a sidebar inside the page's own content (Arapahoe's `<aside>`);
+- a `Prerequisite:` line, including the run of requisites AVC opens a description with.
+
+The record keeps the text after the label, as printed, as
+`ceterms:prerequisite`. There is one per course: the first the page prints.
+Alternatives an eLumen list joins with OR stay together ("ACCT451A - … OR
+ACCT1A - …"). Clean Catalog's "Prerequisite Courses" list is used only when
+nothing else names a prerequisite.
+
+Some things are not read as a prerequisite:
+- `None`, `N/A` and `No prerequisites` mean there is no prerequisite, so the field is left out.
+- A label naming both relations (`Prerequisite/Corequisite`, `Prerequisite and/or Corequisite`) gives nothing: the course may be taken alongside.
+- Corequisites, advisories and recommended preparation are never read as one.
+
+A description that prints the prerequisite keeps it: AVC's descriptions are
+unchanged. The college templates read prerequisites their own way, as before.
+
 Each field records the element it came from, so a reviewer can go and look.
 A page that prints too little to be a record — one field, which every page
 has, because every page has a name — is skipped rather than written as an
