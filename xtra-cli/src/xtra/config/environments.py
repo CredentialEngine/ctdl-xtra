@@ -16,21 +16,25 @@ AZURITE_CONNECTION_STRING = "UseDevelopmentStorage=true"
 ENVIRONMENTS: dict[str, dict[str, str]] = {
     "dev": {
         "data_uri": AZURITE_DATA_URI,
+        "baseline_uri": "",
         "connection_string_env": DEFAULT_CONNECTION_STRING_ENV,
         "fallback_connection_string": AZURITE_CONNECTION_STRING,
     },
     "test": {
         "data_uri": "",
+        "baseline_uri": "",
         "connection_string_env": DEFAULT_CONNECTION_STRING_ENV,
         "fallback_connection_string": "",
     },
     "sandbox": {
         "data_uri": "",
+        "baseline_uri": "",
         "connection_string_env": DEFAULT_CONNECTION_STRING_ENV,
         "fallback_connection_string": "",
     },
     "prod": {
         "data_uri": "",
+        "baseline_uri": "",
         "connection_string_env": DEFAULT_CONNECTION_STRING_ENV,
         "fallback_connection_string": "",
     },

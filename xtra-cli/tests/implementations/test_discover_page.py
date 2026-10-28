@@ -967,3 +967,43 @@ def test_codes_under_a_courses_path_need_no_block_to_be_a_listing() -> None:
     assert profile.course_code_count == 3
     assert profile.course_block_count == 1
     assert "Course" not in profile.labels
+
+
+PLATFORM_FIXTURES = {
+    "discover/platform-courseleaf.html": "courseleaf",
+    "discover/platform-acalog.html": "acalog",
+    "discover/platform-coursedog.html": "coursedog",
+    "discover/platform-elumen.html": "elumen",
+    "discover/platform-curriqunet.html": "curriqunet",
+    "discover/platform-kuali.html": "kuali",
+    "discover/platform-smartcatalog.html": "smartcatalog",
+    "discover/platform-wordpress.html": "wordpress",
+    "course-clean-catalog.html": "clean_catalog",
+    "program-award-badge.html": "clean_catalog",
+}
+
+
+@pytest.mark.parametrize("name", sorted(PLATFORM_FIXTURES))
+def test_a_page_profile_names_the_platform_that_published_it(
+    fixture_html_dir: Path, name: str
+) -> None:
+    profile = profile_fixture(fixture_html_dir, name)
+    assert profile.platform == PLATFORM_FIXTURES[name]
+    assert profile.platform_evidence
+    assert profile.as_dict()["platform"] == PLATFORM_FIXTURES[name]
+
+
+def test_a_page_with_no_platform_markup_has_an_empty_platform(
+    fixture_html_dir: Path,
+) -> None:
+    profile = profile_fixture(fixture_html_dir, "course-single.html")
+    assert profile.platform == ""
+    assert profile.platform_evidence == []
+
+
+def test_the_platform_is_not_a_marker(fixture_html_dir: Path) -> None:
+    """Every marker joins the pattern signature; a platform must not."""
+    profile = profile_fixture(
+        fixture_html_dir, "discover/platform-courseleaf.html"
+    )
+    assert not [name for name in profile.markers if "platform" in name]

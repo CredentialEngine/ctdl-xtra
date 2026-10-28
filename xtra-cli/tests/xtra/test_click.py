@@ -13,6 +13,7 @@ from xtra.click import (
     limit_option,
     non_empty_string,
     require_strategy,
+    resolve_baseline,
     resolve_connection,
     resolve_uri,
     source_uri_option,
@@ -21,7 +22,7 @@ from xtra.click import (
 )
 from xtra.config.settings import StoredConfig, save_config
 
-PROD_URI = "azure://https://ceprod.blob.core.windows.net/xtra"
+UNIT_TEST_URI = "azure://http://127.0.0.1:10000/devstoreaccount1/xtra"
 
 
 def test_non_empty_string_strips_and_rejects_blank() -> None:
@@ -112,11 +113,13 @@ def test_env_option_rejects_unknown_environment() -> None:
 
 
 def test_resolve_uri_prefers_the_flag_then_the_environment() -> None:
-    save_config(StoredConfig(env_name="prod", data_uri=PROD_URI))
+    save_config(StoredConfig(env_name="prod", data_uri=UNIT_TEST_URI))
     assert (
         resolve_uri("./cache", env_name=None, flag="--target-uri") == "./cache"
     )
-    assert resolve_uri(None, env_name=None, flag="--target-uri") == PROD_URI
+    assert (
+        resolve_uri(None, env_name=None, flag="--target-uri") == UNIT_TEST_URI
+    )
     assert resolve_uri(None, env_name="dev", flag="--target-uri").startswith(
         "azure://http://127.0.0.1"
     )
@@ -132,7 +135,7 @@ def test_resolve_uri_reports_the_missing_flag_as_a_usage_error() -> None:
 
 def test_resolve_connection_prefers_the_flag(monkeypatch) -> None:
     monkeypatch.setenv("AZURE_STORAGE_CONNECTION_STRING", "from-env")
-    save_config(StoredConfig(env_name="prod", data_uri=PROD_URI))
+    save_config(StoredConfig(env_name="prod", data_uri=UNIT_TEST_URI))
     assert resolve_connection("from-flag", env_name=None) == "from-flag"
     assert resolve_connection(None, env_name=None) == "from-env"
 
@@ -142,3 +145,14 @@ def test_resolve_connection_is_none_when_nothing_is_configured(
 ) -> None:
     monkeypatch.delenv("AZURE_STORAGE_CONNECTION_STRING", raising=False)
     assert resolve_connection(None, env_name=None) is None
+
+
+def test_resolve_baseline_prefers_the_flag_and_reports_a_missing_one() -> None:
+    assert (
+        resolve_baseline(
+            "azure://https://a.blob.core.windows.net/g", env_name="test"
+        )
+        == "azure://https://a.blob.core.windows.net/g"
+    )
+    with pytest.raises(click.UsageError, match="--baseline-uri is required"):
+        resolve_baseline(None, env_name="test")

@@ -49,6 +49,19 @@ def test_catalog_help_lists_verbs() -> None:
         assert verb in result.output
 
 
+def test_score_extraction_match_help_lists_the_modes() -> None:
+    result = CliRunner().invoke(cli, ["score", "extraction", "match", "--help"])
+    assert result.exit_code == 0
+    assert "--exactly" in result.output
+    assert "--partially" in result.output
+    assert "--baseline-uri" in result.output
+
+
+def test_scoring_is_not_a_catalog_verb() -> None:
+    result = CliRunner().invoke(cli, ["catalog", "--help"])
+    assert "score" not in result.output
+
+
 def test_catalog_crawl_help_lists_strategies() -> None:
     result = CliRunner().invoke(cli, ["catalog", "crawl", "--help"])
     assert result.exit_code == 0

@@ -43,6 +43,7 @@ from implementations.discover_rules import (
     ENTITY_KINDS,
     ENTITY_MEANING,
     MARKER_MEANING,
+    PLATFORM_NAMES,
     RARE_LABEL_SHARE,
 )
 from implementations.discover_sample import (
@@ -410,11 +411,43 @@ def entities_csv(profiles: list[PageProfile]) -> str:
     return buffer.getvalue()
 
 
+def platform_summary(profiles: list[PageProfile]) -> dict[str, Any]:
+    """The site's platform: the one most pages name, by simple majority.
+
+    Pages that name none are left out of the vote and the counts, so a
+    site of 900 CourseLeaf pages and 14 error pages is still CourseLeaf.
+    `evidence` is the first page's quotes for the winner.
+    """
+    counts: dict[str, int] = {}
+    for profile in profiles:
+        if profile.platform:
+            counts[profile.platform] = counts.get(profile.platform, 0) + 1
+    if not counts:
+        return {"name": "", "pages": {}, "evidence": []}
+    name = max(counts, key=lambda platform: counts[platform])
+    first = next(profile for profile in profiles if profile.platform == name)
+    return {
+        "name": name,
+        "pages": dict(sorted(counts.items())),
+        "evidence": first.platform_evidence,
+    }
+
+
+def platform_line(platform: dict[str, Any], pages: int) -> str:
+    """One line for the top of patterns.md."""
+    name = platform["name"]
+    if not name:
+        return "Platform: not identified."
+    shown = PLATFORM_NAMES.get(name, name)
+    return f"Platform: {shown} ({platform['pages'][name]}/{pages} pages)."
+
+
 def patterns_markdown(
     patterns: list[Pattern],
     *,
     settings: DiscoverSettings,
     provenance: dict[str, Any] | None = None,
+    platform: str = "",
 ) -> str:
     """The demo document: special patterns first, with evidence and links."""
     special = [pattern for pattern in patterns if pattern.special]
@@ -427,6 +460,7 @@ def patterns_markdown(
             f"{len(patterns)} patterns, {len(special)} special."
         ),
         "",
+        *([platform, ""] if platform else []),
         *(provenance_lines(provenance) if provenance is not None else []),
         (
             "A pattern is special when it is a small share of its page "
@@ -550,6 +584,7 @@ def build_summary(
             )
             for kind in ENTITY_KINDS
         },
+        "platform": platform_summary(profiles),
         "sample_label": settings.sample_label,
         "sample_size": settings.sample_size,
         "sample_population": len(
@@ -721,7 +756,12 @@ def run_discovery(
     )
     write(
         PATTERNS_MD_FILE,
-        patterns_markdown(patterns, settings=settings, provenance=provenance),
+        patterns_markdown(
+            patterns,
+            settings=settings,
+            provenance=provenance,
+            platform=platform_line(summary["platform"], len(profiles)),
+        ),
         "text/markdown; charset=utf-8",
     )
     write(

@@ -4,7 +4,11 @@ from __future__ import annotations
 
 import click
 
-from xtra.config.context import resolve_connection_string, resolve_data_uri
+from xtra.config.context import (
+    resolve_baseline_uri,
+    resolve_connection_string,
+    resolve_data_uri,
+)
 from xtra.config.environments import ENV_NAMES
 from xtra.config.settings import ConfigNotFoundError
 
@@ -113,6 +117,20 @@ def source_uri_option():
     )
 
 
+def baseline_uri_option():
+    return click.option(
+        "--baseline-uri",
+        required=False,
+        envvar="XTRA_BASELINE_URI",
+        callback=non_empty_string,
+        help=(
+            "Where the baseline files to score against live. Same URI "
+            "schemes as --target-uri. Defaults to the active environment's "
+            "baseline URI."
+        ),
+    )
+
+
 def resolve_uri(
     explicit: str | None, *, env_name: str | None, flag: str
 ) -> str:
@@ -121,6 +139,14 @@ def resolve_uri(
         return resolve_data_uri(explicit, env_name=env_name)
     except ConfigNotFoundError as exc:
         raise click.UsageError(f"{flag} is required. {exc}") from exc
+
+
+def resolve_baseline(explicit: str | None, *, env_name: str | None) -> str:
+    """Baseline-set URI, falling back to the selected environment."""
+    try:
+        return resolve_baseline_uri(explicit, env_name=env_name)
+    except ConfigNotFoundError as exc:
+        raise click.UsageError(f"--baseline-uri is required. {exc}") from exc
 
 
 def resolve_connection(

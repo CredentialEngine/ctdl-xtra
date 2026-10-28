@@ -883,6 +883,8 @@ class PageProfile:
     duplicate_of: str | None = None
     signature: str = ""
     pattern_id: str = ""
+    platform: str = ""
+    platform_evidence: list[str] = dataclasses.field(default_factory=list)
 
     def as_dict(self) -> dict[str, Any]:
         return {
@@ -908,6 +910,8 @@ class PageProfile:
             "entities": entities_by_kind(self.entities),
             "signature": self.signature,
             "pattern_id": self.pattern_id,
+            "platform": self.platform,
+            "platform_evidence": self.platform_evidence,
         }
 
 
@@ -1015,4 +1019,6 @@ def profile_page(
         page_type=page_type_of(labels),
         rules_fired=fired,
         entities=read_entities(structure),
+        platform=structure.fingerprint.platform,
+        platform_evidence=structure.fingerprint.evidence,
     )
