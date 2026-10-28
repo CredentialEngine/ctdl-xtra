@@ -101,6 +101,16 @@ async def s01e(page, base):
     await page.wait_for_timeout(300)
 
 
+@shot("01f-generate-rules")
+async def s01f(page, base):
+    # needs a catalog added from the picker that has no rules yet
+    await page.goto(f"{base}/#/")
+    await page.wait_for_selector(".cat .gen")
+    await page.click(".cat .gen")
+    await page.wait_for_selector("[data-testid=first-rules-prompt] h1")
+    await page.wait_for_timeout(300)
+
+
 @shot("03-rules-tab-description-v2")
 async def s03(page, base):
     await page.goto(f"{base}/#/c/{CAT}/rules/course-description?row=GEOG222")

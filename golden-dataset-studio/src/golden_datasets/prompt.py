@@ -157,7 +157,7 @@ def _signal_rows(rv: Review, rid: str) -> list[list]:
     return out
 
 
-def _setup(ctx: Ctx, target: str, root_uri: str, first_rule: str) -> list[str]:
+def _setup(ctx: Ctx, target: str, root_uri: str, first_rule: str, check: str | None = None) -> list[str]:
     src = cli_source()
     azure = root_uri.startswith("azure://")  # the root decides: a Studio that serves Azure gives Azure either way
     short_name = info(ctx.catalog)["short"]
@@ -179,7 +179,8 @@ def _setup(ctx: Ctx, target: str, root_uri: str, first_rule: str) -> list[str]:
         n += 1
     L.append(f"{n}. Point the CLI at the {'shared Azure' if azure else 'Studio'} root and check it:")
     L += ["", "   ```sh", f"   cat > {ENV_FILE} <<'EOF'", f"   GOLDEN_DATASETS_ROOT={root_uri}",
-          f"   GOLDEN_DATASETS_CATALOG={short_name}", "   EOF", f"   golden-datasets rule show {first_rule}", "   ```", ""]
+          f"   GOLDEN_DATASETS_CATALOG={short_name}", "   EOF", f"   {check or f'golden-datasets rule show {first_rule}'}",
+          "   ```", ""]
     if azure:
         L.append("   Pages download once into a local cache (`~/.cache/golden-datasets`); `rule publish` uploads the "
                  "new versions, and the Studio shows them when it serves this root.")
@@ -423,8 +424,143 @@ def has_raw_html(text: str) -> bool:
     return bool(_HTML.search(text))
 
 
+# =====================================================================================================
+# The first rules of a catalog added from the picker (spec §7.1)
+# =====================================================================================================
+FIRST_INTRO = ("This catalog was just added to **CTDL Golden Rules Studio** from a crawl and has no rules yet. Write its "
+               "**first ruleset**: a page rule that recognises its course pages, a record locator that finds each course "
+               "on them, and a field rule for each in-scope Course property, then publish it as ruleset v1. A domain "
+               "expert reviews every value in the Studio afterwards, so aim for rules that are right on nearly every "
+               "course, and say where you're unsure. Work only through the `golden-datasets` CLI; never edit files in "
+               "the storage root yourself.")
+# A catalog platform's name in its pages' markup or URLs → a Studio catalog already on it, whose rules make the best
+# template.
+PLATFORM_HINTS = [(r"elumen", "eLumen", "avc"), (r"curr?[iq]+[cq]?unet", "CurricUNET", "ccsf"),
+                  (r"courseleaf", "CourseLeaf", "marshall"), (r"acalog|preview_course(_nopop)?\.php", "Acalog", "ualr")]
+
+
+def url_shapes(urls: list[str], n: int = 12) -> list[list]:
+    """The most common URL shapes (digits folded to N, query values dropped), with a count and an example."""
+    from collections import Counter
+    from urllib.parse import parse_qsl, urlsplit
+
+    shapes: Counter = Counter()
+    example: dict[str, str] = {}
+    for u in urls:
+        p = urlsplit(u)
+        path = re.sub(r"\d+", "N", p.path.rstrip("/")) or "/"
+        parts = path.split("/")
+        if len(parts) > 2:  # keep the folders; the last segment is usually the record's own slug
+            parts[-1] = "*"
+        shape = "/".join(parts) + ("?" + "&".join(sorted(k for k, _ in parse_qsl(p.query))) if p.query else "")
+        shapes[shape] += 1
+        example.setdefault(shape, u)
+    return [[f"`{sh}`", f"{c:,}", example[sh]] for sh, c in shapes.most_common(n)]
+
+
+def template_for(text: str, ready: dict[str, str]) -> tuple[str, str] | None:
+    """(short name, platform) of the Studio catalog whose platform `text` (URLs and a few pages' HTML) names."""
+    for pattern, platform, sn in PLATFORM_HINTS:
+        if sn in ready and re.search(pattern, text, re.I):
+            return sn, platform
+    return None
+
+
+def build_first_rules_prompt(ctx: Ctx, target: str = "azure", azure_root: str | None = None) -> dict:
+    """The prompt behind **Generate rules** on a new catalog's card: write and publish its first ruleset, starting from
+    the rules of a catalog already in the Studio."""
+    from .catalogs import CATALOGS
+
+    entry = ctx.entry() or {}
+    doc = ctx.manifest()
+    name = entry.get("name") or info(ctx.catalog)["name"]
+    seed = entry.get("seed_url")
+    pages = ctx.pages()
+    urls = sorted(p["url"] for p in pages)
+    ready = {info(c["catalog"])["short"]: c["catalog"] for c in doc["catalogs"]
+             if c["catalog"] in CATALOGS and c.get("rulesets")}
+    sample = [p["page_stem"] for p in sorted(pages, key=lambda p: p["page_stem"])[:: max(1, len(pages) // 3)][:3]]
+    html = " ".join(ctx.page_path(stem).read_text(errors="replace")[:200_000] for stem in sample)
+    guess = template_for(" ".join([seed or "", *urls[:400], html]), ready)
+    tmpl = guess[0] if guess else "marshall" if "marshall" in ready else next(iter(sorted(ready)), "<catalog>")
+    root_uri = ctx.root.uri if target == "local" or ctx.root.uri.startswith("azure://") \
+        else (azure_root or DEFAULT_AZURE_ROOT)
+    draft = "drafts/first-rules.json"
+    L = [f"# Write the first rules — {name} catalog", "", FIRST_INTRO, ""]
+    L += _setup(ctx, target, root_uri, "", check='golden-datasets sql "SELECT count(*) AS pages FROM pages"')
+    L += ["## Context", ""]
+    L += table(["", ""], [
+        ["Catalog", f"`{ctx.catalog}` ({name})"],
+        ["Catalog URL", seed or "—"],
+        ["Crawl", f"`{ctx.crawl}`, {len(pages):,} saved pages (scripts already ran at crawl time)"],
+        ["Ruleset", "none yet: you publish v1"],
+        ["Storage root", f"`{root_uri}`"],
+        ["A saved page", "`golden-datasets pages get <page_stem>` prints its local path and live URL"],
+    ])
+    L += ["", "### What the saved pages look like", "",
+          "The most common URL shapes (digits as `N`, the last folder as `*`):", ""]
+    L += table(["Shape", "Pages", "Example"], url_shapes(urls))
+    L += ["", "### Templates: catalogs that already have rules", ""]
+    rows = []
+    for sn in sorted(ready):
+        meta = info(ready[sn])
+        rows.append([f"`{sn}`", meta["name"], meta["platform"] or "—", "**suggested**" if guess and guess[0] == sn else ""])
+    L += table(["Catalog", "Name", "Platform", ""], rows)
+    L.append("")
+    if guess:
+        L.append(f"This catalog's pages look like {guess[1]}, the platform of `{guess[0]}`: start from its rules. If "
+                 "another template's markup is closer, use that.")
+    else:
+        L.append(f"No template's platform shows in the URLs: look at a few pages, then start from the closest "
+                 f"(`{tmpl}` if unsure).")
+    L.append("")
+    L += [FORMAT["page"], FORMAT["locator"], FORMAT["field"],
+          "- Settings (the draft's `settings`): `content_root` (CSS: the part of every page that holds the content; "
+          "rules evaluate inside it), `page_title`, `course_key_rule` (record locator → the field rule whose value "
+          "identifies a course, its Coded Notation), `signals.course_code_pattern` (a regex for this catalog's course "
+          "codes, e.g. `ACCT 2310`).", ""]
+    L += ["## Limits",
+          "- You edit a draft file only. Never write to the storage root or the saved pages.",
+          "- `golden-datasets` assigns versions and hashes: don't add `version` or `content_hash` to a draft.",
+          f"- Write rules for the in-scope Course properties only: {IN_SCOPE}. Requisites, credit units and other "
+          "properties are out of scope. Keep the template's rule ids (`course-code`, `course-name`, …).",
+          "- Rules stay declarative (the formats above). If the pages can't be read with them, stop and say so.",
+          "- If the crawl has no course pages at all (only program or index pages), don't invent rules: say so; "
+          "the catalog needs a new crawl.", ""]
+    L += ["## How to work", ""]
+    L += table(["Step", "Command", "What it gives"], [
+        ["1. Look", "`golden-datasets sql \"SELECT url, title FROM pages WHERE url LIKE '%cour%' LIMIT 50\"`",
+         "the saved pages (`pages` has `page_stem`, `url`, `title`); find the pages that hold courses"],
+        ["", "`golden-datasets pages get <page_stem>`",
+         "a saved page's local path: read its HTML for the content root, each course's block and its fields"],
+        ["2. Template", f"`golden-datasets rule draft --catalog {tmpl} --all --for {ctx.catalog} > {draft}`",
+         f"every rule of `{tmpl}` and its settings, as a draft for this catalog"],
+        ["3. Adapt", f"edit `{draft}`",
+         "the page rule's `url_regex` / `requires_selector`, the locator's `repeat`, each field's `selector` / `regex`, "
+         "the settings; drop a field rule this catalog can't fill; rewrite `what` / `how` / `why` and the examples for "
+         "this catalog"],
+        ["4. Try", f"`golden-datasets rule try {draft}`",
+         "runs the draft over the whole crawl (writes nothing): per rule, how many pages / courses / values it finds. "
+         "Iterate until the locator finds about as many courses as the catalog has and each field has a value on "
+         "nearly every course; spot-check values against a few pages"],
+        ["5. Publish", f"`golden-datasets rule publish {draft} --note \"First rules, from {tmpl}'s\"`",
+         "ruleset v1 and its extraction: the catalog opens in the Studio"],
+    ])
+    L += ["", "Do not commit or push anything.", "",
+          "Report back: which template you used and what you changed, the final `rule try` table, and anything you "
+          "couldn't read reliably."]
+    text = "\n".join(L) + "\n"
+    return {"text": text, "chars": len(text), "tokens": round(len(text) / 4), "template": tmpl,
+            "template_name": info(ready[tmpl])["name"] if tmpl in ready else tmpl,
+            "target": target, "root": root_uri, "warning": cli_source()["warning"]}
+
+
 def cmd_prompt(args) -> int:
     ctx = Ctx.from_args(args)
+    if args.first_rules:
+        out = build_first_rules_prompt(ctx, target=args.target, azure_root=args.azure_root)
+        print(out["text"], end="")
+        return 0
     if args.rule is None and not args.needs_work:
         args.needs_work = True
     out = build_prompt(ctx, args.rule, args.needs_work, target=args.target, azure_root=args.azure_root)

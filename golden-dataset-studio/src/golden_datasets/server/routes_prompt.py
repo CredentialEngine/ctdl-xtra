@@ -7,7 +7,7 @@ from fastapi import APIRouter, Request
 
 from ..errors import UserError
 from ..loop import current_review
-from ..prompt import build_prompt
+from ..prompt import build_first_rules_prompt, build_prompt
 from .state import not_found, studio
 
 router = APIRouter(prefix="/api")
@@ -21,6 +21,18 @@ def prompt(request: Request, catalog: str, rule: str | None = None, needs_work: 
     ctx = st.ctx(catalog)
     try:
         out = build_prompt(ctx, rule, needs_work, rv=current_review(ctx), target="azure", azure_root=st.azure_root)
+    except UserError as exc:
+        raise not_found(str(exc)) from None
+    return {**out, "studio_root": st.root.uri}
+
+
+@router.get("/catalogs/{catalog}/prompt/first-rules")
+def first_rules_prompt(request: Request, catalog: str) -> dict:
+    """Generate rules (spec §7.1): the prompt that has Claude Code write and publish a new catalog's first ruleset."""
+    st = studio(request)
+    ctx = st.ctx(catalog)
+    try:
+        out = build_first_rules_prompt(ctx, target="azure", azure_root=st.azure_root)
     except UserError as exc:
         raise not_found(str(exc)) from None
     return {**out, "studio_root": st.root.uri}

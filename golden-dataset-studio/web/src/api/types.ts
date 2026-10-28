@@ -15,6 +15,11 @@ export interface CatalogCard {
   adding?: { step: string; done: number; total: number; error: string | null };
 }
 
+/** Generate rules: the prompt that has Claude Code write a new catalog's first ruleset from a template catalog. */
+export interface FirstRulesPrompt {
+  text: string; chars: number; tokens: number; template: string; template_name: string; root: string; studio_root?: string; warning?: string | null;
+}
+
 export type CrawlStatus = "complete" | "limit_reached" | "incomplete";
 export interface CrawlRun { crawl: string; seed_url: string | null; finished_at: string | null; pages: number; status: CrawlStatus }
 /** A catalog xtra-cli has crawled (Add a catalog): its latest crawl, and every crawl newest first. */

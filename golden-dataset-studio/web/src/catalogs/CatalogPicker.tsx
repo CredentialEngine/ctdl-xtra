@@ -6,6 +6,7 @@ import type { CatalogCard } from "../api/types";
 import { href } from "../shell/router";
 import { fmt } from "../shell/ui";
 import { AddCatalogModal } from "./AddCatalogModal";
+import { GenerateRulesModal } from "./GenerateRulesModal";
 import { LoopModal, shouldShowLoop } from "./LoopModal";
 
 const STEP: Record<string, string> = {
@@ -25,6 +26,7 @@ export default function CatalogPicker() {
   const [error, setError] = useState<string | null>(null);
   const [loop, setLoop] = useState(shouldShowLoop);
   const [adding, setAdding] = useState(false);
+  const [generate, setGenerate] = useState<CatalogCard | null>(null);
   const load = useCallback(() => api.catalogs().then(setCats, (e) => setError(String(e))), []);
   useEffect(() => { load(); }, [load]);
   // while a catalog is being added, follow its progress
@@ -36,7 +38,8 @@ export default function CatalogPicker() {
   }, [busy, load]);
 
   const modal = (loop && <LoopModal onClose={() => setLoop(false)} />)
-    || (adding && <AddCatalogModal onClose={() => setAdding(false)} onAdded={load} />);
+    || (adding && <AddCatalogModal onClose={() => setAdding(false)} onAdded={load} />)
+    || (generate && <GenerateRulesModal card={generate} onClose={() => { setGenerate(null); load(); }} />);
   const head = (
     <div className="picker-head">
       <h1>Choose a catalog</h1>
@@ -68,7 +71,9 @@ export default function CatalogPicker() {
                     </span></div>
                 </div>
                 <span className="open">{ready ? "Open →" : c.status === "failed"
-                  ? <button className="dismiss" onClick={() => api.dismissAdd(c.catalog).then(load)}>Dismiss</button> : ""}</span>
+                  ? <button className="dismiss" onClick={() => api.dismissAdd(c.catalog).then(load)}>Dismiss</button>
+                  : c.status === "not imported" && c.pages
+                    ? <button className="btn gen" onClick={() => setGenerate(c)}>Generate rules</button> : ""}</span>
               </>
             );
             return ready

@@ -1,6 +1,6 @@
 // Thin fetch wrappers for the Studio API. Every tab uses these; they keep URLs in one place.
 import type {
-  CatalogCard, CatalogDetail, CrawledCatalog, CompareRecords, CompareResponse, Discussion, CourseDetail, CourseHit, GoldenFileText, GoldenLineage, GoldenResponse,
+  CatalogCard, CatalogDetail, CrawledCatalog, FirstRulesPrompt, CompareRecords, CompareResponse, Discussion, CourseDetail, CourseHit, GoldenFileText, GoldenLineage, GoldenResponse,
   NewEvent, Overlay,
   PromptResponse, RuleDetail, RuleSummary, RulesResponse, RowsResponse, UnclassifiedPage,
 } from "./types";
@@ -66,6 +66,7 @@ export const api = {
     }
     return call<CompareRecords>(`${c(catalog)}/compare/records?${s}`);
   },
+  firstRulesPrompt: (catalog: string) => call<FirstRulesPrompt>(`${c(catalog)}/prompt/first-rules`),
   prompt: (catalog: string, opts: { rule?: string; needs_work?: boolean } = {}) =>
     call<PromptResponse>(`${c(catalog)}/prompt${q(opts)}`),
   // `properties`: the properties a publication would publish (comma-separated in the query)

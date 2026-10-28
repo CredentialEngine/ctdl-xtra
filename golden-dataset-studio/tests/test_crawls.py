@@ -121,3 +121,47 @@ def test_api_search_add_and_the_new_card(roots):
     assert c.post("/api/crawls/cuesta-curriqunet-com-catalog-iq-27137/add", json={}).status_code == 409
     added = {i["catalog"]: i["added"] for i in c.get("/api/crawls").json()["items"]}
     assert added["cuesta-curriqunet-com-catalog-iq-27137"]
+
+
+FIRST = {"catalog": "cuesta-curriqunet-com-catalog-iq-27137", "settings": {"content_root": "body"}, "rules": [
+    {"rule_id": "course-page", "kind": "page", "definition": {"url_regex": "/c/\\d+$", "label": "Course"}},
+    {"rule_id": "locator-course-page", "kind": "locator",
+     "definition": {"page_rules": ["course-page"], "scope": None, "repeat": None, "repeat_filter": None}},
+    {"rule_id": "course-code", "kind": "field", "property_label": "Coded Notation", "ctdl_property": "ceterms:codedNotation",
+     "definition": {"locator": "locator-course-page", "rule_type": "css+regex", "selector": "h1", "regex": "^(C \\d+)",
+                    "group": 1, "transforms": ["collapse_ws"]}},
+    {"rule_id": "course-name", "kind": "field", "property_label": "Learning Opportunity Name", "ctdl_property": "ceterms:name",
+     "definition": {"locator": "locator-course-page", "rule_type": "css", "selector": "title", "transforms": ["collapse_ws"]}},
+]}
+
+
+def test_first_rules_publish_ruleset_v1_and_the_card_opens(roots, tmp_path, capsys):
+    from fastapi.testclient import TestClient
+
+    from golden_datasets.cli import main
+    from golden_datasets.server.app import create_app
+
+    src, dst = roots
+    cat = "cuesta-curriqunet-com-catalog-iq-27137"
+    crawls.add_catalog(dst, src, cat, log=lambda *a, **k: None)
+    c = TestClient(create_app(dst.uri, crawls_root=src.uri))
+    prompt = c.get(f"/api/catalogs/{cat}/prompt/first-rules").json()
+    assert "# Write the first rules — Cuesta catalog" in prompt["text"]
+    assert f"--all --for {cat}" in prompt["text"] and "/catalog/iq/" in prompt["text"]  # the URL shapes
+    draft = tmp_path / "first.json"
+    draft.write_text(json.dumps(FIRST))
+    assert main(["rule", "try", "--root", dst.uri, "--catalog", cat, str(draft)]) == 0
+    out = capsys.readouterr().out
+    assert "no ruleset yet" in out and "locator-course-page" in out
+    assert main(["rule", "publish", "--root", dst.uri, "--catalog", cat, str(draft), "--note", "first"]) == 0
+    assert "published ruleset v1 (the first)" in capsys.readouterr().out
+    entry = manifest.catalog_entry(manifest.load(dst)[0], cat, create=False)
+    assert [r["version"] for r in entry["rulesets"]] == [1] and entry["annotations"] is None
+    assert entry["crawls"][0]["extractions"][0]["ruleset_version"] == 1
+    from golden_datasets.context import Ctx
+
+    rs = Ctx(dst, cat).ruleset(1)
+    assert rs["settings"]["course_key_rule"] == {"locator-course-page": "course-code"}
+    card = next(x for x in c.get("/api/catalogs").json() if x["catalog"] == cat)
+    assert card["status"] == "ready" and card["rules_total"] == 4
+    assert main(["check", "--root", dst.uri, "--catalog", cat]) == 0

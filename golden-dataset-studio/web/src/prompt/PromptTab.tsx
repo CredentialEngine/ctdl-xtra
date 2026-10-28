@@ -32,7 +32,7 @@ export async function copyText(text: string): Promise<boolean> {
   }
 }
 
-function download(text: string, name: string): void {
+export function download(text: string, name: string): void {
   const a = document.createElement("a");
   const url = URL.createObjectURL(new Blob([text], { type: "text/markdown" }));
   a.href = url;

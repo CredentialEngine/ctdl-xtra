@@ -700,10 +700,10 @@ saved.
 | | `golden-datasets rule annotations R [--open]` | Each annotation with the value seen, expected text + location, note, page path | — |
 | | `golden-datasets pages get STEM… [--to DIR]` | Make page files (and their assets) available locally and print their paths | local cache |
 | | `golden-datasets pages sample --rule R [--signal S] [-n 20]` | Page paths where the rule fires, filtered by signal | — |
-| | `golden-datasets rule draft R… > draft.json` | Current versions of one or more rules as an editable draft | — |
+| | `golden-datasets rule draft R… > draft.json` | Current versions of one or more rules as an editable draft; `--all`: every rule; `--for C`: every rule and the settings as a template for catalog C's first ruleset | — |
 | | `golden-datasets rule try draft.json` | Run the draft over the **whole crawl** on the laptop and print the scorecard. Writes nothing | — |
 | | `golden-datasets rule publish draft.json [--force]` | New rule versions + ruleset version + extraction, uploaded together. Refuses when anything that was `correct` changes, unless `--force` | rules/, rulesets/, extractions/ |
-| Prompt | `golden-datasets prompt --catalog C [--rule R \| --needs-work] [--target local\|azure]` | The same text the UI's **Copy prompt** button gives; `azure` points Claude at the Azure root (`--azure-root`) | — |
+| Prompt | `golden-datasets prompt --catalog C [--rule R \| --needs-work \| --first-rules] [--target local\|azure]` | The same text the UI's **Copy prompt** button gives (`--first-rules`: the **Generate rules** prompt of a catalog with no rules, §7.1); `azure` points Claude at the Azure root (`--azure-root`) | — |
 | Golden | `golden-datasets golden publish --catalog C --to ROOT [--property NAME …]` | Publishes the named properties (default: every property whose field rule is approved); each needs its field rule approved, the others keep what earlier publications wrote. Domain-only files to the golden root in its existing format (plus `location` and `golden_record_id`), lineage to the Studio | golden/ |
 | Local work | `golden-datasets sync --from ROOT --to DIR [--catalog C]` | Copy Studio files and pages between roots (both directions) | target root |
 | | `golden-datasets serve [--port 8000] [--azure-root URI] [--crawls-root URI]` | The web UI; `--azure-root` is where the prompt's Azure version points (the root itself when it is Azure); `--crawls-root` is where Add a catalog looks for crawls | annotations.jsonl (via UI) |
@@ -810,9 +810,19 @@ engine has already crawled can be found here. For a new catalog, ask engineering
   Saving page styles…), polled every 2 s, then becomes an ordinary card with "rules not run yet". If adding fails the
   card says "Couldn't add it" (the reason on hover) with **Dismiss**; adding it again resumes. Cards are sorted by
   the name they show. An added catalog's URL and `--catalog` name is its folder name.
-- **Not covered yet:** a newer crawl of a catalog already in the Studio (its row just says Already added), and a
-  catalog's first rules: an added catalog has no ruleset, so it can't be opened until an engineer writes its first
-  rules (§12.3).
+- **Generate rules.** An added catalog has no rules, so its card says "rules not run yet" and has a **Generate rules**
+  button instead of **Open →**. It opens a modal with the prompt for Claude Code (**Copy prompt**, **Download .md**;
+  the same text as `golden-datasets prompt --first-rules`): write the catalog's first ruleset and publish it as v1.
+  The prompt gives the setup, the catalog, its crawl, the most common URL shapes of its saved pages, the catalogs that
+  already have rules as templates (one is **suggested** when the pages' markup or URLs name its platform: eLumen →
+  AVC, CurricUNET → CCSF, CourseLeaf → Marshall, Acalog → UALR), the rule formats and settings, the limits, and five
+  steps: look at the pages (`sql`, `pages get`), copy the template (`rule draft --catalog T --all --for C`), adapt it,
+  `rule try` (for a first ruleset it prints what each rule finds: rows, rows with a value, signals), `rule publish`.
+  Once v1 and its extraction exist, the card opens like any other.
+
+![Generate rules](screens/01f-generate-rules.png)
+
+- **Not covered yet:** a newer crawl of a catalog already in the Studio (its row just says Already added; §12.3).
 
 ### 7.2 Rules tab (default)
 
@@ -1282,7 +1292,9 @@ The schema in §4–5 is the contract between W1, W2 and W4–W6. Changing it me
 - **Add a catalog** (Eric, 2026-10-27): from the picker, only from crawls xtra-cli has already made (the Studio never
   starts one; new catalogs are crawled by engineering). Everything shown comes from `crawl.json`, never typed in and
   never from the xTRA Sources sheet (the Studio has no Google access). We use the latest crawl; incomplete crawls can be
-  added with a warning; anyone can add one (§7.1).
+  added with a warning; anyone can add one (§7.1). Its first rules come from **Generate rules**: a prompt that has Claude
+  Code adapt a template catalog's rules and publish ruleset v1 (`rule try` / `rule publish` accept a catalog with no
+  ruleset; its settings start from import-v2's defaults, and each locator's course key is its Coded Notation rule).
 
 ### 12.2 Questions for Jared
 
@@ -1325,8 +1337,6 @@ descriptions still contain a Prerequisite that comes after one of them.
 
 ### 12.3 Follow-ups
 
-- **A first ruleset for an added catalog.** Added catalogs start with no rules, so their card can't be opened. Options:
-  start from the rules of a catalog on the same platform, or a Prompt that asks Claude Code to write the first rules.
 - **A newer crawl of a catalog already in the Studio:** switching crawls means re-extracting and carrying annotations
   across crawls.
 - **UALR needs a recrawl.** Many UALR courses appeared only as short entries on program pages, because their course

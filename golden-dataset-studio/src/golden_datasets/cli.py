@@ -147,7 +147,10 @@ def build_parser() -> argparse.ArgumentParser:
     _cmd(p, "golden_datasets.loop:cmd_rule_annotations")
     p = rsub.add_parser("draft", help="current versions of one or more rules as an editable draft (JSON on stdout)")
     _root_args(p), _catalog_args(p)
-    p.add_argument("rule_ids", nargs="+")
+    p.add_argument("rule_ids", nargs="*")
+    p.add_argument("--all", action="store_true", help="every rule of the latest ruleset")
+    p.add_argument("--for", dest="for_catalog", default=None, metavar="CATALOG",
+                   help="a template for another catalog's first ruleset: every rule and the settings, for CATALOG")
     _cmd(p, "golden_datasets.loop:cmd_rule_draft")
     p = rsub.add_parser("try", help="run a draft over the whole crawl and print the scorecard; writes nothing")
     _root_args(p), _catalog_args(p)
@@ -182,6 +185,8 @@ def build_parser() -> argparse.ArgumentParser:
     g = p.add_mutually_exclusive_group()
     g.add_argument("--rule", default=None)
     g.add_argument("--needs-work", action="store_true")
+    g.add_argument("--first-rules", action="store_true",
+                   help="a catalog with no rules yet: write and publish its first ruleset from a template")
     _target_args(p)
     _cmd(p, "golden_datasets.prompt:cmd_prompt")
 

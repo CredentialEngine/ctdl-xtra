@@ -272,21 +272,33 @@ def cmd_rule_annotations(args) -> int:
 DRAFT_FIELDS = ("rule_id", "kind", "ctdl_property", "property_label", "definition", "what", "how", "why", "examples")
 
 
-def draft_of(ctx: Ctx, rule_ids: list[str]) -> dict:
+def draft_of(ctx: Ctx, rule_ids: list[str], for_catalog: str | None = None) -> dict:
+    """The rules as an editable draft. `for_catalog`: a template for another catalog's first ruleset (every rule
+    of this one, with its settings), to be adapted to that catalog's pages."""
     v = ctx.latest_ruleset()
-    _, rules = ctx.ruleset_rules(v)
+    rs, rules = ctx.ruleset_rules(v)
+    rule_ids = rule_ids or ordered_rule_ids(rules)
     out = []
     for rid in rule_ids:
         if rid not in rules:
             raise UserError(f"no rule {rid!r} in ruleset v{v} (a new rule: write it into the draft by hand)")
         r = rules[rid]
         out.append({k: r.get(k) for k in DRAFT_FIELDS} | {"examples": r.get("examples") or []})
+    if for_catalog:
+        keep = ("content_root", "page_title", "course_key_rule", "signals")
+        settings = {k: rs["settings"][k] for k in keep if k in rs["settings"]}
+        if "course_key_rule" in settings:  # only the record locators this ruleset still has
+            settings["course_key_rule"] = {loc: f for loc, f in settings["course_key_rule"].items() if loc in rules}
+        return {"catalog": for_catalog, "base_ruleset": None, "template": f"{ctx.catalog} ruleset v{v}",
+                "settings": settings, "rules": out}
     return {"catalog": ctx.catalog, "base_ruleset": v, "rules": out}
 
 
 def cmd_rule_draft(args) -> int:
     ctx = Ctx.from_args(args)
-    print(json.dumps(draft_of(ctx, args.rule_ids), indent=2, ensure_ascii=False))
+    if not args.rule_ids and not args.all:
+        raise UserError("name the rules to draft, or --all")
+    print(json.dumps(draft_of(ctx, [] if args.all else args.rule_ids, args.for_catalog), indent=2, ensure_ascii=False))
     return 0
 
 
@@ -358,9 +370,12 @@ def plan_draft(ctx: Ctx, doc: dict, warn=lambda m: print(m, file=sys.stderr)) ->
     """Merge a draft into the latest ruleset and assign versions (nothing is written)."""
     if doc.get("catalog") and ctx.catalog != doc["catalog"] and info(ctx.catalog)["short"] != doc["catalog"]:
         raise UserError(f"the draft is for {doc['catalog']}, not {ctx.catalog}")
-    latest = ctx.latest_ruleset()
-    rs, base = ctx.ruleset_rules(latest)
-    if doc.get("base_ruleset") not in (None, latest):
+    if ctx.ruleset_versions():
+        latest = ctx.latest_ruleset()
+        rs, base = ctx.ruleset_rules(latest)
+    else:  # the catalog's first rules (added from the picker): every rule in the draft is new
+        latest, rs, base = 0, {"version": None, "parent_version": None, "settings": None}, {}
+    if latest and doc.get("base_ruleset") not in (None, latest):
         warn(f"note: the draft was made from ruleset v{doc['base_ruleset']}; merging it into the latest, v{latest}")
     drafts: dict[str, dict] = {}
     for item in doc.get("rules", []):
@@ -382,10 +397,11 @@ def plan_draft(ctx: Ctx, doc: dict, warn=lambda m: print(m, file=sys.stderr)) ->
         merged.setdefault("examples", [])
         _validate_definition(rid, merged)
         drafts[rid] = merged
-    settings = rs["settings"]
-    if doc.get("settings"):
-        settings = {**settings, **doc["settings"]}
     planned = rulesets.plan_versions(ctx, drafts, base)
+    if rs["settings"] is None:
+        settings = rulesets.first_settings({**base, **planned}, doc.get("settings"))
+    else:
+        settings = {**rs["settings"], **(doc.get("settings") or {})}
     for rid, r in planned.items():
         if rid in base and r["content_hash"] == base[rid]["content_hash"] and \
                 any(drafts[rid].get(k) != base[rid].get(k) for k in ("what", "how", "why", "examples")):
@@ -393,6 +409,9 @@ def plan_draft(ctx: Ctx, doc: dict, warn=lambda m: print(m, file=sys.stderr)) ->
                  "definition; they change only with it)")
     rules = {**base, **planned}
     rulesets.validate_ruleset(rules)
+    if not latest and not rules:
+        raise UserError("the draft has no rules; a catalog's first ruleset needs at least a page rule, a record locator "
+                        "and field rules")
     changed = sorted(rid for rid, r in rules.items()
                      if rid not in base or base[rid]["content_hash"] != r["content_hash"])
     return {"latest": latest, "ruleset": rs, "base": base, "drafts": drafts, "rules": rules, "settings": settings,
@@ -421,7 +440,7 @@ def evaluate(ctx: Ctx, plan: dict, log=lambda m: None) -> dict:
         for rid in ordered_rule_ids(plan["drafts"]):
             cards.append(scorecard.rule_scorecard(rid, None, draft, review))
     totals = {k: sum(c["annotated"][k] for c in cards) for k in ("fixed", "still_wrong", "newly_wrong", "unchanged")}
-    return {"parent_extraction": parent_ext, "result": result, "cards": cards, "totals": totals,
+    return {"parent_extraction": parent_ext, "result": result, "cards": cards, "totals": totals, "snapshot": draft,
             "compute_s": round(t_compute, 2), "total_s": round(time.perf_counter() - t0, 2)}
 
 
@@ -437,6 +456,21 @@ def _print_cards(plan: dict, ev: dict, b_label) -> None:
     t = ev["totals"]
     print(f"total: fixed {t['fixed']} · still wrong {t['still_wrong']} · newly wrong {t['newly_wrong']} · "
           f"unchanged {t['unchanged']}")
+    sys.stdout.flush()
+
+
+def _print_first(plan: dict, ev: dict) -> None:
+    """A first ruleset has nothing to compare with: what each rule finds instead."""
+    snap = ev["snapshot"]
+    print(f"{'rule':<28} {'kind':<8} {'rows':>7} {'with a value':>13}  signals")
+    for rid in ordered_rule_ids(plan["rules"]):
+        f = snap.fill(rid)
+        sig = ", ".join(f"{k} {n:,}" for k, n in sorted(snap.signal_counts.get(rid, {}).items(), key=lambda kv: -kv[1]))
+        print(f"{rid:<28} {plan['rules'][rid]['kind']:<8} {f['rows']:>7,} {f['found']:>13,}  {sig or '—'}")
+    if not any(snap.fill(r)["rows"] for r in plan["rules"] if plan["rules"][r]["kind"] == "locator"):
+        print("\nno record locator finds a course: check the page rules' url_regex / requires_selector against "
+              "the saved pages (`golden-datasets sql \"SELECT url, title FROM pages LIMIT 50\"`)")
+    print()
     sys.stdout.flush()
 
 
@@ -475,9 +509,13 @@ def cmd_rule_try(args) -> int:
                           "rerun_rules": ev["result"]["meta"]["rerun_rules"],
                           "elapsed_s": round(elapsed, 2)}, indent=2, ensure_ascii=False))
         return 0
-    print(f"rule try · ruleset v{plan['latest']} ({ev['parent_extraction']}) + draft · "
+    base = f"ruleset v{plan['latest']} ({ev['parent_extraction']})" if plan["latest"] else "no ruleset yet"
+    print(f"rule try · {base} + draft · "
           f"{info(ctx.catalog)['name']} · {ev['result']['meta']['pages_total']:,} pages\n")
-    _print_cards(plan, ev, _label(plan, "draft"))
+    if plan["latest"]:
+        _print_cards(plan, ev, _label(plan, "draft"))
+    else:
+        _print_first(plan, ev)
     meta = ev["result"]["meta"]
     print(f"rerun {', '.join(meta['rerun_rules']) or 'nothing'} on {meta['rerun_pages']:,} pages · nothing written")
     print(f"elapsed {elapsed:.1f} s (run {ev['compute_s']:.1f} s)")
@@ -499,7 +537,10 @@ def cmd_rule_publish(args) -> int:
         return 0
     ev = evaluate(ctx, plan, log=lambda m: print(m, file=sys.stderr))
     version = plan["latest"] + 1
-    _print_cards(plan, ev, _label(plan, "publish"))
+    if plan["latest"]:
+        _print_cards(plan, ev, _label(plan, "publish"))
+    else:
+        _print_first(plan, ev)
     newly = ev["totals"]["newly_wrong"]
     if newly and not args.force:
         print(f"\nrefusing to publish: {newly} value(s) marked correct would change (nothing written). Change the "
@@ -520,7 +561,8 @@ def cmd_rule_publish(args) -> int:
     ext = extract.next_extraction_id(ctx, version, again=False)
     meta = extract.write_extraction(ctx, ext, version, ev["parent_extraction"], ev["result"], args.by)
     upload = time.perf_counter() - t_up
-    print(f"\npublished ruleset v{version} (parent v{plan['latest']}): {names}"
+    print(f"\npublished ruleset v{version}" + (f" (parent v{plan['latest']})" if plan["latest"] else " (the first)")
+          + f": {names}"
           + (" · FORCED: values marked correct changed" if newly else ""))
     rows = " · ".join(f"{k.split('.')[0]} {v['rows']:,}" for k, v in meta["files"].items())
     print(f"extraction {ext} (parent {meta['parent_extraction']}): {rows}")
