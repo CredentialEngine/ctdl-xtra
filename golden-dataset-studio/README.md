@@ -79,19 +79,26 @@ that page's file in both places at once (human-reviewed values, any column) and 
 golden-datasets sql -c avc "SELECT rule_id, count(*) FROM matches_latest WHERE status <> 'found' GROUP BY 1"
 ```
 
-## Evals: score xtra-cli against the golden set (docs/qrspi/evals)
+## Evals: score xtra's extract output against the golden dataset (docs/qrspi/evals)
 
-The Studio runs xtra-cli (at a pinned commit) into its own folder and scores the run with xtra's own scorer, against
-the hand-checked values and against the whole golden version. The team's `records/` and reports aren't touched.
+The Studio doesn't run xtra: engineers run `xtra catalog extract`, and the Studio reads what it wrote
+(`$GOLDEN_DATASETS_XTRA_SOURCE/<catalog>/<crawl>/records/`, else the shared `xtra-cli-output` container) and scores it
+with xtra's own scorer, called in-process (xtra-cli is a path dependency on `../xtra-cli`). Each score is kept in
+`<crawl>/golden-dataset-studio/scores/sc-NNNN/` (`score.json`, `values.parquet`) with two results: the human-reviewed
+values only, and every rule-matched value. The first time the Studio sees an extract output it copies it into
+`extract-outputs/<report last modified>/`, so it stays scorable after xtra overwrites it.
 
 ```sh
-export GOLDEN_DATASETS_XTRA_SOURCE=~/review-ui-v3-data/xtra-cli-output   # where xtra reads the crawl and discovery
-golden-datasets xtra run --import                      # the team's records/ as run x-NNNN
-golden-datasets xtra run --sample --ref <branch> --then-eval rs-0003
-golden-datasets eval run --xtra-run x-0001 --golden published|verified|rs-NNNN
-golden-datasets eval show
-golden-datasets serve --allow-runs                     # the Evals tab may start runs and evals
+export GOLDEN_DATASETS_XTRA_SOURCE=~/review-ui-v3-data/xtra-cli-output   # where xtra writes extract outputs
+golden-datasets score                       # the latest extract output vs the latest golden dataset
+golden-datasets score --ruleset 2           # … vs golden dataset ruleset v2
+golden-datasets score --human-reviewed      # … vs the human-reviewed values as they are now
+golden-datasets score --draft rs-0004       # … vs an unpublished extraction
+golden-datasets score --output <copy id or folder with records/>
 ```
+
+The server scores on its own: a new extract output against the latest golden dataset, and the human-reviewed values
+5 minutes after the last review (`scores/pending.json`, checked every 30 s).
 
 ## Develop
 

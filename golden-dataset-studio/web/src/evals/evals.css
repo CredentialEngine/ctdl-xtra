@@ -27,7 +27,7 @@
 .evx-def { margin: -2px 8px 8px; color: var(--muted); font-size: 11.5px; line-height: 1.4; }
 .evx-empty { color: var(--muted); margin: 4px 8px; }
 .evx-ver { display: flex; align-items: center; justify-content: space-between; gap: 8px; color: var(--muted); font-size: 12px; margin: 0 8px 6px; }
-.evx-ver select, .evx-group select, .evx-then select { font: 500 12px var(--sans); border: 1px solid var(--line-2); border-radius: 6px; padding: 3px 6px;
+.evx-ver select, .evx-group select { font: 500 12px var(--sans); border: 1px solid var(--line-2); border-radius: 6px; padding: 3px 6px;
                                                      background: var(--surface); color: var(--ink-2); }
 .evx-props { list-style: none; margin: 2px 0 8px; padding: 0 8px 0 16px; font-size: 12px; }
 .evx-props li { display: flex; justify-content: space-between; padding: 2px 0; color: var(--ink-2); }
@@ -95,15 +95,8 @@
 .evx-row-s { color: var(--muted); font-variant-numeric: tabular-nums; text-align: right; }
 .evx-pager { display: flex; align-items: center; justify-content: center; gap: 10px; margin-top: 12px; }
 
-/* job + commands */
-.evx-job { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 8px 12px; margin-bottom: 12px; border-radius: 8px;
-           background: var(--surface-2); border: 1px solid var(--line); }
-.evx-job-l { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 11.5px var(--mono); color: var(--muted); }
-.evx-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--faint); }
-.evx-dot.running { background: var(--accent); animation: evx-pulse 1.2s ease-in-out infinite; }
-.evx-dot.failed { background: var(--o-missing); }
-@keyframes evx-pulse { 50% { opacity: .3; } }
-.evx-log, .evx-cmds pre { flex-basis: 100%; max-height: 300px; overflow: auto; margin: 6px 0 0; padding: 10px 12px; border-radius: 6px;
+/* commands */
+.evx-cmds pre { flex-basis: 100%; max-height: 300px; overflow: auto; margin: 6px 0 0; padding: 10px 12px; border-radius: 6px;
                           background: #0f1419; color: #e6e9ef; font: 11.5px/1.55 var(--mono); white-space: pre; }
 .evx-cmds { margin: -4px 0 16px; }
 .evx-cmds-h { display: flex; align-items: center; gap: 8px; font-weight: 600; }
@@ -128,17 +121,3 @@
 .evx-pane { flex: 1; min-height: 0; display: flex; }
 .evx-pane > * { flex: 1; min-width: 0; }
 .evx-pane-legend { display: inline-flex; gap: 14px; align-items: center; }
-
-/* new extraction */
-.evx-modal-bg { position: fixed; inset: 0; background: rgba(16, 24, 40, .35); display: grid; place-items: center; z-index: 60; }
-.evx-modal { width: min(620px, calc(100vw - 32px)); background: var(--surface); color: var(--ink); border-radius: 12px; padding: 20px 22px;
-             box-shadow: 0 20px 50px rgba(0, 0, 0, .25); display: flex; flex-direction: column; gap: 12px; }
-.evx-modal h2 { margin: 0 0 4px; font-size: 16px; }
-.evx-opt { display: flex; gap: 10px; align-items: flex-start; border: 1px solid var(--line); border-radius: 9px; padding: 12px 14px; cursor: pointer; }
-.evx-opt.on { border-color: var(--accent); background: var(--accent-soft); }
-.evx-opt p { margin: 3px 0 0; }
-.evx-opt-body { margin-top: 10px; display: flex; flex-direction: column; gap: 8px; }
-.evx-opt-body input.mono { border: 1px solid var(--line-2); border-radius: 6px; padding: 3px 6px; background: var(--surface); color: var(--ink); }
-.evx-scope { display: flex; flex-direction: column; gap: 4px; }
-.evx-then { display: flex; align-items: center; gap: 8px; }
-.evx-modal-f { display: flex; justify-content: flex-end; gap: 8px; margin-top: 4px; }

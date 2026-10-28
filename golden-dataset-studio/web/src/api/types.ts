@@ -236,49 +236,45 @@ export interface CompareRecords {
   sample: SampleInfo;
 }
 
-// --- Evals (docs/qrspi/evals): extractions, baselines and scores, in `xtra score`'s words ------------------
+// --- Evals (docs/qrspi/evals): extract outputs and scores against a golden dataset ----------------------------
 export type ScoreOutcome = "missing" | "wrong" | "partial" | "match";
-export type BaselineId = "full" | "hand" | "verified";
-export interface Extraction {
-  id: string; kind: "extract" | "import"; title: string; detail: string; scope: string; records: number | null;
-  commit?: string; ref?: string; created_at: string; commands: string[];
+export type ScoreBasis = "human" | "rule";        // the human-reviewed values only; every rule-matched value
+export interface OutcomeCounts { values: number; missing: number; wrong: number; partial: number; match: number }
+export interface ExtractOutput {
+  id: string; path: string; report_etag: string; last_modified: string; run_id: string | null;
+  discovery_run_id: string | null; only_golden_sample: boolean | null; records: number; records_written: number | null;
+  records_mismatch: boolean; copy?: string; seen_at?: string;
 }
-export interface ScoreSummary {
-  eval: string; kind: "hand" | "full"; baseline: BaselineId; version: string; extraction: string;
-  match_rate: number | null; fields: number | null; created_at: string; approved: boolean;
+export interface ScoreBrief {
+  id: string; status: ScoreStatus; golden: string; output: string; created_at: string; error: string | null;
+  human_rate: number | null; rule_rate: number | null; human_values: number | null; rule_values: number | null;
 }
-export interface EvalJob {
-  id: string; kind: string; label: string; status: "running" | "done" | "failed" | "cancelled"; error: string | null;
-  result: { run?: string; eval?: string } | null; started: number; finished: number | null; log: string[];
+export type ScoreStatus = "running" | "done" | "failed" | "interrupted";
+export interface ExtractOutputs {
+  outputs: (ExtractOutput & { scores: ScoreBrief[] })[]; latest_golden: string | null; error: string | null;
+  running: string | null;
 }
-export interface ExtractOptions {
-  source?: string; error?: string; discovery_run_id?: string; sample_pages?: number; course_pages?: number;
-  latest?: { records: number; pages_considered: number; discovery_run_id: string; scope: "sample" | "all" };
+export interface ScoreResult {
+  values: number; exact_match_rate: number | null; outcomes: Record<ScoreOutcome, number>;
+  by_column: Record<string, OutcomeCounts>; implied: Record<string, number>; pages_scored: number;
+  pages_skipped: number; pages_out_of_scope: number; malformed: number; left_out: { stem: string; why: string }[];
 }
-export interface EvalsIndex {
-  extractions: Extraction[]; versions: { id: string; label: string; approved: boolean }[]; scores: ScoreSummary[];
-  extract_options: ExtractOptions; default_ref: string; allow_runs: boolean; jobs: EvalJob[];
+export interface ScoreDoc {
+  id: string; status: ScoreStatus; created_at: string; finished_at: string | null; by: string; reason: string;
+  error: string | null;
+  golden: { id: string; kind: "version" | "human-reviewed" | "draft"; from: string; as_of: string; sha256: string;
+            values?: Record<ScoreBasis, number> };
+  output: ExtractOutput; slot_names: boolean | null; scorer: { xtra_cli_commit: string | null }; commands: string[];
+  columns: string[]; results: Partial<Record<ScoreBasis, ScoreResult | null>>;
 }
-export interface BaselineInfo {
-  baseline: BaselineId; version: string; approved: boolean; from: string | null; records: number; pages: number;
-  fields: number; properties: { property: string; fields: number; ctdl_property: string | null }[];
-  not_scored: { property: string; fields: number; why: string }[]; left_out: { stem: string; why: string }[];
-}
-export interface OutcomeCounts { fields: number; missing: number; wrong: number; partial: number; match: number }
 export interface ScoreRow {
-  key: string; page_stem: string; entity: number; golden_record_id: string | null; courses_on_page: number;
-  property: string; ctdl_property: string; golden_value: string | null; xtra_value: string | null; _o: ScoreOutcome;
-  similarity: number | null; approval: string | null; approved_by: string | null; template_id: string | null;
-  source_url: string | null; golden_css_path: string | null; golden_char_start: number | null; golden_char_end: number | null;
+  key: string; basis: ScoreBasis; column: string; ctdl_property: string; property: string | null;
+  golden_record_id: string | null; page_stem: string; entity: number; outcome: ScoreOutcome; similarity: number | null;
+  golden_value: string | null; extracted_value: string | null; source_url: string | null;
+  golden_css_path: string | null; golden_char_start: number | null; golden_char_end: number | null;
+  approval: string | null; approved_by: string | null; approved_at: string | null;
 }
-export interface ScoreView {
-  eval: { id: string; xtra_run: string; golden: { golden: string; approved: boolean }; commands: string[];
-          summary: Record<string, { left_out: { stem: string; why: string }[] }> };
-  kind: "hand" | "full"; baseline: BaselineId;
-  total: OutcomeCounts & { records: number; match_rate: number | null };
-  properties: (OutcomeCounts & { property: string })[];
-  outcomes: OutcomeCounts;
-  groups: (OutcomeCounts & { value: string })[];
-  group_choices: { id: string; label: string }[];
-  rows: { total: number; offset: number; page: number; items: ScoreRow[] };
+export interface ScoreValues {
+  basis: ScoreBasis; result: ScoreResult | null; total: OutcomeCounts; columns: (OutcomeCounts & { column: string })[];
+  outcomes: OutcomeCounts; rows: { total: number; offset: number; page: number; items: ScoreRow[] };
 }

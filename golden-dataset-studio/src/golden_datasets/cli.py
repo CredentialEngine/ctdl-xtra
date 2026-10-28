@@ -240,36 +240,21 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--to", default=None, help=to_help)
     _cmd(p, "golden_datasets.golden:cmd_golden_backfill")
 
-    # --- Evals -----------------------------------------------------------------------------------------
-    xtra = sub.add_parser("xtra", help="xtra-cli runs the Studio keeps (to evaluate against the golden set)")
-    xsub = xtra.add_subparsers(dest="xtra_command", metavar="ACTION", required=True)
-    p = xsub.add_parser("run", help="run xtra-cli extract at a pinned commit into the Studio's folder, or import the "
-                                    "team's current records/")
+    # --- Evals ---------------------------------------------------------------------------------------
+    p = sub.add_parser("score", help="score xtra's extract output against a golden dataset with xtra's own scorer: the "
+                                     "human-reviewed values and every rule-matched value (kept in scores/sc-NNNN)")
     _root_args(p), _catalog_args(p)
-    p.add_argument("--ref", default="origin/main", help="xtra-cli branch, tag or commit")
-    p.add_argument("--sample", action="store_true", help="only the pages in the golden sample (quick)")
-    p.add_argument("--discovery-run", default=None, help="discovery run to read (default: the newest)")
-    p.add_argument("--import", dest="import_records", action="store_true",
-                   help="don't extract: copy the team's current records/ as a run")
-    p.add_argument("--source", default=None, help="with --import: the xtra-cli output root (default: "
-                                                   "$GOLDEN_DATASETS_XTRA_SOURCE)")
-    p.add_argument("--then-eval", default=None, metavar="GOLDEN", help="score the run straight away against this golden "
-                                                                       "version (published, verified or rs-NNNN)")
-    p.add_argument("--by", default=os.environ.get("GOLDEN_DATASETS_AUTHOR", "Claude"))
-    _cmd(p, "golden_datasets.evals:cmd_xtra_run")
-    ev = sub.add_parser("eval", help="score an xtra run against a golden version (hand-checked and full)")
-    esub = ev.add_subparsers(dest="eval_command", metavar="ACTION", required=True)
-    p = esub.add_parser("run", help="score an xtra run with xtra's own scorer, against the hand-checked and the full "
-                                    "golden")
-    _root_args(p), _catalog_args(p)
-    p.add_argument("--xtra-run", required=True, help="x-NNNN")
-    p.add_argument("--golden", default="published", help="published, verified or rs-NNNN")
-    p.add_argument("--by", default=os.environ.get("GOLDEN_DATASETS_AUTHOR", "Claude"))
-    _cmd(p, "golden_datasets.evals:cmd_eval_run")
-    p = esub.add_parser("show", help="an eval's summary (default: the latest)")
-    _root_args(p), _catalog_args(p)
-    p.add_argument("eval", nargs="?", default=None, help="ev-NNNN")
-    _cmd(p, "golden_datasets.evals:cmd_eval_show")
+    g = p.add_mutually_exclusive_group()
+    g.add_argument("--ruleset", type=int, default=None, metavar="N",
+                   help="the golden dataset ruleset vN (default: the latest)")
+    g.add_argument("--draft", default=None, metavar="rs-NNNN", help="an unpublished extraction, as if it were published")
+    g.add_argument("--human-reviewed", action="store_true",
+                   help="the human-reviewed values as they are now (the latest location's page files)")
+    p.add_argument("--output", default=None, metavar="PATH|ID",
+                   help="the extract output: a copy's id (extract-outputs/<id>), or a folder with records/ and "
+                        "extract-report.json (default: the latest in $GOLDEN_DATASETS_XTRA_SOURCE, copied when new)")
+    p.add_argument("--by", default=os.environ.get("GOLDEN_DATASETS_AUTHOR", "golden-datasets score"))
+    _cmd(p, "golden_datasets.scores:cmd_score")
 
     # --- Local work ------------------------------------------------------------------------------------
     p = sub.add_parser("sync", help="copy Studio files and pages between roots (both directions)")
@@ -297,8 +282,6 @@ def build_parser() -> argparse.ArgumentParser:
                    help="profiles whose run buttons also offer Open the prompt (comma-separated)")
     _target_args(p, prompt=False)
     _crawls_root_args(p)
-    p.add_argument("--allow-runs", action="store_true",
-                   help="let the Evals tab start xtra runs and evals (off by default: the UI may be reachable over ngrok)")
     _cmd(p, "golden_datasets.server.app:cmd_serve")
     p = sub.add_parser("hash-password", help="salt and hash the Studio's shared password, for GOLDEN_DATASETS_PASSWORD_HASH")
     _cmd(p, "golden_datasets.server.auth:cmd_hash_password")

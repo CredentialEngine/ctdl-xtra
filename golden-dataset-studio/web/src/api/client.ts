@@ -1,6 +1,6 @@
 // Thin fetch wrappers for the Studio API. Every tab uses these; they keep URLs in one place.
 import type {
-  BaselineInfo, EvalJob, EvalsIndex, ScoreView,
+  ExtractOutputs, ScoreDoc, ScoreValues,
   CatalogCard, CatalogDetail, CrawledCatalog, FirstRulesPrompt, CompareRecords, CompareResponse, Discussion, CourseDetail, CourseHit, GoldenFileText, GoldenLineage, GoldenResponse,
   NewEvent, Overlay,
   PromptResponse, RuleDetail, RuleSummary, RulesResponse, RowsResponse, UnclassifiedPage,
@@ -85,17 +85,10 @@ export const api = {
     call<{ publication: string; path: string; files: number }>(`${c(catalog)}/golden/publish`, {
       method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
     }),
-  evals: (catalog: string) => call<EvalsIndex>(`${c(catalog)}/evals`),
-  baseline: (catalog: string, baseline: string, version: string) =>
-    call<BaselineInfo>(`${c(catalog)}/evals/baseline${q({ baseline, version })}`),
-  score: (catalog: string, evalId: string, o: { kind: string; property?: string | null; outcome?: string | null;
-                                                group?: string | null; value?: string | null; offset?: number }) =>
-    call<ScoreView>(`${c(catalog)}/evals/${encodeURIComponent(evalId)}${q(o)}`),
-  startExtraction: (catalog: string, body: { source: "extract" | "latest"; ref?: string; scope?: "sample" | "all";
-                                             then_score?: string | null; by: string }) =>
-    call<EvalJob>(`${c(catalog)}/xtra-runs`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }),
-  startScore: (catalog: string, body: { xtra_run: string; golden: string; by: string }) =>
-    call<EvalJob>(`${c(catalog)}/evals`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }),
-  job: (id: string) => call<EvalJob>(`/api/jobs/${encodeURIComponent(id)}`),
-  cancelJob: (id: string) => call<EvalJob>(`/api/jobs/${encodeURIComponent(id)}/cancel`, { method: "POST" }),
+  extractOutputs: (catalog: string) => call<ExtractOutputs>(`${c(catalog)}/extract-outputs`),
+  scoreDoc: (catalog: string, id: string) => call<ScoreDoc>(`${c(catalog)}/scores/${encodeURIComponent(id)}`),
+  scoreValues: (catalog: string, id: string, o: { basis: string; column?: string | null; outcome?: string | null; offset?: number }) =>
+    call<ScoreValues>(`${c(catalog)}/scores/${encodeURIComponent(id)}/values${q(o)}`),
+  startScore: (catalog: string, body: { golden: string; output: string; by: string }) =>
+    call<ScoreDoc>(`${c(catalog)}/scores`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }),
 };

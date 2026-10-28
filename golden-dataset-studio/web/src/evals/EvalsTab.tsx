@@ -1,274 +1,207 @@
-// Evals (docs/qrspi/evals), in `xtra score`'s words: score an extraction against a baseline.
-// Left: the extractions and the baselines (with what each baseline holds). Middle: one score — its match rate, the
-// properties, and the rows, narrowed by a property, an outcome and a group. Right: the saved page of the selected row,
-// with the baseline value at its recorded location and the extracted value where its text is found.
+// Evals (docs/qrspi/evals): xtra's extract outputs scored against a golden dataset, with xtra's own scorer.
+// Left: the extract outputs the Studio has seen, the golden dataset, and the basis (human-reviewed or rule-matched).
+// Middle: one score — its exact-match rate, the columns, and the values, narrowed by a column and an outcome. Right:
+// the saved page of the selected value, with the golden value at its recorded location and the extracted value where
+// its text is found. (Step 4 of the plan replaces this with the spec's §6.3 design.)
 //
-// URL: #/c/<catalog>/evals?x=<extraction>&b=full|hand|verified&v=<rs-NNNN|published>&p=<property>&o=<outcome>
-//      &g=<group by>&gv=<group>&off=<offset>&row=<row key>
+// URL: #/c/<catalog>/evals?x=<output>&g=<golden>&b=human|rule&col=<column>&o=<outcome>&off=<offset>&row=<row key>
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { api } from "../api/client";
-import type { BaselineId, BaselineInfo, EvalJob, EvalsIndex, OutcomeCounts, ScoreOutcome, ScoreRow, ScoreView } from "../api/types";
+import type { ExtractOutputs, OutcomeCounts, ScoreBasis, ScoreDoc, ScoreOutcome, ScoreRow, ScoreValues } from "../api/types";
 import { PagePane, type Highlight } from "../pagepane";
 import { useReviewer } from "../shell/reviewer";
 import { go, href } from "../shell/router";
 import type { TabProps } from "../shell/tabProps";
-import { fmt, fmtDate, Ico, toast, useKeyHints } from "../shell/ui";
+import { fmt, Ico, toast, useKeyHints } from "../shell/ui";
 import { multiline } from "./commands";
 import { wordDiff } from "./diff";
 import "./evals.css";
 
 const OUTCOMES: ScoreOutcome[] = ["missing", "wrong", "partial", "match"];
 const OUTCOME_LABEL: Record<ScoreOutcome, string> = { missing: "missing", wrong: "wrong < 0.8", partial: "partial ≥ 0.8", match: "match" };
-const BASELINES: { id: BaselineId; name: string; what: string }[] = [
-  { id: "full", name: "Full catalog", what: "Every course in the Studio's golden dataset; each value approved by a person or by its rule" },
-  { id: "hand", name: "Hand-checked", what: "Only the values a person confirmed in the Studio" },
-  { id: "verified", name: "Verified container", what: "Pages checked by hand before the Studio (xtra-golden-sets-verified)" },
-];
+const BASES: { id: ScoreBasis; name: string }[] = [{ id: "human", name: "Human-reviewed" }, { id: "rule", name: "Rule-matched" }];
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 const when = (iso: string | null | undefined) => {
   if (!iso) return "";
   const d = new Date(iso);
   return `${d.getDate()} ${MONTHS[d.getMonth()]} ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
 };
-const pct = (x: number | null | undefined) => (x === null || x === undefined ? "–" : `${Math.round(x * 100)}%`);
-const rate = (c: OutcomeCounts) => (c.fields ? c.match / c.fields : null);
+const pct = (x: number | null | undefined) => (x === null || x === undefined ? "–" : `${(x * 100).toFixed(1)}%`);
+const rate = (c: OutcomeCounts) => (c.values ? c.match / c.values : null);
 
 export default function EvalsTab({ catalog, route }: TabProps) {
   const me = useReviewer();
   const cat = catalog.short;
-  const [idx, setIdx] = useState<EvalsIndex | null>(null);
-  const [view, setView] = useState<ScoreView | null>(null);
-  const [info, setInfo] = useState<Record<string, BaselineInfo | null>>({});
+  const [idx, setIdx] = useState<ExtractOutputs | null>(null);
+  const [doc, setDoc] = useState<ScoreDoc | null>(null);
+  const [view, setView] = useState<ScoreValues | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [job, setJob] = useState<EvalJob | null>(null);
-  const [newOpen, setNewOpen] = useState(false);
   const [cmdOpen, setCmdOpen] = useState(false);
 
   const P = route.params;
-  const latest = idx?.scores[0];
-  const x = P.get("x") ?? latest?.extraction ?? idx?.extractions[0]?.id ?? null;
-  const b = (P.get("b") as BaselineId | null) ?? latest?.baseline ?? "full";
-  const v = P.get("v") ?? (latest && latest.baseline !== "verified" ? latest.version : null)
-    ?? idx?.versions.find((g) => g.id !== "published")?.id ?? idx?.versions[0]?.id ?? "";
-  const prop = P.get("p"), outcome = P.get("o") as ScoreOutcome | null, group = P.get("g"), gv = P.get("gv");
+  const x = P.get("x") ?? idx?.outputs[0]?.id ?? null;
+  const output = idx?.outputs.find((o) => o.id === x);
+  const goldens = useMemo(() => [...new Set(["human-reviewed", ...(idx?.latest_golden ? [idx.latest_golden] : []),
+    ...(output?.scores.map((s) => s.golden) ?? [])])], [idx, output]);
+  const g = P.get("g") ?? idx?.latest_golden ?? "human-reviewed";
+  const b = (P.get("b") as ScoreBasis | null) ?? "human";
+  const col = P.get("col"), outcome = P.get("o") as ScoreOutcome | null;
   const offset = +(P.get("off") || 0), rowKey = P.get("row");
   const nav = useCallback((ch: Record<string, string | number | null>, keepRow = false) => {
-    const cur: Record<string, string | number | null> = { x, b, v, p: prop, o: outcome, g: group, gv, off: offset || null, row: keepRow ? rowKey : null };
+    const cur: Record<string, string | number | null> = { x, g, b, col, o: outcome, off: offset || null, row: keepRow ? rowKey : null };
     go(href(cat, "evals", null, { ...cur, ...ch }), true);
-  }, [cat, x, b, v, prop, outcome, group, gv, offset, rowKey]);
+  }, [cat, x, g, b, col, outcome, offset, rowKey]);
 
-  const loadIndex = useCallback(() => api.evals(cat).then((r) => {
-    setIdx(r);
-    const running = r.jobs.find((j) => j.status === "running");
-    if (running) setJob(running);
-  }, (e) => setError(String(e))), [cat]);
+  const loadIndex = useCallback(() => api.extractOutputs(cat).then(setIdx, (e) => setError(String(e))), [cat]);
   useEffect(() => { loadIndex(); }, [loadIndex]);
 
-  // what each baseline holds (for the nav)
+  const brief = output?.scores.find((s) => s.golden === g);
   useEffect(() => {
-    if (!idx || !v) return;
-    for (const bl of BASELINES) {
-      const k = bl.id === "verified" ? "verified" : `${bl.id}@${v}`;
-      if (k in info) continue;
-      setInfo((m) => ({ ...m, [k]: null }));
-      api.baseline(cat, bl.id, v).then((r) => setInfo((m) => ({ ...m, [k]: r })), () => setInfo((m) => ({ ...m, [k]: null })));
-    }
-  }, [idx, v, cat, info]);
-
-  const score = useMemo(() => idx?.scores.find((s) => s.extraction === x && s.baseline === b && (b === "verified" || s.version === v)),
-    [idx, x, b, v]);
-  useEffect(() => {
-    if (!score) { setView(null); return; }
+    if (!brief) { setDoc(null); return; }
     let live = true;
-    api.score(cat, score.eval, { kind: score.kind, property: prop, outcome, group, value: gv, offset })
+    api.scoreDoc(cat, brief.id).then((d) => live && setDoc(d), (e) => live && setError(String(e)));
+    return () => { live = false; };
+  }, [cat, brief]);
+
+  // a running score: poll until it's done, then reload the list
+  useEffect(() => {
+    if (!doc || doc.status !== "running") return;
+    const t = setInterval(() => api.scoreDoc(cat, doc.id).then((d) => {
+      if (d.status === "running") return;
+      setDoc(d);
+      loadIndex();
+      toast(d.status === "done" ? "Scored" : `${d.id}: ${d.status}${d.error ? ` (${d.error})` : ""}`);
+    }), 1500);
+    return () => clearInterval(t);
+  }, [cat, doc, loadIndex]);
+
+  useEffect(() => {
+    if (!doc || doc.status !== "done" || !doc.results[b]) { setView(null); return; }
+    let live = true;
+    api.scoreValues(cat, doc.id, { basis: b, column: col, outcome, offset })
       .then((r) => live && setView(r), (e) => live && setError(String(e)));
     return () => { live = false; };
-  }, [cat, score, prop, outcome, group, gv, offset]);
+  }, [cat, doc, b, col, outcome, offset]);
 
-  useEffect(() => {
-    if (!job || job.status !== "running") return;
-    const t = setInterval(() => api.job(job.id).then((j) => {
-      setJob(j);
-      if (j.status === "running") return;
-      loadIndex();
-      if (j.status === "done") {
-        toast(j.result?.eval ? "xtra score finished" : "Extraction ready");
-        if (j.result?.run) nav({ x: j.result.run, p: null, o: null, gv: null, off: null });
-      } else toast(`${j.label}: ${j.status}${j.error ? ` (${j.error})` : ""}`);
-    }), 1200);
-    return () => clearInterval(t);
-  }, [job, loadIndex, nav]);
-
-  useKeyHints(<span><span className="mono">golden-datasets xtra run</span> · <span className="mono">golden-datasets eval run</span> do the same from the CLI</span>, []);
+  useKeyHints(<span><span className="mono">golden-datasets score</span> does the same from the CLI</span>, []);
 
   if (error) return <div className="doc"><div className="doc-in"><p className="muted">{error}</p></div></div>;
   if (!idx) return <div className="evx" />;
-  const running = job?.status === "running";
-  const extraction = idx.extractions.find((e) => e.id === x);
-  const bl = BASELINES.find((z) => z.id === b)!;
-  const binfo = info[b === "verified" ? "verified" : `${b}@${v}`];
-  const version = idx.versions.find((g) => g.id === v);
-  const golden = b === "verified" ? "verified" : v;
   const row = view?.rows.items.find((r) => r.key === rowKey) ?? null;
-  const start = async (p: Promise<EvalJob>) => { try { setJob(await p); } catch (e) { toast(String(e)); } };
+  const score = async () => {
+    if (!output) return;
+    try { setDoc(await api.startScore(cat, { golden: g, output: output.id, by: me })); loadIndex(); } catch (e) { toast(String(e)); }
+  };
 
   return (
     <div className={`evx ${row ? "with-page" : ""}`}>
       <aside className="evx-nav">
-        <div className="evx-sec-h">Extractions
-          <button className="evx-link" disabled={!idx.allow_runs || running} onClick={() => setNewOpen(true)}
-            title={idx.allow_runs ? "Run xtra-cli extract, or take what it last wrote" : "Start the Studio with --allow-runs to add extractions here"}>+ New</button>
-        </div>
-        <p className="evx-def">What xtra-cli extracted from {catalog.name}'s saved pages (crawl of {fmtDate(catalog.crawl)}). Each run is kept.</p>
-        {idx.extractions.map((e) => (
-          <button key={e.id} className={`evx-item ${e.id === x ? "on" : ""}`} onClick={() => nav({ x: e.id, off: null })}>
-            <span className="evx-item-t">{e.title}</span>
-            <span className="evx-item-d">{e.scope} · {fmt(e.records)} records · {when(e.created_at)}</span>
+        <div className="evx-sec-h">Extract outputs</div>
+        <p className="evx-def">What <span className="mono">xtra catalog extract</span> wrote for {catalog.name}. The Studio keeps a copy of each one it sees.</p>
+        {idx.outputs.map((o) => (
+          <button key={o.id} className={`evx-item ${o.id === x ? "on" : ""}`} onClick={() => nav({ x: o.id, off: null })}>
+            <span className="evx-item-t">{when(o.last_modified)}{o === idx.outputs[0] ? " (latest)" : ""}</span>
+            <span className="evx-item-d">{fmt(o.records)} records{o.records_mismatch ? ` · the report says ${fmt(o.records_written)}` : ""} · {o.scores.length} scores</span>
           </button>
         ))}
-        {!idx.extractions.length && <p className="evx-empty">None yet.</p>}
+        {!idx.outputs.length && <p className="evx-empty">{idx.error ?? "None yet."}</p>}
 
-        <div className="evx-sec-h">Golden dataset baselines</div>
-        <p className="evx-def">What an extraction is compared with: values we trust.</p>
-        <label className="evx-ver" title="Which version of the Studio's golden dataset: an extraction rs-NNNN, or what is published">Studio version
-          <select value={v} onChange={(e) => nav({ v: e.target.value, p: null, o: null, gv: null, off: null })}>
-            {idx.versions.map((g) => <option key={g.id} value={g.id}>{g.id === "published" ? "published" : g.id}{g.approved ? "" : " (unpublished)"}</option>)}
+        <div className="evx-sec-h">Golden dataset</div>
+        <label className="evx-ver">Scored against
+          <select value={g} onChange={(e) => nav({ g: e.target.value, col: null, o: null, off: null })}>
+            {goldens.map((id) => <option key={id} value={id}>{id === "human-reviewed" ? "Human-reviewed values" : id.replace("ruleset-v", "ruleset v")}</option>)}
           </select>
         </label>
-        {BASELINES.map((z) => {
-          const i = info[z.id === "verified" ? "verified" : `${z.id}@${v}`];
-          return (
-            <div key={z.id} className={`evx-bl ${z.id === b ? "on" : ""}`}>
-              <button className="evx-item" onClick={() => nav({ b: z.id, p: null, o: null, gv: null, off: null })}>
-                <span className="evx-item-t">{z.name}</span>
-                <span className="evx-item-x">{z.what}</span>
-                <span className="evx-item-d">{i ? `${fmt(i.records)} records · ${fmt(i.fields)} fields` : "…"}</span>
-              </button>
-              {z.id === b && i && (
-                <ul className="evx-props">
-                  {i.properties.map((p) => <li key={p.property}><span>{p.property}</span><span>{fmt(p.fields)}</span></li>)}
-                  {i.not_scored.map((p) => <li key={p.property} className="off" title={`Not scored: ${p.why}`}><span>{p.property}</span><span>not scored</span></li>)}
-                  {!i.properties.length && <li className="off"><span>No values</span></li>}
-                </ul>
-              )}
-            </div>
-          );
-        })}
+        {BASES.map((z) => (
+          <button key={z.id} className={`evx-item ${z.id === b ? "on" : ""}`} onClick={() => nav({ b: z.id, col: null, o: null, off: null })}>
+            <span className="evx-item-t">{z.name}</span>
+            <span className="evx-item-d">{doc?.golden.values ? `${fmt(doc.golden.values[z.id])} values` : ""}</span>
+          </button>
+        ))}
       </aside>
 
       <section className="evx-main">
-        {job && (running || job.status === "failed") && <JobBar job={job} onCancel={() => api.cancelJob(job.id).then(setJob)} onClose={() => setJob(null)} />}
         <header className="evx-head">
           <div className="evx-title">
-            <span>{extraction?.title ?? "No extraction"}</span>
-            <span className="evx-arrow">compared with</span>
-            <span>{bl.name}{b !== "verified" && version ? ` · ${v}` : ""}</span>
-            {b !== "verified" && version && !version.approved && <span className="evx-tag" title="An extraction that isn't published: its rules may not be approved">unpublished</span>}
+            <span>{output ? `Extract output of ${when(output.last_modified)}` : "No extract output"}</span>
+            <span className="evx-arrow">vs</span>
+            <span>{g === "human-reviewed" ? `Human-reviewed values${doc ? ` · as of ${when(doc.golden.as_of)}` : ""}` : g}</span>
+            {doc?.golden.kind === "draft" && <span className="evx-tag" title="An extraction that isn't published">draft</span>}
           </div>
           <div className="evx-actions">
-            {(score || extraction) && <button className="evx-icon" onClick={() => setCmdOpen(!cmdOpen)} title="Run it yourself"><Ico name="terminal" /></button>}
-            {extraction && <button className="btn" disabled={!idx.allow_runs || running}
-              title={idx.allow_runs ? "Runs xtra score extraction match (exact and partial): every field of this extraction against this golden dataset baseline. A few seconds."
-                : "Start the Studio with --allow-runs to run xtra score here"}
-              onClick={() => start(api.startScore(cat, { xtra_run: extraction.id, golden, by: me }))}>{score ? "Run xtra score again" : "Run xtra score"}</button>}
+            {doc && <button className="evx-icon" onClick={() => setCmdOpen(!cmdOpen)} title="Run it yourself"><Ico name="terminal" /></button>}
           </div>
         </header>
-        {cmdOpen && <Commands extractionCmds={extraction?.commands ?? []} scoreCmds={(view?.eval.commands ?? []).filter((c) => b === "verified" || c.includes(`/baseline/${view?.kind}`))} onClose={() => setCmdOpen(false)} />}
+        {cmdOpen && doc && <Commands doc={doc} onClose={() => setCmdOpen(false)} />}
 
-        {!score && extraction && (
+        {output && (!doc || doc.status === "failed" || doc.status === "interrupted") && (
           <div className="evx-cta">
-            <p><b>Not compared yet.</b> Run <span className="mono">xtra score</span> to compare every field of this extraction with the
-              {" "}{bl.name.toLowerCase()} baseline{b !== "verified" ? ` (${v})` : ""}. It takes a few seconds.</p>
-            {idx.allow_runs
-              ? <button className="btn primary" disabled={running} onClick={() => start(api.startScore(cat, { xtra_run: extraction.id, golden, by: me }))}>Run xtra score</button>
-              : <p className="muted">Start the Studio with <span className="mono">--allow-runs</span>, or run <span className="mono">golden-datasets eval run --xtra-run {extraction.id} --golden {golden}</span>.</p>}
+            <p>{doc ? <><b>{doc.id} {doc.status}.</b> {doc.error}</> : <b>Not scored yet.</b>} Scoring runs <span className="mono">xtra score extraction match</span> on
+              the human-reviewed values and on every rule-matched value. It takes a few seconds.</p>
+            <button className="btn primary" disabled={!!idx.running} onClick={score}>Score</button>
           </div>
         )}
-        {score && view && (
-          <ScoreBody view={view} binfo={binfo} prop={prop} outcome={outcome} group={group} gv={gv} offset={offset}
-            rowKey={rowKey} nav={nav} />
-        )}
+        {doc?.status === "running" && <p className="muted">Scoring ({doc.id})…</p>}
+        {doc?.status === "done" && doc.slot_names && <p className="muted small">{doc.error}</p>}
+        {doc?.status === "done" && !doc.results[b] && <p className="muted">No {b === "human" ? "human-reviewed" : "rule-matched"} values to score in {g}.</p>}
+        {doc?.status === "done" && view && <ScoreBody view={view} col={col} outcome={outcome} offset={offset} rowKey={rowKey} nav={nav} />}
       </section>
 
       {row && <PageSide row={row} catalog={cat} ruleset={catalog.ruleset_version} onClose={() => nav({ row: null }, false)} />}
-      {newOpen && <NewExtraction idx={idx} version={v} onClose={() => setNewOpen(false)}
-        onStart={(body) => { setNewOpen(false); start(api.startExtraction(cat, { ...body, by: me })); }} />}
     </div>
   );
 }
 
 // --- the score ----------------------------------------------------------------------------------------------
-function ScoreBody({ view, binfo, prop, outcome, group, gv, offset, rowKey, nav }: {
-  view: ScoreView; binfo: BaselineInfo | null | undefined; prop: string | null; outcome: ScoreOutcome | null;
-  group: string | null; gv: string | null; offset: number; rowKey: string | null;
+function ScoreBody({ view, col, outcome, offset, rowKey, nav }: {
+  view: ScoreValues; col: string | null; outcome: ScoreOutcome | null; offset: number; rowKey: string | null;
   nav: (ch: Record<string, string | number | null>, keepRow?: boolean) => void;
 }) {
   const t = view.total;
-  const leftOut = view.eval.summary[view.kind]?.left_out ?? [];
-  const missingProps = (binfo?.properties ?? []).filter((p) => !view.properties.some((q) => q.property === p.property));
+  const leftOut = view.result?.left_out ?? [];
+  const implied = Object.keys(view.result?.implied ?? {});
   return (
     <>
       <div className="evx-rate">
-        <b>{pct(t.match_rate)}</b>
-        <span>match rate</span>
-        <span className="muted">{fmt(t.match)} of {fmt(t.fields)} fields match · {fmt(t.records)} records</span>
+        <b>{pct(view.result?.exact_match_rate)}</b>
+        <span>exact matches</span>
+        <span className="muted">{fmt(t.match)} of {fmt(t.values)} values</span>
       </div>
       {leftOut.length > 0 && <p className="muted small">{leftOut.length} pages left out: {leftOut[0].why}.</p>}
 
       <table className="evx-props-t">
         <tbody>
-          <PropRow name="All properties" c={t} on={!prop} onClick={() => nav({ p: null, off: null })} />
-          {view.properties.map((p) => <PropRow key={p.property} name={p.property} c={p} on={prop === p.property}
-            onClick={() => nav({ p: prop === p.property ? null : p.property, off: null })} />)}
-          {missingProps.map((p) => <tr key={p.property} className="off"><td>{p.property}</td><td colSpan={3} className="muted">not in this group</td></tr>)}
+          <PropRow name="All columns" c={t} on={!col} onClick={() => nav({ col: null, off: null })} />
+          {view.columns.map((p) => <PropRow key={p.column} name={p.column} c={p} on={col === p.column}
+            onClick={() => nav({ col: col === p.column ? null : p.column, off: null })} />)}
+          {implied.map((p) => <tr key={p} className="off"><td>{p}</td><td colSpan={3} className="muted">not scored: implied, not read from the page</td></tr>)}
         </tbody>
       </table>
       <Legend />
 
       <div className="evx-controls">
         <div className="seg">
-          <button className={!outcome ? "on" : ""} onClick={() => nav({ o: null, off: null })}>All <span>{fmt(view.outcomes.fields)}</span></button>
+          <button className={!outcome ? "on" : ""} onClick={() => nav({ o: null, off: null })}>All <span>{fmt(view.outcomes.values)}</span></button>
           {OUTCOMES.map((o) => (
             <button key={o} className={outcome === o ? "on" : ""} disabled={!view.outcomes[o]} onClick={() => nav({ o: outcome === o ? null : o, off: null })}>
               <i className={`sw o-${o}`} />{o} <span>{fmt(view.outcomes[o])}</span>
             </button>
           ))}
         </div>
-        <label className="evx-group">Group by
-          <select value={group ?? ""} onChange={(e) => nav({ g: e.target.value || null, gv: null, off: null })}>
-            <option value="">nothing</option>
-            {view.group_choices.map((g) => <option key={g.id} value={g.id}>{g.label}</option>)}
-          </select>
-        </label>
       </div>
-
-      {group && (
-        <div className="evx-groups">
-          {gv !== null && <button className="evx-chip" onClick={() => nav({ gv: null, off: null })}>{view.group_choices.find((g) => g.id === group)?.label}: {gv} ✕</button>}
-          {gv === null && <p className="muted small">Worst first: the share of fields that don't match{prop ? ` (${prop})` : ""}. Click a group to see its rows.</p>}
-          {gv === null && view.groups.slice(0, 12).map((g) => (
-            <button key={g.value} className="evx-grow" onClick={() => nav({ gv: g.value, off: null })}>
-              <span className="evx-grow-n">{g.value}</span>
-              <Bar c={g} />
-              <span className="evx-grow-r">{pct(1 - (rate(g) ?? 0))} don't match <span className="muted">of {fmt(g.fields)}</span></span>
-            </button>
-          ))}
-          {gv === null && view.groups.length > 12 && <p className="muted small">and {view.groups.length - 12} more groups</p>}
-        </div>
-      )}
 
       <div className="evx-rows">
         {view.rows.items.map((r) => (
           <button key={r.key} className={`evx-row ${r.key === rowKey ? "on" : ""}`} onClick={() => nav({ row: r.key }, true)}>
-            <i className={`sw o-${r._o}`} title={r._o} />
+            <i className={`sw o-${r.outcome}`} title={r.outcome} />
             <span className="evx-row-c">{r.golden_record_id ?? r.page_stem}</span>
-            <span className="evx-row-p">{r.property}</span>
-            <span className="evx-row-v">{r._o === "missing" ? <span className="muted">nothing extracted · baseline: {r.golden_value}</span>
-              : r._o === "match" ? r.golden_value : r.xtra_value}</span>
-            <span className="evx-row-s">{r._o === "partial" || r._o === "wrong" ? r.similarity?.toFixed(2) : ""}</span>
+            <span className="evx-row-p">{r.column}</span>
+            <span className="evx-row-v">{r.outcome === "missing" ? <span className="muted">nothing extracted · golden: {r.golden_value}</span>
+              : r.outcome === "match" ? r.golden_value : r.extracted_value}</span>
+            <span className="evx-row-s">{r.outcome === "partial" || r.outcome === "wrong" ? r.similarity?.toFixed(2) : ""}</span>
           </button>
         ))}
-        {!view.rows.items.length && <p className="muted">No fields here.</p>}
+        {!view.rows.items.length && <p className="muted">No values here.</p>}
       </div>
       {view.rows.total > view.rows.page && (
         <div className="evx-pager">
@@ -287,7 +220,7 @@ function PropRow({ name, c, on, onClick }: { name: string; c: OutcomeCounts; on:
       <td>{name}</td>
       <td className="evx-barcell"><Bar c={c} /></td>
       <td className="r"><b>{pct(rate(c))}</b></td>
-      <td className="r muted">{fmt(c.fields)}</td>
+      <td className="r muted">{fmt(c.values)}</td>
     </tr>
   );
 }
@@ -296,7 +229,7 @@ function Bar({ c }: { c: OutcomeCounts }) {
   return (
     <span className="evx-bar" role="img" aria-label={OUTCOMES.map((o) => `${o} ${c[o]}`).join(", ")}>
       {OUTCOMES.filter((o) => c[o] > 0).map((o) => (
-        <i key={o} className={`o-${o}`} style={{ flexGrow: c[o] }} title={`${OUTCOME_LABEL[o]}: ${fmt(c[o])} of ${fmt(c.fields)}`} />
+        <i key={o} className={`o-${o}`} style={{ flexGrow: c[o] }} title={`${OUTCOME_LABEL[o]}: ${fmt(c[o])} of ${fmt(c.values)}`} />
       ))}
     </span>
   );
@@ -306,130 +239,61 @@ function Legend() {
   return <div className="evx-legend">{OUTCOMES.map((o) => <span key={o}><i className={`sw o-${o}`} />{OUTCOME_LABEL[o]}</span>)}</div>;
 }
 
-// --- the page of the selected row ---------------------------------------------------------------------------
+// --- the page of the selected value -------------------------------------------------------------------------
 function PageSide({ row, catalog, ruleset, onClose }: { row: ScoreRow; catalog: string; ruleset: number; onClose: () => void }) {
   const highlights = useMemo<Highlight[]>(() => {
     const h: Highlight[] = [];
-    if (row.golden_css_path) h.push({ id: "baseline", kind: "expected", cssPath: row.golden_css_path,
+    if (row.golden_css_path) h.push({ id: "golden", kind: "expected", cssPath: row.golden_css_path,
       charStart: row.golden_char_start, charEnd: row.golden_char_end, text: row.golden_value });
-    if (row.xtra_value && row._o !== "match") {
-      h.push({ id: "extracted", kind: "mark", cssPath: "body", text: row.xtra_value });
-      if (row.xtra_value.length > 90) h.push({ id: "extracted-start", kind: "mark", cssPath: "body", text: row.xtra_value.slice(0, 80) });
+    if (row.extracted_value && row.outcome !== "match") {
+      h.push({ id: "extracted", kind: "mark", cssPath: "body", text: row.extracted_value });
+      if (row.extracted_value.length > 90) h.push({ id: "extracted-start", kind: "mark", cssPath: "body", text: row.extracted_value.slice(0, 80) });
     }
     return h;
   }, [row]);
-  const parts = useMemo(() => (row._o === "partial" || row._o === "wrong") ? wordDiff(row.golden_value ?? "", row.xtra_value ?? "") : null, [row]);
+  const parts = useMemo(() => (row.outcome === "partial" || row.outcome === "wrong") ? wordDiff(row.golden_value ?? "", row.extracted_value ?? "") : null, [row]);
   return (
     <section className="evx-page">
       <header className="evx-page-h">
         <div>
-          <b>{row.golden_record_id}</b> · {row.property}
-          <span className="evx-out"><i className={`sw o-${row._o}`} />{row._o}{row.similarity !== null && row._o !== "match" ? ` · ${row.similarity.toFixed(2)}` : ""}</span>
+          <b>{row.golden_record_id}</b> · {row.column}
+          <span className="evx-out"><i className={`sw o-${row.outcome}`} />{row.outcome}{row.similarity !== null && row.outcome !== "match" ? ` · ${row.similarity.toFixed(2)}` : ""}</span>
         </div>
         <a href={href(catalog, "records", row.golden_record_id)} className="muted small">Open in Records →</a>
         <button className="evx-icon" onClick={onClose} title="Close">✕</button>
       </header>
       <div className="evx-vals">
-        <div><span className="evx-k"><i className="sw base" />Baseline value</span><div className="evx-v">{row.golden_value}</div></div>
+        <div><span className="evx-k"><i className="sw base" />Golden value</span><div className="evx-v">{row.golden_value}</div></div>
         <div><span className="evx-k"><i className="sw xtra" />Extracted value</span>
-          <div className="evx-v">{row._o === "missing" ? <span className="muted">nothing extracted</span>
+          <div className="evx-v">{row.outcome === "missing" ? <span className="muted">nothing extracted</span>
             : parts ? parts.map((p, i) => p.op === "del" ? <del key={i}>{p.text}</del> : p.op === "ins" ? <ins key={i}>{p.text}</ins> : <span key={i}>{p.text}</span>)
-            : row.xtra_value}</div>
-          {parts && <div className="muted small">struck: in the baseline, not extracted · green: extracted, not in the baseline</div>}</div>
+            : row.extracted_value}</div>
+          {parts && <div className="muted small">struck: in the golden dataset, not extracted · green: extracted, not in the golden dataset</div>}</div>
       </div>
       <div className="evx-pane">
         <PagePane catalog={catalog} tabs={[{ stem: row.page_stem, url: row.source_url ?? "", title: row.golden_record_id ?? row.page_stem }]}
-          activeStem={row.page_stem} onActivate={() => {}} highlights={highlights} focusId={row.golden_css_path ? "baseline" : "extracted"}
+          activeStem={row.page_stem} onActivate={() => {}} highlights={highlights} focusId={row.golden_css_path ? "golden" : "extracted"}
           ruleset={ruleset}
-          legend={<span className="evx-pane-legend"><span><i className="sw base" />baseline value{row.golden_css_path ? "" : " (no location: a constant or the URL)"}</span>
-            {row.xtra_value && row._o !== "match" && <span><i className="sw xtra" />extracted value, where its text is on the page</span>}</span>} />
+          legend={<span className="evx-pane-legend"><span><i className="sw base" />golden value</span>
+            {row.extracted_value && row.outcome !== "match" && <span><i className="sw xtra" />extracted value, where its text is on the page</span>}</span>} />
       </div>
     </section>
   );
 }
 
-// --- runs ---------------------------------------------------------------------------------------------------
-function JobBar({ job, onCancel, onClose }: { job: EvalJob; onCancel: () => void; onClose: () => void }) {
-  const [log, setLog] = useState(false);
-  return (
-    <div className={`evx-job ${job.status}`}>
-      <span className={`evx-dot ${job.status}`} />
-      <b>{job.label}</b>
-      <span className="evx-job-l">{job.status === "running" ? job.log[job.log.length - 1] ?? "starting…" : job.error ?? job.status}</span>
-      <button className="evx-link" onClick={() => setLog(!log)}>{log ? "hide log" : "log"}</button>
-      {job.status === "running" ? <button className="evx-link" onClick={onCancel}>cancel</button> : <button className="evx-link" onClick={onClose}>✕</button>}
-      {log && <pre className="evx-log">{job.log.join("\n")}</pre>}
-    </div>
-  );
-}
-
-function Commands({ extractionCmds, scoreCmds, onClose }: { extractionCmds: string[]; scoreCmds: string[]; onClose: () => void }) {
-  const all = [...extractionCmds, ...scoreCmds].map(multiline);
+function Commands({ doc, onClose }: { doc: ScoreDoc; onClose: () => void }) {
+  const all = doc.commands.map(multiline);
   const azure = all.some((c) => c.includes("azure://"));
   const text = [...(azure ? ["az login", 'export AZURE_STORAGE_CONNECTION_STRING="$(az storage account show-connection-string \\\n  -n ceteststorage --query connectionString -o tsv)"'] : []), ...all].join("\n\n");
   return (
     <div className="evx-cmds">
-      <div className="evx-cmds-h"><Ico name="terminal" /> Run it yourself
+      <div className="evx-cmds-h"><Ico name="terminal" /> Run it yourself (rule-matched values)
         <span className="grow" />
         <button className="evx-icon" onClick={onClose} title="Close">✕</button>
       </div>
       <div className="evx-code">
-        <pre>{text || "# nothing to show: this extraction was copied from xtra-cli-output"}</pre>
+        <pre>{text || "# a draft has no files for xtra score to read"}</pre>
         {text && <button className="evx-copy" onClick={() => navigator.clipboard.writeText(text).then(() => toast("Copied"))} title="Copy"><Ico name="copy" />Copy</button>}
-      </div>
-    </div>
-  );
-}
-
-function NewExtraction({ idx, version, onClose, onStart }: {
-  idx: EvalsIndex; version: string; onClose: () => void;
-  onStart: (b: { source: "extract" | "latest"; ref?: string; scope?: "sample" | "all"; then_score?: string | null }) => void;
-}) {
-  const o = idx.extract_options;
-  const [source, setSource] = useState<"extract" | "latest">("extract");
-  const [ref, setRef] = useState(idx.default_ref);
-  const [scope, setScope] = useState<"sample" | "all">("sample");
-  const [then, setThen] = useState<string>(version);
-  return (
-    <div className="evx-modal-bg" onClick={onClose}>
-      <div className="evx-modal" onClick={(e) => e.stopPropagation()}>
-        <h2>New extraction</h2>
-        <label className={`evx-opt ${source === "extract" ? "on" : ""}`}>
-          <input type="radio" checked={source === "extract"} onChange={() => setSource("extract")} />
-          <div>
-            <b>Run xtra-cli extract</b>
-            <p className="muted">Runs <span className="mono">xtra catalog extract --with-template</span> on the saved pages, into the Studio's own folder.</p>
-            {source === "extract" && (
-              <div className="evx-opt-body">
-                <label>Code <input className="mono" value={ref} onChange={(e) => setRef(e.target.value)} size={32} /> <span className="muted small">branch, tag or commit</span></label>
-                <div className="evx-scope">
-                  <label><input type="radio" checked={scope === "sample"} onChange={() => setScope("sample")} /> Review sample: {o.sample_pages ?? "the"} pages discovery picked for review <span className="muted">· about 10 s</span></label>
-                  <label><input type="radio" checked={scope === "all"} onChange={() => setScope("all")} /> All course pages{o.course_pages ? `: ${fmt(o.course_pages)} pages` : ""} <span className="muted">· about 8 min</span></label>
-                </div>
-              </div>
-            )}
-          </div>
-        </label>
-        <label className={`evx-opt ${source === "latest" ? "on" : ""}`}>
-          <input type="radio" checked={source === "latest"} onChange={() => setSource("latest")} disabled={!o.latest} />
-          <div>
-            <b>Use xtra-cli's latest extraction</b>
-            <p className="muted">{o.latest
-              ? <>Copies the <span className="mono">records/</span> xtra-cli last wrote for this crawl: {fmt(o.latest.records)} records from {o.latest.scope === "sample" ? "the review sample" : "all course pages"}. Nothing is extracted.</>
-              : "xtra-cli hasn't written records/ for this crawl."}</p>
-          </div>
-        </label>
-        <label className="evx-then">Then score it against
-          <select value={then} onChange={(e) => setThen(e.target.value)}>
-            <option value="">nothing yet</option>
-            {idx.versions.map((g) => <option key={g.id} value={g.id}>Full catalog and hand-checked · {g.id}</option>)}
-            <option value="verified">Verified container</option>
-          </select>
-        </label>
-        <div className="evx-modal-f">
-          <button className="btn" onClick={onClose}>Cancel</button>
-          <button className="btn primary" onClick={() => onStart({ source, ref, scope, then_score: then || null })}>Start</button>
-        </div>
       </div>
     </div>
   );

@@ -13,7 +13,11 @@ dependencies = [
   "duckdb>=1.1",
   "httpx>=0.27",
   "azure-storage-blob>=12.19",
+  "xtra-cli",  # xtra's scorer, called in-process (Evals spec §3.3)
 ]
+
+[tool.uv.sources]
+xtra-cli = { path = "../xtra-cli", editable = true }
 
 [dependency-groups]
 dev = ["pytest>=8", "ruff>=0.6"]

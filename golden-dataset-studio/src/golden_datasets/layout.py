@@ -5,7 +5,7 @@
                                           agent-runs/}
     <root>/<catalog>/<crawl>/{crawl.json, pages/}                                  read-only (xtra-cli)
     <root>/<catalog>/<crawl>/golden-dataset-studio/{pages.parquet, assets/, extractions/<id>/, golden/ruleset-vN/,
-                                                   scores/pending.json}
+                                                   scores/{pending.json, sc-NNNN/}, extract-outputs/<id>/}
 """
 
 from __future__ import annotations
@@ -91,6 +91,20 @@ def golden_dir(catalog: str, crawl: str, publication: str) -> str:
 def pending_score(catalog: str, crawl: str) -> str:
     """{due_at, reason}: a score due 5 minutes after the last review (Evals spec §4.3)."""
     return f"{crawl_dir(catalog, crawl)}/scores/pending.json"
+
+
+def scores_dir(catalog: str, crawl: str) -> str:
+    return f"{crawl_dir(catalog, crawl)}/scores"
+
+
+def score_dir(catalog: str, crawl: str, score: str) -> str:
+    """score.json and values.parquet (Evals spec §4)."""
+    return f"{scores_dir(catalog, crawl)}/{score}"
+
+
+def extract_output_dir(catalog: str, crawl: str, output: str) -> str:
+    """The Studio's copy of one extract output: records/ and extract-report.json (Evals spec §3.1)."""
+    return f"{crawl_dir(catalog, crawl)}/extract-outputs/{output}"
 
 
 EXTRACTION_TABLES = ("page_labels", "occurrences", "matches", "signals")

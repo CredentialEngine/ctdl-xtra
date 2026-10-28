@@ -30,6 +30,7 @@ import subprocess
 import tempfile
 import threading
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -53,6 +54,7 @@ def cache_home() -> Path:
 class Stat:
     etag: str
     size: int
+    modified: datetime | None = None  # last modified (UTC)
 
 
 def _clean(path: str) -> str:
@@ -161,7 +163,8 @@ class LocalRoot(Root):
             st = self._p(path).stat()
         except FileNotFoundError:
             return None
-        return Stat(self._etag(st), st.st_size) if not self._p(path).is_dir() else None
+        return Stat(self._etag(st), st.st_size, datetime.fromtimestamp(st.st_mtime, UTC)) \
+            if not self._p(path).is_dir() else None
 
     def read_from(self, path: str, offset: int) -> bytes:
         try:
@@ -331,7 +334,7 @@ class AzureRoot(Root):
             props = self._blob(path).get_blob_properties()
         except ResourceNotFoundError:
             return None
-        return Stat(props.etag, props.size)
+        return Stat(props.etag, props.size, props.last_modified)
 
     def read_from(self, path: str, offset: int) -> bytes:
         from azure.core.exceptions import HttpResponseError, ResourceNotFoundError
