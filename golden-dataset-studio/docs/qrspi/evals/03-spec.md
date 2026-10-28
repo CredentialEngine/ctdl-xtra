@@ -115,11 +115,13 @@ POC's design ([`poc.md`](poc.md)). **Mockups (§6) come first: review them befor
     reads:
 
     ```
-    xtra-golden-sets/versions/<catalog>/v3/<catalog>/<crawl>/<stem>/<stem>.json
+    xtra-golden-sets/catalogs/<catalog>/versions/v3/<catalog>/<crawl>/<stem>/<stem>.json
     ```
 
+    The catalog is the outer level and versions sit inside it (Eric, 2026-10-28). `xtra score` always reads
+    `{baseline-uri}/{catalog}/{crawl}/{stem}/{stem}.json`, which is why the catalog appears again inside the version.
     So an engineer can score against any version with the standard command (`--baseline-uri
-    …/xtra-golden-sets/versions/<catalog>/v3`).
+    …/xtra-golden-sets/catalogs/<catalog>/versions/v3`).
   - **`xtra-golden-sets/<catalog>/<crawl>/`** keeps holding the latest version, replaced whole, never merged. Readers
     of the current location keep working.
   - **The Studio also keeps a Parquet copy,** `golden/<pub>/golden.parquet` (one row per value, about 1 MB for AVC), so
@@ -216,7 +218,4 @@ catalogs' are illustrative. **M2 and M3 are illustrative too:** they show AVC as
 
 ## 8. Open questions
 
-Resolved on 2026-10-28 (§1, rows 16–21). One small one remains:
-
-1. **Path of the versioned folders:** OK to use `xtra-golden-sets/versions/<catalog>/v3/…`? The extra `<catalog>`
-   level is there so the standard `--baseline-uri` works unchanged.
+None. Every question was resolved on 2026-10-28 (§1, rows 16–21, and the versioned path in §4.1).
