@@ -1,0 +1,60 @@
+/* Home: the catalogs table (Evals spec §6.1, §6.2). No card: row lines only; angled column headers keep rows compact. */
+.picker-in.ctab-page { max-width: 1180px; padding-top: 40px; }
+.ctab-page .picker-head { justify-content: flex-start; margin-bottom: 14px; }
+.ctab-page .picker-head .seg button { padding: 5px 12px; font-size: 12.5px; }
+.ctab-title { font-weight: 600; font-size: 14px; margin-top: 2px; }
+.ctab-basis { margin: 6px 0 2px; }
+
+.ctab { border-collapse: separate; border-spacing: 0; font-size: 13px; margin-right: 150px; }
+.ctab td { padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+.ctab th { height: 110px; vertical-align: bottom; padding: 0 0 8px; font-weight: 500; color: var(--muted); font-size: 12px;
+           border-bottom: 1px solid var(--line); text-align: left; white-space: nowrap; }
+.ctab th.plain { padding: 0 10px 8px; }
+.ctab th.plain .evx-basis-pill { display: table; margin-top: 3px; }
+.ctab th.rot { width: 38px; min-width: 38px; position: relative; }
+.ctab th.rot span { position: absolute; left: 18px; bottom: 10px; transform-origin: 0 100%; transform: rotate(-55deg); }
+.ctab th.ext span { color: var(--faint); }
+
+.ctab td.logo { width: 56px; padding-right: 0; }
+.ctab td.logo img { width: 44px; height: 28px; object-fit: contain; display: block; }
+.ctab tr.off td.logo img { filter: grayscale(1); opacity: .6; }
+.ctab td.act { width: 1%; white-space: nowrap; padding-left: 0; }
+.ctab td.name { width: 150px; max-width: 150px; }
+.ctab .nm { display: block; font-weight: 600; line-height: 1.3; text-wrap: balance; overflow-wrap: break-word; }
+.ctab tr.off .nm { color: var(--ink-2); }
+.ctab .btn.sm { padding: 2px 9px; font-size: 12px; white-space: nowrap; flex: none; text-decoration: none; color: var(--ink); display: inline-flex; align-items: center; gap: 5px; }
+.ctab .btn.sm svg { width: 13px; height: 13px; }
+.ctab .btn.sm .ico { display: inline-flex; }
+.ctab td.date { white-space: nowrap; color: var(--muted); width: 100px; font-variant-numeric: tabular-nums; }
+.ctab td.c { text-align: center; padding: 8px 4px; }
+.ctab td.c .ico { display: inline-flex; vertical-align: middle; }
+.ctab td.c .ico svg { width: 17px; height: 17px; display: block; }
+.ctab td.c .evx-tipw { display: inline-flex; width: auto; }
+.ctab td.why { font-size: 12.5px; }
+.ctab tr.failed td.why { color: var(--red, #b42318); }
+.ctab td.ext { background: rgba(16, 24, 40, .025); }
+
+/* xtra score */
+.ctab td.rate { width: 1%; white-space: nowrap; font-size: 12.5px; padding-right: 4px; }
+.ctab td.ratebar { width: 130px; min-width: 110px; padding-left: 4px; }
+.ctab td.ratebar .evx-tipw { display: flex; }
+/* every bar the same height: the overall bar and the columns' */
+.ctab td.ratebar .evx-bar { height: 6px; }
+.ctab .pct { font-variant-numeric: tabular-nums; font-weight: 600; font-size: 12.5px; }
+.ctab .cnt { display: block; font-size: 11px; color: var(--muted); font-weight: 400; font-variant-numeric: tabular-nums; }
+.ctab td.sc .sc-in { display: flex; flex-direction: column; align-items: center; cursor: default; outline: none; }
+.ctab .cellbar { display: flex; gap: 1px; height: 6px; width: 30px; margin: 3px auto 2px; }
+.ctab .cellbar i:first-child { border-radius: 2px 0 0 2px; } .ctab .cellbar i:last-child { border-radius: 0 2px 2px 0; }
+.ctab td.ns { font-size: 11px; }
+
+.ctab-legend { display: flex; gap: 18px; font-size: 12px; color: var(--ink-2); margin-top: 10px; align-items: center; flex-wrap: wrap; }
+.ctab-legend > span { display: inline-flex; align-items: center; gap: 6px; }
+.ctab-legend .ico svg { width: 15px; height: 15px; display: block; }
+.ctab-legend b.faint { font-weight: 400; font-size: 15px; }
+
+/* Golden dataset: per column a small KaTeX fraction (expert-reviewed + rule-labelled over the values found), one line */
+.ctab td.frac { white-space: nowrap; padding: 6px 5px; }
+.ctab .fr { outline: none; cursor: default; }
+.ctab .fr .katex, .ctab-legend .fr .katex { font-size: 10.5px; }
+.ctab td.frac.in-review .fr { color: var(--ink-2); }
+.ctab td.frac.needs-work .fr { color: var(--red, #b42318); }

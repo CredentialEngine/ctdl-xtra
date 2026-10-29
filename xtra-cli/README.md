@@ -299,6 +299,25 @@ remembered too, so a redirect chain is not walked twice.
 Links come from the `href` of `a`, `area`, and `link rel=next` in the
 rendered HTML.
 
+A Coursedog catalog shows its courses and programs 20 to a page, and its
+page numbers are buttons, not links, so following links alone stops after
+the first 20 of each list. The crawler reads those buttons as the addresses
+they stand for, `/courses?page=2` and so on, and checks the site answers
+them before relying on it:
+
+- the first page of a list queues its second page;
+- a page that opens as the page its address asks for queues every page
+  after it, up to the last;
+- a list that shows another page than the one asked for costs that one
+  page and a `LIST` warning, and nothing more of it is queued.
+
+List pages go ahead of the links of the page that leads to them. They are
+links like any other, so `--include-regex` and `--exclude-regex` apply to
+them. Coursedog also rewrites `/courses` to `/courses?page=1&cq=` once the
+list is up, and that address must pass the regexes too: narrow a test run
+with `--include-regex "/courses"`, not `"/courses/"`, or the list page is
+skipped as `redirect_out_of_scope`.
+
 A response that is not `text/html` or `application/xhtml+xml`, and a
 navigation that starts a download, are skipped with reason `non_html`. A
 redirect that lands off the site is skipped with reason
@@ -307,7 +326,7 @@ redirect that lands off the site is skipped with reason
 The frontier starts from `--url`, then the same-host URLs in `/sitemap.xml`
 and in any `Sitemap:` line of `robots.txt`, then every line of
 `--seed-urls-file`, then the links found on the pages themselves in document
-order. That order is recorded as `frontier_order` in `crawl.json`. The
+order, with a Coursedog list's next pages first. That order is recorded as `frontier_order` in `crawl.json`. The
 sitemap is the site's own index of its content pages, so a limited run
 reaches real content first and a full run ends up with the same pages either
 way. A resume reorders what it reads back the same way, so sitemap URLs do
@@ -348,8 +367,15 @@ RETRY https://catalog.example.edu/english/engl102 attempt 2 of 6 after HTTP 429,
 FAIL https://catalog.example.edu/english/engl103 after 6 attempts: HTTP 503
 SKIP https://catalog.example.edu/private/x reason=robots
 FROM-STORAGE https://catalog.example.edu/english/engl101 (already saved, no GET)
+LIST https://catalog.example.edu/courses is page 1 of 137; queued page 2 to check the list opens by page number
+LIST https://catalog.example.edu/courses?page=2 opened as page 2 of 137; queued 135 more page(s) of the list
 PROGRESS saved=120 failed=2 skipped=340 frontier=880 elapsed=06:01:10 eta=44:00:00
 ```
+
+A `LIST` WARNING says when a Coursedog list cannot be paged further: the
+site showed another page than the one asked for, the page was saved before
+its list loaded (`Loading results...`), no button marks the page on screen,
+or the list has more than 1,000 pages and only that many are queued.
 
 `bytes` is the size of the saved HTML in UTF-8. `latency_ms` runs from
 navigation start to the HTML being in hand. The path is the full URI of the
@@ -477,7 +503,7 @@ subject, and only a competency list rides along with it.
 
 | Label | CTDL class | Fires when |
 | --- | --- | --- |
-| `Course` | `ceterms:Course` | at least one course block, with the code in the title, the `h1`, or the heading lines of the page's own content; or one or more course descriptions the platform marked up, on a page that is not printing its own requirements; or two or more course blocks on such a page; or three or more course codes under a `/courses/` path |
+| `Course` | `ceterms:Course` | at least one course block, with the code in the title, the `h1`, or the heading lines of the page's own content, unless that code is one the page only cites; or one or more course descriptions the platform marked up, on a page that is not printing its own requirements; or two or more course blocks on such a page; or three or more course codes under a `/courses/` path, on a page with no course block |
 | `Credential` | `ceterms:Credential` | the page's name names one award; or the page prints its own requirements and names the award beside its name, in a section heading, after "Degrees Conferred", or in its first paragraph; failing both, a program or award URL segment plus an award the page names, then the URL segment alone |
 | `LearningOpportunity` | `ceterms:LearningProgram` | the page prints its own requirements and names no award (a minor, a pre-professional track, a non-credit program, a "Program (not a degree)"); or a program URL segment such as `/programs/…`, `/majors/…`, `/programs-by-program/…`, or `preview_program.php` and nothing else |
 | `Competency` | `ceasn:Competency` | a lead-in that names or introduces learning outcomes ("Student Learning Outcomes", "Upon completion of this program students will be able to:") followed directly by two or more outcomes, in list items or as lines that open with an action verb or "An ability to" |
@@ -488,6 +514,16 @@ credits, units, or hours value within 400 characters of it: a code on its
 own is a cross-reference; a code with a value is the course being
 described. Codes inside a requirement list or a course-reference link are
 never counted, however they are printed.
+
+Once a page prints any such course as a title — its code opening the line,
+in the page's own text — only those count. A code after a label or inside
+a sentence ("Prerequisite: Completion of AM 135A.", "Formerly ENGL 103") is
+a cross-reference, however close a credits field sits below it; a page
+that titles no course is counted as before. And a code the page prints only
+outside its main container is the site's, not the page's: eLumen prints
+its whole catalog menu beside `<main>` on every page, and before this every
+page at Antelope Valley read as describing six courses or more, so
+extraction skipped all of them.
 
 Before the tree reading, a whole catalog could be missed on the printed
 form alone. A CourseLeaf graduate subject page numbers its courses with
@@ -730,6 +766,43 @@ those needs no rule per college, and it is the only way the three entities
 beside `Course` are read at all: the templates are course templates, and a
 credential page has no course block for them to find.
 
+eLumen labels none of a course's fields. It prints a heading group — the
+name, a heading that is nothing but the code (`ELEC 150:`), the units on a
+line of their own (`4.0 Units`) — and its hours as a heading over a number
+("Total Course Lecture Hours", 54.0), so those two shapes are read as well.
+A description is the whole first paragraph, not its first 600 characters.
+
+Credits keep the word they are counted in. Every reading above writes the
+unit printed with the number as `course_credits_unit`: `Units` from eLumen's
+`4.0 Units`, `UNITS` at Bakersfield, `Hours` from CourseLeaf's `3 Hours.`,
+`Credit Hours` from a field labelled that way. The unit always comes from
+the same reading as the credits, or not at all, and the record keeps the
+word as printed, not as a `creditUnit:` concept, under
+`ceterms:creditUnitType` beside `ceterms:creditValue`. Transform's mapping
+writes the two as one `ceterms:ValueProfile` — `schema:value`, or
+`schema:minValue` and `schema:maxValue` for a printed range — with the word
+in its `ceterms:creditUnitType`. The college templates do not read the unit.
+
+The prerequisite is read the same way, wherever a page prints it:
+- a labelled field: `Prerequisite(s)` and `Prereqs` count too;
+- a bold label with the value on the same line (Acalog, CourseLeaf's `courseblockreqs`, CurriQunet, WordPress);
+- a heading or bold label with the value under it (SmartCatalog, Drupal, eLumen's requisites list), including in a sidebar inside the page's own content (Arapahoe's `<aside>`);
+- a `Prerequisite:` line, including the run of requisites AVC opens a description with.
+
+The record keeps the text after the label, as printed, as
+`ceterms:prerequisite`. There is one per course: the first the page prints.
+Alternatives an eLumen list joins with OR stay together ("ACCT451A - … OR
+ACCT1A - …"). Clean Catalog's "Prerequisite Courses" list is used only when
+nothing else names a prerequisite.
+
+Some things are not read as a prerequisite:
+- `None`, `N/A` and `No prerequisites` mean there is no prerequisite, so the field is left out.
+- A label naming both relations (`Prerequisite/Corequisite`, `Prerequisite and/or Corequisite`) gives nothing: the course may be taken alongside.
+- Corequisites, advisories and recommended preparation are never read as one.
+
+A description that prints the prerequisite keeps it: AVC's descriptions are
+unchanged. The college templates read prerequisites their own way, as before.
+
 Each field records the element it came from, so a reviewer can go and look.
 A page that prints too little to be a record — one field, which every page
 has, because every page has a name — is skipped rather than written as an
@@ -750,6 +823,42 @@ Pages are read by the stem discovery lists, which is the stem the crawler
 saved them under. The `Slot.stem` property in `lib/` still slugs the URL the
 old way, so it is never used for a storage key, and the record carries the
 crawl stem instead.
+
+#### What a record holds
+
+A record names every field by the CTDL term it goes out under, not by the
+label the reader gave it. Each entry in `source_expected.fields` has a
+`property` such as `ceterms:name`, and `expected` maps the same terms to
+their values. A term read more than once, like the outcomes of a competency
+list, holds every value as a list in the order they were read.
+
+A course carries the minimum data for courses and nothing more:
+
+| Property | CTDL term | Value |
+| --- | --- | --- |
+| External Identifier | `ceterms:identifier` | the printed course code |
+| Name | `ceterms:name` | the printed name |
+| Description | `ceterms:description` | the printed description |
+| Subject Webpage | `ceterms:subjectWebpage` | the page's own URL |
+| Coded Notation | `ceterms:codedNotation` | the printed course code |
+| Credit Value | `ceterms:creditValue` | the credits as printed: `3`, `1.0-4.0` |
+| Credit Unit Type | `ceterms:creditUnitType` | the unit word printed with them |
+| Prerequisite | `ceterms:prerequisite` | the printed prerequisites |
+
+A Coursedog page that prints a minimum and a maximum gives
+`ceterms:creditMinValue` and `ceterms:creditMaxValue` instead, the names the
+Learning Opportunity bulk-upload template uses. The identifier and the
+webpage are the two no page prints as a field, so they come last, with ids
+from `derived_001`. Everything else a course page prints, such as lecture
+and lab hours, the department or the corequisites, is still read, because
+each field counts toward the two a page needs to be a record at all, but
+the record leaves it out. Credentials, learning programs and competencies
+keep every field they have.
+
+Records no longer carry `ctdl_expected`. Transform has not caught up: it
+still maps the old labels, so `xtra catalog transform` stops with
+`KeyError: 'canonical_label'` on a record extracted this way and works only
+on records extracted before.
 
 ### Scoring extraction against a baseline
 

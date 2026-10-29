@@ -10,6 +10,7 @@ INVENTORY: dict[str, tuple[tuple[str, ...], str, str | None]] = {
     "course_credits": (("Course",), "number", "ceterms:creditValue"),
     "course_credits_min": (("Course",), "number", "ceterms:creditValue"),
     "course_credits_max": (("Course",), "number", "ceterms:creditValue"),
+    "course_credits_unit": (("Course",), "string", "ceterms:creditUnitType"),
     "course_prerequisites": (("Course",), "string", "ceterms:requires"),
     "course_corequisites": (("Course",), "string", None),
     "course_lecture_hours": (("Course",), "number", None),
@@ -65,6 +66,8 @@ def csv_text() -> str:
             notes = "Only when the freeze prints an explicit minimum bound (Min, range start)."
         elif label == "course_credits_max":
             notes = "Only when the freeze prints an explicit maximum bound (Max, range end)."
+        elif label == "course_credits_unit":
+            notes = "The word the credits are counted in (Units / Credits / Hours) verbatim. Only beside course_credits; mapped inside its creditValue as creditUnitType."
         elif label == "course_ceu_credits":
             notes = "Only when the freeze prints CEUs. Do not treat CEUs as course_credits."
         elif label == "relationship_heading":

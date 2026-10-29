@@ -5,6 +5,10 @@ know one college's layout each. What they do not match, and every page
 that is not a course, is read from the markup by extract_dom: the label a
 platform marks up says what the value beside it is, whichever college
 printed it.
+
+The record names what was read by the CTDL term it goes out under, not by
+the label the reader gave it, and a course record carries the minimum
+data for courses and nothing more. See TERMS.
 """
 
 from __future__ import annotations
@@ -23,7 +27,6 @@ from implementations.extract_dom import (
 load_engine()
 
 from html_text import slug_url
-from mapping import map_fields
 from normalize import normalize_html
 from slots import Slot
 from transcribe_courses import detect_template, extract_course
@@ -32,6 +35,34 @@ from transcribe_lib import TranscriptionError
 # What the record says read it, when the markup did rather than a
 # college template.
 MARKUP_TEMPLATE_ID = "markup"
+
+CODED_NOTATION = "ceterms:codedNotation"
+IDENTIFIER = "ceterms:identifier"
+SUBJECT_WEBPAGE = "ceterms:subjectWebpage"
+
+# The CTDL term each label the readers write goes out under, as the
+# Learning Opportunity bulk-upload template names them; that template is
+# why a printed credit range is creditMinValue and creditMaxValue. A
+# course carries the minimum data for courses and nothing more. A label
+# missing here is still read, because every field read counts toward the
+# two a page needs to be a record at all, but the record leaves it out.
+TERMS = {
+    "course_id": CODED_NOTATION,
+    "course_name": "ceterms:name",
+    "course_description": "ceterms:description",
+    "course_credits": "ceterms:creditValue",
+    "course_credits_min": "ceterms:creditMinValue",
+    "course_credits_max": "ceterms:creditMaxValue",
+    "course_credits_unit": "ceterms:creditUnitType",
+    "course_prerequisites": "ceterms:prerequisite",
+    "learning_program_id": CODED_NOTATION,
+    "learning_program_name": "ceterms:name",
+    "learning_program_description": "ceterms:description",
+    "credential_name": "ceterms:name",
+    "credential_description": "ceterms:description",
+    "competency_framework_name": "ceasn:name",
+    "competency_text": "ceasn:competencyText",
+}
 
 
 def slot_from_dict(payload: dict[str, Any]) -> Slot:
@@ -120,6 +151,85 @@ def transcribe(slot: Slot, html: str) -> tuple[list[Any], str]:
         raise TranscriptionError(f"{slot.record_id}: {exc}") from exc
 
 
+def _field(
+    field_id: str, prop: str, value: Any, raw_text: Any, notes: Any
+) -> dict[str, Any]:
+    return {
+        "field_id": field_id,
+        "property": prop,
+        "presence": "present",
+        "value": value,
+        "raw_text": raw_text,
+        "notes": notes,
+    }
+
+
+def record_fields(
+    entity_type: str, drafts: list[Any], source_url: str
+) -> list[dict[str, Any]]:
+    """The record's fields, each named by the CTDL term it goes out under.
+
+    A draft whose label has no term in TERMS is left out. A course also
+    states two things its page prints no field for: its code as its
+    external identifier, and the page itself as its subject webpage.
+    """
+    fields = [
+        _field(
+            draft.field_id or f"f_{index:03d}",
+            TERMS[draft.canonical_label],
+            draft.value,
+            draft.raw_text,
+            draft.notes,
+        )
+        for index, draft in enumerate(drafts, start=1)
+        if draft.canonical_label in TERMS
+    ]
+    if entity_type == ENTITY_COURSE:
+        fields.extend(_course_derived(fields, source_url))
+    return fields
+
+
+def _course_derived(
+    fields: list[dict[str, Any]], source_url: str
+) -> list[dict[str, Any]]:
+    derived = []
+    code = next(
+        (field for field in fields if field["property"] == CODED_NOTATION),
+        None,
+    )
+    if code is not None:
+        derived.append(
+            (
+                IDENTIFIER,
+                code["value"],
+                code["raw_text"],
+                "The printed course code, used as the external identifier.",
+            )
+        )
+    derived.append((SUBJECT_WEBPAGE, source_url, None, "The page's own URL."))
+    return [
+        _field(f"derived_{index:03d}", prop, value, raw_text, notes)
+        for index, (prop, value, raw_text, notes) in enumerate(derived, start=1)
+    ]
+
+
+def expected_values(fields: list[dict[str, Any]]) -> dict[str, Any]:
+    """{term: value} for the record's present fields.
+
+    A term read more than once keeps every value, as a list in the order
+    they were read. A competency list is several outcomes under one term,
+    and a plain mapping would keep only the last of them.
+    """
+    values: dict[str, list[Any]] = {}
+    for field in fields:
+        if field.get("presence") == "present":
+            values.setdefault(field["property"], []).append(field["value"])
+    return {
+        prop: found[0] if len(found) == 1 else found
+        for prop, found in values.items()
+    }
+
+
 def extract_record(
     slot: Slot,
     html: str,
@@ -128,23 +238,7 @@ def extract_record(
     stem: str | None = None,
 ) -> dict[str, Any]:
     drafts, template_id = transcribe(slot, html)
-    fields = []
-    for index, draft in enumerate(drafts, start=1):
-        fields.append(
-            {
-                "field_id": draft.field_id or f"f_{index:03d}",
-                "canonical_label": draft.canonical_label,
-                "presence": "present",
-                "value": draft.value,
-                "raw_text": draft.raw_text,
-                "notes": draft.notes,
-            }
-        )
-    expected = {
-        field["canonical_label"]: field["value"]
-        for field in fields
-        if field.get("presence") == "present"
-    }
+    fields = record_fields(slot.entity_type, drafts, slot.requested_url)
     return {
         "id": slot.record_id,
         "record_id": slot.record_id,
@@ -159,6 +253,5 @@ def extract_record(
         "retrieved_at": retrieved_at or utc_timestamp(),
         "verification": {"status": "candidate"},
         "source_expected": {"fields": fields},
-        "expected": expected,
-        "ctdl_expected": map_fields(slot.entity_type, fields),
+        "expected": expected_values(fields),
     }

@@ -1,0 +1,15 @@
+/* Records tab (W4): overrides on top of styles.css (the prototype's sheet). */
+.w4-records .col.pane { position: relative; }
+.w4-records .col.mid { min-width: 0; }
+.w4-records .course-item { text-decoration: none; color: inherit; }
+.w4-records .course-item .t { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.w4-records .cards { flex: 1; min-height: 0; }
+.w4-records .card-h { display: flex; align-items: center; gap: 8px; }
+.w4-records .card-h .bn { width: 18px; height: 18px; border-radius: 50%; background: #f5a524; color: #fff; font-size: 10.5px; font-weight: 700; display: inline-grid; place-items: center; flex: none; }
+.w4-records .card-h .lbl { color: var(--ink-2); font-weight: 550; }
+.w4-records .card-h .term .ico svg { width: 11px; height: 11px; }
+.w4-records .v { margin-top: 6px; }
+.w4-records .v.on { border-color: var(--accent); background: var(--surface); box-shadow: 0 0 0 1px var(--accent); }
+.w4-records .v .tx { display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; white-space: pre-line; }
+.w4-records .v.on .tx { -webkit-line-clamp: unset; display: block; }
+.w4-records .gpp-ctx .ico svg { width: 14px; height: 14px; display: block; }

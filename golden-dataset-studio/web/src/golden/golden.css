@@ -1,0 +1,68 @@
+/* Golden datasets tab (m4b): the versions table, then where the chosen version is written. */
+.gv-head { display: flex; align-items: baseline; gap: 14px; margin-bottom: 14px; }
+.gv-none { margin-top: 10px; }
+.gv-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.gv-table th { text-align: left; font-weight: 500; color: var(--muted); font-size: 12.5px; padding: 9px 10px;
+  border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+.gv-table td { padding: 11px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.gv-table td.mono { font-size: 12.5px; overflow-wrap: anywhere; }
+.gv-table tbody tr { cursor: pointer; }
+.gv-table tbody tr:hover td { background: var(--surface-2); }
+.gv-table tbody tr.on td { background: var(--accent-soft); }
+.gv-table td:first-child { white-space: nowrap; }
+.gv-table .n { text-align: right; white-space: nowrap; width: 170px; font-variant-numeric: tabular-nums; }
+.gv-foot { display: flex; justify-content: flex-end; margin-top: 14px; }
+.gv-help { display: inline-flex; align-items: center; gap: 6px; border: 0; background: none; color: var(--muted); font: inherit;
+  font-size: 12px; cursor: pointer; padding: 2px 4px; }
+.gv-help:hover { color: var(--ink); }
+.gv-help .q { display: inline-grid; place-items: center; width: 16px; height: 16px; border: 1px solid var(--line-2);
+  border-radius: 50%; font-size: 10.5px; font-weight: 600; }
+.gv-back { position: fixed; inset: 0; z-index: 40; background: rgba(16, 24, 40, .4); display: grid; place-items: start center;
+  padding: 72px 16px 16px; overflow: auto; }
+.gv-modal { width: min(1240px, 100%); background: var(--surface); border-radius: 12px; box-shadow: 0 20px 50px rgba(0, 0, 0, .25);
+  padding: 18px 20px; }
+.gv-modal-h { display: flex; align-items: center; gap: 12px; }
+.gv-modal-h h2 { flex: 1; margin: 0; font-size: 16px; }
+.gv-where { font-size: 12.5px; margin: 6px 0 10px; }
+.gv-tree { overflow-x: auto; }
+.gv-tree button.f { font: inherit; color: var(--accent); background: none; border: 0; padding: 0; cursor: pointer;
+  text-decoration: underline dotted; text-underline-offset: 3px; }
+.gv-tree button.f:hover { text-decoration-style: solid; }
+
+/* File preview: a sample of each file a publication writes. */
+.gfp-bg { position: fixed; inset: 0; z-index: 50; background: rgba(16, 24, 40, .45); display: flex; align-items: center;
+  justify-content: center; padding: 24px 16px; }
+.gfp { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; width: min(1280px, 100%);
+  height: min(860px, 100%); display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 20px 50px rgba(16, 24, 40, .25); }
+.gfp-head { display: flex; align-items: center; gap: 12px; padding: 10px 14px; border-bottom: 1px solid var(--line); }
+.gfp-tabs { display: flex; gap: 4px; flex: 1; flex-wrap: wrap; }
+.gfp-tab { font-size: 12.5px; padding: 6px 10px; border-radius: 6px; border: 1px solid transparent; background: none;
+  color: var(--ink-2); cursor: pointer; }
+.gfp-tab:hover { background: var(--surface-2); }
+.gfp-tab.on { background: var(--accent-soft); color: var(--accent); border-color: var(--accent-soft); }
+.gfp-bar { display: flex; align-items: center; gap: 10px; padding: 8px 14px; border-bottom: 1px solid var(--line);
+  flex-wrap: wrap; font-size: 12.5px; }
+.gfp-filter { flex: 1; min-width: 200px; font-size: 12.5px; padding: 6px 8px; border: 1px solid var(--line-2);
+  border-radius: 6px; background: var(--surface); color: var(--ink); }
+.gfp-name { padding: 8px 14px; font-size: 12px; color: var(--ink-2); overflow-wrap: anywhere; border-bottom: 1px solid var(--line); }
+.gfp-name .muted { font-family: var(--sans); }
+.gfp-body { flex: 1; min-height: 0; overflow: auto; padding: 12px 14px; background: var(--surface-2); }
+.gfp-body.table { padding: 0; display: flex; flex-direction: column; overflow: hidden; }
+.gfp-note { font-size: 12px; color: var(--amber); background: var(--amber-soft); border-radius: 6px; padding: 6px 10px; margin-bottom: 10px; }
+.gfp-code { margin: 0; font: 12px/1.6 var(--mono); color: var(--ink-2); white-space: pre-wrap; overflow-wrap: anywhere; }
+.gfp-code .k { color: var(--accent); }
+.gfp-code .s { color: var(--green); }
+.gfp-code .n { color: var(--amber); }
+.gfp-code .l { color: var(--violet); }
+.gfp-code .tag { color: var(--accent); }
+.gfp-code .attr { color: var(--amber); }
+.gfp-code .ln { display: grid; grid-template-columns: 4.5em 1fr; }
+.gfp-code .no { color: var(--faint); text-align: right; padding-right: 12px; user-select: none; }
+.gfp-scroll { flex: 1; min-height: 0; overflow: auto; }
+.gfp-table { border-collapse: collapse; font: 12px/1.5 var(--mono); color: var(--ink-2); }
+.gfp-table th { position: sticky; top: 0; background: var(--surface); text-align: left; font-weight: 600; color: var(--ink);
+  padding: 6px 10px; border-bottom: 1px solid var(--line-2); white-space: nowrap; }
+.gfp-table td { padding: 4px 10px; border-bottom: 1px solid var(--line); white-space: nowrap; max-width: 320px;
+  overflow: hidden; text-overflow: ellipsis; }
+.gfp-table tr:hover td { background: var(--accent-soft); }
+.gfp-link { font: inherit; color: var(--accent); background: none; border: 0; padding: 0; cursor: pointer; text-decoration: underline dotted; }

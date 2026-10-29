@@ -1,0 +1,984 @@
+<title>Golden Rules Studio Map</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@600;800&family=IBM+Plex+Sans:wght@400;600&family=IBM+Plex+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: one long page; a review-flow chart with a case player, then budget, files, screens, order of work, glossary. */
+:root {
+  --bg: #EFF2F1;
+  --panel: #FCFDFC;
+  --ink: #17222A;
+  --muted: #56646D;
+  --line: #CDD6D9;
+  --line-strong: #93A2A9;
+  --l0: #94680A;
+  --l1: #1C6A72;
+  --l2: #4A4DA0;
+  --l3: #9C452D;
+  --ok: #2B7A4B;
+  --bad: #B23838;
+  --unsure: #A0660F;
+  --code-bg: #182128;
+  --code-fg: #D9E2E5;
+  --code-dim: #7E8D94;
+  --code-key: #E6B866;
+  --code-str: #A9D29A;
+  --font-display: "Schibsted Grotesk", "Avenir Next", "Segoe UI", sans-serif;
+  --font-body: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #12181B; --panel: #192125; --ink: #E2E9EB; --muted: #98A6AD;
+    --line: #2C383D; --line-strong: #52626A;
+    --l0: #DDA845; --l1: #5BB4BC; --l2: #9C9EEA; --l3: #E08A6E;
+    --ok: #5CBF85; --bad: #EE7B7B; --unsure: #E2A84F;
+    --code-bg: #0D1316; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #12181B; --panel: #192125; --ink: #E2E9EB; --muted: #98A6AD;
+  --line: #2C383D; --line-strong: #52626A;
+  --l0: #DDA845; --l1: #5BB4BC; --l2: #9C9EEA; --l3: #E08A6E;
+  --ok: #5CBF85; --bad: #EE7B7B; --unsure: #E2A84F;
+  --code-bg: #0D1316; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink);
+  font-family: var(--font-body); font-size: 16px; line-height: 1.55;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 32px 72px;
+}
+.wrap { max-width: 1200px; margin: 0 auto; display: flex; flex-direction: column; gap: 64px; }
+h1, h2, h3, h4 { font-family: var(--font-display); margin: 0; line-height: 1.12; text-wrap: balance; }
+h1 { font-size: clamp(2.1rem, 4.8vw, 3.2rem); font-weight: 800; letter-spacing: -0.02em; }
+h2 { font-size: clamp(1.45rem, 2.6vw, 1.95rem); font-weight: 800; letter-spacing: -0.01em; }
+h3 { font-size: 1.12rem; font-weight: 800; }
+p { margin: 0; }
+code { font-family: var(--font-mono); font-size: 0.86em; }
+button { font: inherit; color: inherit; }
+:focus-visible { outline: 2.5px solid var(--l1); outline-offset: 2px; border-radius: 6px; }
+.eyebrow { font-size: 0.76rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+.lede { max-width: 70ch; font-size: 1.06rem; }
+.prose { display: flex; flex-direction: column; gap: 12px; max-width: 72ch; }
+.note { color: var(--muted); font-size: 0.9rem; max-width: 74ch; }
+dfn { font-style: normal; font-weight: 600; background: color-mix(in srgb, var(--l0) 16%, transparent); border-radius: 4px; padding: 0 3px; }
+.chapter { display: flex; flex-direction: column; gap: 18px; scroll-margin-top: 20px; }
+.chapter-num { font-family: var(--font-mono); color: var(--muted); }
+
+header.top { display: flex; flex-direction: column; gap: 14px; }
+.brand { display: flex; align-items: center; gap: 12px; }
+.brand svg { flex: none; }
+.ctdl { font-family: var(--font-mono); font-size: 0.72rem; font-weight: 600; color: var(--l0); border: 1.4px solid var(--l0); border-radius: 5px; padding: 1px 6px; }
+.chapters { display: flex; flex-wrap: wrap; gap: 6px 8px; }
+.chapters a { color: var(--ink); text-decoration: none; font-size: 0.9rem; border: 1.2px solid var(--line-strong); border-radius: 999px; padding: 3px 12px; background: var(--panel); }
+.chapters a span { font-family: var(--font-mono); color: var(--muted); margin-right: 6px; font-size: 0.78rem; }
+.chapters a:hover { border-color: var(--l1); }
+.facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; }
+.fact { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; display: flex; flex-direction: column; gap: 3px; }
+.fact b { font-family: var(--font-display); font-size: 1.55rem; font-variant-numeric: tabular-nums; line-height: 1.1; }
+.fact span { font-size: 0.86rem; color: var(--muted); }
+
+/* ---------- Context ---------- */
+.ctx { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; }
+@media (min-width: 900px) { .ctx { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+.ctx-col { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 16px 18px; display: flex; flex-direction: column; gap: 8px; font-size: 0.95rem; min-width: 0; }
+.ctx-props { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 4px; }
+
+/* ---------- Review flow (one SVG decision tree, mostly monochrome) ---------- */
+.flow-layout { display: grid; grid-template-columns: minmax(0, 1fr); gap: 18px; align-items: start; }
+@media (min-width: 1000px) { .flow-layout { grid-template-columns: minmax(0, 1.25fr) minmax(0, 0.75fr); } }
+.treebox { margin: 0; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; overflow-x: auto; }
+.tree { display: block; width: 100%; min-width: 620px; height: auto; font-family: var(--font-body); }
+.tree .band { fill: var(--panel); }
+.tree .band.alt { fill: color-mix(in srgb, var(--line) 28%, var(--panel)); }
+.tree .bn { font: 600 13px var(--font-display); letter-spacing: .12em; fill: var(--ink); }
+.tree .bc { font: 400 11px var(--font-mono); fill: var(--muted); }
+.tree .bl { font: 500 11px var(--font-mono); fill: var(--l1); }
+.tree .t1 { font: 600 13.5px var(--font-body); fill: var(--ink); }
+.tree .t2 { font: 400 11.5px var(--font-body); fill: var(--muted); }
+.tree .el { font: 500 11px var(--font-mono); fill: var(--muted); paint-order: stroke; stroke: var(--panel); stroke-width: 5px; stroke-linejoin: round; }
+.tree .n-p { fill: var(--panel); stroke: var(--line-strong); stroke-width: 1; }
+.tree .n-p.strong { stroke: var(--ink); stroke-width: 1.6; }
+.tree .n-q { fill: var(--panel); stroke: var(--ink); stroke-width: 1.3; }
+.tree .n-p.entry { fill: var(--ink); stroke: var(--ink); }
+.tree .n-p.entry ~ .t1 { fill: var(--panel); }
+.tree .n-p.entry ~ .t2 { fill: var(--panel); opacity: .8; }
+.tree .n-t { stroke-width: 1.2; }
+.tree .n-t.k-ok { fill: color-mix(in srgb, var(--ok) 12%, var(--panel)); stroke: var(--ok); } .tree .stripe.k-ok { fill: var(--ok); }
+.tree .n-t.k-next { fill: color-mix(in srgb, var(--l2) 10%, var(--panel)); stroke: var(--l2); } .tree .stripe.k-next { fill: var(--l2); }
+.tree .n-t.k-gold { fill: color-mix(in srgb, var(--l0) 14%, var(--panel)); stroke: var(--l0); } .tree .stripe.k-gold { fill: var(--l0); }
+.tree .e { fill: none; stroke: var(--muted); stroke-width: 1.3; }
+.tree .e.loop { stroke: var(--l1); stroke-dasharray: 2 4; stroke-width: 1.6; }
+.tree .ahp { fill: var(--muted); }
+.tree .ahl { fill: var(--l1); }
+.tree .node { cursor: pointer; }
+.tree .node:focus { outline: none; }
+.tree .node:hover .n-q, .tree .node:hover .n-p, .tree .node:hover .n-t,
+.tree .node:focus-visible .n-q, .tree .node:focus-visible .n-p, .tree .node:focus-visible .n-t { stroke: var(--l1); stroke-width: 2.2; }
+.tree .node.sel .n-q, .tree .node.sel .n-p:not(.entry), .tree .node.sel .n-t { stroke: var(--l1); stroke-width: 2.6; fill: color-mix(in srgb, var(--l1) 12%, var(--panel)); }
+.tree .node.on .n-q, .tree .node.on .n-p:not(.x), .tree .node.on .n-t { stroke: var(--l0); stroke-width: 3; fill: color-mix(in srgb, var(--l0) 20%, var(--panel)); }
+.tree .node.on .n-p.entry ~ .t1, .tree .node.on .n-p.entry ~ .t2 { fill: var(--ink); }
+.tree .node.seen .n-q, .tree .node.seen .n-p:not(.entry) { fill: color-mix(in srgb, var(--l0) 8%, var(--panel)); }
+.flowhint { font-size: 0.88rem; color: var(--muted); }
+.side { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+@media (min-width: 1000px) { .side { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 16px); } }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 16px 16px 18px; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.card h3 { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.kv { display: grid; grid-template-columns: 64px minmax(0, 1fr); gap: 6px 10px; font-size: 0.9rem; }
+.kv .k { font-size: 0.68rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); font-weight: 600; padding-top: 3px; }
+.chips { display: flex; flex-wrap: wrap; gap: 5px; }
+.chip { font-family: var(--font-mono); font-size: 0.73rem; border: 1px solid var(--line-strong); border-radius: 5px; padding: 1px 7px; background: var(--panel); word-break: break-all; }
+.chip.w { border-color: var(--l3); background: color-mix(in srgb, var(--l3) 12%, var(--panel)); }
+.chip.r { border-color: var(--l1); background: color-mix(in srgb, var(--l1) 10%, var(--panel)); }
+.example { font-size: 0.88rem; border-left: 3px solid var(--l0); padding: 4px 0 4px 12px; color: var(--ink); }
+.player { display: flex; flex-direction: column; gap: 10px; }
+.controls { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.controls button { border: 1.4px solid var(--line-strong); background: var(--panel); border-radius: 8px; padding: 4px 12px; cursor: pointer; font-size: 0.86rem; }
+.controls button.primary { border-color: var(--l0); background: color-mix(in srgb, var(--l0) 14%, var(--panel)); font-weight: 600; }
+.controls button:disabled { opacity: 0.45; cursor: default; }
+.controls .progress { font-size: 0.8rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+.narration { border-left: 3px solid var(--l0); padding: 4px 0 4px 12px; font-size: 0.95rem; }
+
+/* ---------- Levels explorer ---------- */
+.explorer { display: grid; grid-template-columns: minmax(0, 1fr); gap: 18px; align-items: start; }
+@media (min-width: 1080px) { .explorer { grid-template-columns: 240px minmax(0, 1fr); } }
+.picker { display: flex; flex-direction: column; gap: 10px; }
+@media (min-width: 1080px) { .picker { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 16px); } }
+.levels { list-style: none; margin: 0; padding: 12px; display: flex; flex-direction: column; gap: 4px; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; }
+.levels button { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; background: none; border: 0; padding: 7px 8px; border-radius: 8px; cursor: pointer; font-size: 0.95rem; }
+.levels button:hover { background: color-mix(in srgb, var(--line) 45%, transparent); }
+.levels button[aria-current="true"] { background: color-mix(in srgb, var(--c) 16%, var(--panel)); font-weight: 600; }
+.lvl { font-family: var(--font-mono); font-size: 0.7rem; font-weight: 600; padding: 1px 6px; border-radius: 5px; color: var(--c); border: 1.3px solid var(--c); line-height: 1.5; }
+.levels li:nth-child(2) { margin-left: 10px; } .levels li:nth-child(3) { margin-left: 20px; } .levels li:nth-child(4) { margin-left: 30px; }
+.frame { border: 2.5px solid var(--c); border-radius: 18px; background: color-mix(in srgb, var(--c) 4%, var(--bg)); padding: 0 16px 18px; display: flex; flex-direction: column; gap: 18px; min-width: 0; }
+.banner { margin: 0 -16px; padding: 10px 16px; border-radius: 15px 15px 0 0; background: var(--c); color: var(--panel); display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; }
+.banner b { font-family: var(--font-display); font-size: 1.08rem; }
+.banner span { font-size: 0.86rem; opacity: 0.95; }
+.part-tag { font-size: 0.76rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--c); }
+.part-tag em { font-style: normal; font-weight: 400; text-transform: none; letter-spacing: 0; color: var(--muted); }
+.erd-scroll { overflow-x: auto; border-radius: 14px; border: 1px solid var(--line); background: var(--panel); }
+.erd { position: relative; min-width: 760px; height: 470px; background-image: radial-gradient(color-mix(in srgb, var(--line-strong) 40%, transparent) 1px, transparent 1.2px); background-size: 22px 22px; }
+#edges { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; z-index: 1; }
+.edge { stroke: var(--line-strong); stroke-width: 1.6; fill: none; }
+.edge.dash { stroke-dasharray: 5 4; }
+.elabel { font-family: var(--font-body); font-size: 12px; font-style: italic; fill: var(--muted); paint-order: stroke; stroke: var(--panel); stroke-width: 6px; stroke-linejoin: round; }
+.ent { position: absolute; width: 170px; transform: translate(-50%, -50%); background: var(--panel); border: 1.6px solid var(--c); border-radius: 11px; padding: 8px 11px 10px; display: flex; flex-direction: column; gap: 4px; z-index: 2; font-size: 0.83rem; line-height: 1.36; }
+.ent.drillable { box-shadow: 4px 4px 0 -1.6px var(--panel), 4px 4px 0 0 var(--c); }
+.ent.ext { border-style: dashed; }
+.ent.open { z-index: 6; width: 250px; }
+.ent-head { display: flex; justify-content: space-between; align-items: center; gap: 6px; }
+.ent-name { font-family: var(--font-display); font-weight: 800; font-size: 1rem; }
+.ent-role { color: var(--muted); }
+.info { width: 24px; height: 24px; flex: none; border-radius: 50%; border: 1.4px solid var(--c); background: var(--panel); color: var(--c); cursor: pointer; font-family: var(--font-mono); font-weight: 600; font-size: 0.8rem; display: grid; place-items: center; padding: 0; }
+.info[aria-expanded="true"] { background: var(--c); color: var(--panel); }
+.drill { align-self: flex-start; border: 0; background: color-mix(in srgb, var(--to) 15%, var(--panel)); border-radius: 6px; padding: 2px 8px; font-size: 0.78rem; font-weight: 600; cursor: pointer; }
+.details { border-top: 1px dashed var(--line-strong); padding-top: 6px; display: flex; flex-direction: column; gap: 5px; font-size: 0.8rem; }
+.details[hidden] { display: none; }
+.details code { font-size: 0.74rem; word-break: break-word; }
+.details .dl { font-size: 0.64rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+.shot { margin: 0; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; background: var(--panel); }
+.shot img { display: block; width: 100%; height: auto; }
+.shot figcaption { color: var(--muted); font-size: 0.86rem; padding: 8px 12px; border-top: 1px solid var(--line); }
+.level-pair { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; }
+@media (min-width: 1000px) { .level-pair { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: start; } }
+
+/* ---------- Tables ---------- */
+.table-scroll { overflow-x: auto; background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 4px 6px; }
+table.grid { width: 100%; min-width: 760px; border-collapse: collapse; font-size: 0.9rem; }
+table.grid th, table.grid td { text-align: left; vertical-align: top; padding: 9px 10px; border-bottom: 1px solid var(--line); }
+table.grid tr:last-child td { border-bottom: 0; }
+table.grid th { font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+table.grid td:first-child { font-weight: 600; white-space: nowrap; }
+table.grid code { font-size: 0.8rem; }
+.count { font-family: var(--font-mono); font-size: 0.78rem; border-radius: 999px; padding: 1px 8px; background: color-mix(in srgb, var(--l1) 14%, var(--panel)); }
+.payoff { border: 1px solid var(--line); border-left: 4px solid var(--l1); background: var(--panel); border-radius: 10px; padding: 12px 16px; max-width: 80ch; display: flex; flex-direction: column; gap: 6px; font-size: 0.95rem; }
+.payoff b { font-family: var(--font-display); }
+.payoff ul { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 4px; }
+
+/* ---------- Files ---------- */
+.files-layout { display: grid; grid-template-columns: minmax(0, 1fr); gap: 18px; align-items: start; }
+@media (min-width: 1000px) { .files-layout { grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.05fr); } }
+.tree { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 14px 12px; font-family: var(--font-mono); font-size: 0.8rem; overflow-x: auto; }
+.tree ul { list-style: none; margin: 0; padding: 0; }
+.tree ul ul { margin-left: 9px; padding-left: 14px; border-left: 1.4px solid var(--line); }
+.tree li { padding: 2px 0; white-space: nowrap; }
+.tree .dir { font-weight: 600; }
+.tree .ro { color: var(--muted); }
+.tree button { font: inherit; background: none; border: 0; padding: 1px 6px; border-radius: 5px; cursor: pointer; color: var(--ink); text-decoration: underline dotted; text-decoration-color: var(--c); text-underline-offset: 3px; }
+.tree button[aria-current="true"] { background: color-mix(in srgb, var(--c) 16%, var(--panel)); text-decoration: none; font-weight: 600; }
+.tree .meta { color: var(--muted); margin-left: 6px; }
+.tree .who { font-family: var(--font-body); font-size: 0.68rem; letter-spacing: 0.06em; text-transform: uppercase; font-weight: 600; color: var(--c); margin-left: 8px; }
+.codebox { background: var(--code-bg); color: var(--code-fg); border-radius: 14px; overflow: hidden; min-width: 0; }
+.codebar { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 9px 16px; border-bottom: 1px solid color-mix(in srgb, var(--code-fg) 14%, transparent); font-family: var(--font-mono); font-size: 0.76rem; color: var(--code-dim); flex-wrap: wrap; }
+.codebar .file { color: var(--code-fg); }
+.codeabout { padding: 10px 16px 0; font-size: 0.86rem; color: var(--code-fg); opacity: 0.9; }
+pre.code { margin: 0; padding: 12px 16px 16px; overflow: auto; max-height: 560px; font-family: var(--font-mono); font-size: 0.78rem; line-height: 1.6; }
+pre.code .k { color: var(--code-key); } pre.code .s { color: var(--code-str); } pre.code .c { color: var(--code-dim); font-style: italic; }
+
+/* ---------- Screens ---------- */
+.shots { display: flex; flex-direction: column; gap: 10px; }
+.thumbs { display: flex; gap: 8px; flex-wrap: wrap; }
+.thumbs button { padding: 0; border: 2px solid var(--line); border-radius: 8px; overflow: hidden; background: var(--panel); cursor: pointer; width: 118px; display: flex; flex-direction: column; }
+.thumbs button span { font-size: 0.7rem; padding: 3px 6px; color: var(--muted); text-align: left; }
+.thumbs button[aria-pressed="true"] { border-color: var(--l1); }
+.thumbs img { display: block; width: 100%; height: 66px; object-fit: cover; object-position: top left; }
+
+/* ---------- Order of work ---------- */
+.gantt { display: grid; grid-template-columns: 200px repeat(5, minmax(90px, 1fr)); min-width: 760px; font-size: 0.86rem; }
+.gantt .h { font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); font-weight: 600; padding: 6px 8px; border-bottom: 1px solid var(--line); }
+.gantt .lab { padding: 8px; border-bottom: 1px dashed var(--line); display: flex; flex-direction: column; gap: 1px; }
+.gantt .lab b { font-family: var(--font-display); }
+.gantt .lab span { color: var(--muted); font-size: 0.78rem; }
+.gantt .bar { align-self: center; height: 22px; border-radius: 6px; background: color-mix(in srgb, var(--c) 26%, var(--panel)); border: 1.4px solid var(--c); margin: 0 3px; display: flex; align-items: center; padding: 0 8px; font-family: var(--font-mono); font-size: 0.7rem; color: var(--ink); white-space: nowrap; overflow: hidden; }
+.gantt .cell { border-bottom: 1px dashed var(--line); }
+.miles { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
+.mile { border-left: 3px solid var(--l0); padding: 2px 0 2px 12px; display: flex; flex-direction: column; gap: 4px; font-size: 0.9rem; }
+.mile b { font-family: var(--font-display); }
+
+/* ---------- Glossary ---------- */
+.glossary { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0 28px; margin: 0; }
+@media (min-width: 820px) { .glossary { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.glossary > div { padding: 11px 0; border-top: 1px solid var(--line); min-width: 0; }
+.glossary dt { font-family: var(--font-display); font-weight: 800; font-size: 1.02rem; display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
+.glossary dd { margin: 3px 0 0; font-size: 0.92rem; color: var(--muted); overflow-wrap: anywhere; }
+.glossary dd code { color: var(--ink); }
+
+
+/* ---------- Page sections ---------- */
+.sec-eyebrow { display: flex; gap: 10px; align-items: baseline; }
+.spec-doc { display: flex; flex-direction: column; gap: 12px; font-size: 0.97rem; min-width: 0; }
+.spec-doc > * { max-width: 100%; }
+.spec-doc p, .spec-doc li, .spec-doc blockquote { max-width: 78ch; }
+.spec-doc p:has(> a > img), .spec-doc p:has(> img) { max-width: none; }
+.spec-doc a:has(> img) { display: block; cursor: zoom-in; }
+.spec-doc h3 { font-size: 1.15rem; margin-top: 12px; scroll-margin-top: 16px; }
+.spec-doc h4 { font-size: 1rem; margin-top: 8px; }
+.spec-doc ul, .spec-doc ol { margin: 0; padding-left: 22px; display: flex; flex-direction: column; gap: 5px; }
+.spec-doc blockquote { margin: 0; border-left: 3px solid var(--l0); padding: 2px 0 2px 14px; }
+.spec-doc a { color: var(--l1); }
+.spec-doc hr { display: none; }
+.spec-doc code { background: color-mix(in srgb, var(--line) 45%, transparent); padding: 1px 4px; border-radius: 4px; }
+.spec-doc pre { margin: 0; background: var(--code-bg); color: var(--code-fg); border-radius: 12px; padding: 12px 16px; overflow-x: auto; font-family: var(--font-mono); font-size: 0.78rem; line-height: 1.55; }
+.spec-doc pre code { background: none; padding: 0; font-size: inherit; color: inherit; }
+.spec-doc pre.mermaid { background: var(--panel); color: var(--ink); border: 1px solid var(--line); }
+.spec-doc .tbl { overflow-x: auto; border: 1px solid var(--line); border-radius: 12px; background: var(--panel); }
+.spec-doc table { border-collapse: collapse; width: 100%; font-size: 0.86rem; }
+.spec-doc th, .spec-doc td { text-align: left; vertical-align: top; padding: 7px 10px; border-bottom: 1px solid var(--line); }
+.spec-doc tr:last-child td { border-bottom: 0; }
+.spec-doc th { font-size: 0.72rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); font-weight: 600; background: color-mix(in srgb, var(--line) 25%, transparent); }
+.spec-doc img { display: block; width: 100%; height: auto; border: 1px solid var(--line); border-radius: 6px; }
+.spec-doc .file-ref { font-family: var(--font-mono); font-size: 0.86em; }
+.ctx-props { margin: 0; padding-left: 22px; display: flex; flex-direction: column; gap: 4px; }
+
+/* ---------- Levels, stacked ---------- */
+.level { border-top: 3px solid var(--c); padding-top: 18px; display: flex; flex-direction: column; gap: 16px; scroll-margin-top: 16px; }
+.level-head { display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: baseline; }
+.level-head h3 { font-size: 1.4rem; }
+.level-sub { color: var(--muted); }
+.next-level { align-self: flex-start; font-weight: 600; color: var(--c); text-decoration: none; border: 1.4px solid var(--c); border-radius: 999px; padding: 3px 12px; font-size: 0.88rem; }
+.next-level:hover { background: color-mix(in srgb, var(--c) 12%, var(--panel)); }
+.ent a.drill { text-decoration: none; color: var(--ink); }
+
+.grp { position: absolute; border: 1.6px dashed var(--c); border-radius: 16px; background: color-mix(in srgb, var(--c) 5%, transparent); z-index: 0; }
+.grp-label { position: absolute; top: 7px; left: 14px; font-size: 0.78rem; font-weight: 600; color: var(--c); letter-spacing: 0.04em; }
+
+/* ---------- File viewer ---------- */
+.filelist { display: flex; flex-direction: column; gap: 2px; }
+.tree button { text-decoration: none; border: 1.2px solid var(--line-strong); background: var(--panel); padding: 1px 8px; border-radius: 6px; }
+.tree button:hover { border-color: var(--l1); }
+.tree button[aria-current="true"] { border-color: var(--l1); background: color-mix(in srgb, var(--l1) 16%, var(--panel)); }
+.ftable { overflow-x: auto; padding: 0 16px 16px; }
+.ftable table { border-collapse: collapse; width: 100%; font-family: var(--font-mono); font-size: 0.74rem; color: var(--code-fg); }
+.ftable th, .ftable td { text-align: left; vertical-align: top; padding: 5px 8px; border-bottom: 1px solid color-mix(in srgb, var(--code-fg) 14%, transparent); white-space: nowrap; }
+.ftable th { color: var(--code-key); font-weight: 600; }
+.ftable td.wrap { white-space: normal; min-width: 260px; }
+.fnote { padding: 0 16px 14px; font-size: 0.84rem; color: var(--code-fg); opacity: .85; }
+</style>
+
+<main class="wrap">
+  <header class="top">
+    <div class="brand">
+      <svg width="34" height="34" viewBox="0 0 34 34" aria-hidden="true"><path d="M17 4 31 11 17 18 3 11Z" fill="var(--l0)"/><path d="M3 17l14 7 14-7" fill="none" stroke="var(--l0)" stroke-width="2.4" stroke-linejoin="round"/><path d="M3 23l14 7 14-7" fill="none" stroke="var(--l0)" stroke-width="2.4" stroke-linejoin="round" opacity=".55"/></svg>
+    </div>
+    <h1>Golden Rules Studio</h1>
+  </header>
+
+  <section class="chapter" id="context">
+    <h2>Why rules, not records</h2>
+    {{MD:0|nohead}}
+  </section>
+
+  <section class="chapter" id="scope">
+    <span class="eyebrow">§1 · Scope</span>
+    <h2>What the Studio is for, and its boundaries</h2>
+    {{MD:1|intro}}
+    {{MD:1.1}}
+    {{MD:1.2}}
+    {{MD:1.3}}
+  </section>
+
+  <section class="chapter" id="loop">
+    <span class="eyebrow">§3 · Workflow</span>
+    <h2>The review loop</h2>
+    <div class="prose">
+      <p>The loop has three stages:</p>
+      <ol class="ctx-props">
+        <li><b>Review.</b> Jared reviews one rule's results, row by row, in the Studio.</li>
+        <li><b>Improve.</b> Claude Code improves the rule on Eric's laptop and checks it against Jared's verdicts.</li>
+        <li><b>Approve.</b> Jared compares the new version with the old one, and approves it or annotates again.</li>
+      </ol>
+      <p>Press <b>Follow GEOG222</b> to watch one real Description go through the loop. Jared marked it wrong because it starts with "Prerequisite: …", and Claude's rule v2 fixed it.</p>
+    </div>
+    <div class="flow-layout">
+      <div class="stack" style="display:flex;flex-direction:column;gap:8px;min-width:0">
+        <p class="flowhint">Steps are boxes and questions are hexagons. Dotted arrows loop back. Click a step to see what it reads, what it writes, and a real example.</p>
+        <figure class="treebox"><svg id="flowtree" class="tree" role="img" aria-label="The review loop: review rows in the Studio, improve the rule on Eric's laptop, then compare and approve."></svg></figure>
+      </div>
+      <div class="side">
+        <div class="card player">
+          <h3>Follow GEOG222</h3>
+          <div class="controls">
+            <button type="button" class="primary" id="play-start">Follow GEOG222</button>
+            <button type="button" id="play-prev" disabled>Back</button>
+            <button type="button" id="play-next" disabled>Next</button>
+            <button type="button" id="play-stop" disabled>Stop</button>
+            <span class="progress" id="play-progress"></span>
+          </div>
+          <div class="narration" id="play-text"></div>
+          <div class="chips" id="play-files"></div>
+        </div>
+        <div class="card" id="step-card" aria-live="polite"></div>
+      </div>
+    </div>
+    <h3>Who talks to whom</h3>
+    {{MD:3.1|nohead}}
+    {{MD:3.2}}
+  </section>
+
+  <section class="chapter" id="studio">
+    <span class="eyebrow">§7 · The UI</span>
+    <h2>The Studio, screen by screen</h2>
+    <div class="prose"><p>The screens in the order a reviewer goes through them. Click a screenshot to open it full size.</p></div>
+    {{MD:7|intro}}
+    {{MD:7.1}}
+    {{MD:7.2}}
+    {{MD:7.3}}
+    {{MD:7.4}}
+    {{MD:7.5}}
+    {{MD:7.6}}
+    {{MD:7.7}}
+    {{MD:7.8}}
+  </section>
+
+  <section class="chapter" id="model">
+    <span class="eyebrow">§2, §4 · Data model</span>
+    <h2>Vocabulary, keys and versions</h2>
+    {{MD:4|intro}}
+    <h3>Vocabulary</h3>
+    {{MD:2|nohead}}
+    {{MD:4.1}}
+    {{MD:4.2}}
+    {{MD:4.3}}
+    {{MD:4.4}}
+  </section>
+
+  <section class="chapter" id="files">
+    <span class="eyebrow">§4.5, §5 · Files and example data</span>
+    <h2>Every file, who writes it, and what is inside</h2>
+    {{MD:4.5|nocode}}
+    {{MD:5|intro}}
+    <p class="flowhint">Click any file in the tree to see its real contents from the AVC example.</p>
+    <div class="files-layout">
+      <div class="tree" id="filetree"></div>
+      <div class="codebox">
+        <div class="codebar"><span class="file" id="file-name"></span><span id="file-meta"></span></div>
+        <p class="codeabout" id="file-about"></p>
+        <div id="file-body"></div>
+      </div>
+    </div>
+    {{MD:5.7}}
+    {{MD:5.8}}
+  </section>
+
+  <section class="chapter" id="cli">
+    <span class="eyebrow">§6 · Command line</span>
+    <h2>The golden-datasets CLI</h2>
+    {{MD:6|nohead}}
+  </section>
+
+  <section class="chapter" id="signals">
+    <span class="eyebrow">§8 · Uncertainty signals</span>
+    <h2>Which rows come first, and why</h2>
+    {{MD:8|nohead}}
+  </section>
+
+  <section class="chapter" id="rendering">
+    <span class="eyebrow">§9 · Page rendering</span>
+    <h2>Showing the saved page</h2>
+    {{MD:9|nohead}}
+  </section>
+
+  <section class="chapter" id="perf">
+    <span class="eyebrow">§10 · Performance budget</span>
+    <h2>How fast it has to be</h2>
+    {{MD:10|nohead}}
+  </section>
+
+  <section class="chapter" id="order">
+    <span class="eyebrow">§11 · Sequence of work</span>
+    <h2>What runs in parallel, and what has to wait</h2>
+    <div class="prose"><p>Columns show order and overlap, not dates. The spine is <b>W0 → W2 → W3 → (W4, W5) → W6 → W7</b>, because each step needs the previous one's files. The page pane (W1) only shares the storage layer, so it runs alongside from the start. v2's speed fixes are already done in their own Superset workspace.</p></div>
+    <div class="table-scroll"><div class="gantt" id="gantt"></div></div>
+    <div class="miles">
+      <div class="mile"><b>M1 · Data in place</b><span><code>golden-datasets sync</code>, <code>init</code>, <code>import-v2</code>, <code>extract</code> and <code>check</code> work for AVC. <code>golden-datasets sql</code> answers "every value of rule X".</span></div>
+      <div class="mile"><b>M2 · Thin slice</b><span>The Rules tab shows <code>ceterms:description</code> on AVC with the full page pane. Annotations are recorded.</span></div>
+      <div class="mile"><b>M3 · The loop closes</b><span>Prompt → Claude → <code>rule try</code> → <code>publish</code> → Compare shows the real "prerequisite in Description" fix.</span></div>
+      <div class="mile"><b>M4 · Everything</b><span>All five catalogs, every in-scope rule, golden publication with lineage.</span></div>
+    </div>
+    {{MD:11.1}}
+    {{MD:11.3}}
+  </section>
+
+  <section class="chapter" id="decisions">
+    <span class="eyebrow">§12</span>
+    <h2>Decisions and open questions</h2>
+    {{MD:12|nohead}}
+  </section>
+</main>
+
+<script>
+
+(() => {
+const $ = (s, r = document) => r.querySelector(s);
+const el = (tag, attrs = {}, ...kids) => {
+  const n = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs)) {
+    if (k === 'class') n.className = v; else if (k === 'style') n.setAttribute('style', v);
+    else if (k.startsWith('on')) n.addEventListener(k.slice(2), v); else if (v !== null && v !== undefined) n.setAttribute(k, v);
+  }
+  for (const kid of kids.flat()) if (kid !== null && kid !== undefined) n.append(kid.nodeType ? kid : document.createTextNode(kid));
+  return n;
+};
+const html = (s) => { const t = document.createElement('template'); t.innerHTML = s; return t.content; };
+
+/* ================= 1. Review flow ================= */
+const STEPS = {
+  pick: { who: 'Jared · Studio', title: 'Open a rule in the Rules tab',
+    what: 'The left column lists every rule by kind with its status (approved, needs work, in review), fill rate, signal count and open annotations. Rules are reviewed one at a time.',
+    reads: ['manifest.json', 'rulesets/v0002.json', 'rules/*/v*.json', 'annotations.jsonl'], writes: [],
+    ex: 'AVC course-description v1: 1,062 rows, 605 with signals, status needs work.' },
+  rows: { who: 'Studio', title: 'Rows ordered by uncertainty',
+    what: 'Rows with high-severity signals come first (empty, contains-label-text, shape-outlier, previously wrong…), then a sample of rows with no signals, so a reviewer always sees some ordinary ones too.',
+    reads: ['extractions/rs-0001/matches.parquet', 'extractions/rs-0001/signals.parquet', 'occurrences.parquet'], writes: [],
+    ex: 'contains-label-text fired 547 times on Description v1: values that start with "Prerequisite:", "Advisory:" or "Limitation on Enrollment:".' },
+  page: { who: 'Studio', title: 'See the value on the saved page',
+    what: 'The whole saved page is shown in a sandboxed frame with its own CSS, fonts and images from the asset archive, scripts removed. The matched element is highlighted and scrolled into view.',
+    reads: ['pages/<stem>.html', 'assets/page_assets.parquet', 'assets/files/<sha256>'], writes: [],
+    ex: 'GEOG222: the highlight covers the "Prerequisite: Completion of, or concurrent enrollment in, GEOG 205." line and the paragraph under it.' },
+  q_right: { who: 'Question', title: 'Is the rule right for this row?',
+    what: 'One verdict per row: correct or wrong. A comment can ask a question for the institution. Keys: A correct, W wrong, C comment, H select the right text, Tab next row. Courses or pages a rule missed entirely are added from the record locator or page rule views.',
+    reads: [], writes: [], ex: 'Jared marked 9 AVC Descriptions correct and 5 wrong.' },
+  correct: { who: 'Jared · Studio', title: 'Mark it correct',
+    what: 'Recorded as a verdict event. If a later version changes this value it shows up as changed-since-correct, and publish refuses unless forced.',
+    reads: [], writes: ['annotations.jsonl (append)'], ex: 'ACCT199, KINF244 and 7 more Descriptions.' },
+  record: { who: 'Jared · Studio', title: 'Record what is wrong',
+    what: 'Wrong: select the right text on the page; the Studio stores the text, its css_path, offsets and a quote. An empty value the page does have is wrong too. A comment can be marked as a question for the institution, which keeps it out of the prompt\'s list of rule bugs.',
+    reads: [], writes: ['annotations.jsonl (append)'], ex: 'GEOG222 wrong, expected "This course provides a general survey…" (chars 70–699). Note: "Prerequisite should be a separate property."' },
+  q_enough: { who: 'Question', title: 'Enough evidence to change the rule?',
+    what: 'No fixed number. A handful of wrong rows with clear expected text, plus some correct rows to protect, is usually enough.', reads: [], writes: [], ex: 'Description: 5 wrong, 9 correct.' },
+  prompt: { who: 'Jared · Studio', title: 'Copy the prompt',
+    what: 'Deterministic text: the task and limits, the rule\'s definition and what/how/why, every open annotation with its page path, the values that must not change, and the golden-datasets commands to use. No raw HTML.',
+    reads: ['annotations.jsonl', 'rules/…', 'matches.parquet'], writes: [], ex: 'course-description prompt: 10,360 characters, about 2,590 tokens, 6 page references.' },
+  context: { who: "Claude · Eric's laptop", title: 'Gather context',
+    what: 'Claude reads the rule and its annotations and fetches the referenced pages, from the local cache or the storage root. It never edits storage directly.',
+    reads: ['rules/…', 'annotations.jsonl', 'pages/<stem>.html'], writes: ['~/.cache/golden-datasets'], ex: 'golden-datasets pages get avc-…-course-geog222-c85465e9c2' },
+  draft: { who: "Claude · Eric's laptop", title: 'Edit the draft',
+    what: 'A draft is one JSON file with one or more rules: the declarative definition plus what it finds, how, and why this version is better. golden-datasets assigns versions and hashes.',
+    reads: [], writes: ['draft.json (laptop)'], ex: 'A regex that skips leading "Prerequisite:" or "Corequisite:" statements and keeps the rest verbatim.' },
+  try: { who: 'golden-datasets', title: 'Score the draft',
+    what: 'Runs the draft over the whole crawl on the laptop and prints the same scorecard Compare shows. Writes nothing.',
+    reads: ['pages/*.html', 'annotations.jsonl', 'parent extraction'], writes: [], ex: 'Draft 2: 5 fixed · 0 still wrong · 0 newly wrong · 278 changed.' },
+  q_better: { who: 'Question', title: 'Better?',
+    what: 'Better means at least one row fixed and nothing marked correct changed. Humans only see versions that are an improvement; publishing anyway needs --force.', reads: [], writes: [], ex: 'Draft 1: no, 4 correct Descriptions changed. Draft 2: yes.' },
+  publish: { who: 'golden-datasets', title: 'Publish the new version',
+    what: 'Writes the new rule version, a ruleset version that reuses every other rule, and the extraction. Rules whose inputs did not change are copied row for row.',
+    reads: [], writes: ['rules/course-description/v0002.json', 'rulesets/v0002.json', 'extractions/rs-0002/*', 'manifest.json'], ex: 'rs-0002: 2 rules rerun on 1,062 pages in 2.6 s, 15 copied.' },
+  compare: { who: 'Jared · Studio', title: 'Compare v1 → v2',
+    what: 'Five numbers (changed, fixed, still wrong, newly wrong, unchanged), signals before and after, then Jared\'s earlier verdicts side by side with a word diff, then other signals, then a sample.',
+    reads: ['rs-0001/matches.parquet', 'rs-0002/matches.parquet', 'annotations.jsonl'], writes: [], ex: '278 changed · 5 fixed · 0 still wrong · 0 newly wrong · 784 unchanged.' },
+  q_approve: { who: 'Question', title: 'Right on every row Jared checked?',
+    what: 'If not, annotate again and go round the loop. Approval belongs to one rule version; a new version starts again at in review.', reads: [], writes: [], ex: 'Open question for Jared: should Advisory lines stay in Description?' },
+  approve: { who: 'Jared · Studio', title: 'Approve the rule version',
+    what: 'An approve event in the same append-only log. Reopen undoes it.', reads: [], writes: ['annotations.jsonl (append)'], ex: 'Constant and URL rules (Language, Learning Type, Life Cycle, Subject Webpage) are approved on import.' },
+  q_all: { who: 'Question', title: 'Every rule approved?',
+    what: 'The Golden tab stays disabled until every rule version in the ruleset is approved.', reads: [], writes: [], ex: 'AVC today: 5 of 17 approved.' },
+  nextrule: { who: 'Jared · Studio', title: 'Next rule',
+    what: 'Pick the next rule that is in review or needs work, back at the top of the loop.', reads: [], writes: [], ex: 'After Description: Learning Opportunity Name (111 signals).' },
+  golden: { who: 'golden-datasets', title: 'Publish the golden dataset',
+    what: 'courses.json is domain-only (CTDL properties, values, source URL, location on the page, no rule ids) and goes to xtra-golden-sets-verified. lineage.parquet stays in the Studio and traces each value back to its rule and annotations.',
+    reads: ['rs-NNNN/*', 'annotations.jsonl'], writes: ['golden/<pub>/courses.json', 'golden/<pub>/lineage.parquet'], ex: 'Example publication: 20 courses, 160 lineage rows.' },
+};
+
+const BANDS = [
+  { name: 'REVIEW', sub: 'Studio UI · Jared', loop: '↻ for each row, until there is enough evidence', alt: false,
+    items: [
+      { id: 'pick', t: 'entry', t1: 'Open a rule in the Rules tab', t2: 'one rule at a time' },
+      { id: 'rows', t: 'box', t1: 'Rows ordered by uncertainty', t2: 'signals first, then a sample' },
+      { id: 'page', t: 'box', t1: 'See the value on the saved page', t2: 'whole page, match highlighted' },
+      { id: 'q_right', t: 'q', t1: 'Is the rule right for this row?', t2: 'yes · or wrong, or a comment', side: { id: 'correct', label: 'yes', t1: 'Mark it correct', t2: 'verdict: correct', k: 'ok' }, down: 'no' },
+      { id: 'record', t: 'box', t1: 'Record what is wrong', t2: 'highlight the right text · note' },
+      { id: 'q_enough', t: 'q', t1: 'Enough evidence to change the rule?', t2: 'a few wrong rows, some correct ones', loop: { to: 'rows', label: 'no · next row', rail: 0 }, down: 'yes' },
+      { id: 'prompt', t: 'strong', t1: 'Copy the prompt', t2: 'Prompt tab · one rule or all needing work' },
+    ] },
+  { name: 'IMPROVE', sub: "Eric's laptop · Claude Code + golden-datasets", loop: '↻ until the draft is better', alt: true,
+    items: [
+      { id: 'context', t: 'box', t1: 'Gather context', t2: 'golden-datasets rule show · annotations · pages get' },
+      { id: 'draft', t: 'box', t1: 'Edit the draft', t2: 'definition + what · how · why' },
+      { id: 'try', t: 'box', t1: 'Score the draft', t2: 'golden-datasets rule try draft.json' },
+      { id: 'q_better', t: 'q', t1: 'Better?', t2: 'something fixed, nothing correct changed', loop: { to: 'draft', label: 'no', rail: 0 }, down: 'yes' },
+      { id: 'publish', t: 'strong', t1: 'Publish the new version', t2: 'golden-datasets rule publish draft.json' },
+    ] },
+  { name: 'APPROVE', sub: 'Studio UI · Jared', loop: '', alt: false,
+    items: [
+      { id: 'compare', t: 'box', t1: 'Compare v1 → v2', t2: "Jared's earlier verdicts first" },
+      { id: 'q_approve', t: 'q', t1: 'Right on every row Jared checked?', t2: 'or annotate again', loop: { to: 'rows', label: 'no · annotate again', rail: 1 }, down: 'yes' },
+      { id: 'approve', t: 'box', t1: 'Approve the rule version', t2: 'an approve event in the log' },
+      { id: 'q_all', t: 'q', t1: 'Every rule approved?', t2: 'Golden tab', side: { id: 'nextrule', label: 'no', t1: 'Next rule', t2: 'back to the top', k: 'next' }, down: 'yes' },
+      { id: 'golden', t: 'end', t1: 'Publish the golden dataset', t2: 'courses.json + lineage', k: 'gold' },
+    ] },
+];
+
+function drawTree() {
+  const NS = 'http://www.w3.org/2000/svg';
+  const svg = $('#flowtree'); svg.replaceChildren();
+  const W = 760, CX = 360, BW = 300, BH = 50, SX = 548, SW = 196, GAP = 28, RAILS = [175, 140];
+  const mk = (tag, attrs, text) => { const n = document.createElementNS(NS, tag); for (const [k, v] of Object.entries(attrs)) n.setAttribute(k, v); if (text !== undefined) n.textContent = text; return n; };
+  const defs = mk('defs', {});
+  defs.innerHTML = '<marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="ahp"/></marker><marker id="ahl" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="ahl"/></marker>';
+  svg.append(defs);
+  const bandLayer = mk('g', {}), edgeLayer = mk('g', {}), nodeLayer = mk('g', {});
+  svg.append(bandLayer, edgeLayer, nodeLayer);
+  const pos = {}; const loops = [];
+  let y = 0, prevBottom = null, prevDownLabel = null;
+  const x0 = CX - BW / 2;
+  const nodeGroup = (id, label) => {
+    const g = mk('g', { class: 'node', 'data-node': id, tabindex: '0', role: 'button', 'aria-label': label });
+    g.addEventListener('click', () => showStep(id));
+    g.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); showStep(id); } });
+    return g;
+  };
+  BANDS.forEach((band, bi) => {
+    const top = y; y += 64;
+    band.items.forEach((it, ii) => {
+      if (prevBottom !== null) {
+        edgeLayer.append(mk('path', { d: `M${CX},${prevBottom} L${CX},${y}`, class: 'e', 'marker-end': 'url(#ah)' }));
+        if (prevDownLabel) edgeLayer.append(mk('text', { x: CX + 8, y: prevBottom + 17, class: 'el' }, prevDownLabel));
+      }
+      const g = nodeGroup(it.id, it.t1);
+      if (it.t === 'q') {
+        const h = 54, cy = y + h / 2;
+        g.append(mk('polygon', { points: `${x0 + 14},${y} ${x0 + BW - 14},${y} ${x0 + BW},${cy} ${x0 + BW - 14},${y + h} ${x0 + 14},${y + h} ${x0},${cy}`, class: 'n-q' }));
+        g.append(mk('text', { x: CX, y: y + 22, 'text-anchor': 'middle', class: 't1' }, it.t1));
+        g.append(mk('text', { x: CX, y: y + 40, 'text-anchor': 'middle', class: 't2' }, it.t2));
+        pos[it.id] = { top: y, cy, bottom: y + h };
+        if (it.side) {
+          edgeLayer.append(mk('path', { d: `M${x0 + BW},${cy} L${SX},${cy}`, class: 'e', 'marker-end': 'url(#ah)' }));
+          edgeLayer.append(mk('text', { x: (x0 + BW + SX) / 2, y: cy - 6, 'text-anchor': 'middle', class: 'el' }, it.side.label));
+          const sg = nodeGroup(it.side.id, it.side.t1);
+          sg.append(mk('rect', { x: SX, y: cy - 29, width: SW, height: 58, rx: 12, class: `n-t k-${it.side.k}` }));
+          sg.append(mk('rect', { x: SX, y: cy - 29, width: 6, height: 58, rx: 3, class: `stripe k-${it.side.k}` }));
+          sg.append(mk('text', { x: SX + 18, y: cy - 4, class: 't1' }, it.side.t1));
+          sg.append(mk('text', { x: SX + 18, y: cy + 14, class: 't2' }, it.side.t2));
+          nodeLayer.append(sg);
+        }
+        if (it.loop) loops.push({ from: it.id, ...it.loop });
+        y += h;
+      } else if (it.t === 'end') {
+        g.append(mk('rect', { x: x0, y, width: BW, height: 58, rx: 12, class: `n-t k-${it.k}` }));
+        g.append(mk('rect', { x: x0, y, width: 6, height: 58, rx: 3, class: `stripe k-${it.k}` }));
+        g.append(mk('text', { x: CX, y: y + 25, 'text-anchor': 'middle', class: 't1' }, it.t1));
+        g.append(mk('text', { x: CX, y: y + 43, 'text-anchor': 'middle', class: 't2' }, it.t2));
+        pos[it.id] = { top: y, cy: y + 29, bottom: y + 58 }; y += 58;
+      } else {
+        const cls = it.t === 'entry' ? 'n-p entry' : it.t === 'strong' ? 'n-p strong' : 'n-p';
+        g.append(mk('rect', { x: x0, y, width: BW, height: BH, rx: it.t === 'entry' ? BH / 2 : 5, class: cls }));
+        g.append(mk('text', { x: CX, y: y + 21, 'text-anchor': 'middle', class: 't1' }, it.t1));
+        g.append(mk('text', { x: CX, y: y + 38, 'text-anchor': 'middle', class: 't2' }, it.t2));
+        pos[it.id] = { top: y, cy: y + BH / 2, bottom: y + BH }; y += BH;
+      }
+      nodeLayer.append(g);
+      prevBottom = pos[it.id].bottom; prevDownLabel = it.down || null; y += GAP;
+    });
+    y += 6;
+    bandLayer.append(mk('rect', { x: 0, y: top, width: W, height: y - top, class: 'band' + (band.alt ? ' alt' : '') }));
+    bandLayer.append(mk('text', { x: W - 16, y: top + 24, 'text-anchor': 'end', class: 'bn' }, band.name));
+    bandLayer.append(mk('text', { x: W - 16, y: top + 40, 'text-anchor': 'end', class: 'bc' }, band.sub));
+    if (band.loop) bandLayer.append(mk('text', { x: W - 16, y: top + 56, 'text-anchor': 'end', class: 'bl' }, band.loop));
+    y += 0;
+  });
+  loops.forEach(l => {
+    const a = pos[l.from], b = pos[l.to], rx = RAILS[l.rail];
+    edgeLayer.append(mk('path', { d: `M${x0},${a.cy} L${rx},${a.cy} L${rx},${b.cy} L${x0 - 1},${b.cy}`, class: 'e loop', 'marker-end': 'url(#ahl)' }));
+    const [first, ...rest] = l.label.split(' · ');
+    edgeLayer.append(mk('text', { x: x0 - 8, y: a.cy - 6, 'text-anchor': 'end', class: 'el' }, first));
+    if (rest.length) { const my = (a.cy + b.cy) / 2; edgeLayer.append(mk('text', { x: rx - 6, y: my, 'text-anchor': 'middle', class: 'el', transform: `rotate(-90 ${rx - 6} ${my})` }, rest.join(' · '))); }
+  });
+  svg.setAttribute('viewBox', `0 0 ${W} ${y}`);
+}
+drawTree();
+
+function chipList(arr, cls) { return el('div', { class: 'chips' }, arr.map(f => el('span', { class: 'chip ' + cls }, f))); }
+function showStep(id) {
+  const s = STEPS[id];
+  document.querySelectorAll('#flowtree .node').forEach(n => n.classList.toggle('sel', n.dataset.node === id));
+  const card = $('#step-card'); card.replaceChildren();
+  card.append(el('span', { class: 'eyebrow' }, s.who));
+  card.append(el('h3', {}, s.title));
+  card.append(el('p', { style: 'font-size:0.94rem' }, s.what));
+  const kv = el('div', { class: 'kv' });
+  if (s.reads.length) kv.append(el('span', { class: 'k' }, 'reads'), chipList(s.reads, 'r'));
+  if (s.writes.length) kv.append(el('span', { class: 'k' }, 'writes'), chipList(s.writes, 'w'));
+  if (s.reads.length || s.writes.length) card.append(kv);
+  card.append(el('p', { class: 'example' }, el('b', {}, 'Example · '), s.ex));
+}
+showStep('pick');
+
+const PLAY = [
+  ['pick', 'Jared opens Description on AVC. It is marked needs work: verdicts from his v2 review are already there.', ['rulesets/v0001.json', 'annotations.jsonl']],
+  ['rows', 'GEOG222 comes near the top: its value starts with "Prerequisite:", so contains-label-text fires.', ['rs-0001/signals.parquet']],
+  ['page', 'The saved GEOG222 page is shown with its own styles. The highlight covers the prerequisite line and the paragraph below it.', ['pages/…geog222-c85465e9c2.html']],
+  ['q_right', 'The prerequisite is not part of the description. The rule is wrong for this row.', []],
+  ['record', 'He selects the paragraph after the prerequisite. The expected text, its css_path and offsets 70–699 are saved with his note.', ['annotations.jsonl +1']],
+  ['q_enough', 'Four more courses have the same problem (PHYS102, DFST202, AUTO230, ENGR955), and 9 others are correct. That is enough.', []],
+  ['prompt', 'He copies the one-rule prompt: about 2,600 tokens, page paths instead of HTML.', []],
+  ['context', "On Eric's laptop, Claude reads the rule and the 14 annotations, and fetches the 6 referenced pages.", ['~/.cache/golden-datasets']],
+  ['draft', 'Draft 1 drops every leading "Prerequisite:", "Advisory:" and "Limitation on Enrollment:" line.', ['draft.json']],
+  ['try', 'golden-datasets rule try: 5 fixed, but 4 descriptions Jared marked correct changed (ACCT199, AERO199, CFE114, NS922L).', []],
+  ['q_better', 'Not better: something correct changed. Draft 2 keeps Advisory and Limitation lines. Scored again: 5 fixed, 0 newly wrong.', []],
+  ['publish', 'Published: course-description v2, ruleset v2, extraction rs-0002. Two rules rerun on 1,062 pages, 15 copied.', ['rules/course-description/v0002.json', 'rulesets/v0002.json', 'extractions/rs-0002/']],
+  ['compare', 'Compare v1 → v2: 278 values changed, all 5 of his wrong rows fixed, none of his correct rows changed.', ['rs-0001 ⋈ rs-0002']],
+  ['q_approve', 'One question for Jared remains: should Advisory lines stay in Description? He decides before approving.', []],
+];
+let pi = -1;
+const START_TEXT = "Cartography for Geographic Information Science (GEOG 222), AVC. Its Description begins with a prerequisite line, which doesn't belong in a description.";
+function playRender() {
+  document.querySelectorAll('#flowtree .node').forEach(n => n.classList.remove('on', 'seen'));
+  const playing = pi >= 0;
+  $('#play-prev').disabled = !playing || pi === 0; $('#play-next').disabled = !playing || pi === PLAY.length - 1; $('#play-stop').disabled = !playing;
+  if (!playing) { $('#play-progress').textContent = ''; $('#play-files').replaceChildren(); $('#play-text').textContent = START_TEXT; return; }
+  PLAY.slice(0, pi).forEach(([id]) => document.querySelector(`#flowtree .node[data-node="${id}"]`)?.classList.add('seen'));
+  const [id, text, files] = PLAY[pi];
+  document.querySelector(`#flowtree .node[data-node="${id}"]`).classList.add('on');
+  $('#play-text').textContent = text; $('#play-progress').textContent = `step ${pi + 1} of ${PLAY.length}`;
+  $('#play-files').replaceChildren(...files.map(f => el('span', { class: 'chip w' }, f)));
+  showStep(id);
+}
+$('#play-start').addEventListener('click', () => { pi = 0; playRender(); });
+$('#play-next').addEventListener('click', () => { pi = Math.min(PLAY.length - 1, pi + 1); playRender(); });
+$('#play-prev').addEventListener('click', () => { pi = Math.max(0, pi - 1); playRender(); });
+$('#play-stop').addEventListener('click', () => { pi = -1; playRender(); });
+
+
+$('#play-text').textContent = START_TEXT;
+/* ================= 4. Files ================= */
+const F = {
+  manifest: { name: 'golden-dataset-studio/manifest.json', meta: '5.8 KB · every writer (ETag)', who: 'golden-datasets', about: 'The index. Every path the UI or CLI needs is listed here, so nothing ever lists the Azure container (that costs 23–25 s).',
+    body: `{
+  "schema": "gds-manifest/1",
+  "catalogs": [{
+    "catalog": "avc-elumenapp-com-catalog-2026-27-welcome", "name": "AVC", "platform": "eLumen", "status": "ready",
+    "rulesets": [{"version": 1, "path": "…/golden-dataset-studio/rulesets/v0001.json"},
+                 {"version": 2, "path": "…/golden-dataset-studio/rulesets/v0002.json"}],
+    "annotations": "…/golden-dataset-studio/annotations.jsonl",
+    "crawls": [{
+      "crawl": "2026-10-12T20-59-13Z", "page_count": 1467,
+      "pages": "…/2026-10-12T20-59-13Z/golden-dataset-studio/pages.parquet",
+      "extractions": [
+        {"extraction": "rs-0001", "ruleset_version": 1, "parent_extraction": null},
+        {"extraction": "rs-0002", "ruleset_version": 2, "parent_extraction": "rs-0001"}]
+    }]
+  },
+  {"catalog": "ccsf-curricunet-com-catalog", "name": "CCSF", "status": "not imported", …},
+  "… Marshall, UALR, WVU"]
+}` },
+  rv: { name: 'rules/course-description/v0002.json', meta: 'immutable · golden-datasets rule publish', who: 'Claude via golden-datasets', about: 'One rule version: a declarative definition plus three prose fields. Claude writes what, how and why; golden-datasets assigns the version and the content hash.',
+    body: `{
+  "rule_id": "course-description", "version": 2, "parent_version": 1, "kind": "field",
+  "ctdl_property": "ceterms:description",
+  "definition": {
+    "locator": "locator-course-page", "rule_type": "css", "selector": ".introtext", "transforms": ["strip"],
+    "regex": "\\\\A\\\\s*(?:(?i:pre-?requisites?|co-?requisites?)\\\\s*:…)*(\\\\S[\\\\s\\\\S]*?)\\\\s*\\\\Z", "group": 1
+  },
+  "what": "The intro paragraph(s) under each course's title on a course page, minus any leading 'Prerequisite:' or 'Corequisite:' statement.",
+  "how": "Text of the intro block (.introtext). Skip every leading 'Prerequisite:' or 'Corequisite:' statement … 'Advisory:' and 'Limitation on Enrollment:' lines are kept.",
+  "why": "Jared marked 5 of the 14 descriptions he reviewed wrong (GEOG222, PHYS102, DFST202, AUTO230, ENGR955) because the 'Prerequisite: …' line was included. … A first draft also dropped 'Advisory:' lines; golden-datasets rule try showed that changed 4 descriptions Jared had marked correct, so those lines stay until he decides.",
+  "examples": [{"input": "Prerequisite: Completion of DFST 201.\\n\\nAdvanced study of ASL grammar.",
+                "output": "Advanced study of ASL grammar."}],
+  "depends_on": ["locator-course-page"],
+  "content_hash": "sha256:2a397c7c…"
+}` },
+  loc: { name: 'rules/locator-program-requirement/v0001.json', meta: 'immutable · golden-datasets import-v2', who: 'golden-datasets', about: 'A record locator, pulled out of the identical repeat that four v2 stub rules each carried.',
+    body: `{
+  "rule_id": "locator-program-requirement", "version": 1, "kind": "locator",
+  "definition": {
+    "page_rules": ["program-page-with-courses"],
+    "repeat": "#accordion-program-builder-rules .new-rule",
+    "repeat_filter": {"selector": ".rule-name", "regex": "^\\\\s*[A-Za-z]+\\\\s*[A-Za-z]?\\\\d+[A-Za-z]*\\\\s+-\\\\s+"}
+  },
+  "what": "On a program page, every requirement line that names a course is one course stub.",
+  "how": "Each .new-rule inside #accordion-program-builder-rules is a candidate. Keep it only when its .rule-name text starts with a course code followed by ' - ' …",
+  "imported_from": {"v2_field_rules": ["stub-code", "stub-external-id", "stub-learning-type", "stub-name"]}
+}` },
+  rs: { name: 'rulesets/v0002.json', meta: '4.8 KB · immutable', who: 'golden-datasets', about: 'Exact rule versions plus catalog settings. Every publish makes one, even when only one rule changed.',
+    body: `{
+  "version": 2, "parent_version": 1,
+  "note": "course-description v2: drop leading requisite lines (Jared's 5 'wrong' descriptions).",
+  "settings": {"content_root": "#mainContent", "pane_css": "…reveal accordions…",
+               "signals": {"shape_dominance": 0.5}},
+  "rules": [{"rule_id": "course-page", "version": 1, "content_hash": "sha256:…"},
+            {"rule_id": "course-description", "version": 2, "content_hash": "sha256:2a397c7c…"},
+            "… 15 more"],
+  "changed_rules": ["course-description"]
+}` },
+  ann: { name: 'annotations.jsonl', meta: '164 KB · 153 events · append-only', who: 'UI · import-v2', about: 'The only file people change, and only by appending. Edits are new events that supersede old ones.',
+    body: `{"annotation_id":"an-75aeec940bac","type":"verdict","author":"Jared","at":"2026-10-21T20:19:46Z",
+ "target":{"kind":"match","rule_id":"course-description","rule_version_seen":1,"extraction_seen":"rs-0001",
+           "occurrence_key":"…geog222…@…main > div:nth-of-type(4)","course_key":"GEOG222",
+           "value_seen":"Prerequisite: Completion of, or concurrent enrollment in, GEOG 205.\\n\\nThis course provides …"},
+ "verdict":"wrong",
+ "expected":{"text":"This course provides a general survey …","css_path":"…div(4) > div(1) > div(1)",
+             "char_start":70,"char_end":699,"quote":{"prefix":"…GEOG 205.\\n\\n","exact":"This course provides …","suffix":"\\n"}},
+ "note":"Prerequisite should be a separate property.",
+ "imported_from":{"source":"review-ui-v2","session":"2026-10-19T17-27-55Z"}}
+{"annotation_id":"an-48e252fac7e7","type":"verdict","author":"Jared","target":{"kind":"page","rule_id":null,"page_stem":"…program-computer-engineering-as…"},
+ "verdict":"question","note":"Properties listed here are all for courses. Should I reject all these properties? Skip this page altogether?"}
+{"annotation_id":"ap-05e602437e48","type":"approve","author":"golden-datasets import-v2","target":{"kind":"rule","rule_id":"course-language","rule_version_seen":1}}` },
+  pages: { name: 'pages.parquet', meta: '144 KB · 1,467 rows', who: 'golden-datasets init', about: 'One row per saved page. html_path is relative to the root, so the same row works locally and on Azure.',
+    body: `crawl                 page_stem                                         url                                                   http_status  bytes     title
+2026-10-12T20-59-13Z  …-course-geog222-c85465e9c2                        https://avc.elumenapp.com/catalog/2026-27/course/geog222  200      2747380   GEOG 222 - Cartography for Geographic Information Science (…
+2026-10-12T20-59-13Z  …-allcourses-82c129cf4f                            https://avc.elumenapp.com/catalog/2026-27/allcourses      200      3343009   All Courses
+2026-10-12T20-59-13Z  …-program-computer-engineering-as-…                https://avc.elumenapp.com/catalog/2026-27/program/…       200      2812668   Computer Engineering AS` },
+  assets: { name: 'assets/assets.parquet + page_assets.parquet', meta: '18 files · 644 KB', who: 'golden-datasets assets fetch', about: 'Each CSS, font and image a page references, downloaded once and stored by hash. The page pane serves them itself.',
+    body: `url                                                       status  content_type  bytes    sha256
+https://avc.elumenapp.com/catalog/styles.css              200     text/css      18898    7396241e…
+https://fonts.googleapis.com/css?family=Montserrat:…      200     text/css      32607    e658aae3…
+https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/…     200     text/css      144877   2c0f3dcf…
+
+page_assets: 7,335 rows (page_stem, url, kind = stylesheet | style-url | icon)` },
+  extjson: { name: 'extractions/rs-0002/extraction.json', meta: '1.5 KB · immutable', who: 'golden-datasets rule publish', about: 'The header of one extraction: which rules were rerun, which were copied from the parent, and a hash and row count for each file.',
+    body: `{
+  "extraction": "rs-0002", "crawl": "2026-10-12T20-59-13Z", "ruleset_version": 2, "parent_extraction": "rs-0001",
+  "rerun_rules": ["course-description"], "rerun_pages": 1062,
+  "copied_rules": ["course-code", "course-name", "locator-course-page", "… 12 more"],
+  "files": {
+    "page_labels.parquet": {"rows": 4401,  "sha256": "1f7e079b…"},
+    "occurrences.parquet": {"rows": 3813,  "sha256": "ab942984…"},
+    "matches.parquet":     {"rows": 19500, "sha256": "4d35c190…"},
+    "signals.parquet":     {"rows": 1084,  "sha256": "013f45e9…"}
+  }
+}` },
+  labels: { name: 'page_labels.parquet', meta: '25 KB · 4,401 rows', who: 'golden-datasets extract', about: 'Every page × page rule, matched or not, with the reason.',
+    body: `page_stem                          rule_id                    rule_version  matched  reason
+…-course-geog222-c85465e9c2        course-page                1             true     matched
+…-program-computer-engineering…    course-page                1             false    url_mismatch
+…-program-computer-engineering…    program-page-with-courses  1             true     matched` },
+  occ: { name: 'occurrences.parquet', meta: '66 KB · 3,813 rows', who: 'golden-datasets extract', about: 'One row per course block a record locator found. course_key lives here (and only here).',
+    body: `occurrence_key                                 page_rule_id               locator_rule_id              idx  course_key
+…geog222-c85465e9c2@html > body:nth-of-type(1) > app-root:nth-of-type(1) > app-public:nth-of-type(1)
+   > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(2) > main:nth-of-type(1) > div:nth-of-type(4)
+                                               course-page                locator-course-page          0    GEOG222
+…computer-engineering…@…div(2) > div(1)        program-page-with-courses  locator-program-requirement  0    MATH150
+…computer-engineering…@…div(3) > div(1)        program-page-with-courses  locator-program-requirement  1    MATH150H` },
+  matches: { name: 'matches.parquet', meta: '530 KB · 19,500 rows', who: 'golden-datasets extract', about: 'One row per field rule × occurrence, including empty results. css_path is relative to the occurrence; offsets are positions in the element\'s textContent.',
+    body: `rule_id             v  status  value                                              css_path         char_start  char_end
+course-code         1  found   GEOG 222                                           header > h3      0           9
+course-name         1  found   Cartography for Geographic Information Science…    header > h2      0           52
+course-description  2  found   This course provides a general survey of basic…   div(1) > div(1)  70          699
+course-lifecycle    1  found   Active                                             ∅                ∅           ∅
+
+(in rs-0001, course-description v1 started at char 0, with the prerequisite line)` },
+  signals: { name: 'signals.parquet', meta: '28.5 KB · 1,084 rows', who: 'golden-datasets extract', about: 'Value, cross-row and page signals. History signals (previously wrong, changed since correct) are computed when read, never stored.',
+    body: `target_kind  rule_id                       course     signal                        severity  detail
+match        course-description            ABDY113    contains-label-text           high      value includes the label text 'Prerequisite:'
+match        course-code                   ARTHC1100  shape-outlier                 medium    shape 'A A9' is 16 of 1062 values; most common 'A 9'
+match        course-name                   AFAB110    length-outlier                low       80 chars; 1st–99th percentile is 9–68
+occurrence   locator-program-requirement   ARTHC1100  duplicate-occurrence          medium    ARTHC1100 occurs 2× on this page
+page         ∅                             —          unclassified-page-with-codes  medium    no page rule matched, but the page names 21 course codes` },
+  courses: { name: 'golden/<pub>/<page_stem>/<page_stem>.json', meta: 'one per page · also written to xtra-golden-sets-verified', who: 'golden-datasets golden publish', about: 'The final output, in the existing xtra-golden-sets-verified shape, so its current readers keep working. Each record gains golden_record_id, each field gains property and location. No rule ids.',
+    body: `[
+  {
+    "golden_record_id": "GEOG222",
+    "fields": [
+      {"ctdl_property": "ceterms:codedNotation", "property": "Coded Notation", "value": "GEOG 222",
+       "source_url": "https://avc.elumenapp.com/catalog/2026-27/course/geog222",
+       "location": {"css_path": "html > body … > header:nth-of-type(1) > h3:nth-of-type(1)", "char_start": 0, "char_end": 9}},
+      {"ctdl_property": "ceterms:description", "property": "Description",
+       "value": "This course provides a general survey of basic methods …",
+       "source_url": "https://avc.elumenapp.com/catalog/2026-27/course/geog222",
+       "location": {"css_path": "html > body … > div:nth-of-type(1) > div:nth-of-type(1)", "char_start": 70, "char_end": 699}},
+      {"ctdl_property": null, "property": "Learning Type", "value": "Course",
+       "source_url": "https://avc.elumenapp.com/catalog/2026-27/course/geog222", "location": null},
+      "… 5 more fields"
+    ]
+  }
+]` },
+  lineage: { name: 'golden/<pub>/lineage.parquet', meta: '6.4 KB · 160 rows', who: 'golden-datasets golden publish', about: 'The association table: every golden value traced back to its extraction, rule version, occurrence and annotations.',
+    body: `golden_record_id  property          extraction  rule_id               rule_version  annotation_ids
+GEOG222    Coded Notation    rs-0002     course-code           1             [an-6191f7ba8324]
+GEOG222    Description       rs-0002     course-description    2             [an-75aeec940bac]
+GEOG222    Learning Type     rs-0002     course-learning-type  1             [an-e65cf5326fb6]` },
+};
+Object.assign(F, {
+  meta: { name: 'pages/<stem>.meta.json', meta: 'xtra-cli · read-only input', who: 'xtra-cli', about: 'Written by the crawler next to each saved page. The Studio reads it to build pages.parquet; it never writes here.',
+    body: `{
+  "requested_url": "https://avc.elumenapp.com/catalog/2026-27/course/geog222",
+  "final_url": "https://avc.elumenapp.com/catalog/2026-27/course/geog222",
+  "http_status": 200, "content_type": "text/html", "bytes": 2747380,
+  "retrieved_at": "2026-10-13T00:43:35Z",
+  "sha256": "8578b8eef11bfbbe…",
+  "stem": "avc-elumenapp-com-catalog-2026-27-course-geog222-c85465e9c2",
+  "strategy": "playwright",
+  "render": {"load_event": "load", "networkidle": true, "dom_quiet": true, "ready_ms": 1622}
+}` },
+  crawljson: { name: 'crawl.json', meta: 'xtra-cli · read-only input', who: 'xtra-cli', about: 'The crawl\'s own header. Note "strategy": "playwright": pages were saved after the browser finished running their scripts, which is why the Studio never needs to run JavaScript.',
+    body: `{
+  "schema": "xtra-crawl-2",
+  "catalog_folder": "avc-elumenapp-com-catalog-2026-27-welcome",
+  "run_id": "2026-10-12T20:59:13Z",
+  "seed_url": "https://avc.elumenapp.com/catalog/2026-27/welcome",
+  "scope_prefix": "/catalog/2026-27/",
+  "strategy": "playwright",
+  "strategy_settings": {"headless": true, "viewport": {"width": 1400, "height": 1800}, …}
+}` },
+  rv1: { name: 'rules/course-description/v0001.json', meta: 'immutable · golden-datasets import-v2', who: 'golden-datasets', about: 'Version 1, brought over from v2. Compare it with v0002: only the regex and the prose changed. why is empty because there was no earlier version.',
+    body: `{
+  "rule_id": "course-description", "version": 1, "kind": "field",
+  "definition": {"locator": "locator-course-page", "rule_type": "css", "selector": ".introtext", "transforms": ["strip"]},
+  "what": "The whole intro block under each course's title on a course page.",
+  "how": "The whole text of the intro block (.introtext), trimmed and otherwise verbatim.",
+  "why": "",
+  "content_hash": "sha256:8512fa80…",
+  "imported_from": {"v2_rule_id": "course-description",
+                    "v2_description": "Whole intro block verbatim, including any 'Prerequisite:' line."}
+}` },
+  pub: { name: 'golden/<pub>/publication.json', meta: '636 B', who: 'golden-datasets golden publish', about: 'Which extraction and ruleset a golden publication came from, and whether every rule was approved.',
+    body: `{
+  "publication": "pub-2026-10-26-avc-rs-0002-example",
+  "catalog": "avc-elumenapp-com-catalog-2026-27-welcome", "crawl": "2026-10-12T20-59-13Z",
+  "extraction": "rs-0002", "ruleset_version": 2,
+  "courses": 20, "lineage_rows": 160,
+  "approval_gate": {"all_rules_approved": false,
+                    "note": "Example only. The real golden publish refuses until every rule version is approved."}
+}` },
+});
+F.pages.table = [['crawl', 'page_stem', 'url', 'http_status', 'bytes', 'title'],
+  ['2026-10-12T20-59-13Z', '…-course-geog222-c85465e9c2', 'https://avc.elumenapp.com/catalog/2026-27/course/geog222', 200, '2,747,380', 'GEOG 222 - Cartography for Geographic Information Science (GIS)'],
+  ['2026-10-12T20-59-13Z', '…-allcourses-82c129cf4f', 'https://avc.elumenapp.com/catalog/2026-27/allcourses', 200, '3,343,009', 'All Courses'],
+  ['2026-10-12T20-59-13Z', '…-program-computer-engineering-as-…', 'https://avc.elumenapp.com/catalog/2026-27/program/computer-engineering-as-…', 200, '2,812,668', 'Computer Engineering AS']];
+F.assets.table = [['url', 'status', 'content_type', 'bytes', 'sha256'],
+  ['https://avc.elumenapp.com/catalog/styles.css', 200, 'text/css', '18,898', '7396241e…'],
+  ['https://fonts.googleapis.com/css?family=Montserrat:…', 200, 'text/css', '32,607', 'e658aae3…'],
+  ['https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css', 200, 'text/css', '144,877', '2c0f3dcf…'],
+  ['https://avc.elumenapp.com/catalog/favicon.ico', 200, 'image/x-icon', '1,406', '8a3be53a…']];
+F.assets.note = 'page_assets.parquet links pages to these: 7,335 rows of (page_stem, url, kind = stylesheet | style-url | icon). AVC needs only 18 files, 644 KB, to render every page.';
+F.labels.table = [['page_stem', 'rule_id', 'rule_version', 'matched', 'reason'],
+  ['…-course-geog222-c85465e9c2', 'course-page', 1, 'true', 'matched'],
+  ['…-program-computer-engineering…', 'course-page', 1, 'false', 'url_mismatch'],
+  ['…-program-computer-engineering…', 'program-page', 1, 'true', 'matched'],
+  ['…-program-computer-engineering…', 'program-page-with-courses', 1, 'true', 'matched']];
+F.occ.table = [['occurrence_key', 'page_rule_id', 'locator_rule_id', 'locator_index', 'course_key'],
+  ['…geog222-c85465e9c2@…main:nth-of-type(1) > div:nth-of-type(4)', 'course-page', 'locator-course-page', 0, 'GEOG222'],
+  ['…computer-engineering…@…div:nth-of-type(2) > div:nth-of-type(1)', 'program-page-with-courses', 'locator-program-requirement', 0, 'MATH150'],
+  ['…computer-engineering…@…div:nth-of-type(3) > div:nth-of-type(1)', 'program-page-with-courses', 'locator-program-requirement', 1, 'MATH150H'],
+  ['…computer-engineering…@…div:nth-of-type(2) > div:nth-of-type(1)', 'program-page-with-courses', 'locator-program-requirement', 2, 'CS150']];
+F.occ.note = 'The full GEOG222 key: …course-geog222-c85465e9c2@html > body:nth-of-type(1) > app-root:nth-of-type(1) > app-public:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(2) > main:nth-of-type(1) > div:nth-of-type(4)';
+F.matches.table = [['rule_id', 'rule_version', 'status', 'value', 'css_path (in the course block)', 'char_start', 'char_end'],
+  ['course-code', 1, 'found', 'GEOG 222', 'header > h3', 0, 9],
+  ['course-external-id', 1, 'found', 'GEOG222', 'header > h3', 0, 9],
+  ['course-name', 1, 'found', 'Cartography for Geographic Information Science (GIS)', 'header > h2', 0, 52],
+  ['course-description', 2, 'found', 'This course provides a general survey of basic methods used for the presentation of geographic information science (GIS) data and analysis. …', 'div(1) > div(1)', 70, 699],
+  ['course-subject-webpage', 1, 'found', 'https://avc.elumenapp.com/catalog/2026-27/course/geog222', '∅', '∅', '∅'],
+  ['course-learning-type', 1, 'found', 'Course', '∅', '∅', '∅'],
+  ['course-lifecycle', 1, 'found', 'Active', '∅', '∅', '∅'],
+  ['course-language', 1, 'found', 'English', '∅', '∅', '∅']];
+F.matches.note = 'All eight rows for GEOG222 in rs-0002. In rs-0001, course-description v1 started at char 0, with the "Prerequisite:" line. Across the catalog, each of the 8 course rules has 1,062 rows and each of the 4 stub rules has 2,751.';
+F.signals.table = [['target_kind', 'rule_id', 'course', 'signal', 'severity', 'detail'],
+  ['match', 'course-description', 'ABDY113', 'contains-label-text', 'high', "value includes the label text 'Prerequisite:'"],
+  ['match', 'course-code', 'ARTHC1100', 'shape-outlier', 'medium', "shape 'A A9' is 16 of 1062 values; most common 'A 9'"],
+  ['match', 'course-name', 'AFAB110', 'length-outlier', 'low', '80 chars; 1st–99th percentile is 9–68'],
+  ['occurrence', 'locator-program-requirement', 'ARTHC1100', 'duplicate-occurrence', 'medium', 'ARTHC1100 occurs 2× on this page'],
+  ['page', '∅', '—', 'unclassified-page-with-codes', 'medium', 'no page rule matched, but the page names 21 course codes']];
+F.signals.note = 'Computed automatically when the rules run. People never see these as tags; they decide row order and feed the counts in Compare.';
+F.lineage.table = [['golden_record_id', 'page_stem', 'property', 'extraction', 'rule_id', 'rule_version', 'annotation_ids'],
+  ['GEOG222', '…geog222-c85465e9c2', 'Coded Notation', 'rs-0002', 'course-code', 1, '[an-6191f7ba8324]'],
+  ['GEOG222', '…geog222-c85465e9c2', 'Description', 'rs-0002', 'course-description', 2, '[an-75aeec940bac]'],
+  ['GEOG222', '…geog222-c85465e9c2', 'Learning Type', 'rs-0002', 'course-learning-type', 1, '[an-e65cf5326fb6]'],
+  ['GEOG222', '…geog222-c85465e9c2', 'Language', 'rs-0002', 'course-language', 1, '[an-3c10a9d355df]']];
+F.ann.about += ' Brought in from Jared\'s v2 review of AVC: 153 events (107 correct, 5 wrong with the expected text, 28 page-rule verdicts, 8 questions for the institution, 5 approvals). 52 decisions, 16 labels and 17 notes on out-of-scope fields were left out.';
+const TREE = ['ul', ['li', 'root/', 'dir', 'local folder or azure://…/xtra-cli-output/zz-scratch-review-ui-v3'],
+  ['ul', ['li', 'golden-dataset-studio/', 'dir'], ['ul', ['f', 'manifest']],
+    ['li', 'avc-elumenapp-com-catalog-2026-27-welcome/', 'dir', 'catalog'],
+    ['ul', ['li', 'golden-dataset-studio/', 'dir', 'rules + human input'],
+      ['ul', ['li', 'rules/', 'dir', '17 rules'], ['ul', ['f', 'rv1', 'course-description/v0001.json'], ['f', 'rv', 'course-description/v0002.json'], ['f', 'loc', 'locator-program-requirement/v0001.json'], ['li', '… 15 more rule folders', 'ro']],
+        ['li', 'rulesets/', 'dir'], ['ul', ['li', 'v0001.json', 'ro', 'brought over from v2'], ['f', 'rs', 'v0002.json']],
+        ['f', 'ann']],
+      ['li', '2026-10-12T20-59-13Z/', 'dir', 'crawl'],
+      ['ul', ['f', 'crawljson', 'crawl.json'], ['li', 'pages/', 'dir', '1,467 × (.html + .meta.json), 3.8 GB · read-only'], ['ul', ['f', 'meta', '<stem>.meta.json']],
+        ['li', 'golden-dataset-studio/', 'dir', 'everything derived'],
+        ['ul', ['f', 'pages'], ['f', 'assets', 'assets/'],
+          ['li', 'extractions/', 'dir'], ['ul', ['li', 'rs-0001/', 'dir', 'ruleset v1 · same five files'], ['li', 'rs-0002/', 'dir', 'ruleset v2'],
+            ['ul', ['f', 'extjson', 'extraction.json'], ['f', 'labels'], ['f', 'occ'], ['f', 'matches'], ['f', 'signals']]],
+          ['li', 'golden/pub-2026-10-26-avc-rs-0002-example/', 'dir'], ['ul', ['f', 'pub', 'publication.json'], ['f', 'courses', '<page_stem>/<page_stem>.json'], ['f', 'lineage', 'lineage.parquet']]]]]]];
+let curFile = 'rv';
+function buildTree(node) {
+  const [tag, ...rest] = node;
+  if (tag === 'ul') { const ul = el('ul'); let lastLi = null; for (const ch of rest) { if (ch[0] === 'ul') { (lastLi || ul).append(buildTree(ch)); } else { lastLi = buildTree(ch); ul.append(lastLi); } } return ul; }
+  if (tag === 'li') { const [text, cls, note] = rest; return el('li', {}, el('span', { class: cls || '' }, text), note ? el('span', { class: 'meta' }, note) : null); }
+  if (tag === 'f') { const [key, label] = rest; const f = F[key]; const short = label || f.name.split('/').pop();
+    return el('li', {}, el('button', { type: 'button', style: '--c:var(--l1)', 'data-file': key, 'aria-current': key === curFile ? 'true' : 'false', onclick: () => showFile(key) }, short), el('span', { class: 'who', style: '--c:var(--l1)' }, f.who)); }
+}
+function colorize(src) {
+  const esc = src.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  return esc.replace(/("(?:[^"\\]|\\.)*")(\s*:)?/g, (m, s, colon) => colon ? `<span class="k">${s}</span>${colon}` : `<span class="s">${s}</span>`);
+}
+function showFile(key) {
+  curFile = key; const f = F[key];
+  document.querySelectorAll('#filetree button').forEach(b => b.setAttribute('aria-current', b.dataset.file === key ? 'true' : 'false'));
+  $('#file-name').textContent = f.name; $('#file-meta').textContent = f.meta; $('#file-about').textContent = f.about;
+  if (f.table) {
+    const [cols, ...rows] = f.table;
+    const thead = el('thead', {}, el('tr', {}, cols.map(c => el('th', {}, c))));
+    const tbody = el('tbody', {}, rows.map(r => el('tr', {}, r.map(v => el('td', { class: String(v).length > 60 ? 'wrap' : '' }, String(v))))));
+    $('#file-body').replaceChildren(el('div', { class: 'ftable' }, el('table', {}, thead, tbody)), f.note ? el('p', { class: 'fnote' }, f.note) : '');
+  }
+  else $('#file-body').replaceChildren(el('pre', { class: 'code' }, el('code', {}, html(colorize(f.body)))));
+}
+$('#filetree').append(buildTree(TREE)); showFile('rv');
+
+/* ================= 6. Gantt ================= */
+const LANES = [
+  ['V2', 'v2 speed fixes', 'done, own Superset workspace', 'var(--line-strong)', 1, 3],
+  ['W0', 'Storage layer', 'folder / Azure, cache, manifest, log', 'var(--l0)', 1, 1],
+  ['W1', 'Page pane', 'full page, assets fetch, highlight', 'var(--l3)', 2, 3],
+  ['W2', 'Data model + engine', 'versions, Parquet, check, import-v2', 'var(--l1)', 2, 3],
+  ['W3', 'Signals', 'value, cross-row, page, history', 'var(--l1)', 3, 3],
+  ['W4', 'UI', 'Rules, annotation bar, Records', 'var(--l2)', 4, 5],
+  ['W5', 'Compare', 'scorecard shared with rule try', 'var(--l2)', 4, 4],
+  ['W6', 'Claude loop', 'rule show/try/publish, prompt', 'var(--l2)', 4, 5],
+  ['W7', 'Golden + lineage', 'publish, approval gate', 'var(--l0)', 5, 5],
+];
+const g = $('#gantt');
+g.append(el('div', { class: 'h' }, 'Work stream'), ...[1, 2, 3, 4, 5].map(n => el('div', { class: 'h' }, ['first', 'second', 'third', 'fourth', 'fifth'][n - 1])));
+LANES.forEach(([id, name, sub, c, a, b], row) => {
+  const r = row + 2;
+  g.append(el('div', { class: 'lab', style: `grid-row:${r};grid-column:1` }, el('b', {}, `${id} · ${name}`), el('span', {}, sub)));
+  for (let col = 2; col <= 6; col++) g.append(el('div', { class: 'cell', style: `grid-row:${r};grid-column:${col}` }));
+  g.append(el('div', { class: 'bar', style: `grid-row:${r};grid-column:${a + 1} / ${b + 2};--c:${c}` }, id));
+});
+
+})();
+</script>

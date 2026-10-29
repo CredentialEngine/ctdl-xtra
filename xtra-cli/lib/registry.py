@@ -96,6 +96,7 @@ def _post_search(catalog_url: str) -> tuple[int, dict | str]:
         SEARCH_URL, data=body, headers=headers, method="POST"
     )
     try:
+        # nosemgrep: python.lang.security.audit.dynamic-urllib-use-detected.dynamic-urllib-use-detected
         with urllib.request.urlopen(req, timeout=45) as resp:
             raw = resp.read()
             try:

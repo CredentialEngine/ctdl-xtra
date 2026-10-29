@@ -9,6 +9,7 @@ from implementations.crawl_robots import (
     browser_user_agent,
     collect_sitemap_urls,
     default_sitemap_url,
+    fetch_url,
     no_rules,
     parse_sitemap,
     read_robots,
@@ -189,3 +190,29 @@ def test_resolve_final_url_falls_back_to_the_url_it_was_given(
 
     monkeypatch.setattr("urllib.request.urlopen", boom)
     assert resolve_final_url(SEED) == SEED
+
+
+@pytest.mark.parametrize(
+    "url", ["file:///etc/passwd", "ftp://catalog.example.edu/x", "/robots.txt"]
+)
+def test_only_http_and_https_urls_are_fetched(url: str) -> None:
+    with pytest.raises(SiteFetchError, match="refusing"):
+        fetch_url(url)
+
+
+def test_a_sitemap_index_naming_a_local_file_does_not_read_it(caplog) -> None:
+    assert collect_sitemap_urls(["file:///etc/passwd"]) == []
+    assert "refusing a file URL" in caplog.text
+
+
+def test_an_entry_point_that_is_not_http_is_left_as_typed(caplog) -> None:
+    assert resolve_final_url("file:///etc/passwd") == "file:///etc/passwd"
+    assert "ENTRY file:///etc/passwd could not be resolved" in caplog.text
+
+
+def test_a_sitemap_that_declares_entities_reads_as_empty() -> None:
+    body = (
+        b'<?xml version="1.0"?><!DOCTYPE urlset [<!ENTITY a "aaaa">]>'
+        b"<urlset><url><loc>&a;</loc></url></urlset>"
+    )
+    assert parse_sitemap(body) == ("", [])

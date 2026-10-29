@@ -1,0 +1,66 @@
+/* The prompt modal (PromptModal.tsx) and the Generate rules prompt. The layout classes (.prompt-pre …) come from
+   styles.css, the prototype's stylesheet; only what it lacks is here. */
+.prompt-side .lead { color: var(--muted); font-size: 12.5px; margin-top: 10px; line-height: 1.45; }
+/* scope cards with a visible radio button: pick one rule, or all rules needing work */
+.prompt-side .opt { position: relative; padding-left: 36px; }
+.prompt-side .opt input[type="radio"] { position: absolute; left: 12px; top: 12px; margin: 0; width: 15px; height: 15px; accent-color: var(--accent); cursor: pointer; }
+.prompt-side .opt-pick { font-size: 11px; font-weight: 500; color: var(--accent); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.prompt-k { font-size: 10.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--faint); font-weight: 600; margin: 18px 0 6px; }
+.prompt-warn { margin-top: 8px; font-size: 12px; line-height: 1.4; color: var(--red); background: var(--red-soft); border-radius: 7px; padding: 6px 9px; }
+.prompt-side .opt:focus-within { border-color: var(--accent); }
+.prompt-side .needs-pill { display: inline-flex; align-items: center; gap: 3px; font-size: 11.5px; font-weight: 600;
+  color: var(--red); background: var(--red-soft); border-radius: 999px; padding: 1px 7px 1px 3px; }
+.prompt-side .needs-pill .ico svg { width: 13px; height: 13px; }
+.prompt-side .foot { font-size: 12px; margin-top: 18px; color: var(--muted); line-height: 1.5; }
+.prompt-bar .btn .ico svg { width: 14px; height: 14px; }
+.prompt-pre.loading { color: var(--faint); }
+.prompt-error { color: var(--red); padding: 12px 0; }
+/* the rule picker: a grouped list instead of a dropdown */
+/* the rule picker, nested under "One rule": indented, with a guide line on its left */
+.rule-pick { margin: 6px 0 4px 18px; border: 1px solid var(--line); border-left: 2px solid var(--accent); border-radius: 0 10px 10px 0; background: var(--surface); max-height: 46vh; overflow: auto; padding: 4px 0; }
+.rp-group + .rp-group { border-top: 1px solid var(--line); margin-top: 4px; padding-top: 4px; }
+.rp-h { font-size: 10.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--faint); font-weight: 600; padding: 6px 12px 3px; }
+.rp-item { display: flex; align-items: center; gap: 8px; width: 100%; border: 0; background: transparent; text-align: left; padding: 6px 12px; cursor: pointer; color: var(--ink); font: inherit; }
+.rp-item:hover { background: var(--surface-2); }
+.rp-item.on { background: var(--accent-soft); box-shadow: inset 3px 0 0 var(--accent); }
+.rp-item .ico svg { width: 14px; height: 14px; display: block; }
+.rp-t { flex: 1; min-width: 0; font-weight: 550; font-size: 12.5px; line-height: 1.3; }
+.rp-sub { display: block; font: 400 11px var(--mono); color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rp-n { flex: none; min-width: 18px; height: 18px; border-radius: 9px; background: var(--red-soft); color: var(--red); font-size: 11px; font-weight: 700; display: grid; place-items: center; padding: 0 5px; }
+/* Raw | Rendered */
+.md-seg { flex: none; }
+.prompt-pre.prompt-md { font: 14px/1.6 var(--sans); white-space: normal; color: var(--ink); }
+.prompt-md h1 { font-size: 20px; margin: 0 0 12px; }
+.prompt-md h2 { font-size: 16px; margin: 22px 0 8px; padding-bottom: 4px; border-bottom: 1px solid var(--line); }
+.prompt-md h3 { font-size: 14px; margin: 18px 0 6px; }
+.prompt-md p { margin: 8px 0; }
+.prompt-md ul, .prompt-md ol { margin: 6px 0; padding-left: 22px; }
+.prompt-md li { margin: 3px 0; }
+.prompt-md code { font: 12px var(--mono); background: var(--surface-2); border: 1px solid var(--line); border-radius: 4px; padding: 0 4px; }
+.prompt-md code.cmd { color: var(--green); }
+.prompt-md pre { background: var(--surface-2); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; overflow: auto; margin: 8px 0; }
+.prompt-md pre code { border: 0; background: none; padding: 0; font-size: 12px; white-space: pre; }
+.prompt-md a { color: var(--accent); }
+/* tables */
+.prompt-md .md-table { overflow-x: auto; margin: 8px 0; }
+.prompt-md table { border-collapse: collapse; font-size: 13px; line-height: 1.45; }
+.prompt-md th, .prompt-md td { border: 1px solid var(--line); padding: 5px 8px; text-align: left; vertical-align: top; }
+.prompt-md th { background: var(--surface-2); font-weight: 600; }
+.prompt-md td { overflow-wrap: anywhere; min-width: 60px; }
+/* what changes between prompts: the rule's definition (strongest), what comes from the annotations, the template (faded) */
+.prompt-pre .ln { display: block; margin: 0 -14px; padding: 0 14px; }
+.prompt-pre .ln.boiler, .prompt-md .band.boiler { opacity: .55; }
+.prompt-pre .ln.var, .prompt-md .band.var { background: color-mix(in srgb, var(--accent) 6%, transparent); box-shadow: inset 3px 0 0 color-mix(in srgb, var(--accent) 45%, transparent); }
+.prompt-pre .ln.def, .prompt-md .band.def { background: color-mix(in srgb, var(--accent) 14%, transparent); box-shadow: inset 3px 0 0 var(--accent); }
+.prompt-md .band { margin: 0 -14px; padding: 1px 14px; }
+.prompt-md .band.def pre { background: transparent; }
+.prompt-pre .ln.boiler:hover, .prompt-md .band.boiler:hover { opacity: 1; }
+
+/* the prompt modal: wide, with the preview filling the height */
+.ac.prompt-modal { width: min(1040px, 100%); height: calc(100vh - 100px); }
+.prompt-modal .ac-head { gap: 12px; }
+.prompt-modal .ac-head h2 { flex: 1; }
+.prompt-modal .md-seg { flex: none; }
+.pm-body { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 8px; padding: 12px 20px; overflow: hidden; }
+.pm-body .prompt-pre { flex: 1; min-height: 0; }
+.pm-lead { margin: 0; font-size: 13px; color: var(--muted); }
