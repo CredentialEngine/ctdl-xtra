@@ -2,8 +2,8 @@
 // catalog without rules) in its own first column, its logo, its name (wrapped to a narrow column), then one cell per column under angled headers: the Studio's seven
 // Course columns, then those xtra extracts that the Studio doesn't cover yet (greyed "—"). Two views, switched next to
 // the heading:
-// - Golden dataset: the date of its pages and, per column, a small fraction (KaTeX): the values in the latest golden
-//   dataset, expert-reviewed + labelled by the approved rule, over the values the column's rule found;
+// - Golden dataset: the date of its pages and, per column, a small fraction (KaTeX): the values an expert reviewed
+//   over the values the column's rule found;
 // - xtra score: exact matches of xtra's latest extract output against the latest golden dataset, overall and per
 //   column, scored against Human-reviewed | Rule-matched; hovering a bar or a legend colour explains the outcomes.
 // + Add a catalog (a crawl xtra-cli has already made) adds a row that shows its progress until it's ready.
@@ -40,16 +40,15 @@ const pct = (match: number, values: number) => `${Math.round((100 * match) / val
 const tex = (n: number) => fmt(n).replace(/,/g, "{,}");
 const katexHtml = (src: string) => ({ __html: katex.renderToString(src, { throwOnError: false }) });
 
-/** A column's golden dataset values as a fraction: \frac{H + R}{N}. */
-export function fractionTex(human: number, rule: number, found: number): string {
-  return `\\dfrac{${tex(human)} + ${tex(rule)}}{${tex(found)}}`;
+/** A column's human-reviewed values over the values its rule found: \frac{H}{N}. */
+export function fractionTex(human: number, found: number): string {
+  return `\\dfrac{${tex(human)}}{${tex(found)}}`;
 }
 
 /** The fraction in plain words (its delayed tooltip). */
-export function fractionTip(human: number, rule: number, found: number, status: string): string {
+export function fractionTip(human: number, found: number, status: string): string {
   const v = (n: number) => `${fmt(n)} value${n === 1 ? "" : "s"}`;
-  const by = status === "published" ? "the approved rule" : "the rule (not approved yet)";
-  return `${v(human)} an expert reviewed + ${fmt(rule)} labelled by ${by}, of ${v(found)} the rule found`
+  return `${v(human)} an expert reviewed, of ${v(found)} the rule found`
     + (status === "needs work" ? ". Some values are marked wrong." : "");
 }
 const BASIS_NAME: Record<ScoreBasis, string> = { human: "human-reviewed", rule: "rule-matched" };
@@ -152,7 +151,7 @@ export default function CatalogPicker() {
         {view === "golden" ? (
           <div className="ctab-legend">
             <span className="fr" dangerouslySetInnerHTML={katexHtml(
-              "\\dfrac{\\text{reviewed by an expert} + \\text{labelled by the approved rule}}{\\text{values the rule found}}")} />
+              "\\dfrac{\\text{values an expert reviewed}}{\\text{values the rule found}}")} />
             <span><b className="faint">—</b>not in this Studio yet (xtra extracts it)</span>
           </div>
         ) : (
@@ -180,8 +179,8 @@ function GoldenCells({ c, s, cols, why }: { c: CatalogCard; s: CatalogSummary | 
           if (!st) return <td key={k} className="c faint">—</td>;
           return (
             <td key={k} className={"c frac " + st.status.replace(" ", "-")} aria-label={`${k}: ${st.status}`}>
-              <Tip tip={fractionTip(st.human, st.rule, st.found, st.status)} width={300} delay={1000}>
-                <span tabIndex={0} className="fr" dangerouslySetInnerHTML={katexHtml(fractionTex(st.human, st.rule, st.found))} />
+              <Tip tip={fractionTip(st.human, st.found, st.status)} width={300} delay={1000}>
+                <span tabIndex={0} className="fr" dangerouslySetInnerHTML={katexHtml(fractionTex(st.human, st.found))} />
               </Tip>
             </td>
           );

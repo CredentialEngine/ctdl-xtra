@@ -61,10 +61,10 @@ describe("the catalogs table", () => {
     expect(ualr.textContent).toContain("no rules yet");
     expect(ualr.querySelector("button")!.textContent).toBe("Generate rules");
     expect(ualr.querySelector("button .ico svg")).toBeTruthy();  // the AI sparkle
-    // each column: expert-reviewed + rule-labelled over the values its rule found, typeset by KaTeX
+    // each column: expert-reviewed over the values its rule found, typeset by KaTeX
     expect(avc.querySelectorAll("td.frac .katex")).toHaveLength(7);
-    expect(avc.querySelector("td.c[aria-label='inLanguage: published'] annotation")!.textContent).toBe("\\dfrac{14 + 1{,}048}{1{,}062}");
-    expect(avc.querySelector("td.c[aria-label='name: in review'] annotation")!.textContent).toBe("\\dfrac{14 + 0}{1{,}062}");
+    expect(avc.querySelector("td.c[aria-label='inLanguage: published'] annotation")!.textContent).toBe("\\dfrac{14}{1{,}062}");
+    expect(avc.querySelector("td.c[aria-label='name: in review'] annotation")!.textContent).toBe("\\dfrac{14}{1{,}062}");
     // hovering it says so in words, after a second
     vi.useFakeTimers();
     const pub = avc.querySelector("td.c[aria-label='inLanguage: published'] .evx-tipw")!;
@@ -73,7 +73,7 @@ describe("the catalogs table", () => {
     await act(async () => { vi.advanceTimersByTime(1000); });
     vi.useRealTimers();
     expect(document.querySelector("[role=tooltip]")!.textContent).toBe(
-      "14 values an expert reviewed + 1,048 labelled by the approved rule, of 1,062 values the rule found");
+      "14 values an expert reviewed, of 1,062 values the rule found");
   });
 
   it("xtra score: exact matches with their count, per column % or n/s or —, the basis switch", async () => {
