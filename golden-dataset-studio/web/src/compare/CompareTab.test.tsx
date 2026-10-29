@@ -106,6 +106,21 @@ describe("CompareTab", () => {
     expect(host.querySelector("details.why1")!.hasAttribute("open")).toBe(false);
   });
 
+  it("links a record To dropped to the ruleset that has it, and To's records to To's ruleset", async () => {
+    const card = RESPONSE.rules[0];
+    const dropped = { ...card, rule_id: "stub-code", ctdl_property: "ceterms:codedNotation", b_version: null, annotated_rows: [],
+      signals: [], sample: [], vanished_rows: [brief("AJ101", "AJ 101", "")], values: { changed: 1, total: 1, new: 0, vanished: 1 } };
+    const resp = { ...RESPONSE, a: 2, b: 3, a_extraction: "rs-0002", b_extraction: "rs-0003",
+      versions: [...RESPONSE.versions, { version: 3, extraction: "rs-0003", note: null }], rules: [card, dropped] };
+    await render("#/c/avc/compare?a=2&b=3", resp);
+    const links = [...host.querySelectorAll<HTMLAnchorElement>("a.see")].map((x) => x.getAttribute("href")!);
+    expect(links).toContain("#/c/avc/rules/stub-code?row=aj101%40div&ext=rs-0002");  // From's ruleset: v3 has no stub-code
+    expect(links).toContain("#/c/avc/rules/course-description?row=geog222%40div");    // To is the latest: no ?ext
+    await render("#/c/avc/compare?a=1&b=2", { ...resp, a: 1, b: 2, a_extraction: "rs-0001", b_extraction: "rs-0002" });
+    expect(host.querySelector<HTMLAnchorElement>("a.see")!.getAttribute("href")).toBe(
+      "#/c/avc/rules/course-description?row=geog222%40div&ext=rs-0002");  // To isn't the latest
+  });
+
   it("saves a note on a changed value with what it was compared with", async () => {
     annotateMock.mockReset().mockResolvedValue({ event: {}, rule: null, elapsed_ms: 1 });
     await render("#/c/avc/compare");

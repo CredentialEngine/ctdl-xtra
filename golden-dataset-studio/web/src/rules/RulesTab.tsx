@@ -2,7 +2,7 @@
 // (sorted by the server with the likeliest problems first), the saved page on the right. "Annotated by" and its verdict
 // switch (?by=…&v=…, Evals spec §6.7) filter the rows of every rule, and the rule list counts the rows that pass.
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { api } from "../api/client";
+import { api, ApiError } from "../api/client";
 import type { AnnotateResponse, ApprovePreview, CatalogDetail, Discussion, EventBrief, NewEvent, Overlay, RuleDetail, RulesResponse,
   RuleSummary, SampleInfo, UnclassifiedPage } from "../api/types";
 import { PagePane, prefetchPages, type CapturedSelection, type Highlight } from "../pagepane";
@@ -19,6 +19,7 @@ import {
   scrollWithin, shortTitle, verdictEvent, type Draft, type TabRef,
 } from "./logic";
 import { MissedCourse, MissedPage, type MissedState } from "./MissedPanel";
+import { focusStem, NotHere, useFocusPage, type Missing } from "./NotHere";
 import { Controls, Expansion, HistoryLine, Value } from "./parts";
 import { ApproveDialog } from "./ApproveDialog";
 import { RuleHead } from "./RuleHead";
@@ -107,6 +108,7 @@ export default function RulesTab({ catalog, route }: TabProps) {
   const [overlay, setOverlay] = useState<{ key: string; data: Overlay } | null>(null);
   const [unclassified, setUnclassified] = useState<UnclassifiedPage[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [notHere, setNotHere] = useState<Missing | null>(null);  // a linked row (?row=) this ruleset doesn't show
   const [busy, setBusy] = useState(false);
   const [asking, setAsking] = useState<ApprovePreview | null>(null);  // approve and publish? (a column's rule)
   const token = useRef(0);
@@ -124,10 +126,11 @@ export default function RulesTab({ catalog, route }: TabProps) {
   const ext = route.params.get("ext");
   const [people, setPeople] = useState<Annotators | null>(null);
   const [peopleTried, setPeopleTried] = useState(false);
-  // "Annotated by": the URL's choice ("anyone" on purpose), else the expert who annotated most (Jared, on AVC)
+  // "Annotated by": the URL's choice ("anyone" on purpose), else the expert who annotated most (Jared, on AVC); a link
+  // to one row (?row=, e.g. Compare's "See on page →") shows everyone's rows, so the default doesn't hide that row
   const byParam = route.params.get("by");
-  const by = byParam === BY_ANYONE ? null : byParam ?? defaultAnnotator(people?.people);
-  const byReady = byParam !== null || peopleTried;  // the default needs the annotators first: no rows fetched twice
+  const by = byParam === BY_ANYONE ? null : byParam ?? (focus ? null : defaultAnnotator(people?.people));
+  const byReady = byParam !== null || peopleTried || !!focus;  // the default needs the annotators first: no rows fetched twice
   const verdict = route.params.get("v");
   const setFilter = (o: { by?: string | null; v?: string | null }) => go(href(cat, "rules", ruleId, { ext, by: byParam, v: verdict, ...o }));
   const [saved, setSaved] = useState(0);  // verdicts saved here: the rule list's counts and the experts' note follow
@@ -166,10 +169,17 @@ export default function RulesTab({ catalog, route }: TabProps) {
     setDraft(null); setMissed(null); setExtraTab(null); setActiveStem(null);
     Promise.all([api.rule(cat, ruleId, ext), apiX.rows(cat, ruleId, { limit: FIRST_PAGE, focus, ext, by, verdict, ...sq })]).then(([d, r]) => {
       if (tok !== token.current) return;
-      setDetail(d); setRows(r.rows); setTotal(r.total); setSample(r.sample ?? null); setMissing(r.missing); setSel(r.focus_index ?? 0);
+      const lost = !!focus && r.focus_index == null;  // the linked row isn't here: say so, show its page, select nothing
+      setDetail(d); setRows(r.rows); setTotal(r.total); setSample(r.sample ?? null); setMissing(r.missing); setSel(lost ? -1 : r.focus_index ?? 0);
+      setNotHere(lost ? (by || verdict || sq.f.length ? "hidden" : "row") : null);
       centerNext.current = true; setError(null);
       if (rowsRef.current) rowsRef.current.scrollTop = 0;
-    }, (e) => setError(String(e)));
+    }, (e) => {
+      if (tok !== token.current) return;
+      if (focus && e instanceof ApiError && e.status === 404) {  // a rule this ruleset doesn't have (v3 dropped it)
+        setDetail(null); setRows([]); setTotal(0); setSample(null); setMissing([]); setNotHere("rule"); setError(null);
+      } else setError(String(e));
+    });
   }, [cat, ruleId, focus, sq, ext, by, verdict, byReady]);
 
   const kind = detail?.kind ?? null;
@@ -206,13 +216,14 @@ export default function RulesTab({ catalog, route }: TabProps) {
   }, [sel, rows, cat, catalog.ruleset_version]);
 
   // --- page pane --------------------------------------------------------------------------------------------
-  const curTab: TabRef | null = row ? { stem: row.page_stem, url: row.url, title: row.page_title ?? row.page_stem } : null;
+  const focusTab = useFocusPage(cat, notHere ? focusStem(focus) : null);
+  const curTab: TabRef | null = row ? { stem: row.page_stem, url: row.url, title: row.page_title ?? row.page_stem } : focusTab;
   const tabs = useMemo(() => paneTabs(curTab,
     [...(extraTab ? [extraTab] : []), ...(row?.other_pages ?? []).map((p) => ({ stem: p.page_stem, url: p.url, title: p.title ?? p.page_stem }))],
     recent).map((t, i) => ({ ...t, title: shortTitle(t.title), badge: i + 1 })),
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  [row?.key, extraTab, recent]);
-  const active = activeStem ?? row?.page_stem ?? null;
+  [row?.key, extraTab, recent, focusTab]);
+  const active = activeStem ?? row?.page_stem ?? curTab?.stem ?? null;
 
   useEffect(() => {
     if (!detail || detail.kind === "field" || !active) return;
@@ -441,6 +452,9 @@ export default function RulesTab({ catalog, route }: TabProps) {
             <AnnotatedBy people={people} by={by} me={me} bare onPick={(x) => setFilter({ by: x ?? BY_ANYONE })} />
             <VerdictSwitch verdict={verdict} onPick={(x) => setFilter({ v: x })} />
           </>} />}
+        {notHere && focus && ruleId && <NotHere catalog={catalog} ruleId={ruleId} focus={focus} ext={ext} why={notHere}
+          ruleName={detail?.property_label ?? detail?.title ?? ruleId} version={rules?.ruleset_version ?? catalog.ruleset_version}
+          onAnyone={by || verdict ? () => setFilter({ by: BY_ANYONE, v: null }) : undefined} />}
         <div className="rows" data-tour="rows" ref={rowsRef} onScroll={(e) => {
           const el = e.currentTarget;
           if (el.scrollTop + el.clientHeight > el.scrollHeight - 600) loadMore();

@@ -1,0 +1,6 @@
+/* a linked row (?row=) this ruleset doesn't show (NotHere.tsx): said plainly above the rows, its page in the pane */
+.not-here { margin: 8px 8px 4px; padding: 10px 12px; border: 1px solid var(--line); border-left: 3px solid var(--amber);
+  border-radius: var(--r); background: var(--amber-soft); color: var(--ink-2); font-size: 13px; line-height: 1.45; }
+.not-here b { color: var(--ink); }
+.not-here a { white-space: nowrap; }
+.not-here .linkbtn { background: none; border: 0; padding: 0; color: var(--accent); cursor: pointer; font: inherit; }

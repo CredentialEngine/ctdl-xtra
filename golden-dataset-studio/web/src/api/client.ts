@@ -47,6 +47,8 @@ export const api = {
     call<RuleDetail>(`${c(catalog)}/rules/${encodeURIComponent(ruleId)}${q({ ext })}`),
   rows: (catalog: string, ruleId: string, opts: { offset?: number; limit?: number; q?: string } = {}) =>
     call<RowsResponse>(`${c(catalog)}/rules/${encodeURIComponent(ruleId)}/rows${q(opts)}`),
+  pageMeta: (catalog: string, stem: string) =>
+    call<{ stem: string; url: string; title: string }>(`${c(catalog)}/pages/${encodeURIComponent(stem)}/meta`),
   overlay: (catalog: string, stem: string, rule: string, ext?: string | null) =>
     call<Overlay>(`${c(catalog)}/pages/${encodeURIComponent(stem)}/overlay${q({ rule, ext })}`),
   unclassifiedPages: (catalog: string, ext?: string | null) =>

@@ -2,8 +2,9 @@
 // Top: From / To only. Left: the rules that changed. Right: summary line, why, Jared's earlier verdicts, signals
 // before → after (expandable into the records that lost / gained them), then every other changed record, paged and
 // filterable by strata.
-// Every record links to the Rules tab ("See on page →"); Compare has no page pane.
-import { useEffect, useState, type KeyboardEvent, type ReactNode } from "react";
+// Every record links to the Rules tab ("See on page →") in the ruleset that has it: To's, or From's for a record or rule
+// To dropped (?ext=, none for the latest); Compare has no page pane.
+import { createContext, useContext, useEffect, useState, type KeyboardEvent, type ReactNode } from "react";
 import { api } from "../api/client";
 import type { BriefRow, CompareRecords } from "../api/types";
 import { go, href } from "../shell/router";
@@ -17,6 +18,8 @@ import type { AnnotatedRowX, CompareResponseX, RuleCardX, SignalDeltaX } from ".
 import "./compare.css";
 
 const VERDICT_LABEL = { correct: "Correct", wrong: "Wrong" } as const;
+/** The extraction each side's "See on page →" opens on the Rules tab: null for the latest (no ?ext). */
+const SeeCtx = createContext<{ a: string | null; b: string | null }>({ a: null, b: null });
 const num = (v: string | null) => (v && /^\d+$/.test(v) ? Number(v) : undefined);
 
 export default function CompareTab({ catalog, route }: TabProps) {
@@ -64,7 +67,9 @@ export default function CompareTab({ catalog, route }: TabProps) {
           </div>
           {error && <p className="cmp-error">{error}</p>}
           <CompareCtx.Provider value={{ short, a: data.a, b: data.b, bExtraction: data.b_extraction, me }}>
-            <Body data={data} short={short} rule={rule} />
+            <SeeCtx.Provider value={seeExt(data)}>
+              <Body data={data} short={short} rule={rule} />
+            </SeeCtx.Provider>
           </CompareCtx.Provider>
         </div>
       </section>
@@ -233,8 +238,20 @@ function Num({ n, label, cls = "" }: { n: number; label: string; cls?: string })
   return <span className={n ? cls : "zero"}><b>{fmt(n)}</b> {label}</span>;
 }
 
+function seeExt(data: CompareResponseX): { a: string | null; b: string | null } {
+  const latest = Math.max(...data.versions.map((v) => v.version));
+  return { a: data.a === latest ? null : data.a_extraction, b: data.b === latest ? null : data.b_extraction };
+}
+
+/** The Rules tab with this record selected, in To's ruleset; in From's when To has no such rule or record (a rule or
+ *  a program-page line To dropped), so the link never lands on a rule the ruleset doesn't have. */
+function seeHref(short: string, r: BriefRow, card: RuleCardX, ext: { a: string | null; b: string | null }): string {
+  const inB = card.b_version != null && !card.vanished_rows.some((v) => v.key === r.key);
+  return href(short, "rules", card.rule_id, { row: r.key, ext: inB ? ext.b : ext.a });
+}
+
 function See({ r, card, short }: { r: BriefRow; card: RuleCardX; short: string }) {
-  return <a className="see" href={href(short, "rules", card.rule_id, { row: r.key })}>See on page →</a>;
+  return <a className="see" href={seeHref(short, r, card, useContext(SeeCtx))}>See on page →</a>;
 }
 
 function Ck({ r, card, many }: { r: BriefRow; card: RuleCardX; many: boolean }) {
