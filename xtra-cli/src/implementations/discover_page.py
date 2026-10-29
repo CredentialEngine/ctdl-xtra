@@ -73,8 +73,8 @@ from implementations.discover_rules import (
     award_in_name,
     award_in_name_line,
     catalog_year_value,
-    course_block_count,
     course_codes,
+    described_course_codes,
     distinct_awards,
     evidence,
     has_program_structure,
@@ -82,6 +82,7 @@ from implementations.discover_rules import (
     is_contact_line,
     is_outcome_statement,
     is_outcomes_lead_in,
+    line_opening_codes,
     names_a_list_or_rule,
     names_a_listing,
     names_an_organization_or_policy,
@@ -260,7 +261,7 @@ def head_lines(content_text: str) -> list[str]:
     return lines
 
 
-def first_paragraph(content_text: str) -> str:
+def first_paragraph(content_text: str, limit: int | None = INTRO_CHARS) -> str:
     """The first line of the content long enough to be a paragraph.
 
     Not the contact block a bulletin opens with. "Dr. David Welky, Chair,
@@ -268,10 +269,13 @@ def first_paragraph(content_text: str) -> str:
     be a paragraph and is not one, and taking it made a minor's
     description a string of telephone numbers and hid the sentence under
     it that says which award the page is about.
+
+    `limit` is for the award rules, which read only the opening; a
+    description is the whole paragraph.
     """
     for line in content_text.splitlines():
         if len(line) > HEAD_LINE_CHARS and not is_contact_line(line):
-            return line[:INTRO_CHARS]
+            return line if limit is None else line[:limit]
     return ""
 
 
@@ -740,14 +744,16 @@ def course_label(
     if blocks >= 2 and not lists_its_own_requirements:
         return f"{blocks} course blocks"
     if (
-        codes >= MIN_COURSE_LIST_CODES
+        blocks == 0
+        and codes >= MIN_COURSE_LIST_CODES
         and path_names_courses(template)
         and not lists_its_own_requirements
     ):
         # No credits anywhere, so no course blocks. Texas A&M International
         # encodes the credit count in the course number and prints nothing
         # else, which left a page of twenty-six course descriptions
-        # labelled as a program.
+        # labelled as a program. With one block found, the codes cannot
+        # tell a course page from a listing, so this rule stays out.
         return f"{codes} course codes under {template}"
     return None
 
@@ -889,6 +895,21 @@ class PageProfile:
         }
 
 
+def furniture_codes(printed: set[str], structure: Markup) -> set[str]:
+    """The course codes the page prints only outside its main container.
+
+    Read against main_text, which keeps a sidebar inside <main>. A page
+    with no main container has no furniture.
+    """
+    if not structure.main_text:
+        return set()
+    own = {
+        normalize_course_code(code)
+        for code in course_codes(structure.main_text)
+    }
+    return printed - own
+
+
 def profile_page(
     *,
     url: str,
@@ -907,14 +928,27 @@ def profile_page(
 
     `course_block_count` is what the markup marks up as a course
     description when it marks any, and otherwise what the text says: a
-    code with a credits value printed near it.
+    code with a credits value printed near it, counting only the courses
+    the page titles when it titles any (see described_course_codes).
+
+    Neither count takes a code the page prints only outside its main
+    container, such as in a site-wide course menu.
     """
     text = normalized_text(html)
     structure = parse_structure(html)
     template = url_template(url)
-    blocks = structure.described_course_count or course_block_count(
-        text, structure.reference_codes
+    printed = {normalize_course_code(code) for code in course_codes(text)}
+    ignore = structure.reference_codes | furniture_codes(printed, structure)
+    described, titled = described_course_codes(
+        text,
+        ignore,
+        titles=(
+            line_opening_codes(structure.main_text)
+            if structure.main_text
+            else None
+        ),
     )
+    blocks = structure.described_course_count or len(titled or described)
     program = read_program_evidence(structure, template)
     visible_chars = len(text)
     markers = detect_markers(
@@ -924,8 +958,7 @@ def profile_page(
         visible_chars=visible_chars,
         program=program,
     )
-    printed = {normalize_course_code(code) for code in course_codes(text)}
-    codes = len(printed - structure.reference_codes)
+    codes = len(printed - ignore)
     labels, fired = apply_labels(
         text=text,
         structure=structure,

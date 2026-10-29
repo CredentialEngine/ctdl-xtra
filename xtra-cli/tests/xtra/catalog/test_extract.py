@@ -113,8 +113,8 @@ def test_extract_writes_a_record_for_each_single_course_page(
         )
     )
     assert record["verification"]["status"] == "candidate"
-    assert record["expected"]["course_id"] == "ENGL101"
-    assert record["expected"]["course_credits"] == 3
+    assert record["expected"]["ceterms:codedNotation"] == "ENGL101"
+    assert record["expected"]["ceterms:creditValue"] == 3
 
 
 def test_the_record_carries_the_crawl_stem_not_the_old_slug(
@@ -171,8 +171,13 @@ def test_a_page_matching_no_template_is_read_from_its_markup(
     )
     assert record["template_id"] == "markup"
     assert record["entity_type"] == "Course"
-    assert record["expected"]["course_credits"] == 3
-    assert record["expected"]["course_department"] == "English"
+    assert record["expected"]["ceterms:creditValue"] == 3
+    assert record["expected"]["ceterms:creditUnitType"] == "Credits"
+    assert record["expected"]["ceterms:prerequisite"] == (
+        "placement into college-level reading."
+    )
+    # The department is read, but it is not minimum data for a course.
+    assert "English" not in record["expected"].values()
 
 
 def test_each_entity_discovery_labels_becomes_its_own_record(
@@ -188,19 +193,11 @@ def test_each_entity_discovery_labels_becomes_its_own_record(
     entities = {}
     for path in (run_dir(discovered) / "records").iterdir():
         record = json.loads(path.read_text(encoding="utf-8"))
-        entities[path.stem] = (
-            record["entity_type"],
-            record["ctdl_expected"]["class_uri"],
-        )
-    assert entities["program-dddddddddd"] == (
-        "Credential",
-        "ceterms:Credential",
-    )
-    assert entities["minor-eeeeeeeeee"] == (
-        "LearningProgram",
-        "ceterms:LearningProgram",
-    )
-    assert entities["outcomes-ffffffffff"] == ("Competency", "ceasn:Competency")
+        assert "ctdl_expected" not in record
+        entities[path.stem] = record["entity_type"]
+    assert entities["program-dddddddddd"] == "Credential"
+    assert entities["minor-eeeeeeeeee"] == "LearningProgram"
+    assert entities["outcomes-ffffffffff"] == "Competency"
 
 
 def test_a_competency_record_carries_one_competency_per_outcome(
@@ -212,12 +209,14 @@ def test_a_competency_record_carries_one_competency_per_outcome(
             run_dir(discovered) / "records" / "outcomes-ffffffffff.json"
         ).read_text(encoding="utf-8")
     )
-    texts = [
-        prop["value"]
-        for prop in record["ctdl_expected"]["properties"]
-        if prop["property"] == "ceasn:competencyText"
+    texts = record["expected"]["ceasn:competencyText"]
+    read = [
+        field
+        for field in record["source_expected"]["fields"]
+        if field["property"] == "ceasn:competencyText"
     ]
-    assert len(texts) >= 2
+    assert isinstance(texts, list)
+    assert len(texts) == len(read) >= 2
     assert all(isinstance(text, str) and text for text in texts)
 
 

@@ -5,6 +5,7 @@ course_description,Course,string,ceterms:description,Omit when not printed. Neve
 course_credits,Course,number,ceterms:creditValue,Single printed credit is one value. Do not emit min/max unless the freeze prints a range or both bounds.
 course_credits_min,Course,number,ceterms:creditValue,Only when the freeze prints an explicit minimum bound (Min, range start).
 course_credits_max,Course,number,ceterms:creditValue,Only when the freeze prints an explicit maximum bound (Max, range end).
+course_credits_unit,Course,string,ceterms:creditUnitType,The word the credits are counted in (Units / Credits / Hours) verbatim. Only beside course_credits; mapped inside its creditValue as creditUnitType.
 course_prerequisites,Course,string,ceterms:requires,Omit when not printed. Never invent min/max from a single credit.
 course_corequisites,Course,string,,Omit when not printed. Never invent min/max from a single credit.
 course_lecture_hours,Course,number,,Omit when not printed. Never invent min/max from a single credit.

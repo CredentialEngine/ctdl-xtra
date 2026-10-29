@@ -314,7 +314,7 @@ way. A resume reorders what it reads back the same way, so sitemap URLs do
 not wait behind a section the first pass queued.
 
 Sitemap index files and `.gz` sitemaps are followed. `robots.txt` is fetched
-with `urllib` and the shared browser user agent; a 4xx means the site
+with `httpx2` and the shared browser user agent; a 4xx means the site
 published no rules, and a 5xx or a network error means the same plus a
 warning. `robots_status` is recorded in `crawl.json`. When `robots.txt` sets
 `Crawl-delay` for `*`, the effective minimum interval is the larger of that
@@ -477,7 +477,7 @@ subject, and only a competency list rides along with it.
 
 | Label | CTDL class | Fires when |
 | --- | --- | --- |
-| `Course` | `ceterms:Course` | at least one course block, with the code in the title, the `h1`, or the heading lines of the page's own content; or one or more course descriptions the platform marked up, on a page that is not printing its own requirements; or two or more course blocks on such a page; or three or more course codes under a `/courses/` path |
+| `Course` | `ceterms:Course` | at least one course block, with the code in the title, the `h1`, or the heading lines of the page's own content, unless that code is one the page only cites; or one or more course descriptions the platform marked up, on a page that is not printing its own requirements; or two or more course blocks on such a page; or three or more course codes under a `/courses/` path, on a page with no course block |
 | `Credential` | `ceterms:Credential` | the page's name names one award; or the page prints its own requirements and names the award beside its name, in a section heading, after "Degrees Conferred", or in its first paragraph; failing both, a program or award URL segment plus an award the page names, then the URL segment alone |
 | `LearningOpportunity` | `ceterms:LearningProgram` | the page prints its own requirements and names no award (a minor, a pre-professional track, a non-credit program, a "Program (not a degree)"); or a program URL segment such as `/programs/…`, `/majors/…`, `/programs-by-program/…`, or `preview_program.php` and nothing else |
 | `Competency` | `ceasn:Competency` | a lead-in that names or introduces learning outcomes ("Student Learning Outcomes", "Upon completion of this program students will be able to:") followed directly by two or more outcomes, in list items or as lines that open with an action verb or "An ability to" |
@@ -488,6 +488,15 @@ credits, units, or hours value within 400 characters of it: a code on its
 own is a cross-reference; a code with a value is the course being
 described. Codes inside a requirement list or a course-reference link are
 never counted, however they are printed.
+
+Once a page prints any such course as a title — its code opening the line,
+in the page's own text — only those count. A code after a label or inside
+a sentence ("Prerequisite: Completion of ABC 101.", "Formerly ABC 100") is
+a cross-reference, however close a credits field sits below it; a page
+that titles no course is counted as before. And a code the page prints only
+outside its main container is the site's, not the page's. Without that, a
+catalog menu printed beside `<main>` on every page makes every course page
+look like it describes several courses, and extraction skips them all.
 
 Before the tree reading, a whole catalog could be missed on the printed
 form alone. A CourseLeaf graduate subject page numbers its courses with
@@ -730,6 +739,43 @@ those needs no rule per college, and it is the only way the three entities
 beside `Course` are read at all: the templates are course templates, and a
 credential page has no course block for them to find.
 
+Some pages label none of a course's fields. They print a heading group — the
+name, a heading that is nothing but the code (`ABC 101:`), the units on a
+line of their own (`4.0 Units`) — and the hours as a heading over a number
+("Total Lecture Hours", 54.0), so those two shapes are read as well.
+A description is the whole first paragraph, not its first 600 characters.
+
+Credits keep the word they are counted in. Every reading above writes the
+unit printed with the number as `course_credits_unit`: `Units` from
+`4.0 Units`, `UNITS` from `2.0 UNITS`, `Hours` from `3 Hours.`, and
+`Credit Hours` from a field labelled that way. The unit always comes from
+the same reading as the credits, or not at all, and the record keeps the
+word as printed, not as a `creditUnit:` concept, under
+`ceterms:creditUnitType` beside `ceterms:creditValue`. Transform's mapping
+writes the two as one `ceterms:ValueProfile` — `schema:value`, or
+`schema:minValue` and `schema:maxValue` for a printed range — with the word
+in its `ceterms:creditUnitType`. The college templates do not read the unit.
+
+The prerequisite is read the same way, wherever a page prints it:
+- a labelled field: `Prerequisite(s)` and `Prereqs` count too;
+- a bold label with the value on the same line;
+- a heading or bold label with the value under it, including in a sidebar inside the page's own content (an `<aside>` inside `<main>`);
+- a `Prerequisite:` line, including a run of requisites that opens a description.
+
+The record keeps the text after the label, as printed, as
+`ceterms:prerequisite`. There is one per course: the first the page prints.
+Alternatives joined with OR stay together ("ABC 101 OR ABC 102"). A
+"Prerequisite Courses" list is used only when nothing else names a
+prerequisite.
+
+Some things are not read as a prerequisite:
+- `None`, `N/A` and `No prerequisites` mean there is no prerequisite, so the field is left out.
+- A label naming both relations (`Prerequisite/Corequisite`, `Prerequisite and/or Corequisite`) gives nothing: the course may be taken alongside.
+- Corequisites, advisories and recommended preparation are never read as one.
+
+A description that prints the prerequisite keeps it, unchanged. The college
+templates read prerequisites their own way, as before.
+
 Each field records the element it came from, so a reviewer can go and look.
 A page that prints too little to be a record — one field, which every page
 has, because every page has a name — is skipped rather than written as an
@@ -750,6 +796,42 @@ Pages are read by the stem discovery lists, which is the stem the crawler
 saved them under. The `Slot.stem` property in `lib/` still slugs the URL the
 old way, so it is never used for a storage key, and the record carries the
 crawl stem instead.
+
+#### What a record holds
+
+A record names every field by the CTDL term it goes out under, not by the
+label the reader gave it. Each entry in `source_expected.fields` has a
+`property` such as `ceterms:name`, and `expected` maps the same terms to
+their values. A term read more than once, like the outcomes of a competency
+list, holds every value as a list in the order they were read.
+
+A course carries the minimum data for courses and nothing more:
+
+| Property | CTDL term | Value |
+| --- | --- | --- |
+| External Identifier | `ceterms:identifier` | the printed course code |
+| Name | `ceterms:name` | the printed name |
+| Description | `ceterms:description` | the printed description |
+| Subject Webpage | `ceterms:subjectWebpage` | the page's own URL |
+| Coded Notation | `ceterms:codedNotation` | the printed course code |
+| Credit Value | `ceterms:creditValue` | the credits as printed: `3`, `1.0-4.0` |
+| Credit Unit Type | `ceterms:creditUnitType` | the unit word printed with them |
+| Prerequisite | `ceterms:prerequisite` | the printed prerequisites |
+
+A template that reads a minimum and a maximum gives
+`ceterms:creditMinValue` and `ceterms:creditMaxValue` instead, the names the
+Learning Opportunity bulk-upload template uses. The identifier and the
+webpage are the two no page prints as a field, so they come last, with ids
+from `derived_001`. Everything else a course page prints, such as lecture
+and lab hours, the department or the corequisites, is still read, because
+each field counts toward the two a page needs to be a record at all, but
+the record leaves it out. Credentials, learning programs and competencies
+keep every field they have.
+
+Records no longer carry `ctdl_expected`. Transform has not caught up: it
+still maps the old labels, so `xtra catalog transform` stops with
+`KeyError: 'canonical_label'` on a record extracted this way and works only
+on records extracted before.
 
 ### Scoring extraction against a baseline
 

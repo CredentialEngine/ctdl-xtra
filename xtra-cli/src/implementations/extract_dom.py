@@ -14,6 +14,18 @@ the code, the name and the credits together, and the rest of the web
 writes a definition list or a table row. None of that needs to know which
 college it is looking at.
 
+Pages that label nothing are read from their layout: a heading group with
+the name, a heading holding only the code, and the units on their own
+line, and hours printed as a heading over a number.
+
+Credits keep their unit as printed, taken from the same reading as the
+number.
+
+A prerequisite is read wherever the page prints one: a labelled field, a
+heading or bold label over it, or a "Prerequisite:" line. The value is the
+text after the label, one per course. "None", and a label naming both
+relations ("Prerequisite/Corequisite"), give no prerequisite.
+
 It is also the only way the three entities beside Course get extracted at
 all. Discovery labels credential, learning-opportunity and competency
 pages, and until now nothing downstream could read one: the templates are
@@ -31,11 +43,18 @@ from __future__ import annotations
 
 from typing import Any
 
+from bs4 import NavigableString, Tag
+
 from implementations.discover_dom import (
     FieldPair,
     Markup,
+    element_path,
     element_text,
+    find_main,
+    is_chrome,
+    lines_after,
     parse,
+    printed_text,
     read_field_pairs,
 )
 from implementations.discover_page import (
@@ -45,12 +64,33 @@ from implementations.discover_page import (
     parse_structure,
 )
 from implementations.discover_rules import (
+    COMBINED_REQUISITE_RE,
+    COURSE_BLOCK_CREDITS_RE,
     COURSE_BLOCK_DESC_CLASS_RE,
     COURSE_BLOCK_TITLE_CLASS_RE,
+    COURSE_CODE_RE,
     COURSE_FIELD_LABELS,
+    COURSE_HEADING_REACH,
+    CREDIT_UNIT_RE,
     ENTITY_TYPE_OF_LABEL,
+    HEADING_GROUP_TAGS,
+    MAX_FIELD_LABEL_CHARS,
+    NO_PREREQUISITE_RE,
     NUMERIC_FIELDS,
+    PREREQUISITE_COURSES_LABEL_RE,
+    PREREQUISITE_LABEL_RE,
+    PREREQUISITE_LEAD_RE,
+    PREREQUISITE_MAX_CHARS,
+    PREREQUISITE_RUN_ON_CHARS,
+    REQUISITE_CONNECTOR_RE,
+    REQUISITE_LABEL_RE,
+    REQUISITE_LEAD_RE,
+    REQUISITE_WORD_RE,
+    SECTION_HEADING_CHARS,
+    SENTENCE_END_RE,
+    TAB_ROLE_RE,
     collapse,
+    course_block_credits,
     normalize_field_label,
     split_course_title,
 )
@@ -130,6 +170,23 @@ def _number(text: str) -> Any:
         return value
 
 
+def _credits_and_unit(text: str) -> tuple[Any, str] | None:
+    """A line that is nothing but credits, "4.0 Units", as its number and
+    its unit, or None."""
+    match = COURSE_BLOCK_CREDITS_RE.fullmatch(collapse(text))
+    if match is None:
+        return None
+    credits, unit = course_block_credits(match)
+    return _number(credits), unit
+
+
+def _printed_unit(label: str) -> str:
+    """The unit a credits label names, "CREDIT HOURS" in "CREDIT HOURS
+    MIN:", or "" when it names none."""
+    match = CREDIT_UNIT_RE.search(collapse(label))
+    return match.group(0) if match else ""
+
+
 def canonical_field(pair: FieldPair) -> str | None:
     """The canonical field this printed label is, or None.
 
@@ -171,6 +228,20 @@ def _collect(found: dict[str, tuple[Any, str, str]]) -> list[Any]:
     return drafts
 
 
+def _prerequisite_value(text: str) -> str | None:
+    """The prerequisite as printed after its label, or None for none."""
+    value = collapse(text).lstrip(" :").rstrip(" ;,")
+    if COMBINED_REQUISITE_RE.match(value):
+        return None
+    # The value can repeat its own label.
+    lead = PREREQUISITE_LEAD_RE.match(value)
+    if lead is not None:
+        value = value[lead.end() :].rstrip(" ;,")
+    if not value or NO_PREREQUISITE_RE.fullmatch(value):
+        return None
+    return value
+
+
 def _from_field_pairs(
     pairs: list[FieldPair],
 ) -> dict[str, tuple[Any, str, str]]:
@@ -179,8 +250,40 @@ def _from_field_pairs(
         label = canonical_field(pair)
         if label is None or label in found:
             continue
+        if label == "course_credits":
+            found.update(_credits_from_pair(pair))
+            continue
+        if label == "course_prerequisites":
+            value = _prerequisite_value(pair.value)
+            if value is not None:
+                found[label] = (value, pair.value, pair.path)
+            continue
         value = _number(pair.value) if label in NUMERIC_FIELDS else pair.value
         found[label] = (value, pair.value, pair.path)
+    return found
+
+
+def _credits_from_pair(pair: FieldPair) -> dict[str, tuple[Any, str, str]]:
+    """A labelled credits field, and the unit its credits are counted in.
+
+    The unit is the value's own when the value prints one, "3 Units", and
+    otherwise the label's, "Credit Hours" over a 3. A field the page left
+    unlabelled, known here only by its class name, prints no unit at all.
+    """
+    read = _credits_and_unit(pair.value)
+    if read is not None:
+        credits, unit = read
+        return {
+            "course_credits": (credits, pair.value, pair.path),
+            "course_credits_unit": (unit, pair.value, pair.path),
+        }
+    found: dict[str, tuple[Any, str, str]] = {
+        "course_credits": (_number(pair.value), pair.value, pair.path)
+    }
+    named = normalize_field_label(pair.label) or ""
+    unit = _printed_unit(pair.label)
+    if COURSE_FIELD_LABELS.get(named) == "course_credits" and unit:
+        found["course_credits_unit"] = (unit, pair.label, pair.path)
     return found
 
 
@@ -197,7 +300,7 @@ def _from_course_block(soup: Any) -> dict[str, tuple[Any, str, str]]:
     )
     if title is not None:
         line = element_text(title)
-        code, name, credits = split_course_title(line)
+        code, name, credits, unit = split_course_title(line)
         if code:
             found["course_id"] = (code, line, "p.courseblocktitle")
         if name:
@@ -208,6 +311,7 @@ def _from_course_block(soup: Any) -> dict[str, tuple[Any, str, str]]:
                 line,
                 "p.courseblocktitle",
             )
+            found["course_credits_unit"] = (unit, line, "p.courseblocktitle")
     body = next(
         (
             tag
@@ -229,6 +333,340 @@ def _class_named(tag: Any, pattern: Any) -> bool:
     return bool(classes) and bool(pattern.search(classes))
 
 
+_HEADINGS = ("h1", "h2", "h3", "h4", "h5", "h6")
+
+
+def _content_headings(soup: Any) -> list[Any]:
+    """The page's own headings: inside its main container, never a menu's."""
+    root = find_main(soup) or soup.body or soup
+    return [
+        heading
+        for heading in root.find_all(_HEADINGS)
+        if not any(is_chrome(parent) for parent in heading.parents)
+    ]
+
+
+def _bare_code(text: str) -> str:
+    """The code, when a heading holds nothing else ("ABC 101:")."""
+    code = text.rstrip(" :.")
+    return code if COURSE_CODE_RE.fullmatch(code) else ""
+
+
+def _first_printed(nodes: Any) -> tuple[str, Any] | None:
+    """The first of these siblings that prints anything, and its element."""
+    for node in nodes:
+        if isinstance(node, Tag):
+            text = element_text(node)
+            if text:
+                return text, node
+        elif type(node) is NavigableString:
+            text = collapse(str(node))
+            if text:
+                return text, node.parent
+    return None
+
+
+def _from_course_heading(soup: Any) -> dict[str, tuple[Any, str, str]]:
+    """The code, name and units of a course printed as a heading group.
+
+    The code is the heading holding only a code, the name is what the group
+    prints beside it, and the units are the first line after it holding
+    only units.
+    """
+    found: dict[str, tuple[Any, str, str]] = {}
+    heading = next(
+        (
+            tag
+            for tag in _content_headings(soup)
+            if _bare_code(element_text(tag))
+        ),
+        None,
+    )
+    if heading is None:
+        return found
+    line = element_text(heading)
+    found["course_id"] = (_bare_code(line), line, element_path(heading))
+    beside = (
+        _first_printed(heading.previous_siblings)
+        if heading.parent is not None
+        and heading.parent.name in HEADING_GROUP_TAGS
+        else None
+    )
+    if beside is not None:
+        name, holder = beside
+        # A code beside the code is another course, and a paragraph is the
+        # description; neither is the name.
+        too_long = len(name) > SECTION_HEADING_CHARS
+        if not too_long and not COURSE_CODE_RE.search(name):
+            found["course_name"] = (name, name, element_path(holder))
+    for tag in heading.find_all_next(True, limit=COURSE_HEADING_REACH):
+        text = element_text(tag)
+        read = _credits_and_unit(text)
+        if read is not None:
+            credits, unit = read
+            found["course_credits"] = (credits, text, element_path(tag))
+            found["course_credits_unit"] = (unit, text, element_path(tag))
+            break
+    return found
+
+
+def _from_heading_labels(soup: Any) -> dict[str, tuple[Any, str, str]]:
+    """A number printed under a heading that names it.
+
+    Only numeric fields, and only when the value is a number. A credits
+    heading also gives the unit.
+    """
+    found: dict[str, tuple[Any, str, str]] = {}
+    for heading in _content_headings(soup):
+        name = element_text(heading)
+        label = canonical_field(FieldPair(name, ""))
+        if label not in NUMERIC_FIELDS or label in found:
+            continue
+        beside = _first_printed(heading.next_siblings)
+        if beside is None:
+            continue
+        printed, holder = beside
+        value = _number(printed)
+        if not isinstance(value, (int, float)):
+            continue
+        found[label] = (value, printed, element_path(holder))
+        unit = _printed_unit(name) if label == "course_credits" else ""
+        if unit:
+            found["course_credits_unit"] = (unit, name, element_path(heading))
+    return found
+
+
+# Kinds of requisite label.
+_BOTH = "both"
+_COURSES = "courses"
+_PREREQUISITE = "prerequisite"
+_OTHER = "other"
+# Elements that can hold a label on its own. Not li: tab strips use it.
+_LABEL_BLOCK_TAGS = frozenset({*_HEADINGS, "p", "div", "td", "th", "dt"})
+# A label inside a link or a button is something to click on.
+_LINK_TAGS = ("a", "button")
+# What ends a value read from under a label, whatever it says.
+_VALUE_STOP_TAGS = frozenset({*_HEADINGS, "th", "dt"})
+
+
+def _label_tier(text: str) -> str | None:
+    """Which requisite label this text is, or None when it is none."""
+    label = collapse(text)
+    if COMBINED_REQUISITE_RE.fullmatch(label.rstrip(" :")):
+        return _BOTH
+    if PREREQUISITE_COURSES_LABEL_RE.fullmatch(label):
+        return _COURSES
+    if PREREQUISITE_LABEL_RE.fullmatch(label):
+        return _PREREQUISITE
+    if REQUISITE_LABEL_RE.fullmatch(label):
+        return _OTHER
+    return None
+
+
+def _is_site_furniture(tag: Any, main: Any) -> bool:
+    """is_chrome, except that a sidebar inside <main> belongs to the page."""
+    if (
+        tag.name == "aside"
+        and main is not None
+        and any(parent is main for parent in tag.parents)
+    ):
+        return False
+    return is_chrome(tag)
+
+
+def _label_blocks(soup: Any) -> list[tuple[Any, str]]:
+    """Every element whose whole text is a requisite label, in page order.
+
+    A bold label sharing its line with the value is left to the line
+    reading.
+    """
+    main = find_main(soup)
+    root = main or soup.body or soup
+    found: list[tuple[Any, str]] = []
+    seen: set[int] = set()
+    for string in root.find_all(string=REQUISITE_WORD_RE):
+        if type(string) is not NavigableString:
+            continue
+        text = element_text(string.parent)
+        tier = _label_tier(text)
+        if tier is None:
+            continue
+        block = None
+        node = string.parent
+        while isinstance(node, Tag) and element_text(node) == text:
+            if node.name in _LABEL_BLOCK_TAGS:
+                block = node
+            node = node.parent
+        if block is None or id(block) in seen:
+            continue
+        seen.add(id(block))
+        if _is_site_furniture(block, main) or any(
+            _is_site_furniture(up, main) for up in block.parents
+        ):
+            continue
+        if block.find_parent(_LINK_TAGS) or block.find(_LINK_TAGS):
+            continue
+        if TAB_ROLE_RE.search(block.get("role") or ""):
+            continue
+        found.append((block, tier))
+    return found
+
+
+def _opens_with_a_label(wrapper: Any) -> bool:
+    """True when the label's wrapper starts with a requisite label.
+
+    Otherwise only the block right under the label is its value.
+    """
+    if wrapper is None:
+        return False
+    first = _first_printed(wrapper.children)
+    return first is not None and _label_tier(first[0]) is not None
+
+
+def _ends_the_value(entry: Any, lines: list[str], first: bool) -> bool:
+    """True when this entry under a label is no longer its value.
+
+    The text decides, not bold: a bold course title can be the value.
+    """
+    if entry is not None and entry.name in _VALUE_STOP_TAGS:
+        return True
+    if len(lines) == 1:
+        text = lines[0]
+        if _label_tier(text) is not None:
+            return True
+        if REQUISITE_CONNECTOR_RE.fullmatch(text):
+            return True
+        if len(text) <= MAX_FIELD_LABEL_CHARS and text.endswith(":"):
+            return True
+    return not first and bool(REQUISITE_LEAD_RE.match(lines[0]))
+
+
+def _read_label_block(label: Any, joiner: str) -> tuple[str, str, str] | None:
+    """The value under a label, as printed, with its excerpt and locator.
+
+    It runs to the next heading or requisite label. "Prerequisite A OR
+    Prerequisite B" is one value. Too long a value means the label was a
+    section heading, and nothing is read.
+    """
+    entries = lines_after(label)
+    whole = _opens_with_a_label(label.parent)
+    statements: list[list[str]] = [[]]
+    connectors: list[str] = []
+    printed = [element_text(label)]
+    index = 0
+    while index < len(entries):
+        entry, lines = entries[index]
+        if _ends_the_value(entry, lines, first=not statements[-1]):
+            after = entries[index + 1][1] if index + 1 < len(entries) else []
+            joins = (
+                bool(statements[-1])
+                and len(lines) == 1
+                and bool(REQUISITE_CONNECTOR_RE.fullmatch(lines[0]))
+                and len(after) == 1
+                and _label_tier(after[0]) == _PREREQUISITE
+            )
+            if not joins:
+                break
+            connectors.append(lines[0])
+            printed.extend([lines[0], after[0]])
+            statements.append([])
+            index += 2
+            continue
+        statements[-1].extend(lines)
+        printed.extend(lines)
+        if not whole:
+            break
+        index += 1
+    parts: list[str] = []
+    for position, lines in enumerate(statements):
+        if not lines:
+            continue
+        if parts:
+            parts.append(connectors[position - 1])
+        parts.append(joiner.join(lines))
+    value = " ".join(parts)
+    # "None" followed by a note is still no prerequisite.
+    if statements[0] and NO_PREREQUISITE_RE.fullmatch(statements[0][0]):
+        value = statements[0][0]
+    if not value or len(value) > PREREQUISITE_MAX_CHARS:
+        return None
+    return value, " ".join(printed), element_path(label.parent)
+
+
+def _prerequisite_line(content_text: str) -> tuple[str, str, str] | None:
+    """The first prerequisite a line prints after its label.
+
+    "Prerequisite: ABC 101 with a grade of C or better". The label counts
+    at the start of a line or a sentence; the value ends at the next
+    requisite label or the end of its sentence. In the description's
+    paragraph, a value with nothing to end it is read only up to
+    PREREQUISITE_RUN_ON_CHARS.
+    """
+    opening = first_paragraph(content_text, limit=None)
+    for line in content_text.splitlines():
+        for lead in REQUISITE_LEAD_RE.finditer(line):
+            before = line[: lead.start()].rstrip()
+            if before and not before.endswith((".", ";")):
+                continue
+            tier = _label_tier(lead.group(0))
+            if tier not in (_PREREQUISITE, _BOTH):
+                continue
+            rest = line[lead.end() :]
+            stop = REQUISITE_LEAD_RE.search(rest)
+            if stop is not None:
+                rest = rest[: stop.start()]
+            end = SENTENCE_END_RE.search(rest)
+            if end is not None:
+                rest = rest[: end.start() + 1]
+            value = collapse(rest)
+            if not value:
+                continue
+            ended = stop is not None or end is not None
+            run_on = len(value) > PREREQUISITE_RUN_ON_CHARS
+            if line == opening and not ended and run_on:
+                continue
+            printed = collapse(f"{lead.group(0)} {value}")
+            # Kept whole so the cleaner rejects a combined label.
+            raw = printed if tier == _BOTH else value
+            return raw, printed, f"content line {line[:40]!r}"
+    return None
+
+
+def _from_prerequisite_labels(
+    soup: Any, content_text: str
+) -> dict[str, tuple[Any, str, str]]:
+    """The course's prerequisite: one per course, the first the page prints.
+
+    Tries a label over its value, then a "Prerequisite:" line, then a
+    "Prerequisite Courses" list. A first statement of "None", or naming
+    both relations, means none.
+    """
+    courses = None
+    reading = None
+    for label, tier in _label_blocks(soup):
+        if tier == _BOTH:
+            return {}
+        if tier == _COURSES:
+            courses = courses if courses is not None else label
+            continue
+        if tier != _PREREQUISITE:
+            continue
+        reading = _read_label_block(label, " ")
+        if reading is not None:
+            break
+    if reading is None:
+        reading = _prerequisite_line(content_text)
+    if reading is None and courses is not None:
+        reading = _read_label_block(courses, "; ")
+    if reading is None:
+        return {}
+    raw, excerpt, locator = reading
+    value = _prerequisite_value(raw)
+    if value is None:
+        return {}
+    return {"course_prerequisites": (value, excerpt, locator)}
+
+
 def _page_fields(
     entity_type: str, markup: Markup
 ) -> dict[str, tuple[Any, str, str]]:
@@ -237,7 +675,7 @@ def _page_fields(
     name = page_name(markup)
     if name and entity_type in NAME_FIELD:
         found[NAME_FIELD[entity_type]] = (name, name, "h1")
-    intro = first_paragraph(markup.content_text)
+    intro = first_paragraph(markup.content_text, limit=None)
     if intro and entity_type in DESCRIPTION_FIELD:
         found[DESCRIPTION_FIELD[entity_type]] = (intro, intro, "main > p")
     return found
@@ -254,28 +692,36 @@ def extract_fields(entity_type: str, html: str) -> list[Any]:
     if entity_type == ENTITY_COMPETENCY:
         return _competency_drafts(markup)
 
-    # Strongest source first, and each one fills only what the one before
-    # it left empty. A field the page labelled says what it is; the course
-    # block is what CourseLeaf gives instead of labelled fields; the page
-    # itself is the last resort, because the h1 of a CourseLeaf subject
-    # page is the subject's name, not the course's.
+    # Strongest source first; each fills only what earlier ones left empty.
+    # The page itself is the last resort: its h1 can be a subject's name.
     sources: list[dict[str, tuple[Any, str, str]]] = []
     if entity_type == ENTITY_COURSE:
         sources = [
             _from_field_pairs(read_field_pairs(soup)),
             _from_course_block(soup),
+            _from_course_heading(soup),
+            _from_heading_labels(soup),
+            _from_prerequisite_labels(soup, printed_text(soup)),
         ]
     sources.append(_page_fields(entity_type, markup))
     found: dict[str, tuple[Any, str, str]] = {}
     for source in sources:
+        # The unit comes only from the reading whose credits are kept.
+        keeps_credits = (
+            "course_credits" in source and "course_credits" not in found
+        )
         for label, value in source.items():
+            if label == "course_credits_unit" and not keeps_credits:
+                continue
             found.setdefault(label, value)
     # The page's own name is not a record. Every page has one, so a
     # record holding nothing else is an empty record that looks extracted,
-    # which is the one thing this must not produce.
-    if len(found) < MIN_FIELDS:
+    # which is the one thing this must not produce. A unit is not a field
+    # to count either: it is only ever read with the credits.
+    read = len(found.keys() - {"course_credits_unit"})
+    if read < MIN_FIELDS:
         raise NothingToExtract(
-            f"the page prints {len(found)} field(s) this can read from its "
+            f"the page prints {read} field(s) this can read from its "
             f"markup, fewer than the {MIN_FIELDS} a record needs"
         )
     return _collect(found)

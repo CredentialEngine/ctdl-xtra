@@ -819,6 +819,124 @@ def test_a_word_in_the_url_slug_is_not_a_program() -> None:
     assert profile.labels == []
 
 
+SITE_MENU = (
+    "<div id='nav'><ul>"
+    "<li><a href='/course/chem110'>CHEM 110 - General Chemistry</a></li>"
+    "<li><a href='/course/chem120'>CHEM 120 - General Chemistry</a></li>"
+    "<li><a href='/program/cfe'>Child and Family Education Associate "
+    "Teacher Certificate (12 Unit)</a></li>"
+    "<li><a href='/course/weld900'>WELD 900 - Welding Certification "
+    "Preparation</a></li>"
+    "<li><a href='/course/weld901'>WELD 901 - Welding Certification "
+    "Exam</a></li>"
+    "</ul></div>"
+)
+COURSE_URL = "https://catalog.example.edu/catalog/2026-27/course/biol110"
+
+
+def course_with_menu(description: str) -> str:
+    return (
+        "<title>BIOL 110 - General Biology</title>"
+        f"{SITE_MENU}"
+        "<main><h1 class='u-visuallyhidden'>2026-27 Catalog</h1>"
+        "<div id='mainContent'><header class='header'>"
+        "<h2>General Biology</h2><h3>BIOL 110:</h3>"
+        "<p class='header-x-meta'>4.0 Units</p></header>"
+        f"<div class='introtext'><p>{description}</p></div>"
+        "<h4>Units and Hours</h4>"
+        "<h5>Minimum Credit Units</h5><div class='text'><p>4.0</p></div>"
+        "</div></main>"
+    )
+
+
+def test_a_catalog_menu_listing_every_course_adds_none_to_the_page() -> None:
+    """Read as one string, the menu's CHEM courses sit above "(12 Unit)"
+    and its WELD courses above the page's "4.0 Units", so the page looked
+    like it described five courses or more.
+    """
+    profile = page(
+        course_with_menu("Survey of living things, from cells to ecosystems."),
+        url=COURSE_URL,
+    )
+    assert profile.course_block_count == 1
+    assert profile.course_code_count == 1
+    assert profile.labels == ["Course"]
+    assert "multi_course_page" not in profile.markers
+
+
+def test_a_policy_page_under_that_menu_is_not_a_course_page() -> None:
+    """The academic calendar was a Course page holding two courses."""
+    profile = page(
+        f"<title>Academic Calendar</title>{SITE_MENU}"
+        "<main><h1 class='u-visuallyhidden'>2026-27 Catalog</h1>"
+        "<h2>Academic Calendar</h2>"
+        "<p>Fall classes begin on the third Monday of August.</p></main>",
+        url="https://catalog.example.edu/catalog/2026-27/academiccalendar",
+    )
+    assert profile.course_block_count == 0
+    assert "Course" not in profile.labels
+
+
+def test_a_prerequisite_the_menu_also_lists_is_still_a_reference() -> None:
+    """CHEM 110 opens a line in the menu and is cited in the description.
+
+    The page prints it, so it is not furniture; what makes it a reference
+    is that the page's own text never prints it as a title.
+    """
+    profile = page(
+        course_with_menu(
+            "Prerequisite: Completion of CHEM 110. Survey of living things, "
+            "from cells to ecosystems."
+        ),
+        url=COURSE_URL,
+    )
+    assert profile.course_block_count == 1
+    assert profile.labels == ["Course"]
+
+
+def test_a_code_printed_in_the_pages_own_aside_still_counts() -> None:
+    """A page can print its course's code and credits in an <aside> in <main>.
+
+    content_text drops that aside as furniture. Read against it, the
+    page's own course looked printed outside the page.
+    """
+    profile = page(
+        "<title>ACC 115 - Payroll Accounting</title>"
+        "<main><h1>Payroll Accounting</h1>"
+        "<aside class='course-full__aside'><p>ACC 115</p>"
+        "<p>Credits 3</p></aside></main>",
+        url=(
+            "https://www.example.edu/academics-programs/catalog/courses/"
+            "2018-2019/acc-115-payroll-accounting"
+        ),
+    )
+    assert profile.course_block_count == 1
+    assert profile.labels == ["Course"]
+
+
+def test_codes_under_a_courses_path_need_no_block_to_be_a_listing() -> None:
+    """Units printed as "(6.5)" are not read as a value.
+
+    The one block found on this listing is a cross-reference, so the three
+    codes under /courses/ have to make it a listing on their own.
+    """
+    profile = page(
+        "<main><h2>VOCN - Vocational Nursing - Licensed</h2>"
+        "<p>VOCN 23 - Nurse Assistant/Convalescent Care (6.5)</p>"
+        "<p>Credit (Degree Applicable)</p><p>Grading: Only Letter</p>"
+        "<p>Prerequisite: Certification of Cardio Pulmonary Resuscitation "
+        "approved by the American Heart Association.</p>"
+        "<p>Catalog Notes: Formerly VOCN 41A Fundamentals with 16 hours of "
+        "skills lab</p>"
+        "<p>VOCN 51 - Fundamentals of Nursing (8.0)</p>"
+        "<p>Catalog Notes: Replaces VOCN 42A and VOCN 42B</p></main>",
+        url="https://catalog.example.edu/catalog/iq/courses/3/170",
+    )
+    assert profile.course_code_count == 3
+    assert profile.course_block_count == 1
+    assert "Course" not in profile.labels
+
+
 PLATFORM_FIXTURES = {
     "discover/platform-courseleaf.html": "courseleaf",
     "discover/platform-acalog.html": "acalog",

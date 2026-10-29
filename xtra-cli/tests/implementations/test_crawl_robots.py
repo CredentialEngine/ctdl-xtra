@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import gzip
 
+import httpx2
 import pytest
 
 from implementations.crawl_robots import (
@@ -9,6 +10,7 @@ from implementations.crawl_robots import (
     browser_user_agent,
     collect_sitemap_urls,
     default_sitemap_url,
+    fetch_url,
     no_rules,
     parse_sitemap,
     read_robots,
@@ -157,35 +159,62 @@ def test_a_self_referencing_index_cannot_loop() -> None:
     assert calls == ["https://x.edu/sitemap.xml"]
 
 
-class _FakeResponse:
-    def __init__(self, url: str) -> None:
-        self._url = url
-
-    def geturl(self) -> str:
-        return self._url
-
-    def __enter__(self):
-        return self
-
-    def __exit__(self, *exc) -> None:
-        return None
+def answer(monkeypatch, respond) -> None:
+    monkeypatch.setattr(
+        httpx2.HTTPTransport,
+        "handle_request",
+        lambda transport, request: respond(request),
+    )
 
 
 def test_resolve_final_url_reports_where_a_seed_answers(monkeypatch) -> None:
-    monkeypatch.setattr(
-        "urllib.request.urlopen",
-        lambda request, timeout=None: _FakeResponse("https://catalog.new.edu/"),
-    )
+    def moved(request):
+        if request.url.host == "catalog.example.edu":
+            return httpx2.Response(
+                301, headers={"Location": "https://catalog.new.edu/"}
+            )
+        return httpx2.Response(200)
+
+    answer(monkeypatch, moved)
     assert resolve_final_url(SEED) == "https://catalog.new.edu/"
 
 
 def test_resolve_final_url_falls_back_to_the_url_it_was_given(
     monkeypatch,
 ) -> None:
-    """A site that refuses urllib is still crawled from the typed URL."""
+    def refused(request):
+        raise httpx2.ConnectError("connection refused", request=request)
 
-    def boom(request, timeout=None):
-        raise OSError("connection refused")
-
-    monkeypatch.setattr("urllib.request.urlopen", boom)
+    answer(monkeypatch, refused)
     assert resolve_final_url(SEED) == SEED
+
+
+def test_fetch_url_returns_an_error_status_with_its_body(monkeypatch) -> None:
+    answer(monkeypatch, lambda request: httpx2.Response(404, content=b"gone"))
+    assert fetch_url(robots_url(SEED)) == (404, b"gone")
+
+
+@pytest.mark.parametrize(
+    "url", ["file:///etc/passwd", "ftp://catalog.example.edu/x", "/robots.txt"]
+)
+def test_only_http_and_https_urls_are_fetched(url: str) -> None:
+    with pytest.raises(SiteFetchError, match="refusing"):
+        fetch_url(url)
+
+
+def test_a_sitemap_index_naming_a_local_file_does_not_read_it(caplog) -> None:
+    assert collect_sitemap_urls(["file:///etc/passwd"]) == []
+    assert "refusing a file URL" in caplog.text
+
+
+def test_an_entry_point_that_is_not_http_is_left_as_typed(caplog) -> None:
+    assert resolve_final_url("file:///etc/passwd") == "file:///etc/passwd"
+    assert "ENTRY file:///etc/passwd could not be resolved" in caplog.text
+
+
+def test_a_sitemap_that_declares_entities_reads_as_empty() -> None:
+    body = (
+        b'<?xml version="1.0"?><!DOCTYPE urlset [<!ENTITY a "aaaa">]>'
+        b"<urlset><url><loc>&a;</loc></url></urlset>"
+    )
+    assert parse_sitemap(body) == ("", [])
