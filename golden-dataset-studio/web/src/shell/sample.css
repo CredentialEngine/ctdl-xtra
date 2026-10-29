@@ -1,6 +1,10 @@
 /* The Sample drawer (Sample.tsx) */
 .sample { border: 1px solid var(--line); border-radius: 10px; background: var(--surface); padding: 6px 10px; margin: 8px 0; font-size: 12.5px; }
 .sm-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+/* the controls of a row: in line after the label; with filter rows (the Rules tab), at the right like the tab pickers */
+.sm-ctl { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; min-width: 0; }
+.sample.sm-rows .sm-ctl { margin-left: auto; justify-content: flex-end; }
+.sample.sm-rows .ab-pop { left: auto; right: 0; }
 .sm-tog { border: 0; background: none; font: inherit; font-weight: 600; color: var(--ink); cursor: pointer; padding: 2px 4px; width: 104px; text-align: left; }
 /* a second filter row (the Rules tab's Annotated by), aligned under the Sample row: same label column, same controls */
 .sm-row { margin-top: 6px; }

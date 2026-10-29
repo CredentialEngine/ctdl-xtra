@@ -1,10 +1,10 @@
 // Golden datasets (Evals spec §6.6, m4b): a read-only record. Approving a column's rule publishes it (Rules tab), so
-// there's no Publish button here. One row per version (ruleset vN): its columns, its values with how many are
-// human-reviewed, and its latest xtra score; below, where the chosen version is written, each file a link to a sample.
+// there's no Publish button here. One row per version (ruleset vN): its columns, how many of its values are
+// human-reviewed and how many the rules matched (every value; scores are the Evals tab's). "Where these files are"
+// (bottom right) opens where the chosen version is written, each file a link to a sample.
 import { useCallback, useEffect, useState } from "react";
-import type { ReactNode } from "react";
 import { api } from "../api/client";
-import type { GoldenResponse, GoldenScore, GoldenVersion } from "../api/types";
+import type { GoldenResponse, GoldenVersion } from "../api/types";
 import type { TabProps } from "../shell/tabProps";
 import { fmt, useKeyHints } from "../shell/ui";
 import { FilePreview } from "./FilePreview";
@@ -12,14 +12,6 @@ import type { GoldenFile } from "./FilePreview";
 import "./golden.css";
 
 const vname = (id: string) => id.replace(/^ruleset-v/, "ruleset v");
-
-export function scoreText(s: GoldenScore | null): ReactNode {
-  if (!s) return <span className="muted">not scored yet</span>;
-  if (s.status === "running") return <span className="muted">scoring…</span>;
-  if (s.rate == null) return <span className="muted">nothing to score</span>;
-  return <><b>{Math.round(100 * s.rate)}%</b> exact, {s.basis === "human" ? "human-reviewed" : "rule-matched"}
-    <span className="muted"> ({fmt(s.match ?? 0)} of {fmt(s.values ?? 0)})</span></>;
-}
 
 type Part = string | { f: GoldenFile; label: string } | { b: string };
 const plain = (parts: Part[]) => parts.map((p) => (typeof p === "string" ? p : "f" in p ? p.label : p.b)).join("");
@@ -38,7 +30,7 @@ function Tree({ lines, open }: { lines: [Part[], string?][]; open: (f: GoldenFil
   );
 }
 
-function where(v: GoldenVersion, catalog: string, crawl: string): [Part[], string?][] {
+function whereLines(v: GoldenVersion, catalog: string, crawl: string): [Part[], string?][] {
   const w = v.where;
   const pages = (n: number | null | undefined) => (n == null ? "" : ` (${fmt(n)} pages)`);
   const bar = w.latest ? "│" : " ";  // an older version: only its folder, not the latest location
@@ -73,12 +65,13 @@ export default function GoldenTab({ catalog, route }: TabProps) {
     api.golden(catalog.short).then(setD, (e) => setError(String(e)));
   }, [catalog.short]);
   useEffect(load, [load]);
-  const running = !!d?.versions.some((v) => v.score?.status === "running");
-  useEffect(() => {  // a score runs after each approval: show it when it's done
-    if (!running) return;
-    const t = setInterval(load, 3000);
-    return () => clearInterval(t);
-  }, [running, load]);
+  const [where, setWhere] = useState(false);
+  useEffect(() => {
+    if (!where || open) return;
+    const esc = (e: KeyboardEvent) => { if (e.key === "Escape") setWhere(false); };
+    window.addEventListener("keydown", esc);
+    return () => window.removeEventListener("keydown", esc);
+  }, [where, open]);
   useKeyHints(<span>Approving a column's rule on the Rules tab publishes it. Engineers can also run{" "}
     <span className="mono">golden-datasets golden publish --catalog {catalog.short} --property NAME</span></span>, [catalog.short]);
 
@@ -96,19 +89,27 @@ export default function GoldenTab({ catalog, route }: TabProps) {
       ) : (
         <>
           <table className="gv-table">
-            <thead><tr><th>Golden dataset</th><th>Columns</th><th>Values</th><th>xtra score (latest output)</th></tr></thead>
+            <thead><tr><th>Golden dataset</th><th>Columns</th><th className="n">Human-reviewed values</th><th className="n">Rule-matched values</th></tr></thead>
             <tbody>{d.versions.map((x) => (
               <tr key={x.id} className={x.id === v.id ? "on" : ""} onClick={() => setChosen(x.id)} data-version={x.id}
                   title={x.published_at ? `Last written ${x.published_at.slice(0, 10)}${x.published_by ? ` by ${x.published_by}` : ""}` : undefined}>
                 <td><b>{vname(x.id)}</b>{x.latest && <span className="faint"> latest</span>}</td>
                 <td className="mono">{x.columns.length ? x.columns.join(", ") : <span className="muted">only human-reviewed values</span>}</td>
-                <td>{fmt(x.values)} · <span className="gv-hr">{fmt(x.human)} human-reviewed</span></td>
-                <td>{scoreText(x.score)}</td>
+                <td className="n">{fmt(x.human)}</td>
+                <td className="n">{fmt(x.values)}</td>
               </tr>))}
             </tbody>
           </table>
-          <div className="gv-where muted">Where {vname(v.id)} is written · click a file to see a sample</div>
-          <div className="box"><Tree lines={where(v, d.catalog, d.crawl)} open={setOpen} /></div>
+          <div className="gv-foot"><button className="gv-help" onClick={() => setWhere(true)} title={`Where ${vname(v.id)} is written`}>
+            <span className="q" aria-hidden>?</span>Where these files are</button></div>
+          {where && (
+            <div className="gv-back" onClick={() => setWhere(false)}>
+              <div className="gv-modal" role="dialog" aria-label="Where these files are" onClick={(e) => e.stopPropagation()}>
+                <div className="gv-modal-h"><h2>Where {vname(v.id)} is written</h2><button className="btn sm" onClick={() => setWhere(false)}>Close</button></div>
+                <div className="gv-where muted">Click a file to see a sample.</div>
+                <div className="box"><Tree lines={whereLines(v, d.catalog, d.crawl)} open={setOpen} /></div>
+              </div>
+            </div>)}
         </>
       )}
     </div></div>

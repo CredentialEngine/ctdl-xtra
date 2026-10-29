@@ -118,7 +118,7 @@ export interface UnclassifiedPage { page_stem: string; url: string; title: strin
 export interface CourseHit { course_key: string; occurrences: number; line: string | null }
 export interface CourseField extends ReviewMarks {
   /** who marked or commented on it: their verdict (correct · wrong) and note, and when (the "Annotated by" filter) */
-  annotators?: Record<string, { kinds: string[]; at: string }>;
+  annotators?: Record<string, { kinds: string[]; at: string; role?: "sme" | "engineer" }>;
   rule_id: string; property_label: string | null; ctdl_property: string | null; value: string | null;
   status: string; css_path: string | null; char_start: number | null; char_end: number | null;
   state: RowStateName | null; verdict: EventBrief | null; comments: EventBrief[];

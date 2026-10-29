@@ -58,3 +58,6 @@
 :root[data-theme="dark"] .vd-side.add mark, :root[data-theme="dark"] .vd-ln.add mark { background: rgba(46, 160, 67, .4); }
 :root[data-theme="dark"] .vd-marked { background: rgba(217, 45, 32, .08); border-color: rgba(217, 45, 32, .35); }
 :root[data-theme="dark"] .vd-marked .f { color: #f97066; }
+/* the one Split | Unified switch of a tab */
+.vd-modew { display: inline-flex; align-items: center; gap: 6px; font-size: 11.5px; font-weight: 400; color: var(--muted); }
+.vd-modew .seg button { padding: 1px 8px; font-size: 11.5px; line-height: 18px; }

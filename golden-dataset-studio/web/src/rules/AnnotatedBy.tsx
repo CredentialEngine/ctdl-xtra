@@ -1,13 +1,13 @@
 // "Annotated by" (Evals spec §6.7, §6.8), shared by the Rules and Records tabs and kept in the URL (?by=…&v=…):
 // a searchable dropdown of people grouped by role, each with the field values they annotated, plus "Not annotated
-// yet" and "Any engineer · waiting for an expert"; the verdict switch beside it (Rules tab); the line a row shows when
+// yet", "Any subject matter expert", "Any engineer" and "Any engineer · waiting for an expert"; the verdict switch beside it (Rules tab); the line a row shows when
 // an expert confirmed its value (human-reviewed) or only an engineer did (engineer-checked); the experts' note.
 import { useEffect, useRef, useState } from "react";
 import type { ReviewMarks } from "../api/types";
 import { Ico } from "../shell/icons";
 import { fmt } from "../shell/ui";
 import type { Annotators } from "./api";
-import { BY_NOBODY, BY_WAITING, byLabel, shortWhen } from "./logic";
+import { BY_ENGINEERS, BY_EXPERTS, BY_NOBODY, BY_WAITING, byLabel, shortWhen } from "./logic";
 
 const VERDICTS: { id: string | null; name: string }[] = [
   { id: null, name: "Any" }, { id: "correct", name: "✓ correct" }, { id: "wrong", name: "✕ wrong" }, { id: "note", name: "note" }];
@@ -46,8 +46,10 @@ export function AnnotatedBy({ people, by, me, onPick, bare }: {
           {item(null, "Anyone")}
           {item(BY_NOBODY, "Not annotated yet")}
           <div className="ab-h">Subject matter experts · human-reviewed</div>
+          {item(BY_EXPERTS, "Any subject matter expert", people?.experts !== undefined && values(people.experts))}
           {group("sme")}
           <div className="ab-h">Engineers · waiting for an expert</div>
+          {item(BY_ENGINEERS, "Any engineer", people?.engineers !== undefined && values(people.engineers))}
           {item(BY_WAITING, "Any engineer · waiting for an expert", people && values(people.waiting))}
           {group("engineer")}
         </div>

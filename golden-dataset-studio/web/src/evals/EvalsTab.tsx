@@ -23,6 +23,11 @@ import { comparedChip, DiffModeSwitch, MarkedWrong, NoteActions, RowNotes, useDi
 import { multiline } from "./commands";
 import "./evals.css";
 
+/** The ⓘ beside "scored against": which values each choice scores. */
+export const BASIS_TIP = <span className="evx-tip-basis">
+  <b>Rule-matched</b> scores every value in the golden dataset: the values the rules matched and the human-reviewed ones.
+  <br /><b>Human-reviewed</b> scores only the values an expert reviewed.</span>;
+
 export const OUTCOMES: ScoreOutcome[] = ["missing", "wrong", "partial", "match"];
 /** Each outcome's rule (xtra's scorer, Evals spec §2). */
 export const OUTCOME_RULE: Record<ScoreOutcome, string> = {
@@ -130,7 +135,9 @@ export default function EvalsTab({ catalog, route }: TabProps) {
               <button className={basis === "human" ? "on" : ""} onClick={() => nav({ b: null, col: null, subj: null, o: null, off: null })}>Human-reviewed</button>
               <button className={basis === "rule" ? "on" : ""} onClick={() => nav({ b: "rule", col: null, subj: null, o: null, off: null })}>Rule-matched</button>
             </span>
+            <Tip width={300} tip={BASIS_TIP}><span className="evx-i" tabIndex={0} aria-label="What each scores">ⓘ</span></Tip>
           </span>
+          {row && <DiffModeSwitch />}
         </header>
 
         {outputs.length ? (
@@ -423,7 +430,7 @@ function RowPanel({ row, doc, catalog, ruleset, goldenLabel, outputDay, idx, me,
   row: ScoreRow; doc: ScoreDoc; catalog: string; ruleset: number; goldenLabel: string; outputDay: string; idx: ExtractOutputs;
   me: string; onClose: () => void;
 }) {
-  const [mode, setMode] = useDiffMode();
+  const mode = useDiffMode();
   const [m, setM] = useState<MatchRow | null>(null);
   const [draft, setDraft] = useState<Draft | null>(null);
   const load = useCallback(() => {
@@ -458,17 +465,18 @@ function RowPanel({ row, doc, catalog, ruleset, goldenLabel, outputDay, idx, me,
   };
   const marked = m?.state === "wrong" && m.verdict?.verdict === "wrong" ? m.verdict : null;
   const capture = (c: CapturedSelection) => setDraft((d) => (d ? { ...d, captures: addCapture(d.captures, c) } : d));
+  const [atEnd, setAtEnd] = useState(false);
+  const scrolled = (el: HTMLElement) => setAtEnd(el.scrollTop + el.clientHeight >= el.scrollHeight - 24);
   return (
     <section className="evx-panel" data-testid="row-panel">
       <header className="evx-panel-h">
         <b>{row.golden_record_id}</b><span className="mono">{row.column}</span>
         <span className="evx-out"><i className={`sw o-${row.outcome}`} />{row.outcome}{row.similarity !== null && row.outcome !== "match" ? ` · ${row.similarity.toFixed(2)}` : ""}</span>
         <span className="grow" />
-        <DiffModeSwitch mode={mode} onMode={setMode} />
         {row.rule_id && <a className="muted small" href={href(catalog, "rules", row.rule_id, { row: row.occurrence_key })}>Open in Rules →</a>}
         <button className="evx-icon" onClick={onClose} title="Close" aria-label="Close">✕</button>
       </header>
-      <div className="evx-panel-b">
+      <div className="evx-panel-b" onScroll={(e) => scrolled(e.currentTarget)}>
         <ValueDiff a={row.golden_value} b={row.extracted_value} aLabel={goldenLabel} bLabel={`extract output ${outputDay}`}
           mode={mode} bEmpty="nothing extracted" />
         {marked ? <MarkedWrong verdict={marked} what="the golden value" column={row.column} compared={comparedChip(marked.compared_with, outputOf)} />
@@ -483,6 +491,7 @@ function RowPanel({ row, doc, catalog, ruleset, goldenLabel, outputDay, idx, me,
           onCapture={capture} onRemove={(i) => setDraft((d) => (d ? { ...d, captures: d.captures.filter((_, j) => j !== i) } : d))}
           labels={{ golden: "golden value", other: "extracted value" }} ruleset={ruleset} />
       </div>
+      <div className={"evx-more" + (atEnd ? " gone" : "")} aria-hidden>Scroll for more <Ico name="chevron" /></div>
     </section>
   );
 }

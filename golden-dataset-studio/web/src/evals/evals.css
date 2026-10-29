@@ -146,15 +146,28 @@ td .evx-tipw, .evx-grow .evx-tipw { display: flex; width: 100%; }
 .evx-pager { display: flex; align-items: center; justify-content: center; gap: 10px; margin-top: 12px; }
 
 /* one value */
-.evx-panel { border-left: 1px solid var(--line); display: flex; flex-direction: column; min-width: 0; overflow: hidden; background: var(--surface); }
+.evx-panel { position: relative; border-left: 1px solid var(--line); display: flex; flex-direction: column; min-width: 0; overflow: hidden; background: var(--surface); }
 .evx-panel-h { display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
 .evx-panel-h a { text-decoration: none; }
 .evx-out { display: inline-flex; align-items: center; color: var(--ink-2); }
 .evx-icon { border: 1px solid var(--line-2); background: var(--surface); color: var(--ink-2); border-radius: 7px; width: 28px; height: 28px;
             display: inline-grid; place-items: center; padding: 0; }
-.evx-panel-b { flex: 1; min-height: 0; overflow: auto; display: flex; flex-direction: column; gap: 10px; padding: 12px 14px 14px; }
-.evx-panel-b > .vd { flex: none; max-height: 40%; overflow: auto; }
-.evx-panel-b .vd-page { min-height: 420px; }
+/* the detail scrolls so the saved page gets a tall view (about twice the window); its scrollbar always shows, wide and
+   styled, with "Scroll for more" at the bottom edge until the end is reached */
+.evx-panel-b { flex: 1; min-height: 0; overflow-x: hidden; overflow-y: scroll; display: flex; flex-direction: column; gap: 10px;
+               padding: 12px 14px 14px; }
+.evx-panel-b::-webkit-scrollbar { width: 14px; }
+.evx-panel-b::-webkit-scrollbar-track { background: var(--surface-2); border-left: 1px solid var(--line); }
+.evx-panel-b::-webkit-scrollbar-thumb { background: var(--faint); border-radius: 8px; border: 3px solid var(--surface-2); min-height: 48px; }
+.evx-panel-b::-webkit-scrollbar-thumb:hover { background: var(--muted); }
+@supports not selector(::-webkit-scrollbar) { .evx-panel-b { scrollbar-width: auto; scrollbar-color: var(--faint) var(--surface-2); } }
+.evx-panel-b > .vd { flex: none; max-height: 40vh; overflow: auto; }
+.evx-panel-b .vd-page { flex: none; height: max(180vh, 900px); }
+.evx-more { position: absolute; left: 0; right: 14px; bottom: 0; height: 56px; display: flex; align-items: flex-end; justify-content: center;
+            padding-bottom: 8px; pointer-events: none; background: linear-gradient(to bottom, transparent, var(--surface) 75%);
+            font-size: 11.5px; font-weight: 550; color: var(--muted); transition: opacity .2s; }
+.evx-more .ico svg { width: 12px; height: 12px; }
+.evx-more.gone { opacity: 0; }
 
 /* where these come from */
 .evx-back { position: fixed; inset: 0; z-index: 1000; background: rgba(16, 24, 40, .4); display: grid; place-items: start center; padding: 80px 16px 16px; }
@@ -179,3 +192,8 @@ td .evx-tipw, .evx-grow .evx-tipw { display: flex; width: 100%; }
 :root[data-theme="dark"] .evx-gchip { background: rgba(47, 84, 235, .18); border-color: rgba(129, 140, 248, .45); color: #c7d2fe; }
 :root[data-theme="dark"] .evx-xchip, :root[data-theme="dark"] .evx-col.sel::before { background: rgba(255, 255, 255, .08); }
 .evx-tip .hd { display: block; font-weight: 600; margin-bottom: 4px; }
+
+/* the ⓘ beside "scored against" */
+.evx-i { color: var(--muted); font-size: 13px; cursor: help; line-height: 1; }
+.evx-i:hover, .evx-i:focus { color: var(--accent); outline: none; }
+.evx-tip-basis { display: block; width: 280px; max-width: calc(100vw - 40px); }

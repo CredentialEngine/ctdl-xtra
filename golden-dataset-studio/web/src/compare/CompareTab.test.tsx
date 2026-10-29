@@ -106,6 +106,23 @@ describe("CompareTab", () => {
     expect(host.querySelector("details.why1")!.hasAttribute("open")).toBe(false);
   });
 
+  it("has one Split | Unified switch at the top that changes every diff, remembered", async () => {
+    const saved = new Map<string, string>();
+    vi.stubGlobal("localStorage", { getItem: (k: string) => saved.get(k) ?? null, setItem: (k: string, v: string) => saved.set(k, v) });
+    await render("#/c/avc/compare");
+    expect(host.querySelectorAll("[aria-label='Diff layout']")).toHaveLength(1);
+    expect(host.querySelector(".cmp-head [aria-label='Diff layout']")).not.toBeNull();
+    const unified = [...host.querySelectorAll<HTMLButtonElement>("[aria-label='Diff layout'] button")].find((b) => b.textContent === "Unified")!;
+    await act(async () => { unified.click(); });
+    expect(host.querySelectorAll(".vd.split")).toHaveLength(0);
+    expect(host.querySelectorAll(".vd.unified").length).toBeGreaterThan(1);
+    expect(saved.get("studio.diff.mode")).toBe("unified");
+    const split = [...host.querySelectorAll<HTMLButtonElement>("[aria-label='Diff layout'] button")].find((b) => b.textContent === "Split")!;
+    await act(async () => { split.click(); });
+    expect(host.querySelectorAll(".vd.unified")).toHaveLength(0);
+    vi.unstubAllGlobals();
+  });
+
   it("links a record To dropped to the ruleset that has it, and To's records to To's ruleset", async () => {
     const card = RESPONSE.rules[0];
     const dropped = { ...card, rule_id: "stub-code", ctdl_property: "ceterms:codedNotation", b_version: null, annotated_rows: [],

@@ -12,6 +12,7 @@ import type { TabProps } from "../shell/tabProps";
 import { SampleDrawer, samplePrefs, sampleQuery, StrataTags, type SamplePrefs } from "../shell/Sample";
 import { fmt, Ico, useKeyHints } from "../shell/ui";
 import { useReviewer } from "../shell/reviewer";
+import { DiffModeSwitch } from "../valuediff/ValueDiff";
 import { CompareCtx, CompareValue } from "./CompareValue";
 import { delta, outcomeLabel } from "./diff";
 import type { AnnotatedRowX, CompareResponseX, RuleCardX, SignalDeltaX } from "./types";
@@ -64,6 +65,7 @@ export default function CompareTab({ catalog, route }: TabProps) {
               <span className="faint">→</span>
               <label>To <VersionSelect data={data} value={data.b} onChange={(v) => nav({ b: v })} name="to" /></label>
             </div>
+            <DiffModeSwitch />
           </div>
           {error && <p className="cmp-error">{error}</p>}
           <CompareCtx.Provider value={{ short, a: data.a, b: data.b, bExtraction: data.b_extraction, me }}>

@@ -219,6 +219,9 @@ export function shortWhen(at: string | null | undefined, now = Date.now()): stri
 /** The "Annotated by" filter's choices besides a person (review.py NOBODY, WAITING), as the dropdown names them. */
 export const BY_NOBODY = "nobody";
 export const BY_WAITING = "waiting";
+/** Any subject matter expert / any engineer: every value someone of that role annotated (not only those waiting). */
+export const BY_EXPERTS = "experts";
+export const BY_ENGINEERS = "engineers";
 /** "Anyone" picked on purpose: without a `by` the Rules tab filters to its default annotator instead. */
 export const BY_ANYONE = "anyone";
 /** The Rules tab's default "Annotated by": the subject matter expert who annotated the most values (Jared, on AVC). */
@@ -230,6 +233,8 @@ export function byLabel(by: string | null): string {
   if (!by) return "Anyone";
   if (by === BY_NOBODY) return "Not annotated yet";
   if (by === BY_WAITING) return "Any engineer · waiting for an expert";
+  if (by === BY_EXPERTS) return "Any subject matter expert";
+  if (by === BY_ENGINEERS) return "Any engineer";
   return by;
 }
 
@@ -239,6 +244,8 @@ export function filterCountTip(n: number, by: string | null, verdict: string | n
   const how = verdict === "correct" ? " (✓ correct)" : verdict === "wrong" ? " (✕ wrong)" : verdict === "note" ? " (with a note)" : "";
   if (by === BY_NOBODY) return `${rows} nobody has annotated yet`;
   if (by === BY_WAITING) return `${rows} checked by an engineer, waiting for an expert${how}`;
+  if (by === BY_EXPERTS) return `${rows} annotated by a subject matter expert${how}`;
+  if (by === BY_ENGINEERS) return `${rows} annotated by an engineer${how}`;
   if (!by) return `${rows} annotated by anyone${how}`;
   return `${rows} annotated by ${by}${how}`;
 }

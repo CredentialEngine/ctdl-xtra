@@ -145,6 +145,14 @@ def test_annotated_by_filters_rows_courses_and_the_rule_list(studio):
     ck = courses(by="waiting")[0]
     fields = c.get(f"{B}/courses/{ck}").json()["occurrences"][0]["fields"]
     assert next(f for f in fields if f["rule_id"] == "course-name")["annotators"][ERIC]["kinds"] == ["correct"]
+    # any subject matter expert / any engineer: every value someone of that role annotated, not only those waiting
+    assert (a["experts"], a["engineers"]) == (2, 1)
+    assert keys(by="experts") == ["page-1"] and keys(by="engineers") == ["page-0"]
+    assert keys(by="experts", verdict="wrong") == ["page-1"] and keys(by="engineers", verdict="wrong") == []
+    assert c.get(f"{B}/annotators", params={"by": "experts"}).json()["rules"]["course-code"] == 1
+    assert len(courses(by="experts")) == 2 and len(courses(by="engineers")) == 1
+    _mark(c, JARED, "course-name", _rows(c, "course-name")["page-0"], "correct")  # an expert confirms: no longer waiting
+    assert keys(by="waiting") == [] and keys(by="engineers") == ["page-0"]
 
 
 def test_an_engineers_cross_still_marks_the_rule_needs_work(studio):

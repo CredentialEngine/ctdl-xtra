@@ -165,8 +165,8 @@ describe("human-reviewed and engineer-checked (Evals spec §4.3)", () => {
   });
 
   it("names the filter's choices and dates a check", () => {
-    expect([null, "nobody", "waiting", "Jared Diener"].map(byLabel))
-      .toEqual(["Anyone", "Not annotated yet", "Any engineer · waiting for an expert", "Jared Diener"]);
+    expect([null, "nobody", "waiting", "experts", "engineers", "Jared Diener"].map(byLabel))
+      .toEqual(["Anyone", "Not annotated yet", "Any engineer · waiting for an expert", "Any subject matter expert", "Any engineer", "Jared Diener"]);
     const now = Date.parse("2026-10-28T12:00:00Z");
     expect(shortWhen("2026-10-28T11:59:30Z", now)).toBe("just now");
     expect(shortWhen("2026-10-21T10:00:00Z", now)).toBe("21 Oct");
@@ -197,6 +197,8 @@ describe("filterCountTip and defaultAnnotator", () => {
     expect(filterCountTip(14, "Jared Diener", null)).toBe("14 rows annotated by Jared Diener");
     expect(filterCountTip(1, "Jared Diener", "correct")).toBe("1 row annotated by Jared Diener (✓ correct)");
     expect(filterCountTip(17, "waiting", null)).toBe("17 rows checked by an engineer, waiting for an expert");
+    expect(filterCountTip(9, "experts", "wrong")).toBe("9 rows annotated by a subject matter expert (✕ wrong)");
+    expect(filterCountTip(30, "engineers", null)).toBe("30 rows annotated by an engineer");
     expect(filterCountTip(1048, "nobody", null)).toBe("1,048 rows nobody has annotated yet");
   });
   it("defaults to the expert who annotated most", () => {

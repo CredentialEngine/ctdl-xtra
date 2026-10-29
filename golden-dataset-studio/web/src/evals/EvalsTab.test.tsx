@@ -100,5 +100,18 @@ describe("EvalsTab", () => {
       target: expect.objectContaining({ kind: "match", rule_id: "course-description", occurrence_key: "ns922l@div" }),
       compared_with: { kind: "extract", score: "sc-0006", value: "Limitation." } }));
     expect([...panel.querySelectorAll("button")].some((b) => b.textContent === "The golden value is wrong…")).toBe(true);
+    // one Split | Unified switch, at the top of the tab, not in the panel
+    expect(panel.querySelector("[aria-label='Diff layout']")).toBeNull();
+    expect(host.querySelector(".evx-title [aria-label='Diff layout']")).not.toBeNull();
+    expect(panel.querySelector(".evx-more")!.textContent).toContain("Scroll for more");
+  });
+
+  it("says what each basis scores in the ⓘ beside the switch", async () => {
+    await render("#/c/avc/evals");
+    const i = host.querySelector<HTMLElement>(".evx-basis .evx-i")!;
+    await act(async () => { i.focus(); });
+    const tip = document.querySelector("[role=tooltip]")!.textContent!;
+    expect(tip).toContain("Rule-matched scores every value in the golden dataset: the values the rules matched and the human-reviewed ones.");
+    expect(tip).toContain("Human-reviewed scores only the values an expert reviewed.");
   });
 });

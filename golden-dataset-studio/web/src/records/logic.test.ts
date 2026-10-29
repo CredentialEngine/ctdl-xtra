@@ -35,13 +35,16 @@ describe("records", () => {
 describe("Annotated by on a course (Evals spec §6.8)", () => {
   it("puts the person's fields first and folds the rest", () => {
     const d: CourseDetail = { ...geog, occurrences: [{ ...geog.occurrences[0], fields: geog.occurrences[0].fields.map((x, i) => (i === 1
-      ? { ...x, annotators: { "Jared Diener": { kinds: ["correct"], at: "t" } } } : i === 2 ? { ...x, engineer_checked: true } : x)) }] };
+      ? { ...x, annotators: { "Jared Diener": { kinds: ["correct"], at: "t", role: "sme" } } } : i === 2 ? { ...x, engineer_checked: true } : x)) }] };
     const cards = groupCards(d);
     const names = (cs: typeof cards) => cs.map((c) => c.property);
     expect(names(splitCards(cards, "Jared Diener").mine)).toEqual(["Learning Opportunity Name"]);
     expect(splitCards(cards, "Jared Diener").folded).toHaveLength(2);
     expect(names(splitCards(cards, "waiting").mine)).toEqual(["Description"]);
     expect(splitCards(cards, "nobody").folded).toEqual([]);
+    expect(names(splitCards(cards, "experts").mine)).toEqual(["Learning Opportunity Name"]);
+    expect(splitCards(cards, "engineers").mine).toEqual([]);
+    expect(foldLine(2, "experts")).toBe("2 fields no subject matter expert annotated");
     expect(splitCards(cards, null).mine).toBe(cards);
     expect(foldLine(4, "Jared Diener")).toBe("4 fields Jared Diener didn't annotate");
     expect(foldLine(1, "waiting")).toBe("1 field not waiting for an expert");

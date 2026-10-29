@@ -41,13 +41,17 @@ beforeEach(() => {
 afterEach(() => { act(() => root.unmount()); host.remove(); });
 
 describe("Golden datasets tab", () => {
-  it("lists each version read-only: columns without ceterms:, values with how many are human-reviewed, the latest score", async () => {
+  it("lists each version read-only: columns without ceterms:, how many values are human-reviewed and rule-matched", async () => {
     await render();
     expect(host.querySelector("h1")?.textContent).toBe("Golden datasets");
     const rows = [...host.querySelectorAll(".gv-table tbody tr")].map((r) => [...r.querySelectorAll("td")].map((td) => td.textContent));
     expect(rows).toEqual([
-      ["ruleset v3 latest", "codedNotation, inLanguage", "2,124 · 45 human-reviewed", "55% exact, human-reviewed (31 of 56)"],
-      ["ruleset v2", "inLanguage", "1,062 · 14 human-reviewed", "not scored yet"]]);
+      ["ruleset v3 latest", "codedNotation, inLanguage", "45", "2,124"],
+      ["ruleset v2", "inLanguage", "14", "1,062"]]);
+    expect([...host.querySelectorAll(".gv-table th")].map((th) => th.textContent)).toEqual(
+      ["Golden dataset", "Columns", "Human-reviewed values", "Rule-matched values"]);
+    expect(host.textContent).not.toContain("score");
+    expect(host.querySelector(".gv-tree")).toBeNull();  // the file tree waits behind "Where these files are"
     expect(host.textContent).not.toContain("ceterms:");
     expect(host.querySelector("input[type=checkbox]")).toBeNull();
     expect([...host.querySelectorAll("button")].some((b) => /Publish/.test(b.textContent ?? ""))).toBe(false);
@@ -55,6 +59,8 @@ describe("Golden datasets tab", () => {
 
   it("shows where the chosen version is written: both trees, the latest location and the Studio's files, each a sample", async () => {
     await render();
+    const help = () => [...host.querySelectorAll<HTMLButtonElement>("button")].find((b) => b.textContent?.includes("Where these files are"))!;
+    await act(async () => help().click());
     const tree = host.querySelector(".gv-tree")!.textContent!;
     expect(tree).toContain(`catalogs/${CAT}/versions/ruleset-v3/`);
     expect(tree).toContain(`rule-matched/${CAT}/${CRAWL}/`);
@@ -68,8 +74,11 @@ describe("Golden datasets tab", () => {
     expect(pageJson).toHaveBeenCalledWith("avc", "ruleset-v3", "page-a", "rule-matched");
 
     // an older version: only its own folder, not the latest location
+    await act(async () => host.querySelector<HTMLElement>(".gv-back")!.click());
+    expect(host.querySelector(".gv-tree")).toBeNull();
     await act(async () => host.querySelector<HTMLElement>("[data-version=ruleset-v2]")!.click());
-    expect(host.querySelector(".gv-where")?.textContent).toContain("Where ruleset v2 is written");
+    await act(async () => help().click());
+    expect(host.querySelector(".gv-modal h2")?.textContent).toBe("Where ruleset v2 is written");
     expect(host.querySelector(".gv-tree")!.textContent).not.toContain("<page>.html");
   });
 

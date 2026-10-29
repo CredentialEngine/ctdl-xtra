@@ -146,3 +146,6 @@
 .apx-i { display: inline-grid; place-items: center; width: 15px; height: 15px; border: 1px solid var(--line-2); border-radius: 50%;
   font: 600 10px var(--sans); color: var(--muted); margin-left: 3px; }
 .apx-foot { display: flex; justify-content: flex-end; gap: 8px; }
+
+/* the filter box (Sample, Annotated by) sits flush under the rule header: square, no gap */
+.w4-rules .sample { margin: 0; border-radius: 0; border-width: 0 0 1px; }

@@ -1,6 +1,6 @@
 // Middle column header (spec §7.2): the CTDL term linked to its definition, the plain name under it,
 // "Approve" (greyed out with the reason while a course is wrong or missing), and
-// "How this rule works ▸" (collapsed). The current version only.
+// "How this rule works ›" (collapsed, a chevron icon). The current version only.
 import type { CatalogDetail, RuleDetail } from "../api/types";
 import { Ico } from "../shell/icons";
 import { fmt, termUrl } from "../shell/ui";
@@ -79,7 +79,7 @@ export function RuleHead({ catalog, rule, onApprove, onReopen, busy }: {
         </div>
       </div>
       <details className="how" data-tour="how-it-works">
-        <summary>How this rule works</summary>
+        <summary>How this rule works<Ico name="chevron-right" className="how-car" /></summary>
         <dl className="wwh">
           <dt>What it finds</dt><dd>{rule.what}</dd>
           <dt>How</dt><dd>{rule.how}</dd>

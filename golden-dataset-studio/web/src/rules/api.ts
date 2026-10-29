@@ -15,7 +15,7 @@ export interface PageHit extends PageRef { matched: boolean }
  * values waiting for an expert, and with a filter, each rule's rows that pass it. */
 export interface Annotators {
   people: { name: string; role: "sme" | "engineer"; values: number }[];
-  waiting: number; rules: Record<string, number> | null;
+  waiting: number; experts?: number; engineers?: number; rules: Record<string, number> | null;
 }
 
 async function get<T>(path: string): Promise<T> {

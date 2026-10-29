@@ -35,13 +35,15 @@
 .ctab td.ext { background: rgba(16, 24, 40, .025); }
 
 /* xtra score */
-.ctab td.rate { width: 190px; white-space: nowrap; font-size: 12.5px; }
-.ctab .rate-in { display: flex; align-items: center; gap: 8px; }
-.ctab .rate-in .evx-tipw { flex: 1; }
+.ctab td.rate { width: 1%; white-space: nowrap; font-size: 12.5px; padding-right: 4px; }
+.ctab td.ratebar { width: 130px; min-width: 110px; padding-left: 4px; }
+.ctab td.ratebar .evx-tipw { display: flex; }
+/* every bar the same height: the overall bar and the columns' */
+.ctab td.ratebar .evx-bar { height: 6px; }
 .ctab .pct { font-variant-numeric: tabular-nums; font-weight: 600; font-size: 12.5px; }
 .ctab .cnt { display: block; font-size: 11px; color: var(--muted); font-weight: 400; font-variant-numeric: tabular-nums; }
 .ctab td.sc .sc-in { display: flex; flex-direction: column; align-items: center; cursor: default; outline: none; }
-.ctab .cellbar { display: flex; gap: 1px; height: 4px; width: 30px; margin: 3px auto 2px; }
+.ctab .cellbar { display: flex; gap: 1px; height: 6px; width: 30px; margin: 3px auto 2px; }
 .ctab .cellbar i:first-child { border-radius: 2px 0 0 2px; } .ctab .cellbar i:last-child { border-radius: 0 2px 2px 0; }
 .ctab td.ns { font-size: 11px; }
 

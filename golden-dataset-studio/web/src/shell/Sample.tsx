@@ -38,7 +38,8 @@ export function toggle(f: FacetFilter, dim: string, bucket: string): FacetFilter
 
 export function SampleDrawer({ sample, prefs, onPrefs, modes, storageKey, collapseOn, filters }: {
   sample: SampleInfo | null; prefs: SamplePrefs; onPrefs: (p: SamplePrefs) => void; modes: SampleMode[]; storageKey: string;
-  /** Another filter row in the same box, under the Sample row and laid out like it (the Rules tab's Annotated by). */
+  /** Another filter row in the same box, under the Sample row and laid out like it (the Rules tab's Annotated by): its
+   * label, then its controls in a `.sm-ctl`. With it, each row's controls sit at the right, like the tab pickers. */
   filters?: ReactNode;
   /** When this changes (the reader moves to another row), the drawer closes: it stays out of the way while reviewing. */
   collapseOn?: unknown;
@@ -61,14 +62,16 @@ export function SampleDrawer({ sample, prefs, onPrefs, modes, storageKey, collap
   );
   const count = sample && <span className="faint sm-n">{fmt(sample.listed)}{sample.listed !== sample.total && <> of {fmt(sample.total)}</>}</span>;
   return (
-    <div className={"sample" + (open ? " open" : "")} data-testid="sample">
+    <div className={"sample" + (open ? " open" : "") + (filters ? " sm-rows" : "")} data-testid="sample">
       <div className="sm-head">
         <button className="sm-tog" aria-expanded={open} onClick={() => setOpenSaved(!open)}><Ico name={open ? "chevron" : "chevron-right"} className="tw" />Sample</button>
-        <div className="seg sm-modes" role="group" aria-label="Sample">
-          {modes.map((m) => <button key={m} className={prefs.mode === m ? "on" : ""}
-            onClick={() => { set({ mode: m }); if (m === "manual" || m === "auto") setOpenSaved(true); }}>{MODE_NAME[m]}</button>)}
+        <div className="sm-ctl">
+          {prefs.mode === "shuffle" && <button className="btn sm-btn" onClick={() => set({ seed: prefs.seed + 1 })}>Reshuffle</button>}
+          <div className="seg sm-modes" role="group" aria-label="Sample">
+            {modes.map((m) => <button key={m} className={prefs.mode === m ? "on" : ""}
+              onClick={() => { set({ mode: m }); if (m === "manual" || m === "auto") setOpenSaved(true); }}>{MODE_NAME[m]}</button>)}
+          </div>
         </div>
-        {prefs.mode === "shuffle" && <button className="btn sm-btn" onClick={() => set({ seed: prefs.seed + 1 })}>Reshuffle</button>}
         {!filters && prior}
         {!filters && count}
       </div>

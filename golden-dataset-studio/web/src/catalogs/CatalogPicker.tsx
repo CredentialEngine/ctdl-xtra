@@ -102,7 +102,7 @@ export default function CatalogPicker() {
           <thead><tr>
             <th /><th /><th className="plain">Catalog</th>
             {view === "golden" ? <th className="plain">Pages from</th>
-              : <th className="plain">Exact matches<span className={`evx-basis-pill ${basis}`}>{BASIS_NAME[basis]}</span></th>}
+              : <><th className="plain">Exact matches<span className={`evx-basis-pill ${basis}`}>{BASIS_NAME[basis]}</span></th><th /></>}
             {cols.map((k) => <th key={k} className="rot"><span>{k}</span></th>)}
             {ext.map((k) => <th key={k} className="rot ext"><span>{k}</span></th>)}
           </tr></thead>
@@ -174,14 +174,16 @@ function GoldenCells({ c, s, cols, why }: { c: CatalogCard; s: CatalogSummary | 
   );
 }
 
-/** xtra score: exact matches overall (with its count) and per column (%, a thin bar, the count); "—" where nothing is
- * scored, "n/s" for columns not read from the page. */
+/** xtra score: exact matches overall (the % with its count, then its bar in a column with no heading, as tall as the
+ * columns' bars) and per column (%, a thin bar, the count); "—" where nothing is scored, "n/s" for columns not read
+ * from the page. */
 function ScoreCells({ c, s, cols, why, basis }: { c: CatalogCard; s: CatalogSummary | undefined; cols: string[]; why: string; basis: ScoreBasis }) {
   const sc = s?.score;
   if (!sc) {
     return (
       <>
         <td className="rate faint">{c.status === "ready" ? "—" : why}</td>
+        <td className="ratebar" />
         {cols.map((k) => <td key={k} className="c faint">—</td>)}
       </>
     );
@@ -189,11 +191,9 @@ function ScoreCells({ c, s, cols, why, basis }: { c: CatalogCard; s: CatalogSumm
   const total = { values: sc.values, ...sc.outcomes };
   return (
     <>
-      <td className="rate">
-        <div className="rate-in">
-          <span className="pct">{pct(total.match, total.values)}<span className="cnt">of {fmt(total.values)}</span></span>
-          <OutcomeTip counts={total} title={`${c.institution} · ${fmt(total.values)} ${BASIS_NAME[basis]} values`}><Bar c={total} /></OutcomeTip>
-        </div>
+      <td className="rate"><span className="pct">{pct(total.match, total.values)}<span className="cnt">of {fmt(total.values)}</span></span></td>
+      <td className="ratebar">
+        <OutcomeTip counts={total} title={`${c.institution} · ${fmt(total.values)} ${BASIS_NAME[basis]} values`}><Bar c={total} /></OutcomeTip>
       </td>
       {cols.map((k) => {
         const v = sc.by_column[k];

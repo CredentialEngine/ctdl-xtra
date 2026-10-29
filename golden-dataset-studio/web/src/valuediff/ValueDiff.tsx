@@ -1,7 +1,7 @@
 // The value diff Evals and Compare share (Evals spec §4.2, §6.4, §6.5): two values GitHub-style, Split (default) or
 // Unified, the note box under it (Save note · "… is wrong…", which opens the ✗ flow: select the right text on the
 // page), the structured "Marked wrong" box once a wrong verdict is on the row, and the saved page with both values.
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, useSyncExternalStore, type ReactNode } from "react";
 import type { ComparedWith, EventBrief } from "../api/types";
 import { PagePane, type CapturedSelection, type Highlight } from "../pagepane";
 import { Ico } from "../shell/icons";
@@ -13,23 +13,37 @@ import "./valuediff.css";
 export type DiffMode = "split" | "unified";
 const MODE_KEY = "studio.diff.mode";
 
-/** Split or Unified, remembered in this browser (Split until someone picks Unified). */
-export function useDiffMode(): [DiffMode, (m: DiffMode) => void] {
-  const [mode, setMode] = useState<DiffMode>(() => {
-    try { return localStorage.getItem(MODE_KEY) === "unified" ? "unified" : "split"; } catch { return "split"; }
-  });
-  const pick = (m: DiffMode) => {
-    setMode(m);
-    try { localStorage.setItem(MODE_KEY, m); } catch { /* private window */ }
-  };
-  return [mode, pick];
+// Split or Unified for every diff at once: one switch near the top of a tab (DiffModeSwitch) sets it, every diff reads
+// it (useDiffMode), and this browser remembers it (Split until someone picks Unified).
+const readMode = (): DiffMode => {
+  try { return localStorage.getItem(MODE_KEY) === "unified" ? "unified" : "split"; } catch { return "split"; }
+};
+let current: DiffMode | null = null;
+const listeners = new Set<() => void>();
+const subscribe = (f: () => void) => { listeners.add(f); return () => { listeners.delete(f); }; };
+const snapshot = () => (current ??= readMode());
+
+export function setDiffMode(m: DiffMode): void {
+  current = m;
+  try { localStorage.setItem(MODE_KEY, m); } catch { /* private window */ }
+  listeners.forEach((f) => f());
 }
 
-export function DiffModeSwitch({ mode, onMode }: { mode: DiffMode; onMode: (m: DiffMode) => void }) {
+/** The layout every diff uses. */
+export function useDiffMode(): DiffMode {
+  return useSyncExternalStore(subscribe, snapshot, snapshot);
+}
+
+/** The one Split | Unified switch of a tab: it changes every diff on it. */
+export function DiffModeSwitch() {
+  const mode = useDiffMode();
   return (
-    <span className="seg vd-mode" role="group" aria-label="Diff layout">
-      <button className={mode === "split" ? "on" : ""} onClick={() => onMode("split")}>Split</button>
-      <button className={mode === "unified" ? "on" : ""} onClick={() => onMode("unified")}>Unified</button>
+    <span className="vd-modew" title="How every diff on this tab is shown">
+      <span className="faint">Diffs</span>
+      <span className="seg vd-mode" role="group" aria-label="Diff layout">
+        <button className={mode === "split" ? "on" : ""} onClick={() => setDiffMode("split")}>Split</button>
+        <button className={mode === "unified" ? "on" : ""} onClick={() => setDiffMode("unified")}>Unified</button>
+      </span>
     </span>
   );
 }

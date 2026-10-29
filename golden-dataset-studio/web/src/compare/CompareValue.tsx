@@ -7,7 +7,7 @@ import type { BriefRow, ComparedWith, Expected, MatchRow } from "../api/types";
 import type { CapturedSelection } from "../pagepane";
 import { addCapture, newDraft, verdictEvent, type Draft } from "../rules/logic";
 import { toast } from "../shell/ui";
-import { comparedChip, DiffModeSwitch, MarkedWrong, NoteActions, useDiffMode, ValueDiff, ValuePage, WrongFlow } from "../valuediff/ValueDiff";
+import { comparedChip, MarkedWrong, NoteActions, useDiffMode, ValueDiff, ValuePage, WrongFlow } from "../valuediff/ValueDiff";
 
 /** What every row of one comparison shares. */
 export interface CompareCtxValue { short: string; a: number; b: number; bExtraction: string; me: string }
@@ -17,7 +17,7 @@ export function CompareValue({ r, ruleId, kind, column, head, foot, children }: 
   r: BriefRow; ruleId: string; kind: string; column: string; head: ReactNode; foot?: ReactNode; children?: ReactNode;
 }) {
   const cx = useContext(CompareCtx);
-  const [mode, setMode] = useDiffMode();
+  const mode = useDiffMode();
   const [m, setM] = useState<MatchRow | null>(null);
   const [draft, setDraft] = useState<Draft | null>(null);
   const [marked, setMarked] = useState<MatchRow["verdict"]>(null);
@@ -57,7 +57,7 @@ export function CompareValue({ r, ruleId, kind, column, head, foot, children }: 
   const capture = (c: CapturedSelection) => setDraft((d) => (d ? { ...d, captures: addCapture(d.captures, c) } : d));
   return (
     <div className="cval" data-testid="compare-value">
-      <div className="cval-h">{head}<span className="grow" /><DiffModeSwitch mode={mode} onMode={setMode} />{children}</div>
+      <div className="cval-h">{head}<span className="grow" />{children}</div>
       <ValueDiff a={r.a_value} b={r.b_value} aLabel={cx ? `ruleset v${cx.a}` : "from"} bLabel={cx ? `ruleset v${cx.b}` : "to"} mode={mode} compact={!draft} />
       {foot}
       {field && (marked

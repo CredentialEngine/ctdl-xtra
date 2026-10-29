@@ -9,11 +9,21 @@
 .gv-table tbody tr { cursor: pointer; }
 .gv-table tbody tr:hover td { background: var(--surface-2); }
 .gv-table tbody tr.on td { background: var(--accent-soft); }
-.gv-table td:first-child, .gv-table td:nth-child(3) { white-space: nowrap; }
-.gv-table th:last-child, .gv-table td:last-child { width: 300px; }
-.gv-hr { display: inline-block; font-size: 11.5px; font-weight: 600; color: var(--green); background: var(--green-soft);
-  border-radius: 999px; padding: 1px 8px; }
-.gv-where { font-size: 12.5px; margin: 16px 0 8px; }
+.gv-table td:first-child { white-space: nowrap; }
+.gv-table .n { text-align: right; white-space: nowrap; width: 170px; font-variant-numeric: tabular-nums; }
+.gv-foot { display: flex; justify-content: flex-end; margin-top: 14px; }
+.gv-help { display: inline-flex; align-items: center; gap: 6px; border: 0; background: none; color: var(--muted); font: inherit;
+  font-size: 12px; cursor: pointer; padding: 2px 4px; }
+.gv-help:hover { color: var(--ink); }
+.gv-help .q { display: inline-grid; place-items: center; width: 16px; height: 16px; border: 1px solid var(--line-2);
+  border-radius: 50%; font-size: 10.5px; font-weight: 600; }
+.gv-back { position: fixed; inset: 0; z-index: 40; background: rgba(16, 24, 40, .4); display: grid; place-items: start center;
+  padding: 72px 16px 16px; overflow: auto; }
+.gv-modal { width: min(1240px, 100%); background: var(--surface); border-radius: 12px; box-shadow: 0 20px 50px rgba(0, 0, 0, .25);
+  padding: 18px 20px; }
+.gv-modal-h { display: flex; align-items: center; gap: 12px; }
+.gv-modal-h h2 { flex: 1; margin: 0; font-size: 16px; }
+.gv-where { font-size: 12.5px; margin: 6px 0 10px; }
 .gv-tree { overflow-x: auto; }
 .gv-tree button.f { font: inherit; color: var(--accent); background: none; border: 0; padding: 0; cursor: pointer;
   text-decoration: underline dotted; text-underline-offset: 3px; }

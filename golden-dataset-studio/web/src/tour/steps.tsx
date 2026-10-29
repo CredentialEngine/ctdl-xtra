@@ -160,7 +160,8 @@ export const STEPS: Step[] = [
     sides: ["below", "right"],
     body: () => (
       <>
-        <p><b>Annotated by</b> shows only the rows one person annotated (or <b>Not annotated yet</b>), and the switch beside
+        <p><b>Annotated by</b> shows only the rows one person annotated (or any subject matter expert, any engineer, or{" "}
+          <b>Not annotated yet</b>), and the switch beside
           it only ✓ correct, ✕ wrong or notes. The rule list then counts each rule's matching rows. The Records tab has the
           same dropdown.</p>
         <p>A subject matter expert's ✓ makes a value <b>human-reviewed</b>: it goes into the golden dataset at once, whether
@@ -359,7 +360,7 @@ export const STEPS: Step[] = [
           : <p>Nothing is marked wrong or missing here, so Approve can be pressed. The tour doesn't press it.</p>}
         <p><b>Approving a column's rule publishes it</b> into its ruleset's golden dataset, even while other fields are
           still being worked on. Approve asks once first, then scores xtra's latest extract output against it. The{" "}
-          <b>Golden datasets</b> tab lists each version, its columns and where it's written.</p>
+          <b>Golden datasets</b> tab lists each version, its columns and how many values are human-reviewed and rule-matched.</p>
       </>
     ),
     absent: () => <p>The rule hasn't loaded.</p>,
@@ -377,9 +378,11 @@ export const STEPS: Step[] = [
         <p>Each bar is one of xtra's extract outputs, scored against the golden dataset: the share of values it got exactly
           right. Click a bar to see that output; a dashed one isn't scored yet and has a <b>Score</b> button.</p>
         <p><b>Scored against</b> switches between <b>Human-reviewed</b> values (only those an expert checked) and{" "}
-          <b>Rule-matched</b> values (every value the rules found, from a golden dataset version you pick).</p>
+          <b>Rule-matched</b> values (every value in a golden dataset version you pick: the ones the rules matched and the
+          human-reviewed ones); the ⓘ beside it says the same.</p>
         <p>Click a row for the golden value and xtra's side by side with the differing words marked, and the saved page
-          with both. <b>Save note</b> keeps a comment on the row; <b>The golden value is wrong…</b> marks it ✗.</p>
+          with both (scroll the panel for more of the page). <b>Split | Unified</b> at the top lays out every diff.{" "}
+          <b>Save note</b> keeps a comment on the row; <b>The golden value is wrong…</b> marks it ✗.</p>
         <p className="faint">The home page's Catalogs table has the same score for every catalog (<b>xtra score</b>).</p>
       </>
     ),

@@ -449,8 +449,10 @@ export default function RulesTab({ catalog, route }: TabProps) {
         {detail && <SampleDrawer sample={sample} prefs={prefs} onPrefs={setPrefs} modes={["review", "auto", "shuffle", "manual"]}
           storageKey="studio.rules.sample" collapseOn={moves} filters={<>
             <span className="sm-k">Annotated by</span>
-            <AnnotatedBy people={people} by={by} me={me} bare onPick={(x) => setFilter({ by: x ?? BY_ANYONE })} />
-            <VerdictSwitch verdict={verdict} onPick={(x) => setFilter({ v: x })} />
+            <div className="sm-ctl">
+              <AnnotatedBy people={people} by={by} me={me} bare onPick={(x) => setFilter({ by: x ?? BY_ANYONE })} />
+              <VerdictSwitch verdict={verdict} onPick={(x) => setFilter({ v: x })} />
+            </div>
           </>} />}
         {notHere && focus && ruleId && <NotHere catalog={catalog} ruleId={ruleId} focus={focus} ext={ext} why={notHere}
           ruleName={detail?.property_label ?? detail?.title ?? ruleId} version={rules?.ruleset_version ?? catalog.ruleset_version}

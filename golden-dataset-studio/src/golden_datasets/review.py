@@ -43,8 +43,9 @@ HUMAN_STATES = ("correct", "fixed")
 #: The "Annotated by" filter's verdict switch: ✓ correct · ✕ wrong · note (a comment or a question for the institution).
 VERDICT_KIND = {"correct": "correct", "fixed": "correct", "wrong": "wrong", "still-wrong": "wrong", "missing": "wrong",
                 "question": "note"}
-#: "Annotated by" choices besides a person's name: nobody yet, and an engineer's check waiting for an expert.
-NOBODY, WAITING = "nobody", "waiting"
+#: "Annotated by" choices besides a person's name: nobody yet, an engineer's check waiting for an expert, any subject
+#: matter expert, any engineer.
+NOBODY, WAITING, EXPERTS, ENGINEERS = "nobody", "waiting", "experts", "engineers"
 
 
 def norm(v: str | None) -> str:
@@ -484,7 +485,7 @@ class Review:
                                        key=lambda v: (v is None, v or 0))}
 
     def annotations(self, rule_id: str) -> dict[str, dict]:
-        """The "Annotated by" filter's data, per row key: `people` {name: {"kinds": [correct|wrong|note], "at"}} (their
+        """The "Annotated by" filter's data, per row key: `people` {name: {"kinds": [correct|wrong|note], "at", "role"}} (their
         latest verdict, and note when they commented; the Studio's own events don't count; first names count as the
         full name), `kinds` (the row's: its verdict, note when discussed) and `waiting` (engineer-checked). Fixed per
         Review."""
@@ -507,7 +508,7 @@ class Review:
                 kinds = {VERDICT_KIND[st.state]} if st.state in VERDICT_KIND else set()
                 out[r["key"]] = {
                     "people": {n: {"kinds": [k for k in (p["verdict"], "note" if p["note"] else None) if k],
-                                   "at": p["at"]} for n, p in people.items()},
+                                   "at": p["at"], "role": self.roles.get(n) or "engineer"} for n, p in people.items()},
                     "kinds": sorted(kinds | ({"note"} if st.comments else set())), "waiting": st.engineer_checked}
             self._annotations[rule_id] = out
         return self._annotations[rule_id]
@@ -516,17 +517,19 @@ class Review:
         """The "Annotated by" dropdown: every profile and everyone who annotated a value, with their role and how many
         field values they annotated, and how many values an engineer checked are waiting for an expert."""
         values: Counter = Counter()
-        waiting = 0
+        waiting = experts = engineers = 0
         for rid, r in self.snap.rules.items():
             if r["kind"] != "field":
                 continue
             for a in self.annotations(rid).values():
                 values.update(list(a["people"]))
                 waiting += a["waiting"]
+                experts += annotated_match(a, EXPERTS, None)
+                engineers += annotated_match(a, ENGINEERS, None)
         names = set(self.roles) | set(values)
         return {"people": sorted(({"name": n, "role": self.roles.get(n) or "engineer", "values": values[n]}
                                   for n in names), key=lambda p: (p["role"] != "sme", -p["values"], p["name"])),
-                "waiting": waiting}
+                "waiting": waiting, "experts": experts, "engineers": engineers}
 
     def spread_groups(self, rule_id: str) -> tuple[str, dict[str, str], list[str]]:
         """strata.groups for this rule's rows: (grouped by, row key → group, group order). Fixed per snapshot."""
@@ -541,11 +544,16 @@ class Review:
 
 def annotated_match(a: dict, by: str | None, verdict: str | None) -> bool:
     """Whether a row (its `Review.annotations` entry) passes the "Annotated by" filter: `by` is a person (their own
-    verdict counts for `verdict`), NOBODY or WAITING (the row's verdict counts), or None (anyone)."""
+    verdict counts for `verdict`), EXPERTS or ENGINEERS (any of that role's verdicts count), NOBODY or WAITING (the
+    row's verdict counts), or None (anyone)."""
     if by == NOBODY:
         return not a["people"] and not verdict
     if by == WAITING:
         ok, kinds = a["waiting"], a["kinds"]
+    elif by in (EXPERTS, ENGINEERS):
+        role = "sme" if by == EXPERTS else "engineer"
+        mine = [p for p in a["people"].values() if p.get("role") == role]
+        ok, kinds = bool(mine), [k for p in mine for k in p["kinds"]]
     elif by:
         ok, kinds = by in a["people"], a["people"].get(by, {}).get("kinds", [])
     else:

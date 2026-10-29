@@ -297,7 +297,7 @@ the versions: "Annotated in"), `nobody` or `waiting` (engineer-checked); `verdic
     by_key = {r["key"]: (r, s) for r, s in ordered}
     keys, sample = facets.sample_order(dims, list(by_key), filters, order,
                                        None if cross is None else [c for c in cross if c], seed)
-    if by not in (None, "", "nobody", "waiting") and "annotated_in" not in sample["tag_dims"]:  # whose rows: say which ruleset too
+    if by not in (None, "", "nobody", "waiting", "experts", "engineers") and "annotated_in" not in sample["tag_dims"]:  # whose rows: say which ruleset too
         sample["tag_dims"].append("annotated_in")
     elsewhere = rv.reviewed_elsewhere(rule_id, rv.snap.rows(rule_id), rv.row_states(rule_id, rv.snap.rows(rule_id)))
     sample["elsewhere"] = sum(1 for k in keys if k in elsewhere)
@@ -372,7 +372,8 @@ def match(request: Request, catalog: str, rule: str, occ: str, ext: str | None =
 def annotators(request: Request, catalog: str, ext: str | None = None, by: str | None = None,
                verdict: str | None = None) -> dict:
     """The "Annotated by" dropdown of the Rules and Records tabs (Evals spec §6.7, §6.8): `people` [{name, role,
-    values}] (field values each annotated), `waiting` (values an engineer checked, waiting for an expert) and, with
+    values}] (field values each annotated), `waiting` (values an engineer checked, waiting for an expert), `experts` /
+    `engineers` (values any subject matter expert / any engineer annotated) and, with
     `by` or `verdict`, `rules` {rule_id: rows that pass the filter} for the rule list."""
     rv = _review(request, catalog, ext)
     out = rv.people()

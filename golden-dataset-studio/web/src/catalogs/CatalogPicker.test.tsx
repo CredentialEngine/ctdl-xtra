@@ -75,6 +75,11 @@ describe("the catalogs table", () => {
     expect(host.querySelector("thead .evx-basis-pill")!.textContent).toBe("human-reviewed");
     const [avc, ualr] = rows();
     expect(avc.querySelector("td.rate .pct")!.textContent).toBe("55%of 56");
+    // the % in its own column under "Exact matches", the overall bar in the next one with no heading
+    const heads = [...host.querySelectorAll("thead th:not(.rot)")].map((t) => t.textContent);
+    expect(heads.slice(2)).toEqual(["Catalog", "Exact matcheshuman-reviewed", ""]);
+    expect(avc.querySelector("td.rate .evx-bar")).toBeNull();
+    expect(avc.querySelector("td.ratebar .evx-bar")).not.toBeNull();
     const cells = [...avc.querySelectorAll("td.c:not(.ext)")].map((t) => t.textContent);
     expect(cells).toEqual(["100%14", "0%14", "100%14", "21%14", "n/s", "n/s", "n/s"]);
     expect(ualr.querySelector("td.rate")!.textContent).toBe("no rules yet");

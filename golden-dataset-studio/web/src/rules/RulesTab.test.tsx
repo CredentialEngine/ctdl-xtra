@@ -194,7 +194,7 @@ describe("RulesTab", () => {
   });
 
   const people = { people: [{ name: "Jared Diener", role: "sme", values: 112 }, { name: "Cadence Calixto", role: "sme", values: 0 },
-    { name: "Eric Riddoch", role: "engineer", values: 22 }], waiting: 22 };
+    { name: "Eric Riddoch", role: "engineer", values: 22 }], waiting: 22, experts: 112, engineers: 30 };
   const check = { annotation_id: "an-eric", type: "verdict" as const, verdict: "correct" as const, author: "Eric Riddoch",
     at: "2026-10-21T10:00:00Z", note: null, expected: null, rule_version_seen: 2, value_seen: "Value 1" };
   function annotated(counts: Record<string, number> | null) {
@@ -233,8 +233,8 @@ describe("RulesTab", () => {
     // the dropdown: people grouped by role with their values, searchable; picking one keeps it in the URL
     await act(async () => container.querySelector<HTMLButtonElement>(".ab-btn")!.click());
     const items = () => [...container.querySelectorAll(".ab-pop .ab-item, .ab-pop .ab-h")].map((x) => x.textContent);
-    expect(items()).toEqual(["Anyone", "Not annotated yet", "Subject matter experts · human-reviewed", "Jared Diener112 values",
-      "Cadence Calixtonone yet", "Engineers · waiting for an expert", "Any engineer · waiting for an expert22 values", "Eric Riddoch22 values"]);
+    expect(items()).toEqual(["Anyone", "Not annotated yet", "Subject matter experts · human-reviewed", "Any subject matter expert112 values", "Jared Diener112 values",
+      "Cadence Calixtonone yet", "Engineers · waiting for an expert", "Any engineer30 values", "Any engineer · waiting for an expert22 values", "Eric Riddoch22 values"]);
     const q = container.querySelector<HTMLInputElement>(".ab-q")!;
     await act(async () => {
       Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(q, "jar");
