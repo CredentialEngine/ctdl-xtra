@@ -67,6 +67,7 @@ from implementations.discover_rules import (
     FIELD_NAME_RE,
     FIELD_VALUE_CLASS_RE,
     FIELD_WRAPPER_CLASS_RE,
+    LINE_KEEPING_WHITE_SPACE,
     MAIN_CONTAINER_CLASSES,
     MAIN_CONTAINER_IDS,
     MAIN_ROLE,
@@ -82,6 +83,7 @@ from implementations.discover_rules import (
     SCHEMA_TYPE_LABELS,
     TAB_CLASS_RE,
     TAB_ROLE_RE,
+    WHITE_SPACE_STYLE_RE,
     WHITESPACE_RE,
     collapse,
     evidence,
@@ -207,6 +209,10 @@ class Markup:
     tabs_evidence: str = ""
     outcomes_evidence: str = ""
     content_text: str = ""
+    # The text of the page's main content, including its sidebars.
+    # We are skipping and ignoring the course codes that appear only
+    # in the site's menu.
+    main_text: str = ""
     content_headings: list[str] = field(default_factory=list)
     list_items: list[str] = field(default_factory=list)
     course_blocks: list[CourseBlock] = field(default_factory=list)
@@ -323,14 +329,34 @@ def find_main(soup: BeautifulSoup) -> Tag | None:
     return best if best_size else None
 
 
-class _Reader:
-    """One walk of the tree, collecting everything the page prints."""
+def _keeps_lines(tag: Tag, inherited: bool) -> bool:
+    """Whether a browser shows the newlines inside this element."""
+    match = WHITE_SPACE_STYLE_RE.search(tag.get("style") or "")
+    if match is not None:
+        return match.group(1).lower() in LINE_KEEPING_WHITE_SPACE
+    return inherited or tag.name == "pre"
 
-    def __init__(self, soup: BeautifulSoup, main: Tag | None) -> None:
+
+class _Reader:
+    """One walk of the tree, collecting everything the page prints.
+
+    `printed_lines` keeps the line breaks a pre-wrap style shows.
+    """
+
+    def __init__(
+        self,
+        soup: BeautifulSoup,
+        main: Tag | None,
+        *,
+        printed_lines: bool = False,
+    ) -> None:
         self.soup = soup
         self.main = main
         self.markup = Markup()
+        self._printed_lines = printed_lines
         self._parts: list[str] = []
+        # The same walk, chrome and all: Markup.main_text.
+        self._main_parts: list[str] = []
         self._content_h1s: list[str] = []
         self._main_h1s: list[str] = []
 
@@ -340,28 +366,54 @@ class _Reader:
             if self.main is not None
             else (self.soup.body or self.soup)
         )
-        self._walk(root, in_chrome=False)
+        keeps_lines = False
+        if self._printed_lines:
+            for tag in [*reversed(list(root.parents)), root]:
+                keeps_lines = _keeps_lines(tag, keeps_lines)
+        self._walk(root, in_chrome=False, keeps_lines=keeps_lines)
         markup = self.markup
         markup.content_text = _lines("".join(self._parts))
+        if self.main is not None:
+            markup.main_text = _lines("".join(self._main_parts))
         markup.h1 = (self._main_h1s or self._content_h1s or [""])[0]
         return markup
 
-    def _walk(self, node: Tag, *, in_chrome: bool) -> None:
+    def _walk(
+        self, node: Tag, *, in_chrome: bool, keeps_lines: bool = False
+    ) -> None:
         for child in node.children:
             if type(child) is NavigableString:
+                raw = str(child)
+                text = (
+                    "\n".join(
+                        WHITESPACE_RE.sub(" ", part) for part in raw.split("\n")
+                    )
+                    if keeps_lines
+                    else WHITESPACE_RE.sub(" ", raw)
+                )
+                self._main_parts.append(text)
                 if not in_chrome:
-                    self._parts.append(WHITESPACE_RE.sub(" ", str(child)))
+                    self._parts.append(text)
                 continue
             if not isinstance(child, Tag) or child.name in _SKIP_TAGS:
                 continue
             chrome = in_chrome or is_chrome(child)
             self._note_tabs(child)
             breaks = child.name in _CONTENT_BREAK_TAGS
-            if breaks and not chrome:
-                self._parts.append("\n")
-            self._walk(child, in_chrome=chrome)
-            if breaks and not chrome:
-                self._parts.append("\n")
+            if breaks:
+                self._main_parts.append("\n")
+                if not chrome:
+                    self._parts.append("\n")
+            self._walk(
+                child,
+                in_chrome=chrome,
+                keeps_lines=self._printed_lines
+                and _keeps_lines(child, keeps_lines),
+            )
+            if breaks:
+                self._main_parts.append("\n")
+                if not chrome:
+                    self._parts.append("\n")
             self._close(child, chrome=chrome)
 
     def _close(self, tag: Tag, *, chrome: bool) -> None:
@@ -426,6 +478,54 @@ def _bold_is_a_label(tag: Tag, text: str) -> bool:
 def _lines(raw: str) -> str:
     lines = (collapse(line) for line in raw.splitlines())
     return "\n".join(line for line in lines if line)
+
+
+def element_lines(tag: Tag) -> list[str]:
+    """One element's text as the lines a browser shows."""
+    reader = _Reader(tag, tag, printed_lines=True)
+    return reader.read().content_text.splitlines()
+
+
+def printed_text(soup: BeautifulSoup) -> str:
+    """content_text, keeping the line breaks a pre-wrap style shows."""
+    reader = _Reader(soup, find_main(soup), printed_lines=True)
+    return reader.read().content_text
+
+
+def lines_after(tag: Tag) -> list[tuple[Tag | None, list[str]]]:
+    """What the element's parent prints after it, one block at a time."""
+    entries: list[tuple[Tag | None, list[str]]] = []
+    run: list[str] = []
+
+    def end_run() -> None:
+        text = collapse("".join(run))
+        if text:
+            entries.append((None, [text]))
+        run.clear()
+
+    for sibling in tag.next_siblings:
+        if type(sibling) is NavigableString:
+            run.append(str(sibling))
+            continue
+        if not isinstance(sibling, Tag) or sibling.name in _SKIP_TAGS:
+            continue
+        if is_chrome(sibling):
+            continue
+        if sibling.name in _CONTENT_BREAK_TAGS:
+            end_run()
+            lines = element_lines(sibling)
+            if lines:
+                entries.append((sibling, lines))
+            continue
+        run.append(
+            "".join(
+                str(string)
+                for string in sibling.strings
+                if type(string) is NavigableString
+            )
+        )
+    end_run()
+    return entries
 
 
 def _outermost(soup: BeautifulSoup, pattern: re.Pattern[str]) -> list[Tag]:
@@ -584,7 +684,7 @@ class FieldPair:
     path: str = ""
 
 
-def _element_path(tag: Tag) -> str:
+def element_path(tag: Tag) -> str:
     """A short path to the element, so a reviewer can find the value."""
     parts: list[str] = []
     node: Tag | None = tag
@@ -653,7 +753,7 @@ def read_field_pairs(soup: BeautifulSoup) -> list[FieldPair]:
             value = element_text(wrapper)
             if value:
                 seen.add(id(wrapper))
-                pairs.append(FieldPair("", value, key, _element_path(wrapper)))
+                pairs.append(FieldPair("", value, key, element_path(wrapper)))
             continue
         if value_tag is None:
             continue
@@ -661,7 +761,7 @@ def read_field_pairs(soup: BeautifulSoup) -> list[FieldPair]:
         label = element_text(label_tag) if label_tag is not None else ""
         value = element_text(value_tag)
         if label or key:
-            pairs.append(FieldPair(label, value, key, _element_path(value_tag)))
+            pairs.append(FieldPair(label, value, key, element_path(value_tag)))
     for term in soup.find_all("dt"):
         value = term.find_next_sibling("dd")
         if isinstance(value, Tag):
@@ -669,7 +769,7 @@ def read_field_pairs(soup: BeautifulSoup) -> list[FieldPair]:
                 FieldPair(
                     element_text(term),
                     element_text(value),
-                    path=_element_path(value),
+                    path=element_path(value),
                 )
             )
     for row in soup.find_all("tr"):
@@ -679,7 +779,7 @@ def read_field_pairs(soup: BeautifulSoup) -> list[FieldPair]:
                 FieldPair(
                     element_text(cells[0]),
                     element_text(cells[1]),
-                    path=_element_path(cells[1]),
+                    path=element_path(cells[1]),
                 )
             )
     pairs.extend(_detail_pairs(soup))
@@ -722,7 +822,7 @@ def _detail_pairs(soup: BeautifulSoup) -> list[FieldPair]:
                 label,
                 value,
                 names[0].replace("-", " ").replace("_", " "),
-                _element_path(tag),
+                element_path(tag),
             )
         )
     return pairs

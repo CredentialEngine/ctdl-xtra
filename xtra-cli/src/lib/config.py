@@ -99,7 +99,7 @@ bind_runtime_paths()
 
 NORMALIZER_TOOL = "normalize"
 NORMALIZER_VERSION = "1.0.0"
-MAPPING_VERSION = "v4-pilot-0.1"
+MAPPING_VERSION = "v4-pilot-0.2"
 SCHEMA_RELEASE = "ctdl-json-2026-09-07-audit-pin"
 BROWSER_USER_AGENT = (
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "

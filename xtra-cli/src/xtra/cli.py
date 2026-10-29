@@ -16,9 +16,10 @@ def configure_logging() -> None:
         level=level,
         format="%(asctime)s %(levelname)s %(name)s %(message)s",
     )
-    # The Azure SDK logs every request and response at INFO, which buries the
+    # The Azure SDK and httpx2 log every request at INFO, which buries the
     # one line per page this CLI exists to print.
     logging.getLogger("azure").setLevel(logging.WARNING)
+    logging.getLogger("httpx2").setLevel(logging.WARNING)
 
 
 def _load_command(module_path: str) -> click.Command:
@@ -44,6 +45,7 @@ def cli() -> None:
       xtra catalog discover --catalog-id ID --run-id TS
       xtra catalog extract --with-template --catalog-id ID --run-id TS
       xtra catalog transform --with-ctdl --catalog-id ID --run-id TS
+      xtra score extraction match --exactly --catalog-id ID --run-id TS
 
     \b
     Those stages read and write the active environment. Pass --target-uri to
@@ -57,7 +59,20 @@ def catalog_group() -> None:
     """Crawl, discover, extract, and transform one catalog of any size."""
 
 
+@cli.group(name="score")
+def score_group() -> None:
+    """Score the output of a stage against a baseline."""
+
+
+@score_group.group(name="extraction")
+def score_extraction_group() -> None:
+    """Score extraction records."""
+
+
 cli.add_command(environment_group)
+score_extraction_group.add_command(
+    _load_command("xtra.scoring.extraction.match")
+)
 catalog_group.add_command(_load_command("xtra.catalog.crawl"))
 catalog_group.add_command(_load_command("xtra.catalog.discover"))
 catalog_group.add_command(_load_command("xtra.catalog.extract"))

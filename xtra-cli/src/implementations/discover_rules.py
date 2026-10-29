@@ -91,6 +91,10 @@ HEAD_MAX_LINES = 8
 HEAD_LINE_CHARS = 80
 # Longer than this is a sentence, not a heading or a label.
 SECTION_HEADING_CHARS = 120
+# Longer than this is a page section, not a prerequisite.
+PREREQUISITE_MAX_CHARS = 600
+# Longer than this, an unended prerequisite has run into the description.
+PREREQUISITE_RUN_ON_CHARS = 300
 SHORT_LINE_CHARS = 60
 # How much of the first paragraph may name the program's award, and how
 # far past the page's own name, when the paragraph opens with it.
@@ -251,6 +255,53 @@ RECOMMENDED_RE = re.compile(
     r"\brecommended\b(?:\s+(?:pre[\s-]?requisites?|preparation|background))?",
     re.IGNORECASE,
 )
+
+REQUISITE_WORD_RE = re.compile(r"requisite|prereq", re.IGNORECASE)
+# Inline white-space styles under which newlines show as line breaks.
+WHITE_SPACE_STYLE_RE = re.compile(r"white-space\s*:\s*([\w-]+)", re.IGNORECASE)
+LINE_KEEPING_WHITE_SPACE = frozenset(
+    {"pre", "pre-wrap", "pre-line", "break-spaces"}
+)
+# "Prerequisite", "Prerequisites:", "Prerequisite(s):", "Pre-requisite",
+# "Prereq".
+_PREREQUISITE = r"(?:pre[\s-]?requisites?|prereqs?)(?:\s*\(s\))?"
+PREREQUISITE_LABEL_RE = re.compile(rf"{_PREREQUISITE}\s*:?", re.IGNORECASE)
+PREREQUISITE_LEAD_RE = re.compile(rf"\b{_PREREQUISITE}\s*:\s*", re.IGNORECASE)
+# "Prerequisite Courses": a list of the courses a prerequisite names.
+PREREQUISITE_COURSES_LABEL_RE = re.compile(
+    rf"{_PREREQUISITE}\s+courses?(?:\s*\(s\))?\s*:?", re.IGNORECASE
+)
+# One label for both relations: "Prerequisite/Corequisite",
+# "Pre/Corequisite". Wider than PREREQ_COREQ_COMBINED_RE, which the
+# discovery markers use.
+COMBINED_REQUISITE_RE = re.compile(
+    r"\bpre(?:[\s-]?requisites?(?:\s*\(s\))?|-)?\s*"
+    r"(?:\band\s*/\s*or\b|/|&|\band\b|\bor\b)\s*"
+    r"co[\s-]?requisites?(?:\s*\(s\))?",
+    re.IGNORECASE,
+)
+# Requisite labels; each one ends the prerequisite before it.
+_REQUISITE_LABELS = (
+    rf"{COMBINED_REQUISITE_RE.pattern}"
+    r"|\b(?:pre|co|anti)[\s-]?requisites?(?:\s*\(s\))?|\bprereqs?\b"
+    r"|\bcoreqs?\b|\brequisites?\b"
+    r"|\brecommended\b(?:\s+(?:preparation|prerequisites?|background"
+    r"|course\w*|skills))?"
+    r"|\badvisor(?:y|ies)\b|\blimitations?\s+on\s+enrollment\b"
+    r"|\benrollment\s+limitations?\b"
+)
+REQUISITE_LABEL_RE = re.compile(rf"(?:{_REQUISITE_LABELS})\s*:?", re.IGNORECASE)
+REQUISITE_LEAD_RE = re.compile(rf"(?:{_REQUISITE_LABELS})\s*:", re.IGNORECASE)
+# "None", "N/A", "No prerequisites".
+NO_PREREQUISITE_RE = re.compile(
+    r"(?:none(?:\s+required)?|n/?a|no\s+pre[\s-]?requisites?(?:\s*\(s\))?)"
+    r"\s*\.?",
+    re.IGNORECASE,
+)
+# Joins two requisites in a list: "A OR B".
+REQUISITE_CONNECTOR_RE = re.compile(r"and|or", re.IGNORECASE)
+# A full stop before a capital, but not after an initial ("U.S.").
+SENTENCE_END_RE = re.compile(r"(?<!\b[A-Z])[.!?](?=\s+[A-Z])")
 
 # --- outcomes and competencies -----------------------------------------------
 
@@ -1136,13 +1187,23 @@ COURSE_BLOCK_DESC_CLASS_RE = re.compile(
 # "ASTR 50303.  Astrophysics I: Stars and Planetary Systems.  3 Hours."
 # ends "3 Hours."; a variable-credit course ends "1-6 Hour.". A course
 # with no credits printed ends with its name, so this has to be optional.
+# The unit is kept as printed.
 COURSE_BLOCK_CREDITS_RE = re.compile(
     r"(?P<credits>\d+(?:\.\d+)?)(?:\s*-\s*(?P<maximum>\d+(?:\.\d+)?))?"
-    r"\s*(?:credit|hour|unit)s?\s*\.?\s*$",
+    r"\s*(?P<unit>(?:credit|hour|unit)s?)\s*\.?\s*$",
     re.IGNORECASE,
+)
+# The unit a credits label names: "CREDIT HOURS" in "CREDIT HOURS MIN:".
+CREDIT_UNIT_RE = re.compile(
+    rf"\b{_CREDIT_PREFIX}(?:credit|hour|unit)s?\b", re.IGNORECASE
 )
 # What separates the code, the name and the credits on that one line.
 COURSE_TITLE_SPLIT_RE = re.compile(r"\s*[.:–-]\s+|\s*\.\s*")
+# Elements that group a course's name, code heading and units. The name
+# is only read from inside one.
+HEADING_GROUP_TAGS = frozenset({"header", "hgroup"})
+# How many elements after the code heading the units line may be.
+COURSE_HEADING_REACH = 8
 
 # What a printed label means, as one canonical field name per label. The
 # keys are what normalize_field_label returns, so "Credit Hour(s):" and
@@ -1166,6 +1227,13 @@ COURSE_FIELD_LABELS = {
     "pre-requisite": "course_prerequisites",
     "pre-requisites": "course_prerequisites",
     "prereq": "course_prerequisites",
+    # "Prerequisite Courses" is left out on purpose; it is read last.
+    "prerequisite(s)": "course_prerequisites",
+    "pre-requisite(s)": "course_prerequisites",
+    "pre requisite": "course_prerequisites",
+    "pre requisites": "course_prerequisites",
+    "pre requisite(s)": "course_prerequisites",
+    "prereqs": "course_prerequisites",
     "corequisite": "course_corequisites",
     "corequisites": "course_corequisites",
     "co-requisite": "course_corequisites",
@@ -1180,6 +1248,11 @@ COURSE_FIELD_LABELS = {
     "laboratory hours": "course_lab_hours",
     "lab/clinical/field study": "course_lab_hours",
     "lab/clinical/field study hours": "course_lab_hours",
+    # Hours for the whole term.
+    "total course lecture hours": "course_lecture_hours",
+    "total lecture hours": "course_lecture_hours",
+    "total course lab hours": "course_lab_hours",
+    "total lab hours": "course_lab_hours",
     "program": "course_program",
     "department": "course_department",
     "school": "course_school",
@@ -1940,8 +2013,26 @@ def normalize_course_code(code: str) -> str:
     return _CODE_SPACING_RE.sub("", code).upper()
 
 
-def course_block_count(text: str, ignore: set[str] | None = None) -> int:
+def course_block_count(
+    text: str,
+    ignore: set[str] | None = None,
+    titles: set[str] | None = None,
+) -> int:
     """How many distinct courses the page describes.
+
+    The courses described_course_codes finds, counting only the ones the
+    page prints as titles when it titles any.
+    """
+    described, titled = described_course_codes(text, ignore, titles)
+    return len(titled or described)
+
+
+def described_course_codes(
+    text: str,
+    ignore: set[str] | None = None,
+    titles: set[str] | None = None,
+) -> tuple[set[str], set[str]]:
+    """The courses the page describes, and the ones it prints as titles.
 
     A code on its own is a cross-reference; a code with a credits, units,
     or hours value near it is the course being described. The same code
@@ -1950,12 +2041,21 @@ def course_block_count(text: str, ignore: set[str] | None = None) -> int:
     site look like a page holding two, which marked it multi_course_page
     and made extraction skip it.
 
+    A course is titled when its code opens its line ("ABC 101:" over "3.0
+    Units"). A code after a label or inside a sentence is a reference. Once
+    a page titles any course, only the titled ones count; a page that
+    titles none is counted as before.
+
     `ignore` is the codes the markup shows to be references, which are
     never descriptions however they read once flattened. A transfer
     equivalency table prints a code, a title and a credit count per row,
     so on the text alone every row is a course being described.
+
+    `titles` is the codes that open a line of the page's own text, so a
+    site menu listing one course per line titles nothing.
     """
     described: set[str] = set()
+    titled: set[str] = set()
     for match in COURSE_CODE_RE.finditer(text):
         start = match.end()
         window = text[start : start + COURSE_BLOCK_WINDOW]
@@ -1964,9 +2064,31 @@ def course_block_count(text: str, ignore: set[str] | None = None) -> int:
         # prints its own credits as a field further down.
         for hit in CREDIT_VALUE_RE.finditer(window):
             if on_a_field_line(text, start + hit.start()):
-                described.add(normalize_course_code(match.group(0)))
+                code = normalize_course_code(match.group(0))
+                described.add(code)
+                if opens_its_line(text, match.start()) and (
+                    titles is None or code in titles
+                ):
+                    titled.add(code)
                 break
-    return len(described - (ignore or set()))
+    ignored = ignore or set()
+    return described - ignored, titled - ignored
+
+
+def line_opening_codes(text: str) -> set[str]:
+    """The course codes that open a line of this text, normalized."""
+    codes: set[str] = set()
+    for line in text.splitlines():
+        match = COURSE_CODE_RE.match(line.lstrip())
+        if match is not None:
+            codes.add(normalize_course_code(match.group(0)))
+    return codes
+
+
+def opens_its_line(text: str, position: int) -> bool:
+    """True when nothing but space comes before this position on its line."""
+    start = text.rfind("\n", 0, position) + 1
+    return not text[start:position].strip()
 
 
 def on_a_field_line(text: str, position: int) -> bool:
@@ -1998,27 +2120,35 @@ def program_terms(text: str) -> list[str]:
     )
 
 
-def split_course_title(line: str) -> tuple[str, str, str]:
-    """A course-block title line as its code, its name and its credits.
+def course_block_credits(match: re.Match[str]) -> tuple[str, str]:
+    """A COURSE_BLOCK_CREDITS_RE match as its credits and its unit.
 
-    CourseLeaf prints all three on one line - "ASTR 50303.  Astrophysics
-    I: Stars and Planetary Systems.  3 Hours." - so a course page there
-    has no labelled fields at all to read. The credits are optional,
-    because a zero-credit seminar prints none, and so is the name.
+    "1.0 - 4.0 Units" is ("1.0-4.0", "Units"): a range is written one way
+    whatever spacing the page used, and the unit is as printed.
+    """
+    credits = match.group("credits")
+    if match.group("maximum"):
+        credits = f"{credits}-{match.group('maximum')}"
+    return credits, match.group("unit")
+
+
+def split_course_title(line: str) -> tuple[str, str, str, str]:
+    """A course-block title line as its code, name, credits and unit.
+
+    "ABC 101.  Course Name.  3 Hours." The name and the credits are
+    optional; the unit comes with the credits.
     """
     text = collapse(line)
     code_match = COURSE_CODE_RE.search(text)
     if code_match is None or code_match.start() > 0:
-        return "", "", ""
+        return "", "", "", ""
     rest = text[code_match.end() :].strip(" .:-–")
-    credits = ""
+    credits = unit = ""
     credits_match = COURSE_BLOCK_CREDITS_RE.search(rest)
     if credits_match is not None:
-        credits = credits_match.group("credits")
-        if credits_match.group("maximum"):
-            credits = f"{credits}-{credits_match.group('maximum')}"
+        credits, unit = course_block_credits(credits_match)
         rest = rest[: credits_match.start()].strip(" .:-–")
-    return code_match.group(0), rest, credits
+    return code_match.group(0), rest, credits, unit
 
 
 def total_credits_line(lines: list[str]) -> str:

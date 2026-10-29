@@ -126,6 +126,18 @@ xtra environment set prod \
 export CE_PROD_STORAGE="DefaultEndpointsProtocol=https;AccountName=...;AccountKey=..."
 ```
 
+Scoring reads the baseline it compares against from its own container. The
+scorer does not care whether the baseline is verified. Save it per environment
+the same way, with `--baseline-uri` (or pass `--baseline-uri` or
+`XTRA_BASELINE_URI` on the command). By default it uses the same connection
+string as the data URI; pass `--baseline-azure-storage-connection-string` when
+the baseline lives in a different storage account:
+
+```bash
+xtra environment set test \
+  --baseline-uri azure://https://ACCOUNT.blob.core.windows.net/xtra-golden-sets-verified
+```
+
 ## Commands
 
 Filesystem path matches invocation, the same way ceops does (`ceops elasticsearch graphs create` → `src/ceops/elasticsearch/graphs/create.py`):
@@ -139,6 +151,8 @@ xtra catalog crawl      -> src/xtra/catalog/crawl.py
 xtra catalog discover   -> src/xtra/catalog/discover.py
 xtra catalog extract    -> src/xtra/catalog/extract.py
 xtra catalog transform  -> src/xtra/catalog/transform.py
+xtra score extraction match -> src/xtra/scoring/extraction/match.py
+  --exactly / --partially   -> src/implementations/score_extraction_match.py
 ```
 
 ### Crawl
@@ -300,7 +314,7 @@ way. A resume reorders what it reads back the same way, so sitemap URLs do
 not wait behind a section the first pass queued.
 
 Sitemap index files and `.gz` sitemaps are followed. `robots.txt` is fetched
-with `urllib` and the shared browser user agent; a 4xx means the site
+with `httpx2` and the shared browser user agent; a 4xx means the site
 published no rules, and a 5xx or a network error means the same plus a
 warning. `robots_status` is recorded in `crawl.json`. When `robots.txt` sets
 `Crawl-delay` for `*`, the effective minimum interval is the larger of that
@@ -494,7 +508,7 @@ subject, and only a competency list rides along with it.
 
 | Label | CTDL class | Fires when |
 | --- | --- | --- |
-| `Course` | `ceterms:Course` | at least one course block, with the code in the title, the `h1`, or the heading lines of the page's own content; or one or more course descriptions the platform marked up, on a page that is not printing its own requirements; or two or more course blocks on such a page; or three or more course codes under a `/courses/` path |
+| `Course` | `ceterms:Course` | at least one course block, with the code in the title, the `h1`, or the heading lines of the page's own content, unless that code is one the page only cites; or one or more course descriptions the platform marked up, on a page that is not printing its own requirements; or two or more course blocks on such a page; or three or more course codes under a `/courses/` path, on a page with no course block |
 | `Credential` | `ceterms:Credential` | the page's name names one award; or the page prints its own requirements and names the award beside its name, in a section heading, after "Degrees Conferred", or in its first paragraph; failing both, a program or award URL segment plus an award the page names, then the URL segment alone |
 | `LearningOpportunity` | `ceterms:LearningProgram` | the page prints its own requirements and names no award (a minor, a pre-professional track, a non-credit program, a "Program (not a degree)"); or a program URL segment such as `/programs/…`, `/majors/…`, `/programs-by-program/…`, or `preview_program.php` and nothing else |
 | `Competency` | `ceasn:Competency` | a lead-in that names or introduces learning outcomes ("Student Learning Outcomes", "Upon completion of this program students will be able to:") followed directly by two or more outcomes, in list items or as lines that open with an action verb or "An ability to" |
@@ -505,6 +519,15 @@ credits, units, or hours value within 400 characters of it: a code on its
 own is a cross-reference; a code with a value is the course being
 described. Codes inside a requirement list or a course-reference link are
 never counted, however they are printed.
+
+Once a page prints any such course as a title — its code opening the line,
+in the page's own text — only those count. A code after a label or inside
+a sentence ("Prerequisite: Completion of ABC 101.", "Formerly ABC 100") is
+a cross-reference, however close a credits field sits below it; a page
+that titles no course is counted as before. And a code the page prints only
+outside its main container is the site's, not the page's. Without that, a
+catalog menu printed beside `<main>` on every page makes every course page
+look like it describes several courses, and extraction skips them all.
 
 Before the tree reading, a whole catalog could be missed on the printed
 form alone. A CourseLeaf graduate subject page numbers its courses with
@@ -783,6 +806,43 @@ those needs no rule per college, and it is the only way the three entities
 beside `Course` are read at all: the templates are course templates, and a
 credential page has no course block for them to find.
 
+Some pages label none of a course's fields. They print a heading group — the
+name, a heading that is nothing but the code (`ABC 101:`), the units on a
+line of their own (`4.0 Units`) — and the hours as a heading over a number
+("Total Lecture Hours", 54.0), so those two shapes are read as well.
+A description is the whole first paragraph, not its first 600 characters.
+
+Credits keep the word they are counted in. Every reading above writes the
+unit printed with the number as `course_credits_unit`: `Units` from
+`4.0 Units`, `UNITS` from `2.0 UNITS`, `Hours` from `3 Hours.`, and
+`Credit Hours` from a field labelled that way. The unit always comes from
+the same reading as the credits, or not at all, and the record keeps the
+word as printed, not as a `creditUnit:` concept, under
+`ceterms:creditUnitType` beside `ceterms:creditValue`. Transform's mapping
+writes the two as one `ceterms:ValueProfile` — `schema:value`, or
+`schema:minValue` and `schema:maxValue` for a printed range — with the word
+in its `ceterms:creditUnitType`. The college templates do not read the unit.
+
+The prerequisite is read the same way, wherever a page prints it:
+- a labelled field: `Prerequisite(s)` and `Prereqs` count too;
+- a bold label with the value on the same line;
+- a heading or bold label with the value under it, including in a sidebar inside the page's own content (an `<aside>` inside `<main>`);
+- a `Prerequisite:` line, including a run of requisites that opens a description.
+
+The record keeps the text after the label, as printed, as
+`ceterms:prerequisite`. There is one per course: the first the page prints.
+Alternatives joined with OR stay together ("ABC 101 OR ABC 102"). A
+"Prerequisite Courses" list is used only when nothing else names a
+prerequisite.
+
+Some things are not read as a prerequisite:
+- `None`, `N/A` and `No prerequisites` mean there is no prerequisite, so the field is left out.
+- A label naming both relations (`Prerequisite/Corequisite`, `Prerequisite and/or Corequisite`) gives nothing: the course may be taken alongside.
+- Corequisites, advisories and recommended preparation are never read as one.
+
+A description that prints the prerequisite keeps it, unchanged. The college
+templates read prerequisites their own way, as before.
+
 Each field records the element it came from, so a reviewer can go and look.
 A page that prints too little to be a record — one field, which every page
 has, because every page has a name — is skipped rather than written as an
@@ -804,6 +864,143 @@ saved them under. The `Slot.stem` property in `src/lib/` still slugs the URL the
 old way, so it is never used for a storage key, and the record carries the
 crawl stem instead.
 
+#### What a record holds
+
+A record names every field by the CTDL term it goes out under, not by the
+label the reader gave it. Each entry in `source_expected.fields` has a
+`property` such as `ceterms:name`, and `expected` maps the same terms to
+their values. A term read more than once, like the outcomes of a competency
+list, holds every value as a list in the order they were read.
+
+A course carries the minimum data for courses and nothing more:
+
+| Property | CTDL term | Value |
+| --- | --- | --- |
+| External Identifier | `ceterms:identifier` | the printed course code |
+| Name | `ceterms:name` | the printed name |
+| Description | `ceterms:description` | the printed description |
+| Subject Webpage | `ceterms:subjectWebpage` | the page's own URL |
+| Coded Notation | `ceterms:codedNotation` | the printed course code |
+| Credit Value | `ceterms:creditValue` | the credits as printed: `3`, `1.0-4.0` |
+| Credit Unit Type | `ceterms:creditUnitType` | the unit word printed with them |
+| Prerequisite | `ceterms:prerequisite` | the printed prerequisites |
+
+A template that reads a minimum and a maximum gives
+`ceterms:creditMinValue` and `ceterms:creditMaxValue` instead, the names the
+Learning Opportunity bulk-upload template uses. The identifier and the
+webpage are the two no page prints as a field, so they come last, with ids
+from `derived_001`. Everything else a course page prints, such as lecture
+and lab hours, the department or the corequisites, is still read, because
+each field counts toward the two a page needs to be a record at all, but
+the record leaves it out. Credentials, learning programs and competencies
+keep every field they have.
+
+Records no longer carry `ctdl_expected`. Transform has not caught up: it
+still maps the old labels, so `xtra catalog transform` stops with
+`KeyError: 'canonical_label'` on a record extracted this way and works only
+on records extracted before.
+
+### Scoring extraction against a baseline
+
+Scoring is not part of `catalog`: it can score any stage's output, so it has
+its own `score` noun. Folders are nouns and files are verbs, so this one is
+`xtra score extraction match`.
+
+```bash
+xtra score extraction match --exactly \
+  --catalog-id avc-elumenapp-com-catalog-2026-27-welcome --run-id 2026-10-12T20:59:13Z
+
+xtra score extraction match --partially \
+  --catalog-id avc-elumenapp-com-catalog-2026-27-welcome --run-id 2026-10-12T20:59:13Z
+```
+
+It reads records that are already written, so a corrected baseline can be
+matched again without extracting again. Pick exactly one of `--exactly` and
+`--partially`; each writes its own report.
+
+| Flag | What it does |
+| --- | --- |
+| `--exactly` | Count the extracted values that are identical to the baseline. |
+| `--partially` | Set the exact matches aside and measure how close the other values come. |
+| `--run-id` | The extraction run being scored. The baseline files are filed under the same run id. |
+| `--catalog-id` | The catalog folder. Together with `--run-id` it locates the records and the baseline. |
+| `--source-uri` | Where the records live. Default: the environment's data URI. |
+| `--baseline-uri` | Where the baseline lives. Default: the environment's baseline URI. |
+| `--source-azure-storage-connection-string` | Connection string for `--source-uri`. Default: `AZURE_STORAGE_CONNECTION_STRING`, then the environment's secret. |
+| `--baseline-azure-storage-connection-string` | Connection string for `--baseline-uri`, which may be a different storage account. Same default. |
+
+The baseline container is filed by the same catalog folder and run id as the
+extraction, one folder per page, and the baseline file is named for its page:
+
+```text
+{baseline-uri}/{catalog-folder}/{yyyy-MM-ddTHH-mm-ssZ}/{stem}/{stem}.json
+{baseline-uri}/{catalog-folder}/{yyyy-MM-ddTHH-mm-ssZ}/{stem}/{stem}.html
+```
+
+A baseline file is a list of entities, each a list of
+`{ctdl_property, value, source_url}`. A page's first baseline entity is
+compared with its own record and later ones with its `{stem}--{entity}`
+records, in order. The baseline HTML is not read, and `source_url` is not
+used: matching compares values only.
+
+Each baseline field is matched against the value the record's `expected`
+object holds for that property (`expected` is flat, keyed by ceterms property;
+a record without it scores as all missing), and each extracted value can answer
+only one baseline value, so one prerequisite cannot cover three. A
+`creditValue` is read the way the baseline prints it: a single credit of 3,
+flat or nested, is both `creditMinValue` and `creditMaxValue`, and
+`subjectWebpage` is read from
+the record's `source_url`. A property the record has and the baseline does not
+is listed as `unscored_extras` and costs nothing; the baseline may simply be
+incomplete.
+
+**Exact** is the tier to aim for. A value matches only when it is identical to
+the baseline as printed: no case, spacing or punctuation leniency, and `1.0`
+is not `1`.
+
+| Outcome | Meaning |
+| --- | --- |
+| `match` | Identical to the baseline value. |
+| `mismatch` | A value was extracted but it is not identical. The report keeps its similarity. |
+| `missing` | The extractor emitted nothing for the property. |
+
+**Partial** tells how much non-exactness the extractor shows. Exact matches
+are set aside first (the report counts them as `excluded_exact`), so a pile of
+exact matches cannot hide a partial-match problem. The rest are paired by text
+similarity: rapidfuzz `fuzz.ratio`, the normalized Indel similarity
+(`2 * LCS / (len(a) + len(b))`), on lower-cased, whitespace-collapsed text; a
+code also compares with its punctuation and spaces removed, so `ACCT 199` is
+`ACCT199`. Numbers compare as numbers.
+
+| Outcome | Meaning |
+| --- | --- |
+| `partial` | Similarity of 0.8 or more. A description missing a sentence lands here. |
+| `wrong` | A value was extracted and its similarity is below 0.8. |
+| `missing` | The extractor emitted nothing for the property. |
+
+**Nothing is averaged.** An average hides outliers. The report carries counts
+by outcome, by property and by page, plus `outliers`: every field that is not
+an exact match, worst first (missing, then lowest similarity), each with its
+page, property, baseline value and extracted value. The only ratio is
+`exact_match_rate` (matches over fields) in the exact report.
+
+Each baseline page falls in one of three groups:
+
+- **scored**: extract wrote a record for it.
+- **skipped**: extract considered the page and skipped it (multi-course page,
+  nothing read). All its fields are `missing`, because that is an extractor
+  miss.
+- **out of scope**: extract never considered it, because it is outside
+  discovery or `--only-golden-sample`. It is listed and not counted.
+
+The reports are
+`{catalog-folder}/{run-id}/extraction-match-exact-report.json` and
+`extraction-match-partial-report.json`, beside `records/` like
+`extract-report.json`. The stdout JSON is a short summary and a table of the
+counts and the worst outliers goes to stderr. A baseline with no files for the
+run, or one that cannot be reached, exits non-zero. A malformed baseline file
+is listed in the report under `malformed` and skipped.
+
 ## Object layout (not packs)
 
 `--target-uri` is a ceops storage URI. Runs are keys under the catalog folder and the UTC timestamp:
@@ -820,6 +1017,8 @@ crawl stem instead.
   discovery/{discovery-run-id}/patterns.md
   discovery/{discovery-run-id}/golden-sample-course.json
   extract-report.json
+  extraction-match-exact-report.json
+  extraction-match-partial-report.json
   records/{record-id}.json
   jsonld/{record-id}.json
   expected/{record-id}.json
