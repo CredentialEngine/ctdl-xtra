@@ -45,7 +45,9 @@ CREDIT_MAX = "ceterms:creditMaxValue"
 
 # The "low-high" a reader writes a printed credit range as.
 CREDIT_RANGE_RE = re.compile(r"(\d+(?:\.\d+)?)-(\d+(?:\.\d+)?)")
-RANGE_NOTE = "Printed range; its two ends are creditMinValue and creditMaxValue."
+RANGE_NOTE = (
+    "Printed range; its two ends are creditMinValue and creditMaxValue."
+)
 
 # The CTDL term each label the readers write goes out under, as the
 # Learning Opportunity bulk-upload template names them; that template is
