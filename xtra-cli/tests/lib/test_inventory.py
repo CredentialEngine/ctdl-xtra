@@ -50,7 +50,7 @@ def test_the_checked_in_inventory_is_what_csv_text_writes(
 
 def test_course_labels_are_allowed_only_on_courses() -> None:
     course = allowed_for("Course")
-    assert len(course) == 20
+    assert len(course) == 21
     assert all(label.startswith("course_") for label in course)
     assert allowed_for("Link") == {"relationship_heading"}
     assert allowed_for("Competency") == {"competency_text"}

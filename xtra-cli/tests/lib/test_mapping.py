@@ -51,7 +51,7 @@ def test_a_single_credit_becomes_one_credit_value_profile() -> None:
         {
             "property_id": "map_001",
             "property": "ceterms:creditValue",
-            "value": [{"ceterms:value": 3}],
+            "value": [{"@type": "ceterms:ValueProfile", "schema:value": 3}],
             "source_field_refs": ["src_004"],
             "publisher_input_refs": [],
             "mapping_method": "nested_profile",

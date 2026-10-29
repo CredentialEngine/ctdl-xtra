@@ -1,16 +1,12 @@
-"""The exact-URL Credential Registry lookup. A record matches only by its
-exact ceterms:subjectWebpage, never by name. No test reaches the network:
-urllib.request.urlopen is replaced by a fake that answers in-process."""
+"""The exact-URL registry lookup, with httpx2 answered in-process."""
 
 from __future__ import annotations
 
-import io
 import json
-import urllib.error
-import urllib.request
 from pathlib import Path
 from typing import Any
 
+import httpx2
 import pytest
 import registry
 from lib_doubles import NOW, course_record
@@ -34,32 +30,17 @@ MATCHED = {
 }
 
 
-class FakeHTTPResponse:
-    def __init__(self, status: int, body: bytes) -> None:
-        self.status = status
-        self.body = body
+def serve(
+    monkeypatch: pytest.MonkeyPatch, status: int = 200, body: bytes = b"{}"
+) -> list[httpx2.Request]:
+    """Answer every request with `status` and `body`, and record it."""
+    calls: list[httpx2.Request] = []
 
-    def read(self) -> bytes:
-        return self.body
+    def handle(transport: Any, request: httpx2.Request) -> httpx2.Response:
+        calls.append(request)
+        return httpx2.Response(status, content=body)
 
-    def __enter__(self) -> FakeHTTPResponse:
-        return self
-
-    def __exit__(self, *exc_info: object) -> None:
-        return None
-
-
-def serve(monkeypatch: pytest.MonkeyPatch, answer: Any) -> list[tuple]:
-    """Answer every urlopen with `answer`, or raise it if it is an error."""
-    calls: list[tuple] = []
-
-    def urlopen(request: urllib.request.Request, timeout: float = 0) -> Any:
-        calls.append((request, timeout))
-        if isinstance(answer, BaseException):
-            raise answer
-        return answer
-
-    monkeypatch.setattr(urllib.request, "urlopen", urlopen)
+    monkeypatch.setattr(httpx2.HTTPTransport, "handle_request", handle)
     return calls
 
 
@@ -126,15 +107,15 @@ def test_the_search_posts_one_exact_subject_webpage_query(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setenv("REGISTRY_API_KEY", "test-key")
-    calls = serve(monkeypatch, FakeHTTPResponse(200, b'{"data": []}'))
+    calls = serve(monkeypatch, body=b'{"data": []}')
     assert _post_search(URL) == (200, {"data": []})
-    request, timeout = calls[0]
-    assert request.full_url == SEARCH_URL
-    assert request.get_method() == "POST"
-    assert timeout == 45
-    assert request.get_header("Content-type") == "application/json"
-    assert request.get_header("User-agent") == "xtra-cli/1.0"
-    body = json.loads(request.data)
+    request = calls[0]
+    assert str(request.url) == SEARCH_URL
+    assert request.method == "POST"
+    assert request.extensions["timeout"]["read"] == 45
+    assert request.headers["content-type"] == "application/json"
+    assert request.headers["user-agent"] == "xtra-cli/1.0"
+    body = json.loads(request.content)
     assert body["Filters"] == [
         {"URI": "ceterms:subjectWebpage", "ItemTexts": [URL]}
     ]
@@ -154,23 +135,23 @@ def test_the_key_is_sent_as_a_bearer_token_exactly_once(
     monkeypatch: pytest.MonkeyPatch, key: str, header: str
 ) -> None:
     monkeypatch.setenv("REGISTRY_API_KEY", key)
-    calls = serve(monkeypatch, FakeHTTPResponse(200, b"{}"))
+    calls = serve(monkeypatch)
     _post_search(URL)
-    assert calls[0][0].get_header("Authorization") == header
+    assert calls[0].headers.get_list("authorization") == [header]
 
 
 def test_without_a_key_no_authorization_is_sent(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    calls = serve(monkeypatch, FakeHTTPResponse(200, b"{}"))
+    calls = serve(monkeypatch)
     _post_search(URL)
-    assert calls[0][0].get_header("Authorization") is None
+    assert "authorization" not in calls[0].headers
 
 
 def test_a_body_that_is_not_json_comes_back_as_text(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    serve(monkeypatch, FakeHTTPResponse(200, b"<html>maintenance</html>"))
+    serve(monkeypatch, body=b"<html>maintenance</html>")
     assert _post_search(URL) == (200, "<html>maintenance</html>")
 
 
@@ -181,17 +162,17 @@ def test_a_body_that_is_not_json_comes_back_as_text(
 def test_an_http_error_returns_its_status_and_body(
     monkeypatch: pytest.MonkeyPatch, body: bytes, payload: Any
 ) -> None:
-    error = urllib.error.HTTPError(
-        SEARCH_URL, 401, "Unauthorized", {}, io.BytesIO(body)
-    )
-    serve(monkeypatch, error)
+    serve(monkeypatch, status=401, body=body)
     assert _post_search(URL) == (401, payload)
 
 
 def test_an_unreachable_registry_is_status_zero(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    serve(monkeypatch, urllib.error.URLError("getaddrinfo failed"))
+    def unreachable(transport: Any, request: httpx2.Request) -> None:
+        raise httpx2.ConnectError("getaddrinfo failed", request=request)
+
+    monkeypatch.setattr(httpx2.HTTPTransport, "handle_request", unreachable)
     assert _post_search(URL) == (0, {"error": "getaddrinfo failed"})
 
 
