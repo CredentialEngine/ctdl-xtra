@@ -2,6 +2,7 @@
 // you?", which profile you are. A new profile also gets a role; existing ones keep theirs. The profile is remembered in this browser and
 // every annotation is recorded under that name.
 import { useEffect, useState } from "react";
+import { Ico } from "./icons";
 import { currentReviewer, ROLE_LABEL, setIdentity, type Profile, type Role } from "./reviewer";
 import { signIn } from "./session";
 import "./identity.css";
@@ -79,11 +80,14 @@ export function IdentityScreen({ needPassword }: { needPassword: boolean }) {
           </label>)}
         {passwordOk && <label className="idn-field">
           <span>Profile</span>
-          <select value={pick} onChange={(e) => setPick(e.target.value)} disabled={!profiles} autoFocus>
-            <option value="" disabled>{profiles ? "Choose your name…" : "Loading…"}</option>
-            {profiles?.map((p) => <option key={p.name} value={p.name}>{p.name}</option>)}
-            <option value={ADD}>+ Add a profile…</option>
-          </select>
+          <span className="idn-sel">
+            <select value={pick} onChange={(e) => setPick(e.target.value)} disabled={!profiles} autoFocus>
+              <option value="" disabled>{profiles ? "Choose your name…" : "Loading…"}</option>
+              {profiles?.map((p) => <option key={p.name} value={p.name}>{p.name}</option>)}
+              <option value={ADD}>+ Add a profile…</option>
+            </select>
+            <Ico name="chevron" className="idn-chev" />
+          </span>
         </label>}
         {adding && (
           <label className="idn-field">

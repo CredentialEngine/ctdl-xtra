@@ -154,8 +154,8 @@ export const STEPS: Step[] = [
     id: "annotated-by",
     title: "Annotated by: whose checks you're seeing",
     route: (c) => c.base,
-    ready: (c) => onBase(c) && !!q(".ab-bar"),
-    targets: [".ab-bar"],
+    ready: (c) => onBase(c) && !!q(".sm-row"),
+    targets: [".sm-row"],
     accents: ["[data-testid=annotated-by] .ab-btn"],
     sides: ["below", "right"],
     body: () => (

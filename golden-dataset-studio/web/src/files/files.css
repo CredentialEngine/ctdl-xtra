@@ -19,7 +19,7 @@
 .sf-rootrow { cursor: default; font-weight: 600; }
 .sf-rootrow .ico { color: var(--amber); }
 .sf-rootrow:hover { background: none; }
-.sf-chev { width: 10px; flex: none; color: var(--faint); font-size: 10px; margin-left: -12px; }
+.sf-chev { width: 12px; flex: none; color: var(--muted); margin-left: -14px; }
 .sf-file.on { background: var(--accent-soft); box-shadow: inset 3px 0 0 var(--accent); }
 .sf-file.on .ico { color: var(--accent); }
 .sf-note { color: var(--faint); font-size: 10.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; flex: 0 1 auto; }

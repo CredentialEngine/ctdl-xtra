@@ -9,8 +9,9 @@
 // Who annotated a record isn't a stratum here: it's the Rules tab's "Annotated by" filter above the drawer (one way to
 // do it; "Annotated in" says which ruleset version a record was annotated in).
 // Filters stay on in every mode. When a filter or Autostratify is on, each record shows its strata tags (StrataTags).
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { filterParams, type FacetFilter, type SampleInfo, type SampleOrder, type StrataTag, type StratumHist } from "../api/types";
+import { Ico } from "./icons";
 import { fmt } from "./ui";
 import "./sample.css";
 
@@ -35,8 +36,10 @@ export function toggle(f: FacetFilter, dim: string, bucket: string): FacetFilter
   return next;
 }
 
-export function SampleDrawer({ sample, prefs, onPrefs, modes, storageKey, collapseOn }: {
+export function SampleDrawer({ sample, prefs, onPrefs, modes, storageKey, collapseOn, filters }: {
   sample: SampleInfo | null; prefs: SamplePrefs; onPrefs: (p: SamplePrefs) => void; modes: SampleMode[]; storageKey: string;
+  /** Another filter row in the same box, under the Sample row and laid out like it (the Rules tab's Annotated by). */
+  filters?: ReactNode;
   /** When this changes (the reader moves to another row), the drawer closes: it stays out of the way while reviewing. */
   collapseOn?: unknown;
 }) {
@@ -51,29 +54,35 @@ export function SampleDrawer({ sample, prefs, onPrefs, modes, storageKey, collap
   const hs = sample?.histograms ?? [];
   const label = (id: string) => hs.find((h) => h.id === id)?.label ?? id;
   const chips = Object.entries(prefs.filter).flatMap(([d, bs]) => bs.map((b) => ({ d, b })));
+  const prior = sample?.elsewhere !== undefined && (
+    <label className={"sm-prior" + (sample.elsewhere ? "" : " faint")} title="Records nobody has reviewed for this rule yet, but someone marked or commented on in another rule">
+      <input type="checkbox" checked={prefs.prior} onChange={(e) => set({ prior: e.target.checked })} />
+      Reviewed in other fields first <span className="faint">({fmt(sample.elsewhere)})</span></label>
+  );
+  const count = sample && <span className="faint sm-n">{fmt(sample.listed)}{sample.listed !== sample.total && <> of {fmt(sample.total)}</>}</span>;
   return (
     <div className={"sample" + (open ? " open" : "")} data-testid="sample">
       <div className="sm-head">
-        <button className="sm-tog" aria-expanded={open} onClick={() => setOpenSaved(!open)}><span className="tw">{open ? "▾" : "▸"}</span>Sample</button>
+        <button className="sm-tog" aria-expanded={open} onClick={() => setOpenSaved(!open)}><Ico name={open ? "chevron" : "chevron-right"} className="tw" />Sample</button>
         <div className="seg sm-modes" role="group" aria-label="Sample">
           {modes.map((m) => <button key={m} className={prefs.mode === m ? "on" : ""}
             onClick={() => { set({ mode: m }); if (m === "manual" || m === "auto") setOpenSaved(true); }}>{MODE_NAME[m]}</button>)}
         </div>
         {prefs.mode === "shuffle" && <button className="btn sm-btn" onClick={() => set({ seed: prefs.seed + 1 })}>Reshuffle</button>}
-        {sample?.elsewhere !== undefined && (
-          <label className={"sm-prior" + (sample.elsewhere ? "" : " faint")} title="Records nobody has reviewed for this rule yet, but someone marked or commented on in another rule">
-            <input type="checkbox" checked={prefs.prior} onChange={(e) => set({ prior: e.target.checked })} />
-            Reviewed in other fields first <span className="faint">({fmt(sample.elsewhere)})</span></label>
-        )}
-        {sample && <span className="faint sm-n">{fmt(sample.listed)}{sample.listed !== sample.total && <> of {fmt(sample.total)}</>}</span>}
+        {!filters && prior}
+        {!filters && count}
       </div>
-      {chips.length > 0 && (
+      {filters && <div className="sm-head sm-row">{filters}{count}</div>}
+      {filters && open && prior && <div className="sm-head sm-row">{prior}</div>}
+      {(chips.length > 0 || (filters && !open && prefs.prior)) && (
         <div className="sm-chips">
           {chips.map(({ d, b }) => (
             <span key={d + b} className="sm-chip">{label(d)}: {b}
               <button aria-label={`Remove ${label(d)}: ${b}`} onClick={() => set({ filter: toggle(prefs.filter, d, b) })}>×</button></span>
           ))}
-          <button className="sm-clear" onClick={() => set({ filter: {} })}>Clear filters</button>
+          {filters && !open && prefs.prior && <span className="sm-chip">Reviewed in other fields first
+            <button aria-label="Stop putting rows reviewed in other fields first" onClick={() => set({ prior: false })}>×</button></span>}
+          {chips.length > 0 && <button className="sm-clear" onClick={() => set({ filter: {} })}>Clear filters</button>}
         </div>
       )}
       {open && sample && prefs.mode === "auto" && <AutoPanel sample={sample} prefs={prefs} onCross={(cross) => set({ cross })} />}

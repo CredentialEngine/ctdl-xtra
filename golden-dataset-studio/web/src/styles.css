@@ -585,7 +585,7 @@ select.vsel { appearance: none; -webkit-appearance: none; padding: 5px 30px 5px 
 .sigt { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
 .sigrow { display: grid; grid-template-columns: 18px 1fr 60px 20px 60px 60px; gap: 6px; padding: 8px 12px; border-bottom: 1px solid var(--line); cursor: pointer; align-items: center; font-variant-numeric: tabular-nums; }
 .sigrow:hover { background: var(--surface-2); }
-.sigrow .tw { color: var(--faint); font-size: 11px; }
+.sigrow .tw { color: var(--muted); }
 .sigrow.open .tw { transform: rotate(90deg); display: inline-block; }
 .sigrow .sname { font-family: var(--mono); font-size: 12px; }
 .sigrow .num { text-align: right; }
@@ -594,3 +594,8 @@ select.vsel { appearance: none; -webkit-appearance: none; padding: 5px 30px 5px 
 .sigdrill .dh { font-size: 12px; font-weight: 650; margin: 6px 0; }
 .sigdrill .dh.good { color: var(--green); } .sigdrill .dh.bad { color: var(--red); }
 .sigdrill .clist { max-height: 320px; overflow: auto; }
+
+/* chevron icons on dropdowns and disclosures (shell/icons.tsx chevron, chevron-right) */
+.ab-car, .evx-caret, .tw, .sf-chev, .run-caret .ico, .evx-dd-more .ico { display: inline-flex; align-items: center; }
+.ab-car svg, .evx-caret svg, .run-caret svg { width: 14px; height: 14px; }
+.tw svg, .sf-chev svg, .evx-dd-more svg { width: 12px; height: 12px; }

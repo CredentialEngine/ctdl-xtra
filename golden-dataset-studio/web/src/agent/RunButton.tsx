@@ -63,7 +63,7 @@ export function RunButton({ catalog, scope, label, confirm, onPrompt, variant = 
       {main}
       {promptUser && (
         <button className={`btn ${variant === "primary" ? "primary" : ""} run-caret`} aria-label="More ways to run"
-          aria-haspopup="menu" aria-expanded={menu} onClick={() => setMenu((m) => !m)}>▾</button>
+          aria-haspopup="menu" aria-expanded={menu} onClick={() => setMenu((m) => !m)}><Ico name="chevron" /></button>
       )}
       {menu && (
         <span className="run-menu" role="menu">

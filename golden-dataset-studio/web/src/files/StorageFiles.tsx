@@ -143,7 +143,7 @@ function Branch({ nodes, depth, closed, toggle, selected, onPick }: {
         return (
           <li key={n.path} role="treeitem" aria-expanded={open}>
             <button className="sf-row sf-dir" onClick={() => toggle(n.path)} title={n.path + "/"}>
-              <span className="sf-chev">{open ? "▾" : "▸"}</span><Ico name={open ? "folder-open" : "folder"} />
+              <Ico name={open ? "chevron" : "chevron-right"} className="sf-chev" /><Ico name={open ? "folder-open" : "folder"} />
               <span className="mono sf-name">{n.name}/</span>
               {FOLDER_NOTE[n.name] && <span className="sf-note">{FOLDER_NOTE[n.name]}</span>}
               <span className="sf-size">{n.files}</span>

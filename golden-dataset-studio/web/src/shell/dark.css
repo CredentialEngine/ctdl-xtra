@@ -8,7 +8,7 @@
 }
 :root[data-theme="dark"] body { background: var(--bg); color: var(--ink); }
 :root[data-theme="dark"] input, :root[data-theme="dark"] select, :root[data-theme="dark"] textarea {
-  background: var(--surface-2); color: var(--ink); border-color: var(--line-2); }
+  background-color: var(--surface-2); color: var(--ink); border-color: var(--line-2); }
 :root[data-theme="dark"] .btn { background: var(--surface-2); color: var(--ink-2); border-color: var(--line-2); }
 :root[data-theme="dark"] .btn:hover { background: var(--line); }
 :root[data-theme="dark"] .btn.primary { background: var(--accent); border-color: var(--accent); color: #0b1020; }

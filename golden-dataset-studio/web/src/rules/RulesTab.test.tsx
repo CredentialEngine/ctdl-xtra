@@ -181,7 +181,7 @@ describe("RulesTab", () => {
     const bar = container.querySelector<HTMLButtonElement>("[data-testid=sample-bars] .sm-bar")!;
     await act(async () => { bar.click(); await new Promise((r) => setTimeout(r, 0)); });
     expect(last().getAll("f")).toEqual(["length:0–9 chars"]);
-    expect(container.querySelector(".rows-bar")!.textContent).toContain("filtered by strata");
+    expect(container.querySelector(".sm-chip")!.textContent).toContain("0–9 chars");
     expect(container.querySelector(".row .sm-tag")!.textContent).toBe("Length 0–9 chars");
     await act(async () => { mode("Autostratify").click(); await new Promise((r) => setTimeout(r, 0)); });
     expect(last().get("order")).toBe("auto");
@@ -190,7 +190,7 @@ describe("RulesTab", () => {
     expect(container.querySelector(".sm-prior")!.textContent).toContain("Reviewed in other fields first (2)");
     await act(async () => { prior.click(); await new Promise((r) => setTimeout(r, 0)); });
     expect(last().get("prior")).toBe("true");
-    expect(container.querySelector(".rows-bar")!.textContent).toContain("reviewed in other fields first");
+    expect(container.querySelector<HTMLInputElement>(".sm-prior input")!.checked).toBe(true);
   });
 
   const people = { people: [{ name: "Jared Diener", role: "sme", values: 112 }, { name: "Cadence Calixto", role: "sme", values: 0 },
@@ -347,7 +347,7 @@ describe("RulesTab", () => {
     expect(r[0].classList.contains("done")).toBe(false);  // fixed: needs a fresh look
     expect(r[2].classList.contains("done")).toBe(true);   // correct: fades back
     expect(r[0].textContent).toContain("Fixed: Jared marked the previous version wrong; this matches the text he selected.");
-    expect(container.querySelector(".rows-bar")?.textContent).toBe("3 courses · discussed first, then the likeliest problems, with every 5th row from a spread sample by length (3 groups)");
+    expect(container.querySelector(".rows-bar")).toBeNull();   // no summary line above the rows
     expect(container.querySelector(".row .grp, .row .sm-tag")).toBeNull(); // no strata labels unless filtered or autostratified
   });
 

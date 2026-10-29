@@ -4,6 +4,7 @@
 // an expert confirmed its value (human-reviewed) or only an engineer did (engineer-checked); the experts' note.
 import { useEffect, useRef, useState } from "react";
 import type { ReviewMarks } from "../api/types";
+import { Ico } from "../shell/icons";
 import { fmt } from "../shell/ui";
 import type { Annotators } from "./api";
 import { BY_NOBODY, BY_WAITING, byLabel, shortWhen } from "./logic";
@@ -11,8 +12,10 @@ import { BY_NOBODY, BY_WAITING, byLabel, shortWhen } from "./logic";
 const VERDICTS: { id: string | null; name: string }[] = [
   { id: null, name: "Any" }, { id: "correct", name: "✓ correct" }, { id: "wrong", name: "✕ wrong" }, { id: "note", name: "note" }];
 
-export function AnnotatedBy({ people, by, me, onPick }: {
+export function AnnotatedBy({ people, by, me, onPick, bare }: {
   people: Annotators | null; by: string | null; me: string; onPick: (by: string | null) => void;
+  /** Without its "Annotated by" label: the label sits beside it (the Rules tab's filter rows). */
+  bare?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState("");
@@ -35,7 +38,7 @@ export function AnnotatedBy({ people, by, me, onPick }: {
   return (
     <div className="ab" ref={box} data-testid="annotated-by">
       <button className={"ab-btn" + (open ? " open" : "") + (by ? " set" : "")} aria-haspopup="listbox" aria-expanded={open}
-        onClick={() => setOpen(!open)}><span className="ab-k">Annotated by</span> <b>{byLabel(by)}</b><span className="ab-car">▾</span></button>
+        onClick={() => setOpen(!open)}>{!bare && <><span className="ab-k">Annotated by</span> </>}<b>{byLabel(by)}</b><Ico name="chevron" className="ab-car" /></button>
       {open && (
         <div className="ab-pop" role="listbox">
           <input className="ab-q" placeholder="Search people" value={q} autoFocus onChange={(e) => setQ(e.target.value)}

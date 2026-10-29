@@ -4,7 +4,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { api } from "../api/client";
 import type { AnnotateResponse, ApprovePreview, CatalogDetail, Discussion, EventBrief, NewEvent, Overlay, RuleDetail, RulesResponse,
-  RuleSummary, SampleInfo, Spread, UnclassifiedPage } from "../api/types";
+  RuleSummary, SampleInfo, UnclassifiedPage } from "../api/types";
 import { PagePane, prefetchPages, type CapturedSelection, type Highlight } from "../pagepane";
 import { Ico } from "../shell/icons";
 import { useReviewer, useRole } from "../shell/reviewer";
@@ -16,7 +16,7 @@ import { AnnotatedBy, ReviewLine, VerdictSwitch, WaitingNote } from "./Annotated
 import { apiX, type Annotators, type RowX } from "./api";
 import {
   addCapture, applyEvent, applyReview, BY_WAITING, briefOf, canConfirm, filterCountTip, isField, isSettled, keyAction, missingEvent, newDraft, norm, pushRecent, paneTabs, rowTarget,
-  scrollWithin, shortTitle, unitWord, verdictEvent, type Draft, type TabRef,
+  scrollWithin, shortTitle, verdictEvent, type Draft, type TabRef,
 } from "./logic";
 import { MissedCourse, MissedPage, type MissedState } from "./MissedPanel";
 import { Controls, Expansion, HistoryLine, Value } from "./parts";
@@ -94,7 +94,6 @@ export default function RulesTab({ catalog, route }: TabProps) {
   const [detail, setDetail] = useState<RuleDetail | null>(null);
   const [rows, setRows] = useState<RowX[]>([]);
   const [total, setTotal] = useState(0);
-  const [spread, setSpread] = useState<Spread | null>(null);
   const [sample, setSample] = useState<SampleInfo | null>(null);
   // the Sample drawer's choices belong to one rule: another rule starts in review order, unfiltered
   const [prefsOf, setPrefsOf] = useState<{ rule: string | null; p: SamplePrefs }>({ rule: null, p: DEFAULT_PREFS });
@@ -160,7 +159,7 @@ export default function RulesTab({ catalog, route }: TabProps) {
     setDraft(null); setMissed(null); setExtraTab(null); setActiveStem(null);
     Promise.all([api.rule(cat, ruleId, ext), apiX.rows(cat, ruleId, { limit: FIRST_PAGE, focus, ext, by, verdict, ...sq })]).then(([d, r]) => {
       if (tok !== token.current) return;
-      setDetail(d); setRows(r.rows); setTotal(r.total); setSpread(r.spread); setSample(r.sample ?? null); setMissing(r.missing); setSel(r.focus_index ?? 0);
+      setDetail(d); setRows(r.rows); setTotal(r.total); setSample(r.sample ?? null); setMissing(r.missing); setSel(r.focus_index ?? 0);
       centerNext.current = true; setError(null);
       if (rowsRef.current) rowsRef.current.scrollTop = 0;
     }, (e) => setError(String(e)));
@@ -429,16 +428,12 @@ export default function RulesTab({ catalog, route }: TabProps) {
       <section className="col mid">
         {detail && <RuleHead catalog={catalog} rule={detail} busy={busy} onApprove={() => approve("approve")} onReopen={() => approve("reopen")} />}
         {asking && <ApproveDialog p={asking} busy={busy} onApprove={() => approve("approve", true)} onClose={() => setAsking(null)} />}
-        {detail && <div className="rows-bar"><span><b>{fmt(total)}</b> {unitWord(detail.kind, detail.locator)}{filtered && <> · <b>filtered</b> by strata</>}{prefs.prior && <> · reviewed in other fields first</>} · {
-          sq.order === "auto" ? "autostratified: 3 of each combination, rarest first"
-          : sq.order === "shuffle" ? "shuffled"
-          : <>discussed first, then the likeliest problems{spread && spread.groups.length > 1 && !filtered && <>, with every 5th row from a <SpreadNote spread={spread} /></>}</>}</span></div>}
-        {detail && <div className="ab-bar">
-          <AnnotatedBy people={people} by={by} me={me} onPick={(x) => setFilter({ by: x })} />
-          <VerdictSwitch verdict={verdict} onPick={(x) => setFilter({ v: x })} />
-        </div>}
         {detail && <SampleDrawer sample={sample} prefs={prefs} onPrefs={setPrefs} modes={["review", "auto", "shuffle", "manual"]}
-          storageKey="studio.rules.sample" collapseOn={moves} />}
+          storageKey="studio.rules.sample" collapseOn={moves} filters={<>
+            <span className="sm-k">Annotated by</span>
+            <AnnotatedBy people={people} by={by} me={me} bare onPick={(x) => setFilter({ by: x })} />
+            <VerdictSwitch verdict={verdict} onPick={(x) => setFilter({ v: x })} />
+          </>} />}
         <div className="rows" data-tour="rows" ref={rowsRef} onScroll={(e) => {
           const el = e.currentTarget;
           if (el.scrollTop + el.clientHeight > el.scrollHeight - 600) loadMore();
@@ -515,14 +510,6 @@ export default function RulesTab({ catalog, route }: TabProps) {
       </section>
     </div>
   );
-}
-
-/** "spread sample by length", with every group and its size on hover (strata.py). */
-function SpreadNote({ spread }: { spread: Spread }) {
-  const what = spread.by.split(":")[0];
-  const tip = `Rows without signals are grouped by ${spread.by}, and one row from each group is dealt in turn, ` +
-    `so you see every kind of value early.\n\n${spread.groups.map((g) => `${fmt(g.rows).padStart(6)}  ${g.label}`).join("\n")}`;
-  return <span className="spread-note" title={tip}>spread sample by {what} ({spread.groups.length} groups)</span>;
 }
 
 /** Top of the sidebar: which ruleset's extraction the tab shows; the newest is "(latest)" and has no ?ext. */

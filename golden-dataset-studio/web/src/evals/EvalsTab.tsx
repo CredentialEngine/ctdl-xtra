@@ -204,7 +204,7 @@ function GoldenPicker({ goldens, value, onPick }: { goldens: GoldenChoice[]; val
       <button className="evx-gchip big dd" aria-haspopup="listbox" aria-expanded={open} onClick={() => setOpen(!open)}>
         {cur ? label(cur) : value || "No golden dataset"}
         {cur && <span className="evx-gchip-d"> {cur.kind === "draft" ? "· unpublished" : cur.latest ? "(latest)" : `· ${fmtDayTime(cur.published_at)}`}</span>}
-        <span className="evx-caret">▾</span>
+        <Ico name="chevron" className="evx-caret" />
       </button>
       {open && (
         <div className="evx-dd-m" role="listbox">
@@ -213,7 +213,7 @@ function GoldenPicker({ goldens, value, onPick }: { goldens: GoldenChoice[]; val
           {!versions.length && !q && <p className="muted evx-dd-none">No golden dataset published yet.</p>}
           {draftList.length > 0 && (showDrafts
             ? <><div className="evx-dd-h">Drafts · unpublished extractions, scored as if published</div>{draftList.map(item)}</>
-            : <button className="evx-dd-more" onClick={() => setDrafts(true)}>Drafts ({draftList.length}) ▸</button>)}
+            : <button className="evx-dd-more" onClick={() => setDrafts(true)}>Drafts ({draftList.length}) <Ico name="chevron-right" /></button>)}
         </div>
       )}
     </span>

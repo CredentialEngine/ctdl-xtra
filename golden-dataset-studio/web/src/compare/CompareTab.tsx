@@ -287,7 +287,7 @@ function SignalRow({ s, card, short, many }: { s: SignalDeltaX; card: RuleCardX;
     <>
       <div className={"sigrow" + (open ? " open" : "")} role="button" tabIndex={0} aria-expanded={open} onClick={toggle}
            onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggle(); } }}>
-        <span className="tw">▸</span>
+        <Ico name="chevron-right" className="tw" />
         <span className="sname">{many && <span className="rtag-i">{card.ctdl_property ?? card.title} · </span>}{s.signal}</span>
         <span className="num">{fmt(s.a)}</span>
         <span className="arrow">→</span>
