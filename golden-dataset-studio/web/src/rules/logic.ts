@@ -226,6 +226,17 @@ export function byLabel(by: string | null): string {
   return by;
 }
 
+/** What a rule's count in the rule list means while the "Annotated by" filter is on (its delayed tooltip). */
+export function filterCountTip(n: number, field: boolean, by: string | null, verdict: string | null): string {
+  const unit = field ? (n === 1 ? "value" : "values") : (n === 1 ? "row" : "rows");
+  const how = verdict === "correct" ? " marked ✓ correct" : verdict === "wrong" ? " marked ✕ wrong" : verdict === "note" ? " with a note" : "";
+  const num = n.toLocaleString("en-US");
+  if (by === BY_NOBODY) return `${num} ${unit} of this rule nobody has annotated yet`;
+  if (by === BY_WAITING) return `${num} ${unit} of this rule an engineer checked${how}, waiting for an expert to confirm`;
+  if (!by) return `${num} ${unit} of this rule annotated${how}`;
+  return `${num} ${unit} of this rule ${by} annotated${how}`;
+}
+
 // --- keyboard ----------------------------------------------------------------------------------------------------
 export type KeyAction = "next" | "prev" | "correct" | "wrong" | "comment" | "select" | "save" | "cancel" | null;
 

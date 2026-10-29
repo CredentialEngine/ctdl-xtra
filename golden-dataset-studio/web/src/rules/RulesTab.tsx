@@ -15,7 +15,7 @@ import { fmt, toast, useKeyHints } from "../shell/ui";
 import { AnnotatedBy, ReviewLine, VerdictSwitch, WaitingNote } from "./AnnotatedBy";
 import { apiX, type Annotators, type RowX } from "./api";
 import {
-  addCapture, applyEvent, applyReview, BY_WAITING, briefOf, canConfirm, isField, isSettled, keyAction, missingEvent, newDraft, norm, pushRecent, paneTabs, rowTarget,
+  addCapture, applyEvent, applyReview, BY_WAITING, briefOf, canConfirm, filterCountTip, isField, isSettled, keyAction, missingEvent, newDraft, norm, pushRecent, paneTabs, rowTarget,
   scrollWithin, shortTitle, unitWord, verdictEvent, type Draft, type TabRef,
 } from "./logic";
 import { MissedCourse, MissedPage, type MissedState } from "./MissedPanel";
@@ -420,7 +420,7 @@ export default function RulesTab({ catalog, route }: TabProps) {
   return (
     <div className="rules-layout w4-rules">
       <aside className="col">{rules && <RuleList rules={rules} active={ruleId} onPick={(id) => go(href(cat, "rules", id, { ext, by, v: verdict }))}
-        talk={talk} onTalk={postTalk} counts={people?.rules}
+        talk={talk} onTalk={postTalk} counts={people?.rules} countTip={(n, field) => filterCountTip(n, field, by, verdict)}
         top={<RulesetPicker catalog={catalog} ext={ext} onPick={(x) => go(href(cat, "rules", ruleId, { ext: x, by, v: verdict }))} />}
         bottom={<>
           {role === "sme" && <WaitingNote n={people?.waiting ?? 0} on={by === BY_WAITING}

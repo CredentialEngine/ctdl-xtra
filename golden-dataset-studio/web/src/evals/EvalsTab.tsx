@@ -267,13 +267,21 @@ function MiniBar({ c }: { c: Counts | null }) {
 }
 
 /** A dark tooltip under its children while hovered or focused, fixed to the viewport so a scrolling column never
- * clips it. */
-export function Tip({ tip, width = 340, children }: { tip: ReactNode; width?: number; children: ReactNode }) {
+ * clips it; `delay` (ms) holds it back on hover so passing the pointer over doesn't flash it. */
+export function Tip({ tip, width = 340, delay = 0, children }: { tip: ReactNode; width?: number; delay?: number; children: ReactNode }) {
   const [at, setAt] = useState<{ left: number; top: number; maxWidth: number } | null>(null);
-  const show = (e: { currentTarget: HTMLElement }) => {
-    const r = e.currentTarget.getBoundingClientRect();
+  const timer = useRef<number | undefined>(undefined);
+  useEffect(() => () => window.clearTimeout(timer.current), []);
+  const open = (el: HTMLElement) => {
+    const r = el.getBoundingClientRect();
     setAt({ left: r.left + r.width / 2, top: r.bottom + 8, maxWidth: Math.min(width, window.innerWidth - 16) });
   };
+  const show = (e: { currentTarget: HTMLElement }) => {
+    const el = e.currentTarget;
+    window.clearTimeout(timer.current);
+    if (delay > 0) timer.current = window.setTimeout(() => open(el), delay); else open(el);
+  };
+  const hide = () => { window.clearTimeout(timer.current); setAt(null); };
   // centred under its children, then kept inside the window
   const place = (el: HTMLSpanElement | null) => {
     if (!el) return;
@@ -282,7 +290,7 @@ export function Tip({ tip, width = 340, children }: { tip: ReactNode; width?: nu
     if (Math.abs(left - r.left) > 0.5) el.style.left = `${parseFloat(el.style.left) + left - r.left}px`;
   };
   return (
-    <span className="evx-tipw" onMouseEnter={show} onMouseLeave={() => setAt(null)} onFocus={show} onBlur={() => setAt(null)}>
+    <span className="evx-tipw" onMouseEnter={show} onMouseLeave={hide} onFocus={show} onBlur={hide}>
       {children}
       {at && createPortal(<span ref={place} className="evx-tip" role="tooltip" style={{ ...at, transform: "translateX(-50%)" }}>{tip}</span>,
         document.body)}

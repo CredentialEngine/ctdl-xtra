@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { EventBrief } from "../api/types";
 import {
-  addCapture, applyEvent, applyReview, approveBlocked, byLabel, canConfirm, comparedLine, shortWhen, clip, controlOn, expectedOf, historyItems, isSettled, keyAction, missingEvent, newDraft, paneTabs,
+  addCapture, applyEvent, applyReview, approveBlocked, byLabel, canConfirm, comparedLine, filterCountTip, shortWhen, clip, controlOn, expectedOf, historyItems, isSettled, keyAction, missingEvent, newDraft, paneTabs,
   parseMark, pushRecent, rowTarget, unitWord, verdictEvent, whereWord,
 } from "./logic";
 
@@ -189,5 +189,14 @@ describe("notes made on a diff (Evals spec §4.2)", () => {
         char_start: null, char_end: null }, compared_with: cw }) });
     expect(items.map((h) => [h.cls, !!h.compared])).toEqual([["note", false], ["note", true], ["comment", true]]);
     expect(items[2].compared).toMatch(/^while comparing with xtra's extract output, /);
+  });
+});
+
+describe("filterCountTip", () => {
+  it("says what a rule's count means under the Annotated by filter", () => {
+    expect(filterCountTip(17, true, "waiting", null)).toBe("17 values of this rule an engineer checked, waiting for an expert to confirm");
+    expect(filterCountTip(1, true, "Jared Diener", "correct")).toBe("1 value of this rule Jared Diener annotated marked ✓ correct");
+    expect(filterCountTip(1048, true, "nobody", null)).toBe("1,048 values of this rule nobody has annotated yet");
+    expect(filterCountTip(3, false, null, "note")).toBe("3 rows of this rule annotated with a note");
   });
 });

@@ -113,7 +113,7 @@
 .ab-note p { margin: 0 0 8px; color: var(--ink-2); }
 .ab-note b { color: var(--amber); }
 .rule-item.dim { opacity: .45; }
-.rule-item .meta .rev.match { font-weight: 600; color: var(--amber); }
+.rule-item .meta .rev.match { font-weight: 400; color: var(--amber); cursor: default; }
 .rule-item .meta .rev.match.none { font-weight: 400; color: var(--faint); }
 .records-filter { margin: 0 10px 8px; }
 .records-filter .ab-btn { width: 100%; padding: 6px 10px; }

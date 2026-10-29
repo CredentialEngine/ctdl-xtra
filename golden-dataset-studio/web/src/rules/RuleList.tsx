@@ -1,6 +1,6 @@
 // Left column of the Rules tab (spec §7.2): rules by kind, one status icon each, "14 / 1,062 reviewed".
 // Status appears only here. With the "Annotated by" filter on (`counts`), each rule shows how many of its rows pass it
-// instead, and rules with none are dimmed (Evals spec §6.7). `top` sits above the groups (the ruleset picker); with `talk`, a thread per rule
+// instead (its meaning in a tooltip after a second), and rules with none are dimmed (Evals spec §6.7). `top` sits above the groups (the ruleset picker); with `talk`, a thread per rule
 // (opened under it).
 import { useState, type ReactNode } from "react";
 import type { Discussion, RulesResponse, Topic } from "../api/types";
@@ -8,12 +8,13 @@ import { Ico } from "../shell/icons";
 import { fmt } from "../shell/ui";
 import type { RuleSummaryX } from "./api";
 import { Composer, Thread } from "./Discussion";
+import { Tip } from "../evals/EvalsTab";
 
 export type PostTalk = (target: { kind: "rule" | "ruleset"; rule_id: string | null }, note: string, topic: Topic) => Promise<boolean>;
 
-export function RuleList({ rules, active, onPick, talk, onTalk, top, bottom, counts }: {
+export function RuleList({ rules, active, onPick, talk, onTalk, top, bottom, counts, countTip }: {
   rules: RulesResponse; active: string | null; onPick: (id: string) => void; talk?: Discussion | null; onTalk?: PostTalk;
-  counts?: Record<string, number> | null;
+  counts?: Record<string, number> | null; countTip?: (n: number, field: boolean) => string;
   top?: ReactNode; /** after every group: the fix bar (Improve all rules), last so labeling comes first */ bottom?: ReactNode;
 }) {
   let first = true;
@@ -40,8 +41,10 @@ export function RuleList({ rules, active, onPick, talk, onTalk, top, bottom, cou
                 </div>
                 <div className="meta">
                   {counts
-                    ? <span className={`rev match${counts[r.rule_id] ? "" : " none"}`} title="rows that pass the Annotated by filter">
-                        {counts[r.rule_id] ? fmt(counts[r.rule_id]) : "—"}</span>
+                    ? counts[r.rule_id]
+                      ? <Tip delay={1000} width={260} tip={countTip?.(counts[r.rule_id], r.kind === "field")}>
+                          <span className="rev match">{fmt(counts[r.rule_id])}</span></Tip>
+                      : <span className="rev match none">—</span>
                     : <span className={`rev${r.reviewed ? "" : " none"}`} title="courses with a verdict / all courses"
                         data-tour={tour ? "reviewed-count" : undefined}>{fmt(r.reviewed)} / {fmt(r.total)} reviewed</span>}
                   {notes > 0 && <span className="stat open" title="comments and questions for the institution"><Ico name="bubble" />{notes}</span>}
