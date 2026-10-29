@@ -36,6 +36,7 @@
 .loop-list li { margin: 6px 0; }
 .loop-list .loop-w { display: block; }
 .loop-rep-li { list-style: none; margin-left: -20px !important; color: var(--accent); font-weight: 600; }
+.loop-note { margin: 12px 0 0; padding: 10px 12px; border-radius: 8px; background: var(--surface-2); color: var(--ink-2); font-size: 12.5px; line-height: 1.5; }
 .loop-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 10px; flex-wrap: wrap; }
 .loop-foot label { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); font-size: 12.5px; cursor: pointer; }
 /* phones: the ring gets too small to read, so the loop becomes a numbered list */

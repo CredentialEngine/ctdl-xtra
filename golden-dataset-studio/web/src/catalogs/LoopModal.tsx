@@ -158,6 +158,9 @@ export function LoopModal({ onClose }: { onClose: () => void }) {
           {STEPS.map((s) => <li key={s.n}><b>{s.t}</b> <span className="loop-w">{s.where}</span></li>)}
           <li className="loop-rep-li">↻ Repeat until every rule is 100% correct for that catalog.</li>
         </ol>
+        <p className="loop-note"><b>Note:</b> the rules made here are not xtra's rules. They only help you label many
+          records at once, and each set is made for one catalog. A later version of the Studio will show you what xtra
+          itself extracts.</p>
         <div className="loop-foot">
           <label><input type="checkbox" checked={hide} onChange={(e) => setHide(e.target.checked)} /> Don't show this again</label>
           <button ref={ok} className="btn primary" onClick={close}>Got it</button>
