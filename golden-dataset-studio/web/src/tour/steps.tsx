@@ -1,6 +1,6 @@
 // The steps of the tour (spec §7.8), in order. Each lights one real area of the screen and, where it helps,
 // does what the reader would do by hand (select a row and press ✗, open the comment, switch to HTML, go to the
-// locator view, open "How this rule works", go to the Prompt, go to Compare). What a step does, it undoes when the reader leaves it.
+// locator view, open "How this rule works", go to Compare, go to Evals). What a step does, it undoes when the reader leaves it.
 // The tour never saves anything: ✓, Save and Approve are never pressed.
 import type { ReactNode } from "react";
 import { Ico } from "../shell/icons";
@@ -149,6 +149,25 @@ export const STEPS: Step[] = [
       </>
     ),
     absent: () => <p>This rule has no rows.</p>,
+  },
+  {
+    id: "annotated-by",
+    title: "Annotated by: whose checks you're seeing",
+    route: (c) => c.base,
+    ready: (c) => onBase(c) && !!q(".ab-bar"),
+    targets: [".ab-bar"],
+    accents: ["[data-testid=annotated-by] .ab-btn"],
+    sides: ["below", "right"],
+    body: () => (
+      <>
+        <p><b>Annotated by</b> shows only the rows one person annotated (or <b>Not annotated yet</b>), and the switch beside
+          it only ✓ correct, ✕ wrong or notes. The rule list then counts each rule's matching rows. The Records tab has the
+          same dropdown.</p>
+        <p>A subject matter expert's ✓ makes a value <b>human-reviewed</b>: it goes into the golden dataset at once, whether
+          or not its rule is approved. An engineer's ✓ waits for an expert, who sees <b>Confirm</b> (<kbd>1</kbd>) on it.</p>
+      </>
+    ),
+    absent: () => <p>The rule hasn't loaded.</p>,
   },
   {
     id: "verdict",
@@ -338,11 +357,33 @@ export const STEPS: Step[] = [
           : f.blocked ? <p>Here it's <b>greyed out</b>: some courses are still marked wrong or missing, and the reason
               is shown under the button. Approve stays greyed out until none is. Fix it with Improve all rules, or change those verdicts.</p>
           : <p>Nothing is marked wrong or missing here, so Approve can be pressed. The tour doesn't press it.</p>}
-        <p>Approving a field's rule publishes that column into the golden dataset, even while other fields are still
-          being worked on, and then scores xtra's latest extract output against it. <b>Golden datasets</b> lists each version.</p>
+        <p><b>Approving a column's rule publishes it</b> into its ruleset's golden dataset, even while other fields are
+          still being worked on. Approve asks once first, then scores xtra's latest extract output against it. The{" "}
+          <b>Golden datasets</b> tab lists each version, its columns and where it's written.</p>
       </>
     ),
     absent: () => <p>The rule hasn't loaded.</p>,
+  },
+  {
+    id: "evals",
+    title: "Evals: how closely xtra matches the golden dataset",
+    route: (c) => c.evals,
+    ready: () => !!q(".evx-title"),
+    targets: [".evx-title", ".evx-chartrow"],
+    accents: [".evx-basis", () => q(".evx-rows .evx-row")],
+    sides: ["below", "left"],
+    body: () => (
+      <>
+        <p>Each bar is one of xtra's extract outputs, scored against the golden dataset: the share of values it got exactly
+          right. Click a bar to see that output; a dashed one isn't scored yet and has a <b>Score</b> button.</p>
+        <p><b>Scored against</b> switches between <b>Human-reviewed</b> values (only those an expert checked) and{" "}
+          <b>Rule-matched</b> values (every value the rules found, from a golden dataset version you pick).</p>
+        <p>Click a row for the golden value and xtra's side by side with the differing words marked, and the saved page
+          with both. <b>Save note</b> keeps a comment on the row; <b>The golden value is wrong…</b> marks it ✗.</p>
+        <p className="faint">The home page's Catalogs table has the same score for every catalog (<b>xtra score</b>).</p>
+      </>
+    ),
+    absent: () => <p>xtra hasn't written an extract output for this catalog yet, so there's nothing to score.</p>,
   },
 ];
 

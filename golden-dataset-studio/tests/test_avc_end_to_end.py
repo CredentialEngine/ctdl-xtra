@@ -109,8 +109,9 @@ def test_api_rules_rows_compare_and_verdict(ctx):
     rules = c.get("/api/catalogs/avc/rules").json()
     desc = next(r for g in rules["groups"] for r in g["rules"] if r["rule_id"] == "course-description")
     assert desc["version"] == 2 and desc["status"] == "in review"  # v2 fixed all 5 wrong rows
-    rows = c.get("/api/catalogs/avc/rules/course-description/rows?limit=5").json()
-    assert rows["total"] == 1062 and {r["state"] for r in rows["rows"]} == {"fixed"}
+    rows = c.get("/api/catalogs/avc/rules/course-description/rows?limit=6").json()
+    # the 5 fixed rows come first; every 5th row is from a spread group (Rules tab: "with every 5th row from a …")
+    assert rows["total"] == 1062 and [r["state"] for r in rows["rows"]] == ["fixed"] * 4 + [None, "fixed"]
     cmp = c.get("/api/catalogs/avc/compare").json()
     assert (cmp["a"], cmp["b"], cmp["records_changed"]) == (1, 2, 278)
     assert cmp["totals"] == {"fixed": 5, "still_wrong": 0, "newly_wrong": 0, "unchanged": 9}

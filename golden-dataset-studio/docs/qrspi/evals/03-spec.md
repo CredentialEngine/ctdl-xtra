@@ -415,3 +415,36 @@ None open. Answered:
    being right. The mockups assume they do: AVC's human-reviewed score covers `identifier`, `name` and `description` (14,
    14 and 16 values) although only `inLanguage` is published. The alternative is to count only published columns,
    which would leave AVC's human-reviewed score with nothing to score today.
+
+## 9. As built
+
+Steps 1–7 (2026-10-28), on AVC. Screens from `bench/shots_review.py --only e` on a scratch copy of the roots:
+
+- [Home, Golden dataset](screens/e01-home-golden-dataset.png): each column's status (§6.1).
+- [Home, xtra score](screens/e02-home-xtra-score.png): exact matches per catalog and column (§6.2).
+- [Evals tab](screens/e03-evals-tab.png): the title, the switch, the history chart, column bars and rows (§6.3).
+- [A row's diff](screens/e04-evals-row-diff.png): Split diff, Save note, The golden value is wrong…, the page with both values (§6.4).
+- [Compare diff](screens/e05-compare-diff.png): the same diff with Note… and The new value is wrong… (§6.5).
+- [Approve confirmation](screens/e06-approve-confirmation.png): Approve codedNotation and publish it? (§6.6).
+- [Golden datasets tab](screens/e07-golden-datasets-tab.png): versions, scores, where ruleset v3 is written (§6.6).
+- [Rules tab, Annotated by + Confirm](screens/e08-rules-annotated-by-confirm.png): engineer checks waiting for an expert (§6.7);
+  [the dropdown open](screens/e08b-rules-annotated-by-open.png).
+- [Records tab, Annotated by](screens/e09-records-annotated-by.png): Jared Diener's courses, his fields first (§6.8).
+
+`golden-datasets check` also follows each score: its golden dataset (a version, human-reviewed as of a time, or a
+draft), its kept extract output (same report ETag), values.parquet pages → pages, `scores/pending.json`'s shape, and
+no score `running` for more than 10 minutes (it can't see the server, so age stands in for it). On AVC: 74 checks, 0
+failed.
+
+**Follow-ups:**
+
+- **xtra-cli:** record its version (commit) in `extract-report.json`, and write each run to its own folder instead of
+  overwriting `<catalog>/<crawl>/`; the Studio's copy under `extract-outputs/` stands in until then.
+- **xtra-cli on its own** didn't resolve on Python 3.14 (`uv run` in `xtra-cli/`); the Studio's environment, which
+  takes it as a path dependency, works.
+- **Deploy:** the Studio now needs `../xtra-cli` beside it (the uv path dependency); the deploy repo must check out both.
+- **AVC's history has one extract output so far** (26 Oct), so the chart is a single bar until xtra runs again.
+- **Golden datasets tab:** an older version's row shows the same human-reviewed score and count as the latest (the
+  human-reviewed values aren't per version); say so on the row, or show only its rule-matched score.
+- **The tour** runs inside a catalog only, so the home table is mentioned in its Evals step rather than shown.
+- Spec screens 01c–01e (Add a catalog) weren't regenerated: they need the crawls root.

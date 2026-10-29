@@ -1,8 +1,10 @@
 """Screenshots of every screen of the spec (§7) in headless Chromium, 1440×900 at 2x, like the agreed screens.
 
     uv run --with playwright python bench/shots_review.py --base http://127.0.0.1:8014 --out <dir> [--only 03]
+    … --out docs/qrspi/evals/screens --only e   (the Evals spec's screens, docs/qrspi/evals/03-spec.md §9)
 
-Needs a running Studio (`golden-datasets serve`) with AVC and a built web app. Selections inside the sandboxed
+Needs a running Studio (`golden-datasets serve`) with AVC and a built web app. The Evals screens only open the approve
+confirmation and the note box (nothing is saved); still, run the Studio on a scratch copy of the root and golden root. Selections inside the sandboxed
 page are made with a Range + a synthetic mouseup (Playwright's mouse hangs on sandboxed frames with scripts off).
 """
 
@@ -56,7 +58,7 @@ def shot(name, height=900):
 @shot("01-catalog-picker")
 async def s01(page, base):
     await page.goto(f"{base}/#/")
-    await page.wait_for_selector(".cat.ready")
+    await page.wait_for_selector(".ctab tbody tr")
     await page.wait_for_timeout(600)
 
 
@@ -71,7 +73,7 @@ async def s01b(page, base):
 @shot("01c-add-catalog-search")
 async def s01c(page, base):
     await page.goto(f"{base}/#/")
-    await page.wait_for_selector(".cat.ready")
+    await page.wait_for_selector(".ctab tbody tr")
     await page.click("text=+ Add a catalog")
     await page.wait_for_selector(".ac-t tbody tr", timeout=60000)
     await page.fill(".ac-search", "ca")
@@ -82,7 +84,7 @@ async def s01c(page, base):
 @shot("01d-add-catalog-confirm")
 async def s01d(page, base):
     await page.goto(f"{base}/#/")
-    await page.wait_for_selector(".cat.ready")
+    await page.wait_for_selector(".ctab tbody tr")
     await page.click("text=+ Add a catalog")
     await page.wait_for_selector(".ac-t tbody tr", timeout=60000)
     await page.fill(".ac-search", "cabrillo")
@@ -209,15 +211,6 @@ async def s16(page, base):
     await wait_pane(page, 800)
 
 
-@shot("19-sample-annotated-by-me")
-async def s19(page, base):
-    await page.goto(f"{base}/#/c/{CAT}/rules/course-description")
-    await page.wait_for_selector(".row.on")
-    await page.check(".sm-mine input")
-    await page.wait_for_selector(".row .sm-tag")
-    await wait_pane(page, 800)
-
-
 @shot("08c-compare-other-changed", height=1400)
 async def s08c(page, base):
     await page.goto(f"{base}/#/c/{CAT}/compare?a=1&b=2")
@@ -273,11 +266,12 @@ async def s09full(page, base):
     await s09(page, base)
 
 
-@shot("10-publish")
+@shot("10-golden-datasets")
 async def s10(page, base):
-    await page.goto(f"{base}/#/c/{CAT}/publish")
-    await page.wait_for_selector(".gate")
+    await page.goto(f"{base}/#/c/{CAT}/golden")
+    await page.wait_for_selector("text=ruleset v3")
     await page.wait_for_timeout(800)
+    await tidy_paths(page)
 
 
 @shot("13-page-pane-view-tools")
@@ -306,6 +300,96 @@ async def s14(page, base):
     await wait_pane(page)
 
 
+# --- the Evals spec's screens (docs/qrspi/evals/screens) ------------------------------------------------------------
+SCRATCH = "/scratchpad/"
+
+
+async def go(page, url: str, wait: str) -> None:
+    await page.goto(url)
+    if await page.locator("button.idn-go").count():  # the profile screen: the reviewer is set, so just go on
+        await page.click("button.idn-go")
+    await page.wait_for_selector(wait, timeout=30000)
+
+
+async def tidy_paths(page) -> None:
+    """A scratch golden root shows as the local one (.data/golden)."""
+    await page.evaluate("""(mark) => { const w = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT); let n;
+      while ((n = w.nextNode())) if (n.data.includes(mark)) n.data = n.data.replace(/\\/\\S*?\\/scratchpad\\/shots\\/golden/g, '.data/golden'); }""",
+                        SCRATCH)
+
+
+@shot("e01-home-golden-dataset")
+async def e01(page, base):
+    await go(page, f"{base}/#/", ".ctab tbody tr")
+    await page.wait_for_timeout(800)
+
+
+@shot("e02-home-xtra-score")
+async def e02(page, base):
+    await go(page, f"{base}/#/?v=score", ".ctab tbody tr")
+    await page.wait_for_timeout(800)
+
+
+@shot("e03-evals-tab")
+async def e03(page, base):
+    await go(page, f"{base}/#/c/{CAT}/evals", ".evx-rows .evx-row")
+    await page.wait_for_timeout(800)
+
+
+@shot("e04-evals-row-diff")
+async def e04(page, base):
+    await go(page, f"{base}/#/c/{CAT}/evals?o=partial", ".evx-rows .evx-row")
+    await page.click(".evx-rows .evx-row")
+    await page.wait_for_selector("[data-testid=row-panel]")
+    await wait_pane(page, 1200)
+
+
+@shot("e05-compare-diff")
+async def e05(page, base):
+    await go(page, f"{base}/#/c/{CAT}/compare?a=1&b=2", "[data-testid=compare-value]")
+    await page.evaluate("() => document.querySelector('[data-testid=compare-value]').scrollIntoView({block: 'center'})")
+    await page.wait_for_timeout(600)
+
+
+@shot("e06-approve-confirmation")
+async def e06(page, base):
+    await go(page, f"{base}/#/c/{CAT}/rules/course-code", "[data-tour=approve] .btn")
+    await page.click("[data-tour=approve] .btn")
+    await page.wait_for_selector("text=Approve and publish")
+    await page.wait_for_timeout(600)
+
+
+@shot("e07-golden-datasets-tab")
+async def e07(page, base):
+    await go(page, f"{base}/#/c/{CAT}/golden", "text=ruleset v3")
+    await page.wait_for_timeout(800)
+    await tidy_paths(page)
+
+
+@shot("e08-rules-annotated-by-confirm")
+async def e08(page, base):
+    await go(page, f"{base}/#/c/{CAT}/rules/course-description?by=waiting", ".rows .row")
+    await page.click(".rows .row")
+    await page.wait_for_selector(".row.on")
+    await wait_pane(page, 800)
+
+
+@shot("e08b-rules-annotated-by-open")
+async def e08b(page, base):
+    await go(page, f"{base}/#/c/{CAT}/rules/course-description", ".ab-btn")
+    await page.click(".ab-btn")
+    await page.wait_for_selector(".ab-pop")
+    await page.wait_for_timeout(400)
+
+
+@shot("e09-records-annotated-by")
+async def e09(page, base):
+    await go(page, f"{base}/#/c/{CAT}/records?by=Jared+Diener", ".course-list .course-item")
+    await page.click(".course-list .course-item")
+    await page.wait_for_selector(".rec-head h1")
+    await wait_pane(page, 800)
+
+
 async def main(base: str, out: Path, only: str | None) -> None:
     from playwright.async_api import async_playwright
 
@@ -320,12 +404,14 @@ async def main(base: str, out: Path, only: str | None) -> None:
             page.on("pageerror", lambda e, n=name: print(f"  [{n}] page error: {e}"))
             loop = "" if name == "01b-loop-modal" else " localStorage.setItem('studio.loop.hidden', '1');"
             await page.add_init_script("try { localStorage.setItem('studio.tour.seen', '1');"
-                                      " localStorage.setItem('studio.reviewer', '\"Jared\"');"
+                                      " localStorage.setItem('studio.reviewer', '\"Jared Diener\"');"
                                       " localStorage.setItem('studio.role', '\"sme\"');"
                                       f" localStorage.setItem('studio.rules.sample', '{int(name.startswith(('15', '16')))}');"
                                       f" localStorage.setItem('studio.compare.sample', '{int(name.startswith('08c'))}');" + loop +
                                       f" localStorage.setItem('studio.theme', '{THEME.get(name, 'light')}') }} catch (e) {{}}")
             await fn(page, base)
+            if await page.evaluate("() => { const x = document.querySelector('.run-x'); x?.click(); return !!x }"):
+                await page.wait_for_timeout(400)  # a past AI run's outcome isn't part of these screens
             await page.screenshot(path=str(out / f"{name}.png"))
             print("wrote", out / f"{name}.png")
             await ctx.close()

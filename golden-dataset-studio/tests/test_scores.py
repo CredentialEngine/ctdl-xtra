@@ -188,6 +188,28 @@ def test_evals_rows_map_to_their_studio_match_and_notes_keep_the_comparison(scor
     assert rows and all(r["rule_id"] and r["occurrence_key"] for r in rows)
 
 
+def test_one_score_runs_per_catalog_at_a_time(scored):
+    c, ctx, _ = scored
+    jobs = c.app.state.scores
+    jobs._busy[CAT] = "sc-0042"  # as while a score runs in its thread
+    r = c.post(f"{B}/scores", json={"golden": "ruleset-v1", "by": JARED})
+    assert (r.status_code, r.json()["detail"]) == (409, "sc-0042 is still running")
+    assert jobs.after_publish(Ctx(ctx.root, CAT), JARED) is None  # approving still succeeds; its score is skipped
+    jobs._busy.pop(CAT)
+    assert c.post(f"{B}/scores", json={"golden": "nope", "by": JARED}).status_code == 400
+
+
+def test_the_cli_scores_the_human_reviewed_values_and_a_draft(scored, capsys):
+    _, ctx, _ = scored
+    assert main(["score", "--root", ctx.root.uri, "--catalog", CAT, "--human-reviewed"]) == 0
+    out = capsys.readouterr().out
+    assert "vs human-reviewed [done]" in out and "human-reviewed  100.0% exact of 1 values" in out
+    draft = Ctx(ctx.root, CAT).latest_extraction()
+    assert main(["score", "--root", ctx.root.uri, "--catalog", CAT, "--draft", draft]) == 0
+    doc = scores.all_scores(Ctx(ctx.root, CAT))[0]
+    assert (doc["golden"]["id"], doc["golden"]["kind"], doc["commands"]) == (draft, "draft", [])  # a draft has no files
+
+
 def test_the_pending_score_runs_when_due(scored):
     c, ctx, _ = scored
     jobs, st = c.app.state.scores, c.app.state.studio
@@ -238,3 +260,29 @@ def test_a_column_with_values_marked_wrong_has_known_wrong_values(studio):  # no
     c.app.state.studio.ctx(CAT).invalidate()
     cols = c.get("/api/catalogs-summary").json()["catalogs"][CAT]["columns"]
     assert cols == {"codedNotation": {"status": "needs work", "ruleset": None}, "name": {"status": "published", "ruleset": 1}}
+
+
+def test_check_resolves_each_scores_provenance_and_reports_a_score_left_running(scored):
+    """Evals step 7: `check` follows a score to its golden dataset and kept extract output, and its values to pages."""
+    from golden_datasets import check
+
+    _, ctx, _ = scored
+    doc = scores.score(ctx, "ruleset-v1")
+
+    def failed(ctx: Ctx) -> list[str]:
+        return sorted(r[2] for r in check.run(ctx) if r[3] and r[0] in ("score", "score values", "extract output",
+                                                                         "pending score"))
+
+    rows = [r for r in check.run(Ctx(ctx.root, CAT)) if r[0] in ("score", "score values", "extract output")]
+    assert len(rows) == 7 and not failed(Ctx(ctx.root, CAT))
+    path = f"{layout.score_dir(CAT, ctx.crawl, doc['id'])}/score.json"
+    ctx.root.write_json(path, {**doc, "status": "running", "created_at": "2000-01-01T00:00:00Z",
+                               "golden": {**doc["golden"], "id": "ruleset-v9"},
+                               "output": {**doc["output"], "report_etag": "elsewhere"}})
+    ctx.root.write_json(layout.pending_score(CAT, ctx.crawl), {"due_at": "soon"})
+    assert failed(Ctx(ctx.root, CAT)) == [
+        "golden → a version, human-reviewed as of a time, or a draft extraction",
+        f"none left running (> {check.STALE_RUNNING // 60} min; a server start marks it interrupted)",
+        "output → a kept extract output (same report ETag)",
+        "scores/pending.json is {due_at: ISO time, reason}",
+    ]

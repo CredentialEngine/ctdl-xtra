@@ -89,9 +89,9 @@ describe("the Approve step", () => {
 });
 
 describe("the steps", () => {
-  it("are the ten of spec §7.8, in order (the Prompt tab became a modal, so it has no step)", () => {
-    expect(STEPS.map((s) => s.id)).toEqual(["rules", "kinds", "rows", "verdict", "comment", "page", "locator", "improve",
-                                            "compare", "approve"]);
+  it("are those of spec §7.8, in order (the Prompt tab became a modal, so it has no step), then Evals", () => {
+    expect(STEPS.map((s) => s.id)).toEqual(["rules", "kinds", "rows", "annotated-by", "verdict", "comment", "page", "locator",
+                                            "improve", "compare", "approve", "evals"]);
     for (const s of STEPS) { expect(s.title).toBeTruthy(); expect(s.targets.length).toBeGreaterThan(0); }
   });
   it("go to the locator view and to Compare, and say so when the catalog has neither", () => {
@@ -103,6 +103,7 @@ describe("the steps", () => {
     expect(by("locator").route(bare)).toBeNull();
     expect(by("compare").route(bare)).toBeNull();
     expect(by("compare").absent(bare)).toBeTruthy();
+    expect(by("evals").route(ctx)).toBe("#/c/avc/evals");
   });
 });
 
@@ -271,11 +272,11 @@ describe("Tour", () => {
     await flush();
     expect(localStorage.getItem(SEEN_KEY)).toBe("1");
     expect(location.hash).toBe("#/c/avc/rules/course-description");
-    expect(document.querySelector(".tour-count")?.textContent).toBe("Step 1 of 10");
+    expect(document.querySelector(".tour-count")?.textContent).toBe("Step 1 of 12");
     key("ArrowRight");
-    expect(document.querySelector(".tour-count")?.textContent).toBe("Step 2 of 10");
+    expect(document.querySelector(".tour-count")?.textContent).toBe("Step 2 of 12");
     key("ArrowLeft");
-    expect(document.querySelector(".tour-count")?.textContent).toBe("Step 1 of 10");
+    expect(document.querySelector(".tour-count")?.textContent).toBe("Step 1 of 12");
     const seen = vi.fn();
     window.addEventListener("keydown", seen);
     key("a"); // a verdict key never reaches the screen underneath

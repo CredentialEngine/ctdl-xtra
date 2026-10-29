@@ -49,7 +49,8 @@ scrypt hash) or `GOLDEN_DATASETS_PASSWORD` (hashed at startup). With neither, th
 ## The loop with Claude Code (spec §3.1)
 
 1. In the UI, Jared marks rows ✓ / ✗ (selecting the right text on the page) or asks a question for the institution.
-2. **Improve this rule** → Prompt tab → **Copy prompt**, or `golden-datasets prompt -c avc --rule course-description`.
+2. **Improve all rules with Claude** (foot of the rule list) → the prompt → **Copy prompt**, or
+   `golden-datasets prompt -c avc --rule course-description`.
 3. Claude Code works only through the CLI:
 
 ```sh
@@ -90,7 +91,14 @@ publishes to `xtra-golden-sets`). An expert's verdict rewrites that page's file 
 golden-datasets sql -c avc "SELECT rule_id, count(*) FROM matches_latest WHERE status <> 'found' GROUP BY 1"
 ```
 
-## Evals: score xtra's extract output against the golden dataset (docs/qrspi/evals)
+## Evals: score xtra's extract output against the golden dataset ([`docs/qrspi/evals`](docs/qrspi/evals/03-spec.md))
+
+**The flow:** an expert's ✓ (or ✗ with the right text) makes a value **human-reviewed** at once, in any column; an
+engineer's ✓ waits for an expert's **Confirm**. **Approving** a column's rule **publishes** it into `ruleset-vN`, then
+the server **scores** xtra's latest extract output against it. Every score has two results: **Human-reviewed** (only
+the values an expert checked: small, trusted) and **Rule-matched** (every value the rules found: large, as good as the
+rules). The **Evals** tab charts them per extract output, with each value's diff; the home page's Catalogs table has
+the latest score of every catalog.
 
 The Studio doesn't run xtra: engineers run `xtra catalog extract`, and the Studio reads what it wrote
 (`$GOLDEN_DATASETS_XTRA_SOURCE/<catalog>/<crawl>/records/`, else the shared `xtra-cli-output` container) and scores it
@@ -117,6 +125,9 @@ The server scores on its own: a new extract output against the latest golden dat
 ```sh
 make check          # ruff + pytest + web typecheck / vitest / build
 make slow           # end-to-end tests on the local mirror (all five catalogs)
+golden-datasets check -c avc   # keys, hashes, golden dataset files and each score's provenance
+uv run --with playwright python bench/shots_review.py --base http://127.0.0.1:8000 --out docs/qrspi/screens   # spec screens
+#   … --out docs/qrspi/evals/screens --only e   (the Evals spec's screens; run the server on a scratch copy of the roots)
 uv run pytest -m azure tests/test_storage_contract.py   # the storage contract on Azurite + the Azure scratch prefix
 ```
 

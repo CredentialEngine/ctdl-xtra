@@ -258,6 +258,84 @@ def file_checks(ctx: Ctx, con) -> list[tuple]:
         out.append(("assets", "FK", "sha256 → assets/files/<sha256>",
                     sum(not ctx.root.exists(layout.asset_file(ctx.catalog, ctx.crawl, s)) for s in shas), len(shas), []))
     out += golden_file_checks(ctx, con)
+    out += score_checks(ctx, con)
+    return out
+
+
+STALE_RUNNING = 600  # seconds: a score takes seconds, so one `running` for longer was left by a server that stopped
+
+
+def score_checks(ctx: Ctx, con) -> list[tuple]:
+    """Every score's provenance resolves (Evals spec §4): its golden dataset (a version that exists, the human-reviewed
+    values as of a time, or a draft extraction) and its extract output (a kept copy under extract-outputs/, with the
+    report it was identified by); every values.parquet row's page is in pages/; scores/pending.json is well-formed;
+    no score is left `running` (a restarted server marks it interrupted; this only reports it)."""
+    from datetime import UTC, datetime
+
+    from . import scores
+    from .golden import VERSION, versions
+
+    k = ctx.crawl_entry()
+    ids = [s["id"] for s in k.get("scores", [])]
+    outs = {o["id"]: o for o in k.get("extract_outputs", [])}
+    if not ids and not outs and not ctx.root.exists(layout.pending_score(ctx.catalog, ctx.crawl)):
+        return []
+    out = []
+    bad = [o["id"] for o in outs.values() if not ctx.root.exists(f"{o.get('copy')}/extract-report.json")]
+    out.append(("extract output", "FK", "copy → extract-outputs/<id>/extract-report.json", len(bad), len(outs), bad))
+    docs, unreadable = [], []
+    for sid in ids:
+        try:
+            docs.append(ctx.read_json(f"{layout.score_dir(ctx.catalog, ctx.crawl, sid)}/score.json", immutable=False))
+        except FileNotFoundError:
+            unreadable.append(sid)
+    out.append(("score", "FK", "every score in manifest.json has its score.json", len(unreadable), len(ids), unreadable))
+    have = versions(ctx)
+    drafts = {e["extraction"] for e in ctx.extractions()}
+
+    def golden_ok(g: dict) -> bool:
+        m = VERSION.match(g.get("id") or "")
+        if g.get("kind") == "version":
+            return bool(m) and int(m.group(1)) in have
+        if g.get("kind") == "human-reviewed":
+            return g.get("id") == scores.HUMAN_REVIEWED and bool(g.get("as_of")) and bool(have)
+        return g.get("kind") == "draft" and g.get("id") in drafts
+
+    bad = [d["id"] for d in docs if not golden_ok(d.get("golden") or {})]
+    out.append(("score", "FK", "golden → a version, human-reviewed as of a time, or a draft extraction", len(bad),
+                len(docs), bad))
+    bad = [d["id"] for d in docs if (outs.get(d["output"].get("id")) or {}).get("report_etag")
+           != d["output"].get("report_etag")]
+    out.append(("score", "FK", "output → a kept extract output (same report ETag)", len(bad), len(docs), bad))
+    stems = {r[0] for r in con.execute("SELECT page_stem FROM pages").fetchall()}
+    done = [d for d in docs if d["status"] == "done"]
+    bad, n = [], 0
+    for d in done:
+        try:
+            rows = ctx.read_table(f"{layout.score_dir(ctx.catalog, ctx.crawl, d['id'])}/values.parquet",
+                                  ["page_stem"]).column("page_stem").to_pylist()
+        except OSError:
+            bad.append(f"{d['id']}: no values.parquet")
+            continue
+        n += len(rows)
+        bad += [f"{d['id']}: {s}" for s in sorted(set(rows) - stems)]
+    out.append(("score values", "FK", "values.parquet page_stem → pages (done scores)", len(bad), n, bad[:3]))
+    now = datetime.now(UTC)
+    stale = [d["id"] for d in docs if d["status"] == "running"
+             and (now - datetime.fromisoformat(d["created_at"].replace("Z", "+00:00"))).total_seconds() > STALE_RUNNING]
+    out.append(("score", "CHK", f"none left running (> {STALE_RUNNING // 60} min; a server start marks it interrupted)",
+                len(stale), len(docs), stale))
+    bad = [d["id"] for d in docs if d["status"] not in ("running", "done", "failed", "interrupted")]
+    out.append(("score", "CHK", "status ∈ running/done/failed/interrupted", len(bad), len(docs), bad))
+    path = layout.pending_score(ctx.catalog, ctx.crawl)
+    if ctx.root.exists(path):
+        try:
+            p = ctx.root.read_json(path)
+            ok = isinstance(p, dict) and isinstance(p.get("reason"), str) and bool(
+                datetime.fromisoformat(str(p.get("due_at")).replace("Z", "+00:00")))
+        except (ValueError, TypeError):
+            ok = False
+        out.append(("pending score", "CHK", "scores/pending.json is {due_at: ISO time, reason}", int(not ok), 1, []))
     return out
 
 

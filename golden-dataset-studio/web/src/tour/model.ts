@@ -38,6 +38,8 @@ export interface TourCtx {
   blockedId: string | null;
   /** Compare needs two ruleset versions. */
   compare: string | null;
+  /** The Evals tab. */
+  evals: string;
   crawl: string;
   /** Text the rule head shows for a rule, to tell when the Rules tab has caught up with a route. */
   headText: Record<string, string>;
@@ -70,6 +72,7 @@ export function makeCtx(catalog: { short: string; crawl: string; ruleset_version
     locator: loc ? href(cat, "rules", loc.rule_id) : null, locatorId: loc?.rule_id ?? null,
     blocked: blk && blk.rule_id !== ruleId ? href(cat, "rules", blk.rule_id) : base, blockedId: blk?.rule_id ?? ruleId,
     compare: twoVersions ? href(cat, "compare") : null,
+    evals: href(cat, "evals"),
     headText: Object.fromEntries(list.map((r) => [r.rule_id, headText(r)])),
   };
 }

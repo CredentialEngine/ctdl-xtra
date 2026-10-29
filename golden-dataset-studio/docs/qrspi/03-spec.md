@@ -746,11 +746,15 @@ in the page pane keeps the catalog's own colours: it is a picture of the source.
 | **Records** | Review one course with all its fields (v2's view, kept) | |
 | **Compare** | Is ruleset/rule version B better than A? | |
 | **Prompt** | Turn annotations into a prompt for Claude Code | |
-| **Publish** | Publish a property to the golden dataset once its rule is approved | |
+| **Golden datasets** | Each golden dataset version, read-only (approving a column's rule publishes it; [Evals spec](evals/03-spec.md) §6.6) | |
+| **Evals** | How closely xtra's extract outputs match the golden dataset ([Evals spec](evals/03-spec.md) §6.3) | |
 
 ### 7.1 Catalog picker
 
 ![Catalog picker](screens/01-catalog-picker.png)
+
+**Since the Evals work** the cards are a table (Golden dataset | xtra score): [Evals spec](evals/03-spec.md) §6.1,
+§6.2 and §9. The cards as first built:
 
 One card per catalog, laid out the same way on every card:
 - the institution's logo;
@@ -975,12 +979,9 @@ rows carry no strata labels.
 course someone marked or commented on in another rule (or whose page, for page-rule verdicts), come first, tagged
 "Reviewed in: Description, …". A record's fields get finished together.
 
-**Annotated by me** (a checkbox with its count): only the rows the reviewer marked or commented on, in this ruleset
-version or an earlier one. It is a filter on Annotated by, so it shows as a chip ("Annotated by: Jared Diener") and
-combines with the other filters; each row is tagged with who annotated it and in which ruleset version ("Annotated
-in: ruleset v1"). Authors from the first, first-name profiles ("Jared") count as the full name.
-
-![Sample: Annotated by me, rows annotated in ruleset v1 while v2 is reviewed](screens/19-sample-annotated-by-me.png)
+**Annotated by** (above the rows, replacing the drawer's "Annotated by me" checkbox and its Annotated by stratum):
+pick a person, Not annotated yet or Any engineer · waiting for an expert, and a verdict; experts get **Confirm** on
+engineer-checked rows. [Evals spec](evals/03-spec.md) §6.7, with the screens in §9.
 
 ![Sample: Autostratify](screens/15-sample-autostratify.png)
 
@@ -1074,6 +1075,9 @@ Full prompt: [`screens/09-prompt-full.png`](screens/09-prompt-full.png)
 
 ### 7.6 Publish
 
+**Superseded:** approving a column's rule publishes it, and this tab is now the read-only **Golden datasets** tab
+([Evals spec](evals/03-spec.md) §6.6, §9). The Publish tab as first built:
+
 The tab is called **Publish** (old `#/c/<catalog>/golden` links still open it). It publishes the golden dataset **one
 property at a time**: just because other fields' rules aren't approved yet doesn't hold back a field whose rule is.
 - **Properties:** one line per property (Coded Notation … Language) with a checkbox, its CTDL term, its field rule's
@@ -1088,7 +1092,7 @@ property at a time**: just because other fields' rules aren't approved yet doesn
   properties, and `publication.json`. It also lists `golden_record_id` collisions for Jared to confirm (§4.2), and earlier
   publications.
 
-![Publish](screens/10-publish.png)
+![Golden datasets](screens/10-golden-datasets.png)
 
 ### 7.7 Page pane: HTML view
 
