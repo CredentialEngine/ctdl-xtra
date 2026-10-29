@@ -34,7 +34,7 @@ ROUTERS = [
 
 def create_app(root: str, azure_root: str | None = None, crawls_root: str | None = None,
                agent: dict | None = None) -> FastAPI:
-    app = FastAPI(title="CTDL Golden Rules Studio")
+    app = FastAPI(title="CTDL Golden Dataset Studio")
     app.state.studio = Studio(root, azure_root, crawls_root, agent)
     app.state.scores = ScoreJobs()  # scores run as durable jobs, one per catalog at a time
     app.add_middleware(GZipMiddleware, minimum_size=2048)  # rows, compare and rendered pages compress ~5-20x

@@ -81,7 +81,7 @@ def test_start_sends_and_holds_the_lock(root):
     run = start(r)
     assert run["state"] == "running" and run["k2"]["delivery_id"] == "m_1"
     assert run["scope"] == {"kind": "needs_work", "rules": ["course-description", "course-code"]}
-    assert k2.sent == [(PROMPT["text"], "Golden Rules Studio · Jared Diener")]
+    assert k2.sent == [(PROMPT["text"], "Golden Dataset Studio · Jared Diener")]
     cur, etag = r.live()
     assert cur["run_id"] == run["run_id"] and etag
     assert [n["text"] for n in r.notes(run["run_id"])] == ["Started by Jared Diener", "Sent to the golden-rules agent"]
@@ -263,10 +263,10 @@ def k2_server():
 
 def test_k2_client_maps_k2s_answers(k2_server):
     k2 = K2(k2_server, "k2sk_test", "golden-rules", timeout=1)
-    assert k2.send("hello", "Golden Rules Studio · Jared") == "m_9"
+    assert k2.send("hello", "Golden Dataset Studio · Jared") == "m_9"
     seen = _K2Handler.seen[0]
     assert seen["path"] == "/v1/w/golden-rules/message" and seen["auth"] == "Bearer k2sk_test"
-    assert seen["body"] == {"text": "hello", "from": "Golden Rules Studio · Jared"}
+    assert seen["body"] == {"text": "hello", "from": "Golden Dataset Studio · Jared"}
     for mode in ("busy", "stalled"):
         with pytest.raises(K2Busy):
             k2.send(mode, "x")

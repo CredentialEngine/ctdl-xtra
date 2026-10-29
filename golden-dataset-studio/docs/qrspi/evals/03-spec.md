@@ -1,6 +1,6 @@
 # S — Spec: Evals
 
-How the CTDL Golden Rules Studio shows how closely xtra's extract output matches the golden dataset. Written
+How the CTDL Golden Dataset Studio shows how closely xtra's extract output matches the golden dataset. Written
 2026-10-28 from [`principles.md`](principles.md) and Eric's answers of the same day (recorded in §1). It replaces the
 POC's design ([`poc.md`](poc.md)). **Mockups (§6) come first: review them before anything is built.**
 

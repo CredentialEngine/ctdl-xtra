@@ -25,7 +25,7 @@ from .context import Ctx
 from .loop import current_review, ordered_rule_ids, rule_annotations, rule_or_error, short
 from .review import Review, norm
 
-INTRO = ("You are improving the declarative extraction rules of **CTDL Golden Rules Studio** for one catalog. "
+INTRO = ("You are improving the declarative extraction rules of **CTDL Golden Dataset Studio** for one catalog. "
          "A domain expert reviewed the extracted values and left annotations. Your job: change the rule(s) below so "
          "the annotated problems are fixed without breaking anything the expert marked correct, then publish a new "
          "version. Work only through the `golden-datasets` CLI; never edit files in the storage root yourself.")
@@ -219,7 +219,7 @@ def _run_header(run: dict | None, ctx: Ctx) -> list[str]:
     """target k2: who started this run, that nobody will answer, and how to report (agent_runs.py)."""
     rid, d = _run_id(run), _run_dir(run)
     who = run["started_by"] if run else "someone"
-    return ["## This is a Golden Rules Studio run", "",
+    return ["## This is a Golden Dataset Studio run", "",
             f"Run `{rid}`, started by {who} from the Studio. You're working unattended: nobody will answer "
             "questions, and people are watching your progress notes in the Studio. You may delegate parts of the "
             "work to subagents; give them the run id and the commands below.", "",
@@ -505,7 +505,7 @@ def has_raw_html(text: str) -> bool:
 # =====================================================================================================
 # The first rules of a catalog added from the picker (spec §7.1)
 # =====================================================================================================
-FIRST_INTRO = ("This catalog was just added to **CTDL Golden Rules Studio** from a crawl and has no rules yet. Write its "
+FIRST_INTRO = ("This catalog was just added to **CTDL Golden Dataset Studio** from a crawl and has no rules yet. Write its "
                "**first ruleset**: a page rule that recognises its course pages, a record locator that finds each course "
                "on them, and a field rule for each in-scope Course property, then publish it as ruleset v1. A domain "
                "expert reviews every value in the Studio afterwards, so aim for rules that are right on nearly every "

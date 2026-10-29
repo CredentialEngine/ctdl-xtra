@@ -262,34 +262,34 @@ class AgentRuns:
         try:
             prompt = build(run)
         except Exception as exc:
-            self._end(run, etag, "failed", f"couldn't build the prompt: {exc}", by="Golden Rules Studio")
+            self._end(run, etag, "failed", f"couldn't build the prompt: {exc}", by="Golden Dataset Studio")
             raise
         run["scope"]["rules"] = prompt.get("rules", [])
         self.root.write_text(f"{self._dir(run_id)}/prompt.md", prompt["text"])
-        self.log(run_id, "studio", f"Started by {author}", by="Golden Rules Studio")
+        self.log(run_id, "studio", f"Started by {author}", by="Golden Dataset Studio")
         return self._send(run, etag)
 
     def _send(self, run: dict, etag: str) -> dict:
         text = self.root.read_text(f"{self._dir(run['run_id'])}/prompt.md")
         try:
-            delivery = self.k2.send(text, f"Golden Rules Studio · {run['started_by']}")
+            delivery = self.k2.send(text, f"Golden Dataset Studio · {run['started_by']}")
         except K2Busy:
             first = run["state"] == "sending" and run.get("next_try_at") is None
             run.update(state="waiting", next_try_at=iso(self.clock() + timedelta(seconds=RETRY_SECS)))
             etag = self._put(run, etag)
             if first:
                 self.log(run["run_id"], "studio", f"The {self.k2.agent} agent is busy; the run waits its turn",
-                         by="Golden Rules Studio")
+                         by="Golden Dataset Studio")
             return run
         except K2Unavailable as exc:
             run["fallback_reason"] = exc.reason
             ended = self._end(run, etag, "failed", f"Couldn't connect to the {AGENT_NAME}: {exc.reason}",
-                              by="Golden Rules Studio")
+                              by="Golden Dataset Studio")
             raise Fallback(ended, exc.reason) from None
         run.update(state="running", sent_at=iso(self.clock()), next_try_at=None)
         run["k2"]["delivery_id"] = delivery
         self._put(run, etag)
-        self.log(run["run_id"], "studio", f"Sent to the {self.k2.agent} agent", by="Golden Rules Studio")
+        self.log(run["run_id"], "studio", f"Sent to the {self.k2.agent} agent", by="Golden Dataset Studio")
         return run
 
     def advance(self) -> dict | None:
@@ -302,7 +302,7 @@ class AgentRuns:
         try:
             if t >= parse(cur["deadline"]):
                 self._end(cur, etag, "timed_out", f"No word from the agent after {self.minutes} minutes",
-                          by="Golden Rules Studio")
+                          by="Golden Dataset Studio")
                 return None
             due = cur["state"] == "waiting" and cur.get("next_try_at") and t >= parse(cur["next_try_at"])
             stale = cur["state"] == "sending" and (t - parse(cur["updated_at"])).total_seconds() > SENDING_STALE
@@ -323,7 +323,7 @@ class AgentRuns:
         self._put(run, etag)  # the end releases the lock; ConflictError if another Studio got there first
         self.root.write_json(f"{self._dir(run['run_id'])}/run.json", run)
         self.root.write_json(f"{layout.agent_runs_dir(self.cat)}/last.json", run)
-        self.log(run["run_id"], "studio" if by == "Golden Rules Studio" else "done",
+        self.log(run["run_id"], "studio" if by == "Golden Dataset Studio" else "done",
                  {"finished": outcome or "Finished", "failed": outcome or "Failed",
                   "cancelled": f"Cancelled by {by}", "timed_out": outcome or "Timed out",
                   "ended": f"Marked as ended by {by}" + (f": {outcome}" if outcome else "")}[state], by=by)
@@ -353,8 +353,8 @@ class AgentRuns:
         run = self._end(cur, etag, "cancelled", None, by=by)
         if self.k2 is not None and cur["state"] == "running":
             try:  # best effort: a working agent can't take messages (busy), so this often goes nowhere
-                self.k2.send(f"Stop work on Golden Rules Studio run {run_id} ({self.cat}): {by} cancelled it. "
-                             "Don't publish anything more for it.", f"Golden Rules Studio · {by}")
+                self.k2.send(f"Stop work on Golden Dataset Studio run {run_id} ({self.cat}): {by} cancelled it. "
+                             "Don't publish anything more for it.", f"Golden Dataset Studio · {by}")
             except (K2Busy, K2Unavailable):
                 pass
         return run

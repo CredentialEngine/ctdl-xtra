@@ -1,6 +1,6 @@
-# S — Spec: CTDL Golden Rules Studio
+# S — Spec: CTDL Golden Dataset Studio
 
-Phase 3 of QRSPI. This is the specification for **CTDL Golden Rules Studio** ("the Studio"; called Golden Dataset Studio until the build), the rule-centric
+Phase 3 of QRSPI. This is the specification for **CTDL Golden Dataset Studio** ("the Studio"; called Golden Dataset Studio until the build), the rule-centric
 successor to review-ui-v2. It's based on [`01-questions.md`](01-questions.md) (Eric's answers),
 [`02-research.md`](02-research.md) (facts and Eric's review of them), and a working prototype whose screenshots and
 example data appear below.
@@ -25,7 +25,7 @@ AVC's ~1,075 courses. That's a low yield for the limited time of our only domain
 1. **Complete:** every record (course) in that institution's catalog is in it.
 2. **Correct:** every in-scope field of every record in it is right.
 
-**Golden Rules Studio is our answer.** It spends Jared's attention on **rules**, not records. Each verdict he gives
+**Golden Dataset Studio is our answer.** It spends Jared's attention on **rules**, not records. Each verdict he gives
 is evidence about a rule, and a fixed rule fixes every record it applies to, across the whole catalog. On AVC, five of
 his verdicts led to one rule change that corrected 278 descriptions.
 
@@ -89,7 +89,7 @@ Much of this work is throwaway: it exists to build golden datasets and to test w
 So anything that only matters for a production system is left out. Each item says what we do instead.
 
 - **Changes to xtra-cli, including its crawler.**
-  - Instead, we write our own tools: the Golden Rules Studio UI and the `golden-datasets` CLI.
+  - Instead, we write our own tools: the Golden Dataset Studio UI and the `golden-datasets` CLI.
   - xtra-cli is meant for production and for every institution. The Studio's rules are not.
 - **Login and auth.**
   - Instead, a "Reviewing as [name ▾]" dropdown gives each annotation an author.
@@ -129,7 +129,7 @@ The parts, and what crosses between them:
 │ crawl → <catalog>/<crawl>/pages/*.html + *.meta.json + crawl.json     │
 └───────────────────────────────────────────────────────────────────────┘
                  │ import (read-only)
-┌────────────────▼────────── CTDL Golden Rules Studio ──────────────────┐
+┌────────────────▼────────── CTDL Golden Dataset Studio ──────────────────┐
 │ golden-datasets CLI (laptop)        Studio UI (laptop, over ngrok)     │
 │        └──────── both import from and publish (write) to ──────┘       │
 │ storage root = local folder  OR  azure://…/xtra-cli-output[/prefix]    │

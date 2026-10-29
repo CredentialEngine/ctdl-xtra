@@ -137,7 +137,7 @@ describe("RunButton", () => {
 describe("RunBar", () => {
   it("shows the live run to everyone, with Watch and Cancel", async () => {
     current = { run: RUN, last: null, since: 0, now: NOW, notes: [
-      { at: "2026-10-28T03:12:09Z", kind: "studio", text: "Started by Jared Diener", by: "Golden Rules Studio" },
+      { at: "2026-10-28T03:12:09Z", kind: "studio", text: "Started by Jared Diener", by: "Golden Dataset Studio" },
       { at: "2026-10-28T03:23:29Z", kind: "note", text: "Course description: changing the locator", by: "golden-rules agent" }] };
     await act(async () => root.render(<AgentProvider catalog="avc"><RunBar catalog="avc" /></AgentProvider>));
     await flush();

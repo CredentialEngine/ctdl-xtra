@@ -68,7 +68,7 @@ export function IdentityScreen({ needPassword }: { needPassword: boolean }) {
             <path d="m3 12 9 4.5 9-4.5" stroke="#8a6d12" strokeWidth="1.8" strokeLinejoin="round" />
             <path d="m3 16.5 9 4.5 9-4.5" stroke="#8a6d12" strokeWidth="1.8" strokeLinejoin="round" opacity=".55" />
           </svg>
-          <span>Golden Rules Studio</span>
+          <span>Golden Dataset Studio</span>
         </div>
         <h1>{passwordOk ? "Who are you?" : "Sign in"}</h1>
 
