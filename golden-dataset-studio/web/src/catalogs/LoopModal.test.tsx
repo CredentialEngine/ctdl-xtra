@@ -12,12 +12,12 @@ beforeEach(() => { host = document.createElement("div"); document.body.appendChi
 afterEach(() => { act(() => root.unmount()); host.remove(); });
 
 describe("the loop modal on the catalog picker", () => {
-  it("opens with the three steps and the repeat condition, closes, and opens again from the link", async () => {
+  it("opens with the two steps and the repeat condition, closes, and opens again from the link", async () => {
     await act(async () => root.render(<CatalogPicker />));
     const dlg = host.querySelector("[role=dialog]")!;
     expect([...dlg.querySelectorAll(".loop-node b")].map((b) => b.textContent)).toEqual(
-      ["Annotate records", "Generate better rules", "Apply new rules"]);
-    expect(dlg.querySelectorAll(".loop-arc").length).toBe(3);
+      ["Annotate records", "Generate / apply better rules"]);
+    expect(dlg.querySelectorAll(".loop-arc").length).toBe(2);
     expect(dlg.textContent).toContain("until every rule is 100% correct for that catalog");
     await act(async () => [...dlg.querySelectorAll("button")].find((b) => b.textContent === "Got it")!.click());
     expect(host.querySelector("[role=dialog]")).toBeNull();

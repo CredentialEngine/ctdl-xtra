@@ -2,11 +2,11 @@
 .loop-back { position: fixed; inset: 0; z-index: 1000; background: rgba(16, 24, 40, .45); display: grid; place-items: center; padding: 16px; }
 .loop { background: var(--surface); color: var(--ink); border-radius: 14px; box-shadow: 0 20px 60px rgba(0, 0, 0, .3); width: min(600px, 100%); max-height: calc(100vh - 32px); overflow: auto; padding: 22px 24px 18px; }
 .loop h2 { margin: 0; font-size: 19px; }
-.loop-ring { position: relative; aspect-ratio: 520 / 400; margin: 10px 0 0; }
+.loop-ring { position: relative; aspect-ratio: 520 / 360; margin: 10px 0 0; }
 .loop-ring svg { position: absolute; inset: 0; width: 100%; height: 100%; }
 .loop-arc { fill: none; stroke: var(--accent); stroke-width: 2.5; stroke-linecap: round; opacity: .8; }
 .loop-head { fill: var(--accent); }
-.loop-node { position: absolute; transform: translate(-50%, -50%); width: 30%; background: var(--surface); border: 1.5px solid var(--accent); border-radius: 12px; padding: 14px 10px 9px; display: grid; gap: 3px; text-align: center; box-shadow: 0 2px 8px rgba(16, 24, 40, .08); line-height: 1.25; }
+.loop-node { position: absolute; transform: translate(-50%, -50%); width: 27%; background: var(--surface); border: 1.5px solid var(--accent); border-radius: 12px; padding: 14px 10px 9px; display: grid; gap: 3px; text-align: center; box-shadow: 0 2px 8px rgba(16, 24, 40, .08); line-height: 1.25; }
 .loop-node b { font-size: 13.5px; }
 /* send: the box squeezes (anticipation), then springs back with a tight ring as it fires the dot;
    land: a swell, a tint and a wide ring as the dot arrives */
@@ -30,7 +30,7 @@
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent), 0 2px 8px rgba(16, 24, 40, .08); }
 .loop-n { position: absolute; top: -11px; left: 50%; transform: translateX(-50%); width: 22px; height: 22px; border-radius: 50%; background: var(--accent); color: #fff; font-weight: 700; font-size: 12px; display: grid; place-items: center; }
 .loop-w { font-size: 11px; color: var(--accent); font-weight: 600; }
-.loop-center { position: absolute; left: 50%; top: 46%; transform: translate(-50%, -50%); width: 30%; text-align: center; color: var(--ink-2); font-size: 12.5px; line-height: 1.4; }
+.loop-center { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: 30%; text-align: center; color: var(--ink-2); font-size: 12.5px; line-height: 1.4; }
 .loop-rep { display: block; font-size: 16px; font-weight: 700; color: var(--accent); margin-bottom: 2px; }
 .loop-list { display: none; margin: 12px 0 0; padding-left: 20px; line-height: 1.5; }
 .loop-list li { margin: 6px 0; }

@@ -215,8 +215,8 @@ sequenceDiagram
 Jared doesn't have to be the one who copies the prompt. Eric can open the UI and copy it himself whenever he wants
 to iterate on a rule.
 
-In three steps, the way the catalog picker shows it (§7.1): **annotate records** matched by a rule → **generate better
-rules** (Claude Code) → **apply new rules** (publish, then Compare), and repeat until every rule for the catalog is
+In two steps, the way the catalog picker shows it (§7.1): **annotate records** matched by a rule → **generate / apply
+better rules** (Claude Code, then Compare), and repeat until every rule for the catalog is
 deemed 100% correct (approved).
 
 ### 3.2 First-time setup for a catalog
@@ -765,9 +765,9 @@ One card per catalog, laid out the same way on every card:
 A catalog whose rules haven't been run yet shows an empty bar and "rules not run yet". **Open →** goes to its Rules
 tab. Status comes from the manifest (no listing).
 
-**How the Studio works.** When the picker opens, a modal shows the loop as a ring of three boxes, **1 Annotate
-records** (Rules tab) → **2 Generate better rules** (Claude Code) → **3 Apply new rules** (Compare tab), with "↻
-Repeat until every rule is 100% correct for that catalog" inside. A dot leaves each box with a short press, runs
+**How the Studio works.** When the picker opens, a modal shows the loop as a ring of two boxes, **1 Annotate
+records** (Rules tab) on the left and **2 Generate / apply better rules** (Claude Code, Compare tab) on the right, with
+"↻ Repeat until every rule is 100% correct for that catalog" between them. A dot leaves each box with a short press, runs
 along the arrow, and lands on the next box with a swell, then pauses (no motion when the system asks for reduced
 motion). The arrows start and end on the boxes' edges. **Got it**, Esc or a click outside closes it; **Don't show this
 again** is remembered in the browser, and a "How the Studio works" link under the cards opens it again. At phone

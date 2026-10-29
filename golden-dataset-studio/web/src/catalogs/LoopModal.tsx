@@ -1,18 +1,18 @@
 // The Studio's loop, shown when the catalog picker opens (until "Don't show this again"): annotate the records a
-// rule matched → Claude Code generates better rules → apply them → repeat until every rule of the catalog is
+// rule matched (left) → generate and apply better rules (right) → repeat until every rule of the catalog is
 // approved as 100% correct. A dot leaves each box with a pulse, runs along the arrow and lands on the next box with a
 // pulse, then a pause (no motion when the system asks for reduced motion).
 import { useEffect, useRef, useState } from "react";
 import "./loop.css";
 
 const KEY = "studio.loop.hidden";
-const W = 520, H = 400, R = 148, CX = 260, CY = 212, GAP = 40;   // the ring, in the SVG's viewBox; GAP until measured
-const ANGLES = [-90, 30, 150];                                    // box positions, clockwise from the top
+const W = 520, H = 360, R = 172, CX = 260, CY = 180, GAP = 40;   // the ring, in the SVG's viewBox; GAP until measured
+const ANGLES = [180, 0];                                          // box positions: left, then right (clockwise)
 const STEPS = [
   { n: 1, t: "Annotate records", where: "Rules tab" },
-  { n: 2, t: "Generate better rules", where: "Claude Code" },
-  { n: 3, t: "Apply new rules", where: "Compare tab" },
+  { n: 2, t: "Generate / apply better rules", where: "Claude Code, Compare" },
 ];
+const N = STEPS.length;
 const HOLD = 1500, TRAVEL = 1100;                                 // ms: a box holds the dot, then the dot's run
 const SQUEEZE = 220;                                              // ms: the box squeezes before it fires the dot
 
@@ -93,7 +93,7 @@ export function LoopModal({ onClose }: { onClose: () => void }) {
     let raf = 0, last = "";
     const t0 = performance.now();
     const frame = (now: number) => {
-      const t = (now - t0) % (3 * (HOLD + TRAVEL));
+      const t = (now - t0) % (N * (HOLD + TRAVEL));
       const k = Math.floor(t / (HOLD + TRAVEL));
       const local = t - k * (HOLD + TRAVEL);
       // the dot lands (k:land), the box squeezes just before it fires (k:send), the dot shoots out and glides on
@@ -134,11 +134,11 @@ export function LoopModal({ onClose }: { onClose: () => void }) {
                 <feGaussianBlur stdDeviation="3" result="b" /><feMerge><feMergeNode in="b" /><feMergeNode in="SourceGraphic" /></feMerge>
               </filter>
             </defs>
-            {ANGLES.map((a, i) => (
-              <path key={i} ref={(el) => { paths.current[i] = el; }}
-                d={arc(a + gaps[i][0], ANGLES[(i + 1) % 3] + (i === 2 ? 360 : 0) - gaps[(i + 1) % 3][1])}
-                className="loop-arc" markerEnd="url(#loop-arrow)" />
-            ))}
+            {ANGLES.map((a, i) => {
+              const j = (i + 1) % N, b = ANGLES[j] <= a ? ANGLES[j] + 360 : ANGLES[j];   // clockwise to the next box
+              return <path key={i} ref={(el) => { paths.current[i] = el; }} d={arc(a + gaps[i][0], b - gaps[j][1])}
+                className="loop-arc" markerEnd="url(#loop-arrow)" />;
+            })}
             <circle ref={dot} r="6" className="loop-dot" filter="url(#loop-glow)" style={{ opacity: 0 }} />
           </svg>
           {STEPS.map((s, i) => {
