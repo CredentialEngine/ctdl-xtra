@@ -2,8 +2,9 @@
 import type {
   ExtractOutputs, MatchRow, ScoreBasis, ScoreDoc, ScoreValues, CatalogsSummary,
   CatalogCard, CatalogDetail, CrawledCatalog, FirstRulesPrompt, CompareRecords, CompareResponse, Discussion, CourseDetail, CourseHit, GoldenFileText, GoldenLineage, GoldenResponse,
+  AnnotateResponse, ApprovePreview,
   NewEvent, Overlay,
-  PromptResponse, RuleDetail, RuleSummary, RulesResponse, RowsResponse, UnclassifiedPage,
+  PromptResponse, RuleDetail, RulesResponse, RowsResponse, UnclassifiedPage,
 } from "./types";
 import { signedOut } from "../shell/session";
 
@@ -29,6 +30,7 @@ const q = (params: Record<string, string | number | boolean | null | undefined>)
   return t ? `?${t}` : "";
 };
 const c = (catalog: string) => `/api/catalogs/${encodeURIComponent(catalog)}`;
+const v = (catalog: string, version: string) => `${c(catalog)}/golden/${encodeURIComponent(version)}`;
 
 export const api = {
   catalogs: () => call<CatalogCard[]>("/api/catalogs"),
@@ -53,7 +55,7 @@ export const api = {
   course: (catalog: string, courseKey: string) =>
     call<CourseDetail>(`${c(catalog)}/courses/${encodeURIComponent(courseKey)}`),
   annotate: (catalog: string, event: NewEvent) =>
-    call<{ event: unknown; rule: RuleSummary | null; elapsed_ms: number }>(`${c(catalog)}/annotations`, {
+    call<AnnotateResponse>(`${c(catalog)}/annotations`, {
       method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(event),
     }),
   compare: (catalog: string, opts: { a?: number; b?: number; rule?: string } = {}) =>
@@ -71,21 +73,19 @@ export const api = {
   firstRulesPrompt: (catalog: string) => call<FirstRulesPrompt>(`${c(catalog)}/prompt/first-rules`),
   prompt: (catalog: string, opts: { rule?: string; needs_work?: boolean } = {}) =>
     call<PromptResponse>(`${c(catalog)}/prompt${q(opts)}`),
-  // `properties`: the properties a publication would publish (comma-separated in the query)
-  golden: (catalog: string, properties?: string[]) =>
-    call<GoldenResponse>(`${c(catalog)}/golden${q({ properties: properties?.join(",") })}`),
-  goldenPageJson: (catalog: string, stem: string, properties?: string[]) =>
-    call<GoldenFileText>(`${c(catalog)}/golden/files/page/${encodeURIComponent(stem)}.json${q({ properties: properties?.join(",") })}`),
-  goldenPageHtml: (catalog: string, stem: string, properties?: string[]) =>
-    call<GoldenFileText>(`${c(catalog)}/golden/files/page/${encodeURIComponent(stem)}.html${q({ properties: properties?.join(",") })}`),
-  goldenLineage: (catalog: string, opts: { q?: string; offset?: number; limit?: number; properties?: string } = {}) =>
-    call<GoldenLineage>(`${c(catalog)}/golden/files/lineage${q(opts)}`),
-  goldenPublicationJson: (catalog: string, author: string, properties?: string[]) =>
-    call<GoldenFileText>(`${c(catalog)}/golden/files/publication.json${q({ author, properties: properties?.join(",") })}`),
-  goldenPublish: (catalog: string, body: { author: string; properties: string[]; to?: string }) =>
-    call<{ publication: string; path: string; files: number }>(`${c(catalog)}/golden/publish`, {
-      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
-    }),
+  golden: (catalog: string) => call<GoldenResponse>(`${c(catalog)}/golden`),
+  approvePreview: (catalog: string, rule: string) =>
+    call<ApprovePreview>(`${c(catalog)}/golden/approve/${encodeURIComponent(rule)}`),
+  goldenStems: (catalog: string, version: string, tree: string) =>
+    call<string[]>(`${v(catalog, version)}/stems${q({ tree })}`),
+  goldenPageJson: (catalog: string, version: string, stem: string, tree: string) =>
+    call<GoldenFileText>(`${v(catalog, version)}/files/page/${encodeURIComponent(stem)}.json${q({ tree })}`),
+  goldenPageHtml: (catalog: string, version: string, stem: string) =>
+    call<GoldenFileText>(`${v(catalog, version)}/files/page/${encodeURIComponent(stem)}.html`),
+  goldenTable: (catalog: string, version: string, table: "lineage" | "golden", opts: { q?: string; offset?: number; limit?: number } = {}) =>
+    call<GoldenLineage>(`${v(catalog, version)}/files/${table}.parquet${q(opts)}`),
+  goldenPublicationJson: (catalog: string, version: string) =>
+    call<GoldenFileText>(`${v(catalog, version)}/files/publication.json`),
   extractOutputs: (catalog: string) => call<ExtractOutputs>(`${c(catalog)}/extract-outputs`),
   scoreDoc: (catalog: string, id: string) => call<ScoreDoc>(`${c(catalog)}/scores/${encodeURIComponent(id)}`),
   scoreValues: (catalog: string, id: string, o: { basis: string; column?: string | null; subject?: string | null;

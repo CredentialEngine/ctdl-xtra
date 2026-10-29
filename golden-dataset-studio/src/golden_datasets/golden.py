@@ -510,6 +510,51 @@ def publish_page(ctx: Ctx, stem: str, reason: str, by: str, create: bool = False
     return {"publication": doc["publication"], "created": False, "files": changed, "due_at": request_score(ctx, reason)}
 
 
+def column_name(prop: str) -> str | None:
+    """A property's column: its CTDL term without `ceterms:` (None for one with no CTDL term, e.g. Learning Type)."""
+    term = model.CTDL_TERM.get(prop)
+    return term.split(":", 1)[-1] if term else None
+
+
+def columns_of(props: list[str]) -> list[str]:
+    """The columns of these properties, in display order; properties with no CTDL term aren't columns."""
+    return [c for c in (column_name(p) for p in sorted(props, key=lambda x: model.PROPERTY_ORDER.get(x, 99))) if c]
+
+
+def approval_publishes(rv: Review, rule_id: str) -> dict | None:
+    """What approving this rule publishes (Evals spec §4.1, §6.6), or None for a rule that isn't a column's (page
+    rules, record locators, field rules for program-page lines). The column goes into the golden dataset of the
+    rule's ruleset: the first approval creates that version with every column approved so far, later ones rewrite it
+    with the extra column. A rule with no CTDL term (Learning Type) is approved but not written (`writes` False).
+    `now` / `after`: the version's properties before and after."""
+    col = next((r for r in property_rules(rv) if r["rule_id"] == rule_id), None)
+    if col is None:
+        return None
+    ctx, n = rv.snap.ctx, rv.snap.ruleset_version
+    try:
+        now = ctx.read_json(f"{layout.golden_dir(ctx.catalog, ctx.crawl, version_name(n))}/publication.json",
+                            immutable=False).get("properties") or []
+        creates = False
+    except FileNotFoundError:
+        now, creates = [], True
+    adds = [r["property"] for r in property_rules(rv)
+            if r["ctdl_property"] and (r["status"] == "approved" or r["rule_id"] == rule_id)]
+    after = sorted(set(now) | set(adds), key=lambda x: model.PROPERTY_ORDER.get(x, 99)) if col["ctdl_property"] else now
+    return {"rule_id": rule_id, "property": col["property"], "column": column_name(col["property"]),
+            "writes": bool(col["ctdl_property"]), "golden": version_name(n), "ruleset_version": n, "creates": creates,
+            "now": now, "after": after, "adds": [p for p in after if p not in now] or [col["property"]]}
+
+
+def publish_approved(ctx: Ctx, rule_id: str, by: str) -> dict | None:
+    """After a column's rule is approved: publish the column into its ruleset's golden dataset (with every other
+    column approved so far). None when the rule isn't a column's or its column has no CTDL term."""
+    p = approval_publishes(LOADER.review(ctx), rule_id)
+    if not p or not p["writes"]:
+        return None
+    doc = publish(ctx, default_target(ctx), by, properties=p["adds"])
+    return doc | {"created": p["creates"]}
+
+
 def request_score(ctx: Ctx, reason: str) -> str:
     """scores/pending.json: a score is due 5 minutes from now (each review moves it on; the server's loop runs it)."""
     due = (datetime.now(UTC) + RESCORE_AFTER).strftime("%Y-%m-%dT%H:%M:%SZ")

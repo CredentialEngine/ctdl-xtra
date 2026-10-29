@@ -575,8 +575,23 @@ def add_annotation(request: Request, catalog: str, event: Annotated[dict, Body()
                                             f"{full['author']} via the Studio UI", create=role == "sme")
         except (OSError, UserError) as exc:
             published = {"error": str(exc)}
+    score = None
+    if full["type"] == "approve":  # approving a column's rule publishes it, then scores it (Evals spec §4.1, §6.6)
+        what = golden.approval_publishes(rv2, rid)
+        if what and not what["writes"]:
+            published = {"written": False, "column": None, "property": what["property"]}
+        elif what:
+            try:
+                doc = golden.publish_approved(ctx, rid, f"{full['author']} via the Studio UI")
+                published = {"written": True, "publication": doc["publication"], "created": doc["created"],
+                             "column": what["column"], "columns": golden.columns_of(doc["properties"]),
+                             "files": doc["pages"]}
+                job = request.app.state.scores.after_publish(ctx, full["author"])
+                score = {k: job[k] for k in ("id", "status")} | {"golden": job["golden"]["id"]} if job else None
+            except (OSError, UserError) as exc:
+                published = {"error": str(exc)}
     return {"event": full, "rule": _rule_summary(rv2, rid) if rid else None, "published": published,
-            "elapsed_ms": round(1000 * (time.perf_counter() - t0), 1)}
+            "score": score, "elapsed_ms": round(1000 * (time.perf_counter() - t0), 1)}
 
 
 @router.get("/catalogs/{catalog}/discussion")

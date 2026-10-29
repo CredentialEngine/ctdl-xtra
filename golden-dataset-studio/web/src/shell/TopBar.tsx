@@ -2,7 +2,7 @@
 // the reviewer's first name (picked once on the "Who are you?" screen; role on hover) and "Show the tour".
 import type { CatalogDetail } from "../api/types";
 import { ROLE_LABEL, useReviewer, useRole } from "./reviewer";
-import { href, TABS, type Tab } from "./router";
+import { href, TAB_LABEL, TABS, type Tab } from "./router";
 import { fmtDate } from "./ui";
 
 export function TopBar({ catalog, tab, onTour }: { catalog: CatalogDetail | null; tab: Tab | null; onTour?: () => void }) {
@@ -32,7 +32,7 @@ export function TopBar({ catalog, tab, onTour }: { catalog: CatalogDetail | null
       <nav className="tabs" data-tour="tabs">
         {catalog && TABS.map((t) => (
           <a key={t} href={href(catalog.short, t)} className={t === tab ? "on" : ""} data-tab={t}>
-            {t[0].toUpperCase() + t.slice(1)}
+            {TAB_LABEL[t]}
           </a>
         ))}
       </nav>

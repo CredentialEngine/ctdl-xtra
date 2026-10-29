@@ -1,13 +1,15 @@
 // Hash routes: #/ (catalog picker) · #/c/<catalog>/<tab>/<id>?<params>
 // Examples: #/c/avc/rules/course-description?row=<occurrence_key> · #/c/avc/records/GEOG222
-//           #/c/avc/compare?a=1&b=2&rule=course-description · #/c/avc/publish
+//           #/c/avc/compare?a=1&b=2&rule=course-description · #/c/avc/golden
 // The old Prompt tab (#/c/avc/prompt…) opens the Rules tab with the prompt modal (?prompt=1).
 import { useEffect, useState } from "react";
 
-export type Tab = "rules" | "records" | "compare" | "publish" | "evals";
-export const TABS: Tab[] = ["rules", "records", "compare", "publish", "evals"];
-/** Old tab names still open the right tab (the Golden tab is now Publish). */
-const RENAMED: Record<string, Tab> = { golden: "publish" };
+export type Tab = "rules" | "records" | "compare" | "golden" | "evals";
+export const TABS: Tab[] = ["rules", "records", "compare", "golden", "evals"];
+export const TAB_LABEL: Record<Tab, string> = { rules: "Rules", records: "Records", compare: "Compare", golden: "Golden datasets",
+                                                evals: "Evals" };
+/** Old tab names still open the right tab (the Publish tab is now Golden datasets). */
+const RENAMED: Record<string, Tab> = { publish: "golden" };
 
 export interface Route { catalog: string | null; tab: Tab; id: string | null; params: URLSearchParams }
 

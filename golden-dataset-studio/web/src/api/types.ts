@@ -190,33 +190,39 @@ export interface PromptResponse {
   warning?: string | null;            // e.g. the branch Claude installs the CLI from has unpushed commits
 }
 
-// --- Golden (routes_golden.py; W7) -------------------------------------------------------------------
-/** A property the field rules fill, and whether it can be published (its rule approved). */
-export interface PublishProperty {
-  property: string; ctdl_property: string | null; rule_id: string; version: number; status: RuleStatus;
-  approved_by: string | null;
-  published: { publication: string; published_at: string | null; published_by: string | null; extraction: string | null;
-               rule_version: number | null } | null;
+// --- Golden datasets (routes_golden.py; Evals spec §6.6) ------------------------------------------------
+/** A golden dataset version's latest xtra score against the latest extract output. */
+export interface GoldenScore {
+  id: string; status: "done" | "running"; basis?: "human" | "rule"; rate?: number | null; values?: number; match?: number;
+  output?: string; finished_at?: string | null;
+}
+export type GoldenTree = "rule-matched" | "human-reviewed";
+/** One golden dataset version (ruleset-vN): its columns (CTDL terms without ceterms:), values and where it's written. */
+export interface GoldenVersion {
+  id: string; ruleset_version: number; latest: boolean; columns: string[]; values: number; human: number;
+  published_at: string | null; created_at: string | null; published_by: string | null; extraction: string | null;
+  score: GoldenScore | null;
+  where: { root: string; version: string; trees: Record<GoldenTree, { prefix: string; pages: number | null }>;
+           latest: string | null; studio: string };
 }
 export interface GoldenResponse {
-  ready: boolean;                     // some property can be published
-  all_rules_approved: boolean;
-  chosen: string[];                   // the properties the counts and previews are for
-  approvals?: { human: number; rule: number };   // the chosen properties' values, by who approved them
-  properties: PublishProperty[];
-  extraction: string; ruleset_version: number;
-  rules: { rule_id: string; title: string; subtitle: string; kind: RuleKind; version: number;
-           status: RuleStatus; approved_by: string | null }[];
-  target: string;                     // where the per-page files go: <golden root>/<catalog>/<crawl>/
-  pages: number; courses: number; records: number; fields: number; skipped_no_course_key: number;
-  collisions: { course_key: string; golden_record_ids: string[]; names: string[] }[];
-  page_stems: { stem: string; records: number }[];   // the pages that get a <stem>.json, with their course entries
-  publications: { publication: string; extraction: string; ruleset_version: number; published_at: string | null;
-                  published_by: string | null; pages: number; courses: number; records: number;
-                  lineage_rows: number; to: string; all_rules_approved: boolean | null; properties?: string[] | null }[];
+  catalog: string; crawl: string; versions: GoldenVersion[]; latest_output: string | null; running: string | null;
+}
+/** What approving a rule publishes (the approve confirmation). `publishes` false: approved without writing files. */
+export interface ApprovePreview {
+  publishes: boolean; rule_id: string; property?: string; column?: string | null; golden?: string;
+  ruleset_version?: number; creates?: boolean; now?: string[]; after?: string[]; where?: string;
+  values?: number; human?: number; rule?: number;
+}
+/** The approve's answer: what it published (a column's rule) and the score it started. */
+export interface AnnotateResponse {
+  event: unknown; rule: RuleSummary | null; elapsed_ms: number;
+  published?: { written?: boolean; publication?: string; created?: boolean; column?: string | null; columns?: string[];
+                files?: number; property?: string; error?: string } | null;
+  score?: { id: string; status: string; golden: string } | null;
 }
 
-export interface GoldenFileText { text: string; stem?: string; records?: number; bytes?: number; truncated?: boolean;
+export interface GoldenFileText { text: string; stem?: string; path?: string; records?: number; bytes?: number; truncated?: boolean;
                                   truncated_page_stems?: boolean }
 export interface GoldenLineage { columns: string[]; total: number; matched: number; offset: number; rows: unknown[][] }
 

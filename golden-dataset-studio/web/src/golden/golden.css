@@ -1,13 +1,23 @@
-/* Golden tab: long storage paths must not push the right column off screen. */
-.gold-grid > * { min-width: 0; }
-.gold-grid .tree { overflow-x: auto; }
-.gold-grid .target { overflow-wrap: anywhere; font-size: 12.5px; margin-bottom: 6px; }
-.gold-grid .chk .mono, .gold-grid .chk .muted { overflow-wrap: anywhere; }
-.gold-grid .collisions { max-height: 420px; overflow-y: auto; }
-.gold-grid .h3-note { font-weight: 400; color: var(--faint); }
-.gold-grid .tree button.f { font: inherit; color: var(--accent); background: none; border: 0; padding: 0; cursor: pointer;
+/* Golden datasets tab (m4b): the versions table, then where the chosen version is written. */
+.gv-head { display: flex; align-items: baseline; gap: 14px; margin-bottom: 14px; }
+.gv-none { margin-top: 10px; }
+.gv-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.gv-table th { text-align: left; font-weight: 500; color: var(--muted); font-size: 12.5px; padding: 9px 10px;
+  border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+.gv-table td { padding: 11px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.gv-table td.mono { font-size: 12.5px; overflow-wrap: anywhere; }
+.gv-table tbody tr { cursor: pointer; }
+.gv-table tbody tr:hover td { background: var(--surface-2); }
+.gv-table tbody tr.on td { background: var(--accent-soft); }
+.gv-table td:first-child, .gv-table td:nth-child(3) { white-space: nowrap; }
+.gv-table th:last-child, .gv-table td:last-child { width: 300px; }
+.gv-hr { display: inline-block; font-size: 11.5px; font-weight: 600; color: var(--green); background: var(--green-soft);
+  border-radius: 999px; padding: 1px 8px; }
+.gv-where { font-size: 12.5px; margin: 16px 0 8px; }
+.gv-tree { overflow-x: auto; }
+.gv-tree button.f { font: inherit; color: var(--accent); background: none; border: 0; padding: 0; cursor: pointer;
   text-decoration: underline dotted; text-underline-offset: 3px; }
-.gold-grid .tree button.f:hover { text-decoration-style: solid; }
+.gv-tree button.f:hover { text-decoration-style: solid; }
 
 /* File preview: a sample of each file a publication writes. */
 .gfp-bg { position: fixed; inset: 0; z-index: 50; background: rgba(16, 24, 40, .45); display: flex; align-items: center;
@@ -46,16 +56,3 @@
   overflow: hidden; text-overflow: ellipsis; }
 .gfp-table tr:hover td { background: var(--accent-soft); }
 .gfp-link { font: inherit; color: var(--accent); background: none; border: 0; padding: 0; cursor: pointer; text-decoration: underline dotted; }
-/* Publish: the property chooser */
-.gold-grid .chk.prop { cursor: pointer; grid-template-columns: auto 1fr auto; }
-.gold-grid .chk.prop input { margin-top: 3px; accent-color: var(--accent); }
-.gold-grid .chk.prop.off { cursor: default; opacity: .7; }
-.gold-grid .chk.prop.on { background: var(--accent-soft); border-radius: 7px; }
-.gold-grid .chk.prop .pill { text-decoration: none; }
-.gold-grid .pub-when { display: block; font-size: 11px; color: var(--muted); }
-.gold-grid .identity { font-size: 12px; line-height: 1.5; margin-top: 10px; }
-.gold-grid .identity a { color: var(--accent); }
-/* Publish button once the chosen properties are already published: grey, with a check. */
-.btn.primary.is-done, .btn.primary.is-done:disabled { background: var(--surface-2); color: var(--green); border-color: var(--line-2);
-  opacity: 1; cursor: default; }
-.btn.primary.is-done svg { width: 14px; height: 14px; }

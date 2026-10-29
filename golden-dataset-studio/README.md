@@ -62,7 +62,13 @@ golden-datasets rule publish draft.json -c avc     # refused if a value marked c
 ```
 
 4. The UI lists the new ruleset version; **Compare** shows v(n−1) → v(n), Jared's earlier verdicts first.
-5. Jared approves the rule or annotates again. When every rule is approved, **Golden** publishes.
+5. Jared approves the rule or annotates again. **Approving a column's rule publishes it** (after one confirmation:
+   the golden dataset's columns now and after, and how many of its values are human-reviewed): the column goes into
+   its ruleset's golden dataset (the first approval creates `ruleset-vN` with every column approved so far; later ones
+   write it again with the extra column), then xtra's latest extract output is scored against it. Page rules and
+   record locators approve as before; a column with no CTDL term (Learning Type) is approved but not written to the
+   files. The **Golden datasets** tab is a read-only record: each version's columns, values (how many human-reviewed)
+   and latest xtra score, and where it is written, each file a link to a sample. Engineers can still publish from the CLI:
 
 ```sh
 golden-datasets golden publish -c avc --property Description   # into ruleset vN's golden dataset, written whole

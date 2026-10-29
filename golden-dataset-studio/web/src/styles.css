@@ -324,7 +324,6 @@ td.num { text-align: right; font-variant-numeric: tabular-nums; }
 .cat .hint { font-size: 12px; color: var(--muted); border-top: 1px solid var(--line); padding-top: 10px; }
 .cat .hint code { white-space: nowrap; font: 11.5px var(--mono); background: var(--surface-2); border: 1px solid var(--line); padding: 1px 5px; border-radius: 4px; color: var(--ink-2); }
 
-.gold-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-top: 18px; }
 .box { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; }
 .box h3 { margin: 0 0 10px; font-size: 13px; }
 .gate { display: flex; gap: 12px; align-items: center; padding: 12px 14px; border-radius: 10px; margin-top: 16px; }

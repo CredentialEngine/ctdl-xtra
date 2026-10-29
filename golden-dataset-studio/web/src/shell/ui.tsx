@@ -19,12 +19,12 @@ export function useKeyHints(hint: ReactNode, deps: unknown[] = []): void {
   }, deps);
 }
 
-export function toast(msg: string): void {
+export function toast(msg: string, ms = 1800): void {
   const t = document.createElement("div");
   t.className = "toast";
   t.textContent = msg;
   document.body.appendChild(t);
-  setTimeout(() => t.remove(), 1800);
+  setTimeout(() => t.remove(), ms);
 }
 
 export { Ico, ICON } from "./icons";

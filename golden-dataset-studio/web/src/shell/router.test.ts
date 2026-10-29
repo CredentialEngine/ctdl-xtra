@@ -21,8 +21,8 @@ describe("routes", () => {
 });
 
 describe("renamed tabs", () => {
-  it("opens the Publish tab from an old Golden link", () => {
-    expect(parseRoute("#/c/avc/golden").tab).toBe("publish");
-    expect(parseRoute("#/c/avc/publish").tab).toBe("publish");
+  it("opens the Golden datasets tab from an old Publish link", () => {
+    expect(parseRoute("#/c/avc/golden").tab).toBe("golden");
+    expect(parseRoute("#/c/avc/publish").tab).toBe("golden");
   });
 });

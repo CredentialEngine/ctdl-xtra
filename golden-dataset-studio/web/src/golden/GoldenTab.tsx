@@ -1,124 +1,116 @@
-// Publish (spec §7.6, screen 10): publish the golden dataset one property at a time. Each property can be chosen
-// once its field rule is approved, whatever the other fields' rules say; the button shows ✓ Published once the
-// chosen properties are published from this extraction at their current rule versions. What will be written: the
-// tree, each file can be opened as a sample.
+// Golden datasets (Evals spec §6.6, m4b): a read-only record. Approving a column's rule publishes it (Rules tab), so
+// there's no Publish button here. One row per version (ruleset vN): its columns, its values with how many are
+// human-reviewed, and its latest xtra score; below, where the chosen version is written, each file a link to a sample.
 import { useCallback, useEffect, useState } from "react";
+import type { ReactNode } from "react";
 import { api } from "../api/client";
-import type { GoldenResponse } from "../api/types";
-import { useReviewer } from "../shell/reviewer";
-import { href } from "../shell/router";
+import type { GoldenResponse, GoldenScore, GoldenVersion } from "../api/types";
 import type { TabProps } from "../shell/tabProps";
-import { fmt, Ico, toast, useKeyHints } from "../shell/ui";
+import { fmt, useKeyHints } from "../shell/ui";
 import { FilePreview } from "./FilePreview";
 import type { GoldenFile } from "./FilePreview";
 import "./golden.css";
 
-const pillClass = (s: string) => (s === "approved" ? "approved" : s === "needs work" ? "needs" : "review");
+const vname = (id: string) => id.replace(/^ruleset-v/, "ruleset v");
 
-export default function GoldenTab({ catalog }: TabProps) {
+export function scoreText(s: GoldenScore | null): ReactNode {
+  if (!s) return <span className="muted">not scored yet</span>;
+  if (s.status === "running") return <span className="muted">scoring…</span>;
+  if (s.rate == null) return <span className="muted">nothing to score</span>;
+  return <><b>{Math.round(100 * s.rate)}%</b> exact, {s.basis === "human" ? "human-reviewed" : "rule-matched"}
+    <span className="muted"> ({fmt(s.match ?? 0)} of {fmt(s.values ?? 0)})</span></>;
+}
+
+type Part = string | { f: GoldenFile; label: string } | { b: string };
+const plain = (parts: Part[]) => parts.map((p) => (typeof p === "string" ? p : "f" in p ? p.label : p.b)).join("");
+
+/** The tree of where a version is written: each line's parts, then its comment, the comments aligned. */
+function Tree({ lines, open }: { lines: [Part[], string?][]; open: (f: GoldenFile) => void }) {
+  const width = Math.max(...lines.filter(([, c]) => c).map(([p]) => plain(p).length)) + 3;
+  return (
+    <div className="tree gv-tree">{lines.map(([parts, comment], i) => (
+      <div key={i}>{parts.map((p, j) => (typeof p === "string" ? p
+        : "f" in p ? <button key={j} className="f" onClick={() => open(p.f)} title={`A sample of ${p.label}`}>{p.label}</button>
+        : <b key={j}>{p.b}</b>))}
+        {comment && <span className="c">{" ".repeat(Math.max(1, width - plain(parts).length))}# {comment}</span>}
+        {!parts.length && " "}</div>))}
+    </div>
+  );
+}
+
+function where(v: GoldenVersion, catalog: string, crawl: string): [Part[], string?][] {
+  const w = v.where;
+  const pages = (n: number | null | undefined) => (n == null ? "" : ` (${fmt(n)} pages)`);
+  const bar = w.latest ? "│" : " ";  // an older version: only its folder, not the latest location
+  const lines: [Part[], string?][] = [
+    [[{ b: `${w.root.replace(/\/$/, "")}/` }]],
+    [[w.latest ? "├── " : "└── ", `catalogs/${catalog}/versions/`, { b: `${v.id}/` }], "this version, kept for good"],
+    [[`${bar}   ├── rule-matched/${catalog}/${crawl}/`]],
+    [[`${bar}   │   └── <page>/`, { f: "rule-matched.json", label: "<page>.json" }], `every value${pages(w.trees["rule-matched"].pages)}`],
+    [[`${bar}   └── human-reviewed/${catalog}/${crawl}/`]],
+    [[`${bar}       └── <page>/`, { f: "human-reviewed.json", label: "<page>.json" }],
+      `only the human-reviewed values${pages(w.trees["human-reviewed"].pages)}`],
+  ];
+  if (w.latest) {
+    lines.push([[`└── ${catalog}/${crawl}/`], "the latest version, replaced whole"],
+      [["    └── <page>/"]],
+      [["        ├── ", { f: "page.json", label: "<page>.json" }], "the same as rule-matched; where readers look today"],
+      [["        └── ", { f: "page.html", label: "<page>.html" }], "the page as crawled; the locations point into it"]);
+  }
+  lines.push([[]], [[{ b: `Studio: ${w.studio}` }]],
+    [["├── ", { f: "publication.json", label: "publication.json" }], "which ruleset, columns, approvals, where it was written"],
+    [["├── ", { f: "lineage.parquet", label: "lineage.parquet" }], "one row per value → rule, version, occurrence, verdicts"],
+    [["└── ", { f: "golden.parquet", label: "golden.parquet" }], "every value of this version, for Evals"]);
+  return lines;
+}
+
+export default function GoldenTab({ catalog, route }: TabProps) {
   const [d, setD] = useState<GoldenResponse | null>(null);
-  const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const me = useReviewer();
   const [open, setOpen] = useState<GoldenFile | null>(null);
-  const [chosen, setChosen] = useState<string[] | null>(null);  // null: the server's default (every approved property)
+  const [chosen, setChosen] = useState<string | null>(route.params.get("v"));
   const load = useCallback(() => {
-    api.golden(catalog.short, chosen ?? undefined).then((r) => { setD(r); setChosen((c) => c ?? r.chosen); },
-                                                        (e) => setError(String(e)));
-  }, [catalog.short, chosen]);
+    api.golden(catalog.short).then(setD, (e) => setError(String(e)));
+  }, [catalog.short]);
   useEffect(load, [load]);
-  useKeyHints(<span><span className="mono">golden-datasets golden publish --catalog {catalog.short} --to ROOT --property NAME</span> does the same from the CLI</span>, [catalog.short]);
+  const running = !!d?.versions.some((v) => v.score?.status === "running");
+  useEffect(() => {  // a score runs after each approval: show it when it's done
+    if (!running) return;
+    const t = setInterval(load, 3000);
+    return () => clearInterval(t);
+  }, [running, load]);
+  useKeyHints(<span>Approving a column's rule on the Rules tab publishes it. Engineers can also run{" "}
+    <span className="mono">golden-datasets golden publish --catalog {catalog.short} --property NAME</span></span>, [catalog.short]);
 
   if (error) return <div className="doc"><div className="doc-in"><p className="muted">{error}</p></div></div>;
-  if (!d) return <div className="doc"><div className="doc-in"><h1>Publish the golden dataset</h1></div></div>;
-  const sel = (chosen ?? d.chosen).filter((p) => d.properties.some((x) => x.property === p && x.status === "approved"));
-  const approvable = d.properties.filter((p) => p.status === "approved");
-  const identity = d.rules.filter((r) => r.kind !== "field");
-  // every chosen property already published from this extraction at its current rule version: nothing new to write
-  const done = sel.length > 0 && sel.every((name) => {
-    const p = d.properties.find((x) => x.property === name);
-    return !!p?.published && p.published.extraction === d.extraction && p.published.rule_version === p.version;
-  });
-  const toggle = (p: string) => setChosen((c) => {
-    const cur = c ?? d.chosen;
-    return cur.includes(p) ? cur.filter((x) => x !== p) : d.properties.map((x) => x.property).filter((x) => x === p || cur.includes(x));
-  });
-
-  const publish = async () => {
-    setBusy(true);
-    try {
-      const r = await api.goldenPublish(catalog.short, { author: me, properties: sel });
-      toast(`Published ${sel.join(", ")} (${r.publication}): ${fmt(r.files)} pages`);
-      load();
-    } catch (e) { toast(String(e)); } finally { setBusy(false); }
-  };
-
-  const F = ({ f, children }: { f: GoldenFile; children: string }) =>
-    <button className="f" onClick={() => setOpen(f)} title={`Show ${children}`}>{children}</button>;
+  if (!d) return <div className="doc"><div className="doc-in"><h1>Golden datasets</h1></div></div>;
+  const v = d.versions.find((x) => x.id === chosen) ?? d.versions[0];
 
   return (
     <div className="doc"><div className="doc-in">
-      {open && <FilePreview catalog={catalog.short} file={open} stems={d.page_stems} author={me} properties={sel}
-                            onClose={() => setOpen(null)} />}
-      <h1>Publish to the golden dataset</h1>
-      <div className={`gate ${sel.length ? "ready" : "blocked"}`}>
-        <Ico name="lock" />
-        <div className="grow">{done
-          ? <><b>Already published:</b> {sel.join(", ")} from extraction <span className="mono">{d.extraction}</span>.</>
-          : sel.length
-          ? <><b>Ready to publish {sel.length === 1 ? sel[0] : `${sel.length} properties`}:</b> {sel.length > 1 && <>{sel.join(", ")}. </>}
-              {fmt(d.courses)} courses, {fmt(d.fields)} values
-              {d.approvals && <> ({fmt(d.approvals.human)} approved by a person, {fmt(d.approvals.rule)} by the rule)</>}.</>
-          : approvable.length
-            ? <><b>Choose a property</b> below to publish.</>
-            : <><b>Nothing to publish yet:</b> no property's rule is approved. Approve one on the Rules tab.</>}</div>
-        <button className={"btn primary" + (done ? " is-done" : "")} disabled={!sel.length || busy || done} onClick={publish}
-          data-tour="golden-publish" title={done ? "Already published from this extraction at these rule versions" : undefined}>
-          {busy ? "Publishing…" : done ? <><Ico name="correct" />Published</>
-            : sel.length === 1 ? `Publish ${sel[0]}` : `Publish ${sel.length || ""} properties`}</button>
-      </div>
-      <div className="gold-grid">
-        <div className="box"><h3>Properties · ruleset v{d.ruleset_version} <span className="h3-note">· tick the ones to publish</span></h3>
-          {d.properties.map((p) => {
-            const ok = p.status === "approved";
-            const on = sel.includes(p.property);
-            return (
-              <label key={p.property} className={"chk prop" + (ok ? "" : " off") + (on ? " on" : "")} data-property={p.property}
-                title={ok ? `${p.rule_id} v${p.version}, approved by ${p.approved_by}` : `${p.rule_id} v${p.version} isn't approved yet`}>
-                <input type="checkbox" checked={on} disabled={!ok} onChange={() => toggle(p.property)} />
-                <span><b>{p.property}</b><span className={`rid ${p.ctdl_property ? "" : "plain"}`}>{p.ctdl_property ?? "no CTDL term"}</span>
-                  <span className="pub-when">{p.published
-                    ? <>published {p.published.published_at?.slice(0, 10)}{p.published.rule_version != null && <> · v{p.published.rule_version}</>}</>
-                    : "not published yet"}</span></span>
-                <a className={`pill ${pillClass(p.status)}`} href={href(catalog.short, "rules", p.rule_id)} onClick={(e) => e.stopPropagation()}>
-                  <Ico name={p.status} />{p.status}</a>
-              </label>
-            );
-          })}
-          <div className="identity muted">Which courses exist comes from {identity.map((r, i) => (
-            <span key={r.rule_id}>{i > 0 && " and "}<a href={href(catalog.short, "rules", r.rule_id)}>{r.title}</a>{" "}
-              ({r.status})</span>))}: recorded with each publication, but it doesn't hold a property back.</div>
-        </div>
-        <div>
-          <div className="box"><h3>What will be written <span className="h3-note">· click a file to see a sample</span></h3>
-            <div className="target mono">{d.target}</div>
-            <div className="tree">{"."}{"\n"}
-              {"└── <page>/                 "}<span className="c"># one folder per saved page with courses ({fmt(d.pages)})</span>{"\n"}
-              {"    ├── "}<F f="page.json">{"<page>.json"}</F>{"         "}<span className="c"># [{"{"}golden_record_id, approval, fields: [{"{"}ctdl_property,</span>{"\n"}
-              {"    │                       "}<span className="c">#   property, value, source_url, location, approval,</span>{"\n"}
-              {"    │                       "}<span className="c">#   approved_by, approved_at{"}"}]{"}"}]</span>{"\n"}
-              {"    └── "}<F f="page.html">{"<page>.html"}</F>{"         "}<span className="c"># the page as crawled, if not there yet: the</span>{"\n"}
-              {"                            "}<span className="c">#   locations above point into it</span>{"\n\n"}
-              {`Kept too, JSON only: catalogs/<catalog>/versions/ruleset-v${d.ruleset_version}/`}{"\n"}
-              {"├── rule-matched/…/<page>/<page>.json    "}<span className="c"># the same files</span>{"\n"}
-              {"└── human-reviewed/…/<page>/<page>.json  "}<span className="c"># approval: human values only</span>{"\n\n"}
-              {"Studio: golden/<publication>/"}{"\n"}
-              {"├── "}<F f="lineage.parquet">{"lineage.parquet"}</F>{"         "}<span className="c"># one row per value → rule, version, occurrence, verdicts</span>{"\n"}
-              {"└── "}<F f="publication.json">{"publication.json"}</F>{"        "}<span className="c"># which extraction and ruleset, approvals</span>
-            </div>
-          </div>
-        </div>
-      </div>
+      {open && v && <FilePreview catalog={catalog.short} version={v.id} latest={v.latest} file={open} onClose={() => setOpen(null)} />}
+      <div className="gv-head"><h1>Golden datasets</h1><span className="muted">Published when a column's rule is approved.</span></div>
+      {!d.versions.length ? (
+        <p className="muted gv-none">No golden dataset yet. Approving a column's rule on the Rules tab publishes it, and so does
+          a subject matter expert's first check of a value.</p>
+      ) : (
+        <>
+          <table className="gv-table">
+            <thead><tr><th>Golden dataset</th><th>Columns</th><th>Values</th><th>xtra score (latest output)</th></tr></thead>
+            <tbody>{d.versions.map((x) => (
+              <tr key={x.id} className={x.id === v.id ? "on" : ""} onClick={() => setChosen(x.id)} data-version={x.id}
+                  title={x.published_at ? `Last written ${x.published_at.slice(0, 10)}${x.published_by ? ` by ${x.published_by}` : ""}` : undefined}>
+                <td><b>{vname(x.id)}</b>{x.latest && <span className="faint"> latest</span>}</td>
+                <td className="mono">{x.columns.length ? x.columns.join(", ") : <span className="muted">only human-reviewed values</span>}</td>
+                <td>{fmt(x.values)} · <span className="gv-hr">{fmt(x.human)} human-reviewed</span></td>
+                <td>{scoreText(x.score)}</td>
+              </tr>))}
+            </tbody>
+          </table>
+          <div className="gv-where muted">Where {vname(v.id)} is written · click a file to see a sample</div>
+          <div className="box"><Tree lines={where(v, d.catalog, d.crawl)} open={setOpen} /></div>
+        </>
+      )}
     </div></div>
   );
 }

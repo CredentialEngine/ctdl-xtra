@@ -338,8 +338,8 @@ export const STEPS: Step[] = [
           : f.blocked ? <p>Here it's <b>greyed out</b>: some courses are still marked wrong or missing, and the reason
               is shown under the button. Approve stays greyed out until none is. Fix it with Improve all rules, or change those verdicts.</p>
           : <p>Nothing is marked wrong or missing here, so Approve can be pressed. The tour doesn't press it.</p>}
-        <p>Once a field's rule is approved, the <b>Publish</b> tab can publish that property into the golden dataset,
-          even while other fields are still being worked on.</p>
+        <p>Approving a field's rule publishes that column into the golden dataset, even while other fields are still
+          being worked on, and then scores xtra's latest extract output against it. <b>Golden datasets</b> lists each version.</p>
       </>
     ),
     absent: () => <p>The rule hasn't loaded.</p>,

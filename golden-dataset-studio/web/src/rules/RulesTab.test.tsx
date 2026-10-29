@@ -304,6 +304,41 @@ describe("RulesTab", () => {
     expect(container.querySelector("[data-tour=improve-rule]")).toBeNull();  // improving is one run for every rule, at the bottom of the list
   });
 
+  it("asks before approving a column's rule: the golden dataset's columns now and after, then approves and publishes", async () => {
+    const fetchMock = vi.mocked(fetch);
+    const base = fetchMock.getMockImplementation()!;
+    fetchMock.mockImplementation((url, init) => {
+      if (String(url).includes("/golden/approve/course-description")) {
+        return json({ publishes: true, rule_id: "course-description", property: "Description", column: "description",
+                      golden: "ruleset-v3", ruleset_version: 3, creates: false, now: ["inLanguage"], after: ["description", "inLanguage"],
+                      where: "/g/catalogs/avc/versions/ruleset-v3/", values: 1062, human: 31, rule: 1031 });
+      }
+      if (init?.method === "POST") {
+        posted.push(JSON.parse(String(init.body)));
+        return json({ event: { annotation_id: "ap-1", type: "approve", author: "Jared", at: "now", target: { kind: "rule", rule_id: "course-description" } },
+                      rule: summary({ status: "approved", approved_by: "Jared" }), elapsed_ms: 1,
+                      published: { written: true, publication: "ruleset-v3", created: false, column: "description",
+                                   columns: ["description", "inLanguage"], files: 1062 }, score: null });
+      }
+      return base(url, init);
+    });
+    await render();
+    await act(async () => { container.querySelector<HTMLButtonElement>("button.approve")!.click(); });
+    await act(async () => { await new Promise((r) => setTimeout(r, 0)); });
+    const dlg = document.querySelector<HTMLElement>(".apx")!;
+    expect(dlg.querySelector("h2")?.textContent).toBe("Approve description and publish it?");
+    expect([...dlg.querySelectorAll(".apx-cols tbody tr")].map((r) => r.textContent)).toEqual(
+      ["NowinLanguage", "After approvingdescription, inLanguage"]);
+    expect(dlg.querySelector(".apx-count")?.textContent).toContain("1,062 description values: 31 human-reviewed, 1,031 labelled by the rule.");
+    expect(posted).toEqual([]);  // nothing approved yet
+    const ok = [...dlg.querySelectorAll<HTMLButtonElement>("button")].find((b) => b.textContent === "Approve and publish")!;
+    await act(async () => { ok.click(); });
+    await act(async () => { await new Promise((r) => setTimeout(r, 0)); });
+    expect(posted).toEqual([expect.objectContaining({ type: "approve", target: { kind: "rule", rule_id: "course-description" } })]);
+    expect(document.querySelector(".apx")).toBeNull();
+    expect([...document.querySelectorAll(".toast")].pop()?.textContent).toBe("Approved and published description in ruleset v3");
+  });
+
   it("selects the row from the route, fades rows with a verdict, writes history lines", async () => {
     await render();
     const r = container.querySelectorAll(".row[data-row-index]");

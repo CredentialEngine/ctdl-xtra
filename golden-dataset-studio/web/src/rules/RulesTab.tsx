@@ -3,8 +3,8 @@
 // switch (?by=…&v=…, Evals spec §6.7) filter the rows of every rule, and the rule list counts the rows that pass.
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { api } from "../api/client";
-import type { CatalogDetail, Discussion, EventBrief, NewEvent, Overlay, RuleDetail, RulesResponse, RuleSummary, SampleInfo, Spread,
-  UnclassifiedPage } from "../api/types";
+import type { AnnotateResponse, ApprovePreview, CatalogDetail, Discussion, EventBrief, NewEvent, Overlay, RuleDetail, RulesResponse,
+  RuleSummary, SampleInfo, Spread, UnclassifiedPage } from "../api/types";
 import { PagePane, prefetchPages, type CapturedSelection, type Highlight } from "../pagepane";
 import { Ico } from "../shell/icons";
 import { useReviewer, useRole } from "../shell/reviewer";
@@ -20,6 +20,7 @@ import {
 } from "./logic";
 import { MissedCourse, MissedPage, type MissedState } from "./MissedPanel";
 import { Controls, Expansion, HistoryLine, Value } from "./parts";
+import { ApproveDialog } from "./ApproveDialog";
 import { RuleHead } from "./RuleHead";
 import { RuleList, type PostTalk } from "./RuleList";
 import { FixBar } from "../agent/FixBar";
@@ -68,6 +69,23 @@ function useTourAnchors(ref: React.RefObject<HTMLElement>) {
 
 const DEFAULT_PREFS = samplePrefs("review");
 
+const golden = (id?: string) => (id ?? "").replace(/^ruleset-v/, "ruleset v");
+
+/** After an approval's publish: wait for its score, then say how it went. */
+function followScore(cat: string, id: string, version: string, tries = 0): void {
+  setTimeout(async () => {
+    const d = await api.scoreDoc(cat, id).catch(() => null);
+    if (!d) return;
+    if (d.status === "running") { if (tries < 200) followScore(cat, id, version, tries + 1); return; }
+    if (d.status !== "done") { toast(`xtra score of ${version} ${d.status}${d.error ? `: ${d.error}` : ""}`); return; }
+    const basis = d.results.human ? "human" : "rule";
+    const res = d.results[basis];
+    if (res?.exact_match_rate == null) return;
+    toast(`xtra score of ${version}: ${Math.round(100 * res.exact_match_rate)}% exact, ${basis === "human" ? "human-reviewed" : "rule-matched"}`
+      + ` (${fmt(res.outcomes.match)} of ${fmt(res.values)})`, 5000);
+  }, 3000);
+}
+
 export default function RulesTab({ catalog, route }: TabProps) {
   const cat = catalog.short;
   const me = useReviewer();
@@ -91,6 +109,7 @@ export default function RulesTab({ catalog, route }: TabProps) {
   const [unclassified, setUnclassified] = useState<UnclassifiedPage[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [asking, setAsking] = useState<ApprovePreview | null>(null);  // approve and publish? (a column's rule)
   const token = useRef(0);
   const loadingMore = useRef(false);
   const overlays = useRef(new Map<string, Overlay>());
@@ -247,7 +266,7 @@ export default function RulesTab({ catalog, route }: TabProps) {
   }, [row, detail, active, ov, captures, draft, missing]);
 
   // --- saving ---------------------------------------------------------------------------------------------------
-  const post = useCallback(async (ev: NewEvent): Promise<EventBrief | null> => {
+  const send = useCallback(async (ev: NewEvent): Promise<AnnotateResponse | null> => {
     setBusy(true);
     try {
       const r = await api.annotate(cat, ev);
@@ -255,12 +274,16 @@ export default function RulesTab({ catalog, route }: TabProps) {
         setRules((rs) => (rs ? replaceSummary(rs, r.rule!) : rs));
         setDetail((d) => (d && d.rule_id === r.rule!.rule_id ? { ...d, ...r.rule! } : d));
       }
-      return briefOf(r.event as Parameters<typeof briefOf>[0]);
+      return r;
     } catch (e) {
       toast(`Not saved: ${String(e instanceof Error ? e.message : e)}`);
       return null;
     } finally { setBusy(false); }
   }, [cat]);
+  const post = useCallback(async (ev: NewEvent): Promise<EventBrief | null> => {
+    const r = await send(ev);
+    return r ? briefOf(r.event as Parameters<typeof briefOf>[0]) : null;
+  }, [send]);
 
   const saveRow = useCallback(async (i: number, what: { verdict: "correct" } | { draft: Draft }) => {
     const r = rows[i];
@@ -305,12 +328,26 @@ export default function RulesTab({ catalog, route }: TabProps) {
     if (detail?.kind === "page" && !unclassified) api.unclassifiedPages(cat, ext).then(setUnclassified, () => setUnclassified([]));
   }, [detail, unclassified, cat, ext]);
 
-  const approve = useCallback(async (type: "approve" | "reopen") => {
+  // Approving a column's rule publishes it and scores it (Evals spec §6.6): ask first, then follow the score.
+  const approve = useCallback(async (type: "approve" | "reopen", confirmed = false) => {
     if (!detail) return;
-    const brief = await post({ type, author: me, target: { kind: "rule", rule_id: detail.rule_id },
-                               note: type === "approve" ? "Approved in the Studio" : "Reopened in the Studio" });
-    if (brief) toast(`${type === "approve" ? "Approved" : "Reopened"}: ${detail.title}`);
-  }, [detail, me, post]);
+    if (type === "approve" && !confirmed && detail.kind === "field") {
+      const p = await api.approvePreview(cat, detail.rule_id).catch(() => null);
+      if (p?.publishes) { setAsking(p); return; }
+    }
+    const r = await send({ type, author: me, target: { kind: "rule", rule_id: detail.rule_id },
+                           note: type === "approve" ? "Approved in the Studio" : "Reopened in the Studio" });
+    setAsking(null);
+    if (!r) return;
+    const pub = r.published;
+    if (type === "reopen") toast(`Reopened: ${detail.title}`);
+    else if (pub?.error) toast(`Approved: ${detail.title}, but not published: ${pub.error}`);
+    else if (pub?.written) {
+      toast(`Approved and published ${pub.column} in ${golden(pub.publication)}${r.score ? " · scoring xtra's latest extract output…" : ""}`, 3000);
+      if (r.score) followScore(cat, r.score.id, golden(pub.publication));
+    } else if (pub && !pub.written) toast(`Approved: ${detail.title}. It has no CTDL term, so it isn't written to the golden dataset files.`, 4000);
+    else toast(`Approved: ${detail.title}`);
+  }, [cat, detail, me, send]);
 
   // --- keyboard (spec §7.2) ----------------------------------------------------------------------------------
   const keys = useRef<(e: KeyboardEvent) => void>(() => {});
@@ -391,6 +428,7 @@ export default function RulesTab({ catalog, route }: TabProps) {
           {!ext && <FixBar catalog={cat} name={catalog.name} rules={rules} />}</>} />}</aside>
       <section className="col mid">
         {detail && <RuleHead catalog={catalog} rule={detail} busy={busy} onApprove={() => approve("approve")} onReopen={() => approve("reopen")} />}
+        {asking && <ApproveDialog p={asking} busy={busy} onApprove={() => approve("approve", true)} onClose={() => setAsking(null)} />}
         {detail && <div className="rows-bar"><span><b>{fmt(total)}</b> {unitWord(detail.kind, detail.locator)}{filtered && <> · <b>filtered</b> by strata</>}{prefs.prior && <> · reviewed in other fields first</>} · {
           sq.order === "auto" ? "autostratified: 3 of each combination, rarest first"
           : sq.order === "shuffle" ? "shuffled"
