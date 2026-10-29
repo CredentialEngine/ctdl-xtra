@@ -14,7 +14,7 @@ export type PostTalk = (target: { kind: "rule" | "ruleset"; rule_id: string | nu
 
 export function RuleList({ rules, active, onPick, talk, onTalk, top, bottom, counts, countTip }: {
   rules: RulesResponse; active: string | null; onPick: (id: string) => void; talk?: Discussion | null; onTalk?: PostTalk;
-  counts?: Record<string, number> | null; countTip?: (n: number, field: boolean) => string;
+  counts?: Record<string, number> | null; countTip?: (n: number) => string;
   top?: ReactNode; /** after every group: the fix bar (Improve all rules), last so labeling comes first */ bottom?: ReactNode;
 }) {
   let first = true;
@@ -42,7 +42,7 @@ export function RuleList({ rules, active, onPick, talk, onTalk, top, bottom, cou
                 <div className="meta">
                   {counts
                     ? counts[r.rule_id]
-                      ? <Tip delay={1000} width={260} tip={countTip?.(counts[r.rule_id], r.kind === "field")}>
+                      ? <Tip delay={1000} width={260} tip={countTip?.(counts[r.rule_id])}>
                           <span className="rev match">{fmt(counts[r.rule_id])}</span></Tip>
                       : <span className="rev match none">—</span>
                     : <span className={`rev${r.reviewed ? "" : " none"}`} title="courses with a verdict / all courses"

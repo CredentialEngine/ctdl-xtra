@@ -72,7 +72,7 @@ export function SampleDrawer({ sample, prefs, onPrefs, modes, storageKey, collap
         {!filters && prior}
         {!filters && count}
       </div>
-      {filters && <div className="sm-head sm-row">{filters}{count}</div>}
+      {filters && <div className="sm-head sm-row">{filters}</div>}
       {filters && open && prior && <div className="sm-head sm-row">{prior}</div>}
       {(chips.length > 0 || (filters && !open && prefs.prior)) && (
         <div className="sm-chips">

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { EventBrief } from "../api/types";
 import {
-  addCapture, applyEvent, applyReview, approveBlocked, byLabel, canConfirm, comparedLine, filterCountTip, shortWhen, clip, controlOn, expectedOf, historyItems, isSettled, keyAction, missingEvent, newDraft, paneTabs,
+  addCapture, applyEvent, applyReview, approveBlocked, byLabel, canConfirm, comparedLine, defaultAnnotator, filterCountTip, shortWhen, clip, controlOn, expectedOf, historyItems, isSettled, keyAction, missingEvent, newDraft, paneTabs,
   parseMark, pushRecent, rowTarget, unitWord, verdictEvent, whereWord,
 } from "./logic";
 
@@ -192,11 +192,16 @@ describe("notes made on a diff (Evals spec §4.2)", () => {
   });
 });
 
-describe("filterCountTip", () => {
-  it("says what a rule's count means under the Annotated by filter", () => {
-    expect(filterCountTip(17, true, "waiting", null)).toBe("17 values of this rule an engineer checked, waiting for an expert to confirm");
-    expect(filterCountTip(1, true, "Jared Diener", "correct")).toBe("1 value of this rule Jared Diener annotated marked ✓ correct");
-    expect(filterCountTip(1048, true, "nobody", null)).toBe("1,048 values of this rule nobody has annotated yet");
-    expect(filterCountTip(3, false, null, "note")).toBe("3 rows of this rule annotated with a note");
+describe("filterCountTip and defaultAnnotator", () => {
+  it("says which rows a rule's count is", () => {
+    expect(filterCountTip(14, "Jared Diener", null)).toBe("14 rows annotated by Jared Diener");
+    expect(filterCountTip(1, "Jared Diener", "correct")).toBe("1 row annotated by Jared Diener (✓ correct)");
+    expect(filterCountTip(17, "waiting", null)).toBe("17 rows checked by an engineer, waiting for an expert");
+    expect(filterCountTip(1048, "nobody", null)).toBe("1,048 rows nobody has annotated yet");
+  });
+  it("defaults to the expert who annotated most", () => {
+    expect(defaultAnnotator([{ name: "Eric Riddoch", role: "engineer", values: 300 }, { name: "Cadence Calixto", role: "sme", values: 0 },
+      { name: "Jared Diener", role: "sme", values: 112 }])).toBe("Jared Diener");
+    expect(defaultAnnotator([])).toBeNull();
   });
 });

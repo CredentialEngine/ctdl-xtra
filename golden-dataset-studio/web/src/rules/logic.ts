@@ -219,6 +219,13 @@ export function shortWhen(at: string | null | undefined, now = Date.now()): stri
 /** The "Annotated by" filter's choices besides a person (review.py NOBODY, WAITING), as the dropdown names them. */
 export const BY_NOBODY = "nobody";
 export const BY_WAITING = "waiting";
+/** "Anyone" picked on purpose: without a `by` the Rules tab filters to its default annotator instead. */
+export const BY_ANYONE = "anyone";
+/** The Rules tab's default "Annotated by": the subject matter expert who annotated the most values (Jared, on AVC). */
+export function defaultAnnotator(people: { name: string; role: string; values: number }[] | undefined): string | null {
+  const top = (people ?? []).filter((p) => p.role === "sme" && p.values > 0).sort((a, b) => b.values - a.values)[0];
+  return top?.name ?? null;
+}
 export function byLabel(by: string | null): string {
   if (!by) return "Anyone";
   if (by === BY_NOBODY) return "Not annotated yet";
@@ -227,14 +234,13 @@ export function byLabel(by: string | null): string {
 }
 
 /** What a rule's count in the rule list means while the "Annotated by" filter is on (its delayed tooltip). */
-export function filterCountTip(n: number, field: boolean, by: string | null, verdict: string | null): string {
-  const unit = field ? (n === 1 ? "value" : "values") : (n === 1 ? "row" : "rows");
-  const how = verdict === "correct" ? " marked ✓ correct" : verdict === "wrong" ? " marked ✕ wrong" : verdict === "note" ? " with a note" : "";
-  const num = n.toLocaleString("en-US");
-  if (by === BY_NOBODY) return `${num} ${unit} of this rule nobody has annotated yet`;
-  if (by === BY_WAITING) return `${num} ${unit} of this rule an engineer checked${how}, waiting for an expert to confirm`;
-  if (!by) return `${num} ${unit} of this rule annotated${how}`;
-  return `${num} ${unit} of this rule ${by} annotated${how}`;
+export function filterCountTip(n: number, by: string | null, verdict: string | null): string {
+  const rows = `${n.toLocaleString("en-US")} ${n === 1 ? "row" : "rows"}`;
+  const how = verdict === "correct" ? " (✓ correct)" : verdict === "wrong" ? " (✕ wrong)" : verdict === "note" ? " (with a note)" : "";
+  if (by === BY_NOBODY) return `${rows} nobody has annotated yet`;
+  if (by === BY_WAITING) return `${rows} checked by an engineer, waiting for an expert${how}`;
+  if (!by) return `${rows} annotated by anyone${how}`;
+  return `${rows} annotated by ${by}${how}`;
 }
 
 // --- keyboard ----------------------------------------------------------------------------------------------------

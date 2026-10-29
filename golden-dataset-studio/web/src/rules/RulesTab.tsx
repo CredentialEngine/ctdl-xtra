@@ -15,7 +15,7 @@ import { fmt, toast, useKeyHints } from "../shell/ui";
 import { AnnotatedBy, ReviewLine, VerdictSwitch, WaitingNote } from "./AnnotatedBy";
 import { apiX, type Annotators, type RowX } from "./api";
 import {
-  addCapture, applyEvent, applyReview, BY_WAITING, briefOf, canConfirm, filterCountTip, isField, isSettled, keyAction, missingEvent, newDraft, norm, pushRecent, paneTabs, rowTarget,
+  addCapture, applyEvent, applyReview, BY_ANYONE, BY_WAITING, briefOf, canConfirm, defaultAnnotator, filterCountTip, isField, isSettled, keyAction, missingEvent, newDraft, norm, pushRecent, paneTabs, rowTarget,
   scrollWithin, shortTitle, verdictEvent, type Draft, type TabRef,
 } from "./logic";
 import { MissedCourse, MissedPage, type MissedState } from "./MissedPanel";
@@ -122,12 +122,19 @@ export default function RulesTab({ catalog, route }: TabProps) {
   const focus = route.params.get("row");
   // the extraction being reviewed: ?ext=… picks an older ruleset's, none = the latest (catalog.extraction)
   const ext = route.params.get("ext");
-  const by = route.params.get("by");
-  const verdict = route.params.get("v");
-  const setFilter = (o: { by?: string | null; v?: string | null }) => go(href(cat, "rules", ruleId, { ext, by, v: verdict, ...o }));
   const [people, setPeople] = useState<Annotators | null>(null);
+  const [peopleTried, setPeopleTried] = useState(false);
+  // "Annotated by": the URL's choice ("anyone" on purpose), else the expert who annotated most (Jared, on AVC)
+  const byParam = route.params.get("by");
+  const by = byParam === BY_ANYONE ? null : byParam ?? defaultAnnotator(people?.people);
+  const byReady = byParam !== null || peopleTried;  // the default needs the annotators first: no rows fetched twice
+  const verdict = route.params.get("v");
+  const setFilter = (o: { by?: string | null; v?: string | null }) => go(href(cat, "rules", ruleId, { ext, by: byParam, v: verdict, ...o }));
   const [saved, setSaved] = useState(0);  // verdicts saved here: the rule list's counts and the experts' note follow
-  useEffect(() => { apiX.annotators(cat, { by, verdict, ext }).then(setPeople, () => setPeople(null)); }, [cat, by, verdict, ext, saved]);
+  useEffect(() => {
+    const done = (p: Annotators | null) => { setPeople(p); setPeopleTried(true); };
+    apiX.annotators(cat, { by, verdict, ext }).then(done, () => done(null));
+  }, [cat, by, verdict, ext, saved]);
   const prefs = prefsOf.rule === ruleId ? prefsOf.p : DEFAULT_PREFS;
   const setPrefs = useCallback((p: SamplePrefs) => setPrefsOf({ rule: ruleId, p }), [ruleId]);
   const qKey = JSON.stringify(sampleQuery(prefs, "review"));
@@ -154,7 +161,7 @@ export default function RulesTab({ catalog, route }: TabProps) {
   }, [cat, me, loadTalk]);
 
   useEffect(() => {
-    if (!ruleId) return;
+    if (!ruleId || !byReady) return;
     const tok = ++token.current;
     setDraft(null); setMissed(null); setExtraTab(null); setActiveStem(null);
     Promise.all([api.rule(cat, ruleId, ext), apiX.rows(cat, ruleId, { limit: FIRST_PAGE, focus, ext, by, verdict, ...sq })]).then(([d, r]) => {
@@ -163,7 +170,7 @@ export default function RulesTab({ catalog, route }: TabProps) {
       centerNext.current = true; setError(null);
       if (rowsRef.current) rowsRef.current.scrollTop = 0;
     }, (e) => setError(String(e)));
-  }, [cat, ruleId, focus, sq, ext, by, verdict]);
+  }, [cat, ruleId, focus, sq, ext, by, verdict, byReady]);
 
   const kind = detail?.kind ?? null;
   const row = detail && detail.rule_id === ruleId ? rows[sel] ?? null : null;
@@ -418,9 +425,9 @@ export default function RulesTab({ catalog, route }: TabProps) {
 
   return (
     <div className="rules-layout w4-rules">
-      <aside className="col">{rules && <RuleList rules={rules} active={ruleId} onPick={(id) => go(href(cat, "rules", id, { ext, by, v: verdict }))}
-        talk={talk} onTalk={postTalk} counts={people?.rules} countTip={(n, field) => filterCountTip(n, field, by, verdict)}
-        top={<RulesetPicker catalog={catalog} ext={ext} onPick={(x) => go(href(cat, "rules", ruleId, { ext: x, by, v: verdict }))} />}
+      <aside className="col">{rules && <RuleList rules={rules} active={ruleId} onPick={(id) => go(href(cat, "rules", id, { ext, by: byParam, v: verdict }))}
+        talk={talk} onTalk={postTalk} counts={people?.rules} countTip={(n) => filterCountTip(n, by, verdict)}
+        top={<RulesetPicker catalog={catalog} ext={ext} onPick={(x) => go(href(cat, "rules", ruleId, { ext: x, by: byParam, v: verdict }))} />}
         bottom={<>
           {role === "sme" && <WaitingNote n={people?.waiting ?? 0} on={by === BY_WAITING}
             onToggle={() => setFilter({ by: by === BY_WAITING ? null : BY_WAITING, v: null })} />}
@@ -431,7 +438,7 @@ export default function RulesTab({ catalog, route }: TabProps) {
         {detail && <SampleDrawer sample={sample} prefs={prefs} onPrefs={setPrefs} modes={["review", "auto", "shuffle", "manual"]}
           storageKey="studio.rules.sample" collapseOn={moves} filters={<>
             <span className="sm-k">Annotated by</span>
-            <AnnotatedBy people={people} by={by} me={me} bare onPick={(x) => setFilter({ by: x })} />
+            <AnnotatedBy people={people} by={by} me={me} bare onPick={(x) => setFilter({ by: x ?? BY_ANYONE })} />
             <VerdictSwitch verdict={verdict} onPick={(x) => setFilter({ v: x })} />
           </>} />}
         <div className="rows" data-tour="rows" ref={rowsRef} onScroll={(e) => {
