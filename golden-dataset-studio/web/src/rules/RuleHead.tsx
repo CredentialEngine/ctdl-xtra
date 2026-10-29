@@ -1,5 +1,5 @@
 // Middle column header (spec §7.2): the CTDL term linked to its definition, the plain name under it,
-// "Approve" (greyed out with the reason while a course is wrong or missing), and
+// "Approve rule" (greyed out with the reason while a course is wrong or missing), and
 // "How this rule works ›" (collapsed, a chevron icon). The current version only.
 import type { CatalogDetail, RuleDetail } from "../api/types";
 import { Ico } from "../shell/icons";
@@ -72,7 +72,7 @@ export function RuleHead({ catalog, rule, onApprove, onReopen, busy }: {
         ) : (
           <span className="tipwrap" data-tip={blocked ?? undefined} data-tour="approve">
             <button className="btn approve" disabled={!!blocked || busy} onClick={onApprove}
-              aria-describedby={blocked ? "approve-why" : undefined}><Ico name="correct" />Approve</button>
+              aria-describedby={blocked ? "approve-why" : undefined}><Ico name="correct" />Approve rule</button>
             {blocked && <span id="approve-why" className="sr-only">{blocked}</span>}
           </span>
         )}

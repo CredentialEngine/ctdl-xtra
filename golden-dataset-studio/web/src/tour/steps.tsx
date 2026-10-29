@@ -352,7 +352,7 @@ export const STEPS: Step[] = [
     }),
     body: (f, c) => (
       <>
-        <p>When everything a rule found is right, <b>Approve</b> it. A rule is rejected if even one course is wrong.</p>
+        <p>When everything a rule found is right, press <b>Approve rule</b>. A rule is rejected if even one course is wrong.</p>
         {c.blocked !== c.base && f.rule ? <p>“{String(f.rule)}” has been opened for you.</p> : null}
         {f.approved ? <p>This rule is already approved ({String(f.by ?? "").replace(/\s*·\s*Reopen$/, "")}).</p>
           : f.blocked ? <p>Here it's <b>greyed out</b>: some courses are still marked wrong or missing, and the reason
