@@ -613,3 +613,60 @@ def cmd_score(args) -> int:
     if doc.get("slot_names"):
         print(f"  warning: {SLOT_NAMES}")
     return 0
+
+
+# --- the home page's catalogs table (Evals spec §6.1, §6.2) ------------------------------------------------------
+#: The Course columns the Studio has rules for, in order (the CTDL terms of model.PROPERTIES, without `ceterms:`).
+STUDIO_COLUMNS = [column(t) for _, t in model.PROPERTIES if t]
+#: Columns xtra's course extract writes that the Studio has no rules for yet (course_credits, course_credits_unit,
+#: course_prerequisites in xtra-cli's extract): the table shows them greyed, "not in this Studio yet".
+NOT_IN_STUDIO = ["creditValue", "creditUnitType", "prerequisite"]
+
+
+def column_statuses(ctx: Ctx) -> dict[str, dict]:
+    """column → {status, ruleset}: `published` (in the latest golden dataset; `ruleset` names it), `needs work` (known
+    wrong values: values its rule finds are marked wrong), or `in review`. From the latest extraction's rules and the
+    annotation log; nothing is read from the extraction's tables."""
+    from .review import LOADER
+
+    vs = golden_mod.versions(ctx)
+    published: set[str] = set()
+    if vs:
+        try:
+            published = set(ctx.read_json(f"{vs[max(vs)]['path']}/publication.json", immutable=False)
+                            .get("properties") or [])
+        except FileNotFoundError:
+            pass
+    out = {}
+    for r in golden_mod.property_rules(LOADER.review(ctx)):
+        if not r["ctdl_property"]:
+            continue
+        if r["property"] in published:
+            out[column(r["ctdl_property"])] = {"status": "published", "ruleset": max(vs)}
+        else:
+            out[column(r["ctdl_property"])] = {"status": "needs work" if r["status"] == "needs work" else "in review",
+                                               "ruleset": None}
+    return out
+
+
+def latest_score(ctx: Ctx, basis: str, cache: dict | None = None) -> dict | None:
+    """The newest finished score of xtra's latest extract output against the latest golden dataset, on one basis
+    (human: the human-reviewed values, scored as `human-reviewed` or as the latest version; rule: the latest version's
+    rule-matched values). None if there's no such score yet. Only score.json files are read (newest first); done ones
+    are kept in `cache`."""
+    outs, latest = outputs(ctx), latest_golden(ctx)
+    if not outs or not latest:
+        return None
+    want = {HUMAN_REVIEWED, latest} if basis == "human" else {latest}
+    for sid in reversed(score_ids(ctx)):
+        key = ("score.json", ctx.catalog, ctx.crawl, sid)
+        doc = (cache or {}).get(key) or read(ctx, sid)
+        if doc["status"] == "done" and cache is not None:
+            cache[key] = doc
+        res = (doc.get("results") or {}).get(basis)
+        if doc["status"] == "done" and res and doc["output"]["id"] == outs[-1]["id"] and doc["golden"]["id"] in want:
+            return {"id": doc["id"], "golden": doc["golden"]["id"], "output": doc["output"]["id"],
+                    "output_at": doc["output"].get("last_modified"), "values": res["values"],
+                    "outcomes": res["outcomes"], "by_column": res.get("by_column") or {},
+                    "implied": sorted(res.get("implied") or {})}
+    return None

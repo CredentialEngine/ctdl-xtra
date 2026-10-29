@@ -178,3 +178,4 @@ td .evx-tipw, .evx-grow .evx-tipw { display: flex; width: 100%; }
 :root[data-theme="dark"] .evx-cmd { background: var(--surface-2); }
 :root[data-theme="dark"] .evx-gchip { background: rgba(47, 84, 235, .18); border-color: rgba(129, 140, 248, .45); color: #c7d2fe; }
 :root[data-theme="dark"] .evx-xchip, :root[data-theme="dark"] .evx-col.sel::before { background: rgba(255, 255, 255, .08); }
+.evx-tip .hd { display: block; font-weight: 600; margin-bottom: 4px; }

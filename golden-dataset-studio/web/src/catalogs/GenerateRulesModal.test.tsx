@@ -8,6 +8,7 @@ const CARD: CatalogCard = { catalog: "catalog-citruscollege-edu", short: "catalo
   rules_total: 0, rules_approved: 0, status: "not imported" };
 vi.mock("../api/client", () => ({ api: {
   catalogs: () => Promise.resolve([CARD]),
+  catalogsSummary: () => Promise.resolve({ basis: "human", columns: [], not_in_studio: [], catalogs: {} }),
   firstRulesPrompt: () => Promise.resolve({ text: "# Write the first rules — Citruscollege catalog\n\nStart from marshall.\n",
     chars: 60, tokens: 15, template: "marshall", template_name: "Marshall", root: "azure://x", studio_root: "azure://x", warning: null }),
 } }));

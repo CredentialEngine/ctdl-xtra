@@ -6,6 +6,8 @@
 - `GET  /catalogs/{c}/scores`, `/scores/{id}`, `/scores/{id}/values` (one basis, narrowed by a column, a subject and
   an outcome, worst first, a page at a time, optionally grouped). Each row carries its Studio match (`rule_id`,
   `occurrence_key`, `value_index`, through the golden dataset's lineage), where a note or a verdict on it goes.
+- `GET  /catalogs-summary?basis=human|rule`: the home page's catalogs table (§6.1, §6.2): per catalog with rules, each
+  column's status and the exact matches of xtra's latest extract output against the latest golden dataset.
 """
 
 from __future__ import annotations
@@ -16,6 +18,7 @@ from typing import Annotated
 from fastapi import APIRouter, Body, HTTPException, Request
 
 from .. import scores
+from ..catalogs import CATALOGS
 from ..errors import UserError
 from .jobs import ScoreJobs
 from .state import not_found, studio
@@ -137,3 +140,25 @@ def score_values(request: Request, catalog: str, sid: str, basis: str = "human",
     return {"basis": basis, "result": doc["results"].get(basis), "total": _counts(mine),
             "columns": [{"column": c, **_counts(rs)} for c, rs in sorted(by_col.items())], "outcomes": _counts(in_col),
             "groups": groups, "rows": {"total": len(kept), "offset": offset, "page": PAGE, "items": page}}
+
+
+@router.get("/catalogs-summary")
+def catalogs_summary(request: Request, basis: str = "human") -> dict:
+    """The columns (the Studio's, then those xtra extracts that the Studio doesn't cover yet), and per catalog with
+    rules: each column's status and its latest score on `basis` (None: not scored yet). Catalogs without rules are
+    left out: the picker's list (`/catalogs`) says what they are."""
+    if basis not in scores.BASES:
+        raise HTTPException(422, f"basis must be one of {', '.join(scores.BASES)}")
+    st = studio(request)
+    out = {}
+    for e in st.ctx(next(iter(CATALOGS))).manifest()["catalogs"]:
+        k = next((c for c in e["crawls"] if c["crawl"] == e.get("current_crawl")), None)
+        if not (e.get("rulesets") and k and k.get("extractions")):
+            continue
+        try:
+            ctx = st.ctx(e["catalog"])
+            out[e["catalog"]] = {"columns": scores.column_statuses(ctx),
+                                 "score": scores.latest_score(ctx, basis, st.cache)}
+        except UserError as exc:
+            out[e["catalog"]] = {"columns": {}, "score": None, "error": str(exc)}
+    return {"basis": basis, "columns": scores.STUDIO_COLUMNS, "not_in_studio": scores.NOT_IN_STUDIO, "catalogs": out}

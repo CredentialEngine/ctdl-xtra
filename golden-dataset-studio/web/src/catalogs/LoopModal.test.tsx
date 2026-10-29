@@ -2,7 +2,8 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("../api/client", () => ({ api: { catalogs: () => Promise.resolve([]) } }));
+vi.mock("../api/client", () => ({ api: { catalogs: () => Promise.resolve([]),
+  catalogsSummary: () => Promise.resolve({ basis: "human", columns: [], not_in_studio: [], catalogs: {} }) } }));
 import CatalogPicker from "./CatalogPicker";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;

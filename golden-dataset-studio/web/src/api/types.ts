@@ -257,6 +257,17 @@ export interface CompareRecords {
 export type ScoreOutcome = "missing" | "wrong" | "partial" | "match";
 export type ScoreBasis = "human" | "rule";        // the human-reviewed values only; every rule-matched value
 export interface OutcomeCounts { values: number; missing: number; wrong: number; partial: number; match: number }
+
+/** The home page's catalogs table (Evals spec §6.1, §6.2): per catalog with rules, each column's status and the exact
+ * matches of xtra's latest extract output against the latest golden dataset, on one basis (null: not scored yet). */
+export type ColumnStatus = "published" | "in review" | "needs work";
+export interface CatalogSummary {
+  columns: Record<string, { status: ColumnStatus; ruleset: number | null }>;
+  score: { id: string; golden: string; output: string; output_at: string | null; values: number;
+    outcomes: Record<ScoreOutcome, number>; by_column: Record<string, OutcomeCounts>; implied: string[] } | null;
+  error?: string;
+}
+export interface CatalogsSummary { basis: ScoreBasis; columns: string[]; not_in_studio: string[]; catalogs: Record<string, CatalogSummary> }
 export interface ExtractOutput {
   id: string; path: string; report_etag: string; last_modified: string; run_id: string | null;
   discovery_run_id: string | null; only_golden_sample: boolean | null; records: number; records_written: number | null;

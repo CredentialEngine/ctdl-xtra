@@ -1,6 +1,6 @@
 // Thin fetch wrappers for the Studio API. Every tab uses these; they keep URLs in one place.
 import type {
-  ExtractOutputs, MatchRow, ScoreDoc, ScoreValues,
+  ExtractOutputs, MatchRow, ScoreBasis, ScoreDoc, ScoreValues, CatalogsSummary,
   CatalogCard, CatalogDetail, CrawledCatalog, FirstRulesPrompt, CompareRecords, CompareResponse, Discussion, CourseDetail, CourseHit, GoldenFileText, GoldenLineage, GoldenResponse,
   NewEvent, Overlay,
   PromptResponse, RuleDetail, RuleSummary, RulesResponse, RowsResponse, UnclassifiedPage,
@@ -32,6 +32,7 @@ const c = (catalog: string) => `/api/catalogs/${encodeURIComponent(catalog)}`;
 
 export const api = {
   catalogs: () => call<CatalogCard[]>("/api/catalogs"),
+  catalogsSummary: (basis: ScoreBasis) => call<CatalogsSummary>(`/api/catalogs-summary?basis=${basis}`),
   crawls: () => call<{ crawls_root: string; items: CrawledCatalog[] }>("/api/crawls"),
   addCatalog: (catalog: string, body: { crawl?: string; by?: string }) =>
     call<unknown>(`/api/crawls/${encodeURIComponent(catalog)}/add`, {

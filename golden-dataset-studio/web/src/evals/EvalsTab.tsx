@@ -266,28 +266,42 @@ function MiniBar({ c }: { c: Counts | null }) {
   return <i className="evx-mini">{c && n ? OUTCOMES.slice().reverse().map((k) => c[k] > 0 && <b key={k} className={`o-${k}`} style={{ height: `${Math.max(1, (c[k] / n) * 14)}px` }} />) : null}</i>;
 }
 
-/** Hovering a bar or a legend colour: each outcome, its count and its rule, and how similarity is computed. */
-export function OutcomeTip({ counts, children }: { counts: Counts | OutcomeCounts | null; children: ReactNode }) {
-  const [at, setAt] = useState<{ left: number; top: number; width: number } | null>(null);
-  // fixed to the viewport, so the scrolling column never clips it
+/** A dark tooltip under its children while hovered or focused, fixed to the viewport so a scrolling column never
+ * clips it. */
+export function Tip({ tip, width = 340, children }: { tip: ReactNode; width?: number; children: ReactNode }) {
+  const [at, setAt] = useState<{ left: number; top: number; maxWidth: number } | null>(null);
   const show = (e: { currentTarget: HTMLElement }) => {
     const r = e.currentTarget.getBoundingClientRect();
-    const w = Math.min(340, window.innerWidth - 16);
-    setAt({ left: Math.max(8, Math.min(r.left + r.width / 2 - w / 2, window.innerWidth - w - 8)), top: r.bottom + 8, width: w });
+    setAt({ left: r.left + r.width / 2, top: r.bottom + 8, maxWidth: Math.min(width, window.innerWidth - 16) });
+  };
+  // centred under its children, then kept inside the window
+  const place = (el: HTMLSpanElement | null) => {
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    const left = Math.max(8, Math.min(r.left, window.innerWidth - r.width - 8));
+    if (Math.abs(left - r.left) > 0.5) el.style.left = `${parseFloat(el.style.left) + left - r.left}px`;
   };
   return (
     <span className="evx-tipw" onMouseEnter={show} onMouseLeave={() => setAt(null)} onFocus={show} onBlur={() => setAt(null)}>
       {children}
-      {at && createPortal(
-        <span className="evx-tip" role="tooltip" style={at}>
-          <table><tbody>
-            {OUTCOMES.slice().reverse().map((o) => (
-              <tr key={o}><td><i className={`sw o-${o}`} />{o}</td>{counts && <td className="n">{fmt(counts[o])}</td>}<td>{OUTCOME_RULE[o]}</td></tr>
-            ))}
-          </tbody></table>
-          <span className="ft">{SIMILARITY}</span>
-        </span>, document.body)}
+      {at && createPortal(<span ref={place} className="evx-tip" role="tooltip" style={{ ...at, transform: "translateX(-50%)" }}>{tip}</span>,
+        document.body)}
     </span>
+  );
+}
+
+/** Hovering a bar or a legend colour: each outcome, its count and its rule, and how similarity is computed. */
+export function OutcomeTip({ counts, title, children }: { counts: Counts | OutcomeCounts | null; title?: string; children: ReactNode }) {
+  return (
+    <Tip tip={<>
+      {title && <span className="hd">{title}</span>}
+      <table><tbody>
+        {OUTCOMES.slice().reverse().map((o) => (
+          <tr key={o}><td><i className={`sw o-${o}`} />{o}</td>{counts && <td className="n">{fmt(counts[o])}</td>}<td>{OUTCOME_RULE[o]}</td></tr>
+        ))}
+      </tbody></table>
+      <span className="ft">{SIMILARITY}</span>
+    </>}>{children}</Tip>
   );
 }
 
@@ -388,7 +402,7 @@ function ColRow({ name, c, on, total = false, onClick }: { name: string; c: Outc
   );
 }
 
-function Bar({ c }: { c: OutcomeCounts }) {
+export function Bar({ c }: { c: OutcomeCounts }) {
   return (
     <span className="evx-bar" role="img" aria-label={OUTCOMES.map((o) => `${o} ${c[o]}`).join(", ")}>
       {OUTCOMES.slice().reverse().filter((o) => c[o] > 0).map((o) => <i key={o} className={`o-${o}`} style={{ flexGrow: c[o] }} />)}

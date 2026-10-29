@@ -204,3 +204,37 @@ def test_the_pending_score_runs_when_due(scored):
     assert not ctx.root.exists(path)
     latest = scores.all_scores(Ctx(ctx.root, CAT))[0]
     assert (latest["golden"]["id"], latest["reason"], latest["status"]) == ("human-reviewed", "Jared marked course-name correct", "done")
+
+
+def test_the_catalogs_summary_has_each_columns_status_and_the_latest_score(scored):
+    """Evals step 5: the home page's catalogs table, from small files only (score.json, publication.json, the log)."""
+    c, ctx, tmp = scored
+    s = c.get("/api/catalogs-summary").json()
+    assert s["basis"] == "human" and s["columns"] == ["codedNotation", "identifier", "name", "description",
+                                                      "subjectWebpage", "lifeCycleStatusType", "inLanguage"]
+    assert s["not_in_studio"] == ["creditValue", "creditUnitType", "prerequisite"]
+    cat = s["catalogs"][CAT]
+    assert cat["columns"]["codedNotation"] == {"status": "published", "ruleset": 1}
+    assert cat["columns"]["name"] == {"status": "published", "ruleset": 1}
+    assert cat["score"] is None  # the extract output isn't scored yet
+    statuses = {k: v["status"] for k, v in cat["columns"].items()}
+    assert set(statuses) <= set(s["columns"]) and statuses.get("description", "in review") == "in review"
+
+    assert main(["score", "--root", ctx.root.uri, "--catalog", CAT, "--ruleset", "1"]) == 0
+    c.app.state.studio.ctx(CAT).invalidate()  # the server re-reads the manifest every few seconds
+    human = c.get("/api/catalogs-summary", params={"basis": "human"}).json()["catalogs"][CAT]["score"]
+    assert (human["id"], human["golden"], human["values"], human["outcomes"]["match"]) == ("sc-0001", "ruleset-v1", 1, 1)
+    rule = c.get("/api/catalogs-summary", params={"basis": "rule"}).json()["catalogs"][CAT]["score"]
+    assert rule["values"] == 6 and rule["by_column"]["name"] == {"values": 3, "missing": 1, "wrong": 0, "partial": 1, "match": 1}
+    assert c.get("/api/catalogs-summary", params={"basis": "x"}).status_code == 422
+
+
+
+def test_a_column_with_values_marked_wrong_has_known_wrong_values(studio):  # noqa: F811
+    c, ctx, gold = studio
+    assert c.get("/api/catalogs-summary").json()["catalogs"][CAT]["columns"]["codedNotation"]["status"] == "in review"
+    _mark(c, JARED, "course-code", _rows(c, "course-code")["page-1"], "wrong")
+    golden.publish(ctx, str(gold), "test", allow_unapproved=True, properties=["Learning Opportunity Name"])
+    c.app.state.studio.ctx(CAT).invalidate()
+    cols = c.get("/api/catalogs-summary").json()["catalogs"][CAT]["columns"]
+    assert cols == {"codedNotation": {"status": "needs work", "ruleset": None}, "name": {"status": "published", "ruleset": 1}}
