@@ -51,3 +51,10 @@
 .ctab-legend > span { display: inline-flex; align-items: center; gap: 6px; }
 .ctab-legend .ico svg { width: 15px; height: 15px; display: block; }
 .ctab-legend b.faint { font-weight: 400; font-size: 15px; }
+
+/* Golden dataset: per column a small KaTeX fraction (expert-reviewed + rule-labelled over the values found), one line */
+.ctab td.frac { white-space: nowrap; padding: 6px 5px; }
+.ctab .fr { outline: none; cursor: default; }
+.ctab .fr .katex, .ctab-legend .fr .katex { font-size: 10.5px; }
+.ctab td.frac.in-review .fr { color: var(--ink-2); }
+.ctab td.frac.needs-work .fr { color: var(--red, #b42318); }

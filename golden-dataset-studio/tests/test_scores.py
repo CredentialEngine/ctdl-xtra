@@ -236,8 +236,9 @@ def test_the_catalogs_summary_has_each_columns_status_and_the_latest_score(score
                                                       "subjectWebpage", "lifeCycleStatusType", "inLanguage"]
     assert s["not_in_studio"] == ["creditValue", "creditUnitType", "prerequisite"]
     cat = s["catalogs"][CAT]
-    assert cat["columns"]["codedNotation"] == {"status": "published", "ruleset": 1}
-    assert cat["columns"]["name"] == {"status": "published", "ruleset": 1}
+    # each column's values in the golden dataset (human-reviewed + rule-labelled) of the values its rule found
+    assert cat["columns"]["codedNotation"] == {"status": "published", "ruleset": 1, "human": 0, "rule": 3, "found": 3}
+    assert cat["columns"]["name"] == {"status": "published", "ruleset": 1, "human": 1, "rule": 2, "found": 3}  # Jared checked one
     assert cat["score"] is None  # the extract output isn't scored yet
     statuses = {k: v["status"] for k, v in cat["columns"].items()}
     assert set(statuses) <= set(s["columns"]) and statuses.get("description", "in review") == "in review"
@@ -256,10 +257,13 @@ def test_a_column_with_values_marked_wrong_has_known_wrong_values(studio):  # no
     c, ctx, gold = studio
     assert c.get("/api/catalogs-summary").json()["catalogs"][CAT]["columns"]["codedNotation"]["status"] == "in review"
     _mark(c, JARED, "course-code", _rows(c, "course-code")["page-1"], "wrong")
+    _mark(c, JARED, "course-code", _rows(c, "course-code")["page-2"], "correct")
     golden.publish(ctx, str(gold), "test", allow_unapproved=True, properties=["Learning Opportunity Name"])
     c.app.state.studio.ctx(CAT).invalidate()
     cols = c.get("/api/catalogs-summary").json()["catalogs"][CAT]["columns"]
-    assert cols == {"codedNotation": {"status": "needs work", "ruleset": None}, "name": {"status": "published", "ruleset": 1}}
+    # an unpublished column has only its human-reviewed values in the golden dataset
+    assert cols == {"codedNotation": {"status": "needs work", "ruleset": None, "human": 1, "rule": 0, "found": 3},
+                    "name": {"status": "published", "ruleset": 1, "human": 0, "rule": 3, "found": 3}}
 
 
 def test_check_resolves_each_scores_provenance_and_reports_a_score_left_running(scored):

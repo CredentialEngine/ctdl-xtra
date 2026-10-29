@@ -268,7 +268,9 @@ export interface OutcomeCounts { values: number; missing: number; wrong: number;
  * matches of xtra's latest extract output against the latest golden dataset, on one basis (null: not scored yet). */
 export type ColumnStatus = "published" | "in review" | "needs work";
 export interface CatalogSummary {
-  columns: Record<string, { status: ColumnStatus; ruleset: number | null }>;
+  /** per column: its status, and its values in the latest golden dataset (`human` an expert reviewed, `rule` its
+   * approved rule labels) of the values its rule `found` in the latest extraction */
+  columns: Record<string, { status: ColumnStatus; ruleset: number | null; human: number; rule: number; found: number }>;
   score: { id: string; golden: string; output: string; output_at: string | null; values: number;
     outcomes: Record<ScoreOutcome, number>; by_column: Record<string, OutcomeCounts>; implied: string[] } | null;
   error?: string;

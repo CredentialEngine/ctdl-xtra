@@ -1,7 +1,7 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { CatalogCard, CatalogsSummary, ScoreBasis } from "../api/types";
+import type { CatalogCard, CatalogsSummary, ColumnStatus, ScoreBasis } from "../api/types";
 
 const card = (o: Partial<CatalogCard>): CatalogCard => ({ catalog: "avc", short: "avc", name: "AVC",
   institution: "Antelope Valley College", platform: "", logo: null, pages: 1062, crawl: "2026-10-12T20-59-13Z", ruleset_version: 3,
@@ -10,12 +10,12 @@ const CARDS = [card({}), card({ catalog: "ualr", short: "ualr", name: "Universit
   rules_total: 0, rules_approved: 0, status: "not imported", crawl: "2026-10-18T00-00-00Z" })];
 const COLS = ["codedNotation", "identifier", "name", "description", "subjectWebpage", "lifeCycleStatusType", "inLanguage"];
 const counts = (match: number, partial: number, wrong: number) => ({ values: match + partial + wrong, match, partial, wrong, missing: 0 });
+const col = (status: ColumnStatus, ruleset: number | null) => ({ status, ruleset, human: 14, rule: 0, found: 1062 });
 const summary = (basis: ScoreBasis): CatalogsSummary => ({ basis, columns: COLS, not_in_studio: ["creditValue", "creditUnitType", "prerequisite"],
   catalogs: { avc: {
-    columns: { codedNotation: { status: "in review", ruleset: null }, identifier: { status: "in review", ruleset: null },
-      name: { status: "in review", ruleset: null }, description: { status: "needs work", ruleset: null },
-      subjectWebpage: { status: "in review", ruleset: null }, lifeCycleStatusType: { status: "in review", ruleset: null },
-      inLanguage: { status: "published", ruleset: 3 } },
+    columns: { codedNotation: col("in review", null), identifier: col("in review", null), name: col("in review", null),
+      description: col("needs work", null), subjectWebpage: col("in review", null), lifeCycleStatusType: col("in review", null),
+      inLanguage: { ...col("published", 3), rule: 1048 } },
     score: basis === "human" ? { id: "sc-0006", golden: "ruleset-v3", output: "2026-10-26T20-36-03Z", output_at: null, values: 56,
       outcomes: { match: 31, partial: 21, wrong: 4, missing: 0 }, implied: ["inLanguage", "lifeCycleStatusType", "subjectWebpage"],
       by_column: { codedNotation: counts(14, 0, 0), identifier: counts(0, 14, 0), name: counts(14, 0, 0), description: counts(3, 7, 4) } } : null,
@@ -46,7 +46,7 @@ const button = (t: string) => [...host.querySelectorAll("button")].find((b) => b
 const rows = () => [...host.querySelectorAll("tbody tr")];
 
 describe("the catalogs table", () => {
-  it("golden dataset: angled columns without ceterms:, the Rules tab's icons, Open → or Generate rules", async () => {
+  it("golden dataset: angled columns without ceterms:, a fraction per column, Open → or Generate rules", async () => {
     await render();
     const heads = [...host.querySelectorAll("th.rot")].map((t) => t.textContent);
     expect(heads).toEqual([...COLS, "creditValue", "creditUnitType", "prerequisite"]);
@@ -61,10 +61,19 @@ describe("the catalogs table", () => {
     expect(ualr.textContent).toContain("no rules yet");
     expect(ualr.querySelector("button")!.textContent).toBe("Generate rules");
     expect(ualr.querySelector("button .ico svg")).toBeTruthy();  // the AI sparkle
-    // hovering ✓ names the golden dataset
+    // each column: expert-reviewed + rule-labelled over the values its rule found, typeset by KaTeX
+    expect(avc.querySelectorAll("td.frac .katex")).toHaveLength(7);
+    expect(avc.querySelector("td.c[aria-label='inLanguage: published'] annotation")!.textContent).toBe("\\dfrac{14 + 1{,}048}{1{,}062}");
+    expect(avc.querySelector("td.c[aria-label='name: in review'] annotation")!.textContent).toBe("\\dfrac{14 + 0}{1{,}062}");
+    // hovering it says so in words, after a second
+    vi.useFakeTimers();
     const pub = avc.querySelector("td.c[aria-label='inLanguage: published'] .evx-tipw")!;
     await act(async () => pub.dispatchEvent(new MouseEvent("mouseover", { bubbles: true })));
-    expect(document.querySelector("[role=tooltip]")!.textContent).toBe("Published in golden dataset ruleset v3");
+    expect(document.querySelector("[role=tooltip]")).toBeNull();
+    await act(async () => { vi.advanceTimersByTime(1000); });
+    vi.useRealTimers();
+    expect(document.querySelector("[role=tooltip]")!.textContent).toBe(
+      "14 values an expert reviewed + 1,048 labelled by the approved rule, of 1,062 values the rule found");
   });
 
   it("xtra score: exact matches with their count, per column % or n/s or —, the basis switch", async () => {

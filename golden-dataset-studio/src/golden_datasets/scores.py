@@ -623,29 +623,57 @@ STUDIO_COLUMNS = [column(t) for _, t in model.PROPERTIES if t]
 NOT_IN_STUDIO = ["creditValue", "creditUnitType", "prerequisite"]
 
 
-def column_statuses(ctx: Ctx) -> dict[str, dict]:
-    """column → {status, ruleset}: `published` (in the latest golden dataset; `ruleset` names it), `needs work` (known
-    wrong values: values its rule finds are marked wrong), or `in review`. From the latest extraction's rules and the
-    annotation log; nothing is read from the extraction's tables."""
+def column_statuses(ctx: Ctx, cache: dict | None = None) -> dict[str, dict]:
+    """column → {status, ruleset, human, rule, found}: `published` (in the latest golden dataset; `ruleset` names
+    it), `needs work` (known wrong values: values its rule finds are marked wrong), or `in review`; `human` / `rule`:
+    the column's values in the latest golden dataset as publishing writes it now (an expert reviewed them / its
+    approved rule labels them; 0 while the column isn't published), `found`: the values its rules found in the latest
+    extraction. From the rules, the annotation log and golden.plan; `cache` keeps the counts until the log moves."""
     from .review import LOADER
 
     vs = golden_mod.versions(ctx)
-    published: set[str] = set()
+    doc: dict = {}
     if vs:
         try:
-            published = set(ctx.read_json(f"{vs[max(vs)]['path']}/publication.json", immutable=False)
-                            .get("properties") or [])
+            doc = ctx.read_json(f"{vs[max(vs)]['path']}/publication.json", immutable=False)
         except FileNotFoundError:
             pass
+    published = set(doc.get("properties") or [])
+    rv = LOADER.review(ctx)
+    counts = _column_counts(ctx, rv, doc, cache)
     out = {}
-    for r in golden_mod.property_rules(LOADER.review(ctx)):
+    for r in golden_mod.property_rules(rv):
         if not r["ctdl_property"]:
             continue
+        c = counts.get(r["ctdl_property"], {})
+        n = {"human": c.get("human", 0), "rule": c.get("rule", 0), "found": c.get("found", 0)}
         if r["property"] in published:
-            out[column(r["ctdl_property"])] = {"status": "published", "ruleset": max(vs)}
+            out[column(r["ctdl_property"])] = {"status": "published", "ruleset": max(vs), **n}
         else:
             out[column(r["ctdl_property"])] = {"status": "needs work" if r["status"] == "needs work" else "in review",
-                                               "ruleset": None}
+                                               "ruleset": None, **n}
+    return out
+
+
+def _column_counts(ctx: Ctx, rv, doc: dict, cache: dict | None) -> dict[str, Counter]:
+    """ctdl_property → Counter(human, rule, found): the latest golden dataset's values as golden.plan writes them (on
+    its publication's extraction, its properties), and the values the latest extraction's rules found."""
+    from .review import LOADER
+
+    key = ("column-counts", ctx.catalog, ctx.crawl, rv.snap.ext, doc.get("publication"), doc.get("published_at"),
+           LOADER.log(ctx).offset)
+    if cache is not None and key in cache:
+        return cache[key]
+    pub_rv = LOADER.review(ctx, doc["extraction"]) if doc.get("extraction") else rv
+    out: dict[str, Counter] = {}
+    for row in golden_mod.plan(pub_rv, set(doc.get("properties") or []))["lineage"]:
+        if row["ctdl_property"]:
+            out.setdefault(row["ctdl_property"], Counter())[row["approval"]] += 1
+    for rid, r in rv.snap.rules.items():
+        if r["kind"] == "field" and r.get("ctdl_property"):
+            out.setdefault(r["ctdl_property"], Counter())["found"] += rv.snap.fill(rid)["found"]
+    if cache is not None:
+        cache[key] = out
     return out
 
 
