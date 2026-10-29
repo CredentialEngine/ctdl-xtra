@@ -30,7 +30,7 @@ POC's design ([`poc.md`](poc.md)). **Mockups (§6) come first: review them befor
 | 20 | Home table columns | **The seven Course columns, plus the columns the extract output has that the Studio doesn't cover yet** (credits, prerequisites), shown as "—". |
 | 21 | Icons | **The Rules tab's icons** (approved, needs work, in review), reused as they are. |
 | 22 | Versioned folders | **Catalog outside, versions inside**, under `catalogs/` (§4.1). |
-| 23 | Home table rows | **No expanding rows, no chevron.** The logo comes first, then the name (it wraps) with **Open →** beside it, or **Generate rules →** for a catalog without rules. No ruleset or version line under the name. Column headers are angled so the row stays compact. |
+| 23 | Home table rows | **No expanding rows, no chevron.** **Open →** (or **✦ Generate rules** for a catalog without rules) comes first, in its own column (Eric, 2026-10-28), then the logo, then the name, wrapped to a narrow column. No ruleset or version line under the name. Column headers are angled so the row stays compact. |
 | 24 | The red ✕ | Means **known wrong values**: someone marked values this rule finds as wrong. |
 | 25 | The green ✓ on the home table | Means **published**. Hovering it names the golden dataset (its ruleset), for example "Published in golden dataset ruleset v3". |
 | 26 | Evals dropdowns | Show **(latest)** instead of a date. A date appears only when an older item is picked, in the browser's local time zone (read from the browser; no location prompt). |
@@ -279,8 +279,9 @@ are illustrative. **The xtra score views and the history are illustrative too:**
 ![Home, golden dataset](mockups/m1.png)
 
 - **One compact row per catalog:**
-  - the logo first;
-  - the name (it wraps), with **Open →** beside it, or **✦ Generate rules** for a catalog without rules;
+  - **Open →** (or **✦ Generate rules**) first, in its own column;
+  - the logo;
+  - the name, wrapped to a narrow column;
   - the date of its pages;
   - one icon per column.
 - **Angled field names** (no `ceterms:` prefix). No card around the table.

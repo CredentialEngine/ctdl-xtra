@@ -1,5 +1,5 @@
-// Home: the catalogs table (Evals spec §6.1, §6.2). One compact row per catalog: its logo, its name with Open → (or
-// ✦ Generate rules for a catalog without rules), then one cell per column under angled headers: the Studio's seven
+// Home: the catalogs table (Evals spec §6.1, §6.2). One compact row per catalog: Open → (or ✦ Generate rules for a
+// catalog without rules) in its own first column, its logo, its name (wrapped to a narrow column), then one cell per column under angled headers: the Studio's seven
 // Course columns, then those xtra extracts that the Studio doesn't cover yet (greyed "—"). Two views, switched next to
 // the heading:
 // - Golden dataset: the date of its pages and the Rules tab's icon per column (✓ published, ○ in review, ✕ known wrong);
@@ -100,7 +100,7 @@ export default function CatalogPicker() {
         </>}
         <table className="ctab">
           <thead><tr>
-            <th /><th className="plain">Catalog</th>
+            <th /><th /><th className="plain">Catalog</th>
             {view === "golden" ? <th className="plain">Pages from</th>
               : <th className="plain">Exact matches<span className={`evx-basis-pill ${basis}`}>{BASIS_NAME[basis]}</span></th>}
             {cols.map((k) => <th key={k} className="rot"><span>{k}</span></th>)}
@@ -114,13 +114,14 @@ export default function CatalogPicker() {
               const why = inFlight ? addingText(c) : c.status === "not imported" ? (c.pages ? "no rules yet" : "pages not indexed") : "";
               return (
                 <tr key={c.catalog} className={isReady ? "" : `off ${inFlight ? c.status : ""}`}>
-                  <td className="logo">{c.logo && <img src={c.logo} alt={`${c.name} logo`} />}</td>
-                  <td className="name"><div className="wrapn"><span className="nm">{c.institution}</span>
+                  <td className="act">
                     {isReady ? <a className="btn sm" href={href(c.short, "rules")}>Open →</a>
                       : c.status === "failed" ? <button className="btn sm" onClick={() => api.dismissAdd(c.catalog).then(load)}>Dismiss</button>
                         : c.status === "not imported" && c.pages
                           ? <button className="btn sm" onClick={() => setGenerate(c)}><Ico name="spark" />Generate rules</button> : null}
-                  </div></td>
+                  </td>
+                  <td className="logo">{c.logo && <img src={c.logo} alt={`${c.name} logo`} />}</td>
+                  <td className="name"><span className="nm">{c.institution}</span></td>
                   {view === "golden"
                     ? <GoldenCells c={c} s={s} cols={cols} why={why} />
                     : <ScoreCells c={c} s={s} cols={cols} why={why} basis={basis} />}
