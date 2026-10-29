@@ -345,6 +345,29 @@ the versions: "Annotated in"), `nobody` or `waiting` (engineer-checked); `verdic
             "missing": missing, "focus_index": focus_index, "elapsed_ms": round(1000 * (time.perf_counter() - t0), 1)}
 
 
+@router.get("/catalogs/{catalog}/match")
+def match(request: Request, catalog: str, rule: str, occ: str, ext: str | None = None) -> dict:
+    """One field rule's row on one occurrence, as `/rows` has it (its value, verdict, comments, review marks): what
+    Evals and Compare show beside a diff, and what a note or a verdict there supersedes."""
+    rv = _review(request, catalog, ext)
+    snap = rv.snap
+    if rule not in snap.rules:
+        raise not_found(f"{rule} is not in ruleset v{snap.ruleset_version}")
+    rows = snap.rows(rule)
+    row = next((r for r in rows if r["occurrence_key"] == occ), None)
+    if row is None:
+        raise not_found(f"{rule} has no row on {occ} in {snap.ext}")
+    s = rv.row_states(rule, rows).get(row["key"])  # every row: annotations re-attach across them
+    r = snap.rules[rule]
+    return {"rule_id": rule, "kind": r["kind"], "ctdl_property": r.get("ctdl_property"),
+            "property_label": r.get("property_label"), "extraction": snap.ext, "key": row["key"],
+            "occurrence_key": occ, "course_key": row["course_key"], "page_stem": row["page_stem"],
+            "value": row["value"], "status": row["status"], "css_path": row["css_path"],
+            "char_start": row["char_start"], "char_end": row["char_end"],
+            "state": s.state if s else None, "verdict": _event_brief(s.verdict) if s else None, **_review_state(s),
+            "comments": [_event_brief(c) for c in s.comments] if s else []}
+
+
 @router.get("/catalogs/{catalog}/annotators")
 def annotators(request: Request, catalog: str, ext: str | None = None, by: str | None = None,
                verdict: str | None = None) -> dict:

@@ -3,8 +3,9 @@
 - `GET  /catalogs/{c}/extract-outputs`: the outputs the Studio has seen (copied), newest first, with their scores;
   a new one is copied and scored against the latest golden dataset.
 - `POST /catalogs/{c}/scores` `{golden, output, by}`: the score of that pair (the existing one, or `running`).
-- `GET  /catalogs/{c}/scores`, `/scores/{id}`, `/scores/{id}/values` (one basis, narrowed by a column and an outcome,
-  worst first, a page at a time).
+- `GET  /catalogs/{c}/scores`, `/scores/{id}`, `/scores/{id}/values` (one basis, narrowed by a column, a subject and
+  an outcome, worst first, a page at a time, optionally grouped). Each row carries its Studio match (`rule_id`,
+  `occurrence_key`, `value_index`, through the golden dataset's lineage), where a note or a verdict on it goes.
 """
 
 from __future__ import annotations
@@ -32,7 +33,10 @@ def _brief(doc: dict) -> dict:
     return {"id": doc["id"], "status": doc["status"], "golden": doc["golden"]["id"], "output": doc["output"]["id"],
             "created_at": doc["created_at"], "error": doc.get("error"),
             **{f"{b}_rate": (res.get(b) or {}).get("exact_match_rate") for b in scores.BASES},
-            **{f"{b}_values": (res.get(b) or {}).get("values") for b in scores.BASES}}
+            **{f"{b}_values": (res.get(b) or {}).get("values") for b in scores.BASES},
+            **{f"{b}_outcomes": (res.get(b) or {}).get("outcomes") for b in scores.BASES},
+            "golden_kind": doc["golden"]["kind"], "golden_as_of": doc["golden"].get("as_of"),
+            "finished_at": doc.get("finished_at"), "slot_names": doc.get("slot_names")}
 
 
 @router.get("/catalogs/{catalog}/extract-outputs")
@@ -49,7 +53,8 @@ def extract_outputs(request: Request, catalog: str) -> dict:
     for doc in scores.all_scores(ctx):
         by_output.setdefault(doc["output"]["id"], []).append(_brief(doc))
     return {"outputs": [{**o, "scores": by_output.get(o["id"], [])} for o in reversed(scores.outputs(ctx))],
-            "latest_golden": scores.latest_golden(ctx), "error": error, "running": jobs(request).busy(ctx.catalog)}
+            "latest_golden": scores.latest_golden(ctx), "goldens": scores.goldens(ctx), "error": error,
+            "running": jobs(request).busy(ctx.catalog)}
 
 
 @router.get("/catalogs/{catalog}/scores")
@@ -87,12 +92,19 @@ def _counts(rows: list[dict]) -> dict:
     return {"values": len(rows), **{o: c[o] for o in scores.OUTCOMES}}
 
 
+GROUPS = ("column", "subject")
+
+
 @router.get("/catalogs/{catalog}/scores/{sid}/values")
 def score_values(request: Request, catalog: str, sid: str, basis: str = "human", column: str | None = None,
-                 outcome: str | None = None, offset: int = 0) -> dict:
+                 subject: str | None = None, outcome: str | None = None, group: str | None = None,
+                 offset: int = 0) -> dict:
+    """`group` (column · subject): the values narrowed by everything but that, in groups, each with its counts."""
     ctx, doc = _doc(request, catalog, sid)
     if doc["status"] != "done":
         raise HTTPException(409, f"{sid} is {doc['status']}")
+    if group not in (None, "", *GROUPS):
+        raise HTTPException(422, f"group must be one of {', '.join(GROUPS)}")
     st = studio(request)
     key = ("score-values", ctx.catalog, sid)
     if key not in st.cache:  # values.parquet doesn't change once the score is done
@@ -100,18 +112,28 @@ def score_values(request: Request, catalog: str, sid: str, basis: str = "human",
         for r in rows:  # a stable key per value: page, course, column, and which of its values
             k = (r["basis"], r["page_stem"], r["entity"], r["column"])
             r["key"] = f"{r['page_stem']}|{r['entity']}|{r['column']}|{seen[k]}"
+            r["subject"] = scores.subject(r["golden_record_id"])
             seen[k] += 1
+        scores.studio_targets(ctx, doc, rows)
         st.cache[key] = rows
     mine = [r for r in st.cache[key] if r["basis"] == basis]
-    in_col = [r for r in mine if not column or r["column"] == column]
+    in_col = [r for r in mine if (not column or r["column"] == column) and (not subject or r["subject"] == subject)]
     kept = [r for r in in_col if not outcome or r["outcome"] == outcome]
     by_col: dict[str, list[dict]] = {}
     for r in mine:
         by_col.setdefault(r["column"], []).append(r)
+    groups = None
+    if group:
+        g: dict[str, list[dict]] = {}
+        for r in mine:
+            if (outcome and r["outcome"] != outcome) or (group != "column" and column and r["column"] != column) \
+                    or (group != "subject" and subject and r["subject"] != subject):
+                continue
+            g.setdefault(r[group] or "—", []).append(r)
+        groups = sorted(({"name": n, **_counts(rs)} for n, rs in g.items()), key=lambda x: (-x["values"], x["name"]))
     order = {o: i for i, o in enumerate(scores.OUTCOMES)}
     page = sorted(kept, key=lambda r: (order[r["outcome"]], r["similarity"] if r["similarity"] is not None else 0,
                                        r["page_stem"], r["entity"]))[offset:offset + PAGE]
     return {"basis": basis, "result": doc["results"].get(basis), "total": _counts(mine),
             "columns": [{"column": c, **_counts(rs)} for c, rs in sorted(by_col.items())], "outcomes": _counts(in_col),
-            "rows": {"total": len(kept), "offset": offset, "page": PAGE,
-                     "items": page}}
+            "groups": groups, "rows": {"total": len(kept), "offset": offset, "page": PAGE, "items": page}}

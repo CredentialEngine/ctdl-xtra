@@ -67,10 +67,17 @@ export interface Expected {
                quote?: { prefix: string; exact: string; suffix: string } }[];
 }
 
+/** What a note or a verdict made on a diff was compared with (Evals spec §4.2): xtra's extract output in a score,
+ * or another ruleset version's value (Compare). `value`: the other side's value as it was shown. */
+export type ComparedWith =
+  | { kind: "extract"; score: string; value: string | null }
+  | { kind: "ruleset"; ruleset: number; value: string | null };
+
 export interface EventBrief {
   annotation_id: string; type: "verdict" | "comment" | "approve" | "reopen"; verdict: Verdict | null;
   author: string; at: string; note: string | null; expected: Expected | null;
   rule_version_seen: number | null; value_seen: string | null; page_stem?: string | null; author_role?: string | null;
+  compared_with?: ComparedWith | null;
 }
 
 /** Evals §4.3: an expert confirmed the value (`human`: their verdict), or only an engineer did, waiting for an expert
@@ -130,6 +137,8 @@ export interface NewEvent {
             occurrence_key?: string | null; page_stem?: string | null };
   verdict?: Verdict; expected?: Expected | null; note?: string | null; supersedes?: string | null;
   topic?: Topic;                      // comments on a whole rule or on the ruleset
+  compared_with?: ComparedWith;       // a note or a verdict made on a diff (Evals, Compare)
+  extraction?: string;                // the extraction the target is in (default: the latest)
 }
 
 /** What a comment on a whole rule or on the ruleset is about (log.py TOPICS). */
@@ -256,11 +265,18 @@ export interface ExtractOutput {
 export interface ScoreBrief {
   id: string; status: ScoreStatus; golden: string; output: string; created_at: string; error: string | null;
   human_rate: number | null; rule_rate: number | null; human_values: number | null; rule_values: number | null;
+  human_outcomes: Record<ScoreOutcome, number> | null; rule_outcomes: Record<ScoreOutcome, number> | null;
+  golden_kind: "version" | "human-reviewed" | "draft"; golden_as_of: string | null; finished_at: string | null;
+  slot_names: boolean | null;
+}
+/** A golden dataset Evals can score against with Rule-matched: a published version, or a draft (an extraction). */
+export interface GoldenChoice {
+  id: string; kind: "version" | "draft"; ruleset_version: number; published_at: string | null; latest: boolean;
 }
 export type ScoreStatus = "running" | "done" | "failed" | "interrupted";
 export interface ExtractOutputs {
-  outputs: (ExtractOutput & { scores: ScoreBrief[] })[]; latest_golden: string | null; error: string | null;
-  running: string | null;
+  outputs: (ExtractOutput & { scores: ScoreBrief[] })[]; latest_golden: string | null; goldens: GoldenChoice[];
+  error: string | null; running: string | null;
 }
 export interface ScoreResult {
   values: number; exact_match_rate: number | null; outcomes: Record<ScoreOutcome, number>;
@@ -280,9 +296,19 @@ export interface ScoreRow {
   golden_record_id: string | null; page_stem: string; entity: number; outcome: ScoreOutcome; similarity: number | null;
   golden_value: string | null; extracted_value: string | null; source_url: string | null;
   golden_css_path: string | null; golden_char_start: number | null; golden_char_end: number | null;
-  approval: string | null; approved_by: string | null; approved_at: string | null;
+  approval: string | null; approved_by: string | null; approved_at: string | null; subject: string | null;
+  /** its Studio match, through the golden dataset's lineage: where a note or a verdict on it goes */
+  rule_id: string | null; occurrence_key: string | null; value_index: number | null;
 }
 export interface ScoreValues {
   basis: ScoreBasis; result: ScoreResult | null; total: OutcomeCounts; columns: (OutcomeCounts & { column: string })[];
-  outcomes: OutcomeCounts; rows: { total: number; offset: number; page: number; items: ScoreRow[] };
+  outcomes: OutcomeCounts; groups: (OutcomeCounts & { name: string })[] | null;
+  rows: { total: number; offset: number; page: number; items: ScoreRow[] };
+}
+/** `/match`: one field rule's row on one occurrence, with its verdict and comments (what a diff's actions act on). */
+export interface MatchRow extends ReviewMarks {
+  rule_id: string; kind: RuleKind; ctdl_property: string | null; property_label: string | null; extraction: string;
+  key: string; occurrence_key: string; course_key: string | null; page_stem: string; value: string | null; status: string;
+  css_path: string | null; char_start: number | null; char_end: number | null;
+  state: RowStateName | null; verdict: EventBrief | null; comments: EventBrief[];
 }

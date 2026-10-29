@@ -15,3 +15,13 @@
 .crec.cv .vb { flex-wrap: wrap; }
 .cmp-pager { display: flex; align-items: center; gap: 10px; margin: 8px 0; font-size: 12.5px; flex-wrap: wrap; }
 .cmp-pager select { margin-left: 4px; font: inherit; padding: 2px 4px; }
+/* a changed value: the shared value diff (Evals spec §6.5) */
+.crec.vrec, .crec.vrec.cv { display: block; padding: 10px 12px; }
+.cval-h { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; flex-wrap: wrap; }
+.cval-h .ck { padding-top: 0; }
+.cval-h .see { font-size: 12px; }
+.cval .vd-acts { margin-top: 8px; }
+.cval .vd-note { margin-top: 8px; }
+.cval .vd-wrong, .cval .vd-marked { margin-top: 8px; }
+.cval .cnote { margin-top: 6px; }
+.cval-page { height: 520px; display: flex; margin-top: 8px; }

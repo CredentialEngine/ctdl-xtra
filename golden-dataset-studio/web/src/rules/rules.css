@@ -23,6 +23,7 @@
 .hist .ico svg { width: 12px; height: 12px; vertical-align: -2px; margin-right: 3px; }
 .hist .h-expert { color: var(--violet); }
 .hist .h-muted { color: var(--faint); }
+.hist .h-compared { color: var(--faint); font-style: normal; }
 .hist .h-comment .ico { color: var(--accent); }
 .hist .h-sep { color: var(--faint); }
 .hist .h-good + .h-note, .hist .h-bad + .h-note { color: var(--muted); }

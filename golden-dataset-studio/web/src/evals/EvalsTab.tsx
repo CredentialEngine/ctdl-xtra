@@ -1,33 +1,55 @@
-// Evals (docs/qrspi/evals): xtra's extract outputs scored against a golden dataset, with xtra's own scorer.
-// Left: the extract outputs the Studio has seen, the golden dataset, and the basis (human-reviewed or rule-matched).
-// Middle: one score — its exact-match rate, the columns, and the values, narrowed by a column and an outcome. Right:
-// the saved page of the selected value, with the golden value at its recorded location and the extracted value where
-// its text is found. (Step 4 of the plan replaces this with the spec's §6.3 design.)
+// Evals (docs/qrspi/evals/03-spec.md §6.3–6.4): how closely xtra's extract outputs match the golden dataset, scored
+// by xtra's own scorer. The title is the comparison ([golden side] vs `xtra catalog extract` outputs over time), with
+// the slim switch "scored against Human-reviewed | Rule-matched" at its right. Under it, one bar per extract output
+// the Studio has seen; clicking one picks it, and a dashed bar (not scored against this golden side yet) holds the only
+// Score button. Then the chosen pair as two chips, the exact matches, one bar per column, the outcome filter, Group
+// by and the values. A value opens the shared diff (Split / Unified) with a note box and the saved page beside it.
 //
-// URL: #/c/<catalog>/evals?x=<output>&g=<golden>&b=human|rule&col=<column>&o=<outcome>&off=<offset>&row=<row key>
-import { useCallback, useEffect, useMemo, useState } from "react";
+// URL: #/c/<catalog>/evals?b=human|rule&g=<golden>&x=<output>&col=<column>&subj=<subject>&o=<outcome>&grp=column|subject
+//      &off=<offset>&row=<row key>
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { api } from "../api/client";
-import type { ExtractOutputs, OutcomeCounts, ScoreBasis, ScoreDoc, ScoreOutcome, ScoreRow, ScoreValues } from "../api/types";
-import { PagePane, type Highlight } from "../pagepane";
+import type { ExtractOutputs, GoldenChoice, MatchRow, OutcomeCounts, ScoreBasis, ScoreBrief, ScoreDoc, ScoreOutcome, ScoreRow,
+  ScoreValues } from "../api/types";
+import type { CapturedSelection } from "../pagepane";
+import { addCapture, newDraft, verdictEvent, type Draft } from "../rules/logic";
 import { useReviewer } from "../shell/reviewer";
 import { go, href } from "../shell/router";
 import type { TabProps } from "../shell/tabProps";
 import { fmt, Ico, toast, useKeyHints } from "../shell/ui";
+import { fmtDay, fmtDayTime } from "../valuediff/diff";
+import { comparedChip, DiffModeSwitch, MarkedWrong, NoteActions, RowNotes, useDiffMode, ValueDiff, ValuePage, WrongFlow } from "../valuediff/ValueDiff";
 import { multiline } from "./commands";
-import { wordDiff } from "./diff";
 import "./evals.css";
 
-const OUTCOMES: ScoreOutcome[] = ["missing", "wrong", "partial", "match"];
-const OUTCOME_LABEL: Record<ScoreOutcome, string> = { missing: "missing", wrong: "wrong < 0.8", partial: "partial ≥ 0.8", match: "match" };
-const BASES: { id: ScoreBasis; name: string }[] = [{ id: "human", name: "Human-reviewed" }, { id: "rule", name: "Rule-matched" }];
-const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-const when = (iso: string | null | undefined) => {
-  if (!iso) return "";
-  const d = new Date(iso);
-  return `${d.getDate()} ${MONTHS[d.getMonth()]} ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+export const OUTCOMES: ScoreOutcome[] = ["missing", "wrong", "partial", "match"];
+/** Each outcome's rule (xtra's scorer, Evals spec §2). */
+export const OUTCOME_RULE: Record<ScoreOutcome, string> = {
+  match: "identical", partial: "similarity ≥ 0.8", wrong: "similarity < 0.8", missing: "nothing extracted",
 };
-const pct = (x: number | null | undefined) => (x === null || x === undefined ? "–" : `${(x * 100).toFixed(1)}%`);
-const rate = (c: OutcomeCounts) => (c.values ? c.match / c.values : null);
+export const SIMILARITY = "Text is compared ignoring case and spacing, and again without punctuation, keeping the higher score. Numbers either match or are wrong.";
+const HUMAN = "human-reviewed";
+type Output = ExtractOutputs["outputs"][number];
+type Counts = Record<ScoreOutcome, number>;
+
+const rateOf = (c: Counts | null | undefined) => {
+  const n = c ? OUTCOMES.reduce((t, o) => t + c[o], 0) : 0;
+  return c && n ? c.match / n : null;
+};
+const pct = (x: number | null | undefined) => (x === null || x === undefined ? "–" : `${Math.round(x * 100)}%`);
+export const goldenName = (id: string) =>
+  id === HUMAN ? "human-reviewed" : /^ruleset-v\d+$/.test(id) ? id.replace("ruleset-v", "ruleset v") : `draft ${id}`;
+
+/** The score that shows an output against the chosen golden side: with Human-reviewed, the newest score of the
+ * human-reviewed values (`human-reviewed`, or the latest version, whose human-reviewed tree each review rewrites);
+ * with Rule-matched, the newest of the chosen golden dataset. A done score first, then a running one, then the rest. */
+export function scoreFor(o: Output, basis: ScoreBasis, golden: string, latest: string | null): ScoreBrief | undefined {
+  const mine = o.scores.filter((s) => basis === "human" ? s.golden === HUMAN || s.golden === latest : s.golden === golden)
+    .sort((a, b) => b.created_at.localeCompare(a.created_at));
+  const outcomes = (s: ScoreBrief) => (basis === "human" ? s.human_outcomes : s.rule_outcomes);
+  return mine.find((s) => s.status === "done" && outcomes(s)) ?? mine.find((s) => s.status === "running") ?? mine[0];
+}
 
 export default function EvalsTab({ catalog, route }: TabProps) {
   const me = useReviewer();
@@ -36,148 +58,265 @@ export default function EvalsTab({ catalog, route }: TabProps) {
   const [doc, setDoc] = useState<ScoreDoc | null>(null);
   const [view, setView] = useState<ScoreValues | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [cmdOpen, setCmdOpen] = useState(false);
+  const [info, setInfo] = useState(false);
 
   const P = route.params;
+  const basis: ScoreBasis = P.get("b") === "rule" ? "rule" : "human";
+  const latestGolden = idx?.latest_golden ?? null;
+  const g = basis === "human" ? HUMAN : P.get("g") ?? latestGolden ?? idx?.goldens[0]?.id ?? "";
   const x = P.get("x") ?? idx?.outputs[0]?.id ?? null;
-  const output = idx?.outputs.find((o) => o.id === x);
-  const goldens = useMemo(() => [...new Set(["human-reviewed", ...(idx?.latest_golden ? [idx.latest_golden] : []),
-    ...(output?.scores.map((s) => s.golden) ?? [])])], [idx, output]);
-  const g = P.get("g") ?? idx?.latest_golden ?? "human-reviewed";
-  const b = (P.get("b") as ScoreBasis | null) ?? "human";
-  const col = P.get("col"), outcome = P.get("o") as ScoreOutcome | null;
-  const offset = +(P.get("off") || 0), rowKey = P.get("row");
+  const col = P.get("col"), subj = P.get("subj"), outcome = P.get("o") as ScoreOutcome | null;
+  const grp = P.get("grp"), offset = +(P.get("off") || 0), rowKey = P.get("row");
   const nav = useCallback((ch: Record<string, string | number | null>, keepRow = false) => {
-    const cur: Record<string, string | number | null> = { x, g, b, col, o: outcome, off: offset || null, row: keepRow ? rowKey : null };
+    const cur: Record<string, string | number | null> = { b: basis === "rule" ? "rule" : null, g: P.get("g"), x: P.get("x"), col, subj,
+      o: outcome, grp, off: offset || null, row: keepRow ? rowKey : null };
     go(href(cat, "evals", null, { ...cur, ...ch }), true);
-  }, [cat, x, g, b, col, outcome, offset, rowKey]);
+  }, [cat, basis, P, col, subj, outcome, grp, offset, rowKey]);
 
   const loadIndex = useCallback(() => api.extractOutputs(cat).then(setIdx, (e) => setError(String(e))), [cat]);
-  useEffect(() => { loadIndex(); }, [loadIndex]);
+  useEffect(() => { void loadIndex(); }, [loadIndex]);
 
-  const brief = output?.scores.find((s) => s.golden === g);
+  const output = idx?.outputs.find((o) => o.id === x);
+  const brief = output ? scoreFor(output, basis, g, latestGolden) : undefined;
+  const running = !!idx && (!!idx.running || idx.outputs.some((o) => o.scores.some((s) => s.status === "running")));
+  // a score running: reload the list until it's done
   useEffect(() => {
-    if (!brief) { setDoc(null); return; }
-    let live = true;
-    api.scoreDoc(cat, brief.id).then((d) => live && setDoc(d), (e) => live && setError(String(e)));
-    return () => { live = false; };
-  }, [cat, brief]);
-
-  // a running score: poll until it's done, then reload the list
-  useEffect(() => {
-    if (!doc || doc.status !== "running") return;
-    const t = setInterval(() => api.scoreDoc(cat, doc.id).then((d) => {
-      if (d.status === "running") return;
-      setDoc(d);
-      loadIndex();
-      toast(d.status === "done" ? "Scored" : `${d.id}: ${d.status}${d.error ? ` (${d.error})` : ""}`);
-    }), 1500);
+    if (!running) return;
+    const t = setInterval(() => { void loadIndex(); }, 1500);
     return () => clearInterval(t);
-  }, [cat, doc, loadIndex]);
+  }, [running, loadIndex]);
+
+  const sid = brief?.status === "done" ? brief.id : null;
+  useEffect(() => {
+    if (!sid) { setDoc(null); return; }
+    let live = true;
+    api.scoreDoc(cat, sid).then((d) => live && setDoc(d), (e) => live && setError(String(e)));
+    return () => { live = false; };
+  }, [cat, sid]);
 
   useEffect(() => {
-    if (!doc || doc.status !== "done" || !doc.results[b]) { setView(null); return; }
+    if (!doc || doc.id !== sid || !doc.results[basis]) { setView(null); return; }
     let live = true;
-    api.scoreValues(cat, doc.id, { basis: b, column: col, outcome, offset })
+    api.scoreValues(cat, doc.id, { basis, column: col, subject: subj, outcome, group: grp, offset })
       .then((r) => live && setView(r), (e) => live && setError(String(e)));
     return () => { live = false; };
-  }, [cat, doc, b, col, outcome, offset]);
+  }, [cat, doc, sid, basis, col, subj, outcome, grp, offset]);
 
   useKeyHints(<span><span className="mono">golden-datasets score</span> does the same from the CLI</span>, []);
+
+  const startScore = useCallback(async (o: Output) => {
+    try { await api.startScore(cat, { golden: g, output: o.id, by: me }); await loadIndex(); } catch (e) { toast(String(e)); }
+  }, [cat, g, me, loadIndex]);
 
   if (error) return <div className="doc"><div className="doc-in"><p className="muted">{error}</p></div></div>;
   if (!idx) return <div className="evx" />;
   const row = view?.rows.items.find((r) => r.key === rowKey) ?? null;
-  const score = async () => {
-    if (!output) return;
-    try { setDoc(await api.startScore(cat, { golden: g, output: output.id, by: me })); loadIndex(); } catch (e) { toast(String(e)); }
-  };
+  const outputs = [...idx.outputs].reverse();  // oldest first, left to right
+  const latestOutput = idx.outputs[0]?.id;
+  const result = doc?.results[basis] ?? null;
 
   return (
-    <div className={`evx ${row ? "with-page" : ""}`}>
-      <aside className="evx-nav">
-        <div className="evx-sec-h">Extract outputs</div>
-        <p className="evx-def">What <span className="mono">xtra catalog extract</span> wrote for {catalog.name}. The Studio keeps a copy of each one it sees.</p>
-        {idx.outputs.map((o) => (
-          <button key={o.id} className={`evx-item ${o.id === x ? "on" : ""}`} onClick={() => nav({ x: o.id, off: null })}>
-            <span className="evx-item-t">{when(o.last_modified)}{o === idx.outputs[0] ? " (latest)" : ""}</span>
-            <span className="evx-item-d">{fmt(o.records)} records{o.records_mismatch ? ` · the report says ${fmt(o.records_written)}` : ""} · {o.scores.length} scores</span>
-          </button>
-        ))}
-        {!idx.outputs.length && <p className="evx-empty">{idx.error ?? "None yet."}</p>}
-
-        <div className="evx-sec-h">Golden dataset</div>
-        <label className="evx-ver">Scored against
-          <select value={g} onChange={(e) => nav({ g: e.target.value, col: null, o: null, off: null })}>
-            {goldens.map((id) => <option key={id} value={id}>{id === "human-reviewed" ? "Human-reviewed values" : id.replace("ruleset-v", "ruleset v")}</option>)}
-          </select>
-        </label>
-        {BASES.map((z) => (
-          <button key={z.id} className={`evx-item ${z.id === b ? "on" : ""}`} onClick={() => nav({ b: z.id, col: null, o: null, off: null })}>
-            <span className="evx-item-t">{z.name}</span>
-            <span className="evx-item-d">{doc?.golden.values ? `${fmt(doc.golden.values[z.id])} values` : ""}</span>
-          </button>
-        ))}
-      </aside>
-
+    <div className={`evx${row ? " with-row" : ""}`}>
       <section className="evx-main">
-        <header className="evx-head">
-          <div className="evx-title">
-            <span>{output ? `Extract output of ${when(output.last_modified)}` : "No extract output"}</span>
-            <span className="evx-arrow">vs</span>
-            <span>{g === "human-reviewed" ? `Human-reviewed values${doc ? ` · as of ${when(doc.golden.as_of)}` : ""}` : g}</span>
-            {doc?.golden.kind === "draft" && <span className="evx-tag" title="An extraction that isn't published">draft</span>}
-          </div>
-          <div className="evx-actions">
-            {doc && <button className="evx-icon" onClick={() => setCmdOpen(!cmdOpen)} title="Run it yourself"><Ico name="terminal" /></button>}
-          </div>
+        <header className="evx-title">
+          {basis === "human"
+            ? <span className="evx-gchip big">Human-reviewed values<span className="evx-gchip-d"> · as of {fmtDayTime(brief?.golden_as_of) || "now"}</span></span>
+            : <GoldenPicker goldens={idx.goldens} value={g} onPick={(id) => nav({ g: id, col: null, subj: null, o: null, off: null })} />}
+          <span className="evx-vs">vs</span><code className="evx-cmd">xtra catalog extract</code><span>outputs over time</span>
+          {doc && <button className="evx-info" title="Where these come from" aria-label="Where these come from" onClick={() => setInfo(true)}>i</button>}
+          <span className="grow" />
+          <span className="evx-basis">scored against
+            <span className="seg xs" role="group" aria-label="Scored against">
+              <button className={basis === "human" ? "on" : ""} onClick={() => nav({ b: null, col: null, subj: null, o: null, off: null })}>Human-reviewed</button>
+              <button className={basis === "rule" ? "on" : ""} onClick={() => nav({ b: "rule", col: null, subj: null, o: null, off: null })}>Rule-matched</button>
+            </span>
+          </span>
         </header>
-        {cmdOpen && doc && <Commands doc={doc} onClose={() => setCmdOpen(false)} />}
 
-        {output && (!doc || doc.status === "failed" || doc.status === "interrupted") && (
-          <div className="evx-cta">
-            <p>{doc ? <><b>{doc.id} {doc.status}.</b> {doc.error}</> : <b>Not scored yet.</b>} Scoring runs <span className="mono">xtra score extraction match</span> on
-              the human-reviewed values and on every rule-matched value. It takes a few seconds.</p>
-            <button className="btn primary" disabled={!!idx.running} onClick={score}>Score</button>
+        {outputs.length ? (
+          <div className="evx-chartrow">
+            <History outputs={outputs} latest={latestOutput} basis={basis} golden={g} latestGolden={latestGolden} picked={x}
+              busy={!!idx.running} onPick={(id) => nav({ x: id === latestOutput ? null : id, off: null })} onScore={startScore} />
+            <div className="evx-legend-v">
+              {OUTCOMES.map((o) => <OutcomeTip key={o} counts={result?.outcomes ?? null}><span className="evx-k"><i className={`sw o-${o}`} />{o}</span></OutcomeTip>)}
+              <span className="faint evx-hint">Click a bar to compare with that extract output. A dashed bar hasn't been scored yet.</span>
+            </div>
           </div>
-        )}
-        {doc?.status === "running" && <p className="muted">Scoring ({doc.id})…</p>}
-        {doc?.status === "done" && doc.slot_names && <p className="muted small">{doc.error}</p>}
-        {doc?.status === "done" && !doc.results[b] && <p className="muted">No {b === "human" ? "human-reviewed" : "rule-matched"} values to score in {g}.</p>}
-        {doc?.status === "done" && view && <ScoreBody view={view} col={col} outcome={outcome} offset={offset} rowKey={rowKey} nav={nav} />}
+        ) : <p className="muted evx-empty">{idx.error ?? "xtra hasn't written an extract output for this catalog yet."}</p>}
+
+        {output && <>
+          <div className="evx-pair">
+            <span className="evx-gchip">{basis === "human" ? `human-reviewed · ${fmtDayTime(brief?.golden_as_of) || "now"}` : goldenName(g)}</span>
+            {basis === "rule" && idx.goldens.find((z) => z.id === g)?.kind === "draft" && <span className="evx-draft">draft · unpublished</span>}
+            <span className="evx-vs">vs</span>
+            <span className="evx-xchip"><MiniBar c={(basis === "human" ? brief?.human_outcomes : brief?.rule_outcomes) ?? null} />
+              {fmtDayTime(output.last_modified)}{output.id === latestOutput && <span className="muted"> (latest)</span>}</span>
+          </div>
+          {brief?.slot_names && <p className="evx-flag">This output uses slot names; re-extract with the current xtra-cli.</p>}
+          {output.records_mismatch && <p className="evx-flag">The folder has {fmt(output.records)} records; its report says {fmt(output.records_written)} were written (an earlier run's records may be left over).</p>}
+          {!brief && <p className="muted">Not scored against {basis === "human" ? "the human-reviewed values" : goldenName(g)} yet: press <b>Score</b> on its bar.</p>}
+          {brief && brief.status !== "done" && <p className="muted">{brief.status === "running" ? `Scoring (${brief.id})…`
+            : `${brief.id} ${brief.status}${brief.error ? `: ${brief.error}` : ""}. Press Score on its bar to score it again.`}</p>}
+          {doc && !result && <p className="muted">No {basis === "human" ? "human-reviewed" : "rule-matched"} values to score in {goldenName(g)}.</p>}
+          {doc && result && view && <ScoreBody basis={basis} view={view} col={col} subj={subj} outcome={outcome} grp={grp} offset={offset}
+            rowKey={rowKey} nav={nav} />}
+        </>}
       </section>
 
-      {row && <PageSide row={row} catalog={cat} ruleset={catalog.ruleset_version} onClose={() => nav({ row: null }, false)} />}
+      {row && doc && output && <RowPanel key={`${doc.id}|${row.key}`} row={row} doc={doc} catalog={cat} ruleset={catalog.ruleset_version}
+        goldenLabel={basis === "human" ? "human-reviewed values" : `golden dataset ${goldenName(doc.golden.id)}`}
+        outputDay={fmtDay(output.last_modified)} idx={idx} me={me} onClose={() => nav({ row: null })} />}
+      {info && doc && <InfoModal doc={doc} basis={basis} onClose={() => setInfo(false)} />}
     </div>
   );
 }
 
-// --- the score ----------------------------------------------------------------------------------------------
-function ScoreBody({ view, col, outcome, offset, rowKey, nav }: {
-  view: ScoreValues; col: string | null; outcome: ScoreOutcome | null; offset: number; rowKey: string | null;
-  nav: (ch: Record<string, string | number | null>, keepRow?: boolean) => void;
+// --- the golden side ---------------------------------------------------------------------------------------------
+/** Rule-matched: a searchable dropdown of golden datasets, the latest first with "(latest)" (older ones with their
+ * date); drafts (unpublished extractions) are tucked away under their own heading, never first. */
+function GoldenPicker({ goldens, value, onPick }: { goldens: GoldenChoice[]; value: string; onPick: (id: string) => void }) {
+  const [open, setOpen] = useState(false);
+  const [q, setQ] = useState("");
+  const [drafts, setDrafts] = useState(false);
+  const box = useRef<HTMLSpanElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const off = (e: MouseEvent) => { if (!box.current?.contains(e.target as Node)) setOpen(false); };
+    document.addEventListener("mousedown", off);
+    return () => document.removeEventListener("mousedown", off);
+  }, [open]);
+  const cur = goldens.find((z) => z.id === value);
+  const label = (z: GoldenChoice) => z.kind === "draft" ? `draft ${z.id}` : `ruleset v${z.ruleset_version}`;
+  const when = (z: GoldenChoice) => z.kind === "draft" ? `ruleset v${z.ruleset_version}, unpublished`
+    : z.latest ? "(latest)" : fmtDayTime(z.published_at);
+  const hit = (z: GoldenChoice) => !q || `${label(z)} ${z.id}`.toLowerCase().includes(q.toLowerCase());
+  const versions = goldens.filter((z) => z.kind === "version" && hit(z));
+  const draftList = goldens.filter((z) => z.kind === "draft" && hit(z));
+  const showDrafts = drafts || (!!q && draftList.length > 0) || cur?.kind === "draft";
+  const item = (z: GoldenChoice) => (
+    <button key={z.id} className={`evx-dd-i${z.id === value ? " on" : ""}${z.kind === "draft" ? " draft" : ""}`}
+      onClick={() => { onPick(z.id); setOpen(false); setQ(""); }}>
+      <span>{label(z)}</span><span className="muted">{when(z)}</span>
+    </button>
+  );
+  return (
+    <span className="evx-dd" ref={box}>
+      <button className="evx-gchip big dd" aria-haspopup="listbox" aria-expanded={open} onClick={() => setOpen(!open)}>
+        {cur ? label(cur) : value || "No golden dataset"}
+        {cur && <span className="evx-gchip-d"> {cur.kind === "draft" ? "· unpublished" : cur.latest ? "(latest)" : `· ${fmtDayTime(cur.published_at)}`}</span>}
+        <span className="evx-caret">▾</span>
+      </button>
+      {open && (
+        <div className="evx-dd-m" role="listbox">
+          <input className="evx-dd-q" placeholder="Find a golden dataset" value={q} autoFocus onChange={(e) => setQ(e.target.value)} />
+          {versions.map(item)}
+          {!versions.length && !q && <p className="muted evx-dd-none">No golden dataset published yet.</p>}
+          {draftList.length > 0 && (showDrafts
+            ? <><div className="evx-dd-h">Drafts · unpublished extractions, scored as if published</div>{draftList.map(item)}</>
+            : <button className="evx-dd-more" onClick={() => setDrafts(true)}>Drafts ({draftList.length}) ▸</button>)}
+        </div>
+      )}
+    </span>
+  );
+}
+
+// --- the history chart -------------------------------------------------------------------------------------------
+const CHART_H = 150;
+
+function History({ outputs, latest, basis, golden, latestGolden, picked, busy, onPick, onScore }: {
+  outputs: Output[]; latest: string | undefined; basis: ScoreBasis; golden: string; latestGolden: string | null; picked: string | null;
+  busy: boolean; onPick: (id: string) => void; onScore: (o: Output) => void;
+}) {
+  return (
+    <div className="evx-hist" data-testid="history">
+      {outputs.map((o) => {
+        const s = scoreFor(o, basis, golden, latestGolden);
+        const c = s?.status === "done" ? (basis === "human" ? s.human_outcomes : s.rule_outcomes) : null;
+        const n = c ? OUTCOMES.reduce((t, k) => t + c[k], 0) : 0;
+        const on = o.id === picked;
+        return (
+          <div key={o.id} className={`evx-col${on ? " sel" : ""}`} data-testid="history-bar">
+            <span className="evx-pc">{c ? pct(rateOf(c)) : "–"}</span>
+            {c && n ? (
+              <OutcomeTip counts={c}>
+                <button className="evx-stack" style={{ height: CHART_H }} aria-label={`Extract output of ${fmtDay(o.last_modified)}: ${pct(rateOf(c))} exact matches`}
+                  onClick={() => onPick(o.id)}>
+                  {OUTCOMES.slice().reverse().map((k) => c[k] > 0 && <i key={k} className={`o-${k}`} style={{ height: `${(c[k] / n) * 100}%` }} />)}
+                </button>
+              </OutcomeTip>
+            ) : (
+              <div className="evx-empty-bar" style={{ height: CHART_H }} onClick={() => onPick(o.id)}>
+                {s?.status === "running" ? <span className="evx-run">Scoring…</span> : <>
+                  {s && (s.status === "failed" || s.status === "interrupted") && <span className="evx-bad" title={s.error ?? ""}>{s.status}</span>}
+                  {c && !n ? <span className="faint evx-none">no values</span>
+                    : <button className="btn sm evx-score" disabled={busy} onClick={(e) => { e.stopPropagation(); onScore(o); }}>Score</button>}
+                </>}
+              </div>
+            )}
+            <span className="evx-x">{fmtDay(o.last_modified)}{o.id === latest && <><br />(latest)</>}</span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function MiniBar({ c }: { c: Counts | null }) {
+  const n = c ? OUTCOMES.reduce((t, k) => t + c[k], 0) : 0;
+  return <i className="evx-mini">{c && n ? OUTCOMES.slice().reverse().map((k) => c[k] > 0 && <b key={k} className={`o-${k}`} style={{ height: `${Math.max(1, (c[k] / n) * 14)}px` }} />) : null}</i>;
+}
+
+/** Hovering a bar or a legend colour: each outcome, its count and its rule, and how similarity is computed. */
+export function OutcomeTip({ counts, children }: { counts: Counts | OutcomeCounts | null; children: ReactNode }) {
+  const [at, setAt] = useState<{ left: number; top: number; width: number } | null>(null);
+  // fixed to the viewport, so the scrolling column never clips it
+  const show = (e: { currentTarget: HTMLElement }) => {
+    const r = e.currentTarget.getBoundingClientRect();
+    const w = Math.min(340, window.innerWidth - 16);
+    setAt({ left: Math.max(8, Math.min(r.left + r.width / 2 - w / 2, window.innerWidth - w - 8)), top: r.bottom + 8, width: w });
+  };
+  return (
+    <span className="evx-tipw" onMouseEnter={show} onMouseLeave={() => setAt(null)} onFocus={show} onBlur={() => setAt(null)}>
+      {children}
+      {at && createPortal(
+        <span className="evx-tip" role="tooltip" style={at}>
+          <table><tbody>
+            {OUTCOMES.slice().reverse().map((o) => (
+              <tr key={o}><td><i className={`sw o-${o}`} />{o}</td>{counts && <td className="n">{fmt(counts[o])}</td>}<td>{OUTCOME_RULE[o]}</td></tr>
+            ))}
+          </tbody></table>
+          <span className="ft">{SIMILARITY}</span>
+        </span>, document.body)}
+    </span>
+  );
+}
+
+// --- the score ---------------------------------------------------------------------------------------------------
+function ScoreBody({ basis, view, col, subj, outcome, grp, offset, rowKey, nav }: {
+  basis: ScoreBasis; view: ScoreValues; col: string | null; subj: string | null; outcome: ScoreOutcome | null; grp: string | null;
+  offset: number; rowKey: string | null; nav: (ch: Record<string, string | number | null>, keepRow?: boolean) => void;
 }) {
   const t = view.total;
-  const leftOut = view.result?.left_out ?? [];
   const implied = Object.keys(view.result?.implied ?? {});
+  const leftOut = view.result?.left_out ?? [];
   return (
     <>
-      <div className="evx-rate">
-        <b>{pct(view.result?.exact_match_rate)}</b>
-        <span>exact matches</span>
-        <span className="muted">{fmt(t.match)} of {fmt(t.values)} values</span>
+      <div className="evx-rate" data-testid="headline">
+        <b>{pct(t.values ? t.match / t.values : null)}</b>
+        <span className="evx-rate-l">exact matches</span>
+        <span className={`evx-basis-pill ${basis}`}>{basis === "human" ? "human-reviewed" : "rule-matched"}</span>
+        <span className="muted">{fmt(t.match)} of {fmt(t.values)} values {basis === "human" ? "an expert reviewed" : "the rules matched"}</span>
       </div>
-      {leftOut.length > 0 && <p className="muted small">{leftOut.length} pages left out: {leftOut[0].why}.</p>}
+      {leftOut.length > 0 && <p className="muted small">{fmt(leftOut.length)} pages left out: {leftOut[0].why}.</p>}
 
-      <table className="evx-props-t">
+      <table className="evx-cols">
         <tbody>
-          <PropRow name="All columns" c={t} on={!col} onClick={() => nav({ col: null, off: null })} />
-          {view.columns.map((p) => <PropRow key={p.column} name={p.column} c={p} on={col === p.column}
+          <ColRow name="All columns" c={t} on={!col} total onClick={() => nav({ col: null, off: null })} />
+          {view.columns.map((p) => <ColRow key={p.column} name={p.column} c={p} on={col === p.column}
             onClick={() => nav({ col: col === p.column ? null : p.column, off: null })} />)}
-          {implied.map((p) => <tr key={p} className="off"><td>{p}</td><td colSpan={3} className="muted">not scored: implied, not read from the page</td></tr>)}
         </tbody>
       </table>
-      <Legend />
+      {implied.length > 0 && <p className="faint evx-ns">not scored: {implied.join(", ")} (not read from the page)</p>}
 
       <div className="evx-controls">
         <div className="seg">
@@ -188,15 +327,39 @@ function ScoreBody({ view, col, outcome, offset, rowKey, nav }: {
             </button>
           ))}
         </div>
+        {col && <button className="evx-chip" onClick={() => nav({ col: null, off: null })}>{col} ✕</button>}
+        {subj && <button className="evx-chip" onClick={() => nav({ subj: null, off: null })}>Subject: {subj} ✕</button>}
+        <span className="grow" />
+        <label className="evx-group">Group by
+          <select value={grp ?? ""} onChange={(e) => nav({ grp: e.target.value || null, off: null })}>
+            <option value="">nothing</option><option value="column">column</option><option value="subject">subject</option>
+          </select>
+        </label>
       </div>
+
+      {grp && view.groups && (
+        <div className="evx-groups" data-testid="groups">
+          {view.groups.map((gr) => {
+            const on = grp === "column" ? col === gr.name : subj === gr.name;
+            const pick = () => nav(grp === "column" ? { col: on ? null : gr.name, off: null } : { subj: on ? null : gr.name, off: null });
+            return (
+              <button key={gr.name} className={`evx-grow${on ? " on" : ""}`} onClick={pick}>
+                <span className={`evx-grow-n${grp === "column" ? " mono" : ""}`}>{gr.name}</span>
+                <OutcomeTip counts={gr}><Bar c={gr} /></OutcomeTip>
+                <span className="evx-grow-r"><b>{pct(gr.values ? gr.match / gr.values : null)}</b> <span className="muted">{fmt(gr.values)}</span></span>
+              </button>
+            );
+          })}
+        </div>
+      )}
 
       <div className="evx-rows">
         {view.rows.items.map((r) => (
-          <button key={r.key} className={`evx-row ${r.key === rowKey ? "on" : ""}`} onClick={() => nav({ row: r.key }, true)}>
+          <button key={r.key} className={`evx-row${r.key === rowKey ? " on" : ""}${col ? " one-col" : ""}`} onClick={() => nav({ row: r.key }, true)}>
             <i className={`sw o-${r.outcome}`} title={r.outcome} />
             <span className="evx-row-c">{r.golden_record_id ?? r.page_stem}</span>
-            <span className="evx-row-p">{r.column}</span>
-            <span className="evx-row-v">{r.outcome === "missing" ? <span className="muted">nothing extracted · golden: {r.golden_value}</span>
+            {!col && <span className="evx-row-p mono">{r.column}</span>}
+            <span className="evx-row-v">{r.outcome === "missing" ? <span className="muted">nothing extracted</span>
               : r.outcome === "match" ? r.golden_value : r.extracted_value}</span>
             <span className="evx-row-s">{r.outcome === "partial" || r.outcome === "wrong" ? r.similarity?.toFixed(2) : ""}</span>
           </button>
@@ -214,13 +377,13 @@ function ScoreBody({ view, col, outcome, offset, rowKey, nav }: {
   );
 }
 
-function PropRow({ name, c, on, onClick }: { name: string; c: OutcomeCounts; on: boolean; onClick: () => void }) {
+function ColRow({ name, c, on, total = false, onClick }: { name: string; c: OutcomeCounts; on: boolean; total?: boolean; onClick: () => void }) {
   return (
-    <tr className={on ? "on" : ""} onClick={onClick}>
-      <td>{name}</td>
-      <td className="evx-barcell"><Bar c={c} /></td>
-      <td className="r"><b>{pct(rate(c))}</b></td>
-      <td className="r muted">{fmt(c.values)}</td>
+    <tr className={`${on && !total ? "on" : ""}${total ? " all" : ""}`} onClick={onClick}>
+      <td className={total ? "" : "mono"}>{name}</td>
+      <td className="evx-barcell"><OutcomeTip counts={c}><Bar c={c} /></OutcomeTip></td>
+      <td className="r"><b>{pct(c.values ? c.match / c.values : null)}</b></td>
+      <td className="r muted">{fmt(c.values)}{total ? " values" : ""}</td>
     </tr>
   );
 }
@@ -228,72 +391,110 @@ function PropRow({ name, c, on, onClick }: { name: string; c: OutcomeCounts; on:
 function Bar({ c }: { c: OutcomeCounts }) {
   return (
     <span className="evx-bar" role="img" aria-label={OUTCOMES.map((o) => `${o} ${c[o]}`).join(", ")}>
-      {OUTCOMES.filter((o) => c[o] > 0).map((o) => (
-        <i key={o} className={`o-${o}`} style={{ flexGrow: c[o] }} title={`${OUTCOME_LABEL[o]}: ${fmt(c[o])} of ${fmt(c.values)}`} />
-      ))}
+      {OUTCOMES.slice().reverse().filter((o) => c[o] > 0).map((o) => <i key={o} className={`o-${o}`} style={{ flexGrow: c[o] }} />)}
     </span>
   );
 }
 
-function Legend() {
-  return <div className="evx-legend">{OUTCOMES.map((o) => <span key={o}><i className={`sw o-${o}`} />{OUTCOME_LABEL[o]}</span>)}</div>;
-}
-
-// --- the page of the selected value -------------------------------------------------------------------------
-function PageSide({ row, catalog, ruleset, onClose }: { row: ScoreRow; catalog: string; ruleset: number; onClose: () => void }) {
-  const highlights = useMemo<Highlight[]>(() => {
-    const h: Highlight[] = [];
-    if (row.golden_css_path) h.push({ id: "golden", kind: "expected", cssPath: row.golden_css_path,
-      charStart: row.golden_char_start, charEnd: row.golden_char_end, text: row.golden_value });
-    if (row.extracted_value && row.outcome !== "match") {
-      h.push({ id: "extracted", kind: "mark", cssPath: "body", text: row.extracted_value });
-      if (row.extracted_value.length > 90) h.push({ id: "extracted-start", kind: "mark", cssPath: "body", text: row.extracted_value.slice(0, 80) });
-    }
-    return h;
-  }, [row]);
-  const parts = useMemo(() => (row.outcome === "partial" || row.outcome === "wrong") ? wordDiff(row.golden_value ?? "", row.extracted_value ?? "") : null, [row]);
+// --- one value: the diff, the note box, the page -----------------------------------------------------------------
+function RowPanel({ row, doc, catalog, ruleset, goldenLabel, outputDay, idx, me, onClose }: {
+  row: ScoreRow; doc: ScoreDoc; catalog: string; ruleset: number; goldenLabel: string; outputDay: string; idx: ExtractOutputs;
+  me: string; onClose: () => void;
+}) {
+  const [mode, setMode] = useDiffMode();
+  const [m, setM] = useState<MatchRow | null>(null);
+  const [draft, setDraft] = useState<Draft | null>(null);
+  const load = useCallback(() => {
+    if (!row.rule_id || !row.occurrence_key) return;
+    api.match(catalog, row.rule_id, row.occurrence_key).then(setM, () => setM(null));
+  }, [catalog, row.rule_id, row.occurrence_key]);
+  useEffect(() => { load(); }, [load]);
+  const outputOf = (score: string) => {
+    const o = idx.outputs.find((x) => x.scores.some((s) => s.id === score));
+    return o ? fmtDay(o.last_modified) : null;
+  };
+  const target = m && { kind: "match" as const, rule_id: m.rule_id, occurrence_key: m.occurrence_key, page_stem: m.page_stem };
+  const compared = { kind: "extract" as const, score: doc.id, value: row.extracted_value };
+  const saveNote = async (note: string) => {
+    if (!target) return false;
+    try {
+      await api.annotate(catalog, { type: "comment", author: me, target, note, compared_with: compared });
+      toast("Note saved");
+      load();
+      return true;
+    } catch (e) { toast(`Couldn't save: ${String(e)}`); return false; }
+  };
+  const saveWrong = async () => {
+    if (!target || !m || !draft) return;
+    if (!draft.captures.length) { toast("Select the right text on the page first"); return; }
+    try {
+      await api.annotate(catalog, { ...verdictEvent(me, target, m.verdict, { draft }), compared_with: compared });
+      toast("Marked wrong");
+      setDraft(null);
+      load();
+    } catch (e) { toast(`Couldn't save: ${String(e)}`); }
+  };
+  const marked = m?.state === "wrong" && m.verdict?.verdict === "wrong" ? m.verdict : null;
+  const capture = (c: CapturedSelection) => setDraft((d) => (d ? { ...d, captures: addCapture(d.captures, c) } : d));
   return (
-    <section className="evx-page">
-      <header className="evx-page-h">
-        <div>
-          <b>{row.golden_record_id}</b> · {row.column}
-          <span className="evx-out"><i className={`sw o-${row.outcome}`} />{row.outcome}{row.similarity !== null && row.outcome !== "match" ? ` · ${row.similarity.toFixed(2)}` : ""}</span>
-        </div>
-        <a href={href(catalog, "records", row.golden_record_id)} className="muted small">Open in Records →</a>
-        <button className="evx-icon" onClick={onClose} title="Close">✕</button>
+    <section className="evx-panel" data-testid="row-panel">
+      <header className="evx-panel-h">
+        <b>{row.golden_record_id}</b><span className="mono">{row.column}</span>
+        <span className="evx-out"><i className={`sw o-${row.outcome}`} />{row.outcome}{row.similarity !== null && row.outcome !== "match" ? ` · ${row.similarity.toFixed(2)}` : ""}</span>
+        <span className="grow" />
+        <DiffModeSwitch mode={mode} onMode={setMode} />
+        {row.rule_id && <a className="muted small" href={href(catalog, "rules", row.rule_id, { row: row.occurrence_key })}>Open in Rules →</a>}
+        <button className="evx-icon" onClick={onClose} title="Close" aria-label="Close">✕</button>
       </header>
-      <div className="evx-vals">
-        <div><span className="evx-k"><i className="sw base" />Golden value</span><div className="evx-v">{row.golden_value}</div></div>
-        <div><span className="evx-k"><i className="sw xtra" />Extracted value</span>
-          <div className="evx-v">{row.outcome === "missing" ? <span className="muted">nothing extracted</span>
-            : parts ? parts.map((p, i) => p.op === "del" ? <del key={i}>{p.text}</del> : p.op === "ins" ? <ins key={i}>{p.text}</ins> : <span key={i}>{p.text}</span>)
-            : row.extracted_value}</div>
-          {parts && <div className="muted small">struck: in the golden dataset, not extracted · green: extracted, not in the golden dataset</div>}</div>
-      </div>
-      <div className="evx-pane">
-        <PagePane catalog={catalog} tabs={[{ stem: row.page_stem, url: row.source_url ?? "", title: row.golden_record_id ?? row.page_stem }]}
-          activeStem={row.page_stem} onActivate={() => {}} highlights={highlights} focusId={row.golden_css_path ? "golden" : "extracted"}
-          ruleset={ruleset}
-          legend={<span className="evx-pane-legend"><span><i className="sw base" />golden value</span>
-            {row.extracted_value && row.outcome !== "match" && <span><i className="sw xtra" />extracted value, where its text is on the page</span>}</span>} />
+      <div className="evx-panel-b">
+        <ValueDiff a={row.golden_value} b={row.extracted_value} aLabel={goldenLabel} bLabel={`extract output ${outputDay}`}
+          mode={mode} bEmpty="nothing extracted" />
+        {marked ? <MarkedWrong verdict={marked} what="the golden value" column={row.column} compared={comparedChip(marked.compared_with, outputOf)} />
+          : draft ? <WrongFlow draft={draft} onChange={setDraft} onSave={() => void saveWrong()} onCancel={() => setDraft(null)} />
+          : <NoteActions wrongLabel="The golden value is wrong…" onSave={saveNote} disabled={!target}
+              onWrong={() => m && setDraft(newDraft("wrong", m.verdict, m.state))} />}
+        {!row.rule_id && <p className="faint small">This value has no row in the Studio's latest extraction, so it can't be annotated here.</p>}
+        {m && <RowNotes comments={m.comments} label={(c) => comparedChip(c.compared_with, outputOf)} />}
+        <ValuePage catalog={catalog} stem={row.page_stem} url={row.source_url ?? ""} title={row.golden_record_id ?? row.page_stem}
+          golden={{ cssPath: row.golden_css_path, charStart: row.golden_char_start, charEnd: row.golden_char_end, text: row.golden_value }}
+          other={row.outcome === "match" ? null : row.extracted_value} captures={draft?.captures ?? []} capturing={!!draft}
+          onCapture={capture} onRemove={(i) => setDraft((d) => (d ? { ...d, captures: d.captures.filter((_, j) => j !== i) } : d))}
+          labels={{ golden: "golden value", other: "extracted value" }} ruleset={ruleset} />
       </div>
     </section>
   );
 }
 
-function Commands({ doc, onClose }: { doc: ScoreDoc; onClose: () => void }) {
-  const all = doc.commands.map(multiline);
-  const azure = all.some((c) => c.includes("azure://"));
-  const text = [...(azure ? ["az login", 'export AZURE_STORAGE_CONNECTION_STRING="$(az storage account show-connection-string \\\n  -n ceteststorage --query connectionString -o tsv)"'] : []), ...all].join("\n\n");
+// --- where these come from ---------------------------------------------------------------------------------------
+function InfoModal({ doc, basis, onClose }: { doc: ScoreDoc; basis: ScoreBasis; onClose: () => void }) {
+  useEffect(() => {
+    const esc = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("keydown", esc);
+    return () => window.removeEventListener("keydown", esc);
+  }, [onClose]);
+  const cmd = doc.commands[basis === "human" ? 0 : 1];  // human-reviewed tree, then rule-matched (score.json)
+  const text = cmd ? multiline(cmd) : "";
+  const draft = doc.golden.kind === "draft";
   return (
-    <div className="evx-cmds">
-      <div className="evx-cmds-h"><Ico name="terminal" /> Run it yourself (human-reviewed tree, then rule-matched)
-        <span className="grow" />
-        <button className="evx-icon" onClick={onClose} title="Close">✕</button>
-      </div>
-      <div className="evx-code">
-        <pre>{text || "# a draft has no files for xtra score to read"}</pre>
-        {text && <button className="evx-copy" onClick={() => navigator.clipboard.writeText(text).then(() => toast("Copied"))} title="Copy"><Ico name="copy" />Copy</button>}
+    <div className="evx-back" onClick={onClose}>
+      <div className="evx-modal" role="dialog" aria-label="Where these come from" onClick={(e) => e.stopPropagation()}>
+        <div className="evx-modal-h"><h2>Where these come from</h2><button className="btn sm" onClick={onClose}>Close</button></div>
+        <table className="evx-where">
+          <thead><tr><th>What</th><th>Where</th><th>Notes</th></tr></thead>
+          <tbody>
+            <tr><td>Extract output</td><td className="mono">{doc.output.path}/records/</td>
+              <td className="muted">Written by engineers with <code>xtra catalog extract</code>. Each run overwrites it; the Studio keeps a copy of what it scored.</td></tr>
+            <tr><td>Golden dataset</td><td className="mono">{doc.golden.from}{draft ? "" : `/${basis === "human" ? "human-reviewed" : "rule-matched"}/`}</td>
+              <td className="muted">{draft ? "A draft: an unpublished extraction, scored as if it were published." : "Published from this Studio."}
+                {doc.golden.kind === "human-reviewed" || basis === "human" ? ` Read as of ${fmtDayTime(doc.golden.as_of)}.` : ""}</td></tr>
+            <tr><td>Score</td><td>{fmtDayTime(doc.finished_at ?? doc.created_at)}</td>
+              <td className="muted"><code>xtra score extraction match</code>{doc.scorer.xtra_cli_commit ? `, xtra-cli ${doc.scorer.xtra_cli_commit.slice(0, 7)}${doc.scorer.xtra_cli_commit.endsWith("+dirty") ? "+dirty" : ""}` : ""} · {doc.id}</td></tr>
+          </tbody>
+        </table>
+        <div className="evx-term">
+          <pre>{text || "# a draft has no files for xtra score to read"}</pre>
+          {text && <button className="evx-copy" onClick={() => navigator.clipboard.writeText(text).then(() => toast("Copied"))}><Ico name="copy" />Copy</button>}
+        </div>
       </div>
     </div>
   );

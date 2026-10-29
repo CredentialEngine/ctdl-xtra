@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { EventBrief } from "../api/types";
 import {
-  addCapture, applyEvent, applyReview, approveBlocked, byLabel, canConfirm, shortWhen, clip, controlOn, expectedOf, historyItems, isSettled, keyAction, missingEvent, newDraft, paneTabs,
+  addCapture, applyEvent, applyReview, approveBlocked, byLabel, canConfirm, comparedLine, shortWhen, clip, controlOn, expectedOf, historyItems, isSettled, keyAction, missingEvent, newDraft, paneTabs,
   parseMark, pushRecent, rowTarget, unitWord, verdictEvent, whereWord,
 } from "./logic";
 
@@ -170,5 +170,24 @@ describe("human-reviewed and engineer-checked (Evals spec §4.3)", () => {
     const now = Date.parse("2026-10-28T12:00:00Z");
     expect(shortWhen("2026-10-28T11:59:30Z", now)).toBe("just now");
     expect(shortWhen("2026-10-21T10:00:00Z", now)).toBe("21 Oct");
+  });
+});
+
+describe("notes made on a diff (Evals spec §4.2)", () => {
+  const now = Date.parse("2026-10-30T12:00:00Z");
+  it("say what they were compared with, and when", () => {
+    expect(comparedLine({ at: "2026-10-28T18:00:00Z", compared_with: { kind: "extract", score: "sc-0004", value: "x" } }, now))
+      .toBe("while comparing with xtra's extract output, 28 Oct");
+    expect(comparedLine({ at: "2026-10-28T18:00:00Z", compared_with: { kind: "ruleset", ruleset: 1, value: null } }, now))
+      .toBe("while comparing with ruleset v1, 28 Oct");
+    expect(comparedLine({ at: "2026-10-28T18:00:00Z", compared_with: null }, now)).toBeUndefined();
+  });
+  it("show the line on the row's comment and on a wrong verdict", () => {
+    const cw = { kind: "extract" as const, score: "sc-0004", value: "x" };
+    const items = historyItems({ state: "wrong", comments: [ev({ type: "comment", verdict: null, note: "xtra stops early", compared_with: cw })],
+      verdict: ev({ note: "The honors sentence belongs to the program", expected: { text: "Introduces the atom", css_path: null,
+        char_start: null, char_end: null }, compared_with: cw }) });
+    expect(items.map((h) => [h.cls, !!h.compared])).toEqual([["note", false], ["note", true], ["comment", true]]);
+    expect(items[2].compared).toMatch(/^while comparing with xtra's extract output, /);
   });
 });

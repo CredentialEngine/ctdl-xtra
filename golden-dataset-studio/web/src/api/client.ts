@@ -1,6 +1,6 @@
 // Thin fetch wrappers for the Studio API. Every tab uses these; they keep URLs in one place.
 import type {
-  ExtractOutputs, ScoreDoc, ScoreValues,
+  ExtractOutputs, MatchRow, ScoreDoc, ScoreValues,
   CatalogCard, CatalogDetail, CrawledCatalog, FirstRulesPrompt, CompareRecords, CompareResponse, Discussion, CourseDetail, CourseHit, GoldenFileText, GoldenLineage, GoldenResponse,
   NewEvent, Overlay,
   PromptResponse, RuleDetail, RuleSummary, RulesResponse, RowsResponse, UnclassifiedPage,
@@ -87,8 +87,11 @@ export const api = {
     }),
   extractOutputs: (catalog: string) => call<ExtractOutputs>(`${c(catalog)}/extract-outputs`),
   scoreDoc: (catalog: string, id: string) => call<ScoreDoc>(`${c(catalog)}/scores/${encodeURIComponent(id)}`),
-  scoreValues: (catalog: string, id: string, o: { basis: string; column?: string | null; outcome?: string | null; offset?: number }) =>
+  scoreValues: (catalog: string, id: string, o: { basis: string; column?: string | null; subject?: string | null;
+                                                  outcome?: string | null; group?: string | null; offset?: number }) =>
     call<ScoreValues>(`${c(catalog)}/scores/${encodeURIComponent(id)}/values${q(o)}`),
+  match: (catalog: string, rule: string, occ: string, ext?: string | null) =>
+    call<MatchRow>(`${c(catalog)}/match${q({ rule, occ, ext })}`),
   startScore: (catalog: string, body: { golden: string; output: string; by: string }) =>
     call<ScoreDoc>(`${c(catalog)}/scores`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }),
 };

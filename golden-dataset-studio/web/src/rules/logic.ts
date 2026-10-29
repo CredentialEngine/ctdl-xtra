@@ -56,7 +56,19 @@ export function controlOn(state: RowStateName | null | undefined): "correct" | "
   return null;
 }
 
-export interface HistItem { cls: "good" | "bad" | "note" | "expert" | "comment" | "muted"; text: string; author?: string }
+export interface HistItem {
+  cls: "good" | "bad" | "note" | "expert" | "comment" | "muted"; text: string; author?: string;
+  /** made on a diff (Evals, Compare): what it was compared with, e.g. "while comparing with xtra's extract output, 28 Oct" */
+  compared?: string;
+}
+
+/** The short line a note or a verdict made on a diff carries (Evals spec §4.2). */
+export function comparedLine(e: Pick<EventBrief, "compared_with" | "at"> | null | undefined, now = Date.now()): string | undefined {
+  const c = e?.compared_with;
+  if (!c) return undefined;
+  const what = c.kind === "extract" ? "xtra's extract output" : c.kind === "ruleset" ? `ruleset v${c.ruleset}` : "another value";
+  return `while comparing with ${what}, ${shortWhen(e!.at, now)}`;
+}
 
 /** The history line under a row: what happened to its verdict across versions, notes, comments, questions. */
 export function historyItems(r: { state: RowStateName | null; verdict: EventBrief | null; reattached?: boolean;
@@ -77,17 +89,18 @@ export function historyItems(r: { state: RowStateName | null; verdict: EventBrie
     default:
   }
   if (r.reattached && v) out.push({ cls: "muted", text: `Re-attached: ${who}'s verdict was made before the record locator changed.` });
+  const vc = v && r.state !== "fixed" ? comparedLine(v) : undefined;
   if (v && (r.state === "wrong" || r.state === "still-wrong" || r.state === "missing") && v.expected?.text) {
-    out.push({ cls: "note", text: `expected “${clip(v.expected.text, 90)}”` });
+    out.push({ cls: "note", text: `expected “${clip(v.expected.text, 90)}”`, compared: v.note ? undefined : vc });
   }
   if (v?.note) {
     if (r.state === "question") out.push({ cls: "expert", text: `Question for the institution: “${v.note}”` });
-    else if (r.state !== "fixed") out.push({ cls: "note", author: v.author, text: `“${v.note}”` });
+    else if (r.state !== "fixed") out.push({ cls: "note", author: v.author, text: `“${v.note}”`, compared: vc });
   } else if (r.state === "question") out.push({ cls: "expert", text: "Waiting for the institution's answer" });
   for (const q of r.page_questions ?? []) {
     out.push({ cls: "expert", text: q.note ? `Question for the institution: “${q.note}”` : "Question for the institution (no note yet)" });
   }
-  for (const c of r.comments) if (c.note) out.push({ cls: "comment", author: c.author, text: `“${c.note}”` });
+  for (const c of r.comments) if (c.note) out.push({ cls: "comment", author: c.author, text: `“${c.note}”`, compared: comparedLine(c) });
   return out;
 }
 

@@ -92,6 +92,7 @@ export function HistoryLine(props: Parameters<typeof historyItems>[0]) {
           {h.cls === "expert" && <Ico name="inst" />}
           {h.cls === "comment" && <Ico name="bubble" className="ib" />}
           {h.author && <b>{h.author}: </b>}{h.text}
+          {h.compared && <span className="h-compared"> · {h.compared}</span>}
         </span>
       ))}
     </div>

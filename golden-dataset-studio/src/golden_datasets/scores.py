@@ -30,6 +30,7 @@ import functools
 import hashlib
 import json
 import os
+import re
 import subprocess
 from collections import Counter, defaultdict
 from concurrent.futures import ThreadPoolExecutor
@@ -522,6 +523,66 @@ def done_pending(ctx: Ctx) -> None:
         ctx.root.delete(layout.pending_score(ctx.catalog, ctx.crawl))
     except FileNotFoundError:
         pass
+
+
+# --- for the Evals tab -------------------------------------------------------------------------------
+def goldens(ctx: Ctx) -> list[dict]:
+    """What Evals can score against with Rule-matched: each golden dataset version, newest first, then the drafts
+    (every extraction, `rs-NNNN`, scored as if it were published), newest first."""
+    vs = golden_mod.versions(ctx)
+    out = []
+    for n in sorted(vs, reverse=True):
+        try:
+            pub = ctx.read_json(f"{vs[n]['path']}/publication.json", immutable=False)
+        except FileNotFoundError:
+            pub = {}
+        out.append({"id": golden_mod.version_name(n), "kind": "version", "ruleset_version": n,
+                    "published_at": pub.get("published_at"), "latest": n == max(vs)})
+    for e in sorted(ctx.extractions(), key=lambda e: e["extraction"], reverse=True):
+        out.append({"id": e["extraction"], "kind": "draft", "ruleset_version": e["ruleset_version"],
+                    "published_at": None, "latest": False})
+    return out
+
+
+def _lineage(ctx: Ctx, doc: dict) -> list[dict]:
+    """The lineage of the golden dataset a score read: its version's (for `human-reviewed`, the version it read),
+    or a draft's, planned from its extraction."""
+    g = doc["golden"]
+    m = golden_mod.VERSION.search(g["id"]) or golden_mod.VERSION.search(g.get("from", "").rstrip("/"))
+    if m:
+        v = golden_mod.versions(ctx).get(int(m.group(1)))
+        return ctx.rows(f"{v['path']}/lineage.parquet") if v else []
+    if g["kind"] == "draft":
+        from .review import LOADER
+
+        return golden_mod.plan(LOADER.review(ctx, g["id"]))["lineage"]
+    return []
+
+
+def studio_targets(ctx: Ctx, doc: dict, rows: list[dict]) -> None:
+    """Each scored value's Studio match, through the golden dataset's lineage: `rule_id`, `occurrence_key` and
+    `value_index` (the match's), so a note or a verdict on a row in Evals lands on the row the Rules tab shows. A
+    course listed twice on a page with the same golden_record_id has one lineage row per listing: the scored values
+    take them in order (each tree keeps its records in page order). Values with no lineage get None."""
+    by: dict[tuple, list[dict]] = defaultdict(list)
+    for r in sorted(_lineage(ctx, doc), key=lambda r: r["value_index"] or 0):
+        by[(r["page_stem"], r["golden_record_id"], r["ctdl_property"])].append(r)
+    seen: Counter = Counter()
+    for r in rows:
+        k = (r["page_stem"], r["golden_record_id"], r["ctdl_property"])
+        cands = by.get(k, [])
+        i = seen[(r["basis"], *k)]
+        seen[(r["basis"], *k)] += 1
+        hit = cands[min(i, len(cands) - 1)] if cands else None
+        r["rule_id"] = hit and hit["rule_id"]
+        r["occurrence_key"] = hit and hit["occurrence_key"]
+        r["value_index"] = hit and hit["match_value_index"]
+
+
+def subject(golden_record_id: str | None) -> str | None:
+    """A course code's subject, for Group by: its leading letters (NS912L → NS)."""
+    m = re.match(r"[A-Za-z]+", golden_record_id or "")
+    return m.group(0).upper() if m else None
 
 
 # --- CLI ---------------------------------------------------------------------------------------------

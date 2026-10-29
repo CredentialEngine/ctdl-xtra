@@ -150,6 +150,44 @@ def test_the_api_runs_a_score_as_a_durable_job(scored):
     assert scores.read(Ctx(ctx.root, CAT), left["id"])["status"] == "interrupted"
 
 
+def test_evals_rows_map_to_their_studio_match_and_notes_keep_the_comparison(scored):
+    """Evals step 4: each scored value carries its Studio match (through the lineage), so a note on it lands on the
+    row the Rules tab shows, with what it was compared with; the list of golden datasets, outcomes per score, groups."""
+    c, ctx, _ = scored
+    o = c.get(f"{B}/extract-outputs").json()
+    assert [(g["id"], g["kind"], g["latest"]) for g in o["goldens"]] == [("ruleset-v1", "version", True), ("rs-0001", "draft", False)]
+    sid = (o["outputs"][0]["scores"] or c.get(f"{B}/scores").json())[0]["id"]
+    _wait(c, sid)
+    [brief] = c.get(f"{B}/extract-outputs").json()["outputs"][0]["scores"]
+    assert brief["rule_outcomes"] == {"missing": 1, "wrong": 0, "partial": 1, "match": 4} and brief["golden_kind"] == "version"
+    assert brief["human_outcomes"] == {"missing": 0, "wrong": 0, "partial": 0, "match": 1} and brief["golden_as_of"]
+
+    v = c.get(f"{B}/scores/{sid}/values", params={"basis": "rule", "column": "name", "group": "subject"}).json()
+    assert v["groups"] == [{"name": "C", "values": 3, "missing": 1, "wrong": 0, "partial": 1, "match": 1}]
+    partial = next(r for r in v["rows"]["items"] if r["outcome"] == "partial")
+    assert (partial["page_stem"], partial["rule_id"], partial["subject"]) == ("page-1", "course-name", "C")
+    assert partial["occurrence_key"] == _rows(c, "course-name")["page-1"]["key"] and partial["value_index"] == 0
+    assert c.get(f"{B}/scores/{sid}/values", params={"basis": "rule", "subject": "X"}).json()["rows"]["total"] == 0
+    assert c.get(f"{B}/scores/{sid}/values", params={"group": "page"}).status_code == 422
+
+    # a note on the diff: a comment on that match, with the comparison; /match returns the row with it
+    cw = {"kind": "extract", "score": sid, "value": partial["extracted_value"]}
+    r = c.post(f"{B}/annotations", json={"type": "comment", "author": JARED, "note": "xtra keeps the suffix",
+                                         "compared_with": cw, "target": {"kind": "match", "rule_id": partial["rule_id"],
+                                                                         "occurrence_key": partial["occurrence_key"]}})
+    assert r.status_code == 200, r.text
+    m = c.get(f"{B}/match", params={"rule": partial["rule_id"], "occ": partial["occurrence_key"]}).json()
+    assert m["value"] == partial["golden_value"] and m["page_stem"] == "page-1"
+    assert [(x["note"], x["compared_with"]) for x in m["comments"]] == [("xtra keeps the suffix", cw)]
+    assert c.get(f"{B}/match", params={"rule": "course-name", "occ": "nowhere"}).status_code == 404
+
+    # a draft's rows map through the lineage its extraction would publish
+    d = c.post(f"{B}/scores", json={"golden": "rs-0001", "output": o["outputs"][0]["id"], "by": JARED}).json()
+    _wait(c, d["id"])
+    rows = c.get(f"{B}/scores/{d['id']}/values", params={"basis": "rule"}).json()["rows"]["items"]
+    assert rows and all(r["rule_id"] and r["occurrence_key"] for r in rows)
+
+
 def test_the_pending_score_runs_when_due(scored):
     c, ctx, _ = scored
     jobs, st = c.app.state.scores, c.app.state.studio

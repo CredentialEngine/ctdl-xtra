@@ -7,8 +7,10 @@ import type { CompareResponseX } from "./types";
 
 const compareMock = vi.fn();
 const recordsMock = vi.fn();
+const annotateMock = vi.fn();
 vi.mock("../api/client", () => ({ api: { compare: (...args: unknown[]) => compareMock(...args),
-                                         compareRecords: (...args: unknown[]) => recordsMock(...args) } }));
+                                         compareRecords: (...args: unknown[]) => recordsMock(...args),
+                                         annotate: (...args: unknown[]) => annotateMock(...args) } }));
 import CompareTab from "./CompareTab";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -93,11 +95,36 @@ describe("CompareTab", () => {
     expect(host.querySelector("h2")!.textContent).toContain("Jared's earlier verdicts");
     const rows = host.querySelectorAll(".crec.cv");
     expect(rows[0].querySelector(".outcome")!.textContent).toBe("fixed");
-    expect(rows[0].querySelector("del")!.textContent).toBe("Prerequisite: GEOG 205. ");
+    // the shared value diff, Split by default: v1 on the left with what's gone marked, v2 on the right
+    expect(rows[0].querySelector(".vd.split")).not.toBeNull();
+    expect(rows[0].querySelector(".vd-side.del mark")!.textContent).toBe("Prerequisite: GEOG 205. ");
+    expect(rows[0].querySelector(".vd-side.del .vd-lab")!.textContent).toBe("ruleset v1");
+    expect(rows[0].querySelector(".vd-side.add mark")).toBeNull();
     expect(rows[0].textContent).toContain("Jared: “Prerequisite should be a separate property.”");
     expect(rows[1].querySelector(".outcome")!.textContent).toBe("still correct");
-    expect(rows[1].textContent).toContain("unchanged ·");
+    expect(rows[1].querySelector(".vd.same")).not.toBeNull();
     expect(host.querySelector("details.why1")!.hasAttribute("open")).toBe(false);
+  });
+
+  it("saves a note on a changed value with what it was compared with", async () => {
+    annotateMock.mockReset().mockResolvedValue({ event: {}, rule: null, elapsed_ms: 1 });
+    await render("#/c/avc/compare");
+    const row = host.querySelector(".crec.cv")!;
+    const note = [...row.querySelectorAll("button")].find((b) => b.textContent === "Note…")!;
+    expect([...row.querySelectorAll("button")].some((b) => b.textContent === "The new value is wrong…")).toBe(true);
+    await act(async () => { note.click(); });
+    const box = row.querySelector("textarea")!;
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value")!.set!.call(box, "v2 drops the prerequisite, rightly");
+      box.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    const save = [...row.querySelectorAll("button")].find((b) => b.textContent === "Save note")!;
+    await act(async () => { save.click(); });
+    const [cat, ev] = annotateMock.mock.calls[0];
+    expect(cat).toBe("avc");
+    expect(ev).toMatchObject({ type: "comment", note: "v2 drops the prerequisite, rightly", extraction: "rs-0002",
+      target: { kind: "match", rule_id: "course-description", occurrence_key: "geog222@div" },
+      compared_with: { kind: "ruleset", ruleset: 1, value: expect.stringContaining("Prerequisite: GEOG 205.") } });
   });
 
   it("links every record to the Rules tab with that record selected", async () => {

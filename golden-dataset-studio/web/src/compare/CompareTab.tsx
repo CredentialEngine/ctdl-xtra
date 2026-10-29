@@ -5,12 +5,14 @@
 // Every record links to the Rules tab ("See on page →"); Compare has no page pane.
 import { useEffect, useState, type KeyboardEvent, type ReactNode } from "react";
 import { api } from "../api/client";
-import type { BriefRow, CompareRecords, DiffPart } from "../api/types";
+import type { BriefRow, CompareRecords } from "../api/types";
 import { go, href } from "../shell/router";
 import type { TabProps } from "../shell/tabProps";
 import { SampleDrawer, samplePrefs, sampleQuery, StrataTags, type SamplePrefs } from "../shell/Sample";
 import { fmt, Ico, useKeyHints } from "../shell/ui";
-import { compactDiff, delta, outcomeLabel, unchanged } from "./diff";
+import { useReviewer } from "../shell/reviewer";
+import { CompareCtx, CompareValue } from "./CompareValue";
+import { delta, outcomeLabel } from "./diff";
 import type { AnnotatedRowX, CompareResponseX, RuleCardX, SignalDeltaX } from "./types";
 import "./compare.css";
 
@@ -19,6 +21,7 @@ const num = (v: string | null) => (v && /^\d+$/.test(v) ? Number(v) : undefined)
 
 export default function CompareTab({ catalog, route }: TabProps) {
   const short = catalog.short;
+  const me = useReviewer();
   const a = num(route.params.get("a")), b = num(route.params.get("b"));
   const rule = route.params.get("rule") || undefined;
   const [data, setData] = useState<CompareResponseX | null>(null);
@@ -60,7 +63,9 @@ export default function CompareTab({ catalog, route }: TabProps) {
             </div>
           </div>
           {error && <p className="cmp-error">{error}</p>}
-          <Body data={data} short={short} rule={rule} />
+          <CompareCtx.Provider value={{ short, a: data.a, b: data.b, bExtraction: data.b_extraction, me }}>
+            <Body data={data} short={short} rule={rule} />
+          </CompareCtx.Provider>
         </div>
       </section>
     </div>
@@ -228,23 +233,6 @@ function Num({ n, label, cls = "" }: { n: number; label: string; cls?: string })
   return <span className={n ? cls : "zero"}><b>{fmt(n)}</b> {label}</span>;
 }
 
-/** Old → new with a word diff: removed text struck through in red, added text in green. */
-export function Diff({ parts, value }: { parts: DiffPart[]; value?: string | null }) {
-  if (unchanged(parts)) {
-    const text = parts.map((p) => p.text).join("") || value || "";
-    return <div className="diff faint one">unchanged · {text.slice(0, 200)}</div>;
-  }
-  return (
-    <div className="diff">
-      {compactDiff(parts).map((p, i) =>
-        p.op === "del" ? <del key={i}>{p.text}</del>
-        : p.op === "add" ? <ins key={i}>{p.text}</ins>
-        : p.op === "gap" ? <span key={i} className="gap">{p.text}</span>
-        : <span key={i}>{p.text}</span>)}
-    </div>
-  );
-}
-
 function See({ r, card, short }: { r: BriefRow; card: RuleCardX; short: string }) {
   return <a className="see" href={href(short, "rules", card.rule_id, { row: r.key })}>See on page →</a>;
 }
@@ -253,13 +241,15 @@ function Ck({ r, card, many }: { r: BriefRow; card: RuleCardX; many: boolean }) 
   return <span className="ck">{r.course_key ?? "—"}{many && <span className="rtag">{card.ctdl_property ?? card.title}</span>}</span>;
 }
 
+/** A changed value: the shared value diff (Split by default) with Note… and "The new value is wrong…" (field rules). */
 function RecLine({ r, card, short, many, children }:
   { r: BriefRow; card: RuleCardX; short: string; many: boolean; children?: ReactNode }) {
   return (
-    <div className="crec">
-      <Ck r={r} card={card} many={many} />
-      <div className="cbody"><Diff parts={r.diff} value={r.b_value ?? r.a_value} />{children}</div>
-      <See r={r} card={card} short={short} />
+    <div className="crec vrec">
+      <CompareValue r={r} ruleId={card.rule_id} kind={card.kind} column={card.ctdl_property ?? card.title}
+        head={<><Ck r={r} card={card} many={many} />{children}</>}>
+        <See r={r} card={card} short={short} />
+      </CompareValue>
     </div>
   );
 }
@@ -267,20 +257,23 @@ function RecLine({ r, card, short, many, children }:
 function VerdictRow({ r, card, short, many }: { r: AnnotatedRowX; card: RuleCardX; short: string; many: boolean }) {
   const o = outcomeLabel(r);
   return (
-    <div className="crec cv" data-outcome={r.outcome}>
-      <span className="vb">
-        <span className={`verdict ${r.verdict}`}><Ico name={r.verdict} />{VERDICT_LABEL[r.verdict]}</span>
-        <span className="arr">→</span>
-        <span className={`outcome ${o.cls}`}>{o.label}</span>
-      </span>
-      <Ck r={r} card={card} many={many} />
-      <div className="cbody">
-        <Diff parts={r.diff} value={r.b_value} />
-        {r.note && <div className="cnote">{r.author}: “{r.note}”</div>}
-        {r.verdict === "wrong" && r.outcome !== "fixed" && r.expected != null &&
-          <div className="cnote">Expected: “{r.expected.length > 160 ? r.expected.slice(0, 160) + "…" : r.expected}”</div>}
-      </div>
-      <See r={r} card={card} short={short} />
+    <div className="crec vrec cv" data-outcome={r.outcome}>
+      <CompareValue r={r} ruleId={card.rule_id} kind={card.kind} column={card.ctdl_property ?? card.title}
+        head={<>
+          <Ck r={r} card={card} many={many} />
+          <span className="vb">
+            <span className={`verdict ${r.verdict}`}><Ico name={r.verdict} />{VERDICT_LABEL[r.verdict]}</span>
+            <span className="arr">→</span>
+            <span className={`outcome ${o.cls}`}>{o.label}</span>
+          </span>
+        </>}
+        foot={<>
+          {r.note && <div className="cnote">{r.author}: “{r.note}”</div>}
+          {r.verdict === "wrong" && r.outcome !== "fixed" && r.expected != null &&
+            <div className="cnote">Expected: “{r.expected.length > 160 ? r.expected.slice(0, 160) + "…" : r.expected}”</div>}
+        </>}>
+        <See r={r} card={card} short={short} />
+      </CompareValue>
     </div>
   );
 }
