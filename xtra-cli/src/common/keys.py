@@ -92,6 +92,10 @@ def page_meta_key(catalog_folder: str, run_id: str, stem: str) -> str:
     return f"{run_prefix(catalog_folder, run_id)}/pages/{stem}.meta.json"
 
 
+def navigation_key(catalog_folder: str, run_id: str) -> str:
+    return f"{run_prefix(catalog_folder, run_id)}/navigation.json"
+
+
 def discovery_root(catalog_folder: str, run_id: str) -> str:
     """Where every discovery run of one crawl run lives, side by side."""
     return f"{run_prefix(catalog_folder, run_id)}/discovery"

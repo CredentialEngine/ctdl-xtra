@@ -42,6 +42,7 @@ def cli() -> None:
     \b
       xtra environment set prod --data-uri <storage-uri>
       xtra catalog crawl --with-playwright --url <catalog-url> --limit 5
+      xtra catalog navigation --catalog-id ID --run-id TS
       xtra catalog discover --catalog-id ID --run-id TS
       xtra catalog extract --with-template --catalog-id ID --run-id TS
       xtra catalog transform --with-ctdl --catalog-id ID --run-id TS
@@ -74,6 +75,7 @@ score_extraction_group.add_command(
     _load_command("xtra.scoring.extraction.match")
 )
 catalog_group.add_command(_load_command("xtra.catalog.crawl"))
+catalog_group.add_command(_load_command("xtra.catalog.navigation"))
 catalog_group.add_command(_load_command("xtra.catalog.discover"))
 catalog_group.add_command(_load_command("xtra.catalog.extract"))
 catalog_group.add_command(_load_command("xtra.catalog.transform"))

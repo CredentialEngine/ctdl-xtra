@@ -148,6 +148,7 @@ xtra catalog crawl      -> src/xtra/catalog/crawl.py
   --with-playwright     -> src/implementations/crawl_browser.py
   --with-crawl4ai       -> src/implementations/crawl_crawl4ai.py
   --with-firecrawl      -> src/implementations/crawl_firecrawl.py
+xtra catalog navigation -> src/xtra/catalog/navigation.py
 xtra catalog discover   -> src/xtra/catalog/discover.py
 xtra catalog extract    -> src/xtra/catalog/extract.py
 xtra catalog transform  -> src/xtra/catalog/transform.py
@@ -186,6 +187,7 @@ xtra catalog crawl --with-playwright \
 | `--include-regex` | none | Repeatable. A followed URL is kept only when it matches one of these. |
 | `--exclude-regex` | none | Repeatable. A followed URL is dropped when it matches one of these. |
 | `--seed-urls-file` | none | Extra start URLs, one per line, for pages no link reaches. |
+| `--with-navigation` | off | Also save the link tree when the crawl ends (see [Link tree](#link-tree)). An on/off switch, not a strategy. |
 
 A crawl is a rare, one-time job, so the defaults are slow on purpose: one
 page every three minutes, one worker. Getting it wrong means doing it again.
@@ -401,6 +403,49 @@ After 20 URLs fail in a row the run stops, checkpoints, and reports
 | `0` | `status` is `complete` or `limit_reached`, and no page failed |
 | `1` | pages failed, or the run ended `incomplete`; one line on stderr says which |
 | `130` | Ctrl+C. The checkpoint is written, so the same `--run-id` resumes |
+
+#### Link tree
+
+`--with-navigation` also saves how the crawl moved through the site. When the
+crawl ends it writes one file next to `crawl.json`, `navigation.json`, with
+every page the crawl found listed under the page where it was first found.
+Each page has:
+
+- `url`, plus `found_on` and `link_text`: the page it was found on and the
+  words of the link that led to it.
+- `found_by`, only when the page was not found through a link: `start_url`,
+  `sitemap`, `site_index`, `seed_file` or `not_from_a_link`.
+- `status`: `saved`, `failed` (with `error`), `skipped` (with `reason` when
+  known) or `not_visited`.
+- `links_on_page`: how many links a saved page has. 0 means the page did not
+  load properly.
+- `skipped_links`: links the crawl did not follow, each with a `result`:
+  `other_website`, `outside_scope`, `not_a_web_page`, `file`,
+  `left_out_by_include_regex`, `left_out_by_exclude_regex` or
+  `blocked_by_robots`. Each one is listed once, on the first page that has it.
+- `pages_found_here`: the pages first found on this one.
+
+`totals` counts pages by status and links by result, where `new` links became
+pages and `already_found` links led to pages found earlier. Links to pages
+already found are counted but not listed, because every page of a big catalog
+repeats the same menu.
+
+The tree is built once, from the saved pages in the order they were saved and
+with the crawler's own rules, so it never slows the crawl down. Nothing is
+built after Ctrl+C. To build it for a crawl that has already run, with or
+without the flag:
+
+```bash
+xtra catalog navigation --catalog-id catalog-example-edu --run-id 2026-09-17T14:20:01Z
+```
+
+That reads only the saved run, fetches nothing, and writes the same file into
+it. robots.txt and the sitemap's list are not saved with a crawl, so a rebuild
+works out robots.txt blocks from the crawl's `seen` list and cannot tell
+sitemap pages from linked ones; `notes` says so. A rebuild never replaces a
+tree the crawl built. Totals count each link once, so after a resumed crawl
+they can be lower than `skipped_by_reason` in `crawl.json`, which counts the
+links of every page read back again.
 
 ### Discover
 
@@ -945,6 +990,7 @@ is listed in the report under `malformed` and skipped.
   failed.jsonl
   pages/{stem}.html
   pages/{stem}.meta.json
+  navigation.json
   discovery/{discovery-run-id}/summary.json
   discovery/{discovery-run-id}/labels.json
   discovery/{discovery-run-id}/patterns.md
