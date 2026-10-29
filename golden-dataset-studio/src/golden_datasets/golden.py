@@ -2,8 +2,9 @@
 §7.6; Evals spec §4.1, §4.3).
 
 A golden dataset's ID is its ruleset's: *ruleset v3*. A column (property) is published once its field rule is
-approved; publishing it writes the whole golden dataset of that ruleset again (every column published in it so far,
-all from the same immutable extraction), never merged with what was there. The first publication in a ruleset
+approved; publishing it writes the whole golden dataset of that ruleset again (every column published in it or in an
+earlier version so far, all from this ruleset's immutable extraction), never merged with what was there: columns only
+grow (Evals spec §1 rows 3, 16). The first publication in a ruleset
 creates its version; later ones rewrite it with the extra column. Every version is kept as two parallel trees, and
 the latest version's rule-matched tree also replaces each page's file at the usual location, in the
 `xtra-golden-sets` container:
@@ -300,6 +301,19 @@ def versions(ctx: Ctx) -> dict[int, dict]:
     return out
 
 
+def inherited_columns(ctx: Ctx, ruleset_version: int) -> set[str]:
+    """The columns (properties) published in the golden datasets of earlier rulesets: every later version has them
+    too, its values from its own ruleset's extraction (columns only grow, Evals spec §1 rows 3, 16)."""
+    out: set[str] = set()
+    for v, g in versions(ctx).items():
+        if v < ruleset_version:
+            try:
+                out |= set(ctx.read_json(f"{g['path']}/publication.json", immutable=False).get("properties") or [])
+            except FileNotFoundError:
+                continue
+    return out
+
+
 def page_json(records: list[dict]) -> str:
     """The text of one <page_stem>.json, exactly as written."""
     return json.dumps(records, indent=2, ensure_ascii=False) + "\n"
@@ -420,7 +434,7 @@ def publish(ctx: Ctx, to: str, by: str, allow_unapproved: bool = False, log=prin
             note: dict | None = None) -> dict:
     """Publish these properties (None: every property whose rule is approved; []: none, only the human-reviewed
     values) into the golden dataset of the extraction's ruleset (`ext`, default the latest): the whole version is
-    written again with every column published in it so far."""
+    written again with every column published in it, or in an earlier version, so far."""
     rv = LOADER.review(ctx, ext)
     n = rv.snap.ruleset_version
     ok, statuses = approval(rv)
@@ -431,7 +445,8 @@ def publish(ctx: Ctx, to: str, by: str, allow_unapproved: bool = False, log=prin
         before = ctx.read_json(f"{gdir}/publication.json", immutable=False)
     except FileNotFoundError:
         before = None
-    columns = sorted(set(chosen) | set((before or {}).get("properties", [])), key=lambda x: model.PROPERTY_ORDER.get(x, 99))
+    columns = sorted(set(chosen) | set((before or {}).get("properties", [])) | inherited_columns(ctx, n),
+                     key=lambda x: model.PROPERTY_ORDER.get(x, 99))
     p = plan(rv, set(columns))
     target = open_root(to)
     latest = n >= max(versions(ctx), default=0)
@@ -526,7 +541,7 @@ def approval_publishes(rv: Review, rule_id: str) -> dict | None:
     rules, record locators, field rules for program-page lines). The column goes into the golden dataset of the
     rule's ruleset: the first approval creates that version with every column approved so far, later ones rewrite it
     with the extra column. A rule with no CTDL term (Learning Type) is approved but not written (`writes` False).
-    `now` / `after`: the version's properties before and after."""
+    `now` / `after`: the version's properties before and after (after: with the columns of earlier versions too)."""
     col = next((r for r in property_rules(rv) if r["rule_id"] == rule_id), None)
     if col is None:
         return None
@@ -539,10 +554,12 @@ def approval_publishes(rv: Review, rule_id: str) -> dict | None:
         now, creates = [], True
     adds = [r["property"] for r in property_rules(rv)
             if r["ctdl_property"] and (r["status"] == "approved" or r["rule_id"] == rule_id)]
-    after = sorted(set(now) | set(adds), key=lambda x: model.PROPERTY_ORDER.get(x, 99)) if col["ctdl_property"] else now
+    after = sorted(set(now) | set(adds) | inherited_columns(ctx, n),
+                   key=lambda x: model.PROPERTY_ORDER.get(x, 99)) if col["ctdl_property"] else now
     return {"rule_id": rule_id, "property": col["property"], "column": column_name(col["property"]),
             "writes": bool(col["ctdl_property"]), "golden": version_name(n), "ruleset_version": n, "creates": creates,
-            "now": now, "after": after, "adds": [p for p in after if p not in now] or [col["property"]]}
+            "now": now, "after": after, "adds": [p for p in after if p not in now] or [col["property"]],
+            "approved": adds}
 
 
 def publish_approved(ctx: Ctx, rule_id: str, by: str) -> dict | None:
@@ -551,7 +568,7 @@ def publish_approved(ctx: Ctx, rule_id: str, by: str) -> dict | None:
     p = approval_publishes(LOADER.review(ctx), rule_id)
     if not p or not p["writes"]:
         return None
-    doc = publish(ctx, default_target(ctx), by, properties=p["adds"])
+    doc = publish(ctx, default_target(ctx), by, properties=p["approved"])  # earlier versions' columns come along
     return doc | {"created": p["creates"]}
 
 
@@ -564,7 +581,8 @@ def request_score(ctx: Ctx, reason: str) -> str:
 
 def backfill(ctx: Ctx, to: str, log=print, again: bool = False) -> list[dict]:
     """Rebuild the publications made before golden dataset versions (`pub-…`, merged in place) as versions: each
-    ruleset's columns from their lineage, values from the immutable extraction they were published from. The old
+    ruleset's columns from their lineage (plus every earlier version's: columns only grow), values from the immutable
+    extraction they were published from. The old
     entries leave the manifest; their folders stay. `again` also writes every existing version again (oldest first,
     so the newest ends at the latest location), e.g. after the layout changed."""
     import pyarrow.parquet as pq
@@ -586,7 +604,7 @@ def backfill(ctx: Ctx, to: str, log=print, again: bool = False) -> list[dict]:
         cols = sorted(set().union(*(c for _, c in items)), key=lambda x: model.PROPERTY_ORDER.get(x, 99))
         doc = publish(ctx, to, last["published_by"], allow_unapproved=True, properties=cols, ext=last["extraction"],
                       published_at=last["published_at"], note={"backfilled_from": [d["publication"] for d, _ in items]})
-        log(f"{doc['publication']} ({', '.join(cols)}) from {', '.join(d['publication'] for d, _ in items)}: "
+        log(f"{doc['publication']} ({', '.join(doc['properties'])}) from {', '.join(d['publication'] for d, _ in items)}: "
             f"{doc['pages']:,} pages, {doc['records']:,} records, {doc['lineage_rows']:,} values "
             f"({doc['approvals']['human']:,} human-reviewed)")
         done.append(doc)

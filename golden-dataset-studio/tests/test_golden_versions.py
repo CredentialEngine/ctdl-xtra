@@ -206,18 +206,22 @@ def test_publishing_writes_the_whole_version_and_replaces_the_latest(studio, tmp
     assert rows[0]["location"]["css_path"] and rows[0]["catalog"] == CAT
     assert ctx.root.exists(f"{gdir}/lineage.parquet") and ctx.root.exists(f"{gdir}/publication.json")
 
-    # ruleset v2: its own version, written whole; v1's folder stays; the latest location is v2's, not merged
+    # ruleset v2: its own version, written whole, with v1's columns too (columns only grow; values from v2's own
+    # extraction); v1's folder stays; the latest location is v2's, not merged
     draft = tmp_path / "v2.json"
     rules = json.loads(json.dumps(RULES))
     rules["rules"][3]["definition"] |= {"rule_type": "css+regex", "regex": "^C (\\d+)", "group": 1}  # the number only
     draft.write_text(json.dumps(rules))
     assert main(["rule", "publish", "--root", ctx.root.uri, "--catalog", CAT, str(draft), "--note", "v2", "--force"]) == 0
     capsys.readouterr()
+    rv2 = golden.LOADER.review(Ctx(ctx.root, CAT))
+    assert golden.approval_publishes(rv2, "course-name")["after"] == ["Coded Notation", "Learning Opportunity Name"]
     v2 = golden.publish(Ctx(ctx.root, CAT), str(gold), "test", allow_unapproved=True,
                         properties=["Learning Opportunity Name"])
-    assert v2["publication"] == "ruleset-v2" and v2["properties"] == ["Learning Opportunity Name"]
+    assert v2["publication"] == "ruleset-v2" and v2["properties"] == ["Coded Notation", "Learning Opportunity Name"]
     latest = _page(gold, ctx, "page-1")[0]
-    assert [(f["property"], f["value"]) for f in latest["fields"]] == [("Learning Opportunity Name", "1")]
+    assert [(f["property"], f["value"]) for f in latest["fields"]] == [("Coded Notation", "C 1"),
+                                                                        ("Learning Opportunity Name", "1")]
     assert _page(gold, ctx, "page-1", 1)[0]["fields"][0]["property"] == "Coded Notation"
     assert {g["publication"] for g in Ctx(ctx.root, CAT).crawl_entry()["golden"]} == {"ruleset-v1", "ruleset-v2"}
     assert main(["check", "--root", ctx.root.uri, "--catalog", CAT]) == 0
@@ -227,8 +231,9 @@ def test_publishing_writes_the_whole_version_and_replaces_the_latest(studio, tmp
     stray.write_text(json.dumps(_page(gold, ctx, "page-2", 1)))
     assert main(["check", "--root", ctx.root.uri, "--catalog", CAT]) == 1
     assert main(["golden", "backfill", "--root", ctx.root.uri, "--catalog", CAT, "--to", str(gold), "--again"]) == 0
-    assert "ruleset-v2 (Learning Opportunity Name) written again" in capsys.readouterr().out and not stray.exists()
-    assert _page(gold, ctx, "page-1")[0]["fields"][0]["value"] == "1"  # v2 is still the latest
+    out = capsys.readouterr().out
+    assert "ruleset-v2 (Coded Notation, Learning Opportunity Name) written again" in out and not stray.exists()
+    assert _page(gold, ctx, "page-1")[0]["fields"][1]["value"] == "1"  # v2 is still the latest
 
 
 def test_backfill_rebuilds_old_publications_as_versions(studio, capsys):
