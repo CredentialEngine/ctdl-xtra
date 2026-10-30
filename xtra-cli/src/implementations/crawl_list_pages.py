@@ -1,36 +1,6 @@
-"""The pages of a Coursedog course or program list, read off its buttons.
+"""Queue the later pages of a list that pages with buttons, not links.
 
-A Coursedog catalog shows its courses and its programs twenty at a time.
-The list arrives by XHR after the load event, and the way to the next
-twenty is a row of <button>s, not links, so following links reaches the
-first twenty of each list and nothing after them. Brookdale's crawl of
-2026-09-23 saved no course and no program page at all, and Commonwealth's
-of 2026-10-21, made after the readiness wait, queued 20 of 2,733 courses.
-
-The site keeps the page number in the address, though: it rewrites
-/courses to /courses?page=1&cq= once the list is up, and /courses?page=2
-opens the second page. So the buttons stand for addresses the site
-answers, the way an <a rel=next> would, and they are read that way: the
-page on screen, and the last page the row offers. Nothing is clicked and
-nothing is fetched here.
-
-What a page number in the address does is still the site's business, so
-it is checked before it is trusted:
-
-- the first page of a list queues its second page and nothing else;
-- a page asked for page N that shows page N queues every page after it,
-  up to the last, all at once, so one page that loads badly cannot end
-  the list there;
-- a page asked for page N that shows another page means the list ignores
-  the address. Nothing more is queued from it, so a list that cannot be
-  paged that way costs one page, not hundreds.
-
-Addresses are built from the URL the page was asked for, never from the
-one the site rewrote it to, because a resume reads a saved page back
-under the URL it was asked for and has to build the same addresses. An
-empty parameter is dropped, so /courses and the /courses?page=1&cq= that
-a catalog's own pages link to lead to one page 2, not two copies of the
-whole list.
+A list is trusted to open by its ?page=N address only once page 2 shows 2.
 """
 
 from __future__ import annotations
@@ -46,25 +16,19 @@ logger = logging.getLogger(__name__)
 
 PAGE_PARAMETER = "page"
 
-# Every Coursedog page names its platform, in its asset URLs and footer.
-PLATFORM_RE = re.compile("coursedog", re.IGNORECASE)
-
-# The row of page buttons. A print stylesheet on every page names the
-# class too, so only an element's class attribute counts.
+# The row of page buttons. Only an element's class counts, not a stylesheet.
 BAR_CLASS = "base-pagination"
 BAR_ATTRIBUTE_RE = re.compile(
     r"""class=["']?[^"'>]*\b""" + re.escape(BAR_CLASS) + r"\b"
 )
 
-# The button of the page on screen. It is also disabled, which is what is
-# left to go on when a theme drops the colour.
+# The button of the page on screen. It is also disabled.
 CURRENT_CLASS = "btn-primary"
 
-# What the server renders where a list will go, before its XHR lands.
+# What the server renders where the list goes, before the list loads.
 LOADING_RE = re.compile(r">\s*Loading results(?:\.\.\.|…)\s*<")
 
-# The longest list seen has 195 pages. The cap is there so a misread number
-# cannot queue an endless run; reaching it is reported, never silent.
+# Keeps a misread number from queueing an endless run; reaching it is logged.
 MAX_LIST_PAGES = 1000
 
 PROBLEM_LOADING = "loading"
@@ -83,13 +47,7 @@ class Bar:
 
 @dataclass(frozen=True)
 class ListPages:
-    """What one saved page says about the rest of its list.
-
-    `asked` is the page its URL asked for, `current` the page its buttons
-    say is on screen, `last` the highest page they offer, and `urls` the
-    pages to queue. `problem` says why the list cannot be followed further
-    from this page, or that it was cut at MAX_LIST_PAGES.
-    """
+    """What one saved list page says about the rest of its list."""
 
     asked: int | None
     current: int | None = None
@@ -104,11 +62,7 @@ def _is_number(text: str) -> bool:
 
 
 class _BarParser(HTMLParser):
-    """The numbered buttons inside each element whose class is the bar's.
-
-    Nesting is counted on the bar's own tag only, so a void element inside
-    it, which never closes, cannot throw the count off.
-    """
+    """The numbered buttons inside each element whose class is the bar's."""
 
     def __init__(self) -> None:
         super().__init__(convert_charrefs=True)
@@ -122,6 +76,8 @@ class _BarParser(HTMLParser):
     ) -> None:
         values = dict(attrs)
         if self._depth:
+            # Only the bar's own tag is counted, so a void element cannot
+            # throw the count off.
             if tag == self._tag:
                 self._depth += 1
             elif tag == "button":
@@ -148,12 +104,7 @@ class _BarParser(HTMLParser):
 
 
 def _current(buttons: list[tuple[int, bool, bool]]) -> int | None:
-    """The one page the row marks as on screen, or None.
-
-    The highlighted button decides. With none highlighted, the disabled
-    numbered button does; the gap is disabled too, but carries no number.
-    Two pages marked the same way is no answer.
-    """
+    """The one page marked as on screen: highlighted, else disabled."""
     for marked in (
         {number for number, highlighted, _ in buttons if highlighted},
         {number for number, _, disabled in buttons if disabled},
@@ -164,11 +115,7 @@ def _current(buttons: list[tuple[int, bool, bool]]) -> int | None:
 
 
 def read_bar(html: str) -> Bar | None:
-    """The one row of page buttons on a page, or None.
-
-    None when there is no row, when it numbers no page, and when there are
-    two: which list each row pages cannot be told.
-    """
+    """The page's one row of page buttons; None for no row or for two."""
     if not BAR_ATTRIBUTE_RE.search(html):
         return None
     parser = _BarParser()
@@ -195,11 +142,7 @@ def _parameters(url: str) -> list[tuple[str, str]]:
 
 
 def asked_page(url: str) -> int | None:
-    """The page `url` asks for: 1 when it names none.
-
-    None when it names one that is not a number, or names two: no page
-    address can be built from such a URL.
-    """
+    """The page `url` asks for: 1 when it names none, None when unusable."""
     values = [
         value for name, value in _parameters(url) if name == PAGE_PARAMETER
     ]
@@ -217,12 +160,7 @@ def _says_something(piece: str) -> bool:
 
 
 def page_url(url: str, number: int) -> str:
-    """`url` asking for page `number`.
-
-    The page goes first, where the site writes it. Every other parameter
-    keeps its place and its spelling, except an empty one, which says
-    nothing: /courses and /courses?page=1&cq= lead to the same page 2.
-    """
+    """`url` asking for page `number`, with empty parameters dropped."""
     parts = urlsplit(url)
     kept = [
         piece
@@ -236,17 +174,11 @@ def page_url(url: str, number: int) -> str:
 
 
 def read_list_pages(html: str, url: str) -> ListPages | None:
-    """The pages of a Coursedog list to queue from one of its pages.
-
-    `url` is the URL the page was asked for. None for a page that is not a
-    Coursedog list, which is every page of every other catalog, and for a
-    list page whose URL names no usable page number.
-    """
-    if not PLATFORM_RE.search(html):
-        return None
+    """The list pages to queue from one saved page asked for at `url`."""
     bar = read_bar(html)
     if bar is None:
-        if LOADING_RE.search(html):
+        # A list still loading has no buttons, but its stylesheet names them.
+        if BAR_CLASS in html and LOADING_RE.search(html):
             return ListPages(asked=asked_page(url), problem=PROBLEM_LOADING)
         return None
     asked = asked_page(url)
@@ -264,7 +196,7 @@ def read_list_pages(html: str, url: str) -> ListPages | None:
             problem=PROBLEM_PAGE_IGNORED,
         )
     if asked == 1:
-        # One page is enough to learn whether the list opens by number.
+        # Page 2 alone, to learn whether the list opens by page number.
         numbers = range(2, min(bar.last, 2) + 1)
         capped = False
     else:
@@ -282,14 +214,7 @@ def read_list_pages(html: str, url: str) -> ListPages | None:
 def queue_list_pages(
     html: str, url: str, *, enqueue: Callable[[str], bool]
 ) -> int:
-    """Queue the rest of a Coursedog list, and say why when it cannot.
-
-    `enqueue` is the crawler's own: it applies the scope, robots.txt and
-    regex rules, and answers whether the URL was new. The crawler calls this
-    for every saved page, so a resume re-reads a list it already queued; the
-    pages are duplicates by then and nothing is logged. Returns how many
-    pages were new.
-    """
+    """Queue the rest of a list through the crawler's enqueue; count new ones."""
     pages = read_list_pages(html, url)
     if pages is None:
         return 0

@@ -62,6 +62,51 @@ class ObjectStore:
             content if isinstance(content, bytes) else content.encode("utf-8")
         )
 
+    def get_many(self, keys: list[str]) -> list[bytes]:
+        """Several objects in one provider batch, in the order asked for."""
+        if not keys:
+            return []
+        errors: list[str] = []
+        load_key = {key: self._load_key(key) for key in keys}
+        found = {
+            row.key: row.content
+            for row in self.provider.load_batch(
+                keys=[load_key[key] for key in keys], errors=errors
+            )
+        }
+        # Like get_bytes, a bare key is tried when the prefixed one is missing.
+        retry = [
+            key
+            for key in keys
+            if load_key[key] not in found and load_key[key] != key
+        ]
+        if retry:
+            for row in self.provider.load_batch(keys=retry, errors=errors):
+                found[row.key] = row.content
+        contents: list[bytes] = []
+        missing: list[str] = []
+        for key in keys:
+            content = found.get(load_key[key], found.get(key))
+            if content is None:
+                missing.append(key)
+            elif isinstance(content, bytes):
+                contents.append(content)
+            else:
+                contents.append(content.encode("utf-8"))
+        if missing:
+            detail = f" ({errors[0]})" if errors else ""
+            raise FileNotFoundError(
+                f"{len(missing)} of {len(keys)} objects could not be read, "
+                f"first {missing[0]}{detail}"
+            )
+        return contents
+
+    def delete(self, keys: list[str]) -> None:
+        errors: list[str] = []
+        self.writer.delete_batch(keys=keys, errors=errors)
+        if errors:
+            raise RuntimeError("; ".join(errors))
+
     def get_text(self, key: str) -> str:
         return self.get_bytes(key).decode("utf-8")
 

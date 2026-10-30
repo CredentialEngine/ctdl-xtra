@@ -110,6 +110,36 @@ def test_discovery_reads_every_saved_page(
     assert all(html.strip().startswith("<!DOCTYPE") for _, html in pages)
 
 
+class _CountingProvider:
+    """Passes every call through, recording the size of each batch read."""
+
+    def __init__(self, inner) -> None:
+        self.inner = inner
+        self.batch_sizes: list[int] = []
+
+    def __getattr__(self, name):
+        return getattr(self.inner, name)
+
+    def load_batch(self, *, keys, errors):
+        self.batch_sizes.append(len(keys))
+        return self.inner.load_batch(keys=keys, errors=errors)
+
+
+def test_saved_pages_are_read_in_batches_not_one_at_a_time(
+    tmp_path: Path, fixture_html_dir, monkeypatch
+) -> None:
+    monkeypatch.setattr("implementations.discover.READ_BATCH", 5)
+    store = seed_run(tmp_path, fixture_html_dir)
+    store.provider = _CountingProvider(store.provider)
+    pages = read_saved_pages(store, FOLDER, RUN)
+    assert len(pages) == len(ALL_FIXTURES)
+    # 15 pages: three batches of sidecars, each followed by its HTML.
+    assert store.provider.batch_sizes == [5, 5, 5, 5, 5, 5]
+    stems = [meta["stem"] for meta, _ in pages]
+    assert stems == sorted(stems)
+    assert all(html.strip().startswith("<!DOCTYPE") for _, html in pages)
+
+
 def test_a_run_with_no_pages_says_so(tmp_path: Path) -> None:
     store = open_store(str(tmp_path))
     with pytest.raises(NoPagesError, match="no saved pages"):
@@ -582,6 +612,7 @@ def test_saved_challenge_pages_are_counted_and_named_with_what_to_do(
 ) -> None:
     store = seed_run(tmp_path, fixture_html_dir)
     _put(store, "waf", AWS_WAF_PAGE, fixture_url("waf"))
+    seed_crawl_manifest(store, FOLDER, RUN, started_at="2026-09-27T07:46:53Z")
     with caplog.at_level(logging.WARNING):
         outcome = run_discovery(settings(), source=store, target=store)
     assert outcome.exit_code == 0
@@ -595,7 +626,10 @@ def test_saved_challenge_pages_are_counted_and_named_with_what_to_do(
     assert warnings[0].startswith(
         f"CHALLENGE 1 of {len(ALL_FIXTURES) + 1} saved pages"
     )
-    assert "new --run-id" in warnings[0]
+    # The cause is known: the crawler stopped saving these on that date.
+    assert "has not saved one since 2026-10-01" in warnings[0]
+    assert "this run started 2026-09-27T07:46:53Z" in warnings[0]
+    assert "resume it (same --url and --run-id)" in warnings[0]
 
 
 def test_a_run_without_challenge_pages_says_nothing_about_them(
@@ -608,7 +642,7 @@ def test_a_run_without_challenge_pages_says_nothing_about_them(
     assert "CHALLENGE" not in caplog.text
 
 
-def test_an_empty_sample_of_challenge_pages_says_to_crawl_again(
+def test_an_empty_sample_of_challenge_pages_says_to_resume_the_run(
     tmp_path: Path, caplog
 ) -> None:
     """Tuning the rules cannot bring back pages that were never fetched."""
@@ -619,14 +653,14 @@ def test_an_empty_sample_of_challenge_pages_says_to_crawl_again(
         outcome = run_discovery(settings(), source=store, target=store)
     assert outcome.exit_code == 1
     assert "3 saved pages are bot-challenge pages" in outcome.reason
-    assert "new --run-id" in outcome.reason
+    assert "Resume the run to fetch them again" in outcome.reason
     errors = [
         record.getMessage()
         for record in caplog.records
         if record.levelno >= logging.ERROR
     ]
     assert len(errors) == 1
-    assert "new --run-id" in errors[0]
+    assert "from a crawl made before 2026-10-01" in errors[0]
     assert "discover_rules.py" not in errors[0]
 
 
@@ -642,7 +676,7 @@ def test_a_few_challenge_pages_do_not_take_the_blame_for_an_empty_sample(
         )
     assert outcome.exit_code == 1
     assert outcome.summary["challenge_pages"] == 1
-    assert "new --run-id" not in outcome.reason
+    assert "Resume" not in outcome.reason
     errors = [
         record.getMessage()
         for record in caplog.records

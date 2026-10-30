@@ -292,17 +292,14 @@ def curriqunet_documents(
     return documents
 
 
-# --- a Coursedog catalog ----------------------------------------------------
+# What a button-paged list renders before the list loads.
+LIST_LOADING = '<p data-v-6c735c42="">Loading results...</p>'
 
-# What the server renders where a list will go, before its XHR lands:
-# Brookdale's /courses as the crawl of 2026-09-23 saved it.
-COURSEDOG_LOADING = '<p data-v-6c735c42="">Loading results...</p>'
-
-_COURSEDOG_ARROW = '<svg aria-hidden="true"><path d="M0 0"></path></svg>'
+_ARROW = '<svg aria-hidden="true"><path d="M0 0"></path></svg>'
 
 
-def coursedog_button(number: int, current: int) -> str:
-    """One numbered page button, as Coursedog draws it."""
+def page_button(number: int, current: int) -> str:
+    """One numbered page button; the current one is highlighted and disabled."""
     if number == current:
         return (
             '<button class="btn btn-primary mx-1" type="button" disabled="" '
@@ -316,19 +313,15 @@ def coursedog_button(number: int, current: int) -> str:
     )
 
 
-def coursedog_row(current: int, last: int) -> str:
-    """A row of page buttons as Coursedog draws one.
-
-    Previous, the first page, the pages beside the current one, the last
-    page, and Next, with a disabled "..." button where pages are left out.
-    """
+def button_row(current: int, last: int) -> str:
+    """A row of numbered page buttons with Previous, Next and "..." gaps."""
     numbers = sorted(
         {1, current - 1, current, current + 1, last} & set(range(1, last + 1))
     )
     parts = [
         '<div class="flex ml-2 px-0 text-xs ui-font base-pagination mt-4">',
         '<button class="btn btn-secondary mx-1" type="button" '
-        f'aria-label="Previous page">{_COURSEDOG_ARROW}</button>',
+        f'aria-label="Previous page">{_ARROW}</button>',
     ]
     previous = 0
     for number in numbers:
@@ -338,31 +331,26 @@ def coursedog_row(current: int, last: int) -> str:
                 'disabled="" aria-label="Go to page ..." aria-hidden="true" '
                 'number="...">...</button>'
             )
-        parts.append(coursedog_button(number, current))
+        parts.append(page_button(number, current))
         previous = number
     parts.append(
         '<button class="btn btn-secondary mx-1" type="button" '
-        f'aria-label="Next page">{_COURSEDOG_ARROW}</button></div>'
+        f'aria-label="Next page">{_ARROW}</button></div>'
     )
     return "".join(parts)
 
 
-def coursedog_page(*content: str) -> str:
-    """A Coursedog page around `content`.
-
-    Every Coursedog page carries the print stylesheet that names the page
-    row, and a footer that names the platform.
-    """
+def list_site_page(*content: str) -> str:
+    """A page around `content` whose print stylesheet names the button row."""
     return (
         "<html><head><style>.theme-container--print .base-pagination"
         "{display:none}</style></head><body><main>"
         + "".join(content)
-        + '</main><footer><a href="https://www.coursedog.com">Powered by '
-        "Coursedog</a></footer></body></html>"
+        + "</main></body></html>"
     )
 
 
-def coursedog_list(current: int, last: int, codes: list[str]) -> str:
-    """Page `current` of `last` of a Coursedog course list."""
+def list_page(current: int, last: int, codes: list[str]) -> str:
+    """Page `current` of `last` of a course list paged with buttons."""
     links = "".join(f'<a href="/courses/{code}">{code}</a>' for code in codes)
-    return coursedog_page(links, coursedog_row(current, last))
+    return list_site_page(links, button_row(current, last))

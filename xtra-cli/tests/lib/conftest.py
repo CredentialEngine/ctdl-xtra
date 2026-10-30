@@ -105,11 +105,9 @@ def lib_env(
 
 @pytest.fixture(autouse=True)
 def lib_guards(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Refuse the three ways lib reaches outside the process.
+    """Refuse the browser, blob uploads and subprocesses unless faked.
 
-    The root conftest already refuses urllib. lib also starts Playwright
-    (discover, freeze), runs a subprocess (union_fields) and uploads blobs
-    (freeze). Each fails loudly here unless the test installs a fake.
+    The root conftest already refuses urllib and httpx2.
     """
     playwright = types.ModuleType("playwright.sync_api")
     playwright.Error = PlaywrightError

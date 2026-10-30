@@ -27,6 +27,8 @@ from urllib.parse import urlsplit, urlunsplit
 
 from common.clock import format_duration, run_id_for_json, utc_timestamp
 from common.keys import (
+    checkpoint_key,
+    checkpoints_prefix,
     crawl_key,
     dedupe_key,
     failed_key,
@@ -45,11 +47,11 @@ from implementations.crawl_browser import (
     playwright_fetcher_factory,
 )
 from implementations.crawl_challenge import challenge_kind
-from implementations.crawl_coursedog import queue_list_pages
 from implementations.crawl_curriqunet import (
     CurriqunetIndex,
     read_curriqunet_index,
 )
+from implementations.crawl_list_pages import queue_list_pages
 from implementations.crawl_robots import (
     collect_sitemap_urls,
     default_sitemap_url,
@@ -73,12 +75,15 @@ logger = logging.getLogger(__name__)
 
 CRAWL_SCHEMA = "xtra-crawl-2"
 STATE_SCHEMA = "xtra-crawl-state-1"
+CHECKPOINT_SCHEMA = "xtra-crawl-checkpoint-1"
 
 STATUS_COMPLETE = "complete"
 STATUS_LIMIT_REACHED = "limit_reached"
 STATUS_INCOMPLETE = "incomplete"
 
 CHECKPOINT_EVERY = 25
+# Older checkpoint files are deleted once a newer one is written.
+CHECKPOINTS_KEPT = 3
 MAX_CONSECUTIVE_FAILURES = 20
 POLL_SECONDS = 1.0
 TOP_PATH_SEGMENTS = 20
@@ -87,10 +92,9 @@ EXIT_INTERRUPTED = 130
 # --url first, then the sitemap, then the site's own page index (a
 # CurriQunet catalog's navigation tree), then --seed-urls-file, then links
 # in document order. Both declarations are the site's list of its pages, so
-# they come ahead of anything found on the way. A Coursedog list's later
-# pages are found on the way, from its page buttons, and go ahead of the
-# links of the page that leads to them. Recorded so a run says which rule
-# ordered its frontier.
+# they come ahead of anything found on the way. A list's later pages, read
+# off its page buttons, go ahead of the links of the page that leads to
+# them. Recorded so a run says which rule ordered its frontier.
 FRONTIER_ORDER = "sitemap_first"
 
 # Index documents are small JSON, and like sitemap documents they are not
@@ -282,6 +286,7 @@ class Crawler:
         self.fetcher_factory = fetcher_factory or playwright_fetcher_factory()
         self.facts = facts or strategy_facts(settings.strategy)
 
+        # The frontier is the crawl's queue: URLs found but not fetched yet.
         self.frontier: deque[str] = deque()
         self.seen: set[str] = set()
         self.saved: list[str] = []
@@ -318,6 +323,9 @@ class Crawler:
         # list, so a checkpoint has to name them or a resume never asks
         # for them again.
         self._in_flight: dict[Future, str] = {}
+        # This run's checkpoint files, oldest first.
+        self._checkpoints: list[str] = []
+        self._last_checkpoint_number = 0
         self.stopped = False
         self.resumed = False
 
@@ -374,13 +382,7 @@ class Crawler:
         return True
 
     def _requeue(self, url: str, queued: set[str]) -> None:
-        """Put a URL back for a resume, once.
-
-        seen cannot be the test, because state.json lists every URL in it.
-        A page checkpointed before it was read back is under both saved and
-        frontier, and a stored challenge page queued twice would be fetched
-        twice, so `queued` keeps each URL to one place in the frontier.
-        """
+        """On resume, put a URL back in the queue unless it is already there."""
         url = self.canonical_url(url)
         key = dedupe_key(url)
         if key in queued:
@@ -390,14 +392,7 @@ class Crawler:
         self.frontier.append(url)
 
     def _follow(self, html: str, base_url: str, page_url: str) -> None:
-        """Queue what one saved page leads to: list pages, then its links.
-
-        A Coursedog list's later pages go first (see crawl_coursedog.py),
-        which keeps a limited run going down the list. They are built from
-        `page_url`, the URL the page was asked for and the one a resume
-        reads it back under. Links resolve against `base_url`, where the
-        page landed.
-        """
+        """Queue a saved page's later list pages, then its links."""
         queue_list_pages(html, page_url, enqueue=self.enqueue)
         for link in extract_links(html, base_url):
             self.enqueue(link)
@@ -551,11 +546,37 @@ class Crawler:
             "start a new --run-id."
         )
 
-    def load_state(self) -> bool:
+    def _read_checkpoint(self) -> tuple[str, dict[str, Any]] | None:
+        """The newest readable checkpoint, else an older run's state.json."""
+        prefix = checkpoints_prefix(
+            self.settings.catalog_folder, self.settings.run_id
+        )
+        numbered = {
+            number: key
+            for key in self.store.list_keys(under=prefix)
+            if (number := _checkpoint_number(key)) is not None
+        }
+        self._checkpoints = [numbered[number] for number in sorted(numbered)]
+        self._last_checkpoint_number = max(numbered, default=0)
+        for key in reversed(self._checkpoints):
+            try:
+                return key, self.store.get_json(key)["state"]
+            except (ValueError, KeyError, TypeError) as exc:
+                logger.warning(
+                    "CHECKPOINT %s cannot be read (%s), trying the one before",
+                    key,
+                    exc,
+                )
         key = self._run_key(state_key)
-        if not self.store.exists(key):
+        if self.store.exists(key):
+            return key, self.store.get_json(key)
+        return None
+
+    def load_state(self) -> bool:
+        found = self._read_checkpoint()
+        if found is None:
             return False
-        payload = self.store.get_json(key)
+        key, payload = found
         self._check_strategy(payload.get("strategy"))
         self.seen = set(payload.get("seen") or ())
         self.saved = list(payload.get("saved") or ())
@@ -569,7 +590,8 @@ class Crawler:
         self.started_at = payload.get("started_at") or self.started_at
 
         # Saved pages first: they answer from storage, so a resume re-follows
-        # their links without a single GET.
+        # their links without a single GET. seen already holds every URL, so
+        # `queued` is what tells a URL listed twice to go back only once.
         queued: set[str] = set()
         for url in self.saved:
             self._requeue(url, queued)
@@ -584,14 +606,14 @@ class Crawler:
             else:
                 self.failed[url] = record
         if not (self.saved or self.frontier or self.failed):
-            # The manifest written at startup, before the first page. There
+            # The checkpoint written at startup, before the first page. There
             # is nothing to resume from, so this is still a fresh run and
             # the seed URL still has to be queued.
             return False
         self.resumed = True
         logger.info(
             "RESUME %s saved=%s frontier=%s failed=%s",
-            self._run_key(state_key),
+            key,
             self.totals.pages_saved,
             len(self.frontier),
             len(self.failed),
@@ -630,7 +652,7 @@ class Crawler:
         """Take a stored challenge page out of the run so it is fetched again.
 
         Only what this run counted is undone: a page found in storage with
-        no state.json behind it was never counted. seen keeps the URL, so
+        no checkpoint behind it was never counted. seen keeps the URL, so
         links to it stay duplicates, and the files stay until the real page
         overwrites them.
         """
@@ -900,9 +922,30 @@ class Crawler:
     def checkpoint(
         self, status: str, *, finished: bool = False
     ) -> dict[str, Any]:
-        """Write state.json, failed.jsonl, and crawl.json as one snapshot."""
+        """Write a new checkpoint file; one already written is never changed."""
         doc = self.crawl_doc(status, finished=finished)
-        self.store.put_json(self._run_key(state_key), self._state_doc())
+        self._last_checkpoint_number += 1
+        key = checkpoint_key(
+            self.settings.catalog_folder,
+            self.settings.run_id,
+            self._last_checkpoint_number,
+        )
+        self.store.put_json(
+            key,
+            {
+                "schema": CHECKPOINT_SCHEMA,
+                "crawl": doc,
+                "state": self._state_doc(),
+            },
+        )
+        self._checkpoints.append(key)
+        if len(self._checkpoints) > CHECKPOINTS_KEPT:
+            self.store.delete(self._checkpoints[:-CHECKPOINTS_KEPT])
+            del self._checkpoints[:-CHECKPOINTS_KEPT]
+        return doc
+
+    def write_report(self, doc: dict[str, Any]) -> None:
+        """Write crawl.json and failed.jsonl once the run stops."""
         lines = "".join(
             json.dumps(record, ensure_ascii=False) + "\n"
             for record in self.failed.values()
@@ -911,7 +954,6 @@ class Crawler:
             self._run_key(failed_key), lines, "application/x-ndjson"
         )
         self.store.put_json(self._run_key(crawl_key), doc)
-        return doc
 
     def _maybe_checkpoint(self) -> None:
         if self._saves_since_checkpoint < CHECKPOINT_EVERY:
@@ -983,7 +1025,7 @@ class Crawler:
     def run(self) -> CrawlOutcome:
         resumed = self.load_state()
         # Before the first GET, so a run that is hard-killed after two
-        # pages still leaves a manifest saying what it was and that it did
+        # pages still leaves a checkpoint saying what it was and that it did
         # not finish.
         self.checkpoint(STATUS_INCOMPLETE)
         self._first_page_checkpointed = self.totals.pages_saved > 0
@@ -1034,12 +1076,22 @@ class Crawler:
             pool.close()
 
         doc = self.checkpoint(status, finished=not interrupted)
+        self.write_report(doc)
         self._progress()
         return CrawlOutcome(
             crawl_doc=doc,
             exit_code=_exit_code(status, len(self.failed), interrupted),
             reason=_exit_reason(status, len(self.failed), interrupted),
         )
+
+
+def _checkpoint_number(key: str) -> int | None:
+    """1 for .../checkpoints/000001.json; None for any other file."""
+    name = key.rsplit("/", 1)[-1]
+    stem = name.removesuffix(".json")
+    if stem == name or not (stem.isascii() and stem.isdigit()):
+        return None
+    return int(stem)
 
 
 def _exit_code(status: str, pages_failed: int, interrupted: bool) -> int:
@@ -1052,7 +1104,7 @@ def _exit_code(status: str, pages_failed: int, interrupted: bool) -> int:
 
 def _exit_reason(status: str, pages_failed: int, interrupted: bool) -> str:
     if interrupted:
-        return "interrupted, state.json written, rerun with the same --run-id"
+        return "interrupted, checkpoint written, rerun with the same --run-id"
     if status == STATUS_INCOMPLETE:
         return (
             "crawl stopped before the frontier emptied, "

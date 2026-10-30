@@ -16,6 +16,7 @@ import click
 from common.clock import is_iso8601_utc, run_id_for_path, utc_timestamp
 from common.object_store import open_store
 from implementations.discover import (
+    READ_CONCURRENCY,
     DiscoverSettings,
     NoPagesError,
     UnknownStemError,
@@ -117,6 +118,7 @@ def main(
     source = open_store(
         source_uri,
         azure_storage_connection_string=azure_storage_connection_string,
+        concurrency=READ_CONCURRENCY,
     )
     target = open_store(
         target_uri,

@@ -159,6 +159,7 @@ def read_robots(
 
 
 def _decompress(body: bytes) -> bytes:
+    """Unzip a sitemap served as a .gz file. robots.txt never comes here."""
     # httpx2 has already undone a gzip Content-Encoding.
     if body.startswith(_GZIP_MAGIC):
         return gzip.decompress(body)

@@ -59,9 +59,8 @@ def test_every_module_finds_the_cli_root_two_levels_above_lib(
 ) -> None:
     """Modules that work the CLI root out from their own file climb past src/."""
     import config
-    import union_fields
 
     import lib
 
     assert lib_dir == CLI_ROOT / "src" / "lib"
-    assert config.CLI_ROOT == lib.CLI_ROOT == union_fields.CLI_ROOT == CLI_ROOT
+    assert config.CLI_ROOT == lib.CLI_ROOT == CLI_ROOT

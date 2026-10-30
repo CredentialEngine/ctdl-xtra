@@ -84,7 +84,7 @@ def test_crawl_saves_pages_under_the_catalog_folder(
 
     run_dir = tmp_path / FOLDER / RUN_PATH
     assert (run_dir / "crawl.json").is_file()
-    assert (run_dir / "state.json").is_file()
+    assert list((run_dir / "checkpoints").glob("*.json"))
     assert len(list((run_dir / "pages").glob("*.html"))) == 2
     assert list((run_dir / "pages").glob("*.txt")) == []
     assert not (run_dir / "slots.json").exists()

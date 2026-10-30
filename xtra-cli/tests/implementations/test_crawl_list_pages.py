@@ -3,13 +3,9 @@ from __future__ import annotations
 import logging
 
 import pytest
-from crawl_doubles import (
-    COURSEDOG_LOADING,
-    coursedog_page,
-    coursedog_row,
-)
+from crawl_doubles import LIST_LOADING, button_row, list_site_page
 
-from implementations.crawl_coursedog import (
+from implementations.crawl_list_pages import (
     MAX_LIST_PAGES,
     PROBLEM_CAPPED,
     PROBLEM_LOADING,
@@ -25,9 +21,7 @@ from implementations.crawl_coursedog import (
 COURSES = "https://catalog.example.edu/courses"
 PROGRAMS = "https://catalog.example.edu/programs"
 
-# The row Commonwealth University's Coursedog catalog drew on 2026-10-21 for
-# page 1 of its 2,733 courses, as the crawler saved it, svg paths cut short.
-# Brookdale's catalog runs the same Coursedog build.
+# A row copied from a saved catalog page, page 1 of 137, svg paths cut short.
 REAL_ROW = (
     '<div data-v-6c735c42="" class="flex ml-2 px-0 text-xs ui-font '
     'base-pagination mt-4"><button class="btn btn-secondary mx-1" '
@@ -56,14 +50,14 @@ REAL_ROW = (
 
 
 def test_the_real_row_reads_as_page_1_of_137() -> None:
-    bar = read_bar(coursedog_page(REAL_ROW))
+    bar = read_bar(list_site_page(REAL_ROW))
     assert bar is not None
     assert (bar.current, bar.last) == (1, 137)
 
 
 def test_the_first_page_of_a_list_queues_its_second_page_only() -> None:
     """One page is enough to learn whether the list opens by number."""
-    pages = read_list_pages(coursedog_page(REAL_ROW), COURSES)
+    pages = read_list_pages(list_site_page(REAL_ROW), COURSES)
     assert pages is not None
     assert pages.urls == (f"{COURSES}?page=2",)
     assert (pages.asked, pages.current, pages.last) == (1, 1, 137)
@@ -72,7 +66,7 @@ def test_the_first_page_of_a_list_queues_its_second_page_only() -> None:
 
 def test_a_page_that_opened_as_asked_queues_every_page_after_it() -> None:
     pages = read_list_pages(
-        coursedog_page(coursedog_row(2, 6)), f"{COURSES}?page=2"
+        list_site_page(button_row(2, 6)), f"{COURSES}?page=2"
     )
     assert pages is not None
     assert pages.urls == tuple(f"{COURSES}?page={n}" for n in (3, 4, 5, 6))
@@ -81,7 +75,7 @@ def test_a_page_that_opened_as_asked_queues_every_page_after_it() -> None:
 
 def test_a_later_page_queues_only_the_pages_after_it() -> None:
     pages = read_list_pages(
-        coursedog_page(coursedog_row(4, 6)), f"{COURSES}?page=4"
+        list_site_page(button_row(4, 6)), f"{COURSES}?page=4"
     )
     assert pages is not None
     assert pages.urls == (f"{COURSES}?page=5", f"{COURSES}?page=6")
@@ -89,12 +83,12 @@ def test_a_later_page_queues_only_the_pages_after_it() -> None:
 
 def test_the_last_page_and_a_one_page_list_queue_nothing() -> None:
     last = read_list_pages(
-        coursedog_page(coursedog_row(6, 6)), f"{COURSES}?page=6"
+        list_site_page(button_row(6, 6)), f"{COURSES}?page=6"
     )
     assert last is not None
     assert last.urls == ()
     assert last.problem is None
-    alone = read_list_pages(coursedog_page(coursedog_row(1, 1)), COURSES)
+    alone = read_list_pages(list_site_page(button_row(1, 1)), COURSES)
     assert alone is not None
     assert alone.urls == ()
     assert alone.problem is None
@@ -105,7 +99,7 @@ def test_a_list_that_ignores_the_page_in_its_address_queues_nothing_more() -> (
 ):
     """Asked for page 2 and showing page 1: the address does not page it."""
     pages = read_list_pages(
-        coursedog_page(coursedog_row(1, 195)), f"{PROGRAMS}?page=2"
+        list_site_page(button_row(1, 195)), f"{PROGRAMS}?page=2"
     )
     assert pages is not None
     assert pages.urls == ()
@@ -114,7 +108,7 @@ def test_a_list_that_ignores_the_page_in_its_address_queues_nothing_more() -> (
 
 
 def test_a_list_saved_before_it_loaded_says_so() -> None:
-    pages = read_list_pages(coursedog_page(COURSEDOG_LOADING), COURSES)
+    pages = read_list_pages(list_site_page(LIST_LOADING), COURSES)
     assert pages is not None
     assert pages.urls == ()
     assert pages.problem == PROBLEM_LOADING
@@ -122,11 +116,11 @@ def test_a_list_saved_before_it_loaded_says_so() -> None:
 
 def test_a_row_that_marks_no_page_as_on_screen_says_so() -> None:
     plain = (
-        coursedog_row(2, 6)
+        button_row(2, 6)
         .replace("btn-primary", "btn-secondary")
         .replace(' disabled=""', "")
     )
-    pages = read_list_pages(coursedog_page(plain), f"{COURSES}?page=2")
+    pages = read_list_pages(list_site_page(plain), f"{COURSES}?page=2")
     assert pages is not None
     assert pages.urls == ()
     assert pages.problem == PROBLEM_NO_CURRENT_PAGE
@@ -134,8 +128,8 @@ def test_a_row_that_marks_no_page_as_on_screen_says_so() -> None:
 
 def test_the_disabled_button_marks_the_page_when_none_is_highlighted() -> None:
     """The "..." gap is disabled too, but it carries no page number."""
-    uncoloured = coursedog_row(2, 9).replace("btn-primary", "btn-secondary")
-    bar = read_bar(coursedog_page(uncoloured))
+    uncoloured = button_row(2, 9).replace("btn-primary", "btn-secondary")
+    bar = read_bar(list_site_page(uncoloured))
     assert bar is not None
     assert (bar.current, bar.last) == (2, 9)
 
@@ -143,14 +137,14 @@ def test_the_disabled_button_marks_the_page_when_none_is_highlighted() -> None:
 def test_the_row_ends_where_its_own_element_ends() -> None:
     """A wrapper closing inside the row does not end it; a button after does
     not join it."""
-    row = coursedog_row(1, 9).replace(
+    row = button_row(1, 9).replace(
         'mt-4">', 'mt-4"><div class="spacer"></div>', 1
     )
     after = (
         '<button class="btn btn-primary mx-1" type="button" disabled="" '
         'number="999">999</button>'
     )
-    bar = read_bar(coursedog_page(row, after))
+    bar = read_bar(list_site_page(row, after))
     assert bar is not None
     assert (bar.current, bar.last) == (1, 9)
 
@@ -159,37 +153,40 @@ def test_the_row_ends_where_its_own_element_ends() -> None:
     "html",
     [
         # A course page: only the stylesheet every page carries names the row.
-        coursedog_page("<h1>ENGL121</h1><p>Course Description</p>"),
-        # A row like Coursedog's on a catalog that is not Coursedog.
-        "<html><body>" + coursedog_row(1, 9) + "</body></html>",
+        list_site_page("<h1>ENGL121</h1><p>Course Description</p>"),
         # Two lists on one page: which row pages which list is unknown.
-        coursedog_page(coursedog_row(1, 9), coursedog_row(1, 4)),
+        list_site_page(button_row(1, 9), button_row(1, 4)),
         # A row that numbers no page.
-        coursedog_page(
+        list_site_page(
             '<div class="base-pagination"><button>Next</button></div>'
         ),
         "",
     ],
-    ids=["course-page", "not-coursedog", "two-rows", "no-numbers", "empty"],
+    ids=["course-page", "two-rows", "no-numbers", "empty"],
 )
-def test_a_page_that_is_not_one_coursedog_list_is_left_alone(html: str) -> None:
+def test_a_page_that_is_not_one_list_is_left_alone(html: str) -> None:
     assert read_list_pages(html, COURSES) is None
 
 
+def test_loading_text_without_the_row_class_is_left_alone() -> None:
+    page = f"<html><body>{LIST_LOADING}</body></html>"
+    assert read_list_pages(page, COURSES) is None
+
+
 def test_a_class_that_only_contains_the_row_name_is_not_the_row() -> None:
-    row = coursedog_row(1, 9).replace("base-pagination", "my-base-pagination")
-    assert read_list_pages(coursedog_page(row), COURSES) is None
+    row = button_row(1, 9).replace("base-pagination", "my-base-pagination")
+    assert read_list_pages(list_site_page(row), COURSES) is None
 
 
 def test_an_address_with_no_usable_page_number_is_left_alone() -> None:
-    page = coursedog_page(coursedog_row(1, 9))
+    page = list_site_page(button_row(1, 9))
     assert read_list_pages(page, f"{COURSES}?page=abc") is None
 
 
 def test_the_cap_bounds_what_one_list_can_queue() -> None:
     last = MAX_LIST_PAGES + 50
     pages = read_list_pages(
-        coursedog_page(coursedog_row(2, last)), f"{COURSES}?page=2"
+        list_site_page(button_row(2, last)), f"{COURSES}?page=2"
     )
     assert pages is not None
     assert pages.problem == PROBLEM_CAPPED
@@ -199,7 +196,7 @@ def test_the_cap_bounds_what_one_list_can_queue() -> None:
 
 def test_the_first_page_of_a_long_list_is_not_reported_as_capped() -> None:
     """Page 1 queues page 2 only, so there is nothing to cap yet."""
-    page = coursedog_page(coursedog_row(1, MAX_LIST_PAGES + 50))
+    page = list_site_page(button_row(1, MAX_LIST_PAGES + 50))
     pages = read_list_pages(page, COURSES)
     assert pages is not None
     assert pages.problem is None
@@ -248,9 +245,6 @@ def test_page_url(url: str, number: int, expected: str) -> None:
     assert page_url(url, number) == expected
 
 
-# --- queueing through the crawler's enqueue ---------------------------------
-
-
 class FakeQueue:
     """Stands in for Crawler.enqueue: records each URL, says if it was new."""
 
@@ -280,7 +274,7 @@ def test_the_pages_go_to_enqueue_and_only_the_new_ones_are_counted(
     queue = FakeQueue(seen=(f"{COURSES}?page=4",))
     with caplog.at_level(logging.INFO):
         queued = queue_list_pages(
-            coursedog_page(coursedog_row(2, 5)),
+            list_site_page(button_row(2, 5)),
             f"{COURSES}?page=2",
             enqueue=queue,
         )
@@ -297,7 +291,7 @@ def test_a_list_already_queued_is_read_again_without_a_word(caplog) -> None:
     queue = FakeQueue(seen=(f"{COURSES}?page=2",))
     with caplog.at_level(logging.INFO):
         queued = queue_list_pages(
-            coursedog_page(coursedog_row(1, 9)), COURSES, enqueue=queue
+            list_site_page(button_row(1, 9)), COURSES, enqueue=queue
         )
     assert queued == 0
     assert list_messages(caplog) == []
@@ -314,7 +308,7 @@ def test_a_list_that_cannot_be_paged_is_warned_about(caplog) -> None:
     queue = FakeQueue()
     with caplog.at_level(logging.WARNING):
         queued = queue_list_pages(
-            coursedog_page(COURSEDOG_LOADING), COURSES, enqueue=queue
+            list_site_page(LIST_LOADING), COURSES, enqueue=queue
         )
     assert queued == 0
     assert queue.asked == []

@@ -4,28 +4,30 @@ import gzip
 import json
 import logging
 import platform
+import shutil
 import threading
 from importlib.metadata import version
 from pathlib import Path
 
 import pytest
 from crawl_doubles import (
-    COURSEDOG_LOADING,
     CQ_CATALOG,
+    LIST_LOADING,
     FakePage,
-    coursedog_list,
-    coursedog_page,
-    coursedog_row,
+    button_row,
     cq_node,
     curriqunet_documents,
     fetcher_factory,
+    list_page,
+    list_site_page,
     no_site_documents,
     site_documents,
 )
 
-from common.keys import page_html_key, page_stem, state_key
-from common.object_store import open_store
+from common.keys import checkpoint_key, page_html_key, page_stem, state_key
+from common.object_store import ObjectStore, open_store
 from implementations.crawl import (
+    CHECKPOINTS_KEPT,
     FRONTIER_ORDER,
     INDEX_INTERVAL_SECONDS,
     STATUS_COMPLETE,
@@ -38,8 +40,8 @@ from implementations.crawl import (
     run_crawl,
 )
 from implementations.crawl_browser import DEFAULT_TIMEOUT_MS, VIEWPORT
-from implementations.crawl_coursedog import MAX_LIST_PAGES
 from implementations.crawl_curriqunet import INDEX_KIND
+from implementations.crawl_list_pages import MAX_LIST_PAGES
 from implementations.crawl_strategy import strategy_facts
 
 SEED = "https://catalog.example.edu/"
@@ -100,6 +102,19 @@ def run_dir(tmp_path: Path) -> Path:
     return tmp_path / FOLDER / RUN_PATH
 
 
+def checkpoint_files(tmp_path: Path) -> list[Path]:
+    return sorted((run_dir(tmp_path) / "checkpoints").glob("*.json"))
+
+
+def newest_checkpoint(tmp_path: Path) -> dict:
+    path = checkpoint_files(tmp_path)[-1]
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
+def saved_state(tmp_path: Path) -> dict:
+    return newest_checkpoint(tmp_path)["state"]
+
+
 # --- what a crawl saves ----------------------------------------------------
 
 
@@ -116,7 +131,9 @@ def test_a_crawl_saves_html_and_a_sidecar_and_nothing_else(
     )
     assert [name for name in names if name.endswith(".txt")] == []
     assert "slots.json" not in names
-    assert {"crawl.json", "state.json", "failed.jsonl"} <= set(names)
+    assert {"crawl.json", "failed.jsonl"} <= set(names)
+    assert "state.json" not in names
+    assert checkpoint_files(tmp_path)
     assert len([name for name in names if name.endswith(".html")]) == 3
     assert len([name for name in names if name.endswith(".meta.json")]) == 3
 
@@ -717,9 +734,9 @@ def test_a_resume_reads_saved_pages_from_storage_and_never_refetches_them(
 def test_a_saved_page_still_hands_over_its_links_when_the_checkpoint_is_gone(
     tmp_path: Path,
 ) -> None:
-    """Storage, not state.json, is what proves the page was already fetched."""
+    """Storage, not the checkpoint, is what proves the page was fetched."""
     crawl(tmp_path, PAGES, limit=1)
-    (tmp_path / state_key(FOLDER, RUN)).unlink()
+    shutil.rmtree(run_dir(tmp_path) / "checkpoints")
 
     calls: list[str] = []
     outcome = crawl(tmp_path, PAGES, calls=calls)
@@ -755,9 +772,7 @@ def test_the_checkpoint_carries_the_frontier_and_the_seen_set(
     tmp_path: Path,
 ) -> None:
     crawl(tmp_path, PAGES, limit=1)
-    state = json.loads(
-        (tmp_path / state_key(FOLDER, RUN)).read_text(encoding="utf-8")
-    )
+    state = saved_state(tmp_path)
     assert state["schema"] == "xtra-crawl-state-1"
     assert state["run_id"] == RUN
     assert state["saved"] == [SEED]
@@ -932,60 +947,127 @@ def test_a_stale_sitemap_on_the_old_host_still_feeds_the_crawl(
 # --- the manifest a run leaves behind ---------------------------------------
 
 
-def test_a_manifest_exists_before_the_first_get_and_after_the_first_page(
+def test_a_checkpoint_exists_before_the_first_get_and_after_the_first_page(
     tmp_path: Path,
 ) -> None:
-    """A run killed at page two still has to describe itself.
-
-    crawl.json used to appear at the 25th saved page, on Ctrl+C, or at the
-    end, so a short run left saved pages that nothing accounted for.
-    """
+    """A run killed at page two still has to describe itself."""
     seen: dict[str, dict] = {}
 
     def snapshot(url: str) -> None:
-        folder = run_dir(tmp_path)
-        seen[url] = {
-            name: (
-                json.loads((folder / name).read_text(encoding="utf-8"))
-                if (folder / name).is_file()
-                else None
-            )
-            for name in ("crawl.json", "state.json")
-        }
+        seen[url] = newest_checkpoint(tmp_path)
+        report = run_dir(tmp_path) / "crawl.json"
+        seen[url]["report_written"] = report.exists()
 
     crawl(tmp_path, PAGES, before=snapshot)
 
     at_start = seen[SEED]
-    assert at_start["crawl.json"]["status"] == STATUS_INCOMPLETE
-    assert at_start["crawl.json"]["pages_saved"] == 0
-    assert at_start["state.json"]["schema"] == "xtra-crawl-state-1"
+    assert at_start["schema"] == "xtra-crawl-checkpoint-1"
+    assert at_start["crawl"]["status"] == STATUS_INCOMPLETE
+    assert at_start["crawl"]["pages_saved"] == 0
+    assert at_start["state"]["schema"] == "xtra-crawl-state-1"
+    assert at_start["report_written"] is False
 
     after_one = seen["https://catalog.example.edu/courses/engl101"]
-    assert after_one["crawl.json"]["status"] == STATUS_INCOMPLETE
-    assert after_one["crawl.json"]["pages_saved"] == 1
-    assert after_one["state.json"]["saved"] == [SEED]
-    assert after_one["state.json"]["frontier"]
+    assert after_one["crawl"]["status"] == STATUS_INCOMPLETE
+    assert after_one["crawl"]["pages_saved"] == 1
+    assert after_one["state"]["saved"] == [SEED]
+    assert after_one["state"]["frontier"]
+    assert after_one["report_written"] is False
 
 
-def test_a_startup_manifest_alone_is_not_something_to_resume_from(
+def test_a_startup_checkpoint_alone_is_not_something_to_resume_from(
     tmp_path: Path,
 ) -> None:
     """The seed still has to be queued after a run that saved nothing."""
     store = open_store(str(tmp_path))
     store.put_json(
-        state_key(FOLDER, RUN),
+        checkpoint_key(FOLDER, RUN, 1),
         {
-            "schema": "xtra-crawl-state-1",
-            "strategy": "playwright",
-            "frontier": [],
-            "seen": [],
-            "saved": [],
-            "failed": [],
+            "schema": "xtra-crawl-checkpoint-1",
+            "crawl": {},
+            "state": {
+                "schema": "xtra-crawl-state-1",
+                "strategy": "playwright",
+                "frontier": [],
+                "seen": [],
+                "saved": [],
+                "failed": [],
+            },
         },
     )
     outcome = crawl(tmp_path, PAGES)
     assert outcome.crawl_doc["pages_saved"] == 3
     assert outcome.crawl_doc["status"] == STATUS_COMPLETE
+
+
+def test_a_crawl_writes_each_file_once_and_keeps_the_newest_checkpoints(
+    tmp_path: Path, monkeypatch
+) -> None:
+    """A checkpoint is never rewritten; older ones are deleted instead."""
+    monkeypatch.setattr("implementations.crawl.CHECKPOINT_EVERY", 1)
+    written: list[str] = []
+    put_bytes = ObjectStore.put_bytes
+
+    def recording_put(self, key, data, content_type="application/octet-stream"):
+        written.append(key)
+        return put_bytes(self, key, data, content_type)
+
+    monkeypatch.setattr(ObjectStore, "put_bytes", recording_put)
+    crawl(tmp_path, PAGES)
+    assert len(written) == len(set(written))
+    checkpoints = [
+        key.rsplit("/", 1)[-1] for key in written if "/checkpoints/" in key
+    ]
+    # At startup, after each of the three pages, and at the end.
+    assert checkpoints == [f"{n:06d}.json" for n in range(1, 6)]
+    kept = [path.name for path in checkpoint_files(tmp_path)]
+    assert kept == checkpoints[-CHECKPOINTS_KEPT:]
+
+
+def test_a_resume_skips_a_checkpoint_it_cannot_read(
+    tmp_path: Path, caplog
+) -> None:
+    """A run killed while writing one loses only what came after the last."""
+    crawl(tmp_path, PAGES, limit=1)
+    damaged = checkpoint_files(tmp_path)[-1]
+    damaged.write_text('{"schema": "xtra-crawl-check', encoding="utf-8")
+    stray = damaged.parent / "notes.txt"
+    stray.write_text("not a checkpoint", encoding="utf-8")
+
+    calls: list[str] = []
+    with caplog.at_level(logging.WARNING):
+        doc = crawl(tmp_path, PAGES, calls=calls).crawl_doc
+    assert sorted(calls) == [
+        "https://catalog.example.edu/courses/engl101",
+        "https://catalog.example.edu/courses/math101",
+    ]
+    assert doc["pages_saved"] == 3
+    assert f"CHECKPOINT {FOLDER}/{RUN_PATH}/checkpoints/{damaged.name} " in (
+        caplog.text
+    )
+    assert damaged.read_text(encoding="utf-8") == '{"schema": "xtra-crawl-check'
+    assert checkpoint_files(tmp_path)[-1].name > damaged.name
+    assert stray.read_text(encoding="utf-8") == "not a checkpoint"
+
+
+def test_a_run_from_before_checkpoint_files_resumes_from_its_state_json(
+    tmp_path: Path,
+) -> None:
+    crawl(tmp_path, PAGES, limit=1)
+    legacy = tmp_path / state_key(FOLDER, RUN)
+    legacy.write_text(json.dumps(saved_state(tmp_path)), encoding="utf-8")
+    shutil.rmtree(run_dir(tmp_path) / "checkpoints")
+    before = legacy.read_bytes()
+
+    calls: list[str] = []
+    doc = crawl(tmp_path, PAGES, calls=calls).crawl_doc
+    assert sorted(calls) == [
+        "https://catalog.example.edu/courses/engl101",
+        "https://catalog.example.edu/courses/math101",
+    ]
+    assert doc["pages_saved"] == 3
+    assert legacy.read_bytes() == before
+    assert checkpoint_files(tmp_path)
 
 
 # --- which backend fetched which page ---------------------------------------
@@ -1032,10 +1114,7 @@ def test_crawl_json_says_what_the_backend_only_approximates(
 def test_a_resume_with_another_backend_is_refused(tmp_path: Path) -> None:
     """One run folder is one rendered source, or nothing downstream holds."""
     crawl(tmp_path, PAGES, limit=1, strategy="playwright")
-    state = json.loads(
-        (run_dir(tmp_path) / "state.json").read_text(encoding="utf-8")
-    )
-    assert state["strategy"] == "playwright"
+    assert saved_state(tmp_path)["strategy"] == "playwright"
 
     with pytest.raises(StrategyMismatchError) as refused:
         crawl(tmp_path, PAGES, strategy="crawl4ai")
@@ -1478,11 +1557,6 @@ def saved_html(tmp_path: Path, url: str) -> str:
     return path.read_text(encoding="utf-8")
 
 
-def saved_state(tmp_path: Path) -> dict:
-    path = tmp_path / state_key(FOLDER, RUN)
-    return json.loads(path.read_text(encoding="utf-8"))
-
-
 def test_a_resume_fetches_a_stored_challenge_page_again_and_counts_it_once(
     tmp_path: Path, caplog
 ) -> None:
@@ -1696,10 +1770,10 @@ def test_a_page_listed_as_saved_and_queued_goes_back_once_on_resume(
     challenge page was fetched twice and, with two workers, counted twice.
     """
     crawl_before_challenges_were_caught(tmp_path, POISONED)
-    path = tmp_path / state_key(FOLDER, RUN)
-    state = json.loads(path.read_text(encoding="utf-8"))
-    state["frontier"] = list(state["saved"])
-    path.write_text(json.dumps(state), encoding="utf-8")
+    path = checkpoint_files(tmp_path)[-1]
+    doc = json.loads(path.read_text(encoding="utf-8"))
+    doc["state"]["frontier"] = list(doc["state"]["saved"])
+    path.write_text(json.dumps(doc), encoding="utf-8")
 
     calls: list[str] = []
     doc = crawl(tmp_path, PAGES, calls=calls, concurrency_limit=2).crawl_doc
@@ -1728,7 +1802,7 @@ def test_a_saved_page_missing_from_storage_is_fetched_and_counted_once(
 def test_pages_read_back_without_a_checkpoint_still_checkpoint_as_they_go(
     tmp_path: Path, caplog, monkeypatch
 ) -> None:
-    """With state.json gone, the pages read back are this run's saves."""
+    """With the checkpoints gone, pages read back are this run's saves."""
     monkeypatch.setattr("implementations.crawl.CHECKPOINT_EVERY", 2)
     leaves = [f"https://catalog.example.edu/courses/l{n}" for n in range(4)]
     pages = {
@@ -1738,7 +1812,7 @@ def test_pages_read_back_without_a_checkpoint_still_checkpoint_as_they_go(
         **{url: FakePage(html=f"<h1>{url}</h1>") for url in leaves},
     }
     crawl(tmp_path, pages)
-    (tmp_path / state_key(FOLDER, RUN)).unlink()
+    shutil.rmtree(run_dir(tmp_path) / "checkpoints")
 
     calls: list[str] = []
     caplog.clear()
@@ -1755,8 +1829,6 @@ def test_pages_read_back_without_a_checkpoint_still_checkpoint_as_they_go(
     assert len(progress) == 3
 
 
-# --- Coursedog lists ----------------------------------------------------------
-
 LIST = "https://catalog.example.edu/courses"
 
 
@@ -1764,8 +1836,8 @@ def course_url(code: str) -> str:
     return f"https://catalog.example.edu/courses/{code}"
 
 
-def coursedog_site(*, opens_by_number: bool = True) -> dict:
-    """A home page that links to a Coursedog course list of three pages.
+def button_list_site(*, opens_by_number: bool = True) -> dict:
+    """A home page that links to a course list of three button-paged pages.
 
     Each list page names two courses and lands where the site rewrites it
     to, ?page=N&cq=. A list that does not open by number shows its first
@@ -1776,7 +1848,7 @@ def coursedog_site(*, opens_by_number: bool = True) -> dict:
         shown = asked if opens_by_number else 1
         codes = [f"C{shown}{i}" for i in (1, 2)]
         pages[LIST if asked == 1 else f"{LIST}?page={asked}"] = FakePage(
-            html=coursedog_list(shown, 3, codes),
+            html=list_page(shown, 3, codes),
             final_url=f"{LIST}?page={shown}&cq=",
         )
         for code in codes:
@@ -1792,12 +1864,12 @@ def list_lines(caplog, level: int = logging.INFO) -> list[str]:
     ]
 
 
-def test_a_coursedog_list_is_crawled_through_its_page_buttons(
+def test_a_list_is_crawled_through_its_page_buttons(
     tmp_path: Path, caplog
 ) -> None:
     calls: list[str] = []
     with caplog.at_level(logging.INFO):
-        doc = crawl(tmp_path, coursedog_site(), calls=calls).crawl_doc
+        doc = crawl(tmp_path, button_list_site(), calls=calls).crawl_doc
     courses = [course_url(f"C{n}{i}") for n in (1, 2, 3) for i in (1, 2)]
     assert doc["status"] == STATUS_COMPLETE
     assert doc["pages_saved"] == 10
@@ -1821,7 +1893,7 @@ def test_a_list_that_ignores_page_numbers_costs_one_page_and_a_warning(
     calls: list[str] = []
     with caplog.at_level(logging.INFO):
         doc = crawl(
-            tmp_path, coursedog_site(opens_by_number=False), calls=calls
+            tmp_path, button_list_site(opens_by_number=False), calls=calls
         ).crawl_doc
     assert f"{LIST}?page=2" in calls
     assert f"{LIST}?page=3" not in calls
@@ -1838,7 +1910,7 @@ def test_list_pages_are_built_from_the_address_asked_for(
     tmp_path: Path,
 ) -> None:
     """Not from where the site rewrote it, which a resume never sees."""
-    site = coursedog_site()
+    site = button_list_site()
     site[LIST] = FakePage(
         html=site[LIST].html, final_url=f"{LIST}?page=1&sort=code"
     )
@@ -1851,7 +1923,7 @@ def test_list_pages_are_built_from_the_address_asked_for(
 def test_a_resume_builds_the_same_list_pages_and_fetches_none_twice(
     tmp_path: Path, caplog
 ) -> None:
-    site = coursedog_site()
+    site = button_list_site()
     first: list[str] = []
     crawl(tmp_path, site, limit=3, calls=first)
     assert first == [SEED, LIST, f"{LIST}?page=2"]
@@ -1871,7 +1943,7 @@ def test_a_resume_builds_the_same_list_pages_and_fetches_none_twice(
 def test_an_include_regex_still_decides_whether_list_pages_are_followed(
     tmp_path: Path,
 ) -> None:
-    site = coursedog_site()
+    site = button_list_site()
     # Landing where it was asked keeps the seed inside "/courses/": the
     # address the site rewrites it to is tested against the regex too.
     site[LIST] = FakePage(html=site[LIST].html)
@@ -1893,7 +1965,7 @@ def test_a_run_narrowed_to_the_course_list_still_pages_through_it(
     """--include-regex /courses keeps /courses?page=N and /courses/CODE."""
     calls: list[str] = []
     doc = crawl(
-        tmp_path, coursedog_site(), include_regex=("/courses",), calls=calls
+        tmp_path, button_list_site(), include_regex=("/courses",), calls=calls
     ).crawl_doc
     assert doc["pages_saved"] == 10
     assert f"{LIST}?page=3" in calls
@@ -1905,7 +1977,7 @@ def test_a_list_saved_before_it_loaded_is_warned_about(
 ) -> None:
     pages = {
         SEED: FakePage(html='<a href="/courses">Courses</a>'),
-        LIST: FakePage(html=coursedog_page(COURSEDOG_LOADING)),
+        LIST: FakePage(html=list_site_page(LIST_LOADING)),
     }
     with caplog.at_level(logging.WARNING):
         doc = crawl(tmp_path, pages).crawl_doc
@@ -1920,13 +1992,13 @@ def test_a_row_that_marks_no_page_is_warned_about(
     tmp_path: Path, caplog
 ) -> None:
     row = (
-        coursedog_row(1, 3)
+        button_row(1, 3)
         .replace("btn-primary", "btn-secondary")
         .replace(' disabled=""', "")
     )
     pages = {
         SEED: FakePage(html='<a href="/courses">Courses</a>'),
-        LIST: FakePage(html=coursedog_page(row)),
+        LIST: FakePage(html=list_site_page(row)),
     }
     calls: list[str] = []
     with caplog.at_level(logging.WARNING):
@@ -1944,8 +2016,8 @@ def test_a_list_longer_than_the_cap_is_queued_up_to_it_and_says_so(
     last = MAX_LIST_PAGES + 1
     pages = {
         SEED: FakePage(html='<a href="/courses">Courses</a>'),
-        LIST: FakePage(html=coursedog_list(1, last, ["C11"])),
-        f"{LIST}?page=2": FakePage(html=coursedog_list(2, last, ["C21"])),
+        LIST: FakePage(html=list_page(1, last, ["C11"])),
+        f"{LIST}?page=2": FakePage(html=list_page(2, last, ["C21"])),
     }
     with caplog.at_level(logging.WARNING):
         crawl(tmp_path, pages, limit=3)
@@ -1956,16 +2028,3 @@ def test_a_list_longer_than_the_cap_is_queued_up_to_it_and_says_so(
     queued = [url for url in saved_state(tmp_path)["frontier"] if "?" in url]
     assert len(queued) == MAX_LIST_PAGES - 2
     assert queued[-1] == f"{LIST}?page={MAX_LIST_PAGES}"
-
-
-def test_page_buttons_on_another_platform_queue_nothing(
-    tmp_path: Path,
-) -> None:
-    pages = {
-        SEED: FakePage(html='<a href="/courses">Courses</a>'),
-        LIST: FakePage(html=f"<html><body>{coursedog_row(1, 3)}</body></html>"),
-    }
-    calls: list[str] = []
-    doc = crawl(tmp_path, pages, calls=calls).crawl_doc
-    assert calls == [SEED, LIST]
-    assert doc["pages_saved"] == 2

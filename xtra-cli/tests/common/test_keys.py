@@ -6,6 +6,8 @@ from common.keys import (
     STEM_DIGEST_LENGTH,
     STEM_SLUG_LIMIT,
     catalog_folder_name,
+    checkpoint_key,
+    checkpoints_prefix,
     crawl_key,
     dedupe_key,
     expected_key,
@@ -95,6 +97,10 @@ def test_run_prefix_uses_the_hyphen_form_of_the_run_id() -> None:
 def test_run_object_keys() -> None:
     assert crawl_key(CATALOG, RUN).endswith("/crawl.json")
     assert state_key(CATALOG, RUN).endswith("/state.json")
+    assert checkpoints_prefix(CATALOG, RUN) == (
+        f"{CATALOG}/{RUN_PATH}/checkpoints"
+    )
+    assert checkpoint_key(CATALOG, RUN, 7).endswith("/checkpoints/000007.json")
     assert failed_key(CATALOG, RUN).endswith("/failed.jsonl")
     assert page_html_key(CATALOG, RUN, "stem").endswith("/pages/stem.html")
     assert page_meta_key(CATALOG, RUN, "stem").endswith("/pages/stem.meta.json")

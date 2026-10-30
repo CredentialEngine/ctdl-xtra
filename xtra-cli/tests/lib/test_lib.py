@@ -40,10 +40,14 @@ def test_a_url_file_skips_blank_lines_comments_and_trailing_notes(
 def test_a_bare_url_file_name_is_also_looked_for_next_to_lib(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
+    beside_lib = tmp_path / "lib"
+    beside_lib.mkdir()
+    (beside_lib / "urls.txt").write_text(
+        "https://a.example.edu\n", encoding="utf-8"
+    )
+    monkeypatch.setattr(lib, "HERE", beside_lib)
     monkeypatch.chdir(tmp_path)
-    urls = lib.load_url_file(Path("union_fields_urls.txt"))
-    assert urls[0] == "https://catalog.tamiu.edu"
-    assert len(urls) == 12
+    assert lib.load_url_file(Path("urls.txt")) == ["https://a.example.edu"]
 
 
 def test_packs_live_under_xtra_home_when_it_is_set(

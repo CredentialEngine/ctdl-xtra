@@ -68,10 +68,15 @@ PATTERNS_JSON_FILE = "patterns.json"
 PATTERNS_MD_FILE = "patterns.md"
 EMPTY_OR_ERROR = "empty_or_error_page"
 
-# How often a long phase says how far it has got. Reading a run from Azure
-# is one request per file, about 0.15 s a page, so a 2,000-page run used to
-# say nothing for five minutes; at this interval it reports every 15 s.
+# How often a long phase logs how far it has got.
 PROGRESS_EVERY = 100
+
+# Saved pages are read this many at a time, this many downloads in parallel.
+READ_BATCH = 100
+READ_CONCURRENCY = 16
+
+# Since this date the crawler has never saved a bot-challenge page.
+CHALLENGE_PAGES_CAUGHT_SINCE = "2026-10-01"
 
 # What a reader has to know about the crawl to trust a discovery report,
 # none of which can be worked out from the saved pages themselves.
@@ -241,12 +246,7 @@ def provenance_lines(provenance: dict[str, Any]) -> list[str]:
 
 
 def count_challenge_pages(pages: list[tuple[dict[str, Any], str]]) -> int:
-    """How many saved pages are a firewall's interstitial, not a page.
-
-    Read with the crawler's own test, on the raw HTML, so the two never
-    disagree. The crawler no longer saves these, but runs it made before
-    it learned to wait them out can be full of them.
-    """
+    """Saved pages that are a firewall's challenge page, by the crawler's test."""
     return sum(
         1
         for _meta, html in pages
@@ -265,9 +265,8 @@ def sample_verdict(
 
     An empty sample used to be an exit code of 0 and a file holding
     nothing, which is how a run with no course pages went unnoticed. When
-    at least half the run is bot-challenge pages, the crawl is what failed,
-    and the advice says so instead of sending anyone to tune the rules. A
-    few stray ones leave the usual advice; the CHALLENGE warning names them.
+    at least half the run is bot-challenge pages, the advice is to resume
+    the run, not to tune the rules.
     """
     if sample.population_size == 0:
         found = (
@@ -279,19 +278,20 @@ def sample_verdict(
         if challenge_pages and challenge_pages * 2 >= sum(page_types.values()):
             logger.error(
                 "SAMPLE no page is labelled %s, so the golden sample is "
-                "empty, and %s saved pages are bot-challenge pages instead "
-                "of catalog pages. Page types found instead: %s. The crawl "
-                "is what went wrong: crawl the catalog again into a new "
-                "--run-id.",
+                "empty, and %s saved pages are bot-challenge pages from a "
+                "crawl made before %s. Page types found instead: %s. Resume "
+                "the run (same --url and --run-id) to fetch them again.",
                 settings.sample_label,
                 challenge_pages,
+                CHALLENGE_PAGES_CAUGHT_SINCE,
                 found,
             )
             return 1, (
                 "the golden sample is empty: no page is labelled "
                 f"{settings.sample_label}, and {challenge_pages} saved pages "
-                "are bot-challenge pages. Crawl again into a new --run-id. "
-                f"Page types found: {found}."
+                "are bot-challenge pages from a crawl made before "
+                f"{CHALLENGE_PAGES_CAUGHT_SINCE}. Resume the run to fetch "
+                f"them again. Page types found: {found}."
             )
         logger.error(
             "SAMPLE no page is labelled %s, so the golden sample is empty. "
@@ -334,8 +334,7 @@ def read_saved_pages(
     special - is counted over what was read, so a narrowed run says so
     in its summary and its shares mean nothing on their own.
 
-    Reading is the slow part of a run kept in Azure, one request per file,
-    so this logs how many pages it found and then how far it has got.
+    Pages are read in batches of READ_BATCH.
     """
     prefix = f"{run_prefix(catalog_folder, run_id)}/pages"
     meta_keys = sorted(
@@ -364,12 +363,22 @@ def read_saved_pages(
         logger.info("LIST %s saved pages under %s", len(meta_keys), prefix)
     progress = _Progress("READ", len(meta_keys))
     pages: list[tuple[dict[str, Any], str]] = []
-    for done, key in enumerate(meta_keys, start=1):
-        meta = source.get_json(key)
-        stem = meta.get("stem") or key.rsplit("/", 1)[-1][: -len(".meta.json")]
-        html = source.get_text(page_html_key(catalog_folder, run_id, stem))
-        pages.append((meta, html))
-        progress.step(done)
+    for start in range(0, len(meta_keys), READ_BATCH):
+        batch = meta_keys[start : start + READ_BATCH]
+        metas = [json.loads(body) for body in source.get_many(batch)]
+        html_keys = [
+            page_html_key(
+                catalog_folder,
+                run_id,
+                meta.get("stem")
+                or key.rsplit("/", 1)[-1][: -len(".meta.json")],
+            )
+            for meta, key in zip(metas, batch, strict=True)
+        ]
+        htmls = source.get_many(html_keys)
+        for meta, html in zip(metas, htmls, strict=True):
+            pages.append((meta, html.decode("utf-8")))
+            progress.step(len(pages))
     return pages
 
 
@@ -662,8 +671,6 @@ def build_summary(
         "patterns_total": len(patterns),
         "patterns_special": sum(1 for pattern in patterns if pattern.special),
         "empty_or_error_pages": empty,
-        # Firewall interstitials saved as if they were pages. Anything above
-        # 0 means the crawl has to be run again; the rules cannot help.
         "challenge_pages": challenge_pages,
         "unknown_share": round(page_types.get("Unknown", 0) / total, 4),
         # How many pages name each kind of entity. A catalog where no page
@@ -780,9 +787,10 @@ def run_discovery(
             "over those pages alone and not over the crawl.",
             len(pages),
         )
-    provenance = provenance_from_crawl(
-        read_crawl_document(source, settings.catalog_folder, settings.run_id)
+    crawl_doc = read_crawl_document(
+        source, settings.catalog_folder, settings.run_id
     )
+    provenance = provenance_from_crawl(crawl_doc)
 
     progress = _Progress("PROFILE", len(pages))
     profiles: list[PageProfile] = []
@@ -801,12 +809,15 @@ def run_discovery(
     challenge_pages = count_challenge_pages(pages)
     if challenge_pages:
         logger.warning(
-            "CHALLENGE %s of %s saved pages are bot-challenge pages, not "
-            "catalog pages, and nothing they would have linked to was "
-            "crawled. Crawl the catalog again into a new --run-id; tuning "
-            "discover_rules.py cannot bring those pages back.",
+            "CHALLENGE %s of %s saved pages are a firewall's bot-challenge "
+            "page, not catalog pages. The crawler has not saved one since "
+            "%s, and this run started %s: resume it (same --url and "
+            "--run-id) to fetch just those pages again. Tuning "
+            "discover_rules.py cannot bring them back.",
             challenge_pages,
             len(pages),
+            CHALLENGE_PAGES_CAUGHT_SINCE,
+            (crawl_doc or {}).get("started_at") or "at an unknown time",
         )
     duplicates = mark_duplicates(profiles)
     vocabulary = build_vocabulary(profiles)
