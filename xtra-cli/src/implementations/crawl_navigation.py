@@ -2,13 +2,15 @@
 
 from __future__ import annotations
 
+import logging
+import time
 from collections import Counter
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any
 from urllib.parse import urlsplit, urlunsplit
 
-from common.clock import run_id_for_json, utc_timestamp
+from common.clock import format_duration, run_id_for_json, utc_timestamp
 from common.keys import (
     crawl_key,
     dedupe_key,
@@ -28,6 +30,8 @@ from implementations.crawl_scope import (
     Scope,
     extract_link_records,
 )
+
+logger = logging.getLogger(__name__)
 
 NAVIGATION_SCHEMA = "xtra-navigation-1"
 
@@ -85,6 +89,8 @@ SKIP_REASONS = {
 
 # Pages deeper than this are listed at the top, so the JSON never nests too far.
 MAX_NESTED_CLICKS = 100
+
+PROGRESS_EVERY = 50
 
 OPERATOR_SOURCES = frozenset({FOUND_BY_START_URL, FOUND_BY_SEED_FILE})
 
@@ -216,6 +222,10 @@ class _Tree:
         page.links_on_page = len(records)
 
 
+def _as_pairs(counts: dict[str, int]) -> str:
+    return " ".join(f"{name}={n}" for name, n in counts.items()) or "none"
+
+
 def _ordered(counts: Counter, order: tuple[str, ...]) -> dict[str, int]:
     known = {name: counts[name] for name in order if counts.get(name)}
     rest = {name: n for name, n in counts.items() if name not in order and n}
@@ -295,6 +305,7 @@ def build_navigation(
     now: Callable[[], str] = utc_timestamp,
 ) -> dict[str, Any]:
     """Writes navigation.json and returns it. Without facts, it's a rebuild."""
+    started = time.monotonic()
     if facts is None and target.exists(navigation_key(catalog_folder, run_id)):
         earlier = target.get_json(navigation_key(catalog_folder, run_id))
         if earlier.get("built_by") == BUILT_BY_CRAWL:
@@ -314,6 +325,13 @@ def build_navigation(
         crawl_doc = source.get_json(crawl_key(catalog_folder, run_id))
     except FileNotFoundError:
         crawl_doc = {}
+    saved_urls = list(state.get("saved") or ())
+    logger.info(
+        "NAVIGATION building the link tree for %s run %s from %s saved pages",
+        catalog_folder,
+        run_id_for_json(run_id),
+        len(saved_urls),
+    )
 
     if facts is not None:
         tree = _Tree(
@@ -347,7 +365,7 @@ def build_navigation(
             tree.declare(url, found_by)
 
     unreadable = 0
-    for saved_url in state.get("saved") or ():
+    for number, saved_url in enumerate(saved_urls, start=1):
         stem = page_stem(saved_url)
         try:
             meta = source.get_json(page_meta_key(catalog_folder, run_id, stem))
@@ -355,8 +373,22 @@ def build_navigation(
         except FileNotFoundError:
             unreadable += 1
             tree.page(saved_url)
-            continue
-        tree.follow(saved_url, meta.get("final_url") or saved_url, html)
+            logger.warning(
+                "NAVIGATION could not read the saved page %s, so its links "
+                "are left out",
+                saved_url,
+            )
+        else:
+            tree.follow(saved_url, meta.get("final_url") or saved_url, html)
+        if number % PROGRESS_EVERY == 0 and number < len(saved_urls):
+            logger.info(
+                "NAVIGATION read %s of %s saved pages, %s pages in the tree "
+                "so far (%s)",
+                number,
+                len(saved_urls),
+                len(tree.pages),
+                format_duration(time.monotonic() - started),
+            )
 
     failed = {
         dedupe_key(tree.canonical(record["url"])): record
@@ -366,9 +398,7 @@ def build_navigation(
     waiting = {
         dedupe_key(tree.canonical(url)) for url in state.get("frontier") or ()
     }
-    saved = {
-        dedupe_key(tree.canonical(url)) for url in state.get("saved") or ()
-    }
+    saved = {dedupe_key(tree.canonical(url)) for url in saved_urls}
     for record in failed.values():
         tree.page(record["url"])
     for url in state.get("frontier") or ():
@@ -446,4 +476,16 @@ def build_navigation(
         "tree": _nest(tree, statuses),
     }
     target.put_json(navigation_key(catalog_folder, run_id), navigation)
+
+    for note in notes:
+        logger.info("NAVIGATION note: %s", note)
+    totals = navigation["totals"]
+    logger.info(
+        "NAVIGATION done in %s: %s pages (%s), %s links (%s)",
+        format_duration(time.monotonic() - started),
+        sum(by_status.values()),
+        _as_pairs(totals["pages_by_status"]),
+        sum(tree.link_totals.values()),
+        _as_pairs(totals["links_by_result"]),
+    )
     return navigation

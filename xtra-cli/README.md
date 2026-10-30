@@ -447,6 +447,23 @@ tree the crawl built. Totals count each link once, so after a resumed crawl
 they can be lower than `skipped_by_reason` in `crawl.json`, which counts the
 links of every page read back again.
 
+While it runs, the log says what it is doing:
+
+```text
+NAVIGATION on: the link tree will be built when the crawl ends
+NAVIGATION building the link tree for catalog-example-edu run 2026-09-17T14:20:01Z from 540 saved pages
+NAVIGATION read 50 of 540 saved pages, 93 pages in the tree so far (00:00:01)
+NAVIGATION note: robots.txt was not saved with this crawl, so the 156 links marked blocked_by_robots are links the crawl never added to its to-visit list.
+NAVIGATION done in 00:00:02: 541 pages (saved=540 skipped=1), 3815 links (new=540 already_found=2242 other_website=732 not_a_web_page=103 file=42 blocked_by_robots=156)
+NAVIGATION wrote ./xtra-cache/catalog-example-edu/2026-09-17T14-20-01Z/navigation.json
+```
+
+- `on` appears at the start of a crawl run with `--with-navigation`.
+- `read` appears every 50 pages.
+- `note` repeats each note written into the file.
+- A saved page that can't be read gets a WARNING.
+- `xtra catalog navigation` starts with a `reading` line that says where it reads the crawl from.
+
 ### Discover
 
 ```bash

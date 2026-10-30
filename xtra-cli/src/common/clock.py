@@ -20,6 +20,13 @@ def utc_timestamp(moment: datetime | None = None) -> str:
     return value.replace(microsecond=0).strftime(ISO8601_UTC)
 
 
+def format_duration(seconds: float) -> str:
+    total = max(0, int(seconds))
+    hours, rest = divmod(total, 3600)
+    minutes, secs = divmod(rest, 60)
+    return f"{hours:02d}:{minutes:02d}:{secs:02d}"
+
+
 def is_iso8601_utc(value: str) -> bool:
     """True for the colon form and for the hyphen form used in paths."""
     return bool(_ISO8601_RE.match(value) or _PATH_SAFE_RE.match(value))

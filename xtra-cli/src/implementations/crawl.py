@@ -25,7 +25,7 @@ from dataclasses import dataclass, field
 from typing import Any
 from urllib.parse import urlsplit, urlunsplit
 
-from common.clock import run_id_for_json, utc_timestamp
+from common.clock import format_duration, run_id_for_json, utc_timestamp
 from common.keys import (
     crawl_key,
     dedupe_key,
@@ -107,13 +107,6 @@ INDEX_INTERVAL_SECONDS = 0.5
 
 class StrategyMismatchError(RuntimeError):
     """A resume that would mix two rendered sources in one run folder."""
-
-
-def format_duration(seconds: float) -> str:
-    total = max(0, int(seconds))
-    hours, rest = divmod(total, 3600)
-    minutes, secs = divmod(rest, 60)
-    return f"{hours:02d}:{minutes:02d}:{secs:02d}"
 
 
 def format_seconds(value: float) -> str:
@@ -899,7 +892,7 @@ class Crawler:
             scope=self.scope, canonical=self.canonical_url, declared=declared
         )
         try:
-            doc = build_navigation(
+            build_navigation(
                 self.store,
                 self.store,
                 self.settings.catalog_folder,
@@ -914,11 +907,8 @@ class Crawler:
                 rebuild,
             )
             return
-        totals = doc["totals"]
         logger.info(
-            "NAVIGATION %s pages, %s links -> %s",
-            sum(totals["pages_by_status"].values()),
-            sum(totals["links_by_result"].values()),
+            "NAVIGATION wrote %s",
             join_storage_uri(
                 self.settings.target_uri, self._run_key(navigation_key)
             ),
@@ -995,6 +985,10 @@ class Crawler:
                 self.enqueue(url, operator_seed=True)
         else:
             self._sitemap_first(declared_pages)
+        if self.settings.with_navigation:
+            logger.info(
+                "NAVIGATION on: the link tree will be built when the crawl ends"
+            )
 
         policy = FetchPolicy(
             min_interval=self.effective_min_interval,

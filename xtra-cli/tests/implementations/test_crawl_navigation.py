@@ -475,19 +475,71 @@ def test_pages_skipped_for_more_than_one_reason_say_so_in_notes(
 
 
 def test_a_rebuild_of_a_damaged_run_says_what_is_missing(
-    tmp_path: Path,
+    tmp_path: Path, caplog
 ) -> None:
     crawl(tmp_path, GUIDE_SITE, documents=ROBOTS)
     (run_dir(tmp_path) / "crawl.json").unlink()
     page = run_dir(tmp_path) / "pages" / f"{page_stem(url('/courses/a/'))}.html"
     page.unlink()
 
-    rebuilt = rebuild(tmp_path)
+    with caplog.at_level(logging.INFO):
+        rebuilt = rebuild(tmp_path)
     assert rebuilt["crawl_status"] is None
     assert any("could not be read" in note for note in rebuilt["notes"])
     course_a = entry_for(rebuilt, url("/courses/a/"))
     assert course_a["status"] == "saved"
     assert "links_on_page" not in course_a
+    assert (
+        f"NAVIGATION could not read the saved page {url('/courses/a/')}, so "
+        "its links are left out"
+    ) in caplog.text
+    assert "NAVIGATION note: 1 saved pages could not be read" in caplog.text
+
+
+def navigation_lines(caplog) -> list[str]:
+    return [
+        record.getMessage()
+        for record in caplog.records
+        if record.getMessage().startswith("NAVIGATION ")
+    ]
+
+
+def test_the_log_says_what_the_link_tree_is_doing(
+    tmp_path: Path, caplog, monkeypatch
+) -> None:
+    monkeypatch.setattr("implementations.crawl_navigation.PROGRESS_EVERY", 2)
+    with caplog.at_level(logging.INFO):
+        crawl(tmp_path, GUIDE_SITE, documents=ROBOTS, with_navigation=True)
+
+    lines = navigation_lines(caplog)
+    assert lines[0] == (
+        "NAVIGATION on: the link tree will be built when the crawl ends"
+    )
+    assert lines[1] == (
+        "NAVIGATION building the link tree for catalog-example-edu run "
+        "2026-10-29T14:00:00Z from 5 saved pages"
+    )
+    assert lines[2].startswith("NAVIGATION read 2 of 5 saved pages, ")
+    assert lines[3].startswith("NAVIGATION read 4 of 5 saved pages, ")
+    assert lines[4].startswith("NAVIGATION done in ")
+    assert lines[4].endswith(
+        ": 6 pages (saved=5 failed=1), 13 links (new=5 already_found=4 "
+        "other_website=1 not_a_web_page=1 file=1 blocked_by_robots=1)"
+    )
+    assert lines[5].startswith("NAVIGATION wrote ")
+    assert lines[5].endswith("navigation.json")
+    assert len(lines) == 6
+
+
+def test_a_rebuild_logs_its_notes(tmp_path: Path, caplog) -> None:
+    crawl(tmp_path, GUIDE_SITE, documents=ROBOTS)
+    caplog.clear()
+    with caplog.at_level(logging.INFO):
+        rebuild(tmp_path)
+    assert any(
+        line.startswith("NAVIGATION note: robots.txt was not saved")
+        for line in navigation_lines(caplog)
+    )
 
 
 def test_a_very_deep_crawl_nests_only_so_far(tmp_path: Path) -> None:

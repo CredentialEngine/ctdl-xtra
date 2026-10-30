@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import logging
 from pathlib import Path
 
 from click.testing import CliRunner
@@ -57,6 +58,22 @@ def invoke(source: Path, target: Path | None = None, *extra: str):
             *extra,
         ],
     )
+
+
+def test_the_log_says_where_it_reads_and_writes(tmp_path: Path, caplog) -> None:
+    crawl_into(tmp_path)
+    caplog.clear()
+    with caplog.at_level(logging.INFO):
+        result = invoke(tmp_path)
+    assert result.exit_code == 0, result.output
+    lines = [
+        record.getMessage()
+        for record in caplog.records
+        if record.getMessage().startswith("NAVIGATION ")
+    ]
+    assert lines[0] == f"NAVIGATION reading {FOLDER} run {RUN} from {tmp_path}"
+    assert lines[-1].startswith("NAVIGATION wrote ")
+    assert lines[-1].endswith(f"{RUN_PATH}/navigation.json")
 
 
 def test_navigation_builds_the_tree_of_a_saved_crawl(tmp_path: Path) -> None:

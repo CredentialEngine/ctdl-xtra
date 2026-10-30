@@ -9,6 +9,7 @@ Nothing is fetched from the website.
 from __future__ import annotations
 
 import json
+import logging
 
 import click
 
@@ -26,6 +27,8 @@ from xtra.click import (
     storage_connection_options,
     target_uri_option,
 )
+
+logger = logging.getLogger(__name__)
 
 
 @click.command(name="navigation")
@@ -72,15 +75,20 @@ def main(
         target_uri,
         azure_storage_connection_string=azure_storage_connection_string,
     )
+    logger.info(
+        "NAVIGATION reading %s run %s from %s", catalog_id, run_id, source_uri
+    )
     try:
         navigation = build_navigation(source, target, catalog_id, run_id)
     except NavigationError as exc:
         raise click.ClickException(str(exc)) from exc
 
-    summary = {key: value for key, value in navigation.items() if key != "tree"}
-    summary["written_to"] = join_storage_uri(
+    written_to = join_storage_uri(
         target_uri, navigation_key(catalog_id, run_id)
     )
+    logger.info("NAVIGATION wrote %s", written_to)
+    summary = {key: value for key, value in navigation.items() if key != "tree"}
+    summary["written_to"] = written_to
     click.echo(json.dumps(summary, indent=2))
 
 
