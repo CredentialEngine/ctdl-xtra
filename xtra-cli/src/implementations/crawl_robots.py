@@ -24,6 +24,7 @@ logger = logging.getLogger(__name__)
 ROBOTS_TIMEOUT_SECONDS = 30
 MAX_SITEMAP_DOCUMENTS = 50
 WEB_SCHEMES = frozenset({"http", "https"})
+# Every gzip file starts with these two bytes.
 _GZIP_MAGIC = b"\x1f\x8b"
 
 
@@ -32,7 +33,7 @@ class SiteFetchError(RuntimeError):
 
 
 def browser_user_agent() -> str:
-    """The UA string shared with the Playwright context, from lib/config."""
+    """The UA string shared with the Playwright context, from src/lib/config."""
     load_engine()
     from config import BROWSER_USER_AGENT
 
@@ -158,6 +159,7 @@ def read_robots(
 
 
 def _decompress(body: bytes) -> bytes:
+    """Unzip a sitemap served as a .gz file. robots.txt never comes here."""
     # httpx2 has already undone a gzip Content-Encoding.
     if body.startswith(_GZIP_MAGIC):
         return gzip.decompress(body)

@@ -11,7 +11,8 @@ from pathlib import Path
 from urllib.parse import urlparse
 
 HERE = Path(__file__).resolve().parent
-CLI_ROOT = HERE.parent
+# lib/ sits in xtra-cli/src/, so the CLI root is two levels up.
+CLI_ROOT = HERE.parents[1]
 ROOT = CLI_ROOT.parent
 SCHEMA_SRC = (HERE / "record.schema.json").absolute()
 

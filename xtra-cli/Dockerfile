@@ -18,11 +18,10 @@ WORKDIR /app
 
 COPY pyproject.toml README.md /app/
 COPY src /app/src
-COPY lib /app/lib
 
-# Editable on purpose: implementations/engine.py puts the lib/ beside src/ on
-# sys.path, and lib/ is not in the wheel, so `pip install .` cannot start the
-# CLI. Browsers go to PLAYWRIGHT_BROWSERS_PATH so the runtime user sees them.
+# Editable on purpose: implementations/engine.py puts src/lib/ on sys.path,
+# and src/lib/ is not in the wheel, so `pip install .` cannot start the CLI.
+# Browsers go to PLAYWRIGHT_BROWSERS_PATH so the runtime user sees them.
 RUN pip install --no-cache-dir --upgrade pip \
     && pip install --no-cache-dir -e ".[azure]" \
     && python -m playwright install --with-deps --only-shell ${PLAYWRIGHT_BROWSERS} \
@@ -36,7 +35,7 @@ RUN useradd --uid 1001 --gid 0 --create-home --home-dir /home/xtra xtra \
 USER 1001
 WORKDIR /data
 
-# Fail the build, not the first crawl, when lib/ cannot be imported or no
+# Fail the build, not the first crawl, when src/lib/ cannot be imported or no
 # browser starts. The launch order is the fetcher's.
 RUN xtra --version && python - <<'PY'
 from playwright.sync_api import Error, sync_playwright

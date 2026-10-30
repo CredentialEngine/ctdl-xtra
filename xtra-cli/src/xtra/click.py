@@ -202,7 +202,8 @@ def crawl_pacing_options():
                 show_default=True,
                 help=(
                     "Retries after the first attempt, for network errors, "
-                    "timeouts, HTTP 429, and HTTP 5xx."
+                    "timeouts, HTTP 429, HTTP 5xx, and bot-challenge pages "
+                    "that were not waited out."
                 ),
             ),
         ]
