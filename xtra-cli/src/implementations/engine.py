@@ -1,4 +1,4 @@
-"""Put xtra-cli/lib on sys.path so implementations can reuse the extractors."""
+"""Put xtra-cli/src/lib on sys.path so implementations can reuse the extractors."""
 
 from __future__ import annotations
 
@@ -6,7 +6,7 @@ import sys
 from pathlib import Path
 
 _CLI_ROOT = Path(__file__).resolve().parents[2]
-_LIB = _CLI_ROOT / "lib"
+_LIB = _CLI_ROOT / "src" / "lib"
 
 
 def load_engine() -> Path:

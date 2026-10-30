@@ -26,7 +26,8 @@ _ENGINE = Path(__file__).resolve().parent
 def portable_path(path: Path) -> str:
     """Pack- or repo-relative POSIX path. Never a machine home path."""
     path = Path(path).absolute()
-    for root in (PACK.absolute(), _ENGINE, _ENGINE.parent, REPO_ROOT):
+    # _ENGINE.parents[1] is the CLI root: lib/ sits in xtra-cli/src/.
+    for root in (PACK.absolute(), _ENGINE, _ENGINE.parents[1], REPO_ROOT):
         try:
             return path.relative_to(root).as_posix()
         except ValueError:

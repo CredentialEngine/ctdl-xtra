@@ -76,8 +76,17 @@ def crawl_key(catalog_folder: str, run_id: str) -> str:
     return f"{run_prefix(catalog_folder, run_id)}/crawl.json"
 
 
+# Only older runs have it; a resume still reads it.
 def state_key(catalog_folder: str, run_id: str) -> str:
     return f"{run_prefix(catalog_folder, run_id)}/state.json"
+
+
+def checkpoints_prefix(catalog_folder: str, run_id: str) -> str:
+    return f"{run_prefix(catalog_folder, run_id)}/checkpoints"
+
+
+def checkpoint_key(catalog_folder: str, run_id: str, number: int) -> str:
+    return f"{checkpoints_prefix(catalog_folder, run_id)}/{number:06d}.json"
 
 
 def failed_key(catalog_folder: str, run_id: str) -> str:

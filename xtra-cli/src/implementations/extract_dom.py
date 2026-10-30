@@ -1,6 +1,6 @@
 """Transcribe a page's printed fields from its markup.
 
-The extractors under lib/templates read the flattened page and each one
+The extractors under src/lib/templates read the flattened page and each one
 knows one college's layout: where Brookdale puts its credits, what
 Raritan calls its prerequisites. That works, and it is one file per
 college for ever, because flattening the page throws away the one thing

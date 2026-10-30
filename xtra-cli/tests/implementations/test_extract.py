@@ -1,4 +1,4 @@
-# ruff: noqa: I001 - importing implementations.extract is what puts lib/
+# ruff: noqa: I001 - importing implementations.extract is what puts src/lib/
 # on sys.path, so the engine import below cannot be sorted above it.
 from __future__ import annotations
 

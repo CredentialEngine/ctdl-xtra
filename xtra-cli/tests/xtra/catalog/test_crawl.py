@@ -84,7 +84,7 @@ def test_crawl_saves_pages_under_the_catalog_folder(
 
     run_dir = tmp_path / FOLDER / RUN_PATH
     assert (run_dir / "crawl.json").is_file()
-    assert (run_dir / "state.json").is_file()
+    assert list((run_dir / "checkpoints").glob("*.json"))
     assert len(list((run_dir / "pages").glob("*.html"))) == 2
     assert list((run_dir / "pages").glob("*.txt")) == []
     assert not (run_dir / "slots.json").exists()
@@ -191,6 +191,16 @@ def test_read_seed_urls_ignores_blanks_and_comments(tmp_path: Path) -> None:
     )
     assert read_seed_urls(path) == ("https://a.edu/x", "https://a.edu/y")
     assert read_seed_urls(None) == ()
+
+
+def test_a_seed_file_with_a_byte_order_mark_keeps_its_first_url(
+    tmp_path: Path,
+) -> None:
+    """PowerShell 5.1 writes one with Set-Content -Encoding utf8."""
+    path = tmp_path / "seeds.txt"
+    path.write_text("https://a.edu/x\nhttps://a.edu/y\n", encoding="utf-8-sig")
+    assert path.read_bytes().startswith(b"\xef\xbb\xbf")
+    assert read_seed_urls(path) == ("https://a.edu/x", "https://a.edu/y")
 
 
 def test_include_and_exclude_regexes_are_recorded(

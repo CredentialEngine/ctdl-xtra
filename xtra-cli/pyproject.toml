@@ -51,6 +51,10 @@ package-dir = { "" = "src" }
 
 [tool.setuptools.packages.find]
 where = ["src"]
+# src/lib/ is the extraction engine. implementations/engine.py puts the
+# folder itself on sys.path and its modules import one another by bare
+# name, so it is not an installable package, as when it sat beside src/.
+exclude = ["lib", "lib.*"]
 
 [tool.pytest.ini_options]
 pythonpath = ["src", "tests"]
@@ -78,10 +82,9 @@ select = ["E", "F", "I", "UP", "B", "SIM"]
 ignore = ["E501"]
 
 [tool.ruff.lint.per-file-ignores]
-# load_engine() has to put lib/ on sys.path before the bare-name imports.
+# load_engine() has to put src/lib/ on sys.path before the bare-name imports.
 "src/implementations/extract.py" = ["E402"]
 "src/implementations/transform.py" = ["E402"]
-"lib/union_fields.py" = ["E402"]
 # pytest.importorskip() has to run before the module that needs the SDK.
 "tests/common/test_azure_storage_provider.py" = ["E402"]
 "tests/common/test_azure_storage_writer.py" = ["E402"]

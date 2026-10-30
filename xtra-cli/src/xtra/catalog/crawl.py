@@ -47,10 +47,15 @@ logger = logging.getLogger(__name__)
 
 
 def read_seed_urls(path: Path | None) -> tuple[str, ...]:
-    """One URL per line. Blank lines and # comments are ignored."""
+    """One URL per line. Blank lines and # comments are ignored.
+
+    A byte order mark is dropped: PowerShell 5.1 writes one with
+    Set-Content -Encoding utf8, and it would turn the first URL into one
+    with no scheme, skipped without a word.
+    """
     if path is None:
         return ()
-    lines = Path(path).read_text(encoding="utf-8").splitlines()
+    lines = Path(path).read_text(encoding="utf-8-sig").splitlines()
     return tuple(
         line.strip()
         for line in lines
@@ -123,8 +128,11 @@ def check_scope_prefix(url: str, scope_prefix: str | None) -> None:
     "--include-regex",
     multiple=True,
     help=(
-        "Keep a followed URL only when it matches. Repeatable. Example for a "
-        "host that keeps several catalog years: --include-regex catoid=13"
+        "Keep a followed URL only when it matches, searched anywhere in the "
+        "full URL. Repeatable. Example for a host that keeps several catalog "
+        r"years: --include-regex '[?&;]catoid=13(?!\d)', which does not "
+        "match catoid=130. Seeds skip it, so when the start page does not "
+        "link to that catalog, put its index page in --seed-urls-file."
     ),
 )
 @click.option(
@@ -176,7 +184,8 @@ def main(
     Output goes under {catalog-folder}/{run-id}/ in --target-uri, where the
     catalog folder is --url with hyphens for everything that is not a letter
     or a digit. Rerun with the same --url and --run-id to resume: pages
-    already saved are read back from storage instead of fetched again.
+    already saved are read back from storage instead of fetched again,
+    except a stored bot-challenge page, which is fetched again.
     """
     strategy = require_strategy(strategy, example="--with-playwright")
     try:

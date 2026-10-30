@@ -1,4 +1,4 @@
-"""UTC timestamps. ISO8601 yyyy-MM-ddThh:mm:ssZ, not pack folders."""
+"""UTC timestamps and durations. ISO8601 yyyy-MM-ddThh:mm:ssZ, not pack folders."""
 
 from __future__ import annotations
 
@@ -50,3 +50,11 @@ def run_id_for_json(run_id: str) -> str:
         return run_id
     day, hour, minute, second = match.groups()
     return f"{day}T{hour}:{minute}:{second}Z"
+
+
+def format_duration(seconds: float) -> str:
+    """Seconds as HH:MM:SS, the elapsed and eta of a progress line."""
+    total = max(0, int(seconds))
+    hours, rest = divmod(total, 3600)
+    minutes, secs = divmod(rest, 60)
+    return f"{hours:02d}:{minutes:02d}:{secs:02d}"

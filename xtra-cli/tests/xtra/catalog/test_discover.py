@@ -1,12 +1,14 @@
 from __future__ import annotations
 
 import json
+import logging
 from pathlib import Path
 
 from click.testing import CliRunner
 from discovery_doubles import seed_crawl_manifest, seed_crawl_page
 
 from common.object_store import open_store
+from implementations.discover import READ_CONCURRENCY
 from xtra.cli import cli
 from xtra.config.settings import StoredConfig, save_config
 
@@ -291,3 +293,38 @@ def test_a_stem_the_crawl_never_saved_says_where_stems_come_from(
     assert result.exit_code != 0
     assert "not-a-page" in result.output
     assert ".meta.json" in result.output
+
+
+def test_the_log_says_where_each_report_was_written(
+    tmp_path: Path, fixture_html_dir, caplog
+) -> None:
+    """The WRITE lines name the --target-uri, so the files can be found."""
+    seed(tmp_path, fixture_html_dir)
+    with caplog.at_level(logging.INFO, logger="implementations.discover"):
+        result = invoke(tmp_path)
+    assert result.exit_code == 0, result.output
+
+    writes = [
+        record.getMessage()
+        for record in caplog.records
+        if record.getMessage().startswith("WRITE ")
+    ]
+    assert len(writes) == 8
+    assert all(f"-> {tmp_path}/{FOLDER}/" in line for line in writes)
+
+
+def test_the_saved_pages_are_read_with_several_downloads_at_once(
+    tmp_path: Path, fixture_html_dir, monkeypatch
+) -> None:
+    seed(tmp_path, fixture_html_dir)
+    asked: list[int] = []
+
+    def recording(uri, **kwargs):
+        asked.append(kwargs.get("concurrency", 1))
+        return open_store(uri, **kwargs)
+
+    monkeypatch.setattr("xtra.catalog.discover.open_store", recording)
+    result = invoke(tmp_path)
+    assert result.exit_code == 0, result.output
+    # The source the pages are read from is opened first.
+    assert asked[0] == READ_CONCURRENCY > 1

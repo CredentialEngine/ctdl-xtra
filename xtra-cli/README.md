@@ -9,7 +9,7 @@ This CLI does not invent CTIDs and does not publish to the Credential Registry.
 > **Architecture and ETL pipeline:** [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) —
 > how the five stages (crawl → discover → extract → transform → score) fit together,
 > with flow charts, the storage layout, the data contracts between stages, and what
-> lives in `src/common/` versus `lib/`. Read that first if you are new to the repo;
+> lives in `src/common/` versus `src/lib/`. Read that first if you are new to the repo;
 > this README is the operator's reference for the flags.
 
 ## Install
@@ -182,7 +182,7 @@ xtra catalog crawl --with-playwright \
 | `--concurrency-limit` | `1` | Pages downloaded in parallel. Each worker runs its own browser. |
 | `--min-interval-in-seconds` | `180` | Smallest gap between one worker's GETs, and the first retry wait. |
 | `--max-interval-in-seconds` | `3600` | Cap on the exponential backoff between retries. |
-| `--max-retries` | `5` | Retries after the first attempt, for network errors, timeouts, HTTP 429, and HTTP 5xx. |
+| `--max-retries` | `5` | Retries after the first attempt, for network errors, timeouts, HTTP 429, HTTP 5xx, and bot-challenge pages that were not waited out. |
 | `--scope-prefix` | directory of `--url` | Keep only URLs whose path starts with this URL's path. |
 | `--include-regex` | none | Repeatable. A followed URL is kept only when it matches one of these. |
 | `--exclude-regex` | none | Repeatable. A followed URL is dropped when it matches one of these. |
@@ -331,14 +331,22 @@ host, inside the scope prefix, and allowed by `robots.txt`.
 #### Catalogs that keep several years
 
 Some hosts publish every catalog year on one site. That is an operator
-decision, not something the crawler guesses, so narrow the run with a regex:
+decision, not something the crawler guesses, so narrow the run with a regex.
+It is searched anywhere in the full URL, so bound the number, or `catoid=13`
+also keeps `catoid=130`; the `;` covers links written with a stray `&amp;`:
 
 ```bash
 xtra catalog crawl --with-playwright \
-  --url https://catalog.bergen.edu/content.php?catoid=13&navoid=664 \
-  --include-regex "catoid=13" \
+  --url "https://catalog.bergen.edu/content.php?catoid=13&navoid=664" \
+  --include-regex '[?&;]catoid=13(?!\d)' \
   --target-uri ./xtra-cache
 ```
+
+Start URLs skip the regex, but the links that lead to the catalog have to
+pass it. When the start page links only to other years, as a home page that
+lists its current catalogs only in a drop-down does, put each wanted
+catalog's `index.php?catoid=N` page in `--seed-urls-file`, or the run saves
+the start page and ends `complete`.
 
 #### What the log says
 
@@ -350,8 +358,19 @@ RETRY https://catalog.example.edu/english/engl102 attempt 2 of 6 after HTTP 429,
 FAIL https://catalog.example.edu/english/engl103 after 6 attempts: HTTP 503
 SKIP https://catalog.example.edu/private/x reason=robots
 FROM-STORAGE https://catalog.example.edu/english/engl101 (already saved, no GET)
+RETRY https://catalog.example.edu/english/engl104 attempt 2 of 6 after aws-waf challenge did not resolve within 30 s, waiting 180 s
+REFETCH https://catalog.example.edu/english/engl105 stored page is a bot challenge (aws-waf), not the catalog page, so it is fetched again
 PROGRESS saved=120 failed=2 skipped=340 frontier=880 elapsed=06:01:10 eta=44:00:00
 ```
+
+A firewall's bot challenge, the script page AWS WAF serves with HTTP 202 or
+Cloudflare's "Just a moment...", is never saved, whatever the strategy. With
+`--with-playwright` it is waited out in the browser, and a page that needed
+one says so under `render.challenge` in its sidecar; the other strategies
+detect the challenge page and retry it. One that does not clear is a
+retryable failure. Runs crawled before challenges were waited out
+(2026-10-01) can hold saved challenge pages; on a resume each one is logged
+as a `REFETCH` WARNING and fetched again.
 
 `bytes` is the size of the saved HTML in UTF-8. `latency_ms` runs from
 navigation start to the HTML being in hand. The path is the full URI of the
@@ -375,13 +394,21 @@ surprises (`robots`, `non_html`, `redirect_out_of_scope`) stay at INFO. Set
 
 #### Resume
 
-Rerun with the same `--url` and the same `--run-id`. `state.json` carries
-the frontier, the seen set, the failed URLs, and the strategy that fetched
-them. `state.json`, `failed.jsonl` and `crawl.json` are written once at
-startup before the first GET, again after the first saved page, then every
-25 saved pages, on Ctrl+C, when the run gives up, and at the end. A run that
-is killed outright still leaves a manifest saying what it was and that it
-did not finish.
+Rerun with the same `--url` and the same `--run-id`. Each checkpoint is a new
+file, `checkpoints/000001.json`, `000002.json` and so on, and none is ever
+rewritten; only the newest three are kept. Each one holds the run's manifest
+and what a resume needs: the frontier (the URLs still to fetch), the seen
+set, the failed URLs, and the strategy that fetched them. One is written at
+startup before the first GET, after the first saved page, then every 25
+saved pages, on Ctrl+C, when the run gives up, and at the end. A resume
+reads the newest one it can read, so a run killed while writing one loses
+only what came after the one before. A run crawled before checkpoints were
+separate files resumes from its `state.json`, which is left as it is.
+
+`crawl.json` and `failed.jsonl` are written once, when the run stops, Ctrl+C
+included. A run that is killed outright has no `crawl.json` until it is
+resumed, but its newest checkpoint says what it was and that it did not
+finish.
 
 A resume may not change the backend: a rerun with a different
 `--with-<strategy>` stops with an error naming both, because one run folder
@@ -389,12 +416,24 @@ must not mix rendered sources.
 
 A frontier URL whose `.html` is already in storage is not fetched again: its
 HTML is read back and its links are still followed, so a resume re-checks
-coverage without touching the site. Failed URLs whose error was retryable are
+coverage without touching the site. The exception is a stored bot-challenge
+page: it is logged as `REFETCH`, taken out of `pages_saved` and
+`total_bytes`, and fetched again. Failed URLs whose error was retryable are
 queued once more. `--limit` counts pages saved across the whole run, so
 rerunning with a higher limit continues where the last one stopped.
 
+URLs read back from a checkpoint are not tested against `--include-regex` or
+`--exclude-regex` again, but links found during the resume are filtered by
+the regexes given to the resume, and the URLs in `--seed-urls-file` are
+queued on a fresh run only. So resume with the same flags. Resuming repairs
+a run whose scope was right, challenge pages included; start a new
+`--run-id` to change the scope, or for a run made by one crawler version
+from start to end. A page being fetched when Ctrl+C lands is written to the
+frontier, so the resume asks for it again.
+
 After 20 URLs fail in a row the run stops, checkpoints, and reports
-`incomplete`, on the assumption that the site is blocking it.
+`incomplete`, on the assumption that the site is blocking it. Pages read back
+from storage do not reset that count.
 
 #### Exit codes
 
@@ -402,7 +441,7 @@ After 20 URLs fail in a row the run stops, checkpoints, and reports
 | --- | --- |
 | `0` | `status` is `complete` or `limit_reached`, and no page failed |
 | `1` | pages failed, or the run ended `incomplete`; one line on stderr says which |
-| `130` | Ctrl+C. The checkpoint is written, so the same `--run-id` resumes |
+| `130` | Ctrl+C. The checkpoint is written, with the page being fetched still in the frontier, so the same `--run-id` resumes |
 
 #### Link tree
 
@@ -533,7 +572,7 @@ What only the tree can say:
 
 #### What a page gets labelled
 
-Four labels, one per entity `lib/mapping.py` can write CTDL for. They are
+Four labels, one per entity `src/lib/mapping.py` can write CTDL for. They are
 tried in this order, and the first three are exclusive: a page has one
 subject, and only a competency list rides along with it.
 
@@ -747,6 +786,43 @@ report, and names the label it looked for and the page types it found
 instead. When the population is smaller than `--sample-size` it warns with
 both numbers and takes the whole population.
 
+Saved pages that are a firewall's bot-challenge page are counted in a
+`CHALLENGE` warning and as `challenge_pages` in `summary.json`. The crawler
+has not saved one since 2026-10-01, so they come from a run crawled before
+then, and the warning says when the run started. Resume that run (same
+`--url` and `--run-id`) and it fetches just those pages again. Tuning the
+rules cannot help, because whatever those pages would have linked to was
+never fetched. Discovery still exits 0 unless the sample is empty, so check
+`challenge_pages`. When an empty sample comes with challenge pages making up
+at least half the run, its error says to resume the run instead of tuning
+the rules.
+
+#### What the log says
+
+One INFO line per phase, so a run read from Azure is never silent for
+minutes:
+
+```text
+LIST 556 saved pages under catalog-example-edu/2026-09-27T07-46-53Z/pages
+READ 100/556 (17%) elapsed=00:00:03 eta=00:00:14
+READ 556/556 (100%) elapsed=00:00:15 eta=00:00:00
+PROFILE 100/556 (17%) elapsed=00:00:05 eta=00:00:26
+PROFILE 556/556 (100%) elapsed=00:00:30 eta=00:00:00
+PATTERNS 148 groups of pages, 130 special
+SAMPLE 30 pages from the 130 labelled Course, covering 32 of 32 features
+PROFILED pages=556 duplicates=1 patterns=148 special=130 unknown=96
+WRITE pages.jsonl 916618 bytes -> azure://https://ACCOUNT.blob.core.windows.net/xtra/catalog-example-edu/2026-09-27T07-46-53Z/discovery/2026-10-13T16-14-07Z/pages.jsonl
+DONE discovery run 2026-10-13T16-14-07Z in 00:00:47
+```
+
+`READ` and `PROFILE` report every 100 pages and at the last one, with the
+time spent and an estimate of the time left. Saved pages are read 100 at a
+time, with 16 downloads in parallel when the run is in Azure. A `WRITE` line
+follows each of the eight reports with its size
+and where it went. The `CRAWL`, `STEMS`, `CHALLENGE` and `SAMPLE` warnings
+still appear when `crawl.json` is missing, `--stem` narrows the run, saved
+pages are bot-challenge pages, or the golden sample is empty or short.
+
 ### Extract and transform
 
 Same `--with-<strategy>` pattern:
@@ -786,7 +862,7 @@ id belongs to what it is mainly about, and the other gets `{stem}--{entity}`.
 
 #### Two readings, in order
 
-A course page goes to the college templates in `lib/templates` first. They
+A course page goes to the college templates in `src/lib/templates` first. They
 are the verified path and they have fixtures behind them, so where one
 matches it is the answer.
 
@@ -855,7 +931,7 @@ sits **beside** `records/` and never inside it, because transform reads every
 JSON file under `records/` and would treat a report as a course.
 
 Pages are read by the stem discovery lists, which is the stem the crawler
-saved them under. The `Slot.stem` property in `lib/` still slugs the URL the
+saved them under. The `Slot.stem` property in `src/lib/` still slugs the URL the
 old way, so it is never used for a storage key, and the record carries the
 crawl stem instead.
 
@@ -1003,8 +1079,8 @@ is listed in the report under `malformed` and skipped.
 ```text
 {target-uri}/{catalog-folder}/{yyyy-MM-ddTHH-mm-ssZ}/
   crawl.json
-  state.json
   failed.jsonl
+  checkpoints/{000001}.json
   pages/{stem}.html
   pages/{stem}.meta.json
   navigation.json
@@ -1081,7 +1157,7 @@ docker run --rm -e AZURE_STORAGE_CONNECTION_STRING xtra-cli catalog crawl \
 
 The entrypoint is `xtra`. The image carries Chrome, Playwright's chromium, and the `azure` extra, but not `crawl4ai`. It runs as uid 1001 in `/data`, so a relative `--target-uri ./xtra-cache` lands in a volume mounted there. An environment saved with `xtra environment set` lives only as long as the container unless `/home/xtra/.xtra` is mounted, so prefer `--target-uri`.
 
-The CLI is installed editable from the source tree on purpose: `lib/` is not a package, so a wheel cannot import the extractors. On arm64 build with `--build-arg PLAYWRIGHT_BROWSERS=chromium`, because Google ships Chrome for amd64 only.
+The CLI is installed editable from the source tree on purpose: `src/lib/` is not a package, so a wheel cannot import the extractors. On arm64 build with `--build-arg PLAYWRIGHT_BROWSERS=chromium`, because Google ships Chrome for amd64 only.
 
 ## Non-goals
 

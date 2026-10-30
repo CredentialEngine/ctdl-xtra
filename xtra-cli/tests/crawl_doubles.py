@@ -290,3 +290,67 @@ def curriqunet_documents(
                 f"{resolver}?id={catalog_id}&clientPath={client_path}"
             ] = json.dumps(answer).encode()
     return documents
+
+
+# What a button-paged list renders before the list loads.
+LIST_LOADING = '<p data-v-6c735c42="">Loading results...</p>'
+
+_ARROW = '<svg aria-hidden="true"><path d="M0 0"></path></svg>'
+
+
+def page_button(number: int, current: int) -> str:
+    """One numbered page button; the current one is highlighted and disabled."""
+    if number == current:
+        return (
+            '<button class="btn btn-primary mx-1" type="button" disabled="" '
+            f'aria-label="Go to page {number}" aria-hidden="false" '
+            f'number="{number}">{number}</button>'
+        )
+    return (
+        '<button class="btn btn-secondary mx-1" type="button" '
+        f'aria-label="Go to page {number}" aria-hidden="false" '
+        f'number="{number}">{number}</button>'
+    )
+
+
+def button_row(current: int, last: int) -> str:
+    """A row of numbered page buttons with Previous, Next and "..." gaps."""
+    numbers = sorted(
+        {1, current - 1, current, current + 1, last} & set(range(1, last + 1))
+    )
+    parts = [
+        '<div class="flex ml-2 px-0 text-xs ui-font base-pagination mt-4">',
+        '<button class="btn btn-secondary mx-1" type="button" '
+        f'aria-label="Previous page">{_ARROW}</button>',
+    ]
+    previous = 0
+    for number in numbers:
+        if number - previous > 1:
+            parts.append(
+                '<button class="btn btn-secondary mx-1" type="button" '
+                'disabled="" aria-label="Go to page ..." aria-hidden="true" '
+                'number="...">...</button>'
+            )
+        parts.append(page_button(number, current))
+        previous = number
+    parts.append(
+        '<button class="btn btn-secondary mx-1" type="button" '
+        f'aria-label="Next page">{_ARROW}</button></div>'
+    )
+    return "".join(parts)
+
+
+def list_site_page(*content: str) -> str:
+    """A page around `content` whose print stylesheet names the button row."""
+    return (
+        "<html><head><style>.theme-container--print .base-pagination"
+        "{display:none}</style></head><body><main>"
+        + "".join(content)
+        + "</main></body></html>"
+    )
+
+
+def list_page(current: int, last: int, codes: list[str]) -> str:
+    """Page `current` of `last` of a course list paged with buttons."""
+    links = "".join(f'<a href="/courses/{code}">{code}</a>' for code in codes)
+    return list_site_page(links, button_row(current, last))
