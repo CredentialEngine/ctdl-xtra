@@ -13,6 +13,7 @@ from common.keys import (
     expected_key,
     failed_key,
     jsonld_key,
+    navigation_key,
     page_html_key,
     page_meta_key,
     page_stem,
@@ -104,6 +105,7 @@ def test_run_object_keys() -> None:
     assert failed_key(CATALOG, RUN).endswith("/failed.jsonl")
     assert page_html_key(CATALOG, RUN, "stem").endswith("/pages/stem.html")
     assert page_meta_key(CATALOG, RUN, "stem").endswith("/pages/stem.meta.json")
+    assert navigation_key(CATALOG, RUN).endswith(f"{RUN_PATH}/navigation.json")
     assert record_key(CATALOG, RUN, "id").endswith("/records/id.json")
     assert jsonld_key(CATALOG, RUN, "id").endswith("/jsonld/id.json")
     assert expected_key(CATALOG, RUN, "id").endswith("/expected/id.json")

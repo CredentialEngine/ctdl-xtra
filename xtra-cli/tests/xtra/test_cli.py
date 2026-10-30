@@ -45,7 +45,7 @@ def test_cli_exposes_version() -> None:
 def test_catalog_help_lists_verbs() -> None:
     result = CliRunner().invoke(cli, ["catalog", "--help"])
     assert result.exit_code == 0
-    for verb in ("crawl", "discover", "extract", "transform"):
+    for verb in ("crawl", "navigation", "discover", "extract", "transform"):
         assert verb in result.output
 
 
@@ -81,6 +81,7 @@ def test_catalog_crawl_help_lists_strategies() -> None:
     "args",
     [
         ["catalog", "crawl"],
+        ["catalog", "navigation"],
         ["catalog", "discover"],
         ["catalog", "extract"],
         ["catalog", "transform"],
