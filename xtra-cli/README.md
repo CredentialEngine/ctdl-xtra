@@ -453,7 +453,8 @@ Each page has:
 - `url`, plus `found_on` and `link_text`: the page it was found on and the
   words of the link that led to it.
 - `found_by`, only when the page was not found through a link: `start_url`,
-  `sitemap`, `site_index`, `seed_file` or `not_from_a_link`.
+  `sitemap`, `site_index`, `seed_file`, `page_button` (a numbered button on a
+  list page) or `not_from_a_link`.
 - `status`: `saved`, `failed` (with `error`), `skipped` (with `reason` when
   known) or `not_visited`.
 - `links_on_page`: how many links a saved page has. 0 means the page did not

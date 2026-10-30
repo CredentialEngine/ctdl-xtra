@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import re
 import time
 from collections import Counter
 from collections.abc import Callable
@@ -12,6 +13,7 @@ from urllib.parse import urlsplit, urlunsplit
 
 from common.clock import format_duration, run_id_for_json, utc_timestamp
 from common.keys import (
+    checkpoints_prefix,
     crawl_key,
     dedupe_key,
     navigation_key,
@@ -20,6 +22,7 @@ from common.keys import (
     page_stem,
     state_key,
 )
+from implementations.crawl_list_pages import asked_page, read_list_pages
 from implementations.crawl_scope import (
     REASON_EXCLUDE_RULE,
     REASON_EXTENSION,
@@ -43,6 +46,7 @@ FOUND_BY_SITEMAP = "sitemap"
 FOUND_BY_SITE_INDEX = "site_index"
 FOUND_BY_SEED_FILE = "seed_file"
 FOUND_BY_LINK = "link"
+FOUND_BY_PAGE_BUTTON = "page_button"
 FOUND_BY_NOT_A_LINK = "not_from_a_link"
 
 NEW = "new"
@@ -91,6 +95,8 @@ SKIP_REASONS = {
 MAX_NESTED_CLICKS = 100
 
 PROGRESS_EVERY = 50
+
+_CHECKPOINT_NAME = re.compile(r"/(\d+)\.json$")
 
 OPERATOR_SOURCES = frozenset({FOUND_BY_START_URL, FOUND_BY_SEED_FILE})
 
@@ -180,7 +186,7 @@ class _Tree:
             return BLOCKED_BY_ROBOTS
         return NEW
 
-    def _record(self, page: _Page, url: str, text: str) -> str:
+    def _record(self, page: _Page, url: str, text: str, found_by: str) -> str:
         """Adds the link's page to the tree, or notes why it was skipped."""
         result = self.judge(url)
         if result == NEW:
@@ -188,7 +194,7 @@ class _Tree:
             key = dedupe_key(url)
             self.pages[key] = _Page(
                 url=url,
-                found_by=FOUND_BY_LINK,
+                found_by=found_by,
                 clicks=page.clicks + 1,
                 found_on=page.url,
                 link_text=text,
@@ -215,11 +221,59 @@ class _Tree:
         if final_url != saved_url:
             page.redirected_to = final_url
 
+        listed = read_list_pages(html, saved_url)
+        for url in listed.urls if listed else ():
+            text = f"page {asked_page(url)}"
+            self._record(page, url, text, FOUND_BY_PAGE_BUTTON)
+
         records = extract_link_records(html, final_url)
         for record in records:
-            result = self._record(page, record.url, record.text)
+            result = self._record(page, record.url, record.text, FOUND_BY_LINK)
             self.link_totals[result] += 1
         page.links_on_page = len(records)
+
+
+def _read_json(source: Any, key: str) -> dict[str, Any]:
+    try:
+        return source.get_json(key)
+    except FileNotFoundError:
+        return {}
+
+
+def _read_crawl(
+    source: Any, catalog_folder: str, run_id: str
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    """The crawl's saved state and summary, read the way a resume reads them."""
+    prefix = checkpoints_prefix(catalog_folder, run_id)
+    numbered = sorted(
+        (int(match.group(1)), key)
+        for key in source.list_keys(under=prefix)
+        if (match := _CHECKPOINT_NAME.search(key))
+    )
+    for _, key in reversed(numbered):
+        try:
+            checkpoint = source.get_json(key)
+            state = checkpoint["state"]
+        except (ValueError, KeyError, TypeError) as exc:
+            logger.warning(
+                "NAVIGATION checkpoint %s cannot be read (%s), trying the one "
+                "before",
+                key,
+                exc,
+            )
+            continue
+        crawl_doc = checkpoint.get("crawl") or _read_json(
+            source, crawl_key(catalog_folder, run_id)
+        )
+        return state, crawl_doc
+    # Older crawls keep one state.json instead of numbered checkpoints.
+    state = _read_json(source, state_key(catalog_folder, run_id))
+    if not state:
+        raise NavigationError(
+            f"no checkpoints and no state.json for {catalog_folder} run "
+            f"{run_id}, so there is no crawl to build a tree from"
+        )
+    return state, _read_json(source, crawl_key(catalog_folder, run_id))
 
 
 def _as_pairs(counts: dict[str, int]) -> str:
@@ -314,17 +368,7 @@ def build_navigation(
                 "exact than a rebuild, so it's left alone. Delete it first if "
                 "you want to rebuild it anyway."
             )
-    try:
-        state = source.get_json(state_key(catalog_folder, run_id))
-    except FileNotFoundError as exc:
-        raise NavigationError(
-            f"no state.json for {catalog_folder} run {run_id}, so there is no "
-            "crawl to build a tree from"
-        ) from exc
-    try:
-        crawl_doc = source.get_json(crawl_key(catalog_folder, run_id))
-    except FileNotFoundError:
-        crawl_doc = {}
+    state, crawl_doc = _read_crawl(source, catalog_folder, run_id)
     saved_urls = list(state.get("saved") or ())
     logger.info(
         "NAVIGATION building the link tree for %s run %s from %s saved pages",

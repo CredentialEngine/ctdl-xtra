@@ -6,7 +6,7 @@ from collections import Counter
 from pathlib import Path
 
 import pytest
-from crawl_doubles import FakePage, fetcher_factory, site_documents
+from crawl_doubles import FakePage, fetcher_factory, list_page, site_documents
 
 from common.keys import page_stem
 from common.object_store import open_store
@@ -227,7 +227,7 @@ def test_everything_is_in_one_file(tmp_path: Path) -> None:
     names = {path.name for path in run_dir(tmp_path).iterdir()}
     assert names == {
         "crawl.json",
-        "state.json",
+        "checkpoints",
         "failed.jsonl",
         "pages",
         "navigation.json",
@@ -381,6 +381,63 @@ def test_a_rebuild_still_lists_sitemap_pages_never_reached(
     assert hidden["status"] == "not_visited"
 
 
+def test_an_older_crawl_with_only_state_json_rebuilds_the_same(
+    tmp_path: Path,
+) -> None:
+    crawl(tmp_path, GUIDE_SITE, documents=ROBOTS)
+    expected = rebuild(tmp_path)["tree"]
+
+    checkpoints = sorted((run_dir(tmp_path) / "checkpoints").glob("*.json"))
+    newest = json.loads(checkpoints[-1].read_text(encoding="utf-8"))
+    (run_dir(tmp_path) / "state.json").write_text(
+        json.dumps(newest["state"]), encoding="utf-8"
+    )
+    for path in checkpoints:
+        path.unlink()
+    assert rebuild(tmp_path)["tree"] == expected
+
+
+def test_a_broken_checkpoint_falls_back_to_the_one_before(
+    tmp_path: Path, caplog
+) -> None:
+    crawl(tmp_path, GUIDE_SITE, documents=ROBOTS)
+    checkpoints = sorted((run_dir(tmp_path) / "checkpoints").glob("*.json"))
+    previous = json.loads(checkpoints[-2].read_text(encoding="utf-8"))
+    checkpoints[-1].write_text('{"crawl": {}}', encoding="utf-8")
+
+    with caplog.at_level(logging.WARNING):
+        rebuilt = rebuild(tmp_path)
+    assert "trying the one before" in caplog.text
+    saved = rebuilt["totals"]["pages_by_status"].get("saved", 0)
+    assert saved == len(previous["state"]["saved"])
+
+
+def test_pages_behind_page_buttons_are_found_by_a_page_button(
+    tmp_path: Path,
+) -> None:
+    listing = url("/courses")
+    pages = {SEED: FakePage(html='<a href="/courses">Courses</a>')}
+    for number in (1, 2, 3):
+        asked = listing if number == 1 else f"{listing}?page={number}"
+        pages[asked] = FakePage(
+            html=list_page(number, 3, [f"C{number}"]),
+            final_url=f"{listing}?page={number}&cq=",
+        )
+        pages[url(f"/courses/C{number}")] = FakePage(html="<h1>course</h1>")
+    crawl(tmp_path, pages, with_navigation=True)
+
+    built = navigation(tmp_path)
+    first = entry_for(built, listing)
+    assert first["redirected_to"] == f"{listing}?page=1&cq="
+    second = first["pages_found_here"][0]
+    assert second["url"] == f"{listing}?page=2"
+    assert second["found_by"] == "page_button"
+    assert second["found_on"] == listing
+    assert second["link_text"] == "page 2"
+    third = entry_for(built, f"{listing}?page=3")
+    assert third["found_on"] == f"{listing}?page=2"
+
+
 def test_a_link_to_where_a_page_landed_is_already_found(tmp_path: Path) -> None:
     pages = {
         SEED: FakePage(html='<a href="/old/">Old</a>'),
@@ -484,7 +541,8 @@ def test_a_rebuild_of_a_damaged_run_says_what_is_missing(
 
     with caplog.at_level(logging.INFO):
         rebuilt = rebuild(tmp_path)
-    assert rebuilt["crawl_status"] is None
+    # Without crawl.json, the newest checkpoint still says how the crawl ended.
+    assert rebuilt["crawl_status"] == "complete"
     assert any("could not be read" in note for note in rebuilt["notes"])
     course_a = entry_for(rebuilt, url("/courses/a/"))
     assert course_a["status"] == "saved"
