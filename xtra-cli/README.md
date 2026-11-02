@@ -350,9 +350,11 @@ the start page and ends `complete`.
 
 #### What the log says
 
-One INFO line per event:
+One INFO line per event, between a `CRAWL` line when the run starts and one
+when it ends:
 
 ```text
+CRAWL https://catalog.example.edu/ run 2026-09-17T14:20:01Z with playwright, limit none, 180 s between pages, 1 worker(s) -> azure://https://ACCOUNT.blob.core.windows.net/xtra-golden-sets/catalog-example-edu/2026-09-17T14-20-01Z
 GET https://catalog.example.edu/english/engl101 -> 200 48213 bytes 1840 ms -> azure://https://ACCOUNT.blob.core.windows.net/xtra-golden-sets/catalog-example-edu/2026-09-17T14-20-01Z/pages/catalog-example-edu-english-engl101-300f5d79ef.html
 RETRY https://catalog.example.edu/english/engl102 attempt 2 of 6 after HTTP 429, waiting 360 s
 FAIL https://catalog.example.edu/english/engl103 after 6 attempts: HTTP 503
@@ -361,6 +363,7 @@ FROM-STORAGE https://catalog.example.edu/english/engl101 (already saved, no GET)
 RETRY https://catalog.example.edu/english/engl104 attempt 2 of 6 after aws-waf challenge did not resolve within 30 s, waiting 180 s
 REFETCH https://catalog.example.edu/english/engl105 stored page is a bot challenge (aws-waf), not the catalog page, so it is fetched again
 PROGRESS saved=120 failed=2 skipped=340 frontier=880 elapsed=06:01:10 eta=44:00:00
+CRAWL done in 50:01:10: status=complete saved=1000 failed=2 skipped=2840 frontier=0 -> azure://https://ACCOUNT.blob.core.windows.net/xtra-golden-sets/catalog-example-edu/2026-09-17T14-20-01Z/crawl.json
 ```
 
 A firewall's bot challenge, the script page AWS WAF serves with HTTP 202 or
@@ -478,6 +481,15 @@ without the flag:
 ```bash
 xtra catalog navigation --catalog-id catalog-example-edu --run-id 2026-09-17T14:20:01Z
 ```
+
+| Flag | What it does |
+| --- | --- |
+| `--catalog-id` | The catalog folder the crawl wrote. |
+| `--run-id` | The crawl run to read. |
+| `--source-uri` | Where the crawl is. Default: the environment's data URI. |
+| `--target-uri` | Where `navigation.json` is written. Default: the environment's data URI. |
+| `--source-azure-storage-connection-string` | Connection string for `--source-uri`. Default: the environment's secret. |
+| `--target-azure-storage-connection-string` | Connection string for `--target-uri`, which may be a different storage account. Same default. |
 
 That reads only the saved run, fetches nothing, and writes the same file into
 it. robots.txt and the sitemap's list are not saved with a crawl, so a rebuild
@@ -804,6 +816,7 @@ One INFO line per phase, so a run read from Azure is never silent for
 minutes:
 
 ```text
+DISCOVER catalog-example-edu run 2026-09-27T07:46:53Z from azure://https://ACCOUNT.blob.core.windows.net/xtra, as discovery run 2026-10-13T16-14-07Z
 LIST 556 saved pages under catalog-example-edu/2026-09-27T07-46-53Z/pages
 READ 100/556 (17%) elapsed=00:00:03 eta=00:00:14
 READ 556/556 (100%) elapsed=00:00:15 eta=00:00:00
@@ -971,6 +984,26 @@ Records no longer carry `ctdl_expected`. Transform has not caught up: it
 still maps the old labels, so `xtra catalog transform` stops with
 `KeyError: 'canonical_label'` on a record extracted this way and works only
 on records extracted before.
+
+#### What the log says
+
+```text
+EXTRACT catalog-example-edu run 2026-09-27T07:46:53Z from azure://https://ACCOUNT.blob.core.windows.net/xtra, using discovery run 2026-10-13T16-14-07Z
+PAGES 1311 pages to extract
+EXTRACT 50/1311 (3%) elapsed=00:00:41 eta=00:17:15
+FAIL https://catalog.example.edu/courses/acct-101 could not be read as a Course: 'Lecture Hours' is not in list
+RECORDS 1290 written: Competency=40 Course=1180 Credential=40 LearningOpportunity=30
+SKIPPED 21: multi_course_page=15 nothing_read_from_the_page=6
+WRITE extract-report.json -> azure://https://ACCOUNT.blob.core.windows.net/xtra/catalog-example-edu/2026-09-27T07-46-53Z/extract-report.json
+DONE extraction in 00:18:02: 1290 records, 21 skipped
+```
+
+- `EXTRACT 50/1311` reports progress every 50 pages, with the time spent and an estimate of the time left.
+- Three things log as warnings:
+  - `FAIL` when a reader crashes on a page;
+  - `PAGES nothing to extract` when discovery found no page with an entity;
+  - `STALE` when `records/` still holds records from an earlier extraction, which transform would read too.
+- `LOG_LEVEL=DEBUG` adds a `RECORD` or `SKIP` line for every page.
 
 ### Scoring extraction against a baseline
 

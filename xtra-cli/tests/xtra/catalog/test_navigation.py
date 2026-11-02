@@ -102,6 +102,35 @@ def test_the_tree_can_be_written_somewhere_else(tmp_path: Path) -> None:
     assert not (source / FOLDER / RUN_PATH / "navigation.json").exists()
 
 
+def test_source_and_target_each_take_their_own_connection_string(
+    tmp_path: Path, monkeypatch
+) -> None:
+    source, target = tmp_path / "crawl", tmp_path / "out"
+    crawl_into(source)
+    opened: dict[str, str | None] = {}
+
+    def recording_open_store(uri, *, azure_storage_connection_string=None):
+        opened[uri] = azure_storage_connection_string
+        return open_store(uri)
+
+    monkeypatch.setattr(
+        "xtra.catalog.navigation.open_store", recording_open_store
+    )
+    result = invoke(
+        source,
+        target,
+        "--source-azure-storage-connection-string",
+        "source-secret",
+        "--target-azure-storage-connection-string",
+        "target-secret",
+    )
+    assert result.exit_code == 0, result.output
+    assert opened == {
+        str(source): "source-secret",
+        str(target): "target-secret",
+    }
+
+
 def test_a_tree_the_crawl_built_is_left_alone(tmp_path: Path) -> None:
     crawl_into(tmp_path, with_navigation=True)
     result = invoke(tmp_path)

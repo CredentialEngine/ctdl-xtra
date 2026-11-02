@@ -243,6 +243,26 @@ def test_format_duration() -> None:
     assert format_duration(-5) == "00:00:00"
 
 
+def test_the_log_starts_and_ends_with_a_crawl_line(
+    tmp_path: Path, caplog
+) -> None:
+    with caplog.at_level(logging.INFO):
+        crawl(tmp_path, PAGES, limit=2)
+    lines = [
+        record.getMessage()
+        for record in caplog.records
+        if record.getMessage().startswith("CRAWL ")
+    ]
+    assert lines[0] == (
+        f"CRAWL {SEED} run {RUN} with playwright, limit 2, 0 s between "
+        f"pages, 1 worker(s) -> {tmp_path}/{FOLDER}/{RUN_PATH}"
+    )
+    assert lines[-1].startswith("CRAWL done in 00:00:")
+    assert ": status=limit_reached saved=2 failed=0 " in lines[-1]
+    assert lines[-1].endswith(f"{FOLDER}/{RUN_PATH}/crawl.json")
+    assert len(lines) == 2
+
+
 # --- scope -----------------------------------------------------------------
 
 

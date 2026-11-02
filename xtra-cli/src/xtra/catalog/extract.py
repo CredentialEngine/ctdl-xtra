@@ -10,17 +10,23 @@ from __future__ import annotations
 
 import json
 import logging
+import time
+from collections import Counter
 
 import click
 
+from common.clock import format_duration
 from common.keys import (
     discovery_key,
     extract_report_key,
     page_html_key,
     page_meta_key,
     record_key,
+    records_prefix,
 )
 from common.object_store import open_store
+from common.progress import Progress
+from common.storage_uri import join_storage_uri
 from implementations.discover import (
     LABELS_FILE,
     latest_discovery_run_id,
@@ -53,6 +59,8 @@ REASON_MULTI_CREDENTIAL = "multi_credential_page"
 REASON_NO_COURSE_BLOCK = "no_course_block"
 REASON_NOTHING_READ = "nothing_read_from_the_page"
 MARKER_MULTI_CREDENTIAL = "multi_credential_page"
+
+PROGRESS_EVERY = 50
 
 
 @click.command(name="extract")
@@ -115,6 +123,7 @@ def main(
         azure_storage_connection_string=azure_storage_connection_string,
     )
 
+    started = time.monotonic()
     discovery_run_id = discovery_run_id or latest_discovery_run_id(
         source, catalog_id, run_id
     )
@@ -123,6 +132,13 @@ def main(
             f"no discovery run for {catalog_id} {run_id}. "
             "Run xtra catalog discover first."
         )
+    logger.info(
+        "EXTRACT %s run %s from %s, using discovery run %s",
+        catalog_id,
+        run_id,
+        source_uri,
+        discovery_run_id,
+    )
 
     labels = source.get_json(
         discovery_key(catalog_id, run_id, discovery_run_id, LABELS_FILE)
@@ -143,16 +159,36 @@ def main(
         )
         wanted = {page["stem"] for page in sample.get("pages") or []}
         entries = [entry for entry in entries if entry["stem"] in wanted]
+    if entries:
+        logger.info(
+            "PAGES %s pages to extract%s",
+            len(entries),
+            " from the golden sample" if only_golden_sample else "",
+        )
+    else:
+        logger.warning(
+            "PAGES nothing to extract: discovery run %s found no course, "
+            "credential, learning opportunity or competency page",
+            discovery_run_id,
+        )
 
     written: list[str] = []
+    written_types: Counter = Counter()
     skipped: list[dict[str, str]] = []
-    for entry in entries:
+    progress = Progress(logger, "EXTRACT", len(entries), every=PROGRESS_EVERY)
+    for done, entry in enumerate(entries, start=1):
         stem = entry["stem"]
+        url = entry.get("url", "")
         refusal = _too_many_entities(entry)
         if refusal is not None:
-            skipped.append(
-                {"stem": stem, "url": entry.get("url", ""), **refusal}
+            skipped.append({"stem": stem, "url": url, **refusal})
+            logger.debug(
+                "SKIP %s reason=%s (%s)",
+                url,
+                refusal["reason"],
+                refusal["detail"],
             )
+            progress.step(done)
             continue
 
         html = source.get_text(page_html_key(catalog_id, run_id, stem))
@@ -175,20 +211,45 @@ def main(
                     slot, html, retrieved_at=retrieved_at, stem=stem
                 )
             except Exception as exc:  # noqa: BLE001 - lib raises its own type
+                detail = (str(exc).splitlines() or [type(exc).__name__])[0]
                 skipped.append(
                     {
                         "stem": stem,
-                        "url": entry.get("url", ""),
+                        "url": url,
                         "entity_type": entity_type,
                         "reason": REASON_NOTHING_READ,
-                        "detail": str(exc).splitlines()[0],
+                        "detail": detail,
                     }
+                )
+                logger.warning(
+                    "FAIL %s could not be read as a %s: %s",
+                    url,
+                    entity_type,
+                    detail,
                 )
                 continue
             target.put_json(
                 record_key(catalog_id, run_id, record["record_id"]), record
             )
             written.append(record["record_id"])
+            written_types[entity_type] += 1
+            logger.debug(
+                "RECORD %s %s from %s", record["record_id"], entity_type, url
+            )
+        progress.step(done)
+
+    logger.info(
+        "RECORDS %s written%s",
+        len(written),
+        f": {_as_pairs(written_types)}" if written_types else "",
+    )
+    if skipped:
+        logger.info(
+            "SKIPPED %s: %s",
+            len(skipped),
+            _as_pairs(Counter(item["reason"] for item in skipped)),
+        )
+    _warn_about_stale_records(target, catalog_id, run_id, set(written))
 
     report = {
         "schema": REPORT_SCHEMA,
@@ -202,6 +263,16 @@ def main(
         "skipped": skipped,
     }
     target.put_json(extract_report_key(catalog_id, run_id), report)
+    logger.info(
+        "WRITE extract-report.json -> %s",
+        join_storage_uri(target_uri, extract_report_key(catalog_id, run_id)),
+    )
+    logger.info(
+        "DONE extraction in %s: %s records, %s skipped",
+        format_duration(time.monotonic() - started),
+        len(written),
+        len(skipped),
+    )
 
     click.echo(
         json.dumps(
@@ -258,6 +329,28 @@ def _retrieved_at(
     except (FileNotFoundError, ValueError):
         return None
     return meta.get("retrieved_at")
+
+
+def _as_pairs(counts: Counter) -> str:
+    return " ".join(f"{name}={n}" for name, n in sorted(counts.items()))
+
+
+def _warn_about_stale_records(
+    target: object, catalog_id: str, run_id: str, written: set[str]
+) -> None:
+    """Records an earlier extraction left in records/, which transform reads too."""
+    stale = [
+        key
+        for key in target.list_keys(under=records_prefix(catalog_id, run_id))
+        if key.endswith(".json")
+        and key.rsplit("/", 1)[-1][: -len(".json")] not in written
+    ]
+    if stale:
+        logger.warning(
+            "STALE %s records in records/ were not written by this run. They "
+            "are left from an earlier extraction, and transform reads them too.",
+            len(stale),
+        )
 
 
 def _counted(skipped: list[dict[str, str]]) -> dict[str, int]:

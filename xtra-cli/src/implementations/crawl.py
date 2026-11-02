@@ -36,6 +36,7 @@ from common.keys import (
     page_html_key,
     page_meta_key,
     page_stem,
+    run_prefix,
     state_key,
 )
 from common.polite import backoff_delay
@@ -1075,6 +1076,21 @@ class Crawler:
                 self.handle_outcome(future.result())
 
     def run(self) -> CrawlOutcome:
+        settings = self.settings
+        logger.info(
+            "CRAWL %s run %s with %s, limit %s, %s s between pages, "
+            "%s worker(s) -> %s",
+            settings.seed_url,
+            run_id_for_json(settings.run_id),
+            settings.strategy,
+            settings.limit or "none",
+            format_seconds(settings.min_interval_in_seconds),
+            settings.concurrency_limit,
+            join_storage_uri(
+                settings.target_uri,
+                run_prefix(settings.catalog_folder, settings.run_id),
+            ),
+        )
         resumed = self.load_state()
         # Before the first GET, so a run that is hard-killed after two
         # pages still leaves a checkpoint saying what it was and that it did
@@ -1134,6 +1150,19 @@ class Crawler:
         doc = self.checkpoint(status, finished=not interrupted)
         self.write_report(doc)
         self._progress()
+        logger.info(
+            "CRAWL done in %s: status=%s saved=%s failed=%s skipped=%s "
+            "frontier=%s -> %s",
+            format_duration(self.monotonic() - self._started_mono),
+            "interrupted" if interrupted else status,
+            doc["pages_saved"],
+            doc["pages_failed"],
+            sum(doc["skipped_by_reason"].values()),
+            doc["frontier_remaining"],
+            join_storage_uri(
+                self.settings.target_uri, self._run_key(crawl_key)
+            ),
+        )
         if self.settings.with_navigation:
             self._write_navigation(
                 interrupted,

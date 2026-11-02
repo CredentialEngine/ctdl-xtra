@@ -24,7 +24,6 @@ from xtra.click import (
     resolve_connection,
     resolve_uri,
     source_uri_option,
-    storage_connection_options,
     target_uri_option,
 )
 
@@ -42,19 +41,37 @@ logger = logging.getLogger(__name__)
     help="Catalog folder the crawl wrote, for example catalog-example-edu.",
 )
 @click.option("--run-id", required=True, help="Crawl run id to read.")
-@storage_connection_options()
+@click.option(
+    "--source-azure-storage-connection-string",
+    required=False,
+    help=(
+        "Azure Blob Storage connection string for --source-uri. "
+        "UseDevelopmentStorage=true for the Azurite emulator."
+    ),
+)
+@click.option(
+    "--target-azure-storage-connection-string",
+    required=False,
+    help=(
+        "Azure Blob Storage connection string for --target-uri. The target "
+        "may live in a different storage account than the source."
+    ),
+)
 def main(
     env_name: str | None,
     source_uri: str | None,
     target_uri: str | None,
     catalog_id: str,
     run_id: str,
-    azure_storage_connection_string: str | None,
+    source_azure_storage_connection_string: str | None,
+    target_azure_storage_connection_string: str | None,
 ) -> None:
     """Build navigation.json for a crawl that already ran.
 
     Writes it into the crawl's folder in --target-uri. A tree the crawl
     built itself with --with-navigation is more exact, so it's never replaced.
+    Each URI takes its own connection string, so the two can live in
+    different storage accounts.
     """
     if not is_iso8601_utc(run_id):
         raise click.UsageError(
@@ -64,16 +81,17 @@ def main(
 
     source_uri = resolve_uri(source_uri, env_name=env_name, flag="--source-uri")
     target_uri = resolve_uri(target_uri, env_name=env_name, flag="--target-uri")
-    azure_storage_connection_string = resolve_connection(
-        azure_storage_connection_string, env_name=env_name
-    )
     source = open_store(
         source_uri,
-        azure_storage_connection_string=azure_storage_connection_string,
+        azure_storage_connection_string=resolve_connection(
+            source_azure_storage_connection_string, env_name=env_name
+        ),
     )
     target = open_store(
         target_uri,
-        azure_storage_connection_string=azure_storage_connection_string,
+        azure_storage_connection_string=resolve_connection(
+            target_azure_storage_connection_string, env_name=env_name
+        ),
     )
     logger.info(
         "NAVIGATION reading %s run %s from %s", catalog_id, run_id, source_uri
