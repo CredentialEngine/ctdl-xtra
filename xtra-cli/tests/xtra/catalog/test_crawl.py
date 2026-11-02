@@ -307,6 +307,43 @@ def test_crawl_requires_a_strategy(tmp_path: Path) -> None:
     assert "--with-playwright" in result.output
 
 
+def test_with_navigation_writes_the_link_tree(
+    tmp_path: Path, monkeypatch
+) -> None:
+    patch_crawl(monkeypatch, PAGES)
+    result = invoke(tmp_path, "--with-navigation")
+    assert result.exit_code == 0, result.output
+
+    run_dir = tmp_path / FOLDER / RUN_PATH
+    tree = json.loads((run_dir / "navigation.json").read_text(encoding="utf-8"))
+    assert tree["built_by"] == "crawl"
+    assert tree["totals"]["pages_by_status"] == {"saved": 2}
+
+
+def test_with_navigation_is_not_a_strategy(tmp_path: Path) -> None:
+    result = CliRunner().invoke(
+        cli,
+        [
+            "catalog",
+            "crawl",
+            "--with-navigation",
+            "--url",
+            SEED,
+            "--target-uri",
+            str(tmp_path),
+        ],
+    )
+    assert result.exit_code != 0
+    assert "Specify a strategy" in result.output
+
+
+def test_the_help_offers_with_navigation() -> None:
+    help_text = CliRunner().invoke(cli, ["catalog", "crawl", "--help"]).output
+    words = " ".join(help_text.split())
+    assert "--with-navigation" in words
+    assert "not a strategy" in words
+
+
 @pytest.mark.parametrize("flag", ["--with-ai-agent", "--with-third-party"])
 def test_the_reserved_strategies_fail_closed(tmp_path: Path, flag: str) -> None:
     result = CliRunner().invoke(

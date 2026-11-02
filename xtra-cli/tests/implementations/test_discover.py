@@ -775,6 +775,7 @@ def test_every_phase_logs_a_line_in_the_order_it_runs(
     lines = _info_lines(caplog)
     phases = list(dict.fromkeys(line.split(" ", 1)[0] for line in lines))
     assert phases == [
+        "DISCOVER",
         "LIST",
         "READ",
         "PROFILE",
@@ -785,6 +786,10 @@ def test_every_phase_logs_a_line_in_the_order_it_runs(
         "DONE",
     ]
     assert lines[0] == (
+        f"DISCOVER {FOLDER} run {RUN} from file:///tmp/xtra, "
+        f"as discovery run {DISCOVERY}"
+    )
+    assert lines[1] == (
         f"LIST {len(ALL_FIXTURES)} saved pages under {FOLDER}/{RUN_PATH}/pages"
     )
     first_write = next(line for line in lines if line.startswith("WRITE "))

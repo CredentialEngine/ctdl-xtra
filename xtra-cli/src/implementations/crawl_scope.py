@@ -9,7 +9,7 @@ host keeps several years side by side, the operator narrows the run with
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from html.parser import HTMLParser
 from urllib.parse import urldefrag, urljoin, urlsplit
 
@@ -169,13 +169,80 @@ class Scope:
         return self.rejection(url) is None
 
 
+LINK_TEXT_LIMIT = 200
+
+# Tags like <b> or <span> can sit inside a word, so they don't add a space.
+INLINE_TAGS = frozenset(
+    {
+        "abbr",
+        "b",
+        "bdi",
+        "bdo",
+        "cite",
+        "code",
+        "data",
+        "dfn",
+        "em",
+        "font",
+        "i",
+        "kbd",
+        "mark",
+        "q",
+        "s",
+        "samp",
+        "small",
+        "span",
+        "strong",
+        "sub",
+        "sup",
+        "time",
+        "u",
+        "var",
+    }
+)
+
+_INVISIBLE = str.maketrans("", "", "﻿​‌‍⁠")
+
+
+def clean_link_text(text: str) -> str:
+    words = " ".join(text.translate(_INVISIBLE).split())
+    return words[:LINK_TEXT_LIMIT].rstrip()
+
+
+@dataclass(frozen=True)
+class FoundLink:
+    url: str
+    text: str
+
+
+@dataclass
+class _RawLink:
+    href: str
+    parts: list[str] = field(default_factory=list)
+    label: str = ""
+    image_alt: str = ""
+
+    def text(self) -> str:
+        for candidate in ("".join(self.parts), self.label, self.image_alt):
+            cleaned = clean_link_text(candidate)
+            if cleaned:
+                return cleaned
+        return ""
+
+
+def _label(values: dict[str, str | None]) -> str:
+    return values.get("aria-label") or values.get("title") or ""
+
+
 class _LinkParser(HTMLParser):
-    """href of a, area, and link rel=next, plus any base href."""
+    """Reads a page's links (a, area and link rel=next) and the words of each."""
 
     def __init__(self) -> None:
         super().__init__(convert_charrefs=True)
         self.base: str | None = None
-        self.hrefs: list[str] = []
+        self.links: list[_RawLink] = []
+        self._open: _RawLink | None = None
+        self._hidden = 0
 
     def handle_starttag(
         self, tag: str, attrs: list[tuple[str, str | None]]
@@ -186,28 +253,64 @@ class _LinkParser(HTMLParser):
             if href and self.base is None:
                 self.base = href
             return
-        if tag in {"a", "area"}:
-            href = (values.get("href") or "").strip()
-        elif tag == "link":
-            rel = (values.get("rel") or "").lower().split()
-            href = (values.get("href") or "").strip() if "next" in rel else ""
-        else:
+        if tag in {"script", "style"}:
+            self._hidden += 1
             return
-        if href:
-            self.hrefs.append(href)
+        if tag == "a":
+            self._open = None
+            href = (values.get("href") or "").strip()
+            if href:
+                self._open = _RawLink(href, label=_label(values))
+                self.links.append(self._open)
+            return
+        if tag == "area":
+            href = (values.get("href") or "").strip()
+            if href:
+                label = values.get("alt") or _label(values)
+                self.links.append(_RawLink(href, label=label))
+            return
+        if tag == "link":
+            rel = (values.get("rel") or "").lower().split()
+            href = (values.get("href") or "").strip()
+            if href and "next" in rel:
+                self.links.append(_RawLink(href))
+            return
+        if self._open is None:
+            return
+        if tag == "img" and not self._open.image_alt:
+            self._open.image_alt = values.get("alt") or ""
+        if tag not in INLINE_TAGS:
+            self._open.parts.append(" ")
+
+    def handle_endtag(self, tag: str) -> None:
+        if tag in {"script", "style"}:
+            self._hidden = max(0, self._hidden - 1)
+        elif tag == "a":
+            self._open = None
+        elif self._open is not None and tag not in INLINE_TAGS:
+            self._open.parts.append(" ")
+
+    def handle_data(self, data: str) -> None:
+        if self._open is not None and not self._hidden:
+            self._open.parts.append(data)
 
 
-def extract_links(html: str, base_url: str) -> list[str]:
-    """Absolute, fragment-free links in document order, first sighting only."""
+def extract_link_records(html: str, base_url: str) -> list[FoundLink]:
+    """Every link on the page, in order, with its words; a repeat keeps its first place."""
     parser = _LinkParser()
     parser.feed(html)
     parser.close()
     base = urljoin(base_url, parser.base) if parser.base else base_url
-    seen: set[str] = set()
-    links: list[str] = []
-    for href in parser.hrefs:
-        absolute = urldefrag(urljoin(base, href)).url
-        if absolute and absolute not in seen:
-            seen.add(absolute)
-            links.append(absolute)
-    return links
+    texts: dict[str, str] = {}
+    for raw in parser.links:
+        absolute = urldefrag(urljoin(base, raw.href)).url
+        if not absolute:
+            continue
+        if not texts.get(absolute):
+            texts[absolute] = raw.text()
+    return [FoundLink(url, text) for url, text in texts.items()]
+
+
+def extract_links(html: str, base_url: str) -> list[str]:
+    """Absolute, fragment-free links in document order, first sighting only."""
+    return [link.url for link in extract_link_records(html, base_url)]

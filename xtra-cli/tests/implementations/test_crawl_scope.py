@@ -1,10 +1,14 @@
 from __future__ import annotations
 
+from html.parser import HTMLParser
+from pathlib import Path
+from urllib.parse import urldefrag, urljoin
 from urllib.robotparser import RobotFileParser
 
 import pytest
 
 from implementations.crawl_scope import (
+    LINK_TEXT_LIMIT,
     QUIET_REASONS,
     REASON_DUPLICATE,
     REASON_EXCLUDE_RULE,
@@ -14,13 +18,17 @@ from implementations.crawl_scope import (
     REASON_OUT_OF_SCOPE,
     REASON_ROBOTS,
     REASON_SCHEME,
+    FoundLink,
     Scope,
     content_type_is_html,
     directory_of,
     extension_of,
+    extract_link_records,
     extract_links,
     first_path_segment,
 )
+
+FIXTURES = Path(__file__).resolve().parents[1] / "fixtures" / "html"
 
 SEED = "https://catalog.example.edu/courses/index.html"
 
@@ -193,3 +201,100 @@ def test_only_scope_decisions_are_quiet() -> None:
     assert REASON_DUPLICATE in QUIET_REASONS
     assert REASON_ROBOTS not in QUIET_REASONS
     assert REASON_NON_HTML not in QUIET_REASONS
+
+
+def test_each_link_comes_with_its_words() -> None:
+    html = (
+        '<a href="/a">Courses</a>'
+        '<a href="/b"><span>Course</span> <b>A</b></a>'
+        '<a href="/c">Course<br>B</a>'
+        '<a href="/d" aria-label="Search"><svg></svg></a>'
+        '<a href="/e" title="Home"></a>'
+        '<a href="/f"><img src="logo.png" alt="Logo"></a>'
+        '<map><area href="/g" alt="Campus map"></map>'
+        '<link rel="next" href="/h">'
+        '<a href="/i">  Many\n   spaces﻿ </a>'
+        '<a href="/j"><script>var x = 1;</script>Visible</a>'
+    )
+    site = "https://catalog.example.edu"
+    assert extract_link_records(html, f"{site}/") == [
+        FoundLink(f"{site}/a", "Courses"),
+        FoundLink(f"{site}/b", "Course A"),
+        FoundLink(f"{site}/c", "Course B"),
+        FoundLink(f"{site}/d", "Search"),
+        FoundLink(f"{site}/e", "Home"),
+        FoundLink(f"{site}/f", "Logo"),
+        FoundLink(f"{site}/g", "Campus map"),
+        FoundLink(f"{site}/h", ""),
+        FoundLink(f"{site}/i", "Many spaces"),
+        FoundLink(f"{site}/j", "Visible"),
+    ]
+
+
+def test_a_link_seen_twice_keeps_its_place_and_its_first_words() -> None:
+    html = (
+        '<a href="/a"><img src="icon.png"></a>'
+        '<a href="/b">B</a>'
+        '<a href="/a">Courses</a>'
+        '<a href="/a">Other words</a>'
+    )
+    assert extract_link_records(html, "https://catalog.example.edu/") == [
+        FoundLink("https://catalog.example.edu/a", "Courses"),
+        FoundLink("https://catalog.example.edu/b", "B"),
+    ]
+
+
+def test_long_link_words_are_cut() -> None:
+    html = f'<a href="/a">{"word " * 100}</a>'
+    [link] = extract_link_records(html, "https://catalog.example.edu/")
+    assert len(link.text) <= LINK_TEXT_LIMIT
+    assert link.text.startswith("word word")
+    assert not link.text.endswith(" ")
+
+
+class _OldLinkParser(HTMLParser):
+    """A copy of the old link reader, to prove links are still found the same way."""
+
+    def __init__(self) -> None:
+        super().__init__(convert_charrefs=True)
+        self.base: str | None = None
+        self.hrefs: list[str] = []
+
+    def handle_starttag(self, tag, attrs) -> None:
+        values = dict(attrs)
+        if tag == "base":
+            href = (values.get("href") or "").strip()
+            if href and self.base is None:
+                self.base = href
+            return
+        if tag in {"a", "area"}:
+            href = (values.get("href") or "").strip()
+        elif tag == "link":
+            rel = (values.get("rel") or "").lower().split()
+            href = (values.get("href") or "").strip() if "next" in rel else ""
+        else:
+            return
+        if href:
+            self.hrefs.append(href)
+
+
+def _links_the_old_way(html: str, base_url: str) -> list[str]:
+    parser = _OldLinkParser()
+    parser.feed(html)
+    parser.close()
+    base = urljoin(base_url, parser.base) if parser.base else base_url
+    links: list[str] = []
+    for href in parser.hrefs:
+        absolute = urldefrag(urljoin(base, href)).url
+        if absolute and absolute not in links:
+            links.append(absolute)
+    return links
+
+
+@pytest.mark.parametrize(
+    "path", sorted(FIXTURES.glob("*.html")), ids=lambda path: path.stem
+)
+def test_links_are_found_exactly_as_before(path: Path) -> None:
+    html = path.read_text(encoding="utf-8")
+    base = "https://catalog.example.edu/courses/index.html"
+    assert extract_links(html, base) == _links_the_old_way(html, base)

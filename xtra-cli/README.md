@@ -148,6 +148,7 @@ xtra catalog crawl      -> src/xtra/catalog/crawl.py
   --with-playwright     -> src/implementations/crawl_browser.py
   --with-crawl4ai       -> src/implementations/crawl_crawl4ai.py
   --with-firecrawl      -> src/implementations/crawl_firecrawl.py
+xtra catalog navigation -> src/xtra/catalog/navigation.py
 xtra catalog discover   -> src/xtra/catalog/discover.py
 xtra catalog extract    -> src/xtra/catalog/extract.py
 xtra catalog transform  -> src/xtra/catalog/transform.py
@@ -186,6 +187,7 @@ xtra catalog crawl --with-playwright \
 | `--include-regex` | none | Repeatable. A followed URL is kept only when it matches one of these. |
 | `--exclude-regex` | none | Repeatable. A followed URL is dropped when it matches one of these. |
 | `--seed-urls-file` | none | Extra start URLs, one per line, for pages no link reaches. |
+| `--with-navigation` | off | Also save the link tree when the crawl ends (see [Link tree](#link-tree)). An on/off switch, not a strategy. |
 
 A crawl is a rare, one-time job, so the defaults are slow on purpose: one
 page every three minutes, one worker. Getting it wrong means doing it again.
@@ -348,9 +350,11 @@ the start page and ends `complete`.
 
 #### What the log says
 
-One INFO line per event:
+One INFO line per event, between a `CRAWL` line when the run starts and one
+when it ends:
 
 ```text
+CRAWL https://catalog.example.edu/ run 2026-09-17T14:20:01Z with playwright, limit none, 180 s between pages, 1 worker(s) -> azure://https://ACCOUNT.blob.core.windows.net/xtra-golden-sets/catalog-example-edu/2026-09-17T14-20-01Z
 GET https://catalog.example.edu/english/engl101 -> 200 48213 bytes 1840 ms -> azure://https://ACCOUNT.blob.core.windows.net/xtra-golden-sets/catalog-example-edu/2026-09-17T14-20-01Z/pages/catalog-example-edu-english-engl101-300f5d79ef.html
 RETRY https://catalog.example.edu/english/engl102 attempt 2 of 6 after HTTP 429, waiting 360 s
 FAIL https://catalog.example.edu/english/engl103 after 6 attempts: HTTP 503
@@ -359,6 +363,7 @@ FROM-STORAGE https://catalog.example.edu/english/engl101 (already saved, no GET)
 RETRY https://catalog.example.edu/english/engl104 attempt 2 of 6 after aws-waf challenge did not resolve within 30 s, waiting 180 s
 REFETCH https://catalog.example.edu/english/engl105 stored page is a bot challenge (aws-waf), not the catalog page, so it is fetched again
 PROGRESS saved=120 failed=2 skipped=340 frontier=880 elapsed=06:01:10 eta=44:00:00
+CRAWL done in 50:01:10: status=complete saved=1000 failed=2 skipped=2840 frontier=0 -> azure://https://ACCOUNT.blob.core.windows.net/xtra-golden-sets/catalog-example-edu/2026-09-17T14-20-01Z/crawl.json
 ```
 
 A firewall's bot challenge, the script page AWS WAF serves with HTTP 202 or
@@ -440,6 +445,76 @@ from storage do not reset that count.
 | `0` | `status` is `complete` or `limit_reached`, and no page failed |
 | `1` | pages failed, or the run ended `incomplete`; one line on stderr says which |
 | `130` | Ctrl+C. The checkpoint is written, with the page being fetched still in the frontier, so the same `--run-id` resumes |
+
+#### Link tree
+
+`--with-navigation` also saves how the crawl moved through the site. When the
+crawl ends it writes one file next to `crawl.json`, `navigation.json`, with
+every page the crawl found listed under the page where it was first found.
+Each page has:
+
+- `url`, plus `found_on` and `link_text`: the page it was found on and the
+  words of the link that led to it.
+- `found_by`, only when the page was not found through a link: `start_url`,
+  `sitemap`, `site_index`, `seed_file`, `page_button` (a numbered button on a
+  list page) or `not_from_a_link`.
+- `status`: `saved`, `failed` (with `error`), `skipped` (with `reason` when
+  known) or `not_visited`.
+- `links_on_page`: how many links a saved page has. 0 means the page did not
+  load properly.
+- `skipped_links`: links the crawl did not follow, each with a `result`:
+  `other_website`, `outside_scope`, `not_a_web_page`, `file`,
+  `left_out_by_include_regex`, `left_out_by_exclude_regex` or
+  `blocked_by_robots`. Each one is listed once, on the first page that has it.
+- `pages_found_here`: the pages first found on this one.
+
+`totals` counts pages by status and links by result, where `new` links became
+pages and `already_found` links led to pages found earlier. Links to pages
+already found are counted but not listed, because every page of a big catalog
+repeats the same menu.
+
+The tree is built once, from the saved pages in the order they were saved and
+with the crawler's own rules, so it never slows the crawl down. Nothing is
+built after Ctrl+C. To build it for a crawl that has already run, with or
+without the flag:
+
+```bash
+xtra catalog navigation --catalog-id catalog-example-edu --run-id 2026-09-17T14:20:01Z
+```
+
+| Flag | What it does |
+| --- | --- |
+| `--catalog-id` | The catalog folder the crawl wrote. |
+| `--run-id` | The crawl run to read. |
+| `--source-uri` | Where the crawl is. Default: the environment's data URI. |
+| `--target-uri` | Where `navigation.json` is written. Default: the environment's data URI. |
+| `--source-azure-storage-connection-string` | Connection string for `--source-uri`. Default: the environment's secret. |
+| `--target-azure-storage-connection-string` | Connection string for `--target-uri`, which may be a different storage account. Same default. |
+
+That reads only the saved run, fetches nothing, and writes the same file into
+it. robots.txt and the sitemap's list are not saved with a crawl, so a rebuild
+works out robots.txt blocks from the crawl's `seen` list and cannot tell
+sitemap pages from linked ones; `notes` says so. A rebuild never replaces a
+tree the crawl built. Totals count each link once, so after a resumed crawl
+they can be lower than `skipped_by_reason` in `crawl.json`, which counts the
+links of every page read back again.
+
+While it runs, the log says what it is doing:
+
+```text
+NAVIGATION on: the link tree will be built when the crawl ends
+NAVIGATION building the link tree for catalog-example-edu run 2026-09-17T14:20:01Z from 540 saved pages
+NAVIGATION read 50 of 540 saved pages, 93 pages in the tree so far (00:00:01)
+NAVIGATION note: robots.txt was not saved with this crawl, so the 156 links marked blocked_by_robots are links the crawl never added to its to-visit list.
+NAVIGATION done in 00:00:02: 541 pages (saved=540 skipped=1), 3815 links (new=540 already_found=2242 other_website=732 not_a_web_page=103 file=42 blocked_by_robots=156)
+NAVIGATION wrote ./xtra-cache/catalog-example-edu/2026-09-17T14-20-01Z/navigation.json
+```
+
+- `on` appears at the start of a crawl run with `--with-navigation`.
+- `read` appears every 50 pages.
+- `note` repeats each note written into the file.
+- A saved page that can't be read gets a WARNING.
+- `xtra catalog navigation` starts with a `reading` line that says where it reads the crawl from.
 
 ### Discover
 
@@ -741,6 +816,7 @@ One INFO line per phase, so a run read from Azure is never silent for
 minutes:
 
 ```text
+DISCOVER catalog-example-edu run 2026-09-27T07:46:53Z from azure://https://ACCOUNT.blob.core.windows.net/xtra, as discovery run 2026-10-13T16-14-07Z
 LIST 556 saved pages under catalog-example-edu/2026-09-27T07-46-53Z/pages
 READ 100/556 (17%) elapsed=00:00:03 eta=00:00:14
 READ 556/556 (100%) elapsed=00:00:15 eta=00:00:00
@@ -909,6 +985,26 @@ still maps the old labels, so `xtra catalog transform` stops with
 `KeyError: 'canonical_label'` on a record extracted this way and works only
 on records extracted before.
 
+#### What the log says
+
+```text
+EXTRACT catalog-example-edu run 2026-09-27T07:46:53Z from azure://https://ACCOUNT.blob.core.windows.net/xtra, using discovery run 2026-10-13T16-14-07Z
+PAGES 1311 pages to extract
+EXTRACT 50/1311 (3%) elapsed=00:00:41 eta=00:17:15
+FAIL https://catalog.example.edu/courses/acct-101 could not be read as a Course: 'Lecture Hours' is not in list
+RECORDS 1290 written: Competency=40 Course=1180 Credential=40 LearningOpportunity=30
+SKIPPED 21: multi_course_page=15 nothing_read_from_the_page=6
+WRITE extract-report.json -> azure://https://ACCOUNT.blob.core.windows.net/xtra/catalog-example-edu/2026-09-27T07-46-53Z/extract-report.json
+DONE extraction in 00:18:02: 1290 records, 21 skipped
+```
+
+- `EXTRACT 50/1311` reports progress every 50 pages, with the time spent and an estimate of the time left.
+- Three things log as warnings:
+  - `FAIL` when a reader crashes on a page;
+  - `PAGES nothing to extract` when discovery found no page with an entity;
+  - `STALE` when `records/` still holds records from an earlier extraction, which transform would read too.
+- `LOG_LEVEL=DEBUG` adds a `RECORD` or `SKIP` line for every page.
+
 ### Scoring extraction against a baseline
 
 Scoring is not part of `catalog`: it can score any stage's output, so it has
@@ -1021,6 +1117,7 @@ is listed in the report under `malformed` and skipped.
   checkpoints/{000001}.json
   pages/{stem}.html
   pages/{stem}.meta.json
+  navigation.json
   discovery/{discovery-run-id}/summary.json
   discovery/{discovery-run-id}/labels.json
   discovery/{discovery-run-id}/patterns.md

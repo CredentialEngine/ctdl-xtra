@@ -27,6 +27,7 @@ from common.keys import (
     page_html_key,
     run_prefix,
 )
+from common.progress import Progress
 from common.storage_uri import join_storage_uri
 from implementations.crawl_challenge import challenge_kind
 from implementations.discover_ner import entities_by_kind
@@ -129,35 +130,6 @@ class DiscoveryOutcome:
     table: str
     exit_code: int = 0
     reason: str = ""
-
-
-class _Progress:
-    """How far one phase has got through the pages, as a log line.
-
-    One INFO line every PROGRESS_EVERY pages and one at the last page, in
-    the shape of the crawl's PROGRESS line, so whoever is watching a run
-    can tell which phase it is in and roughly how long it has left.
-    """
-
-    def __init__(self, phase: str, total: int) -> None:
-        self.phase = phase
-        self.total = total
-        self.started = time.monotonic()
-
-    def step(self, done: int) -> None:
-        if done % PROGRESS_EVERY and done != self.total:
-            return
-        elapsed = time.monotonic() - self.started
-        eta = elapsed / done * (self.total - done)
-        logger.info(
-            "%s %s/%s (%s%%) elapsed=%s eta=%s",
-            self.phase,
-            done,
-            self.total,
-            done * 100 // self.total,
-            format_duration(elapsed),
-            format_duration(eta),
-        )
 
 
 def git_commit() -> str | None:
@@ -361,7 +333,7 @@ def read_saved_pages(
         )
     else:
         logger.info("LIST %s saved pages under %s", len(meta_keys), prefix)
-    progress = _Progress("READ", len(meta_keys))
+    progress = Progress(logger, "READ", len(meta_keys), every=PROGRESS_EVERY)
     pages: list[tuple[dict[str, Any], str]] = []
     for start in range(0, len(meta_keys), READ_BATCH):
         batch = meta_keys[start : start + READ_BATCH]
@@ -772,6 +744,13 @@ def run_discovery(
     )
     if target.exists(summary_key):
         raise FileExistsError(summary_key)
+    logger.info(
+        "DISCOVER %s run %s from %s, as discovery run %s",
+        settings.catalog_folder,
+        settings.run_id,
+        settings.source_uri or "the store",
+        settings.discovery_run_id,
+    )
 
     pages = read_saved_pages(
         source, settings.catalog_folder, settings.run_id, settings.stems
@@ -792,7 +771,7 @@ def run_discovery(
     )
     provenance = provenance_from_crawl(crawl_doc)
 
-    progress = _Progress("PROFILE", len(pages))
+    progress = Progress(logger, "PROFILE", len(pages), every=PROGRESS_EVERY)
     profiles: list[PageProfile] = []
     for done, (meta, html) in enumerate(pages, start=1):
         profiles.append(

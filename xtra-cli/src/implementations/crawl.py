@@ -32,9 +32,11 @@ from common.keys import (
     crawl_key,
     dedupe_key,
     failed_key,
+    navigation_key,
     page_html_key,
     page_meta_key,
     page_stem,
+    run_prefix,
     state_key,
 )
 from common.polite import backoff_delay
@@ -52,6 +54,14 @@ from implementations.crawl_curriqunet import (
     read_curriqunet_index,
 )
 from implementations.crawl_list_pages import queue_list_pages
+from implementations.crawl_navigation import (
+    FOUND_BY_SEED_FILE,
+    FOUND_BY_SITE_INDEX,
+    FOUND_BY_SITEMAP,
+    FOUND_BY_START_URL,
+    CrawlFacts,
+    build_navigation,
+)
 from implementations.crawl_robots import (
     collect_sitemap_urls,
     default_sitemap_url,
@@ -127,6 +137,7 @@ class CrawlSettings:
     exclude_regex: tuple[str, ...] = ()
     seed_urls: tuple[str, ...] = ()
     strategy: str = "playwright"
+    with_navigation: bool = False
 
     def __post_init__(self) -> None:
         if self.min_interval_in_seconds > self.max_interval_in_seconds:
@@ -977,6 +988,48 @@ class Crawler:
             limit is not None and self.totals.pages_saved + in_flight >= limit
         )
 
+    def _write_navigation(
+        self, interrupted: bool, *, declared: dict[str, list[str]]
+    ) -> None:
+        """Builds the link tree from this run's pages. An error here never fails the crawl."""
+        rebuild = (
+            f"xtra catalog navigation --catalog-id "
+            f"{self.settings.catalog_folder} --run-id "
+            f"{run_id_for_json(self.settings.run_id)}"
+        )
+        if interrupted:
+            logger.warning(
+                "NAVIGATION not built because the crawl was interrupted; "
+                "run %s to build it",
+                rebuild,
+            )
+            return
+        facts = CrawlFacts(
+            scope=self.scope, canonical=self.canonical_url, declared=declared
+        )
+        try:
+            build_navigation(
+                self.store,
+                self.store,
+                self.settings.catalog_folder,
+                self.settings.run_id,
+                facts=facts,
+                now=self.now,
+            )
+        except Exception as exc:
+            logger.error(
+                "NAVIGATION could not be built: %s. Run %s to try again.",
+                exc,
+                rebuild,
+            )
+            return
+        logger.info(
+            "NAVIGATION wrote %s",
+            join_storage_uri(
+                self.settings.target_uri, self._run_key(navigation_key)
+            ),
+        )
+
     def work(self, pool: WorkerPool, policy: FetchPolicy) -> str:
         in_flight = self._in_flight
         limit_reached = False
@@ -1023,6 +1076,21 @@ class Crawler:
                 self.handle_outcome(future.result())
 
     def run(self) -> CrawlOutcome:
+        settings = self.settings
+        logger.info(
+            "CRAWL %s run %s with %s, limit %s, %s s between pages, "
+            "%s worker(s) -> %s",
+            settings.seed_url,
+            run_id_for_json(settings.run_id),
+            settings.strategy,
+            settings.limit or "none",
+            format_seconds(settings.min_interval_in_seconds),
+            settings.concurrency_limit,
+            join_storage_uri(
+                settings.target_uri,
+                run_prefix(settings.catalog_folder, settings.run_id),
+            ),
+        )
         resumed = self.load_state()
         # Before the first GET, so a run that is hard-killed after two
         # pages still leaves a checkpoint saying what it was and that it did
@@ -1048,6 +1116,10 @@ class Crawler:
                 self.enqueue(url, operator_seed=True)
         else:
             self._sitemap_first(declared_pages)
+        if self.settings.with_navigation:
+            logger.info(
+                "NAVIGATION on: the link tree will be built when the crawl ends"
+            )
 
         policy = FetchPolicy(
             min_interval=self.effective_min_interval,
@@ -1078,6 +1150,29 @@ class Crawler:
         doc = self.checkpoint(status, finished=not interrupted)
         self.write_report(doc)
         self._progress()
+        logger.info(
+            "CRAWL done in %s: status=%s saved=%s failed=%s skipped=%s "
+            "frontier=%s -> %s",
+            format_duration(self.monotonic() - self._started_mono),
+            "interrupted" if interrupted else status,
+            doc["pages_saved"],
+            doc["pages_failed"],
+            sum(doc["skipped_by_reason"].values()),
+            doc["frontier_remaining"],
+            join_storage_uri(
+                self.settings.target_uri, self._run_key(crawl_key)
+            ),
+        )
+        if self.settings.with_navigation:
+            self._write_navigation(
+                interrupted,
+                declared={
+                    FOUND_BY_START_URL: [seed_url],
+                    FOUND_BY_SITEMAP: sitemap_pages,
+                    FOUND_BY_SITE_INDEX: index_pages,
+                    FOUND_BY_SEED_FILE: list(self.settings.seed_urls),
+                },
+            )
         return CrawlOutcome(
             crawl_doc=doc,
             exit_code=_exit_code(status, len(self.failed), interrupted),

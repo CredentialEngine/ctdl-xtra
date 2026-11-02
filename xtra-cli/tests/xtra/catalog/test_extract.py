@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import logging
 from pathlib import Path
 
 import pytest
@@ -308,6 +309,109 @@ def test_only_golden_sample_limits_extraction_to_the_sample(
     assert report["only_golden_sample"] is True
     assert report["pages_considered"] == len(sample_stems)
     assert report["pages_considered"] < 3
+
+
+def extract_log(caplog) -> list[str]:
+    return [
+        record.getMessage()
+        for record in caplog.records
+        if record.name == "xtra.catalog.extract"
+        and record.levelno >= logging.INFO
+    ]
+
+
+def test_the_log_says_what_extraction_is_doing(
+    discovered: Path, caplog, monkeypatch
+) -> None:
+    monkeypatch.setattr("xtra.catalog.extract.PROGRESS_EVERY", 2)
+    with caplog.at_level(logging.INFO):
+        result = extract(discovered)
+    assert result.exit_code == 0, result.output
+    payload = json.loads(result.output)
+    report = report_of(discovered)
+    lines = extract_log(caplog)
+
+    assert lines[0] == (
+        f"EXTRACT {FOLDER} run {RUN} from {discovered}, using discovery run "
+        f"{payload['discovery_run_id']}"
+    )
+    assert lines[1] == f"PAGES {report['pages_considered']} pages to extract"
+    assert any(line.startswith("EXTRACT 2/") for line in lines)
+    assert f"RECORDS {len(payload['records'])} written: " in "\n".join(lines)
+    skips = " ".join(
+        f"{reason}={count}"
+        for reason, count in sorted(report["skipped_by_reason"].items())
+    )
+    assert f"SKIPPED {len(report['skipped'])}: {skips}" in lines
+    assert lines[-2].startswith("WRITE extract-report.json -> ")
+    assert lines[-1].startswith("DONE extraction in 00:00:")
+
+
+def test_each_page_is_logged_only_at_debug(discovered: Path, caplog) -> None:
+    with caplog.at_level(logging.DEBUG):
+        extract(discovered)
+    debug = [
+        record.getMessage()
+        for record in caplog.records
+        if record.name == "xtra.catalog.extract"
+        and record.levelno == logging.DEBUG
+    ]
+    assert any(line.startswith("RECORD engl101-aaaaaaaaaa ") for line in debug)
+    assert any(
+        line.startswith("SKIP https://catalog.example.edu/multi-bbbbbbbbbb ")
+        for line in debug
+    )
+
+
+def test_a_reader_that_crashes_is_a_warning_not_the_end_of_the_run(
+    discovered: Path, caplog, monkeypatch
+) -> None:
+    def crash(*args, **kwargs):
+        raise StopIteration
+
+    monkeypatch.setattr("xtra.catalog.extract.extract_record", crash)
+    with caplog.at_level(logging.WARNING):
+        result = extract(discovered)
+    assert result.exit_code == 0, result.output
+    assert json.loads(result.output)["records"] == []
+    fails = [line for line in extract_log(caplog) if line.startswith("FAIL ")]
+    assert fails
+    assert all(line.endswith(": StopIteration") for line in fails)
+
+
+def test_records_left_from_an_earlier_run_are_a_warning(
+    discovered: Path, caplog
+) -> None:
+    old = run_dir(discovered) / "records" / "from-an-earlier-run.json"
+    old.parent.mkdir(parents=True, exist_ok=True)
+    old.write_text("{}", encoding="utf-8")
+    with caplog.at_level(logging.WARNING):
+        extract(discovered)
+    assert any(
+        line.startswith("STALE 1 records in records/ were not written")
+        for line in extract_log(caplog)
+    )
+
+
+def test_nothing_to_extract_is_a_warning(
+    tmp_path: Path, fixture_html_dir, caplog
+) -> None:
+    seed_crawl_page(
+        open_store(str(tmp_path)),
+        FOLDER,
+        RUN,
+        "error-hhhhhhhhhh",
+        (fixture_html_dir / "error-page.html").read_text(encoding="utf-8"),
+        "https://catalog.example.edu/error-hhhhhhhhhh",
+    )
+    assert discover(tmp_path).exit_code in (0, 1)
+    with caplog.at_level(logging.WARNING):
+        result = extract(tmp_path)
+    assert result.exit_code == 0, result.output
+    assert any(
+        line.startswith("PAGES nothing to extract")
+        for line in extract_log(caplog)
+    )
 
 
 def test_extract_without_a_discovery_run_says_what_to_do(

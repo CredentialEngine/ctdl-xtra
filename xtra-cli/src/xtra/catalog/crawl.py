@@ -92,6 +92,16 @@ def check_scope_prefix(url: str, scope_prefix: str | None) -> None:
 @strategy_options(
     "playwright", "crawl4ai", "firecrawl", "ai-agent", "third-party"
 )
+@click.option(
+    "--with-navigation",
+    "with_navigation",
+    is_flag=True,
+    default=False,
+    help=(
+        "Also save the link tree in navigation.json when the crawl ends. An "
+        "on/off switch, not a strategy: pass it with any --with-<strategy>."
+    ),
+)
 @click.option("--url", required=True, help="Catalog URL the crawl starts from.")
 @env_option()
 @target_uri_option()
@@ -151,6 +161,7 @@ def check_scope_prefix(url: str, scope_prefix: str | None) -> None:
 @storage_connection_options()
 def main(
     strategy: str | None,
+    with_navigation: bool,
     url: str,
     env_name: str | None,
     target_uri: str | None,
@@ -219,6 +230,7 @@ def main(
             exclude_regex=exclude_regex,
             seed_urls=read_seed_urls(seed_urls_file),
             strategy=strategy,
+            with_navigation=with_navigation,
         )
     except ValueError as exc:
         raise click.UsageError(str(exc)) from exc
