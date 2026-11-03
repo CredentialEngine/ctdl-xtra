@@ -671,24 +671,86 @@ def _h(signal: str, detail: str) -> dict:
 
 
 class Loader:
-    """Caches snapshots and log readers per catalog (the server keeps one for its lifetime)."""
+    """Caches snapshots and log readers per catalog (the server keeps one for its lifetime).
 
-    def __init__(self):
-        self._snaps: dict[tuple, Snapshot] = {}
+    Snapshots are big (WVU's latest extraction is ~1.3 GB of Python objects), so only the most recently used ones are
+    kept: at most `MAX_SNAPSHOTS`, and fewer once their values add up to more than `budget` (env
+    `GOLDEN_DATASETS_SNAPSHOT_BUDGET`, matched values); the two most recent always stay (a Review and its parent).
+    Reviews are dropped with their snapshots, so nothing else keeps an evicted snapshot alive."""
+
+    MAX_SNAPSHOTS = 4
+    KEEP = 2
+    DEFAULT_BUDGET = 600_000
+
+    def __init__(self, budget: int | None = None):
+        import os
+        import threading
+        from collections import OrderedDict
+
+        self.budget = budget if budget is not None else int(os.environ.get("GOLDEN_DATASETS_SNAPSHOT_BUDGET")
+                                                            or self.DEFAULT_BUDGET)
+        self._snaps: OrderedDict[tuple, Snapshot] = OrderedDict()  # least recently used first
         self._logs: dict[tuple, AnnotationLog] = {}
         self._reviews: dict[tuple, Review] = {}
+        self._lock = threading.RLock()
+        #: bumped when every Review is rebuilt (a role changed): derived caches key on it
+        self.generation = 0
+
+    @staticmethod
+    def _rows(meta: dict) -> int | None:
+        files = meta.get("files") or {}
+        try:
+            return sum(files[f"{t}.parquet"]["rows"] for t in ("matches", "occurrences"))
+        except (KeyError, TypeError):
+            return None
+
+    @classmethod
+    def weight(cls, snap: Snapshot) -> int:
+        """A snapshot's size, in the rows that dominate it: matched values and occurrences."""
+        rows = cls._rows(snap.meta)
+        return rows if rows is not None else sum(len(v) for v in snap.matches_by_rule.values()) + len(snap.occurrences)
 
     def snapshot(self, ctx: Ctx, ext: str) -> Snapshot:
         key = (ctx.root.uri, ctx.catalog, ctx.crawl, ext)
-        if key not in self._snaps:
-            self._snaps[key] = Snapshot(ctx, ext)
-        return self._snaps[key]
+        with self._lock:
+            snap = self._snaps.get(key)
+            if snap is not None:
+                self._snaps.move_to_end(key)
+                return snap
+        # make room first (its row counts are in extraction.json), so the old and the new aren't held at once
+        incoming = self._rows(ctx.extraction_meta(ext)) or 0
+        with self._lock:
+            self._evict(incoming=incoming)
+        snap = Snapshot(ctx, ext)  # outside the lock: a cold load takes seconds
+        with self._lock:
+            snap = self._snaps.setdefault(key, snap)
+            self._snaps.move_to_end(key)
+            self._evict()
+        return snap
+
+    def _evict(self, incoming: int = 0) -> None:
+        """Drop least recently used snapshots (and their Reviews) until the kept ones, plus `incoming` rows about to
+        load, fit; the `KEEP` most recent stay whatever their size."""
+        slots = self.MAX_SNAPSHOTS - (1 if incoming else 0)
+        keep = self.KEEP - (1 if incoming else 0)
+        total = incoming + sum(self.weight(s) for s in self._snaps.values())
+        while len(self._snaps) > keep and (len(self._snaps) > slots or total > self.budget):
+            _, snap = self._snaps.popitem(last=False)
+            total -= self.weight(snap)
+            self._reviews = {k: rv for k, rv in self._reviews.items()
+                             if rv.snap is not snap and rv.parent is not snap}
+
+    def cached_extractions(self) -> list[tuple]:
+        """(catalog, crawl, extraction) of the snapshots kept now, least recently used first."""
+        with self._lock:
+            return [k[1:] for k in self._snaps]
 
     def log(self, ctx: Ctx) -> AnnotationLog:
         key = (ctx.root.uri, ctx.catalog)
-        if key not in self._logs:
-            self._logs[key] = AnnotationLog(ctx.root, layout.annotations(ctx.catalog))
-        return self._logs[key]
+        with self._lock:
+            if key not in self._logs:
+                self._logs[key] = AnnotationLog(ctx.root, layout.annotations(ctx.catalog))
+            return self._logs[key]
 
     def review(self, ctx: Ctx, ext: str | None = None, with_parent: bool = True) -> Review:
         """The same Review object while the annotation log hasn't grown, so its per-rule work is reused."""
@@ -700,15 +762,21 @@ class Loader:
         log = self.log(ctx)
         events = log.events()
         key = (ctx.root.uri, ctx.catalog, ctx.crawl, ext, with_parent, log.offset)
-        rv = self._reviews.get(key)
-        if rv is None:
+        with self._lock:
+            rv = self._reviews.get(key)
+            if rv is not None and rv.snap is snap:
+                return rv
+        rv = Review(snap, events, parent, roles(ctx.root))  # roles as profiles.json says now
+        with self._lock:
             self._reviews = {k: v for k, v in self._reviews.items() if k[:5] != key[:5]}  # drop older log offsets
-            rv = self._reviews[key] = Review(snap, events, parent, roles(ctx.root))  # roles as profiles.json says now
+            self._reviews[key] = rv
         return rv
 
     def forget_reviews(self) -> None:
         """Rebuild every Review on next use (a profile's role changed)."""
-        self._reviews.clear()
+        with self._lock:
+            self._reviews.clear()
+            self.generation += 1
         STATUS_CACHE.clear()
 
 

@@ -680,7 +680,11 @@ def column_statuses(ctx: Ctx, cache: dict | None = None) -> dict[str, dict]:
     `rule`: the column's values in the latest golden dataset as publishing writes it now (an expert reviewed them / its
     approved rule labels them; 0 while the column isn't published), `found`: the values its rules found in the latest
     extraction; `no_rule`: the property has no rule in this catalog yet (shown "—"). From the rules, the annotation
-    log and golden.plan; `cache` keeps the counts until the log moves."""
+    log and golden.plan.
+
+    `cache` keeps the result until the log moves, a new extraction or publication lands, or a role changes. The key is
+    worked out without loading an extraction, so a warm home page loads none; a cold one loads each catalog's latest
+    extraction without its parent (statuses don't use it), and the snapshot cache lets them go again."""
     from .review import LOADER
 
     vs = golden_mod.versions(ctx)
@@ -690,20 +694,30 @@ def column_statuses(ctx: Ctx, cache: dict | None = None) -> dict[str, dict]:
             doc = ctx.read_json(f"{vs[max(vs)]['path']}/publication.json", immutable=False)
         except FileNotFoundError:
             pass
+    log = LOADER.log(ctx)
+    log.events()  # reads what was appended since, so the offset is current
+    key = ("column-statuses", ctx.catalog, ctx.crawl, ctx.latest_extraction(), doc.get("publication"),
+           doc.get("published_at"), log.offset, LOADER.generation)
+    if cache is not None and key in cache:
+        return cache[key]
     published = set(doc.get("properties") or [])
-    rv = LOADER.review(ctx)
-    counts = _column_counts(ctx, rv, doc, cache)
+    rv = LOADER.review(ctx, with_parent=False)
+    counts = _column_counts(ctx, rv, doc)
     out = {}
     for r in golden_mod.property_rules(rv):
         c = counts.get(r["property"], {})
         n = {"human": c.get("human", 0), "rule": c.get("rule", 0), "found": c.get("found", 0)}
-        key = column_key(r["property"], r["ctdl_property"])
+        k = column_key(r["property"], r["ctdl_property"])
         no_rule = rv.snap.rules[r["rule_id"]]["definition"].get("rule_type") == "none"
         if r["property"] in published:
-            out[key] = {"status": "published", "ruleset": max(vs), **n, "no_rule": no_rule}
+            out[k] = {"status": "published", "ruleset": max(vs), **n, "no_rule": no_rule}
         else:
-            out[key] = {"status": "needs work" if r["status"] == "needs work" else "in review", "ruleset": None,
-                        **n, "no_rule": no_rule}
+            out[k] = {"status": "needs work" if r["status"] == "needs work" else "in review", "ruleset": None,
+                      **n, "no_rule": no_rule}
+    if cache is not None:
+        for old in [k for k in cache if isinstance(k, tuple) and k[:3] == key[:3]]:  # this catalog's older counts
+            del cache[old]
+        cache[key] = out
     return out
 
 
@@ -712,25 +726,20 @@ def coverage(columns: dict[str, dict]) -> int:
     return sum(1 for k, c in columns.items() if k in COLUMN_LABELS and not c.get("no_rule"))
 
 
-def _column_counts(ctx: Ctx, rv, doc: dict, cache: dict | None) -> dict[str, Counter]:
+def _column_counts(ctx: Ctx, rv, doc: dict) -> dict[str, Counter]:
     """property → Counter(human, rule, found): the latest golden dataset's values as golden.plan writes them (on
     its publication's extraction, its properties), and the values the latest extraction's rules found (each item
     of a list counts)."""
     from .review import LOADER
 
-    key = ("column-counts", ctx.catalog, ctx.crawl, rv.snap.ext, doc.get("publication"), doc.get("published_at"),
-           LOADER.log(ctx).offset)
-    if cache is not None and key in cache:
-        return cache[key]
-    pub_rv = LOADER.review(ctx, doc["extraction"]) if doc.get("extraction") else rv
+    pub_rv = LOADER.review(ctx, doc["extraction"], with_parent=False) \
+        if doc.get("extraction") and doc["extraction"] != rv.snap.ext else rv
     out: dict[str, Counter] = {}
     for row in golden_mod.plan(pub_rv, set(doc.get("properties") or []))["lineage"]:
         out.setdefault(row["property"], Counter())[row["approval"]] += 1
     for rid, r in rv.snap.rules.items():
         if r["kind"] == "property" and r.get("property_label"):
             out.setdefault(r["property_label"], Counter())["found"] += rv.snap.values(rid)
-    if cache is not None:
-        cache[key] = out
     return out
 
 
