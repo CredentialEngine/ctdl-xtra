@@ -56,6 +56,36 @@ def norm(v: str | None) -> str:
     return re.sub(r"\s+", " ", v or "").strip()
 
 
+class _Recent(dict):
+    """A per-rule cache that keeps the `RULES_KEPT` most recently used rules. Opening the Rules tab works out every
+    rule's status, so these used to hold every rule's rows and row states for the life of the snapshot: on WVU, ~1M
+    row dicts in the extraction and as many in its parent."""
+
+    RULES_KEPT = 8
+
+    def __getitem__(self, key):
+        value = super().pop(key)
+        super().__setitem__(key, value)  # most recent last
+        return value
+
+    def __setitem__(self, key, value) -> None:
+        super().pop(key, None)
+        super().__setitem__(key, value)
+        while len(self) > self.RULES_KEPT:
+            del self[next(iter(self))]
+
+
+def _shared(rows: list[dict]) -> list[dict]:
+    """A table's rows with one string object per distinct value. `to_pylist` makes a new str per cell, so WVU's
+    419k matches carried 419k copies of a few dozen rule ids, of each occurrence key and css path, and so on."""
+    seen: dict[str, str] = {}
+    for row in rows:
+        for k, v in row.items():
+            if type(v) is str:
+                row[k] = seen.setdefault(v, v)
+    return rows
+
+
 class Snapshot:
     """One extraction, in memory. Immutable, so it is cached for the life of the process."""
 
@@ -64,7 +94,8 @@ class Snapshot:
         """An extraction on storage (`ext`), or an unwritten one (`tables` + `ruleset` + `rules`, e.g. a draft)."""
         self.ctx, self.ext = ctx, ext
         self.meta = meta if meta is not None else ctx.extraction_meta(ext)
-        self._rows: dict[str, list[dict]] = {}
+        self._rows: dict[str, list[dict]] = _Recent()
+        self._course_lines: dict[str, str] = {}  # occurrence_key → course_line(...)
         self._spread: dict[str, tuple] = {}  # rule_id → strata.groups(...), see Review.spread_groups
         self.ruleset_version = self.meta.get("ruleset_version")
         if rules is None:
@@ -79,18 +110,22 @@ class Snapshot:
             if tables is None:
                 futures = {name: pool.submit(lambda n=name: ctx.table(ext, n).to_pylist())
                            for name in layout.EXTRACTION_TABLES}
-                tables = {name: f.result() for name, f in futures.items()}
+                tables = {name: _shared(f.result()) for name, f in futures.items()}
             pages = pages_f.result()
         self.page = {p["page_stem"]: p for p in pages}
         self.occurrences = {o["occurrence_key"]: o for o in tables["occurrences"]}
         self.matches_by_rule: dict[str, list[dict]] = defaultdict(list)
         self.matches_by_occ: dict[str, dict[str, dict]] = defaultdict(dict)  # a rule's first value on a course
         self.items_by_occ: dict[str, dict[str, list[dict]]] = defaultdict(lambda: defaultdict(list))  # all of them
+        full_paths: dict[tuple, str] = {}  # one string per (course, value) css path pair, not one per match
         for m in sorted(tables["matches"], key=lambda x: (x["rule_id"], x["occurrence_key"], x["value_index"])):
             m = dict(m)
             o = self.occurrences[m["occurrence_key"]]
             m["course_key"] = o["course_key"]
-            m["full_css_path"] = model.full_css_path(o["css_path"], m["css_path"])
+            k = (o["css_path"], m["css_path"])
+            if k not in full_paths:
+                full_paths[k] = model.full_css_path(*k)
+            m["full_css_path"] = full_paths[k]
             self.matches_by_rule[m["rule_id"]].append(m)
             self.matches_by_occ[m["occurrence_key"]].setdefault(m["rule_id"], m)
             self.items_by_occ[m["occurrence_key"]][m["rule_id"]].append(m)
@@ -126,6 +161,12 @@ class Snapshot:
 
     # -- rows ---------------------------------------------------------------------------------------------
     def course_line(self, occ_key: str) -> str:
+        """Kept per course: every rule's rows on it share the one string."""
+        if occ_key not in self._course_lines:
+            self._course_lines[occ_key] = self._course_line(occ_key)
+        return self._course_lines[occ_key]
+
+    def _course_line(self, occ_key: str) -> str:
         o = self.occurrences[occ_key]
         ms = self.matches_by_occ[occ_key]
         code = (ms.get(self.code_rule.get(o["locator_rule_id"])) or {}).get("value")
@@ -249,9 +290,9 @@ class Review:
             return old is None or old["type"] != "verdict" or self.role(old) != "sme" or self.role(e) == "sme"
         superseded = {e["supersedes"] for e in events if e.get("supersedes") and supersedes(e)}
         self.live = [e for e in events if e["annotation_id"] not in superseded]
-        self._states: dict[str, dict] = {}  # rule_id → row states of snap.rows(rule_id) (events are fixed per Review)
-        self._annotations: dict[str, dict] = {}  # rule_id → Review.annotations(...)
-        self._facets: dict[str, list[dict]] = {}  # rule_id → facets.dimensions(...), see Review.facet_dims
+        self._states: dict[str, dict] = _Recent()  # rule_id → row states of snap.rows(rule_id) (events are fixed per Review)
+        self._annotations: dict[str, dict] = _Recent()  # rule_id → Review.annotations(...)
+        self._facets: dict[str, list[dict]] = _Recent()  # rule_id → facets.dimensions(...), see Review.facet_dims
         self._by_rule: dict[str, list[str]] = defaultdict(list)  # rule_id → its live events' ids (the status key)
         for e in self.live:
             if e["target"].get("rule_id"):
@@ -671,24 +712,86 @@ def _h(signal: str, detail: str) -> dict:
 
 
 class Loader:
-    """Caches snapshots and log readers per catalog (the server keeps one for its lifetime)."""
+    """Caches snapshots and log readers per catalog (the server keeps one for its lifetime).
 
-    def __init__(self):
-        self._snaps: dict[tuple, Snapshot] = {}
+    Snapshots are big (WVU's latest extraction is ~1.3 GB of Python objects), so only the most recently used ones are
+    kept: at most `MAX_SNAPSHOTS`, and fewer once their values add up to more than `budget` (env
+    `GOLDEN_DATASETS_SNAPSHOT_BUDGET`, matched values); the two most recent always stay (a Review and its parent).
+    Reviews are dropped with their snapshots, so nothing else keeps an evicted snapshot alive."""
+
+    MAX_SNAPSHOTS = 4
+    KEEP = 2
+    DEFAULT_BUDGET = 600_000
+
+    def __init__(self, budget: int | None = None):
+        import os
+        import threading
+        from collections import OrderedDict
+
+        self.budget = budget if budget is not None else int(os.environ.get("GOLDEN_DATASETS_SNAPSHOT_BUDGET")
+                                                            or self.DEFAULT_BUDGET)
+        self._snaps: OrderedDict[tuple, Snapshot] = OrderedDict()  # least recently used first
         self._logs: dict[tuple, AnnotationLog] = {}
         self._reviews: dict[tuple, Review] = {}
+        self._lock = threading.RLock()
+        #: bumped when every Review is rebuilt (a role changed): derived caches key on it
+        self.generation = 0
+
+    @staticmethod
+    def _rows(meta: dict) -> int | None:
+        files = meta.get("files") or {}
+        try:
+            return sum(files[f"{t}.parquet"]["rows"] for t in ("matches", "occurrences"))
+        except (KeyError, TypeError):
+            return None
+
+    @classmethod
+    def weight(cls, snap: Snapshot) -> int:
+        """A snapshot's size, in the rows that dominate it: matched values and occurrences."""
+        rows = cls._rows(snap.meta)
+        return rows if rows is not None else sum(len(v) for v in snap.matches_by_rule.values()) + len(snap.occurrences)
 
     def snapshot(self, ctx: Ctx, ext: str) -> Snapshot:
         key = (ctx.root.uri, ctx.catalog, ctx.crawl, ext)
-        if key not in self._snaps:
-            self._snaps[key] = Snapshot(ctx, ext)
-        return self._snaps[key]
+        with self._lock:
+            snap = self._snaps.get(key)
+            if snap is not None:
+                self._snaps.move_to_end(key)
+                return snap
+        # make room first (its row counts are in extraction.json), so the old and the new aren't held at once
+        incoming = self._rows(ctx.extraction_meta(ext)) or 0
+        with self._lock:
+            self._evict(incoming=incoming)
+        snap = Snapshot(ctx, ext)  # outside the lock: a cold load takes seconds
+        with self._lock:
+            snap = self._snaps.setdefault(key, snap)
+            self._snaps.move_to_end(key)
+            self._evict()
+        return snap
+
+    def _evict(self, incoming: int = 0) -> None:
+        """Drop least recently used snapshots (and their Reviews) until the kept ones, plus `incoming` rows about to
+        load, fit; the `KEEP` most recent stay whatever their size."""
+        slots = self.MAX_SNAPSHOTS - (1 if incoming else 0)
+        keep = self.KEEP - (1 if incoming else 0)
+        total = incoming + sum(self.weight(s) for s in self._snaps.values())
+        while len(self._snaps) > keep and (len(self._snaps) > slots or total > self.budget):
+            _, snap = self._snaps.popitem(last=False)
+            total -= self.weight(snap)
+            self._reviews = {k: rv for k, rv in self._reviews.items()
+                             if rv.snap is not snap and rv.parent is not snap}
+
+    def cached_extractions(self) -> list[tuple]:
+        """(catalog, crawl, extraction) of the snapshots kept now, least recently used first."""
+        with self._lock:
+            return [k[1:] for k in self._snaps]
 
     def log(self, ctx: Ctx) -> AnnotationLog:
         key = (ctx.root.uri, ctx.catalog)
-        if key not in self._logs:
-            self._logs[key] = AnnotationLog(ctx.root, layout.annotations(ctx.catalog))
-        return self._logs[key]
+        with self._lock:
+            if key not in self._logs:
+                self._logs[key] = AnnotationLog(ctx.root, layout.annotations(ctx.catalog))
+            return self._logs[key]
 
     def review(self, ctx: Ctx, ext: str | None = None, with_parent: bool = True) -> Review:
         """The same Review object while the annotation log hasn't grown, so its per-rule work is reused."""
@@ -700,15 +803,21 @@ class Loader:
         log = self.log(ctx)
         events = log.events()
         key = (ctx.root.uri, ctx.catalog, ctx.crawl, ext, with_parent, log.offset)
-        rv = self._reviews.get(key)
-        if rv is None:
+        with self._lock:
+            rv = self._reviews.get(key)
+            if rv is not None and rv.snap is snap:
+                return rv
+        rv = Review(snap, events, parent, roles(ctx.root))  # roles as profiles.json says now
+        with self._lock:
             self._reviews = {k: v for k, v in self._reviews.items() if k[:5] != key[:5]}  # drop older log offsets
-            rv = self._reviews[key] = Review(snap, events, parent, roles(ctx.root))  # roles as profiles.json says now
+            self._reviews[key] = rv
         return rv
 
     def forget_reviews(self) -> None:
         """Rebuild every Review on next use (a profile's role changed)."""
-        self._reviews.clear()
+        with self._lock:
+            self._reviews.clear()
+            self.generation += 1
         STATUS_CACHE.clear()
 
 
