@@ -530,7 +530,7 @@ RULE_TYPES = [
      "UALR `<strong>Prerequisites:</strong> HIST 21103 , HIST 21203 , and six hours…<br>`"],
     ["`constant`", "a fixed value", "Learning Type `Course`; Language `English` when every course is in English"],
     ["`source_url`", "the page URL", "Subject Webpage"],
-    ["`none`", "no rule yet: the property isn't on this catalog's pages", "`hasPart` on most catalogs"],
+    ["`none`", "no rule yet: the property isn't on this catalog's pages", "`entryCondition` on most catalogs"],
     ["`input: page`", "the whole saved page (headings outside the record); one value per page",
      "Marshall `h1` `Statistics (STA)` for Subjects"],
     ["`input: url`", "the page URL as text, with a regex", "UARK `course=bookkeeping-quickBooks` for identifier"],
@@ -551,17 +551,25 @@ REQUISITE_WORDS = [
     "- `PR` means prerequisite. `Consent` is a prerequisite's text (WVU MUSC 720S: the prerequisite is `Consent`; the "
     "courses named in the course description aren't requisites).",
     "- `CONC`, \"concurrent\" and `Co-req` mean corequisite.",
-    "- **A condition's text goes into its `→ description`.** The parent (`ceterms:prerequisite`, …) and its targets "
-    "and alternative conditions get no rule for now (`none`): they're parsed out of the description later.",
-    "- **\"PR or CONC\", `Prerequisite or Corequisite:`, \"Completion of or concurrent enrollment in\" and \"(may be "
-    "taken concurrently)\" go whole into Prerequisite: Description for now**; Co-Prerequisite: Description has no "
-    "rule yet. Say so in the rule's `why`.",
+    "- **A condition's text goes whole into its `→ description`**, course codes and all (`MATH 124 and 125`, "
+    "`BIOL 219 with a minimum grade of C-`). The parent (`ceterms:prerequisite`, …) and its targets get no rule for "
+    "now (`none`): they're parsed out of the description later.",
+    "- **Prerequisite** is text labelled Prerequisite, `Pre-req`, `PR` and the like. **Corequisite** is text labelled "
+    "Corequisite, concurrent, concurrent enrollment, `CR` and the like.",
+    "- **\"Before or at the same time\" is Co-Prerequisite: Description**: `Prerequisite or Corequisite:`, `Pre- or "
+    "Corequisite:`, \"PR or CONC\", `Concurrent PR:`, \"Completion of or concurrent enrollment in\" and \"(may be "
+    "taken concurrently)\". Prerequisite: Description keeps only the plain prerequisite text (WVU `PR: COUN 501 and "
+    "PR or CONC: COUN 606 or Consent` → Prerequisite `COUN 501`, Co-Prerequisite `PR or CONC: COUN 606 or Consent`).",
     "- **A corequisite inside the prerequisite sentence is left out of it** and goes to Corequisite: Description "
     "(WVU `PR: Corequisite of AGBI 514L` → Corequisite: Description `Corequisite of AGBI 514L`).",
     "- \"Advisory\", \"Recommended Prep\" and \"Recommended\" go to Recommends: Description.",
+    "- **Any other requirement to enroll or take part is Entry Condition: Description** (AVC `LIMITATION ON "
+    "ENROLLMENT: To participate in work experience education, students must …`).",
     "- Contact hours are Estimated Duration, a list: one value per kind of hours (in-class, out-of-class, lecture, "
-    "lab), its children reading it (`input: rule`) so the n-th values belong together. Lecture / lab hours are also "
-    "a Learning Method Type each.",
+    "lab), its children reading it (`input: rule`) so the n-th values belong together. **Estimated Duration: "
+    "Description is the kind's words** (`Total Course In-Class (Contact) Hours`) **and Time Required its hours** "
+    "(`54.0`). Exact, Minimum and Maximum Duration are the overall time span (`6 months`), not hours. Lecture / lab "
+    "hours are also a Learning Method Type each.",
     "- Extract the page's words, as close as possible: no vocabulary mapping (`Units`, not `AcademicUnit`) and no "
     "numbers from words (`Three`, not 3). That's transformation, later.",
 ]

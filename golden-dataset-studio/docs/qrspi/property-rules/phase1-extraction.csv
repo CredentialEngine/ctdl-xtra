@@ -1,20 +1,22 @@
 xTRA Status,Top Level Class ,Subclass,CTDL Property Label,CTDL Shorthand URI,CLI Extraction Label,Definition,Specifications,Link,Controlled Vocabulary,Multiple Values,Sample
-Include,ceterms:Course,,External Identifier,ceterms:identifier,ceterms:identifier,A unique alphanumeric identifier for this learning opportunity that is used for your customers or for internal processes within your system.,"Published as a ceterms:IdentifierValue with Identifier Type Name ""External Identifier"" and the supplied value as its Identifier Value Code. It is also used to group rows for the same learning opportunity.",https://credreg.net/ctdl/terms/identifier,,Single,program-123
-Include,ceterms:Course,,Learning Opportunity Name,ceterms:name,ceterms:name,Name or title of the resource.,,http://credreg.net/ctdl/terms/name,,Single,Web Design Certificate Program
-Include,ceterms:Course,,Description,ceterms:description,ceterms:description,"Statement, characterization or account of the entity.",Must be a minimum of 15 characters.,http://credreg.net/ctdl/terms/description,,Single,This certifies that someone is qualified as a web user.
-Include,ceterms:Course,,Subject Webpage,ceterms:subjectWebpage,ceterms:subjectWebpage,Webpage that describes this entity.,Must be a properly formatted URL beginning in https://,http://credreg.net/ctdl/terms/subjectWebpage,,Single,https://example.org/resource/123
+Include,ceterms:Course,,External Identifier,ceterms:identifier,ceterms:identifier,A unique alphanumeric identifier for this learning opportunity that is used for your customers or for internal processes within your system.,"Published as a ceterms:IdentifierValue with Identifier Type Name ""External Identifier"" and the supplied value as its Identifier Value Code. It is also used to group rows for the same learning opportunity.",https://credreg.net/ctdl/terms/identifier,,Single,BIOL20003
+Include,ceterms:Course,,Learning Opportunity Name,ceterms:name,ceterms:name,Name or title of the resource.,,http://credreg.net/ctdl/terms/name,,Single,General Microbiology
+Include,ceterms:Course,,Description,ceterms:description,ceterms:description,"Statement, characterization or account of the entity.",Must be a minimum of 15 characters.,http://credreg.net/ctdl/terms/description,,Single,This course guides students in the development of...
+Include,ceterms:Course,,Subject Webpage,ceterms:subjectWebpage,ceterms:subjectWebpage,Webpage that describes this entity.,"Must be a properly formatted URL beginning in https://
+
+If the source of the course information is a defined catalog, use ceterms:inCatalog instead of ceterms:subjectWebpage.",http://credreg.net/ctdl/terms/subjectWebpage,,Single,https://example.org/resource/123
 Include,ceterms:Course,,Life Cycle Status Type,ceterms:lifeCycleStatusType,ceterms:lifeCycleStatusType,Type of state of the resource in terms of its stage in a life cycle; select from an enumeration of such types.,"This property requires a value from a controlled vocabulary. Select one of the defined values.
 
-For the initial upload, this would typically be ""Active"".",http://credreg.net/ctdl/terms/lifeCycleStatusType,ceterms:LifeCycleStatus,Single,"Active
+For the initial upload, this would typically be ""Active"".",http://credreg.net/ctdl/terms/lifeCycleStatusType,"Active
 Ceased
 Ceasing
 Developing
 Suspended
-Teach Out"
+Teach Out",Single,Active
 Include,ceterms:Course,,Language,ceterms:inLanguage,ceterms:inLanguage,"The primary language or languages of the entity, even if it makes use of other languages.","Must be a known language name. If there are multiple languages, use a pipe-separated (|) list. 
 
 If no language is provided, the value will default to English.",http://credreg.net/ctdl/terms/inLanguage,,Multiple,English | Spanish
-Include,ceterms:Course,,Coded Notation,ceterms:codedNotation,ceterms:codedNotation,Set of alpha-numeric symbols as defined by the body responsible for this resource that uniquely identifies this resource and supports its discovery and use.,"May be used for course or program codes (ENG 101), or any other bespoke code used by the provider.",http://credreg.net/ctdl/terms/codedNotation,,Single,Course 1000-12
+Include,ceterms:Course,,Coded Notation,ceterms:codedNotation,ceterms:codedNotation,Set of alpha-numeric symbols as defined by the body responsible for this resource that uniquely identifies this resource and supports its discovery and use.,"May be used for course or program codes (ENG 101), or any other bespoke code used by the provider.",http://credreg.net/ctdl/terms/codedNotation,,Single,BIOL 20003
 Include,ceterms:Course,,Is Non-Credit,ceterms:isNonCredit,ceterms:isNonCredit,Resource carries or confers no official academic credit according to the provider of the resource.,"If the learning opportunity is non-credit, enter the value TRUE. Otherwise, leave blank.",http://credreg.net/ctdl/terms/IsNonCredit,,Single,TRUE
 Include,ceterms:Course,,Delivery Type,ceterms:deliveryType,ceterms:deliveryType,Type of means by which a learning opportunity or assessment is delivered to credential seekers and by which they interact; select from an existing enumeration of such types.,"This property requires a value from a controlled vocabulary. Select from the list of defined values. For multiple, separate with pipes (|).",http://credreg.net/ctdl/terms/deliveryType,"Asynchronous
 Blended Delivery
@@ -22,9 +24,11 @@ In Person
 Mixed Synchronous
 Online Only
 Synchronous
-Variable Site",Multiple,Blended Delivery
-Include,ceterms:Course,,Delivery Type Description,ceterms:deliveryTypeDescription,ceterms:deliveryTypeDescription,Detailed description of the delivery type of an assessment or learning opportunity.,Use this property if the delivery type described for the course does not match one of the controlled variables in ceterms:deliveryType. The value shoudl be the verbatim text of the delivery type.,http://credreg.net/ctdl/terms/deliveryTypeDescription,,Single,This program includes a mix of delivery types that are designed to fit different schedules.
-Include,ceterms:Course,,In Catalog,ceterms:inCatalog,ceterms:inCatalog,An inventory or listing of resources that includes this resource.,Must be a properly formatted URL beginning in https://,http://credreg.net/ctdl/terms/inCatalog,,Single,http://example.com/incatalogurl
+Variable Site",Multiple,Blended Delivery|Synchronous
+Include,ceterms:Course,,Delivery Type Description,ceterms:deliveryTypeDescription,ceterms:deliveryTypeDescription,Detailed description of the delivery type of an assessment or learning opportunity.,Use this property if the delivery type described for the course does not match one of the controlled variables in ceterms:deliveryType. The value should be the verbatim text of the delivery type.,http://credreg.net/ctdl/terms/deliveryTypeDescription,,Single,This course includes a mix of delivery types that are designed to fit different schedules.
+Include,ceterms:Course,,In Catalog,ceterms:inCatalog,ceterms:inCatalog,An inventory or listing of resources that includes this resource.,"Must be a properly formatted URL beginning in https://
+
+Use this property instead of ceterms:subjectWebpage if the source of the course information is a defined catalog.",http://credreg.net/ctdl/terms/inCatalog,,Single,http://example.com/incatalogurl
 Include,ceterms:Course,,Content Description,ceterms:contentDescription,ceterms:contentDescription,"Description of the topics, concepts, theories, and practices addressed by a learning opportunity, program, course or assessment.",,https://credreg.net/ctdl/terms/contentDescription,,Single,"Topics covered are mechanical waves, sound, electrostatics, current and DC circuits, magnetism, light and optics, and modern physics."
 Include,ceterms:Course,,Learning Method Type,ceterms:learningMethodType,ceterms:learningMethodType,Types of methods used to conduct the learning opportunity; select from an existing enumeration of such types.,"This property requires a value from a controlled vocabulary. Select from the list of defined values. For multiple, separate with pipes (|).",http://credreg.net/ctdl/terms/learningMethodType,"Applied
 Apprenticeship
@@ -44,12 +48,9 @@ Self Paced
 Seminar
 Simulation
 Work Based",Multiple,Lecture|Laboratory
-Include,ceterms:Course,,Learning Method Description,ceterms:learningMethodDescription,ceterms:learningMethodDescription,Description of the methods used to conduct learning.,Use this property if the learning method described for the course does not match one of the controlled variables in ceterms:learningMethodDescription. The value should be the verbatim text of the learning method.,http://credreg.net/ctdl/terms/learningMethodDescription,,Single,This program includes experiential and project-based learning methods.
-Include,ceterms:Course,,Keywords,ceterms:keyword,ceterms:keyword,Keyword or key phrase describing relevant aspects of an entity.,"Use the keyword property to enter free text keywords. A subject concept in a controlled vocabulary should use the subject property.
-
-A pipe-separated (|) list of values.",http://credreg.net/ctdl/terms/keyword,,Multiple,first keyword|another keyword|some text
+Include,ceterms:Course,,Learning Method Description,ceterms:learningMethodDescription,ceterms:learningMethodDescription,Description of the methods used to conduct learning.,Use this property if the learning method described for the course does not match one of the controlled variables in ceterms:learningMethodDescription. The value should be the verbatim text of the learning method.,http://credreg.net/ctdl/terms/learningMethodDescription,,Single,This course includes experiential and project-based learning methods.
 Include,ceterms:Course,,Subjects,ceterms:subject,ceterms:subject,Words or brief phrases describing the topicality of the entity; select subject terms from an existing enumeration of such terms.,A pipe-separated (|) list of values.,http://credreg.net/ctdl/terms/subject,,Multiple,Algebra|Geometry
-Include,ceterms:Course,,Credit Value,ceterms:creditValue,ceterms:creditValue,A credit-related value.,Enter the number of credit units awarded for college credit or continuing education units for successful completion of the learning opportunity..,http://credreg.net/ctdl/terms/creditValue,,Single,3
+Include,ceterms:Course,,Credit Value,ceterms:creditValue,ceterms:creditValue,A credit-related value.,Enter the number of credit units awarded for college credit or continuing education units for successful completion of the learning opportunity.,http://credreg.net/ctdl/terms/creditValue,,Single,3
 Include,ceterms:Course,ceterms:ValueProfile,Credit Unit Min Value,schema:minValue,ceterms:creditValue>schema:minValue,The minimum number of credits. ,"If there is a range of credit units, enter the minimum value in Credit Min Value and the maximum value in this Credit Unit Max Value.",http://credreg.net/ctdl/terms/creditValue#minValue,,Single,2
 Include,ceterms:Course,ceterms:ValueProfile,Credit Unit Max Value,schema:maxValue,ceterms:creditValue>schema:maxValue,The maximum number of credits. ,"If there is a range of credit units, enter the minimum value in Credit Value and the maximum value in this property.",http://credreg.net/ctdl/terms/creditValue#maxValue,,Single,6
 Include,ceterms:Course,ceterms:ValueProfile,Credit Unit Type,ceterms:creditUnitType,ceterms:creditValue>ceterms:creditUnitType,The type of credit associated with the credit awarded or required.,"This property requires a value from a controlled vocabulary. Select one of the defined values.
@@ -69,73 +70,70 @@ Secondary Diploma Credit
 Semester Hour
 Time Based Credit
 Type Based Credit",Single,ContactHour
-Include,ceterms:Course,,Prerequisite,ceterms:prerequisite,ceterms:prerequisite,Course requirements that are prior conditions to this course.,"ceterms:prerequisite can have two values, each of which is a CTDL Class: Course or Condition Profile.
+Include,ceterms:Course,,Prerequisite,ceterms:prerequisite,ceterms:prerequisite,Course requirements that are prior conditions to this course.,"ceterms:prerequisite has a value of Condition Profile and uses the properties associated with Condition Profile.
 
-If the prerequisite identifies one or more required courses only, without accompanying textual information, the value should be the course objects themselves, using their coded notation values. Multiple courses might be separated with a comma or ""and"". Examples:
+Use this property for requirements that are specifically labeled as Prerequisite or use a similar term or abbreviation, such as Pre-req, PR, and so forth.",http://credreg.net/ctdl/terms/prerequisite,,Multiple,
+Include,ceterms:Course,ceterms:ConditionProfile,Description,ceterms:description,ceterms:prerequisite>ceterms:description,"Statement, characterization or account of the entity.","Use this property for the verbatim textual description of the prerequisite.
+
+Examples:
 MATH 124
-MATH 156 and CHEM 116
-BIOL 219 and BIOL 219L and BIOL 220
-
-If the prerequisite includes any contextual and/or non-course specific information, the value should be a Condition Profile and use the relevant properties associated with Condition Profile. Examples:
 MATH 124 or higher
+MATH 124 and 125
 BIOL 219 with a minimum grade of C-
 70% score on Information Technology Qualifying Exam and MATH 11003
 Consent of the instructor
-Students in the Honors Program and consent by the honors director",http://credreg.net/ctdl/terms/prerequisite,,Multiple,MATH156|CHEM116
-Include,ceterms:Course,ceterms:ConditionProfile,Description,ceterms:description,ceterms:prerequisite>ceterms:description,"Statement, characterization or account of the entity.",Use this property for the verbatim contextual or non-course related information in a prerequisite. ,http://credreg.net/ctdl/terms/description,,Single,BIOL 219 with a minimum grade of C-
-Include,ceterms:Course,ceterms:ConditionProfile,Target Learning Opportunity,ceterms:targetLearningOpportunity,ceterms:prerequisite>ceterms:targetLearningOpportunity,"Learning opportunity that is the focus of a condition, process or another learning opportunity.","If the contextual information includes reference to one or more courses, use this property for the course number(s).",https://credreg.net/ctdl/terms/targetLearningOpportunity,,Multiple,BIOL219|BIOL220
-Include,ceterms:Course,ceterms:ConditionProfile,Alternative Condition,ceterms:alternativeCondition,ceterms:prerequisite>ceterms:alternativeCondition,Subsidiary conditions where more than one alternative condition or path has been defined that may fulfill the parent condition.,"Alternative conditions are not necessarily mutually exclusive paths; for example, a set of alternative concentrations for a degree may allow a person to optionally complete more than one concentration even though not all are required.
+Students in the Honors Program and consent by the honors director",http://credreg.net/ctdl/terms/description,,Single,BIOL 219 with a minimum grade of C-
+Include,ceterms:Course,ceterms:ConditionProfile,Target Learning Opportunity,ceterms:targetLearningOpportunity,ceterms:prerequisite>ceterms:targetLearningOpportunity,"Learning opportunity that is the focus of a condition, process or another learning opportunity.","Use this property to list the specific course objects that are included in the prerequisite, using External Identifier(s) as the value(s).",https://credreg.net/ctdl/terms/targetLearningOpportunity,,Multiple,BIOL219|BIOL220
+Include,ceterms:Course,,Corequisite,ceterms:corequisite,ceterms:corequisite,Resources that must be pursued concurrently.,"ceterms:corequisite has a value of Condition Profile and uses the properties associated with Condition Profile.
 
-If a prerequisite requires one of a selection of options, typically separated by ""or"", ceterms:alternativeCondition must be used. Examples:
-BIOL 221 or BIOL 219
-BIOL 10004, BIOL 10104, or BIOL 10284, or equivalent with a grade of “C” or better
+Use this property for requirements that are specifically labeled as Corequisite or use a similar term or abbreviation, such as concurrent, concurrent enrollment, CR, and so forth.",https://credreg.net/ctdl/terms/corequisite,,Multiple,
+Include,ceterms:Course,ceterms:ConditionProfile,Description,ceterms:description,ceterms:corequisite>ceterms:description,"Statement, characterization or account of the entity.","Use this property for the verbatim textual description of the corequisite.
 
-The values for Alternative Condition are Condition Profiles. Each Condition Profile will contain information about one of the possible options. ",https://credreg.net/ctdl/terms/alternativeCondition,,Multiple,
-Include,ceterms:Course,,Corequisite,ceterms:corequisite,ceterms:corequisite,Resources that must be pursued concurrently.,"Similar to ceterms:prerequisite. However, unlike ceterms:prerequisite, the value for ceterms:corequisite is always a Condition Profile.",https://credreg.net/ctdl/terms/corequisite,,,
-Include,ceterms:Course,ceterms:ConditionProfile,Description,ceterms:description,ceterms:corequisite>ceterms:description,"Statement, characterization or account of the entity.",Use this property for the verbatim contextual or non-course related information in a corequisite. ,http://credreg.net/ctdl/terms/description,,,
-Include,ceterms:Course,ceterms:ConditionProfile,Target Learning Opportunity,ceterms:targetLearningOpportunity,ceterms:corequisite>ceterms:targetLearningOpportunity,"Learning opportunity that is the focus of a condition, process or another learning opportunity.","If the contextual information includes reference to one or more courses, use this property for the course number(s).",https://credreg.net/ctdl/terms/targetLearningOpportunity,,,
-Include,ceterms:Course,ceterms:ConditionProfile,Alternative Condition,ceterms:alternativeCondition,ceterms:corequisite>ceterms:alternativeCondition,Subsidiary conditions where more than one alternative condition or path has been defined that may fulfill the parent condition.,"Alternative conditions are not necessarily mutually exclusive paths; for example, a set of alternative concentrations for a degree may allow a person to optionally complete more than one concentration even though not all are required.
+Examples:
+MATH 124
+MATH 124 or MATH 125",http://credreg.net/ctdl/terms/description,,Single,BIOL 219
+Include,ceterms:Course,ceterms:ConditionProfile,Target Learning Opportunity,ceterms:targetLearningOpportunity,ceterms:corequisite>ceterms:targetLearningOpportunity,"Learning opportunity that is the focus of a condition, process or another learning opportunity.","Use this property to list the specific course objects that are included in the corequisite, using External Identifier(s) as the value(s).",https://credreg.net/ctdl/terms/targetLearningOpportunity,,Multiple,BIOL219
+Include,ceterms:Course,,Co-Prerequisite,ceterms:coPrerequisite,ceterms:coPrerequisite,"Resource that must be completed prior to, or pursued at the same time as, this resource.","ceterms:coPrequisite has a value of Condition Profile and uses the properties associated with Condition Profile.
 
-If a corequisite requires one of a selection of options, typically separated by ""or"", ceterms:alternativeCondition must be used. Examples:
-BIOL 221 or BIOL 219
+Use this property when a course specifically requires a Co-Prerequisite, and when the course identifies a resource that can be either a Prerequisite or a Corequisite.",https://credreg.net/ctdl/terms/coPrerequisite,,Multiple,
+Include,ceterms:Course,ceterms:ConditionProfile,Description,ceterms:description,ceterms:coPrerequisite>ceterms:description,"Statement, characterization or account of the entity.","Use this property for the verbatim textual description of the Co-Prerequisite.
 
-The values for Alternative Condition are Condition Profiles. Each Condition Profile will contain information about one of the possible options. ",https://credreg.net/ctdl/terms/alternativeCondition,,,
-Include,ceterms:Course,,Co-Prerequisite,ceterms:coPrerequisite,ceterms:coPrerequisite,"Resource that must be completed prior to, or pursued at the same time as, this resource.","Similar to ceterms:prerequisite. However, unlike ceterms:prerequisite, the value for ceterms:coPrerequisite is always a Condition Profile.",https://credreg.net/ctdl/terms/coPrerequisite,,,
-Include,ceterms:Course,ceterms:ConditionProfile,Description,ceterms:description,ceterms:coPrerequisite>ceterms:description,"Statement, characterization or account of the entity.",Use this property for the verbatim contextual or non-course related information in a co-prerequisite. ,http://credreg.net/ctdl/terms/description,,,
-Include,ceterms:Course,ceterms:ConditionProfile,Target Learning Opportunity,ceterms:targetLearningOpportunity,ceterms:coPrerequisite>ceterms:targetLearningOpportunity,"Learning opportunity that is the focus of a condition, process or another learning opportunity.","If the contextual information includes reference to one or more courses, use this property for the course number(s).",https://credreg.net/ctdl/terms/targetLearningOpportunity,,,
-Include,ceterms:Course,ceterms:ConditionProfile,Alternative Condition,ceterms:alternativeCondition,ceterms:prerequisite>ceterms:alternativeCondition,Subsidiary conditions where more than one alternative condition or path has been defined that may fulfill the parent condition.,"Alternative conditions are not necessarily mutually exclusive paths; for example, a set of alternative concentrations for a degree may allow a person to optionally complete more than one concentration even though not all are required.
+Examples:
+MATH 124
+Prerequisite or Corequisite: BIOL 30883
+Pre- or Corequisite: CHEM 14103 or CHEM 12073",http://credreg.net/ctdl/terms/description,,Single,Pre- or Corequisite: CHEM 14103 or CHEM 12073
+Include,ceterms:Course,ceterms:ConditionProfile,Target Learning Opportunity,ceterms:targetLearningOpportunity,ceterms:coPrerequisite>ceterms:targetLearningOpportunity,"Learning opportunity that is the focus of a condition, process or another learning opportunity.","Use this property to list the specific course objects that are included in the Co-Prerequisite, using External Identifier(s) as the value(s).",https://credreg.net/ctdl/terms/targetLearningOpportunity,,Multiple,CHEM14103|CHEM 12073
+Include,ceterms:Course,,Recommends,ceterms:recommends,ceterms:recommends,Indicates a resource that it is advisable to earn or complete before attempting the resource being described.,"ceterms:recommends has a value of Condition Profile and uses the properties associated with Condition Profile.
 
-If a co-prerequisite requires one of a selection of options, typically separated by ""or"", ceterms:alternativeCondition must be used. Examples:
-BIOL 221 or BIOL 219
+Use this property for information that is recommended but not required. This information may be identified ""advisory"", ""recommended"", or ""recommended preparation"". ",https://credreg.net/ctdl/terms/recommends,,Multiple,
+Include,ceterms:Course,ceterms:ConditionProfile,Description,ceterms:description,ceterms:recommends>ceterms:description,"Statement, characterization or account of the entity.","Use this property for the verbatim textual information that is recommended, advisory, or suggested. ",https://credreg.net/ctdl/terms/description,,Single,Intermediate algebra or higher or ET 108A
+Include,ceterms:Course,ceterms:ConditionProfile,Target Learning Opportunity,ceterms:targetLearningOpportunity,ceterms:recommends>ceterms:targetLearningOpportunity,"Learning opportunity that is the focus of a condition, process or another learning opportunity.","Use this property to list the specific course objects that are included in the recommended, advisory, or suggested information, using External Identifier(s) as the value(s).",https://credreg.net/ctdl/terms/targetLearningOpportunity,,Multiple,ET108A
+Include,ceterms:Course,,Entry Condition,ceterms:entryCondition,ceterms:entryCondition,"Requirements for entry into a credentialing program, a learning opportunity, or an assessment, including credentials, transcripts, records of previous experience, or other forms of entry documentation.","ceterms:entryCondition has a value of Condition Profile and uses the properties associated with Condition Profile.
 
-The values for Alternative Condition are Condition Profiles. Each Condition Profile will contain information about one of the possible options. ",https://credreg.net/ctdl/terms/alternativeCondition,,,
-Include,ceterms:Course,,Recommends,ceterms:recommends,ceterms:recommends,Indicates a resource that it is advisable to earn or complete before attempting the resource being described.,"Use this property for information that is recommended but not required. This information is similar to prerequisite; the difference is that it is not required. Catalogs often use terms such as ""advisory"" or ""recommended"" for this information. 
+Use this property for requirements for entry, enrollment, or participation in a Course that are not Prerequisites, Corequisites, Co-Prerequisites, or recommendations.",https://credreg.net/ctdl/terms/entryCondition,,Multiple,
+Include,ceterms:Course,ceterms:ConditionProfile,Description,ceterms:description,ceterms:entryCondition>ceterms:description,"Statement, characterization or account of the entity.",Use this property for the verbatim textual information that is specified in the Entry Condition. ,https://credreg.net/ctdl/terms/description,,Single,"LIMITATION ON ENROLLMENT: To participate in work experience education, students must ..."
+Include,ceterms:Course,ceterms:ConditionProfile,Target Learning Opportunity,ceterms:targetLearningOpportunity,ceterms:entryCondition>ceterms:targetLearningOpportunity,"Learning opportunity that is the focus of a condition, process or another learning opportunity.","Use this property to list the specific course objects that are included in the Entry Condition, using External Identifier(s) as the value(s).",https://credreg.net/ctdl/terms/targetLearningOpportunity,,Multiple,CHEM14103
+Include,ceterms:Course,,Estimated Duration,ceterms:estimatedDuration,ceterms:estimatedDuration,"Estimated time it will take to complete an activity, event, or resource.","ceterms:estimatedDuration has a value of Duration Profile and uses the properties associated with Duration Profile.
 
-The value for this property is always a Condition Profile.",https://credreg.net/ctdl/terms/recommends,,,
-Include,ceterms:Course,ceterms:ConditionProfile,Description,ceterms:description,ceterms:recommends>ceterms:description,"Statement, characterization or account of the entity.","Use this property for the verbatim information that is recommended, advisory, or suggested. ",https://credreg.net/ctdl/terms/description,,,
-Include,ceterms:Course,ceterms:ConditionProfile,Target Learning Opportunity,ceterms:targetLearningOpportunity,ceterms:recommends>ceterms:targetLearningOpportunity,"Learning opportunity that is the focus of a condition, process or another learning opportunity.","If the recommended, advisory, or suggested information includes reference to one or more courses, use this property for the course number(s).",https://credreg.net/ctdl/terms/targetLearningOpportunity,,,
-Include,ceterms:Course,ceterms:ConditionProfile,Alternative Condition,ceterms:alternativeCondition,ceterms:recommends>ceterms:alternativeCondition,Subsidiary conditions where more than one alternative condition or path has been defined that may fulfill the parent condition.,"Alternative conditions are not necessarily mutually exclusive paths; for example, a set of alternative concentrations for a degree may allow a person to optionally complete more than one concentration even though not all are required.
+Use this property to describe time-based values associated with the course. This may include, among other things:
+In class hours
+Out-of-class hours
+Contact hours
+Lecture hours
+Lab hours
 
-If an advisory or recommendation presents a selection of options, typically separated by """"or"""", ceterms:alternativeCondition must be used. Examples:
-BIOL 221 or BIOL 219
-BIOL 10004, BIOL 10104, or BIOL 10284, or equivalent with a grade of “C” or better
+A course may list multiple time-based values, in which case there should be multiple Duration Profiles.",http://credreg.net/ctdl/terms/estimatedDuration,,Multiple,
+Include,ceterms:Course,ceterms:DurationProfile,Estimated Duration Description,ceterms:description,ceterms:estimatedDuration>ceterms:description,"Statement, characterization or account of the entity.","Use this property for the verbatim textual description of the time-based values.
 
-The values for Alternative Condition are Condition Profiles. Each Condition Profile will contain information about one of the possible options. ",https://credreg.net/ctdl/terms/alternativeCondition,,,
-Include,ceterms:Course,,,ceterms:hasPart,ceterms:hasPart,,,,,,
-Include,ceterms:Course,ceterms:LearningOpportunityProfile,,ceterms:name,,,,,,,
-Include,ceterms:Course,ceterms:LearningOpportunityProfile,,ceterms:learningOpportunityType,,,,,,,
-Include,ceterms:Course,ceterms:LearningOpportunityProfile,,ceterms:creditValue,,,,,,,
-Include,ceterms:Course,ceterms:LearningOpportunityProfile,,ceterms:estimatedDuration,,,,,,,
-Include,ceterms:Course,,,,,,,,,,
-Include,ceterms:Course,,,ceterms:learningOpportunityType,ceterms:learningOpportunityType,,,,,,
-Include,ceterms:Course,,Estimated Duration,ceterms:estimatedDuration,ceterms:estimatedDuration,"Estimated time it will take to complete an activity, event, or resource.","Enter one number and one time scale. Ex. ""12 Weeks"".",http://credreg.net/ctdl/terms/estimatedDuration,,Multiple,12 weeks
-Include,ceterms:Course,ceterms:DurationProfile,Exact Duration,ceterms:exactDuration,ceterms:estimatedDuration>ceterms:exactDuration,"Overall span of time it will take to complete the activity, event, or resource.","This is intended to indicate overall time span, regardless of what portion of that time is spent actively pursuing the completion of the activity, event, or resource. 
+Examples:
+Course In-Class (Contact) Hours
+Course Out-of-Class Hours
+Course Lecture Hours
+Course Lab Hours",http://credreg.net/ctdl/terms/description,,Single,"Total Course In-Class (Contact) Hours
+"
+Include,ceterms:Course,ceterms:DurationProfile,Exact Duration,ceterms:exactDuration,ceterms:estimatedDuration>ceterms:exactDuration,"Overall span of time it will take to complete the activity, event, or resource.","This is intended to indicate overall time span, regardless of what portion of that time is spent actively pursuing the completion of the activity, event, or resource. ",https://credreg.net/ctdl/terms/exactDuration,,Single,6 months
+Include,ceterms:Course,ceterms:DurationProfile,Minimum Duration,ceterms:minimumDuration,ceterms:estimatedDuration>ceterms:minimumDuration,"Minimum overall span of time it will take to complete the activity, event, or resource.","This is intended to indicate overall time span, regardless of what portion of that time is spent actively pursuing the completion of the activity, event, or resource.",https://credreg.net/ctdl/terms/minimumDuration,,Single,3 months
+Include,ceterms:Course,ceterms:DurationProfile,Maximum Duration,ceterms:maximumDuration,ceterms:estimatedDuration>ceterms:maximumDuration,"Maximum overall span of time it will take to complete the activity, event, or resource.","This is intended to indicate overall time span, regardless of what portion of that time is spent actively pursuing the completion of the activity, event, or resource.",https://credreg.net/ctdl/terms/maximumDuration,,Single,9 months
+Include,ceterms:Course,ceterms:DurationProfile,Time Required,ceterms:timeRequired,ceterms:estimatedDuration>ceterms:timeRequired,"Total engaged or participating time it will take to complete the activity, event, or resource.","This is intended to indicate only the sum of the individual amounts of time which are spent actively engaged in pursuing the completion of the activity, event, or resource, regardless of the overall time span required to complete it.
 
-If a resource takes 50 hours over a span of 6 months to complete, use this to record 6 months as P6M.",https://credreg.net/ctdl/terms/Course#exactDuration,,Single,P6M
-Include,ceterms:Course,ceterms:DurationProfile,Minimum Duration,ceterms:minimumDuration,ceterms:estimatedDuration>ceterms:minimumDuration,"Minimum overall span of time it will take to complete the activity, event, or resource.","This is intended to indicate overall time span, regardless of what portion of that time is spent actively pursuing the completion of the activity, event, or resource.
-
-If a resource takes 50 hours over a span of 3-9 months to complete, use this to record 3 months as P3M.",https://credreg.net/ctdl/terms/Course#minimumDuration,,Single,P3M
-Include,ceterms:Course,ceterms:DurationProfile,Maximum Duration,ceterms:maximumDuration,ceterms:estimatedDuration>ceterms:maximumDuration,"Maximum overall span of time it will take to complete the activity, event, or resource.","This is intended to indicate overall time span, regardless of what portion of that time is spent actively pursuing the completion of the activity, event, or resource.
-
-If a resource takes 50 hours over a span of 3-9 months to complete, use this to record 9 months as P9M.",https://credreg.net/ctdl/terms/Course#maximumDuration,,Single,P9M
-Include,ceterms:Course,ceterms:DurationProfile,Estimated Duration Description,ceterms:description,ceterms:estimatedDuration>ceterms:description,"Statement, characterization or account of the entity.",,http://credreg.net/ctdl/terms/description,,Single,The duration of this program is estimated to be...
+For Course, this would typically be indicated in hours.",https://credreg.net/ctdl/terms/timeRequired,,Single,54.0
