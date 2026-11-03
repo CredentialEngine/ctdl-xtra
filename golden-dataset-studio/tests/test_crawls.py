@@ -187,6 +187,6 @@ def test_first_rules_publish_ruleset_v1_and_the_card_opens(roots, tmp_path, caps
     assert rs["settings"]["course_key_rule"] == {"locator-course-page": "course-code"}
     card = next(x for x in c.get("/api/catalogs").json() if x["catalog"] == cat)
     assert card["status"] == "ready" and card["rules_total"] == 4
-    assert main(["check", "--root", dst.uri, "--catalog", cat]) == 1  # no rule yet for 41 of properties.csv's rows
+    assert main(["check", "--root", dst.uri, "--catalog", cat]) == 1  # no rule yet for 39 of properties.csv's rows
     assert main(["properties", "apply", "--root", dst.uri, "--catalog", cat]) == 0
     assert main(["check", "--root", dst.uri, "--catalog", cat]) == 0

@@ -20,23 +20,24 @@ def _rows():
         return list(csv.reader(fh))
 
 
-def test_the_3_nov_sheet_gives_43_properties_with_the_sheets_paths():
+def test_the_final_sheet_gives_41_properties_with_the_sheets_paths():
     rows, warnings = properties.from_sheet(_rows(), None)
-    assert len(rows) == 43
+    assert len(rows) == 41
     by_path = {r["path"]: r for r in rows}
-    # W2: stored as the sheet writes them; P15: row 33 is read under Co-Prerequisite, with a note
+    # W2: stored as the sheet writes them; every row's path is the sheet's own (no P15 correction left)
     assert "ceterms:prerequisite>ceterms:targetLearningOpportunity" in by_path
-    r33 = next(r for r in rows if r["sheet_row"] == 33)
-    assert r33["path"] == "ceterms:coPrerequisite>ceterms:alternativeCondition"
-    assert r33["sheet_path"] == "ceterms:prerequisite>ceterms:alternativeCondition" and r33["path_note"]
-    # W3: row 44 is skipped; P4 / P14 warn
-    assert "ceterms:learningOpportunityType" not in by_path
-    assert any("row 44" in w for w in warnings) and any("P15" in w for w in warnings)
-    assert any("row 27: no Single / Multiple; read as Single" in w for w in warnings)
-    assert by_path["ceterms:estimatedDuration>ceterms:exactDuration"]["multiple"]  # P14
+    assert all(r["path"] == r["sheet_path"] and not r["path_note"] for r in rows)
+    # the final sheet drops Keywords, Has Part and the Alternative Condition rows, and adds Entry Condition and
+    # Time Required
+    assert not {"ceterms:keyword", "ceterms:hasPart", "ceterms:prerequisite>ceterms:alternativeCondition",
+                "ceterms:learningOpportunityType"} & set(by_path)
+    assert by_path["ceterms:entryCondition>ceterms:targetLearningOpportunity"]["multiple"]
+    # P14: a Duration Profile's children are lists, like their parent
+    assert any("ceterms:estimatedDuration>ceterms:timeRequired says Single" in w for w in warnings)
+    assert by_path["ceterms:estimatedDuration>ceterms:exactDuration"]["multiple"]
     # P6: names are unique, built from the parent for the condition children
     assert by_path["ceterms:corequisite>ceterms:description"]["label"] == "Corequisite: Description"
-    assert by_path["ceterms:hasPart"]["label"] == "Has Part"
+    assert by_path["ceterms:entryCondition"]["label"] == "Entry Condition"
     # today's eight keep their ids; required and the course key
     assert by_path["ceterms:description"]["rule_id"] == "course-description"
     assert by_path["ceterms:codedNotation"]["course_key"] and by_path["ceterms:codedNotation"]["required"]
@@ -46,30 +47,30 @@ def test_the_3_nov_sheet_gives_43_properties_with_the_sheets_paths():
     assert by_path["ceterms:creditValue>schema:minValue"]["parent"] == "ceterms:creditValue"
 
 
-def test_the_checked_in_file_is_the_3_nov_sheet():
+def test_the_checked_in_file_is_the_final_sheet():
     rows, _ = properties.from_sheet(_rows(), None)
-    assert [(r["rule_id"], r["path"]) for r in properties.load()] == [(r["rule_id"], r["path"]) for r in rows]
+    assert [(r["rule_id"], r["path"]) for r in properties.active()] == [(r["rule_id"], r["path"]) for r in rows]
 
 
 def test_model_properties_are_a_view_of_the_file_in_the_rules_tab_order():
     labels = [label for label, _ in model.PROPERTIES]
     assert labels[:8] == ["Coded Notation", "External Identifier", "Learning Type", "Learning Opportunity Name",
                           "Description", "Subject Webpage", "Life Cycle Status Type", "Language"]
-    assert len(labels) == 43 and model.CTDL_TERM["Credit Unit Min Value"] == "ceterms:creditValue>schema:minValue"
+    assert len(labels) == 41 and model.CTDL_TERM["Credit Unit Min Value"] == "ceterms:creditValue>schema:minValue"
     assert len(model.FIRST_EIGHT) == 8  # import_v2 and old publications stay frozen
 
 
 def test_sync_keeps_ids_never_removes_and_renames_only_when_accepted():
     old, _ = properties.from_sheet(_rows(), None)
     rows = _rows()
-    changed = [r[:] for r in rows if not r[5].startswith("ceterms:hasPart")]
+    changed = [r[:] for r in rows if not r[5].startswith("ceterms:inCatalog")]
     for r in changed:
         if r[5] == "ceterms:isNonCredit":
             r[3] = "Non-Credit"
     new, _ = properties.from_sheet(changed, None)
     merged, diff, warnings = properties.merge(old, new, accept_renames=False)
-    assert diff["removed"] == ["course-has-part"]
-    assert next(r for r in merged if r["rule_id"] == "course-has-part")["status"] == "removed"
+    assert diff["removed"] == ["course-in-catalog"]
+    assert next(r for r in merged if r["rule_id"] == "course-in-catalog")["status"] == "removed"
     assert next(r for r in merged if r["rule_id"] == "course-is-non-credit")["label"] == "Is Non-Credit"
     assert any("--accept-renames" in w for w in warnings)
     merged, diff, _ = properties.merge(old, new, accept_renames=True)

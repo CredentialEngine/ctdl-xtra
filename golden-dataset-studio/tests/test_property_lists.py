@@ -13,42 +13,42 @@ from golden_datasets.context import Ctx
 
 B = f"/api/catalogs/{CAT}"
 LISTS = {"catalog": CAT, "rules": [
-    {"rule_id": "course-keyword", "definition": {"locator": "locator-course-page", "rule_type": "css",
+    {"rule_id": "course-subject", "definition": {"locator": "locator-course-page", "rule_type": "css",
                                                  "selector": "h1", "multiple": {"split": "separator",
                                                                                 "separator": " "}}},
     {"rule_id": "course-content-description",
      "definition": {"locator": "locator-course-page", "rule_type": "regex", "regex": r"(\d+)",
-                    "input": {"from": "rule", "rule": "course-keyword"}}},
+                    "input": {"from": "rule", "rule": "course-subject"}}},
 ]}
 
 
 def _apply(ctx: Ctx, capsys) -> None:
     assert main(["properties", "apply", "--root", ctx.root.uri, "-c", CAT]) == 0
-    assert "adds 41 property rules with no rule yet" in capsys.readouterr().out
+    assert "adds 39 property rules with no rule yet" in capsys.readouterr().out
 
 
 def test_apply_adds_every_property_with_no_rule_and_anyone_can_annotate_them(studio, capsys):  # noqa: F811
     c, ctx, _ = studio
     _apply(ctx, capsys)
     rs, rules = Ctx(ctx.root, CAT).ruleset_rules(2)
-    assert rs["note"] == "added 41 property rules from the Phase 1 sheet"
-    assert len([r for r in rules.values() if r["kind"] == "property"]) == 43
-    assert rules["course-has-part"]["definition"] == {"locator": "locator-course-page", "rule_type": "none"}
+    assert rs["note"] == "added 39 property rules from the Phase 1 sheet"
+    assert len([r for r in rules.values() if r["kind"] == "property"]) == 41
+    assert rules["course-in-catalog"]["definition"] == {"locator": "locator-course-page", "rule_type": "none"}
     assert properties.apply(Ctx(ctx.root, CAT), "again") is None  # nothing left to add
     assert main(["check", "--root", ctx.root.uri, "-c", CAT]) == 0
     capsys.readouterr()
 
-    rows = _rows(c, "course-has-part")
+    rows = _rows(c, "course-in-catalog")
     assert len(rows) == 3 and {r["status"] for r in rows.values()} == {"none"}
-    assert c.get(f"{B}/rules/course-has-part").json()["fill"] == {"rows": 3, "found": 0}
+    assert c.get(f"{B}/rules/course-in-catalog").json()["fill"] == {"rows": 3, "found": 0}
     r = c.post(f"{B}/annotations", json={"type": "verdict", "author": JARED, "verdict": "wrong",
                                          "expected": {"text": "C 0"}, "target": {
-                                             "kind": "match", "rule_id": "course-has-part",
+                                             "kind": "match", "rule_id": "course-in-catalog",
                                              "occurrence_key": rows["page-0"]["key"]}})
     assert r.status_code == 200, r.text
     assert r.json()["rule"]["status"] == "needs work"
     course = c.get(f"{B}/courses/C0").json()["occurrences"][0]["properties"]
-    assert len(course) == 43 and next(p for p in course if p["rule_id"] == "course-has-part")["status"] == "none"
+    assert len(course) == 41 and next(p for p in course if p["rule_id"] == "course-in-catalog")["status"] == "none"
     assert main(["check", "--root", ctx.root.uri, "-c", CAT]) == 0
 
 
@@ -59,7 +59,7 @@ def test_a_list_rule_has_one_row_per_course_and_a_verdict_per_item(studio, tmp_p
     draft.write_text(json.dumps(LISTS))
     assert main(["rule", "publish", "--root", ctx.root.uri, "-c", CAT, str(draft)]) == 0
     capsys.readouterr()
-    rows = _rows(c, "course-keyword")
+    rows = _rows(c, "course-subject")
     row = rows["page-0"]
     assert [(i["value_index"], i["value"]) for i in row["items"]] == [(0, "C"), (1, "0")]
     assert row["value"] == "C\n0"
@@ -67,7 +67,7 @@ def test_a_list_rule_has_one_row_per_course_and_a_verdict_per_item(studio, tmp_p
     assert child["value"] == "2" and child["css_path"].endswith("h1:nth-of-type(1)") and child["char_start"] == 2
 
     def item(verdict: str, value_index=None, expected=None) -> dict:
-        target = {"kind": "match", "rule_id": "course-keyword", "occurrence_key": row["key"], "item": True,
+        target = {"kind": "match", "rule_id": "course-subject", "occurrence_key": row["key"], "item": True,
                   "value_index": value_index}
         r = c.post(f"{B}/annotations", json={"type": "verdict", "author": JARED, "verdict": verdict,
                                              "expected": expected, "target": target})
@@ -77,16 +77,16 @@ def test_a_list_rule_has_one_row_per_course_and_a_verdict_per_item(studio, tmp_p
     assert item("correct", 1)["event"]["target"]["value_seen"] == "0"
     assert item("wrong", 0)["rule"]["open_wrong"] == 1
     assert item("missing", expected={"text": "Calculus"})["rule"]["open_wrong"] == 2
-    got = _rows(c, "course-keyword")["page-0"]
+    got = _rows(c, "course-subject")["page-0"]
     assert [i["state"] for i in got["items"]] == ["wrong", "correct"] and got["items"][1]["human"]
     assert [m["expected"]["text"] for m in got["missing_items"]] == ["Calculus"]
     assert got["state"] is None  # item verdicts don't make a verdict on the whole row
 
     rv = golden.LOADER.review(Ctx(ctx.root, CAT))
-    plan = golden.plan(rv, {"Keywords"})
-    keyword = [(r["value_index"], r["approval"]) for r in plan["lineage"]
-               if r["page_stem"] == "page-0" and r["property"] == "Keywords"]
-    assert keyword == [(0, "rule"), (1, "human")]
+    plan = golden.plan(rv, {"Subjects"})
+    subject = [(r["value_index"], r["approval"]) for r in plan["lineage"]
+               if r["page_stem"] == "page-0" and r["property"] == "Subjects"]
+    assert subject == [(0, "rule"), (1, "human")]
     assert main(["check", "--root", ctx.root.uri, "-c", CAT]) == 0
 
 
@@ -103,11 +103,11 @@ def test_generate_rules_lists_every_property_and_rule_type(studio, capsys):  # n
                     "## When it isn't clear which property a text belongs to", "## How to work"):
         assert heading in text
     table = text[text.index("## Every property"):text.index("## Every rule type")]
-    assert table.count("\n| ") == 44  # the header and 43 properties
+    assert table.count("\n| ") == 42  # the header and 41 properties
     assert "`ceterms:creditValue → schema:minValue`" in table and "| none yet |" in table
     assert "`multiple.split: regex`" in text and "`input: rule`" in text and "`labelled`" in text
     assert "rule draft --all > drafts/more-rules.json" in text and "out of scope" not in text
-    assert "coverage (properties with a rule, of 43)" in text
+    assert "coverage (properties with a rule, of 41)" in text
 
 
 def test_the_rule_list_groups_and_sorts_properties(studio, tmp_path, capsys):  # noqa: F811
@@ -129,15 +129,15 @@ def test_the_rule_list_groups_and_sorts_properties(studio, tmp_path, capsys):  #
     assert [r["rule_id"] for r in g["required"]["rules"]][:3] == ["course-code", "course-external-id",
                                                                    "course-learning-type"]
     assert g["required"]["rules"][0]["course_key"] and g["not-started"]["collapsed"]
-    assert [r["rule_id"] for r in g["other"]["rules"]] == ["course-content-description", "course-keyword"]  # sheet
+    assert [r["rule_id"] for r in g["other"]["rules"]] == ["course-content-description", "course-subject"]  # sheet
     child = next(r for r in g["not-started"]["rules"] if r["rule_id"] == "course-credit-value-min-value")
     assert child["subtitle"] == "part of Credit Value" and child["path_shown"] == "ceterms:creditValue → schema:minValue"
     assert child["no_rule"] and child["input"] == "nothing yet: no rule"
     other = {r["rule_id"]: r for r in g["other"]["rules"]}
-    assert other["course-content-description"]["input"] == "Keywords's value" and other["course-keyword"]["list"]
+    assert other["course-content-description"]["input"] == "Subjects's value" and other["course-subject"]["list"]
 
-    row = _rows(c, "course-keyword")["page-1"]  # an expert's ✓ on Keywords: it sorts first now
+    row = _rows(c, "course-subject")["page-1"]  # an expert's ✓ on Subjects: it sorts first now
     r = c.post(f"{B}/annotations", json={"type": "verdict", "author": JARED, "verdict": "correct", "target": {
-        "kind": "match", "rule_id": "course-keyword", "occurrence_key": row["key"], "item": True, "value_index": 0}})
+        "kind": "match", "rule_id": "course-subject", "occurrence_key": row["key"], "item": True, "value_index": 0}})
     assert r.status_code == 200, r.text
-    assert [r["rule_id"] for r in groups()["other"]["rules"]] == ["course-keyword", "course-content-description"]
+    assert [r["rule_id"] for r in groups()["other"]["rules"]] == ["course-subject", "course-content-description"]
