@@ -76,3 +76,18 @@ def test_a_review_goes_with_its_snapshot(loads):
     loader._reviews[("mem://", "cat", "k", "a", True, 0)] = rv
     loader.snapshot(ctx, "b"), loader.snapshot(ctx, "c")
     assert "a" not in kept(loader) and not loader._reviews
+
+
+def test_per_rule_caches_keep_only_the_most_recent_rules():
+    c = review._Recent()
+    for i in range(review._Recent.RULES_KEPT):
+        c[f"r{i}"] = i
+    assert c["r0"] == 0  # used: now the most recent
+    c["new"] = 99
+    assert "r1" not in c and "r0" in c and "new" in c and len(c) == review._Recent.RULES_KEPT
+
+
+def test_a_tables_repeated_strings_are_one_object():
+    rows = review._shared([{"rule_id": "".join(["course-", "name"]), "n": 1},
+                           {"rule_id": "".join(["course-", "name"]), "n": 2}])
+    assert rows[0]["rule_id"] is rows[1]["rule_id"] and rows[1]["n"] == 2
