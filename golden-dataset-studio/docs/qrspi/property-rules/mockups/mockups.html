@@ -1,0 +1,398 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Property rules mockups</title>
+<style>
+  :root { --bg:#f5f6f8; --surface:#fff; --s2:#f9fafb; --line:#e4e7ec; --line2:#d0d5dd; --ink:#101828; --ink2:#344054;
+          --muted:#667085; --faint:#98a2b3; --accent:#2f54eb; --accent-soft:#eef2ff; --sel:#f0f4ff;
+          --ok:#12805c; --bad:#d92d20; --warn-bg:#fff7e6; --warn-line:#f5c26b; --warn-ink:#9a5b00;
+          --hl:#fde68a; --mono:ui-monospace,SFMono-Regular,Menlo,monospace; }
+  * { box-sizing:border-box; }
+  body { margin:0; font:13px/1.45 Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; color:var(--ink); background:#e9ebef; padding:20px; }
+  .shot { width:1360px; margin:0 0 40px; background:var(--bg); position:relative; overflow:hidden; border:1px solid var(--line); }
+  .top { height:46px; display:flex; align-items:center; gap:14px; padding:0 16px; background:var(--surface); border-bottom:1px solid var(--line); }
+  .brand { font-weight:650; font-size:14px; display:flex; gap:8px; align-items:center; }
+  .brand i { width:18px; height:18px; background:#c9a227; border-radius:4px; display:inline-block; }
+  .cat { border:1px solid var(--line); border-radius:7px; padding:3px 10px; font-weight:500; }
+  .tabs { margin-left:auto; display:flex; gap:2px; }
+  .tabs a { color:var(--muted); font-weight:500; padding:6px 12px; border-radius:6px; }
+  .tabs a.on { color:var(--ink); background:var(--accent-soft); box-shadow:inset 0 -2px 0 var(--accent); }
+  .who { margin-left:14px; font-weight:500; }
+  .muted { color:var(--muted); } .faint { color:var(--faint); } .mono { font-family:var(--mono); font-size:12px; }
+  code { font-family:var(--mono); font-size:12px; background:var(--s2); border:1px solid var(--line); border-radius:4px; padding:0 4px; }
+  .btn { border:1px solid var(--line2); background:var(--surface); border-radius:7px; padding:5px 12px; font-weight:500; color:var(--ink2); font-size:12.5px; white-space:nowrap; display:inline-flex; align-items:center; gap:5px; }
+  .btn.sm { padding:2px 9px; font-size:12px; }
+  .btn.primary { background:var(--accent); border-color:var(--accent); color:#fff; }
+  .btn.dis { color:var(--faint); background:var(--s2); }
+  .btn.ai { color:var(--accent); border-color:#c7d2fe; background:var(--accent-soft); }
+  .seg { display:inline-flex; border:1px solid var(--line2); border-radius:7px; overflow:hidden; background:var(--surface); }
+  .seg b { font-weight:500; padding:4px 11px; color:var(--muted); font-size:12.5px; }
+  .seg b + b { border-left:1px solid var(--line); }
+  .seg b.on { background:var(--accent); color:#fff; }
+  /* three panes */
+  .panes { display:grid; grid-template-columns:300px 1fr 430px; height:760px; }
+  .list { background:var(--surface); border-right:1px solid var(--line); overflow:hidden; padding:12px 10px; }
+  .mid { overflow:hidden; border-right:1px solid var(--line); background:var(--bg); }
+  .pagepane { background:var(--surface); padding:12px; overflow:hidden; }
+  .rs { display:flex; align-items:center; gap:10px; padding:0 6px 10px; }
+  .rs .lab { font-size:11px; letter-spacing:.06em; color:var(--muted); font-weight:600; }
+  .sel { flex:1; border:1px solid var(--line2); border-radius:7px; padding:5px 10px; font-weight:500; }
+  .search { margin:0 6px 10px; border:1px solid var(--line2); border-radius:7px; padding:6px 10px 6px 28px; color:var(--faint); position:relative; }
+  .search::before { content:"⌕"; position:absolute; left:9px; top:4px; font-size:15px; color:var(--muted); }
+  .search.typed { color:var(--ink); border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-soft); }
+  .grp { display:flex; justify-content:space-between; align-items:center; padding:10px 6px 4px; font-size:11px; letter-spacing:.06em; color:var(--muted); font-weight:600; text-transform:uppercase; }
+  .grp .n { text-transform:none; letter-spacing:0; font-weight:400; }
+  .grp.col > span:first-child::before { content:"▸"; margin-right:5px; }
+  .grp.exp > span:first-child::before { content:"▾"; margin-right:5px; }
+  .grp span:first-child { display:flex; align-items:center; }
+  .r { display:grid; grid-template-columns:20px 1fr auto; gap:6px; padding:6px; border-radius:7px; align-items:start; }
+  .r.on { background:var(--sel); box-shadow:inset 3px 0 0 var(--accent); }
+  .r .nm { font-weight:500; font-size:13px; line-height:1.3; }
+  .r .sub { font-size:11.5px; color:var(--faint); }
+  .r .sub.mono { font-size:11px; }
+  .r .ct { font-size:11.5px; color:var(--muted); text-align:right; white-space:nowrap; }
+  .r .ct small { display:block; color:var(--faint); font-size:10.5px; }
+  .ic { width:16px; height:16px; border-radius:50%; display:inline-grid; place-items:center; font-size:10px; margin-top:1px; }
+  .ic.rev { border:1.5px solid var(--faint); } .ic.rev::after { content:""; width:5px; height:5px; border-radius:50%; background:var(--faint); }
+  .ic.ok { background:var(--ok); color:#fff; } .ic.ok::after { content:"✓"; }
+  .ic.bad { background:var(--bad); color:#fff; } .ic.bad::after { content:"✕"; }
+  .ic.ns { border:1.5px dashed var(--line2); }
+  .ic.np { border:1.5px solid var(--faint); background:repeating-linear-gradient(45deg,#fff 0 2px,var(--line) 2px 4px); }
+  .key { display:inline-block; font-size:10px; font-weight:600; color:var(--accent); background:var(--accent-soft); border-radius:4px; padding:0 5px; margin-left:4px; vertical-align:1px; }
+  mark.q { background:var(--hl); padding:0; }
+  /* middle */
+  .hd { padding:14px 18px 10px; background:var(--surface); border-bottom:1px solid var(--line); }
+  .hd h2 { margin:0; font-size:18px; display:flex; align-items:center; gap:8px; }
+  .hd .path { font-family:var(--mono); font-size:12px; color:var(--accent); }
+  .hd .meta { color:var(--muted); margin-top:2px; }
+  .hd .acts { float:right; display:flex; gap:8px; }
+  .facts { display:flex; flex-wrap:wrap; gap:6px 14px; margin-top:8px; font-size:12px; color:var(--muted); }
+  .facts b { color:var(--ink2); font-weight:500; }
+  .bar1 { padding:8px 18px; color:var(--ink2); background:var(--surface); border-bottom:1px solid var(--line); }
+  .rowc { display:grid; grid-template-columns:90px 1fr 96px; gap:10px; padding:12px 18px; border-bottom:1px solid var(--line); background:var(--surface); }
+  .rowc.cur { box-shadow:inset 3px 0 0 var(--accent); }
+  .code { font-family:var(--mono); font-weight:600; font-size:12.5px; }
+  .val { border:1px solid var(--line2); border-radius:7px; padding:6px 10px; background:#fff; }
+  .val .lb { font-size:10.5px; letter-spacing:.06em; color:var(--accent); font-weight:600; text-transform:uppercase; }
+  .ctx { font-size:12px; color:var(--muted); margin-top:4px; }
+  .vbtn { display:flex; gap:6px; justify-content:flex-end; }
+  .vbtn i { width:28px; height:28px; border:1px solid var(--line2); border-radius:7px; display:grid; place-items:center; font-style:normal; color:var(--muted); background:#fff; }
+  .vbtn i.ok { background:#ecfdf3; color:var(--ok); border-color:#a6f4c5; }
+  .vbtn i.bad { background:#fef3f2; color:var(--bad); border-color:#fecdca; }
+  .items { display:flex; flex-direction:column; gap:6px; }
+  .item { display:grid; grid-template-columns:22px 1fr 64px; gap:8px; align-items:center; border:1px solid var(--line2); border-radius:7px; padding:5px 8px; background:#fff; }
+  .item .ix { font-family:var(--mono); font-size:11px; color:var(--faint); }
+  .item .vb { display:flex; gap:4px; justify-content:flex-end; }
+  .item .vb i { width:24px; height:24px; border:1px solid var(--line2); border-radius:6px; display:grid; place-items:center; font-style:normal; font-size:11px; color:var(--muted); }
+  .item .vb i.ok { background:#ecfdf3; color:var(--ok); border-color:#a6f4c5; }
+  .item.miss { border-style:dashed; border-color:var(--bad); background:#fef3f2; }
+  .add { color:var(--accent); font-weight:500; font-size:12px; padding:2px 2px; }
+  .chip { display:inline-block; border-radius:10px; padding:0 8px; font-size:11.5px; background:var(--s2); border:1px solid var(--line); color:var(--ink2); }
+  .chip.g { background:#ecfdf3; border-color:#a6f4c5; color:var(--ok); }
+  .empty { margin:22px 18px; background:var(--surface); border:1px dashed var(--line2); border-radius:10px; padding:22px 24px; }
+  .empty h3 { margin:0 0 6px; font-size:15px; }
+  .steps { margin:12px 0 0; padding-left:18px; color:var(--ink2); }
+  .steps li { margin:4px 0; }
+  /* page pane */
+  .browser { border:1px solid var(--line); border-radius:10px; overflow:hidden; height:100%; display:flex; flex-direction:column; }
+  .bt { background:var(--s2); border-bottom:1px solid var(--line); padding:8px 10px; display:flex; gap:8px; align-items:center; }
+  .url { flex:1; font-family:var(--mono); font-size:11px; color:var(--muted); border:1px solid var(--line); border-radius:6px; padding:3px 8px; background:#fff; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
+  .note { background:#fffbe6; border-bottom:1px solid #f5e3a3; padding:8px 10px; font-size:12px; }
+  .note a { color:var(--accent); font-weight:500; }
+  .doc { padding:14px 18px; font-family:Georgia,serif; font-size:12.5px; color:#222; line-height:1.55; }
+  .doc h4 { font-family:Georgia,serif; font-size:16px; margin:0 0 8px; color:#a14a00; }
+  .doc .sm { font-size:11.5px; color:#444; }
+  .doc table { border-collapse:collapse; font-size:11px; margin-top:6px; } .doc td { padding:2px 10px 2px 0; vertical-align:top; } .doc td.h { color:#666; }
+  .hl { background:var(--hl); outline:1px solid #f59e0b; }
+  .hl.add { background:#fee2e2; outline:1px dashed var(--bad); }
+  /* footer */
+  .foot { height:34px; border-top:1px solid var(--line); background:var(--surface); display:flex; align-items:center; gap:16px; padding:0 14px; color:var(--muted); font-size:12px; }
+  kbd { font-family:var(--mono); font-size:11px; border:1px solid var(--line2); border-bottom-width:2px; border-radius:4px; padding:0 5px; color:var(--ink2); background:#fff; }
+  /* dev notes, as in the Evals mockups */
+  .dev { position:absolute; background:#fff8c5; border:1px solid #e9d27a; color:#5c4b00; font-size:11.5px; line-height:1.4; padding:7px 9px; border-radius:6px; width:250px; box-shadow:0 2px 6px rgba(0,0,0,.08); z-index:5; }
+  .dev::before { content:"Logic"; display:block; font-weight:700; font-size:10px; letter-spacing:.06em; text-transform:uppercase; margin-bottom:2px; }
+  /* home table */
+  .home { padding:26px 120px 30px; }
+  .home h1 { font-size:24px; margin:0; display:flex; align-items:center; gap:14px; }
+  table.cats { border-collapse:collapse; margin-top:8px; }
+  table.cats th { font-weight:500; color:var(--muted); text-align:left; vertical-align:bottom; padding:0 6px 6px; }
+  table.cats th.ang { height:150px; width:30px; padding:0; position:relative; }
+  table.cats th.ang span { position:absolute; left:10px; bottom:8px; transform-origin:left bottom; transform:rotate(-58deg); white-space:nowrap; font-size:12.5px; color:var(--ink2); }
+  table.cats th.ang.ns span { color:var(--faint); }
+  table.cats th.ang.req span { font-weight:600; }
+  table.cats td { border-top:1px solid var(--line); padding:9px 6px; white-space:nowrap; }
+  table.cats td.c { text-align:center; width:30px; padding:9px 0; }
+  table.cats td.c.ns { background:#f0f1f4; color:var(--faint); }
+  .gh { font-size:10.5px; letter-spacing:.06em; text-transform:uppercase; color:var(--muted); font-weight:600; text-align:center; border-bottom:2px solid var(--line2); padding-bottom:3px; }
+  .gh.req { border-color:var(--accent); color:var(--accent); }
+  .legend { display:flex; gap:18px; align-items:center; margin-top:12px; color:var(--ink2); flex-wrap:wrap; }
+  .legend span { display:inline-flex; gap:6px; align-items:center; }
+  /* dialog */
+  .scrim { position:absolute; inset:46px 0 0 0; background:rgba(16,24,40,.35); display:grid; place-items:center; z-index:4; }
+  .dlg { width:560px; background:#fff; border-radius:12px; box-shadow:0 20px 50px rgba(0,0,0,.25); padding:20px 22px; }
+  .dlg h3 { margin:0 0 8px; font-size:16px; }
+  .dlg .cols { display:flex; flex-wrap:wrap; gap:5px; margin:6px 0 12px; }
+  .dlg .cols .chip.new { background:var(--accent-soft); border-color:#c7d2fe; color:var(--accent); font-weight:600; }
+  .callout { background:var(--warn-bg); border:1px solid var(--warn-line); color:var(--warn-ink); border-radius:8px; padding:8px 10px; font-size:12.5px; margin:10px 0; }
+  .dlg .ft { display:flex; justify-content:flex-end; gap:8px; margin-top:14px; }
+  /* terminal */
+  .term { background:#0f172a; color:#e2e8f0; font-family:var(--mono); font-size:12.5px; line-height:1.55; padding:18px 22px; white-space:pre; }
+  .term .p { color:#7dd3fc; } .term .ok { color:#86efac; } .term .w { color:#fcd34d; } .term .d { color:#94a3b8; } .term .add { color:#a5b4fc; }
+</style>
+</head>
+<body>
+
+<!-- ============================ M1: Rules tab, groups, a nested child selected ============================ -->
+<section class="shot" id="m1">
+  <div class="top"><span class="brand"><i></i>Golden Dataset Studio</span><span class="faint">/</span><span class="cat">AVC</span>
+    <span class="tabs"><a class="on">Rules</a><a>Records</a><a>Compare</a><a>Datasets</a><a>Evals</a></span><span class="who">Jared</span><span class="btn">Show the tour</span></div>
+  <div class="panes">
+    <div class="list">
+      <div class="rs"><span class="lab">RULESET</span><span class="sel">v5 (latest) ▾</span></div>
+      <div class="search">Search 43 properties</div>
+      <div class="grp col"><span>Page rules</span><span class="n">0 of 1 approved</span></div>
+      <div class="grp col"><span>Record locators</span><span class="n">0 of 1 approved</span></div>
+      <div class="grp exp"><span>Required</span><span class="n">1 of 8 approved</span></div>
+      <div class="r"><span class="ic rev"></span><div><div class="nm">Coded Notation <span class="key">course key</span></div><div class="sub">codedNotation</div></div><div class="ct">31<small>Discuss</small></div></div>
+      <div class="r"><span class="ic rev"></span><div><div class="nm">External Identifier</div><div class="sub">identifier</div></div><div class="ct">14<small>Discuss</small></div></div>
+      <div class="r"><span class="ic rev"></span><div><div class="nm">Learning Type</div><div class="sub">no CTDL property</div></div><div class="ct">14<small>Discuss</small></div></div>
+      <div class="r"><span class="ic rev"></span><div><div class="nm">Learning Opportunity Name</div><div class="sub">name</div></div><div class="ct">14<small>Discuss</small></div></div>
+      <div class="r"><span class="ic bad"></span><div><div class="nm">Description</div><div class="sub">description</div></div><div class="ct">17<small>Discuss</small></div></div>
+      <div class="r"><span class="ic rev"></span><div><div class="nm">Subject Webpage</div><div class="sub">subjectWebpage</div></div><div class="ct">14<small>Discuss</small></div></div>
+      <div class="r"><span class="ic rev"></span><div><div class="nm">Life Cycle Status Type</div><div class="sub">lifeCycleStatusType</div></div><div class="ct">14<small>Discuss</small></div></div>
+      <div class="r"><span class="ic ok"></span><div><div class="nm">Language</div><div class="sub">inLanguage</div></div><div class="ct">14<small>Discuss</small></div></div>
+      <div class="grp exp"><span>Other properties</span><span class="n">by human reviews</span></div>
+      <div class="r"><span class="ic rev"></span><div><div class="nm">Credit Value</div><div class="sub">creditValue</div></div><div class="ct">9<small>Discuss</small></div></div>
+      <div class="r on"><span class="ic rev"></span><div><div class="nm">Credit Unit Min Value</div><div class="sub">part of Credit Value</div></div><div class="ct">6<small>Discuss</small></div></div>
+      <div class="r"><span class="ic rev"></span><div><div class="nm">Credit Unit Max Value</div><div class="sub">part of Credit Value</div></div><div class="ct">6<small>Discuss</small></div></div>
+      <div class="r"><span class="ic rev"></span><div><div class="nm">Prerequisite: Description</div><div class="sub">part of Prerequisite</div></div><div class="ct">0<small>Discuss</small></div></div>
+      <div class="grp col"><span>Not started</span><span class="n">29 properties</span></div>
+      <div class="grp col"><span>Program page lines</span><span class="n">4 rules</span></div>
+    </div>
+    <div class="mid">
+      <div class="hd"><span class="acts"><span class="btn">✓ Approve</span></span>
+        <h2>Credit Unit Min Value</h2>
+        <div class="meta">part of <b style="color:var(--ink2);font-weight:500">Credit Value</b> · course pages · <span class="path">ceterms:creditValue → schema:minValue ↗</span></div>
+        <div class="facts"><span>Input <b>the course record</b> · labelled “Minimum Credit Units”</span><span><b>Single</b> value</span><span>Sheet row <b>19</b></span><span>Profile <b>ValueProfile</b></span><span class="muted">How this rule works ▸</span></div>
+      </div>
+      <div class="bar1"><b>1,062</b> courses · <b>1,062</b> with a value · discussed first, then the likeliest problems</div>
+      <div class="rowc cur"><div class="code">GEOG222</div><div><div class="val"><div class="lb">Credit Unit Min Value</div>3.0</div><div class="ctx">Minimum Credit Units <b>3.0</b> · Maximum Credit Units 3.0</div></div><div class="vbtn"><i class="ok">✓</i><i>✕</i><i>💬</i></div></div>
+      <div class="rowc"><div class="code">CFE199</div><div><div class="val"><div class="lb">Credit Unit Min Value</div>1.0</div><div class="ctx">Minimum Credit Units <b>1.0</b> · Maximum Credit Units 8.0</div></div><div class="vbtn"><i>✓</i><i>✕</i><i>💬</i></div></div>
+      <div class="rowc"><div class="code">ANTH199</div><div><div class="val"><div class="lb">Credit Unit Min Value</div>1.0</div><div class="ctx">Minimum Credit Units <b>1.0</b> · Maximum Credit Units 8.0</div></div><div class="vbtn"><i>✓</i><i>✕</i><i>💬</i></div></div>
+      <div class="rowc"><div class="code">RE903</div><div><div class="val"><div class="lb">Credit Unit Min Value</div>0.0</div><div class="ctx">Minimum Credit Units <b>0.0</b> · Maximum Credit Units 0.0</div></div><div class="vbtn"><i>✓</i><i>✕</i><i>💬</i></div></div>
+    </div>
+    <div class="pagepane"><div class="browser">
+      <div class="bt"><span class="url">https://avc.elumenapp.com/catalog/2026-27/course/geog222</span><span class="seg"><b class="on">Page</b><b>HTML</b></span></div>
+      <div class="note"><b>Credit Unit Min Value</b> · GEOG222 — the value found is highlighted. <a>Wrong? Drag across the right text to mark it.</a></div>
+      <div class="doc"><h4>GEOG 222: Cartography for Geographic Information Science (GIS)</h4>
+        <div class="sm">Prerequisite: Completion of, or concurrent enrollment in, GEOG 205.</div>
+        <p class="sm">This course provides a general survey of basic methods used for the presentation of geographic information science (GIS) data and analysis…</p>
+        <div class="sm" style="font-weight:700;margin-top:10px">UNITS AND HOURS</div>
+        <table><tr><td class="h">Minimum Credit Units</td><td class="h">Maximum Credit Units</td><td class="h">Total Course In-Class (Contact) Hours</td></tr>
+          <tr><td><span class="hl">3.0</span></td><td>3.0</td><td>54.0</td></tr></table>
+      </div></div></div>
+  </div>
+  <div class="dev" style="left:945px;top:420px;width:395px">Sort: Required first (the Course tab's Required block, Coded Notation first as the course key), then Other properties by human-reviewed values summed over all six catalogs, descending, then sheet row, Not started (no definition, collapsed), Program page lines (today's four stub-* rules, collapsed).</div>
+  <div class="dev" style="left:945px;top:540px;width:395px">A child is its own row with its own name (column D). No path and no indent in the list: "part of Credit Value" replaces the CTDL term line. The header shows the path with an arrow (stored as ceterms:creditValue&gt;schema:minValue), linked to the leaf term.</div>
+  <div class="foot"><kbd>Tab</kbd> next <kbd>1</kbd> correct <kbd>2</kbd> wrong <kbd>3</kbd> comment <kbd>H</kbd> select text <kbd>/</kbd> search properties</div>
+</section>
+
+<!-- ============================ M2: a multiple rule, each item its own row ============================ -->
+<section class="shot" id="m2">
+  <div class="top"><span class="brand"><i></i>Golden Dataset Studio</span><span class="faint">/</span><span class="cat">CCSF</span>
+    <span class="tabs"><a class="on">Rules</a><a>Records</a><a>Compare</a><a>Datasets</a><a>Evals</a></span><span class="who">Jared</span><span class="btn">Show the tour</span></div>
+  <div class="panes">
+    <div class="list">
+      <div class="rs"><span class="lab">RULESET</span><span class="sel">v4 (latest) ▾</span></div>
+      <div class="search">Search 43 properties</div>
+      <div class="grp col"><span>Page rules</span><span class="n">0 of 1 approved</span></div>
+      <div class="grp col"><span>Record locators</span><span class="n">0 of 1 approved</span></div>
+      <div class="grp col"><span>Required</span><span class="n">0 of 8 approved</span></div>
+      <div class="grp exp"><span>Other properties</span><span class="n">by human reviews</span></div>
+      <div class="r"><span class="ic rev"></span><div><div class="nm">Credit Value</div><div class="sub">creditValue</div></div><div class="ct">12<small>Discuss</small></div></div>
+      <div class="r"><span class="ic rev"></span><div><div class="nm">Credit Unit Min Value</div><div class="sub">part of Credit Value</div></div><div class="ct">0<small>Discuss</small></div></div>
+      <div class="r"><span class="ic rev"></span><div><div class="nm">Credit Unit Max Value</div><div class="sub">part of Credit Value</div></div><div class="ct">0<small>Discuss</small></div></div>
+      <div class="r"><span class="ic rev"></span><div><div class="nm">Prerequisite: Description</div><div class="sub">part of Prerequisite</div></div><div class="ct">7<small>Discuss</small></div></div>
+      <div class="r on"><span class="ic bad"></span><div><div class="nm">Estimated Duration</div><div class="sub">estimatedDuration · list</div></div><div class="ct">5<small>Discuss</small></div></div>
+      <div class="grp col"><span>Not started</span><span class="n">28 properties</span></div>
+      <div class="grp col"><span>Program page lines</span><span class="n">4 rules</span></div>
+    </div>
+    <div class="mid">
+      <div class="hd"><span class="acts"><span class="btn">✓ Approve</span></span>
+        <h2>Estimated Duration</h2>
+        <div class="meta">course pages · <span class="path">ceterms:estimatedDuration ↗</span></div>
+        <div class="facts"><span>Input <b>the course record</b></span><span><b>List</b> · every element <code>.course-lab-lec-label &gt; span</code></span><span>Sheet row <b>45</b></span></div>
+      </div>
+      <div class="bar1"><b>1,927</b> courses · discussed first, then page order</div>
+      <div class="rowc cur"><div class="code">MED 49</div><div>
+        <div class="items"><div class="item"><span class="ix">0</span><span>Lecture - 87.5</span><span class="vb"><i class="ok">✓</i><i>✕</i></span></div><div class="item"><span class="ix">1</span><span>Lab - 35</span><span class="vb"><i class="ok">✓</i><i>✕</i></span></div></div>
+        <div class="ctx">Hours: Lecture - 87.5 ; Lab - 35</div><div style="margin-top:6px"><span class="chip">2 items · 2 ✓</span> <span class="add">＋ Select a missing item on the page</span></div>
+      </div><div class="vbtn"><i>💬</i></div></div>
+      <div class="rowc"><div class="code">MED 55</div><div>
+        <div class="items"><div class="item"><span class="ix">0</span><span>Lecture - 35</span><span class="vb"><i>✓</i><i>✕</i></span></div><div class="item"><span class="ix">1</span><span>Lab - 52.5</span><span class="vb"><i>✓</i><i>✕</i></span></div></div>
+        <div class="ctx">Hours: Lecture - 35 ; Lab - 52.5</div>
+      </div><div class="vbtn"><i>💬</i></div></div>
+      <div class="rowc"><div class="code">MED 56</div><div>
+        <div class="items"><div class="item"><span class="ix">0</span><span>Lecture - 52.5</span><span class="vb"><i>✓</i><i>✕</i></span></div><div class="item"><span class="ix">1</span><span>Lab - 35</span><span class="vb"><i>✓</i><i>✕</i></span></div></div>
+        <div class="ctx">Hours: Lecture - 52.5 ; Lab - 35</div>
+      </div><div class="vbtn"><i>💬</i></div></div>
+    </div>
+    <div class="pagepane"><div class="browser">
+      <div class="bt"><span class="url">https://ccsf.curricunet.com/catalog/iq/courses/3/120</span><span class="seg"><b class="on">Page</b><b>HTML</b></span></div>
+      <div class="note"><b>Estimated Duration</b> · MED 49 — 2 found. <a>Drag across a missing one to add it.</a></div>
+      <div class="doc">
+        <div style="font-weight:700">MED 49 - Clinical Procedures</div>
+        <div class="sm">(5.5) &nbsp; Credit (Degree Applicable)</div>
+        <div class="sm" style="margin-top:6px">Hours: <span class="hl">Lecture - 87.5</span> ; <span class="hl">Lab - 35</span></div>
+        <div style="font-weight:700;margin-top:14px">MED 55 - The Electronic Health Record</div>
+        <div class="sm">(3.0) &nbsp; Credit (Degree Applicable)</div>
+        <div class="sm" style="margin-top:6px">Hours: Lecture - 35 ; Lab - 52.5</div>
+        <div style="font-weight:700;margin-top:14px">MED 56 - Administrative Procedures</div>
+        <div class="sm">(3.5) &nbsp; Credit (Degree Applicable)</div>
+        <div class="sm" style="margin-top:6px">Hours: Lecture - 52.5 ; Lab - 35</div>
+      </div></div></div>
+  </div>
+  <div class="dev" style="left:950px;top:420px;width:250px">multiple: one value per item, ordered by value_index. Each item gets its own ✓ / ✕. A missing item is added by dragging on the page and saved as an expected item. Verdicts re-attach by (rule, occurrence, value text), not by index, because indexes shift when the rule changes.</div>
+  <div class="dev" style="left:950px;top:650px;width:250px">"list" under the name: the rule returns several values. Splitting is one of: every element (this one), a separator, or every regex match. Learning Method Type reads the same elements (X4); Estimated Duration's description and exact duration take their input from this rule, one value per item.</div>
+  <div class="foot"><kbd>Tab</kbd> next item <kbd>1</kbd> correct <kbd>2</kbd> wrong <kbd>H</kbd> select a missing item</div>
+</section>
+
+
+<!-- ============================ M4: search ============================ -->
+<section class="shot" id="m4" style="width:420px">
+  <div class="list" style="height:560px;border:0">
+    <div class="rs"><span class="lab">RULESET</span><span class="sel">v5 (latest) ▾</span></div>
+    <div class="search typed">credit</div>
+    <div class="grp exp"><span>Other properties</span><span class="n">3 of 5 match</span></div>
+    <div class="r"><span class="ic rev"></span><div><div class="nm"><mark class="q">Credit</mark> Value</div><div class="sub"><mark class="q">credit</mark>Value</div></div><div class="ct">9<small>Discuss</small></div></div>
+    <div class="r"><span class="ic rev"></span><div><div class="nm"><mark class="q">Credit</mark> Unit Min Value</div><div class="sub">part of <mark class="q">Credit</mark> Value</div></div><div class="ct">6<small>Discuss</small></div></div>
+    <div class="r"><span class="ic rev"></span><div><div class="nm"><mark class="q">Credit</mark> Unit Max Value</div><div class="sub">part of <mark class="q">Credit</mark> Value</div></div><div class="ct">6<small>Discuss</small></div></div>
+    <div class="grp exp"><span>Not started</span><span class="n">2 of 29 match</span></div>
+    <div class="r"><span class="ic ns"></span><div><div class="nm">Is Non-<mark class="q">Credit</mark></div><div class="sub">isNon<mark class="q">Credit</mark></div></div><div class="ct">—</div></div>
+    <div class="r"><span class="ic ns"></span><div><div class="nm"><mark class="q">Credit</mark> Unit Type</div><div class="sub">part of <mark class="q">Credit</mark> Value</div></div><div class="ct">—</div></div>
+    <div class="faint" style="padding:10px 8px">Required, Page rules and Record locators: no match</div>
+    <div class="faint" style="padding:0 8px"><kbd>/</kbd> to search · <kbd>Esc</kbd> to clear · <kbd>↓</kbd> <kbd>Enter</kbd> to open</div>
+  </div>
+  <div class="dev" style="left:150px;top:420px;width:250px">Search matches the name, the CTDL term and the parent's name. Collapsed groups open while a search is typed. Groups with no match show one grey line.</div>
+</section>
+
+<!-- ============================ M5: home table, every property a column ============================ -->
+<section class="shot" id="m5">
+  <style>
+    #m5 .grid { display:grid; grid-template-columns:300px 1fr 100px; }
+    #m5 .hd2 { height:230px; display:flex; align-items:flex-end; color:var(--muted); font-weight:500; padding:0 8px 8px; }
+    #m5 .row { height:52px; display:flex; align-items:center; gap:8px; border-top:1px solid var(--line); padding:0 8px; }
+    #m5 .row b { font-weight:500; line-height:1.25; }
+    #m5 .side { background:var(--bg); position:relative; z-index:2; }
+    #m5 .side.l { box-shadow:6px 0 8px -6px rgba(16,24,40,.25); }
+    #m5 .side.rt { box-shadow:-6px 0 8px -6px rgba(16,24,40,.25); }
+    #m5 .side.rt .row, #m5 .side.rt .hd2 { justify-content:flex-end; }
+    #m5 .mid { overflow:hidden; min-width:0; }
+    #m5 .mid .hd3 { height:230px; display:flex; }
+    #m5 .mid .h { width:56px; min-width:56px; position:relative; }
+    #m5 .mid .h span { position:absolute; left:24px; bottom:8px; transform-origin:left bottom; transform:rotate(-58deg); white-space:nowrap; font-weight:500; font-size:12.5px; color:var(--ink2); }
+    #m5 .mid .h.req span { font-weight:650; color:var(--ink); }
+    #m5 .mid .row { padding:0; gap:0; width:max-content; }
+    #m5 .mid .c { width:56px; min-width:56px; text-align:center; }
+    #m5 .fr { display:inline-flex; flex-direction:column; align-items:center; font-family:"Times New Roman",serif; font-size:11px; line-height:1.15; }
+    #m5 .fr i { font-style:normal; } #m5 .fr i:first-child { border-bottom:1px solid var(--ink); padding:0 2px; }
+    #m5 .scroll { height:10px; margin:8px 100px 0 300px; background:var(--line); border-radius:5px; position:relative; }
+    #m5 .scroll i { position:absolute; left:0; top:0; bottom:0; width:30%; background:var(--faint); border-radius:5px; }
+  </style>
+  <div class="top"><span class="brand"><i></i>Golden Dataset Studio</span><span style="margin-left:auto" class="who">Seth</span></div>
+  <div class="home" style="padding:22px 24px 130px">
+    <h1>Catalogs <span class="seg"><b class="on">Golden dataset</b><b>xtra score</b></span><span style="flex:1"></span><span class="btn">+ Add a catalog</span></h1>
+    <div class="grid" style="margin-top:6px;border-bottom:1px solid var(--line)">
+      <div class="side l"><div class="hd2">Catalog</div><div class="row"><span class="btn sm">Open →</span><b>Antelope Valley College</b></div><div class="row"><span class="btn sm">Open →</span><b>City College of San Francisco</b></div><div class="row"><span class="btn sm">Open →</span><b>Marshall University</b></div><div class="row"><span class="btn sm">Open →</span><b>University of Arkansas at Little Rock</b></div><div class="row"><span class="btn sm">Open →</span><b>University of Arkansas Professional and Workforce Development</b></div><div class="row"><span class="btn sm">Open →</span><b>West Virginia University</b></div></div>
+      <div class="mid"><div class="hd3"><div class="h req"><span>codedNotation</span></div><div class="h req"><span>identifier</span></div><div class="h req"><span>Learning Type</span></div><div class="h req"><span>name</span></div><div class="h req"><span>description</span></div><div class="h req"><span>subjectWebpage</span></div><div class="h req"><span>lifeCycleStatusType</span></div><div class="h req"><span>inLanguage</span></div><div class="h"><span>creditValue</span></div><div class="h"><span>creditValue → minValue</span></div><div class="h"><span>creditValue → maxValue</span></div><div class="h"><span>prerequisite → description</span></div><div class="h"><span>isNonCredit</span></div><div class="h"><span>deliveryType</span></div><div class="h"><span>deliveryTypeDescription</span></div><div class="h"><span>inCatalog</span></div><div class="h"><span>contentDescription</span></div><div class="h"><span>learningMethodType</span></div><div class="h"><span>learningMethodDescription</span></div><div class="h"><span>keyword</span></div><div class="h"><span>subject</span></div><div class="h"><span>creditValue → creditUnitType</span></div><div class="h"><span>prerequisite</span></div><div class="h"><span>prerequisite → targetLearningOpportunity</span></div><div class="h"><span>prerequisite → alternativeCondition</span></div><div class="h"><span>corequisite</span></div><div class="h"><span>corequisite → description</span></div><div class="h"><span>corequisite → targetLearningOpportunity</span></div><div class="h"><span>corequisite → alternativeCondition</span></div><div class="h"><span>coPrerequisite</span></div><div class="h"><span>coPrerequisite → description</span></div><div class="h"><span>coPrerequisite → targetLearningOpportunity</span></div><div class="h"><span>coPrerequisite → alternativeCondition</span></div><div class="h"><span>recommends</span></div><div class="h"><span>recommends → description</span></div><div class="h"><span>recommends → targetLearningOpportunity</span></div><div class="h"><span>recommends → alternativeCondition</span></div><div class="h"><span>hasPart</span></div><div class="h"><span>estimatedDuration</span></div><div class="h"><span>estimatedDuration → exactDuration</span></div><div class="h"><span>estimatedDuration → minimumDuration</span></div><div class="h"><span>estimatedDuration → maximumDuration</span></div><div class="h"><span>estimatedDuration → description</span></div></div><div class="row"><div class="c"><span class="fr"><i>14</i><i>1,062</i></span></div><div class="c"><span class="fr"><i>14</i><i>1,062</i></span></div><div class="c"><span class="fr"><i>14</i><i>1,062</i></span></div><div class="c"><span class="fr"><i>14</i><i>1,062</i></span></div><div class="c"><span class="fr"><i>14</i><i>1,062</i></span></div><div class="c"><span class="fr"><i>14</i><i>1,062</i></span></div><div class="c"><span class="fr"><i>14</i><i>1,062</i></span></div><div class="c"><span class="fr"><i>14</i><i>1,062</i></span></div><div class="c"><span class="fr"><i>9</i><i>1,062</i></span></div><div class="c"><span class="fr"><i>6</i><i>1,062</i></span></div><div class="c"><span class="fr"><i>6</i><i>1,062</i></span></div><div class="c"><span class="fr"><i>0</i><i>287</i></span></div><div class="c"><span class="faint">—</span></div><div class="c"><span class="faint">—</span></div><div class="c"><span class="faint">—</span></div><div class="c"><span class="faint">—</span></div><div class="c"><span class="fr"><i>0</i><i>341</i></span></div><div class="c"><span class="faint">—</span></div><div class="c"><span class="faint">—</span></div><div class="c"><span class="faint">—</span></div><div class="c"><span class="faint">—</span></div><div class="c"><span class="fr"><i>0</i><i>1,062</i></span></div><div class="c"><span class="faint">—</span></div><div class="c"><span class="faint">—</span></div><div class="c"><span class="faint">—</span></div><div class="c"><span class="faint">—</span></div><div class="c"><span class="faint">—</span></div><div class="c"><span class="faint">—</span></div><div class="c"><span class="faint">—</span></div><div class="c"><span class="faint">—</span></div><div class="c"><span class="faint">—</span></div><div class="c"><span class="faint">—</span></div><div class="c"><span class="faint">—</span></div><div class="c"><span class="faint">—</span></div><div class="c"><span class="faint">—</span></div><div class="c"><span class="faint">—</span></div><div class="c"><span class="faint">—</span></div><div class="c"><span class="faint">—</span></div><div class="c"><span class="faint">—</span></div><div class="c"><span class="faint">—</span></div><div class="c"><span class="faint">—</span></div><div class="c"><span class="faint">—</span></div><div class="c"><span class="faint">—</span></div></div><div class="row"><div class="c"><span class="fr"><i>63</i><i>1,927</i></span></div><div class="c"><span class="fr"><i>65</i><i>1,927</i></span></div><div class="c"><span class="fr"><i>65</i><i>1,927</i></span></div><div class="c"><span class="fr"><i>65</i><i>1,927</i></span></div><div class="c"><span class="fr"><i>64</i><i>1,926</i></span></div><div class="c"><span class="fr"><i>65</i><i>1,927</i></span></div><div class="c"><span class="fr"><i>65</i><i>1,927</i></span></div><div class="c"><span class="fr"><i>65</i><i>1,927</i></span></div><div class="c"><span class="fr"><i>12</i><i>1,927</i></span></div><div class="c"><span class="fr"><i>0</i><i>31</i></span></div><div class="c"><span class="fr"><i>0</i><i>31</i></span></div><div class="c"><span class="fr"><i>7</i><i>705</i></span></div><div class="c"><span class="faint">—</span></div><div class="c"><span class="faint">—</span></div><div class="c"><span class="faint">—</span></div><div class="c"><span class="faint">—</span></div><div class="c"><span class="faint">—</span></div><div class="c"><span class="fr"><i>0</i><i>1,927</i></span></div><div class="c"><span class="faint">—</span></div><div class="c"><span class="faint">—</span></div><div class="c"><span class="fr"><i>0</i><i>1,927</i></span></div><div class="c"><span class="faint">—</span></div><div class="c"><span class="faint">—</span></div><div class="c"><span class="faint">—</span></div><div class="c"><span class="faint">—</span></div><div class="c"><span class="faint">—</span></div><div class="c"><span class="faint">—</span></div><div class="c"><span class="faint">—</span></div><div class="c"><span class="faint">—</span></div><div class="c"><span class="faint">—</span></div><div class="c"><span class="faint">—</span></div><div class="c"><span class="faint">—</span></div><div class="c"><span class="faint">—</span></div><div class="c"><span class="fr"><i>0</i><i>961</i></span></div><div class="c"><span class="faint">—</span></div><div class="c"><span class="faint">—</span></div><div class="c"><span class="faint">—</span></div><div class="c"><span class="faint">—</span></div><div class="c"><span class="faint">—</span></div><div class="c"><span class="faint">—</span></div><div class="c"><span class="faint">—</span></div><div class="c"><span class="faint">—</span></div><div class="c"><span class="faint">—</span></div></div><div class="row"><div class="c"><span class="fr"><i>13</i><i>6,692</i></span></div><div class="c"><span class="fr"><i>13</i><i>6,692</i></span></div><div class="c"><span class="fr"><i>13</i><i>6,692</i></span></div><div class="c"><span class="fr"><i>13</i><i>6,692</i></span></div><div class="c"><span class="fr"><i>13</i><i>5,491</i></span></div><div class="c"><span class="fr"><i>13</i><i>6,692</i></span></div><div class="c"><span class="fr"><i>13</i><i>6,692</i></span></div><div class="c"><span class="fr"><i>13</i><i>6,692</i></span></div><div class="c"><span class="fr"><i>0</i><i>6,692</i></span></div><div class="c"><span class="faint">—</span></div><div class="c"><span class="faint">—</span></div><div class="c"><span class="fr"><i>0</i><i>2,140</i></span></div><div class="c"><span class="faint">—</span></div><div class="c"><span class="faint">—</span></div><div class="c"><span class="faint">—</span></div><div class="c"><span class="faint">—</span></div><div class="c"><span class="faint">—</span></div><div class="c"><span class="faint">—</span></div><div class="c"><span class="faint">—</span></div><div class="c"><span class="faint">—</span></div><div class="c"><span class="fr"><i>0</i><i>6,692</i></span></div><div class="c"><span class="fr"><i>0</i><i>6,692</i></span></div><div class="c"><span class="faint">—</span></div><div class="c"><span class="faint">—</span></div><div class="c"><span class="faint">—</span></div><div class="c"><span class="faint">—</span></div><div class="c"><span class="faint">—</span></div><div class="c"><span class="faint">—</span></div><div class="c"><span class="faint">—</span></div><div class="c"><span class="faint">—</span></div><div class="c"><span class="faint">—</span></div><div class="c"><span class="faint">—</span></div><div class="c"><span class="faint">—</span></div><div class="c"><span class="faint">—</span></div><div class="c"><span class="faint">—</span></div><div class="c"><span class="faint">—</span></div><div class="c"><span class="faint">—</span></div><div class="c"><span class="faint">—</span></div><div class="c"><span class="faint">—</span></div><div class="c"><span class="faint">—</span></div><div class="c"><span class="faint">—</span></div><div class="c"><span class="faint">—</span></div><div class="c"><span class="faint">—</span></div></div><div class="row"><div class="c"><span class="fr"><i>10</i><i>2,908</i></span></div><div class="c"><span class="fr"><i>10</i><i>2,908</i></span></div><div class="c"><span class="fr"><i>10</i><i>2,908</i></span></div><div class="c"><span class="fr"><i>10</i><i>2,908</i></span></div><div class="c"><span class="fr"><i>10</i><i>2,849</i></span></div><div class="c"><span class="fr"><i>10</i><i>3,130</i></span></div><div class="c"><span class="fr"><i>10</i><i>3,130</i></span></div><div class="c"><span class="fr"><i>10</i><i>3,130</i></span></div><div class="c"><span class="fr"><i>0</i><i>2,880</i></span></div><div class="c"><span class="faint">—</span></div><div class="c"><span class="faint">—</span></div><div class="c"><span class="faint">—</span></div><div class="c"><span class="faint">—</span></div><div class="c"><span class="faint">—</span></div><div class="c"><span class="faint">—</span></div><div class="c"><span class="faint">—</span></div><div class="c"><span class="faint">—</span></div><div class="c"><span class="faint">—</span></div><div class="c"><span class="faint">—</span></div><div class="c"><span class="faint">—</span></div><div class="c"><span class="faint">—</span></div><div class="c"><span class="faint">—</span></div><div class="c"><span class="faint">—</span></div><div class="c"><span class="faint">—</span></div><div class="c"><span class="faint">—</span></div><div class="c"><span class="faint">—</span></div><div class="c"><span class="faint">—</span></div><div class="c"><span class="faint">—</span></div><div class="c"><span class="faint">—</span></div><div class="c"><span class="faint">—</span></div><div class="c"><span class="faint">—</span></div><div class="c"><span class="faint">—</span></div><div class="c"><span class="faint">—</span></div><div class="c"><span class="faint">—</span></div><div class="c"><span class="faint">—</span></div><div class="c"><span class="faint">—</span></div><div class="c"><span class="faint">—</span></div><div class="c"><span class="faint">—</span></div><div class="c"><span class="faint">—</span></div><div class="c"><span class="faint">—</span></div><div class="c"><span class="faint">—</span></div><div class="c"><span class="faint">—</span></div><div class="c"><span class="faint">—</span></div></div><div class="row"><div class="c"><span class="faint">—</span></div><div class="c"><span class="faint">—</span></div><div class="c"><span class="fr"><i>0</i><i>118</i></span></div><div class="c"><span class="fr"><i>0</i><i>118</i></span></div><div class="c"><span class="fr"><i>0</i><i>117</i></span></div><div class="c"><span class="fr"><i>0</i><i>118</i></span></div><div class="c"><span class="fr"><i>0</i><i>118</i></span></div><div class="c"><span class="fr"><i>0</i><i>118</i></span></div><div class="c"><span class="faint">—</span></div><div class="c"><span class="faint">—</span></div><div class="c"><span class="faint">—</span></div><div class="c"><span class="faint">—</span></div><div class="c"><span class="faint">—</span></div><div class="c"><span class="fr"><i>0</i><i>118</i></span></div><div class="c"><span class="faint">—</span></div><div class="c"><span class="faint">—</span></div><div class="c"><span class="faint">—</span></div><div class="c"><span class="fr"><i>0</i><i>112</i></span></div><div class="c"><span class="faint">—</span></div><div class="c"><span class="faint">—</span></div><div class="c"><span class="faint">—</span></div><div class="c"><span class="faint">—</span></div><div class="c"><span class="faint">—</span></div><div class="c"><span class="faint">—</span></div><div class="c"><span class="faint">—</span></div><div class="c"><span class="faint">—</span></div><div class="c"><span class="faint">—</span></div><div class="c"><span class="faint">—</span></div><div class="c"><span class="faint">—</span></div><div class="c"><span class="faint">—</span></div><div class="c"><span class="faint">—</span></div><div class="c"><span class="faint">—</span></div><div class="c"><span class="faint">—</span></div><div class="c"><span class="faint">—</span></div><div class="c"><span class="faint">—</span></div><div class="c"><span class="faint">—</span></div><div class="c"><span class="faint">—</span></div><div class="c"><span class="faint">—</span></div><div class="c"><span class="fr"><i>0</i><i>118</i></span></div><div class="c"><span class="faint">—</span></div><div class="c"><span class="faint">—</span></div><div class="c"><span class="faint">—</span></div><div class="c"><span class="faint">—</span></div></div><div class="row"><div class="c"><span class="fr"><i>84</i><i>22,015</i></span></div><div class="c"><span class="fr"><i>83</i><i>22,015</i></span></div><div class="c"><span class="fr"><i>84</i><i>22,013</i></span></div><div class="c"><span class="fr"><i>84</i><i>22,013</i></span></div><div class="c"><span class="fr"><i>84</i><i>21,826</i></span></div><div class="c"><span class="fr"><i>84</i><i>22,023</i></span></div><div class="c"><span class="fr"><i>83</i><i>22,023</i></span></div><div class="c"><span class="fr"><i>84</i><i>22,023</i></span></div><div class="c"><span class="fr"><i>0</i><i>22,015</i></span></div><div class="c"><span class="fr"><i>0</i><i>6,528</i></span></div><div class="c"><span class="fr"><i>0</i><i>6,528</i></span></div><div class="c"><span class="fr"><i>0</i><i>10,155</i></span></div><div class="c"><span class="faint">—</span></div><div class="c"><span class="faint">—</span></div><div class="c"><span class="faint">—</span></div><div class="c"><span class="faint">—</span></div><div class="c"><span class="faint">—</span></div><div class="c"><span class="faint">—</span></div><div class="c"><span class="faint">—</span></div><div class="c"><span class="faint">—</span></div><div class="c"><span class="faint">—</span></div><div class="c"><span class="fr"><i>0</i><i>22,015</i></span></div><div class="c"><span class="faint">—</span></div><div class="c"><span class="faint">—</span></div><div class="c"><span class="faint">—</span></div><div class="c"><span class="faint">—</span></div><div class="c"><span class="faint">—</span></div><div class="c"><span class="faint">—</span></div><div class="c"><span class="faint">—</span></div><div class="c"><span class="faint">—</span></div><div class="c"><span class="faint">—</span></div><div class="c"><span class="faint">—</span></div><div class="c"><span class="faint">—</span></div><div class="c"><span class="faint">—</span></div><div class="c"><span class="faint">—</span></div><div class="c"><span class="faint">—</span></div><div class="c"><span class="faint">—</span></div><div class="c"><span class="faint">—</span></div><div class="c"><span class="faint">—</span></div><div class="c"><span class="faint">—</span></div><div class="c"><span class="faint">—</span></div><div class="c"><span class="faint">—</span></div><div class="c"><span class="faint">—</span></div></div></div>
+      <div class="side rt"><div class="hd2">Coverage</div><div class="row"><b>14</b>&nbsp;<span class="muted">of 43</span></div><div class="row"><b>15</b>&nbsp;<span class="muted">of 43</span></div><div class="row"><b>12</b>&nbsp;<span class="muted">of 43</span></div><div class="row"><b>9</b>&nbsp;<span class="muted">of 43</span></div><div class="row"><b>9</b>&nbsp;<span class="muted">of 43</span></div><div class="row"><b>13</b>&nbsp;<span class="muted">of 43</span></div></div>
+    </div>
+    <div class="scroll"><i></i></div>
+  </div>
+  <div class="dev" style="left:24px;top:690px;width:900px">Catalog and Coverage stay fixed; the 43 property columns scroll sideways between them (the bar under the table). Each cell is the app's fraction, as today: values an expert reviewed over values the rule found; "—" when there's no rule yet. No legend and no icons. Coverage = properties with a rule here, of 43. Required columns hold live numbers from 2 Nov; the others are illustrative.</div>
+</section>
+
+<!-- ============================ M6: approve a new column ============================ -->
+<section class="shot" id="m6" style="height:560px">
+  <div class="top"><span class="brand"><i></i>Golden Dataset Studio</span><span class="faint">/</span><span class="cat">AVC</span>
+    <span class="tabs"><a class="on">Rules</a><a>Records</a><a>Compare</a><a>Datasets</a><a>Evals</a></span><span class="who">Jared</span></div>
+  <div class="scrim"><div class="dlg">
+    <h3>Approve Credit Unit Min Value and publish its silver dataset?</h3>
+    <div class="muted">Approving this rule publishes every value it found into ruleset v5's <b>silver dataset</b> (also called the <b>rule-matched dataset</b>). The <b>golden dataset</b> holds only values an expert reviewed, and doesn't change.</div>
+    <div style="margin-top:12px;font-weight:500">Silver dataset columns now</div>
+    <div class="cols"><span class="chip">inLanguage</span></div>
+    <div style="font-weight:500">Silver dataset columns after</div>
+    <div class="cols"><span class="chip">inLanguage</span><span class="chip new">creditValue → minValue</span></div>
+    <div><b>1,062</b> values to the silver dataset · <b>6</b> human-reviewed, already in the golden dataset · <code>ceterms:creditValue → schema:minValue</code></div>
+    <div class="callout"><b>xtra doesn't extract this property yet,</b> so it isn't scored. Evals keeps its column, marked "not scored", and leaves it out of the exact-match rate until an extract output has the same path.</div>
+    <div class="ft"><span class="btn">Cancel</span><span class="btn primary">Approve rule and publish silver dataset</span></div>
+  </div></div>
+  <div class="dev" style="left:980px;top:150px;width:300px">Evals scores only the columns an extract output emits under the same path. Every other column still shows, marked "not scored", so coverage stays visible, but a property xtra never tried can't pull the score down. Stored path: ceterms:creditValue&gt;schema:minValue. New versions keep the two datasets apart: versions/ruleset-v5/silver/ (this column) and versions/ruleset-v5/golden/ (human-reviewed only).</div>
+</section>
+
+<!-- ============================ M7: properties sync ============================ -->
+<section class="shot" id="m7" style="width:1100px">
+<div class="term"><span class="p">$</span> golden-datasets properties sync
+<span class="d">Reading "xTRA: Learning Opportunity BU Template" (anonymous xlsx export) …</span>
+<span class="d">Phase 1 Extraction: 49 rows · Course tab: Required Properties block, 7 properties</span>
+
+<span class="ok">properties.csv: 43 properties</span>  <span class="d">(42 from column F, plus Learning Type)</span>
+  <span class="add">+ 35 new</span>   course-is-non-credit, course-delivery-type, … course-duration-description
+  <span class="d">= 8 kept</span>   course-code, course-external-id, course-learning-type, course-name, course-description, …
+  <span class="d">  0 removed</span>
+
+<span class="w">! row 33  Co-Prerequisite: Alternative Condition repeats row 25's path (ceterms:prerequisite&gt;ceterms:alternativeCondition).</span>
+<span class="w">          Its parent is row 30: stored as ceterms:coPrerequisite&gt;ceterms:alternativeCondition.</span>
+<span class="w">! row 44  ceterms:learningOpportunityType: removed from the sheet's properties, skipped. Delete the row to silence this.</span>
+<span class="w">! rows 26–37  Multiple Values is blank: copied from the Prerequisite group (parent and lists Multiple, Description Single).</span>
+<span class="w">! rows 46–49  Estimated Duration's children say Single, but their input is a list: read as lists.</span>
+<span class="w">! rows 23, 27, 31, 35  names built as "Prerequisite: Description", "Corequisite: Description", … (column D repeats).</span>
+
+Wrote src/golden_datasets/properties.csv  <span class="d">(review the diff, then:)</span>
+
+<span class="p">$</span> golden-datasets properties apply --all
+<span class="d">avc       ruleset v5: + 35 not-started property rules (no values change)</span>
+<span class="d">ccsf      ruleset v4: + 35 not-started property rules (no values change)</span>
+<span class="d">marshall  ruleset v4: + 35 …   ualr v3: + 35 …   uark v2: + 35 …   wvu v3: + 35 …</span>
+<span class="ok">6 catalogs: one ruleset version each, "added 35 property rules from the Phase 1 sheet"</span>
+</div>
+</section>
+
+<!-- ============================ M8: Evals, every property listed ============================ -->
+<section class="shot" id="m8" style="width:1100px">
+  <div class="top"><span class="brand"><i></i>Golden Dataset Studio</span><span class="faint">/</span><span class="cat">AVC</span>
+    <span class="tabs"><a>Rules</a><a>Records</a><a>Compare</a><a>Datasets</a><a class="on">Evals</a></span><span class="who">Jared</span></div>
+  <div style="padding:18px 26px 90px">
+    <div style="display:flex;gap:10px;align-items:baseline"><b style="font-size:22px">65%</b><b>exact matches</b><span class="muted">49 of 75 human-reviewed values · 7 of 43 properties scored</span></div>
+    <table style="border-collapse:collapse;margin-top:12px;width:100%">
+      <tr class="muted" style="font-size:11.5px"><td style="padding:4px 0;width:300px">Property</td><td>xtra vs golden dataset</td><td style="width:70px;text-align:right">Exact</td><td style="width:110px;text-align:right">Values</td></tr>
+      <tr><td colspan="4"><div class="gh req" style="text-align:left;margin-top:8px">Required</div></td></tr>
+      <tr style="border-top:1px solid var(--line)"><td class="mono" style="padding:6px 0">codedNotation</td><td><div style="display:flex;height:12px;border-radius:3px;overflow:hidden;background:var(--line)"><i style="flex:31;background:#0ca30c"></i><i style="flex:0;background:#fab219"></i><i style="flex:0;background:#d03b3b"></i></div></td><td style="text-align:right">100%</td><td class="muted" style="text-align:right">31</td></tr>
+      <tr style="border-top:1px solid var(--line)"><td class="mono" style="padding:6px 0">identifier</td><td><div style="display:flex;height:12px;border-radius:3px;overflow:hidden;background:var(--line)"><i style="flex:0;background:#0ca30c"></i><i style="flex:14;background:#fab219"></i><i style="flex:0;background:#d03b3b"></i></div></td><td style="text-align:right">0%</td><td class="muted" style="text-align:right">14</td></tr>
+      <tr style="border-top:1px solid var(--line)"><td class="mono" style="padding:6px 0">Learning Type</td><td class="muted" colspan="3">Studio only: no CTDL property, not written to the files</td></tr>
+      <tr style="border-top:1px solid var(--line)"><td class="mono" style="padding:6px 0">name</td><td><div style="display:flex;height:12px;border-radius:3px;overflow:hidden;background:var(--line)"><i style="flex:13;background:#0ca30c"></i><i style="flex:0;background:#fab219"></i><i style="flex:1;background:#d03b3b"></i></div></td><td style="text-align:right">93%</td><td class="muted" style="text-align:right">14</td></tr>
+      <tr style="border-top:1px solid var(--line)"><td class="mono" style="padding:6px 0">description</td><td><div style="display:flex;height:12px;border-radius:3px;overflow:hidden;background:var(--line)"><i style="flex:4;background:#0ca30c"></i><i style="flex:9;background:#fab219"></i><i style="flex:4;background:#d03b3b"></i></div></td><td style="text-align:right">24%</td><td class="muted" style="text-align:right">17</td></tr>
+      <tr style="border-top:1px solid var(--line)"><td class="mono" style="padding:6px 0">subjectWebpage</td><td><div style="display:flex;height:12px;border-radius:3px;overflow:hidden;background:var(--line)"><i style="flex:14;background:#0ca30c"></i><i style="flex:0;background:#fab219"></i><i style="flex:0;background:#d03b3b"></i></div></td><td style="text-align:right">100%</td><td class="muted" style="text-align:right">14</td></tr>
+      <tr style="border-top:1px solid var(--line)"><td class="mono" style="padding:6px 0">lifeCycleStatusType</td><td><div style="display:flex;height:12px;border-radius:3px;overflow:hidden;background:var(--line)"><i style="flex:14;background:#0ca30c"></i><i style="flex:0;background:#fab219"></i><i style="flex:0;background:#d03b3b"></i></div></td><td style="text-align:right">100%</td><td class="muted" style="text-align:right">14</td></tr>
+      <tr style="border-top:1px solid var(--line)"><td class="mono" style="padding:6px 0">inLanguage</td><td><div style="display:flex;height:12px;border-radius:3px;overflow:hidden;background:var(--line)"><i style="flex:14;background:#0ca30c"></i><i style="flex:0;background:#fab219"></i><i style="flex:0;background:#d03b3b"></i></div></td><td style="text-align:right">100%</td><td class="muted" style="text-align:right">14</td></tr>
+      <tr><td colspan="4"><div class="gh" style="text-align:left;margin-top:12px">Other properties</div></td></tr>
+      <tr style="border-top:1px solid var(--line)"><td class="mono" style="padding:6px 0">creditValue</td><td class="muted" colspan="3">not scored: xtra doesn't extract it · in review, 1,062 values</td></tr>
+      <tr style="border-top:1px solid var(--line)"><td class="mono" style="padding:6px 0">creditValue → minValue</td><td class="muted" colspan="3">not scored: xtra doesn't extract it · in review</td></tr>
+      <tr style="border-top:1px solid var(--line)"><td class="mono" style="padding:6px 0">creditValue → maxValue</td><td class="muted" colspan="3">not scored: xtra doesn't extract it · in review</td></tr>
+      <tr style="border-top:1px solid var(--line)"><td class="mono" style="padding:6px 0">prerequisite → description</td><td class="muted" colspan="3">not scored · in review</td></tr>
+      <tr style="border-top:1px solid var(--line)"><td class="mono" style="padding:6px 0">prerequisite</td><td class="muted" colspan="3">no values · no rule created yet</td></tr>
+      <tr style="border-top:1px solid var(--line)"><td class="mono" style="padding:6px 0">isNonCredit</td><td class="muted" colspan="3">no values · no rule created yet</td></tr>
+      <tr style="border-top:1px solid var(--line)"><td class="mono" style="padding:6px 0">deliveryType</td><td class="muted" colspan="3">no values · no rule created yet</td></tr>
+      <tr style="border-top:1px solid var(--line)"><td class="mono" style="padding:6px 0">inCatalog</td><td class="muted" colspan="3">no values · no rule created yet</td></tr>
+      <tr style="border-top:1px solid var(--line)"><td class="mono" style="padding:6px 0">… 27 more</td><td class="muted" colspan="3">no values · no rule created yet</td></tr>
+    </table>
+  </div>
+  <div class="dev" style="left:26px;top:740px;width:1040px">Every property has a row. A column xtra doesn't extract says "not scored: xtra doesn't extract it" and stays out of the 65%. A column with no values says so: no rule was created for it yet.</div>
+</section>
+
+
+
+</body>
+</html>
