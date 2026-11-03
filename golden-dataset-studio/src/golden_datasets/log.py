@@ -44,8 +44,10 @@ def validate(event: dict) -> None:
         raise ValueError("only comments target the ruleset")
     if event.get("topic") is not None and (event["type"] != "comment" or event["topic"] not in TOPICS):
         raise ValueError(f"topic is for comments, one of {sorted(TOPICS)}")
-    if event["type"] == "verdict" and event["verdict"] == "missing" and target["kind"] not in ("occurrence", "page"):
-        raise ValueError("'missing' applies only to record locators (occurrence) and page rules (page)")
+    if event["type"] == "verdict" and event["verdict"] == "missing" and target["kind"] not in ("occurrence", "page") \
+            and not (target["kind"] == "match" and target.get("item")):
+        raise ValueError("'missing' applies only to record locators (occurrence), page rules (page) and a list's "
+                         "items (match, item)")
     if event.get("author_role") is not None and event["author_role"] not in AUTHOR_ROLES:
         raise ValueError(f"author_role must be one of {sorted(AUTHOR_ROLES)}")
     if event.get("compared_with") is not None and not isinstance(event["compared_with"], dict):

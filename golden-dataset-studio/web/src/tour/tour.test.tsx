@@ -17,16 +17,16 @@ const catalog = { catalog: "avc-x", short: "avc", name: "AVC", institution: "AVC
   pane_css: "", root: "" } as CatalogDetail;
 
 const rule = (o: Partial<RuleSummary>): RuleSummary => ({
-  rule_id: "course-description", kind: "field", version: 2, title: "Description", subtitle: "ceterms:description",
+  rule_id: "course-description", kind: "property", version: 2, title: "Description", subtitle: "ceterms:description",
   ctdl_property: "ceterms:description", property_label: "Description", locator: "locator-course-page", status: "in review",
   reviewed: 14, total: 1062, open_wrong: 0, open_missing: 0, questions: 0, approved_by: null, approved_at: null, comments: 0, ...o,
 });
 const rules: RulesResponse = { extraction: "rs-0002", ruleset_version: 2, groups: [
-  { kind: "page", label: "Page rules", approved: 0, rules: [rule({ rule_id: "course-page", kind: "page", title: "Course pages", status: "needs work", open_wrong: 2 })] },
-  { kind: "locator", label: "Record locators", approved: 0, rules: [
+  { id: "page", kind: "page", label: "Page rules", collapsed: false, approved: 0, rules: [rule({ rule_id: "course-page", kind: "page", title: "Course pages", status: "needs work", open_wrong: 2 })] },
+  { id: "locator", kind: "locator", label: "Record locators", collapsed: false, approved: 0, rules: [
     rule({ rule_id: "locator-course-page", kind: "locator", title: "One course per course page" }),
     rule({ rule_id: "locator-program-requirement", kind: "locator", title: "One course per requirement line" })] },
-  { kind: "field", label: "Field rules", approved: 0, rules: [rule({}), rule({ rule_id: "stub-name", title: "Name", ctdl_property: "ceterms:name" })] },
+  { id: "other", kind: "property", label: "Other properties", collapsed: false, approved: 0, rules: [rule({}), rule({ rule_id: "stub-name", title: "Name", property_label: "Name", ctdl_property: "ceterms:name" })] },
 ] };
 
 function memStore(): KeyStore & { data: Map<string, string> } {
@@ -51,13 +51,13 @@ describe("opens once per browser", () => {
 });
 
 describe("where the tour works", () => {
-  it("keeps the reader's field rule and row", () => {
+  it("keeps the reader's property rule and row", () => {
     const c = makeCtx(catalog, "#/c/avc/rules/stub-name?row=CFE101", rules);
     expect(c.base).toBe("#/c/avc/rules/stub-name?row=CFE101");
     expect(c.ruleId).toBe("stub-name");
-    expect(c.headText["stub-name"]).toBe("ceterms:name");
+    expect(c.headText["stub-name"]).toBe("Name");  // the rule head's title: the property's name
   });
-  it("uses the default rule from another tab or a non-field rule", () => {
+  it("uses the default rule from another tab or a non-property rule", () => {
     for (const o of ["#/c/avc/compare", "#/c/avc/rules/course-page", "#/"]) {
       const c = makeCtx(catalog, o, rules);
       expect(c.base).toBe("#/c/avc/rules/course-description");
@@ -79,11 +79,11 @@ describe("the Approve step", () => {
     const c = makeCtx(catalog, "#/", rules);
     expect(c.blocked).toBe("#/c/avc/rules/course-page");
     expect(c.blockedId).toBe("course-page");
-    const blockedGroups = rules.groups.map((g) => g.kind !== "field" ? g
+    const blockedGroups = rules.groups.map((g) => g.kind !== "property" ? g
       : { ...g, rules: g.rules.map((r) => r.rule_id === "stub-name" ? { ...r, open_wrong: 1, status: "needs work" as const } : r) });
     const own = makeCtx(catalog, "#/c/avc/rules/stub-name", { ...rules, groups: blockedGroups });
     expect(own.blocked).toBe(own.base);
-    const none = makeCtx(catalog, "#/", { ...rules, groups: rules.groups.filter((g) => g.kind === "field") });
+    const none = makeCtx(catalog, "#/", { ...rules, groups: rules.groups.filter((g) => g.kind === "property") });
     expect(none.blocked).toBe(none.base);
   });
 });
@@ -124,7 +124,7 @@ const ctx0 = { catalog: "avc", base: "#/c/avc/rules/x" } as TourCtx;
 
 describe("TourSession", () => {
   it("goes where each step needs, undoes the step it leaves, and goes back on close", () => {
-    const nav = fakeNav("#/c/avc/golden");
+    const nav = fakeNav("#/c/avc/datasets");
     const w = manualWait();
     const s = new TourSession(nav, w.wait);
     const did: string[] = [];
@@ -143,8 +143,8 @@ describe("TourSession", () => {
     expect(did).toEqual(["a+", "a-", "b+", "b-", "a+"]);
     s.close();
     expect(did[did.length - 1]).toBe("a-");
-    expect(nav.get()).toBe("#/c/avc/golden");
-    expect(nav.log).toEqual(["#/c/avc/rules/x", "#/c/avc/compare", "#/c/avc/rules/x", "#/c/avc/golden"]);
+    expect(nav.get()).toBe("#/c/avc/datasets");
+    expect(nav.log).toEqual(["#/c/avc/rules/x", "#/c/avc/compare", "#/c/avc/rules/x", "#/c/avc/datasets"]);
   });
   it("doesn't act for a step left before the screen was ready", () => {
     const nav = fakeNav("#/c/avc/rules/x");
@@ -266,7 +266,7 @@ describe("Tour", () => {
   const key = (k: string) => act(() => { window.dispatchEvent(new KeyboardEvent("keydown", { key: k, bubbles: true })); });
 
   it("opens by itself the first time, starts on the Rules tab, moves with the keys, and goes back on Esc", async () => {
-    history.replaceState(null, "", "#/c/avc/golden");
+    history.replaceState(null, "", "#/c/avc/datasets");
     document.body.insertAdjacentHTML("beforeend", `<div data-tour="rule-list"></div>`);
     act(() => root.render(<Harness />));
     await flush();
@@ -284,7 +284,7 @@ describe("Tour", () => {
     expect(seen).not.toHaveBeenCalled();
     key("Escape");
     expect(document.querySelector(".tour")).toBeNull();
-    expect(location.hash).toBe("#/c/avc/golden");
+    expect(location.hash).toBe("#/c/avc/datasets");
   });
 
   it("doesn't open by itself the second time; the button opens it", async () => {

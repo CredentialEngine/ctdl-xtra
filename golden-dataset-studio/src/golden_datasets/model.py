@@ -19,11 +19,14 @@ import re
 
 import pyarrow as pa
 
-KINDS = ("page", "locator", "field")
-KIND_ORDER = {"page": 0, "locator": 1, "field": 2}
+KINDS = ("page", "locator", "property")
+KIND_ORDER = {"page": 0, "locator": 1, "property": 2}
+#: Rule versions stored before the rename say "field"; they're immutable, so readers rename them (spec P13).
+OLD_KINDS = {"field": "property"}
 
-# The eight in-scope properties (spec §4.4), in display order.
-PROPERTIES = [
+#: The eight properties the Studio started with (spec §4.4). Frozen: re-importing v2 must not bring in its other rules,
+#: and publications from before the property list name only these (property-rules spec §3).
+FIRST_EIGHT = [
     ("Coded Notation", "ceterms:codedNotation"),
     ("External Identifier", "ceterms:identifier"),
     ("Learning Opportunity Name", "ceterms:name"),
@@ -33,9 +36,28 @@ PROPERTIES = [
     ("Life Cycle Status Type", "ceterms:lifeCycleStatusType"),
     ("Language", "ceterms:inLanguage"),
 ]
+
+
+def _ordered_properties() -> list[dict]:
+    """properties.csv's rows in their fixed order (property-rules spec §4.8): required ones first in REQUIRED_ORDER,
+    then sheet order. (The Rules tab also sorts by human-reviewed counts, which change; this order doesn't.)"""
+    from . import properties
+
+    rows = properties.active()
+    req = {p: i for i, p in enumerate(properties.REQUIRED_ORDER)}
+    return sorted(rows, key=lambda r: (0, req.get(r["path"], 99), r["sheet_row"]) if r["required"]
+                  else (1, 0, r["sheet_row"]))
+
+
+#: Every property (label, path or None), in display order: a view of properties.csv.
+PROPERTY_ROWS = _ordered_properties()
+PROPERTIES = [(r["label"], r["path"] or None) for r in PROPERTY_ROWS]
 PROPERTY_ORDER = {label: i for i, (label, _) in enumerate(PROPERTIES)}
 CTDL_TERM = dict(PROPERTIES)
+FIRST_EIGHT_ORDER = {label: i for i, (label, _) in enumerate(FIRST_EIGHT)}
 DERIVED_RULE_TYPES = ("constant", "source_url")  # nothing is read from the page
+#: A property rule's types (property-rules spec §4.3): `none` is a property with no rule yet (§4.6).
+RULE_TYPES = ("css", "css+regex", "regex", "labelled", "constant", "source_url", "none")
 
 PAGES = pa.schema([
     ("crawl", pa.string()), ("page_stem", pa.string()), ("url", pa.string()), ("requested_url", pa.string()),
@@ -103,6 +125,13 @@ TABLE_SORT = {
 }
 
 
+def current_kind(doc: dict) -> dict:
+    """A rule (or a ruleset's rule entry) with its stored kind read in today's words."""
+    if doc.get("kind") in OLD_KINDS:
+        doc = {**doc, "kind": OLD_KINDS[doc["kind"]]}
+    return doc
+
+
 def canon(obj) -> str:
     return json.dumps(obj, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
 
@@ -138,8 +167,9 @@ def dependencies(rule: dict) -> list[str]:
     d = rule["definition"]
     if rule["kind"] == "locator":
         return list(d.get("page_rules") or [])
-    if rule["kind"] == "field":
-        return [d["locator"]]
+    if rule["kind"] == "property":
+        parent = (d.get("input") or {}).get("rule")
+        return [d["locator"], *([parent] if parent else [])]
     return []
 
 
@@ -159,20 +189,23 @@ def sort_rows(table: str, rows: list[dict]) -> list[dict]:
 
 
 def code_rule_for(locator_id: str, rules: dict[str, dict], settings: dict) -> str | None:
-    """The field rule whose value gives occurrences of this locator their course_key."""
+    """The property rule whose value gives occurrences of this locator their course_key."""
     explicit = (settings.get("course_key_rule") or {}).get(locator_id)
     if explicit:
         return explicit
     for rid, r in sorted(rules.items()):
-        if r["kind"] == "field" and r["definition"].get("locator") == locator_id \
+        if r["kind"] == "property" and r["definition"].get("locator") == locator_id \
                 and r.get("ctdl_property") == "ceterms:codedNotation":
             return rid
     return None
 
 
 def full_css_path(occ_path: str, rel: str | None) -> str | None:
+    """A match's document-root path. A value read outside its occurrence (input: page) keeps its own root path."""
     if rel is None:
         return None
+    if rel == "html" or rel.startswith("html >"):
+        return rel
     return f"{occ_path} > {rel}" if rel else occ_path
 
 

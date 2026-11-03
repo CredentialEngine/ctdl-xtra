@@ -149,7 +149,7 @@ def test_api_strata_on_rows_and_compare_records(ctx):
     assert auto["total"] == 1062 and auto["sample"]["cross"] and len(auto["rows"][0]["tags"]) == len(auto["sample"]["cross"])
     assert c.get(url, params={"offset": 5, "limit": 5}).json()["sample"] is None  # only the first page has it
     assert c.get(url, params={"order": "nope"}).status_code == 422
-    # a comment on one field puts the course first in another field's list, tagged with where it was reviewed
+    # a comment on one property puts the course first in another property's list, tagged with where it was reviewed
     some = c.get("/api/catalogs/avc/rules/course-name/rows", params={"limit": 400}).json()["rows"]
     target = next(r for r in reversed(some) if r["state"] is None and not r["comments"])
     desc = next(r for r in c.get(url, params={"q": target["course_key"]}).json()["rows"]

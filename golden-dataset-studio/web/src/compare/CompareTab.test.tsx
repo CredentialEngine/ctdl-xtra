@@ -25,11 +25,11 @@ const brief = (ck: string, a: string, b: string) => ({
 const RESPONSE: CompareResponseX = {
   a: 1, b: 2, a_extraction: "rs-0001", b_extraction: "rs-0002",
   versions: [{ version: 1, extraction: "rs-0001", note: null }, { version: 2, extraction: "rs-0002", note: null }],
-  changed_rules: [{ rule_id: "course-description", title: "Description", subtitle: "ceterms:description", kind: "field",
+  changed_rules: [{ rule_id: "course-description", title: "Description", subtitle: "ceterms:description", kind: "property",
                     ctdl_property: "ceterms:description", a_version: 1, b_version: 2, records_changed: 278 }],
   records_changed: 278, totals: { fixed: 5, still_wrong: 0, newly_wrong: 0, unchanged: 9 }, elapsed_ms: 2,
   rules: [{
-    rule_id: "course-description", kind: "field", ctdl_property: "ceterms:description", property_label: "Description",
+    rule_id: "course-description", kind: "property", ctdl_property: "ceterms:description", property_label: "Description",
     title: "Description", subtitle: "ceterms:description", a_version: 1, b_version: 2, why: "Prerequisite lines were included.",
     annotated: { rows: 2, fixed: 1, still_wrong: 0, newly_wrong: 0, unchanged: 1 },
     annotated_rows: [

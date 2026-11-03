@@ -3,7 +3,7 @@
 // switch (?by=…&v=…, Evals spec §6.7) filter the rows of every rule, and the rule list counts the rows that pass.
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { api, ApiError } from "../api/client";
-import type { AnnotateResponse, ApprovePreview, CatalogDetail, Discussion, EventBrief, NewEvent, Overlay, RuleDetail, RulesResponse,
+import type { AnnotateResponse, ApprovePreview, CatalogDetail, Discussion, EventBrief, NewEvent, Overlay, RowItem, RuleDetail, RulesResponse,
   RuleSummary, SampleInfo, UnclassifiedPage } from "../api/types";
 import { PagePane, prefetchPages, type CapturedSelection, type Highlight } from "../pagepane";
 import { Ico } from "../shell/icons";
@@ -15,12 +15,14 @@ import { fmt, toast, useKeyHints } from "../shell/ui";
 import { AnnotatedBy, ReviewLine, VerdictSwitch, WaitingNote } from "./AnnotatedBy";
 import { apiX, type Annotators, type RowX } from "./api";
 import {
-  addCapture, applyEvent, applyReview, BY_ANYONE, BY_WAITING, briefOf, canConfirm, defaultAnnotator, filterCountTip, isField, isSettled, keyAction, missingEvent, newDraft, norm, pushRecent, paneTabs, rowTarget,
+  addCapture, applyEvent, applyItem, applyMissingItem, applyReview, BY_ANYONE, BY_WAITING, briefOf, canConfirm, defaultAnnotator, filterCountTip,
+  isField, isSettled, itemEvent, keyAction, missingEvent, missingItemEvent, newDraft, norm, pushRecent, paneTabs, rowTarget,
   scrollWithin, shortTitle, verdictEvent, type Draft, type TabRef,
 } from "./logic";
 import { MissedCourse, MissedPage, type MissedState } from "./MissedPanel";
 import { focusStem, NotHere, useFocusPage, type Missing } from "./NotHere";
 import { Controls, Expansion, HistoryLine, Value } from "./parts";
+import { ListItems, type ItemAdd } from "./ListItems";
 import { ApproveDialog } from "./ApproveDialog";
 import { RuleHead } from "./RuleHead";
 import { RuleList, type PostTalk } from "./RuleList";
@@ -34,7 +36,7 @@ const PREFETCH = 4;
 export function defaultRule(rules: RulesResponse | null): string | null {
   if (!rules) return null;
   const all = rules.groups.flatMap((g) => g.rules);
-  return (all.find((r) => r.rule_id === "course-description") ?? all.find((r) => r.kind === "field") ?? all[0])?.rule_id ?? null;
+  return (all.find((r) => r.rule_id === "course-description") ?? all.find((r) => r.kind === "property") ?? all[0])?.rule_id ?? null;
 }
 
 export function replaceSummary(rules: RulesResponse, s: RuleSummary): RulesResponse {
@@ -102,6 +104,7 @@ export default function RulesTab({ catalog, route }: TabProps) {
   const [sel, setSel] = useState(0);
   const [draft, setDraft] = useState<Draft | null>(null);
   const [missed, setMissed] = useState<MissedState | null>(null);
+  const [itemAdd, setItemAdd] = useState<ItemAdd | null>(null);  // a missing item of a list property being selected
   const [recent, setRecent] = useState<TabRef[]>([]);
   const [activeStem, setActiveStem] = useState<string | null>(null);
   const [extraTab, setExtraTab] = useState<TabRef | null>(null);
@@ -166,7 +169,7 @@ export default function RulesTab({ catalog, route }: TabProps) {
   useEffect(() => {
     if (!ruleId || !byReady) return;
     const tok = ++token.current;
-    setDraft(null); setMissed(null); setExtraTab(null); setActiveStem(null);
+    setDraft(null); setMissed(null); setItemAdd(null); setExtraTab(null); setActiveStem(null);
     Promise.all([api.rule(cat, ruleId, ext), apiX.rows(cat, ruleId, { limit: FIRST_PAGE, focus, ext, by, verdict, ...sq })]).then(([d, r]) => {
       if (tok !== token.current) return;
       const lost = !!focus && r.focus_index == null;  // the linked row isn't here: say so, show its page, select nothing
@@ -184,6 +187,7 @@ export default function RulesTab({ catalog, route }: TabProps) {
 
   const kind = detail?.kind ?? null;
   const row = detail && detail.rule_id === ruleId ? rows[sel] ?? null : null;
+  const listRule = !!detail?.list;  // a list property: its rows have items, each with its own verdict (§4.4)
 
   const loadMore = useCallback(() => {
     if (!ruleId || loadingMore.current || rows.length >= total) return;
@@ -202,7 +206,7 @@ export default function RulesTab({ catalog, route }: TabProps) {
     setMoves((m) => m + 1);
     const prev = rows[sel];
     if (prev) setRecent((r) => pushRecent(r, { stem: prev.page_stem, url: prev.url, title: prev.page_title ?? prev.page_stem }));
-    setSel(j); setDraft(null); setMissed(null); setExtraTab(null); setActiveStem(null);
+    setSel(j); setDraft(null); setMissed(null); setItemAdd(null); setExtraTab(null); setActiveStem(null);
     if (j >= rows.length - 5) loadMore();
   }, [rows, sel, loadMore]);
 
@@ -226,7 +230,7 @@ export default function RulesTab({ catalog, route }: TabProps) {
   const active = activeStem ?? row?.page_stem ?? curTab?.stem ?? null;
 
   useEffect(() => {
-    if (!detail || detail.kind === "field" || !active) return;
+    if (!detail || detail.kind === "property" || !active) return;
     const key = `${detail.rule_id}|${active}|${ext ?? ""}`;
     const hit = overlays.current.get(key);
     if (hit) { setOverlay({ key, data: hit }); return; }
@@ -234,18 +238,21 @@ export default function RulesTab({ catalog, route }: TabProps) {
   }, [cat, detail, active, ext]);
   const ov = detail && active && overlay?.key === `${detail.rule_id}|${active}|${ext ?? ""}` ? overlay.data : null;
 
-  const captures = draft?.captures.length ? draft.captures : missed?.capture ? [missed.capture] : [];
-  // A field rule's row: selecting text on its page says "this is the right value" (it opens the ✗ draft with it), with
+  const captures = draft?.captures.length ? draft.captures : missed?.capture ? [missed.capture] : itemAdd?.capture ? [itemAdd.capture] : [];
+  // A property rule's row: selecting text on its page says "this is the right value" (it opens the ✗ draft with it), with
   // or without pressing ✗ first. Only on the row's own page: the expected text is located on that page.
   const onRowPage = !!row && active === row.page_stem;
-  const selectAnswer = kind === "field" ? onRowPage && !missed && draft?.mode !== "comment" : draft?.mode === "wrong";
+  // a list's row answers only while a missing item is being selected (its items have their own ✓ and ✕)
+  const selectAnswer = listRule ? onRowPage && !!itemAdd
+    : kind === "property" ? onRowPage && !missed && draft?.mode !== "comment" : draft?.mode === "wrong";
   const onAnswer = useCallback((c: CapturedSelection) => {
-    if (kind === "field" && !draft && row && norm(c.text) === norm(row.value)) return;  // the value found: nothing to fix
+    if (listRule && itemAdd) { setItemAdd({ capture: c }); return; }
+    if (kind === "property" && !draft && row && norm(c.text) === norm(row.value)) return;  // the value found: nothing to fix
     setMissed(null);
     // several drags add pieces of one answer; one over an existing piece replaces it
     setDraft((d) => (d && d.mode === "wrong" ? { ...d, captures: addCapture(d.captures, c) }
       : row ? { ...newDraft("wrong", row.verdict, row.state), captures: [c] } : d));
-  }, [kind, draft, row]);
+  }, [kind, draft, row, listRule, itemAdd]);
   const removePiece = useCallback((id: string) => {
     const i = Number(id.replace(/^capture-/, ""));
     setDraft((d) => (d ? { ...d, captures: d.captures.filter((_, j) => j !== i) } : d));
@@ -254,10 +261,17 @@ export default function RulesTab({ catalog, route }: TabProps) {
     const hs: Highlight[] = [];
     let fid: string | null = null;
     if (row && detail) {
-      if (detail.kind === "field") {
+      if (detail.kind === "property") {
         if (active === row.page_stem && row.css_path) {
           hs.push({ id: "value", kind: "value", cssPath: row.css_path, charStart: row.char_start, charEnd: row.char_end, text: row.value, badge: 1 });
           fid = "value";
+        }
+        // a list's items, each where it is on the page; the items the rule missed, where they were selected
+        if (listRule && active === row.page_stem) {
+          for (const it of row.items ?? []) if (it.css_path) hs.push({ id: `item-${it.value_index}`, kind: "value", cssPath: it.css_path,
+            charStart: it.char_start, charEnd: it.char_end, text: it.value });
+          (row.missing_items ?? []).forEach((m, i) => { const e = m.expected;
+            if (e?.css_path) hs.push({ id: `missing-item-${i}`, kind: "expected", cssPath: e.css_path, charStart: e.char_start, charEnd: e.char_end, text: e.text }); });
         }
         const exp = row.verdict?.expected;
         if (exp?.css_path && active === row.page_stem && (row.state === "wrong" || row.state === "still-wrong") && !draft) {
@@ -280,7 +294,7 @@ export default function RulesTab({ catalog, route }: TabProps) {
       if (captures.length) fid = "capture-0";
     }
     return { highlights: hs, focusId: fid };
-  }, [row, detail, active, ov, captures, draft, missing]);
+  }, [row, detail, active, ov, captures, draft, missing, listRule]);
 
   // --- saving ---------------------------------------------------------------------------------------------------
   const send = useCallback(async (ev: NewEvent): Promise<AnnotateResponse | null> => {
@@ -339,6 +353,29 @@ export default function RulesTab({ catalog, route }: TabProps) {
     setDraft(newDraft(v, r.verdict, r.state));
   }, [sel, rows, selectRow, saveRow]);
 
+  // a list's item: ✓ or ✕ on its line (the row stays where it is); an item already ✓ isn't saved again
+  const saveItem = useCallback(async (i: number, it: RowItem, verdict: "correct" | "wrong") => {
+    const r = rows[i];
+    if (!r || !detail) return;
+    if (verdict === "correct" && it.state === "correct") { toast(`Already correct · ${r.course_key ?? ""}`); return; }
+    const brief = await post(itemEvent(me, detail.rule_id, r, it.value_index, verdict, it.verdict?.annotation_id ?? null));
+    if (!brief) return;
+    setRows((rs) => rs.map((x, j) => (j === i ? applyItem(x, it.value_index, brief, role) : x)));
+    setSaved((n) => n + 1);
+    toast(`${verdict === "correct" ? "Correct" : "Wrong"} · ${r.course_key ?? shortTitle(r.page_title, 40)}`);
+  }, [rows, detail, me, role, post]);
+
+  const startAddItem = useCallback(() => { setDraft(null); setMissed(null); setItemAdd({ capture: null }); }, []);
+  const saveAddItem = useCallback(async () => {
+    const r = rows[sel];
+    if (!itemAdd?.capture || !detail || !r) return;
+    const brief = await post(missingItemEvent(me, detail.rule_id, r.occurrence_key, itemAdd.capture));
+    if (!brief) return;
+    setRows((rs) => rs.map((x, j) => (j === sel ? applyMissingItem(x, brief) : x)));
+    setItemAdd(null);
+    toast(`Missing item saved · ${r.course_key ?? ""}`);
+  }, [itemAdd, detail, rows, sel, me, post]);
+
   const startMissed = useCallback(() => {
     setDraft(null);
     setMissed({ capture: null, note: "", stem: null, query: "" });
@@ -348,7 +385,7 @@ export default function RulesTab({ catalog, route }: TabProps) {
   // Approving a column's rule publishes it and scores it (Evals spec §6.6): ask first, then follow the score.
   const approve = useCallback(async (type: "approve" | "reopen", confirmed = false) => {
     if (!detail) return;
-    if (type === "approve" && !confirmed && detail.kind === "field") {
+    if (type === "approve" && !confirmed && detail.kind === "property") {
       const p = await api.approvePreview(cat, detail.rule_id).catch(() => null);
       if (p?.publishes) { setAsking(p); return; }
     }
@@ -360,9 +397,9 @@ export default function RulesTab({ catalog, route }: TabProps) {
     if (type === "reopen") toast(`Reopened: ${detail.title}`);
     else if (pub?.error) toast(`Approved: ${detail.title}, but not published: ${pub.error}`);
     else if (pub?.written) {
-      toast(`Approved and published ${pub.column} in ${golden(pub.publication)}${r.score ? " · scoring xtra's latest extract output…" : ""}`, 3000);
+      toast(`Approved and published ${pub.column} to the silver dataset ${golden(pub.publication)}${r.score ? " · scoring xtra's latest extract output…" : ""}`, 3000);
       if (r.score) followScore(cat, r.score.id, golden(pub.publication));
-    } else if (pub && !pub.written) toast(`Approved: ${detail.title}. It has no CTDL term, so it isn't written to the golden dataset files.`, 4000);
+    } else if (pub && !pub.written) toast(`Approved: ${detail.title}. It has no CTDL term, so it isn't written to the silver dataset files.`, 4000);
     else toast(`Approved: ${detail.title}`);
   }, [cat, detail, me, send]);
 
@@ -373,17 +410,19 @@ export default function RulesTab({ catalog, route }: TabProps) {
     if (!a || !row) return;
     if (a === "save") {
       if (missed) { e.preventDefault(); void saveMissed(); }
+      else if (itemAdd?.capture) { e.preventDefault(); void saveAddItem(); }
       else if (draft) { e.preventDefault(); void saveRow(sel, { draft }); }
       return;
     }
     if (a === "cancel") {
       if (isField(e.target)) (e.target as HTMLElement).blur();
-      setDraft(null); setMissed(null); setExtraTab(null);
+      setDraft(null); setMissed(null); setExtraTab(null); setItemAdd(null);
       return;
     }
     e.preventDefault();
     if (a === "next") selectRow(sel + 1);
     else if (a === "prev") selectRow(sel - 1);
+    else if (listRule) { if (a === "select") startAddItem(); else if (a === "comment") pick(sel, "comment"); }  // H: a missing item
     else if (a === "correct") pick(sel, "correct");
     else if (a === "wrong" || a === "select") pick(sel, "wrong");
     else if (a === "comment") pick(sel, "comment");
@@ -409,9 +448,13 @@ export default function RulesTab({ catalog, route }: TabProps) {
   let legend: ReactNode = null;
   let banner: ReactNode = null;
   if (detail && row) {
-    const what = kind === "field" ? <><b>{detail.property_label ?? detail.title}</b> · {row.course_key ?? ""}</>
+    const what = kind === "property" ? <><b>{detail.property_label ?? detail.title}</b> · {row.course_key ?? ""}</>
       : kind === "locator" ? <><b>Course</b> · {row.course_key ?? ""}</> : <b>{detail.title}</b>;
-    if (draft?.mode === "wrong" && kind === "field" && !onRowPage) {
+    if (itemAdd && listRule) {
+      legend = itemAdd.capture
+        ? <><Ico name="highlight" /><span><b>Your missing item is outlined.</b> Save it under the row, or Esc to cancel.</span></>
+        : <><Ico name="highlight" /><span><b>Select the missing item</b> on the page for {what}: drag across it.</span></>;
+    } else if (draft?.mode === "wrong" && kind === "property" && !onRowPage) {
       legend = <><Ico name="highlight" /><span className="ctx-text"><b>Select the right text</b> for {what} on tab 1, the page this value is from.</span></>;
     } else if (draft?.mode === "wrong") {
       const n = draft.captures.length;
@@ -427,8 +470,13 @@ export default function RulesTab({ catalog, route }: TabProps) {
       banner = <><span className="gds-num">1</span><span className="grow">{what} — the courses found on this page are outlined.</span>
         {addBtn("Add a page this rule missed")}</>;
     } else if (active === row.page_stem) {
-      banner = <><span className="gds-num">1</span><span className="grow">{what} — {row.css_path ? "the value found is highlighted." : "this rule found nothing on this page."}
-        {" "}<span className="answer-hint" data-testid="answer-hint">{row.css_path ? "Wrong? Drag across the right text to mark it." : "If the page shows it, drag across it to mark it."}</span></span></>;
+      const found = listRule ? (row.items?.length ? "each item found is highlighted." : "this rule found nothing on this page.")
+        : row.status === "none" ? "no rule yet." : row.css_path ? "the value found is highlighted." : "this rule found nothing on this page.";
+      const hint = listRule ? "Wrong item? Use its ✕. Missing one? Add it below."
+        : row.status === "none" ? "Select the value the page shows to mark it."
+        : row.css_path ? "Wrong? Drag across the right text to mark it." : "If the page shows it, drag across it to mark it.";
+      banner = <><span className="gds-num">1</span><span className="grow">{what} — {found}
+        {" "}<span className="answer-hint" data-testid="answer-hint">{hint}</span></span></>;
     } else {
       banner = <span className="grow">{what} — another page this course is on. The value is highlighted on tab 1.</span>;
     }
@@ -461,7 +509,7 @@ export default function RulesTab({ catalog, route }: TabProps) {
           const el = e.currentTarget;
           if (el.scrollTop + el.clientHeight > el.scrollHeight - 600) loadMore();
         }}>
-          {missing.length > 0 && kind !== "field" && (
+          {missing.length > 0 && kind !== "property" && (
             <div className="missing-list">
               <div className="ml-h"><Ico name="missing" />{missing.length} marked missing: {kind === "locator" ? "courses" : "pages"} this rule didn't find</div>
               {missing.map((m) => (
@@ -474,7 +522,14 @@ export default function RulesTab({ catalog, route }: TabProps) {
           )}
           {detail && rows.map((r, i) => {
             const on = i === sel;
-            const val = r.status === "found" ? r.value ?? "" : r.status === "no_match" ? "nothing found" : "empty";
+            // "Open in Records →" on the selected row (the same for every kind of row)
+            const links = (x: RowX, selected: boolean) => selected && x.course_key && (
+              <div className="row-links">
+                <a className="xbtn" title="Open this course in the Records tab, with this property selected"
+                  href={href(cat, "records", x.course_key, { prop: kind === "property" ? detail.property_label : null, occ: x.occurrence_key })}
+                  onClick={(e) => e.stopPropagation()}>Open in Records →</a>
+              </div>);
+            const val = r.status === "found" ? r.value ?? "" : r.status === "no_match" ? "nothing found" : r.status === "none" ? "no rule yet" : "empty";
             const settled = isSettled(r.state);
             const cls = `row${on ? " on" : ""}${r.verdict && r.state !== "fixed" ? ` v-${r.verdict.verdict}` : ""}${settled && !(on && draft) ? " done" : ""}${kind === "page" ? " page-row" : ""}`;
             return (
@@ -483,29 +538,27 @@ export default function RulesTab({ catalog, route }: TabProps) {
                 <div className="body">
                   {kind === "page"
                     ? <><div className="val">{r.page_title ?? r.page_stem}</div><div className="pg">{r.url.replace(/^https?:\/\//, "")}</div></>
+                    : listRule && r.items ? <><ListItems row={r} on={on} add={on ? itemAdd : null} onVerdict={(it, v) => void saveItem(i, it, v)}
+                        onStartAdd={startAddItem} onSaveAdd={() => void saveAddItem()} onCancelAdd={() => setItemAdd(null)} />
+                        <div className="pg">{r.context}</div>{links(r, on)}</>
                     : <><div className={`valbox${on ? " on" : ""}${r.status === "found" ? "" : " empty"}`}>
-                        {on && <span className="valbox-k">{kind === "field" ? detail.property_label : "Found"}</span>}
+                        {on && <span className="valbox-k">{kind === "property" ? detail.property_label : "Found"}</span>}
                         {on
-                          // the selected row: the whole value, its paragraphs kept (as the Records tab shows a field)
+                          // the selected row: the whole value, its paragraphs kept (as the Records tab shows a property)
                           ? <div className={`val full${r.status === "found" ? "" : " empty"}`} data-testid="row-full-value">{val}</div>
                           : <div className={`val${r.status === "found" ? "" : " empty"}`}><Value text={val} /></div>}
                         </div>
                         <div className="pg">{r.context}</div>
-                        {on && r.course_key && (
-                          <div className="row-links">
-                            <a className="xbtn" title="Open this course in the Records tab, with this field selected"
-                              href={href(cat, "records", r.course_key,
-                                { prop: kind === "field" ? detail.property_label : null, occ: r.occurrence_key })}
-                              onClick={(e) => e.stopPropagation()}>Open in Records →</a>
-                          </div>)}</>}
+                        {links(r, on)}</>}
                   <ReviewLine r={r} />
                   <StrataTags tags={r.tags} />
                   <HistoryLine state={r.state} verdict={r.verdict} reattached={r.reattached} comments={r.comments} page_questions={r.page_questions} />
-                  {on && draft && <Expansion draft={draft} fieldRule={kind === "field"} emptyValue={r.status !== "found"}
+                  {on && draft && <Expansion draft={draft} propertyRule={kind === "property"} emptyValue={r.status !== "found"}
                     onChange={setDraft} onSave={() => void saveRow(i, { draft })} onCancel={() => setDraft(null)} />}
                 </div>
                 <Controls state={r.state} verdict={r.verdict} comments={r.comments} draft={on ? draft : null}
-                  onPick={(v) => pick(i, v)} tour={on} confirm={canConfirm(r, role)} marked={r.human_reviewed || r.engineer_checked} />
+                  onPick={(v) => pick(i, v)} tour={on} confirm={canConfirm(r, role)} marked={r.human_reviewed || r.engineer_checked}
+                  commentOnly={listRule} />
               </div>
             );
           })}

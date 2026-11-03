@@ -27,7 +27,7 @@ POC's design ([`poc.md`](poc.md)). **Mockups (§6) come first: review them befor
 | 17 | Version names | **The golden dataset's ID is its ruleset's ID** ("ruleset v3"), because a golden dataset is defined by its ruleset. No separate version numbers. |
 | 18 | xtra-cli in the Studio | **A dependency of the Studio**, from the same repo (`../xtra-cli`). |
 | 19 | Nicolas's branch | **Merged into this branch now** (2026-10-28, `6513231`), since it will become the latest xtra-cli. |
-| 20 | Home table columns | **The seven Course columns, plus the columns the extract output has that the Studio doesn't cover yet** (credits, prerequisites), shown as "—". |
+| 20 | Home table columns | **The seven Course columns, plus the columns the extract output has that the Studio doesn't cover yet** (credits, prerequisites), shown as "—". *Superseded: every property gets a column with today's fraction, and only the columns an extract output emits are scored ([property-rules spec](../property-rules/03-spec.md) §4.9, §4.10).* |
 | 21 | Icons | **The Rules tab's icons** (approved, needs work, in review), reused as they are. |
 | 22 | Versioned folders | **Catalog outside, versions inside**, under `catalogs/` (§4.1). |
 | 23 | Home table rows | **No expanding rows, no chevron.** **Open →** (or **✦ Generate rules** for a catalog without rules) comes first, in its own column (Eric, 2026-10-28), then the logo, then the name, wrapped to a narrow column. No ruleset or version line under the name. Column headers are angled so the row stays compact. |
@@ -38,7 +38,7 @@ POC's design ([`poc.md`](poc.md)). **Mockups (§6) come first: review them befor
 | 28 | ⓘ in Evals | **A modal** with where everything comes from, plus the equivalent command. |
 | 29 | Publish | **Publishing includes scoring.** The Publish tab keeps showing where every file lands (behind an ⓘ is fine). |
 | 31 | Generate rules | **The AI sparkle icon** instead of an arrow. |
-| 32 | Columns not in the Studio | **Shown by the grey "—"**, not italics. The legend says "not in this Studio yet". |
+| 32 | Columns not in the Studio | **Shown by the grey "—"**, not italics. The legend says "not in this Studio yet". *Superseded: no greyed columns; every property is a column, "—" where a catalog has no rule ([property-rules spec](../property-rules/03-spec.md) §4.9).* |
 | 33 | Outcome definitions | **A tooltip on any bar or legend colour** gives, in a small table, each outcome, its count and its rule, plus one line on how similarity is computed. The catalogs table says **Exact matches** instead of "match rate". |
 | 34 | History | **The Evals tab shows xtra's extract outputs over time** as vertical stacked bars (match at the bottom, then partial, wrong, missing). Clicking a bar picks that extract output; it stays highlighted. An output that hasn't been scored shows a dashed bar with **Score**. That's the only Score button. |
 | 35 | Keeping extract outputs | **The Studio keeps a copy of each extract output it sees** (§3.1), so a past output can still be scored against a newer golden dataset. |
@@ -151,6 +151,11 @@ POC's design ([`poc.md`](poc.md)). **Mockups (§6) come first: review them befor
   `../xtra-cli`; resolution checked on 2026-10-28). The scorer is whatever xtra-cli the branch holds, Nicolas's work
   included, and every score records that commit.
 ### 4.1 Golden dataset versions
+
+**Superseded in its words** ([property-rules spec](../property-rules/03-spec.md) §4.16): the golden dataset is only
+the human-reviewed values; what approving a rule publishes is the **silver dataset** (also called rule-matched). New
+versions store their trees as `golden/` and `silver/`; versions written before keep `human-reviewed/` and
+`rule-matched/`.
 
 - **Every publication writes the full golden dataset, and every version is kept.** Today a publication merges its
   columns into the files in `xtra-golden-sets`, so v2 is gone from disk once v3 is published. That changes:

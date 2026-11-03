@@ -17,7 +17,7 @@ from collections import Counter
 
 from fastapi import APIRouter, HTTPException, Query, Request
 
-from .. import golden, model, scores
+from .. import golden, model, properties, scores
 from ..review import LOADER
 from ..storage import open_root
 from .state import not_found, studio
@@ -113,7 +113,25 @@ def golden_versions(request: Request, catalog: str) -> dict:
                                 for t in golden.TREES},
                       "latest": golden.latest_prefix(ctx) if latest else None, "studio": f"{vs[n]['path']}/"}})
     return {"catalog": ctx.catalog, "crawl": ctx.crawl, "versions": out, "latest_output": latest_out,
-            "running": request.app.state.scores.busy(ctx.catalog)}
+            "running": request.app.state.scores.busy(ctx.catalog), "golden": _golden_now(st, ctx)}
+
+
+def _golden_now(st, ctx) -> dict:
+    """The golden dataset as it is now (property-rules spec §4.16): only values an expert reviewed, by property,
+    published or not. Kept until the annotation log moves."""
+    rv = LOADER.review(ctx)
+    key = ("golden-now", ctx.catalog, rv.snap.ext, LOADER.log(ctx).offset)
+    if key not in st.cache:
+        rows = []
+        for r in golden.property_rules(rv):
+            rid = r["rule_id"]
+            states = rv.row_states(rid, rv.snap.rows(rid))
+            n = sum(1 for x in states.values() if x.human) + sum(1 for x in states.values()
+                                                                  for i in x.items.values() if i.human)
+            rows.append({"property": r["property"], "rule_id": rid,
+                         "path_shown": properties.shown(r["ctdl_property"]) or None, "human": n})
+        st.cache[key] = {"by_property": rows, "human": sum(x["human"] for x in rows)}
+    return st.cache[key]
 
 
 @router.get("/catalogs/{catalog}/golden/approve/{rule_id}")
@@ -132,6 +150,8 @@ def approve_preview(request: Request, catalog: str, rule_id: str) -> dict:
             "golden": what["golden"], "ruleset_version": what["ruleset_version"], "creates": what["creates"],
             "now": golden.columns_of(what["now"]), "after": golden.columns_of(what["after"]),
             "where": f"{golden.default_target(ctx).rstrip('/')}/catalogs/{ctx.catalog}/versions/{what['golden']}/"}
+    path = rv.snap.rules[rule_id].get("ctdl_property")
+    base |= {"path_shown": properties.shown(path) or None, "xtra_extracts": _xtra_extracts(st, ctx, path)}
     if not what["writes"]:
         return base
     key = ("approve-values", ctx.catalog, rv.snap.ext, LOADER.log(ctx).offset, what["property"])
@@ -141,6 +161,25 @@ def approve_preview(request: Request, catalog: str, rule_id: str) -> dict:
         st.cache[key] = {"values": len(mine), "human": sum(f["approval"] == "human" for f in mine)}
     v = st.cache[key]
     return base | v | {"rule": v["values"] - v["human"]}
+
+
+def _xtra_extracts(st, ctx, path: str | None) -> bool | None:
+    """Whether xtra's latest extract output emits this property under the same path (None: no output seen yet), so
+    the approve dialog can say when xtra doesn't extract it yet (property-rules spec §4.10)."""
+    if not path:
+        return None
+    outs = scores.outputs(ctx)
+    if not outs:
+        return None
+    key = ("emitted", ctx.catalog, ctx.crawl, outs[-1]["id"])
+    if key not in st.cache:
+        try:
+            _, store = scores.resolve_output(ctx, outs[-1]["id"], log=lambda *a: None)
+            st.cache[key] = scores.emitted(store)
+        except Exception:  # noqa: BLE001 - an unreadable output: the dialog just doesn't say
+            st.cache[key] = None
+    got = st.cache[key]
+    return None if got is None else path in got
 
 
 # --- samples of what a version wrote ---------------------------------------------------------------------------

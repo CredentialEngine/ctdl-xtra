@@ -47,7 +47,7 @@ def test_same_labels_and_values_as_v2(catalog):
     # Spread the sample over the crawl, and make sure it includes pages where rules fire.
     sample = metas[:: max(1, len(metas) // SAMPLE)]
     need = {"labels": True, "matched": None, "locators": sorted(r for r in rules if rules[r]["kind"] == "locator"),
-            "fields": sorted(r for r in rules if rules[r]["kind"] == "field"), "page_facts": False}
+            "properties": sorted(r for r in rules if rules[r]["kind"] == "property"), "page_facts": False}
     compared = values = 0
     for meta_path in sample:
         meta = json.loads(meta_path.read_text())

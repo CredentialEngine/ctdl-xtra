@@ -1,4 +1,4 @@
-// Fields routes_compare.py / scorecard.py return beyond web/src/api/types.ts. Optional, so the tab also works
+// Keys routes_compare.py / scorecard.py return beyond web/src/api/types.ts. Optional, so the tab also works
 // against the shared types alone. (To fold into api/types.ts: see the W5 report.)
 import type { AnnotatedRow, CompareResponse, RuleCard, SignalDelta } from "../api/types";
 

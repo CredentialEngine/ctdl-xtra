@@ -22,6 +22,7 @@ from . import model
 from .catalogs import info
 from .cli import DEFAULT_AZURE_ROOT, ENV_FILE
 from .context import Ctx
+from .errors import UserError
 from .loop import current_review, ordered_rule_ids, rule_annotations, rule_or_error, short
 from .review import Review, norm
 
@@ -38,14 +39,17 @@ FORMAT = {
                "optional `scope` (CSS), `repeat` (CSS: each match is one course occurrence; null = the content root "
                "is one course), optional `repeat_filter` {`selector`, `regex`} (keep a match only when that text "
                "matches).",
-    "field": "- Field rule format: `definition` has `locator`, `rule_type` (css / css+regex / regex / constant / "
-             "source_url), `selector` (CSS, evaluated inside one course occurrence), optional `regex` + `group`, "
-             "`transforms` (strip, collapse_ws, upper, lower, remove_spaces, rstrip:<chars>), optional `map`. Order: "
-             "the element's raw text (a `<br>` reads as a newline; HTML indentation is still there) → `regex` (Python, "
-             "MULTILINE) → `group` → `transforms` → `map`.",
+    "property": "- Property rule format: `definition` has `locator`, `rule_type` (css / css+regex / regex / labelled / "
+                "constant / source_url / none), optional `input` (what it reads: `{\"from\": \"record\"}` by "
+                "default, `page`, `url`, or `{\"from\": \"rule\", \"rule\": <rule id>}` for another rule's "
+                "output), `selector` (CSS, inside one course occurrence), optional `attribute`, `join`, `regex` + "
+                "`group`, `multiple` (a list: `{\"split\": \"elements\" | \"separator\" | \"regex\", …, "
+                "\"keep\": <regex>}`), `transforms` (strip, collapse_ws, upper, lower, remove_spaces, "
+                "rstrip:<chars>), optional `map`. Order: the element's text (a `<br>` reads as a newline, script and "
+                "style text is left out) → `regex` (Python, MULTILINE) → `group` → the split → `keep` → `transforms` "
+                "→ `map`.",
 }
-KIND_NAME = {"page": "page rule", "locator": "record locator", "field": "field rule"}
-IN_SCOPE = ", ".join(label for label, _ in model.PROPERTIES)
+KIND_NAME = {"page": "page rule", "locator": "record locator", "property": "property rule"}
 REPO = "https://github.com/CredentialEngine/ctdl-xtra.git"
 SUBDIR = "golden-dataset-studio"
 TARGETS = ("local", "azure", "k2")
@@ -133,7 +137,7 @@ def _annotation_row(rule: dict, a: dict, n: int, refs: set) -> list:
     if a["page_stem"]:
         refs.add(a["page_stem"])
     page = f"`{a['page_stem']}`" if a["page_stem"] else "—"
-    if rule["kind"] == "field":
+    if rule["kind"] == "property":
         seen = f"v{a['rule_version_seen']}: \"{short(a['value_seen'], 200)}\""
         if a["rule_version_seen"] != rule["version"] and a["has_row"]:
             seen += " → now unchanged" if norm(a["value_seen"]) == norm(a["current_value"]) \
@@ -304,7 +308,7 @@ def build_prompt(ctx: Ctx, rule: str | None = None, needs_work: bool = False, rv
         ["A saved page", "`golden-datasets pages get <page_stem>` prints its local path and live URL"],
     ])
     L.append("")
-    for kind in ("page", "locator", "field"):
+    for kind in ("page", "locator", "property"):
         if any(snap.rules[t]["kind"] == kind for t in targets):
             L.append(FORMAT[kind])
     L.append("")
@@ -316,8 +320,8 @@ def build_prompt(ctx: Ctx, rule: str | None = None, needs_work: bool = False, rv
     if targets:
         L.append(f"- Change only the rule(s) in this prompt: {', '.join(f'`{t}`' for t in targets)}. Leave every "
                  "other rule as it is.")
-    L.append(f"- Only the in-scope Course properties count: {IN_SCOPE}. Requisites, credit units and other "
-             "properties are out of scope: don't add rules for them.")
+    L.append("- Only the properties of `properties.csv` count (`golden-datasets properties list`): don't add rules "
+             "for anything else.")
     L.append("- Rules stay declarative (the formats above). If the format can't express the fix, stop and say so.")
     L.append("- Publish only when nothing marked correct changes: `rule try` must say BETTER (fixed > 0, newly wrong "
              "= 0). Never use `--force`.")
@@ -374,7 +378,7 @@ def build_prompt(ctx: Ctx, rule: str | None = None, needs_work: bool = False, rv
         if not open_:
             L.append("None: every wrong / missing verdict on this rule is fixed.")
         else:
-            head = ["#", "Verdict", "Course", "Page", "Extracted", "Expected", "Notes"] if r["kind"] == "field" \
+            head = ["#", "Verdict", "Course", "Page", "Extracted", "Expected", "Notes"] if r["kind"] == "property" \
                 else ["#", "Verdict", "Course / page", "Page", "Problem", "Notes"]
             L += table(head, [_annotation_row(r, a, i, refs) for i, a in enumerate(open_, 1)])
             L.append("")
@@ -385,7 +389,7 @@ def build_prompt(ctx: Ctx, rule: str | None = None, needs_work: bool = False, rv
             L.append("")
             L.append(f"### Marked correct: must not change ({len(correct)})")
             L.append("")
-            if r["kind"] == "field":
+            if r["kind"] == "property":
                 L += table(["Course", "Current value"],
                            [[_who(a), f"\"{short(a['current_value'], 120)}\""] for a in correct])
             else:
@@ -425,7 +429,7 @@ def build_prompt(ctx: Ctx, rule: str | None = None, needs_work: bool = False, rv
                  "limits above, act on what fits the rule(s) in this prompt, and answer the rest in your report.")
         L.append("")
         L.append("A suggested rule may be a domain expert's heuristic rather than something read off the page, e.g. "
-                 "\"every course in this catalog is in English\": that is a field rule with `rule_type` `constant` "
+                 "\"every course in this catalog is in English\": that is a property rule with `rule_type` `constant` "
                  "(or `source_url` for the page's address), applied to every course the locator finds. Use the expert's "
                  "heuristic when the pages can't contradict it; say so in `why`.")
         L.append("")
@@ -507,10 +511,95 @@ def has_raw_html(text: str) -> bool:
 # =====================================================================================================
 FIRST_INTRO = ("This catalog was just added to **CTDL Golden Dataset Studio** from a crawl and has no rules yet. Write its "
                "**first ruleset**: a page rule that recognises its course pages, a record locator that finds each course "
-               "on them, and a field rule for each in-scope Course property, then publish it as ruleset v1. A domain "
-               "expert reviews every value in the Studio afterwards, so aim for rules that are right on nearly every "
-               "course, and say where you're unsure. Work only through the `golden-datasets` CLI; never edit files in "
-               "the storage root yourself.")
+               "on them, and **a property rule for every property in the table below**, then publish it as ruleset v1. "
+               "A domain expert reviews every value in the Studio afterwards, so aim for rules that are right on nearly "
+               "every course, and say where you're unsure. Work only through the `golden-datasets` CLI; never edit "
+               "files in the storage root yourself.")
+MORE_INTRO = ("This catalog already has rules in **CTDL Golden Dataset Studio**. Write a rule for **every property in the "
+              "table below that has no rule here yet** (`rule_type: none`), and publish them as a new ruleset version. "
+              "Leave the rules that already work as they are. A domain expert reviews every value afterwards, so aim "
+              "for rules that are right on nearly every course, and say where you're unsure. Work only through the "
+              "`golden-datasets` CLI; never edit files in the storage root yourself.")
+#: One line per rule type and input, each with a real example from the saved pages (property-rules spec §4.3, §4.4).
+RULE_TYPES = [
+    ["`css`", "an element's text", "AVC `p.header-x-meta` → `3.0 Units`"],
+    ["`css+regex`", "part of an element's text", "WVU title `CCMD 741. Behavioral Science … 2 Hours.` → `2 Hours.`"],
+    ["`regex`", "part of the input's text (the record, or another rule's output)", "Credit Value `1-4 Credit hours`, "
+     "`-\\s*(\\d+)` → `4`"],
+    ["`labelled`", "the text after a label, up to `until` (default `br`): text no selector reaches",
+     "UALR `<strong>Prerequisites:</strong> HIST 21103 , HIST 21203 , and six hours…<br>`"],
+    ["`constant`", "a fixed value", "Learning Type `Course`; Language `English` when every course is in English"],
+    ["`source_url`", "the page URL", "Subject Webpage"],
+    ["`none`", "no rule yet: the property isn't on this catalog's pages", "`hasPart` on most catalogs"],
+    ["`input: page`", "the whole saved page (headings outside the record); one value per page",
+     "Marshall `h1` `Statistics (STA)` for Subjects"],
+    ["`input: url`", "the page URL as text, with a regex", "UARK `course=bookkeeping-quickBooks` for identifier"],
+    ["`input: rule`", "another property rule's output on the same course (`\"use\": \"element\"` for its element)",
+     "Credit Unit Max Value reads Credit Value's `1-4 Credit hours`"],
+    ["`multiple.split: elements`", "every matched element, one value each", "CCSF `.course-lab-lec-label > span`: "
+     "`Lecture - 87.5`, `Lab - 35`"],
+    ["`multiple.split: separator`", "one text split on `,` `;` or a line break", "Marshall `No Textbook Required, "
+     "Onsite Learning Experience`"],
+    ["`multiple.split: regex`", "every match of a regex in one text", "AVC `Total Course In-Class (Contact) Hours "
+     "180.0 Total Course Out-of-Class Hours 90.0`: two durations"],
+    ["`multiple.keep`", "only the items that match a regex", "UARK modality links: Delivery Type keeps `Online`, "
+     "Learning Method Type keeps `Self-Paced`"],
+    ["`attribute`", "an attribute instead of the text", "UARK `data-bs-content` popovers, any `href`"],
+    ["`join`", "every matched element, in page order, as one value", "UARK description + its `Prior Learning` section"],
+]
+REQUISITE_WORDS = [
+    "- `PR` means prerequisite. `Consent` is a prerequisite's text (WVU MUSC 720S: the prerequisite is `Consent`; the "
+    "courses named in the course description aren't requisites).",
+    "- `CONC`, \"concurrent\" and `Co-req` mean corequisite.",
+    "- **A condition's text goes into its `→ description`.** The parent (`ceterms:prerequisite`, …) and its targets "
+    "and alternative conditions get no rule for now (`none`): they're parsed out of the description later.",
+    "- **\"PR or CONC\", `Prerequisite or Corequisite:`, \"Completion of or concurrent enrollment in\" and \"(may be "
+    "taken concurrently)\" go whole into Prerequisite: Description for now**; Co-Prerequisite: Description has no "
+    "rule yet. Say so in the rule's `why`.",
+    "- **A corequisite inside the prerequisite sentence is left out of it** and goes to Corequisite: Description "
+    "(WVU `PR: Corequisite of AGBI 514L` → Corequisite: Description `Corequisite of AGBI 514L`).",
+    "- \"Advisory\", \"Recommended Prep\" and \"Recommended\" go to Recommends: Description.",
+    "- Contact hours are Estimated Duration, a list: one value per kind of hours (in-class, out-of-class, lecture, "
+    "lab), its children reading it (`input: rule`) so the n-th values belong together. Lecture / lab hours are also "
+    "a Learning Method Type each.",
+    "- Extract the page's words, as close as possible: no vocabulary mapping (`Units`, not `AcademicUnit`) and no "
+    "numbers from words (`Three`, not 3). That's transformation, later.",
+]
+
+
+def _how_read(rule: dict) -> str:
+    """How a rule reads its property, in a few words (Generate rules' property table)."""
+    d = rule["definition"]
+    inp = (d.get("input") or {}).get("from", "record")
+    bits = [d.get("rule_type", "?")]
+    if inp != "record":
+        bits.append(f"input {inp}" + (f" {d['input'].get('rule')}" if inp == "rule" else ""))
+    if d.get("multiple"):
+        bits.append(f"split {d['multiple'].get('split')}")
+    for k in ("attribute", "join", "label"):
+        if d.get(k):
+            bits.append(k)
+    return ", ".join(bits)
+
+
+def property_table(ctx: Ctx, rules_by_catalog: dict[str, dict[str, dict]]) -> list[list]:
+    """Every property of properties.csv: its name, path, parent, list, required, the sheet's definition and sample,
+    and how each catalog with a rule reads it."""
+    rows = []
+    for r in model.PROPERTY_ROWS:
+        how = []
+        for sn, rules in sorted(rules_by_catalog.items()):
+            rule = rules.get(r["rule_id"])
+            if rule is not None and rule["definition"].get("rule_type") != "none":
+                how.append(f"{sn}: {_how_read(rule)}")
+        definition = re.sub(r"\s+", " ", r["definition_text"])[:140]
+        rows.append([r["label"], f"`{r['path'].replace('>', ' → ')}`" if r["path"] else "—",
+                     r["parent"].split(":", 1)[-1] if r["parent"] else "", "list" if r["multiple"] else "single",
+                     "course key" if r["course_key"] else "required" if r["required"] else "", definition,
+                     re.sub(r"\s+", " ", r["sample"])[:40], "; ".join(how) or "none yet"])
+    return rows
+
+
 # A catalog platform's name in its pages' markup or URLs → a Studio catalog already on it, whose rules make the best
 # template.
 PLATFORM_HINTS = [(r"elumen", "eLumen", "avc"), (r"curr?[iq]+[cq]?unet", "CurricUNET", "ccsf"),
@@ -565,7 +654,12 @@ def build_first_rules_prompt(ctx: Ctx, target: str = "azure", azure_root: str | 
     root_uri = ctx.root.uri if target == "local" or ctx.root.uri.startswith("azure://") \
         else (azure_root or DEFAULT_AZURE_ROOT)
     draft = "drafts/first-rules.json"
-    L = [f"# Write the first rules — {name} catalog", "", FIRST_INTRO, ""]
+    mine: dict[str, dict] = {}
+    if ctx.ruleset_versions():  # an existing catalog: its rules so far, and the properties still without a rule
+        mine = ctx.ruleset_rules(ctx.latest_ruleset())[1]
+        draft = "drafts/more-rules.json"
+    L = [f"# {'Write the rules still missing' if mine else 'Write the first rules'} — {name} catalog", "",
+         MORE_INTRO if mine else FIRST_INTRO, ""]
     L += _run_header(run, ctx) if target == "k2" else []
     L += _setup(ctx, target, root_uri, "", check='golden-datasets sql "SELECT count(*) AS pages FROM pages"', run=run)
     L += ["## Context", ""]
@@ -573,7 +667,7 @@ def build_first_rules_prompt(ctx: Ctx, target: str = "azure", azure_root: str | 
         ["Catalog", f"`{ctx.catalog}` ({name})"],
         ["Catalog URL", seed or "—"],
         ["Crawl", f"`{ctx.crawl}`, {len(pages):,} saved pages (scripts already ran at crawl time)"],
-        ["Ruleset", "none yet: you publish v1"],
+        ["Ruleset", f"v{ctx.latest_ruleset()}: this catalog's rules so far" if mine else "none yet: you publish v1"],
         ["Storage root", f"`{root_uri}`"],
         ["A saved page", "`golden-datasets pages get <page_stem>` prints its local path and live URL"],
     ])
@@ -594,42 +688,69 @@ def build_first_rules_prompt(ctx: Ctx, target: str = "azure", azure_root: str | 
         L.append(f"No template's platform shows in the URLs: look at a few pages, then start from the closest "
                  f"(`{tmpl}` if unsure).")
     L.append("")
-    L += [FORMAT["page"], FORMAT["locator"], FORMAT["field"],
+    L += [FORMAT["page"], FORMAT["locator"], FORMAT["property"],
           "- Settings (the draft's `settings`): `content_root` (CSS: the part of every page that holds the content; "
-          "rules evaluate inside it), `page_title`, `course_key_rule` (record locator → the field rule whose value "
+          "rules evaluate inside it), `page_title`, `course_key_rule` (record locator → the property rule whose value "
           "identifies a course, its Coded Notation), `signals.course_code_pattern` (a regex for this catalog's course "
           "codes, e.g. `ACCT 2310`).", ""]
+    rules_by_catalog = {}
+    for sn, folder in sorted(ready.items()):
+        try:
+            other = Ctx(ctx.root, folder)
+            rules_by_catalog[sn] = other.ruleset_rules(other.latest_ruleset())[1]
+        except (UserError, FileNotFoundError):
+            continue
+    if mine:
+        rules_by_catalog.setdefault(info(ctx.catalog)["short"], mine)
+    L += ["## Every property", "",
+          f"One property rule per row ({len(model.PROPERTY_ROWS)} in all), with the rule id of `properties.csv` "
+          "(`golden-datasets properties list`). Paths are stored with `>` and shown here with arrows. *How catalogs "
+          "read it* is each catalog's current rule, a starting point for a page like theirs.", ""]
+    L += table(["Property", "Path", "Parent", "Values", "Required", "The sheet's definition", "Sample",
+                "How catalogs read it"], property_table(ctx, rules_by_catalog))
+    L += ["", "## Every rule type and input", ""]
+    L += table(["Type / input", "Reads", "Real example"], RULE_TYPES)
+    L += ["", "## Requisite words", ""] + REQUISITE_WORDS
+    L += ["", "## When it isn't clear which property a text belongs to", "",
+          "**Put it in the course's description** (with `join` if it's a separate section). Never drop page text: "
+          "transformation, or a later round of extraction, moves it. Better in the description than lost.", ""]
     L += ["## Limits",
           "- You edit a draft file only. Never write to the storage root or the saved pages.",
           "- `golden-datasets` assigns versions and hashes: don't add `version` or `content_hash` to a draft.",
-          f"- Write rules for the in-scope Course properties only: {IN_SCOPE}. Requisites, credit units and other "
-          "properties are out of scope. Keep the template's rule ids (`course-code`, `course-name`, …).",
+          "- One rule per property of the table, with its rule id. A property the pages don't print keeps "
+          "`\"rule_type\": \"none\"`: **never invent a value** a page doesn't print.",
           "- Rules stay declarative (the formats above). If the pages can't be read with them, stop and say so.",
           "- If the crawl has no course pages at all (only program or index pages), don't invent rules: say so; "
-          "the catalog needs a new crawl.", ""]
-    L += ["## How to work", ""]
+          "the catalog needs a new crawl.",
+          "- Notes for the experts: whenever a value is ambiguous (\"PR or CONC\"), say so in the rule's `why`; the "
+          "Rules tab shows it.", ""]
+    L += ["## How to work", "",
+          "Order: page rule → record locator → required properties → parents → children (`input: rule`, the parent) "
+          "→ the rest. Run `rule try` after each group.", ""]
+    start_step = (["2. Start", f"`golden-datasets rule draft --all > {draft}`",
+                   "this catalog's rules so far: the ones with `rule_type: none` are yours to write"] if mine else
+                  ["2. Template", f"`golden-datasets rule draft --catalog {tmpl} --all --for {ctx.catalog} > {draft}`",
+                   f"every rule of `{tmpl}` and its settings, as a draft for this catalog"])
     L += table(["Step", "Command", "What it gives"], [
         ["1. Look", "`golden-datasets sql \"SELECT url, title FROM pages WHERE url LIKE '%cour%' LIMIT 50\"`",
          "the saved pages (`pages` has `page_stem`, `url`, `title`); find the pages that hold courses"],
         ["", "`golden-datasets pages get <page_stem>`",
-         "a saved page's local path: read its HTML for the content root, each course's block and its fields"],
-        ["2. Template", f"`golden-datasets rule draft --catalog {tmpl} --all --for {ctx.catalog} > {draft}`",
-         f"every rule of `{tmpl}` and its settings, as a draft for this catalog"],
-        ["3. Adapt", f"edit `{draft}`",
-         "the page rule's `url_regex` / `requires_selector`, the locator's `repeat`, each field's `selector` / `regex`, "
-         "the settings; drop a field rule this catalog can't fill; rewrite `what` / `how` / `why` and the examples for "
-         "this catalog"],
+         "a saved page's local path: read its HTML for the content root, each course's block and its properties"],
+        start_step,
+        ["3. Write", f"edit `{draft}`",
+         "one rule per property of the table: its `definition`, and `what` / `how` / `why` and the examples for this "
+         "catalog; `none` where the pages don't print it"],
         ["4. Try", f"`golden-datasets rule try {draft}`",
          "runs the draft over the whole crawl (writes nothing): per rule, how many pages / courses / values it finds. "
-         "Iterate until the locator finds about as many courses as the catalog has and each field has a value on "
-         "nearly every course; spot-check values against a few pages"],
-        ["5. Publish", f"`golden-datasets rule publish {draft} --note \"First rules, from {tmpl}'s\"`",
-         "ruleset v1 and its extraction: the catalog opens in the Studio"],
+         "Iterate until the locator finds about as many courses as the catalog has and each property has a value "
+         "wherever the page prints it; spot-check values against a few pages"],
+        ["5. Publish", f"`golden-datasets rule publish {draft} --note \"{'More property rules' if mine else 'First rules, from ' + tmpl + chr(39) + 's'}\"`",
+         "the ruleset and its extraction: the catalog opens in the Studio"],
     ])
     L += ["", "Do not commit or push anything.", ""]
     L += _run_close(run) if target == "k2" else \
-        ["Report back: which template you used and what you changed, the final `rule try` table, and anything you "
-         "couldn't read reliably."]
+        [f"Report back, per property: the rule written, or why none; the final `rule try` table; and coverage "
+         f"(properties with a rule, of {len(model.PROPERTY_ROWS)})."]
     text = "\n".join(L) + "\n"
     return {"text": text, "chars": len(text), "tokens": round(len(text) / 4), "template": tmpl,
             "template_name": info(ready[tmpl])["name"] if tmpl in ready else tmpl,

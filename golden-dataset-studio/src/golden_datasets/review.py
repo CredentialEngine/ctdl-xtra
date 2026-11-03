@@ -5,7 +5,7 @@
 signals (spec §8, computed when read, never stored), rule status (spec §4.3) and the row order of the Rules tab.
 
 Rows, per rule kind (spec §7.2):
-- field rule: one per match (a course the record locator found), key = occurrence_key;
+- property rule: one per match (a course the record locator found), key = occurrence_key;
 - record locator: one per occurrence, key = occurrence_key;
 - page rule: one per page the rule recognised, key = page_stem.
 
@@ -48,6 +48,10 @@ VERDICT_KIND = {"correct": "correct", "fixed": "correct", "wrong": "wrong", "sti
 NOBODY, WAITING, EXPERTS, ENGINEERS = "nobody", "waiting", "experts", "engineers"
 
 
+#: Rule statuses, see Review.rule_status. Cleared when a profile's role changes (Loader.forget_reviews).
+STATUS_CACHE: dict[tuple, dict] = {}
+
+
 def norm(v: str | None) -> str:
     return re.sub(r"\s+", " ", v or "").strip()
 
@@ -80,14 +84,16 @@ class Snapshot:
         self.page = {p["page_stem"]: p for p in pages}
         self.occurrences = {o["occurrence_key"]: o for o in tables["occurrences"]}
         self.matches_by_rule: dict[str, list[dict]] = defaultdict(list)
-        self.matches_by_occ: dict[str, dict[str, dict]] = defaultdict(dict)
-        for m in tables["matches"]:
+        self.matches_by_occ: dict[str, dict[str, dict]] = defaultdict(dict)  # a rule's first value on a course
+        self.items_by_occ: dict[str, dict[str, list[dict]]] = defaultdict(lambda: defaultdict(list))  # all of them
+        for m in sorted(tables["matches"], key=lambda x: (x["rule_id"], x["occurrence_key"], x["value_index"])):
             m = dict(m)
             o = self.occurrences[m["occurrence_key"]]
             m["course_key"] = o["course_key"]
             m["full_css_path"] = model.full_css_path(o["css_path"], m["css_path"])
             self.matches_by_rule[m["rule_id"]].append(m)
-            self.matches_by_occ[m["occurrence_key"]][m["rule_id"]] = m
+            self.matches_by_occ[m["occurrence_key"]].setdefault(m["rule_id"], m)
+            self.items_by_occ[m["occurrence_key"]][m["rule_id"]].append(m)
         self.occ_by_locator: dict[str, list[dict]] = defaultdict(list)
         for o in self.occurrences.values():
             self.occ_by_locator[o["locator_rule_id"]].append(o)
@@ -114,7 +120,7 @@ class Snapshot:
                           for loc, r in self.rules.items() if r["kind"] == "locator"}
         self.name_rule = {}
         for loc in self.code_rule:
-            self.name_rule[loc] = next((rid for rid, r in sorted(self.rules.items()) if r["kind"] == "field"
+            self.name_rule[loc] = next((rid for rid, r in sorted(self.rules.items()) if r["kind"] == "property"
                                         and r["definition"]["locator"] == loc
                                         and r.get("ctdl_property") == "ceterms:name"), None)
 
@@ -134,15 +140,33 @@ class Snapshot:
     def _build_rows(self, rule_id: str) -> list[dict]:
         rule = self.rules[rule_id]
         out = []
-        if rule["kind"] == "field":
+        if rule["kind"] == "property":
+            if rule["definition"].get("rule_type") == "none":  # no rule yet: a row per course, to annotate (§4.6)
+                for o in self.occ_by_locator.get(rule["definition"]["locator"], []):
+                    out.append({"key": o["occurrence_key"], "occurrence_key": o["occurrence_key"],
+                                "course_key": o["course_key"], "page_stem": o["page_stem"], "value": None,
+                                "status": "none", "css_path": None, "char_start": None, "char_end": None,
+                                "occurrence_css_path": o["css_path"],
+                                "context": self.course_line(o["occurrence_key"]), "signals": []})
+                return out
+            is_list = bool(rule["definition"].get("multiple"))
             for m in self.matches_by_rule.get(rule_id, []):
+                if m["value_index"]:
+                    continue  # a list: one row per course, its items below
                 o = self.occurrences[m["occurrence_key"]]
-                out.append({"key": m["occurrence_key"], "occurrence_key": m["occurrence_key"],
-                            "course_key": o["course_key"], "page_stem": m["page_stem"], "value": m["value"],
-                            "status": m["status"], "css_path": m["full_css_path"], "char_start": m["char_start"],
-                            "char_end": m["char_end"], "occurrence_css_path": o["css_path"],
-                            "context": self.course_line(m["occurrence_key"]),
-                            "signals": self.signals_by_target.get((rule_id, m["occurrence_key"]), [])})
+                row = {"key": m["occurrence_key"], "occurrence_key": m["occurrence_key"],
+                       "course_key": o["course_key"], "page_stem": m["page_stem"], "value": m["value"],
+                       "status": m["status"], "css_path": m["full_css_path"], "char_start": m["char_start"],
+                       "char_end": m["char_end"], "occurrence_css_path": o["css_path"],
+                       "context": self.course_line(m["occurrence_key"]),
+                       "signals": self.signals_by_target.get((rule_id, m["occurrence_key"]), [])}
+                if is_list:
+                    found = [x for x in self.items_by_occ[m["occurrence_key"]][rule_id] if x["status"] == "found"]
+                    row["items"] = [{"value_index": x["value_index"], "value": x["value"],
+                                     "css_path": x["full_css_path"], "char_start": x["char_start"],
+                                     "char_end": x["char_end"]} for x in found]
+                    row["value"] = "\n".join(x["value"] for x in found) if found else None
+                out.append(row)
         elif rule["kind"] == "locator":
             for o in self.occ_by_locator.get(rule_id, []):
                 sig = list(self.signals_by_target.get((rule_id, o["occurrence_key"]), []))
@@ -170,11 +194,17 @@ class Snapshot:
 
     def fill(self, rule_id: str) -> dict:
         rule = self.rules[rule_id]
-        if rule["kind"] != "field":
+        if rule["kind"] != "property":
             n = len(self.rows(rule_id))
             return {"rows": n, "found": n}
-        ms = self.matches_by_rule.get(rule_id, [])
+        if rule["definition"].get("rule_type") == "none":
+            return {"rows": len(self.occ_by_locator.get(rule["definition"]["locator"], [])), "found": 0}
+        ms = [m for m in self.matches_by_rule.get(rule_id, []) if not m["value_index"]]
         return {"rows": len(ms), "found": sum(1 for m in ms if m["status"] == "found")}
+
+    def values(self, rule_id: str) -> int:
+        """Values a rule found: a list rule's items each count."""
+        return sum(1 for m in self.matches_by_rule.get(rule_id, []) if m["status"] == "found")
 
 
 @dataclass
@@ -188,11 +218,21 @@ class RowState:
     role: str | None = None           # the verdict's author's role (sme | engineer)
     human: dict | None = None         # the expert's verdict that makes the value human-reviewed
     checked: dict | None = None       # the latest engineer's ✓ on the row (the check an expert confirms)
+    items: dict = field(default_factory=dict)          # a list's item value (normalized) → ItemState
+    missing_items: list = field(default_factory=list)  # items marked missing that the rule still doesn't find
 
     @property
     def engineer_checked(self) -> bool:
         """Confirmed by someone who isn't an expert: waiting for an expert, still approved by its rule."""
         return self.state in HUMAN_STATES and self.human is None and self.role != "sme"
+
+
+@dataclass
+class ItemState:
+    """One item of a list row (property-rules spec §4.4): verdicts attach to (rule, occurrence, value text)."""
+    state: str | None = None     # correct | wrong | fixed (marked wrong, now gone from the list)
+    verdict: dict | None = None
+    human: dict | None = None    # the expert's ✓ that makes the item human-reviewed
 
 
 class Review:
@@ -212,6 +252,10 @@ class Review:
         self._states: dict[str, dict] = {}  # rule_id → row states of snap.rows(rule_id) (events are fixed per Review)
         self._annotations: dict[str, dict] = {}  # rule_id → Review.annotations(...)
         self._facets: dict[str, list[dict]] = {}  # rule_id → facets.dimensions(...), see Review.facet_dims
+        self._by_rule: dict[str, list[str]] = defaultdict(list)  # rule_id → its live events' ids (the status key)
+        for e in self.live:
+            if e["target"].get("rule_id"):
+                self._by_rule[e["target"]["rule_id"]].append(e["annotation_id"])
 
     # -- verdicts on rows ------------------------------------------------------------------------------
     def _target_key(self, e: dict) -> tuple:
@@ -246,6 +290,8 @@ class Review:
             if t.get("rule_id") != rule_id or t["kind"] in ("rule", "ruleset"):  # whole-rule talk: see discussion()
                 continue
             k = self._target_key(e)[1]
+            if t.get("item"):  # a list item's verdict: see item_events
+                continue
             if e["type"] == "verdict":
                 latest[k] = e
                 if self.role(e) == "sme":
@@ -256,6 +302,38 @@ class Review:
                 continue
             every[k].append(e)
         return {"latest": latest, "expert": expert, "comments": comments, "all": every}
+
+    def item_events(self, rule_id: str) -> dict[tuple, list[dict]]:
+        """Verdicts on a list rule's items, oldest first, per (course_key or occurrence, page)."""
+        out: dict[tuple, list[dict]] = defaultdict(list)
+        for e in sorted(self.live, key=lambda x: x["at"]):
+            t = e["target"]
+            if e["type"] == "verdict" and t.get("item") and t.get("rule_id") == rule_id:
+                out[(t.get("course_key") or t.get("occurrence_key"), t.get("page_stem"))].append(e)
+        return out
+
+    def _item_states(self, rule_id: str, row: dict, events: list[dict], st: RowState) -> None:
+        present = {norm(i["value"]) for i in row.get("items") or []}
+        for e in events:
+            if e["verdict"] == "missing":
+                continue
+            v = norm(e["target"].get("value_seen"))
+            item = st.items.setdefault(v, ItemState())
+            item.verdict = e
+            if e["verdict"] == "correct":
+                item.state = "correct" if v in present else None
+                if self.role(e) == "sme" and v in present:
+                    item.human = e
+            elif e["verdict"] == "wrong":
+                item.state = "wrong" if v in present else "fixed"
+        missing: dict[str, dict] = {}
+        for e in events:
+            if e["verdict"] == "missing":
+                missing[norm((e.get("expected") or {}).get("text"))] = e
+            elif e["verdict"] == "correct":
+                missing.pop(norm(e["target"].get("value_seen")), None)
+        st.missing_items = [e for text, e in missing.items() if text and text not in present]
+        st.items = {k: v for k, v in st.items.items() if v.state is not None}
 
     def reviewed_elsewhere(self, rule_id: str, rows: list[dict], states: dict[str, RowState]) -> dict[str, list[str]]:
         """Rows of this rule nobody has reviewed yet (no verdict, no comment) whose record someone reviewed in
@@ -311,6 +389,8 @@ class Review:
                     every_by_course_page[cp].append(e)
                     if e["type"] == "comment":
                         talk_by_course_page[cp].append(e)
+        item_events = self.item_events(rule_id) if rule["kind"] == "property" \
+            and rule["definition"].get("multiple") else {}
         parent_values = {}
         if self.parent is not None and rule_id in self.parent.rules:
             parent_values = {r["key"]: r["value"] for r in self.parent.rows(rule_id)}
@@ -340,6 +420,10 @@ class Review:
                       *st.events]
             st.checked = max((x for x in checks if x and x["type"] == "verdict" and x["verdict"] == "correct"
                               and self.role(x) != "sme"), key=lambda x: x["at"], default=None)
+            if item_events:
+                es = item_events.get((row.get("course_key") or row["occurrence_key"], row["page_stem"]), [])
+                if es:
+                    self._item_states(rule_id, row, es, st)
             if self.parent is not None:
                 if row["key"] not in parent_values and parent_values:
                     st.history.append(_h("new-in-version", f"not in {self.parent.ext}"))
@@ -358,7 +442,7 @@ class Review:
             return "question"
         t = e["target"]
         same_version = t.get("rule_version_seen") == rule["version"]
-        if rule["kind"] != "field":
+        if rule["kind"] != "property":
             return verdict  # page / locator verdicts: their rows exist only where the rule still finds them
         unchanged = norm(t.get("value_seen")) == norm(row["value"])
         if same_version or unchanged:
@@ -390,6 +474,18 @@ class Review:
 
     # -- rule status (spec §4.3) --------------------------------------------------------------------------
     def rule_status(self, rule_id: str, states: dict[str, RowState] | None = None) -> dict:
+        """Cached per (extraction, parent, the rule's own live events) across Reviews: a verdict recomputes only
+        its own rule's status (property-rules spec §4.14)."""
+        key = (self.snap.ctx.root.uri, self.snap.ctx.catalog, self.snap.ext,
+               self.parent.ext if self.parent is not None else None, rule_id, tuple(self._by_rule.get(rule_id, ())))
+        got = STATUS_CACHE.get(key)
+        if got is None:
+            got = STATUS_CACHE[key] = self._rule_status(rule_id, states)
+            if len(STATUS_CACHE) > 20_000:
+                STATUS_CACHE.clear()
+        return dict(got)
+
+    def _rule_status(self, rule_id: str, states: dict[str, RowState] | None = None) -> dict:
         rule = self.snap.rules[rule_id]
         last = None
         for e in sorted(self.live, key=lambda x: x["at"]):
@@ -399,9 +495,11 @@ class Review:
                 last = e
         if states is None:
             states = self.row_states(rule_id, self.snap.rows(rule_id))
-        open_rows = sum(1 for s in states.values() if s.state in OPEN)
+        open_rows = sum(1 for s in states.values() if s.state in OPEN) \
+            + sum(1 for s in states.values() for i in s.items.values() if i.state == "wrong") \
+            + sum(len(s.missing_items) for s in states.values())
         open_missing = len(self.missing_events(rule_id))
-        reviewed = sum(1 for s in states.values() if s.state is not None)
+        reviewed = sum(1 for s in states.values() if s.state is not None or s.items)
         if last is not None and last["type"] == "approve":
             status = "approved"
         elif open_rows or open_missing:
@@ -468,7 +566,7 @@ class Review:
             kind = snap.rules[rule_id]["kind"]
             rows = snap.rows(rule_id)
             states = self.row_states(rule_id, rows)
-            on_page = Counter(o["page_stem"] for o in snap.occurrences.values()) if kind != "field" else None
+            on_page = Counter(o["page_stem"] for o in snap.occurrences.values()) if kind != "property" else None
             ruleset_of = {e["extraction"]: e["ruleset_version"] for e in snap.ctx.extractions()}
             items = [facets.item(r, snap.page[r["page_stem"]]["url"], state=states[r["key"]].state,
                                  **self._annotated(states[r["key"]], ruleset_of),
@@ -515,11 +613,11 @@ class Review:
 
     def people(self) -> dict:
         """The "Annotated by" dropdown: every profile and everyone who annotated a value, with their role and how many
-        field values they annotated, and how many values an engineer checked are waiting for an expert."""
+        property values they annotated, and how many values an engineer checked are waiting for an expert."""
         values: Counter = Counter()
         waiting = experts = engineers = 0
         for rid, r in self.snap.rules.items():
-            if r["kind"] != "field":
+            if r["kind"] != "property":
                 continue
             for a in self.annotations(rid).values():
                 values.update(list(a["people"]))
@@ -611,6 +709,48 @@ class Loader:
     def forget_reviews(self) -> None:
         """Rebuild every Review on next use (a profile's role changed)."""
         self._reviews.clear()
+        STATUS_CACHE.clear()
 
 
 LOADER = Loader()
+
+
+_HUMAN_COUNTS: dict[tuple, Counter] = {}
+
+
+def human_reviewed_counts(root, catalogs: list[str], ctx_of=None) -> Counter:
+    """rule_id → values a subject matter expert gave a verdict on, summed over these catalogs: the Rules tab's sort
+    (property-rules spec §4.8, R9). From the annotation logs only (research B7.4): per (rule, course, page, item), the
+    latest live expert verdict that is correct, or wrong with the right text. Cached while no log grows."""
+    from .context import Ctx
+
+    logs = []
+    for catalog in catalogs:
+        ctx = ctx_of(catalog) if ctx_of else Ctx(root, catalog)  # the server's contexts keep the manifest a while
+        if root.exists(layout.annotations(catalog)):  # the manifest names a log only from the next publish on
+            log = LOADER.log(ctx)
+            log.events()
+            logs.append((catalog, log))
+    key = (root.uri, tuple((c, log.offset) for c, log in logs))
+    if key in _HUMAN_COUNTS:
+        return _HUMAN_COUNTS[key]
+    who = roles(root)
+    latest: dict[tuple, dict] = {}
+    for catalog, log in logs:
+        events = log.events()
+        superseded = {e["supersedes"] for e in events if e.get("supersedes")}
+        for e in sorted(events, key=lambda x: x["at"]):
+            t = e["target"]
+            if e["type"] != "verdict" or e["annotation_id"] in superseded or t.get("kind") != "match" \
+                    or role_of(e, who) != "sme":
+                continue
+            item = norm(t.get("value_seen")) if t.get("item") else None
+            latest[(catalog, t.get("rule_id"), t.get("course_key") or t.get("occurrence_key"), t.get("page_stem"),
+                    item)] = e
+    out: Counter = Counter()
+    for (_, rid, *_), e in latest.items():
+        if e["verdict"] == "correct" or (e["verdict"] == "wrong" and (e.get("expected") or {}).get("text")):
+            out[rid] += 1
+    _HUMAN_COUNTS.clear()
+    _HUMAN_COUNTS[key] = out
+    return out

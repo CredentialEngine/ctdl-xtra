@@ -2,12 +2,12 @@
 row from each group in turn (spec §7.2 "rows without signals are sampled").
 
 How rows are grouped, per rule:
-- a field with few distinct values (Language, Life Cycle Status Type): one group per value, rarest first;
-- a structured field (codes, URLs: few distinct shapes, letters → A and digits → 9, `ABDY 112` → `A 9`): one group
+- a property with few distinct values (Language, Life Cycle Status Type): one group per value, rarest first;
+- a structured property (codes, URLs: few distinct shapes, letters → A and digits → 9, `ABDY 112` → `A 9`): one group
   per shape, rarest first;
 - free text (a description, a name): five word-count percentile buckets, so short, typical and very long values
   all come up;
-- a field's empty values: one group of their own;
+- a property's empty values: one group of their own;
 - a record locator: the page each course was found on when pages hold several courses, else the course subject;
 - a page rule: the URL pattern when there are several, else percentile buckets of the courses found on the page,
   else the subject in the page title.
@@ -24,7 +24,7 @@ from collections import Counter, defaultdict
 from collections.abc import Callable
 from urllib.parse import urlparse
 
-FEW_VALUES = 30             # a field with at most this many distinct values is grouped by value; one with at most
+FEW_VALUES = 30             # a property with at most this many distinct values is grouped by value; one with at most
                             # this many distinct shapes is structured (codes, URLs) and grouped by shape
 BUCKETS = 5
 
@@ -84,7 +84,7 @@ def _by_count(label: dict[str, str]) -> list[str]:
 def groups(kind: str, rows: list[dict], courses_on_page: dict[str, int] | None = None
            ) -> tuple[str, dict[str, str], list[str]]:
     """(what the rows are grouped by, row key → group label, group labels in dealing order)."""
-    if kind == "field":
+    if kind == "property":
         found = [r for r in rows if r["status"] == "found" and (r["value"] or "").strip()]
         distinct = Counter((r["value"] or "").strip() for r in found)
         shapes = {shape(r["value"]) for r in found}

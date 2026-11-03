@@ -21,35 +21,35 @@ TOO_EAGER_REGEX = DESCRIPTION_V2_REGEX.replace("co-?requisites?)", "co-?requisit
 
 
 # ---------------------------------------------------------------------------------------------- fast
-def _field(definition, examples):
-    return {"kind": "field", "definition": {"locator": "loc", "rule_type": "css", "selector": ".x", **definition},
+def _property(definition, examples):
+    return {"kind": "property", "definition": {"locator": "loc", "rule_type": "css", "selector": ".x", **definition},
             "examples": examples}
 
 
 def test_examples_pass_and_fail():
-    ok = _field({"regex": DESCRIPTION_V2_REGEX, "group": 1, "transforms": ["strip"]},
+    ok = _property({"regex": DESCRIPTION_V2_REGEX, "group": 1, "transforms": ["strip"]},
                 [{"input": "Prerequisite: Completion of DFST 201.\n\nAdvanced study of ASL grammar.",
                   "output": "Advanced study of ASL grammar."},
                  {"input": "Advisory: Skills.\nText.", "output": "Advisory: Skills.\nText."}])
     assert loop.check_examples({"course-description": ok}) == []
-    bad = _field({"transforms": ["strip"]}, [{"input": " A ", "output": "B"}, {"output": "no input"}])
+    bad = _property({"transforms": ["strip"]}, [{"input": " A ", "output": "B"}, {"output": "no input"}])
     failures = loop.check_examples({"r": bad})
     assert len(failures) == 2 and 'got "A", expected "B"' in failures[0] and "needs" in failures[1]
 
 
 def test_examples_skip_constants_and_empty_output_matches_no_value():
-    const = {"kind": "field", "definition": {"locator": "l", "rule_type": "constant", "value": "Course"},
+    const = {"kind": "property", "definition": {"locator": "l", "rule_type": "constant", "value": "Course"},
              "examples": [{"input": "x", "output": "y"}]}
-    empty = _field({"regex": r"^(Z+)$"}, [{"input": "abc", "output": ""}])
+    empty = _property({"regex": r"^(Z+)$"}, [{"input": "abc", "output": ""}])
     assert loop.check_examples({"c": const, "e": empty}) == []
 
 
 def test_invalid_regex_and_selector_are_user_errors():
     with pytest.raises(UserError, match="not a valid regex"):
-        loop._validate_definition("r", _field({"regex": "(unclosed"}, []))
+        loop._validate_definition("r", _property({"regex": "(unclosed"}, []))
     with pytest.raises(UserError, match="not a valid CSS selector"):
-        loop._validate_definition("r", _field({"selector": "div[[["}, []))
-    loop._validate_definition("r", _field({"selector": "div.introtext > p"}, []))
+        loop._validate_definition("r", _property({"selector": "div[[["}, []))
+    loop._validate_definition("r", _property({"selector": "div.introtext > p"}, []))
 
 
 def test_read_draft_errors(tmp_path):

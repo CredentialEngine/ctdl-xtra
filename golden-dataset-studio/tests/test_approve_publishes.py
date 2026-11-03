@@ -70,7 +70,7 @@ def test_approving_a_column_publishes_it_then_scores_it(studio, tmp_path, monkey
 def test_a_column_with_no_ctdl_term_is_approved_but_not_written(studio, tmp_path, capsys):  # noqa: F811
     c, ctx, gold = studio
     rules = json.loads(json.dumps(RULES))
-    rules["rules"].append({"rule_id": "course-learning-type", "kind": "field", "property_label": "Learning Type",
+    rules["rules"].append({"rule_id": "course-learning-type", "kind": "property", "property_label": "Learning Type",
                            "ctdl_property": None, "definition": {"locator": "locator-course-page", "rule_type": "constant",
                                                                  "value": "Course"}})
     draft = tmp_path / "v2.json"

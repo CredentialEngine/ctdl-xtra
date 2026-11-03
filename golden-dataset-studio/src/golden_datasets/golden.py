@@ -1,7 +1,7 @@
 """`golden-datasets golden publish`: golden dataset versions and their lineage (spec §4.2 golden_record_id, §5.6,
 §7.6; Evals spec §4.1, §4.3).
 
-A golden dataset's ID is its ruleset's: *ruleset v3*. A column (property) is published once its field rule is
+A golden dataset's ID is its ruleset's: *ruleset v3*. A column (property) is published once its property rule is
 approved; publishing it writes the whole golden dataset of that ruleset again (every column published in it or in an
 earlier version so far, all from this ruleset's immutable extraction), never merged with what was there: columns only
 grow (Evals spec §1 rows 3, 16). The first publication in a ruleset
@@ -56,7 +56,7 @@ from pathlib import Path
 from . import layout, manifest, model
 from .context import Ctx
 from .errors import UserError
-from .review import HUMAN_STATES, LOADER, Review  # noqa: F401  (HUMAN_STATES: the row states a person confirmed)
+from .review import HUMAN_STATES, LOADER, Review, norm  # noqa: F401  (HUMAN_STATES: the row states a person confirmed)
 from .storage import AzureRoot, LocalRoot, open_root
 
 FULL_LOCATOR = "locator-course-page"
@@ -123,13 +123,19 @@ def plan(rv: Review, properties: set[str] | None = None) -> dict:
     human: dict[tuple[str, str], dict] = {}
     by_rule: dict[str, dict] = {}
     for rid, r in snap.rules.items():
-        if r["kind"] != "field":
+        if r["kind"] != "property":
             continue
         rows = snap.rows(rid)
         states = rv.row_states(rid, rows)
         for row in rows:
-            if states[row["key"]].human:
-                human[(rid, row["occurrence_key"])] = states[row["key"]].human
+            st = states[row["key"]]
+            if row.get("items") is not None:  # a list: each item's own expert ✓ (property-rules spec §4.4)
+                for it in row["items"]:
+                    x = st.items.get(norm(it["value"]))
+                    if x is not None and x.human:
+                        human[(rid, row["occurrence_key"], it["value_index"])] = x.human
+            elif st.human:
+                human[(rid, row["occurrence_key"], 0)] = st.human
         if properties is None or r.get("property_label") in properties:
             by_rule[rid] = rv.rule_status(rid, states)
     pages: dict[str, list[dict]] = defaultdict(list)
@@ -144,12 +150,13 @@ def plan(rv: Review, properties: set[str] | None = None) -> dict:
         stem = o["page_stem"]
         url = snap.page[stem]["url"]
         fields, rows = [], []
-        for rid, m in sorted(snap.matches_by_occ[key].items(),
-                             key=lambda kv: (model.PROPERTY_ORDER.get(snap.rules[kv[0]].get("property_label"), 99), kv[0])):
+        items = [(rid, m) for rid, ms in sorted(snap.items_by_occ[key].items(), key=lambda kv: (
+            model.PROPERTY_ORDER.get(snap.rules[kv[0]].get("property_label"), 99), kv[0])) for m in ms]
+        for rid, m in items:
             if m["status"] != "found":
                 continue
             r = snap.rules[rid]
-            v = human.get((rid, key))
+            v = human.get((rid, key, m["value_index"]))
             if properties is not None and r.get("property_label") not in properties and v is None:
                 continue
             loc = ({"css_path": m["full_css_path"], "char_start": m["char_start"], "char_end": m["char_end"]}
@@ -179,12 +186,12 @@ def plan(rv: Review, properties: set[str] | None = None) -> dict:
 
 
 def property_rules(rv: Review) -> list[dict]:
-    """Each property the field rules fill, with its rule and status (for the full courses' locator, i.e. the
+    """Each property the property rules fill, with its rule and status (for the full courses' locator, i.e. the
     course pages)."""
     out = []
     for rid, r in sorted(rv.snap.rules.items(), key=lambda kv: (model.PROPERTY_ORDER.get(kv[1].get("property_label"), 99),
                                                                  kv[0])):
-        if r["kind"] != "field" or r["definition"].get("locator") != FULL_LOCATOR:
+        if r["kind"] != "property" or r["definition"].get("locator") != FULL_LOCATOR:
             continue
         st = rv.rule_status(rid)
         out.append({"property": r["property_label"], "ctdl_property": r.get("ctdl_property"), "rule_id": rid,
@@ -205,7 +212,7 @@ def published_properties(ctx: Ctx, to: str) -> dict[str, dict]:
         except FileNotFoundError:
             continue
     for d in sorted(docs, key=lambda d: d.get("published_at") or ""):
-        props = d.get("properties") or [r["property"] for r in d.get("property_gate", [])] or list(model.PROPERTY_ORDER)
+        props = d.get("properties") or [r["property"] for r in d.get("property_gate", [])] or list(model.FIRST_EIGHT_ORDER)  # before the property list: the eight
         for prop in props:
             gate = next((r for r in d.get("property_gate", []) if r["property"] == prop), {})
             out[prop] = {"publication": d["publication"], "published_at": d.get("published_at"),
@@ -242,9 +249,23 @@ def latest_prefix(ctx: Ctx) -> str:
     return f"{ctx.catalog}/{ctx.crawl}/"
 
 
+#: Where a version's trees are stored (property-rules spec §4.16, X1): the golden dataset is only human-reviewed
+#: values, the silver dataset (also called rule-matched) every value of an approved rule. Versions written before keep
+#: their folders (`rule-matched/`, `human-reviewed/`): stored data isn't rewritten (O7).
+TREE_DIRS = {RULE_MATCHED: "silver", HUMAN_REVIEWED: "golden"}
+NAMED = "golden-silver"  # the manifest entry's `trees` for a version stored in TREE_DIRS
+
+
+def named_trees(ctx: Ctx, ruleset_version: int) -> bool:
+    """Whether this version's trees are stored as golden/ and silver/ (a version not written yet will be)."""
+    g = versions(ctx).get(ruleset_version)
+    return g is None or g.get("trees") == NAMED
+
+
 def version_root(ctx: Ctx, ruleset_version: int, tree: str = RULE_MATCHED) -> str:
     """What `xtra score --baseline-uri` points at (below the golden root) to score one tree of a version."""
-    return f"catalogs/{ctx.catalog}/versions/{version_name(ruleset_version)}/{tree}"
+    folder = TREE_DIRS[tree] if named_trees(ctx, ruleset_version) else tree
+    return f"catalogs/{ctx.catalog}/versions/{version_name(ruleset_version)}/{folder}"
 
 
 def version_prefix(ctx: Ctx, ruleset_version: int, tree: str = RULE_MATCHED) -> str:
@@ -375,7 +396,7 @@ def publication_doc(ctx: Ctx, rv: Review, p: dict, pub: str, to: str, by: str, o
 
 def choose(rv: Review, properties: list[str] | None, allow_unapproved: bool = False) -> list[str]:
     """The properties to publish: those asked for (None: every property whose rule is approved). Each needs its
-    field rule approved, unless `allow_unapproved` (testing)."""
+    property rule approved, unless `allow_unapproved` (testing)."""
     rules = {r["property"]: r for r in property_rules(rv)}
     if properties is None:
         chosen = [p for p, r in rules.items() if r["status"] == "approved" or allow_unapproved]
@@ -481,9 +502,12 @@ def publish(ctx: Ctx, to: str, by: str, allow_unapproved: bool = False, log=prin
         doc.update(note)
     ctx.root.write_json(f"{gdir}/publication.json", doc)
 
+    named = named_trees(ctx, n)
+
     def change(m: dict) -> None:
         k = manifest.crawl_entry(manifest.catalog_entry(m, ctx.catalog), ctx.crawl)
-        manifest.add_unique(k.setdefault("golden", []), {"publication": pub, "path": gdir, "to": target.uri},
+        manifest.add_unique(k.setdefault("golden", []), {"publication": pub, "path": gdir, "to": target.uri,
+                                                         **({"trees": NAMED} if named else {})},
                             key=lambda g: g["publication"])
 
     manifest.update(ctx.root, change)
@@ -526,9 +550,9 @@ def publish_page(ctx: Ctx, stem: str, reason: str, by: str, create: bool = False
 
 
 def column_name(prop: str) -> str | None:
-    """A property's column: its CTDL term without `ceterms:` (None for one with no CTDL term, e.g. Learning Type)."""
+    """A property's column: its CTDL path without prefixes (None for one with no CTDL term, e.g. Learning Type)."""
     term = model.CTDL_TERM.get(prop)
-    return term.split(":", 1)[-1] if term else None
+    return ">".join(t.split(":", 1)[-1] for t in term.split(">")) if term else None
 
 
 def columns_of(props: list[str]) -> list[str]:
@@ -538,7 +562,7 @@ def columns_of(props: list[str]) -> list[str]:
 
 def approval_publishes(rv: Review, rule_id: str) -> dict | None:
     """What approving this rule publishes (Evals spec §4.1, §6.6), or None for a rule that isn't a column's (page
-    rules, record locators, field rules for program-page lines). The column goes into the golden dataset of the
+    rules, record locators, property rules for program-page lines). The column goes into the golden dataset of the
     rule's ruleset: the first approval creates that version with every column approved so far, later ones rewrite it
     with the extra column. A rule with no CTDL term (Learning Type) is approved but not written (`writes` False).
     `now` / `after`: the version's properties before and after (after: with the columns of earlier versions too)."""
@@ -642,7 +666,7 @@ def cmd_golden_publish(args) -> int:
     t0 = time.perf_counter()
     doc = publish(ctx, args.to or default_target(ctx), "golden-datasets golden publish", args.allow_unapproved,
                   properties=args.property)
-    print(f"{doc['publication']} ({', '.join(doc['properties'])}): {doc['pages']:,} pages, {doc['courses']:,} courses, "
+    print(f"silver dataset {doc['publication']} ({', '.join(doc['properties'])}): {doc['pages']:,} pages, {doc['courses']:,} courses, "
           f"{doc['records']:,} records, {doc['lineage_rows']:,} lineage rows → {doc['to']}/{doc['version_prefix']}"
           f"{' and ' + doc['to_prefix'] if doc['latest'] else ''} ({time.perf_counter() - t0:.1f}s)")
     if not doc["approval_gate"]["all_rules_approved"]:

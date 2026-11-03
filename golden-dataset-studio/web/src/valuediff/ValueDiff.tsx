@@ -129,7 +129,7 @@ export function NoteActions({ wrongLabel, onSave, onWrong, collapsed = false, di
 export function WrongFlow({ draft, onChange, onSave, onCancel }: {
   draft: Draft; onChange: (d: Draft) => void; onSave: () => void; onCancel: () => void;
 }) {
-  return <div className="vd-wrong"><Expansion draft={draft} fieldRule onChange={onChange} onSave={onSave} onCancel={onCancel} /></div>;
+  return <div className="vd-wrong"><Expansion draft={draft} propertyRule onChange={onChange} onSave={onSave} onCancel={onCancel} /></div>;
 }
 
 /** The box a wrong verdict on the row shows (Evals spec §6.4, decision 41). */

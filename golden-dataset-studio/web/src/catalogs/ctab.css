@@ -13,7 +13,6 @@
 .ctab th.plain .evx-basis-pill { display: table; margin-top: 3px; }
 .ctab th.rot { width: 38px; min-width: 38px; position: relative; }
 .ctab th.rot span { position: absolute; left: 18px; bottom: 10px; transform-origin: 0 100%; transform: rotate(-55deg); }
-.ctab th.ext span { color: var(--faint); }
 
 .ctab td.logo { width: 56px; padding-right: 0; }
 .ctab td.logo img { width: 44px; height: 28px; object-fit: contain; display: block; }
@@ -32,7 +31,6 @@
 .ctab td.c .evx-tipw { display: inline-flex; width: auto; }
 .ctab td.why { font-size: 12.5px; }
 .ctab tr.failed td.why { color: var(--red, #b42318); }
-.ctab td.ext { background: rgba(16, 24, 40, .025); }
 
 /* xtra score */
 .ctab td.rate { width: 1%; white-space: nowrap; font-size: 12.5px; padding-right: 4px; }
@@ -55,6 +53,17 @@
 /* Golden dataset: per column a small KaTeX fraction (expert-reviewed + rule-labelled over the values found), one line */
 .ctab td.frac { white-space: nowrap; padding: 6px 5px; }
 .ctab .fr { outline: none; cursor: default; }
-.ctab .fr .katex, .ctab-legend .fr .katex { font-size: 10.5px; }
+.ctab .fr .katex { font-size: 10.5px; }
 .ctab td.frac.in-review .fr { color: var(--ink-2); }
 .ctab td.frac.needs-work .fr { color: var(--red, #b42318); }
+
+/* Property columns (property-rules spec §4.9, m5): the catalog and Coverage stay fixed, the properties scroll between them */
+.ctab-wrap { overflow-x: auto; }
+.ctab { margin-right: 0; }
+.ctab th.rot.req span { font-weight: 700; color: var(--ink); }
+.ctab th.act, .ctab td.act { position: sticky; left: 0; z-index: 1; width: 136px; min-width: 136px; max-width: 136px; background: var(--bg); }
+.ctab th.logo, .ctab td.logo { position: sticky; left: 136px; z-index: 1; background: var(--bg); }
+.ctab th.name, .ctab td.name { position: sticky; left: 192px; z-index: 1; background: var(--bg); box-shadow: 1px 0 0 var(--line); }
+.ctab th.cov, .ctab td.cov { position: sticky; right: 0; z-index: 1; background: var(--bg); box-shadow: -1px 0 0 var(--line);
+  white-space: nowrap; text-align: right; padding-left: 12px; padding-right: 12px; font-variant-numeric: tabular-nums; }
+.ctab td.cov b { font-weight: 600; color: var(--ink); }

@@ -58,7 +58,8 @@ function pageValue(): Element[] | Element | null {
 }
 
 
-/** Each group of the rule list (page rules, record locators, field rules). */
+/** Each group of the rule list: page rules, record locators, then the property groups (Required, Other properties, Not started,
+ * Program page lines: property-rules spec §4.8). */
 const group = (i: number) => () => qa(".rule-list .rule-group")[i] ?? null;
 
 // --- small pieces of the cards ---------------------------------------------------------------------------------------
@@ -82,7 +83,9 @@ export const STEPS: Step[] = [
     body: (f) => (
       <>
         <p>Every rule that reads this catalog, by kind: <b>page rules</b> find the course pages, <b>record locators</b> find
-          each course on a page, and <b>field rules</b> read one field of each course.</p>
+          each course on a page, and <b>property rules</b> read one property of each course. The property rules are grouped:
+          <b> Required</b> first, then <b>Other properties</b>, then <b>Not started</b> for a property with no rule yet.
+          Press <kbd>/</kbd> to search them by name, term or parent.</p>
         <ul className="tour-legend">
           <li><Ico name="approved" /><span><b>Approved:</b> every course it found is right.</span></li>
           <li><Ico name="needs work" /><span><b>Needs work:</b> at least one course is marked wrong or missing.</span></li>
@@ -105,7 +108,9 @@ export const STEPS: Step[] = [
       const g = qa(".rule-list .rule-group");
       const first = (i: number) => g[i]?.querySelector(".rule-item .nm")?.textContent?.trim() ?? null;
       const n = (i: number) => g[i]?.querySelectorAll(".rule-item").length ?? 0;
-      return { page: first(0), pages: n(0), locator: first(1), locators: n(1), field: first(2), fields: n(2) };
+      const properties = [...g].filter((x) => !["page", "locator"].includes(x.getAttribute("data-group") ?? ""));
+      return { page: first(0), pages: n(0), locator: first(1), locators: n(1), property: first(2),
+               properties: properties.reduce((k, x) => k + x.querySelectorAll(".rule-item").length, 0) };
     },
     body: (f) => (
       <>
@@ -116,13 +121,14 @@ export const STEPS: Step[] = [
           <li><b>Record locators</b> find <b>where each course starts and ends</b> on those pages, whether a page holds
             one course or many{f.locator ? <> (e.g. “{String(f.locator)}”)</> : null}.
             Their rows are courses.</li>
-          <li><b>Field rules</b> read <b>one field</b> (Description, Coded Notation, Name …) inside each course a locator
-            found{f.field ? <> (e.g. “{String(f.field)}”)</> : null}. Their rows are that field's values.</li>
+          <li><b>Property rules</b> read <b>one property</b> (Description, Coded Notation, Name …) inside each course a locator
+            found{f.property ? <> (e.g. “{String(f.property)}”)</> : null}. Their rows are that property's values; a list property
+            (Estimated Duration) has one line per item.</li>
         </ol>
-        <p>So a wrong page rule or locator affects every field after it. A <b>missing</b> course or page can only be
-          added on a page rule or a locator; on a field rule an empty value is simply wrong.</p>
+        <p>So a wrong page rule or locator affects every property after it. A <b>missing</b> course or page can only be
+          added on a page rule or a locator; on a property rule an empty value is simply wrong.</p>
         <p className="faint">Here: {Number(f.pages)} page {Number(f.pages) === 1 ? "rule" : "rules"} · {Number(f.locators)} record{" "}
-          {Number(f.locators) === 1 ? "locator" : "locators"} · {Number(f.fields)} field {Number(f.fields) === 1 ? "rule" : "rules"}.</p>
+          {Number(f.locators) === 1 ? "locator" : "locators"} · {Number(f.properties)} property {Number(f.properties) === 1 ? "rule" : "rules"} shown.</p>
       </>
     ),
     absent: () => <p>The rule list hasn't loaded.</p>,
@@ -358,9 +364,10 @@ export const STEPS: Step[] = [
           : f.blocked ? <p>Here it's <b>greyed out</b>: some courses are still marked wrong or missing, and the reason
               is shown under the button. Approve stays greyed out until none is. Fix it with Improve all rules, or change those verdicts.</p>
           : <p>Nothing is marked wrong or missing here, so Approve can be pressed. The tour doesn't press it.</p>}
-        <p><b>Approving a column's rule publishes it</b> into its ruleset's golden dataset, even while other fields are
-          still being worked on. Approve asks once first, then scores xtra's latest extract output against it. The{" "}
-          <b>Golden datasets</b> tab lists each version, its columns and how many values are human-reviewed and rule-matched.</p>
+        <p><b>Approving a rule publishes its silver dataset</b> (also called the rule-matched dataset): every value the rule found,
+          even while other properties are still being worked on. The golden dataset holds only the values an expert reviewed,
+          and doesn't change. Approve asks once first, then scores xtra's latest extract output against it. The{" "}
+          <b>Datasets</b> tab shows the golden dataset by property and each silver dataset version.</p>
       </>
     ),
     absent: () => <p>The rule hasn't loaded.</p>,
@@ -377,12 +384,13 @@ export const STEPS: Step[] = [
       <>
         <p>Each bar is one of xtra's extract outputs, scored against the golden dataset: the share of values it got exactly
           right. Click a bar to see that output; a dashed one isn't scored yet and has a <b>Score</b> button.</p>
-        <p><b>Scored against</b> switches between <b>Human-reviewed</b> values (only those an expert checked) and{" "}
-          <b>Rule-matched</b> values (every value in a golden dataset version you pick: the ones the rules matched and the
-          human-reviewed ones); the ⓘ beside it says the same.</p>
+        <p><b>Scored against</b> switches between the <b>Golden dataset (human-reviewed)</b> (only the values an expert checked) and{" "}
+          <b>Rule-matched</b> values (a silver dataset version you pick: the ones the rules matched and the human-reviewed ones);
+          the ⓘ beside it says the same.</p>
         <p>Click a row for the golden value and xtra's side by side with the differing words marked, and the saved page
           with both (scroll the panel for more of the page). <b>Split | Unified</b> at the top lays out every diff.{" "}
           <b>Save note</b> keeps a comment on the row; <b>The golden value is wrong…</b> marks it ✗.</p>
+        <p>Every property has a row. One that xtra doesn't extract says so, and one with no rule yet says that, instead of a bar.</p>
         <p className="faint">The home page's Catalogs table has the same score for every catalog (<b>xtra score</b>).</p>
       </>
     ),

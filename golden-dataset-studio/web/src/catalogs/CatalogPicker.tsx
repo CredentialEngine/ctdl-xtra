@@ -1,11 +1,11 @@
-// Home: the catalogs table (Evals spec §6.1, §6.2). One compact row per catalog: Open → (or ✦ Generate rules for a
-// catalog without rules) in its own first column, its logo, its name (wrapped to a narrow column), then one cell per column under angled headers: the Studio's seven
-// Course columns, then those xtra extracts that the Studio doesn't cover yet (greyed "—"). Two views, switched next to
-// the heading:
-// - Golden dataset: the date of its pages and, per column, a small fraction (KaTeX): the values an expert reviewed
-//   over the values the column's rule found;
+// Home: the catalogs table (Evals spec §6.1, §6.2; property-rules spec §4.9, m5). One compact row per catalog: Open → (or
+// ✦ Generate rules for a catalog without rules) in its own first column, its logo, its name, then one cell per property
+// under angled headers (the labels; Required in bold), and Coverage: the properties with a rule there, of all. The catalog
+// and Coverage stay fixed; the properties scroll sideways between them. Two views, switched next to the heading:
+// - Golden dataset: the date of its pages and, per property, a small fraction (KaTeX): the values an expert reviewed
+//   over the values the property's rule found; "—" with no rule yet;
 // - xtra score: exact matches of xtra's latest extract output against the latest golden dataset, overall and per
-//   column, scored against Human-reviewed | Rule-matched; hovering a bar or a legend colour explains the outcomes.
+//   property, scored against Human-reviewed | Rule-matched; hovering a bar or a legend colour explains the outcomes.
 // + Add a catalog (a crawl xtra-cli has already made) adds a row that shows its progress until it's ready.
 //
 // URL: #/?v=score&b=rule
@@ -99,8 +99,10 @@ export default function CatalogPicker() {
   if (error) return <div className="picker"><div className="picker-in ctab-page">{head}<p className="muted">{error}</p></div>{modal}</div>;
   if (!cats) return <div className="picker"><div className="picker-in ctab-page">{head}</div>{modal}</div>;
   const cols = sum?.columns ?? [];
-  const ext = sum?.not_in_studio ?? [];
-  const extCells = ext.map((k) => <td key={k} className="c ext faint">—</td>);
+  const required = new Set(sum?.required ?? []);
+  const labels = sum?.labels ?? {};
+  const headers = cols.map((k) => (
+    <th key={k} className={`rot${required.has(k) ? " req" : ""}`}><span>{labels[k] ?? k}</span></th>));
 
   return (
     <div className="picker">
@@ -115,13 +117,14 @@ export default function CatalogPicker() {
             </span>
           </div>
         </>}
+        <div className="ctab-wrap">
         <table className="ctab">
           <thead><tr>
-            <th /><th /><th className="plain">Catalog</th>
-            {view === "golden" ? <th className="plain">Pages from</th>
-              : <><th className="plain">Exact matches<span className={`evx-basis-pill ${basis}`}>{BASIS_NAME[basis]}</span></th><th /></>}
-            {cols.map((k) => <th key={k} className="rot"><span>{k}</span></th>)}
-            {ext.map((k) => <th key={k} className="rot ext"><span>{k}</span></th>)}
+            <th className="act" /><th className="logo" /><th className="name plain">Catalog</th>
+            {view === "golden" ? <th className="date plain">Pages from</th>
+              : <><th className="rate plain">Exact matches<span className={`evx-basis-pill ${basis}`}>{BASIS_NAME[basis]}</span></th><th className="ratebar" /></>}
+            {headers}
+            <th className="cov plain">Coverage</th>
           </tr></thead>
           <tbody>
             {cats.map((c) => {
@@ -142,22 +145,17 @@ export default function CatalogPicker() {
                   {view === "golden"
                     ? <GoldenCells c={c} s={s} cols={cols} why={why} />
                     : <ScoreCells c={c} s={s} cols={cols} why={why} basis={basis} />}
-                  {extCells}
+                  <td className="cov">{s && isReady ? <><b>{s.coverage}</b> <span className="faint">of {sum?.properties ?? cols.length}</span></> : <span className="faint">—</span>}</td>
                 </tr>
               );
             })}
           </tbody>
         </table>
-        {view === "golden" ? (
-          <div className="ctab-legend">
-            <span className="fr" dangerouslySetInnerHTML={katexHtml(
-              "\\dfrac{\\text{values an expert reviewed}}{\\text{values the rule found}}")} />
-            <span><b className="faint">—</b>not in this Studio yet (xtra extracts it)</span>
-          </div>
-        ) : (
+        </div>
+        {view === "golden" ? null : (
           <div className="ctab-legend">
             {OUTCOMES.slice().reverse().map((o) => <OutcomeTip key={o} counts={null}><span className="evx-k"><i className={`sw o-${o}`} />{o}</span></OutcomeTip>)}
-            <span className="faint">— not published yet, or not in this Studio yet · n/s not scored (not read from the page)</span>
+            <span className="faint">— no rule, or not scored yet · n/s not scored (not read from the page)</span>
           </div>
         )}
         <button className="loop-again" onClick={() => setLoop(true)}>How the Studio works</button>
@@ -167,7 +165,8 @@ export default function CatalogPicker() {
   );
 }
 
-/** Golden dataset: the date of its pages and, per column, its values in the golden dataset as a fraction. */
+/** Golden dataset: the date of its pages and, per property, its values in the golden dataset as a fraction ("—" with no
+ * rule in this catalog). */
 function GoldenCells({ c, s, cols, why }: { c: CatalogCard; s: CatalogSummary | undefined; cols: string[]; why: string }) {
   return (
     <>
@@ -176,7 +175,7 @@ function GoldenCells({ c, s, cols, why }: { c: CatalogCard; s: CatalogSummary | 
         ? <td colSpan={cols.length} className="c faint why" title={c.adding?.error ?? undefined}>{why}</td>
         : cols.map((k) => {
           const st = s.columns[k];
-          if (!st) return <td key={k} className="c faint">—</td>;
+          if (!st || st.no_rule) return <td key={k} className="c faint">—</td>;
           return (
             <td key={k} className={"c frac " + st.status.replace(" ", "-")} aria-label={`${k}: ${st.status}`}>
               <Tip tip={fractionTip(st.human, st.found, st.status)} width={300} delay={1000}>
@@ -190,7 +189,7 @@ function GoldenCells({ c, s, cols, why }: { c: CatalogCard; s: CatalogSummary | 
 }
 
 /** xtra score: exact matches overall (the % with its count, then its bar in a column with no heading, as tall as the
- * columns' bars) and per column (%, a thin bar, the count); "—" where nothing is scored, "n/s" for columns not read
+ * columns' bars) and per property (%, a thin bar, the count); "—" where nothing is scored, "n/s" for properties not read
  * from the page. */
 function ScoreCells({ c, s, cols, why, basis }: { c: CatalogCard; s: CatalogSummary | undefined; cols: string[]; why: string; basis: ScoreBasis }) {
   const sc = s?.score;

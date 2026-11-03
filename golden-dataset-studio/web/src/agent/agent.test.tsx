@@ -164,10 +164,10 @@ describe("RunBar", () => {
 
 describe("FixBar", () => {
   const rule = (id: string, status: "needs work" | "approved" | "in review", w: number, m: number, q = 0) => ({
-    rule_id: id, kind: "field" as const, version: 1, title: id, subtitle: "", ctdl_property: null, property_label: null,
+    rule_id: id, kind: "property" as const, version: 1, title: id, subtitle: "", ctdl_property: null, property_label: null,
     locator: null, status, reviewed: 1, total: 1, open_wrong: w, open_missing: m, questions: q, approved_by: null,
     approved_at: null, comments: 0 });
-  const rules: RulesResponse = { extraction: "e", ruleset_version: 6, groups: [{ kind: "field", label: "Fields", approved: 1,
+  const rules: RulesResponse = { extraction: "e", ruleset_version: 6, groups: [{ id: "other", kind: "property", label: "Properties", collapsed: false, approved: 1,
     rules: [rule("a", "needs work", 3, 1), rule("b", "needs work", 0, 2, 1), rule("c", "approved", 0, 0), rule("d", "in review", 0, 0)] }] };
 
   it("counts what needs work and leads with improving all of it", async () => {

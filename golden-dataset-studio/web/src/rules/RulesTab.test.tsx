@@ -23,15 +23,14 @@ const catalog = { catalog: "avc-x", short: "avc", name: "AVC", institution: "AVC
   pane_css: "", root: "" } as CatalogDetail;
 
 const summary = (o: Partial<RuleSummary>): RuleSummary => ({
-  rule_id: "course-description", kind: "field", version: 2, title: "Description", subtitle: "ceterms:description",
+  rule_id: "course-description", kind: "property", version: 2, title: "Description", subtitle: "ceterms:description",
   ctdl_property: "ceterms:description", property_label: "Description", locator: "locator-course-page", status: "in review",
   reviewed: 14, total: 1062, open_wrong: 0, open_missing: 0, questions: 0, approved_by: null, approved_at: null, comments: 0, ...o,
 });
 
 const rules: RulesResponse = { extraction: "rs-0002", ruleset_version: 2, groups: [
-  { kind: "page", label: "Page rules", approved: 0, rules: [summary({ rule_id: "course-page", kind: "page", title: "Course pages", subtitle: "Which pages…", status: "needs work", open_wrong: 2 })] },
-  { kind: "locator", label: "Record locators", approved: 0, rules: [] },
-  { kind: "field", label: "Field rules", approved: 1, rules: [summary({}), summary({ rule_id: "course-language", title: "Language", status: "approved" })] },
+  { id: "page", kind: "page", label: "Page rules", collapsed: false, approved: 0, rules: [summary({ rule_id: "course-page", kind: "page", title: "Course pages", subtitle: "Which pages…", status: "needs work", open_wrong: 2 })] },
+  { id: "other", kind: "property", label: "Other properties", collapsed: false, approved: 1, rules: [summary({}), summary({ rule_id: "course-language", title: "Language", status: "approved" })] },
 ] };
 
 const detail = (o: Partial<RuleDetail> = {}): RuleDetail => ({
@@ -187,7 +186,7 @@ describe("RulesTab", () => {
     expect(last().get("order")).toBe("auto");
     expect(last().get("prior")).toBeNull();
     const prior = container.querySelector<HTMLInputElement>(".sm-prior input")!;
-    expect(container.querySelector(".sm-prior")!.textContent).toContain("Reviewed in other fields first (2)");
+    expect(container.querySelector(".sm-prior")!.textContent).toContain("Reviewed in other properties first (2)");
     await act(async () => { prior.click(); await new Promise((r) => setTimeout(r, 0)); });
     expect(last().get("prior")).toBe("true");
     expect(container.querySelector<HTMLInputElement>(".sm-prior input")!.checked).toBe(true);
@@ -288,7 +287,7 @@ describe("RulesTab", () => {
   it("shows rules by kind with status icons and reviewed counts", async () => {
     await render();
     const groups = [...container.querySelectorAll(".group-h")].map((g) => g.textContent);
-    expect(groups).toEqual(["Page rules0 of 1 approved", "Record locators0 of 0 approved", "Field rules1 of 2 approved"]);
+    expect(groups).toEqual(["Page rules0 of 1 approved", "Other properties1 of 2 approved"]);
     expect(container.querySelector("[data-rule=course-description]")?.textContent).toContain("14 / 1,062 reviewed");
     expect(container.querySelector("[data-tour=rule-list]")).not.toBeNull();
   });
@@ -298,20 +297,22 @@ describe("RulesTab", () => {
     const term = container.querySelector<HTMLAnchorElement>(".rule-head a.term");
     expect(term?.textContent).toContain("ceterms:description");
     expect(term?.href).toBe("https://credreg.net/ctdl/terms/description");
-    expect(container.querySelector(".rh-sub")?.textContent).toBe("Description · course pages");
+    expect(container.querySelector(".rh-sub")?.textContent).toBe("course pages");
+    expect(container.querySelector(".rule-head h1")?.textContent).toBe("Description");
     expect(container.querySelector<HTMLDetailsElement>("details.how")?.open).toBe(false);
     expect(container.querySelector<HTMLButtonElement>("button.approve")?.disabled).toBe(false);
     expect(container.querySelector("[data-tour=improve-rule]")).toBeNull();  // improving is one run for every rule, at the bottom of the list
   });
 
-  it("asks before approving a column's rule: the golden dataset's columns now and after, then approves and publishes", async () => {
+  it("asks before approving a property's rule: the silver dataset's columns now and after, then approves and publishes it", async () => {
     const fetchMock = vi.mocked(fetch);
     const base = fetchMock.getMockImplementation()!;
     fetchMock.mockImplementation((url, init) => {
       if (String(url).includes("/golden/approve/course-description")) {
         return json({ publishes: true, rule_id: "course-description", property: "Description", column: "description",
                       golden: "ruleset-v3", ruleset_version: 3, creates: false, now: ["inLanguage"], after: ["description", "inLanguage"],
-                      where: "/g/catalogs/avc/versions/ruleset-v3/", values: 1062, human: 31, rule: 1031 });
+                      where: "/g/catalogs/avc/versions/ruleset-v3/", values: 1062, human: 31, rule: 1031,
+                      path_shown: "ceterms:description", xtra_extracts: true });
       }
       if (init?.method === "POST") {
         posted.push(JSON.parse(String(init.body)));
@@ -326,17 +327,22 @@ describe("RulesTab", () => {
     await act(async () => { container.querySelector<HTMLButtonElement>("button.approve")!.click(); });
     await act(async () => { await new Promise((r) => setTimeout(r, 0)); });
     const dlg = document.querySelector<HTMLElement>(".apx")!;
-    expect(dlg.querySelector("h2")?.textContent).toBe("Approve description and publish it?");
+    expect(dlg.querySelector("h2")?.textContent).toBe("Approve Description and publish its silver dataset?");
+    expect(dlg.textContent).toContain("also called the rule-matched dataset");
+    expect(dlg.textContent).toContain("doesn't change");
     expect([...dlg.querySelectorAll(".apx-cols tbody tr")].map((r) => r.textContent)).toEqual(
       ["NowinLanguage", "After approvingdescription, inLanguage"]);
-    expect(dlg.querySelector(".apx-count")?.textContent).toContain("1,062 description values: 31 human-reviewed, 1,031 labelled by the rule.");
+    expect(dlg.querySelector(".apx-path")?.textContent).toContain("ceterms:description");
+    expect(dlg.querySelector(".apx-count")?.textContent).toContain("1,062 values to the silver dataset");
+    expect(dlg.querySelector(".apx-count")?.textContent).toContain("31 human-reviewed");
+    expect(dlg.querySelector(".apx-xtra")).toBeNull();  // xtra extracts it: nothing to warn about
     expect(posted).toEqual([]);  // nothing approved yet
-    const ok = [...dlg.querySelectorAll<HTMLButtonElement>("button")].find((b) => b.textContent === "Approve and publish")!;
+    const ok = [...dlg.querySelectorAll<HTMLButtonElement>("button")].find((b) => b.textContent === "Approve rule and publish silver dataset")!;
     await act(async () => { ok.click(); });
     await act(async () => { await new Promise((r) => setTimeout(r, 0)); });
     expect(posted).toEqual([expect.objectContaining({ type: "approve", target: { kind: "rule", rule_id: "course-description" } })]);
     expect(document.querySelector(".apx")).toBeNull();
-    expect([...document.querySelectorAll(".toast")].pop()?.textContent).toBe("Approved and published description in ruleset v3");
+    expect([...document.querySelectorAll(".toast")].pop()?.textContent).toBe("Approved and published description to the silver dataset ruleset v3");
   });
 
   it("selects the row from the route, fades rows with a verdict, writes history lines", async () => {
@@ -396,5 +402,112 @@ describe("RulesTab", () => {
     const btn = container.querySelector<HTMLButtonElement>("button.approve")!;
     expect(btn.disabled).toBe(true);
     expect(btn.closest(".tipwrap")?.getAttribute("data-tip")).toMatch(/^Can't approve yet: 3 courses are marked wrong or missing/);
+  });
+  it("says when xtra doesn't extract the property yet, in the approve dialog, with its path", async () => {
+    const fetchMock = vi.mocked(fetch);
+    const base = fetchMock.getMockImplementation()!;
+    fetchMock.mockImplementation((url, init) => (String(url).includes("/golden/approve/course-description")
+      ? json({ publishes: true, rule_id: "course-description", property: "Description", column: "description", golden: "ruleset-v3",
+               ruleset_version: 3, creates: false, now: [], after: ["description"], where: "/g/", values: 40, human: 1, rule: 39,
+               path_shown: "ceterms:creditValue → schema:minValue", xtra_extracts: false })
+      : base(url, init)));
+    await render();
+    await act(async () => { container.querySelector<HTMLButtonElement>("button.approve")!.click(); });
+    await act(async () => { await new Promise((r) => setTimeout(r, 0)); });
+    const dlg = document.querySelector<HTMLElement>(".apx")!;
+    expect(dlg.querySelector(".apx-xtra")!.textContent).toContain("xtra doesn't extract this property yet");
+    expect(dlg.querySelector(".apx-path")!.textContent).toContain("ceterms:creditValue → schema:minValue");
+  });
+
+  // --- property rules with a child path, no rule yet, and list properties (property-rules spec §4.2–§4.6) ----------------
+  function serve(d: RuleDetail, r: RowsX = rows) {
+    const fetchMock = vi.mocked(fetch);
+    const base = fetchMock.getMockImplementation()!;
+    fetchMock.mockImplementation((url, init) => {
+      const u = String(url);
+      if (u.includes("/rows")) return json(r);
+      if (/\/rules\/[^/?]+$/.test(u)) return json(d);
+      return base(u, init);
+    });
+  }
+
+  it("shows a child's path with arrows, its leaf term linked, and what the rule reads", async () => {
+    serve(detail({ rule_id: "creditUnitMinValue", title: "Credit Unit Min Value", property_label: "Credit Unit Min Value", subtitle: "part of Credit Value",
+                    ctdl_property: "ceterms:creditValue>schema:minValue", path_shown: "ceterms:creditValue → schema:minValue",
+                    parent_label: "Credit Value", input: "Credit Value's value" }));
+    await render("#/c/avc/rules/creditUnitMinValue?row=GEOG1");
+    expect(container.querySelector(".rule-head .rh-path")!.textContent).toBe("ceterms:creditValue → schema:minValue");
+    const term = container.querySelector<HTMLAnchorElement>(".rule-head a.term")!;
+    expect(term.textContent).toBe("schema:minValue");
+    expect(term.href).toBe("https://credreg.net/ctdl/terms/minValue");
+    expect(container.querySelector(".rh-sub")!.textContent).toBe("part of Credit Value · course pages");
+    expect(container.querySelector(".rh-input")!.textContent).toBe("Input: Credit Value's value");
+  });
+
+  it("a property with no rule yet says so, shows what it is for, and Approve is off; a page the value shows is marked by hand", async () => {
+    serve(detail({ no_rule: true, what: "Whether the course is non-credit", status: "in review" }), { ...rows, rows: [
+      row(0, { status: "none", value: null, css_path: null, char_start: null, char_end: null }),
+      row(1, { status: "none", value: null, css_path: null, char_start: null, char_end: null }), row(2)] });
+    await render("#/c/avc/rules/course-description?row=GEOG1");
+    expect(container.querySelector(".rh-norule")!.textContent).toContain("No rule yet");
+    expect(container.querySelector<HTMLDetailsElement>("details.how")!.open).toBe(true);
+    expect(container.querySelector(".wwh")!.textContent).toContain("Whether the course is non-credit");
+    expect(container.querySelector<HTMLButtonElement>("button.approve")!.disabled).toBe(true);
+    expect(container.querySelector(".row.on")!.textContent).toContain("no rule yet");
+    expect(pane.props!.captureSelection).toBe(true);
+    await act(async () => pane.props!.onSelection!({ text: "Yes", css_path: "html > p", char_start: 0, char_end: 3, prefix: "", suffix: "", doc_start: 1, doc_end: 4 }));
+    await act(async () => container.querySelector<HTMLButtonElement>(".row.on .save")!.click());
+    expect(posted[posted.length - 1]).toMatchObject({ type: "verdict", verdict: "wrong", expected: { text: "Yes", css_path: "html > p" },
+      target: { kind: "match", rule_id: "course-description", occurrence_key: "p1@html" } });
+  });
+
+  const correct = { annotation_id: "an-i1", type: "verdict" as const, verdict: "correct" as const, author: "Seth", at: "t", note: null,
+    expected: null, rule_version_seen: 2, value_seen: "Lab - 35" };
+  const listRows = (extra: Partial<RowX> = {}): RowsX => ({ ...rows, rows: [row(0), row(1, { status: "found", value: "Lecture - 87.5\nLab - 35",
+    css_path: null, char_start: null, char_end: null, missing_items: [],
+    items: [
+      { value_index: 0, value: "Lecture - 87.5", css_path: "html > p:nth-of-type(1)", char_start: 0, char_end: 14, state: null, verdict: null, human: false },
+      { value_index: 1, value: "Lab - 35", css_path: "html > p:nth-of-type(1)", char_start: 20, char_end: 28, state: "correct", verdict: correct, human: false }],
+    ...extra }), row(2)] });
+
+  it("a list row shows one line per item, each with its own ✓ and ✕, and no ✓ or ✕ for the row", async () => {
+    serve(detail({ list: true }), listRows());
+    await render();
+    const lines = [...container.querySelectorAll(".row.on [data-testid=item]")];
+    expect(lines.map((l) => l.querySelector(".item-v")!.textContent)).toEqual(["Lecture - 87.5", "Lab - 35"]);
+    expect(container.querySelector(".row.on .cb.ok")).toBeNull();
+    expect(container.querySelector(".row.on .cb.no")).toBeNull();
+    expect(container.querySelector(".row.on .cb.talk")).not.toBeNull();
+    await act(async () => container.querySelector<HTMLButtonElement>("[aria-label='Correct Lecture - 87.5']")!.click());
+    expect(posted[posted.length - 1]).toEqual({ type: "verdict", author: "Jared", verdict: "correct", supersedes: null,
+      target: { kind: "match", rule_id: "course-description", occurrence_key: "p1@html", item: true, value_index: 0 } });
+    expect(posted).toHaveLength(1);
+    await act(async () => container.querySelector<HTMLButtonElement>("[aria-label='Correct Lab - 35']")!.click());
+    expect(posted).toHaveLength(1);  // Lab - 35 is already correct: nothing new to save
+    await act(async () => container.querySelector<HTMLButtonElement>("[aria-label='Wrong Lab - 35']")!.click());
+    expect(posted[posted.length - 1]).toMatchObject({ verdict: "wrong", supersedes: "an-i1", target: { item: true, value_index: 1 } });
+  });
+
+  it("＋ Select a missing item on the page adds one the rule missed, listed under the row", async () => {
+    serve(detail({ list: true }), listRows());
+    await render();
+    expect(pane.props!.captureSelection).toBe(false);  // a list's row: a selection isn't a whole-value answer
+    await act(async () => container.querySelector<HTMLButtonElement>(".row.on .add-item")!.click());
+    expect(pane.props!.captureSelection).toBe(true);
+    await act(async () => pane.props!.onSelection!({ text: "Lab - 52.5", css_path: "html > p:nth-of-type(2)", char_start: 0, char_end: 9,
+      prefix: "", suffix: "", doc_start: 200, doc_end: 209 }));
+    expect(container.querySelector(".row.on .add-item-q")!.textContent).toContain("Lab - 52.5");
+    await act(async () => container.querySelector<HTMLButtonElement>(".row.on .add-item-q .save")!.click());
+    expect(posted[posted.length - 1]).toMatchObject({ type: "verdict", verdict: "missing",
+      expected: { text: "Lab - 52.5", css_path: "html > p:nth-of-type(2)", char_start: 0, char_end: 9 },
+      target: { kind: "match", rule_id: "course-description", occurrence_key: "p1@html", item: true } });
+    expect(container.querySelector(".row.on .missing-items")!.textContent).toContain("Lab - 52.5");
+  });
+
+  it("the page pane outlines every item of the list on its page", async () => {
+    serve(detail({ list: true }), listRows());
+    await render();
+    expect(pane.props!.highlights.filter((h) => h.id.startsWith("item-")).map((h) => [h.text, h.cssPath])).toEqual([
+      ["Lecture - 87.5", "html > p:nth-of-type(1)"], ["Lab - 35", "html > p:nth-of-type(1)"]]);
   });
 });

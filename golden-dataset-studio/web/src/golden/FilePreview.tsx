@@ -136,7 +136,7 @@ export function FilePreview({ catalog, version, latest, file, initialStem, onClo
   const step = (d: number) => { if (list?.length) setStem(list[(at + d + list.length) % list.length]); };
   const ready = !!tree && !!list && list.includes(stem);
   const name = tree ? `${tree === "latest" ? "" : `${tree}/…/`}${stem || "<page>"}/${stem || "<page>"}.${which === "page.html" ? "html" : "json"}` : which;
-  const tabs: [GoldenFile, string][] = [["rule-matched.json", "rule-matched/<page>.json"], ["human-reviewed.json", "human-reviewed/<page>.json"],
+  const tabs: [GoldenFile, string][] = [["rule-matched.json", "silver/<page>.json"], ["human-reviewed.json", "golden/<page>.json"],
     ...(latest ? [["page.json", "latest <page>.json"], ["page.html", "<page>.html"]] as [GoldenFile, string][] : []),
     ["publication.json", "publication.json"], ["lineage.parquet", "lineage.parquet"], ["golden.parquet", "golden.parquet"]];
 

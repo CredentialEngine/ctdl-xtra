@@ -17,7 +17,7 @@ AVC = "avc-elumenapp-com-catalog-2026-27-welcome"
 class Snap:
     def __init__(self, ext: str, version: int, rows: list[dict], content_hash: str = "h"):
         self.ext, self.ruleset_version = ext, version
-        self.rules = {"course-description": {"kind": "field", "version": version, "content_hash": content_hash,
+        self.rules = {"course-description": {"kind": "property", "version": version, "content_hash": content_hash,
                                              "ctdl_property": "ceterms:description", "property_label": "Description",
                                              "why": f"why v{version}"}}
         self._rows = rows

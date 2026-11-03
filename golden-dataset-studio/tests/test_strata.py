@@ -20,17 +20,17 @@ def test_shape_and_subject():
 def test_long_text_goes_in_word_count_buckets_with_real_shares():
     rows = [row(f"r{i}", " ".join(["w"] * (i + 1)), course_key=f"S{i % 3}X1") for i in range(100)]
     rows.append(row("empty", None, status="no_match"))
-    by, label, order = strata.groups("field", rows)
+    by, label, order = strata.groups("property", rows)
     assert by.startswith("length") and len(order) == 6 and order[-1] == "no value"
     assert order[0] == "1–20 words (percentile 0–20)" and label["r0"] == order[0] and label["empty"] == "no value"
 
 
 def test_few_values_group_by_value_rarest_first_and_codes_by_shape():
     rows = [row(f"e{i}", "English") for i in range(9)] + [row("s", "Spanish")]
-    _, label, order = strata.groups("field", rows)
+    _, label, order = strata.groups("property", rows)
     assert order[0] == "“Spanish”" and label["e0"] == "“English”"
     codes = [row(f"c{i}", f"ABDY {100 + i}") for i in range(40)] + [row("odd", "ABDY 1A")]
-    by, label, order = strata.groups("field", codes)
+    by, label, order = strata.groups("property", codes)
     assert by.startswith("shape") and order[0] == "shape “A 9A”"
 
 

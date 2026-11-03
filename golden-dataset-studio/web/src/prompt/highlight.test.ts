@@ -28,7 +28,7 @@ describe("prompt highlighting", () => {
 import { lineKinds, runs } from "./highlight";
 
 describe("lineKinds", () => {
-  const P = ["# Improve rule `x`", "", "## Setup", "```sh", "uv tool install", "```", "## Rule `x` v2 — field rule",
+  const P = ["# Improve rule `x`", "", "## Setup", "```sh", "uv tool install", "```", "## Rule `x` v2 — property rule",
     "| **What** | a |", "```json", "{", "  \"selector\": \".a\"", "}", "```", "Examples:", "```json", "[]", "```",
     "### Open annotations (1)", "| 1 | WRONG |", "## How to work", "| 1. Read | `golden-datasets rule show x` |"].join("\n") + "\n";
   it("marks the template, what comes from the annotations, and the rule's definition", () => {

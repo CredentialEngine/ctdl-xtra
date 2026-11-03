@@ -1,4 +1,4 @@
-"""Engine unit tests on a synthetic page: paths, offsets, locators, field rules, the implied tbody."""
+"""Engine unit tests on a synthetic page: paths, offsets, locators, property rules, the implied tbody."""
 
 from __future__ import annotations
 
@@ -18,16 +18,16 @@ PAGE = b"""<html><head><title>t</title></head><body>
 RULES = {
     "course-page": {"kind": "page", "version": 1, "definition": {"requires_selector": ".course"}},
     "loc": {"kind": "locator", "version": 1, "definition": {"page_rules": ["course-page"], "repeat": "div.course"}},
-    "code": {"kind": "field", "version": 1, "ctdl_property": "ceterms:codedNotation",
+    "code": {"kind": "property", "version": 1, "ctdl_property": "ceterms:codedNotation",
              "definition": {"locator": "loc", "rule_type": "css", "selector": "h3", "transforms": ["strip", "rstrip::"]}},
-    "desc": {"kind": "field", "version": 1, "definition": {
+    "desc": {"kind": "property", "version": 1, "definition": {
         "locator": "loc", "rule_type": "css+regex", "selector": ".intro",
         "regex": r"\A(?:Prerequisite:[^\n]*\n)?([\s\S]*)", "group": 1}},
-    "lang": {"kind": "field", "version": 1, "definition": {"locator": "loc", "rule_type": "constant", "value": "English"}},
-    "url": {"kind": "field", "version": 1, "definition": {"locator": "loc", "rule_type": "source_url"}},
+    "lang": {"kind": "property", "version": 1, "definition": {"locator": "loc", "rule_type": "constant", "value": "English"}},
+    "url": {"kind": "property", "version": 1, "definition": {"locator": "loc", "rule_type": "source_url"}},
 }
 SETTINGS = {"content_root": "#content"}
-NEED = {"labels": True, "matched": None, "locators": ["loc"], "fields": ["code", "desc", "lang", "url"],
+NEED = {"labels": True, "matched": None, "locators": ["loc"], "properties": ["code", "desc", "lang", "url"],
         "page_facts": False}
 
 
@@ -73,7 +73,7 @@ def test_selector_semantics_match_soupsieve():
     root = engine.select_one(doc, "#content", True)
     # From the content root the root itself can match (v2 searched from a wrapper around it) …
     assert engine.select_one(root, "#content", True) is root
-    # … but a field selector never matches the occurrence element itself.
+    # … but a property selector never matches the occurrence element itself.
     course = engine.select(root, "div.course", True)[0]
     assert engine.select_one(course, "div.course") is None
 

@@ -77,7 +77,7 @@ def test_publication_shape_and_lineage(ctx, tmp_path):
     assert fields["Description"]["location"]["css_path"].startswith("html > body")
     # who approved each value: Jared selected GEOG222's description (v2 now gives it), the constant Language is the rule's
     assert (fields["Description"]["approval"], fields["Description"]["approved_by"]) == ("human", "Jared")
-    assert fields["Language"]["approval"] == "human"  # Jared reviewed every field of GEOG222 in v2
+    assert fields["Language"]["approval"] == "human"  # Jared reviewed every property of GEOG222 in v2
     assert records[0]["approval"] == "human" and list(records[0])[:2] == ["golden_record_id", "approval"]
     other = next(s for s in doc["page_stems"] if "course-abdy112-" in s)  # nobody reviewed ABDY112
     rec = json.loads((out / doc["to_prefix"] / other / f"{other}.json").read_text())[0]

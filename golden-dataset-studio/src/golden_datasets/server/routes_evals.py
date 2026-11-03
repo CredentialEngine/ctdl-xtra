@@ -21,6 +21,7 @@ from fastapi import APIRouter, Body, HTTPException, Request
 from .. import scores
 from ..catalogs import CATALOGS
 from ..errors import UserError
+from ..review import human_reviewed_counts
 from .jobs import ScoreJobs
 from .state import not_found, studio
 
@@ -152,14 +153,20 @@ def catalogs_summary(request: Request, basis: str = "human") -> dict:
         raise HTTPException(422, f"basis must be one of {', '.join(scores.BASES)}")
     st = studio(request)
     out = {}
-    for e in st.ctx(next(iter(CATALOGS))).manifest()["catalogs"]:
+    entries = st.ctx(next(iter(CATALOGS))).manifest()["catalogs"]
+    for e in entries:
         k = next((c for c in e["crawls"] if c["crawl"] == e.get("current_crawl")), None)
         if not (e.get("rulesets") and k and k.get("extractions")):
             continue
         try:
             ctx = st.ctx(e["catalog"])
-            out[e["catalog"]] = {"columns": scores.column_statuses(ctx, st.cache),
+            cols = scores.column_statuses(ctx, st.cache)
+            out[e["catalog"]] = {"columns": cols, "coverage": scores.coverage(cols),
                                  "score": scores.latest_score(ctx, basis, st.cache)}
         except UserError as exc:
-            out[e["catalog"]] = {"columns": {}, "score": None, "error": str(exc)}
-    return {"basis": basis, "columns": scores.STUDIO_COLUMNS, "not_in_studio": scores.NOT_IN_STUDIO, "catalogs": out}
+            out[e["catalog"]] = {"columns": {}, "coverage": 0, "score": None, "error": str(exc)}
+    root = st.ctx(next(iter(CATALOGS))).root
+    counts = human_reviewed_counts(root, [e["catalog"] for e in entries if e.get("rulesets")], st.ctx)
+    columns = scores.columns_in_order(counts)
+    return {"basis": basis, "columns": columns, "labels": scores.COLUMN_LABELS,
+            "required": scores.REQUIRED_COLUMNS, "properties": len(columns), "catalogs": out}

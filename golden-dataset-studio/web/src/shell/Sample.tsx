@@ -4,8 +4,8 @@
 //   of each combination, rarest combination first;
 // - Shuffle: a seeded random order, with Reshuffle;
 // - Manual select: every stratum as a histogram (one bar per bucket: how many records fall in it); click bars to filter.
-// "Reviewed in other fields first" (Rules tab): records not reviewed for this rule yet, but marked or commented on in
-// another rule, come first, so a record's fields get finished together.
+// "Reviewed in other properties first" (Rules tab): records not reviewed for this rule yet, but marked or commented on in
+// another rule, come first, so a record's properties get finished together.
 // Who annotated a record isn't a stratum here: it's the Rules tab's "Annotated by" filter above the drawer (one way to
 // do it; "Annotated in" says which ruleset version a record was annotated in).
 // Filters stay on in every mode. When a filter or Autostratify is on, each record shows its strata tags (StrataTags).
@@ -58,7 +58,7 @@ export function SampleDrawer({ sample, prefs, onPrefs, modes, storageKey, collap
   const prior = sample?.elsewhere !== undefined && (
     <label className={"sm-prior" + (sample.elsewhere ? "" : " faint")} title="Records nobody has reviewed for this rule yet, but someone marked or commented on in another rule">
       <input type="checkbox" checked={prefs.prior} onChange={(e) => set({ prior: e.target.checked })} />
-      Reviewed in other fields first <span className="faint">({fmt(sample.elsewhere)})</span></label>
+      Reviewed in other properties first <span className="faint">({fmt(sample.elsewhere)})</span></label>
   );
   const count = sample && <span className="faint sm-n">{fmt(sample.listed)}{sample.listed !== sample.total && <> of {fmt(sample.total)}</>}</span>;
   return (
@@ -83,8 +83,8 @@ export function SampleDrawer({ sample, prefs, onPrefs, modes, storageKey, collap
             <span key={d + b} className="sm-chip">{label(d)}: {b}
               <button aria-label={`Remove ${label(d)}: ${b}`} onClick={() => set({ filter: toggle(prefs.filter, d, b) })}>×</button></span>
           ))}
-          {filters && !open && prefs.prior && <span className="sm-chip">Reviewed in other fields first
-            <button aria-label="Stop putting rows reviewed in other fields first" onClick={() => set({ prior: false })}>×</button></span>}
+          {filters && !open && prefs.prior && <span className="sm-chip">Reviewed in other properties first
+            <button aria-label="Stop putting rows reviewed in other properties first" onClick={() => set({ prior: false })}>×</button></span>}
           {chips.length > 0 && <button className="sm-clear" onClick={() => set({ filter: {} })}>Clear filters</button>}
         </div>
       )}

@@ -33,12 +33,12 @@ DEFAULTS = {
 
 # signal → (applies to, severity), spec §8
 CATALOG = {
-    "empty": ("field", "high"),
-    "no-match": ("field", "high"),
-    "shape-outlier": ("field", "medium"),
-    "length-outlier": ("field", "low"),
-    "contains-label-text": ("field", "medium"),
-    "duplicate-value": ("field", "low"),
+    "empty": ("property", "high"),
+    "no-match": ("property", "high"),
+    "shape-outlier": ("property", "medium"),
+    "length-outlier": ("property", "low"),
+    "contains-label-text": ("property", "medium"),
+    "duplicate-value": ("property", "low"),
     "no-course-key": ("locator", "high"),
     "duplicate-occurrence": ("locator", "high"),
     "block-count-mismatch": ("locator", "high"),
@@ -161,7 +161,7 @@ def compute(tables: dict, rules: dict, settings: dict, facts: list[dict], url_of
                     "severity": CATALOG[name][1], "detail": detail,
                     **(where or {"css_path": None, "char_start": None, "char_end": None})})
 
-    # -- field rules: value + cross-row signals --------------------------------------------------------
+    # -- property rules: value + cross-row signals --------------------------------------------------------
     by_rule = defaultdict(list)
     for m in tables["matches"]:
         by_rule[m["rule_id"]].append(m)

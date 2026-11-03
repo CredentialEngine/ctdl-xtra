@@ -131,7 +131,7 @@ def dimensions(kind: str, items: list[dict]) -> list[dict]:
     if kind != "page":
         add("length", "Length", "characters in the value (an equal-width histogram)",
             *histogram({i["key"]: len(i["value"].strip()) if _has(i) else None for i in items}, "chars"))
-    if kind == "field":
+    if kind == "property":
         found = [i for i in items if _has(i)]
         add("paragraphs", "Paragraphs", "lines of text in the value",
             {i["key"]: [_paragraphs(i["value"]) if _has(i) else EMPTY] for i in items},

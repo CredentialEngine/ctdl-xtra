@@ -2,7 +2,7 @@
 
 1. v2's `rules.json` (the copy saved with the extraction the latest review session used) → rule versions v1 and
    ruleset v1. Label rules become page rules (renamed: §2 bans "label"); the `scope / repeat / repeat_filter`
-   shared by the field rules of one label becomes a record locator (D2); only the eight in-scope properties are
+   shared by the property rules of one label becomes a record locator (D2); only the eight in-scope properties are
    kept (§4.4).
 2. `extract` rs-0001, if it doesn't exist yet: annotations point at its occurrences and matches.
 3. The session's decisions, notes and flags → `annotations.jsonl` events, with the tally printed.
@@ -24,7 +24,7 @@ from .errors import UserError
 from .log import AnnotationLog
 from .storage import open_root
 
-IN_SCOPE = {label for label, _ in model.PROPERTIES}
+IN_SCOPE = {label for label, _ in model.FIRST_EIGHT}  # frozen (property-rules spec §3)
 PAGE_RULE_IDS = {
     "label-course-page": "course-page",
     "label-program-page": "program-page",
@@ -208,7 +208,7 @@ def build_v1_rules(ctx: Ctx, v2: dict) -> tuple[dict[str, dict], dict, dict]:
         props = {k: v for k, v in fr["properties"].items() if k not in LOCATOR_KEYS}
         examples = [{"input": fr["example_input"], "output": fr["example_output"]}] if "example_input" in fr else []
         drafts[fr["rule_id"]] = {
-            "rule_id": fr["rule_id"], "kind": "field", "ctdl_property": fr.get("ctdl_property"),
+            "rule_id": fr["rule_id"], "kind": "property", "ctdl_property": fr.get("ctdl_property"),
             "property_label": fr["canonical_label"],
             "definition": {"locator": locator_of[fr["rule_id"]], "rule_type": fr["rule_type"], **props},
             "why": "", "examples": examples, "_v2_description": fr.get("description"),
@@ -221,8 +221,8 @@ def build_v1_rules(ctx: Ctx, v2: dict) -> tuple[dict[str, dict], dict, dict]:
         dr.pop("_v2_description", None)
         dr["depends_on"] = model.dependencies(dr)
     code_rules = {}
-    for loc_id in {d["definition"]["locator"] for d in drafts.values() if d["kind"] == "field"}:
-        code_rules[loc_id] = next(rid for rid, d in sorted(drafts.items()) if d["kind"] == "field"
+    for loc_id in {d["definition"]["locator"] for d in drafts.values() if d["kind"] == "property"}:
+        code_rules[loc_id] = next(rid for rid, d in sorted(drafts.items()) if d["kind"] == "property"
                                   and d["definition"]["locator"] == loc_id and d["property_label"] == "Coded Notation")
     meta = info(ctx.catalog)
     settings = {
@@ -300,7 +300,7 @@ def import_annotations(ctx: Ctx, v2root, session: str, ext: str) -> tuple[list[d
         o_by.setdefault((o["page_stem"], o["course_key"]), o)
     rs_version = ctx.extraction_meta(ext)["ruleset_version"]
     _, rules = ctx.ruleset_rules(rs_version)
-    rule_for = {(r["property_label"], r["definition"]["locator"]): rid for rid, r in rules.items() if r["kind"] == "field"}
+    rule_for = {(r["property_label"], r["definition"]["locator"]): rid for rid, r in rules.items() if r["kind"] == "property"}
     notes_by = defaultdict(list)
     for n in notes:
         notes_by[n["target"]].append(n)
@@ -331,11 +331,11 @@ def import_annotations(ctx: Ctx, v2root, session: str, ext: str) -> tuple[list[d
 
     groups = defaultdict(list)
     for key, d in decisions.items():
-        if d["kind"] == "field":
+        if d["kind"] == "property":
             groups[(d["record_id"], d["canonical_label"], d["source_url"])].append((key, d))
     for (rec, label, url), items in sorted(groups.items()):
         if label not in IN_SCOPE:
-            stats["skipped_out_of_scope_field"] += len(items)
+            stats["skipped_out_of_scope_property"] += len(items)
             continue
         stem = pages.get(url)
         occ = o_by.get((stem, rec)) if stem else None
@@ -375,13 +375,13 @@ def import_annotations(ctx: Ctx, v2root, session: str, ext: str) -> tuple[list[d
                              imported, expected, " ".join(n["text"] for n in nts)))
             stats["wrong (reject + missing joined)" if expected else "wrong"] += 1
         for mkey, md in missing:
-            # A field rule row can't be "missing" (spec §4.3): the value is wrong, and this is the right text.
+            # A property rule row can't be "missing" (spec §4.3): the value is wrong, and this is the right text.
             imported = {"source": "review-ui-v2", "session": session,
                         "decisions": [{"key": mkey, "status": "missing", "author": md["author"], "seq": int(md["seq"])}]}
             expected = {**locate_expected(page_doc(stem), full_css, md["expected_value"]), "author": md["author"]}
             out.append(event(md["at"], md["author"], target("match", rule_id, stem, occ, match["value"], 0), "wrong",
                              imported, expected))
-            stats["wrong (v2 missing on a field)"] += 1
+            stats["wrong (v2 missing on a property)"] += 1
     for key, d in sorted(decisions.items()):
         if d["kind"] != "label":
             continue
@@ -406,7 +406,7 @@ def import_annotations(ctx: Ctx, v2root, session: str, ext: str) -> tuple[list[d
     used = {nid for a in out for nid in (a["imported_from"].get("notes") or [])}
     stats["skipped_note_out_of_scope"] = sum(1 for n in notes if n.get("id") not in used)
     for rid, r in sorted(rules.items()):  # constant and URL rules start approved (spec §4.3)
-        if r["kind"] == "field" and r["definition"]["rule_type"] in model.DERIVED_RULE_TYPES:
+        if r["kind"] == "property" and r["definition"]["rule_type"] in model.DERIVED_RULE_TYPES:
             imported = {"source": "golden-datasets import-v2", "rule": rid, "version": r["version"]}
             out.append({"annotation_id": aid(imported, "ap"), "type": "approve", "at": rulesets.now_iso(),
                         "author": "golden-datasets import-v2", "catalog": ctx.catalog, "crawl": None,

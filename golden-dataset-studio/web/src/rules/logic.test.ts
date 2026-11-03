@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import type { EventBrief } from "../api/types";
+import type { EventBrief, RuleSummary } from "../api/types";
 import {
-  addCapture, applyEvent, applyReview, approveBlocked, byLabel, canConfirm, comparedLine, defaultAnnotator, filterCountTip, shortWhen, clip, controlOn, expectedOf, historyItems, isSettled, keyAction, missingEvent, newDraft, paneTabs,
+  addCapture, applyEvent, applyItem, applyMissingItem, itemEvent, matchesRule, missingItemEvent, applyReview, approveBlocked, byLabel, canConfirm, comparedLine, defaultAnnotator, filterCountTip, shortWhen, clip, controlOn, expectedOf, historyItems, isSettled, keyAction, missingEvent, newDraft, paneTabs,
   parseMark, pushRecent, rowTarget, unitWord, verdictEvent, whereWord,
 } from "./logic";
 
@@ -13,8 +13,8 @@ const cap = { text: "This course provides", css_path: "html > body:nth-of-type(1
 
 describe("wording", () => {
   it("names the rows and where a rule looks", () => {
-    expect(unitWord("field", "locator-course-page")).toBe("courses");
-    expect(unitWord("field", "locator-program-requirement")).toBe("course lines");
+    expect(unitWord("property", "locator-course-page")).toBe("courses");
+    expect(unitWord("property", "locator-program-requirement")).toBe("course lines");
     expect(unitWord("locator", null)).toBe("courses found");
     expect(unitWord("page", null)).toBe("pages");
     expect(whereWord("locator-course-page")).toBe("course pages");
@@ -32,6 +32,8 @@ describe("wording", () => {
     expect(approveBlocked({ open_wrong: 0, open_missing: 0 })).toBeNull();
     expect(approveBlocked({ open_wrong: 6, open_missing: 1 })).toMatch(/^Can't approve yet: 7 courses are marked wrong or missing/);
     expect(approveBlocked({ open_wrong: 1, open_missing: 0 })).toMatch(/1 course is/);
+    // a property with no rule yet can't be approved, whatever its verdicts say
+    expect(approveBlocked({ open_wrong: 0, open_missing: 0, no_rule: true })).toMatch(/^No rule yet/);
   });
 });
 
@@ -64,7 +66,7 @@ describe("row state", () => {
 });
 
 describe("events", () => {
-  const t = rowTarget("field", "course-description", { occurrence_key: "p@x", page_stem: "p" });
+  const t = rowTarget("property", "course-description", { occurrence_key: "p@x", page_stem: "p" });
   it("targets a match, an occurrence or a page", () => {
     expect(t).toEqual({ kind: "match", rule_id: "course-description", occurrence_key: "p@x", page_stem: "p" });
     expect(rowTarget("locator", "loc", { occurrence_key: "p@x", page_stem: "p" }).kind).toBe("occurrence");
@@ -205,5 +207,59 @@ describe("filterCountTip and defaultAnnotator", () => {
     expect(defaultAnnotator([{ name: "Eric Riddoch", role: "engineer", values: 300 }, { name: "Cadence Calixto", role: "sme", values: 0 },
       { name: "Jared Diener", role: "sme", values: 112 }])).toBe("Jared Diener");
     expect(defaultAnnotator([])).toBeNull();
+  });
+});
+
+describe("rule search (property-rules spec §4.8, m4)", () => {
+  const rule = (o: Partial<RuleSummary>): RuleSummary => ({
+    rule_id: "r", kind: "property", version: 1, title: "Credit Value", subtitle: "creditValue", ctdl_property: "ceterms:creditValue",
+    property_label: "Credit Value", locator: "locator-course-page", status: "in review", reviewed: 0, total: 0, open_wrong: 0,
+    open_missing: 0, questions: 0, approved_by: null, approved_at: null, comments: 0, parent_label: null, ...o });
+  const child = rule({ title: "Credit Unit Min Value", subtitle: "part of Credit Value", ctdl_property: "ceterms:creditValue>schema:minValue",
+    parent_label: "Credit Value" });
+
+  it("matches the name, the CTDL term and the parent's name, ignoring case", () => {
+    expect(matchesRule(rule({}), "CREDIT")).toBe(true);
+    expect(matchesRule(rule({}), "creditvalue")).toBe(true);
+    expect(matchesRule(child, "minvalue")).toBe(true);     // the term's leaf
+    expect(matchesRule(child, "Credit Value")).toBe(true);  // the parent's name
+    expect(matchesRule(rule({ title: "Language", subtitle: "inLanguage", ctdl_property: "ceterms:inLanguage" }), "credit")).toBe(false);
+  });
+  it("does not match the ceterms: or schema: prefixes", () => {
+    expect(matchesRule(rule({ title: "Language", subtitle: "inLanguage", ctdl_property: "ceterms:inLanguage" }), "ceterms")).toBe(false);
+  });
+  it("an empty query matches every rule", () => {
+    expect(matchesRule(child, "  ")).toBe(true);
+  });
+});
+
+describe("list items (property-rules spec §4.4, m2)", () => {
+  const target = { occurrence_key: "med49@div", page_stem: "med49" };
+  it("an item's verdict targets that item by its value_index", () => {
+    expect(itemEvent("Jared", "estimated-duration", target, 1, "wrong", null)).toEqual({
+      type: "verdict", author: "Jared", verdict: "wrong", supersedes: null,
+      target: { kind: "match", rule_id: "estimated-duration", occurrence_key: "med49@div", item: true, value_index: 1 } });
+  });
+  it("a changed item verdict supersedes the one it replaces", () => {
+    expect(itemEvent("Jared", "estimated-duration", target, 0, "correct", "an-old").supersedes).toBe("an-old");
+  });
+  it("a missing item is a missing verdict with the selected text as expected, on the occurrence", () => {
+    const ev = missingItemEvent("Jared", "estimated-duration", target.occurrence_key, cap, "");
+    expect(ev).toMatchObject({ type: "verdict", verdict: "missing", note: null,
+      target: { kind: "match", rule_id: "estimated-duration", occurrence_key: "med49@div", item: true },
+      expected: { text: "This course provides", css_path: cap.css_path, char_start: 3, char_end: 23 } });
+    expect(ev.target).not.toHaveProperty("value_index");
+  });
+  it("applies an item's verdict to the row, and a missing item to its list", () => {
+    const row = { items: [{ value_index: 0, value: "Lecture - 87.5", css_path: "p", char_start: 0, char_end: 3, state: null, verdict: null, human: false },
+                          { value_index: 1, value: "Lab - 35", css_path: "p", char_start: 4, char_end: 6, state: null, verdict: null, human: false }],
+                 missing_items: [] as EventBrief[] };
+    const brief = ev({ verdict: "correct", author: "Jared" });
+    const out = applyItem(row, 1, brief, "sme");
+    expect(out.items[1]).toMatchObject({ state: "correct", human: true, verdict: brief });
+    expect(out.items[0]).toBe(row.items[0]);
+    expect(applyItem(row, 1, brief, "engineer").items[1].human).toBe(false);
+    const missing = ev({ verdict: "missing", expected: { text: "Lab - 52.5", css_path: "p", char_start: 0, char_end: 9 } });
+    expect(applyMissingItem(row, missing).missing_items).toEqual([missing]);
   });
 });

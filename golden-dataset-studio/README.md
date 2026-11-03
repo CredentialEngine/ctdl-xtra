@@ -46,6 +46,26 @@ Catalogs: `avc`, `ccsf`, `marshall`, `ualr`, `wvu` (or the full folder names).
 scrypt hash) or `GOLDEN_DATASETS_PASSWORD` (hashed at startup). With neither, there is no password. Signing in lasts
 30 days in that browser, across restarts, until the password changes.
 
+## Properties: one rule per CLI Extraction Label ([`docs/qrspi/property-rules`](docs/qrspi/property-rules/03-spec.md))
+
+Every property of the "xTRA: Learning Opportunity BU Template" sheet's Phase 1 Extraction tab (column F), plus
+Learning Type, is a property rule in every catalog: 43 in all, listed in the checked-in
+[`src/golden_datasets/properties.csv`](src/golden_datasets/properties.csv). Nested properties are flat paths
+(`ceterms:creditValue>schema:minValue`), shown with arrows. The app never reads the sheet: sync it into the file,
+review the diff like code, then add the new properties to each catalog with no rule yet (`rule_type: none`).
+
+```sh
+golden-datasets properties sync [--from bu.xlsx | phase1.csv]   # the sheet → properties.csv: added / kept / removed
+golden-datasets properties list
+golden-datasets properties apply --all     # one ruleset version per catalog that gets new properties
+golden-datasets prompt --first-rules -c avc   # the Generate rules prompt: write the rules still missing
+```
+
+A property rule says what it reads (`input`: the record, the whole page, the URL or another rule's output, so a child
+like Credit Unit Max Value reads Credit Value's text), can give a list (`multiple`: split elements, a separator or a
+regex, and `keep`), and has `labelled`, `attribute` and `join` for text a selector can't reach alone. A list shows one
+row per course with a ✓ / ✕ per item. Anyone can annotate any property, a rule or not.
+
 ## The loop with Claude Code (spec §3.1)
 
 1. In the UI, Jared marks rows ✓ / ✗ (selecting the right text on the page) or asks a question for the institution.
@@ -63,24 +83,28 @@ golden-datasets rule publish draft.json -c avc     # refused if a value marked c
 ```
 
 4. The UI lists the new ruleset version; **Compare** shows v(n−1) → v(n), Jared's earlier verdicts first.
-5. Jared approves the rule or annotates again. **Approving a column's rule publishes it** (after one confirmation:
-   the golden dataset's columns now and after, and how many of its values are human-reviewed): the column goes into
-   its ruleset's golden dataset (the first approval creates `ruleset-vN` with every column approved so far; later ones
-   write it again with the extra column), then xtra's latest extract output is scored against it. Page rules and
-   record locators approve as before; a column with no CTDL term (Learning Type) is approved but not written to the
-   files. The **Golden datasets** tab is a read-only record: each version's columns, values (how many human-reviewed)
-   and latest xtra score, and where it is written, each file a link to a sample. Engineers can still publish from the CLI:
+5. Jared approves the rule or annotates again. **Approving a column's rule publishes its silver dataset** (after one
+   confirmation: how many values go in, and that the golden dataset doesn't change): the column goes into its
+   ruleset's **silver dataset**, also called the rule-matched dataset (the first approval creates `ruleset-vN` with
+   every column approved so far; later ones write it again with the extra column), then xtra's latest extract output
+   is scored against it. The **golden dataset** is only the values an expert reviewed, in any property: it grows with
+   each expert verdict, not with approvals. Page rules and record locators approve as before; a column with no CTDL
+   term (Learning Type) is approved but not written to the files. The **Datasets** tab is a read-only record: the
+   golden dataset by property, and each silver version's columns, values and latest xtra score, and where it is
+   written, each file a link to a sample. Engineers can still publish from the CLI:
 
 ```sh
-golden-datasets golden publish -c avc --property Description   # into ruleset vN's golden dataset, written whole
+golden-datasets golden publish -c avc --property Description   # into ruleset vN's silver dataset, written whole
 golden-datasets golden backfill -c avc     # once: publications from before versions (pub-…) → ruleset-vN
 golden-datasets golden backfill -c avc --again   # also write every version again in the current layout
 ```
 
-A golden dataset's ID is its ruleset's (`ruleset-v3`). Each version is kept as two parallel trees,
-`<golden root>/catalogs/<catalog>/versions/ruleset-vN/rule-matched/<catalog>/<crawl>/` (every value) and
-`…/ruleset-vN/human-reviewed/<catalog>/<crawl>/` (only the `approval: human` values, only the pages that have one), and
-the latest version's rule-matched tree replaces `<golden root>/<catalog>/<crawl>/` page by page. Version trees hold
+A version's ID is its ruleset's (`ruleset-v3`). Each version is kept as two parallel trees,
+`<golden root>/catalogs/<catalog>/versions/ruleset-vN/silver/<catalog>/<crawl>/` (every value: the silver dataset) and
+`…/ruleset-vN/golden/<catalog>/<crawl>/` (only the `approval: human` values, only the pages that have one: the golden
+dataset), and the latest version's silver tree replaces `<golden root>/<catalog>/<crawl>/` page by page, which is what
+xtra's scorer reads by default. Versions written before the property list keep their folders, `rule-matched/` and
+`human-reviewed/`. Version trees hold
 `<stem>.json` only; `<stem>.html` (the page as crawled) is only at the latest location. Values with no CTDL term
 (Learning Type) stay out of the files (`xtra score` rejects them) and in the Studio's lineage and `golden.parquet`. The
 golden root defaults to `.data/golden` beside a local root (`$GOLDEN_DATASETS_GOLDEN_ROOT` overrides; an Azure root
@@ -104,9 +128,11 @@ The Studio doesn't run xtra: engineers run `xtra catalog extract`, and the Studi
 (`$GOLDEN_DATASETS_XTRA_SOURCE/<catalog>/<crawl>/records/`, else the shared `xtra-cli-output` container) and scores it
 with xtra's own scorer, called in-process (xtra-cli is a path dependency on `../xtra-cli`). Each score is kept in
 `<crawl>/golden-dataset-studio/scores/sc-NNNN/` (`score.json`, `values.parquet`) with two results: the version's
-`human-reviewed/` tree and its `rule-matched/` tree, each exactly what `xtra score extraction match --baseline-uri
+golden tree (human-reviewed) and its silver tree (rule-matched), each exactly what `xtra score extraction match --baseline-uri
 <golden root>/catalogs/<catalog>/versions/ruleset-vN/<tree>` gives (`score.json` holds both commands). The first time the Studio sees an extract output it copies it into
 `extract-outputs/<report last modified>/`, so it stays scorable after xtra overwrites it.
+Only the columns the extract output emits under the same path are scored: a property xtra doesn't extract yet is
+listed in `not_scored`, and each result's `xtra` keeps the scorer's own numbers over every column.
 
 ```sh
 export GOLDEN_DATASETS_XTRA_SOURCE=~/review-ui-v3-data/xtra-cli-output   # where xtra writes extract outputs

@@ -19,13 +19,14 @@ import sys
 import duckdb
 import pyarrow as pa
 
-from . import layout
+from . import layout, model
 from .context import Ctx
 
 ANNOTATION_COLUMNS = """{'annotation_id':'VARCHAR', 'type':'VARCHAR', 'at':'VARCHAR', 'author':'VARCHAR',
  'catalog':'VARCHAR', 'crawl':'VARCHAR',
  'target':'STRUCT(kind VARCHAR, rule_id VARCHAR, rule_version_seen INTEGER, extraction_seen VARCHAR,
-   occurrence_key VARCHAR, course_key VARCHAR, page_stem VARCHAR, value_index INTEGER, value_seen VARCHAR)',
+   occurrence_key VARCHAR, course_key VARCHAR, page_stem VARCHAR, value_index INTEGER, value_seen VARCHAR,
+   item BOOLEAN)',
  'verdict':'VARCHAR',
  'expected':'STRUCT(text VARCHAR, css_path VARCHAR, char_start INTEGER, char_end INTEGER,
    quote STRUCT(prefix VARCHAR, exact VARCHAR, suffix VARCHAR), located_by VARCHAR, author VARCHAR,
@@ -40,7 +41,7 @@ def _q(path) -> str:
 def rule_versions_table(ctx: Ctx) -> pa.Table:
     rows = []
     for path in (ctx.entry() or {}).get("rule_versions", []):
-        r = ctx.read_json(path)
+        r = model.current_kind(ctx.read_json(path))
         rows.append({"catalog": r.get("catalog"), "rule_id": r["rule_id"], "version": r["version"], "kind": r["kind"],
                      "parent_version": r.get("parent_version"), "ctdl_property": r.get("ctdl_property"),
                      "property_label": r.get("property_label"), "locator": r["definition"].get("locator"),
@@ -126,7 +127,7 @@ def connect(ctx: Ctx) -> duckdb.DuckDBPyConnection:
                        NULL::VARCHAR verdict, NULL::VARCHAR crawl, NULL::VARCHAR supersedes,
                        NULL::STRUCT(kind VARCHAR, rule_id VARCHAR, rule_version_seen INTEGER, extraction_seen VARCHAR,
                        occurrence_key VARCHAR, course_key VARCHAR, page_stem VARCHAR, value_index INTEGER,
-                       value_seen VARCHAR) target WHERE false""")
+                       value_seen VARCHAR, item BOOLEAN) target WHERE false""")
     golden = k.get("golden") or []
     import pyarrow.parquet as pq
 

@@ -1,6 +1,7 @@
-// Middle column header (spec §7.2): the CTDL term linked to its definition, the plain name under it,
-// "Approve rule" (greyed out with the reason while a course is wrong or missing), and
-// "How this rule works ›" (collapsed, a chevron icon). The current version only.
+// Middle column header (spec §7.2; property-rules spec §4.2, §4.6, m1): the property's name, what it's part of and where it
+// looks, its path with arrows (the leaf term linked to its definition), what the rule reads ("Input: …"), "Approve rule"
+// (greyed out with the reason while a course is wrong or missing, or the property has no rule yet), and "How this rule
+// works ›" (collapsed, a chevron icon; open for a property with no rule yet). The current version only.
 import type { CatalogDetail, RuleDetail } from "../api/types";
 import { Ico } from "../shell/icons";
 import { fmt, termUrl } from "../shell/ui";
@@ -46,14 +47,19 @@ function DefRows({ rule }: { rule: RuleDetail }) {
 export function RuleHead({ catalog, rule, onApprove, onReopen, busy }: {
   catalog: CatalogDetail; rule: RuleDetail; onApprove: () => void; onReopen: () => void; busy: boolean;
 }) {
-  const isField = rule.kind === "field";
-  const url = termUrl(rule.ctdl_property);
-  const title = isField
-    ? (url ? <a className="term" href={url} target="_blank" rel="noopener noreferrer">{rule.ctdl_property}<Ico name="ext" /></a>
-           : <span className="term plain">{rule.property_label ?? rule.title}</span>)
-    : <span className="term plain">{rule.title}</span>;
-  const sub = isField
-    ? `${rule.property_label ?? rule.title}${rule.ctdl_property ? "" : " · no CTDL term"} · ${whereWord(rule.locator)}`
+  const isProperty = rule.kind === "property";
+  const child = rule.subtitle.startsWith("part of ");
+  // the path with arrows; its leaf term links to the definition (termUrl)
+  const shown = (rule.path_shown ?? rule.ctdl_property?.replace(/>/g, " → ")) || "";
+  const steps = shown.split(" → ");
+  const leaf = steps.pop() ?? "";
+  const path = !shown ? <span className="term plain">no CTDL term</span> : (
+    <span className="rh-path">
+      {steps.length > 0 && <>{steps.join(" → ")} → </>}
+      <a className="term" href={termUrl(rule.ctdl_property) ?? undefined} target="_blank" rel="noopener noreferrer">{leaf}<Ico name="ext" /></a>
+    </span>);
+  const sub = isProperty
+    ? [child ? `part of ${rule.parent_label ?? ""}` : null, whereWord(rule.locator)].filter(Boolean).join(" · ")
     : `${rule.subtitle} · ${rule.kind === "page" ? "page rule" : "record locator"}`;
   const blocked = approveBlocked(rule);
   const approved = rule.status === "approved";
@@ -61,7 +67,12 @@ export function RuleHead({ catalog, rule, onApprove, onReopen, busy }: {
   return (
     <div className="rule-head">
       <div className="rh-top">
-        <div className="rh-title"><h1>{title}</h1><span className="rh-sub">{sub}</span></div>
+        <div className="rh-title">
+          <h1>{isProperty ? rule.property_label ?? rule.title : <span className="term plain">{rule.title}</span>}</h1>
+          <span className="rh-sub">{sub}</span>
+          {isProperty && <div className="rh-line">{path}{rule.list && <span className="rl-tag">list</span>}</div>}
+          {isProperty && rule.input && <div className="rh-input">Input: <b>{rule.input}</b></div>}
+        </div>
         <div className="rh-actions">
         {approved ? (
           <span className="approved-by" data-tour="approve">
@@ -78,7 +89,9 @@ export function RuleHead({ catalog, rule, onApprove, onReopen, busy }: {
         )}
         </div>
       </div>
-      <details className="how" data-tour="how-it-works">
+      {rule.no_rule && <p className="rh-norule" role="note">No rule yet. Nothing is extracted for this property. You can still mark the
+        value a course shows: select it on the page, then ✗.</p>}
+      <details className="how" data-tour="how-it-works" open={!!rule.no_rule}>
         <summary>How this rule works<Ico name="chevron-right" className="how-car" /></summary>
         <dl className="wwh">
           <dt>What it finds</dt><dd>{rule.what}</dd>
@@ -88,8 +101,8 @@ export function RuleHead({ catalog, rule, onApprove, onReopen, busy }: {
         </dl>
         <dl className="tech">
           <DefRows rule={rule} />
-          <dt>{isField ? "Filled" : "Found"}</dt>
-          <dd>{isField ? `${fmt(fill.found)} of ${fmt(fill.rows)} courses have a value (${fill.rows ? Math.round(100 * fill.found / fill.rows) : 0}%)`
+          <dt>{isProperty ? "Filled" : "Found"}</dt>
+          <dd>{isProperty ? `${fmt(fill.found)} of ${fmt(fill.rows)} courses have a value (${fill.rows ? Math.round(100 * fill.found / fill.rows) : 0}%)`
                        : `${fmt(fill.found)} ${rule.kind === "page" ? "pages" : "courses"}`}</dd>
           {rule.depends_on.length > 0 && <><dt>Depends on</dt><dd>{rule.depends_on.map((d, i) => (
             <span key={d}>{i ? ", " : ""}{plain(d)} <span className="faint">(<code>{d}</code>)</span></span>))}: if that rule changes, this one is run again.</dd></>}

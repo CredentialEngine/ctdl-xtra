@@ -30,7 +30,7 @@ def first_settings(rules: dict[str, dict], given: dict | None = None) -> dict:
     given = given or {}
     code_rules = {}
     for loc in sorted(rid for rid, r in rules.items() if r["kind"] == "locator"):
-        code = next((rid for rid, r in sorted(rules.items()) if r["kind"] == "field"
+        code = next((rid for rid, r in sorted(rules.items()) if r["kind"] == "property"
                      and r["definition"].get("locator") == loc and r.get("property_label") == "Coded Notation"), None)
         if code:
             code_rules[loc] = code
@@ -77,18 +77,38 @@ def plan_versions(ctx: Ctx, drafts: dict[str, dict], base: dict[str, dict]) -> d
 
 
 def validate_ruleset(rules: dict[str, dict]) -> None:
+    from . import engine
+
     for rid, r in rules.items():
         if r["kind"] not in model.KINDS:
             raise UserError(f"{rid}: kind must be one of {model.KINDS}")
         for dep in model.dependencies(r):
             if dep not in rules:
                 raise UserError(f"{rid} depends on {dep}, which isn't in the ruleset")
-        if r["kind"] == "field":
+        if r["kind"] == "property":
             d = r["definition"]
-            if d.get("rule_type") not in ("css", "css+regex", "regex", "constant", "source_url"):
-                raise UserError(f"{rid}: unknown rule_type {d.get('rule_type')!r}")
+            if d.get("rule_type") not in model.RULE_TYPES:
+                raise UserError(f"{rid}: unknown rule_type {d.get('rule_type')!r} (one of {', '.join(model.RULE_TYPES)})")
             if rules[d["locator"]]["kind"] != "locator":
                 raise UserError(f"{rid}: definition.locator must name a record locator")
+            inp = engine.input_of(d)
+            if inp.get("from") not in engine.INPUTS:
+                raise UserError(f"{rid}: input.from must be one of {', '.join(engine.INPUTS)}")
+            if inp["from"] == "rule":
+                parent = rules.get(inp.get("rule") or "")
+                if parent is None or parent["kind"] != "property":
+                    raise UserError(f"{rid}: input.rule must name a property rule")
+                if parent["definition"].get("locator") != d["locator"]:
+                    raise UserError(f"{rid}: input.rule {inp['rule']} is on another record locator")
+            if d["rule_type"] == "labelled" and not d.get("label"):
+                raise UserError(f"{rid}: a labelled rule needs `label`")
+            split = (d.get("multiple") or {}).get("split") if d.get("multiple") else None
+            if d.get("multiple") and split not in engine.SPLITS:
+                raise UserError(f"{rid}: multiple.split must be one of {', '.join(engine.SPLITS)}")
+    try:
+        engine.property_order(rules, [rid for rid, r in rules.items() if r["kind"] == "property"])
+    except ValueError as exc:
+        raise UserError(f"rules read each other in a circle: {exc}") from None
 
 
 def ruleset_doc(ctx: Ctx, version: int, rules: dict[str, dict], settings: dict, parent: int | None,

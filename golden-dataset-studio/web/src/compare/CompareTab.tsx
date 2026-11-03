@@ -260,7 +260,7 @@ function Ck({ r, card, many }: { r: BriefRow; card: RuleCardX; many: boolean }) 
   return <span className="ck">{r.course_key ?? "—"}{many && <span className="rtag">{card.ctdl_property ?? card.title}</span>}</span>;
 }
 
-/** A changed value: the shared value diff (Split by default) with Note… and "The new value is wrong…" (field rules). */
+/** A changed value: the shared value diff (Split by default) with Note… and "The new value is wrong…" (property rules). */
 function RecLine({ r, card, short, many, children }:
   { r: BriefRow; card: RuleCardX; short: string; many: boolean; children?: ReactNode }) {
   return (

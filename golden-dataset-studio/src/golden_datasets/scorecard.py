@@ -130,7 +130,8 @@ def rule_scorecard(rule_id: str, a: Snapshot | None, b: Snapshot, review: Review
                           "expected": expected, "a_value": x["value"], "b_value": y["value"], "outcome": oc,
                           "diff": word_diff(x["value"], y["value"]), "css_path": y.get("css_path"),
                           "char_start": y.get("char_start"), "char_end": y.get("char_end"),
-                          "annotation_id": e["annotation_id"], "history": history_signal(e["verdict"], oc)})
+                          "annotation_id": e["annotation_id"], "history": history_signal(e["verdict"], oc),
+                          **({"items": item_diff(x, y)} if item_diff(x, y) else {})})
     annotated.sort(key=verdict_order)
 
     # Signals before → after, with the rows that lost (−) and gained (+) each one.
@@ -198,12 +199,24 @@ def rule_scorecard(rule_id: str, a: Snapshot | None, b: Snapshot, review: Review
     }
 
 
+def item_diff(x: dict | None, y: dict | None) -> dict | None:
+    """A list row's items, paired by text within the course (property-rules spec §4.4): added and removed."""
+    if (x or {}).get("items") is None and (y or {}).get("items") is None:
+        return None
+    a = Counter(norm(i["value"]) for i in (x or {}).get("items") or [])
+    b = Counter(norm(i["value"]) for i in (y or {}).get("items") or [])
+    return {"added": sorted((b - a).elements()), "removed": sorted((a - b).elements()),
+            "kept": sum((a & b).values())}
+
+
 def _brief(x: dict | None, y: dict | None) -> dict:
     r = y or x
+    items = item_diff(x, y)
     return {"key": r["key"], "course_key": r.get("course_key"), "page_stem": r["page_stem"],
             "a_value": x["value"] if x else None, "b_value": y["value"] if y else None,
             "diff": word_diff(x["value"] if x else None, y["value"] if y else None),
-            "css_path": r.get("css_path"), "char_start": r.get("char_start"), "char_end": r.get("char_end")}
+            "css_path": r.get("css_path"), "char_start": r.get("char_start"), "char_end": r.get("char_end"),
+            **({"items": items} if items else {})}
 
 
 def changed_rules(a: Snapshot, b: Snapshot) -> list[str]:
