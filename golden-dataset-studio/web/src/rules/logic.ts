@@ -1,5 +1,5 @@
 // Pure helpers of the Rules and Records tabs (no React, no fetch): wording, verdict events, keyboard, page tabs.
-import type { EventBrief, Expected, NewEvent, ReviewMarks, RowStateName, RuleKind, RuleSummary, Verdict } from "../api/types";
+import type { EventBrief, Expected, NewEvent, ReviewMarks, RowItem, RowStateName, RuleKind, RuleSummary, Verdict } from "../api/types";
 import type { CapturedSelection } from "../pagepane";
 
 // --- wording ---------------------------------------------------------------------------------------------------
@@ -14,7 +14,7 @@ export function unitWord(kind: RuleKind, locator: string | null): string {
   return locator && locator !== "locator-course-page" ? "course lines" : "courses";
 }
 
-/** Where a field rule looks, under its title: "Description · course pages". */
+/** Where a property rule looks, under its title: "Description · course pages". */
 export function whereWord(locator: string | null): string {
   if (!locator || locator === "locator-course-page") return "course pages";
   if (locator === "locator-program-requirement") return "course lines on program pages";
@@ -34,12 +34,23 @@ export function parseMark(detail: string): { code: string; line: string } {
   return { code, line };
 }
 
-/** Why Approve is greyed out (spec §7.2), or null when it can be approved. */
-export function approveBlocked(s: Pick<RuleSummary, "open_wrong" | "open_missing">): string | null {
+/** Why Approve is greyed out (spec §7.2), or null when it can be approved. A property with no rule yet has nothing to
+ * approve (property-rules spec §4.6). */
+export function approveBlocked(s: Pick<RuleSummary, "open_wrong" | "open_missing"> & Partial<Pick<RuleSummary, "no_rule">>): string | null {
+  if (s.no_rule) return "No rule yet: this property has no rule to approve. Write one (Generate rules, or Improve) to approve it.";
   const n = s.open_wrong + s.open_missing;
   if (!n) return null;
   return `Can't approve yet: ${n.toLocaleString("en-US")} ${n === 1 ? "course is" : "courses are"} marked wrong or missing. ` +
     "A rule is approved only when none of its courses is. Fix it with “Improve all rules”, or change those verdicts.";
+}
+
+/** Search (m4): a rule matches by its name, its CTDL term without prefixes ("creditValue>minValue"), its subtitle, and its
+ * parent's name. Case doesn't matter; an empty search matches every rule. */
+export function matchesRule(r: RuleSummary, query: string): boolean {
+  const q = query.trim().toLowerCase();
+  if (!q) return true;
+  const term = (r.ctdl_property ?? "").replace(/[a-z]+:/gi, "");
+  return [r.title, r.subtitle, term, r.parent_label ?? ""].some((x) => x.toLowerCase().includes(q));
 }
 
 // --- row state ---------------------------------------------------------------------------------------------------
@@ -150,9 +161,9 @@ export function expectedOf(c: CapturedSelection | CapturedSelection[] | null): E
 
 export type Target = NewEvent["target"];
 
-/** A row's annotation target: a match (field rule), an occurrence (record locator) or a page (page rule). */
+/** A row's annotation target: a match (property rule), an occurrence (record locator) or a page (page rule). */
 export function rowTarget(kind: RuleKind, ruleId: string, row: { occurrence_key: string | null; page_stem: string }): Target {
-  if (kind === "field") return { kind: "match", rule_id: ruleId, occurrence_key: row.occurrence_key, page_stem: row.page_stem };
+  if (kind === "property") return { kind: "match", rule_id: ruleId, occurrence_key: row.occurrence_key, page_stem: row.page_stem };
   if (kind === "locator") return { kind: "occurrence", rule_id: ruleId, occurrence_key: row.occurrence_key, page_stem: row.page_stem };
   return { kind: "page", rule_id: ruleId, page_stem: row.page_stem };
 }
@@ -194,6 +205,34 @@ export function applyEvent<R extends { state: RowStateName | null; verdict: Even
   if (ev.type === "comment") return { ...row, comments: [...row.comments, ev] };
   if (ev.type !== "verdict" || !ev.verdict) return row;
   return { ...row, verdict: ev, state: ev.verdict, reattached: false };
+}
+
+// --- list items (property-rules spec §4.4) ---------------------------------------------------------------------------
+/** A verdict on one item of a list property's row: ✓ correct or ✕ wrong, targeting that item by its `value_index`. */
+export function itemEvent(author: string, ruleId: string, row: { occurrence_key: string | null; page_stem?: string },
+  valueIndex: number, verdict: "correct" | "wrong", supersedes: string | null): NewEvent {
+  return { type: "verdict", author, verdict, supersedes,
+           target: { kind: "match", rule_id: ruleId, occurrence_key: row.occurrence_key, item: true, value_index: valueIndex } };
+}
+
+/** An item the rule missed: a missing verdict on the row, with the text selected on the page as expected. */
+export function missingItemEvent(author: string, ruleId: string, occurrenceKey: string | null, capture: CapturedSelection,
+  note = ""): NewEvent {
+  return { type: "verdict", author, verdict: "missing", note: note.trim() || null, expected: expectedOf(capture),
+           target: { kind: "match", rule_id: ruleId, occurrence_key: occurrenceKey, item: true } };
+}
+
+/** The row's items with one item's verdict applied (no refetch). A ✓ by an expert makes the item human-reviewed. */
+export function applyItem<R extends { items?: RowItem[] }>(row: R, valueIndex: number, ev: EventBrief, role: string | null): R {
+  const items = (row.items ?? []).map((it) => it.value_index !== valueIndex ? it
+    : { ...it, state: ev.verdict === "correct" ? "correct" as const : "wrong" as const, verdict: ev,
+        human: role === "sme" && ev.verdict === "correct" });
+  return { ...row, items };
+}
+
+/** The row's missing items with one more added (no refetch). */
+export function applyMissingItem<R extends { missing_items?: EventBrief[] }>(row: R, ev: EventBrief): R {
+  return { ...row, missing_items: [...(row.missing_items ?? []), ev] };
 }
 
 // --- human-reviewed / engineer-checked (Evals spec §4.3, §6.7) ---------------------------------------------------

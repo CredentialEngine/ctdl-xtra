@@ -1,7 +1,7 @@
 // The JSON the Studio server returns (src/golden_datasets/server/routes_*.py). This file is the contract between
 // the server and the tabs; change both sides together.
 
-export type RuleKind = "page" | "locator" | "field";
+export type RuleKind = "page" | "locator" | "property";
 export type RuleStatus = "approved" | "needs work" | "in review";
 export type Verdict = "correct" | "wrong" | "missing" | "question";
 /** A row's verdict carried forward to the current rule version (review.py `_carry`). */
@@ -45,9 +45,21 @@ export interface RuleSummary {
   status: RuleStatus; reviewed: number; total: number; open_wrong: number; open_missing: number;
   questions: number; approved_by: string | null; approved_at: string | null; comments: number;
   rule_comments?: number;             // comments on the whole rule (sidebar)
+  // property rules only (property-rules spec §4.8, §4.2, §4.4):
+  required?: boolean;                 // in the Required group (Coded Notation, External Identifier, …)
+  course_key?: boolean;               // Coded Notation: the course key, tagged "course key"
+  no_rule?: boolean;                  // rule_type none: no rule yet (Not started)
+  list?: boolean;                     // `multiple`: several values per course, one line each
+  path_shown?: string | null;         // "ceterms:creditValue → schema:minValue", or null for a top-level property
+  parent_label?: string | null;       // "Credit Value" for a child, else null
+  input?: string;                     // what the rule reads, in words: "the course record", "Credit Value's value"…
 }
 
-export interface RuleGroup { kind: RuleKind; label: string; rules: RuleSummary[]; approved: number }
+/** A rule group of the rule list: `id` is "page" | "locator" | "required" | "other" | "not-started" | "program";
+ * `collapsed` starts it shut (Not started and Program page lines). The server sorts the rules; the list keeps that order. */
+export interface RuleGroup {
+  id: string; kind: RuleKind; label: string; collapsed: boolean; rules: RuleSummary[]; approved: number;
+}
 export interface RulesResponse { extraction: string; ruleset_version: number; groups: RuleGroup[] }
 
 export interface RuleDetail extends RuleSummary {
@@ -86,10 +98,19 @@ export interface ReviewMarks {
   human_reviewed?: boolean; engineer_checked?: boolean; human?: EventBrief | null; checked?: EventBrief | null;
 }
 
+/** One value of a list property's row (property-rules spec §4.4): its own verdict. `value_index` orders it. */
+export interface RowItem {
+  value_index: number; value: string; css_path: string | null; char_start: number | null; char_end: number | null;
+  state: "correct" | "wrong" | "fixed" | null; verdict: EventBrief | null; human: boolean;
+}
+
 export interface Row extends ReviewMarks {
-  key: string;                       // occurrence_key (field rules, locators) or page_stem (page rules)
+  key: string;                       // occurrence_key (property rules, locators) or page_stem (page rules)
   occurrence_key: string | null; course_key: string | null; page_stem: string; url: string; page_title: string | null;
-  value: string | null; status: "found" | "empty" | "no_match";
+  /** the value's text; a list's items joined by line breaks; null for a property with no rule ("none") */
+  value: string | null; status: "found" | "empty" | "no_match" | "none";
+  /** a list property's items, one line each, and the items a reviewer marked missing (`expected.text`) */
+  items?: RowItem[]; missing_items?: EventBrief[];
   css_path: string | null;           // document-root path of the value's element (null for constants)
   char_start: number | null; char_end: number | null;   // DOM textContent offsets in that element
   occurrence_css_path: string | null; context: string | null;   // "GEOG 222 - Cartography …" (or the page URL)
@@ -116,17 +137,22 @@ export interface Overlay {
 export interface UnclassifiedPage { page_stem: string; url: string; title: string | null; detail: string }
 
 export interface CourseHit { course_key: string; occurrences: number; line: string | null }
-export interface CourseField extends ReviewMarks {
+/** A value of a list property on a course (the Records tab): its text and where it is on the page. */
+export interface CourseItem { value_index: number; value: string; css_path: string | null; char_start: number | null; char_end: number | null }
+export interface CourseProperty extends ReviewMarks {
   /** who marked or commented on it: their verdict (correct · wrong) and note, and when (the "Annotated by" filter) */
   annotators?: Record<string, { kinds: string[]; at: string; role?: "sme" | "engineer" }>;
-  rule_id: string; property_label: string | null; ctdl_property: string | null; value: string | null;
+  rule_id: string; property_label: string | null; ctdl_property: string | null;
+  /** the value (a list's items joined by line breaks); null for a property with no rule yet (status "none") */
+  value: string | null;
   status: string; css_path: string | null; char_start: number | null; char_end: number | null;
+  items?: CourseItem[];               // a list property: one line per item
   state: RowStateName | null; verdict: EventBrief | null; comments: EventBrief[];
 }
 export interface CourseDetail {
   course_key: string; extraction: string;
   occurrences: { occurrence_key: string; page_stem: string; url: string; page_title: string | null;
-                 locator_rule_id: string; css_path: string; fields: CourseField[] }[];
+                 locator_rule_id: string; css_path: string; properties: CourseProperty[] }[];
 }
 
 /** What the client posts to /annotations. The server fills id, time, catalog, crawl, versions and value_seen. */
@@ -134,7 +160,9 @@ export interface NewEvent {
   type: "verdict" | "comment" | "approve" | "reopen";
   author: string;
   target: { kind: "match" | "occurrence" | "page" | "rule" | "ruleset"; rule_id: string | null;
-            occurrence_key?: string | null; page_stem?: string | null };
+            occurrence_key?: string | null; page_stem?: string | null;
+            /** one item of a list property's row (value_index), not the whole row (property-rules spec §4.4) */
+            item?: boolean; value_index?: number | null };
   verdict?: Verdict; expected?: Expected | null; note?: string | null; supersedes?: string | null;
   topic?: Topic;                      // comments on a whole rule or on the ruleset
   compared_with?: ComparedWith;       // a note or a verdict made on a diff (Evals, Compare)
@@ -205,14 +233,20 @@ export interface GoldenVersion {
   where: { root: string; version: string; trees: Record<GoldenTree, { prefix: string; pages: number | null }>;
            latest: string | null; studio: string };
 }
+/** The golden dataset as it is now (property-rules spec §4.16): only the values an expert reviewed, by property. */
+export interface GoldenNow {
+  by_property: { property: string; rule_id: string; path_shown: string | null; human: number }[]; human: number;
+}
 export interface GoldenResponse {
   catalog: string; crawl: string; versions: GoldenVersion[]; latest_output: string | null; running: string | null;
+  golden: GoldenNow;
 }
-/** What approving a rule publishes (the approve confirmation). `publishes` false: approved without writing files. */
+/** What approving a rule publishes (the approve confirmation). `publishes` false: approved without writing files.
+ * `path_shown` is the property's path with arrows; `xtra_extracts` false: xtra's latest output doesn't emit it yet. */
 export interface ApprovePreview {
   publishes: boolean; rule_id: string; property?: string; column?: string | null; golden?: string;
   ruleset_version?: number; creates?: boolean; now?: string[]; after?: string[]; where?: string;
-  values?: number; human?: number; rule?: number;
+  values?: number; human?: number; rule?: number; path_shown?: string | null; xtra_extracts?: boolean | null;
 }
 /** The approve's answer: what it published (a column's rule) and the score it started. */
 export interface AnnotateResponse {
@@ -264,18 +298,38 @@ export type ScoreOutcome = "missing" | "wrong" | "partial" | "match";
 export type ScoreBasis = "human" | "rule";        // the human-reviewed values only; every rule-matched value
 export interface OutcomeCounts { values: number; missing: number; wrong: number; partial: number; match: number }
 
-/** The home page's catalogs table (Evals spec §6.1, §6.2): per catalog with rules, each column's status and the exact
- * matches of xtra's latest extract output against the latest golden dataset, on one basis (null: not scored yet). */
+/** The home page's catalogs table (Evals spec §6.1, §6.2; property-rules spec §4.9): one column per property, in order,
+ * and per catalog with rules each column's status and fraction, and the exact matches of xtra's latest extract output
+ * against the latest golden dataset, on one basis (null: not scored yet). */
 export type ColumnStatus = "published" | "in review" | "needs work";
+export interface ColumnSummary {
+  status: ColumnStatus; ruleset: number | null;
+  /** the column's values in the latest golden dataset (`human` an expert reviewed, `rule` its approved rule labels) of
+   * the values its rule `found` in the latest extraction */
+  human: number; rule: number; found: number;
+  /** the property has no rule in this catalog yet: its cell shows "—" */
+  no_rule?: boolean;
+}
 export interface CatalogSummary {
-  /** per column: its status, and its values in the latest golden dataset (`human` an expert reviewed, `rule` its
-   * approved rule labels) of the values its rule `found` in the latest extraction */
-  columns: Record<string, { status: ColumnStatus; ruleset: number | null; human: number; rule: number; found: number }>;
+  columns: Record<string, ColumnSummary>;
+  /** the properties with a rule in this catalog, of `properties` */
+  coverage: number;
   score: { id: string; golden: string; output: string; output_at: string | null; values: number;
     outcomes: Record<ScoreOutcome, number>; by_column: Record<string, OutcomeCounts>; implied: string[] } | null;
   error?: string;
 }
-export interface CatalogsSummary { basis: ScoreBasis; columns: string[]; not_in_studio: string[]; catalogs: Record<string, CatalogSummary> }
+export interface CatalogsSummary {
+  basis: ScoreBasis;
+  /** the column keys in order: the CTDL path without prefixes ("creditValue>minValue"), or the label of a property with
+   * no CTDL term ("Learning Type") */
+  columns: string[];
+  /** a column's header text: "creditValue → minValue", "Learning Type" */
+  labels: Record<string, string>;
+  /** the Required columns (bold in the home table) */
+  required: string[];
+  properties: number;
+  catalogs: Record<string, CatalogSummary>;
+}
 export interface ExtractOutput {
   id: string; path: string; report_etag: string; last_modified: string; run_id: string | null;
   discovery_run_id: string | null; only_golden_sample: boolean | null; records: number; records_written: number | null;
@@ -301,6 +355,8 @@ export interface ScoreResult {
   values: number; exact_match_rate: number | null; outcomes: Record<ScoreOutcome, number>;
   by_column: Record<string, OutcomeCounts>; implied: Record<string, number>; pages_scored: number;
   pages_skipped: number; pages_out_of_scope: number; malformed: number; left_out: { stem: string; why: string }[];
+  /** xtra's own numbers over every column of the golden tree, not only the ones its extract output emits */
+  xtra?: { values: number; exact_match_rate: number | null };
 }
 export interface ScoreDoc {
   id: string; status: ScoreStatus; created_at: string; finished_at: string | null; by: string; reason: string;
@@ -309,6 +365,8 @@ export interface ScoreDoc {
             values?: Record<ScoreBasis, number> };
   output: ExtractOutput; slot_names: boolean | null; scorer: { xtra_cli_commit: string | null }; commands: string[];
   columns: string[]; results: Partial<Record<ScoreBasis, ScoreResult | null>>;
+  /** the columns the golden dataset has that xtra's extract output doesn't emit under the same path (P10) */
+  not_scored?: string[];
 }
 export interface ScoreRow {
   key: string; basis: ScoreBasis; column: string; ctdl_property: string; property: string | null;
@@ -324,7 +382,7 @@ export interface ScoreValues {
   outcomes: OutcomeCounts; groups: (OutcomeCounts & { name: string })[] | null;
   rows: { total: number; offset: number; page: number; items: ScoreRow[] };
 }
-/** `/match`: one field rule's row on one occurrence, with its verdict and comments (what a diff's actions act on). */
+/** `/match`: one property rule's row on one occurrence, with its verdict and comments (what a diff's actions act on). */
 export interface MatchRow extends ReviewMarks {
   rule_id: string; kind: RuleKind; ctdl_property: string | null; property_label: string | null; extraction: string;
   key: string; occurrence_key: string; course_key: string | null; page_stem: string; value: string | null; status: string;

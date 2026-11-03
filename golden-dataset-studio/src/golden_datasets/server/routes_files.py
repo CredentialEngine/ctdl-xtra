@@ -45,7 +45,7 @@ ABOUT = [
                                               "and hashes of its tables."),
     (r"/page_labels\.parquet$", "Extraction table: which page rules recognised each page."),
     (r"/occurrences\.parquet$", "Extraction table: each course a record locator found, with its css path on the page."),
-    (r"/matches\.parquet$", "Extraction table: each field rule's value for each course, with where it sits on the page."),
+    (r"/matches\.parquet$", "Extraction table: each property rule's value for each course, with where it sits on the page."),
     (r"/signals\.parquet$", "Extraction table: the uncertainty signals that order the Rules tab (length outliers, "
                             "label text in a value …)."),
     (r"/golden/[^/]+/lineage\.parquet$", "A golden publication's lineage: each published value → its rule, version, "

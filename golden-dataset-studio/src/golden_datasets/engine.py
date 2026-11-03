@@ -1,4 +1,4 @@
-"""Run a ruleset's page rules, record locators and field rules on one saved page (spec §2, §4).
+"""Run a ruleset's page rules, record locators and property rules on one saved page (spec §2, §4).
 
 It keeps review-ui-v2's rule semantics (its `engine.py` is vendored as `v2engine.py` and checked against this one
 on real pages by `tests/test_engine_equivalence.py`), with three differences the spec asks for:
@@ -28,6 +28,7 @@ from .model import code_rule_for, course_key
 _WS = re.compile(r"\s+")
 _TRANSLATOR = HTMLTranslator()
 _NOT_TEXT = (etree._Comment, etree._ProcessingInstruction, etree._Entity)
+_NO_TEXT_TAGS = ("script", "style")  # their text isn't a value (G8)
 
 
 # --- parsing ----------------------------------------------------------------------------------------
@@ -76,12 +77,12 @@ def select_one(el, selector: str, self_too: bool = False):
 
 
 # --- text --------------------------------------------------------------------------------------------
-def text_of(el) -> tuple[str, list[int]]:
-    """v2's visible text of an element (a <br> reads as a newline) and the positions of those br newlines.
-
-    textContent is the same string without the br newlines, so an offset `o` in it is `o - #brs before o`."""
+def text_of(el) -> tuple[str, list[tuple[int, int]]]:
+    """v2's visible text of an element (a <br> reads as a newline; `script` and `style` text is left out, spec G8)
+    and how its offsets differ from the DOM's textContent: [(position, delta)], in order. A br newline isn't in
+    textContent (delta -1); left-out script text is (delta +its length)."""
     parts: list[str] = []
-    brs: list[int] = []
+    marks: list[tuple[int, int]] = []
     pos = 0
 
     def walk(node) -> None:
@@ -90,9 +91,13 @@ def text_of(el) -> tuple[str, list[int]]:
             if isinstance(child, _NOT_TEXT):
                 pass
             elif child.tag == "br":
-                brs.append(pos)
+                marks.append((pos, -1))
                 parts.append("\n")
                 pos += 1
+            elif child.tag in _NO_TEXT_TAGS:
+                hidden = "".join(child.itertext())
+                if hidden:
+                    marks.append((pos, len(hidden)))
             else:
                 if child.text:
                     parts.append(child.text)
@@ -106,20 +111,39 @@ def text_of(el) -> tuple[str, list[int]]:
         parts.append(el.text)
         pos += len(el.text)
     walk(el)
-    return "".join(parts), brs
+    return "".join(parts), marks
 
 
-def to_text_content(offset: int, brs: list[int]) -> int:
-    import bisect
-
-    return offset - bisect.bisect_left(brs, offset)
+def to_text_content(offset: int, marks: list[tuple[int, int]]) -> int:
+    """An offset in text_of's text → the same place in textContent."""
+    out = offset
+    for pos, delta in marks:
+        if pos > offset:
+            break
+        if delta > 0:
+            out += delta
+        elif pos < offset:
+            out -= 1
+    return out
 
 
 def text_content(el) -> str:
-    text, brs = text_of(el)
-    if not brs:
-        return text
-    return "".join(ch for i, ch in enumerate(text) if i not in set(brs))
+    """The DOM's textContent (script text included)."""
+    parts: list[str] = []
+
+    def walk(node) -> None:
+        for child in node:
+            if not isinstance(child, _NOT_TEXT):
+                if child.text:
+                    parts.append(child.text)
+                walk(child)
+            if child.tail:
+                parts.append(child.tail)
+
+    if el.text and not isinstance(el, _NOT_TEXT):
+        parts.append(el.text)
+    walk(el)
+    return "".join(parts)
 
 
 # --- css paths ---------------------------------------------------------------------------------------
@@ -147,9 +171,11 @@ class Paths:
 
 
 def relative(occ_path: str, path: str) -> str:
+    """A path relative to the occurrence; one outside it (a rule reading the whole page) stays a document-root path."""
     if path == occ_path:
         return ""
-    assert path.startswith(occ_path + " > "), (occ_path, path)
+    if not path.startswith(occ_path + " > "):
+        return path
     return path[len(occ_path) + 3:]
 
 
@@ -224,27 +250,219 @@ def locate(definition: dict, root) -> list:
     return elements
 
 
-def run_field(definition: dict, el, url: str, paths: Paths, occ_path: str) -> dict:
-    """status ∈ found | empty | no_match, value, raw_text, css_path (relative to the occurrence), offsets."""
-    rtype = definition["rule_type"]
-    out = {"status": "empty", "value": None, "raw_text": None, "css_path": None, "char_start": None, "char_end": None}
-    if rtype == "constant":
-        out.update(status="found", value=definition["value"], raw_text=definition["value"])
-        return out
-    if rtype == "source_url":
-        out.update(status="found", value=url, raw_text=url)
-        return out
-    target = select_one(el, definition["selector"]) if definition.get("selector") else el
-    if target is None:
-        out["status"] = "no_match"
-        return out
-    text, brs = text_of(target)
-    value, raw, span = extract_from_text(definition, text)
-    if value is None:
-        return out
-    out.update(status="found", value=value, raw_text=raw, css_path=relative(occ_path, paths(target)),
-               char_start=to_text_content(span[0], brs), char_end=to_text_content(span[1], brs))
+# --- property rules (property-rules spec §4.2–§4.4) ----------------------------------------------------------
+#: What a property rule reads: the course record (default), the whole page, the page URL, or another rule's output.
+INPUTS = ("record", "page", "url", "rule")
+SPLITS = ("elements", "separator", "regex")
+_EMPTY = {"status": "empty", "value": None, "raw_text": None, "css_path": None, "char_start": None, "char_end": None}
+
+
+def input_of(definition: dict) -> dict:
+    return definition.get("input") or {"from": "record"}
+
+
+def property_order(rules: dict[str, dict], ids: list[str]) -> list[str]:
+    """Property rules, parents (their `input.rule`) before children, else by id."""
+    out: list[str] = []
+    seen: set[str] = set()
+
+    def visit(rid: str, stack: tuple = ()) -> None:
+        if rid in seen:
+            return
+        if rid in stack:
+            raise ValueError(f"input cycle through {rid}")
+        parent = input_of(rules[rid]["definition"]).get("rule")
+        if parent and parent in rules:
+            visit(parent, (*stack, rid))
+        seen.add(rid)
+        out.append(rid)
+
+    for rid in sorted(ids):
+        visit(rid)
     return out
+
+
+class _Text:
+    """Text read from the page, with where it came from (so a value's offsets point into the page)."""
+
+    def __init__(self, text: str, el=None, marks=None, base: int = 0, offsets: bool = True):
+        self.text, self.el, self.marks, self.base = text, el, marks or [], base
+        self.offsets = offsets  # False: not page text (an attribute, joined text): the element only
+
+    def location(self, paths: Paths, occ_path: str, span: tuple[int, int] | None) -> dict:
+        if self.el is None:
+            return {"css_path": None, "char_start": None, "char_end": None}
+        if span is None or not self.offsets:
+            return {"css_path": relative(occ_path, paths(self.el)), "char_start": None, "char_end": None}
+        a, b = self.base + span[0], self.base + span[1]
+        return {"css_path": relative(occ_path, paths(self.el)), "char_start": to_text_content(a, self.marks),
+                "char_end": to_text_content(b, self.marks)}
+
+
+def _element_text(el) -> _Text:
+    text, marks = text_of(el)
+    return _Text(text, el, marks)
+
+
+def _sibling_text(sib) -> str:
+    if not isinstance(sib.tag, str) or sib.tag in _NO_TEXT_TAGS:
+        return ""
+    return "\n" if sib.tag == "br" else text_of(sib)[0]
+
+
+def _labelled(definition: dict, el) -> _Text | None:
+    """`rule_type: labelled` (G6): the text after the first element whose text starts with `label`, up to the next
+    sibling named by `until` (a tag, default `br`, or a css selector) or the end of its parent. The text after a
+    label is often a bare text node, which no selector reaches."""
+    label = definition["label"].strip()
+    until = definition.get("until") or "br"
+    is_tag = until.isalnum()
+    for cand in el.iter():
+        if cand is el or not isinstance(cand.tag, str) or cand.getparent() is None:
+            continue
+        own = text_of(cand)[0].strip()
+        if not own.startswith(label) or len(own) > len(label) + 40:
+            continue
+        parent = cand.getparent()
+        tail = cand.tail
+        cand.tail = "\ue000" + (tail or "")  # where the label ends, in the parent's text
+        pos = text_of(parent)[0].index("\ue000")
+        cand.tail = tail
+        text, marks = text_of(parent)
+        captured = tail or ""
+        for sib in cand.itersiblings():
+            if isinstance(sib.tag, str) and (sib.tag == until if is_tag else select_one(sib, until, True) is not None):
+                break
+            captured += _sibling_text(sib) + (sib.tail or "")
+        return _Text(text[pos:pos + len(captured)], parent, marks, pos)
+    return None
+
+
+def _sources(definition: dict, el, url: str, parent_out: list[dict] | None) -> list[_Text] | None:
+    """The texts a rule reads, before its regex: one per element for `split: elements`, else one. None: the selector
+    found nothing (no_match)."""
+    inp = input_of(definition)
+    if inp["from"] == "url":
+        return [_Text(url)]
+    if inp["from"] == "rule":
+        if inp.get("use") == "element":
+            els = [p["_el"] for p in parent_out or [] if p.get("_el") is not None]
+            return [x for e in els for x in (_sources({**definition, "input": {"from": "record"}}, e, url, None) or [])]
+        return [p["_text"] for p in parent_out or [] if p.get("_text") is not None]
+    rtype = definition["rule_type"]
+    if rtype == "labelled":
+        t = _labelled(definition, el)
+        return [t] if t is not None else None
+    sel = definition.get("selector")
+    split = (definition.get("multiple") or {}).get("split")
+    if sel and (split == "elements" or definition.get("join") is not None):
+        targets = select(el, sel)
+    else:
+        target = select_one(el, sel) if sel else el
+        targets = [target] if target is not None else []
+    if not targets:
+        return None
+    attr = definition.get("attribute")
+    if attr:
+        return [_Text(t.get(attr) or "", t, offsets=False) for t in targets]
+    if definition.get("join") is not None:
+        texts = [_element_text(t) for t in targets]
+        joined = definition["join"].join(x.text.strip() for x in texts if x.text.strip())
+        return [_Text(joined, targets[0], offsets=False)] if len(texts) > 1 else texts
+    return [_element_text(t) for t in targets]
+
+
+def _pieces(definition: dict, src: _Text) -> list[tuple[str, tuple[int, int] | None]]:
+    """(raw text, span in src) for each value one source gives: the regex match, or every split item."""
+    multiple = definition.get("multiple") or {}
+    split = multiple.get("split")
+    text = src.text
+    pattern = definition.get("regex")
+    joined = not src.offsets
+    whole = None if joined else (0, len(text))
+    if split == "regex":
+        out = []
+        for m in re.finditer(multiple["regex"], text, re.MULTILINE):
+            g = 1 if m.re.groups else 0
+            if m.group(g) is not None:
+                out.append((m.group(g), None if joined else m.span(g)))
+        return out
+    if pattern:
+        m = re.search(pattern, text, re.MULTILINE)
+        if not m:
+            return []
+        g = definition.get("group", 1 if m.re.groups else 0)
+        if m.group(g) is None:
+            return []
+        raw, span = m.group(g), (None if joined else m.span(g))
+    else:
+        raw, span = text, whole
+    if split == "separator":
+        sep = multiple.get("separator") or ","
+        parts = re.split(r"\n" if sep in ("newline", "\\n", "\n") else re.escape(sep), raw)
+        out, at = [], 0
+        for part in parts:
+            i = raw.find(part, at)
+            at = i + len(part)
+            out.append((part, None if span is None else (span[0] + i, span[0] + i + len(part))))
+        return out
+    return [(raw, span)]
+
+
+def run_property(definition: dict, el, url: str, paths: Paths, occ_path: str,
+                 parent_out: list[dict] | None = None) -> list[dict]:
+    """A property rule on one occurrence: one result per value (status found), or one result with status empty |
+    no_match. Each result has value, raw_text, css_path (relative to the occurrence, or from the document root when
+    the text is outside it), offsets, and private `_text` / `_el` for rules that read it (§4.2)."""
+    rtype = definition["rule_type"]
+    if rtype == "constant":
+        return [{**_EMPTY, "status": "found", "value": definition["value"], "raw_text": definition["value"]}]
+    if rtype == "source_url" and input_of(definition)["from"] == "record":
+        return [{**_EMPTY, "status": "found", "value": url, "raw_text": url}]
+    if input_of(definition)["from"] == "rule" and not parent_out:
+        return [dict(_EMPTY)]  # the parent found nothing here: nothing to read
+    sources = _sources(definition, el, url, parent_out)
+    if sources is None:
+        return [{**_EMPTY, "status": "no_match"}]
+    keep = (definition.get("multiple") or {}).get("keep")
+    out = []
+    for src in sources:
+        for raw, span in _pieces(definition, src):
+            if keep and not re.search(keep, raw.strip()):
+                continue
+            value = apply_transforms(raw, definition.get("transforms", []))
+            if "map" in definition:
+                value = definition["map"].get(value, "")
+            if not value:
+                continue
+            loc = src.location(paths, occ_path, span)
+            child = _Text(raw, src.el, src.marks, src.base + span[0]) if span is not None and src.offsets \
+                and src.el is not None else _Text(raw, src.el, offsets=False)
+            out.append({"status": "found", "value": value, "raw_text": raw, **loc, "_text": child, "_el": src.el})
+            if not definition.get("multiple"):
+                break
+        if out and not definition.get("multiple"):
+            break
+    return out or [dict(_EMPTY)]
+
+
+def values_of_text(definition: dict, text: str) -> list[str]:
+    """What a rule gives for one text (a draft's examples): its values, in order."""
+    keep = (definition.get("multiple") or {}).get("keep")
+    out = []
+    for raw, _ in _pieces(definition, _Text(text)):
+        if keep and not re.search(keep, raw.strip()):
+            continue
+        value = apply_transforms(raw, definition.get("transforms", []))
+        if "map" in definition:
+            value = definition["map"].get(value, "")
+        if value:
+            out.append(value)
+    return out if definition.get("multiple") else out[:1]
+
+
+def public(res: dict) -> dict:
+    return {k: v for k, v in res.items() if not k.startswith("_")}
 
 
 # --- one page -------------------------------------------------------------------------------------------
@@ -252,7 +470,7 @@ def run_page(stem: str, url: str, html: bytes, rules: dict[str, dict], settings:
     """Run what `need` asks for on one page.
 
     need = {"labels": bool, "matched": [page rule ids] | None (when labels aren't recomputed),
-            "locators": [ids], "fields": [ids], "page_facts": bool}
+            "locators": [ids], "properties": [ids], "page_facts": bool}
     Returns {"page_labels", "occurrences", "matches", "facts"}."""
     doc = parse(html)
     roots = select(doc, settings["content_root"], True)
@@ -273,7 +491,7 @@ def run_page(stem: str, url: str, html: bytes, rules: dict[str, dict], settings:
     else:
         matched = list(need["matched"] or [])
 
-    fields_wanted = set(need["fields"])
+    props_wanted = set(need["properties"])
     found_blocks: dict[str, list] = {}
     for loc_id in need["locators"]:
         loc = rules[loc_id]
@@ -283,20 +501,40 @@ def run_page(stem: str, url: str, html: bytes, rules: dict[str, dict], settings:
         elements = locate(loc["definition"], root)
         found_blocks[loc_id] = elements
         code_rule = code_rule_for(loc_id, rules, settings)
-        fields = sorted(f for f, r in rules.items() if r["kind"] == "field" and r["definition"]["locator"] == loc_id)
+        props = [f for f, r in rules.items() if r["kind"] == "property" and r["definition"]["locator"] == loc_id
+                 and r["definition"].get("rule_type") != "none"]
+        # what has to run: the wanted rules, the code rule, and every rule they read (parents first)
+        run: set[str] = set()
+        for fid in props:
+            if fid in props_wanted or fid == code_rule:
+                while fid and fid not in run and fid in rules:
+                    run.add(fid)
+                    fid = input_of(rules[fid]["definition"]).get("rule")
+        order = property_order(rules, [f for f in props if f in run])
+        page_out: dict[str, list[dict]] = {}  # input: page rules give one output per page
         for index, el in enumerate(elements):
             occ_path = paths(el)
             key = f"{stem}@{occ_path}"
             code_value = None
-            for fid in fields:
-                if fid not in fields_wanted and fid != code_rule:
-                    continue
-                res = run_field(rules[fid]["definition"], el, url, paths, occ_path)
-                if fid == code_rule and res["status"] == "found":
-                    code_value = res["value"]
-                if fid in fields_wanted:
-                    out["matches"].append({"rule_id": fid, "rule_version": rules[fid]["version"],
-                                           "occurrence_key": key, "value_index": 0, "page_stem": stem, **res})
+            got: dict[str, list[dict]] = {}
+            for fid in order:
+                d = rules[fid]["definition"]
+                frm = input_of(d)["from"]
+                if frm == "page":
+                    if fid not in page_out:
+                        page_out[fid] = run_property(d, doc, url, paths, occ_path)
+                    res = [{**r, "css_path": paths(r["_el"]) if r.get("_el") is not None and r["css_path"] is not None
+                            else r["css_path"]} for r in page_out[fid]]
+                else:
+                    res = run_property(d, el, url, paths, occ_path, got.get(input_of(d).get("rule")))
+                got[fid] = [r for r in res if r["status"] == "found"]
+                if fid == code_rule and res[0]["status"] == "found":
+                    code_value = res[0]["value"]
+                if fid in props_wanted:
+                    for i, r in enumerate(res):
+                        out["matches"].append({"rule_id": fid, "rule_version": rules[fid]["version"],
+                                               "occurrence_key": key, "value_index": i, "page_stem": stem,
+                                               **public(r)})
             out["occurrences"].append({"occurrence_key": key, "page_stem": stem, "page_rule_id": page_rule,
                                        "locator_rule_id": loc_id, "locator_rule_version": loc["version"],
                                        "css_path": occ_path, "locator_index": index,

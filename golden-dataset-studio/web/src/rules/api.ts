@@ -11,7 +11,7 @@ export interface RowsX extends RowsResponse { rows: RowX[]; focus_index?: number
 export interface RuleSummaryX extends RuleSummary { page_questions?: number }
 export interface CourseHitX extends CourseHit { annotated?: boolean }
 export interface PageHit extends PageRef { matched: boolean }
-/** The "Annotated by" dropdown (Evals spec §6.7): people with their role and the field values they annotated, the
+/** The "Annotated by" dropdown (Evals spec §6.7): people with their role and the property values they annotated, the
  * values waiting for an expert, and with a filter, each rule's rows that pass it. */
 export interface Annotators {
   people: { name: string; role: "sme" | "engineer"; values: number }[];

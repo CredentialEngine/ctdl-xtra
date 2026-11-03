@@ -115,6 +115,26 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--session", default=None, help="v2 review session id (default: the latest with decisions)")
     _cmd(p, "golden_datasets.import_v2:cmd_import_v2")
 
+    props = sub.add_parser("properties", help="the property list (properties.csv): sync from the sheet, list, apply")
+    prsub = props.add_subparsers(dest="properties_command", metavar="ACTION", required=True)
+    p = prsub.add_parser("sync", help="the Phase 1 sheet → properties.csv (writes only the file: added / kept / "
+                                      "removed, and warnings)")
+    p.add_argument("--from", dest="source", default=None, metavar="FILE",
+                   help="an xlsx export of the sheet, or a CSV of its Phase 1 tab (default: download the sheet)")
+    p.add_argument("--accept-renames", action="store_true",
+                   help="write a changed path or name on an existing rule id")
+    _cmd(p, "golden_datasets.properties:cmd_sync")
+    p = prsub.add_parser("list", help="properties.csv as a table")
+    _cmd(p, "golden_datasets.properties:cmd_list")
+    p = prsub.add_parser("apply", help="add properties.csv's new properties to catalogs, with no rule yet (one "
+                                       "ruleset version per catalog that gets any)")
+    _root_args(p)
+    g = p.add_mutually_exclusive_group(required=True)
+    g.add_argument("--catalog", "-c", default=None, help="catalog folder or short name")
+    g.add_argument("--all", action="store_true", help="every catalog in the root")
+    p.add_argument("--by", default=os.environ.get("GOLDEN_DATASETS_AUTHOR", "golden-datasets properties apply"))
+    _cmd(p, "golden_datasets.properties:cmd_apply")
+
     # --- Run -------------------------------------------------------------------------------------------
     p = sub.add_parser("extract", help="run a ruleset version over the crawl (refuses if that extraction exists)")
     _root_args(p), _catalog_args(p)
@@ -220,13 +240,14 @@ def build_parser() -> argparse.ArgumentParser:
     _cmd(p, "golden_datasets.prompt:cmd_prompt")
 
     # --- Golden ----------------------------------------------------------------------------------------
-    golden = sub.add_parser("golden", help="golden dataset versions: publish, backfill")
+    golden = sub.add_parser("golden", help="dataset versions: publish (an approved rule's silver dataset), backfill")
     gsub = golden.add_subparsers(dest="golden_command", metavar="ACTION", required=True)
     to_help = ("golden root: a folder or an azure:// prefix (default: $GOLDEN_DATASETS_GOLDEN_ROOT, else `golden` "
                "beside a local root, else the xtra-golden-sets container)")
-    p = gsub.add_parser("publish", help="publish properties into the golden dataset of the current ruleset (written "
-                                        "whole: its version's rule-matched and human-reviewed trees and the latest "
-                                        "location; lineage + golden.parquet)")
+    p = gsub.add_parser("publish", help="publish properties into the silver dataset of the current ruleset (written "
+                                        "whole: its version's silver tree, every value, also called rule-matched, and "
+                                        "golden tree, only human-reviewed values; the latest location; lineage + "
+                                        "golden.parquet)")
     _root_args(p), _catalog_args(p)
     p.add_argument("--to", default=None, help=to_help)
     p.add_argument("--property", action="append", default=None, metavar="NAME",

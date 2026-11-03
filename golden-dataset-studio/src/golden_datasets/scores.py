@@ -57,8 +57,8 @@ def _now() -> str:
 
 
 def column(ctdl_property: str) -> str:
-    """The column's name in Evals: the CTDL term without `ceterms:`."""
-    return ctdl_property.split(":", 1)[-1]
+    """The column's name in Evals: the CTDL path without prefixes (`creditValue>minValue`); shown with arrows."""
+    return ">".join(t.split(":", 1)[-1] for t in ctdl_property.split(">"))
 
 
 def _text(v) -> str | None:
@@ -461,14 +461,48 @@ def begin(ctx: Ctx, p: Prepared, by: str, reason: str) -> dict:
     return doc
 
 
+def emitted(records: RecordsStore) -> set[str]:
+    """The CTDL properties an extract output emits (as xtra's scorer reads its records)."""
+    from implementations.score_extraction_match import extracted_values
+
+    out: set[str] = set()
+    for key in records.records():
+        rec = records.get_json(key)
+        if isinstance(rec, dict):
+            out |= set(extracted_values(rec))
+    return out
+
+
+def only_emitted(pages: dict[str, list[dict]], props: set[str]) -> dict[str, list[dict]]:
+    """A tree with only the values of properties the extract output emits under the same path (P10): a column xtra
+    never tries isn't scored against it."""
+    out = {}
+    for stem, ents in pages.items():
+        kept = [{**e, "fields": [f for f in e["fields"] if f.get("ctdl_property") in props]} for e in ents]
+        kept = [e for e in kept if e["fields"]]
+        if kept:
+            out[stem] = kept
+    return out
+
+
 def finish(ctx: Ctx, doc: dict, p: Prepared, log=print) -> dict:
-    """Run the scorer on both bases, write values.parquet, and mark the score done (or failed)."""
+    """Run the scorer on both bases, write values.parquet, and mark the score done (or failed). Only the columns
+    the extract output emits are scored (property-rules spec P10); `not_scored` lists the others, and each basis's
+    `xtra` keeps the scorer's own numbers over every column."""
     try:
         doc["slot_names"] = uses_slot_names(p.records)
         rows: list[dict] = []
         sizes = {}
+        props = emitted(p.records)
+        if doc["slot_names"]:  # an old output names no CTDL paths: score every column, as before, and say so
+            props |= {f["ctdl_property"] for tree in p.golden.trees.values() for ents in tree.values() for e in ents
+                      for f in e["fields"] if f.get("ctdl_property")}
+        doc["not_scored"] = sorted({column(f["ctdl_property"]) for tree in p.golden.trees.values()
+                                    for ents in tree.values() for e in ents for f in e["fields"]
+                                    if f.get("ctdl_property") and f["ctdl_property"] not in props})
         for basis in BASES:
-            pages, left_out = p.golden.trees[basis], p.golden.left_out.get(basis, [])
+            whole, left_out = p.golden.trees[basis], p.golden.left_out.get(basis, [])
+            pages = only_emitted(whole, props)
             sizes[basis] = sum(1 for ents in pages.values() for e in ents for f in e["fields"] if not is_implied(f))
             if not sizes[basis]:
                 doc["results"][basis] = None  # nothing to score on this basis
@@ -476,6 +510,10 @@ def finish(ctx: Ctx, doc: dict, p: Prepared, log=print) -> dict:
             reports = run_scorer(p.records, pages, ctx.catalog, ctx.crawl, f"{p.golden.where} ({basis})")
             mine = value_rows(basis, pages, reports)
             doc["results"][basis] = result(pages, left_out, reports, mine)
+            if pages != whole:  # xtra's own numbers, every column of the tree
+                x = run_scorer(p.records, whole, ctx.catalog, ctx.crawl, f"{p.golden.where} ({basis})")["exact"]
+                doc["results"][basis]["xtra"] = {"values": x["fields_total"],
+                                                 "exact_match_rate": x["exact_match_rate"]}
             rows += mine
         doc["golden"]["values"] = sizes
         doc["columns"] = sorted({r["column"] for r in rows if r["basis"] == "rule"})
@@ -616,19 +654,33 @@ def cmd_score(args) -> int:
 
 
 # --- the home page's catalogs table (Evals spec §6.1, §6.2) ------------------------------------------------------
-#: The Course columns the Studio has rules for, in order (the CTDL terms of model.PROPERTIES, without `ceterms:`).
-STUDIO_COLUMNS = [column(t) for _, t in model.PROPERTIES if t]
-#: Columns xtra's course extract writes that the Studio has no rules for yet (course_credits, course_credits_unit,
-#: course_prerequisites in xtra-cli's extract): the table shows them greyed, "not in this Studio yet".
-NOT_IN_STUDIO = ["creditValue", "creditUnitType", "prerequisite"]
+def column_key(label: str, path: str | None) -> str:
+    """A home-table column: the CTDL path without prefixes, or the label for a property with no CTDL term."""
+    return column(path) if path else label
+
+
+#: Every property's column, in the fixed order (property-rules spec §4.9); the home table puts the other properties
+#: in the Rules tab's order (columns_in_order).
+STUDIO_COLUMNS = [column_key(label, t) for label, t in model.PROPERTIES]
+COLUMN_LABELS = {column_key(label, t): (column(t).replace(">", " → ") if t else label) for label, t in model.PROPERTIES}
+REQUIRED_COLUMNS = [column_key(r["label"], r["path"] or None) for r in model.PROPERTY_ROWS if r["required"]]
+
+
+def columns_in_order(counts: Counter) -> list[str]:
+    """Required columns first, then the others by values experts reviewed across catalogs (`counts`, by rule id),
+    then sheet order: the Rules tab's order (§4.8)."""
+    rest = [r for r in model.PROPERTY_ROWS if not r["required"]]
+    rest.sort(key=lambda r: (-counts.get(r["rule_id"], 0), r["sheet_row"]))
+    return REQUIRED_COLUMNS + [column_key(r["label"], r["path"] or None) for r in rest]
 
 
 def column_statuses(ctx: Ctx, cache: dict | None = None) -> dict[str, dict]:
-    """column → {status, ruleset, human, rule, found}: `published` (in the latest golden dataset; `ruleset` names
-    it), `needs work` (known wrong values: values its rule finds are marked wrong), or `in review`; `human` / `rule`:
-    the column's values in the latest golden dataset as publishing writes it now (an expert reviewed them / its
+    """column → {status, ruleset, human, rule, found, no_rule}: `published` (in the latest golden dataset; `ruleset`
+    names it), `needs work` (known wrong values: values its rule finds are marked wrong), or `in review`; `human` /
+    `rule`: the column's values in the latest golden dataset as publishing writes it now (an expert reviewed them / its
     approved rule labels them; 0 while the column isn't published), `found`: the values its rules found in the latest
-    extraction. From the rules, the annotation log and golden.plan; `cache` keeps the counts until the log moves."""
+    extraction; `no_rule`: the property has no rule in this catalog yet (shown "—"). From the rules, the annotation
+    log and golden.plan; `cache` keeps the counts until the log moves."""
     from .review import LOADER
 
     vs = golden_mod.versions(ctx)
@@ -643,21 +695,27 @@ def column_statuses(ctx: Ctx, cache: dict | None = None) -> dict[str, dict]:
     counts = _column_counts(ctx, rv, doc, cache)
     out = {}
     for r in golden_mod.property_rules(rv):
-        if not r["ctdl_property"]:
-            continue
-        c = counts.get(r["ctdl_property"], {})
+        c = counts.get(r["property"], {})
         n = {"human": c.get("human", 0), "rule": c.get("rule", 0), "found": c.get("found", 0)}
+        key = column_key(r["property"], r["ctdl_property"])
+        no_rule = rv.snap.rules[r["rule_id"]]["definition"].get("rule_type") == "none"
         if r["property"] in published:
-            out[column(r["ctdl_property"])] = {"status": "published", "ruleset": max(vs), **n}
+            out[key] = {"status": "published", "ruleset": max(vs), **n, "no_rule": no_rule}
         else:
-            out[column(r["ctdl_property"])] = {"status": "needs work" if r["status"] == "needs work" else "in review",
-                                               "ruleset": None, **n}
+            out[key] = {"status": "needs work" if r["status"] == "needs work" else "in review", "ruleset": None,
+                        **n, "no_rule": no_rule}
     return out
 
 
+def coverage(columns: dict[str, dict]) -> int:
+    """Properties with a rule in this catalog (§4.9)."""
+    return sum(1 for k, c in columns.items() if k in COLUMN_LABELS and not c.get("no_rule"))
+
+
 def _column_counts(ctx: Ctx, rv, doc: dict, cache: dict | None) -> dict[str, Counter]:
-    """ctdl_property → Counter(human, rule, found): the latest golden dataset's values as golden.plan writes them (on
-    its publication's extraction, its properties), and the values the latest extraction's rules found."""
+    """property → Counter(human, rule, found): the latest golden dataset's values as golden.plan writes them (on
+    its publication's extraction, its properties), and the values the latest extraction's rules found (each item
+    of a list counts)."""
     from .review import LOADER
 
     key = ("column-counts", ctx.catalog, ctx.crawl, rv.snap.ext, doc.get("publication"), doc.get("published_at"),
@@ -667,11 +725,10 @@ def _column_counts(ctx: Ctx, rv, doc: dict, cache: dict | None) -> dict[str, Cou
     pub_rv = LOADER.review(ctx, doc["extraction"]) if doc.get("extraction") else rv
     out: dict[str, Counter] = {}
     for row in golden_mod.plan(pub_rv, set(doc.get("properties") or []))["lineage"]:
-        if row["ctdl_property"]:
-            out.setdefault(row["ctdl_property"], Counter())[row["approval"]] += 1
+        out.setdefault(row["property"], Counter())[row["approval"]] += 1
     for rid, r in rv.snap.rules.items():
-        if r["kind"] == "field" and r.get("ctdl_property"):
-            out.setdefault(r["ctdl_property"], Counter())["found"] += rv.snap.fill(rid)["found"]
+        if r["kind"] == "property" and r.get("property_label"):
+            out.setdefault(r["property_label"], Counter())["found"] += rv.snap.values(rid)
     if cache is not None:
         cache[key] = out
     return out

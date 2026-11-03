@@ -150,10 +150,10 @@ FIRST = {"catalog": "cuesta-curriqunet-com-catalog-iq-27137", "settings": {"cont
     {"rule_id": "course-page", "kind": "page", "definition": {"url_regex": "/c/\\d+$", "label": "Course"}},
     {"rule_id": "locator-course-page", "kind": "locator",
      "definition": {"page_rules": ["course-page"], "scope": None, "repeat": None, "repeat_filter": None}},
-    {"rule_id": "course-code", "kind": "field", "property_label": "Coded Notation", "ctdl_property": "ceterms:codedNotation",
+    {"rule_id": "course-code", "kind": "property", "property_label": "Coded Notation", "ctdl_property": "ceterms:codedNotation",
      "definition": {"locator": "locator-course-page", "rule_type": "css+regex", "selector": "h1", "regex": "^(C \\d+)",
                     "group": 1, "transforms": ["collapse_ws"]}},
-    {"rule_id": "course-name", "kind": "field", "property_label": "Learning Opportunity Name", "ctdl_property": "ceterms:name",
+    {"rule_id": "course-name", "kind": "property", "property_label": "Learning Opportunity Name", "ctdl_property": "ceterms:name",
      "definition": {"locator": "locator-course-page", "rule_type": "css", "selector": "title", "transforms": ["collapse_ws"]}},
 ]}
 
@@ -187,4 +187,6 @@ def test_first_rules_publish_ruleset_v1_and_the_card_opens(roots, tmp_path, caps
     assert rs["settings"]["course_key_rule"] == {"locator-course-page": "course-code"}
     card = next(x for x in c.get("/api/catalogs").json() if x["catalog"] == cat)
     assert card["status"] == "ready" and card["rules_total"] == 4
+    assert main(["check", "--root", dst.uri, "--catalog", cat]) == 1  # no rule yet for 41 of properties.csv's rows
+    assert main(["properties", "apply", "--root", dst.uri, "--catalog", cat]) == 0
     assert main(["check", "--root", dst.uri, "--catalog", cat]) == 0

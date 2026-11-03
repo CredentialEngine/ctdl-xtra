@@ -13,7 +13,7 @@ import pyarrow.parquet as pq
 import pytest
 from test_crawls import FIRST, _crawl
 
-from golden_datasets import crawls, golden, layout
+from golden_datasets import crawls, golden, layout, properties
 from golden_datasets.cli import main
 from golden_datasets.context import Ctx
 from golden_datasets.storage import LocalRoot
@@ -143,7 +143,7 @@ def test_annotated_by_filters_rows_courses_and_the_rule_list(studio):
     courses = lambda **p: sorted(x["course_key"] for x in c.get(f"{B}/courses", params=p).json())  # noqa: E731
     assert len(courses(by=JARED)) == 2 and len(courses(by="waiting")) == 1 and len(courses(by="nobody")) == 0
     ck = courses(by="waiting")[0]
-    fields = c.get(f"{B}/courses/{ck}").json()["occurrences"][0]["fields"]
+    fields = c.get(f"{B}/courses/{ck}").json()["occurrences"][0]["properties"]
     assert next(f for f in fields if f["rule_id"] == "course-name")["annotators"][ERIC]["kinds"] == ["correct"]
     # any subject matter expert / any engineer: every value someone of that role annotated, not only those waiting
     assert (a["experts"], a["engineers"]) == (2, 1)
@@ -232,6 +232,7 @@ def test_publishing_writes_the_whole_version_and_replaces_the_latest(studio, tmp
                                                                         ("Learning Opportunity Name", "1")]
     assert _page(gold, ctx, "page-1", 1)[0]["fields"][0]["property"] == "Coded Notation"
     assert {g["publication"] for g in Ctx(ctx.root, CAT).crawl_entry()["golden"]} == {"ruleset-v1", "ruleset-v2"}
+    properties.apply(Ctx(ctx.root, CAT), "test")  # check wants every property of properties.csv in the ruleset
     assert main(["check", "--root", ctx.root.uri, "--catalog", CAT]) == 0
     # a stray file in a tree is caught; writing the versions again in the current layout removes it
     stray = gold / golden.version_prefix(ctx, 1, golden.HUMAN_REVIEWED) / "page-2" / "page-2.json"
@@ -288,3 +289,26 @@ def _parquet(cols: dict) -> bytes:
     pq.write_table(pa.table(cols), buf)
     return buf.getvalue()
 
+
+
+def test_new_versions_store_golden_and_silver_trees_and_old_ones_keep_their_folders(studio):
+    """Property-rules spec §4.16: the golden dataset is the human-reviewed values, the silver dataset every value of an
+    approved rule; versions written before keep rule-matched/ and human-reviewed/ (O7)."""
+    from golden_datasets import manifest
+
+    c, ctx, gold = studio
+    _mark(c, JARED, "course-code", _rows(c, "course-code")["page-0"], "correct")
+    golden.publish(ctx, str(gold), "test", properties=["Coded Notation"], allow_unapproved=True)
+    base = gold / "catalogs" / CAT / "versions" / "ruleset-v1"
+    assert sorted(p.name for p in base.iterdir() if p.is_dir()) == ["golden", "silver"]
+    assert golden.versions(Ctx(ctx.root, CAT))[1]["trees"] == golden.NAMED
+
+    def forget(m: dict) -> None:  # a version written before the new names: its entry has no `trees`
+        k = manifest.crawl_entry(manifest.catalog_entry(m, CAT), Ctx(ctx.root, CAT).crawl)
+        for g in k["golden"]:
+            g.pop("trees", None)
+
+    manifest.update(ctx.root, forget)
+    old = Ctx(ctx.root, CAT)
+    assert golden.version_prefix(old, 1, golden.RULE_MATCHED).startswith(
+        f"catalogs/{CAT}/versions/ruleset-v1/rule-matched/")

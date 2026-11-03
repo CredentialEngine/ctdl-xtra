@@ -54,7 +54,7 @@ def test_a_score_has_both_results_and_one_row_per_value(scored, capsys):
     assert doc["results"]["rule"]["by_column"]["name"] == {"values": 3, "missing": 1, "wrong": 0, "partial": 1, "match": 1}
     assert doc["output"]["records"] == 3 and not doc["output"]["records_mismatch"]
     assert all(c.startswith("xtra score extraction match --exactly") for c in doc["commands"])
-    for cmd, tree in zip(doc["commands"], ("human-reviewed", "rule-matched"), strict=True):  # one per tree
+    for cmd, tree in zip(doc["commands"], ("golden", "silver"), strict=True):  # one per tree (stored as golden/silver)
         assert f"--baseline-uri {tmp / 'golden'}/catalogs/{CAT}/versions/ruleset-v1/{tree} " in cmd
     rows = {(r["basis"], r["page_stem"], r["column"]): r for r in scores.values(ctx, "sc-0001")}
     assert len(rows) == 7
@@ -232,13 +232,19 @@ def test_the_catalogs_summary_has_each_columns_status_and_the_latest_score(score
     """Evals step 5: the home page's catalogs table, from small files only (score.json, publication.json, the log)."""
     c, ctx, tmp = scored
     s = c.get("/api/catalogs-summary").json()
-    assert s["basis"] == "human" and s["columns"] == ["codedNotation", "identifier", "name", "description",
-                                                      "subjectWebpage", "lifeCycleStatusType", "inLanguage"]
-    assert s["not_in_studio"] == ["creditValue", "creditUnitType", "prerequisite"]
+    # every property a column (property-rules spec §4.9): the required ones first, the course key first
+    assert s["basis"] == "human" and s["columns"][:8] == ["codedNotation", "identifier", "Learning Type", "name",
+                                                          "description", "subjectWebpage", "lifeCycleStatusType",
+                                                          "inLanguage"] \
+        and len(s["columns"]) == s["properties"] == 43 and "creditValue>minValue" in s["columns"]
+    assert s["labels"]["creditValue>minValue"] == "creditValue → minValue" and "not_in_studio" not in s
     cat = s["catalogs"][CAT]
     # each column's values in the golden dataset (human-reviewed + rule-labelled) of the values its rule found
-    assert cat["columns"]["codedNotation"] == {"status": "published", "ruleset": 1, "human": 0, "rule": 3, "found": 3}
-    assert cat["columns"]["name"] == {"status": "published", "ruleset": 1, "human": 1, "rule": 2, "found": 3}  # Jared checked one
+    assert cat["columns"]["codedNotation"] == {"status": "published", "ruleset": 1, "human": 0, "rule": 3, "found": 3,
+                                               "no_rule": False}
+    assert cat["columns"]["name"] == {"status": "published", "ruleset": 1, "human": 1, "rule": 2, "found": 3,
+                                      "no_rule": False}  # Jared checked one
+    assert cat["coverage"] == 2
     assert cat["score"] is None  # the extract output isn't scored yet
     statuses = {k: v["status"] for k, v in cat["columns"].items()}
     assert set(statuses) <= set(s["columns"]) and statuses.get("description", "in review") == "in review"
@@ -262,8 +268,9 @@ def test_a_column_with_values_marked_wrong_has_known_wrong_values(studio):  # no
     c.app.state.studio.ctx(CAT).invalidate()
     cols = c.get("/api/catalogs-summary").json()["catalogs"][CAT]["columns"]
     # an unpublished column has only its human-reviewed values in the golden dataset
-    assert cols == {"codedNotation": {"status": "needs work", "ruleset": None, "human": 1, "rule": 0, "found": 3},
-                    "name": {"status": "published", "ruleset": 1, "human": 0, "rule": 3, "found": 3}}
+    assert cols == {"codedNotation": {"status": "needs work", "ruleset": None, "human": 1, "rule": 0, "found": 3,
+                                      "no_rule": False},
+                    "name": {"status": "published", "ruleset": 1, "human": 0, "rule": 3, "found": 3, "no_rule": False}}
 
 
 def test_check_resolves_each_scores_provenance_and_reports_a_score_left_running(scored):
@@ -290,3 +297,16 @@ def test_check_resolves_each_scores_provenance_and_reports_a_score_left_running(
         "output → a kept extract output (same report ETag)",
         "scores/pending.json is {due_at: ISO time, reason}",
     ]
+
+
+def test_only_the_columns_the_output_emits_are_scored(scored, capsys):
+    """Property-rules spec P10: a column xtra doesn't extract isn't scored against it; xtra's own numbers stay."""
+    _, ctx, tmp = scored
+    _output(tmp / "codes-only", ctx.crawl, names={"page-0": None, "page-1": None, "page-2": None})
+    assert main(["score", "--root", ctx.root.uri, "--catalog", CAT, "--output", str(tmp / "codes-only")]) == 0
+    capsys.readouterr()
+    doc = scores.read(Ctx(ctx.root, CAT), "sc-0001")
+    assert doc["not_scored"] == ["name"]
+    rule = doc["results"]["rule"]
+    assert rule["values"] == 3 and list(rule["by_column"]) == ["codedNotation"] and rule["exact_match_rate"] == 1
+    assert rule["xtra"]["values"] == 6 and rule["xtra"]["exact_match_rate"] == 0.5

@@ -151,23 +151,26 @@ def compute(ctx: Ctx, rules: dict[str, dict], settings: dict, parent_ext: str | 
     # Which pages must be parsed, and what to compute on each.
     page_rules_rerun = rerun & by_kind["page"]
     locators_rerun = rerun & by_kind["locator"]
-    fields_rerun = rerun & by_kind["field"]
+    props_rerun = rerun & by_kind["property"]
     page_signals = p["settings_changed"] or bool(page_rules_rerun or locators_rerun) or not parent_ext
     first = not parent_ext
-    fields_needed = set(by_kind["field"]) if first else set(fields_rerun)
-    for loc in locators_rerun:  # fields of a rerun locator rerun too (their occurrence keys may change)
-        fields_needed |= {f for f in by_kind["field"] if rules[f]["definition"]["locator"] == loc}
+    props_needed = set(by_kind["property"]) if first else set(props_rerun)
+    for loc in locators_rerun:  # property rules of a rerun locator rerun too (their occurrence keys may change)
+        props_needed |= {f for f in by_kind["property"] if rules[f]["definition"]["locator"] == loc}
+    # a property with no rule yet runs nothing and keeps no rows (property-rules spec §4.6)
+    no_rule = {f for f in by_kind["property"] if rules[f]["definition"].get("rule_type") == "none"}
+    props_needed -= no_rule
     if first or page_rules_rerun or page_signals:
         stems = [pg["page_stem"] for pg in pages]
     else:
-        wanted_locs = {rules[f]["definition"]["locator"] for f in fields_needed} | locators_rerun
+        wanted_locs = {rules[f]["definition"]["locator"] for f in props_needed} | locators_rerun
         labels = parent_tables["page_labels"]
         matched_rules = {(lb["page_stem"], lb["rule_id"]) for lb in labels if lb["matched"]}
         stems = sorted({pg["page_stem"] for pg in pages for loc in wanted_locs
                         if any((pg["page_stem"], pr) in matched_rules
                                for pr in rules[loc]["definition"].get("page_rules", []))})
     need = {"labels": first or bool(page_rules_rerun), "locators": sorted(by_kind["locator"]),
-            "fields": sorted(fields_needed), "page_facts": page_signals}
+            "properties": sorted(props_needed), "page_facts": page_signals}
     url_of = {pg["page_stem"]: pg["url"] for pg in pages}
     labels_from_parent = None
     if not need["labels"]:
@@ -176,7 +179,7 @@ def compute(ctx: Ctx, rules: dict[str, dict], settings: dict, parent_ext: str | 
             if lb["matched"]:
                 labels_from_parent.setdefault(lb["page_stem"], []).append(lb["rule_id"])
 
-    log(f"  parsing {len(stems)} pages ({len(need['fields'])} field rules, labels={need['labels']})")
+    log(f"  parsing {len(stems)} pages ({len(need['properties'])} property rules, labels={need['labels']})")
     with ThreadPoolExecutor(max_workers=16) as tpool:
         paths = dict(zip(stems, tpool.map(ctx.page_path, stems)))
     t_fetch = time.perf_counter()
@@ -193,7 +196,7 @@ def compute(ctx: Ctx, rules: dict[str, dict], settings: dict, parent_ext: str | 
     t_pages = time.perf_counter()
 
     fresh = {name: [r for res in results for r in res[name]] for name in ("page_labels", "occurrences", "matches")}
-    fresh_fields = set(need["fields"])
+    fresh_props = set(need["properties"])
     tables: dict[str, list[dict]] = {}
     if need["labels"]:
         tables["page_labels"] = fresh["page_labels"]
@@ -205,11 +208,11 @@ def compute(ctx: Ctx, rules: dict[str, dict], settings: dict, parent_ext: str | 
         # a locator no longer in the ruleset leaves no occurrences behind
         tables["occurrences"] = [o for o in parent_tables["occurrences"] if o["locator_rule_id"] in rules]
         _assert_same_keys(tables["occurrences"], fresh["occurrences"], stems)
-    tables["matches"] = [m for m in parent_tables.get("matches", []) if m["rule_id"] not in fresh_fields] \
-        + [m for m in fresh["matches"] if m["rule_id"] in fresh_fields]
+    tables["matches"] = [m for m in parent_tables.get("matches", []) if m["rule_id"] not in fresh_props] \
+        + [m for m in fresh["matches"] if m["rule_id"] in fresh_props]
     # Rules that are no longer in the ruleset leave no rows behind.
     tables["page_labels"] = [r for r in tables["page_labels"] if r["rule_id"] in rules]
-    tables["matches"] = [r for r in tables["matches"] if r["rule_id"] in rules]
+    tables["matches"] = [r for r in tables["matches"] if r["rule_id"] in rules and r["rule_id"] not in no_rule]
     # Copied rows must carry the version of the rule in *this* ruleset (same hash, so same definition).
     for name, col in (("page_labels", "rule_version"), ("matches", "rule_version")):
         for r in tables[name]:
@@ -238,7 +241,7 @@ def compute(ctx: Ctx, rules: dict[str, dict], settings: dict, parent_ext: str | 
 
 
 def _assert_same_keys(parent_occ: list[dict], fresh_occ: list[dict], stems: list[str]) -> None:
-    """When locators are copied, rerunning field rules must find the same occurrences as the parent."""
+    """When locators are copied, rerunning property rules must find the same occurrences as the parent."""
     stems_set = set(stems)
     a = sorted(o["occurrence_key"] for o in parent_occ if o["page_stem"] in stems_set)
     b = sorted(o["occurrence_key"] for o in fresh_occ)

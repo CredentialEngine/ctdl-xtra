@@ -21,7 +21,7 @@ export function CompareValue({ r, ruleId, kind, column, head, foot, children }: 
   const [m, setM] = useState<MatchRow | null>(null);
   const [draft, setDraft] = useState<Draft | null>(null);
   const [marked, setMarked] = useState<MatchRow["verdict"]>(null);
-  const field = kind === "field" && !!cx && r.b_value !== null;  // a value gone in To has no row there to annotate
+  const annotatable = kind === "property" && !!cx && r.b_value !== null;  // a value gone in To has no row there to annotate
   const compared: ComparedWith | null = cx && { kind: "ruleset", ruleset: cx.a, value: r.a_value };
   const target = { kind: "match" as const, rule_id: ruleId, occurrence_key: r.key, page_stem: r.page_stem };
   const fetchMatch = async () => {
@@ -60,7 +60,7 @@ export function CompareValue({ r, ruleId, kind, column, head, foot, children }: 
       <div className="cval-h">{head}<span className="grow" />{children}</div>
       <ValueDiff a={r.a_value} b={r.b_value} aLabel={cx ? `ruleset v${cx.a}` : "from"} bLabel={cx ? `ruleset v${cx.b}` : "to"} mode={mode} compact={!draft} />
       {foot}
-      {field && (marked
+      {annotatable && (marked
         ? <MarkedWrong verdict={marked} what="the new value" column={column} compared={comparedChip(marked.compared_with)} />
         : draft
           ? <>

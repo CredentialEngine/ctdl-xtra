@@ -90,7 +90,7 @@ def measure(srv: Server, cat: str, rule: str, i: int) -> dict[str, float]:
     out["switch rule (rows)"], (detail, rows) = ms(lambda: (srv.get(f"{c}/rules/{rule}"),
                                                             srv.get(f"{c}/rules/{rule}/rows?limit=100")))
     rws = rows["rows"]
-    kind = {"field": "match", "locator": "occurrence", "page": "page"}[detail["kind"]]
+    kind = {"property": "match", "locator": "occurrence", "page": "page"}[detail["kind"]]
     stem = rws[i + 1]["page_stem"]
     srv.get(f"{c}/pages/{stem}/render")  # the prefetch, made while row i was shown
     out["next row (page pane, prefetched)"], _ = ms(lambda: srv.get(f"{c}/pages/{stem}/render"))

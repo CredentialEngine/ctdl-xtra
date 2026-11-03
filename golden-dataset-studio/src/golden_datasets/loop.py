@@ -230,7 +230,7 @@ def format_annotation(ctx: Ctx, a: dict, i: int | None = None) -> str:
         lines.append(f"{pad}occurrence css_path: {a['occurrence_css_path'] or a['occurrence_key'].split('@', 1)[1]}")
     if a["value_seen"] is not None:
         lines.append(f"{pad}value seen (v{a['rule_version_seen']}): {json.dumps(a['value_seen'], ensure_ascii=False)}")
-    if a["has_row"] and a["rule_kind"] != "field":
+    if a["has_row"] and a["rule_kind"] != "property":
         lines.append(f"{pad}current (v{a['rule_version']}): the rule still finds it"
                      + (f" ({a['current_value']})" if a["current_value"] else ""))
     elif a["has_row"]:
@@ -336,7 +336,16 @@ def _validate_definition(rid: str, rule: dict) -> None:
                 re.compile(d[key])
             except re.error as exc:
                 raise UserError(f"{rid}: definition.{key} is not a valid regex: {exc}") from None
+    multiple = d.get("multiple") if isinstance(d.get("multiple"), dict) else {}
+    for key, pattern in (("multiple.regex", multiple.get("regex")), ("multiple.keep", multiple.get("keep"))):
+        if pattern:
+            try:
+                re.compile(pattern)
+            except re.error as exc:
+                raise UserError(f"{rid}: definition.{key} is not a valid regex: {exc}") from None
     sels = [d.get(k) for k in ("selector", "repeat", "requires_selector", "forbids_selector")]
+    if d.get("until") and not str(d["until"]).isalnum():
+        sels.append(d["until"])
     if isinstance(d.get("repeat_filter"), dict):
         sels.append(d["repeat_filter"].get("selector"))
         if d["repeat_filter"].get("regex"):
@@ -353,20 +362,22 @@ def _validate_definition(rid: str, rule: dict) -> None:
 
 
 def check_examples(drafted: dict[str, dict]) -> list[str]:
-    """Each example of a drafted field rule: its definition (regex + group + transforms + map) applied to `input`
+    """Each example of a drafted property rule: its definition (regex + group + transforms + map) applied to `input`
     must give `output`."""
     failures = []
     for rid in sorted(drafted):
         r = drafted[rid]
         d = r["definition"]
-        if r["kind"] != "field" or d.get("rule_type") in model.DERIVED_RULE_TYPES:
+        if r["kind"] != "property" or d.get("rule_type") in (*model.DERIVED_RULE_TYPES, "none"):
             continue
         for i, ex in enumerate(r.get("examples") or [], 1):
             if not isinstance(ex, dict) or "input" not in ex:
                 failures.append(f"{rid} example {i}: needs \"input\" and \"output\"")
                 continue
-            value = engine.extract_from_text(d, ex["input"])[0]
-            if (value or "") != (ex.get("output") or ""):
+            got = engine.values_of_text(d, ex["input"])
+            value = got if d.get("multiple") else (got[0] if got else None)
+            want = ex.get("output")
+            if (value or "") != (want or "") and not (d.get("multiple") and value == [] and not want):
                 failures.append(f"{rid} example {i}: got {json.dumps(value, ensure_ascii=False)}, "
                                 f"expected {json.dumps(ex.get('output'), ensure_ascii=False)}")
     return failures
@@ -385,6 +396,7 @@ def plan_draft(ctx: Ctx, doc: dict, warn=lambda m: print(m, file=sys.stderr)) ->
         warn(f"note: the draft was made from ruleset v{doc['base_ruleset']}; merging it into the latest, v{latest}")
     drafts: dict[str, dict] = {}
     for item in doc.get("rules", []):
+        item = model.current_kind(item)
         rid = item.get("rule_id")
         if not rid or "definition" not in item:
             raise UserError("each rule in a draft needs rule_id and definition")
@@ -395,7 +407,7 @@ def plan_draft(ctx: Ctx, doc: dict, warn=lambda m: print(m, file=sys.stderr)) ->
             warn(f"note: {rid}: ignoring {', '.join(ignored)} (golden-datasets assigns versions and hashes)")
         old = base.get(rid)
         if old is None and not item.get("kind"):
-            raise UserError(f"{rid} is a new rule: give its kind (page, locator or field)")
+            raise UserError(f"{rid} is a new rule: give its kind (page, locator or property)")
         if old is not None and item.get("kind") not in (None, old["kind"]):
             raise UserError(f"{rid}: the kind of an existing rule can't change ({old['kind']})")
         merged = {k: old.get(k) for k in DRAFT_FIELDS if old is not None and k in old}
@@ -417,7 +429,7 @@ def plan_draft(ctx: Ctx, doc: dict, warn=lambda m: print(m, file=sys.stderr)) ->
     rulesets.validate_ruleset(rules)
     if not latest and not rules:
         raise UserError("the draft has no rules; a catalog's first ruleset needs at least a page rule, a record locator "
-                        "and field rules")
+                        "and property rules")
     changed = sorted(rid for rid, r in rules.items()
                      if rid not in base or base[rid]["content_hash"] != r["content_hash"])
     return {"latest": latest, "ruleset": rs, "base": base, "drafts": drafts, "rules": rules, "settings": settings,

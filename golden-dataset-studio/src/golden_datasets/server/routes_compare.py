@@ -145,7 +145,7 @@ def compare_records(request: Request, catalog: str, a: int, b: int, rule: str | 
                 if ch != "unchanged" and (rid, y["key"]) not in annotated:
                     others.append((k, rid, x, y))
         others.sort(key=lambda o: hashlib.sha1(f"compare:{o[3]['key']}".encode()).hexdigest())
-        kind = next(iter(kinds)) if len(kinds) == 1 else ("field" if "field" in kinds else "locator")
+        kind = next(iter(kinds)) if len(kinds) == 1 else ("property" if "property" in kinds else "locator")
         _evict(st.cache, "compare-records", ctx.catalog, ea, eb, log_offset)
         dims = facets.dimensions(kind, items)
         mine = {o[0] for o in others}  # the strata describe the listed records, not the unchanged ones

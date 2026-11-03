@@ -4,13 +4,15 @@ import type { EventBrief, RowStateName } from "../api/types";
 import { Ico } from "../shell/icons";
 import { clip, controlOn, historyItems, type Draft } from "./logic";
 
-export function Controls({ state, verdict, comments, draft, onPick, tour, confirm, marked }: {
+export function Controls({ state, verdict, comments, draft, onPick, tour, confirm, marked, commentOnly }: {
   state: RowStateName | null; verdict: EventBrief | null; comments: EventBrief[]; draft: Draft | null;
   onPick: (v: "correct" | "wrong" | "comment") => void; tour?: boolean;
   /** an engineer-checked value an expert sees: ✓ becomes Confirm (an ordinary ✓ by the expert, Evals spec §6.7) */
   confirm?: boolean;
   /** human-reviewed or engineer-checked: the row's review line names who, so no byline here */
   marked?: boolean;
+  /** a list property's row: its items have their own ✓ and ✕, so the row has only the comment button */
+  commentOnly?: boolean;
 }) {
   const on = draft ? (draft.mode === "wrong" ? "wrong" : null) : controlOn(state);
   const talk = state === "question" ? "inst" : comments.length || draft?.mode === "comment" ? "on" : "";
@@ -20,11 +22,11 @@ export function Controls({ state, verdict, comments, draft, onPick, tour, confir
   return (
     <div className="ctl3" data-tour={tour ? "row-controls" : undefined}>
       <div className="btns">
-        {confirm
+        {commentOnly ? null : confirm
           ? <button className="cb confirm" title="Confirm the engineer's check (1): the value becomes human-reviewed" onClick={click("correct")}>
               <Ico name="correct" />Confirm</button>
           : <button className={`cb ok${on === "correct" ? " on" : ""}`} title="Correct (1)" aria-label="Correct" onClick={click("correct")}><Ico name="correct" /></button>}
-        <button className={`cb no${on === "wrong" ? " on" : ""}`} title="Wrong (2): select the right text on the page" aria-label="Wrong" onClick={click("wrong")}><Ico name="wrong" /></button>
+        {!commentOnly && <button className={`cb no${on === "wrong" ? " on" : ""}`} title="Wrong (2): select the right text on the page" aria-label="Wrong" onClick={click("wrong")}><Ico name="wrong" /></button>}
         <button className={`cb talk ${talk}`} title={state === "question" ? "Question for the institution" : "Comment (3)"} aria-label="Comment"
           data-tour={tour ? "comment-button" : undefined} onClick={click("comment")}><Ico name="bubble" /></button>
       </div>
@@ -33,8 +35,8 @@ export function Controls({ state, verdict, comments, draft, onPick, tour, confir
   );
 }
 
-export function Expansion({ draft, fieldRule, emptyValue, onChange, onSave, onCancel }: {
-  draft: Draft; fieldRule: boolean; emptyValue?: boolean; onChange: (d: Draft) => void; onSave: () => void; onCancel: () => void;
+export function Expansion({ draft, propertyRule, emptyValue, onChange, onSave, onCancel }: {
+  draft: Draft; propertyRule: boolean; emptyValue?: boolean; onChange: (d: Draft) => void; onSave: () => void; onCancel: () => void;
 }) {
   const note = useRef<HTMLInputElement>(null);
   useEffect(() => { if (draft.mode === "comment") note.current?.focus(); }, [draft.mode]);
@@ -55,7 +57,7 @@ export function Expansion({ draft, fieldRule, emptyValue, onChange, onSave, onCa
       </div>
     );
   }
-  const pick = fieldRule ? "Select the right text on the page →" : "Optional: select text on the page that shows why →";
+  const pick = propertyRule ? "Select the right text on the page →" : "Optional: select text on the page that shows why →";
   return (
     <div className="expand wrong" onClick={stop}>
       {draft.captures.length
@@ -67,10 +69,10 @@ export function Expansion({ draft, fieldRule, emptyValue, onChange, onSave, onCa
               </div>))}
             <div className="faint sel-again">{draft.captures.length > 1
               ? `${draft.captures.length} pieces, joined in page order. `
-              : fieldRule ? "The right value, outlined on the page. " : "Outlined on the page. "}
+              : propertyRule ? "The right value, outlined on the page. " : "Outlined on the page. "}
               Drag across more text to add a piece; × removes one.</div></>
         : <div className="pick"><Ico name="highlight" /><span>{pick}</span>
-            {fieldRule && emptyValue && <span className="faint">(the rule found nothing here; select the value the page shows)</span>}</div>}
+            {propertyRule && emptyValue && <span className="faint">(the rule found nothing here; select the value the page shows)</span>}</div>}
       <input ref={note} className="note" placeholder="Note for whoever fixes the rule (optional)" value={draft.note}
         onChange={(e) => onChange({ ...draft, note: e.target.value })} />
       <div className="ex-btns">

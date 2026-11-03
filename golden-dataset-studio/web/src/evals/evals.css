@@ -197,3 +197,11 @@ td .evx-tipw, .evx-grow .evx-tipw { display: flex; width: 100%; }
 .evx-i { color: var(--muted); font-size: 13px; cursor: help; line-height: 1; }
 .evx-i:hover, .evx-i:focus { color: var(--accent); outline: none; }
 .evx-tip-basis { display: block; width: 280px; max-width: calc(100vw - 40px); }
+
+/* Every property listed (property-rules spec §4.9, m8): the group headings, and the reason a property has no bar */
+.evx-cols .evx-hrow th { text-align: left; font-size: 10.5px; font-weight: 650; letter-spacing: .07em; text-transform: uppercase;
+  color: var(--accent); padding: 14px 10px 6px; border-bottom: 1px solid var(--accent); }
+.evx-cols tr.evx-unscored { cursor: default; }
+.evx-cols tr.evx-unscored:hover td { background: none; }
+.evx-cols .evx-why { font-size: 12.5px; }
+.evx-xtra { margin: -4px 0 10px; }

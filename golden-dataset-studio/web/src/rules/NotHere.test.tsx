@@ -26,12 +26,12 @@ const catalog = { catalog: "avc-x", short: "avc", name: "AVC", institution: "AVC
 } as CatalogDetail;
 
 const summary = (o: Partial<RuleSummary> = {}): RuleSummary => ({
-  rule_id: "course-code", kind: "field", version: 1, title: "Coded Notation", subtitle: "ceterms:codedNotation",
+  rule_id: "course-code", kind: "property", version: 1, title: "Coded Notation", subtitle: "ceterms:codedNotation",
   ctdl_property: "ceterms:codedNotation", property_label: "Coded Notation", locator: "locator-course-page", status: "in review",
   reviewed: 0, total: 1062, open_wrong: 0, open_missing: 0, questions: 0, approved_by: null, approved_at: null, comments: 0, ...o,
 });
 const rules: RulesResponse = { extraction: "rs-0003", ruleset_version: 3, groups: [
-  { kind: "field", label: "Field rules", approved: 0, rules: [summary()] }] };
+  { id: "other", kind: "property", label: "Property rules", collapsed: false, approved: 0, rules: [summary()] }] };
 const row: RowX = {
   key: "p0@html", occurrence_key: "p0@html", course_key: "GEOG0", page_stem: "p0", url: "https://x/p0", page_title: "Page 0",
   value: "GEOG 0", status: "found", css_path: "html", char_start: 0, char_end: 5, occurrence_css_path: "html", context: "",

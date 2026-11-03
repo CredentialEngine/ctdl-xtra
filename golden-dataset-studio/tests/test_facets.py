@@ -23,7 +23,7 @@ def test_histogram_has_equal_width_bars_and_a_tail():
 def test_histograms_count_the_list_and_set_aside_uniform_strata():
     items = [it(i, "Prerequisite: X.\nText" if i < 20 else "Plain text here", signals=["label"] if i < 20 else [])
              for i in range(100)]
-    dims = facets.dimensions("field", items)
+    dims = facets.dimensions("property", items)
     assert {"length", "paragraphs", "lead", "subject", "url", "signals"} <= {d["id"] for d in dims}
     keys = [i["key"] for i in items]
     hs = {h["id"]: h for h in facets.histograms(dims, keys)}
@@ -38,7 +38,7 @@ def test_histograms_count_the_list_and_set_aside_uniform_strata():
 
 def test_auto_strata_deals_three_per_combination_rarest_first():
     items = [it(i, "Prerequisite: X.\nText" if i < 4 else ("Advisory: y" if i < 14 else "Plain")) for i in range(60)]
-    dims = facets.dimensions("field", items)
+    dims = facets.dimensions("property", items)
     keys = [i["key"] for i in items]
     assert "lead" in facets.pick_cross(dims, keys) and "signals" not in facets.pick_cross(dims, keys)
     order, cells = facets.auto_strata(dims, keys, ["lead"], per_cell=3, seed=1)
@@ -55,7 +55,7 @@ def test_auto_strata_deals_three_per_combination_rarest_first():
 def test_labels_are_normalised_and_filters_and_or():
     items = [it(0, "LIMITATION ON ENROLLMENT: a"), it(1, "Limitation on Enrollment: b"), it(2, "Advisory: c", ck="XYZ1"),
              it(3, "")]
-    dims = facets.dimensions("field", items)
+    dims = facets.dimensions("property", items)
     lead = next(d for d in dims if d["id"] == "lead")
     assert lead["values"]["k0"] == lead["values"]["k1"] == ["Limitation on enrollment:"]
     f = facets.parse_filters(["lead:Limitation on enrollment:", "lead:Advisory:"])
@@ -68,16 +68,16 @@ def test_labels_are_normalised_and_filters_and_or():
 def test_compare_items_get_change_and_rule_dimensions():
     items = [it(0, "short", rule="r1", change="shorter", before="Prerequisite: long"),
              it(1, "same", rule="r2", change="unchanged", before="same")]
-    ids = [d["id"] for d in facets.dimensions("field", items)]
+    ids = [d["id"] for d in facets.dimensions("property", items)]
     assert ids[:2] == ["rule", "change"] and "lead_a" in ids
 
 
 def test_annotated_in_which_ruleset():
     """Who annotated a row is the "Annotated by" filter (review.annotated_match), not a stratum."""
     items = [it(0, "a", annotated_in=[1, 2]), it(1, "b", annotated_in=[None]), it(2, "c", annotated_in=[])]
-    dims = {d["id"]: d for d in facets.dimensions("field", items)}
+    dims = {d["id"]: d for d in facets.dimensions("property", items)}
     assert "annotator" not in dims
     assert dims["annotated_in"]["order"] == ["ruleset v1", "ruleset v2", "an unknown ruleset", "not annotated"]
     assert facets.matches(list(dims.values()), {"annotated_in": {"ruleset v1"}}) == {"k0"}
     assert "annotated_in" not in facets.pick_cross(list(dims.values()), ["k0", "k1", "k2"])
-    assert "annotated_in" not in {d["id"] for d in facets.dimensions("field", [it(0, "a")])}  # Compare: no such stratum
+    assert "annotated_in" not in {d["id"] for d in facets.dimensions("property", [it(0, "a")])}  # Compare: no such stratum

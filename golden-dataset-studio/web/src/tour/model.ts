@@ -27,7 +27,7 @@ export function markSeen(store: KeyStore | null): void {
 // --- what the steps need to know about this catalog ----------------------------------------------------------
 export interface TourCtx {
   catalog: string;
-  /** The Rules tab route the tour works on (a field rule). */
+  /** The Rules tab route the tour works on (a property rule). */
   base: string;
   ruleId: string | null;
   /** A record locator's view, or null when the catalog has none. */
@@ -41,17 +41,18 @@ export interface TourCtx {
   /** The Evals tab. */
   evals: string;
   crawl: string;
-  /** Text the rule head shows for a rule, to tell when the Rules tab has caught up with a route. */
+  /** Text the rule head's title shows for a rule, to tell when the Rules tab has caught up with a route. */
   headText: Record<string, string>;
 }
 
 const allRules = (rules: RulesResponse | null): RuleSummary[] => rules?.groups.flatMap((g) => g.rules) ?? [];
 
+/** The rule head's title (its h1): a property's name, else the rule's title. */
 export function headText(r: RuleSummary): string {
-  return r.kind === "field" ? r.ctdl_property ?? r.property_label ?? r.title : r.title;
+  return r.kind === "property" ? r.property_label ?? r.title : r.title;
 }
 
-/** Where the tour works: the reader's own field rule when they are on one, else the Rules tab's default rule. */
+/** Where the tour works: the reader's own property rule when they are on one, else the Rules tab's default rule. */
 export function makeCtx(catalog: { short: string; crawl: string; ruleset_version: number; rulesets: unknown[] },
                         origin: string, rules: RulesResponse | null): TourCtx {
   const cat = catalog.short;
@@ -59,13 +60,13 @@ export function makeCtx(catalog: { short: string; crawl: string; ruleset_version
   const o = parseRoute(origin);
   const mine = o.catalog === cat && o.tab === "rules" && o.id ? list.find((r) => r.rule_id === o.id) : undefined;
   let base: string, ruleId: string | null;
-  if (mine && mine.kind === "field") { base = origin.startsWith("#") ? origin : `#${origin}`; ruleId = mine.rule_id; }
+  if (mine && mine.kind === "property") { base = origin.startsWith("#") ? origin : `#${origin}`; ruleId = mine.rule_id; }
   else { ruleId = defaultRule(rules); base = href(cat, "rules", ruleId); }
   const loc = list.find((r) => r.rule_id === "locator-program-requirement") ?? list.find((r) => r.kind === "locator");
   const isBlocked = (r: RuleSummary) => r.open_wrong + r.open_missing > 0 && r.status !== "approved";
   const mineNow = list.find((r) => r.rule_id === ruleId);
   const blk = mineNow && isBlocked(mineNow) ? mineNow
-    : list.find((r) => isBlocked(r) && r.kind === "field") ?? list.find(isBlocked) ?? null;
+    : list.find((r) => isBlocked(r) && r.kind === "property") ?? list.find(isBlocked) ?? null;
   const twoVersions = catalog.ruleset_version > 1 || catalog.rulesets.length > 1;
   return {
     catalog: cat, base, ruleId, crawl: catalog.crawl,

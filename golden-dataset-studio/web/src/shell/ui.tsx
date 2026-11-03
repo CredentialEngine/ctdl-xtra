@@ -5,7 +5,12 @@ export const fmt = (n: number | null | undefined) => (n ?? 0).toLocaleString("en
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 /** "2026-10-12T20-59-13Z" → "12 Oct 2026" */
 export const fmtDate = (crawl: string) => `${+crawl.slice(8, 10)} ${MONTHS[+crawl.slice(5, 7) - 1]} ${crawl.slice(0, 4)}`;
-export const termUrl = (t: string | null | undefined) => (t ? `https://credreg.net/ctdl/terms/${t.split(":")[1]}` : null);
+/** A CTDL term's definition page. A child's path ("ceterms:creditValue>schema:minValue") links its leaf term. */
+export const termUrl = (t: string | null | undefined) => {
+  if (!t) return null;
+  const leaf = t.split(">").pop() ?? t;
+  return `https://credreg.net/ctdl/terms/${leaf.includes(":") ? leaf.split(":")[1] : leaf}`;
+};
 
 type SetKeys = (hint: ReactNode) => void;
 export const KeysContext = createContext<SetKeys>(() => {});

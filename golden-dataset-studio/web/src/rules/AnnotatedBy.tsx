@@ -1,5 +1,5 @@
 // "Annotated by" (Evals spec §6.7, §6.8), shared by the Rules and Records tabs and kept in the URL (?by=…&v=…):
-// a searchable dropdown of people grouped by role, each with the field values they annotated, plus "Not annotated
+// a searchable dropdown of people grouped by role, each with the property values they annotated, plus "Not annotated
 // yet", "Any subject matter expert", "Any engineer" and "Any engineer · waiting for an expert"; the verdict switch beside it (Rules tab); the line a row shows when
 // an expert confirmed its value (human-reviewed) or only an engineer did (engineer-checked); the experts' note.
 import { useEffect, useRef, useState } from "react";

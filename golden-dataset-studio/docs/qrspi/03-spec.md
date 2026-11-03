@@ -80,6 +80,9 @@ do it by improving **rules**, not by editing data:
   - Life Cycle Status Type (`ceterms:lifeCycleStatusType`)
   - Language (`ceterms:inLanguage`)
   - Coded Notation (`ceterms:codedNotation`), which isn't required but is the course's key
+
+  **Superseded:** every CLI Extraction Label of the Phase 1 sheet is now a property, 43 in all, listed in
+  `src/golden_datasets/properties.csv` ([property-rules spec](property-rules/03-spec.md) §4.1). Requisites and credit units are in scope, as extraction.
 - Running locally against **a local folder** or **an Azure prefix**, with the same code and the same layout (I3).
 - Importing Jared's existing v2 verdicts.
 
@@ -98,6 +101,8 @@ So anything that only matters for a production system is left out. Each item say
   - We may do this eventually. To find out whether the UI is any good, we serve it from a laptop.
 - **Requisites, credit units, and resource types other than Course.**
   - We test the idea on the minimum required Course fields only (listed in §1.1).
+  - **Superseded** for requisites and credit units: they're extracted now
+    ([property-rules spec](property-rules/03-spec.md) §0). Other resource types stay out.
 - **Running Claude from the UI.**
   - We don't build a runtime for Claude. The UI makes generating the prompt easy, and a developer runs it in Claude
     Code on their laptop.
@@ -354,6 +359,10 @@ field rules (8 for full courses, 4 `stub-*` for courses listed on program pages)
 imported ruleset. **Since 2026-10-27 the learning-program rules are gone** (§12.1): every catalog now runs 1 page rule
 (`course-page`), 1 record locator (`locator-course-page`) and the 8 course field rules.
 
+**Superseded:** every catalog has **43 property rules** from `properties.csv` (§1.1's note), plus the program-page
+rules, and rule versions say `"kind": "property"` (older versions still say `"field"`, and readers accept it). A
+property with no rule yet has `rule_type: none` ([property-rules spec](property-rules/03-spec.md) §4.1, §4.6, §4.13).
+
 ### 4.5 Storage layout
 
 The same layout serves a local folder and an Azure prefix. xtra-cli's crawl is read in place (folders marked
@@ -431,6 +440,10 @@ them:
 3. Extraction `rs-0002` fixed it.
 
 ### 5.1 A rule version (`rules/course-description/v0002.json`)
+
+*New in the [property-rules spec](property-rules/03-spec.md) §4.2–§4.4:* a property rule's definition can also say what it reads (`input`: the record, the
+whole page, the URL or another rule's output), give a list (`multiple`, with `keep`), and use `labelled`, `none`,
+`attribute` and `join`. This example predates the rename: new versions say `"kind": "property"`.
 
 ```json
 {
@@ -828,6 +841,10 @@ engine has already crawled can be found here. For a new catalog, ask engineering
   steps: look at the pages (`sql`, `pages get`), copy the template (`rule draft --catalog T --all --for C`), adapt it,
   `rule try` (for a first ruleset it prints what each rule finds: rows, rows with a value, signals), `rule publish`.
   Once v1 and its extraction exist, the card opens like any other.
+- **Superseded:** the prompt is now structured and exhaustive
+  ([property-rules spec](property-rules/03-spec.md) §4.11): a table of every property with how other catalogs read it, every rule type and input with a real example, the requisite words, "when it isn't
+  clear, the description", and a report per property. On a catalog that already has rules,
+  `golden-datasets prompt --first-rules` asks for the properties still without one.
 
 ![Generate rules](screens/01f-generate-rules.png)
 

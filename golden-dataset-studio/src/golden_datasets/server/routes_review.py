@@ -13,12 +13,12 @@ from typing import Annotated
 
 from fastapi import APIRouter, Body, HTTPException, Query, Request
 
-from .. import facets, golden, layout, model
+from .. import facets, golden, layout, model, properties
 from ..catalogs import CATALOGS, info
 from ..errors import UserError
 from ..log import FULL_NAMES, new_id, validate
 from ..profiles import role_of, roles
-from ..review import LOADER, Review, annotated_match
+from ..review import LOADER, Review, annotated_match, human_reviewed_counts, norm
 from .state import not_found, studio
 
 router = APIRouter(prefix="/api")
@@ -34,6 +34,9 @@ LOCATOR_TITLES = {"locator-course-page": "One course per course page",
                   "locator-program-requirement": "One course per requirement line"}
 
 
+PROPERTY_ROW = {r["label"]: r for r in properties.active()}
+
+
 def rule_title(rule: dict) -> tuple[str, str]:
     """(title, subtitle) as the rule list shows them (screen 03)."""
     if rule["kind"] == "page":
@@ -46,7 +49,15 @@ def rule_title(rule: dict) -> tuple[str, str]:
     if rule["definition"].get("locator") not in (None, "locator-course-page"):
         label += " · program pages" if rule["definition"]["locator"] == "locator-program-requirement" \
             else f" · {rule['definition']['locator'].removeprefix('locator-')}"
-    return label, rule.get("ctdl_property") or "no CTDL term"
+    path = rule.get("ctdl_property") or ""
+    if ">" in path:  # a child: no path in the sidebar, the parent's name instead (#8)
+        return label, f"part of {parent_name(path)}"
+    return label, path or "no CTDL term"
+
+
+def parent_name(path: str) -> str:
+    parent = path.split(">", 1)[0]
+    return next((r["label"] for r in properties.active() if r["path"] == parent), properties.label_of(parent))
 
 
 def _review(request: Request, catalog: str, ext: str | None = None) -> Review:
@@ -180,10 +191,40 @@ def _rule_summary(rv: Review, rid: str) -> dict:
     questions = sum(1 for e in rv.live if e["type"] == "verdict" and e.get("verdict") == "question"
                     and e["target"].get("rule_id") == rid)
     page_q = sum(map(len, _page_questions(rv, rid).values())) if rule["kind"] == "page" else 0
+    row = PROPERTY_ROW.get(rule.get("property_label")) if rule["kind"] == "property" else None
+    extra = {}
+    if rule["kind"] == "property":
+        path = rule.get("ctdl_property") or ""
+        extra = {"required": bool(row and row["required"]), "course_key": bool(row and row["course_key"]),
+                 "no_rule": rule["definition"].get("rule_type") == "none", "list": bool(
+                     rule["definition"].get("multiple")), "path_shown": properties.shown(path) or None,
+                 "parent_label": parent_name(path) if ">" in path else None,
+                 "input": input_words(rule, rv.snap.rules)}
     return {"rule_id": rid, "kind": rule["kind"], "version": rule["version"], "title": title, "subtitle": subtitle,
             "ctdl_property": rule.get("ctdl_property"), "property_label": rule.get("property_label"),
             "locator": rule["definition"].get("locator"), **st, "comments": comments + questions,
-            "page_questions": page_q, "rule_comments": rule_comments}
+            "page_questions": page_q, "rule_comments": rule_comments, **extra}
+
+
+def input_words(rule: dict, rules: dict[str, dict]) -> str:
+    """What a property rule reads, in words, for the rule header (§4.2): "the course record", "the whole page"…"""
+    from ..engine import input_of
+
+    d = rule["definition"]
+    inp = input_of(d)
+    if d.get("rule_type") == "none":
+        return "nothing yet: no rule"
+    if d.get("rule_type") in model.DERIVED_RULE_TYPES:
+        return "nothing on the page (a constant)" if d["rule_type"] == "constant" else "the page URL"
+    if inp["from"] == "page":
+        return "the whole page"
+    if inp["from"] == "url":
+        return "the page URL"
+    if inp["from"] == "rule":
+        parent = rules.get(inp.get("rule") or "", {})
+        name = parent.get("property_label") or inp.get("rule")
+        return f"{name}'s {'element' if inp.get('use') == 'element' else 'value'}"
+    return "the course record"
 
 
 def _page_questions(rv: Review, rid: str) -> dict[str, list[dict]]:
@@ -214,11 +255,23 @@ def _course_pages(request: Request, rv: Review) -> dict[str, list[str]]:
     return cache[key]
 
 
+def _items(row: dict, st) -> dict:
+    """A list row's items, each with its own verdict (property-rules spec §4.4), and items marked missing."""
+    if row.get("items") is None:
+        return {}
+    out = []
+    for it in row["items"]:
+        x = st.items.get(norm(it["value"]))
+        out.append({**it, "state": x.state if x else None, "verdict": _event_brief(x.verdict) if x else None,
+                    "human": bool(x and x.human)})
+    return {"items": out, "missing_items": [_event_brief(e) for e in st.missing_items]}
+
+
 def _find_row(ordered: list, focus: str) -> int | None:
     """Index of the row a link asks for (`?row=`): its key, else an occurrence key, a course key or a page stem."""
-    for field in ("key", "occurrence_key", "course_key", "page_stem"):
+    for name in ("key", "occurrence_key", "course_key", "page_stem"):
         for i, (r, _) in enumerate(ordered):
-            if r.get(field) == focus:
+            if r.get(name) == focus:
                 return i
     if "@" not in focus:  # a course key typed with a space, or lower case
         f = focus.replace(" ", "").upper()
@@ -228,22 +281,59 @@ def _find_row(ordered: list, focus: str) -> int | None:
     return None
 
 
+#: The rule list's groups after Page rules and Record locators (property-rules spec §4.8): `collapsed` ones start shut.
+PROPERTY_GROUPS = (("required", "Required", False), ("other", "Other properties", False),
+                   ("not-started", "Not started", True), ("program", "Program page lines", True))
+
+
+def property_group(rule: dict) -> str:
+    if rule["definition"].get("locator") not in (None, properties.COURSE_LOCATOR):
+        return "program"
+    row = PROPERTY_ROW.get(rule.get("property_label"))
+    if row is not None and row["required"]:
+        return "required"
+    return "not-started" if rule["definition"].get("rule_type") == "none" else "other"
+
+
 @router.get("/catalogs/{catalog}/rules")
 def rules(request: Request, catalog: str, ext: str | None = None) -> dict:
+    """The rule list. Properties: Required (in a fixed order, the course key first), then Other properties by how
+    many values experts reviewed across every catalog, then sheet order; Not started (no rule yet) in sheet order;
+    Program page lines. Sorted when the list loads (a verdict doesn't re-sort the list someone is looking at)."""
     rv = _review(request, catalog, ext)
+    snap = rv.snap
     groups = []
-    for kind, label in (("page", "Page rules"), ("locator", "Record locators"), ("field", "Field rules")):
-        ids = [rid for rid, r in rv.snap.rules.items() if r["kind"] == kind]
-        if kind == "field":  # property order, course pages first, then stubs
-            ids.sort(key=lambda r: (rv.snap.rules[r]["definition"]["locator"] != "locator-course-page",
-                                    rv.snap.rules[r]["definition"]["locator"],
-                                    model.PROPERTY_ORDER.get(rv.snap.rules[r].get("property_label"), 99), r))
-        else:
-            ids.sort(key=lambda r: (r not in PAGE_RULE_TITLES and r not in LOCATOR_TITLES, r))
+    for kind, label in (("page", "Page rules"), ("locator", "Record locators")):
+        ids = sorted((rid for rid, r in snap.rules.items() if r["kind"] == kind),
+                     key=lambda r: (r not in PAGE_RULE_TITLES and r not in LOCATOR_TITLES, r))
         items = [_rule_summary(rv, rid) for rid in ids]
-        groups.append({"kind": kind, "label": label, "rules": items,
+        groups.append({"id": kind, "kind": kind, "label": label, "rules": items, "collapsed": False,
                        "approved": sum(1 for i in items if i["status"] == "approved")})
-    return {"extraction": rv.snap.ext, "ruleset_version": rv.snap.ruleset_version, "groups": groups}
+    doc = snap.ctx.manifest()
+    counts = human_reviewed_counts(snap.ctx.root, [c["catalog"] for c in doc["catalogs"] if c.get("rulesets")],
+                                   studio(request).ctx)
+    by_group: dict[str, list[str]] = {g: [] for g, _, _ in PROPERTY_GROUPS}
+    for rid, r in snap.rules.items():
+        if r["kind"] == "property":
+            by_group[property_group(r)].append(rid)
+
+    def order(rid: str) -> tuple:
+        r = snap.rules[rid]
+        row = PROPERTY_ROW.get(r.get("property_label"))
+        sheet = row["sheet_row"] if row else 999
+        return (model.PROPERTY_ORDER.get(r.get("property_label"), 99), sheet, rid)
+
+    by_group["required"].sort(key=order)
+    by_group["other"].sort(key=lambda rid: (-counts.get(rid, 0), *order(rid)[1:]))
+    by_group["not-started"].sort(key=lambda rid: order(rid)[1:])
+    by_group["program"].sort(key=lambda rid: (snap.rules[rid]["definition"]["locator"], *order(rid)))
+    for gid, label, collapsed in PROPERTY_GROUPS:
+        if not by_group[gid]:
+            continue
+        items = [_rule_summary(rv, rid) for rid in by_group[gid]]
+        groups.append({"id": gid, "kind": "property", "label": label, "rules": items, "collapsed": collapsed,
+                       "approved": sum(1 for i in items if i["status"] == "approved")})
+    return {"extraction": snap.ext, "ruleset_version": snap.ruleset_version, "groups": groups}
 
 
 @router.get("/catalogs/{catalog}/rules/{rule_id}")
@@ -336,7 +426,7 @@ the versions: "Annotated in"), `nobody` or `waiting` (engineer-checked); `verdic
                        if prior and r["key"] in elsewhere else []),
                     "page_questions": [_event_brief(e) for e in page_q.get(r["page_stem"], [])],
                     "other_pages": [{"page_stem": st, "url": snap.page[st]["url"], "title": snap.page[st]["title"]}
-                                    for st in others]})
+                                    for st in others], **_items(r, s)})
     missing = [_event_brief(e) | {"page_stem": e["target"].get("page_stem")} for e in rv.missing_events(rule_id)]
     sizes = Counter(group.values())
     spread = {"by": spread_by, "groups": [{"label": g, "rows": sizes[g]} for g in group_order if sizes[g]]}
@@ -347,7 +437,7 @@ the versions: "Annotated in"), `nobody` or `waiting` (engineer-checked); `verdic
 
 @router.get("/catalogs/{catalog}/match")
 def match(request: Request, catalog: str, rule: str, occ: str, ext: str | None = None) -> dict:
-    """One field rule's row on one occurrence, as `/rows` has it (its value, verdict, comments, review marks): what
+    """One property rule's row on one occurrence, as `/rows` has it (its value, verdict, comments, review marks): what
     Evals and Compare show beside a diff, and what a note or a verdict there supersedes."""
     rv = _review(request, catalog, ext)
     snap = rv.snap
@@ -372,7 +462,7 @@ def match(request: Request, catalog: str, rule: str, occ: str, ext: str | None =
 def annotators(request: Request, catalog: str, ext: str | None = None, by: str | None = None,
                verdict: str | None = None) -> dict:
     """The "Annotated by" dropdown of the Rules and Records tabs (Evals spec §6.7, §6.8): `people` [{name, role,
-    values}] (field values each annotated), `waiting` (values an engineer checked, waiting for an expert), `experts` /
+    values}] (property values each annotated), `waiting` (values an engineer checked, waiting for an expert), `experts` /
     `engineers` (values any subject matter expert / any engineer annotated) and, with
     `by` or `verdict`, `rules` {rule_id: rows that pass the filter} for the rule list."""
     rv = _review(request, catalog, ext)
@@ -440,7 +530,7 @@ def page_search(request: Request, catalog: str, q: str = "", rule: str | None = 
 def courses(request: Request, catalog: str, q: str | None = None, ext: str | None = None, limit: int = 50,
             who: Annotated[str | None, Query(alias="by")] = None, verdict: str | None = None) -> list[dict]:
     """Courses by code, the annotated first; `by` / `verdict` (the "Annotated by" filter, as on /rows): only the
-    courses with a field value that passes it (`by=nobody`: no field value annotated)."""
+    courses with a property value that passes it (`by=nobody`: no property value annotated)."""
     rv = _review(request, catalog, ext)
     by = {}
     for o in rv.snap.occurrences.values():
@@ -460,7 +550,7 @@ def courses(request: Request, catalog: str, q: str | None = None, ext: str | Non
     if who or verdict:
         snap, keep, touched = rv.snap, set(), set()
         for rid, r in snap.rules.items():
-            if r["kind"] != "field":
+            if r["kind"] != "property":
                 continue
             for k, a in rv.annotations(rid).items():
                 ck = snap.occurrences[k]["course_key"]
@@ -487,24 +577,37 @@ def course(request: Request, catalog: str, course_key: str, ext: str | None = No
     annotations: dict = {}
     out = []
     for o in occs:
-        fields = []
-        for rid, m in sorted(snap.matches_by_occ[o["occurrence_key"]].items(),
-                             key=lambda kv: model.PROPERTY_ORDER.get(snap.rules[kv[0]].get("property_label"), 99)):
+        props = []
+        ms = snap.matches_by_occ[o["occurrence_key"]]
+        rids = [rid for rid, r in snap.rules.items() if r["kind"] == "property"
+                and r["definition"].get("locator") == o["locator_rule_id"]]  # every property, with a rule or not (R1)
+        for rid in sorted(rids, key=lambda x: (model.PROPERTY_ORDER.get(snap.rules[x].get("property_label"), 99), x)):
             if rid not in states_cache:
                 states_cache[rid] = rv.row_states(rid, snap.rows(rid))
                 annotations[rid] = rv.annotations(rid)
             s = states_cache[rid].get(o["occurrence_key"])
             r = snap.rules[rid]
-            fields.append({"rule_id": rid, "property_label": r.get("property_label"),
-                           "ctdl_property": r.get("ctdl_property"), "value": m["value"], "status": m["status"],
-                           "css_path": m["full_css_path"], "char_start": m["char_start"], "char_end": m["char_end"],
-                           "state": s.state if s else None, "verdict": _event_brief(s.verdict) if s else None,
-                           **_review_state(s), "annotators": annotations[rid][o["occurrence_key"]]["people"],
-                           "comments": [_event_brief(c) for c in s.comments] if s else []})
+            m = ms.get(rid) or {"value": None, "status": "none", "full_css_path": None, "char_start": None,
+                                "char_end": None}
+            items = snap.items_by_occ[o["occurrence_key"]].get(rid) or []
+            found = [x for x in items if x["status"] == "found"]
+            is_list = bool(r["definition"].get("multiple"))
+            ann = annotations[rid].get(o["occurrence_key"]) or {"people": {}}
+            props.append({"rule_id": rid, "property_label": r.get("property_label"),
+                          "ctdl_property": r.get("ctdl_property"),
+                          "value": "\n".join(x["value"] for x in found) if is_list and found else m["value"],
+                          "status": m["status"],
+                          "css_path": m["full_css_path"], "char_start": m["char_start"], "char_end": m["char_end"],
+                          **({"items": [{"value_index": x["value_index"], "value": x["value"],
+                                         "css_path": x["full_css_path"], "char_start": x["char_start"],
+                                         "char_end": x["char_end"]} for x in found]} if is_list else {}),
+                          "state": s.state if s else None, "verdict": _event_brief(s.verdict) if s else None,
+                          **_review_state(s), "annotators": ann["people"],
+                          "comments": [_event_brief(c) for c in s.comments] if s else []})
         p = snap.page[o["page_stem"]]
         out.append({"occurrence_key": o["occurrence_key"], "page_stem": o["page_stem"], "url": p["url"],
                     "page_title": p["title"], "locator_rule_id": o["locator_rule_id"],
-                    "css_path": o["css_path"], "fields": fields})
+                    "css_path": o["css_path"], "properties": props})
     return {"course_key": course_key, "extraction": snap.ext, "occurrences": out}
 
 
@@ -537,13 +640,32 @@ def add_annotation(request: Request, catalog: str, event: Annotated[dict, Body()
             raise HTTPException(400, "unknown occurrence_key")
         t["course_key"], t["page_stem"] = o["course_key"], o["page_stem"]
         if kind == "match":
-            m = snap.matches_by_occ[o["occurrence_key"]].get(rid)
-            if m is None:
+            r = snap.rules[rid]
+            items = snap.items_by_occ[o["occurrence_key"]].get(rid) or []
+            if r["definition"].get("rule_type") == "none":  # no rule yet: anyone can still say what the page shows
+                if r["definition"].get("locator") != o["locator_rule_id"]:
+                    raise HTTPException(400, f"{rid} has no row on this occurrence")
+                t["value_index"], t["value_seen"] = None, None
+            elif t.get("item"):  # one item of a list (property-rules spec §4.4)
+                if event.get("verdict") == "missing":
+                    t["value_index"], t["value_seen"] = None, None
+                else:
+                    m = next((x for x in items if x["value_index"] == t.get("value_index")
+                              and x["status"] == "found"), None)
+                    if m is None:
+                        raise HTTPException(400, f"{rid} has no item {t.get('value_index')} on this occurrence")
+                    t["value_index"], t["value_seen"] = m["value_index"], m["value"]
+            elif not items:
                 raise HTTPException(400, f"{rid} has no row on this occurrence")
-            t["value_index"], t["value_seen"] = m["value_index"], m["value"]
+            else:
+                found = [x["value"] for x in items if x["status"] == "found"]
+                t["value_index"] = 0
+                t["value_seen"] = "\n".join(found) if r["definition"].get("multiple") and found else items[0]["value"]
     for k in ("kind", "rule_id", "rule_version_seen", "extraction_seen", "occurrence_key", "course_key",
               "page_stem", "value_index", "value_seen"):
         t.setdefault(k, None)
+    if not t.get("item"):
+        t.pop("item", None)
     ctx = snap.ctx
     full = {"annotation_id": new_id("ap" if event.get("type") in ("approve", "reopen") else "an"),
             "type": event.get("type"), "at": datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),

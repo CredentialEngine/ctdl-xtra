@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
-import type { CourseDetail, CourseField } from "../api/types";
+import type { CourseDetail, CourseProperty } from "../api/types";
 import { courseHeading, foldLine, foundOn, groupCards, splitCards, valueKey } from "./logic";
 
-const f = (rule_id: string, property_label: string, ctdl: string | null, value: string): CourseField => ({
+const f = (rule_id: string, property_label: string, ctdl: string | null, value: string): CourseProperty => ({
   rule_id, property_label, ctdl_property: ctdl, value, status: "found", css_path: "html", char_start: 0, char_end: 1,
   state: null, verdict: null, comments: [],
 });
@@ -11,15 +11,15 @@ const geog: CourseDetail = {
   course_key: "GEOG222", extraction: "rs-0002",
   occurrences: [
     { occurrence_key: "c@1", page_stem: "course", url: "u1", page_title: "GEOG 222 - Cartography", locator_rule_id: "locator-course-page", css_path: "html",
-      fields: [f("course-code", "Coded Notation", "ceterms:codedNotation", "GEOG 222"), f("course-name", "Learning Opportunity Name", "ceterms:name", "Cartography"),
+      properties: [f("course-code", "Coded Notation", "ceterms:codedNotation", "GEOG 222"), f("course-name", "Learning Opportunity Name", "ceterms:name", "Cartography"),
                f("course-description", "Description", "ceterms:description", "This course…")] },
     { occurrence_key: "p@1", page_stem: "prog", url: "u2", page_title: "GIS Cert", locator_rule_id: "locator-program-requirement", css_path: "html",
-      fields: [f("stub-code", "Coded Notation", "ceterms:codedNotation", "GEOG222"), f("stub-name", "Learning Opportunity Name", "ceterms:name", "Cartography")] },
+      properties: [f("stub-code", "Coded Notation", "ceterms:codedNotation", "GEOG222"), f("stub-name", "Learning Opportunity Name", "ceterms:name", "Cartography")] },
   ],
 };
 
 describe("records", () => {
-  it("groups fields by property across occurrences, numbered", () => {
+  it("groups values by property across occurrences, numbered", () => {
     const cards = groupCards(geog);
     expect(cards.map((c) => [c.n, c.property, c.values.length])).toEqual([
       [1, "Coded Notation", 2], [2, "Learning Opportunity Name", 2], [3, "Description", 1]]);
@@ -33,8 +33,8 @@ describe("records", () => {
 });
 
 describe("Annotated by on a course (Evals spec §6.8)", () => {
-  it("puts the person's fields first and folds the rest", () => {
-    const d: CourseDetail = { ...geog, occurrences: [{ ...geog.occurrences[0], fields: geog.occurrences[0].fields.map((x, i) => (i === 1
+  it("puts the person's properties first and folds the rest", () => {
+    const d: CourseDetail = { ...geog, occurrences: [{ ...geog.occurrences[0], properties: geog.occurrences[0].properties.map((x, i) => (i === 1
       ? { ...x, annotators: { "Jared Diener": { kinds: ["correct"], at: "t", role: "sme" } } } : i === 2 ? { ...x, engineer_checked: true } : x)) }] };
     const cards = groupCards(d);
     const names = (cs: typeof cards) => cs.map((c) => c.property);
@@ -44,9 +44,9 @@ describe("Annotated by on a course (Evals spec §6.8)", () => {
     expect(splitCards(cards, "nobody").folded).toEqual([]);
     expect(names(splitCards(cards, "experts").mine)).toEqual(["Learning Opportunity Name"]);
     expect(splitCards(cards, "engineers").mine).toEqual([]);
-    expect(foldLine(2, "experts")).toBe("2 fields no subject matter expert annotated");
+    expect(foldLine(2, "experts")).toBe("2 properties no subject matter expert annotated");
     expect(splitCards(cards, null).mine).toBe(cards);
-    expect(foldLine(4, "Jared Diener")).toBe("4 fields Jared Diener didn't annotate");
-    expect(foldLine(1, "waiting")).toBe("1 field not waiting for an expert");
+    expect(foldLine(4, "Jared Diener")).toBe("4 properties Jared Diener didn't annotate");
+    expect(foldLine(1, "waiting")).toBe("1 property not waiting for an expert");
   });
 });

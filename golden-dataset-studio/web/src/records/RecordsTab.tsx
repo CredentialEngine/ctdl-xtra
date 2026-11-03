@@ -1,7 +1,7 @@
-// The Records tab (spec §7.3, screen 07): find a course, see every in-scope field as a card, with the same
-// verdict controls as the Rules tab (the same `verdict` events, targeting (field rule, occurrence)) and the same
-// page pane with numbered highlights for each field. "Annotated by" (?by=…, Evals spec §6.8) lists only the courses a
-// person annotated; on a course, their fields come first and the rest fold into one line.
+// The Records tab (spec §7.3, screen 07): find a course, see every property as a card, with the same
+// verdict controls as the Rules tab (the same `verdict` events, targeting (property rule, occurrence)) and the same
+// page pane with numbered highlights for each property. "Annotated by" (?by=…, Evals spec §6.8) lists only the courses a
+// person annotated; on a course, their properties come first and the rest fold into one line.
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api } from "../api/client";
 import type { CourseDetail, EventBrief, NewEvent } from "../api/types";
@@ -118,7 +118,7 @@ export default function RecordsTab({ catalog, route }: TabProps) {
   // --- saving ---------------------------------------------------------------------------------------------
   const patch = useCallback((v: CardValue, ev: EventBrief) => {
     setCourse((d) => d && { ...d, occurrences: d.occurrences.map((o) => o.occurrence_key !== v.occurrence_key ? o
-      : { ...o, fields: o.fields.map((f) => (f.rule_id === v.rule_id ? applyReview(applyEvent(f, ev), ev, role) : f)) }) });
+      : { ...o, properties: o.properties.map((f) => (f.rule_id === v.rule_id ? applyReview(applyEvent(f, ev), ev, role) : f)) }) });
   }, [role]);
 
   const save = useCallback(async (v: CardValue, what: { verdict: "correct" } | { draft: Draft }) => {
@@ -199,7 +199,7 @@ export default function RecordsTab({ catalog, route }: TabProps) {
               return (
                 <div key={c.property} className="card" data-card={c.n}>
                   <div className="card-h"><span className="bn">{c.n}</span>
-                    {url ? <a className="term sm" href={url} target="_blank" rel="noopener noreferrer">{c.ctdl_property}<Ico name="ext" /></a>
+                    {url ? <a className="term sm" href={url} target="_blank" rel="noopener noreferrer">{c.ctdl_property?.replace(/>/g, " → ")}<Ico name="ext" /></a>
                          : <span className="term sm plain">no CTDL term</span>}
                     <span className="lbl">{c.property}</span></div>
                   <div className="vals">{c.values.map((v) => {
@@ -211,19 +211,21 @@ export default function RecordsTab({ catalog, route }: TabProps) {
                         <div style={{ minWidth: 0 }}>
                           <div className={`valbox${on ? " on" : ""}${v.status === "found" ? "" : " empty"}`}>
                             {on && <span className="valbox-k">Value</span>}
-                            <div className="tx">{v.status === "found" ? v.value : "nothing found"}</div>
+                            {v.items
+                              ? v.items.map((it) => <div key={it.value_index} className="item-line">{it.value}</div>)  // a list: one line per item
+                              : <div className="tx">{v.status === "found" ? v.value : v.status === "none" ? "no rule yet" : "nothing found"}</div>}
                           </div>
                           <div className="src"><span className="tag">{v.on_course_page ? "course page" : "program page"}</span><span>{shortTitle(v.page_title, 70)}</span></div>
                           {on && (
                             <div className="row-links">
-                              <a className="xbtn" title="Open this field's rule in the Rules tab, with this course selected"
+                              <a className="xbtn" title="Open this property's rule in the Rules tab, with this course selected"
                                 href={href(cat, "rules", v.rule_id, { row: v.occurrence_key })}
                                 onClick={(e) => e.stopPropagation()}>Open in Rules →</a>
                             </div>)}
                           {v.human_reviewed || v.engineer_checked ? <ReviewLine r={v} />
                             : by && v.annotators?.[by] ? <PersonLine name={by} a={v.annotators[by]} /> : null}
                           <HistoryLine state={v.state} verdict={v.verdict} comments={v.comments} />
-                          {on && draft && <Expansion draft={draft} fieldRule emptyValue={v.status !== "found"} onChange={setDraft}
+                          {on && draft && <Expansion draft={draft} propertyRule emptyValue={v.status !== "found"} onChange={setDraft}
                             onSave={() => void save(v, { draft })} onCancel={() => setDraft(null)} />}
                         </div>
                         <Controls state={v.state} verdict={v.verdict} comments={v.comments} draft={on ? draft : null} onPick={(k) => pick(v, k)}

@@ -64,7 +64,7 @@
 .w4-rules .row .grp-line { margin-top: 3px; }
 .w4-rules .row .grp { display: inline-block; padding: 0 6px; border-radius: 4px; font-size: 10.5px;
   line-height: 16px; color: var(--violet); background: var(--violet-soft); white-space: nowrap; vertical-align: 1px; }
-/* the selected row shows its whole value, paragraphs kept, like a field on the Records tab */
+/* the selected row shows its whole value, paragraphs kept, like a property on the Records tab */
 .row.on .val.full { display: block; -webkit-line-clamp: unset; overflow: visible; white-space: pre-line; }
 /* Open in Records → / Open in Rules →: a small button on its own line under the selected row or value */
 .row-links { margin-top: 6px; display: flex; gap: 8px; flex-wrap: wrap; }
@@ -149,3 +149,65 @@
 
 /* the filter box (Sample, Annotated by) sits flush under the rule header: square, no gap */
 .w4-rules .sample { margin: 0; border-radius: 0; border-width: 0 0 1px; }
+
+/* Approve and publish: the path, and the warning when xtra doesn't extract the property yet (property-rules §4.10) */
+.apx-path { font-size: 12.5px; color: var(--muted); margin: -4px 0 12px; }
+.apx-path code { font: 12.5px var(--mono); color: var(--ink-2); }
+.apx-xtra { margin: 0 0 14px; padding: 9px 12px; font-size: 12.5px; line-height: 1.5; color: var(--amber); background: var(--amber-soft);
+  border: 1px solid #f5d7a8; border-radius: 9px; }
+.apx-xtra b { font-weight: 600; }
+
+/* Rule list (property-rules spec §4.8, m4): the groups open and shut from their headers; search; the tags */
+.rule-group .group-h { display: flex; align-items: baseline; gap: 6px; width: 100%; border: 0; background: none; font: inherit;
+  color: inherit; text-align: left; cursor: pointer; border-radius: 6px; }
+.rule-group .group-h:hover:not(:disabled) { background: var(--surface-2); }
+.rule-group .group-h:disabled { cursor: default; }
+.rule-group .group-h .sub { margin-left: auto; }
+.rule-group .group-h .grp-car { align-self: center; display: inline-flex; color: var(--faint); transform: rotate(-90deg); transition: transform .15s; }
+.rule-group .group-h .grp-car.open { transform: none; }
+.rule-group .group-h .grp-car svg { width: 12px; height: 12px; }
+.rule-search-box { padding: 2px 8px 8px; }
+.rule-search { width: 100%; border: 1px solid var(--line-2); border-radius: 7px; padding: 6px 10px; font: 13px var(--sans);
+  color: var(--ink); background: var(--surface); }
+.rule-search:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-soft); }
+.rule-list mark { background: var(--amber-soft); color: inherit; border-radius: 2px; }
+.rl-tag { display: inline-block; margin-left: 6px; padding: 0 6px; border-radius: 4px; font: 600 10px var(--sans); line-height: 15px;
+  color: var(--accent); background: var(--accent-soft); vertical-align: 1px; white-space: nowrap; }
+.rl-nomatch { padding: 8px 10px; font-size: 12px; }
+
+/* Rule head (m1): the path with its arrows, what the rule reads, a property with no rule yet */
+.rh-line { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 10px; margin-top: 4px; font: 12.5px var(--mono); color: var(--ink-2); }
+.rh-line .term { font-size: 12.5px; }
+.rh-line .rl-tag { margin-left: 0; }
+.rh-path .term { display: inline-flex; }
+.rh-input { margin-top: 4px; font-size: 12.5px; color: var(--ink-2); }
+.rh-input b { font-weight: 600; }
+.rh-norule { margin: 10px 0 0; padding: 8px 12px; font-size: 12.5px; line-height: 1.5; color: var(--amber); background: var(--amber-soft);
+  border: 1px solid #f5d7a8; border-radius: 8px; }
+
+/* A list property's row (m2): one line per item, each with its own ✓ and ✕; the missing items under the row */
+.items { display: grid; gap: 6px; }
+.item { display: grid; grid-template-columns: 20px minmax(0, 1fr) auto; gap: 8px; align-items: center; background: var(--surface);
+  border: 1px solid var(--line-2); border-radius: 7px; padding: 4px 5px 4px 6px; }
+.item.st-correct { border-color: #9fd9c2; }
+.item.st-wrong { border-color: #f3b9a4; }
+.item-n { font: 11px var(--mono); color: var(--faint); text-align: center; }
+.item-v { min-width: 0; font-size: 13.5px; color: var(--ink); overflow-wrap: anywhere; }
+.item-btns { display: inline-flex; gap: 4px; }
+.ibtn { display: inline-grid; place-items: center; height: 26px; min-width: 28px; padding: 0 6px; border-radius: 7px; cursor: pointer;
+  border: 1px solid var(--line); background: var(--surface); color: var(--faint); }
+.ibtn svg { width: 14px; height: 14px; display: block; }
+.ibtn:hover { border-color: var(--line-2); color: var(--ink-2); }
+.ibtn.ok.on { background: var(--green-soft); border-color: #9fd9c2; color: var(--green); }
+.ibtn.no.on { background: var(--red-soft); border-color: #f3b9a4; color: var(--red); }
+.items-meta { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 12px; margin-top: 2px; font-size: 12px; }
+.add-item { display: inline-flex; align-items: center; gap: 5px; border: 0; background: none; padding: 0; font: inherit; font-size: 12px;
+  font-weight: 550; color: var(--accent); cursor: pointer; }
+.add-item:hover { text-decoration: underline; }
+.add-item svg { width: 12px; height: 12px; }
+.add-item-q { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 6px; font-size: 12.5px; }
+.add-item-q .sel-quote { flex-basis: 100%; }
+.missing-items { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px; margin-top: 6px; font-size: 12px; }
+.missing-items .mi { color: var(--amber); background: var(--amber-soft); border-radius: 5px; padding: 1px 7px; }
+.item-line { font-size: 13.5px; line-height: 1.45; color: var(--ink); overflow-wrap: anywhere; }
+@media (prefers-reduced-motion: reduce) { .rule-group .group-h .grp-car { transition: none; } }

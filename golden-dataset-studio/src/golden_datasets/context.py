@@ -13,7 +13,7 @@ from functools import cached_property
 import pyarrow as pa
 import pyarrow.parquet as pq
 
-from . import layout, manifest
+from . import layout, manifest, model
 from .catalogs import resolve
 from .errors import UserError
 from .storage import Root, open_root
@@ -101,10 +101,11 @@ class Ctx:
         return self.read_table(path).to_pylist()
 
     def ruleset(self, version: int) -> dict:
-        return self.read_json(layout.ruleset(self.catalog, version))
+        rs = self.read_json(layout.ruleset(self.catalog, version))
+        return {**rs, "rules": [model.current_kind(e) for e in rs["rules"]]}
 
     def rule(self, rule_id: str, version: int) -> dict:
-        return self.read_json(layout.rule_version(self.catalog, rule_id, version))
+        return model.current_kind(self.read_json(layout.rule_version(self.catalog, rule_id, version)))
 
     def ruleset_rules(self, version: int) -> tuple[dict, dict[str, dict]]:
         rs = self.ruleset(version)

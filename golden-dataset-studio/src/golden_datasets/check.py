@@ -85,27 +85,35 @@ SQL_CHECKS: list[tuple[str, str, str, str, str]] = [
      """SELECT m.* FROM raw_matches m LEFT JOIN occurrences o ON o.extraction = m.extraction
         AND o.occurrence_key = m.occurrence_key WHERE o.occurrence_key IS NULL OR o.page_stem <> m.page_stem""",
      "raw_matches"),
-    ("matches", "FK", "(rule_id, rule_version) → field rule in the extraction's ruleset",
+    ("matches", "FK", "(rule_id, rule_version) → property rule in the extraction's ruleset",
      """SELECT m.rule_id, m.rule_version, count(*) FROM raw_matches m JOIN extractions e USING (extraction)
         LEFT JOIN ruleset_rules rr ON rr.ruleset_version = e.ruleset_version AND rr.rule_id = m.rule_id
-        AND rr.rule_version = m.rule_version AND rr.kind = 'field' WHERE rr.rule_id IS NULL GROUP BY ALL""",
+        AND rr.rule_version = m.rule_version AND rr.kind = 'property' WHERE rr.rule_id IS NULL GROUP BY ALL""",
      "raw_matches"),
-    ("matches", "FK", "field rule's locator = occurrence's locator",
+    ("matches", "FK", "property rule's locator = occurrence's locator",
      """SELECT m.rule_id, o.locator_rule_id FROM raw_matches m JOIN occurrences o USING (extraction, occurrence_key)
         JOIN rule_versions rv ON rv.rule_id = m.rule_id AND rv.version = m.rule_version
         WHERE rv.locator <> o.locator_rule_id""", "raw_matches"),
-    ("matches", "CHK", "every occurrence × every field rule of its locator, once",
+    ("matches", "CHK", "every occurrence × every property rule of its locator (with a definition), from value 0",
      """SELECT o.extraction, o.occurrence_key, rv.rule_id FROM occurrences o JOIN extractions e USING (extraction)
-        JOIN ruleset_rules rr ON rr.ruleset_version = e.ruleset_version AND rr.kind = 'field'
+        JOIN ruleset_rules rr ON rr.ruleset_version = e.ruleset_version AND rr.kind = 'property'
         JOIN rule_versions rv ON rv.rule_id = rr.rule_id AND rv.version = rr.rule_version
-        AND rv.locator = o.locator_rule_id
+        AND rv.locator = o.locator_rule_id AND rv.rule_type <> 'none'
         LEFT JOIN raw_matches m ON m.extraction = o.extraction AND m.occurrence_key = o.occurrence_key
-        AND m.rule_id = rv.rule_id WHERE m.rule_id IS NULL""", "raw_matches"),
+        AND m.rule_id = rv.rule_id AND m.value_index = 0 WHERE m.rule_id IS NULL""", "raw_matches"),
+    ("matches", "CHK", "a list's values are numbered 0…n-1; only found values come in more than one",
+     """SELECT extraction, rule_id, occurrence_key, count(*) n, max(value_index) top FROM raw_matches GROUP BY ALL
+        HAVING top <> n - 1 OR (n > 1 AND bool_or(status <> 'found'))""", "raw_matches"),
+    ("matches", "CHK", "a rule with no definition (rule_type none) has no matches",
+     """SELECT m.rule_id, count(*) FROM raw_matches m JOIN rule_versions rv ON rv.rule_id = m.rule_id
+        AND rv.version = m.rule_version WHERE rv.rule_type = 'none' GROUP BY ALL""", "raw_matches"),
     ("matches", "CHK", "status ∈ found/empty/no_match; found ⇔ value present",
      """SELECT * FROM raw_matches WHERE status NOT IN ('found','empty','no_match')
         OR (status = 'found') <> (value IS NOT NULL)""", "raw_matches"),
-    ("matches", "CHK", "css_path is relative to the occurrence; offsets within bounds",
-     """SELECT * FROM raw_matches WHERE starts_with(css_path, 'html') OR char_start > char_end OR char_start < 0""",
+    ("matches", "CHK", "css_path is relative to the occurrence (unless the rule reads the page); offsets within bounds",
+     """SELECT m.* FROM raw_matches m JOIN rule_versions rv ON rv.rule_id = m.rule_id AND rv.version = m.rule_version
+        WHERE (starts_with(m.css_path, 'html') AND json_extract_string(rv.definition, '$.input.from')
+        IS DISTINCT FROM 'page') OR m.char_start > m.char_end OR m.char_start < 0""",
      "raw_matches"),
     ("signals", "PK", "(extraction, target, signal, location) unique",
      pk("signals", "extraction, target_kind, rule_id, occurrence_key, value_index, page_stem, signal, css_path, char_start"),
@@ -137,7 +145,9 @@ SQL_CHECKS: list[tuple[str, str, str, str, str]] = [
     ("annotations", "FK", "match target → matches of extraction_seen",
      """SELECT a.annotation_id FROM annotations a LEFT JOIN raw_matches m ON m.extraction = a.target.extraction_seen
         AND m.rule_id = a.target.rule_id AND m.occurrence_key = a.target.occurrence_key
-        AND m.value_index = a.target.value_index WHERE a.target.kind = 'match' AND m.rule_id IS NULL""",
+        AND m.value_index = coalesce(a.target.value_index, 0)
+        LEFT JOIN rule_versions rv ON rv.rule_id = a.target.rule_id AND rv.version = a.target.rule_version_seen
+        WHERE a.target.kind = 'match' AND m.rule_id IS NULL AND rv.rule_type IS DISTINCT FROM 'none'""",
      "annotations"),
     ("annotations", "FK", "page_stem → pages",
      """SELECT annotation_id FROM annotations WHERE target.page_stem IS NOT NULL
@@ -149,8 +159,9 @@ SQL_CHECKS: list[tuple[str, str, str, str, str]] = [
      """SELECT annotation_id FROM annotations WHERE type NOT IN ('verdict','comment','approve','reopen')
         OR (type = 'verdict' AND verdict NOT IN ('correct','wrong','missing','question'))
         OR (type <> 'verdict' AND verdict IS NOT NULL)""", "annotations"),
-    ("annotations", "CHK", "missing only on record locators and page rules",
-     """SELECT annotation_id FROM annotations WHERE verdict = 'missing' AND target.kind NOT IN ('occurrence','page')""",
+    ("annotations", "CHK", "missing only on record locators, page rules and a list's items",
+     """SELECT annotation_id FROM annotations WHERE verdict = 'missing' AND target.kind NOT IN ('occurrence','page')
+        AND NOT (target.kind = 'match' AND coalesce(target.item, false))""",
      "annotations"),
 ]
 LINEAGE_CHECKS = [
@@ -219,9 +230,9 @@ def file_checks(ctx: Ctx, con) -> list[tuple]:
         if not p:
             continue
         copied = meta.get("copied_rules", [])
-        fields = [r for r in copied if r in set(x[0] for x in con.execute(
+        props = [r for r in copied if r in set(x[0] for x in con.execute(
             f"SELECT DISTINCT rule_id FROM raw_matches WHERE extraction = '{c}'").fetchall())]
-        rid_list = ", ".join(f"'{r}'" for r in fields) or "''"
+        rid_list = ", ".join(f"'{r}'" for r in props) or "''"
         n = con.execute(f"""SELECT count(*) FROM (
             (SELECT * EXCLUDE (extraction, rule_version) FROM raw_matches WHERE extraction = '{p}' AND rule_id IN ({rid_list})
              EXCEPT ALL SELECT * EXCLUDE (extraction, rule_version) FROM raw_matches WHERE extraction = '{c}' AND rule_id IN ({rid_list}))
@@ -342,6 +353,44 @@ def score_checks(ctx: Ctx, con) -> list[tuple]:
 DOMAIN_LEAKS = ("rule_id", "rule_version", "occurrence_key", "annotation_ids", "extraction")
 
 
+def property_checks(ctx: Ctx) -> list[tuple]:
+    """properties.csv and each catalog's rules against it (property-rules spec §4.15)."""
+    from . import engine, properties
+
+    out = []
+    rows = properties.load()
+    for col in ("rule_id", "label", "path"):
+        vals = [r[col] for r in rows if r[col] or col != "path"]
+        dup = sorted({v for v in vals if vals.count(v) > 1})
+        out.append(("properties.csv", "PK", f"{col} unique", len(dup), len(rows), dup[:3]))
+    paths = {r["path"] for r in rows}
+    orphans = [r["rule_id"] for r in rows if r["parent"] and r["parent"] not in paths]
+    out.append(("properties.csv", "FK", "every parent is a row", len(orphans), len(rows), orphans[:3]))
+    unnoted = [r["rule_id"] for r in rows if r["sheet_path"] != r["path"] and r["sheet_path"] and not r["path_note"]]
+    out.append(("properties.csv", "CHK", "a path that differs from the sheet's has a path_note", len(unnoted),
+                len(rows), unnoted[:3]))
+    if ctx.ruleset_versions():
+        rs, rules = ctx.ruleset_rules(ctx.latest_ruleset())
+        missing = sorted(properties.missing_rules(rules, rs["settings"]))
+        active = properties.active()
+        out.append(("ruleset", "CHK", "the latest ruleset has a property rule for every row of properties.csv "
+                    "(golden-datasets properties apply)", len(missing), len(active), missing[:3]))
+        props = {rid: r for rid, r in rules.items() if r["kind"] == "property"}
+        bad = []
+        for rid, r in props.items():
+            parent = engine.input_of(r["definition"]).get("rule")
+            if parent and (parent not in props or props[parent]["definition"].get("locator")
+                           != r["definition"].get("locator")):
+                bad.append(rid)
+        try:
+            engine.property_order(rules, list(props))
+        except ValueError as exc:
+            bad.append(str(exc))
+        out.append(("ruleset", "FK", "input.rule → a property rule on the same locator, with no cycles", len(bad),
+                    len(props), bad[:3]))
+    return out
+
+
 def golden_file_checks(ctx: Ctx, con) -> list[tuple]:
     """Per golden dataset version: its rule-matched tree, and the latest location's files for the latest version,
     against the version's lineage (values with a CTDL term: the rest stay out of the files); its human-reviewed tree
@@ -350,6 +399,7 @@ def golden_file_checks(ctx: Ctx, con) -> list[tuple]:
     from before versions (`pub-…`) are checked at their latest location."""
     from concurrent.futures import ThreadPoolExecutor
 
+    from . import properties
     from .golden import (
         HUMAN_REVIEWED,
         RULE_MATCHED,
@@ -362,12 +412,13 @@ def golden_file_checks(ctx: Ctx, con) -> list[tuple]:
     from .storage import open_root
 
     out = []
+    known_paths = {r["path"] for r in properties.load()} | {t for _, t in model.FIRST_EIGHT if t}
     docs = [ctx.read_json(f"{g['path']}/publication.json", immutable=False)
             for g in ctx.crawl_entry().get("golden", [])]
     newest = max((d["ruleset_version"] for d in docs if VERSION.match(d["publication"])), default=None)
     for d in docs:
         name = d["publication"]
-        columns = set(d.get("properties") or model.PROPERTY_ORDER)
+        columns = set(d.get("properties") or model.FIRST_EIGHT_ORDER)  # an old publication: the eight
         groot = open_root(d["to"]) if d.get("to") else ctx.root
         versioned = bool(VERSION.match(name))
         if versioned:
@@ -396,7 +447,7 @@ def golden_file_checks(ctx: Ctx, con) -> list[tuple]:
 
         rule_files: dict[str, list] = {}
         for prefix, html in prefixes:
-            ids, leaked, n_rec, bad_files = set(), 0, 0, []
+            ids, leaked, n_rec, bad_files, unknown, n_val = set(), 0, 0, [], [], 0
             with ThreadPoolExecutor(max_workers=32) as pool:
                 fetched = list(pool.map(lambda s, p=prefix, h=html: fetch(s, p, h), stems))
             for stem, records, bad in fetched:
@@ -416,6 +467,9 @@ def golden_file_checks(ctx: Ctx, con) -> list[tuple]:
                             ids.add((gid, stem, fld["property"], counts[key]))
                         counts[key] += 1
                         leaked += sum(k in DOMAIN_LEAKS for k in fld)
+                        n_val += 1
+                        if fld.get("ctdl_property") and fld["ctdl_property"] not in known_paths:
+                            unknown.append(fld["ctdl_property"])
                     leaked += sum(k in DOMAIN_LEAKS for k in rec)
             where = f"{name}: {prefix}"
             out.append(("lineage", "FK", f"{where} every value of its columns has one lineage row (and back)",
@@ -424,6 +478,8 @@ def golden_file_checks(ctx: Ctx, con) -> list[tuple]:
                         "per page", len(bad_files), len(stems), bad_files[:3]))
             out.append(("golden page", "CHK", f"{where} domain-only (no rule ids / keys / annotation ids)", leaked,
                         n_rec, []))
+            out.append(("golden page", "FK", f"{where} every ctdl_property is a path of properties.csv",
+                        len(unknown), n_val, sorted(set(unknown))[:3]))
         if versioned:
             prefix = version_prefix(ctx, d["ruleset_version"], HUMAN_REVIEWED)
             want, _ = tree_pages(rule_files, HUMAN_REVIEWED)
@@ -457,6 +513,7 @@ def run(ctx: Ctx) -> list[tuple]:
         total = con.execute(f"SELECT count(*) FROM {base}").fetchone()[0]
         results.append((table, kind, desc, bad, total, []))
     results += file_checks(ctx, con)
+    results += property_checks(ctx)
     return results
 
 

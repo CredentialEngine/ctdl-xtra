@@ -169,3 +169,36 @@ Same catalogs, same storage account, a fresh server with an empty cache (v2 numb
 
 WVU's cold open is still over the 2 s budget of §10: about 1 s of it is computing 17 rule statuses over 244,000
 values; warm it is 83 ms (one `Review` is now reused per extraction while the log hasn't grown).
+
+## Property rules: every CLI Extraction Label as a property rule ([spec](docs/qrspi/property-rules/03-spec.md))
+
+Built on `golden-dataset-studio-local`, uncommitted for review. `make check`: ruff ✓ · pytest 148 ✓ · web typecheck ✓,
+vitest 177 ✓, build ✓. Smoke-tested in Chromium on a three-page synthetic catalog (home table, rule list groups and
+search, a list rule's per-item ✓).
+
+| Step | As built |
+|---|---|
+| F0 | "Property" in the UI, CLI, prompts and code (`KINDS = ("page", "locator", "property")`, `run_property`). Stored `"kind": "field"` is read as `property` (`model.current_kind`, in `Ctx.rule`, `Ctx.ruleset`, `sql`'s views and drafts). The golden files' `fields` key is unchanged |
+| F1 | `properties.py` + `properties.csv` (43 rows, synced from the 3 Nov snapshot `phase1-extraction.csv`), `properties sync / list`. The xlsx is read without a library (the Course tab's Required block, P2). P4, P6, P14, P15 and W3 as warnings. `model.PROPERTIES` is a view of the file; `FIRST_EIGHT` stays frozen for import-v2 and old publications |
+| F2 | `rule_type: none`: no rows in Parquet; the read model gives each course a row with `status: none` so anyone can annotate it (✗ with the right text). `properties apply [-c C \| --all]`: one ruleset version and extraction per catalog |
+| F3 | `input` (`record` · `page` · `url` · `rule`, `use: element`), parents first (`engine.property_order`), cycles and cross-locator inputs refused at publish and in `check`. A child reads its parent's raw page text, so its offsets point into the page |
+| F4 | `multiple` (`elements`, `separator`, `regex`, `keep`). One Rules-tab row per course with `items`; item verdicts target `{kind: match, item: true, value_index, value_seen}` and attach by text; `missing` is allowed on items. Golden plan, Records, Compare (`items: {added, removed}`) and rule status read every item. Rule status is cached per (extraction, the rule's own live events) |
+| F5 | `labelled`, `attribute`, `join`; `script` / `style` text left out (offsets still map to textContent) |
+| F6 | Rule list groups Required · Other properties (by experts' verdicts across catalogs, from the logs) · Not started · Program page lines, with search. Home table: 43 columns, Coverage. Evals: every property, reasons for the unscored ones. Scores filter to the columns the output emits (`not_scored`; `xtra` keeps the unfiltered numbers; slot-name outputs aren't filtered) |
+| F7 | Generate rules rewritten (§4.11); on a catalog with rules, `prompt --first-rules` asks for the properties still without one. **Not run on the six catalogs** (see below) |
+| F8 | New versions store `golden/` and `silver/` (manifest entry `trees: golden-silver`); older ones keep their folders. Approve dialog, Datasets tab (Golden by property, Silver by version), Evals picker and CLI words |
+| F9 | Notes in the main spec and the Evals spec, README |
+
+**Not done here, needs the catalogs' data** (no local mirror on this machine; the shared root is the team's):
+- F7's first rules for the six catalogs (§4.12), and the list of properties left without a rule, for Seth.
+- `properties apply --all` on the real roots, the spec and tour screenshots, and the WVU timing of F4 (P11).
+
+**Choices where the spec was silent:**
+- New rule ids come from the path (`course-credit-value-min-value`), not the spec's example `course-credit-min`.
+- An expert's ✗ with the right text on a property with no rule is kept as evidence (the rule needs work); it reaches
+  the golden dataset once a rule's value equals it, like any expected value.
+- Values read with `input: page` keep their document-root css path (`check` allows it for those rules only).
+- Learning Type is a home-table column (as in m5); it has no CTDL term, so its key is its label.
+- The live sheet (3 Nov, later in the day) has a 44th row, `ceterms:estimatedDuration>ceterms:timeRequired` (Time
+  Required), and Estimated Duration moved to rows 38–43. The checked-in file follows the spec's snapshot; a
+  `properties sync` from the sheet adds it.
