@@ -70,6 +70,44 @@ def _credit_profile(credits: Any, unit: Any) -> tuple[dict, str]:
     return profile, note
 
 
+# Hours a course page prints, each one ceterms:DurationProfile in
+# ceterms:estimatedDuration. The label words stand in for the description
+# only when the reader kept none of the page's.
+DURATION_LABELS = {
+    "course_lecture_hours": "Lecture Hours",
+    "course_lab_hours": "Lab Hours",
+}
+ESTIMATED_DURATION = "ceterms:estimatedDuration"
+# The time a duration line prints: a number or a range, "54.0 - 432.0".
+DURATION_TIME_RE = re.compile(
+    r"\d+(?:\.\d+)?(?:\s*(?:-|–|—|to)\s*\d+(?:\.\d+)?)?", re.IGNORECASE
+)
+
+
+def duration_profile(label: str, value: Any, raw_text: Any = None) -> dict:
+    """One printed duration line as {ceterms:description,
+    ceterms:timeRequired}, in the page's words, unparsed.
+
+    The time is the number or range the line prints, as printed; the
+    description is the rest of the line ("Total Course Lecture Hours" in
+    "Total Course Lecture Hours 54.0"). Exact, minimum and maximum
+    durations are left to whoever reads these.
+    """
+    text = " ".join(str(raw_text or "").split())
+    match = DURATION_TIME_RE.search(text)
+    if match is None:
+        time = " ".join(str(value).split())
+        rest = text
+    else:
+        time = match.group(0)
+        rest = f"{text[: match.start()]} {text[match.end() :]}"
+    description = " ".join(rest.split()).strip(" :-–—,;")
+    return {
+        "ceterms:description": description or DURATION_LABELS.get(label, label),
+        "ceterms:timeRequired": time,
+    }
+
+
 def map_fields(entity_type: str, fields: list[dict]) -> dict:
     class_uri = CLASS_URI[entity_type]
     present = {
@@ -87,6 +125,7 @@ def map_fields(entity_type: str, fields: list[dict]) -> dict:
     )
     props = []
     unmapped = []
+    durations: dict | None = None
     n = 0
     for field in fields:
         label = field["canonical_label"]
@@ -127,6 +166,27 @@ def map_fields(entity_type: str, fields: list[dict]) -> dict:
                     "notes": note,
                 }
             )
+        elif label in DURATION_LABELS:
+            # One property holds every hours line the page prints.
+            if durations is None:
+                durations = {
+                    "property_id": pid,
+                    "property": ESTIMATED_DURATION,
+                    "value": [],
+                    "source_field_refs": [],
+                    "publisher_input_refs": [],
+                    "mapping_method": "nested_profile",
+                    "notes": "Each printed hours line, in the page's words.",
+                }
+                props.append(durations)
+            durations["value"].append(
+                duration_profile(
+                    label,
+                    field["value"],
+                    field.get("raw_text") or field.get("excerpt"),
+                )
+            )
+            durations["source_field_refs"].append(field["field_id"])
         elif label in {"course_credits_min", "course_credits_max"}:
             unmapped.append(field["field_id"])
         elif label == "course_prerequisites":

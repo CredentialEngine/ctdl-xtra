@@ -27,6 +27,11 @@ from implementations.extract_dom import (
 load_engine()
 
 from html_text import slug_url
+from mapping import (
+    DURATION_LABELS,
+    ESTIMATED_DURATION,
+    duration_profile,
+)
 from normalize import normalize_html
 from slots import Slot
 from transcribe_courses import detect_template, extract_course
@@ -55,6 +60,10 @@ TERMS = {
     "course_credits_max": "ceterms:creditMaxValue",
     "course_credits_unit": "ceterms:creditUnitType",
     "course_prerequisites": "ceterms:prerequisite",
+    # Each printed hours line, as {ceterms:description,
+    # ceterms:timeRequired} in the page's words (see record_fields).
+    "course_lecture_hours": ESTIMATED_DURATION,
+    "course_lab_hours": ESTIMATED_DURATION,
     "learning_program_id": CODED_NOTATION,
     "learning_program_name": "ceterms:name",
     "learning_program_description": "ceterms:description",
@@ -63,6 +72,10 @@ TERMS = {
     "competency_framework_name": "ceasn:name",
     "competency_text": "ceasn:competencyText",
 }
+
+
+# Terms whose value is always a list, one object per item.
+LIST_TERMS = frozenset({ESTIMATED_DURATION})
 
 
 def slot_from_dict(payload: dict[str, Any]) -> Slot:
@@ -177,7 +190,7 @@ def record_fields(
         _field(
             draft.field_id or f"f_{index:03d}",
             TERMS[draft.canonical_label],
-            draft.value,
+            _term_value(draft),
             draft.raw_text,
             draft.notes,
         )
@@ -187,6 +200,18 @@ def record_fields(
     if entity_type == ENTITY_COURSE:
         fields.extend(_course_derived(fields, source_url))
     return fields
+
+
+def _term_value(draft: Any) -> Any:
+    """What a draft's term holds: its value, or for an hours line the
+    DurationProfile it prints, in the page's words."""
+    if draft.canonical_label in DURATION_LABELS:
+        return duration_profile(
+            draft.canonical_label,
+            draft.value,
+            getattr(draft, "raw_text", None) or getattr(draft, "excerpt", None),
+        )
+    return draft.value
 
 
 def _course_derived(
@@ -218,14 +243,15 @@ def expected_values(fields: list[dict[str, Any]]) -> dict[str, Any]:
 
     A term read more than once keeps every value, as a list in the order
     they were read. A competency list is several outcomes under one term,
-    and a plain mapping would keep only the last of them.
+    and a plain mapping would keep only the last of them. estimatedDuration
+    is a list of objects even when the page prints one line.
     """
     values: dict[str, list[Any]] = {}
     for field in fields:
         if field.get("presence") == "present":
             values.setdefault(field["property"], []).append(field["value"])
     return {
-        prop: found[0] if len(found) == 1 else found
+        prop: found if prop in LIST_TERMS or len(found) != 1 else found[0]
         for prop, found in values.items()
     }
 
