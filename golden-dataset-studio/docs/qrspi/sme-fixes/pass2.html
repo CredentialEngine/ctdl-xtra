@@ -1,0 +1,361 @@
+<title>Studio Fixes, Pass 2</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&family=Fraunces:opsz,wght@9..144,600&display=swap">
+<style>
+/* Layout: one column of numbered fixes; each fix is a Today / Proposed pair of miniature Studio screens. */
+:root {
+  --bg: #f6f7fb; --paper: #ffffff; --ink: #1c2233; --muted: #5d6680; --line: #dde1ec;
+  --accent: #2f54eb; --accent-soft: rgba(47,84,235,.08);
+  --value: rgba(253,224,120,.92); --expected: rgba(190,242,214,.95); --expected-ink: #0f6b3e;
+  --bad: #b3261e; --bad-soft: #fdecea; --warn: #8a5a00; --warn-soft: #fff4d6; --good-soft: #e6f6ed;
+  --page: #fbfbf8; --shadow: 0 1px 2px rgba(20,30,60,.06), 0 4px 16px rgba(20,30,60,.05);
+  --f-display: "Fraunces", Georgia, serif; --f-body: "IBM Plex Sans", system-ui, sans-serif; --f-mono: "IBM Plex Mono", ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #12151d; --paper: #1a1f2b; --ink: #e6e9f2; --muted: #9aa3ba; --line: #2c3344;
+  --accent: #7d97ff; --accent-soft: rgba(125,151,255,.12);
+  --value: rgba(200,165,40,.55); --expected: rgba(60,170,110,.45); --expected-ink: #8fe0b4;
+  --bad: #ff8a80; --bad-soft: #3a1d1c; --warn: #f2c66d; --warn-soft: #33290f; --good-soft: #17301f;
+  --page: #161a24; --shadow: none; color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --bg: #12151d; --paper: #1a1f2b; --ink: #e6e9f2; --muted: #9aa3ba; --line: #2c3344;
+  --accent: #7d97ff; --accent-soft: rgba(125,151,255,.12);
+  --value: rgba(200,165,40,.55); --expected: rgba(60,170,110,.45); --expected-ink: #8fe0b4;
+  --bad: #ff8a80; --bad-soft: #3a1d1c; --warn: #f2c66d; --warn-soft: #33290f; --good-soft: #17301f;
+  --page: #161a24; --shadow: none; color-scheme: dark; }
+body { background: var(--bg); color: var(--ink); font: 15px/1.55 var(--f-body); }
+.wrap { max-width: 1080px; margin: 0 auto; padding-block: 40px 80px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: grid; gap: 44px; }
+header h1 { font: 600 34px/1.15 var(--f-display); margin: 0 0 8px; text-wrap: balance; }
+header p { margin: 0; color: var(--muted); max-width: 68ch; }
+.legend { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 14px; font-size: 13px; color: var(--muted); }
+.sw { display: inline-block; width: 22px; height: 12px; border-radius: 2px; vertical-align: -1px; margin-right: 6px; }
+section.fix { display: grid; gap: 14px; }
+.fix-head { display: flex; gap: 14px; align-items: baseline; flex-wrap: wrap; }
+.num { font: 500 13px var(--f-mono); color: var(--accent); border: 1px solid var(--accent); border-radius: 999px; padding: 1px 9px; }
+.fix-head h2 { font: 600 21px/1.3 var(--f-body); margin: 0; text-wrap: balance; }
+.why { margin: 0; color: var(--muted); max-width: 75ch; font-size: 14px; }
+.why code, .q code { font: 12.5px var(--f-mono); background: var(--accent-soft); padding: 0 4px; border-radius: 3px; }
+.pair { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 760px) { .pair { grid-template-columns: 1fr; } }
+.screen { background: var(--paper); border: 1px solid var(--line); border-radius: 8px; box-shadow: var(--shadow); min-width: 0; overflow: hidden; }
+.cap { font: 500 11px var(--f-mono); letter-spacing: .08em; text-transform: uppercase; padding: 8px 12px; border-bottom: 1px solid var(--line); display: flex; justify-content: space-between; gap: 8px; }
+.cap.today { color: var(--bad); } .cap.prop { color: var(--expected-ink); }
+.body { padding: 14px; display: grid; gap: 10px; font-size: 13px; }
+.pg { background: var(--page); border: 1px solid var(--line); border-radius: 4px; padding: 12px; font-size: 12.5px; line-height: 1.6; position: relative; }
+.pg h4 { margin: 0 0 4px; font-size: 13px; }
+.lbl { font-weight: 600; font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
+.v { background: var(--value); border-radius: 2px; }
+.e { background: var(--expected); border-radius: 2px; }
+.sel { background: #b4d5fe; color: #0b1f44; border-radius: 2px; }
+.cursor { font: 11px var(--f-mono); color: var(--muted); }
+.toast { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 8px 10px; border-radius: 6px; font-size: 12.5px; }
+.toast.good { background: var(--good-soft); color: var(--expected-ink); }
+.toast.bad { background: var(--bad-soft); color: var(--bad); }
+.toast.warn { background: var(--warn-soft); color: var(--warn); }
+.toast.muted { background: var(--accent-soft); color: var(--muted); }
+.btn { font: 500 12px var(--f-body); border: 1px solid var(--line); background: var(--paper); color: var(--ink); border-radius: 5px; padding: 3px 9px; white-space: nowrap; }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.ghost { color: var(--muted); font-style: italic; font-size: 12px; }
+.url { font: 12px var(--f-mono); background: var(--bg); border: 1px solid var(--line); border-radius: 5px; padding: 5px 8px; overflow-x: auto; white-space: nowrap; }
+.url b { color: var(--accent); font-weight: 500; }
+.row { display: grid; grid-template-columns: 18px 1fr auto; gap: 8px; align-items: center; padding: 6px 8px; border: 1px solid var(--line); border-radius: 5px; font-size: 12.5px; }
+.row.on { border-color: var(--accent); background: var(--accent-soft); }
+.dot { width: 10px; height: 10px; border-radius: 50%; background: var(--line); }
+.dot.ok { background: #2e9e5b; } .dot.no { background: var(--bad); }
+.cmt { border-left: 3px solid var(--line); padding: 6px 10px; font-size: 12.5px; display: grid; gap: 2px; }
+.cmt.lit { border-color: var(--accent); background: var(--accent-soft); animation: pulse 2s ease-out 1; }
+@keyframes pulse { from { box-shadow: 0 0 0 4px var(--accent-soft); } to { box-shadow: none; } }
+@media (prefers-reduced-motion: reduce) { .cmt.lit { animation: none; } }
+.meta { font-size: 11px; color: var(--muted); }
+.bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 8px 10px; border-radius: 6px; font-size: 12.5px; border: 1px solid var(--line); }
+.bar.live { background: var(--accent-soft); }
+.bar.dead { background: var(--bad-soft); border-color: var(--bad); color: var(--bad); }
+.bar .grow { flex: 1 1 200px; min-width: 0; }
+.spinner { width: 10px; height: 10px; border: 2px solid var(--accent); border-right-color: transparent; border-radius: 50%; display: inline-block; }
+.quote { font: 12px/1.5 var(--f-mono); background: var(--paper); color: var(--ink); border: 1px solid var(--line); border-radius: 4px; padding: 8px; }
+.timeline { display: grid; grid-template-columns: auto 1fr; gap: 3px 10px; font-size: 12px; }
+.timeline time { font: 11.5px var(--f-mono); color: var(--muted); }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.chip { font-size: 12px; border: 1px solid var(--line); border-radius: 999px; padding: 2px 10px; background: var(--paper); }
+.chip.on { background: var(--accent); color: #fff; border-color: var(--accent); }
+.course { border-radius: 3px; padding: 6px 8px 6px 22px; position: relative; margin-top: 8px; font-size: 12px; }
+.course .b { position: absolute; left: -7px; top: -7px; background: var(--accent); color: #fff; font: 600 9.5px/16px var(--f-mono); min-width: 16px; height: 16px; text-align: center; border-radius: 3px; padding: 0 3px; }
+.course.thin { box-shadow: 0 0 0 1.5px rgba(47,84,235,.55); }
+.course.focus { box-shadow: 0 0 0 2.5px var(--accent); background: rgba(47,84,235,.06); }
+.course.found { box-shadow: 0 0 0 2px var(--accent); background: rgba(47,84,235,.05); }
+.course.found.sel2 { box-shadow: 0 0 0 3px var(--accent), 0 0 0 6px var(--accent-soft); }
+.rhead { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; flex-wrap: wrap; }
+.rhead strong { font-size: 14px; }
+.strike { text-decoration: line-through; color: var(--muted); }
+.q { background: var(--paper); border: 1px dashed var(--line); border-radius: 8px; padding: 10px 14px; font-size: 13.5px; display: grid; gap: 4px; }
+.q b { color: var(--accent); font-weight: 600; }
+.bonus { border-top: 1px solid var(--line); padding-top: 24px; }
+.json { font: 11.5px/1.5 var(--f-mono); background: var(--bg); border: 1px solid var(--line); border-radius: 5px; padding: 8px 10px; white-space: pre; overflow-x: auto; }
+.json .k { color: var(--accent); } .json .s { color: var(--expected-ink); } .json .x { background: var(--bad-soft); color: var(--bad); }
+.grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+@media (max-width: 760px) { .grid3 { grid-template-columns: 1fr; } }
+.score { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; font-size: 12.5px; align-items: center; }
+.score b { font: 600 15px var(--f-mono); }
+.flag { display: inline-flex; gap: 5px; align-items: center; font-size: 11.5px; font-weight: 500; border-radius: 999px; padding: 1px 9px; background: var(--accent-soft); color: var(--accent); border: 1px solid var(--accent); }
+.flag.green { background: var(--good-soft); color: var(--expected-ink); border-color: var(--expected-ink); }
+.vbtns { display: flex; gap: 4px; }
+.vb { width: 26px; height: 26px; border: 1px solid var(--line); border-radius: 5px; display: grid; place-items: center; font-size: 13px; background: var(--paper); color: var(--muted); }
+.vb.ok { background: var(--good-soft); border-color: #2e9e5b; color: #1d7a45; } .vb.no { background: var(--bad-soft); border-color: var(--bad); color: var(--bad); }
+.vb.np { width: auto; padding: 0 8px; font-size: 11.5px; } .vb.np.on { background: #ede7fb; border-color: #6b4fc8; color: #4b2fa8; }
+.mrow { display: grid; grid-template-columns: 70px 1fr auto; gap: 10px; align-items: start; padding: 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--paper); font-size: 12.5px; }
+.mrow.on { border-color: var(--accent); box-shadow: inset 3px 0 0 var(--accent); background: var(--accent-soft); }
+.mrow .ck { font: 600 12px var(--f-mono); }
+.valbox { border: 1px solid var(--line); border-radius: 5px; padding: 5px 8px; background: var(--paper); }
+.valbox.empty { color: var(--muted); font-style: italic; border-style: dashed; }
+.steps { display: grid; grid-template-columns: 34px 1fr 1fr; gap: 6px 10px; font-size: 12.5px; align-items: start; }
+.steps .h { font: 600 11px var(--f-mono); text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+.steps .t { font: 11px var(--f-mono); color: var(--muted); padding-top: 6px; }
+.lane { border: 1px solid var(--line); border-radius: 5px; padding: 5px 8px; background: var(--paper); }
+.lane.a { border-left: 4px solid #2f54eb; } .lane.b { border-left: 4px solid #c2410c; } .lane.boom { background: var(--bad-soft); border-color: var(--bad); color: var(--bad); }
+.cache { display: flex; gap: 4px; flex-wrap: wrap; font: 11px var(--f-mono); }
+.cache span { border: 1px solid var(--line); border-radius: 3px; padding: 1px 5px; background: var(--paper); }
+.cache span.old { background: var(--warn-soft); border-color: var(--warn); }
+.cache span.gone { text-decoration: line-through; color: var(--muted); }
+figure { margin: 0; } figure img { width: 100%; border: 1px solid var(--line); border-radius: 6px; display: block; } figcaption { font-size: 12px; color: var(--muted); margin-top: 4px; }
+</style>
+
+<div class="wrap">
+<header>
+  <h1>Studio fixes, pass 2: the pictures Eric asked for</h1>
+  <p>Answers to Eric's pass-2 reactions (2026-11-04). Real screenshots are in <code>img/</code>; the drawings below show proposals. Each section names its question in <code>01-questions.md</code>.</p>
+  <div class="legend">
+    <span><span class="sw" style="background:var(--value)"></span>value the rule found</span>
+    <span><span class="sw" style="background:var(--expected)"></span>a saved answer (annotation)</span>
+    <span><span class="sw" style="background:#b4d5fe"></span>text being highlighted (proposed color)</span>
+  </div>
+</header>
+
+<section class="fix" id="m-q1-1">
+  <div class="fix-head"><span class="num">Q1.1</span><h2>Highlighting exactly what the rule found</h2></div>
+  <p class="why">Today the highlight is dropped with no message, so the feature looks broken (screenshot <code>img/q1-1-selection-today.png</code>). Proposed, per Eric: keep the markup, save it, and flag next to it that it's the same as what the rule found.</p>
+  <div class="pair">
+    <div class="screen"><div class="cap today"><span>Today</span><span>ACCT199 · Entry Condition: Description</span></div><div class="body">
+      <div class="pg"><span class="e">LIMITATION ON ENROLLMENT: To participate in work experience education, students must have a paid or unpaid job or internship…</span></div>
+      <div class="ghost">Green here is only the browser selection. On release nothing is saved and nothing is said.</div>
+      <div class="mrow on"><span class="ck">ACCT199</span><div class="valbox">LIMITATION ON ENROLLMENT: To participate…</div><div class="vbtns"><span class="vb">✓</span><span class="vb">✕</span></div></div>
+    </div></div>
+    <div class="screen"><div class="cap prop"><span>Proposed</span><span>same highlight</span></div><div class="body">
+      <div class="pg"><span class="e">LIMITATION ON ENROLLMENT: To participate in work experience education, students must have a paid or unpaid job or internship…</span></div>
+      <div class="mrow on"><span class="ck">ACCT199</span><div style="display:grid;gap:6px"><div class="valbox">LIMITATION ON ENROLLMENT: To participate…</div><div><span class="flag green">= Same as what the rule found</span></div><div class="meta">Jared Diener · your highlight was saved · 16:30</div></div><div class="vbtns"><span class="vb ok">✓</span><span class="vb">✕</span></div></div>
+      <div class="meta">The highlight becomes a saved answer, like any other. Because it equals the found value, the row counts as ✓, and the flag says why. Pressing ✕ afterwards still works.</div>
+    </div></div>
+  </div>
+</section>
+
+<section class="fix" id="m-q1-2">
+  <div class="fix-head"><span class="num">Q1.2</span><h2>ACCT199: what it was, what it is now, and the decision</h2></div>
+  <p class="why">Real history from the annotation log (times UTC). The later click wins. The ✗ is the rule's only open ✗, so on its own it put the rule into "needs work", and it was one of the 5 rules sent to Claude at 16:34.</p>
+  <div class="grid3">
+    <div class="screen"><div class="cap prop"><span>Before</span><span>16:28:06</span></div><div class="body">
+      <div class="mrow"><span class="ck">ACCT199</span><div class="valbox">LIMITATION ON ENROLLMENT: To participate…</div><div class="vbtns"><span class="vb ok">✓</span><span class="vb">✕</span></div></div>
+      <div class="meta">Jared clicks ✓. Rule: <b>no open ✗</b>.</div>
+    </div></div>
+    <div class="screen"><div class="cap today"><span>Now</span><span>16:30:03 →</span></div><div class="body">
+      <div class="mrow"><span class="ck">ACCT199</span><div style="display:grid;gap:4px"><div class="valbox">LIMITATION ON ENROLLMENT: To participate…</div><div class="meta">Note: "LIMITATION ON ENROLLMENT: To participate…" <span style="color:var(--bad)">(identical, 378 chars)</span></div></div><div class="vbtns"><span class="vb">✓</span><span class="vb no">✕</span></div></div>
+      <div class="meta">Jared clicks ✕ after his highlight did nothing. Rule: <b style="color:var(--bad)">needs work</b>.</div>
+    </div></div>
+    <div class="screen"><div class="cap prop"><span>Decision</span><span>pick one</span></div><div class="body">
+      <div class="toast good"><b>A.</b> Ask Jared to click ✓ again. The row goes back to "Before". <i>(default)</i></div>
+      <div class="toast muted"><b>B.</b> We add a ✓ on his behalf, marked "corrected by Eric". The ✗ stays in history.</div>
+      <div class="toast muted"><b>C.</b> Leave it. Claude sees a ✗ whose note equals the value, and should say so.</div>
+    </div></div>
+  </div>
+</section>
+
+<section class="fix" id="m-q1-3">
+  <div class="fix-head"><span class="num">Q1.3</span><h2>Selection color and the one-line reasons</h2></div>
+  <p class="why">Two changes. (1) While you drag, the highlight is <b>blue</b>, so green always means "saved". (2) When the Studio can't use a highlight, it says why, in a strip under the page, instead of doing nothing.</p>
+  <div class="grid3">
+    <div class="screen"><div class="cap prop"><span>While dragging</span></div><div class="body">
+      <div class="pg"><span class="sel">Completion of ATH 100</span> and completion of or concurrent enrollment in ATH 103.</div>
+      <div class="meta">Blue = not saved yet. On release it becomes a green saved answer (or opens the ✕ draft).</div>
+    </div></div>
+    <div class="screen"><div class="cap today"><span>Can't use it: no row</span></div><div class="body">
+      <div class="pg"><span class="sel">Completion of ATH 100</span> and completion of…</div>
+      <div class="toast warn">Pick a row on the left first: the "Annotated by" filter hides every row of this page.</div>
+    </div></div>
+    <div class="screen"><div class="cap today"><span>Can't use it: wrong page</span></div><div class="body">
+      <div class="pg"><span class="sel">Completion of WELD 110.</span></div>
+      <div class="toast warn">This tab is WELD230's page. The selected row is ATH103L. <span class="btn">Go to ATH103L</span></div>
+    </div></div>
+  </div>
+</section>
+
+<section class="fix" id="m-q8-2">
+  <div class="fix-head"><span class="num">Q8.2</span><h2>CCSF Interior Design: three courses on one page</h2></div>
+  <p class="why">Today (screenshot <code>img/q8-ccsf-today.png</code>) INTD 100 is lightly filled because its row is selected; INTD 102 and 138 are only outlined, and the title says "One course per course page". Proposed: every course found gets the same fill, the selected one gets a ring, and a strip names them all.</p>
+  <div class="pair">
+    <div class="screen"><div class="cap today"><span>Today</span><span>ccsf · locator-course-page</span></div><div class="body">
+      <div class="rhead"><strong>One course per course page</strong><span class="meta">0 / 1,927 reviewed</span></div>
+      <div class="pg" style="padding-left:18px"><b>INTD - Interior Design</b>
+        <div class="course focus"><span class="b">1</span><b>INTD 100</b> Introduction to Residential Interior Design (3.0)</div>
+        <div class="course thin"><span class="b">2</span><b>INTD 102</b> Interior Design Studio I (3.0)</div>
+        <div class="course thin"><span class="b">3</span><b>INTD 138</b> Global History of Interior Design (3.0)</div>
+      </div>
+    </div></div>
+    <div class="screen"><div class="cap prop"><span>Proposed</span></div><div class="body">
+      <div class="rhead"><strong>Course blocks <span class="meta">· every <code>.course-summary-wrapper</code> on the page</span></strong><span class="meta">1,927 courses on 118 pages</span></div>
+      <div class="toast muted"><b style="color:var(--ink)">This page: 3 courses</b> <span class="chips"><span class="chip on">1 INTD 100</span><span class="chip">2 INTD 102</span><span class="chip">3 INTD 138</span></span></div>
+      <div class="pg" style="padding-left:18px"><b>INTD - Interior Design</b>
+        <div class="course found sel2"><span class="b">1</span><b>INTD 100</b> Introduction to Residential Interior Design (3.0)</div>
+        <div class="course found"><span class="b">2</span><b>INTD 102</b> Interior Design Studio I (3.0)</div>
+        <div class="course found"><span class="b">3</span><b>INTD 138</b> Global History of Interior Design (3.0)</div>
+      </div>
+      <div class="meta">Click a block or a chip to select that course's row. AVC's title would read "Whole page is one course".</div>
+    </div></div>
+  </div>
+</section>
+
+<section class="fix" id="m-q8-3">
+  <div class="fix-head"><span class="num">Q8.3</span><h2>How the table lists courses from the same page</h2></div>
+  <p class="why">Today: one row per course, in review order, so a page's courses are scattered (in the screenshot, INTD100 sits between GEOG3 and COMP9905; INTD 102 and 138 are elsewhere). The alternative groups rows by page. Either way, each course keeps its own ✓ ✕.</p>
+  <div class="pair">
+    <div class="screen"><div class="cap today"><span>A · one row per course</span><span>today · default</span></div><div class="body">
+      <div class="mrow"><span class="ck">GEOG3</span><div class="valbox">GEOG 3 - World Regional Geography</div><div class="vbtns"><span class="vb">✓</span><span class="vb">✕</span></div></div>
+      <div class="mrow on"><span class="ck">INTD100</span><div class="valbox">INTD 100 - Introduction to Residential Interior Design</div><div class="vbtns"><span class="vb">✓</span><span class="vb">✕</span></div></div>
+      <div class="mrow"><span class="ck">COMP9905</span><div class="valbox">COMP 9905 - Computer Basics for Business</div><div class="vbtns"><span class="vb">✓</span><span class="vb">✕</span></div></div>
+      <div class="meta">Each row also says "View - CurriQunet META" (the page title), so nothing names the department.</div>
+    </div></div>
+    <div class="screen"><div class="cap prop"><span>B · one row per page</span><span>courses nested</span></div><div class="body">
+      <div class="mrow on" style="grid-template-columns:1fr auto"><div><b>Interior Design</b> <span class="meta">· 3 courses found</span>
+        <div style="display:grid;gap:4px;margin-top:6px">
+          <div class="mrow" style="grid-template-columns:60px 1fr auto"><span class="ck">INTD100</span><span>Introduction to Residential…</span><div class="vbtns"><span class="vb">✓</span><span class="vb">✕</span></div></div>
+          <div class="mrow" style="grid-template-columns:60px 1fr auto"><span class="ck">INTD102</span><span>Interior Design Studio I</span><div class="vbtns"><span class="vb">✓</span><span class="vb">✕</span></div></div>
+          <div class="mrow" style="grid-template-columns:60px 1fr auto"><span class="ck">INTD138</span><span>Global History of Interior…</span><div class="vbtns"><span class="vb">✓</span><span class="vb">✕</span></div></div>
+          <div class="ghost">+ Add a course this rule missed</div>
+        </div></div><div class="vbtns"><span class="btn">All ✓</span></div></div>
+      <div class="meta">Spanish (28 courses) becomes one long group. Useful for "did it find every course on this page?"; heavier for everything else.</div>
+    </div></div>
+  </div>
+</section>
+
+<section class="fix" id="m-q4-2">
+  <div class="fix-head"><span class="num">Q4.2</span><h2>"Not responding": no K2 call, no tokens</h2></div>
+  <p class="why">K2 has no endpoint the Studio's key can use to ask whether the agent is busy, idle or failed (<code>research/k2-status.md</code>). The UI already knows when the run was sent and when the last note came. If 5 minutes pass after sending with no note from Claude, the bar changes.</p>
+  <div class="pair">
+    <div class="screen"><div class="cap today"><span>Today</span><span>90 minutes of this</span></div><div class="body">
+      <div class="bar live"><span class="spinner"></span><span class="grow">Claude is improving 5 rules · no update from Claude yet</span><span class="btn">Watch</span></div>
+    </div></div>
+    <div class="screen"><div class="cap prop"><span>Proposed</span><span>5 min after sending, no note</span></div><div class="body">
+      <div class="bar dead"><span class="grow"><b>Claude isn't responding.</b> No update in 5 minutes. It may have stopped. Don't wait on it.</span><span class="btn">Open K2</span><span class="btn">Mark as ended</span></div>
+      <div class="meta">A prompt rule makes Claude's first action a progress note, so silence really means something is wrong.</div>
+    </div></div>
+  </div>
+</section>
+
+<section class="fix" id="m-q10-shape">
+  <div class="fix-head"><span class="num">10</span><h2>ACCT199 durations: two loose lists today, four objects proposed</h2></div>
+  <p class="why">Real values from today's extraction. Today the Studio stores descriptions and times as two separate lists; only their order ties "54.0 - 432.0" to "In-Class". The proposal stores each line as one object, in the field names from Jared's notes (<code>ceterms:description</code>, <code>ceterms:timeRequired</code>), with the page's words unparsed.</p>
+  <div class="pair">
+    <div class="screen"><div class="cap today"><span>Today</span><span>2 rules, 2 lists</span></div><div class="body">
+<div class="json">{
+  <span class="k">"estimatedDuration&gt;description"</span>: [
+    <span class="s">"Total Course In-Class (Contact) Hours"</span>,
+    <span class="s">"Total Course Out-of-Class Hours"</span>,
+    <span class="s">"Total Course Lecture Hours"</span>,
+    <span class="s">"Total Course Lab Hours"</span>],
+  <span class="k">"estimatedDuration&gt;timeRequired"</span>: [
+    <span class="s">"54.0 - 432.0"</span>, <span class="s">"0.0 - 0.0"</span>, <span class="s">"0.0"</span>, <span class="s">"432.0"</span>]
+}</div>
+    </div></div>
+    <div class="screen"><div class="cap prop"><span>Proposed</span><span>1 rule, a list of objects</span></div><div class="body">
+<div class="json">{ <span class="k">"estimatedDuration"</span>: [
+  { <span class="k">"description"</span>: <span class="s">"Total Course In-Class (Contact) Hours"</span>,
+    <span class="k">"timeRequired"</span>: <span class="s">"54.0 - 432.0"</span> },
+  { <span class="k">"description"</span>: <span class="s">"Total Course Out-of-Class Hours"</span>,
+    <span class="k">"timeRequired"</span>: <span class="s">"0.0 - 0.0"</span> },
+  { <span class="k">"description"</span>: <span class="s">"Total Course Lecture Hours"</span>,
+    <span class="k">"timeRequired"</span>: <span class="s">"0.0"</span> },
+  { <span class="k">"description"</span>: <span class="s">"Total Course Lab Hours"</span>,
+    <span class="k">"timeRequired"</span>: <span class="s">"432.0"</span> } ] }</div>
+    </div></div>
+  </div>
+</section>
+
+<section class="fix" id="m-q10-4">
+  <div class="fix-head"><span class="num">Q10.4</span><h2>How three rules would score on ACCT199</h2></div>
+  <p class="why">The golden answer is the four objects above. ACCT199's "Units and Hours" card also prints <b>Minimum Credit Units 1.0</b> (a credit value, not a duration). Two numbers per rule: <b>found</b> = golden objects the rule got (out of 4), <b>right</b> = the rule's objects that are in the golden answer (out of what it returned). xtra today reports only <i>found</i>, and only per loose value.</p>
+  <div class="grid3">
+    <div class="screen"><div class="cap prop"><span>Rule B · exact</span></div><div class="body">
+<div class="json">In-Class      54.0 - 432.0
+Out-of-Class  0.0 - 0.0
+Lecture       0.0
+Lab           432.0</div>
+      <div class="score"><span>xtra today</span><b>100%</b><span>found</span><b>4/4</b><span>right</span><b>4/4</b></div>
+    </div></div>
+    <div class="screen"><div class="cap today"><span>Rule A · grabs too much</span></div><div class="body">
+<div class="json">In-Class      54.0 - 432.0
+Out-of-Class  0.0 - 0.0
+Lecture       0.0
+Lab           432.0
+<span class="x">Minimum Credit Units  1.0</span></div>
+      <div class="score"><span>xtra today</span><b>100%</b><span>found</span><b>4/4</b><span>right</span><b style="color:var(--bad)">4/5</b></div>
+    </div></div>
+    <div class="screen"><div class="cap today"><span>Rule C · mixes up pairs</span></div><div class="body">
+<div class="json">In-Class      <span class="x">0.0 - 0.0</span>
+Out-of-Class  <span class="x">54.0 - 432.0</span>
+Lecture       0.0
+Lab           432.0</div>
+      <div class="score"><span>xtra today</span><b>100%</b><span>found</span><b style="color:var(--bad)">2/4</b><span>right</span><b style="color:var(--bad)">2/4</b></div>
+    </div></div>
+  </div>
+  <div class="q"><span>Scored as loose values (xtra today), all three get <b>100%</b>: every description and every time appears somewhere. Scored as objects, only B is perfect. A is caught by <b>right</b>, and C by pairing. <b>Q10.4:</b> report both numbers? Default: yes.</span></div>
+</section>
+
+<section class="fix" id="m-q11-1">
+  <div class="fix-head"><span class="num">Q11.1</span><h2>The Watch panel becomes the report when Claude finishes</h2></div>
+  <div class="pair">
+    <div class="screen"><div class="cap today"><span>Today</span><span>run just finished</span></div><div class="body">
+      <div class="rhead"><strong>Finished</strong><span class="btn">×</span></div>
+      <div class="meta">Published v9; 3 of 5 rules improved</div>
+      <div class="timeline"><time>16:41</time><span>Drafting course-description v4</span><time>16:52</time><span>Scored: 18/20 on sample</span><time>17:03</time><span>Published ruleset v9</span></div>
+      <div class="ghost">The report is elsewhere: close this → Past AI runs → pick the run → scroll.</div>
+    </div></div>
+    <div class="screen"><div class="cap prop"><span>Proposed</span><span>same panel, in place</span></div><div class="body">
+      <div class="toast good"><b>✓ Claude finished: 3 of 5 rules improved</b> <span class="btn primary">Compare v8 → v9</span></div>
+      <div class="pg" style="font-size:12px"><b>Report</b><br>
+        <b>course-description</b> v3 → v4: stops at "Advisory:" lines. 18/20 → 20/20<br>
+        <b>course-entry-condition-description</b>: unchanged. Jared's ✗ on ACCT199 equals the value; asked him to check.<br>
+        <b>course-in-catalog</b>: new rule, 12/12 on sample<br>…</div>
+      <details><summary class="meta">Progress notes (14)</summary></details>
+      <div class="bar"><span class="grow">If you weren't watching: <b>Claude finished</b> · <u>Read the report</u></span></div>
+    </div></div>
+  </div>
+</section>
+
+<section class="fix" id="m-q12">
+  <div class="fix-head"><span class="num">12</span><h2>"Not on the page" as a verdict</h2></div>
+  <p class="why">Real today (<code>img/q12-not-on-page-today.png</code>): Marshall WS483 has no description on its page. The rule shows "nothing found", and Seth's ✓ is the only way to say "right, there's none". Proposed: a third button, <b>Not on page</b>, that works in both cases. (Case 2 below is drawn from case 1's page; no real case is in the log yet.)</p>
+  <div class="pair">
+    <div class="screen"><div class="cap prop"><span>Case 1 · rule says nothing</span><span>rule was right</span></div><div class="body">
+      <div class="mrow on"><span class="ck">WS483</span><div style="display:grid;gap:4px"><div class="valbox empty">Not on the page (rule's claim)</div><span class="flag green">Not on page · confirmed by Seth Alt</span></div><div class="vbtns"><span class="vb">✓</span><span class="vb">✕</span><span class="vb np on">Not on page</span></div></div>
+      <div class="meta">Golden dataset records <code>description: absent</code>. The rule's "nothing" scores as correct.</div>
+    </div></div>
+    <div class="screen"><div class="cap today"><span>Case 2 · rule found something</span><span>rule is over-eager</span></div><div class="body">
+      <div class="mrow on"><span class="ck">WS483</span><div style="display:grid;gap:4px"><div class="valbox">Grade Mode: Normal Grading Mode</div><span class="flag" style="color:var(--bad);border-color:var(--bad);background:var(--bad-soft)">Over-eager: this course has no description</span></div><div class="vbtns"><span class="vb">✓</span><span class="vb">✕</span><span class="vb np on">Not on page</span></div></div>
+      <div class="meta">Golden dataset records <code>description: absent</code>. The rule's value scores as an extra (counts against "right").</div>
+    </div></div>
+  </div>
+</section>
+
+<section class="fix" id="m-q9-1">
+  <div class="fix-head"><span class="num">Q9.1</span><h2>Why "Annotated by" sometimes comes up empty</h2></div>
+  <p class="why">The server keeps the 8 most recently used rules in memory. When a 9th is needed, it deletes the oldest. Two people's requests can do that at the same moment, with no lock. This happened once in the available log: 1 of 131 <code>/annotators</code> requests, 2026-11-04 16:26:36Z, <code>KeyError: 'course-keyword'</code>.</p>
+  <div class="screen"><div class="body">
+    <div class="steps">
+      <span></span><span class="h">Request A (one reviewer)</span><span class="h">Request B (another, same instant)</span>
+      <span class="t">0</span><div class="cache"><span class="old">course-keyword</span><span>r2</span><span>r3</span><span>r4</span><span>r5</span><span>r6</span><span>r7</span><span>r8</span></div><span class="meta">Memory is full. The oldest entry is <code>course-keyword</code>.</span>
+      <span class="t">1</span><div class="lane a">Needs a rule not in memory. "Full: delete the oldest → <b>course-keyword</b>"</div><div class="lane b">Also needs a new rule. "Full: delete the oldest → <b>course-keyword</b>"</div>
+      <span class="t">2</span><div class="lane a">Deletes <code>course-keyword</code>. OK.</div><span></span>
+      <span class="t">3</span><span></span><div class="lane boom">Deletes <code>course-keyword</code>: already gone → <b>KeyError</b> → 500</div>
+      <span class="t">4</span><div class="lane a">Gets its list of reviewers.</div><div class="lane boom">Gets nothing: "Annotated by" is empty until reload.</div>
+    </div>
+    <div class="toast good" style="margin-top:10px"><b>Fix:</b> a lock, so only one request edits that memory at a time. B waits about a millisecond, then deletes the next-oldest entry.</div>
+  </div></div>
+</section>
+</div>

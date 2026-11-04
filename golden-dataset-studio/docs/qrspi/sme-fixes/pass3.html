@@ -1,0 +1,323 @@
+<title>Studio Fixes, Pass 3</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&family=Fraunces:opsz,wght@9..144,600&display=swap">
+<style>
+/* Layout: one column of numbered fixes; each fix is a Today / Proposed pair of miniature Studio screens. */
+:root {
+  --bg: #f6f7fb; --paper: #ffffff; --ink: #1c2233; --muted: #5d6680; --line: #dde1ec;
+  --accent: #2f54eb; --accent-soft: rgba(47,84,235,.08);
+  --value: rgba(253,224,120,.92); --expected: rgba(190,242,214,.95); --expected-ink: #0f6b3e;
+  --bad: #b3261e; --bad-soft: #fdecea; --warn: #8a5a00; --warn-soft: #fff4d6; --good-soft: #e6f6ed;
+  --page: #fbfbf8; --shadow: 0 1px 2px rgba(20,30,60,.06), 0 4px 16px rgba(20,30,60,.05);
+  --f-display: "Fraunces", Georgia, serif; --f-body: "IBM Plex Sans", system-ui, sans-serif; --f-mono: "IBM Plex Mono", ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #12151d; --paper: #1a1f2b; --ink: #e6e9f2; --muted: #9aa3ba; --line: #2c3344;
+  --accent: #7d97ff; --accent-soft: rgba(125,151,255,.12);
+  --value: rgba(200,165,40,.55); --expected: rgba(60,170,110,.45); --expected-ink: #8fe0b4;
+  --bad: #ff8a80; --bad-soft: #3a1d1c; --warn: #f2c66d; --warn-soft: #33290f; --good-soft: #17301f;
+  --page: #161a24; --shadow: none; color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --bg: #12151d; --paper: #1a1f2b; --ink: #e6e9f2; --muted: #9aa3ba; --line: #2c3344;
+  --accent: #7d97ff; --accent-soft: rgba(125,151,255,.12);
+  --value: rgba(200,165,40,.55); --expected: rgba(60,170,110,.45); --expected-ink: #8fe0b4;
+  --bad: #ff8a80; --bad-soft: #3a1d1c; --warn: #f2c66d; --warn-soft: #33290f; --good-soft: #17301f;
+  --page: #161a24; --shadow: none; color-scheme: dark; }
+body { background: var(--bg); color: var(--ink); font: 15px/1.55 var(--f-body); }
+.wrap { max-width: 1080px; margin: 0 auto; padding-block: 40px 80px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: grid; gap: 44px; }
+header h1 { font: 600 34px/1.15 var(--f-display); margin: 0 0 8px; text-wrap: balance; }
+header p { margin: 0; color: var(--muted); max-width: 68ch; }
+.legend { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 14px; font-size: 13px; color: var(--muted); }
+.sw { display: inline-block; width: 22px; height: 12px; border-radius: 2px; vertical-align: -1px; margin-right: 6px; }
+section.fix { display: grid; gap: 14px; }
+.fix-head { display: flex; gap: 14px; align-items: baseline; flex-wrap: wrap; }
+.num { font: 500 13px var(--f-mono); color: var(--accent); border: 1px solid var(--accent); border-radius: 999px; padding: 1px 9px; }
+.fix-head h2 { font: 600 21px/1.3 var(--f-body); margin: 0; text-wrap: balance; }
+.why { margin: 0; color: var(--muted); max-width: 75ch; font-size: 14px; }
+.why code, .q code { font: 12.5px var(--f-mono); background: var(--accent-soft); padding: 0 4px; border-radius: 3px; }
+.pair { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 760px) { .pair { grid-template-columns: 1fr; } }
+.screen { background: var(--paper); border: 1px solid var(--line); border-radius: 8px; box-shadow: var(--shadow); min-width: 0; overflow: hidden; }
+.cap { font: 500 11px var(--f-mono); letter-spacing: .08em; text-transform: uppercase; padding: 8px 12px; border-bottom: 1px solid var(--line); display: flex; justify-content: space-between; gap: 8px; }
+.cap.today { color: var(--bad); } .cap.prop { color: var(--expected-ink); }
+.body { padding: 14px; display: grid; gap: 10px; font-size: 13px; }
+.pg { background: var(--page); border: 1px solid var(--line); border-radius: 4px; padding: 12px; font-size: 12.5px; line-height: 1.6; position: relative; }
+.pg h4 { margin: 0 0 4px; font-size: 13px; }
+.lbl { font-weight: 600; font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
+.v { background: var(--value); border-radius: 2px; }
+.e { background: var(--expected); border-radius: 2px; }
+.sel { background: #b4d5fe; color: #0b1f44; border-radius: 2px; }
+.cursor { font: 11px var(--f-mono); color: var(--muted); }
+.toast { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 8px 10px; border-radius: 6px; font-size: 12.5px; }
+.toast.good { background: var(--good-soft); color: var(--expected-ink); }
+.toast.bad { background: var(--bad-soft); color: var(--bad); }
+.toast.warn { background: var(--warn-soft); color: var(--warn); }
+.toast.muted { background: var(--accent-soft); color: var(--muted); }
+.btn { font: 500 12px var(--f-body); border: 1px solid var(--line); background: var(--paper); color: var(--ink); border-radius: 5px; padding: 3px 9px; white-space: nowrap; }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.ghost { color: var(--muted); font-style: italic; font-size: 12px; }
+.url { font: 12px var(--f-mono); background: var(--bg); border: 1px solid var(--line); border-radius: 5px; padding: 5px 8px; overflow-x: auto; white-space: nowrap; }
+.url b { color: var(--accent); font-weight: 500; }
+.row { display: grid; grid-template-columns: 18px 1fr auto; gap: 8px; align-items: center; padding: 6px 8px; border: 1px solid var(--line); border-radius: 5px; font-size: 12.5px; }
+.row.on { border-color: var(--accent); background: var(--accent-soft); }
+.dot { width: 10px; height: 10px; border-radius: 50%; background: var(--line); }
+.dot.ok { background: #2e9e5b; } .dot.no { background: var(--bad); }
+.cmt { border-left: 3px solid var(--line); padding: 6px 10px; font-size: 12.5px; display: grid; gap: 2px; }
+.cmt.lit { border-color: var(--accent); background: var(--accent-soft); animation: pulse 2s ease-out 1; }
+@keyframes pulse { from { box-shadow: 0 0 0 4px var(--accent-soft); } to { box-shadow: none; } }
+@media (prefers-reduced-motion: reduce) { .cmt.lit { animation: none; } }
+.meta { font-size: 11px; color: var(--muted); }
+.bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 8px 10px; border-radius: 6px; font-size: 12.5px; border: 1px solid var(--line); }
+.bar.live { background: var(--accent-soft); }
+.bar.dead { background: var(--bad-soft); border-color: var(--bad); color: var(--bad); }
+.bar .grow { flex: 1 1 200px; min-width: 0; }
+.spinner { width: 10px; height: 10px; border: 2px solid var(--accent); border-right-color: transparent; border-radius: 50%; display: inline-block; }
+.quote { font: 12px/1.5 var(--f-mono); background: var(--paper); color: var(--ink); border: 1px solid var(--line); border-radius: 4px; padding: 8px; }
+.timeline { display: grid; grid-template-columns: auto 1fr; gap: 3px 10px; font-size: 12px; }
+.timeline time { font: 11.5px var(--f-mono); color: var(--muted); }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.chip { font-size: 12px; border: 1px solid var(--line); border-radius: 999px; padding: 2px 10px; background: var(--paper); }
+.chip.on { background: var(--accent); color: #fff; border-color: var(--accent); }
+.course { border-radius: 3px; padding: 6px 8px 6px 22px; position: relative; margin-top: 8px; font-size: 12px; }
+.course .b { position: absolute; left: -7px; top: -7px; background: var(--accent); color: #fff; font: 600 9.5px/16px var(--f-mono); min-width: 16px; height: 16px; text-align: center; border-radius: 3px; padding: 0 3px; }
+.course.thin { box-shadow: 0 0 0 1.5px rgba(47,84,235,.55); }
+.course.focus { box-shadow: 0 0 0 2.5px var(--accent); background: rgba(47,84,235,.06); }
+.course.found { box-shadow: 0 0 0 2px var(--accent); background: rgba(47,84,235,.05); }
+.course.found.sel2 { box-shadow: 0 0 0 3px var(--accent), 0 0 0 6px var(--accent-soft); }
+.rhead { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; flex-wrap: wrap; }
+.rhead strong { font-size: 14px; }
+.strike { text-decoration: line-through; color: var(--muted); }
+.q { background: var(--paper); border: 1px dashed var(--line); border-radius: 8px; padding: 10px 14px; font-size: 13.5px; display: grid; gap: 4px; }
+.q b { color: var(--accent); font-weight: 600; }
+.bonus { border-top: 1px solid var(--line); padding-top: 24px; }
+.json { font: 11.5px/1.5 var(--f-mono); background: var(--bg); border: 1px solid var(--line); border-radius: 5px; padding: 8px 10px; white-space: pre; overflow-x: auto; }
+.json .k { color: var(--accent); } .json .s { color: var(--expected-ink); } .json .x { background: var(--bad-soft); color: var(--bad); }
+.grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+@media (max-width: 760px) { .grid3 { grid-template-columns: 1fr; } }
+.score { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; font-size: 12.5px; align-items: center; }
+.score b { font: 600 15px var(--f-mono); }
+.flag { display: inline-flex; gap: 5px; align-items: center; font-size: 11.5px; font-weight: 500; border-radius: 999px; padding: 1px 9px; background: var(--accent-soft); color: var(--accent); border: 1px solid var(--accent); }
+.flag.green { background: var(--good-soft); color: var(--expected-ink); border-color: var(--expected-ink); }
+.vbtns { display: flex; gap: 4px; }
+.vb { width: 26px; height: 26px; border: 1px solid var(--line); border-radius: 5px; display: grid; place-items: center; font-size: 13px; background: var(--paper); color: var(--muted); }
+.vb.ok { background: var(--good-soft); border-color: #2e9e5b; color: #1d7a45; } .vb.no { background: var(--bad-soft); border-color: var(--bad); color: var(--bad); }
+.vb.np { width: auto; padding: 0 8px; font-size: 11.5px; } .vb.np.on { background: #ede7fb; border-color: #6b4fc8; color: #4b2fa8; }
+.mrow { display: grid; grid-template-columns: 70px 1fr auto; gap: 10px; align-items: start; padding: 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--paper); font-size: 12.5px; }
+.mrow.on { border-color: var(--accent); box-shadow: inset 3px 0 0 var(--accent); background: var(--accent-soft); }
+.mrow .ck { font: 600 12px var(--f-mono); }
+.valbox { border: 1px solid var(--line); border-radius: 5px; padding: 5px 8px; background: var(--paper); }
+.valbox.empty { color: var(--muted); font-style: italic; border-style: dashed; }
+.steps { display: grid; grid-template-columns: 34px 1fr 1fr; gap: 6px 10px; font-size: 12.5px; align-items: start; }
+.steps .h { font: 600 11px var(--f-mono); text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+.steps .t { font: 11px var(--f-mono); color: var(--muted); padding-top: 6px; }
+.lane { border: 1px solid var(--line); border-radius: 5px; padding: 5px 8px; background: var(--paper); }
+.lane.a { border-left: 4px solid #2f54eb; } .lane.b { border-left: 4px solid #c2410c; } .lane.boom { background: var(--bad-soft); border-color: var(--bad); color: var(--bad); }
+.cache { display: flex; gap: 4px; flex-wrap: wrap; font: 11px var(--f-mono); }
+.cache span { border: 1px solid var(--line); border-radius: 3px; padding: 1px 5px; background: var(--paper); }
+.cache span.old { background: var(--warn-soft); border-color: var(--warn); }
+.cache span.gone { text-decoration: line-through; color: var(--muted); }
+figure { margin: 0; } figure img { width: 100%; border: 1px solid var(--line); border-radius: 6px; display: block; } figcaption { font-size: 12px; color: var(--muted); margin-top: 4px; }
+
+.pop { display: inline-flex; align-items: center; gap: 2px; background: var(--ink); color: var(--paper); border-radius: 8px; padding: 3px; font-size: 12px; box-shadow: 0 4px 14px rgba(0,0,0,.18); }
+.pop span { padding: 3px 8px; border-radius: 5px; white-space: nowrap; }
+.pop span.on { background: rgba(255,255,255,.18); }
+.pop .sep { width: 1px; height: 16px; background: rgba(255,255,255,.25); padding: 0; }
+.tip { font-size: 11px; color: var(--muted); border: 1px solid var(--line); border-radius: 5px; padding: 3px 7px; background: var(--paper); display: inline-block; }
+.cut { outline: 2px dashed var(--bad); outline-offset: 1px; background: var(--bad-soft); border-radius: 2px; }
+.keep { outline: 2px solid #2e9e5b; outline-offset: 1px; border-radius: 2px; }
+.cbub { display: inline-grid; place-items: center; width: 16px; height: 16px; border-radius: 50% 50% 50% 0; background: var(--accent); color: #fff; font: 600 9px var(--f-mono); vertical-align: top; margin-left: 3px; }
+.box { border: 2px solid var(--accent); border-radius: 3px; padding: 4px 8px; margin-top: 6px; font-size: 11.5px; background: transparent; }
+.box.on { background: rgba(47,84,235,.12); }
+.box.ok { border-color: #2e9e5b; } .box.no { border-color: var(--bad); }
+.kbd { font: 500 11px var(--f-mono); border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 4px; padding: 0 5px; background: var(--paper); }
+.grp { border: 1px solid var(--line); border-radius: 6px; background: var(--paper); font-size: 12.5px; }
+.grp > .gh { display: flex; justify-content: space-between; gap: 8px; padding: 6px 8px; border-bottom: 1px solid var(--line); }
+.grp.on > .gh { background: var(--accent-soft); }
+.sub { display: grid; grid-template-columns: 70px 1fr auto; gap: 8px; align-items: center; padding: 5px 8px 5px 18px; border-bottom: 1px dashed var(--line); }
+.sub.on { box-shadow: inset 3px 0 0 var(--accent); background: var(--accent-soft); }
+.sub:last-child { border-bottom: 0; }
+.fld { font: 10.5px var(--f-mono); color: var(--muted); }
+.ruleitem { display: flex; justify-content: space-between; gap: 8px; padding: 5px 8px; border: 1px solid var(--line); border-radius: 5px; font-size: 12.5px; background: var(--paper); }
+.ruleitem.gone { text-decoration: line-through; color: var(--muted); }
+.sbar { display:flex; height:12px; border-radius:3px; overflow:hidden; }
+.sbar span { display:block; height:100%; }
+.c-match{background:#13a10e}.c-part{background:#f6b21b}.c-wrong{background:#ec7f5c}.c-miss{background:#d93636}.c-extra{background:repeating-linear-gradient(45deg,#7a5af8 0 4px,#b9a8fb 4px 8px)}
+.agg { display:grid; grid-template-columns: 170px 1fr 70px 70px 70px; gap:8px 12px; align-items:center; font-size:12.5px; }
+.agg .hd { font: 600 10.5px var(--f-mono); color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
+.agg b.n { font: 600 14px var(--f-mono); }
+.why2 { display:grid; grid-template-columns: 70px 1fr 1fr 60px; gap:6px 12px; font-size:12.5px; align-items:start; }
+.why2 .hd { font: 600 10.5px var(--f-mono); color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
+.tag { font: 500 10.5px var(--f-mono); border-radius: 3px; padding: 1px 5px; color:#fff; white-space: nowrap; }
+.formula { font: 12.5px/1.7 var(--f-mono); background: var(--bg); border: 1px solid var(--line); border-radius: 5px; padding: 8px 12px; }
+.looked { outline: 2px dashed #6b4fc8; outline-offset: 3px; border-radius: 3px; position: relative; }
+.looked::after { content: "rule looked here"; position: absolute; right: 4px; top: -18px; font: 500 10px var(--f-mono); color: #6b4fc8; }
+.reason { display:flex; gap:6px; flex-wrap:wrap; align-items:center; font-size:11.5px; padding:5px 8px; border:1px solid var(--line); border-radius:6px; background: var(--bad-soft); }
+.reason label { display:inline-flex; gap:4px; align-items:center; }
+.mx { display:grid; grid-template-columns: 150px repeat(3, 1fr); gap:1px; background: var(--line); border:1px solid var(--line); border-radius:6px; overflow:hidden; font-size:12px; }
+.mx > * { background: var(--paper); padding:6px 8px; }
+.mx .h { font: 600 10.5px var(--f-mono); color: var(--muted); text-transform: uppercase; letter-spacing:.04em; background: var(--bg); }
+</style>
+<div class="wrap">
+<header>
+  <h1>Studio fixes, pass 3: new pictures</h1>
+  <p>Mockups for Eric's pass-3 answers (2026-11-04). Every drawing is a proposal; screenshots of today are in <code>img/</code>.</p>
+</header>
+
+<section class="fix" id="p3-q1-1">
+  <div class="fix-head"><span class="num">1</span><h2>Highlight, then say what the highlight means</h2></div>
+  <p class="why">Rule <b>Description</b>, course ACCT199. The rule's value (yellow) wrongly starts with the LIMITATION ON ENROLLMENT paragraph. Today a highlight can only mean "this is the right answer". Proposed: after you highlight, a small bar offers a comment and a two-way choice. Nothing else on screen changes.</p>
+  <div class="pair">
+    <div class="screen"><div class="cap prop"><span>1 · Highlight</span><span>the bar appears above it</span></div><div class="body">
+      <div style="padding-left:40px"><span class="pop"><span title="Comment on just this text">💬</span><span class="sep"></span><span title="This text belongs in the answer">✓ In answer</span><span title="This text must not be in the answer">✕ Not in answer</span></span></div>
+      <div class="pg"><span class="v"><span class="sel">LIMITATION ON ENROLLMENT: To participate in work experience education, students must have a paid or unpaid job or internship… for an individual orientation.</span></span><br><br><span class="v">Work Experience Education is supervised employment designed to provide students a realistic learning experience through work…</span></div>
+      <div class="tip">Tooltip on ✕: "Mark this text as <b>not</b> part of the right answer. The row becomes ✕."</div>
+    </div></div>
+    <div class="screen"><div class="cap prop"><span>2 · After ✕ Not in answer + a comment</span></div><div class="body">
+      <div class="pg"><span class="cut">LIMITATION ON ENROLLMENT: To participate in work experience education, students must have a paid or unpaid job or internship… for an individual orientation.</span><span class="cbub">1</span><br><br><span class="v">Work Experience Education is supervised employment designed to provide students a realistic learning experience through work…</span></div>
+      <div class="mrow on"><span class="ck">ACCT199</span><div style="display:grid;gap:4px"><div class="valbox">LIMITATION ON ENROLLMENT: To participate…</div><div class="meta"><span style="color:var(--bad)">✕ 1 passage not in the answer</span> · 💬 "This belongs in Entry Condition, not Description." · Jared Diener</div></div><div class="vbtns"><span class="vb">✓</span><span class="vb no">✕</span></div></div>
+      <div class="meta">Red dashed = marked "not in the answer". Green outline = marked "in the answer". Both are saved with the row's ✕, so the expected answer is exact.</div>
+    </div></div>
+  </div>
+</section>
+
+<section class="fix" id="p3-q8">
+  <div class="fix-head"><span class="num">3 = 8</span><h2>Course blocks: one row per page, Tab through its courses</h2></div>
+  <p class="why">CCSF Interior Design page. Every course the rule found is a box with a border and no fill. Only the course you've tabbed to is filled. The left table has one row per page; its courses sit inside it, each with its own ✓ ✕. No chips.</p>
+  <div class="pair">
+    <div class="screen"><div class="cap prop"><span>Table</span><span>Course blocks · every .course-summary-wrapper</span></div><div class="body">
+      <div class="grp"><div class="gh"><span><b>GEOG</b> · Geography <span class="meta">· 12 courses</span></span><span class="meta">▸</span></div></div>
+      <div class="grp on"><div class="gh"><span><b>INTD</b> · Interior Design <span class="meta">· 3 courses</span></span><span class="vbtns"><span class="vb">✓</span></span></div>
+        <div class="sub on"><span class="ck">INTD100</span><span>Introduction to Residential Interior Design</span><span class="vbtns"><span class="vb">✓</span><span class="vb">✕</span></span></div>
+        <div class="sub"><span class="ck">INTD102</span><span>Interior Design Studio I</span><span class="vbtns"><span class="vb ok">✓</span><span class="vb">✕</span></span></div>
+        <div class="sub"><span class="ck">INTD138</span><span>Global History of Interior Design</span><span class="vbtns"><span class="vb">✓</span><span class="vb">✕</span></span></div>
+        <div class="sub" style="grid-template-columns:1fr"><span class="ghost">+ Add a course this rule missed</span></div>
+      </div>
+      <div class="grp"><div class="gh"><span><b>SPAN</b> · Spanish <span class="meta">· 28 courses</span></span><span class="meta">▸</span></div></div>
+      <div class="meta"><span class="kbd">Tab</span> next course on this page · <span class="kbd">Shift</span>+<span class="kbd">Tab</span> back up to the page · then <span class="kbd">Tab</span> jumps to the next page. The ✓ on a page row accepts all its courses at once.</div>
+    </div></div>
+    <div class="screen"><div class="cap prop"><span>Page</span></div><div class="body">
+      <div class="pg"><b>INTD - Interior Design</b>
+        <div class="box on"><b>INTD 100</b> - Introduction to Residential Interior Design (3.0)<br><span class="meta">Credit (Degree Applicable) · Hours: Lecture - 35; Lab - 70</span></div>
+        <div class="box ok"><b>INTD 102</b> - Interior Design Studio I (3.0)<br><span class="meta">Credit (Degree Applicable) · Recommended Prep: ARCH 100</span></div>
+        <div class="box"><b>INTD 138</b> - Global History of Interior Design (3.0)<br><span class="meta">Credit (Degree Applicable) · Field Trips: Optional</span></div>
+      </div>
+      <div class="meta">Blue border = found. Filled = the course you're on. A box turns green or red once its course is ✓ or ✕.</div>
+    </div></div>
+  </div>
+</section>
+
+<section class="fix" id="p3-q10-list">
+  <div class="fix-head"><span class="num">10</span><h2>Reviewing a list of durations, one element at a time</h2></div>
+  <p class="why">ACCT199, rule <b>Estimated Duration</b>. The rule returns a list; each element is one duration with two fields. You ✓ or ✕ each element. One ✕ makes the row wrong. To add a missing element, highlight its pieces on the page and label each one.</p>
+  <div class="pair">
+    <div class="screen"><div class="cap prop"><span>Row</span><span>4 durations found</span></div><div class="body">
+      <div class="grp on"><div class="gh"><span><b>ACCT199</b> · Estimated Duration <span class="meta">· 4 found</span></span><span class="meta" style="color:var(--bad)">1 ✕ → row wrong</span></div>
+        <div class="sub" style="grid-template-columns:1fr auto auto"><span>Total Course In-Class (Contact) Hours <span class="fld">description</span></span><span>54.0 - 432.0 <span class="fld">timeRequired</span></span><span class="vbtns"><span class="vb ok">✓</span><span class="vb">✕</span></span></div>
+        <div class="sub" style="grid-template-columns:1fr auto auto"><span>Total Course Out-of-Class Hours</span><span>0.0 - 0.0</span><span class="vbtns"><span class="vb ok">✓</span><span class="vb">✕</span></span></div>
+        <div class="sub" style="grid-template-columns:1fr auto auto"><span>Total Course Lecture Hours</span><span>0.0</span><span class="vbtns"><span class="vb ok">✓</span><span class="vb">✕</span></span></div>
+        <div class="sub" style="grid-template-columns:1fr auto auto"><span>Minimum Credit Units</span><span>1.0</span><span class="vbtns"><span class="vb">✓</span><span class="vb no">✕</span></span></div>
+        <div class="sub" style="grid-template-columns:1fr"><span class="ghost">+ Add a duration (Total Course Lab Hours 432.0 is missing)</span></div>
+      </div>
+    </div></div>
+    <div class="screen"><div class="cap prop"><span>Adding the missing one</span><span>highlight, then label</span></div><div class="body">
+      <div style="padding-left:20px"><span class="pop"><span>description</span><span class="on">timeRequired</span><span class="sep"></span><span title="Comment">💬</span></span></div>
+      <div class="pg"><span class="keep">Total Course Lab Hours</span><span class="fld"> description</span> &nbsp; <span class="sel">432.0</span></div>
+      <div class="meta">For a list, the highlight bar offers the element's fields instead of "in / not in answer". Two highlights, one label each, make one new element.</div>
+    </div></div>
+  </div>
+</section>
+
+<section class="fix" id="p3-q10-5">
+  <div class="fix-head"><span class="num">Q10.5</span><h2>Six Estimated Duration rules today, one tomorrow</h2></div>
+  <p class="why">The Rules list today has a separate rule for the whole Estimated Duration block and one per field. On ACCT199 they hold the same four lines, cut up differently. Proposed: one rule whose value is the list of objects. The other five leave the list. Nobody has annotated any of them, so nothing is lost.</p>
+  <div class="pair">
+    <div class="screen"><div class="cap today"><span>Today</span><span>6 rules, ACCT199's values</span></div><div class="body">
+      <div class="ruleitem"><span><b>Estimated Duration</b></span><span class="meta">one text block, all 4 lines</span></div>
+      <div class="ruleitem"><span>Estimated Duration Description</span><span class="meta">4 descriptions</span></div>
+      <div class="ruleitem"><span>Time Required</span><span class="meta">4 times: 54.0 - 432.0 · 0.0 - 0.0 · 0.0 · 432.0</span></div>
+      <div class="ruleitem"><span>Exact Duration</span><span class="meta">no rule yet</span></div>
+      <div class="ruleitem"><span>Minimum Duration</span><span class="meta">no rule yet</span></div>
+      <div class="ruleitem"><span>Maximum Duration</span><span class="meta">no rule yet</span></div>
+    </div></div>
+    <div class="screen"><div class="cap prop"><span>Proposed</span><span>1 rule</span></div><div class="body">
+      <div class="ruleitem"><span><b>Estimated Duration</b> <span class="meta">· list of {description, timeRequired}</span></span><span class="meta">4 objects</span></div>
+      <div class="ruleitem gone"><span>Estimated Duration Description · Time Required</span><span class="meta">now fields of the list</span></div>
+      <div class="ruleitem gone"><span>Exact · Minimum · Maximum Duration</span><span class="meta">parsed from timeRequired later</span></div>
+      <div class="meta">"54.0 - 432.0" stays text in the golden set. Transformation turns it into minimum 54 h, maximum 432 h.</div>
+    </div></div>
+  </div>
+</section>
+
+<section class="fix" id="p3-q1-4">
+  <div class="fix-head"><span class="num">Q1.4</span><h2>A reviewer's corrected text never reaches the golden dataset</h2></div>
+  <p class="why">Real: AVC <b>Description</b>, course DA107A. On Oct 29, Eric marked the rule's value ✕ and highlighted the right answer. The rule has improved since, but it still drops the last line. The golden dataset publishes only what the rule extracts, so it contains the incomplete text, not Eric's answer.</p>
+  <div class="grid3">
+    <div class="screen"><div class="cap prop"><span>Eric's answer (saved with his ✕)</span></div><div class="body"><div class="pg">Students will perform in a dance production. … improve performance skills and abilities. (UC, CSU, AVC) (R3)<br><span class="keep"># Enrollment in any combination of DA 107A, DA 107B or DA 107C is limited to 4 times.</span></div></div></div>
+    <div class="screen"><div class="cap today"><span>Rule's value now (v8)</span></div><div class="body"><div class="pg">Students will perform in a dance production. … improve performance skills and abilities. (UC, CSU, AVC) (R3)<br><span class="ghost">(last line missing)</span></div></div></div>
+    <div class="screen"><div class="cap today"><span>Golden dataset today</span></div><div class="body"><div class="json"><span class="k">"description"</span>: <span class="s">"Students will perform …(R3)"</span></div><div class="meta">The rule's text. Eric's answer is in the annotation log only.</div></div></div>
+  </div>
+</section>
+
+<section class="fix" id="p3-q10-agg">
+  <div class="fix-head"><span class="num">Q10.4</span><h2>From one course to the whole catalog, and finding where it's wrong</h2></div>
+  <p class="why">"Found" is <b>recall</b> and "right" is <b>precision</b>, under plainer names. The unit is one <b>pair</b> (one duration object). Every golden pair is matched one-to-one with an extracted pair, then each pair gets one outcome. The catalog's numbers are counts of pairs summed over all courses, so a course with 4 durations counts 4 times. <i>Numbers below are illustrative; no duration golden set exists yet.</i></p>
+  <div class="pair">
+    <div class="screen"><div class="cap prop"><span>How the numbers are made</span></div><div class="body">
+      <div class="formula">each pair → <b>exact</b> · <b>wrong field</b> (paired, text differs) · <b>missed</b> (golden, no partner) · <b>extra</b> (extracted, no partner)<br><br>
+found (recall)    = exact ÷ golden pairs    = exact ÷ (exact + wrong + missed)<br>
+right (precision) = exact ÷ extracted pairs = exact ÷ (exact + wrong + extra)<br>
+courses exact     = courses whose whole list is exact ÷ courses</div>
+      <div class="meta">ACCT199 alone: Rule A → exact 4, extra 1 → found 4/4, right 4/5. Rule C → exact 2, wrong 2 → found 2/4, right 2/4.</div>
+    </div></div>
+    <div class="screen"><div class="cap prop"><span>Evals tab, one more color</span><span>AVC · estimatedDuration</span></div><div class="body">
+      <div class="agg">
+        <span class="hd">column</span><span class="hd">pairs</span><span class="hd">found</span><span class="hd">right</span><span class="hd">courses</span>
+        <span><code>estimatedDuration</code></span>
+        <div class="sbar"><span class="c-match" style="width:72%"></span><span class="c-wrong" style="width:10%"></span><span class="c-miss" style="width:4%"></span><span class="c-extra" style="width:14%"></span></div>
+        <b class="n">84%</b><b class="n">75%</b><b class="n">61%</b>
+      </div>
+      <div class="chips" style="margin-top:6px"><span class="chip"><span class="sw c-match"></span>exact 3,568</span><span class="chip"><span class="sw c-wrong"></span>wrong field 496</span><span class="chip"><span class="sw c-miss"></span>missed 184</span><span class="chip"><span class="sw c-extra"></span>extra 708</span></div>
+      <div class="meta">New: the striped <b>extra</b> segment. Today's bars show only the golden side, so extras are invisible.</div>
+    </div></div>
+  </div>
+  <div class="screen"><div class="cap prop"><span>Where it's wrong</span><span>every non-exact pair, grouped by reason, biggest group first · click a group to open those courses in the Rules tab</span></div><div class="body">
+    <div class="why2">
+      <span class="hd">pairs</span><span class="hd">reason (outcome · field · how it differs)</span><span class="hd">grouped by</span><span class="hd">courses</span>
+      <b>708</b><span><span class="tag" style="background:#7a5af8">extra</span> "Minimum Credit Units" taken as a duration</span><span class="meta">description label</span><span>708</span>
+      <b>312</b><span><span class="tag" style="background:#ec7f5c">wrong</span> <code>timeRequired</code> cut short: "54.0 - 432.0" → "54.0"</span><span class="meta">value shape <code>9.9 - 9.9</code> → <code>9.9</code></span><span>156</span>
+      <b>184</b><span><span class="tag" style="background:#d93636">missed</span> "Total Course Lab Hours" when it's 0.0</span><span class="meta">description label + value</span><span>184</span>
+      <b>184</b><span><span class="tag" style="background:#ec7f5c">wrong</span> <code>description</code> has the hours appended</span><span class="meta">word diff: extra text at end</span><span>92</span>
+    </div>
+    <div class="meta" style="margin-top:8px">Each group is one likely cause, so it's one thing to fix in the rule. The grouping keys already exist: the Studio's sample strata (value shape, word count, course subject, page template) plus the field, the description label, and the word diff Compare already computes.</div>
+  </div></div>
+</section>
+
+<section class="fix" id="p3-q12">
+  <div class="fix-head"><span class="num">12</span><h2>"Not on the page" (a claim) vs "Nothing found" (no claim)</h2></div>
+  <p class="why">A rule ends one of three ways on a course: it finds a value; it <b>claims</b> the property isn't on the page (it found the place where the property would be, checked it, and it isn't there); or it finds <b>nothing</b> and claims nothing (its selector matched nothing, so the property may still be on the page). Reviewers answer with the same ✓ ✕ as always. The reason flag appears only after ✕.</p>
+  <div class="grid3">
+    <div class="screen"><div class="cap prop"><span>A · Rule claims: not on the page</span></div><div class="body">
+      <div class="pg"><div class="looked"><b>WS 483 Special Topics</b> · 1-4 Credit hours<br><span class="meta">Grade Mode: Normal Grading Mode</span></div></div>
+      <div class="mrow on"><span class="ck">WS483</span><div class="valbox empty" style="font-style:normal;color:#4b2fa8;border-color:#6b4fc8">Not on the page <span class="meta">(rule's claim)</span></div><div class="vbtns"><span class="vb ok">✓</span><span class="vb">✕</span></div></div>
+      <div class="meta">✓ = you agree it isn't on the page. Golden: <code>absent</code>. Rule: exact.</div>
+    </div></div>
+    <div class="screen"><div class="cap today"><span>B · Rule found nothing (no claim)</span></div><div class="body">
+      <div class="pg"><b>WS 483 Special Topics</b> · 1-4 Credit hours<br><span class="meta">Grade Mode: Normal Grading Mode</span></div>
+      <div class="mrow on"><span class="ck">WS483</span><div class="valbox empty">Nothing found <span class="meta">· the rule made no claim; check the page</span></div><div class="vbtns"><span class="vb ok">✓</span><span class="vb">✕</span></div></div>
+      <div class="meta">✓ = you checked: it isn't on the page. Golden: <code>absent</code>. Rule: <b>unsure</b>, not exact (it should have claimed it). ✕ + highlight = it is on the page; the rule missed it.</div>
+    </div></div>
+    <div class="screen"><div class="cap today"><span>C · Rule found a value, but it's not there</span></div><div class="body">
+      <div class="pg"><b>WS 483 Special Topics</b> · 1-4 Credit hours<br><span class="v">Grade Mode: Normal Grading Mode</span></div>
+      <div class="mrow on"><span class="ck">WS483</span><div style="display:grid;gap:6px"><div class="valbox">Grade Mode: Normal Grading Mode</div>
+        <div class="reason"><b style="color:var(--bad)">Why wrong?</b><label title="This course's page doesn't state this property anywhere. The rule should claim it isn't on the page.">☑ Not on the page</label></div></div><div class="vbtns"><span class="vb">✓</span><span class="vb no">✕</span></div></div>
+      <div class="meta">The flag shows only after ✕. Golden: <code>absent</code>. Rule: <b>extra</b> (over-eager).</div>
+    </div></div>
+  </div>
+  <div class="mx" style="margin-top:4px">
+    <span class="h">golden ↓ · rule →</span><span class="h">a value</span><span class="h">"not on the page" (claim)</span><span class="h">"nothing found" (no claim)</span>
+    <span class="h">a value</span><span>exact, or wrong field</span><span style="color:var(--bad)">missed: a false claim</span><span style="color:var(--bad)">missed</span>
+    <span class="h">absent</span><span style="color:var(--bad)">extra (over-eager)</span><span style="color:#1d7a45"><b>exact</b></span><span style="color:var(--warn)">unsure: right by luck, not counted exact</span>
+  </div>
+  <p class="why" style="margin-top:6px">Case B is worth worrying about: "nothing found" can hide a value the rule failed to see, for example on a page that uses a different layout. Counting it as "unsure" keeps those rows in <i>Where it's wrong</i> until the rule learns to make the claim.</p>
+</section>
+</div>
