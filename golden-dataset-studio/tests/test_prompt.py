@@ -89,6 +89,7 @@ def test_k2_version_is_a_run(ctx):
     assert "az login --use-device-code" not in text and "az account show" not in text
     assert "## This is a Golden Dataset Studio run" in text and "started by Jared Diener" in text
     assert f'cd {d} && golden-datasets run note --run 20261028T031209Z-a1b2 "<one line>"' in text
+    assert "**Your first action is a note.**" in text  # silence for 5 minutes then means it stopped (spec §4)
     assert f"mkdir -p {d} && printf '%s\\n' 'GOLDEN_DATASETS_ROOT={azure}' 'GOLDEN_DATASETS_CATALOG=avc' > {d}/golden-datasets.env" in text
     assert "/var/lib/k2/work/golden-datasets.env" in text and "If the install fails, don't install another version" in text
     assert "## End the run" in text and f"cd {d} && golden-datasets run done --run 20261028T031209Z-a1b2 --summary-file summary.md --outcome" in text
