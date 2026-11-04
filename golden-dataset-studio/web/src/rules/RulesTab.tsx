@@ -56,9 +56,8 @@ export const KEY_HINTS = (
 /** A repeating record locator's rows: one per page, its courses inside (sme-fixes §3). */
 export const PAGE_KEY_HINTS = (
   <span className="key-hints" data-testid="page-key-hints">
-    <kbd>Tab</kbd>next course on this page, then the next page <kbd>Shift</kbd>+<kbd>Tab</kbd>back <kbd>Enter</kbd>into
-    the page's courses <kbd>Esc</kbd>up to the page <kbd>1</kbd>correct (on a page: all its courses) <kbd>2</kbd>wrong{" "}
-    <kbd>3</kbd>comment
+    <kbd>Tab</kbd>next course, then page <kbd>Enter</kbd>into a page <kbd>Esc</kbd>up to the page <kbd>1</kbd>correct
+    (a page: all) <kbd>2</kbd>wrong <kbd>3</kbd>comment
   </span>
 );
 

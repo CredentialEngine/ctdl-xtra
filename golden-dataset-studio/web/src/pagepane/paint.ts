@@ -186,7 +186,12 @@ export function paint(doc: Document, resolved: Resolved[], focusId?: string | nu
     }
   }
   if (reg && HL) {
-    for (const [kind, rs] of Object.entries(ranges)) if (rs.length) reg.set(NAMES[kind], new HL(...rs));
+    for (const [kind, rs] of Object.entries(ranges)) {
+      if (!rs.length) continue;
+      const hl = new HL(...rs) as { priority?: number };
+      if (kind === "expected" || kind === "excluded") hl.priority = 1;  // a reviewer's piece shows over the value found
+      reg.set(NAMES[kind], hl);
+    }
   }
   return focus;
 }
