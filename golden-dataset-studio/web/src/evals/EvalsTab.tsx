@@ -6,14 +6,20 @@
 // by and the values. A value opens the shared diff (Split / Unified) with a note box and the saved page beside it.
 //
 // URL: #/c/<catalog>/evals?b=human|rule&g=<golden>&x=<output>&col=<column>&subj=<subject>&o=<outcome>&grp=column|subject
-//      &off=<offset>&row=<row key>
+//      &off=<offset>&row=<row key>&wk=label|shape|diff|subject (Where it's wrong's grouping; none = auto)
+//
+// sme-fixes spec §8.4: each bar has an extra segment (striped: candidates with no golden value) and an unsure one; a
+// column shows found (recall) and right (precision), and for a list property (durations) the courses exact; "Where
+// it's wrong" groups the units that aren't a match, each group linking to its courses in the Rules tab. A column
+// with no score says why with two facts: its candidates (values in xtra's extract output) and its golden values
+// (rule-matched values on the Rule-matched side).
 import { Fragment, useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { api } from "../api/client";
 import type { CatalogsSummary, ColumnSummary, ExtractOutputs, GoldenChoice, MatchRow, OutcomeCounts, ScoreBasis, ScoreBrief, ScoreDoc,
-  ScoreOutcome, ScoreRow, ScoreValues } from "../api/types";
+  ScoreOutcome, ScoreRow, ScoreValues, WrongGroups, WrongKey } from "../api/types";
 import type { CapturedSelection } from "../pagepane";
-import { addCapture, newDraft, verdictEvent, type Draft } from "../rules/logic";
+import { addCapture, BY_ANYONE, newDraft, verdictEvent, type Draft } from "../rules/logic";
 import { useReviewer } from "../shell/reviewer";
 import { go, href } from "../shell/router";
 import type { TabProps } from "../shell/tabProps";
@@ -28,37 +34,95 @@ export const BASIS_TIP = <span className="evx-tip-basis">
   <b>Rule-matched</b> scores every value in the golden dataset: the values the rules matched and the human-reviewed ones.
   <br /><b>Human-reviewed</b> scores only the values an expert reviewed.</span>;
 
-export const OUTCOMES: ScoreOutcome[] = ["missing", "wrong", "partial", "match"];
-/** Each outcome's rule (xtra's scorer, Evals spec §2). */
+/** Every outcome, worst first (sme-fixes spec §8.1): the golden side's five, then `extra` (a candidate with no golden
+ * partner). Scores from before sme-fixes have no unsure or extra (0). */
+export const OUTCOMES: ScoreOutcome[] = ["missing", "wrong", "partial", "unsure", "match", "extra"];
+/** What `values` counts: the golden units. */
+export const GOLDEN_OUTCOMES: ScoreOutcome[] = OUTCOMES.filter((o) => o !== "extra");
+/** The order of a bar's segments, left to right (bottom to top): matches first, the striped extras last. */
+export const BAR_ORDER: ScoreOutcome[] = ["match", "partial", "unsure", "wrong", "missing", "extra"];
+/** Each outcome's rule (xtra's scorer, Evals spec §2, sme-fixes spec §8.1), in the tab's terms: a **candidate** is a
+ * value in xtra's extract output; a **golden value** is one the golden side holds. */
 export const OUTCOME_RULE: Record<ScoreOutcome, string> = {
-  match: "identical", partial: "similarity ≥ 0.8", wrong: "similarity < 0.8", missing: "nothing extracted",
+  match: "a candidate identical to the golden value", partial: "paired with a candidate, similarity ≥ 0.8",
+  wrong: "paired with a candidate, similarity < 0.8", missing: "a golden value with no candidate",
+  unsure: "golden says not on the page; xtra made no claim", extra: "a candidate with no golden value",
 };
-export const SIMILARITY = "Text is compared ignoring case and spacing, and again without punctuation, keeping the higher score. Numbers either match or are wrong.";
+export const SIMILARITY = "Text is compared ignoring case and spacing, and again without punctuation, keeping the higher score. Numbers either match or are wrong. A list of objects (durations) pairs by description; an object is exact only when every field is.";
+/** The two numbers per column, under plain names, with their formulas (sme-fixes Q10.9). */
+export const FOUND_TIP = <span><b>Found</b> (recall): the golden values xtra got exactly.<br />
+  found = match ÷ golden values = match ÷ (match + partial + wrong + missing + unsure)</span>;
+export const RIGHT_TIP = <span><b>Right</b> (precision): the candidates that are exactly a golden value.<br />
+  right = match ÷ candidates = match ÷ (match + partial + wrong + extra)</span>;
+export const COURSES_TIP = <span><b>Courses exact</b>, for a list property (durations): courses whose whole list is exact
+  (no wrong, missing or extra item) ÷ courses.</span>;
+/** The two terms an unscored column's facts use. */
+export const CANDIDATES_TIP = "Candidates: the values in xtra's extract output for this property.";
+export const goldenTerm = (basis: ScoreBasis) => (basis === "human" ? "Golden values" : "Rule-matched values");
+export const goldenTip = (basis: ScoreBasis) => basis === "human"
+  ? "Golden values: the values a person reviewed (the golden dataset)."
+  : "Rule-matched values: the values the Studio's rules matched, with the human-reviewed ones (the silver dataset).";
 const HUMAN = "human-reviewed";
 /** A column with a CTDL term is written with its prefix-free path ("creditValue>minValue"); a property with none is its
  * label ("Learning Type"), which has a space. */
 export const hasCtdlTerm = (key: string) => !/\s/.test(key);
 type Output = ExtractOutputs["outputs"][number];
-type Counts = Record<ScoreOutcome, number>;
+type Counts = Partial<Record<ScoreOutcome, number>>;
+const num = (c: Counts | OutcomeCounts | null | undefined, o: ScoreOutcome) => (c as Counts | null | undefined)?.[o] ?? 0;
+const total = (c: Counts | OutcomeCounts | null | undefined) => OUTCOMES.reduce((t, o) => t + num(c, o), 0);
 
+/** match ÷ golden values (found; the exact match rate). */
 const rateOf = (c: Counts | null | undefined) => {
-  const n = c ? OUTCOMES.reduce((t, o) => t + c[o], 0) : 0;
-  return c && n ? c.match / n : null;
+  const n = GOLDEN_OUTCOMES.reduce((t, o) => t + num(c, o), 0);
+  return c && n ? num(c, "match") / n : null;
+};
+/** match ÷ candidates (right), or null when nothing was extracted. */
+const rightOf = (c: Counts | OutcomeCounts | null | undefined) => {
+  const n = num(c, "match") + num(c, "partial") + num(c, "wrong") + num(c, "extra");
+  return c && n ? num(c, "match") / n : null;
 };
 const pct = (x: number | null | undefined) => (x === null || x === undefined ? "–" : `${Math.round(x * 100)}%`);
+
+/** A value as the tab shows it: an object (a duration) as its fields, `description: … · timeRequired: …`. */
+export function shown(v: string | null | undefined): string {
+  if (!v || !v.startsWith("{")) return v ?? "";
+  try {
+    const o = JSON.parse(v) as Record<string, unknown>;
+    return Object.entries(o).map(([k, x]) => `${k.split(":").pop()}: ${String(x)}`).join(" · ");
+  } catch { return v; }
+}
+
+/** The two facts that say why a column isn't scored (it is only when it has both candidates and golden values): its
+ * candidates in this extract output, and its golden values (rule-matched values on the Rule-matched side). `full` is
+ * the sentence, `short` the chip's text. */
+export interface Fact { term: string; short: string; full: string; tip: string }
+export function unscoredFacts(key: string, col: ColumnSummary | undefined, doc: ScoreDoc, basis: ScoreBasis,
+  implied: string[]): { candidates: Fact; golden: Fact } {
+  const n = doc.candidates?.[key] ?? 0;
+  const known = doc.xtra_extracts;
+  const noTerm = !hasCtdlTerm(key);
+  const extracts = !noTerm && (known ? known.includes(key) : !(doc.not_scored ?? []).includes(key));
+  const candidates: Fact = { term: "Candidates", tip: CANDIDATES_TIP,
+    ...(n > 0 ? { short: fmt(n), full: `${fmt(n)} candidate${n === 1 ? "" : "s"}` }
+      : extracts ? { short: "none in this output", full: "No candidates in this output" }
+        : { short: "none · xtra doesn't extract it", full: "No candidates: xtra doesn't extract this property" }) };
+  const term = goldenTerm(basis), noun = term.toLowerCase();
+  const g = col ? (basis === "human" ? col.human : col.human + col.rule) : 0;
+  const status = !col || col.no_rule ? null : col.status === "needs work" ? "needs work" : col.status === "in review" ? "in review" : null;
+  const golden: Fact = { term, tip: goldenTip(basis), ...(
+    noTerm ? { short: "Studio only: no CTDL property", full: "Studio only: no CTDL property" }
+      : implied.includes(key) ? { short: "not read from the page", full: "Not read from the page" }
+        : g > 0 ? { short: `${fmt(g)}${status ? ` · Studio rule ${status}` : ""}`,
+            full: `${fmt(g)} ${g === 1 ? noun.replace(/s$/, "") : noun}${status ? ` · the Studio rule is ${status}` : ""}` }
+          : !col || col.no_rule ? { short: "none · no Studio rule yet", full: `No ${noun}: no Studio rule yet` }
+            : status ? { short: `none · Studio rule ${status}`,
+                full: `No ${noun}: the Studio rule ${status === "needs work" ? "needs work" : "is in review"}` }
+              : { short: "none", full: `No ${noun}` }) };
+  return { candidates, golden };
+}
 /** The golden side's name: the golden dataset (human-reviewed values), a version's silver dataset (rule-matched values). */
 export const goldenName = (id: string) =>
   id === HUMAN ? "Golden dataset (human-reviewed)" : /^ruleset-v\d+$/.test(id) ? `Silver dataset ${id}` : `draft ${id}`;
-
-/** Why a property has no score in this output's score (property-rules spec §4.9, m8): xtra doesn't extract it, it has no
- * rule yet, it's a Studio-only property, or it isn't read from the page. Null when it's scored. */
-export function reasonFor(key: string, col: ColumnSummary | undefined, notScored: string[], implied: string[]): string {
-  if (!hasCtdlTerm(key)) return "Studio only: no CTDL property, not written to the files";
-  if (implied.includes(key)) return "not scored: not read from the page";
-  if (notScored.includes(key)) return `not scored: xtra doesn't extract it · ${col?.status ?? "in review"}, ${fmt(col?.found ?? 0)} values`;
-  if (!col || col.no_rule) return "no values · no rule created yet";
-  return `not scored · ${col.status}`;
-}
 
 /** The score that shows an output against the chosen golden side: with Human-reviewed, the newest score of the
  * human-reviewed values (`human-reviewed`, or the latest version, whose human-reviewed tree each review rewrites);
@@ -86,11 +150,13 @@ export default function EvalsTab({ catalog, route }: TabProps) {
   const x = P.get("x") ?? idx?.outputs[0]?.id ?? null;
   const col = P.get("col"), subj = P.get("subj"), outcome = P.get("o") as ScoreOutcome | null;
   const grp = P.get("grp"), offset = +(P.get("off") || 0), rowKey = P.get("row");
+  const wkParam = P.get("wk");
+  const wk: WrongKey = wkParam === "label" || wkParam === "shape" || wkParam === "diff" || wkParam === "subject" ? wkParam : "auto";
   const nav = useCallback((ch: Record<string, string | number | null>, keepRow = false) => {
     const cur: Record<string, string | number | null> = { b: basis === "rule" ? "rule" : null, g: P.get("g"), x: P.get("x"), col, subj,
-      o: outcome, grp, off: offset || null, row: keepRow ? rowKey : null };
+      o: outcome, grp, off: offset || null, row: keepRow ? rowKey : null, wk: wk === "auto" ? null : wk };
     go(href(cat, "evals", null, { ...cur, ...ch }), true);
-  }, [cat, basis, P, col, subj, outcome, grp, offset, rowKey]);
+  }, [cat, basis, P, col, subj, outcome, grp, offset, rowKey, wk]);
 
   const loadIndex = useCallback(() => api.extractOutputs(cat).then(setIdx, (e) => setError(String(e))), [cat]);
   useEffect(() => { void loadIndex(); }, [loadIndex]);
@@ -186,7 +252,7 @@ export default function EvalsTab({ catalog, route }: TabProps) {
           {brief && brief.status !== "done" && <p className="muted">{brief.status === "running" ? `Scoring (${brief.id})…`
             : `${brief.id} ${brief.status}${brief.error ? `: ${brief.error}` : ""}. Press Score on its bar to score it again.`}</p>}
           {doc && !result && <p className="muted">No {basis === "human" ? "human-reviewed" : "rule-matched"} values to score in {goldenName(basis === "human" ? HUMAN : g)}.</p>}
-          {doc && result && view && <ScoreBody basis={basis} view={view} col={col} subj={subj} outcome={outcome} grp={grp} offset={offset}
+          {doc && result && view && <ScoreBody cat={cat} basis={basis} view={view} col={col} subj={subj} outcome={outcome} grp={grp} wk={wk} offset={offset}
             rowKey={rowKey} nav={nav} doc={doc} sum={sum} here={sum?.catalogs[catalog.catalog]?.columns ?? {}} />}
         </>}
       </section>
@@ -260,7 +326,7 @@ function History({ outputs, latest, basis, golden, latestGolden, picked, busy, o
       {outputs.map((o) => {
         const s = scoreFor(o, basis, golden, latestGolden);
         const c = s?.status === "done" ? (basis === "human" ? s.human_outcomes : s.rule_outcomes) : null;
-        const n = c ? OUTCOMES.reduce((t, k) => t + c[k], 0) : 0;
+        const n = total(c);
         const on = o.id === picked;
         return (
           <div key={o.id} className={`evx-col${on ? " sel" : ""}`} data-testid="history-bar">
@@ -269,7 +335,7 @@ function History({ outputs, latest, basis, golden, latestGolden, picked, busy, o
               <OutcomeTip counts={c}>
                 <button className="evx-stack" style={{ height: CHART_H }} aria-label={`Extract output of ${fmtDay(o.last_modified)}: ${pct(rateOf(c))} exact matches`}
                   onClick={() => onPick(o.id)}>
-                  {OUTCOMES.slice().reverse().map((k) => c[k] > 0 && <i key={k} className={`o-${k}`} style={{ height: `${(c[k] / n) * 100}%` }} />)}
+                  {BAR_ORDER.map((k) => num(c, k) > 0 && <i key={k} className={`o-${k}`} style={{ height: `${(num(c, k) / n) * 100}%` }} />)}
                 </button>
               </OutcomeTip>
             ) : (
@@ -290,8 +356,8 @@ function History({ outputs, latest, basis, golden, latestGolden, picked, busy, o
 }
 
 function MiniBar({ c }: { c: Counts | null }) {
-  const n = c ? OUTCOMES.reduce((t, k) => t + c[k], 0) : 0;
-  return <i className="evx-mini">{c && n ? OUTCOMES.slice().reverse().map((k) => c[k] > 0 && <b key={k} className={`o-${k}`} style={{ height: `${Math.max(1, (c[k] / n) * 14)}px` }} />) : null}</i>;
+  const n = total(c);
+  return <i className="evx-mini">{c && n ? BAR_ORDER.map((k) => num(c, k) > 0 && <b key={k} className={`o-${k}`} style={{ height: `${Math.max(1, (num(c, k) / n) * 14)}px` }} />) : null}</i>;
 }
 
 /** A dark tooltip under its children while hovered or focused, fixed to the viewport so a scrolling column never
@@ -332,8 +398,8 @@ export function OutcomeTip({ counts, title, children }: { counts: Counts | Outco
     <Tip tip={<>
       {title && <span className="hd">{title}</span>}
       <table><tbody>
-        {OUTCOMES.slice().reverse().map((o) => (
-          <tr key={o}><td><i className={`sw o-${o}`} />{o}</td>{counts && <td className="n">{fmt(counts[o])}</td>}<td>{OUTCOME_RULE[o]}</td></tr>
+        {BAR_ORDER.map((o) => (
+          <tr key={o}><td><i className={`sw o-${o}`} />{o}</td>{counts && <td className="n">{fmt(num(counts, o))}</td>}<td>{OUTCOME_RULE[o]}</td></tr>
         ))}
       </tbody></table>
       <span className="ft">{SIMILARITY}</span>
@@ -342,9 +408,10 @@ export function OutcomeTip({ counts, title, children }: { counts: Counts | Outco
 }
 
 // --- the score ---------------------------------------------------------------------------------------------------
-function ScoreBody({ basis, view, col, subj, outcome, grp, offset, rowKey, nav, doc, sum, here }: {
-  basis: ScoreBasis; view: ScoreValues; col: string | null; subj: string | null; outcome: ScoreOutcome | null; grp: string | null;
-  offset: number; rowKey: string | null; nav: (ch: Record<string, string | number | null>, keepRow?: boolean) => void;
+function ScoreBody({ cat, basis, view, col, subj, outcome, grp, wk, offset, rowKey, nav, doc, sum, here }: {
+  cat: string; basis: ScoreBasis; view: ScoreValues; col: string | null; subj: string | null; outcome: ScoreOutcome | null;
+  grp: string | null; wk: WrongKey; offset: number; rowKey: string | null;
+  nav: (ch: Record<string, string | number | null>, keepRow?: boolean) => void;
   doc: ScoreDoc; sum: CatalogsSummary | null; here: Record<string, ColumnSummary>;
 }) {
   const t = view.total;
@@ -357,6 +424,7 @@ function ScoreBody({ basis, view, col, subj, outcome, grp, offset, rowKey, nav, 
   const groups = [
     { title: "Required", keys: keys.filter((k) => required.includes(k)) },
     { title: "Other properties", keys: keys.filter((k) => !required.includes(k)) }].filter((g) => g.keys.length);
+  const noun = goldenTerm(basis).toLowerCase();
   return (
     <>
       <div className="evx-rate" data-testid="headline">
@@ -365,27 +433,40 @@ function ScoreBody({ basis, view, col, subj, outcome, grp, offset, rowKey, nav, 
         <span className={`evx-basis-pill ${basis}`}>{basis === "human" ? "human-reviewed" : "rule-matched"}</span>
         <span className="muted">{fmt(t.match)} of {fmt(t.values)} values {basis === "human" ? "an expert reviewed" : "the rules matched"}</span>
       </div>
+      <p className="muted small evx-fr" data-testid="found-right">
+        <Tip tip={FOUND_TIP} width={360}><span tabIndex={0}>found <b>{pct(t.found ?? rateOf(t))}</b> of {fmt(t.values)} {noun}</span></Tip>
+        {" · "}
+        <Tip tip={RIGHT_TIP} width={360}><span tabIndex={0}>right <b>{pct(t.right ?? rightOf(t))}</b> of {fmt(t.extracted ?? num(t, "match") + num(t, "partial") + num(t, "wrong") + num(t, "extra"))} candidates</span></Tip>
+        {num(t, "extra") > 0 && <> · <i className="sw o-extra" />{fmt(num(t, "extra"))} extra</>}
+        {num(t, "unsure") > 0 && <> · <i className="sw o-unsure" />{fmt(num(t, "unsure"))} unsure</>}
+      </p>
       {xtra && <p className="muted small evx-xtra" data-testid="xtra-line">xtra's own, over every column: {pct(xtra.exact_match_rate)} exact matches
         of {fmt(xtra.values)} values</p>}
       {leftOut.length > 0 && <p className="muted small">{fmt(leftOut.length)} pages left out: {leftOut[0].why}.</p>}
 
       <table className="evx-cols">
+        <thead>
+          <tr className="evx-colh">
+            <th scope="col">Column</th><th scope="col">Units</th>
+            <th scope="col" className="r"><Tip tip={FOUND_TIP} width={360}><span tabIndex={0}>Found</span></Tip></th>
+            <th scope="col" className="r"><Tip tip={RIGHT_TIP} width={360}><span tabIndex={0}>Right</span></Tip></th>
+            <th scope="col" className="r"><Tip tip={COURSES_TIP} width={320}><span tabIndex={0}>Courses</span></Tip></th>
+            <th scope="col" className="r">{goldenTerm(basis)}</th>
+          </tr>
+        </thead>
         <tbody>
           <ColRow name="All columns" c={t} on={!col} total onClick={() => nav({ col: null, off: null })} />
           {groups.length
             ? groups.map((g) => (
               <Fragment key={g.title}>
-                <tr className="evx-hrow"><th colSpan={4} scope="colgroup" className="evx-h">{g.title}</th></tr>
+                <tr className="evx-hrow"><th colSpan={6} scope="colgroup" className="evx-h">{g.title}</th></tr>
                 {g.keys.map((k) => {
                   const name = sum?.labels[k] ?? k;
                   const sc = scored.get(k);
                   return sc
                     ? <ColRow key={k} name={name} mono={hasCtdlTerm(k)} c={sc} on={col === k} column={k}
                         onClick={() => nav({ col: col === k ? null : k, off: null })} />
-                    : <tr key={k} className="evx-unscored" data-column={k}>
-                        <td className={hasCtdlTerm(k) ? "mono" : undefined}>{name}</td>
-                        <td colSpan={3} className="muted evx-why">{reasonFor(k, here[k], doc.not_scored ?? [], implied)}</td>
-                      </tr>;
+                    : <Unscored key={k} k={k} name={name} facts={unscoredFacts(k, here[k], doc, basis, implied)} />;
                 })}
               </Fragment>))
             : view.columns.map((p) => <ColRow key={p.column} name={p.column} c={p} on={col === p.column} column={p.column}
@@ -393,12 +474,14 @@ function ScoreBody({ basis, view, col, subj, outcome, grp, offset, rowKey, nav, 
         </tbody>
       </table>
 
+      <WhereWrong cat={cat} doc={doc} basis={basis} col={col} wk={wk} nav={nav} />
+
       <div className="evx-controls">
         <div className="seg">
-          <button className={!outcome ? "on" : ""} onClick={() => nav({ o: null, off: null })}>All <span>{fmt(view.outcomes.values)}</span></button>
+          <button className={!outcome ? "on" : ""} onClick={() => nav({ o: null, off: null })}>All <span>{fmt(total(view.outcomes))}</span></button>
           {OUTCOMES.map((o) => (
-            <button key={o} className={outcome === o ? "on" : ""} disabled={!view.outcomes[o]} onClick={() => nav({ o: outcome === o ? null : o, off: null })}>
-              <i className={`sw o-${o}`} />{o} <span>{fmt(view.outcomes[o])}</span>
+            <button key={o} className={outcome === o ? "on" : ""} disabled={!num(view.outcomes, o)} onClick={() => nav({ o: outcome === o ? null : o, off: null })}>
+              <i className={`sw o-${o}`} />{o} <span>{fmt(num(view.outcomes, o))}</span>
             </button>
           ))}
         </div>
@@ -431,11 +514,10 @@ function ScoreBody({ basis, view, col, subj, outcome, grp, offset, rowKey, nav, 
       <div className="evx-rows">
         {view.rows.items.map((r) => (
           <button key={r.key} className={`evx-row${r.key === rowKey ? " on" : ""}${col ? " one-col" : ""}`} onClick={() => nav({ row: r.key }, true)}>
-            <i className={`sw o-${r.outcome}`} title={r.outcome} />
+            <i className={`sw o-${r.outcome}`} title={`${r.outcome}: ${OUTCOME_RULE[r.outcome]}`} />
             <span className="evx-row-c">{r.golden_record_id ?? r.page_stem}</span>
-            {!col && <span className="evx-row-p mono">{r.column}</span>}
-            <span className="evx-row-v">{r.outcome === "missing" ? <span className="muted">nothing extracted</span>
-              : r.outcome === "match" ? r.golden_value : r.extracted_value}</span>
+            {!col && <span className="evx-row-p mono">{r.column}{r.field ? ` · ${r.field}` : ""}</span>}
+            <span className="evx-row-v">{rowText(r)}</span>
             <span className="evx-row-s">{r.outcome === "partial" || r.outcome === "wrong" ? r.similarity?.toFixed(2) : ""}</span>
           </button>
         ))}
@@ -452,22 +534,134 @@ function ScoreBody({ basis, view, col, subj, outcome, grp, offset, rowKey, nav, 
   );
 }
 
-function ColRow({ name, c, on, total = false, mono = true, column, onClick }: { name: string; c: OutcomeCounts; on: boolean; total?: boolean;
-  mono?: boolean; column?: string; onClick: () => void }) {
+/** What a row of values says: the candidate, or why there is none. */
+export function rowText(r: ScoreRow): ReactNode {
+  if (r.outcome === "unsure") return <span className="muted">golden: not on the page · xtra made no claim</span>;
+  if (r.outcome === "missing") {
+    if (r.unit === "absent") return <span className="muted">golden: not on the page · candidate {shown(r.extracted_value) || "given"}</span>;
+    return <span className="muted">{r.reason === "claimed not on the page" ? "xtra claims it isn't on the page" : "no candidate"}</span>;
+  }
+  if (r.outcome === "extra") {
+    return r.unit === "absent" ? <span className="muted">xtra claims it isn't on the page (golden has a value)</span>
+      : <>{shown(r.extracted_value)} <span className="muted">· {r.reason ?? "no golden value"}</span></>;
+  }
+  if (r.unit === "absent") return <span className="muted">not on the page</span>;
+  return shown(r.outcome === "match" ? r.golden_value : r.extracted_value);
+}
+
+/** A column with no score: "Not scored" and its two facts, each with a tooltip saying what the term means. */
+function Unscored({ k, name, facts }: { k: string; name: string; facts: { candidates: Fact; golden: Fact } }) {
   return (
-    <tr className={`${on && !total ? "on" : ""}${total ? " all" : ""}`} onClick={onClick} data-column={column}>
-      <td className={total || !mono ? "" : "mono"}>{name}</td>
-      <td className="evx-barcell"><OutcomeTip counts={c}><Bar c={c} /></OutcomeTip></td>
-      <td className="r"><b>{pct(c.values ? c.match / c.values : null)}</b></td>
-      <td className="r muted">{fmt(c.values)}{total ? " values" : ""}</td>
+    <tr className="evx-unscored" data-column={k}>
+      <td className={hasCtdlTerm(k) ? "mono" : undefined}>{name}</td>
+      <td colSpan={5} className="evx-why">
+        <span className="evx-ns">Not scored</span>
+        {[facts.candidates, facts.golden].map((f) => (
+          <Tip key={f.term} width={320} tip={<>{f.tip}<br /><b>{f.full}</b></>}>
+            <span className="evx-fact" tabIndex={0} title={f.full} data-fact={f.term}><span className="muted">{f.term}:</span> {f.short}</span>
+          </Tip>
+        ))}
+      </td>
     </tr>
   );
 }
 
+function ColRow({ name, c, on, total: all = false, mono = true, column, onClick }: { name: string; c: OutcomeCounts; on: boolean; total?: boolean;
+  mono?: boolean; column?: string; onClick: () => void }) {
+  return (
+    <tr className={`${on && !all ? "on" : ""}${all ? " all" : ""}`} onClick={onClick} data-column={column}>
+      <td className={all || !mono ? "" : "mono"}>{name}</td>
+      <td className="evx-barcell"><OutcomeTip counts={c}><Bar c={c} /></OutcomeTip></td>
+      <td className="r" data-num="found"><b>{pct(c.found !== undefined ? c.found : c.values ? c.match / c.values : null)}</b></td>
+      <td className="r" data-num="right">{pct(c.right !== undefined ? c.right : rightOf(c))}</td>
+      <td className="r muted" data-num="courses">{c.list && c.courses ? pct((c.courses_exact ?? 0) / c.courses) : ""}</td>
+      <td className="r muted">{fmt(c.values)}{all ? " values" : ""}</td>
+    </tr>
+  );
+}
+
+// --- Where it's wrong (sme-fixes spec §8.4) ----------------------------------------------------------------------
+const WRONG_KEYS: { key: WrongKey; label: string }[] = [
+  { key: "auto", label: "the likely cause" }, { key: "label", label: "description label" }, { key: "shape", label: "value shape" },
+  { key: "diff", label: "word diff" }, { key: "subject", label: "course subject" }];
+const WRONG_SHOWN = 12;
+
+/** Every unit that isn't a match (under the picked column, or all), grouped by outcome × field × a key, biggest group
+ * first: each group's count, one example (golden → candidate), and its courses, each a link to its row in the Rules
+ * tab (anyone's annotations shown). */
+function WhereWrong({ cat, doc, basis, col, wk, nav }: { cat: string; doc: ScoreDoc; basis: ScoreBasis; col: string | null; wk: WrongKey;
+  nav: (ch: Record<string, string | number | null>, keepRow?: boolean) => void }) {
+  const [w, setW] = useState<WrongGroups | null>(null);
+  const [all, setAll] = useState(false);
+  useEffect(() => {
+    let live = true;
+    api.scoreWrong(cat, doc.id, { basis, column: col, key: wk }).then((r) => live && setW(r), () => live && setW(null));
+    return () => { live = false; };
+  }, [cat, doc.id, basis, col, wk]);
+  if (!w) return null;
+  const shownGroups = all ? w.groups : w.groups.slice(0, WRONG_SHOWN);
+  const term = goldenTerm(basis).toLowerCase().replace(/s$/, "");
+  const link = (t: { rule_id: string | null; occurrence_key: string | null }) =>
+    t.rule_id ? href(cat, "rules", t.rule_id, { row: t.occurrence_key, by: BY_ANYONE }) : null;
+  return (
+    <section className="evx-wrong" data-testid="where-wrong">
+      <header className="evx-wrong-h">
+        <h3>Where it's wrong</h3>
+        <span className="muted small">{col ? <span className="mono">{col}</span> : "every column"} · every unit that isn't an exact match, grouped by reason, biggest group first</span>
+        <span className="grow" />
+        <label className="evx-group">Group by
+          <select value={wk} aria-label="Where it's wrong: group by" onChange={(e) => nav({ wk: e.target.value === "auto" ? null : e.target.value })}>
+            {WRONG_KEYS.map((k) => <option key={k.key} value={k.key}>{k.label}</option>)}
+          </select>
+        </label>
+      </header>
+      {w.groups.length === 0 ? <p className="muted small">Nothing: every unit matched.</p> : (
+        <table className="evx-wrong-t">
+          <thead><tr><th className="r">Units</th><th>Reason (outcome · field · how it differs)</th><th>Grouped by</th><th>Example ({term} → candidate)</th><th>Courses</th></tr></thead>
+          <tbody>
+            {shownGroups.map((g) => {
+              const ex = link(g.example);
+              return (
+                <tr key={`${g.outcome}|${g.field}|${g.column}|${g.by}|${g.key}`} data-testid="wrong-group">
+                  <td className="r"><button className="evx-link" title="Show these values" onClick={() => nav({ col: g.column, o: g.outcome, off: null })}>{fmt(g.units)}</button></td>
+                  <td>
+                    <Tip tip={OUTCOME_RULE[g.outcome]} width={260}><span className={`evx-ob o-${g.outcome}`} tabIndex={0}>{g.outcome}</span></Tip>
+                    {!col && <span className="mono"> {g.column}</span>}
+                    {g.field && <span className="mono"> {g.field}</span>}
+                    {g.reason && <span> {g.reason}</span>}
+                  </td>
+                  <td className="muted">{g.by} <span className="mono">{g.key}</span></td>
+                  <td className="evx-wrong-ex">
+                    <span>{g.example.golden_value === null ? <i className="muted">none</i> : shown(g.example.golden_value)}</span>
+                    <span className="muted"> → </span>
+                    <span>{g.example.extracted_value === null ? <i className="muted">none</i> : shown(g.example.extracted_value)}</span>
+                    {ex && <a className="small" href={ex}> {g.example.golden_record_id ?? "open"} in Rules →</a>}
+                  </td>
+                  <td className="evx-wrong-c">
+                    <span className="muted">{fmt(g.courses)}</span>{" "}
+                    {g.targets.map((t, i) => {
+                      const h = link(t);
+                      return h ? <a key={i} className="evx-cc" href={h}>{t.golden_record_id ?? "?"}</a>
+                        : <span key={i} className="evx-cc muted">{t.golden_record_id ?? "?"}</span>;
+                    })}
+                    {g.courses > g.targets.length && <span className="muted small"> +{fmt(g.courses - g.targets.length)}</span>}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      )}
+      {w.groups.length > WRONG_SHOWN && <button className="btn sm" onClick={() => setAll(!all)}>{all ? "Show fewer" : `Show all ${fmt(w.groups.length)} groups`}</button>}
+    </section>
+  );
+}
+
+/** One bar: the golden side's outcomes, then the extras striped (candidates with no golden value). */
 export function Bar({ c }: { c: OutcomeCounts }) {
   return (
-    <span className="evx-bar" role="img" aria-label={OUTCOMES.map((o) => `${o} ${c[o]}`).join(", ")}>
-      {OUTCOMES.slice().reverse().filter((o) => c[o] > 0).map((o) => <i key={o} className={`o-${o}`} style={{ flexGrow: c[o] }} />)}
+    <span className="evx-bar" role="img" aria-label={BAR_ORDER.map((o) => `${o} ${num(c, o)}`).join(", ")}>
+      {BAR_ORDER.filter((o) => num(c, o) > 0).map((o) => <i key={o} className={`o-${o}`} style={{ flexGrow: num(c, o) }} />)}
     </span>
   );
 }

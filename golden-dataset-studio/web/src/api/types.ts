@@ -294,9 +294,19 @@ export interface CompareRecords {
 }
 
 // --- Evals (docs/qrspi/evals): extract outputs and scores against a golden dataset ----------------------------
-export type ScoreOutcome = "missing" | "wrong" | "partial" | "match";
+/** A golden unit's outcome, and `extra`: a candidate with no golden partner (sme-fixes spec §8). Scores from before
+ * sme-fixes have no unsure or extra. */
+export type ScoreOutcome = "missing" | "wrong" | "partial" | "unsure" | "match" | "extra";
 export type ScoreBasis = "human" | "rule";        // the human-reviewed values only; every rule-matched value
-export interface OutcomeCounts { values: number; missing: number; wrong: number; partial: number; match: number }
+/** The four golden outcomes every score has; unsure and extra since sme-fixes. */
+export type OutcomeTally = Record<"missing" | "wrong" | "partial" | "match", number> & Partial<Record<"unsure" | "extra", number>>;
+export interface OutcomeCounts {
+  values: number; missing: number; wrong: number; partial: number; match: number; unsure?: number; extra?: number;
+  /** candidates: match + partial + wrong + extra; found = match ÷ values; right = match ÷ extracted */
+  extracted?: number; found?: number | null; right?: number | null;
+  /** courses, and those whose every unit here matched; `list` when a course has several units or an object */
+  courses?: number; courses_exact?: number; list?: boolean;
+}
 
 /** The home page's catalogs table (Evals spec §6.1, §6.2; property-rules spec §4.9): one column per property, in order,
  * and per catalog with rules each column's status and fraction, and the exact matches of xtra's latest extract output
@@ -315,7 +325,7 @@ export interface CatalogSummary {
   /** the properties with a rule in this catalog, of `properties` */
   coverage: number;
   score: { id: string; golden: string; output: string; output_at: string | null; values: number;
-    outcomes: Record<ScoreOutcome, number>; by_column: Record<string, OutcomeCounts>; implied: string[] } | null;
+    outcomes: OutcomeTally; by_column: Record<string, OutcomeCounts>; implied: string[] } | null;
   error?: string;
 }
 export interface CatalogsSummary {
@@ -338,7 +348,8 @@ export interface ExtractOutput {
 export interface ScoreBrief {
   id: string; status: ScoreStatus; golden: string; output: string; created_at: string; error: string | null;
   human_rate: number | null; rule_rate: number | null; human_values: number | null; rule_values: number | null;
-  human_outcomes: Record<ScoreOutcome, number> | null; rule_outcomes: Record<ScoreOutcome, number> | null;
+  human_outcomes: Partial<Record<ScoreOutcome, number>> | null; rule_outcomes: Partial<Record<ScoreOutcome, number>> | null;
+  human_found?: number | null; rule_found?: number | null; human_right?: number | null; rule_right?: number | null;
   golden_kind: "version" | "human-reviewed" | "draft"; golden_as_of: string | null; finished_at: string | null;
   slot_names: boolean | null;
 }
@@ -352,7 +363,8 @@ export interface ExtractOutputs {
   error: string | null; running: string | null;
 }
 export interface ScoreResult {
-  values: number; exact_match_rate: number | null; outcomes: Record<ScoreOutcome, number>;
+  values: number; exact_match_rate: number | null; outcomes: Partial<Record<ScoreOutcome, number>>;
+  found?: number | null; right?: number | null; extracted?: number; entities_exact?: number | null;
   by_column: Record<string, OutcomeCounts>; implied: Record<string, number>; pages_scored: number;
   pages_skipped: number; pages_out_of_scope: number; malformed: number; left_out: { stem: string; why: string }[];
   /** xtra's own numbers over every column of the golden tree, not only the ones its extract output emits */
@@ -367,6 +379,9 @@ export interface ScoreDoc {
   columns: string[]; results: Partial<Record<ScoreBasis, ScoreResult | null>>;
   /** the columns the golden dataset has that xtra's extract output doesn't emit under the same path (P10) */
   not_scored?: string[];
+  /** the candidates per column in the extract output (0: it claims "not on the page"), and the columns xtra's extract
+   * writes at all (sme-fixes) */
+  candidates?: Record<string, number>; xtra_extracts?: string[];
 }
 export interface ScoreRow {
   key: string; basis: ScoreBasis; column: string; ctdl_property: string; property: string | null;
@@ -376,7 +391,19 @@ export interface ScoreRow {
   approval: string | null; approved_by: string | null; approved_at: string | null; subject: string | null;
   /** its Studio match, through the golden dataset's lineage: where a note or a verdict on it goes */
   rule_id: string | null; occurrence_key: string | null; value_index: number | null;
+  /** value · object · absent; the object fields that differ; why it isn't a match (none on scores before sme-fixes) */
+  unit?: "value" | "object" | "absent" | null; field?: string | null; reason?: string | null;
 }
+/** "Where it's wrong" (sme-fixes spec §8.4): units that aren't a match, grouped by outcome × field × a key. */
+export type WrongKey = "auto" | "label" | "shape" | "diff" | "subject";
+export interface WrongTarget { golden_record_id: string | null; rule_id: string | null; occurrence_key: string | null }
+export interface WrongGroup {
+  outcome: ScoreOutcome; field: string | null; column: string; by: string; key: string; reason: string | null;
+  units: number; courses: number;
+  example: WrongTarget & { row: string | null; golden_value: string | null; extracted_value: string | null };
+  targets: WrongTarget[];
+}
+export interface WrongGroups { basis: ScoreBasis; column: string | null; key: WrongKey; groups: WrongGroup[] }
 export interface ScoreValues {
   basis: ScoreBasis; result: ScoreResult | null; total: OutcomeCounts; columns: (OutcomeCounts & { column: string })[];
   outcomes: OutcomeCounts; groups: (OutcomeCounts & { name: string })[] | null;

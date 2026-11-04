@@ -1,6 +1,6 @@
 // Thin fetch wrappers for the Studio API. Every tab uses these; they keep URLs in one place.
 import type {
-  ExtractOutputs, MatchRow, ScoreBasis, ScoreDoc, ScoreValues, CatalogsSummary,
+  ExtractOutputs, MatchRow, ScoreBasis, ScoreDoc, ScoreValues, CatalogsSummary, WrongGroups, WrongKey,
   CatalogCard, CatalogDetail, CrawledCatalog, FirstRulesPrompt, CompareRecords, CompareResponse, Discussion, CourseDetail, CourseHit, GoldenFileText, GoldenLineage, GoldenResponse,
   AnnotateResponse, ApprovePreview,
   NewEvent, Overlay,
@@ -93,6 +93,9 @@ export const api = {
   scoreValues: (catalog: string, id: string, o: { basis: string; column?: string | null; subject?: string | null;
                                                   outcome?: string | null; group?: string | null; offset?: number }) =>
     call<ScoreValues>(`${c(catalog)}/scores/${encodeURIComponent(id)}/values${q(o)}`),
+  /** "Where it's wrong" (sme-fixes spec §8.4) */
+  scoreWrong: (catalog: string, id: string, o: { basis: string; column?: string | null; key?: WrongKey | null }) =>
+    call<WrongGroups>(`${c(catalog)}/scores/${encodeURIComponent(id)}/wrong${q(o)}`),
   match: (catalog: string, rule: string, occ: string, ext?: string | null) =>
     call<MatchRow>(`${c(catalog)}/match${q({ rule, occ, ext })}`),
   startScore: (catalog: string, body: { golden: string; output: string; by: string }) =>
