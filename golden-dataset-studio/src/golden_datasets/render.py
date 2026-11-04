@@ -40,7 +40,7 @@ from .context import Ctx
 from .errors import UserError
 from .storage import cache_home
 
-RENDER_VERSION = "r3"  # bump when the output of `render_html` changes
+RENDER_VERSION = "r4"  # bump when the output of `render_html` changes
 
 # Highlight styles the page pane relies on. Ranges use the CSS Custom Highlight API (no DOM change); outlines and
 # badges live in an overlay `<div id="gds-overlay">` the pane appends as the last child of <html> (not of <body>).
@@ -50,7 +50,8 @@ noscript{display:none!important}
 ::highlight(gds-value){background-color:rgba(253,224,120,.92);color:#111}
 ::highlight(gds-expected){background-color:rgba(190,242,214,.95);color:#111}
 ::highlight(gds-mark){background-color:#ffe4ea;color:#9f1239;text-decoration:underline wavy #e11d48}
-::selection{background:rgba(190,242,214,.95)}
+::highlight(gds-excluded){background-color:rgba(254,228,226,.9);color:#111}
+::selection{background:#b3d4fc;color:inherit}
 #gds-overlay{position:absolute!important;left:0!important;top:0!important;width:0!important;height:0!important;
   overflow:visible!important;z-index:2147483646!important;pointer-events:none!important;margin:0!important;
   padding:0!important;border:0!important;display:block!important}
@@ -61,7 +62,10 @@ noscript{display:none!important}
 #gds-overlay .gds-box.gds-value.gds-whole{box-shadow:0 0 0 2.5px rgba(245,165,36,.95);background:rgba(253,224,120,.18)}
 #gds-overlay .gds-box.gds-expected{box-shadow:0 0 0 2px #12805c}
 #gds-overlay .gds-box.gds-block{box-shadow:0 0 0 1.5px rgba(47,84,235,.55)}
-#gds-overlay .gds-box.gds-block.gds-focus{box-shadow:0 0 0 2.5px #2f54eb;background:rgba(47,84,235,.06)}
+#gds-overlay .gds-box.gds-block.gds-focus{box-shadow:0 0 0 2.5px #2f54eb;background:rgba(47,84,235,.08)}
+#gds-overlay .gds-box.gds-block.gds-ok{box-shadow:0 0 0 2px #12805c}
+#gds-overlay .gds-box.gds-block.gds-bad{box-shadow:0 0 0 2px #d92d20}
+#gds-overlay .gds-box.gds-excluded{border:1.5px dashed #b42318}
 #gds-overlay .gds-box.gds-mark{box-shadow:0 0 0 2px #e11d48}
 #gds-overlay .gds-badge{position:absolute;min-width:19px;height:19px;border-radius:10px;background:#f5a524;
   color:#fff;font:700 11px/19px Inter,Arial,sans-serif;text-align:center;padding:0 5px;box-sizing:border-box;
@@ -70,6 +74,8 @@ noscript{display:none!important}
 #gds-overlay .gds-badge.gds-expected{background:#12805c}
 #gds-overlay .gds-badge.gds-block{background:#2f54eb;min-width:16px;height:16px;font-size:9.5px;line-height:16px;padding:0 4px}
 #gds-overlay .gds-badge.gds-mark{background:#e11d48}
+#gds-overlay .gds-badge.gds-excluded{background:#b42318}
+#gds-overlay .gds-badge.gds-note{background:#2f54eb;min-width:16px;height:16px;font-size:9.5px;line-height:16px;padding:0 4px}
 """
 
 _JS_URL = re.compile(r"^[\x00-\x20]*j[\s]*a[\s]*v[\s]*a[\s]*s[\s]*c[\s]*r[\s]*i[\s]*p[\s]*t[\s]*:", re.I)

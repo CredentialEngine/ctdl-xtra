@@ -120,10 +120,12 @@ def _record(rv: Review, rule_id: str, e: dict, row: dict | None, state: str | No
         "has_row": row is not None, "current_value": (row or {}).get("value"),
         "current_css_path": (row or {}).get("css_path"),
         "expected": None if not exp else {k: exp.get(k) for k in ("text", "css_path", "char_start", "char_end")}
-        | ({"segments": [{k: s.get(k) for k in ("text", "css_path", "char_start", "char_end")} for s in exp["segments"]]}
+        | ({"segments": [{k: s.get(k) for k in ("text", "css_path", "char_start", "char_end")}
+                          | {"polarity": s.get("polarity") or "in"} for s in exp["segments"]]}
            if exp.get("segments") else {}),
         "note": e.get("note"), "reattached": reattached,
-        "comments": [{"author": c["author"], "at": c["at"], "note": c.get("note")} for c in comments],
+        "comments": [{"author": c["author"], "at": c["at"], "note": c.get("note")}
+                     | ({"on": c["anchor"].get("text")} if c.get("anchor") else {}) for c in comments],
     }
 
 
@@ -243,8 +245,9 @@ def format_annotation(ctx: Ctx, a: dict, i: int | None = None) -> str:
     if exp:
         lines.append(f"{pad}expected: {json.dumps(exp['text'], ensure_ascii=False)}")
         if exp.get("segments"):  # the value is in several pieces on the page, joined by line breaks above
-            for i, s in enumerate(exp["segments"], 1):
-                lines.append(f"{pad}expected piece {i}: {s['css_path']} chars {s['char_start']}–{s['char_end']}"
+            for i, s in enumerate(exp["segments"], 1):  # an `out` piece: text the value has but must not
+                what = "NOT in the answer" if s.get("polarity") == "out" else "expected piece"
+                lines.append(f"{pad}{what} {i}: {s['css_path']} chars {s['char_start']}–{s['char_end']}"
                              f" (DOM textContent offsets): {json.dumps(s['text'], ensure_ascii=False)}")
         elif exp.get("css_path"):
             lines.append(f"{pad}expected at: {exp['css_path']} chars {exp['char_start']}–{exp['char_end']}"
@@ -252,7 +255,8 @@ def format_annotation(ctx: Ctx, a: dict, i: int | None = None) -> str:
     if a["note"]:
         lines.append(f"{pad}note: {a['note']}")
     for c in a["comments"]:
-        lines.append(f"{pad}comment ({c['author']}, {c['at'][:10]}): {c['note']}")
+        on = f" on {json.dumps(c['on'], ensure_ascii=False)}" if c.get("on") else ""  # the text it is about
+        lines.append(f"{pad}comment ({c['author']}, {c['at'][:10]}){on}: {c['note']}")
     return "\n".join(lines)
 
 

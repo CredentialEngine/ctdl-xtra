@@ -50,6 +50,16 @@ FORMAT = {
                 "→ `map`.",
 }
 KIND_NAME = {"page": "page rule", "locator": "record locator", "property": "property rule"}
+#: The first-pass prompt (sme-fixes §3): a template's locator text says what *its* pages are ("one course per course
+#: page" on AVC); a catalog whose pages list many courses (CCSF's department pages) needs its own words.
+LOCATOR_NAMING = (
+    "- Name and describe the record locator and its page rule by what they do on **this** catalog, not in the "
+    "template's words. First count the courses on a few pages: **one course per page** → `repeat: null`, `what` "
+    "\"The whole page is one course\", page rule `what` \"Pages that are one course's own page\"; **many courses per "
+    "page** (a department or subject page) → `repeat: <the CSS of one course's block>`, `what` \"Each `<repeat>` block "
+    "on a page is one course\", page rule `what` \"Pages that list courses\". Keep the rule ids (`course-page`, "
+    "`locator-course-page`): property rules point at them. The Studio titles the locator from `repeat` (\"Course "
+    "blocks: every … on the page\" or \"Whole page is one course\").")
 REPO = "https://github.com/CredentialEngine/ctdl-xtra.git"
 SUBDIR = "golden-dataset-studio"
 TARGETS = ("local", "azure", "k2")
@@ -104,9 +114,11 @@ def scope_rules(rv: Review, rule: str | None, needs_work: bool) -> list[str]:
 
 def _location(a: dict) -> str:
     exp = a["expected"] or {}
-    if exp.get("segments"):  # a value in several pieces on the page
+    if exp.get("segments"):  # a value in several pieces on the page; an `out` piece is text the value must not have
         return f" ({len(exp['segments'])} pieces: " + "; ".join(
-            _where(a, s).removeprefix(" (").removesuffix(")") for s in exp["segments"]) + ")"
+            ("NOT in the answer: " if s.get("polarity") == "out" else "")
+            + (_where(a, s).removeprefix(" (").removesuffix(")") or json.dumps(s.get("text"), ensure_ascii=False))
+            for s in exp["segments"]) + ")"
     return _where(a, exp)
 
 
@@ -716,7 +728,7 @@ def build_first_rules_prompt(ctx: Ctx, target: str = "azure", azure_root: str | 
         L.append(f"No template's platform shows in the URLs: look at a few pages, then start from the closest "
                  f"(`{tmpl}` if unsure).")
     L.append("")
-    L += [FORMAT["page"], FORMAT["locator"], FORMAT["property"],
+    L += [FORMAT["page"], FORMAT["locator"], LOCATOR_NAMING, FORMAT["property"],
           "- Settings (the draft's `settings`): `content_root` (CSS: the part of every page that holds the content; "
           "rules evaluate inside it), `page_title`, `course_key_rule` (record locator → the property rule whose value "
           "identifies a course, its Coded Notation), `signals.course_code_pattern` (a regex for this catalog's course "

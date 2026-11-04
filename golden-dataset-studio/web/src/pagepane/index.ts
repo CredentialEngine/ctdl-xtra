@@ -3,5 +3,7 @@
 export { PagePane, prefetchPages, renderUrl, LAYOUT_WIDTH } from "./PagePane";
 export type { PageTab, PagePaneProps } from "./PagePane";
 export type { Highlight, HighlightKind } from "./paint";
+export { HighlightBar } from "./HighlightBar";
+export type { BarAction, BarAt } from "./HighlightBar";
 export type { CapturedSelection } from "./dom";
 export { cssPathOf, findText, resolveOffsets, captureRange } from "./dom";

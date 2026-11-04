@@ -108,6 +108,7 @@ def test_generate_rules_lists_every_property_and_rule_type(studio, capsys):  # n
     assert "`multiple.split: regex`" in text and "`input: rule`" in text and "`labelled`" in text
     assert "rule draft --all > drafts/more-rules.json" in text and "out of scope" not in text
     assert "coverage (properties with a rule, of 36)" in text
+    assert "many courses per page" in text  # sme-fixes §3: locators named by what they do, not the template's words
 
 
 def test_the_rule_list_groups_and_sorts_properties(studio, tmp_path, capsys):  # noqa: F811

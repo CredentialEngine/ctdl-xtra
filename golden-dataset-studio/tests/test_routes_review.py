@@ -11,7 +11,7 @@ from pathlib import Path
 
 import pytest
 
-from golden_datasets.server.routes_review import _find_row, rule_title
+from golden_datasets.server.routes_review import _find_row, by_page, rule_title
 
 DEMO = Path(__file__).resolve().parents[1] / ".data" / "root-demo"
 AVC = "avc-elumenapp-com-catalog-2026-27-welcome"
@@ -29,10 +29,61 @@ def test_find_row_by_key_course_or_page():
 
 
 def test_plain_subtitles_for_page_rules_and_locators():
-    r = {"rule_id": "locator-program-requirement", "kind": "locator", "what": "long prose", "definition": {}}
-    assert rule_title(r) == ("One course per requirement line", "Where each course starts and ends on a program page")
     r = {"rule_id": "page-x", "kind": "page", "what": "Pages at /x", "definition": {}}
     assert rule_title(r) == ("page-x", "Pages at /x")
+
+
+def test_locator_titles_come_from_the_definition():
+    """sme-fixes §3: AVC's locator (no repeat) is the whole page; CCSF's (repeat) is course blocks, and its page rule
+    is then "Pages with courses", not a single course's own page."""
+    page = {"rule_id": "course-page", "kind": "page", "what": "w", "definition": {"url_regex": "x"}}
+    avc = {"rule_id": "locator-course-page", "kind": "locator", "what": "AVC prose",
+           "definition": {"page_rules": ["course-page"], "repeat": None}}
+    ccsf = {**avc, "definition": {"page_rules": ["course-page"], "repeat": ".course-summary-wrapper"}}
+    assert rule_title(avc) == ("Whole page is one course", "Each page's content area is one course")
+    assert rule_title(ccsf) == ("Course blocks: every .course-summary-wrapper on the page",
+                                "Several courses on one page, one block each")
+    assert rule_title(page, {"course-page": page, "locator-course-page": avc}) == \
+        ("Course pages", "Which pages are a single course's own page")
+    assert rule_title(page, {"course-page": page, "locator-course-page": ccsf}) == ("Course pages", "Pages with courses")
+
+
+def test_by_page_keeps_a_pages_courses_together_in_page_order():
+    rows = [({"page_stem": "b", "locator_index": 2, "key": "b2"}, None), ({"page_stem": "a", "locator_index": 1, "key": "a1"}, None),
+            ({"page_stem": "b", "locator_index": 0, "key": "b0"}, None), ({"page_stem": "a", "locator_index": 0, "key": "a0"}, None)]
+    assert [r["key"] for r, _ in by_page(rows)] == ["b0", "b2", "a0", "a1"]
+
+
+def test_segments_polarity_and_comment_anchor_are_validated():
+    from golden_datasets.log import validate
+
+    base = {"annotation_id": "an-1", "at": "t", "author": "Jared", "target": {"kind": "match", "rule_id": "r"}}
+    seg = {"text": "LIMITATION", "css_path": "html > p", "char_start": 0, "char_end": 10}
+    validate({**base, "type": "verdict", "verdict": "wrong",
+              "expected": {"text": "", "segments": [{**seg, "polarity": "out"}, seg]}})  # missing polarity = in
+    with pytest.raises(ValueError, match="polarity"):
+        validate({**base, "type": "verdict", "verdict": "wrong", "expected": {"segments": [{**seg, "polarity": "x"}]}})
+    validate({**base, "type": "comment", "note": "n", "anchor": {"css_path": "html > p", "char_start": 0,
+                                                                 "char_end": 10, "text": "LIMITATION"}})
+    with pytest.raises(ValueError, match="anchor"):
+        validate({**base, "type": "verdict", "verdict": "wrong", "anchor": {"css_path": "html > p"}})
+
+
+def test_annotation_columns_read_polarity_and_anchor(tmp_path):
+    """query.py reads the new fields (and old events without them) from annotations.jsonl."""
+    import duckdb
+
+    from golden_datasets.query import ANNOTATION_COLUMNS
+
+    path = tmp_path / "a.jsonl"
+    seg = {"text": "x", "css_path": "html", "char_start": 0, "char_end": 1}
+    path.write_text("\n".join(json.dumps(e) for e in [
+        {"annotation_id": "a1", "type": "verdict", "expected": {"text": "x", "segments": [seg]}},
+        {"annotation_id": "a2", "type": "verdict", "expected": {"text": "", "segments": [{**seg, "polarity": "out"}]}},
+        {"annotation_id": "a3", "type": "comment", "anchor": {**seg, "text": "x"}}]) + "\n")
+    rows = duckdb.sql(f"SELECT annotation_id, expected.segments[1].polarity, anchor.text FROM read_json('{path}', "
+                      f"format='newline_delimited', columns={ANNOTATION_COLUMNS}) ORDER BY 1").fetchall()
+    assert rows == [("a1", None, None), ("a2", "out", None), ("a3", None, "x")]
 
 
 @pytest.fixture(scope="module")

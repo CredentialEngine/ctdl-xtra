@@ -1,5 +1,5 @@
 // Pure helpers of the Rules and Records tabs (no React, no fetch): wording, verdict events, keyboard, page tabs.
-import type { EventBrief, Expected, NewEvent, ReviewMarks, RowItem, RowStateName, RuleKind, RuleSummary, Verdict } from "../api/types";
+import type { EventBrief, Expected, NewEvent, Polarity, ReviewMarks, RowItem, RowStateName, RuleKind, RuleSummary, Verdict } from "../api/types";
 import type { CapturedSelection } from "../pagepane";
 import { reasonLabel } from "./claims";
 
@@ -72,6 +72,8 @@ export interface HistItem {
   cls: "good" | "bad" | "note" | "expert" | "comment" | "muted"; text: string; author?: string;
   /** made on a diff (Evals, Compare): what it was compared with, e.g. "while comparing with xtra's extract output, 28 Oct" */
   compared?: string;
+  /** a comment pinned to text on the page: its bubble's number there */
+  n?: number;
 }
 
 /** The short line a note or a verdict made on a diff carries (Evals spec §4.2). */
@@ -113,7 +115,11 @@ export function historyItems(r: { state: RowStateName | null; verdict: EventBrie
   for (const q of r.page_questions ?? []) {
     out.push({ cls: "expert", text: q.note ? `Question for the institution: “${q.note}”` : "Question for the institution (no note yet)" });
   }
-  for (const c of r.comments) if (c.note) out.push({ cls: "comment", author: c.author, text: `“${c.note}”`, compared: comparedLine(c) });
+  let pinned = 0;  // comments pinned to text on the page: numbered like their bubbles there
+  for (const c of r.comments) {
+    const n = c.anchor?.css_path ? ++pinned : undefined;
+    if (c.note) out.push({ cls: "comment", author: c.author, text: `“${c.note}”`, compared: comparedLine(c), n });
+  }
   return out;
 }
 
@@ -122,9 +128,13 @@ export type DraftMode = "wrong" | "comment";
 /** Text compared the way the server compares values (review.norm): runs of whitespace are one space. */
 export const norm = (v: string | null | undefined): string => (v ?? "").replace(/\s+/g, " ").trim();
 
+/** A piece of the reviewer's answer selected on the page: `in` the answer (the default) or `out` of it (sme-fixes §1). */
+export type Piece = CapturedSelection & { polarity?: Polarity };
+
 /** A draft verdict or comment. `captures`: the right value as the reviewer selected it on the page, one or more
- * pieces (a value can be split across the page: two paragraphs with a heading between them), in page order. */
-export interface Draft { mode: DraftMode; captures: CapturedSelection[]; note: string; question: boolean;
+ * pieces (a value can be split across the page: two paragraphs with a heading between them), in page order, each in
+ * or out of the answer. `anchor`: the text a comment is about (💬 on the highlight bar). */
+export interface Draft { mode: DraftMode; captures: Piece[]; note: string; question: boolean; anchor?: CapturedSelection | null;
   /** "Why wrong?" flags ticked after ✕ (sme-fixes §6, claims.ts REASONS) */
   reasons?: string[] }
 
@@ -142,23 +152,33 @@ function overlaps(a: CapturedSelection, b: CapturedSelection): boolean {
 }
 
 /** Add a selected piece: it replaces any piece it overlaps (selecting again fixes a piece); pieces stay in page order. */
-export function addCapture(cs: CapturedSelection[], c: CapturedSelection): CapturedSelection[] {
+export function addCapture<C extends CapturedSelection>(cs: C[], c: C): C[] {
   const kept = cs.filter((x) => !overlaps(x, c));
   return [...kept, c].sort((a, b) => (a.doc_start ?? Infinity) - (b.doc_start ?? Infinity));
 }
 
 const located = (c: CapturedSelection) => ({ text: c.text, css_path: c.css_path, char_start: c.char_start, char_end: c.char_end,
   quote: { prefix: c.prefix, exact: c.text, suffix: c.suffix } });
+const isOut = (c: Piece) => c.polarity === "out";
 
-/** The `expected` of a wrong verdict: one piece as before; several pieces → their text joined by line breaks in page
- * order (what the rule should extract), located at the first piece, every piece in `segments`. */
-export function expectedOf(c: CapturedSelection | CapturedSelection[] | null): Expected | null {
+/** The value found without the text marked "not in the answer". */
+export function withoutOut(value: string | null | undefined, outs: string[]): string {
+  let v = value ?? "";
+  for (const o of outs) { const t = o.trim(); if (t) v = v.replace(t, ""); }
+  return v.replace(/[ \t]+\n/g, "\n").replace(/\n{3,}/g, "\n\n").trim();
+}
+
+/** The `expected` of a wrong verdict: one piece in the answer as before; several pieces → the `in` ones' text joined
+ * by line breaks in page order (what the rule should extract), located at the first piece, every piece in `segments`
+ * with its polarity. With only `out` pieces, the text is the value found (`value`) without them. */
+export function expectedOf(c: Piece | Piece[] | null, value?: string | null): Expected | null {
   const cs = c === null ? [] : Array.isArray(c) ? c : [c];
   if (!cs.length) return null;
-  const e: Expected = { ...located(cs[0]), located_by: "highlight in the Studio" };
-  if (cs.length > 1) {
-    e.text = cs.map((x) => x.text.trim()).join("\n");
-    e.segments = cs.map(located);
+  const ins = cs.filter((x) => !isOut(x));
+  const e: Expected = { ...located(ins[0] ?? cs[0]), located_by: "highlight in the Studio" };
+  if (cs.length > 1 || !ins.length) {
+    e.text = ins.length ? ins.map((x) => x.text.trim()).join("\n") : withoutOut(value, cs.map((x) => x.text));
+    e.segments = cs.map((x) => ({ ...located(x), polarity: isOut(x) ? "out" as const : "in" as const }));
   }
   return e;
 }
@@ -174,16 +194,61 @@ export function rowTarget(kind: RuleKind, ruleId: string, row: { occurrence_key:
 
 /** The event a saved draft (or a ✓) becomes. A changed verdict supersedes the previous one (spec §4.3). */
 export function verdictEvent(author: string, target: Target, prev: EventBrief | null,
-  what: { verdict: "correct" } | { draft: Draft }): NewEvent {
+  what: { verdict: "correct" } | { draft: Draft }, value?: string | null): NewEvent {
   const supersedes = prev && prev.type === "verdict" ? prev.annotation_id : null;
   if ("verdict" in what) return { type: "verdict", author, target, verdict: "correct", supersedes };
   const d = what.draft;
   const note = d.note.trim() || null;
-  if (d.mode === "comment" && !d.question) return { type: "comment", author, target, note };
+  if (d.mode === "comment" && !d.question) {
+    const a = d.anchor;
+    return { type: "comment", author, target, note,
+             ...(a ? { anchor: { css_path: a.css_path, char_start: a.char_start, char_end: a.char_end, text: a.text } } : {}) };
+  }
   const verdict: Verdict = d.mode === "comment" ? "question" : "wrong";
   return { type: "verdict", author, target, verdict, note, supersedes,
-           expected: verdict === "wrong" ? expectedOf(d.captures) : null,
+           expected: verdict === "wrong" ? expectedOf(d.captures, value) : null,
            ...(verdict === "wrong" && d.reasons?.length ? { reasons: d.reasons } : {}) };
+}
+
+// --- course blocks: one row per page (sme-fixes §3) --------------------------------------------------------------
+/** A page's rows of a repeating record locator: rows `start`…`end - 1` (they come grouped by page). */
+export interface PageGroup { stem: string; start: number; end: number }
+export type Level = "page" | "course";
+
+export function pageGroups(rows: { page_stem: string }[]): PageGroup[] {
+  const out: PageGroup[] = [];
+  rows.forEach((r, i) => {
+    const last = out[out.length - 1];
+    if (last && last.stem === r.page_stem && last.end === i) last.end = i + 1;
+    else out.push({ stem: r.page_stem, start: i, end: i + 1 });
+  });
+  return out;
+}
+
+export const groupOf = (gs: PageGroup[], i: number) => gs.find((g) => i >= g.start && i < g.end) ?? null;
+
+/** The subject of a page's courses ("INTD" for INTD100, INTD102): their course keys' common letters. */
+export function subjectOf(keys: (string | null)[]): string {
+  const ps = keys.map((k) => /^[A-Z]+/.exec(k ?? "")?.[0] ?? "").filter(Boolean);
+  if (!ps.length) return "";
+  return ps.every((p) => p === ps[0]) ? ps[0] : "";
+}
+
+/** Tab / Shift+Tab / Esc in a repeating locator's rows: Tab and Shift+Tab move between the courses inside a page
+ * (Shift+Tab on its first course goes up to the page row; Tab after its last course moves on to the next page row);
+ * at page level they move between pages; Enter goes down into a page's first course; Esc goes back up to the page. */
+export function moveIn(gs: PageGroup[], sel: number, level: Level, a: "next" | "prev" | "down" | "up"): { sel: number; level: Level } {
+  const g = groupOf(gs, sel);
+  if (!g) return { sel, level };
+  const gi = gs.indexOf(g);
+  if (a === "up") return { sel: g.start, level: "page" };
+  if (a === "down") return level === "page" ? { sel: g.start, level: "course" } : { sel, level };
+  if (level === "page") {
+    const to = gs[a === "next" ? gi + 1 : gi - 1];
+    return to ? { sel: to.start, level: "page" } : { sel: g.start, level: "page" };
+  }
+  if (a === "next") return sel + 1 < g.end ? { sel: sel + 1, level } : gs[gi + 1] ? { sel: gs[gi + 1].start, level: "page" } : { sel, level };
+  return sel > g.start ? { sel: sel - 1, level } : { sel: g.start, level: "page" };
 }
 
 /** "Add a course / page this rule missed" (spec §7.2): a `missing` verdict with no occurrence. */
@@ -266,9 +331,10 @@ export const BY_WAITING = "waiting";
 /** Any subject matter expert / any engineer: every value someone of that role annotated (not only those waiting). */
 export const BY_EXPERTS = "experts";
 export const BY_ENGINEERS = "engineers";
-/** "Anyone" picked on purpose: without a `by` the Rules tab filters to its default annotator instead. */
+/** "Anyone", as older links wrote it. "Anyone" is the default now (sme-fixes §9): no `by` in the URL means Anyone. */
 export const BY_ANYONE = "anyone";
-/** The Rules tab's default "Annotated by": the subject matter expert who annotated the most values (Jared, on AVC). */
+/** The subject matter expert who annotated the most values (Jared, on AVC): the Rules tab's default "Annotated by"
+ * until sme-fixes §9 made it Anyone. */
 export function defaultAnnotator(people: { name: string; role: string; values: number }[] | undefined): string | null {
   const top = (people ?? []).filter((p) => p.role === "sme" && p.values > 0).sort((a, b) => b.values - a.values)[0];
   return top?.name ?? null;

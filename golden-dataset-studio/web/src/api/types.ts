@@ -68,14 +68,20 @@ export interface RuleDetail extends RuleSummary {
   published_by: string | null; published_at: string | null; parent_version: number | null; versions: number[];
   fill: { rows: number; found: number }; signal_counts: Record<string, number>;
   settings: { content_root: string };
+  /** a property rule's record locator, titled from its definition ("Whole page is one course", "Course blocks: …") */
+  locator_title?: string | null;
 }
+
+/** A piece of the answer: `in` it (the default when missing) or `out` of it (sme-fixes §1). */
+export type Polarity = "in" | "out";
 
 /** `expected` of a verdict: the text Jared selected on the page (spec §9 highlight-to-annotate). */
 export interface Expected {
   text: string; css_path: string | null; char_start: number | null; char_end: number | null;
   quote?: { prefix: string; exact: string; suffix: string } | null; located_by?: string; author?: string;
-  /** A value in several pieces on the page: each piece, in page order (`text` is them joined by line breaks). */
-  segments?: { text: string; css_path: string; char_start: number; char_end: number;
+  /** A value in several pieces on the page: each piece, in page order (`text` is the `in` pieces joined by line
+   * breaks; with only `out` pieces, the value found without them). */
+  segments?: { text: string; css_path: string; char_start: number; char_end: number; polarity?: Polarity;
                quote?: { prefix: string; exact: string; suffix: string } }[];
   /** An object a reviewer added to a list-of-objects row (sme-fixes §5.2): its fields' words and places. */
   objects?: { fields: Record<string, ObjectField> }[];
@@ -83,6 +89,8 @@ export interface Expected {
 
 /** One field of a list-of-objects value (Estimated Duration: description, timeRequired): its words and place. */
 export interface ObjectField { text: string; css_path: string | null; char_start: number | null; char_end: number | null }
+/** The text on the page a comment is about (sme-fixes §1). */
+export interface Anchor { css_path: string; char_start: number; char_end: number; text: string }
 
 /** What a note or a verdict made on a diff was compared with (Evals spec §4.2): xtra's extract output in a score,
  * or another ruleset version's value (Compare). `value`: the other side's value as it was shown. */
@@ -94,7 +102,7 @@ export interface EventBrief {
   annotation_id: string; type: "verdict" | "comment" | "approve" | "reopen"; verdict: Verdict | null;
   author: string; at: string; note: string | null; expected: Expected | null;
   rule_version_seen: number | null; value_seen: string | null; page_stem?: string | null; author_role?: string | null;
-  compared_with?: ComparedWith | null;
+  compared_with?: ComparedWith | null; anchor?: Anchor | null;
   reasons?: string[];                 // "Why wrong?" flags on a ✕ (sme-fixes §6)
 }
 
@@ -174,6 +182,7 @@ export interface NewEvent {
   verdict?: Verdict; expected?: Expected | null; note?: string | null; supersedes?: string | null;
   topic?: Topic;                      // comments on a whole rule or on the ruleset
   compared_with?: ComparedWith;       // a note or a verdict made on a diff (Evals, Compare)
+  anchor?: Anchor;                    // a comment on a piece of text on the page
   extraction?: string;                // the extraction the target is in (default: the latest)
   reasons?: string[];                 // "Why wrong?" flags on a ✕ (sme-fixes §6): "not_on_page"
 }
