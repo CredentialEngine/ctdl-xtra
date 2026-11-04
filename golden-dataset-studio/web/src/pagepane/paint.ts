@@ -8,7 +8,9 @@
 
 import { rangeFromOffsets, resolveOffsets, resolvePath } from "./dom";
 
-export type HighlightKind = "value" | "expected" | "block" | "mark";
+/** `expected`: text in the right answer (green outline); `excluded`: text marked "not in the answer" (red dashed, light
+ * red fill); `note`: a comment's numbered bubble at the text it is about (no outline). */
+export type HighlightKind = "value" | "expected" | "excluded" | "block" | "mark" | "note";
 
 export interface Highlight {
   id: string;
@@ -20,6 +22,8 @@ export interface Highlight {
   badge?: number | string;
   /** Draw a × at its end that removes it (PagePane's `onRemove`), e.g. one piece of a reviewer's answer. */
   removable?: boolean;
+  /** A course block's verdict: its border turns green (✓) or red (✗). */
+  state?: "ok" | "bad" | null;
 }
 
 export interface Resolved {
@@ -29,7 +33,7 @@ export interface Resolved {
 }
 
 const OVERLAY_ID = "gds-overlay";
-const NAMES: Record<string, string> = { value: "gds-value", expected: "gds-expected", mark: "gds-mark" };
+const NAMES: Record<string, string> = { value: "gds-value", expected: "gds-expected", excluded: "gds-excluded", mark: "gds-mark" };
 
 // Fallback styles in case the render route's head styles are missing (e.g. an older cached render).
 const OVERLAY_CSS = `
@@ -38,6 +42,11 @@ const OVERLAY_CSS = `
 #gds-overlay .gds-fill.gds-value{background:rgba(253,224,120,.92)}
 #gds-overlay .gds-fill.gds-expected{background:rgba(190,242,214,.95)}
 #gds-overlay .gds-fill.gds-mark{background:#ffe4ea}
+#gds-overlay .gds-fill.gds-excluded{background:rgba(254,228,226,.9)}
+#gds-overlay .gds-box.gds-excluded{border:1.5px dashed #b42318}
+#gds-overlay .gds-box.gds-block.gds-ok{box-shadow:0 0 0 2px #12805c}
+#gds-overlay .gds-box.gds-block.gds-bad{box-shadow:0 0 0 2px #d92d20}
+#gds-overlay .gds-badge.gds-note{background:#2f54eb}
 #gds-overlay .gds-box.gds-hover{box-shadow:0 0 0 2px rgba(47,84,235,.8);background:rgba(47,84,235,.05)}`;
 
 export function resolveAll(doc: Document, highlights: Highlight[]): Resolved[] {
@@ -130,7 +139,7 @@ export function paint(doc: Document, resolved: Resolved[], focusId?: string | nu
   const ov = overlay(doc);
   const HL = (win as unknown as { Highlight?: new (...r: Range[]) => unknown }).Highlight;
   const reg = (win.CSS as unknown as { highlights?: Map<string, unknown> } | undefined)?.highlights;
-  const ranges: Record<string, Range[]> = { value: [], expected: [], mark: [] };
+  const ranges: Record<string, Range[]> = { value: [], expected: [], excluded: [], mark: [] };
   let focus: Rect | null = null;
 
   for (const { h, el, range } of resolved) {
@@ -138,6 +147,12 @@ export function paint(doc: Document, resolved: Resolved[], focusId?: string | nu
     if (range) {
       const rects = typeof range.getClientRects === "function" ? docRects(win, range.getClientRects()) : [];
       if (!rects.length) continue;
+      if (kind === "note") {  // a comment: only its numbered bubble, at the end of the text it is about
+        const l = rects[rects.length - 1];
+        if (h.badge != null) badge(doc, ov, kind, h.badge, l.left + l.width + 1, l.top - 10);
+        if (h.id === focusId) focus = union(rects);
+        continue;
+      }
       if (reg && HL) ranges[kind]?.push(range);
       else rects.forEach((r) => box(doc, ov, `gds-fill gds-${kind}`, r));
       rects.forEach((r) => box(doc, ov, `gds-box gds-${kind}`, r, kind === "mark" ? 1 : 0));
@@ -156,7 +171,13 @@ export function paint(doc: Document, resolved: Resolved[], focusId?: string | nu
       if (!rects.length) continue;
       const r = rects[0];
       const focused = h.id === focusId;
-      box(doc, ov, `gds-box gds-${kind} gds-whole${focused ? " gds-focus" : ""}`, r, kind === "block" ? 2 : 3);
+      if (kind === "note") {
+        if (h.badge != null) badge(doc, ov, kind, h.badge, r.left + r.width + 1, r.top - 10);
+        if (focused) focus = r;
+        continue;
+      }
+      const st = h.state ? ` gds-${h.state}` : "";
+      box(doc, ov, `gds-box gds-${kind} gds-whole${focused ? " gds-focus" : ""}${st}`, r, kind === "block" ? 2 : 3);
       if (h.badge != null) {
         if (kind === "block") badge(doc, ov, kind, h.badge, Math.max(0, r.left - 10), r.top - 8);
         else badge(doc, ov, kind, h.badge, Math.max(0, r.left - 26), r.top);
