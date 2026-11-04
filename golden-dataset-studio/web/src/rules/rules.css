@@ -211,3 +211,22 @@
 .missing-items .mi { color: var(--amber); background: var(--amber-soft); border-radius: 5px; padding: 1px 7px; }
 .item-line { font-size: 13.5px; line-height: 1.45; color: var(--ink); overflow-wrap: anywhere; }
 @media (prefers-reduced-motion: reduce) { .rule-group .group-h .grp-car { transition: none; } }
+
+/* Highlight bar pieces (sme-fixes §1): a piece marked "not in the answer" is red dashed; a pinned comment's number. */
+.sel-quote.out { border-left: 3px dashed #d92d20; background: #fef3f2; }
+.sel-pol { flex: none; font-size: 11px; color: #b42318; padding-top: 6px; }
+.sel-anchor { margin: 0 0 6px; }
+.h-n { display: inline-block; min-width: 14px; height: 14px; margin-right: 3px; border-radius: 7px; background: var(--accent);
+  color: #fff; font: 700 9.5px/14px var(--sans); text-align: center; vertical-align: 1px; }
+
+/* Course blocks (sme-fixes §3): one row per page, the current page's courses inside it. */
+.page-group { border-bottom: 1px solid var(--line); }
+.page-group.open { box-shadow: inset 0 0 0 1px var(--line-2, #d0d5dd); }
+.row.page-head { grid-template-columns: 1fr auto; align-items: center; }
+.row.page-head .ph-t { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.row.page-head .ph-car { margin-left: 6px; color: var(--faint); vertical-align: -2px; }
+.page-group.open .row.page-head:not(.on) { background: var(--surface-2, #f9fafb); }
+.row.in-page { padding-left: 30px; }
+.row.add-course { display: block; width: 100%; padding: 8px 30px; border: 0; border-top: 1px dashed var(--line); text-align: left;
+  font: italic 12.5px var(--sans); color: var(--muted); background: transparent; cursor: pointer; }
+.row.add-course:hover { color: var(--accent); }

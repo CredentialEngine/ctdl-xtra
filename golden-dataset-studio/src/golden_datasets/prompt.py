@@ -50,6 +50,16 @@ FORMAT = {
                 "→ `map`.",
 }
 KIND_NAME = {"page": "page rule", "locator": "record locator", "property": "property rule"}
+#: The first-pass prompt (sme-fixes §3): a template's locator text says what *its* pages are ("one course per course
+#: page" on AVC); a catalog whose pages list many courses (CCSF's department pages) needs its own words.
+LOCATOR_NAMING = (
+    "- Name and describe the record locator and its page rule by what they do on **this** catalog, not in the "
+    "template's words. First count the courses on a few pages: **one course per page** → `repeat: null`, `what` "
+    "\"The whole page is one course\", page rule `what` \"Pages that are one course's own page\"; **many courses per "
+    "page** (a department or subject page) → `repeat: <the CSS of one course's block>`, `what` \"Each `<repeat>` block "
+    "on a page is one course\", page rule `what` \"Pages that list courses\". Keep the rule ids (`course-page`, "
+    "`locator-course-page`): property rules point at them. The Studio titles the locator from `repeat` (\"Course "
+    "blocks: every … on the page\" or \"Whole page is one course\").")
 REPO = "https://github.com/CredentialEngine/ctdl-xtra.git"
 SUBDIR = "golden-dataset-studio"
 TARGETS = ("local", "azure", "k2")
@@ -104,9 +114,11 @@ def scope_rules(rv: Review, rule: str | None, needs_work: bool) -> list[str]:
 
 def _location(a: dict) -> str:
     exp = a["expected"] or {}
-    if exp.get("segments"):  # a value in several pieces on the page
+    if exp.get("segments"):  # a value in several pieces on the page; an `out` piece is text the value must not have
         return f" ({len(exp['segments'])} pieces: " + "; ".join(
-            _where(a, s).removeprefix(" (").removesuffix(")") for s in exp["segments"]) + ")"
+            ("NOT in the answer: " if s.get("polarity") == "out" else "")
+            + (_where(a, s).removeprefix(" (").removesuffix(")") or json.dumps(s.get("text"), ensure_ascii=False))
+            for s in exp["segments"]) + ")"
     return _where(a, exp)
 
 
@@ -230,6 +242,9 @@ def _run_header(run: dict | None, ctx: Ctx) -> list[str]:
             "Report as you go, one short line per step: what you're checking, what you found, what you changed, "
             "what you published. People read these to know you're still working:", "",
             "```sh", f'cd {d} && golden-datasets run note --run {rid} "<one line>"', "```", "",
+            "**Your first action is a note.** As soon as Setup's first step has installed the CLI and made the "
+            "folder, before anything else, write one (`\"Starting: <what you'll do first>\"`). If no note arrives "
+            "within 5 minutes, the Studio tells people you may have stopped.", "",
             f"**Start every `golden-datasets` command with `cd {d} && `** (Setup makes the folder). Your shell "
             "returns to the workspace folder whenever a command leaves it, and only that folder's settings name this "
             "run's root and catalog. When you finish, the last section says how to end the run. If something blocks "
@@ -546,6 +561,18 @@ RULE_TYPES = [
      "Learning Method Type keeps `Self-Paced`"],
     ["`attribute`", "an attribute instead of the text", "UARK `data-bs-content` popovers, any `href`"],
     ["`join`", "every matched element, in page order, as one value", "UARK description + its `Prior Learning` section"],
+    ["`profile`", "a list of objects: each `multiple` item becomes one object, each of `profile.fields` read from the "
+     "item with its own sub-definition (`regex`, or a `selector` inside the item's element); `key` is the field "
+     "objects pair on. **Only Estimated Duration** is one (fields `ceterms:description`, `ceterms:timeRequired`, key "
+     "`ceterms:description`)", "AVC `Total Course In-Class (Contact) Hours 54.0 - 432.0` → "
+     "`{\"ceterms:description\": \"Total Course In-Class (Contact) Hours\", \"ceterms:timeRequired\": \"54.0 - "
+     "432.0\"}`"],
+    ["`absent_if`", "the rule's claim \"not on the page\": `{\"within\": <selector, from the record>, \"missing\": "
+     "<selector or label>}`. When the rule finds no value, the `within` container is there and the property's "
+     "element or label isn't in it, the course reads *Not on the page (rule's claim)* instead of *Nothing found*. "
+     "**Claim it only after seeing pages where the property is truly missing** from a container that always holds "
+     "it when present", "Marshall `{\"within\": \".courseblock\", \"missing\": \"Prerequisite\"}`: a course block "
+     "with no Prerequisite line"],
 ]
 REQUISITE_WORDS = [
     "- `PR` means prerequisite. `Consent` is a prerequisite's text (WVU MUSC 720S: the prerequisite is `Consent`; the "
@@ -558,18 +585,23 @@ REQUISITE_WORDS = [
     "Corequisite, concurrent, concurrent enrollment, `CR` and the like.",
     "- **\"Before or at the same time\" is Co-Prerequisite: Description**: `Prerequisite or Corequisite:`, `Pre- or "
     "Corequisite:`, \"PR or CONC\", `Concurrent PR:`, \"Completion of or concurrent enrollment in\" and \"(may be "
-    "taken concurrently)\". Prerequisite: Description keeps only the plain prerequisite text (WVU `PR: COUN 501 and "
-    "PR or CONC: COUN 606 or Consent` → Prerequisite `COUN 501`, Co-Prerequisite `PR or CONC: COUN 606 or Consent`).",
+    "taken concurrently)\".",
+    "- **Prerequisite: Description keeps the full sentence**, even when part of it is also the Co-Prerequisite's text "
+    "(AVC ATH103L `Completion of ATH 100 and completion of or concurrent enrollment in ATH 103.` → Prerequisite the "
+    "whole sentence, Co-Prerequisite `completion of or concurrent enrollment in ATH 103.`). Conditions stay flat text: "
+    "no list of objects.",
     "- **A corequisite inside the prerequisite sentence is left out of it** and goes to Corequisite: Description "
     "(WVU `PR: Corequisite of AGBI 514L` → Corequisite: Description `Corequisite of AGBI 514L`).",
     "- \"Advisory\", \"Recommended Prep\" and \"Recommended\" go to Recommends: Description.",
     "- **Any other requirement to enroll or take part is Entry Condition: Description** (AVC `LIMITATION ON "
     "ENROLLMENT: To participate in work experience education, students must …`).",
-    "- Contact hours are Estimated Duration, a list: one value per kind of hours (in-class, out-of-class, lecture, "
-    "lab), its children reading it (`input: rule`) so the n-th values belong together. **Estimated Duration: "
-    "Description is the kind's words** (`Total Course In-Class (Contact) Hours`) **and Time Required its hours** "
-    "(`54.0`). Exact, Minimum and Maximum Duration are the overall time span (`6 months`), not hours. Lecture / lab "
-    "hours are also a Learning Method Type each.",
+    "- Contact hours are **Estimated Duration, one rule whose value is a list of objects** (`profile`): one object per "
+    "kind of hours (in-class, out-of-class, lecture, lab), with fields `ceterms:description` (the kind's words, `Total "
+    "Course In-Class (Contact) Hours`) and `ceterms:timeRequired` (its hours as printed, `54.0 - 432.0`), key "
+    "`ceterms:description`. It has no child rules: exact, minimum and maximum duration are parsed from timeRequired "
+    "at transformation. Lecture / lab hours are also a Learning Method Type each.",
+    "- **Keep whole text blocks**: a value is the page's words as one block (a description with its paragraphs, a "
+    "range `54.0 - 432.0`); don't split or parse at extraction.",
     "- Extract the page's words, as close as possible: no vocabulary mapping (`Units`, not `AcademicUnit`) and no "
     "numbers from words (`Three`, not 3). That's transformation, later.",
 ]
@@ -696,7 +728,7 @@ def build_first_rules_prompt(ctx: Ctx, target: str = "azure", azure_root: str | 
         L.append(f"No template's platform shows in the URLs: look at a few pages, then start from the closest "
                  f"(`{tmpl}` if unsure).")
     L.append("")
-    L += [FORMAT["page"], FORMAT["locator"], FORMAT["property"],
+    L += [FORMAT["page"], FORMAT["locator"], LOCATOR_NAMING, FORMAT["property"],
           "- Settings (the draft's `settings`): `content_root` (CSS: the part of every page that holds the content; "
           "rules evaluate inside it), `page_title`, `course_key_rule` (record locator → the property rule whose value "
           "identifies a course, its Coded Notation), `signals.course_code_pattern` (a regex for this catalog's course "

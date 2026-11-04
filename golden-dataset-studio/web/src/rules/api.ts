@@ -6,7 +6,9 @@ import type { CourseHit, EventBrief, Row, RowsResponse, RuleSummary, SampleInfo,
 export interface PageRef { page_stem: string; url: string; title: string | null }
 
 /** A row as `/rows` returns it now: page-level questions (page rules) and the other pages its course is on. */
-export interface RowX extends Row { page_questions?: EventBrief[]; other_pages?: PageRef[]; tags?: StrataTag[] }
+export interface RowX extends Row { page_questions?: EventBrief[]; other_pages?: PageRef[]; tags?: StrataTag[];
+  /** a repeating record locator's row: how many courses it found on this row's page (rows come grouped by page) */
+  page_courses?: number }
 export interface RowsX extends RowsResponse { rows: RowX[]; focus_index?: number | null; sample?: SampleInfo | null }
 export interface RuleSummaryX extends RuleSummary { page_questions?: number }
 export interface CourseHitX extends CourseHit { annotated?: boolean }

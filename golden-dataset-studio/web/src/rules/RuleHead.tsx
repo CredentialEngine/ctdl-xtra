@@ -7,10 +7,10 @@ import { Ico } from "../shell/icons";
 import { fmt, termUrl } from "../shell/ui";
 import { approveBlocked, whereWord } from "./logic";
 
+// page rules by name; a record locator is titled from its definition by the server (`locator_title`, sme-fixes §3)
 const PLAIN: Record<string, string> = {
   "course-page": "Course pages", "program-page": "Program pages",
   "program-page-with-courses": "Program pages that list courses",
-  "locator-course-page": "One course per course page", "locator-program-requirement": "One course per requirement line",
 };
 const plain = (id: string) => PLAIN[id] ?? id;
 const def = (d: Record<string, unknown>, k: string) => (d[k] as string | undefined) ?? null;
@@ -26,11 +26,14 @@ function DefRows({ rule }: { rule: RuleDetail }) {
     const pr = (d.page_rules as string[] | undefined) ?? [];
     if (pr.length) rows.push(["Used on", <>{pr.map((p, i) => <span key={p}>{i ? ", " : ""}{plain(p)} <span className="faint">(<code>{p}</code>)</span></span>)}</>]);
     rows.push(["One course is", def(d, "repeat") ? <>each <code>{def(d, "repeat")}</code> element</> : "the whole content area of the page"]);
-    const f = d.repeat_filter as { regex?: string } | undefined;
-    if (f?.regex) rows.push(["Kept only if its text matches", <code>{f.regex}</code>]);
+    if (def(d, "scope")) rows.push(["Only inside", <code>{def(d, "scope")}</code>]);
+    const f = d.repeat_filter as { selector?: string; regex?: string } | null | undefined;
+    if (f?.regex || f?.selector) rows.push(["Kept only if", <>{f.selector ? <><code>{f.selector}</code> inside it</> : "its text"}
+      {f.regex ? <> matches <code>{f.regex}</code></> : " is there"}</>]);
   } else {
     const loc = def(d, "locator");
-    if (loc) rows.push(["Looks inside", <>{plain(loc).toLowerCase()} <span className="faint">(record locator <code>{loc}</code>)</span></>]);
+    if (loc) rows.push(["Looks inside", <>{(rule.locator_title ?? plain(loc)).replace(/^\w/, (c) => c.toLowerCase())}{" "}
+      <span className="faint">(record locator <code>{loc}</code>)</span></>]);
     const t = def(d, "rule_type");
     if (t === "constant") rows.push(["Value", <>always <code>{String(d.value)}</code>; nothing is read from the page</>]);
     else if (t === "source_url") rows.push(["Value", "the page's own address"]);

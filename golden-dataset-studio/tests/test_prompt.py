@@ -22,6 +22,16 @@ def test_location_labels():
     a["expected"] = {"css_path": f"{OCC} > p", "char_start": 0, "char_end": 4, "segments": [
         {"css_path": f"{OCC} > p", "char_start": 0, "char_end": 4}, {"css_path": f"{OCC} > ul", "char_start": 2, "char_end": 8}]}
     assert _location(a) == " (2 pieces: chars 0–4 of `<occurrence> > p`; chars 2–8 of `<occurrence> > ul`)"
+    a["expected"]["segments"][0]["polarity"] = "out"  # sme-fixes §1: a piece marked "Not in answer"
+    assert _location(a) == (" (2 pieces: NOT in the answer: chars 0–4 of `<occurrence> > p`; "
+                            "chars 2–8 of `<occurrence> > ul`)")
+
+
+def test_first_pass_prompt_names_locators_by_what_they_do():
+    from golden_datasets.prompt import LOCATOR_NAMING
+
+    assert "one course per page" in LOCATOR_NAMING and "many courses per page" in LOCATOR_NAMING
+    assert "not in the template's words" in LOCATOR_NAMING
 
 
 def test_table_cells_stay_on_one_line():
@@ -89,6 +99,7 @@ def test_k2_version_is_a_run(ctx):
     assert "az login --use-device-code" not in text and "az account show" not in text
     assert "## This is a Golden Dataset Studio run" in text and "started by Jared Diener" in text
     assert f'cd {d} && golden-datasets run note --run 20261028T031209Z-a1b2 "<one line>"' in text
+    assert "**Your first action is a note.**" in text  # silence for 5 minutes then means it stopped (spec §4)
     assert f"mkdir -p {d} && printf '%s\\n' 'GOLDEN_DATASETS_ROOT={azure}' 'GOLDEN_DATASETS_CATALOG=avc' > {d}/golden-datasets.env" in text
     assert "/var/lib/k2/work/golden-datasets.env" in text and "If the install fails, don't install another version" in text
     assert "## End the run" in text and f"cd {d} && golden-datasets run done --run 20261028T031209Z-a1b2 --summary-file summary.md --outcome" in text

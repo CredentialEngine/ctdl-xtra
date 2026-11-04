@@ -30,8 +30,11 @@ ANNOTATION_COLUMNS = """{'annotation_id':'VARCHAR', 'type':'VARCHAR', 'at':'VARC
  'verdict':'VARCHAR',
  'expected':'STRUCT(text VARCHAR, css_path VARCHAR, char_start INTEGER, char_end INTEGER,
    quote STRUCT(prefix VARCHAR, exact VARCHAR, suffix VARCHAR), located_by VARCHAR, author VARCHAR,
-   segments STRUCT(text VARCHAR, css_path VARCHAR, char_start INTEGER, char_end INTEGER)[])',
- 'note':'VARCHAR', 'supersedes':'VARCHAR', 'imported_from':'JSON'}"""
+   segments STRUCT(text VARCHAR, css_path VARCHAR, char_start INTEGER, char_end INTEGER, polarity VARCHAR)[],
+   objects JSON)',
+ 'anchor':'STRUCT(css_path VARCHAR, char_start INTEGER, char_end INTEGER, text VARCHAR)',
+ 'note':'VARCHAR', 'supersedes':'VARCHAR', 'imported_from':'JSON',
+ 'reasons':'VARCHAR[]'}"""
 
 
 def _q(path) -> str:

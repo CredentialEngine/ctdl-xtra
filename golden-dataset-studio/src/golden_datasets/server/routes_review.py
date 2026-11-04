@@ -13,7 +13,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Body, HTTPException, Query, Request
 
-from .. import facets, golden, layout, model, properties
+from .. import facets, golden, layout, model, profiles_rule, properties
 from ..catalogs import CATALOGS, info
 from ..errors import UserError
 from ..log import FULL_NAMES, new_id, validate
@@ -27,24 +27,32 @@ PAGE_RULE_TITLES = {"course-page": "Course pages", "program-page": "Program page
                     "program-page-with-courses": "Program pages that list courses"}
 PLAIN_SUBTITLES = {"course-page": "Which pages are a single course's own page",
                    "program-page": "Which pages describe a degree or certificate",
-                   "program-page-with-courses": "Which program pages name courses in their requirements",
-                   "locator-course-page": "Where each course starts and ends on a course page",
-                   "locator-program-requirement": "Where each course starts and ends on a program page"}
-LOCATOR_TITLES = {"locator-course-page": "One course per course page",
-                  "locator-program-requirement": "One course per requirement line"}
+                   "program-page-with-courses": "Which program pages name courses in their requirements"}
+#: Record locators listed first, in this order (their titles come from their definitions: `locator_title`).
+KNOWN_LOCATORS = ("locator-course-page", "locator-program-requirement")
 
 
 PROPERTY_ROW = {r["label"]: r for r in properties.active()}
 
 
-def rule_title(rule: dict) -> tuple[str, str]:
-    """(title, subtitle) as the rule list shows them (screen 03)."""
+def locator_title(d: dict) -> tuple[str, str]:
+    """A record locator's (title, subtitle), from what its definition does (sme-fixes §3): with `repeat`, many courses
+    share a page (CCSF's department pages); without, the page is one course (AVC)."""
+    if d.get("repeat"):
+        return f"Course blocks: every {d['repeat']} on the page", "Several courses on one page, one block each"
+    return "Whole page is one course", "Each page's content area is one course"
+
+
+def rule_title(rule: dict, rules: dict[str, dict] | None = None) -> tuple[str, str]:
+    """(title, subtitle) as the rule list shows them (screen 03). `rules` (the ruleset's): a page rule whose pages a
+    repeating record locator reads is "Pages with courses", not a single course's own page."""
     if rule["kind"] == "page":
+        repeats = any(r["kind"] == "locator" and r["definition"].get("repeat")
+                      and rule["rule_id"] in (r["definition"].get("page_rules") or []) for r in (rules or {}).values())
         return (PAGE_RULE_TITLES.get(rule["rule_id"], rule["rule_id"]),
-                PLAIN_SUBTITLES.get(rule["rule_id"]) or rule.get("what") or "")
+                "Pages with courses" if repeats else PLAIN_SUBTITLES.get(rule["rule_id"]) or rule.get("what") or "")
     if rule["kind"] == "locator":
-        return LOCATOR_TITLES.get(rule["rule_id"], "One course per " + rule["rule_id"].removeprefix("locator-")
-                                  .replace("-", " ")), PLAIN_SUBTITLES.get(rule["rule_id"]) or rule.get("what") or ""
+        return locator_title(rule["definition"])
     label = rule.get("property_label") or rule["rule_id"]
     if rule["definition"].get("locator") not in (None, "locator-course-page"):
         label += " · program pages" if rule["definition"]["locator"] == "locator-program-requirement" \
@@ -76,7 +84,8 @@ def _event_brief(e: dict | None) -> dict | None:
         return None
     return {"annotation_id": e["annotation_id"], "type": e["type"], "verdict": e.get("verdict"), "author": e["author"],
             "author_role": e.get("author_role"), "at": e["at"], "note": e.get("note"), "expected": e.get("expected"),
-            "compared_with": e.get("compared_with"),
+            "compared_with": e.get("compared_with"), "anchor": e.get("anchor"),
+            **({"reasons": e["reasons"]} if e.get("reasons") else {}),
             "rule_version_seen": e["target"].get("rule_version_seen"), "value_seen": e["target"].get("value_seen")}
 
 
@@ -182,7 +191,7 @@ def catalog(request: Request, catalog: str, ext: str | None = None) -> dict:
 # =====================================================================================================
 def _rule_summary(rv: Review, rid: str) -> dict:
     rule = rv.snap.rules[rid]
-    title, subtitle = rule_title(rule)
+    title, subtitle = rule_title(rule, rv.snap.rules)
     st = rv.rule_status(rid)
     comments = sum(1 for e in rv.live if e["type"] in ("comment",) and e["target"].get("rule_id") == rid
                    and e["target"]["kind"] != "rule")
@@ -281,6 +290,22 @@ def _find_row(ordered: list, focus: str) -> int | None:
     return None
 
 
+def repeats(rv: Review, rule_id: str) -> Counter | None:
+    """A record locator that finds several courses per page (`repeat`): how many it found on each page, else None."""
+    rule = rv.snap.rules[rule_id]
+    if rule["kind"] != "locator" or not rule["definition"].get("repeat"):
+        return None
+    return Counter(r["page_stem"] for r in rv.snap.rows(rule_id))
+
+
+def by_page(ordered: list) -> list:
+    """Rows grouped by page: pages in the order their first row comes, each page's courses in page order."""
+    pages: dict[str, list] = {}
+    for r, s in ordered:
+        pages.setdefault(r["page_stem"], []).append((r, s))
+    return [x for rs in pages.values() for x in sorted(rs, key=lambda x: x[0].get("locator_index") or 0)]
+
+
 #: The rule list's groups after Page rules and Record locators (property-rules spec §4.8): `collapsed` ones start shut.
 PROPERTY_GROUPS = (("required", "Required", False), ("other", "Other properties", False),
                    ("not-started", "Not started", True), ("program", "Program page lines", True))
@@ -305,7 +330,7 @@ def rules(request: Request, catalog: str, ext: str | None = None) -> dict:
     groups = []
     for kind, label in (("page", "Page rules"), ("locator", "Record locators")):
         ids = sorted((rid for rid, r in snap.rules.items() if r["kind"] == kind),
-                     key=lambda r: (r not in PAGE_RULE_TITLES and r not in LOCATOR_TITLES, r))
+                     key=lambda r: (r not in PAGE_RULE_TITLES and r not in KNOWN_LOCATORS, r))
         items = [_rule_summary(rv, rid) for rid in ids]
         groups.append({"id": kind, "kind": kind, "label": label, "rules": items, "collapsed": False,
                        "approved": sum(1 for i in items if i["status"] == "approved")})
@@ -343,7 +368,9 @@ def rule(request: Request, catalog: str, rule_id: str, ext: str | None = None) -
         raise not_found(f"{rule_id} is not in ruleset v{rv.snap.ruleset_version}")
     r = rv.snap.rules[rule_id]
     ctx = rv.snap.ctx
+    loc = rv.snap.rules.get(r["definition"].get("locator") or "")  # where a property rule looks, titled like the locator
     return {**_rule_summary(rv, rule_id), "definition": r["definition"], "what": r.get("what", ""),
+            "locator_title": locator_title(loc["definition"])[0] if loc else None,
             "how": r.get("how", ""), "why": r.get("why", ""), "examples": r.get("examples", []),
             "depends_on": r.get("depends_on", []), "content_hash": r["content_hash"],
             "published_by": r.get("published_by"), "published_at": r.get("published_at"),
@@ -395,6 +422,9 @@ the versions: "Annotated in"), `nobody` or `waiting` (engineer-checked); `verdic
     if prior:
         keys = [k for k in keys if k in elsewhere] + [k for k in keys if k not in elsewhere]
     ordered = [by_key[k] for k in keys]
+    per_page = repeats(rv, rule_id)
+    if per_page:  # one row per page (sme-fixes §3): a page's courses together, in page order, pages in sample order
+        ordered = by_page(ordered)
 
     def rule_name(rid: str) -> str:
         r = rv.snap.rules.get(rid)
@@ -426,7 +456,8 @@ the versions: "Annotated in"), `nobody` or `waiting` (engineer-checked); `verdic
                        if prior and r["key"] in elsewhere else []),
                     "page_questions": [_event_brief(e) for e in page_q.get(r["page_stem"], [])],
                     "other_pages": [{"page_stem": st, "url": snap.page[st]["url"], "title": snap.page[st]["title"]}
-                                    for st in others], **_items(r, s)})
+                                    for st in others], **_items(r, s),
+                    **({"page_courses": per_page[r["page_stem"]]} if per_page else {})})
     missing = [_event_brief(e) | {"page_stem": e["target"].get("page_stem")} for e in rv.missing_events(rule_id)]
     sizes = Counter(group.values())
     spread = {"by": spread_by, "groups": [{"label": g, "rows": sizes[g]} for g in group_order if sizes[g]]}
@@ -595,12 +626,13 @@ def course(request: Request, catalog: str, course_key: str, ext: str | None = No
             ann = annotations[rid].get(o["occurrence_key"]) or {"people": {}}
             props.append({"rule_id": rid, "property_label": r.get("property_label"),
                           "ctdl_property": r.get("ctdl_property"),
-                          "value": "\n".join(x["value"] for x in found) if is_list and found else m["value"],
+                          "value": profiles_rule.row_value(found) if is_list and found else m["value"],
                           "status": m["status"],
                           "css_path": m["full_css_path"], "char_start": m["char_start"], "char_end": m["char_end"],
                           **({"items": [{"value_index": x["value_index"], "value": x["value"],
                                          "css_path": x["full_css_path"], "char_start": x["char_start"],
-                                         "char_end": x["char_end"]} for x in found]} if is_list else {}),
+                                         "char_end": x["char_end"], **profiles_rule.row_item(x, o["css_path"])}
+                                        for x in found]} if is_list else {}),
                           "state": s.state if s else None, "verdict": _event_brief(s.verdict) if s else None,
                           **_review_state(s), "annotators": ann["people"],
                           "comments": [_event_brief(c) for c in s.comments] if s else []})
@@ -618,7 +650,8 @@ def course(request: Request, catalog: str, course_key: str, ext: str | None = No
 def add_annotation(request: Request, catalog: str, event: Annotated[dict, Body()]) -> dict:
     """Append one event (verdict · comment · approve · reopen). The server assigns the id and the time and fills
     the target from the current extraction; the client sends type, author, target {kind, rule_id, key…},
-    verdict, expected, note, supersedes, and optionally author_role (else the author's profile says it) and
+    verdict, expected (its segments `in` or `out` of the answer), note, supersedes, anchor (a comment's text on the
+    page), and optionally author_role (else the author's profile says it) and
     compared_with. A verdict on a value rewrites its page's file in the latest golden dataset (Evals spec §4.3)."""
     t0 = time.perf_counter()
     rv = _review(request, catalog, event.get("extraction"))
@@ -670,15 +703,20 @@ def add_annotation(request: Request, catalog: str, event: Annotated[dict, Body()
     full = {"annotation_id": new_id("ap" if event.get("type") in ("approve", "reopen") else "an"),
             "type": event.get("type"), "at": datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
             "author": (event.get("author") or "").strip(), "catalog": ctx.catalog, "crawl": ctx.crawl, "target": t,
-            "verdict": event.get("verdict"), "expected": event.get("expected"), "note": event.get("note") or None,
+            "verdict": event.get("verdict"), "expected": profiles_rule.with_object_text(event.get("expected")),
+            "note": event.get("note") or None,
             "supersedes": event.get("supersedes")}
     if event.get("topic"):
         full["topic"] = event["topic"]
+    if event.get("anchor") is not None:  # a comment on a piece of text on the page (sme-fixes §1)
+        full["anchor"] = event["anchor"]
     role = event.get("author_role") or role_of(full, roles(ctx.root))
     if role:
         full["author_role"] = role
     if event.get("compared_with") is not None:
         full["compared_with"] = event["compared_with"]
+    if event.get("reasons"):  # "Why wrong?" flags on a ✕ (sme-fixes §6)
+        full["reasons"] = event["reasons"]
     if full["type"] == "approve":
         st = rv.rule_status(rid)
         if st["open_wrong"] or st["open_missing"]:

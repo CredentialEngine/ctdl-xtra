@@ -31,6 +31,7 @@ COURSE_TERMS = {
     "ceterms:prerequisite",
     "ceterms:creditMinValue",
     "ceterms:creditMaxValue",
+    "ceterms:estimatedDuration",
 }
 
 
@@ -138,7 +139,7 @@ def test_every_term_is_a_ctdl_term() -> None:
 def test_a_course_holds_the_minimum_data_for_courses_and_nothing_more() -> None:
     """Every course label read gives these terms and no others.
 
-    Lecture and lab hours, the department and the rest are still read,
+    The department, CEUs and the rest are still read,
     because they count toward the fields a page needs to be a record,
     but the record leaves them out.
     """
@@ -155,7 +156,7 @@ def test_a_label_with_no_term_is_left_out() -> None:
     fields = record_fields(
         "Course",
         [
-            draft("f_001", "course_lecture_hours", 3),
+            draft("f_001", "course_ceu_credits", 3),
             draft("f_002", "course_name", "Composition I"),
         ],
         URL,
@@ -233,3 +234,48 @@ def test_extract_record_unknown_template_fails_closed(
     slot = slot_from_dict({**engl101_slot, "template_id": ""})
     with pytest.raises(TranscriptionError):
         extract_record(slot, "<html><body>unrelated page</body></html>")
+
+
+def test_hours_go_out_as_duration_objects_in_the_pages_words() -> None:
+    """estimatedDuration is a list of {description, timeRequired}, unparsed,
+    even when the page prints one line."""
+    lecture = FieldDraft(
+        "f_001",
+        "course_lecture_hours",
+        54.0,
+        "Total Course Lecture Hours 54.0",
+        "Total Course Lecture Hours 54.0",
+        "dom_path",
+        "test",
+    )
+    expected = expected_values(record_fields("Course", [lecture], URL))
+    assert expected["ceterms:estimatedDuration"] == [
+        {
+            "ceterms:description": "Total Course Lecture Hours",
+            "ceterms:timeRequired": "54.0",
+        }
+    ]
+
+    both = expected_values(
+        record_fields(
+            "Course",
+            [
+                lecture,
+                draft("f_002", "course_lab_hours", "Lab: 54.0 - 432.0"),
+            ],
+            URL,
+        )
+    )
+    assert both["ceterms:estimatedDuration"][1] == {
+        "ceterms:description": "Lab",
+        "ceterms:timeRequired": "54.0 - 432.0",
+    }
+
+
+def test_an_hours_line_printing_no_label_takes_the_labels_words() -> None:
+    expected = expected_values(
+        record_fields("Course", [draft("f_001", "course_lab_hours", 3)], URL)
+    )
+    assert expected["ceterms:estimatedDuration"] == [
+        {"ceterms:description": "Lab Hours", "ceterms:timeRequired": "3"}
+    ]

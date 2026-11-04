@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { href, parseRoute } from "./router";
+import { href, parseRoute, replaceParam } from "./router";
 
 describe("routes", () => {
   it("parses the picker and tabs", () => {
@@ -25,5 +25,19 @@ describe("renamed tabs", () => {
     expect(parseRoute("#/c/avc/datasets").tab).toBe("datasets");
     expect(parseRoute("#/c/avc/golden").tab).toBe("datasets");
     expect(parseRoute("#/c/avc/publish").tab).toBe("datasets");
+  });
+  it("replaceParam sets one parameter with history.replaceState, keeping the others, without a hashchange", () => {
+    history.replaceState(null, "", "#/c/avc/rules/course-description?by=Jared&row=old");
+    let changes = 0;
+    const on = () => { changes++; };
+    window.addEventListener("hashchange", on);
+    const before = history.length;
+    replaceParam("row", "p1@html");
+    expect(location.hash).toBe("#/c/avc/rules/course-description?by=Jared&row=p1%40html");
+    replaceParam("row", null);
+    expect(location.hash).toBe("#/c/avc/rules/course-description?by=Jared");
+    expect(history.length).toBe(before);
+    expect(changes).toBe(0);
+    window.removeEventListener("hashchange", on);
   });
 });

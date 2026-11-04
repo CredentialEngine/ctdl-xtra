@@ -73,3 +73,13 @@
 .gpp-check { display: inline-flex; align-items: center; gap: 5px; cursor: pointer; user-select: none; }
 .gpp-check input { margin: 0; accent-color: var(--gpp-accent); }
 .gpp-tools-note { margin-left: 4px; color: #b54708; font-size: 11px; }
+
+/* The highlight bar (sme-fixes §1): compact, dark, just above the selection. */
+.gpp-hbar { position: absolute; z-index: 5; display: flex; align-items: center; gap: 2px; height: 30px; padding: 0 4px;
+  border-radius: 7px; background: #1d2433; box-shadow: 0 4px 14px rgba(16,24,40,.28); white-space: nowrap; }
+.gpp-hb { height: 24px; padding: 0 8px; border: 0; border-radius: 5px; background: transparent; color: #f2f4f7;
+  font-family: inherit; font-size: 12px; font-weight: 500; line-height: 24px; cursor: pointer; }
+.gpp-hb:hover, .gpp-hb:focus-visible { background: rgba(255,255,255,.14); outline: none; }
+.gpp-hb.note { padding: 0 7px; margin-right: 3px; border-right: 1px solid rgba(255,255,255,.22); border-radius: 5px 0 0 5px; }
+.gpp-hb.in:hover { color: #a6f4c5; }
+.gpp-hb.out:hover { color: #fecdca; }

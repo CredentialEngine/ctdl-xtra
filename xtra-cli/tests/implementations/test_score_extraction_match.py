@@ -466,7 +466,12 @@ def test_an_exact_run_counts_outcomes_and_the_exact_rate(
     assert report["pages_scored"] == 1
     assert report["fields_total"] == 10
     # The name matches, and the page address fills subjectWebpage.
-    assert report["outcomes"] == {"match": 2, "mismatch": 0, "missing": 8}
+    assert report["outcomes"] == {
+        "match": 2,
+        "mismatch": 0,
+        "missing": 8,
+        "unsure": 0,
+    }
     assert report["exact_match_rate"] == 0.2
     assert report["by_property"]["ceterms:name"]["match"] == 1
     assert report["by_property"]["ceterms:inLanguage"]["missing"] == 1
@@ -575,9 +580,18 @@ def test_a_partial_run_leaves_the_exact_matches_out(stores: Stores) -> None:
     assert report["partial_threshold"] == PARTIAL_THRESHOLD
     assert report["excluded_exact"] == 1
     assert report["fields_total"] == 1
-    assert report["outcomes"] == {"partial": 1, "wrong": 0, "missing": 0}
+    assert report["outcomes"] == {
+        "partial": 1,
+        "wrong": 0,
+        "missing": 0,
+        "unsure": 0,
+    }
     assert "exact_match_rate" not in report
-    assert "ceterms:name" not in report["by_property"]
+    # The exact name lists no field in partial mode, but its unit numbers
+    # are the same in both modes.
+    assert report["by_property"]["ceterms:name"]["fields"] == 0
+    assert report["by_property"]["ceterms:name"]["match"] == 1
+    assert report["found"] == 0.5
 
 
 def test_a_page_extract_skipped_is_all_missing(stores: Stores) -> None:

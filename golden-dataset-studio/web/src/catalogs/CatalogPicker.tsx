@@ -14,7 +14,7 @@ import "katex/dist/katex.min.css";
 import { useCallback, useEffect, useState } from "react";
 import { api } from "../api/client";
 import type { CatalogCard, CatalogSummary, CatalogsSummary, ScoreBasis } from "../api/types";
-import { Bar, OUTCOMES, OutcomeTip, Tip } from "../evals/EvalsTab";
+import { Bar, BAR_ORDER, OUTCOMES, OutcomeTip, Tip } from "../evals/EvalsTab";
 import { go, href, useRoute } from "../shell/router";
 import { fmt, fmtDate, Ico } from "../shell/ui";
 import { AddCatalogModal } from "./AddCatalogModal";
@@ -217,7 +217,7 @@ function ScoreCells({ c, s, cols, why, basis }: { c: CatalogCard; s: CatalogSumm
               <OutcomeTip counts={v} title={`${k} · ${c.institution} · ${fmt(v.values)} ${BASIS_NAME[basis]} values`}>
                 <span className="sc-in" tabIndex={0}>
                   <span className="pct">{pct(v.match, v.values)}</span>
-                  <span className="cellbar">{OUTCOMES.slice().reverse().filter((o) => v[o] > 0).map((o) => <i key={o} className={`o-${o}`} style={{ flexGrow: v[o] }} />)}</span>
+                  <span className="cellbar">{BAR_ORDER.filter((o) => (v[o] ?? 0) > 0).map((o) => <i key={o} className={`o-${o}`} style={{ flexGrow: v[o] }} />)}</span>
                   <span className="cnt">{fmt(v.values)}</span>
                 </span>
               </OutcomeTip>

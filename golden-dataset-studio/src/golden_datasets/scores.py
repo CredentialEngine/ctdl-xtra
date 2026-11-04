@@ -22,6 +22,13 @@ shared container). xtra overwrites it in place, so the first time the Studio see
 `records/` and the report into `extract-outputs/<report last modified>/`, and scores read that copy.
 
 A pair (golden dataset content, extract output) is scored once: asking again returns the score there is.
+
+**Units** (sme-fixes spec §8): the scorer compares values, objects (one `estimatedDuration` object per golden field)
+and "not on the page" markers (`{"value": null, "absent": true}`), and gives each golden unit match · partial · wrong
+· missing · unsure, and each extracted unit with no golden partner `extra`. values.parquet has one row per golden unit
+and per extra, with its `unit`, the object `field`s that differ and a `reason`; `counts` gives found (recall: match ÷
+golden values), right (precision: match ÷ candidates paired or extra) and the courses exact; `wrong_groups` is "Where
+it's wrong".
 """
 
 from __future__ import annotations
@@ -38,6 +45,8 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
 
+import pyarrow as pa
+
 from . import golden as golden_mod
 from . import layout, manifest, model
 from .context import Ctx
@@ -48,8 +57,13 @@ SHARED_XTRA_ROOT = "azure://https://ceteststorage.blob.core.windows.net/xtra-cli
 HUMAN_REVIEWED = golden_mod.HUMAN_REVIEWED
 BASES = ("human", "rule")  # the human-reviewed values only; every rule-matched value
 TREE = {"human": golden_mod.HUMAN_REVIEWED, "rule": golden_mod.RULE_MATCHED}  # each basis's tree
-OUTCOMES = ("missing", "wrong", "partial", "match")
+#: A golden unit's outcome (sme-fixes spec §8.1), worst first; `extra` is an extracted unit with no golden partner.
+GOLDEN_OUTCOMES = ("missing", "wrong", "partial", "unsure", "match")
+OUTCOMES = (*GOLDEN_OUTCOMES, "extra")
 SLOT_NAMES = "this output uses slot names; re-extract with the current xtra-cli"
+#: values.parquet: model.SCORE_VALUES plus what a unit is (value · object · absent), the object fields that differ
+#: (comma-separated, prefix-free) and why it isn't a match (`reason`, see `reason_for`).
+SCORE_VALUES = pa.schema([*model.SCORE_VALUES, ("unit", pa.string()), ("field", pa.string()), ("reason", pa.string())])
 
 
 def _now() -> str:
@@ -123,7 +137,8 @@ class GoldenStore:
 
 
 def is_implied(f: dict) -> bool:
-    return "location" in f and f["location"] is None
+    """Implied, not printed on the page: not scored. An absent field (`absent: true`, not on the page) is scored."""
+    return "location" in f and f["location"] is None and f.get("absent") is not True
 
 
 # --- golden datasets ---------------------------------------------------------------------------------
@@ -317,17 +332,93 @@ def run_scorer(records: RecordsStore, pages: dict[str, list[dict]], catalog: str
     return {mode: match_extraction_run(records, store, catalog, crawl, mode) for mode in ("exact", "partial")}
 
 
+def _short(name: str) -> str:
+    return name.split(":", 1)[-1]
+
+
+def _words(v) -> list[str]:
+    return str(v or "").casefold().split()
+
+
+def diff_kind(golden, extracted) -> str:
+    """How an extracted value differs from the golden one, by words: `cut short` (the extracted words are a run of the
+    golden ones), `extra text` (the golden words are a run of the extracted ones) or `different`."""
+    a, b = _words(golden), _words(extracted)
+
+    def within(small: list[str], big: list[str]) -> bool:
+        return bool(small) and len(small) < len(big) and any(big[i:i + len(small)] == small
+                                                              for i in range(len(big) - len(small) + 1))
+    if within(b, a):
+        return "cut short"
+    if within(a, b):
+        return "extra text"
+    return "different"
+
+
+def unit_of(value, absent: bool = False) -> str:
+    return "absent" if absent else "object" if isinstance(value, dict) else "value"
+
+
+def _differing(o: dict) -> list[str]:
+    """An object's fields that aren't exact, worst first."""
+    fields = o.get("object_fields") or {}
+    return [k for k, f in sorted(fields.items(), key=lambda kv: kv[1]["similarity"]) if not f["exact"]]
+
+
+def reason_for(outcome: str, unit: str, o: dict | None = None, claimed_absent: bool = False,
+               golden_absent: bool = False) -> str | None:
+    """Why a unit isn't a match, in a few words (values.parquet `reason`):
+    - wrong / partial: the word diff of the worst differing field (or the value): cut short · extra text · different;
+    - missing: `nothing extracted`, `claimed not on the page` (the record's null against a golden value) or
+      `a value where golden says not on the page`;
+    - unsure: `no claim` (golden says not on the page; the record has no key);
+    - extra: `no golden value`, `golden says not on the page`, or `claimed not on the page` (an extracted null)."""
+    if outcome in ("wrong", "partial") and o is not None:
+        fields = o.get("object_fields") or {}
+        bad = _differing(o)
+        if bad:
+            f = fields[bad[0]]
+            return diff_kind(f["baseline"], f["extracted"])
+        return diff_kind(o.get("baseline_value"), o.get("extracted_value"))
+    if outcome == "missing":
+        if unit == "absent":
+            return "a value where golden says not on the page"
+        return "claimed not on the page" if claimed_absent else "nothing extracted"
+    if outcome == "unsure":
+        return "no claim"
+    if outcome == "extra":
+        if unit == "absent":
+            return "claimed not on the page"
+        return "golden says not on the page" if golden_absent else "no golden value"
+    return None
+
+
 def value_rows(basis: str, pages: dict[str, list[dict]], reports: dict[str, dict]) -> list[dict]:
-    """One row per scored value. Every value that isn't an exact match is in the exact report's outliers (with its
-    similarity; partial is ≥ the threshold); the rest matched. The counts are checked against both reports."""
+    """One row per scored unit: every golden unit (a value, an object or an absent marker) and every extra (an
+    extracted unit with no golden partner, sme-fixes spec §8). Every golden unit that isn't an exact match is in the
+    exact report's outliers (with its similarity; partial is ≥ the threshold), the extras in its `extras`; the rest
+    matched. The counts are checked against both reports."""
     from implementations.score_extraction_match import PARTIAL_THRESHOLD
 
     exact, partial = reports["exact"], reports["partial"]
     out_by: dict[tuple, list[dict]] = defaultdict(list)
     for o in exact["outliers"]:
         out_by[(o["stem"], o["entity"], o["ctdl_property"], _text(o["baseline_value"]))].append(o)
+    extras = (exact.get("extras") or {}).get("outliers") or []
+    claims = {(e["stem"], e["entity"], e["ctdl_property"]) for e in extras if e.get("unit") == "absent"}
     scored = {p["stem"] for p in exact["pages"]}
     rows = []
+
+    def base(stem: str, ei: int, ent: dict, prop: str, f: dict | None) -> dict:
+        loc = (f or {}).get("location") or {}
+        first = next(iter(ent["fields"]), {})
+        return {"basis": basis, "column": column(prop), "ctdl_property": prop,
+                "property": (f or first).get("property"), "golden_record_id": ent.get("golden_record_id"),
+                "page_stem": stem, "entity": ei, "source_url": (f or first).get("source_url"),
+                "golden_css_path": loc.get("css_path"), "golden_char_start": loc.get("char_start"),
+                "golden_char_end": loc.get("char_end"), "approval": (f or {}).get("approval"),
+                "approved_by": (f or {}).get("approved_by"), "approved_at": (f or {}).get("approved_at")}
+
     for stem, ents in sorted(pages.items()):
         if stem not in scored:
             continue
@@ -335,43 +426,76 @@ def value_rows(basis: str, pages: dict[str, list[dict]], reports: dict[str, dict
             for f in ent["fields"]:
                 if is_implied(f):
                     continue
-                o = out_by[(stem, ei, f["ctdl_property"], _text(f["value"]))]
+                prop, absent = f["ctdl_property"], f.get("absent") is True
+                unit = unit_of(f["value"], absent)
+                o = out_by[(stem, ei, prop, _text(f["value"]))]
                 o = o.pop(0) if o else None
+                field_ = None
                 if o is None:
                     outcome, sim, got = "match", 1.0, _text(f["value"])
-                elif o["outcome"] == "missing":
-                    outcome, sim, got = "missing", None, None
+                elif o["outcome"] in ("missing", "unsure"):
+                    outcome, sim, got = o["outcome"], None, None
                 else:
                     sim = o["similarity"]
                     outcome, got = "partial" if sim >= PARTIAL_THRESHOLD else "wrong", _text(o["extracted_value"])
-                loc = f.get("location") or {}
-                rows.append({"basis": basis, "column": column(f["ctdl_property"]), "ctdl_property": f["ctdl_property"],
-                             "property": f.get("property"), "golden_record_id": ent.get("golden_record_id"),
-                             "page_stem": stem, "entity": ei, "outcome": outcome, "similarity": sim,
-                             "golden_value": _text(f["value"]), "extracted_value": got, "source_url": f.get("source_url"),
-                             "golden_css_path": loc.get("css_path"), "golden_char_start": loc.get("char_start"),
-                             "golden_char_end": loc.get("char_end"), "approval": f.get("approval"),
-                             "approved_by": f.get("approved_by"), "approved_at": f.get("approved_at")})
+                    field_ = ",".join(_short(k) for k in _differing(o)) or None
+                reason = reason_for(outcome, unit, o, claimed_absent=(stem, ei, prop) in claims)
+                rows.append({**base(stem, ei, ent, prop, f), "outcome": outcome, "similarity": sim,
+                             "golden_value": _text(f["value"]), "extracted_value": got, "unit": unit,
+                             "field": field_, "reason": reason})
+    for e in extras:
+        ents = pages.get(e["stem"]) or []
+        ent = ents[e["entity"]] if e["entity"] < len(ents) else {"fields": []}
+        prop = e["ctdl_property"]
+        golden_absent = any(f["ctdl_property"] == prop and f.get("absent") is True for f in ent["fields"])
+        rows.append({**base(e["stem"], e["entity"], ent, prop, None), "outcome": "extra", "similarity": None,
+                     "golden_value": None, "extracted_value": _text(e["extracted_value"]), "unit": e.get("unit"),
+                     "field": None, "reason": reason_for("extra", e.get("unit") or "value", golden_absent=golden_absent)})
     got = Counter(r["outcome"] for r in rows)
     want = {"match": exact["outcomes"]["match"], "missing": exact["outcomes"]["missing"],
-            "partial": partial["outcomes"]["partial"], "wrong": partial["outcomes"]["wrong"]}
-    if len(rows) != exact["fields_total"] or any(got[k] != v for k, v in want.items()):
+            "unsure": exact["outcomes"].get("unsure", 0), "partial": partial["outcomes"]["partial"],
+            "wrong": partial["outcomes"]["wrong"], "extra": len(extras)}
+    golden_rows = sum(got[o] for o in GOLDEN_OUTCOMES)
+    if golden_rows != exact["fields_total"] or any(got[k] != v for k, v in want.items()):
         raise UserError(f"{basis}: rebuilt counts {dict(got)} of {len(rows)} don't match the scorer's {want} "
                         f"of {exact['fields_total']}")
     return rows
 
 
-def result(pages: dict[str, list[dict]], left_out: list[dict], reports: dict[str, dict], rows: list[dict]) -> dict:
-    """One basis's result: the scorer's counts, per column too."""
-    exact = reports["exact"]
-    by: dict[str, Counter] = defaultdict(Counter)
+def _ratio(part: int, whole: int) -> float | None:
+    return round(part / whole, 4) if whole else None
+
+
+def counts(rows: list[dict]) -> dict:
+    """Some rows' numbers: `values` (golden units) and each outcome; `extracted` (match + partial + wrong + extra);
+    `found` (recall) = match ÷ values, `right` (precision) = match ÷ extracted; `courses` and `courses_exact` (courses
+    whose every unit here matched); `list` when a course has several units or an object (a list property)."""
+    c = Counter(r["outcome"] for r in rows)
+    golden = sum(c[o] for o in GOLDEN_OUTCOMES)
+    extracted = c["match"] + c["partial"] + c["wrong"] + c["extra"]
+    by_course: dict[tuple, list[str]] = defaultdict(list)
     for r in rows:
-        by[r["column"]][r["outcome"]] += 1
+        by_course[(r["page_stem"], r["entity"])].append(r["outcome"])
+    return {"values": golden, **{o: c[o] for o in OUTCOMES}, "extracted": extracted,
+            "found": _ratio(c["match"], golden), "right": _ratio(c["match"], extracted),
+            "courses": len(by_course), "courses_exact": sum(all(o == "match" for o in v) for v in by_course.values()),
+            "list": any(len([o for o in v if o != "extra"]) > 1 for v in by_course.values())
+            or any(r.get("unit") == "object" for r in rows)}
+
+
+def result(pages: dict[str, list[dict]], left_out: list[dict], reports: dict[str, dict], rows: list[dict]) -> dict:
+    """One basis's result: the scorer's counts, per column too, with found, right and the courses exact."""
+    exact = reports["exact"]
+    by: dict[str, list[dict]] = defaultdict(list)
+    for r in rows:
+        by[r["column"]].append(r)
     implied: Counter = Counter(column(f["ctdl_property"]) for ents in pages.values() for e in ents
                                for f in e["fields"] if is_implied(f))
+    total = counts(rows)
     return {"values": exact["fields_total"], "exact_match_rate": exact["exact_match_rate"],
-            "outcomes": {o: sum(c[o] for c in by.values()) for o in OUTCOMES},
-            "by_column": {col: {"values": sum(c.values()), **{o: c[o] for o in OUTCOMES}} for col, c in sorted(by.items())},
+            "outcomes": {o: total[o] for o in OUTCOMES}, "found": exact.get("found"), "right": exact.get("right"),
+            "extracted": total["extracted"], "entities_exact": exact.get("entities_exact"),
+            "by_column": {col: counts(rs) for col, rs in sorted(by.items())},
             "implied": dict(sorted(implied.items())), "pages_scored": exact["pages_scored"],
             "pages_skipped": exact["pages_skipped"], "pages_out_of_scope": exact["pages_out_of_scope"],
             "malformed": len(exact["malformed"]), "left_out": left_out}
@@ -461,16 +585,38 @@ def begin(ctx: Ctx, p: Prepared, by: str, reason: str) -> dict:
     return doc
 
 
-def emitted(records: RecordsStore) -> set[str]:
-    """The CTDL properties an extract output emits (as xtra's scorer reads its records)."""
-    from implementations.score_extraction_match import extracted_values
+def candidates(records: RecordsStore) -> Counter:
+    """column → the candidates an extract output has for it: its values (each item of a list, each object), as xtra's
+    scorer reads the records. A property it claims is not on the page (an explicit null) is there with 0."""
+    from implementations.score_extraction_match import extracted_claims
 
-    out: set[str] = set()
+    out: Counter = Counter()
     for key in records.records():
         rec = records.get_json(key)
         if isinstance(rec, dict):
-            out |= set(extracted_values(rec))
+            pool, absent = extracted_claims(rec)
+            for prop, vals in pool.items():
+                out[prop] += len(vals)
+            for prop in absent:
+                out[prop] += 0
     return out
+
+
+def emitted(records: RecordsStore) -> set[str]:
+    """The CTDL properties an extract output emits (as xtra's scorer reads its records): with a value, or claimed not
+    on the page (null)."""
+    return set(candidates(records))
+
+
+@functools.cache
+def xtra_terms() -> frozenset[str]:
+    """The CTDL properties xtra's extract writes at all (its TERMS, the identifier and the subject webpage): a column
+    outside it is one "xtra doesn't extract". Empty when xtra-cli's extract can't be imported."""
+    try:
+        from implementations.extract import IDENTIFIER, SUBJECT_WEBPAGE, TERMS
+    except Exception:  # noqa: BLE001 - only the wording of an unscored column depends on it
+        return frozenset()
+    return frozenset({*TERMS.values(), IDENTIFIER, SUBJECT_WEBPAGE})
 
 
 def only_emitted(pages: dict[str, list[dict]], props: set[str]) -> dict[str, list[dict]]:
@@ -493,7 +639,11 @@ def finish(ctx: Ctx, doc: dict, p: Prepared, log=print) -> dict:
         doc["slot_names"] = uses_slot_names(p.records)
         rows: list[dict] = []
         sizes = {}
-        props = emitted(p.records)
+        found = candidates(p.records)
+        props = set(found)
+        # the candidates per column (Evals: "N candidates"), and the columns xtra's extract writes at all
+        doc["candidates"] = {column(k): n for k, n in sorted(found.items())}
+        doc["xtra_extracts"] = sorted(column(t) for t in xtra_terms())
         if doc["slot_names"]:  # an old output names no CTDL paths: score every column, as before, and say so
             props |= {f["ctdl_property"] for tree in p.golden.trees.values() for ents in tree.values() for e in ents
                       for f in e["fields"] if f.get("ctdl_property")}
@@ -518,7 +668,7 @@ def finish(ctx: Ctx, doc: dict, p: Prepared, log=print) -> dict:
         doc["golden"]["values"] = sizes
         doc["columns"] = sorted({r["column"] for r in rows if r["basis"] == "rule"})
         ctx.write_table(f"{layout.score_dir(ctx.catalog, ctx.crawl, doc['id'])}/values.parquet", rows,
-                        model.SCORE_VALUES, if_none_match=False)
+                        SCORE_VALUES, if_none_match=False)
         doc["status"] = "done"
         if doc["slot_names"]:
             doc["error"] = SLOT_NAMES
@@ -623,14 +773,127 @@ def subject(golden_record_id: str | None) -> str | None:
     return m.group(0).upper() if m else None
 
 
+# --- Where it's wrong (sme-fixes spec §8.4) ------------------------------------------------------------------------
+#: How "Where it's wrong" groups the units that aren't a match, besides outcome × field: `auto` (the description label
+#: for objects; the word diff for a paired value; the value shape for the rest), or one key for all.
+WRONG_KEYS = ("auto", "label", "shape", "diff", "subject")
+WRONG_EXAMPLES = 12  # courses linked per group
+
+
+def _object(text: str | None) -> dict | None:
+    if not text or not text.startswith("{"):
+        return None
+    try:
+        v = json.loads(text)
+    except ValueError:
+        return None
+    return v if isinstance(v, dict) else None
+
+
+def _label(r: dict) -> str | None:
+    """An object's description label (golden's, else the extracted one's)."""
+    for text in (r.get("golden_value"), r.get("extracted_value")):
+        obj = _object(text)
+        if obj:
+            v = obj.get("ceterms:description")
+            if v is None and obj:
+                v = next(iter(obj.values()))
+            return str(v)
+    return None
+
+
+def _field_values(r: dict) -> tuple[str | None, str | None]:
+    """The two sides of a row's (worst) differing field, else of its value."""
+    g, x = _object(r.get("golden_value")), _object(r.get("extracted_value"))
+    name = (r.get("field") or "").split(",")[0]
+    if g is not None and name:
+        k = next((k for k in g if _short(k) == name), None)
+        if k:
+            got = (x or {}).get(k)
+            return str(g[k]), None if got is None else str(got)
+    return r.get("golden_value"), r.get("extracted_value")
+
+
+def _shape(v: str | None) -> str:
+    from .strata import shape
+
+    return shape(v) or "(empty)" if v is not None else "nothing"
+
+
+def wrong_key(r: dict, key: str = "auto") -> tuple[str, str]:
+    """(what it's grouped by, the group's key) for one unit that isn't a match."""
+    if key == "subject":
+        return "course subject", r.get("subject") or subject(r.get("golden_record_id")) or "—"
+    if key == "diff" or (key == "auto" and r["outcome"] in ("wrong", "partial") and r.get("unit") != "object"):
+        return "word diff", r.get("reason") or "—"
+    if key == "label" or (key == "auto" and r.get("unit") == "object"):
+        label = _label(r)
+        if label is not None:
+            if key == "auto" and r["outcome"] in ("wrong", "partial"):
+                g, x = _field_values(r)
+                return "value shape", f"{_shape(g)} → {_shape(x)}"
+            return "description label", label
+    if r["outcome"] in ("wrong", "partial"):
+        g, x = _field_values(r)
+        return "value shape", f"{_shape(g)} → {_shape(x)}"
+    if r.get("unit") == "absent" or r["outcome"] == "unsure":
+        return "reason", r.get("reason") or "—"
+    v = r.get("golden_value") if r.get("golden_value") is not None else r.get("extracted_value")
+    return "value shape", _shape(v)
+
+
+def wrong_groups(rows: list[dict], key: str = "auto") -> list[dict]:
+    """Every unit that isn't a match, grouped by outcome × field (objects) × a grouping key, biggest group first.
+    Each group: its count, its courses, one example (golden → extracted, the row's key) and the Studio rows of its
+    first courses (`targets`: rule_id, occurrence_key, golden_record_id), which open in the Rules tab."""
+    groups: dict[tuple, list[dict]] = defaultdict(list)
+    for r in rows:
+        if r["outcome"] == "match":
+            continue
+        by, k = wrong_key(r, key)
+        groups[(r["outcome"], r.get("field") or "", r["column"], by, k)].append(r)
+    out = []
+    for (outcome, field_, col, by, k), rs in groups.items():
+        courses: dict[str, dict] = {}
+        for r in rs:
+            courses.setdefault(r.get("golden_record_id") or r["page_stem"], r)
+        ex = rs[0]
+        out.append({"outcome": outcome, "field": field_ or None, "column": col, "by": by, "key": k,
+                    "reason": ex.get("reason"), "units": len(rs), "courses": len(courses),
+                    "example": {"row": ex.get("key"), "golden_record_id": ex.get("golden_record_id"),
+                                "golden_value": ex.get("golden_value"), "extracted_value": ex.get("extracted_value"),
+                                "rule_id": ex.get("rule_id"), "occurrence_key": ex.get("occurrence_key")},
+                    "targets": [{"golden_record_id": cid, "rule_id": r.get("rule_id"),
+                                 "occurrence_key": r.get("occurrence_key")}
+                                for cid, r in list(courses.items())[:WRONG_EXAMPLES]]})
+    order = {o: i for i, o in enumerate(OUTCOMES)}
+    return sorted(out, key=lambda g: (-g["units"], order.get(g["outcome"], 9), g["column"], g["key"]))
+
+
+def scored_against(ctx: Ctx, output_id: str, golden_id: str) -> bool:
+    """Whether a score of this extract output against this golden dataset exists (in any state: a failed one isn't
+    retried by itself). Reads score.json files newest first, so it usually reads one."""
+    for sid in reversed(score_ids(ctx)):
+        doc = read(ctx, sid)
+        if doc["output"]["id"] == output_id and doc["golden"]["id"] == golden_id:
+            return True
+    return False
+
+
 # --- CLI ---------------------------------------------------------------------------------------------
 def _line(name: str, r: dict | None) -> str:
     if not r:
         return f"  {name:<15} no values to score"
     o = r["outcomes"]
     rate = "n/a" if r["exact_match_rate"] is None else f"{r['exact_match_rate']:.1%}"
-    return (f"  {name:<15} {rate} exact of {r['values']:,} values · match {o['match']:,} · partial {o['partial']:,} "
+    line = (f"  {name:<15} {rate} exact of {r['values']:,} values · match {o['match']:,} · partial {o['partial']:,} "
             f"· wrong {o['wrong']:,} · missing {o['missing']:,}")
+    if "extra" in o:  # a score from before sme-fixes has no extra, unsure, found or right
+        pct = lambda x: "n/a" if x is None else f"{x:.1%}"  # noqa: E731
+        line += (f" · unsure {o.get('unsure', 0):,} · extra {o['extra']:,}\n  {'':<15} found (recall) "
+                 f"{pct(r.get('found'))} · right (precision) {pct(r.get('right'))} of {r.get('extracted', 0):,} "
+                 f"candidates")
+    return line
 
 
 def cmd_score(args) -> int:

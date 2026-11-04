@@ -53,7 +53,7 @@ from collections import Counter, defaultdict
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
-from . import layout, manifest, model
+from . import golden_answers, layout, manifest, model
 from .context import Ctx
 from .errors import UserError
 from .review import HUMAN_STATES, LOADER, Review, norm  # noqa: F401  (HUMAN_STATES: the row states a person confirmed)
@@ -138,6 +138,18 @@ def plan(rv: Review, properties: set[str] | None = None) -> dict:
                 human[(rid, row["occurrence_key"], 0)] = st.human
         if properties is None or r.get("property_label") in properties:
             by_rule[rid] = rv.rule_status(rid, states)
+    # the reviewers' answers (sme-fixes §5.4, §6, §7, golden_answers.py): row states per rule, and the rows where the
+    # rule found nothing that still publish something (a ✕ with an answer, a ✓ on "nothing found")
+    row_states = {rid: golden_answers.states_by_occurrence(rv, rid) for rid, r in snap.rules.items()
+                  if r["kind"] == "property"}
+    answered: dict[str, set[str]] = defaultdict(set)  # occurrence_key → rules with no found value to publish
+    for rid, sts in row_states.items():
+        for k, st in sts.items():
+            if golden_answers.wants_row(st):
+                answered[k].add(rid)
+    human_at: dict[tuple[str, str], dict[int, dict]] = defaultdict(dict)  # (rule, occurrence) → value_index → verdict
+    for (hr, hk, i), v in human.items():
+        human_at[(hr, hk)][i] = v
     pages: dict[str, list[dict]] = defaultdict(list)
     lineage: list[dict] = []
     skipped_no_key = 0
@@ -150,26 +162,24 @@ def plan(rv: Review, properties: set[str] | None = None) -> dict:
         stem = o["page_stem"]
         url = snap.page[stem]["url"]
         fields, rows = [], []
-        items = [(rid, m) for rid, ms in sorted(snap.items_by_occ[key].items(), key=lambda kv: (
-            model.PROPERTY_ORDER.get(snap.rules[kv[0]].get("property_label"), 99), kv[0])) for m in ms]
-        for rid, m in items:
-            if m["status"] != "found":
-                continue
+        rids = sorted(set(snap.items_by_occ[key]) | answered.get(key, set()), key=lambda rid: (
+            model.PROPERTY_ORDER.get(snap.rules[rid].get("property_label"), 99), rid))
+        for rid in rids:
             r = snap.rules[rid]
-            v = human.get((rid, key, m["value_index"]))
-            if properties is not None and r.get("property_label") not in properties and v is None:
-                continue
-            loc = ({"css_path": m["full_css_path"], "char_start": m["char_start"], "char_end": m["char_end"]}
-                   if m["css_path"] is not None else None)
             st = by_rule.get(rid, {})
-            ok = {"approval": "human", "approved_by": v["author"], "approved_at": v["at"]} if v else \
-                {"approval": "rule", "approved_by": st.get("approved_by"), "approved_at": st.get("approved_at")}
-            fields.append({"ctdl_property": r.get("ctdl_property"), "property": r["property_label"],
-                           "value": m["value"], "source_url": url, "location": loc, **ok})
-            rows.append({"golden_record_id": gid, "page_stem": stem, "property": r["property_label"],
-                         "ctdl_property": r.get("ctdl_property"), "extraction": snap.ext, "rule_id": rid,
-                         "rule_version": m["rule_version"], "occurrence_key": key, "match_value_index": m["value_index"],
-                         "annotation_ids": sorted(ann.get((rid, key), [])), **ok})
+            rule_ok = {"approval": "rule", "approved_by": st.get("approved_by"), "approved_at": st.get("approved_at")}
+            for g in golden_answers.fields(r, snap.items_by_occ[key].get(rid, []), row_states.get(rid, {}).get(key),
+                                           o["css_path"], human_at.get((rid, key), {}), rule_ok,
+                                           properties is None or r.get("property_label") in properties):
+                ok = {k: g[k] for k in ("approval", "approved_by", "approved_at")}
+                fields.append({"ctdl_property": r.get("ctdl_property"), "property": r["property_label"],
+                               "value": g["value"], **({"absent": True} if g.get("absent") else {}),
+                               "source_url": url, "location": g["location"], **ok})
+                rows.append({"golden_record_id": gid, "page_stem": stem, "property": r["property_label"],
+                             "ctdl_property": r.get("ctdl_property"), "extraction": snap.ext, "rule_id": rid,
+                             "rule_version": r["version"], "occurrence_key": key,
+                             "match_value_index": g["match_value_index"],
+                             "annotation_ids": sorted(ann.get((rid, key), [])), **ok})
         if properties is not None and not fields:
             continue  # nothing of the chosen properties for this course
         record = _record(gid, fields)
@@ -348,10 +358,15 @@ def golden_rows(ctx: Ctx, pages: dict[str, list[dict]]) -> list[dict]:
         for rec in records:
             for f in rec["fields"]:
                 k = (rec["golden_record_id"], f["property"])
+                obj = isinstance(f["value"], dict)  # a list of objects' object (§5.4): JSON text, its key field's place
+                loc = f["location"]
+                if obj and loc:
+                    loc = next(iter(loc.values()), None)
                 out.append({"catalog": ctx.catalog, "crawl": ctx.crawl, "stem": stem,
                             "golden_record_id": rec["golden_record_id"], "property": f["property"],
-                            "ctdl_property": f["ctdl_property"], "value_index": n[k], "value": f["value"],
-                            "source_url": f["source_url"], "location": f["location"], "approval": f["approval"],
+                            "ctdl_property": f["ctdl_property"], "value_index": n[k],
+                            "value": model.canon(f["value"]) if obj else f["value"],
+                            "source_url": f["source_url"], "location": loc, "approval": f["approval"],
                             "approved_by": f["approved_by"], "approved_at": f["approved_at"]})
                 n[k] += 1
     return out

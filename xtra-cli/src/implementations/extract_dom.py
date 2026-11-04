@@ -271,8 +271,23 @@ def _from_field_pairs(
                 found[label] = (value, pair.value, pair.path)
             continue
         value = _number(pair.value) if label in NUMERIC_FIELDS else pair.value
-        found[label] = (value, pair.value, pair.path)
+        found[label] = (
+            value,
+            _hours_excerpt(label, pair.label, pair.value),
+            pair.path,
+        )
     return found
+
+
+# Hours lines go out as DurationProfiles whose description is the label the
+# page printed, so their excerpt keeps the label beside the number.
+_HOURS_LABELS = frozenset({"course_lecture_hours", "course_lab_hours"})
+
+
+def _hours_excerpt(label: str, printed_label: str, printed: str) -> str:
+    if label not in _HOURS_LABELS:
+        return printed
+    return f"{collapse(printed_label).rstrip(' :')} {printed}".strip()
 
 
 def _credits_from_pair(pair: FieldPair) -> dict[str, tuple[Any, str, str]]:
@@ -450,7 +465,11 @@ def _from_heading_labels(soup: Any) -> dict[str, tuple[Any, str, str]]:
         value = _number(printed)
         if not isinstance(value, (int, float)):
             continue
-        found[label] = (value, printed, element_path(holder))
+        found[label] = (
+            value,
+            _hours_excerpt(label, name, printed),
+            element_path(holder),
+        )
         unit = _printed_unit(name) if label == "course_credits" else ""
         if unit:
             found["course_credits_unit"] = (unit, name, element_path(heading))

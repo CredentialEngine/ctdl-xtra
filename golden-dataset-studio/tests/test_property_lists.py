@@ -24,15 +24,15 @@ LISTS = {"catalog": CAT, "rules": [
 
 def _apply(ctx: Ctx, capsys) -> None:
     assert main(["properties", "apply", "--root", ctx.root.uri, "-c", CAT]) == 0
-    assert "adds 39 property rules with no rule yet" in capsys.readouterr().out
+    assert "adds 34 property rules with no rule yet" in capsys.readouterr().out
 
 
 def test_apply_adds_every_property_with_no_rule_and_anyone_can_annotate_them(studio, capsys):  # noqa: F811
     c, ctx, _ = studio
     _apply(ctx, capsys)
     rs, rules = Ctx(ctx.root, CAT).ruleset_rules(2)
-    assert rs["note"] == "added 39 property rules from the Phase 1 sheet"
-    assert len([r for r in rules.values() if r["kind"] == "property"]) == 41
+    assert rs["note"] == "added 34 property rules from the Phase 1 sheet"
+    assert len([r for r in rules.values() if r["kind"] == "property"]) == 36
     assert rules["course-in-catalog"]["definition"] == {"locator": "locator-course-page", "rule_type": "none"}
     assert properties.apply(Ctx(ctx.root, CAT), "again") is None  # nothing left to add
     assert main(["check", "--root", ctx.root.uri, "-c", CAT]) == 0
@@ -48,7 +48,7 @@ def test_apply_adds_every_property_with_no_rule_and_anyone_can_annotate_them(stu
     assert r.status_code == 200, r.text
     assert r.json()["rule"]["status"] == "needs work"
     course = c.get(f"{B}/courses/C0").json()["occurrences"][0]["properties"]
-    assert len(course) == 41 and next(p for p in course if p["rule_id"] == "course-in-catalog")["status"] == "none"
+    assert len(course) == 36 and next(p for p in course if p["rule_id"] == "course-in-catalog")["status"] == "none"
     assert main(["check", "--root", ctx.root.uri, "-c", CAT]) == 0
 
 
@@ -103,11 +103,12 @@ def test_generate_rules_lists_every_property_and_rule_type(studio, capsys):  # n
                     "## When it isn't clear which property a text belongs to", "## How to work"):
         assert heading in text
     table = text[text.index("## Every property"):text.index("## Every rule type")]
-    assert table.count("\n| ") == 42  # the header and 41 properties
+    assert table.count("\n| ") == 37  # the header and 36 properties
     assert "`ceterms:creditValue → schema:minValue`" in table and "| none yet |" in table
     assert "`multiple.split: regex`" in text and "`input: rule`" in text and "`labelled`" in text
     assert "rule draft --all > drafts/more-rules.json" in text and "out of scope" not in text
-    assert "coverage (properties with a rule, of 41)" in text
+    assert "coverage (properties with a rule, of 36)" in text
+    assert "many courses per page" in text  # sme-fixes §3: locators named by what they do, not the template's words
 
 
 def test_the_rule_list_groups_and_sorts_properties(studio, tmp_path, capsys):  # noqa: F811

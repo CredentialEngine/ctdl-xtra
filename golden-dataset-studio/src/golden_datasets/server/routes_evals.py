@@ -6,6 +6,8 @@
 - `GET  /catalogs/{c}/scores`, `/scores/{id}`, `/scores/{id}/values` (one basis, narrowed by a column, a subject and
   an outcome, worst first, a page at a time, optionally grouped). Each row carries its Studio match (`rule_id`,
   `occurrence_key`, `value_index`, through the golden dataset's lineage), where a note or a verdict on it goes.
+- `GET  /catalogs/{c}/scores/{id}/wrong` (sme-fixes spec §8.4): "Where it's wrong", every unit that isn't a match
+  grouped by outcome × field × a grouping key, biggest group first, each with an example and its courses' Studio rows.
 - `GET  /catalogs-summary?basis=human|rule`: the home page's catalogs table (§6.1, §6.2): per catalog with rules, each
   column's status, its values in the latest golden dataset (human-reviewed, rule-labelled) and the values its rule
   found, and the exact matches of xtra's latest extract output against the latest golden dataset.
@@ -40,6 +42,8 @@ def _brief(doc: dict) -> dict:
             **{f"{b}_rate": (res.get(b) or {}).get("exact_match_rate") for b in scores.BASES},
             **{f"{b}_values": (res.get(b) or {}).get("values") for b in scores.BASES},
             **{f"{b}_outcomes": (res.get(b) or {}).get("outcomes") for b in scores.BASES},
+            **{f"{b}_found": (res.get(b) or {}).get("found") for b in scores.BASES},
+            **{f"{b}_right": (res.get(b) or {}).get("right") for b in scores.BASES},
             "golden_kind": doc["golden"]["kind"], "golden_as_of": doc["golden"].get("as_of"),
             "finished_at": doc.get("finished_at"), "slot_names": doc.get("slot_names")}
 
@@ -93,11 +97,47 @@ def get_score(request: Request, catalog: str, sid: str) -> dict:
 
 
 def _counts(rows: list[dict]) -> dict:
-    c = Counter(r["outcome"] for r in rows)
-    return {"values": len(rows), **{o: c[o] for o in scores.OUTCOMES}}
+    return scores.counts(rows)
 
 
 GROUPS = ("column", "subject")
+
+
+def _rows(request: Request, ctx, doc: dict, sid: str) -> list[dict]:
+    """A done score's values.parquet rows, each with a stable key, its subject and its Studio match; kept."""
+    st = studio(request)
+    key = ("score-values", ctx.catalog, sid)
+    if key not in st.cache:  # values.parquet doesn't change once the score is done
+        rows, seen = scores.values(ctx, sid), Counter()
+        for r in rows:  # a stable key per value: page, course, column, and which of its values
+            for k in ("unit", "field", "reason"):  # a score from before sme-fixes has none of these
+                r.setdefault(k, None)
+            k = (r["basis"], r["page_stem"], r["entity"], r["column"])
+            r["key"] = f"{r['page_stem']}|{r['entity']}|{r['column']}|{seen[k]}"
+            r["subject"] = scores.subject(r["golden_record_id"])
+            seen[k] += 1
+        scores.studio_targets(ctx, doc, rows)
+        st.cache[key] = rows
+    return st.cache[key]
+
+
+def _done(request: Request, catalog: str, sid: str):
+    ctx, doc = _doc(request, catalog, sid)
+    if doc["status"] != "done":
+        raise HTTPException(409, f"{sid} is {doc['status']}")
+    return ctx, doc
+
+
+@router.get("/catalogs/{catalog}/scores/{sid}/wrong")
+def where_wrong(request: Request, catalog: str, sid: str, basis: str = "human", column: str | None = None,
+                key: str = "auto") -> dict:
+    """Where it's wrong: one basis's units that aren't a match (in a column, or all), grouped (`scores.wrong_groups`).
+    `key`: auto · label · shape · diff · subject."""
+    if key not in scores.WRONG_KEYS:
+        raise HTTPException(422, f"key must be one of {', '.join(scores.WRONG_KEYS)}")
+    ctx, doc = _done(request, catalog, sid)
+    rows = [r for r in _rows(request, ctx, doc, sid) if r["basis"] == basis and (not column or r["column"] == column)]
+    return {"basis": basis, "column": column, "key": key, "groups": scores.wrong_groups(rows, key)}
 
 
 @router.get("/catalogs/{catalog}/scores/{sid}/values")
@@ -105,23 +145,10 @@ def score_values(request: Request, catalog: str, sid: str, basis: str = "human",
                  subject: str | None = None, outcome: str | None = None, group: str | None = None,
                  offset: int = 0) -> dict:
     """`group` (column · subject): the values narrowed by everything but that, in groups, each with its counts."""
-    ctx, doc = _doc(request, catalog, sid)
-    if doc["status"] != "done":
-        raise HTTPException(409, f"{sid} is {doc['status']}")
+    ctx, doc = _done(request, catalog, sid)
     if group not in (None, "", *GROUPS):
         raise HTTPException(422, f"group must be one of {', '.join(GROUPS)}")
-    st = studio(request)
-    key = ("score-values", ctx.catalog, sid)
-    if key not in st.cache:  # values.parquet doesn't change once the score is done
-        rows, seen = scores.values(ctx, sid), Counter()
-        for r in rows:  # a stable key per value: page, course, column, and which of its values
-            k = (r["basis"], r["page_stem"], r["entity"], r["column"])
-            r["key"] = f"{r['page_stem']}|{r['entity']}|{r['column']}|{seen[k]}"
-            r["subject"] = scores.subject(r["golden_record_id"])
-            seen[k] += 1
-        scores.studio_targets(ctx, doc, rows)
-        st.cache[key] = rows
-    mine = [r for r in st.cache[key] if r["basis"] == basis]
+    mine = [r for r in _rows(request, ctx, doc, sid) if r["basis"] == basis]
     in_col = [r for r in mine if (not column or r["column"] == column) and (not subject or r["subject"] == subject)]
     kept = [r for r in in_col if not outcome or r["outcome"] == outcome]
     by_col: dict[str, list[dict]] = {}
@@ -136,7 +163,7 @@ def score_values(request: Request, catalog: str, sid: str, basis: str = "human",
                 continue
             g.setdefault(r[group] or "—", []).append(r)
         groups = sorted(({"name": n, **_counts(rs)} for n, rs in g.items()), key=lambda x: (-x["values"], x["name"]))
-    order = {o: i for i, o in enumerate(scores.OUTCOMES)}
+    order = {o: i for i, o in enumerate(("missing", "wrong", "extra", "partial", "unsure", "match"))}  # worst first
     page = sorted(kept, key=lambda r: (order[r["outcome"]], r["similarity"] if r["similarity"] is not None else 0,
                                        r["page_stem"], r["entity"]))[offset:offset + PAGE]
     return {"basis": basis, "result": doc["results"].get(basis), "total": _counts(mine),

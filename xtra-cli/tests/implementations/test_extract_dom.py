@@ -274,6 +274,30 @@ def test_the_other_elumen_theme_prints_the_code_in_the_h1() -> None:
     assert found["course_lab_hours"] == 27.0
 
 
+def test_hours_go_out_as_durations_in_the_pages_words() -> None:
+    """The heading is the description, the number as printed the time."""
+    from implementations.extract import expected_values, record_fields
+
+    for page, lecture, lab, time in (
+        (
+            ELUMEN,
+            "Total Course Lecture Hours",
+            "Total Course Lab Hours",
+            "54.0",
+        ),
+        (ELUMEN_BAKERSFIELD, "Total Lecture Hours", "Total Lab Hours", "27.0"),
+    ):
+        drafts = extract_fields(ENTITY_COURSE, page)
+        expected = expected_values(record_fields("Course", drafts, "https://x"))
+        assert sorted(
+            expected["ceterms:estimatedDuration"],
+            key=lambda d: d["ceterms:description"],
+        ) == [
+            {"ceterms:description": lab, "ceterms:timeRequired": time},
+            {"ceterms:description": lecture, "ceterms:timeRequired": time},
+        ]
+
+
 def test_a_variable_unit_course_keeps_its_range() -> None:
     """Cabrillo prints "1.0 - 4.0 Units", written the way CourseLeaf's is."""
     page = PAGE.format(

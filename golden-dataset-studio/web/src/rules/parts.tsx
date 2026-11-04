@@ -3,6 +3,7 @@ import { useEffect, useRef } from "react";
 import type { EventBrief, RowStateName } from "../api/types";
 import { Ico } from "../shell/icons";
 import { clip, controlOn, historyItems, type Draft } from "./logic";
+import { WhyWrong } from "./WhyWrong";
 
 export function Controls({ state, verdict, comments, draft, onPick, tour, confirm, marked, commentOnly }: {
   state: RowStateName | null; verdict: EventBrief | null; comments: EventBrief[]; draft: Draft | null;
@@ -44,6 +45,7 @@ export function Expansion({ draft, propertyRule, emptyValue, onChange, onSave, o
   if (draft.mode === "comment") {
     return (
       <div className="expand comment" onClick={stop}>
+        {draft.anchor && <blockquote className="sel-quote sel-anchor" data-testid="anchor">{clip(draft.anchor.text, 160)}</blockquote>}
         <input ref={note} className="note" placeholder="Comment for whoever fixes the rule" value={draft.note}
           onChange={(e) => onChange({ ...draft, note: e.target.value })} />
         <label className="chk-expert">
@@ -63,7 +65,8 @@ export function Expansion({ draft, propertyRule, emptyValue, onChange, onSave, o
       {draft.captures.length
         ? <>{draft.captures.map((c, i) => (
               <div className="sel-piece" key={`${c.css_path}|${c.char_start}`}>
-                <blockquote className="sel-quote" data-testid="capture">{clip(c.text)}</blockquote>
+                {c.polarity === "out" && <span className="sel-pol" title="Marked not part of the right answer">✕ not in answer</span>}
+                <blockquote className={`sel-quote${c.polarity === "out" ? " out" : ""}`} data-testid="capture">{clip(c.text)}</blockquote>
                 <button className="sel-x" title="Remove this piece" aria-label={`Remove piece ${i + 1}`}
                   onClick={() => onChange({ ...draft, captures: draft.captures.filter((_, j) => j !== i) })}>×</button>
               </div>))}
@@ -73,6 +76,7 @@ export function Expansion({ draft, propertyRule, emptyValue, onChange, onSave, o
               Drag across more text to add a piece; × removes one.</div></>
         : <div className="pick"><Ico name="highlight" /><span>{pick}</span>
             {propertyRule && emptyValue && <span className="faint">(the rule found nothing here; select the value the page shows)</span>}</div>}
+      {propertyRule && <WhyWrong reasons={draft.reasons ?? []} onChange={(reasons) => onChange({ ...draft, reasons })} />}
       <input ref={note} className="note" placeholder="Note for whoever fixes the rule (optional)" value={draft.note}
         onChange={(e) => onChange({ ...draft, note: e.target.value })} />
       <div className="ex-btns">
@@ -92,7 +96,8 @@ export function HistoryLine(props: Parameters<typeof historyItems>[0]) {
         <span key={i} className={`h-${h.cls}${h.cls === "good" ? " good" : h.cls === "bad" ? " bad" : h.cls === "expert" ? " expert-t" : ""}`}>
           {i > 0 && <span className="h-sep"> · </span>}
           {h.cls === "expert" && <Ico name="inst" />}
-          {h.cls === "comment" && <Ico name="bubble" className="ib" />}
+          {h.cls === "comment" && (h.n ? <span className="h-n" title="Pinned to text on the page: the bubble with this number">{h.n}</span>
+            : <Ico name="bubble" className="ib" />)}
           {h.author && <b>{h.author}: </b>}{h.text}
           {h.compared && <span className="h-compared"> · {h.compared}</span>}
         </span>

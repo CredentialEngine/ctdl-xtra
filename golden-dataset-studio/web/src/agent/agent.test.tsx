@@ -9,7 +9,7 @@ import { RunBar } from "./RunBar";
 import { RunButton } from "./RunButton";
 import { OPEN_PROMPT } from "../prompt/PromptModal";
 import { RunsPanel } from "./RunsPanel";
-import { AgentProvider, resetAgentConfig } from "./state";
+import { AgentProvider, POLL_MS, resetAgentConfig } from "./state";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -25,11 +25,15 @@ const RUN: AgentRun = {
 const NOW = "2026-10-28T03:24:09Z";
 const ENDED: AgentRun = { ...RUN, state: "failed", outcome: "Couldn't publish: BIOL110 needs an expected value",
   ended_at: "2026-10-28T03:20:00Z" };
+// another run (dismissing one in a test hides it for the rest of the file), live and then finished with a new ruleset
+const LIVE2: AgentRun = { ...RUN, run_id: "20261028T050000Z-c3d4" };
+const DONE: AgentRun = { ...LIVE2, state: "finished", outcome: "Published ruleset v7", ended_at: "2026-10-28T03:20:00Z", ruleset_after: 7 };
 
 let config: AgentConfig = CONFIG;
 let current: CurrentRun = { run: null, last: null, notes: [], since: 0, now: NOW };
 let startAnswer: { status: number; body: unknown } = { status: 201, body: { run: RUN } };
 const posts: { url: string; body: unknown }[] = [];
+let clockNow = false;  // the server's `now` follows the (fake) clock instead of NOW
 
 function respond(status: number, body: unknown) {
   return Promise.resolve(new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } }));
@@ -40,11 +44,13 @@ beforeEach(() => {
   current = { run: null, last: null, notes: [], since: 0, now: NOW };
   startAnswer = { status: 201, body: { run: RUN } };
   posts.length = 0;
+  clockNow = false;
   vi.stubGlobal("fetch", (url: string, init?: RequestInit) => {
     if (url === "/api/agent-runs/config") return respond(200, config);
-    if (url.includes("/agent-runs/current")) return respond(200, current);
+    if (url.includes("/agent-runs/current")) return respond(200, clockNow ? { ...current, now: new Date().toISOString() } : current);
     if (url.endsWith("/agent-runs?limit=50")) return respond(200, [ENDED, { ...RUN, run_id: "20261027T200000Z-0000", state: "timed_out",
       outcome: null, ended_at: "2026-10-27T21:30:00Z" }]);
+    if (url.endsWith(`/agent-runs/${DONE.run_id}`)) return respond(200, { run: DONE, summary: "Course description v3 → v4.\n", notes: [] });
     if (url.endsWith(`/agent-runs/${ENDED.run_id}`)) return respond(200, { run: ENDED, summary: "## Decisions for Eric\n\n1. Advisory text\n",
       notes: [{ at: "2026-10-28T03:13:00Z", kind: "note", text: "Drafted course-description v3", by: "golden-rules agent" }] });
     if (url.endsWith(`/agent-runs/${ENDED.run_id}/prompt`)) return respond(200, { text: "# Improve 2 rules — AVC catalog" });
@@ -61,7 +67,7 @@ beforeEach(() => {
 
 let host: HTMLDivElement, root: Root;
 beforeEach(() => { host = document.createElement("div"); document.body.appendChild(host); root = createRoot(host); });
-afterEach(() => { act(() => root.unmount()); host.remove(); vi.unstubAllGlobals(); });
+afterEach(() => { act(() => root.unmount()); host.remove(); vi.unstubAllGlobals(); vi.useRealTimers(); vi.restoreAllMocks(); });
 
 const flush = () => act(async () => { for (let i = 0; i < 5; i++) await Promise.resolve(); });
 const buttons = () => [...document.querySelectorAll("button")];
@@ -159,6 +165,80 @@ describe("RunBar", () => {
     expect(host.querySelector<HTMLAnchorElement>("a.btn")!.getAttribute("href")).toBe("#/c/avc/compare?a=6&b=7");
     await act(async () => host.querySelector<HTMLButtonElement>(".run-x")!.click());
     expect(host.querySelector("[data-testid=run-bar]")).toBeNull();
+  });
+
+  const STUDIO_NOTE = { at: RUN.created_at, kind: "studio" as const, text: "Started by Jared Diener", by: "Golden Dataset Studio" };
+  const bar = () => host.querySelector("[data-testid=run-bar]")!;
+  const poll = () => act(async () => { await vi.advanceTimersByTimeAsync(POLL_MS); });
+
+  it("says Claude isn't responding 5 minutes after delivery with no note, and offers Mark as ended", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(Date.parse(RUN.sent_at!) + 4 * 60_000 + 50_000);  // 4 min 50 s after delivery
+    clockNow = true;
+    current = { run: RUN, last: null, since: 0, now: NOW, notes: [STUDIO_NOTE] };
+    await act(async () => root.render(<AgentProvider catalog="avc"><RunBar catalog="avc" /></AgentProvider>));
+    await poll();
+    expect(bar().className).toContain("is-live");
+    expect(bar().querySelector(".run-text")!.textContent).toContain("no update from Claude yet");
+    expect(byText("Mark as ended")).toBeUndefined();
+    await poll(); await poll(); await poll();  // 5 min 2 s
+    expect(bar().className).toContain("is-silent");
+    expect(bar().querySelector(".run-text")!.textContent).toBe("Claude isn't responding. No update in 5 minutes; it may have stopped.");
+    expect(bar().textContent).not.toContain("K2");
+    vi.spyOn(window, "prompt").mockReturnValue("it stopped after an Azure error");
+    await act(async () => byText("Mark as ended")!.click());
+    expect(posts[0]).toEqual({ url: `/api/catalogs/avc/agent-runs/${RUN.run_id}/end`,
+      body: { author: "Jared Diener", outcome: "it stopped after an Azure error" } });
+  });
+
+  it("stays quiet when Claude has written a note, or before the message is delivered", async () => {
+    const late = new Date(Date.parse(RUN.sent_at!) + 30 * 60_000).toISOString();
+    current = { run: RUN, last: null, since: 0, now: late, notes: [STUDIO_NOTE,
+      { at: RUN.sent_at!, kind: "note", text: "Starting: course-description", by: "golden-rules agent" }] };
+    await act(async () => root.render(<AgentProvider catalog="avc"><RunBar catalog="avc" /></AgentProvider>));
+    await flush();
+    expect(bar().className).toContain("is-live");
+    act(() => root.unmount());
+    root = createRoot(host);
+    current = { run: { ...RUN, state: "waiting", sent_at: null }, last: null, since: 0, now: late, notes: [STUDIO_NOTE] };
+    await act(async () => root.render(<AgentProvider catalog="avc"><RunBar catalog="avc" /></AgentProvider>));
+    await flush();
+    expect(bar().className).toContain("is-live");
+  });
+
+  const report = () => document.querySelector("[data-testid=run-report]");
+
+  it("turns the Watch panel into the run's report when the watched run ends", async () => {
+    vi.useFakeTimers({ toFake: ["setInterval", "clearInterval"] });
+    current = { run: LIVE2, last: null, since: 0, now: NOW, notes: [STUDIO_NOTE,
+      { at: "2026-10-28T03:13:00Z", kind: "note", text: "Drafted course-description v3", by: "golden-rules agent" }] };
+    await act(async () => root.render(<AgentProvider catalog="avc"><RunBar catalog="avc" /></AgentProvider>));
+    await flush();
+    await act(async () => byText("Watch")!.click());
+    expect(report()).toBeNull();
+    current = { run: null, last: DONE, since: 2, now: NOW, notes: [] };  // no new notes since the 2 we have
+    await poll();
+    await flush();
+    expect(document.querySelector("#run-watch-h")!.textContent).toBe("Claude's report");
+    expect(report()!.querySelector(".run-done")!.textContent).toContain("Claude finished: Published ruleset v7");
+    expect(report()!.querySelector<HTMLAnchorElement>(".run-done a")!.getAttribute("href")).toBe("#/c/avc/compare?a=6&b=7");
+    expect(report()!.querySelector(".runs-report")!.textContent).toContain("Course description v3 → v4.");
+    const fold = report()!.querySelector("details")!;
+    expect(fold.open).toBe(false);
+    expect(fold.querySelector("summary")!.textContent).toBe("Progress notes (2)");
+    expect([...fold.querySelectorAll(".run-notes li span")].map((s) => s.textContent))
+      .toEqual(["Started by Jared Diener", "Drafted course-description v3"]);
+  });
+
+  it("offers Read the report instead of Details when you weren't watching", async () => {
+    current = { run: null, last: DONE, since: 0, now: NOW, notes: [STUDIO_NOTE] };
+    await act(async () => root.render(<AgentProvider catalog="avc"><RunBar catalog="avc" /></AgentProvider>));
+    await flush();
+    expect(byText("Details")).toBeUndefined();
+    await act(async () => byText("Read the report")!.click());
+    await flush();
+    expect(report()!.querySelector(".runs-report")!.textContent).toContain("Course description v3 → v4.");
+    expect(report()!.querySelector("summary")!.textContent).toBe("Progress notes (1)");
   });
 });
 

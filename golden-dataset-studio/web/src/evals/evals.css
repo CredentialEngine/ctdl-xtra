@@ -9,6 +9,11 @@
 .btn:disabled { opacity: .5; cursor: not-allowed; }
 .o-missing { background: var(--o-missing); } .o-wrong { background: var(--o-wrong); }
 .o-partial { background: var(--o-partial); } .o-match { background: var(--o-match); }
+/* sme-fixes §8.4: unsure (golden says not on the page, xtra made no claim) and extra (a candidate with no golden value,
+   striped: it sits beside the golden side, not in it) */
+:root { --o-unsure: #a3a3a3; --o-extra: #7c5cff; }
+.o-unsure { background: var(--o-unsure); }
+.o-extra { background: repeating-linear-gradient(135deg, var(--o-extra) 0 3px, #c9bcff 3px 6px); }
 .sw { display: inline-block; width: 9px; height: 9px; border-radius: 3px; margin-right: 6px; flex: none; }
 
 .evx-main { overflow: auto; padding: 20px 28px 40px; min-width: 0; }
@@ -205,3 +210,29 @@ td .evx-tipw, .evx-grow .evx-tipw { display: flex; width: 100%; }
 .evx-cols tr.evx-unscored:hover td { background: none; }
 .evx-cols .evx-why { font-size: 12.5px; }
 .evx-xtra { margin: -4px 0 10px; }
+
+/* found / right under the headline, the columns' header, an unscored column's two facts (sme-fixes §8.4) */
+.evx-fr { margin: -4px 0 8px; display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
+.evx-fr .sw { margin: 0 2px 0 4px; }
+.evx-cols thead th { text-align: left; font-size: 10.5px; font-weight: 650; letter-spacing: .07em; text-transform: uppercase;
+  color: var(--ink-3, #6b7280); padding: 8px 10px 4px; }
+.evx-cols thead th.r { text-align: right; }
+.evx-ns { font-weight: 600; color: var(--ink-2); margin-right: 8px; }
+.evx-fact { display: inline-block; border: 1px solid var(--line-2); border-radius: 999px; padding: 0 8px; margin-right: 6px;
+  font-size: 11.5px; white-space: nowrap; }
+
+/* Where it's wrong */
+.evx-wrong { margin: 14px 0 10px; border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; }
+.evx-wrong-h { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.evx-wrong-h h3 { margin: 0; font-size: 12px; letter-spacing: .07em; text-transform: uppercase; color: var(--accent); }
+.evx-wrong-t { width: 100%; border-collapse: collapse; font-size: 12.5px; margin-top: 6px; }
+.evx-wrong-t th { text-align: left; font-size: 10.5px; font-weight: 650; color: var(--ink-3, #6b7280); padding: 4px 6px; }
+.evx-wrong-t td { padding: 5px 6px; border-top: 1px solid var(--line); vertical-align: top; }
+.evx-wrong-t .r { text-align: right; width: 1%; font-variant-numeric: tabular-nums; }
+.evx-ob { display: inline-block; color: #fff; border-radius: 4px; padding: 0 6px; font-size: 11px; font-weight: 600; }
+.evx-ob.o-partial, .evx-ob.o-unsure { color: #222; }
+.evx-wrong-ex { max-width: 420px; overflow-wrap: anywhere; }
+.evx-cc { display: inline-block; margin: 0 4px 2px 0; font-size: 11.5px; }
+.evx-link { border: 0; background: none; color: var(--accent); font: inherit; font-weight: 600; cursor: pointer; padding: 0; }
+/* a long example (a whole description) stays three lines; the full text is in its tooltip */
+.evx-clamp { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
