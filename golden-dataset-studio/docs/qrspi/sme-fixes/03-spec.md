@@ -206,3 +206,14 @@ Evals tab, and from the CLI (`golden-datasets score`, `xtra score extraction mat
   timer, Watch report, `_Recent` lock under threads, profile rule extraction, per-element review, golden objects +
   absent + reviewer answer, every scorer outcome, the CLI report, Evals extra/unsure/where-wrong.
 - Screenshots of every new or changed behaviour, from a local server on the local mirror, in `screens/`.
+
+## 11. Evals row statuses (Eric, 2026-11-04 13:24, `answers-pass6.md`)
+
+Replace the free-text reasons on unscored Evals rows (`EvalsTab.tsx` `reasonFor`) with two explicit facts per row:
+- **Candidates** (values in xtra's extract output): "N candidates" · "No candidates: xtra doesn't extract this
+  property" · "No candidates in this output".
+- **Golden values** (Human-reviewed side; "rule-matched values" on the Rule-matched side): "N golden values" · "No
+  golden values: no Studio rule yet" · "…: the Studio rule needs work" · "…: the Studio rule is in review" · "Not read
+  from the page" · "Studio only: no CTDL property".
+A row is scored only when it has both; otherwise "Not scored" plus the two facts as compact labelled chips with
+tooltips defining each term. The same terms are used in tooltips and "Where it's wrong".
