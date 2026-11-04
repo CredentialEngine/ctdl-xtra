@@ -3,8 +3,9 @@ and the file says `done` or `failed`. One score runs per catalog at a time; on s
 `running` becomes `interrupted`.
 
 A loop checks every 30 s, and once on start: for each catalog, a new extract output (copied, then scored against the
-latest golden dataset) and `scores/pending.json` (when due, the latest extract output against the human-reviewed
-values; then the file is deleted).
+latest golden dataset), a latest golden dataset the latest extract output has no score against yet (one published
+from the CLI), and `scores/pending.json` (when due, the latest extract output against the human-reviewed values; then
+the file is deleted).
 """
 
 from __future__ import annotations
@@ -78,8 +79,13 @@ class ScoreJobs:
             try:
                 catalog.invalidate()
                 entry, new = scores.see_output(catalog)
-                if new and scores.latest_golden(catalog):
+                latest = scores.latest_golden(catalog)
+                if new and latest:
                     self._quietly(catalog, None, "the Studio", f"a new extract output, {entry['id']}")
+                elif entry and latest and not self.busy(catalog.catalog) \
+                        and not scores.scored_against(catalog, entry["id"], latest):
+                    # a golden dataset published outside the Studio's approve (`golden-datasets golden publish`)
+                    self._quietly(catalog, None, "the Studio", f"a new golden dataset, {latest}")
                 due = scores.pending(catalog)
                 if due and entry and not self.busy(catalog.catalog):
                     scores.done_pending(catalog)
