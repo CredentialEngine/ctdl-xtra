@@ -234,3 +234,5 @@ td .evx-tipw, .evx-grow .evx-tipw { display: flex; width: 100%; }
 .evx-wrong-ex { max-width: 420px; overflow-wrap: anywhere; }
 .evx-cc { display: inline-block; margin: 0 4px 2px 0; font-size: 11.5px; }
 .evx-link { border: 0; background: none; color: var(--accent); font: inherit; font-weight: 600; cursor: pointer; padding: 0; }
+/* a long example (a whole description) stays three lines; the full text is in its tooltip */
+.evx-clamp { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }

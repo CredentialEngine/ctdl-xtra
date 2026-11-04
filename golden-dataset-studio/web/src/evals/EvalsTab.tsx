@@ -632,9 +632,9 @@ function WhereWrong({ cat, doc, basis, col, wk, nav }: { cat: string; doc: Score
                   </td>
                   <td className="muted">{g.by} <span className="mono">{g.key}</span></td>
                   <td className="evx-wrong-ex">
-                    <span>{g.example.golden_value === null ? <i className="muted">none</i> : shown(g.example.golden_value)}</span>
+                    <span className="evx-clamp" title={g.example.golden_value ?? undefined}>{g.example.golden_value === null ? <i className="muted">none</i> : shown(g.example.golden_value)}</span>
                     <span className="muted"> → </span>
-                    <span>{g.example.extracted_value === null ? <i className="muted">none</i> : shown(g.example.extracted_value)}</span>
+                    <span className="evx-clamp" title={g.example.extracted_value ?? undefined}>{g.example.extracted_value === null ? <i className="muted">none</i> : shown(g.example.extracted_value)}</span>
                     {ex && <a className="small" href={ex}> {g.example.golden_record_id ?? "open"} in Rules →</a>}
                   </td>
                   <td className="evx-wrong-c">
