@@ -8,8 +8,8 @@ course_credits_max,Course,number,ceterms:creditValue,Only when the freeze prints
 course_credits_unit,Course,string,ceterms:creditUnitType,The word the credits are counted in (Units / Credits / Hours) verbatim. Only beside course_credits; mapped inside its creditValue as creditUnitType.
 course_prerequisites,Course,string,ceterms:requires,Omit when not printed. Never invent min/max from a single credit.
 course_corequisites,Course,string,,Omit when not printed. Never invent min/max from a single credit.
-course_lecture_hours,Course,number,,Omit when not printed. Never invent min/max from a single credit.
-course_lab_hours,Course,number,,Omit when not printed. Never invent min/max from a single credit.
+course_lecture_hours,Course,number,ceterms:estimatedDuration,Omit when not printed. Never invent min/max from a single credit.
+course_lab_hours,Course,number,ceterms:estimatedDuration,Omit when not printed. Never invent min/max from a single credit.
 course_program,Course,string,,Omit when not printed. Never invent min/max from a single credit.
 course_department,Course,string,,Omit when not printed. Never invent min/max from a single credit.
 course_school,Course,string,,Omit when not printed. Never invent min/max from a single credit.

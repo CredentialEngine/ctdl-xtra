@@ -844,13 +844,14 @@ A course carries the minimum data for courses and nothing more:
 | Credit Value | `ceterms:creditValue` | the credits as printed: `3`, `1.0-4.0` |
 | Credit Unit Type | `ceterms:creditUnitType` | the unit word printed with them |
 | Prerequisite | `ceterms:prerequisite` | the printed prerequisites |
+| Estimated Duration | `ceterms:estimatedDuration` | a list, one `{ceterms:description, ceterms:timeRequired}` per printed hours line, in the page's words: `{"ceterms:description": "Total Course Lecture Hours", "ceterms:timeRequired": "54.0"}` |
 
 A Coursedog page that prints a minimum and a maximum gives
 `ceterms:creditMinValue` and `ceterms:creditMaxValue` instead, the names the
 Learning Opportunity bulk-upload template uses. The identifier and the
 webpage are the two no page prints as a field, so they come last, with ids
-from `derived_001`. Everything else a course page prints, such as lecture
-and lab hours, the department or the corequisites, is still read, because
+from `derived_001`. Everything else a course page prints, such as the
+department or the corequisites, is still read, because
 each field counts toward the two a page needs to be a record at all, but
 the record leaves it out. Credentials, learning programs and competencies
 keep every field they have.
@@ -914,6 +915,30 @@ the record's `source_url`. A property the record has and the baseline does not
 is listed as `unscored_extras` and costs nothing; the baseline may simply be
 incomplete.
 
+What is compared is a **unit**: a value; an object, for a list-of-objects
+property (`ceterms:estimatedDuration`: several baseline fields whose `value`
+is a `{ceterms:description, ceterms:timeRequired}` object form the list);
+or **absent**, a baseline field `{"value": null, "absent": true}` saying the
+property is not on the page. Objects pair by their description and are exact
+only when every field is. In a record, an explicit `null` is the claim "not
+on the page" (it matches a baseline absent); a key left out is no claim.
+
+| Unit outcome | Meaning |
+| --- | --- |
+| `match` | Exact; an absent baseline against the record's `null`. |
+| `partial` | Paired, similarity 0.8 or more, not exact (an object: every field). |
+| `wrong` | Paired below 0.8 (an object: any field). |
+| `missing` | A baseline unit with no partner (a baseline value against the record's `null` too). |
+| `unsure` | The baseline says absent and the record has no key for the property. |
+| `extra` | An extracted unit with no partner, for a property the baseline entity covers (an absent one included). |
+
+Both modes report, per property and overall, summed over every entity:
+`found` (recall) = match / baseline units, `right` (precision) = match /
+extracted units, the `extras` (count and list), `unsure`, and
+`entities_exact` (entities whose every unit matched / entities). The
+stderr table prints found and right per property. The report schema is
+`xtra-extraction-match-report-2`.
+
 **Exact** is the tier to aim for. A value matches only when it is identical to
 the baseline as printed: no case, spacing or punctuation leniency, and `1.0`
 is not `1`.
@@ -923,6 +948,7 @@ is not `1`.
 | `match` | Identical to the baseline value. |
 | `mismatch` | A value was extracted but it is not identical. The report keeps its similarity. |
 | `missing` | The extractor emitted nothing for the property. |
+| `unsure` | The baseline says absent; the extractor made no claim. |
 
 **Partial** tells how much non-exactness the extractor shows. Exact matches
 are set aside first (the report counts them as `excluded_exact`), so a pile of
@@ -938,11 +964,13 @@ code also compares with its punctuation and spaces removed, so `ACCT 199` is
 | `wrong` | A value was extracted and its similarity is below 0.8. |
 | `missing` | The extractor emitted nothing for the property. |
 
-**Nothing is averaged.** An average hides outliers. The report carries counts
-by outcome, by property and by page, plus `outliers`: every field that is not
-an exact match, worst first (missing, then lowest similarity), each with its
-page, property, baseline value and extracted value. The only ratio is
-`exact_match_rate` (matches over fields) in the exact report.
+**Nothing is averaged per page.** An average hides outliers. The report
+carries counts by outcome, by property and by page, plus `outliers`: every
+field that is not an exact match, worst first (missing, then lowest
+similarity), each with its page, property, baseline value and extracted
+value. The ratios are ratios of summed counts: `exact_match_rate` (matches
+over fields, in the exact report, equal to `found`), `found`, `right` and
+`entities_exact`.
 
 Each baseline page falls in one of three groups:
 

@@ -18,6 +18,11 @@ from golden_datasets.storage import LocalRoot
 NAMES = {"page-0": "C 0", "page-1": "C 11", "page-2": None}  # golden names: C 0, C 1, C 2 → match, partial, missing
 
 
+def _old(counts: dict, *more: str) -> dict:
+    """The counts as they were before sme-fixes (values and the four golden outcomes); the rest is tested apart."""
+    return {k: counts[k] for k in (*more, "values", "missing", "wrong", "partial", "match")}
+
+
 def _output(folder, crawl: str, names=NAMES, slot_names: bool = False, written: int | None = None) -> None:
     """An extract output as xtra writes it: records/<stem>.json and extract-report.json."""
     (folder / "records").mkdir(parents=True, exist_ok=True)
@@ -51,7 +56,7 @@ def test_a_score_has_both_results_and_one_row_per_value(scored, capsys):
     doc = scores.read(ctx, "sc-0001")
     assert doc["status"] == "done" and doc["golden"]["id"] == "ruleset-v1" and doc["golden"]["values"] == {"human": 1, "rule": 6}
     assert doc["columns"] == ["codedNotation", "name"] and doc["slot_names"] is False
-    assert doc["results"]["rule"]["by_column"]["name"] == {"values": 3, "missing": 1, "wrong": 0, "partial": 1, "match": 1}
+    assert _old(doc["results"]["rule"]["by_column"]["name"]) == {"values": 3, "missing": 1, "wrong": 0, "partial": 1, "match": 1}
     assert doc["output"]["records"] == 3 and not doc["output"]["records_mismatch"]
     assert all(c.startswith("xtra score extraction match --exactly") for c in doc["commands"])
     for cmd, tree in zip(doc["commands"], ("golden", "silver"), strict=True):  # one per tree (stored as golden/silver)
@@ -75,7 +80,7 @@ def test_human_reviewed_values_are_read_live_from_the_page_files(scored):
     _mark(c, JARED, "course-name", _rows(c, "course-name")["page-2"], "correct")  # rewrites page-2's file only
     second = scores.score(Ctx(ctx.root, CAT), scores.HUMAN_REVIEWED)
     assert second["id"] != first["id"] and second["golden"]["values"]["human"] == 2
-    assert second["results"]["human"]["outcomes"] == {"missing": 1, "wrong": 0, "partial": 0, "match": 1}
+    assert second["results"]["human"]["outcomes"] == {"missing": 1, "wrong": 0, "partial": 0, "match": 1, "unsure": 0, "extra": 0}
 
 
 def test_slot_names_and_a_record_count_that_disagrees_are_flagged(scored, capsys):
@@ -159,11 +164,11 @@ def test_evals_rows_map_to_their_studio_match_and_notes_keep_the_comparison(scor
     sid = (o["outputs"][0]["scores"] or c.get(f"{B}/scores").json())[0]["id"]
     _wait(c, sid)
     [brief] = c.get(f"{B}/extract-outputs").json()["outputs"][0]["scores"]
-    assert brief["rule_outcomes"] == {"missing": 1, "wrong": 0, "partial": 1, "match": 4} and brief["golden_kind"] == "version"
-    assert brief["human_outcomes"] == {"missing": 0, "wrong": 0, "partial": 0, "match": 1} and brief["golden_as_of"]
+    assert brief["rule_outcomes"] == {"missing": 1, "wrong": 0, "partial": 1, "match": 4, "unsure": 0, "extra": 0} and brief["golden_kind"] == "version"
+    assert brief["human_outcomes"] == {"missing": 0, "wrong": 0, "partial": 0, "match": 1, "unsure": 0, "extra": 0} and brief["golden_as_of"]
 
     v = c.get(f"{B}/scores/{sid}/values", params={"basis": "rule", "column": "name", "group": "subject"}).json()
-    assert v["groups"] == [{"name": "C", "values": 3, "missing": 1, "wrong": 0, "partial": 1, "match": 1}]
+    assert [_old(g, "name") for g in v["groups"]] == [{"name": "C", "values": 3, "missing": 1, "wrong": 0, "partial": 1, "match": 1}]
     partial = next(r for r in v["rows"]["items"] if r["outcome"] == "partial")
     assert (partial["page_stem"], partial["rule_id"], partial["subject"]) == ("page-1", "course-name", "C")
     assert partial["occurrence_key"] == _rows(c, "course-name")["page-1"]["key"] and partial["value_index"] == 0
@@ -254,7 +259,7 @@ def test_the_catalogs_summary_has_each_columns_status_and_the_latest_score(score
     human = c.get("/api/catalogs-summary", params={"basis": "human"}).json()["catalogs"][CAT]["score"]
     assert (human["id"], human["golden"], human["values"], human["outcomes"]["match"]) == ("sc-0001", "ruleset-v1", 1, 1)
     rule = c.get("/api/catalogs-summary", params={"basis": "rule"}).json()["catalogs"][CAT]["score"]
-    assert rule["values"] == 6 and rule["by_column"]["name"] == {"values": 3, "missing": 1, "wrong": 0, "partial": 1, "match": 1}
+    assert rule["values"] == 6 and _old(rule["by_column"]["name"]) == {"values": 3, "missing": 1, "wrong": 0, "partial": 1, "match": 1}
     assert c.get("/api/catalogs-summary", params={"basis": "x"}).status_code == 422
 
 
@@ -310,3 +315,51 @@ def test_only_the_columns_the_output_emits_are_scored(scored, capsys):
     rule = doc["results"]["rule"]
     assert rule["values"] == 3 and list(rule["by_column"]) == ["codedNotation"] and rule["exact_match_rate"] == 1
     assert rule["xtra"]["values"] == 6 and rule["xtra"]["exact_match_rate"] == 0.5
+    # the candidates per column, and the columns xtra's extract writes at all (Evals: "No candidates …")
+    assert doc["candidates"] == {"codedNotation": 3}
+    assert "name" in doc["xtra_extracts"] and "estimatedDuration" in doc["xtra_extracts"]
+
+
+def test_scores_carry_found_right_and_where_its_wrong(scored, capsys):
+    """sme-fixes spec §8: values.parquet has unit, field and reason; the CLI prints found and right; /wrong groups
+    every unit that isn't a match, each with an example and its courses' Studio rows."""
+    c, ctx, _ = scored
+    assert main(["score", "--root", ctx.root.uri, "--catalog", CAT, "--ruleset", "1"]) == 0
+    out = capsys.readouterr().out
+    assert "found (recall) 66.7% · right (precision) 80.0% of 5 candidates" in out
+    rows = scores.values(ctx, "sc-0001")
+    partial = next(r for r in rows if r["basis"] == "rule" and r["outcome"] == "partial")
+    assert (partial["unit"], partial["field"], partial["reason"]) == ("value", None, "different")
+    missing = next(r for r in rows if r["basis"] == "rule" and r["outcome"] == "missing")
+    assert missing["reason"] == "nothing extracted"
+    res = scores.read(ctx, "sc-0001")["results"]["rule"]
+    assert (res["found"], res["right"], res["extracted"]) == (0.6667, 0.8, 5)
+    assert res["by_column"]["name"]["courses_exact"] == 1 and res["by_column"]["name"]["list"] is False
+
+    w = c.get(f"{B}/scores/sc-0001/wrong", params={"basis": "rule"}).json()
+    assert [(g["outcome"], g["column"], g["by"], g["units"]) for g in w["groups"]] == [
+        ("missing", "name", "value shape", 1), ("partial", "name", "word diff", 1)]
+    g = w["groups"][1]
+    assert (g["example"]["golden_value"], g["example"]["extracted_value"]) == ("C 1", "C 11")
+    assert g["targets"] == [{"golden_record_id": g["targets"][0]["golden_record_id"], "rule_id": "course-name",
+                             "occurrence_key": _rows(c, "course-name")["page-1"]["key"]}]
+    assert c.get(f"{B}/scores/sc-0001/wrong", params={"key": "nope"}).status_code == 422
+    assert c.get(f"{B}/scores/sc-0001/wrong", params={"basis": "rule", "key": "subject"}).json()["groups"][0]["by"] \
+        == "course subject"
+
+
+def test_the_loop_scores_a_golden_dataset_published_outside_the_studio(scored):
+    """§8.3: an extract output already seen, then a golden dataset published by the CLI: the loop scores the pair."""
+    c, ctx, _ = scored
+    jobs, st = c.app.state.scores, c.app.state.studio
+    scores.see_output(Ctx(ctx.root, CAT))  # seen (copied) before: not new for the loop
+    assert scores.all_scores(Ctx(ctx.root, CAT)) == []
+    jobs.tick(st)
+    while jobs.busy(CAT):
+        time.sleep(0.05)
+    [doc] = scores.all_scores(Ctx(ctx.root, CAT))
+    assert (doc["golden"]["id"], doc["reason"]) == ("ruleset-v1", "a new golden dataset, ruleset-v1")
+    jobs.tick(st)  # scored once
+    while jobs.busy(CAT):
+        time.sleep(0.05)
+    assert len(scores.all_scores(Ctx(ctx.root, CAT))) == 1
