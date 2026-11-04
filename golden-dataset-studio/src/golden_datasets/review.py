@@ -75,6 +75,16 @@ class _Recent(dict):
             super().__setitem__(key, value)  # most recent last
             return value
 
+    def get(self, key, default=None):
+        """The value, marked most recent, or `default`. Callers use this instead of `in` then `[]`: another thread could
+        evict the rule between the two."""
+        with self._lock:
+            if not super().__contains__(key):
+                return default
+            value = super().pop(key)
+            super().__setitem__(key, value)
+            return value
+
     def __setitem__(self, key, value) -> None:
         with self._lock:
             super().pop(key, None)
@@ -182,9 +192,10 @@ class Snapshot:
         return " - ".join(x for x in (code, name) if x)
 
     def rows(self, rule_id: str) -> list[dict]:
-        if rule_id not in self._rows:
-            self._rows[rule_id] = self._build_rows(rule_id)
-        return self._rows[rule_id]
+        rows = self._rows.get(rule_id)
+        if rows is None:
+            self._rows[rule_id] = rows = self._build_rows(rule_id)
+        return rows
 
     def _build_rows(self, rule_id: str) -> list[dict]:
         rule = self.rules[rule_id]
@@ -409,9 +420,10 @@ class Review:
 
     def row_states(self, rule_id: str, rows: list[dict]) -> dict[str, RowState]:
         if rows is self.snap.rows(rule_id):
-            if rule_id not in self._states:
-                self._states[rule_id] = self._row_states(rule_id, rows)
-            return self._states[rule_id]
+            states = self._states.get(rule_id)
+            if states is None:
+                self._states[rule_id] = states = self._row_states(rule_id, rows)
+            return states
         return self._row_states(rule_id, rows)
 
     def _row_states(self, rule_id: str, rows: list[dict]) -> dict[str, RowState]:
@@ -610,7 +622,8 @@ class Review:
 
     def facet_dims(self, rule_id: str) -> list[dict]:
         """facets.dimensions over this rule's rows, review states included. Fixed per Review."""
-        if rule_id not in self._facets:
+        dims = self._facets.get(rule_id)
+        if dims is None:
             snap = self.snap
             kind = snap.rules[rule_id]["kind"]
             rows = snap.rows(rule_id)
@@ -621,8 +634,8 @@ class Review:
                                  **self._annotated(states[r["key"]], ruleset_of),
                                  **({"on_page": on_page.get(r["page_stem"], 0)} if on_page is not None else {}))
                      for r in rows]
-            self._facets[rule_id] = facets.dimensions(kind, items)
-        return self._facets[rule_id]
+            self._facets[rule_id] = dims = facets.dimensions(kind, items)
+        return dims
 
     @staticmethod
     def _annotated(st: RowState, ruleset_of: dict[str, int]) -> dict:
@@ -636,7 +649,8 @@ class Review:
         latest verdict, and note when they commented; the Studio's own events don't count; first names count as the
         full name), `kinds` (the row's: its verdict, note when discussed) and `waiting` (engineer-checked). Fixed per
         Review."""
-        if rule_id not in self._annotations:
+        cached = self._annotations.get(rule_id)
+        if cached is None:
             rows = self.snap.rows(rule_id)
             states = self.row_states(rule_id, rows)
             out = {}
@@ -657,8 +671,8 @@ class Review:
                     "people": {n: {"kinds": [k for k in (p["verdict"], "note" if p["note"] else None) if k],
                                    "at": p["at"], "role": self.roles.get(n) or "engineer"} for n, p in people.items()},
                     "kinds": sorted(kinds | ({"note"} if st.comments else set())), "waiting": st.engineer_checked}
-            self._annotations[rule_id] = out
-        return self._annotations[rule_id]
+            self._annotations[rule_id] = cached = out
+        return cached
 
     def people(self) -> dict:
         """The "Annotated by" dropdown: every profile and everyone who annotated a value, with their role and how many
