@@ -27,6 +27,7 @@ from __future__ import annotations
 
 import hashlib
 import re
+import threading
 from collections import Counter, defaultdict
 from dataclasses import dataclass, field
 
@@ -63,16 +64,23 @@ class _Recent(dict):
 
     RULES_KEPT = 8
 
+    def __init__(self) -> None:
+        super().__init__()
+        # Request threads share a Review: unlocked, two of them could pop the same key (KeyError) or evict it twice.
+        self._lock = threading.Lock()
+
     def __getitem__(self, key):
-        value = super().pop(key)
-        super().__setitem__(key, value)  # most recent last
-        return value
+        with self._lock:
+            value = super().pop(key)
+            super().__setitem__(key, value)  # most recent last
+            return value
 
     def __setitem__(self, key, value) -> None:
-        super().pop(key, None)
-        super().__setitem__(key, value)
-        while len(self) > self.RULES_KEPT:
-            del self[next(iter(self))]
+        with self._lock:
+            super().pop(key, None)
+            super().__setitem__(key, value)
+            while len(self) > self.RULES_KEPT:
+                super().__delitem__(next(iter(self)))
 
 
 def _shared(rows: list[dict]) -> list[dict]:
