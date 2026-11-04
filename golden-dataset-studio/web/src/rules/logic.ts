@@ -1,6 +1,7 @@
 // Pure helpers of the Rules and Records tabs (no React, no fetch): wording, verdict events, keyboard, page tabs.
 import type { EventBrief, Expected, NewEvent, ReviewMarks, RowItem, RowStateName, RuleKind, RuleSummary, Verdict } from "../api/types";
 import type { CapturedSelection } from "../pagepane";
+import { reasonLabel } from "./claims";
 
 // --- wording ---------------------------------------------------------------------------------------------------
 /** "AVC course title - Antelope Valley College …" → the part a tab or a row has room for. */
@@ -104,6 +105,7 @@ export function historyItems(r: { state: RowStateName | null; verdict: EventBrie
   if (v && (r.state === "wrong" || r.state === "still-wrong" || r.state === "missing") && v.expected?.text) {
     out.push({ cls: "note", text: `expected “${clip(v.expected.text, 90)}”`, compared: v.note ? undefined : vc });
   }
+  if (v?.reasons?.length && (r.state === "wrong" || r.state === "still-wrong")) out.push({ cls: "note", text: `Why wrong: ${v.reasons.map(reasonLabel).join(", ")}` });
   if (v?.note) {
     if (r.state === "question") out.push({ cls: "expert", text: `Question for the institution: “${v.note}”` });
     else if (r.state !== "fixed") out.push({ cls: "note", author: v.author, text: `“${v.note}”`, compared: vc });
@@ -122,7 +124,9 @@ export const norm = (v: string | null | undefined): string => (v ?? "").replace(
 
 /** A draft verdict or comment. `captures`: the right value as the reviewer selected it on the page, one or more
  * pieces (a value can be split across the page: two paragraphs with a heading between them), in page order. */
-export interface Draft { mode: DraftMode; captures: CapturedSelection[]; note: string; question: boolean }
+export interface Draft { mode: DraftMode; captures: CapturedSelection[]; note: string; question: boolean;
+  /** "Why wrong?" flags ticked after ✕ (sme-fixes §6, claims.ts REASONS) */
+  reasons?: string[] }
 
 export const newDraft = (mode: DraftMode, verdict: EventBrief | null, state: RowStateName | null): Draft => ({
   mode, captures: [],
@@ -178,7 +182,8 @@ export function verdictEvent(author: string, target: Target, prev: EventBrief | 
   if (d.mode === "comment" && !d.question) return { type: "comment", author, target, note };
   const verdict: Verdict = d.mode === "comment" ? "question" : "wrong";
   return { type: "verdict", author, target, verdict, note, supersedes,
-           expected: verdict === "wrong" ? expectedOf(d.captures) : null };
+           expected: verdict === "wrong" ? expectedOf(d.captures) : null,
+           ...(verdict === "wrong" && d.reasons?.length ? { reasons: d.reasons } : {}) };
 }
 
 /** "Add a course / page this rule missed" (spec §7.2): a `missing` verdict with no occurrence. */

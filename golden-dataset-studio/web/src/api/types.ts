@@ -77,7 +77,12 @@ export interface Expected {
   /** A value in several pieces on the page: each piece, in page order (`text` is them joined by line breaks). */
   segments?: { text: string; css_path: string; char_start: number; char_end: number;
                quote?: { prefix: string; exact: string; suffix: string } }[];
+  /** An object a reviewer added to a list-of-objects row (sme-fixes §5.2): its fields' words and places. */
+  objects?: { fields: Record<string, ObjectField> }[];
 }
+
+/** One field of a list-of-objects value (Estimated Duration: description, timeRequired): its words and place. */
+export interface ObjectField { text: string; css_path: string | null; char_start: number | null; char_end: number | null }
 
 /** What a note or a verdict made on a diff was compared with (Evals spec §4.2): xtra's extract output in a score,
  * or another ruleset version's value (Compare). `value`: the other side's value as it was shown. */
@@ -90,6 +95,7 @@ export interface EventBrief {
   author: string; at: string; note: string | null; expected: Expected | null;
   rule_version_seen: number | null; value_seen: string | null; page_stem?: string | null; author_role?: string | null;
   compared_with?: ComparedWith | null;
+  reasons?: string[];                 // "Why wrong?" flags on a ✕ (sme-fixes §6)
 }
 
 /** Evals §4.3: an expert confirmed the value (`human`: their verdict), or only an engineer did, waiting for an expert
@@ -102,13 +108,15 @@ export interface ReviewMarks {
 export interface RowItem {
   value_index: number; value: string; css_path: string | null; char_start: number | null; char_end: number | null;
   state: "correct" | "wrong" | "fixed" | null; verdict: EventBrief | null; human: boolean;
+  /** a list of objects' item (sme-fixes §5): each field; `value` is the object as JSON */
+  fields?: Record<string, ObjectField>;
 }
 
 export interface Row extends ReviewMarks {
   key: string;                       // occurrence_key (property rules, locators) or page_stem (page rules)
   occurrence_key: string | null; course_key: string | null; page_stem: string; url: string; page_title: string | null;
   /** the value's text; a list's items joined by line breaks; null for a property with no rule ("none") */
-  value: string | null; status: "found" | "empty" | "no_match" | "none";
+  value: string | null; status: "found" | "empty" | "no_match" | "none" | "absent";  // absent: the rule's claim (§6)
   /** a list property's items, one line each, and the items a reviewer marked missing (`expected.text`) */
   items?: RowItem[]; missing_items?: EventBrief[];
   css_path: string | null;           // document-root path of the value's element (null for constants)
@@ -167,6 +175,7 @@ export interface NewEvent {
   topic?: Topic;                      // comments on a whole rule or on the ruleset
   compared_with?: ComparedWith;       // a note or a verdict made on a diff (Evals, Compare)
   extraction?: string;                // the extraction the target is in (default: the latest)
+  reasons?: string[];                 // "Why wrong?" flags on a ✕ (sme-fixes §6): "not_on_page"
 }
 
 /** What a comment on a whole rule or on the ruleset is about (log.py TOPICS). */

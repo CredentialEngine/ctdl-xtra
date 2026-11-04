@@ -12,6 +12,7 @@ import {
   addCapture, applyEvent, applyReview, briefOf, canConfirm, isField, isSettled, keyAction, newDraft, scrollWithin, shortTitle, verdictEvent, type Draft,
 } from "../rules/logic";
 import { Controls, Expansion, HistoryLine } from "../rules/parts";
+import { statusWords } from "../rules/claims";
 import "../rules/rules.css";
 import { Ico } from "../shell/icons";
 import { useReviewer, useRole } from "../shell/reviewer";
@@ -213,7 +214,7 @@ export default function RecordsTab({ catalog, route }: TabProps) {
                             {on && <span className="valbox-k">Value</span>}
                             {v.items
                               ? v.items.map((it) => <div key={it.value_index} className="item-line">{it.value}</div>)  // a list: one line per item
-                              : <div className="tx">{v.status === "found" ? v.value : v.status === "none" ? "no rule yet" : "nothing found"}</div>}
+                              : <div className="tx">{statusWords(v.status, v.value)}</div>}
                           </div>
                           <div className="src"><span className="tag">{v.on_course_page ? "course page" : "program page"}</span><span>{shortTitle(v.page_title, 70)}</span></div>
                           {on && (
