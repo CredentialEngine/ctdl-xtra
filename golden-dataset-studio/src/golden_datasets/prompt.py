@@ -230,6 +230,9 @@ def _run_header(run: dict | None, ctx: Ctx) -> list[str]:
             "Report as you go, one short line per step: what you're checking, what you found, what you changed, "
             "what you published. People read these to know you're still working:", "",
             "```sh", f'cd {d} && golden-datasets run note --run {rid} "<one line>"', "```", "",
+            "**Your first action is a note.** As soon as Setup's first step has installed the CLI and made the "
+            "folder, before anything else, write one (`\"Starting: <what you'll do first>\"`). If no note arrives "
+            "within 5 minutes, the Studio tells people you may have stopped.", "",
             f"**Start every `golden-datasets` command with `cd {d} && `** (Setup makes the folder). Your shell "
             "returns to the workspace folder whenever a command leaves it, and only that folder's settings name this "
             "run's root and catalog. When you finish, the last section says how to end the run. If something blocks "
