@@ -20,9 +20,9 @@ def _rows():
         return list(csv.reader(fh))
 
 
-def test_the_final_sheet_gives_41_properties_with_the_sheets_paths():
+def test_the_final_sheet_gives_36_properties_with_the_sheets_paths():
     rows, warnings = properties.from_sheet(_rows(), None)
-    assert len(rows) == 41
+    assert len(rows) == 36  # 41, less the five Estimated Duration children (one list-of-objects rule, sme-fixes §5.1)
     by_path = {r["path"]: r for r in rows}
     # W2: stored as the sheet writes them; every row's path is the sheet's own (no P15 correction left)
     assert "ceterms:prerequisite>ceterms:targetLearningOpportunity" in by_path
@@ -32,9 +32,11 @@ def test_the_final_sheet_gives_41_properties_with_the_sheets_paths():
     assert not {"ceterms:keyword", "ceterms:hasPart", "ceterms:prerequisite>ceterms:alternativeCondition",
                 "ceterms:learningOpportunityType"} & set(by_path)
     assert by_path["ceterms:entryCondition>ceterms:targetLearningOpportunity"]["multiple"]
-    # P14: a Duration Profile's children are lists, like their parent
-    assert any("ceterms:estimatedDuration>ceterms:timeRequired says Single" in w for w in warnings)
-    assert by_path["ceterms:estimatedDuration>ceterms:exactDuration"]["multiple"]
+    # Estimated Duration's children are fields of its objects, not properties of their own (sme-fixes §5.1)
+    assert by_path["ceterms:estimatedDuration"]["multiple"]
+    assert not [p for p in by_path if p.startswith("ceterms:estimatedDuration>")]
+    assert any("ceterms:estimatedDuration>ceterms:timeRequired skipped: a field of the Estimated Duration list" in w
+               for w in warnings)
     # P6: names are unique, built from the parent for the condition children
     assert by_path["ceterms:corequisite>ceterms:description"]["label"] == "Corequisite: Description"
     assert by_path["ceterms:entryCondition"]["label"] == "Entry Condition"
@@ -56,7 +58,7 @@ def test_model_properties_are_a_view_of_the_file_in_the_rules_tab_order():
     labels = [label for label, _ in model.PROPERTIES]
     assert labels[:8] == ["Coded Notation", "External Identifier", "Learning Type", "Learning Opportunity Name",
                           "Description", "Subject Webpage", "Life Cycle Status Type", "Language"]
-    assert len(labels) == 41 and model.CTDL_TERM["Credit Unit Min Value"] == "ceterms:creditValue>schema:minValue"
+    assert len(labels) == 36 and model.CTDL_TERM["Credit Unit Min Value"] == "ceterms:creditValue>schema:minValue"
     assert len(model.FIRST_EIGHT) == 8  # import_v2 and old publications stay frozen
 
 

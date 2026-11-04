@@ -1,0 +1,33 @@
+/* sme-fixes §5 and §6: list-of-objects rows, the label bar for an added object, "not on the page" and "Why wrong?" */
+
+/* one sub-row per object: the fields side by side, field names small */
+.objects .obj-head { display: flex; justify-content: space-between; font-size: 12px; }
+.objects .obj-wrong { color: var(--red); font-weight: 600; }
+.item.obj { grid-template-columns: 20px minmax(0, 1fr) auto; }
+.obj-fields { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 2px 14px; min-width: 0; }
+.obj-f { min-width: 0; font-size: 13.5px; color: var(--ink); overflow-wrap: anywhere; }
+.obj-f.key { flex: 1 1 auto; }
+.obj-k { font: 11px var(--mono); color: var(--faint); }
+.item.obj.added { border-style: dashed; border-color: var(--green); background: var(--green-soft); }
+.obj-by { font-size: 11px; }
+
+/* adding an object: what's labelled so far, the waiting selection and its field buttons */
+.add-obj { display: grid; gap: 6px; margin-top: 4px; padding: 8px; border: 1px dashed var(--line-2); border-radius: 8px; font-size: 12.5px; }
+.obj-labelled { display: flex; flex-wrap: wrap; gap: 4px 14px; }
+.obj-slot { color: var(--faint); }
+.obj-slot.done { color: var(--ink); }
+.label-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 6px 8px; border-radius: 9px;
+  background: #1f2433; color: #fff; }
+.label-bar .sel-quote { flex-basis: 100%; margin: 0; color: #e5e7eb; border-left-color: #6b7280; }
+.label-bar .btn.lbl { background: #374151; color: #fff; border: 1px solid #4b5563; font: 600 12px var(--mono); padding: 3px 9px; }
+.label-bar .btn.lbl:hover { background: #4b5563; }
+
+/* the rule's claim "not on the page": dashed purple, like the box it looked in on the page */
+.valbox.claim { border: 1.5px dashed #7c3aed; background: transparent; }
+.valbox.claim .val { color: #6d28d9; font-style: normal; }
+
+/* "Why wrong?" after ✕ */
+.why-wrong { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; margin: 6px 0; padding: 6px 9px; border-radius: 7px;
+  background: var(--red-soft); font-size: 12.5px; }
+.why-wrong .why-h { color: var(--red); font-weight: 650; }
+.why-wrong .why-r { display: inline-flex; align-items: center; gap: 5px; cursor: pointer; }

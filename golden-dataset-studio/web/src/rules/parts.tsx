@@ -3,6 +3,7 @@ import { useEffect, useRef } from "react";
 import type { EventBrief, RowStateName } from "../api/types";
 import { Ico } from "../shell/icons";
 import { clip, controlOn, historyItems, type Draft } from "./logic";
+import { WhyWrong } from "./WhyWrong";
 
 export function Controls({ state, verdict, comments, draft, onPick, tour, confirm, marked, commentOnly }: {
   state: RowStateName | null; verdict: EventBrief | null; comments: EventBrief[]; draft: Draft | null;
@@ -73,6 +74,7 @@ export function Expansion({ draft, propertyRule, emptyValue, onChange, onSave, o
               Drag across more text to add a piece; × removes one.</div></>
         : <div className="pick"><Ico name="highlight" /><span>{pick}</span>
             {propertyRule && emptyValue && <span className="faint">(the rule found nothing here; select the value the page shows)</span>}</div>}
+      {propertyRule && <WhyWrong reasons={draft.reasons ?? []} onChange={(reasons) => onChange({ ...draft, reasons })} />}
       <input ref={note} className="note" placeholder="Note for whoever fixes the rule (optional)" value={draft.note}
         onChange={(e) => onChange({ ...draft, note: e.target.value })} />
       <div className="ex-btns">

@@ -20,6 +20,8 @@ TARGET_KINDS = {"match", "occurrence", "page", "rule", "ruleset"}
 #: What a comment on a whole rule or on the ruleset is about (Rules tab sidebar).
 TOPICS = {"new-rule", "approach", "question-rule", "other"}
 AUTHOR_ROLES = {"sme", "engineer"}
+#: Why a value is wrong, flagged after ✕ (sme-fixes §6): `not_on_page` = the page doesn't state this property anywhere.
+REASONS = {"not_on_page"}
 #: The first profiles were first names only (and misspelled Nicolas): events they wrote keep those names as `author`,
 #: so whoever reads an author by person (profiles, "Annotated by") maps them to the full names.
 FULL_NAMES = {"Jared": "Jared Diener", "Cadence": "Cadence Calixto", "Nicholas": "Nicolas Soto",
@@ -50,6 +52,9 @@ def validate(event: dict) -> None:
                          "items (match, item)")
     if event.get("author_role") is not None and event["author_role"] not in AUTHOR_ROLES:
         raise ValueError(f"author_role must be one of {sorted(AUTHOR_ROLES)}")
+    if event.get("reasons") is not None and (event.get("verdict") != "wrong" or not isinstance(event["reasons"], list)
+                                             or not set(event["reasons"]) <= REASONS):
+        raise ValueError(f"reasons go on a wrong verdict, a list of {sorted(REASONS)}")
     if event.get("compared_with") is not None and not isinstance(event["compared_with"], dict):
         raise ValueError("compared_with must be an object")
     for key in ("annotation_id", "at", "author"):

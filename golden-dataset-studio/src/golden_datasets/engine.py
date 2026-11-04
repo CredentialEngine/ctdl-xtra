@@ -413,7 +413,16 @@ def run_property(definition: dict, el, url: str, paths: Paths, occ_path: str,
                  parent_out: list[dict] | None = None) -> list[dict]:
     """A property rule on one occurrence: one result per value (status found), or one result with status empty |
     no_match. Each result has value, raw_text, css_path (relative to the occurrence, or from the document root when
-    the text is outside it), offsets, and private `_text` / `_el` for rules that read it (§4.2)."""
+    the text is outside it), offsets, and private `_text` / `_el` for rules that read it (§4.2). A list of objects
+    (`profile`, profiles_rule.py) gives one object per item; `absent_if` (absent.py) turns nothing found into the
+    rule's "not on the page" claim (status absent)."""
+    if definition.get("profile") or definition.get("absent_if"):
+        from . import absent, profiles_rule
+
+        plain = {k: v for k, v in definition.items() if k not in ("profile", "absent_if")}
+        res = profiles_rule.run(definition, el, url, paths, occ_path, parent_out) if definition.get("profile") \
+            else run_property(plain, el, url, paths, occ_path, parent_out)
+        return absent.claim_or(definition, el, paths, occ_path, res)
     rtype = definition["rule_type"]
     if rtype == "constant":
         return [{**_EMPTY, "status": "found", "value": definition["value"], "raw_text": definition["value"]}]
@@ -447,7 +456,11 @@ def run_property(definition: dict, el, url: str, paths: Paths, occ_path: str,
 
 
 def values_of_text(definition: dict, text: str) -> list[str]:
-    """What a rule gives for one text (a draft's examples): its values, in order."""
+    """What a rule gives for one text (a draft's examples): its values, in order (a list of objects: its objects)."""
+    if definition.get("profile"):
+        from .profiles_rule import values_of_text as objects
+
+        return objects(definition, text)
     keep = (definition.get("multiple") or {}).get("keep")
     out = []
     for raw, _ in _pieces(definition, _Text(text)):

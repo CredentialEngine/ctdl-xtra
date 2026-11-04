@@ -107,8 +107,8 @@ SQL_CHECKS: list[tuple[str, str, str, str, str]] = [
     ("matches", "CHK", "a rule with no definition (rule_type none) has no matches",
      """SELECT m.rule_id, count(*) FROM raw_matches m JOIN rule_versions rv ON rv.rule_id = m.rule_id
         AND rv.version = m.rule_version WHERE rv.rule_type = 'none' GROUP BY ALL""", "raw_matches"),
-    ("matches", "CHK", "status ∈ found/empty/no_match; found ⇔ value present",
-     """SELECT * FROM raw_matches WHERE status NOT IN ('found','empty','no_match')
+    ("matches", "CHK", "status ∈ found/empty/no_match/absent; found ⇔ value present",
+     """SELECT * FROM raw_matches WHERE status NOT IN ('found','empty','no_match','absent')
         OR (status = 'found') <> (value IS NOT NULL)""", "raw_matches"),
     ("matches", "CHK", "css_path is relative to the occurrence (unless the rule reads the page); offsets within bounds",
      """SELECT m.* FROM raw_matches m JOIN rule_versions rv ON rv.rule_id = m.rule_id AND rv.version = m.rule_version
@@ -169,9 +169,11 @@ LINEAGE_CHECKS = [
      pk("lineage", "publication, golden_record_id, page_stem, property, value_index"), "lineage"),
     ("lineage", "FK", "page_stem → pages", "SELECT * FROM lineage WHERE page_stem NOT IN (SELECT page_stem FROM pages)",
      "lineage"),
-    ("lineage", "FK", "(extraction, rule_id, occurrence_key, match_value_index) → matches",
+    ("lineage", "FK", "(extraction, rule_id, occurrence_key, match_value_index) → matches (a reviewer's answer: "
+     "no match index, an annotation instead)",
      """SELECT l.* FROM lineage l LEFT JOIN raw_matches m ON m.extraction = l.extraction AND m.rule_id = l.rule_id
-        AND m.occurrence_key = l.occurrence_key AND m.value_index = l.match_value_index WHERE m.rule_id IS NULL""",
+        AND m.occurrence_key = l.occurrence_key AND m.value_index = l.match_value_index WHERE m.rule_id IS NULL
+        AND NOT (l.match_value_index IS NULL AND len(l.annotation_ids) > 0)""",
      "lineage"),
     ("lineage", "FK", "annotation_ids → annotations",
      """SELECT l.golden_record_id, a.id FROM lineage l, UNNEST(l.annotation_ids) AS a(id)

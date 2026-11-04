@@ -8,7 +8,8 @@
 
 import { rangeFromOffsets, resolveOffsets, resolvePath } from "./dom";
 
-export type HighlightKind = "value" | "expected" | "block" | "mark";
+/** `looked`: the container a rule checked before claiming "not on the page" (sme-fixes §6), dashed purple. */
+export type HighlightKind = "value" | "expected" | "block" | "mark" | "looked";
 
 export interface Highlight {
   id: string;
@@ -38,14 +39,16 @@ const OVERLAY_CSS = `
 #gds-overlay .gds-fill.gds-value{background:rgba(253,224,120,.92)}
 #gds-overlay .gds-fill.gds-expected{background:rgba(190,242,214,.95)}
 #gds-overlay .gds-fill.gds-mark{background:#ffe4ea}
-#gds-overlay .gds-box.gds-hover{box-shadow:0 0 0 2px rgba(47,84,235,.8);background:rgba(47,84,235,.05)}`;
+#gds-overlay .gds-box.gds-hover{box-shadow:0 0 0 2px rgba(47,84,235,.8);background:rgba(47,84,235,.05)}
+#gds-overlay .gds-box.gds-looked{border:2px dashed #7c3aed;box-shadow:none;background:rgba(124,58,237,.04)}
+#gds-overlay .gds-badge.gds-looked{background:#7c3aed;border-radius:4px;font-weight:600}`;
 
 export function resolveAll(doc: Document, highlights: Highlight[]): Resolved[] {
   const out: Resolved[] = [];
   for (const h of highlights) {
     const el = resolvePath(doc, h.cssPath);
     if (!el) continue;
-    if (h.kind === "block") {
+    if (h.kind === "block" || h.kind === "looked") {
       out.push({ h, el, range: null });
       continue;
     }

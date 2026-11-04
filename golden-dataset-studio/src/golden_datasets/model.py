@@ -77,6 +77,8 @@ MATCHES = pa.schema([
     ("rule_id", pa.string()), ("rule_version", pa.int32()), ("occurrence_key", pa.string()),
     ("value_index", pa.int32()), ("page_stem", pa.string()), ("status", pa.string()), ("value", pa.string()),
     ("raw_text", pa.string()), ("css_path", pa.string()), ("char_start", pa.int32()), ("char_end", pa.int32()),
+    # a list-of-objects rule's object: each field's location, JSON (profiles_rule.py); null otherwise
+    ("fields", pa.string()),
 ])
 SIGNALS = pa.schema([
     ("target_kind", pa.string()), ("rule_id", pa.string()), ("occurrence_key", pa.string()),
