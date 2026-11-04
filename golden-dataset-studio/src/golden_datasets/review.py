@@ -30,7 +30,7 @@ import re
 from collections import Counter, defaultdict
 from dataclasses import dataclass, field
 
-from . import facets, layout, model, strata
+from . import facets, layout, model, profiles_rule, strata
 from .context import Ctx
 from .log import FULL_NAMES, AnnotationLog
 from .profiles import role_of, roles
@@ -205,8 +205,9 @@ class Snapshot:
                     found = [x for x in self.items_by_occ[m["occurrence_key"]][rule_id] if x["status"] == "found"]
                     row["items"] = [{"value_index": x["value_index"], "value": x["value"],
                                      "css_path": x["full_css_path"], "char_start": x["char_start"],
-                                     "char_end": x["char_end"]} for x in found]
-                    row["value"] = "\n".join(x["value"] for x in found) if found else None
+                                     "char_end": x["char_end"], **profiles_rule.row_item(x, o["css_path"])}
+                                    for x in found]
+                    row["value"] = profiles_rule.row_value(found) if found else None
                 out.append(row)
         elif rule["kind"] == "locator":
             for o in self.occ_by_locator.get(rule_id, []):

@@ -236,7 +236,7 @@ def test_the_catalogs_summary_has_each_columns_status_and_the_latest_score(score
     assert s["basis"] == "human" and s["columns"][:8] == ["codedNotation", "identifier", "Learning Type", "name",
                                                           "description", "subjectWebpage", "lifeCycleStatusType",
                                                           "inLanguage"] \
-        and len(s["columns"]) == s["properties"] == 41 and "creditValue>minValue" in s["columns"]
+        and len(s["columns"]) == s["properties"] == 36 and "creditValue>minValue" in s["columns"]
     assert s["labels"]["creditValue>minValue"] == "creditValue → minValue" and "not_in_studio" not in s
     cat = s["catalogs"][CAT]
     # each column's values in the golden dataset (human-reviewed + rule-labelled) of the values its rule found

@@ -48,7 +48,11 @@ REQUIRED_FALLBACK = ("ceterms:identifier", "ceterms:name", "ceterms:description"
 REQUIRED_ORDER = ("ceterms:codedNotation", "ceterms:identifier", "", "ceterms:name", "ceterms:description",
                   "ceterms:subjectWebpage", "ceterms:lifeCycleStatusType", "ceterms:inLanguage")
 #: Rows the sheet writes in a way sync doesn't take as written (§4.1).
-SKIP_PATHS = {"ceterms:learningOpportunityType": "removed from the sheet (W3): not a CTDL property"}
+SKIP_PATHS = {"ceterms:learningOpportunityType": "removed from the sheet (W3): not a CTDL property",
+              # Estimated Duration is one list-of-objects rule (sme-fixes §5.1): its children are fields, not rules
+              **{f"ceterms:estimatedDuration>{c}": "a field of the Estimated Duration list (profiles_rule.py)"
+                 for c in ("ceterms:description", "ceterms:exactDuration", "ceterms:minimumDuration",
+                           "ceterms:maximumDuration", "ceterms:timeRequired")}}
 
 
 # --- reading -------------------------------------------------------------------------------------------
@@ -373,21 +377,26 @@ def missing_rules(rules: dict[str, dict], settings: dict) -> dict[str, dict]:
 
 def apply(ctx, by: str, log=lambda *a: None) -> dict | None:
     """One ruleset version with every property the catalog lacks, and its extraction (no values change). None when
-    the catalog already has them all."""
-    from . import extract, rulesets
+    the catalog already has them all. The same version folds the six Estimated Duration rules into one list-of-objects
+    rule (profiles_rule.fold_rules, sme-fixes §5.1)."""
+    from . import extract, profiles_rule, rulesets
 
     if not ctx.ruleset_versions():
         return None
     latest = ctx.latest_ruleset()
     rs, base = ctx.ruleset_rules(latest)
-    drafts = missing_rules(base, rs["settings"])
-    if not drafts:
+    kept, folded, removed = profiles_rule.fold_rules(base)
+    drafts = missing_rules(kept, rs["settings"])
+    if not drafts and not folded and not removed:
         return None
-    planned = rulesets.plan_versions(ctx, drafts, base)
-    doc = rulesets.publish(ctx, {**base, **planned}, rs["settings"],
-                           f"added {len(drafts)} property rules from the Phase 1 sheet", by)
+    planned = rulesets.plan_versions(ctx, {**drafts, **folded}, base)
+    note = "; ".join(x for x in (
+        f"added {len(drafts)} property rules from the Phase 1 sheet" if drafts else "",
+        f"Estimated Duration is one list of objects ({len(removed)} child rules folded in)" if removed else "") if x)
+    doc = rulesets.publish(ctx, {**kept, **planned}, rs["settings"], note, by)
     meta = extract.extract(ctx, doc["version"], created_by=by, log=log)
-    return {"ruleset_version": doc["version"], "added": sorted(drafts), "extraction": meta["extraction"]}
+    return {"ruleset_version": doc["version"], "added": sorted(drafts), "folded": sorted(folded), "removed": removed,
+            "extraction": meta["extraction"]}
 
 
 def cmd_apply(args) -> int:
@@ -409,4 +418,7 @@ def cmd_apply(args) -> int:
         else:
             print(f"{catalog}: ruleset v{out['ruleset_version']} adds {len(out['added'])} property rules with no "
                   f"rule yet · {out['extraction']}")
+            if out["removed"]:
+                print(f"  folded into a list of objects: {', '.join(out['folded']) or 'nothing (no rule yet)'}; "
+                      f"removed: {', '.join(out['removed'])}")
     return 0

@@ -13,7 +13,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Body, HTTPException, Query, Request
 
-from .. import facets, golden, layout, model, properties
+from .. import facets, golden, layout, model, profiles_rule, properties
 from ..catalogs import CATALOGS, info
 from ..errors import UserError
 from ..log import FULL_NAMES, new_id, validate
@@ -76,7 +76,7 @@ def _event_brief(e: dict | None) -> dict | None:
         return None
     return {"annotation_id": e["annotation_id"], "type": e["type"], "verdict": e.get("verdict"), "author": e["author"],
             "author_role": e.get("author_role"), "at": e["at"], "note": e.get("note"), "expected": e.get("expected"),
-            "compared_with": e.get("compared_with"),
+            "compared_with": e.get("compared_with"), **({"reasons": e["reasons"]} if e.get("reasons") else {}),
             "rule_version_seen": e["target"].get("rule_version_seen"), "value_seen": e["target"].get("value_seen")}
 
 
@@ -595,12 +595,13 @@ def course(request: Request, catalog: str, course_key: str, ext: str | None = No
             ann = annotations[rid].get(o["occurrence_key"]) or {"people": {}}
             props.append({"rule_id": rid, "property_label": r.get("property_label"),
                           "ctdl_property": r.get("ctdl_property"),
-                          "value": "\n".join(x["value"] for x in found) if is_list and found else m["value"],
+                          "value": profiles_rule.row_value(found) if is_list and found else m["value"],
                           "status": m["status"],
                           "css_path": m["full_css_path"], "char_start": m["char_start"], "char_end": m["char_end"],
                           **({"items": [{"value_index": x["value_index"], "value": x["value"],
                                          "css_path": x["full_css_path"], "char_start": x["char_start"],
-                                         "char_end": x["char_end"]} for x in found]} if is_list else {}),
+                                         "char_end": x["char_end"], **profiles_rule.row_item(x, o["css_path"])}
+                                        for x in found]} if is_list else {}),
                           "state": s.state if s else None, "verdict": _event_brief(s.verdict) if s else None,
                           **_review_state(s), "annotators": ann["people"],
                           "comments": [_event_brief(c) for c in s.comments] if s else []})
@@ -670,7 +671,8 @@ def add_annotation(request: Request, catalog: str, event: Annotated[dict, Body()
     full = {"annotation_id": new_id("ap" if event.get("type") in ("approve", "reopen") else "an"),
             "type": event.get("type"), "at": datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
             "author": (event.get("author") or "").strip(), "catalog": ctx.catalog, "crawl": ctx.crawl, "target": t,
-            "verdict": event.get("verdict"), "expected": event.get("expected"), "note": event.get("note") or None,
+            "verdict": event.get("verdict"), "expected": profiles_rule.with_object_text(event.get("expected")),
+            "note": event.get("note") or None,
             "supersedes": event.get("supersedes")}
     if event.get("topic"):
         full["topic"] = event["topic"]
@@ -679,6 +681,8 @@ def add_annotation(request: Request, catalog: str, event: Annotated[dict, Body()
         full["author_role"] = role
     if event.get("compared_with") is not None:
         full["compared_with"] = event["compared_with"]
+    if event.get("reasons"):  # "Why wrong?" flags on a ✕ (sme-fixes §6)
+        full["reasons"] = event["reasons"]
     if full["type"] == "approve":
         st = rv.rule_status(rid)
         if st["open_wrong"] or st["open_missing"]:
