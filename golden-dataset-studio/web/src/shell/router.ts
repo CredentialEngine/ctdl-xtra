@@ -44,6 +44,18 @@ export function go(h: string, replace = false): void {
   if (replace) window.dispatchEvent(new HashChangeEvent("hashchange"));
 }
 
+/** Set one query parameter of the current route in the address bar with `history.replaceState` (no new history entry,
+ * no hashchange: the tab keeps what it shows). The Rules tab writes `?row=` this way as rows are selected (sme-fixes §2). */
+export function replaceParam(name: string, value: string | null): void {
+  const h = location.hash.replace(/^#/, "") || "/";
+  const [path, qs] = h.split("?");
+  const s = new URLSearchParams(qs || "");
+  if (value === null || value === "") s.delete(name); else s.set(name, value);
+  const t = s.toString();
+  const next = `#${path}${t ? `?${t}` : ""}`;
+  if (next !== location.hash) history.replaceState(history.state, "", next);
+}
+
 export function useRoute(): Route {
   const [route, setRoute] = useState(() => parseRoute(location.hash));
   useEffect(() => {

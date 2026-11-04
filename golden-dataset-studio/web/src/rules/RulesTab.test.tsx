@@ -92,6 +92,9 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
+const sel = (text: string, at: number) => ({ text, css_path: `html > body > p:nth-of-type(${at})`, char_start: 0,
+  char_end: text.length, prefix: "", suffix: "", doc_start: at * 100, doc_end: at * 100 + text.length });
+
 async function render(hash = "#/c/avc/rules/course-description?row=GEOG1") {
   await act(async () => {
     root.render(<RulesTab catalog={catalog} route={parseRoute(hash)} reload={() => {}} />);
@@ -174,7 +177,8 @@ describe("RulesTab", () => {
       : base(url as string, init)));
     await render();
     const last = () => new URLSearchParams(fetchMock.mock.calls.map((c) => String(c[0])).filter((u) => u.includes("/rows")).pop()!.split("?")[1]);
-    expect(last().get("order")).toBe("review");
+    expect(last().get("order")).toBe("auto");  // Autostratify by default (sme-fixes §9), the drawer shut
+    expect(container.querySelector("[data-testid=sample]")!.className).not.toContain("open");
     const mode = (name: string) => [...container.querySelectorAll<HTMLButtonElement>(".sm-modes button")].find((b) => b.textContent === name)!;
     await act(async () => { mode("Manual select").click(); await new Promise((r) => setTimeout(r, 0)); });
     const bar = container.querySelector<HTMLButtonElement>("[data-testid=sample-bars] .sm-bar")!;
@@ -259,11 +263,7 @@ describe("RulesTab", () => {
     const p = () => pane.props!;
     expect(container.querySelector("[data-testid=answer-hint]")!.textContent).toBe("Wrong? Drag across the right text to mark it.");
     expect(p().captureSelection).toBe(true);
-    const sel = (text: string, at: number) => ({ text, css_path: `html > body > p:nth-of-type(${at})`, char_start: 0,
-      char_end: text.length, prefix: "", suffix: "", doc_start: at * 100, doc_end: at * 100 + text.length });
     const quotes = () => [...container.querySelectorAll(".row.on [data-testid=capture]")].map((q) => q.textContent);
-    await act(async () => p().onSelection!(sel("Value 1", 1)));  // the value found itself: nothing to fix
-    expect(quotes()).toEqual([]);
     await act(async () => p().onSelection!(sel("Second part", 3)));
     expect(container.querySelector(".row.on .cb.no")!.className).toContain(" on");
     await act(async () => p().onSelection!(sel("First part", 2)));  // another drag adds a piece, kept in page order
@@ -502,6 +502,170 @@ describe("RulesTab", () => {
       expected: { text: "Lab - 52.5", css_path: "html > p:nth-of-type(2)", char_start: 0, char_end: 9 },
       target: { kind: "match", rule_id: "course-description", occurrence_key: "p1@html", item: true } });
     expect(container.querySelector(".row.on .missing-items")!.textContent).toContain("Lab - 52.5");
+  });
+
+  // --- sme-fixes §1: the highlight bar ---------------------------------------------------------------------------
+  const bar = (id: string, s: ReturnType<typeof sel>) => {
+    const a = pane.props!.barActions?.find((x) => x.id === id);
+    if (!a) throw new Error(`no ${id} on the highlight bar`);
+    return act(async () => a.run(s));
+  };
+
+  it("a selection shows the highlight bar: 💬, ✓ In answer, ✕ Not in answer, each with a tooltip", async () => {
+    await render();
+    expect(pane.props!.barActions!.map((a) => [a.id, a.label])).toEqual([["comment", "💬"], ["in", "✓ In answer"], ["out", "✕ Not in answer"]]);
+    expect(pane.props!.barActions!.every((a) => a.title.length > 30)).toBe(true);
+    // a selection equal to the found value is never dropped: it is a piece like any other
+    await bar("in", sel("Value 1", 1));
+    expect([...container.querySelectorAll(".row.on [data-testid=capture]")].map((q) => q.textContent)).toEqual(["Value 1"]);
+  });
+
+  it("saves ✓ in and ✕ out segments with their polarity and draws them green and red dashed", async () => {
+    await render();
+    await bar("out", sel("LIMITATION ON ENROLLMENT", 1));
+    expect(container.querySelector(".row.on .cb.no")!.className).toContain(" on");  // ✕ marks the row ✗
+    expect(container.querySelector(".row.on .sel-pol")!.textContent).toBe("✕ not in answer");
+    await bar("in", sel("Work Experience Education", 2));
+    expect(pane.props!.highlights.filter((h) => h.id.startsWith("capture-")).map((h) => [h.kind, h.text]))
+      .toEqual([["excluded", "LIMITATION ON ENROLLMENT"], ["expected", "Work Experience Education"]]);
+    await act(async () => container.querySelector<HTMLButtonElement>(".row.on .save")!.click());
+    expect(posted[posted.length - 1]).toMatchObject({ type: "verdict", verdict: "wrong", expected: {
+      text: "Work Experience Education", css_path: "html > body > p:nth-of-type(2)",
+      segments: [{ text: "LIMITATION ON ENROLLMENT", polarity: "out" }, { text: "Work Experience Education", polarity: "in" }] } });
+  });
+
+  it("only ✕ pieces: the expected text is the value found without them; saved segments are drawn by polarity", async () => {
+    const out = { annotation_id: "an-o", type: "verdict" as const, verdict: "wrong" as const, author: "Jared", at: "t", note: null,
+      rule_version_seen: 2, value_seen: "x", expected: { text: "Body", css_path: "html > p", char_start: 0, char_end: 4, segments: [
+        { text: "Head", css_path: "html > p", char_start: 0, char_end: 4, polarity: "out" as const },
+        { text: "Body", css_path: "html > p:nth-of-type(2)", char_start: 0, char_end: 4 }] } };
+    serve(detail(), { ...rows, rows: [row(0), row(1, { value: "Head\nBody", state: "wrong", verdict: out }), row(2)] });
+    await render();
+    expect(pane.props!.highlights.filter((h) => h.id.startsWith("expected-")).map((h) => h.kind)).toEqual(["excluded", "expected"]);
+    await act(async () => container.querySelectorAll<HTMLElement>(".row")[1].click());
+    await bar("out", sel("Head", 1));
+    await act(async () => container.querySelector<HTMLButtonElement>(".row.on .save")!.click());
+    expect(posted[posted.length - 1]).toMatchObject({ expected: { text: "Body", segments: [{ text: "Head", polarity: "out" }] } });
+  });
+
+  it("💬 opens the comment box anchored to the text; the comment is saved with its anchor and drawn as a numbered bubble", async () => {
+    await render();
+    await bar("comment", sel("This belongs in Entry Condition", 3));
+    expect(container.querySelector(".row.on [data-testid=anchor]")!.textContent).toBe("This belongs in Entry Condition");
+    expect(pane.props!.highlights.find((h) => h.kind === "note")).toMatchObject({ badge: 1, text: "This belongs in Entry Condition" });
+    const note = container.querySelector<HTMLInputElement>(".row.on .expand .note")!;
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(note, "Not Description");
+      note.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    await act(async () => container.querySelector<HTMLButtonElement>(".row.on .save")!.click());
+    expect(posted[posted.length - 1]).toMatchObject({ type: "comment", note: "Not Description",
+      anchor: { css_path: "html > body > p:nth-of-type(3)", char_start: 0, char_end: 31, text: "This belongs in Entry Condition" } });
+  });
+
+  // --- sme-fixes §2: deep links ------------------------------------------------------------------------------------
+  it("selecting a row writes ?row= to the address bar, replacing the entry (no new history entry)", async () => {
+    history.replaceState(null, "", "#/c/avc/rules/course-description?row=GEOG1");
+    const replace = vi.spyOn(history, "replaceState");
+    const push = vi.spyOn(history, "pushState");
+    await render();
+    await act(async () => container.querySelectorAll<HTMLElement>(".row")[2].click());
+    expect(location.hash).toBe("#/c/avc/rules/course-description?row=p2%40html");
+    await act(async () => { window.dispatchEvent(new KeyboardEvent("keydown", { key: "Tab", shiftKey: true })); });
+    expect(location.hash).toBe("#/c/avc/rules/course-description?row=p1%40html");
+    expect(replace).toHaveBeenCalled();
+    expect(push).not.toHaveBeenCalled();
+    replace.mockRestore(); push.mockRestore();
+  });
+
+  // --- sme-fixes §9: defaults ------------------------------------------------------------------------------------
+  it("'Annotated by' is Anyone by default; ?by= is written only when a person is picked", async () => {
+    const last = annotated(null);
+    await render("#/c/avc/rules/course-description");
+    expect(last().get("by")).toBeNull();
+    expect(container.querySelector(".ab-btn")!.textContent).toContain("Anyone");
+    await act(async () => container.querySelector<HTMLButtonElement>(".ab-btn")!.click());
+    const item = (t: string) => [...container.querySelectorAll<HTMLButtonElement>(".ab-pop .ab-item")].find((b) => b.textContent!.startsWith(t))!;
+    await act(async () => item("Anyone").click());
+    expect(location.hash).toBe("#/c/avc/rules/course-description");
+  });
+
+  // --- sme-fixes §3: course blocks ---------------------------------------------------------------------------------
+  const loc = (o: Partial<RowX>, i: number, stem: string, n: number): RowX => row(i, { key: `${stem}@b${i}`, occurrence_key: `${stem}@b${i}`,
+    page_stem: stem, page_title: "View - CurriQunet META", value: `INTD ${i} - Course ${i}`, page_courses: n, course_key: `INTD${i}`,
+    css_path: `html > div:nth-of-type(${i + 1})`, ...o });
+  const ccsf = (): RowsX => ({ ...rows, rule_id: "locator-course-page", total: 5, focus_index: null, rows: [
+    loc({}, 0, "intd", 3), loc({}, 1, "intd", 3), loc({}, 2, "intd", 3),
+    loc({ course_key: "SPAN1" }, 3, "span", 2), loc({ course_key: "SPAN2" }, 4, "span", 2)] });
+  const locator = (repeat: string | null) => detail({ rule_id: "locator-course-page", kind: "locator", property_label: null,
+    title: repeat ? `Course blocks: every ${repeat} on the page` : "Whole page is one course", subtitle: "s",
+    definition: { page_rules: ["course-page"], repeat, repeat_filter: repeat ? { selector: ".course-title", regex: "\\d" } : null } });
+  /** A locator's rows, and the overlay of the first page (its course boxes). */
+  const serveLoc = (repeat: string | null, data: RowsX = ccsf()) => {
+    serve(locator(repeat), data);
+    const fetchMock = vi.mocked(fetch);
+    const base = fetchMock.getMockImplementation()!;
+    fetchMock.mockImplementation((url, init) => (String(url).includes("/overlay") ? json({ marks: [], blocks: data.rows.slice(0, 3).map((r, n) => (
+      { occurrence_key: r.occurrence_key, css_path: r.css_path, n: n + 1, course_key: r.course_key })) }) : base(url as string, init)));
+  };
+  const key = (k: string, shiftKey = false) => act(async () => { window.dispatchEvent(new KeyboardEvent("keydown", { key: k, shiftKey })); });
+
+  it("a repeating locator has one row per page with its courses nested; Tab / Shift+Tab / Enter / Esc move between levels", async () => {
+    serveLoc(".course-summary-wrapper");
+    await render("#/c/ccsf/rules/locator-course-page");
+    const heads = () => [...container.querySelectorAll("[data-testid=page-head]")].map((h) => h.querySelector(".ph-t")!.textContent);
+    expect(heads()).toEqual(["INTD · View - CurriQunet META · 3 courses", "SPAN · View - CurriQunet META · 2 courses"]);
+    expect(container.querySelector("h1")!.textContent).toBe("Course blocks: every .course-summary-wrapper on the page");
+    expect(container.querySelector(".tech")!.textContent).toContain(".course-title inside it matches \\d");  // repeat_filter.selector
+    const on = () => container.querySelector(".row.on")!;
+    expect(on().getAttribute("data-testid")).toBe("page-head");  // starts on the first page row
+    expect(container.querySelectorAll(".row.in-page").length).toBe(3);  // only the open page's courses are listed
+    expect(container.querySelector(".add-course")!.textContent).toBe("+ Add a course this rule missed");
+    expect(pane.props!.focusId).toBeNull();  // on a page row no course box is filled
+    await key("Enter");
+    expect(on().querySelector(".code")!.textContent).toBe("INTD0");
+    expect(location.hash).toContain("row=intd%40b0");
+    await key("Tab");
+    expect(on().querySelector(".code")!.textContent).toBe("INTD1");
+    await key("Escape");  // back up to the page row
+    expect(on().getAttribute("data-testid")).toBe("page-head");
+    expect(location.hash).toContain("row=intd");
+    await key("Tab");  // at page level: the next page
+    expect(on().textContent).toContain("SPAN");
+    expect(container.querySelectorAll(".row.in-page").length).toBe(2);
+    await key("Tab", true);
+    expect(on().textContent).toContain("INTD");
+    await key("Enter"); await key("Tab"); await key("Tab"); await key("Tab");  // after the last course: the next page row
+    expect(on().getAttribute("data-testid")).toBe("page-head");
+    expect(on().textContent).toContain("SPAN");
+    await key("Enter"); await key("Tab", true);  // Shift+Tab on a page's first course: up to its page row
+    expect(on().getAttribute("data-testid")).toBe("page-head");
+  });
+
+  it("✓ on a page row accepts all its courses; boxes turn green / red with their verdicts, only the current one filled", async () => {
+    const wrong = { annotation_id: "an-w", type: "verdict" as const, verdict: "wrong" as const, author: "Jared", at: "t", note: null,
+      expected: null, rule_version_seen: 2, value_seen: "x" };
+    const data = ccsf();
+    data.rows[1] = { ...data.rows[1], state: "wrong", verdict: wrong };
+    serveLoc(".course-summary-wrapper", data);
+    await render("#/c/ccsf/rules/locator-course-page");
+    expect(pane.props!.highlights.filter((h) => h.kind === "block").map((h) => h.state)).toEqual([null, "bad", null]);
+    await key("Enter");
+    expect(pane.props!.focusId).toBe("intd@b0");  // the current course is the filled one
+    await key("Escape");
+    await act(async () => container.querySelector<HTMLButtonElement>("[data-testid=page-head] .cb.ok")!.click());
+    await act(async () => { await new Promise((r) => setTimeout(r, 0)); });
+    expect(posted.map((e) => (e as { target: { occurrence_key: string } }).target.occurrence_key)).toEqual(["intd@b0", "intd@b1", "intd@b2"]);
+    expect(posted.every((e) => (e as { verdict: string }).verdict === "correct")).toBe(true);
+    expect(container.querySelector(".row.on")!.textContent).toContain("SPAN");  // on to the next page
+  });
+
+  it("a locator without repeat keeps one row per course", async () => {
+    serveLoc(null);
+    await render("#/c/avc/rules/locator-course-page");
+    expect(container.querySelector("[data-testid=page-head]")).toBeNull();
+    expect(container.querySelectorAll(".row[data-row-index]").length).toBe(5);
+    expect(container.querySelector("h1")!.textContent).toBe("Whole page is one course");
   });
 
   it("the page pane outlines every item of the list on its page", async () => {

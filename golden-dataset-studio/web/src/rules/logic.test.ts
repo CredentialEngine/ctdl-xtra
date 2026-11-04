@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { EventBrief, RuleSummary } from "../api/types";
 import {
   addCapture, applyEvent, applyItem, applyMissingItem, itemEvent, matchesRule, missingItemEvent, applyReview, approveBlocked, byLabel, canConfirm, comparedLine, defaultAnnotator, filterCountTip, shortWhen, clip, controlOn, expectedOf, historyItems, isSettled, keyAction, missingEvent, newDraft, paneTabs,
-  parseMark, pushRecent, rowTarget, unitWord, verdictEvent, whereWord,
+  parseMark, pushRecent, rowTarget, unitWord, verdictEvent, whereWord, moveIn, pageGroups, subjectOf, withoutOut,
 } from "./logic";
 
 const ev = (o: Partial<EventBrief>): EventBrief => ({
@@ -261,5 +261,45 @@ describe("list items (property-rules spec §4.4, m2)", () => {
     expect(applyItem(row, 1, brief, "engineer").items[1].human).toBe(false);
     const missing = ev({ verdict: "missing", expected: { text: "Lab - 52.5", css_path: "p", char_start: 0, char_end: 9 } });
     expect(applyMissingItem(row, missing).missing_items).toEqual([missing]);
+  });
+});
+
+describe("sme-fixes: in / out pieces, anchored comments, course blocks", () => {
+  const piece = (text: string, at: number, polarity?: "in" | "out") =>
+    ({ ...cap, text, css_path: `html > p:nth-of-type(${at})`, doc_start: at * 100, doc_end: at * 100 + text.length, polarity });
+
+  it("expectedOf: the in pieces joined; out pieces kept as segments with their polarity; only out → the value without them", () => {
+    expect(expectedOf([piece("A", 1)])).not.toHaveProperty("segments");  // one piece in the answer: as before
+    const e = expectedOf([piece("Head", 1, "out"), piece("Body", 2, "in")])!;
+    expect([e.text, e.css_path, e.segments!.map((s) => [s.text, s.polarity])])
+      .toEqual(["Body", "html > p:nth-of-type(2)", [["Head", "out"], ["Body", "in"]]]);
+    const o = expectedOf([piece("LIMITATION ON ENROLLMENT: x.", 1, "out")], "LIMITATION ON ENROLLMENT: x.\n\nWork Experience Education")!;
+    expect([o.text, o.segments!.length]).toEqual(["Work Experience Education", 1]);
+    expect(withoutOut("a b c", ["b"])).toBe("a  c");
+  });
+
+  it("a comment carries the text it is about (anchor); history numbers pinned comments like their bubbles", () => {
+    const d = { ...newDraft("comment", null, null), note: "Entry Condition", anchor: cap };
+    expect(verdictEvent("Jared", { kind: "match", rule_id: "r", occurrence_key: "o" }, null, { draft: d })).toEqual({
+      type: "comment", author: "Jared", target: { kind: "match", rule_id: "r", occurrence_key: "o" }, note: "Entry Condition",
+      anchor: { css_path: cap.css_path, char_start: 3, char_end: 23, text: cap.text } });
+    const items = historyItems({ state: null, verdict: null, comments: [
+      ev({ type: "comment", note: "plain" }), ev({ type: "comment", note: "pinned", anchor: { ...cap } })] });
+    expect(items.map((h) => h.n)).toEqual([undefined, 1]);
+  });
+
+  it("pageGroups, subjectOf and moveIn: Tab inside a page, then the next page; Shift+Tab / Esc up; Enter down", () => {
+    const gs = pageGroups([{ page_stem: "a" }, { page_stem: "a" }, { page_stem: "a" }, { page_stem: "b" }, { page_stem: "b" }]);
+    expect(gs).toEqual([{ stem: "a", start: 0, end: 3 }, { stem: "b", start: 3, end: 5 }]);
+    expect([subjectOf(["INTD100", "INTD102"]), subjectOf(["INTD100", "ARCH1"]), subjectOf([null])]).toEqual(["INTD", "", ""]);
+    expect(moveIn(gs, 0, "page", "next")).toEqual({ sel: 3, level: "page" });
+    expect(moveIn(gs, 3, "page", "prev")).toEqual({ sel: 0, level: "page" });
+    expect(moveIn(gs, 0, "page", "down")).toEqual({ sel: 0, level: "course" });
+    expect(moveIn(gs, 1, "course", "next")).toEqual({ sel: 2, level: "course" });
+    expect(moveIn(gs, 2, "course", "next")).toEqual({ sel: 3, level: "page" });
+    expect(moveIn(gs, 1, "course", "prev")).toEqual({ sel: 0, level: "course" });
+    expect(moveIn(gs, 0, "course", "prev")).toEqual({ sel: 0, level: "page" });
+    expect(moveIn(gs, 4, "course", "up")).toEqual({ sel: 3, level: "page" });
+    expect(moveIn(gs, 4, "course", "next")).toEqual({ sel: 4, level: "course" });  // the last course of the last page
   });
 });
