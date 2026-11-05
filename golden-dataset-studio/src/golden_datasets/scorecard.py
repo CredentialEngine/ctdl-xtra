@@ -258,13 +258,13 @@ def format_card(card: dict, b_label: str = "draft") -> str:
     a = card["annotated"]
     v = card["values"]
     pct = f"{100 * v['changed'] / v['total']:.0f}%" if v["total"] else "–"
-    sig = " · ".join(f"{s['signal']} {s['a']}→{s['b']}" for s in card["signals"]) or "none"
+    sig = ", ".join(f"{s['signal']} {s['a']}→{s['b']}" for s in card["signals"]) or "none"
     head = f"{card['rule_id']}  v{card['a_version']} → {b_label}" if card["a_version"] else f"{card['rule_id']}  new → {b_label}"
     return "\n".join([
         head,
-        f"  annotated rows {a['rows']:>6}   fixed {a['fixed']} · still wrong {a['still_wrong']} · "
-        f"newly wrong {a['newly_wrong']} · unchanged {a['unchanged']}",
-        f"  values changed {v['changed']:>6} of {v['total']} ({pct})   new {v['new']} · vanished {v['vanished']}",
+        f"  annotated rows {a['rows']:>6}   fixed {a['fixed']}, still wrong {a['still_wrong']}, "
+        f"newly wrong {a['newly_wrong']}, unchanged {a['unchanged']}",
+        f"  values changed {v['changed']:>6} of {v['total']} ({pct})   new {v['new']}, vanished {v['vanished']}",
         f"  signals        {sig}",
         f"  verdict        {card['verdict']}",
     ])

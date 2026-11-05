@@ -129,14 +129,14 @@ describe("RulesTab", () => {
       await act(async () => { setter.call(ta, text); ta.dispatchEvent(new Event("input", { bubbles: true })); });
       await act(async () => { box.querySelector<HTMLButtonElement>(".talk-actions .btn")!.click(); await new Promise((r) => setTimeout(r, 0)); });
     };
-    const btn = container.querySelector<HTMLButtonElement>("[data-rule=course-description] .rule-talk-btn")!;
+    const btn = container.querySelector<HTMLButtonElement>("[data-rule=course-description] .rule-talk-btn[aria-expanded]")!;
     expect(btn.textContent).toBe("Discuss");
     await act(async () => btn.click());
     const thread = container.querySelector("[data-testid=rule-talk]")!;
     await act(async () => thread.querySelector<HTMLInputElement>(".talk-q input")!.click());
     await type(thread, "Do we need this rule at all?");
     expect(posted[posted.length - 1]).toMatchObject({ topic: "question-rule", target: { kind: "rule", rule_id: "course-description" } });
-    expect(container.querySelector("[data-rule=course-description] .rule-talk-btn")!.textContent).toBe("1");
+    expect(container.querySelector("[data-rule=course-description] .rule-talk-btn[aria-expanded]")!.textContent).toBe("1");
   });
 
   it("closes the Sample drawer when the reader moves to another row", async () => {
@@ -726,5 +726,31 @@ describe("RulesTab", () => {
     await render();
     expect(pane.props!.highlights.filter((h) => h.id.startsWith("item-")).map((h) => [h.text, h.cssPath])).toEqual([
       ["Lecture - 87.5", "html > p:nth-of-type(1)"], ["Lab - 35", "html > p:nth-of-type(1)"]]);
+  });
+
+  // one-rule-runs §1.6: an AI run's report opens ✕ in a new tab with &mark=wrong
+  it("opens the linked row with ✕ pressed when the link says mark=wrong", async () => {
+    await render("#/c/avc/rules/course-description?row=GEOG1&by=anyone&mark=wrong");
+    const on = container.querySelector(".row.on")!;
+    expect(on.querySelector(".code")!.textContent).toBe("GEOG1");
+    expect(on.querySelector(".expand.wrong")).toBeTruthy();
+    expect(on.querySelector(".cb.no")!.className).toContain(" on");
+    expect(pane.props!.captureSelection).toBe(true);  // waiting for the right text on the page
+  });
+
+  it("doesn't press ✕ without mark=wrong", async () => {
+    await render("#/c/avc/rules/course-description?row=GEOG1");
+    expect(container.querySelector(".row.on .expand")).toBeNull();
+  });
+
+  it("shows Claude's comment from an AI run with its ruleset and run in the history line", async () => {
+    const claude = { annotation_id: "an-ai", type: "comment" as const, verdict: null, author: "Claude", author_role: "ai",
+      at: "2026-11-06T15:44:00Z", note: "Empty is the value Jared's note asks for.", expected: null, rule_version_seen: null,
+      value_seen: null, run_id: "20261106T153500Z-4f2a", ruleset_version: 10, run_at: "2026-11-06T15:35:00Z" } as RowX["comments"][number];
+    serve(detail(), { ...rows, rows: [rows.rows[0], row(1, { comments: [claude] }), rows.rows[2]] });
+    await render();
+    const hist = container.querySelector(".row.on .hist")!;
+    expect(hist.textContent).toBe("Claude (v10, AI run Nov 6): Empty is the value Jared's note asks for.");
+    expect(hist.querySelector("a")!.getAttribute("href")).toContain("?run=20261106T153500Z-4f2a");
   });
 });

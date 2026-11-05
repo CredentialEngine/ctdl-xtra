@@ -2,18 +2,24 @@
 // visible. Each poll also moves the run forward on the server (a waiting run is sent when the agent is free).
 // Notes accumulate: only lines after the last one seen are fetched.
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
-import { agentApi, LIVE, type AgentConfig, type AgentRun, type RunNote } from "./api";
+import { agentApi, LIVE, type AgentConfig, type AgentRun, type LiveRun, type RecentRun, type RunNote, type Slots } from "./api";
 
 export interface AgentState {
   config: AgentConfig | null;
   run: AgentRun | null;          // the live run
   last: AgentRun | null;         // when none is live: the latest that ended
   notes: RunNote[];              // of `run`, else of `last`
+  /** every live run of the catalog, oldest first, each with its notes and place in the queue (one-rule-runs §1.7) */
+  runs: LiveRun[];
+  /** per rule, its latest ended run (the sidebar's AI status) */
+  recent: Record<string, RecentRun>;
+  slots: Slots | null;
   now: string;
   refresh: () => void;
 }
 
-const EMPTY: AgentState = { config: null, run: null, last: null, notes: [], now: new Date().toISOString(), refresh: () => {} };
+const EMPTY: AgentState = { config: null, run: null, last: null, notes: [], runs: [], recent: {}, slots: null,
+  now: new Date().toISOString(), refresh: () => {} };
 const Ctx = createContext<AgentState>(EMPTY);
 export const useAgent = () => useContext(Ctx);
 
@@ -54,7 +60,9 @@ export function AgentProvider({ catalog, children }: { catalog: string | null; c
       notes = d.notes;
     }
     seen.current = { catalog, runId: (d.run ?? d.last)?.run_id ?? null, notes };
-    setState({ run: d.run, last: d.last, notes, now: d.now });
+    // an older server has only `run`: it is the one live run
+    const runs = d.runs ?? (d.run ? [{ ...d.run, notes, queue: { place: null, start_in_min: null, left_min: null, minutes_so_far: null } }] : []);
+    setState({ run: d.run, last: d.last, notes, runs, recent: d.recent ?? {}, slots: d.slots ?? null, now: d.now });
   }, [catalog]);
 
   useEffect(() => {

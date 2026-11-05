@@ -71,7 +71,7 @@ def test_one_rule_prompt(ctx):
     assert "uv tool install --reinstall 'git+https://github.com/CredentialEngine/ctdl-xtra.git@" in text
     assert f"GOLDEN_DATASETS_ROOT={ctx.root.uri}\n" in text and "GOLDEN_DATASETS_CATALOG=avc\n" in text
     assert "az login" not in text and out["target"] == "local" and out["root"] == ctx.root.uri
-    assert "BETTER" in text and "Never use `--force`" in text
+    assert "nothing that was right got worse" in text and "Never use `--force`" in text
     assert "Questions for the institution" not in text  # AVC's questions are on program pages
 
 
@@ -98,12 +98,13 @@ def test_k2_version_is_a_run(ctx):
     assert out["target"] == "k2" and out["root"] == azure
     assert "az login --use-device-code" not in text and "az account show" not in text
     assert "## This is a Golden Dataset Studio run" in text and "started by Jared Diener" in text
-    assert f'cd {d} && golden-datasets run note --run 20261028T031209Z-a1b2 "<one line>"' in text
+    assert f'cd {d} && ./bin/golden-datasets run note "<one line>"' in text
     assert "**Your first action is a note.**" in text  # silence for 5 minutes then means it stopped (spec §4)
-    assert f"mkdir -p {d} && printf '%s\\n' 'GOLDEN_DATASETS_ROOT={azure}' 'GOLDEN_DATASETS_CATALOG=avc' > {d}/golden-datasets.env" in text
+    assert f"mkdir -p {d} && cd {d} && UV_TOOL_DIR={d}/.tools UV_TOOL_BIN_DIR={d}/bin uv tool install '" in text
+    assert f"printf '%s\\n' 'GOLDEN_DATASETS_ROOT={azure}' 'GOLDEN_DATASETS_CATALOG=avc' 'GOLDEN_DATASETS_RUN=20261028T031209Z-a1b2' > {d}/golden-datasets.env" in text
     assert "/var/lib/k2/work/golden-datasets.env" in text and "If the install fails, don't install another version" in text
-    assert "## End the run" in text and f"cd {d} && golden-datasets run done --run 20261028T031209Z-a1b2 --summary-file summary.md --outcome" in text
-    assert f"`{d}/summary.md`" in text
+    assert "## End the run" in text and f"cd {d} && ./bin/golden-datasets run done --report report.json" in text
+    assert f"`{d}/report.json`" in text
     assert "Report back:" not in text
     # the work itself is the same as the Azure version
     az = build_prompt(ctx, None, True, target="azure", azure_root=azure)["text"]

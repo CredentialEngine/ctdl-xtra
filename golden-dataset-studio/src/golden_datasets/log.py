@@ -2,7 +2,8 @@
 
 People only ever append to it; nothing in it is edited. An edit is a new event whose `supersedes` names the old one.
 Two optional fields pass through untouched (Evals spec §4.2, §4.3): `author_role` (`sme` | `engineer`: the author's
-role when they wrote it) and `compared_with` (what a note on a diff was compared with). A comment may carry `anchor`
+role when they wrote it; `ai` for Claude's comments from a run, which also carry `run_id` and `ruleset_version`,
+one-rule-runs spec §2.1) and `compared_with` (what a note on a diff was compared with). A comment may carry `anchor`
 {css_path, char_start, char_end, text}: the text on the page it is about (sme-fixes §1).
 Readers keep the byte offset they have read up to and fetch only what was appended since (spec §10).
 """
@@ -20,7 +21,7 @@ VERDICTS = {"correct", "wrong", "missing", "question"}
 TARGET_KINDS = {"match", "occurrence", "page", "rule", "ruleset"}
 #: What a comment on a whole rule or on the ruleset is about (Rules tab sidebar).
 TOPICS = {"new-rule", "approach", "question-rule", "other"}
-AUTHOR_ROLES = {"sme", "engineer"}
+AUTHOR_ROLES = {"sme", "engineer", "ai"}
 #: Why a value is wrong, flagged after ✕ (sme-fixes §6): `not_on_page` = the page doesn't state this property anywhere.
 REASONS = {"not_on_page"}
 #: A piece of a reviewer's expected answer (`expected.segments[].polarity`, sme-fixes §1): `in` the answer, or `out` of

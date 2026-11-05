@@ -29,11 +29,13 @@ class Studio:
         # where xtra-cli's crawls are (Add a catalog searches it) and the catalogs being added: {folder: progress}
         self.crawls_root = crawls_root or default_crawls_root(self.root)
         self.adding: dict[str, dict] = {}
-        # runs on the remote agent (agent_runs.py, routes_agent.py): {k2_url, k2_key, k2_agent, minutes, prompt_users}
-        from ..agent_runs import K2
+        # runs on the remote agent (agent_runs.py, routes_agent.py): {k2_url, k2_key, k2_agent, minutes, prompt_users,
+        # max_runs}
+        from ..agent_runs import DEFAULT_CAP, K2, Queue
         agent = agent or {}
         self.prompt_users: list[str] = [n.strip() for n in agent.get("prompt_users", "").split(",") if n.strip()]
         self.agent_minutes: int = agent.get("minutes", 90)
+        self.agent_cap: int = int(agent.get("max_runs") or DEFAULT_CAP)  # runs working at once, all catalogs
         self.k2: K2 | None = None
         self.agent_off: str | None = None  # why runs are off, for the config route
         if not (agent.get("k2_url") and agent.get("k2_key")):
@@ -42,6 +44,7 @@ class Studio:
             self.agent_off = "the agent reports to the shared Azure root, and this Studio serves another root"
         else:
             self.k2 = K2(agent["k2_url"], agent["k2_key"], agent.get("k2_agent") or "golden-rules")
+        self.queue = Queue(self.root, self.k2, self.agent_runs_of, self.catalog_folders, cap=self.agent_cap)
 
     def warm_crawls(self) -> None:
         """List the crawls once in the background, so Add a catalog opens fast (reading each crawl's name from its
@@ -55,6 +58,26 @@ class Studio:
                 print(f"listing crawls: {exc}")
 
         threading.Thread(target=run, name="warm-crawls", daemon=True).start()
+
+    def agent_runs(self, catalog: str):
+        """A catalog's AI runs, with this Studio's K2, run length and prompt."""
+        return self.agent_runs_of(resolve(catalog))
+
+    def agent_runs_of(self, folder: str):
+        from ..agent_runs import AgentRuns, studio_prompter
+
+        ctx = self.ctx(folder)
+        return AgentRuns(ctx, self.k2, self.agent_minutes, prompter=studio_prompter(ctx, self.azure_root))
+
+    def catalog_folders(self) -> list[str]:
+        """Every catalog in the manifest (the queue looks at each one's live runs)."""
+        from .. import manifest
+
+        try:
+            doc, _ = manifest.load(self.root)
+        except FileNotFoundError:
+            return []
+        return [c["catalog"] for c in doc.get("catalogs", [])]
 
     def ctx(self, catalog: str) -> Ctx:
         folder = resolve(catalog)

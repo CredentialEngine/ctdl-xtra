@@ -20,6 +20,7 @@ from .state import Studio
 WEB_DIST = Path(__file__).resolve().parents[3] / "web" / "dist"
 ROUTERS = [
     "golden_datasets.server.routes_pages",    # W1: rendered pages, HTML view, archived assets
+    "golden_datasets.server.routes_agent",    # AI runs on K2 (before review: rules/picker isn't a rule id)
     "golden_datasets.server.routes_review",   # W4: catalogs, rules, rows, annotations, records
     "golden_datasets.server.routes_compare",  # W5: comparisons
     "golden_datasets.server.routes_prompt",   # W6: prompt text
@@ -27,7 +28,6 @@ ROUTERS = [
     "golden_datasets.server.routes_files",    # storage files: a debugging view of what the Studio keeps
     "golden_datasets.server.routes_profiles", # profiles: who is reviewing (name + role), shared on the root
     "golden_datasets.server.routes_crawls",   # Add a catalog: search xtra-cli's crawls, add one
-    "golden_datasets.server.routes_agent",    # runs of Claude on the remote agent (K2), watched here
     "golden_datasets.server.routes_evals",    # Evals: extract outputs and scores (docs/qrspi/evals)
 ]
 
@@ -71,9 +71,12 @@ def cmd_serve(args) -> int:
     import uvicorn
 
     agent = {"k2_url": args.k2_url, "k2_key": os.environ.get("GOLDEN_DATASETS_K2_KEY"), "k2_agent": args.k2_agent,
-             "minutes": args.agent_run_minutes, "prompt_users": args.prompt_users}
+             "minutes": args.agent_run_minutes, "prompt_users": args.prompt_users, "max_runs": args.k2_max_runs}
     app = create_app(args.root, args.azure_root, args.crawls_root, agent)
     app.state.studio.warm_crawls()
+    # AI runs: start waiting runs, watch their K2 sessions, end them (every 5 s, never inside a request)
+    threading.Thread(target=app.state.studio.queue.loop, args=(threading.Event(),), name="agent-runs",
+                     daemon=True).start()
     # scores: running ones left by a restart become interrupted, then new extract outputs and pending scores
     threading.Thread(target=app.state.scores.loop, args=(app.state.studio, threading.Event()), name="scores",
                      daemon=True).start()

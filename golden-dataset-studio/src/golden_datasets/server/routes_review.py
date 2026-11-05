@@ -86,7 +86,18 @@ def _event_brief(e: dict | None) -> dict | None:
             "author_role": e.get("author_role"), "at": e["at"], "note": e.get("note"), "expected": e.get("expected"),
             "compared_with": e.get("compared_with"), "anchor": e.get("anchor"),
             **({"reasons": e["reasons"]} if e.get("reasons") else {}),
-            "rule_version_seen": e["target"].get("rule_version_seen"), "value_seen": e["target"].get("value_seen")}
+            "rule_version_seen": e["target"].get("rule_version_seen"), "value_seen": e["target"].get("value_seen"),
+            **run_fields(e)}
+
+
+def run_fields(e: dict) -> dict:
+    """Claude's comments from a run (one-rule-runs spec §1.6): the run, the ruleset it published (or started from), and
+    when the run started (read from its id), for "(v10, AI run Nov 6)". Null on people's events."""
+    rid = e.get("run_id")
+    at = None
+    if rid and len(rid) >= 16 and rid[8] == "T":
+        at = f"{rid[0:4]}-{rid[4:6]}-{rid[6:8]}T{rid[9:11]}:{rid[11:13]}:{rid[13:15]}Z"
+    return {"run_id": rid, "ruleset_version": e.get("ruleset_version"), "run_at": at}
 
 
 def _review_state(s) -> dict:

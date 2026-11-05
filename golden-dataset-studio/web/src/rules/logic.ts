@@ -42,7 +42,7 @@ export function approveBlocked(s: Pick<RuleSummary, "open_wrong" | "open_missing
   const n = s.open_wrong + s.open_missing;
   if (!n) return null;
   return `Can't approve yet: ${n.toLocaleString("en-US")} ${n === 1 ? "course is" : "courses are"} marked wrong or missing. ` +
-    "A rule is approved only when none of its courses is. Fix it with “Improve all rules”, or change those verdicts.";
+    "A rule is approved only when none of its courses is. Fix it with “Improve rules with AI”, or change those verdicts.";
 }
 
 /** Search (m4): a rule matches by its name, its CTDL term without prefixes ("creditValue>minValue"), its subtitle, and its
@@ -76,7 +76,15 @@ export interface HistItem {
   id?: string;
   /** a comment pinned to text on the page: its bubble's number there */
   n?: number;
+  /** a comment Claude wrote in an AI run: "(v10, AI run Nov 6)" after the name, the run linked (one-rule-runs §1.6) */
+  run?: { id: string; version: number | null; at: string };
 }
+
+/** "Nov 6" (the browser's time zone). */
+export const monthDay = (at: string) => new Date(at).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+/** "10:04 AM" (the browser's time zone). */
+export const clockTime = (at: string) => new Date(at).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+const isAi = (e: EventBrief) => e.author_role === "ai" || (!!e.run_id && e.author === "Claude");
 
 /** The short line a note or a verdict made on a diff carries (Evals spec §4.2). */
 export function comparedLine(e: Pick<EventBrief, "compared_with" | "at"> | null | undefined, now = Date.now()): string | undefined {
@@ -121,7 +129,44 @@ export function historyItems(r: { state: RowStateName | null; verdict: EventBrie
   let pinned = 0;  // comments pinned to text on the page: numbered like their bubbles there
   for (const c of r.comments) {
     const n = c.anchor?.css_path ? ++pinned : undefined;
-    if (c.note) out.push({ cls: "comment", author: c.author, text: `“${c.note}”`, compared: comparedLine(c), n, id: c.annotation_id });
+    if (!c.note) continue;
+    if (isAi(c)) { out.push(aiItem(c)); continue; }
+    out.push({ cls: "comment", author: c.author, text: `“${c.note}”`, compared: comparedLine(c), n, id: c.annotation_id });
+  }
+  return out;
+}
+
+/** Claude's comment from an AI run: "Claude (v10, AI run Nov 6): …", the run linked (one-rule-runs §1.6). */
+function aiItem(c: EventBrief & { run_at?: string | null }): HistItem {
+  return { cls: "note", author: c.author, text: c.note ?? "", id: c.annotation_id,
+           run: c.run_id ? { id: c.run_id, version: c.ruleset_version ?? null, at: c.run_at ?? c.at } : undefined };
+}
+
+/** A report row's history line (one-rule-runs §1.4, §1.6; contract §2.6): every live verdict and comment, oldest
+ * first. A verdict's note, Claude's comments with their run, and what people did after the run said as such:
+ * "Jared Diener marked it correct, 10:04 AM, after this run." */
+export function reportHistory(events: (EventBrief & { run_at?: string | null; after_run?: boolean })[]): HistItem[] {
+  const out: HistItem[] = [];
+  let pinned = 0;
+  for (const e of events) {
+    const late = e.after_run ? `${clockTime(e.at)}, after this run` : "";
+    if (e.type === "comment") {
+      const n = e.anchor?.css_path ? ++pinned : undefined;
+      if (!e.note) continue;
+      if (isAi(e)) { out.push(aiItem(e)); continue; }
+      out.push({ cls: "comment", author: e.author, text: `“${e.note}”${late ? ` ${late}.` : ""}`, n, id: e.annotation_id });
+      continue;
+    }
+    if (e.type !== "verdict") continue;
+    const note = e.note ? `“${e.note}”` : e.expected?.text ? `expected “${clip(e.expected.text, 90)}”` : "";
+    if (e.after_run) {
+      const what = e.verdict === "correct" ? "marked it correct" : e.verdict === "wrong" ? "marked it wrong"
+        : e.verdict === "question" ? "asked the institution" : `marked it ${e.verdict ?? ""}`.trim();
+      out.push({ cls: e.verdict === "correct" ? "good" : e.verdict === "wrong" ? "bad" : "note",
+                 text: `${e.author} ${what}, ${late}.${note ? ` ${note}` : ""}`, id: e.annotation_id });
+    } else if (e.verdict === "question") {
+      out.push({ cls: "expert", text: e.note ? `Question for the institution: “${e.note}”` : "Waiting for the institution's answer", id: e.annotation_id });
+    } else if (note) out.push({ cls: "note", author: e.author, text: note, id: e.annotation_id });
   }
   return out;
 }

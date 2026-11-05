@@ -12,12 +12,15 @@ import { isLive, useAgent } from "./state";
 import "./agent.css";
 
 export function RunButton({ catalog, scope, label, confirm, onPrompt, variant = "primary", disabledReason, tour,
-  split = true }: {
+  split = true, onAsk }: {
   catalog: string; scope: RunScope; label: ReactNode; confirm: string;
   /** show the prompt (default: the prompt modal); `warning` set when the agent couldn't be reached */
   onPrompt?: (warning?: string) => void;
   variant?: "primary" | "plain" | "link"; disabledReason?: string | null; tour?: string;
   /** false: never offer Open the prompt (the Prompt tab itself) */ split?: boolean;
+  /** ask with another dialog (the rule picker, one-rule-runs §1.2) instead of the confirm below; runs then queue, so a
+   * live run doesn't disable the button */
+  onAsk?: () => void;
 }) {
   const me = useReviewer();
   const { config, run, now, refresh } = useAgent();
@@ -36,7 +39,7 @@ export function RunButton({ catalog, scope, label, confirm, onPrompt, variant = 
   const enabled = !!config?.enabled;
   const promptUser = split && enabled && !!config?.prompt_users.includes(me);
   const live = isLive(run) ? run : null;
-  const blocked = live ? `Claude is ${scopeWords(live.scope)} · started by ${live.started_by} · ${elapsed(live.created_at, now)}`
+  const blocked = live && !onAsk ? `Claude is ${scopeWords(live.scope)} · started by ${live.started_by} · ${elapsed(live.created_at, now)}`
     : disabledReason ?? null;
 
   const start = async () => {
@@ -50,7 +53,8 @@ export function RunButton({ catalog, scope, label, confirm, onPrompt, variant = 
     else if (r.kind === "busy") toast(r.run ? `A run is already going: started by ${r.run.started_by}` : r.detail);
     else toast(r.detail);
   };
-  const onMain = () => (enabled ? setAsking(true) : showPrompt());
+  const ask = () => (onAsk ? onAsk() : setAsking(true));
+  const onMain = () => (enabled ? ask() : showPrompt());
   const cls = variant === "link" ? "linkish run-link" : `btn ${variant === "primary" ? "primary" : ""} run-btn`;
   const main = (
     <button className={cls} onClick={onMain} disabled={busy || (enabled && !!blocked)} data-tour={tour}
@@ -67,7 +71,7 @@ export function RunButton({ catalog, scope, label, confirm, onPrompt, variant = 
       )}
       {menu && (
         <span className="run-menu" role="menu">
-          <button role="menuitem" disabled={!!blocked} onClick={() => { setMenu(false); setAsking(true); }}>
+          <button role="menuitem" disabled={!!blocked} onClick={() => { setMenu(false); ask(); }}>
             <Ico name="spark" />Run on the {config?.agent_name}</button>
           <button role="menuitem" onClick={() => { setMenu(false); showPrompt(); }}><Ico name="copy" />Open the prompt</button>
         </span>

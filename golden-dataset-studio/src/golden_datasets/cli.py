@@ -175,18 +175,38 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--for", dest="for_catalog", default=None, metavar="CATALOG",
                    help="a template for another catalog's first ruleset: every rule and the settings, for CATALOG")
     _cmd(p, "golden_datasets.loop:cmd_rule_draft")
-    p = rsub.add_parser("try", help="run a draft over the whole crawl and print the scorecard; writes nothing")
+    inferred_help = ("the values you worked out for courses marked wrong with no expected value: [{rule, course, "
+                     "annotation, value}] (default: ./inferred.json if there is one)")
+    p = rsub.add_parser("try", help="run a draft over the whole crawl, check every rule against every golden value, "
+                                    "print the scorecard; writes nothing")
     _root_args(p), _catalog_args(p)
     p.add_argument("draft")
     p.add_argument("--json", action="store_true", help="print the scorecard as JSON")
+    p.add_argument("--inferred", default=None, metavar="PATH", help=inferred_help)
     _cmd(p, "golden_datasets.loop:cmd_rule_try")
-    p = rsub.add_parser("publish", help="new rule versions + ruleset version + extraction, uploaded together")
+    p = rsub.add_parser("publish", help="new rule versions + ruleset version + extraction, uploaded together (one "
+                                        "publish at a time; rebased on the latest version, or refused if another "
+                                        "publish changed the same rules)")
     _root_args(p), _catalog_args(p)
     p.add_argument("draft")
     p.add_argument("--note", default=None, help="one line for the ruleset version")
-    p.add_argument("--force", action="store_true", help="publish even when a value marked correct changes")
+    p.add_argument("--force", action="store_true", help="publish even when a golden value that was right gets worse")
     p.add_argument("--by", default="Claude Code via golden-datasets rule publish")
+    p.add_argument("--inferred", default=None, metavar="PATH", help=inferred_help)
     _cmd(p, "golden_datasets.loop:cmd_rule_publish")
+    p = rsub.add_parser("downstream", help="the rules that read these rules, directly or not (what an edit can move)")
+    _root_args(p), _catalog_args(p)
+    p.add_argument("rule_ids", nargs="+")
+    _cmd(p, "golden_datasets.loop:cmd_rule_downstream")
+
+    rsets = sub.add_parser("ruleset", help="ruleset versions: revert")
+    rssub = rsets.add_subparsers(dest="ruleset_command", metavar="ACTION", required=True)
+    p = rssub.add_parser("revert", help="publish a new version with every rule this version changed back to its "
+                                        "previous version")
+    _root_args(p), _catalog_args(p)
+    p.add_argument("version", type=int)
+    p.add_argument("--by", default=os.environ.get("GOLDEN_DATASETS_AUTHOR", "golden-datasets ruleset revert"))
+    _cmd(p, "golden_datasets.loop:cmd_ruleset_revert")
 
     pages = sub.add_parser("pages", help="saved pages: get, sample")
     psub = pages.add_subparsers(dest="pages_command", metavar="ACTION", required=True)
@@ -229,6 +249,11 @@ def build_parser() -> argparse.ArgumentParser:
     _catalog_args(p)
     p.add_argument("--run", required=True)
     _cmd(p, "golden_datasets.agent_runs:cmd_show")
+    p = nsub.add_parser("context", help="each rule's last run and the annotations since (for a fresh session)")
+    _root_args(p)
+    _catalog_args(p)
+    p.add_argument("rule_ids", nargs="+")
+    _cmd(p, "golden_datasets.agent_runs:cmd_context")
 
     # --- Prompt ----------------------------------------------------------------------------------------
     p = sub.add_parser("prompt", help="the same text the UI's Copy prompt button gives")
@@ -305,6 +330,9 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--k2-agent", default=os.environ.get("GOLDEN_DATASETS_K2_AGENT", "golden-rules"),
                    help="the K2 workspace whose agent runs the prompts")
     p.add_argument("--agent-run-minutes", type=int, default=90, help="a run ends as timed out after this long")
+    p.add_argument("--k2-max-runs", type=int, default=int(os.environ.get("GOLDEN_DATASETS_K2_MAX_RUNS") or 2),
+                   help="AI runs working at once, all catalogs (default: $GOLDEN_DATASETS_K2_MAX_RUNS, else 2); set "
+                        "K2's host_session_cell_cap for the workspace to the same number")
     p.add_argument("--prompt-users", default=os.environ.get("GOLDEN_DATASETS_PROMPT_USERS", "Eric Riddoch,Seth Alt"),
                    help="profiles whose run buttons also offer Open the prompt (comma-separated)")
     _target_args(p, prompt=False)

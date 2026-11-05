@@ -293,9 +293,10 @@ export const STEPS: Step[] = [
       <>
         <p><b>How this rule works</b>, opened for you, says in plain words what the rule finds, how, and why this version
           is better, then its selector, how many courses it filled, its version and what it depends on.</p>
-        <p>When you've finished labeling for the session, <b>Improve all rules with Claude</b> <I name="spark" />, at the
-          bottom of the rule list, hands every rule that needs work, with everyone's verdicts, selections and notes, to
-          Claude on the Remote AI rule generator. It changes the rules and publishes a new version in a few minutes,
+        <p>When you've finished labeling for the session, <b>Improve rules with AI…</b> <I name="spark" />, at the
+          bottom of the rule list, lets you tick the rules to improve (those that need work are ticked) and hands them,
+          with everyone's verdicts, selections and notes, to Claude on the Remote AI rule generator. <b>Improve</b> on a
+          rule in the list does the same for that one rule. It changes the rules and publishes a new version in a few minutes,
           while you watch its progress in the bar under the top bar. <b>Past AI runs</b>, in the footer, keeps each
           run's report.</p>
       </>
@@ -362,7 +363,7 @@ export const STEPS: Step[] = [
         {c.blocked !== c.base && f.rule ? <p>“{String(f.rule)}” has been opened for you.</p> : null}
         {f.approved ? <p>This rule is already approved ({String(f.by ?? "").replace(/\s*·\s*Reopen$/, "")}).</p>
           : f.blocked ? <p>Here it's <b>greyed out</b>: some courses are still marked wrong or missing, and the reason
-              is shown under the button. Approve stays greyed out until none is. Fix it with Improve all rules, or change those verdicts.</p>
+              is shown under the button. Approve stays greyed out until none is. Fix it with Improve rules with AI, or change those verdicts.</p>
           : <p>Nothing is marked wrong or missing here, so Approve can be pressed. The tour doesn't press it.</p>}
         <p><b>Approving a rule publishes its silver dataset</b> (also called the rule-matched dataset): every value the rule found,
           even while other properties are still being worked on. The golden dataset holds only the values an expert reviewed,

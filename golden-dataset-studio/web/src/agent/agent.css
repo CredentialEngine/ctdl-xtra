@@ -115,3 +115,29 @@
 .k2-warn { margin: 0 0 12px; padding: 10px 12px; border-radius: 8px; background: var(--amber-soft); color: var(--ink);
   border: 1px solid var(--amber); font-size: 13px; line-height: 1.45; }
 .k2-warn b { display: block; margin-bottom: 2px; }
+
+/* "Run with Claude?" with its rule picker (one-rule-runs §1.2): each rule is its sidebar row, with a checkbox */
+.ac.run-ask.run-pick-ask { width: min(600px, 100%); }
+.run-pick-list { max-height: 52vh; overflow: auto; margin: 4px 0 10px; }
+.run-pick-list .group-h { cursor: default; }
+.run-pick { display: flex; align-items: flex-start; gap: 8px; cursor: pointer; }
+.run-pick > input { margin-top: 12px; flex: none; }
+.run-pick > .rule-item { flex: 1; min-width: 0; }
+.run-pick.held { cursor: default; }
+
+/* an AI run's report (one-rule-runs §1.4): row cards inside sections, without the Rules tab's list around them */
+.runs-sec > p, .runs-sec details > p, .runs-sec > div > p { margin: 0 0 8px; font-size: 13px; line-height: 1.45; }
+.runs-sec .run-facts { padding: 0 0 8px; border: 0; }
+.runs-sec .rows { overflow: visible; margin: 0 -20px 8px; }
+.runs-sec .rows .row { cursor: default; }
+.report-left-out { margin-top: 8px; }
+.report-left-out .sel-piece { margin-top: 4px; }
+.report-notes { white-space: pre-wrap; }
+.report-foot-r { display: flex; align-items: center; gap: 8px; margin-left: auto; }
+.report-foot-r .faint { font-size: 12.5px; }
+/* AI runs: the queue's sections above the past runs (one-rule-runs §1.7) */
+.runs-sec .runs-list { padding: 0; overflow: visible; flex: none; }
+.runs-sec.runs-plain { border-top: 0; padding: 4px 12px 16px; }
+div.runs-item { cursor: default; }
+div.runs-item:hover { background: none; }
+.runs-head-acts { border-top: 0; }

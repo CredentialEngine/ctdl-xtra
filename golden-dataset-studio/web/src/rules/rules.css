@@ -29,6 +29,8 @@
 .hist .h-comment .ico { color: var(--accent); }
 .hist .h-sep { color: var(--faint); }
 .hist .h-good + .h-note, .hist .h-bad + .h-note { color: var(--muted); }
+/* an AI run's report (one-rule-runs §1.4): one history item per line */
+.hist.stacked > span { display: block; }
 .row:focus { outline: none; }
 .row.more-rows { text-align: center; cursor: pointer; color: var(--muted); font-size: 12px; }
 
@@ -235,3 +237,10 @@
   font: italic 12.5px var(--sans); color: var(--muted); background: transparent; cursor: pointer; }
 .row.add-course:hover { color: var(--accent); }
 .expand .sel-pin .sel-quote { border-left-color: #98a2b3; background: #f2f4f7; color: var(--ink); }
+
+/* ✦ Improve on a sidebar row (one-rule-runs §1.1): only on the hovered or selected row; it is the Discuss button */
+.rule-item .rule-improve { display: none; }
+.rule-item:hover .rule-improve, .rule-item.on .rule-improve, .rule-item:focus-within .rule-improve { display: inline-flex; }
+.rule-item .meta .stat[role=button] { cursor: pointer; }
+.rule-item .meta .stat[role=button]:hover { text-decoration: underline; }
+.rule-item .meta .stat .run-pulse { width: 7px; height: 7px; }
