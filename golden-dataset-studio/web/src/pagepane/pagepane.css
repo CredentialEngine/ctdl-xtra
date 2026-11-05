@@ -80,6 +80,10 @@
 .gpp-hb { height: 24px; padding: 0 8px; border: 0; border-radius: 5px; background: transparent; color: #f2f4f7;
   font-family: inherit; font-size: 12px; font-weight: 500; line-height: 24px; cursor: pointer; }
 .gpp-hb:hover, .gpp-hb:focus-visible { background: rgba(255,255,255,.14); outline: none; }
-.gpp-hb.note { padding: 0 7px; margin-right: 3px; border-right: 1px solid rgba(255,255,255,.22); border-radius: 5px 0 0 5px; }
-.gpp-hb.in:hover { color: #a6f4c5; }
-.gpp-hb.out:hover { color: #fecdca; }
+.gpp-hb.hb-note { padding: 0 7px; margin-right: 3px; border-right: 1px solid rgba(255,255,255,.22); border-radius: 5px 0 0 5px; }
+.gpp-hb.hb-note { display: inline-flex; align-items: center; }
+.gpp-hb .ico { display: inline-flex; }
+.gpp-hb .ico svg { width: 15px; height: 15px; display: block; }
+.gpp-hb[aria-pressed="true"] { background: rgba(255,255,255,.2); color: #fff; }
+.gpp-hb.hb-in:hover { color: #a6f4c5; }
+.gpp-hb.hb-out:hover { color: #fecdca; }

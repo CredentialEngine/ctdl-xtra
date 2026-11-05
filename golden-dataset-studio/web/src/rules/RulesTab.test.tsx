@@ -511,9 +511,12 @@ describe("RulesTab", () => {
     return act(async () => a.run(s));
   };
 
-  it("a selection shows the highlight bar: 💬, ✓ In answer, ✕ Not in answer, each with a tooltip", async () => {
+  it("a selection shows the highlight bar: the comment bubble, ✓ In answer, ✕ Not in answer, each with a tooltip", async () => {
     await render();
-    expect(pane.props!.barActions!.map((a) => [a.id, a.label])).toEqual([["comment", "💬"], ["in", "✓ In answer"], ["out", "✕ Not in answer"]]);
+    expect(pane.props!.barActions!.map((a) => a.id)).toEqual(["comment", "in", "out"]);
+    expect(pane.props!.barActions!.map((a) => a.label).slice(1)).toEqual(["✓ In answer", "✕ Not in answer"]);
+    expect(typeof pane.props!.barActions![0].label).not.toBe("string");  // the app's bubble icon, not an emoji
+    expect(pane.props!.captureFirst).toBe(false);
     expect(pane.props!.barActions!.every((a) => a.title.length > 30)).toBe(true);
     // a selection equal to the found value is never dropped: it is a piece like any other
     await bar("in", sel("Value 1", 1));
@@ -525,7 +528,8 @@ describe("RulesTab", () => {
     await bar("out", sel("LIMITATION ON ENROLLMENT", 1));
     expect(container.querySelector(".row.on .cb.no")!.className).toContain(" on");  // ✕ marks the row ✗
     expect(container.querySelector(".row.on .sel-pol")!.textContent).toBe("✕ not in answer");
-    await bar("in", sel("Work Experience Education", 2));
+    // the ✗ draft is open: a drag is a piece of the answer at once
+    await act(async () => pane.props!.onSelection!(sel("Work Experience Education", 2)));
     expect(pane.props!.highlights.filter((h) => h.id.startsWith("capture-")).map((h) => [h.kind, h.text]))
       .toEqual([["excluded", "LIMITATION ON ENROLLMENT"], ["expected", "Work Experience Education"]]);
     await act(async () => container.querySelector<HTMLButtonElement>(".row.on .save")!.click());
@@ -546,6 +550,55 @@ describe("RulesTab", () => {
     await bar("out", sel("Head", 1));
     await act(async () => container.querySelector<HTMLButtonElement>(".row.on .save")!.click());
     expect(posted[posted.length - 1]).toMatchObject({ expected: { text: "Body", segments: [{ text: "Head", polarity: "out" }] } });
+  });
+
+  it("after ✗, a drag is kept as the answer at once (Jared, 2026-11-05); the bar still offers comment, ✓ and ✕", async () => {
+    await render();
+    await act(async () => container.querySelector<HTMLButtonElement>(".row.on .cb.no")!.click());
+    expect(pane.props!.captureSelection && pane.props!.captureFirst).toBe(true);
+    expect(pane.props!.barActions!.map((a) => a.id)).toEqual(["comment", "in", "out"]);
+    await act(async () => pane.props!.onSelection!(sel("7", 1)));
+    expect([...container.querySelectorAll(".row.on [data-testid=capture]")].map((q) => q.textContent)).toEqual(["7"]);
+    await act(async () => container.querySelector<HTMLButtonElement>(".row.on .save")!.click());
+    expect(posted[posted.length - 1]).toMatchObject({ type: "verdict", verdict: "wrong", expected: { text: "7" } });
+  });
+
+  it("✕ Not in answer on the bar after ✗ marks the piece just dragged as out", async () => {
+    await render();
+    await act(async () => container.querySelector<HTMLButtonElement>(".row.on .cb.no")!.click());
+    await act(async () => pane.props!.onSelection!(sel("LIMITATION ON ENROLLMENT", 1)));
+    await bar("out", sel("LIMITATION ON ENROLLMENT", 1));
+    expect(pane.props!.highlights.filter((h) => h.id.startsWith("capture-")).map((h) => h.kind)).toEqual(["excluded"]);
+  });
+
+  it("a comment goes with either answer: bubble, then ✓, saves the ✗ with its answer and the comment pinned to the text", async () => {
+    await render();
+    const s = sel("Work Experience Education", 2);
+    expect(pane.props!.barActions!.find((a) => a.id === "comment")!.keepOpen).toBe(true);  // then ✓ or ✕ on the same bar
+    await bar("comment", s);
+    await bar("in", s);
+    expect(container.querySelector(".row.on [data-testid=anchor]")!.textContent).toBe("Work Experience Education");
+    expect([...container.querySelectorAll(".row.on [data-testid=capture]")].map((q) => q.textContent)).toEqual(["Work Experience Education"]);
+    const note = container.querySelector<HTMLInputElement>(".row.on .expand .note")!;
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(note, "Only this part");
+      note.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    await act(async () => container.querySelector<HTMLButtonElement>(".row.on .save")!.click());
+    expect(posted.slice(-2)).toMatchObject([
+      { type: "verdict", verdict: "wrong", note: null, expected: { text: "Work Experience Education" } },
+      { type: "comment", note: "Only this part", anchor: { text: "Work Experience Education" } }]);
+  });
+
+  it("after ✗ and a drag, the bubble pins a comment to that piece and ✕ marks it out: both are kept", async () => {
+    await render();
+    await act(async () => container.querySelector<HTMLButtonElement>(".row.on .cb.no")!.click());
+    const s = sel("LIMITATION ON ENROLLMENT", 1);
+    await act(async () => pane.props!.onSelection!(s));
+    await bar("comment", s);
+    await bar("out", s);
+    expect(container.querySelector(".row.on .sel-pol:not(.pin)")!.textContent).toBe("✕ not in answer");
+    expect(container.querySelector(".row.on [data-testid=anchor]")!.textContent).toBe("LIMITATION ON ENROLLMENT");
   });
 
   it("💬 opens the comment box anchored to the text; the comment is saved with its anchor and drawn as a numbered bubble", async () => {

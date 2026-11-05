@@ -16,7 +16,7 @@ import { AnnotatedBy, ReviewLine, VerdictSwitch, WaitingNote } from "./Annotated
 import { apiX, type Annotators, type RowX } from "./api";
 import {
   addCapture, applyEvent, applyItem, applyMissingItem, applyReview, BY_ANYONE, BY_WAITING, briefOf, canConfirm, filterCountTip,
-  groupOf, isField, isSettled, itemEvent, keyAction, missingEvent, missingItemEvent, moveIn, newDraft, pageGroups, pushRecent, paneTabs,
+  groupOf, isField, isSettled, itemEvent, keyAction, markPiece, missingEvent, pinnedComment, missingItemEvent, moveIn, newDraft, pageGroups, pushRecent, paneTabs,
   rowTarget, scrollWithin, shortTitle, subjectOf, verdictEvent, type Draft, type Level, type Piece, type TabRef,
 } from "./logic";
 import { MissedCourse, MissedPage, type MissedState } from "./MissedPanel";
@@ -264,9 +264,10 @@ export default function RulesTab({ catalog, route }: TabProps) {
   const ov = detail && active && overlay?.key === `${detail.rule_id}|${active}|${ext ?? ""}` ? overlay.data : null;
 
   const captures: Piece[] = draft?.captures.length ? draft.captures : missed?.capture ? [missed.capture] : itemAdd?.capture ? [itemAdd.capture] : [];
-  // A property rule's row: selecting text on its page shows the highlight bar (sme-fixes §1): 💬 comment on it, ✓ it is
-  // in the right answer, ✕ it is not (both open the ✗ draft with it, with or without pressing ✗ first). Only on the
-  // row's own page: the expected text is located on that page.
+  // A property rule's row: selecting text on its page shows the highlight bar (sme-fixes §1): comment on it, ✓ it is
+  // in the right answer, ✕ it is not (both open the ✗ draft with it). Once the ✗ draft is open, a selection is a piece
+  // of the answer at once, as before the bar (Jared, 2026-11-05: answers dragged after ✗ were lost when the bar was
+  // dismissed), and the bar only offers ✕ Not in answer. Only on the row's own page: the expected text is located there.
   const onRowPage = !!row && active === row.page_stem;
   // a list's row answers only while a missing item is being selected (its items have their own ✓ and ✕)
   const selectAnswer = listRule ? onRowPage && (!!itemAdd || !!objAdd)
@@ -276,20 +277,28 @@ export default function RulesTab({ catalog, route }: TabProps) {
     if (listRule && itemAdd) { setItemAdd({ capture: c }); return; }
     setMissed(null);
     // several drags add pieces of one answer; one over an existing piece replaces it
+    // a comment already pinned with the bubble stays with the ✗: the comment goes with either answer
     setDraft((d) => (d && d.mode === "wrong" ? { ...d, captures: addCapture(d.captures, c) }
-      : row ? { ...newDraft("wrong", row.verdict, row.state), captures: [c] } : d));
+      : row ? { ...newDraft("wrong", row.verdict, row.state), captures: [c],
+                ...(d?.mode === "comment" ? { anchor: d.anchor, note: d.note } : {}) } : d));
   }, [kind, draft, row, listRule, itemAdd, objAdd]);
+  const captureFirst = kind === "property" && !listRule && draft?.mode === "wrong";
   const barActions = useMemo<BarAction[] | null>(() => {
     if (kind !== "property" || listRule || !onRowPage || missed || itemAdd || !row) return null;
+    // after ✗ the drag is already a piece of the answer (captureFirst): ✓ keeps it in, ✕ marks it out
+    const mark = (polarity: "in" | "out") => (c: CapturedSelection) => (captureFirst
+      ? setDraft((d) => (d ? { ...d, captures: markPiece(d.captures, c, polarity) } : d))
+      : onAnswer({ ...c, polarity }));
     return [
-      { id: "comment", label: "💬", tone: "note", title: "Comment on this text: the comment is pinned to it on the page (a numbered bubble)",
-        run: (c: CapturedSelection) => { setMissed(null); setDraft((d) => ({ ...(d?.mode === "comment" ? d : newDraft("comment", row.verdict, row.state)), anchor: c })); } },
+      { id: "comment", label: <Ico name="bubble" />, tone: "note", keepOpen: true,
+        title: "Comment on this text: the comment is pinned to it on the page (a numbered bubble). Then ✓ or ✕ to say whether it is in the answer, or just save the comment.",
+        run: (c: CapturedSelection) => { setMissed(null); setDraft((d) => ({ ...(d?.mode === "comment" || d?.mode === "wrong" ? d : newDraft("comment", row.verdict, row.state)), anchor: c })); } },
       { id: "in", label: "✓ In answer", tone: "in", title: "Mark this text as part of the right answer (outlined green). Several pieces can be combined; Enter saves the row as ✗ with this answer.",
-        run: (c: CapturedSelection) => onAnswer({ ...c, polarity: "in" }) },
+        run: mark("in") },
       { id: "out", label: "✕ Not in answer", tone: "out", title: "Mark this text as not part of the right answer (red dashed). The row becomes ✗.",
-        run: (c: CapturedSelection) => onAnswer({ ...c, polarity: "out" }) },
+        run: mark("out") },
     ];
-  }, [kind, listRule, onRowPage, missed, itemAdd, row, onAnswer]);
+  }, [kind, listRule, onRowPage, missed, itemAdd, row, onAnswer, captureFirst]);
   const removePiece = useCallback((id: string) => {
     const i = Number(id.replace(/^capture-/, ""));
     setDraft((d) => (d ? { ...d, captures: d.captures.filter((_, j) => j !== i) } : d));
@@ -331,7 +340,7 @@ export default function RulesTab({ catalog, route }: TabProps) {
         }
         // comments pinned to text: a numbered bubble at the text, in the order the row lists them
         if (active === row.page_stem) {
-          const pinned = [...row.comments.map((c) => c.anchor), ...(draft?.mode === "comment" && draft.anchor ? [draft.anchor] : [])];
+          const pinned = [...row.comments.map((c) => c.anchor), ...(draft?.anchor ? [draft.anchor] : [])];
           pinned.filter((a): a is NonNullable<typeof a> => !!a?.css_path).forEach((a, i) => hs.push({ id: `note-${i}`, kind: "note",
             cssPath: a.css_path, charStart: a.char_start, charEnd: a.char_end, text: a.text, badge: i + 1 }));
         }
@@ -384,10 +393,14 @@ export default function RulesTab({ catalog, route }: TabProps) {
     if (!r || !detail) return;
     const confirming = "verdict" in what && canConfirm(r, role);
     if ("verdict" in what && r.state === "correct" && !confirming) { toast(`Already correct · ${r.course_key ?? shortTitle(r.page_title, 40)}`); advance(i); return; }
-    const ev = verdictEvent(me, rowTarget(detail.kind, detail.rule_id, r), r.verdict, what, r.value);
+    const target = rowTarget(detail.kind, detail.rule_id, r);
+    const ev = verdictEvent(me, target, r.verdict, what, r.value);
     const brief = await post(ev);
     if (!brief) return;
     setRows((rs) => rs.map((x, j) => (j === i ? applyReview(applyEvent(x, brief), brief, role) : x)));
+    const pin = "draft" in what ? pinnedComment(me, target, what.draft) : null;  // a ✗ with a comment pinned to text
+    const pinBrief = pin ? await post(pin) : null;
+    if (pinBrief) setRows((rs) => rs.map((x, j) => (j === i ? applyEvent(x, pinBrief) : x)));
     setDraft(null);
     setSaved((n) => n + 1);
     const label = ev.type === "comment" ? "Comment saved" : ev.verdict === "question" ? "Question for the institution saved"
@@ -730,7 +743,7 @@ export default function RulesTab({ catalog, route }: TabProps) {
       <section className="col pane" data-tour="page-pane" ref={paneRef}>
         <PagePane catalog={cat} tabs={tabs} activeStem={active} onActivate={(s) => setActiveStem(s)}
           highlights={highlights} focusId={focusId} banner={banner} legend={legend} ruleset={catalog.ruleset_version}
-          captureSelection={selectAnswer} onSelection={onAnswer} onRemove={removePiece} barActions={barActions ?? fieldBar}
+          captureSelection={selectAnswer} onSelection={onAnswer} onRemove={removePiece} barActions={barActions ?? fieldBar} captureFirst={captureFirst}
           pickBlock={!!missed && kind === "locator"}
           onPickBlock={(c) => setMissed((m) => (m ? { ...m, capture: c } : m))} />
         {missed && kind === "locator" && row && (
