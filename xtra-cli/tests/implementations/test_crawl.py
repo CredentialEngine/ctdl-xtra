@@ -2744,6 +2744,7 @@ def test_crawl_json_counts_copied_and_fetched_pages(tmp_path: Path) -> None:
     for gone_field in ("outcomes", "outcomes_at_start"):
         assert gone_field not in doc
 
+
 def count_report_writes(monkeypatch) -> list[str]:
     writes: list[str] = []
     put = ObjectStore.put_bytes
