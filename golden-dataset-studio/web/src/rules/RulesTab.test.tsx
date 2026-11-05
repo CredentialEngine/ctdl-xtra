@@ -284,6 +284,61 @@ describe("RulesTab", () => {
       segments: [{ text: "First part" }, { text: "Second part, fixed", css_path: "html > body > p:nth-of-type(3)" }] } });
   });
 
+  it("Reset rule (phase1-followups §4): says what it clears and keeps, needs a reason, posts one reset, fetches the rows again", async () => {
+    const fetchMock = vi.mocked(fetch);
+    const base = fetchMock.getMockImplementation()!;
+    let rowCalls = 0;
+    fetchMock.mockImplementation((url, init) => {
+      const u = String(url);
+      if (u.includes("/rules/course-description/reset-preview")) {
+        return json({ rule_id: "course-description", property: "Subject Webpage", counts: { correct: 69, answered: 0 },
+                      by_author: { "Seth Alt": 56, Jared: 13 }, kept: { wrong_no_answer: 6, questions: 0, comments: 2 },
+                      approval: { by: "Seth Alt", at: "2026-10-27T00:28:23Z" }, column: { column: "subjectWebpage", golden: "ruleset-v7" } });
+      }
+      if (u.includes("/rows")) rowCalls++;
+      if (/\/rules\/[^/?]+$/.test(u) && !init?.method) return json(detail({ status: "approved", approved_by: "Seth Alt", approved_at: "2026-10-27" }));
+      return base(url, init);
+    });
+    await render();
+    const link = container.querySelector<HTMLButtonElement>("[data-testid=reset-rule]")!;
+    expect(container.querySelector(".ab-who")!.textContent).toContain("Reopen · Reset rule");  // beside Reopen
+    await act(async () => { link.click(); await new Promise((r) => setTimeout(r, 0)); });
+    const dlg = document.querySelector<HTMLElement>("[data-testid=reset-dialog]")!;
+    expect(dlg.querySelector("h2")!.textContent).toBe("Reset Subject Webpage in AVC?");
+    expect(dlg.textContent).toContain("69 marked correct (✓)Seth Alt 56 · Jared 13");
+    expect(dlg.textContent).toContain("The subjectWebpage column leaves AVC's silver dataset (ruleset v7)");
+    expect(dlg.textContent).toContain("Kept: 6 ✕s with no answer, 2 comments.");
+    const go = [...dlg.querySelectorAll<HTMLButtonElement>("button")].find((b) => b.textContent === "Reset rule")!;
+    expect(go.disabled).toBe(true);  // a reason first
+    const why = dlg.querySelector<HTMLTextAreaElement>("textarea")!;
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value")!.set!.call(why, "The URL belongs in In Catalog");
+      why.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    expect(go.disabled).toBe(false);
+    const before = rowCalls;
+    await act(async () => { go.click(); await new Promise((r) => setTimeout(r, 0)); });
+    expect(posted).toEqual([{ type: "reset", author: "Jared", target: { kind: "rule", rule_id: "course-description" },
+                              note: "The URL belongs in In Catalog" }]);
+    expect(document.querySelector("[data-testid=reset-dialog]")).toBeNull();
+    expect(rowCalls).toBeGreaterThan(before);
+  });
+
+  it("a reset row shows what was said before the reset, as a hint; nothing to reset greys the link out", async () => {
+    const fetchMock = vi.mocked(fetch);
+    const base = fetchMock.getMockImplementation()!;
+    fetchMock.mockImplementation((url, init) => {
+      const u = String(url);
+      if (u.includes("/rows")) return json({ ...rows, rows: [row(1, { before_reset: { annotation_id: "an-x", type: "verdict", verdict: "correct",
+        author: "Seth Alt", at: "2026-10-23T15:03:58Z", note: null, expected: null, rule_version_seen: 1, value_seen: "Value 1" } })], focus_index: 0 });
+      if (/\/rules\/[^/?]+$/.test(u) && !init?.method) return json(detail({ reviewed: 0 }));
+      return base(url, init);
+    });
+    await render();
+    expect(container.querySelector(".row.on [data-testid=before-reset]")!.textContent).toBe("✓ Seth Alt · 23 Oct, before the reset");
+    expect(container.querySelector<HTMLButtonElement>("[data-testid=reset-rule]")!.disabled).toBe(true);
+  });
+
   it("shows rules by kind with status icons and reviewed counts", async () => {
     await render();
     const groups = [...container.querySelectorAll(".group-h")].map((g) => g.textContent);

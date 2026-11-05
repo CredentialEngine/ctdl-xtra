@@ -15,7 +15,8 @@ import uuid
 
 from .storage import Root
 
-EVENT_TYPES = {"verdict", "comment", "approve", "reopen"}
+#: `reset` (phase1-followups spec §4): a rule's reviews in this catalog go back to "not reviewed" and its approval ends.
+EVENT_TYPES = {"verdict", "comment", "approve", "reopen", "reset"}
 VERDICTS = {"correct", "wrong", "missing", "question"}
 TARGET_KINDS = {"match", "occurrence", "page", "rule", "ruleset"}
 #: What a comment on a whole rule or on the ruleset is about (Rules tab sidebar).
@@ -48,6 +49,8 @@ def validate(event: dict) -> None:
         raise ValueError(f"target.kind must be one of {sorted(TARGET_KINDS)}")
     if target["kind"] == "ruleset" and event["type"] != "comment":
         raise ValueError("only comments target the ruleset")
+    if event["type"] == "reset" and (target["kind"] != "rule" or not (event.get("note") or "").strip()):
+        raise ValueError("a reset targets a rule and says why (note)")
     if event.get("topic") is not None and (event["type"] != "comment" or event["topic"] not in TOPICS):
         raise ValueError(f"topic is for comments, one of {sorted(TOPICS)}")
     if event["type"] == "verdict" and event["verdict"] == "missing" and target["kind"] not in ("occurrence", "page") \

@@ -47,6 +47,8 @@ REQUIRED_FALLBACK = ("ceterms:identifier", "ceterms:name", "ceterms:description"
 #: The Rules tab's fixed order for required properties (§4.8): the course key first.
 REQUIRED_ORDER = ("ceterms:codedNotation", "ceterms:identifier", "", "ceterms:name", "ceterms:description",
                   "ceterms:subjectWebpage", "ceterms:lifeCycleStatusType", "ceterms:inLanguage")
+#: Names the sheet's column D doesn't give yet (phase1-followups spec §2.1): drop an entry once column D says it.
+LABELS = {"ceterms:creditValue>schema:value": "Credit Unit Value"}
 #: Rows the sheet writes in a way sync doesn't take as written (§4.1).
 SKIP_PATHS = {"ceterms:learningOpportunityType": "removed from the sheet (W3): not a CTDL property",
               # Estimated Duration is one list-of-objects rule (sme-fixes §5.1): its children are fields, not rules
@@ -261,7 +263,9 @@ def from_sheet(rows: list[list[str]], required: set[str] | None) -> tuple[list[d
     for g in got:
         path = g["path"]
         parent = path.split(">", 1)[0] if ">" in path else ""
-        if g["column_d"] and not (parent and g["column_d"] in {x["column_d"] for x in got if x is not g}):
+        if path in LABELS:
+            label = LABELS[path]
+        elif g["column_d"] and not (parent and g["column_d"] in {x["column_d"] for x in got if x is not g}):
             label = g["column_d"]
         elif parent:
             label = f"{by_path[parent]['column_d'] or label_of(parent)}: {g['column_d'] or label_of(path)}"

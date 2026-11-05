@@ -272,6 +272,49 @@ def test_each_object_has_its_own_verdict_and_an_added_object_is_labelled_field_b
     capsys.readouterr()
 
 
+def test_a_found_object_is_corrected_from_the_page_and_an_added_one_taken_back(profile_studio):
+    """phase1-followups spec §3.2–§3.4: a correction is the found object's ✕ carrying the corrected object; the
+    golden dataset publishes the correction in its place, and it counts as human-reviewed. ✕ on an added object takes
+    it back."""
+    from golden_datasets.review import human_reviewed_counts
+
+    c, ctx = profile_studio
+    row = _rows(c, "course-estimated-duration")["page-0"]
+    lab = row["items"][3]  # Total Course Lab Hours · 432.0
+
+    def item(verdict: str, value_index=None, expected=None, supersedes=None, status=200) -> dict:
+        return _post(c, {"type": "verdict", "author": JARED, "verdict": verdict, "expected": expected,
+                         "supersedes": supersedes,
+                         "target": {"kind": "match", "rule_id": "course-estimated-duration",
+                                    "occurrence_key": row["key"], "item": True, "value_index": value_index}}, status)
+
+    # the time is corrected from the page; the description keeps the rule's text and place
+    time_at = row["items"][0]["fields"][TIME_KEY]
+    corrected = {"objects": [{"fields": {DESC_KEY: lab["fields"][DESC_KEY],
+                                         TIME_KEY: {**time_at, "text": "54.0 - 432.0"}}}]}
+    out = item("wrong", 3, corrected)
+    assert out["event"]["target"]["value_seen"] == lab["value"]  # tied to the duration it corrects
+    assert out["rule"]["open_wrong"] == 1  # one ✕, not also a missing duration
+    got = _rows(c, "course-estimated-duration")["page-0"]
+    assert got["items"][3]["state"] == "wrong"
+    assert got["items"][3]["verdict"]["expected"]["objects"][0]["fields"][TIME_KEY]["text"] == "54.0 - 432.0"
+    fixed = {DESC_KEY: "Total Course Lab Hours", TIME_KEY: "54.0 - 432.0"}
+    dur = _of(_golden(ctx, "page-0"), "ceterms:estimatedDuration")
+    assert [f["value"] for f in dur] == [*ACCT199[:3], fixed] and dur[3]["approval"] == "human"
+    assert human_reviewed_counts(ctx.root, [CAT])["course-estimated-duration"] == 1
+
+    # an added duration, then its ✕: the add is taken back and leaves the golden dataset
+    added = {"objects": [{"fields": {DESC_KEY: {**lab["fields"][DESC_KEY], "text": "Total Course Field Hours"},
+                                     TIME_KEY: {**time_at, "text": "12.0"}}}]}
+    add = item("missing", expected=added)["event"]
+    assert len(_rows(c, "course-estimated-duration")["page-0"]["missing_items"]) == 2  # the add and the correction
+    item("wrong", supersedes=add["annotation_id"])
+    got = _rows(c, "course-estimated-duration")["page-0"]
+    assert [m["verdict"] for m in got["missing_items"]] == ["wrong"]  # only the correction is left
+    assert [f["value"] for f in _of(_golden(ctx, "page-0"), "ceterms:estimatedDuration")] == [*ACCT199[:3], fixed]
+    item("wrong", supersedes="an-unknown", status=400)  # only an added item can be taken back that way
+
+
 # --- §6 not on the page -----------------------------------------------------------------------------------------------
 def test_absent_claims_and_why_wrong_reasons_reach_the_golden_dataset(profile_studio):
     c, ctx = profile_studio

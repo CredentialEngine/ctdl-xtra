@@ -539,8 +539,8 @@ MORE_INTRO = ("This catalog already has rules in **CTDL Golden Dataset Studio**.
 RULE_TYPES = [
     ["`css`", "an element's text", "AVC `p.header-x-meta` → `3.0 Units`"],
     ["`css+regex`", "part of an element's text", "WVU title `CCMD 741. Behavioral Science … 2 Hours.` → `2 Hours.`"],
-    ["`regex`", "part of the input's text (the record, or another rule's output)", "Credit Value `1-4 Credit hours`, "
-     "`-\\s*(\\d+)` → `4`"],
+    ["`regex`", "part of the input's text (the record, or another rule's output)", "Credit Unit Max Value on Marshall "
+     "`1-4 Credit hours`, `-\\s*(\\d+)` → `4`"],
     ["`labelled`", "the text after a label, up to `until` (default `br`): text no selector reaches",
      "UALR `<strong>Prerequisites:</strong> HIST 21103 , HIST 21203 , and six hours…<br>`"],
     ["`constant`", "a fixed value", "Learning Type `Course`; Language `English` when every course is in English"],
@@ -550,7 +550,7 @@ RULE_TYPES = [
      "Marshall `h1` `Statistics (STA)` for Subjects"],
     ["`input: url`", "the page URL as text, with a regex", "UARK `course=bookkeeping-quickBooks` for identifier"],
     ["`input: rule`", "another property rule's output on the same course (`\"use\": \"element\"` for its element)",
-     "Credit Unit Max Value reads Credit Value's `1-4 Credit hours`"],
+     "Content Description reads Description's value: AVC `Topics include Linear Functions, Matrices, …`"],
     ["`multiple.split: elements`", "every matched element, one value each", "CCSF `.course-lab-lec-label > span`: "
      "`Lecture - 87.5`, `Lab - 35`"],
     ["`multiple.split: separator`", "one text split on `,` `;` or a line break", "Marshall `No Textbook Required, "
@@ -593,6 +593,10 @@ REQUISITE_WORDS = [
     "- **A corequisite inside the prerequisite sentence is left out of it** and goes to Corequisite: Description "
     "(WVU `PR: Corequisite of AGBI 514L` → Corequisite: Description `Corequisite of AGBI 514L`).",
     "- \"Advisory\", \"Recommended Prep\" and \"Recommended\" go to Recommends: Description.",
+    "- **Credits are a Value Profile: Credit Value itself gets no rule (`none`).** One number is **Credit Unit Value** "
+    "(Marshall `7 Credit hours` → `7`). A range is **Credit Unit Min Value** and **Max Value** (`1-4 Credit hours` → "
+    "`1`, `4`), with Value left empty. The words are **Credit Unit Type** (`Credit hours`). Each reads the page (the "
+    "credits element), not Credit Value.",
     "- **Any other requirement to enroll or take part is Entry Condition: Description** (AVC `LIMITATION ON "
     "ENROLLMENT: To participate in work experience education, students must …`).",
     "- Contact hours are **Estimated Duration, one rule whose value is a list of objects** (`profile`): one object per "

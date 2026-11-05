@@ -360,7 +360,7 @@ export const STEPS: Step[] = [
       <>
         <p>When everything a rule found is right, press <b>Approve rule</b>. A rule is rejected if even one course is wrong.</p>
         {c.blocked !== c.base && f.rule ? <p>“{String(f.rule)}” has been opened for you.</p> : null}
-        {f.approved ? <p>This rule is already approved ({String(f.by ?? "").replace(/\s*·\s*Reopen$/, "")}).</p>
+        {f.approved ? <p>This rule is already approved ({String(f.by ?? "").replace(/\s*·\s*Reopen(\s*·\s*Reset rule)?$/, "")}).</p>
           : f.blocked ? <p>Here it's <b>greyed out</b>: some courses are still marked wrong or missing, and the reason
               is shown under the button. Approve stays greyed out until none is. Fix it with Improve all rules, or change those verdicts.</p>
           : <p>Nothing is marked wrong or missing here, so Approve can be pressed. The tour doesn't press it.</p>}
@@ -368,6 +368,8 @@ export const STEPS: Step[] = [
           even while other properties are still being worked on. The golden dataset holds only the values an expert reviewed,
           and doesn't change. Approve asks once first, then scores xtra's latest extract output against it. The{" "}
           <b>Datasets</b> tab shows the golden dataset by property and each silver dataset version.</p>
+        <p>Changed your mind about what a property should hold? <b>Reset rule</b> clears its reviews in this catalog and takes it
+          out of the datasets, so you can review it again.</p>
       </>
     ),
     absent: () => <p>The rule hasn't loaded.</p>,
