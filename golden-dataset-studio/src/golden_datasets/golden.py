@@ -4,7 +4,8 @@
 A golden dataset's ID is its ruleset's: *ruleset v3*. A column (property) is published once its property rule is
 approved; publishing it writes the whole golden dataset of that ruleset again (every column published in it or in an
 earlier version so far, all from this ruleset's immutable extraction), never merged with what was there: columns only
-grow (Evals spec §1 rows 3, 16). The first publication in a ruleset
+grow (Evals spec §1 rows 3, 16), except that Reset rule withdraws its column until the rule is approved again
+(phase1-followups spec §4.5). The first publication in a ruleset
 creates its version; later ones rewrite it with the extra column. Every version is kept as two parallel trees, and
 the latest version's rule-matched tree also replaces each page's file at the usual location, in the
 `xtra-golden-sets` container:
@@ -481,8 +482,9 @@ def publish(ctx: Ctx, to: str, by: str, allow_unapproved: bool = False, log=prin
         before = ctx.read_json(f"{gdir}/publication.json", immutable=False)
     except FileNotFoundError:
         before = None
-    columns = sorted(set(chosen) | set((before or {}).get("properties", [])) | inherited_columns(ctx, n),
-                     key=lambda x: model.PROPERTY_ORDER.get(x, 99))
+    # columns only grow, except a column whose rule was reset since its approval (phase1-followups §4.5)
+    columns = sorted((set(chosen) | set((before or {}).get("properties", [])) | inherited_columns(ctx, n))
+                     - (rv.withdrawn() - set(chosen)), key=lambda x: model.PROPERTY_ORDER.get(x, 99))
     p = plan(rv, set(columns))
     target = open_root(to)
     latest = n >= max(versions(ctx), default=0)
@@ -593,12 +595,23 @@ def approval_publishes(rv: Review, rule_id: str) -> dict | None:
         now, creates = [], True
     adds = [r["property"] for r in property_rules(rv)
             if r["ctdl_property"] and (r["status"] == "approved" or r["rule_id"] == rule_id)]
-    after = sorted(set(now) | set(adds) | inherited_columns(ctx, n),
+    after = sorted((set(now) | set(adds) | inherited_columns(ctx, n)) - (rv.withdrawn() - {col["property"]}),
                    key=lambda x: model.PROPERTY_ORDER.get(x, 99)) if col["ctdl_property"] else now
     return {"rule_id": rule_id, "property": col["property"], "column": column_name(col["property"]),
             "writes": bool(col["ctdl_property"]), "golden": version_name(n), "ruleset_version": n, "creates": creates,
             "now": now, "after": after, "adds": [p for p in after if p not in now] or [col["property"]],
             "approved": adds}
+
+
+def publish_reset(ctx: Ctx, rule_id: str, by: str, why: str) -> dict | None:
+    """After Reset rule: the latest golden dataset written again without the rule's column, and without the values its
+    reviews made human (phase1-followups spec §4.5). None when there is no golden dataset yet."""
+    if not versions(ctx):
+        return None
+    rv = LOADER.review(ctx)
+    prop = rv.snap.rules[rule_id].get("property_label")
+    return publish(ctx, default_target(ctx), by, properties=[], note={"reset": {"rule_id": rule_id, "property": prop,
+                                                                              "by": by, "why": why}})
 
 
 def publish_approved(ctx: Ctx, rule_id: str, by: str) -> dict | None:

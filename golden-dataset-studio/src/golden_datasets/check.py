@@ -155,8 +155,8 @@ SQL_CHECKS: list[tuple[str, str, str, str, str]] = [
     ("annotations", "FK", "supersedes → annotation",
      """SELECT annotation_id FROM annotations WHERE supersedes IS NOT NULL
         AND supersedes NOT IN (SELECT annotation_id FROM annotations)""", "annotations"),
-    ("annotations", "CHK", "type ∈ verdict/comment/approve/reopen; verdict ∈ correct/wrong/missing/question",
-     """SELECT annotation_id FROM annotations WHERE type NOT IN ('verdict','comment','approve','reopen')
+    ("annotations", "CHK", "type ∈ verdict/comment/approve/reopen/reset; verdict ∈ correct/wrong/missing/question",
+     """SELECT annotation_id FROM annotations WHERE type NOT IN ('verdict','comment','approve','reopen','reset')
         OR (type = 'verdict' AND verdict NOT IN ('correct','wrong','missing','question'))
         OR (type <> 'verdict' AND verdict IS NOT NULL)""", "annotations"),
     ("annotations", "CHK", "missing only on record locators, page rules and a list's items",

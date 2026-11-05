@@ -11,6 +11,16 @@
 .item.obj.added { border-style: dashed; border-color: var(--green); background: var(--green-soft); }
 .obj-by { font-size: 11px; }
 
+/* correcting a found object (phase1-followups §3): click it to select it, the draft under it, the saved correction */
+.item.obj.pickable { cursor: pointer; }
+.item.obj.sel { outline: 2px solid var(--accent); outline-offset: 1px; background: var(--accent-soft); }
+.obj-selected { align-self: center; margin-right: 6px; font-size: 11px; font-weight: 600; color: var(--accent); }
+.obj-fix { display: grid; gap: 6px; margin: 4px 0 6px; padding: 8px 10px; border: 1px dashed var(--accent); border-radius: 8px;
+  font-size: 12.5px; }
+.obj-fix-lines { display: grid; gap: 2px; }
+.obj-corrected { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 8px; margin: 2px 0 4px 20px;
+  padding: 4px 8px; border: 1px dashed var(--green); border-radius: 7px; background: var(--green-soft); font-size: 12px; }
+
 /* adding an object: what's labelled so far, the waiting selection and its field buttons */
 .add-obj { display: grid; gap: 6px; margin-top: 4px; padding: 8px; border: 1px dashed var(--line-2); border-radius: 8px; font-size: 12.5px; }
 .obj-labelled { display: flex; flex-wrap: wrap; gap: 4px 14px; }

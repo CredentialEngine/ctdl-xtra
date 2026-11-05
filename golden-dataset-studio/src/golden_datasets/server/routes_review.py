@@ -18,7 +18,7 @@ from ..catalogs import CATALOGS, info
 from ..errors import UserError
 from ..log import FULL_NAMES, new_id, validate
 from ..profiles import role_of, roles
-from ..review import LOADER, Review, annotated_match, human_reviewed_counts, norm
+from ..review import LOADER, Review, annotated_match, human_reviewed_counts, norm, reset_clears
 from .state import not_found, studio
 
 router = APIRouter(prefix="/api")
@@ -93,11 +93,12 @@ def _review_state(s) -> dict:
     """Whether an expert confirmed the value (human-reviewed: `human` is their verdict), or only an engineer did
     (waiting for an expert); `checked` is the latest engineer's ✓ (the check an expert confirmed, or waits on)."""
     if s is None:
-        return {"human_reviewed": False, "engineer_checked": False, "role": None, "human": None, "checked": None}
+        return {"human_reviewed": False, "engineer_checked": False, "role": None, "human": None, "checked": None,
+                "before_reset": None}
     def who(e: dict | None) -> dict | None:  # first-name authors of the first profiles by their full name
         return e and {**_event_brief(e), "author": FULL_NAMES.get(e["author"], e["author"])}
     return {"human_reviewed": s.human is not None, "engineer_checked": s.engineer_checked, "role": s.role,
-            "human": who(s.human), "checked": who(s.checked)}
+            "human": who(s.human), "checked": who(s.checked), "before_reset": who(s.before_reset)}
 
 
 # =====================================================================================================
@@ -111,6 +112,8 @@ def approved_count(ruleset: dict, events: list[dict]) -> int:
         t = e.get("target") or {}
         if e["type"] in ("approve", "reopen") and t.get("kind") == "rule":
             last[(t.get("rule_id"), t.get("rule_version_seen"))] = e["type"]
+        elif e["type"] == "reset" and t.get("kind") == "rule":  # ends the approval of every version
+            last = {k: v for k, v in last.items() if k[0] != t.get("rule_id")}
     return sum(1 for r in ruleset["rules"] if last.get((r["rule_id"], r["version"])) == "approve")
 
 
@@ -682,6 +685,12 @@ def add_annotation(request: Request, catalog: str, event: Annotated[dict, Body()
             elif t.get("item"):  # one item of a list (property-rules spec §4.4)
                 if event.get("verdict") == "missing":
                     t["value_index"], t["value_seen"] = None, None
+                elif t.get("value_index") is None and event.get("supersedes"):
+                    # ✕ on an object a reviewer added: it takes the add back (phase1-followups spec §3.4)
+                    added = rv.by_id.get(event["supersedes"])
+                    if added is None or added.get("verdict") != "missing":
+                        raise HTTPException(400, "only an added item can be taken back")
+                    t["value_index"], t["value_seen"] = None, (added.get("expected") or {}).get("text")
                 else:
                     m = next((x for x in items if x["value_index"] == t.get("value_index")
                               and x["status"] == "found"), None)
@@ -700,7 +709,7 @@ def add_annotation(request: Request, catalog: str, event: Annotated[dict, Body()
     if not t.get("item"):
         t.pop("item", None)
     ctx = snap.ctx
-    full = {"annotation_id": new_id("ap" if event.get("type") in ("approve", "reopen") else "an"),
+    full = {"annotation_id": new_id("ap" if event.get("type") in ("approve", "reopen", "reset") else "an"),
             "type": event.get("type"), "at": datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
             "author": (event.get("author") or "").strip(), "catalog": ctx.catalog, "crawl": ctx.crawl, "target": t,
             "verdict": event.get("verdict"), "expected": profiles_rule.with_object_text(event.get("expected")),
@@ -717,6 +726,8 @@ def add_annotation(request: Request, catalog: str, event: Annotated[dict, Body()
         full["compared_with"] = event["compared_with"]
     if event.get("reasons"):  # "Why wrong?" flags on a ✕ (sme-fixes §6)
         full["reasons"] = event["reasons"]
+    if full["type"] == "reset":  # what the confirm dialog showed, for the record (nothing reads it back)
+        full["counts"] = _reset_counts(rv, rid)["counts"]
     if full["type"] == "approve":
         st = rv.rule_status(rid)
         if st["open_wrong"] or st["open_missing"]:
@@ -751,8 +762,59 @@ def add_annotation(request: Request, catalog: str, event: Annotated[dict, Body()
                 score = {k: job[k] for k in ("id", "status")} | {"golden": job["golden"]["id"]} if job else None
             except (OSError, UserError) as exc:
                 published = {"error": str(exc)}
+    if full["type"] == "reset":  # the column leaves the silver dataset, the cleared values the golden one (§4.5)
+        try:
+            doc = golden.publish_reset(ctx, rid, f"{full['author']} via the Studio UI", full["note"])
+            if doc:
+                published = {"written": True, "publication": doc["publication"],
+                             "columns": golden.columns_of(doc["properties"]), "files": doc["pages"]}
+                job = request.app.state.scores.after_publish(ctx, full["author"])
+                score = {k: job[k] for k in ("id", "status")} | {"golden": job["golden"]["id"]} if job else None
+        except (OSError, UserError) as exc:
+            published = {"error": str(exc)}
     return {"event": full, "rule": _rule_summary(rv2, rid) if rid else None, "published": published,
             "score": score, "elapsed_ms": round(1000 * (time.perf_counter() - t0), 1)}
+
+
+def _reset_counts(rv: Review, rid: str) -> dict:
+    """What Reset rule clears and keeps on this rule (phase1-followups spec §4.3): the verdicts that make a value
+    human (✓, and ✕ with an answer), by author, and the ✕ with no answer, questions and comments that stay."""
+    mine = [e for e in rv.live if e["target"].get("rule_id") == rid and e["target"].get("kind") != "rule"]
+    cleared = [e for e in mine if reset_clears(e)]
+    by = Counter(FULL_NAMES.get(e["author"], e["author"]) for e in cleared)
+    return {"counts": {"correct": sum(e["verdict"] == "correct" for e in cleared),
+                       "answered": sum(e["verdict"] != "correct" for e in cleared)},
+            "by_author": dict(by.most_common()),
+            "kept": {"wrong_no_answer": sum(e["type"] == "verdict" and e["verdict"] in ("wrong", "missing")
+                                            and not reset_clears(e) for e in mine),
+                     "questions": sum(e.get("verdict") == "question" for e in mine),
+                     "comments": sum(e["type"] == "comment" for e in mine)}}
+
+
+@router.get("/catalogs/{catalog}/rules/{rule_id}/reset-preview")
+def reset_preview(request: Request, catalog: str, rule_id: str) -> dict:
+    """The Reset rule dialog's numbers: what a reset clears (✓, ✕ with an answer, by author), the approval it ends,
+    what it keeps, and whether the property's column leaves the silver dataset."""
+    rv = _review(request, catalog)
+    if rule_id not in rv.snap.rules:
+        raise not_found(f"unknown rule {rule_id}")
+    st = rv.rule_status(rule_id)
+    prop = rv.snap.rules[rule_id].get("property_label")
+    ctx, column = rv.snap.ctx, None
+    vs = golden.versions(ctx)
+    if vs:
+        n = max(vs)
+        try:
+            props = ctx.read_json(f"{vs[n]['path']}/publication.json", immutable=False).get("properties") or []
+        except FileNotFoundError:
+            props = []
+        if prop in props:
+            column = {"column": golden.column_name(prop), "golden": golden.version_name(n)}
+    out = _reset_counts(rv, rule_id)
+    return {"rule_id": rule_id, "property": prop, **out,
+            "approval": {"by": FULL_NAMES.get(st["approved_by"], st["approved_by"]), "at": st["approved_at"]}
+            if st["status"] == "approved" else None,
+            "column": column}
 
 
 @router.get("/catalogs/{catalog}/discussion")

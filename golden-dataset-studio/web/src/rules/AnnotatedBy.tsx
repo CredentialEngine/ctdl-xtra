@@ -88,6 +88,15 @@ export function ReviewLine({ r }: { r: ReviewMarks }) {
       </div>
     );
   }
+  if (r.before_reset) {  // what was said before Reset rule: a hint for the re-review, counted nowhere
+    const b = r.before_reset;
+    const mark = b.verdict === "correct" ? "✓" : "✕";
+    return (
+      <div className="rv-line before-reset" data-testid="before-reset" title={b.expected?.text ? `Their answer: ${b.expected.text}` : undefined}>
+        <span className="muted">{mark} {b.author} · {shortWhen(b.at)}, before the reset</span>
+      </div>
+    );
+  }
   return null;
 }
 

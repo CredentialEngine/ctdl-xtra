@@ -10,7 +10,7 @@ POC's design ([`poc.md`](poc.md)). **Mockups (§6) come first: review them befor
 |---|---|---|
 | 1 | What is a golden dataset version? | **A publication.** There are many more ruleset versions than golden datasets. Each golden dataset comes from exactly one ruleset version. A rule found wrong after publishing is fixed and the column republished, which makes a new version. Each column has exactly one rule (some rules aren't for columns). |
 | 2 | Can unpublished rulesets be scored? | **Yes, as clearly marked drafts, and tucked away:** never the first way to do something. |
-| 3 | Can a published column be withdrawn? | **Not for now.** Columns only grow. |
+| 3 | Can a published column be withdrawn? | **Not for now.** Columns only grow. *Since 2026-11-05: except by Reset rule, until the rule is approved again (phase1-followups spec §4.5).* |
 | 4 | Where are the extract outputs? | **Wherever xtra-cli already writes them in Azure** (§3.1). The UI says where, behind the ⓘ. Ignore the v2 review UI's folders. |
 | 5 | Old extractions score 0 (slot names) | **Checked: Nicolas's branch fixes it** (§3.2), and it's merged here (row 19), so no adapter is needed. |
 | 6 | How do scores run? | **xtra's scorer, called as a Python library**, with a subprocess only if its logic ends up gated behind the CLI. A durable async job, shown in the UI at the right moments (§4). |

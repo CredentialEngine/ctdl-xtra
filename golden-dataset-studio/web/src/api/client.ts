@@ -2,7 +2,7 @@
 import type {
   ExtractOutputs, MatchRow, ScoreBasis, ScoreDoc, ScoreValues, CatalogsSummary, WrongGroups, WrongKey,
   CatalogCard, CatalogDetail, CrawledCatalog, FirstRulesPrompt, CompareRecords, CompareResponse, Discussion, CourseDetail, CourseHit, GoldenFileText, GoldenLineage, GoldenResponse,
-  AnnotateResponse, ApprovePreview,
+  AnnotateResponse, ApprovePreview, ResetPreview,
   NewEvent, Overlay,
   PromptResponse, RuleDetail, RulesResponse, RowsResponse, UnclassifiedPage,
 } from "./types";
@@ -76,6 +76,8 @@ export const api = {
   prompt: (catalog: string, opts: { rule?: string; needs_work?: boolean } = {}) =>
     call<PromptResponse>(`${c(catalog)}/prompt${q(opts)}`),
   golden: (catalog: string) => call<GoldenResponse>(`${c(catalog)}/golden`),
+  resetPreview: (catalog: string, rule: string) =>
+    call<ResetPreview>(`${c(catalog)}/rules/${encodeURIComponent(rule)}/reset-preview`),
   approvePreview: (catalog: string, rule: string) =>
     call<ApprovePreview>(`${c(catalog)}/golden/approve/${encodeURIComponent(rule)}`),
   goldenStems: (catalog: string, version: string, tree: string) =>

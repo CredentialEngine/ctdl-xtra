@@ -20,9 +20,9 @@ def _rows():
         return list(csv.reader(fh))
 
 
-def test_the_final_sheet_gives_36_properties_with_the_sheets_paths():
+def test_the_sheet_gives_37_properties_with_the_sheets_paths():
     rows, warnings = properties.from_sheet(_rows(), None)
-    assert len(rows) == 36  # 41, less the five Estimated Duration children (one list-of-objects rule, sme-fixes §5.1)
+    assert len(rows) == 37  # 42, less the five Estimated Duration children (one list-of-objects rule, sme-fixes §5.1)
     by_path = {r["path"]: r for r in rows}
     # W2: stored as the sheet writes them; every row's path is the sheet's own (no P15 correction left)
     assert "ceterms:prerequisite>ceterms:targetLearningOpportunity" in by_path
@@ -47,6 +47,11 @@ def test_the_final_sheet_gives_36_properties_with_the_sheets_paths():
         "Coded Notation", "External Identifier", "Learning Type", "Learning Opportunity Name", "Description",
         "Subject Webpage", "Life Cycle Status Type", "Language"}
     assert by_path["ceterms:creditValue>schema:minValue"]["parent"] == "ceterms:creditValue"
+    # row 18 (5 Nov): a single credit is Credit Unit Value; LABELS names it while column D says "Value"
+    value = by_path["ceterms:creditValue>schema:value"]
+    assert (value["rule_id"], value["label"], value["parent"], value["profile"], value["sheet_row"]) == (
+        "course-credit-value-value", "Credit Unit Value", "ceterms:creditValue", "ceterms:ValueProfile", 18)
+    assert not by_path["ceterms:creditValue"]["sample"]
 
 
 def test_the_checked_in_file_is_the_final_sheet():
@@ -58,7 +63,7 @@ def test_model_properties_are_a_view_of_the_file_in_the_rules_tab_order():
     labels = [label for label, _ in model.PROPERTIES]
     assert labels[:8] == ["Coded Notation", "External Identifier", "Learning Type", "Learning Opportunity Name",
                           "Description", "Subject Webpage", "Life Cycle Status Type", "Language"]
-    assert len(labels) == 36 and model.CTDL_TERM["Credit Unit Min Value"] == "ceterms:creditValue>schema:minValue"
+    assert len(labels) == 37 and model.CTDL_TERM["Credit Unit Min Value"] == "ceterms:creditValue>schema:minValue"
     assert len(model.FIRST_EIGHT) == 8  # import_v2 and old publications stay frozen
 
 

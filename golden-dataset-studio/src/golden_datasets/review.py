@@ -57,6 +57,33 @@ def norm(v: str | None) -> str:
     return re.sub(r"\s+", " ", v or "").strip()
 
 
+def reset_clears(e: dict) -> bool:
+    """A verdict Reset rule takes back (phase1-followups spec §4.3): one that makes a value human. ✓; ✕ with an answer
+    or "not on the page"; an added item or object (`missing` with an answer). Comments, questions and ✕ or `missing`
+    with no answer stay."""
+    if e["type"] != "verdict":
+        return False
+    x = e.get("expected") or {}
+    answered = bool(x.get("text") or x.get("segments") or x.get("objects"))
+    return e["verdict"] == "correct" or (e["verdict"] == "wrong" and (answered or "not_on_page" in (e.get("reasons") or []))) \
+        or (e["verdict"] == "missing" and answered)
+
+
+def cleared_by_resets(events: list[dict]) -> set[str]:
+    """The verdicts resets took back: a `reset` on a rule clears its rule's verdicts appended before it (any rule
+    version: verdicts carry forward across versions). The log's order, not `at`: a verdict saved in the same second
+    after the reset stays."""
+    pending: dict[str, set[str]] = defaultdict(set)
+    out: set[str] = set()
+    for e in events:
+        rid = e["target"].get("rule_id")
+        if e["type"] == "reset":
+            out |= pending.pop(rid, set())
+        elif reset_clears(e):
+            pending[rid].add(e["annotation_id"])
+    return out
+
+
 class _Recent(dict):
     """A per-rule cache that keeps the `RULES_KEPT` most recently used rules. Opening the Rules tab works out every
     rule's status, so these used to hold every rule's rows and row states for the life of the snapshot: on WVU, ~1M
@@ -279,6 +306,7 @@ class RowState:
     role: str | None = None           # the verdict's author's role (sme | engineer)
     human: dict | None = None         # the expert's verdict that makes the value human-reviewed
     checked: dict | None = None       # the latest engineer's ✓ on the row (the check an expert confirms)
+    before_reset: dict | None = None  # the verdict a reset took back, on a row nobody has reviewed since (a hint only)
     items: dict = field(default_factory=dict)          # a list's item value (normalized) → ItemState
     missing_items: list = field(default_factory=list)  # items marked missing that the rule still doesn't find
 
@@ -309,7 +337,9 @@ class Review:
             old = by_id.get(e["supersedes"])
             return old is None or old["type"] != "verdict" or self.role(old) != "sme" or self.role(e) == "sme"
         superseded = {e["supersedes"] for e in events if e.get("supersedes") and supersedes(e)}
-        self.live = [e for e in events if e["annotation_id"] not in superseded]
+        cleared = cleared_by_resets(events)  # Reset rule (phase1-followups §4.3): back to "not reviewed"
+        self.live = [e for e in events if e["annotation_id"] not in superseded and e["annotation_id"] not in cleared]
+        self.cleared = [e for e in events if e["annotation_id"] in cleared and e["annotation_id"] not in superseded]
         self._states: dict[str, dict] = _Recent()  # rule_id → row states of snap.rows(rule_id) (events are fixed per Review)
         self._annotations: dict[str, dict] = _Recent()  # rule_id → Review.annotations(...)
         self._facets: dict[str, list[dict]] = _Recent()  # rule_id → facets.dimensions(...), see Review.facet_dims
@@ -362,7 +392,21 @@ class Review:
             else:
                 continue
             every[k].append(e)
-        return {"latest": latest, "expert": expert, "comments": comments, "all": every}
+        before = {}
+        for e in sorted(self.cleared, key=lambda x: x["at"]):
+            if e["target"].get("rule_id") == rule_id and not e["target"].get("item"):
+                before[self._target_key(e)[1]] = e
+        return {"latest": latest, "expert": expert, "comments": comments, "all": every, "before_reset": before}
+
+    def withdrawn(self) -> set[str]:
+        """Properties whose column a reset took out of the silver dataset: their rule's latest approve or reset is a
+        reset (phase1-followups §4.5). Approving the rule again brings the column back."""
+        last: dict[str, str] = {}
+        for e in sorted(self.live, key=lambda x: x["at"]):
+            if e["type"] in ("approve", "reset") and e["target"].get("kind") == "rule":
+                last[e["target"].get("rule_id")] = e["type"]
+        return {self.snap.rules[rid].get("property_label") for rid, t in last.items()
+                if t == "reset" and rid in self.snap.rules}
 
     def item_events(self, rule_id: str) -> dict[tuple, list[dict]]:
         """Verdicts on a list rule's items, oldest first, per (course_key or occurrence, page)."""
@@ -389,7 +433,9 @@ class Review:
                 item.state = "wrong" if v in present else "fixed"
         missing: dict[str, dict] = {}
         for e in events:
-            if e["verdict"] == "missing":
+            # an added object, or a found one's correction (✕ with the corrected object, phase1-followups spec §3.2):
+            # the answer stands until the rule gives it
+            if e["verdict"] == "missing" or (e["verdict"] == "wrong" and (e.get("expected") or {}).get("objects")):
                 missing[norm((e.get("expected") or {}).get("text"))] = e
             elif e["verdict"] == "correct":
                 missing.pop(norm(e["target"].get("value_seen")), None)
@@ -437,6 +483,8 @@ class Review:
                 t = e["target"]
                 if t.get("course_key"):
                     into[(t["course_key"], t.get("page_stem"))] = e
+        before_by_course_page = {(e["target"]["course_key"], e["target"].get("page_stem")): e
+                                 for e in v["before_reset"].values() if e["target"].get("course_key")}
         # comments and earlier verdicts re-attach the same way, so an older ruleset's annotations stay on the row
         talk_by_course_page: dict[tuple, list] = defaultdict(list)
         every_by_course_page: dict[tuple, list] = defaultdict(list)
@@ -469,7 +517,10 @@ class Review:
                 cp = (row["course_key"], row["page_stem"])
                 st.comments = st.comments + talk_by_course_page.get(cp, [])
                 st.events = sorted(st.events + every_by_course_page.get(cp, []), key=lambda x: x["at"])
-            if e is not None:
+            if e is None:  # what a reset took back, on this row or re-attached by course and page like any verdict
+                st.before_reset = v["before_reset"].get(row["key"]) or (
+                    before_by_course_page.get((row["course_key"], row["page_stem"])) if row.get("course_key") else None)
+            else:
                 st.verdict = e
                 st.state = self._carry(rule, e, row)
                 st.role = self.role(e)
@@ -552,14 +603,14 @@ class Review:
         last = None
         for e in sorted(self.live, key=lambda x: x["at"]):
             t = e["target"]
-            if e["type"] in ("approve", "reopen") and t.get("kind") == "rule" and t.get("rule_id") == rule_id \
-                    and t.get("rule_version_seen") == rule["version"]:
-                last = e
+            if t.get("kind") == "rule" and t.get("rule_id") == rule_id and (e["type"] == "reset" or (
+                    e["type"] in ("approve", "reopen") and t.get("rule_version_seen") == rule["version"])):
+                last = e  # a reset ends the approval of any version
         if states is None:
             states = self.row_states(rule_id, self.snap.rows(rule_id))
         open_rows = sum(1 for s in states.values() if s.state in OPEN) \
             + sum(1 for s in states.values() for i in s.items.values() if i.state == "wrong") \
-            + sum(len(s.missing_items) for s in states.values())
+            + sum(1 for s in states.values() for e in s.missing_items if e["verdict"] == "missing")  # a correction's ✕ counts
         open_missing = len(self.missing_events(rule_id))
         reviewed = sum(1 for s in states.values() if s.state is not None or s.items)
         if last is not None and last["type"] == "approve":
@@ -870,7 +921,7 @@ def human_reviewed_counts(root, catalogs: list[str], ctx_of=None) -> Counter:
     latest: dict[tuple, dict] = {}
     for catalog, log in logs:
         events = log.events()
-        superseded = {e["supersedes"] for e in events if e.get("supersedes")}
+        superseded = {e["supersedes"] for e in events if e.get("supersedes")} | cleared_by_resets(events)
         for e in sorted(events, key=lambda x: x["at"]):
             t = e["target"]
             if e["type"] != "verdict" or e["annotation_id"] in superseded or t.get("kind") != "match" \
