@@ -252,19 +252,37 @@ def _run_header(run: dict | None, ctx: Ctx) -> list[str]:
             "itself fails, these commands don't exist: stop and say so in your reply).", ""]
 
 
+REPORT_FIELDS = [
+    ["`ending`", "`published` (you published a new ruleset), `needs_you` (you stopped because only people can "
+     "unblock it: annotations to add, fix or reconcile) or `failed` (something broke: install, storage, a command)"],
+    ["`summary`", "optional: one or two plain sentences on what you did"],
+    ["`reason`", "`failed` only: what broke, in one line"],
+    ["`to_do`", "what people must do, most important first: `{rule, course, notes, do, value, then}`. `do`: the action "
+     "in the Studio, in a few words (\"Save this as ACCT199's expected value\"); `value`: the exact value to save, "
+     "if there is one; `notes`: the annotation ids it is about; `then`: what the next run does once it's done"],
+    ["`rules`", "one per rule you looked at: `{rule, asked, tried, result, why}`. `asked`: the annotation ids; "
+     "`tried`: what you tried, in a few words; `result`: `published`, `not published` or `not tried`; `why`: the "
+     "reason, with the courses it affects"],
+    ["`notes`", "optional, at most 5 lines: anything that fits nowhere else"],
+]
+
+
 def _run_close(run: dict | None) -> list[str]:
-    rid, d = _run_id(run), _run_dir(run)
+    d = _run_dir(run)
     return ["## End the run", "",
-            f"When you have published (or can't), write your full report to `{d}/summary.md`: what changed and why, "
-            "the final scorecard, what people need to decide, and anything you could not fix. People read it in the "
-            "Studio's list of past runs, so write it for them, in Markdown. Then end the run with a one-line outcome "
-            "(the first thing people see, so include the new ruleset version) and the report:", "",
-            "```sh",
-            f'cd {d} && golden-datasets run done --run {rid} --summary-file summary.md --outcome "Published ruleset v7: …"',
-            f'cd {d} && golden-datasets run done --run {rid} --summary-file summary.md --failed '
-            '--outcome "Couldn\'t publish: …"   # if you couldn\'t',
-            "```", "",
-            "Then stop, and give the same report in your reply."]
+            f"When you have published (or can't), write `{d}/report.json`. The CLI checks it and writes the report "
+            "people read in the Studio: the headline, the to-do list, a table of the rules, the scorecard of your "
+            "last `rule try` or `rule publish` (saved for you; don't copy numbers), and links to every rule, course "
+            "and annotation. **Name things only by id** (rule ids, course codes such as `ACCT199`, annotation ids "
+            "from `rule annotations`); never write links. In text, a course code or rule id becomes a link by itself, "
+            "and `ACCT199@<rule id>` points at a course in another rule.", "",
+            *table(["Field", "What"], REPORT_FIELDS), "",
+            "Write for someone who knows the catalog but not these tools: no file names, ruleset ids, command names, "
+            "JSON field names or scorecard words (\"rule try\", \"UNKNOWN\", \"newly wrong\"). Say what to do in the "
+            "Studio and why. Don't publish a ruleset that changes values marked correct; ask in `to_do` instead.", "",
+            "```sh", f"cd {d} && golden-datasets run done --report report.json", "```", "",
+            "If it lists problems (an unknown id, a missing field), fix `report.json` and run it again. Then stop, "
+            "and give the report it prints as your reply."]
 
 
 def _setup_k2(ctx: Ctx, root_uri: str, first_rule: str, check: str | None, run: dict | None) -> list[str]:
@@ -277,7 +295,7 @@ def _setup_k2(ctx: Ctx, root_uri: str, first_rule: str, check: str | None, run: 
             "1. Install the CLI (uv is installed) and make this run's folder with its root and catalog:", "",
             "   ```sh", f"   uv tool install --reinstall '{src['spec']}'",
             f"   mkdir -p {d} && printf '%s\\n' 'GOLDEN_DATASETS_ROOT={root_uri}' "
-            f"'GOLDEN_DATASETS_CATALOG={short_name}' > {d}/{ENV_FILE}",
+            f"'GOLDEN_DATASETS_CATALOG={short_name}' 'GOLDEN_DATASETS_RUN={_run_id(run)}' > {d}/{ENV_FILE}",
             f"   cd {d} && {check or f'golden-datasets rule show {first_rule}'}", "   ```", "",
             f"   If the install fails, don't install another version: `golden-datasets run` exists only on "
             f"`{src['ref']}`. Stop and say so in your reply.",

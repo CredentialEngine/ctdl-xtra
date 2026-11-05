@@ -25,6 +25,8 @@
   background: var(--violet-soft); border-bottom: 1px solid var(--line); font-size: 13px; color: var(--ink); }
 .run-bar.is-finished { background: var(--green-soft); }
 .run-bar.is-failed, .run-bar.is-timed_out { background: var(--red-soft); }
+.run-bar.is-needs_you { background: var(--amber-soft); }
+.run-bar.is-needs_you > .ico { color: var(--amber); }
 .run-bar.is-cancelled, .run-bar.is-ended { background: var(--surface-2); }
 .run-bar.is-silent { background: var(--amber-soft); }
 .run-bar.is-silent > .ico { color: var(--amber); }
@@ -39,7 +41,7 @@
 
 /* Watch panel: a drawer on the right */
 .ac-back:has(> .run-watch) { place-items: stretch end; padding: 0; }
-.run-watch { width: min(560px, 100%); height: 100vh; max-height: 100vh; min-height: 0; display: flex; flex-direction: column; background: var(--surface);
+.run-watch { width: min(760px, 100%); height: 100vh; max-height: 100vh; min-height: 0; display: flex; flex-direction: column; background: var(--surface);
   box-shadow: -12px 0 32px rgba(16, 24, 40, .2); }
 .run-watch .ac-head { padding-bottom: 8px; }
 .run-facts { display: grid; grid-template-columns: max-content 1fr; gap: 4px 12px; margin: 0; padding: 4px 20px 12px;
@@ -74,6 +76,7 @@
 .runs-state { grid-row: span 2; font-size: 12px; font-weight: 600; color: var(--muted); padding-top: 1px; }
 .runs-state.s-finished { color: var(--green); }
 .runs-state.s-failed, .runs-state.s-timed_out { color: var(--red); }
+.runs-state.s-needs_you { color: var(--amber); }
 .runs-state.s-running, .runs-state.s-waiting, .runs-state.s-sending { color: var(--violet); }
 .runs-what { font-size: 13px; line-height: 1.4; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
 .runs-meta { font-size: 12px; }
@@ -85,7 +88,14 @@
 .runs-sec { padding: 10px 20px; border-top: 1px solid var(--line); }
 .runs-sec h3 { margin: 0 0 6px; font-size: 13px; }
 .runs-sec .run-notes { padding: 0; overflow: visible; }
-.runs-report { font-size: 13px; }
+.runs-report { font-size: 13px; min-width: 0; overflow-wrap: anywhere; }
+/* a report never widens its panel: long values wrap, the rules table scrolls on its own */
+.run-watch, .runs-detail, .runs-sec { min-width: 0; }
+.runs-detail { overflow-x: hidden; }
+.runs-report pre { max-width: 100%; }
+.runs-report.prompt-md pre code { white-space: pre-wrap; }
+.runs-report table { display: block; max-width: 100%; overflow-x: auto; }
+.runs-report td, .runs-report th { min-width: 90px; vertical-align: top; }
 .runs-prompt { max-height: 50vh; overflow: auto; margin-top: 8px; font-size: 11.5px; white-space: pre-wrap; }
 .run-watch .ac-foot { justify-content: space-between; }
 /* an ended run in the Watch panel: how it ended, the report, the notes folded */
@@ -93,6 +103,7 @@
   background: var(--surface-2); font-size: 13px; font-weight: 600; }
 .run-done.is-finished { background: var(--green-soft); }
 .run-done.is-failed, .run-done.is-timed_out { background: var(--red-soft); }
+.run-done.is-needs_you { background: var(--amber-soft); }
 .run-done .ico svg { width: 15px; height: 15px; }
 .run-done-t { flex: 1; min-width: 0; }
 .run-done .btn { flex: none; padding: 3px 10px; font-size: 12px; }

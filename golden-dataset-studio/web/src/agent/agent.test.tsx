@@ -96,7 +96,8 @@ describe("RunButton", () => {
     expect(document.querySelector("#run-ask-h")?.textContent).toBe("Run with Claude?");
     await act(async () => byText("Run")!.click());
     await flush();
-    expect(posts[0]).toEqual({ url: "/api/catalogs/avc/agent-runs", body: { scope: { kind: "needs_work" }, author: "Jared Diener" } });
+    expect(posts[0]).toEqual({ url: "/api/catalogs/avc/agent-runs", body: { scope: { kind: "needs_work" }, author: "Jared Diener",
+      studio_url: location.origin + location.pathname } });
     expect(host.querySelector(".run-caret")).toBeNull();  // Jared isn't a prompt user: no split button
   });
 
@@ -161,11 +162,27 @@ describe("RunBar", () => {
       ended_at: "2026-10-28T03:20:00Z", ruleset_after: 7 } };
     await act(async () => root.render(<AgentProvider catalog="avc"><RunBar catalog="avc" /></AgentProvider>));
     await flush();
-    expect(host.querySelector(".run-text")!.textContent).toContain("Claude finished: Published ruleset v7");
+    expect(host.querySelector(".run-text")!.textContent).toBe("Claude published ruleset v7 · started by Jared Diener");
     expect(host.querySelector<HTMLAnchorElement>("a.btn")!.getAttribute("href")).toBe("#/c/avc/compare?a=6&b=7");
     await act(async () => host.querySelector<HTMLButtonElement>(".run-x")!.click());
     expect(host.querySelector("[data-testid=run-bar]")).toBeNull();
   });
+
+  for (const [name, last, words, cls] of [
+    ["things to fix", { ...RUN, run_id: "r-needs", state: "needs_you", outcome: "5 things to fix before Claude can publish", to_do_count: 5 },
+      "5 things to fix before Claude can publish · started by Jared Diener", "is-needs_you"],
+    ["couldn't finish", { ...RUN, run_id: "r-failed", state: "failed", outcome: "Couldn't publish (ruleset v9 stays): the 6 ACCT199 annotations have no …" },
+      "Claude couldn't finish · started by Jared Diener", "is-failed"],
+  ] as const) {
+    it(`says only how a run ended (${name}): the details are in the report`, async () => {
+      current = { run: null, since: 0, now: NOW, notes: [], last: { ...last, ended_at: "2026-10-28T03:20:00Z" } as AgentRun };
+      await act(async () => root.render(<AgentProvider catalog="avc"><RunBar catalog="avc" /></AgentProvider>));
+      await flush();
+      expect(host.querySelector(".run-text")!.textContent).toBe(words);
+      expect(host.querySelector("[data-testid=run-bar]")!.className).toContain(cls);
+      expect(byText("Read the report")).toBeTruthy();
+    });
+  }
 
   const STUDIO_NOTE = { at: RUN.created_at, kind: "studio" as const, text: "Started by Jared Diener", by: "Golden Dataset Studio" };
   const bar = () => host.querySelector("[data-testid=run-bar]")!;
@@ -220,7 +237,7 @@ describe("RunBar", () => {
     await poll();
     await flush();
     expect(document.querySelector("#run-watch-h")!.textContent).toBe("Claude's report");
-    expect(report()!.querySelector(".run-done")!.textContent).toContain("Claude finished: Published ruleset v7");
+    expect(report()!.querySelector(".run-done-t")!.textContent).toBe("Claude published ruleset v7");
     expect(report()!.querySelector<HTMLAnchorElement>(".run-done a")!.getAttribute("href")).toBe("#/c/avc/compare?a=6&b=7");
     expect(report()!.querySelector(".runs-report")!.textContent).toContain("Course description v3 → v4.");
     const fold = report()!.querySelector("details")!;

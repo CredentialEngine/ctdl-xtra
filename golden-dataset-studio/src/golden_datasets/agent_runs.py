@@ -13,7 +13,8 @@ one catalog or both act on the same run. Nothing is deleted: a run releases the 
 `current.json`, and the next run replaces it. (The agent's SAS token can add and write but not delete.) K2's API can deliver the prompt but can't say what the agent is doing or
 when it's done, so the agent reports through the root itself (`golden-datasets run note|done`, `log.jsonl`).
 
-States: sending → running → finished | failed | cancelled | timed_out | ended, with sending ⇄ waiting while the agent
+States: sending → running → finished | needs_you | failed | cancelled | timed_out | ended (`needs_you`: Claude stopped
+because only people can unblock it; its report lists what they need to do), with sending ⇄ waiting while the agent
 is busy. A live run past its deadline ends as timed_out the next time anyone looks.
 """
 
@@ -35,7 +36,8 @@ from .context import Ctx
 from .errors import ConflictError, UserError
 
 LIVE = ("sending", "waiting", "running")
-ENDED = ("finished", "failed", "cancelled", "timed_out", "ended")
+ENDED = ("finished", "needs_you", "failed", "cancelled", "timed_out", "ended")
+ENDING_STATE = {"published": "finished", "needs_you": "needs_you", "failed": "failed"}  # report.json `ending`
 RETRY_SECS = 20     # a busy agent is asked again this often
 SENDING_STALE = 60  # a Studio that died while sending: the run is sent again after this long
 K2_TIMEOUT = 15
@@ -238,7 +240,7 @@ class AgentRuns:
         v = self.ctx.ruleset_versions()
         return v[-1] if v else None
 
-    def start(self, scope: dict, author: str, build: Callable[[dict], dict]) -> dict:
+    def start(self, scope: dict, author: str, build: Callable[[dict], dict], studio_url: str | None = None) -> dict:
         """Take the catalog's lock and hand the run to the agent. `build(run)` returns the prompt
         ({text, rules, …}, prompt.py) for this run. Raises RunConflict, Fallback, or UserError."""
         if self.k2 is None:
@@ -253,7 +255,8 @@ class AgentRuns:
                "state": "sending", "sent_at": None, "next_try_at": None,
                "k2": {"url": self.k2.agent_url, "agent": self.k2.agent, "delivery_id": None},
                "ruleset_before": self._latest_ruleset(), "ruleset_after": None,
-               "outcome": None, "ended_at": None, "ended_by": None, "fallback_reason": None}
+               "outcome": None, "ended_at": None, "ended_by": None, "fallback_reason": None,
+               "studio_url": studio_url, "to_do_count": None}
         try:
             etag = (self.root.write_json(self._current_path(), run, if_none_match=True) if cur is None
                     else self.root.write_json(self._current_path(), run, if_match=held))
@@ -324,7 +327,7 @@ class AgentRuns:
         self.root.write_json(f"{self._dir(run['run_id'])}/run.json", run)
         self.root.write_json(f"{layout.agent_runs_dir(self.cat)}/last.json", run)
         self.log(run["run_id"], "studio" if by == "Golden Dataset Studio" else "done",
-                 {"finished": outcome or "Finished", "failed": outcome or "Failed",
+                 {"finished": outcome or "Finished", "failed": outcome or "Failed", "needs_you": outcome or "Needs you",
                   "cancelled": f"Cancelled by {by}", "timed_out": outcome or "Timed out",
                   "ended": f"Marked as ended by {by}" + (f": {outcome}" if outcome else "")}[state], by=by)
         return run
@@ -347,6 +350,29 @@ class AgentRuns:
         if summary and summary.strip():
             self.root.write_text(f"{self._dir(run_id)}/summary.md", summary.strip() + "\n")
         return self._end(cur, etag, "failed" if failed else "finished", outcome, by=by)
+
+    def done_report(self, run_id: str, facts: dict, by: str) -> tuple[dict, str]:
+        """End the run with Claude's `report.json` (report.py): check every id, write the report, end it in the state
+        its `ending` names. Returns (run, the report's Markdown). UserError lists every problem; nothing is written."""
+        from .loop import current_review
+        from .report import check, headline, known_from, render
+
+        cur, etag = self._live(run_id)
+        self.ctx.invalidate()
+        known = known_from(self.ctx, current_review(self.ctx), cur)
+        problems = check(facts, known)
+        if problems:
+            raise UserError("the report has problems (nothing was written); fix report.json and run this again:\n  "
+                            + "\n  ".join(problems))
+        try:
+            last_try = self.root.read_json(f"{self._dir(run_id)}/last-try.json")
+        except FileNotFoundError:
+            last_try = None
+        md = render(facts, known, cur, last_try)
+        self.root.write_json(f"{self._dir(run_id)}/report.json", facts)
+        self.root.write_text(f"{self._dir(run_id)}/summary.md", md)
+        cur = dict(cur, to_do_count=len(facts.get("to_do") or []))
+        return self._end(cur, etag, ENDING_STATE[facts["ending"]], headline(facts, known), by=by), md
 
     def cancel(self, run_id: str, by: str) -> dict:
         cur, etag = self._live(run_id)
@@ -371,12 +397,36 @@ def _runs(args) -> AgentRuns:
     return AgentRuns(Ctx.from_args(args))
 
 
+def _run_id(args) -> str:
+    """`--run`, else the run this folder belongs to (`GOLDEN_DATASETS_RUN` in its golden-datasets.env)."""
+    import os
+
+    rid = args.run or os.environ.get("GOLDEN_DATASETS_RUN")
+    if not rid:
+        raise UserError("which run? pass --run <run id> (or set GOLDEN_DATASETS_RUN)")
+    return rid
+
+
 def cmd_note(args) -> int:
-    _runs(args).note(args.run, " ".join(args.text), by=args.by)
+    _runs(args).note(_run_id(args), " ".join(args.text), by=args.by)
     return 0
 
 
 def cmd_done(args) -> int:
+    args.run = _run_id(args)
+    if getattr(args, "report", None):
+        try:
+            facts = json.loads(sys.stdin.read() if args.report == "-" else Path(args.report).read_text())
+        except OSError as exc:
+            raise UserError(f"can't read the report: {exc}") from None
+        except ValueError as exc:
+            raise UserError(f"the report isn't valid JSON: {exc}") from None
+        run, md = _runs(args).done_report(args.run, facts, by=args.by)
+        print(md)
+        print(f"run {run['run_id']}: {run['state']} (ruleset v{run['ruleset_after']}) · the Studio shows this report")
+        return 0
+    if not args.outcome:
+        raise UserError("end the run with --report report.json (or, for an old prompt, --outcome \"…\")")
     summary = None
     if args.summary_file:
         try:

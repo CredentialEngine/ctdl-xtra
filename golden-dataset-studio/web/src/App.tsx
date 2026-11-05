@@ -45,6 +45,14 @@ export default function App() {
     window.addEventListener(OPEN_RUNS, on);
     return () => window.removeEventListener(OPEN_RUNS, on);
   }, []);
+  useEffect(() => {  // a link to a run's report (?run=<run id>, report-links spec §4): open it, then drop the parameter
+    const id = route.params.get("run");
+    if (!id) return;
+    setRunsOpen(id);
+    const rest = new URLSearchParams(route.params);
+    rest.delete("run");
+    history.replaceState(null, "", location.hash.split("?")[0] + (rest.toString() ? `?${rest}` : ""));
+  }, [route.params]);
   // the prompt modal: undefined = closed, otherwise the "couldn't connect" warning (null = none)
   const [promptOpen, setPromptOpen] = useState<string | null | undefined>(undefined);
   useEffect(() => {

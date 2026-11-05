@@ -64,3 +64,5 @@
 .pm-body { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 8px; padding: 12px 20px; overflow: hidden; }
 .pm-body .prompt-pre { flex: 1; min-height: 0; }
 .pm-lead { margin: 0; font-size: 13px; color: var(--muted); }
+/* links open a new tab: the external-link icon says so */
+a.md-ext .ico svg { width: 11px; height: 11px; margin-left: 2px; vertical-align: -1px; opacity: .7; }

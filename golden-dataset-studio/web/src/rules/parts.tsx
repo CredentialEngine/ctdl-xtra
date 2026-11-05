@@ -94,13 +94,18 @@ export function Expansion({ draft, propertyRule, emptyValue, onChange, onSave, o
   );
 }
 
-export function HistoryLine(props: Parameters<typeof historyItems>[0]) {
+export function HistoryLine({ linked, ...props }: Parameters<typeof historyItems>[0] & { linked?: string | null }) {
   const items = historyItems(props);
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {  // a link to one annotation (?note=): bring it into view
+    if (linked) ref.current?.querySelector(".is-linked")?.scrollIntoView?.({ block: "nearest" });
+  }, [linked]);
   if (!items.length) return null;
   return (
-    <div className="hist">
+    <div className="hist" ref={ref}>
       {items.map((h, i) => (
-        <span key={i} className={`h-${h.cls}${h.cls === "good" ? " good" : h.cls === "bad" ? " bad" : h.cls === "expert" ? " expert-t" : ""}`}>
+        <span key={i} data-annotation={h.id} title={h.id && h.id === linked ? "The annotation the link points at" : undefined}
+          className={`h-${h.cls}${h.cls === "good" ? " good" : h.cls === "bad" ? " bad" : h.cls === "expert" ? " expert-t" : ""}${h.id && h.id === linked ? " is-linked" : ""}`}>
           {i > 0 && <span className="h-sep"> · </span>}
           {h.cls === "expert" && <Ico name="inst" />}
           {h.cls === "comment" && (h.n ? <span className="h-n" title="Pinned to text on the page: the bubble with this number">{h.n}</span>

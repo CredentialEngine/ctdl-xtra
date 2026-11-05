@@ -9,7 +9,7 @@ import { agentApi, elapsed, LIVE, scopeWords, type AgentRun, type RunNote } from
 import "./agent.css";
 
 const STATE: Record<string, string> = {
-  sending: "Sending", waiting: "Waiting for the agent", running: "Working", finished: "Finished", failed: "Didn't finish",
+  sending: "Sending", waiting: "Waiting for the agent", running: "Working", finished: "Finished", needs_you: "Things to fix", failed: "Didn't finish",
   cancelled: "Cancelled", timed_out: "Timed out", ended: "Marked as ended",
 };
 const when = (iso: string) => new Date(iso).toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });

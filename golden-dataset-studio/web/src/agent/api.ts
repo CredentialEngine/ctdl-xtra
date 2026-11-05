@@ -3,7 +3,7 @@
 // every browser sees the same one.
 import { signedOut } from "../shell/session";
 
-export type RunState = "sending" | "waiting" | "running" | "finished" | "failed" | "cancelled" | "timed_out" | "ended";
+export type RunState = "sending" | "waiting" | "running" | "finished" | "needs_you" | "failed" | "cancelled" | "timed_out" | "ended";
 export const LIVE: RunState[] = ["sending", "waiting", "running"];
 export type ScopeKind = "needs_work" | "rule" | "first_rules";
 export interface RunScope { kind: ScopeKind; rule_id?: string | null; rules?: string[] }
@@ -15,6 +15,8 @@ export interface AgentRun {
   k2: { url: string; agent: string; delivery_id: string | null };
   ruleset_before: number | null; ruleset_after: number | null;
   outcome: string | null; ended_at: string | null; ended_by: string | null; fallback_reason: string | null;
+  /** The Studio address the run was started from (the report links back to it), and how many to-dos the report has. */
+  studio_url?: string | null; to_do_count?: number | null;
 }
 export interface RunNote { at: string; kind: "note" | "done" | "studio"; text: string; by: string }
 export interface CurrentRun { run: AgentRun | null; last: AgentRun | null; notes: RunNote[]; since: number; now: string }
@@ -59,7 +61,7 @@ export const agentApi = {
   async start(catalog: string, scope: RunScope, author: string): Promise<StartResult> {
     let r: Response;
     try {
-      r = await fetch(c(catalog), json({ scope, author }));
+      r = await fetch(c(catalog), json({ scope, author, studio_url: location.origin + location.pathname }));
     } catch {
       return { ok: false, kind: "fallback", reason: "the Studio's server didn't answer" };
     }
@@ -89,6 +91,35 @@ export function scopeWords(scope: RunScope): string {
   const n = scope.rules?.length;
   return n ? `improving ${n} rule${n === 1 ? "" : "s"}` : "improving the rules that need work";
 }
+
+const published = (r: AgentRun) => r.ruleset_after != null && r.ruleset_before != null && r.ruleset_after > r.ruleset_before;
+
+/** How an ended run ended, in a few words: all the run bar says (the report has the details). */
+export function endedWords(r: AgentRun): string {
+  switch (r.state) {
+    case "finished": return published(r) ? `Claude published ruleset v${r.ruleset_after}` : "Claude finished";
+    case "needs_you": {
+      const n = r.to_do_count;
+      return n ? `${n} thing${n === 1 ? "" : "s"} to fix before Claude can publish` : "Things to fix before Claude can publish";
+    }
+    case "failed": return "Claude couldn't finish";
+    case "cancelled": return "Run cancelled";
+    case "timed_out": return "Run timed out";
+    case "ended": return "Run marked as ended";
+    default: return r.state;
+  }
+}
+
+/** The ended run's words with its outcome line, for the report and the run list (where details belong). */
+export function endedLine(r: AgentRun): string {
+  const w = endedWords(r);
+  // an older run's free-text outcome often repeats the words ("Published ruleset v7: …"): keep only what it adds
+  const o = (r.outcome ?? "").replace(/^Published ruleset v\d+:?\s*/i, "").trim();
+  if (!o || o === w) return w;
+  return o.startsWith(w) ? o : `${w}: ${o}`;
+}
+
+export const endedIcon = (r: AgentRun) => (r.state === "finished" ? "approved" : r.state === "needs_you" ? "question" : "needs work");
 
 /** Open the Past AI runs panel from anywhere (App listens), optionally on one run. */
 export const OPEN_RUNS = "studio-open-runs";

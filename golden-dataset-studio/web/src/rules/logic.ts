@@ -72,6 +72,8 @@ export interface HistItem {
   cls: "good" | "bad" | "note" | "expert" | "comment" | "muted"; text: string; author?: string;
   /** made on a diff (Evals, Compare): what it was compared with, e.g. "while comparing with xtra's extract output, 28 Oct" */
   compared?: string;
+  /** the annotation it shows (a report's link can point at it: ?note=) */
+  id?: string;
   /** a comment pinned to text on the page: its bubble's number there */
   n?: number;
 }
@@ -104,21 +106,22 @@ export function historyItems(r: { state: RowStateName | null; verdict: EventBrie
   }
   if (r.reattached && v) out.push({ cls: "muted", text: `Re-attached: ${who}'s verdict was made before the record locator changed.` });
   const vc = v && r.state !== "fixed" ? comparedLine(v) : undefined;
+  const vid = v?.annotation_id;
   if (v && (r.state === "wrong" || r.state === "still-wrong" || r.state === "missing") && v.expected?.text) {
-    out.push({ cls: "note", text: `expected “${clip(v.expected.text, 90)}”`, compared: v.note ? undefined : vc });
+    out.push({ cls: "note", text: `expected “${clip(v.expected.text, 90)}”`, compared: v.note ? undefined : vc, id: vid });
   }
   if (v?.reasons?.length && (r.state === "wrong" || r.state === "still-wrong")) out.push({ cls: "note", text: `Why wrong: ${v.reasons.map(reasonLabel).join(", ")}` });
   if (v?.note) {
-    if (r.state === "question") out.push({ cls: "expert", text: `Question for the institution: “${v.note}”` });
-    else if (r.state !== "fixed") out.push({ cls: "note", author: v.author, text: `“${v.note}”`, compared: vc });
+    if (r.state === "question") out.push({ cls: "expert", text: `Question for the institution: “${v.note}”`, id: vid });
+    else if (r.state !== "fixed") out.push({ cls: "note", author: v.author, text: `“${v.note}”`, compared: vc, id: vid });
   } else if (r.state === "question") out.push({ cls: "expert", text: "Waiting for the institution's answer" });
   for (const q of r.page_questions ?? []) {
-    out.push({ cls: "expert", text: q.note ? `Question for the institution: “${q.note}”` : "Question for the institution (no note yet)" });
+    out.push({ cls: "expert", text: q.note ? `Question for the institution: “${q.note}”` : "Question for the institution (no note yet)", id: q.annotation_id });
   }
   let pinned = 0;  // comments pinned to text on the page: numbered like their bubbles there
   for (const c of r.comments) {
     const n = c.anchor?.css_path ? ++pinned : undefined;
-    if (c.note) out.push({ cls: "comment", author: c.author, text: `“${c.note}”`, compared: comparedLine(c), n });
+    if (c.note) out.push({ cls: "comment", author: c.author, text: `“${c.note}”`, compared: comparedLine(c), n, id: c.annotation_id });
   }
   return out;
 }

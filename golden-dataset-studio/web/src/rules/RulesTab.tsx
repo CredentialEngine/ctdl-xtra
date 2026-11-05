@@ -135,6 +135,7 @@ export default function RulesTab({ catalog, route }: TabProps) {
 
   const ruleId = route.id ?? defaultRule(rules);
   const focus = route.params.get("row");
+  const linkedNote = route.params.get("note");  // a report's link to one annotation of the linked row (report-links §4)
   // the extraction being reviewed: ?ext=… picks an older ruleset's, none = the latest (catalog.extraction)
   const ext = route.params.get("ext");
   const [people, setPeople] = useState<Annotators | null>(null);
@@ -695,7 +696,8 @@ export default function RulesTab({ catalog, route }: TabProps) {
                         {links(r, on)}</>}
                   <ReviewLine r={r} />
                   <StrataTags tags={r.tags} />
-                  <HistoryLine state={r.state} verdict={r.verdict} reattached={r.reattached} comments={r.comments} page_questions={r.page_questions} />
+                  <HistoryLine state={r.state} verdict={r.verdict} reattached={r.reattached} comments={r.comments} page_questions={r.page_questions}
+                    linked={on ? linkedNote : null} />
                   {on && draft && <Expansion draft={draft} propertyRule={kind === "property"} emptyValue={r.status !== "found"}
                     onChange={setDraft} onSave={() => void saveRow(i, { draft })} onCancel={() => setDraft(null)} />}
                 </div>

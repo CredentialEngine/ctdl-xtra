@@ -124,7 +124,7 @@ def _record(rv: Review, rule_id: str, e: dict, row: dict | None, state: str | No
                           | {"polarity": s.get("polarity") or "in"} for s in exp["segments"]]}
            if exp.get("segments") else {}),
         "note": e.get("note"), "reattached": reattached,
-        "comments": [{"author": c["author"], "at": c["at"], "note": c.get("note")}
+        "comments": [{"annotation_id": c["annotation_id"], "author": c["author"], "at": c["at"], "note": c.get("note")}
                      | ({"on": c["anchor"].get("text")} if c.get("anchor") else {}) for c in comments],
     }
 
@@ -256,7 +256,7 @@ def format_annotation(ctx: Ctx, a: dict, i: int | None = None) -> str:
         lines.append(f"{pad}note: {a['note']}")
     for c in a["comments"]:
         on = f" on {json.dumps(c['on'], ensure_ascii=False)}" if c.get("on") else ""  # the text it is about
-        lines.append(f"{pad}comment ({c['author']}, {c['at'][:10]}){on}: {c['note']}")
+        lines.append(f"{pad}comment ({c['author']}, {c['at'][:10]}, {c['annotation_id']}){on}: {c['note']}")
     return "\n".join(lines)
 
 
@@ -511,6 +511,19 @@ def _report_examples(failures: list[str]) -> None:
         print(f"  {f}", file=sys.stderr)
 
 
+def save_last_try(ctx: Ctx, ev: dict, base: int, published: int | None) -> None:
+    """In a Studio run (`GOLDEN_DATASETS_RUN`, set by the run folder's settings), keep this scorecard for the run's
+    report (report.py): its last `rule try` or `rule publish`."""
+    import os
+
+    from .report import last_try_doc
+
+    run_id = os.environ.get("GOLDEN_DATASETS_RUN")
+    if run_id:
+        ctx.root.write_json(f"{layout.agent_run_dir(ctx.catalog, run_id)}/last-try.json",
+                            last_try_doc(ev, base, published))
+
+
 def cmd_rule_try(args) -> int:
     t0 = time.perf_counter()
     ctx = Ctx.from_args(args)
@@ -523,6 +536,8 @@ def cmd_rule_try(args) -> int:
         return 0
     ev = evaluate(ctx, plan, log=lambda m: print(m, file=sys.stderr))
     elapsed = time.perf_counter() - t0
+    if plan["latest"]:
+        save_last_try(ctx, ev, plan["latest"], None)
     if args.json:
         print(json.dumps({"catalog": ctx.catalog, "base_ruleset": plan["latest"],
                           "base_extraction": ev["parent_extraction"], "changed_rules": plan["changed"],
@@ -582,6 +597,8 @@ def cmd_rule_publish(args) -> int:
                         f"run `golden-datasets extract --ruleset {doc['version']}`")
     ext = extract.next_extraction_id(ctx, version, again=False)
     meta = extract.write_extraction(ctx, ext, version, ev["parent_extraction"], ev["result"], args.by)
+    if plan["latest"]:
+        save_last_try(ctx, ev, plan["latest"], version)
     upload = time.perf_counter() - t_up
     print(f"\npublished ruleset v{version}" + (f" (parent v{plan['latest']})" if plan["latest"] else " (the first)")
           + f": {names}"

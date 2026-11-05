@@ -61,7 +61,7 @@ describe("row state", () => {
     expect(historyItems({ state: "wrong", verdict: ev({}), comments: [], page_questions: [ev({ verdict: "question" })] })
       .some((h) => h.text === "Question for the institution (no note yet)")).toBe(true);
     const c = historyItems({ state: null, verdict: null, comments: [ev({ type: "comment", verdict: null, note: "hm", author: "Seth" })] });
-    expect(c).toEqual([{ cls: "comment", author: "Seth", text: "“hm”" }]);
+    expect(c).toEqual([{ cls: "comment", author: "Seth", text: "“hm”", id: expect.any(String) }]);
   });
 });
 
@@ -301,5 +301,14 @@ describe("sme-fixes: in / out pieces, anchored comments, course blocks", () => {
     expect(moveIn(gs, 0, "course", "prev")).toEqual({ sel: 0, level: "page" });
     expect(moveIn(gs, 4, "course", "up")).toEqual({ sel: 3, level: "page" });
     expect(moveIn(gs, 4, "course", "next")).toEqual({ sel: 4, level: "course" });  // the last course of the last page
+  });
+});
+
+describe("a report's link to one annotation (?note=)", () => {
+  it("history items carry their annotation ids", () => {
+    const items = historyItems({ state: "wrong", verdict: { annotation_id: "an-v", type: "verdict", verdict: "wrong", author: "Jared",
+      at: "2026-11-04T00:00:00Z", note: "drop it" } as never,
+      comments: [{ annotation_id: "an-c", type: "comment", verdict: null, author: "Jared", at: "2026-11-04T00:00:00Z", note: "or keep it" } as never] });
+    expect(items.map((h) => h.id)).toEqual(["an-v", "an-c"]);
   });
 });

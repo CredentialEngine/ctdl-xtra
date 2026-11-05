@@ -32,6 +32,16 @@ class Scope(BaseModel):
 class StartBody(BaseModel):
     scope: Scope
     author: str
+    studio_url: str | None = None  # the browser's address of this Studio: the run's report links back to it
+
+
+def _studio_url(request: Request, sent: str | None) -> str | None:
+    """Where people open this Studio, for the report's links: what the browser sent (http(s) only), else its Origin."""
+    for u in (sent, request.headers.get("origin")):
+        if u and u.startswith(("https://", "http://")):
+            u = u.split("#")[0].split("?")[0]
+            return u if u.endswith("/") else u + "/"
+    return None
 
 
 class ByBody(BaseModel):
@@ -99,7 +109,7 @@ def start(request: Request, catalog: str, body: StartBody):
 
     runs = _runs(st, catalog)
     try:
-        run = runs.start(sc.model_dump(), body.author.strip(), build)
+        run = runs.start(sc.model_dump(), body.author.strip(), build, studio_url=_studio_url(request, body.studio_url))
     except RunConflict as exc:
         return JSONResponse({"detail": "a run is in progress on this catalog", "run": exc.run}, status_code=409)
     except Fallback as exc:

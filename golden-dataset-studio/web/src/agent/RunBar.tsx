@@ -8,7 +8,7 @@ import { Ico } from "../shell/icons";
 import { useReviewer } from "../shell/reviewer";
 import { href } from "../shell/router";
 import { toast } from "../shell/ui";
-import { agentApi, elapsed, LIVE, openRuns, scopeWords, type AgentRun, type RunNote } from "./api";
+import { agentApi, elapsed, endedIcon, endedLine, endedWords, LIVE, openRuns, scopeWords, type AgentRun, type RunNote } from "./api";
 import { openPrompt } from "../prompt/PromptModal";
 import { isLive, useAgent } from "./state";
 import "./agent.css";
@@ -25,11 +25,6 @@ const dismiss = (id: string) => {
   try { localStorage.setItem(`${DISMISSED}.${id}`, "1"); } catch { /* private mode */ }
 };
 const SHOW_ENDED_HOURS = 24;
-
-const ENDED_WORDS: Record<string, string> = {
-  finished: "Claude finished", failed: "Claude couldn't finish", cancelled: "Run cancelled",
-  timed_out: "Run timed out", ended: "Run marked as ended",
-};
 
 /** No word from Claude this long after the message was delivered: it has probably stopped (sme-fixes spec §4). The
  * prompt makes a note Claude's first action, so the silence means something. `now` is server time, from the poll. */
@@ -85,11 +80,10 @@ export function RunBar({ catalog }: { catalog: string }) {
     <>
       <div className={`run-bar ${silent ? "is-silent" : live ? "is-live" : `is-${shown.state}`}`} role="status" data-testid="run-bar">
         {silent ? <Ico name="signal" /> : live ? <span className="run-pulse" aria-hidden="true" />
-          : <Ico name={shown.state === "finished" ? "approved" : "needs work"} />}
+          : <Ico name={endedIcon(shown)} />}
         <span className="run-text" title={silent ? headline(live!, now, name, notes) : undefined}>
           {silent ? SILENT_WORDS : live ? headline(live, now, name, notes)
-            : <>{ENDED_WORDS[shown.state] ?? shown.state}{shown.outcome ? `: ${shown.outcome}` : ""}
-              <span className="faint"> · {scopeWords(shown.scope)} · started by {shown.started_by}</span></>}
+            : <>{endedWords(shown)}<span className="faint"> · started by {shown.started_by}</span></>}
         </span>
         <span className="run-actions">
           {ended && published(ended) && <CompareLink catalog={catalog} run={ended} />}
@@ -109,7 +103,7 @@ export function RunBar({ catalog }: { catalog: string }) {
 }
 
 const STATE_WORDS: Record<string, string> = {
-  sending: "Sending", waiting: "Waiting for the agent", running: "Working", finished: "Finished", failed: "Failed",
+  sending: "Sending", waiting: "Waiting for the agent", running: "Working", finished: "Finished", needs_you: "Things to fix", failed: "Failed",
   cancelled: "Cancelled", timed_out: "Timed out", ended: "Marked as ended",
 };
 const clock = (iso: string) => new Date(iso).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
@@ -168,8 +162,8 @@ function RunReport({ catalog, run, notes }: { catalog: string; run: AgentRun; no
   return (
     <div className="runs-detail" data-testid="run-report">
       <div className={`run-done is-${run.state}`}>
-        <Ico name={run.state === "finished" ? "approved" : "needs work"} />
-        <span className="run-done-t">{ENDED_WORDS[run.state] ?? STATE_WORDS[run.state]}{run.outcome ? `: ${run.outcome}` : ""}</span>
+        <Ico name={endedIcon(run)} />
+        <span className="run-done-t">{endedLine(run)}</span>
         {published(run) && <CompareLink catalog={catalog} run={run} className="btn primary" />}
       </div>
       <section className="runs-sec">
