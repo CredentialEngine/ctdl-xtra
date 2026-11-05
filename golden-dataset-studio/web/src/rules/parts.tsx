@@ -40,7 +40,7 @@ export function Expansion({ draft, propertyRule, emptyValue, onChange, onSave, o
   draft: Draft; propertyRule: boolean; emptyValue?: boolean; onChange: (d: Draft) => void; onSave: () => void; onCancel: () => void;
 }) {
   const note = useRef<HTMLInputElement>(null);
-  useEffect(() => { if (draft.mode === "comment") note.current?.focus(); }, [draft.mode]);
+  useEffect(() => { if (draft.mode === "comment" || draft.anchor) note.current?.focus(); }, [draft.mode, draft.anchor]);
   const stop = (e: React.SyntheticEvent) => e.stopPropagation();
   if (draft.mode === "comment") {
     return (
@@ -77,7 +77,14 @@ export function Expansion({ draft, propertyRule, emptyValue, onChange, onSave, o
         : <div className="pick"><Ico name="highlight" /><span>{pick}</span>
             {propertyRule && emptyValue && <span className="faint">(the rule found nothing here; select the value the page shows)</span>}</div>}
       {propertyRule && <WhyWrong reasons={draft.reasons ?? []} onChange={(reasons) => onChange({ ...draft, reasons })} />}
-      <input ref={note} className="note" placeholder="Note for whoever fixes the rule (optional)" value={draft.note}
+      {draft.anchor && (
+        <div className="sel-piece sel-pin">
+          <span className="sel-pol pin" title="Your comment is pinned to this text on the page"><Ico name="bubble" /> comment on</span>
+          <blockquote className="sel-quote sel-anchor" data-testid="anchor">{clip(draft.anchor.text, 160)}</blockquote>
+          <button className="sel-x" title="Unpin: the comment becomes a note on the row" aria-label="Unpin the comment"
+            onClick={() => onChange({ ...draft, anchor: null })}>×</button>
+        </div>)}
+      <input ref={note} className="note" placeholder={draft.anchor ? "Your comment on that text" : "Note for whoever fixes the rule (optional)"} value={draft.note}
         onChange={(e) => onChange({ ...draft, note: e.target.value })} />
       <div className="ex-btns">
         <button className="btn primary save" onClick={onSave}>Save · wrong <kbd className="kb-inv">Enter</kbd></button>

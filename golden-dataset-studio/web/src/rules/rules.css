@@ -215,6 +215,8 @@
 /* Highlight bar pieces (sme-fixes §1): a piece marked "not in the answer" is red dashed; a pinned comment's number. */
 .sel-quote.out { border-left: 3px dashed #d92d20; background: #fef3f2; }
 .sel-pol { flex: none; font-size: 11px; color: #b42318; padding-top: 6px; }
+.sel-pol.pin { color: var(--ink-2, #475467); display: inline-flex; align-items: flex-start; gap: 3px; }
+.sel-pol.pin .ico svg { width: 12px; height: 12px; display: block; margin-top: 1px; }
 .sel-anchor { margin: 0 0 6px; }
 .h-n { display: inline-block; min-width: 14px; height: 14px; margin-right: 3px; border-radius: 7px; background: var(--accent);
   color: #fff; font: 700 9.5px/14px var(--sans); text-align: center; vertical-align: 1px; }
@@ -230,3 +232,4 @@
 .row.add-course { display: block; width: 100%; padding: 8px 30px; border: 0; border-top: 1px dashed var(--line); text-align: left;
   font: italic 12.5px var(--sans); color: var(--muted); background: transparent; cursor: pointer; }
 .row.add-course:hover { color: var(--accent); }
+.expand .sel-pin .sel-quote { border-left-color: #98a2b3; background: #f2f4f7; color: var(--ink); }

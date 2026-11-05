@@ -26,6 +26,9 @@ export interface PagePaneProps {
   onSelection?(sel: CapturedSelection): void;
   /** With actions, a text selection shows the highlight bar above it (sme-fixes §1) instead of calling `onSelection`. */
   barActions?: BarAction[] | null;
+  /** With `barActions`: the selection is first handed to `onSelection` (it counts at once), then the bar offers to change
+   * what it means. Without it, nothing is kept until a button of the bar is pressed. */
+  captureFirst?: boolean;
   /** The × of a `removable` highlight was clicked. */
   onRemove?(id: string): void;
   pickBlock?: boolean;
@@ -95,6 +98,9 @@ export function PagePane(props: PagePaneProps): JSX.Element {
   const latest = useRef(props);
   latest.current = props;
   const [bar, setBar] = useState<BarAt | null>(null);  // the highlight bar, over the selection it is about
+  const [frameY, setFrameY] = useState(0);  // the page's scroll while the bar is up: the bar follows its text
+  const barUp = useRef(false);
+  barUp.current = !!bar;
   const scaleRef = useRef(scale);
   scaleRef.current = scale;
 
@@ -214,7 +220,8 @@ export function PagePane(props: PagePaneProps): JSX.Element {
       true,
     );
     d.addEventListener("mousedown", () => setBar(null));
-    d.addEventListener("scroll", () => setBar(null), { passive: true });
+    // the page scrolls (the reader, or the pane centring a new piece of the answer): the bar moves with its text
+    d.addEventListener("scroll", () => { if (barUp.current) setFrameY(d.defaultView?.scrollY ?? 0); }, { passive: true });
     d.addEventListener("keydown", (e) => { if (e.key === "Escape") { setBar(null); d.getSelection()?.removeAllRanges(); } });
     d.addEventListener("mouseup", () => {
       const p = latest.current;
@@ -222,7 +229,14 @@ export function PagePane(props: PagePaneProps): JSX.Element {
       const cap = captureSelection(sel);
       if (!cap) return;
       if (p.barActions?.length && sel && sel.rangeCount) {
-        setBar(barAt(cap, sel.getRangeAt(0).getBoundingClientRect(), scaleRef.current));
+        const y0 = d.defaultView?.scrollY ?? 0;
+        const at = { ...barAt(cap, sel.getRangeAt(0).getBoundingClientRect(), scaleRef.current), scrollY: y0 };
+        setFrameY(y0);
+        if (p.captureFirst && p.onSelection) {
+          p.onSelection(cap);
+          sel.removeAllRanges();  // it is outlined as a piece of the answer now
+        }
+        setBar(at);
         return;
       }
       if (p.captureSelection && p.onSelection) {
@@ -258,7 +272,8 @@ export function PagePane(props: PagePaneProps): JSX.Element {
       e.stopPropagation();  // Esc closes only the bar (capture phase: before the tab's own Esc)
       closeBar();
     };
-    const down = (e: MouseEvent) => { if (!(e.target as Element | null)?.closest?.(".gpp-hbar")) setBar(null); };
+    // a click anywhere else also clears the selection: a selection left on the page looks kept, but isn't
+    const down = (e: MouseEvent) => { if (!(e.target as Element | null)?.closest?.(".gpp-hbar")) closeBar(); };
     window.addEventListener("keydown", key, true);
     window.addEventListener("mousedown", down, true);
     return () => { window.removeEventListener("keydown", key, true); window.removeEventListener("mousedown", down, true); };
@@ -287,6 +302,8 @@ export function PagePane(props: PagePaneProps): JSX.Element {
     return byFocus ?? highlights.find((h) => h.kind === "value" || h.kind === "expected") ?? highlights[0] ?? null;
   }, [highlights, focusId]);
 
+  // the bar where its text is now; out of sight while its text is scrolled above the pane
+  const barShown = bar ? { ...bar, y: bar.y - (frameY - (bar.scrollY ?? frameY)) * scale } : null;
   const frameStyle = {
     width: layoutWidth,
     height: size.h > 0 ? size.h / scale : "100%",
@@ -375,7 +392,7 @@ export function PagePane(props: PagePaneProps): JSX.Element {
           <div className="gpp-empty">No page to show.</div>
         )}
         {src && !loaded && mode === "page" && <div className="gpp-loading">Loading saved page…</div>}
-        {bar && mode === "page" && props.barActions?.length ? <HighlightBar at={bar} actions={props.barActions} onDone={closeBar} /> : null}
+        {barShown && barShown.y >= 0 && mode === "page" && props.barActions?.length ? <HighlightBar at={barShown} actions={props.barActions} onDone={closeBar} /> : null}
         {mode === "html" && active && (
           <SourceView catalog={catalog} stem={active.stem} target={sourceTarget} />
         )}
@@ -386,11 +403,11 @@ export function PagePane(props: PagePaneProps): JSX.Element {
 
 const BAR_H = 30;  // the highlight bar's height in the pane (pagepane.css .gpp-hbar)
 
-/** Where the highlight bar goes, in the pane's pixels: just above the selection (its rect is in the frame's unscaled
- * pixels), or just below it when there's no room above. */
-export function barAt(sel: CapturedSelection, r: { left: number; top: number; bottom: number }, scale: number): BarAt {
+/** Where the highlight bar goes, in the pane's pixels: centred just above the selection (its rect is in the frame's
+ * unscaled pixels), or just below it when there's no room above. HighlightBar keeps it inside the pane's sides. */
+export function barAt(sel: CapturedSelection, r: { left: number; right: number; top: number; bottom: number }, scale: number): BarAt {
   const above = r.top * scale - BAR_H - 6;
-  return { sel, x: r.left * scale, y: above >= 0 ? above : r.bottom * scale + 6 };
+  return { sel, x: ((r.left + r.right) / 2) * scale, y: above >= 0 ? above : r.bottom * scale + 6 };
 }
 
 function ZoomIcon({ plus }: { plus: boolean }) {

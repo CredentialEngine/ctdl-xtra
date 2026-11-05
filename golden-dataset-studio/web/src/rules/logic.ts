@@ -161,6 +161,11 @@ const located = (c: CapturedSelection) => ({ text: c.text, css_path: c.css_path,
   quote: { prefix: c.prefix, exact: c.text, suffix: c.suffix } });
 const isOut = (c: Piece) => c.polarity === "out";
 
+/** The pieces with the one at `c`'s place marked `polarity` (✕ Not in answer on a piece just added). */
+export function markPiece(cs: Piece[], c: CapturedSelection, polarity: Polarity): Piece[] {
+  return cs.map((x) => (x.css_path === c.css_path && x.char_start === c.char_start && x.char_end === c.char_end ? { ...x, polarity } : x));
+}
+
 /** The value found without the text marked "not in the answer". */
 export function withoutOut(value: string | null | undefined, outs: string[]): string {
   let v = value ?? "";
@@ -205,9 +210,18 @@ export function verdictEvent(author: string, target: Target, prev: EventBrief | 
              ...(a ? { anchor: { css_path: a.css_path, char_start: a.char_start, char_end: a.char_end, text: a.text } } : {}) };
   }
   const verdict: Verdict = d.mode === "comment" ? "question" : "wrong";
-  return { type: "verdict", author, target, verdict, note, supersedes,
+  // a ✗ with a comment pinned to text: the note is that comment (pinnedComment), saved after the verdict
+  return { type: "verdict", author, target, verdict, note: verdict === "wrong" && d.anchor ? null : note, supersedes,
            expected: verdict === "wrong" ? expectedOf(d.captures, value) : null,
            ...(verdict === "wrong" && d.reasons?.length ? { reasons: d.reasons } : {}) };
+}
+
+/** The comment pinned to text that goes with a ✗ (the comment bubble on the highlight bar, then ✓ or ✕): a comment
+ * event with its anchor, or null when there is no pinned text or nothing written. */
+export function pinnedComment(author: string, target: Target, d: Draft): NewEvent | null {
+  const a = d.anchor, note = d.note.trim();
+  if (d.mode !== "wrong" || !a || !note) return null;
+  return { type: "comment", author, target, note, anchor: { css_path: a.css_path, char_start: a.char_start, char_end: a.char_end, text: a.text } };
 }
 
 // --- course blocks: one row per page (sme-fixes §3) --------------------------------------------------------------
