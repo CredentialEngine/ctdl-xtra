@@ -76,21 +76,16 @@ def crawl_key(catalog_folder: str, run_id: str) -> str:
     return f"{run_prefix(catalog_folder, run_id)}/crawl.json"
 
 
-# Only older runs have it; a resume still reads it.
-def state_key(catalog_folder: str, run_id: str) -> str:
-    return f"{run_prefix(catalog_folder, run_id)}/state.json"
+def manifest_key(catalog_folder: str, run_id: str) -> str:
+    return f"{run_prefix(catalog_folder, run_id)}/manifest.json"
 
 
-def checkpoints_prefix(catalog_folder: str, run_id: str) -> str:
-    return f"{run_prefix(catalog_folder, run_id)}/checkpoints"
+def pages_prefix(catalog_folder: str, run_id: str) -> str:
+    return f"{run_prefix(catalog_folder, run_id)}/pages"
 
 
-def checkpoint_key(catalog_folder: str, run_id: str, number: int) -> str:
-    return f"{checkpoints_prefix(catalog_folder, run_id)}/{number:06d}.json"
-
-
-def failed_key(catalog_folder: str, run_id: str) -> str:
-    return f"{run_prefix(catalog_folder, run_id)}/failed.jsonl"
+PAGES_FAILED = "failed"
+PAGES_SKIPPED = "skipped"
 
 
 def page_html_key(catalog_folder: str, run_id: str, stem: str) -> str:
@@ -99,6 +94,18 @@ def page_html_key(catalog_folder: str, run_id: str, stem: str) -> str:
 
 def page_meta_key(catalog_folder: str, run_id: str, stem: str) -> str:
     return f"{run_prefix(catalog_folder, run_id)}/pages/{stem}.meta.json"
+
+
+def failed_meta_key(catalog_folder: str, run_id: str, stem: str) -> str:
+    """What became of a URL that was asked for and not saved."""
+    prefix = pages_prefix(catalog_folder, run_id)
+    return f"{prefix}/{PAGES_FAILED}/{stem}.meta.json"
+
+
+def skipped_meta_key(catalog_folder: str, run_id: str, stem: str) -> str:
+    """A URL that answered and is not a page of the run."""
+    prefix = pages_prefix(catalog_folder, run_id)
+    return f"{prefix}/{PAGES_SKIPPED}/{stem}.meta.json"
 
 
 def discovery_root(catalog_folder: str, run_id: str) -> str:

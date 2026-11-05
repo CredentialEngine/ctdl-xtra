@@ -2,7 +2,7 @@
 
 Everything else about a crawl is the same whichever backend runs it: the
 frontier, the scope rules, robots.txt, the retry ladder, the pacing, the
-checkpoints, the log lines, and everything discovery reads afterwards. A
+page records, the log lines, and everything discovery reads afterwards. A
 strategy only decides how one URL turns into one FetchResult, which is why
 adding one is a class and an entry here rather than a second crawler.
 """
@@ -12,7 +12,10 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import Any
 
-from implementations.crawl_browser import playwright_fetcher_factory
+from implementations.crawl_browser import (
+    BROWSER_CHROMIUM,
+    playwright_fetcher_factory,
+)
 from implementations.crawl_crawl4ai import crawl4ai_fetcher_factory
 from implementations.crawl_firecrawl import (
     DEFAULT_API_URL as DEFAULT_FIRECRAWL_API_URL,
@@ -62,10 +65,24 @@ def fetcher_factory_for(
     *,
     firecrawl_api_key: str | None = None,
     firecrawl_api_url: str = DEFAULT_FIRECRAWL_API_URL,
+    keep_browser_open: bool = False,
+    browser: str = BROWSER_CHROMIUM,
 ) -> Callable[[], Any]:
     """The factory a WorkerPool should build its per-thread fetchers from."""
+    if keep_browser_open and strategy != STRATEGY_PLAYWRIGHT:
+        raise StrategyOptionError(
+            "--keep-browser-open is for --with-playwright: the other "
+            "strategies do not open a browser of ours between pages."
+        )
+    if browser != BROWSER_CHROMIUM and strategy != STRATEGY_PLAYWRIGHT:
+        raise StrategyOptionError(
+            f"--browser {browser} is for --with-playwright: the other "
+            "strategies choose their own browser."
+        )
     if strategy == STRATEGY_PLAYWRIGHT:
-        return playwright_fetcher_factory()
+        return playwright_fetcher_factory(
+            keep_open=keep_browser_open, browser=browser
+        )
     if strategy == STRATEGY_CRAWL4AI:
         return crawl4ai_fetcher_factory()
     if strategy == STRATEGY_FIRECRAWL:

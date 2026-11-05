@@ -13,6 +13,14 @@ class StorageWriter(Protocol):
         errors: list[str],
     ) -> list[str]: ...
 
+    def upload_new(
+        self,
+        *,
+        key: str,
+        content: bytes | str,
+        content_type: str,
+    ) -> str: ...
+
     def open_binary_writer(
         self,
         *,

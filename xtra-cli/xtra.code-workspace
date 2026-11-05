@@ -1,0 +1,61 @@
+{
+    "extensions": {
+        "recommendations": [
+            "ms-python.python",
+            "ms-python.vscode-pylance",
+            "charliermarsh.ruff"
+        ]
+    },
+    "folders": [
+        {
+            "path": "."
+        }
+    ],
+    "settings": {
+        "[json]": {
+            "editor.codeActionsOnSave": {
+                "source.fixAll.sortJSON": "explicit"
+            },
+            "editor.defaultFormatter": "vscode.json-language-features",
+            "editor.detectIndentation": false,
+            "editor.formatOnSave": true,
+            "editor.insertSpaces": true,
+            "editor.tabSize": 4
+        },
+        "[jsonc]": {
+            "editor.codeActionsOnSave": {
+                "source.sort.json": "explicit"
+            },
+            "editor.defaultFormatter": "vscode.json-language-features",
+            "editor.detectIndentation": false,
+            "editor.formatOnSave": true,
+            "editor.insertSpaces": true,
+            "editor.tabSize": 4
+        },
+        "[python]": {
+            "editor.codeActionsOnSave": {
+                "source.fixAll.ruff": "explicit",
+                "source.organizeImports.ruff": "explicit"
+            },
+            "editor.defaultFormatter": "charliermarsh.ruff",
+            "editor.formatOnSave": true,
+            "editor.insertSpaces": true,
+            "editor.tabSize": 4
+        },
+        "editor.detectIndentation": false,
+        "editor.insertSpaces": true,
+        "editor.rulers": [
+            80
+        ],
+        "editor.tabSize": 4,
+        "files.insertFinalNewline": true,
+        "files.trimTrailingWhitespace": true,
+        "python.analysis.typeCheckingMode": "basic",
+        "python.terminal.activateEnvironment": true,
+        "python.testing.pytestEnabled": true,
+        "python.testing.unittestEnabled": false,
+        "ruff.enable": true,
+        "ruff.fixAll": true,
+        "ruff.organizeImports": true
+    }
+}

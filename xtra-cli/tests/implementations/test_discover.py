@@ -130,11 +130,11 @@ def test_saved_pages_are_read_in_batches_not_one_at_a_time(
 ) -> None:
     monkeypatch.setattr("implementations.discover.READ_BATCH", 5)
     store = seed_run(tmp_path, fixture_html_dir)
-    store.provider = _CountingProvider(store.provider)
+    counting = _CountingProvider(store.provider)
+    monkeypatch.setattr(store, "provider", counting)
     pages = read_saved_pages(store, FOLDER, RUN)
     assert len(pages) == len(ALL_FIXTURES)
-    # 15 pages: three batches of sidecars, each followed by its HTML.
-    assert store.provider.batch_sizes == [5, 5, 5, 5, 5, 5]
+    assert counting.batch_sizes == [5, 5, 5, 5, 5, 5]
     stems = [meta["stem"] for meta, _ in pages]
     assert stems == sorted(stems)
     assert all(html.strip().startswith("<!DOCTYPE") for _, html in pages)
@@ -629,7 +629,7 @@ def test_saved_challenge_pages_are_counted_and_named_with_what_to_do(
     # The cause is known: the crawler stopped saving these on that date.
     assert "has not saved one since 2026-10-01" in warnings[0]
     assert "this run started 2026-09-27T07:46:53Z" in warnings[0]
-    assert "resume it (same --url and --run-id)" in warnings[0]
+    assert f"start a new crawl with --from-run-id {RUN}" in warnings[0]
 
 
 def test_a_run_without_challenge_pages_says_nothing_about_them(
@@ -642,7 +642,7 @@ def test_a_run_without_challenge_pages_says_nothing_about_them(
     assert "CHALLENGE" not in caplog.text
 
 
-def test_an_empty_sample_of_challenge_pages_says_to_resume_the_run(
+def test_an_empty_sample_of_challenge_pages_says_to_crawl_from_the_run(
     tmp_path: Path, caplog
 ) -> None:
     """Tuning the rules cannot bring back pages that were never fetched."""
@@ -653,7 +653,7 @@ def test_an_empty_sample_of_challenge_pages_says_to_resume_the_run(
         outcome = run_discovery(settings(), source=store, target=store)
     assert outcome.exit_code == 1
     assert "3 saved pages are bot-challenge pages" in outcome.reason
-    assert "Resume the run to fetch them again" in outcome.reason
+    assert f"Start a new crawl with --from-run-id {RUN}" in outcome.reason
     errors = [
         record.getMessage()
         for record in caplog.records
@@ -676,7 +676,7 @@ def test_a_few_challenge_pages_do_not_take_the_blame_for_an_empty_sample(
         )
     assert outcome.exit_code == 1
     assert outcome.summary["challenge_pages"] == 1
-    assert "Resume" not in outcome.reason
+    assert "--from-run-id" not in outcome.reason
     errors = [
         record.getMessage()
         for record in caplog.records
@@ -684,6 +684,23 @@ def test_a_few_challenge_pages_do_not_take_the_blame_for_an_empty_sample(
     ]
     assert len(errors) == 1
     assert "discover_rules.py" in errors[0]
+
+
+def test_failed_and_skipped_records_under_pages_are_not_read_as_pages(
+    tmp_path: Path, fixture_html_dir
+) -> None:
+    store = seed_run(tmp_path, fixture_html_dir)
+    pages = tmp_path / FOLDER / RUN_PATH / "pages"
+    stem = min(pages.glob("*.meta.json")).name[: -len(".meta.json")]
+    for folder in ("failed", "skipped"):
+        (pages / folder).mkdir()
+        (pages / folder / f"{stem}.meta.json").write_text(
+            json.dumps({"result": folder, "url": "https://x.edu/gone"}),
+            encoding="utf-8",
+        )
+    outcome = run_discovery(settings(), source=store, target=store)
+    assert outcome.summary["pages"] == len(ALL_FIXTURES)
+    assert "https://x.edu/gone" not in {p.url for p in outcome.profiles}
 
 
 # --- reading named pages instead of the whole run ---------------------------

@@ -20,6 +20,7 @@ from importlib.metadata import version as installed_version
 from typing import Any
 
 from implementations.crawl_browser import (
+    BROWSER_CHROMIUM,
     CHALLENGE_WAIT_MS,
     CONTENT_ATTEMPTS,
     DEFAULT_TIMEOUT_MS,
@@ -138,12 +139,22 @@ def _versions(strategy: str) -> dict[str, str | None]:
 
 
 def _settings(
-    strategy: str, *, firecrawl_api_url: str, user_agent: str
+    strategy: str,
+    *,
+    firecrawl_api_url: str,
+    user_agent: str,
+    keep_browser_open: bool = False,
+    browser: str = BROWSER_CHROMIUM,
 ) -> dict[str, Any]:
     if strategy == STRATEGY_PLAYWRIGHT:
         return {
             "headless": True,
-            "browser_channel": "chrome, falling back to chromium",
+            "browser_channel": browser,
+            "between_pages": (
+                "browser kept open"
+                if keep_browser_open
+                else "browser closed, cookies kept for the next page"
+            ),
             "viewport": dict(VIEWPORT),
             "wait_until": "load, then domcontentloaded when load times out",
             "ready_wait": {
@@ -192,6 +203,8 @@ def strategy_facts(
     *,
     firecrawl_api_url: str = DEFAULT_API_URL,
     user_agent: str | None = None,
+    keep_browser_open: bool = False,
+    browser: str = BROWSER_CHROMIUM,
 ) -> StrategyFacts:
     """What a run can say about the backend it is about to use.
 
@@ -204,6 +217,8 @@ def strategy_facts(
             strategy,
             firecrawl_api_url=firecrawl_api_url,
             user_agent=user_agent or browser_user_agent(),
+            keep_browser_open=keep_browser_open,
+            browser=browser,
         ),
         notes=STRATEGY_NOTES.get(strategy, ()),
     )

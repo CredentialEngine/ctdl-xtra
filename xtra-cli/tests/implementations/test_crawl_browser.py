@@ -5,6 +5,7 @@ import os
 import sys
 import threading
 import types
+from typing import Any
 
 import pytest
 
@@ -22,6 +23,7 @@ from implementations.crawl_browser import (
     SETTLE_AFTER_NAVIGATION_MS,
     VIEWPORT,
     FetchError,
+    FetcherStartError,
     FetchResult,
     PlaywrightFetcher,
     WorkerPool,
@@ -197,7 +199,7 @@ class FakePage:
 class FakeContext:
     def __init__(self) -> None:
         self.options: dict | None = None
-        self.init_scripts: list[str] = []
+        self.init_scripts: list[str | None] = []
         self.outcomes: list = []
         # content() answers, consumed in order across pages; once empty a
         # page answers with the HTML of the document it loaded.
@@ -226,6 +228,12 @@ class FakeContext:
             raise self.cookie_error
         return list(self.jar)
 
+    def storage_state(self) -> dict:
+        """What Playwright hands back: the jar, plus local storage."""
+        if self.cookie_error:
+            raise self.cookie_error
+        return {"cookies": list(self.jar), "origins": []}
+
     def tick(self, ms: float) -> None:
         if self.jar_after_pause:
             self.jar = self.jar_after_pause.pop(0)
@@ -240,9 +248,15 @@ class FakeBrowser:
     def __init__(self, context: FakeContext) -> None:
         self.context = context
         self.closed = False
+        # The options of every context opened, first to last.
+        self.contexts_opened: list[dict] = []
 
     def new_context(self, **options) -> FakeContext:
         self.context.options = options
+        self.contexts_opened.append(options)
+        # One fake stands in for each browser opened again: open once more.
+        self.closed = False
+        self.context.closed = False
         return self.context
 
     def close(self) -> None:
@@ -268,6 +282,7 @@ class FakePlaywright:
     def __init__(self, chromium: FakeChromium) -> None:
         self.chromium = chromium
         self.stopped = False
+        self.starts = 0
 
     def stop(self) -> None:
         self.stopped = True
@@ -287,12 +302,17 @@ def browser(monkeypatch) -> types.SimpleNamespace:
 
     class Starter:
         def start(self) -> FakePlaywright:
+            playwright.starts += 1
+            playwright.stopped = False
             return playwright
 
     module = types.ModuleType("playwright.sync_api")
-    module.Error = FakePlaywrightError
-    module.TimeoutError = FakePlaywrightTimeout
-    module.sync_playwright = Starter
+    # Through __dict__: a bare ModuleType has no such attributes to assign.
+    module.__dict__.update(
+        Error=FakePlaywrightError,
+        TimeoutError=FakePlaywrightTimeout,
+        sync_playwright=Starter,
+    )
     monkeypatch.setitem(sys.modules, "playwright.sync_api", module)
     monkeypatch.setattr(PlaywrightFetcher, "__init__", _REAL_INIT)
     return types.SimpleNamespace(
@@ -415,11 +435,9 @@ def test_playwright_fetcher_renders_a_local_file(tmp_path) -> None:
     assert result.latency_ms >= 0
 
 
-def test_the_fetcher_asks_for_chrome_and_opens_one_context(browser) -> None:
+def test_the_fetcher_starts_chromium_and_opens_one_context(browser) -> None:
     PlaywrightFetcher(user_agent="xtra-test")
-    assert browser.chromium.launches == [
-        {"headless": True, "channel": "chrome"}
-    ]
+    assert browser.chromium.launches == [{"headless": True}]
     assert browser.context.options == {
         "viewport": VIEWPORT,
         "user_agent": "xtra-test",
@@ -428,14 +446,32 @@ def test_the_fetcher_asks_for_chrome_and_opens_one_context(browser) -> None:
     }
 
 
-def test_the_fetcher_falls_back_to_bundled_chromium_without_chrome(
-    browser,
-) -> None:
-    browser.chromium.chrome_installed = False
-    PlaywrightFetcher(user_agent="xtra-test")
+def test_the_fetcher_starts_chrome_when_asked(browser) -> None:
+    PlaywrightFetcher(user_agent="xtra-test", browser="chrome")
     assert browser.chromium.launches == [
-        {"headless": True, "channel": "chrome"},
-        {"headless": True},
+        {"headless": True, "channel": "chrome"}
+    ]
+
+
+def test_chrome_asked_for_and_not_installed_stops_the_run(browser) -> None:
+    """Never quietly a Chromium run: the run asked for Chrome."""
+    browser.chromium.chrome_installed = False
+    with pytest.raises(FetcherStartError, match="'chrome' is not found"):
+        PlaywrightFetcher(user_agent="xtra-test", browser="chrome")
+    assert browser.chromium.launches == [
+        {"headless": True, "channel": "chrome"}
+    ]
+
+
+def test_an_unknown_browser_is_refused(browser) -> None:
+    with pytest.raises(ValueError, match="browser is one of"):
+        PlaywrightFetcher(user_agent="xtra-test", browser="firefox")
+
+
+def test_the_factory_passes_the_browser_on(browser) -> None:
+    playwright_fetcher_factory(browser="chrome")()
+    assert browser.chromium.launches == [
+        {"headless": True, "channel": "chrome"}
     ]
 
 
@@ -575,6 +611,12 @@ def _fetch() -> FetchResult:
     return PlaywrightFetcher(user_agent="xtra-test").fetch(URL)
 
 
+def rendered(result: FetchResult) -> dict[str, Any]:
+    """The render record, which the browser fetcher always writes."""
+    assert result.render is not None
+    return result.render
+
+
 def _token(value: str, name: str = "aws-waf-token") -> dict:
     return {"name": name, "value": value, "domain": "catalog.example.edu"}
 
@@ -621,12 +663,12 @@ def test_a_page_is_read_after_network_idle_and_a_quiet_dom(browser) -> None:
         (DOM_QUIET_JS, DOM_QUIET_MS, DOM_QUIET_POLL_MS, DOM_QUIET_CAP_MS)
     ]
     assert result.html == COURSE_HTML
-    assert result.render["load_event"] == "load"
-    assert result.render["networkidle"] is True
-    assert result.render["dom_quiet"] is True
-    assert result.render["content_attempts"] == 1
-    assert result.render["ready_ms"] >= 0
-    assert "challenge" not in result.render
+    assert rendered(result)["load_event"] == "load"
+    assert rendered(result)["networkidle"] is True
+    assert rendered(result)["dom_quiet"] is True
+    assert rendered(result)["content_attempts"] == 1
+    assert rendered(result)["ready_ms"] >= 0
+    assert "challenge" not in rendered(result)
     assert page.closed
 
 
@@ -640,8 +682,8 @@ def test_a_page_that_never_goes_network_idle_is_taken_at_the_cap(
     result = _fetch()
     assert result.http_status == 200
     assert result.html == COURSE_HTML
-    assert result.render["networkidle"] is False
-    assert result.render["dom_quiet"] is True
+    assert rendered(result)["networkidle"] is False
+    assert rendered(result)["dom_quiet"] is True
 
 
 @pytest.mark.parametrize(
@@ -666,8 +708,8 @@ def test_a_dom_that_does_not_go_quiet_is_still_taken(
     browser.context.wait_errors["dom quiet"] = error
     result = _fetch()
     assert result.html == COURSE_HTML
-    assert result.render["dom_quiet"] is False
-    assert result.render.get("dom_quiet_error") == recorded
+    assert rendered(result)["dom_quiet"] is False
+    assert rendered(result).get("dom_quiet_error") == recorded
 
 
 def test_content_read_mid_navigation_is_read_again_once_it_settles(
@@ -684,7 +726,7 @@ def test_content_read_mid_navigation_is_read_again_once_it_settles(
         ("content",),
     ]
     assert result.html == COURSE_HTML
-    assert result.render["content_attempts"] == 2
+    assert rendered(result)["content_attempts"] == 2
 
 
 def test_content_that_fails_for_another_reason_is_not_read_again(
@@ -771,10 +813,10 @@ def test_a_waf_challenge_is_waited_out_and_the_real_page_returned(
     assert result.http_status == 200
     assert result.html == COURSE_HTML
     assert "gokuProps" not in result.html
-    assert result.render["challenge"] == "aws-waf"
-    assert result.render["challenge_rounds"] == 1
-    assert result.render["challenge_wait_ms"] >= 0
-    assert result.render["networkidle"] is True
+    assert rendered(result)["challenge"] == "aws-waf"
+    assert rendered(result)["challenge_rounds"] == 1
+    assert rendered(result)["challenge_wait_ms"] >= 0
+    assert rendered(result)["networkidle"] is True
 
 
 def test_a_challenge_known_only_by_its_markers_is_waited_out_too(
@@ -790,7 +832,7 @@ def test_a_challenge_known_only_by_its_markers_is_waited_out_too(
     assert challenge_page.log == [("content",), ("pause", CHALLENGE_POLL_MS)]
     assert result.http_status == 200
     assert result.html == COURSE_HTML
-    assert result.render["challenge"] == "aws-waf"
+    assert rendered(result)["challenge"] == "aws-waf"
 
 
 def test_a_cloudflare_challenge_is_solved_by_its_clearance_cookie(
@@ -803,7 +845,7 @@ def test_a_cloudflare_challenge_is_solved_by_its_clearance_cookie(
     browser.context.jar_after_pause = [[_token("ok", name="cf_clearance")]]
     result = _fetch()
     assert result.http_status == 200
-    assert result.render["challenge"] == "cloudflare"
+    assert rendered(result)["challenge"] == "cloudflare"
 
 
 def test_a_challenge_that_shows_up_during_the_wait_is_never_saved(
@@ -819,7 +861,7 @@ def test_a_challenge_that_shows_up_during_the_wait_is_never_saved(
     result = _fetch()
     assert len(browser.context.pages) == 2
     assert result.html == COURSE_HTML
-    assert result.render["challenge"] == "aws-waf"
+    assert rendered(result)["challenge"] == "aws-waf"
 
 
 def test_a_challenge_that_never_earns_a_token_can_be_retried(browser) -> None:
@@ -891,9 +933,9 @@ def test_latency_covers_the_whole_fetch_with_its_challenge_rounds(
     browser.context.outcomes += [_waf_challenge(), _real_page()]
     browser.context.jar_after_pause = [[], [_token("fresh")]]
     result = _fetch()
-    assert result.render["challenge_wait_ms"] == 2 * CHALLENGE_POLL_MS
+    assert rendered(result)["challenge_wait_ms"] == 2 * CHALLENGE_POLL_MS
     assert result.latency_ms == 2 * CHALLENGE_POLL_MS
-    assert result.render["ready_ms"] == 0
+    assert rendered(result)["ready_ms"] == 0
 
 
 def test_a_goto_cut_short_by_a_challenge_reload_waits_the_challenge_out(
@@ -909,8 +951,8 @@ def test_a_goto_cut_short_by_a_challenge_reload_waits_the_challenge_out(
     result = _fetch()
     assert browser.context.pages[0].waits == ["load"]
     assert result.http_status == 200
-    assert result.render["challenge"] == "aws-waf"
-    assert result.render["load_event"] == "load"
+    assert rendered(result)["challenge"] == "aws-waf"
+    assert rendered(result)["load_event"] == "load"
 
 
 def test_a_goto_cut_short_by_a_reload_reads_the_page_it_reloaded_to(
@@ -923,8 +965,8 @@ def test_a_goto_cut_short_by_a_reload_reads_the_page_it_reloaded_to(
     result = _fetch()
     assert result.http_status == 200
     assert result.html == COURSE_HTML
-    assert result.render["load_event"] == "interrupted"
-    assert result.render["networkidle"] is True
+    assert rendered(result)["load_event"] == "interrupted"
+    assert rendered(result)["networkidle"] is True
 
 
 def test_a_goto_cut_short_before_any_document_is_a_retryable_error(
@@ -943,3 +985,195 @@ def test_cookies_that_cannot_be_read_count_as_no_token(browser) -> None:
     browser.context.cookie_error = FakePlaywrightError("Target closed")
     browser.context.outcomes.append(_real_page())
     assert _fetch().http_status == 200
+
+
+def test_a_browser_that_will_not_start_is_told_apart_from_a_crash() -> None:
+    def no_browser():
+        raise OSError("Executable doesn't exist")
+
+    pool = WorkerPool(workers=1, fetcher_factory=no_browser, min_interval=0)
+    try:
+        error = pool.submit(lambda state: None).exception(timeout=10)
+    finally:
+        pool.close()
+    assert isinstance(error, FetcherStartError)
+    assert "browser could not start" in str(error)
+    assert "Executable doesn't exist" in str(error)
+
+
+def test_a_crash_while_fetching_is_not_a_start_failure() -> None:
+    class Fetcher:
+        def close(self) -> None:
+            return None
+
+    def crash(state):
+        raise RuntimeError("page crashed")
+
+    pool = WorkerPool(workers=1, fetcher_factory=Fetcher, min_interval=0)
+    try:
+        error = pool.submit(crash).exception(timeout=10)
+    finally:
+        pool.close()
+    assert isinstance(error, RuntimeError)
+    assert not isinstance(error, FetcherStartError)
+
+
+# --- closed between pages, cookies kept -------------------------------------
+
+
+def test_the_browser_is_closed_after_each_page(browser) -> None:
+    browser.context.outcomes.append(FakeResponse(200, {}))
+    fetcher = PlaywrightFetcher(user_agent="xtra-test")
+    assert browser.playwright.starts == 1
+    fetcher.fetch(URL)
+    assert browser.context.closed
+    assert browser.browser.closed
+    assert browser.playwright.stopped
+
+
+def test_the_next_page_opens_a_browser_again_with_the_cookies_kept(
+    browser,
+) -> None:
+    browser.context.outcomes.extend([FakeResponse(200, {}), _real_page()])
+    browser.context.jar = [_token("earned")]
+    fetcher = PlaywrightFetcher(user_agent="xtra-test")
+    fetcher.fetch(URL)
+    fetcher.fetch(URL)
+    assert browser.playwright.starts == 2
+    assert browser.chromium.launches == [{"headless": True}] * 2
+    first, second = browser.browser.contexts_opened
+    assert "storage_state" not in first
+    assert second["storage_state"] == {
+        "cookies": [_token("earned")],
+        "origins": [],
+    }
+    # Everything else about the context is the same as the first time.
+    assert {k: v for k, v in second.items() if k != "storage_state"} == first
+    assert browser.context.init_scripts == [MUTATION_CLOCK_JS] * 2
+    assert browser.browser.closed
+
+
+def test_a_token_a_challenge_earned_reaches_the_next_browser(browser) -> None:
+    """Without it, every page would meet the challenge again."""
+    browser.context.outcomes.extend(
+        [_waf_challenge(), _real_page(), _real_page()]
+    )
+    browser.context.jar_after_pause = [[_token("fresh")]]
+    fetcher = PlaywrightFetcher(user_agent="xtra-test")
+    fetcher.fetch(URL)
+    fetcher.fetch(URL)
+    last = browser.browser.contexts_opened[-1]
+    assert last["storage_state"]["cookies"] == [_token("fresh")]
+
+
+def test_cookies_that_cannot_be_read_keep_the_ones_read_before(
+    browser,
+) -> None:
+    browser.context.outcomes.extend(
+        [FakeResponse(200, {}), FakeResponse(200, {}), FakeResponse(200, {})]
+    )
+    browser.context.jar = [_token("first")]
+    fetcher = PlaywrightFetcher(user_agent="xtra-test")
+    fetcher.fetch(URL)
+    browser.context.cookie_error = FakePlaywrightError("Target closed")
+    fetcher.fetch(URL)
+    browser.context.cookie_error = None
+    fetcher.fetch(URL)
+    last = browser.browser.contexts_opened[-1]
+    assert last["storage_state"]["cookies"] == [_token("first")]
+
+
+def test_a_failed_fetch_still_closes_the_browser(browser) -> None:
+    browser.context.outcomes.append(
+        FakePlaywrightError("net::ERR_CONNECTION_RESET")
+    )
+    fetcher = PlaywrightFetcher(user_agent="xtra-test")
+    with pytest.raises(FetchError):
+        fetcher.fetch(URL)
+    assert browser.browser.closed
+    assert browser.playwright.stopped
+
+
+def test_keep_open_holds_one_browser_for_every_page(browser) -> None:
+    browser.context.outcomes.extend([FakeResponse(200, {}), _real_page()])
+    fetcher = PlaywrightFetcher(user_agent="xtra-test", keep_open=True)
+    fetcher.fetch(URL)
+    fetcher.fetch(URL)
+    assert browser.playwright.starts == 1
+    assert len(browser.chromium.launches) == 1
+    assert not browser.browser.closed
+    fetcher.close()
+    assert browser.browser.closed
+    assert browser.playwright.stopped
+
+
+def test_a_browser_that_will_not_open_again_stops_the_run(browser) -> None:
+    browser.context.outcomes.append(FakeResponse(200, {}))
+    fetcher = PlaywrightFetcher(user_agent="xtra-test")
+    fetcher.fetch(URL)
+
+    def no_browser(**options):
+        raise FakePlaywrightError("Executable doesn't exist at chrome.exe")
+
+    browser.chromium.launch = no_browser
+    with pytest.raises(FetcherStartError, match="could not start"):
+        fetcher.fetch(URL)
+    # Nothing half-open is left behind.
+    assert browser.playwright.stopped
+
+
+def test_closing_a_fetcher_that_is_already_closed_is_harmless(browser) -> None:
+    browser.context.outcomes.append(FakeResponse(200, {}))
+    fetcher = PlaywrightFetcher(user_agent="xtra-test")
+    fetcher.fetch(URL)
+    fetcher.close()
+    fetcher.close()
+
+
+def test_the_factory_passes_keep_open_on(browser) -> None:
+    browser.context.outcomes.extend([FakeResponse(200, {}), _real_page()])
+    fetcher = playwright_fetcher_factory(keep_open=True)()
+    fetcher.fetch(URL)
+    fetcher.fetch(URL)
+    assert browser.playwright.starts == 1
+
+
+def test_a_browser_that_will_not_start_is_reported_once() -> None:
+    def factory():
+        raise FetcherStartError("the browser could not start: no chrome.exe")
+
+    pool = WorkerPool(workers=1, fetcher_factory=factory, min_interval=0)
+    try:
+        future = pool.submit(lambda state: None)
+        error = future.exception(timeout=10)
+    finally:
+        pool.close()
+    assert isinstance(error, FetcherStartError)
+    assert str(error) == "the browser could not start: no chrome.exe"
+
+
+# --- each worker its own pacing clock ---------------------------------------
+
+
+def test_each_worker_gets_its_own_pacing_clock() -> None:
+    pool = WorkerPool(
+        workers=3,
+        fetcher_factory=_CountingFetcher,
+        min_interval=10,
+        sleep=lambda seconds: None,
+        monotonic=lambda: 0.0,
+    )
+    started = threading.Barrier(3)
+
+    def take_a_turn(state):
+        started.wait(timeout=10)
+        return state.pacer, state.pacer.wait()
+
+    try:
+        futures = [pool.submit(take_a_turn) for _ in range(3)]
+        results = [future.result(timeout=10) for future in futures]
+    finally:
+        pool.close()
+    assert len({id(pacer) for pacer, _ in results}) == 3
+    # Each worker's first GET waits for nothing.
+    assert [wait for _, wait in results] == [0, 0, 0]

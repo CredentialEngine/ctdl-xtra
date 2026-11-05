@@ -212,28 +212,37 @@ def read_list_pages(html: str, url: str) -> ListPages | None:
 
 
 def queue_list_pages(
-    html: str, url: str, *, enqueue: Callable[[str], bool]
+    html: str,
+    url: str,
+    *,
+    enqueue: Callable[[str], bool],
+    quiet: bool = False,
 ) -> int:
     """Queue the rest of a list through the crawler's enqueue; count new ones."""
     pages = read_list_pages(html, url)
     if pages is None:
         return 0
     queued = sum(enqueue(url) for url in pages.urls)
+    warn = logging.DEBUG if quiet else logging.WARNING
+    info = logging.DEBUG if quiet else logging.INFO
     if pages.problem == PROBLEM_LOADING:
-        logger.warning(
+        logger.log(
+            warn,
             "LIST %s was saved before its list loaded (Loading "
             "results...), so the pages after it are not known",
             url,
         )
     elif pages.problem == PROBLEM_NO_CURRENT_PAGE:
-        logger.warning(
+        logger.log(
+            warn,
             "LIST %s has page buttons up to %s but none marks the page "
             "on screen, so the rest of the list is not queued",
             url,
             pages.last,
         )
     elif pages.problem == PROBLEM_PAGE_IGNORED:
-        logger.warning(
+        logger.log(
+            warn,
             "LIST %s asked for page %s and the site showed page %s, so "
             "this list does not open by page number and the rest of it "
             "is not queued",
@@ -242,7 +251,8 @@ def queue_list_pages(
             pages.current,
         )
     elif pages.problem == PROBLEM_CAPPED:
-        logger.warning(
+        logger.log(
+            warn,
             "LIST %s says the list has %s pages; only pages up to %s are "
             "queued",
             url,
@@ -252,14 +262,16 @@ def queue_list_pages(
     if not queued:
         return 0
     if pages.asked == 1:
-        logger.info(
+        logger.log(
+            info,
             "LIST %s is page 1 of %s; queued page 2 to check the list "
             "opens by page number",
             url,
             pages.last,
         )
     else:
-        logger.info(
+        logger.log(
+            info,
             "LIST %s opened as page %s of %s; queued %s more page(s) of "
             "the list",
             url,

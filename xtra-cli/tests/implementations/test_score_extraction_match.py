@@ -22,9 +22,9 @@ from implementations.score_extraction_match import (
     similarity,
 )
 
-FOLDER = "avc-elumenapp-com-catalog-2026-27-welcome"
+FOLDER = "avc-elumenapp-com-catalog"
 RUN = "2026-10-12T20:59:13Z"
-STEM = "avc-elumenapp-com-catalog-2026-27-course-acct199-02f732419a"
+STEM = "avc-course-acct199-02f732419a"
 URL = "https://avc.elumenapp.com/catalog/2026-27/course/acct199"
 DESCRIPTION = (
     "Work Experience Education is supervised employment designed to "

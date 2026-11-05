@@ -25,6 +25,7 @@ from common.keys import (
     discovery_key,
     discovery_root,
     page_html_key,
+    pages_prefix,
     run_prefix,
 )
 from common.storage_uri import join_storage_uri
@@ -265,8 +266,8 @@ def sample_verdict(
 
     An empty sample used to be an exit code of 0 and a file holding
     nothing, which is how a run with no course pages went unnoticed. When
-    at least half the run is bot-challenge pages, the advice is to resume
-    the run, not to tune the rules.
+    at least half the run is bot-challenge pages, the advice is to crawl
+    again from this run, not to tune the rules.
     """
     if sample.population_size == 0:
         found = (
@@ -279,19 +280,22 @@ def sample_verdict(
             logger.error(
                 "SAMPLE no page is labelled %s, so the golden sample is "
                 "empty, and %s saved pages are bot-challenge pages from a "
-                "crawl made before %s. Page types found instead: %s. Resume "
-                "the run (same --url and --run-id) to fetch them again.",
+                "crawl made before %s. Page types found instead: %s. Start "
+                "a new crawl with --from-run-id %s: it copies the good pages "
+                "and fetches those again.",
                 settings.sample_label,
                 challenge_pages,
                 CHALLENGE_PAGES_CAUGHT_SINCE,
                 found,
+                settings.run_id,
             )
             return 1, (
                 "the golden sample is empty: no page is labelled "
                 f"{settings.sample_label}, and {challenge_pages} saved pages "
                 "are bot-challenge pages from a crawl made before "
-                f"{CHALLENGE_PAGES_CAUGHT_SINCE}. Resume the run to fetch "
-                f"them again. Page types found: {found}."
+                f"{CHALLENGE_PAGES_CAUGHT_SINCE}. Start a new crawl with "
+                f"--from-run-id {settings.run_id} to fetch them again. Page "
+                f"types found: {found}."
             )
         logger.error(
             "SAMPLE no page is labelled %s, so the golden sample is empty. "
@@ -334,13 +338,14 @@ def read_saved_pages(
     special - is counted over what was read, so a narrowed run says so
     in its summary and its shares mean nothing on their own.
 
-    Pages are read in batches of READ_BATCH.
+    Pages are read in batches of READ_BATCH. pages/ are pages: pages/failed/ and pages/skipped/ hold the URLs
+    the crawl asked for and did not save.
     """
-    prefix = f"{run_prefix(catalog_folder, run_id)}/pages"
+    prefix = pages_prefix(catalog_folder, run_id)
     meta_keys = sorted(
         key
         for key in source.list_keys(under=prefix)
-        if key.endswith(".meta.json")
+        if key.endswith(".meta.json") and "/" not in key[len(prefix) + 1 :]
     )
     by_stem = {
         key.rsplit("/", 1)[-1][: -len(".meta.json")]: key for key in meta_keys
@@ -811,13 +816,15 @@ def run_discovery(
         logger.warning(
             "CHALLENGE %s of %s saved pages are a firewall's bot-challenge "
             "page, not catalog pages. The crawler has not saved one since "
-            "%s, and this run started %s: resume it (same --url and "
-            "--run-id) to fetch just those pages again. Tuning "
-            "discover_rules.py cannot bring them back.",
+            "%s, and this run started %s: start a new crawl with "
+            "--from-run-id %s, which copies the good pages and fetches "
+            "just those again. Tuning discover_rules.py cannot bring them "
+            "back.",
             challenge_pages,
             len(pages),
             CHALLENGE_PAGES_CAUGHT_SINCE,
             (crawl_doc or {}).get("started_at") or "at an unknown time",
+            settings.run_id,
         )
     duplicates = mark_duplicates(profiles)
     vocabulary = build_vocabulary(profiles)

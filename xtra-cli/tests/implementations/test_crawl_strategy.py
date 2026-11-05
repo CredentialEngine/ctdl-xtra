@@ -147,3 +147,20 @@ def test_a_backend_with_no_implementation_reports_nothing_invented() -> None:
     assert facts.version == {"python": platform.python_version()}
     assert facts.settings == {}
     assert facts.notes == ()
+
+
+def test_crawl_json_says_whether_the_browser_stayed_open() -> None:
+    closed = strategy_facts("playwright").settings["between_pages"]
+    kept = strategy_facts("playwright", keep_browser_open=True).settings[
+        "between_pages"
+    ]
+    assert closed == "browser closed, cookies kept for the next page"
+    assert kept == "browser kept open"
+
+
+def test_crawl_json_records_the_browser_asked_for() -> None:
+    assert (
+        strategy_facts("playwright").settings["browser_channel"] == "chromium"
+    )
+    chrome = strategy_facts("playwright", browser="chrome")
+    assert chrome.settings["browser_channel"] == "chrome"
