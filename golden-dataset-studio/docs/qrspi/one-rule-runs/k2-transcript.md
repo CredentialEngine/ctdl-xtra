@@ -302,9 +302,9 @@ POST /v1/w/golden-rules/host-sessions/30bc4af9-…/kill → 200 {"killed": true,
 
 ---
 
-## Live test plan on the K2 server (pass 6, not yet run)
+## Live test plan on the K2 server (pass 6; run 2026-11-05, results below)
 
-Eric approved a test on the K2 server with a cap of 2. **This plan has not been run.** The main session runs it after
+Eric approved a test on the K2 server with a cap of 2. **Run on 2026-11-05 ~16:25 MST; results in the next section.** The main session runs it after
 Eric confirms these exact steps. It changes **three things** on the server (a key and two workspace settings), and
 each one has its undo below. It starts at most **two real Claude sessions**, for a few minutes, with a harmless
 prompt. It doesn't touch the canonical `golden-rules` agent, its chat, the storage root or any catalog.
@@ -397,3 +397,57 @@ Example call: `printf '%s\n' "$KEY" | v1 -X POST -d '{"prompt":"…","timeoutSec
 4. `cli "/cli/settings?project=$WS"` again, and compare with step 0.
 
 Record the transcript (key redacted) below this plan, like the laptop transcript above.
+
+
+## Live test results on the K2 server (2026-11-05, ~16:25 MST)
+
+Eric decided: change only the cap (keep it at 2 afterwards); leave the guest policy as it is. So step 3 was **not**
+done. Keys and stream tokens are redacted.
+
+**Step 0 (before):** `hostSessionCellCap: null` (K2's default, 15); guest policy the K2 default ("[K2 API guest
+policy] … Prefer read-only work …"); 3 `claude` processes already running (two 6 days old, one 1 day old); memory
+use of the pod 3,440,705,536 bytes.
+
+**Step 1:** created key `studio-host-sessions-test` (id `3f013305-…`), capabilities
+`{"hostSessions": true, "canonicalMessage": false, "db": false, "hire": false, "sandboxes": false}`.
+
+**Step 2:** `/cli/workspace/set {"host_session_cell_cap":"2"}` →
+`{"actions":[{"field":"host_session_cell_cap","status":"done","value":"2"}],"changed":true,"ok":true}`; settings then
+show `hostSessionCellCap = 2`.
+
+**Step 4, first try (a quick prompt, "run pwd and stop"):**
+
+| Request | Response |
+|---|---|
+| start A | `200` in 0.07 s, `sessionId a778ae62-…` |
+| start B | `200` in 0.03 s, `sessionId 28d7a784-…` |
+| start C | `200` in **23.9 s**: K2 held C until a place freed (A and B had already finished `pwd`) |
+| status A, B | `200 {"live": false, "phase": "finished", …}` (on the server a finished session answers 200 `finished`; the laptop K2 answered 404) |
+| status C | `200 {"live": true, "phase": "working", "reaper": "grace"}` |
+| kill C | `200 {"killed": true, "resumable": true}` |
+
+**Step 4, with sessions that stay busy (prompt: run `sleep 150`):**
+
+| Request | Response |
+|---|---|
+| start A2 | `200` in 0.03 s, `sessionId 4e020266-…` |
+| start B2 | `200` in 0.03 s, `sessionId 6a555324-…` (so the canonical `golden-rules` agent does **not** count toward the cap) |
+| start C2, 20 s later | **`429` in 30.0 s, `{"code":"workspace-cell-cap","error":"concurrent host-session limit reached for this workspace"}`**: the cap of 2 works |
+| memory | pod 3,780,149,248 bytes; 5 `claude` processes, 1,499 MB RSS together (the 3 old ones + A2 + B2) |
+| kill A2 | `200 {"killed": true, "resumable": true}` |
+| start C2 again | `200` in **0.03 s**: the freed place is reused at once |
+| kill B2, kill C2 | `200 {"killed": true}` each |
+
+**Step 5 (after):** test key revoked (`{"success":true}`; the key then gets `401 invalid or missing API key`);
+`hostSessionCellCap = 2` **kept**, as Eric asked; guest policy unchanged (K2 default); only the 3 original `claude`
+processes remain.
+
+**What this means for the Studio:**
+- The queue works as designed: a third start blocks up to 30 s and then gets `429`; a kill frees the place at once.
+- K2 may also *accept* a start after a wait of up to 30 s (when a place frees during it), so the Studio's K2 timeout
+  must be over 30 s (the spec uses 45 s), and starts run in the background loop, not in a browser request.
+- A finished session answers `200 phase: finished`, not 404: treat `live: false` as "the place is free".
+- Memory is tight: with two runs working, the pod was at ~3.8 GB of its 4 GiB limit, much of it the three idle
+  Claude tabs (about 860 MB). Closing idle tabs, or raising the limit, gives real runs more room.
+- The guest policy is still K2's default ("Prefer read-only work"). Real runs that publish need the Studio's text
+  (step 3) before they ship.
