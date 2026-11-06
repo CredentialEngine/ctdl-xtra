@@ -29,5 +29,5 @@ kubectl --context "${CONTEXT}" apply -f "${SCRIPT_DIR}/redis-statefulset.yaml"
 kubectl --context "${CONTEXT}" apply -f "${SCRIPT_DIR}/service.yaml"
 envsubst '${IMAGE_TAG}' < "${SCRIPT_DIR}/deployment.yaml" | kubectl --context "${CONTEXT}" apply -f -
 kubectl --context "${CONTEXT}" apply -f "${SCRIPT_DIR}/ingress.yaml"
-kubectl --context "${CONTEXT}" -n "${NAMESPACE}" rollout status deployment/ctdl-xtra-api --timeout=300s
-kubectl --context "${CONTEXT}" -n "${NAMESPACE}" rollout status deployment/ctdl-xtra-worker --timeout=300s
+kubectl --context "${CONTEXT}" -n "${NAMESPACE}" rollout status deployment/ctdl-xtra-api --timeout=600s
+kubectl --context "${CONTEXT}" -n "${NAMESPACE}" rollout status deployment/ctdl-xtra-worker --timeout=600s
