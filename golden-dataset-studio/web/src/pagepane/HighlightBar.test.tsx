@@ -51,6 +51,24 @@ describe("HighlightBar (sme-fixes §1)", () => {
     box.remove();
   });
 
+  it("a hover bar: tells when the pointer comes onto it and leaves, and a keepOpen action pins it", async () => {
+    const pointer = vi.fn();
+    const pin = vi.fn();
+    const box = document.createElement("div");
+    document.body.appendChild(box);
+    const root = createRoot(box);
+    await act(async () => root.render(<HighlightBar at={{ sel, x: 40, y: 12, hover: "value" }} onDone={vi.fn()} onPointer={pointer} onPin={pin}
+      actions={[{ id: "comment", label: <span className="ico" />, tone: "note", title: "Comment on this text", keepOpen: true, run: vi.fn() }]} />));
+    const bar = box.querySelector<HTMLElement>(".gpp-hbar")!;
+    await act(async () => { bar.dispatchEvent(new MouseEvent("mouseover", { bubbles: true, relatedTarget: document.body })); });
+    await act(async () => { bar.dispatchEvent(new MouseEvent("mouseout", { bubbles: true, relatedTarget: document.body })); });
+    expect(pointer.mock.calls).toEqual([[true], [false]]);
+    await act(async () => box.querySelector<HTMLButtonElement>(".gpp-hb")!.click());
+    expect(pin).toHaveBeenCalled();
+    act(() => root.unmount());
+    box.remove();
+  });
+
   it("sits just above the selection, scaled to the pane, or below it when there's no room above", () => {
     expect(barAt(sel, { left: 100, right: 140, top: 200, bottom: 220 }, 0.5)).toEqual({ sel, x: 60, y: 64 });
     expect(barAt(sel, { left: 10, right: 30, top: 20, bottom: 40 }, 1)).toEqual({ sel, x: 20, y: 46 });
