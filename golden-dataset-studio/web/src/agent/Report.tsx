@@ -1,31 +1,32 @@
 // An AI run's report, rendered from `report.resolved.json` with the app's own components (one-rule-runs spec §1.4,
-// §1.6, §2.3): the outcome band, the facts, the values Claude worked out, what you need to decide, one section per rule
+// §1.6, §2.3, pass 7): the outcome band, the facts, the values Claude worked out, what you need to decide, one section per rule
 // (the rules to improve, then each rule Claude also changed), progress notes folded, and a footer with Past AI runs,
 // Revert vN, View the prompt and, once rows have new feedback, ✦ Run again. Every course is its Rules tab row card
 // (RowCard), whose verdict and history are refetched when the report opens and whenever its window gets focus. ✓ and
 // comments act here; ✕ and Open in Rules → open the row in a new browser tab, pinned to the run's ruleset (`ext`).
+// A decision tells its story first (pass 7): the question and why, then its answers as buttons (each posts one verdict
+// per course, after the app's confirm, with Undo), then the evidence, every row card introduced in words and shown
+// once per report; a set of courses is a table. Times are relative, the date and time zone in their tooltip.
 // No " · " in anything rendered here: one fact per row, one history item per line, sentences.
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { api } from "../api/client";
-import type { CatalogDetail, NewEvent } from "../api/types";
-import { Tip } from "../evals/EvalsTab";
+import type { CatalogDetail, EventBrief, NewEvent } from "../api/types";
+import "../evals/evals.css";
 import type { RowX } from "../rules/api";
-import { briefOf, newDraft, reportHistory, rowTarget, verdictEvent, type Draft, type HistItem } from "../rules/logic";
-import { Expansion } from "../rules/parts";
+import { briefOf, fullTime, markWord, newDraft, reportHistory, rowTarget, verdictEvent, type Draft, type HistItem } from "../rules/logic";
+import { Expansion, When } from "../rules/parts";
 import { RowCard } from "../rules/RowCard";
 import { Ico } from "../shell/icons";
 import { useReviewer } from "../shell/reviewer";
 import { href } from "../shell/router";
-import { fmt, toast } from "../shell/ui";
-import { CATALOG_CHANGED, compareOf, agentApi, agentApi2, elapsed, endedIcon, endedLine, rowKey, type AgentRun, type HistEvent, type ReportRow, type ReportRowState,
-  type ReportRows, type ReportRule, type ReportToDo, type ResolvedReport, type RunNote,
+import { fmt, toast, toastAction } from "../shell/ui";
+import { CATALOG_CHANGED, compareOf, agentApi, agentApi2, elapsed, endedIcon, endedLine, rowKey, type AgentRun, type HistEvent, type ReportCourse,
+  type ReportRow, type ReportRowState, type ReportRows, type ReportRule, type ReportToDo, type ResolvedReport, type RunNote, type ToDoOption,
 } from "./api";
 import { openRunDialog } from "./RunDialog";
 import "../rules/rules.css";
 import "./agent.css";
 
-const when = (iso: string) => new Date(iso).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
-const clock = (iso: string) => new Date(iso).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
 /** "Credit Value", "Subject Webpage and In Catalog", "A, B and C". */
 export const andList = (xs: string[]) => (xs.length < 2 ? xs.join("") : `${xs.slice(0, -1).join(", ")} and ${xs[xs.length - 1]}`);
 const published = (r: AgentRun) => r.ruleset_after != null && r.ruleset_before != null && r.ruleset_after > r.ruleset_before;
@@ -88,13 +89,36 @@ function toRow(r: ReportRow, st: ReportRowState | undefined, history: HistEvent[
   };
 }
 
-const verdictWord = (v: string | null | undefined) => (v === "correct" ? "Marked correct." : v === "wrong" ? "Marked wrong."
-  : v === "not_on_page" ? "Marked not on the page." : "No verdict yet.");
-/** "If yes, mark …": the answer in bold, as the mockups show it. */
+/** "If yes, mark …": the answer in bold (a report resolved before pass 7, whose answers are sentences). */
 function optionText(text: string): ReactNode {
   const m = /^(If [^,]+,)(.*)$/s.exec(text);
   return m ? <><b>{m[1]}</b>{m[2]}</> : text;
 }
+
+/** Does a row's verdict already say what an answer marks? (Then the answer is done.) */
+function hasMark(v: { verdict?: string | null; reasons?: string[] } | null | undefined, mark: string): boolean {
+  if (!v?.verdict) return false;
+  const nop = !!v.reasons?.includes("not_on_page");
+  if (mark === "correct") return v.verdict === "correct";
+  if (mark === "not_on_page") return v.verdict === "wrong" && nop;
+  if (mark === "wrong") return v.verdict === "wrong" && !nop;
+  return false;
+}
+
+/** A verdict posted from the report, and the one it replaced: Undo posts the replaced one again, superseding it. */
+interface Posted { rule: string; course: string; target: NewEvent["target"]; id: string; prev: EventBrief | null }
+
+/** The event that undoes a verdict posted from the report: the log is append-only (no retract), so it is a new
+ * verdict that supersedes the mistaken one and restores the earlier verdict's verdict, expected value and note. */
+export function undoEvent(author: string, p: Posted): NewEvent | null {
+  if (!p.prev?.verdict) return null;
+  return { type: "verdict", author, target: p.target, verdict: p.prev.verdict, supersedes: p.id,
+           note: p.prev.note ?? null, expected: p.prev.expected ?? null, ...(p.prev.reasons?.length ? { reasons: p.prev.reasons } : {}) };
+}
+
+const valueText = (value: string | null | undefined, status?: string | null) =>
+  value ? value : status === "absent" ? "Not on the page (rule's claim)" : "empty";
+const domId = (run: string, rule: string, course: string) => `rc-${run}-${rule}-${course}`.replace(/[^A-Za-z0-9_-]/g, "_");
 
 // --- the report --------------------------------------------------------------------------------------------------
 export interface ReportProps {
@@ -112,15 +136,20 @@ export function Report({ catalog, run, report, notes, pastRuns }: ReportProps) {
   const [askRevert, setAskRevert] = useState(false);
   const [revertedIn, setRevertedIn] = useState<number | null>(report.reverted_in ?? null);
   const [prompt, setPrompt] = useState<string | null>(null);
+  // a decision's answer: the one waiting for its confirm, the one being posted, and what each posted (for Undo)
+  const [asking, setAsking] = useState<{ t: number; o: number } | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [posted, setPosted] = useState<Record<string, Posted[]>>({});
   const promptRef = useRef<HTMLElement>(null);
   const states = useMemo(() => new Map((data?.rows ?? []).map((s) => [rowKey(s.rule, s.course), s])), [data]);
 
-  // saving from a row card: the event the Rules tab would post; the row shows it at once, then the rows refetch
-  const post = async (base: ReportRowState, ev: NewEvent) => {
+  // saving from the report: the event the Rules tab would post; the row shows it at once, then the rows refetch
+  const post = async (base: ReportRowState, ev: NewEvent, refetch = true): Promise<HistEvent | null> => {
     const key = rowKey(base.rule, base.course);
     try {
       const r = await api.annotate(catalog, ev);
-      const b: HistEvent = { ...briefOf(r.event as Parameters<typeof briefOf>[0]), after_run: true };
+      const stored = r.event as Parameters<typeof briefOf>[0] & { reasons?: string[] };
+      const b: HistEvent = { ...briefOf(stored), ...(stored.reasons?.length ? { reasons: stored.reasons } : {}), after_run: true };
       const add = (s: ReportRowState): ReportRowState =>
         ({ ...s, history: [...s.history, b], ...(b.type === "verdict" && b.verdict ? { verdict: b, state: b.verdict } : {}) });
       setData((d) => {
@@ -129,7 +158,7 @@ export function Report({ catalog, run, report, notes, pastRuns }: ReportProps) {
         const rows = has ? all.map((s) => (rowKey(s.rule, s.course) === key ? add(s) : s)) : [...all, add(base)];
         return { annotations_as_of: null, new_feedback: 0, ...d, rows };
       });
-      reload();
+      if (refetch) reload();
       return b;
     } catch (e) {
       toast(`Not saved: ${String(e instanceof Error ? e.message : e)}`);
@@ -137,8 +166,34 @@ export function Report({ catalog, run, report, notes, pastRuns }: ReportProps) {
     }
   };
 
-  const card = (rr: ReportRow, lead: HistItem[] = []): ReactNode => {
+  /** Undo verdicts posted from the report: one superseding verdict per course, restoring what was there before. */
+  const undo = async (done: Posted[], what: string) => {
+    let n = 0;
+    for (const p of done) {
+      const ev = undoEvent(me, p);
+      if (!ev) continue;
+      const st = states.get(rowKey(p.rule, p.course));
+      if (await post(st ?? { rule: p.rule, course: p.course, state: null, verdict: null, history: [] }, ev, false)) n++;
+    }
+    reload();
+    toast(n ? `Undone: ${what}` : "Nothing to undo: there was no earlier mark");
+  };
+
+  // every row card once per report (pass 7): a later mention links back to the card above
+  const seen = new Set<string>();
+  const shownAbove = (rr: ReportRow, sentence?: boolean) => {
+    const go = () => document.getElementById(domId(run.run_id, rr.rule, rr.course))?.scrollIntoView?.({ block: "start", behavior: "smooth" });
+    const link = <button className="linkish" onClick={go}>shown above</button>;
+    return (
+      <p key={`above-${rowKey(rr.rule, rr.course)}-${sentence ? "c" : "r"}`} className="report-above" data-testid="shown-above">
+        {sentence && rr.comment ? <>Claude's comment is on {rr.course}'s row, {link}.</> : <>{rr.course}'s row is {link}.</>}
+      </p>);
+  };
+
+  const card = (rr: ReportRow, o: { hist?: HistItem[]; intro?: string | null } = {}): ReactNode => {
     const key = rowKey(rr.rule, rr.course);
+    if (seen.has(key)) return shownAbove(rr, true);
+    seen.add(key);
     const st = states.get(key);
     const history = st?.history ?? rr.history ?? [];
     const row = toRow(rr, st, history);
@@ -149,29 +204,42 @@ export function Report({ catalog, run, report, notes, pastRuns }: ReportProps) {
     const draft = drafts[key] ?? null;
     const setDraft = (d: Draft | null) => setDrafts((x) => { const y = { ...x }; if (d) y[key] = d; else delete y[key]; return y; });
     const wrongHref = rr.links?.wrong ?? rulesHref(catalog, rr.rule, rr.course, ext, true);
+    const saves = inf?.saves === "expected";
     const pick = async (v: "correct" | "wrong" | "comment") => {
       if (v === "wrong") { window.open(wrongHref, "_blank", "noopener"); return; }
       if (v === "comment") { setDraft(draft?.mode === "comment" ? null : newDraft("comment", row.verdict, row.state)); return; }
+      if (!saves && row.verdict?.verdict === "correct" && row.state === "correct") {
+        toast(`${rr.course}'s ${lab} is already marked correct`);  // a second ✓ would only repeat it
+        return;
+      }
       // ✓ (spec §2.4): an inferred value the run didn't publish is saved as the expected value of the open ✕
-      const ev: NewEvent = inf?.saves === "expected"
-        ? { type: "verdict", author: me, target, verdict: "wrong", supersedes: inf.annotation,
-            expected: { text: inf.value, css_path: null, char_start: null, char_end: null } }
-        : verdictEvent(me, target, row.verdict, { verdict: "correct" });
+      const prev = row.verdict ?? null;
+      const ev: NewEvent = saves
+        ? { type: "verdict", author: me, target, verdict: "wrong", supersedes: inf!.annotation,
+            expected: { text: inf!.value, css_path: null, char_start: null, char_end: null } }
+        : verdictEvent(me, target, prev, { verdict: "correct" });
       const b = await post(base, ev);
-      if (b) toast(inf?.saves === "expected" ? `Saved as ${rr.course}'s expected ${lab}` : `Correct: ${rr.course}`);
+      if (!b) return;
+      const what = saves ? `Saved the value Claude worked out as ${rr.course}'s expected ${lab}` : `Marked ${rr.course}'s ${lab} correct`;
+      const p: Posted = { rule: rr.rule, course: rr.course, target, id: b.annotation_id, prev: prev?.type === "verdict" ? prev : null };
+      if (undoEvent(me, p)) toastAction(what, "Undo", () => void undo([p], `${rr.course}'s ${lab} is back to ${markWord(prev).toLowerCase()}`));
+      else toast(what);
     };
     const saveComment = async () => {
       if (!draft) return;
       const b = await post(base, verdictEvent(me, target, row.verdict, { draft }));
-      if (b) { setDraft(null); toast(`Comment saved on ${rr.course}`); }
+      if (b) { setDraft(null); toast(`Comment saved on ${rr.course}'s ${lab}`); }
     };
     const before = rr.value_before ? [{ cls: "muted" as const, text: `In v${rr.value_before.version}: ${rr.value_before.value || "empty"}` }] : [];
     return (
-      <div className="rows" key={key}>
-        <RowCard row={row} kind="property" label={lab} on stacked review={false} lead={[...before, ...lead]}
+      <div key={key} id={domId(run.run_id, rr.rule, rr.course)}>
+        {o.intro && <p className="report-lead" data-testid="row-lead">{o.intro}</p>}
+        <div className="rows"><RowCard row={row} kind="property" label={lab} on stacked review={false} lead={[...before, ...(o.hist ?? [])]}
           history={reportHistory(history)} draft={draft} onPick={(v) => void pick(v)}
-          okTitle={inf ? `Correct (1): this is the right value. Saves it as ${rr.course}'s expected ${lab}` : "Correct (1)"}
-          wrongTitle="Wrong: opens this row in the Rules tab, in a new browser tab, to select the right text"
+          okTitle={saves ? `Mark ${rr.course}'s ${lab} correct: saves the value Claude worked out as its expected ${lab}`
+            : `Mark ${rr.course}'s ${lab} correct`}
+          wrongTitle={`Mark ${rr.course}'s ${lab} wrong: opens the row in the Rules tab, in a new browser tab, to select the right text`}
+          talkTitle={`Comment on ${rr.course}'s ${lab}`}
           links={<>
             <a className="xbtn" href={href(catalog, "records", rr.course, { prop: lab, occ: row.occurrence_key })}
               title="Open this course in the Records tab">Open in Records →</a>{" "}
@@ -180,9 +248,142 @@ export function Report({ catalog, run, report, notes, pastRuns }: ReportProps) {
           </>}
           below={rr.left_out?.length ? <LeftOut passages={rr.left_out} /> : null}
           expansion={draft ? <Expansion draft={draft} propertyRule onChange={setDraft} onSave={() => void saveComment()}
-            onCancel={() => setDraft(null)} /> : null} />
+            onCancel={() => setDraft(null)} /> : null} /></div>
       </div>
     );
+  };
+
+  // --- a decision's answers --------------------------------------------------------------------------------------
+  /** A course's verdict now: from the refetched rows, else as the run ended. */
+  const nowOf = (c: ReportCourse, rule: string): { verdict: EventBrief | null; occurrence_key: string | null } => {
+    const st = states.get(rowKey(rule, c.course));
+    return { verdict: st ? st.verdict : c.current ?? null, occurrence_key: st?.occurrence_key ?? c.occurrence_key ?? null };
+  };
+  const isDone = (o: ToDoOption) => !!o.do?.event && o.do.courses.length > 0
+    && o.do.courses.every((c) => hasMark(nowOf(c, o.do!.rule).verdict, o.do!.mark));
+  const doWords = (o: ToDoOption) => {
+    const d = o.do!;
+    return `Mark ${d.count === 1 ? d.courses[0]?.course : `${fmt(d.count)} courses`} ${d.words}`;
+  };
+  const answer = async (ti: number, oi: number) => {
+    const o = report.to_do[ti].options[oi];
+    const d = o.do;
+    setAsking(null);
+    if (!d?.event) return;
+    setBusy(true);
+    const done: Posted[] = [];
+    for (const c of d.courses) {
+      const now = nowOf(c, d.rule);
+      const target = rowTarget("property", d.rule, { occurrence_key: now.occurrence_key, page_stem: c.page_stem ?? "" });
+      const prev = now.verdict?.type === "verdict" ? now.verdict : null;
+      if (hasMark(prev, d.mark)) continue;  // already so: nothing to post
+      const ev: NewEvent = { type: "verdict", author: me, target, verdict: d.event.verdict, supersedes: prev?.annotation_id ?? null,
+                             ...(d.event.reasons ? { reasons: d.event.reasons } : {}) };
+      const st = states.get(rowKey(d.rule, c.course));
+      const b = await post(st ?? { rule: d.rule, course: c.course, state: c.state ?? null, verdict: prev, history: [] }, ev, false);
+      if (!b) break;
+      done.push({ rule: d.rule, course: c.course, target, id: b.annotation_id, prev });
+    }
+    setBusy(false);
+    reload();
+    if (!done.length) return;
+    const key = `${ti}:${oi}`;
+    setPosted((x) => ({ ...x, [key]: done }));
+    const what = done.length === 1 ? `${done[0].course} marked ${d.words}` : `${fmt(done.length)} courses marked ${d.words}`;
+    toastAction(`Done: ${what}`, "Undo", () => { setPosted((x) => { const y = { ...x }; delete y[key]; return y; });
+      void undo(done, `${done.length === 1 ? done[0].course : `${fmt(done.length)} courses`} back to their earlier marks`); });
+  };
+
+  const options = (t: ReportToDo, ti: number): ReactNode => {
+    if (!t.options.length) return null;
+    if (!t.options.some((o) => o.do?.event || o.button)) {  // a report resolved before pass 7: the answers as sentences
+      return t.options.map((o, i) => <p key={i} className="report-option">{optionText(o.text)}</p>);
+    }
+    const doneAt = t.options.findIndex(isDone);
+    if (doneAt >= 0) {
+      const o = t.options[doneAt];
+      const mine = posted[`${ti}:${doneAt}`];
+      const again = o.then?.run_again?.map((r) => r.rule) ?? [];
+      return (
+        <div className="report-options" data-testid="answer-done">
+          <p className="report-option"><b>Done:</b> {o.done ?? doWords(o)}.{mine && <>{" "}
+            <button className="linkish" disabled={busy} onClick={() => { setPosted((x) => { const y = { ...x }; delete y[`${ti}:${doneAt}`]; return y; });
+              void undo(mine, `${mine.length === 1 ? mine[0].course : `${fmt(mine.length)} courses`} back to their earlier marks`); }}>Undo</button></>}
+          </p>
+          {again.length > 0 && <p className="report-option">{o.then?.text}{" "}
+            <button className="btn primary" onClick={() => openRunDialog(again)}><Ico name="spark" />Run again</button></p>}
+        </div>);
+    }
+    return (
+      <div className="report-options" data-testid="answers">
+        {t.options.map((o, oi) => {
+          const extra = [o.effect, ...(o.no_rule_yet ?? []), o.then?.text].filter(Boolean).join(" ");
+          return (
+            <div key={oi} className="report-option">
+              {o.do?.event
+                ? <button className="btn" disabled={busy} onClick={() => setAsking({ t: ti, o: oi })}
+                    title={`${doWords(o)} for ${o.do.rule_name ?? o.do.rule}. You confirm first, and can undo it.`}>{o.button ?? doWords(o)}</button>
+                : o.link
+                  ? <a className="btn" href={o.link} target="_blank" rel="noopener" title="Opens the rows in the Rules tab, in a new browser tab">{o.button ?? o.answer}</a>
+                  : <span><b>{o.button ?? o.answer}</b></span>}
+              {extra && <span className="faint">{extra}</span>}
+            </div>);
+        })}
+      </div>);
+  };
+
+  /** The rest of a set of courses: a table, one row per course, folded when long. */
+  const courseTable = (rule: string, courses: ReportCourse[], lead: string) => {
+    const table = (
+      <table className="evx-wrong-t report-courses" data-testid="course-table">
+        <thead><tr><th>Course</th><th>Title</th><th>Value</th><th>Mark</th><th /></tr></thead>
+        <tbody>{courses.map((c) => {
+          const v = nowOf(c, c.rule ?? rule).verdict;
+          return (
+            <tr key={c.course}>
+              <td>{c.course}</td><td>{c.title ?? ""}</td><td className="report-val">{valueText(c.value, c.status)}</td>
+              <td>{v ? markWord(v) : c.verdict === "correct" ? "Correct" : c.verdict === "wrong" ? "Wrong" : "Not reviewed"}</td>
+              <td><a className="xbtn" href={c.links?.rules ?? rulesHref(catalog, c.rule ?? rule, c.course, ext)} target="_blank" rel="noopener"
+                title={`Opens ${c.course}'s row in the Rules tab, in a new browser tab`}>Open in Rules →</a></td>
+            </tr>);
+        })}</tbody>
+      </table>);
+    return courses.length > 5
+      ? <details className="run-fold" key={`t-${rule}`}><summary>{lead.replace(/:$/, "")}</summary>{table}</details>
+      : <div key={`t-${rule}`}><p className="report-lead">{lead}</p>{table}</div>;
+  };
+
+  /** A decision: what to decide and why, the answers, then the evidence (pass 7). */
+  const toDoBody = (t: ReportToDo, ti: number): ReactNode => {
+    const shown = new Set(t.about.map((r) => rowKey(r.rule, r.course)));
+    const intro = (r: ReportRow & { lead?: string | null }) => {
+      if (r.lead) return r.lead;
+      const v = states.get(rowKey(r.rule, r.course))?.verdict ?? r.verdict;
+      return v && (v.verdict === "correct" || v.verdict === "wrong") ? `Here is the row ${v.author} marked ${v.verdict}:` : "Here is the row this question is about:";
+    };
+    const optionEffects = t.options.some((o) => o.effect);
+    return <>
+      {t.why && <p className="report-why" data-testid="to-do-why">{t.why}</p>}
+      {options(t, ti)}
+      {!optionEffects && (t.effect ?? []).length > 0 && <p className="faint">{(t.effect ?? []).map((e) => e.text).join(" ")}</p>}
+      {t.about.map((r) => <div key={`ab-${rowKey(r.rule, r.course)}`}>{card(r, { intro: intro(r) })}</div>)}
+      {t.evidence.map((e, i) => {
+        if (e.kind === "quote") {
+          const src = e.source;
+          if (src?.kind === "note" && src.course && src.rule && shown.has(rowKey(src.rule, src.course))) return null;  // on the card
+          const who = src?.kind === "page" ? `On ${src.course}'s page:` : src?.author ? `${src.author}'s note${src.course ? ` on ${src.course}` : ""}:` : null;
+          return <div key={i} className="report-quote">{who && <div className="faint">{who}</div>}
+            <blockquote className="sel-quote">{e.quote}</blockquote></div>;
+        }
+        const first = e.rows[0];
+        return (
+          <div key={i}>
+            {first && card(first, { intro: first.lead ?? (e.count > 1 ? `Here is one of the ${fmt(e.count)} courses ${e.label}:` : `Here is the course ${e.label}:`) })}
+            {e.courses.length > 0 && courseTable(e.rule, e.courses, e.others_lead
+              ?? `The other ${fmt(e.courses.length)} ${e.courses.length === 1 ? "course" : "courses"} ${e.label}:`)}
+          </div>);
+      })}
+    </>;
   };
 
   // values Claude worked out: the first open, the rest folded; then decisions, open as the CLI says (at most 3)
@@ -191,17 +392,17 @@ export function Report({ catalog, run, report, notes, pastRuns }: ReportProps) {
     const why = v?.verdict === "wrong" && !v.expected?.text
       ? `${v.author} marked ${inf.course} wrong without selecting the right text. Claude worked out the value below from the notes and the page.`
       : "Claude worked out the value below from the notes and the page.";
-    const lead = (inf.evidence ?? []).filter((e) => e.source?.kind === "page").map((e) => ({ cls: "muted" as const, text: `On the page: “${e.quote}”` }));
-    const body = <><p>{why}</p>{card(inf.row, lead)}</>;
+    const hist = (inf.evidence ?? []).filter((e) => e.source?.kind === "page").map((e) => ({ cls: "muted" as const, text: `On the page: “${e.quote}”` }));
+    const body = <><p>{why}</p>{card(inf.row, { hist })}</>;
     return i === 0
       ? <div key={`inf${i}`}>{body}</div>
-      : <details key={`inf${i}`} className="run-fold"><summary>{inf.course}: {inf.rule_name ?? inf.rule}</summary>{body}</details>;
+      : <details key={`inf${i}`} className="run-fold"><summary>{inf.rule_name ?? inf.rule} for {inf.row.title ?? inf.course}</summary>{body}</details>;
   });
   let opened = 0;
   const toDos = report.to_do.map((t, i) => {
     const open = (t.open ?? i === 0) && opened < 3;
     if (open) opened++;
-    const body = <ToDoBody t={t} card={card} catalog={catalog} ext={ext} />;
+    const body = toDoBody(t, i);
     return open
       ? <section key={`td${i}`} className="runs-sec" data-testid="to-do"><h3>{t.ask}</h3>{body}</section>
       : <details key={`td${i}`} className="runs-sec run-fold" data-testid="to-do"><summary>{t.ask}</summary>{body}</details>;
@@ -257,6 +458,10 @@ export function Report({ catalog, run, report, notes, pastRuns }: ReportProps) {
     );
   };
 
+  const ask = asking ? report.to_do[asking.t]?.options[asking.o] : null;
+  const askD = ask?.do ?? null;
+  const toPost = askD ? askD.courses.filter((c) => !hasMark(nowOf(c, askD.rule).verdict, askD.mark)) : [];
+
   return (
     <>
       <div className="runs-detail" data-testid="run-report">
@@ -268,7 +473,7 @@ export function Report({ catalog, run, report, notes, pastRuns }: ReportProps) {
         </div>
         <dl className="run-facts" data-testid="report-facts">
           {facts.filter((f) => !isRuleset(f)).map((f) => <Fact key={f.label} label={f.label} text={f.text} />)}
-          <dt>Started</dt><dd>{when(run.created_at)} by {run.started_by}</dd>
+          <dt>Started</dt><dd><When at={run.created_at} /> by {run.started_by}</dd>
           {run.ended_at && <><dt>Ran</dt><dd>{elapsed(run.sent_at ?? run.created_at, run.ended_at)}</dd></>}
           {facts.filter(isRuleset).map((f) => <Fact key={f.label} label={f.label} text={f.text} />)}
           {report.ending === "failed" && report.reason && <Fact label="Why" text={report.reason} />}
@@ -285,7 +490,8 @@ export function Report({ catalog, run, report, notes, pastRuns }: ReportProps) {
           <summary>Progress notes ({notes.length})</summary>
           <ol className="run-notes">
             {notes.length === 0 && <li className="faint">No notes.</li>}
-            {notes.map((n, i) => <li key={i} className={`rn-${n.kind}`}><time dateTime={n.at}>{clock(n.at)}</time><span>{n.text}</span></li>)}
+            {notes.map((n, i) => <li key={i} className={`rn-${n.kind}`}>
+              <time dateTime={n.at} title={fullTime(n.at)}>{elapsed(run.sent_at ?? run.created_at, n.at)} in</time><span>{n.text}</span></li>)}
           </ol>
         </details>
         {showPrompt && <section className="runs-sec" ref={promptRef}><h3>The prompt Claude was given</h3>
@@ -318,6 +524,31 @@ export function Report({ catalog, run, report, notes, pastRuns }: ReportProps) {
           </div>
         </div>
       )}
+      {ask && askD && asking && (
+        <div className="ac-back" onClick={() => setAsking(null)}>
+          <div className="ac run-ask" role="dialog" aria-modal="true" aria-labelledby="answer-ask-h" data-testid="answer-ask"
+            onClick={(e) => e.stopPropagation()}>
+            <div className="ac-head"><h2 id="answer-ask-h">{doWords(ask)}?</h2>
+              <button className="ac-x" aria-label="Close" onClick={() => setAsking(null)}>×</button></div>
+            <div className="ac-body">
+              <p>{toPost.length === 0 ? `Every course is already marked ${askD.words}. Nothing will be posted.`
+                : `This records ${toPost.length === 1 ? "one verdict" : `${fmt(toPost.length)} verdicts`} on ${askD.rule_name ?? askD.rule}, `
+                  + `one per course, as ${me}. Each replaces the course's current mark. You can undo it afterwards.`}</p>
+              {toPost.length > 0 && <div className="report-ask-list"><table className="evx-wrong-t" data-testid="answer-ask-courses">
+                <thead><tr><th>Course</th><th>Title</th><th>Now</th><th>After</th></tr></thead>
+                <tbody>{toPost.map((c) => (
+                  <tr key={c.course}><td>{c.course}</td><td>{c.title ?? ""}</td><td>{markWord(nowOf(c, askD.rule).verdict)}</td>
+                    <td>{markWord({ verdict: askD.event!.verdict, reasons: askD.event!.reasons })}</td></tr>))}</tbody>
+              </table></div>}
+              {(ask.then?.text || ask.no_rule_yet?.length) && <p className="run-note">{[...(ask.no_rule_yet ?? []), ask.then?.text].filter(Boolean).join(" ")}</p>}
+            </div>
+            <div className="ac-foot">
+              <button className="btn" onClick={() => setAsking(null)}>Cancel</button>
+              <button className="btn primary" disabled={!toPost.length} onClick={() => void answer(asking.t, asking.o)} autoFocus>{doWords(ask)}</button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }
@@ -336,44 +567,4 @@ function LeftOut({ passages }: { passages: { text: string }[] }) {
         </div>))}
     </div>
   );
-}
-
-/** A decision: the rows it is about (each with who said what), the evidence (a quote, or a set of courses: the first
- * as a row card, the others as codes whose hover is the app's Tip), and the options as sentences. */
-function ToDoBody({ t, card, catalog, ext }: { t: ReportToDo; card: (r: ReportRow) => ReactNode; catalog: string; ext: string | null }) {
-  const shown = new Set(t.about.map((r) => rowKey(r.rule, r.course)));
-  const said = (r: ReportRow) => {
-    const v = r.verdict;
-    if (!v || (v.verdict !== "correct" && v.verdict !== "wrong")) return null;
-    return `${v.author} marked ${r.course} ${v.verdict}${v.note ? " and said why" : ""}:`;
-  };
-  return <>
-    {t.about.map((r) => <div key={rowKey(r.rule, r.course)}>{said(r) && <p>{said(r)}</p>}{card(r)}</div>)}
-    {t.evidence.map((e, i) => {
-      if (e.kind === "quote") {
-        const src = e.source;
-        if (src?.kind === "note" && src.course && src.rule && shown.has(rowKey(src.rule, src.course))) return null;  // on the card
-        const who = src?.kind === "page" ? `On ${src.course}'s page:` : src?.author ? `${src.author}${src.course ? `, on ${src.course}` : ""}:` : null;
-        return <div key={i} className="report-quote">{who && <div className="faint">{who}</div>}
-          <blockquote className="sel-quote">{e.quote}</blockquote></div>;
-      }
-      const first = e.rows[0];
-      return (
-        <div key={i}>
-          <p>{fmt(e.count)} courses {e.label}{first ? `, like ${first.course}:` : "."}</p>
-          {e.rows.map((r) => card(r))}
-          {e.courses.length > 0 && (
-            <p className="report-others">The other {fmt(e.courses.length)}:{" "}
-              {e.courses.map((c, j) => (
-                <span key={c.course}>{j > 0 && ", "}
-                  <Tip width={320} tip={<><span className="hd">{c.course}{c.title ? `: ${c.title}` : ""}</span>{c.value || "Not on the page"}
-                    <span className="ft">{verdictWord(c.verdict)}</span></>}>
-                    <button className="linkish" onClick={() => window.open(rulesHref(catalog, e.rule, c.course, ext), "_blank", "noopener")}>{c.course}</button>
-                  </Tip>
-                </span>))}.
-            </p>)}
-        </div>);
-    })}
-    {t.options.map((o, i) => <p key={i} className="report-option">{optionText(o.text)}</p>)}
-  </>;
 }

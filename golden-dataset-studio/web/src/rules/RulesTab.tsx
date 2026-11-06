@@ -16,7 +16,7 @@ import { AnnotatedBy, VerdictSwitch, WaitingNote } from "./AnnotatedBy";
 import { apiX, type Annotators, type RowX } from "./api";
 import {
   addCapture, applyEvent, applyItem, applyMissingItem, applyReview, BY_ANYONE, BY_WAITING, briefOf, canConfirm, filterCountTip,
-  groupOf, isField, itemEvent, keyAction, markPiece, missingEvent, pinnedComment, missingItemEvent, moveIn, newDraft, pageGroups, pushRecent, paneTabs,
+  groupOf, isField, itemEvent, keyAction, markPiece, rowKeysBlocked, missingEvent, pinnedComment, missingItemEvent, moveIn, newDraft, pageGroups, pushRecent, paneTabs,
   rowTarget, scrollWithin, shortTitle, subjectOf, verdictEvent, type Draft, type Level, type Piece, type TabRef,
 } from "./logic";
 import { MissedCourse, MissedPage, type MissedState } from "./MissedPanel";
@@ -626,7 +626,7 @@ export default function RulesTab({ catalog, route }: TabProps) {
   const keys = useRef<(e: KeyboardEvent) => void>(() => {});
   keys.current = (e: KeyboardEvent) => {
     const a = keyAction(e, isField(e.target));
-    if (!a || !row) return;
+    if (!a || !row || rowKeysBlocked()) return;
     if (a === "save") {
       if (missed) { e.preventDefault(); void saveMissed(); }
       else if (itemAdd?.capture) { e.preventDefault(); void saveAddItem(); }

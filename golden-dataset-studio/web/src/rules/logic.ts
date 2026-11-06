@@ -78,12 +78,36 @@ export interface HistItem {
   n?: number;
   /** a comment Claude wrote in an AI run: "(v10, AI run Nov 6)" after the name, the run linked (one-rule-runs §1.6) */
   run?: { id: string; version: number | null; at: string };
+  /** when it happened, shown after `text` as a relative time ("12 minutes ago") whose tooltip is the full date and
+   * time zone; `after` follows it (", after this run.") */
+  when?: string; after?: string;
+}
+
+/** "Nov 5, 2026, 6:28 PM MST": the full date and time with the time zone (the tooltip of a relative time). */
+export const fullTime = (at: string) => new Date(at).toLocaleString("en-US", {
+  month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit", timeZoneName: "short" });
+
+/** A time as people say it: "just now", "12 minutes ago", "3 hours ago", "yesterday", "4 days ago", then "Oct 21"
+ * (with the year when it isn't this year). Never a bare clock time, which says nothing without its time zone. */
+export function ago(at: string | null | undefined, now = Date.now()): string {
+  const t = at ? Date.parse(at) : NaN;
+  if (Number.isNaN(t)) return "";
+  const m = Math.floor((now - t) / 60_000);
+  if (m < 1) return "just now";
+  if (m < 60) return m === 1 ? "1 minute ago" : `${m} minutes ago`;
+  const dayStart = (x: number) => { const d = new Date(x); d.setHours(0, 0, 0, 0); return d.getTime(); };
+  const days = Math.round((dayStart(now) - dayStart(t)) / 86_400_000);
+  const h = Math.floor(m / 60);
+  if (days === 0 || h < 6) return h === 1 ? "1 hour ago" : `${h} hours ago`;
+  if (days === 1) return "yesterday";
+  if (days < 7) return `${days} days ago`;
+  const d = new Date(t);
+  return d.toLocaleDateString("en-US", { month: "short", day: "numeric",
+    ...(d.getFullYear() !== new Date(now).getFullYear() ? { year: "numeric" } : {}) });
 }
 
 /** "Nov 6" (the browser's time zone). */
 export const monthDay = (at: string) => new Date(at).toLocaleDateString("en-US", { month: "short", day: "numeric" });
-/** "10:04 AM" (the browser's time zone). */
-export const clockTime = (at: string) => new Date(at).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
 const isAi = (e: EventBrief) => e.author_role === "ai" || (!!e.run_id && e.author === "Claude");
 
 /** The short line a note or a verdict made on a diff carries (Evals spec §4.2). */
@@ -143,32 +167,50 @@ function aiItem(c: EventBrief & { run_at?: string | null }): HistItem {
 }
 
 /** A report row's history line (one-rule-runs §1.4, §1.6; contract §2.6): every live verdict and comment, oldest
- * first. A verdict's note, Claude's comments with their run, and what people did after the run said as such:
- * "Jared Diener marked it correct, 10:04 AM, after this run." */
-export function reportHistory(events: (EventBrief & { run_at?: string | null; after_run?: boolean })[]): HistItem[] {
+ * first. A verdict's note, Claude's comments with their run, and what people did after the run said as such, with a
+ * relative time whose tooltip has the date and time zone: "Jared Diener marked it correct 12 minutes ago, after this run." */
+export function reportHistory(events: (EventBrief & { run_at?: string | null; after_run?: boolean; kind?: string })[]): HistItem[] {
   const out: HistItem[] = [];
   let pinned = 0;
-  for (const e of events) {
-    const late = e.after_run ? `${clockTime(e.at)}, after this run` : "";
+  for (const x of events) {
+    // the CLI's resolved report names an item's type `kind` (contract §3.3); `…/rows` sends `type`
+    const e = x.type ? x : { ...x, type: x.kind as EventBrief["type"] };
     if (e.type === "comment") {
       const n = e.anchor?.css_path ? ++pinned : undefined;
       if (!e.note) continue;
       if (isAi(e)) { out.push(aiItem(e)); continue; }
-      out.push({ cls: "comment", author: e.author, text: `“${e.note}”${late ? ` ${late}.` : ""}`, n, id: e.annotation_id });
+      out.push({ cls: "comment", author: e.author, text: `“${e.note}”`, n, id: e.annotation_id,
+                 ...(e.after_run ? { when: e.at, after: ", after this run." } : {}) });
       continue;
     }
     if (e.type !== "verdict") continue;
     const note = e.note ? `“${e.note}”` : e.expected?.text ? `expected “${clip(e.expected.text, 90)}”` : "";
     if (e.after_run) {
-      const what = e.verdict === "correct" ? "marked it correct" : e.verdict === "wrong" ? "marked it wrong"
-        : e.verdict === "question" ? "asked the institution" : `marked it ${e.verdict ?? ""}`.trim();
       out.push({ cls: e.verdict === "correct" ? "good" : e.verdict === "wrong" ? "bad" : "note",
-                 text: `${e.author} ${what}, ${late}.${note ? ` ${note}` : ""}`, id: e.annotation_id });
+                 text: `${e.author} ${verdictWords(e)}`, when: e.at, after: `, after this run.${note ? ` ${note}` : ""}`,
+                 id: e.annotation_id });
     } else if (e.verdict === "question") {
       out.push({ cls: "expert", text: e.note ? `Question for the institution: “${e.note}”` : "Waiting for the institution's answer", id: e.annotation_id });
     } else if (note) out.push({ cls: "note", author: e.author, text: note, id: e.annotation_id });
   }
   return out;
+}
+
+/** "marked it correct", "marked it wrong", "marked it Not on the page", "asked the institution". */
+export function verdictWords(e: Pick<EventBrief, "verdict" | "reasons">): string {
+  if (e.verdict === "correct") return "marked it correct";
+  if (e.verdict === "wrong") return e.reasons?.includes("not_on_page") ? "marked it Not on the page" : "marked it wrong";
+  if (e.verdict === "question") return "asked the institution";
+  return `marked it ${e.verdict ?? ""}`.trim();
+}
+
+/** A row's mark in a table: "Correct", "Wrong", "Not on the page", "Question for the institution", "Not reviewed". */
+export function markWord(e: Pick<EventBrief, "verdict" | "reasons"> | null | undefined): string {
+  if (!e?.verdict) return "Not reviewed";
+  if (e.verdict === "correct") return "Correct";
+  if (e.verdict === "wrong") return e.reasons?.includes("not_on_page") ? "Not on the page" : "Wrong";
+  if (e.verdict === "question") return "Question for the institution";
+  return e.verdict === "missing" ? "Missing" : e.verdict;
 }
 
 // --- events ------------------------------------------------------------------------------------------------------
@@ -436,6 +478,10 @@ export function keyAction(e: { key: string; shiftKey?: boolean; metaKey?: boolea
   const k = e.key.toLowerCase();
   return ({ a: "correct", w: "wrong", c: "comment", h: "select", 1: "correct", 2: "wrong", 3: "comment" } as Record<string, KeyAction>)[k] ?? null;
 }
+
+/** The Rules tab's keys (1, 2, 3, A, W, C, Enter) act on its selected row only when nothing covers the list: with an
+ * AI run's report or the AI runs drawer open (`.run-watch`), a key pressed there must never mark the row behind it. */
+export const rowKeysBlocked = (doc: Document = document) => !!doc.querySelector(".run-watch");
 
 export const isField = (t: EventTarget | null) => {
   const el = t as HTMLElement | null;

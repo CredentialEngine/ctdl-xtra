@@ -135,6 +135,16 @@
 .report-notes { white-space: pre-wrap; }
 .report-foot-r { display: flex; align-items: center; gap: 8px; margin-left: auto; }
 .report-foot-r .faint { font-size: 12.5px; }
+/* a decision (pass 7): why, the answers as buttons, then the evidence; rows introduced in words; sets as tables */
+.report-options { display: flex; flex-direction: column; gap: 6px; margin: 0 0 12px; }
+.report-option { margin: 0; font-size: 13px; line-height: 1.45; display: flex; align-items: baseline; gap: 10px; }
+.report-option > .btn { flex: none; }
+.report-option .btn { padding: 3px 10px; font-size: 12.5px; }
+.report-option > .faint { min-width: 0; }
+.runs-sec p.report-lead { margin: 10px 0 4px; }
+.report-courses td.report-val { overflow-wrap: anywhere; }
+.report-courses .xbtn { white-space: nowrap; }
+.report-ask-list { max-height: 40vh; overflow: auto; margin-bottom: 8px; }
 /* AI runs: the queue's sections above the past runs (one-rule-runs §1.7) */
 .runs-sec .runs-list { padding: 0; overflow: visible; flex: none; }
 .runs-sec.runs-plain { border-top: 0; padding: 4px 12px 16px; }

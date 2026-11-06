@@ -216,13 +216,31 @@ export interface QuoteSource {
   kind: "note" | "page" | "value"; annotation_id?: string; author?: string; at?: string; rule?: string | null;
   course?: string | null; title?: string | null; before?: string | null; after?: string | null;
 }
+/** A course in a table (the rest of a set, the courses an answer marks; contract §3.5): enough to show it, link to
+ * it, and post a verdict that supersedes its current one. Reports before pass 7 have only course, title, value, verdict. */
+export interface ReportCourse {
+  course: string; title: string | null; value: string | null; verdict: string | null;
+  rule?: string; status?: ReportRow["status"]; occurrence_key?: string | null; page_stem?: string | null;
+  state?: RowStateName | null; current?: EventBrief | null; links?: { rules?: string } | null;
+}
 export type ToDoEvidence =
   | { kind: "quote"; quote: string; source?: QuoteSource | null }
-  | { kind: "set"; label: string; rule: string; count: number; rows: ReportRow[];
-      courses: { course: string; title: string | null; value: string | null; verdict: string | null }[]; link?: string | null };
+  | { kind: "set"; label: string; rule: string; count: number; rows: (ReportRow & { lead?: string | null })[];
+      courses: ReportCourse[]; others_lead?: string | null; link?: string | null };
+/** One answer of a decision (contract §3.5, pass 7): a button that posts one verdict per course. */
+export interface ToDoOption {
+  answer: string; text: string; link?: string | null;
+  /** pass 7 */ label?: string; button?: string; done?: string | null; effect?: string | null; no_rule_yet?: string[];
+  do?: { mark: "correct" | "wrong" | "not_on_page" | "save_expected"; rule: string; rule_name?: string; words: string;
+         event: { verdict: "correct" | "wrong"; reasons?: string[] } | null; count: number; courses: ReportCourse[] } | null;
+  then?: { publish: { rule: string; name: string; has_rule: boolean }[]; run_again: { rule: string; name: string }[];
+           text: string | null } | null;
+}
 export interface ReportToDo {
-  ask: string; open?: boolean; rule?: string; rule_name?: string; about: ReportRow[]; evidence: ToDoEvidence[];
-  options: { answer: string; text: string; link?: string | null }[];
+  ask: string; /** pass 7 */ why?: string | null; open?: boolean; rule?: string; rule_name?: string;
+  about: (ReportRow & { lead?: string | null })[]; evidence: ToDoEvidence[];
+  options: ToDoOption[];
+  effect?: { rule: string; rule_name?: string; text: string }[];
 }
 export interface ReportInferred {
   rule: string; rule_name?: string; course: string; value: string; published: boolean;

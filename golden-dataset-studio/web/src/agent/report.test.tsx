@@ -88,6 +88,8 @@ const respond = (status: number, body: unknown) =>
   Promise.resolve(new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } }));
 
 beforeEach(() => {
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(new Date("2026-11-07T19:04:00Z"));  // two hours after Jared's ✓ (JARED_OK)
   rowsFetches = 0;
   posts.length = 0;
   rows = { run_id: RUN.run_id, annotations_as_of: RUN.annotations_as_of!, new_feedback: 0,
@@ -124,7 +126,8 @@ beforeEach(() => {
 
 let host: HTMLDivElement, root: Root;
 beforeEach(() => { host = document.createElement("div"); document.body.appendChild(host); root = createRoot(host); });
-afterEach(() => { act(() => root.unmount()); host.remove(); vi.unstubAllGlobals(); vi.restoreAllMocks(); });
+afterEach(() => { act(() => root.unmount()); host.remove(); vi.unstubAllGlobals(); vi.restoreAllMocks(); vi.useRealTimers();
+  document.querySelectorAll(".toast").forEach((t) => t.remove()); });
 const flush = () => act(async () => { for (let i = 0; i < 6; i++) await Promise.resolve(); });
 
 async function render(report = REPORT, run = RUN) {
@@ -171,7 +174,11 @@ describe("Report", () => {
     expect(lines[1]).toBe("Jared Diener: “There should be no values for this property.”");
     expect(lines[2]).toBe("Claude (v10, AI run Nov 6): Empty is the value Jared's note asks for.");
     expect(card.querySelector(".hist a")!.getAttribute("href")).toBe(`#/c/avc/rules?run=${RUN.run_id}`);
-    expect(lines[3]).toMatch(/^Jared Diener marked it correct, \d{1,2}:\d\d [AP]M, after this run\.$/);
+    // a relative time, never a bare clock time; the tooltip has the date and the time zone
+    expect(lines[3]).toBe("Jared Diener marked it correct 2 hours ago, after this run.");
+    const t = card.querySelector(".hist time")!;
+    expect(t.getAttribute("dateTime")).toBe(JARED_OK.at);
+    expect(t.getAttribute("title")).toMatch(/^Nov 7, 2026, \d{1,2}:04 [AP]M (GMT|UTC|[A-Z]{2,5})/);
     // the row's controls show its current verdict (refetched), not the one at the run's end
     expect(card.querySelector(".cb.ok")!.className).toContain(" on");
     expect(card.querySelector(".byline")!.textContent).toBe("Jared Diener");
@@ -182,7 +189,7 @@ describe("Report", () => {
     const inf = host.querySelector("[data-testid=inferred]")!;
     expect(inf.querySelector("h3")!.textContent).toBe("Values Claude worked out");
     expect(inf.querySelectorAll(":scope > div [data-testid=row-card]").length).toBe(1);
-    expect(inf.querySelector("details > summary")!.textContent).toBe("GEOG222: In Catalog");
+    expect(inf.querySelector("details > summary")!.textContent).toBe("In Catalog for GEOG222 - A course");
     expect(inf.querySelector("p")!.textContent).toBe(
       "Eric Riddoch marked BIOL110 wrong without selecting the right text. Claude worked out the value below from the notes and the page.");
     // BIOL110's box holds the value Claude worked out; the lines it left out are struck through
@@ -194,17 +201,27 @@ describe("Report", () => {
     const todos = [...host.querySelectorAll("[data-testid=to-do]")];
     expect(todos.map((t) => t.tagName)).toEqual(["SECTION", "SECTION", "SECTION", "DETAILS"]);
     expect(todos[0].querySelector("h3")!.textContent).toBe("Should Subject Webpage be empty for every course?");
-    expect(todos[0].querySelector("p")!.textContent).toBe("3 courses marked correct, like GEOG222:");
-    expect(todos[0].querySelector(".report-others")!.textContent).toBe("The other 2: AERO199, AJ912.");
+    // a report resolved before pass 7: its answers are sentences, now before the evidence
     expect(todos[0].querySelector(".report-option b")!.textContent).toBe("If yes,");
+    const leads = [...todos[0].querySelectorAll("[data-testid=row-lead]")].map((p) => p.textContent);
+    expect(leads).toEqual(["Here is the row this question is about:", "Here is one of the 3 courses marked correct:"]);
+    expect(todos[0].querySelector("[data-testid=course-table]")).not.toBeNull();
+    // the same rows in the second decision are not shown again
+    expect([...todos[1].querySelectorAll("[data-testid=shown-above]")].map((p) => p.textContent))
+      .toEqual(["ACCT199's row is shown above.", "GEOG222's row is shown above."]);
   });
 
-  it("shows a course code's title, value and verdict in the app's Tip on hover", async () => {
+  it("shows the rest of a set as a table: course, title, value, mark and Open in Rules → per row", async () => {
     await render();
-    const code = [...host.querySelectorAll<HTMLButtonElement>(".report-others .linkish")].find((b) => b.textContent === "AERO199")!;
-    await act(async () => code.parentElement!.dispatchEvent(new MouseEvent("mouseover", { bubbles: true })));
-    const tip = document.querySelector(".evx-tip")!;
-    expect(tip.textContent).toBe("AERO199: AERO 199 - Flighthttps://avc.example/aero199Marked correct.");
+    const t = host.querySelector("[data-testid=to-do] [data-testid=course-table]")!;
+    expect([...t.querySelectorAll("th")].map((h) => h.textContent)).toEqual(["Course", "Title", "Value", "Mark", ""]);
+    const r = [...t.querySelectorAll("tbody tr")].map((tr) => [...tr.querySelectorAll("td")].map((td) => td.textContent));
+    expect(r).toEqual([["AERO199", "AERO 199 - Flight", "https://avc.example/aero199", "Correct", "Open in Rules →"],
+                       ["AJ912", "AJ 912 - Law", "https://avc.example/aj912", "Correct", "Open in Rules →"]]);
+    const a = t.querySelector<HTMLAnchorElement>("tbody a.xbtn")!;
+    expect(a.target).toBe("_blank");
+    expect(a.getAttribute("href")).toBe("#/c/avc/rules/course-subject-webpage?row=AERO199&by=anyone&ext=rs-0010");
+    expect(host.querySelector(".report-others")).toBeNull();  // no comma-separated codes
   });
 
   it("never shows a middle dot", async () => {
@@ -219,7 +236,7 @@ describe("Report", () => {
     await render();
     const card = cardOf("course-description", "BIOL110");
     const ok = card.querySelector<HTMLButtonElement>(".cb.ok")!;
-    expect(ok.title).toBe("Correct (1): this is the right value. Saves it as BIOL110's expected Description");
+    expect(ok.title).toBe("Mark BIOL110's Description correct: saves the value Claude worked out as its expected Description");
     await act(async () => ok.click());
     await flush();
     expect(posts).toHaveLength(1);

@@ -15,7 +15,7 @@ export type Pick3 = "correct" | "wrong" | "comment";
 
 export function RowCard({ row: r, kind, label, on, draft = null, perPage = false, items, links, index, onClick, onPick,
   linked = null, stacked = false, lead, history, expansion, below, review = true, tour, confirm, marked, commentOnly,
-  okTitle, wrongTitle }: {
+  okTitle, wrongTitle, talkTitle }: {
   row: RowX; kind: RuleKind;
   /** the value box's legend on an open card ("Description", "Found") */
   label: string | null;
@@ -39,6 +39,7 @@ export function RowCard({ row: r, kind, label, on, draft = null, perPage = false
   /** the "human-reviewed" line (the Rules tab); a report leaves it to the byline */
   review?: boolean;
   tour?: boolean; confirm?: boolean; marked?: boolean; commentOnly?: boolean; okTitle?: string; wrongTitle?: string;
+  talkTitle?: string;
 }) {
   const val = statusWords(r.status, r.value);
   const settled = isSettled(r.state);
@@ -71,7 +72,7 @@ export function RowCard({ row: r, kind, label, on, draft = null, perPage = false
         {expansion}
       </div>
       <Controls state={r.state} verdict={r.verdict} comments={r.comments} draft={draft} onPick={onPick} tour={tour}
-        confirm={confirm} marked={marked} commentOnly={commentOnly} okTitle={okTitle} wrongTitle={wrongTitle} stacked={stacked} />
+        confirm={confirm} marked={marked} commentOnly={commentOnly} okTitle={okTitle} wrongTitle={wrongTitle} talkTitle={talkTitle} stacked={stacked} />
     </div>
   );
 }

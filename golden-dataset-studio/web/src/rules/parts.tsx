@@ -2,10 +2,10 @@
 import { useEffect, useRef } from "react";
 import type { EventBrief, RowStateName } from "../api/types";
 import { Ico } from "../shell/icons";
-import { clip, controlOn, historyItems, monthDay, type Draft, type HistItem } from "./logic";
+import { ago, clip, controlOn, fullTime, historyItems, monthDay, type Draft, type HistItem } from "./logic";
 import { WhyWrong } from "./WhyWrong";
 
-export function Controls({ state, verdict, comments, draft, onPick, tour, confirm, marked, commentOnly, okTitle, wrongTitle, stacked }: {
+export function Controls({ state, verdict, comments, draft, onPick, tour, confirm, marked, commentOnly, okTitle, wrongTitle, talkTitle, stacked }: {
   state: RowStateName | null; verdict: EventBrief | null; comments: EventBrief[]; draft: Draft | null;
   onPick: (v: "correct" | "wrong" | "comment") => void; tour?: boolean;
   /** an engineer-checked value an expert sees: ✓ becomes Confirm (an ordinary ✓ by the expert, Evals spec §6.7) */
@@ -15,7 +15,7 @@ export function Controls({ state, verdict, comments, draft, onPick, tour, confir
   /** a list property's row: its items have their own ✓ and ✕, so the row has only the comment button */
   commentOnly?: boolean;
   /** the ✓ and ✕ tooltips when they do something else (an AI run's report: ✓ saves an inferred value, ✕ opens a new tab) */
-  okTitle?: string; wrongTitle?: string;
+  okTitle?: string; wrongTitle?: string; talkTitle?: string;
   /** an AI run's report: no " · " in the byline */
   stacked?: boolean;
 }) {
@@ -32,7 +32,7 @@ export function Controls({ state, verdict, comments, draft, onPick, tour, confir
               <Ico name="correct" />Confirm</button>
           : <button className={`cb ok${on === "correct" ? " on" : ""}`} title={okTitle ?? "Correct (1)"} aria-label="Correct" onClick={click("correct")}><Ico name="correct" /></button>}
         {!commentOnly && <button className={`cb no${on === "wrong" ? " on" : ""}`} title={wrongTitle ?? "Wrong (2): select the right text on the page"} aria-label="Wrong" onClick={click("wrong")}><Ico name="wrong" /></button>}
-        <button className={`cb talk ${talk}`} title={state === "question" ? "Question for the institution" : "Comment (3)"} aria-label="Comment"
+        <button className={`cb talk ${talk}`} title={state === "question" ? "Question for the institution" : talkTitle ?? "Comment (3)"} aria-label="Comment"
           data-tour={tour ? "comment-button" : undefined} onClick={click("comment")}><Ico name="bubble" /></button>
       </div>
       {by && <div className="byline">{by}{state === "question" ? (stacked ? ", question for the institution" : " · question for the institution") : ""}</div>}
@@ -126,11 +126,17 @@ export function HistoryLine({ linked, stacked, lead, items: given, ...props }: P
             ? <><b>{h.author}</b> <span className="faint">({h.run.version != null ? `v${h.run.version}, ` : ""}<a href={runHref(h.run.id)}
                 onClick={(e) => e.stopPropagation()} title="The AI run's report">AI run {monthDay(h.run.at)}</a>)</span><b>: </b></>
             : h.author && <b>{h.author}: </b>}{h.text}
+          {h.when && <>{" "}<When at={h.when} />{h.after}</>}
           {h.compared && (stacked ? <span className="h-compared"> ({h.compared})</span> : <span className="h-compared"> · {h.compared}</span>)}
         </span>
       ))}
     </div>
   );
+}
+
+/** A time as people say it ("12 minutes ago"), the full date and time zone in its tooltip ("Nov 5, 2026, 6:28 PM MST"). */
+export function When({ at, now }: { at: string; now?: number }) {
+  return <time dateTime={at} title={fullTime(at)}>{ago(at, now)}</time>;
 }
 
 /** A value on two lines with line breaks shown as ↵ (screen 04). */
