@@ -17,7 +17,7 @@ import { Ico } from "../shell/icons";
 import { useReviewer } from "../shell/reviewer";
 import { href } from "../shell/router";
 import { fmt, toast } from "../shell/ui";
-import { compareOf, agentApi, agentApi2, elapsed, endedIcon, endedLine, rowKey, type AgentRun, type HistEvent, type ReportRow, type ReportRowState,
+import { CATALOG_CHANGED, compareOf, agentApi, agentApi2, elapsed, endedIcon, endedLine, rowKey, type AgentRun, type HistEvent, type ReportRow, type ReportRowState,
   type ReportRows, type ReportRule, type ReportToDo, type ResolvedReport, type RunNote,
 } from "./api";
 import { openRunDialog } from "./RunDialog";
@@ -110,6 +110,7 @@ export function Report({ catalog, run, report, notes, pastRuns }: ReportProps) {
   const [drafts, setDrafts] = useState<Record<string, Draft>>({});
   const [showPrompt, setShowPrompt] = useState(false);
   const [askRevert, setAskRevert] = useState(false);
+  const [revertedIn, setRevertedIn] = useState<number | null>(report.reverted_in ?? null);
   const [prompt, setPrompt] = useState<string | null>(null);
   const promptRef = useRef<HTMLElement>(null);
   const states = useMemo(() => new Map((data?.rows ?? []).map((s) => [rowKey(s.rule, s.course), s])), [data]);
@@ -211,7 +212,7 @@ export function Report({ catalog, run, report, notes, pastRuns }: ReportProps) {
   const cmp = !pub ? null : report.ruleset?.compare ? { a: report.ruleset.compare.a, b: report.ruleset.compare.b } : compareOf(run);
   const newFeedback = data?.new_feedback ?? 0;
   const changed = [...report.rules, ...report.also_changed].map((r) => r.name);
-  const revertV = report.revert?.version ?? (pub ? run.ruleset_after : null);
+  const revertV = revertedIn != null || report.reverted_in != null ? null : report.revert?.version ?? (pub ? run.ruleset_after : null);
   const revertText = revertV == null ? "" : report.revert?.text ?? `Revert v${revertV}? This publishes v${revertV + 1} with `
     + `${andList(changed)} back to how ${changed.length === 1 ? "it was" : "they were"} in v${run.ruleset_before}.`;
   // the confirm is the app's own dialog (the run button's `.ac.run-ask`), not the browser's
@@ -221,6 +222,8 @@ export function Report({ catalog, run, report, notes, pastRuns }: ReportProps) {
     try {
       const r = await agentApi2.revert(catalog, revertV, me);
       toast(`Reverted: ruleset v${r.version} is published`);
+      setRevertedIn(r.version);
+      window.dispatchEvent(new Event(CATALOG_CHANGED));
     } catch (e) { toast(`Not reverted: ${String(e instanceof Error ? e.message : e)}`); }
   };
   const viewPrompt = () => {
@@ -293,6 +296,7 @@ export function Report({ catalog, run, report, notes, pastRuns }: ReportProps) {
         <span className="report-foot-r">
           {newFeedback > 0 && <span className="faint" data-testid="new-feedback">{newFeedback === 1 ? "1 row has" : `${fmt(newFeedback)} rows have`} new
             feedback since this run.</span>}
+          {revertedIn != null && <span className="faint" data-testid="reverted-in">Reverted in v{revertedIn}.</span>}
           {revertV != null && <button className="btn" onClick={() => setAskRevert(true)}
             title={`Publishes a new ruleset with every rule v${revertV} changed back to how it was`}>Revert v{revertV}</button>}
           <button className="btn" onClick={viewPrompt}>View the prompt</button>

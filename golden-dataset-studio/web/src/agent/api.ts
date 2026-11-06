@@ -159,6 +159,9 @@ export const endedIcon = (r: AgentRun) => (r.state === "finished" ? "approved" :
 
 /** Open the Past AI runs panel from anywhere (App listens), optionally on one run, or on one rule's runs. */
 export const OPEN_RUNS = "studio-open-runs";
+/** Fired when a new ruleset version exists (a revert from a report): the app re-fetches the catalog, so the ruleset
+ * picker's "latest" is right without a reload. */
+export const CATALOG_CHANGED = "studio-catalog-changed";
 export interface OpenRuns { run: string | null; rule?: string | null; ruleName?: string | null }
 export function openRuns(runId?: string, rule?: { id: string; name: string }): void {
   window.dispatchEvent(new CustomEvent<OpenRuns>(OPEN_RUNS, { detail: { run: runId ?? null, rule: rule?.id ?? null, ruleName: rule?.name ?? null } }));
@@ -240,6 +243,8 @@ export interface ResolvedReport {
   inferred: ReportInferred[]; to_do: ReportToDo[]; rules: ReportRule[]; also_changed: ReportRule[];
   notes?: string | null;
   revert?: { version: number; text: string } | null;
+  /** set by the server when a later version reverted this run's version (then `revert` is null) */
+  reverted_in?: number | null;
 }
 export const rowKey = (rule: string, course: string) => `${rule}|${course}`;
 

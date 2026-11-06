@@ -334,6 +334,26 @@ describe("Report", () => {
     expect(native).not.toHaveBeenCalled();
   });
 
+  it("after a revert: no second Revert, says which version reverted it, and the app re-fetches the catalog", async () => {
+    const changed = vi.fn();
+    window.addEventListener("studio-catalog-changed", changed);
+    await render();
+    const foot = () => [...host.querySelectorAll<HTMLButtonElement>("[data-testid=report-foot] button")].map((b) => b.textContent);
+    await act(async () => [...host.querySelectorAll<HTMLButtonElement>("[data-testid=report-foot] button")].find((b) => b.textContent === "Revert v10")!.click());
+    await act(async () => host.querySelector<HTMLButtonElement>("[data-testid=revert-ask] .btn.primary")!.click());
+    await flush();
+    expect(foot()).not.toContain("Revert v10");
+    expect(host.querySelector("[data-testid=reverted-in]")!.textContent).toBe("Reverted in v11.");
+    expect(changed).toHaveBeenCalledTimes(1);
+    window.removeEventListener("studio-catalog-changed", changed);
+  });
+
+  it("a report the server says was reverted offers no Revert", async () => {
+    await render({ ...REPORT, revert: null, reverted_in: 11 });
+    expect([...host.querySelectorAll("[data-testid=report-foot] button")].map((b) => b.textContent)).not.toContain("Revert v10");
+    expect(host.querySelector("[data-testid=reverted-in]")!.textContent).toBe("Reverted in v11.");
+  });
+
   it("has no Revert when the run published nothing, and says the ruleset is unchanged", async () => {
     const run = { ...RUN, state: "needs_you" as const, ruleset_after: 9, to_do_count: 1 };
     await render({ ...REPORT, revert: null, ending: "needs_you", outcome: "1 decision before Claude can publish Subject Webpage." }, run);

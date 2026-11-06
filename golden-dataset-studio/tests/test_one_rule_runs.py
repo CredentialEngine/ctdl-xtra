@@ -463,6 +463,12 @@ def test_revert_routes(cat, tmp_path, capsys, studio):
     assert r.json()["suite"]["line"].startswith("Whole suite: 9 rules")
     assert c.post(f"{B}/rulesets/1/revert", json={"author": "x"}).status_code == 400
     assert c.get(f"{B}/rulesets/9/revert").status_code == 404
+    # a run report for v2 no longer offers Revert, and says v3 reverted it; one for v3 still does
+    from golden_datasets.server.routes_agent import _with_revert_state
+    st = studio[1]
+    assert _with_revert_state(st, m.CAT, {"revert": {"version": 2, "text": "t"}}) == {"revert": None, "reverted_in": 3}
+    assert _with_revert_state(st, m.CAT, {"revert": {"version": 3, "text": "t"}}) == {"revert": {"version": 3, "text": "t"}}
+    assert _with_revert_state(st, m.CAT, None) is None
 
 
 def test_prompt_for_rules_to_improve_with_a_per_run_install(cat):

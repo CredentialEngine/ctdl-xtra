@@ -20,7 +20,7 @@ import { Tour, useTour } from "./tour";
 import { AgentProvider } from "./agent/state";
 import { RunBar } from "./agent/RunBar";
 import { RunsPanel } from "./agent/RunsPanel";
-import { OPEN_RUNS, type OpenRuns } from "./agent/api";
+import { CATALOG_CHANGED, OPEN_RUNS, type OpenRuns } from "./agent/api";
 import { RunDialogHost } from "./agent/RunDialog";
 import "./styles.css";
 import "./shell/dark.css";
@@ -37,6 +37,10 @@ export default function App() {
   const session = useSession();
   const signedIn = !!session?.signed_in;
   useEffect(() => { if (signedIn) load(); }, [load, signedIn]);
+  useEffect(() => {  // a revert from a report: re-fetch, so the ruleset picker shows the new latest version
+    window.addEventListener(CATALOG_CHANGED, load);
+    return () => window.removeEventListener(CATALOG_CHANGED, load);
+  }, [load]);
   const tour = useTour(catalog);
   const [files, setFiles] = useState(false);
   // Past AI runs: undefined = closed, null = the list, a run id = that run; `runsRule`: one rule's runs

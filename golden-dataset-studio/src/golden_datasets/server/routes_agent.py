@@ -211,11 +211,25 @@ def history(request: Request, catalog: str, limit: int = 20, rule: str | None = 
 def detail(request: Request, catalog: str, run_id: str) -> dict:
     """One run, live or past: its record, every progress note, its report as Markdown (`summary`) and, for runs that
     left one, the resolved report the Studio renders (`report`)."""
-    runs = studio(request).agent_runs(catalog)
+    st = studio(request)
+    runs = st.agent_runs(catalog)
     run = runs.run(run_id)
     if run is None:
         raise not_found(f"no run {run_id} on {catalog}")
-    return {"run": run, "notes": runs.notes(run_id), "summary": runs.summary(run_id), "report": runs.report(run_id)}
+    return {"run": run, "notes": runs.notes(run_id), "summary": runs.summary(run_id),
+            "report": _with_revert_state(st, catalog, runs.report(run_id))}
+
+
+def _with_revert_state(st: Studio, catalog: str, rep: dict | None) -> dict | None:
+    """A report whose version was reverted since offers no Revert; it says which version reverted it."""
+    v = ((rep or {}).get("revert") or {}).get("version")
+    if v is None:
+        return rep
+    ctx = st.ctx(catalog)
+    for later in ctx.ruleset_versions():
+        if later > v and ctx.ruleset(later).get("reverts") == v:
+            return {**rep, "revert": None, "reverted_in": later}
+    return rep
 
 
 @router.get("/catalogs/{catalog}/agent-runs/{run_id}/rows")
