@@ -618,6 +618,15 @@ describe("RulesTab", () => {
     expect(posted[posted.length - 1]).toMatchObject({ type: "verdict", verdict: "wrong", expected: { text: "7" } });
   });
 
+  it("hovering the value found after ✗: ✓ In answer adds it as a piece of the answer (no drag needed)", async () => {
+    await render();
+    await act(async () => container.querySelector<HTMLButtonElement>(".row.on .cb.no")!.click());
+    await bar("in", sel("Value 1", 1));
+    expect([...container.querySelectorAll(".row.on [data-testid=capture]")].map((q) => q.textContent)).toEqual(["Value 1"]);
+    await act(async () => container.querySelector<HTMLButtonElement>(".row.on .save")!.click());
+    expect(posted[posted.length - 1]).toMatchObject({ type: "verdict", verdict: "wrong", expected: { text: "Value 1" } });
+  });
+
   it("✕ Not in answer on the bar after ✗ marks the piece just dragged as out", async () => {
     await render();
     await act(async () => container.querySelector<HTMLButtonElement>(".row.on .cb.no")!.click());

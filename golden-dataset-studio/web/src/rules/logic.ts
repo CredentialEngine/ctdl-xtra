@@ -251,9 +251,11 @@ const located = (c: CapturedSelection) => ({ text: c.text, css_path: c.css_path,
   quote: { prefix: c.prefix, exact: c.text, suffix: c.suffix } });
 const isOut = (c: Piece) => c.polarity === "out";
 
-/** The pieces with the one at `c`'s place marked `polarity` (✕ Not in answer on a piece just added). */
+/** The pieces with the one at `c`'s place marked `polarity` (✕ Not in answer on a piece just added); text that isn't a
+ * piece yet (the value found, hovered) is added as one. */
 export function markPiece(cs: Piece[], c: CapturedSelection, polarity: Polarity): Piece[] {
-  return cs.map((x) => (x.css_path === c.css_path && x.char_start === c.char_start && x.char_end === c.char_end ? { ...x, polarity } : x));
+  const at = (x: Piece) => x.css_path === c.css_path && x.char_start === c.char_start && x.char_end === c.char_end;
+  return cs.some(at) ? cs.map((x) => (at(x) ? { ...x, polarity } : x)) : addCapture(cs, { ...c, polarity });
 }
 
 /** The value found without the text marked "not in the answer". */
