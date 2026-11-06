@@ -705,7 +705,10 @@ class Queue:
     @staticmethod
     def note_for(p: dict) -> str:
         """The "Run with Claude?" dialog's note line."""
-        if p["waiting"] == 0 and p["working"] < p["cap"]:
+        if p["working"] + p["waiting"] < p["cap"]:  # a free place for it too, even behind a run about to start
+            if p["waiting"]:
+                busy = p["working"] + p["waiting"]
+                return f"{busy} of {p['cap']} places {'is' if busy == 1 else 'are'} taken, so this one starts now."
             if p["working"] == 0:
                 return "No AI run is working, so this one starts now."
             return f"{p['working']} of {p['cap']} AI runs {'is' if p['working'] == 1 else 'are'} working, " \

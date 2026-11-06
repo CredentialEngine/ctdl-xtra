@@ -316,6 +316,9 @@ def test_the_queue_view_uses_the_last_10_runs(world):
     assert p["place"] == 2 and Queue.note_for(p) == "2 AI runs are working. This one would be 2nd in line, about 3 min."
     assert Queue.note_for({"cap": 2, "working": 1, "waiting": 0, "place": 1, "start_in_min": 0}) == \
         "1 of 2 AI runs is working, so this one starts now."
+    # e2e, 2026-11-05: a run waiting to be sent and two places free: the next one starts now too, not "2nd in line"
+    assert Queue.note_for({"cap": 2, "working": 0, "waiting": 1, "place": 2, "start_in_min": 0}) == \
+        "1 of 2 places is taken, so this one starts now."
 
 
 # -- notes and done from the CLI ---------------------------------------------------------------------------
