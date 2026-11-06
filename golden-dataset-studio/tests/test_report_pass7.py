@@ -97,3 +97,24 @@ def test_a_report_resolved_before_pass_7_still_renders_as_markdown():
     md = markdown(old, "https://studio.test/")
     assert "- If yes, mark the 13 courses" in md and "- If no, mark ACCT199 correct" in md
     assert report.row_keys(old)[0] == (SW, "ACCT199")
+
+
+def test_partial_publish_outcome_says_what_still_waits():
+    """Published some rules, held another: the sentence says so (the band is amber in the Studio)."""
+    from types import SimpleNamespace
+
+    from golden_datasets.report import held_rules, outcome
+
+    names = {"course-credit-value": "Credit Value", "course-entry-condition": "Entry Condition",
+             "course-description": "Description"}
+    k = SimpleNamespace(names=names, goals=list(names), changed_by_run={"course-credit-value": 12, "course-entry-condition": 12},
+                        published=[12], ruleset_after=12)
+    facts = {"ending": "published", "to_do": [{}, {}],
+             "rules": [{"rule": "course-credit-value", "outcome": "published"},
+                       {"rule": "course-description", "outcome": "held"},
+                       {"rule": "course-entry-condition", "outcome": "published"}]}
+    assert held_rules(facts) == ["course-description"]
+    assert outcome(facts, k) == ("Claude published Credit Value and Entry Condition in v12. "
+                                 "Description needs 2 decisions first.")
+    facts["rules"][1]["outcome"] = "not changed"
+    assert outcome(facts, k) == "Claude published Credit Value and Entry Condition in v12."

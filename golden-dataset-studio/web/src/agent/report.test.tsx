@@ -140,9 +140,30 @@ const cardOf = (rule: string, course: string) =>
 const histLines = (el: Element) => [...el.querySelectorAll(".hist.stacked > span")].map((s) => s.textContent);
 
 describe("Report", () => {
+  it("a partial publish: amber band, what still waits, and each rule to improve with what became of it", async () => {
+    const rule = (id: string, name: string, outcome: string) => ({ rule: id, name, goal: true, outcome, now: null, why: null, rows: [] });
+    const report: ResolvedReport = { ...REPORT, outcome: "Claude published Credit Value and Entry Condition in v12.",
+      to_do: [todo("First?"), todo("Second?")], also_changed: [], inferred: [],
+      rules: [rule("course-credit-value", "Credit Value", "published"), rule("course-description", "Description", "held"),
+              rule("course-entry-condition", "Entry Condition", "published"), rule("course-in-catalog", "In Catalog", "not changed")] };
+    await render(report, { ...RUN, ruleset_after: 12, to_do_count: 2 });
+    const band = host.querySelector(".run-done")!;
+    expect(band.className).toContain("is-partial");
+    expect(band.querySelector(".run-done-t")!.textContent)
+      .toBe("Claude published Credit Value and Entry Condition in v12. Description needs 2 decisions first.");
+    const items = [...host.querySelectorAll("[data-testid=rule-results] li")].map((li) => [li.className, li.textContent]);
+    expect(items).toEqual([["is-ok", "Credit Value published in v12"], ["is-held", "Description waits for your decision below"],
+                           ["is-ok", "Entry Condition published in v12"], ["is-same", "In Catalog not changed"]]);
+    // a full publish stays green
+    await render({ ...report, to_do: [], rules: report.rules.filter((r) => r.outcome !== "held") }, { ...RUN, ruleset_after: 12 });
+    expect(host.querySelector(".run-done")!.className).toContain("is-finished");
+  });
+
   it("renders the band, the facts, a section per rule with Values changed and Compare, and row cards", async () => {
     await render();
-    expect(host.querySelector(".run-done-t")!.textContent).toBe("Claude published Credit Value in ruleset v10.");
+    // published, with 4 decisions left: a partial publish, so the band is amber and says what still waits
+    expect(host.querySelector(".run-done-t")!.textContent).toBe("Claude published Credit Value in ruleset v10. 4 decisions still wait for you.");
+    expect(host.querySelector(".run-done")!.className).toContain("is-partial");
     expect(host.querySelector(".run-done a")!.getAttribute("href")).toBe("#/c/avc/compare?a=9&b=10");
     const facts = [...host.querySelectorAll("[data-testid=report-facts] dt")].map((d) => d.textContent);
     expect(facts).toEqual(["Rules to improve", "Also changed", "Checked", "Started", "Ran"]);
@@ -425,7 +446,7 @@ describe("RunsPanel with reports", () => {
   it("renders a run's resolved report, and an older run's summary.md as before", async () => {
     await act(async () => root.render(<RunsPanel catalog="avc" initial={RUN.run_id} onClose={() => {}} />));
     await flush();
-    expect(host.querySelector("[data-testid=run-report] .run-done-t")!.textContent).toBe("Claude published Credit Value in ruleset v10.");
+    expect(host.querySelector("[data-testid=run-report] .run-done-t")!.textContent).toBe("Claude published Credit Value in ruleset v10. 4 decisions still wait for you.");
     act(() => root.unmount());
     root = createRoot(host);
     await act(async () => root.render(<RunsPanel catalog="avc" initial="old-run" onClose={() => {}} />));

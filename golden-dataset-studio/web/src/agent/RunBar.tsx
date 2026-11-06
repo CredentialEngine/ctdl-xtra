@@ -10,7 +10,7 @@ import { Ico } from "../shell/icons";
 import { useReviewer } from "../shell/reviewer";
 import { href } from "../shell/router";
 import { toast } from "../shell/ui";
-import { compareOf, agentApi, agentApi2, andNames, elapsed, endedIcon, endedLine, endedWords, LIVE, openRuns, ruleNames, scopeWords, waitingWords,
+import { compareOf, agentApi, agentApi2, andNames, elapsed, endedIcon, endedLine, endedWords, LIVE, openRuns, ruleNames, scopeWords, stateClass, waitingWords,
   type AgentRun, type LiveRun, type ResolvedReport, type RunNote,
 } from "./api";
 import { openPrompt } from "../prompt/PromptModal";
@@ -116,7 +116,7 @@ export function RunBar({ catalog }: { catalog: string }) {
     const n = feedback?.new_feedback ?? 0;
     text = [`${endedWords(e)}.`, also.length ? `It also changed ${andNames(also)}.` : "",
             n ? `${n} row${n === 1 ? " has" : "s have"} new feedback since.` : ""].filter(Boolean).join(" ");
-    cls = `is-${e.state}`;
+    cls = stateClass(e);
   }
   return (
     <>
@@ -204,7 +204,7 @@ function RunReport({ catalog, run, notes, pastRuns }: { catalog: string; run: Ag
   return (
     <>
       <div className="runs-detail" data-testid="run-report">
-        <div className={`run-done is-${run.state}`}>
+        <div className={`run-done ${stateClass(run)}`}>
           <Ico name={endedIcon(run)} />
           <span className="run-done-t">{endedLine(run)}</span>
           {published(run) && <CompareLink catalog={catalog} run={run} className="btn primary" />}

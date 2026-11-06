@@ -8,7 +8,7 @@
 // per course, after the app's confirm, with Undo), then the evidence, every row card introduced in words and shown
 // once per report; a set of courses is a table. Times are relative, the date and time zone in their tooltip.
 // No " · " in anything rendered here: one fact per row, one history item per line, sentences.
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { api } from "../api/client";
 import type { CatalogDetail, EventBrief, NewEvent } from "../api/types";
 import "../evals/evals.css";
@@ -465,14 +465,16 @@ export function Report({ catalog, run, report, notes, pastRuns }: ReportProps) {
   return (
     <>
       <div className="runs-detail" data-testid="run-report">
-        <div className={`run-done is-${run.state}`}>
-          <Ico name={endedIcon(run)} />
-          <span className="run-done-t">{report.outcome || endedLine(run)}</span>
+        <div className={`run-done is-${partialReport(report) ? "partial" : run.state}`}>
+          <Ico name={partialReport(report) ? "question" : endedIcon(run)} />
+          <span className="run-done-t">{bandLine(report) || endedLine(run)}</span>
           {cmp && <a className={`btn${newFeedback ? "" : " primary"}`} href={href(catalog, "compare", null, cmp)}
             title="What changed between the two rulesets, rule by rule">Compare v{cmp.a} → v{cmp.b}</a>}
         </div>
         <dl className="run-facts" data-testid="report-facts">
-          {facts.filter((f) => !isRuleset(f)).map((f) => <Fact key={f.label} label={f.label} text={f.text} />)}
+          {facts.filter((f) => !isRuleset(f)).map((f) => f.label === "Rules to improve" && report.rules.some((r) => r.outcome)
+            ? <Fragment key={f.label}><dt>{f.label}</dt><dd><RuleResults rules={report.rules} version={run.ruleset_after} /></dd></Fragment>
+            : <Fact key={f.label} label={f.label} text={f.text} />)}
           <dt>Started</dt><dd><When at={run.created_at} /> by {run.started_by}</dd>
           {run.ended_at && <><dt>Ran</dt><dd>{elapsed(run.sent_at ?? run.created_at, run.ended_at)}</dd></>}
           {facts.filter(isRuleset).map((f) => <Fact key={f.label} label={f.label} text={f.text} />)}
@@ -550,6 +552,39 @@ export function Report({ catalog, run, report, notes, pastRuns }: ReportProps) {
         </div>
       )}
     </>
+  );
+}
+
+/** Published, yet some rules to improve wait for a decision: the band is amber, not green. */
+export const partialReport = (r: ResolvedReport) => r.ending === "published"
+  && (r.to_do.length > 0 || r.rules.some((x) => x.outcome === "held"));
+
+/** The band's sentence; an older partial report's says only what was published, so add what still waits. */
+function bandLine(r: ResolvedReport): string {
+  const o = (r.outcome ?? "").trim();
+  if (!o || !partialReport(r) || /\b(needs?|wait)\b/.test(o)) return o;
+  const held = r.rules.filter((x) => x.outcome === "held").map((x) => x.name), n = r.to_do.length;
+  const need = n ? `${n} decision${n === 1 ? "" : "s"}` : "you";
+  return held.length ? `${o} ${andList(held)} ${held.length === 1 ? "needs" : "need"} ${need} first.` : n ? `${o} ${need} still wait${n === 1 ? "s" : ""} for you.` : o;
+}
+
+/** Each rule to improve with what became of it, so a partial publish can't be read as "all done". */
+function RuleResults({ rules, version }: { rules: ReportRule[]; version: number | null }) {
+  const word = (r: ReportRule): [string, string, string] => {
+    switch (r.outcome) {
+      case "published": return ["approved", "is-ok", version != null ? `published in v${version}` : "published"];
+      case "held": return ["question", "is-held", "waits for your decision below"];
+      case "failed": return ["needs work", "is-bad", "couldn't be fixed"];
+      default: return ["in review", "is-same", "not changed"];
+    }
+  };
+  return (
+    <ul className="rule-results" data-testid="rule-results">
+      {rules.map((r) => {
+        const [ico, cls, w] = word(r);
+        return <li key={r.rule} className={cls}><Ico name={ico} /><b>{r.name}</b> <span>{w}</span></li>;
+      })}
+    </ul>
   );
 }
 

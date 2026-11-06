@@ -27,6 +27,8 @@
 .run-bar.is-failed, .run-bar.is-timed_out { background: var(--red-soft); }
 .run-bar.is-needs_you { background: var(--amber-soft); }
 .run-bar.is-needs_you > .ico { color: var(--amber); }
+.run-bar.is-partial { background: var(--amber-soft); }
+.run-bar.is-partial > .ico { color: var(--amber); }
 .run-bar.is-cancelled, .run-bar.is-ended { background: var(--surface-2); }
 .run-bar.is-silent { background: var(--amber-soft); }
 .run-bar.is-silent > .ico { color: var(--amber); }
@@ -103,7 +105,17 @@
   background: var(--surface-2); font-size: 13px; font-weight: 600; }
 .run-done.is-finished { background: var(--green-soft); }
 .run-done.is-failed, .run-done.is-timed_out { background: var(--red-soft); }
-.run-done.is-needs_you { background: var(--amber-soft); }
+.run-done.is-needs_you, .run-done.is-partial { background: var(--amber-soft); }
+.run-done.is-partial > .ico { color: var(--amber); }
+.rule-results { list-style: none; margin: 0; padding: 0; display: grid; gap: 3px; }
+.rule-results li { display: flex; align-items: center; gap: 6px; }
+.rule-results li > span { color: var(--muted); }
+.rule-results .ico svg { width: 14px; height: 14px; }
+.rule-results .is-ok .ico { color: var(--green); }
+.rule-results .is-held .ico { color: var(--amber); }
+.rule-results .is-held > span { color: var(--amber); font-weight: 500; }
+.rule-results .is-bad .ico { color: var(--red); }
+.rule-results .is-same .ico { color: var(--muted); }
 .run-done .ico svg { width: 15px; height: 15px; }
 .run-done-t { flex: 1; min-width: 0; }
 .run-done .btn { flex: none; padding: 3px 10px; font-size: 12px; }
