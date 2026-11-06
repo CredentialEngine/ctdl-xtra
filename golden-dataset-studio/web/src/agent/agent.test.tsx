@@ -174,6 +174,13 @@ describe("RunBar", () => {
       "5 things to fix before Claude can publish.", "is-needs_you"],
     ["couldn't finish", { ...RUN, run_id: "r-failed", state: "failed", outcome: "Couldn't publish (ruleset v9 stays): the 6 ACCT199 annotations have no …" },
       "Claude couldn't finish.", "is-failed"],
+    ["published some, holds others", { ...RUN, run_id: "r-part", state: "finished", ruleset_before: 11, ruleset_after: 12, report_version: 2,
+      outcome: "Claude published Credit Value and Entry Condition in v12. Description needs 2 decisions first.", to_do_count: 2,
+      held: ["course-description"] },
+      "Claude published Credit Value and Entry Condition in v12. Description needs 2 decisions first.", "is-partial"],
+    ["an older partial report", { ...RUN, run_id: "r-part0", state: "finished", ruleset_before: 11, ruleset_after: 12, report_version: 2,
+      outcome: "Claude published Credit Value and Entry Condition in v12.", to_do_count: 2 },
+      "Claude published Credit Value and Entry Condition in v12. 2 decisions still wait for you.", "is-partial"],
   ] as const) {
     it(`says only how a run ended (${name}): the details are in the report`, async () => {
       current = { run: null, since: 0, now: NOW, notes: [], last: { ...last, ended_at: "2026-10-28T03:20:00Z" } as AgentRun };

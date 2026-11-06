@@ -688,13 +688,24 @@ def _mark_words(do: dict, n: int, names: list[str], rule_name: str) -> str:
             "save_expected": f"save {who}'s expected {rule_name}"}[do["mark"]]
 
 
+def held_rules(facts: dict) -> list[str]:
+    """The rules to improve that Claude held back for a decision."""
+    return [r["rule"] for r in facts.get("rules") or [] if r.get("outcome") == "held"]
+
+
 def outcome(facts: dict, k: Known) -> str:
     """The band's sentence."""
     names = k.names
     if facts["ending"] == "published":
         goals = [r for r in k.goals if r in k.changed_by_run] or sorted(k.changed_by_run)
         v = k.published[-1] if k.published else k.ruleset_after
-        return f"Claude published {words([names.get(r, r) for r in goals])} in v{v}."
+        out = f"Claude published {words([names.get(r, r) for r in goals])} in v{v}."
+        held = held_rules(facts)
+        if held:  # a partial publish: say what still waits, so the sentence isn't read as "all done"
+            n = len(facts.get("to_do") or [])
+            need = f"{n} decision{'' if n == 1 else 's'}" if n else "you"
+            out += f" {words([names.get(r, r) for r in held])} {'needs' if len(held) == 1 else 'need'} {need} first."
+        return out
     if facts["ending"] == "needs_you":
         n = len(facts.get("to_do") or [])
         held = [r["rule"] for r in facts.get("rules") or [] if r.get("outcome") == "held"] or k.goals

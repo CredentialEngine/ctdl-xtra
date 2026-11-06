@@ -213,7 +213,7 @@ class RunConflict(Exception):
 def brief(run: dict) -> dict:
     """What goals.json and `recent` keep of a run."""
     return {k: run.get(k) for k in ("run_id", "state", "outcome", "started_by", "created_at", "ended_at",
-                                    "to_do_count", "annotations_as_of", "rule_names")}
+                                    "to_do_count", "annotations_as_of", "rule_names", "held")}
 
 
 @dataclass
@@ -462,7 +462,7 @@ class AgentRuns:
         comments to the annotation log, write `report.resolved.json` and `summary.md`, and end the run in the state
         its `ending` names. Returns (run, summary.md). UserError lists every problem; nothing is written then."""
         from .log import new_id
-        from .report import build_known, check, markdown, resolve
+        from .report import build_known, check, held_rules, markdown, resolve
         from .review import LOADER
 
         run = self.live_run(run_id)
@@ -497,7 +497,7 @@ class AgentRuns:
         self.root.write_text(f"{d}/summary.md", md)
         also = [a["rule"] for a in facts.get("also_changed") or []]
         ended = self._end(run_id, ENDING_STATE[facts["ending"]], resolved["outcome"], by=by,
-                          to_do_count=len(facts.get("to_do") or []), also_changed=also,
+                          to_do_count=len(facts.get("to_do") or []), also_changed=also, held=held_rules(facts),
                           rule_names={**(run.get("rule_names") or {}), **{r: k.names.get(r, r) for r in also}},
                           rulesets_published=k.published, report_version=2)
         return ended, md

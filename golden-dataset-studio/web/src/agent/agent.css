@@ -27,6 +27,8 @@
 .run-bar.is-failed, .run-bar.is-timed_out { background: var(--red-soft); }
 .run-bar.is-needs_you { background: var(--amber-soft); }
 .run-bar.is-needs_you > .ico { color: var(--amber); }
+.run-bar.is-partial { background: var(--amber-soft); }
+.run-bar.is-partial > .ico { color: var(--amber); }
 .run-bar.is-cancelled, .run-bar.is-ended { background: var(--surface-2); }
 .run-bar.is-silent { background: var(--amber-soft); }
 .run-bar.is-silent > .ico { color: var(--amber); }
@@ -103,7 +105,29 @@
   background: var(--surface-2); font-size: 13px; font-weight: 600; }
 .run-done.is-finished { background: var(--green-soft); }
 .run-done.is-failed, .run-done.is-timed_out { background: var(--red-soft); }
-.run-done.is-needs_you { background: var(--amber-soft); }
+.run-done.is-needs_you, .run-done.is-partial { background: var(--amber-soft); }
+.run-done.is-partial > .ico { color: var(--amber); }
+/* the report's contents: one line per rule, each scrolls to its section */
+.report-toc { padding: 2px 20px 8px; }
+.report-toc ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.report-toc button { display: inline-flex; align-items: center; gap: 6px; padding: 1px 0; color: var(--ink); text-decoration: none; }
+.report-toc button:hover b { text-decoration: underline; }
+.report-toc button > span { color: var(--muted); }
+.report-toc .ico svg, .report-rule-status .ico svg { width: 14px; height: 14px; }
+.report-toc .is-ok .ico, .report-rule-status.is-ok .ico { color: var(--green); }
+.report-toc .is-held .ico, .report-rule-status.is-held .ico { color: var(--amber); }
+.report-toc .is-held button > span, .report-rule-status.is-held { color: var(--amber); font-weight: 500; }
+.report-toc .is-bad .ico, .report-rule-status.is-bad .ico { color: var(--red); }
+.report-toc .is-same .ico, .report-rule-status.is-same .ico { color: var(--muted); }
+/* a rule's section: headed as the Rules tab heads a rule */
+.runs-sec.report-rule { border-top: 2px solid var(--line); padding-top: 16px; scroll-margin-top: 8px; }
+.rule-head.report-rule-head { padding: 0 0 8px; background: none; }
+.report-rule-head h2 { font-size: 18px; margin: 0; letter-spacing: -.01em; overflow-wrap: anywhere; }
+.report-rule-head .term { display: inline-flex; align-items: center; gap: 4px; }
+.report-rule-head .term .ico svg { width: 12px; height: 12px; }
+p.report-rule-status { display: flex; align-items: center; gap: 6px; margin: 8px 0 4px; color: var(--muted); }
+.report-sub { margin-top: 12px; }
+.report-sub > h3, .report-sub > summary { font-size: 13px; font-weight: 600; margin: 0 0 6px; }
 .run-done .ico svg { width: 15px; height: 15px; }
 .run-done-t { flex: 1; min-width: 0; }
 .run-done .btn { flex: none; padding: 3px 10px; font-size: 12px; }

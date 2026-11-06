@@ -24,6 +24,8 @@ export interface AgentRun {
   // one-rule-runs (05-api-contract.md §1)
   catalog_short?: string; rule_names?: Record<string, string>; annotations_as_of?: string | null;
   rulesets_published?: number[]; also_changed?: string[]; report_version?: number | null;
+  /** The rules to improve Claude held back for a decision (a partial publish when the run also published). */
+  held?: string[] | null;
 }
 export interface RunNote { at: string; kind: "note" | "done" | "studio"; text: string; by: string }
 /** A live run in `current` (contract §2.3): its notes, and where it stands in the queue. */
@@ -132,7 +134,14 @@ export function endedWords(r: AgentRun): string {
   switch (r.state) {
     case "finished":
       if (!published(r)) return names ? `Claude finished ${names} without publishing` : "Claude finished";
-      return names ? `Claude published ${names} in ruleset v${r.ruleset_after}` : `Claude published ruleset v${r.ruleset_after}`;
+      {
+        // a reported run's own sentence names only the rules it published (the run's rules may be more)
+        const said = r.report_version && r.outcome ? r.outcome.trim().replace(/\.$/, "") : null;
+        const pubd = said ?? (names ? `Claude published ${names} in ruleset v${r.ruleset_after}` : `Claude published ruleset v${r.ruleset_after}`);
+        if (!isPartial(r) || /\b(needs?|wait)\b/.test(said ?? "")) return pubd;
+        const n = r.to_do_count ?? 0;
+        return `${pubd}. ${n ? `${n} decision${n === 1 ? "" : "s"} still wait${n === 1 ? "s" : ""} for you` : "Some rules still wait for you"}`;
+      }
     case "needs_you": {
       const n = r.to_do_count;
       if (names) return n ? `Claude needs ${n} decision${n === 1 ? "" : "s"} before it can publish ${names}` : `Claude needs you before it can publish ${names}`;
@@ -151,11 +160,16 @@ export function endedLine(r: AgentRun): string {
   const w = endedWords(r);
   // an older run's free-text outcome often repeats the words ("Published ruleset v7: …"): keep only what it adds
   const o = (r.outcome ?? "").replace(/^Published ruleset v\d+:?\s*/i, "").trim();
-  if (!o || o === w) return w;
+  if (!o || o === w || w.startsWith(o.replace(/\.$/, ""))) return w;
   return o.startsWith(w) ? o : `${w}: ${o}`;
 }
 
-export const endedIcon = (r: AgentRun) => (r.state === "finished" ? "approved" : r.state === "needs_you" ? "question" : "needs work");
+/** Published some rules, but a decision still waits: the bar is amber, not green. */
+export const isPartial = (r: AgentRun) => r.state === "finished" && published(r) && ((r.to_do_count ?? 0) > 0 || (r.held ?? []).length > 0);
+/** The state's class, with "partial" for a run that published some rules and holds others. */
+export const stateClass = (r: AgentRun) => `is-${isPartial(r) ? "partial" : r.state}`;
+
+export const endedIcon = (r: AgentRun) => (isPartial(r) ? "question" : r.state === "finished" ? "approved" : r.state === "needs_you" ? "question" : "needs work");
 
 /** Open the Past AI runs panel from anywhere (App listens), optionally on one run, or on one rule's runs. */
 export const OPEN_RUNS = "studio-open-runs";

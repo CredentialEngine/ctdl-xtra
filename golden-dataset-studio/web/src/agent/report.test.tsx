@@ -140,21 +140,54 @@ const cardOf = (rule: string, course: string) =>
 const histLines = (el: Element) => [...el.querySelectorAll(".hist.stacked > span")].map((s) => s.textContent);
 
 describe("Report", () => {
+  it("a partial publish: amber band, what still waits, and each rule to improve with what became of it", async () => {
+    const rule = (id: string, name: string, outcome: string) => ({ rule: id, name, goal: true, outcome, now: null, why: null, rows: [] });
+    const report: ResolvedReport = { ...REPORT, outcome: "Claude published Credit Value and Entry Condition in v12.",
+      to_do: [todo("First?"), todo("Second?")], also_changed: [], inferred: [],
+      rules: [rule("course-credit-value", "Credit Value", "published"), rule("course-description", "Description", "held"),
+              rule("course-entry-condition", "Entry Condition", "published"), rule("course-in-catalog", "In Catalog", "not changed")] };
+    await render({ ...report, to_do: report.to_do.map((t) => ({ ...t, rule: "course-description" })) }, { ...RUN, ruleset_after: 12, to_do_count: 2 });
+    const band = host.querySelector(".run-done")!;
+    expect(band.className).toContain("is-partial");
+    expect(band.querySelector(".run-done-t")!.textContent)
+      .toBe("Claude published Credit Value and Entry Condition in v12. Description needs 2 decisions first.");
+    // the contents: one line per rule, the one that needs input first; each scrolls to its section
+    const items = [...host.querySelectorAll("[data-testid=report-toc] li")].map((li) => [li.className, li.textContent]);
+    expect(items).toEqual([["is-held", "Description Needs input"], ["is-ok", "Credit Value Published in v12"],
+                           ["is-ok", "Entry Condition Published in v12"], ["is-same", "In Catalog Not changed"]]);
+    const secs = [...host.querySelectorAll<HTMLElement>("[data-testid=rule-section]")];
+    expect(secs.map((x) => x.querySelector("h2")!.textContent)).toEqual(["Description", "Credit Value", "Entry Condition", "In Catalog"]);
+    expect(secs[0].querySelector("[data-testid=rule-status]")!.textContent).toBe("Needs input");
+    expect(secs[0].querySelectorAll("[data-testid=to-do]").length).toBe(2);  // its decisions are in its section
+    const scrolled: string[] = [];
+    secs.forEach((x) => { x.scrollIntoView = () => { scrolled.push(x.id); }; });
+    await act(async () => host.querySelector<HTMLButtonElement>("[data-testid=report-toc] li button")!.click());
+    expect(scrolled).toEqual(["report-rule-course-description"]);
+    // a full publish stays green
+    await render({ ...report, to_do: [], rules: report.rules.filter((r) => r.outcome !== "held") }, { ...RUN, ruleset_after: 12 });
+    expect(host.querySelector(".run-done")!.className).toContain("is-finished");
+  });
+
   it("renders the band, the facts, a section per rule with Values changed and Compare, and row cards", async () => {
     await render();
-    expect(host.querySelector(".run-done-t")!.textContent).toBe("Claude published Credit Value in ruleset v10.");
+    // published, with 4 decisions left: a partial publish, so the band is amber and says what still waits
+    expect(host.querySelector(".run-done-t")!.textContent).toBe("Claude published Credit Value in ruleset v10. 4 decisions still wait for you.");
+    expect(host.querySelector(".run-done")!.className).toContain("is-partial");
     expect(host.querySelector(".run-done a")!.getAttribute("href")).toBe("#/c/avc/compare?a=9&b=10");
     const facts = [...host.querySelectorAll("[data-testid=report-facts] dt")].map((d) => d.textContent);
-    expect(facts).toEqual(["Rules to improve", "Also changed", "Checked", "Started", "Ran"]);
+    expect(facts).toEqual(["Checked", "Started", "Ran"]);  // the rules are the contents above
+    expect([...host.querySelectorAll("[data-testid=report-toc] li")].map((li) => li.textContent))
+      .toEqual(["Credit Value Published in v10", "Credit Unit Type Also changed in v10"]);
     const secs = [...host.querySelectorAll("[data-testid=rule-section]")];
-    expect(secs.map((s) => s.querySelector("h3")!.textContent)).toEqual(["Credit Value", "Also changed: Credit Unit Type"]);
+    expect(secs.map((s) => s.querySelector("h2")!.textContent)).toEqual(["Credit Value", "Credit Unit Type"]);
     const vc = secs[0].querySelector("[data-testid=values-changed]")!;
     expect(vc.textContent).toBe("1,062 of 1,062 courses. Compare v9 and v10");
     expect(vc.querySelector("a")!.getAttribute("href")).toBe("#/c/avc/compare?a=9&b=10&rule=course-credit-value");
     // an also-changed rule: its count, a Compare link made from the versions, and its one sentence
     expect(secs[1].querySelector("[data-testid=values-changed]")!.textContent).toBe("0 of 1,062 courses. Compare v9 and v10");
-    expect(secs[1].querySelector("p")!.textContent).toContain("It took its unit word from Credit Value");
-    expect(secs[0].querySelector("p")!.textContent).toBe("Now empty on every course.");
+    expect(secs[1].querySelector("[data-testid=rule-status]")!.textContent).toBe("Also changed in v10");
+    expect(secs[1].querySelector("p:not([data-testid=rule-status])")!.textContent).toContain("It took its unit word from Credit Value");
+    expect(secs[0].querySelector("p:not([data-testid=rule-status])")!.textContent).toBe("Now empty on every course.");
     // the course as its Rules tab row card: code, legend, the claim, the title, both link buttons
     const card = cardOf("course-credit-value", "ACCT199");
     expect(card.querySelector(".code")!.textContent).toBe("ACCT199");
@@ -186,10 +219,13 @@ describe("Report", () => {
 
   it("opens the first value Claude worked out and folds the rest; at most 3 decisions open", async () => {
     await render();
-    const inf = host.querySelector("[data-testid=inferred]")!;
-    expect(inf.querySelector("h3")!.textContent).toBe("Values Claude worked out");
-    expect(inf.querySelectorAll(":scope > div [data-testid=row-card]").length).toBe(1);
-    expect(inf.querySelector("details > summary")!.textContent).toBe("In Catalog for GEOG222 - A course");
+    // values on rules this report has no section for keep a section of their own: the first open, the rest folded
+    const infs = [...host.querySelectorAll("[data-testid=inferred]")];
+    expect(infs.map((e) => e.tagName)).toEqual(["DIV", "DETAILS"]);
+    const inf = infs[0];
+    expect(inf.querySelector("h3")!.textContent).toBe("Description: a value Claude worked out for BIOL110 - A course");
+    expect(inf.querySelectorAll("[data-testid=row-card]").length).toBe(1);
+    expect(infs[1].querySelector("summary")!.textContent).toBe("In Catalog: a value Claude worked out for GEOG222 - A course");
     expect(inf.querySelector("p")!.textContent).toBe(
       "Eric Riddoch marked BIOL110 wrong without selecting the right text. Claude worked out the value below from the notes and the page.");
     // BIOL110's box holds the value Claude worked out; the lines it left out are struck through
@@ -199,7 +235,7 @@ describe("Report", () => {
       "Advisory: Completion of a general biology course is recommended.", "Prerequisite: Intermediate Algebra."]);
     expect([...biol.querySelectorAll(".sel-pol")].map((q) => q.textContent)).toEqual(["✕ not in answer", "✕ not in answer"]);
     const todos = [...host.querySelectorAll("[data-testid=to-do]")];
-    expect(todos.map((t) => t.tagName)).toEqual(["SECTION", "SECTION", "SECTION", "DETAILS"]);
+    expect(todos.map((t) => t.tagName)).toEqual(["DIV", "DIV", "DIV", "DETAILS"]);
     expect(todos[0].querySelector("h3")!.textContent).toBe("Should Subject Webpage be empty for every course?");
     // a report resolved before pass 7: its answers are sentences, now before the evidence
     expect(todos[0].querySelector(".report-option b")!.textContent).toBe("If yes,");
@@ -248,7 +284,7 @@ describe("Report", () => {
 
   it("✓ on a value Claude published marks the current value correct", async () => {
     await render();
-    const inf = host.querySelector("[data-testid=inferred] details")!;
+    const inf = host.querySelector("details[data-testid=inferred]")!;
     (inf as HTMLDetailsElement).open = true;
     await act(async () => cardOf("course-in-catalog", "GEOG222").querySelector<HTMLButtonElement>(".cb.ok")!.click());
     await flush();
@@ -425,7 +461,7 @@ describe("RunsPanel with reports", () => {
   it("renders a run's resolved report, and an older run's summary.md as before", async () => {
     await act(async () => root.render(<RunsPanel catalog="avc" initial={RUN.run_id} onClose={() => {}} />));
     await flush();
-    expect(host.querySelector("[data-testid=run-report] .run-done-t")!.textContent).toBe("Claude published Credit Value in ruleset v10.");
+    expect(host.querySelector("[data-testid=run-report] .run-done-t")!.textContent).toBe("Claude published Credit Value in ruleset v10. 4 decisions still wait for you.");
     act(() => root.unmount());
     root = createRoot(host);
     await act(async () => root.render(<RunsPanel catalog="avc" initial="old-run" onClose={() => {}} />));

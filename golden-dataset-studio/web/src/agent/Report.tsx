@@ -10,18 +10,18 @@
 // No " · " in anything rendered here: one fact per row, one history item per line, sentences.
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { api } from "../api/client";
-import type { CatalogDetail, EventBrief, NewEvent } from "../api/types";
+import type { CatalogDetail, EventBrief, NewEvent, RuleSummary } from "../api/types";
 import "../evals/evals.css";
 import type { RowX } from "../rules/api";
-import { briefOf, fullTime, markWord, newDraft, reportHistory, rowTarget, verdictEvent, type Draft, type HistItem } from "../rules/logic";
+import { briefOf, fullTime, markWord, newDraft, reportHistory, rowTarget, verdictEvent, whereWord, type Draft, type HistItem } from "../rules/logic";
 import { Expansion, When } from "../rules/parts";
 import { RowCard } from "../rules/RowCard";
 import { Ico } from "../shell/icons";
 import { useReviewer } from "../shell/reviewer";
 import { href } from "../shell/router";
-import { fmt, toast, toastAction } from "../shell/ui";
+import { fmt, termUrl, toast, toastAction } from "../shell/ui";
 import { CATALOG_CHANGED, compareOf, agentApi, agentApi2, elapsed, endedIcon, endedLine, rowKey, type AgentRun, type HistEvent, type ReportCourse,
-  type ReportRow, type ReportRowState, type ReportRows, type ReportRule, type ReportToDo, type ResolvedReport, type RunNote, type ToDoOption,
+  type ReportInferred, type ReportRow, type ReportRowState, type ReportRows, type ReportRule, type ReportToDo, type ResolvedReport, type RunNote, type ToDoOption,
 } from "./api";
 import { openRunDialog } from "./RunDialog";
 import "../rules/rules.css";
@@ -68,6 +68,17 @@ function useExtraction(catalog: string, version: number | null, given?: string |
     return () => { on = false; };
   }, [catalog, version, given]);
   return ext;
+}
+
+/** Each rule's name, kind, where it looks and CTDL term, for the report's section headings (the latest ruleset). */
+function useRuleMeta(catalog: string): Map<string, RuleSummary> {
+  const [m, setM] = useState<Map<string, RuleSummary>>(new Map());
+  useEffect(() => {
+    let on = true;
+    api.rules(catalog).then((r) => { if (on) setM(new Map(r.groups.flatMap((g) => g.rules).map((x) => [x.rule_id, x]))); }, () => {});
+    return () => { on = false; };
+  }, [catalog]);
+  return m;
 }
 
 /** The Rules tab's address for one row, pinned to the run's ruleset; `mark` opens it with ✕ pressed. */
@@ -131,6 +142,7 @@ export function Report({ catalog, run, report, notes, pastRuns }: ReportProps) {
   const me = useReviewer();
   const { data, reload, setData } = useReportRows(catalog, run.run_id);
   const ext = useExtraction(catalog, pinnedVersion(run), report.ruleset?.ext);
+  const ruleMeta = useRuleMeta(catalog);
   const [drafts, setDrafts] = useState<Record<string, Draft>>({});
   const [showPrompt, setShowPrompt] = useState(false);
   const [askRevert, setAskRevert] = useState(false);
@@ -386,27 +398,33 @@ export function Report({ catalog, run, report, notes, pastRuns }: ReportProps) {
     </>;
   };
 
-  // values Claude worked out: the first open, the rest folded; then decisions, open as the CLI says (at most 3)
-  const inferred = report.inferred.map((inf, i) => {
+  // values Claude worked out and decisions, each kept with its rule: the first open, the rest folded; decisions open as
+  // the CLI says (at most 3)
+  const inferredEl = (inf: ReportInferred, first: boolean, other = false) => {
     const v = inf.row.verdict;
     const why = v?.verdict === "wrong" && !v.expected?.text
       ? `${v.author} marked ${inf.course} wrong without selecting the right text. Claude worked out the value below from the notes and the page.`
       : "Claude worked out the value below from the notes and the page.";
     const hist = (inf.evidence ?? []).filter((e) => e.source?.kind === "page").map((e) => ({ cls: "muted" as const, text: `On the page: “${e.quote}”` }));
     const body = <><p>{why}</p>{card(inf.row, { hist })}</>;
-    return i === 0
-      ? <div key={`inf${i}`}>{body}</div>
-      : <details key={`inf${i}`} className="run-fold"><summary>{inf.rule_name ?? inf.rule} for {inf.row.title ?? inf.course}</summary>{body}</details>;
-  });
+    const key = `inf-${inf.rule}-${inf.course}`;
+    const label = `${other ? `${inf.rule_name ?? inf.rule}: a` : "A"} value Claude worked out for ${inf.row.title ?? inf.course}`;
+    return first
+      ? <div key={key} className="report-sub" data-testid="inferred"><h3>{label}</h3>{body}</div>
+      : <details key={key} className="report-sub run-fold" data-testid="inferred"><summary>{label}</summary>{body}</details>;
+  };
   let opened = 0;
-  const toDos = report.to_do.map((t, i) => {
+  const toDoOpen = report.to_do.map((t, i) => {
     const open = (t.open ?? i === 0) && opened < 3;
     if (open) opened++;
-    const body = toDoBody(t, i);
-    return open
-      ? <section key={`td${i}`} className="runs-sec" data-testid="to-do"><h3>{t.ask}</h3>{body}</section>
-      : <details key={`td${i}`} className="runs-sec run-fold" data-testid="to-do"><summary>{t.ask}</summary>{body}</details>;
+    return open;
   });
+  const toDoEl = (t: ReportToDo, i: number) => {
+    const body = toDoBody(t, i);
+    return toDoOpen[i]
+      ? <div key={`td${i}`} className="report-sub" data-testid="to-do"><h3>{t.ask}</h3>{body}</div>
+      : <details key={`td${i}`} className="report-sub run-fold" data-testid="to-do"><summary>{t.ask}</summary>{body}</details>;
+  };
 
   const pub = published(run);
   // the report's own pair (the CLI read this run's publishes), else the run record's
@@ -441,14 +459,23 @@ export function Report({ catalog, run, report, notes, pastRuns }: ReportProps) {
   }
   const isRuleset = (f: { label: string }) => f.label === "Ruleset";
 
+  const version = run.ruleset_after;
+  const ruleIds = new Set([...report.rules, ...report.also_changed].map((r) => r.rule));
+  const toDoRule = (t: ReportToDo) => t.rule ?? t.options.find((o) => o.do)?.do?.rule ?? null;
   const ruleSection = (r: ReportRule, also: boolean) => {
     const vc = r.values_changed;
     const compare = vc?.compare_url ?? (vc?.base != null && vc.published != null
       ? href(catalog, "compare", null, { a: vc.base, b: vc.published, rule: r.rule }) : null);
     const prose = also ? r.why : [r.now && `Now ${r.now}.`, r.why].filter(Boolean).join(" ");
+    const [ico, cls, words] = resultOf(r, also, version);
+    const tds = report.to_do.map((t, i) => [t, i] as const).filter(([t]) => toDoRule(t) === r.rule);
+    const infs = report.inferred.filter((x) => x.rule === r.rule);
     return (
-      <section key={`${also ? "a" : "g"}-${r.rule}`} className="runs-sec" data-testid="rule-section">
-        <h3>{also ? `Also changed: ${r.name}` : r.name}</h3>
+      <section key={`${also ? "a" : "g"}-${r.rule}`} id={sectionId(r.rule)} className="runs-sec report-rule" data-testid="rule-section">
+        <ReportRuleHead name={r.name} meta={ruleMeta.get(r.rule)} />
+        <p className={`report-rule-status ${cls}`} data-testid="rule-status"><Ico name={ico} />{words}</p>
+        {tds.map(([t, i]) => toDoEl(t, i))}
+        {infs.map((x, i) => inferredEl(x, i === 0))}
         {vc && <dl className="run-facts"><dt>Values changed</dt><dd data-testid="values-changed">
           {vc.text ?? `${fmt(vc.count)} of ${fmt(vc.of)} courses`}.{compare && vc.base != null && vc.published != null && <>{" "}
             <a href={compare}>Compare v{vc.base} and v{vc.published}</a></>}</dd></dl>}
@@ -457,6 +484,12 @@ export function Report({ catalog, run, report, notes, pastRuns }: ReportProps) {
       </section>
     );
   };
+  // decisions and values on no rule of the report keep a section of their own
+  const otherToDos = report.to_do.map((t, i) => [t, i] as const).filter(([t]) => !ruleIds.has(toDoRule(t) ?? ""));
+  const otherInf = report.inferred.filter((x) => !ruleIds.has(x.rule));
+  const order = (r: ReportRule) => ({ held: 0, failed: 1, published: 2 } as Record<string, number>)[r.outcome ?? ""] ?? 3;
+  const goals = [...report.rules].sort((a, b) => order(a) - order(b));
+  const toc = [...goals.map((r) => [r, false] as const), ...report.also_changed.map((r) => [r, true] as const)];
 
   const ask = asking ? report.to_do[asking.t]?.options[asking.o] : null;
   const askD = ask?.do ?? null;
@@ -465,24 +498,33 @@ export function Report({ catalog, run, report, notes, pastRuns }: ReportProps) {
   return (
     <>
       <div className="runs-detail" data-testid="run-report">
-        <div className={`run-done is-${run.state}`}>
-          <Ico name={endedIcon(run)} />
-          <span className="run-done-t">{report.outcome || endedLine(run)}</span>
+        <div className={`run-done is-${partialReport(report) ? "partial" : run.state}`}>
+          <Ico name={partialReport(report) ? "question" : endedIcon(run)} />
+          <span className="run-done-t">{bandLine(report) || endedLine(run)}</span>
           {cmp && <a className={`btn${newFeedback ? "" : " primary"}`} href={href(catalog, "compare", null, cmp)}
             title="What changed between the two rulesets, rule by rule">Compare v{cmp.a} → v{cmp.b}</a>}
         </div>
+        {toc.length > 1 && <nav className="report-toc" data-testid="report-toc" aria-label="Rules in this report">
+          <ul>{toc.map(([r, also]) => {
+            const [ico, cls, words] = resultOf(r, also, version);
+            return (
+              <li key={`${also ? "a" : "g"}-${r.rule}`} className={cls}>
+                <button className="linkish" onClick={() => scrollToSection(r.rule)} title={`Scroll to ${r.name}`}>
+                  <Ico name={ico} /><b>{r.name}</b> <span>{words}</span></button>
+              </li>);
+          })}</ul></nav>}
         <dl className="run-facts" data-testid="report-facts">
-          {facts.filter((f) => !isRuleset(f)).map((f) => <Fact key={f.label} label={f.label} text={f.text} />)}
+          {facts.filter((f) => !isRuleset(f) && !(toc.length > 1 && (f.label === "Rules to improve" || f.label === "Also changed")))
+            .map((f) => <Fact key={f.label} label={f.label} text={f.text} />)}
           <dt>Started</dt><dd><When at={run.created_at} /> by {run.started_by}</dd>
           {run.ended_at && <><dt>Ran</dt><dd>{elapsed(run.sent_at ?? run.created_at, run.ended_at)}</dd></>}
           {facts.filter(isRuleset).map((f) => <Fact key={f.label} label={f.label} text={f.text} />)}
           {report.ending === "failed" && report.reason && <Fact label="Why" text={report.reason} />}
         </dl>
-        {inferred.length > 0 && <section className="runs-sec" data-testid="inferred">
-          <h3>{inferred.length === 1 ? "A value Claude worked out" : "Values Claude worked out"}</h3>{inferred}</section>}
-        {toDos.length > 0 && (inferred.length > 0 || toDos.length > 1) && <section className="runs-sec"><h3>What you need to decide</h3></section>}
-        {toDos}
-        {report.rules.map((r) => ruleSection(r, false))}
+        {(otherToDos.length > 0 || otherInf.length > 0) && <section className="runs-sec">
+          {otherToDos.map(([t, i]) => toDoEl(t, i))}
+          {otherInf.map((x, i) => inferredEl(x, i === 0, true))}</section>}
+        {goals.map((r) => ruleSection(r, false))}
         {report.also_changed.map((r) => ruleSection(r, true))}
         {report.notes && <details className="runs-sec run-fold"><summary>Claude's notes</summary>
           <p className="report-notes">{report.notes}</p></details>}
@@ -550,6 +592,52 @@ export function Report({ catalog, run, report, notes, pastRuns }: ReportProps) {
         </div>
       )}
     </>
+  );
+}
+
+/** Published, yet some rules to improve wait for a decision: the band is amber, not green. */
+export const partialReport = (r: ResolvedReport) => r.ending === "published"
+  && (r.to_do.length > 0 || r.rules.some((x) => x.outcome === "held"));
+
+/** The band's sentence; an older partial report's says only what was published, so add what still waits. */
+function bandLine(r: ResolvedReport): string {
+  const o = (r.outcome ?? "").trim();
+  if (!o || !partialReport(r) || /\b(needs?|wait)\b/.test(o)) return o;
+  const held = r.rules.filter((x) => x.outcome === "held").map((x) => x.name), n = r.to_do.length;
+  const need = n ? `${n} decision${n === 1 ? "" : "s"}` : "you";
+  return held.length ? `${o} ${andList(held)} ${held.length === 1 ? "needs" : "need"} ${need} first.` : n ? `${o} ${need} still wait${n === 1 ? "s" : ""} for you.` : o;
+}
+
+/** What became of a rule, for the contents and its section: [icon, class, words]. */
+function resultOf(r: ReportRule, also: boolean, version: number | null): [string, string, string] {
+  const inV = version != null ? ` in v${version}` : "";
+  if (also) return ["approved", "is-ok", `Also changed${inV}`];
+  switch (r.outcome) {
+    case "published": return ["approved", "is-ok", `Published${inV}`];
+    case "held": return ["question", "is-held", "Needs input"];
+    case "failed": return ["needs work", "is-bad", "Couldn't be fixed"];
+    default: return ["in review", "is-same", "Not changed"];
+  }
+}
+const sectionId = (rule: string) => `report-rule-${rule}`;
+function scrollToSection(rule: string) {
+  document.getElementById(sectionId(rule))?.scrollIntoView?.({ block: "start", behavior: "smooth" });
+}
+
+/** A rule's section heading, as the Rules tab heads a rule: its name, where it looks, and its CTDL term. */
+function ReportRuleHead({ name, meta }: { name: string; meta?: RuleSummary }) {
+  const shown = (meta?.path_shown ?? meta?.ctdl_property?.replace(/>/g, " → ")) || "";
+  const steps = shown.split(" → ");
+  const leaf = steps.pop() ?? "";
+  const where = meta?.kind === "property" ? [meta.parent_label ? `part of ${meta.parent_label}` : null, whereWord(meta.locator)].filter(Boolean)
+    : meta ? [meta.subtitle] : [];
+  return (
+    <div className="rule-head report-rule-head">
+      <h2>{name}</h2>
+      {where.length > 0 && <span className="rh-sub">{where.map((w) => <span key={w}>{w}</span>)}</span>}
+      {shown && <div className="rh-line"><span className="rh-path">{steps.length > 0 && <>{steps.join(" → ")} → </>}
+        <a className="term" href={termUrl(meta?.ctdl_property ?? null) ?? undefined} target="_blank" rel="noopener noreferrer">{leaf}<Ico name="ext" /></a></span></div>}
+    </div>
   );
 }
 
