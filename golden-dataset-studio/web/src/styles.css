@@ -302,7 +302,7 @@ td.num { text-align: right; font-variant-numeric: tabular-nums; }
 .prompt-pre .h3 { color: var(--ink); font-weight: 600; }
 .prompt-pre .code { color: #b54708; }
 .prompt-pre .cmd { color: #12805c; }
-.toast { position: fixed; bottom: 44px; left: 50%; transform: translateX(-50%); background: #101828; color: #fff; padding: 8px 14px; border-radius: 8px; font-size: 12.5px; box-shadow: 0 8px 24px rgba(16,24,40,.2); }
+.toast { position: fixed; z-index: 2000; bottom: 44px; left: 50%; transform: translateX(-50%); background: #101828; color: #fff; padding: 8px 14px; border-radius: 8px; font-size: 12.5px; box-shadow: 0 8px 24px rgba(16,24,40,.2); }
 
 .picker { flex: 1; overflow: auto; }
 .picker-in { max-width: 1040px; margin: 0 auto; padding: 48px 28px; }
