@@ -205,3 +205,39 @@ data, not this work. The slow assertions about text this work changed were updat
 - Golden values cover property rules' row verdicts. List items' verdicts (`target.item`) and page/locator verdicts
   aren't in the suite (the existing scorecard skips them too).
 - A run that publishes twice (v10 then v12) reports `values_changed` from the last publish that changed each rule.
+
+## Pass 6 feedback ("pass 7": the report tells you what to do), 2026-11-05
+
+From [`answers-pass6.md`](answers-pass6.md), on live run `20261106T012457Z-b970`. The spec's summary is at its top.
+
+- **CLI** (`report.py`): `check` requires `to_do[].why` (2 sentences at most, counted by `sentences`, which ignores
+  dots inside words) and `options[].label`. `resolve` writes the lead sentences, the set's table data, and each
+  answer's per-course `do` with the verdict to supersede. It also writes `done`, `then.run_again`, `effect` on the
+  answer that publishes the effect's rules, `no_rule_yet`, and full names (`brief`, `full`). `row_keys` adds the
+  courses answers mark, so `…/rows` refreshes their verdicts. `markdown` puts the answers first and shows each row
+  once.
+- **Prompt** (`prompt.py`): the `to_do` field row, a new example (the live case with `why`, labels and
+  `then.publish` [Subject Webpage, In Catalog]), and the "Each to-do is something the reviewer does" paragraph.
+- **Web**: `Report.tsx` (answers, confirm, posting, Done, Undo, Run again, one card per row, tables, leads);
+  `logic.ts` (`ago`, `fullTime`, `verdictWords`, `markWord`, `rowKeysBlocked`); `parts.tsx` (`When`, the comment
+  tooltip); `ui.tsx` (`toastAction`, one Undo toast at a time); `RulesTab.tsx` (keys are ignored while
+  `.run-watch` is open).
+- **Found while rendering the real case:** `reportHistory` read only `type`, but the resolved report's history items
+  carry `kind` (contract §3.3). A card showed no history until `…/rows` answered for it. It now reads either.
+- **Likely cause of Eric's accidental ✓:** the Rules tab listened for 1 / A / Enter on the whole window, including
+  while the report drawer covered it. Its selected row (ACCT199, opened from the report) took the key.
+- **Fixtures:** `tests/fixtures/live-run-b970/` holds the live `report.json`, `report.resolved.json`, `run.json`
+  (K2 URL replaced) and `summary.md`, plus `report.pass7.json` (the same report as the new prompt asks for it).
+  `web/src/agent/fixtures/` holds the old resolved report and `b970-pass7.resolved.json`, which was made by hand from
+  the live files. The page stems, occurrence keys and annotation ids of the 12 courses other than AERO199 and
+  ACCT199 are stand-ins: the live file gives only their code, title, value and verdict. A test checks that its
+  fields are exactly the ones `resolve` writes.
+- **Tests:** `tests/test_report_pass7.py` (5), with more in `test_one_rule_runs.py`;
+  `web/src/agent/report.pass7.test.tsx` (14), with more in `report.test.tsx` and `logic.test.ts`.
+- **Screenshot:** `screens/pass6-report.png` (the drawer, table unfolded) and `screens/pass6-report-confirm.png`.
+  They come from a temporary preview page that rendered `Report` with the fixture and a stubbed API in the app's
+  drawer, captured with Playwright. The page isn't committed.
+- **Left as is:** the slow tests `test_prompt.py::test_one_rule_prompt`, `test_needs_work_scope` and
+  `test_cli_and_api_give_the_same_text` fail the same way on the branch before this work (they depend on the local
+  mirror's annotations). Undo is offered only in the session that posted. An answer's course that has no earlier
+  verdict can't be undone, because the log has no retract.

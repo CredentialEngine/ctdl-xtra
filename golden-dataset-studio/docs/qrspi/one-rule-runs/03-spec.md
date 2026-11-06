@@ -5,6 +5,45 @@ Based on Eric's answers ([`answers-pass1.md`](answers-pass1.md)) and the researc
 Builds on the CLI-written report of [`../report-links/03-spec.md`](../report-links/03-spec.md) (branch
 `studio-report-links`). Every picture says whether it shows the Studio **today (real)** or a **proposal (mockup)**.
 
+**Pass 6 feedback, built as "pass 7" ([`answers-pass6.md`](answers-pass6.md): Eric on the first live report, run
+`20261106T012457Z-b970`). The report tells the reader what to do.**
+
+![real: the live run's decision, re-rendered](screens/pass6-report.png)
+**Real data (the live run, re-rendered from a fixture):** the decision, then why, then its answers as buttons, then
+the evidence. The 12 other courses are a table (unfolded here). The Subject Webpage section points back to ACCT199's
+card. The confirm is the app's own dialog ([`screens/pass6-report-confirm.png`](screens/pass6-report-confirm.png)).
+
+- **Story first.** A to-do is `ask` (the heading), `why` (at most two short sentences, naming courses and rules),
+  then its **answers**, then the evidence. The old "If yes / If no" lines become the answers.
+- **Answers are actions.** Each option is a `btn` labelled with what it does ("Yes: mark the 13 courses Not on the
+  page", "No: mark ACCT199 correct"), from Claude's `label`. Pressing it opens the `.ac.run-ask` confirm. The confirm
+  lists every course with its mark now and after. Confirming posts one verdict per course through
+  `POST …/annotations`. "Not on the page" is ✕ with `reasons: ["not_on_page"]`, the Rules tab's own. Each verdict
+  supersedes the course's current verdict, read from `…/rows` (which now covers these courses) or else from the
+  resolved report. The to-do then says "Done: 13 courses marked Not on the page." with **Undo**, and **✦ Run again**
+  with the option's rules ticked (the run's rules to improve plus `then.publish`). "Done" is worked out from the
+  rows' current verdicts, so it survives a reload. Undo only works in the session that posted.
+- **No rule yet** is said plainly: "In Catalog has no rule yet; the next run writes one." (`rule_type: none`).
+- **Rows introduced in words.** The CLI writes a lead sentence for each card in a to-do ("Here is the row Jared Diener
+  marked wrong:", "Here is one of the 13 courses Jared Diener marked correct:"). **One card per row per report**: a
+  later mention says "Claude's comment is on ACCT199's row, shown above." and links to the card.
+- **Sets are tables** (`evx-wrong-t`, the Evals table): course, title, value, current mark, **Open in Rules →**.
+  The table is folded when it has more than 5 rows.
+- **Times are relative** ("12 minutes ago", "yesterday"), with the full date and time zone as the tooltip ("Nov 5,
+  2026, 6:28 PM MST"). This applies to the history line, the Started fact and the progress notes (time since the
+  run started).
+- **Obvious clicks.** ✓ ✕ 💬 tooltips name the row ("Mark ACCT199's Subject Webpage correct"). Every verdict posted
+  from the report shows a toast saying what was recorded, with **Undo**. Undo appends a verdict that supersedes the
+  mistaken one and restores the previous verdict, expected value, note and reasons. A ✓ on a row already marked
+  correct posts nothing. The Rules tab's keys (1, A, Enter…) no longer act on the row behind an open report.
+- **Full names** everywhere (`log.FULL_NAMES`): in the resolved report and in `…/rows`.
+- **Prompt:** "Each to-do is something the reviewer does": lead with what they must decide, make every option an
+  action with a `label`, keep it short, and never show a bare course code. The CLI requires `why` (2 sentences, 320
+  characters at most) and each option's `label` (80 characters at most), and refuses a `do.rule` that isn't a property rule.
+- **`summary.md`** follows the same order: question, why, the answers in bold, then the evidence, one line per course.
+- Reports resolved before this still render: their answers stay sentences (now above the evidence), and their sets
+  are tables.
+
 **Pass 6 (Eric's answers, [`answers-pass5.md`](answers-pass5.md)).**
 - **Open in Rules →** and **✕** open the row in a **new browser tab**, pinned to the ruleset the run published
   (`&ext=`), so the report is never lost. The report refetches on focus.
@@ -713,7 +752,8 @@ One test prompt ("write a note and end the run") over two sessions would check a
 
 - K2's own spawn queue (`K2_HOST_SESSION_SPAWN_QUEUE`): the Studio queues itself.
 - Restarting a run when annotations change mid-run.
-- Bulk marking from a report (e.g. marking the 13 courses in one click). The to-do links to the filtered list.
+- ~~Bulk marking from a report~~ (built in pass 7: an answer posts one verdict per course, after a confirm).
+- `save_expected` answers aren't posted from the report (each course needs its own value); they link to the rows.
 
 ## 11. Order of work
 

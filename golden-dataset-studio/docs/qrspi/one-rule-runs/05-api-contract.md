@@ -13,6 +13,13 @@ AVC data (real course codes and annotations from the research; values for v10 ar
 - 2026-11-05: `GET /api/catalogs/{c}/prompt?rules=a,b` (§2.10): the prompt a new run on those rules would get, for
   "Open the prompt" on one rule.
 
+- 2026-11-05 (pass 7, answers-pass6.md): a `ToDo` has `why`; each option has `label`, `button`, `do` (the
+  per-course data to post: `mark`, `rule`, `words`, `event`, `count`, `courses[]` with `occurrence_key`,
+  `page_stem` and `current`, the verdict to supersede), `done`, `then` (`publish[]` with `has_rule`, `run_again[]`,
+  `text`), `effect` and `no_rule_yet`. Cards in a to-do have `lead`. A `set` has `others_lead`, and its `courses[]`
+  have the same fields as `do.courses[]`. Authors are full names. `…/rows` also returns the courses that answers mark.
+  Example: `web/src/agent/fixtures/b970-pass7.resolved.json` (the live run).
+
 ## Conventions
 
 - Times are UTC ISO strings without fractions: `"2026-11-06T15:35:00Z"`. Durations are whole minutes (`*_min`).
