@@ -283,10 +283,13 @@ REPORT_FIELDS = [
      "to do"],
     ["`inferred`", "the values in `inferred.json`: `{rule, course, annotation, value, evidence, left_out}`. "
      "`evidence`: the quotes the value rests on; `left_out`: `[{\"quote\": <page words the value leaves out>}]`"],
-    ["`to_do`", "at most 3 decisions for people, most important first: `{ask, about, evidence, options, effect}`. "
-     "`about`: references; `evidence`: quotes, or `{\"set\": <courses reference>, \"label\": \"marked correct\"}`; "
-     "`options`: `[{answer, do: {mark, courses, rule}, then: {publish: [rule ids]}}]`, `mark` one of `correct`, "
-     "`wrong`, `not_on_page`, `save_expected`; `effect`: `[{rule, after}]` (`after`: the value, `\"\"` for empty, or "
+    ["`to_do`", "at most 3 decisions for people, most important first: `{ask, why, about, evidence, options, "
+     "effect}`. `ask`: the question; `why`: at most two short sentences of plain context, naming the courses and "
+     "rules; `about`: references; `evidence`: quotes, or `{\"set\": <courses reference>, \"label\": \"marked "
+     "correct\"}`; `options`: `[{answer, label, do: {mark, courses, rule}, then: {publish: [rule ids]}}]`: `label` is "
+     "the action in a few words, as its button says it (\"mark the 13 courses Not on the page\"), `mark` one of "
+     "`correct`, `wrong`, `not_on_page`, `save_expected`, and `then.publish` lists every rule the next run would "
+     "publish after that answer; `effect`: `[{rule, after}]` (`after`: the value, `\"\"` for empty, or "
      "`{\"source\": \"page_url\"}`)"],
     ["`together`", "optional: rules linked by meaning, not by data: `{rules, because: <quote>}`"],
     ["`notes`", "optional, at most 5 lines: anything that fits nowhere else"],
@@ -296,18 +299,22 @@ REPORT_EXAMPLE = {
     "rules": [{"rule": "course-subject-webpage", "outcome": "held", "now": "the page's address on every course"}],
     "rows": [{"rule": "course-subject-webpage", "course": "ACCT199",
               "comment": "The value is the page's address, as on the 13 courses marked correct."}],
-    "to_do": [{"ask": "Should Subject Webpage be empty for every course in the catalog?",
+    "to_do": [{"ask": "Is Jared Diener's note on ACCT199 right for every course in the catalog?",
+               "why": "His note on ACCT199 says a course in a catalog uses In Catalog instead of Subject Webpage. "
+                      "But he marked 13 courses with the page's address in Subject Webpage correct.",
                "about": [{"course": "ACCT199"}],
                "evidence": [{"quote": "use the property ceterms:inCatalog instead of ceterms:subjectWebpage",
                              "from": {"note": "an-39127172c8e8"}},
                             {"set": {"courses": {"rule": "course-subject-webpage", "verdict": "correct"}},
                              "label": "marked correct"}],
-               "options": [{"answer": "yes", "do": {"mark": "not_on_page", "courses": {
-                   "rule": "course-subject-webpage", "verdict": "correct"}},
-                            "then": {"publish": ["course-subject-webpage"]}},
-                           {"answer": "no", "do": {"mark": "correct", "courses": ["ACCT199"],
-                                                   "rule": "course-subject-webpage"}}],
-               "effect": [{"rule": "course-subject-webpage", "after": ""}]}],
+               "options": [{"answer": "yes", "label": "mark the 13 courses Not on the page",
+                            "do": {"mark": "not_on_page", "courses": {
+                                "rule": "course-subject-webpage", "verdict": "correct"}},
+                            "then": {"publish": ["course-subject-webpage", "course-in-catalog"]}},
+                           {"answer": "no", "label": "mark ACCT199 correct",
+                            "do": {"mark": "correct", "courses": ["ACCT199"], "rule": "course-subject-webpage"}}],
+               "effect": [{"rule": "course-subject-webpage", "after": ""},
+                          {"rule": "course-in-catalog", "after": {"source": "page_url"}}]}],
 }
 WRITING = ("Write plainly and briefly, for someone who knows the catalog: short sentences, everyday words, one idea "
            "per sentence. Don't join fragments with `·` or other separators. No file names, command names, JSON field "
@@ -328,8 +335,14 @@ def _run_close(run: dict | None) -> list[str]:
             "\"<course>\"}`, or `{\"value\": {\"course\", \"rule\"}}`); the words must be in that source, and `…` "
             "joins pieces that appear in that order.", "",
             *table(["Field", "What"], REPORT_FIELDS), "",
-            "Write each `ask` as a question someone who knows the catalog could answer after reading only the "
-            "evidence you attach. A short example:", "",
+            "**Each to-do is something the reviewer does.** Lead with what they must decide: `ask` is the question "
+            "and `why` says, in at most two short sentences, why it needs them (name the courses and rules, e.g. "
+            "\"Jared Diener's note on ACCT199 says … but he marked 13 courses … correct\"). Make every option an "
+            "action the reviewer can take from the report: a `do` that marks courses, with a `label` saying what it "
+            "does. The Studio shows each option as a button, then the evidence below. Keep it short, and never show "
+            "a bare course code without saying what it is (\"ACCT199, the course Jared Diener marked wrong\"). "
+            "Write each `ask` so someone who knows the catalog could answer it from the evidence you attach. A "
+            "short example:", "",
             "```json", json.dumps(REPORT_EXAMPLE, indent=1, ensure_ascii=False), "```", "",
             WRITING, "",
             "```sh", f"cd {d} && ./bin/golden-datasets run done --report report.json", "```", "",

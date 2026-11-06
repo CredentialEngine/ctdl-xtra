@@ -236,8 +236,8 @@ def _with_revert_state(st: Studio, catalog: str, rep: dict | None) -> dict | Non
 def run_rows(request: Request, catalog: str, run_id: str) -> dict:
     """The report's rows as they are now: verdict, byline, history (with Claude's comments), and how much feedback
     people gave on the rules the run touched since it read the annotations (spec §1.6)."""
-    from ..report import row_keys
-    from .routes_review import _event_brief, _review_state
+    from ..report import brief, row_keys
+    from .routes_review import _review_state
 
     st = studio(request)
     runs = st.agent_runs(catalog)
@@ -262,7 +262,7 @@ def run_rows(request: Request, catalog: str, run_id: str) -> dict:
             continue
 
         def b(e: dict) -> dict:
-            return _event_brief(e) | {"after_run": bool(as_of and e["at"] > as_of)}
+            return brief(e) | {"after_run": bool(as_of and e["at"] > as_of)}  # full names, as the report has them
         out.append({"rule": rid, "course": course, "page_stem": r["page_stem"], "key": r["key"],
                     "occurrence_key": r["occurrence_key"], "value": r["value"], "status": r["status"],
                     "state": s.state, "verdict": b(s.verdict) if s.verdict else None, **_review_state(s),

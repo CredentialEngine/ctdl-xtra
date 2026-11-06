@@ -307,12 +307,14 @@ def test_report_references_resolve_and_refuse(cat, tmp_path, capsys, run):
     wrong = m.mark(cat, SW, "ACCT199", "wrong")
     comment = m.mark(cat, SW, "ACCT199", None, note="When the resource is in a catalog, use the property "
                                                      "ceterms:inCatalog instead of ceterms:subjectWebpage.")
-    m.mark(cat, SW, "GEOG222", "correct")
+    m.mark(cat, SW, "GEOG222", "correct", author="Jared")  # a first-profile name: the report says "Jared Diener"
     m.mark(cat, SW, "KINF244", "correct")
     k = report.build_known(m.ctx(cat), ar.run(r["run_id"]))
     good = {"ending": "needs_you",
             "rules": [{"rule": CV, "outcome": "held", "now": "unchanged"}],
             "to_do": [{"ask": "Should Subject Webpage be empty for every course in the catalog?",
+                       "why": "Jared's note on ACCT199 says to use In Catalog instead of Subject Webpage. But he "
+                              "marked 2 courses with the page's address correct.",
                        "about": [{"course": "ACCT199"}, {"value": {"course": "GEOG222", "rule": SW}}],
                        "evidence": [{"quote": "use the property ceterms:inCatalog … ceterms:subjectWebpage",
                                      "from": {"note": comment}},
@@ -320,10 +322,11 @@ def test_report_references_resolve_and_refuse(cat, tmp_path, capsys, run):
                                      "from": {"page": "BIOL110"}},
                                     {"set": {"courses": {"rule": SW, "verdict": "correct"}},
                                      "label": "marked correct"}],
-                       "options": [{"answer": "yes", "do": {"mark": "not_on_page",
-                                                            "courses": {"rule": SW, "verdict": "correct"}},
+                       "options": [{"answer": "yes", "label": "mark the 2 courses Not on the page",
+                                    "do": {"mark": "not_on_page", "courses": {"rule": SW, "verdict": "correct"}},
                                     "then": {"publish": [SW, IC]}},
-                                   {"answer": "no", "do": {"mark": "correct", "courses": ["ACCT199"], "rule": SW},
+                                   {"answer": "no", "label": "mark ACCT199 correct",
+                                    "do": {"mark": "correct", "courses": ["ACCT199"], "rule": SW},
                                     "then": {"publish": [IC]}}],
                        "effect": [{"rule": SW, "after": ""}, {"rule": IC, "after": {"source": "page_url"}}]}],
             "together": [{"rules": [SW, IC], "because": {"quote": "instead of ceterms:subjectWebpage",
@@ -351,8 +354,18 @@ def test_report_references_resolve_and_refuse(cat, tmp_path, capsys, run):
         ({"to_do": [good["to_do"][0] | {"about": [{"thing": 1}]}]}, "'thing' is not a kind of reference"),
         ({"to_do": [good["to_do"][0] | {"evidence": [{"quote": "Jared said so", "from": {"note": comment}}]}]},
          "quote: not in"),
-        ({"to_do": [good["to_do"][0] | {"options": [{"answer": "yes", "do": {"mark": "delete", "courses": []}}]}]},
+        ({"to_do": [good["to_do"][0] | {"options": [{"answer": "yes", "label": "x",
+                                                     "do": {"mark": "delete", "courses": []}}]}]},
          "do.mark: one of"),
+        ({"to_do": [{k: v for k, v in good["to_do"][0].items() if k != "why"}]}, "to_do[0].why: missing"),
+        ({"to_do": [good["to_do"][0] | {"why": "One. Two. Three."}]}, "to_do[0].why: at most 2 short sentences"),
+        ({"to_do": [good["to_do"][0] | {"options": [{"answer": "yes"}]}]}, "options[0].label: missing"),
+        ({"to_do": [good["to_do"][0] | {"options": [{"answer": "yes", "label": "x" * 81}]}]},
+         "options[0].label: the action, in a few words"),
+        ({"to_do": [good["to_do"][0] | {"options": [{"answer": "yes", "label": "x",
+                                                     "do": {"mark": "correct", "courses": ["ACCT199"],
+                                                            "rule": "locator-course-page"}}]}]},
+         "rows are property rules' courses"),
         ({"inferred": [{"rule": SW, "course": "ACCT199", "annotation": wrong, "value": "x"}]},
          "isn't in your last try"),
         ({"inferred": [{"rule": SW, "course": "GEOG222", "annotation": wrong, "value": "x"}]},
@@ -363,21 +376,66 @@ def test_report_references_resolve_and_refuse(cat, tmp_path, capsys, run):
     res = report.resolve(good, k)
     t = res["to_do"][0]
     assert t["open"] and t["rule"] == SW and [c["course"] for c in t["about"]] == ["ACCT199", "GEOG222"]
+    assert t["why"].startswith("Jared's note on ACCT199")
+    # every row card is introduced in words, people by their full names
+    assert [c["lead"] for c in t["about"]] == ["Here is the row Jared Diener marked wrong:",
+                                               "Here is the row Jared Diener marked correct:"]
+    assert t["about"][1]["verdict"]["author"] == "Jared Diener"
     assert t["evidence"][0]["source"] == {"kind": "note", "annotation_id": comment, "author": "Jared Diener",
                                           "at": t["evidence"][0]["source"]["at"], "rule": SW, "course": "ACCT199"}
     page = t["evidence"][1]["source"]
     assert page["kind"] == "page" and page["before"] == "Prerequisite: None."
+    # the set: GEOG222 is already shown above, so its card is KINF244's; no row card twice in one to-do
     s = t["evidence"][2]
-    assert s["count"] == 2 and s["rows"][0]["course"] == "GEOG222" and s["courses"][0]["course"] == "KINF244"
-    assert s["courses"][0]["verdict"] == "correct" and s["link"].endswith(f"rules/{SW}?by=anyone&verdict=correct")
-    assert t["options"][0]["text"] == ("If yes, mark the 2 courses \"Not on the page\" for Subject Webpage. The next "
-                                       "run publishes Subject Webpage and In Catalog together.")
-    assert t["options"][1]["text"] == "If no, mark ACCT199 correct for Subject Webpage. The next run publishes In Catalog."
+    assert s["count"] == 2 and s["label"] == "Jared Diener marked correct"
+    assert [c["course"] for c in s["rows"]] == ["KINF244"]
+    assert s["rows"][0]["lead"] == "Here is one of the 2 courses Jared Diener marked correct:"
+    assert [c["course"] for c in s["courses"]] == ["GEOG222"] and s["others_lead"] == \
+        "The other course Jared Diener marked correct:"
+    other = s["courses"][0]
+    assert other["verdict"] == "correct" and other["current"]["author"] == "Jared Diener"
+    assert other["links"]["rules"] == f"#/c/{m.CAT}/rules/{SW}?row=GEOG222&by=anyone&ext=rs-0001"
+    assert s["link"].endswith(f"rules/{SW}?by=anyone&verdict=correct")
+    # the answers: buttons, what each posts per course (rule, occurrence, the verdict it supersedes), done words
+    yes, no = t["options"]
+    assert yes["button"] == "Yes: mark the 2 courses Not on the page" and no["button"] == "No: mark ACCT199 correct"
+    assert yes["do"]["event"] == {"verdict": "wrong", "reasons": ["not_on_page"]} and yes["do"]["rule"] == SW
+    assert [c["course"] for c in yes["do"]["courses"]] == ["GEOG222", "KINF244"]
+    g = yes["do"]["courses"][0]
+    assert g["occurrence_key"] and g["page_stem"] and g["current"]["verdict"] == "correct"
+    assert g["current"]["annotation_id"] and g["state"] == "correct"
+    assert yes["done"] == "2 courses marked Not on the page" and no["done"] == "ACCT199 marked correct"
+    assert no["do"]["event"] == {"verdict": "correct"} and no["do"]["courses"][0]["current"]["annotation_id"] == wrong
+    assert yes["then"]["publish"] == [{"rule": SW, "name": "Subject Webpage", "has_rule": True},
+                                      {"rule": IC, "name": "In Catalog", "has_rule": False}]
+    assert [x["rule"] for x in yes["then"]["run_again"]] == [CV, SW, IC]
+    assert yes["then"]["text"] == "Then run again with Credit Value, Subject Webpage and In Catalog."
+    assert yes["no_rule_yet"] == ["In Catalog has no rule yet; the next run writes one."]
+    # the web's fixture of the live run (test_report_pass7.py) has exactly the fields resolve writes
+    from pathlib import Path
+    fx = json.loads((Path(__file__).parent.parent / "web/src/agent/fixtures/b970-pass7.resolved.json").read_text())
+    ft = fx["to_do"][0]
+    assert set(t) == set(ft) and set(yes) == set(ft["options"][0]) and set(yes["do"]) == set(ft["options"][0]["do"])
+    assert set(g) == set(ft["options"][0]["do"]["courses"][0]) and set(s) == set(ft["evidence"][1])
+    assert set(t["about"][0]) == set(ft["about"][0]) and set(s["courses"][0]) == set(ft["evidence"][1]["courses"][0])
+    assert yes["effect"] == "Subject Webpage becomes empty. In Catalog reads the page's address."
+    assert no["effect"] is None
+    assert yes["text"] == ("If yes, mark the 2 courses \"Not on the page\" for Subject Webpage. The next "
+                           "run publishes Subject Webpage and In Catalog together.")  # for Studios before pass 7
     assert [e["text"] for e in t["effect"]] == ["Subject Webpage becomes empty.", "In Catalog reads the page's address."]
     assert res["outcome"] == "1 decision before Claude can publish Credit Value."
     assert res["together"][0]["names"] == ["Subject Webpage", "In Catalog"]
     assert res["facts"][-1] == {"label": "Ruleset", "text": "v1, unchanged"} and res["revert"] is None
-    assert report.row_keys(res)[:2] == [(SW, "ACCT199"), (SW, "GEOG222")]
+    # /rows brings the current verdict of every course an answer marks
+    assert report.row_keys(res)[:3] == [(SW, "ACCT199"), (SW, "GEOG222"), (SW, "KINF244")]
+    # summary.md: what to decide and why, the answers, then the evidence; no comma-separated codes
+    md = report.markdown(res, "https://studio.test/")
+    order = [md.index(x) for x in ("### Should Subject Webpage", "Jared's note on ACCT199",
+                                   "**Yes: mark the 2 courses Not on the page**", "**No: mark ACCT199 correct**",
+                                   "Here is the row Jared Diener marked wrong:",
+                                   "Here is one of the 2 courses Jared Diener marked correct:")]
+    assert order == sorted(order)
+    assert "- [GEOG222](https://studio.test/#/c/" in md and "·" not in md
 
 
 def test_inferred_value_of_a_rule_not_published_comes_from_the_last_try(cat, tmp_path, capsys, run):
@@ -394,7 +452,8 @@ def test_inferred_value_of_a_rule_not_published_comes_from_the_last_try(cat, tmp
     item = {"rule": IC, "course": "ACCT199", "annotation": wrong, "value": f"{m.SEED}c/0",
             "evidence": [{"quote": f"{m.SEED}c/0", "from": {"note": wrong}}]}
     facts = {"ending": "needs_you", "rules": [{"rule": CV, "outcome": "not changed"}], "inferred": [item],
-             "to_do": [{"ask": "Is the page's address ACCT199's In Catalog?", "about": [{"course": "ACCT199"}]}]}
+             "to_do": [{"ask": "Is the page's address ACCT199's In Catalog?", "why": "Jared marked it wrong.",
+                        "about": [{"course": "ACCT199"}]}]}
     assert report.check(facts, k) == []
     assert any("your last try gives" in p for p in report.check(facts | {"inferred": [item | {"value": "x"}]}, k))
     res = report.resolve(facts, k)
@@ -404,7 +463,7 @@ def test_inferred_value_of_a_rule_not_published_comes_from_the_last_try(cat, tmp
 def test_run_context_lists_the_last_run_and_the_annotations_since(cat, tmp_path, capsys, run):
     ar, r = run
     ar.done_report(r["run_id"], {"ending": "needs_you", "rules": [{"rule": CV, "outcome": "held", "now": "as is"}],
-                                 "to_do": [{"ask": "Should Credit Value be empty?", "rule": CV}]}, by="agent")
+                                 "to_do": [{"ask": "Should Credit Value be empty?", "why": "Jared said so.", "rule": CV}]}, by="agent")
     m.mark(cat, CV, "ACCT199", "wrong", note="Empty, please.")
     code, out, _ = run_cli(cat, capsys, "run", "context", CV)
     assert code == 0 and f"Last run {r['run_id']} by Jared Diener" in out
@@ -484,6 +543,10 @@ def test_prompt_for_rules_to_improve_with_a_per_run_install(cat):
     assert "You may change any other rule if a goal needs it" in text and "BETTER" not in text
     assert "`inferred.json`" in text and "Don't tell people what to press" in text
     assert "Don't join fragments with `·` or other separators" in text
+    # pass 7: each to-do leads with what to decide (`ask`, `why`), every option an action with its button's `label`
+    assert "Lead with what they must decide" in text and "`why`: at most two short sentences" in text
+    assert "Make every option an action the reviewer can take" in text and '"label": "mark ACCT199 correct"' in text
+    assert "never show a bare course code without saying what it is" in text
     assert "| Read by | `course-credit-value-credit-unit-type` |" in text
     assert f"cd {d} && ./bin/golden-datasets run done --report report.json" in text
     assert os.environ.get("GOLDEN_DATASETS_RUN") is None

@@ -24,6 +24,7 @@ from urllib.parse import quote as urlquote
 from urllib.parse import urlencode
 
 from . import layout
+from .log import FULL_NAMES
 from .review import Review, Snapshot, norm
 
 ENDINGS = ("published", "needs_you", "failed")
@@ -33,6 +34,9 @@ TOP_FIELDS = {"ending", "reason", "rules", "also_changed", "rows", "together", "
 MAX_NOTE_LINES = 5
 MAX_OPEN_TODOS = 3
 MAX_COMMENT = 400
+MAX_WHY = 320           # a to-do's `why`: at most two short sentences
+MAX_WHY_SENTENCES = 2
+MAX_LABEL = 80          # an option's `label`: the action, as its button says it
 BY_ANYONE = "anyone"  # the Rules tab's reviewer filter: a link shows the row whoever reviewed it
 
 
@@ -43,12 +47,31 @@ def rule_names(rules: dict[str, dict]) -> dict[str, str]:
     return {rid: rule_title(r, rules)[0] for rid, r in rules.items()}
 
 
+def full(name: str | None) -> str | None:
+    """A reviewer's full name ("Jared" wrote the first events): the report names people one way everywhere."""
+    return FULL_NAMES.get(name, name) if name else name
+
+
+def brief(e: dict | None) -> dict | None:
+    """An event as the report shows it (`_event_brief`), its author's full name."""
+    from .server.routes_review import _event_brief
+
+    b = _event_brief(e)
+    return b and {**b, "author": full(b["author"])}
+
+
 def words(items: list[str]) -> str:
     """"A", "A and B", "A, B and C"."""
     items = list(items)
     if len(items) <= 1:
         return "".join(items)
     return ", ".join(items[:-1]) + " and " + items[-1]
+
+
+def sentences(s: str) -> int:
+    """How many sentences: runs of text ending in . ! or ? (a last one without a stop counts too). Dots inside
+    words (ceterms:inCatalog, 1.0, avc.edu) don't end a sentence."""
+    return len([x for x in re.split(r"(?<=[.!?])\s+", (s or "").strip()) if x.strip()])
 
 
 def plain(s: str) -> str:
@@ -458,10 +481,14 @@ def check(facts: dict, k: Known) -> list[str]:
 
     for i, t in enumerate(lists["to_do"]):
         w = f"to_do[{i}]"
-        if not c.fields(w, t, {"ask", "rule", "about", "evidence", "options", "effect"}, ("ask",)):
+        if not c.fields(w, t, {"ask", "why", "rule", "about", "evidence", "options", "effect"}, ("ask", "why")):
             continue
         if not _text(t.get("ask")):
             c.add(f"{w}.ask: a question someone who knows the catalog can answer from the evidence")
+        if "why" in t and (not _text(t.get("why")) or sentences(t["why"]) > MAX_WHY_SENTENCES
+                           or len(t["why"]) > MAX_WHY):
+            c.add(f"{w}.why: at most {MAX_WHY_SENTENCES} short sentences ({MAX_WHY} characters) of plain context, "
+                  "naming the courses and rules")
         if t.get("rule") is not None:
             c.rule(f"{w}.rule", t["rule"])
         for j, r in enumerate(t.get("about") or []):
@@ -475,16 +502,19 @@ def check(facts: dict, k: Known) -> list[str]:
                 c.quote(ew, e)
         for j, o in enumerate(t.get("options") or []):
             ow = f"{w}.options[{j}]"
-            if not c.fields(ow, o, {"answer", "do", "then"}, ("answer",)):
+            if not c.fields(ow, o, {"answer", "label", "do", "then"}, ("answer", "label")):
                 continue
             if not _text(o.get("answer")):
                 c.add(f"{ow}.answer: a word or two (yes, no)")
+            if "label" in o and (not _text(o.get("label")) or len(o["label"]) > MAX_LABEL):
+                c.add(f"{ow}.label: the action, in a few words (at most {MAX_LABEL} characters), e.g. "
+                      "\"mark the 13 courses Not on the page\"")
             do = o.get("do")
             if do is not None and c.fields(f"{ow}.do", do, {"mark", "courses", "rule"}, ("mark", "courses")):
                 if do.get("mark") not in MARKS:
                     c.add(f"{ow}.do.mark: one of {', '.join(MARKS)}")
                 if do.get("rule") is not None:
-                    c.rule(f"{ow}.do.rule", do["rule"])
+                    c.rule(f"{ow}.do.rule", do["rule"], property_only=True)
                 c.ref(f"{ow}.do.courses", {"courses": do.get("courses")})
             then = o.get("then")
             if then is not None:
@@ -531,7 +561,7 @@ class Resolver:
 
     def note_source(self, aid: str) -> dict:
         n = self.k.notes[aid]
-        return {"kind": "note", "annotation_id": aid, "author": n["author"], "at": n["at"], "rule": n["rule"],
+        return {"kind": "note", "annotation_id": aid, "author": full(n["author"]), "at": n["at"], "rule": n["rule"],
                 "course": n["course"]}
 
     def source(self, src: dict, q: str) -> dict:
@@ -546,11 +576,9 @@ class Resolver:
         return {"kind": "value", "rule": v["rule"], "course": v["course"]}
 
     def history(self, st) -> list[dict]:
-        from .server.routes_review import _event_brief
-
         out = []
         for e in (st.events if st else []):
-            b = _event_brief(e)
+            b = brief(e)
             out.append({"kind": e["type"], **{k: b[k] for k in ("annotation_id", "verdict", "author", "author_role",
                                                                  "at", "note", "expected", "run_id",
                                                                  "ruleset_version", "run_at")},
@@ -560,8 +588,6 @@ class Resolver:
     def card(self, rid: str, course: str, comment: str | None = None, inferred: dict | None = None,
              left_out: list | None = None) -> dict:
         """A course as its Rules tab row card, as it was when the run ended."""
-        from .server.routes_review import _event_brief
-
         k = self.k
         row = k.row(rid, course)
         r = k.rules.get(rid) or {}
@@ -579,14 +605,28 @@ class Resolver:
                 "value": value, "status": (row or {}).get("status"),
                 "value_before": {"version": k.ruleset_before, "value": before.get("value")} if changed else None,
                 "inferred": inferred, "left_out": left_out or [], "comment": comment,
-                "verdict": _event_brief(st.verdict) if st and st.verdict else None,
+                "verdict": brief(st.verdict) if st and st.verdict else None,
                 "state": st.state if st else None, "history": self.history(st), "links": links}
 
     def course_brief(self, rid: str, course: str) -> dict:
-        row = self.k.row(rid, course)
+        """A course in a table (the rest of a set, the courses an answer marks): enough to show it and to post a
+        verdict on it that supersedes its current one."""
+        k = self.k
+        row = k.row(rid, course)
         st = self.state(rid, row) if row else None
-        return {"course": course, "title": self.k.courses.get(course, {}).get("title"),
-                "value": (row or {}).get("value"), "verdict": st.verdict["verdict"] if st and st.verdict else None}
+        v = st.verdict if st and st.verdict else None
+        return {"course": course, "rule": rid, "title": k.courses.get(course, {}).get("title"),
+                "value": (row or {}).get("value"), "status": (row or {}).get("status"),
+                "occurrence_key": (row or {}).get("occurrence_key"),
+                "page_stem": (row or {}).get("page_stem") or k.courses.get(course, {}).get("page_stem"),
+                "verdict": v["verdict"] if v else None, "state": st.state if st else None,
+                "current": brief(v) if v else None,
+                "links": {"rules": self.rules_link(rid, row=course, by=BY_ANYONE, ext=k.ext)}}
+
+    def has_rule(self, rid: str) -> bool:
+        """The rule exists in the pinned version and finds values (`rule_type: none` is a property with no rule yet)."""
+        r = self.k.rules.get(rid)
+        return bool(r) and (r.get("definition") or {}).get("rule_type") != "none"
 
     def courses_of(self, ref, rule: str | None) -> tuple[str | None, list[str]]:
         """A set of courses: (its rule, the course codes)."""
@@ -625,6 +665,20 @@ def _effect_text(name: str, after) -> str:
     if isinstance(after, str):
         return f"{name} becomes \"{after}\"."
     return f"{name} changes."
+
+
+#: What each answer's mark posts, one verdict per course (the Rules tab's own: "Not on the page" is ✕ with the reason
+#: `not_on_page`, sme-fixes §6). `save_expected` needs a value per course, so it opens the rows instead.
+MARK_EVENTS = {"correct": {"verdict": "correct"}, "wrong": {"verdict": "wrong"},
+               "not_on_page": {"verdict": "wrong", "reasons": ["not_on_page"]}}
+MARK_NAMES = {"correct": "correct", "wrong": "wrong", "not_on_page": "Not on the page",
+              "save_expected": "with their expected values"}
+
+
+def _who(authors: set) -> str:
+    """" Jared Diener" when one person made every verdict of a set, else ""."""
+    named = {a for a in authors if a}
+    return f" {next(iter(named))}" if len(named) == 1 else ""
 
 
 def _mark_words(do: dict, n: int, names: list[str], rule_name: str) -> str:
@@ -715,61 +769,120 @@ def resolve(facts: dict, k: Known) -> dict:
                                       for e in x.get("evidence") or []],
                          "row": card(x["rule"], x["course"])})
 
-    # decisions
+    def lead_of(c: dict) -> str:
+        """A row card's lead sentence in a decision: who marked it what."""
+        v = c.get("verdict") or {}
+        if v.get("verdict") in ("correct", "wrong"):
+            return f"Here is the row {v['author']} marked {v['verdict']}:"
+        return "Here is the row this question is about:"
+
+    # decisions (pass 7): what to decide and why first, then the answers (each one an action the Studio can take:
+    # one verdict per course), then the evidence, every row card introduced in words
     to_do = []
     for i, t in enumerate(facts.get("to_do") or []):
         subject = t.get("rule") or next((e["rule"] for e in t.get("effect") or []), None) or \
             next((o["do"].get("rule") for o in t.get("options") or [] if o.get("do") and o["do"].get("rule")), None) \
             or (k.goals[0] if k.goals else None)
-        about = []
+        about: list[dict] = []
+        shown: set = set()
+
+        def add_about(c: dict, about=about, shown=shown) -> None:
+            if (c["rule"], c["course"]) in shown:
+                return
+            shown.add((c["rule"], c["course"]))
+            about.append(c | {"lead": lead_of(c)})
         for ref in t.get("about") or []:
             kind, v = next(iter(ref.items()))
             if kind == "course" and subject:
-                about.append(card(subject, v))
+                add_about(card(subject, v))
             elif kind == "value":
-                about.append(card(v["rule"], v["course"]))
+                add_about(card(v["rule"], v["course"]))
             elif kind == "courses":
                 rid, codes = R.courses_of(v, subject)
-                about += [card(rid, c) for c in codes[:3]]
+                for c in codes[:3]:
+                    add_about(card(rid, c))
         evidence = []
         for e in t.get("evidence") or []:
-            if "set" in e:
-                kind, v = next(iter(e["set"].items()))
-                rid, codes = R.courses_of(v, subject) if kind == "courses" else (subject, [v])
-                verdict = v.get("verdict") if isinstance(v, dict) else None
-                evidence.append({"kind": "set", "label": e.get("label") or (f"marked {verdict}" if verdict else "courses"),
-                                 "rule": rid, "count": len(codes), "rows": [card(rid, c) for c in codes[:1]],
-                                 "courses": [R.course_brief(rid, c) for c in codes[1:]],
-                                 "link": R.rules_link(rid, by=BY_ANYONE, verdict=verdict) if verdict else None})
-            else:
+            if "set" not in e:
                 evidence.append(quote_item(e))
+                continue
+            kind, v = next(iter(e["set"].items()))
+            rid, codes = R.courses_of(v, subject) if kind == "courses" else (subject, [v])
+            verdict = v.get("verdict") if isinstance(v, dict) else None
+            label = e.get("label") or (f"marked {verdict}" if verdict else "courses")
+            briefs = [R.course_brief(rid, c) for c in codes]
+            if verdict:
+                who = _who({(b["current"] or {}).get("author") for b in briefs})
+                label = f"{who.strip()} marked {verdict}".strip() if who else f"marked {verdict}"
+            fresh = [c for c in codes if (rid, c) not in shown]
+            first = fresh[0] if fresh else None
+            n = len(codes)
+            rows = [card(rid, first) | {"lead": f"Here is one of the {n} courses {label}:" if n > 1
+                                        else f"Here is the course {label}:"}] if first else []
+            if first:
+                shown.add((rid, first))
+            others = [b for b in briefs if b["course"] != first]
+            evidence.append({"kind": "set", "label": label, "rule": rid, "count": n, "rows": rows,
+                             "courses": others,
+                             "others_lead": (f"The other {len(others)} courses {label}:" if len(others) > 1
+                                             else f"The other course {label}:") if others else None,
+                             "link": R.rules_link(rid, by=BY_ANYONE, verdict=verdict) if verdict else None})
+        effects = t.get("effect") or []
+        effect_rules = {e["rule"] for e in effects}
+        opts = t.get("options") or []
+        owner = next((j for j, o in enumerate(opts) if effect_rules & set((o.get("then") or {}).get("publish") or [])),
+                     0 if opts else None)
         options = []
-        for o in t.get("options") or []:
+        for j, o in enumerate(opts):
             bits = []
             do = o.get("do")
-            link = None
+            link, do_out, done = None, None, None
+            answer = o["answer"].strip()
             if do:
                 rid = do.get("rule") or (do["courses"].get("rule") if isinstance(do["courses"], dict) else subject)
                 rid2, codes = R.courses_of(do["courses"], rid)
-                bits.append(_mark_words(do, len(codes), codes, names.get(rid2 or rid, rid2 or rid)) + ".")
+                rid2 = rid2 or rid
+                said = _mark_words(do, len(codes), codes, names.get(rid2, rid2))
+                bits.append(said + ".")
                 if isinstance(do["courses"], dict):
                     link = R.rules_link(do["courses"]["rule"], by=BY_ANYONE, verdict=do["courses"]["verdict"])
                 elif len(codes) == 1:
-                    link = R.rules_link(rid2 or rid, row=codes[0], by=BY_ANYONE)
+                    link = R.rules_link(rid2, row=codes[0], by=BY_ANYONE)
+                mark = do["mark"]
+                what = MARK_NAMES[mark]
+                done = (f"{codes[0]} marked {what}" if len(codes) == 1 else f"{len(codes)} courses marked {what}") \
+                    if mark in MARK_EVENTS else None
+                do_out = {"mark": mark, "rule": rid2, "rule_name": names.get(rid2, rid2), "words": what,
+                          "event": MARK_EVENTS.get(mark), "count": len(codes),
+                          "courses": [R.course_brief(rid2, c) for c in codes]}
             pub = (o.get("then") or {}).get("publish") or []
             if pub:
                 bits.append(f"The next run publishes {words([names.get(r, r) for r in pub])}"
                             + (" together." if len(pub) > 1 else "."))
             text = " ".join(bits)
-            answer = o["answer"].strip()
             text = f"If {answer}, {text[0].lower() + text[1:]}" if text else f"If {answer}."
-            options.append({"answer": answer, "text": text, "link": link})
-        to_do.append({"ask": t["ask"].strip(), "open": i < MAX_OPEN_TODOS, "rule": subject,
+            again = list(dict.fromkeys([*k.goals, *pub])) if (pub or do) else []
+            effect = [_effect_text(names.get(e["rule"], e["rule"]), e["after"]) for e in effects] if j == owner else []
+            needs = list(dict.fromkeys([*pub, *([e["rule"] for e in effects] if j == owner else [])]))
+            label = (o.get("label") or "").strip() or (said if do else "")
+            options.append({"answer": answer, "label": label,
+                            "button": f"{answer[:1].upper()}{answer[1:]}: {label}" if label else answer.capitalize(),
+                            "text": text, "link": link, "do": do_out, "done": done,
+                            "then": {"publish": [{"rule": r, "name": names.get(r, r), "has_rule": R.has_rule(r)}
+                                                 for r in pub],
+                                     "run_again": [{"rule": r, "name": names.get(r, r)} for r in again],
+                                     "text": f"Then run again with {words([names.get(r, r) for r in again])}."
+                                     if again else None},
+                            "effect": " ".join(effect) or None,
+                            "no_rule_yet": [f"{names.get(r, r)} has no rule yet; the next run writes one."
+                                            for r in needs if not R.has_rule(r)]})
+        to_do.append({"ask": t["ask"].strip(), "why": " ".join(str(t.get("why") or "").split()) or None,
+                      "open": i < MAX_OPEN_TODOS, "rule": subject,
                       "rule_name": names.get(subject, subject) if subject else None, "about": about,
                       "evidence": evidence, "options": options,
                       "effect": [{"rule": e["rule"], "rule_name": names.get(e["rule"], e["rule"]),
                                   "text": _effect_text(names.get(e["rule"], e["rule"]), e["after"])}
-                                 for e in t.get("effect") or []]})
+                                 for e in effects]})
 
     # rule sections
     def section(rid: str, goal: bool, item: dict) -> dict:
@@ -840,6 +953,12 @@ def row_keys(resolved: dict) -> list[tuple[str, str]]:
         for e in t["evidence"]:
             for c in e.get("rows") or []:
                 add(c)
+            for c in e.get("courses") or []:
+                if c.get("rule"):
+                    add(c)
+        for o in t.get("options") or []:
+            for c in (o.get("do") or {}).get("courses") or []:
+                add(c)
     for s in (resolved.get("rules") or []) + (resolved.get("also_changed") or []):
         for c in s["rows"]:
             add(c)
@@ -891,19 +1010,52 @@ def markdown(r: dict, studio_url: str | None) -> str:
             out += [f"  - {e['source'].get('author') or e['source'].get('course')}: \"{e['quote']}\""
                     for e in x["evidence"]]
         out.append("")
+    shown: set = {(x["row"]["rule"], x["row"]["course"]) for x in r["inferred"]}
+
+    def card_once(c: dict, lead: str | None = None) -> list[str]:
+        """A row once per report; later mentions point back to it."""
+        if (c["rule"], c["course"]) in shown:
+            return [f"- {c['course']}'s row is shown above."]
+        shown.add((c["rule"], c["course"]))
+        return ([lead] if lead else []) + [card_line(c)]
+
     if r["to_do"]:
         out += ["## What you need to decide", ""]
         for t in r["to_do"]:
+            # what to decide and why, then the answers, then the evidence (pass 7)
             out += [f"### {t['ask']}", ""]
-            out += [card_line(c) for c in t["about"]]
+            if t.get("why"):
+                out += [t["why"], ""]
+            for o in t["options"]:
+                if o.get("button"):
+                    line = f"- **{o['button']}**"
+                    rest = [x for x in (o.get("effect"), *(o.get("no_rule_yet") or []),
+                                        (o.get("then") or {}).get("text")) if x]
+                    if rest:
+                        line += ". " + " ".join(rest)
+                    if o.get("link"):
+                        line += f" {_md('Open in Rules', url(o['link']))}"
+                    out.append(line)
+                else:  # a report resolved before pass 7
+                    out.append(f"- {o['text']}")
+            if not any(o.get("effect") for o in t["options"]):
+                out += [f"- {e['text']}" for e in t["effect"]]
+            out.append("")
+            for c in t["about"]:
+                out += card_once(c, c.get("lead"))
             for e in t["evidence"]:
                 if e["kind"] == "quote":
                     out.append(f"- {e['source'].get('author') or e['source'].get('course')}: \"{e['quote']}\"")
-                else:
-                    codes = [c["course"] for c in e["rows"]] + [c["course"] for c in e["courses"]]
-                    out.append(f"- {_md(e['label'].capitalize(), url(e.get('link')))} ({e['count']}): {', '.join(codes)}")
-            out += [f"- {o['text']}" for o in t["options"]]
-            out += [f"- {e['text']}" for e in t["effect"]]
+                    continue
+                for c in e["rows"]:
+                    out += card_once(c, c.get("lead"))
+                if e["courses"]:
+                    out.append(e.get("others_lead") or f"The other {len(e['courses'])}:")
+                    for c in e["courses"]:
+                        mark = {"correct": "marked correct", "wrong": "marked wrong"}.get(c.get("verdict"), "not marked")
+                        title = f" ({c['title']})" if c.get("title") else ""
+                        link = (c.get("links") or {}).get("rules")
+                        out.append(f"- {_md(c['course'], url(link))}{title}: {mark}")
             out.append("")
     for s in r["rules"] + r["also_changed"]:
         out += [f"## {'' if s['goal'] else 'Also changed: '}{s['name']}", ""]
@@ -915,7 +1067,8 @@ def markdown(r: dict, studio_url: str | None) -> str:
             label = f"Compare v{vc['base']} and v{vc['published']}"
             cmp_ = f" {_md(label, url(vc['compare_url']))}" if vc.get("compare_url") else ""
             out += [f"Values changed: {vc['text']}.{cmp_}", ""]
-        out += [card_line(c) for c in s["rows"]]
+        for c in s["rows"]:
+            out += card_once(c)
         if s["rows"]:
             out.append("")
     if r["together"]:
