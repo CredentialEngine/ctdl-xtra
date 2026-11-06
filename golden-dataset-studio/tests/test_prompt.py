@@ -106,9 +106,13 @@ def test_k2_version_is_a_run(ctx):
     assert "## End the run" in text and f"cd {d} && ./bin/golden-datasets run done --report report.json" in text
     assert f"`{d}/report.json`" in text
     assert "Report back:" not in text
-    # the work itself is the same as the Azure version
+    # the work itself is the same as the Azure version, run with the run's own install (./bin/); only a K2 run
+    # writes report.json, so only it is told to list the other rules it changed
     az = build_prompt(ctx, None, True, target="azure", azure_root=azure)["text"]
-    assert text.split("## Limits")[1].split("## End the run")[0] == az.split("## Limits")[1].split("Report back:")[0]
+    limits = text.split("## Limits")[1].split("## End the run")[0].replace("./bin/golden-datasets", "golden-datasets")
+    also = "- List every rule you changed that isn't a goal under `also_changed` in your report, with one line on why.\n"
+    assert also in limits
+    assert limits.replace(also, "") == az.split("## Limits")[1].split("Report back:")[0]
 
 
 @pytest.mark.slow
