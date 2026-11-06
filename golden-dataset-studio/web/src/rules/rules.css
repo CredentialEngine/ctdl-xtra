@@ -23,10 +23,14 @@
 .hist .ico svg { width: 12px; height: 12px; vertical-align: -2px; margin-right: 3px; }
 .hist .h-expert { color: var(--violet); }
 .hist .h-muted { color: var(--faint); }
+/* the annotation a report links to (?note=) */
+.hist .is-linked { outline: 1.5px solid var(--violet); outline-offset: 1px; border-radius: 3px; }
 .hist .h-compared { color: var(--faint); font-style: normal; }
 .hist .h-comment .ico { color: var(--accent); }
 .hist .h-sep { color: var(--faint); }
 .hist .h-good + .h-note, .hist .h-bad + .h-note { color: var(--muted); }
+/* an AI run's report (one-rule-runs §1.4): one history item per line */
+.hist.stacked > span { display: block; }
 .row:focus { outline: none; }
 .row.more-rows { text-align: center; cursor: pointer; color: var(--muted); font-size: 12px; }
 
@@ -234,6 +238,12 @@
 .row.add-course:hover { color: var(--accent); }
 .expand .sel-pin .sel-quote { border-left-color: #98a2b3; background: #f2f4f7; color: var(--ink); }
 
+/* ✦ Improve on a sidebar row (one-rule-runs §1.1): only on the hovered or selected row; it is the Discuss button */
+.rule-item .rule-improve { display: none; }
+.rule-item:hover .rule-improve, .rule-item.on .rule-improve, .rule-item:focus-within .rule-improve { display: inline-flex; }
+.rule-item .meta .stat[role=button] { cursor: pointer; }
+.rule-item .meta .stat[role=button]:hover { text-decoration: underline; }
+.rule-item .meta .stat .run-pulse { width: 7px; height: 7px; }
 /* Reset rule (phase1-followups §4.1): the link beside Reopen, its dialog's reason, the hint on a reset row */
 .linkish.reset { color: var(--red); }
 .linkish.reset:disabled { color: var(--faint); cursor: default; }

@@ -2,10 +2,10 @@
 import { useEffect, useRef } from "react";
 import type { EventBrief, RowStateName } from "../api/types";
 import { Ico } from "../shell/icons";
-import { clip, controlOn, historyItems, type Draft } from "./logic";
+import { ago, clip, controlOn, fullTime, historyItems, monthDay, type Draft, type HistItem } from "./logic";
 import { WhyWrong } from "./WhyWrong";
 
-export function Controls({ state, verdict, comments, draft, onPick, tour, confirm, marked, commentOnly }: {
+export function Controls({ state, verdict, comments, draft, onPick, tour, confirm, marked, commentOnly, okTitle, wrongTitle, talkTitle, stacked }: {
   state: RowStateName | null; verdict: EventBrief | null; comments: EventBrief[]; draft: Draft | null;
   onPick: (v: "correct" | "wrong" | "comment") => void; tour?: boolean;
   /** an engineer-checked value an expert sees: ✓ becomes Confirm (an ordinary ✓ by the expert, Evals spec §6.7) */
@@ -14,6 +14,10 @@ export function Controls({ state, verdict, comments, draft, onPick, tour, confir
   marked?: boolean;
   /** a list property's row: its items have their own ✓ and ✕, so the row has only the comment button */
   commentOnly?: boolean;
+  /** the ✓ and ✕ tooltips when they do something else (an AI run's report: ✓ saves an inferred value, ✕ opens a new tab) */
+  okTitle?: string; wrongTitle?: string; talkTitle?: string;
+  /** an AI run's report: no " · " in the byline */
+  stacked?: boolean;
 }) {
   const on = draft ? (draft.mode === "wrong" ? "wrong" : null) : controlOn(state);
   const talk = state === "question" ? "inst" : comments.length || draft?.mode === "comment" ? "on" : "";
@@ -26,12 +30,12 @@ export function Controls({ state, verdict, comments, draft, onPick, tour, confir
         {commentOnly ? null : confirm
           ? <button className="cb confirm" title="Confirm the engineer's check (1): the value becomes human-reviewed" onClick={click("correct")}>
               <Ico name="correct" />Confirm</button>
-          : <button className={`cb ok${on === "correct" ? " on" : ""}`} title="Correct (1)" aria-label="Correct" onClick={click("correct")}><Ico name="correct" /></button>}
-        {!commentOnly && <button className={`cb no${on === "wrong" ? " on" : ""}`} title="Wrong (2): select the right text on the page" aria-label="Wrong" onClick={click("wrong")}><Ico name="wrong" /></button>}
-        <button className={`cb talk ${talk}`} title={state === "question" ? "Question for the institution" : "Comment (3)"} aria-label="Comment"
+          : <button className={`cb ok${on === "correct" ? " on" : ""}`} title={okTitle ?? "Correct (1)"} aria-label="Correct" onClick={click("correct")}><Ico name="correct" /></button>}
+        {!commentOnly && <button className={`cb no${on === "wrong" ? " on" : ""}`} title={wrongTitle ?? "Wrong (2): select the right text on the page"} aria-label="Wrong" onClick={click("wrong")}><Ico name="wrong" /></button>}
+        <button className={`cb talk ${talk}`} title={state === "question" ? "Question for the institution" : talkTitle ?? "Comment (3)"} aria-label="Comment"
           data-tour={tour ? "comment-button" : undefined} onClick={click("comment")}><Ico name="bubble" /></button>
       </div>
-      {by && <div className="byline">{by}{state === "question" ? " · question for the institution" : ""}</div>}
+      {by && <div className="byline">{by}{state === "question" ? (stacked ? ", question for the institution" : " · question for the institution") : ""}</div>}
     </div>
   );
 }
@@ -94,23 +98,45 @@ export function Expansion({ draft, propertyRule, emptyValue, onChange, onSave, o
   );
 }
 
-export function HistoryLine(props: Parameters<typeof historyItems>[0]) {
-  const items = historyItems(props);
+/** A link to an AI run's report from where the reader is (App opens `?run=`). */
+const runHref = (id: string) => `#${(location.hash.replace(/^#/, "") || "/").split("?")[0]}?run=${encodeURIComponent(id)}`;
+
+/** The history line under a row. `stacked` (an AI run's report): one item per line, no " · " between them; `lead`:
+ * items shown first (the report's "In v9: …"). */
+export function HistoryLine({ linked, stacked, lead, items: given, ...props }: Parameters<typeof historyItems>[0] & {
+  linked?: string | null; stacked?: boolean; lead?: HistItem[];
+  /** the items to show instead of the row's (a report row's history, reportHistory) */ items?: HistItem[];
+}) {
+  const items = [...(lead ?? []), ...(given ?? historyItems(props))];
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {  // a link to one annotation (?note=): bring it into view
+    if (linked) ref.current?.querySelector(".is-linked")?.scrollIntoView?.({ block: "nearest" });
+  }, [linked]);
   if (!items.length) return null;
   return (
-    <div className="hist">
+    <div className={`hist${stacked ? " stacked" : ""}`} ref={ref}>
       {items.map((h, i) => (
-        <span key={i} className={`h-${h.cls}${h.cls === "good" ? " good" : h.cls === "bad" ? " bad" : h.cls === "expert" ? " expert-t" : ""}`}>
-          {i > 0 && <span className="h-sep"> · </span>}
+        <span key={i} data-annotation={h.id} title={h.id && h.id === linked ? "The annotation the link points at" : undefined}
+          className={`h-${h.cls}${h.cls === "good" ? " good" : h.cls === "bad" ? " bad" : h.cls === "expert" ? " expert-t" : ""}${h.id && h.id === linked ? " is-linked" : ""}`}>
+          {i > 0 && !stacked && <span className="h-sep"> · </span>}
           {h.cls === "expert" && <Ico name="inst" />}
           {h.cls === "comment" && (h.n ? <span className="h-n" title="Pinned to text on the page: the bubble with this number">{h.n}</span>
             : <Ico name="bubble" className="ib" />)}
-          {h.author && <b>{h.author}: </b>}{h.text}
-          {h.compared && <span className="h-compared"> · {h.compared}</span>}
+          {h.run
+            ? <><b>{h.author}</b> <span className="faint">({h.run.version != null ? `v${h.run.version}, ` : ""}<a href={runHref(h.run.id)}
+                onClick={(e) => e.stopPropagation()} title="The AI run's report">AI run {monthDay(h.run.at)}</a>)</span><b>: </b></>
+            : h.author && <b>{h.author}: </b>}{h.text}
+          {h.when && <>{" "}<When at={h.when} />{h.after}</>}
+          {h.compared && (stacked ? <span className="h-compared"> ({h.compared})</span> : <span className="h-compared"> · {h.compared}</span>)}
         </span>
       ))}
     </div>
   );
+}
+
+/** A time as people say it ("12 minutes ago"), the full date and time zone in its tooltip ("Nov 5, 2026, 6:28 PM MST"). */
+export function When({ at, now }: { at: string; now?: number }) {
+  return <time dateTime={at} title={fullTime(at)}>{ago(at, now)}</time>;
 }
 
 /** A value on two lines with line breaks shown as ↵ (screen 04). */

@@ -20,7 +20,8 @@ import { Tour, useTour } from "./tour";
 import { AgentProvider } from "./agent/state";
 import { RunBar } from "./agent/RunBar";
 import { RunsPanel } from "./agent/RunsPanel";
-import { OPEN_RUNS } from "./agent/api";
+import { CATALOG_CHANGED, OPEN_RUNS, type OpenRuns } from "./agent/api";
+import { RunDialogHost } from "./agent/RunDialog";
 import "./styles.css";
 import "./shell/dark.css";
 
@@ -36,15 +37,34 @@ export default function App() {
   const session = useSession();
   const signedIn = !!session?.signed_in;
   useEffect(() => { if (signedIn) load(); }, [load, signedIn]);
+  useEffect(() => {  // a revert from a report: re-fetch, so the ruleset picker shows the new latest version
+    window.addEventListener(CATALOG_CHANGED, load);
+    return () => window.removeEventListener(CATALOG_CHANGED, load);
+  }, [load]);
   const tour = useTour(catalog);
   const [files, setFiles] = useState(false);
-  // Past AI runs: undefined = closed, null = the list, a run id = that run
+  // Past AI runs: undefined = closed, null = the list, a run id = that run; `runsRule`: one rule's runs
   const [runsOpen, setRunsOpen] = useState<string | null | undefined>(undefined);
+  const [runsRule, setRunsRule] = useState<{ id: string; name: string | null } | null>(null);
   useEffect(() => {
-    const on = (e: Event) => setRunsOpen((e as CustomEvent<string | null>).detail ?? null);
+    const on = (e: Event) => {
+      const d = (e as CustomEvent<OpenRuns | string | null>).detail;
+      const o: OpenRuns = typeof d === "object" && d ? d : { run: d ?? null };
+      setRunsRule(o.rule ? { id: o.rule, name: o.ruleName ?? null } : null);
+      setRunsOpen(o.run ?? null);
+    };
     window.addEventListener(OPEN_RUNS, on);
     return () => window.removeEventListener(OPEN_RUNS, on);
   }, []);
+  useEffect(() => {  // a link to a run's report (?run=<run id>, report-links spec §4): open it, then drop the parameter
+    const id = route.params.get("run");
+    if (!id) return;
+    setRunsRule(null);
+    setRunsOpen(id);
+    const rest = new URLSearchParams(route.params);
+    rest.delete("run");
+    history.replaceState(null, "", location.hash.split("?")[0] + (rest.toString() ? `?${rest}` : ""));
+  }, [route.params]);
   // the prompt modal: undefined = closed, otherwise the "couldn't connect" warning (null = none)
   const [promptOpen, setPromptOpen] = useState<string | null | undefined>(undefined);
   useEffect(() => {
@@ -83,13 +103,15 @@ export default function App() {
         {catalog && <button className="files-btn" onClick={() => setFiles(true)}
           title="Browse the files the Studio keeps for this catalog on its storage root (read-only, for debugging)">
           <Ico name="folder" />Storage files</button>}
-        {catalog && <button className="files-btn" onClick={() => setRunsOpen(null)} data-testid="past-runs"
+        {catalog && <button className="files-btn" onClick={() => { setRunsRule(null); setRunsOpen(null); }} data-testid="past-runs"
           title="Every run of Claude on this catalog: outcome, Claude's report, progress notes and the prompt it was given">
           <Ico name="spark" />Past AI runs</button>}
         <ThemeButton /></footer>
       {catalog && <Tour {...tour} catalog={catalog} />}
       {catalog && files && <StorageFiles catalog={catalog.short} onClose={() => setFiles(false)} />}
-      {catalog && runsOpen !== undefined && <RunsPanel catalog={catalog.short} initial={runsOpen} onClose={() => setRunsOpen(undefined)} />}
+      {catalog && runsOpen !== undefined && <RunsPanel key={`${runsRule?.id ?? ""}|${runsOpen ?? ""}`} catalog={catalog.short} initial={runsOpen}
+        rule={runsRule?.id ?? null} ruleName={runsRule?.name ?? null} onClose={() => setRunsOpen(undefined)} />}
+      {catalog && <RunDialogHost catalog={catalog.short} />}
       {catalog && promptOpen !== undefined && <PromptModal catalog={catalog.catalog} short={catalog.short}
         version={catalog.ruleset_version} warning={promptOpen} onClose={() => setPromptOpen(undefined)} />}
     </AgentProvider>

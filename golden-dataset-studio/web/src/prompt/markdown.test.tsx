@@ -55,6 +55,9 @@ describe("markdown", () => {
     expect(container.textContent).toContain("<div onclick=alert(1)>not html</div>");
     expect(container.querySelector("h1 code")?.textContent).toBe("course-description");
     expect(container.querySelector("a")?.getAttribute("href")).toBe("https://example.org");
+    // every link opens a new tab and shows the external-link icon
+    expect(container.querySelector("a")?.getAttribute("target")).toBe("_blank");
+    expect(container.querySelector("a .ico")).not.toBeNull();
     expect(container.querySelectorAll("ol > li").length).toBe(2);
   });
 });

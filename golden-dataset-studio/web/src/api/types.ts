@@ -104,6 +104,8 @@ export interface EventBrief {
   rule_version_seen: number | null; value_seen: string | null; page_stem?: string | null; author_role?: string | null;
   compared_with?: ComparedWith | null; anchor?: Anchor | null;
   reasons?: string[];                 // "Why wrong?" flags on a ✕ (sme-fixes §6)
+  /** a comment Claude wrote in an AI run (author_role "ai", one-rule-runs §1.6): the run and the ruleset it is about */
+  run_id?: string | null; ruleset_version?: number | null;
 }
 
 /** Evals §4.3: an expert confirmed the value (`human`: their verdict), or only an engineer did, waiting for an expert

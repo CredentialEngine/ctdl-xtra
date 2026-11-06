@@ -14,13 +14,17 @@ router = APIRouter(prefix="/api")
 
 
 @router.get("/catalogs/{catalog}/prompt")
-def prompt(request: Request, catalog: str, rule: str | None = None, needs_work: bool = False) -> dict:
-    """One rule (`rule=`), or every rule whose status is `needs work` (`needs_work=true`, also the default). Always the
+def prompt(request: Request, catalog: str, rule: str | None = None, needs_work: bool = False,
+           rules: str | None = None) -> dict:
+    """One rule (`rule=`), a set of rules to improve (`rules=a,b`: the prompt a new AI run on them would get, minus
+    the run's own header), or every rule whose status is `needs work` (`needs_work=true`, also the default). Always the
     version that points Claude at the Azure root (this Studio's, or `serve --azure-root`) after a minimal setup."""
     st = studio(request)
     ctx = st.ctx(catalog)
+    goals = [r for r in (rules or "").split(",") if r.strip()] or None
     try:
-        out = build_prompt(ctx, rule, needs_work, rv=current_review(ctx), target="azure", azure_root=st.azure_root)
+        out = build_prompt(ctx, rule, needs_work, rv=current_review(ctx), target="azure", azure_root=st.azure_root,
+                           rules=goals)
     except UserError as exc:
         raise not_found(str(exc)) from None
     return {**out, "studio_root": st.root.uri}

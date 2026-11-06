@@ -63,9 +63,14 @@ LOCATOR_NAMING = (
 REPO = "https://github.com/CredentialEngine/ctdl-xtra.git"
 SUBDIR = "golden-dataset-studio"
 TARGETS = ("local", "azure", "k2")
-# k2: the remote agent (agent_runs.py) on K2, where SAS tokens for the shared root sit in this file
+# k2: the remote agent (agent_runs.py) on K2. Its workspaces are folders under K2_WORK, and the SAS tokens for the
+# shared root sit in `<K2_WORK>/golden-datasets.env`. $GOLDEN_DATASETS_K2_WORK names another folder (a K2 daemon on a
+# laptop, for a test).
 K2_WORK = "/var/lib/k2/work"
-K2_SAS_FILE = f"{K2_WORK}/golden-datasets.env"
+
+
+def k2_work() -> str:
+    return (os.environ.get("GOLDEN_DATASETS_K2_WORK") or K2_WORK).rstrip("/")
 TOPIC_NAME = {"new-rule": "suggests a new rule", "approach": "suggests an approach",
               "question-rule": "questions this rule", "other": "comment", None: "comment"}
 
@@ -228,7 +233,7 @@ def _run_dir(run: dict | None) -> str:
     """This run's folder on K2: absolute, because Claude Code moves the shell back to the workspace folder whenever a
     command leaves it, so every command `cd`s here first."""
     agent = ((run or {}).get("k2") or {}).get("agent") or "golden-rules"
-    return f"{K2_WORK}/{agent}/runs/{_run_id(run)}"
+    return f"{k2_work()}/{agent}/runs/{_run_id(run)}"
 
 
 def _run_header(run: dict | None, ctx: Ctx) -> list[str]:
@@ -241,60 +246,152 @@ def _run_header(run: dict | None, ctx: Ctx) -> list[str]:
             "work to subagents; give them the run id and the commands below.", "",
             "Report as you go, one short line per step: what you're checking, what you found, what you changed, "
             "what you published. People read these to know you're still working:", "",
-            "```sh", f'cd {d} && golden-datasets run note --run {rid} "<one line>"', "```", "",
+            "```sh", f'cd {d} && ./bin/golden-datasets run note "<one line>"', "```", "",
             "**Your first action is a note.** As soon as Setup's first step has installed the CLI and made the "
             "folder, before anything else, write one (`\"Starting: <what you'll do first>\"`). If no note arrives "
             "within 5 minutes, the Studio tells people you may have stopped.", "",
-            f"**Start every `golden-datasets` command with `cd {d} && `** (Setup makes the folder). Your shell "
-            "returns to the workspace folder whenever a command leaves it, and only that folder's settings name this "
-            "run's root and catalog. When you finish, the last section says how to end the run. If something blocks "
-            "you, write a note saying what, and end the run as failed rather than working around it (if the install "
-            "itself fails, these commands don't exist: stop and say so in your reply).", ""]
+            f"**Start every command with `cd {d} && ./bin/golden-datasets`** (Setup installs this run's own copy of "
+            "the CLI there). Your shell returns to the workspace folder whenever a command leaves it, and only this "
+            "folder's settings name this run's root and catalog. When you finish, the last section says how to end "
+            "the run. If something blocks you, write a note saying what, and end the run as failed rather than "
+            "working around it (if the install itself fails, these commands don't exist: stop and say so in your "
+            "reply).", "",
+            "Report with `./bin/golden-datasets run note` and `run done` only; don't use `k2 respond` or `k2 done`.",
+            ""]
+
+
+REFERENCES = [
+    ["`{\"course\": \"ACCT199\"}`", "a course: the report shows its row (title, value, verdicts, comments)"],
+    ["`{\"value\": {\"course\": \"GEOG222\", \"rule\": \"<rule id>\"}}`", "a course's value in a rule"],
+    ["`{\"note\": \"an-39127172c8e8\"}`", "a verdict's note or a comment (ids from `rule annotations`)"],
+    ["`{\"page\": {\"course\": \"BIOL110\", \"quote\": \"<words copied from the page>\"}}`",
+     "a passage of the course's saved page"],
+    ["`{\"courses\": {\"rule\": \"<rule id>\", \"verdict\": \"correct\"}}` or `{\"courses\": [\"AERO199\", \"AJ912\"]}`",
+     "a set of courses: by their verdict in a rule (`correct` or `wrong`), or listed"],
+]
+REPORT_FIELDS = [
+    ["`ending`", "`published` (you published a new ruleset), `needs_you` (you stopped because only people can "
+     "unblock it) or `failed` (something broke: install, storage, a command)"],
+    ["`reason`", "`failed` only: what broke, in one line"],
+    ["`rules`", "one per rule to improve: `{rule, outcome, now, why}`. `outcome`: `published`, `held`, `not changed` "
+     "or `failed`; `now`: what its values are now, in a few words (\"empty on every course\"); `why`: optional, one line"],
+    ["`also_changed`", "every other rule you changed: `{rule, because, why}`. `because`: `{\"reads\": <rule>}` or "
+     "`{\"read_by\": <rule>}` when that is the link; `why`: one line. The CLI checks this list against what you "
+     "published"],
+    ["`rows`", "`{rule, course, comment}`: for a row you changed or reason about, one sentence: what the value is "
+     "now and why. It appears on that row, next to the reviewers' comments. Don't tell people what to press or what "
+     "to do"],
+    ["`inferred`", "the values in `inferred.json`: `{rule, course, annotation, value, evidence, left_out}`. "
+     "`evidence`: the quotes the value rests on; `left_out`: `[{\"quote\": <page words the value leaves out>}]`"],
+    ["`to_do`", "at most 3 decisions for people, most important first: `{ask, why, about, evidence, options, "
+     "effect}`. `ask`: the question; `why`: at most two short sentences of plain context, naming the courses and "
+     "rules; `about`: references; `evidence`: quotes, or `{\"set\": <courses reference>, \"label\": \"marked "
+     "correct\"}`; `options`: `[{answer, label, do: {mark, courses, rule}, then: {publish: [rule ids]}}]`: `label` is "
+     "the action in a few words, as its button says it (\"mark the 13 courses Not on the page\"), `mark` one of "
+     "`correct`, `wrong`, `not_on_page`, `save_expected`, and `then.publish` lists every rule the next run would "
+     "publish after that answer; `effect`: `[{rule, after}]` (`after`: the value, `\"\"` for empty, or "
+     "`{\"source\": \"page_url\"}`)"],
+    ["`together`", "optional: rules linked by meaning, not by data: `{rules, because: <quote>}`"],
+    ["`notes`", "optional, at most 5 lines: anything that fits nowhere else"],
+]
+REPORT_EXAMPLE = {
+    "ending": "needs_you",
+    "rules": [{"rule": "course-subject-webpage", "outcome": "held", "now": "the page's address on every course"}],
+    "rows": [{"rule": "course-subject-webpage", "course": "ACCT199",
+              "comment": "The value is the page's address, as on the 13 courses marked correct."}],
+    "to_do": [{"ask": "Is Jared Diener's note on ACCT199 right for every course in the catalog?",
+               "why": "His note on ACCT199 says a course in a catalog uses In Catalog instead of Subject Webpage. "
+                      "But he marked 13 courses with the page's address in Subject Webpage correct.",
+               "about": [{"course": "ACCT199"}],
+               "evidence": [{"quote": "use the property ceterms:inCatalog instead of ceterms:subjectWebpage",
+                             "from": {"note": "an-39127172c8e8"}},
+                            {"set": {"courses": {"rule": "course-subject-webpage", "verdict": "correct"}},
+                             "label": "marked correct"}],
+               "options": [{"answer": "yes", "label": "mark the 13 courses Not on the page",
+                            "do": {"mark": "not_on_page", "courses": {
+                                "rule": "course-subject-webpage", "verdict": "correct"}},
+                            "then": {"publish": ["course-subject-webpage", "course-in-catalog"]}},
+                           {"answer": "no", "label": "mark ACCT199 correct",
+                            "do": {"mark": "correct", "courses": ["ACCT199"], "rule": "course-subject-webpage"}}],
+               "effect": [{"rule": "course-subject-webpage", "after": ""},
+                          {"rule": "course-in-catalog", "after": {"source": "page_url"}}]}],
+}
+WRITING = ("Write plainly and briefly, for someone who knows the catalog: short sentences, everyday words, one idea "
+           "per sentence. Don't join fragments with `·` or other separators. No file names, command names, JSON field "
+           "names or scorecard words (\"rule try\", \"got worse\").")
 
 
 def _run_close(run: dict | None) -> list[str]:
-    rid, d = _run_id(run), _run_dir(run)
+    d = _run_dir(run)
     return ["## End the run", "",
-            f"When you have published (or can't), write your full report to `{d}/summary.md`: what changed and why, "
-            "the final scorecard, what people need to decide, and anything you could not fix. People read it in the "
-            "Studio's list of past runs, so write it for them, in Markdown. Then end the run with a one-line outcome "
-            "(the first thing people see, so include the new ruleset version) and the report:", "",
-            "```sh",
-            f'cd {d} && golden-datasets run done --run {rid} --summary-file summary.md --outcome "Published ruleset v7: …"',
-            f'cd {d} && golden-datasets run done --run {rid} --summary-file summary.md --failed '
-            '--outcome "Couldn\'t publish: …"   # if you couldn\'t',
-            "```", "",
-            "Then stop, and give the same report in your reply."]
+            f"When you have published (or can't), write `{d}/report.json` and end the run with it. The CLI checks "
+            "every reference and quote, then writes the report people read in the Studio: each course as its row in "
+            "the Rules tab (title, value, verdicts, comments), what changed per rule, and the whole-suite check of "
+            "your last `rule try` or `rule publish` (saved for you; don't copy numbers).", "",
+            "**Your text is only titles and reasons.** Never restate a value, a course's details, a comment or a "
+            "page passage in your own words: refer to it, and the report shows it. References:", "",
+            *table(["Reference", "What the report shows"], REFERENCES), "",
+            "A quote is `{\"quote\": \"<the exact words>\", \"from\": {\"note\": \"an-…\"}}` (or `{\"page\": "
+            "\"<course>\"}`, or `{\"value\": {\"course\", \"rule\"}}`); the words must be in that source, and `…` "
+            "joins pieces that appear in that order.", "",
+            *table(["Field", "What"], REPORT_FIELDS), "",
+            "**Each to-do is something the reviewer does.** Lead with what they must decide: `ask` is the question "
+            "and `why` says, in at most two short sentences, why it needs them (name the courses and rules, e.g. "
+            "\"Jared Diener's note on ACCT199 says … but he marked 13 courses … correct\"). Make every option an "
+            "action the reviewer can take from the report: a `do` that marks courses, with a `label` saying what it "
+            "does. The Studio shows each option as a button, then the evidence below. Keep it short, and never show "
+            "a bare course code without saying what it is (\"ACCT199, the course Jared Diener marked wrong\"). "
+            "Write each `ask` so someone who knows the catalog could answer it from the evidence you attach. A "
+            "short example:", "",
+            "```json", json.dumps(REPORT_EXAMPLE, indent=1, ensure_ascii=False), "```", "",
+            WRITING, "",
+            "```sh", f"cd {d} && ./bin/golden-datasets run done --report report.json", "```", "",
+            "If it lists problems (an unknown id, a quote not found, a changed rule missing from `also_changed`), fix "
+            "`report.json` and run it again. Your row comments are saved on the rows only once the report passes. "
+            "Then stop, and give the report it prints as your reply."]
 
 
 def _setup_k2(ctx: Ctx, root_uri: str, first_rule: str, check: str | None, run: dict | None) -> list[str]:
     src = cli_source()
     d, short_name = _run_dir(run), info(ctx.catalog)["short"]
+    check = (check or f"golden-datasets rule show {first_rule}").replace("golden-datasets ", "./bin/golden-datasets ", 1)
     return ["## Setup", "",
             f"`golden-datasets` reads its settings from `{ENV_FILE}` files in the current folder and its parents. "
-            f"Azure access is set up on this machine: SAS tokens for the storage containers are in `{K2_SAS_FILE}`, "
+            f"Azure access is set up on this machine: SAS tokens for the storage containers are in `{k2_work()}/{ENV_FILE}`, "
             "which every folder below it reads. No `az login`.", "",
-            "1. Install the CLI (uv is installed) and make this run's folder with its root and catalog:", "",
-            "   ```sh", f"   uv tool install --reinstall '{src['spec']}'",
-            f"   mkdir -p {d} && printf '%s\\n' 'GOLDEN_DATASETS_ROOT={root_uri}' "
-            f"'GOLDEN_DATASETS_CATALOG={short_name}' > {d}/{ENV_FILE}",
-            f"   cd {d} && {check or f'golden-datasets rule show {first_rule}'}", "   ```", "",
+            "1. Make this run's folder, install this run's own copy of the CLI into it (uv is installed; another run "
+            "may be installing its copy at the same time, so never install into the shared tool folder), and name "
+            "the run's root and catalog:", "",
+            "   ```sh",
+            f"   mkdir -p {d} && cd {d} && UV_TOOL_DIR={d}/.tools UV_TOOL_BIN_DIR={d}/bin uv tool install '{src['spec']}'",
+            f"   printf '%s\\n' 'GOLDEN_DATASETS_ROOT={root_uri}' "
+            f"'GOLDEN_DATASETS_CATALOG={short_name}' 'GOLDEN_DATASETS_RUN={_run_id(run)}' > {d}/{ENV_FILE}",
+            f"   cd {d} && {check}", "   ```", "",
             f"   If the install fails, don't install another version: `golden-datasets run` exists only on "
             f"`{src['ref']}`. Stop and say so in your reply.",
             "",
-            f"2. Keep your drafts in this run's folder (`{d}/drafts/`). Pages download once into a local cache; "
-            "`rule publish` uploads the new versions, and the Studio shows them within seconds.", ""]
+            f"2. Keep your drafts in this run's folder (`{d}/drafts/`), and the values you work out in "
+            f"`{d}/inferred.json`. Pages download once into a local cache; `rule publish` uploads the new versions, "
+            "and the Studio shows them within seconds.", ""]
 
 
 def build_prompt(ctx: Ctx, rule: str | None = None, needs_work: bool = False, rv: Review | None = None,
-                 target: str = "local", azure_root: str | None = None, run: dict | None = None) -> dict:
+                 target: str = "local", azure_root: str | None = None, run: dict | None = None,
+                 rules: list[str] | None = None) -> dict:
     """{text, chars, tokens, page_refs, rules, annotations, scope, target, root, warning}
-    (web/src/api/types.ts `PromptResponse`). `target`: Claude works on this root ("local") or the Azure one."""
+    (web/src/api/types.ts `PromptResponse`). `target`: Claude works on this root ("local") or the Azure one.
+    `rules`: the rules to improve (the goal, one-rule-runs spec §3.1); else one `rule`, or every rule needing work."""
     if target not in TARGETS:
         raise ValueError(f"target must be one of {TARGETS}")
     rv = rv or current_review(ctx)
-    needs_work = needs_work or not rule
-    targets = scope_rules(rv, rule, needs_work)
+    if rules:
+        for r in rules:
+            rule_or_error(rv, r)
+        targets = [r for r in ordered_rule_ids(rv.snap.rules) if r in set(rules)]
+        rule, needs_work = (targets[0] if len(targets) == 1 else None), False
+    else:
+        needs_work = needs_work or not rule
+        targets = scope_rules(rv, rule, needs_work)
     snap = rv.snap
     meta = info(ctx.catalog)
     root_uri = ctx.root.uri if target == "local" or ctx.root.uri.startswith("azure://") \
@@ -305,7 +402,7 @@ def build_prompt(ctx: Ctx, rule: str | None = None, needs_work: bool = False, rv
     if len(targets) == 1:
         L.append(f"# Improve rule `{targets[0]}` — {meta['name']} catalog")
     elif targets:
-        L.append(f"# Improve {len(targets)} rules that need work — {meta['name']} catalog")
+        L.append(f"# Improve {len(targets)} rules{'' if rules else ' that need work'} — {meta['name']} catalog")
     else:
         L.append(f"# No rule needs work — {meta['name']} catalog")
     L += ["", INTRO, ""]
@@ -333,13 +430,26 @@ def build_prompt(ctx: Ctx, rule: str | None = None, needs_work: bool = False, rv
              "annotation log or the saved pages.")
     L.append("- `golden-datasets` assigns versions and hashes: don't add `version` or `content_hash` to a draft.")
     if targets:
-        L.append(f"- Change only the rule(s) in this prompt: {', '.join(f'`{t}`' for t in targets)}. Leave every "
-                 "other rule as it is.")
+        L.append(f"- **Your goal is the rule{'' if len(targets) == 1 else 's'} in this prompt**: "
+                 f"{', '.join(f'`{t}`' for t in targets)}. You may change any other rule if a goal needs it: a page "
+                 "rule, a locator, a rule a goal reads or that reads it. Keep every change as small as possible. "
+                 "`golden-datasets rule downstream <rule>` shows what reads a rule.")
     L.append("- Only the properties of `properties.csv` count (`golden-datasets properties list`): don't add rules "
              "for anything else.")
     L.append("- Rules stay declarative (the formats above). If the format can't express the fix, stop and say so.")
-    L.append("- Publish only when nothing marked correct changes: `rule try` must say BETTER (fixed > 0, newly wrong "
-             "= 0). Never use `--force`.")
+    L.append("- Every `rule try` checks all the catalog's rules against all their golden values (values marked "
+             "correct, expected values, and the values you infer). Publish only when it says nothing that was right "
+             "got worse (`0 got worse`). Never use `--force`.")
+    L.append("- **Inferred values.** When a course is marked wrong with no expected value, work out the value from the "
+             "page and the annotations. Record it in `inferred.json` in your folder (`[{\"rule\", \"course\", "
+             "\"annotation\", \"value\"}]`, `\"\"` for empty), with the quotes it rests on in your report. Publish "
+             "when nothing marked correct changes and every open annotation is right, against its expected value or "
+             "the value you inferred.")
+    L.append("- If `rule publish` says another run changed one of your rules meanwhile, run `rule draft` again and "
+             "redo your change on the latest version.")
+    if target == "k2":
+        L.append("- List every rule you changed that isn't a goal under `also_changed` in your report, with one line "
+                 "on why.")
     L.append("")
 
     if len(targets) > 1:
@@ -355,6 +465,12 @@ def build_prompt(ctx: Ctx, rule: str | None = None, needs_work: bool = False, rv
 
     questions: dict[str, tuple[str, dict]] = {}
     discussion = rv.discussion()
+    from .agent_runs import AgentRuns, context_lines
+    from .publishing import downstream
+    from .report import rule_names
+
+    names = rule_names(snap.rules)
+    past = AgentRuns(ctx) if target == "k2" else None
     for rid in targets:
         r = snap.rules[rid]
         st = rv.rule_status(rid)
@@ -367,6 +483,7 @@ def build_prompt(ctx: Ctx, rule: str | None = None, needs_work: bool = False, rv
             ["**How**", r.get("how") or "(empty)"],
             ["**Why**", r.get("why") or "(empty: imported from v2)"],
             ["Depends on", ", ".join(f"`{d}`" for d in r.get("depends_on") or []) or "—"],
+            ["Read by", ", ".join(f"`{d}`" for d in downstream(snap.rules, rid)) or "no rule"],
             ["Rows", f"{fill['rows']:,}, {fill['found']:,} with a value; {st['reviewed']:,} reviewed"],
         ])
         L.append("")
@@ -427,6 +544,12 @@ def build_prompt(ctx: Ctx, rule: str | None = None, needs_work: bool = False, rv
                 L.append("")
                 L.append("Someone questions whether this rule should exist at all. Don't remove or rewrite it for that: "
                          "say in your report what you think, and why.")
+        if past is not None and (past.goals().get(rid) or {}).get("state") not in (None, "waiting", "sending",
+                                                                                   "running"):
+            L.append("")
+            L.append(f"### This rule's last run (`golden-datasets run context {rid}`)")
+            L.append("")
+            L += context_lines(past, rid, names, rv.events)[2:]
         sig = _signal_rows(rv, rid)
         if sig:
             L.append("")
@@ -468,8 +591,9 @@ def build_prompt(ctx: Ctx, rule: str | None = None, needs_work: bool = False, rv
         L.append("")
 
     first = targets[0] if targets else "<rule_id>"
-    names = " ".join(targets) or "<rule_id>"
-    draft = f"drafts/{targets[0]}.json" if len(targets) == 1 else "drafts/needs-work.json"
+    names_line = " ".join(targets) or "<rule_id>"
+    draft = f"drafts/{targets[0]}.json" if len(targets) == 1 else \
+        ("drafts/rules.json" if rules else "drafts/needs-work.json")
     L.append("## How to work")
     L.append("")
     L.append("Everything above comes from these commands; run them for more, or when the annotations change.")
@@ -485,19 +609,23 @@ def build_prompt(ctx: Ctx, rule: str | None = None, needs_work: bool = False, rv
          "makes a saved page available locally and prints `<path><TAB><url>` (a unique part of the stem works, e.g. "
          "`course-geog222`); read it, searching for the expected text"],
         ["", f"`golden-datasets pages sample --rule {first} [--signal <signal>] -n 20`", "more pages where the rule fires"],
+        ["", f"`golden-datasets rule downstream {names_line}`", "the rules that read each rule: what an edit can move"],
+        ["", f"`golden-datasets run context {names_line}`", "each rule's last AI run and the annotations since"],
         ["", "`golden-datasets sql \"SELECT …\"`",
          "DuckDB over the views `pages`, `occurrences`, `matches`, `signals`, `annotations`, `rules` "
          "(`--format json`: one object per line)"],
-        ["2. Draft", f"`golden-datasets rule draft {names} > {draft}`",
+        ["2. Draft", f"`golden-datasets rule draft {names_line} > {draft}`",
          "the current version(s) as an editable draft. Change only `definition`, `what`, `how`, `why` and `examples` "
          "(update an example your fix makes wrong)"],
         ["3. Try", f"`golden-datasets rule try {draft}`",
-         "reruns the draft over the whole crawl (writes nothing): per rule fixed / still wrong / newly wrong (values "
-         "marked correct that changed), values changed, signal counts before → after. Iterate until every open "
-         "annotation is fixed and nothing marked correct changed"],
+         "reruns every rule over the whole crawl (writes nothing). First line: the whole suite, every rule against "
+         "every golden value (\"1 now right, 0 got worse\"), then the rules whose values changed; then per changed "
+         "rule fixed / still wrong / newly wrong, values changed, signal counts before → after. Reads "
+         "`inferred.json`. Iterate until every open annotation is right and nothing got worse"],
         ["4. Publish", f"`golden-datasets rule publish {draft} --note \"…\"`",
-         "new rule version(s), a new ruleset version and its extraction (unchanged rules are copied); refuses when a "
-         "value marked correct changes"],
+         "new rule version(s), a new ruleset version and its extraction; one publish at a time per catalog. It "
+         "reruns the whole suite and refuses if anything that was right got worse. If another run published "
+         "meanwhile, it rebases your rules on the latest version, or refuses if that run changed the same rules"],
     ])
     L.append("")
     L.append("Before publishing, fill the draft's text: *what* says what the rule finds, in page terms; *how* says how; "
@@ -508,6 +636,8 @@ def build_prompt(ctx: Ctx, rule: str | None = None, needs_work: bool = False, rv
     L += _run_close(run) if target == "k2" else \
         ["Report back: what changed and why, the final scorecard, and anything you could not fix."]
     text = "\n".join(L) + "\n"
+    if target == "k2":  # this run's own copy of the CLI (Setup installs it into the run folder)
+        text = text.replace("`golden-datasets ", "`./bin/golden-datasets ")
     return {"scope": {"rule": rule if not needs_work else None, "needs_work": needs_work},
             "text": text, "chars": len(text), "tokens": round(len(text) / 4), "page_refs": len(refs),
             "rules": targets, "annotations": n_open, "target": target, "root": root_uri,
@@ -796,6 +926,8 @@ def build_first_rules_prompt(ctx: Ctx, target: str = "azure", azure_root: str | 
         [f"Report back, per property: the rule written, or why none; the final `rule try` table; and coverage "
          f"(properties with a rule, of {len(model.PROPERTY_ROWS)})."]
     text = "\n".join(L) + "\n"
+    if target == "k2":
+        text = text.replace("`golden-datasets ", "`./bin/golden-datasets ")
     return {"text": text, "chars": len(text), "tokens": round(len(text) / 4), "template": tmpl,
             "template_name": info(ready[tmpl])["name"] if tmpl in ready else tmpl,
             "target": target, "root": root_uri, "warning": cli_source()["warning"]}

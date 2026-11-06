@@ -8,29 +8,32 @@ import type { AnnotateResponse, ApprovePreview, CatalogDetail, ResetPreview, Dis
 import { PagePane, prefetchPages, type BarAction, type CapturedSelection, type Highlight } from "../pagepane";
 import { Ico } from "../shell/icons";
 import { useReviewer, useRole } from "../shell/reviewer";
-import { SampleDrawer, samplePrefs, sampleQuery, StrataTags, type SamplePrefs } from "../shell/Sample";
+import { SampleDrawer, samplePrefs, sampleQuery, type SamplePrefs } from "../shell/Sample";
 import { go, href, replaceParam } from "../shell/router";
 import type { TabProps } from "../shell/tabProps";
 import { fmt, toast, useKeyHints } from "../shell/ui";
-import { AnnotatedBy, ReviewLine, VerdictSwitch, WaitingNote } from "./AnnotatedBy";
+import { AnnotatedBy, VerdictSwitch, WaitingNote } from "./AnnotatedBy";
 import { apiX, type Annotators, type RowX } from "./api";
 import {
   addCapture, applyEvent, applyItem, applyMissingItem, applyReview, BY_ANYONE, BY_WAITING, briefOf, canConfirm, filterCountTip,
-  groupOf, isField, isSettled, itemEvent, keyAction, markPiece, missingEvent, pinnedComment, missingItemEvent, moveIn, newDraft, pageGroups, pushRecent, paneTabs,
+  groupOf, isField, itemEvent, keyAction, markPiece, rowKeysBlocked, missingEvent, pinnedComment, missingItemEvent, moveIn, newDraft, pageGroups, pushRecent, paneTabs,
   rowTarget, scrollWithin, shortTitle, subjectOf, verdictEvent, type Draft, type Level, type Piece, type TabRef,
 } from "./logic";
 import { MissedCourse, MissedPage, type MissedState } from "./MissedPanel";
 import { focusStem, NotHere, useFocusPage, type Missing } from "./NotHere";
-import { Controls, Expansion, HistoryLine, Value } from "./parts";
+import { Expansion } from "./parts";
+import { RowCard } from "./RowCard";
 import { ListItems, type ItemAdd } from "./ListItems";
 import { ProfileItems } from "./ProfileItems";
-import { addComplete, correctionEvent, emptyAdd, fieldWord, labelField, objectEvent, profileOf, statusHint, statusWords, takeBackEvent,
+import { addComplete, correctionEvent, emptyAdd, fieldWord, labelField, objectEvent, profileOf, statusHint, takeBackEvent,
   type ObjectAdd, type ObjectFix } from "./claims";
 import { ApproveDialog } from "./ApproveDialog";
 import { ResetDialog } from "./ResetDialog";
 import { RuleHead } from "./RuleHead";
 import { RuleList, type PostTalk } from "./RuleList";
 import { FixBar } from "../agent/FixBar";
+import { useAiStat } from "../agent/AiStat";
+import { openRunDialog } from "../agent/RunDialog";
 import "./rules.css";
 
 const FIRST_PAGE = 100;
@@ -104,6 +107,7 @@ export default function RulesTab({ catalog, route }: TabProps) {
   const cat = catalog.short;
   const me = useReviewer();
   const role = useRole();
+  const aiStat = useAiStat();
   const [rules, setRules] = useState<RulesResponse | null>(null);
   const [detail, setDetail] = useState<RuleDetail | null>(null);
   const [rows, setRows] = useState<RowX[]>([]);
@@ -140,6 +144,10 @@ export default function RulesTab({ catalog, route }: TabProps) {
 
   const ruleId = route.id ?? defaultRule(rules);
   const focus = route.params.get("row");
+  const linkedNote = route.params.get("note");  // a report's link to one annotation of the linked row (report-links §4)
+  // an AI run's report sends ✕ here in a new browser tab (one-rule-runs §1.6): the linked row opens with ✕ pressed
+  const markWrong = route.params.get("mark") === "wrong";
+  const marked = useRef<string | null>(null);
   // the extraction being reviewed: ?ext=… picks an older ruleset's, none = the latest (catalog.extraction)
   const ext = route.params.get("ext");
   const [people, setPeople] = useState<Annotators | null>(null);
@@ -189,6 +197,12 @@ export default function RulesTab({ catalog, route }: TabProps) {
       // a link to one course of a page (?row=<occurrence key>) opens on that course; otherwise on its page row
       setLevel(focus && r.focus_index != null && r.rows[r.focus_index]?.key === focus ? "course" : "page");
       setNotHere(lost ? (by || verdict || sq.f.length ? "hidden" : "row") : null);
+      const fr = focus && r.focus_index != null ? r.rows[r.focus_index] : null;
+      if (markWrong && fr && !d.list && marked.current !== focus) {
+        marked.current = focus;
+        setDraft(newDraft("wrong", fr.verdict, fr.state));
+        replaceParam("mark", null);  // done once: a reload or a later row doesn't press ✕ again
+      }
       centerNext.current = true; setError(null);
       if (rowsRef.current) rowsRef.current.scrollTop = 0;
     }, (e) => {
@@ -197,7 +211,7 @@ export default function RulesTab({ catalog, route }: TabProps) {
         setDetail(null); setRows([]); setTotal(0); setSample(null); setMissing([]); setNotHere("rule"); setError(null);
       } else setError(String(e));
     });
-  }, [cat, ruleId, focus, sq, ext, by, verdict, reloads]);
+  }, [cat, ruleId, focus, sq, ext, by, verdict, markWrong, reloads]);
 
   const kind = detail?.kind ?? null;
   const row = detail && detail.rule_id === ruleId ? rows[sel] ?? null : null;
@@ -612,7 +626,7 @@ export default function RulesTab({ catalog, route }: TabProps) {
   const keys = useRef<(e: KeyboardEvent) => void>(() => {});
   keys.current = (e: KeyboardEvent) => {
     const a = keyAction(e, isField(e.target));
-    if (!a || !row) return;
+    if (!a || !row || rowKeysBlocked()) return;
     if (a === "save") {
       if (missed) { e.preventDefault(); void saveMissed(); }
       else if (itemAdd?.capture) { e.preventDefault(); void saveAddItem(); }
@@ -709,6 +723,7 @@ export default function RulesTab({ catalog, route }: TabProps) {
     <div className="rules-layout w4-rules">
       <aside className="col">{rules && <RuleList rules={rules} active={ruleId} onPick={(id) => go(href(cat, "rules", id, { ext, by: byParam, v: verdict }))}
         talk={talk} onTalk={postTalk} counts={people?.rules} countTip={(n) => filterCountTip(n, by, verdict)}
+        aiStat={aiStat} onImprove={ext ? undefined : (r) => openRunDialog([r.rule_id])}
         top={<RulesetPicker catalog={catalog} ext={ext} onPick={(x) => go(href(cat, "rules", ruleId, { ext: x, by: byParam, v: verdict }))} />}
         bottom={<>
           {role === "sme" && <WaitingNote n={people?.waiting ?? 0} on={by === BY_WAITING}
@@ -748,50 +763,27 @@ export default function RulesTab({ catalog, route }: TabProps) {
           {detail && (() => {
           const rowEl = (r: RowX, i: number) => {
             const on = i === sel && !onPage;
-            // "Open in Records →" on the selected row (the same for every kind of row)
-            const links = (x: RowX, selected: boolean) => selected && x.course_key && (
-              <div className="row-links">
-                <a className="xbtn" title="Open this course in the Records tab, with this property selected"
-                  href={href(cat, "records", x.course_key, { prop: kind === "property" ? detail.property_label : null, occ: x.occurrence_key })}
-                  onClick={(e) => e.stopPropagation()}>Open in Records →</a>
-              </div>);
-            const val = statusWords(r.status, r.value);
-            const settled = isSettled(r.state);
-            const cls = `row${on ? " on" : ""}${r.verdict && r.state !== "fixed" ? ` v-${r.verdict.verdict}` : ""}${settled && !(on && draft) ? " done" : ""}${kind === "page" ? " page-row" : ""}${perPage ? " in-page" : ""}`;
+            const noun = (detail.property_label ?? "item").replace(/^Estimated /, "").toLowerCase();
             return (
-              <div key={r.key} className={cls} data-row-index={i} tabIndex={-1} onClick={() => selectRow(i, "course")}>
-                {kind !== "page" && <div className="code">{r.course_key ?? "—"}</div>}
-                <div className="body">
-                  {kind === "page"
-                    ? <><div className="val">{r.page_title ?? r.page_stem}</div><div className="pg">{r.url.replace(/^https?:\/\//, "")}</div></>
-                    : listRule && r.items && profile ? <><ProfileItems row={r} on={on} fields={profile.fields} keyField={profile.key}
-                        noun={noun} add={on ? objAdd : null} fix={on ? objFix : null}
-                        onVerdict={(it, v) => void saveItem(i, it, v)} onStartAdd={startAddObject} onLabel={labelObject}
-                        onSaveAdd={() => objAdd && void saveObject(objAdd)} onCancelAdd={() => setObjAdd(null)}
-                        onSelectItem={selectObject} onSaveFix={() => void saveFix()} onCancelFix={() => setObjFix(null)} onTakeBack={(m) => void takeBack(m)} />
-                        <div className="pg">{r.context}</div>{links(r, on)}</>
-                    : listRule && r.items ? <><ListItems row={r} on={on} add={on ? itemAdd : null} onVerdict={(it, v) => void saveItem(i, it, v)}
-                        onStartAdd={startAddItem} onSaveAdd={() => void saveAddItem()} onCancelAdd={() => setItemAdd(null)} />
-                        <div className="pg">{r.context}</div>{links(r, on)}</>
-                    : <><div className={`valbox${on ? " on" : ""}${r.status === "found" ? "" : " empty"}${r.status === "absent" ? " claim" : ""}`}>
-                        {on && <span className="valbox-k">{kind === "property" ? detail.property_label : "Found"}</span>}
-                        {on
-                          // the selected row: the whole value, its paragraphs kept (as the Records tab shows a property)
-                          ? <div className={`val full${r.status === "found" ? "" : " empty"}`} data-testid="row-full-value">{val}</div>
-                          : <div className={`val${r.status === "found" ? "" : " empty"}`}><Value text={val} /></div>}
-                        </div>
-                        <div className="pg">{r.context}</div>
-                        {links(r, on)}</>}
-                  <ReviewLine r={r} />
-                  <StrataTags tags={r.tags} />
-                  <HistoryLine state={r.state} verdict={r.verdict} reattached={r.reattached} comments={r.comments} page_questions={r.page_questions} />
-                  {on && draft && <Expansion draft={draft} propertyRule={kind === "property"} emptyValue={r.status !== "found"}
-                    onChange={setDraft} onSave={() => void saveRow(i, { draft })} onCancel={() => setDraft(null)} />}
-                </div>
-                <Controls state={r.state} verdict={r.verdict} comments={r.comments} draft={on ? draft : null}
-                  onPick={(v) => pick(i, v)} tour={on} confirm={canConfirm(r, role)} marked={r.human_reviewed || r.engineer_checked}
-                  commentOnly={listRule} />
-              </div>
+              <RowCard key={r.key} row={r} kind={detail.kind} index={i} on={on} draft={on ? draft : null} perPage={perPage}
+                label={kind === "property" ? detail.property_label : "Found"} onClick={() => selectRow(i, "course")}
+                // "Open in Records →" on the selected row (the same for every kind of row)
+                links={on && r.course_key ? <a className="xbtn" title="Open this course in the Records tab, with this property selected"
+                  href={href(cat, "records", r.course_key, { prop: kind === "property" ? detail.property_label : null, occ: r.occurrence_key })}
+                  onClick={(e) => e.stopPropagation()}>Open in Records →</a> : null}
+                items={!listRule || !r.items ? undefined
+                  : profile ? <ProfileItems row={r} on={on} fields={profile.fields} keyField={profile.key}
+                      noun={noun} add={on ? objAdd : null} fix={on ? objFix : null}
+                      onVerdict={(it, v) => void saveItem(i, it, v)} onStartAdd={startAddObject} onLabel={labelObject}
+                      onSaveAdd={() => objAdd && void saveObject(objAdd)} onCancelAdd={() => setObjAdd(null)}
+                      onSelectItem={selectObject} onSaveFix={() => void saveFix()} onCancelFix={() => setObjFix(null)} onTakeBack={(m) => void takeBack(m)} />
+                  : <ListItems row={r} on={on} add={on ? itemAdd : null} onVerdict={(it, v) => void saveItem(i, it, v)}
+                      onStartAdd={startAddItem} onSaveAdd={() => void saveAddItem()} onCancelAdd={() => setItemAdd(null)} />}
+                linked={on ? linkedNote : null}
+                expansion={on && draft ? <Expansion draft={draft} propertyRule={kind === "property"} emptyValue={r.status !== "found"}
+                  onChange={setDraft} onSave={() => void saveRow(i, { draft })} onCancel={() => setDraft(null)} /> : null}
+                onPick={(v) => pick(i, v)} tour={on} confirm={canConfirm(r, role)} marked={r.human_reviewed || r.engineer_checked}
+                commentOnly={listRule} />
             );
           };
           if (!perPage) return rows.map(rowEl);

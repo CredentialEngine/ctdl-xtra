@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { EventBrief, RuleSummary } from "../api/types";
 import {
-  addCapture, applyEvent, applyItem, applyMissingItem, itemEvent, matchesRule, missingItemEvent, applyReview, approveBlocked, byLabel, canConfirm, comparedLine, defaultAnnotator, filterCountTip, shortWhen, clip, controlOn, expectedOf, historyItems, isSettled, keyAction, missingEvent, newDraft, paneTabs,
+  ago, fullTime, addCapture, applyEvent, applyItem, applyMissingItem, itemEvent, matchesRule, missingItemEvent, applyReview, approveBlocked, byLabel, canConfirm, comparedLine, defaultAnnotator, filterCountTip, shortWhen, clip, controlOn, expectedOf, historyItems, isSettled, keyAction, missingEvent, newDraft, paneTabs,
   parseMark, pushRecent, rowTarget, unitWord, verdictEvent, whereWord, moveIn, pageGroups, subjectOf, withoutOut,
 } from "./logic";
 
@@ -61,7 +61,7 @@ describe("row state", () => {
     expect(historyItems({ state: "wrong", verdict: ev({}), comments: [], page_questions: [ev({ verdict: "question" })] })
       .some((h) => h.text === "Question for the institution (no note yet)")).toBe(true);
     const c = historyItems({ state: null, verdict: null, comments: [ev({ type: "comment", verdict: null, note: "hm", author: "Seth" })] });
-    expect(c).toEqual([{ cls: "comment", author: "Seth", text: "“hm”" }]);
+    expect(c).toEqual([{ cls: "comment", author: "Seth", text: "“hm”", id: expect.any(String) }]);
   });
 });
 
@@ -301,5 +301,33 @@ describe("sme-fixes: in / out pieces, anchored comments, course blocks", () => {
     expect(moveIn(gs, 0, "course", "prev")).toEqual({ sel: 0, level: "page" });
     expect(moveIn(gs, 4, "course", "up")).toEqual({ sel: 3, level: "page" });
     expect(moveIn(gs, 4, "course", "next")).toEqual({ sel: 4, level: "course" });  // the last course of the last page
+  });
+});
+
+describe("a report's link to one annotation (?note=)", () => {
+  it("history items carry their annotation ids", () => {
+    const items = historyItems({ state: "wrong", verdict: { annotation_id: "an-v", type: "verdict", verdict: "wrong", author: "Jared",
+      at: "2026-11-04T00:00:00Z", note: "drop it" } as never,
+      comments: [{ annotation_id: "an-c", type: "comment", verdict: null, author: "Jared", at: "2026-11-04T00:00:00Z", note: "or keep it" } as never] });
+    expect(items.map((h) => h.id)).toEqual(["an-v", "an-c"]);
+  });
+});
+
+describe("ago and fullTime (one-rule-runs pass 7: no bare clock times)", () => {
+  const now = new Date(2026, 10, 5, 18, 40).getTime();  // Nov 5, 2026, 6:40 PM local
+  const at = (d: number, h: number, m: number) => new Date(2026, 10, d, h, m).toISOString();
+  it("says a time as people say it", () => {
+    expect(ago(at(5, 18, 40), now)).toBe("just now");
+    expect(ago(at(5, 18, 39), now)).toBe("1 minute ago");
+    expect(ago(at(5, 18, 28), now)).toBe("12 minutes ago");
+    expect(ago(at(5, 15, 10), now)).toBe("3 hours ago");
+    expect(ago(at(4, 9, 0), now)).toBe("yesterday");
+    expect(ago(at(1, 9, 0), now)).toBe("4 days ago");
+    expect(ago(at(1, 9, 0).replace("2026", "2025"), now)).toBe("Nov 1, 2025");
+    expect(ago(at(5, 19, 0), now)).toBe("just now");  // a clock a little ahead
+    expect(ago(null, now)).toBe("");
+  });
+  it("gives the full date and time with the time zone for the tooltip", () => {
+    expect(fullTime(at(5, 18, 28))).toMatch(/^Nov 5, 2026, 6:28 PM (GMT|UTC|[A-Z]{2,5})/);
   });
 });

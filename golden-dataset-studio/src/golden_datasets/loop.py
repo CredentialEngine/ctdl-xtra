@@ -14,6 +14,7 @@ Claude Code works only through these commands, never on the storage root directl
 from __future__ import annotations
 
 import json
+import os
 import re
 import shutil
 import sys
@@ -124,7 +125,7 @@ def _record(rv: Review, rule_id: str, e: dict, row: dict | None, state: str | No
                           | {"polarity": s.get("polarity") or "in"} for s in exp["segments"]]}
            if exp.get("segments") else {}),
         "note": e.get("note"), "reattached": reattached,
-        "comments": [{"author": c["author"], "at": c["at"], "note": c.get("note")}
+        "comments": [{"annotation_id": c["annotation_id"], "author": c["author"], "at": c["at"], "note": c.get("note")}
                      | ({"on": c["anchor"].get("text")} if c.get("anchor") else {}) for c in comments],
     }
 
@@ -256,7 +257,7 @@ def format_annotation(ctx: Ctx, a: dict, i: int | None = None) -> str:
         lines.append(f"{pad}note: {a['note']}")
     for c in a["comments"]:
         on = f" on {json.dumps(c['on'], ensure_ascii=False)}" if c.get("on") else ""  # the text it is about
-        lines.append(f"{pad}comment ({c['author']}, {c['at'][:10]}){on}: {c['note']}")
+        lines.append(f"{pad}comment ({c['author']}, {c['at'][:10]}, {c['annotation_id']}){on}: {c['note']}")
     return "\n".join(lines)
 
 
@@ -441,20 +442,66 @@ def plan_draft(ctx: Ctx, doc: dict, warn=lambda m: print(m, file=sys.stderr)) ->
             "example_failures": check_examples(drafts)}
 
 
-def evaluate(ctx: Ctx, plan: dict, log=lambda m: None) -> dict:
-    """Run the planned ruleset over the whole crawl (rerunning only what changed) and score it. Writes nothing."""
+def read_inferred(path: str | None) -> list[dict]:
+    """`inferred.json` (one-rule-runs spec §4): [{rule, course, annotation, value}], the values Claude worked out for
+    courses marked wrong with no expected value. `path` None: `./inferred.json` if there is one."""
+    p = Path(path) if path else Path("inferred.json")
+    if not p.is_file():
+        if path:
+            raise UserError(f"no inferred values file {path}")
+        return []
+    try:
+        doc = json.loads(p.read_text())
+    except json.JSONDecodeError as exc:
+        raise UserError(f"{p}: not valid JSON ({exc})") from None
+    items = doc.get("inferred") if isinstance(doc, dict) else doc
+    if not isinstance(items, list) or not all(isinstance(i, dict) for i in items):
+        raise UserError(f"{p}: a list of {{rule, course, annotation, value}}")
+    for i, x in enumerate(items):
+        missing = [k for k in ("rule", "course", "annotation", "value") if k not in x]
+        if missing or not isinstance(x["value"], str):
+            raise UserError(f"{p}[{i}]: needs rule, course, annotation and value (text; \"\" for empty)")
+    return items
+
+
+def check_inferred(review: Review, inferred: list[dict]) -> list[str]:
+    """Each inferred value must answer a live ✕ on that rule and course that has no expected value."""
+    out = []
+    for i, x in enumerate(inferred):
+        e = review.by_id.get(x["annotation"])
+        live = e is not None and any(ev is e for ev in review.live)
+        t = (e or {}).get("target") or {}
+        if not live or e["type"] != "verdict" or e.get("verdict") != "wrong":
+            out.append(f"inferred[{i}]: {x['annotation']} is not a live wrong verdict")
+        elif t.get("rule_id") != x["rule"] or (t.get("course_key") and t["course_key"] != x["course"]):
+            out.append(f"inferred[{i}]: {x['annotation']} is on {t.get('rule_id')} {t.get('course_key')}, "
+                       f"not {x['rule']} {x['course']}")
+        elif (e.get("expected") or {}).get("text") is not None:
+            out.append(f"inferred[{i}]: {x['annotation']} already has an expected value")
+    return out
+
+
+def evaluate(ctx: Ctx, plan: dict, log=lambda m: None, inferred: list[dict] | None = None) -> dict:
+    """Run the planned ruleset over the whole crawl (every rule, every page: the whole golden suite, one-rule-runs
+    spec §3.3), score the rules that changed and check every golden value. Writes nothing."""
+    from . import suite
+    from .report import rule_names
+
     t0 = time.perf_counter()
     latest = plan["latest"]
     parent_ext = ctx.extraction_for(latest) or extract.pick_parent(ctx, plan["ruleset"])
-    result = extract.compute(ctx, plan["rules"], plan["settings"], parent_ext, log=log)
+    result = extract.compute(ctx, plan["rules"], plan["settings"], None, log=log)
     t_compute = time.perf_counter() - t0
     draft = Snapshot(ctx, "draft", tables=result["tables"], ruleset={"settings": plan["settings"], "version": None},
                      rules=plan["rules"], meta={"ruleset_version": None, "parent_extraction": parent_ext})
     events = LOADER.log(ctx).events()
     review = Review(draft, events)
+    problems = check_inferred(review, inferred or [])
+    if problems:
+        raise UserError("inferred.json has problems:\n  " + "\n  ".join(problems))
     cards = []
-    if parent_ext:
-        base_snap = LOADER.snapshot(ctx, parent_ext)
+    base_snap = LOADER.snapshot(ctx, parent_ext) if parent_ext else None
+    if base_snap is not None:
         ids = set(plan["drafts"]) | set(scorecard.changed_rules(base_snap, draft))
         for rid in ordered_rule_ids({r: plan["rules"].get(r) or base_snap.rules[r] for r in ids}):
             cards.append(scorecard.rule_scorecard(rid, base_snap, draft, review))
@@ -462,7 +509,16 @@ def evaluate(ctx: Ctx, plan: dict, log=lambda m: None) -> dict:
         for rid in ordered_rule_ids(plan["drafts"]):
             cards.append(scorecard.rule_scorecard(rid, None, draft, review))
     totals = {k: sum(c["annotated"][k] for c in cards) for k in ("fixed", "still_wrong", "newly_wrong", "unchanged")}
+    s = suite.score(base_snap, draft, events, inferred, drafted=plan["changed"])
+    names = rule_names({**(base_snap.rules if base_snap else {}), **plan["rules"]})
+    produced = {}
+    for x in inferred or []:
+        row = next((r for r in draft.rows(x["rule"]) if r.get("course_key") == x["course"]), None) \
+            if x["rule"] in draft.rules else None
+        produced.setdefault(x["rule"], {})[x["course"]] = row["value"] if row else None
     return {"parent_extraction": parent_ext, "result": result, "cards": cards, "totals": totals, "snapshot": draft,
+            "suite": s, "suite_lines": suite.lines(s, names), "names": names, "inferred": inferred or [],
+            "inferred_values": produced,
             "compute_s": round(t_compute, 2), "total_s": round(time.perf_counter() - t0, 2)}
 
 
@@ -476,7 +532,7 @@ def _print_cards(plan: dict, ev: dict, b_label) -> None:
                 print(f"  {title}: " + ", ".join(r["course_key"] or r["page_stem"] for r in rows))
         print()
     t = ev["totals"]
-    print(f"total: fixed {t['fixed']} · still wrong {t['still_wrong']} · newly wrong {t['newly_wrong']} · "
+    print(f"total: fixed {t['fixed']}, still wrong {t['still_wrong']}, newly wrong {t['newly_wrong']}, "
           f"unchanged {t['unchanged']}")
     sys.stdout.flush()
 
@@ -511,6 +567,34 @@ def _report_examples(failures: list[str]) -> None:
         print(f"  {f}", file=sys.stderr)
 
 
+def save_last_try(ctx: Ctx, ev: dict, base: int, published: int | None) -> None:
+    """In a Studio run (`GOLDEN_DATASETS_RUN`, set by the run folder's settings), keep this try for the run's report
+    (report.py): its last `rule try` or `rule publish`, with the whole suite and the inferred values."""
+    from .report import last_try_doc
+
+    run_id = os.environ.get("GOLDEN_DATASETS_RUN")
+    if run_id:
+        d = layout.agent_run_dir(ctx.catalog, run_id)
+        ctx.root.write_json(f"{d}/last-try.json", last_try_doc(ev, base, published))
+        if ev["inferred"]:
+            ctx.root.write_json(f"{d}/inferred.json", ev["inferred"])
+
+
+def run_note(ctx: Ctx, text: str) -> None:
+    """In a Studio run, one progress line the Studio shows (publishing waits, rebases)."""
+    run_id = os.environ.get("GOLDEN_DATASETS_RUN")
+    if run_id:
+        from .agent_runs import AgentRuns
+
+        AgentRuns(ctx).log(run_id, "note", text, by="golden-datasets")
+
+
+def _print_suite(ev: dict) -> None:
+    for line in ev["suite_lines"]:
+        print(line)
+    print()
+
+
 def cmd_rule_try(args) -> int:
     t0 = time.perf_counter()
     ctx = Ctx.from_args(args)
@@ -521,76 +605,177 @@ def cmd_rule_try(args) -> int:
     if not plan["changed"] and not plan["settings_changed"]:
         print(f"nothing to try: no definition or setting differs from ruleset v{plan['latest']}")
         return 0
-    ev = evaluate(ctx, plan, log=lambda m: print(m, file=sys.stderr))
+    ev = evaluate(ctx, plan, log=lambda m: print(m, file=sys.stderr), inferred=read_inferred(args.inferred))
     elapsed = time.perf_counter() - t0
+    if plan["latest"]:
+        save_last_try(ctx, ev, plan["latest"], None)
     if args.json:
+        s = ev["suite"]
         print(json.dumps({"catalog": ctx.catalog, "base_ruleset": plan["latest"],
                           "base_extraction": ev["parent_extraction"], "changed_rules": plan["changed"],
                           "planned_versions": {r: plan["rules"][r]["version"] for r in plan["changed"]},
                           "totals": ev["totals"], "cards": ev["cards"],
+                          "suite": {k: s[k] for k in ("rules", "golden", "now_right", "inferred", "got_worse",
+                                                      "regressions", "changed")} | {"line": ev["suite_lines"][0]},
                           "rerun_rules": ev["result"]["meta"]["rerun_rules"],
                           "elapsed_s": round(elapsed, 2)}, indent=2, ensure_ascii=False))
         return 0
     base = f"ruleset v{plan['latest']} ({ev['parent_extraction']})" if plan["latest"] else "no ruleset yet"
-    print(f"rule try · {base} + draft · "
-          f"{info(ctx.catalog)['name']} · {ev['result']['meta']['pages_total']:,} pages\n")
+    print(f"rule try on {base} + draft, {info(ctx.catalog)['name']}, "
+          f"{ev['result']['meta']['pages_total']:,} pages\n")
     if plan["latest"]:
+        _print_suite(ev)
         _print_cards(plan, ev, _label(plan, "draft"))
     else:
         _print_first(plan, ev)
     meta = ev["result"]["meta"]
-    print(f"rerun {', '.join(meta['rerun_rules']) or 'nothing'} on {meta['rerun_pages']:,} pages · nothing written")
+    print(f"reran {len(meta['rerun_rules'])} rules on {meta['rerun_pages']:,} pages; nothing written")
     print(f"elapsed {elapsed:.1f} s (run {ev['compute_s']:.1f} s)")
     return 0
 
 
+def _record_publish(ctx: Ctx, ev: dict, plan: dict, version: int, rebased: str | None) -> None:
+    """In a Studio run: what this publish changed, kept for the report (`published.json`, oldest first)."""
+    run_id = os.environ.get("GOLDEN_DATASETS_RUN")
+    if not run_id:
+        return
+    path = f"{layout.agent_run_dir(ctx.catalog, run_id)}/published.json"
+    try:
+        doc = ctx.root.read_json(path)
+    except FileNotFoundError:
+        doc = {"publishes": []}
+    doc["publishes"].append({"version": version, "base": plan["latest"], "rebased": rebased,
+                             "changed_rules": plan["changed"], "values_changed": ev["suite"]["changed"],
+                             "suite": {k: ev["suite"][k] for k in ("rules", "golden", "now_right", "inferred",
+                                                                    "got_worse")}})
+    ctx.root.write_json(path, doc)
+
+
+def _run_record(ctx: Ctx) -> dict:
+    """This run (in a Studio run), for the ruleset's record of who published it."""
+    run_id = os.environ.get("GOLDEN_DATASETS_RUN")
+    if not run_id:
+        return {}
+    from .agent_runs import AgentRuns
+
+    run = AgentRuns(ctx).run(run_id) or {}
+    return {"run_id": run_id, "started_by": run.get("started_by")}
+
+
 def cmd_rule_publish(args) -> int:
     from .check import check_before_write
+    from .publishing import publish_lock, rebase
+    from .report import rule_names
 
     t0 = time.perf_counter()
     ctx = Ctx.from_args(args)
-    plan = plan_draft(ctx, read_draft(args.draft))
-    if plan["example_failures"]:
-        _report_examples(plan["example_failures"])
-        print("refusing to publish: examples fail (nothing written)", file=sys.stderr)
-        return 2
-    if not plan["changed"] and not plan["settings_changed"]:
-        print(f"nothing to publish: no definition or setting differs from ruleset v{plan['latest']} (no-op)")
-        return 0
-    ev = evaluate(ctx, plan, log=lambda m: print(m, file=sys.stderr))
-    version = plan["latest"] + 1
+    doc = read_draft(args.draft)
+    inferred = read_inferred(args.inferred)
+    run = _run_record(ctx)
+    waited = []
+
+    def say(m: str) -> None:
+        print(m, file=sys.stderr)
+        if not waited:
+            run_note(ctx, f"Publishing: {m.split(' (')[0]}")
+        waited.append(m)
+
+    with publish_lock(ctx, run.get("run_id"), args.by, say=say):
+        ctx.invalidate()
+        rebased = None
+        if ctx.ruleset_versions():
+            _, latest_rules = ctx.ruleset_rules(ctx.latest_ruleset())
+            try:
+                doc, rebased = rebase(ctx, doc, rule_names(latest_rules))
+            except UserError as exc:
+                run_note(ctx, f"Redoing on v{ctx.latest_ruleset()}: {exc}")
+                print(f"refusing to publish (nothing written): {exc}", file=sys.stderr)
+                return 2
+        plan = plan_draft(ctx, doc, warn=lambda m: None if rebased else print(m, file=sys.stderr))
+        if plan["example_failures"]:
+            _report_examples(plan["example_failures"])
+            print("refusing to publish: examples fail (nothing written)", file=sys.stderr)
+            return 2
+        if not plan["changed"] and not plan["settings_changed"]:
+            print(f"nothing to publish: no definition or setting differs from ruleset v{plan['latest']} (no-op)")
+            return 0
+        if rebased:
+            print(rebased)
+            run_note(ctx, rebased)
+        ev = evaluate(ctx, plan, log=lambda m: print(m, file=sys.stderr), inferred=inferred)
+        version = plan["latest"] + 1
+        if plan["latest"]:
+            _print_suite(ev)
+            _print_cards(plan, ev, _label(plan, "publish"))
+        else:
+            _print_first(plan, ev)
+        worse = ev["suite"]["got_worse"]
+        if worse and not args.force:
+            print(f"\nrefusing to publish: {worse} golden value(s) that were right got worse (nothing written). "
+                  "Change the draft so they don't, or ask the expert; --force overrides.", file=sys.stderr)
+            if plan["latest"]:
+                save_last_try(ctx, ev, plan["latest"], None)
+            return 2
+        check_before_write(ctx, {"settings": plan["settings"]}, plan["rules"], ev["result"]["tables"])
+        names = ", ".join(f"{r} v{plan['rules'][r]['version']}" for r in plan["changed"]) or "settings only"
+        note = args.note or f"{names} (rule publish)"
+        t_up = time.perf_counter()
+        extra = {k: v for k, v in run.items() if v} | ({"forced": True, "got_worse": worse} if worse else {})
+        published = rulesets.publish(ctx, plan["rules"], plan["settings"], note, args.by, extra=extra or None)
+        if published is None:
+            print("nothing changed: no-op")
+            return 0
+        if published["version"] != version:
+            raise UserError(f"published ruleset v{published['version']}, but the draft was run against "
+                            f"v{plan['latest']}; run `golden-datasets extract --ruleset {published['version']}`")
+        ext = extract.next_extraction_id(ctx, version, again=False)
+        meta = extract.write_extraction(ctx, ext, version, ev["parent_extraction"], ev["result"], args.by)
     if plan["latest"]:
-        _print_cards(plan, ev, _label(plan, "publish"))
-    else:
-        _print_first(plan, ev)
-    newly = ev["totals"]["newly_wrong"]
-    if newly and not args.force:
-        print(f"\nrefusing to publish: {newly} value(s) marked correct would change (nothing written). Change the "
-              "draft so they don't, or ask the expert; --force overrides.", file=sys.stderr)
-        return 2
-    check_before_write(ctx, {"settings": plan["settings"]}, plan["rules"], ev["result"]["tables"])
-    names = ", ".join(f"{r} v{plan['rules'][r]['version']}" for r in plan["changed"]) or "settings only"
-    note = args.note or f"{names} (rule publish)"
-    t_up = time.perf_counter()
-    doc = rulesets.publish(ctx, plan["rules"], plan["settings"], note, args.by,
-                           extra={"forced": True, "newly_wrong": newly} if newly else None)
-    if doc is None:
-        print("nothing changed: no-op")
-        return 0
-    if doc["version"] != version:
-        raise UserError(f"published ruleset v{doc['version']}, but the draft was run against v{plan['latest']}; "
-                        f"run `golden-datasets extract --ruleset {doc['version']}`")
-    ext = extract.next_extraction_id(ctx, version, again=False)
-    meta = extract.write_extraction(ctx, ext, version, ev["parent_extraction"], ev["result"], args.by)
+        save_last_try(ctx, ev, plan["latest"], version)
+        _record_publish(ctx, ev, plan, version, rebased)
     upload = time.perf_counter() - t_up
     print(f"\npublished ruleset v{version}" + (f" (parent v{plan['latest']})" if plan["latest"] else " (the first)")
-          + f": {names}"
-          + (" · FORCED: values marked correct changed" if newly else ""))
-    rows = " · ".join(f"{k.split('.')[0]} {v['rows']:,}" for k, v in meta["files"].items())
+          + f": {names}" + (". FORCED: golden values got worse" if worse else ""))
+    rows = ", ".join(f"{k.split('.')[0]} {v['rows']:,}" for k, v in meta["files"].items())
     print(f"extraction {ext} (parent {meta['parent_extraction']}): {rows}")
-    print(f"  rerun {', '.join(meta['rerun_rules']) or 'nothing'} on {meta['rerun_pages']:,} pages · copied "
-          f"{len(meta['copied_rules'])} rules")
-    print(f"upload {upload:.1f} s · total {time.perf_counter() - t0:.1f} s")
+    print(f"  reran {len(meta['rerun_rules'])} rules on {meta['rerun_pages']:,} pages")
+    print(f"upload {upload:.1f} s, total {time.perf_counter() - t0:.1f} s")
+    return 0
+
+
+def cmd_rule_downstream(args) -> int:
+    """The rules that read each rule, directly or not (one-rule-runs spec §3.2): the blast radius of an edit."""
+    from .publishing import downstream
+    from .report import rule_names
+
+    ctx = Ctx.from_args(args)
+    _, rules = ctx.ruleset_rules(ctx.latest_ruleset())
+    names = rule_names(rules)
+    for rid in args.rule_ids:
+        if rid not in rules:
+            raise UserError(f"no rule {rid!r} in ruleset v{ctx.latest_ruleset()}")
+        down = downstream(rules, rid)
+        reads = rules[rid].get("depends_on") or model.dependencies(rules[rid])
+        print(f"{names[rid]} ({rid}) reads: " + (", ".join(f"{names.get(r, r)} ({r})" for r in reads) or "nothing"))
+        print(f"  read by {len(down)} rule{'' if len(down) == 1 else 's'}"
+              + (": " + ", ".join(f"{names.get(r, r)} ({r})" for r in down) if down else ""))
+    return 0
+
+
+def cmd_ruleset_revert(args) -> int:
+    """Publish one new version with every rule a version changed back to its previous version (spec §3.6)."""
+    from .publishing import revert
+
+    ctx = Ctx.from_args(args)
+    try:
+        out = revert(ctx, args.version, args.by, say=lambda m: print(m, file=sys.stderr))
+    except FileNotFoundError as exc:
+        raise UserError(str(exc)) from None
+    print(out["suite"]["line"])
+    listed = ", ".join(f"{r['name']} v{r['from_version']} to v{r['to_version']}" if r["to_version"]
+                       else f"{r['name']} removed" for r in out["rules"])
+    print(f"published ruleset v{out['version']}, reverting v{out['reverted']}: {listed}")
+    print(f"extraction {out['extraction']}")
     return 0
 
 

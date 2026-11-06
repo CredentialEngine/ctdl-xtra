@@ -122,7 +122,7 @@ def test_try_refuse_publish_check(root, capsys, tmp_path):
 
     code, out, _ = run(root, capsys, "rule", "try", good)
     assert code == 0, out
-    assert "fixed 5 · still wrong 0 · newly wrong 0" in out
+    assert "fixed 5, still wrong 0, newly wrong 0" in out and "0 got worse." in out
     assert "values changed    278 of 1062" in out and "BETTER" in out and "nothing written" in out
 
     code, out, _ = run(root, capsys, "rule", "try", good, "--json")
@@ -130,7 +130,7 @@ def test_try_refuse_publish_check(root, capsys, tmp_path):
     assert (card["annotated"]["fixed"], card["values"]["changed"], card["b_version"]) == (5, 278, 2)
 
     code, out, err = run(root, capsys, "rule", "publish", eager)
-    assert code == 2 and "refusing to publish" in err
+    assert code == 2 and "refusing to publish" in err and "got worse ACCT199" in out
     assert "newly wrong (marked correct, value changed): ACCT199, AERO199, CFE114, NS922L" in out
     code, out, _ = run(root, capsys, "rule", "list")
     assert "ruleset v1 · extraction rs-0001" in out  # nothing written
@@ -147,7 +147,7 @@ def test_try_refuse_publish_check(root, capsys, tmp_path):
     code, out, _ = run(root, capsys, "rule", "publish", good, "--by", "test", "--note", "drop requisite lines")
     assert code == 0, out
     assert "published ruleset v2 (parent v1): course-description v2" in out
-    assert "extraction rs-0002 (parent rs-0001)" in out and "copied 16 rules" in out
+    assert "extraction rs-0002 (parent rs-0001)" in out and "reran 17 rules" in out
     code, out, _ = run(root, capsys, "rule", "publish", good)
     assert code == 0 and "no-op" in out
     code, out, _ = run(root, capsys, "check")

@@ -1,0 +1,1238 @@
+{
+  "version": 2,
+  "run_id": "20261106T012457Z-b970",
+  "catalog": "avc-elumenapp-com-catalog-2026-27-welcome",
+  "catalog_short": "avc",
+  "ending": "needs_you",
+  "outcome": "1 decision before Claude can publish Subject Webpage.",
+  "reason": null,
+  "ruleset": {
+    "started_on": 10,
+    "based_on": 10,
+    "published": [],
+    "latest": 10,
+    "ext": "rs-0010",
+    "compare": null
+  },
+  "facts": [
+    {
+      "label": "Rules to improve",
+      "text": "Subject Webpage"
+    },
+    {
+      "label": "Ruleset",
+      "text": "v10, unchanged"
+    }
+  ],
+  "suite": null,
+  "inferred": [],
+  "to_do": [
+    {
+      "ask": "Is Jared Diener's note on ACCT199 right for every course in this catalog?",
+      "why": "His note says a course in a catalog uses In Catalog instead of Subject Webpage, so Subject Webpage would be empty. But he marked 13 courses with the page's address in Subject Webpage correct.",
+      "open": true,
+      "rule": "course-subject-webpage",
+      "rule_name": "Subject Webpage",
+      "about": [
+        {
+          "rule": "course-subject-webpage",
+          "rule_name": "Subject Webpage",
+          "legend": "Subject Webpage",
+          "kind": "property",
+          "course": "ACCT199",
+          "title": "ACCT 199 - Work Experience Education",
+          "page_stem": "avc-elumenapp-com-catalog-2026-27-course-acct199-02f732419a",
+          "url": "https://avc.elumenapp.com/catalog/2026-27/course/acct199",
+          "key": "avc-elumenapp-com-catalog-2026-27-course-acct199-02f732419a@html > body:nth-of-type(1) > app-root:nth-of-type(1) > app-public:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(2) > main:nth-of-type(1) > div:nth-of-type(4)",
+          "occurrence_key": "avc-elumenapp-com-catalog-2026-27-course-acct199-02f732419a@html > body:nth-of-type(1) > app-root:nth-of-type(1) > app-public:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(2) > main:nth-of-type(1) > div:nth-of-type(4)",
+          "value": "https://avc.elumenapp.com/catalog/2026-27/course/acct199",
+          "status": "found",
+          "value_before": null,
+          "inferred": null,
+          "left_out": [],
+          "comment": "The value is still the page's address, as on the 13 courses marked correct. Nothing on this page sets it apart from them.",
+          "verdict": {
+            "annotation_id": "an-f69f1da3e976",
+            "type": "verdict",
+            "verdict": "wrong",
+            "author": "Jared Diener",
+            "author_role": "sme",
+            "at": "2026-11-04T15:26:44Z",
+            "note": null,
+            "expected": null,
+            "compared_with": null,
+            "anchor": null,
+            "rule_version_seen": 1,
+            "value_seen": "https://avc.elumenapp.com/catalog/2026-27/course/acct199",
+            "run_id": null,
+            "ruleset_version": null,
+            "run_at": null
+          },
+          "state": "wrong",
+          "history": [
+            {
+              "kind": "verdict",
+              "annotation_id": "an-f69f1da3e976",
+              "verdict": "wrong",
+              "author": "Jared Diener",
+              "author_role": "sme",
+              "at": "2026-11-04T15:26:44Z",
+              "note": null,
+              "expected": null,
+              "run_id": null,
+              "ruleset_version": null,
+              "run_at": null,
+              "after_run": false
+            },
+            {
+              "kind": "comment",
+              "annotation_id": "an-39127172c8e8",
+              "verdict": null,
+              "author": "Jared Diener",
+              "author_role": "sme",
+              "at": "2026-11-04T15:27:29Z",
+              "note": "When the resource is in a catalog, use the property ceterms:inCatalog instead of ceterms:subjectWebpage.",
+              "expected": null,
+              "run_id": null,
+              "ruleset_version": null,
+              "run_at": null,
+              "after_run": false
+            },
+            {
+              "kind": "comment",
+              "annotation_id": "an-9619e6f76ce9",
+              "verdict": null,
+              "author": "Claude",
+              "author_role": "ai",
+              "at": "2026-11-06T01:25:45Z",
+              "note": "The value is still the page's address, as on the 13 courses marked correct. Nothing on this page sets it apart from them.",
+              "expected": null,
+              "run_id": "20261106T012457Z-b970",
+              "ruleset_version": 10,
+              "run_at": "2026-11-06T01:24:57Z",
+              "after_run": false
+            }
+          ],
+          "links": {
+            "rules": "#/c/avc/rules/course-subject-webpage?row=ACCT199&by=anyone&ext=rs-0010",
+            "wrong": "#/c/avc/rules/course-subject-webpage?row=ACCT199&by=anyone&ext=rs-0010&mark=wrong"
+          },
+          "lead": "Here is the row Jared Diener marked wrong:"
+        }
+      ],
+      "evidence": [
+        {
+          "kind": "quote",
+          "quote": "use the property ceterms:inCatalog instead of ceterms:subjectWebpage",
+          "source": {
+            "kind": "note",
+            "annotation_id": "an-39127172c8e8",
+            "author": "Jared Diener",
+            "at": "2026-11-04T15:27:29Z",
+            "rule": "course-subject-webpage",
+            "course": "ACCT199"
+          }
+        },
+        {
+          "kind": "set",
+          "label": "Jared Diener marked correct",
+          "rule": "course-subject-webpage",
+          "count": 13,
+          "rows": [
+            {
+              "rule": "course-subject-webpage",
+              "rule_name": "Subject Webpage",
+              "legend": "Subject Webpage",
+              "kind": "property",
+              "course": "AERO199",
+              "title": "AERO 199 - Work Experience Education",
+              "page_stem": "avc-elumenapp-com-catalog-2026-27-course-aero199-fa39368f98",
+              "url": "https://avc.elumenapp.com/catalog/2026-27/course/aero199",
+              "key": "avc-elumenapp-com-catalog-2026-27-course-aero199-fa39368f98@html > body:nth-of-type(1) > app-root:nth-of-type(1) > app-public:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(2) > main:nth-of-type(1) > div:nth-of-type(4)",
+              "occurrence_key": "avc-elumenapp-com-catalog-2026-27-course-aero199-fa39368f98@html > body:nth-of-type(1) > app-root:nth-of-type(1) > app-public:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(2) > main:nth-of-type(1) > div:nth-of-type(4)",
+              "value": "https://avc.elumenapp.com/catalog/2026-27/course/aero199",
+              "status": "found",
+              "value_before": null,
+              "inferred": null,
+              "left_out": [],
+              "comment": null,
+              "verdict": {
+                "annotation_id": "an-ec084ae5f761",
+                "type": "verdict",
+                "verdict": "correct",
+                "author": "Jared Diener",
+                "author_role": null,
+                "at": "2026-10-21T20:57:30Z",
+                "note": null,
+                "expected": null,
+                "compared_with": null,
+                "anchor": null,
+                "rule_version_seen": 1,
+                "value_seen": "https://avc.elumenapp.com/catalog/2026-27/course/aero199",
+                "run_id": null,
+                "ruleset_version": null,
+                "run_at": null
+              },
+              "state": "correct",
+              "history": [
+                {
+                  "kind": "verdict",
+                  "annotation_id": "an-ec084ae5f761",
+                  "verdict": "correct",
+                  "author": "Jared Diener",
+                  "author_role": null,
+                  "at": "2026-10-21T20:57:30Z",
+                  "note": null,
+                  "expected": null,
+                  "run_id": null,
+                  "ruleset_version": null,
+                  "run_at": null,
+                  "after_run": false
+                }
+              ],
+              "links": {
+                "rules": "#/c/avc/rules/course-subject-webpage?row=AERO199&by=anyone&ext=rs-0010",
+                "wrong": "#/c/avc/rules/course-subject-webpage?row=AERO199&by=anyone&ext=rs-0010&mark=wrong"
+              },
+              "lead": "Here is one of the 13 courses Jared Diener marked correct:"
+            }
+          ],
+          "courses": [
+            {
+              "course": "AJ912",
+              "rule": "course-subject-webpage",
+              "title": "AJ 912 - Intermediate Health and Fitness for First Responders II",
+              "value": "https://avc.elumenapp.com/catalog/2026-27/course/aj912",
+              "status": "found",
+              "occurrence_key": "avc-elumenapp-com-catalog-2026-27-course-aj912-69473eb78c@html > body:nth-of-type(1) > app-root:nth-of-type(1) > app-public:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(2) > main:nth-of-type(1) > div:nth-of-type(4)",
+              "page_stem": "avc-elumenapp-com-catalog-2026-27-course-aj912-69473eb78c",
+              "verdict": "correct",
+              "state": "correct",
+              "current": {
+                "annotation_id": "an-6975ed82b31d",
+                "type": "verdict",
+                "verdict": "correct",
+                "author": "Jared Diener",
+                "author_role": "sme",
+                "at": "2026-10-21T20:57:30Z",
+                "note": null,
+                "expected": null,
+                "compared_with": null,
+                "anchor": null,
+                "rule_version_seen": 1,
+                "value_seen": "https://avc.elumenapp.com/catalog/2026-27/course/aj912",
+                "run_id": null,
+                "ruleset_version": null,
+                "run_at": null
+              },
+              "links": {
+                "rules": "#/c/avc/rules/course-subject-webpage?row=AJ912&by=anyone&ext=rs-0010"
+              }
+            },
+            {
+              "course": "AUTO230",
+              "rule": "course-subject-webpage",
+              "title": "AUTO 230 - Manual Transmissions, Transaxles, and Drivelines",
+              "value": "https://avc.elumenapp.com/catalog/2026-27/course/auto230",
+              "status": "found",
+              "occurrence_key": "avc-elumenapp-com-catalog-2026-27-course-auto230-84e07a8fed@html > body:nth-of-type(1) > app-root:nth-of-type(1) > app-public:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(2) > main:nth-of-type(1) > div:nth-of-type(4)",
+              "page_stem": "avc-elumenapp-com-catalog-2026-27-course-auto230-84e07a8fed",
+              "verdict": "correct",
+              "state": "correct",
+              "current": {
+                "annotation_id": "an-cf8551044cbe",
+                "type": "verdict",
+                "verdict": "correct",
+                "author": "Jared Diener",
+                "author_role": "sme",
+                "at": "2026-10-21T20:57:30Z",
+                "note": null,
+                "expected": null,
+                "compared_with": null,
+                "anchor": null,
+                "rule_version_seen": 1,
+                "value_seen": "https://avc.elumenapp.com/catalog/2026-27/course/auto230",
+                "run_id": null,
+                "ruleset_version": null,
+                "run_at": null
+              },
+              "links": {
+                "rules": "#/c/avc/rules/course-subject-webpage?row=AUTO230&by=anyone&ext=rs-0010"
+              }
+            },
+            {
+              "course": "CFE114",
+              "rule": "course-subject-webpage",
+              "title": "CFE 114 - Music and Movement Education for the Young Child",
+              "value": "https://avc.elumenapp.com/catalog/2026-27/course/cfe114",
+              "status": "found",
+              "occurrence_key": "avc-elumenapp-com-catalog-2026-27-course-cfe114-d366c344bf@html > body:nth-of-type(1) > app-root:nth-of-type(1) > app-public:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(2) > main:nth-of-type(1) > div:nth-of-type(4)",
+              "page_stem": "avc-elumenapp-com-catalog-2026-27-course-cfe114-d366c344bf",
+              "verdict": "correct",
+              "state": "correct",
+              "current": {
+                "annotation_id": "an-58ac64cda36d",
+                "type": "verdict",
+                "verdict": "correct",
+                "author": "Jared Diener",
+                "author_role": "sme",
+                "at": "2026-10-21T20:57:30Z",
+                "note": null,
+                "expected": null,
+                "compared_with": null,
+                "anchor": null,
+                "rule_version_seen": 1,
+                "value_seen": "https://avc.elumenapp.com/catalog/2026-27/course/cfe114",
+                "run_id": null,
+                "ruleset_version": null,
+                "run_at": null
+              },
+              "links": {
+                "rules": "#/c/avc/rules/course-subject-webpage?row=CFE114&by=anyone&ext=rs-0010"
+              }
+            },
+            {
+              "course": "DFST202",
+              "rule": "course-subject-webpage",
+              "title": "DFST 202 - American Sign Language IV",
+              "value": "https://avc.elumenapp.com/catalog/2026-27/course/dfst202",
+              "status": "found",
+              "occurrence_key": "avc-elumenapp-com-catalog-2026-27-course-dfst202-e799f71bd9@html > body:nth-of-type(1) > app-root:nth-of-type(1) > app-public:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(2) > main:nth-of-type(1) > div:nth-of-type(4)",
+              "page_stem": "avc-elumenapp-com-catalog-2026-27-course-dfst202-e799f71bd9",
+              "verdict": "correct",
+              "state": "correct",
+              "current": {
+                "annotation_id": "an-131e48f28ab6",
+                "type": "verdict",
+                "verdict": "correct",
+                "author": "Jared Diener",
+                "author_role": "sme",
+                "at": "2026-10-21T20:57:30Z",
+                "note": null,
+                "expected": null,
+                "compared_with": null,
+                "anchor": null,
+                "rule_version_seen": 1,
+                "value_seen": "https://avc.elumenapp.com/catalog/2026-27/course/dfst202",
+                "run_id": null,
+                "ruleset_version": null,
+                "run_at": null
+              },
+              "links": {
+                "rules": "#/c/avc/rules/course-subject-webpage?row=DFST202&by=anyone&ext=rs-0010"
+              }
+            },
+            {
+              "course": "ENGR955",
+              "rule": "course-subject-webpage",
+              "title": "ENGR 955 - Applications of Robotics",
+              "value": "https://avc.elumenapp.com/catalog/2026-27/course/engr955",
+              "status": "found",
+              "occurrence_key": "avc-elumenapp-com-catalog-2026-27-course-engr955-5e5075910f@html > body:nth-of-type(1) > app-root:nth-of-type(1) > app-public:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(2) > main:nth-of-type(1) > div:nth-of-type(4)",
+              "page_stem": "avc-elumenapp-com-catalog-2026-27-course-engr955-5e5075910f",
+              "verdict": "correct",
+              "state": "correct",
+              "current": {
+                "annotation_id": "an-86001f32d866",
+                "type": "verdict",
+                "verdict": "correct",
+                "author": "Jared Diener",
+                "author_role": "sme",
+                "at": "2026-10-21T20:57:30Z",
+                "note": null,
+                "expected": null,
+                "compared_with": null,
+                "anchor": null,
+                "rule_version_seen": 1,
+                "value_seen": "https://avc.elumenapp.com/catalog/2026-27/course/engr955",
+                "run_id": null,
+                "ruleset_version": null,
+                "run_at": null
+              },
+              "links": {
+                "rules": "#/c/avc/rules/course-subject-webpage?row=ENGR955&by=anyone&ext=rs-0010"
+              }
+            },
+            {
+              "course": "FTV201",
+              "rule": "course-subject-webpage",
+              "title": "FTV 201 - Intercultural & Women's Film",
+              "value": "https://avc.elumenapp.com/catalog/2026-27/course/ftv201",
+              "status": "found",
+              "occurrence_key": "avc-elumenapp-com-catalog-2026-27-course-ftv201-fe68ad5d1c@html > body:nth-of-type(1) > app-root:nth-of-type(1) > app-public:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(2) > main:nth-of-type(1) > div:nth-of-type(4)",
+              "page_stem": "avc-elumenapp-com-catalog-2026-27-course-ftv201-fe68ad5d1c",
+              "verdict": "correct",
+              "state": "correct",
+              "current": {
+                "annotation_id": "an-935320f888d4",
+                "type": "verdict",
+                "verdict": "correct",
+                "author": "Jared Diener",
+                "author_role": "sme",
+                "at": "2026-10-21T20:57:30Z",
+                "note": null,
+                "expected": null,
+                "compared_with": null,
+                "anchor": null,
+                "rule_version_seen": 1,
+                "value_seen": "https://avc.elumenapp.com/catalog/2026-27/course/ftv201",
+                "run_id": null,
+                "ruleset_version": null,
+                "run_at": null
+              },
+              "links": {
+                "rules": "#/c/avc/rules/course-subject-webpage?row=FTV201&by=anyone&ext=rs-0010"
+              }
+            },
+            {
+              "course": "GEOG222",
+              "rule": "course-subject-webpage",
+              "title": "GEOG 222 - Cartography for Geographic Information Science (GIS)",
+              "value": "https://avc.elumenapp.com/catalog/2026-27/course/geog222",
+              "status": "found",
+              "occurrence_key": "avc-elumenapp-com-catalog-2026-27-course-geog222-9ec78e2e19@html > body:nth-of-type(1) > app-root:nth-of-type(1) > app-public:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(2) > main:nth-of-type(1) > div:nth-of-type(4)",
+              "page_stem": "avc-elumenapp-com-catalog-2026-27-course-geog222-9ec78e2e19",
+              "verdict": "correct",
+              "state": "correct",
+              "current": {
+                "annotation_id": "an-86aa8907915c",
+                "type": "verdict",
+                "verdict": "correct",
+                "author": "Jared Diener",
+                "author_role": "sme",
+                "at": "2026-10-21T20:57:30Z",
+                "note": null,
+                "expected": null,
+                "compared_with": null,
+                "anchor": null,
+                "rule_version_seen": 1,
+                "value_seen": "https://avc.elumenapp.com/catalog/2026-27/course/geog222",
+                "run_id": null,
+                "ruleset_version": null,
+                "run_at": null
+              },
+              "links": {
+                "rules": "#/c/avc/rules/course-subject-webpage?row=GEOG222&by=anyone&ext=rs-0010"
+              }
+            },
+            {
+              "course": "IATH105",
+              "rule": "course-subject-webpage",
+              "title": "IATH 105 - Defensive Football Lab",
+              "value": "https://avc.elumenapp.com/catalog/2026-27/course/iath105",
+              "status": "found",
+              "occurrence_key": "avc-elumenapp-com-catalog-2026-27-course-iath105-b4f6be3062@html > body:nth-of-type(1) > app-root:nth-of-type(1) > app-public:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(2) > main:nth-of-type(1) > div:nth-of-type(4)",
+              "page_stem": "avc-elumenapp-com-catalog-2026-27-course-iath105-b4f6be3062",
+              "verdict": "correct",
+              "state": "correct",
+              "current": {
+                "annotation_id": "an-1cb1ff8d4dbd",
+                "type": "verdict",
+                "verdict": "correct",
+                "author": "Jared Diener",
+                "author_role": "sme",
+                "at": "2026-10-21T20:57:30Z",
+                "note": null,
+                "expected": null,
+                "compared_with": null,
+                "anchor": null,
+                "rule_version_seen": 1,
+                "value_seen": "https://avc.elumenapp.com/catalog/2026-27/course/iath105",
+                "run_id": null,
+                "ruleset_version": null,
+                "run_at": null
+              },
+              "links": {
+                "rules": "#/c/avc/rules/course-subject-webpage?row=IATH105&by=anyone&ext=rs-0010"
+              }
+            },
+            {
+              "course": "KINF244",
+              "rule": "course-subject-webpage",
+              "title": "KINF 244 - Intermediate/Advanced Hatha Yoga",
+              "value": "https://avc.elumenapp.com/catalog/2026-27/course/kinf244",
+              "status": "found",
+              "occurrence_key": "avc-elumenapp-com-catalog-2026-27-course-kinf244-b9266d87c5@html > body:nth-of-type(1) > app-root:nth-of-type(1) > app-public:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(2) > main:nth-of-type(1) > div:nth-of-type(4)",
+              "page_stem": "avc-elumenapp-com-catalog-2026-27-course-kinf244-b9266d87c5",
+              "verdict": "correct",
+              "state": "correct",
+              "current": {
+                "annotation_id": "an-af881ba7723a",
+                "type": "verdict",
+                "verdict": "correct",
+                "author": "Jared Diener",
+                "author_role": "sme",
+                "at": "2026-10-21T20:57:30Z",
+                "note": null,
+                "expected": null,
+                "compared_with": null,
+                "anchor": null,
+                "rule_version_seen": 1,
+                "value_seen": "https://avc.elumenapp.com/catalog/2026-27/course/kinf244",
+                "run_id": null,
+                "ruleset_version": null,
+                "run_at": null
+              },
+              "links": {
+                "rules": "#/c/avc/rules/course-subject-webpage?row=KINF244&by=anyone&ext=rs-0010"
+              }
+            },
+            {
+              "course": "NS922L",
+              "rule": "course-subject-webpage",
+              "title": "NS 922L - Skills Lab 922L",
+              "value": "https://avc.elumenapp.com/catalog/2026-27/course/ns922l",
+              "status": "found",
+              "occurrence_key": "avc-elumenapp-com-catalog-2026-27-course-ns922l-646c284ac3@html > body:nth-of-type(1) > app-root:nth-of-type(1) > app-public:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(2) > main:nth-of-type(1) > div:nth-of-type(4)",
+              "page_stem": "avc-elumenapp-com-catalog-2026-27-course-ns922l-646c284ac3",
+              "verdict": "correct",
+              "state": "correct",
+              "current": {
+                "annotation_id": "an-76aa30c35419",
+                "type": "verdict",
+                "verdict": "correct",
+                "author": "Jared Diener",
+                "author_role": "sme",
+                "at": "2026-10-21T20:57:30Z",
+                "note": null,
+                "expected": null,
+                "compared_with": null,
+                "anchor": null,
+                "rule_version_seen": 1,
+                "value_seen": "https://avc.elumenapp.com/catalog/2026-27/course/ns922l",
+                "run_id": null,
+                "ruleset_version": null,
+                "run_at": null
+              },
+              "links": {
+                "rules": "#/c/avc/rules/course-subject-webpage?row=NS922L&by=anyone&ext=rs-0010"
+              }
+            },
+            {
+              "course": "PHIL106",
+              "rule": "course-subject-webpage",
+              "title": "PHIL 106 - Introduction to Philosophy",
+              "value": "https://avc.elumenapp.com/catalog/2026-27/course/phil106",
+              "status": "found",
+              "occurrence_key": "avc-elumenapp-com-catalog-2026-27-course-phil106-0fcab34e81@html > body:nth-of-type(1) > app-root:nth-of-type(1) > app-public:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(2) > main:nth-of-type(1) > div:nth-of-type(4)",
+              "page_stem": "avc-elumenapp-com-catalog-2026-27-course-phil106-0fcab34e81",
+              "verdict": "correct",
+              "state": "correct",
+              "current": {
+                "annotation_id": "an-1165f02486ad",
+                "type": "verdict",
+                "verdict": "correct",
+                "author": "Jared Diener",
+                "author_role": "sme",
+                "at": "2026-10-21T20:57:30Z",
+                "note": null,
+                "expected": null,
+                "compared_with": null,
+                "anchor": null,
+                "rule_version_seen": 1,
+                "value_seen": "https://avc.elumenapp.com/catalog/2026-27/course/phil106",
+                "run_id": null,
+                "ruleset_version": null,
+                "run_at": null
+              },
+              "links": {
+                "rules": "#/c/avc/rules/course-subject-webpage?row=PHIL106&by=anyone&ext=rs-0010"
+              }
+            },
+            {
+              "course": "PHYS102",
+              "rule": "course-subject-webpage",
+              "title": "PHYS 102 - Introductory Physics",
+              "value": "https://avc.elumenapp.com/catalog/2026-27/course/phys102",
+              "status": "found",
+              "occurrence_key": "avc-elumenapp-com-catalog-2026-27-course-phys102-41d466f4f5@html > body:nth-of-type(1) > app-root:nth-of-type(1) > app-public:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(2) > main:nth-of-type(1) > div:nth-of-type(4)",
+              "page_stem": "avc-elumenapp-com-catalog-2026-27-course-phys102-41d466f4f5",
+              "verdict": "correct",
+              "state": "correct",
+              "current": {
+                "annotation_id": "an-5a56e4395667",
+                "type": "verdict",
+                "verdict": "correct",
+                "author": "Jared Diener",
+                "author_role": "sme",
+                "at": "2026-10-21T20:57:30Z",
+                "note": null,
+                "expected": null,
+                "compared_with": null,
+                "anchor": null,
+                "rule_version_seen": 1,
+                "value_seen": "https://avc.elumenapp.com/catalog/2026-27/course/phys102",
+                "run_id": null,
+                "ruleset_version": null,
+                "run_at": null
+              },
+              "links": {
+                "rules": "#/c/avc/rules/course-subject-webpage?row=PHYS102&by=anyone&ext=rs-0010"
+              }
+            }
+          ],
+          "others_lead": "The other 12 courses Jared Diener marked correct:",
+          "link": "#/c/avc/rules/course-subject-webpage?by=anyone&verdict=correct"
+        }
+      ],
+      "options": [
+        {
+          "answer": "yes",
+          "label": "mark the 13 courses Not on the page",
+          "button": "Yes: mark the 13 courses Not on the page",
+          "text": "If yes, mark the 13 courses \"Not on the page\" for Subject Webpage. The next run publishes Subject Webpage and In Catalog together.",
+          "link": "#/c/avc/rules/course-subject-webpage?by=anyone&verdict=correct",
+          "do": {
+            "mark": "not_on_page",
+            "rule": "course-subject-webpage",
+            "rule_name": "Subject Webpage",
+            "words": "Not on the page",
+            "event": {
+              "verdict": "wrong",
+              "reasons": [
+                "not_on_page"
+              ]
+            },
+            "count": 13,
+            "courses": [
+              {
+                "course": "AERO199",
+                "rule": "course-subject-webpage",
+                "title": "AERO 199 - Work Experience Education",
+                "value": "https://avc.elumenapp.com/catalog/2026-27/course/aero199",
+                "status": "found",
+                "occurrence_key": "avc-elumenapp-com-catalog-2026-27-course-aero199-fa39368f98@html > body:nth-of-type(1) > app-root:nth-of-type(1) > app-public:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(2) > main:nth-of-type(1) > div:nth-of-type(4)",
+                "page_stem": "avc-elumenapp-com-catalog-2026-27-course-aero199-fa39368f98",
+                "verdict": "correct",
+                "state": "correct",
+                "current": {
+                  "annotation_id": "an-ec084ae5f761",
+                  "type": "verdict",
+                  "verdict": "correct",
+                  "author": "Jared Diener",
+                  "author_role": null,
+                  "at": "2026-10-21T20:57:30Z",
+                  "note": null,
+                  "expected": null,
+                  "compared_with": null,
+                  "anchor": null,
+                  "rule_version_seen": 1,
+                  "value_seen": "https://avc.elumenapp.com/catalog/2026-27/course/aero199",
+                  "run_id": null,
+                  "ruleset_version": null,
+                  "run_at": null
+                },
+                "links": {
+                  "rules": "#/c/avc/rules/course-subject-webpage?row=AERO199&by=anyone&ext=rs-0010"
+                }
+              },
+              {
+                "course": "AJ912",
+                "rule": "course-subject-webpage",
+                "title": "AJ 912 - Intermediate Health and Fitness for First Responders II",
+                "value": "https://avc.elumenapp.com/catalog/2026-27/course/aj912",
+                "status": "found",
+                "occurrence_key": "avc-elumenapp-com-catalog-2026-27-course-aj912-69473eb78c@html > body:nth-of-type(1) > app-root:nth-of-type(1) > app-public:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(2) > main:nth-of-type(1) > div:nth-of-type(4)",
+                "page_stem": "avc-elumenapp-com-catalog-2026-27-course-aj912-69473eb78c",
+                "verdict": "correct",
+                "state": "correct",
+                "current": {
+                  "annotation_id": "an-6975ed82b31d",
+                  "type": "verdict",
+                  "verdict": "correct",
+                  "author": "Jared Diener",
+                  "author_role": "sme",
+                  "at": "2026-10-21T20:57:30Z",
+                  "note": null,
+                  "expected": null,
+                  "compared_with": null,
+                  "anchor": null,
+                  "rule_version_seen": 1,
+                  "value_seen": "https://avc.elumenapp.com/catalog/2026-27/course/aj912",
+                  "run_id": null,
+                  "ruleset_version": null,
+                  "run_at": null
+                },
+                "links": {
+                  "rules": "#/c/avc/rules/course-subject-webpage?row=AJ912&by=anyone&ext=rs-0010"
+                }
+              },
+              {
+                "course": "AUTO230",
+                "rule": "course-subject-webpage",
+                "title": "AUTO 230 - Manual Transmissions, Transaxles, and Drivelines",
+                "value": "https://avc.elumenapp.com/catalog/2026-27/course/auto230",
+                "status": "found",
+                "occurrence_key": "avc-elumenapp-com-catalog-2026-27-course-auto230-84e07a8fed@html > body:nth-of-type(1) > app-root:nth-of-type(1) > app-public:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(2) > main:nth-of-type(1) > div:nth-of-type(4)",
+                "page_stem": "avc-elumenapp-com-catalog-2026-27-course-auto230-84e07a8fed",
+                "verdict": "correct",
+                "state": "correct",
+                "current": {
+                  "annotation_id": "an-cf8551044cbe",
+                  "type": "verdict",
+                  "verdict": "correct",
+                  "author": "Jared Diener",
+                  "author_role": "sme",
+                  "at": "2026-10-21T20:57:30Z",
+                  "note": null,
+                  "expected": null,
+                  "compared_with": null,
+                  "anchor": null,
+                  "rule_version_seen": 1,
+                  "value_seen": "https://avc.elumenapp.com/catalog/2026-27/course/auto230",
+                  "run_id": null,
+                  "ruleset_version": null,
+                  "run_at": null
+                },
+                "links": {
+                  "rules": "#/c/avc/rules/course-subject-webpage?row=AUTO230&by=anyone&ext=rs-0010"
+                }
+              },
+              {
+                "course": "CFE114",
+                "rule": "course-subject-webpage",
+                "title": "CFE 114 - Music and Movement Education for the Young Child",
+                "value": "https://avc.elumenapp.com/catalog/2026-27/course/cfe114",
+                "status": "found",
+                "occurrence_key": "avc-elumenapp-com-catalog-2026-27-course-cfe114-d366c344bf@html > body:nth-of-type(1) > app-root:nth-of-type(1) > app-public:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(2) > main:nth-of-type(1) > div:nth-of-type(4)",
+                "page_stem": "avc-elumenapp-com-catalog-2026-27-course-cfe114-d366c344bf",
+                "verdict": "correct",
+                "state": "correct",
+                "current": {
+                  "annotation_id": "an-58ac64cda36d",
+                  "type": "verdict",
+                  "verdict": "correct",
+                  "author": "Jared Diener",
+                  "author_role": "sme",
+                  "at": "2026-10-21T20:57:30Z",
+                  "note": null,
+                  "expected": null,
+                  "compared_with": null,
+                  "anchor": null,
+                  "rule_version_seen": 1,
+                  "value_seen": "https://avc.elumenapp.com/catalog/2026-27/course/cfe114",
+                  "run_id": null,
+                  "ruleset_version": null,
+                  "run_at": null
+                },
+                "links": {
+                  "rules": "#/c/avc/rules/course-subject-webpage?row=CFE114&by=anyone&ext=rs-0010"
+                }
+              },
+              {
+                "course": "DFST202",
+                "rule": "course-subject-webpage",
+                "title": "DFST 202 - American Sign Language IV",
+                "value": "https://avc.elumenapp.com/catalog/2026-27/course/dfst202",
+                "status": "found",
+                "occurrence_key": "avc-elumenapp-com-catalog-2026-27-course-dfst202-e799f71bd9@html > body:nth-of-type(1) > app-root:nth-of-type(1) > app-public:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(2) > main:nth-of-type(1) > div:nth-of-type(4)",
+                "page_stem": "avc-elumenapp-com-catalog-2026-27-course-dfst202-e799f71bd9",
+                "verdict": "correct",
+                "state": "correct",
+                "current": {
+                  "annotation_id": "an-131e48f28ab6",
+                  "type": "verdict",
+                  "verdict": "correct",
+                  "author": "Jared Diener",
+                  "author_role": "sme",
+                  "at": "2026-10-21T20:57:30Z",
+                  "note": null,
+                  "expected": null,
+                  "compared_with": null,
+                  "anchor": null,
+                  "rule_version_seen": 1,
+                  "value_seen": "https://avc.elumenapp.com/catalog/2026-27/course/dfst202",
+                  "run_id": null,
+                  "ruleset_version": null,
+                  "run_at": null
+                },
+                "links": {
+                  "rules": "#/c/avc/rules/course-subject-webpage?row=DFST202&by=anyone&ext=rs-0010"
+                }
+              },
+              {
+                "course": "ENGR955",
+                "rule": "course-subject-webpage",
+                "title": "ENGR 955 - Applications of Robotics",
+                "value": "https://avc.elumenapp.com/catalog/2026-27/course/engr955",
+                "status": "found",
+                "occurrence_key": "avc-elumenapp-com-catalog-2026-27-course-engr955-5e5075910f@html > body:nth-of-type(1) > app-root:nth-of-type(1) > app-public:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(2) > main:nth-of-type(1) > div:nth-of-type(4)",
+                "page_stem": "avc-elumenapp-com-catalog-2026-27-course-engr955-5e5075910f",
+                "verdict": "correct",
+                "state": "correct",
+                "current": {
+                  "annotation_id": "an-86001f32d866",
+                  "type": "verdict",
+                  "verdict": "correct",
+                  "author": "Jared Diener",
+                  "author_role": "sme",
+                  "at": "2026-10-21T20:57:30Z",
+                  "note": null,
+                  "expected": null,
+                  "compared_with": null,
+                  "anchor": null,
+                  "rule_version_seen": 1,
+                  "value_seen": "https://avc.elumenapp.com/catalog/2026-27/course/engr955",
+                  "run_id": null,
+                  "ruleset_version": null,
+                  "run_at": null
+                },
+                "links": {
+                  "rules": "#/c/avc/rules/course-subject-webpage?row=ENGR955&by=anyone&ext=rs-0010"
+                }
+              },
+              {
+                "course": "FTV201",
+                "rule": "course-subject-webpage",
+                "title": "FTV 201 - Intercultural & Women's Film",
+                "value": "https://avc.elumenapp.com/catalog/2026-27/course/ftv201",
+                "status": "found",
+                "occurrence_key": "avc-elumenapp-com-catalog-2026-27-course-ftv201-fe68ad5d1c@html > body:nth-of-type(1) > app-root:nth-of-type(1) > app-public:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(2) > main:nth-of-type(1) > div:nth-of-type(4)",
+                "page_stem": "avc-elumenapp-com-catalog-2026-27-course-ftv201-fe68ad5d1c",
+                "verdict": "correct",
+                "state": "correct",
+                "current": {
+                  "annotation_id": "an-935320f888d4",
+                  "type": "verdict",
+                  "verdict": "correct",
+                  "author": "Jared Diener",
+                  "author_role": "sme",
+                  "at": "2026-10-21T20:57:30Z",
+                  "note": null,
+                  "expected": null,
+                  "compared_with": null,
+                  "anchor": null,
+                  "rule_version_seen": 1,
+                  "value_seen": "https://avc.elumenapp.com/catalog/2026-27/course/ftv201",
+                  "run_id": null,
+                  "ruleset_version": null,
+                  "run_at": null
+                },
+                "links": {
+                  "rules": "#/c/avc/rules/course-subject-webpage?row=FTV201&by=anyone&ext=rs-0010"
+                }
+              },
+              {
+                "course": "GEOG222",
+                "rule": "course-subject-webpage",
+                "title": "GEOG 222 - Cartography for Geographic Information Science (GIS)",
+                "value": "https://avc.elumenapp.com/catalog/2026-27/course/geog222",
+                "status": "found",
+                "occurrence_key": "avc-elumenapp-com-catalog-2026-27-course-geog222-9ec78e2e19@html > body:nth-of-type(1) > app-root:nth-of-type(1) > app-public:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(2) > main:nth-of-type(1) > div:nth-of-type(4)",
+                "page_stem": "avc-elumenapp-com-catalog-2026-27-course-geog222-9ec78e2e19",
+                "verdict": "correct",
+                "state": "correct",
+                "current": {
+                  "annotation_id": "an-86aa8907915c",
+                  "type": "verdict",
+                  "verdict": "correct",
+                  "author": "Jared Diener",
+                  "author_role": "sme",
+                  "at": "2026-10-21T20:57:30Z",
+                  "note": null,
+                  "expected": null,
+                  "compared_with": null,
+                  "anchor": null,
+                  "rule_version_seen": 1,
+                  "value_seen": "https://avc.elumenapp.com/catalog/2026-27/course/geog222",
+                  "run_id": null,
+                  "ruleset_version": null,
+                  "run_at": null
+                },
+                "links": {
+                  "rules": "#/c/avc/rules/course-subject-webpage?row=GEOG222&by=anyone&ext=rs-0010"
+                }
+              },
+              {
+                "course": "IATH105",
+                "rule": "course-subject-webpage",
+                "title": "IATH 105 - Defensive Football Lab",
+                "value": "https://avc.elumenapp.com/catalog/2026-27/course/iath105",
+                "status": "found",
+                "occurrence_key": "avc-elumenapp-com-catalog-2026-27-course-iath105-b4f6be3062@html > body:nth-of-type(1) > app-root:nth-of-type(1) > app-public:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(2) > main:nth-of-type(1) > div:nth-of-type(4)",
+                "page_stem": "avc-elumenapp-com-catalog-2026-27-course-iath105-b4f6be3062",
+                "verdict": "correct",
+                "state": "correct",
+                "current": {
+                  "annotation_id": "an-1cb1ff8d4dbd",
+                  "type": "verdict",
+                  "verdict": "correct",
+                  "author": "Jared Diener",
+                  "author_role": "sme",
+                  "at": "2026-10-21T20:57:30Z",
+                  "note": null,
+                  "expected": null,
+                  "compared_with": null,
+                  "anchor": null,
+                  "rule_version_seen": 1,
+                  "value_seen": "https://avc.elumenapp.com/catalog/2026-27/course/iath105",
+                  "run_id": null,
+                  "ruleset_version": null,
+                  "run_at": null
+                },
+                "links": {
+                  "rules": "#/c/avc/rules/course-subject-webpage?row=IATH105&by=anyone&ext=rs-0010"
+                }
+              },
+              {
+                "course": "KINF244",
+                "rule": "course-subject-webpage",
+                "title": "KINF 244 - Intermediate/Advanced Hatha Yoga",
+                "value": "https://avc.elumenapp.com/catalog/2026-27/course/kinf244",
+                "status": "found",
+                "occurrence_key": "avc-elumenapp-com-catalog-2026-27-course-kinf244-b9266d87c5@html > body:nth-of-type(1) > app-root:nth-of-type(1) > app-public:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(2) > main:nth-of-type(1) > div:nth-of-type(4)",
+                "page_stem": "avc-elumenapp-com-catalog-2026-27-course-kinf244-b9266d87c5",
+                "verdict": "correct",
+                "state": "correct",
+                "current": {
+                  "annotation_id": "an-af881ba7723a",
+                  "type": "verdict",
+                  "verdict": "correct",
+                  "author": "Jared Diener",
+                  "author_role": "sme",
+                  "at": "2026-10-21T20:57:30Z",
+                  "note": null,
+                  "expected": null,
+                  "compared_with": null,
+                  "anchor": null,
+                  "rule_version_seen": 1,
+                  "value_seen": "https://avc.elumenapp.com/catalog/2026-27/course/kinf244",
+                  "run_id": null,
+                  "ruleset_version": null,
+                  "run_at": null
+                },
+                "links": {
+                  "rules": "#/c/avc/rules/course-subject-webpage?row=KINF244&by=anyone&ext=rs-0010"
+                }
+              },
+              {
+                "course": "NS922L",
+                "rule": "course-subject-webpage",
+                "title": "NS 922L - Skills Lab 922L",
+                "value": "https://avc.elumenapp.com/catalog/2026-27/course/ns922l",
+                "status": "found",
+                "occurrence_key": "avc-elumenapp-com-catalog-2026-27-course-ns922l-646c284ac3@html > body:nth-of-type(1) > app-root:nth-of-type(1) > app-public:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(2) > main:nth-of-type(1) > div:nth-of-type(4)",
+                "page_stem": "avc-elumenapp-com-catalog-2026-27-course-ns922l-646c284ac3",
+                "verdict": "correct",
+                "state": "correct",
+                "current": {
+                  "annotation_id": "an-76aa30c35419",
+                  "type": "verdict",
+                  "verdict": "correct",
+                  "author": "Jared Diener",
+                  "author_role": "sme",
+                  "at": "2026-10-21T20:57:30Z",
+                  "note": null,
+                  "expected": null,
+                  "compared_with": null,
+                  "anchor": null,
+                  "rule_version_seen": 1,
+                  "value_seen": "https://avc.elumenapp.com/catalog/2026-27/course/ns922l",
+                  "run_id": null,
+                  "ruleset_version": null,
+                  "run_at": null
+                },
+                "links": {
+                  "rules": "#/c/avc/rules/course-subject-webpage?row=NS922L&by=anyone&ext=rs-0010"
+                }
+              },
+              {
+                "course": "PHIL106",
+                "rule": "course-subject-webpage",
+                "title": "PHIL 106 - Introduction to Philosophy",
+                "value": "https://avc.elumenapp.com/catalog/2026-27/course/phil106",
+                "status": "found",
+                "occurrence_key": "avc-elumenapp-com-catalog-2026-27-course-phil106-0fcab34e81@html > body:nth-of-type(1) > app-root:nth-of-type(1) > app-public:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(2) > main:nth-of-type(1) > div:nth-of-type(4)",
+                "page_stem": "avc-elumenapp-com-catalog-2026-27-course-phil106-0fcab34e81",
+                "verdict": "correct",
+                "state": "correct",
+                "current": {
+                  "annotation_id": "an-1165f02486ad",
+                  "type": "verdict",
+                  "verdict": "correct",
+                  "author": "Jared Diener",
+                  "author_role": "sme",
+                  "at": "2026-10-21T20:57:30Z",
+                  "note": null,
+                  "expected": null,
+                  "compared_with": null,
+                  "anchor": null,
+                  "rule_version_seen": 1,
+                  "value_seen": "https://avc.elumenapp.com/catalog/2026-27/course/phil106",
+                  "run_id": null,
+                  "ruleset_version": null,
+                  "run_at": null
+                },
+                "links": {
+                  "rules": "#/c/avc/rules/course-subject-webpage?row=PHIL106&by=anyone&ext=rs-0010"
+                }
+              },
+              {
+                "course": "PHYS102",
+                "rule": "course-subject-webpage",
+                "title": "PHYS 102 - Introductory Physics",
+                "value": "https://avc.elumenapp.com/catalog/2026-27/course/phys102",
+                "status": "found",
+                "occurrence_key": "avc-elumenapp-com-catalog-2026-27-course-phys102-41d466f4f5@html > body:nth-of-type(1) > app-root:nth-of-type(1) > app-public:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(2) > main:nth-of-type(1) > div:nth-of-type(4)",
+                "page_stem": "avc-elumenapp-com-catalog-2026-27-course-phys102-41d466f4f5",
+                "verdict": "correct",
+                "state": "correct",
+                "current": {
+                  "annotation_id": "an-5a56e4395667",
+                  "type": "verdict",
+                  "verdict": "correct",
+                  "author": "Jared Diener",
+                  "author_role": "sme",
+                  "at": "2026-10-21T20:57:30Z",
+                  "note": null,
+                  "expected": null,
+                  "compared_with": null,
+                  "anchor": null,
+                  "rule_version_seen": 1,
+                  "value_seen": "https://avc.elumenapp.com/catalog/2026-27/course/phys102",
+                  "run_id": null,
+                  "ruleset_version": null,
+                  "run_at": null
+                },
+                "links": {
+                  "rules": "#/c/avc/rules/course-subject-webpage?row=PHYS102&by=anyone&ext=rs-0010"
+                }
+              }
+            ]
+          },
+          "done": "13 courses marked Not on the page",
+          "then": {
+            "publish": [
+              {
+                "rule": "course-subject-webpage",
+                "name": "Subject Webpage",
+                "has_rule": true
+              },
+              {
+                "rule": "course-in-catalog",
+                "name": "In Catalog",
+                "has_rule": false
+              }
+            ],
+            "run_again": [
+              {
+                "rule": "course-subject-webpage",
+                "name": "Subject Webpage"
+              },
+              {
+                "rule": "course-in-catalog",
+                "name": "In Catalog"
+              }
+            ],
+            "text": "Then run again with Subject Webpage and In Catalog."
+          },
+          "effect": "Subject Webpage becomes empty. In Catalog reads the page's address.",
+          "no_rule_yet": [
+            "In Catalog has no rule yet; the next run writes one."
+          ]
+        },
+        {
+          "answer": "no",
+          "label": "mark ACCT199 correct",
+          "button": "No: mark ACCT199 correct",
+          "text": "If no, mark ACCT199 correct for Subject Webpage.",
+          "link": "#/c/avc/rules/course-subject-webpage?row=ACCT199&by=anyone",
+          "do": {
+            "mark": "correct",
+            "rule": "course-subject-webpage",
+            "rule_name": "Subject Webpage",
+            "words": "correct",
+            "event": {
+              "verdict": "correct"
+            },
+            "count": 1,
+            "courses": [
+              {
+                "course": "ACCT199",
+                "rule": "course-subject-webpage",
+                "title": "ACCT 199 - Work Experience Education",
+                "value": "https://avc.elumenapp.com/catalog/2026-27/course/acct199",
+                "status": "found",
+                "occurrence_key": "avc-elumenapp-com-catalog-2026-27-course-acct199-02f732419a@html > body:nth-of-type(1) > app-root:nth-of-type(1) > app-public:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(2) > main:nth-of-type(1) > div:nth-of-type(4)",
+                "page_stem": "avc-elumenapp-com-catalog-2026-27-course-acct199-02f732419a",
+                "verdict": "wrong",
+                "state": "wrong",
+                "current": {
+                  "annotation_id": "an-f69f1da3e976",
+                  "type": "verdict",
+                  "verdict": "wrong",
+                  "author": "Jared Diener",
+                  "author_role": "sme",
+                  "at": "2026-11-04T15:26:44Z",
+                  "note": null,
+                  "expected": null,
+                  "compared_with": null,
+                  "anchor": null,
+                  "rule_version_seen": 1,
+                  "value_seen": "https://avc.elumenapp.com/catalog/2026-27/course/acct199",
+                  "run_id": null,
+                  "ruleset_version": null,
+                  "run_at": null
+                },
+                "links": {
+                  "rules": "#/c/avc/rules/course-subject-webpage?row=ACCT199&by=anyone&ext=rs-0010"
+                }
+              }
+            ]
+          },
+          "done": "ACCT199 marked correct",
+          "then": {
+            "publish": [],
+            "run_again": [
+              {
+                "rule": "course-subject-webpage",
+                "name": "Subject Webpage"
+              }
+            ],
+            "text": "Then run again with Subject Webpage."
+          },
+          "effect": null,
+          "no_rule_yet": []
+        }
+      ],
+      "effect": [
+        {
+          "rule": "course-subject-webpage",
+          "rule_name": "Subject Webpage",
+          "text": "Subject Webpage becomes empty."
+        },
+        {
+          "rule": "course-in-catalog",
+          "rule_name": "In Catalog",
+          "text": "In Catalog reads the page's address."
+        }
+      ]
+    }
+  ],
+  "rules": [
+    {
+      "rule": "course-subject-webpage",
+      "name": "Subject Webpage",
+      "goal": true,
+      "outcome": "held",
+      "now": "the course page's address on every course",
+      "why": "The note on ACCT199 applies to every course, but 13 courses with the same kind of value are marked correct.",
+      "because": null,
+      "values_changed": null,
+      "rows": [
+        {
+          "rule": "course-subject-webpage",
+          "rule_name": "Subject Webpage",
+          "legend": "Subject Webpage",
+          "kind": "property",
+          "course": "ACCT199",
+          "title": "ACCT 199 - Work Experience Education",
+          "page_stem": "avc-elumenapp-com-catalog-2026-27-course-acct199-02f732419a",
+          "url": "https://avc.elumenapp.com/catalog/2026-27/course/acct199",
+          "key": "avc-elumenapp-com-catalog-2026-27-course-acct199-02f732419a@html > body:nth-of-type(1) > app-root:nth-of-type(1) > app-public:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(2) > main:nth-of-type(1) > div:nth-of-type(4)",
+          "occurrence_key": "avc-elumenapp-com-catalog-2026-27-course-acct199-02f732419a@html > body:nth-of-type(1) > app-root:nth-of-type(1) > app-public:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(2) > main:nth-of-type(1) > div:nth-of-type(4)",
+          "value": "https://avc.elumenapp.com/catalog/2026-27/course/acct199",
+          "status": "found",
+          "value_before": null,
+          "inferred": null,
+          "left_out": [],
+          "comment": "The value is still the page's address, as on the 13 courses marked correct. Nothing on this page sets it apart from them.",
+          "verdict": {
+            "annotation_id": "an-f69f1da3e976",
+            "type": "verdict",
+            "verdict": "wrong",
+            "author": "Jared Diener",
+            "author_role": "sme",
+            "at": "2026-11-04T15:26:44Z",
+            "note": null,
+            "expected": null,
+            "compared_with": null,
+            "anchor": null,
+            "rule_version_seen": 1,
+            "value_seen": "https://avc.elumenapp.com/catalog/2026-27/course/acct199",
+            "run_id": null,
+            "ruleset_version": null,
+            "run_at": null
+          },
+          "state": "wrong",
+          "history": [
+            {
+              "kind": "verdict",
+              "annotation_id": "an-f69f1da3e976",
+              "verdict": "wrong",
+              "author": "Jared Diener",
+              "author_role": "sme",
+              "at": "2026-11-04T15:26:44Z",
+              "note": null,
+              "expected": null,
+              "run_id": null,
+              "ruleset_version": null,
+              "run_at": null,
+              "after_run": false
+            },
+            {
+              "kind": "comment",
+              "annotation_id": "an-39127172c8e8",
+              "verdict": null,
+              "author": "Jared Diener",
+              "author_role": "sme",
+              "at": "2026-11-04T15:27:29Z",
+              "note": "When the resource is in a catalog, use the property ceterms:inCatalog instead of ceterms:subjectWebpage.",
+              "expected": null,
+              "run_id": null,
+              "ruleset_version": null,
+              "run_at": null,
+              "after_run": false
+            },
+            {
+              "kind": "comment",
+              "annotation_id": "an-9619e6f76ce9",
+              "verdict": null,
+              "author": "Claude",
+              "author_role": "ai",
+              "at": "2026-11-06T01:25:45Z",
+              "note": "The value is still the page's address, as on the 13 courses marked correct. Nothing on this page sets it apart from them.",
+              "expected": null,
+              "run_id": "20261106T012457Z-b970",
+              "ruleset_version": 10,
+              "run_at": "2026-11-06T01:24:57Z",
+              "after_run": false
+            }
+          ],
+          "links": {
+            "rules": "#/c/avc/rules/course-subject-webpage?row=ACCT199&by=anyone&ext=rs-0010",
+            "wrong": "#/c/avc/rules/course-subject-webpage?row=ACCT199&by=anyone&ext=rs-0010&mark=wrong"
+          }
+        }
+      ]
+    }
+  ],
+  "also_changed": [],
+  "together": [
+    {
+      "rules": [
+        "course-subject-webpage",
+        "course-in-catalog"
+      ],
+      "names": [
+        "Subject Webpage",
+        "In Catalog"
+      ],
+      "quote": "use the property ceterms:inCatalog instead of ceterms:subjectWebpage",
+      "source": {
+        "kind": "note",
+        "annotation_id": "an-39127172c8e8",
+        "author": "Jared Diener",
+        "at": "2026-11-04T15:27:29Z",
+        "rule": "course-subject-webpage",
+        "course": "ACCT199"
+      }
+    }
+  ],
+  "notes": "ACCT199 was first marked correct and later marked wrong by the same reviewer.",
+  "links": {
+    "report": "#/c/avc/rules?run=20261106T012457Z-b970",
+    "compare": null
+  },
+  "revert": null
+}

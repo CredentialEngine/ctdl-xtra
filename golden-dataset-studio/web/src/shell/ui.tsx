@@ -32,4 +32,22 @@ export function toast(msg: string, ms = 1800): void {
   setTimeout(() => t.remove(), ms);
 }
 
+/** A toast with one action ("Undo"): what was recorded, and a way back while it shows (8 s by default). The action
+ * runs once; the toast goes as soon as it is pressed. */
+export function toastAction(msg: string, label: string, action: () => void, ms = 8000): void {
+  document.querySelectorAll(".toast-act").forEach((x) => x.remove());  // one Undo at a time: the latest
+  const t = document.createElement("div");
+  t.className = "toast toast-act";
+  t.setAttribute("role", "status");
+  const text = document.createElement("span");
+  text.textContent = msg;
+  const b = document.createElement("button");
+  b.type = "button";
+  b.textContent = label;
+  b.addEventListener("click", () => { t.remove(); action(); }, { once: true });
+  t.append(text, b);
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), ms);
+}
+
 export { Ico, ICON } from "./icons";

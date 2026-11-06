@@ -2,6 +2,7 @@
 // nested bullet and numbered lists, tables, fenced code, inline code, bold, italic and links — and builds React elements
 // only: the text (which quotes catalog pages) is never interpreted as HTML.
 import { Fragment, type ReactNode } from "react";
+import { Ico } from "../shell/icons";
 
 export type Block =
   | { t: "h"; level: number; text: string }
@@ -105,7 +106,9 @@ export function inline(text: string): ReactNode[] {
     else {
       const [, label, url] = /^\[([^\]]+)\]\(([^)\s]+)\)$/.exec(s)!;
       const safe = /^https?:\/\//.test(url);
-      out.push(safe ? <a key={k++} href={url} target="_blank" rel="noopener noreferrer">{inline(label)}</a> : <Fragment key={k++}>{s}</Fragment>);
+      // every link opens a new tab, and says so with the external-link icon
+      out.push(safe ? <a key={k++} href={url} target="_blank" rel="noopener noreferrer" className="md-ext"
+        title="Opens in a new tab">{inline(label)}<Ico name="ext" /></a> : <Fragment key={k++}>{s}</Fragment>);
     }
     last = at + s.length;
   }

@@ -4,6 +4,7 @@ import type { RulesResponse } from "../api/types";
 import { fmt } from "../shell/ui";
 import { RunButton } from "./RunButton";
 import { openRuns } from "./api";
+import { openRunDialog } from "./RunDialog";
 import "./agent.css";
 
 export function fixCounts(rules: RulesResponse) {
@@ -28,12 +29,11 @@ export function FixBar({ catalog, name, rules }: { catalog: string; name: string
   }
   const detail = [n.wrong && `${fmt(n.wrong)} wrong`, n.missing && `${fmt(n.missing)} missing`,
                   n.questions && s(n.questions, "question") + " for the institution"].filter(Boolean).join(" · ");
-  const label = n.rules === 1 ? "Improve the rule with Claude" : `Improve all ${n.rules} rules with Claude`;
   return (
     <div className="fix-bar" data-testid="fix-bar" data-tour="fix-bar">
       <div className="fb-t"><b>{s(n.rules, "rule")} need{n.rules === 1 ? "s" : ""} work</b>
         {detail && <span className="faint"> · {detail}</span>}</div>
-      <RunButton catalog={catalog} scope={{ kind: "needs_work" }} label={label}
+      <RunButton catalog={catalog} scope={{ kind: "needs_work" }} label="Improve rules with AI…" onAsk={() => openRunDialog()}
         confirm={`Improve ${s(n.rules, "rule")} on ${name} with Claude? It gets every open wrong and missing verdict.`} />
       {pastRuns}
     </div>
