@@ -3,12 +3,12 @@
 // Markdown `summary.md`), its progress notes, and the exact prompt it was given. Read-only. Opened from the footer, the
 // bottom of the rule list, the run bar (See the queue, Read the report), and a rule's AI status (`rule`: that rule's
 // runs, spec §1.5).
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Markdown } from "../prompt/markdown";
 import "../prompt/prompt.css";
 import { Ico } from "../shell/icons";
 import { useReviewer } from "../shell/reviewer";
-import { href } from "../shell/router";
+import { href, parseRoute } from "../shell/router";
 import { compareOf, agentApi, agentApi2, andNames, elapsed, LIVE, ordinal, scopeWords, type AgentRun, type Queue, type QueueRun, type RunDetail,
 } from "./api";
 import { Report } from "./Report";
@@ -56,6 +56,13 @@ export function RunsPanel({ catalog, initial, rule = null, ruleName = null, onCl
     const on = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
     window.addEventListener("keydown", on);
     return () => window.removeEventListener("keydown", on);
+  }, [onClose]);
+  // a link in a report to another tab (Compare vN → vM, Values changed's Compare): show that tab, not this drawer
+  const openedOn = useRef(parseRoute(location.hash).tab);
+  useEffect(() => {
+    const on = () => { if (parseRoute(location.hash).tab !== openedOn.current) onClose(); };
+    window.addEventListener("hashchange", on);
+    return () => window.removeEventListener("hashchange", on);
   }, [onClose]);
   const busy = !!queue && (queue.working.length > 0 || queue.waiting.length > 0);
   const title = only ? `AI runs on ${ruleName ?? only}` : busy ? "AI runs" : "Past AI runs";

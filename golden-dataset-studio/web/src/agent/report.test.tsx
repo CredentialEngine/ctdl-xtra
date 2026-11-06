@@ -378,4 +378,17 @@ describe("RunsPanel with reports", () => {
     await flush();
     expect(host.querySelector("[data-testid=run-detail] .runs-report h2")!.textContent).toBe("Decisions for Eric");
   });
+
+  it("closes when a link in the report goes to another tab (Compare), not when the Rules tab's address changes", async () => {
+    location.hash = "#/c/avc/rules/course-credit-value";
+    const onClose = vi.fn();
+    await act(async () => root.render(<RunsPanel catalog="avc" initial={RUN.run_id} onClose={onClose} />));
+    await flush();
+    await act(async () => { location.hash = "#/c/avc/rules/course-credit-value?row=ACCT199"; window.dispatchEvent(new HashChangeEvent("hashchange")); });
+    expect(onClose).not.toHaveBeenCalled();
+    const compare = host.querySelector<HTMLAnchorElement>(".run-done a.btn")!.getAttribute("href")!;
+    expect(compare).toBe("#/c/avc/compare?a=9&b=10");
+    await act(async () => { location.hash = compare; window.dispatchEvent(new HashChangeEvent("hashchange")); });  // jsdom doesn't follow it
+    expect(onClose).toHaveBeenCalled();
+  });
 });
