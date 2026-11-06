@@ -1,0 +1,265 @@
+{
+  "slug": "ms-nursing-education",
+  "url": "file://ms-nursing-education.html",
+  "model": "claude-opus-4-5",
+  "sourceMarkdownChars": 37757,
+  "baseline": {
+    "items": [
+      {
+        "credential_name": "Nursing Education (BSN to MSN)",
+        "credential_description": "Experience is valuable. And your experience as a nurse is what will make you a great nurse educator. A BSN to MSN nursing education program is designed to help you thrive as a nurse educator—giving you crucial skills that will prepare you to train the next generation of nurses, impact patient care, and improve health systems in your community. WGU's online, CCNE-accredited BSN to MSN program will prepare you to teach a new generation of nurses, influence patient outcomes, and change the future of healthcare. This BSN to MSN program lets you utilize your knowledge and experience and gives you specific skills you need to take your passion and teach it to others. As a leader you will develop and implement life-saving techniques that will set important standards for the nurses you train. This online nursing education degree program also includes clinical practice experiences that support the student in demonstrating advanced nursing practice competence and curriculum development.",
+        "credential_type": "MasterDegree",
+        "language": "English"
+      }
+    ]
+  },
+  "baselineProgram": {
+    "items": [
+      {
+        "learning_program_id": "Nursing Education (BSN to MSN)",
+        "learning_program_name": "Nursing Education (BSN to MSN)",
+        "learning_program_description": "Experience is valuable. And your experience as a nurse is what will make you a great nurse educator. A BSN to MSN nursing education program is designed to help you thrive as a nurse educator—giving you crucial skills that will prepare you to train the next generation of nurses, impact patient care, and improve health systems in your community. WGU's online, CCNE-accredited BSN to MSN program will prepare you to teach a new generation of nurses, influence patient outcomes, and change the future of healthcare.\n\nThis BSN to MSN program lets you utilize your knowledge and experience and gives you specific skills you need to take your passion and teach it to others. As a leader you will develop and implement life-saving techniques that will set important standards for the nurses you train. This online nursing education degree program also includes clinical practice experiences that support the student in demonstrating advanced nursing practice competence and curriculum development. Additionally, you'll have the opportunity to earn the NAHQ (National Association for Healthcare Quality) HQ Principles certificate along with your degree, helping you to boost your résumé before you even graduate."
+      }
+    ]
+  },
+  "enhanced": {
+    "name": "Master of Science in Nursing Education (BSN to MSN)",
+    "description": "Experience is valuable. And your experience as a nurse is what will make you a great nurse educator. A BSN to MSN nursing education program is designed to help you thrive as a nurse educator—giving you crucial skills that will prepare you to train the next generation of nurses, impact patient care, and improve health systems in your community. WGU's online, CCNE-accredited BSN to MSN program will prepare you to teach a new generation of nurses, influence patient outcomes, and change the future of healthcare.\n\nThis BSN to MSN program lets you utilize your knowledge and experience and gives you specific skills you need to take your passion and teach it to others. As a leader you will develop and implement life-saving techniques that will set important standards for the nurses you train. This online nursing education degree program also includes clinical practice experiences that support the student in demonstrating advanced nursing practice competence and curriculum development. Additionally, you'll have the opportunity to earn the NAHQ (National Association for Healthcare Quality) HQ Principles certificate along with your degree, helping you to boost your résumé before you even graduate.",
+    "credentialType": "MasterOfScienceDegree",
+    "subjectWebpage": "file://ms-nursing-education.html",
+    "inLanguage": "en",
+    "credentialStatusType": "Active",
+    "alternateName": "MSN – Education",
+    "audienceLevelType": [
+      "GraduateLevel",
+      "MastersDegreeLevel"
+    ],
+    "accreditedBy": [
+      "Commission on Collegiate Nursing Education (CCNE)"
+    ],
+    "learningDeliveryType": [
+      "OnlineOnly"
+    ],
+    "estimatedDuration": {
+      "description": "62% of graduates finish within 24 Months*",
+      "exactDuration": "P24M"
+    },
+    "estimatedCost": [
+      {
+        "costType": "Tuition",
+        "currency": "USD",
+        "price": 5035,
+        "paymentPattern": "per 6-month term",
+        "description": "Tuition per six-month term"
+      },
+      {
+        "costType": "BooksAndSupplies",
+        "currency": "USD",
+        "price": 200,
+        "paymentPattern": "per 6-month term",
+        "description": "E-Books and Resources Fee"
+      }
+    ],
+    "requires": {
+      "description": "To be considered for this master's in nursing education program, you must: Possess a bachelor of science in nursing degree (BSN). Possess an active, unencumbered RN license (though you are not required to be working as an RN at the time of enrollment): 1. In your state of residence, or 2. In your state of employment. Prior to your clinical placement, you must submit to a criminal background check through DISA Healthcare Technology and provide proof of current immunizations. Additional fees apply. NOTE: RN licensure in your state of residence or employment is required to successfully complete clinical experiences. You must be licensed in the state in which you will complete the project or clinical experience. Compact licenses must be endorsed by your state of residence.",
+      "prerequisiteCredentials": [
+        "Bachelor of Science in Nursing (BSN)",
+        "Active, unencumbered RN license"
+      ]
+    },
+    "teaches": [
+      "Inquiry: Evaluated the incorporation of evidence-based practice in current nursing activities, ensuring alignment with the latest research and best practices.",
+      "Advocacy: Advocated for policies aimed at enhancing public health and advancing the nursing profession, contributing to positive systemic changes.",
+      "Adaptability: Provided essential recommendations for improvements in value-based care, aiming to enhance overall patient outcomes and healthcare quality.",
+      "Curriculum Development: Implemented diverse instructional strategies to support and expand learning, ensuring a well-rounded and effective educational experience.",
+      "Instructional and Curriculum Design: Developed methods for assessing both learning and performance, contributing to ongoing improvement and skill development.",
+      "Leadership: Cultivated an inclusive and collaborative team environment that valued the input of all members, fostering diversity and teamwork for enhanced productivity and creativity."
+    ],
+    "hasPart": [
+      {
+        "name": "Evolving Roles of Nurse Educators in Diverse Environments",
+        "codedNotation": null
+      },
+      {
+        "name": "Facilitation of Context-Based Student-Centered Learning",
+        "codedNotation": null
+      },
+      {
+        "name": "Contemporary Curriculum Design and Development in Nursing Education",
+        "codedNotation": null
+      },
+      {
+        "name": "Assessment and Evaluation Strategies for Measuring Student Learning",
+        "codedNotation": null
+      },
+      {
+        "name": "Emerging Trends and Challenges in 21st Century Nursing Education",
+        "codedNotation": null
+      },
+      {
+        "name": "Nursing Education Field Experience",
+        "codedNotation": null
+      },
+      {
+        "name": "Nursing Education Capstone",
+        "codedNotation": null
+      },
+      {
+        "name": "Professional Presence and Influence",
+        "codedNotation": null
+      },
+      {
+        "name": "Essentials of Advanced Nursing Roles and Interprofessional Practice",
+        "codedNotation": null
+      },
+      {
+        "name": "Quality Outcomes in a Culture of Value-Based Nursing Care",
+        "codedNotation": null
+      },
+      {
+        "name": "Advanced Pathopharmacological Foundations",
+        "codedNotation": null
+      },
+      {
+        "name": "Advanced Health Assessment for Patients and Populations",
+        "codedNotation": null
+      },
+      {
+        "name": "Informatics for Transforming Nursing Care",
+        "codedNotation": null
+      },
+      {
+        "name": "Leadership and Management in Complex Healthcare Systems",
+        "codedNotation": null
+      },
+      {
+        "name": "Advancing Evidence-Based Innovation in Nursing Practice",
+        "codedNotation": null
+      }
+    ],
+    "creditValue": {
+      "creditUnitType": "CompetencyCredit",
+      "value": null,
+      "description": "Program consists of 15 courses. Up to 17 credits (47%) can be transferred."
+    },
+    "occupationType": [
+      "Nurse educator",
+      "Nursing faculty",
+      "Program director",
+      "Academic clinical nurse educator",
+      "Nursing instructor"
+    ],
+    "industryType": [
+      "Healthcare",
+      "Education",
+      "Hospitals and healthcare clinics",
+      "Colleges and universities",
+      "Healthcare networks",
+      "Hospice providers"
+    ],
+    "industryCertifications": [
+      "NAHQ (National Association for Healthcare Quality) HQ Principles certificate"
+    ],
+    "keyword": [
+      "nursing education",
+      "BSN to MSN",
+      "nurse educator",
+      "curriculum development",
+      "healthcare",
+      "CCNE-accredited"
+    ],
+    "_extractionNotes": "The page mentions 62% of graduates finish within 24 months as typical completion time. Total credits are not explicitly stated, though it mentions 47% (up to 17 credits) can be transferred. WGU uses a competency-based model rather than traditional credit hours. The page mentions field experiences that must be completed in a facility near the student. The exact credit total for the program is not provided on this page. Start dates are the 1st of every month."
+  },
+  "_meta": [
+    {
+      "config": "baseline-credential",
+      "usage": {
+        "input_tokens": 9870,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 0,
+          "ephemeral_1h_input_tokens": 0
+        },
+        "iterations": [
+          {
+            "input_tokens": 9870,
+            "output_tokens": 264,
+            "cache_read_input_tokens": 0,
+            "cache_creation_input_tokens": 0,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 0
+            },
+            "type": "message"
+          }
+        ],
+        "output_tokens": 264,
+        "service_tier": "standard",
+        "inference_geo": "not_available"
+      },
+      "latencyMs": 8241,
+      "stopReason": "tool_use"
+    },
+    {
+      "config": "baseline-learning_program",
+      "usage": {
+        "input_tokens": 9423,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 0,
+          "ephemeral_1h_input_tokens": 0
+        },
+        "iterations": [
+          {
+            "input_tokens": 9423,
+            "output_tokens": 315,
+            "cache_read_input_tokens": 0,
+            "cache_creation_input_tokens": 0,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 0
+            },
+            "type": "message"
+          }
+        ],
+        "output_tokens": 315,
+        "service_tier": "standard",
+        "inference_geo": "not_available"
+      },
+      "latencyMs": 12615,
+      "stopReason": "tool_use"
+    },
+    {
+      "config": "enhanced",
+      "usage": {
+        "input_tokens": 11285,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 0,
+          "ephemeral_1h_input_tokens": 0
+        },
+        "iterations": [
+          {
+            "input_tokens": 11285,
+            "output_tokens": 1786,
+            "cache_read_input_tokens": 0,
+            "cache_creation_input_tokens": 0,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 0
+            },
+            "type": "message"
+          }
+        ],
+        "output_tokens": 1786,
+        "service_tier": "standard",
+        "inference_geo": "not_available"
+      },
+      "latencyMs": 33282,
+      "stopReason": "tool_use"
+    }
+  ]
+}
