@@ -16,6 +16,8 @@ export interface AgentRun {
   sent_at: string | null; next_try_at: string | null;
   k2: { url: string; agent: string; delivery_id: string | null };
   ruleset_before: number | null; ruleset_after: number | null;
+  /** What the run's first publish was built on (after a rebase, later than ruleset_before); absent on older runs. */
+  ruleset_base?: number | null;
   outcome: string | null; ended_at: string | null; ended_by: string | null; fallback_reason: string | null;
   /** The Studio address the run was started from (the report links back to it), and how many to-dos the report has. */
   studio_url?: string | null; to_do_count?: number | null;
@@ -111,6 +113,14 @@ export function scopeWords(scope: RunScope): string {
   if (scope.kind === "rule") return `improving ${scope.rule_id}`;
   const n = scope.rules?.length;
   return n ? `improving ${n} rule${n === 1 ? "" : "s"}` : "improving the rules that need work";
+}
+
+/** The two rulesets to compare for a run that published: from what it built on to what it published, so another
+ *  run's version in between (a rebase) isn't shown as this run's change. */
+export function compareOf(r: AgentRun): { a: number; b: number } | null {
+  if (r.ruleset_after == null || r.ruleset_before == null || r.ruleset_after <= r.ruleset_before) return null;
+  const a = r.ruleset_base != null && r.ruleset_base < r.ruleset_after ? r.ruleset_base : r.ruleset_before;
+  return { a, b: r.ruleset_after };
 }
 
 const published = (r: AgentRun) => r.ruleset_after != null && r.ruleset_before != null && r.ruleset_after > r.ruleset_before;

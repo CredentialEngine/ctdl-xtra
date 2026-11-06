@@ -9,8 +9,7 @@ import "../prompt/prompt.css";
 import { Ico } from "../shell/icons";
 import { useReviewer } from "../shell/reviewer";
 import { href } from "../shell/router";
-import {
-  agentApi, agentApi2, andNames, elapsed, LIVE, ordinal, scopeWords, type AgentRun, type Queue, type QueueRun, type RunDetail,
+import { compareOf,   agentApi, agentApi2, andNames, elapsed, LIVE, ordinal, scopeWords, type AgentRun, type Queue, type QueueRun, type RunDetail,
 } from "./api";
 import { Report } from "./Report";
 import { openRunDialog } from "./RunDialog";
@@ -146,7 +145,7 @@ function RunDetailView({ catalog, runId }: { catalog: string; runId: string }) {
   if (!d) return <p className="faint runs-pad">Loading…</p>;
   const { run, notes, summary } = d;
   if (d.report) return <Report catalog={catalog} run={run} report={d.report} notes={notes} />;
-  const grew = run.ruleset_after != null && run.ruleset_before != null && run.ruleset_after > run.ruleset_before;
+  const grew = compareOf(run);
   return (
     <div className="runs-detail" data-testid="run-detail">
       <dl className="run-facts">
@@ -154,7 +153,7 @@ function RunDetailView({ catalog, runId }: { catalog: string; runId: string }) {
         <dt>Asked to</dt><dd>{scopeWords(run.scope)}{run.scope.rules?.length ? <span className="mono faint"> ({run.scope.rules.join(", ")})</span> : null}</dd>
         <dt>Started</dt><dd>{runMeta(run)}</dd>
         {grew && <><dt>Published</dt><dd>ruleset v{run.ruleset_after}.{" "}
-          <a href={href(catalog, "compare", null, { a: run.ruleset_before, b: run.ruleset_after })}>Compare v{run.ruleset_before} → v{run.ruleset_after}</a></dd></>}
+          <a href={href(catalog, "compare", null, grew)}>Compare v{grew.a} → v{grew.b}</a></dd></>}
         <dt>Run id</dt><dd className="mono faint">{run.run_id}</dd>
       </dl>
       <section className="runs-sec">

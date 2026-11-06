@@ -10,8 +10,7 @@ import { Ico } from "../shell/icons";
 import { useReviewer } from "../shell/reviewer";
 import { href } from "../shell/router";
 import { toast } from "../shell/ui";
-import {
-  agentApi, agentApi2, andNames, elapsed, endedIcon, endedLine, endedWords, LIVE, openRuns, ruleNames, scopeWords, waitingWords,
+import { compareOf,   agentApi, agentApi2, andNames, elapsed, endedIcon, endedLine, endedWords, LIVE, openRuns, ruleNames, scopeWords, waitingWords,
   type AgentRun, type LiveRun, type ResolvedReport, type RunNote,
 } from "./api";
 import { openPrompt } from "../prompt/PromptModal";
@@ -51,8 +50,10 @@ async function markEnded(catalog: string, run: AgentRun, me: string, then: () =>
 
 const published = (r: AgentRun) => r.ruleset_after != null && r.ruleset_before != null && r.ruleset_after > r.ruleset_before;
 function CompareLink({ catalog, run, className = "btn" }: { catalog: string; run: AgentRun; className?: string }) {
-  return <a className={className} href={href(catalog, "compare", null, { a: run.ruleset_before, b: run.ruleset_after })}
-    title="What changed between the two rulesets, rule by rule">Compare v{run.ruleset_before} → v{run.ruleset_after}</a>;
+  const c = compareOf(run);
+  if (!c) return null;
+  return <a className={className} href={href(catalog, "compare", null, c)}
+    title="What changed between the two rulesets, rule by rule">Compare v{c.a} → v{c.b}</a>;
 }
 
 /** What a run works on: its rules by name, or (older runs) a few words. */

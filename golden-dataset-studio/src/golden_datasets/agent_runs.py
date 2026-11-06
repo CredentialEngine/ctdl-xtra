@@ -345,6 +345,18 @@ class AgentRuns:
             return dict(run)
         return self._update(fn)
 
+    def _versions_after(self, run_id: str) -> dict:
+        """`ruleset_after`: the last version this run published (its `published.json`), else the latest. With two runs
+        at once the latest may be another run's. `ruleset_base`: what its first publish was built on (a rebase moves it
+        past `ruleset_before`), so Compare shows only this run's changes."""
+        try:
+            pubs = self.root.read_json(f"{self._dir(run_id)}/published.json").get("publishes") or []
+        except FileNotFoundError:
+            pubs = []
+        if not pubs:
+            return {"ruleset_after": self._latest_ruleset()}
+        return {"ruleset_after": pubs[-1]["version"], "ruleset_base": pubs[0]["base"]}
+
     def _latest_ruleset(self) -> int | None:
         self.ctx.invalidate()
         v = self.ctx.ruleset_versions()
@@ -419,7 +431,7 @@ class AgentRuns:
             return run
         run = self._update(fn)
         run = dict(run, state=state, outcome=outcome, ended_at=iso(t), ended_by=by,
-                   ruleset_after=self._latest_ruleset(), updated_at=iso(t), **extra)
+                   **self._versions_after(run_id), updated_at=iso(t), **extra)
         self.root.write_json(f"{self._dir(run_id)}/run.json", run)
         self.root.write_json(self._path("last.json"), run)
         if run["scope"].get("rules"):

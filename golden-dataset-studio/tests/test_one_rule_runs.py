@@ -496,3 +496,38 @@ def test_prompt_paths_follow_the_k2_work_folder(cat, monkeypatch):
     assert "SAS tokens for the storage containers are in `/private/tmp/k2e2e/work/golden-datasets.env`" in text
     assert f"cd {d} && ./bin/golden-datasets run done --report report.json" in text
     assert "/var/lib/k2" not in text
+
+
+def _publish_elsewhere(cat, tmp_path, capsys, monkeypatch, name):
+    """Another run's publish (no GOLDEN_DATASETS_RUN): Description gets one more transform."""
+    run_id = os.environ.get("GOLDEN_DATASETS_RUN")
+    monkeypatch.delenv("GOLDEN_DATASETS_RUN")
+    p = m.draft(cat, tmp_path, capsys, name, DESC,
+                edit=lambda d: d[DESC]["definition"].update(transforms=["strip", "collapse_ws"]))
+    assert run_cli(cat, capsys, "rule", "publish", p)[0] == 0
+    monkeypatch.setenv("GOLDEN_DATASETS_RUN", run_id)
+
+
+def test_a_run_ends_on_the_version_it_published_not_a_later_one(cat, tmp_path, capsys, run, monkeypatch):
+    """Two runs at once (e2e, 2026-11-05): run A published v2, then run B published v3 before A's `run done`. A's
+    record says v2, and Compare is v1 → v2."""
+    ar, r = run
+    facts, _ = published_report(ar, cat, tmp_path, capsys, r["run_id"])  # v2, in this run
+    _publish_elsewhere(cat, tmp_path, capsys, monkeypatch, "other.json")  # v3, another run
+    ended, _ = ar.done_report(r["run_id"], facts, by="golden-rules agent")
+    assert ended["ruleset_before"] == 1 and ended["ruleset_after"] == 2 and ended["ruleset_base"] == 1
+    assert ar.report(r["run_id"])["ruleset"]["compare"] == {"a": 1, "b": 2, "url": f"#/c/{m.CAT}/compare?a=1&b=2"}
+
+
+def test_a_rebased_run_compares_from_the_version_it_built_on(cat, tmp_path, capsys, run, monkeypatch):
+    """Run B published v2 first; run A (started on v1) rebased on v2 and published v3: Compare is v2 → v3, not
+    v1 → v3, which would show B's change as A's."""
+    ar, r = run
+    _publish_elsewhere(cat, tmp_path, capsys, monkeypatch, "other.json")  # v2, another run
+    facts, _ = published_report(ar, cat, tmp_path, capsys, r["run_id"])  # v3, rebased on v2
+    ended, _ = ar.done_report(r["run_id"], facts, by="golden-rules agent")
+    assert ended["ruleset_before"] == 1 and ended["ruleset_after"] == 3 and ended["ruleset_base"] == 2
+    rep = ar.report(r["run_id"])
+    assert rep["ruleset"]["compare"]["a"] == 2 and rep["ruleset"]["compare"]["b"] == 3
+    assert rep["links"]["compare"] == f"#/c/{m.CAT}/compare?a=2&b=3"
+    assert {"label": "Ruleset", "text": "Based on v2; started on v1."} in rep["facts"]

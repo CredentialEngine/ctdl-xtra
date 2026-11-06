@@ -702,7 +702,9 @@ def resolve(facts: dict, k: Known) -> dict:
     else:
         rs_text = f"v{before}, unchanged" if before else "none yet"
     facts_out.append({"label": "Ruleset", "text": rs_text})
-    compare = R.compare_url(before, pubs[-1]) if pubs and before else None
+    # Compare from what this run's first publish was built on: after a rebase, the versions between are other runs'
+    first_base = (k.publishes[0].get("base") if k.publishes else None) or before
+    compare = R.compare_url(first_base, pubs[-1]) if pubs and first_base else None
 
     # values Claude worked out
     inferred = []
@@ -815,7 +817,7 @@ def resolve(facts: dict, k: Known) -> dict:
             "ending": facts["ending"], "outcome": outcome(facts, k),
             "reason": " ".join(str(facts.get("reason")).split()) if facts.get("reason") else None,
             "ruleset": {"started_on": before, "based_on": k.based_on, "published": pubs, "latest": k.ruleset_after,
-                        "ext": k.ext, "compare": {"a": before, "b": pubs[-1], "url": compare} if compare else None},
+                        "ext": k.ext, "compare": {"a": first_base, "b": pubs[-1], "url": compare} if compare else None},
             "facts": facts_out,
             "suite": {x: s[x] for x in ("rules", "golden", "now_right", "inferred", "got_worse")} if s else None,
             "inferred": inferred, "to_do": to_do, "rules": rules, "also_changed": also_changed, "together": together,

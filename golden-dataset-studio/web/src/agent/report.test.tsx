@@ -5,7 +5,7 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { setIdentity } from "../shell/reviewer";
-import type { AgentRun, ReportRow, ReportRows, ResolvedReport, RunNote } from "./api";
+import { compareOf, type AgentRun, type ReportRow, type ReportRows, type ResolvedReport, type RunNote } from "./api";
 import { Report } from "./Report";
 import { OPEN_RUN_DIALOG } from "./RunDialog";
 import { RunsPanel } from "./RunsPanel";
@@ -338,6 +338,24 @@ describe("Report", () => {
     await act(async () => [...host.querySelectorAll<HTMLButtonElement>("button")].find((b) => b.textContent === "View the prompt")!.click());
     await flush();
     expect(host.querySelector(".runs-prompt")!.textContent).toBe("# The prompt");
+  });
+});
+
+describe("Compare for a run that rebased or ended after another run's publish (e2e, 2026-11-05)", () => {
+  it("uses the report's own pair: what the run built on to what it published", async () => {
+    // started on v10, rebased on v11 (another run's), published v12; the run record says before 10, after 12
+    const run = { ...RUN, ruleset_before: 10, ruleset_after: 12 };
+    const report = { ...REPORT, ruleset: { started_on: 10, based_on: 11, published: [12], latest: 12, ext: "rs-0012",
+                                           compare: { a: 11, b: 12 } } };
+    await render(report, run);
+    const a = host.querySelector(".run-done a")!;
+    expect(a.getAttribute("href")).toBe("#/c/avc/compare?a=11&b=12");
+    expect(a.textContent).toBe("Compare v11 → v12");
+  });
+  it("compareOf: the run record's base when it has one, else ruleset_before; nothing when nothing was published", () => {
+    expect(compareOf({ ...RUN, ruleset_before: 10, ruleset_after: 12, ruleset_base: 11 })).toEqual({ a: 11, b: 12 });
+    expect(compareOf({ ...RUN, ruleset_before: 10, ruleset_after: 11 })).toEqual({ a: 10, b: 11 });
+    expect(compareOf({ ...RUN, ruleset_before: 10, ruleset_after: 10 })).toBeNull();
   });
 });
 

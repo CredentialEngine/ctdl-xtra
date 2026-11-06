@@ -17,8 +17,7 @@ import { Ico } from "../shell/icons";
 import { useReviewer } from "../shell/reviewer";
 import { href } from "../shell/router";
 import { fmt, toast } from "../shell/ui";
-import {
-  agentApi, agentApi2, elapsed, endedIcon, endedLine, rowKey, type AgentRun, type HistEvent, type ReportRow, type ReportRowState,
+import { compareOf,   agentApi, agentApi2, elapsed, endedIcon, endedLine, rowKey, type AgentRun, type HistEvent, type ReportRow, type ReportRowState,
   type ReportRows, type ReportRule, type ReportToDo, type ResolvedReport, type RunNote,
 } from "./api";
 import { openRunDialog } from "./RunDialog";
@@ -207,6 +206,8 @@ export function Report({ catalog, run, report, notes, pastRuns }: ReportProps) {
   });
 
   const pub = published(run);
+  // the report's own pair (the CLI read this run's publishes), else the run record's
+  const cmp = !pub ? null : report.ruleset?.compare ? { a: report.ruleset.compare.a, b: report.ruleset.compare.b } : compareOf(run);
   const newFeedback = data?.new_feedback ?? 0;
   const changed = [...report.rules, ...report.also_changed].map((r) => r.name);
   const revertV = report.revert?.version ?? (pub ? run.ruleset_after : null);
@@ -257,8 +258,8 @@ export function Report({ catalog, run, report, notes, pastRuns }: ReportProps) {
         <div className={`run-done is-${run.state}`}>
           <Ico name={endedIcon(run)} />
           <span className="run-done-t">{report.outcome || endedLine(run)}</span>
-          {pub && <a className={`btn${newFeedback ? "" : " primary"}`} href={href(catalog, "compare", null, { a: run.ruleset_before, b: run.ruleset_after })}
-            title="What changed between the two rulesets, rule by rule">Compare v{run.ruleset_before} → v{run.ruleset_after}</a>}
+          {cmp && <a className={`btn${newFeedback ? "" : " primary"}`} href={href(catalog, "compare", null, cmp)}
+            title="What changed between the two rulesets, rule by rule">Compare v{cmp.a} → v{cmp.b}</a>}
         </div>
         <dl className="run-facts" data-testid="report-facts">
           {facts.filter((f) => !isRuleset(f)).map((f) => <Fact key={f.label} label={f.label} text={f.text} />)}
