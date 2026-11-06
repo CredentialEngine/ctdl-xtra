@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { layoutFor, nextZoom, readSetting, setPageCss, writeSetting, ZOOM_STEPS } from "./view";
 import type { ReactNode } from "react";
-import { blockOf, captureElement, captureSelection, type CapturedSelection } from "./dom";
-import { clear, hoverBox, paint, resolveAll, scrollToRect, type Highlight } from "./paint";
+import { blockOf, captureElement, captureRange, captureSelection, type CapturedSelection } from "./dom";
+import { clear, hoverBox, paint, resolveAll, scrollToRect, type Highlight, type Resolved } from "./paint";
 import { SourceView } from "./SourceView";
 import { HighlightBar, type BarAction, type BarAt } from "./HighlightBar";
 import "./pagepane.css";
@@ -101,6 +101,17 @@ export function PagePane(props: PagePaneProps): JSX.Element {
   const [frameY, setFrameY] = useState(0);  // the page's scroll while the bar is up: the bar follows its text
   const barUp = useRef(false);
   barUp.current = !!bar;
+  const barRef = useRef<BarAt | null>(null);
+  barRef.current = bar;
+  // the painted text a hover shows the bar for: the value found and the pieces of an answer
+  const hoverables = useRef<Resolved[]>([]);
+  const hideTimer = useRef<number | undefined>(undefined);
+  const keepHover = useCallback(() => window.clearTimeout(hideTimer.current), []);
+  // a hover bar goes a moment after the pointer leaves its text, so the pointer can reach the bar
+  const dropHover = useCallback(() => {
+    window.clearTimeout(hideTimer.current);
+    hideTimer.current = window.setTimeout(() => setBar((b) => (b?.hover ? null : b)), HOVER_GRACE_MS);
+  }, []);
   const scaleRef = useRef(scale);
   scaleRef.current = scale;
 
@@ -139,6 +150,7 @@ export function PagePane(props: PagePaneProps): JSX.Element {
       if (!d || !d.documentElement || !d.body) return;
       const { highlights: hs, focusId: fid } = latest.current;
       const resolved = resolveAll(d, hs);
+      hoverables.current = resolved.filter((r) => r.range && HOVERABLE.has(r.h.kind));
       const focus = paint(d, resolved, fid);
       if (scroll && focus && d.defaultView) scrollToRect(d.defaultView, focus);
     },
@@ -249,22 +261,42 @@ export function PagePane(props: PagePaneProps): JSX.Element {
     });
     d.addEventListener("mousemove", (e) => {
       const p = latest.current;
+      if (p.barActions?.length && !e.buttons) hoverAt(e.clientX, e.clientY);
       if (!p.pickBlock) return;
       const t = e.target as Element | null;
       hoverBox(d, t ? blockOf(t, d.defaultView) : null);
     });
-    d.addEventListener("mouseleave", () => hoverBox(d, null));
+    d.addEventListener("mouseleave", () => { hoverBox(d, null); if (barRef.current?.hover) dropHover(); });
+    // hovering text already highlighted shows the bar for it; a bar from a drag stays until it is used or dismissed
+    const hoverAt = (x: number, y: number) => {
+      const cur = barRef.current;
+      if (cur && !cur.hover) return;
+      const s = d.getSelection();
+      if (s && !s.isCollapsed) return;
+      const hit = hoverables.current.find((r) => [...r.range!.getClientRects()]
+        .some((q) => x >= q.left && x <= q.right && y >= q.top && y <= q.bottom));
+      if (!hit) { if (cur?.hover) dropHover(); return; }
+      keepHover();
+      if (cur?.hover === hit.h.id) return;
+      const cap = captureRange(hit.range!);
+      if (!cap) return;
+      const y0 = d.defaultView?.scrollY ?? 0;
+      setFrameY(y0);
+      setBar({ ...barAt(cap, hit.range!.getBoundingClientRect(), scaleRef.current), scrollY: y0, hover: hit.h.id });
+    };
     d.defaultView?.addEventListener("resize", () => apply(false));
     setLoadedSrc(loadedPath); // compared with `src`: a late load of an older page never counts as loaded
-  }, [apply, doc]);
+  }, [apply, doc, dropHover, keepHover]);
 
   // --- the highlight bar: gone with its page, when its actions go, on Esc, and on a click anywhere else ---------------
   const closeBar = useCallback(() => {
+    window.clearTimeout(hideTimer.current);
     setBar(null);
     try { doc()?.getSelection()?.removeAllRanges(); } catch { /* the frame went away */ }
   }, [doc]);
   const hasBar = !!props.barActions?.length;
   useEffect(() => { setBar(null); }, [src, hasBar]);
+  useEffect(() => () => window.clearTimeout(hideTimer.current), []);
   useEffect(() => {
     if (!bar) return;
     const key = (e: KeyboardEvent) => {
@@ -392,7 +424,9 @@ export function PagePane(props: PagePaneProps): JSX.Element {
           <div className="gpp-empty">No page to show.</div>
         )}
         {src && !loaded && mode === "page" && <div className="gpp-loading">Loading saved page…</div>}
-        {barShown && barShown.y >= 0 && mode === "page" && props.barActions?.length ? <HighlightBar at={barShown} actions={props.barActions} onDone={closeBar} /> : null}
+        {barShown && barShown.y >= 0 && mode === "page" && props.barActions?.length ? <HighlightBar key={`${barShown.sel.css_path}|${barShown.sel.char_start}|${barShown.sel.char_end}`} at={barShown}
+          actions={props.barActions} onDone={closeBar} onPointer={(on) => { if (!barRef.current?.hover) return; if (on) keepHover(); else dropHover(); }}
+          onPin={() => setBar((b) => (b ? { ...b, hover: undefined } : b))} /> : null}
         {mode === "html" && active && (
           <SourceView catalog={catalog} stem={active.stem} target={sourceTarget} />
         )}
@@ -401,7 +435,9 @@ export function PagePane(props: PagePaneProps): JSX.Element {
   );
 }
 
-const BAR_H = 30;  // the highlight bar's height in the pane (pagepane.css .gpp-hbar)
+const BAR_H = 30;
+const HOVER_GRACE_MS = 350;  // a hover bar's time to reach it after leaving its text
+const HOVERABLE = new Set(["value", "expected", "excluded"]);  // the highlight bar's height in the pane (pagepane.css .gpp-hbar)
 
 /** Where the highlight bar goes, in the pane's pixels: centred just above the selection (its rect is in the frame's
  * unscaled pixels), or just below it when there's no room above. HighlightBar keeps it inside the pane's sides. */
