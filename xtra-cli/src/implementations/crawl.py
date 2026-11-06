@@ -386,8 +386,6 @@ class Crawler:
         self.pages_fetched = 0
         self.stopped = False
 
-    # -- keys -------------------------------------------------------------
-
     def _html_key(self, url: str) -> str:
         return page_html_key(
             self.settings.catalog_folder, self.settings.run_id, page_stem(url)
@@ -400,8 +398,6 @@ class Crawler:
 
     def _run_key(self, maker: Callable[[str, str], str]) -> str:
         return maker(self.settings.catalog_folder, self.settings.run_id)
-
-    # -- frontier ---------------------------------------------------------
 
     def _skip(self, url: str, reason: str) -> None:
         self.totals.skipped[reason] += 1
@@ -451,8 +447,6 @@ class Crawler:
         queue_list_pages(html, page_url, enqueue=self.enqueue, quiet=replay)
         for link in extract_links(html, base_url):
             self.enqueue(link)
-
-    # -- site declarations -------------------------------------------------
 
     def resolve_entry_point(self) -> str:
         """Follow the seed URL to the host that answers, and scope to it.
@@ -579,8 +573,6 @@ class Crawler:
             pause=lambda: self.sleep(INDEX_INTERVAL_SECONDS),
         )
         return list(self.site_index.urls) if self.site_index else []
-
-    # -- resume ------------------------------------------------------------
 
     def locked_scope(self) -> LockedScope:
         """What this command says the run is, in the manifest's terms."""
@@ -798,8 +790,6 @@ class Crawler:
                 f"storage refused the record {key}: {exc}"
             ) from exc
 
-    # -- results -----------------------------------------------------------
-
     def _save(self, result: FetchResult, attempts: int) -> None:
         body = result.html.encode("utf-8")
         stem = page_stem(result.requested_url)
@@ -965,8 +955,6 @@ class Crawler:
         self._consecutive_failures = 0
         self._maybe_progress()
 
-    # -- reporting ---------------------------------------------------------
-
     def _progress(self) -> None:
         elapsed = self.monotonic() - self._started_mono
         eta = (
@@ -1069,8 +1057,6 @@ class Crawler:
         if self._saves_since_progress >= REPORT_EVERY:
             self._saves_since_progress = 0
             self._progress()
-
-    # -- the loop ----------------------------------------------------------
 
     def _limit_blocks(self, in_flight: int) -> bool:
         limit = self.settings.limit

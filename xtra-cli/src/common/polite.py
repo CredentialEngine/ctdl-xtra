@@ -13,8 +13,8 @@ import threading
 import time
 from collections.abc import Callable
 
+# Waits are the minimum plus a random 0-25% of it: 180 s becomes 180-225 s.
 PACING_JITTER_FRACTION = 0.25
-
 
 def jittered(
     seconds: float,
@@ -23,6 +23,13 @@ def jittered(
     ceiling: float | None = None,
     uniform: Callable[[float, float], float] = random.uniform,
 ) -> float:
+    """Return `seconds` plus a random 0 to `jitter_fraction` of it.
+
+    Jitter only adds, so the result is never less than `seconds`.
+    `ceiling` caps the total, but never below `seconds`: a wait already
+    at or above the ceiling comes back unchanged, with no jitter.
+        jittered(180, jitter_fraction=0.25)               -> 180 to 225
+    """
     if jitter_fraction <= 0 or seconds <= 0:
         return float(seconds)
     delay = seconds + uniform(0.0, seconds * jitter_fraction)
