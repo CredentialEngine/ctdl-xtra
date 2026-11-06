@@ -4,7 +4,6 @@ import gzip
 import json
 import logging
 import platform
-import shutil
 import threading
 from importlib.metadata import version
 from pathlib import Path
@@ -24,10 +23,14 @@ from crawl_doubles import (
     site_documents,
 )
 
-from common.keys import checkpoint_key, page_html_key, page_stem, state_key
+from common.keys import (
+    manifest_key,
+    page_html_key,
+    page_stem,
+)
 from common.object_store import ObjectStore, open_store
+from common.polite import PACING_JITTER_FRACTION
 from implementations.crawl import (
-    CHECKPOINTS_KEPT,
     FRONTIER_ORDER,
     INDEX_INTERVAL_SECONDS,
     STATUS_COMPLETE,
@@ -42,12 +45,15 @@ from implementations.crawl import (
 from implementations.crawl_browser import DEFAULT_TIMEOUT_MS, VIEWPORT
 from implementations.crawl_curriqunet import INDEX_KIND
 from implementations.crawl_list_pages import MAX_LIST_PAGES
+from implementations.crawl_manifest import ManifestError, RunExistsError
 from implementations.crawl_strategy import strategy_facts
 
 SEED = "https://catalog.example.edu/"
 FOLDER = "catalog-example-edu"
 RUN = "2026-09-17T14:20:01Z"
 RUN_PATH = "2026-09-17T14-20-01Z"
+NEXT = "2026-09-18T09:00:00Z"
+NEXT_PATH = "2026-09-18T09-00-00Z"
 
 HOME = FakePage(
     html='<a href="/courses/engl101">ENGL</a><a href="/courses/math101">MATH</a>'
@@ -71,6 +77,9 @@ def crawl(
     before=None,
     sleeps: list[float] | None = None,
     resolve_url=None,
+    uniform=None,
+    factory=None,
+    run_id: str = RUN,
     **settings,
 ):
     """Run one crawl into tmp_path with a fake browser and no network.
@@ -79,40 +88,85 @@ def crawl(
     read without one: robots.txt, sitemaps, and the seed's page index.
     """
     store = open_store(str(tmp_path))
+    timing = {}
+    if sleeps is not None:
+        clock = [0.0]
+
+        def sleep(seconds: float) -> None:
+            sleeps.append(seconds)
+            clock[0] += seconds
+
+        timing = {"sleep": sleep, "monotonic": lambda: clock[0]}
     settings.setdefault("min_interval_in_seconds", 0)
     settings.setdefault("max_interval_in_seconds", 1)
+    # Exact waits, so a test can assert them. Jitter has its own tests.
+    settings.setdefault("pacing_jitter_fraction", 0)
     config = CrawlSettings(
         seed_url=settings.pop("seed_url", SEED),
         catalog_folder=FOLDER,
-        run_id=RUN,
+        run_id=run_id,
         target_uri=str(tmp_path),
         **settings,
     )
+    extra = {} if uniform is None else {"uniform": uniform}
     return run_crawl(
         config,
         store=store,
-        fetcher_factory=fetcher_factory(pages, calls=calls, before=before),
+        fetcher_factory=factory
+        or fetcher_factory(pages, calls=calls, before=before),
         url_fetch=site_documents(documents or {}, calls=url_calls),
         resolve_url=resolve_url or (lambda url: url),
-        sleep=sleeps.append if sleeps is not None else (lambda seconds: None),
+        **(timing or {"sleep": lambda seconds: None}),
+        **extra,
     )
 
 
-def run_dir(tmp_path: Path) -> Path:
-    return tmp_path / FOLDER / RUN_PATH
+def crawl_on(tmp_path: Path, pages: dict, **kwargs):
+    kwargs.setdefault("run_id", NEXT)
+    kwargs.setdefault("from_run_id", RUN)
+    return crawl(tmp_path, pages, **kwargs)
 
 
-def checkpoint_files(tmp_path: Path) -> list[Path]:
-    return sorted((run_dir(tmp_path) / "checkpoints").glob("*.json"))
+def run_dir(tmp_path: Path, run_path: str = RUN_PATH) -> Path:
+    return tmp_path / FOLDER / run_path
 
 
-def newest_checkpoint(tmp_path: Path) -> dict:
-    path = checkpoint_files(tmp_path)[-1]
-    return json.loads(path.read_text(encoding="utf-8"))
+def next_dir(tmp_path: Path) -> Path:
+    return run_dir(tmp_path, NEXT_PATH)
 
 
-def saved_state(tmp_path: Path) -> dict:
-    return newest_checkpoint(tmp_path)["state"]
+def metas(tmp_path: Path, group: str = "", run_path: str = RUN_PATH) -> list:
+    """The .meta.json files of one group: "" saved, "failed", "skipped"."""
+    folder = run_dir(tmp_path, run_path) / "pages"
+    if group:
+        folder = folder / group
+    if not folder.exists():
+        return []
+    return [
+        json.loads(path.read_text(encoding="utf-8"))
+        for path in sorted(folder.glob("*.meta.json"))
+    ]
+
+
+def current_results(tmp_path: Path, run_path: str = RUN_PATH) -> dict:
+    """What each URL's .meta.json says became of it."""
+    results = {
+        meta["requested_url"]: meta["result"]
+        for meta in metas(tmp_path, run_path=run_path)
+    }
+    for group in ("failed", "skipped"):
+        for meta in metas(tmp_path, group, run_path):
+            result = meta["result"]
+            if group == "skipped":
+                result = f"skipped-{meta['reason']}"
+            results[meta["url"]] = result
+    return results
+
+
+def read_report(tmp_path: Path, run_path: str = RUN_PATH) -> dict:
+    return json.loads(
+        (run_dir(tmp_path, run_path) / "crawl.json").read_text(encoding="utf-8")
+    )
 
 
 # --- what a crawl saves ----------------------------------------------------
@@ -126,16 +180,18 @@ def test_a_crawl_saves_html_and_a_sidecar_and_nothing_else(
     assert outcome.crawl_doc["pages_saved"] == 3
     assert outcome.exit_code == 0
 
-    names = sorted(
-        path.name for path in run_dir(tmp_path).rglob("*") if path.is_file()
-    )
+    files = [path for path in run_dir(tmp_path).rglob("*") if path.is_file()]
+    names = sorted(path.name for path in files)
     assert [name for name in names if name.endswith(".txt")] == []
     assert "slots.json" not in names
-    assert {"crawl.json", "failed.jsonl"} <= set(names)
-    assert "state.json" not in names
-    assert checkpoint_files(tmp_path)
+    assert {"crawl.json", "manifest.json"} <= set(names)
+    for gone in ("failed.jsonl", "state.json"):
+        assert gone not in names
+    for folder in ("checkpoints", "outcomes", "quarantine"):
+        assert not (run_dir(tmp_path) / folder).exists()
     assert len([name for name in names if name.endswith(".html")]) == 3
     assert len([name for name in names if name.endswith(".meta.json")]) == 3
+    assert current_results(tmp_path) == {url: "saved" for url in PAGES}
 
 
 def test_crawl_json_has_no_family_template_or_institution(
@@ -601,20 +657,22 @@ def test_a_fail_line_names_the_attempts_and_the_reason(
     assert fails == [f"FAIL {SEED} after 6 attempts: HTTP 503"]
 
 
-def test_failed_urls_are_written_one_json_object_per_line(
+def test_a_failed_url_gets_its_meta_json_under_pages_failed(
     tmp_path: Path,
 ) -> None:
     crawl(tmp_path, {SEED: FakePage(status=503, html="")}, max_retries=1)
-    lines = (
-        (run_dir(tmp_path) / "failed.jsonl")
-        .read_text(encoding="utf-8")
-        .splitlines()
+    path = (
+        run_dir(tmp_path) / "pages" / "failed" / f"{page_stem(SEED)}.meta.json"
     )
-    assert len(lines) == 1
-    record = json.loads(lines[0])
+    record = json.loads(path.read_text(encoding="utf-8"))
+    assert record["result"] == "failed-retryable"
     assert record["url"] == SEED
     assert record["http_status"] == 503
     assert record["retryable"] is True
+    assert record["kind"] == "blocking"
+    assert record["stem"] == page_stem(SEED)
+    assert record["strategy"] == "playwright"
+    assert list((run_dir(tmp_path) / "pages").glob("*.meta.json")) == []
 
 
 def test_a_min_above_the_max_is_rejected() -> None:
@@ -629,16 +687,22 @@ def test_a_min_above_the_max_is_rejected() -> None:
         )
 
 
-def test_twenty_failures_in_a_row_stop_the_crawl(tmp_path: Path) -> None:
+def test_twenty_blocking_failures_in_a_row_stop_the_crawl(
+    tmp_path: Path,
+) -> None:
     links = "".join(f'<a href="/courses/gone{n}">g</a>' for n in range(25))
     pages = {SEED: FakePage(html=links)}
+    for n in range(25):
+        pages[f"https://catalog.example.edu/courses/gone{n}"] = FakePage(
+            status=403, html=""
+        )
     outcome = crawl(tmp_path, pages, max_retries=1)
     doc = outcome.crawl_doc
     assert doc["status"] == STATUS_INCOMPLETE
     assert doc["pages_failed"] == 20
     assert doc["frontier_remaining"] == 5
     assert outcome.exit_code == 1
-    assert "rerun with the same --run-id" in outcome.reason
+    assert f"continue with --from-run-id {RUN}" in outcome.reason
 
 
 def test_a_success_clears_the_run_of_failures(tmp_path: Path) -> None:
@@ -666,6 +730,10 @@ def test_three_workers_fetch_three_pages_at_the_same_time(
         "https://catalog.example.edu/b": MATH,
     }
     made: list = []
+
+    def all_three_at_once(url: str) -> None:
+        gate.wait()
+
     store = open_store(str(tmp_path))
     config = CrawlSettings(
         seed_url=SEED,
@@ -684,7 +752,7 @@ def test_three_workers_fetch_three_pages_at_the_same_time(
         config,
         store=store,
         fetcher_factory=fetcher_factory(
-            pages, before=lambda url: gate.wait(), made=made
+            pages, before=all_three_at_once, made=made
         ),
         url_fetch=no_site_documents,
         resolve_url=lambda url: url,
@@ -696,7 +764,7 @@ def test_three_workers_fetch_three_pages_at_the_same_time(
     assert all(fetcher.closed for fetcher in made)
 
 
-# --- limit and resume -------------------------------------------------------
+# --- limit and the next run -------------------------------------------------
 
 
 def test_the_limit_stops_the_run_and_a_higher_limit_continues_it(
@@ -708,47 +776,128 @@ def test_the_limit_stops_the_run_and_a_higher_limit_continues_it(
     assert first.exit_code == 0
 
     calls: list[str] = []
-    second = crawl(tmp_path, PAGES, limit=5, calls=calls)
+    second = crawl_on(tmp_path, PAGES, limit=5, calls=calls)
     assert second.crawl_doc["pages_saved"] == 3
+    assert second.crawl_doc["pages_copied"] == 2
+    assert second.crawl_doc["pages_fetched"] == 1
     assert second.crawl_doc["status"] == STATUS_COMPLETE
-    # The two pages of the first run came back from storage, not the site.
+    # The two pages of the first run were copied, not fetched.
     assert len(calls) == 1
 
 
-def test_a_resume_reads_saved_pages_from_storage_and_never_refetches_them(
+def test_the_limit_counts_copied_pages_too(tmp_path: Path) -> None:
+    crawl(tmp_path, PAGES)
+    calls: list[str] = []
+    outcome = crawl_on(tmp_path, PAGES, limit=2, calls=calls)
+    assert outcome.crawl_doc["pages_saved"] == 2
+    assert outcome.crawl_doc["status"] == STATUS_LIMIT_REACHED
+    assert calls == []
+
+
+def test_a_run_from_another_copies_its_pages_and_never_refetches_them(
     tmp_path: Path, caplog
 ) -> None:
     crawl(tmp_path, PAGES, limit=1)
     calls: list[str] = []
     with caplog.at_level(logging.INFO):
-        outcome = crawl(tmp_path, PAGES, limit=5, calls=calls)
+        outcome = crawl_on(tmp_path, PAGES, limit=5, calls=calls)
     assert SEED not in calls
     assert sorted(calls) == [
         "https://catalog.example.edu/courses/engl101",
         "https://catalog.example.edu/courses/math101",
     ]
     assert outcome.crawl_doc["pages_saved"] == 3
-    assert f"FROM-STORAGE {SEED} (already saved, no GET)" in caplog.text
+    assert outcome.crawl_doc["from_run_id"] == RUN
+    assert f"COPY {SEED} (saved by run {RUN}, no GET)" in caplog.text
+    assert "CACHE run 2026-09-17T14:20:01Z saved 1 pages" in caplog.text
 
 
-def test_a_saved_page_still_hands_over_its_links_when_the_checkpoint_is_gone(
+def test_a_copied_page_is_whole_in_the_new_run_and_says_where_from(
     tmp_path: Path,
 ) -> None:
-    """Storage, not the checkpoint, is what proves the page was fetched."""
     crawl(tmp_path, PAGES, limit=1)
-    shutil.rmtree(run_dir(tmp_path) / "checkpoints")
+    crawl_on(tmp_path, PAGES)
+    stem = page_stem(SEED)
+    old_html = (run_dir(tmp_path) / "pages" / f"{stem}.html").read_bytes()
+    new_html = (next_dir(tmp_path) / "pages" / f"{stem}.html").read_bytes()
+    assert new_html == old_html
+    old = json.loads(
+        (run_dir(tmp_path) / "pages" / f"{stem}.meta.json").read_text()
+    )
+    new = json.loads(
+        (next_dir(tmp_path) / "pages" / f"{stem}.meta.json").read_text()
+    )
+    assert new["copied_from_run"] == RUN
+    assert new["copied_at"]
+    assert new["retrieved_at"] == old["retrieved_at"]
+    assert new["sha256"] == old["sha256"]
+    assert new["html_key"] == page_html_key(FOLDER, NEXT, stem)
+    assert new["html_path"].endswith(f"/{NEXT_PATH}/pages/{stem}.html")
+    assert new["result"] == "saved"
 
+
+def test_the_earlier_run_is_left_exactly_as_it_was(tmp_path: Path) -> None:
+    crawl(tmp_path, PAGES, limit=1)
+    before = {
+        path: path.read_bytes()
+        for path in run_dir(tmp_path).rglob("*")
+        if path.is_file()
+    }
+    crawl_on(tmp_path, PAGES)
+    after = {
+        path: path.read_bytes()
+        for path in run_dir(tmp_path).rglob("*")
+        if path.is_file()
+    }
+    assert after == before
+
+
+def test_a_cache_built_before_this_change_still_works(tmp_path: Path) -> None:
+    """An older run has outcomes/ and no "result" in its sidecars."""
+    crawl(tmp_path, PAGES, limit=1)
+    stem = page_stem(SEED)
+    sidecar = run_dir(tmp_path) / "pages" / f"{stem}.meta.json"
+    meta = json.loads(sidecar.read_text(encoding="utf-8"))
+    del meta["result"]
+    sidecar.write_text(json.dumps(meta), encoding="utf-8")
+    (run_dir(tmp_path) / "manifest.json").unlink()
+    (run_dir(tmp_path) / "outcomes" / stem).mkdir(parents=True)
     calls: list[str] = []
-    outcome = crawl(tmp_path, PAGES, calls=calls)
+    outcome = crawl_on(tmp_path, PAGES, calls=calls)
     assert SEED not in calls
-    assert sorted(calls) == [
-        "https://catalog.example.edu/courses/engl101",
-        "https://catalog.example.edu/courses/math101",
-    ]
+    assert outcome.crawl_doc["pages_copied"] == 1
+
+
+def test_a_page_whose_sidecar_was_never_written_is_fetched_again(
+    tmp_path: Path,
+) -> None:
+    """The sidecar is written after the page, so without one it was cut off."""
+    crawl(tmp_path, PAGES, limit=1)
+    (run_dir(tmp_path) / "pages" / f"{page_stem(SEED)}.meta.json").unlink()
+    calls: list[str] = []
+    outcome = crawl_on(tmp_path, PAGES, calls=calls)
+    assert SEED in calls
+    assert outcome.crawl_doc["pages_copied"] == 0
     assert outcome.crawl_doc["pages_saved"] == 3
 
 
-def test_a_resume_queues_a_retryable_failure_once_more(tmp_path: Path) -> None:
+def test_a_cached_sidecar_that_cannot_be_read_is_fetched_again(
+    tmp_path: Path, caplog
+) -> None:
+    crawl(tmp_path, PAGES, limit=1)
+    sidecar = run_dir(tmp_path) / "pages" / f"{page_stem(SEED)}.meta.json"
+    sidecar.write_text("{not json", encoding="utf-8")
+    calls: list[str] = []
+    with caplog.at_level(logging.WARNING):
+        outcome = crawl_on(tmp_path, PAGES, calls=calls)
+    assert SEED in calls
+    assert outcome.crawl_doc["pages_saved"] == 3
+    assert "cannot be read, so the page is fetched again" in caplog.text
+
+
+def test_the_next_run_fetches_what_the_earlier_one_failed(
+    tmp_path: Path,
+) -> None:
     pages = {
         SEED: FakePage(html='<a href="/courses/engl101">ENGL</a>'),
         "https://catalog.example.edu/courses/engl101": FakePage(
@@ -761,26 +910,25 @@ def test_a_resume_queues_a_retryable_failure_once_more(tmp_path: Path) -> None:
     healed = dict(pages)
     healed["https://catalog.example.edu/courses/engl101"] = ENGL
     calls: list[str] = []
-    second = crawl(tmp_path, healed, max_retries=1, calls=calls)
+    second = crawl_on(tmp_path, healed, max_retries=1, calls=calls)
     assert calls == ["https://catalog.example.edu/courses/engl101"]
     assert second.crawl_doc["pages_failed"] == 0
     assert second.crawl_doc["pages_saved"] == 2
     assert second.exit_code == 0
+    assert not (next_dir(tmp_path) / "pages" / "failed").exists()
 
 
-def test_the_checkpoint_carries_the_frontier_and_the_seen_set(
-    tmp_path: Path,
-) -> None:
+def test_each_url_asked_for_leaves_one_meta_json(tmp_path: Path) -> None:
     crawl(tmp_path, PAGES, limit=1)
-    state = saved_state(tmp_path)
-    assert state["schema"] == "xtra-crawl-state-1"
-    assert state["run_id"] == RUN
-    assert state["saved"] == [SEED]
-    assert sorted(state["frontier"]) == [
-        "https://catalog.example.edu/courses/engl101",
-        "https://catalog.example.edu/courses/math101",
-    ]
-    assert "catalog.example.edu/" in state["seen"]
+    files = sorted(
+        path.relative_to(run_dir(tmp_path) / "pages").as_posix()
+        for path in (run_dir(tmp_path) / "pages").rglob("*")
+        if path.is_file()
+    )
+    stem = page_stem(SEED)
+    assert files == [f"{stem}.html", f"{stem}.meta.json"]
+    # Found but not fetched: no file yet, counted in crawl.json.
+    assert read_report(tmp_path)["frontier_remaining"] == 2
 
 
 def test_a_run_id_typed_with_hyphens_lands_in_the_same_folder(
@@ -947,127 +1095,112 @@ def test_a_stale_sitemap_on_the_old_host_still_feeds_the_crawl(
 # --- the manifest a run leaves behind ---------------------------------------
 
 
-def test_a_checkpoint_exists_before_the_first_get_and_after_the_first_page(
+def test_crawl_json_is_written_when_the_run_ends_and_not_before(
     tmp_path: Path,
 ) -> None:
-    """A run killed at page two still has to describe itself."""
+    """While a run is going its manifest says it started; the pages count."""
     seen: dict[str, dict] = {}
 
     def snapshot(url: str) -> None:
-        seen[url] = newest_checkpoint(tmp_path)
-        report = run_dir(tmp_path) / "crawl.json"
-        seen[url]["report_written"] = report.exists()
+        seen[url] = {
+            "manifest": manifest_path(tmp_path).exists(),
+            "report": (run_dir(tmp_path) / "crawl.json").exists(),
+        }
 
-    crawl(tmp_path, PAGES, before=snapshot)
-
-    at_start = seen[SEED]
-    assert at_start["schema"] == "xtra-crawl-checkpoint-1"
-    assert at_start["crawl"]["status"] == STATUS_INCOMPLETE
-    assert at_start["crawl"]["pages_saved"] == 0
-    assert at_start["state"]["schema"] == "xtra-crawl-state-1"
-    assert at_start["report_written"] is False
-
-    after_one = seen["https://catalog.example.edu/courses/engl101"]
-    assert after_one["crawl"]["status"] == STATUS_INCOMPLETE
-    assert after_one["crawl"]["pages_saved"] == 1
-    assert after_one["state"]["saved"] == [SEED]
-    assert after_one["state"]["frontier"]
-    assert after_one["report_written"] is False
+    doc = crawl(tmp_path, PAGES, before=snapshot).crawl_doc
+    for url, state in seen.items():
+        assert state == {"manifest": True, "report": False}, url
+    written = read_report(tmp_path)
+    assert written == doc
+    assert written["status"] == STATUS_COMPLETE
+    assert written["finished_at"] is not None
+    assert written["pages_saved"] == 3
 
 
-def test_a_startup_checkpoint_alone_is_not_something_to_resume_from(
+def test_a_run_id_already_used_is_refused_before_anything_is_written(
     tmp_path: Path,
 ) -> None:
-    """The seed still has to be queued after a run that saved nothing."""
+    crawl(tmp_path, PAGES, limit=1)
+    before = sorted(run_dir(tmp_path).rglob("*"))
+    calls: list[str] = []
+    with pytest.raises(RunExistsError) as refused:
+        crawl(tmp_path, PAGES, calls=calls)
+    message = str(refused.value)
+    assert f"run {RUN} of {FOLDER} already exists" in message
+    assert f"--from-run-id {RUN}" in message
+    assert calls == []
+    assert sorted(run_dir(tmp_path).rglob("*")) == before
+
+
+def test_any_file_under_a_run_id_means_it_was_used(tmp_path: Path) -> None:
+    """A run from before manifests, with only a checkpoint, still counts."""
     store = open_store(str(tmp_path))
-    store.put_json(
-        checkpoint_key(FOLDER, RUN, 1),
-        {
-            "schema": "xtra-crawl-checkpoint-1",
-            "crawl": {},
-            "state": {
-                "schema": "xtra-crawl-state-1",
-                "strategy": "playwright",
-                "frontier": [],
-                "seen": [],
-                "saved": [],
-                "failed": [],
-            },
-        },
-    )
-    outcome = crawl(tmp_path, PAGES)
+    store.put_json(f"{FOLDER}/{RUN_PATH}/checkpoints/000001.json", {})
+    with pytest.raises(RunExistsError):
+        crawl(tmp_path, PAGES)
+
+
+def test_the_hyphen_form_of_a_used_run_id_is_the_same_run(
+    tmp_path: Path,
+) -> None:
+    crawl(tmp_path, PAGES, limit=1)
+    with pytest.raises(RunExistsError):
+        crawl(tmp_path, PAGES, run_id=RUN_PATH)
+
+
+def test_a_run_cannot_copy_from_itself() -> None:
+    with pytest.raises(ValueError, match="is the run being started"):
+        CrawlSettings(
+            seed_url=SEED,
+            catalog_folder=FOLDER,
+            run_id=RUN,
+            target_uri="x",
+            from_run_id=RUN_PATH,
+        )
+
+
+def test_a_from_run_id_with_nothing_under_it_is_refused(
+    tmp_path: Path,
+) -> None:
+    calls: list[str] = []
+    with pytest.raises(ManifestError, match="has no saved pages"):
+        crawl_on(tmp_path, PAGES, calls=calls)
+    assert calls == []
+    assert not next_dir(tmp_path).exists()
+
+
+def test_a_run_that_saved_nothing_is_still_a_cache(tmp_path: Path) -> None:
+    crawl(tmp_path, {SEED: FakePage(status=503, html="")}, max_retries=1)
+    outcome = crawl_on(tmp_path, PAGES)
     assert outcome.crawl_doc["pages_saved"] == 3
-    assert outcome.crawl_doc["status"] == STATUS_COMPLETE
+    assert outcome.crawl_doc["pages_copied"] == 0
 
 
-def test_a_crawl_writes_each_file_once_and_keeps_the_newest_checkpoints(
+def test_a_crawl_writes_every_file_once_and_rewrites_only_crawl_json(
     tmp_path: Path, monkeypatch
 ) -> None:
-    """A checkpoint is never rewritten; older ones are deleted instead."""
-    monkeypatch.setattr("implementations.crawl.CHECKPOINT_EVERY", 1)
-    written: list[str] = []
-    put_bytes = ObjectStore.put_bytes
+    """Pages, sidecars, failure records and the manifest: each written once."""
+    monkeypatch.setattr("implementations.crawl.REPORT_EVERY", 1)
+    once: list[str] = []
+    rewritten: list[str] = []
+    put_new = ObjectStore.put_new_bytes
+    put = ObjectStore.put_bytes
+
+    def recording_new(self, key, data, content_type="application/octet-stream"):
+        once.append(key)
+        return put_new(self, key, data, content_type)
 
     def recording_put(self, key, data, content_type="application/octet-stream"):
-        written.append(key)
-        return put_bytes(self, key, data, content_type)
+        rewritten.append(key)
+        return put(self, key, data, content_type)
 
+    monkeypatch.setattr(ObjectStore, "put_new_bytes", recording_new)
     monkeypatch.setattr(ObjectStore, "put_bytes", recording_put)
-    crawl(tmp_path, PAGES)
-    assert len(written) == len(set(written))
-    checkpoints = [
-        key.rsplit("/", 1)[-1] for key in written if "/checkpoints/" in key
-    ]
-    # At startup, after each of the three pages, and at the end.
-    assert checkpoints == [f"{n:06d}.json" for n in range(1, 6)]
-    kept = [path.name for path in checkpoint_files(tmp_path)]
-    assert kept == checkpoints[-CHECKPOINTS_KEPT:]
-
-
-def test_a_resume_skips_a_checkpoint_it_cannot_read(
-    tmp_path: Path, caplog
-) -> None:
-    """A run killed while writing one loses only what came after the last."""
-    crawl(tmp_path, PAGES, limit=1)
-    damaged = checkpoint_files(tmp_path)[-1]
-    damaged.write_text('{"schema": "xtra-crawl-check', encoding="utf-8")
-    stray = damaged.parent / "notes.txt"
-    stray.write_text("not a checkpoint", encoding="utf-8")
-
-    calls: list[str] = []
-    with caplog.at_level(logging.WARNING):
-        doc = crawl(tmp_path, PAGES, calls=calls).crawl_doc
-    assert sorted(calls) == [
-        "https://catalog.example.edu/courses/engl101",
-        "https://catalog.example.edu/courses/math101",
-    ]
-    assert doc["pages_saved"] == 3
-    assert f"CHECKPOINT {FOLDER}/{RUN_PATH}/checkpoints/{damaged.name} " in (
-        caplog.text
-    )
-    assert damaged.read_text(encoding="utf-8") == '{"schema": "xtra-crawl-check'
-    assert checkpoint_files(tmp_path)[-1].name > damaged.name
-    assert stray.read_text(encoding="utf-8") == "not a checkpoint"
-
-
-def test_a_run_from_before_checkpoint_files_resumes_from_its_state_json(
-    tmp_path: Path,
-) -> None:
-    crawl(tmp_path, PAGES, limit=1)
-    legacy = tmp_path / state_key(FOLDER, RUN)
-    legacy.write_text(json.dumps(saved_state(tmp_path)), encoding="utf-8")
-    shutil.rmtree(run_dir(tmp_path) / "checkpoints")
-    before = legacy.read_bytes()
-
-    calls: list[str] = []
-    doc = crawl(tmp_path, PAGES, calls=calls).crawl_doc
-    assert sorted(calls) == [
-        "https://catalog.example.edu/courses/engl101",
-        "https://catalog.example.edu/courses/math101",
-    ]
-    assert doc["pages_saved"] == 3
-    assert legacy.read_bytes() == before
-    assert checkpoint_files(tmp_path)
+    pages = dict(PAGES)
+    pages[SEED] = FakePage(html=HOME.html + '<a href="/courses/gone">g</a>')
+    crawl(tmp_path, pages)
+    assert len(once) == len(set(once)) == 1 + 3 * 2 + 1
+    assert {key.rsplit("/", 1)[-1] for key in rewritten} == {"crawl.json"}
 
 
 # --- which backend fetched which page ---------------------------------------
@@ -1111,19 +1244,43 @@ def test_crawl_json_says_what_the_backend_only_approximates(
     assert notes == list(strategy_facts("playwright").notes)
 
 
-def test_a_resume_with_another_backend_is_refused(tmp_path: Path) -> None:
+def test_a_run_may_not_copy_pages_another_backend_rendered(
+    tmp_path: Path,
+) -> None:
     """One run folder is one rendered source, or nothing downstream holds."""
     crawl(tmp_path, PAGES, limit=1, strategy="playwright")
-    assert saved_state(tmp_path)["strategy"] == "playwright"
+    assert read_manifest(tmp_path)["locked"]["strategy"] == "playwright"
 
+    calls: list[str] = []
     with pytest.raises(StrategyMismatchError) as refused:
-        crawl(tmp_path, PAGES, strategy="crawl4ai")
+        crawl_on(tmp_path, PAGES, strategy="crawl4ai", calls=calls)
     message = str(refused.value)
     assert "--with-playwright" in message
     assert "--with-crawl4ai" in message
+    assert "leave out --from-run-id" in message
+    assert calls == []
+    assert not next_dir(tmp_path).exists()
 
-    resumed = crawl(tmp_path, PAGES, strategy="playwright")
-    assert resumed.crawl_doc["pages_saved"] == 3
+    continued = crawl_on(tmp_path, PAGES, strategy="playwright")
+    assert continued.crawl_doc["pages_saved"] == 3
+
+
+def test_a_cache_without_a_manifest_is_checked_against_its_crawl_json(
+    tmp_path: Path,
+) -> None:
+    crawl(tmp_path, PAGES, limit=1, strategy="playwright")
+    manifest_path(tmp_path).unlink()
+    with pytest.raises(StrategyMismatchError):
+        crawl_on(tmp_path, PAGES, strategy="crawl4ai")
+
+
+def test_a_cache_manifest_changed_by_hand_is_refused(tmp_path: Path) -> None:
+    crawl(tmp_path, PAGES, limit=1)
+    doc = read_manifest(tmp_path)
+    doc["locked"]["strategy"] = "crawl4ai"
+    manifest_path(tmp_path).write_text(json.dumps(doc), encoding="utf-8")
+    with pytest.raises(ManifestError, match="changed after it was written"):
+        crawl_on(tmp_path, PAGES)
 
 
 # --- saying so when the folder or the scope does not match the catalog ------
@@ -1252,10 +1409,10 @@ def test_the_sitemap_is_reached_before_links_found_on_the_way(
     assert doc["frontier_order"] == FRONTIER_ORDER
 
 
-def test_a_resume_puts_sitemap_urls_ahead_of_the_old_frontier(
+def test_the_next_run_puts_sitemap_urls_ahead_of_the_old_frontier(
     tmp_path: Path,
 ) -> None:
-    """The first pass queued one section; the sitemap must not wait for it."""
+    """The first run queued one section; the sitemap must not wait for it."""
     pages = handbook_and_courses()
     first = crawl(tmp_path, pages, limit=1)
     assert first.crawl_doc["frontier_remaining"] == 3
@@ -1267,7 +1424,7 @@ def test_a_resume_puts_sitemap_urls_ahead_of_the_old_frontier(
         ),
     }
     calls: list[str] = []
-    doc = crawl(
+    doc = crawl_on(
         tmp_path, pages, documents=documents, calls=calls, limit=3
     ).crawl_doc
     assert calls == [
@@ -1427,7 +1584,7 @@ def test_index_pages_outside_the_scope_prefix_are_skipped(
     assert doc["skipped_by_reason"]["out_of_scope"] == 3
 
 
-def test_a_resume_reads_the_index_and_puts_it_ahead_of_the_old_frontier(
+def test_the_next_run_reads_the_index_and_puts_it_ahead_of_the_old_frontier(
     tmp_path: Path,
 ) -> None:
     """A run started before the index was read still gets its pages first."""
@@ -1437,7 +1594,7 @@ def test_a_resume_reads_the_index_and_puts_it_ahead_of_the_old_frontier(
     assert first.crawl_doc["frontier_remaining"] == 3
 
     calls: list[str] = []
-    doc = crawl(
+    doc = crawl_on(
         tmp_path, pages, documents=curriqunet_site(), calls=calls, limit=3
     ).crawl_doc
     assert calls == list(INDEXED)
@@ -1500,23 +1657,19 @@ def test_a_challenge_page_is_retried_and_never_saved(
     assert outcome.crawl_doc["pages_saved"] == 0
     assert outcome.exit_code == 1
     assert not list((run_dir(tmp_path) / "pages").glob("*.html"))
-    lines = (
-        (run_dir(tmp_path) / "failed.jsonl")
-        .read_text(encoding="utf-8")
-        .splitlines()
-    )
-    record = json.loads(lines[0])
+    [record] = failed_records(tmp_path)
     assert record["url"] == SEED
     assert record["error"] == f"{kind} challenge page"
     assert record["http_status"] == status
-    # Retryable, so a resume asks for the page again.
+    # Retryable: the next run asks for the page again.
     assert record["retryable"] is True
 
 
 def test_a_challenge_followed_by_the_real_page_saves_the_real_page(
     tmp_path: Path, caplog
 ) -> None:
-    pages = dict(PAGES)
+    # A list is answered one entry per attempt: the challenge, then the page.
+    pages: dict[str, FakePage | list[FakePage]] = dict(PAGES)
     pages[SEED] = [FakePage(status=202, html=AWS_WAF_PAGE), HOME]
     with caplog.at_level(logging.INFO):
         doc = crawl(tmp_path, pages).crawl_doc
@@ -1531,7 +1684,7 @@ def test_a_challenge_followed_by_the_real_page_saves_the_real_page(
     )
 
 
-# --- a challenge page an older crawl saved is fetched again ------------------
+# --- a challenge page an older crawl saved is fetched, not copied -----------
 
 ENGL_URL = "https://catalog.example.edu/courses/engl101"
 MATH_URL = "https://catalog.example.edu/courses/math101"
@@ -1557,7 +1710,7 @@ def saved_html(tmp_path: Path, url: str) -> str:
     return path.read_text(encoding="utf-8")
 
 
-def test_a_resume_fetches_a_stored_challenge_page_again_and_counts_it_once(
+def test_a_cached_challenge_page_is_fetched_again_not_copied(
     tmp_path: Path, caplog
 ) -> None:
     first = crawl_before_challenges_were_caught(tmp_path, POISONED).crawl_doc
@@ -1566,15 +1719,20 @@ def test_a_resume_fetches_a_stored_challenge_page_again_and_counts_it_once(
 
     calls: list[str] = []
     with caplog.at_level(logging.INFO):
-        doc = crawl(tmp_path, PAGES, calls=calls).crawl_doc
+        doc = crawl_on(tmp_path, PAGES, calls=calls).crawl_doc
     assert calls == [ENGL_URL]
     assert doc["status"] == STATUS_COMPLETE
     assert doc["pages_saved"] == 3
+    assert doc["pages_copied"] == 2
     assert doc["total_bytes"] == sum(
         len(page.html.encode("utf-8")) for page in PAGES.values()
     )
-    assert saved_html(tmp_path, ENGL_URL) == ENGL.html
-    assert sorted(saved_state(tmp_path)["saved"]) == sorted(PAGES)
+    assert saved_html(tmp_path, ENGL_URL) == AWS_WAF_PAGE
+    new_engl = next_dir(tmp_path) / "pages" / f"{page_stem(ENGL_URL)}.html"
+    assert new_engl.read_text(encoding="utf-8") == ENGL.html
+    assert current_results(tmp_path, NEXT_PATH) == {
+        url: "saved" for url in PAGES
+    }
 
     refetch = [
         record
@@ -1587,79 +1745,84 @@ def test_a_resume_fetches_a_stored_challenge_page_again_and_counts_it_once(
         refetch[0]
         .getMessage()
         .startswith(
-            f"REFETCH {ENGL_URL} stored page is a bot challenge (aws-waf)"
+            f"REFETCH {ENGL_URL} the page run {RUN} saved is a bot challenge "
+            "(aws-waf)"
         )
     )
-    assert f"FROM-STORAGE {SEED} " in caplog.text
-    assert f"FROM-STORAGE {ENGL_URL} " not in caplog.text
+    assert f"COPY {SEED} " in caplog.text
+    assert f"COPY {ENGL_URL} " not in caplog.text
 
 
-def test_a_stored_challenge_page_still_challenged_is_a_failure_not_a_page(
+def test_a_cached_challenge_page_still_challenged_is_a_failure_not_a_page(
     tmp_path: Path,
 ) -> None:
     crawl_before_challenges_were_caught(tmp_path, POISONED)
 
-    still = crawl(tmp_path, POISONED, max_retries=1)
+    still = crawl_on(tmp_path, POISONED, max_retries=1)
     assert still.crawl_doc["pages_saved"] == 2
     assert still.crawl_doc["pages_failed"] == 1
     assert still.exit_code == 1
-    state = saved_state(tmp_path)
-    assert ENGL_URL not in state["saved"]
-    assert [record["url"] for record in state["failed"]] == [ENGL_URL]
-    assert state["failed"][0]["error"] == "aws-waf challenge page"
-    assert state["failed"][0]["retryable"] is True
+    assert current_results(tmp_path, NEXT_PATH)[ENGL_URL] == "failed-retryable"
+    failed = failed_records(tmp_path, NEXT_PATH)
+    assert [record["url"] for record in failed] == [ENGL_URL]
+    assert failed[0]["error"] == "aws-waf challenge page"
+    assert failed[0]["retryable"] is True
 
-    # Counted once when it finally comes through, not once per resume.
+    # A third run, from the second, fetches it again.
     calls: list[str] = []
-    healed = crawl(tmp_path, PAGES, calls=calls)
+    healed = crawl(
+        tmp_path,
+        PAGES,
+        calls=calls,
+        run_id="2026-09-19T09:00:00Z",
+        from_run_id=NEXT,
+    )
     assert calls == [ENGL_URL]
     assert healed.crawl_doc["pages_saved"] == 3
     assert healed.crawl_doc["pages_failed"] == 0
     assert healed.exit_code == 0
 
 
-def test_a_limited_resume_counts_only_the_real_pages(tmp_path: Path) -> None:
+def test_a_limited_run_counts_only_the_real_pages(tmp_path: Path) -> None:
     """Counting the challenge page would have spent the limit before it."""
     crawl_before_challenges_were_caught(tmp_path, POISONED)
     calls: list[str] = []
-    doc = crawl(tmp_path, PAGES, calls=calls, limit=3).crawl_doc
+    doc = crawl_on(tmp_path, PAGES, calls=calls, limit=3).crawl_doc
     assert calls == [ENGL_URL]
     assert doc["pages_saved"] == 3
     assert doc["status"] == STATUS_COMPLETE
 
 
-def test_repairing_a_run_still_checkpoints_every_so_many_saves(
+def test_copying_a_run_still_reports_every_so_many_saves(
     tmp_path: Path, caplog, monkeypatch
 ) -> None:
-    """Each repair takes a page off the total and puts it back.
-
-    A checkpoint due at a total the run already had was never reached,
-    so a long repair went without a checkpoint or a PROGRESS line.
-    """
-    monkeypatch.setattr("implementations.crawl.CHECKPOINT_EVERY", 2)
+    """A copy counts toward the next report the same as a GET does."""
+    monkeypatch.setattr("implementations.crawl.REPORT_EVERY", 2)
     leaves = [f"https://catalog.example.edu/courses/c{n}" for n in range(6)]
     seed = FakePage(html="".join(f'<a href="{url}">c</a>' for url in leaves))
-    walled = {url: FakePage(status=202, html=AWS_WAF_PAGE) for url in leaves}
-    crawl_before_challenges_were_caught(tmp_path, {SEED: seed, **walled})
+    pages = {url: FakePage(html=f"<h1>{url}</h1>") for url in leaves}
+    crawl(tmp_path, {SEED: seed, **pages})
 
-    real = {url: FakePage(html=f"<h1>{url}</h1>") for url in leaves}
     caplog.clear()
+    calls: list[str] = []
     with caplog.at_level(logging.INFO):
-        doc = crawl(tmp_path, {SEED: seed, **real}).crawl_doc
+        doc = crawl_on(tmp_path, {SEED: seed, **pages}, calls=calls).crawl_doc
+    assert calls == []
     assert doc["pages_saved"] == 7
     progress = [
         record.getMessage()
         for record in caplog.records
         if record.getMessage().startswith("PROGRESS ")
     ]
-    # One every two of the six repairs, and the one at the end.
+    # After the 2nd, 4th and 6th copies, and at the end.
     assert len(progress) == 4
+    assert "copied=7" in progress[-1]
 
 
-def test_pages_read_back_from_storage_do_not_hide_a_site_that_blocks_every_fetch(
+def test_copied_pages_do_not_hide_a_site_that_blocks_every_fetch(
     tmp_path: Path,
 ) -> None:
-    """A replay is not a GET, so it must not reset the failures in a row."""
+    """A copy is not a GET, so it must not reset the failures in a row."""
     links: list[str] = []
     pages: dict = {}
     for n in range(21):
@@ -1673,16 +1836,16 @@ def test_pages_read_back_from_storage_do_not_hide_a_site_that_blocks_every_fetch
     )
     crawl_before_challenges_were_caught(tmp_path, pages)
 
-    outcome = crawl(tmp_path, pages, max_retries=0)
+    outcome = crawl_on(tmp_path, pages, max_retries=0)
     assert outcome.crawl_doc["status"] == STATUS_INCOMPLETE
     assert outcome.crawl_doc["pages_failed"] == 20
     assert outcome.exit_code == 1
 
 
-def test_ctrl_c_keeps_the_page_being_fetched_for_the_resume(
+def test_ctrl_c_leaves_the_page_being_fetched_for_the_next_run(
     tmp_path: Path,
 ) -> None:
-    """The page in flight was in seen but in no list, so it was lost."""
+    """A page in flight has no file yet, so the next run asks for it."""
     from concurrent.futures import wait as real_wait
 
     engl_in_flight = threading.Event()
@@ -1704,26 +1867,24 @@ def test_ctrl_c_keeps_the_page_being_fetched_for_the_resume(
         )
         stopped = crawl(tmp_path, PAGES, before=note_engl)
     assert stopped.exit_code == 130
+    assert f"continue with --from-run-id {RUN}" in stopped.reason
     assert stopped.crawl_doc["frontier_remaining"] == 2
-    state = saved_state(tmp_path)
-    assert state["saved"] == [SEED]
-    assert state["frontier"] == [ENGL_URL, MATH_URL]
+    assert current_results(tmp_path) == {SEED: "saved"}
 
     calls: list[str] = []
-    resumed = crawl(tmp_path, PAGES, calls=calls)
+    resumed = crawl_on(tmp_path, PAGES, calls=calls)
     assert calls == [ENGL_URL, MATH_URL]
     assert resumed.crawl_doc["pages_saved"] == 3
     assert resumed.exit_code == 0
 
 
-def test_ctrl_c_checkpoints_before_waiting_for_the_browsers_to_close(
+def test_ctrl_c_writes_crawl_json_before_waiting_for_the_browsers_to_close(
     tmp_path: Path,
 ) -> None:
     """Closing waits for the fetch in flight, and the run can die meanwhile.
 
-    ENGL is saved after the first-page checkpoint and MATH is in flight
-    when Ctrl+C lands, so only a checkpoint written before the close
-    names both.
+    Without a report written before the close, a run killed then left no
+    crawl.json at all.
     """
     from concurrent.futures import wait as real_wait
 
@@ -1754,79 +1915,41 @@ def test_ctrl_c_checkpoints_before_waiting_for_the_browsers_to_close(
         patch.setattr("implementations.crawl.WorkerPool", KilledWhileClosing)
         with pytest.raises(RuntimeError, match="killed while the browsers"):
             crawl(tmp_path, PAGES, before=note_math)
-    state = saved_state(tmp_path)
-    assert state["saved"] == [SEED, ENGL_URL]
-    assert state["frontier"] == [MATH_URL]
-    assert state["pages_saved"] == 2
+    report = read_report(tmp_path)
+    assert report["status"] == STATUS_INCOMPLETE
+    assert report["pages_saved"] == 2
+    assert report["frontier_remaining"] == 1
+    assert current_results(tmp_path) == {SEED: "saved", ENGL_URL: "saved"}
 
 
-def test_a_page_listed_as_saved_and_queued_goes_back_once_on_resume(
+def test_a_cached_challenge_page_is_fetched_once_and_counted_once_by_two_workers(
     tmp_path: Path,
 ) -> None:
-    """A checkpoint written before a page is read back lists it twice.
-
-    Every resume's startup checkpoint does, and so does each one written
-    while a repair is still reading pages back. Queued twice, a stored
-    challenge page was fetched twice and, with two workers, counted twice.
-    """
     crawl_before_challenges_were_caught(tmp_path, POISONED)
-    path = checkpoint_files(tmp_path)[-1]
-    doc = json.loads(path.read_text(encoding="utf-8"))
-    doc["state"]["frontier"] = list(doc["state"]["saved"])
-    path.write_text(json.dumps(doc), encoding="utf-8")
 
     calls: list[str] = []
-    doc = crawl(tmp_path, PAGES, calls=calls, concurrency_limit=2).crawl_doc
+    doc = crawl_on(tmp_path, PAGES, calls=calls, concurrency_limit=2).crawl_doc
     assert calls == [ENGL_URL]
     assert doc["pages_saved"] == 3
     assert doc["total_bytes"] == sum(
         len(page.html.encode("utf-8")) for page in PAGES.values()
     )
-    assert sorted(saved_state(tmp_path)["saved"]) == sorted(PAGES)
+    assert current_results(tmp_path, NEXT_PATH) == {
+        url: "saved" for url in PAGES
+    }
 
 
-def test_a_saved_page_missing_from_storage_is_fetched_and_counted_once(
+def test_a_cached_page_whose_html_is_gone_is_fetched_and_counted_once(
     tmp_path: Path,
 ) -> None:
-    """Saving a URL the run already counted replaces it, not adds to it."""
     crawl(tmp_path, PAGES)
     (run_dir(tmp_path) / "pages" / f"{page_stem(ENGL_URL)}.html").unlink()
 
     calls: list[str] = []
-    doc = crawl(tmp_path, PAGES, calls=calls).crawl_doc
+    doc = crawl_on(tmp_path, PAGES, calls=calls).crawl_doc
     assert calls == [ENGL_URL]
     assert doc["pages_saved"] == 3
-    assert saved_html(tmp_path, ENGL_URL) == ENGL.html
-
-
-def test_pages_read_back_without_a_checkpoint_still_checkpoint_as_they_go(
-    tmp_path: Path, caplog, monkeypatch
-) -> None:
-    """With the checkpoints gone, pages read back are this run's saves."""
-    monkeypatch.setattr("implementations.crawl.CHECKPOINT_EVERY", 2)
-    leaves = [f"https://catalog.example.edu/courses/l{n}" for n in range(4)]
-    pages = {
-        SEED: FakePage(
-            html="".join(f'<a href="{url}">l</a>' for url in leaves)
-        ),
-        **{url: FakePage(html=f"<h1>{url}</h1>") for url in leaves},
-    }
-    crawl(tmp_path, pages)
-    shutil.rmtree(run_dir(tmp_path) / "checkpoints")
-
-    calls: list[str] = []
-    caplog.clear()
-    with caplog.at_level(logging.INFO):
-        doc = crawl(tmp_path, pages, calls=calls).crawl_doc
-    assert calls == []
-    assert doc["pages_saved"] == 5
-    progress = [
-        record.getMessage()
-        for record in caplog.records
-        if record.getMessage().startswith("PROGRESS ")
-    ]
-    # After the 2nd and 4th pages read back past the first, and at the end.
-    assert len(progress) == 3
+    assert doc["pages_copied"] == 2
 
 
 LIST = "https://catalog.example.edu/courses"
@@ -1909,7 +2032,7 @@ def test_a_list_that_ignores_page_numbers_costs_one_page_and_a_warning(
 def test_list_pages_are_built_from_the_address_asked_for(
     tmp_path: Path,
 ) -> None:
-    """Not from where the site rewrote it, which a resume never sees."""
+    """Not from where the site rewrote it, which the next run never sees."""
     site = button_list_site()
     site[LIST] = FakePage(
         html=site[LIST].html, final_url=f"{LIST}?page=1&sort=code"
@@ -1920,7 +2043,7 @@ def test_list_pages_are_built_from_the_address_asked_for(
     assert not [url for url in calls if "sort=code" in url]
 
 
-def test_a_resume_builds_the_same_list_pages_and_fetches_none_twice(
+def test_the_next_run_builds_the_same_list_pages_and_fetches_none_twice(
     tmp_path: Path, caplog
 ) -> None:
     site = button_list_site()
@@ -1931,12 +2054,12 @@ def test_a_resume_builds_the_same_list_pages_and_fetches_none_twice(
     second: list[str] = []
     caplog.clear()
     with caplog.at_level(logging.INFO):
-        doc = crawl(tmp_path, site, calls=second).crawl_doc
+        doc = crawl_on(tmp_path, site, calls=second).crawl_doc
     assert not set(first) & set(second)
     assert len(second) == len(set(second)) == 7
     assert doc["pages_saved"] == 10
     assert doc["status"] == STATUS_COMPLETE
-    # Reading the saved list pages back queues nothing new, so says nothing.
+    # Copying the saved list pages queues nothing new, so says nothing.
     assert list_lines(caplog) == []
 
 
@@ -2019,12 +2142,646 @@ def test_a_list_longer_than_the_cap_is_queued_up_to_it_and_says_so(
         LIST: FakePage(html=list_page(1, last, ["C11"])),
         f"{LIST}?page=2": FakePage(html=list_page(2, last, ["C21"])),
     }
+    calls: list[str] = []
     with caplog.at_level(logging.WARNING):
-        crawl(tmp_path, pages, limit=3)
+        crawl(tmp_path, pages, calls=calls)
     assert list_lines(caplog, logging.WARNING) == [
         f"LIST {LIST}?page=2 says the list has {last} pages; only pages up "
         f"to {MAX_LIST_PAGES} are queued"
     ]
-    queued = [url for url in saved_state(tmp_path)["frontier"] if "?" in url]
-    assert len(queued) == MAX_LIST_PAGES - 2
-    assert queued[-1] == f"{LIST}?page={MAX_LIST_PAGES}"
+    asked = [url for url in calls if url.startswith(f"{LIST}?page=")]
+    assert len(asked) == MAX_LIST_PAGES - 1
+    assert asked[-1] == f"{LIST}?page={MAX_LIST_PAGES}"
+    assert f"{LIST}?page={last}" not in calls
+
+
+# --- the manifest: what the run is, written once ----------------------------
+
+
+def manifest_path(tmp_path: Path, run_id: str = RUN) -> Path:
+    return tmp_path / manifest_key(FOLDER, run_id)
+
+
+def read_manifest(tmp_path: Path, run_id: str = RUN) -> dict:
+    return json.loads(
+        manifest_path(tmp_path, run_id).read_text(encoding="utf-8")
+    )
+
+
+def test_a_new_run_writes_its_manifest_with_the_scope_it_was_given(
+    tmp_path: Path,
+) -> None:
+    crawl(
+        tmp_path,
+        PAGES,
+        include_regex=("/courses/",),
+        seed_urls=("https://catalog.example.edu/courses/engl101",),
+    )
+    manifest = read_manifest(tmp_path)
+    assert manifest["run_id"] == RUN
+    assert manifest["from_run_id"] is None
+    assert "created_for" not in manifest
+    assert manifest["locked"] == {
+        "seed_url": SEED,
+        "scope_prefix": "",
+        "include_regex": ["/courses/"],
+        "exclude_regex": [],
+        "seed_urls": ["https://catalog.example.edu/courses/engl101"],
+        "strategy": "playwright",
+    }
+
+
+def test_the_next_runs_manifest_names_the_run_it_copied_from(
+    tmp_path: Path,
+) -> None:
+    crawl(tmp_path, PAGES, limit=1)
+    crawl_on(tmp_path, PAGES)
+    assert read_manifest(tmp_path, NEXT)["from_run_id"] == RUN
+    assert read_manifest(tmp_path, NEXT)["run_id"] == NEXT
+
+
+def test_the_next_run_may_narrow_the_scope_and_copies_only_what_is_in_it(
+    tmp_path: Path,
+) -> None:
+    """Only URLs the new scope reaches are queued, so only they are copied."""
+    crawl(tmp_path, PAGES)
+    calls: list[str] = []
+    doc = crawl_on(
+        tmp_path, PAGES, calls=calls, exclude_regex=("math101",)
+    ).crawl_doc
+    assert calls == []
+    assert doc["pages_saved"] == 2
+    assert set(current_results(tmp_path, NEXT_PATH)) == {
+        SEED,
+        "https://catalog.example.edu/courses/engl101",
+    }
+    assert read_manifest(tmp_path, NEXT)["locked"]["exclude_regex"] == [
+        "math101"
+    ]
+
+
+def test_the_next_run_may_widen_the_scope_and_fetches_what_is_new(
+    tmp_path: Path,
+) -> None:
+    crawl(tmp_path, PAGES, exclude_regex=("math101",))
+    calls: list[str] = []
+    doc = crawl_on(tmp_path, PAGES, calls=calls).crawl_doc
+    assert calls == ["https://catalog.example.edu/courses/math101"]
+    assert doc["pages_saved"] == 3
+
+
+def test_the_next_run_may_add_seed_urls(tmp_path: Path) -> None:
+    hidden = "https://catalog.example.edu/hidden/x"
+    pages = dict(PAGES)
+    pages[hidden] = FakePage(html="<h1>hidden</h1>")
+    crawl(tmp_path, pages)
+    calls: list[str] = []
+    doc = crawl_on(tmp_path, pages, calls=calls, seed_urls=(hidden,)).crawl_doc
+    assert calls == [hidden]
+    assert doc["pages_saved"] == 4
+
+
+def test_the_next_run_may_change_pacing_retries_and_the_limit(
+    tmp_path: Path,
+) -> None:
+    crawl(tmp_path, PAGES, limit=1)
+    doc = crawl_on(
+        tmp_path,
+        PAGES,
+        concurrency_limit=2,
+        max_retries=0,
+        max_interval_in_seconds=5,
+    ).crawl_doc
+    assert doc["status"] == STATUS_COMPLETE
+    assert doc["pages_saved"] == 3
+
+
+def test_a_url_typed_without_the_trailing_slash_finds_the_same_cache(
+    tmp_path: Path,
+) -> None:
+    crawl(tmp_path, PAGES, limit=1)
+    calls: list[str] = []
+    doc = crawl_on(
+        tmp_path, PAGES, calls=calls, seed_url="https://catalog.example.edu"
+    ).crawl_doc
+    assert SEED not in calls
+    assert doc["pages_saved"] == 3
+
+
+def test_an_unreadable_cache_manifest_stops_the_run(tmp_path: Path) -> None:
+    crawl(tmp_path, PAGES, limit=1)
+    manifest_path(tmp_path).write_text("{not json", encoding="utf-8")
+    with pytest.raises(ManifestError):
+        crawl_on(tmp_path, PAGES)
+    assert not next_dir(tmp_path).exists()
+
+
+# --- jitter: no exact beat between GETs -------------------------------------
+
+
+def most(low: float, high: float) -> float:
+    return high
+
+
+def test_a_crawl_jitters_by_default() -> None:
+    settings = CrawlSettings(
+        seed_url=SEED,
+        catalog_folder=FOLDER,
+        run_id=RUN,
+        target_uri="unused",
+    )
+    assert settings.pacing_jitter_fraction == PACING_JITTER_FRACTION
+    assert PACING_JITTER_FRACTION == 0.25
+
+
+@pytest.mark.parametrize("fraction", [-0.1, 1.5])
+def test_a_jitter_fraction_outside_0_to_1_is_refused(fraction: float) -> None:
+    with pytest.raises(ValueError, match="pacing_jitter_fraction"):
+        CrawlSettings(
+            seed_url=SEED,
+            catalog_folder=FOLDER,
+            run_id=RUN,
+            target_uri="unused",
+            pacing_jitter_fraction=fraction,
+        )
+
+
+def test_retries_wait_the_backoff_plus_jitter_up_to_the_maximum(
+    tmp_path: Path,
+) -> None:
+    pages = {SEED: FakePage(status=503, html="")}
+    sleeps: list[float] = []
+    crawl(
+        tmp_path,
+        pages,
+        sleeps=sleeps,
+        uniform=most,
+        min_interval_in_seconds=1,
+        max_interval_in_seconds=5,
+        max_retries=5,
+        pacing_jitter_fraction=0.25,
+    )
+    assert sleeps == [1.25, 2.5, 5, 5, 5]
+
+
+def test_pages_are_spaced_by_the_minimum_plus_jitter(tmp_path: Path) -> None:
+    sleeps: list[float] = []
+    crawl(
+        tmp_path,
+        PAGES,
+        sleeps=sleeps,
+        uniform=most,
+        min_interval_in_seconds=10,
+        max_interval_in_seconds=60,
+        pacing_jitter_fraction=0.25,
+    )
+    # Three pages, one worker: two waits between them.
+    assert sleeps == [12.5, 12.5]
+
+
+def test_crawl_json_records_the_jitter_it_ran_with(tmp_path: Path) -> None:
+    doc = crawl(tmp_path, PAGES, pacing_jitter_fraction=0.25).crawl_doc
+    assert doc["pacing_jitter_fraction"] == 0.25
+
+
+def test_the_next_run_may_change_the_jitter(tmp_path: Path) -> None:
+    crawl(tmp_path, PAGES, limit=1, pacing_jitter_fraction=0.25)
+    doc = crawl_on(tmp_path, PAGES, pacing_jitter_fraction=0).crawl_doc
+    assert doc["pages_saved"] == 3
+
+
+# --- which failures stop a run ----------------------------------------------
+
+
+def gone_links(count: int) -> str:
+    return "".join(f'<a href="/courses/gone{n}">g</a>' for n in range(count))
+
+
+def gone(n: int) -> str:
+    return f"https://catalog.example.edu/courses/gone{n}"
+
+
+def failed_records(tmp_path: Path, run_path: str = RUN_PATH) -> list[dict]:
+    return metas(tmp_path, "failed", run_path)
+
+
+def test_dead_links_never_stop_the_crawl(tmp_path: Path) -> None:
+    """A sitemap full of 404s is ordinary, not a site refusing the crawl."""
+    pages = {SEED: FakePage(html=gone_links(25))}
+    outcome = crawl(tmp_path, pages, max_retries=1)
+    doc = outcome.crawl_doc
+    assert doc["status"] == STATUS_COMPLETE
+    assert doc["pages_failed"] == 25
+    assert doc["frontier_remaining"] == 0
+    # Still not a clean run: the dead links are failures to look at.
+    assert outcome.exit_code == 1
+    assert {record["kind"] for record in failed_records(tmp_path)} == {"page"}
+
+
+@pytest.mark.parametrize("status", [401, 403, 429, 500, 503])
+def test_each_blocking_status_counts_toward_the_stop(
+    tmp_path: Path, status: int
+) -> None:
+    pages = {SEED: FakePage(html=gone_links(5))}
+    for n in range(5):
+        pages[gone(n)] = FakePage(status=status, html="")
+    doc = crawl(
+        tmp_path, pages, max_retries=0, max_consecutive_failures=3
+    ).crawl_doc
+    assert doc["status"] == STATUS_INCOMPLETE
+    assert doc["pages_failed"] == 3
+
+
+@pytest.mark.parametrize("status", [400, 404, 405, 410, 451])
+def test_each_page_level_status_never_counts(
+    tmp_path: Path, status: int
+) -> None:
+    pages = {SEED: FakePage(html=gone_links(5))}
+    for n in range(5):
+        pages[gone(n)] = FakePage(status=status, html="")
+    doc = crawl(
+        tmp_path, pages, max_retries=0, max_consecutive_failures=3
+    ).crawl_doc
+    assert doc["status"] == STATUS_COMPLETE
+    assert doc["pages_failed"] == 5
+
+
+def test_network_errors_count_toward_the_stop(tmp_path: Path) -> None:
+    pages = {SEED: FakePage(html=gone_links(5))}
+    for n in range(5):
+        pages[gone(n)] = FakePage(raises="net::ERR_CONNECTION_RESET")
+    doc = crawl(
+        tmp_path, pages, max_retries=0, max_consecutive_failures=2
+    ).crawl_doc
+    assert doc["status"] == STATUS_INCOMPLETE
+    assert doc["pages_failed"] == 2
+
+
+def test_the_stop_is_set_by_max_consecutive_failures(
+    tmp_path: Path, caplog
+) -> None:
+    pages = {SEED: FakePage(html=gone_links(10))}
+    for n in range(10):
+        pages[gone(n)] = FakePage(status=403, html="")
+    with caplog.at_level(logging.ERROR):
+        outcome = crawl(tmp_path, pages, max_consecutive_failures=3)
+    assert outcome.crawl_doc["pages_failed"] == 3
+    assert outcome.crawl_doc["frontier_remaining"] == 7
+    assert outcome.crawl_doc["max_consecutive_failures"] == 3
+    assert any(
+        "--max-consecutive-failures 3" in record.getMessage()
+        for record in caplog.records
+    )
+
+
+def test_a_dead_link_between_blocking_failures_does_not_reset_the_count(
+    tmp_path: Path,
+) -> None:
+    pages = {SEED: FakePage(html=gone_links(6))}
+    for n in range(6):
+        pages[gone(n)] = FakePage(status=403, html="")
+    pages[gone(1)] = FakePage(status=404, html="")
+    doc = crawl(tmp_path, pages, max_consecutive_failures=3).crawl_doc
+    # 403, 404, 403, 403: the third 403 stops it, the 404 in between aside.
+    assert doc["status"] == STATUS_INCOMPLETE
+    assert doc["pages_failed"] == 4
+
+
+def test_a_saved_page_resets_the_blocking_count(tmp_path: Path) -> None:
+    links = (
+        '<a href="/courses/gone0">g</a><a href="/courses/gone1">g</a>'
+        '<a href="/courses/engl101">ok</a>'
+        '<a href="/courses/gone2">g</a><a href="/courses/gone3">g</a>'
+    )
+    pages = {
+        SEED: FakePage(html=links),
+        "https://catalog.example.edu/courses/engl101": ENGL,
+    }
+    for n in range(4):
+        pages[gone(n)] = FakePage(status=403, html="")
+    doc = crawl(tmp_path, pages, max_consecutive_failures=3).crawl_doc
+    assert doc["status"] == STATUS_COMPLETE
+    assert doc["pages_failed"] == 4
+
+
+def test_each_failure_says_which_kind_it_is(tmp_path: Path) -> None:
+    pages = {SEED: FakePage(html=gone_links(2))}
+    pages[gone(0)] = FakePage(status=403, html="")
+    crawl(tmp_path, pages)
+    kinds = {
+        record["url"]: record["kind"] for record in failed_records(tmp_path)
+    }
+    assert kinds == {gone(0): "blocking", gone(1): "page"}
+
+
+@pytest.mark.parametrize("limit", [0, -1])
+def test_max_consecutive_failures_must_be_at_least_one(limit: int) -> None:
+    with pytest.raises(ValueError, match="--max-consecutive-failures"):
+        CrawlSettings(
+            seed_url=SEED,
+            catalog_folder=FOLDER,
+            run_id=RUN,
+            target_uri="unused",
+            max_consecutive_failures=limit,
+        )
+
+
+def test_the_next_run_may_change_max_consecutive_failures(
+    tmp_path: Path,
+) -> None:
+    crawl(tmp_path, PAGES, limit=1, max_consecutive_failures=20)
+    doc = crawl_on(tmp_path, PAGES, max_consecutive_failures=2).crawl_doc
+    assert doc["pages_saved"] == 3
+    assert doc["max_consecutive_failures"] == 2
+
+
+# --- a crashed worker is retried, a broken run stops at once -----------------
+
+
+def test_a_worker_crash_is_fetched_again_by_the_next_run(
+    tmp_path: Path,
+) -> None:
+    engl = "https://catalog.example.edu/courses/engl101"
+
+    def crash_on_engl(url: str) -> None:
+        if url == engl:
+            raise RuntimeError("the page closed under the worker")
+
+    first = crawl(tmp_path, PAGES, before=crash_on_engl)
+    record = next(r for r in failed_records(tmp_path) if r["url"] == engl)
+    assert record["retryable"] is True
+    assert record["kind"] == "blocking"
+    assert first.crawl_doc["pages_saved"] == 2
+
+    calls: list[str] = []
+    second = crawl_on(tmp_path, PAGES, calls=calls)
+    assert calls == [engl]
+    assert second.crawl_doc["pages_saved"] == 3
+    assert second.crawl_doc["pages_failed"] == 0
+
+
+def test_a_browser_that_will_not_start_stops_the_run_at_once(
+    tmp_path: Path,
+) -> None:
+    def no_browser():
+        raise OSError("Executable doesn't exist at chrome.exe")
+
+    outcome = crawl(tmp_path, PAGES, factory=no_browser)
+    assert outcome.exit_code == 1
+    assert "browser could not start" in outcome.reason
+    assert f"start a new run with --from-run-id {RUN}" in outcome.reason
+    doc = json.loads((run_dir(tmp_path) / "crawl.json").read_text("utf-8"))
+    assert doc["status"] == STATUS_INCOMPLETE
+    assert doc["pages_saved"] == 0
+    # Not a failure of the page: the seed waits for the next run.
+    assert doc["pages_failed"] == 0
+    assert doc["frontier_remaining"] >= 1
+    assert current_results(tmp_path) == {}
+
+    continued = crawl_on(tmp_path, PAGES)
+    assert continued.crawl_doc["pages_saved"] == 3
+
+
+def test_a_storage_write_that_fails_stops_the_run_at_once(
+    tmp_path: Path, monkeypatch
+) -> None:
+    # Pages are written once, through put_new_text.
+    put_new_text = ObjectStore.put_new_text
+
+    def refusing(self, key, text, content_type="text/plain; charset=utf-8"):
+        if "/pages/" in key:
+            raise RuntimeError("disk full")
+        return put_new_text(self, key, text, content_type)
+
+    monkeypatch.setattr(ObjectStore, "put_new_text", refusing)
+    calls: list[str] = []
+    outcome = crawl(tmp_path, PAGES, calls=calls)
+    assert calls == [SEED]
+    assert outcome.exit_code == 1
+    assert "storage refused a write" in outcome.reason
+    assert "disk full" in outcome.reason
+    assert outcome.crawl_doc["pages_saved"] == 0
+    assert outcome.crawl_doc["frontier_remaining"] >= 1
+    assert current_results(tmp_path) == {}
+
+    monkeypatch.setattr(ObjectStore, "put_new_text", put_new_text)
+    assert crawl_on(tmp_path, PAGES).crawl_doc["pages_saved"] == 3
+
+
+def test_a_failure_record_storage_refuses_stops_the_run_at_once(
+    tmp_path: Path, monkeypatch
+) -> None:
+    put_new_text = ObjectStore.put_new_text
+
+    def refusing(self, key, text, content_type="text/plain; charset=utf-8"):
+        if "/pages/failed/" in key:
+            raise RuntimeError("disk full")
+        return put_new_text(self, key, text, content_type)
+
+    monkeypatch.setattr(ObjectStore, "put_new_text", refusing)
+    outcome = crawl(tmp_path, {SEED: FakePage(status=404, html="")})
+    assert outcome.exit_code == 1
+    assert "storage refused the record" in outcome.reason
+
+
+# --- the next run obeys today's robots.txt ---------------------------------
+
+
+ROBOTS = "https://catalog.example.edu/robots.txt"
+
+
+def test_the_next_run_does_not_fetch_what_robots_txt_now_disallows(
+    tmp_path: Path, caplog
+) -> None:
+    """Every URL is queued again, under today's robots.txt."""
+    crawl(tmp_path, PAGES, limit=1)
+
+    calls: list[str] = []
+    with caplog.at_level(logging.INFO):
+        doc = crawl_on(
+            tmp_path,
+            PAGES,
+            calls=calls,
+            documents={ROBOTS: b"User-agent: *\nDisallow: /courses/math101\n"},
+        ).crawl_doc
+    assert calls == ["https://catalog.example.edu/courses/engl101"]
+    assert doc["skipped_by_reason"]["robots"] >= 1
+    assert (
+        "SKIP https://catalog.example.edu/courses/math101 reason=robots"
+        in caplog.text
+    )
+
+
+def test_the_next_run_does_not_copy_a_page_robots_txt_now_disallows(
+    tmp_path: Path,
+) -> None:
+    """Disallowed today means not queued, so not copied either."""
+    crawl(tmp_path, PAGES, limit=1)
+    calls: list[str] = []
+    doc = crawl_on(
+        tmp_path,
+        PAGES,
+        calls=calls,
+        documents={ROBOTS: b"User-agent: *\nDisallow: /\n"},
+    ).crawl_doc
+    assert calls == []
+    assert doc["pages_saved"] == 0
+    assert doc["skipped_by_reason"]["robots"] == 1
+
+
+def test_a_link_skipped_on_every_page_is_logged_once(
+    tmp_path: Path, caplog
+) -> None:
+    trap = '<a href="/private/trap">x</a>'
+    pages = {
+        SEED: FakePage(html=trap + '<a href="/courses/engl101">e</a>'),
+        "https://catalog.example.edu/courses/engl101": FakePage(
+            html=trap + '<a href="/courses/math101">m</a>'
+        ),
+        "https://catalog.example.edu/courses/math101": FakePage(html=trap),
+    }
+    with caplog.at_level(logging.DEBUG):
+        doc = crawl(
+            tmp_path,
+            pages,
+            documents={ROBOTS: b"User-agent: *\nDisallow: /private/\n"},
+        ).crawl_doc
+    logged = [
+        record
+        for record in caplog.records
+        if record.getMessage().startswith("SKIP ")
+        and "/private/trap" in record.getMessage()
+    ]
+    assert [record.levelno for record in logged] == [
+        logging.INFO,
+        logging.DEBUG,
+        logging.DEBUG,
+    ]
+    assert doc["skipped_by_reason"]["robots"] == 3
+
+
+# --- what the next run asks for again ---------------------------------------
+
+
+def test_a_url_skipped_after_its_fetch_gets_its_meta_json_under_skipped(
+    tmp_path: Path,
+) -> None:
+    pdf = "https://catalog.example.edu/courses/handbook"
+    pages = {
+        SEED: FakePage(html=f'<a href="{pdf}">pdf</a>'),
+        pdf: FakePage(content_type="application/pdf", html=""),
+    }
+    crawl(tmp_path, pages)
+    assert current_results(tmp_path)[pdf] == "skipped-non_html"
+    [record] = metas(tmp_path, "skipped")
+    assert record["result"] == "skipped"
+    assert record["reason"] == "non_html"
+    assert record["http_status"] == 200
+    assert record["stem"] == page_stem(pdf)
+
+    # The next run asks again: only saved pages are copied.
+    calls: list[str] = []
+    crawl_on(tmp_path, pages, calls=calls)
+    assert calls == [pdf]
+
+
+def test_a_url_that_failed_for_good_is_asked_for_again_by_the_next_run(
+    tmp_path: Path,
+) -> None:
+    """A 404 can come back. It costs one GET to find out."""
+    pages = {SEED: FakePage(html=gone_links(1))}
+    crawl(tmp_path, pages)
+    assert current_results(tmp_path)[gone(0)] == "failed"
+
+    calls: list[str] = []
+    doc = crawl_on(tmp_path, pages, calls=calls).crawl_doc
+    assert calls == [gone(0)]
+    assert doc["pages_failed"] == 1
+    assert [r["url"] for r in failed_records(tmp_path, NEXT_PATH)] == [gone(0)]
+
+
+def test_a_url_that_failed_for_now_is_saved_by_the_next_run(
+    tmp_path: Path,
+) -> None:
+    pages = {
+        SEED: FakePage(html=gone_links(1)),
+        gone(0): [FakePage(status=503, html=""), FakePage(html="<p>back</p>")],
+    }
+    crawl(tmp_path, pages, max_retries=0)
+    assert current_results(tmp_path)[gone(0)] == "failed-retryable"
+
+    calls: list[str] = []
+    doc = crawl_on(tmp_path, pages, calls=calls, max_retries=0).crawl_doc
+    assert calls == [gone(0)]
+    assert doc["pages_failed"] == 0
+    assert current_results(tmp_path, NEXT_PATH)[gone(0)] == "saved"
+    # The earlier run still says what happened then.
+    assert current_results(tmp_path)[gone(0)] == "failed-retryable"
+
+
+def test_a_limit_the_cache_already_meets_fetches_nothing(
+    tmp_path: Path,
+) -> None:
+    crawl(tmp_path, PAGES, limit=2)
+    calls: list[str] = []
+    doc = crawl_on(tmp_path, PAGES, calls=calls, limit=2).crawl_doc
+    assert calls == []
+    assert doc["pages_saved"] == 2
+    assert doc["status"] == STATUS_LIMIT_REACHED
+
+
+def test_crawl_json_counts_copied_and_fetched_pages(tmp_path: Path) -> None:
+    links = gone_links(1) + '<a href="/courses/engl101">e</a>'
+    pages = {SEED: FakePage(html=links)}
+    pages["https://catalog.example.edu/courses/engl101"] = ENGL
+    crawl(tmp_path, pages, limit=1)
+    doc = crawl_on(tmp_path, pages).crawl_doc
+    assert doc["from_run_id"] == RUN
+    assert doc["pages_saved"] == 2
+    assert doc["pages_copied"] == 1
+    assert doc["pages_fetched"] == 1
+    assert doc["pages_failed"] == 1
+    for gone_field in ("outcomes", "outcomes_at_start"):
+        assert gone_field not in doc
+
+
+def count_report_writes(monkeypatch) -> list[str]:
+    writes: list[str] = []
+    put = ObjectStore.put_bytes
+
+    def counting(self, key, data, content_type="application/octet-stream"):
+        if key.endswith("/crawl.json"):
+            writes.append(key)
+        return put(self, key, data, content_type)
+
+    monkeypatch.setattr(ObjectStore, "put_bytes", counting)
+    return writes
+
+
+def test_crawl_json_is_written_once_for_a_whole_run(
+    tmp_path: Path, monkeypatch
+) -> None:
+    writes = count_report_writes(monkeypatch)
+    pages = dict(PAGES)
+    pages[SEED] = FakePage(html=HOME.html + gone_links(2))
+    crawl(
+        tmp_path,
+        pages,
+        sleeps=[],
+        min_interval_in_seconds=40,
+        max_interval_in_seconds=60,
+    )
+    assert len(writes) == 1
+
+
+def test_a_stopped_run_still_writes_crawl_json(
+    tmp_path: Path, monkeypatch
+) -> None:
+    writes = count_report_writes(monkeypatch)
+    pages = {SEED: FakePage(html=gone_links(3))}
+    for n in range(3):
+        pages[gone(n)] = FakePage(status=403, html="")
+    outcome = crawl(tmp_path, pages, max_retries=1, max_consecutive_failures=2)
+    assert outcome.crawl_doc["status"] == STATUS_INCOMPLETE
+    assert len(writes) == 1
+    assert read_report(tmp_path)["pages_failed"] == 2

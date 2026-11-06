@@ -5,14 +5,16 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass
 
+from common.storage_provider import StorageProvider
 from common.storage_provider_factory import create_storage_provider
+from common.storage_writer import StorageWriter
 from common.storage_writer_factory import create_storage_writer
 
 
 @dataclass
 class ObjectStore:
-    provider: object
-    writer: object
+    provider: StorageProvider
+    writer: StorageWriter
 
     def _load_key(self, key: str) -> str:
         prefix = getattr(self.provider, "prefix_path", "") or ""
@@ -47,6 +49,30 @@ class ObjectStore:
     def put_json(self, key: str, payload: object) -> str:
         body = json.dumps(payload, indent=2, ensure_ascii=False) + "\n"
         return self.put_text(key, body, "application/json")
+
+    def put_new_bytes(
+        self,
+        key: str,
+        data: bytes | str,
+        content_type: str = "application/octet-stream",
+    ) -> str:
+        return self.writer.upload_new(
+            key=key,
+            content=data,
+            content_type=content_type,
+        )
+
+    def put_new_text(
+        self,
+        key: str,
+        text: str,
+        content_type: str = "text/plain; charset=utf-8",
+    ) -> str:
+        return self.put_new_bytes(key, text, content_type)
+
+    def put_new_json(self, key: str, payload: object) -> str:
+        body = json.dumps(payload, indent=2, ensure_ascii=False) + "\n"
+        return self.put_new_text(key, body, "application/json")
 
     def get_bytes(self, key: str) -> bytes:
         errors: list[str] = []

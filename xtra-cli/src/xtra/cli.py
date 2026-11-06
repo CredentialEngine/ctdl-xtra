@@ -1,12 +1,48 @@
 from __future__ import annotations
 
+import importlib
 import logging
 import os
+from dataclasses import dataclass
 
 import click
 
 from xtra.environment import environment_group
 from xtra.version import get_version
+
+
+@dataclass(frozen=True, slots=True)
+class CommandSpec:
+    module_name: str
+    module_path: str
+
+
+CATALOG_COMMAND_SPECS: tuple[CommandSpec, ...] = (
+    CommandSpec(
+        module_name="crawl",
+        module_path="xtra.catalog.crawl",
+    ),
+    CommandSpec(
+        module_name="discover",
+        module_path="xtra.catalog.discover",
+    ),
+    CommandSpec(
+        module_name="extract",
+        module_path="xtra.catalog.extract",
+    ),
+    CommandSpec(
+        module_name="transform",
+        module_path="xtra.catalog.transform",
+    ),
+)
+
+
+SCORE_EXTRACTION_COMMAND_SPECS: tuple[CommandSpec, ...] = (
+    CommandSpec(
+        module_name="match",
+        module_path="xtra.scoring.extraction.match",
+    ),
+)
 
 
 def configure_logging() -> None:
@@ -22,35 +58,54 @@ def configure_logging() -> None:
     logging.getLogger("httpx2").setLevel(logging.WARNING)
 
 
-def _load_command(module_path: str) -> click.Command:
-    import importlib
+def load_command(
+    spec: CommandSpec,
+) -> click.Command:
+    module = importlib.import_module(spec.module_path)
 
-    module = importlib.import_module(module_path)
-    command = getattr(module, "main", None)
+    if not hasattr(module, "main"):
+        raise click.ClickException(
+            f"Command module '{spec.module_path}' does not define main"
+        )
+
+    command = module.main
+
     if not isinstance(command, click.Command):
-        raise click.ClickException(f"{module_path} does not define main")
+        raise click.ClickException(
+            f"Command module '{spec.module_path}' does not define main"
+        )
+
     return command
+
+
+def register_catalog_commands(
+    group: click.Group,
+) -> None:
+    for command_spec in CATALOG_COMMAND_SPECS:
+        catalog_command = load_command(command_spec)
+
+        group.add_command(
+            catalog_command,
+            name=command_spec.module_name,
+        )
+
+
+def register_score_extraction_commands(
+    group: click.Group,
+) -> None:
+    for command_spec in SCORE_EXTRACTION_COMMAND_SPECS:
+        score_command = load_command(command_spec)
+
+        group.add_command(
+            score_command,
+            name=command_spec.module_name,
+        )
 
 
 @click.version_option(version=get_version(), prog_name="xtra")
 @click.group()
 def cli() -> None:
-    """Credential Engine xTRA operations CLI.
-
-    Commands follow the ceops noun / verb layout:
-
-    \b
-      xtra environment set prod --data-uri <storage-uri>
-      xtra catalog crawl --with-playwright --url <catalog-url> --limit 5
-      xtra catalog discover --catalog-id ID --run-id TS
-      xtra catalog extract --with-template --catalog-id ID --run-id TS
-      xtra catalog transform --with-ctdl --catalog-id ID --run-id TS
-      xtra score extraction match --exactly --catalog-id ID --run-id TS
-
-    \b
-    Those stages read and write the active environment. Pass --target-uri to
-    override it, or --env test|sandbox|prod to switch it for one run.
-    """
+    """Credential Engine xTRA operations CLI."""
     configure_logging()
 
 
@@ -70,10 +125,5 @@ def score_extraction_group() -> None:
 
 
 cli.add_command(environment_group)
-score_extraction_group.add_command(
-    _load_command("xtra.scoring.extraction.match")
-)
-catalog_group.add_command(_load_command("xtra.catalog.crawl"))
-catalog_group.add_command(_load_command("xtra.catalog.discover"))
-catalog_group.add_command(_load_command("xtra.catalog.extract"))
-catalog_group.add_command(_load_command("xtra.catalog.transform"))
+register_catalog_commands(catalog_group)
+register_score_extraction_commands(score_extraction_group)

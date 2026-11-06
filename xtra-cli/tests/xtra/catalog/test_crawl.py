@@ -15,6 +15,7 @@ SEED = "https://catalog.example.edu/"
 FOLDER = "catalog-example-edu"
 RUN = "2026-09-17T14:20:01Z"
 RUN_PATH = "2026-09-17T14-20-01Z"
+NEXT = "2026-09-18T09:00:00Z"
 
 PAGES = {
     SEED: FakePage(html='<a href="/courses/engl101">ENGL</a>'),
@@ -60,9 +61,9 @@ def invoke(tmp_path: Path, *extra: str):
             "--run-id",
             RUN,
             "--min-interval-in-seconds",
-            "0",
+            "10",
             "--max-interval-in-seconds",
-            "1",
+            "20",
             *extra,
         ],
     )
@@ -84,7 +85,9 @@ def test_crawl_saves_pages_under_the_catalog_folder(
 
     run_dir = tmp_path / FOLDER / RUN_PATH
     assert (run_dir / "crawl.json").is_file()
-    assert list((run_dir / "checkpoints").glob("*.json"))
+    for gone in ("checkpoints", "outcomes", "quarantine", "failed.jsonl"):
+        assert not (run_dir / gone).exists(), gone
+    assert len(list((run_dir / "pages").glob("*.meta.json"))) == 2
     assert len(list((run_dir / "pages").glob("*.html"))) == 2
     assert list((run_dir / "pages").glob("*.txt")) == []
     assert not (run_dir / "slots.json").exists()
@@ -108,7 +111,7 @@ def test_the_catalog_folder_comes_from_the_url_as_typed(
             "--run-id",
             RUN,
             "--min-interval-in-seconds",
-            "0",
+            "10",
         ],
     )
     assert result.exit_code == 0, result.output
@@ -119,9 +122,6 @@ def test_a_run_id_with_hyphens_is_accepted_and_reported_with_colons(
     tmp_path: Path, monkeypatch
 ) -> None:
     patch_crawl(monkeypatch, PAGES)
-    result = invoke(tmp_path)
-    assert json.loads(result.output)["run_id"] == RUN
-
     hyphen = CliRunner().invoke(
         cli,
         [
@@ -135,11 +135,12 @@ def test_a_run_id_with_hyphens_is_accepted_and_reported_with_colons(
             "--run-id",
             RUN_PATH,
             "--min-interval-in-seconds",
-            "0",
+            "10",
         ],
     )
     assert hyphen.exit_code == 0, hyphen.output
     assert json.loads(hyphen.output)["run_id"] == RUN
+    assert (tmp_path / FOLDER / RUN_PATH / "crawl.json").is_file()
 
 
 def test_a_run_id_that_is_not_a_timestamp_is_rejected(tmp_path: Path) -> None:
@@ -158,7 +159,7 @@ def test_the_limit_caps_the_run(tmp_path: Path, monkeypatch) -> None:
     assert doc["limit"] == 1
 
 
-def test_rerunning_the_same_run_reads_saved_pages_back(
+def test_a_run_from_an_earlier_one_copies_its_pages(
     tmp_path: Path, monkeypatch
 ) -> None:
     patch_crawl(monkeypatch, PAGES)
@@ -166,10 +167,59 @@ def test_rerunning_the_same_run_reads_saved_pages_back(
 
     calls: list[str] = []
     patch_crawl(monkeypatch, PAGES, calls=calls)
-    result = invoke(tmp_path, "--limit", "5")
+    result = invoke(
+        tmp_path, "--limit", "5", "--run-id", NEXT, "--from-run-id", RUN
+    )
     assert result.exit_code == 0, result.output
-    assert json.loads(result.output)["pages_saved"] == 2
+    doc = json.loads(result.output)
+    assert doc["run_id"] == NEXT
+    assert doc["from_run_id"] == RUN
+    assert doc["pages_saved"] == 2
+    assert doc["pages_copied"] == 1
     assert SEED not in calls
+
+
+def test_reusing_a_run_id_is_one_clear_error(
+    tmp_path: Path, monkeypatch
+) -> None:
+    patch_crawl(monkeypatch, PAGES)
+    assert invoke(tmp_path, "--limit", "1").exit_code == 0
+
+    calls: list[str] = []
+    patch_crawl(monkeypatch, PAGES, calls=calls)
+    result = invoke(tmp_path)
+    assert result.exit_code == 1
+    assert "Error:" in result.output
+    assert "already exists" in result.output
+    assert f"--from-run-id {RUN}" in result.output
+    assert "Traceback" not in result.output
+    assert calls == []
+
+
+def test_a_from_run_id_that_is_not_a_timestamp_is_a_usage_error(
+    tmp_path: Path,
+) -> None:
+    result = invoke(tmp_path, "--from-run-id", "last-week")
+    assert result.exit_code == 2
+    assert "--from-run-id 'last-week' is not a UTC timestamp" in result.output
+
+
+def test_a_from_run_id_naming_the_new_run_is_a_usage_error(
+    tmp_path: Path,
+) -> None:
+    result = invoke(tmp_path, "--from-run-id", RUN_PATH)
+    assert result.exit_code == 2
+    assert "is the run being started" in result.output
+
+
+def test_a_from_run_id_with_nothing_under_it_is_one_clear_error(
+    tmp_path: Path, monkeypatch
+) -> None:
+    patch_crawl(monkeypatch, PAGES)
+    result = invoke(tmp_path, "--run-id", NEXT, "--from-run-id", RUN)
+    assert result.exit_code == 1
+    assert "has no saved pages" in result.output
+    assert "Traceback" not in result.output
 
 
 def test_a_seed_urls_file_adds_start_urls(tmp_path: Path, monkeypatch) -> None:
@@ -264,7 +314,8 @@ def test_a_failed_page_gives_a_non_zero_exit_and_one_line(
     patch_crawl(monkeypatch, pages)
     result = invoke(tmp_path, "--max-retries", "1")
     assert result.exit_code == 1
-    assert "failed.jsonl" in result.output
+    assert "pages/failed/" in result.output
+    assert "xtra catalog crawl summary --failed" in result.output
 
 
 def test_crawl_writes_to_the_active_environment(
@@ -283,7 +334,7 @@ def test_crawl_writes_to_the_active_environment(
             "--run-id",
             RUN,
             "--min-interval-in-seconds",
-            "0",
+            "10",
         ],
     )
     assert result.exit_code == 0, result.output
@@ -379,7 +430,7 @@ def test_the_strategy_chosen_is_recorded_in_crawl_json(
             "--run-id",
             RUN,
             "--min-interval-in-seconds",
-            "0",
+            "10",
         ],
     )
     assert result.exit_code == 0, result.output
@@ -421,7 +472,7 @@ def test_firecrawl_takes_its_key_from_the_environment(
             "--run-id",
             RUN,
             "--min-interval-in-seconds",
-            "0",
+            "10",
         ],
     )
     assert result.exit_code == 0, result.output
@@ -447,7 +498,7 @@ def test_the_api_key_never_reaches_the_run_report(
             "--run-id",
             RUN,
             "--min-interval-in-seconds",
-            "0",
+            "10",
         ],
     )
     assert result.exit_code == 0, result.output
@@ -458,7 +509,7 @@ def test_the_api_key_never_reaches_the_run_report(
     assert "fc-secret-value" not in stored
 
 
-def test_a_resume_with_another_backend_is_a_clean_error(
+def test_copying_from_another_backend_is_a_clean_error(
     tmp_path: Path, monkeypatch
 ) -> None:
     """Naming both backends is the whole point: one of them is a typo."""
@@ -475,9 +526,11 @@ def test_a_resume_with_another_backend_is_a_clean_error(
             "--target-uri",
             str(tmp_path),
             "--run-id",
+            NEXT,
+            "--from-run-id",
             RUN,
             "--min-interval-in-seconds",
-            "0",
+            "10",
         ],
     )
     assert result.exit_code != 0
@@ -497,3 +550,233 @@ def test_crawl_json_carries_the_versions_and_settings_of_the_backend(
     assert doc["strategy_notes"]
     assert doc["frontier_order"] == "sitemap_first"
     assert doc["catalog_folder_matches_resolved_host"] is True
+
+
+def test_the_next_run_may_change_the_scope(tmp_path: Path, monkeypatch) -> None:
+    patch_crawl(monkeypatch, PAGES)
+    assert invoke(tmp_path).exit_code == 0
+
+    calls: list[str] = []
+    patch_crawl(monkeypatch, PAGES, calls=calls)
+    result = invoke(
+        tmp_path,
+        "--exclude-regex",
+        "engl101",
+        "--run-id",
+        NEXT,
+        "--from-run-id",
+        RUN,
+    )
+    assert result.exit_code == 0, result.output
+    doc = json.loads(result.output)
+    assert doc["exclude_regex"] == ["engl101"]
+    assert doc["pages_saved"] == 1
+    assert calls == []
+
+
+def test_the_help_explains_from_run_id() -> None:
+    result = CliRunner().invoke(cli, ["catalog", "crawl", "--help"])
+    help_text = " ".join(result.output.split())
+    assert "--from-run-id" in help_text
+    assert "copied into this run" in help_text
+    assert "A run id is used once." in help_text
+    assert "Reuse one to resume" not in help_text
+
+
+def test_a_minimum_interval_under_10_seconds_is_a_usage_error(
+    tmp_path: Path,
+) -> None:
+    result = CliRunner().invoke(
+        cli,
+        [
+            "catalog",
+            "crawl",
+            "--with-playwright",
+            "--url",
+            SEED,
+            "--target-uri",
+            str(tmp_path),
+            "--min-interval-in-seconds",
+            "9.5",
+        ],
+    )
+    assert result.exit_code == 2
+    assert "--min-interval-in-seconds" in result.output
+    assert "x>=10" in result.output
+
+
+def test_the_help_says_every_wait_is_randomized_and_shows_the_floor() -> None:
+    result = CliRunner().invoke(cli, ["catalog", "crawl", "--help"])
+    assert result.exit_code == 0
+    help_text = " ".join(result.output.split())
+    assert "random 0-25% on top" in help_text
+    assert "x>=10" in help_text
+
+
+def test_max_consecutive_failures_reaches_the_run_report(
+    tmp_path: Path, monkeypatch
+) -> None:
+    patch_crawl(monkeypatch, PAGES)
+    result = invoke(tmp_path, "--max-consecutive-failures", "5")
+    assert result.exit_code == 0, result.output
+    assert json.loads(result.output)["max_consecutive_failures"] == 5
+
+
+def test_max_consecutive_failures_defaults_to_twenty(
+    tmp_path: Path, monkeypatch
+) -> None:
+    patch_crawl(monkeypatch, PAGES)
+    result = invoke(tmp_path)
+    assert json.loads(result.output)["max_consecutive_failures"] == 20
+
+
+def test_max_consecutive_failures_of_zero_is_a_usage_error(
+    tmp_path: Path,
+) -> None:
+    result = invoke(tmp_path, "--max-consecutive-failures", "0")
+    assert result.exit_code == 2
+    assert "--max-consecutive-failures" in result.output
+
+
+def test_the_help_says_which_failures_count() -> None:
+    result = CliRunner().invoke(cli, ["catalog", "crawl", "--help"])
+    help_text = " ".join(result.output.split())
+    assert "--max-consecutive-failures" in help_text
+    assert "never counts" in help_text
+
+
+def test_a_crawl_without_url_is_still_a_usage_error(tmp_path: Path) -> None:
+    result = CliRunner().invoke(
+        cli,
+        [
+            "catalog",
+            "crawl",
+            "--with-playwright",
+            "--target-uri",
+            str(tmp_path),
+        ],
+    )
+    assert result.exit_code == 2
+    assert "Missing option '--url'" in result.output
+
+
+def test_crawl_status_never_starts_a_crawl(tmp_path: Path, monkeypatch) -> None:
+    """The group runs first; with a subcommand it must do nothing."""
+    calls: list[str] = []
+    patch_crawl(monkeypatch, PAGES, calls=calls)
+    result = CliRunner().invoke(
+        cli,
+        [
+            "catalog",
+            "crawl",
+            "status",
+            "--url",
+            SEED,
+            "--run-id",
+            RUN,
+            "--target-uri",
+            str(tmp_path),
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    assert calls == []
+    assert not (tmp_path / FOLDER).exists()
+
+
+def test_the_browser_is_closed_between_pages_unless_kept_open(
+    tmp_path: Path, monkeypatch
+) -> None:
+    patch_crawl(monkeypatch, PAGES)
+    closed = json.loads(invoke(tmp_path).output)
+    assert closed["strategy_settings"]["between_pages"] == (
+        "browser closed, cookies kept for the next page"
+    )
+    kept = json.loads(
+        invoke(tmp_path, "--run-id", NEXT, "--keep-browser-open").output
+    )
+    assert kept["strategy_settings"]["between_pages"] == "browser kept open"
+
+
+def test_keep_browser_open_with_another_strategy_is_a_usage_error(
+    tmp_path: Path,
+) -> None:
+    result = CliRunner().invoke(
+        cli,
+        [
+            "catalog",
+            "crawl",
+            "--with-crawl4ai",
+            "--keep-browser-open",
+            "--url",
+            SEED,
+            "--target-uri",
+            str(tmp_path),
+        ],
+    )
+    assert result.exit_code == 2
+    assert "--keep-browser-open is for --with-playwright" in result.output
+
+
+def test_the_help_explains_keep_browser_open() -> None:
+    result = CliRunner().invoke(cli, ["catalog", "crawl", "--help"])
+    help_text = " ".join(result.output.split())
+    assert "--keep-browser-open" in help_text
+    assert "closes its browser after each page, keeping the cookies" in (
+        help_text
+    )
+
+
+def test_the_help_no_longer_mentions_resuming() -> None:
+    """A run is never resumed; it is continued by a new run."""
+    result = CliRunner().invoke(cli, ["catalog", "crawl", "--help"])
+    help_text = " ".join(result.output.split())
+    assert "resume" not in help_text.lower()
+    assert "May differ from one run to the next." in help_text
+
+
+def test_more_than_one_worker_waits_for_ip_rotation(tmp_path: Path) -> None:
+    result = invoke(tmp_path, "--concurrency-limit", "3")
+    assert result.exit_code == 2
+    assert "only 1 for now" in result.output
+
+
+def test_chromium_is_the_default_and_chrome_can_be_asked_for(
+    tmp_path: Path, monkeypatch
+) -> None:
+    patch_crawl(monkeypatch, PAGES)
+    default = json.loads(invoke(tmp_path).output)
+    assert default["strategy_settings"]["browser_channel"] == "chromium"
+    chrome = json.loads(
+        invoke(tmp_path, "--run-id", NEXT, "--browser", "chrome").output
+    )
+    assert chrome["strategy_settings"]["browser_channel"] == "chrome"
+
+
+def test_choosing_chrome_with_another_strategy_is_a_usage_error(
+    tmp_path: Path,
+) -> None:
+    result = CliRunner().invoke(
+        cli,
+        [
+            "catalog",
+            "crawl",
+            "--with-crawl4ai",
+            "--browser",
+            "chrome",
+            "--url",
+            SEED,
+            "--target-uri",
+            str(tmp_path),
+        ],
+    )
+    assert result.exit_code == 2
+    assert "--browser chrome is for --with-playwright" in result.output
+
+
+def test_crawl_json_says_each_worker_has_its_own_clock(
+    tmp_path: Path, monkeypatch
+) -> None:
+    patch_crawl(monkeypatch, PAGES)
+    assert json.loads(invoke(tmp_path).output)["pacing"] == (
+        "one clock per worker"
+    )

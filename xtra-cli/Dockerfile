@@ -2,11 +2,9 @@
 ARG PYTHON_VERSION=3.14
 FROM python:${PYTHON_VERSION}-slim-bookworm
 
-# PlaywrightFetcher launches Chrome first and falls back to chromium's
-# headless shell, which is all --only-shell installs of it. Google ships
-# Chrome for linux/amd64 only, so build arm64 images with
-# --build-arg PLAYWRIGHT_BROWSERS=chromium.
-ARG PLAYWRIGHT_BROWSERS="chrome chromium"
+# Chromium by default. For Chrome as well:
+# --build-arg PLAYWRIGHT_BROWSERS="chromium chrome"
+ARG PLAYWRIGHT_BROWSERS="chromium"
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
@@ -24,7 +22,10 @@ COPY src /app/src
 # Browsers go to PLAYWRIGHT_BROWSERS_PATH so the runtime user sees them.
 RUN pip install --no-cache-dir --upgrade pip \
     && pip install --no-cache-dir -e ".[azure]" \
-    && python -m playwright install --with-deps --only-shell ${PLAYWRIGHT_BROWSERS} \
+    && python -m playwright install \
+        --with-deps \
+        --only-shell \
+        ${PLAYWRIGHT_BROWSERS} \
     && rm -rf /var/lib/apt/lists/*
 
 # A home for ~/.xtra/config.json, and a writable directory for relative
@@ -35,18 +36,22 @@ RUN useradd --uid 1001 --gid 0 --create-home --home-dir /home/xtra xtra \
 USER 1001
 WORKDIR /data
 
-# Fail the build, not the first crawl, when src/lib/ cannot be imported or no
-# browser starts. The launch order is the fetcher's.
+# Fail the build, not the first crawl, when src/lib/ cannot be imported or
+# a browser the image carries does not start. Each one is started the way
+# the crawler starts it, with no fallback from one to the other.
 RUN xtra --version && python - <<'PY'
-from playwright.sync_api import Error, sync_playwright
+import os
+
+from playwright.sync_api import sync_playwright
 
 with sync_playwright() as playwright:
-    try:
-        browser = playwright.chromium.launch(channel="chrome")
-    except Error:
-        browser = playwright.chromium.launch()
-    print(browser.browser_type.name, browser.version)
-    browser.close()
+    for name in os.environ["PLAYWRIGHT_BROWSERS"].split():
+        if name == "chrome":
+            browser = playwright.chromium.launch(channel="chrome")
+        else:
+            browser = playwright.chromium.launch()
+        print(name, browser.version)
+        browser.close()
 PY
 
 ENTRYPOINT ["xtra"]

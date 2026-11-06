@@ -15,6 +15,7 @@ from xtra.config.settings import ConfigNotFoundError
 POSITIVE_INT = click.IntRange(min=1)
 
 DEFAULT_MIN_INTERVAL_SECONDS = 180.0
+MIN_INTERVAL_FLOOR_SECONDS = 10.0
 DEFAULT_MAX_INTERVAL_SECONDS = 3600.0
 DEFAULT_MAX_RETRIES = 5
 
@@ -158,6 +159,19 @@ def resolve_connection(
     return resolve_connection_string(explicit, env_name=env_name)
 
 
+MAX_WORKERS = 1
+
+
+def one_worker_for_now(
+    ctx: click.Context, param: click.Parameter, value: int
+) -> int:
+    if value > MAX_WORKERS:
+        raise click.BadParameter(
+            f"{value} workers: only {MAX_WORKERS} for now."
+        )
+    return value
+
+
 def crawl_pacing_options():
     """How fast a crawl may go and how hard it tries again.
 
@@ -172,20 +186,22 @@ def crawl_pacing_options():
                 type=POSITIVE_INT,
                 default=1,
                 show_default=True,
+                callback=one_worker_for_now,
                 help=(
-                    "Pages to download in parallel. Each worker runs its own "
-                    "browser, so keep this small for one catalog host."
+                    "Workers, each with its own browser and its own pacing "
+                    f"clock. Only {MAX_WORKERS} for now"
                 ),
             ),
             click.option(
                 "--min-interval-in-seconds",
-                type=click.FloatRange(min=0),
+                type=click.FloatRange(min=MIN_INTERVAL_FLOOR_SECONDS),
                 default=DEFAULT_MIN_INTERVAL_SECONDS,
                 show_default=True,
                 help=(
                     "Smallest gap between one worker's GETs, and the first "
                     "retry wait. Raised to robots.txt Crawl-delay when that "
-                    "is larger."
+                    "is larger. Every wait adds a random 0-25% on top, so "
+                    "GETs never land on an exact beat."
                 ),
             ),
             click.option(
@@ -193,7 +209,10 @@ def crawl_pacing_options():
                 type=click.FloatRange(min=0),
                 default=DEFAULT_MAX_INTERVAL_SECONDS,
                 show_default=True,
-                help="Cap on the exponential backoff between retries.",
+                help=(
+                    "Cap on the exponential backoff between retries. The "
+                    "random addition never goes past it."
+                ),
             ),
             click.option(
                 "--max-retries",

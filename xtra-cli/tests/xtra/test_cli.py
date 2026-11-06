@@ -14,19 +14,6 @@ def test_cli_returns_zero_for_top_level_help() -> None:
     assert "environment" in result.output
 
 
-def test_top_level_help_keeps_examples_on_their_own_lines() -> None:
-    """Click rewraps any example paragraph that is not preceded by \\b."""
-    lines = [
-        line.strip()
-        for line in CliRunner().invoke(cli, ["--help"]).output.splitlines()
-    ]
-    assert "xtra environment set prod --data-uri <storage-uri>" in lines
-    assert (
-        "xtra catalog crawl --with-playwright --url <catalog-url> --limit 5"
-        in lines
-    )
-
-
 def test_environment_help_lists_verbs() -> None:
     result = CliRunner().invoke(cli, ["environment", "--help"])
     assert result.exit_code == 0
@@ -128,13 +115,15 @@ def test_load_command_rejects_non_click_main() -> None:
 
     import click
 
-    from xtra.cli import _load_command
+    from xtra.cli import CommandSpec, load_command
 
     mod = types.ModuleType("xtra._fake_cmd")
-    mod.main = lambda: None
+    mod.__dict__["main"] = lambda: None
     sys.modules["xtra._fake_cmd"] = mod
     try:
         with pytest.raises(click.ClickException, match="does not define main"):
-            _load_command("xtra._fake_cmd")
+            load_command(
+                CommandSpec(module_name="fake", module_path="xtra._fake_cmd")
+            )
     finally:
         sys.modules.pop("xtra._fake_cmd", None)

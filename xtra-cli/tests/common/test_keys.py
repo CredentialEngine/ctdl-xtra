@@ -6,19 +6,19 @@ from common.keys import (
     STEM_DIGEST_LENGTH,
     STEM_SLUG_LIMIT,
     catalog_folder_name,
-    checkpoint_key,
-    checkpoints_prefix,
     crawl_key,
     dedupe_key,
     expected_key,
-    failed_key,
+    failed_meta_key,
     jsonld_key,
+    manifest_key,
     page_html_key,
     page_meta_key,
     page_stem,
+    pages_prefix,
     record_key,
     run_prefix,
-    state_key,
+    skipped_meta_key,
 )
 
 CATALOG = "catalog-example-edu"
@@ -96,12 +96,6 @@ def test_run_prefix_uses_the_hyphen_form_of_the_run_id() -> None:
 
 def test_run_object_keys() -> None:
     assert crawl_key(CATALOG, RUN).endswith("/crawl.json")
-    assert state_key(CATALOG, RUN).endswith("/state.json")
-    assert checkpoints_prefix(CATALOG, RUN) == (
-        f"{CATALOG}/{RUN_PATH}/checkpoints"
-    )
-    assert checkpoint_key(CATALOG, RUN, 7).endswith("/checkpoints/000007.json")
-    assert failed_key(CATALOG, RUN).endswith("/failed.jsonl")
     assert page_html_key(CATALOG, RUN, "stem").endswith("/pages/stem.html")
     assert page_meta_key(CATALOG, RUN, "stem").endswith("/pages/stem.meta.json")
     assert record_key(CATALOG, RUN, "id").endswith("/records/id.json")
@@ -116,3 +110,29 @@ def test_the_crawler_no_longer_has_slots_or_page_text_keys() -> None:
 
     assert not hasattr(keys, "slots_key")
     assert not hasattr(keys, "page_text_key")
+
+
+def test_failed_and_skipped_urls_sit_in_subfolders_of_pages() -> None:
+    """Discovery reads only the .meta.json files directly under pages/."""
+    pages = pages_prefix(CATALOG, RUN)
+    assert pages == f"{CATALOG}/{RUN_PATH}/pages"
+    assert page_meta_key(CATALOG, RUN, "x") == f"{pages}/x.meta.json"
+    assert failed_meta_key(CATALOG, RUN, "x") == f"{pages}/failed/x.meta.json"
+    assert skipped_meta_key(CATALOG, RUN, "x") == (
+        f"{pages}/skipped/x.meta.json"
+    )
+    assert manifest_key(CATALOG, RUN) == f"{CATALOG}/{RUN_PATH}/manifest.json"
+
+
+def test_the_old_run_records_are_gone() -> None:
+    from common import keys
+
+    for name in (
+        "outcomes_prefix",
+        "quarantine_prefix",
+        "checkpoints_prefix",
+        "checkpoint_key",
+        "state_key",
+        "failed_key",
+    ):
+        assert not hasattr(keys, name), name

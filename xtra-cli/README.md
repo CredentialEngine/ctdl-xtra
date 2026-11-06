@@ -18,7 +18,7 @@ Python 3.10+. From this directory:
 
 ```bash
 python3 -m pip install -e ".[dev]"
-python3 -m playwright install chrome
+python3 -m playwright install chromium
 ```
 
 Azure Blob (production or Azurite) needs the extra:
@@ -52,7 +52,7 @@ python -m playwright install chromium
 
 xtra --version
 xtra environment set dev --data-uri .\xtra-cache
-xtra catalog crawl --with-playwright --url https://catalog.brookdalecc.edu --limit 5 --min-interval-in-seconds 0
+xtra catalog crawl --with-playwright --url https://catalog.brookdalecc.edu --limit 5 --min-interval-in-seconds 10
 ```
 
 If activation is blocked, run `Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass`
@@ -145,6 +145,8 @@ Filesystem path matches invocation, the same way ceops does (`ceops elasticsearc
 ```text
 xtra environment set    -> src/xtra/environment.py
 xtra catalog crawl      -> src/xtra/catalog/crawl.py
+xtra catalog crawl status -> src/xtra/catalog/crawl_status.py
+xtra catalog crawl summary -> src/xtra/catalog/crawl_summary.py
   --with-playwright     -> src/implementations/crawl_browser.py
   --with-crawl4ai       -> src/implementations/crawl_crawl4ai.py
   --with-firecrawl      -> src/implementations/crawl_firecrawl.py
@@ -158,7 +160,7 @@ xtra score extraction match -> src/xtra/scoring/extraction/match.py
 ### Crawl
 
 The crawler downloads and saves. It renders a page, writes the HTML and a
-metadata sidecar, follows links, and stops when nothing in scope is left or
+metadata meta, follows links, and stops when nothing in scope is left or
 `--limit` is reached. It does not detect a CMS family, name an institution,
 pick a template, or normalize text. Those are jobs for discovery and
 extraction, which read what the crawler saved.
@@ -176,25 +178,35 @@ xtra catalog crawl --with-playwright \
 | Flag | Default | What it does |
 | --- | --- | --- |
 | `--url` | required | The catalog URL the crawl starts from. |
-| `--run-id` | now | UTC run id, `yyyy-MM-ddTHH:mm:ssZ` or `yyyy-MM-ddTHH-mm-ssZ`. Reuse one to resume. |
-| `--limit` | none | Stop after this many pages are saved in the run, across resumes. |
-| `--concurrency-limit` | `1` | Pages downloaded in parallel. Each worker runs its own browser. |
-| `--min-interval-in-seconds` | `180` | Smallest gap between one worker's GETs, and the first retry wait. |
+| `--run-id` | now | UTC run id, `yyyy-MM-ddTHH:mm:ssZ` or `yyyy-MM-ddTHH-mm-ssZ`. A run id is used once. |
+| `--from-run-id` | none | An earlier run to continue from. The pages it saved are copied instead of fetched. See [Continuing a run](#continuing-a-run). |
+| `--limit` | none | Stop after this many pages are saved in the run, copied pages included. |
+| `--concurrency-limit` | `1` | Workers, each with its own browser and its own pacing clock. Only `1` for now. |
+| `--min-interval-in-seconds` | `180` | Smallest gap between one worker's GETs, and the first retry wait. At least `10`. |
 | `--max-interval-in-seconds` | `3600` | Cap on the exponential backoff between retries. |
 | `--max-retries` | `5` | Retries after the first attempt, for network errors, timeouts, HTTP 429, HTTP 5xx, and bot-challenge pages that were not waited out. |
+| `--max-consecutive-failures` | `20` | Stop the run after this many blocking failures in a row. See [Failures](#failures). |
 | `--scope-prefix` | directory of `--url` | Keep only URLs whose path starts with this URL's path. |
 | `--include-regex` | none | Repeatable. A followed URL is kept only when it matches one of these. |
 | `--exclude-regex` | none | Repeatable. A followed URL is dropped when it matches one of these. |
 | `--seed-urls-file` | none | Extra start URLs, one per line, for pages no link reaches. |
+| `--browser` | `chromium` | With `--with-playwright`: `chromium`, which comes with Playwright, or `chrome`, Google Chrome as installed. See [Which browser](#which-browser). |
+| `--keep-browser-open` | off | With `--with-playwright`, keep each worker's browser open for the whole run instead of closing it between pages. See [The browser between pages](#the-browser-between-pages). |
 
 A crawl is a rare, one-time job, so the defaults are slow on purpose: one
-page every three minutes, one worker. Getting it wrong means doing it again.
+page every three minutes or a little more, one worker. Getting it wrong
+means doing it again.
+
+No wait is exact. Every gap between GETs and every retry wait adds a random
+0 to 25 percent on top of what it would otherwise be, so a site never sees
+requests on a fixed beat. The random addition never takes a wait past
+`--max-interval-in-seconds`.
 
 #### Which strategy to pick
 
 Three backends fetch pages. Everything else about a crawl is identical
 whichever one runs: the frontier, the scope rules, robots.txt, the retry
-ladder, the pacing, the checkpoints, the log lines, and everything discovery
+ladder, the pacing, the page records, the log lines, and everything discovery
 reads afterwards. A strategy only decides how one URL becomes one saved page.
 
 | Flag | Key needed | Install | Pick it when |
@@ -216,7 +228,7 @@ more of a given catalog. It also records `strategy_version`, read from the
 installed packages rather than written down anywhere, `strategy_settings`,
 what the backend was handed, and `strategy_notes`, the places where a
 backend honours one of those settings only approximately. Every saved page
-carries its `strategy` in the sidecar, so one page can be traced back to the
+carries its `strategy` in the meta, so one page can be traced back to the
 backend that fetched it.
 
 ```bash
@@ -227,6 +239,21 @@ xtra catalog crawl --with-crawl4ai   --url "$CATALOG" --run-id "$B" --limit 5 --
 On the catalog tested here the two agreed to within half a percent of bytes,
 which is the expected result when a site is not fighting back. The difference
 only shows up when one is.
+
+#### The browser between pages
+
+`--keep-browser-open` keeps one browser per worker for the whole run, as
+earlier versions did. Try it on a site that challenges every fresh browser.
+`crawl.json` records which was used as `strategy_settings.between_pages`.
+A browser that cannot be opened again stops the run the same way one that
+cannot start at all does.
+
+#### Which browser
+
+`--with-playwright` starts Playwright's own Chromium unless `--browser
+chrome` asks for Google Chrome as installed on the machine. Chromium needs
+no install beyond `playwright install chromium`.  `crawl.json` records the choice as `strategy_settings.browser_channel`.
+
 
 #### Crawl4AI
 
@@ -310,8 +337,8 @@ and in any `Sitemap:` line of `robots.txt`, then every line of
 order. That order is recorded as `frontier_order` in `crawl.json`. The
 sitemap is the site's own index of its content pages, so a limited run
 reaches real content first and a full run ends up with the same pages either
-way. A resume reorders what it reads back the same way, so sitemap URLs do
-not wait behind a section the first pass queued.
+way. A run started with `--from-run-id` builds its queue the same way, so
+sitemap URLs do not wait behind a section the earlier run queued.
 
 Sitemap index files and `.gz` sitemaps are followed. `robots.txt` is fetched
 with `httpx2` and the shared browser user agent; a 4xx means the site
@@ -355,20 +382,23 @@ GET https://catalog.example.edu/english/engl101 -> 200 48213 bytes 1840 ms -> az
 RETRY https://catalog.example.edu/english/engl102 attempt 2 of 6 after HTTP 429, waiting 360 s
 FAIL https://catalog.example.edu/english/engl103 after 6 attempts: HTTP 503
 SKIP https://catalog.example.edu/private/x reason=robots
-FROM-STORAGE https://catalog.example.edu/english/engl101 (already saved, no GET)
+CACHE run 2026-09-17T14:20:01Z saved 412 pages; each is copied when the crawl reaches it, instead of fetched
+COPY https://catalog.example.edu/english/engl101 (saved by run 2026-09-17T14:20:01Z, no GET)
 RETRY https://catalog.example.edu/english/engl104 attempt 2 of 6 after aws-waf challenge did not resolve within 30 s, waiting 180 s
-REFETCH https://catalog.example.edu/english/engl105 stored page is a bot challenge (aws-waf), not the catalog page, so it is fetched again
-PROGRESS saved=120 failed=2 skipped=340 frontier=880 elapsed=06:01:10 eta=44:00:00
+REFETCH https://catalog.example.edu/english/engl105 the page run 2026-09-17T14:20:01Z saved is a bot challenge (aws-waf), not the catalog page, so it is fetched again
+PROGRESS saved=120 copied=80 failed=2 skipped=340 frontier=880 elapsed=06:01:10 eta=44:00:00
+STOP 20 blocking failures in a row (401, 403, 429, 5xx, challenge pages, network errors; --max-consecutive-failures 20). The site is probably blocking this crawl, so the run is left incomplete.
 ```
 
 A firewall's bot challenge, the script page AWS WAF serves with HTTP 202 or
 Cloudflare's "Just a moment...", is never saved, whatever the strategy. With
 `--with-playwright` it is waited out in the browser, and a page that needed
-one says so under `render.challenge` in its sidecar; the other strategies
+one says so under `render.challenge` in its meta; the other strategies
 detect the challenge page and retry it. One that does not clear is a
 retryable failure. Runs crawled before challenges were waited out
-(2026-10-01) can hold saved challenge pages; on a resume each one is logged
-as a `REFETCH` WARNING and fetched again.
+(2026-10-01) can hold saved challenge pages; a run started from one with
+`--from-run-id` logs each as a `REFETCH` WARNING and fetches it again
+instead of copying it.
 
 `bytes` is the size of the saved HTML in UTF-8. `latency_ms` runs from
 navigation start to the HTML being in hand. The path is the full URI of the
@@ -385,61 +415,149 @@ section of the catalog and nothing above it.
 Skips that are ordinary scope decisions (`out_of_scope`, `duplicate`,
 `extension`, `include_rule`, `exclude_rule`, `scheme`) log at DEBUG, because
 on a real catalog they outnumber the GET lines many times over. The
-surprises (`robots`, `non_html`, `redirect_out_of_scope`) stay at INFO. Set
-`LOG_LEVEL=DEBUG` to see every decision.
+surprises (`robots`, `non_html`, `redirect_out_of_scope`) stay at INFO,
+once per URL: a disallowed page linked from every page of the catalog is
+one INFO line, and the repeats go to DEBUG. Set `LOG_LEVEL=DEBUG` to see
+every decision.
 
 `crawl.json` is printed to stdout when the run ends.
 
-#### Resume
+#### Continuing a run
 
-Rerun with the same `--url` and the same `--run-id`. Each checkpoint is a new
-file, `checkpoints/000001.json`, `000002.json` and so on, and none is ever
-rewritten; only the newest three are kept. Each one holds the run's manifest
-and what a resume needs: the frontier (the URLs still to fetch), the seen
-set, the failed URLs, and the strategy that fetched them. One is written at
-startup before the first GET, after the first saved page, then every 25
-saved pages, on Ctrl+C, when the run gives up, and at the end. A resume
-reads the newest one it can read, so a run killed while writing one loses
-only what came after the one before. A run crawled before checkpoints were
-separate files resumes from its `state.json`, which is left as it is.
+A run is never continued in place, and a run id is used once. When a run
+stops, by `--limit`, Ctrl+C, a `STOP` or a crash, carry on with a **new run**
+that names it:
 
-`crawl.json` and `failed.jsonl` are written once, when the run stops, Ctrl+C
-included. A run that is killed outright has no `crawl.json` until it is
-resumed, but its newest checkpoint says what it was and that it did not
-finish.
+```bash
+xtra catalog crawl --with-playwright --url https://catalog.example.edu --from-run-id 2026-09-17T14:20:01Z
+```
 
-A resume may not change the backend: a rerun with a different
-`--with-<strategy>` stops with an error naming both, because one run folder
-must not mix rendered sources.
+The new run gets its own run id (now, unless `--run-id` gives one) and
+builds its queue from scratch, exactly as a first run does. When the queue
+reaches a page the earlier run saved, that page and its meta are
+**copied** into the new run's `pages/` instead of fetched (`COPY` in the
+log), and its links are followed. Nothing is sent to the site for it, and
+there is no pacing wait.
 
-A frontier URL whose `.html` is already in storage is not fetched again: its
-HTML is read back and its links are still followed, so a resume re-checks
-coverage without touching the site. The exception is a stored bot-challenge
-page: it is logged as `REFETCH`, taken out of `pages_saved` and
-`total_bytes`, and fetched again. Failed URLs whose error was retryable are
-queued once more. `--limit` counts pages saved across the whole run, so
-rerunning with a higher limit continues where the last one stopped.
+| In the earlier run | In the new run |
+| --- | --- |
+| a saved page | copied, with `copied_from_run` and `copied_at` added to its meta; `retrieved_at` stays the time of the original GET |
+| a saved bot-challenge page (runs before 2026-10-01) | fetched again (`REFETCH`), never copied |
+| a page whose meta is missing or unreadable | fetched again |
+| a failed URL, a 404 included | fetched again |
+| a skipped URL | fetched again |
 
-URLs read back from a checkpoint are not tested against `--include-regex` or
-`--exclude-regex` again, but links found during the resume are filtered by
-the regexes given to the resume, and the URLs in `--seed-urls-file` are
-queued on a fresh run only. So resume with the same flags. Resuming repairs
-a run whose scope was right, challenge pages included; start a new
-`--run-id` to change the scope, or for a run made by one crawler version
-from start to end. A page being fetched when Ctrl+C lands is written to the
-frontier, so the resume asks for it again.
+**The manifest.** The first thing a run writes is `manifest.json`, once:
+the settings that decide which pages belong to it (`--url`,
+`--scope-prefix`, `--include-regex`, `--exclude-regex`, the URLs of
+`--seed-urls-file`, the `--with-<strategy>`) under `locked`, their SHA-256
+as `locked_sha256`, and `from_run_id`. When a later run copies from this
+one, it checks the backend against that manifest, and a manifest edited by
+hand is refused.
 
-After 20 URLs fail in a row the run stops, checkpoints, and reports
-`incomplete`, on the assumption that the site is blocking it. Pages read back
-from storage do not reset that count.
+**What each URL leaves behind.** Every URL the run asks for gets one
+`.meta.json`, written once, in a folder that says what became of it:
+
+```text
+pages/{stem}.html               the page
+pages/{stem}.meta.json          saved: the meta, "result": "saved"
+pages/failed/{stem}.meta.json   failed or failed-retryable: the error, status, attempts and kind
+pages/skipped/{stem}.meta.json  answered, but not a page of the run: non_html, redirect_out_of_scope
+```
+
+#### What crawl.json says while a run is going
+
+`crawl.json` is written when the run ends: complete, limit reached,
+stopped (blocked, or a browser or storage failure), or Ctrl+C. Until then a
+run has its `manifest.json` and its page files, and `crawl status` counts
+those live, saying `run=running`. A process killed outright writes no
+`crawl.json`; the next run with `--from-run-id` copies its pages all the
+same. `crawl.json` records `from_run_id`, `pages_copied` and
+`pages_fetched`, and `finished_at` is null after a Ctrl+C.
+
+#### Seeing what a run has crawled
+
+```bash
+xtra catalog crawl status --url https://catalog.example.edu --run-id 2026-09-17T14:20:01Z
+```
+
+```text
+TOTAL failed=1 saved=102 urls=103 copied=80 fetched=22 from_run=2026-09-16T10:00:00Z run=incomplete frontier_remaining=103 updated_at=2026-09-17T22:41:53Z
+```
+
+One line. The counts come from one listing of the run's `pages/`,
+`pages/failed/` and `pages/skipped/` without opening a file, so it is quick
+on a run of any size, in Azure too, and safe to run every few minutes while
+the crawl is going. `copied`, `fetched`, `from_run`, `run`,
+`frontier_remaining` and `updated_at` come from `crawl.json`, which is
+written when the run ends; until then the line ends
+`run=running (crawl.json is written when it ends)`.
+
+```bash
+xtra catalog crawl summary --url https://catalog.example.edu --run-id 2026-09-17T14:20:01Z
+xtra catalog crawl summary --url https://catalog.example.edu --run-id 2026-09-17T14:20:01Z --failed
+xtra catalog crawl summary --url https://catalog.example.edu --run-id 2026-09-17T14-20-01Z --format csv > crawl.csv
+```
+
+```text
+RESULT  HTTP_STATUS  ATTEMPTS  BYTES  AT                    URL                                          DETAIL
+saved   200          1         48213  2026-09-16T10:03:02Z  https://catalog.example.edu/english/engl101  copied from 2026-09-16T10:00:00Z
+failed  404          1                2026-09-17T14:26:15Z  https://catalog.example.edu/english/gone     HTTP 404
+TOTAL failed=1 saved=1 urls=2 copied=1 fetched=0 from_run=2026-09-16T10:00:00Z run=incomplete frontier_remaining=880 updated_at=2026-09-17T14:26:15Z
+```
+
+One row per URL the run has asked for, read from its `.meta.json`, then the
+same totals line. It opens every `.meta.json`, so on a large run in Azure it
+takes a minute or so; `status` gives the counts at once.
+
+| Flag | Command | What it does |
+| --- | --- | --- |
+| `--url` | both | The catalog URL the crawl started from. Required. |
+| `--run-id` | both | The run, in either form: with colons as `crawl.json` writes it, or with hyphens as the folder is named. Required. |
+| `--saved` / `--failed` / `--skipped` | summary | Show only those rows. They combine; with none, every row is shown. `--failed` includes `failed-retryable`. |
+| `--format` | summary | `table` (default) or `csv`, for Excel. The totals line is printed with `table` only. |
+| `--target-uri`, `--env`, `--azure-storage-connection-string` | both | Where the run lives, resolved the same way as for the crawl. |
+
+URLs found but not asked for yet have no row, and neither do URLs skipped
+before a fetch (robots, scope, duplicates); those are counted under
+`skipped_by_reason` in `crawl.json`. A run crawled before failures got their
+own `.meta.json` shows only its saved pages. Every option goes after the
+subcommand: `xtra catalog crawl --url X status` is refused with a message
+saying so, because `--url` there would be read as the crawl's own option.
+
+#### Failures
+
+A failure is one of two kinds, recorded in its
+`pages/failed/{stem}.meta.json`:
+
+- **page**: an HTTP 4xx other than 401, 403 and 429, such as a 404 or a 410.
+  The page is gone; the site is still answering. It is recorded and never
+  counted toward stopping the run, and it does not reset the count either.
+- **blocking**: HTTP 401, 403, 429 or 5xx after every retry, a bot challenge
+  that did not clear, a network error, or a worker that crashed. These are how
+  a site refusing a crawl looks.
+
+After `--max-consecutive-failures` blocking failures in a row (default 20) the
+run logs `STOP`, writes `crawl.json`, and reports `incomplete`, on the
+assumption that the site is blocking it. A saved page, or a URL the site
+answered and that was skipped (`non_html`, `redirect_out_of_scope`), resets
+the count. Pages copied from `--from-run-id` do not, because they are not a
+GET.
+
+Two things stop a run at once, whatever the count: a browser that will not
+start, and storage that refuses a write. Fetching more would either fail every
+page or lose what it fetched. The run writes what it can, prints the reason on
+stderr, and exits 1; fix the cause and start a new run with `--from-run-id`
+naming this one.
 
 #### Exit codes
 
 | Code | Meaning |
 | --- | --- |
 | `0` | `status` is `complete` or `limit_reached`, and no page failed |
-| `1` | pages failed, or the run ended `incomplete`; one line on stderr says which |
-| `130` | Ctrl+C. The checkpoint is written, with the page being fetched still in the frontier, so the same `--run-id` resumes |
+| `1` | pages failed, the run ended `incomplete`, it was stopped by a browser that would not start or storage that refused a write, or it was refused before it started (a used `--run-id`, a `--from-run-id` with nothing in it or from another backend); one line on stderr says which |
+| `2` | a usage error: a missing or wrong flag, or a minimum interval under 10 seconds |
+| `130` | Ctrl+C. `crawl.json` is written before the browsers close; carry on with `--from-run-id` naming this run |
 
 ### Discover
 
@@ -727,13 +845,14 @@ both numbers and takes the whole population.
 Saved pages that are a firewall's bot-challenge page are counted in a
 `CHALLENGE` warning and as `challenge_pages` in `summary.json`. The crawler
 has not saved one since 2026-10-01, so they come from a run crawled before
-then, and the warning says when the run started. Resume that run (same
-`--url` and `--run-id`) and it fetches just those pages again. Tuning the
+then, and the warning says when the run started. Crawl again with
+`--from-run-id` naming that run: the good pages are copied and just those
+are fetched again, into a new run to discover. Tuning the
 rules cannot help, because whatever those pages would have linked to was
 never fetched. Discovery still exits 0 unless the sample is empty, so check
 `challenge_pages`. When an empty sample comes with challenge pages making up
-at least half the run, its error says to resume the run instead of tuning
-the rules.
+at least half the run, its error says to crawl again from the run instead
+of tuning the rules.
 
 #### What the log says
 
@@ -1016,11 +1135,12 @@ is listed in the report under `malformed` and skipped.
 
 ```text
 {target-uri}/{catalog-folder}/{yyyy-MM-ddTHH-mm-ssZ}/
-  crawl.json
-  failed.jsonl
-  checkpoints/{000001}.json
+  manifest.json                     written once, at the start
+  crawl.json                        written at the end of the crawl
   pages/{stem}.html
-  pages/{stem}.meta.json
+  pages/{stem}.meta.json            saved
+  pages/failed/{stem}.meta.json     failed
+  pages/skipped/{stem}.meta.json    skipped after its fetch
   discovery/{discovery-run-id}/summary.json
   discovery/{discovery-run-id}/labels.json
   discovery/{discovery-run-id}/patterns.md
@@ -1041,6 +1161,10 @@ Downstream commands take that folder name as `--catalog-id`.
 The run folder is the run id with hyphens instead of colons, the same on
 every operating system, so a Windows machine and a Linux machine write the
 same keys. JSON keeps the colon form in `run_id`.
+
+Runs crawled before `--from-run-id` may also hold `checkpoints/`,
+`state.json`, `outcomes/`, `quarantine/` or `failed.jsonl`. Nothing reads
+them any more; a later run copies only their `pages/`.
 
 The page file name is the same hyphen conversion of the deduplicated URL, cut
 to 80 characters, plus the first 10 hex characters of its SHA-256. That keeps

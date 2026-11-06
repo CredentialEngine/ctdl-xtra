@@ -316,3 +316,34 @@ def test_a_list_that_cannot_be_paged_is_warned_about(caplog) -> None:
         f"LIST {COURSES} was saved before its list loaded (Loading "
         "results...), so the pages after it are not known"
     ]
+
+
+def test_a_list_read_back_from_storage_is_queued_quietly(caplog) -> None:
+    queue = FakeQueue()
+    with caplog.at_level(logging.DEBUG):
+        queued = queue_list_pages(
+            list_site_page(button_row(2, 5)),
+            f"{COURSES}?page=2",
+            enqueue=queue,
+            quiet=True,
+        )
+    assert queued == 3
+    levels = {
+        record.levelno
+        for record in caplog.records
+        if record.getMessage().startswith("LIST ")
+    }
+    assert levels == {logging.DEBUG}
+
+
+def test_a_quiet_list_that_cannot_be_paged_is_not_warned_about_again(
+    caplog,
+) -> None:
+    with caplog.at_level(logging.INFO):
+        queue_list_pages(
+            list_site_page(LIST_LOADING),
+            COURSES,
+            enqueue=FakeQueue(),
+            quiet=True,
+        )
+    assert list_messages(caplog) == []

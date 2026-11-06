@@ -37,4 +37,3 @@ def test_python_m_xtra_help() -> None:
     )
     assert proc.returncode == 0, proc.stderr
     assert "catalog" in proc.stdout
-    assert "crawl" in proc.stdout

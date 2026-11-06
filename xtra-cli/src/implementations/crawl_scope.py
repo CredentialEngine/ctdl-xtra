@@ -12,6 +12,7 @@ import re
 from dataclasses import dataclass
 from html.parser import HTMLParser
 from urllib.parse import urldefrag, urljoin, urlsplit
+from urllib.robotparser import RobotFileParser
 
 # Extensions a browser would download rather than render.
 SKIP_EXTENSIONS = frozenset(
@@ -105,7 +106,7 @@ class Scope:
     path_prefix: str
     include: tuple[re.Pattern[str], ...] = ()
     exclude: tuple[re.Pattern[str], ...] = ()
-    robots: object | None = None
+    robots: RobotFileParser | None = None
 
     @classmethod
     def from_seed(
@@ -115,7 +116,7 @@ class Scope:
         scope_prefix: str | None = None,
         include_regex: tuple[str, ...] = (),
         exclude_regex: tuple[str, ...] = (),
-        robots: object | None = None,
+        robots: RobotFileParser | None = None,
     ) -> Scope:
         """Build the scope. The host always comes from --url.
 
@@ -136,7 +137,7 @@ class Scope:
             robots=robots,
         )
 
-    def with_robots(self, robots: object | None) -> Scope:
+    def with_robots(self, robots: RobotFileParser | None) -> Scope:
         return Scope(
             host=self.host,
             path_prefix=self.path_prefix,
