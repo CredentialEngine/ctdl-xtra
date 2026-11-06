@@ -1,0 +1,424 @@
+{
+  "ruleset_id": "ccsf-curricunet-com-catalog",
+  "version": 2,
+  "catalog_folder": "ccsf-curricunet-com-catalog",
+  "entity_type": "Course",
+  "content_root": "#content-body",
+  "page_types": [
+    {
+      "type": "course",
+      "url_regex": "/catalog/iq/courses/\\d+/[^/]+$"
+    },
+    {
+      "type": "program",
+      "url_regex": "/catalog/iq/programs/[^/]+/\\d+/\\d+$"
+    },
+    {
+      "type": "index",
+      "url_regex": "/catalog/iq/(courses/\\d+|programs/[^/]+|programs/\\d+)$"
+    }
+  ],
+  "sample": {
+    "quotas": {
+      "course": 12,
+      "program": 8,
+      "index": 3,
+      "info": 7
+    },
+    "strata": {
+      "course": [
+        {
+          "name": "empty description",
+          "quota": 1,
+          "pattern": "course-catalog-description\"></span>"
+        },
+        {
+          "name": "range",
+          "quota": 3,
+          "pattern": "course-unit-range\">\\(\\s*[\\d.]+\\s*-"
+        },
+        {
+          "name": "noncredit",
+          "quota": 3,
+          "pattern": "course-Type\">\\s*Noncredit"
+        },
+        {
+          "name": "plain",
+          "quota": 5
+        }
+      ]
+    },
+    "size_pattern": "course-summary-wrapper\"|course-entry\"",
+    "small_page": 12,
+    "spread": {
+      "program": "/programs/([^/]+)/"
+    }
+  },
+  "label_vocabulary": [
+    "Course",
+    "Program",
+    "Credential",
+    "LearningOpportunity",
+    "Competency"
+  ],
+  "page_title": [
+    {
+      "url_regex": "/catalog/iq/courses/\\d+/[^/]+$",
+      "selector": "ol[id^=\"header-list\"] h3",
+      "transforms": [
+        "collapse_ws"
+      ]
+    },
+    {
+      "url_regex": "/catalog/iq/programs/",
+      "selector": "h2",
+      "transforms": [
+        "collapse_ws"
+      ]
+    }
+  ],
+  "label_rules": [
+    {
+      "rule_id": "label-course-page",
+      "label": "Course",
+      "description": "A CurricUNET department page: it lists every course of one subject.",
+      "url_regex": "/catalog/iq/courses/\\d+/[^/]+$",
+      "requires_selector": "#content-body .course-summary-wrapper"
+    },
+    {
+      "rule_id": "label-program-page",
+      "label": "Program",
+      "description": "A CurricUNET program page (has a title heading).",
+      "url_regex": "/catalog/iq/programs/[^/]+/\\d+/\\d+$",
+      "requires_selector": "#content-body h2"
+    },
+    {
+      "rule_id": "label-course-on-program-page",
+      "label": "Course",
+      "description": "A program page that lists courses in its requirement rows.",
+      "url_regex": "/catalog/iq/programs/[^/]+/\\d+/\\d+$",
+      "requires_selector": "#content-body .course-entry"
+    }
+  ],
+  "field_rules": [
+    {
+      "entity_type": "Rule",
+      "rule_id": "course-name",
+      "rule_type": "css",
+      "canonical_label": "Learning Opportunity Name",
+      "ctdl_property": "ceterms:name",
+      "applies_to": [
+        "label-course-page"
+      ],
+      "properties": {
+        "repeat": ".course-summary-wrapper",
+        "selector": ".course-title",
+        "transforms": [
+          "strip"
+        ]
+      },
+      "description": "Course title is the span.course-title in the title row.",
+      "example_input": "  Juvenile Procedures ",
+      "example_output": "Juvenile Procedures"
+    },
+    {
+      "entity_type": "Rule",
+      "rule_id": "course-code",
+      "rule_type": "css+regex",
+      "canonical_label": "Coded Notation",
+      "ctdl_property": "ceterms:codedNotation",
+      "applies_to": [
+        "label-course-page"
+      ],
+      "properties": {
+        "repeat": ".course-summary-wrapper",
+        "selector": ".course-title-units-row",
+        "regex": "^\\s*(.+?)\\s+-\\s",
+        "group": 1,
+        "transforms": [
+          "collapse_ws"
+        ]
+      },
+      "description": "Subject and number: everything before the ' - ' delimiter in the title row (subjects can contain a space, e.g. 'P SC 11').",
+      "example_input": "P SC 11  - Conceptual Physical Science (3.0)",
+      "example_output": "P SC 11"
+    },
+    {
+      "entity_type": "Rule",
+      "rule_id": "course-external-id",
+      "rule_type": "css+regex",
+      "canonical_label": "External Identifier",
+      "ctdl_property": "ceterms:identifier",
+      "applies_to": [
+        "label-course-page"
+      ],
+      "properties": {
+        "repeat": ".course-summary-wrapper",
+        "selector": ".course-title-units-row",
+        "regex": "^\\s*(.+?)\\s+-\\s",
+        "group": 1,
+        "transforms": [
+          "collapse_ws",
+          "remove_spaces"
+        ]
+      },
+      "description": "External identifier is the course code with spaces removed.",
+      "example_input": "ADMJ 51  - Juvenile Procedures (3.0)",
+      "example_output": "ADMJ51"
+    },
+    {
+      "entity_type": "Rule",
+      "rule_id": "course-description",
+      "rule_type": "css",
+      "canonical_label": "Description",
+      "ctdl_property": "ceterms:description",
+      "applies_to": [
+        "label-course-page"
+      ],
+      "properties": {
+        "repeat": ".course-summary-wrapper",
+        "selector": ".course-catalog-description",
+        "transforms": [
+          "strip"
+        ]
+      },
+      "description": "Catalog description. Requisites are a separate element (prerequisites are handled in a later iteration).",
+      "example_input": " Juvenile procedure within the system. ",
+      "example_output": "Juvenile procedure within the system."
+    },
+    {
+      "entity_type": "Rule",
+      "rule_id": "course-credit-value",
+      "rule_type": "css+regex",
+      "canonical_label": "Credit Value",
+      "ctdl_property": "ceterms:creditValue",
+      "applies_to": [
+        "label-course-page"
+      ],
+      "properties": {
+        "repeat": ".course-summary-wrapper",
+        "selector": ".course-unit-range",
+        "regex": "^\\(\\s*(\\d+(?:\\.\\d+)?)\\s*\\)$",
+        "group": 1
+      },
+      "description": "Single credit value in parentheses, e.g. '(3.0)'. Does not match ranges.",
+      "example_input": "(3.0)",
+      "example_output": "3.0"
+    },
+    {
+      "entity_type": "Rule",
+      "rule_id": "course-credit-min",
+      "rule_type": "css+regex",
+      "canonical_label": "Credit Unit Min Value",
+      "ctdl_property": "ceterms:creditMinValue",
+      "applies_to": [
+        "label-course-page"
+      ],
+      "properties": {
+        "repeat": ".course-summary-wrapper",
+        "selector": ".course-unit-range",
+        "regex": "^\\(\\s*(\\d+(?:\\.\\d+)?)\\s*-\\s*\\d+(?:\\.\\d+)?\\s*\\)$",
+        "group": 1
+      },
+      "description": "Minimum of a credit range, e.g. '(1.0-3.0)'.",
+      "example_input": "(1.0-3.0)",
+      "example_output": "1.0"
+    },
+    {
+      "entity_type": "Rule",
+      "rule_id": "course-credit-max",
+      "rule_type": "css+regex",
+      "canonical_label": "Credit Unit Max Value",
+      "ctdl_property": "ceterms:creditMaxValue",
+      "applies_to": [
+        "label-course-page"
+      ],
+      "properties": {
+        "repeat": ".course-summary-wrapper",
+        "selector": ".course-unit-range",
+        "regex": "^\\(\\s*\\d+(?:\\.\\d+)?\\s*-\\s*(\\d+(?:\\.\\d+)?)\\s*\\)$",
+        "group": 1
+      },
+      "description": "Maximum of a credit range, e.g. '(1.0-3.0)'.",
+      "example_input": "(1.0-3.0)",
+      "example_output": "3.0"
+    },
+    {
+      "entity_type": "Rule",
+      "rule_id": "course-non-credit",
+      "rule_type": "css",
+      "canonical_label": "Is Non-Credit",
+      "ctdl_property": "ceterms:isNonCredit",
+      "applies_to": [
+        "label-course-page"
+      ],
+      "properties": {
+        "repeat": ".course-summary-wrapper",
+        "selector": ".course-Type",
+        "transforms": [
+          "strip"
+        ],
+        "map": {
+          "Noncredit": "TRUE"
+        }
+      },
+      "description": "The template wants TRUE for non-credit courses and nothing otherwise; credit courses stay absent.",
+      "example_input": "Noncredit ",
+      "example_output": "TRUE"
+    },
+    {
+      "entity_type": "Rule",
+      "rule_id": "course-subject-webpage",
+      "rule_type": "source_url",
+      "canonical_label": "Subject Webpage",
+      "ctdl_property": "ceterms:subjectWebpage",
+      "applies_to": [
+        "label-course-page"
+      ],
+      "properties": {
+        "repeat": ".course-summary-wrapper"
+      },
+      "description": "The URL of the department page that lists the course."
+    },
+    {
+      "entity_type": "Rule",
+      "rule_id": "course-learning-type",
+      "rule_type": "constant",
+      "canonical_label": "Learning Type",
+      "ctdl_property": null,
+      "applies_to": [
+        "label-course-page"
+      ],
+      "properties": {
+        "repeat": ".course-summary-wrapper",
+        "value": "Course"
+      },
+      "description": "Every record from this ruleset is a Course."
+    },
+    {
+      "entity_type": "Rule",
+      "rule_id": "course-lifecycle",
+      "rule_type": "constant",
+      "canonical_label": "Life Cycle Status Type",
+      "ctdl_property": "ceterms:lifeCycleStatusType",
+      "applies_to": [
+        "label-course-page"
+      ],
+      "properties": {
+        "repeat": ".course-summary-wrapper",
+        "value": "Active"
+      },
+      "description": "A published current catalog lists active courses."
+    },
+    {
+      "entity_type": "Rule",
+      "rule_id": "course-language",
+      "rule_type": "constant",
+      "canonical_label": "Language",
+      "ctdl_property": "ceterms:inLanguage",
+      "applies_to": [
+        "label-course-page"
+      ],
+      "properties": {
+        "repeat": ".course-summary-wrapper",
+        "value": "English"
+      },
+      "description": "Template default when no language is given."
+    },
+    {
+      "entity_type": "Rule",
+      "rule_id": "stub-name",
+      "rule_type": "css",
+      "canonical_label": "Learning Opportunity Name",
+      "ctdl_property": "ceterms:name",
+      "applies_to": [
+        "label-course-on-program-page"
+      ],
+      "properties": {
+        "repeat": ".course-entry",
+        "selector": ".course-entry-title",
+        "transforms": [
+          "strip"
+        ]
+      },
+      "description": "Course name in a program requirement row.",
+      "example_input": "Orientation to Visual Media Design",
+      "example_output": "Orientation to Visual Media Design"
+    },
+    {
+      "entity_type": "Rule",
+      "rule_id": "stub-code",
+      "rule_type": "css",
+      "canonical_label": "Coded Notation",
+      "ctdl_property": "ceterms:codedNotation",
+      "applies_to": [
+        "label-course-on-program-page"
+      ],
+      "properties": {
+        "repeat": ".course-entry",
+        "selector": ".course-entry-link-content",
+        "transforms": [
+          "collapse_ws"
+        ]
+      },
+      "description": "Subject and number in a program requirement row.",
+      "example_input": "VMD 100",
+      "example_output": "VMD 100"
+    },
+    {
+      "entity_type": "Rule",
+      "rule_id": "stub-external-id",
+      "rule_type": "css",
+      "canonical_label": "External Identifier",
+      "ctdl_property": "ceterms:identifier",
+      "applies_to": [
+        "label-course-on-program-page"
+      ],
+      "properties": {
+        "repeat": ".course-entry",
+        "selector": ".course-entry-link-content",
+        "transforms": [
+          "collapse_ws",
+          "remove_spaces"
+        ]
+      },
+      "description": "Course code with spaces removed.",
+      "example_input": "P SC 11",
+      "example_output": "PSC11"
+    },
+    {
+      "entity_type": "Rule",
+      "rule_id": "stub-credit-value",
+      "rule_type": "css+regex",
+      "canonical_label": "Credit Value",
+      "ctdl_property": "ceterms:creditValue",
+      "applies_to": [
+        "label-course-on-program-page"
+      ],
+      "properties": {
+        "repeat": ".course-entry",
+        "selector": ".block-entry-units-display",
+        "regex": "^\\s*(\\d+(?:\\.\\d+)?)\\s*$",
+        "group": 1
+      },
+      "description": "Units shown at the end of a program requirement row.",
+      "example_input": "1.0",
+      "example_output": "1.0"
+    },
+    {
+      "entity_type": "Rule",
+      "rule_id": "stub-learning-type",
+      "rule_type": "constant",
+      "canonical_label": "Learning Type",
+      "ctdl_property": null,
+      "applies_to": [
+        "label-course-on-program-page"
+      ],
+      "properties": {
+        "repeat": ".course-entry",
+        "value": "Course"
+      },
+      "description": "Requirement rows name courses."
+    }
+  ]
+}
