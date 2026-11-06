@@ -16,6 +16,7 @@ from collections.abc import Callable
 # Waits are the minimum plus a random 0-25% of it: 180 s becomes 180-225 s.
 PACING_JITTER_FRACTION = 0.25
 
+
 def jittered(
     seconds: float,
     *,
