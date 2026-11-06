@@ -120,7 +120,8 @@
 .report-toc .is-bad .ico, .report-rule-status.is-bad .ico { color: var(--red); }
 .report-toc .is-same .ico, .report-rule-status.is-same .ico { color: var(--muted); }
 /* a rule's section: headed as the Rules tab heads a rule */
-.runs-sec.report-rule { border-top: 2px solid var(--line); padding-top: 14px; scroll-margin-top: 8px; }
+.runs-sec.report-rule { border-top: 2px solid var(--line); padding-top: 16px; scroll-margin-top: 8px; }
+.rule-head.report-rule-head { padding: 0 0 8px; background: none; }
 .report-rule-head h2 { font-size: 18px; margin: 0; letter-spacing: -.01em; overflow-wrap: anywhere; }
 .report-rule-head .term { display: inline-flex; align-items: center; gap: 4px; }
 .report-rule-head .term .ico svg { width: 12px; height: 12px; }
