@@ -1,7 +1,8 @@
 // Middle column header (spec §7.2; property-rules spec §4.2, §4.6, m1): the property's name, what it's part of and where it
 // looks, its path with arrows (the leaf term linked to its definition), what the rule reads ("Input: …"), "Approve rule"
 // (greyed out with the reason while a course is wrong or missing, or the property has no rule yet), and "How this rule
-// works ›" (collapsed, a chevron icon; open for a property with no rule yet). The current version only.
+// works ›" (collapsed, a chevron icon; open for a property with no rule yet), and "Reset rule" beside Approve rule and
+// Reopen (phase1-followups §4). The current version only.
 import type { CatalogDetail, RuleDetail } from "../api/types";
 import { Ico } from "../shell/icons";
 import { fmt, termUrl } from "../shell/ui";
@@ -47,8 +48,8 @@ function DefRows({ rule }: { rule: RuleDetail }) {
   return <>{rows.map(([k, v]) => [<dt key={k + "t"}>{k}</dt>, <dd key={k + "d"}>{v}</dd>])}</>;
 }
 
-export function RuleHead({ catalog, rule, onApprove, onReopen, busy }: {
-  catalog: CatalogDetail; rule: RuleDetail; onApprove: () => void; onReopen: () => void; busy: boolean;
+export function RuleHead({ catalog, rule, onApprove, onReopen, onReset, busy }: {
+  catalog: CatalogDetail; rule: RuleDetail; onApprove: () => void; onReopen: () => void; onReset: () => void; busy: boolean;
 }) {
   const isProperty = rule.kind === "property";
   const child = rule.subtitle.startsWith("part of ");
@@ -66,6 +67,13 @@ export function RuleHead({ catalog, rule, onApprove, onReopen, busy }: {
     : `${rule.subtitle} · ${rule.kind === "page" ? "page rule" : "record locator"}`;
   const blocked = approveBlocked(rule);
   const approved = rule.status === "approved";
+  // Reset rule (phase1-followups §4.1): a property's reviews in this catalog back to "not reviewed", its approval ended
+  const nothingToReset = !approved && !rule.reviewed ? "No reviewed values and no approval to reset" : null;
+  const reset = isProperty && (
+    <span className="tipwrap" data-tip={nothingToReset ?? undefined}>
+      <button className="linkish reset" onClick={onReset} disabled={busy || !!nothingToReset} data-testid="reset-rule"
+        title={nothingToReset ? undefined : "Changed your mind about what this property should hold? Clear its reviews in this catalog and take it out of the datasets, to review it again."}>
+        Reset rule</button></span>);
   const fill = rule.fill;
   return (
     <div className="rule-head">
@@ -81,7 +89,8 @@ export function RuleHead({ catalog, rule, onApprove, onReopen, busy }: {
           <span className="approved-by" data-tour="approve">
             <span className="btn approve is-approved"><Ico name="correct" />Approved</span>
             <span className="ab-who">by {rule.approved_by}{rule.approved_at ? ` · ${rule.approved_at.slice(0, 10)}` : ""} ·{" "}
-              <button className="linkish" onClick={onReopen} disabled={busy} title="Undo the approval (a reopen event)">Reopen</button></span>
+              <button className="linkish" onClick={onReopen} disabled={busy} title="Undo the approval (a reopen event)">Reopen</button>
+              {reset && <> · {reset}</>}</span>
           </span>
         ) : (
           <span className="tipwrap" data-tip={blocked ?? undefined} data-tour="approve">
@@ -90,6 +99,7 @@ export function RuleHead({ catalog, rule, onApprove, onReopen, busy }: {
             {blocked && <span id="approve-why" className="sr-only">{blocked}</span>}
           </span>
         )}
+        {!approved && reset && <span className="rh-reset">{reset}</span>}
         </div>
       </div>
       {rule.no_rule && <p className="rh-norule" role="note">No rule yet. Nothing is extracted for this property. You can still mark the

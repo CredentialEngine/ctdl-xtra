@@ -57,9 +57,9 @@ export function labelField(a: ObjectAdd, field: string): ObjectAdd {
   return a.pending ? { pending: null, fields: { ...a.fields, [field]: a.pending } } : a;
 }
 
-/** Saved once every field is labelled; savable by hand once the key field is. */
+/** Saved once every field is labelled; savable by hand once the key field and one more are (phase1-followups §3.1). */
 export const addComplete = (a: ObjectAdd, fields: string[]) => fields.every((f) => !!a.fields[f]);
-export const addSavable = (a: ObjectAdd, key: string) => !!a.fields[key];
+export const addSavable = (a: ObjectAdd, key: string) => !!a.fields[key] && Object.keys(a.fields).length > 1;
 
 const placed = (c: CapturedSelection): ObjectField => ({ text: c.text.trim(), css_path: c.css_path, char_start: c.char_start, char_end: c.char_end });
 
@@ -78,3 +78,33 @@ export function addedObject(e: EventBrief): Record<string, string> {
   const fs = e.expected?.objects?.[0]?.fields ?? {};
   return Object.fromEntries(Object.entries(fs).map(([k, f]) => [k, f.text]));
 }
+
+// --- correcting a found object (phase1-followups spec §3) ---------------------------------------------------------
+/** A found object being corrected: which one, and the fields picked on the page for it so far. */
+export interface ObjectFix { valueIndex: number; fields: Record<string, CapturedSelection> }
+
+/** The ✕ that corrects a found object: `expected.objects[0]` is the object with the picked fields in place of the
+ * rule's (the others keep the rule's text and place); the server sets `expected.text`. */
+export function correctionEvent(author: string, ruleId: string, occurrenceKey: string | null, it: RowItem, fix: ObjectFix,
+  fields: string[]): NewEvent {
+  const fs: Record<string, ObjectField> = {};
+  for (const f of fields) {
+    if (fix.fields[f]) fs[f] = placed(fix.fields[f]);
+    else if (it.fields?.[f]) fs[f] = it.fields[f];
+  }
+  const first = fs[fields.find((f) => fix.fields[f]) ?? ""];
+  return { type: "verdict", author, verdict: "wrong", note: null, supersedes: it.verdict?.annotation_id ?? null,
+           expected: { text: "", css_path: first?.css_path ?? null, char_start: first?.char_start ?? null, char_end: first?.char_end ?? null,
+                       located_by: "corrected in the Studio", objects: [{ fields: fs }] },
+           target: { kind: "match", rule_id: ruleId, occurrence_key: occurrenceKey, item: true, value_index: it.value_index } };
+}
+
+/** ✕ on an object a reviewer added takes it back: a verdict that supersedes the add. */
+export function takeBackEvent(author: string, ruleId: string, occurrenceKey: string | null, added: EventBrief): NewEvent {
+  return { type: "verdict", author, verdict: "wrong", note: null, supersedes: added.annotation_id,
+           target: { kind: "match", rule_id: ruleId, occurrence_key: occurrenceKey, item: true, value_index: null } };
+}
+
+/** A found object's correction, from its ✕ (null for a ✕ with no answer). */
+export const correctionOf = (it: Pick<RowItem, "state" | "verdict">): Record<string, string> | null =>
+  it.state === "wrong" && it.verdict?.expected?.objects?.length ? addedObject(it.verdict) : null;

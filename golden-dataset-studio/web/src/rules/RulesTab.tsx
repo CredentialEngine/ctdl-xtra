@@ -3,7 +3,7 @@
 // switch (?by=…&v=…, Evals spec §6.7) filter the rows of every rule, and the rule list counts the rows that pass.
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { api, ApiError } from "../api/client";
-import type { AnnotateResponse, ApprovePreview, CatalogDetail, Discussion, EventBrief, NewEvent, Overlay, RowItem, RuleDetail, RulesResponse,
+import type { AnnotateResponse, ApprovePreview, CatalogDetail, ResetPreview, Discussion, EventBrief, NewEvent, Overlay, RowItem, RuleDetail, RulesResponse,
   RuleSummary, SampleInfo, UnclassifiedPage } from "../api/types";
 import { PagePane, prefetchPages, type BarAction, type CapturedSelection, type Highlight } from "../pagepane";
 import { Ico } from "../shell/icons";
@@ -25,8 +25,10 @@ import { Expansion } from "./parts";
 import { RowCard } from "./RowCard";
 import { ListItems, type ItemAdd } from "./ListItems";
 import { ProfileItems } from "./ProfileItems";
-import { addComplete, emptyAdd, fieldWord, labelField, objectEvent, profileOf, statusHint, type ObjectAdd } from "./claims";
+import { addComplete, correctionEvent, emptyAdd, fieldWord, labelField, objectEvent, profileOf, statusHint, takeBackEvent,
+  type ObjectAdd, type ObjectFix } from "./claims";
 import { ApproveDialog } from "./ApproveDialog";
+import { ResetDialog } from "./ResetDialog";
 import { RuleHead } from "./RuleHead";
 import { RuleList, type PostTalk } from "./RuleList";
 import { FixBar } from "../agent/FixBar";
@@ -120,6 +122,7 @@ export default function RulesTab({ catalog, route }: TabProps) {
   const [missed, setMissed] = useState<MissedState | null>(null);
   const [itemAdd, setItemAdd] = useState<ItemAdd | null>(null);  // a missing item of a list property being selected
   const [objAdd, setObjAdd] = useState<ObjectAdd | null>(null);  // an object of a list-of-objects rule being labelled (§5.3)
+  const [objFix, setObjFix] = useState<ObjectFix | null>(null);  // a found object being corrected (phase1-followups §3)
   const [recent, setRecent] = useState<TabRef[]>([]);
   const [activeStem, setActiveStem] = useState<string | null>(null);
   const [extraTab, setExtraTab] = useState<TabRef | null>(null);
@@ -129,6 +132,8 @@ export default function RulesTab({ catalog, route }: TabProps) {
   const [notHere, setNotHere] = useState<Missing | null>(null);  // a linked row (?row=) this ruleset doesn't show
   const [busy, setBusy] = useState(false);
   const [asking, setAsking] = useState<ApprovePreview | null>(null);  // approve and publish? (a column's rule)
+  const [resetting, setResetting] = useState<ResetPreview | null>(null);  // Reset rule? (phase1-followups §4.1)
+  const [reloads, setReloads] = useState(0);  // the rows again after a change to many of them (Reset rule)
   const token = useRef(0);
   const loadingMore = useRef(false);
   const overlays = useRef(new Map<string, Overlay>());
@@ -184,7 +189,7 @@ export default function RulesTab({ catalog, route }: TabProps) {
   useEffect(() => {
     if (!ruleId) return;
     const tok = ++token.current;
-    setDraft(null); setMissed(null); setItemAdd(null); setObjAdd(null); setExtraTab(null); setActiveStem(null);
+    setDraft(null); setMissed(null); setItemAdd(null); setObjAdd(null); setObjFix(null); setExtraTab(null); setActiveStem(null);
     Promise.all([api.rule(cat, ruleId, ext), apiX.rows(cat, ruleId, { limit: FIRST_PAGE, focus, ext, by, verdict, ...sq })]).then(([d, r]) => {
       if (tok !== token.current) return;
       const lost = !!focus && r.focus_index == null;  // the linked row isn't here: say so, show its page, select nothing
@@ -206,11 +211,12 @@ export default function RulesTab({ catalog, route }: TabProps) {
         setDetail(null); setRows([]); setTotal(0); setSample(null); setMissing([]); setNotHere("rule"); setError(null);
       } else setError(String(e));
     });
-  }, [cat, ruleId, focus, sq, ext, by, verdict, markWrong]);
+  }, [cat, ruleId, focus, sq, ext, by, verdict, markWrong, reloads]);
 
   const kind = detail?.kind ?? null;
   const row = detail && detail.rule_id === ruleId ? rows[sel] ?? null : null;
   const listRule = !!detail?.list;  // a list property: its rows have items, each with its own verdict (§4.4)
+  const noun = (detail?.property_label ?? "item").replace(/^Estimated /, "").toLowerCase();  // "duration"
   const profile = useMemo(() => profileOf(detail?.definition), [detail]);  // a list of objects (sme-fixes §5)
   // a record locator that finds several courses per page: one row per page, its courses inside (sme-fixes §3)
   const perPage = kind === "locator" && !!detail?.definition.repeat;
@@ -237,7 +243,7 @@ export default function RulesTab({ catalog, route }: TabProps) {
     setLevel(lvl);
     const prev = rows[sel];
     if (prev && prev.page_stem !== rows[j]?.page_stem) setRecent((r) => pushRecent(r, { stem: prev.page_stem, url: prev.url, title: prev.page_title ?? prev.page_stem }));
-    setSel(j); setDraft(null); setMissed(null); setItemAdd(null); setObjAdd(null); setExtraTab(null); setActiveStem(null);
+    setSel(j); setDraft(null); setMissed(null); setItemAdd(null); setObjAdd(null); setObjFix(null); setExtraTab(null); setActiveStem(null);
     if (rows[j]) replaceParam("row", perPage && lvl === "page" ? rows[j].page_stem : rows[j].key);
     if (j >= rows.length - 5) loadMore();
   }, [rows, sel, level, perPage, loadMore]);
@@ -335,6 +341,8 @@ export default function RulesTab({ catalog, route }: TabProps) {
             } else if (it.css_path) hs.push({ id: `item-${it.value_index}`, kind: "value", cssPath: it.css_path,
               charStart: it.char_start, charEnd: it.char_end, text: it.value });
           }
+          for (const [f, c] of Object.entries(objFix?.fields ?? {})) hs.push({ id: `fix-${f}`, kind: "expected", cssPath: c.css_path,
+            charStart: c.char_start, charEnd: c.char_end, text: c.text });
           for (const [f, c] of Object.entries(objAdd?.fields ?? {})) hs.push({ id: `obj-${f}`, kind: "expected", cssPath: c.css_path,
             charStart: c.char_start, charEnd: c.char_end, text: c.text });
           if (objAdd?.pending) hs.push({ id: "obj-pending", kind: "expected", cssPath: objAdd.pending.css_path,
@@ -380,7 +388,7 @@ export default function RulesTab({ catalog, route }: TabProps) {
       if (captures.length) fid = "capture-0";
     }
     return { highlights: hs, focusId: fid };
-  }, [row, rows, detail, active, ov, captures, draft, missing, listRule, objAdd, onPage]);
+  }, [row, rows, detail, active, ov, captures, draft, missing, listRule, objAdd, objFix, onPage]);
 
   // --- saving ---------------------------------------------------------------------------------------------------
   const send = useCallback(async (ev: NewEvent): Promise<AnnotateResponse | null> => {
@@ -488,7 +496,7 @@ export default function RulesTab({ catalog, route }: TabProps) {
   }, [itemAdd, detail, rows, sel, me, post]);
 
   // a list of objects (§5.3): select text, label it as a field; saved once every field is labelled (or by Save)
-  const startAddObject = useCallback(() => { setDraft(null); setMissed(null); setItemAdd(null); setObjAdd(emptyAdd()); }, []);
+  const startAddObject = useCallback(() => { setDraft(null); setMissed(null); setItemAdd(null); setObjFix(null); setObjAdd(emptyAdd()); }, []);
   const saveObject = useCallback(async (a: ObjectAdd) => {
     const r = rows[sel];
     if (!detail || !r || !profile) return;
@@ -504,19 +512,70 @@ export default function RulesTab({ catalog, route }: TabProps) {
     setObjAdd(next);
     if (addComplete(next, profile.fields)) void saveObject(next);
   }, [objAdd, profile, saveObject]);
-  // labelling an added object (§5.3): the highlight bar offers the object's field names instead of In / Not in
+  // a list of objects' highlight bar (§5.3; phase1-followups §3.1): while adding or correcting an object, the object's
+  // field names instead of In / Not in, and 💬; with neither under way, a note saying how to start (nothing is dropped
+  // silently)
   const fieldBar = useMemo<BarAction[] | null>(() => {
-    if (!listRule || !objAdd || !profile || !onRowPage) return null;
-    return profile.fields.map((f) => ({
+    if (!listRule || !profile || !onRowPage || !row) return null;
+    const comment: BarAction = { id: "comment", label: <Ico name="bubble" />, tone: "note", keepOpen: true,
+      title: "Comment on this text: the comment is pinned to it on the page (a numbered bubble).",
+      run: (c: CapturedSelection) => { setMissed(null); setDraft((d) => ({ ...(d?.mode === "comment" ? d : newDraft("comment", row.verdict, row.state)), anchor: c })); } };
+    if (!objAdd && !objFix) return [comment, { id: "pick-first", label: `Select a ${noun} first, or + Add a ${noun}`,
+      title: `To correct a ${noun}, click it under the row first; to add one the rule missed, use + Add a ${noun}.`, run: () => {} }];
+    return [comment, ...profile.fields.map((f) => ({
       id: `field-${f}`, label: fieldWord(f), tone: "in" as const,
-      title: `Label this text as the ${fieldWord(f)} of the ${(detail?.property_label ?? "item").toLowerCase()} you're adding`,
+      title: objFix ? `This text is the right ${fieldWord(f)} of the selected ${noun}` : `Label this text as the ${fieldWord(f)} of the ${noun} you're adding`,
       run: (c: CapturedSelection) => {
+        if (objFix) { setObjFix((x) => (x ? { ...x, fields: { ...x.fields, [f]: c } } : x)); return; }
+        if (!objAdd) return;
         const next = labelField({ ...objAdd, pending: c }, f);
         setObjAdd(next);
         if (addComplete(next, profile.fields)) void saveObject(next);
       },
-    }));
-  }, [listRule, objAdd, profile, onRowPage, detail, saveObject]);
+    }))];
+  }, [listRule, objAdd, objFix, profile, onRowPage, row, noun, saveObject]);
+
+  // correcting a found object (phase1-followups §3.2): one ✕ on it, carrying the corrected object
+  const selectObject = useCallback((it: RowItem) => {
+    setDraft(null); setMissed(null); setObjAdd(null);
+    setObjFix((x) => (x?.valueIndex === it.value_index ? null : { valueIndex: it.value_index, fields: {} }));
+  }, []);
+  const saveFix = useCallback(async () => {
+    const r = rows[sel];
+    const it = r?.items?.find((x) => x.value_index === objFix?.valueIndex);
+    if (!objFix || !detail || !r || !it || !profile || !Object.keys(objFix.fields).length) return;
+    const brief = await post(correctionEvent(me, detail.rule_id, r.occurrence_key, it, objFix, profile.fields));
+    if (!brief) return;
+    setRows((rs) => rs.map((x, j) => (j === sel ? applyItem(x, it.value_index, brief, role) : x)));
+    setObjFix(null);
+    setSaved((n) => n + 1);
+    toast(`Corrected · ${r.course_key ?? ""}`);
+  }, [objFix, detail, rows, sel, profile, me, role, post]);
+  // ✕ on an added object takes it back
+  const takeBack = useCallback(async (added: EventBrief) => {
+    const r = rows[sel];
+    if (!detail || !r) return;
+    const brief = await post(takeBackEvent(me, detail.rule_id, r.occurrence_key, added));
+    if (!brief) return;
+    setRows((rs) => rs.map((x, j) => (j === sel ? { ...x, missing_items: (x.missing_items ?? []).filter((m) => m.annotation_id !== added.annotation_id) } : x)));
+    toast(`Removed · ${r.course_key ?? ""}`);
+  }, [detail, rows, sel, me, post]);
+  // 1 / 2 on a list's row: every item ✓ or ✕ (no answer), one event each; an item that already says so is skipped
+  const markAll = useCallback(async (verdict: "correct" | "wrong") => {
+    const r = rows[sel];
+    if (!r || !detail) return;
+    let n = 0;
+    for (const it of r.items ?? []) {
+      if (it.state === verdict) continue;
+      const brief = await post(itemEvent(me, detail.rule_id, r, it.value_index, verdict, it.verdict?.annotation_id ?? null));
+      if (!brief) break;
+      n++;
+      setRows((rs) => rs.map((x, j) => (j === sel ? applyItem(x, it.value_index, brief, role) : x)));
+    }
+    if (n) setSaved((k) => k + 1);
+    const word = verdict === "correct" ? "correct" : "wrong";
+    toast(n ? `${n} ${n === 1 ? noun : `${noun}s`} ${word} · ${r.course_key ?? ""}` : `Every ${noun} is already ${word}`);
+  }, [rows, sel, detail, me, role, post, noun]);
 
   const startMissed = useCallback(() => {
     setDraft(null);
@@ -545,6 +604,24 @@ export default function RulesTab({ catalog, route }: TabProps) {
     else toast(`Approved: ${detail.title}`);
   }, [cat, detail, me, send]);
 
+  // Reset rule (phase1-followups §4): what it clears and keeps first, then one `reset` event with the reason; the server
+  // republishes without the column and rescores. The rows are fetched again: every reviewed row changed.
+  const openReset = useCallback(async () => {
+    if (!detail) return;
+    const p = await api.resetPreview(cat, detail.rule_id).catch((e) => { toast(`Couldn't read what a reset clears: ${String(e)}`); return null; });
+    if (p) setResetting(p);
+  }, [cat, detail]);
+  const reset = useCallback(async (why: string) => {
+    if (!detail || !resetting) return;
+    const r = await send({ type: "reset", author: me, target: { kind: "rule", rule_id: detail.rule_id }, note: why });
+    if (!r) return;
+    const n = resetting.counts.correct + resetting.counts.answered;
+    setResetting(null);
+    setReloads((k) => k + 1);
+    toast(r.published?.error ? `Reset ${detail.title}, but the datasets weren't rewritten: ${r.published.error}`
+      : `Reset ${detail.title}: ${fmt(n)} ${n === 1 ? "value" : "values"} back to not reviewed`, 3000);
+  }, [detail, resetting, me, send]);
+
   // --- keyboard (spec §7.2) ----------------------------------------------------------------------------------
   const keys = useRef<(e: KeyboardEvent) => void>(() => {});
   keys.current = (e: KeyboardEvent) => {
@@ -554,6 +631,7 @@ export default function RulesTab({ catalog, route }: TabProps) {
       if (missed) { e.preventDefault(); void saveMissed(); }
       else if (itemAdd?.capture) { e.preventDefault(); void saveAddItem(); }
       else if (objAdd && profile && objAdd.fields[profile.key]) { e.preventDefault(); void saveObject(objAdd); }
+      else if (objFix && Object.keys(objFix.fields).length) { e.preventDefault(); void saveFix(); }
       else if (draft) { e.preventDefault(); void saveRow(sel, { draft }); }
       else if (onPage && !isField(e.target)) { e.preventDefault(); selectRow(sel, "course"); }  // into the page's courses
       return;
@@ -562,7 +640,7 @@ export default function RulesTab({ catalog, route }: TabProps) {
       if (isField(e.target)) (e.target as HTMLElement).blur();
       // Esc on a course of a page, with nothing to cancel: back up to the page row (sme-fixes §3)
       if (perPage && level === "course" && !draft && !missed && !itemAdd) { const m = moveIn(groups, sel, level, "up"); selectRow(m.sel, m.level); }
-      setDraft(null); setMissed(null); setExtraTab(null); setItemAdd(null); setObjAdd(null);
+      setDraft(null); setMissed(null); setExtraTab(null); setItemAdd(null); setObjAdd(null); setObjFix(null);
       return;
     }
     e.preventDefault();
@@ -570,7 +648,11 @@ export default function RulesTab({ catalog, route }: TabProps) {
     else if (onPage) { if (a === "correct") void acceptPage(sel); else if (a === "wrong" || a === "comment") pick(sel, a); }
     else if (a === "next") selectRow(sel + 1);
     else if (a === "prev") selectRow(sel - 1);
-    else if (listRule) { if (a === "select") (profile ? startAddObject : startAddItem)(); else if (a === "comment") pick(sel, "comment"); }  // H: a missing item
+    else if (listRule) {  // H: a missing item; 1 / 2: every item of the row
+      if (a === "select") (profile ? startAddObject : startAddItem)();
+      else if (a === "comment") pick(sel, "comment");
+      else if (a === "correct" || a === "wrong") void markAll(a);
+    }
     else if (a === "correct") pick(sel, "correct");
     else if (a === "wrong" || a === "select") pick(sel, "wrong");
     else if (a === "comment") pick(sel, "comment");
@@ -598,7 +680,10 @@ export default function RulesTab({ catalog, route }: TabProps) {
   if (detail && row) {
     const what = kind === "property" ? <><b>{detail.property_label ?? detail.title}</b> · {row.course_key ?? ""}</>
       : kind === "locator" ? <><b>Course</b> · {row.course_key ?? ""}</> : <b>{detail.title}</b>;
-    if (objAdd && listRule) {
+    if (objFix && listRule) {
+      legend = <><Ico name="highlight" /><span><b>Select the right text</b> on the page for the selected {noun} of {what}, then pick its field;
+        Enter saves the correction.</span></>;
+    } else if (objAdd && listRule) {
       legend = <><Ico name="highlight" /><span><b>{objAdd.pending ? "Which field is it?" : "Select a piece of the missing one"}</b> on the page for {what}
         {objAdd.pending ? ": pick its field under the row." : ", then label it."}</span></>;
     } else if (itemAdd && listRule) {
@@ -623,7 +708,8 @@ export default function RulesTab({ catalog, route }: TabProps) {
     } else if (active === row.page_stem) {
       const found = listRule ? (row.items?.length ? "each item found is highlighted." : "this rule found nothing on this page.")
         : row.status === "found" && row.css_path ? "the value found is highlighted." : statusHint(row.status);
-      const hint = listRule ? "Wrong item? Use its ✕. Missing one? Add it below."
+      const hint = listRule ? (profile ? `Wrong part? Click the ${noun}, then select the right text. Missing one? Add it below.`
+        : "Wrong item? Use its ✕. Missing one? Add it below.")
         : row.status === "none" ? "Select the value the page shows to mark it."
         : row.css_path ? "Wrong? Drag across the right text to mark it." : "If the page shows it, drag across it to mark it.";
       banner = <><span className="gds-num">1</span><span className="grow">{what} — {found}
@@ -644,7 +730,9 @@ export default function RulesTab({ catalog, route }: TabProps) {
             onToggle={() => setFilter({ by: by === BY_WAITING ? null : BY_WAITING, v: null })} />}
           {!ext && <FixBar catalog={cat} name={catalog.name} rules={rules} />}</>} />}</aside>
       <section className="col mid">
-        {detail && <RuleHead catalog={catalog} rule={detail} busy={busy} onApprove={() => approve("approve")} onReopen={() => approve("reopen")} />}
+        {detail && <RuleHead catalog={catalog} rule={detail} busy={busy} onApprove={() => approve("approve")} onReopen={() => approve("reopen")}
+          onReset={() => void openReset()} />}
+        {resetting && <ResetDialog p={resetting} catalogName={catalog.name} busy={busy} onReset={(why) => void reset(why)} onClose={() => setResetting(null)} />}
         {asking && <ApproveDialog p={asking} busy={busy} onApprove={() => approve("approve", true)} onClose={() => setAsking(null)} />}
         {detail && <SampleDrawer sample={sample} prefs={prefs} onPrefs={setPrefs} modes={["review", "auto", "shuffle", "manual"]}
           storageKey="studio.rules.sample" collapseOn={moves} filters={<>
@@ -685,9 +773,10 @@ export default function RulesTab({ catalog, route }: TabProps) {
                   onClick={(e) => e.stopPropagation()}>Open in Records →</a> : null}
                 items={!listRule || !r.items ? undefined
                   : profile ? <ProfileItems row={r} on={on} fields={profile.fields} keyField={profile.key}
-                      noun={noun} add={on ? objAdd : null}
+                      noun={noun} add={on ? objAdd : null} fix={on ? objFix : null}
                       onVerdict={(it, v) => void saveItem(i, it, v)} onStartAdd={startAddObject} onLabel={labelObject}
-                      onSaveAdd={() => objAdd && void saveObject(objAdd)} onCancelAdd={() => setObjAdd(null)} />
+                      onSaveAdd={() => objAdd && void saveObject(objAdd)} onCancelAdd={() => setObjAdd(null)}
+                      onSelectItem={selectObject} onSaveFix={() => void saveFix()} onCancelFix={() => setObjFix(null)} onTakeBack={(m) => void takeBack(m)} />
                   : <ListItems row={r} on={on} add={on ? itemAdd : null} onVerdict={(it, v) => void saveItem(i, it, v)}
                       onStartAdd={startAddItem} onSaveAdd={() => void saveAddItem()} onCancelAdd={() => setItemAdd(null)} />}
                 linked={on ? linkedNote : null}

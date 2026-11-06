@@ -34,6 +34,15 @@ def test_first_pass_prompt_names_locators_by_what_they_do():
     assert "not in the template's words" in LOCATOR_NAMING
 
 
+def test_generate_rules_teaches_credits_as_a_value_profile():  # phase1-followups spec §2.3
+    from golden_datasets.prompt import REQUISITE_WORDS, RULE_TYPES
+
+    words = "\n".join(REQUISITE_WORDS)
+    assert "Credit Value itself gets no rule (`none`)" in words and "**Credit Unit Value**" in words
+    assert "`7 Credit hours` → `7`" in words and "`1-4 Credit hours` → `1`, `4`" in words
+    assert not [r for r in RULE_TYPES if "reads Credit Value" in r[2]]  # no credit property reads the parent
+
+
 def test_table_cells_stay_on_one_line():
     assert cell("a | b\nc") == "a \\| b⏎ c"
     assert table(["x", "y"], [[1, "p|q"]]) == ["| x | y |", "|---|---|", "| 1 | p\\|q |"]

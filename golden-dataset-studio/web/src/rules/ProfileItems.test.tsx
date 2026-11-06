@@ -103,9 +103,9 @@ describe("claims helpers", () => {
     expect(objectOf({ value: JSON.stringify({ [D]: "a", [T]: "1" }) })).toEqual({ [D]: "a", [T]: "1" });
     const sel = (text: string) => ({ text, css_path: P, char_start: 1, char_end: 4, prefix: "", suffix: "" });
     let a = labelField({ ...emptyAdd(), pending: sel("Total Course Lab Hours ") }, D);
-    expect(addSavable(a, D) && !addComplete(a, [D, T])).toBe(true);
+    expect(addSavable(a, D) || addComplete(a, [D, T])).toBe(false);  // the description and one more (phase1-followups §3.1)
     a = labelField({ ...a, pending: sel("432.0") }, T);
-    expect(addComplete(a, [D, T])).toBe(true);
+    expect(addSavable(a, D) && addComplete(a, [D, T])).toBe(true);
     expect(objectEvent("Jared", "r", "o", a, [D, T])).toMatchObject({ verdict: "missing", target: { item: true, occurrence_key: "o" },
       expected: { objects: [{ fields: { [D]: { text: "Total Course Lab Hours", css_path: P }, [T]: { text: "432.0" } } }] } });
   });
@@ -142,13 +142,73 @@ describe("a list of objects", () => {
     expect(container.querySelector("[data-testid=pane]")!.textContent).toContain("Which field is it?");
     await act(async () => container.querySelector<HTMLButtonElement>(".row.on .label-bar .lbl")!.click());
     expect(posted).toHaveLength(0);
-    expect(container.querySelector<HTMLButtonElement>(".row.on .add-obj .save")!.disabled).toBe(false);  // the key field is there
+    expect(container.querySelector<HTMLButtonElement>(".row.on .add-obj .save")!.disabled).toBe(true);  // the key field, and one more
     expect(pane.props!.highlights.some((h) => h.id === `obj-${D}`)).toBe(true);
     await act(async () => pane.props!.onSelection!(sel("432.0", 360)));
     await act(async () => [...container.querySelectorAll<HTMLButtonElement>(".row.on .label-bar .lbl")][1].click());
     expect(posted[0]).toMatchObject({ type: "verdict", verdict: "missing", target: { kind: "match", item: true, occurrence_key: "acct199@html" },
       expected: { objects: [{ fields: { [D]: { text: "Total Course Lab Hours", char_start: 300 }, [T]: { text: "432.0", char_start: 360 } } }] } });
     expect(container.querySelector(".row.on [data-testid=added-object]")!.textContent).toContain("Total Course Lab Hours");
+  });
+});
+
+describe("correcting a found object (phase1-followups §3)", () => {
+  const sel = (text: string, at: number) => ({ text, css_path: P, char_start: at, char_end: at + text.length, prefix: "", suffix: "" });
+  const bar = () => pane.props!.barActions!;
+  const press = (id: string, c: ReturnType<typeof sel>) => act(async () => bar().find((b) => b.id === id)!.run(c));
+
+  it("with nothing selected, a selection on the page says how to start instead of doing nothing", async () => {
+    serve(detail(), rowsOf([row()]));
+    await render();
+    expect(bar().map((b) => b.id)).toEqual(["comment", "pick-first"]);
+    expect(bar()[1].label).toBe("Select a duration first, or + Add a duration");
+  });
+
+  it("click a duration, pick the right text for one field, Save correction: one ✕ carrying the corrected duration", async () => {
+    serve(detail(), rowsOf([row()]));
+    await render();
+    await act(async () => container.querySelectorAll<HTMLElement>(".row.on [data-testid=object]")[2].click());
+    expect(container.querySelector(".row.on .item.obj.sel")!.textContent).toContain("Total Course Lecture Hours");
+    expect(bar().map((b) => b.label)).toEqual([expect.anything(), "description", "timeRequired"]);
+    expect(container.querySelector<HTMLButtonElement>(".row.on .obj-fix .save")!.disabled).toBe(true);
+    await press(`field-${T}`, sel("54.0", 410));
+    expect(container.querySelector(".row.on .obj-fix")!.textContent).toContain("Correcting · timeRequired 0.0 → 54.0");
+    expect(pane.props!.highlights.some((h) => h.id === `fix-${T}` && h.text === "54.0")).toBe(true);
+    await act(async () => container.querySelector<HTMLButtonElement>(".row.on .obj-fix .save")!.click());
+    expect(posted).toHaveLength(1);
+    expect(posted[0]).toMatchObject({ verdict: "wrong", target: { item: true, value_index: 2 }, expected: { located_by: "corrected in the Studio",
+      objects: [{ fields: { [D]: { text: "Total Course Lecture Hours", char_start: 200 }, [T]: { text: "54.0", char_start: 410 } } }] } });
+    expect(container.querySelector(".row.on .obj-fix")).toBeNull();
+    expect(container.querySelector(".row.on [data-testid=corrected-object]")!.textContent).toContain("54.0");
+  });
+
+  it("Esc drops the draft; clicking the selected duration again unselects it", async () => {
+    serve(detail(), rowsOf([row()]));
+    await render();
+    const second = () => container.querySelectorAll<HTMLElement>(".row.on [data-testid=object]")[1];
+    await act(async () => second().click());
+    await press(`field-${T}`, sel("1.0", 500));
+    await act(async () => { document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true })); });
+    expect(container.querySelector(".row.on .obj-fix")).toBeNull();
+    await act(async () => second().click());
+    await act(async () => second().click());
+    expect(container.querySelector(".row.on .item.obj.sel")).toBeNull();
+    expect(posted).toHaveLength(0);
+  });
+
+  it("✕ on an added duration takes it back; 1 marks every duration ✓, skipping those already ✓", async () => {
+    const add = { annotation_id: "an-9", type: "verdict" as const, verdict: "missing" as const, author: "Jared", at: "now", note: null,
+      rule_version_seen: 3, value_seen: null, expected: { text: "{}", css_path: P, char_start: 0, char_end: 3,
+        objects: [{ fields: { [D]: field("Total Course Field Hours", 700), [T]: field("12.0", 760) } }] } };
+    serve(detail(), rowsOf([row({ missing_items: [add] })]));
+    await render();
+    await act(async () => container.querySelector<HTMLButtonElement>(".row.on [aria-label='Remove the added duration']")!.click());
+    expect(posted[0]).toMatchObject({ verdict: "wrong", supersedes: "an-9", target: { item: true, value_index: null } });
+    expect(container.querySelector(".row.on [data-testid=added-object]")).toBeNull();
+    posted = [];
+    await act(async () => { document.dispatchEvent(new KeyboardEvent("keydown", { key: "1", bubbles: true })); });
+    expect(posted.map((e) => [e.verdict, (e.target as { value_index: number }).value_index])).toEqual(
+      [["correct", 1], ["correct", 2], ["correct", 3]]);  // In-Class was ✓ already
   });
 });
 

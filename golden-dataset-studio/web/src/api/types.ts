@@ -99,7 +99,7 @@ export type ComparedWith =
   | { kind: "ruleset"; ruleset: number; value: string | null };
 
 export interface EventBrief {
-  annotation_id: string; type: "verdict" | "comment" | "approve" | "reopen"; verdict: Verdict | null;
+  annotation_id: string; type: "verdict" | "comment" | "approve" | "reopen" | "reset"; verdict: Verdict | null;
   author: string; at: string; note: string | null; expected: Expected | null;
   rule_version_seen: number | null; value_seen: string | null; page_stem?: string | null; author_role?: string | null;
   compared_with?: ComparedWith | null; anchor?: Anchor | null;
@@ -112,6 +112,8 @@ export interface EventBrief {
  * (`checked`: the latest engineer's ✓, also the check an expert confirmed). */
 export interface ReviewMarks {
   human_reviewed?: boolean; engineer_checked?: boolean; human?: EventBrief | null; checked?: EventBrief | null;
+  /** the verdict Reset rule took back, on a row nobody has reviewed since (phase1-followups §4.1): a hint only */
+  before_reset?: EventBrief | null;
 }
 
 /** One value of a list property's row (property-rules spec §4.4): its own verdict. `value_index` orders it. */
@@ -175,7 +177,7 @@ export interface CourseDetail {
 
 /** What the client posts to /annotations. The server fills id, time, catalog, crawl, versions and value_seen. */
 export interface NewEvent {
-  type: "verdict" | "comment" | "approve" | "reopen";
+  type: "verdict" | "comment" | "approve" | "reopen" | "reset";
   author: string;
   target: { kind: "match" | "occurrence" | "page" | "rule" | "ruleset"; rule_id: string | null;
             occurrence_key?: string | null; page_stem?: string | null;
@@ -267,6 +269,14 @@ export interface ApprovePreview {
   publishes: boolean; rule_id: string; property?: string; column?: string | null; golden?: string;
   ruleset_version?: number; creates?: boolean; now?: string[]; after?: string[]; where?: string;
   values?: number; human?: number; rule?: number; path_shown?: string | null; xtra_extracts?: boolean | null;
+}
+/** What Reset rule would clear and keep (phase1-followups §4.3): the Reset rule dialog's numbers. */
+export interface ResetPreview {
+  rule_id: string; property: string | null;
+  counts: { correct: number; answered: number }; by_author: Record<string, number>;
+  kept: { wrong_no_answer: number; questions: number; comments: number };
+  approval: { by: string | null; at: string | null } | null;
+  column: { column: string | null; golden: string } | null;
 }
 /** The approve's answer: what it published (a column's rule) and the score it started. */
 export interface AnnotateResponse {
