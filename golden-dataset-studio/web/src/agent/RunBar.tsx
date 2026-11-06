@@ -10,7 +10,7 @@ import { Ico } from "../shell/icons";
 import { useReviewer } from "../shell/reviewer";
 import { href } from "../shell/router";
 import { toast } from "../shell/ui";
-import { compareOf,   agentApi, agentApi2, andNames, elapsed, endedIcon, endedLine, endedWords, LIVE, openRuns, ruleNames, scopeWords, waitingWords,
+import { compareOf, agentApi, agentApi2, andNames, elapsed, endedIcon, endedLine, endedWords, LIVE, openRuns, ruleNames, scopeWords, waitingWords,
   type AgentRun, type LiveRun, type ResolvedReport, type RunNote,
 } from "./api";
 import { openPrompt } from "../prompt/PromptModal";

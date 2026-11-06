@@ -311,17 +311,25 @@ describe("Report", () => {
     expect(posts).toHaveLength(0);  // the dialog starts it, not this button
   });
 
-  it("reverts only after the confirm, for anyone", async () => {
-    const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
+  it("reverts only after the confirm (the app's own dialog, not the browser's), for anyone", async () => {
+    const native = vi.spyOn(window, "confirm");
     await render();
     const revert = [...host.querySelectorAll<HTMLButtonElement>("[data-testid=report-foot] button")].find((b) => b.textContent === "Revert v10")!;
     await act(async () => revert.click());
-    expect(confirm).toHaveBeenCalledWith(REPORT.revert!.text);
+    const ask = host.querySelector("[data-testid=revert-ask]")!;
+    expect(ask.querySelector("h2")!.textContent).toBe("Revert v10?");
+    expect(ask.querySelector(".ac-body p")!.textContent).toBe(
+      "This publishes v11 with Credit Value and Credit Unit Type back to how they were in v9.");
+    // Cancel: nothing posted, the dialog closes
+    await act(async () => [...ask.querySelectorAll<HTMLButtonElement>("button")].find((b) => b.textContent === "Cancel")!.click());
+    expect(host.querySelector("[data-testid=revert-ask]")).toBeNull();
     expect(posts).toHaveLength(0);
-    confirm.mockReturnValue(true);
     await act(async () => revert.click());
+    await act(async () => host.querySelector<HTMLButtonElement>("[data-testid=revert-ask] .btn.primary")!.click());
     await flush();
     expect(posts).toEqual([{ url: "/api/catalogs/avc/rulesets/10/revert", body: { author: "Jared Diener" } }]);
+    expect(host.querySelector("[data-testid=revert-ask]")).toBeNull();
+    expect(native).not.toHaveBeenCalled();
   });
 
   it("has no Revert when the run published nothing, and says the ruleset is unchanged", async () => {

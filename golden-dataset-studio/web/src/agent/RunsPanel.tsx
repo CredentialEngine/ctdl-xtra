@@ -9,7 +9,7 @@ import "../prompt/prompt.css";
 import { Ico } from "../shell/icons";
 import { useReviewer } from "../shell/reviewer";
 import { href } from "../shell/router";
-import { compareOf,   agentApi, agentApi2, andNames, elapsed, LIVE, ordinal, scopeWords, type AgentRun, type Queue, type QueueRun, type RunDetail,
+import { compareOf, agentApi, agentApi2, andNames, elapsed, LIVE, ordinal, scopeWords, type AgentRun, type Queue, type QueueRun, type RunDetail,
 } from "./api";
 import { Report } from "./Report";
 import { openRunDialog } from "./RunDialog";
