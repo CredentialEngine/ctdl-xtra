@@ -4,6 +4,8 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { useEffect, useState } from "react";
+import { flushSync } from "react-dom";
 import { setIdentity } from "../shell/reviewer";
 import { compareOf, type AgentRun, type ReportRow, type ReportRows, type ResolvedReport, type RunNote } from "./api";
 import { Report } from "./Report";
@@ -367,6 +369,21 @@ describe("Compare for a run that rebased or ended after another run's publish (e
   });
 });
 
+// the panel as App shows it: a parent with its own hashchange listener, registered first, that re-renders at once and
+// passes a new onClose. In a browser React renders between two listeners of one hashchange (a discrete event, with a
+// microtask checkpoint after each listener); flushSync does the same here, where jsdom has no checkpoint between them.
+function Host({ onClosed }: { onClosed: () => void }) {
+  const [tick, setTick] = useState(0);
+  const [open, setOpen] = useState(false);
+  useEffect(() => {
+    const on = () => flushSync(() => setTick((t) => t + 1));
+    window.addEventListener("hashchange", on);
+    setOpen(true);  // the panel mounts after the parent's listener
+    return () => window.removeEventListener("hashchange", on);
+  }, []);
+  return <>{tick}{open && <RunsPanel catalog="avc" initial={RUN.run_id} onClose={() => { setOpen(false); onClosed(); }} />}</>;
+}
+
 describe("RunsPanel with reports", () => {
   it("renders a run's resolved report, and an older run's summary.md as before", async () => {
     await act(async () => root.render(<RunsPanel catalog="avc" initial={RUN.run_id} onClose={() => {}} />));
@@ -377,6 +394,20 @@ describe("RunsPanel with reports", () => {
     await act(async () => root.render(<RunsPanel catalog="avc" initial="old-run" onClose={() => {}} />));
     await flush();
     expect(host.querySelector("[data-testid=run-detail] .runs-report h2")!.textContent).toBe("Decisions for Eric");
+  });
+
+  it("closes on the first hashchange to another tab, with a parent that re-renders on it (e2e, 2026-11-05)", async () => {
+    location.hash = "#/c/avc/rules/course-credit-value";
+    const onClosed = vi.fn();
+    await act(async () => root.render(<Host onClosed={onClosed} />));
+    await flush();
+    expect(host.querySelector("[data-testid=run-report]")).not.toBeNull();
+    history.replaceState(null, "", "#/c/avc/compare?a=9&b=10");  // no event of its own (jsdom fires one for location.hash)
+    // one hashchange, dispatched as the browser does, outside act: React flushes the parent's discrete update during it
+    window.dispatchEvent(new HashChangeEvent("hashchange"));
+    await flush();
+    expect(onClosed).toHaveBeenCalledTimes(1);
+    expect(host.querySelector("[data-testid=run-report]")).toBeNull();
   });
 
   it("closes when a link in the report goes to another tab (Compare), not when the Rules tab's address changes", async () => {

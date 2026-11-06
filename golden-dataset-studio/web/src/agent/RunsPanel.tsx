@@ -57,13 +57,17 @@ export function RunsPanel({ catalog, initial, rule = null, ruleName = null, onCl
     window.addEventListener("keydown", on);
     return () => window.removeEventListener("keydown", on);
   }, [onClose]);
-  // a link in a report to another tab (Compare vN → vM, Values changed's Compare): show that tab, not this drawer
+  // a link in a report to another tab (Compare vN → vM, Values changed's Compare): show that tab, not this drawer.
+  // Subscribed once: App re-renders on the same hashchange (a discrete event, flushed during the dispatch), and a
+  // listener re-subscribed for a new onClose would be removed before the browser calls it.
   const openedOn = useRef(parseRoute(location.hash).tab);
+  const close = useRef(onClose);
+  close.current = onClose;
   useEffect(() => {
-    const on = () => { if (parseRoute(location.hash).tab !== openedOn.current) onClose(); };
+    const on = () => { if (parseRoute(location.hash).tab !== openedOn.current) close.current(); };
     window.addEventListener("hashchange", on);
     return () => window.removeEventListener("hashchange", on);
-  }, [onClose]);
+  }, []);
   const busy = !!queue && (queue.working.length > 0 || queue.waiting.length > 0);
   const title = only ? `AI runs on ${ruleName ?? only}` : busy ? "AI runs" : "Past AI runs";
   const item = (r: AgentRun) => (
