@@ -6,7 +6,7 @@ azs                  = ["us-east-1a", "us-east-1b"]
 single_nat_gateway   = true
 enable_vpc_flow_logs = true
 
-cluster_version = "1.35"
+cluster_version = "1.37"
 
 cluster_endpoint_private_access      = true
 cluster_endpoint_public_access       = true
