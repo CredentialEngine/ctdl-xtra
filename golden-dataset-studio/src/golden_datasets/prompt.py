@@ -63,9 +63,14 @@ LOCATOR_NAMING = (
 REPO = "https://github.com/CredentialEngine/ctdl-xtra.git"
 SUBDIR = "golden-dataset-studio"
 TARGETS = ("local", "azure", "k2")
-# k2: the remote agent (agent_runs.py) on K2, where SAS tokens for the shared root sit in this file
+# k2: the remote agent (agent_runs.py) on K2. Its workspaces are folders under K2_WORK, and the SAS tokens for the
+# shared root sit in `<K2_WORK>/golden-datasets.env`. $GOLDEN_DATASETS_K2_WORK names another folder (a K2 daemon on a
+# laptop, for a test).
 K2_WORK = "/var/lib/k2/work"
-K2_SAS_FILE = f"{K2_WORK}/golden-datasets.env"
+
+
+def k2_work() -> str:
+    return (os.environ.get("GOLDEN_DATASETS_K2_WORK") or K2_WORK).rstrip("/")
 TOPIC_NAME = {"new-rule": "suggests a new rule", "approach": "suggests an approach",
               "question-rule": "questions this rule", "other": "comment", None: "comment"}
 
@@ -228,7 +233,7 @@ def _run_dir(run: dict | None) -> str:
     """This run's folder on K2: absolute, because Claude Code moves the shell back to the workspace folder whenever a
     command leaves it, so every command `cd`s here first."""
     agent = ((run or {}).get("k2") or {}).get("agent") or "golden-rules"
-    return f"{K2_WORK}/{agent}/runs/{_run_id(run)}"
+    return f"{k2_work()}/{agent}/runs/{_run_id(run)}"
 
 
 def _run_header(run: dict | None, ctx: Ctx) -> list[str]:
@@ -339,7 +344,7 @@ def _setup_k2(ctx: Ctx, root_uri: str, first_rule: str, check: str | None, run: 
     check = (check or f"golden-datasets rule show {first_rule}").replace("golden-datasets ", "./bin/golden-datasets ", 1)
     return ["## Setup", "",
             f"`golden-datasets` reads its settings from `{ENV_FILE}` files in the current folder and its parents. "
-            f"Azure access is set up on this machine: SAS tokens for the storage containers are in `{K2_SAS_FILE}`, "
+            f"Azure access is set up on this machine: SAS tokens for the storage containers are in `{k2_work()}/{ENV_FILE}`, "
             "which every folder below it reads. No `az login`.", "",
             "1. Make this run's folder, install this run's own copy of the CLI into it (uv is installed; another run "
             "may be installing its copy at the same time, so never install into the shared tool folder), and name "

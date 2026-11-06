@@ -484,3 +484,15 @@ def test_prompt_for_rules_to_improve_with_a_per_run_install(cat):
     cl = TestClient(create_app(str(cat)))
     one = cl.get(f"/api/catalogs/{m.CAT}/prompt?rules={CV}").json()
     assert one["rules"] == [CV] and one["text"].startswith(f"# Improve rule `{CV}`")
+
+
+def test_prompt_paths_follow_the_k2_work_folder(cat, monkeypatch):
+    """$GOLDEN_DATASETS_K2_WORK moves the run folder and the SAS file (a K2 daemon on a laptop, for a test)."""
+    monkeypatch.setenv("GOLDEN_DATASETS_K2_WORK", "/private/tmp/k2e2e/work/")
+    run = {"run_id": "20261106T150000Z-ab12", "started_by": "Jared Diener", "k2": {"agent": "golden-rules"}}
+    text = build_prompt(m.ctx(cat), rules=[CV], target="k2", run=run)["text"]
+    d = "/private/tmp/k2e2e/work/golden-rules/runs/20261106T150000Z-ab12"
+    assert f"mkdir -p {d} && cd {d} && UV_TOOL_DIR={d}/.tools" in text
+    assert "SAS tokens for the storage containers are in `/private/tmp/k2e2e/work/golden-datasets.env`" in text
+    assert f"cd {d} && ./bin/golden-datasets run done --report report.json" in text
+    assert "/var/lib/k2" not in text

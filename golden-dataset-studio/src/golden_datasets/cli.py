@@ -328,7 +328,8 @@ def build_parser() -> argparse.ArgumentParser:
                    help="K2 server running the remote agent (key: GOLDEN_DATASETS_K2_KEY); unset = runs are off and "
                         "run buttons open the prompt")
     p.add_argument("--k2-agent", default=os.environ.get("GOLDEN_DATASETS_K2_AGENT", "golden-rules"),
-                   help="the K2 workspace whose agent runs the prompts")
+                   help="the K2 workspace whose agent runs the prompts; its folder is <K2 work>/<workspace>, where "
+                        "<K2 work> is $GOLDEN_DATASETS_K2_WORK, else /var/lib/k2/work (the run prompt's paths)")
     p.add_argument("--agent-run-minutes", type=int, default=90, help="a run ends as timed out after this long")
     p.add_argument("--k2-max-runs", type=int, default=int(os.environ.get("GOLDEN_DATASETS_K2_MAX_RUNS") or 2),
                    help="AI runs working at once, all catalogs (default: $GOLDEN_DATASETS_K2_MAX_RUNS, else 2); set "
