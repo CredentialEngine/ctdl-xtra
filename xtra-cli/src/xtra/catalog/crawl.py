@@ -50,6 +50,7 @@ from xtra.catalog.crawl_status import main as status_command
 from xtra.catalog.crawl_summary import main as summary_command
 from xtra.click import (
     POSITIVE_INT,
+    blank_as_unset,
     crawl_pacing_options,
     env_option,
     limit_option,
@@ -153,11 +154,13 @@ def check_scope_prefix(url: str, scope_prefix: str | None) -> None:
 @click.option(
     "--from-run-id",
     default=None,
+    callback=blank_as_unset,
     help=(
         "An earlier run of the same --url to continue from. Each page it "
         "saved is copied into this run when the crawl reaches it, instead "
         "of fetched; its failed and skipped URLs, and any bot-challenge "
-        "page it kept, are fetched again. The earlier run is only read."
+        "page it kept, are fetched again. The earlier run is only read. "
+        "An empty value is the same as leaving it out."
     ),
 )
 @limit_option()
