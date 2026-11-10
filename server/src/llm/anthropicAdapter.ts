@@ -3,6 +3,7 @@ import { JSONSchema } from "../../../common/catalogueTypes";
 import { Provider, ProviderModel } from "../../../common/types";
 import { getAnthropic, textFromAnthropicMessage } from "../anthropic";
 import getLogger from "../logging";
+import { normalizeStrictJsonSchema, toolParametersJsonSchema } from "./jsonSchema";
 import { ANTHROPIC_MAX_TOKENS, usesForcedToolChoice } from "./models";
 import {
   LlmContentPart,
@@ -130,12 +131,10 @@ function toolObjectSchema(
   parameters: ToolCallParameters,
   requiredParameters?: Array<string | number | symbol>
 ): Anthropic.Tool.InputSchema {
-  return {
-    type: "object",
-    properties: parameters,
-    required: (requiredParameters as string[] | undefined) ?? [],
-    additionalProperties: false,
-  };
+  return toolParametersJsonSchema(
+    parameters,
+    (requiredParameters as string[] | undefined) ?? []
+  ) as Anthropic.Tool.InputSchema;
 }
 
 function parseJsonText(text: string): unknown {
@@ -216,7 +215,7 @@ async function structuredJsonCompletion(
       output_config: {
         format: {
           type: "json_schema",
-          schema,
+          schema: normalizeStrictJsonSchema(schema),
         },
       },
     },
