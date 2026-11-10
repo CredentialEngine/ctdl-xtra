@@ -8,9 +8,12 @@
 
   xtra catalog crawl summary --url https://catalog.example.edu --run-id <run-id>
 
+  xtra catalog crawl navigation --url https://catalog.example.edu --run-id <run-id>
+
 Download and save. The crawl does not classify pages, name an institution,
 or normalize anything; discovery and extraction read what it saved.
-`crawl status` counts what a run has done so far, `crawl summary` lists it.
+`crawl status` counts what a run has done so far, `crawl summary` lists it,
+`crawl navigation` maps which source URL led to which target URLs.
 """
 
 from __future__ import annotations
@@ -42,6 +45,7 @@ from implementations.crawl_fetchers import (
 )
 from implementations.crawl_manifest import ManifestError
 from implementations.crawl_strategy import strategy_facts
+from xtra.catalog.crawl_navigation import main as navigation_command
 from xtra.catalog.crawl_status import main as status_command
 from xtra.catalog.crawl_summary import main as summary_command
 from xtra.click import (
@@ -126,7 +130,7 @@ def check_scope_prefix(url: str, scope_prefix: str | None) -> None:
 @click.group(
     name="crawl",
     invoke_without_command=True,
-    subcommand_metavar="[status|summary [OPTIONS]]",
+    subcommand_metavar="[status|summary|navigation [OPTIONS]]",
 )
 @strategy_options(
     "playwright", "crawl4ai", "firecrawl", "ai-agent", "third-party"
@@ -270,8 +274,10 @@ def main(
     stops, start a new run with --from-run-id naming it, and the pages it
     saved are copied instead of fetched again.
 
-    `xtra catalog crawl status` counts what a run has done so far, and
-    `xtra catalog crawl summary` lists it, one row per URL.
+    `xtra catalog crawl status` counts what a run has done so far,
+    `xtra catalog crawl summary` lists it, one row per URL, and
+    `xtra catalog crawl navigation` writes navigation.json, the source
+    URL each URL was first found on, from the pages a run saved.
     """
     if ctx.invoked_subcommand is not None:
         refuse_crawl_options_before_a_subcommand(ctx)
@@ -361,6 +367,7 @@ def main(
 
 main.add_command(status_command, name="status")
 main.add_command(summary_command, name="summary")
+main.add_command(navigation_command, name="navigation")
 
 
 if __name__ == "__main__":

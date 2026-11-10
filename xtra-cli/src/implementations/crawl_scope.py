@@ -170,6 +170,15 @@ class Scope:
         return self.rejection(url) is None
 
 
+LINK_TEXT_LIMIT = 200
+
+
+@dataclass(frozen=True)
+class LinkRecord:
+    url: str
+    text: str
+
+
 class _LinkParser(HTMLParser):
     """href of a, area, and link rel=next, plus any base href."""
 
@@ -177,6 +186,10 @@ class _LinkParser(HTMLParser):
         super().__init__(convert_charrefs=True)
         self.base: str | None = None
         self.hrefs: list[str] = []
+        self.texts: list[str] = []
+        self._reading_anchor = False
+        self._anchor_index = 0
+        self._anchor_parts: list[str] = []
 
     def handle_starttag(
         self, tag: str, attrs: list[tuple[str, str | None]]
@@ -187,28 +200,66 @@ class _LinkParser(HTMLParser):
             if href and self.base is None:
                 self.base = href
             return
+        if tag == "img" and self._reading_anchor:
+            self._anchor_parts.append(values.get("alt") or "")
+            return
+        text = ""
         if tag in {"a", "area"}:
             href = (values.get("href") or "").strip()
+            if tag == "area":
+                text = values.get("alt") or ""
         elif tag == "link":
             rel = (values.get("rel") or "").lower().split()
             href = (values.get("href") or "").strip() if "next" in rel else ""
+            text = "next"
         else:
             return
-        if href:
-            self.hrefs.append(href)
+        if not href:
+            return
+        if tag == "a":
+            self._finish_anchor()
+            self._reading_anchor = True
+            self._anchor_index = len(self.hrefs)
+        self.hrefs.append(href)
+        self.texts.append(text)
+
+    def handle_data(self, data: str) -> None:
+        if self._reading_anchor:
+            self._anchor_parts.append(data)
+
+    def handle_endtag(self, tag: str) -> None:
+        if tag == "a":
+            self._finish_anchor()
+
+    def close(self) -> None:
+        super().close()
+        self._finish_anchor()
+
+    def _finish_anchor(self) -> None:
+        if not self._reading_anchor:
+            return
+        text = " ".join(" ".join(self._anchor_parts).split())
+        self.texts[self._anchor_index] = text[:LINK_TEXT_LIMIT]
+        self._reading_anchor = False
+        self._anchor_parts = []
 
 
-def extract_links(html: str, base_url: str) -> list[str]:
-    """Absolute, fragment-free links in document order, first sighting only."""
+def extract_link_records(html: str, base_url: str) -> list[LinkRecord]:
+    """extract_links, with each link's text from its first sighting."""
     parser = _LinkParser()
     parser.feed(html)
     parser.close()
     base = urljoin(base_url, parser.base) if parser.base else base_url
     seen: set[str] = set()
-    links: list[str] = []
-    for href in parser.hrefs:
+    records: list[LinkRecord] = []
+    for href, text in zip(parser.hrefs, parser.texts, strict=True):
         absolute = urldefrag(urljoin(base, href)).url
         if absolute and absolute not in seen:
             seen.add(absolute)
-            links.append(absolute)
-    return links
+            records.append(LinkRecord(url=absolute, text=text))
+    return records
+
+
+def extract_links(html: str, base_url: str) -> list[str]:
+    """Absolute, fragment-free links in document order, first sighting only."""
+    return [record.url for record in extract_link_records(html, base_url)]
