@@ -20,8 +20,8 @@ export interface Annotators {
   waiting: number; experts?: number; engineers?: number; rules: Record<string, number> | null;
 }
 
-async function get<T>(path: string): Promise<T> {
-  const r = await fetch(path);
+async function get<T>(path: string, signal?: AbortSignal): Promise<T> {
+  const r = await fetch(path, { signal });
   if (!r.ok) {
     let detail = r.statusText;
     try { detail = (await r.json()).detail ?? detail; } catch { /* not JSON */ }
@@ -48,6 +48,7 @@ export const apiX = {
     get<RowsX>(`${c(catalog)}/rules/${encodeURIComponent(ruleId)}/rows${qs(o)}`),
   pageSearch: (catalog: string, q: string, rule: string) => get<PageHit[]>(`${c(catalog)}/page-search${qs({ q, rule })}`),
   courses: (catalog: string, q?: string, by?: string | null) => get<CourseHitX[]>(`${c(catalog)}/courses${qs({ q, limit: 400, by })}`),
-  annotators: (catalog: string, o: { by?: string | null; verdict?: string | null; ext?: string | null } = {}) =>
-    get<Annotators>(`${c(catalog)}/annotators${qs(o)}`),
+  annotators: (catalog: string, o: { by?: string | null; verdict?: string | null; ext?: string | null } = {},
+               signal?: AbortSignal) =>
+    get<Annotators>(`${c(catalog)}/annotators${qs(o)}`, signal),
 };

@@ -512,8 +512,7 @@ def annotators(request: Request, catalog: str, ext: str | None = None, by: str |
     `by` or `verdict`, `rules` {rule_id: rows that pass the filter} for the rule list."""
     rv = _review(request, catalog, ext)
     out = rv.people()
-    out["rules"] = ({rid: sum(1 for a in rv.annotations(rid).values() if annotated_match(a, by, verdict))
-                     for rid in rv.snap.rules} if by or verdict else None)
+    out["rules"] = {rid: rv.annotated_count(rid, by, verdict) for rid in rv.snap.rules} if by or verdict else None
     return out
 
 

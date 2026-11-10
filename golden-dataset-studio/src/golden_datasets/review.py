@@ -51,6 +51,11 @@ NOBODY, WAITING, EXPERTS, ENGINEERS = "nobody", "waiting", "experts", "engineers
 
 #: Rule statuses, see Review.rule_status. Cleared when a profile's role changes (Loader.forget_reviews).
 STATUS_CACHE: dict[tuple, dict] = {}
+# Per (extraction, parent, rule, the rule's live events): what the "Annotated by" dropdown counts on that rule, and the
+# rule list's count for each filter asked for (Review.people, Review.annotated_count). Small, so it outlives Reviews: a
+# verdict recounts only its own rule. The per-rule caches of a Review keep only a few rules, so walking every rule for
+# the dropdown used to rebuild every rule's rows and row states on each call (6-12 s on Marshall).
+PEOPLE_CACHE: dict[tuple, dict] = {}
 
 
 def norm(v: str | None) -> str:
@@ -224,12 +229,36 @@ class Snapshot:
             self._rows[rule_id] = rows = self._build_rows(rule_id)
         return rows
 
-    def _build_rows(self, rule_id: str) -> list[dict]:
+    def has_rows(self, rule_id: str) -> bool:
+        """Whether the rule has any row, without building them."""
+        rows = self._rows.get(rule_id)
+        if rows is not None:
+            return bool(rows)
+        rule = self.rules[rule_id]
+        if rule["kind"] == "property":
+            if rule["definition"].get("rule_type") == "none":
+                return bool(self.occ_by_locator.get(rule["definition"]["locator"]))
+            return any(not m["value_index"] for m in self.matches_by_rule.get(rule_id, []))
+        if rule["kind"] == "locator":
+            return bool(self.occ_by_locator.get(rule_id))
+        return bool(self.labels_by_rule.get(rule_id))
+
+    def rows_on(self, rule_id: str, stems: set[str]) -> list[dict]:
+        """The rule's rows on these pages, as `rows` has them; built for those pages alone when the rule's rows aren't
+        cached (the cache keeps only a few rules, and one verdict's golden file needs one page of every rule)."""
+        rows = self._rows.get(rule_id)
+        if rows is not None:
+            return [r for r in rows if r["page_stem"] in stems]
+        return self._build_rows(rule_id, stems)
+
+    def _build_rows(self, rule_id: str, stems: set[str] | None = None) -> list[dict]:
         rule = self.rules[rule_id]
         out = []
         if rule["kind"] == "property":
             if rule["definition"].get("rule_type") == "none":  # no rule yet: a row per course, to annotate (§4.6)
                 for o in self.occ_by_locator.get(rule["definition"]["locator"], []):
+                    if stems is not None and o["page_stem"] not in stems:
+                        continue
                     out.append({"key": o["occurrence_key"], "occurrence_key": o["occurrence_key"],
                                 "course_key": o["course_key"], "page_stem": o["page_stem"], "value": None,
                                 "status": "none", "css_path": None, "char_start": None, "char_end": None,
@@ -238,7 +267,7 @@ class Snapshot:
                 return out
             is_list = bool(rule["definition"].get("multiple"))
             for m in self.matches_by_rule.get(rule_id, []):
-                if m["value_index"]:
+                if m["value_index"] or (stems is not None and m["page_stem"] not in stems):
                     continue  # a list: one row per course, its items below
                 o = self.occurrences[m["occurrence_key"]]
                 row = {"key": m["occurrence_key"], "occurrence_key": m["occurrence_key"],
@@ -257,6 +286,8 @@ class Snapshot:
                 out.append(row)
         elif rule["kind"] == "locator":
             for o in self.occ_by_locator.get(rule_id, []):
+                if stems is not None and o["page_stem"] not in stems:
+                    continue
                 sig = list(self.signals_by_target.get((rule_id, o["occurrence_key"]), []))
                 sig += [s for s in self.page_signals.get(o["page_stem"], []) if s["rule_id"] == rule_id]
                 out.append({"key": o["occurrence_key"], "occurrence_key": o["occurrence_key"],
@@ -266,8 +297,8 @@ class Snapshot:
                             "occurrence_css_path": o["css_path"], "locator_index": o["locator_index"],
                             "context": self.page[o["page_stem"]]["title"], "signals": sig})
         else:
-            stems = [lb["page_stem"] for lb in self.labels_by_rule.get(rule_id, [])]
-            for stem in stems:
+            for stem in [lb["page_stem"] for lb in self.labels_by_rule.get(rule_id, [])
+                         if stems is None or lb["page_stem"] in stems]:
                 p = self.page[stem]
                 out.append({"key": stem, "occurrence_key": None, "course_key": None, "page_stem": stem,
                             "value": p["title"], "status": "found", "css_path": None, "char_start": None,
@@ -465,7 +496,11 @@ class Review:
                 out[r["key"]] = sorted(other)
         return out
 
-    def row_states(self, rule_id: str, rows: list[dict]) -> dict[str, RowState]:
+    def row_states(self, rule_id: str, rows: list[dict], stems: set[str] | None = None) -> dict[str, RowState]:
+        """Each row's state. `stems`: `rows` are the rule's rows on these pages (`Snapshot.rows_on`), and nothing
+        builds the rule's other rows, here or in the parent; their states are those the whole rule's rows get."""
+        if stems is not None:
+            return self._row_states(rule_id, rows, stems)
         if rows is self.snap.rows(rule_id):
             states = self._states.get(rule_id)
             if states is None:
@@ -473,7 +508,7 @@ class Review:
             return states
         return self._row_states(rule_id, rows)
 
-    def _row_states(self, rule_id: str, rows: list[dict]) -> dict[str, RowState]:
+    def _row_states(self, rule_id: str, rows: list[dict], stems: set[str] | None = None) -> dict[str, RowState]:
         rule = self.snap.rules[rule_id]
         v = self.verdicts_for(rule_id)
         latest, expert, comments, every = v["latest"], v["expert"], v["comments"], v["all"]
@@ -502,8 +537,14 @@ class Review:
         item_events = self.item_events(rule_id) if rule["kind"] == "property" \
             and rule["definition"].get("multiple") else {}
         parent_values = {}
+        parent_has_rows = False
         if self.parent is not None and rule_id in self.parent.rules:
-            parent_values = {r["key"]: r["value"] for r in self.parent.rows(rule_id)}
+            if stems is None:
+                parent_values = {r["key"]: r["value"] for r in self.parent.rows(rule_id)}
+                parent_has_rows = bool(parent_values)
+            else:  # a row's key names its page, so the parent's rows on the same pages are the ones that can match
+                parent_values = {r["key"]: r["value"] for r in self.parent.rows_on(rule_id, stems)}
+                parent_has_rows = self.parent.has_rows(rule_id)
         out = {}
         for row in rows:
             st = RowState()
@@ -538,7 +579,7 @@ class Review:
                 if es:
                     self._item_states(rule_id, row, es, st)
             if self.parent is not None:
-                if row["key"] not in parent_values and parent_values:
+                if row["key"] not in parent_values and parent_has_rows:
                     st.history.append(_h("new-in-version", f"not in {self.parent.ext}"))
             if st.state in ("wrong", "still-wrong", "fixed"):
                 st.history.append(_h("previously-wrong", "marked wrong"))
@@ -726,6 +767,34 @@ class Review:
             self._annotations[rule_id] = cached = out
         return cached
 
+    def _people_entry(self, rule_id: str) -> dict:
+        """PEOPLE_CACHE's entry for this rule: its counts for the dropdown, filled in on first use."""
+        key = (self.snap.ctx.root.uri, self.snap.ctx.catalog, self.snap.ext,
+               self.parent.ext if self.parent is not None else None, rule_id, tuple(self._by_rule.get(rule_id, ())))
+        got = PEOPLE_CACHE.get(key)
+        if got is None:
+            values: Counter = Counter()
+            waiting = experts = engineers = 0
+            for a in self.annotations(rule_id).values():
+                values.update(list(a["people"]))
+                waiting += a["waiting"]
+                experts += annotated_match(a, EXPERTS, None)
+                engineers += annotated_match(a, ENGINEERS, None)
+            if len(PEOPLE_CACHE) > 20_000:
+                PEOPLE_CACHE.clear()
+            got = PEOPLE_CACHE[key] = {"values": values, "waiting": waiting, "experts": experts,
+                                       "engineers": engineers, "counts": {}}
+        return got
+
+    def annotated_count(self, rule_id: str, by: str | None, verdict: str | None) -> int:
+        """How many of the rule's rows pass the "Annotated by" filter (the rule list's counts)."""
+        entry = self._people_entry(rule_id)
+        n = entry["counts"].get((by, verdict))
+        if n is None:
+            n = entry["counts"][(by, verdict)] = sum(1 for a in self.annotations(rule_id).values()
+                                                     if annotated_match(a, by, verdict))
+        return n
+
     def people(self) -> dict:
         """The "Annotated by" dropdown: every profile and everyone who annotated a value, with their role and how many
         property values they annotated, and how many values an engineer checked are waiting for an expert."""
@@ -734,11 +803,11 @@ class Review:
         for rid, r in self.snap.rules.items():
             if r["kind"] != "property":
                 continue
-            for a in self.annotations(rid).values():
-                values.update(list(a["people"]))
-                waiting += a["waiting"]
-                experts += annotated_match(a, EXPERTS, None)
-                engineers += annotated_match(a, ENGINEERS, None)
+            e = self._people_entry(rid)
+            values.update(e["values"])
+            waiting += e["waiting"]
+            experts += e["experts"]
+            engineers += e["engineers"]
         names = set(self.roles) | set(values)
         return {"people": sorted(({"name": n, "role": self.roles.get(n) or "engineer", "values": values[n]}
                                   for n in names), key=lambda p: (p["role"] != "sme", -p["values"], p["name"])),
@@ -783,6 +852,21 @@ def _h(signal: str, detail: str) -> dict:
     from .signals import CATALOG
 
     return {"signal": signal, "severity": CATALOG[signal][1], "detail": detail, "history": True}
+
+
+def release_memory() -> None:
+    """Free what an evicted snapshot held and give it back to the OS. glibc keeps freed heap for reuse, so without
+    this the server's memory only grew: it sat at 2.9 of its 3 GiB with nobody using it, and opening WVU on top got it
+    OOM-killed. A no-op where there is no glibc (macOS)."""
+    import ctypes
+    import ctypes.util
+    import gc
+
+    gc.collect()
+    try:
+        ctypes.CDLL(ctypes.util.find_library("c") or "libc.so.6").malloc_trim(0)
+    except (OSError, AttributeError):
+        pass
 
 
 class Loader:
@@ -849,11 +933,16 @@ class Loader:
         slots = self.MAX_SNAPSHOTS - (1 if incoming else 0)
         keep = self.KEEP - (1 if incoming else 0)
         total = incoming + sum(self.weight(s) for s in self._snaps.values())
+        dropped = False
         while len(self._snaps) > keep and (len(self._snaps) > slots or total > self.budget):
             _, snap = self._snaps.popitem(last=False)
             total -= self.weight(snap)
             self._reviews = {k: rv for k, rv in self._reviews.items()
                              if rv.snap is not snap and rv.parent is not snap}
+            dropped = True
+        if dropped:
+            del snap
+            release_memory()
 
     def cached_extractions(self) -> list[tuple]:
         """(catalog, crawl, extraction) of the snapshots kept now, least recently used first."""
@@ -893,6 +982,7 @@ class Loader:
             self._reviews.clear()
             self.generation += 1
         STATUS_CACHE.clear()
+        PEOPLE_CACHE.clear()
 
 
 LOADER = Loader()

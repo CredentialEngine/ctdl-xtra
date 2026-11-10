@@ -36,6 +36,9 @@ import { useAiStat } from "../agent/AiStat";
 import { openRunDialog } from "../agent/RunDialog";
 import "./rules.css";
 
+/** How long after the last verdict the "Annotated by" counts are fetched again. */
+const ANNOTATORS_SETTLE_MS = 1500;
+
 const FIRST_PAGE = 100;
 const MORE = 200;
 const PREFETCH = 4;
@@ -158,8 +161,21 @@ export default function RulesTab({ catalog, route }: TabProps) {
   const verdict = route.params.get("v");
   const setFilter = (o: { by?: string | null; v?: string | null }) => go(href(cat, "rules", ruleId, { ext, by, v: verdict, ...o }));
   const [saved, setSaved] = useState(0);  // verdicts saved here: the rule list's counts and the experts' note follow
+  // After a verdict the counts follow once the clicks stop (ANNOTATORS_SETTLE_MS), not once per click: each refetch
+  // makes the server recount the catalog, and quick ✓s used to pile up those requests behind the next verdict.
+  // A newer fetch cancels the older one, whose result never lands.
+  const peopleFor = useRef<string | null>(null);
   useEffect(() => {
-    apiX.annotators(cat, { by, verdict, ext }).then(setPeople, () => setPeople(null));
+    const filter = JSON.stringify([cat, by, verdict, ext]);
+    const settle = peopleFor.current === filter;  // only `saved` changed
+    peopleFor.current = filter;
+    const ac = new AbortController();
+    const t = setTimeout(() => {
+      apiX.annotators(cat, { by, verdict, ext }, ac.signal).then(
+        (p) => { if (!ac.signal.aborted) setPeople(p); },
+        () => { if (!ac.signal.aborted) setPeople(null); });
+    }, settle ? ANNOTATORS_SETTLE_MS : 0);
+    return () => { clearTimeout(t); ac.abort(); };
   }, [cat, by, verdict, ext, saved]);
   const prefs = prefsOf.rule === ruleId ? prefsOf.p : DEFAULT_PREFS;
   const setPrefs = useCallback((p: SamplePrefs) => setPrefsOf({ rule: ruleId, p }), [ruleId]);
