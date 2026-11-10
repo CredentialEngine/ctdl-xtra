@@ -17,11 +17,14 @@ from __future__ import annotations
 import hashlib
 import logging
 import random
+import signal
+import threading
 import time
 from collections import Counter, deque
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
 from concurrent.futures import FIRST_COMPLETED, Future
 from concurrent.futures import wait as wait_for_futures
+from contextlib import contextmanager
 from dataclasses import dataclass, field
 from typing import Any
 from urllib.parse import urlsplit, urlunsplit
@@ -108,6 +111,29 @@ BLOCKING_STATUSES = frozenset({401, 403, 429})
 POLL_SECONDS = 1.0
 TOP_PATH_SEGMENTS = 20
 EXIT_INTERRUPTED = 130
+
+
+class StopSignal(KeyboardInterrupt):
+    """SIGTERM, which Kubernetes sends before it deletes a pod."""
+
+
+def _raise_stop_signal(signum: int, frame: object) -> None:
+    signal.signal(signal.SIGTERM, signal.SIG_IGN)
+    raise StopSignal
+
+
+@contextmanager
+def stop_signal_as_interrupt() -> Iterator[None]:
+    if threading.current_thread() is not threading.main_thread():
+        yield
+        return
+    previous = signal.getsignal(signal.SIGTERM)
+    signal.signal(signal.SIGTERM, _raise_stop_signal)
+    try:
+        yield
+    finally:
+        signal.signal(signal.SIGTERM, previous)
+
 
 # --url first, then the sitemap, then the site's own page index (a
 # CurriQunet catalog's navigation tree), then --seed-urls-file, then links
@@ -1147,11 +1173,13 @@ class Crawler:
         stop_reason = ""
         try:
             status = self.work(pool, policy)
-        except KeyboardInterrupt:
+        except KeyboardInterrupt as exc:
             interrupted = True
             status = STATUS_INCOMPLETE
             logger.warning(
-                "INTERRUPTED writing crawl.json; continue with a new run: %s",
+                "INTERRUPTED by %s, writing crawl.json; continue with a new "
+                "run: %s",
+                "SIGTERM" if isinstance(exc, StopSignal) else "Ctrl+C",
                 self._next_run_hint(),
             )
             # Now, not only after the browsers close: closing waits for the
@@ -1229,4 +1257,5 @@ def _exit_reason(
 
 def run_crawl(settings: CrawlSettings, **kwargs: Any) -> CrawlOutcome:
     """Crawl one catalog into object storage and report how it went."""
-    return Crawler(settings, **kwargs).run()
+    with stop_signal_as_interrupt():
+        return Crawler(settings, **kwargs).run()

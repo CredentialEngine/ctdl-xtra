@@ -12,6 +12,7 @@ from common.keys import (
     failed_meta_key,
     jsonld_key,
     manifest_key,
+    navigation_key,
     page_html_key,
     page_meta_key,
     page_stem,
@@ -122,6 +123,13 @@ def test_failed_and_skipped_urls_sit_in_subfolders_of_pages() -> None:
         f"{pages}/skipped/x.meta.json"
     )
     assert manifest_key(CATALOG, RUN) == f"{CATALOG}/{RUN_PATH}/manifest.json"
+
+
+def test_the_navigation_map_sits_beside_crawl_json() -> None:
+    assert navigation_key(CATALOG, RUN) == (
+        f"{CATALOG}/{RUN_PATH}/navigation.json"
+    )
+    assert navigation_key(CATALOG, RUN_PATH) == navigation_key(CATALOG, RUN)
 
 
 def test_the_old_run_records_are_gone() -> None:

@@ -29,6 +29,15 @@ def non_empty_string(ctx, param, value):
     return normalized
 
 
+def blank_as_unset(ctx, param, value):
+    if value is None:
+        return value
+    normalized = value.strip()
+    if not normalized:
+        return None
+    return normalized
+
+
 def non_empty_strings(ctx, param, value):
     """The same, for a repeatable option, which arrives as a tuple."""
     if not value:
