@@ -114,8 +114,7 @@ EXIT_INTERRUPTED = 130
 
 
 class StopSignal(KeyboardInterrupt):
-    """SIGTERM, which Kubernetes sends before it deletes a pod.
-    """
+    """SIGTERM, which Kubernetes sends before it deletes a pod."""
 
 
 def _raise_stop_signal(signum: int, frame: object) -> None:
