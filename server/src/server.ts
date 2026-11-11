@@ -23,7 +23,10 @@ import getLogger from "./logging";
 import { createContext } from "./trpcContext";
 
 const logger = getLogger("server");
-const server = fastify();
+const server = fastify({
+  // Fastify 4: top-level option (v5 uses routerOptions). tRPC batches procedure names in one path segment.
+  maxParamLength: 5000,
+});
 
 let airbrake: Airbrake.Notifier | undefined;
 
