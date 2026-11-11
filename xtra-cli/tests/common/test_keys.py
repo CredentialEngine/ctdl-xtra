@@ -9,6 +9,8 @@ from common.keys import (
     crawl_key,
     dedupe_key,
     expected_key,
+    extract_property_prefix,
+    extract_resource_key,
     failed_meta_key,
     jsonld_key,
     manifest_key,
@@ -16,6 +18,8 @@ from common.keys import (
     page_meta_key,
     page_stem,
     pages_prefix,
+    property_extract_report_key,
+    property_key,
     record_key,
     run_prefix,
     skipped_meta_key,
@@ -136,3 +140,40 @@ def test_the_old_run_records_are_gone() -> None:
         "failed_key",
     ):
         assert not hasattr(keys, name), name
+
+
+@pytest.mark.parametrize(
+    ("prop", "key"),
+    [
+        ("ceterms:name", "ceterms_name"),
+        ("ceterms:codedNotation", "ceterms_codedNotation"),
+        ("ceasn:name", "ceasn_name"),
+        (
+            "ceterms:creditValue > schema:value",
+            "ceterms_creditValue__schema_value",
+        ),
+    ],
+)
+def test_a_property_key_is_named_the_way_ce_names_its_schema_files(
+    prop: str, key: str
+) -> None:
+    """Schema-Development writes Split/properties/ceterms_name.jsonld."""
+    assert property_key(prop) == key
+
+
+def test_the_extraction_report_sits_beside_records_named_for_its_property() -> (
+    None
+):
+    assert property_extract_report_key(CATALOG, RUN, "ceterms:name") == (
+        f"{CATALOG}/{RUN_PATH}/extraction-ceterms_name-report.json"
+    )
+
+
+def test_a_property_files_sit_in_the_folder_of_its_prefix_and_key() -> None:
+    prefix = extract_property_prefix(CATALOG, RUN, "ceterms:name")
+    assert prefix == (
+        f"{CATALOG}/{RUN_PATH}/extraction_report/ceterms/ceterms_name"
+    )
+    assert extract_resource_key(CATALOG, RUN, "ceterms:name", "c_A1") == (
+        f"{prefix}/c_A1.json"
+    )

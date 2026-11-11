@@ -104,7 +104,7 @@ To run one command elsewhere without changing the active environment, pass `--en
 
 ```bash
 xtra catalog crawl --with-playwright --env sandbox --url https://catalog.brookdalecc.edu --limit 5
-XTRA_ENV=test xtra catalog extract --with-template --catalog-id brookdalecc --run-id 2026-09-14T18:12:00Z
+XTRA_ENV=test xtra catalog extract ceterms:name --catalog-id brookdalecc --run-id 2026-09-14T18:12:00Z
 ```
 
 Resolution order for every run, highest first:
@@ -151,10 +151,12 @@ xtra catalog crawl summary -> src/xtra/catalog/crawl_summary.py
   --with-crawl4ai       -> src/implementations/crawl_crawl4ai.py
   --with-firecrawl      -> src/implementations/crawl_firecrawl.py
 xtra catalog discover   -> src/xtra/catalog/discover.py
-xtra catalog extract    -> src/xtra/catalog/extract.py
+xtra catalog extract PROPERTY -> src/xtra/catalog/extract/__init__.py
+  ceterms:name          -> src/xtra/catalog/extract/ceterms/ceterms_name.py
 xtra catalog transform  -> src/xtra/catalog/transform.py
 xtra score extraction match -> src/xtra/scoring/extraction/match.py
   --exactly / --partially   -> src/implementations/score_extraction_match.py
+  reads extraction_report/  -> src/implementations/score_extraction_transform.py
 ```
 
 ### Crawl
@@ -597,7 +599,7 @@ xtra catalog discover --catalog-id catalog-atlanticcape-edu   --run-id 2026-09-1
 The stem is the `stem` field of the page's `.meta.json`, and `html_path`
 there is the whole path to the page it describes.
 
-Text is normalized in memory with the same normalizer the extractors use.
+Text is normalized in memory with the engine's normalizer in `src/lib/`.
 No normalized file is written; only its SHA-256 is kept, which is what
 identifies two copies of one page.
 
@@ -653,7 +655,7 @@ a cross-reference, however close a credits field sits below it; a page
 that titles no course is counted as before. And a code the page prints only
 outside its main container is the site's, not the page's. Without that, a
 catalog menu printed beside `<main>` on every page makes every course page
-look like it describes several courses, and extraction skips them all.
+look like it describes several courses.
 
 Before the tree reading, a whole catalog could be missed on the printed
 form alone. A CourseLeaf graduate subject page numbers its courses with
@@ -817,8 +819,8 @@ forced the extra pages are listed. If the population is smaller than
 ```text
 {catalog-folder}/{run-id}/discovery/{discovery-run-id}/
   summary.json                 counts, unknown share, git commit, version
-  pages.jsonl                  one profile per page
-  labels.json                  the preprocessed list extraction reads
+  pages.jsonl                  one profile per page, with its labels; extract reads this
+  labels.json                  the labels alone, one entry per page
   field-labels.csv             vocabulary, rarest first, then headings
   entities.csv                 what each page names, by kind, with a quote
   patterns.json                every pattern as data
@@ -880,153 +882,89 @@ and where it went. The `CRAWL`, `STEMS`, `CHALLENGE` and `SAMPLE` warnings
 still appear when `crawl.json` is missing, `--stem` narrows the run, saved
 pages are bot-challenge pages, or the golden sample is empty or short.
 
-### Extract and transform
+### Extract
 
-Same `--with-<strategy>` pattern:
+`xtra catalog extract` reads one CTDL property, named by its Shorthand URI, and
+writes one file per resource to `extraction_report/`, beside `records/`.
+The property file declares the classes it is
+read from, and the command reads every page discovery labelled with each
+of them:
 
 ```bash
-xtra catalog extract --with-template \
-  --source-uri "$TARGET" --target-uri "$TARGET" \
-  --catalog-id catalog-brookdalecc-edu --run-id 2026-09-17T14:20:01Z
+xtra catalog extract ceterms:name \
+  --catalog-id catalog-wvu-edu --run-id 2026-10-20T13:19:46Z
+```
 
+It takes `--discovery-run-id` (default: the newest), `--only-golden-sample`,
+`--limit`, `--env`, `--source-uri` and `--target-uri` the way `discover`
+does. `xtra catalog extract --help` lists every property that has an
+extractor, with its class.
+
+- **One file per resource, in the extractor's folders:**
+  `extraction_report/ceterms/ceterms_name/{resource_id}.json`, as the
+  extractor is `extract/ceterms/ceterms_name.py`.
+
+  ```json
+  {
+    "type": "ceterms:Course",
+    "resource_id": "catalog-marshall-edu_ABA610",
+    "ctdl_property": "ceterms:name",
+    "value": "Theory Phil Behavioral Anyls",
+    "catalog_id": "catalog-marshall-edu",
+    "source_url": "https://catalog.marshall.edu/graduate/courses-az/aba/",
+    "retrieved_at": "2026-10-20T13:28:28Z",
+    "notes": "strategy=profile_title platform=courseleaf css=…"
+  }
+  ```
+
+- **Each run replaces the property's folder.** It empties
+  `extraction_report/ceterms/ceterms_name/` first, so the folder holds only
+  this run's files. Other properties and the rest of the run are left alone.
+- **The report** goes beside `extraction_report/`, named for the property:
+  `extraction-ceterms_name-report.json`, with counts by strategy, class,
+  platform and reason, and up to 50 values not found.
+
+The extractors are organized by property, the way CE's split schema names
+its files (CredentialEngine/Schema-Development,
+`src/Schema/ctdl/Split/properties/ceterms_name.jsonld`): a folder per
+vocabulary prefix, a file per property named `<prefix>_<LocalName>`, and
+nothing deeper.
+
+```text
+src/xtra/catalog/extract/
+  __init__.py              the command, the registry, and CLASSES
+  ceterms/ceterms_name.py  PROPERTY, CLASS, read (one occurrence's name)
+src/implementations/
+  extract.py               what every property shares: pages, files, report
+  extract_course.py        COURSE: the pages that hold courses, where each is, its resource id
+```
+
+To add a property, add its file to its prefix's folder, declaring
+`PROPERTY = "ceterms:…"`, `CLASS = ("ceterms:Course",)` and
+`read(occurrence, page) -> Reading`, and its test file. Nothing is
+registered by hand: the registry walks the folders and refuses a file not
+named for the property it declares, a file outside its prefix's folder,
+anything nested deeper, and a class it doesn't know. A path of
+properties, `ceterms:creditValue > schema:value`, is named
+`ceterms/ceterms_creditValue__schema_value.py`. A new class is defined once
+in `implementations/` and added to `CLASSES`.
+
+Platform knowledge, which element holds a course or its title, is keyed by
+discovery's fingerprint and holds vendor markup only. No catalog id, host
+or URL appears in the extraction code, and a test checks that.
+
+### Transform
+
+```bash
 xtra catalog transform --with-ctdl \
   --source-uri "$TARGET" --target-uri "$TARGET" \
   --catalog-id catalog-brookdalecc-edu --run-id 2026-09-17T14:20:01Z
 ```
 
-`--with-template` is the deterministic reading: the CMS extractors (Clean
-Catalog, Coursedog, Acalog) and, for what they do not match, the page's own
-markup. `--with-ctdl` maps printed labels to CTDL JSON-LD and never writes a
-CTID. `--with-ai-agent` is reserved on both verbs. No LLM reads a page at
-either stage.
-
-Extract works from the list discovery produced rather than guessing what a
-saved page is. It reads `labels.json` from the newest discovery run of the
-crawl run, or from `--discovery-run-id` when you name one, and processes
-every page discovery gave an entity to.
-
-| Label | Record | CTDL class |
-| --- | --- | --- |
-| `Course` | one course, when the page holds exactly one course block | `ceterms:Course` |
-| `Credential` | the award the page grants | `ceterms:Credential` |
-| `LearningOpportunity` | the programme of instruction | `ceterms:LearningProgram` |
-| `Competency` | one competency per outcome the page lists | `ceasn:Competency` |
-
-A page that is two of those is two records. Every program page at Atlantic
-Cape prints both the credential and the list of what its students will be
-able to do, and a single record has nowhere to put the second; the page's own
-id belongs to what it is mainly about, and the other gets `{stem}--{entity}`.
-
-#### Two readings, in order
-
-A course page goes to the college templates in `src/lib/templates` first. They
-are the verified path and they have fixtures behind them, so where one
-matches it is the answer.
-
-Everything else is read from the markup by
-`src/implementations/extract_dom.py`, which is the same tree reading
-discovery uses. Every catalog platform marks a field up, names its label and
-names its value beside it — Drupal writes `field__label` and `field__item`,
-Coursedog writes `field-label` and `field-value`, CourseLeaf prints a course
-block whose title line carries the code, the name and the credits together,
-and the rest of the web writes a definition list or a table row. Reading
-those needs no rule per college, and it is the only way the three entities
-beside `Course` are read at all: the templates are course templates, and a
-credential page has no course block for them to find.
-
-Some pages label none of a course's fields. They print a heading group — the
-name, a heading that is nothing but the code (`ABC 101:`), the units on a
-line of their own (`4.0 Units`) — and the hours as a heading over a number
-("Total Lecture Hours", 54.0), so those two shapes are read as well.
-A description is the whole first paragraph, not its first 600 characters.
-
-Credits keep the word they are counted in. Every reading above writes the
-unit printed with the number as `course_credits_unit`: `Units` from
-`4.0 Units`, `UNITS` from `2.0 UNITS`, `Hours` from `3 Hours.`, and
-`Credit Hours` from a field labelled that way. The unit always comes from
-the same reading as the credits, or not at all, and the record keeps the
-word as printed, not as a `creditUnit:` concept, under
-`ceterms:creditUnitType` beside `ceterms:creditValue`. Transform's mapping
-writes the two as one `ceterms:ValueProfile` — `schema:value`, or
-`schema:minValue` and `schema:maxValue` for a printed range — with the word
-in its `ceterms:creditUnitType`. The college templates do not read the unit.
-
-The prerequisite is read the same way, wherever a page prints it:
-- a labelled field: `Prerequisite(s)` and `Prereqs` count too;
-- a bold label with the value on the same line;
-- a heading or bold label with the value under it, including in a sidebar inside the page's own content (an `<aside>` inside `<main>`);
-- a `Prerequisite:` line, including a run of requisites that opens a description.
-
-The record keeps the text after the label, as printed, as
-`ceterms:prerequisite`. There is one per course: the first the page prints.
-Alternatives joined with OR stay together ("ABC 101 OR ABC 102"). A
-"Prerequisite Courses" list is used only when nothing else names a
-prerequisite.
-
-Some things are not read as a prerequisite:
-- `None`, `N/A` and `No prerequisites` mean there is no prerequisite, so the field is left out.
-- A label naming both relations (`Prerequisite/Corequisite`, `Prerequisite and/or Corequisite`) gives nothing: the course may be taken alongside.
-- Corequisites, advisories and recommended preparation are never read as one.
-
-A description that prints the prerequisite keeps it, unchanged. The college
-templates read prerequisites their own way, as before.
-
-Each field records the element it came from, so a reviewer can go and look.
-A page that prints too little to be a record — one field, which every page
-has, because every page has a name — is skipped rather than written as an
-empty record that looks extracted.
-
-| Flag | What it does |
-| --- | --- |
-| `--discovery-run-id` | Read this discovery run instead of the newest. |
-| `--only-golden-sample` | Extract only the pages in `golden-sample-course.json`, for review. |
-
-A page holding several courses, a page holding several credentials, and a
-page nothing could read are skipped and recorded in
-`{catalog-folder}/{run-id}/extract-report.json` with the reason. That file
-sits **beside** `records/` and never inside it, because transform reads every
-JSON file under `records/` and would treat a report as a course.
-
-Pages are read by the stem discovery lists, which is the stem the crawler
-saved them under. The `Slot.stem` property in `src/lib/` still slugs the URL the
-old way, so it is never used for a storage key, and the record carries the
-crawl stem instead.
-
-#### What a record holds
-
-A record names every field by the CTDL term it goes out under, not by the
-label the reader gave it. Each entry in `source_expected.fields` has a
-`property` such as `ceterms:name`, and `expected` maps the same terms to
-their values. A term read more than once, like the outcomes of a competency
-list, holds every value as a list in the order they were read.
-
-A course carries the minimum data for courses and nothing more:
-
-| Property | CTDL term | Value |
-| --- | --- | --- |
-| External Identifier | `ceterms:identifier` | the printed course code |
-| Name | `ceterms:name` | the printed name |
-| Description | `ceterms:description` | the printed description |
-| Subject Webpage | `ceterms:subjectWebpage` | the page's own URL |
-| Coded Notation | `ceterms:codedNotation` | the printed course code |
-| Credit Value | `ceterms:creditValue` | the credits as printed: `3`, `1.0-4.0` |
-| Credit Unit Type | `ceterms:creditUnitType` | the unit word printed with them |
-| Prerequisite | `ceterms:prerequisite` | the printed prerequisites |
-
-A template that reads a minimum and a maximum gives
-`ceterms:creditMinValue` and `ceterms:creditMaxValue` instead, the names the
-Learning Opportunity bulk-upload template uses. The identifier and the
-webpage are the two no page prints as a field, so they come last, with ids
-from `derived_001`. Everything else a course page prints, such as lecture
-and lab hours, the department or the corequisites, is still read, because
-each field counts toward the two a page needs to be a record at all, but
-the record leaves it out. Credentials, learning programs and competencies
-keep every field they have.
-
-Records no longer carry `ctdl_expected`. Transform has not caught up: it
-still maps the old labels, so `xtra catalog transform` stops with
-`KeyError: 'canonical_label'` on a record extracted this way and works only
-on records extracted before.
+`--with-ctdl` maps the records under `records/` to CTDL JSON-LD and never
+writes a CTID. `--with-ai-agent` is reserved. Nothing writes `records/` any
+more: `xtra catalog extract` writes `extraction_report/`, and transform has
+not caught up with it yet.
 
 ### Scoring extraction against a baseline
 
@@ -1042,17 +980,30 @@ xtra score extraction match --partially \
   --catalog-id avc-elumenapp-com-catalog-2026-27-welcome --run-id 2026-10-12T20:59:13Z
 ```
 
-It reads records that are already written, so a corrected baseline can be
-matched again without extracting again. Pick exactly one of `--exactly` and
-`--partially`; each writes its own report.
+It reads the `extraction_report/` files `xtra catalog extract` has
+already written, so a corrected baseline can be matched again without
+extracting again. Pick exactly one of `--exactly` and `--partially`; each
+writes its own report.
+
+The files are turned into records in memory first, and nothing is written
+to `records/`:
+
+- every property of one `resource_id` is one record, its `expected` the
+  present values by `ctdl_property`;
+- the record's page is the stem of its `source_url`, the name the crawl saved
+  the page under, which is how the baseline is filed;
+- a page's records are in the order the page prints them, found from each
+  value's element (the `css=` in its notes) in the saved page. Scoring then
+  pairs them with the baseline's entities in that order.
+
 
 | Flag | What it does |
 | --- | --- |
 | `--exactly` | Count the extracted values that are identical to the baseline. |
 | `--partially` | Set the exact matches aside and measure how close the other values come. |
 | `--run-id` | The extraction run being scored. The baseline files are filed under the same run id. |
-| `--catalog-id` | The catalog folder. Together with `--run-id` it locates the records and the baseline. |
-| `--source-uri` | Where the records live. Default: the environment's data URI. |
+| `--catalog-id` | The catalog folder. Together with `--run-id` it locates the `extraction_report/` files and the baseline. |
+| `--source-uri` | Where the `extraction_report/` files live. Default: the environment's data URI. |
 | `--baseline-uri` | Where the baseline lives. Default: the environment's baseline URI. |
 | `--source-azure-storage-connection-string` | Connection string for `--source-uri`. Default: `AZURE_STORAGE_CONNECTION_STRING`, then the environment's secret. |
 | `--baseline-azure-storage-connection-string` | Connection string for `--baseline-uri`, which may be a different storage account. Same default. |
@@ -1067,8 +1018,8 @@ extraction, one folder per page, and the baseline file is named for its page:
 
 A baseline file is a list of entities, each a list of
 `{ctdl_property, value, source_url}`. A page's first baseline entity is
-compared with its own record and later ones with its `{stem}--{entity}`
-records, in order. The baseline HTML is not read, and `source_url` is not
+compared with the first resource the page prints, the second with the
+second, and so on. The baseline HTML is not read, and `source_url` is not
 used: matching compares values only.
 
 Each baseline field is matched against the value the record's `expected`
@@ -1114,17 +1065,17 @@ page, property, baseline value and extracted value. The only ratio is
 
 Each baseline page falls in one of three groups:
 
-- **scored**: extract wrote a record for it.
-- **skipped**: extract considered the page and skipped it (multi-course page,
-  nothing read). All its fields are `missing`, because that is an extractor
-  miss.
-- **out of scope**: extract never considered it, because it is outside
-  discovery or `--only-golden-sample`. It is listed and not counted.
+- **scored**: extract wrote a file for a resource on it.
+- **skipped**: listed as skipped in `extract-report.json`. All its fields are
+  `missing`. Nothing writes that file any more, so no page lands here.
+- **out of scope**: extract wrote nothing for it, because it is outside
+  discovery's labels or `--only-golden-sample`, or no resource on it has an
+  id. It is listed and not counted.
 
 The reports are
 `{catalog-folder}/{run-id}/extraction-match-exact-report.json` and
-`extraction-match-partial-report.json`, beside `records/` like
-`extract-report.json`. The stdout JSON is a short summary and a table of the
+`extraction-match-partial-report.json`, beside `extraction_report/`. The
+stdout JSON is a short summary and a table of the
 counts and the worst outliers goes to stderr. A baseline with no files for the
 run, or one that cannot be reached, exits non-zero. A malformed baseline file
 is listed in the report under `malformed` and skipped.
@@ -1145,7 +1096,8 @@ is listed in the report under `malformed` and skipped.
   discovery/{discovery-run-id}/labels.json
   discovery/{discovery-run-id}/patterns.md
   discovery/{discovery-run-id}/golden-sample-course.json
-  extract-report.json
+  extraction-ceterms_name-report.json
+  extraction_report/ceterms/ceterms_name/{resource-id}.json
   extraction-match-exact-report.json
   extraction-match-partial-report.json
   records/{record-id}.json
@@ -1218,7 +1170,7 @@ docker run --rm -e AZURE_STORAGE_CONNECTION_STRING xtra-cli catalog crawl \
 
 The entrypoint is `xtra`. The image carries Chrome, Playwright's chromium, and the `azure` extra, but not `crawl4ai`. It runs as uid 1001 in `/data`, so a relative `--target-uri ./xtra-cache` lands in a volume mounted there. An environment saved with `xtra environment set` lives only as long as the container unless `/home/xtra/.xtra` is mounted, so prefer `--target-uri`.
 
-The CLI is installed editable from the source tree on purpose: `src/lib/` is not a package, so a wheel cannot import the extractors. On arm64 build with `--build-arg PLAYWRIGHT_BROWSERS=chromium`, because Google ships Chrome for amd64 only.
+The CLI is installed editable from the source tree on purpose: `src/lib/` is not a package, so a wheel cannot import the engine discovery and crawl use. On arm64 build with `--build-arg PLAYWRIGHT_BROWSERS=chromium`, because Google ships Chrome for amd64 only.
 
 ## Non-goals
 

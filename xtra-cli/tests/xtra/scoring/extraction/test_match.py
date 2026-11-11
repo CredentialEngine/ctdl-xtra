@@ -7,30 +7,44 @@ from click.testing import CliRunner
 
 from common.keys import (
     baseline_record_key,
+    extract_resource_key,
     extraction_match_report_key,
-    record_key,
+    page_stem,
+    records_prefix,
 )
 from common.object_store import open_store
 from xtra.cli import cli
 
 FOLDER = "catalog-example-edu"
 RUN = "2026-09-17T14:20:01Z"
-STEM = "engl101-aaaaaaaaaa"
+URL = "https://catalog.example.edu/engl101"
+STEM = page_stem(URL)
+
+
+def extracted(prop: str, value: str) -> dict:
+    """One extraction_report/ file, as xtra catalog extract writes it."""
+    return {
+        "type": "ceterms:Course",
+        "resource_id": f"{FOLDER}_ENGL101",
+        "ctdl_property": prop,
+        "value": value,
+        "catalog_id": FOLDER,
+        "source_url": URL,
+        "retrieved_at": None,
+        "notes": "strategy=profile_title platform=- css=-",
+    }
 
 
 def seed(tmp_path: Path, baseline_fields: list[dict] | None = None) -> None:
-    records = open_store(str(tmp_path / "data"))
-    records.put_json(
-        record_key(FOLDER, RUN, STEM),
-        {
-            "record_id": STEM,
-            "source_url": f"https://catalog.example.edu/{STEM}",
-            "expected": {
-                "ceterms:name": "Composition",
-                "ceterms:codedNotation": "ENGL101",
-            },
-        },
-    )
+    data = open_store(str(tmp_path / "data"))
+    for prop, value in (
+        ("ceterms:name", "Composition"),
+        ("ceterms:codedNotation", "ENGL101"),
+    ):
+        data.put_json(
+            extract_resource_key(FOLDER, RUN, prop, f"{FOLDER}_ENGL101"),
+            extracted(prop, value),
+        )
     if baseline_fields is not None:
         open_store(str(tmp_path / "baseline")).put_json(
             baseline_record_key(FOLDER, RUN, STEM),
@@ -200,3 +214,27 @@ def test_without_a_baseline_uri_it_says_how_to_set_one(tmp_path: Path) -> None:
 
     assert result.exit_code != 0
     assert "--baseline-uri" in result.output
+
+
+def test_nothing_is_written_to_records(tmp_path: Path) -> None:
+    seed(tmp_path, [field("ceterms:name", "Composition")])
+
+    result = match(tmp_path, "--exactly")
+
+    assert result.exit_code == 0, result.output
+    data = open_store(str(tmp_path / "data"))
+    assert list(data.list_keys(records_prefix(FOLDER, RUN))) == []
+
+
+def test_without_extraction_report_files_it_says_to_run_extraction(
+    tmp_path: Path,
+) -> None:
+    open_store(str(tmp_path / "baseline")).put_json(
+        baseline_record_key(FOLDER, RUN, STEM),
+        [{"fields": [field("ceterms:name", "Composition")]}],
+    )
+
+    result = match(tmp_path, "--exactly")
+
+    assert result.exit_code != 0
+    assert "Run xtra catalog extract first" in result.output

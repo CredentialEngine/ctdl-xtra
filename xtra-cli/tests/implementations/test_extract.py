@@ -1,261 +1,414 @@
-# ruff: noqa: I001 - importing implementations.extract is what puts src/lib/
-# on sys.path, so the engine import below cannot be sorted above it.
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import pytest
+from bs4 import BeautifulSoup
+from discovery_doubles import seed_crawl_page
 
+from common.keys import discovery_key, extract_resource_key, run_prefix
+from common.object_store import open_store
+from implementations.discover import PAGES_FILE, SUMMARY_FILE, sample_file_name
 from implementations.extract import (
-    TERMS,
-    expected_values,
-    extract_record,
-    record_fields,
-    slot_from_dict,
-)
-from inventory import allowed_for
-from transcribe_lib import FieldDraft, TranscriptionError
-
-URL = "https://catalog.example.edu/english/engl101"
-
-# The minimum data for courses, and the two ends of a printed credit
-# range some templates read as fields of their own.
-COURSE_TERMS = {
-    "ceterms:identifier",
-    "ceterms:name",
-    "ceterms:description",
-    "ceterms:subjectWebpage",
-    "ceterms:codedNotation",
-    "ceterms:creditValue",
-    "ceterms:creditUnitType",
-    "ceterms:prerequisite",
-    "ceterms:creditMinValue",
-    "ceterms:creditMaxValue",
-}
-
-
-def test_slot_from_dict_builds_course_slot(engl101_slot: dict) -> None:
-    slot = slot_from_dict(engl101_slot)
-    assert slot.record_id == "example-engl101-course"
-    assert slot.entity_type == "Course"
-    assert slot.requested_url.endswith("/engl101")
-    assert slot.stem
-
-
-def test_extract_record_from_fixture(
-    engl101_html: str, engl101_slot: dict
-) -> None:
-    slot = slot_from_dict(engl101_slot)
-    record = extract_record(
-        slot, engl101_html, retrieved_at="2026-09-14T18:12:00Z"
-    )
-    assert record["verification"]["status"] == "candidate"
-    assert record["catalogue_type"] == "COURSES"
-    assert record["expected"]["ceterms:codedNotation"] == "ENGL101"
-    assert record["expected"]["ceterms:name"] == "Composition I"
-    assert record["expected"]["ceterms:creditValue"] == 3
-    assert record["retrieved_at"] == "2026-09-14T18:12:00Z"
-    assert record["template_id"] == "clean_catalog_course_detail"
-
-
-def test_a_record_names_its_fields_by_ctdl_term(
-    engl101_html: str, engl101_slot: dict
-) -> None:
-    """The terms are the record: no labels, and no mapping beside them."""
-    record = extract_record(slot_from_dict(engl101_slot), engl101_html)
-    fields = record["source_expected"]["fields"]
-    assert "ctdl_expected" not in record
-    assert all("canonical_label" not in field for field in fields)
-    assert {field["property"] for field in fields} == set(record["expected"])
-
-
-def test_a_course_states_its_code_and_its_page(
-    engl101_html: str, engl101_slot: dict
-) -> None:
-    record = extract_record(slot_from_dict(engl101_slot), engl101_html)
-    expected = record["expected"]
-    assert expected["ceterms:identifier"] == expected["ceterms:codedNotation"]
-    assert expected["ceterms:subjectWebpage"] == record["source_url"]
-
-
-HEADING_GROUP = (
-    "<html><head><title>ELEC 150 - Electrical Maintenance</title></head>"
-    "<body><main><header class='header'><h2>Electrical Maintenance</h2>"
-    "<h3>ELEC 150:</h3><p class='header-x-meta'>4.0 Units</p></header>"
-    "<p>Students will progress from basic electrical theory to the "
-    "maintenance of industrial systems.</p></main></body></html>"
+    ExtractionError,
+    Extractor,
+    Occurrence,
+    Page,
+    RdfClass,
+    Reading,
+    css_path,
+    inside_chrome,
+    page_platform,
+    printed_text,
+    reading_notes,
+    resource_value,
+    run_extraction,
+    unique_resource_id,
 )
 
-
-def test_a_markup_course_carries_its_unit_beside_its_credit_value(
-    engl101_slot: dict,
-) -> None:
-    slot = slot_from_dict({**engl101_slot, "template_id": ""})
-    record = extract_record(slot, HEADING_GROUP)
-    assert record["template_id"] == "markup"
-    assert record["expected"]["ceterms:creditValue"] == 4.0
-    assert record["expected"]["ceterms:creditUnitType"] == "Units"
+FOLDER = "catalog-example-edu"
+RUN = "2026-09-17T14:20:01Z"
+DISCOVERY = "2026-09-18T10-00-00Z"
+PROP = "ex:thing"  # made up: nothing in the shared code is about names
 
 
-def test_a_markup_course_carries_its_printed_prerequisite(
-    engl101_slot: dict, fixture_html_dir: Path
-) -> None:
-    """No template matches this page; its prerequisite is a bold label."""
-    html = (fixture_html_dir / "course-single.html").read_text(encoding="utf-8")
-    slot = slot_from_dict({**engl101_slot, "template_id": ""})
-    record = extract_record(slot, html)
-    assert record["template_id"] == "markup"
-    assert record["expected"]["ceterms:prerequisite"] == (
-        "placement into college-level reading."
+def test_the_page_platform_wins_over_the_site() -> None:
+    assert page_platform("acalog", "courseleaf") == "acalog"
+
+
+def test_a_page_with_no_platform_takes_the_site_platform() -> None:
+    assert page_platform("", "courseleaf") == "courseleaf"
+
+
+def test_no_platform_anywhere_is_empty() -> None:
+    assert page_platform("", "") == ""
+
+
+def test_a_repeated_resource_id_is_numbered_from_its_second_use() -> None:
+    seen: dict[str, int] = {}
+    ids = [unique_resource_id(i, seen) for i in ("a_X1", "a_X2", "a_X1")]
+    assert ids == ["a_X1", "a_X2", "a_X1-2"]
+    assert unique_resource_id("a_X1", seen) == "a_X1-3"
+
+
+def _reading(value: str | None, reason: str = "") -> Reading:
+    return Reading(
+        value=value,
+        raw_text="RAW 101. raw text.",
+        strategy="profile_title",
+        css_path="div > h1",
+        reason=reason,
     )
 
 
-def test_a_template_record_has_a_credit_value_and_no_unit(
-    engl101_html: str, engl101_slot: dict
-) -> None:
-    """The college templates do not read the unit."""
-    record = extract_record(slot_from_dict(engl101_slot), engl101_html)
-    assert record["expected"]["ceterms:creditValue"] == 3
-    assert "ceterms:creditUnitType" not in record["expected"]
-
-
-def draft(field_id: str, label: str, value: object) -> FieldDraft:
-    return FieldDraft(
-        field_id, label, value, str(value), str(value), "dom_path", "test"
+def _value(reading: Reading) -> dict:
+    return resource_value(
+        rdf_type="ceterms:Course",
+        resource_id="catalog-example-edu_RAW101",
+        prop=PROP,
+        reading=reading,
+        catalog_id=FOLDER,
+        source_url="https://catalog.example.edu/x",
+        retrieved_at="2026-09-17T14:20:05Z",
+        notes="strategy=profile_title",
     )
 
 
-def properties(fields: list[dict]) -> list[str]:
-    return [field["property"] for field in fields]
+def test_a_value_is_written_with_its_class_resource_and_page() -> None:
+    assert _value(_reading("Thing")) == {
+        "type": "ceterms:Course",
+        "resource_id": "catalog-example-edu_RAW101",
+        "ctdl_property": PROP,
+        "value": "Thing",
+        "catalog_id": FOLDER,
+        "source_url": "https://catalog.example.edu/x",
+        "retrieved_at": "2026-09-17T14:20:05Z",
+        "notes": "strategy=profile_title",
+    }
 
 
-def test_every_term_is_a_ctdl_term() -> None:
-    assert all(
-        term.startswith(("ceterms:", "ceasn:")) for term in TERMS.values()
+def test_a_value_not_found_is_written_as_null() -> None:
+    written = _value(_reading(None, reason="empty_title"))
+    assert written["value"] is None
+    assert "presence" not in written
+
+
+def test_notes_say_how_the_value_was_read_and_why_it_was_not() -> None:
+    assert reading_notes(_reading(None, "empty_title"), "courseleaf") == (
+        "strategy=profile_title platform=courseleaf css=div > h1 "
+        "reason=empty_title"
     )
 
 
-def test_a_course_holds_the_minimum_data_for_courses_and_nothing_more() -> None:
-    """Every course label read gives these terms and no others.
+def test_printed_text_skips_scripts_and_reads_a_break_as_a_space() -> None:
+    soup = BeautifulSoup(
+        "<h1>Intro<br>to <script>x()</script>Law&nbsp;</h1>", "html.parser"
+    )
+    assert printed_text(soup.h1) == "Intro to Law"
 
-    Lecture and lab hours, the department and the rest are still read,
-    because they count toward the fields a page needs to be a record,
-    but the record leaves them out.
-    """
-    drafts = [
-        draft(f"src_{index:03d}", label, "x")
-        for index, label in enumerate(sorted(allowed_for("Course")), start=1)
+
+def test_an_element_inside_the_site_navigation_is_chrome() -> None:
+    soup = BeautifulSoup(
+        "<nav><ul><li><h2>Menu</h2></li></ul></nav><main><h2>T</h2></main>",
+        "html.parser",
+    )
+    menu, title = soup.find_all("h2")
+    assert inside_chrome(menu)
+    assert not inside_chrome(title)
+
+
+def test_a_css_path_finds_the_same_element_again() -> None:
+    soup = BeautifulSoup(
+        "<html><body><div><p>a</p><p>b</p></div></body></html>", "html.parser"
+    )
+    second = soup.find_all("p")[1]
+    assert soup.select_one(css_path(second)) is second
+
+
+# --- run_extraction, with a fake extractor ---------------------------------
+
+
+def _three_occurrences(page: Page) -> list[Occurrence]:
+    """Occurrences "1", "2" and "3", told apart by their css path."""
+    return [
+        Occurrence(element=page.soup, css_path=n, is_whole_page=n == "1")
+        for n in ("1", "2", "3")
     ]
-    assert set(properties(record_fields("Course", drafts, URL))) == (
-        COURSE_TERMS
-    )
 
 
-def test_a_label_with_no_term_is_left_out() -> None:
-    fields = record_fields(
-        "Course",
-        [
-            draft("f_001", "course_lecture_hours", 3),
-            draft("f_002", "course_name", "Composition I"),
-        ],
-        URL,
-    )
-    assert [field["field_id"] for field in fields] == ["f_002", "derived_001"]
-    assert properties(fields) == ["ceterms:name", "ceterms:subjectWebpage"]
+def _read_title(occurrence: Occurrence, page: Page) -> Reading:
+    title = page.soup.title.get_text() if page.soup.title else ""
+    if occurrence.css_path == "2":
+        return Reading(None, None, "", "body", reason="no_candidate")
+    return Reading(title, title, "fake", "title")
 
 
-def test_a_course_states_its_printed_code_as_its_external_identifier() -> None:
-    fields = record_fields(
-        "Course", [draft("src_001", "course_id", "ENGL 101")], URL
-    )
-    derived = {
-        field["property"]: field
-        for field in fields
-        if field["field_id"].startswith("derived_")
-    }
-    assert derived["ceterms:identifier"]["value"] == "ENGL 101"
-    assert derived["ceterms:identifier"]["raw_text"] == "ENGL 101"
-    assert derived["ceterms:subjectWebpage"]["value"] == URL
-    assert derived["ceterms:subjectWebpage"]["raw_text"] is None
+def _id_unless_third(
+    occurrence: Occurrence, page: Page, catalog_id: str
+) -> str | None:
+    if occurrence.css_path == "3":
+        return None
+    return f"{catalog_id}_{page.stem.upper()}{occurrence.css_path}"
 
 
-def test_a_course_with_no_code_has_no_external_identifier() -> None:
-    fields = record_fields(
-        "Course", [draft("f_001", "course_name", "Composition I")], URL
-    )
-    assert "ceterms:identifier" not in properties(fields)
+FAKE_COURSE = RdfClass(
+    rdf_type="ceterms:Course",
+    page_label="Course",
+    occurrences=_three_occurrences,
+    resource_id=_id_unless_third,
+)
+FAKE = Extractor(prop=PROP, classes=(FAKE_COURSE,), read=_read_title)
 
 
-def test_only_a_course_states_its_page_as_its_subject_webpage() -> None:
-    fields = record_fields(
-        "Credential", [draft("f_001", "credential_name", "Nursing AAS")], URL
-    )
-    assert properties(fields) == ["ceterms:name"]
-
-
-def test_a_printed_credit_range_is_its_minimum_and_its_maximum() -> None:
-    """Some templates read the two ends as fields of their own."""
-    expected = expected_values(
-        record_fields(
-            "Course",
-            [
-                draft("src_001", "course_credits_min", 1),
-                draft("src_002", "course_credits_max", 4),
-            ],
-            URL,
+def _seed(store, profiles: list[dict], *, sample: list[str] | None = None):
+    for profile in profiles:
+        if profile.pop("_missing", False):
+            continue
+        seed_crawl_page(
+            store,
+            FOLDER,
+            RUN,
+            profile["stem"],
+            f"<html><head><title>{profile['stem']}</title></head></html>",
+            profile["url"],
         )
+    store.put_text(
+        discovery_key(FOLDER, RUN, DISCOVERY, PAGES_FILE),
+        "\n".join(json.dumps(p) for p in profiles),
+        "application/x-ndjson",
     )
-    assert expected["ceterms:creditMinValue"] == 1
-    assert expected["ceterms:creditMaxValue"] == 4
-    assert "ceterms:creditValue" not in expected
-
-
-def test_a_credit_range_read_as_one_value_is_split_into_min_and_max() -> None:
-    """eLumen prints "1.0-8.0 Units"; the readers give it as one string."""
-    expected = expected_values(
-        record_fields(
-            "Course",
-            [
-                draft("f_001", "course_credits", "1.0-8.0"),
-                draft("f_002", "course_credits_unit", "Units"),
-            ],
-            URL,
+    store.put_json(
+        discovery_key(FOLDER, RUN, DISCOVERY, SUMMARY_FILE),
+        {"platform": {"name": "courseleaf"}},
+    )
+    if sample is not None:
+        store.put_json(
+            discovery_key(FOLDER, RUN, DISCOVERY, sample_file_name("Course")),
+            {"pages": [{"stem": stem} for stem in sample]},
         )
-    )
-    assert expected["ceterms:creditMinValue"] == 1.0
-    assert expected["ceterms:creditMaxValue"] == 8.0
-    assert expected["ceterms:creditUnitType"] == "Units"
-    assert "ceterms:creditValue" not in expected
 
 
-def test_a_single_credit_stays_a_credit_value() -> None:
-    expected = expected_values(
-        record_fields("Course", [draft("f_001", "course_credits", 3)], URL)
-    )
-    assert expected["ceterms:creditValue"] == 3
-    assert "ceterms:creditMinValue" not in expected
-
-
-def test_a_term_read_more_than_once_keeps_every_value_in_order() -> None:
-    """A competency list is several outcomes under one term."""
-    fields = record_fields(
-        "Competency",
-        [
-            draft("f_001", "competency_framework_name", "Program Outcomes"),
-            draft("f_002", "competency_text", "Write clearly."),
-            draft("f_003", "competency_text", "Read critically."),
-        ],
-        URL,
-    )
-    assert expected_values(fields) == {
-        "ceasn:name": "Program Outcomes",
-        "ceasn:competencyText": ["Write clearly.", "Read critically."],
+def _profile(stem: str, labels: list[str], **extra) -> dict:
+    return {
+        "stem": stem,
+        "url": f"https://catalog.example.edu/{stem}",
+        "labels": labels,
+        "platform": "",
+        **extra,
     }
 
 
-def test_extract_record_unknown_template_fails_closed(
-    engl101_slot: dict,
+def _run(store, extractor: Extractor = FAKE, **options) -> dict:
+    return run_extraction(
+        store,
+        store,
+        extractor,
+        catalog_id=FOLDER,
+        run_id=RUN,
+        discovery_run_id=DISCOVERY,
+        version="test",
+        **options,
+    )
+
+
+def _written(store, resource_id: str) -> dict:
+    return store.get_json(extract_resource_key(FOLDER, RUN, PROP, resource_id))
+
+
+def test_values_go_under_extraction_report_by_property() -> None:
+    assert extract_resource_key(FOLDER, RUN, PROP, "x_A1") == (
+        f"{run_prefix(FOLDER, RUN)}/extraction_report/ex/ex_thing/x_A1.json"
+    )
+
+
+def test_only_pages_labelled_with_the_class_are_read(tmp_path: Path) -> None:
+    store = open_store(str(tmp_path))
+    _seed(
+        store,
+        [
+            _profile("a", ["Course"]),
+            _profile("b", ["Credential"]),
+        ],
+    )
+    report = _run(store)
+    assert report["pages_read"] == 1
+    assert _written(store, f"{FOLDER}_A1")["value"] == "a"
+    assert not store.exists(
+        extract_resource_key(FOLDER, RUN, PROP, f"{FOLDER}_B1")
+    )
+
+
+def test_each_identified_resource_is_written_found_or_not(
+    tmp_path: Path,
 ) -> None:
-    slot = slot_from_dict({**engl101_slot, "template_id": ""})
-    with pytest.raises(TranscriptionError):
-        extract_record(slot, "<html><body>unrelated page</body></html>")
+    store = open_store(str(tmp_path))
+    _seed(store, [_profile("a", ["Course"])])
+    report = _run(store)
+    assert report["occurrences"] == 3
+    assert report["resources_written"] == 2
+    assert report["found"] == 1
+    assert report["not_found"] == 1
+    assert report["not_found_by_reason"] == {"no_candidate": 1}
+    assert _written(store, f"{FOLDER}_A1")["value"] == "a"
+    assert _written(store, f"{FOLDER}_A2")["value"] is None
+
+
+def test_a_resource_with_no_id_is_counted_not_written(tmp_path: Path) -> None:
+    store = open_store(str(tmp_path))
+    _seed(store, [_profile("a", ["Course"])])
+    report = _run(store)
+    assert report["no_resource_id"] == 1
+    (example,) = report["no_resource_id_examples"]
+    assert example["url"] == "https://catalog.example.edu/a"
+    assert not store.exists(
+        extract_resource_key(FOLDER, RUN, PROP, f"{FOLDER}_A3")
+    )
+
+
+def test_a_repeated_resource_id_gets_a_suffix(tmp_path: Path) -> None:
+    store = open_store(str(tmp_path))
+    _seed(store, [_profile("a", ["Course"]), _profile("b", ["Course"])])
+    same_id = RdfClass(
+        "ceterms:Course",
+        "Course",
+        lambda page: [Occurrence(page.soup, "body", True)],
+        lambda occurrence, page, catalog_id: f"{catalog_id}_SAME1",
+    )
+    report = _run(store, Extractor(PROP, (same_id,), _read_title))
+    assert report["repeated_resource_ids"] == 1
+    assert _written(store, f"{FOLDER}_SAME1")["value"] == "a"
+    assert _written(store, f"{FOLDER}_SAME1-2")["value"] == "b"
+    assert _written(store, f"{FOLDER}_SAME1-2")["resource_id"] == (
+        f"{FOLDER}_SAME1-2"
+    )
+
+
+def test_the_site_platform_stands_in_for_a_page_without_one(
+    tmp_path: Path,
+) -> None:
+    store = open_store(str(tmp_path))
+    _seed(store, [_profile("a", ["Course"])])
+    assert set(_run(store)["by_platform"]) == {"courseleaf"}
+
+
+def test_a_missing_page_is_skipped_and_named(tmp_path: Path) -> None:
+    store = open_store(str(tmp_path))
+    _seed(store, [_profile("gone", ["Course"], _missing=True)])
+    report = _run(store)
+    assert report["skipped"] == [
+        {
+            "stem": "gone",
+            "url": "https://catalog.example.edu/gone",
+            "reason": "page_missing",
+        }
+    ]
+
+
+def test_the_golden_sample_and_the_limit_narrow_the_pages(
+    tmp_path: Path,
+) -> None:
+    store = open_store(str(tmp_path))
+    _seed(
+        store,
+        [_profile(stem, ["Course"]) for stem in ("a", "b", "c")],
+        sample=["b", "c"],
+    )
+    assert _run(store, only_golden_sample=True)["pages_read"] == 2
+    assert _run(store, only_golden_sample=True, limit=1)["pages_read"] == 1
+
+
+def test_the_report_is_written_beside_extraction_report(tmp_path: Path) -> None:
+    store = open_store(str(tmp_path))
+    _seed(store, [_profile("a", ["Course"])])
+    report = _run(store)
+    assert report["report_key"] == (
+        f"{run_prefix(FOLDER, RUN)}/extraction-ex_thing-report.json"
+    )
+    saved = store.get_json(report["report_key"])
+    assert saved["schema"] == "xtra-extraction-report-1"
+    assert saved["property"] == PROP
+    assert saved["class"] == ["ceterms:Course"]
+    assert saved["by_class"] == {
+        "ceterms:Course": {"occurrences": 3, "found": 1}
+    }
+    assert saved["resources_written"] == 2
+
+
+def test_running_again_writes_the_same_files(tmp_path: Path) -> None:
+    store = open_store(str(tmp_path))
+    _seed(store, [_profile("a", ["Course"])])
+    _run(store)
+    first = _written(store, f"{FOLDER}_A1")
+    _run(store)
+    assert _written(store, f"{FOLDER}_A1") == first
+    assert not store.exists(
+        extract_resource_key(FOLDER, RUN, PROP, f"{FOLDER}_A1-2")
+    )
+
+
+def test_a_discovery_run_without_pages_jsonl_cannot_be_read(
+    tmp_path: Path,
+) -> None:
+    store = open_store(str(tmp_path))
+    with pytest.raises(ExtractionError, match="pages.jsonl"):
+        _run(store)
+
+
+def test_each_class_reads_its_own_pages(tmp_path: Path) -> None:
+    store = open_store(str(tmp_path))
+    _seed(store, [_profile("a", ["Course"]), _profile("p", ["Program"])])
+    program = RdfClass(
+        "ceterms:LearningProgram",
+        "Program",
+        lambda page: [Occurrence(page.soup, "body", True)],
+        lambda occurrence, page, catalog_id: f"{catalog_id}_PROGRAM",
+    )
+    report = _run(store, Extractor(PROP, (FAKE_COURSE, program), _read_title))
+    assert report["pages_read"] == 2
+    assert set(report["by_class"]) == {
+        "ceterms:Course",
+        "ceterms:LearningProgram",
+    }
+    assert _written(store, f"{FOLDER}_PROGRAM")["type"] == (
+        "ceterms:LearningProgram"
+    )
+
+
+def test_a_run_clears_what_an_earlier_run_wrote_for_its_property(
+    tmp_path: Path,
+) -> None:
+    """A file no run writes any more would be scored as a resource."""
+    store = open_store(str(tmp_path))
+    _seed(store, [_profile("a", ["Course"])])
+    stale = extract_resource_key(FOLDER, RUN, PROP, f"{FOLDER}_GONE1")
+    store.put_json(stale, {"resource_id": f"{FOLDER}_GONE1"})
+    report = _run(store)
+    assert not store.exists(stale)
+    assert report["files_cleared"] == 1
+    assert _written(store, f"{FOLDER}_A1")["value"] == "a"
+
+
+def test_clearing_leaves_other_properties_and_the_run_alone(
+    tmp_path: Path,
+) -> None:
+    store = open_store(str(tmp_path))
+    _seed(store, [_profile("a", ["Course"])])
+    other = extract_resource_key(FOLDER, RUN, "ex:other", f"{FOLDER}_A1")
+    beside = f"{run_prefix(FOLDER, RUN)}/extraction_report/note.json"
+    for key in (other, beside):
+        store.put_json(key, {})
+    _run(store)
+    assert store.exists(other)
+    assert store.exists(beside)
+
+
+def test_a_run_that_cannot_read_discovery_clears_nothing(
+    tmp_path: Path,
+) -> None:
+    store = open_store(str(tmp_path))
+    kept = extract_resource_key(FOLDER, RUN, PROP, f"{FOLDER}_A1")
+    store.put_json(kept, {})
+    with pytest.raises(ExtractionError):
+        _run(store)
+    assert store.exists(kept)
