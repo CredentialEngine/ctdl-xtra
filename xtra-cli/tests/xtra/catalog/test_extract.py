@@ -433,11 +433,12 @@ def test_without_discovery_it_says_to_run_discover_first(
 
 # --- nothing fitted to one catalog -------------------------------------------
 
-SRC = Path(__file__).resolve().parents[4] / "src"
+SRC = Path(__file__).resolve().parents[3] / "src"
 EXTRACTION_CODE = [
-    SRC / "implementations" / "extract.py",
+    SRC / "implementations" / "extract_run.py",
     SRC / "implementations" / "extract_course.py",
-    *sorted((SRC / "xtra" / "catalog" / "extract").rglob("*.py")),
+    SRC / "xtra" / "catalog" / "extract.py",
+    *sorted((SRC / "implementations" / "extract").rglob("*.py")),
 ]
 
 

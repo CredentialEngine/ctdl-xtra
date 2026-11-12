@@ -10,7 +10,7 @@ from discovery_doubles import seed_crawl_page
 from common.keys import discovery_key, extract_resource_key, run_prefix
 from common.object_store import open_store
 from implementations.discover import PAGES_FILE, SUMMARY_FILE, sample_file_name
-from implementations.extract import (
+from implementations.extract_run import (
     ExtractionError,
     Extractor,
     Occurrence,

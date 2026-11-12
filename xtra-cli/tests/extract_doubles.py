@@ -12,7 +12,7 @@ from pathlib import Path
 from typing import Any
 
 from implementations.discover_dom import parse, read_fingerprint
-from implementations.extract import Page
+from implementations.extract_run import Page
 
 COURSE_FIXTURES = (
     Path(__file__).resolve().parent / "fixtures" / "html" / "extract" / "course"

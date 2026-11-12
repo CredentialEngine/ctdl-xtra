@@ -33,7 +33,8 @@ from implementations.discover_rules import (
     PLATFORM_ELUMEN,
     collapse,
 )
-from implementations.extract import (
+from implementations.extract_course import code_at_start
+from implementations.extract_run import (
     Occurrence,
     Page,
     Reading,
@@ -41,7 +42,6 @@ from implementations.extract import (
     inside_chrome,
     printed_text,
 )
-from implementations.extract_course import code_at_start
 
 PROPERTY = "ceterms:name"
 # The classes it is read from, each a CTDL class the command knows. As we add more classes, we'll need to update the classes here.

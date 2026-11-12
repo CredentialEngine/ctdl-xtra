@@ -9,7 +9,6 @@ from implementations.discover_rules import (
     PLATFORM_NAMES,
     PLATFORM_WEAK,
 )
-from implementations.extract import printed_text
 from implementations.extract_course import (
     COURSE,
     COURSE_BLOCK_SELECTORS,
@@ -19,6 +18,7 @@ from implementations.extract_course import (
     course_occurrences,
     course_resource_id,
 )
+from implementations.extract_run import printed_text
 
 
 @pytest.mark.parametrize(

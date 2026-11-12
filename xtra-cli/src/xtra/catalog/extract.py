@@ -9,7 +9,7 @@ extractor, and each extractor is one file in its vocabulary's folder, named
 the way CE's split schema names its files (Schema-Development,
 Split/properties/ceterms_name.jsonld). The output follows the same folders:
 
-  ceterms:name -> xtra/catalog/extract/ceterms/ceterms_name.py
+  ceterms:name -> implementations/extract/ceterms/ceterms_name.py
                -> extraction_report/ceterms/ceterms_name/{resource_id}.json
 
 The file declares PROPERTY, CLASS (the classes it is read from) and read.
@@ -31,13 +31,13 @@ import click
 from common.keys import property_key
 from common.object_store import open_store
 from implementations.discover import latest_discovery_run_id
-from implementations.extract import (
+from implementations.extract_course import COURSE
+from implementations.extract_run import (
     ExtractionError,
     Extractor,
     RdfClass,
     run_extraction,
 )
-from implementations.extract_course import COURSE
 from xtra.click import (
     POSITIVE_INT,
     env_option,
@@ -58,6 +58,9 @@ PROPERTY_PATH_RE = re.compile(
 )
 
 
+# Where the extractors are: one folder per prefix, one file per property.
+EXTRACTORS_PACKAGE = "implementations.extract"
+
 # Every class a property can name in its CLASS tuple.
 CLASSES: dict[str, RdfClass] = {c.rdf_type: c for c in (COURSE,)}
 
@@ -67,7 +70,7 @@ class RegistryError(Exception):
 
 
 def extractors(
-    package: str = __name__, classes: dict[str, RdfClass] = CLASSES
+    package: str = EXTRACTORS_PACKAGE, classes: dict[str, RdfClass] = CLASSES
 ) -> dict[str, Extractor]:
     """Every property with an extractor, from the file tree.
 

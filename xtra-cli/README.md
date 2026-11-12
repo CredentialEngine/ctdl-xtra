@@ -151,10 +151,10 @@ xtra catalog crawl summary -> src/xtra/catalog/crawl_summary.py
   --with-crawl4ai       -> src/implementations/crawl_crawl4ai.py
   --with-firecrawl      -> src/implementations/crawl_firecrawl.py
 xtra catalog discover   -> src/xtra/catalog/discover.py
-xtra catalog extract PROPERTY -> src/xtra/catalog/extract/__init__.py
-  ceterms:name          -> src/xtra/catalog/extract/ceterms/ceterms_name.py
+xtra catalog extract PROPERTY -> src/xtra/catalog/extract.py
+  ceterms:name          -> src/implementations/extract/ceterms/ceterms_name.py
 xtra catalog transform  -> src/xtra/catalog/transform.py
-xtra score extraction match -> src/xtra/scoring/extraction/match.py
+xtra score extraction match -> src/xtra/score/extraction/match.py
   --exactly / --partially   -> src/implementations/score_extraction_match.py
   reads extraction_report/  -> src/implementations/score_extraction_transform.py
 ```
@@ -902,7 +902,7 @@ extractor, with its class.
 
 - **One file per resource, in the extractor's folders:**
   `extraction_report/ceterms/ceterms_name/{resource_id}.json`, as the
-  extractor is `extract/ceterms/ceterms_name.py`.
+  extractor is `implementations/extract/ceterms/ceterms_name.py`.
 
   ```json
   {
@@ -931,11 +931,11 @@ vocabulary prefix, a file per property named `<prefix>_<LocalName>`, and
 nothing deeper.
 
 ```text
-src/xtra/catalog/extract/
-  __init__.py              the command, the registry, and CLASSES
-  ceterms/ceterms_name.py  PROPERTY, CLASS, read (one occurrence's name)
+src/xtra/catalog/
+  extract.py               the command, the registry, and CLASSES
 src/implementations/
-  extract.py               what every property shares: pages, files, report
+  extract/ceterms/ceterms_name.py  PROPERTY, CLASS, read (one occurrence's name)
+  extract_run.py           what every property shares: pages, files, report
   extract_course.py        COURSE: the pages that hold courses, where each is, its resource id
 ```
 

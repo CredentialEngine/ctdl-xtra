@@ -20,7 +20,7 @@ from implementations.discover_rules import (
     PLATFORM_COURSELEAF,
     PLATFORM_CURRIQUNET,
 )
-from implementations.extract import (
+from implementations.extract_run import (
     Occurrence,
     Page,
     RdfClass,

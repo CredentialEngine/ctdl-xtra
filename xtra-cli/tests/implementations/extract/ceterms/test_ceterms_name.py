@@ -10,15 +10,15 @@ import pytest
 from extract_doubles import fixture_page
 
 from implementations.discover_dom import parse
-from implementations.extract import Occurrence, Page
-from implementations.extract_course import course_occurrences as occurrences
-from xtra.catalog.extract.ceterms.ceterms_name import (
+from implementations.extract.ceterms.ceterms_name import (
     CLASS,
     PROPERTY,
     is_code_only,
     read,
     split_name,
 )
+from implementations.extract_course import course_occurrences as occurrences
+from implementations.extract_run import Occurrence, Page
 
 
 def test_the_module_declares_its_ctdl_property() -> None:

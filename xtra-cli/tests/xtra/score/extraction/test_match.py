@@ -174,7 +174,7 @@ def test_source_and_baseline_take_their_own_connection_strings(
         return open_store(uri)
 
     monkeypatch.setattr(
-        "xtra.scoring.extraction.match.open_store", recording_open_store
+        "xtra.score.extraction.match.open_store", recording_open_store
     )
 
     result = match(

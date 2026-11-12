@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from xtra.scoring import extraction
+from xtra.score import extraction
 
 
 def test_extraction_package_imports() -> None:

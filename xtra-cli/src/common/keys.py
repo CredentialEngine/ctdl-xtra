@@ -146,7 +146,7 @@ def extract_property_prefix(catalog_folder: str, run_id: str, prop: str) -> str:
 
     The folders follow the extractors' own: ceterms:name is under
     extraction_report/ceterms/ceterms_name/, as its extractor is
-    extract/ceterms/ceterms_name.py.
+    implementations/extract/ceterms/ceterms_name.py.
     """
     prefix = prop.split(":", 1)[0].strip()
     return (
