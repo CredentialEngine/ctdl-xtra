@@ -110,9 +110,11 @@ def golden_record_ids(rv: Review) -> tuple[dict[str, str], list[dict]]:
     return out, collisions
 
 
-def plan(rv: Review, properties: set[str] | None = None) -> dict:
+def plan(rv: Review, properties: set[str] | None = None, stems: set[str] | None = None) -> dict:
     """Everything a publication would write for these properties (None: all), without writing it. Human-reviewed
-    values are in it whatever their property."""
+    values are in it whatever their property. `stems`: only these pages (a verdict rewrites one page's file; working
+    out the whole catalog took ~10 s a verdict on Marshall). A page's rows get the same states either way: the rows
+    of other pages only re-attach annotations to their own course and page."""
     snap = rv.snap
     ids, collisions = golden_record_ids(rv)
     ann = defaultdict(list)
@@ -123,11 +125,13 @@ def plan(rv: Review, properties: set[str] | None = None) -> dict:
     # who approved each value: an expert who confirmed it (on the Rules or Records tab), else the rule's approval
     human: dict[tuple[str, str], dict] = {}
     by_rule: dict[str, dict] = {}
+    row_states: dict[str, dict] = {}  # rule → occurrence_key → its row's state
     for rid, r in snap.rules.items():
         if r["kind"] != "property":
             continue
-        rows = snap.rows(rid)
-        states = rv.row_states(rid, rows)
+        rows = snap.rows(rid) if stems is None else snap.rows_on(rid, stems)
+        states = rv.row_states(rid, rows, stems)
+        row_states[rid] = {row["occurrence_key"]: states[row["key"]] for row in rows if row.get("occurrence_key")}
         for row in rows:
             st = states[row["key"]]
             if row.get("items") is not None:  # a list: each item's own expert ✓ (property-rules spec §4.4)
@@ -138,11 +142,10 @@ def plan(rv: Review, properties: set[str] | None = None) -> dict:
             elif st.human:
                 human[(rid, row["occurrence_key"], 0)] = st.human
         if properties is None or r.get("property_label") in properties:
-            by_rule[rid] = rv.rule_status(rid, states)
-    # the reviewers' answers (sme-fixes §5.4, §6, §7, golden_answers.py): row states per rule, and the rows where the
-    # rule found nothing that still publish something (a ✕ with an answer, a ✓ on "nothing found")
-    row_states = {rid: golden_answers.states_by_occurrence(rv, rid) for rid, r in snap.rules.items()
-                  if r["kind"] == "property"}
+            # a rule's status needs every row's state (and is cached across Reviews): only the whole rule's states
+            by_rule[rid] = rv.rule_status(rid, states if stems is None else None)
+    # the reviewers' answers (sme-fixes §5.4, §6, §7, golden_answers.py): the rows where the rule found nothing that
+    # still publish something (a ✕ with an answer, a ✓ on "nothing found")
     answered: dict[str, set[str]] = defaultdict(set)  # occurrence_key → rules with no found value to publish
     for rid, sts in row_states.items():
         for k, st in sts.items():
@@ -155,7 +158,9 @@ def plan(rv: Review, properties: set[str] | None = None) -> dict:
     lineage: list[dict] = []
     skipped_no_key = 0
     used: Counter = Counter()  # (golden_record_id, page_stem, property) → values already published
-    for key, o in sorted(snap.occurrences.items(), key=lambda kv: (kv[1]["page_stem"], kv[1]["locator_index"])):
+    occs = snap.occurrences.items() if stems is None else \
+        ((k, o) for k, o in snap.occurrences.items() if o["page_stem"] in stems)
+    for key, o in sorted(occs, key=lambda kv: (kv[1]["page_stem"], kv[1]["locator_index"])):
         gid = ids.get(key)
         if gid is None:
             skipped_no_key += 1
@@ -547,7 +552,7 @@ def publish_page(ctx: Ctx, stem: str, reason: str, by: str, create: bool = False
     n = max(vs)
     doc = ctx.read_json(f"{vs[n]['path']}/publication.json", immutable=False)
     rv = LOADER.review(ctx, doc["extraction"])
-    files = trees({stem: plan(rv, set(doc["properties"]))["pages"].get(stem, [])})
+    files = trees({stem: plan(rv, set(doc["properties"]), stems={stem})["pages"].get(stem, [])})
     target = open_root(doc["to"])
     changed = []
     for folder, records in ((f"{version_prefix(ctx, n, RULE_MATCHED)}{stem}", files[RULE_MATCHED].get(stem)),

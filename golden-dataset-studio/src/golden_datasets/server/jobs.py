@@ -10,14 +10,53 @@ the file is deleted).
 
 from __future__ import annotations
 
+import multiprocessing
+import os
 import threading
 import traceback
 
-from .. import scores
+from .. import layout, scores
 from ..context import Ctx
 from ..errors import UserError
 
 EVERY = 30.0  # seconds
+#: "1": each score runs in a process of its own (the deployed Studio). A score is a minute of Python work: in a thread
+#: of the server it held up every request meanwhile, and the memory it used stayed with the server after it ended.
+ENV_PROCESS = "GOLDEN_DATASETS_SCORE_PROCESS"
+
+
+def in_process() -> bool:
+    return os.environ.get(ENV_PROCESS) == "1"
+
+
+def _child(root_uri: str, catalog: str, crawl: str, doc: dict, golden, output: dict, records: tuple, pair: str) -> None:
+    """A score's own process: the same `scores.finish`, from what the server prepared."""
+    from ..context import Ctx as _Ctx
+    from ..storage import open_root
+
+    ctx = _Ctx(open_root(root_uri), catalog, crawl)
+    store = scores.RecordsStore(open_root(records[0]), records[1], catalog, crawl)
+    scores.finish(ctx, doc, scores.Prepared(golden, output, store, pair))
+
+
+def finish_in_process(ctx: Ctx, doc: dict, p) -> None:
+    """Run `scores.finish` in a spawned process and wait for it; a process that dies (killed, out of memory) leaves
+    the score `failed`, saying so."""
+    proc = multiprocessing.get_context("spawn").Process(
+        target=_child, name=f"score-{ctx.catalog}-{doc['id']}",
+        args=(ctx.root.uri, ctx.catalog, ctx.crawl, doc, p.golden, p.output, (p.records.root.uri, p.records.base),
+              p.pair))
+    proc.start()
+    proc.join()
+    if proc.exitcode != 0:
+        try:
+            now = ctx.root.read_json(f"{layout.score_dir(ctx.catalog, ctx.crawl, doc['id'])}/score.json")
+        except Exception:  # noqa: BLE001 - the score file is what we are fixing
+            now = None
+        if not now or now.get("status") == "running":
+            doc["status"], doc["error"] = "failed", f"the score's process ended with exit code {proc.exitcode}"
+            doc["finished_at"] = scores._now()
+            scores._write(ctx, doc)
 
 
 class ScoreJobs:
@@ -50,7 +89,10 @@ class ScoreJobs:
 
         def run() -> None:
             try:
-                scores.finish(ctx, doc, p)
+                if in_process():
+                    finish_in_process(ctx, doc, p)
+                else:
+                    scores.finish(ctx, doc, p)
             finally:
                 self._busy.pop(ctx.catalog, None)
 
