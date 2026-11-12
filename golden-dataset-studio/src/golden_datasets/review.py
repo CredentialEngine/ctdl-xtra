@@ -892,6 +892,7 @@ class Loader:
         self._logs: dict[tuple, AnnotationLog] = {}
         self._reviews: dict[tuple, Review] = {}
         self._lock = threading.RLock()
+        self._loading = threading.RLock()  # held while a snapshot loads (see `snapshot`)
         #: bumped when every Review is rebuilt (a role changed): derived caches key on it
         self.generation = 0
 
@@ -909,22 +910,35 @@ class Loader:
         rows = cls._rows(snap.meta)
         return rows if rows is not None else sum(len(v) for v in snap.matches_by_rule.values()) + len(snap.occurrences)
 
-    def snapshot(self, ctx: Ctx, ext: str) -> Snapshot:
-        key = (ctx.root.uri, ctx.catalog, ctx.crawl, ext)
+    def _cached(self, key: tuple) -> Snapshot | None:
         with self._lock:
             snap = self._snaps.get(key)
             if snap is not None:
                 self._snaps.move_to_end(key)
+            return snap
+
+    def snapshot(self, ctx: Ctx, ext: str) -> Snapshot:
+        key = (ctx.root.uri, ctx.catalog, ctx.crawl, ext)
+        snap = self._cached(key)
+        if snap is not None:
+            return snap
+        # One cold load at a time. Loads used to run side by side: people opening WVU together each built their own
+        # ~1.3 GB copy, and cold loads of different catalogs all made room for themselves alone, so together they
+        # passed the memory limit and the server was OOM-killed (2026-11-12). A request whose extraction is loading
+        # waits for it and then finds it cached; cached snapshots don't wait for anything.
+        with self._loading:
+            snap = self._cached(key)
+            if snap is not None:
                 return snap
-        # make room first (its row counts are in extraction.json), so the old and the new aren't held at once
-        incoming = self._rows(ctx.extraction_meta(ext)) or 0
-        with self._lock:
-            self._evict(incoming=incoming)
-        snap = Snapshot(ctx, ext)  # outside the lock: a cold load takes seconds
-        with self._lock:
-            snap = self._snaps.setdefault(key, snap)
-            self._snaps.move_to_end(key)
-            self._evict()
+            # make room first (its row counts are in extraction.json), so the old and the new aren't held at once
+            incoming = self._rows(ctx.extraction_meta(ext)) or 0
+            with self._lock:
+                self._evict(incoming=incoming)
+            snap = Snapshot(ctx, ext)  # outside `_lock`: a cold load takes seconds, and cached reads go on meanwhile
+            with self._lock:
+                self._snaps[key] = snap
+                self._snaps.move_to_end(key)
+                self._evict()
         return snap
 
     def _evict(self, incoming: int = 0) -> None:

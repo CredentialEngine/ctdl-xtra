@@ -91,3 +91,36 @@ def test_a_tables_repeated_strings_are_one_object():
     rows = review._shared([{"rule_id": "".join(["course-", "name"]), "n": 1},
                            {"rule_id": "".join(["course-", "name"]), "n": 2}])
     assert rows[0]["rule_id"] is rows[1]["rule_id"] and rows[1]["n"] == 2
+
+
+def test_concurrent_requests_load_an_extraction_once_and_one_extraction_at_a_time(monkeypatch):
+    """Two people opening WVU at once used to build two ~1.3 GB copies, and cold loads of different catalogs ran
+    side by side; together they got the server OOM-killed (2026-11-12)."""
+    import threading
+    import time
+
+    loading, peak, loaded = [0], [0], []
+    guard = threading.Lock()
+
+    class SlowSnapshot:
+        def __init__(self, ctx, ext):
+            with guard:
+                loading[0] += 1
+                peak[0] = max(peak[0], loading[0])
+                loaded.append(ext)
+            time.sleep(0.05)
+            with guard:
+                loading[0] -= 1
+            self.ext, self.meta = ext, ctx.extraction_meta(ext)
+
+    monkeypatch.setattr(review, "Snapshot", SlowSnapshot)
+    loader, ctx = Loader(budget=10_000), FakeCtx()
+    got: list = []
+    threads = [threading.Thread(target=lambda e=e: got.append(loader.snapshot(ctx, e))) for e in "aaaabbcd" * 2]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+    assert sorted(loaded) == ["a", "b", "c", "d"]  # each extraction built once
+    assert peak[0] == 1  # never two at once
+    assert len({id(s) for s in got if s.ext == "a"}) == 1  # everyone got the same copy
