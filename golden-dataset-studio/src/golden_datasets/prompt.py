@@ -236,6 +236,17 @@ def _run_dir(run: dict | None) -> str:
     return f"{k2_work()}/{agent}/runs/{_run_id(run)}"
 
 
+def _tools_root() -> str:
+    """Where runs install their own copy of the CLI: next to K2's work folder, never inside a workspace. K2 stops
+    trusting a workspace it can't scan whole (over 20,000 folders); a Python environment is ~440 folders, so keeping
+    one per run in `runs/<run_id>/.tools` held every run with `folder_trust_pending` after ~55 runs (2026-11-12)."""
+    return f"{k2_work().rsplit('/', 1)[0]}/.cache/golden-datasets-tools"
+
+
+#: a run's tools are removed this long after it started (runs end within 90 minutes)
+TOOLS_KEPT_MINUTES = 24 * 60
+
+
 def _run_header(run: dict | None, ctx: Ctx) -> list[str]:
     """target k2: who started this run, that nobody will answer, and how to report (agent_runs.py)."""
     rid, d = _run_id(run), _run_dir(run)
@@ -354,6 +365,8 @@ def _run_close(run: dict | None) -> list[str]:
 def _setup_k2(ctx: Ctx, root_uri: str, first_rule: str, check: str | None, run: dict | None) -> list[str]:
     src = cli_source()
     d, short_name = _run_dir(run), info(ctx.catalog)["short"]
+    tools = _tools_root()
+    t = f"{tools}/{_run_id(run)}"
     check = (check or f"golden-datasets rule show {first_rule}").replace("golden-datasets ", "./bin/golden-datasets ", 1)
     return ["## Setup", "",
             f"`golden-datasets` reads its settings from `{ENV_FILE}` files in the current folder and its parents. "
@@ -363,7 +376,8 @@ def _setup_k2(ctx: Ctx, root_uri: str, first_rule: str, check: str | None, run: 
             "may be installing its copy at the same time, so never install into the shared tool folder), and name "
             "the run's root and catalog:", "",
             "   ```sh",
-            f"   mkdir -p {d} && cd {d} && UV_TOOL_DIR={d}/.tools UV_TOOL_BIN_DIR={d}/bin uv tool install '{src['spec']}'",
+            f"   find {tools} -mindepth 1 -maxdepth 1 -mmin +{TOOLS_KEPT_MINUTES} -exec rm -rf {{}} + 2>/dev/null; true",
+            f"   mkdir -p {d} {t} && cd {d} && UV_TOOL_DIR={t} UV_TOOL_BIN_DIR={d}/bin uv tool install '{src['spec']}'",
             f"   printf '%s\\n' 'GOLDEN_DATASETS_ROOT={root_uri}' "
             f"'GOLDEN_DATASETS_CATALOG={short_name}' 'GOLDEN_DATASETS_RUN={_run_id(run)}' > {d}/{ENV_FILE}",
             f"   cd {d} && {check}", "   ```", "",

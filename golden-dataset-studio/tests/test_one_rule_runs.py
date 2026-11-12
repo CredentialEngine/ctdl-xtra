@@ -536,7 +536,8 @@ def test_prompt_for_rules_to_improve_with_a_per_run_install(cat):
     text = build_prompt(c, rules=[CV, DESC], target="k2", run=run)["text"]
     d = "/var/lib/k2/work/golden-rules/runs/20261106T150000Z-ab12"
     assert text.startswith("# Improve 2 rules — ")
-    assert f"UV_TOOL_DIR={d}/.tools UV_TOOL_BIN_DIR={d}/bin uv tool install '" in text
+    t = "/var/lib/k2/.cache/golden-datasets-tools/20261106T150000Z-ab12"
+    assert f"UV_TOOL_DIR={t} UV_TOOL_BIN_DIR={d}/bin uv tool install '" in text
     assert "uv tool install --reinstall" not in text and "`golden-datasets rule " not in text
     assert f"cd {d} && ./bin/golden-datasets run note \"<one line>\"" in text
     assert "don't use `k2 respond` or `k2 done`" in text
@@ -561,7 +562,8 @@ def test_prompt_paths_follow_the_k2_work_folder(cat, monkeypatch):
     run = {"run_id": "20261106T150000Z-ab12", "started_by": "Jared Diener", "k2": {"agent": "golden-rules"}}
     text = build_prompt(m.ctx(cat), rules=[CV], target="k2", run=run)["text"]
     d = "/private/tmp/k2e2e/work/golden-rules/runs/20261106T150000Z-ab12"
-    assert f"mkdir -p {d} && cd {d} && UV_TOOL_DIR={d}/.tools" in text
+    t = "/private/tmp/k2e2e/.cache/golden-datasets-tools/20261106T150000Z-ab12"
+    assert f"mkdir -p {d} {t} && cd {d} && UV_TOOL_DIR={t} " in text
     assert "SAS tokens for the storage containers are in `/private/tmp/k2e2e/work/golden-datasets.env`" in text
     assert f"cd {d} && ./bin/golden-datasets run done --report report.json" in text
     assert "/var/lib/k2" not in text
