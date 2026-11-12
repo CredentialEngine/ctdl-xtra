@@ -227,6 +227,13 @@ describe("LLMProviderApi", () => {
       logApiCall,
     });
 
+    expect(
+      create.mock.calls[0][0].tools?.[0].function?.parameters
+    ).toMatchObject({
+      type: "object",
+      additionalProperties: false,
+    });
+
     expect(createModelApiCallLog).toHaveBeenCalledWith(
       42,
       Provider.OpenAI,
