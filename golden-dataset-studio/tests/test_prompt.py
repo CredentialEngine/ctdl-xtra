@@ -109,7 +109,10 @@ def test_k2_version_is_a_run(ctx):
     assert "## This is a Golden Dataset Studio run" in text and "started by Jared Diener" in text
     assert f'cd {d} && ./bin/golden-datasets run note "<one line>"' in text
     assert "**Your first action is a note.**" in text  # silence for 5 minutes then means it stopped (spec §4)
-    assert f"mkdir -p {d} && cd {d} && UV_TOOL_DIR={d}/.tools UV_TOOL_BIN_DIR={d}/bin uv tool install '" in text
+    t = "/var/lib/k2/.cache/golden-datasets-tools/20261028T031209Z-a1b2"  # outside the workspace K2 scans
+    assert f"mkdir -p {d} {t} && cd {d} && UV_TOOL_DIR={t} UV_TOOL_BIN_DIR={d}/bin uv tool install '" in text
+    assert "find /var/lib/k2/.cache/golden-datasets-tools -mindepth 1 -maxdepth 1 -mmin +1440 -exec rm -rf {} +" in text
+    assert "/.tools" not in text and "/var/lib/k2/work/golden-rules/runs/20261028T031209Z-a1b2/.tools" not in text
     assert f"printf '%s\\n' 'GOLDEN_DATASETS_ROOT={azure}' 'GOLDEN_DATASETS_CATALOG=avc' 'GOLDEN_DATASETS_RUN=20261028T031209Z-a1b2' > {d}/golden-datasets.env" in text
     assert "/var/lib/k2/work/golden-datasets.env" in text and "If the install fails, don't install another version" in text
     assert "## End the run" in text and f"cd {d} && ./bin/golden-datasets run done --report report.json" in text
