@@ -19,7 +19,11 @@ const REDIS_URL = process.env.REDIS_URL || "redis://localhost:6379";
 export const REPEAT_UPDATE_COMPLETION_EVERY_MS = 2 * 60 * 1000;
 
 export function getRedisConnection() {
-  const connection = new IORedis(REDIS_URL, { maxRetriesPerRequest: null });
+  const connection = new IORedis(REDIS_URL, {
+    maxRetriesPerRequest: null,
+    connectTimeout: 5_000,
+    commandTimeout: 5_000,
+  });
   connection.setMaxListeners(30);
   return connection;
 }
