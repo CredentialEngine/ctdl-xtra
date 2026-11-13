@@ -318,6 +318,17 @@ def test_the_golden_sample_and_the_limit_narrow_the_pages(
     assert _run(store, only_golden_sample=True, limit=1)["pages_read"] == 1
 
 
+def test_the_report_says_whether_the_pages_were_limited(
+    tmp_path: Path,
+) -> None:
+    """Scoring counts a baseline page extract never wrote as missing only
+    when extract read every page it was given."""
+    store = open_store(str(tmp_path))
+    _seed(store, [_profile(stem, ["Course"]) for stem in ("a", "b")])
+    assert _run(store)["limit"] is None
+    assert _run(store, limit=1)["limit"] == 1
+
+
 def test_the_report_is_written_beside_extraction_report(tmp_path: Path) -> None:
     store = open_store(str(tmp_path))
     _seed(store, [_profile("a", ["Course"])])
