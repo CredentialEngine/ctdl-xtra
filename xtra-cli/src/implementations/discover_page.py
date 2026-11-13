@@ -741,6 +741,22 @@ def course_label(
         return (
             f"{len(structure.course_blocks)} course block(s) marked up: {quote}"
         )
+    described = {block.code for block in structure.course_blocks}
+    unlisted = described - structure.reference_codes
+    if (
+        len(unlisted) >= MIN_COURSE_LIST_CODES
+        and program_label(program) is None
+    ):
+        # A college prints every program's requirements and then every
+        # course it teaches: WVU's Eberly College marks up 1,611 courses
+        # below them. It is no one program's page, so the requirements do
+        # not make it a credential, and the courses no requirement list
+        # names are descriptions, not the program's own list.
+        quote = structure.course_blocks[0].quote
+        return (
+            f"{len(described)} course block(s) marked up, "
+            f"{len(unlisted)} in no requirement list: {quote}"
+        )
     if blocks >= 2 and not lists_its_own_requirements:
         return f"{blocks} course blocks"
     if (
