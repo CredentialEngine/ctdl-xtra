@@ -525,8 +525,7 @@ def _record_keys_by_stem(
     # records ahead of the page's own. The resource number is compared as
     # a number: as text, --resource-1000 sorts before --resource-101.
     return {
-        stem: sorted(keys, key=_page_order)
-        for stem, keys in by_stem.items()
+        stem: sorted(keys, key=_page_order) for stem, keys in by_stem.items()
     }
 
 
