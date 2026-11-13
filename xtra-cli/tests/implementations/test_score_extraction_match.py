@@ -633,6 +633,39 @@ def test_a_page_extract_never_considered_is_not_counted(
     assert report["pages_out_of_scope"] == 1
 
 
+def test_when_the_whole_catalog_was_extracted_a_page_never_written_is_missing(
+    stores: Stores,
+) -> None:
+    """The baseline expected a course there, and extraction wrote none:
+    discovery labelled the page something else, or the course had no
+    code to name it by."""
+    other = "other-page-0000000000"
+    stores.put_baseline(
+        STEM, [{"fields": [baseline_field("ceterms:name", "A")]}]
+    )
+    stores.put_baseline(
+        other, [{"fields": [baseline_field("ceterms:name", "B")]}]
+    )
+    stores.put_record(record_of(prop("ceterms:name", "A")))
+
+    report = match_extraction_run(
+        stores.records,
+        stores.baseline,
+        FOLDER,
+        RUN,
+        MODE_EXACT,
+        whole_catalog=True,
+    )
+
+    assert report["fields_total"] == 2
+    assert report["outcomes"] == {"match": 1, "mismatch": 0, "missing": 1}
+    assert report["pages_not_extracted"] == 1
+    assert report["pages_out_of_scope"] == 0
+    assert report["out_of_scope"] == []
+    (page,) = [p for p in report["pages"] if p["stem"] == other]
+    assert page["status"] == "not_extracted"
+
+
 def test_a_malformed_baseline_file_is_reported_and_skipped(
     stores: Stores,
 ) -> None:

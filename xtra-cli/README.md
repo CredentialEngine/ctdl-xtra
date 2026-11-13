@@ -922,7 +922,9 @@ extractor, with its class.
   this run's files. Other properties and the rest of the run are left alone.
 - **The report** goes beside `extraction_report/`, named for the property:
   `extraction-ceterms_name-report.json`, with counts by strategy, class,
-  platform and reason, and up to 50 values not found.
+  platform and reason, and up to 50 values not found. It records
+  whether `only_golden_sample` and `limit` were used, so scoring knows whether the run read
+  the whole catalog.
 
 The extractors are organized by property, the way CE's split schema names
 its files (CredentialEngine/Schema-Development,
@@ -1063,14 +1065,20 @@ an exact match, worst first (missing, then lowest similarity), each with its
 page, property, baseline value and extracted value. The only ratio is
 `exact_match_rate` (matches over fields) in the exact report.
 
-Each baseline page falls in one of three groups:
+Each baseline page falls in one of four groups:
 
 - **scored**: extract wrote a file for a resource on it.
+- **not extracted**: extract wrote nothing for it, and every property's
+  `extraction-<property>-report.json` says the run read every page it was
+  given (`only_golden_sample` false, `limit` null). The baseline expected a
+  course there and none came out: discovery gave the page another label, or
+  its course had no code to name it by. All its fields are `missing`.
 - **skipped**: listed as skipped in `extract-report.json`. All its fields are
   `missing`. Nothing writes that file any more, so no page lands here.
-- **out of scope**: extract wrote nothing for it, because it is outside
-  discovery's labels or `--only-golden-sample`, or no resource on it has an
-  id. It is listed and not counted.
+- **out of scope**: extract wrote nothing for it, and the run was narrowed by
+  `--only-golden-sample` or `--limit`, or its report predates the `limit`
+  field, so the page may simply not have been asked for. It is listed and
+  not counted.
 
 The reports are
 `{catalog-folder}/{run-id}/extraction-match-exact-report.json` and

@@ -36,6 +36,7 @@ from implementations.score_extraction_match import (
 from implementations.score_extraction_transform import (
     ExtractionReportError,
     extraction_records,
+    whole_catalog_extracted,
 )
 from xtra.click import (
     baseline_uri_option,
@@ -65,7 +66,12 @@ def match_and_report(
     try:
         records = extraction_records(store, catalog_id, run_id)
         report = match_extraction_run(
-            records, baseline, catalog_id, run_id, mode
+            records,
+            baseline,
+            catalog_id,
+            run_id,
+            mode,
+            whole_catalog=whole_catalog_extracted(store, catalog_id, run_id),
         )
     except (ExtractionReportError, ExtractionMatchError) as exc:
         raise click.ClickException(str(exc)) from exc
@@ -87,6 +93,7 @@ def match_summary(report: dict) -> dict:
         "outcomes": report["outcomes"],
         "pages_scored": report["pages_scored"],
         "pages_skipped": report["pages_skipped"],
+        "pages_not_extracted": report["pages_not_extracted"],
         "pages_out_of_scope": report["pages_out_of_scope"],
         "outliers": len(report["outliers"]),
     }

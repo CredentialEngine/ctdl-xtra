@@ -60,6 +60,8 @@ MODE_OUTCOMES = {
 
 STATUS_SCORED = "scored"
 STATUS_SKIPPED = "skipped"
+# Extract read the whole catalog and wrote nothing for this baseline page.
+STATUS_NOT_EXTRACTED = "not_extracted"
 
 CREDIT_VALUE = "ceterms:creditValue"
 CREDIT_MIN = "ceterms:creditMinValue"
@@ -400,6 +402,9 @@ def summarize(
         "run_id": run_id,
         "pages_scored": sum(1 for p in pages if p["status"] == STATUS_SCORED),
         "pages_skipped": sum(1 for p in pages if p["status"] == STATUS_SKIPPED),
+        "pages_not_extracted": sum(
+            1 for p in pages if p["status"] == STATUS_NOT_EXTRACTED
+        ),
         "pages_out_of_scope": len(out_of_scope),
         "fields_total": len(all_fields),
         "outcomes": _counts(outcomes, all_fields),
@@ -436,12 +441,17 @@ def match_extraction_run(
     catalog_folder: str,
     run_id: str,
     mode: str,
+    *,
+    whole_catalog: bool = False,
 ) -> dict:
     """Match every baseline page of one run against the records it wrote.
 
     A baseline page whose extract was considered but skipped is all missing,
-    since that is an extractor miss. One never considered, outside discovery
-    or outside --only-golden-sample, is listed and not counted.
+    since that is an extractor miss. So is one extract wrote nothing for
+    when it read the whole catalog (`whole_catalog`): discovery gave the
+    page another label, or its course had no code to name it by. Otherwise
+    a page with no records may simply have been left out, by
+    --only-golden-sample or --limit, and is listed and not counted.
     """
     baseline_stems = _baseline_stems(baseline_store, catalog_folder, run_id)
     if not baseline_stems:
@@ -469,6 +479,9 @@ def match_extraction_run(
             records = [records_store.get_json(key) for key in keys]
         elif stem in skipped:
             status = STATUS_SKIPPED
+            records = []
+        elif whole_catalog:
+            status = STATUS_NOT_EXTRACTED
             records = []
         else:
             out_of_scope.append(stem)
@@ -576,6 +589,7 @@ def format_table(report: dict) -> str:
         head,
         f"  {report['pages_scored']} scored, "
         f"{report['pages_skipped']} skipped, "
+        f"{report['pages_not_extracted']} not extracted, "
         f"{report['pages_out_of_scope']} out of scope, "
         f"{len(report['malformed'])} malformed, "
         f"{report['skipped_implied']} implied skipped",
