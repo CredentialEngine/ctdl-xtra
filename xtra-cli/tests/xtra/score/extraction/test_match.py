@@ -10,6 +10,7 @@ from common.keys import (
     extract_resource_key,
     extraction_match_report_key,
     page_stem,
+    property_extract_report_key,
     records_prefix,
 )
 from common.object_store import open_store
@@ -104,6 +105,30 @@ def test_exactly_writes_its_own_report_beside_the_records(
     assert not (
         tmp_path / "data" / extraction_match_report_key(FOLDER, RUN, "partial")
     ).exists()
+
+
+def test_a_page_a_whole_catalog_run_never_wrote_is_missing(
+    tmp_path: Path,
+) -> None:
+    seed(tmp_path, [field("ceterms:name", "Composition")])
+    data = open_store(str(tmp_path / "data"))
+    for prop in ("ceterms:name", "ceterms:codedNotation"):
+        data.put_json(
+            property_extract_report_key(FOLDER, RUN, prop),
+            {"only_golden_sample": False, "limit": None},
+        )
+    open_store(str(tmp_path / "baseline")).put_json(
+        baseline_record_key(FOLDER, RUN, "never-written-0000000000"),
+        [{"fields": [field("ceterms:name", "Rhetoric")]}],
+    )
+
+    result = match(tmp_path, "--exactly")
+
+    assert result.exit_code == 0, result.output
+    report = read_report(tmp_path, "exact")
+    assert report["outcomes"] == {"match": 1, "mismatch": 0, "missing": 1}
+    assert report["pages_not_extracted"] == 1
+    assert json.loads(result.stdout)["pages_not_extracted"] == 1
 
 
 def test_partially_writes_its_own_report_and_skips_exact_matches(

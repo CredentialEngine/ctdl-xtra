@@ -8,6 +8,7 @@ from discovery_doubles import seed_crawl_page
 from common.keys import (
     extract_resource_key,
     page_stem,
+    property_extract_report_key,
     record_key,
     records_prefix,
     run_prefix,
@@ -17,6 +18,7 @@ from implementations.score_extraction_transform import (
     ExtractionReportError,
     css_from_notes,
     extraction_records,
+    whole_catalog_extracted,
 )
 
 FOLDER = "catalog-example-edu"
@@ -164,3 +166,51 @@ def test_the_records_read_like_records(tmp_path: Path) -> None:
 def test_a_run_without_extraction_report_files_says_so(tmp_path: Path) -> None:
     with pytest.raises(ExtractionReportError, match="xtra catalog extract"):
         extraction_records(open_store(str(tmp_path)), FOLDER, RUN)
+
+
+def _property_report(store, prop: str = "ceterms:name", **fields) -> None:
+    _write(store, _value("c_LAW604", prop, "x"))
+    store.put_json(
+        property_extract_report_key(FOLDER, RUN, prop),
+        {"only_golden_sample": False, "limit": None, **fields},
+    )
+
+
+def test_a_run_that_read_every_page_extracted_the_whole_catalog(
+    tmp_path: Path,
+) -> None:
+    store = open_store(str(tmp_path))
+    _property_report(store)
+    _property_report(store, "ceterms:description")
+    assert whole_catalog_extracted(store, FOLDER, RUN)
+
+
+@pytest.mark.parametrize("fields", [{"only_golden_sample": True}, {"limit": 5}])
+def test_a_narrowed_run_did_not_extract_the_whole_catalog(
+    tmp_path: Path, fields: dict
+) -> None:
+    store = open_store(str(tmp_path))
+    _property_report(store, "ceterms:description")
+    _property_report(store, **fields)
+    assert not whole_catalog_extracted(store, FOLDER, RUN)
+
+
+def test_a_report_that_does_not_say_whether_it_was_limited_is_not_trusted(
+    tmp_path: Path,
+) -> None:
+    """Reports written before they recorded the limit."""
+    store = open_store(str(tmp_path))
+    _write(store, _value("c_LAW604", "ceterms:name", "x"))
+    store.put_json(
+        property_extract_report_key(FOLDER, RUN, "ceterms:name"),
+        {"only_golden_sample": False},
+    )
+    assert not whole_catalog_extracted(store, FOLDER, RUN)
+
+
+def test_without_a_property_extraction_report_it_cannot_say(
+    tmp_path: Path,
+) -> None:
+    store = open_store(str(tmp_path))
+    _write(store, _value("c_LAW604", "ceterms:name", "x"))
+    assert not whole_catalog_extracted(store, FOLDER, RUN)
