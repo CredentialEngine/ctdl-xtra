@@ -483,6 +483,9 @@ def test_the_same_code_spelled_three_ways_is_one_course() -> None:
         "ACCT A101",  # a letter in front of the number
         "ACTG 1A",  # De Anza and Foothill number courses from 1
         "CIS114DE",  # a two-letter suffix, glued
+        "A&VS 591",  # WVU puts an ampersand inside the subject
+        "HN&F 500",
+        "C&I 600",
     ],
 )
 def test_a_course_code_is_read_in_every_shape_a_catalog_prints(
@@ -1008,6 +1011,7 @@ def test_a_heading_that_opens_with_a_course_code_is_a_course_title() -> None:
         "FREN 30603. Ph.D. Reading Requirement I. 3 Hours."
     )
     assert COURSE_TITLE_RE.match("ACCT 2013. Accounting Principles I. 3 Hours.")
+    assert COURSE_TITLE_RE.match("A&VS 591. Advanced Topics. 1-6 Hours.")
     assert not COURSE_TITLE_RE.match(
         "Requirements for B.S. in Chemical Engineering"
     )

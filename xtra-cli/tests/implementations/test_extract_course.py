@@ -188,6 +188,7 @@ def test_a_one_course_page_reads_its_code_from_a_heading_only() -> None:
         ("PSYC C1000 - Introduction to Psychology", "PSYC C1000"),
         ("COMM 79073 - (was ACOM 7390) Intro", "COMM 79073"),
         ("ABC 101-Intro to Things", "ABC 101"),
+        ("A&VS 591. Advanced Topics", "A&VS 591"),
         ("Introduction to Psychology", None),
     ],
 )
