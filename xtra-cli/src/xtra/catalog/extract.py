@@ -1,68 +1,208 @@
 """xtra catalog extract
 
-  xtra catalog extract --with-template --catalog-id ID --run-id TS
+  xtra catalog extract ceterms:name --catalog-id ID --run-id TS
 
-Works from the list discovery produced, so it no longer guesses which saved
-pages are courses.
+Extracts one CTDL property from every page discovery gave one of its
+classes to, and writes one file per resource under extraction_report/,
+beside records/. One command for every property: the property picks the
+extractor, and each extractor is one file in its vocabulary's folder, named
+the way CE's split schema names its files (Schema-Development,
+Split/properties/ceterms_name.jsonld). The output follows the same folders:
+
+  ceterms:name -> implementations/extract/ceterms/ceterms_name.py
+               -> extraction_report/ceterms/ceterms_name/{resource_id}.json
+
+The file declares PROPERTY, CLASS (the classes it is read from) and read.
+Adding a property is adding its file. A class is defined once, in
+implementations/, and listed in CLASSES.
 """
 
 from __future__ import annotations
 
+import importlib
 import json
 import logging
+import pkgutil
+import re
+from types import ModuleType
 
 import click
 
-from common.keys import (
-    discovery_key,
-    extract_report_key,
-    page_html_key,
-    page_meta_key,
-    record_key,
-)
+from common.keys import property_key
 from common.object_store import open_store
-from implementations.discover import (
-    LABELS_FILE,
-    latest_discovery_run_id,
-    sample_file_name,
+from implementations.discover import latest_discovery_run_id
+from implementations.extract_course import COURSE
+from implementations.extract_run import (
+    ExtractionError,
+    Extractor,
+    RdfClass,
+    run_extraction,
 )
-from implementations.discover_rules import LABEL_COURSE
-from implementations.extract import extract_record, slot_from_labels_entry
-from implementations.extract_dom import (
-    ENTITY_COURSE,
-    entity_type_for,
-    entity_types_for,
-)
-from implementations.strategies import unimplemented_message
 from xtra.click import (
+    POSITIVE_INT,
     env_option,
-    require_strategy,
+    non_empty_string,
     resolve_connection,
     resolve_uri,
     source_uri_option,
     storage_connection_options,
-    strategy_options,
     target_uri_option,
 )
+from xtra.version import get_version
 
 logger = logging.getLogger(__name__)
 
-REPORT_SCHEMA = "xtra-extract-report-1"
-REASON_MULTI_COURSE = "multi_course_page"
-REASON_MULTI_CREDENTIAL = "multi_credential_page"
-REASON_NO_COURSE_BLOCK = "no_course_block"
-REASON_NOTHING_READ = "nothing_read_from_the_page"
-MARKER_MULTI_CREDENTIAL = "multi_credential_page"
+PROPERTY_RE = re.compile(r"[a-z][a-z0-9]*:[A-Za-z][A-Za-z0-9]*")
+PROPERTY_PATH_RE = re.compile(
+    rf"{PROPERTY_RE.pattern}(?:\s*>\s*{PROPERTY_RE.pattern})*"
+)
 
 
-@click.command(name="extract")
-@strategy_options("template", "ai-agent")
+# Where the extractors are: one folder per prefix, one file per property.
+EXTRACTORS_PACKAGE = "implementations.extract"
+
+# Every class a property can name in its CLASS tuple.
+CLASSES: dict[str, RdfClass] = {c.rdf_type: c for c in (COURSE,)}
+
+
+class RegistryError(Exception):
+    """An extractor module breaks the naming or shape the registry needs."""
+
+
+def extractors(
+    package: str = EXTRACTORS_PACKAGE, classes: dict[str, RdfClass] = CLASSES
+) -> dict[str, Extractor]:
+    """Every property with an extractor, from the file tree.
+
+    Each subpackage is a vocabulary, named for its prefix (ceterms). Each
+    module in it is a property and declares PROPERTY, CLASS and read. A
+    file has to be named for the property it declares (ceterms_name), so
+    the tree and the properties can't drift, and nothing nests deeper than
+    the vocabulary.
+    """
+    root = importlib.import_module(package)
+    found: dict[str, Extractor] = {}
+    for vocabulary in pkgutil.iter_modules(root.__path__):
+        if not vocabulary.ispkg:
+            raise RegistryError(
+                f"{package}.{vocabulary.name} is outside a vocabulary "
+                "folder. Put it in the folder of its prefix, e.g. "
+                "ceterms/ceterms_name.py"
+            )
+        vocabulary_module = importlib.import_module(
+            f"{package}.{vocabulary.name}"
+        )
+        for info in pkgutil.iter_modules(vocabulary_module.__path__):
+            name = f"{vocabulary_module.__name__}.{info.name}"
+            if info.ispkg:
+                raise RegistryError(
+                    f"{name} is a folder. A vocabulary holds one file "
+                    "per property and nothing deeper"
+                )
+            module = importlib.import_module(name)
+            prop = _declared(module, "PROPERTY", PROPERTY_PATH_RE)
+            _named_for(module, info.name, prop)
+            prefix = prop.split(":", 1)[0]
+            if prefix != vocabulary.name:
+                raise RegistryError(
+                    f"{name} declares {prop}, so it belongs in {prefix}/"
+                )
+            if prop in found:
+                raise RegistryError(f"two extractors declare {prop}")
+            found[prop] = Extractor(
+                prop=prop,
+                classes=_classes(module, classes),
+                read=_required(module, "read"),
+            )
+    return dict(sorted(found.items()))
+
+
+def _classes(
+    module: ModuleType, classes: dict[str, RdfClass]
+) -> tuple[RdfClass, ...]:
+    declared = _required(module, "CLASS")
+    if (
+        not isinstance(declared, tuple)
+        or not declared
+        or not all(isinstance(rdf_type, str) for rdf_type in declared)
+    ):
+        raise RegistryError(
+            f"{module.__name__}.CLASS = {declared!r} is not a tuple of "
+            "CTDL classes"
+        )
+    unknown = [rdf_type for rdf_type in declared if rdf_type not in classes]
+    if unknown:
+        raise RegistryError(
+            f"{module.__name__}.CLASS names {', '.join(unknown)}. "
+            f"Classes: {', '.join(sorted(classes))}"
+        )
+    return tuple(classes[rdf_type] for rdf_type in declared)
+
+
+def _required(module: ModuleType, name: str):
+    if not hasattr(module, name):
+        raise RegistryError(f"{module.__name__} declares no {name}")
+    return getattr(module, name)
+
+
+def _declared(module: ModuleType, name: str, pattern: re.Pattern[str]) -> str:
+    value = _required(module, name)
+    if not isinstance(value, str) or not pattern.fullmatch(value):
+        raise RegistryError(
+            f"{module.__name__}.{name} = {value!r} is not a CTDL property"
+        )
+    return value
+
+
+def _named_for(module: ModuleType, name: str, prop: str) -> None:
+    if name != property_key(prop):
+        raise RegistryError(
+            f"{module.__name__} declares {prop}, so it has to be named "
+            f"{property_key(prop)}"
+        )
+
+
+def _available(registry: dict[str, Extractor]) -> str:
+    return "\n".join(
+        f"  {prop}  (class: {', '.join(c.rdf_type for c in e.classes)})"
+        for prop, e in registry.items()
+    )
+
+
+def choose_extractor(registry: dict[str, Extractor], prop: str) -> Extractor:
+    """The extractor for the property, or a UsageError naming what exists."""
+    if not PROPERTY_PATH_RE.fullmatch(prop):
+        raise click.UsageError(
+            f"{prop!r} is not a CTDL property, e.g. ceterms:name"
+        )
+    extractor = registry.get(prop)
+    if extractor is None:
+        raise click.UsageError(
+            f"no extractor for {prop}. Properties: {', '.join(registry)}"
+        )
+    return extractor
+
+
+class _ExtractionCommand(click.Command):
+    """Lists the extractors under the help, read when help is asked."""
+
+    def format_epilog(self, ctx, formatter) -> None:
+        super().format_epilog(ctx, formatter)
+        with formatter.section("Extractors"):
+            formatter.write_text(_available(extractors()))
+
+
+@click.command(name="extract", cls=_ExtractionCommand)
+@click.argument("prop", metavar="PROPERTY")
 @env_option()
 @source_uri_option()
 @target_uri_option()
-@click.option("--catalog-id", required=True)
+@click.option("--catalog-id", required=True, callback=non_empty_string)
 @click.option(
-    "--run-id", required=True, help="Crawl run id from catalog crawl."
+    "--run-id",
+    required=True,
+    callback=non_empty_string,
+    help="Crawl run id from catalog crawl.",
 )
 @click.option(
     "--discovery-run-id",
@@ -74,9 +214,15 @@ MARKER_MULTI_CREDENTIAL = "multi_credential_page"
     is_flag=True,
     help="Extract only the pages in the golden sample for review.",
 )
+@click.option(
+    "--limit",
+    type=POSITIVE_INT,
+    default=None,
+    help="Read at most this many pages. Use 5 while testing.",
+)
 @storage_connection_options()
 def main(
-    strategy: str | None,
+    prop: str,
     env_name: str | None,
     source_uri: str | None,
     target_uri: str | None,
@@ -84,22 +230,26 @@ def main(
     run_id: str,
     discovery_run_id: str | None,
     only_golden_sample: bool,
+    limit: int | None,
     azure_storage_connection_string: str | None,
 ) -> None:
-    """Transcribe printed fields from saved HTML. Candidate status only.
+    """Extract one CTDL PROPERTY into extraction_report/.
 
-    Reads labels.json from the newest discovery run and processes every
-    page it gave an entity to: a course page with exactly one course
-    block, a credential or learning-opportunity page that is about one of
-    them, and a competency list. Anything skipped is written to
-    extract-report.json, beside records/ and never inside it, because
-    transform reads every JSON file under records/.
+    PROPERTY is a CTDL property: ceterms:name. For each class it declares,
+    reads every page discovery labelled with the class and each resource
+    on it (a page of course blocks has one per block), and writes
+    extraction_report/<prefix>/<property key>/{resource_id}.json. The class
+    says how a resource is identified: a course by its catalog and code,
+    catalog-example-edu_ABA610. A resource with no id is not written,
+    only counted; a repeated id gets -2, -3. A value not found is written,
+    marked absent. Counts go to extraction-<property>-report.json, beside
+    extraction_report/.
     """
-    strategy = require_strategy(strategy, example="--with-template")
-    if strategy != "template":
-        raise click.ClickException(
-            unimplemented_message("extract", strategy, implemented="template")
-        )
+    try:
+        registry = extractors()
+    except RegistryError as exc:
+        raise click.ClickException(str(exc)) from exc
+    extractor = choose_extractor(registry, prop)
 
     source_uri = resolve_uri(source_uri, env_name=env_name, flag="--source-uri")
     target_uri = resolve_uri(target_uri, env_name=env_name, flag="--target-uri")
@@ -124,147 +274,47 @@ def main(
             "Run xtra catalog discover first."
         )
 
-    labels = source.get_json(
-        discovery_key(catalog_id, run_id, discovery_run_id, LABELS_FILE)
-    )
-    entries = [
-        entry
-        for entry in labels.get("pages") or []
-        if entity_type_for(entry.get("labels") or [])
-    ]
-    if only_golden_sample:
-        sample = source.get_json(
-            discovery_key(
-                catalog_id,
-                run_id,
-                discovery_run_id,
-                sample_file_name(LABEL_COURSE),
-            )
+    try:
+        report = run_extraction(
+            source,
+            target,
+            extractor,
+            catalog_id=catalog_id,
+            run_id=run_id,
+            discovery_run_id=discovery_run_id,
+            only_golden_sample=only_golden_sample,
+            limit=limit,
+            version=get_version(),
         )
-        wanted = {page["stem"] for page in sample.get("pages") or []}
-        entries = [entry for entry in entries if entry["stem"] in wanted]
-
-    written: list[str] = []
-    skipped: list[dict[str, str]] = []
-    for entry in entries:
-        stem = entry["stem"]
-        refusal = _too_many_entities(entry)
-        if refusal is not None:
-            skipped.append(
-                {"stem": stem, "url": entry.get("url", ""), **refusal}
-            )
-            continue
-
-        html = source.get_text(page_html_key(catalog_id, run_id, stem))
-        retrieved_at = _retrieved_at(source, catalog_id, run_id, stem)
-        entity_types = entity_types_for(entry.get("labels") or [])
-        for index, entity_type in enumerate(entity_types):
-            # The page's own id belongs to what it is mainly about. A
-            # second entity on the same page - the competency list a
-            # credential page prints - gets an id of its own, because it
-            # is published as its own entity and a record holds one.
-            record_id = stem if index == 0 else f"{stem}--{entity_type.lower()}"
-            slot = slot_from_labels_entry(
-                entry,
-                retrieved_at=retrieved_at,
-                entity_type=entity_type,
-                record_id=record_id,
-            )
-            try:
-                record = extract_record(
-                    slot, html, retrieved_at=retrieved_at, stem=stem
-                )
-            except Exception as exc:  # noqa: BLE001 - lib raises its own type
-                skipped.append(
-                    {
-                        "stem": stem,
-                        "url": entry.get("url", ""),
-                        "entity_type": entity_type,
-                        "reason": REASON_NOTHING_READ,
-                        "detail": str(exc).splitlines()[0],
-                    }
-                )
-                continue
-            target.put_json(
-                record_key(catalog_id, run_id, record["record_id"]), record
-            )
-            written.append(record["record_id"])
-
-    report = {
-        "schema": REPORT_SCHEMA,
-        "catalog_folder": catalog_id,
-        "run_id": run_id,
-        "discovery_run_id": discovery_run_id,
-        "only_golden_sample": only_golden_sample,
-        "pages_considered": len(entries),
-        "records_written": len(written),
-        "skipped_by_reason": _counted(skipped),
-        "skipped": skipped,
-    }
-    target.put_json(extract_report_key(catalog_id, run_id), report)
+    except ExtractionError as exc:
+        raise click.ClickException(str(exc)) from exc
 
     click.echo(
         json.dumps(
             {
-                "strategy": strategy,
-                "catalog_id": catalog_id,
-                "run_id": run_id,
-                "discovery_run_id": discovery_run_id,
-                "only_golden_sample": only_golden_sample,
-                "records": written,
-                "skipped_by_reason": report["skipped_by_reason"],
+                key: report[key]
+                for key in (
+                    "property",
+                    "class",
+                    "catalog_folder",
+                    "run_id",
+                    "discovery_run_id",
+                    "pages_read",
+                    "occurrences",
+                    "found",
+                    "not_found",
+                    "files_cleared",
+                    "resources_written",
+                    "no_resource_id",
+                    "repeated_resource_ids",
+                    "by_strategy",
+                    "not_found_by_reason",
+                    "report_key",
+                )
             },
             indent=2,
         )
     )
-
-
-def _too_many_entities(entry: dict) -> dict[str, str] | None:
-    """Why this page cannot become one record, or None.
-
-    One page, one record. A page holding several courses would make one
-    record out of twenty of them, and a department page holding several
-    credentials would do the same one entity up. Discovery has already
-    said so, in course_block_count and in the markers, so this only has
-    to read what it said.
-    """
-    entity_type = entity_type_for(entry.get("labels") or [])
-    markers = entry.get("markers") or []
-    if entity_type == ENTITY_COURSE:
-        blocks = entry.get("course_block_count") or 0
-        if blocks != 1:
-            return {
-                "reason": (
-                    REASON_MULTI_COURSE
-                    if blocks > 1
-                    else REASON_NO_COURSE_BLOCK
-                ),
-                "detail": f"{blocks} course block(s)",
-            }
-    elif MARKER_MULTI_CREDENTIAL in markers:
-        return {
-            "reason": REASON_MULTI_CREDENTIAL,
-            "detail": "the page prints the requirements of several credentials",
-        }
-    return None
-
-
-def _retrieved_at(
-    source: object, catalog_id: str, run_id: str, stem: str
-) -> str | None:
-    """When the crawl captured this page, from its sidecar."""
-    try:
-        meta = source.get_json(page_meta_key(catalog_id, run_id, stem))
-    except (FileNotFoundError, ValueError):
-        return None
-    return meta.get("retrieved_at")
-
-
-def _counted(skipped: list[dict[str, str]]) -> dict[str, int]:
-    counts: dict[str, int] = {}
-    for item in skipped:
-        counts[item["reason"]] = counts.get(item["reason"], 0) + 1
-    return dict(sorted(counts.items()))
 
 
 if __name__ == "__main__":

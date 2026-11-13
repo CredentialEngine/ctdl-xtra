@@ -10,8 +10,9 @@
     --baseline-azure-storage-connection-string CS \
     --catalog-id ID --run-id TS
 
-Matches the records of one extraction run against a baseline, without
-extracting again. --exactly counts the values identical to the baseline.
+Matches the extraction_report/ files of one extraction run, the ones
+`xtra catalog extract` writes, against a baseline, without extracting
+again. --exactly counts the values identical to the baseline.
 --partially sets those aside and measures how close the rest come. Neither
 averages: the report is counts plus the outliers, worst first.
 """
@@ -31,6 +32,10 @@ from implementations.score_extraction_match import (
     ExtractionMatchError,
     format_table,
     match_extraction_run,
+)
+from implementations.score_extraction_transform import (
+    ExtractionReportError,
+    extraction_records,
 )
 from xtra.click import (
     baseline_uri_option,
@@ -58,8 +63,11 @@ def match_and_report(
     ClickException when nothing could be matched.
     """
     try:
-        report = match_extraction_run(store, baseline, catalog_id, run_id, mode)
-    except ExtractionMatchError as exc:
+        records = extraction_records(store, catalog_id, run_id)
+        report = match_extraction_run(
+            records, baseline, catalog_id, run_id, mode
+        )
+    except (ExtractionReportError, ExtractionMatchError) as exc:
         raise click.ClickException(str(exc)) from exc
     except Exception as exc:  # noqa: BLE001 - storage SDKs raise their own types
         raise click.ClickException(f"matching failed: {exc}") from exc
@@ -141,7 +149,7 @@ def main(
 ) -> None:
     """Match an extraction run against a baseline.
 
-    Reads the records and extract-report.json of the run from --source-uri,
+    Reads the extraction_report/ files of the run from --source-uri,
     and the baseline files of the same catalog and run from --baseline-uri.
     Each URI takes its own connection string, so the two can live in
     different storage accounts. The report is written beside the records.
