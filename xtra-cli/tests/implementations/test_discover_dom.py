@@ -208,6 +208,22 @@ def test_a_marked_up_course_description_is_counted_as_one() -> None:
     assert [block.code for block in blocks] == ["ASTR50303"]
 
 
+def test_an_acalog_course_page_marks_its_course_by_the_title_id() -> None:
+    """UA Little Rock prints "Three credit hours." in words, and a course
+    with no course prerequisite prints two codes: its own and its former
+    number. Nothing in the text reads as a course; only the id does."""
+    blocks = read_course_blocks(
+        parse(
+            page(
+                "<h1 id='course_preview_title'>COMM 70073 - (was ACOM 7300) "
+                "Interpersonal Communication Concepts</h1>"
+                "<p>Three credit hours.</p>"
+            )
+        )
+    )
+    assert [block.code for block in blocks] == ["COMM70073"]
+
+
 def test_the_same_course_marked_up_twice_is_still_one_course() -> None:
     blocks = read_course_blocks(parse(page(COURSEBLOCK + COURSEBLOCK)))
     assert len(blocks) == 1

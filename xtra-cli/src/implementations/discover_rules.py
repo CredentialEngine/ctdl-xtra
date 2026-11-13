@@ -947,6 +947,12 @@ COURSE_BLOCK_CLASS_RE = re.compile(
     re.IGNORECASE,
 )
 
+# One course, described, marked by an id rather than a class. Acalog's
+# course page prints its title as <h1 id="course_preview_title">. UA Little
+# Rock writes its credits in words ("Three credit hours."), so without the
+# id 1,363 of its course pages were labelled Unknown and never extracted.
+COURSE_BLOCK_ID_RE = re.compile(r"^course_preview_title$")
+
 # A table of course codes: CourseLeaf's <table class="sc_courselist">,
 # Acalog's cores. Whatever the table is for, the codes in it are
 # references to courses described elsewhere, never descriptions.
