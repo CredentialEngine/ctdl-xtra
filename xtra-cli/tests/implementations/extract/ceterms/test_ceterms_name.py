@@ -71,6 +71,12 @@ def test_it_is_read_from_courses() -> None:
             "PSYC C1000 - Introduction to Psychology (3.0)",
             "Introduction to Psychology",
         ),
+        # A period the title itself ends with is kept: only the one
+        # before the credits separates.
+        (
+            "HIST 58033\xa0-\xa0Seminar in United States History.",
+            "Seminar in United States History.",
+        ),
     ],
 )
 def test_a_combined_heading_gives_its_title(heading: str, name: str) -> None:
@@ -90,6 +96,7 @@ def test_an_empty_title_gives_nothing_not_the_credits() -> None:
         "19Th Century Literature",
         "Child Development: The First Three Years",
         "LEGAL/ETHIC ASP COUNS & STU PE",
+        "African American Women in the U.S.",
     ],
 )
 def test_a_title_keeps_what_it_prints(title: str) -> None:

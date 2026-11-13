@@ -130,6 +130,7 @@ TRAILING_CREDITS_RE = re.compile(
 )
 
 _EDGE_PUNCTUATION = " .,:-–—"
+_TRAILING_PUNCTUATION = _EDGE_PUNCTUATION.replace(".", "")
 
 
 @dataclass(frozen=True)
@@ -158,9 +159,11 @@ def split_name(text: str, *, combined: bool) -> str:
         name = LEADING_DELIMITER_RE.sub("", name[len(code) :], count=1)
     name = FORMER_NUMBER_RE.sub("", name, count=1)
     credits = TRAILING_CREDITS_RE.search(name)
-    if credits is not None:
-        name = name[: credits.start()]
-    return name.strip(_EDGE_PUNCTUATION)
+    if credits is None:
+        # A period at the end is the title's own: "in the U.S.".
+        return name.lstrip(_EDGE_PUNCTUATION).rstrip(_TRAILING_PUNCTUATION)
+    # "Natural Resources.  3 Hours.": the period separated the credits.
+    return name[: credits.start()].strip(_EDGE_PUNCTUATION)
 
 
 def is_code_only(text: str) -> bool:
