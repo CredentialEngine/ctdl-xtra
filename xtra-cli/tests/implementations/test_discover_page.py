@@ -725,6 +725,59 @@ def test_a_heading_listing_several_awards_is_a_rule_for_all_of_them() -> None:
     assert profile.labels == []
 
 
+COLLEGE_REQUIREMENTS = (
+    f"<main><h1>College of Education and Health Professions</h1>{INTRO}"
+    "<h2>Minimum Requirements for the B.S.E. or B.S. or B.S.N. Degree</h2>"
+    "<table class='sc_courselist'><tr><td class='codecol'>EDUC 101</td>"
+    "<td class='hourscol'>3</td></tr></table>"
+)
+
+
+def courseblock(code: str, title: str) -> str:
+    return (
+        f"<div class='courseblock'><p class='courseblocktitle'>"
+        f"{code}. {title}. 3 Hours.</p></div>"
+    )
+
+
+def test_a_college_printing_its_courses_below_its_requirements_is_a_course_page() -> (
+    None
+):
+    """WVU's college pages print every program's requirements, then every
+    course the college teaches, and were labelled nothing at all.
+    """
+    profile = page(
+        COLLEGE_REQUIREMENTS
+        + courseblock("EDUC 101", "Foundations of Education")
+        + courseblock("EDUC 210", "Learning and Development")
+        + courseblock("NURS 300", "Health Assessment")
+        + courseblock("EXPH 240", "Exercise Physiology")
+        + "</main>"
+    )
+    assert profile.labels == ["Course"]
+    assert "3 in no requirement list" in profile.rules_fired["Course"]
+
+
+def test_courses_marked_up_only_as_the_requirement_list_are_not_described() -> (
+    None
+):
+    """Acalog expands each required course in place; every one is listed."""
+    codes = ["EDUC 101", "EDUC 210", "NURS 300", "EXPH 240"]
+    listed = "".join(
+        f"<tr><td class='codecol'>{code}</td><td class='hourscol'>3</td></tr>"
+        for code in codes
+    )
+    profile = page(
+        f"<main><h1>College of Education and Health Professions</h1>{INTRO}"
+        "<h2>Minimum Requirements for the B.S.E. or B.S. or B.S.N. Degree</h2>"
+        f"<table class='sc_courselist'>{listed}</table>"
+        + "".join(courseblock(code, "Required Course") for code in codes)
+        + "</main>"
+    )
+    assert profile.course_block_count == 4
+    assert "Course" not in profile.labels
+
+
 def test_a_glossary_term_is_not_a_section_of_the_page() -> None:
     """A bold term is a definition, not a heading over requirements."""
     profile = page(
