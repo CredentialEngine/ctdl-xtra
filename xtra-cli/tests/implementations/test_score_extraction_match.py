@@ -472,6 +472,29 @@ def test_an_exact_run_counts_outcomes_and_the_exact_rate(
     assert report["by_property"]["ceterms:inLanguage"]["missing"] == 1
 
 
+def test_a_page_of_a_thousand_courses_pairs_them_in_page_order(
+    stores: Stores,
+) -> None:
+    """WVU prints 4,850 courses on one page.
+
+    Read as text, --resource-1000 sorts before --resource-101, and every
+    pairing after the hundredth course went to the wrong entity.
+    """
+    names = [f"Course {n}" for n in range(1, 1001)]
+    stores.put_baseline(
+        STEM, [{"fields": [baseline_field("ceterms:name", n)]} for n in names]
+    )
+    for index, name in enumerate(names, start=1):
+        record_id = STEM if index == 1 else f"{STEM}--resource-{index:03d}"
+        stores.put_record(
+            record_of(prop("ceterms:name", name), record_id=record_id)
+        )
+
+    report = stores.match()
+
+    assert report["by_property"]["ceterms:name"]["match"] == 1000
+
+
 def test_implied_fields_are_counted_but_leave_the_totals_alone(
     stores: Stores,
 ) -> None:
