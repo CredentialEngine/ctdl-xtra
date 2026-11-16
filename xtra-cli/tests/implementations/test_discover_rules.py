@@ -113,6 +113,18 @@ def test_a_credits_value_is_read_in_either_order() -> None:
     assert CREDIT_VALUE_RE.search("4.0 units")
 
 
+def test_a_credits_value_spelled_out_is_a_value() -> None:
+    assert CREDIT_VALUE_RE.search("Three credit hours.")
+    assert CREDIT_VALUE_RE.search("one to four credits")
+    assert CREDIT_VALUE_RE.search("Credits: twelve")
+
+
+def test_a_number_word_inside_another_word_is_not_a_value() -> None:
+    """A number word has to stand alone: "none" ends in "one"."""
+    assert not CREDIT_VALUE_RE.search("none credits")
+    assert not CREDIT_VALUE_RE.search("often hours")
+
+
 def test_a_credit_word_inside_another_word_is_not_a_value() -> None:
     """Without the boundary, every accredited college prints credits."""
     assert not CREDIT_VALUE_RE.search("accredited by 3 agencies")

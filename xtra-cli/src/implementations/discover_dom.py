@@ -57,7 +57,6 @@ from implementations.discover_rules import (
     CMS_FULL_VIEW_RE,
     CMS_NODE_TYPE_RE,
     COURSE_BLOCK_CLASS_RE,
-    COURSE_BLOCK_ID_RE,
     COURSE_CODE_RE,
     COURSE_LIST_CLASS_RE,
     COURSE_REFERENCE_CLASS_RE,
@@ -555,14 +554,11 @@ def read_course_blocks(soup: BeautifulSoup) -> list[CourseBlock]:
 
     A block counts once it names a course code. The same code marked up
     twice - the breadcrumb above the heading, the print view below it - is
-    still one course. A block is marked by its class, or by Acalog's
-    title id.
+    still one course.
     """
     blocks: list[CourseBlock] = []
     seen: set[str] = set()
-    marked = _outermost(soup, COURSE_BLOCK_CLASS_RE)
-    marked += soup.find_all(id=COURSE_BLOCK_ID_RE)
-    for tag in marked:
+    for tag in _outermost(soup, COURSE_BLOCK_CLASS_RE):
         text = collapse(tag.get_text(" "))
         match = COURSE_CODE_RE.search(text)
         if match is None:

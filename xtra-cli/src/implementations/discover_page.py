@@ -230,6 +230,21 @@ def page_head(structure: Markup, text: str) -> str:
     return f"{structure.title} {structure.h1} {opening}"
 
 
+def course_named_by(name: str) -> str | None:
+    """The course a page is named for: the code its name opens or closes with.
+
+    "ABC 1234 - Course Name" and "Course Name - ABC 1234" both name one
+    course. A code anywhere else in the name is a reference.
+    """
+    opening = COURSE_TITLE_RE.match(name)
+    if opening is not None:
+        return opening.group(0).strip()
+    closing = TITLE_SEPARATOR_RE.split(name)[-1].strip()
+    if COURSE_CODE_RE.fullmatch(closing):
+        return closing
+    return None
+
+
 def title_name(title: str) -> str:
     """A <title> without the site: "Programs | Example College" is Programs."""
     return TITLE_SEPARATOR_RE.split(title)[0].strip()
@@ -732,6 +747,11 @@ def course_label(
             f"{blocks} course block(s), "
             f"code {code_at_the_top.group(0)} at the top"
         )
+    named_for = course_named_by(page_name(structure))
+    if named_for is not None and not lists_its_own_requirements:
+        # That holds however the page prints its credits, in words
+        # ("Three credit hours."), or not at all.
+        return f"named for course {named_for}"
     if structure.course_blocks and not lists_its_own_requirements:
         # The platform marked its course descriptions up, so there is
         # nothing to infer. One marked-up description is enough: a
