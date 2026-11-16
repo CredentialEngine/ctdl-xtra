@@ -76,6 +76,11 @@ def crawl_key(catalog_folder: str, run_id: str) -> str:
     return f"{run_prefix(catalog_folder, run_id)}/crawl.json"
 
 
+def navigation_key(catalog_folder: str, run_id: str) -> str:
+    """The run's link map, rebuilt from its saved pages."""
+    return f"{run_prefix(catalog_folder, run_id)}/navigation.json"
+
+
 def manifest_key(catalog_folder: str, run_id: str) -> str:
     return f"{run_prefix(catalog_folder, run_id)}/manifest.json"
 

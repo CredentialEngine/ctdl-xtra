@@ -103,6 +103,6 @@ MAPPING_VERSION = "v4-pilot-0.2"
 SCHEMA_RELEASE = "ctdl-json-2026-09-07-audit-pin"
 BROWSER_USER_AGENT = (
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-    "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
+    "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36"
 )
 REGISTRY_USER_AGENT = "xtra-cli/1.0"

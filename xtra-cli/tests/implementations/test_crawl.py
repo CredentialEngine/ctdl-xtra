@@ -3,7 +3,9 @@ from __future__ import annotations
 import gzip
 import json
 import logging
+import os
 import platform
+import signal
 import threading
 from importlib.metadata import version
 from pathlib import Path
@@ -41,6 +43,7 @@ from implementations.crawl import (
     format_duration,
     is_retryable_status,
     run_crawl,
+    stop_signal_as_interrupt,
 )
 from implementations.crawl_browser import DEFAULT_TIMEOUT_MS, VIEWPORT
 from implementations.crawl_curriqunet import INDEX_KIND
@@ -52,6 +55,7 @@ SEED = "https://catalog.example.edu/"
 FOLDER = "catalog-example-edu"
 RUN = "2026-09-17T14:20:01Z"
 RUN_PATH = "2026-09-17T14-20-01Z"
+# The run that continues RUN: a new run id, RUN as its cache.
 NEXT = "2026-09-18T09:00:00Z"
 NEXT_PATH = "2026-09-18T09-00-00Z"
 
@@ -90,6 +94,8 @@ def crawl(
     store = open_store(str(tmp_path))
     timing = {}
     if sleeps is not None:
+        # A clock each sleep moves on, as a real one would: the site's
+        # clock measures every gap against it.
         clock = [0.0]
 
         def sleep(seconds: float) -> None:
@@ -122,6 +128,7 @@ def crawl(
 
 
 def crawl_on(tmp_path: Path, pages: dict, **kwargs):
+    """The next run: a new run id, with the first run as its cache."""
     kwargs.setdefault("run_id", NEXT)
     kwargs.setdefault("from_run_id", RUN)
     return crawl(tmp_path, pages, **kwargs)
@@ -1920,6 +1927,77 @@ def test_ctrl_c_writes_crawl_json_before_waiting_for_the_browsers_to_close(
     assert report["pages_saved"] == 2
     assert report["frontier_remaining"] == 1
     assert current_results(tmp_path) == {SEED: "saved", ENGL_URL: "saved"}
+
+
+def test_sigterm_ends_a_run_the_way_ctrl_c_does(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    from concurrent.futures import wait as real_wait
+
+    engl_in_flight = threading.Event()
+
+    def note_engl(url: str) -> None:
+        if url == ENGL_URL:
+            engl_in_flight.set()
+
+    def sigterm_once_engl_is_in_flight(*args, **kwargs):
+        done = real_wait(*args, **kwargs)
+        if engl_in_flight.is_set():
+            handler = signal.getsignal(signal.SIGTERM)
+            assert callable(handler)
+            handler(signal.SIGTERM, None)
+        return done
+
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setattr(
+            "implementations.crawl.wait_for_futures",
+            sigterm_once_engl_is_in_flight,
+        )
+        stopped = crawl(tmp_path, PAGES, before=note_engl)
+    assert stopped.exit_code == 130
+    assert f"continue with --from-run-id {RUN}" in stopped.reason
+    assert "INTERRUPTED by SIGTERM" in caplog.text
+    report = read_report(tmp_path)
+    assert report["status"] == STATUS_INCOMPLETE
+    assert report["frontier_remaining"] == 2
+    assert current_results(tmp_path) == {SEED: "saved"}
+
+
+@pytest.mark.skipif(
+    platform.system() == "Windows",
+    reason="on Windows, os.kill with SIGTERM ends the process at once",
+)
+def test_a_real_sigterm_writes_crawl_json(tmp_path: Path) -> None:
+    def sigterm_on_engl(url: str) -> None:
+        if url == ENGL_URL:
+            os.kill(os.getpid(), signal.SIGTERM)
+
+    stopped = crawl(tmp_path, PAGES, before=sigterm_on_engl)
+    assert stopped.exit_code == 130
+    assert read_report(tmp_path)["status"] == STATUS_INCOMPLETE
+
+
+def test_the_sigterm_handler_is_set_only_while_a_run_lasts(
+    tmp_path: Path,
+) -> None:
+    before = signal.getsignal(signal.SIGTERM)
+    crawl(tmp_path, PAGES)
+    assert signal.getsignal(signal.SIGTERM) == before
+
+
+def test_off_the_main_thread_sigterm_is_left_alone() -> None:
+    """A handler can only be set from the main thread; elsewhere, none is."""
+    before = signal.getsignal(signal.SIGTERM)
+    seen = []
+
+    def inside() -> None:
+        with stop_signal_as_interrupt():
+            seen.append(signal.getsignal(signal.SIGTERM))
+
+    worker = threading.Thread(target=inside)
+    worker.start()
+    worker.join()
+    assert seen == [before]
 
 
 def test_a_cached_challenge_page_is_fetched_once_and_counted_once_by_two_workers(

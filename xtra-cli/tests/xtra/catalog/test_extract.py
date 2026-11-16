@@ -38,7 +38,7 @@ NAME = "ceterms:name"
 
 def test_the_registry_finds_the_name_extractor() -> None:
     extractor = extractors()[NAME]
-    assert [c.rdf_type for c in extractor.classes] == ["ceterms:Course"]
+    assert [c.term for c in extractor.classes] == ["ceterms:Course"]
     assert extractor.classes[0].page_label == "Course"
 
 
@@ -47,9 +47,9 @@ def test_every_registered_property_is_a_ctdl_property() -> None:
         assert PROPERTY_PATH_RE.fullmatch(prop)
 
 
-def test_every_class_is_keyed_by_its_own_rdf_type() -> None:
-    for rdf_type, rdf_class in CLASSES.items():
-        assert rdf_class.rdf_type == rdf_type
+def test_every_class_is_keyed_by_its_own_term() -> None:
+    for term, ctdl_class in CLASSES.items():
+        assert ctdl_class.term == term
 
 
 READS = "def read(occurrence, page):\n    return None\n"

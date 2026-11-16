@@ -21,9 +21,9 @@ from implementations.discover_rules import (
     PLATFORM_CURRIQUNET,
 )
 from implementations.extract_run import (
+    CtdlClass,
     Occurrence,
     Page,
-    RdfClass,
     css_path,
     inside_chrome,
     printed_text,
@@ -184,8 +184,8 @@ def course_resource_id(
     return f"{catalog_id}_{WHITESPACE_RE.sub('', code)}"
 
 
-COURSE = RdfClass(
-    rdf_type="ceterms:Course",
+COURSE = CtdlClass(
+    term="ceterms:Course",
     page_label=LABEL_COURSE,
     occurrences=course_occurrences,
     resource_id=course_resource_id,

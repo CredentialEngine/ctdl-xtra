@@ -11,11 +11,11 @@ from common.keys import discovery_key, extract_resource_key, run_prefix
 from common.object_store import open_store
 from implementations.discover import PAGES_FILE, SUMMARY_FILE, sample_file_name
 from implementations.extract_run import (
+    CtdlClass,
     ExtractionError,
     Extractor,
     Occurrence,
     Page,
-    RdfClass,
     Reading,
     css_path,
     inside_chrome,
@@ -64,7 +64,7 @@ def _reading(value: str | None, reason: str = "") -> Reading:
 
 def _value(reading: Reading) -> dict:
     return resource_value(
-        rdf_type="ceterms:Course",
+        term="ceterms:Course",
         resource_id="catalog-example-edu_RAW101",
         prop=PROP,
         reading=reading,
@@ -152,8 +152,8 @@ def _id_unless_third(
     return f"{catalog_id}_{page.stem.upper()}{occurrence.css_path}"
 
 
-FAKE_COURSE = RdfClass(
-    rdf_type="ceterms:Course",
+FAKE_COURSE = CtdlClass(
+    term="ceterms:Course",
     page_label="Course",
     occurrences=_three_occurrences,
     resource_id=_id_unless_third,
@@ -269,7 +269,7 @@ def test_a_resource_with_no_id_is_counted_not_written(tmp_path: Path) -> None:
 def test_a_repeated_resource_id_gets_a_suffix(tmp_path: Path) -> None:
     store = open_store(str(tmp_path))
     _seed(store, [_profile("a", ["Course"]), _profile("b", ["Course"])])
-    same_id = RdfClass(
+    same_id = CtdlClass(
         "ceterms:Course",
         "Course",
         lambda page: [Occurrence(page.soup, "body", True)],
@@ -318,6 +318,17 @@ def test_the_golden_sample_and_the_limit_narrow_the_pages(
     assert _run(store, only_golden_sample=True, limit=1)["pages_read"] == 1
 
 
+def test_the_report_says_whether_the_pages_were_limited(
+    tmp_path: Path,
+) -> None:
+    """Scoring counts a baseline page extract never wrote as missing only
+    when extract read every page it was given."""
+    store = open_store(str(tmp_path))
+    _seed(store, [_profile(stem, ["Course"]) for stem in ("a", "b")])
+    assert _run(store)["limit"] is None
+    assert _run(store, limit=1)["limit"] == 1
+
+
 def test_the_report_is_written_beside_extraction_report(tmp_path: Path) -> None:
     store = open_store(str(tmp_path))
     _seed(store, [_profile("a", ["Course"])])
@@ -358,7 +369,7 @@ def test_a_discovery_run_without_pages_jsonl_cannot_be_read(
 def test_each_class_reads_its_own_pages(tmp_path: Path) -> None:
     store = open_store(str(tmp_path))
     _seed(store, [_profile("a", ["Course"]), _profile("p", ["Program"])])
-    program = RdfClass(
+    program = CtdlClass(
         "ceterms:LearningProgram",
         "Program",
         lambda page: [Occurrence(page.soup, "body", True)],
