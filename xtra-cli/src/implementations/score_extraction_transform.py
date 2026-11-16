@@ -25,6 +25,7 @@ from common.keys import (
     EXTRACTION_REPORT_DIR,
     page_html_key,
     page_stem,
+    property_extract_report_key,
     record_key,
     records_prefix,
     run_prefix,
@@ -126,6 +127,38 @@ def extraction_records(
         f"{store.describe_location()} {EXTRACTION_REPORT_DIR}/ as "
         f"{records_prefix(catalog_id, run_id)}/",
     )
+
+
+def whole_catalog_extracted(store: Any, catalog_id: str, run_id: str) -> bool:
+    """True when every property extracted read every page it was given.
+
+    Then a baseline page with no extraction_report/ file is one the
+    extractor missed, not one it was never asked for. A report narrowed
+    by --only-golden-sample or --limit, or written before it said
+    whether it was limited, can't tell the two apart.
+    """
+    root = f"{run_prefix(catalog_id, run_id)}/{EXTRACTION_REPORT_DIR}/"
+    # One file per property folder is enough to know which property it is.
+    first_file: dict[str, str] = {}
+    for key in store.list_keys(root):
+        name = key[len(root) :]
+        if key.endswith(".json") and name.count("/") == 2:
+            first_file.setdefault(name.rsplit("/", 1)[0], key)
+    if not first_file:
+        return False
+    for key in first_file.values():
+        prop = store.get_json(key).get("ctdl_property")
+        try:
+            report = store.get_json(
+                property_extract_report_key(catalog_id, run_id, prop)
+            )
+        except FileNotFoundError:
+            return False
+        if report.get("only_golden_sample") or "limit" not in report:
+            return False
+        if report["limit"] is not None:
+            return False
+    return True
 
 
 def _in_page_order(

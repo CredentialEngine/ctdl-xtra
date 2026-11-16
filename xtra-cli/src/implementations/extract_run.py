@@ -362,6 +362,7 @@ def run_extraction(
         run_id=run_id,
         discovery_run_id=discovery_run_id,
         only_golden_sample=only_golden_sample,
+        limit=limit,
         version=version,
     )
     key = property_extract_report_key(catalog_id, run_id, extractor.prop)
@@ -500,6 +501,7 @@ def _report(
     run_id: str,
     discovery_run_id: str,
     only_golden_sample: bool,
+    limit: int | None,
     version: str,
 ) -> dict[str, Any]:
     return {
@@ -510,6 +512,7 @@ def _report(
         "run_id": run_id,
         "discovery_run_id": discovery_run_id,
         "only_golden_sample": only_golden_sample,
+        "limit": limit,
         "pages_considered": tally.pages_considered,
         "pages_read": tally.pages_read,
         "occurrences": tally.occurrences,
