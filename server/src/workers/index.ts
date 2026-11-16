@@ -11,6 +11,10 @@ import {
 import { default as IORedis } from "ioredis";
 import { closeCluster } from "../extraction/browser";
 import getLogger from "../logging";
+import {
+  buildWorkerAirbrakeNotice,
+  workerAirbrakeInputForJobFailure,
+} from "../workerAirbrakeNotice";
 import { inspect } from "node:util";
 import { AGENTIC_RECIPE_CONFIG_JOB_RETENTION_MS } from "../../../common/recipe";
 
@@ -60,7 +64,11 @@ export const createProcessor = <T, K extends BaseProgress>(
       await fn(job);
     } catch (error) {
       if (airbrake) {
-        await airbrake.notify(error);
+        await airbrake.notify(
+          buildWorkerAirbrakeNotice(
+            workerAirbrakeInputForJobFailure(error, job.data, job.name)
+          )
+        );
       }
       throw error;
     }
