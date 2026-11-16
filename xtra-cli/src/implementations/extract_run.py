@@ -95,7 +95,7 @@ class Reading:
 
 
 @dataclass(frozen=True)
-class RdfClass:
+class CtdlClass:
     """A class a property can be read from: which pages hold it, where
     each one is on a page, and how one is identified.
 
@@ -103,7 +103,7 @@ class RdfClass:
     value is then not written, only counted.
     """
 
-    rdf_type: str
+    term: str
     page_label: str
     occurrences: Callable[[Page], list[Occurrence]]
     resource_id: Callable[[Occurrence, Page, str], str | None]
@@ -114,7 +114,7 @@ class Extractor:
     """One property, read from every class it declares."""
 
     prop: str
-    classes: tuple[RdfClass, ...]
+    classes: tuple[CtdlClass, ...]
     read: Callable[[Occurrence, Page], Reading]
 
 
@@ -203,7 +203,7 @@ def unique_resource_id(resource_id: str, seen: dict[str, int]) -> str:
 
 def resource_value(
     *,
-    rdf_type: str,
+    term: str,
     resource_id: str,
     prop: str,
     reading: Reading,
@@ -218,7 +218,7 @@ def resource_value(
     property was looked for on that resource; its notes say why.
     """
     return {
-        "type": rdf_type,
+        "type": term,
         "resource_id": resource_id,
         "ctdl_property": prop,
         "value": reading.value,
@@ -318,11 +318,11 @@ def run_extraction(
     tally.files_cleared = _clear_property(
         target, catalog_id, run_id, extractor.prop
     )
-    for rdf_class in extractor.classes:
+    for ctdl_class in extractor.classes:
         profiles = [
             profile
             for profile in all_profiles
-            if rdf_class.page_label in (profile.get("labels") or [])
+            if ctdl_class.page_label in (profile.get("labels") or [])
         ]
         if only_golden_sample:
             wanted = _golden_stems(
@@ -330,7 +330,7 @@ def run_extraction(
                 catalog_id,
                 run_id,
                 discovery_run_id,
-                rdf_class.page_label,
+                ctdl_class.page_label,
             )
             profiles = [p for p in profiles if p["stem"] in wanted]
         if limit is not None:
@@ -338,7 +338,7 @@ def run_extraction(
         logger.info(
             "READ %s pages labelled %s in discovery %s",
             len(profiles),
-            rdf_class.page_label,
+            ctdl_class.page_label,
             discovery_run_id,
         )
         tally.pages_considered += len(profiles)
@@ -347,7 +347,7 @@ def run_extraction(
                 source,
                 target,
                 extractor,
-                rdf_class,
+                ctdl_class,
                 profile,
                 site=site,
                 catalog_id=catalog_id,
@@ -397,7 +397,7 @@ def _extract_page(
     source: Any,
     target: Any,
     extractor: Extractor,
-    rdf_class: RdfClass,
+    ctdl_class: CtdlClass,
     profile: dict[str, Any],
     *,
     site: str,
@@ -427,19 +427,19 @@ def _extract_page(
         page.platform or "-", {"occurrences": 0, "found": 0}
     )
     class_counts = tally.by_class.setdefault(
-        rdf_class.rdf_type, {"occurrences": 0, "found": 0}
+        ctdl_class.term, {"occurrences": 0, "found": 0}
     )
-    for occurrence in rdf_class.occurrences(page):
+    for occurrence in ctdl_class.occurrences(page):
         tally.occurrences += 1
         platform_counts["occurrences"] += 1
         class_counts["occurrences"] += 1
-        resource_id = rdf_class.resource_id(occurrence, page, catalog_id)
+        resource_id = ctdl_class.resource_id(occurrence, page, catalog_id)
         if resource_id is None:
             tally.no_resource_id += 1
             if len(tally.no_resource_id_examples) < NOT_FOUND_EXAMPLES:
                 tally.no_resource_id_examples.append(
                     {
-                        "class": rdf_class.rdf_type,
+                        "class": ctdl_class.term,
                         "url": url,
                         "css": occurrence.css_path,
                         "reason": REASON_NO_RESOURCE_ID,
@@ -454,7 +454,7 @@ def _extract_page(
         target.put_json(
             extract_resource_key(catalog_id, run_id, extractor.prop, unique_id),
             resource_value(
-                rdf_type=rdf_class.rdf_type,
+                term=ctdl_class.term,
                 resource_id=unique_id,
                 prop=extractor.prop,
                 reading=reading,
@@ -481,7 +481,7 @@ def _extract_page(
                 tally.not_found_examples.append(
                     {
                         "resource_id": unique_id,
-                        "class": rdf_class.rdf_type,
+                        "class": ctdl_class.term,
                         "url": url,
                         "reason": reading.reason,
                         "raw_text": reading.raw_text,
@@ -505,7 +505,7 @@ def _report(
     return {
         "schema": REPORT_SCHEMA,
         "property": extractor.prop,
-        "class": [c.rdf_type for c in extractor.classes],
+        "class": [c.term for c in extractor.classes],
         "catalog_folder": catalog_id,
         "run_id": run_id,
         "discovery_run_id": discovery_run_id,
