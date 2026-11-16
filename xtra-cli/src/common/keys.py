@@ -135,6 +135,49 @@ def discovery_key(
     )
 
 
+def property_key(prop: str) -> str:
+    """A property as a file or key name: "ceterms:name" is ceterms_name.
+    This is the same as the extractor module name, so the extractor can be found by the property.
+    """
+    steps = [step.strip() for step in prop.split(">")]
+    return "__".join(step.replace(":", "_", 1) for step in steps)
+
+
+EXTRACTION_REPORT_DIR = "extraction_report"
+
+
+def extract_property_prefix(catalog_folder: str, run_id: str, prop: str) -> str:
+    """Where one property's files are, beside records/.
+
+    The folders follow the extractors' own: ceterms:name is under
+    extraction_report/ceterms/ceterms_name/, as its extractor is
+    implementations/extract/ceterms/ceterms_name.py.
+    """
+    prefix = prop.split(":", 1)[0].strip()
+    return (
+        f"{run_prefix(catalog_folder, run_id)}/{EXTRACTION_REPORT_DIR}"
+        f"/{prefix}/{property_key(prop)}"
+    )
+
+
+def extract_resource_key(
+    catalog_folder: str, run_id: str, prop: str, resource_id: str
+) -> str:
+    """One property of one resource."""
+    prefix = extract_property_prefix(catalog_folder, run_id, prop)
+    return f"{prefix}/{resource_id}.json"
+
+
+def property_extract_report_key(
+    catalog_folder: str, run_id: str, prop: str
+) -> str:
+    """Beside discovery/, one per property extracted."""
+    return (
+        f"{run_prefix(catalog_folder, run_id)}"
+        f"/extraction-{property_key(prop)}-report.json"
+    )
+
+
 def extract_report_key(catalog_folder: str, run_id: str) -> str:
     """Skipped pages live beside records/, never inside it.
 

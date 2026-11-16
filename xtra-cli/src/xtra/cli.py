@@ -40,7 +40,7 @@ CATALOG_COMMAND_SPECS: tuple[CommandSpec, ...] = (
 SCORE_EXTRACTION_COMMAND_SPECS: tuple[CommandSpec, ...] = (
     CommandSpec(
         module_name="match",
-        module_path="xtra.scoring.extraction.match",
+        module_path="xtra.score.extraction.match",
     ),
 )
 

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from xtra import scoring
+from xtra import score
 
 
 def test_scoring_package_imports() -> None:
-    assert scoring is not None
+    assert score is not None

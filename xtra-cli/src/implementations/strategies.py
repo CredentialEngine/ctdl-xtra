@@ -1,4 +1,4 @@
-"""Strategy names for crawl / extract / transform.
+"""Strategy names for crawl / transform.
 
 Review: keep the same --with-<strategy> pattern so new backends can be
 added later. Crawl has three: playwright drives a browser we own,
@@ -15,7 +15,6 @@ CRAWL_STRATEGIES = (
     "ai-agent",
     "third-party",
 )
-EXTRACT_STRATEGIES = ("template", "ai-agent")
 TRANSFORM_STRATEGIES = ("ctdl", "ai-agent")
 
 

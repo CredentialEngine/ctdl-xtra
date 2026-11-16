@@ -522,11 +522,19 @@ def _record_keys_by_stem(
             key
         )
     # "--" sorts before ".", so a plain sort would put the extra-entity
-    # records ahead of the page's own.
+    # records ahead of the page's own. The resource number is compared as
+    # a number: as text, --resource-1000 sorts before --resource-101.
     return {
-        stem: sorted(keys, key=lambda key: (key.count("--"), key))
-        for stem, keys in by_stem.items()
+        stem: sorted(keys, key=_page_order) for stem, keys in by_stem.items()
     }
+
+
+_RESOURCE_NUMBER_RE = re.compile(r"--resource-(\d+)\.json$")
+
+
+def _page_order(key: str) -> tuple[int, int, str]:
+    number = _RESOURCE_NUMBER_RE.search(key)
+    return (key.count("--"), int(number.group(1)) if number else 0, key)
 
 
 def _skipped_stems(

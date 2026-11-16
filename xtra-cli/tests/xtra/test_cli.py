@@ -79,13 +79,6 @@ def test_every_etl_command_accepts_env(args: list[str]) -> None:
     assert "--env" in result.output
 
 
-def test_catalog_extract_help_lists_strategies() -> None:
-    result = CliRunner().invoke(cli, ["catalog", "extract", "--help"])
-    assert result.exit_code == 0
-    assert "--with-template" in result.output
-    assert "--with-ai-agent" in result.output
-
-
 def test_catalog_transform_help_lists_strategies() -> None:
     result = CliRunner().invoke(cli, ["catalog", "transform", "--help"])
     assert result.exit_code == 0

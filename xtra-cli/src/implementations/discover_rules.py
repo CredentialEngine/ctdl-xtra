@@ -124,7 +124,11 @@ PAGE_TYPE_UNKNOWN = "Unknown"
 
 # The subject prefix: two to six capitals. Five was too few and dropped
 # every Pitt page, where the subject is spelled out (AFRCNA 1415).
-_CODE_SUBJECT = r"[A-Z]{2,6}"
+#
+# An ampersand may sit between two of them: WVU prints A&VS 591, HN&F 500
+# and C&I 600. Without it, 359 of WVU's courses had no code, so none of
+# them had a resource id and extraction wrote nothing for them.
+_CODE_SUBJECT = r"[A-Z](?:&?[A-Z]){1,5}"
 
 # What sits between the subject and the number. A plain space or hyphen is
 # the common case; Acalog and CourseLeaf print a non-breaking space or a
@@ -842,7 +846,7 @@ TERM_HEADING_RE = re.compile(
 # otherwise reads as a heading over a Ph.D.'s requirements. Five digits,
 # because graduate course numbers there are five digits long.
 COURSE_TITLE_RE = re.compile(
-    r"^\s*[A-Z]{2,6}[\s ‑–-]?[A-Z]?\d{3,5}[A-Z]{0,2}\b"
+    rf"^\s*{_CODE_SUBJECT}[\s ‑–-]?[A-Z]?\d{{3,5}}[A-Z]{{0,2}}\b"
 )
 
 # The outline number a catalog prints in front of a heading, which is not
