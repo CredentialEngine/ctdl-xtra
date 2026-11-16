@@ -31,6 +31,7 @@ import {
   updateExtraction,
   updatePage,
 } from "../data/extractions";
+import { attachWorkerCatchContext } from "../workerAirbrakeNotice";
 import {
   readMarkdownContent,
   readScreenshot,
@@ -401,7 +402,19 @@ export const performJob = async (
     }
 
     logger.info(`Throwing error for ${crawlPage.url} - BullMQ will retry`);
-    throw err; // Throw for server errors and other errors so BullMQ can retry
+    attachWorkerCatchContext(err, {
+      extractionId: crawlPage.extractionId,
+      crawlPageId: crawlPage.id,
+      datasetId: job.data.datasetId,
+      url: crawlPage.url,
+      responseStatus: err instanceof BrowserFetchError ? err.status : undefined,
+      ...(err instanceof BrowserFetchError
+        ? err.proxyUrl
+          ? { proxyUrl: err.proxyUrl }
+          : { directConnection: true }
+        : {}),
+    });
+    throw err;
   }
 };
 
@@ -483,6 +496,11 @@ export default createProcessor<FetchPageJob, FetchPageProgress>(
         LogLevel.ERROR,
         job.data.crawlPageId
       );
+      attachWorkerCatchContext(err, {
+        extractionId: job.data.extractionId,
+        crawlPageId: job.data.crawlPageId,
+        datasetId: job.data.datasetId,
+      });
       throw err;
     }
   }
