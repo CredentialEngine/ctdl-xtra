@@ -69,34 +69,6 @@ EXTRACTORS_PACKAGE = "implementations.extract"
 # Every class a property can name in its CLASS tuple.
 CLASSES: dict[str, CtdlClass] = {c.term: c for c in (COURSE,)}
 
-def _available(registry: dict[str, Extractor]) -> str:
-    return "\n".join(
-        f"  {prop}  (class: {', '.join(c.rdf_type for c in e.classes)})"
-        for prop, e in registry.items()
-    )
-
-
-def choose_extractor(registry: dict[str, Extractor], prop: str) -> Extractor:
-    """The extractor for the property, or a UsageError naming what exists."""
-    if not PROPERTY_PATH_RE.fullmatch(prop):
-        raise click.UsageError(
-            f"{prop!r} is not a CTDL property, e.g. ceterms:name"
-        )
-    extractor = registry.get(prop)
-    if extractor is None:
-        raise click.UsageError(
-            f"no extractor for {prop}. Properties: {', '.join(registry)}"
-        )
-    return extractor
-
-
-class _ExtractionCommand(click.Command):
-    """Lists the extractors under the help, read when help is asked."""
-
-    def format_epilog(self, ctx, formatter) -> None:
-        super().format_epilog(ctx, formatter)
-        with formatter.section("Extractors"):
-            formatter.write_text(_available(extractors()))
 
 class RegistryError(Exception):
     """An extractor module breaks the naming or shape the registry needs."""
