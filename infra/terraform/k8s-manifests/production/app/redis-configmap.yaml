@@ -9,7 +9,7 @@ data:
     port 6379
     protected-mode yes
     tcp-keepalive 300
-    maxmemory 3gb
+    maxmemory 512mb
     maxmemory-policy noeviction
 
     # AOF persistence
