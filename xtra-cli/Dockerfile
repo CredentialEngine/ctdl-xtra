@@ -20,7 +20,10 @@ COPY src /app/src
 # Editable on purpose: implementations/engine.py puts src/lib/ on sys.path,
 # and src/lib/ is not in the wheel, so `pip install .` cannot start the CLI.
 # Browsers go to PLAYWRIGHT_BROWSERS_PATH so the runtime user sees them.
-RUN pip install --no-cache-dir --upgrade pip \
+## libatomic1 is for the Node.js, cannot build without it
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends libatomic1 \
+    && pip install --no-cache-dir --upgrade pip \
     && pip install --no-cache-dir -e ".[azure]" \
     && python -m playwright install \
         --with-deps \

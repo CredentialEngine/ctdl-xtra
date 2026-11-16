@@ -120,7 +120,7 @@ def test_a_platform_block_counts_even_when_its_code_reads_as_no_code() -> None:
 
 
 def test_the_course_class_reads_course_pages_by_their_blocks() -> None:
-    assert COURSE.rdf_type == "ceterms:Course"
+    assert COURSE.term == "ceterms:Course"
     assert COURSE.page_label == LABEL_COURSE
     assert COURSE.occurrences is course_occurrences
     assert COURSE.resource_id is course_resource_id

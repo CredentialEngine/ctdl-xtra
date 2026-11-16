@@ -12,6 +12,11 @@ Split/properties/ceterms_name.jsonld). The output follows the same folders:
   ceterms:name -> implementations/extract/ceterms/ceterms_name.py
                -> extraction_report/ceterms/ceterms_name/{resource_id}.json
 
+ceterms/ holds properties in the ceterms vocabulary
+(https://credreg.net/ctdl/terms/), ceasn/ those in ceasn
+(https://credreg.net/ctdlasn/terms); ceasn/ is empty for now, a place
+held to show the layout.
+
 The file declares PROPERTY, CLASS (the classes it is read from) and read.
 Adding a property is adding its file. A class is defined once, in
 implementations/, and listed in CLASSES.
@@ -33,9 +38,9 @@ from common.object_store import open_store
 from implementations.discover import latest_discovery_run_id
 from implementations.extract_course import COURSE
 from implementations.extract_run import (
+    CtdlClass,
     ExtractionError,
     Extractor,
-    RdfClass,
     run_extraction,
 )
 from xtra.click import (
@@ -62,15 +67,43 @@ PROPERTY_PATH_RE = re.compile(
 EXTRACTORS_PACKAGE = "implementations.extract"
 
 # Every class a property can name in its CLASS tuple.
-CLASSES: dict[str, RdfClass] = {c.rdf_type: c for c in (COURSE,)}
+CLASSES: dict[str, CtdlClass] = {c.term: c for c in (COURSE,)}
 
+def _available(registry: dict[str, Extractor]) -> str:
+    return "\n".join(
+        f"  {prop}  (class: {', '.join(c.rdf_type for c in e.classes)})"
+        for prop, e in registry.items()
+    )
+
+
+def choose_extractor(registry: dict[str, Extractor], prop: str) -> Extractor:
+    """The extractor for the property, or a UsageError naming what exists."""
+    if not PROPERTY_PATH_RE.fullmatch(prop):
+        raise click.UsageError(
+            f"{prop!r} is not a CTDL property, e.g. ceterms:name"
+        )
+    extractor = registry.get(prop)
+    if extractor is None:
+        raise click.UsageError(
+            f"no extractor for {prop}. Properties: {', '.join(registry)}"
+        )
+    return extractor
+
+
+class _ExtractionCommand(click.Command):
+    """Lists the extractors under the help, read when help is asked."""
+
+    def format_epilog(self, ctx, formatter) -> None:
+        super().format_epilog(ctx, formatter)
+        with formatter.section("Extractors"):
+            formatter.write_text(_available(extractors()))
 
 class RegistryError(Exception):
     """An extractor module breaks the naming or shape the registry needs."""
 
 
 def extractors(
-    package: str = EXTRACTORS_PACKAGE, classes: dict[str, RdfClass] = CLASSES
+    package: str = EXTRACTORS_PACKAGE, classes: dict[str, CtdlClass] = CLASSES
 ) -> dict[str, Extractor]:
     """Every property with an extractor, from the file tree.
 
@@ -118,25 +151,25 @@ def extractors(
 
 
 def _classes(
-    module: ModuleType, classes: dict[str, RdfClass]
-) -> tuple[RdfClass, ...]:
+    module: ModuleType, classes: dict[str, CtdlClass]
+) -> tuple[CtdlClass, ...]:
     declared = _required(module, "CLASS")
     if (
         not isinstance(declared, tuple)
         or not declared
-        or not all(isinstance(rdf_type, str) for rdf_type in declared)
+        or not all(isinstance(term, str) for term in declared)
     ):
         raise RegistryError(
             f"{module.__name__}.CLASS = {declared!r} is not a tuple of "
             "CTDL classes"
         )
-    unknown = [rdf_type for rdf_type in declared if rdf_type not in classes]
+    unknown = [term for term in declared if term not in classes]
     if unknown:
         raise RegistryError(
             f"{module.__name__}.CLASS names {', '.join(unknown)}. "
             f"Classes: {', '.join(sorted(classes))}"
         )
-    return tuple(classes[rdf_type] for rdf_type in declared)
+    return tuple(classes[term] for term in declared)
 
 
 def _required(module: ModuleType, name: str):
@@ -164,7 +197,7 @@ def _named_for(module: ModuleType, name: str, prop: str) -> None:
 
 def _available(registry: dict[str, Extractor]) -> str:
     return "\n".join(
-        f"  {prop}  (class: {', '.join(c.rdf_type for c in e.classes)})"
+        f"  {prop}  (class: {', '.join(c.term for c in e.classes)})"
         for prop, e in registry.items()
     )
 
