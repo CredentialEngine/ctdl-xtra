@@ -990,6 +990,71 @@ def test_codes_under_a_courses_path_need_no_block_to_be_a_listing() -> None:
     assert "Course" not in profile.labels
 
 
+def test_a_page_named_for_a_course_is_a_course_page() -> None:
+    """The h1 opens with the code; nothing else on the page reads as a
+    course. Only two codes, the course's own and its former number, and
+    no credits value at all."""
+    profile = page(
+        "<main><h1>ABCD 7001 - (was ABC 700) Example Concepts</h1>"
+        "<p>Graded on a pass/fail basis.</p></main>",
+        url="https://catalog.example.edu/course?id=1",
+    )
+    assert profile.course_block_count == 0
+    assert profile.labels == ["Course"]
+    assert profile.rules_fired["Course"] == "named for course ABCD 7001"
+
+
+def test_a_page_named_for_a_course_can_print_the_code_last() -> None:
+    profile = page(
+        "<main><h1>Example Concepts - ABCD 70013</h1>"
+        "<p>Graded on a pass/fail basis.</p></main>",
+    )
+    assert profile.rules_fired["Course"] == "named for course ABCD 70013"
+
+
+def test_a_code_inside_a_page_s_name_does_not_name_the_page() -> None:
+    profile = page(
+        "<main><h1>Placement into ABCD 7001 and Beyond</h1>"
+        "<p>Graded on a pass/fail basis.</p></main>",
+    )
+    assert "Course" not in profile.labels
+
+
+def test_a_course_page_title_without_the_site_names_the_course() -> None:
+    profile = page(
+        "<title>ABCD 7001 - Example Concepts | Example College</title>"
+        "<main><p>Graded on a pass/fail basis.</p></main>",
+    )
+    assert profile.labels == ["Course"]
+
+
+def test_a_course_page_with_credits_in_words_has_a_course_block() -> None:
+    profile = page(
+        "<main><h2>ABCD 7001 - Example Concepts</h2>"
+        "<p>Three credit hours.</p></main>",
+    )
+    assert profile.course_block_count == 1
+    assert profile.labels == ["Course"]
+
+
+def test_a_page_named_for_something_else_is_not_a_course_page() -> None:
+    profile = page(
+        "<main><h1>Example Studies</h1>"
+        "<p>Students take ABCD 7001 and ABCD 7002 in their first year.</p>"
+        "</main>",
+    )
+    assert "Course" not in profile.labels
+
+
+def test_hours_in_a_sentence_are_not_a_course_s_credits() -> None:
+    profile = page(
+        "<main><h2>ABCD 7001</h2><p>Students who have completed three "
+        "hours of study in a related subject may ask the department to "
+        "waive this course.</p></main>",
+    )
+    assert profile.course_block_count == 0
+
+
 PLATFORM_FIXTURES = {
     "discover/platform-courseleaf.html": "courseleaf",
     "discover/platform-acalog.html": "acalog",

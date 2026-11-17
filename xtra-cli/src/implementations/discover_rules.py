@@ -199,7 +199,12 @@ _CREDIT_PREFIX = (
     r"(?:(?:semester|quarter|course|contact|clock|lecture|lab|credit)\s+){0,2}"
 )
 
-_NUMBER = r"\d+(?:\.\d+)?"
+# A number as digits, or spelled out: "Three credit hours." Up to twelve,
+# which covers any one course's value.
+_NUMBER_WORD = (
+    r"\b(?:one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve)\b"
+)
+_NUMBER = rf"(?:\d+(?:\.\d+)?|{_NUMBER_WORD})"
 # "3", "3.0", "1-3" and "1 to 3" are all one printed value.
 _RANGE = rf"{_NUMBER}(?:\s*(?:-|to)\s*{_NUMBER})?"
 
