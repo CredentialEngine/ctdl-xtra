@@ -226,7 +226,10 @@ def test_a_registered_property_is_chosen() -> None:
     ("prop", "message"),
     [
         ("name", "is not a CTDL property"),
-        ("ceterms:nope", "Properties: ceterms:description, ceterms:name"),
+        (
+            "ceterms:nope",
+            "Properties: ceterms:description, ceterms:identifier, ceterms:name",
+        ),
     ],
 )
 def test_an_unknown_property_names_what_there_is(
@@ -242,6 +245,7 @@ def test_help_lists_the_extractors_with_their_class() -> None:
     assert "[OPTIONS] PROPERTY" in result.output
     lines = [line.split() for line in result.output.splitlines()]
     assert ["ceterms:description", "(class:", "ceterms:Course)"] in lines
+    assert ["ceterms:identifier", "(class:", "ceterms:Course)"] in lines
     assert ["ceterms:name", "(class:", "ceterms:Course)"] in lines
 
 
@@ -344,7 +348,12 @@ def test_the_report_counts_by_strategy_class_and_platform(
         report["resources_written"] + report["no_resource_id"]
         == report["occurrences"]
     )
-    assert report["by_strategy"]["profile_title"] == report["found"]
+    # Every course is read by its platform's title element, except the
+    # training portal's page, which the platform's markup doesn't cover.
+    assert report["by_strategy"] == {
+        "profile_title": report["found"] - 1,
+        "title_class": 1,
+    }
     assert {"courseleaf", "curriqunet", "elumen"} <= set(report["by_platform"])
 
 

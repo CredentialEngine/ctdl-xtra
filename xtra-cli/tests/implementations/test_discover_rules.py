@@ -35,6 +35,7 @@ from implementations.discover_rules import (
     catalog_year_value,
     course_block_count,
     course_codes,
+    course_in_query,
     credential_award,
     described_course_codes,
     distinct_awards,
@@ -59,6 +60,31 @@ from implementations.discover_rules import (
     url_label,
     url_template,
 )
+
+
+@pytest.mark.parametrize(
+    ("url", "named"),
+    [
+        (
+            "https://training.example.edu/portal/training?cmd=catalog&course=109497",
+            "109497",
+        ),
+        (
+            "https://x.edu/portal?course=quality-asphalt-emulsion",
+            "quality-asphalt-emulsion",
+        ),
+        ("https://x.edu/view?course_id=A12", "A12"),
+        ("https://x.edu/view?courseId=7", "7"),
+        ("https://x.edu/portal?course=%20python-2", "python-2"),
+        # Not a course: another parameter, an empty one, no query at all.
+        ("https://x.edu/preview_course_nopop.php?catoid=43&coid=137424", None),
+        ("https://x.edu/course?id=1", None),
+        ("https://x.edu/portal?course=", None),
+        ("https://x.edu/courses/engl101", None),
+    ],
+)
+def test_the_course_an_address_names(url: str, named: str | None) -> None:
+    assert course_in_query(url) == named
 
 
 @pytest.mark.parametrize(

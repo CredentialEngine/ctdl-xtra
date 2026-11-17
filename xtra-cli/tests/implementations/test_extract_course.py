@@ -13,7 +13,7 @@ from implementations.extract_course import (
     course_resource_id,
 )
 from implementations.extract_platform import COURSE_CODE_PARTS
-from implementations.extract_run import printed_text
+from implementations.extract_run import Page, printed_text
 
 
 @pytest.mark.parametrize(
@@ -142,8 +142,22 @@ def test_a_course_is_identified_by_its_catalog_and_clean_code(
     assert found[: len(ids)] == ids
 
 
-def test_a_course_with_no_code_has_no_resource_id() -> None:
+def test_a_course_with_no_code_is_known_by_its_page_address() -> None:
+    """A training portal prints no code; its address names the course."""
     page = fixture_page("slate-course")
+    (occurrence,) = course_occurrences(page)
+    assert course_resource_id(occurrence, page, "c") == "c_solar-energy"
+
+
+def test_a_course_with_no_code_and_no_course_in_its_address_has_no_id() -> None:
+    page = fixture_page("slate-course")
+    page = Page(
+        stem=page.stem,
+        url="https://training.example.edu/portal/solar-energy",
+        soup=page.soup,
+        platform=page.platform,
+        profile=page.profile,
+    )
     (occurrence,) = course_occurrences(page)
     assert course_resource_id(occurrence, page, "c") is None
 
