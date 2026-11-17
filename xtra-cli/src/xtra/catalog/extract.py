@@ -167,11 +167,12 @@ def _named_for(module: ModuleType, name: str, prop: str) -> None:
         )
 
 
-def _available(registry: dict[str, Extractor]) -> str:
-    return "\n".join(
-        f"  {prop}  (class: {', '.join(c.term for c in e.classes)})"
+def _available(registry: dict[str, Extractor]) -> list[tuple[str, str]]:
+    """One row per property, for click to lay out without rewrapping."""
+    return [
+        (prop, f"(class: {', '.join(c.term for c in e.classes)})")
         for prop, e in registry.items()
-    )
+    ]
 
 
 def choose_extractor(registry: dict[str, Extractor], prop: str) -> Extractor:
@@ -194,7 +195,7 @@ class _ExtractionCommand(click.Command):
     def format_epilog(self, ctx, formatter) -> None:
         super().format_epilog(ctx, formatter)
         with formatter.section("Extractors"):
-            formatter.write_text(_available(extractors()))
+            formatter.write_dl(_available(extractors()))
 
 
 @click.command(name="extract", cls=_ExtractionCommand)

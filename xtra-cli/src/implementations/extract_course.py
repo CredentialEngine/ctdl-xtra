@@ -17,25 +17,21 @@ from implementations.discover_rules import (
     COURSE_BLOCK_CLASS_RE,
     COURSE_CODE_RE,
     LABEL_COURSE,
-    PLATFORM_COURSELEAF,
-    PLATFORM_CURRIQUNET,
+    WHITESPACE_RE,
+)
+from implementations.extract_platform import (
+    COURSE_BLOCK_SELECTORS,
+    COURSE_CODE_PARTS,
 )
 from implementations.extract_run import (
     CtdlClass,
     Occurrence,
     Page,
+    class_text,
     css_path,
     inside_chrome,
     printed_text,
 )
-
-# The element each platform writes around one course, where the class
-# words alone don't say it. Vendor markup only, seen on more than one
-# catalog of the platform; never a catalog's own theme.
-COURSE_BLOCK_SELECTORS: dict[str, str] = {
-    PLATFORM_COURSELEAF: "div.courseblock",
-    PLATFORM_CURRIQUNET: ".course-summary-wrapper",
-}
 
 # A block has to print a course code this close to its start. A course's
 # block opens with its heading; a description panel that happens to be
@@ -46,16 +42,6 @@ CODE_NEAR_START = 160
 # A section letter joined to the number by a hyphen is part of the code:
 # "NUR 741-A" is a course of its own, apart from "NUR 741A" and "NUR 741".
 CODE_SECTION_RE = re.compile(r"-[A-Z]{1,2}\b")
-
-WHITESPACE_RE = re.compile(r"\s+")
-
-# Where a platform prints a course's code as a subject and a number of
-# their own: CurriQunet's "ENGL" "-" "6". Vendor markup only. The parts
-# are read as printed, because a code like "ENGL 6" is one the code
-# pattern refuses on its own.
-COURSE_CODE_PARTS: dict[str, tuple[str, str]] = {
-    PLATFORM_CURRIQUNET: (".course-subject", ".course-number"),
-}
 
 # Where a one-course page prints its code: a heading opening with it
 # ("COMM 79073 - Intro…", eLumen's "AJ 101:"). A paragraph's first code
@@ -110,7 +96,7 @@ def _blocks(root: Tag, platform: str) -> list[Tag]:
         candidates = [
             tag
             for tag in root.find_all(True)
-            if COURSE_BLOCK_CLASS_RE.search(" ".join(tag.get("class") or []))
+            if COURSE_BLOCK_CLASS_RE.search(class_text(tag))
             and _opens_with_code(tag)
         ]
     outermost: list[Tag] = []

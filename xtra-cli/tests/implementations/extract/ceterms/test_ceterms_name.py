@@ -292,6 +292,18 @@ def test_the_page_name_is_the_last_resort_on_a_one_course_page() -> None:
     assert (reading.value, reading.strategy) == ("Welding Basics", "page_name")
 
 
+def test_a_heading_styled_display_none_is_never_the_name() -> None:
+    occurrence, page = _whole_page(
+        '<main><div style="display: none"><h1>2026-2027 Catalog</h1></div>'
+        "<h2>Welding Basics</h2></main>"
+    )
+    reading = read(occurrence, page)
+    assert (reading.value, reading.strategy) == (
+        "Welding Basics",
+        "first_heading",
+    )
+
+
 def test_the_site_name_is_never_a_course_name() -> None:
     occurrence, page = _whole_page(
         '<head><meta property="og:site_name" content="Example Catalog">'

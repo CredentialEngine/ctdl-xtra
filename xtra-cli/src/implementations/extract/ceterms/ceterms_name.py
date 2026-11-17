@@ -27,20 +27,20 @@ from implementations.discover_page import title_name
 from implementations.discover_rules import (
     COURSE_BLOCK_TITLE_CLASS_RE,
     COURSE_CODE_RE,
-    PLATFORM_ACALOG,
-    PLATFORM_COURSELEAF,
-    PLATFORM_CURRIQUNET,
-    PLATFORM_ELUMEN,
     collapse,
 )
 from implementations.extract_course import code_at_start
+from implementations.extract_platform import TITLE_SELECTORS
 from implementations.extract_run import (
+    HEADINGS,
+    REASON_NO_CANDIDATE,
     Occurrence,
     Page,
     Reading,
+    class_text,
     css_path,
-    inside_chrome,
     printed_text,
+    shown,
 )
 
 PROPERTY = "ceterms:name"
@@ -55,7 +55,6 @@ STRATEGY_FIRST_HEADING = "first_heading"
 STRATEGY_CODE_LINE = "code_line"
 STRATEGY_PAGE_NAME = "page_name"
 
-REASON_NO_CANDIDATE = "no_candidate"
 REASON_EMPTY_TITLE = "empty_title"
 REASON_CODE_ONLY = "code_only"
 REASON_TOO_LONG = "rejected:too_long"
@@ -65,49 +64,9 @@ REASON_SITE_NAME = "rejected:site_name"
 MAX_NAME_LENGTH = 150
 
 
-@dataclass(frozen=True)
-class TitleSelector:
-    """Where a platform prints the title, and whether the code is with it."""
-
-    selector: str
-    combined: bool
-
-
-# The title element each platform's own markup names. Vendor markup only,
-TITLE_SELECTORS: dict[str, tuple[TitleSelector, ...]] = {
-    # "COMM 79073 - (was ACOM 7390) Introduction to Applied ..."
-    PLATFORM_ACALOG: (TitleSelector("#course_preview_title", True),),
-    # "LAW 604.  Natural Resources.  3 Hours." in the classic theme. The
-    # detail theme prints the title in .detail-title beside a code-only
-    # .detail-code, or in .detail-code after the code.
-    PLATFORM_COURSELEAF: (
-        TitleSelector(".courseblocktitle", True),
-        TitleSelector(".detail-title", True),
-        TitleSelector(".detail-code", True),
-    ),
-    # The code and " - " are spans of their own beside the title; the
-    # credits are too ("(3.0)"), or are inside it ("(3.00 units)").
-    PLATFORM_CURRIQUNET: (TitleSelector(".course-title", True),),
-    # <header class="header"><h2>title</h2><h3>AJ 101:</h3></header>, or
-    # <header class="header-course"><p class="header-course-name">title</p>
-    # <h1>APPR B48G</h1></header>.
-    PLATFORM_ELUMEN: (
-        TitleSelector("header.header h2", False),
-        TitleSelector(".header-course-name", False),
-    ),
-}
-
-HEADINGS = ("h1", "h2", "h3", "h4", "h5", "h6")
-
 # Where a block prints its opening line when no class or heading says so.
 LINE_TAGS = ("strong", "b", "span", "p", "div", "dt", "td", "a")
 FIRST_HEADINGS = ("h1", "h2", "h3", "h4")
-
-# Text only a screen reader gets: an eLumen catalog prints its year as an h1
-# no one sees, above the course's real title.
-HIDDEN_CLASS_RE = re.compile(
-    r"sr-only|visually-?hidden|screen-?reader", re.IGNORECASE
-)
 
 # What separates the code from the title: "LAW 604. Natural", "AJ 101:",
 # "COMM 79073 - Intro", or just a space.
@@ -234,17 +193,6 @@ def _rejection(value: str, page: Page) -> str:
     return ""
 
 
-def _shown(tag: Tag) -> bool:
-    """Neither site furniture nor text only a screen reader gets."""
-    if inside_chrome(tag):
-        return False
-    return not any(
-        HIDDEN_CLASS_RE.search(" ".join(node.get("class") or []))
-        for node in (tag, *tag.parents)
-        if isinstance(node, Tag)
-    )
-
-
 def _candidate(
     tag: Tag, strategy: str, *, combined: bool, is_title_element: bool
 ) -> _Candidate:
@@ -267,7 +215,7 @@ def _profile_title(occurrence: Occurrence, page: Page) -> _Candidate | None:
     code_only: _Candidate | None = None
     for title in TITLE_SELECTORS.get(page.platform, ()):
         for tag in occurrence.element.select(title.selector):
-            if not _shown(tag):
+            if not shown(tag):
                 continue
             candidate = _candidate(
                 tag,
@@ -291,8 +239,7 @@ def _title_class(occurrence: Occurrence, page: Page) -> _Candidate | None:
     matched = [
         tag
         for tag in occurrence.element.find_all(True)
-        if COURSE_BLOCK_TITLE_CLASS_RE.search(" ".join(tag.get("class") or []))
-        and _shown(tag)
+        if COURSE_BLOCK_TITLE_CLASS_RE.search(class_text(tag)) and shown(tag)
     ]
     ids = {id(tag) for tag in matched}
     for tag in matched:
@@ -313,7 +260,7 @@ def _heading_beside_code(
 ) -> _Candidate | None:
     """eLumen's shape: <h2>title</h2><h3>AJ 101:</h3>, side by side."""
     for heading in occurrence.element.find_all(HEADINGS):
-        if not _shown(heading) or not is_code_only(printed_text(heading)):
+        if not shown(heading) or not is_code_only(printed_text(heading)):
             continue
         parent = heading.parent
         if not isinstance(parent, Tag):
@@ -334,7 +281,7 @@ def _heading_beside_code(
 def _first_heading(occurrence: Occurrence, page: Page) -> _Candidate | None:
     for heading in occurrence.element.find_all(FIRST_HEADINGS):
         text = printed_text(heading)
-        if not text or is_code_only(text) or not _shown(heading):
+        if not text or is_code_only(text) or not shown(heading):
             continue
         return _candidate(
             heading,
@@ -374,7 +321,7 @@ def _opening_line(tags: list[Tag]) -> Tag | None:
         text = printed_text(tag)
         if len(text) > MAX_NAME_LENGTH or COURSE_CODE_RE.match(text) is None:
             continue
-        if is_code_only(text) or not _shown(tag):
+        if is_code_only(text) or not shown(tag):
             continue
         return tag
     return None
