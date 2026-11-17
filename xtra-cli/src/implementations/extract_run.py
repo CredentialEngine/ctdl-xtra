@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any
@@ -41,12 +42,25 @@ logger = logging.getLogger(__name__)
 REPORT_SCHEMA = "xtra-extraction-report-1"
 REASON_PAGE_MISSING = "page_missing"
 REASON_NO_RESOURCE_ID = "no_resource_id"
+# An extractor found nothing to read its value from.
+REASON_NO_CANDIDATE = "no_candidate"
 
 # How many misses the report quotes. The counts cover the rest.
 NOT_FOUND_EXAMPLES = 50
 
 # Text a browser never shows, so a value never comes from it.
-_UNPRINTED = frozenset({"script", "style", "template", "noscript"})
+UNPRINTED = frozenset({"script", "style", "template", "noscript"})
+
+HEADINGS = ("h1", "h2", "h3", "h4", "h5", "h6")
+
+# Text only a screen reader gets: some catalogs print their year as an h1
+# no one sees, above the course's real title.
+HIDDEN_CLASS_RE = re.compile(
+    r"sr-only|visually-?hidden|screen-?reader", re.IGNORECASE
+)
+# Text no one sees at all: Acalog writes
+# <span style="display: none !important"> </span> after a course link.
+DISPLAY_NONE_RE = re.compile(r"display\s*:\s*none", re.IGNORECASE)
 
 
 class ExtractionError(Exception):
@@ -162,7 +176,7 @@ def printed_text(tag: Tag) -> str:
             continue
         if not isinstance(node, NavigableString) or isinstance(node, Comment):
             continue
-        if any(parent.name in _UNPRINTED for parent in node.parents):
+        if any(parent.name in UNPRINTED for parent in node.parents):
             continue
         parts.append(str(node))
     return collapse("".join(parts))
@@ -172,6 +186,24 @@ def inside_chrome(tag: Tag) -> bool:
     """True when the element, or anything around it, is site furniture."""
     return is_chrome(tag) or any(
         is_chrome(parent) for parent in tag.parents if isinstance(parent, Tag)
+    )
+
+
+def class_text(tag: Tag) -> str:
+    """The element's class words, as one string to search."""
+    return " ".join(tag.get("class") or [])
+
+
+def shown(tag: Tag) -> bool:
+    """Not site furniture, not text only a screen reader gets, and not
+    inside anything styled `display: none`."""
+    if inside_chrome(tag):
+        return False
+    return not any(
+        HIDDEN_CLASS_RE.search(class_text(node))
+        or DISPLAY_NONE_RE.search(node.get("style") or "")
+        for node in (tag, *tag.parents)
+        if isinstance(node, Tag)
     )
 
 

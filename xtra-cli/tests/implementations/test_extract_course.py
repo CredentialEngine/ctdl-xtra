@@ -4,20 +4,15 @@ import pytest
 from extract_doubles import COURSE_FIXTURES, fixture_html, fixture_page
 
 from implementations.discover_dom import parse, read_fingerprint
-from implementations.discover_rules import (
-    LABEL_COURSE,
-    PLATFORM_NAMES,
-    PLATFORM_WEAK,
-)
+from implementations.discover_rules import LABEL_COURSE
 from implementations.extract_course import (
     COURSE,
-    COURSE_BLOCK_SELECTORS,
-    COURSE_CODE_PARTS,
     code_at_start,
     course_code,
     course_occurrences,
     course_resource_id,
 )
+from implementations.extract_platform import COURSE_CODE_PARTS
 from implementations.extract_run import printed_text
 
 
@@ -102,12 +97,6 @@ def test_a_block_without_a_code_near_its_start_is_not_a_course() -> None:
     )
     (occurrence,) = course_occurrences(page)
     assert occurrence.is_whole_page
-
-
-def test_block_selectors_are_known_strong_platforms() -> None:
-    for platform in COURSE_BLOCK_SELECTORS:
-        assert platform in PLATFORM_NAMES
-        assert platform not in PLATFORM_WEAK
 
 
 def test_a_platform_block_counts_even_when_its_code_reads_as_no_code() -> None:

@@ -226,7 +226,7 @@ def test_a_registered_property_is_chosen() -> None:
     ("prop", "message"),
     [
         ("name", "is not a CTDL property"),
-        ("ceterms:nope", "Properties: ceterms:name"),
+        ("ceterms:nope", "Properties: ceterms:description, ceterms:name"),
     ],
 )
 def test_an_unknown_property_names_what_there_is(
@@ -240,7 +240,9 @@ def test_help_lists_the_extractors_with_their_class() -> None:
     result = CliRunner().invoke(cli, ["catalog", "extract", "--help"])
     assert result.exit_code == 0
     assert "[OPTIONS] PROPERTY" in result.output
-    assert "ceterms:name  (class: ceterms:Course)" in result.output
+    lines = [line.split() for line in result.output.splitlines()]
+    assert ["ceterms:description", "(class:", "ceterms:Course)"] in lines
+    assert ["ceterms:name", "(class:", "ceterms:Course)"] in lines
 
 
 # --- end to end --------------------------------------------------------------
@@ -437,6 +439,7 @@ SRC = Path(__file__).resolve().parents[3] / "src"
 EXTRACTION_CODE = [
     SRC / "implementations" / "extract_run.py",
     SRC / "implementations" / "extract_course.py",
+    SRC / "implementations" / "extract_platform.py",
     SRC / "xtra" / "catalog" / "extract.py",
     *sorted((SRC / "implementations" / "extract").rglob("*.py")),
 ]
