@@ -89,6 +89,10 @@ from implementations.discover_rules import (
     evidence,
     normalize_course_code,
 )
+from implementations.extract_platform import (
+    COURSE_BLOCK_SELECTORS,
+    COURSE_CODE_PARTS,
+)
 
 # Markup that prints nothing, plus <head>, whose <title> is read on its own.
 _SKIP_TAGS = frozenset(
@@ -549,14 +553,23 @@ def _outermost(soup: BeautifulSoup, pattern: re.Pattern[str]) -> list[Tag]:
     return found
 
 
-def read_course_blocks(soup: BeautifulSoup) -> list[CourseBlock]:
+def read_course_blocks(
+    soup: BeautifulSoup, platform: str = ""
+) -> list[CourseBlock]:
     """The courses this page's markup says it describes.
 
     A block counts once it names a course code. The same code marked up
     twice - the breadcrumb above the heading, the print view below it - is
     still one course.
+
+    The platform's own course elements are read first, as extraction
+    reads them, with the code taken from its subject and number parts.
+    That finds codes like "PLS 1", which the code pattern refuses so as
+    not to read "GOAL 1" as a course.
     """
-    blocks: list[CourseBlock] = []
+    blocks = _platform_course_blocks(soup, platform)
+    if blocks:
+        return blocks
     seen: set[str] = set()
     for tag in _outermost(soup, COURSE_BLOCK_CLASS_RE):
         text = collapse(tag.get_text(" "))
@@ -564,6 +577,41 @@ def read_course_blocks(soup: BeautifulSoup) -> list[CourseBlock]:
         if match is None:
             continue
         code = normalize_course_code(match.group(0))
+        if code in seen:
+            continue
+        seen.add(code)
+        blocks.append(CourseBlock(code=code, quote=evidence(text)))
+    return blocks
+
+
+def _platform_course_blocks(
+    soup: BeautifulSoup, platform: str
+) -> list[CourseBlock]:
+    """The blocks the platform's own markup names, each with its code."""
+    selector = COURSE_BLOCK_SELECTORS.get(platform)
+    if not selector:
+        return []
+    parts = COURSE_CODE_PARTS.get(platform, ())
+    blocks: list[CourseBlock] = []
+    seen: set[str] = set()
+    taken: set[int] = set()
+    for tag in soup.select(selector):
+        if any(id(parent) in taken for parent in tag.parents):
+            continue
+        taken.add(id(tag))
+        text = collapse(tag.get_text(" "))
+        printed = [
+            collapse(part.get_text(" "))
+            for part in (tag.select_one(p) for p in parts)
+            if part is not None
+        ]
+        if parts and len(printed) == len(parts) and all(printed):
+            code = normalize_course_code(" ".join(printed))
+        else:
+            match = COURSE_CODE_RE.search(text)
+            if match is None:
+                continue
+            code = normalize_course_code(match.group(0))
         if code in seen:
             continue
         seen.add(code)
@@ -990,7 +1038,7 @@ def read_markup(html: str) -> Markup:
         # The site's own name is not the page's name, wherever it is
         # printed. Coursedog prints it as the only h1 on every page.
         markup.h1 = ""
-    markup.course_blocks = read_course_blocks(soup)
+    markup.course_blocks = read_course_blocks(soup, fingerprint.platform)
     markup.requirement_lists, markup.reference_codes = read_requirement_lists(
         soup
     )

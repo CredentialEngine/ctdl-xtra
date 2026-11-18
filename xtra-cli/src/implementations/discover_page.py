@@ -417,10 +417,21 @@ class ProgramEvidence:
     @property
     def lists_its_own_requirements(self) -> bool:
         """Why a page full of course codes is not a run of descriptions."""
+        return bool(self.lists_requirements_besides_its_name or self.name_award)
+
+    @property
+    def lists_requirements_besides_its_name(self) -> bool:
+        """lists_its_own_requirements, without the award the name names.
+
+        A page that names its one course, by a code or by its URL,
+        is a course page even if it could also be a credential.
+        "EDLE 90003 - Doctoral Seminar and Scholarly Writing" is a seminar,
+        not a doctorate, and "Retort Processing Certification" is a course
+        that also has a certificate or can lead to a certification.
+        """
         return bool(
             self.prints_requirements
             or self.mentions_requirements
-            or self.name_award
             or self.url_label
         )
 
@@ -748,13 +759,14 @@ def course_label(
             f"{blocks} course block(s), "
             f"code {code_at_the_top.group(0)} at the top"
         )
+    names_one_course = not program.lists_requirements_besides_its_name
     named_for = course_named_by(page_name(structure))
-    if named_for is not None and not lists_its_own_requirements:
+    if named_for is not None and names_one_course:
         # That holds however the page prints its credits, in words
         # ("Three credit hours."), or not at all.
         return f"named for course {named_for}"
     named_in_address = course_in_query(template)
-    if named_in_address is not None and not lists_its_own_requirements:
+    if named_in_address is not None and names_one_course:
         # A training portal prints no code at all; its address says which
         # course the page is: /portal/training?cmd=catalog&course=109497.
         return f"address names one course: {template}"
@@ -852,6 +864,19 @@ def apply_labels(
         if course is not None:
             labels.append(LABEL_COURSE)
             fired[LABEL_COURSE] = course
+            # A training portal's address names one course, and the name
+            # can name the award it leads to: "Retort Processing
+            # Certification" is a course and a credential. A name that is
+            # a course's title, "EDLE 90003 - Doctoral Seminar", names none.
+            if (
+                program.name_award is not None
+                and course_in_query(template) is not None
+                and course_named_by(page_name(structure)) is None
+            ):
+                decided = program_label(program)
+                if decided is not None:
+                    labels.append(decided[0])
+                    fired[decided[0]] = decided[1]
         # Once the page is a course page, the award words and the program
         # vocabulary on it belong to the catalog's sidebar, not to the
         # course. Only the outcome list below can still be a second entity.

@@ -1051,6 +1051,61 @@ def test_a_page_whose_address_names_one_course_is_a_course_page() -> None:
     )
 
 
+def test_a_curriqunet_department_page_is_a_course_page() -> None:
+    """Its codes ("PLS 1") are ones the code pattern refuses; the
+    platform's own block markup says each block is a course."""
+    block = (
+        "<div class='course-summary-wrapper'>"
+        "<span class='course-subject'>PLS </span>"
+        "<span class='course-number'>{n} </span> - "
+        "<span class='course-title'>Paralegal Studies {n}</span> (3.0)</div>"
+    )
+    profile = page(
+        "<title>View - CurriQunet META</title><main>"
+        + block.format(n=1)
+        + block.format(n=2)
+        + "</main>",
+        url="https://catalog.example.edu/catalog/iq/courses/3/142",
+    )
+    assert profile.course_block_count == 2
+    assert profile.labels == ["Course"]
+
+
+def test_an_honors_course_page_is_named_for_its_course() -> None:
+    profile = page(
+        "<main><h1>HNRS 121H3 - (was SCHL 1321) Science and Society II</h1>"
+        "<p>Graded on a pass/fail basis.</p></main>",
+    )
+    assert profile.rules_fired["Course"] == "named for course HNRS 121H3"
+
+
+def test_an_award_word_in_a_course_s_title_is_not_an_award() -> None:
+    """ "Doctoral" names the seminar's level, not a doctorate."""
+    profile = page(
+        "<main><h1>EDLE 90003 - Doctoral Seminar and Scholarly Writing</h1>"
+        "<p>Graded on a pass/fail basis.</p></main>",
+    )
+    assert profile.labels == ["Course"]
+    assert profile.rules_fired["Course"] == "named for course EDLE 90003"
+
+
+def test_a_course_its_address_names_can_lead_to_a_certification() -> None:
+    """The address names one course, and the name the award it leads to."""
+    profile = page(
+        "<main><h1>Retort Processing Certification</h1>"
+        "<p>The course covers thermal processing of low-acid foods.</p>"
+        "</main>",
+        url=(
+            "https://training.example.edu/portal/training?cmd=catalog"
+            "&course=retort-processing-certification"
+        ),
+    )
+    assert profile.labels == ["Course", "Credential"]
+    assert profile.rules_fired["Credential"] == (
+        "award in the name: Certification"
+    )
+
+
 def test_a_page_named_for_something_else_is_not_a_course_page() -> None:
     profile = page(
         "<main><h1>Example Studies</h1>"
