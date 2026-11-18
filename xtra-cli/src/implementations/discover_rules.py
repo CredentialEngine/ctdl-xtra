@@ -138,13 +138,15 @@ _CODE_SEPARATOR = r"[  ‑–-]?"
 
 # The number, in the three shapes catalogs print:
 #   ENGL 101, AFRCNA 1415, CIS114DE - three or four digits
+#   HNRS 101H1                      - three or four digits, a letter, a digit
 #   ACCT A101                       - a letter, then two digits
 #   ACTG 1A, ACTG 1BH               - one or two digits, then a letter
 # The third shape has to end in a letter. Without that, "GOAL 1", "SLO 3",
 # "OSHA 10" and "LEVEL 1" all read as course codes, and a page of learning
 # outcomes counted six courses.
 _CODE_NUMBER = (
-    r"(?:[A-Z]?\d{3,4}[A-Z]{0,2}|[A-Z]\d{2}[A-Z]{0,2}|\d{1,2}[A-Z]{1,2})"
+    r"(?:[A-Z]?\d{3,4}(?:[A-Z]{1,2}\d?)?|[A-Z]\d{2}[A-Z]{0,2}"
+    r"|\d{1,2}[A-Z]{1,2})"
 )
 
 # The fourth shape, kept apart because it needs a longer subject: five

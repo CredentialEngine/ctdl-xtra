@@ -521,6 +521,8 @@ def test_the_same_code_spelled_three_ways_is_one_course() -> None:
         "ACCT A101",  # a letter in front of the number
         "ACTG 1A",  # De Anza and Foothill number courses from 1
         "CIS114DE",  # a two-letter suffix, glued
+        "HNRS 101H1",  # UALR's Honors courses: a letter, then a digit
+        "HNRS 310H3",
         "A&VS 591",  # WVU puts an ampersand inside the subject
         "HN&F 500",
         "C&I 600",
