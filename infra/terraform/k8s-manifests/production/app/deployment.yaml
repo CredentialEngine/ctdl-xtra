@@ -166,15 +166,15 @@ spec:
               readOnly: true
           resources:
             requests:
-              # 2400Mi is the most a worker can request and still co-fit with an
-              # api pod (768Mi) plus the ebs-csi daemonset (104Mi) on a t3.medium
-              # app node (~3294Mi allocatable), which keeps rolling updates
-              # solvable within app_node_max_size=3.
+              # 5Gi deliberately exceeds a t3.medium (~3294Mi allocatable) so both
+              # workers land on the dedicated 16GB node (out-of-band managed node
+              # group ctdl-xtra-prod-workers-xl-oob, 1x t3.xlarge, not in
+              # Terraform yet). 2x5Gi requests + 2x7Gi limits fit its ~14.6Gi.
               cpu: 750m
-              memory: 2400Mi
+              memory: 5Gi
             limits:
               cpu: "1500m"
-              memory: 3072Mi
+              memory: 7Gi
       volumes:
         - name: extraction-files
           persistentVolumeClaim:
