@@ -166,11 +166,15 @@ spec:
               readOnly: true
           resources:
             requests:
+              # 5Gi deliberately exceeds a t3.medium (~3294Mi allocatable) so both
+              # workers land on the dedicated 16GB node (out-of-band managed node
+              # group ctdl-xtra-prod-workers-xl-oob, 1x t3.xlarge, not in
+              # Terraform yet). 2x5Gi requests + 2x7Gi limits fit its ~14.6Gi.
               cpu: 750m
-              memory: 1536Mi
+              memory: 5Gi
             limits:
               cpu: "1500m"
-              memory: 2560Mi
+              memory: 7Gi
       volumes:
         - name: extraction-files
           persistentVolumeClaim:
