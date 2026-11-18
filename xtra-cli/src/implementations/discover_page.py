@@ -424,7 +424,7 @@ class ProgramEvidence:
         """lists_its_own_requirements, without the award the name names.
 
         A page that names its one course, by a code or by its URL,
-        is a course page even if it could also be a credential. 
+        is a course page even if it could also be a credential.
         "EDLE 90003 - Doctoral Seminar and Scholarly Writing" is a seminar,
         not a doctorate, and "Retort Processing Certification" is a course
         that also has a certificate or can lead to a certification.
