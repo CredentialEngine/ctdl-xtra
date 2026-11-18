@@ -170,6 +170,27 @@ export default function ExtractionDetail() {
   const rerunDataExtraction = trpc.extractions.rerunData.useMutation();
   const retryFailed = trpc.extractions.retryFailed.useMutation();
 
+  const pollExtractionDetail = REFETCH_STATES.includes(
+    query.data?.status as ExtractionStatus
+  );
+  const activeJobCountsQuery = trpc.extractions.activeJobCounts.useQuery(
+    { id: extractionIdNum },
+    {
+      enabled: !!extractionIdNum,
+      refetchInterval(data) {
+        const pollForJobs =
+          !!data &&
+          (data.fetchPage > 0 ||
+            data.extractData > 0 ||
+            data.extractDataWithApi > 0);
+        if (pollExtractionDetail || pollForJobs) {
+          return 10000;
+        }
+        return false;
+      },
+    }
+  );
+
   if (!query.data) {
     return null;
   }
@@ -270,6 +291,11 @@ export default function ExtractionDetail() {
   };
 
   const extraction = query.data;
+  const activeJobCounts = activeJobCountsQuery.data;
+  const queuedDownloads = activeJobCounts?.fetchPage ?? 0;
+  const queuedExtractions =
+    (activeJobCounts?.extractData ?? 0) +
+    (activeJobCounts?.extractDataWithApi ?? 0);
   const datasets = extraction.datasets || [];
   const latestDataset = extraction.latestDataset || datasets[0];
   const olderDatasets = datasets.slice(1);
@@ -613,9 +639,17 @@ export default function ExtractionDetail() {
                       </span>
                     </div>
                   ) : null}
-                  <div className="flex items-baseline gap-1 text-2xl mt-4 font-bold tabular-nums leading-none">
+                  <div className="flex flex-wrap items-baseline gap-x-1 gap-y-0 text-2xl mt-4 font-bold tabular-nums leading-none">
                     {totalDownloadsAttempted}/{totalDownloads}
                     <span className="text-sm font-normal">Downloads</span>
+                    {queuedDownloads > 0 ? (
+                      <span
+                        className="text-sm font-normal text-muted-foreground"
+                        title="BullMQ jobs queued or running for page fetch"
+                      >
+                        ({queuedDownloads} active)
+                      </span>
+                    ) : null}
                   </div>
                   <ChartContainer
                     config={{}}
@@ -639,11 +673,19 @@ export default function ExtractionDetail() {
                   </ChartContainer>
                 </div>
                 <div className="grid auto-rows-min gap-2 mt-4">
-                  <div className="flex items-baseline gap-1 text-2xl font-bold tabular-nums leading-none">
+                  <div className="flex flex-wrap items-baseline gap-x-1 gap-y-0 text-2xl font-bold tabular-nums leading-none">
                     {totalExtractionsAttempted}/{totalExtractionsPossible}
                     <span className="text-sm font-normal">
                       Page Extractions
                     </span>
+                    {queuedExtractions > 0 ? (
+                      <span
+                        className="text-sm font-normal text-muted-foreground"
+                        title="BullMQ jobs queued or running for data extraction"
+                      >
+                        ({queuedExtractions} active)
+                      </span>
+                    ) : null}
                   </div>
                   <ChartContainer
                     config={{}}

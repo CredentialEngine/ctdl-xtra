@@ -45,6 +45,7 @@ import {
   rerunDataExtraction,
   startExtraction,
 } from "../extraction/startExtraction";
+import { getActiveJobCountsForExtraction } from "../workers";
 
 export const extractionsRouter = router({
   create: authenticatedProcedure
@@ -144,6 +145,15 @@ export const extractionsRouter = router({
         totalInputTokens,
         totalOutputTokens,
       };
+    }),
+  activeJobCounts: publicProcedure
+    .input(
+      z.object({
+        id: z.number().int().positive(),
+      })
+    )
+    .query(async (opts) => {
+      return getActiveJobCountsForExtraction(opts.input.id);
     }),
   destroy: publicProcedure
     .input(
