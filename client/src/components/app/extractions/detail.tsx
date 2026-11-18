@@ -348,9 +348,7 @@ export default function ExtractionDetail() {
                 {statusDetails}
               </div>
 
-              {extraction.lastAuditLog &&
-                extraction.status !== ExtractionStatus.IN_PROGRESS &&
-                extraction.status !== ExtractionStatus.WAITING && (
+              {extraction.lastAuditLog && (
                   <div className="rounded-md border p-4 mt-2">
                     <div className="flex items-center justify-between mb-1">
                       <div className="text-sm text-muted-foreground">

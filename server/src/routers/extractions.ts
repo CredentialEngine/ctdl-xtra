@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { publicProcedure, router } from ".";
+import { authenticatedProcedure, publicProcedure, router } from ".";
 import {
   CatalogueType,
   ExtractionStatus,
@@ -47,7 +47,7 @@ import {
 } from "../extraction/startExtraction";
 
 export const extractionsRouter = router({
-  create: publicProcedure
+  create: authenticatedProcedure
     .input(
       z.object({
         catalogueId: z.number().positive(),
@@ -56,15 +56,14 @@ export const extractionsRouter = router({
       })
     )
     .mutation(async (opts) => {
-      const userId = opts.ctx.user?.id;
       return startExtraction(
         opts.input.catalogueId,
         opts.input.recipeId,
-        userId,
+        opts.ctx.user.id,
         opts.input.model,
       );
     }),
-  cancel: publicProcedure
+  cancel: authenticatedProcedure
     .input(
       z.object({
         id: z.number().int().positive(),
@@ -74,29 +73,26 @@ export const extractionsRouter = router({
       const result = await updateExtraction(opts.input.id, {
         status: ExtractionStatus.CANCELLED,
       });
-      
-      // Log audit entry if user is provided
-      const userId = opts.ctx.user?.id;
-      if (userId && result) {
+
+      if (result) {
         await createExtractionAuditLog(
           opts.input.id,
-          userId,
+          opts.ctx.user.id,
           "CANCEL",
           null
         );
       }
-      
+
       return result;
     }),
-  resume: publicProcedure
+  resume: authenticatedProcedure
     .input(
       z.object({
         id: z.number().int().positive(),
       })
     )
     .mutation(async (opts) => {
-      const userId = opts.ctx.user?.id;
-      return resumeExtraction(opts.input.id, userId);
+      return resumeExtraction(opts.input.id, opts.ctx.user.id);
     }),
   retryFailed: publicProcedure
     .input(

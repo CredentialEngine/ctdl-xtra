@@ -34,7 +34,7 @@ const logger = getLogger("extraction.startExtraction");
 export async function startExtraction(
   catalogueId: number,
   recipeId: number,
-  userId?: number,
+  userId: number,
   model?: ProviderModel
 ) {
   const catalogue = await findCatalogueById(catalogueId);
@@ -53,10 +53,7 @@ export async function startExtraction(
     await resolveExtractionModel(model)
   );
 
-  // Log audit entry if user is provided
-  if (userId) {
-    await createExtractionAuditLog(extraction.id, userId, "START", null);
-  }
+  await createExtractionAuditLog(extraction.id, userId, "START", null);
 
   recipe.configuration.apiProvider
     ? await launchAPIExtraction(catalogue, extraction, recipe)
