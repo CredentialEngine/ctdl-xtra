@@ -159,8 +159,13 @@ _CODE_NUMBER = (
 # Three letters at least, and never a ZIP+4, because two capitals and five
 # digits is the last line of every address a catalog prints
 # ("Fayetteville, AR 72701").
+#
+# The number can also be six digits (CPSI 200023), or ten: a course
+# offered at two levels can print both five-digit numbers joined
+# together (GERO 4900349003). Without these lengths, those courses had
+# no code, so their pages were not read as courses.
 _CODE_SUBJECT_LONG = r"[A-Z]{3,6}"
-_CODE_NUMBER_LONG = r"\d{5}[A-Z]{0,2}(?!-\d{4}\b)"
+_CODE_NUMBER_LONG = r"\d{5}(?:\d|\d{5})?[A-Z]{0,2}(?!-\d{4}\b)"
 
 COURSE_CODE_RE = re.compile(
     rf"\b(?:{_CODE_SUBJECT_LONG}{_CODE_SEPARATOR}{_CODE_NUMBER_LONG}"
@@ -851,9 +856,12 @@ TERM_HEADING_RE = re.compile(
 # A heading that opens with a course code is a course's title. CourseLeaf
 # titles read "FREN 30603. Ph.D. Reading Requirement I. 3 Hours.", which
 # otherwise reads as a heading over a Ph.D.'s requirements. Five digits,
-# because graduate course numbers there are five digits long.
+# because graduate course numbers there are five digits long. It also
+# accepts the six- and ten-digit numbers and the honors suffix (HNRS 121H3)
+# that COURSE_CODE_RE accepts, so the two agree on the same title.
 COURSE_TITLE_RE = re.compile(
-    rf"^\s*{_CODE_SUBJECT}[\s ‑–-]?[A-Z]?\d{{3,5}}[A-Z]{{0,2}}\b"
+    rf"^\s*{_CODE_SUBJECT}[\s ‑–-]?[A-Z]?(?:\d{{3,6}}|\d{{10}})"
+    rf"(?:[A-Z]{{1,2}}\d?)?\b"
 )
 
 # The outline number a catalog prints in front of a heading, which is not

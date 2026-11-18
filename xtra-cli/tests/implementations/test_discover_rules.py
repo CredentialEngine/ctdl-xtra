@@ -523,6 +523,8 @@ def test_the_same_code_spelled_three_ways_is_one_course() -> None:
         "CIS114DE",  # a two-letter suffix, glued
         "HNRS 101H1",  # UALR's Honors courses: a letter, then a digit
         "HNRS 310H3",
+        "CPSI 200023",  # six digits
+        "GERO 4900349003",  # and a dual-listed course's two numbers, run together
         "A&VS 591",  # WVU puts an ampersand inside the subject
         "HN&F 500",
         "C&I 600",
@@ -1052,6 +1054,9 @@ def test_a_heading_that_opens_with_a_course_code_is_a_course_title() -> None:
     )
     assert COURSE_TITLE_RE.match("ACCT 2013. Accounting Principles I. 3 Hours.")
     assert COURSE_TITLE_RE.match("A&VS 591. Advanced Topics. 1-6 Hours.")
+    assert COURSE_TITLE_RE.match("HNRS 121H3 - Science and Society II")
+    assert COURSE_TITLE_RE.match("CPSI 200023 - Web Development I")
+    assert COURSE_TITLE_RE.match("GERO 4900349003 - Directed Study")
     assert not COURSE_TITLE_RE.match(
         "Requirements for B.S. in Chemical Engineering"
     )

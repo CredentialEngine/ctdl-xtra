@@ -208,6 +208,28 @@ def test_a_marked_up_course_description_is_counted_as_one() -> None:
     assert [block.code for block in blocks] == ["ASTR50303"]
 
 
+CURRIQUNET_BLOCK = (
+    "<div class='container-fluid course-summary-wrapper'>"
+    "<b class='course-title-units-row'><span class='course-subject'>PLS "
+    "</span><span class='course-number'>{number} </span>"
+    "<span class='course-sbj-num-delimiter'> - </span>"
+    "<span class='course-title'>Paralegal Studies</span> "
+    "<span class='course-unit-range'>(3.0)</span></b></div>"
+)
+
+
+def test_a_platform_s_own_block_markup_names_its_course() -> None:
+    """The platform prints "PLS 1", a code the code pattern refuses so as
+    not to read "GOAL 1" as a course; its own markup says it is one."""
+    html = page(
+        CURRIQUNET_BLOCK.format(number="1")
+        + CURRIQUNET_BLOCK.format(number="2")
+    )
+    blocks = read_course_blocks(parse(html), "curriqunet")
+    assert [block.code for block in blocks] == ["PLS1", "PLS2"]
+    assert read_course_blocks(parse(html)) == []
+
+
 def test_the_same_course_marked_up_twice_is_still_one_course() -> None:
     blocks = read_course_blocks(parse(page(COURSEBLOCK + COURSEBLOCK)))
     assert len(blocks) == 1
