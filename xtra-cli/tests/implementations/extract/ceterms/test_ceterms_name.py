@@ -77,6 +77,17 @@ def test_it_is_read_from_courses() -> None:
             "HIST 58033\xa0-\xa0Seminar in United States History.",
             "Seminar in United States History.",
         ),
+        # UALR's Law School prints the code after the title.
+        ("Administrative Law\xa0-\xa0LAWW 65043", "Administrative Law"),
+        (
+            "Workers’ Compensation\xa0-\xa0LAWW 64932",
+            "Workers’ Compensation",
+        ),
+        # And its Honors numbers end in a digit after the letter.
+        (
+            "HNRS 101H1\xa0-\xa0(was SCHL 1101) Scholars Colloquium I",
+            "Scholars Colloquium I",
+        ),
     ],
 )
 def test_a_combined_heading_gives_its_title(heading: str, name: str) -> None:
@@ -97,6 +108,7 @@ def test_an_empty_title_gives_nothing_not_the_credits() -> None:
         "Child Development: The First Three Years",
         "LEGAL/ETHIC ASP COUNS & STU PE",
         "African American Women in the U.S.",
+        "Early Childhood Education - Pre-K",
     ],
 )
 def test_a_title_keeps_what_it_prints(title: str) -> None:
@@ -149,6 +161,19 @@ def test_acalog_reads_a_code_with_a_letter_suffix() -> None:
             "Electrical and Computer Engineering Master’s Thesis",
             "profile_title",
         )
+    ]
+
+
+def test_acalog_reads_a_title_printed_before_its_code() -> None:
+    """UALR's Law School: "Administrative Law - LAWW 65043"."""
+    assert names(fixture_page("acalog-course-code-after-title")) == [
+        ("Administrative Law", "profile_title")
+    ]
+
+
+def test_acalog_reads_an_honors_number() -> None:
+    assert names(fixture_page("acalog-course-honors-number")) == [
+        ("Scholars Colloquium II", "profile_title")
     ]
 
 

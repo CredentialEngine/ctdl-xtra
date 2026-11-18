@@ -29,7 +29,7 @@ from implementations.discover_rules import (
     COURSE_CODE_RE,
     collapse,
 )
-from implementations.extract_course import code_at_start
+from implementations.extract_course import code_at_end, code_at_start
 from implementations.extract_platform import TITLE_SELECTORS
 from implementations.extract_run import (
     HEADINGS,
@@ -116,6 +116,8 @@ def split_name(text: str, *, combined: bool) -> str:
     code = code_at_start(name)
     if code is not None:
         name = LEADING_DELIMITER_RE.sub("", name[len(code) :], count=1)
+    elif (code := code_at_end(name)) is not None:
+        name = name[: name.rindex(code)].rstrip(_EDGE_PUNCTUATION)
     name = FORMER_NUMBER_RE.sub("", name, count=1)
     credits = TRAILING_CREDITS_RE.search(name)
     if credits is None:

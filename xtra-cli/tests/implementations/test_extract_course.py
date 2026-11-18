@@ -7,13 +7,14 @@ from implementations.discover_dom import parse, read_fingerprint
 from implementations.discover_rules import LABEL_COURSE
 from implementations.extract_course import (
     COURSE,
+    code_at_end,
     code_at_start,
     course_code,
     course_occurrences,
     course_resource_id,
 )
 from implementations.extract_platform import COURSE_CODE_PARTS
-from implementations.extract_run import Page, printed_text
+from implementations.extract_run import Occurrence, Page, printed_text
 
 
 @pytest.mark.parametrize(
@@ -22,6 +23,8 @@ from implementations.extract_run import Page, printed_text
         ("acalog-course", "acalog"),
         ("acalog-course-letter-suffix", "acalog"),
         ("acalog-course-former-number", "acalog"),
+        ("acalog-course-code-after-title", "acalog"),
+        ("acalog-course-honors-number", "acalog"),
         ("courseleaf-courseblocks", "courseleaf"),
         ("courseleaf-empty-title", "courseleaf"),
         ("courseleaf-detail-code", "courseleaf"),
@@ -41,7 +44,7 @@ def test_each_trimmed_page_still_fingerprints_as_its_platform(
 
 def test_every_fixture_is_tested_here() -> None:
     names = {path.stem for path in COURSE_FIXTURES.glob("*.html")}
-    assert len(names) == 12
+    assert len(names) == 14
 
 
 def test_a_courseleaf_page_has_one_occurrence_per_course_block() -> None:
@@ -124,6 +127,8 @@ def test_the_course_class_reads_course_pages_by_their_blocks() -> None:
         ("acalog-course", ["c_COMM79073"]),
         ("acalog-course-former-number", ["c_HHPR17001"]),
         ("acalog-course-letter-suffix", ["c_ECEG8000V"]),
+        ("acalog-course-code-after-title", ["c_LAWW65043"]),
+        ("acalog-course-honors-number", ["c_HNRS103H1"]),
         ("courseleaf-courseblocks", ["c_PHAR191", "c_PHAR199"]),
         ("courseleaf-detail-code", ["c_SOC200", "c_SOC200H"]),
         ("courseleaf-detail-title", ["c_BAS4253", "c_BAS4353"]),
@@ -199,6 +204,50 @@ def test_a_section_letter_after_a_hyphen_is_part_of_the_code(
     text: str, code: str | None
 ) -> None:
     assert code_at_start(text) == code
+
+
+@pytest.mark.parametrize(
+    ("text", "code"),
+    [
+        ("Administrative Law\xa0-\xa0LAWW 65043", "LAWW 65043"),
+        ("Workers’ Compensation – LAWW 64932", "LAWW 64932"),
+        ("Special Topics: Disability Law - LAWW 62901 ", "LAWW 62901"),
+        # The dash needs space on both sides, and the code has to end it.
+        ("Early Childhood Education - Pre-K", None),
+        ("Intro to Writing-ENGL 101", None),
+        ("Calculus - MATH 101 and MATH 102 Review", None),
+        ("Introduction to Psychology", None),
+    ],
+)
+def test_a_code_after_the_title_is_read_past_a_dash(
+    text: str, code: str | None
+) -> None:
+    assert code_at_end(text) == code
+
+
+def test_a_one_course_page_reads_a_code_at_the_end_of_its_heading() -> None:
+    page = fixture_page("slate-course")
+    (occurrence,) = course_occurrences(page)
+    heading = parse("<h2>Solar Energy - SOLR 101</h2>").h2
+    occurrence.element.insert(0, heading)
+    assert course_code(occurrence, page) == "SOLR 101"
+
+
+def test_a_heading_that_opens_with_a_code_comes_first() -> None:
+    """A page that already had a code keeps it."""
+    page = fixture_page("slate-course")
+    (occurrence,) = course_occurrences(page)
+    occurrence.element.insert(0, parse("<h3>ABC 101 Intro</h3>").h3)
+    occurrence.element.insert(0, parse("<h2>Intro - ABC 102</h2>").h2)
+    assert course_code(occurrence, page) == "ABC 101"
+
+
+def test_a_block_never_reads_a_code_at_the_end_of_a_line() -> None:
+    """A block's code opens it; a later line ending in one is a requisite."""
+    page = fixture_page("slate-course")
+    block = parse("<div><p>Requires the lab - NUR 741</p></div>").div
+    occurrence = Occurrence(element=block, css_path="div", is_whole_page=False)
+    assert course_code(occurrence, page) is None
 
 
 def test_courses_told_apart_by_a_hyphen_keep_different_ids() -> None:

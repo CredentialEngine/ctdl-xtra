@@ -44,6 +44,10 @@ def identifiers(page: Page) -> list[str | None]:
         ("acalog-course", ["COMM79073"]),
         ("acalog-course-former-number", ["HHPR17001"]),
         ("acalog-course-letter-suffix", ["ECEG8000V"]),
+        # "Administrative Law - LAWW 65043": the code after the title.
+        ("acalog-course-code-after-title", ["LAWW65043"]),
+        # "HNRS 103H1": a digit after the letter is still the code's.
+        ("acalog-course-honors-number", ["HNRS103H1"]),
         # CourseLeaf: "PHAR 191.  Title.  1 Hour." in each block.
         (
             "courseleaf-courseblocks",

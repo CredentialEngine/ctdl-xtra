@@ -49,6 +49,14 @@ CODE_SECTION_RE = re.compile(r"-[A-Z]{1,2}\b")
 # is as likely a prerequisite.
 PAGE_CODE_TAGS = ("h1", "h2", "h3")
 
+# A code printed after the title instead, past a dash, and ending the
+# heading: a law school catalog prints "Administrative Law - LAWW 65043".
+# The dash has to have space on both sides, so "Pre-K" or "ENGL-101" in a
+# title is never taken for the separator.
+CODE_AT_END_RE = re.compile(
+    rf"\s[-–—]\s+(?P<code>{COURSE_CODE_RE.pattern})\s*$"
+)
+
 # Where a course block prints its opening line.
 BLOCK_CODE_TAGS = ("h1", "h2", "h3", "h4", "strong", "b", "span", "p", "div")
 
@@ -130,12 +138,23 @@ def code_at_start(text: str) -> str | None:
     return text[: (section or match).end()]
 
 
+def code_at_end(text: str) -> str | None:
+    """The course code the text ends with, after a dash, as printed, or
+    None.
+
+    "Administrative Law - LAWW 65043" ends with "LAWW 65043".
+    """
+    match = CODE_AT_END_RE.search(text)
+    return match.group("code") if match else None
+
+
 def course_code(occurrence: Occurrence, page: Page) -> str | None:
     """The course's code as printed ("ABA 610"), or None.
 
     The platform's own code markup first. Otherwise the first element
     that opens with a code: in a block, its opening line; on a one-course
-    page, a heading.
+    page, a heading. Failing that, on a one-course page, a heading that
+    ends with one after a dash ("Administrative Law - LAWW 65043").
     """
     parts = COURSE_CODE_PARTS.get(page.platform, ())
     texts = [
@@ -146,12 +165,23 @@ def course_code(occurrence: Occurrence, page: Page) -> str | None:
     if parts and len(texts) == len(parts) and all(texts):
         return " ".join(texts)
     tags = PAGE_CODE_TAGS if occurrence.is_whole_page else BLOCK_CODE_TAGS
-    for tag in occurrence.element.find_all(tags):
-        if inside_chrome(tag):
-            continue
-        code = code_at_start(printed_text(tag))
+    texts = [
+        printed_text(tag)
+        for tag in occurrence.element.find_all(tags)
+        if not inside_chrome(tag)
+    ]
+    for text in texts:
+        code = code_at_start(text)
         if code is not None:
             return code
+    # Only once no heading opens with a code, so a page that already had
+    # one keeps it. Never in a block: its opening line is where the code
+    # goes, and a later line ending "- ENGL 101" is a requisite.
+    if occurrence.is_whole_page:
+        for text in texts:
+            code = code_at_end(text)
+            if code is not None:
+                return code
     return None
 
 
