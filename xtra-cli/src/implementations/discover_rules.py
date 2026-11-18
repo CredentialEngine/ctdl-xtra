@@ -40,7 +40,7 @@ that print non-breaking spaces inside course codes.
 from __future__ import annotations
 
 import re
-from urllib.parse import urlsplit
+from urllib.parse import parse_qsl, urlsplit
 
 # --- thresholds -------------------------------------------------------------
 
@@ -1434,6 +1434,21 @@ COURSE_URL_RE = re.compile(r"course|subject", re.IGNORECASE)
 # preview_course.php, and the .aspx and .jsp a few others serve. There the
 # last segment is the only segment there is, so it does name the kind.
 VENDOR_ENDPOINT_RE = re.compile(r"\.(?:php|aspx?|jsp|cgi|do)$", re.IGNORECASE)
+
+
+# A query parameter naming the one course the page is about:
+# ?course=109497, ?course=achieving-quality-asphalt-emulsion, ?course_id=,
+# ?courseId=. Its value is the course's own identifier, which a training
+# portal's pages may be the only place to print.
+COURSE_QUERY_KEY_RE = re.compile(r"course(?:[_-]?id)?", re.IGNORECASE)
+
+
+def course_in_query(url: str) -> str | None:
+    """The value of the address's course parameter, or None."""
+    for key, value in parse_qsl(urlsplit(url).query):
+        if COURSE_QUERY_KEY_RE.fullmatch(key.strip()) and value.strip():
+            return value.strip()
+    return None
 
 
 def path_names_courses(template: str) -> bool:

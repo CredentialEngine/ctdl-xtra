@@ -1037,6 +1037,20 @@ def test_a_course_page_with_credits_in_words_has_a_course_block() -> None:
     assert profile.labels == ["Course"]
 
 
+def test_a_page_whose_address_names_one_course_is_a_course_page() -> None:
+    """A training portal prints no code and no credits; its address says
+    which course the page is."""
+    profile = page(
+        "<main><h1>Python Programming for Data Science 2</h1>"
+        "<p>In this certificate you will learn to write Python.</p></main>",
+        url="https://training.example.edu/portal/training?cmd=catalog&course=109497",
+    )
+    assert profile.labels == ["Course"]
+    assert profile.rules_fired["Course"] == (
+        "address names one course: /portal/training?cmd=catalog&course={n}"
+    )
+
+
 def test_a_page_named_for_something_else_is_not_a_course_page() -> None:
     profile = page(
         "<main><h1>Example Studies</h1>"

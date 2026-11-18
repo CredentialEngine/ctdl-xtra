@@ -74,6 +74,7 @@ from implementations.discover_rules import (
     award_in_name_line,
     catalog_year_value,
     course_codes,
+    course_in_query,
     described_course_codes,
     distinct_awards,
     evidence,
@@ -752,6 +753,11 @@ def course_label(
         # That holds however the page prints its credits, in words
         # ("Three credit hours."), or not at all.
         return f"named for course {named_for}"
+    named_in_address = course_in_query(template)
+    if named_in_address is not None and not lists_its_own_requirements:
+        # A training portal prints no code at all; its address says which
+        # course the page is: /portal/training?cmd=catalog&course=109497.
+        return f"address names one course: {template}"
     if structure.course_blocks and not lists_its_own_requirements:
         # The platform marked its course descriptions up, so there is
         # nothing to infer. One marked-up description is enough: a

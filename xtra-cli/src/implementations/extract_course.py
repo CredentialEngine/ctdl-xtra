@@ -18,6 +18,7 @@ from implementations.discover_rules import (
     COURSE_CODE_RE,
     LABEL_COURSE,
     WHITESPACE_RE,
+    course_in_query,
 )
 from implementations.extract_platform import (
     COURSE_BLOCK_SELECTORS,
@@ -154,20 +155,48 @@ def course_code(occurrence: Occurrence, page: Page) -> str | None:
     return None
 
 
+def code_identifier(code: str) -> str:
+    """The code without its whitespace: "ABA 610" is ABA610.
+
+    Only whitespace goes. A hyphen or a letter can be what tells two
+    courses apart: NUR 741-A and NUR 741A are different courses.
+    """
+    return WHITESPACE_RE.sub("", code)
+
+
+def address_identifier(occurrence: Occurrence, page: Page) -> str | None:
+    """What the page's address calls the course, on a one-course page:
+    /portal/training?cmd=catalog&course=109497 is 109497.
+
+    A block on a page of many courses shares the page's address, so the
+    address names none of them.
+    """
+    if not occurrence.is_whole_page:
+        return None
+    return course_in_query(page.url)
+
+
+def course_identifier(occurrence: Occurrence, page: Page) -> str | None:
+    """The code the course prints, without its whitespace; else, on a
+    one-course page that prints none, what its address calls it. None
+    when the course can't be known by either."""
+    code = course_code(occurrence, page)
+    if code is not None:
+        return code_identifier(code)
+    return address_identifier(occurrence, page)
+
+
 def course_resource_id(
     occurrence: Occurrence, page: Page, catalog_id: str
 ) -> str | None:
-    """`{catalog_id}_{code}`, the code without its spaces:
-    catalog-example-edu_ABA610, catalog-example-edu_NUR741-A.
-
-    Only whitespace goes. A hyphen or a letter can be what tells two
-    courses apart: NUR 741-A and NUR 741A are different courses. None when
-    the course prints no code it can be known by.
+    """`{catalog_id}_{identifier}`: catalog-example-edu_ABA610,
+    catalog-example-edu_NUR741-A, catalog-example-edu_109497. None when
+    the course can't be known by a code or its address.
     """
-    code = course_code(occurrence, page)
-    if code is None:
+    identifier = course_identifier(occurrence, page)
+    if identifier is None:
         return None
-    return f"{catalog_id}_{WHITESPACE_RE.sub('', code)}"
+    return f"{catalog_id}_{identifier}"
 
 
 COURSE = CtdlClass(
