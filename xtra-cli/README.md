@@ -980,6 +980,9 @@ xtra score extraction match --exactly \
 
 xtra score extraction match --partially \
   --catalog-id avc-elumenapp-com-catalog-2026-27-welcome --run-id 2026-10-12T20:59:13Z
+
+xtra score extraction match --exactly --property ceterms:description \
+  --catalog-id avc-elumenapp-com-catalog-2026-27-welcome --run-id 2026-10-12T20:59:13Z
 ```
 
 It reads the `extraction_report/` files `xtra catalog extract` has
@@ -1005,6 +1008,7 @@ to `records/`:
 | `--partially` | Set the exact matches aside and measure how close the other values come. |
 | `--run-id` | The extraction run being scored. The baseline files are filed under the same run id. |
 | `--catalog-id` | The catalog folder. Together with `--run-id` it locates the `extraction_report/` files and the baseline. |
+| `--property` | Score only this property, e.g. `ceterms:description`. Only the baseline's fields of that property are matched; its entities keep their order, so the pairing with resources does not change. |
 | `--source-uri` | Where the `extraction_report/` files live. Default: the environment's data URI. |
 | `--baseline-uri` | Where the baseline lives. Default: the environment's baseline URI. |
 | `--source-azure-storage-connection-string` | Connection string for `--source-uri`. Default: `AZURE_STORAGE_CONNECTION_STRING`, then the environment's secret. |
@@ -1082,7 +1086,10 @@ Each baseline page falls in one of four groups:
 
 The reports are
 `{catalog-folder}/{run-id}/extraction-match-exact-report.json` and
-`extraction-match-partial-report.json`, beside `extraction_report/`. The
+`extraction-match-partial-report.json`, beside `extraction_report/`. With
+`--property` the property is in the name, as in
+`extraction-match-exact-ceterms_description-report.json`, so the report of
+the whole run is kept. The
 stdout JSON is a short summary and a table of the
 counts and the worst outliers goes to stderr. A baseline with no files for the
 run, or one that cannot be reached, exits non-zero. A malformed baseline file

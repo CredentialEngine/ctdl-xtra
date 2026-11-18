@@ -351,6 +351,7 @@ def summarize(
     pages: list[dict],
     out_of_scope: list[str],
     malformed: list[dict],
+    ctdl_property: str | None = None,
 ) -> dict:
     """The report: counts by outcome, by property and by page, then outliers.
 
@@ -400,6 +401,7 @@ def summarize(
         "mode": mode,
         "catalog_folder": catalog_folder,
         "run_id": run_id,
+        "ctdl_property": ctdl_property,
         "pages_scored": sum(1 for p in pages if p["status"] == STATUS_SCORED),
         "pages_skipped": sum(1 for p in pages if p["status"] == STATUS_SKIPPED),
         "pages_not_extracted": sum(
@@ -443,6 +445,7 @@ def match_extraction_run(
     mode: str,
     *,
     whole_catalog: bool = False,
+    ctdl_property: str | None = None,
 ) -> dict:
     """Match every baseline page of one run against the records it wrote.
 
@@ -452,6 +455,9 @@ def match_extraction_run(
     page another label, or its course had no code to name it by. Otherwise
     a page with no records may simply have been left out, by
     --only-golden-sample or --limit, and is listed and not counted.
+
+    With `ctdl_property`, only the baseline fields of that property are
+    matched. Entities keep their places, so pairing with records is unchanged.
     """
     baseline_stems = _baseline_stems(baseline_store, catalog_folder, run_id)
     if not baseline_stems:
@@ -472,6 +478,11 @@ def match_extraction_run(
         except (FileNotFoundError, ValueError) as exc:
             malformed.append({"stem": stem, "detail": str(exc)})
             continue
+        if ctdl_property:
+            entities = [
+                [f for f in fields if f["ctdl_property"] == ctdl_property]
+                for fields in entities
+            ]
 
         keys = record_keys.get(stem)
         if keys:
@@ -501,6 +512,7 @@ def match_extraction_run(
         pages=pages,
         out_of_scope=out_of_scope,
         malformed=malformed,
+        ctdl_property=ctdl_property,
     )
 
 
@@ -573,8 +585,10 @@ def format_table(report: dict) -> str:
     """The report as compact counts and the worst outliers, for a terminal."""
     mode = report["mode"]
     outcomes = MODE_OUTCOMES[mode]
+    scope = report.get("ctdl_property")
     head = (
-        f"Extraction match ({mode}): {report['fields_total']} fields, "
+        f"Extraction match ({mode}{f', {scope}' if scope else ''}): "
+        f"{report['fields_total']} fields, "
         + ", ".join(f"{report['outcomes'][o]} {o}" for o in outcomes)
     )
     if mode == MODE_EXACT:

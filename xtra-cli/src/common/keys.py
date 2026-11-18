@@ -204,12 +204,17 @@ def expected_key(catalog_folder: str, run_id: str, record_id: str) -> str:
 
 
 def extraction_match_report_key(
-    catalog_folder: str, run_id: str, mode: str
+    catalog_folder: str, run_id: str, mode: str, prop: str | None = None
 ) -> str:
-    """Beside records/ for the same reason as the extract report."""
+    """Beside records/ for the same reason as the extract report.
+
+    A match of one property has its own file, so it never overwrites the
+    report of the whole run.
+    """
+    scope = f"-{property_key(prop)}" if prop else ""
     return (
         f"{run_prefix(catalog_folder, run_id)}"
-        f"/extraction-match-{mode}-report.json"
+        f"/extraction-match-{mode}{scope}-report.json"
     )
 
 
