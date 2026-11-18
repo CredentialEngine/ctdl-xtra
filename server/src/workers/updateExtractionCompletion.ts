@@ -254,7 +254,7 @@ export async function runUpdateExtractionCompletion(
 ) {
   const extraction = await findExtractionById(extractionId);
   if (!extraction) {
-    logger.warn(`Extraction ${extractionId} not found`);
+    if (job) await removeSelf(job);
     return { extractionId, skipped: true as const, reason: "NOT_FOUND" };
   }
   if (

@@ -33,6 +33,7 @@ import { getCatalogueTypeDefinition } from "../extraction/catalogueTypes";
 import { exploreAdditionalPages } from "../extraction/llm/exploreAdditionalPages";
 import { runEntityExtraction } from "../extraction/runEntityExtraction";
 import getLogger from "../logging";
+import { attachWorkerCatchContext } from "../workerAirbrakeNotice";
 
 const logger = getLogger("workers.extractData");
 
@@ -195,6 +196,11 @@ export default createProcessor<ExtractDataJob, ExtractDataProgress>(
       await updatePage(job.data.crawlPageId, {
         status: PageStatus.ERROR,
         fetchFailureReason: getExtractionFailureReason(err),
+      });
+      attachWorkerCatchContext(err, {
+        extractionId: job.data.extractionId,
+        crawlPageId: job.data.crawlPageId,
+        datasetId: job.data.datasetId,
       });
       throw err;
     }
