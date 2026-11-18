@@ -166,11 +166,14 @@ spec:
               readOnly: true
           resources:
             requests:
+              # 2432Mi is the most a worker can request and still co-fit with an
+              # api pod (768Mi) on a t3.medium app node (~3294Mi allocatable),
+              # which keeps rolling updates solvable within app_node_max_size=3.
               cpu: 750m
-              memory: 1536Mi
+              memory: 2432Mi
             limits:
               cpu: "1500m"
-              memory: 2560Mi
+              memory: 3072Mi
       volumes:
         - name: extraction-files
           persistentVolumeClaim:
