@@ -62,6 +62,19 @@ def test_labels_and_missing_content_root():
     assert out["occurrences"] == []
 
 
+def test_a_page_without_a_charset_is_read_as_utf8():
+    page = "<html><body><main id='content'><div class='course'><h3>ART 101:</h3>" \
+           "<div class='intro'>Asphalt emulsion’s life – QuickBooks®.</div></div></main></body></html>"
+    out = engine.run_page("p", "u", page.encode(), RULES, SETTINGS, NEED)
+    desc = next(x for x in out["matches"] if x["rule_id"] == "desc")
+    assert desc["value"] == "Asphalt emulsion’s life – QuickBooks®."
+
+
+def test_utf8_wins_over_a_wrong_meta_charset():
+    page = '<html><head><meta charset="iso-8859-1"></head><body><p>It’s</p></body></html>'
+    assert engine.parse(page.encode()).text_content() == "It’s"
+
+
 def test_implied_tbody_matches_the_browser():
     doc = engine.parse(PAGE)
     td = engine.select_one(doc, "td.code", True)

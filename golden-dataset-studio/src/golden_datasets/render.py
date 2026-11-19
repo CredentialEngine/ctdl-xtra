@@ -40,7 +40,7 @@ from .context import Ctx
 from .errors import UserError
 from .storage import cache_home
 
-RENDER_VERSION = "r4"  # bump when the output of `render_html` changes
+RENDER_VERSION = "r5"  # bump when the output of `render_html` changes
 
 # Highlight styles the page pane relies on. Ranges use the CSS Custom Highlight API (no DOM change); outlines and
 # badges live in an overlay `<div id="gds-overlay">` the pane appends as the last child of <html> (not of <body>).

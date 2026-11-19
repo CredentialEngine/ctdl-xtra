@@ -33,7 +33,9 @@ _NO_TEXT_TAGS = ("script", "style")  # their text isn't a value (G8)
 
 # --- parsing ----------------------------------------------------------------------------------------
 def parse(html: bytes | str):
-    doc = lxml.html.document_fromstring(html)
+    """The crawler saves every page as UTF-8. Without being told, libxml2 reads a page with no <meta charset>
+    (Slate's) as ISO-8859-1, and "’" becomes "â\\x80\\x99"."""
+    doc = lxml.html.document_fromstring(html, parser=lxml.html.HTMLParser(encoding="utf-8"))
     _html5_tables(doc)
     return doc
 

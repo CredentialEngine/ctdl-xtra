@@ -82,7 +82,7 @@ def discover(html: bytes, url: str) -> list[tuple[str, str]]:
     """(absolute url, kind) for every asset one page references, in document order, without duplicates."""
     import lxml.html
 
-    doc = lxml.html.document_fromstring(html)
+    doc = lxml.html.document_fromstring(html, parser=lxml.html.HTMLParser(encoding="utf-8"))  # saved as UTF-8
     base = page_base(doc, url)
     out: list[tuple[str, str]] = []
 
