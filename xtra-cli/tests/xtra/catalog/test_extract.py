@@ -228,7 +228,8 @@ def test_a_registered_property_is_chosen() -> None:
         ("name", "is not a CTDL property"),
         (
             "ceterms:nope",
-            "Properties: ceterms:description, ceterms:identifier, ceterms:name",
+            "Properties: ceterms:codedNotation, ceterms:description, "
+            "ceterms:identifier, ceterms:name",
         ),
     ],
 )
@@ -244,6 +245,7 @@ def test_help_lists_the_extractors_with_their_class() -> None:
     assert result.exit_code == 0
     assert "[OPTIONS] PROPERTY" in result.output
     lines = [line.split() for line in result.output.splitlines()]
+    assert ["ceterms:codedNotation", "(class:", "ceterms:Course)"] in lines
     assert ["ceterms:description", "(class:", "ceterms:Course)"] in lines
     assert ["ceterms:identifier", "(class:", "ceterms:Course)"] in lines
     assert ["ceterms:name", "(class:", "ceterms:Course)"] in lines
