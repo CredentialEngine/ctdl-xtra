@@ -30,6 +30,7 @@ from __future__ import annotations
 import json
 import re
 import unicodedata
+from collections.abc import Sequence
 from typing import Any
 
 from rapidfuzz import fuzz
@@ -351,7 +352,7 @@ def summarize(
     pages: list[dict],
     out_of_scope: list[str],
     malformed: list[dict],
-    ctdl_property: str | None = None,
+    ctdl_properties: Sequence[str] = (),
 ) -> dict:
     """The report: counts by outcome, by property and by page, then outliers.
 
@@ -401,7 +402,7 @@ def summarize(
         "mode": mode,
         "catalog_folder": catalog_folder,
         "run_id": run_id,
-        "ctdl_property": ctdl_property,
+        "ctdl_properties": list(ctdl_properties),
         "pages_scored": sum(1 for p in pages if p["status"] == STATUS_SCORED),
         "pages_skipped": sum(1 for p in pages if p["status"] == STATUS_SKIPPED),
         "pages_not_extracted": sum(
@@ -445,7 +446,7 @@ def match_extraction_run(
     mode: str,
     *,
     whole_catalog: bool = False,
-    ctdl_property: str | None = None,
+    ctdl_properties: Sequence[str] = (),
 ) -> dict:
     """Match every baseline page of one run against the records it wrote.
 
@@ -456,7 +457,7 @@ def match_extraction_run(
     a page with no records may simply have been left out, by
     --only-golden-sample or --limit, and is listed and not counted.
 
-    With `ctdl_property`, only the baseline fields of that property are
+    With `ctdl_properties`, only the baseline fields of those properties are
     matched. Entities keep their places, so pairing with records is unchanged.
     """
     baseline_stems = _baseline_stems(baseline_store, catalog_folder, run_id)
@@ -478,9 +479,9 @@ def match_extraction_run(
         except (FileNotFoundError, ValueError) as exc:
             malformed.append({"stem": stem, "detail": str(exc)})
             continue
-        if ctdl_property:
+        if ctdl_properties:
             entities = [
-                [f for f in fields if f["ctdl_property"] == ctdl_property]
+                [f for f in fields if f["ctdl_property"] in ctdl_properties]
                 for fields in entities
             ]
 
@@ -512,7 +513,7 @@ def match_extraction_run(
         pages=pages,
         out_of_scope=out_of_scope,
         malformed=malformed,
-        ctdl_property=ctdl_property,
+        ctdl_properties=ctdl_properties,
     )
 
 
@@ -585,7 +586,7 @@ def format_table(report: dict) -> str:
     """The report as compact counts and the worst outliers, for a terminal."""
     mode = report["mode"]
     outcomes = MODE_OUTCOMES[mode]
-    scope = report.get("ctdl_property")
+    scope = ", ".join(report.get("ctdl_properties", []))
     head = (
         f"Extraction match ({mode}{f', {scope}' if scope else ''}): "
         f"{report['fields_total']} fields, "
