@@ -788,10 +788,10 @@ def test_one_property_scores_only_that_property(stores: Stores) -> None:
         FOLDER,
         RUN,
         MODE_EXACT,
-        ctdl_property="ceterms:description",
+        ctdl_properties=("ceterms:description",),
     )
 
-    assert report["ctdl_property"] == "ceterms:description"
+    assert report["ctdl_properties"] == ["ceterms:description"]
     assert report["fields_total"] == 1
     assert report["outcomes"] == {"match": 0, "mismatch": 0, "missing": 1}
     assert list(report["by_property"]) == ["ceterms:description"]
@@ -825,7 +825,37 @@ def test_one_property_keeps_entities_paired_in_page_order(
         FOLDER,
         RUN,
         MODE_EXACT,
-        ctdl_property="ceterms:description",
+        ctdl_properties=("ceterms:description",),
     )
 
     assert report["outcomes"] == {"match": 2, "mismatch": 0, "missing": 0}
+
+
+def test_several_properties_score_only_those_properties(
+    stores: Stores,
+) -> None:
+    stores.put_baseline(STEM, [{"fields": baseline_acct199()}])
+    stores.put_record(
+        record_of(prop("ceterms:name", "Work Experience Education"))
+    )
+
+    report = match_extraction_run(
+        stores.records,
+        stores.baseline,
+        FOLDER,
+        RUN,
+        MODE_EXACT,
+        ctdl_properties=("ceterms:name", "ceterms:description"),
+    )
+
+    assert report["ctdl_properties"] == ["ceterms:name", "ceterms:description"]
+    assert report["fields_total"] == 2
+    assert report["outcomes"] == {"match": 1, "mismatch": 0, "missing": 1}
+    assert sorted(report["by_property"]) == [
+        "ceterms:description",
+        "ceterms:name",
+    ]
+    assert (
+        "Extraction match (exact, ceterms:name, ceterms:description)"
+        in format_table(report)
+    )
