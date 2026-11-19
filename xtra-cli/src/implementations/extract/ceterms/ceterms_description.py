@@ -14,7 +14,9 @@ The description is looked for in this order, first one accepted wins:
 1. `profile_description`: the description element the platform's markup
    names.
 2. `description_class`: an element whose class or id says it is a
-   description.
+   description. Only its opening narrative is read: an element that holds
+   a whole program page goes on to headed sections and lists of
+   outcomes, which are not the description.
 3. `description_label`: the text after a "Description" heading or label.
 4. `first_prose`: after the course's title, the first paragraph that reads
    as prose, as Acalog prints it.
@@ -25,7 +27,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 
-from bs4 import Comment, NavigableString, Tag
+from bs4 import Comment, NavigableString, PageElement, Tag
 
 from implementations.discover_rules import (
     COMBINED_REQUISITE_RE,
@@ -141,6 +143,9 @@ SENTENCE_END_RE = re.compile(r"[.!?][\"')\]]*$")
 # Fewer words than this, a line has to end as a sentence to be prose.
 PROSE_WORDS = 8
 
+# Inside a description element, these end its narrative once it has begun.
+LIST_TAGS = frozenset({"ul", "ol", "dl", "table"})
+
 
 @dataclass(frozen=True)
 class _Candidate:
@@ -152,16 +157,21 @@ class _Candidate:
     is_description_element: bool
 
 
-def shown_text(tag: Tag) -> str:
+def shown_text(tag: Tag, nodes: list[PageElement] | None = None) -> str:
     """The element's text the way a browser shows it.
 
     Whitespace collapses to one space, except where a `white-space` style
     keeps lines (eLumen's `pre-wrap`), which keeps it as written. A <br>
     is a line break. Block elements are paragraphs, joined by a blank
-    line. Site furniture and anything hidden is left out.
+    line. Site furniture and anything hidden is left out. With `nodes`,
+    only those children of the element are read.
     """
     pieces: list[tuple[str, bool]] = []
-    _walk(tag, pieces, keeps_lines=_keeps_lines(tag, inherited=_inherits(tag)))
+    _walk_nodes(
+        tag.children if nodes is None else nodes,
+        pieces,
+        keeps_lines=_keeps_lines(tag, inherited=_inherits(tag)),
+    )
     paragraphs = "".join(text for text, _ in pieces).split(_PARAGRAPH)
     return "\n\n".join(p.strip() for p in paragraphs if p.strip())
 
@@ -184,7 +194,13 @@ def _keeps_lines(tag: Tag, *, inherited: bool) -> bool:
 def _walk(
     node: Tag, pieces: list[tuple[str, bool]], *, keeps_lines: bool
 ) -> None:
-    for child in node.children:
+    _walk_nodes(node.children, pieces, keeps_lines=keeps_lines)
+
+
+def _walk_nodes(
+    nodes, pieces: list[tuple[str, bool]], *, keeps_lines: bool
+) -> None:
+    for child in nodes:
         if isinstance(child, Comment):
             continue
         if isinstance(child, NavigableString):
@@ -368,8 +384,61 @@ def _description_class(occurrence: Occurrence, page: Page) -> _Candidate | None:
             continue
         if not shown(tag):
             continue
-        return _element(tag, STRATEGY_DESCRIPTION_CLASS)
+        return _Candidate(
+            text=shown_text(tag, _narrative(tag)),
+            strategy=STRATEGY_DESCRIPTION_CLASS,
+            css_path=css_path(tag),
+            is_description_element=True,
+        )
     return None
+
+
+def _narrative(tag: Tag) -> list[PageElement]:
+    """The children of a description element that make its opening
+    narrative.
+
+    Headings before it are passed over: a tagline, a provider number. A
+    "Description" heading among them starts it. It ends at the next heading
+    or list, and the line that leads into a list ("By the end of the
+    course, students will:", "Courses in the Series") goes with the list.
+    An element with no heading or list after its text is read whole.
+    """
+    children = list(tag.children)
+    for index, child in enumerate(children):
+        if (
+            isinstance(child, Tag)
+            and child.name in HEADINGS
+            and DESCRIPTION_LABEL_RE.match(shown_text(child))
+        ):
+            children = children[index + 1 :]
+            break
+
+    nodes: list[PageElement] = []
+    for child in children:
+        if isinstance(child, Tag) and shown(child):
+            begun = bool(shown_text(tag, nodes))
+            if child.name in HEADINGS:
+                if begun:
+                    break
+                continue
+            if child.name in LIST_TAGS and begun:
+                _drop_lead_in(tag, nodes)
+                break
+        nodes.append(child)
+    return nodes
+
+
+def _drop_lead_in(tag: Tag, nodes: list[PageElement]) -> None:
+    """Drop the last line before a list when it introduces the list."""
+    for index in range(len(nodes) - 1, -1, -1):
+        line = shown_text(tag, [nodes[index]])
+        if not line:
+            continue
+        if line.endswith(":") or (
+            len(line.split()) < PROSE_WORDS and not SENTENCE_END_RE.search(line)
+        ):
+            del nodes[index:]
+        return
 
 
 def _description_label(occurrence: Occurrence, page: Page) -> _Candidate | None:
