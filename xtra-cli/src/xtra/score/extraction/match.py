@@ -8,19 +8,21 @@
   xtra score extraction match --partially --source-uri URI --baseline-uri URI \
     --source-azure-storage-connection-string CS \
     --baseline-azure-storage-connection-string CS \
-    --catalog-id ID --run-id TS
+    --catalog-id ID --run-id TS [--property ceterms:description ...]
 
 Matches the extraction_report/ files of one extraction run, the ones
 `xtra catalog extract` writes, against a baseline, without extracting
 again. --exactly counts the values identical to the baseline.
 --partially sets those aside and measures how close the rest come. Neither
 averages: the report is counts plus the outliers, worst first.
+--property, repeatable, scores only those properties of the baseline.
 """
 
 from __future__ import annotations
 
 import json
 import logging
+from collections.abc import Sequence
 
 import click
 
@@ -57,6 +59,7 @@ def match_and_report(
     catalog_id: str,
     run_id: str,
     mode: str,
+    ctdl_properties: Sequence[str] = (),
 ) -> dict:
     """Match the run's records, write the report beside them, show the table.
 
@@ -72,6 +75,7 @@ def match_and_report(
             run_id,
             mode,
             whole_catalog=whole_catalog_extracted(store, catalog_id, run_id),
+            ctdl_properties=ctdl_properties,
         )
     except (ExtractionReportError, ExtractionMatchError) as exc:
         raise click.ClickException(str(exc)) from exc
@@ -79,7 +83,8 @@ def match_and_report(
         raise click.ClickException(f"matching failed: {exc}") from exc
 
     store.put_json(
-        extraction_match_report_key(catalog_id, run_id, mode), report
+        extraction_match_report_key(catalog_id, run_id, mode, ctdl_properties),
+        report,
     )
     click.echo(format_table(report), err=True)
     return report
@@ -89,6 +94,7 @@ def match_summary(report: dict) -> dict:
     """The few numbers worth printing: counts, and the exact rate if any."""
     summary = {
         "mode": report["mode"],
+        "ctdl_properties": report["ctdl_properties"],
         "fields_total": report["fields_total"],
         "outcomes": report["outcomes"],
         "pages_scored": report["pages_scored"],
@@ -128,6 +134,15 @@ def match_summary(report: dict) -> dict:
     help="Extraction run id, the one the baseline files are filed under.",
 )
 @click.option(
+    "--property",
+    "ctdl_properties",
+    multiple=True,
+    help=(
+        "Score only this property, e.g. ceterms:description. Repeat it to "
+        "score several. The report gets its own file, named for them."
+    ),
+)
+@click.option(
     "--source-azure-storage-connection-string",
     required=False,
     help=(
@@ -151,6 +166,7 @@ def main(
     baseline_uri: str | None,
     catalog_id: str,
     run_id: str,
+    ctdl_properties: tuple[str, ...],
     source_azure_storage_connection_string: str | None,
     baseline_azure_storage_connection_string: str | None,
 ) -> None:
@@ -183,7 +199,12 @@ def main(
     )
 
     report = match_and_report(
-        store, baseline, catalog_id=catalog_id, run_id=run_id, mode=mode
+        store,
+        baseline,
+        catalog_id=catalog_id,
+        run_id=run_id,
+        mode=mode,
+        ctdl_properties=ctdl_properties,
     )
     click.echo(
         json.dumps(

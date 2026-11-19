@@ -774,3 +774,88 @@ def test_the_partial_table_names_the_threshold(stores: Stores) -> None:
 
     assert "Extraction match (partial)" in table
     assert "partial at 0.8 similarity" in table
+
+
+def test_one_property_scores_only_that_property(stores: Stores) -> None:
+    stores.put_baseline(STEM, [{"fields": baseline_acct199()}])
+    stores.put_record(
+        record_of(prop("ceterms:name", "Work Experience Education"))
+    )
+
+    report = match_extraction_run(
+        stores.records,
+        stores.baseline,
+        FOLDER,
+        RUN,
+        MODE_EXACT,
+        ctdl_properties=("ceterms:description",),
+    )
+
+    assert report["ctdl_properties"] == ["ceterms:description"]
+    assert report["fields_total"] == 1
+    assert report["outcomes"] == {"match": 0, "mismatch": 0, "missing": 1}
+    assert list(report["by_property"]) == ["ceterms:description"]
+    assert "Extraction match (exact, ceterms:description)" in format_table(
+        report
+    )
+
+
+def test_one_property_keeps_entities_paired_in_page_order(
+    stores: Stores,
+) -> None:
+    """The second entity has no description; the third still pairs with the
+    third record."""
+    stores.put_baseline(
+        STEM,
+        [
+            {"fields": [baseline_field("ceterms:description", "First")]},
+            {"fields": [baseline_field("ceterms:name", "Second")]},
+            {"fields": [baseline_field("ceterms:description", "Third")]},
+        ],
+    )
+    for index, text in enumerate(("First", "Other", "Third"), start=1):
+        record_id = STEM if index == 1 else f"{STEM}--resource-{index:03d}"
+        stores.put_record(
+            record_of(prop("ceterms:description", text), record_id=record_id)
+        )
+
+    report = match_extraction_run(
+        stores.records,
+        stores.baseline,
+        FOLDER,
+        RUN,
+        MODE_EXACT,
+        ctdl_properties=("ceterms:description",),
+    )
+
+    assert report["outcomes"] == {"match": 2, "mismatch": 0, "missing": 0}
+
+
+def test_several_properties_score_only_those_properties(
+    stores: Stores,
+) -> None:
+    stores.put_baseline(STEM, [{"fields": baseline_acct199()}])
+    stores.put_record(
+        record_of(prop("ceterms:name", "Work Experience Education"))
+    )
+
+    report = match_extraction_run(
+        stores.records,
+        stores.baseline,
+        FOLDER,
+        RUN,
+        MODE_EXACT,
+        ctdl_properties=("ceterms:name", "ceterms:description"),
+    )
+
+    assert report["ctdl_properties"] == ["ceterms:name", "ceterms:description"]
+    assert report["fields_total"] == 2
+    assert report["outcomes"] == {"match": 1, "mismatch": 0, "missing": 1}
+    assert sorted(report["by_property"]) == [
+        "ceterms:description",
+        "ceterms:name",
+    ]
+    assert (
+        "Extraction match (exact, ceterms:name, ceterms:description)"
+        in format_table(report)
+    )

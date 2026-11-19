@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import hashlib
 import re
+from collections.abc import Sequence
 from urllib.parse import urlsplit
 
 from common.clock import run_id_for_path
@@ -204,12 +205,17 @@ def expected_key(catalog_folder: str, run_id: str, record_id: str) -> str:
 
 
 def extraction_match_report_key(
-    catalog_folder: str, run_id: str, mode: str
+    catalog_folder: str, run_id: str, mode: str, props: Sequence[str] = ()
 ) -> str:
-    """Beside records/ for the same reason as the extract report."""
+    """Beside records/ for the same reason as the extract report.
+
+    A match of some properties has its own file, named for them in sorted
+    order, so it never overwrites the report of the whole run.
+    """
+    scope = "".join(f"-{property_key(p)}" for p in sorted(set(props)))
     return (
         f"{run_prefix(catalog_folder, run_id)}"
-        f"/extraction-match-{mode}-report.json"
+        f"/extraction-match-{mode}{scope}-report.json"
     )
 
 

@@ -263,3 +263,69 @@ def test_without_extraction_report_files_it_says_to_run_extraction(
 
     assert result.exit_code != 0
     assert "Run xtra catalog extract first" in result.output
+
+
+def test_property_writes_its_own_report_and_leaves_the_full_one(
+    tmp_path: Path,
+) -> None:
+    seed(
+        tmp_path,
+        [
+            field("ceterms:name", "Composition"),
+            field("ceterms:inLanguage", "English"),
+        ],
+    )
+    assert match(tmp_path, "--exactly").exit_code == 0
+
+    result = match(tmp_path, "--exactly", "--property", "ceterms:name")
+
+    assert result.exit_code == 0, result.output
+    report = json.loads(
+        (
+            tmp_path
+            / "data"
+            / extraction_match_report_key(
+                FOLDER, RUN, "exact", ["ceterms:name"]
+            )
+        ).read_text(encoding="utf-8")
+    )
+    assert report["outcomes"] == {"match": 1, "mismatch": 0, "missing": 0}
+    assert read_report(tmp_path, "exact")["fields_total"] == 2
+    assert json.loads(result.stdout)["ctdl_properties"] == ["ceterms:name"]
+    assert "Extraction match (exact, ceterms:name)" in result.stderr
+
+
+def test_property_repeats_to_score_several_in_one_report(
+    tmp_path: Path,
+) -> None:
+    seed(
+        tmp_path,
+        [
+            field("ceterms:name", "Composition"),
+            field("ceterms:inLanguage", "English"),
+            field("ceterms:description", "Writing"),
+        ],
+    )
+
+    result = match(
+        tmp_path,
+        "--exactly",
+        "--property",
+        "ceterms:name",
+        "--property",
+        "ceterms:inLanguage",
+    )
+
+    assert result.exit_code == 0, result.output
+    key = extraction_match_report_key(
+        FOLDER, RUN, "exact", ["ceterms:name", "ceterms:inLanguage"]
+    )
+    assert key.endswith(
+        "/extraction-match-exact-ceterms_inLanguage-ceterms_name-report.json"
+    )
+    report = json.loads((tmp_path / "data" / key).read_text(encoding="utf-8"))
+    assert report["fields_total"] == 2
+    assert json.loads(result.stdout)["ctdl_properties"] == [
+        "ceterms:name",
+        "ceterms:inLanguage",
+    ]
