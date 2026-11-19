@@ -344,3 +344,75 @@ def test_nothing_to_read_says_so() -> None:
     reading = _read_whole_page("<main><h1>ART 101 Drawing</h1></main>")
     assert reading.value is None
     assert reading.reason == "no_candidate"
+
+
+# --- the narrative of a description element ---------------------------------
+# A description element can hold a whole program page: the description, then
+# headed sections and lists of outcomes. Only the opening narrative is the
+# description.
+
+
+def test_a_description_element_ends_at_its_next_heading() -> None:
+    reading = _read_whole_page(
+        '<main><h1>ART 101 Drawing</h1><div id="long_desc">'
+        '<p class="lead">Basic drawing techniques.</p><p>Charcoal and ink.</p>'
+        "<h2>Course Outcomes</h2><p>Draw a figure.</p></div></main>"
+    )
+    assert (reading.value, reading.strategy) == (
+        "Basic drawing techniques.\n\nCharcoal and ink.",
+        "description_class",
+    )
+
+
+def test_a_tagline_heading_before_the_narrative_is_passed_over() -> None:
+    reading = _read_whole_page(
+        '<main><h1>ART 101 Drawing</h1><div id="long_desc">'
+        "<style>p { font-size: 18px; }</style>"
+        "<h2>Build the Skills That Support Growth</h2>"
+        "<p>Basic drawing techniques.</p><h2>Included</h2><p>Paper.</p>"
+        "</div></main>"
+    )
+    assert reading.value == "Basic drawing techniques."
+
+
+def test_a_description_element_ends_before_a_list_and_its_lead_in() -> None:
+    reading = _read_whole_page(
+        '<main><h1>ART 101 Drawing</h1><div id="long_desc">'
+        "<p>Basic drawing techniques.</p>"
+        "<p>By the end of the course, students will:</p>"
+        "<ul><li>Draw a figure.</li></ul></div></main>"
+    )
+    assert reading.value == "Basic drawing techniques."
+
+
+def test_a_short_title_line_leading_into_a_list_is_left_out() -> None:
+    reading = _read_whole_page(
+        '<main><h1>LEAD 100 Leadership</h1><div id="long_desc">'
+        "<div>A six-part developmental pathway for new managers.</div>"
+        "<p>Courses in the Series</p>"
+        "<ul><li>Leading Self</li></ul></div></main>"
+    )
+    assert reading.value == "A six-part developmental pathway for new managers."
+
+
+def test_a_description_heading_inside_the_element_starts_the_narrative() -> (
+    None
+):
+    reading = _read_whole_page(
+        '<main><h1>PT 101 Play Therapy</h1><div id="long_desc">'
+        "<h2>APT Approved Provider #: 15-403</h2><h2>Objectives</h2>"
+        "<p>After this workshop, you will be able to:</p>"
+        "<h2>Description</h2><p>Involving parents is a challenge.</p>"
+        "</div></main>"
+    )
+    assert reading.value == "Involving parents is a challenge."
+
+
+def test_a_description_element_without_headings_or_lists_is_read_whole() -> (
+    None
+):
+    reading = _read_whole_page(
+        '<main><h1>ART 101 Drawing</h1><div id="long_desc">'
+        "<p>Basic drawing techniques.</p><p>Charcoal and ink.</p></div></main>"
+    )
+    assert reading.value == "Basic drawing techniques.\n\nCharcoal and ink."
