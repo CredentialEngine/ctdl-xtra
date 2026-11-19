@@ -347,9 +347,9 @@ def test_nothing_to_read_says_so() -> None:
 
 
 # --- the narrative of a description element ---------------------------------
-# UARK prints a whole program page in its #long_desc: the description, then
-# headed sections of outcomes, certification and prior learning. The
-# reviewers took only the opening narrative.
+# A description element can hold a whole program page: the description, then
+# headed sections and lists of outcomes. Only the opening narrative is the
+# description.
 
 
 def test_a_description_element_ends_at_its_next_heading() -> None:
