@@ -95,8 +95,15 @@ ${MD_END}
     .filter(Boolean) as string[];
 
   if (entityDef.exploreSameOrigin) {
-    const hostname = new URL(options.url).hostname;
-    urls = filterUrlsByOrigin(urls, hostname);
+    try {
+      const hostname = new URL(options.url).hostname;
+      urls = filterUrlsByOrigin(urls, hostname);
+    } catch (e) {
+      logger.warn(
+        `Cannot filter exploratory URLs by origin; page URL is not absolute: ${options.url}`,
+        e
+      );
+    }
   }
 
   return { prompt, data: dedupUrls(urls) };

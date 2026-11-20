@@ -27,7 +27,6 @@ import {
   createStepAndPages,
   findPageByUrl,
   findPageForJob,
-  findPages,
   updateExtraction,
   updatePage,
 } from "../data/extractions";
@@ -39,6 +38,10 @@ import {
   storeScreenshot,
 } from "../data/schema";
 import { BrowserFetchError, fetchBrowserPage, simplifiedMarkdown } from "../extraction/browser";
+import {
+  resolveCrawlPageBaseUrl,
+  resolveCrawlPageUrl,
+} from "../extraction/crawlPageUrl";
 import { discoverDynamicLinks } from "../extraction/dynamicLinkDiscovery";
 import { detectPageCount } from "../extraction/llm/detectPageCount";
 import { createUrlExtractor } from "../extraction/llm/detectUrlRegexp";
@@ -302,34 +305,7 @@ export const performJob = async (
     const rootConfiguration = crawlPage.extraction.recipe
       .configuration as RecipeConfiguration | undefined;
 
-    // Get parent page URL for resolving relative URLs
-    let baseUrl: string | undefined;
-    if (crawlPage.crawlStep.parentStepId) {
-      // If there's a parent step, get the parent step's pages and use the first one as baseUrl
-      const parentPages = await findPages(crawlPage.crawlStep.parentStepId);
-      if (parentPages.length > 0) {
-        baseUrl = parentPages[0].url;
-      }
-    }
-    // If no parent step (root page), fall back to recipe URL
-    if (!baseUrl) {
-      baseUrl = crawlPage.extraction.recipe.url;
-    }
-
-    try {
-      // this throws if the baseUrl is not absolute
-      new URL(baseUrl);
-    } catch {
-      // If baseUrl is relative, resolve it against the recipe URL
-      const recipeUrl = crawlPage.extraction.recipe.url;
-      try {
-        baseUrl = new URL(baseUrl, recipeUrl).href;
-      } catch {
-        logger.warn(`Could not resolve baseUrl "${baseUrl}" against recipe URL "${recipeUrl}"`);
-        baseUrl = recipeUrl;
-      }
-    }
-
+    const baseUrl = await resolveCrawlPageBaseUrl(crawlPage);
 
     const page = await fetchBrowserPage({
       url: crawlPage.url,
@@ -428,16 +404,7 @@ export default createProcessor<FetchPageJob, FetchPageProgress>(
         startWithDelay: 0,
       };
 
-    // Resolve relative URLs to absolute URLs
-    let absoluteUrl: string;
-    try {
-      // Try to create a URL directly - if it's already absolute, this will work
-      absoluteUrl = new URL(crawlPage.url).href;
-    } catch {
-      // If it's a relative URL, resolve it against the recipe URL
-      const baseUrl = crawlPage.extraction.recipe.url;
-      absoluteUrl = new URL(crawlPage.url, baseUrl).href;
-    }
+    const absoluteUrl = await resolveCrawlPageUrl(crawlPage);
 
     const robotsTxt = crawlPage.extraction.recipe.acknowledgedSkipRobotsTxt
       ? undefined

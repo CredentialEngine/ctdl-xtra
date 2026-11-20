@@ -5,6 +5,7 @@ import { PageSetupConfig } from "../../../common/types";
 import { BrowserFetchError, findProxies } from "./browser";
 import {
   parseProxyEndpoint,
+  puppeteerChildProcessEnv,
   sharedChromeArgs,
 } from "./chromeLaunch";
 import { applyPageSetupSteps } from "./pageSetup";
@@ -92,6 +93,7 @@ export async function navigateWithProxy(
     protocolTimeout: 1 * 60 * 1000,
     dumpio: true,
     args,
+    env: puppeteerChildProcessEnv(),
   } as unknown as Parameters<typeof puppeteer.launch>[0]);
 
   let settlementTimer: ReturnType<typeof setTimeout> | undefined;
