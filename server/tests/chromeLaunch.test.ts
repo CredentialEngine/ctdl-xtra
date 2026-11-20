@@ -14,15 +14,18 @@ describe("shared Chrome launch", () => {
     const proxyUrl = "http://user:secret@proxy.example:8080";
     const parsed = parseProxyEndpoint(proxyUrl);
     const session = buildAgentChromeSession({ proxyUrl });
+    const launchOptions = sharedPuppeteerLaunchOptions({
+      proxyServerUrl: parsed.serverUrl,
+    });
 
-    expect(session.launchOptions).toEqual(
-      sharedPuppeteerLaunchOptions({ proxyServerUrl: parsed.serverUrl })
-    );
+    expect(session.launchOptions).toEqual(launchOptions);
     expect(session.launchOptions.args).toEqual(
       sharedChromeArgs({ proxyServerUrl: parsed.serverUrl })
     );
     expect(session.launchOptions.args).not.toContain("--no-sandbox");
     expect(session.launchOptions.args).not.toContain("--single-process");
+    expect(launchOptions.env).toBeDefined();
+    expect(launchOptions.env.NODE_OPTIONS).toBeUndefined();
     expect(session.proxyAuth).toEqual({
       username: "user",
       password: "secret",

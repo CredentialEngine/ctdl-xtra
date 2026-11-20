@@ -30,6 +30,7 @@ import {
   Step,
 } from "../../../common/types";
 import { getCatalogueTypeDefinition } from "../extraction/catalogueTypes";
+import { resolveCrawlPageUrl } from "../extraction/crawlPageUrl";
 import { exploreAdditionalPages } from "../extraction/llm/exploreAdditionalPages";
 import { runEntityExtraction } from "../extraction/runEntityExtraction";
 import getLogger from "../logging";
@@ -88,8 +89,9 @@ export default createProcessor<ExtractDataJob, ExtractDataProgress>(
       const catalogueType = crawlPage.extraction.recipe.catalogue
         .catalogueType as CatalogueType;
       const entityDef = getCatalogueTypeDefinition(catalogueType);
+      const pageUrl = await resolveCrawlPageUrl(crawlPage);
       const extractionOptions = {
-        url: crawlPage.url,
+        url: pageUrl,
         content,
         screenshot,
         catalogueType,
@@ -181,7 +183,7 @@ export default createProcessor<ExtractDataJob, ExtractDataProgress>(
               }))
             );
           })
-          .catch(logger.error);
+          .catch((err) => logger.error(err));
       }
     } catch (err) {
       const errStr = await createExtractionLogSafe(
