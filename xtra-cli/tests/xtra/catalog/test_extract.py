@@ -228,8 +228,8 @@ def test_a_registered_property_is_chosen() -> None:
         ("name", "is not a CTDL property"),
         (
             "ceterms:nope",
-            "Properties: ceterms:codedNotation, ceterms:description, "
-            "ceterms:identifier, ceterms:name",
+            "Properties: ceterms:codedNotation, ceterms:description, ceterms:identifier, "
+            "ceterms:lifeCycleStatusType, ceterms:name",
         ),
     ],
 )
