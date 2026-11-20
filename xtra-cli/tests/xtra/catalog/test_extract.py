@@ -229,7 +229,7 @@ def test_a_registered_property_is_chosen() -> None:
         (
             "ceterms:nope",
             "Properties: ceterms:codedNotation, ceterms:description, ceterms:identifier, "
-            "ceterms:inLanguage, ceterms:name",
+            "ceterms:inLanguage, ceterms:lifeCycleStatusType, ceterms:name",
         ),
     ],
 )
