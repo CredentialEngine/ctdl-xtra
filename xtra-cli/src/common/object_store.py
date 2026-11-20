@@ -50,6 +50,26 @@ class ObjectStore:
         body = json.dumps(payload, indent=2, ensure_ascii=False) + "\n"
         return self.put_text(key, body, "application/json")
 
+    def put_many_json(self, payloads: dict[str, object]) -> None:
+        """Several objects in one writer batch, which Azure uploads in
+        parallel."""
+        if not payloads:
+            return
+        errors: list[str] = []
+        self.writer.upload_batch(
+            key_contents={
+                key: json.dumps(payload, indent=2, ensure_ascii=False) + "\n"
+                for key, payload in payloads.items()
+            },
+            content_type="application/json",
+            errors=errors,
+        )
+        if errors:
+            raise RuntimeError(
+                f"{len(errors)} of {len(payloads)} objects could not be "
+                f"written, first {errors[0]}"
+            )
+
     def put_new_bytes(
         self,
         key: str,

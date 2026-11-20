@@ -38,6 +38,7 @@ from common.object_store import open_store
 from implementations.discover import latest_discovery_run_id
 from implementations.extract_course import COURSE
 from implementations.extract_run import (
+    WRITE_CONCURRENCY,
     CtdlClass,
     ExtractionError,
     Extractor,
@@ -269,6 +270,7 @@ def main(
     target = open_store(
         target_uri,
         azure_storage_connection_string=azure_storage_connection_string,
+        concurrency=WRITE_CONCURRENCY,
     )
 
     discovery_run_id = discovery_run_id or latest_discovery_run_id(

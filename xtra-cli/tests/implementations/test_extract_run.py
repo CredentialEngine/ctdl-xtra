@@ -386,6 +386,46 @@ def test_each_class_reads_its_own_pages(tmp_path: Path) -> None:
     )
 
 
+class _CountingUploads:
+    """The store, counting the batches resource files are uploaded in."""
+
+    def __init__(self, store) -> None:
+        self.store = store
+        self.batches: list[int] = []
+
+    def put_many_json(self, payloads: dict[str, object]) -> None:
+        if payloads:
+            self.batches.append(len(payloads))
+        self.store.put_many_json(payloads)
+
+    def __getattr__(self, name: str):
+        return getattr(self.store, name)
+
+
+def test_resources_from_several_pages_are_uploaded_in_one_batch(
+    tmp_path: Path,
+) -> None:
+    """A page of one course is common; uploading per page would be serial."""
+    store = _CountingUploads(open_store(str(tmp_path)))
+    _seed(store, [_profile("a", ["Course"]), _profile("b", ["Course"])])
+    report = _run(store)
+    assert store.batches == [report["resources_written"]] == [4]
+    assert _written(store, f"{FOLDER}_B2")["value"] is None
+
+
+def test_a_full_batch_is_uploaded_before_the_next_page_is_read(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr("implementations.extract_run.WRITE_BATCH", 2)
+    store = _CountingUploads(open_store(str(tmp_path)))
+    _seed(
+        store,
+        [_profile(stem, ["Course"]) for stem in ("a", "b", "c")],
+    )
+    _run(store)
+    assert store.batches == [2, 2, 2]
+
+
 def test_a_run_clears_what_an_earlier_run_wrote_for_its_property(
     tmp_path: Path,
 ) -> None:

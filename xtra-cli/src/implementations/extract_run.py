@@ -47,6 +47,9 @@ REASON_NO_CANDIDATE = "no_candidate"
 
 # How many misses the report quotes. The counts cover the rest.
 NOT_FOUND_EXAMPLES = 50
+# Resource files that are written in one batch, to avoid too many small uploads.
+WRITE_BATCH = 500
+WRITE_CONCURRENCY = 16
 
 # Text a browser never shows, so a value never comes from it.
 UNPRINTED = frozenset({"script", "style", "template", "noscript"})
@@ -350,6 +353,7 @@ def run_extraction(
     tally.files_cleared = _clear_property(
         target, catalog_id, run_id, extractor.prop
     )
+    pending: dict[str, object] = {}
     for ctdl_class in extractor.classes:
         profiles = [
             profile
@@ -385,7 +389,11 @@ def run_extraction(
                 catalog_id=catalog_id,
                 run_id=run_id,
                 tally=tally,
+                pending=pending,
             )
+            if len(pending) >= WRITE_BATCH:
+                _write(target, pending)
+    _write(target, pending)
 
     report = _report(
         tally,
@@ -407,6 +415,12 @@ def run_extraction(
         tally.pages_read,
     )
     return {**report, "report_key": key}
+
+
+def _write(target: Any, pending: dict[str, object]) -> None:
+    """Upload the resource files read so far, in one batch, and empty it."""
+    target.put_many_json(pending)
+    pending.clear()
 
 
 def _clear_property(
@@ -437,7 +451,9 @@ def _extract_page(
     catalog_id: str,
     run_id: str,
     tally: _Tally,
+    pending: dict[str, object],
 ) -> None:
+    """Read the page's resources into `pending`, for _write to upload."""
     stem = profile["stem"]
     url = profile.get("url") or ""
     try:
@@ -484,18 +500,17 @@ def _extract_page(
             tally.repeated_resource_ids += 1
 
         reading = extractor.read(occurrence, page)
-        target.put_json(
-            extract_resource_key(catalog_id, run_id, extractor.prop, unique_id),
-            resource_value(
-                term=ctdl_class.term,
-                resource_id=unique_id,
-                prop=extractor.prop,
-                reading=reading,
-                catalog_id=catalog_id,
-                source_url=url,
-                retrieved_at=page.retrieved_at,
-                notes=reading_notes(reading, page.platform),
-            ),
+        pending[
+            extract_resource_key(catalog_id, run_id, extractor.prop, unique_id)
+        ] = resource_value(
+            term=ctdl_class.term,
+            resource_id=unique_id,
+            prop=extractor.prop,
+            reading=reading,
+            catalog_id=catalog_id,
+            source_url=url,
+            retrieved_at=page.retrieved_at,
+            notes=reading_notes(reading, page.platform),
         )
         tally.resources_written += 1
         if reading.value is not None:

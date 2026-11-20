@@ -193,6 +193,39 @@ def test_get_many_names_what_it_could_not_read() -> None:
         store.get_many(["a", "b"])
 
 
+def test_put_many_json_writes_each_object(tmp_path) -> None:
+    store = open_store(str(tmp_path / "cache"))
+    store.put_many_json({f"{RUN}/a.json": {"n": 1}, f"{RUN}/b.json": [2]})
+    assert store.get_json(f"{RUN}/a.json") == {"n": 1}
+    assert store.get_json(f"{RUN}/b.json") == [2]
+    store.put_many_json({})
+
+
+class _Uploads:
+    def __init__(self, refuse: str = "") -> None:
+        self.batches: list[list[str]] = []
+        self.refuse = refuse
+
+    def upload_batch(self, *, key_contents, content_type, errors):
+        self.batches.append(list(key_contents))
+        if self.refuse:
+            errors.append(f"{self.refuse}: denied")
+        return [key for key in key_contents if key != self.refuse]
+
+
+def test_put_many_json_hands_the_whole_batch_to_the_writer_at_once() -> None:
+    """One call per batch is what lets Azure upload it in parallel."""
+    writer = _Uploads()
+    store_with(writer=writer).put_many_json({"a": 1, "b": 2, "c": 3})
+    assert writer.batches == [["a", "b", "c"]]
+
+
+def test_put_many_json_names_what_it_could_not_write() -> None:
+    store = store_with(writer=_Uploads(refuse="b"))
+    with pytest.raises(RuntimeError, match=r"1 of 2 .*first b: denied"):
+        store.put_many_json({"a": 1, "b": 2})
+
+
 def test_delete_removes_objects_and_leaves_the_rest(tmp_path) -> None:
     store = open_store(str(tmp_path / "cache"))
     for name in ("a", "b", "c"):
