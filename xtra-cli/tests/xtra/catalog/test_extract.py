@@ -229,7 +229,7 @@ def test_a_registered_property_is_chosen() -> None:
         (
             "ceterms:nope",
             "Properties: ceterms:codedNotation, ceterms:description, ceterms:identifier, "
-            "ceterms:lifeCycleStatusType, ceterms:name",
+            "ceterms:inLanguage, ceterms:lifeCycleStatusType, ceterms:name",
         ),
     ],
 )
@@ -248,6 +248,7 @@ def test_help_lists_the_extractors_with_their_class() -> None:
     assert ["ceterms:codedNotation", "(class:", "ceterms:Course)"] in lines
     assert ["ceterms:description", "(class:", "ceterms:Course)"] in lines
     assert ["ceterms:identifier", "(class:", "ceterms:Course)"] in lines
+    assert ["ceterms:inLanguage", "(class:", "ceterms:Course)"] in lines
     assert ["ceterms:name", "(class:", "ceterms:Course)"] in lines
 
 
