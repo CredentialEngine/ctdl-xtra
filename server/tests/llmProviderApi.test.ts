@@ -363,7 +363,7 @@ describe("LLMProviderApi", () => {
     expect(result.result).toEqual({ present: true, explanation: "yes" });
   });
 
-  it("uses structured output for Fable instead of forced tool_choice", async () => {
+  it("uses structured output for models that reject forced tool_choice", async () => {
     const create = vi
       .fn()
       .mockResolvedValue(anthropicTextResponse('{"items":["a"]}'));

@@ -77,18 +77,6 @@ export const MODEL_METADATA: ModelMetadata[] = [
     provider: Provider.OpenAI,
   },
   {
-    model: ProviderModel.O3Mini,
-    label: "O3 Mini",
-    releaseDate: "2024-07-01",
-    provider: Provider.OpenAI,
-  },
-  {
-    model: ProviderModel.O4Mini,
-    label: "O4 Mini",
-    releaseDate: "2024-09-01",
-    provider: Provider.OpenAI,
-  },
-  {
     model: ProviderModel.ClaudeHaiku55,
     label: "Claude Haiku 5.5",
     releaseDate: "2026-10-07",
