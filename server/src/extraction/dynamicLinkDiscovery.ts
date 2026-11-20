@@ -3,7 +3,10 @@ import StealthPlugin from "puppeteer-extra-plugin-stealth";
 import rebrowserPuppeteer, { ElementHandle, KnownDevices } from "rebrowser-puppeteer";
 import { PageSetupConfig } from "../../../common/types";
 import { BrowserFetchError, findProxies } from "./browser";
-import { parseProxyEndpoint, sharedChromeArgs } from "./chromeLaunch";
+import {
+  parseProxyEndpoint,
+  sharedChromeArgs,
+} from "./chromeLaunch";
 import { applyPageSetupSteps } from "./pageSetup";
 import getLogger from "../logging";
 import { readFileSync } from "fs";
@@ -53,12 +56,12 @@ class ProxyBlockedError extends Error {
 }
 
 async function scrollAndSettle(page: Page, timeoutMs: number) {
-  await page.waitForNetworkIdle({ idleTime: 1000, timeout: timeoutMs }).catch(() => {});
+  await page.waitForNetworkIdle({ idleTime: 1000, timeout: timeoutMs }).catch(() => { });
   await page.evaluate(() => {
     // @ts-ignore
     window.scrollTo(0, window.document.body.scrollHeight);
   });
-  await page.waitForNetworkIdle({ idleTime: 1000, timeout: timeoutMs }).catch(() => {});
+  await page.waitForNetworkIdle({ idleTime: 1000, timeout: timeoutMs }).catch(() => { });
   // Allow the DOM to finish rendering after lazy-loaded content arrives
   await new Promise(r => setTimeout(r, DOM_SETTLE_MS));
 }
@@ -125,7 +128,7 @@ export async function navigateWithProxy(
 
     return { page, browser };
   } catch (error) {
-    await browser.close().catch(() => {});
+    await browser.close().catch(() => { });
     throw error;
   } finally {
     if (settlementTimer) clearTimeout(settlementTimer);
@@ -325,7 +328,7 @@ async function runDiscoveryWithProxy(
         await page.goBack({ waitUntil: "networkidle0", timeout: pageMaxWaitMs }).catch(async () => {
           await page.goto(rootUrl, { waitUntil: "networkidle0", timeout: pageMaxWaitMs });
         });
-        await page.waitForNetworkIdle({ idleTime: 500, timeout: pageMaxWaitMs }).catch(() => {});
+        await page.waitForNetworkIdle({ idleTime: 500, timeout: pageMaxWaitMs }).catch(() => { });
 
         await applyPageSetupSteps(page, rootUrl, pageSetup);
 
@@ -429,7 +432,7 @@ async function clickAndWaitForUrl(page: Page, element: ElementHandle<Element>, o
   }
 
   // Give SPAs time to settle after the click
-  await page.waitForNetworkIdle({ idleTime: 500, timeout: 10_000 }).catch(() => {});
+  await page.waitForNetworkIdle({ idleTime: 500, timeout: 10_000 }).catch(() => { });
   navigationUrl = await waitForUrlChange(page, oldUrl, 5000);
 
   return navigationUrl;
