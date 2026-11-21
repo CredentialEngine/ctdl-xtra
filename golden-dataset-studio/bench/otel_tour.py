@@ -58,6 +58,9 @@ async def open_page(ctx, url: str):
     page.on("pageerror", lambda e: print(f"  page error: {e}"))
     await page.goto(url)
     await settle(page)
+    if await page.locator(".tour").count():  # the first-visit tour opens by itself: close it, as a reader would
+        await page.keyboard.press("Escape")
+        await page.wait_for_timeout(300)
     return page
 
 
