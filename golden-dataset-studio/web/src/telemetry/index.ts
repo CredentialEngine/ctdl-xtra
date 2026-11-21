@@ -1,5 +1,7 @@
-// Telemetry, off unless the server turns it on: GET /api/telemetry says where to send spans ({"browser": null} by
-// default). Off, nothing else loads: the OpenTelemetry code is a separate chunk (otel.ts), imported only when on.
+// Telemetry, off unless the server turns it on. The server then puts its config in index.html
+// (<script id="otel-config" type="application/json">); without it nothing else loads: the OpenTelemetry code is a
+// separate chunk (otel.ts), imported only when on. main.tsx renders once `startTelemetry()` settles, so the app's first
+// requests already carry its trace context (with no config it settles at once).
 import type { PageInfo } from "./names";
 import type { BrowserConfig, Impl } from "./otel";
 
@@ -7,22 +9,24 @@ export { pageInfo, type PageInfo } from "./names";
 
 let impl: Impl | null = null;
 let pending: PageInfo | null = null;
-let started = false;
+let started: Promise<void> | null = null;
 
-/** Ask the server once; if it has an endpoint, load the OpenTelemetry chunk and replay the current page view. */
-export async function startTelemetry(): Promise<void> {
-  if (started) return;
-  started = true;
-  try {
-    const r = await fetch("/api/telemetry");
-    const cfg = r.ok ? ((await r.json()) as { browser?: BrowserConfig | null }).browser : null;
-    if (!cfg) return;
-    const m = await import("./otel");
-    impl = await m.init(cfg);
-    if (pending) impl.pageView(pending);
-  } catch {
-    // no telemetry is not an error the reader should see
-  }
+/** The server's telemetry config, or null (off). */
+export function readConfig(doc: Document = document): BrowserConfig | null {
+  const el = doc.getElementById("otel-config");
+  if (!el?.textContent) return null;
+  try { return JSON.parse(el.textContent) as BrowserConfig; } catch { return null; }
+}
+
+/** Start telemetry if the page says so; resolves when it's running, or at once when it's off. Never rejects. */
+export function startTelemetry(): Promise<void> {
+  if (started) return started;
+  const cfg = readConfig();
+  started = !cfg ? Promise.resolve() : import("./otel")
+    .then((m) => m.init(cfg))
+    .then((i) => { impl = i; if (pending) i.pageView(pending); })
+    .catch(() => { /* no telemetry is not an error the reader should see */ });
+  return started;
 }
 
 /** The reader opened a page (a route); a no-op while telemetry is off. */

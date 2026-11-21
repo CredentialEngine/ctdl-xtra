@@ -29,15 +29,21 @@ it("names pages and actions with few values", () => {
 });
 
 describe("startTelemetry", () => {
-  afterEach(() => { vi.restoreAllMocks(); vi.resetModules(); });
-  it("loads nothing and leaves fetch alone when the server has no endpoint", async () => {
-    const fetchMock = vi.fn(async () => new Response(JSON.stringify({ browser: null })));
-    vi.stubGlobal("fetch", fetchMock);
-    const { startTelemetry, pageView } = await import("./index");
+  afterEach(() => { vi.resetModules(); document.getElementById("otel-config")?.remove(); });
+  it("loads nothing and leaves fetch alone when the page has no config", async () => {
+    const before = window.fetch;
+    const { startTelemetry, pageView, readConfig } = await import("./index");
+    expect(readConfig()).toBeNull();
     await startTelemetry();
-    expect(fetchMock).toHaveBeenCalledWith("/api/telemetry");
-    expect(window.fetch).toBe(fetchMock);
+    expect(window.fetch).toBe(before);
     pageView(pageInfo(true, "avc", "rules", null)); // a no-op
-    vi.unstubAllGlobals();
+  });
+  it("reads the config the server inlined", async () => {
+    const el = document.createElement("script");
+    el.id = "otel-config"; el.type = "application/json";
+    el.textContent = JSON.stringify({ endpoint: "/otlp/v1/traces", sample_rate: 1, resource: {} });
+    document.head.appendChild(el);
+    const { readConfig } = await import("./index");
+    expect(readConfig()?.endpoint).toBe("/otlp/v1/traces");
   });
 });

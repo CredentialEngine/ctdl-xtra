@@ -19,8 +19,9 @@ import {
 import {
   createDefaultSessionIdGenerator, createLocalStorageSessionStore, createSessionManager,
 } from "@opentelemetry/web-common";
+import { parseRoute } from "../shell/router";
 import { currentReviewer, currentRole } from "../shell/reviewer";
-import { actionOf, POLL, urlTemplate, type PageInfo } from "./names";
+import { actionOf, pageInfo, POLL, urlTemplate, type PageInfo } from "./names";
 
 export interface BrowserConfig { endpoint: string; sample_rate: number; resource: Record<string, string> }
 export interface Impl { pageView(p: PageInfo): void }
@@ -30,7 +31,7 @@ const IDLE_MS = 500;      // a page is ready once no API call has run for this l
 const MAX_VIEW_MS = 30000; // ...or after this long, whatever is still loading
 
 interface View {
-  span: Span; id: string; page: PageInfo; start: number; lastActivity: number; inflight: number;
+  span: Span; id: string; page: PageInfo; route: string; implicit: boolean; start: number; lastActivity: number; inflight: number;
   calls: number; errors: number; polls: number; bytes: number; apiMs: number; slowest: number; timer?: number;
 }
 
@@ -65,6 +66,11 @@ export async function init(cfg: BrowserConfig): Promise<Impl> {
     resourceAttributes: cfg.resource,
     sessionProvider: sessions,
     instrumentations: [], // the SDK adds web vitals and global errors itself; fetch spans are made below
+    // TTFB and CLS are floats, and TraceQL's quantile_over_time skips float attributes: integer copies for p75s
+    webVitalsInstrumentationConfig: {
+      ttfb: { applyCustomAttributes: (v, span) => span.setAttribute("ce.ttfb.value_us", Math.round(v.value * 1000)) },
+      cls: { applyCustomAttributes: (v, span) => span.setAttribute("ce.cls.value_milli", Math.round(v.value * 1000)) },
+    },
     spanProcessors: [{
       onStart: (span: Span) => span.setAttributes(who()),
       onEnd: () => {}, forceFlush: () => Promise.resolve(), shutdown: () => Promise.resolve(),
@@ -95,7 +101,22 @@ export async function init(cfg: BrowserConfig): Promise<Impl> {
     if (v.inflight === 0) v.timer = window.setTimeout(() => endView("ready"), IDLE_MS);
     if (performance.now() - v.start > MAX_VIEW_MS) endView("timeout");
   }
+  // the route without its query: ?row= changes as rows are picked, and that is not a new page
+  const routeNow = () => location.hash.split("?")[0];
   function pageView(p: PageInfo) {
+    if (view?.implicit && view.route === routeNow()) {
+      // a request already opened this route's view (React runs a child's effects before its parent's): name it
+      view.implicit = false;
+      view.page = p;
+      page = p;
+      if (entryPage !== null && view.span.spanContext().spanId === firstViewId) entryPage = p.page;
+      view.span.setAttributes(who());
+      return;
+    }
+    startView(p, false);
+  }
+  let firstViewId: string | null = null;
+  function startView(p: PageInfo, implicit: boolean) {
     endView("navigated");
     const hard = entryPage === null;
     page = p;
@@ -105,7 +126,9 @@ export async function init(cfg: BrowserConfig): Promise<Impl> {
       startTime: performance.timeOrigin + start,
       attributes: { "ce.page_view.kind": hard ? "hard" : "soft", "url.fragment": location.hash.replace(/^#/, "") },
     }, ROOT_CONTEXT);
-    view = { span, id: span.spanContext().spanId, page: p, start, lastActivity: performance.now(), inflight: 0,
+    if (hard) firstViewId = span.spanContext().spanId;
+    view = { span, id: span.spanContext().spanId, page: p, route: routeNow(), implicit, start,
+             lastActivity: performance.now(), inflight: 0,
              calls: 0, errors: 0, polls: 0, bytes: 0, apiMs: 0, slowest: 0 };
     span.setAttribute("ce.page_view.id", view.id);
     view.timer = window.setTimeout(() => endView("timeout"), MAX_VIEW_MS);
@@ -128,6 +151,10 @@ export async function init(cfg: BrowserConfig): Promise<Impl> {
     const template = urlTemplate(url.pathname);
     const action = actionOf(method, template);
     const poll = POLL.test(url.pathname);
+    if (!action && !poll && (!view || view.route !== routeNow())) {
+      const r = parseRoute(location.hash); // the app hasn't said which page this is yet: the URL does
+      startView(pageInfo(true, r.catalog, r.tab, r.id), true);
+    }
     const v = view;
     const parent: Context = !action && v ? trace.setSpan(ROOT_CONTEXT, v.span) : ROOT_CONTEXT;
     const span = poll ? null : tracer.startSpan(action ? `${action}` : `${method} ${template}`, {

@@ -8,7 +8,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from golden_datasets import telemetry
-from golden_datasets.server.app import create_app
+from golden_datasets.server.app import WEB_DIST, create_app
 
 OTEL_ENV = ("OTEL_EXPORTER_OTLP_ENDPOINT", "OTEL_EXPORTER_OTLP_TRACES_ENDPOINT", "OTEL_SDK_DISABLED",
             telemetry.ENV_BROWSER_ENDPOINT)
@@ -31,7 +31,8 @@ def test_off_without_an_endpoint(tmp_path, no_otel_env, monkeypatch):
     app = create_app(str(tmp_path))
     assert not any(m.cls is telemetry.WideSpanMiddleware for m in app.user_middleware)
     c = TestClient(app)
-    assert c.get("/api/telemetry").json() == {"browser": None}  # the web app loads no telemetry code
+    if WEB_DIST.exists():  # the web app's page is served as built: no telemetry config, so no telemetry code loads
+        assert c.get("/").content == (WEB_DIST / "index.html").read_bytes()
     # the helpers are no-ops
     telemetry.set({"ce.x": 1})
     telemetry.count("x")
@@ -93,7 +94,7 @@ def test_catalog_errors_and_storage_on_the_span(traced):
 
 def test_health_and_static_files_are_not_traced_and_polls_are_marked(traced):
     c, exporter = traced
-    for path in ("/api/health", "/api/telemetry", "/assets/index-abc.js", "/logos/avc.png", "/favicon.ico"):
+    for path in ("/api/health", "/assets/index-abc.js", "/logos/avc.png", "/favicon.ico"):
         c.get(path)
     assert exporter.get_finished_spans() == ()
     c.get("/api/catalogs/avc/agent-runs/current")
@@ -104,10 +105,15 @@ def test_health_and_static_files_are_not_traced_and_polls_are_marked(traced):
     assert _server_spans(exporter)[-1].attributes["http.route"] == "/{path:path}"
 
 
-def test_browser_config_carries_the_deployment(traced, monkeypatch):
+def test_browser_config_carries_the_deployment(traced, tmp_path):
     c, _ = traced
-    cfg = c.get("/api/telemetry").json()["browser"]
+    cfg = telemetry.browser_config()
     assert cfg["endpoint"] == "/otlp/v1/traces" and cfg["sample_rate"] == 1
+    index = tmp_path / "index.html"
+    index.write_text("<html><head><title>x</title></head><body></body></html>")
+    page = telemetry.browser_page(index)
+    assert '<script id="otel-config" type="application/json">{"endpoint": "/otlp/v1/traces"' in page
+    assert page.index("otel-config") < page.index("</head>")
     assert cfg["resource"]["service.version"]
     assert not any(k.startswith(("process.", "telemetry.", "service.name")) for k in cfg["resource"])
 

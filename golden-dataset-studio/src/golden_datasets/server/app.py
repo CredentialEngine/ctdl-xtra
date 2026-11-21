@@ -11,7 +11,7 @@ from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.gzip import GZipMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, HTMLResponse
 
 from .. import telemetry
 from . import auth
@@ -45,11 +45,6 @@ def create_app(root: str, azure_root: str | None = None, crawls_root: str | None
     def health() -> dict:
         return {"ok": True, "root": app.state.studio.root.uri}
 
-    @app.get("/api/telemetry")
-    def telemetry_config() -> dict:
-        """Where the web app sends its spans; {"browser": null} (the default) means it loads no telemetry code."""
-        return {"browser": telemetry.browser_config()}
-
     for name in ROUTERS:
         try:
             module = importlib.import_module(name)
@@ -64,9 +59,10 @@ def create_app(root: str, azure_root: str | None = None, crawls_root: str | None
         @app.get("/{path:path}", include_in_schema=False)
         def web(path: str):
             target = WEB_DIST / path
-            if path and target.is_file():
+            if path and target.is_file() and target.name != "index.html":
                 return FileResponse(target)
-            return FileResponse(WEB_DIST / "index.html")
+            page = telemetry.browser_page(WEB_DIST / "index.html")  # the app's page, plus its telemetry config if on
+            return FileResponse(WEB_DIST / "index.html") if page is None else HTMLResponse(page)
 
     return app
 

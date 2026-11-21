@@ -20,8 +20,9 @@ Following Honeycomb's advice (wide events, few spans), the useful numbers go on 
 Everything that says where the Studio runs (`service.namespace`, `deployment.*`, `vcs.*`, `cicd.*`, `k8s.*`) comes
 from outside the code: `OTEL_RESOURCE_ATTRIBUTES` set at build or deploy time, and the collector's processors.
 
-`browser_config()` is what the web app needs to send its own spans (`GET /api/telemetry`): None when the server has
-no `GOLDEN_DATASETS_OTEL_BROWSER_ENDPOINT`, and the web app then loads no telemetry code at all.
+`browser_config()` is what the web app needs to send its own spans: None when the server has no
+`GOLDEN_DATASETS_OTEL_BROWSER_ENDPOINT`. `browser_page()` puts it in the app's index.html as an inline JSON script, so the
+web app knows before its first request; off, index.html is served unchanged and the web app loads no telemetry code.
 """
 
 from __future__ import annotations
@@ -53,9 +54,8 @@ QUERY_PARAMS = {"ext": "ce.extraction.id", "rule": "ce.rule.id", "offset": "ce.q
 #: Requests made many times per page view, marked `ce.request.type` so a collector can drop the fast, successful ones:
 #: `poll`, the web app's timers (live AI runs, every 3 s), and `asset`, a saved page's CSS, fonts and images.
 POLL_ROUTES = ("/agent-runs/current", "/agent-runs/queue")
-#: Not traced: health checks, the web app's telemetry config, and the built web app's files (regexes, searched in the
-#: full URL)
-EXCLUDED_URLS = r"/api/health$,/api/telemetry$,//[^/]+/(assets|logos)/,//[^/]+/[^/]+\.(ico|svg|png|js|css|txt)$"
+#: Not traced: health checks and the built web app's files (regexes, searched in the full URL)
+EXCLUDED_URLS = r"/api/health$,//[^/]+/(assets|logos)/,//[^/]+/[^/]+\.(ico|svg|png|js|css|txt)$"
 MAX_VALUE = 256  # characters kept of a string attribute that comes from a request
 
 _enabled = False
@@ -132,7 +132,7 @@ def install(app, exporter=None) -> bool:
 
 
 def browser_config() -> dict | None:
-    """What the web app needs to send spans (GET /api/telemetry), or None: no endpoint, no telemetry in the browser.
+    """What the web app needs to send spans, or None: no endpoint, no telemetry in the browser.
     `resource` is this server's deployment identity, so browser spans say which build served them."""
     endpoint = os.environ.get(ENV_BROWSER_ENDPOINT)
     if not (_enabled and endpoint):
@@ -147,6 +147,21 @@ def browser_config() -> dict | None:
     except ValueError:
         sample = 1
     return {"endpoint": endpoint, "sample_rate": sample, "resource": resource}
+
+
+def browser_page(index_html) -> str | None:
+    """The web app's index.html with `browser_config()` inlined (`<script id="otel-config" type="application/json">`),
+    or None when browser telemetry is off: then the file is served as it is."""
+    cfg = browser_config()
+    if cfg is None:
+        return None
+    import json
+    from pathlib import Path
+
+    html = Path(index_html).read_text(encoding="utf-8")
+    data = json.dumps(cfg).replace("<", "\\u003c")  # nothing in it can close the script element
+    tag = f'<script id="otel-config" type="application/json">{data}</script>'
+    return html.replace("</head>", tag + "</head>", 1)
 
 
 # -- helpers for app code (no-ops when telemetry is off) --------------------------------------------------------------
