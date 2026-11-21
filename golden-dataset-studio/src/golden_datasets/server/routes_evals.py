@@ -20,7 +20,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Body, HTTPException, Request
 
-from .. import scores
+from .. import scores, telemetry
 from ..catalogs import CATALOGS
 from ..errors import UserError
 from ..review import human_reviewed_counts
@@ -61,6 +61,8 @@ def extract_outputs(request: Request, catalog: str) -> dict:
     by_output: dict[str, list[dict]] = {}
     for doc in scores.all_scores(ctx):
         by_output.setdefault(doc["output"]["id"], []).append(_brief(doc))
+    telemetry.set({"ce.evals.outputs": len(scores.outputs(ctx)), "ce.evals.scores": sum(map(len, by_output.values())),
+                   "ce.error.detail": error})
     return {"outputs": [{**o, "scores": by_output.get(o["id"], [])} for o in reversed(scores.outputs(ctx))],
             "latest_golden": scores.latest_golden(ctx), "goldens": scores.goldens(ctx), "error": error,
             "running": jobs(request).busy(ctx.catalog)}

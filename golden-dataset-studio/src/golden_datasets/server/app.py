@@ -13,6 +13,7 @@ from fastapi import FastAPI
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import FileResponse
 
+from .. import telemetry
 from . import auth
 from .jobs import ScoreJobs
 from .state import Studio
@@ -44,6 +45,11 @@ def create_app(root: str, azure_root: str | None = None, crawls_root: str | None
     def health() -> dict:
         return {"ok": True, "root": app.state.studio.root.uri}
 
+    @app.get("/api/telemetry")
+    def telemetry_config() -> dict:
+        """Where the web app sends its spans; {"browser": null} (the default) means it loads no telemetry code."""
+        return {"browser": telemetry.browser_config()}
+
     for name in ROUTERS:
         try:
             module = importlib.import_module(name)
@@ -52,6 +58,7 @@ def create_app(root: str, azure_root: str | None = None, crawls_root: str | None
                 raise
             continue
         app.include_router(module.router)
+    telemetry.install(app)  # traces, only when OTEL_EXPORTER_OTLP_*ENDPOINT is set (telemetry.py)
 
     if WEB_DIST.exists():
         @app.get("/{path:path}", include_in_schema=False)

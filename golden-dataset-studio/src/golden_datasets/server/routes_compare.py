@@ -8,7 +8,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, HTTPException, Query, Request
 
-from .. import facets, scorecard
+from .. import facets, scorecard, telemetry
 from ..review import LOADER, norm
 from .routes_review import rule_title
 from .state import not_found, studio
@@ -69,6 +69,8 @@ def compare(request: Request, catalog: str, a: int | None = None, b: int | None 
                                         snap_a, snap_b)
             selected = [st.cache[one]]
     totals = {k: sum(c["annotated"][k] for c in selected) for k in TOTAL_KEYS}
+    telemetry.set({"ce.compare.changed_rules": len(cards), "ce.compare.rules_shown": len(selected),
+                   "ce.compare.records_changed": sum(scorecard.records_changed(c) for c in selected)})
     return {**head,
             "changed_rules": [{"rule_id": c["rule_id"], "title": c["title"], "subtitle": c["subtitle"],
                                "kind": c["kind"], "ctdl_property": c["ctdl_property"],
@@ -160,6 +162,7 @@ def compare_records(request: Request, catalog: str, a: int, b: int, rule: str | 
                                        None if cross is None else [c for c in cross if c], seed)
     page = [scorecard._brief(x, y) | {"rule_id": rid, "tags": facets.tags(cached["dims"], k, sample["tag_dims"])}
             for k, rid, x, y in (by_key[k] for k in keys[offset:offset + limit])]
+    telemetry.set({"ce.compare.records_total": len(keys), "ce.rows.returned": len(page)})
     return {"total": len(keys), "all": len(by_key), "offset": offset, "limit": limit, "records": page,
             "sample": sample, "elapsed_ms": round(1000 * (time.perf_counter() - t0), 1)}
 

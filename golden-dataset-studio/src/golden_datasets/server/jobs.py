@@ -15,7 +15,7 @@ import os
 import threading
 import traceback
 
-from .. import layout, scores
+from .. import layout, scores, telemetry
 from ..context import Ctx
 from ..errors import UserError
 
@@ -48,6 +48,7 @@ def finish_in_process(ctx: Ctx, doc: dict, p) -> None:
               p.pair))
     proc.start()
     proc.join()
+    telemetry.set({"process.exit.code": proc.exitcode})
     if proc.exitcode != 0:
         try:
             now = ctx.root.read_json(f"{layout.score_dir(ctx.catalog, ctx.crawl, doc['id'])}/score.json")
@@ -87,12 +88,19 @@ class ScoreJobs:
             self._busy.pop(ctx.catalog, None)
             raise
 
+        carried = telemetry.carry()  # the score's trace links to the request (or loop pass) that started it
+        telemetry.set({"ce.score.id": doc["id"], "ce.score.reason": reason})
+
         def run() -> None:
+            attrs = {"ce.catalog.folder": ctx.catalog, "ce.crawl.id": ctx.crawl, "ce.score.id": doc["id"],
+                     "ce.score.reason": reason, "ce.score.by": by, "ce.score.process": in_process()}
             try:
-                if in_process():
-                    finish_in_process(ctx, doc, p)
-                else:
-                    scores.finish(ctx, doc, p)
+                with telemetry.job("score.run", attrs, carried=carried):
+                    if in_process():
+                        finish_in_process(ctx, doc, p)
+                    else:
+                        scores.finish(ctx, doc, p)
+                    telemetry.set({"ce.score.status": doc.get("status"), "ce.error.detail": doc.get("error")})
             finally:
                 self._busy.pop(ctx.catalog, None)
 

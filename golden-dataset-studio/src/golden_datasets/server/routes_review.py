@@ -13,7 +13,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Body, HTTPException, Query, Request
 
-from .. import facets, golden, layout, model, profiles_rule, properties
+from .. import facets, golden, layout, model, profiles_rule, properties, telemetry
 from ..catalogs import CATALOGS, info
 from ..errors import UserError
 from ..log import FULL_NAMES, new_id, validate
@@ -76,7 +76,9 @@ def _review(request: Request, catalog: str, ext: str | None = None) -> Review:
         raise not_found(str(exc)) from None
     if not ext:
         raise not_found(f"{catalog}: no extraction yet")
-    return LOADER.review(ctx, ext)
+    rv = LOADER.review(ctx, ext)
+    telemetry.set({"ce.extraction.id": ext, "ce.ruleset.version": rv.snap.ruleset_version, "ce.crawl.id": ctx.crawl})
+    return rv
 
 
 def _event_brief(e: dict | None) -> dict | None:
@@ -168,6 +170,8 @@ def catalogs(request: Request) -> list[dict]:
                         "crawl": job["crawl"], "ruleset_version": None, "rules_total": 0, "rules_approved": 0,
                         "status": "failed" if job["step"] == "failed" else "adding",
                         "adding": {k: job[k] for k in ("step", "done", "total", "error")}})
+    telemetry.set({"ce.catalogs.count": len(out), "ce.catalogs.ready": sum(c["status"] == "ready" for c in out),
+                   "ce.catalogs.adding": len(st.adding)})
     return out
 
 
@@ -372,6 +376,7 @@ def rules(request: Request, catalog: str, ext: str | None = None) -> dict:
         items = [_rule_summary(rv, rid) for rid in by_group[gid]]
         groups.append({"id": gid, "kind": "property", "label": label, "rules": items, "collapsed": collapsed,
                        "approved": sum(1 for i in items if i["status"] == "approved")})
+    telemetry.set({"ce.rules.groups": len(groups), "ce.rules.count": len(snap.rules)})
     return {"extraction": snap.ext, "ruleset_version": snap.ruleset_version, "groups": groups}
 
 
@@ -475,6 +480,9 @@ the versions: "Annotated in"), `nobody` or `waiting` (engineer-checked); `verdic
     missing = [_event_brief(e) | {"page_stem": e["target"].get("page_stem")} for e in rv.missing_events(rule_id)]
     sizes = Counter(group.values())
     spread = {"by": spread_by, "groups": [{"label": g, "rows": sizes[g]} for g in group_order if sizes[g]]}
+    telemetry.set({"ce.rows.total": len(ordered), "ce.rows.returned": len(out), "ce.rows.missing": len(missing),
+                   "ce.rows.order": order, "ce.rows.strata_filters": len(f or []),
+                   "ce.rows.annotated_by": by, "ce.rows.verdict_filter": verdict, "ce.rows.focus_index": focus_index})
     return {"rule_id": rule_id, "extraction": snap.ext, "total": len(ordered), "offset": offset, "rows": out,
             "spread": spread, "sample": sample if offset == 0 else None,
             "missing": missing, "focus_index": focus_index, "elapsed_ms": round(1000 * (time.perf_counter() - t0), 1)}
@@ -746,6 +754,9 @@ def add_annotation(request: Request, catalog: str, event: Annotated[dict, Body()
         validate(full)
     except ValueError as exc:
         raise HTTPException(400, str(exc)) from None
+    telemetry.set({"ce.annotation.type": full["type"], "ce.annotation.verdict": full.get("verdict"),
+                   "ce.annotation.target_kind": kind, "ce.annotation.author_role": full.get("author_role"),
+                   "ce.rule.id": rid, "ce.course.key": t.get("course_key"), "ce.page.stem": t.get("page_stem")})
     log = LOADER.log(ctx)
     log.append(full)
     log.refresh()
@@ -753,8 +764,10 @@ def add_annotation(request: Request, catalog: str, event: Annotated[dict, Body()
     published = None
     if full["type"] == "verdict" and kind == "match":
         try:  # the verdict is saved either way; say if its page's golden file couldn't be rewritten
-            published = golden.publish_page(ctx, t["page_stem"], f"{full['author']} marked {rid} {full['verdict']}",
-                                            f"{full['author']} via the Studio UI", create=role == "sme")
+            with telemetry.span("golden.publish_page", {"ce.page.stem": t["page_stem"]}):
+                published = golden.publish_page(ctx, t["page_stem"], f"{full['author']} marked {rid} "
+                                                f"{full['verdict']}", f"{full['author']} via the Studio UI",
+                                                create=role == "sme")
         except (OSError, UserError) as exc:
             published = {"error": str(exc)}
     score = None
@@ -764,7 +777,9 @@ def add_annotation(request: Request, catalog: str, event: Annotated[dict, Body()
             published = {"written": False, "column": None, "property": what["property"]}
         elif what:
             try:
-                doc = golden.publish_approved(ctx, rid, f"{full['author']} via the Studio UI")
+                with telemetry.span("golden.publish", {"ce.golden.reason": "approve", "ce.rule.id": rid}):
+                    doc = golden.publish_approved(ctx, rid, f"{full['author']} via the Studio UI")
+                    telemetry.set({"ce.golden.publication": doc["publication"], "ce.golden.files": doc["pages"]})
                 published = {"written": True, "publication": doc["publication"], "created": doc["created"],
                              "column": what["column"], "columns": golden.columns_of(doc["properties"]),
                              "files": doc["pages"]}
@@ -774,7 +789,8 @@ def add_annotation(request: Request, catalog: str, event: Annotated[dict, Body()
                 published = {"error": str(exc)}
     if full["type"] == "reset":  # the column leaves the silver dataset, the cleared values the golden one (§4.5)
         try:
-            doc = golden.publish_reset(ctx, rid, f"{full['author']} via the Studio UI", full["note"])
+            with telemetry.span("golden.publish", {"ce.golden.reason": "reset", "ce.rule.id": rid}):
+                doc = golden.publish_reset(ctx, rid, f"{full['author']} via the Studio UI", full["note"])
             if doc:
                 published = {"written": True, "publication": doc["publication"],
                              "columns": golden.columns_of(doc["properties"]), "files": doc["pages"]}
@@ -782,6 +798,10 @@ def add_annotation(request: Request, catalog: str, event: Annotated[dict, Body()
                 score = {k: job[k] for k in ("id", "status")} | {"golden": job["golden"]["id"]} if job else None
         except (OSError, UserError) as exc:
             published = {"error": str(exc)}
+    telemetry.set({"ce.annotation.id": full.get("annotation_id"),
+                   "ce.golden.published": bool(published and published.get("written")),
+                   "ce.golden.publication": (published or {}).get("publication"),
+                   "ce.golden.publish_error": (published or {}).get("error"), "ce.score.id": (score or {}).get("id")})
     return {"event": full, "rule": _rule_summary(rv2, rid) if rid else None, "published": published,
             "score": score, "elapsed_ms": round(1000 * (time.perf_counter() - t0), 1)}
 

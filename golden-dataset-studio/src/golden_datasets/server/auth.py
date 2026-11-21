@@ -27,7 +27,7 @@ ENV_HASH = "GOLDEN_DATASETS_PASSWORD_HASH"
 COOKIE = "studio_session"
 MAX_AGE = 30 * 24 * 3600
 N, R, P = 2**14, 8, 1
-OPEN = {"/api/health", "/api/session", "/api/login", "/api/logout"}
+OPEN = {"/api/health", "/api/session", "/api/login", "/api/logout", "/api/telemetry"}
 
 router = APIRouter(prefix="/api")
 

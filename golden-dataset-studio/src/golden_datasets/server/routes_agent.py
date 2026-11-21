@@ -14,6 +14,7 @@ from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
+from .. import telemetry
 from ..agent_runs import AGENT_NAME, LIVE, Queue, RunConflict, iso, now, parse
 from ..errors import ConflictError, UserError
 from .state import Studio, not_found, studio
@@ -129,6 +130,8 @@ def _rules_with_feedback(rv, goals: dict) -> dict[str, dict]:
 @router.post("/catalogs/{catalog}/agent-runs", status_code=201)
 def start(request: Request, catalog: str, body: StartBody):
     st = studio(request)
+    telemetry.set({"gen_ai.operation.name": "invoke_agent", "gen_ai.agent.name": st.k2.agent if st.k2 else None,
+                   "ce.agent_run.scope": body.scope.kind, "ce.agent_run.rules": len(body.scope.rules or [])})
     if st.k2 is None:
         return JSONResponse({"detail": f"runs are off: {st.agent_off}", "fallback": "prompt",
                              "reason": st.agent_off}, status_code=503)
@@ -177,6 +180,8 @@ def start(request: Request, catalog: str, body: StartBody):
     v = st.queue.view()
     q = _queue_of(v, run)
     free = len(v["working"]) < v["cap"] and q["place"] == 1
+    telemetry.set({"ce.agent_run.id": run.get("run_id"), "ce.agent_run.queue_place": q["place"],
+                   "ce.agent_run.working": len(v["working"]), "ce.agent_run.cap": v["cap"]})
     return {"run": run, "queue": {"place": q["place"], "start_in_min": 0 if free else q["start_in_min"]}}
 
 

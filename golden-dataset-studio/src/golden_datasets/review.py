@@ -28,10 +28,11 @@ from __future__ import annotations
 import hashlib
 import re
 import threading
+import time
 from collections import Counter, defaultdict
 from dataclasses import dataclass, field
 
-from . import facets, layout, model, profiles_rule, strata
+from . import facets, layout, model, profiles_rule, strata, telemetry
 from .context import Ctx
 from .log import FULL_NAMES, AnnotationLog
 from .profiles import role_of, roles
@@ -921,20 +922,29 @@ class Loader:
         key = (ctx.root.uri, ctx.catalog, ctx.crawl, ext)
         snap = self._cached(key)
         if snap is not None:
+            telemetry.set({"ce.snapshot.cache": "hit"})
             return snap
         # One cold load at a time. Loads used to run side by side: people opening WVU together each built their own
         # ~1.3 GB copy, and cold loads of different catalogs all made room for themselves alone, so together they
         # passed the memory limit and the server was OOM-killed (2026-11-12). A request whose extraction is loading
         # waits for it and then finds it cached; cached snapshots don't wait for anything.
+        t0 = time.perf_counter()
         with self._loading:
+            waited = round((time.perf_counter() - t0) * 1000, 1)
             snap = self._cached(key)
-            if snap is not None:
+            if snap is not None:  # another request loaded it while this one waited
+                telemetry.set({"ce.snapshot.cache": "waited", "ce.snapshot.wait.duration_ms": waited})
                 return snap
             # make room first (its row counts are in extraction.json), so the old and the new aren't held at once
             incoming = self._rows(ctx.extraction_meta(ext)) or 0
             with self._lock:
+                evicted = len(self._snaps)
                 self._evict(incoming=incoming)
-            snap = Snapshot(ctx, ext)  # outside `_lock`: a cold load takes seconds, and cached reads go on meanwhile
+                evicted -= len(self._snaps)
+            telemetry.set({"ce.snapshot.cache": "miss", "ce.snapshot.wait.duration_ms": waited})
+            with telemetry.span("snapshot.load", {"ce.extraction.id": ext, "ce.catalog.folder": ctx.catalog,
+                                                  "ce.snapshot.rows": incoming, "ce.snapshot.evicted": evicted}):
+                snap = Snapshot(ctx, ext)  # outside `_lock`: a cold load takes seconds; cached reads go on meanwhile
             with self._lock:
                 self._snaps[key] = snap
                 self._snaps.move_to_end(key)
