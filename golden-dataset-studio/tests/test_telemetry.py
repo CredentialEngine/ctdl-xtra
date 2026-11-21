@@ -91,12 +91,17 @@ def test_catalog_errors_and_storage_on_the_span(traced):
     assert a["ce.stats.storage.local.stats"] >= 1  # the manifest lookup
 
 
-def test_health_is_not_traced_and_polls_are_marked(traced):
+def test_health_and_static_files_are_not_traced_and_polls_are_marked(traced):
     c, exporter = traced
-    c.get("/api/health")
+    for path in ("/api/health", "/api/telemetry", "/assets/index-abc.js", "/logos/avc.png", "/favicon.ico"):
+        c.get(path)
     assert exporter.get_finished_spans() == ()
     c.get("/api/catalogs/avc/agent-runs/current")
-    assert _server_spans(exporter)[-1].attributes["ce.request.poll"] is True
+    assert _server_spans(exporter)[-1].attributes["ce.request.type"] == "poll"
+    c.get("/api/catalogs/avc/assets/" + "a" * 64)
+    assert _server_spans(exporter)[-1].attributes["ce.request.type"] == "asset"
+    c.get("/")  # the web app's page itself is traced (its server time)
+    assert _server_spans(exporter)[-1].attributes["http.route"] == "/{path:path}"
 
 
 def test_browser_config_carries_the_deployment(traced, monkeypatch):

@@ -50,8 +50,12 @@ PATH_PARAMS = {"rule_id": "ce.rule.id", "stem": "ce.page.stem", "run_id": "ce.ag
 QUERY_PARAMS = {"ext": "ce.extraction.id", "rule": "ce.rule.id", "offset": "ce.query.offset", "limit": "ce.query.limit",
                 "q": "ce.query.q", "basis": "ce.score.basis", "tree": "ce.golden.tree", "a": "ce.compare.a",
                 "b": "ce.compare.b", "column": "ce.score.column"}
-#: Requests the web app repeats on a timer (live AI runs every 3 s). Marked so the collector can drop the fast ones.
+#: Requests made many times per page view, marked `ce.request.type` so a collector can drop the fast, successful ones:
+#: `poll`, the web app's timers (live AI runs, every 3 s), and `asset`, a saved page's CSS, fonts and images.
 POLL_ROUTES = ("/agent-runs/current", "/agent-runs/queue")
+#: Not traced: health checks, the web app's telemetry config, and the built web app's files (regexes, searched in the
+#: full URL)
+EXCLUDED_URLS = r"/api/health$,/api/telemetry$,//[^/]+/(assets|logos)/,//[^/]+/[^/]+\.(ico|svg|png|js|css|txt)$"
 MAX_VALUE = 256  # characters kept of a string attribute that comes from a request
 
 _enabled = False
@@ -122,7 +126,7 @@ def install(app, exporter=None) -> bool:
 
     app.add_middleware(WideSpanMiddleware)
     # receive/send would add two spans per request that say nothing the server span doesn't
-    FastAPIInstrumentor.instrument_app(app, excluded_urls="api/health", exclude_spans=["receive", "send"],
+    FastAPIInstrumentor.instrument_app(app, excluded_urls=EXCLUDED_URLS, exclude_spans=["receive", "send"],
                                        tracer_provider=trace.get_tracer_provider())
     return True
 
@@ -329,7 +333,9 @@ def _what(scope) -> dict:
             out[attr] = qs[k][0][:MAX_VALUE]
     path = scope.get("path", "")
     if path.endswith(POLL_ROUTES):
-        out["ce.request.poll"] = True
+        out["ce.request.type"] = "poll"
+    elif "sha256" in params:
+        out["ce.request.type"] = "asset"
     return out
 
 

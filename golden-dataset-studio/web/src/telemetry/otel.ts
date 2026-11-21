@@ -34,12 +34,12 @@ interface View {
   calls: number; errors: number; polls: number; bytes: number; apiMs: number; slowest: number; timer?: number;
 }
 
-export function init(cfg: BrowserConfig): Impl {
+export async function init(cfg: BrowserConfig): Promise<Impl> {
   const sessions = createSessionManager({
     sessionIdGenerator: createDefaultSessionIdGenerator(), sessionStore: createLocalStorageSessionStore(),
     inactivityTimeout: 30 * 60, maxDuration: 12 * 3600,
   });
-  void sessions.start();
+  await sessions.start(); // before any span: until then it hands out a temporary id, not the stored session
   let page: PageInfo | null = null;
   let entryPage: string | null = null;
   let view: View | null = null;

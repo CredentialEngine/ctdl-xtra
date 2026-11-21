@@ -18,7 +18,7 @@ export async function startTelemetry(): Promise<void> {
     const cfg = r.ok ? ((await r.json()) as { browser?: BrowserConfig | null }).browser : null;
     if (!cfg) return;
     const m = await import("./otel");
-    impl = m.init(cfg);
+    impl = await m.init(cfg);
     if (pending) impl.pageView(pending);
   } catch {
     // no telemetry is not an error the reader should see
