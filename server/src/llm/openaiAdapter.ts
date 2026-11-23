@@ -8,6 +8,10 @@ import {
 import { Provider, ProviderModel } from "../../../common/types";
 import getLogger from "../logging";
 import { getOpenAi } from "../openai";
+import {
+  normalizeStrictJsonSchema,
+  toolParametersJsonSchema,
+} from "./jsonSchema";
 import { stripsImages, supportsTopP } from "./models";
 import {
   LlmContentPart,
@@ -124,11 +128,10 @@ export const openaiAdapter: LlmProviderAdapter = {
           type: "function",
           function: {
             name: options.toolName,
-            parameters: {
-              type: "object",
-              properties: options.parameters,
-              required: options.requiredParameters || undefined,
-            },
+            parameters: toolParametersJsonSchema(
+              options.parameters,
+              options.requiredParameters as string[] | undefined
+            ),
           },
         },
       ],
@@ -185,7 +188,7 @@ export const openaiAdapter: LlmProviderAdapter = {
         json_schema: {
           strict: true,
           name: "schema",
-          schema: options.schema,
+          schema: normalizeStrictJsonSchema(options.schema),
         },
       } as any,
     };
