@@ -551,3 +551,15 @@ Add one line per phase as it lands: the phase, the commit, the checks run, and a
     - A few WVU pages hold two degrees ("Computer Science, M.S.C.S., Ph.D."), or a department heading names a degree
       page ("Department of Mining Engineering"). One record per tab could split the first kind later.
     - No golden values have been labelled yet.
+- **Phase 8** (the pull request).
+  - **Asks:** `asks-jared-jeanne.md` gains ask 10, the same degree on two campuses (working answer: one program, as
+    today).
+  - **Images:** 26 mockup | built side-by-sides and 6 doc | Studio pairs, composed with Pillow from `screens/`.
+    - Records was retaken on the real Phase 7 rules. The Phase 4 shot had caught the page pane still loading.
+    - VectorCraft added three callouts: Score now is out of scope, Records opens on Description, and the score
+      history is illustrative.
+  - **Video:** `walkthrough-script.md`, a 2-minute walkthrough covering the plan's seven workflows.
+    - Playwright recorded the app on a scratch copy of `root-migrated` with Phase 6's findings.
+    - The voice is macOS `say`, and ffmpeg muxed it to H.264 and AAC.
+  - **Assets:** the images and the video are on the orphan branch `pr-assets/studio-learning-program`.
+  - **The pull request:** `studio-learning-program` is pushed, and a draft PR is open against `golden-dataset-studio`.

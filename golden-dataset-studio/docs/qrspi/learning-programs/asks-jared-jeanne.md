@@ -73,4 +73,14 @@ Each ask stands alone. The Studio goes ahead with the working answer until they 
 - **Also:** could the sheet get a Required column, so the Studio reads it rather than assuming?
 - **Working answer:** the same, and yes to a column.
 
+**10. The same degree on two campuses, with no printed code.**
+- **The example:** WVU's "Mechanical Engineering, B.S.M.E." has one page at Morgantown and one at WVU Tech. Neither
+  prints a major code.
+- **Today:** both get the generated identifier `program-mechanical-engineering-b.s.m.e.`, so they merge into one record
+  with two pages. About ten WVU degrees do this. Nursing's printed code 8649 already merges its two campuses the same way.
+- **Option 1:** one program with two Available At values, one per campus (today).
+- **Option 2:** two programs, each with a campus suffix on its generated identifier, such as
+  `program-mechanical-engineering-b.s.m.e.-wvu-tech`.
+- **Working answer:** option 1, as today.
+
 ---
