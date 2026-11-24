@@ -625,6 +625,9 @@ def course(request: Request, catalog: str, course_key: str, ext: str | None = No
                   key=lambda o: (o["locator_rule_id"] != "locator-course-page", o["page_stem"], o["locator_index"]))
     if not occs:
         raise not_found(course_key)
+    # Only the rows on this course's pages: building each rule's whole rows and states (WVU: ~22k per rule, ~40
+    # rules, an 8-rule cache) took ~13 s per record, warm, and pushed the Rules tab's rules out of the cache.
+    stems = {o["page_stem"] for o in occs}
     states_cache: dict = {}
     annotations: dict = {}
     out = []
@@ -635,8 +638,9 @@ def course(request: Request, catalog: str, course_key: str, ext: str | None = No
                 and r["definition"].get("locator") == o["locator_rule_id"]]  # every property, with a rule or not (R1)
         for rid in sorted(rids, key=lambda x: (model.PROPERTY_ORDER.get(snap.rules[x].get("property_label"), 99), x)):
             if rid not in states_cache:
-                states_cache[rid] = rv.row_states(rid, snap.rows(rid))
-                annotations[rid] = rv.annotations(rid)
+                rows = snap.rows_on(rid, stems)
+                states_cache[rid] = rv.row_states(rid, rows, stems)
+                annotations[rid] = rv.annotations_on(rows, states_cache[rid])
             s = states_cache[rid].get(o["occurrence_key"])
             r = snap.rules[rid]
             m = ms.get(rid) or {"value": None, "status": "none", "full_css_path": None, "char_start": None,
@@ -661,6 +665,7 @@ def course(request: Request, catalog: str, course_key: str, ext: str | None = No
         out.append({"occurrence_key": o["occurrence_key"], "page_stem": o["page_stem"], "url": p["url"],
                     "page_title": p["title"], "locator_rule_id": o["locator_rule_id"],
                     "css_path": o["css_path"], "properties": props})
+    telemetry.set({"ce.course.pages": len(stems), "ce.course.occurrences": len(occs)})
     return {"course_key": course_key, "extraction": snap.ext, "occurrences": out}
 
 

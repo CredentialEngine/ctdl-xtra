@@ -79,3 +79,43 @@ def _wait_long(c, sid: str) -> dict:
             return doc
         time.sleep(0.1)
     raise AssertionError(f"{sid} still running")
+
+
+def test_a_course_is_read_from_its_own_pages_with_the_whole_rules_states(studio):  # noqa: F811
+    """Opening a record builds each rule's rows on that course's pages only (WVU: ~22k rows per rule, ~40 rules, took
+    ~13 s per record), and shows what the whole rule's rows say: state, verdict, comments, annotators."""
+    c, ctx, _ = studio
+    rows = _rows(c, "course-name")
+    _mark(c, ERIC, "course-name", rows["page-0"], "correct")
+    _mark(c, JARED, "course-name", rows["page-1"], "wrong")
+    _mark(c, JARED, "course-code", _rows(c, "course-code")["page-1"], "correct")
+    c.post(f"{B}/annotations", json={"type": "comment", "author": ERIC, "text": "check this",
+                                     "target": {"kind": "match", "rule_id": "course-code",
+                                                "occurrence_key": rows["page-2"]["key"]}})
+    courses = [x["course_key"] for x in c.get(f"{B}/courses").json()]
+    assert len(courses) == 3
+    rv = LOADER.review(Ctx(ctx.root, CAT))
+    for ck in courses:
+        rv.snap._rows.clear()
+        rv._states.clear()
+        rv._annotations.clear()
+        got = c.get(f"{B}/courses/{ck}").json()
+        assert LOADER.review(Ctx(ctx.root, CAT)) is rv  # the same Review served the request
+        assert not rv.snap._rows and not rv._states and not rv._annotations  # no rule's whole rows were built
+        for occ in got["occurrences"]:
+            for p in occ["properties"]:
+                rid, key = p["rule_id"], occ["occurrence_key"]
+                whole = rv.row_states(rid, rv.snap.rows(rid)).get(key)
+                assert p["state"] == (whole.state if whole else None)
+                assert (p["verdict"] or {}).get("annotation_id") == ((whole.verdict or {}).get("annotation_id")
+                                                                     if whole else None)
+                assert (p["human_reviewed"], p["engineer_checked"]) == (
+                    (whole.human is not None, whole.engineer_checked) if whole else (False, False))
+                assert [x["annotation_id"] for x in p["comments"]] == (
+                    [x["annotation_id"] for x in whole.comments] if whole else [])
+                assert p["annotators"] == (rv.annotations(rid).get(key) or {"people": {}})["people"]
+    marked = [p for ck in courses for o in c.get(f"{B}/courses/{ck}").json()["occurrences"] for p in o["properties"]
+              if p["state"] or p["comments"]]
+    assert {(p["rule_id"], p["state"], len(p["comments"])) for p in marked} == {
+        ("course-name", "correct", 0), ("course-name", "wrong", 0), ("course-code", "correct", 0),
+        ("course-code", None, 1)}

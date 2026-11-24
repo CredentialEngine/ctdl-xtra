@@ -772,27 +772,28 @@ class Review:
         cached = self._annotations.get(rule_id)
         if cached is None:
             rows = self.snap.rows(rule_id)
-            states = self.row_states(rule_id, rows)
-            out = {}
-            for r in rows:
-                st = states[r["key"]]
-                people: dict[str, dict] = {}
-                for e in st.events:  # oldest first: the latest verdict wins
-                    if e["author"].startswith("golden-datasets"):
-                        continue
-                    p = people.setdefault(FULL_NAMES.get(e["author"], e["author"]), {"verdict": None, "note": False})
-                    if e["type"] == "verdict" and e["verdict"] != "question":
-                        p["verdict"] = VERDICT_KIND.get(e["verdict"])
-                    else:
-                        p["note"] = True
-                    p["at"] = e["at"]
-                kinds = {VERDICT_KIND[st.state]} if st.state in VERDICT_KIND else set()
-                out[r["key"]] = {
-                    "people": {n: {"kinds": [k for k in (p["verdict"], "note" if p["note"] else None) if k],
-                                   "at": p["at"], "role": self.roles.get(n) or "engineer"} for n, p in people.items()},
-                    "kinds": sorted(kinds | ({"note"} if st.comments else set())), "waiting": st.engineer_checked}
-            self._annotations[rule_id] = cached = out
+            self._annotations[rule_id] = cached = self.annotations_on(rows, self.row_states(rule_id, rows))
         return cached
+
+    def annotations_on(self, rows: list[dict], states: dict[str, RowState]) -> dict[str, dict]:
+        """`annotations` for these rows alone (e.g. one course's, from `Snapshot.rows_on`), not cached."""
+        return {r["key"]: self._annotation(states[r["key"]]) for r in rows}
+
+    def _annotation(self, st: RowState) -> dict:
+        people: dict[str, dict] = {}
+        for e in st.events:  # oldest first: the latest verdict wins
+            if e["author"].startswith("golden-datasets"):
+                continue
+            p = people.setdefault(FULL_NAMES.get(e["author"], e["author"]), {"verdict": None, "note": False})
+            if e["type"] == "verdict" and e["verdict"] != "question":
+                p["verdict"] = VERDICT_KIND.get(e["verdict"])
+            else:
+                p["note"] = True
+            p["at"] = e["at"]
+        kinds = {VERDICT_KIND[st.state]} if st.state in VERDICT_KIND else set()
+        return {"people": {n: {"kinds": [k for k in (p["verdict"], "note" if p["note"] else None) if k],
+                               "at": p["at"], "role": self.roles.get(n) or "engineer"} for n, p in people.items()},
+                "kinds": sorted(kinds | ({"note"} if st.comments else set())), "waiting": st.engineer_checked}
 
     def _people_entry(self, rule_id: str) -> dict:
         """PEOPLE_CACHE's entry for this rule: its counts for the dropdown, filled in on first use."""
