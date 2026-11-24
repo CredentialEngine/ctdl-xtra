@@ -445,7 +445,7 @@ def import_v2(ctx: Ctx, v2_root: str | None, session: str | None, log=print) -> 
     if ext is None:
         log("  extracting rs-0001 …")
         ext = extract(ctx, 1, created_by="golden-datasets import-v2")["extraction"]
-    alog = AnnotationLog(ctx.root, layout.annotations(ctx.catalog))
+    alog = AnnotationLog(ctx.root, layout.annotations(ctx.catalog, ctx.cls))
     have = {e["annotation_id"] for e in alog.events()}
     events, stats = import_annotations(ctx, v2root, session, ext)
     new = [e for e in events if e["annotation_id"] not in have]

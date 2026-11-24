@@ -55,7 +55,7 @@ def test_raw_html_detector():
 @pytest.fixture(scope="module")
 def ctx(tmp_path_factory, avc_v1_root):
     dst = tmp_path_factory.mktemp("w6p") / "root"
-    assert main(["sync", "--from", str(avc_v1_root), "--to", str(dst), "-c", "avc", "--pages", "link"]) == 0
+    assert main(["sync", "--from", str(avc_v1_root), "--to", str(dst), "-c", "avc"]) == 0
     return Ctx(str(dst), "avc")
 
 

@@ -97,7 +97,7 @@ def client(tmp_path_factory):
     from golden_datasets.sync import sync_catalog
 
     root = LocalRoot(tmp_path_factory.mktemp("w4") / "root")
-    sync_catalog(LocalRoot(DEMO), root, AVC, None, "link", False, False)
+    sync_catalog(LocalRoot(DEMO), root, AVC, None, False)
     c = TestClient(create_app(root.uri))
     c.root_path_ = Path(root.uri.removeprefix("file://"))
     return c

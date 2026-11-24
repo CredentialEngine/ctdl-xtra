@@ -15,7 +15,6 @@ from golden_datasets import check, engine, extract, rulesets
 from golden_datasets.context import Ctx
 from golden_datasets.query import connect
 from golden_datasets.storage import LocalRoot
-from golden_datasets.sync import sync_catalog
 
 MIRROR = Path.home() / "review-ui-v3-data" / "xtra-cli-output"
 AVC = "avc-elumenapp-com-catalog-2026-27-welcome"
@@ -28,8 +27,8 @@ def ctx(tmp_path_factory):
     if not (MIRROR / AVC).exists():
         pytest.skip("local mirror not available")
     root = LocalRoot(tmp_path_factory.mktemp("avc") / "root")
-    sync_catalog(LocalRoot(MIRROR), root, AVC, None, "link", False, False)
     c = Ctx(root, "avc")
+    c.crawl_root = LocalRoot(MIRROR)  # the crawl is read where xtra-cli wrote it (approved item 21)
     extract.init(c)
     out = import_v2(c, str(MIRROR), None, log=lambda *a: None)
     c.import_result = out

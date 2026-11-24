@@ -637,7 +637,7 @@ class Review:
     def rule_status(self, rule_id: str, states: dict[str, RowState] | None = None) -> dict:
         """Cached per (extraction, parent, the rule's own live events) across Reviews: a verdict recomputes only
         its own rule's status (property-rules spec §4.14)."""
-        key = (self.snap.ctx.root.uri, self.snap.ctx.catalog, self.snap.ext,
+        key = (self.snap.ctx.root.uri, self.snap.ctx.catalog, self.snap.ctx.cls, self.snap.ext,
                self.parent.ext if self.parent is not None else None, rule_id, tuple(self._by_rule.get(rule_id, ())))
         got = STATUS_CACHE.get(key)
         if got is None:
@@ -776,7 +776,7 @@ class Review:
 
     def _people_entry(self, rule_id: str) -> dict:
         """PEOPLE_CACHE's entry for this rule: its counts for the dropdown, filled in on first use."""
-        key = (self.snap.ctx.root.uri, self.snap.ctx.catalog, self.snap.ext,
+        key = (self.snap.ctx.root.uri, self.snap.ctx.catalog, self.snap.ctx.cls, self.snap.ext,
                self.parent.ext if self.parent is not None else None, rule_id, tuple(self._by_rule.get(rule_id, ())))
         got = PEOPLE_CACHE.get(key)
         if got is None:
@@ -925,7 +925,7 @@ class Loader:
             return snap
 
     def snapshot(self, ctx: Ctx, ext: str) -> Snapshot:
-        key = (ctx.root.uri, ctx.catalog, ctx.crawl, ext)
+        key = (ctx.root.uri, ctx.catalog, ctx.crawl, ext, ctx.cls)
         snap = self._cached(key)
         if snap is not None:
             return snap
@@ -968,13 +968,13 @@ class Loader:
     def cached_extractions(self) -> list[tuple]:
         """(catalog, crawl, extraction) of the snapshots kept now, least recently used first."""
         with self._lock:
-            return [k[1:] for k in self._snaps]
+            return [k[1:4] for k in self._snaps]
 
     def log(self, ctx: Ctx) -> AnnotationLog:
-        key = (ctx.root.uri, ctx.catalog)
+        key = (ctx.root.uri, ctx.catalog, ctx.cls)
         with self._lock:
             if key not in self._logs:
-                self._logs[key] = AnnotationLog(ctx.root, layout.annotations(ctx.catalog))
+                self._logs[key] = AnnotationLog(ctx.root, layout.annotations(ctx.catalog, ctx.cls))
             return self._logs[key]
 
     def review(self, ctx: Ctx, ext: str | None = None, with_parent: bool = True) -> Review:
@@ -986,7 +986,7 @@ class Loader:
             parent = self.snapshot(ctx, snap.meta["parent_extraction"])
         log = self.log(ctx)
         events = log.events()
-        key = (ctx.root.uri, ctx.catalog, ctx.crawl, ext, with_parent, log.offset)
+        key = (ctx.root.uri, ctx.catalog, ctx.cls, ctx.crawl, ext, with_parent, log.offset)
         with self._lock:
             rv = self._reviews.get(key)
             if rv is not None and rv.snap is snap:
@@ -1021,7 +1021,7 @@ def human_reviewed_counts(root, catalogs: list[str], ctx_of=None) -> Counter:
     logs = []
     for catalog in catalogs:
         ctx = ctx_of(catalog) if ctx_of else Ctx(root, catalog)  # the server's contexts keep the manifest a while
-        if root.exists(layout.annotations(catalog)):  # the manifest names a log only from the next publish on
+        if root.exists(layout.annotations(catalog, ctx.cls)):  # the manifest names a log only from the next publish on
             log = LOADER.log(ctx)
             log.events()
             logs.append((catalog, log))

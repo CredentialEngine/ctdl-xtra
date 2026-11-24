@@ -171,7 +171,7 @@ def test_the_publish_lock_lets_one_publish_at_a_time(cat):
     t2.join()
     assert order == ["A in", "A out", "B in", "B out"]
     assert said and said[0].startswith("waiting for run run-A to finish publishing (0 s)")
-    assert c.root.read_json(publishing.lock_path(c.catalog))["holder"] is None
+    assert c.root.read_json(publishing.lock_path(c.catalog, "course"))["holder"] is None
     with publishing.publish_lock(c, "run-C", "C"):  # held: a short wait gives up
         with pytest.raises(publishing.LockBusy):
             with publishing.publish_lock(c, "run-D", "D", wait_s=0.1, say=lambda m: None):

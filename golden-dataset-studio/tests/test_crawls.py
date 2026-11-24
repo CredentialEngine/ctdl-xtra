@@ -99,18 +99,22 @@ def test_list_has_one_row_per_catalog_with_its_latest_crawl(roots):
     assert crawls.matches(c, "cuesta 27137") and not crawls.matches(c, "ualr")
 
 
-def test_add_copies_indexes_and_names_the_catalog(roots):
+def test_add_indexes_and_names_the_catalog_and_reads_the_crawl_in_place(roots):
     src, dst = roots
     steps = []
     out = crawls.add_catalog(dst, src, "cuesta-curriqunet-com-catalog-iq-27137", by="Eric Riddoch",
                              progress=lambda **kw: steps.append(kw["step"]), log=lambda *a, **k: None)
     assert out["pages"] == 3 and out["crawl"] == "2026-10-21T10-00-00Z"
-    assert steps[0] == "copying" and steps[-1] == "done"
+    assert steps[0] == "indexing" and steps[-1] == "done"
+    # approved item 21: the crawl stays in xtra-cli's container; the manifest names it
+    assert not dst.exists("cuesta-curriqunet-com-catalog-iq-27137/2026-10-21T10-00-00Z/crawl.json")
+    assert not dst.list("cuesta-curriqunet-com-catalog-iq-27137/2026-10-21T10-00-00Z/pages")
     cat = manifest.catalog_entry(manifest.load(dst)[0], "cuesta-curriqunet-com-catalog-iq-27137", create=False)
+    assert cat["crawls_root"] == src.uri
     assert cat["name"] == "Cuesta" and cat["added_by"] == "Eric Riddoch"
     assert cat["current_crawl"] == "2026-10-21T10-00-00Z" and cat["crawls"][0]["page_count"] == 3
     assert crawls.added_catalogs(dst) == {"cuesta-curriqunet-com-catalog-iq-27137"}
-    # again: nothing left to copy, still fine
+    # again: still fine
     crawls.add_catalog(dst, src, "cuesta-curriqunet-com-catalog-iq-27137", log=lambda *a, **k: None)
 
 
@@ -179,8 +183,9 @@ def test_first_rules_publish_ruleset_v1_and_the_card_opens(roots, tmp_path, caps
     assert main(["rule", "publish", "--class", "course", "--root", dst.uri, "--catalog", cat, str(draft), "--note", "first"]) == 0
     assert "published ruleset v1 (the first)" in capsys.readouterr().out
     entry = manifest.catalog_entry(manifest.load(dst)[0], cat, create=False)
-    assert [r["version"] for r in entry["rulesets"]] == [1] and entry["annotations"] is None
-    assert entry["crawls"][0]["extractions"][0]["ruleset_version"] == 1
+    course = entry["classes"]["course"]
+    assert [r["version"] for r in course["rulesets"]] == [1] and course["annotations"] is None
+    assert entry["crawls"][0]["classes"]["course"]["extractions"][0]["ruleset_version"] == 1
     from golden_datasets.context import Ctx
 
     rs = Ctx(dst, cat).ruleset(1)

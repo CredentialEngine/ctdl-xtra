@@ -85,7 +85,7 @@ def _cards(st, ctx, ea: str, eb: str) -> tuple:
     snap_a, snap_b = LOADER.snapshot(ctx, ea), LOADER.snapshot(ctx, eb)
     rv = LOADER.review(ctx, eb, with_parent=False)  # reads the log's new lines, so the offset below is current
     offset = LOADER.log(ctx).offset
-    key = ("compare", ctx.catalog, ea, eb, offset)
+    key = ("compare", ctx.catalog, ctx.cls, ea, eb, offset)
     if key not in st.cache:
         result = scorecard.compare(snap_a, snap_b, rv, signal_rows=SIGNAL_ROWS)
         for c in result["rules"]:
@@ -127,7 +127,7 @@ def compare_records(request: Request, catalog: str, a: int, b: int, rule: str | 
         raise not_found("that ruleset version has no extraction on this crawl")
     limit = max(1, min(limit, MAX_PAGE))
     snap_a, snap_b, rv, log_offset, cards = _cards(st, ctx, ea, eb)
-    ckey = ("compare-records", ctx.catalog, ea, eb, log_offset, rule)
+    ckey = ("compare-records", ctx.catalog, ctx.cls, ea, eb, log_offset, rule)
     if ckey not in st.cache:
         rule_ids = [c["rule_id"] for c in cards if rule is None or c["rule_id"] == rule]
         annotated = {(c["rule_id"], r["key"]) for c in cards for r in c["annotated_rows"]}

@@ -65,10 +65,14 @@ def test_a_score_has_both_results_and_one_row_per_value(scored, capsys):
     assert len(rows) == 7
     assert (rows[("rule", "page-1", "name")]["outcome"], rows[("rule", "page-1", "name")]["extracted_value"]) == ("partial", "C 11")
     assert rows[("human", "page-0", "name")]["approved_by"] == JARED
-    # the output was copied, and xtra's folder has nothing new in it
-    copy = layout.extract_output_dir(CAT, ctx.crawl, doc["output"]["id"])
-    assert ctx.root.exists(f"{copy}/records/page-0.json") and ctx.root.exists(f"{copy}/extract-report.json")
-    assert sorted(p.name for p in (tmp / "xtra-cli-output" / CAT / ctx.crawl).iterdir()) == ["crawl.json", "extract-report.json", "pages", "records"]
+    # approved item 21: the output is read where xtra wrote it (no copy), and the score is kept beside it, in
+    # xtra-cli's container, under the extract output it scored
+    assert doc["output"]["copy"] is None and not ctx.root.list(f"{CAT}/{ctx.crawl}/extract")
+    xtra = tmp / "xtra-cli-output" / CAT / ctx.crawl
+    assert sorted(p.name for p in xtra.iterdir()) == ["crawl.json", "extract", "extract-report.json", "pages", "records"]
+    kept = xtra / "extract" / doc["output"]["id"] / "scores" / "ruleset-v1" / "course" / "sc-0001"
+    assert sorted(p.name for p in kept.iterdir() if not p.name.startswith(".")) == ["score.json", "values.parquet"]
+    assert doc["path"] == f"{CAT}/{ctx.crawl}/extract/{doc['output']['id']}/scores/ruleset-v1/course/sc-0001"
     # a pair is scored once
     assert scores.score(Ctx(ctx.root, CAT), "ruleset-v1")["id"] == "sc-0001"
 
@@ -218,7 +222,7 @@ def test_the_cli_scores_the_human_reviewed_values_and_a_draft(scored, capsys):
 def test_the_pending_score_runs_when_due(scored):
     c, ctx, _ = scored
     jobs, st = c.app.state.scores, c.app.state.studio
-    path = layout.pending_score(CAT, ctx.crawl)
+    path = layout.pending_score(CAT, ctx.crawl, "course")
     ctx.root.write_json(path, {"due_at": "2999-01-01T00:00:00Z", "reason": "later"})
     jobs.tick(st)  # sees the extract output and scores it against ruleset v1; the pending score isn't due
     while jobs.busy(CAT):
@@ -290,15 +294,15 @@ def test_check_resolves_each_scores_provenance_and_reports_a_score_left_running(
 
     rows = [r for r in check.run(Ctx(ctx.root, CAT)) if r[0] in ("score", "score values", "extract output")]
     assert len(rows) == 7 and not failed(Ctx(ctx.root, CAT))
-    path = f"{layout.score_dir(CAT, ctx.crawl, doc['id'])}/score.json"
-    ctx.root.write_json(path, {**doc, "status": "running", "created_at": "2000-01-01T00:00:00Z",
+    path = f"{scores.score_path(Ctx(ctx.root, CAT), doc['id'])}/score.json"
+    scores.xtra(ctx).write_json(path, {**doc, "status": "running", "created_at": "2000-01-01T00:00:00Z",
                                "golden": {**doc["golden"], "id": "ruleset-v9"},
                                "output": {**doc["output"], "report_etag": "elsewhere"}})
-    ctx.root.write_json(layout.pending_score(CAT, ctx.crawl), {"due_at": "soon"})
+    ctx.root.write_json(layout.pending_score(CAT, ctx.crawl, "course"), {"due_at": "soon"})
     assert failed(Ctx(ctx.root, CAT)) == [
         "golden → a version, human-reviewed as of a time, or a draft extraction",
         f"none left running (> {check.STALE_RUNNING // 60} min; a server start marks it interrupted)",
-        "output → a kept extract output (same report ETag)",
+        "output → a registered extract output (same report ETag)",
         "scores/pending.json is {due_at: ISO time, reason}",
     ]
 

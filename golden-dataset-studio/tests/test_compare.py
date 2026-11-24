@@ -133,7 +133,7 @@ def client(tmp_path_factory):
     from golden_datasets.sync import sync_catalog
 
     root = tmp_path_factory.mktemp("compare") / "root"
-    sync_catalog(LocalRoot(str(DEMO)), LocalRoot(str(root)), AVC, None, "link", False, False, log=lambda *a: None)
+    sync_catalog(LocalRoot(str(DEMO)), LocalRoot(str(root)), AVC, None, False, log=lambda *a: None)
     return TestClient(create_app(str(root)))
 
 

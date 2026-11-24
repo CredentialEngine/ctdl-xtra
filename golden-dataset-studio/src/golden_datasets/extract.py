@@ -38,10 +38,10 @@ def workers() -> int:
 # init
 # =====================================================================================================
 def _page_row(ctx: Ctx, crawl: str, meta_path: str) -> dict:
-    meta = json.loads(ctx.root.read_bytes(meta_path))
+    meta = json.loads(ctx.crawl_root.read_bytes(meta_path))
     stem = meta.get("stem") or meta_path.rsplit("/", 1)[-1][: -len(".meta.json")]
     html_path = layout.page_html(ctx.catalog, crawl, stem)
-    head = ctx.root.local_path(html_path).open("rb").read(300_000)
+    head = ctx.crawl_root.local_path(html_path).open("rb").read(300_000)
     m = _TITLE.search(head)
     title = None
     if m and m.group(1).strip():
@@ -55,18 +55,18 @@ def _page_row(ctx: Ctx, crawl: str, meta_path: str) -> dict:
 
 
 def init(ctx: Ctx, crawl: str | None = None) -> dict:
-    crawl = pick_crawl(ctx.root, ctx.catalog, crawl or ctx._crawl)
+    crawl = pick_crawl(ctx.crawl_root, ctx.catalog, crawl or ctx._crawl)
     pages_path = layout.pages_parquet(ctx.catalog, crawl)
     out = {"catalog": ctx.catalog, "crawl": crawl}
     if ctx.root.exists(pages_path):
         out["pages"] = "exists"
     else:
-        metas = [p for p in ctx.root.list(layout.pages_dir(ctx.catalog, crawl)) if p.endswith(".meta.json")]
+        metas = [p for p in ctx.crawl_root.list(layout.pages_dir(ctx.catalog, crawl)) if p.endswith(".meta.json")]
         if not metas:
-            raise UserError(f"no saved pages under {ctx.root.uri}/{layout.pages_dir(ctx.catalog, crawl)}")
+            raise UserError(f"no saved pages under {ctx.crawl_root.uri}/{layout.pages_dir(ctx.catalog, crawl)}")
         with ThreadPoolExecutor(max_workers=16) as pool:
             rows = list(pool.map(lambda p: _page_row(ctx, crawl, p), metas))
-        rows = [r for r in rows if ctx.root.exists(r["html_path"])] if len(rows) < 50 else rows
+        rows = [r for r in rows if ctx.crawl_root.exists(r["html_path"])] if len(rows) < 50 else rows
         rows.sort(key=lambda r: r["page_stem"])
         ctx.write_table(pages_path, rows, model.PAGES)
         out["pages"] = len(rows)
@@ -78,6 +78,7 @@ def init(ctx: Ctx, crawl: str | None = None) -> dict:
         k.update(crawl_json=layout.crawl_json(ctx.catalog, crawl), pages_dir=layout.pages_dir(ctx.catalog, crawl),
                  pages=pages_path, page_count=n)
         cat["current_crawl"] = crawl
+        cat["crawls_root"] = ctx.crawl_root.uri
 
     manifest.update(ctx.root, change)
     out["page_count"] = n
@@ -267,7 +268,7 @@ def write_extraction(ctx: Ctx, ext: str, ruleset_version: int, parent_ext: str |
                      created_by: str) -> dict:
     files = {}
     for name in layout.EXTRACTION_TABLES:
-        info = ctx.write_table(layout.extraction_file(ctx.catalog, ctx.crawl, ext, name), result["tables"][name],
+        info = ctx.write_table(layout.extraction_file(ctx.catalog, ctx.crawl, ctx.cls, ext, name), result["tables"][name],
                                model.TABLE_SCHEMAS[name])
         files[f"{name}.parquet"] = {"rows": info["rows"], "sha256": info["sha256"]}
     meta = {"catalog": ctx.catalog, "crawl": ctx.crawl, "extraction": ext, "ruleset_version": ruleset_version,
@@ -276,12 +277,12 @@ def write_extraction(ctx: Ctx, ext: str, ruleset_version: int, parent_ext: str |
             "engine": {"name": "golden_datasets.engine", "css_path_anchor": "document root",
                        "offsets": "DOM textContent"},
             **result["meta"], "files": files}
-    ctx.root.write_json(layout.extraction_file(ctx.catalog, ctx.crawl, ext, "extraction"), meta, if_none_match=True)
+    ctx.root.write_json(layout.extraction_file(ctx.catalog, ctx.crawl, ctx.cls, ext, "extraction"), meta, if_none_match=True)
 
     def change(doc: dict) -> None:
-        k = manifest.crawl_entry(manifest.catalog_entry(doc, ctx.catalog), ctx.crawl)
+        k = manifest.crawl_class(manifest.crawl_entry(manifest.catalog_entry(doc, ctx.catalog), ctx.crawl), ctx.cls)
         manifest.add_unique(k["extractions"], {"extraction": ext, "ruleset_version": ruleset_version,
-                                               "path": layout.extraction_dir(ctx.catalog, ctx.crawl, ext),
+                                               "path": layout.extraction_dir(ctx.catalog, ctx.crawl, ctx.cls, ext),
                                                "parent_extraction": parent_ext}, key=lambda e: e["extraction"])
         manifest.catalog_entry(doc, ctx.catalog)["status"] = "ready"
 

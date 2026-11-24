@@ -48,8 +48,8 @@ def current_review(ctx: Ctx) -> Review:
 
 
 def page_ref(ctx: Ctx, stem: str) -> str:
-    """A saved page's path, resolved against $GOLDEN_DATASETS_ROOT (spec §7.5: pages by path, never raw HTML)."""
-    return f"$GOLDEN_DATASETS_ROOT/{layout.page_html(ctx.catalog, ctx.crawl, stem)}"
+    """A saved page's path in xtra-cli's container, where the crawl is (spec §7.5: pages by path, never raw HTML)."""
+    return f"{ctx.crawl_root.uri}/{layout.page_html(ctx.catalog, ctx.crawl, stem)}"
 
 
 def rule_or_error(rv: Review, rule_id: str) -> dict:
@@ -572,7 +572,7 @@ def save_last_try(ctx: Ctx, ev: dict, base: int, published: int | None) -> None:
 
     run_id = os.environ.get("GOLDEN_DATASETS_RUN")
     if run_id:
-        d = layout.agent_run_dir(ctx.catalog, run_id)
+        d = layout.agent_run_dir(ctx.catalog, ctx.cls, run_id)
         ctx.root.write_json(f"{d}/last-try.json", last_try_doc(ev, base, published))
         if ev["inferred"]:
             ctx.root.write_json(f"{d}/inferred.json", ev["inferred"])
@@ -637,7 +637,7 @@ def _record_publish(ctx: Ctx, ev: dict, plan: dict, version: int, rebased: str |
     run_id = os.environ.get("GOLDEN_DATASETS_RUN")
     if not run_id:
         return
-    path = f"{layout.agent_run_dir(ctx.catalog, run_id)}/published.json"
+    path = f"{layout.agent_run_dir(ctx.catalog, ctx.cls, run_id)}/published.json"
     try:
         doc = ctx.root.read_json(path)
     except FileNotFoundError:
@@ -812,8 +812,8 @@ def cmd_pages_get(args) -> int:
         if dest:
             shutil.copyfile(local, dest / f"{stem}.html")
             meta = layout.page_meta(ctx.catalog, ctx.crawl, stem)
-            if ctx.root.exists(meta):
-                shutil.copyfile(ctx.root.local_path(meta), dest / f"{stem}.meta.json")
+            if ctx.crawl_root.exists(meta):
+                shutil.copyfile(ctx.crawl_root.local_path(meta), dest / f"{stem}.meta.json")
             local = dest / f"{stem}.html"
         print(f"{local}\t{url.get(stem, '')}")
     return 0

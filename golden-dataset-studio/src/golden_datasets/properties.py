@@ -493,7 +493,7 @@ def cmd_apply(args) -> int:
         catalogs = [resolve(args.catalog)]
     else:
         doc, _ = manifest.load(root)
-        catalogs = [c["catalog"] for c in doc["catalogs"] if c.get("rulesets")]
+        catalogs = [c["catalog"] for c in doc["catalogs"] if manifest.has_rules(c, args.cls)]
     for catalog in catalogs:
         out = apply(Ctx(root, catalog, cls=args.cls), args.by, log=lambda m: print(m, file=sys.stderr))
         if out is None:

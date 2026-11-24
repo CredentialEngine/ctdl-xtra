@@ -41,7 +41,7 @@ ABOUT = [
     (r"/crawl\.json$", "The crawl, as xtra-cli saved it (read-only for the Studio)."),
     (r"/pages\.parquet$", "Index of the crawl's saved pages (stem, URL, title, sizes), written by `golden-datasets init`."),
     (r"/assets/[^/]+\.parquet$", "The page assets (CSS, fonts, images) fetched once and stored by hash."),
-    (r"/extractions/[^/]+/extraction\.json$", "One run of a ruleset over the crawl: which ruleset, when, row counts "
+    (r"/rule-runs/[^/]+/extraction\.json$", "One run of a ruleset over the crawl: which ruleset, when, row counts "
                                               "and hashes of its tables."),
     (r"/page_labels\.parquet$", "Extraction table: which page rules recognised each page."),
     (r"/occurrences\.parquet$", "Extraction table: each course a record locator found, with its css path on the page."),
@@ -114,13 +114,13 @@ def group(path: str, catalog: str) -> str:
     if path == layout.MANIFEST:
         return "Root"
     rest = path[len(catalog) + 1:]
-    if rest.startswith(f"{layout.STUDIO}/rules/"):
+    if "/rules/" in f"/{rest}":
         return "Rules"
-    if rest.startswith(f"{layout.STUDIO}/rulesets/"):
+    if "/rulesets/" in f"/{rest}":
         return "Rulesets"
-    if rest.startswith(layout.STUDIO):
+    if rest.endswith(("annotations.jsonl", "publish.json")) or "/agent-runs/" in f"/{rest}":
         return "Annotations"
-    if "/extractions/" in rest:
+    if "/rule-runs/" in rest:
         return "Extractions"
     if "/golden/" in rest:
         return "Golden publications"
@@ -130,20 +130,19 @@ def group(path: str, catalog: str) -> str:
 def _listing(request: Request, catalog: str) -> tuple[object, list[dict]]:
     st = studio(request)
     ctx = st.ctx(catalog)
-    key = ("files", ctx.catalog, ctx.crawl)
+    key = ("files", ctx.catalog, ctx.cls, ctx.crawl)
     hit = st.cache.get(key)
     if hit and time.monotonic() - hit[0] < LIST_TTL:
         return ctx, hit[1]
     sizes: dict[str, int] = {}
-    for prefix in (layout.catalog_dir(ctx.catalog), layout.crawl_dir(ctx.catalog, ctx.crawl)):
+    for prefix in (layout.class_dir(ctx.catalog, ctx.cls), layout.crawl_dir(ctx.catalog, ctx.crawl)):
         try:
             sizes.update(ctx.root.sizes(prefix))
         except FileNotFoundError:
             pass
-    for single in (layout.MANIFEST, layout.crawl_json(ctx.catalog, ctx.crawl)):
-        s = ctx.root.stat(single)
-        if s is not None:
-            sizes[single] = s.size
+    s = ctx.root.stat(layout.MANIFEST)
+    if s is not None:
+        sizes[layout.MANIFEST] = s.size
     files = [{"path": p, "size": n, "group": group(p, ctx.catalog), "about": about(p)}
              for p, n in sorted(sizes.items())
              if "/assets/files/" not in p and not p.endswith((".lock", ".etag")) and "/." not in p]

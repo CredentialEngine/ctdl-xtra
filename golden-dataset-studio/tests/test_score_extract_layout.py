@@ -1,19 +1,21 @@
 """Today's xtra extract output in the Studio: `xtra catalog extract <property>` writes one file per property of each
 resource under `extraction_report/<prefix>/<property key>/`, and one `extraction-<property key>-report.json` per
-property, and no `records/`. The Studio reads it through xtra's own `extraction_records`, scores it, and keeps a copy
-of the records it built."""
+property, and no `records/`. The Studio reads it through xtra's own `extraction_records`, scores it, and reads
+each output where xtra wrote it (approved item 21)."""
 
 from __future__ import annotations
 
 import json
 
+import pytest
 from common.keys import page_stem
 from test_golden_versions import CAT, studio  # noqa: F401  (studio: the fixture)
 from test_scores import scored  # noqa: F401  (a published ruleset v1)
 
-from golden_datasets import layout, scores
+from golden_datasets import scores
 from golden_datasets.cli import main
 from golden_datasets.context import Ctx
+from golden_datasets.errors import UserError
 from golden_datasets.storage import LocalRoot
 
 CRAWL = "2026-10-12T20-59-13Z"
@@ -74,7 +76,8 @@ def test_todays_extract_output_is_read_as_records_and_scored(tmp_path):
     assert reports["exact"]["outcomes"]["match"] == 6 and reports["exact"]["outcomes"]["missing"] == 0
 
 
-def test_a_new_output_is_copied_once_with_the_records_xtra_builds(studio, tmp_path, monkeypatch):  # noqa: F811
+def test_a_new_output_is_registered_once_and_read_where_xtra_wrote_it(studio, tmp_path, monkeypatch):  # noqa: F811
+    """Approved item 21: xtra-cli owns its outputs; the Studio registers each one and reads it in place."""
     _, ctx, _ = studio
     ctx = Ctx(ctx.root, CAT)
     src = tmp_path / "xtra-cli-output"
@@ -83,22 +86,20 @@ def test_a_new_output_is_copied_once_with_the_records_xtra_builds(studio, tmp_pa
     entry, new = scores.see_output(ctx, log=lambda *a: None)
     assert new and entry["records"] == 3 and entry["records_written"] is None and not entry["records_mismatch"]
     assert entry["properties"] == ["ceterms:codedNotation", "ceterms:name"] and entry["run_id"] == ctx.crawl
-    copy = layout.extract_output_dir(CAT, ctx.crawl, entry["id"])
-    assert ctx.root.exists(f"{copy}/records/{page_stem(ONE)}.json")
-    assert ctx.root.exists(f"{copy}/extraction-ceterms_name-report.json")
-    # the copy scores like the output it came from
-    kept = scores.RecordsStore(ctx.root, copy, CAT, ctx.crawl)
-    assert kept.reports() == ["extraction-ceterms_codedNotation-report.json", "extraction-ceterms_name-report.json"]
+    assert entry["copy"] is None and not list((ctx.root.local_path(".").parent).glob("**/extract-outputs"))
+    kept = scores.output_store(Ctx(ctx.root, CAT), entry)
     assert kept.get_json(f"{CAT}/{ctx.crawl}/records/{page_stem(ONE)}.json")["expected"]["ceterms:codedNotation"] == "ACCT 199"
-    # seen again: the same output, not copied again
+    # seen again: the same output
     again, new = scores.see_output(Ctx(ctx.root, CAT), log=lambda *a: None)
     assert not new and again["id"] == entry["id"]
-    # xtra writes the property again: a new output
+    # xtra writes the property again: a new output, and the old one can't be read any more
     new_output(src / CAT / ctx.crawl, ctx.crawl, name_101="Bookkeeping I")
     (src / CAT / ctx.crawl / "extraction-ceterms_name-report.json").write_text(json.dumps({
         "property": "ceterms:name", "run_id": ctx.crawl, "resources_written": 3, "again": True}))
     third, new = scores.see_output(Ctx(ctx.root, CAT), log=lambda *a: None)
     assert new and third["report_etag"] != entry["report_etag"]
+    with pytest.raises(UserError, match="newer output"):
+        scores.output_store(Ctx(ctx.root, CAT), entry)
 
 
 def test_the_score_command_reads_a_new_layout_folder_in_place(scored, capsys):  # noqa: F811

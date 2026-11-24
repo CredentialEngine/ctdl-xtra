@@ -27,6 +27,9 @@ def lp(tmp_path, capsys, monkeypatch):
     return TestClient(create_app(str(root))), root, tmp_path
 
 
+LP = {"class": "learningprogram"}  # the API's class (Course when a request names none)
+
+
 def _ctx(root, catalog: str) -> Ctx:
     return Ctx(LocalRoot(root), catalog, cls="learningprogram")
 
@@ -34,11 +37,11 @@ def _ctx(root, catalog: str) -> Ctx:
 def test_records_are_keyed_by_their_external_identifier(lp):
     c, root, _ = lp
     for catalog, ids in programs.EXPECTED_IDS.items():
-        rows = c.get(f"/api/catalogs/{catalog}/rules/learningprogram-name/rows").json()["rows"]
+        rows = c.get(f"/api/catalogs/{catalog}/rules/learningprogram-name/rows", params=LP).json()["rows"]
         assert sorted(r["record_external_identifier"] for r in rows) == ids
-        records = c.get(f"/api/catalogs/{catalog}/courses").json()
+        records = c.get(f"/api/catalogs/{catalog}/courses", params=LP).json()
         assert sorted(x["record_external_identifier"] for x in records) == ids
-    one = c.get(f"/api/catalogs/{programs.AVC}/courses/program-accounting-a.a.").json()
+    one = c.get(f"/api/catalogs/{programs.AVC}/courses/program-accounting-a.a.", params=LP).json()
     assert one["record_external_identifier"] == "program-accounting-a.a."
     names = {p["property_label"]: p["value"] for o in one["occurrences"] for p in o["properties"] if p.get("value")}
     assert names["Name"] == "Accounting, A.A." and names["External Identifier"] == "program-accounting-a.a."
@@ -55,8 +58,16 @@ def test_apply_and_check_use_the_learning_program_list(lp, capsys):
         "locator": "locator-learningprogram-page", "rule_type": "none"}
     assert not [rid for rid in rules if rid.startswith("course-")]
     assert main(["check", "--class", "learningprogram", "--root", str(root), "-c", programs.WVU]) == 0
-    # the Course list asks for Course's properties, which this catalog doesn't have
-    assert main(["check", "--class", "course", "--root", str(root), "-c", programs.WVU]) == 1
+    # Course has nothing in this catalog: its data is in learningprogram/ (approved item 20)
+    assert Ctx(LocalRoot(root), programs.WVU, cls="course").ruleset_versions() == []
+    assert (root / programs.WVU / "learningprogram" / "rulesets" / "v0002.json").exists()
+    assert not (root / programs.WVU / "course").exists()
+
+
+def test_the_api_names_its_class(lp):
+    c, _, _ = lp
+    assert c.get(f"/api/catalogs/{programs.WVU}/rules/learningprogram-name/rows").status_code == 404  # Course
+    assert c.get(f"/api/catalogs/{programs.WVU}/rules", params={"class": "program"}).status_code == 422
 
 
 def test_a_golden_publish_keys_records_by_external_identifier(lp):
@@ -66,6 +77,7 @@ def test_a_golden_publish_keys_records_by_external_identifier(lp):
                          properties=["External Identifier", "Name", "Description"])
     assert doc["properties"] == ["External Identifier", "Name", "Description"]  # the class's tier order
     files = list((tmp / "golden").rglob("program-0.json"))
+    assert files and all("/golden/learningprogram/" in str(f) for f in files)  # its own part of the golden root
     [rec] = json.loads(files[0].read_text())
     assert rec["golden_record_id"] == "program-accounting-a.a."
     assert [f["property"] for f in rec["fields"]] == ["External Identifier", "Name", "Description"]

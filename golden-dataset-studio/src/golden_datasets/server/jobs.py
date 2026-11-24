@@ -4,7 +4,7 @@ and the file says `done` or `failed`. One score runs per catalog at a time; on s
 
 A loop checks every 30 s, and once on start: for each catalog, a new extract output (copied, then scored against the
 latest golden dataset), a latest golden dataset the latest extract output has no score against yet (one published
-from the CLI), and `scores/pending.json` (when due, the latest extract output against the human-reviewed values; then
+from the CLI), and `scores-pending.json` (when due, the latest extract output against the human-reviewed values; then
 the file is deleted).
 """
 
@@ -15,7 +15,7 @@ import os
 import threading
 import traceback
 
-from .. import layout, scores
+from .. import scores
 from ..context import Ctx
 from ..errors import UserError
 
@@ -29,12 +29,13 @@ def in_process() -> bool:
     return os.environ.get(ENV_PROCESS) == "1"
 
 
-def _child(root_uri: str, catalog: str, crawl: str, doc: dict, golden, output: dict, records: tuple, pair: str) -> None:
+def _child(root_uri: str, catalog: str, crawl: str, cls: str, doc: dict, golden, output: dict, records: tuple,
+           pair: str) -> None:
     """A score's own process: the same `scores.finish`, from what the server prepared."""
     from ..context import Ctx as _Ctx
     from ..storage import open_root
 
-    ctx = _Ctx(open_root(root_uri), catalog, crawl)
+    ctx = _Ctx(open_root(root_uri), catalog, crawl, cls=cls)
     store = scores.RecordsStore(open_root(records[0]), records[1], catalog, crawl)
     scores.finish(ctx, doc, scores.Prepared(golden, output, store, pair))
 
@@ -44,13 +45,13 @@ def finish_in_process(ctx: Ctx, doc: dict, p) -> None:
     the score `failed`, saying so."""
     proc = multiprocessing.get_context("spawn").Process(
         target=_child, name=f"score-{ctx.catalog}-{doc['id']}",
-        args=(ctx.root.uri, ctx.catalog, ctx.crawl, doc, p.golden, p.output, (p.records.root.uri, p.records.base),
+        args=(ctx.root.uri, ctx.catalog, ctx.crawl, ctx.cls, doc, p.golden, p.output, (p.records.root.uri, p.records.base),
               p.pair))
     proc.start()
     proc.join()
     if proc.exitcode != 0:
         try:
-            now = ctx.root.read_json(f"{layout.score_dir(ctx.catalog, ctx.crawl, doc['id'])}/score.json")
+            now = scores.read(ctx, doc["id"])
         except Exception:  # noqa: BLE001 - the score file is what we are fixing
             now = None
         if not now or now.get("status") == "running":

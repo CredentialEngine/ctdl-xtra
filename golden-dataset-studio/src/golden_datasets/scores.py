@@ -1,7 +1,8 @@
 """Scores (Evals spec §4): one extract output compared with one golden dataset by xtra's own scorer, and kept.
 
-    <crawl>/golden-dataset-studio/scores/sc-NNNN/{score.json, values.parquet}
-    <crawl>/golden-dataset-studio/extract-outputs/<report last modified>/{records/, extract-report.json}
+    <xtra>/<catalog>/<crawl>/extract/<output>/scores/<golden>/<class>/sc-NNNN/{score.json, values.parquet}
+
+in xtra-cli's container (`xtra_paths`), beside the extract output it scored (approved item 21).
 
 **The scorer** is xtra-cli's (`match_extraction_run`, a uv path dependency on `../xtra-cli`), called in-process with
 two store adapters (`list_keys`, `get_json`, `describe_location`): `RecordsStore` reads an extract output's
@@ -20,9 +21,10 @@ value with `location: null` is implied, not on the page, and the scorer skips it
 **An extract output** is what `xtra catalog extract` wrote for the crawl (`$GOLDEN_DATASETS_XTRA_SOURCE`, else the
 shared container). Today's xtra writes one file per property of each resource, `extraction_report/<prefix>/<property
 key>/<resource>.json`, and one `extraction-<property key>-report.json` per property; older outputs have `records/` and
-`extract-report.json`. xtra's own `extraction_records` turns the new files into the records its scorer reads. xtra
-overwrites an output in place, so the first time the Studio sees its reports (by ETag) it writes the records and the
-reports into `extract-outputs/<report last modified>/`, and scores read that copy.
+`extract-report.json`. xtra's own `extraction_records` turns the new files into the records its scorer reads. The
+first time the Studio sees an output's reports (by ETag) it registers it, and reads it where xtra wrote it; xtra
+overwrites it with the next run, so only the latest output can be scored again. Outputs the Studio copied before
+class folders are kept in xtra's container, at `extract/<output id>/`.
 
 A pair (golden dataset content, extract output) is scored once: asking again returns the score there is.
 
@@ -39,7 +41,6 @@ from __future__ import annotations
 import functools
 import hashlib
 import json
-import os
 import re
 import subprocess
 from collections import Counter, defaultdict
@@ -51,12 +52,11 @@ from pathlib import Path
 import pyarrow as pa
 
 from . import golden as golden_mod
-from . import layout, manifest, model
+from . import layout, manifest, model, xtra_paths
 from .context import Ctx
 from .errors import UserError
-from .storage import AzureRoot, Root, open_root
+from .storage import Root, open_root
 
-SHARED_XTRA_ROOT = "azure://https://ceteststorage.blob.core.windows.net/xtra-cli-output"
 HUMAN_REVIEWED = golden_mod.HUMAN_REVIEWED
 BASES = ("human", "rule")  # the human-reviewed values only; every rule-matched value
 TREE = {"human": golden_mod.HUMAN_REVIEWED, "rule": golden_mod.RULE_MATCHED}  # each basis's tree
@@ -262,7 +262,7 @@ def load_golden(ctx: Ctx, gid: str) -> Golden:
         root = open_root(vs[n]["to"])
         tree = {b: _read_pages(root, golden_mod.version_prefix(ctx, n, t)) for b, t in TREE.items()}
         uris = {b: f"{root.uri}/{golden_mod.version_root(ctx, n, t)}" for b, t in TREE.items()}
-        where = f"{root.uri}/catalogs/{ctx.catalog}/versions/{golden_mod.version_name(n)}"
+        where = f"{root.uri}/{golden_mod.version_root(ctx, n).rsplit('/', 1)[0]}"
         return Golden(gid, "human-reviewed" if gid == HUMAN_REVIEWED else "version", where, tree,
                       {"human": _human_left_out(tree["rule"]), "rule": []}, baseline_uris=uris)
     if gid in {e["extraction"] for e in ctx.extractions()}:
@@ -277,17 +277,15 @@ def load_golden(ctx: Ctx, gid: str) -> Golden:
 
 # --- extract outputs ---------------------------------------------------------------------------------
 def xtra_source(root: Root) -> str:
-    """Where xtra-cli writes extract outputs: $GOLDEN_DATASETS_XTRA_SOURCE, else the shared container."""
-    src = os.environ.get("GOLDEN_DATASETS_XTRA_SOURCE")
+    """xtra-cli's container, where it writes extract outputs (xtra_paths.xtra_root)."""
+    src = xtra_paths.xtra_root(root)
     if src:
         return src
-    if isinstance(root, AzureRoot):
-        return SHARED_XTRA_ROOT
-    raise UserError("set GOLDEN_DATASETS_XTRA_SOURCE to the xtra-cli output root (a folder, or azure://…/xtra-cli-output)")
+    raise UserError(f"set {xtra_paths.ENV} to xtra-cli's output root (a folder, or azure://…/xtra-cli-output)")
 
 
 def outputs(ctx: Ctx) -> list[dict]:
-    """The extract outputs the Studio has seen (and copied), oldest first."""
+    """The extract outputs the Studio has seen, oldest first."""
     return list(ctx.crawl_entry().get("extract_outputs", []))
 
 
@@ -324,10 +322,15 @@ def _identity(root: Root, base: str, catalog: str, crawl: str) -> dict:
     return out
 
 
+def xtra(ctx: Ctx) -> Root:
+    """xtra-cli's container: the extract outputs, and the scores the Studio writes under them (approved item 21)."""
+    return open_root(xtra_source(ctx.root))
+
+
 def see_output(ctx: Ctx, log=print) -> tuple[dict | None, bool]:
     """The latest extract output for the crawl (None if xtra hasn't written one), and whether it is new: the first
-    time its report's ETag is seen, `records/` and the report are copied into extract-outputs/<id>/."""
-    src = open_root(xtra_source(ctx.root))
+    time its reports' ETag is seen, it is registered (read in place: xtra-cli owns it, approved item 21)."""
+    src = xtra(ctx)
     prefix = f"{ctx.catalog}/{ctx.crawl}"
     store = RecordsStore(src, prefix, ctx.catalog, ctx.crawl)
     seen = _reports_stat(store)
@@ -342,19 +345,8 @@ def see_output(ctx: Ctx, log=print) -> tuple[dict | None, bool]:
     while ident["id"] in taken:  # two outputs written within the same second
         n += 1
         ident["id"] = f"{base_id}-{n}"
-    copy = layout.extract_output_dir(ctx.catalog, ctx.crawl, ident["id"])
-    # the records as the scorer reads them (built from extraction_report/ for today's xtra), and the reports
-    paths = [*store.records(), *(f"{prefix}/{n}" for n in seen[0])]
-    log(f"new extract output {ident['id']}: copying {len(paths):,} files into {copy}")
-
-    def one(p: str) -> None:
-        body = (json.dumps(store.get_json(p), ensure_ascii=False).encode() if store._built_key(p)
-                else src.read_bytes(p))
-        ctx.root.write_bytes(f"{copy}/{p[len(prefix) + 1:]}", body)
-
-    with ThreadPoolExecutor(max_workers=16) as pool:
-        list(pool.map(one, paths))
-    entry = {**ident, "copy": copy, "seen_at": _now()}
+    log(f"new extract output {ident['id']}: {ident['records']:,} records at {ident['path']}")
+    entry = {**ident, "copy": None, "seen_at": _now()}
 
     def change(m: dict) -> None:
         k = manifest.crawl_entry(manifest.catalog_entry(m, ctx.catalog), ctx.crawl)
@@ -377,7 +369,7 @@ def resolve_output(ctx: Ctx, output: str | None, log=print) -> tuple[dict, Recor
         output = entry["id"]
     entry = next((o for o in reversed(outputs(ctx)) if o["id"] == output), None)
     if entry:
-        return entry, RecordsStore(ctx.root, entry["copy"], ctx.catalog, ctx.crawl)
+        return entry, output_store(ctx, entry)
     root = open_root(output)
     base = "" if RecordsStore(root, "", ctx.catalog, ctx.crawl).reports() else f"{ctx.catalog}/{ctx.crawl}"
     return _identity(root, base, ctx.catalog, ctx.crawl), RecordsStore(root, base, ctx.catalog, ctx.crawl)
@@ -597,15 +589,37 @@ def commands(ctx: Ctx, g: Golden, output: dict) -> list[str]:
             f"  --catalog-id {ctx.catalog} \\\n  --run-id {ctx.crawl}" for b in BASES]
 
 
+def output_store(ctx: Ctx, entry: dict) -> RecordsStore:
+    """A registered extract output's records: its kept copy in xtra-cli's container (`extract/<id>/`), else the
+    output where xtra wrote it, if xtra hasn't overwritten it since."""
+    src = xtra(ctx)
+    if entry.get("copy"):
+        return RecordsStore(src, entry["copy"], ctx.catalog, ctx.crawl)
+    prefix = f"{ctx.catalog}/{ctx.crawl}"
+    store = RecordsStore(src, prefix, ctx.catalog, ctx.crawl)
+    seen = _reports_stat(store)
+    if seen is None or seen[1] != entry["report_etag"]:
+        raise UserError(f"extract output {entry['id']}: xtra has written a newer output over it at "
+                        f"{store.describe_location()}; score the latest instead")
+    return store
+
+
 # --- score documents ---------------------------------------------------------------------------------
 def score_ids(ctx: Ctx) -> list[str]:
-    return [s["id"] for s in ctx.crawl_entry().get("scores", [])]
+    return [s["id"] for s in ctx.crawl_class().get("scores", [])]
+
+
+def score_path(ctx: Ctx, sid: str) -> str:
+    """Where a score's score.json and values.parquet are, in xtra-cli's container (xtra_paths.score_dir)."""
+    got = next((s for s in ctx.crawl_class().get("scores", []) if s["id"] == sid), None)
+    if got is None:
+        raise UserError(f"{sid}: no such score")
+    return got["path"]
 
 
 def read(ctx: Ctx, sid: str) -> dict:
-    if sid not in score_ids(ctx):
-        raise UserError(f"{sid}: no such score")
-    return ctx.read_json(f"{layout.score_dir(ctx.catalog, ctx.crawl, sid)}/score.json", immutable=False)
+    path = score_path(ctx, sid)
+    return {**xtra(ctx).read_json(f"{path}/score.json"), "path": path}
 
 
 def all_scores(ctx: Ctx) -> list[dict]:
@@ -616,11 +630,24 @@ def all_scores(ctx: Ctx) -> list[dict]:
 
 
 def values(ctx: Ctx, sid: str) -> list[dict]:
-    return ctx.rows(f"{layout.score_dir(ctx.catalog, ctx.crawl, sid)}/values.parquet")
+    import pyarrow.parquet as pq
+
+    return pq.read_table(xtra(ctx).local_path(f"{score_path(ctx, sid)}/values.parquet")).to_pylist()
 
 
 def _write(ctx: Ctx, doc: dict, **kw) -> None:
-    ctx.root.write_json(f"{layout.score_dir(ctx.catalog, ctx.crawl, doc['id'])}/score.json", doc, **kw)
+    doc.setdefault("path", score_path(ctx, doc["id"]) if "path" not in doc else doc["path"])
+    xtra(ctx).write_json(f"{doc['path']}/score.json", doc, **kw)
+
+
+def _write_values(ctx: Ctx, doc: dict, rows: list[dict]) -> None:
+    import io
+
+    import pyarrow.parquet as pq
+
+    buf = io.BytesIO()
+    pq.write_table(pa.Table.from_pylist(rows, schema=SCORE_VALUES), buf, compression="zstd")
+    xtra(ctx).write_bytes(f"{doc['path']}/values.parquet", buf.getvalue())
 
 
 @dataclass
@@ -654,7 +681,8 @@ def begin(ctx: Ctx, p: Prepared, by: str, reason: str) -> dict:
     ctx.invalidate()  # the server's manifest may be a few seconds old
     ids = score_ids(ctx)
     sid = f"sc-{max((int(i.split('-')[1]) for i in ids), default=0) + 1:04d}"
-    doc = {"id": sid, "status": "running", "pair": p.pair, "created_at": _now(), "finished_at": None, "by": by,
+    path = xtra_paths.score_dir(ctx.catalog, ctx.crawl, p.output["id"], p.golden.id, ctx.cls, sid)
+    doc = {"id": sid, "path": path, "status": "running", "pair": p.pair, "created_at": _now(), "finished_at": None, "by": by,
            "reason": reason, "error": None,
            "golden": {"id": p.golden.id, "kind": p.golden.kind, "from": p.golden.where, "as_of": p.golden.as_of,
                       "sha256": p.golden.sha256},
@@ -663,8 +691,8 @@ def begin(ctx: Ctx, p: Prepared, by: str, reason: str) -> dict:
     _write(ctx, doc, if_none_match=True)
 
     def change(m: dict) -> None:
-        k = manifest.crawl_entry(manifest.catalog_entry(m, ctx.catalog), ctx.crawl)
-        manifest.add_unique(k.setdefault("scores", []), {"id": sid}, key=lambda s: s["id"])
+        k = manifest.crawl_class(manifest.crawl_entry(manifest.catalog_entry(m, ctx.catalog), ctx.crawl), ctx.cls)
+        manifest.add_unique(k["scores"], {"id": sid, "path": path}, key=lambda s: s["id"])
 
     manifest.update(ctx.root, change)
     ctx.invalidate()
@@ -754,8 +782,7 @@ def finish(ctx: Ctx, doc: dict, p: Prepared, log=print) -> dict:
             rows += mine
         doc["golden"]["values"] = sizes
         doc["columns"] = sorted({r["column"] for r in rows if r["basis"] == "rule"})
-        ctx.write_table(f"{layout.score_dir(ctx.catalog, ctx.crawl, doc['id'])}/values.parquet", rows,
-                        SCORE_VALUES, if_none_match=False)
+        _write_values(ctx, doc, rows)
         doc["status"] = "done"
         if doc["slot_names"]:
             doc["error"] = SLOT_NAMES
@@ -785,9 +812,9 @@ def interrupt_running(ctx: Ctx) -> list[str]:
 
 
 def pending(ctx: Ctx) -> dict | None:
-    """scores/pending.json, when its time has come."""
+    """scores-pending.json, when its time has come."""
     try:
-        doc = ctx.root.read_json(layout.pending_score(ctx.catalog, ctx.crawl))
+        doc = ctx.root.read_json(layout.pending_score(ctx.catalog, ctx.crawl, ctx.cls))
     except FileNotFoundError:
         return None
     return doc if doc.get("due_at", "") <= _now() else None
@@ -795,7 +822,7 @@ def pending(ctx: Ctx) -> dict | None:
 
 def done_pending(ctx: Ctx) -> None:
     try:
-        ctx.root.delete(layout.pending_score(ctx.catalog, ctx.crawl))
+        ctx.root.delete(layout.pending_score(ctx.catalog, ctx.crawl, ctx.cls))
     except FileNotFoundError:
         pass
 

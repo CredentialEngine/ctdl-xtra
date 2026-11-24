@@ -188,28 +188,29 @@ def _tables(con) -> set[str]:
 def file_checks(ctx: Ctx, con) -> list[tuple]:
     """Checks that need Python: files exist, hashes recompute, copied rows are identical, golden files."""
     out = []
-    cat = ctx.entry() or {}
-    paths = list(cat.get("rule_versions", [])) + [r["path"] for r in cat.get("rulesets", [])]
-    if cat.get("annotations"):
-        paths.append(cat["annotations"])
+    cat, mine = ctx.entry() or {}, ctx.class_entry()
+    paths = list(mine.get("rule_versions", [])) + [r["path"] for r in mine.get("rulesets", [])]
+    if mine.get("annotations"):
+        paths.append(mine["annotations"])
     for k in cat.get("crawls", []):
         if k.get("pages"):
             paths.append(k["pages"])
         for name in ("assets", "page_assets"):
             if (k.get("assets") or {}).get(name):
                 paths.append(k["assets"][name])
-        paths += [f"{e['path']}/extraction.json" for e in k.get("extractions", [])]
-        paths += [f"{g['path']}/publication.json" for g in k.get("golden", [])]
+        kc = manifest.crawl_class(k, ctx.cls, create=False)
+        paths += [f"{e['path']}/extraction.json" for e in kc.get("extractions", [])]
+        paths += [f"{g['path']}/publication.json" for g in kc.get("golden", [])]
     missing = [p for p in paths if not ctx.root.exists(p)]
     out.append(("manifest", "FK", "every path in manifest.json exists", len(missing), len(paths), missing[:3]))
     # rule versions: hash recomputes, file name = version
     bad = []
-    for path in cat.get("rule_versions", []):
+    for path in mine.get("rule_versions", []):
         r = ctx.read_json(path)
-        if model.content_hash(r) != r["content_hash"] or path != layout.rule_version(ctx.catalog, r["rule_id"], r["version"]):
+        if model.content_hash(r) != r["content_hash"] or path != layout.rule_version(ctx.catalog, ctx.cls, r["rule_id"], r["version"]):
             bad.append(path)
     out.append(("rule_version", "CHK", "content_hash = sha256(definition); path = rules/<id>/v<version>", len(bad),
-                len(cat.get("rule_versions", [])), bad[:3]))
+                len(mine.get("rule_versions", [])), bad[:3]))
     # extraction.json: files' sha256 + row counts; input hashes recompute
     bad, total = [], 0
     for e in ctx.extractions():
@@ -262,9 +263,9 @@ def file_checks(ctx: Ctx, con) -> list[tuple]:
                         con.execute(f"SELECT count(*) FROM {t} WHERE extraction = '{c}'").fetchone()[0], []))
     # pages: saved html exists (a sample when the root is remote: listing is what we avoid)
     html = [r[0] for r in con.execute("SELECT html_path FROM pages ORDER BY page_stem").fetchall()]
-    sample = html if ctx.root.uri.startswith("/") else html[:: max(1, len(html) // 25)]
-    out.append(("pages", "FK", "html_path → saved page file" + ("" if sample is html else " (sample)"),
-                sum(not ctx.root.exists(h) for h in sample), len(sample), []))
+    sample = html if ctx.crawl_root.uri.startswith("/") else html[:: max(1, len(html) // 25)]
+    out.append(("pages", "FK", "html_path → saved page file in xtra-cli's container" + (
+        "" if sample is html else " (sample)"), sum(not ctx.crawl_root.exists(h) for h in sample), len(sample), []))
     k = ctx.crawl_entry()
     if (k.get("assets") or {}).get("assets") and "assets" in _tables(con):
         shas = [r[0] for r in con.execute("SELECT DISTINCT sha256 FROM assets WHERE sha256 IS NOT NULL").fetchall()]
@@ -289,19 +290,22 @@ def score_checks(ctx: Ctx, con) -> list[tuple]:
     from .golden import VERSION, versions
 
     k = ctx.crawl_entry()
-    ids = [s["id"] for s in k.get("scores", [])]
+    ids = scores.score_ids(ctx)
     outs = {o["id"]: o for o in k.get("extract_outputs", [])}
-    if not ids and not outs and not ctx.root.exists(layout.pending_score(ctx.catalog, ctx.crawl)):
+    if not ids and not outs and not ctx.root.exists(layout.pending_score(ctx.catalog, ctx.crawl, ctx.cls)):
         return []
     out = []
-    bad = [o["id"] for o in outs.values()  # extract-report.json, or today's extraction-<property>-report.json files
-           if not any(ctx.root.exists(f"{o.get('copy')}/{n}")
-                      for n in scores.RecordsStore(ctx.root, o.get("copy") or "", ctx.catalog, ctx.crawl).reports())]
-    out.append(("extract output", "FK", "copy → extract-outputs/<id>/ has its extract report", len(bad), len(outs), bad))
+    xtra = scores.xtra(ctx) if outs or ids else None
+    kept = {i: o for i, o in outs.items() if o.get("copy")}
+    bad = [i for i, o in kept.items()  # extract-report.json, or today's extraction-<property>-report.json files
+           if not any(xtra.exists(f"{o['copy']}/{n}")
+                      for n in scores.RecordsStore(xtra, o["copy"], ctx.catalog, ctx.crawl).reports())]
+    out.append(("extract output", "FK", "a kept copy → extract/<id>/ in xtra-cli's container has its extract report",
+                len(bad), len(kept), bad))
     docs, unreadable = [], []
     for sid in ids:
         try:
-            docs.append(ctx.read_json(f"{layout.score_dir(ctx.catalog, ctx.crawl, sid)}/score.json", immutable=False))
+            docs.append(scores.read(ctx, sid))
         except FileNotFoundError:
             unreadable.append(sid)
     out.append(("score", "FK", "every score in manifest.json has its score.json", len(unreadable), len(ids), unreadable))
@@ -321,14 +325,13 @@ def score_checks(ctx: Ctx, con) -> list[tuple]:
                 len(docs), bad))
     bad = [d["id"] for d in docs if (outs.get(d["output"].get("id")) or {}).get("report_etag")
            != d["output"].get("report_etag")]
-    out.append(("score", "FK", "output → a kept extract output (same report ETag)", len(bad), len(docs), bad))
+    out.append(("score", "FK", "output → a registered extract output (same report ETag)", len(bad), len(docs), bad))
     stems = {r[0] for r in con.execute("SELECT page_stem FROM pages").fetchall()}
     done = [d for d in docs if d["status"] == "done"]
     bad, n = [], 0
     for d in done:
         try:
-            rows = ctx.read_table(f"{layout.score_dir(ctx.catalog, ctx.crawl, d['id'])}/values.parquet",
-                                  ["page_stem"]).column("page_stem").to_pylist()
+            rows = [r["page_stem"] for r in scores.values(ctx, d["id"])]
         except OSError:
             bad.append(f"{d['id']}: no values.parquet")
             continue
@@ -342,7 +345,7 @@ def score_checks(ctx: Ctx, con) -> list[tuple]:
                 len(stale), len(docs), stale))
     bad = [d["id"] for d in docs if d["status"] not in ("running", "done", "failed", "interrupted")]
     out.append(("score", "CHK", "status ∈ running/done/failed/interrupted", len(bad), len(docs), bad))
-    path = layout.pending_score(ctx.catalog, ctx.crawl)
+    path = layout.pending_score(ctx.catalog, ctx.crawl, ctx.cls)
     if ctx.root.exists(path):
         try:
             p = ctx.root.read_json(path)
@@ -418,7 +421,7 @@ def golden_file_checks(ctx: Ctx, con) -> list[tuple]:
     out = []
     known_paths = {r["path"] for r in properties.load(ctx.cls)} | {t for _, t in model.FIRST_EIGHT if t}
     docs = [ctx.read_json(f"{g['path']}/publication.json", immutable=False)
-            for g in ctx.crawl_entry().get("golden", [])]
+            for g in ctx.crawl_class().get("golden", [])]
     newest = max((d["ruleset_version"] for d in docs if VERSION.match(d["publication"])), default=None)
     for d in docs:
         name = d["publication"]
@@ -559,7 +562,7 @@ def cmd_check(args) -> int:
         catalogs = [resolve(args.catalog)]
     else:
         doc, _ = manifest.load(root)
-        catalogs = [c["catalog"] for c in doc["catalogs"] if c.get("rulesets")]
+        catalogs = [c["catalog"] for c in doc["catalogs"] if manifest.has_rules(c, args.cls)]
     failed = total = 0
     for catalog in catalogs:
         t0 = time.perf_counter()

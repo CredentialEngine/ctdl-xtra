@@ -134,28 +134,28 @@ def publish(ctx: Ctx, rules: dict[str, dict], settings: dict, note: str, by: str
     if parent and not changed and not removed and base_settings == settings:
         return None
     for r in rules.values():
-        path = layout.rule_version(ctx.catalog, r["rule_id"], r["version"])
+        path = layout.rule_version(ctx.catalog, ctx.cls, r["rule_id"], r["version"])
         if not ctx.root.exists(path):
             r = {**r, "published_by": by, "published_at": now_iso()}
             ctx.root.write_json(path, _ordered(r), if_none_match=True)
     version = (parent or 0) + 1
     doc = ruleset_doc(ctx, version, rules, settings, parent, changed + removed, note, by, extra)
     try:
-        ctx.root.write_json(layout.ruleset(ctx.catalog, version), doc, if_none_match=True)
+        ctx.root.write_json(layout.ruleset(ctx.catalog, ctx.cls, version), doc, if_none_match=True)
     except ConflictError:
         raise UserError(f"ruleset v{version} was published by someone else meanwhile; try again") from None
 
-    log_exists = ctx.root.exists(layout.annotations(ctx.catalog))
+    log_exists = ctx.root.exists(layout.annotations(ctx.catalog, ctx.cls))
 
     def change(m: dict) -> None:
-        cat = manifest.catalog_entry(m, ctx.catalog)
+        cat = manifest.class_entry(manifest.catalog_entry(m, ctx.catalog), ctx.cls)
         for r in rules.values():
-            manifest.add_unique(cat["rule_versions"], layout.rule_version(ctx.catalog, r["rule_id"], r["version"]))
+            manifest.add_unique(cat["rule_versions"], layout.rule_version(ctx.catalog, ctx.cls, r["rule_id"], r["version"]))
         cat["rule_versions"].sort()
-        manifest.add_unique(cat["rulesets"], {"version": version, "path": layout.ruleset(ctx.catalog, version)},
+        manifest.add_unique(cat["rulesets"], {"version": version, "path": layout.ruleset(ctx.catalog, ctx.cls, version)},
                             key=lambda x: x["version"])
         if log_exists:  # a catalog's first ruleset has no annotations yet; readers find the log by its path
-            cat["annotations"] = layout.annotations(ctx.catalog)
+            cat["annotations"] = layout.annotations(ctx.catalog, ctx.cls)
 
     manifest.update(ctx.root, change)
     return doc

@@ -31,8 +31,9 @@ def _iso(t: datetime) -> str:
     return t.strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
-def lock_path(catalog: str) -> str:
-    return f"{layout.catalog_dir(catalog)}/publish.json"
+def lock_path(catalog: str, cls: str) -> str:
+    """The publish lock of one catalog and class (approved item 15: each catalog and class has its own)."""
+    return f"{layout.class_dir(catalog, cls)}/publish.json"
 
 
 class LockBusy(Exception):
@@ -51,7 +52,7 @@ def publish_lock(ctx: Ctx, run: str | None, by: str, wait_s: float | None = None
                  sleep=time.sleep, clock=_now):
     """Hold the catalog's publish lock for the block. Waits for another holder (saying so every 10 s), up to `wait_s`
     seconds (None = until its lock expires); raises LockBusy after that."""
-    root, path = ctx.root, lock_path(ctx.catalog)
+    root, path = ctx.root, lock_path(ctx.catalog, ctx.cls)
     t0 = time.monotonic()
     said = -10.0
     while True:

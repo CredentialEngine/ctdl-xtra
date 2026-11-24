@@ -8,7 +8,7 @@ grow (Evals spec §1 rows 3, 16), except that Reset rule withdraws its column un
 (phase1-followups spec §4.5). The first publication in a ruleset
 creates its version; later ones rewrite it with the extra column. Every version is kept as two parallel trees, and
 the latest version's rule-matched tree also replaces each page's file at the usual location, in the
-`xtra-golden-sets` container:
+`xtra-golden-sets` container (for Course; every other class has the same tree under `<class>/`, `class_prefix`):
 
     <golden root>/<catalog>/<crawl>/<page_stem>/<page_stem>.{json,html}                     the latest version
     <golden root>/catalogs/<catalog>/versions/ruleset-vN/rule-matched/<catalog>/<crawl>/<page_stem>/<page_stem>.json
@@ -223,7 +223,7 @@ def published_properties(ctx: Ctx, to: str) -> dict[str, dict]:
     published every property)."""
     out: dict[str, dict] = {}
     docs = []
-    for g in ctx.crawl_entry().get("golden", []):
+    for g in ctx.crawl_class().get("golden", []):
         if g.get("to", "").rstrip("/") != to.rstrip("/"):
             continue
         try:
@@ -264,8 +264,14 @@ def version_name(ruleset_version: int) -> str:
     return f"ruleset-v{ruleset_version}"
 
 
+def class_prefix(ctx: Ctx) -> str:
+    """A class's part of the golden root: Course keeps the paths xtra-cli reads today; every other class sits under
+    its own folder, so its page files never meet Course's (`learningprogram/<catalog>/<crawl>/…`)."""
+    return "" if ctx.cls == "course" else f"{ctx.cls}/"
+
+
 def latest_prefix(ctx: Ctx) -> str:
-    return f"{ctx.catalog}/{ctx.crawl}/"
+    return f"{class_prefix(ctx)}{ctx.catalog}/{ctx.crawl}/"
 
 
 #: Where a version's trees are stored (property-rules spec §4.16, X1): the golden dataset is only human-reviewed
@@ -284,7 +290,7 @@ def named_trees(ctx: Ctx, ruleset_version: int) -> bool:
 def version_root(ctx: Ctx, ruleset_version: int, tree: str = RULE_MATCHED) -> str:
     """What `xtra score --baseline-uri` points at (below the golden root) to score one tree of a version."""
     folder = TREE_DIRS[tree] if named_trees(ctx, ruleset_version) else tree
-    return f"catalogs/{ctx.catalog}/versions/{version_name(ruleset_version)}/{folder}"
+    return f"{class_prefix(ctx)}catalogs/{ctx.catalog}/versions/{version_name(ruleset_version)}/{folder}"
 
 
 def version_prefix(ctx: Ctx, ruleset_version: int, tree: str = RULE_MATCHED) -> str:
@@ -334,7 +340,7 @@ def tree_stems(target, prefix: str) -> list[str]:
 def versions(ctx: Ctx) -> dict[int, dict]:
     """ruleset version → its golden dataset's manifest entry ({publication, path, to})."""
     out = {}
-    for g in ctx.crawl_entry().get("golden", []):
+    for g in ctx.crawl_class().get("golden", []):
         m = VERSION.match(g["publication"])
         if m:
             out[int(m.group(1))] = g
@@ -441,8 +447,9 @@ def _copy_html(ctx: Ctx, target, path: str, stem: str) -> None:
     if target.stat(path) is not None:
         return
     src = layout.page_html(ctx.catalog, ctx.crawl, stem)
-    if isinstance(target, AzureRoot) and isinstance(ctx.root, AzureRoot) and target.account == ctx.root.account:
-        target.copy_from_url(path, ctx.root.blob_url_with_sas(src))  # server-side, nothing downloaded
+    crawls = ctx.crawl_root
+    if isinstance(target, AzureRoot) and isinstance(crawls, AzureRoot) and target.account == crawls.account:
+        target.copy_from_url(path, crawls.blob_url_with_sas(src))  # server-side, nothing downloaded
     else:
         target.write_file(path, ctx.page_path(stem))
 
@@ -465,7 +472,7 @@ def _write_page(ctx: Ctx, target, folder: str, records: list[dict]) -> None:
 def _stems_written(ctx: Ctx, to: str) -> set[str]:
     """Pages any publication to `to` wrote at the latest location."""
     out = set()
-    for g in ctx.crawl_entry().get("golden", []):
+    for g in ctx.crawl_class().get("golden", []):
         if g.get("to", "").rstrip("/") == to.rstrip("/"):
             try:
                 out |= set(ctx.read_json(f"{g['path']}/publication.json", immutable=False).get("page_stems", []))
@@ -485,7 +492,7 @@ def publish(ctx: Ctx, to: str, by: str, allow_unapproved: bool = False, log=prin
     ok, statuses = approval(rv)
     chosen = choose(rv, properties, allow_unapproved) if properties != [] else []
     pub = version_name(n)
-    gdir = layout.golden_dir(ctx.catalog, ctx.crawl, pub)
+    gdir = layout.golden_dir(ctx.catalog, ctx.crawl, ctx.cls, pub)
     try:
         before = ctx.read_json(f"{gdir}/publication.json", immutable=False)
     except FileNotFoundError:
@@ -530,9 +537,9 @@ def publish(ctx: Ctx, to: str, by: str, allow_unapproved: bool = False, log=prin
     named = named_trees(ctx, n)
 
     def change(m: dict) -> None:
-        k = manifest.crawl_entry(manifest.catalog_entry(m, ctx.catalog), ctx.crawl)
-        manifest.add_unique(k.setdefault("golden", []), {"publication": pub, "path": gdir, "to": target.uri,
-                                                         **({"trees": NAMED} if named else {})},
+        k = manifest.crawl_class(manifest.crawl_entry(manifest.catalog_entry(m, ctx.catalog), ctx.crawl), ctx.cls)
+        manifest.add_unique(k["golden"], {"publication": pub, "path": gdir, "to": target.uri,
+                                          **({"trees": NAMED} if named else {})},
                             key=lambda g: g["publication"])
 
     manifest.update(ctx.root, change)
@@ -596,7 +603,7 @@ def approval_publishes(rv: Review, rule_id: str) -> dict | None:
         return None
     ctx, n = rv.snap.ctx, rv.snap.ruleset_version
     try:
-        now = ctx.read_json(f"{layout.golden_dir(ctx.catalog, ctx.crawl, version_name(n))}/publication.json",
+        now = ctx.read_json(f"{layout.golden_dir(ctx.catalog, ctx.crawl, ctx.cls, version_name(n))}/publication.json",
                             immutable=False).get("properties") or []
         creates = False
     except FileNotFoundError:
@@ -635,7 +642,7 @@ def publish_approved(ctx: Ctx, rule_id: str, by: str) -> dict | None:
 def request_score(ctx: Ctx, reason: str) -> str:
     """scores/pending.json: a score is due 5 minutes from now (each review moves it on; the server's loop runs it)."""
     due = (datetime.now(UTC) + RESCORE_AFTER).strftime("%Y-%m-%dT%H:%M:%SZ")
-    ctx.root.write_json(layout.pending_score(ctx.catalog, ctx.crawl), {"due_at": due, "reason": reason})
+    ctx.root.write_json(layout.pending_score(ctx.catalog, ctx.crawl, ctx.cls), {"due_at": due, "reason": reason})
     return due
 
 
@@ -648,7 +655,7 @@ def backfill(ctx: Ctx, to: str, log=print, again: bool = False) -> list[dict]:
     import pyarrow.parquet as pq
 
     old = []
-    for g in ctx.crawl_entry().get("golden", []):
+    for g in ctx.crawl_class().get("golden", []):
         if VERSION.match(g["publication"]):
             continue
         d = ctx.read_json(f"{g['path']}/publication.json", immutable=False)
@@ -671,8 +678,8 @@ def backfill(ctx: Ctx, to: str, log=print, again: bool = False) -> list[dict]:
     gone = {d["publication"] for d, _ in old}
 
     def change(m: dict) -> None:
-        k = manifest.crawl_entry(manifest.catalog_entry(m, ctx.catalog), ctx.crawl)
-        k["golden"] = [g for g in k.get("golden", []) if g["publication"] not in gone]
+        k = manifest.crawl_class(manifest.crawl_entry(manifest.catalog_entry(m, ctx.catalog), ctx.crawl), ctx.cls)
+        k["golden"] = [g for g in k["golden"] if g["publication"] not in gone]
 
     manifest.update(ctx.root, change)
     ctx.invalidate()

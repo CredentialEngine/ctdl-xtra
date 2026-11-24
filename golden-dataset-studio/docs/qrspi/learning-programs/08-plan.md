@@ -260,3 +260,46 @@ Add one line per phase as it lands: the phase, the commit, the checks run, and a
   - **Left over:** the server's API is still Course-only (the class in the URL is Phase 4), and `sql`'s `class`
     column comes with the class folders (Phase 2). The app can't serve the local data until Phase 2's migration
     renames `course_key` in the stored files.
+- **Phase 2** (storage layout and the migration).
+  - **Studio root, per class (`layout.py`):** `manifest.json` (schema 2: per-class `classes` sections at the catalog
+    and crawl levels), `<catalog>/<class>/{rules, rulesets, annotations.jsonl, agent-runs, publish.json}`,
+    `<catalog>/<crawl>/{pages.parquet, assets/}` and `<catalog>/<crawl>/<class>/{rule-runs/, golden/,
+    scores-pending.json}`. The root's `profiles.json` and agent-run files move up to the root.
+  - **xtra-cli's container (`xtra_paths.py`; `GOLDEN_DATASETS_XTRA_SOURCE`, the older `GOLDEN_DATASETS_CRAWLS_ROOT`
+    still read):**
+    - crawls are read in place from each catalog's `crawls_root`; `crawls add` no longer copies;
+    - extract outputs are registered and read in place (no copy); an output xtra has overwritten can't be scored
+      again;
+    - scores go under the output they scored: `…/extract/<output>/scores/<golden>/<class>/sc-NNNN/`.
+  - **Per class:** the publish lock, the agent-run folders and the loader's cache keys are per catalog and class.
+    `sync` copies only Studio files plus the manifest entry with its `crawls_root` (`--pages` and `--studio-only`
+    are gone). `sql` views carry a `class` column, cover every class the catalog has, and `check` uses its own
+    class. The API takes `?class=` (Course by default), which Phase 4's URL builds on.
+  - **Golden root:** Course keeps today's paths, which xtra-cli reads; every other class sits under `<class>/`.
+  - **`golden-datasets migrate --to-classes [--dry-run] [--xtra-root] [--crawls-root]`:**
+    - moves everything under `course/`;
+    - renames `course_key` → `record_external_identifier` in JSON, JSONL and Parquet, keeping `*.legacy` copies and
+      re-hashing each rule run's tables;
+    - drops `course_key_rule`;
+    - moves copied extract outputs and scores into xtra-cli's container;
+    - removes crawl copies only when the same files are found in a crawl root (a symlinked `pages/` is unlinked,
+      never followed);
+    - writes the schema-2 manifest and keeps the old one as `golden-dataset-studio/manifest.json.legacy`.
+  - **Tests:** `tests/test_migrate.py` writes a scored Course catalog back into the legacy layout, migrates it, and
+    checks: the manifest is equal, the API serves the same answers, `check` passes, the dry run changes nothing, a
+    second run does nothing, a crawl found nowhere else stays, and a symlinked `pages/` keeps its target.
+  - **Local run:** `cp -R ~/studio-local/learning-programs/root root-migrated` (`root` stays the before-state),
+    xtra-cli's container stood in by `~/studio-local/learning-programs/xtra`, crawls verified against the mirror.
+    - Dry run: 4,826 moves listed, nothing changed.
+    - Run: 4,826 moved, 227 rewritten, 10 crawl copies removed.
+    - Second run: no file changed.
+    - training-uark's crawl isn't in the local mirror, so its `crawl.json` copy stays and is read where it is.
+  - **Serving:** the before code (e77f38c on a copy of the original root) and this branch (on `root-migrated`) serve
+    the same thing for all six catalogs:
+    - cards, rule ids, every `course-name` and `course-description` row, records, scores, discussion;
+    - AVC sc-0044's values (same hash) and the golden versions.
+    - The one difference is approved item 4: `course-code` moved from Required to Phase 1 (Phase 1's change).
+    - Screens are in `screens/impl/p2-*.png`. training-uark's pages give 500 before and after, because its HTML was
+      never in the local data.
+  - **Checks:** `uv run pytest` 243 passed; `ruff` clean; web typecheck clean, 279 passed, build OK. `-m slow` has
+    the same 9 failures as the baseline.

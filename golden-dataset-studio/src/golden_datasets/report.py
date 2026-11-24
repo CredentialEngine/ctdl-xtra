@@ -226,7 +226,7 @@ def build_known(ctx, run: dict) -> Known:
                                      "course": t.get("record_external_identifier"), "kind": e.get("verdict") or "comment",
                                      "text": e.get("note"), "expected": (e.get("expected") or {}).get("text"),
                                      "event": e}
-    d = layout.agent_run_dir(ctx.catalog, run["run_id"])
+    d = layout.agent_run_dir(ctx.catalog, ctx.cls, run["run_id"])
     try:
         last_try = ctx.root.read_json(f"{d}/last-try.json")
     except FileNotFoundError:

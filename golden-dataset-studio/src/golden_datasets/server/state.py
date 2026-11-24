@@ -6,6 +6,8 @@ Route modules get it with `studio(request)` and a catalog's context with `studio
 from __future__ import annotations
 
 import threading
+from contextvars import ContextVar
+from urllib.parse import parse_qs
 
 from fastapi import HTTPException, Request
 
@@ -23,7 +25,7 @@ class Studio:
         self.root = open_root(root)
         # where the Azure version of the prompt points Claude (the root itself when the Studio serves Azure)
         self.azure_root = self.root.uri if self.root.uri.startswith("azure://") else (azure_root or DEFAULT_AZURE_ROOT)
-        self._ctx: dict[str, Ctx] = {}
+        self._ctx: dict[tuple[str, str], Ctx] = {}
         self._lock = threading.Lock()
         self.cache: dict = {}  # route modules may memoize derived data here, keyed by tuples
         # where xtra-cli's crawls are (Add a catalog searches it) and the catalogs being added: {folder: progress}
@@ -79,12 +81,44 @@ class Studio:
             return []
         return [c["catalog"] for c in doc.get("catalogs", [])]
 
-    def ctx(self, catalog: str) -> Ctx:
-        folder = resolve(catalog)
+    def ctx(self, catalog: str, cls: str | None = None) -> Ctx:
+        """A catalog's context for a class: `cls`, else the request's (`?class=`), else Course."""
+        folder, cls = resolve(catalog), cls or REQUEST_CLASS.get()
         with self._lock:
-            if folder not in self._ctx:
-                self._ctx[folder] = Ctx(self.root, folder, manifest_ttl=3.0)
-            return self._ctx[folder]
+            if (folder, cls) not in self._ctx:
+                self._ctx[(folder, cls)] = Ctx(self.root, folder, manifest_ttl=3.0, cls=cls)
+            return self._ctx[(folder, cls)]
+
+
+#: The class a request asks for (`?class=learningprogram`); Course when it names none.
+REQUEST_CLASS: ContextVar[str] = ContextVar("request_class", default="course")
+
+
+class ClassParam:
+    """ASGI middleware: a request's `class` query parameter → REQUEST_CLASS, for every route's `studio().ctx()`."""
+
+    def __init__(self, app):
+        self.app = app
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] != "http":
+            return await self.app(scope, receive, send)
+        from .. import classes
+        from ..errors import UserError
+
+        got = parse_qs(scope.get("query_string", b"").decode()).get("class")
+        if got:
+            try:
+                token = REQUEST_CLASS.set(classes.get(got[0]).slug)
+            except UserError as exc:
+                from starlette.responses import JSONResponse
+
+                return await JSONResponse({"detail": str(exc)}, status_code=422)(scope, receive, send)
+            try:
+                return await self.app(scope, receive, send)
+            finally:
+                REQUEST_CLASS.reset(token)
+        return await self.app(scope, receive, send)
 
 
 def studio(request: Request) -> Studio:

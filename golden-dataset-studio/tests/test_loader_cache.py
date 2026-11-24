@@ -14,7 +14,7 @@ ROWS = {"a": 300, "b": 300, "c": 300, "d": 10, "e": 10, "f": 10, "big": 900}
 
 class FakeCtx:
     root = type("R", (), {"uri": "mem://"})()
-    catalog, crawl = "cat", "k"
+    catalog, crawl, cls = "cat", "k", "course"
 
     def extraction_meta(self, ext):
         return {"files": {"matches.parquet": {"rows": ROWS[ext]}, "occurrences.parquet": {"rows": 0}}}

@@ -60,8 +60,8 @@ DEFAULT_MINUTES = 6   # the estimate's run length before any run has ended
 RECENT_RUNS = 10
 AGENT_NAME = "Remote AI rule generator"  # what users see; K2 appears only in links and technical details
 STUDIO = "Golden Dataset Studio"
-SLOTS = f"{layout.STUDIO}/agent-slots.json"
-RECENT = f"{layout.STUDIO}/agent-runs-recent.json"
+SLOTS = "agent-slots.json"         # in the Studio's root, for every catalog and class
+RECENT = "agent-runs-recent.json"
 
 
 def now() -> datetime:
@@ -233,10 +233,10 @@ class AgentRuns:
         return self.ctx.catalog
 
     def _path(self, name: str) -> str:
-        return f"{layout.agent_runs_dir(self.cat)}/{name}"
+        return f"{layout.agent_runs_dir(self.cat, self.ctx.cls)}/{name}"
 
     def _dir(self, run_id: str) -> str:
-        return layout.agent_run_dir(self.cat, run_id)
+        return layout.agent_run_dir(self.cat, self.ctx.cls, run_id)
 
     # -- reads -------------------------------------------------------------------------------------------
     def live_runs(self) -> list[dict]:
@@ -302,7 +302,7 @@ class AgentRuns:
         """Runs, newest first, live ones included. `rule`: only runs that had it as a goal or changed it."""
         live = {r["run_id"]: r for r in self.live_runs()}
         out = []
-        for run_id in sorted(set(self.root.list_dirs(layout.agent_runs_dir(self.cat))) | set(live), reverse=True):
+        for run_id in sorted(set(self.root.list_dirs(layout.agent_runs_dir(self.cat, self.ctx.cls))) | set(live), reverse=True):
             run = live.get(run_id) or self._read(run_id, "run.json", as_json=True)
             if run is None:
                 continue

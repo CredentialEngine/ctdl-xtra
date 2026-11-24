@@ -20,7 +20,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Body, HTTPException, Request
 
-from .. import scores
+from .. import manifest, scores
 from ..catalogs import CATALOGS
 from ..errors import UserError
 from ..review import human_reviewed_counts
@@ -106,7 +106,7 @@ GROUPS = ("column", "subject")
 def _rows(request: Request, ctx, doc: dict, sid: str) -> list[dict]:
     """A done score's values.parquet rows, each with a stable key, its subject and its Studio match; kept."""
     st = studio(request)
-    key = ("score-values", ctx.catalog, sid)
+    key = ("score-values", ctx.catalog, ctx.cls, sid)
     if key not in st.cache:  # values.parquet doesn't change once the score is done
         rows, seen = scores.values(ctx, sid), Counter()
         for r in rows:  # a stable key per value: page, course, column, and which of its values
@@ -183,7 +183,7 @@ def catalogs_summary(request: Request, basis: str = "human") -> dict:
     entries = st.ctx(next(iter(CATALOGS))).manifest()["catalogs"]
     for e in entries:
         k = next((c for c in e["crawls"] if c["crawl"] == e.get("current_crawl")), None)
-        if not (e.get("rulesets") and k and k.get("extractions")):
+        if not (manifest.has_rules(e, "course") and k and manifest.crawl_class(k, "course", create=False)["extractions"]):
             continue
         try:
             ctx = st.ctx(e["catalog"])
@@ -193,7 +193,7 @@ def catalogs_summary(request: Request, basis: str = "human") -> dict:
         except UserError as exc:
             out[e["catalog"]] = {"columns": {}, "coverage": 0, "score": None, "error": str(exc)}
     root = st.ctx(next(iter(CATALOGS))).root
-    counts = human_reviewed_counts(root, [e["catalog"] for e in entries if e.get("rulesets")], st.ctx)
+    counts = human_reviewed_counts(root, [e["catalog"] for e in entries if manifest.has_rules(e, "course")], st.ctx)
     columns = scores.columns_in_order(counts)
     return {"basis": basis, "columns": columns, "labels": scores.column_labels(),
             "required": scores.required_columns(), "properties": len(columns), "catalogs": out}

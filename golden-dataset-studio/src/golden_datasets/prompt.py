@@ -18,7 +18,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from . import model, properties
+from . import manifest, model, properties
 from .catalogs import info
 from .cli import DEFAULT_AZURE_ROOT, ENV_FILE
 from .context import Ctx
@@ -837,7 +837,7 @@ def build_first_rules_prompt(ctx: Ctx, target: str = "azure", azure_root: str | 
     pages = ctx.pages()
     urls = sorted(p["url"] for p in pages)
     ready = {info(c["catalog"])["short"]: c["catalog"] for c in doc["catalogs"]
-             if c["catalog"] in CATALOGS and c.get("rulesets")}
+             if c["catalog"] in CATALOGS and manifest.has_rules(c, ctx.cls)}
     sample = [p["page_stem"] for p in sorted(pages, key=lambda p: p["page_stem"])[:: max(1, len(pages) // 3)][:3]]
     html = " ".join(ctx.page_path(stem).read_text(errors="replace")[:200_000] for stem in sample)
     guess = template_for(" ".join([seed or "", *urls[:400], html]), ready)

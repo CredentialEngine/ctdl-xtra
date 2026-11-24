@@ -39,16 +39,30 @@ get`, `sync`, `serve`, `sql`, `hash-password`) refuse it. Rule ids carry the cla
 ## A catalog, from a crawl to a reviewable extraction (spec §3.2)
 
 ```sh
-export GOLDEN_DATASETS_ROOT=$PWD/.data/root
-# a local root whose pages are symlinks into a local mirror of xtra-cli-output (never written to)
-golden-datasets sync --from ~/review-ui-v3-data/xtra-cli-output --to $GOLDEN_DATASETS_ROOT -c avc --pages link
-golden-datasets init -c avc                    # pages.parquet + manifest
+export GOLDEN_DATASETS_ROOT=$PWD/.data/root    # the Studio's own files
+export GOLDEN_DATASETS_XTRA_SOURCE=~/review-ui-v3-data/xtra-cli-output   # xtra-cli's: crawls, extract outputs, scores
+golden-datasets crawls add avc-elumenapp-com-catalog-2026-27-welcome   # index the crawl where it is, archive assets
 golden-datasets assets fetch -c avc            # CSS, fonts, images, by hash (never runs JS)
 golden-datasets check -c avc --class course    # every key and hash
 golden-datasets serve                          # http://127.0.0.1:8000
 ```
 
 Catalogs: `avc`, `ccsf`, `marshall`, `ualr`, `wvu` (or the full folder names).
+
+**Storage** (`layout.py`, `xtra_paths.py`; approved items 20–21). The Studio's root holds only its own files, per
+class: `manifest.json`, `<catalog>/<class>/{rules, rulesets, annotations.jsonl, agent-runs, publish.json}`,
+`<catalog>/<crawl>/{pages.parquet, assets/}` and `<catalog>/<crawl>/<class>/{rule-runs/, golden/,
+scores-pending.json}`. xtra-cli's container holds what xtra-cli owns, and the Studio reads it there and never copies
+it: the crawls (each catalog's `crawls_root` in the manifest), the extract outputs, and the scores the Studio computes,
+kept beside the output they scored (`<catalog>/<crawl>/extract/<output>/scores/<golden>/<class>/sc-NNNN/`).
+
+**Migrating a root from before class folders**, once (`--dry-run` first: it prints every move and changes nothing;
+a second run does nothing). Rewritten files keep their original as `*.legacy`:
+
+```sh
+golden-datasets migrate --to-classes --dry-run --root $GOLDEN_DATASETS_ROOT --xtra-root <xtra-cli container>
+golden-datasets migrate --to-classes --root $GOLDEN_DATASETS_ROOT --xtra-root <xtra-cli container>
+```
 
 **Shared password.** `serve` asks for one password before the profile when the environment sets
 `GOLDEN_DATASETS_PASSWORD_HASH` (from `golden-datasets hash-password`, which reads the password and prints a salted
@@ -122,7 +136,7 @@ xtra's scorer reads by default. Versions written before the property list keep t
 (Learning Type) stay out of the files (`xtra score` rejects them) and in the Studio's lineage and `golden.parquet`. The
 golden root defaults to `.data/golden` beside a local root (`$GOLDEN_DATASETS_GOLDEN_ROOT` overrides; an Azure root
 publishes to `xtra-golden-sets`). An expert's verdict rewrites that page's file in all three places at once
-(human-reviewed values, any column) and writes `scores/pending.json`.
+(human-reviewed values, any column) and writes `scores-pending.json`.
 
 ```sh
 golden-datasets sql -c avc "SELECT rule_id, count(*) FROM matches_latest WHERE status <> 'found' GROUP BY 1"
@@ -141,10 +155,11 @@ The Studio doesn't run xtra: engineers run `xtra catalog extract`, and the Studi
 (`$GOLDEN_DATASETS_XTRA_SOURCE/<catalog>/<crawl>/extraction_report/`, one file per property of each resource, read
 through xtra's own `extraction_records`; or an older output's `records/`; else the shared `xtra-cli-output` container)
 and scores it with xtra's own scorer, called in-process (xtra-cli is a path dependency on `../xtra-cli`). Each score is kept in
-`<crawl>/golden-dataset-studio/scores/sc-NNNN/` (`score.json`, `values.parquet`) with two results: the version's
+xtra-cli's container, `<catalog>/<crawl>/extract/<output>/scores/<golden>/<class>/sc-NNNN/` (`score.json`,
+`values.parquet`), with two results: the version's
 golden tree (human-reviewed) and its silver tree (rule-matched), each exactly what `xtra score extraction match --baseline-uri
-<golden root>/catalogs/<catalog>/versions/ruleset-vN/<tree>` gives (`score.json` holds both commands). The first time the Studio sees an extract output it copies it into
-`extract-outputs/<report last modified>/`, so it stays scorable after xtra overwrites it.
+<golden root>/catalogs/<catalog>/versions/ruleset-vN/<tree>` gives (`score.json` holds both commands). The Studio registers each extract output the first time it sees it and
+reads it where xtra wrote it; once xtra overwrites it, only the newer one can be scored.
 Only the columns the extract output emits under the same path are scored: a property xtra doesn't extract yet is
 listed in `not_scored`, and each result's `xtra` keeps the scorer's own numbers over every column.
 
@@ -159,7 +174,7 @@ golden-datasets score --output <copy id or a folder xtra extracted into>
 ```
 
 The server scores on its own: a new extract output against the latest golden dataset, and the human-reviewed values
-5 minutes after the last review (`scores/pending.json`, checked every 30 s).
+5 minutes after the last review (`scores-pending.json`, checked every 30 s).
 
 ## Develop
 

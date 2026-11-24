@@ -6,6 +6,7 @@ incrementally), so a request costs milliseconds once the extraction is loaded (s
 
 from __future__ import annotations
 
+import json
 import time
 from collections import Counter
 from datetime import UTC, datetime
@@ -13,7 +14,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Body, HTTPException, Query, Request
 
-from .. import classes, facets, golden, layout, model, profiles_rule, properties
+from .. import classes, facets, golden, layout, manifest, model, profiles_rule, properties
 from ..catalogs import CATALOGS, info
 from ..errors import UserError
 from ..log import FULL_NAMES, new_id, validate
@@ -154,11 +155,12 @@ def catalogs(request: Request) -> list[dict]:
         if e:
             k = next((c for c in e["crawls"] if c["crawl"] == e.get("current_crawl")), None)
             item.update(pages=(k or {}).get("page_count"), crawl=e.get("current_crawl"))
-            if e.get("rulesets") and k and k.get("extractions"):
+            runs = manifest.crawl_class(k, "course", create=False)["extractions"]
+            if manifest.has_rules(e, "course") and k and runs:
                 # Only the ruleset and the log are needed to count approvals, not the extraction: the picker stays
                 # fast on a cold cache (spec §10).
                 ctx = st.ctx(folder)
-                ext = next((x for x in sorted(k["extractions"], key=lambda x: (x["ruleset_version"], x["extraction"]))
+                ext = next((x for x in sorted(runs, key=lambda x: (x["ruleset_version"], x["extraction"]))
                             [::-1]), None)
                 rs = ctx.ruleset(ext["ruleset_version"])
                 events = LOADER.log(ctx).events()
@@ -193,7 +195,7 @@ def catalog(request: Request, catalog: str, ext: str | None = None) -> dict:
                          "extraction": ctx.extraction_for(v)})
     retrieved = None
     try:
-        crawl_json = ctx.read_json(layout.crawl_json(ctx.catalog, ctx.crawl))
+        crawl_json = json.loads(ctx.crawl_root.local_path(layout.crawl_json(ctx.catalog, ctx.crawl)).read_bytes())
         retrieved = crawl_json.get("run_id")
     except FileNotFoundError:
         pass
@@ -275,7 +277,7 @@ def _page_questions(rv: Review, rid: str) -> dict[str, list[dict]]:
 def _course_pages(request: Request, rv: Review) -> dict[str, list[str]]:
     """record_external_identifier → page stems it was found on (course pages first), memoized per extraction."""
     snap = rv.snap
-    key = ("w4-course-pages", snap.ctx.root.uri, snap.ctx.catalog, snap.ext)
+    key = ("w4-course-pages", snap.ctx.root.uri, snap.ctx.catalog, snap.ctx.cls, snap.ext)
     cache = studio(request).cache
     if key not in cache:
         by: dict[str, list[tuple]] = {}
@@ -359,7 +361,7 @@ def rules(request: Request, catalog: str, ext: str | None = None) -> dict:
         groups.append({"id": kind, "kind": kind, "label": label, "rules": items, "collapsed": False,
                        "approved": sum(1 for i in items if i["status"] == "approved")})
     doc = snap.ctx.manifest()
-    counts = human_reviewed_counts(snap.ctx.root, [c["catalog"] for c in doc["catalogs"] if c.get("rulesets")],
+    counts = human_reviewed_counts(snap.ctx.root, [c["catalog"] for c in doc["catalogs"] if manifest.has_rules(c, snap.ctx.cls)],
                                    studio(request).ctx)
     by_group: dict[str, list[str]] = {g: [] for g, _, _ in PROPERTY_GROUPS}
     rows, place = property_row(snap.ctx.cls), model.property_order(snap.ctx.cls)

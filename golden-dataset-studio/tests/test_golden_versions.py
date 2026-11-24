@@ -81,7 +81,7 @@ def test_an_engineers_check_waits_for_an_expert_whose_check_is_published_at_once
                                   "approval": "human", "approved_by": JARED}]
     assert (gold / golden.latest_prefix(ctx) / "page-0" / "page-0.html").exists()
     assert not (gold / golden.version_prefix(ctx, 1) / "page-0" / "page-0.html").exists()  # version trees: JSON only
-    pending = ctx.root.read_json(layout.pending_score(CAT, ctx.crawl))
+    pending = ctx.root.read_json(layout.pending_score(CAT, ctx.crawl, "course"))
     due = datetime.strptime(pending["due_at"], "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=UTC)
     assert 280 < (due - datetime.now(UTC)).total_seconds() <= 300 and "course-name" in pending["reason"]
 
@@ -206,7 +206,7 @@ def test_publishing_writes_the_whole_version_and_replaces_the_latest(studio, tmp
     assert doc["trees"] == {golden.RULE_MATCHED: {"prefix": golden.version_prefix(ctx, 1), "pages": 3},
                             golden.HUMAN_REVIEWED: {"prefix": golden.version_prefix(ctx, 1, golden.HUMAN_REVIEWED),
                                                     "pages": 1}}
-    gdir = layout.golden_dir(CAT, ctx.crawl, "ruleset-v1")
+    gdir = layout.golden_dir(CAT, ctx.crawl, "course", "ruleset-v1")
     rows = pq.read_table(ctx.root.local_path(f"{gdir}/golden.parquet")).to_pylist()
     assert len(rows) == 4 and {r["stem"] for r in rows} == {"page-0", "page-1", "page-2"}
     assert {(r["property"], r["approval"]) for r in rows if r["stem"] == "page-0"} == {
@@ -231,7 +231,7 @@ def test_publishing_writes_the_whole_version_and_replaces_the_latest(studio, tmp
     assert [(f["property"], f["value"]) for f in latest["fields"]] == [("Learning Opportunity Name", "1"),
                                                                         ("Coded Notation", "C 1")]
     assert _page(gold, ctx, "page-1", 1)[0]["fields"][0]["property"] == "Coded Notation"
-    assert {g["publication"] for g in Ctx(ctx.root, CAT).crawl_entry()["golden"]} == {"ruleset-v1", "ruleset-v2"}
+    assert {g["publication"] for g in Ctx(ctx.root, CAT).crawl_class()["golden"]} == {"ruleset-v1", "ruleset-v2"}
     properties.apply(Ctx(ctx.root, CAT), "test")  # check wants every property of properties.csv in the ruleset
     assert main(["check", "--class", "course", "--root", ctx.root.uri, "--catalog", CAT]) == 0
     # a stray file in a tree is caught; writing the versions again in the current layout removes it
@@ -250,7 +250,7 @@ def test_backfill_rebuilds_old_publications_as_versions(studio, capsys):
     from golden_datasets import manifest
 
     pub = "pub-2026-10-27-cuesta-rs-0001"
-    gdir = layout.golden_dir(CAT, ctx.crawl, pub)
+    gdir = layout.golden_dir(CAT, ctx.crawl, "course", pub)
     ctx.root.write_bytes(f"{gdir}/lineage.parquet", _parquet({"golden_id": ["C0", "C1"],
                                                               "property": ["Coded Notation", "Coded Notation"]}))
     ctx.root.write_json(f"{gdir}/publication.json", {
@@ -258,7 +258,7 @@ def test_backfill_rebuilds_old_publications_as_versions(studio, capsys):
         "published_by": "Eric via the Studio UI", "to": "azure://https://x.blob.core.windows.net/xtra-golden-sets"})
 
     def change(m):
-        k = manifest.crawl_entry(manifest.catalog_entry(m, CAT), ctx.crawl)
+        k = manifest.crawl_class(manifest.crawl_entry(manifest.catalog_entry(m, CAT), ctx.crawl), "course")
         k["golden"] = [{"publication": pub, "path": gdir, "to": "azure://…"}]
 
     manifest.update(ctx.root, change)
@@ -266,8 +266,8 @@ def test_backfill_rebuilds_old_publications_as_versions(studio, capsys):
     out = capsys.readouterr().out
     assert "ruleset-v1 (Coded Notation) from pub-2026-10-27-cuesta-rs-0001: 3 pages" in out and " 0 bad" in out
     fresh = Ctx(ctx.root, CAT)
-    assert [g["publication"] for g in fresh.crawl_entry()["golden"]] == ["ruleset-v1"]
-    doc = fresh.read_json(f"{layout.golden_dir(CAT, ctx.crawl, 'ruleset-v1')}/publication.json", immutable=False)
+    assert [g["publication"] for g in fresh.crawl_class()["golden"]] == ["ruleset-v1"]
+    doc = fresh.read_json(f"{layout.golden_dir(CAT, ctx.crawl, 'course', 'ruleset-v1')}/publication.json", immutable=False)
     assert doc["published_at"] == "2026-10-27T01:02:29Z" and doc["backfilled_from"] == [pub]
     assert _page(gold, ctx, "page-2", 1)[0]["fields"][0]["value"] == "C 2"
     assert main(["golden", "backfill", "--class", "course", "--root", ctx.root.uri, "--catalog", CAT, "--to", str(gold)]) == 0
@@ -304,7 +304,8 @@ def test_new_versions_store_golden_and_silver_trees_and_old_ones_keep_their_fold
     assert golden.versions(Ctx(ctx.root, CAT))[1]["trees"] == golden.NAMED
 
     def forget(m: dict) -> None:  # a version written before the new names: its entry has no `trees`
-        k = manifest.crawl_entry(manifest.catalog_entry(m, CAT), Ctx(ctx.root, CAT).crawl)
+        k = manifest.crawl_class(manifest.crawl_entry(manifest.catalog_entry(m, CAT), Ctx(ctx.root, CAT).crawl),
+                                 "course")
         for g in k["golden"]:
             g.pop("trees", None)
 

@@ -337,16 +337,27 @@ def build_parser() -> argparse.ArgumentParser:
     _cmd(p, "golden_datasets.scores:cmd_score")
 
     # --- Local work ------------------------------------------------------------------------------------
-    p = sub.add_parser("sync", help="copy Studio files and pages between roots (both directions)")
+    p = sub.add_parser("sync", help="copy a catalog's Studio files between roots (both directions); crawls stay in "
+                                    "xtra-cli's container")
     p.add_argument("--from", dest="src", required=True)
     p.add_argument("--to", dest="dst", required=True)
     p.add_argument("--catalog", "-c", default=None)
     p.add_argument("--crawl", default=None)
-    p.add_argument("--pages", choices=["copy", "link", "skip"], default="copy",
-                   help="saved pages: copy them, symlink them (local → local only), or skip them")
-    p.add_argument("--studio-only", action="store_true", help="only golden-dataset-studio/ folders")
     p.add_argument("--dry-run", action="store_true")
     _cmd(p, "golden_datasets.sync:cmd_sync")
+
+    p = sub.add_parser("migrate", help="once per root: today's data → class folders (course/), course_key → "
+                                       "record_external_identifier, xtra-cli's data back to its container")
+    _root_args(p)
+    p.add_argument("--to-classes", action="store_true", required=True, help="the migration to class folders")
+    p.add_argument("--dry-run", action="store_true", help="print every step; change nothing")
+    p.add_argument("--xtra-root", default=None,
+                   help="xtra-cli's container, where the copied extract outputs and the scores go (default: "
+                        "$GOLDEN_DATASETS_XTRA_SOURCE, else the container above an Azure root's prefix)")
+    p.add_argument("--crawls-root", default=None,
+                   help="where to find each crawl's files before removing the root's copy (default: the root the "
+                        "manifest names, else --xtra-root)")
+    _cmd(p, "golden_datasets.migrate:cmd_migrate")
 
     p = sub.add_parser("serve", help="the web UI")
     _root_args(p)
