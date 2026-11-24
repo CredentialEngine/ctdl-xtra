@@ -20,10 +20,7 @@ import {
 } from "../workers";
 const logger = getLogger("extraction.resumeExtraction");
 
-export async function resumeExtraction(
-  extractionId: number,
-  userId?: number
-) {
+export async function resumeExtraction(extractionId: number, userId: number) {
   const extraction = await findExtractionById(extractionId);
   if (!extraction) {
     throw new Error(`Extraction ${extractionId} not found`);
@@ -120,9 +117,7 @@ export async function resumeExtraction(
     { every: REPEAT_UPDATE_COMPLETION_EVERY_MS }
   );
 
-  if (userId) {
-    await createExtractionAuditLog(extractionId, userId, "RESUME", null);
-  }
+  await createExtractionAuditLog(extractionId, userId, "RESUME", null);
 
   const logMessage =
     `Resumed extraction. Skipped ${fetchPageCount} page(s) with existing FetchPage jobs, ` +

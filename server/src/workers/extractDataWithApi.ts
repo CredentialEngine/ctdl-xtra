@@ -16,6 +16,7 @@ import {
 } from "../../../common/types";
 import { resolveExtractionService } from "../extraction/services";
 import getLogger from "../logging";
+import { attachWorkerCatchContext } from "../workerAirbrakeNotice";
 
 const logger = getLogger("workers.extractDataWithApi");
 
@@ -140,6 +141,12 @@ export default createProcessor<ExtractDataJob, ExtractDataProgress>(
       logger.error(inspect(err));
       await updatePageAndExtractionWithError(crawlPage, err);
 
+      attachWorkerCatchContext(err, {
+        extractionId: job.data.extractionId,
+        crawlPageId: job.data.crawlPageId,
+        datasetId: job.data.datasetId,
+        url: crawlPage.url,
+      });
       throw err;
     }
   }

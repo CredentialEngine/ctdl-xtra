@@ -29,5 +29,22 @@ const mapAppError = t.middleware(async ({ next }) => {
   }
 });
 
+const requireUser = t.middleware(async ({ ctx, next }) => {
+  const user = ctx.user;
+  if (!user?.id) {
+    throw new TRPCError({
+      code: "UNAUTHORIZED",
+      message: "Not authenticated",
+    });
+  }
+  return next({
+    ctx: {
+      ...ctx,
+      user,
+    },
+  });
+});
+
 export const router = t.router;
 export const publicProcedure = t.procedure.use(mapAppError);
+export const authenticatedProcedure = publicProcedure.use(requireUser);

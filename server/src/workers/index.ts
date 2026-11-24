@@ -11,8 +11,21 @@ import {
 import { default as IORedis } from "ioredis";
 import { closeCluster } from "../extraction/browser";
 import getLogger from "../logging";
-import { inspect } from "node:util";
+import {
+  buildWorkerAirbrakeNotice,
+  workerAirbrakeInputForJobFailure,
+} from "../workerAirbrakeNotice";
 import { AGENTIC_RECIPE_CONFIG_JOB_RETENTION_MS } from "../../../common/recipe";
+
+const PENDING_EXTRACTION_JOB_STATES: (
+  | "active"
+  | "waiting"
+  | "delayed"
+  | "prioritized"
+  | "wait"
+)[] = ["active", "waiting", "delayed", "prioritized", "wait"];
+
+const JOB_SCAN_PAGE_SIZE = 100;
 
 const logger = getLogger("workers");
 const REDIS_URL = process.env.REDIS_URL || "redis://localhost:6379";
@@ -60,7 +73,11 @@ export const createProcessor = <T, K extends BaseProgress>(
       await fn(job);
     } catch (error) {
       if (airbrake) {
-        await airbrake.notify(error);
+        await airbrake.notify(
+          buildWorkerAirbrakeNotice(
+            workerAirbrakeInputForJobFailure(error, job.data, job.name)
+          )
+        );
       }
       throw error;
     }
@@ -282,6 +299,28 @@ export interface PageIdsWithExistingJobs {
   extractDataWithApiPageIds: Set<number>;
 }
 
+export interface ExtractionActiveJobCounts {
+  fetchPage: number;
+  extractData: number;
+  extractDataWithApi: number;
+}
+
+export async function getActiveJobCountsForExtraction(
+  extractionId: number
+): Promise<ExtractionActiveJobCounts> {
+  const [fetchPageJobs, extractDataJobs, extractDataWithApiJobs] =
+    await Promise.all([
+      collectJobsForExtraction(Queues.FetchPage, extractionId),
+      collectJobsForExtraction(Queues.ExtractData, extractionId),
+      collectJobsForExtraction(Queues.ExtractDataWithAPI, extractionId),
+    ]);
+  return {
+    fetchPage: fetchPageJobs.length,
+    extractData: extractDataJobs.length,
+    extractDataWithApi: extractDataWithApiJobs.length,
+  };
+}
+
 export async function getPageIdsWithExistingJobs(
   extractionId: number
 ): Promise<PageIdsWithExistingJobs> {
@@ -322,31 +361,22 @@ async function collectJobsForExtraction<
   T extends { extractionId: number; crawlPageId: number },
 >(queue: Queue<T>, extractionId: number): Promise<Array<{ data: T }>> {
   const jobs: Array<{ data: T }> = [];
-  let start = 0,
-    end = 100;
+  let start = 0;
   while (true) {
-    const batch = await queue.getJobs(
-      ["active", "waiting", "delayed", "prioritized", "wait"],
-      start,
-      end
-    );
+    const end = start + JOB_SCAN_PAGE_SIZE - 1;
+    const batch = await queue.getJobs(PENDING_EXTRACTION_JOB_STATES, start, end);
     if (batch.length === 0) {
       break;
     }
     for (const job of batch) {
       if (job?.data?.extractionId === extractionId) {
         jobs.push({ data: job.data });
-      } else {
-        logger.info(
-          `Skipping job ${job.id} for extraction ${extractionId} because it's not for the same extraction`
-        );
-        logger.info(`Job data: \n${inspect(job.data)}`);
       }
     }
-    start = end;
-    if (batch.length < end) {
+    if (batch.length < JOB_SCAN_PAGE_SIZE) {
       break;
     }
+    start += JOB_SCAN_PAGE_SIZE;
   }
   return jobs;
 }

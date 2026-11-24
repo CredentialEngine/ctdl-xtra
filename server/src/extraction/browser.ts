@@ -32,16 +32,26 @@ export interface BrowserTaskResult {
   status: number;
 }
 
+export type BrowserFetchErrorOptions = {
+  /** Full proxy endpoint URL when the fetch used a proxy; omit for a direct connection. */
+  proxyUrl?: string;
+};
+
 export class BrowserFetchError extends Error {
   readonly status: number;
   readonly url: string;
+  readonly proxyUrl?: string;
 
-  constructor(browserResult: BrowserTaskResult) {
+  constructor(
+    browserResult: BrowserTaskResult,
+    options: BrowserFetchErrorOptions = {}
+  ) {
     const statusMessage = httpCodeToMessage(browserResult?.status as any);
     super(statusMessage);
 
     this.status = browserResult?.status;
     this.url = browserResult?.url;
+    this.proxyUrl = options.proxyUrl;
   }
 
   statusMessage() {
@@ -232,10 +242,11 @@ export async function fetchBrowserPage(options: FetchBrowserPageOptions) {
     }, proxyUrls);
   }
   
-  const cluster = await getCluster(proxyUrls?.[0]);
+  const proxyInUse = proxyUrls?.[0];
+  const cluster = await getCluster(proxyInUse);
   const result = await cluster.execute({ ...options, url: normalizedUrl });
   if (result?.status > 399) {
-    throw new BrowserFetchError(result);
+    throw new BrowserFetchError(result, { proxyUrl: proxyInUse });
   }
   return result;
 }
@@ -255,7 +266,9 @@ export async function fetchBrowserPageWithProxies(options: FetchBrowserPageOptio
   let result: BrowserTaskResult | undefined;
   let proxiesAttempted = 0;
   let lastError: unknown;
+  let lastProxyUsed: string | undefined;
   for (const proxy of proxyList) {
+    lastProxyUsed = proxy;
     try {
       proxiesAttempted += proxy ? 1 : 0;
 
@@ -267,7 +280,7 @@ export async function fetchBrowserPageWithProxies(options: FetchBrowserPageOptio
       }
 
       if (!result || result.status > 399) {
-        throw new BrowserFetchError(result);
+        throw new BrowserFetchError(result!, { proxyUrl: proxy });
       }
     } catch (error) {
       if (isProxyError(error as Error | BrowserFetchError | string)) {
@@ -282,7 +295,7 @@ export async function fetchBrowserPageWithProxies(options: FetchBrowserPageOptio
   }
 
   if (result && result.status > 399) {
-    throw new BrowserFetchError(result);
+    throw new BrowserFetchError(result, { proxyUrl: lastProxyUsed });
   }
 
   if (!result) {
