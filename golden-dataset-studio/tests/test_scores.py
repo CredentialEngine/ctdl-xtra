@@ -8,7 +8,7 @@ import json
 import time
 
 import pytest
-from test_golden_versions import CAT, JARED, B, _mark, _rows, studio  # noqa: F401  (studio: the fixture)
+from test_golden_versions import CAT, JARED, RULES, B, _mark, _rows, studio  # noqa: F401  (studio: the fixture)
 
 from golden_datasets import golden, layout, scores
 from golden_datasets.cli import main
@@ -200,11 +200,11 @@ def test_evals_rows_map_to_their_studio_match_and_notes_keep_the_comparison(scor
 def test_one_score_runs_per_catalog_at_a_time(scored):
     c, ctx, _ = scored
     jobs = c.app.state.scores
-    jobs._busy[CAT] = "sc-0042"  # as while a score runs in its thread
+    jobs._busy[(CAT, "course")] = "sc-0042"  # as while a score runs in its thread
     r = c.post(f"{B}/scores", json={"golden": "ruleset-v1", "by": JARED})
     assert (r.status_code, r.json()["detail"]) == (409, "sc-0042 is still running")
     assert jobs.after_publish(Ctx(ctx.root, CAT), JARED) is None  # approving still succeeds; its score is skipped
-    jobs._busy.pop(CAT)
+    jobs._busy.pop((CAT, "course"))
     assert c.post(f"{B}/scores", json={"golden": "nope", "by": JARED}).status_code == 400
 
 
@@ -352,18 +352,40 @@ def test_scores_carry_found_right_and_where_its_wrong(scored, capsys):
         == "course subject"
 
 
-def test_the_loop_scores_a_golden_dataset_published_outside_the_studio(scored):
-    """§8.3: an extract output already seen, then a golden dataset published by the CLI: the loop scores the pair."""
-    c, ctx, _ = scored
+def test_the_loop_scores_a_new_output_then_a_golden_dataset_published_outside_the_studio(scored, capsys):
+    """LearningProgram Phase 3: an output the class hasn't scored is a `new-output` score of every property; a golden
+    version published from the CLI is a `golden-published` score of the columns it added. Each appends one history
+    line per property, and the pair is scored once."""
+    c, ctx, tmp = scored
     jobs, st = c.app.state.scores, c.app.state.studio
-    scores.see_output(Ctx(ctx.root, CAT))  # seen (copied) before: not new for the loop
-    assert scores.all_scores(Ctx(ctx.root, CAT)) == []
+
+    def wait():
+        while jobs.busy(CAT):
+            time.sleep(0.05)
+
+    scores.see_output(Ctx(ctx.root, CAT))
     jobs.tick(st)
-    while jobs.busy(CAT):
-        time.sleep(0.05)
+    wait()
     [doc] = scores.all_scores(Ctx(ctx.root, CAT))
-    assert (doc["golden"]["id"], doc["reason"]) == ("ruleset-v1", "a new golden dataset, ruleset-v1")
+    assert (doc["golden"]["id"], doc["trigger"], doc["properties"]) == ("ruleset-v1", "new-output", None)
+    assert doc["recorded"] == ["codedNotation", "name"]
     jobs.tick(st)  # scored once
-    while jobs.busy(CAT):
-        time.sleep(0.05)
+    wait()
     assert len(scores.all_scores(Ctx(ctx.root, CAT))) == 1
+    # ruleset v2, published from the CLI with the same columns: a `golden-published` score of every column
+    rules = json.loads(json.dumps(RULES))
+    rules["rules"][3]["definition"]["transforms"] = ["collapse_ws", "upper"]  # a new ruleset version
+    (tmp / "v2.json").write_text(json.dumps(rules))
+    assert main(["rule", "publish", "--class", "course", "--root", ctx.root.uri, "--catalog", CAT,
+                 str(tmp / "v2.json"), "--note", "v2", "--force"]) == 0
+    golden.publish(Ctx(ctx.root, CAT), str(tmp / "golden"), "test", allow_unapproved=True,
+                   properties=["Coded Notation", "Learning Opportunity Name"])
+    capsys.readouterr()
+    jobs.tick(st)
+    wait()
+    newest = scores.all_scores(Ctx(ctx.root, CAT))[0]
+    assert (newest["golden"]["id"], newest["trigger"], newest["properties"]) == ("ruleset-v2", "golden-published",
+                                                                                None)
+    history = scores.history(Ctx(ctx.root, CAT), "name")
+    assert [(h["golden_version"], h["trigger"]) for h in history] == [("ruleset-v1", "new-output"),
+                                                             ("ruleset-v2", "golden-published")]

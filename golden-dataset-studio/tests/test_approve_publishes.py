@@ -10,7 +10,7 @@ import json
 from test_golden_versions import CAT, JARED, RULES, B, _mark, _page, _rows, studio  # noqa: F401  (studio: the fixture)
 from test_scores import _output, _wait
 
-from golden_datasets import golden
+from golden_datasets import golden, scores
 from golden_datasets.cli import main
 from golden_datasets.context import Ctx
 
@@ -40,6 +40,9 @@ def test_approving_a_column_publishes_it_then_scores_it(studio, tmp_path, monkey
     assert out["published"] | {"files": 0} == {"written": True, "publication": "ruleset-v1", "created": False,
                                                "column": "codedNotation", "columns": ["codedNotation"], "files": 0}
     assert out["score"]["golden"] == "ruleset-v1" and _wait(c, out["score"]["id"])["status"] == "done"
+    first = scores.read(Ctx(ctx.root, CAT), out["score"]["id"])  # Phase 3: the approved column only
+    assert (first["trigger"], first["properties"], first["recorded"]) == ("golden-published", ["codedNotation"],
+                                                                         ["codedNotation"])
     [rec] = _page(gold, ctx, "page-0", 1)
     assert [f["property"] for f in rec["fields"]] == ["Learning Opportunity Name", "Coded Notation"]  # tier order
     [hr] = _page(gold, ctx, "page-0", 1, golden.HUMAN_REVIEWED)
@@ -52,6 +55,7 @@ def test_approving_a_column_publishes_it_then_scores_it(studio, tmp_path, monkey
     assert out["published"]["columns"] == ["name", "codedNotation"] and out["published"]["publication"] == "ruleset-v1"
     done = _wait(c, out["score"]["id"])
     assert done["columns"] == ["codedNotation", "name"] and done["results"]["rule"]["values"] == 6
+    assert scores.read(Ctx(ctx.root, CAT), done["id"])["recorded"] == ["name"]
 
     # a rule that isn't a column's approves as before
     out = _approve(c, "locator-course-page")

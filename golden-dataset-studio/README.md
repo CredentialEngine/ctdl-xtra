@@ -173,8 +173,17 @@ golden-datasets score --draft rs-0004       # … vs an unpublished extraction
 golden-datasets score --output <copy id or a folder xtra extracted into>
 ```
 
-The server scores on its own: a new extract output against the latest golden dataset, and the human-reviewed values
-5 minutes after the last review (`scores-pending.json`, checked every 30 s).
+**Per property, with history** (approved items 25–28). Each done score also writes every property it is for under
+the extract output, per tree (`…/extract/<output>/scores/<golden>-golden|silver/<class>/<property>/score.json`), and
+appends one line to `scores/<class>/<property>/<catalog>.jsonl` in xtra-cli's container: the time, the extract run,
+the golden version, the trigger (`golden-published`, `new-output` or `manual`), both trees' counts with exact and
+partial apart, whether golden exact reaches the 90% target, and the xtra-cli version and commit that scored it (and
+the one that extracted it, when its report says). Records are filtered to the class before xtra's scorer pairs them.
+
+The server scores on its own, for each catalog and class: an extract output the class hasn't scored against the latest
+golden dataset (`new-output`, every property), a golden version published from the CLI (`golden-published`, the
+columns it added), an approval or reset (`golden-published`, that column), and the human-reviewed values 5 minutes
+after the last review (`scores-pending.json`, the columns reviewed; checked every 30 s).
 
 ## Develop
 

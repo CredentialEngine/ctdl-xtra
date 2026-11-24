@@ -547,7 +547,8 @@ def publish(ctx: Ctx, to: str, by: str, allow_unapproved: bool = False, log=prin
     return doc | {"latest": latest}  # whether it also went to the latest location (not saved: a newer one may come)
 
 
-def publish_page(ctx: Ctx, stem: str, reason: str, by: str, create: bool = False) -> dict | None:
+def publish_page(ctx: Ctx, stem: str, reason: str, by: str, create: bool = False,
+                 column: str | None = None) -> dict | None:
     """After a verdict on a value of this page: rebuild its file from the Studio's state and overwrite it in both
     trees of the latest golden dataset and at the latest location (small files; a page with no values left in a tree
     loses its file there), then ask for a score 5 minutes from now. With no golden dataset yet, `create` (an expert's verdict) creates the current ruleset's. Returns
@@ -557,7 +558,7 @@ def publish_page(ctx: Ctx, stem: str, reason: str, by: str, create: bool = False
         if not create:
             return None
         doc = publish(ctx, default_target(ctx), by, properties=[])
-        due = request_score(ctx, reason)
+        due = request_score(ctx, reason, [column] if column else None)
         return {"publication": doc["publication"], "created": True, "files": doc["pages"], "due_at": due}
     n = max(vs)
     doc = ctx.read_json(f"{vs[n]['path']}/publication.json", immutable=False)
@@ -578,7 +579,8 @@ def publish_page(ctx: Ctx, stem: str, reason: str, by: str, create: bool = False
         changed.append(f"{folder}/{stem}.json")
     if not changed:
         return None
-    return {"publication": doc["publication"], "created": False, "files": changed, "due_at": request_score(ctx, reason)}
+    return {"publication": doc["publication"], "created": False, "files": changed,
+            "due_at": request_score(ctx, reason, [column] if column else None)}
 
 
 def column_name(prop: str, cls: str = "course") -> str | None:
@@ -639,10 +641,17 @@ def publish_approved(ctx: Ctx, rule_id: str, by: str) -> dict | None:
     return doc | {"created": p["creates"]}
 
 
-def request_score(ctx: Ctx, reason: str) -> str:
-    """scores/pending.json: a score is due 5 minutes from now (each review moves it on; the server's loop runs it)."""
+def request_score(ctx: Ctx, reason: str, columns: list[str] | None = None) -> str:
+    """scores-pending.json: a score is due 5 minutes from now (each review moves it on; the server's loop runs it),
+    for the columns reviewed since the last one (`columns`, gathered; None: every column)."""
     due = (datetime.now(UTC) + RESCORE_AFTER).strftime("%Y-%m-%dT%H:%M:%SZ")
-    ctx.root.write_json(layout.pending_score(ctx.catalog, ctx.crawl, ctx.cls), {"due_at": due, "reason": reason})
+    path = layout.pending_score(ctx.catalog, ctx.crawl, ctx.cls)
+    try:
+        before = ctx.root.read_json(path).get("columns", [])
+    except FileNotFoundError:
+        before = []
+    cols = None if columns is None or before is None else sorted(set(before) | set(columns))
+    ctx.root.write_json(path, {"due_at": due, "reason": reason, "columns": cols})
     return due
 
 

@@ -2,10 +2,11 @@
 and the file says `done` or `failed`. One score runs per catalog at a time; on start, a score a restart left
 `running` becomes `interrupted`.
 
-A loop checks every 30 s, and once on start: for each catalog, a new extract output (copied, then scored against the
-latest golden dataset), a latest golden dataset the latest extract output has no score against yet (one published
-from the CLI), and `scores-pending.json` (when due, the latest extract output against the human-reviewed values; then
-the file is deleted).
+A loop checks every 30 s, and once on start: for each catalog and class, a new extract output (scored against the
+latest golden dataset, every property: trigger `new-output`), a latest golden dataset the latest extract output has
+no score against yet (one published from the CLI: the properties it changed, trigger `golden-published`), and
+`scores-pending.json` (when due, the latest extract output against the human-reviewed values, for the properties
+reviewed: `golden-published`; then the file is deleted). A score of a class runs one at a time per catalog and class.
 """
 
 from __future__ import annotations
@@ -36,7 +37,7 @@ def _child(root_uri: str, catalog: str, crawl: str, cls: str, doc: dict, golden,
     from ..storage import open_root
 
     ctx = _Ctx(open_root(root_uri), catalog, crawl, cls=cls)
-    store = scores.RecordsStore(open_root(records[0]), records[1], catalog, crawl)
+    store = scores.RecordsStore(open_root(records[0]), records[1], catalog, crawl, cls)
     scores.finish(ctx, doc, scores.Prepared(golden, output, store, pair))
 
 
@@ -62,30 +63,31 @@ def finish_in_process(ctx: Ctx, doc: dict, p) -> None:
 
 class ScoreJobs:
     def __init__(self):
-        self._busy: dict[str, str] = {}  # catalog → the score running
+        self._busy: dict[tuple[str, str], str] = {}  # (catalog, class) → the score running
         self._lock = threading.Lock()
 
-    def busy(self, catalog: str) -> str | None:
-        return self._busy.get(catalog)
+    def busy(self, catalog: str, cls: str = "course") -> str | None:
+        return self._busy.get((catalog, cls))
 
     def start(self, ctx: Ctx, golden: str | None, output: str | None = None, by: str = "", reason: str = "",
-              wait: bool = False) -> dict:
+              wait: bool = False, trigger: str = "manual", properties: list[str] | None = None) -> dict:
         """The score of this pair: the existing one, or a new one started in a thread (`running`). Raises UserError
-        while another score of the catalog runs."""
+        while another score of the catalog and class runs."""
+        key = (ctx.catalog, ctx.cls)
         with self._lock:
-            if ctx.catalog in self._busy:
-                raise UserError(f"{self._busy[ctx.catalog]} is still running")
-            self._busy[ctx.catalog] = "a score"
+            if key in self._busy:
+                raise UserError(f"{self._busy[key]} is still running")
+            self._busy[key] = "a score"
         try:
             p = scores.prepare(ctx, golden, output, log=print)
             doc = scores.existing(ctx, p)
             if doc:
-                self._busy.pop(ctx.catalog, None)
+                self._busy.pop(key, None)
                 return doc
-            doc = scores.begin(ctx, p, by, reason)
-            self._busy[ctx.catalog] = doc["id"]
+            doc = scores.begin(ctx, p, by, reason, trigger, properties)
+            self._busy[key] = doc["id"]
         except BaseException:
-            self._busy.pop(ctx.catalog, None)
+            self._busy.pop(key, None)
             raise
 
         def run() -> None:
@@ -95,7 +97,7 @@ class ScoreJobs:
                 else:
                     scores.finish(ctx, doc, p)
             finally:
-                self._busy.pop(ctx.catalog, None)
+                self._busy.pop(key, None)
 
         t = threading.Thread(target=run, name=f"score-{ctx.catalog}-{doc['id']}", daemon=True)
         t.start()
@@ -103,47 +105,52 @@ class ScoreJobs:
             t.join()
         return doc
 
-    def after_publish(self, ctx: Ctx, by: str) -> dict | None:
-        """Approving a column publishes it, then scores the latest extract output against the latest golden dataset
-        (Evals spec §4.1). None when there is nothing to score."""
-        return self._quietly(ctx, None, by, "a column was published")
+    def after_publish(self, ctx: Ctx, by: str, columns: list[str] | None = None) -> dict | None:
+        """Approving (or resetting) a column publishes it, then scores the latest extract output against the latest
+        golden dataset, for that column (Evals spec §4.1). None when there is nothing to score."""
+        return self._quietly(ctx, None, by, "a column was published", "golden-published", columns)
 
-    def _quietly(self, ctx: Ctx, golden: str | None, by: str, reason: str) -> dict | None:
+    def _quietly(self, ctx: Ctx, golden: str | None, by: str, reason: str, trigger: str = "manual",
+                 properties: list[str] | None = None) -> dict | None:
         try:
-            return self.start(ctx, golden, by=by, reason=reason)
+            return self.start(ctx, golden, by=by, reason=reason, trigger=trigger, properties=properties)
         except UserError as e:
             print(f"score ({ctx.catalog}, {reason}): {e}")
             return None
 
     # -- the loop -------------------------------------------------------------------------------------------
     def tick(self, studio) -> None:
-        """One pass over the catalogs: a new extract output, then a pending score that is due."""
-        for catalog in (studio.ctx(c) for c in _catalogs(studio)):
+        """One pass over the catalogs and their classes: a new extract output, then a pending score that is due."""
+        for folder, cls in _catalogs(studio):
+            catalog = studio.ctx(folder, cls)
             try:
                 catalog.invalidate()
-                entry, new = scores.see_output(catalog)
+                entry, _ = scores.see_output(catalog)
                 latest = scores.latest_golden(catalog)
-                if new and latest:
-                    self._quietly(catalog, None, "the Studio", f"a new extract output, {entry['id']}")
-                elif entry and latest and not self.busy(catalog.catalog) \
+                if entry and latest and not self.busy(folder, cls) and not scores.scored_output(catalog, entry["id"]):
+                    # an output this class hasn't scored yet: every property
+                    self._quietly(catalog, None, "the Studio", f"a new extract output, {entry['id']}", "new-output")
+                elif entry and latest and not self.busy(folder, cls) \
                         and not scores.scored_against(catalog, entry["id"], latest):
                     # a golden dataset published outside the Studio's approve (`golden-datasets golden publish`)
-                    self._quietly(catalog, None, "the Studio", f"a new golden dataset, {latest}")
+                    self._quietly(catalog, None, "the Studio", f"a new golden dataset, {latest}", "golden-published",
+                                  scores.changed_columns(catalog, latest))
                 due = scores.pending(catalog)
-                if due and entry and not self.busy(catalog.catalog):
+                if due and entry and not self.busy(folder, cls):
                     scores.done_pending(catalog)
-                    self._quietly(catalog, scores.HUMAN_REVIEWED, "the Studio", due.get("reason") or "reviews")
+                    self._quietly(catalog, scores.HUMAN_REVIEWED, "the Studio", due.get("reason") or "reviews",
+                                  "golden-published", due.get("columns"))
                 elif due and not entry:
                     scores.done_pending(catalog)  # no extract output to score
             except UserError as e:
-                print(f"scores ({catalog.catalog}): {e}")
+                print(f"scores ({folder}, {cls}): {e}")
             except Exception:  # noqa: BLE001 - the loop keeps going
                 traceback.print_exc()
 
     def recover(self, studio) -> None:
-        for c in _catalogs(studio):
+        for c, cls in _catalogs(studio):
             try:
-                ctx = studio.ctx(c)
+                ctx = studio.ctx(c, cls)
                 ctx.invalidate()
                 gone = scores.interrupt_running(ctx)
                 if gone:
@@ -158,7 +165,12 @@ class ScoreJobs:
             stop.wait(EVERY)
 
 
-def _catalogs(studio) -> list[str]:
-    from ..manifest import load
+def _catalogs(studio) -> list[tuple[str, str]]:
+    """(catalog, class) for each catalog with a crawl and each class it has rules for."""
+    from ..manifest import has_rules, load
 
-    return [c["catalog"] for c in load(studio.root)[0].get("catalogs", []) if c.get("current_crawl")]
+    out = []
+    for c in load(studio.root)[0].get("catalogs", []):
+        if c.get("current_crawl"):
+            out += [(c["catalog"], cls) for cls in sorted(c.get("classes") or {}) if has_rules(c, cls)]
+    return out

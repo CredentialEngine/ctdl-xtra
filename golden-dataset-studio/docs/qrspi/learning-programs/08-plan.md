@@ -303,3 +303,40 @@ Add one line per phase as it lands: the phase, the commit, the checks run, and a
       never in the local data.
   - **Checks:** `uv run pytest` 243 passed; `ruff` clean; web typecheck clean, 279 passed, build OK. `-m slow` has
     the same 9 failures as the baseline.
+- **Phase 3** (scoring by class).
+  - **Class filter:** `RecordsStore(…, cls)` hands xtra's scorer only the class's records: an older record by
+    `entity_type`, today's `extraction_report/` files by `type`, before `extraction_records` orders and pairs them.
+    The columns "xtra extracts" are per class too, from each extractor's declared classes.
+  - **Per-property results:** each done score writes, per property it is for and per tree,
+    `…/extract/<output>/scores/<golden>-golden|silver/<class>/<property key>/score.json`. It also appends one line
+    to `scores/<class>/<property key>/<catalog>.jsonl` in xtra-cli's container. The line holds: the time, catalog,
+    crawl and class; the extract run and the golden version; the trigger; the score id; golden and silver counts
+    with `exact` and `partial_share` apart and golden's `meets_target` (exact ≥ 0.9, partial never added); the
+    xtra-cli version and commit; and `extracted_with` from the output's report when it has one. `scores.history()`
+    reads it. The Studio's whole score stays at `…/scores/<golden>/<class>/sc-NNNN/`.
+  - **Triggers:** every score carries `trigger` and `properties`.
+    - An approval or reset scores that column (`golden-published`).
+    - Verdicts gather their columns into `scores-pending.json`, and the pending score covers those.
+    - The scheduler goes over each catalog and class. An output the class hasn't scored is `new-output` (every
+      property); a newer golden version published from the CLI is `golden-published` (the columns it added, else
+      all).
+    - CLI and Evals scores are `manual`.
+    - The "already scored" checks read the manifest's score paths, not every `score.json`.
+  - **Tests:** `tests/test_score_classes.py` covers:
+    - a WVU School of Dentistry-style page holding a program and two courses, in both layouts: unfiltered, the
+      program takes the first course's place; filtered, each class meets its own;
+    - the history line and the per-tree files;
+    - a score for some properties records only those;
+    - verdicts gather their columns.
+
+    `test_scores` covers both scheduler triggers end to end; `test_approve_publishes` checks an approval scores only
+    its column.
+  - **Real data:** on `root-migrated`, `golden-datasets score --class course -c avc --draft rs-0029`:
+    - against the kept older output (1,062 Course + 3 Competency records, the Competency ones filtered out): 61.5%
+      rule-matched exact;
+    - against Phase 0's new-layout output: 94.6% exact, `extracted_with: 0.2.0`.
+
+    Both wrote history lines (`scores/course/ceterms_name/avc-….jsonl`).
+  - **Checks:** `uv run pytest` 247 passed; `ruff` clean; web unchanged.
+  - **Left over:** published golden versions are in the shared container, so scoring against them can't run
+    offline here; drafts can.

@@ -769,7 +769,9 @@ def add_annotation(request: Request, catalog: str, event: Annotated[dict, Body()
     if full["type"] == "verdict" and kind == "match":
         try:  # the verdict is saved either way; say if its page's golden file couldn't be rewritten
             published = golden.publish_page(ctx, t["page_stem"], f"{full['author']} marked {rid} {full['verdict']}",
-                                            f"{full['author']} via the Studio UI", create=role == "sme")
+                                            f"{full['author']} via the Studio UI", create=role == "sme",
+                                            column=golden.column_name(rv2.snap.rules[rid].get("property_label") or "",
+                                                                      ctx.cls) if rid in rv2.snap.rules else None)
         except (OSError, UserError) as exc:
             published = {"error": str(exc)}
     score = None
@@ -783,7 +785,7 @@ def add_annotation(request: Request, catalog: str, event: Annotated[dict, Body()
                 published = {"written": True, "publication": doc["publication"], "created": doc["created"],
                              "column": what["column"], "columns": golden.columns_of(doc["properties"]),
                              "files": doc["pages"]}
-                job = request.app.state.scores.after_publish(ctx, full["author"])
+                job = request.app.state.scores.after_publish(ctx, full["author"], [what["column"]])
                 score = {k: job[k] for k in ("id", "status")} | {"golden": job["golden"]["id"]} if job else None
             except (OSError, UserError) as exc:
                 published = {"error": str(exc)}
@@ -793,7 +795,8 @@ def add_annotation(request: Request, catalog: str, event: Annotated[dict, Body()
             if doc:
                 published = {"written": True, "publication": doc["publication"],
                              "columns": golden.columns_of(doc["properties"]), "files": doc["pages"]}
-                job = request.app.state.scores.after_publish(ctx, full["author"])
+                column = golden.column_name(rv2.snap.rules[rid].get("property_label") or "", ctx.cls)
+                job = request.app.state.scores.after_publish(ctx, full["author"], [column] if column else None)
                 score = {k: job[k] for k in ("id", "status")} | {"golden": job["golden"]["id"]} if job else None
         except (OSError, UserError) as exc:
             published = {"error": str(exc)}
