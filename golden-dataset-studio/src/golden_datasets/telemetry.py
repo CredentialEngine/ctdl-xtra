@@ -31,8 +31,9 @@ import contextlib
 import contextvars
 import os
 import sys
+import threading
 import time
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from typing import Any
 from urllib.parse import parse_qs
 
@@ -64,6 +65,7 @@ _tracer = None
 # who/what attributes the request's sub-spans repeat
 _counters: contextvars.ContextVar[dict | None] = contextvars.ContextVar("ce_counters", default=None)
 _inherited: contextvars.ContextVar[dict | None] = contextvars.ContextVar("ce_inherited", default=None)
+_counting = threading.Lock()  # a request's thread pool adds to its counters from several threads at once
 
 
 def enabled() -> bool:
@@ -199,7 +201,23 @@ def count(name: str, n: float = 1) -> None:
         return
     c = _counters.get()
     if c is not None:
-        c[name] = c.get(name, 0) + n
+        with _counting:
+            c[name] = c.get(name, 0) + n
+
+
+def in_this_request(fn: Callable) -> Callable:
+    """`fn`, to run in a worker thread (a `ThreadPoolExecutor`) as part of this request: its storage reads count on the
+    request's span and its sub-spans are children of the current one. A pool's threads don't inherit the request's
+    context, so without this a cold snapshot's parquet downloads, the biggest reads the Studio makes, went uncounted.
+    Off, `fn` itself."""
+    if not _enabled:
+        return fn
+    request_context = contextvars.copy_context()
+
+    def run_in_request(*a, **kw):
+        one_thread_copy = request_context.copy()  # a Context can be entered by one thread at a time
+        return one_thread_copy.run(fn, *a, **kw)
+    return run_in_request
 
 
 @contextlib.contextmanager

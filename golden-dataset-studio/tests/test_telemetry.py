@@ -134,3 +134,39 @@ def test_background_job_is_its_own_trace_linked_to_the_request(traced):
     assert job.name == "score.run" and job.context.trace_id != request.context.trace_id
     assert job.links[0].context.span_id == request.context.span_id
     assert job.attributes["ce.score.status"] == "done" and job.attributes["ce.score.id"] == "sc-1"
+
+
+def test_a_thread_pool_works_in_the_request(traced):
+    """A pool's threads add to the request's counters and make children of its span (a cold snapshot's downloads)."""
+    from concurrent.futures import ThreadPoolExecutor
+
+    _, exporter = traced
+    request_counters: dict = {}
+    token = telemetry._counters.set(request_counters)
+    try:
+        with telemetry.span("snapshot.read_tables"):
+            def read(name):
+                telemetry.count("stats.storage.local.reads")
+                with telemetry.span(f"read {name}"):
+                    pass
+
+            read_in_request = telemetry.in_this_request(read)
+            with ThreadPoolExecutor(max_workers=4) as pool:
+                list(pool.map(read_in_request, range(20)))
+    finally:
+        telemetry._counters.reset(token)
+    assert request_counters == {"stats.storage.local.reads": 20}
+    spans = exporter.get_finished_spans()
+    parent = next(s for s in spans if s.name == "snapshot.read_tables")
+    reads = [s for s in spans if s.name.startswith("read ")]
+    assert len(reads) == 20 and all(s.parent.span_id == parent.context.span_id for s in reads)
+
+
+def test_in_this_request_is_the_function_itself_when_off(no_otel_env):
+    if telemetry.enabled():
+        pytest.skip("another test in this process turned telemetry on")
+
+    def read():
+        return 1
+
+    assert telemetry.in_this_request(read) is read

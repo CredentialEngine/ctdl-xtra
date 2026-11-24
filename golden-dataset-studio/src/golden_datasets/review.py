@@ -126,6 +126,16 @@ class _Recent(dict):
                 super().__delitem__(next(iter(self)))
 
 
+def _count_rebuild(what: str, started: float, rows: int) -> None:
+    """Counts a per-rule cache miss on the request's span: `ce.stats.<what>.builds`, `.rows` and `.duration_ms`. Only
+    `_Recent.RULES_KEPT` rules stay cached, so a page that walks every rule (the Rules tab) rebuilds most of them; on
+    WVU that is the request's time. Counters, not a span per rule: the Rules tab would make hundreds."""
+    elapsed_ms = (time.perf_counter() - started) * 1000
+    telemetry.count(f"stats.{what}.builds")
+    telemetry.count(f"stats.{what}.rows", rows)
+    telemetry.count(f"stats.{what}.duration_ms", elapsed_ms)
+
+
 def _shared(rows: list[dict]) -> list[dict]:
     """A table's rows with one string object per distinct value. `to_pylist` makes a new str per cell, so WVU's
     419k matches carried 419k copies of a few dozen rule ids, of each occurrence key and css path, and so on."""
@@ -150,19 +160,31 @@ class Snapshot:
         self._spread: dict[str, tuple] = {}  # rule_id → strata.groups(...), see Review.spread_groups
         self.ruleset_version = self.meta.get("ruleset_version")
         if rules is None:
-            self.ruleset, self.rules = ctx.ruleset_rules(self.ruleset_version)
+            with telemetry.span("snapshot.read_rules", {"ce.ruleset.version": self.ruleset_version}):
+                self.ruleset, self.rules = ctx.ruleset_rules(self.ruleset_version)
+                telemetry.set({"ce.rules.count": len(self.rules)})
         else:
             self.ruleset, self.rules = ruleset, rules
         self.settings = self.ruleset["settings"]
         from concurrent.futures import ThreadPoolExecutor
 
-        with ThreadPoolExecutor(max_workers=5) as pool:  # five downloads at once on a cold Azure cache
-            pages_f = pool.submit(ctx.pages)
+        with telemetry.span("snapshot.read_tables", {"ce.extraction.id": ext}), \
+                ThreadPoolExecutor(max_workers=5) as pool:  # five downloads at once on a cold Azure cache
+            read_pages = telemetry.in_this_request(ctx.pages)
+            pages_f = pool.submit(read_pages)
             if tables is None:
-                futures = {name: pool.submit(lambda n=name: ctx.table(ext, n).to_pylist())
-                           for name in layout.EXTRACTION_TABLES}
+                read_rows = telemetry.in_this_request(lambda name: ctx.table(ext, name).to_pylist())
+                futures = {name: pool.submit(read_rows, name) for name in layout.EXTRACTION_TABLES}
                 tables = {name: _shared(f.result()) for name, f in futures.items()}
             pages = pages_f.result()
+            rows_per_table = {f"ce.snapshot.{name}.rows": len(rows) for name, rows in tables.items()}
+            telemetry.set({"ce.snapshot.pages": len(pages), **rows_per_table})
+        with telemetry.span("snapshot.index", {"ce.extraction.id": ext}):
+            self._index(pages, tables)
+
+    def _index(self, pages: list[dict], tables: dict[str, list[dict]]) -> None:
+        """The lookups every request uses (matches by rule and by course, labels, signals, course lines): pure
+        Python over every row, so for a big catalog (WVU) as slow as the downloads."""
         self.page = {p["page_stem"]: p for p in pages}
         self.occurrences = {o["occurrence_key"]: o for o in tables["occurrences"]}
         self.matches_by_rule: dict[str, list[dict]] = defaultdict(list)
@@ -227,7 +249,9 @@ class Snapshot:
     def rows(self, rule_id: str) -> list[dict]:
         rows = self._rows.get(rule_id)
         if rows is None:
+            started = time.perf_counter()
             self._rows[rule_id] = rows = self._build_rows(rule_id)
+            _count_rebuild("rows", started, len(rows))
         return rows
 
     def has_rows(self, rule_id: str) -> bool:
@@ -505,7 +529,9 @@ class Review:
         if rows is self.snap.rows(rule_id):
             states = self._states.get(rule_id)
             if states is None:
+                started = time.perf_counter()
                 self._states[rule_id] = states = self._row_states(rule_id, rows)
+                _count_rebuild("row_states", started, len(rows))
             return states
         return self._row_states(rule_id, rows)
 
@@ -918,11 +944,13 @@ class Loader:
                 self._snaps.move_to_end(key)
             return snap
 
-    def snapshot(self, ctx: Ctx, ext: str) -> Snapshot:
+    def snapshot(self, ctx: Ctx, ext: str, reported_as: str = "ce.snapshot") -> Snapshot:
+        """`reported_as`: the prefix of the request span's attributes about this load (`ce.snapshot.cache`...), so a
+        review's parent snapshot (`ce.snapshot.parent`) doesn't overwrite what its own snapshot's load said."""
         key = (ctx.root.uri, ctx.catalog, ctx.crawl, ext)
         snap = self._cached(key)
         if snap is not None:
-            telemetry.set({"ce.snapshot.cache": "hit"})
+            telemetry.set({f"{reported_as}.cache": "hit"})
             return snap
         # One cold load at a time. Loads used to run side by side: people opening WVU together each built their own
         # ~1.3 GB copy, and cold loads of different catalogs all made room for themselves alone, so together they
@@ -933,7 +961,7 @@ class Loader:
             waited = round((time.perf_counter() - t0) * 1000, 1)
             snap = self._cached(key)
             if snap is not None:  # another request loaded it while this one waited
-                telemetry.set({"ce.snapshot.cache": "waited", "ce.snapshot.wait.duration_ms": waited})
+                telemetry.set({f"{reported_as}.cache": "waited", f"{reported_as}.wait.duration_ms": waited})
                 return snap
             # make room first (its row counts are in extraction.json), so the old and the new aren't held at once
             incoming = self._rows(ctx.extraction_meta(ext)) or 0
@@ -941,9 +969,10 @@ class Loader:
                 evicted = len(self._snaps)
                 self._evict(incoming=incoming)
                 evicted -= len(self._snaps)
-            telemetry.set({"ce.snapshot.cache": "miss", "ce.snapshot.wait.duration_ms": waited})
-            with telemetry.span("snapshot.load", {"ce.extraction.id": ext, "ce.catalog.folder": ctx.catalog,
-                                                  "ce.snapshot.rows": incoming, "ce.snapshot.evicted": evicted}):
+            telemetry.set({f"{reported_as}.cache": "miss", f"{reported_as}.wait.duration_ms": waited})
+            load_attrs = {"ce.extraction.id": ext, "ce.catalog.folder": ctx.catalog, "ce.snapshot.rows": incoming,
+                          "ce.snapshot.evicted": evicted, "ce.snapshot.is_parent": reported_as.endswith(".parent")}
+            with telemetry.span("snapshot.load", load_attrs):
                 snap = Snapshot(ctx, ext)  # outside `_lock`: a cold load takes seconds; cached reads go on meanwhile
             with self._lock:
                 self._snaps[key] = snap
@@ -986,15 +1015,19 @@ class Loader:
         snap = self.snapshot(ctx, ext)
         parent = None
         if with_parent and snap.meta.get("parent_extraction"):
-            parent = self.snapshot(ctx, snap.meta["parent_extraction"])
+            parent = self.snapshot(ctx, snap.meta["parent_extraction"], reported_as="ce.snapshot.parent")
         log = self.log(ctx)
         events = log.events()
         key = (ctx.root.uri, ctx.catalog, ctx.crawl, ext, with_parent, log.offset)
         with self._lock:
             rv = self._reviews.get(key)
             if rv is not None and rv.snap is snap:
+                telemetry.set({"ce.review.cache": "hit"})
                 return rv
-        rv = Review(snap, events, parent, roles(ctx.root))  # roles as profiles.json says now
+        telemetry.set({"ce.review.cache": "miss", "ce.annotations.events": len(events),
+                       "ce.review.parent_extraction": parent.ext if parent is not None else None})
+        with telemetry.span("review.build", {"ce.annotations.events": len(events)}):
+            rv = Review(snap, events, parent, roles(ctx.root))  # roles as profiles.json says now
         with self._lock:
             self._reviews = {k: v for k, v in self._reviews.items() if k[:5] != key[:5]}  # drop older log offsets
             self._reviews[key] = rv

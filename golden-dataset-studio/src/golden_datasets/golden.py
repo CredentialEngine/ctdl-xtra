@@ -54,7 +54,7 @@ from collections import Counter, defaultdict
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
-from . import golden_answers, layout, manifest, model
+from . import golden_answers, layout, manifest, model, telemetry
 from .context import Ctx
 from .errors import UserError
 from .review import HUMAN_STATES, LOADER, Review, norm  # noqa: F401  (HUMAN_STATES: the row states a person confirmed)
@@ -509,7 +509,8 @@ def publish(ctx: Ctx, to: str, by: str, allow_unapproved: bool = False, log=prin
     from concurrent.futures import ThreadPoolExecutor
 
     with ThreadPoolExecutor(max_workers=16) as pool:
-        list(pool.map(lambda kv: _write_page(ctx, target, kv[0], kv[1]), sorted(writes.items())))
+        write_page = telemetry.in_this_request(lambda kv: _write_page(ctx, target, kv[0], kv[1]))
+        list(pool.map(write_page, sorted(writes.items())))
     for r in p["lineage"]:
         r["publication"] = pub
     info = ctx.write_table(f"{gdir}/lineage.parquet", p["lineage"], model.LINEAGE, if_none_match=False)
