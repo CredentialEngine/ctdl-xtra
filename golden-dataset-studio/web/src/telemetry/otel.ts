@@ -68,8 +68,18 @@ export async function init(cfg: BrowserConfig): Promise<Impl> {
     instrumentations: [], // the SDK adds web vitals and global errors itself; fetch spans are made below
     // TTFB and CLS are floats, and TraceQL's quantile_over_time skips float attributes: integer copies for p75s
     webVitalsInstrumentationConfig: {
-      ttfb: { applyCustomAttributes: (v, span) => span.setAttribute("ce.ttfb.value_us", Math.round(v.value * 1000)) },
-      cls: { applyCustomAttributes: (v, span) => span.setAttribute("ce.cls.value_milli", Math.round(v.value * 1000)) },
+      ttfb: {
+        applyCustomAttributes: (ttfb, span) => {
+          const timeToFirstByteUs = Math.round(ttfb.value * 1000); // ms -> whole microseconds
+          span.setAttribute("ce.ttfb.value_us", timeToFirstByteUs);
+        },
+      },
+      cls: {
+        applyCustomAttributes: (cls, span) => {
+          const layoutShiftThousandths = Math.round(cls.value * 1000); // a score like 0.042 -> 42
+          span.setAttribute("ce.cls.value_milli", layoutShiftThousandths);
+        },
+      },
     },
     spanProcessors: [{
       onStart: (span: Span) => span.setAttributes(who()),
@@ -84,22 +94,35 @@ export async function init(cfg: BrowserConfig): Promise<Impl> {
     if (!v) return;
     view = null;
     window.clearTimeout(v.timer);
+    // "ready" = from the route change to the end of the page's last API call: what the reader waited for
+    const timeToReadyMs = Math.round(v.lastActivity - v.start);
+    const slowestCallMs = Math.round(v.slowest);
+    const totalCallTimeMs = Math.round(v.apiMs);
+    const domNodeCount = document.getElementsByTagName("*").length;
     v.span.setAttributes({
-      "ce.page_view.end_reason": reason, "ce.page.ready.duration_ms": Math.round(v.lastActivity - v.start),
-      "ce.stats.api.calls": v.calls, "ce.stats.api.errors": v.errors, "ce.stats.api.polls": v.polls,
-      "ce.stats.api.bytes": v.bytes, "ce.stats.api.duration_ms": Math.round(v.apiMs),
-      "ce.stats.api.slowest_ms": Math.round(v.slowest), "ce.stats.api.inflight": v.inflight,
-      "ce.page.dom_nodes": document.getElementsByTagName("*").length,
+      "ce.page_view.end_reason": reason,
+      "ce.page.ready.duration_ms": timeToReadyMs,
+      "ce.stats.api.calls": v.calls,
+      "ce.stats.api.errors": v.errors,
+      "ce.stats.api.polls": v.polls,
+      "ce.stats.api.bytes": v.bytes,
+      "ce.stats.api.duration_ms": totalCallTimeMs,
+      "ce.stats.api.slowest_ms": slowestCallMs,
+      "ce.stats.api.inflight": v.inflight,
+      "ce.page.dom_nodes": domNodeCount,
     });
     if (v.errors) v.span.setStatus({ code: SpanStatusCode.ERROR, message: `${v.errors} API call(s) failed` });
-    v.span.end(performance.timeOrigin + v.lastActivity);
+    const lastCallEndedAt = performance.timeOrigin + v.lastActivity; // the span ends when the page was ready
+    v.span.end(lastCallEndedAt);
   }
   function settle() {
     const v = view;
     if (!v) return;
-    window.clearTimeout(v.timer);
-    if (v.inflight === 0) v.timer = window.setTimeout(() => endView("ready"), IDLE_MS);
-    if (performance.now() - v.start > MAX_VIEW_MS) endView("timeout");
+    window.clearTimeout(v.timer); // a call started or ended: the quiet period starts over
+    const noCallsInFlight = v.inflight === 0;
+    if (noCallsInFlight) v.timer = window.setTimeout(() => endView("ready"), IDLE_MS);
+    const viewAgeMs = performance.now() - v.start;
+    if (viewAgeMs > MAX_VIEW_MS) endView("timeout");
   }
   // the route without its query: ?row= changes as rows are picked, and that is not a new page
   const routeNow = () => location.hash.split("?")[0];
@@ -118,16 +141,20 @@ export async function init(cfg: BrowserConfig): Promise<Impl> {
   let firstViewId: string | null = null;
   function startView(p: PageInfo, implicit: boolean) {
     endView("navigated");
-    const hard = entryPage === null;
+    // hard: the browser loaded the Studio from scratch (this is its first page); soft: the app swapped the screen
+    const isHardLoad = entryPage === null;
     page = p;
-    if (hard) entryPage = p.page;
-    const start = hard ? 0 : performance.now(); // the first page view starts with the navigation
+    if (isHardLoad) entryPage = p.page;
+    // a hard load's view starts when the browser started navigating (time 0), a soft one at the route change
+    const viewStartMs = isHardLoad ? 0 : performance.now();
+    const navigationKind = isHardLoad ? "hard" : "soft";
+    const route = location.hash.replace(/^#/, "");
     const span = tracer.startSpan("page_view", {
-      startTime: performance.timeOrigin + start,
-      attributes: { "ce.page_view.kind": hard ? "hard" : "soft", "url.fragment": location.hash.replace(/^#/, "") },
+      startTime: performance.timeOrigin + viewStartMs,
+      attributes: { "ce.page_view.kind": navigationKind, "url.fragment": route },
     }, ROOT_CONTEXT);
-    if (hard) firstViewId = span.spanContext().spanId;
-    view = { span, id: span.spanContext().spanId, page: p, route: routeNow(), implicit, start,
+    if (isHardLoad) firstViewId = span.spanContext().spanId;
+    view = { span, id: span.spanContext().spanId, page: p, route: routeNow(), implicit, start: viewStartMs,
              lastActivity: performance.now(), inflight: 0,
              calls: 0, errors: 0, polls: 0, bytes: 0, apiMs: 0, slowest: 0 };
     span.setAttribute("ce.page_view.id", view.id);
@@ -144,9 +171,9 @@ export async function init(cfg: BrowserConfig): Promise<Impl> {
   window.fetch = async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
     const href = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
     const url = new URL(href, location.href);
-    if (url.origin !== location.origin || !url.pathname.startsWith("/api/") || url.pathname === "/api/telemetry") {
-      return original(input, init);
-    }
+    const isStudioApi = url.origin === location.origin && url.pathname.startsWith("/api/");
+    const isTelemetryConfig = url.pathname === "/api/telemetry";
+    if (!isStudioApi || isTelemetryConfig) return original(input, init); // not ours to trace
     const method = (init?.method ?? (input instanceof Request ? input.method : "GET")).toUpperCase();
     const template = urlTemplate(url.pathname);
     const action = actionOf(method, template);
@@ -156,8 +183,10 @@ export async function init(cfg: BrowserConfig): Promise<Impl> {
       startView(pageInfo(true, r.catalog, r.tab, r.id), true);
     }
     const v = view;
+    // a read made while a page loads belongs to that page view; a change (POST, DELETE) is a trace of its own
     const parent: Context = !action && v ? trace.setSpan(ROOT_CONTEXT, v.span) : ROOT_CONTEXT;
-    const span = poll ? null : tracer.startSpan(action ? `${action}` : `${method} ${template}`, {
+    const spanName = action ? `${action}` : `${method} ${template}`;
+    const span = poll ? null : tracer.startSpan(spanName, {
       kind: SpanKind.CLIENT,
       attributes: {
         "http.request.method": method, "url.full": url.href, "url.path": url.pathname, "url.template": template,
@@ -176,16 +205,21 @@ export async function init(cfg: BrowserConfig): Promise<Impl> {
     const headers = new Headers(init?.headers ?? (input instanceof Request ? input.headers : undefined));
     propagation.inject(ctx, headers, { set: (h, k, val) => h.set(k, val) });
 
+    const countsTowardPage = v && !poll && !action; // the page's own reads: what "ready" waits for
     if (v && poll) v.polls++;
-    if (v && !poll && !action) { v.inflight++; v.calls++; }
-    const t0 = performance.now();
+    if (countsTowardPage) { v.inflight++; v.calls++; }
+    const callStartedAt = performance.now();
     const done = (ok: boolean, bytes: number) => {
-      const ms = performance.now() - t0;
-      if (v && !poll && !action) {
-        v.inflight--; v.apiMs += ms; v.bytes += bytes; v.slowest = Math.max(v.slowest, ms);
+      const callMs = performance.now() - callStartedAt;
+      if (countsTowardPage) {
+        v.inflight--;
+        v.apiMs += callMs;
+        v.bytes += bytes;
+        v.slowest = Math.max(v.slowest, callMs);
         v.lastActivity = performance.now();
         if (!ok) v.errors++;
-        if (view === v) settle();
+        const stillTheCurrentView = view === v;
+        if (stillTheCurrentView) settle();
       }
     };
     try {

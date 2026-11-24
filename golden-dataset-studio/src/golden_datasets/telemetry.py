@@ -248,13 +248,14 @@ def storage_op(kind: str):
         def inner(self, *a, **kw):
             if not _enabled or _counters.get() is None:
                 return fn(self, *a, **kw)
-            t0 = time.perf_counter()
+            started = time.perf_counter()
             where = "azure" if self.uri.startswith("azure://") else "local"
             try:
                 out = fn(self, *a, **kw)
             finally:  # a missing file (FileNotFoundError) still took a round trip
+                elapsed_ms = (time.perf_counter() - started) * 1000
                 count(f"stats.storage.{where}.{kind}s")
-                count(f"stats.storage.{where}.duration_ms", (time.perf_counter() - t0) * 1000)
+                count(f"stats.storage.{where}.duration_ms", elapsed_ms)
             if kind == "read" and isinstance(out, bytes | bytearray):
                 count(f"stats.storage.{where}.bytes_read", len(out))
             data = a[1] if len(a) > 1 else kw.get("data")
@@ -291,8 +292,12 @@ class WideSpanMiddleware:
             if state["flushed"] or not server_span.is_recording():
                 return
             state["flushed"] = True
-            for k, v in {**who, **_what(scope), **_storage(counters), **_error(state)}.items():
-                server_span.set_attribute(k, v)
+            who_asked = who                          # user.id, session.id, ce.page: from the browser's baggage
+            what_they_asked = _what(scope)           # ce.catalog, ce.rule.id, ce.query.q...: from the URL
+            storage_work = _storage(counters)        # ce.stats.storage.*: what the request read and wrote
+            error_detail = _error(state)             # ce.error.detail, on a 4xx/5xx
+            for key, value in {**who_asked, **what_they_asked, **storage_work, **error_detail}.items():
+                server_span.set_attribute(key, value)
             server_span.set_attribute("http.response.body.size", state["size"])
 
         async def send_wrapper(message):
@@ -303,7 +308,8 @@ class WideSpanMiddleware:
                 state["size"] += len(body)
                 if state["status"] >= 400 and len(state["error_body"]) < 2048:
                     state["error_body"] += body[:2048]
-                if not message.get("more_body", False):
+                is_last_chunk = not message.get("more_body", False)
+                if is_last_chunk:
                     flush()
             await send(message)
 
