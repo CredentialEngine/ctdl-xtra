@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from golden_datasets import engine
-from golden_datasets.model import course_key
+from golden_datasets.model import key_rule_for, record_key
 
 PAGE = b"""<html><head><title>t</title></head><body>
 <div id="top">nav</div>
@@ -37,7 +37,7 @@ def run():
 
 def test_occurrences_and_document_root_paths():
     out = run()
-    assert [o["course_key"] for o in out["occurrences"]] == ["GEOG222", "MATH150"]
+    assert [o["record_external_identifier"] for o in out["occurrences"]] == ["GEOG222", "MATH150"]
     assert out["occurrences"][0]["css_path"] == "html > body:nth-of-type(1) > main:nth-of-type(1) > div:nth-of-type(1)"
     assert out["occurrences"][1]["occurrence_key"].startswith("p@html > body:nth-of-type(1)")
 
@@ -91,5 +91,19 @@ def test_selector_semantics_match_soupsieve():
     assert engine.select_one(course, "div.course") is None
 
 
-def test_course_key():
-    assert course_key("abdy 113") == "ABDY113" and course_key(None) is None
+def test_record_key_is_the_external_identifier():
+    """Issue #368: the identifier rule's value as read; read from a code, without spaces in upper case."""
+    assert record_key("abdy 113", from_code=True) == "ABDY113" and record_key(None, from_code=True) is None
+    assert record_key(" program-anthropology-b.a. ", from_code=False) == "program-anthropology-b.a."
+    assert len(record_key("x" * 150, from_code=False)) == 100
+
+
+def test_the_key_rule_is_the_external_identifier_else_the_code():
+    def prop(term, rule_type="css"):
+        return {"kind": "property", "ctdl_property": term, "definition": {"locator": "loc", "rule_type": rule_type}}
+
+    rules = {"c-code": prop("ceterms:codedNotation"), "c-id": prop("ceterms:identifier"), "c-name": prop("ceterms:name")}
+    assert key_rule_for("loc", rules) == ("c-id", False)
+    rules["c-id"] = prop("ceterms:identifier", "none")  # listed, no rule yet
+    assert key_rule_for("loc", rules) == ("c-code", True)
+    assert key_rule_for("other", rules) == (None, False)

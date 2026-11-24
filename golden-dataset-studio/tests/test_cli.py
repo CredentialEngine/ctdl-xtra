@@ -7,16 +7,37 @@ def test_help_lists_every_command_group(capsys):
     with pytest.raises(SystemExit):
         main(["--help"])
     out = capsys.readouterr().out
-    for cmd in ["init", "assets", "import-v2", "extract", "check", "sql", "rule", "pages", "prompt", "golden",
+    for cmd in ["init", "assets", "extract", "check", "sql", "rule", "pages", "prompt", "golden",
                 "sync", "serve"]:
         assert cmd in out
+    assert "import-v2" not in out  # removed with LearningProgram (approved item 19)
 
 
 def test_rule_subcommands_parse():
     ap = build_parser()
     for argv in (["rule", "try", "d.json"], ["rule", "publish", "d.json", "--force"], ["rule", "draft", "a", "b"]):
-        args = ap.parse_args([*argv, "--root", "/tmp/x", "--catalog", "avc"])
+        args = ap.parse_args([*argv, "--root", "/tmp/x", "--catalog", "avc", "--class", "course"])
         assert args._target.startswith("golden_datasets.loop:")
+
+
+def test_class_is_required_on_class_commands_and_refused_on_the_others(monkeypatch, capsys):
+    """Approved item 19: `--class` has no default; GOLDEN_DATASETS_CLASS is its environment form."""
+    monkeypatch.delenv("GOLDEN_DATASETS_CLASS", raising=False)
+    base = ["--root", "/tmp/x", "--catalog", "avc"]
+    for argv in (["rule", "list"], ["extract", "1"], ["check"], ["score"], ["golden", "publish"], ["prompt"],
+                 ["properties", "list"], ["pages", "sample", "r"], ["ruleset", "revert", "2"]):
+        with pytest.raises(SystemExit):
+            build_parser().parse_args([*argv, *base])
+        assert "--class" in capsys.readouterr().err
+    assert build_parser().parse_args(["rule", "list", *base, "--class", "learningprogram"]).cls == "learningprogram"
+    with pytest.raises(SystemExit):
+        build_parser().parse_args(["rule", "list", *base, "--class", "program"])  # a slug, not a guess
+    for argv in (["init"], ["sql", "select 1"], ["pages", "get", "p"]):
+        with pytest.raises(SystemExit):
+            build_parser().parse_args([*argv, *base, "--class", "course"])
+        assert "unrecognized arguments: --class" in capsys.readouterr().err
+    monkeypatch.setenv("GOLDEN_DATASETS_CLASS", "learningprogram")
+    assert build_parser().parse_args(["rule", "list", *base]).cls == "learningprogram"
 
 
 def test_env_file_fills_unset_variables(tmp_path, monkeypatch):

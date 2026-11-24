@@ -19,8 +19,8 @@ GEOG_PROGRAM = "avc-elumenapp-com-catalog-2026-27-program-computer-engineering-a
 
 
 def test_find_row_by_key_course_or_page():
-    ordered = [({"key": "p1@a", "occurrence_key": "p1@a", "course_key": "GEOG222", "page_stem": "p1"}, None),
-               ({"key": "p2@b", "occurrence_key": "p2@b", "course_key": "MATH150", "page_stem": "p2"}, None)]
+    ordered = [({"key": "p1@a", "occurrence_key": "p1@a", "record_external_identifier": "GEOG222", "page_stem": "p1"}, None),
+               ({"key": "p2@b", "occurrence_key": "p2@b", "record_external_identifier": "MATH150", "page_stem": "p2"}, None)]
     assert _find_row(ordered, "p2@b") == 1
     assert _find_row(ordered, "MATH150") == 1
     assert _find_row(ordered, "geog 222") == 0
@@ -110,7 +110,7 @@ B = "/api/catalogs/avc"
 def test_rows_focus_extends_the_page(client):
     r = client.get(f"{B}/rules/course-description/rows", params={"limit": 5, "focus": "GEOG222"}).json()
     i = r["focus_index"]
-    assert i is not None and r["rows"][i]["course_key"] == "GEOG222"
+    assert i is not None and r["rows"][i]["record_external_identifier"] == "GEOG222"
     assert r["rows"][i]["state"] == "fixed"  # ruleset v2 fixed Jared's wrong verdict
     deep = client.get(f"{B}/rules/course-description/rows", params={"limit": 5}).json()["total"]
     assert deep == 1062
@@ -162,7 +162,7 @@ def test_page_search_and_courses_flags(client):
     assert hits and all("geographic" in (h["title"] + h["url"]).lower() for h in hits)
     courses = client.get(f"{B}/courses").json()
     assert courses[0]["annotated"] is True  # courses someone looked at come first
-    assert any(c["course_key"] == "GEOG222" for c in client.get(f"{B}/courses", params={"q": "geog 222"}).json())
+    assert any(c["record_external_identifier"] == "GEOG222" for c in client.get(f"{B}/courses", params={"q": "geog 222"}).json())
 
 
 @pytest.mark.slow

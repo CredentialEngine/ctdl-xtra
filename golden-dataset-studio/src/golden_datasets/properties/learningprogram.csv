@@ -1,0 +1,91 @@
+rule_id,path,sheet_path,path_note,label,parent,profile,multiple,required,phase,record_key,sheet_row,status,vocabulary,definition_text,sample
+learningprogram-learning-type,,,,Learning Type,,,false,true,Phase 1,false,0,Include,,The type of learning opportunity. Always LearningProgram here (the Studio's own column).,LearningProgram
+learningprogram-external-id,ceterms:identifier,ceterms:identifier,,External Identifier,,,true,true,Phase 1,true,2,Include,,A unique alphanumeric identifier for this learning opportunity that is used for your customers or for internal processes within your system.,BIOL20003
+learningprogram-name,ceterms:name,ceterms:name,,Name,,,false,true,Phase 1,false,3,Include,,Name or title of the resource.,General Microbiology
+learningprogram-description,ceterms:description,ceterms:description,,Description,,,false,true,Phase 1,false,4,Include,,"Statement, characterization or account of the entity.",This course guides students in the development of...
+learningprogram-subject-webpage,ceterms:subjectWebpage,ceterms:subjectWebpage,,Subject Webpage,,,false,true,Phase 1,false,5,Include,,Webpage that describes this entity.,https://example.org/resource/123
+learningprogram-lifecycle,ceterms:lifeCycleStatusType,ceterms:lifeCycleStatusType,,Life Cycle Status Type,,,false,true,Phase 1,false,6,Include,"Active
+Ceased
+Ceasing
+Developing
+Suspended
+Teach Out",Type of state of the resource in terms of its stage in a life cycle; select from an enumeration of such types.,Active
+learningprogram-language,ceterms:inLanguage,ceterms:inLanguage,,Language,,,true,true,Phase 1,false,7,Include,,"The primary language or languages of the entity, even if it makes use of other languages.",English | Spanish
+learningprogram-in-catalog,ceterms:inCatalog,ceterms:inCatalog,,In Catalog,,,false,false,Phase 1,false,8,Include,,An inventory or listing of resources that includes this resource.,https://example.com/incatalogurl
+learningprogram-credit-value,ceterms:creditValue,ceterms:creditValue,,Credit Value,,,false,false,Phase 1,false,9,Include,,A credit-related value.,
+learningprogram-credit-value-value,ceterms:creditValue>schema:value,ceterms:creditValue>schema:value,,Credit Unit Value,ceterms:creditValue,ceterms:ValueProfile,false,false,Phase 1,false,10,Include,,The value of the property value node.,3
+learningprogram-credit-value-min-value,ceterms:creditValue>schema:minValue,ceterms:creditValue>schema:minValue,,Credit Unit Min Value,ceterms:creditValue,ceterms:ValueProfile,false,false,Phase 1,false,11,Include,,The lower value of some characteristic or property.,2
+learningprogram-credit-value-max-value,ceterms:creditValue>schema:maxValue,ceterms:creditValue>schema:maxValue,,Credit Unit Max Value,ceterms:creditValue,ceterms:ValueProfile,false,false,Phase 1,false,12,Include,,The upper value of some characteristic or property.,6
+learningprogram-credit-value-credit-unit-type,ceterms:creditValue>ceterms:creditUnitType,ceterms:creditValue>ceterms:creditUnitType,,Credit Unit Type,ceterms:creditValue,ceterms:ValueProfile,false,false,Phase 1,false,13,Include,"Academic Unit
+Carnegie Unit
+Certificate Credit
+Clock Hour
+Competency Credit
+Contact Hour
+Continuing Education Unit
+Degree Credit
+Dual Credit
+Quarter Hour
+Requirement Credit
+Secondary Diploma Credit
+Semester Hour
+Time Based Credit
+Type Based Credit",The type of credit associated with the credit awarded or required.,ContactHour
+learningprogram-is-non-credit,ceterms:isNonCredit,ceterms:isNonCredit,,Is Non-Credit,,,false,false,Phase 1,false,14,Include,,Resource carries or confers no official academic credit according to the provider of the resource.,TRUE
+learningprogram-available-at,ceterms:availableAt,ceterms:availableAt,,Available At,,,true,false,Phase 2,false,15,Include,,"Physical location where the credential, assessment, or learning opportunity can be pursued.",https://example.com/availableAt
+learningprogram-available-online-at,ceterms:availableOnlineAt,ceterms:availableOnlineAt,,Available Online At,,,true,false,Phase 2,false,16,Include,,"Online location where the credential, assessment, or learning opportunity can be pursued.",https://example.com/availableOnlineAt
+learningprogram-availability-listing,ceterms:availabilityListing,ceterms:availabilityListing,,Availability Listing,,,true,false,Phase 2,false,17,Include,,Listing of online and/or physical locations where a resource can be found or pursued.,
+learningprogram-audience-level-type,ceterms:audienceLevelType,ceterms:audienceLevelType,,Audience Level Type,,,true,false,Phase 2,false,18,Include,"Advanced Level
+Associates Degree Level
+Bachelors Degree Level
+Beginner Level
+Doctoral Degree Level
+Early Childhood
+Graduate Level
+Intermediate Level
+Lower Division Level
+Lower Secondary
+Masters Degree Level
+Post-Secondary Level
+Primary
+Professional Level
+Remedial Level
+Secondary Level
+Undergraduate Level
+Upper Division Level
+Upper Secondary","Type of level indicating a point in a progression through an educational or training context, for which the resource is intended; select from an existing enumeration of such types.",Upper Division Level
+learningprogram-date-effective,ceterms:dateEffective,ceterms:dateEffective,,Date Effective,,,false,false,Phase 2,false,19,Include,,Date after which this resource is available or applicable.,2026-09-01
+learningprogram-approximate-date-effective,ceterms:approximateDateEffective,ceterms:approximateDateEffective,,Approximate Date Effective,,,false,false,Phase 2,false,20,Include,,Approximate date after which this resource is available or applicable.,2026
+learningprogram-delivery-type,ceterms:deliveryType,ceterms:deliveryType,,Delivery Type,,,true,false,Phase 2,false,21,Include,"Asynchronous
+Blended Delivery
+In Person
+Mixed Synchronous
+Online Only
+Synchronous
+Variable Site",Type of means by which a learning opportunity or assessment is delivered to credential seekers and by which they interact; select from an existing enumeration of such types.,Blended Delivery|Synchronous
+learningprogram-delivery-type-description,ceterms:deliveryTypeDescription,ceterms:deliveryTypeDescription,,Delivery Type Description,,,false,false,Phase 2,false,22,Include,,Detailed description of the delivery type of an assessment or learning opportunity.,This program includes a mix of delivery types that are designed to fit different schedules.
+learningprogram-learning-method-type,ceterms:learningMethodType,ceterms:learningMethodType,,Learning Method Type,,,true,false,Phase 2,false,23,Include,"Applied
+Apprenticeship
+Augmented Reality
+Clinical Rotation
+Cocurricular Learning
+Cohort-Based
+Competency Based
+Gaming
+Instructor-Led
+Internship
+Laboratory
+Lecture
+Medical Residency
+Prerecorded
+Self Paced
+Seminar
+Simulation
+Work Based",Types of methods used to conduct the learning opportunity; select from an existing enumeration of such types.,Lecture|Laboratory
+learningprogram-learning-method-description,ceterms:learningMethodDescription,ceterms:learningMethodDescription,,Learning Method Description,,,false,false,Phase 2,false,24,Include,,Description of the methods used to conduct learning.,This program includes experiential and project-based learning methods.
+learningprogram-content-description,ceterms:contentDescription,ceterms:contentDescription,,Content Description,,,false,false,Phase 2,false,25,Include,,"Description of the topics, concepts, theories, and practices addressed by a learning opportunity, program, course or assessment.","Topics covered are mechanical waves, sound, electrostatics, current and DC circuits, magnetism, light and optics, and modern physics."
+learningprogram-subject,ceterms:subject,ceterms:subject,,Subject,,,true,false,Phase 2,false,26,Include,,Words or brief phrases describing the topicality of the entity; select subject terms from an existing enumeration of such terms.,Algebra|Geometry
+learningprogram-entry-condition,ceterms:entryCondition,ceterms:entryCondition,,Entry Condition,,,true,false,Phase 2,false,27,Include,,"Requirements for entry into a credentialing program, a learning opportunity, or an assessment, including credentials, transcripts, records of previous experience, or other forms of entry documentation.",
+learningprogram-entry-condition-description,ceterms:entryCondition>ceterms:description,ceterms:entryCondition>ceterms:description,,Entry Condition: Description,ceterms:entryCondition,ceterms:ConditionProfile,false,false,Phase 2,false,28,Include,,"Statement, characterization or account of the entity.",Students who earn a grade point average of 3.0 or higher are eligible to apply.
+learningprogram-entry-condition-target-learning-opportunity,ceterms:entryCondition>ceterms:targetLearningOpportunity,ceterms:entryCondition>ceterms:targetLearningOpportunity,,Target Learning Opportunity,ceterms:entryCondition,ceterms:ConditionProfile,true,false,Phase 2,false,29,Include,,"Learning opportunity that is the focus of a condition, process or another learning opportunity.",CHEM14103
+learningprogram-estimated-duration,ceterms:estimatedDuration,ceterms:estimatedDuration,,Estimated Duration,,,true,false,Phase 2,false,30,Include,,"Estimated time it will take to complete an activity, event, or resource.",

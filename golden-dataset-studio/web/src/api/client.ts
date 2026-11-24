@@ -54,8 +54,8 @@ export const api = {
   unclassifiedPages: (catalog: string, ext?: string | null) =>
     call<UnclassifiedPage[]>(`${c(catalog)}/unclassified-pages${q({ ext })}`),
   courses: (catalog: string, query?: string) => call<CourseHit[]>(`${c(catalog)}/courses${q({ q: query })}`),
-  course: (catalog: string, courseKey: string) =>
-    call<CourseDetail>(`${c(catalog)}/courses/${encodeURIComponent(courseKey)}`),
+  course: (catalog: string, recordKey: string) =>
+    call<CourseDetail>(`${c(catalog)}/courses/${encodeURIComponent(recordKey)}`),
   annotate: (catalog: string, event: NewEvent) =>
     call<AnnotateResponse>(`${c(catalog)}/annotations`, {
       method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(event),

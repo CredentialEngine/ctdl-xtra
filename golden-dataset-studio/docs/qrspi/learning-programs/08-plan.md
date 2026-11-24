@@ -230,3 +230,33 @@ Add one line per phase as it lands: the phase, the commit, the checks run, and a
   --catalog avc --draft rs-0029` scored it (sc-0045: 1,062 records, rule-matched 94.6% exact). Left over: `check`
   can't run fully offline, because it reads the golden versions from the shared container; that predates this
   phase. The scorer modules now live in `src/xtra/score/` (was `scoring/`), and the Studio didn't import them.
+- **Phase 1** (classes, properties, tiers, record key).
+  - **Classes:** `classes.py` lists `course` and `learningprogram`: name, rule prefix, sheet tab, xtra `entity_type`
+    and CTDL type, required list, and generated-id prefix (`program`, ask 3).
+  - **Properties:** `properties/course.csv` and `properties/learningprogram.csv`. Sync reads the class's tab by its
+    headers; the path is the CLI Extraction Label, else the CTDL Shorthand URI (LearningProgram's Available At).
+    New columns: `phase` (xTRA Status), and `record_key` in place of `course_key`. Tiers are Required, Phase 1 and
+    Phase 2. Course's Coded Notation is now Phase 1. LearningProgram's Required is Course's without Coded Notation
+    (ask 9).
+  - **Rule ids:** LearningProgram rule ids mirror Course's for the same property (`learningprogram-external-id`,
+    `-lifecycle`, `-language`), so the classes line up.
+  - **Sheet check:** a live-sheet sync of both tabs matches the checked-in files exactly. Against the 2026-11-23
+    CSV snapshots, every row, path, label, phase, tier and Single/Multiple matches; only Sample cells differ,
+    because that export wrote numbers as floats (`3.0`). The xlsx reader now gives booleans and dates as the sheet
+    shows them.
+  - **Record key:** `course_key` is renamed `record_external_identifier` in code, API and web types. Its value comes
+    from the locator's External Identifier rule, else its Coded Notation rule (normalized as before); the
+    `course_key_rule` setting is no longer read or written. In all five local catalogs, every current `course_key`
+    equals the External Identifier value, so Course keys don't change. A `generated_id:<type>` transform gives
+    `program-<normalized name>`.
+  - **`--class`:** required on the item-19 commands (or `GOLDEN_DATASETS_CLASS`), and refused by argparse on the
+    others. AI-run env files name the class. `import-v2` is gone from the CLI and the package; its importer lives on
+    in `tests/v2_import.py`, only to build the slow tests' AVC fixture.
+  - **Fixture:** `tests/programs.py` (two WVU program pages with major codes, one AVC page with a generated id),
+    driven by `tests/test_learning_programs.py` through the CLI and the HTTP API.
+  - **Checks:** `uv run pytest` 240 passed; `ruff check` clean; web `typecheck` clean, `npm test` 279 passed, build OK.
+    `make slow` has the same 9 failures as before this phase (checked on a clean copy of e77f38c); they're stale
+    against the local mirror.
+  - **Left over:** the server's API is still Course-only (the class in the URL is Phase 4), and `sql`'s `class`
+    column comes with the class folders (Phase 2). The app can't serve the local data until Phase 2's migration
+    renames `course_key` in the stored files.

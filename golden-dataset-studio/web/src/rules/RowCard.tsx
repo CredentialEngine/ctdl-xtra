@@ -49,8 +49,8 @@ export function RowCard({ row: r, kind, label, on, draft = null, perPage = false
   const linkRow = links ? <div className="row-links">{links}</div> : null;
   return (
     <div className={cls} data-row-index={selectable ? index : undefined} tabIndex={selectable ? -1 : undefined}
-      onClick={onClick} data-testid={selectable ? undefined : "row-card"} data-course={r.course_key ?? undefined}>
-      {kind !== "page" && <div className="code">{r.course_key ?? "—"}</div>}
+      onClick={onClick} data-testid={selectable ? undefined : "row-card"} data-course={r.record_external_identifier ?? undefined}>
+      {kind !== "page" && <div className="code">{r.record_external_identifier ?? "—"}</div>}
       <div className="body">
         {kind === "page"
           ? <><div className="val">{r.page_title ?? r.page_stem}</div><div className="pg">{r.url.replace(/^https?:\/\//, "")}</div></>

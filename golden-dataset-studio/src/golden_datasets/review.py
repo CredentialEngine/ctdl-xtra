@@ -13,7 +13,7 @@ How an old verdict applies to the current row (spec §4.3 "old verdicts carry fo
 - seen on this rule version, or the value is unchanged since → it applies as given;
 - `wrong` and the value changed: **fixed** when it now equals the expected text, else **still wrong**;
 - `correct` and the value changed: **changed since correct** (needs a fresh look; not counted as wrong).
-Annotations re-attach through `course_key` + page when the occurrence key changed (a changed locator, D3).
+Annotations re-attach through `record_external_identifier` + page when the occurrence key changed (a changed locator, D3).
 A row's `events` are every verdict and comment on it, whichever ruleset version they were made in: the "Annotated by"
 filter of the Rules and Records tabs (`annotations`, `annotated_match`) and the Sample drawer's "Annotated in" stratum.
 
@@ -171,7 +171,7 @@ class Snapshot:
         for m in sorted(tables["matches"], key=lambda x: (x["rule_id"], x["occurrence_key"], x["value_index"])):
             m = dict(m)
             o = self.occurrences[m["occurrence_key"]]
-            m["course_key"] = o["course_key"]
+            m["record_external_identifier"] = o["record_external_identifier"]
             k = (o["css_path"], m["css_path"])
             if k not in full_paths:
                 full_paths[k] = model.full_css_path(*k)
@@ -200,9 +200,16 @@ class Snapshot:
                 self.signals_by_target[(s["rule_id"], s["occurrence_key"])].append(s)
             else:
                 self.page_signals[s["page_stem"]].append(s)
-        # A course's display line: "GEOG 222 - Cartography for …" from the code + name rules of its locator.
-        self.code_rule = {loc: model.code_rule_for(loc, self.rules, self.settings)
-                          for loc, r in self.rules.items() if r["kind"] == "locator"}
+        # A record's display line: "GEOG 222 - Cartography for …" from the code (else the key) + name rules of its
+        # locator.
+        self.code_rule = {}
+        for loc, r in self.rules.items():
+            if r["kind"] == "locator":
+                self.code_rule[loc] = next((rid for rid, x in sorted(self.rules.items()) if x["kind"] == "property"
+                                            and x["definition"].get("locator") == loc
+                                            and x.get("ctdl_property") == "ceterms:codedNotation"
+                                            and x["definition"].get("rule_type") != "none"),
+                                           None) or model.key_rule_for(loc, self.rules)[0]
         self.name_rule = {}
         for loc in self.code_rule:
             self.name_rule[loc] = next((rid for rid, r in sorted(self.rules.items()) if r["kind"] == "property"
@@ -260,7 +267,7 @@ class Snapshot:
                     if stems is not None and o["page_stem"] not in stems:
                         continue
                     out.append({"key": o["occurrence_key"], "occurrence_key": o["occurrence_key"],
-                                "course_key": o["course_key"], "page_stem": o["page_stem"], "value": None,
+                                "record_external_identifier": o["record_external_identifier"], "page_stem": o["page_stem"], "value": None,
                                 "status": "none", "css_path": None, "char_start": None, "char_end": None,
                                 "occurrence_css_path": o["css_path"],
                                 "context": self.course_line(o["occurrence_key"]), "signals": []})
@@ -271,7 +278,7 @@ class Snapshot:
                     continue  # a list: one row per course, its items below
                 o = self.occurrences[m["occurrence_key"]]
                 row = {"key": m["occurrence_key"], "occurrence_key": m["occurrence_key"],
-                       "course_key": o["course_key"], "page_stem": m["page_stem"], "value": m["value"],
+                       "record_external_identifier": o["record_external_identifier"], "page_stem": m["page_stem"], "value": m["value"],
                        "status": m["status"], "css_path": m["full_css_path"], "char_start": m["char_start"],
                        "char_end": m["char_end"], "occurrence_css_path": o["css_path"],
                        "context": self.course_line(m["occurrence_key"]),
@@ -291,7 +298,7 @@ class Snapshot:
                 sig = list(self.signals_by_target.get((rule_id, o["occurrence_key"]), []))
                 sig += [s for s in self.page_signals.get(o["page_stem"], []) if s["rule_id"] == rule_id]
                 out.append({"key": o["occurrence_key"], "occurrence_key": o["occurrence_key"],
-                            "course_key": o["course_key"], "page_stem": o["page_stem"],
+                            "record_external_identifier": o["record_external_identifier"], "page_stem": o["page_stem"],
                             "value": self.course_line(o["occurrence_key"]) or None, "status": "found",
                             "css_path": o["css_path"], "char_start": None, "char_end": None,
                             "occurrence_css_path": o["css_path"], "locator_index": o["locator_index"],
@@ -300,7 +307,7 @@ class Snapshot:
             for stem in [lb["page_stem"] for lb in self.labels_by_rule.get(rule_id, [])
                          if stems is None or lb["page_stem"] in stems]:
                 p = self.page[stem]
-                out.append({"key": stem, "occurrence_key": None, "course_key": None, "page_stem": stem,
+                out.append({"key": stem, "occurrence_key": None, "record_external_identifier": None, "page_stem": stem,
                             "value": p["title"], "status": "found", "css_path": None, "char_start": None,
                             "char_end": None, "occurrence_css_path": None, "context": p["url"],
                             "signals": [s for s in self.page_signals.get(stem, []) if s["rule_id"] == rule_id]})
@@ -440,12 +447,12 @@ class Review:
                 if t == "reset" and rid in self.snap.rules}
 
     def item_events(self, rule_id: str) -> dict[tuple, list[dict]]:
-        """Verdicts on a list rule's items, oldest first, per (course_key or occurrence, page)."""
+        """Verdicts on a list rule's items, oldest first, per (record_external_identifier or occurrence, page)."""
         out: dict[tuple, list[dict]] = defaultdict(list)
         for e in sorted(self.live, key=lambda x: x["at"]):
             t = e["target"]
             if e["type"] == "verdict" and t.get("item") and t.get("rule_id") == rule_id:
-                out[(t.get("course_key") or t.get("occurrence_key"), t.get("page_stem"))].append(e)
+                out[(t.get("record_external_identifier") or t.get("occurrence_key"), t.get("page_stem"))].append(e)
         return out
 
     def _item_states(self, rule_id: str, row: dict, events: list[dict], st: RowState) -> None:
@@ -482,8 +489,8 @@ class Review:
             t = e["target"]
             if e["type"] not in ("verdict", "comment") or not t.get("rule_id") or t["rule_id"] == rule_id:
                 continue
-            if t.get("course_key"):
-                by_course[t["course_key"]].add(t["rule_id"])
+            if t.get("record_external_identifier"):
+                by_course[t["record_external_identifier"]].add(t["rule_id"])
             elif t.get("page_stem"):
                 by_page[t["page_stem"]].add(t["rule_id"])
         out = {}
@@ -491,7 +498,7 @@ class Review:
             st = states[r["key"]]
             if st.state is not None or st.comments:
                 continue
-            other = by_course.get(r.get("course_key") or "", set()) | by_page.get(r["page_stem"], set())
+            other = by_course.get(r.get("record_external_identifier") or "", set()) | by_page.get(r["page_stem"], set())
             if other:
                 out[r["key"]] = sorted(other)
         return out
@@ -516,10 +523,10 @@ class Review:
         for found, into in ((latest, by_course_page), (expert, expert_by_course_page)):
             for e in found.values():
                 t = e["target"]
-                if t.get("course_key"):
-                    into[(t["course_key"], t.get("page_stem"))] = e
-        before_by_course_page = {(e["target"]["course_key"], e["target"].get("page_stem")): e
-                                 for e in v["before_reset"].values() if e["target"].get("course_key")}
+                if t.get("record_external_identifier"):
+                    into[(t["record_external_identifier"], t.get("page_stem"))] = e
+        before_by_course_page = {(e["target"]["record_external_identifier"], e["target"].get("page_stem")): e
+                                 for e in v["before_reset"].values() if e["target"].get("record_external_identifier")}
         # comments and earlier verdicts re-attach the same way, so an older ruleset's annotations stay on the row
         talk_by_course_page: dict[tuple, list] = defaultdict(list)
         every_by_course_page: dict[tuple, list] = defaultdict(list)
@@ -529,8 +536,8 @@ class Review:
                 continue
             for e in es:
                 t = e["target"]
-                if t.get("course_key"):
-                    cp = (t["course_key"], t.get("page_stem"))
+                if t.get("record_external_identifier"):
+                    cp = (t["record_external_identifier"], t.get("page_stem"))
                     every_by_course_page[cp].append(e)
                     if e["type"] == "comment":
                         talk_by_course_page[cp].append(e)
@@ -549,24 +556,24 @@ class Review:
         for row in rows:
             st = RowState()
             e = latest.get(row["key"])
-            if e is None and row.get("course_key"):
-                e = by_course_page.get((row["course_key"], row["page_stem"]))
+            if e is None and row.get("record_external_identifier"):
+                e = by_course_page.get((row["record_external_identifier"], row["page_stem"]))
                 st.reattached = e is not None
             st.comments = comments.get(row["key"], [])
             st.events = every.get(row["key"], [])
-            if row.get("course_key"):
-                cp = (row["course_key"], row["page_stem"])
+            if row.get("record_external_identifier"):
+                cp = (row["record_external_identifier"], row["page_stem"])
                 st.comments = st.comments + talk_by_course_page.get(cp, [])
                 st.events = sorted(st.events + every_by_course_page.get(cp, []), key=lambda x: x["at"])
             if e is None:  # what a reset took back, on this row or re-attached by course and page like any verdict
                 st.before_reset = v["before_reset"].get(row["key"]) or (
-                    before_by_course_page.get((row["course_key"], row["page_stem"])) if row.get("course_key") else None)
+                    before_by_course_page.get((row["record_external_identifier"], row["page_stem"])) if row.get("record_external_identifier") else None)
             else:
                 st.verdict = e
                 st.state = self._carry(rule, e, row)
                 st.role = self.role(e)
                 x = e if st.role == "sme" else expert.get(row["key"]) or (
-                    expert_by_course_page.get((row["course_key"], row["page_stem"])) if row.get("course_key") else None)
+                    expert_by_course_page.get((row["record_external_identifier"], row["page_stem"])) if row.get("record_external_identifier") else None)
                 if x is not None and st.state not in OPEN and self._carry(rule, x, row) in HUMAN_STATES:
                     st.human = x
             # the engineer's check: still on the row, or the one an expert's Confirm superseded
@@ -575,7 +582,7 @@ class Review:
             st.checked = max((x for x in checks if x and x["type"] == "verdict" and x["verdict"] == "correct"
                               and self.role(x) != "sme"), key=lambda x: x["at"], default=None)
             if item_events:
-                es = item_events.get((row.get("course_key") or row["occurrence_key"], row["page_stem"]), [])
+                es = item_events.get((row.get("record_external_identifier") or row["occurrence_key"], row["page_stem"]), [])
                 if es:
                     self._item_states(rule_id, row, es, st)
             if self.parent is not None:
@@ -1032,7 +1039,7 @@ def human_reviewed_counts(root, catalogs: list[str], ctx_of=None) -> Counter:
                     or role_of(e, who) != "sme":
                 continue
             item = norm(t.get("value_seen")) if t.get("item") else None
-            latest[(catalog, t.get("rule_id"), t.get("course_key") or t.get("occurrence_key"), t.get("page_stem"),
+            latest[(catalog, t.get("rule_id"), t.get("record_external_identifier") or t.get("occurrence_key"), t.get("page_stem"),
                     item)] = e
     out: Counter = Counter()
     for (_, rid, *_), e in latest.items():

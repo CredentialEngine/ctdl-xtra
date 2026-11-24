@@ -10,7 +10,7 @@ const rule = (o: Partial<RuleSummary>): RuleSummary => ({
   rule_id: "course-description", kind: "property", version: 1, title: "Description", subtitle: "ceterms:description",
   ctdl_property: "ceterms:description", property_label: "Description", locator: "locator-course-page", status: "in review",
   reviewed: 14, total: 1062, open_wrong: 0, open_missing: 0, questions: 0, approved_by: null, approved_at: null, comments: 0,
-  required: false, course_key: false, no_rule: false, list: false, path_shown: null, parent_label: null, input: "the course record", ...o });
+  required: false, record_key: false, no_rule: false, list: false, path_shown: null, parent_label: null, input: "the course record", ...o });
 const credit = rule({ rule_id: "creditValue", title: "Credit Value", subtitle: "ceterms:creditValue", ctdl_property: "ceterms:creditValue",
   property_label: "Credit Value", reviewed: 9 });
 const minValue = rule({ rule_id: "creditUnitMinValue", title: "Credit Unit Min Value", subtitle: "part of Credit Value",
@@ -20,7 +20,7 @@ const isNonCredit = rule({ rule_id: "isNonCredit", title: "Is Non-Credit", subti
 const unitType = rule({ rule_id: "creditUnitType", title: "Credit Unit Type", subtitle: "part of Credit Value", ctdl_property: "ceterms:creditValue>schema:unitType",
   property_label: "Credit Unit Type", parent_label: "Credit Value", no_rule: true });
 const coded = rule({ rule_id: "codedNotation", title: "Coded Notation", subtitle: "ceterms:codedNotation", ctdl_property: "ceterms:codedNotation",
-  property_label: "Coded Notation", required: true, course_key: true, reviewed: 31 });
+  property_label: "Coded Notation", required: true, record_key: true, reviewed: 31 });
 const estimated = rule({ rule_id: "estimatedDuration", title: "Estimated Duration", subtitle: "ceterms:estimatedDuration", ctdl_property: "ceterms:estimatedDuration",
   property_label: "Estimated Duration", list: true, reviewed: 5 });
 const language = rule({ rule_id: "course-language", title: "Language", subtitle: "ceterms:inLanguage", ctdl_property: "ceterms:inLanguage",
@@ -72,12 +72,12 @@ describe("the rule list's groups (property-rules spec §4.8)", () => {
     expect(items()).not.toContain("isNonCredit");
   });
 
-  it("a child says part of its parent, without a path; a course key and a list are tagged", async () => {
+  it("a child says part of its parent, without a path; a record key and a list are tagged", async () => {
     await render();
     const child = host.querySelector<HTMLElement>("[data-rule=creditUnitMinValue] .id")!;
     expect(child.textContent).toBe("part of Credit Value");
     expect(child.classList.contains("plain")).toBe(true);
-    expect(host.querySelector("[data-rule=codedNotation] .rl-tag")!.textContent).toBe("course key");
+    expect(host.querySelector("[data-rule=codedNotation] .rl-tag")!.textContent).toBe("record key");
     expect(host.querySelector("[data-rule=estimatedDuration] .rl-tag")!.textContent).toBe("list");
     expect(host.querySelector("[data-rule=creditUnitMinValue] .rl-tag")).toBeNull();
   });

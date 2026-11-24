@@ -49,7 +49,7 @@ def scored(studio, tmp_path, monkeypatch):  # noqa: F811
 
 def test_a_score_has_both_results_and_one_row_per_value(scored, capsys):
     c, ctx, tmp = scored
-    assert main(["score", "--root", ctx.root.uri, "--catalog", CAT, "--ruleset", "1"]) == 0
+    assert main(["score", "--class", "course", "--root", ctx.root.uri, "--catalog", CAT, "--ruleset", "1"]) == 0
     out = capsys.readouterr().out
     assert "sc-0001" in out and "human-reviewed  100.0% exact of 1 values" in out
     assert "rule-matched    66.7% exact of 6 values · match 4 · partial 1 · wrong 0 · missing 1" in out
@@ -86,7 +86,7 @@ def test_human_reviewed_values_are_read_live_from_the_page_files(scored):
 def test_slot_names_and_a_record_count_that_disagrees_are_flagged(scored, capsys):
     _, ctx, tmp = scored
     _output(tmp / "old", ctx.crawl, slot_names=True, written=5)
-    assert main(["score", "--root", ctx.root.uri, "--catalog", CAT, "--output", str(tmp / "old")]) == 0
+    assert main(["score", "--class", "course", "--root", ctx.root.uri, "--catalog", CAT, "--output", str(tmp / "old")]) == 0
     out = capsys.readouterr().out
     assert scores.SLOT_NAMES in out and "3 records in the folder, the report says 5" in out
     doc = scores.read(Ctx(ctx.root, CAT), "sc-0001")
@@ -206,11 +206,11 @@ def test_one_score_runs_per_catalog_at_a_time(scored):
 
 def test_the_cli_scores_the_human_reviewed_values_and_a_draft(scored, capsys):
     _, ctx, _ = scored
-    assert main(["score", "--root", ctx.root.uri, "--catalog", CAT, "--human-reviewed"]) == 0
+    assert main(["score", "--class", "course", "--root", ctx.root.uri, "--catalog", CAT, "--human-reviewed"]) == 0
     out = capsys.readouterr().out
     assert "vs human-reviewed [done]" in out and "human-reviewed  100.0% exact of 1 values" in out
     draft = Ctx(ctx.root, CAT).latest_extraction()
-    assert main(["score", "--root", ctx.root.uri, "--catalog", CAT, "--draft", draft]) == 0
+    assert main(["score", "--class", "course", "--root", ctx.root.uri, "--catalog", CAT, "--draft", draft]) == 0
     doc = scores.all_scores(Ctx(ctx.root, CAT))[0]
     assert (doc["golden"]["id"], doc["golden"]["kind"], doc["commands"]) == (draft, "draft", [])  # a draft has no files
 
@@ -237,10 +237,9 @@ def test_the_catalogs_summary_has_each_columns_status_and_the_latest_score(score
     """Evals step 5: the home page's catalogs table, from small files only (score.json, publication.json, the log)."""
     c, ctx, tmp = scored
     s = c.get("/api/catalogs-summary").json()
-    # every property a column (property-rules spec §4.9): the required ones first, the course key first
-    assert s["basis"] == "human" and s["columns"][:8] == ["codedNotation", "identifier", "Learning Type", "name",
-                                                          "description", "subjectWebpage", "lifeCycleStatusType",
-                                                          "inLanguage"] \
+    # every property a column (property-rules spec §4.9): the required ones first, the record key first
+    assert s["basis"] == "human" and s["columns"][:7] == ["identifier", "Learning Type", "name", "description",
+                                                          "subjectWebpage", "lifeCycleStatusType", "inLanguage"] \
         and len(s["columns"]) == s["properties"] == 37 and "creditValue>minValue" in s["columns"]
     assert s["labels"]["creditValue>minValue"] == "creditValue → minValue" and "not_in_studio" not in s
     cat = s["catalogs"][CAT]
@@ -254,7 +253,7 @@ def test_the_catalogs_summary_has_each_columns_status_and_the_latest_score(score
     statuses = {k: v["status"] for k, v in cat["columns"].items()}
     assert set(statuses) <= set(s["columns"]) and statuses.get("description", "in review") == "in review"
 
-    assert main(["score", "--root", ctx.root.uri, "--catalog", CAT, "--ruleset", "1"]) == 0
+    assert main(["score", "--class", "course", "--root", ctx.root.uri, "--catalog", CAT, "--ruleset", "1"]) == 0
     c.app.state.studio.ctx(CAT).invalidate()  # the server re-reads the manifest every few seconds
     human = c.get("/api/catalogs-summary", params={"basis": "human"}).json()["catalogs"][CAT]["score"]
     assert (human["id"], human["golden"], human["values"], human["outcomes"]["match"]) == ("sc-0001", "ruleset-v1", 1, 1)
@@ -308,7 +307,7 @@ def test_only_the_columns_the_output_emits_are_scored(scored, capsys):
     """Property-rules spec P10: a column xtra doesn't extract isn't scored against it; xtra's own numbers stay."""
     _, ctx, tmp = scored
     _output(tmp / "codes-only", ctx.crawl, names={"page-0": None, "page-1": None, "page-2": None})
-    assert main(["score", "--root", ctx.root.uri, "--catalog", CAT, "--output", str(tmp / "codes-only")]) == 0
+    assert main(["score", "--class", "course", "--root", ctx.root.uri, "--catalog", CAT, "--output", str(tmp / "codes-only")]) == 0
     capsys.readouterr()
     doc = scores.read(Ctx(ctx.root, CAT), "sc-0001")
     assert doc["not_scored"] == ["name"]
@@ -325,7 +324,7 @@ def test_scores_carry_found_right_and_where_its_wrong(scored, capsys):
     """sme-fixes spec §8: values.parquet has unit, field and reason; the CLI prints found and right; /wrong groups
     every unit that isn't a match, each with an example and its courses' Studio rows."""
     c, ctx, _ = scored
-    assert main(["score", "--root", ctx.root.uri, "--catalog", CAT, "--ruleset", "1"]) == 0
+    assert main(["score", "--class", "course", "--root", ctx.root.uri, "--catalog", CAT, "--ruleset", "1"]) == 0
     out = capsys.readouterr().out
     assert "found (recall) 66.7% · right (precision) 80.0% of 5 candidates" in out
     rows = scores.values(ctx, "sc-0001")

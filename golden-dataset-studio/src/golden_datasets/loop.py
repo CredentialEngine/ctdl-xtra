@@ -96,7 +96,7 @@ def rule_annotations(rv: Review, rule_id: str, page_questions: bool = True) -> l
         for e in rv.verdicts_for(None)["latest"].values():
             if e["verdict"] == "question" and e["target"].get("page_stem") in stems:
                 out.append(_record(rv, rule_id, e, None, "question", [], page_level=True))
-    out.sort(key=lambda r: (not r["open"], VERDICT_ORDER.get(r["verdict"] or "", 4), r["course_key"] or "",
+    out.sort(key=lambda r: (not r["open"], VERDICT_ORDER.get(r["verdict"] or "", 4), r["record_external_identifier"] or "",
                             r["page_stem"] or "", r["annotation_id"]))
     return out
 
@@ -113,7 +113,7 @@ def _record(rv: Review, rule_id: str, e: dict, row: dict | None, state: str | No
         "annotation_id": e["annotation_id"], "type": e["type"], "verdict": e.get("verdict"), "state": state,
         "open": state in OPEN, "author": e["author"], "at": e["at"], "rule_id": rule_id,
         "target_kind": t.get("kind"), "page_level": page_level,
-        "course_key": t.get("course_key") or (row or {}).get("course_key"), "page_stem": stem,
+        "record_external_identifier": t.get("record_external_identifier") or (row or {}).get("record_external_identifier"), "page_stem": stem,
         "url": page.get("url"), "page_title": page.get("title"),
         "occurrence_key": t.get("occurrence_key"), "occurrence_css_path": (occ or {}).get("css_path"),
         "rule_version_seen": t.get("rule_version_seen"), "value_seen": t.get("value_seen"),
@@ -218,7 +218,7 @@ def cmd_rule_show(args) -> int:
 
 
 def format_annotation(ctx: Ctx, a: dict, i: int | None = None) -> str:
-    head = a["course_key"] or a["page_title"] or a["page_stem"]
+    head = a["record_external_identifier"] or a["page_title"] or a["page_stem"]
     verdict = (a["verdict"] or a["type"]).upper()
     state = STATE_LABEL.get(a["state"], a["state"])
     lines = [f"{'' if i is None else f'{i}. '}{verdict} — {head} — {state}{' (re-attached)' if a['reattached'] else ''}"
@@ -296,10 +296,8 @@ def draft_of(ctx: Ctx, rule_ids: list[str], for_catalog: str | None = None) -> d
         r = rules[rid]
         out.append({k: r.get(k) for k in DRAFT_FIELDS} | {"examples": r.get("examples") or []})
     if for_catalog:
-        keep = ("content_root", "page_title", "course_key_rule", "signals")
+        keep = ("content_root", "page_title", "signals")
         settings = {k: rs["settings"][k] for k in keep if k in rs["settings"]}
-        if "course_key_rule" in settings:  # only the record locators this ruleset still has
-            settings["course_key_rule"] = {loc: f for loc, f in settings["course_key_rule"].items() if loc in rules}
         return {"catalog": for_catalog, "base_ruleset": None, "template": f"{ctx.catalog} ruleset v{v}",
                 "settings": settings, "rules": out}
     return {"catalog": ctx.catalog, "base_ruleset": v, "rules": out}
@@ -473,8 +471,8 @@ def check_inferred(review: Review, inferred: list[dict]) -> list[str]:
         t = (e or {}).get("target") or {}
         if not live or e["type"] != "verdict" or e.get("verdict") != "wrong":
             out.append(f"inferred[{i}]: {x['annotation']} is not a live wrong verdict")
-        elif t.get("rule_id") != x["rule"] or (t.get("course_key") and t["course_key"] != x["course"]):
-            out.append(f"inferred[{i}]: {x['annotation']} is on {t.get('rule_id')} {t.get('course_key')}, "
+        elif t.get("rule_id") != x["rule"] or (t.get("record_external_identifier") and t["record_external_identifier"] != x["course"]):
+            out.append(f"inferred[{i}]: {x['annotation']} is on {t.get('rule_id')} {t.get('record_external_identifier')}, "
                        f"not {x['rule']} {x['course']}")
         elif (e.get("expected") or {}).get("text") is not None:
             out.append(f"inferred[{i}]: {x['annotation']} already has an expected value")
@@ -513,7 +511,7 @@ def evaluate(ctx: Ctx, plan: dict, log=lambda m: None, inferred: list[dict] | No
     names = rule_names({**(base_snap.rules if base_snap else {}), **plan["rules"]})
     produced = {}
     for x in inferred or []:
-        row = next((r for r in draft.rows(x["rule"]) if r.get("course_key") == x["course"]), None) \
+        row = next((r for r in draft.rows(x["rule"]) if r.get("record_external_identifier") == x["course"]), None) \
             if x["rule"] in draft.rules else None
         produced.setdefault(x["rule"], {})[x["course"]] = row["value"] if row else None
     return {"parent_extraction": parent_ext, "result": result, "cards": cards, "totals": totals, "snapshot": draft,
@@ -529,7 +527,7 @@ def _print_cards(plan: dict, ev: dict, b_label) -> None:
         still = [r for r in c["annotated_rows"] if r["outcome"] == "still wrong"]
         for title, rows in (("newly wrong (marked correct, value changed)", newly), ("still wrong", still)):
             if rows:
-                print(f"  {title}: " + ", ".join(r["course_key"] or r["page_stem"] for r in rows))
+                print(f"  {title}: " + ", ".join(r["record_external_identifier"] or r["page_stem"] for r in rows))
         print()
     t = ev["totals"]
     print(f"total: fixed {t['fixed']}, still wrong {t['still_wrong']}, newly wrong {t['newly_wrong']}, "
@@ -844,6 +842,6 @@ def cmd_pages_sample(args) -> int:
           f"extraction {rv.snap.ext}")
     for r in rows:
         print(page_ref(ctx, r["page_stem"]))
-        print(f"   {r['course_key'] or '—'} · {short(r['value'], 120)!s}"
+        print(f"   {r['record_external_identifier'] or '—'} · {short(r['value'], 120)!s}"
               + (f" · signals: {', '.join(r['signal_names'])}" if r["signal_names"] else ""))
     return 0

@@ -47,7 +47,8 @@ export interface RuleSummary {
   rule_comments?: number;             // comments on the whole rule (sidebar)
   // property rules only (property-rules spec §4.8, §4.2, §4.4):
   required?: boolean;                 // in the Required group (Coded Notation, External Identifier, …)
-  course_key?: boolean;               // Coded Notation: the course key, tagged "course key"
+  record_key?: boolean;               // External Identifier: the record key, tagged "record key"
+  tier?: "required" | "phase1" | "phase2" | null;
   no_rule?: boolean;                  // rule_type none: no rule yet (Not started)
   list?: boolean;                     // `multiple`: several values per course, one line each
   path_shown?: string | null;         // "ceterms:creditValue → schema:minValue", or null for a top-level property
@@ -126,7 +127,7 @@ export interface RowItem {
 
 export interface Row extends ReviewMarks {
   key: string;                       // occurrence_key (property rules, locators) or page_stem (page rules)
-  occurrence_key: string | null; course_key: string | null; page_stem: string; url: string; page_title: string | null;
+  occurrence_key: string | null; record_external_identifier: string | null; page_stem: string; url: string; page_title: string | null;
   /** the value's text; a list's items joined by line breaks; null for a property with no rule ("none") */
   value: string | null; status: "found" | "empty" | "no_match" | "none" | "absent";  // absent: the rule's claim (§6)
   /** a list property's items, one line each, and the items a reviewer marked missing (`expected.text`) */
@@ -150,13 +151,13 @@ export interface RowsResponse {
 }
 
 export interface Overlay {
-  blocks: { occurrence_key: string; css_path: string; n: number; course_key: string | null }[];
+  blocks: { occurrence_key: string; css_path: string; n: number; record_external_identifier: string | null }[];
   marks: { css_path: string; char_start: number; char_end: number; detail: string }[];
 }
 
 export interface UnclassifiedPage { page_stem: string; url: string; title: string | null; detail: string }
 
-export interface CourseHit { course_key: string; occurrences: number; line: string | null }
+export interface CourseHit { record_external_identifier: string; occurrences: number; line: string | null }
 /** A value of a list property on a course (the Records tab): its text and where it is on the page. */
 export interface CourseItem { value_index: number; value: string; css_path: string | null; char_start: number | null; char_end: number | null }
 export interface CourseProperty extends ReviewMarks {
@@ -170,7 +171,7 @@ export interface CourseProperty extends ReviewMarks {
   state: RowStateName | null; verdict: EventBrief | null; comments: EventBrief[];
 }
 export interface CourseDetail {
-  course_key: string; extraction: string;
+  record_external_identifier: string; extraction: string;
   occurrences: { occurrence_key: string; page_stem: string; url: string; page_title: string | null;
                  locator_rule_id: string; css_path: string; properties: CourseProperty[] }[];
 }
@@ -203,7 +204,7 @@ export interface Discussion { ruleset: TalkItem[]; rules: Record<string, TalkIte
 // --- Compare (routes_compare.py, scorecard.py) -------------------------------------------------------
 export interface DiffPart { op: "same" | "del" | "add"; text: string }
 export interface BriefRow {
-  key: string; course_key: string | null; page_stem: string; a_value: string | null; b_value: string | null;
+  key: string; record_external_identifier: string | null; page_stem: string; a_value: string | null; b_value: string | null;
   diff: DiffPart[]; css_path: string | null; char_start: number | null; char_end: number | null;
 }
 export interface AnnotatedRow extends BriefRow {
@@ -442,7 +443,7 @@ export interface ScoreValues {
 /** `/match`: one property rule's row on one occurrence, with its verdict and comments (what a diff's actions act on). */
 export interface MatchRow extends ReviewMarks {
   rule_id: string; kind: RuleKind; ctdl_property: string | null; property_label: string | null; extraction: string;
-  key: string; occurrence_key: string; course_key: string | null; page_stem: string; value: string | null; status: string;
+  key: string; occurrence_key: string; record_external_identifier: string | null; page_stem: string; value: string | null; status: string;
   css_path: string | null; char_start: number | null; char_end: number | null;
   state: RowStateName | null; verdict: EventBrief | null; comments: EventBrief[];
 }

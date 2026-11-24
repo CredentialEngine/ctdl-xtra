@@ -104,7 +104,7 @@ def test_a_new_output_is_copied_once_with_the_records_xtra_builds(studio, tmp_pa
 def test_the_score_command_reads_a_new_layout_folder_in_place(scored, capsys):  # noqa: F811
     _, ctx, tmp = scored
     new_output(tmp / "run", ctx.crawl)
-    assert main(["score", "--root", ctx.root.uri, "--catalog", CAT, "--output", str(tmp / "run")]) == 0
+    assert main(["score", "--class", "course", "--root", ctx.root.uri, "--catalog", CAT, "--output", str(tmp / "run")]) == 0
     capsys.readouterr()
     doc = scores.read(Ctx(ctx.root, CAT), "sc-0001")
     assert doc["status"] == "done" and doc["output"]["records"] == 3

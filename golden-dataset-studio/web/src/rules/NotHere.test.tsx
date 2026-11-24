@@ -33,7 +33,7 @@ const summary = (o: Partial<RuleSummary> = {}): RuleSummary => ({
 const rules: RulesResponse = { extraction: "rs-0003", ruleset_version: 3, groups: [
   { id: "other", kind: "property", label: "Property rules", collapsed: false, approved: 0, rules: [summary()] }] };
 const row: RowX = {
-  key: "p0@html", occurrence_key: "p0@html", course_key: "GEOG0", page_stem: "p0", url: "https://x/p0", page_title: "Page 0",
+  key: "p0@html", occurrence_key: "p0@html", record_external_identifier: "GEOG0", page_stem: "p0", url: "https://x/p0", page_title: "Page 0",
   value: "GEOG 0", status: "found", css_path: "html", char_start: 0, char_end: 5, occurrence_css_path: "html", context: "",
   state: null, verdict: null, reattached: false, comments: [], signal_count: 0, other_pages: [], group: null,
 } as RowX;

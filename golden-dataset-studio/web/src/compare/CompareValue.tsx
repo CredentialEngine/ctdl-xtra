@@ -66,7 +66,7 @@ export function CompareValue({ r, ruleId, kind, column, head, foot, children }: 
           ? <>
               <WrongFlow draft={draft} onChange={setDraft} onSave={() => void saveWrong()} onCancel={() => setDraft(null)} />
               <div className="cval-page">
-                <ValuePage catalog={cx!.short} stem={r.page_stem} url="" title={r.course_key ?? r.page_stem}
+                <ValuePage catalog={cx!.short} stem={r.page_stem} url="" title={r.record_external_identifier ?? r.page_stem}
                   golden={{ cssPath: r.css_path, charStart: r.char_start, charEnd: r.char_end, text: r.b_value }} other={r.a_value}
                   captures={draft.captures} capturing onCapture={capture}
                   onRemove={(i) => setDraft((d) => (d ? { ...d, captures: d.captures.filter((_, j) => j !== i) } : d))}

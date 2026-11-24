@@ -257,7 +257,7 @@ function See({ r, card, short }: { r: BriefRow; card: RuleCardX; short: string }
 }
 
 function Ck({ r, card, many }: { r: BriefRow; card: RuleCardX; many: boolean }) {
-  return <span className="ck">{r.course_key ?? "—"}{many && <span className="rtag">{card.ctdl_property ?? card.title}</span>}</span>;
+  return <span className="ck">{r.record_external_identifier ?? "—"}{many && <span className="rtag">{card.ctdl_property ?? card.title}</span>}</span>;
 }
 
 /** A changed value: the shared value diff (Split by default) with Note… and "The new value is wrong…" (property rules). */

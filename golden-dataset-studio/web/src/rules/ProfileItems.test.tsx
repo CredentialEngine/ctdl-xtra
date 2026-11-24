@@ -44,7 +44,7 @@ const obj = (i: number, d: string, t: string, state: "correct" | "wrong" | null 
   value_index: i, value: JSON.stringify({ [D]: d, [T]: t }), css_path: P, char_start: 0, char_end: 5, state, verdict: null, human: false,
   fields: { [D]: field(d, i * 100), [T]: field(t, i * 100 + 60) } });
 const row = (o: Partial<RowX> = {}): RowX => ({
-  key: "acct199@html", occurrence_key: "acct199@html", course_key: "ACCT199", page_stem: "acct199", url: "https://x/acct199",
+  key: "acct199@html", occurrence_key: "acct199@html", record_external_identifier: "ACCT199", page_stem: "acct199", url: "https://x/acct199",
   page_title: "ACCT199", value: "…", status: "found", css_path: P, char_start: 0, char_end: 5, occurrence_css_path: "html",
   context: "ACCT 199 - Work Experience", state: null, verdict: null, reattached: false, comments: [], signal_count: 0, other_pages: [],
   group: null, missing_items: [],

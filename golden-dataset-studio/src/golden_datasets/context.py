@@ -1,4 +1,4 @@
-"""`Ctx`: one catalog + crawl in one storage root, as every command and the server see it.
+"""`Ctx`: one catalog + crawl + class in one storage root, as every command and the server see it.
 
 It reads through the manifest (never by listing), caches immutable files on disk via the root, and holds the
 small helpers for reading and writing JSON and Parquet.
@@ -13,23 +13,26 @@ from functools import cached_property
 import pyarrow as pa
 import pyarrow.parquet as pq
 
-from . import layout, manifest, model
+from . import classes, layout, manifest, model
 from .catalogs import resolve
 from .errors import UserError
 from .storage import Root, open_root
 
 
 class Ctx:
-    def __init__(self, root: Root | str, catalog: str, crawl: str | None = None, manifest_ttl: float = 0.0):
+    def __init__(self, root: Root | str, catalog: str, crawl: str | None = None, manifest_ttl: float = 0.0,
+                 cls: str = "course"):
         self.root = open_root(root)
         self.catalog = resolve(catalog)
         self._crawl = crawl
+        self.ctdl_class = classes.get(cls)  # the CLI always names it (`--class`); the server's tabs are per class
+        self.cls = self.ctdl_class.slug
         self.manifest_ttl = manifest_ttl  # the server re-reads the manifest at most this often (seconds)
         self._manifest: tuple[float, dict] | None = None
 
     @classmethod
     def from_args(cls, args) -> Ctx:
-        return cls(args.root, args.catalog, getattr(args, "crawl", None))
+        return cls(args.root, args.catalog, getattr(args, "crawl", None), cls=getattr(args, "cls", None) or "course")
 
     # -- manifest ---------------------------------------------------------------------------------------
     def manifest(self) -> dict:
@@ -71,7 +74,7 @@ class Ctx:
     def latest_ruleset(self) -> int:
         v = self.ruleset_versions()
         if not v:
-            raise UserError(f"{self.catalog}: no ruleset yet; run `golden-datasets import-v2`")
+            raise UserError(f"{self.catalog}: no ruleset yet; add the catalog's first rules in the Studio (or `golden-datasets rule publish`)")
         return v[-1]
 
     def extractions(self) -> list[dict]:

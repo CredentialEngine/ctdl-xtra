@@ -41,7 +41,7 @@ export default function RecordsTab({ catalog, route }: TabProps) {
   const listRef = useRef<HTMLDivElement>(null);
   useKeyHints(HINTS, []);
 
-  const courseKey = route.id;
+  const recordKey = route.id;
   const by = route.params.get("by");
   const wantProp = route.params.get("prop") ?? (by ? null : "Description");
   const wantOcc = route.params.get("occ");
@@ -57,16 +57,16 @@ export default function RecordsTab({ catalog, route }: TabProps) {
 
   // no course in the address yet: open the first one in the list
   useEffect(() => {
-    if (!courseKey && hits && hits.length && !q) go(href(cat, "records", hits[0].course_key, { by }), true);
-  }, [courseKey, hits, q, cat, by]);
+    if (!recordKey && hits && hits.length && !q) go(href(cat, "records", hits[0].record_external_identifier, { by }), true);
+  }, [recordKey, hits, q, cat, by]);
 
   useEffect(() => {
-    if (!courseKey) return;
+    if (!recordKey) return;
     let live = true;
     setDraft(null); setActiveStem(null); setShowAll(false);
-    api.course(cat, courseKey).then((d) => { if (live) { setCourse(d); setError(null); } }, (e) => { if (live) { setCourse(null); setError(String(e)); } });
+    api.course(cat, recordKey).then((d) => { if (live) { setCourse(d); setError(null); } }, (e) => { if (live) { setCourse(null); setError(String(e)); } });
     return () => { live = false; };
-  }, [cat, courseKey]);
+  }, [cat, recordKey]);
 
   const all = useMemo(() => (course ? groupCards(course) : []), [course]);
   const { mine, folded } = useMemo(() => splitCards(all, by), [all, by]);
@@ -82,7 +82,7 @@ export default function RecordsTab({ catalog, route }: TabProps) {
     const box = listRef.current;
     const el = box?.querySelector<HTMLElement>(".course-item.on");
     if (box && el) scrollWithin(box, el, false);
-  }, [hits, courseKey]);
+  }, [hits, recordKey]);
 
   const cardsRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -182,8 +182,8 @@ export default function RecordsTab({ catalog, route }: TabProps) {
         </div>
         <div className="course-list" ref={listRef}>
           {(hits ?? []).map((h) => (
-            <a key={h.course_key} className={`course-item${h.course_key === courseKey ? " on" : ""}`} href={href(cat, "records", h.course_key, { by })}>
-              <span className="c">{h.course_key}{h.annotated && <span className="dot" title="has verdicts" />}</span>
+            <a key={h.record_external_identifier} className={`course-item${h.record_external_identifier === recordKey ? " on" : ""}`} href={href(cat, "records", h.record_external_identifier, { by })}>
+              <span className="c">{h.record_external_identifier}{h.annotated && <span className="dot" title="has verdicts" />}</span>
               <span className="t">{(h.line ?? "").replace(/^[^-]*-\s*/, "")}</span>
             </a>
           ))}
@@ -193,7 +193,7 @@ export default function RecordsTab({ catalog, route }: TabProps) {
       <section className="col mid">
         {error && <div className="placeholder muted" style={{ padding: 18 }}>{error}</div>}
         {course && <>
-          <div className="rec-head"><h1>{courseHeading(all, course.course_key)}</h1><div className="sub">{foundOn(course)}</div></div>
+          <div className="rec-head"><h1>{courseHeading(all, course.record_external_identifier)}</h1><div className="sub">{foundOn(course)}</div></div>
           <div className="cards" ref={cardsRef}>
             {cards.map((c) => {
               const url = termUrl(c.ctdl_property);

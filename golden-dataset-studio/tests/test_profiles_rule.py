@@ -110,7 +110,7 @@ def _studio(tmp_path, capsys, monkeypatch, rules: dict):
     crawls.add_catalog(LocalRoot(dst), src, CAT, log=lambda *a, **k: None)
     draft = tmp_path / "first.json"
     draft.write_text(json.dumps(rules))
-    assert main(["rule", "publish", "--root", str(dst), "--catalog", CAT, str(draft), "--note", "first"]) == 0
+    assert main(["rule", "publish", "--class", "course", "--root", str(dst), "--catalog", CAT, str(draft), "--note", "first"]) == 0
     capsys.readouterr()
     return TestClient(create_app(str(dst))), Ctx(LocalRoot(dst), CAT)
 
@@ -221,7 +221,7 @@ def test_properties_apply_folds_the_six_duration_rules_into_one_profile_rule(tmp
     assert [json.loads(i["value"]) for i in row["items"]] == ACCT199
     assert row["value"].split("\n")[0] == "Total Course In-Class (Contact) Hours · 54.0 - 432.0"
     assert properties.apply(Ctx(ctx.root, CAT), "again") is None
-    assert main(["check", "--root", ctx.root.uri, "-c", CAT]) == 0
+    assert main(["check", "--class", "course", "--root", ctx.root.uri, "-c", CAT]) == 0
     capsys.readouterr()
     # the rule drafts the children's fields could be read from stay out: the folded parent alone
     keep, drafts, removed = profiles_rule.fold_rules(now)
@@ -268,7 +268,7 @@ def test_each_object_has_its_own_verdict_and_an_added_object_is_labelled_field_b
     assert dur[3]["approved_by"] == JARED
     # another course's objects: the rule's
     assert [f["approval"] for f in _of(_golden(ctx, "page-1"), "ceterms:estimatedDuration")] == ["rule", "rule"]
-    assert main(["check", "--root", ctx.root.uri, "-c", CAT]) == 0
+    assert main(["check", "--class", "course", "--root", ctx.root.uri, "-c", CAT]) == 0
     capsys.readouterr()
 
 
@@ -386,7 +386,7 @@ def test_the_golden_dataset_publishes_the_reviewers_answer_da107a(profile_studio
                        "char_start": 0, "char_end": 3})
     [f] = _of(_golden(ctx, "page-3"), "ceterms:prerequisite>ceterms:description")
     assert (f["value"], f["approval"]) == ("Consent of instructor", "human") and "absent" not in f
-    assert main(["check", "--root", ctx.root.uri, "-c", CAT]) == 0
+    assert main(["check", "--class", "course", "--root", ctx.root.uri, "-c", CAT]) == 0
     capsys.readouterr()
 
 
@@ -410,5 +410,5 @@ def test_golden_parquet_and_page_files_hold_objects_and_absent_fields(profile_st
     t = pq.read_table(ctx.root.local_path(f"{vers['path']}/golden.parquet", mutable=True)).to_pylist()
     dur = [r for r in t if r["stem"] == "page-0" and r["ctdl_property"] == "ceterms:estimatedDuration"]
     assert [json.loads(r["value"]) for r in dur] == ACCT199 and dur[0]["location"]["char_start"] is not None
-    assert main(["check", "--root", ctx.root.uri, "-c", CAT]) == 0
+    assert main(["check", "--class", "course", "--root", ctx.root.uri, "-c", CAT]) == 0
     capsys.readouterr()

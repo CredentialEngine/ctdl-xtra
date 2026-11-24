@@ -1,10 +1,17 @@
-"""The property list (property-rules spec §4.1): one property rule per CLI Extraction Label (column F) of the Phase 1
-Extraction tab of "xTRA: Learning Opportunity BU Template", plus Learning Type.
+"""The property lists (property-rules spec §4.1; LearningProgram spec, approved items 2–4): one file per class,
+`properties/<class>.csv`, synced from that class's tab of "xTRA: Learning Opportunity BU Template"
+(`<Name> Properties`: `Course Properties`, `Learning Program Properties`), plus Learning Type.
 
-The list lives in the checked-in `properties.csv` beside this module. The app never reads the sheet at run time:
-- `golden-datasets properties sync` writes the file from the sheet (the diff is reviewed like code);
-- `golden-datasets properties list` prints it;
-- `golden-datasets properties apply` adds the file's new properties to each catalog, with no rule yet (§4.6).
+The app never reads the sheet at run time:
+- `golden-datasets properties sync --class X` writes the file from the sheet (the diff is reviewed like code);
+- `golden-datasets properties list --class X` prints it;
+- `golden-datasets properties apply --class X` adds the file's new properties to each catalog, with no rule yet (§4.6).
+
+**Tiers.** Every class has three: Required (the class's CTDL-required properties, `classes.REQUIRED` until the sheet
+gets a Required column), then the rest of Phase 1, then Phase 2. Phase is the sheet's xTRA Status column.
+
+**The record key** is the External Identifier (`ceterms:identifier`, issue #368) for every class: the row with
+`record_key` true.
 
 Paths are stored as the sheet writes them (`ceterms:creditValue>schema:minValue`) and shown to people with arrows.
 """
@@ -17,36 +24,31 @@ import re
 import sys
 import urllib.request
 import zipfile
+from datetime import date as date_type
+from datetime import timedelta
 from functools import lru_cache
 from pathlib import Path
 from xml.etree import ElementTree as ET
 
+from . import classes
+from .classes import CtdlClass
 from .errors import UserError
 
-FILE = Path(__file__).with_name("properties.csv")
+FOLDER = Path(__file__).with_name("properties")
 SHEET_XLSX = ("https://docs.google.com/spreadsheets/d/1zFG1Qzn4NTrvb5KTxucKnz-gPd8H_W0oYYRdh7jT8ro/export"
               "?format=xlsx")
-PHASE1_TAB, COURSE_TAB = "Phase 1 Extraction", "Course"
 COLUMNS = ["rule_id", "path", "sheet_path", "path_note", "label", "parent", "profile", "multiple", "required",
-           "course_key", "sheet_row", "status", "vocabulary", "definition_text", "sample"]
-BOOLS = ("multiple", "required", "course_key")
-
-#: Learning Type isn't on the Phase 1 tab: a constant `Course` rule with no path (§4.1).
-LEARNING_TYPE = {"rule_id": "course-learning-type", "path": "", "sheet_path": "", "path_note": "",
-                 "label": "Learning Type", "parent": "", "profile": "", "multiple": False, "required": True,
-                 "course_key": False, "sheet_row": 0, "status": "Include", "vocabulary": "", "sample": "Course",
-                 "definition_text": "The type of learning opportunity. Always Course here (the Studio's own column)."}
-#: Today's eight keep their rule ids (§4.1).
-KEPT_IDS = {"ceterms:codedNotation": "course-code", "ceterms:identifier": "course-external-id",
-            "ceterms:name": "course-name", "ceterms:description": "course-description",
-            "ceterms:subjectWebpage": "course-subject-webpage", "ceterms:lifeCycleStatusType": "course-lifecycle",
-            "ceterms:inLanguage": "course-language"}
-#: The Required block of decision #5, used when the Course tab can't be read (a CSV export of one tab).
-REQUIRED_FALLBACK = ("ceterms:identifier", "ceterms:name", "ceterms:description", "ceterms:subjectWebpage",
-                     "ceterms:lifeCycleStatusType", "ceterms:inLanguage")
-#: The Rules tab's fixed order for required properties (§4.8): the course key first.
-REQUIRED_ORDER = ("ceterms:codedNotation", "ceterms:identifier", "", "ceterms:name", "ceterms:description",
-                  "ceterms:subjectWebpage", "ceterms:lifeCycleStatusType", "ceterms:inLanguage")
+           "phase", "record_key", "sheet_row", "status", "vocabulary", "definition_text", "sample"]
+BOOLS = ("multiple", "required", "record_key")
+RECORD_KEY = "ceterms:identifier"
+PHASES = ("Phase 1", "Phase 2")
+#: The Rules tab's tiers, in order (approved item 3).
+TIERS = (("required", "Required"), ("phase1", "Phase 1"), ("phase2", "Phase 2"))
+#: Course's rule ids from before the sheet named them by path (§4.1), after the class prefix; every class uses them,
+#: so the same property has the same id in each (`learningprogram-external-id`). Other ids come from the path.
+KEPT_IDS = {"ceterms:codedNotation": "code", "ceterms:identifier": "external-id", "ceterms:name": "name",
+            "ceterms:description": "description", "ceterms:subjectWebpage": "subject-webpage",
+            "ceterms:lifeCycleStatusType": "lifecycle", "ceterms:inLanguage": "language"}
 #: Names the sheet's column D doesn't give yet (phase1-followups spec §2.1): drop an entry once column D says it.
 LABELS = {"ceterms:creditValue>schema:value": "Credit Unit Value"}
 #: Rows the sheet writes in a way sync doesn't take as written (§4.1).
@@ -55,14 +57,34 @@ SKIP_PATHS = {"ceterms:learningOpportunityType": "removed from the sheet (W3): n
               **{f"ceterms:estimatedDuration>{c}": "a field of the Estimated Duration list (profiles_rule.py)"
                  for c in ("ceterms:description", "ceterms:exactDuration", "ceterms:minimumDuration",
                            "ceterms:maximumDuration", "ceterms:timeRequired")}}
+#: The sheet's columns, by header (each class's tab has its own extra columns, such as Value Type).
+HEADERS = {"status": "xTRA Status", "profile": "Subclass", "label": "CTDL Property Label",
+           "shorthand": "CTDL Shorthand URI", "cli": "CLI Extraction Label", "definition": "Definition",
+           "vocabulary": "Controlled Vocabulary", "multiple": "Multiple Values", "sample": "Sample",
+           "required": "Required"}
+_PATH = re.compile(r"[a-z]+:[A-Za-z]+(>[a-z]+:[A-Za-z]+)*")
+
+
+def learning_type(cls: CtdlClass | str) -> dict:
+    """Learning Type isn't on the sheet: a constant rule with no path, the class's name (§4.1)."""
+    c = classes.get(cls)
+    return {"rule_id": f"{c.rule_prefix}learning-type", "path": "", "sheet_path": "", "path_note": "",
+            "label": "Learning Type", "parent": "", "profile": "", "multiple": False, "required": True,
+            "phase": "Phase 1", "record_key": False, "sheet_row": 0, "status": "Include", "vocabulary": "",
+            "sample": c.name,
+            "definition_text": f"The type of learning opportunity. Always {c.name} here (the Studio's own column)."}
 
 
 # --- reading -------------------------------------------------------------------------------------------
+def file_of(cls: CtdlClass | str) -> Path:
+    return FOLDER / f"{classes.get(cls).slug}.csv"
+
+
 def _bool(v) -> bool:
     return v is True or str(v).strip().lower() == "true"
 
 
-@lru_cache(maxsize=1)
+@lru_cache(maxsize=8)
 def _load(path: str, mtime: float) -> tuple[dict, ...]:
     with open(path, newline="") as fh:
         rows = list(csv.DictReader(fh))
@@ -76,26 +98,40 @@ def _load(path: str, mtime: float) -> tuple[dict, ...]:
     return tuple(out)
 
 
-def load(path: Path | None = None) -> list[dict]:
-    """Every row of the file, in sheet order (Learning Type, with no sheet row, first)."""
-    p = path or FILE
+def load(cls: CtdlClass | str, path: Path | None = None) -> list[dict]:
+    """Every row of the class's file, in sheet order (Learning Type, with no sheet row, first)."""
+    p = path or file_of(cls)
     if not p.exists():
         return []
     return [dict(r) for r in _load(str(p), p.stat().st_mtime)]
 
 
-def active(path: Path | None = None) -> list[dict]:
+def active(cls: CtdlClass | str, path: Path | None = None) -> list[dict]:
     """The rows still on the sheet (not `removed`)."""
-    return [r for r in load(path) if r["status"] != "removed"]
+    return [r for r in load(cls, path) if r["status"] != "removed"]
 
 
-def write(rows: list[dict], path: Path | None = None) -> None:
+def write(rows: list[dict], cls: CtdlClass | str, path: Path | None = None) -> None:
     buf = io.StringIO()
     w = csv.DictWriter(buf, COLUMNS, lineterminator="\n")
     w.writeheader()
     for r in rows:
         w.writerow({k: ("true" if r[k] else "false") if k in BOOLS else r.get(k, "") for k in COLUMNS})
-    (path or FILE).write_text(buf.getvalue())
+    p = path or file_of(cls)
+    p.parent.mkdir(parents=True, exist_ok=True)
+    p.write_text(buf.getvalue())
+
+
+def tier(row: dict) -> str:
+    """`required`, `phase1` or `phase2` (approved item 3)."""
+    if row.get("required"):
+        return "required"
+    return "phase2" if row.get("phase") == "Phase 2" else "phase1"
+
+
+def required_order(cls: CtdlClass | str) -> tuple[str, ...]:
+    """The Rules tab's fixed order for a class's required properties (§4.8): the record key first."""
+    return classes.get(cls).required
 
 
 def shown(path: str | None) -> str:
@@ -113,12 +149,14 @@ def label_of(path: str) -> str:
     return re.sub(r"(?<=[a-z])(?=[A-Z])", " ", term)[:1].upper() + re.sub(r"(?<=[a-z])(?=[A-Z])", " ", term)[1:]
 
 
-def rule_id_for(path: str) -> str:
-    """A new property's rule id, from its path: `ceterms:creditValue>schema:minValue` → `course-credit-value-min-value`."""
+def rule_id_for(path: str, cls: CtdlClass | str = "course") -> str:
+    """A new property's rule id, from its path and class: `ceterms:creditValue>schema:minValue` →
+    `course-credit-value-min-value`, `ceterms:name` → `learningprogram-name`."""
+    c = classes.get(cls)
     if path in KEPT_IDS:
-        return KEPT_IDS[path]
+        return c.rule_prefix + KEPT_IDS[path]
     parts = [re.sub(r"(?<=[a-z])(?=[A-Z])", "-", p.split(":", 1)[-1]).lower() for p in path.split(">")]
-    return "course-" + "-".join(parts)
+    return c.rule_prefix + "-".join(parts)
 
 
 # --- the sheet -----------------------------------------------------------------------------------------
@@ -133,9 +171,42 @@ def _col(ref: str) -> int:
     return n - 1
 
 
+#: Built-in number formats that are dates (ECMA-376 §18.8.30).
+_DATE_FORMATS = {14, 15, 16, 17, 18, 19, 20, 21, 22, 45, 46, 47}
+
+
+def _date_styles(z: zipfile.ZipFile) -> set[int]:
+    """The cell style indexes whose number format is a date."""
+    if "xl/styles.xml" not in z.namelist():
+        return set()
+    root = ET.fromstring(z.read("xl/styles.xml"))
+    custom = {int(f.get("numFmtId")) for f in root.iter(f"{{{_NS['m']}}}numFmt")
+              if re.search(r"[dmy]", re.sub(r'"[^"]*"|\\.|\[[^]]*\]', "", f.get("formatCode") or ""), re.I)}
+    xfs = root.find("m:cellXfs", _NS)
+    return {i for i, xf in enumerate(xfs if xfs is not None else [])
+            if int(xf.get("numFmtId") or 0) in _DATE_FORMATS | custom}
+
+
+def _cell_text(v: str, kind: str | None, date: bool) -> str:
+    """A value cell as the sheet shows it: TRUE / FALSE, a date as YYYY-MM-DD, a whole number without `.0`."""
+    if kind == "b":
+        return "TRUE" if v == "1" else "FALSE"
+    if kind in (None, "n") and v:
+        try:
+            x = float(v)
+        except ValueError:
+            return v
+        if date:
+            return (date_type(1899, 12, 30) + timedelta(days=int(x))).isoformat()
+        return str(int(x)) if x.is_integer() else v
+    return v
+
+
 def read_xlsx(data: bytes) -> dict[str, list[list[str]]]:
-    """Every tab of an xlsx file as rows of text (no library: the sheet only needs cell text)."""
+    """Every tab of an xlsx file as rows of text, as the sheet shows it (no library: the sheet only needs cell
+    text)."""
     z = zipfile.ZipFile(io.BytesIO(data))
+    dates = _date_styles(z)
     shared = []
     if "xl/sharedStrings.xml" in z.namelist():
         for si in ET.fromstring(z.read("xl/sharedStrings.xml")).findall("m:si", _NS):
@@ -159,69 +230,80 @@ def read_xlsx(data: bytes) -> dict[str, list[list[str]]]:
                 elif c.get("t") == "inlineStr":
                     text = "".join(t.text or "" for t in c.iter(f"{{{_NS['m']}}}t"))
                 else:
-                    text = v.text if v is not None and v.text else ""
+                    text = _cell_text(v.text if v is not None and v.text else "", c.get("t"),
+                                      int(c.get("s") or 0) in dates)
                 cells += [""] * (i - len(cells)) + [text]
             rows.append(cells)
         out[sheet.get("name")] = rows
     return out
 
 
-def required_from_course_tab(rows: list[list[str]]) -> set[str] | None:
-    """The CTDL terms of the Course tab's Required Properties block (P2): the rows after the "Required Properties"
-    header, up to the next section header (a row with one cell). None when there is no such block."""
-    start = next((i for i, r in enumerate(rows) if r and r[0].strip().lower() == "required properties"), None)
-    if start is None:
-        return None
-    found: set[str] = set()
-    for r in rows[start + 1:]:
-        cells = [c.strip() for c in r if c and c.strip()]
-        if len(cells) <= 1:
-            break
-        if len(r) > 1 and re.fullmatch(r"ceterms:[A-Za-z]+", r[1].strip()):
-            found.add(r[1].strip())
-    return found or None
-
-
-def sheet_rows(source: str | None) -> tuple[list[list[str]], set[str] | None]:
-    """(Phase 1 rows, required terms or None) from an xlsx file, a CSV of the Phase 1 tab, or the sheet itself."""
+def sheet_rows(source: str | None, cls: CtdlClass | str) -> list[list[str]]:
+    """The class's tab, as rows of text (row 1 is the header): from a CSV export of the tab, an xlsx export of the
+    sheet, or the sheet itself."""
+    c = classes.get(cls)
     if source and source.lower().endswith(".csv"):
         with open(source, newline="") as fh:
-            return list(csv.reader(fh)), None
+            return list(csv.reader(fh))
     if source:
         data = Path(source).read_bytes()
     else:
         with urllib.request.urlopen(SHEET_XLSX, timeout=60) as resp:
             data = resp.read()
     tabs = read_xlsx(data)
-    if PHASE1_TAB not in tabs:
-        raise UserError(f"the workbook has no {PHASE1_TAB!r} tab (tabs: {', '.join(tabs)})")
-    return tabs[PHASE1_TAB], required_from_course_tab(tabs.get(COURSE_TAB, []))
+    if c.sheet_tab not in tabs:
+        raise UserError(f"the workbook has no {c.sheet_tab!r} tab (tabs: {', '.join(tabs)})")
+    return tabs[c.sheet_tab]
 
 
-def from_sheet(rows: list[list[str]], required: set[str] | None) -> tuple[list[dict], list[str]]:
-    """The file's rows from the Phase 1 tab (row 1 is the header), and warnings. Columns: A status, C profile,
-    D label, E shorthand, F CLI Extraction Label, G definition, J vocabulary, K Single / Multiple, L sample."""
+def _columns(header: list[str]) -> dict[str, int]:
+    at = {h.strip().lower(): i for i, h in enumerate(header) if h and h.strip()}
+    cols = {k: at[h.lower()] for k, h in HEADERS.items() if h.lower() in at}
+    missing = [HEADERS[k] for k in ("status", "label", "shorthand", "cli") if k not in cols]
+    if missing:
+        raise UserError(f"the tab has no {', '.join(repr(m) for m in missing)} column (header: {', '.join(header)})")
+    return cols
+
+
+def from_sheet(rows: list[list[str]], cls: CtdlClass | str) -> tuple[list[dict], list[str]]:
+    """The file's rows from the class's tab (row 1 is the header, read by name), and warnings. The path is the CLI
+    Extraction Label, else the CTDL Shorthand URI; Phase is xTRA Status; Required is the tab's Required column if it
+    has one, else the class's CTDL-required list."""
+    c = classes.get(cls)
     warnings: list[str] = []
-    req = set(required) if required else set(REQUIRED_FALLBACK)
-    if required is None:
-        warnings.append("Course tab not read: required properties are decision #5's list")
+    cols = _columns(rows[0] if rows else [])
+    sheet_required = "required" in cols
+    if not sheet_required:
+        warnings.append(f"no Required column: required properties are {c.name}'s CTDL-required list")
     got: list[dict] = []
     multiple_of: dict[str, bool] = {}
     for n, r in enumerate(rows[1:], start=2):
-        def cell(i: int, r: list[str] = r) -> str:
-            return r[i].strip() if i < len(r) and r[i] else ""
-        f = cell(5)
-        if not f:
+        def cell(key: str, r: list[str] = r) -> str:
+            i = cols.get(key)
+            return r[i].strip() if i is not None and i < len(r) and r[i] else ""
+        cli, short = cell("cli"), cell("shorthand")
+        if not cli and not short:
             continue
-        if f in SKIP_PATHS:
-            warnings.append(f"row {n}: {f} skipped: {SKIP_PATHS[f]}")
+        path = cli
+        if not _PATH.fullmatch(cli):
+            if not _PATH.fullmatch(short):
+                warnings.append(f"row {n}: no CTDL path in {HEADERS['cli']!r} or {HEADERS['shorthand']!r}; skipped")
+                continue
+            if cli:
+                warnings.append(f"row {n}: {HEADERS['cli']!r} isn't a path; read {short} from "
+                                f"{HEADERS['shorthand']!r}")
+            path = short
+        if path in SKIP_PATHS:
+            warnings.append(f"row {n}: {path} skipped: {SKIP_PATHS[path]}")
             continue
-        status = cell(0)
-        if not status:
-            warnings.append(f"row {n}: blank status")
-        got.append({"sheet_row": n, "sheet_path": f, "path": f, "path_note": "", "profile": cell(2),
-                    "column_d": cell(3), "status": status, "definition_text": cell(6), "vocabulary": cell(9),
-                    "single_multiple": cell(10), "sample": cell(11)})
+        phase = cell("status")
+        if phase not in PHASES:
+            warnings.append(f"row {n}: xTRA Status {phase!r} isn't Phase 1 or Phase 2; read as Phase 2")
+            phase = "Phase 2"
+        got.append({"sheet_row": n, "sheet_path": path, "path": path, "path_note": "", "profile": cell("profile"),
+                    "column_d": cell("label"), "phase": phase, "definition_text": cell("definition"),
+                    "vocabulary": cell("vocabulary"), "single_multiple": cell("multiple"), "sample": cell("sample"),
+                    "required_cell": cell("required")})
     # A child path sits under the nearest parent row above it (P15): a path whose parent isn't that row is corrected.
     parent_row = None
     for g in got:
@@ -239,27 +321,16 @@ def from_sheet(rows: list[list[str]], required: set[str] | None) -> tuple[list[d
     for p in sorted({p for p in paths if paths.count(p) > 1}):
         raise UserError(f"the sheet has {p} twice")
     by_path = {g["path"]: g for g in got}
-    # Single / Multiple: blank rows copy the Prerequisite group's shape (P4); a child of a list is a list (P14).
+    # Single / Multiple: blank rows copy the Prerequisite group's shape (P4).
     for g in got:
         sm = g["single_multiple"].lower()
         if sm in ("single", "multiple"):
             multiple_of[g["path"]] = sm == "multiple"
             continue
-        leaf_term = leaf(g["path"])
-        if ">" not in g["path"]:
-            multiple_of[g["path"]] = True
-        else:
-            multiple_of[g["path"]] = leaf_term != "ceterms:description"
+        multiple_of[g["path"]] = ">" not in g["path"] or leaf(g["path"]) != "ceterms:description"
         warnings.append(f"row {g['sheet_row']}: no Single / Multiple; read as "
                         f"{'Multiple' if multiple_of[g['path']] else 'Single'} like the Prerequisite group (P4)")
-    for g in got:
-        if ">" in g["path"]:
-            head = g["path"].split(">", 1)[0]
-            if multiple_of.get(head) and not multiple_of[g["path"]] and head == "ceterms:estimatedDuration":
-                multiple_of[g["path"]] = True
-                warnings.append(f"row {g['sheet_row']}: {g['path']} says Single, but its parent is a list: a list "
-                                "too (P14)")
-    out = [dict(LEARNING_TYPE)]
+    out = [learning_type(c)]
     for g in got:
         path = g["path"]
         parent = path.split(">", 1)[0] if ">" in path else ""
@@ -271,12 +342,13 @@ def from_sheet(rows: list[list[str]], required: set[str] | None) -> tuple[list[d
             label = f"{by_path[parent]['column_d'] or label_of(parent)}: {g['column_d'] or label_of(path)}"
         else:
             label = label_of(path)
-        out.append({"rule_id": rule_id_for(path), "path": path, "sheet_path": g["sheet_path"],
+        required = _bool(g["required_cell"]) or g["required_cell"].lower() in ("yes", "required") \
+            if sheet_required else path in c.required
+        out.append({"rule_id": rule_id_for(path, c), "path": path, "sheet_path": g["sheet_path"],
                     "path_note": g["path_note"], "label": label, "parent": parent, "profile": g["profile"],
-                    "multiple": multiple_of[path], "required": path in req or path == "ceterms:codedNotation",
-                    "course_key": path == "ceterms:codedNotation", "sheet_row": g["sheet_row"],
-                    "status": g["status"], "vocabulary": g["vocabulary"], "definition_text": g["definition_text"],
-                    "sample": g["sample"]})
+                    "multiple": multiple_of[path], "required": required, "phase": g["phase"],
+                    "record_key": path == RECORD_KEY, "sheet_row": g["sheet_row"], "status": "Include",
+                    "vocabulary": g["vocabulary"], "definition_text": g["definition_text"], "sample": g["sample"]})
     labels = [r["label"] for r in out]
     for lb in sorted({x for x in labels if labels.count(x) > 1}):
         raise UserError(f"two properties would be named {lb!r}")
@@ -319,28 +391,29 @@ def merge(old: list[dict], new: list[dict], accept_renames: bool) -> tuple[list[
 
 # --- the CLI -------------------------------------------------------------------------------------------
 def cmd_sync(args) -> int:
-    rows, required = sheet_rows(args.source)
-    new, warnings = from_sheet(rows, required)
-    merged, diff, more = merge(load(), new, args.accept_renames)
-    write(merged)
-    print(f"{FILE.name}: {len([r for r in merged if r['status'] != 'removed'])} properties · added "
-          f"{len(diff['added'])} · kept {len(diff['kept'])} · removed {len(diff['removed'])}"
-          + (f" · renamed {len(diff['renamed'])}" if diff["renamed"] else ""))
+    c = classes.get(args.cls)
+    new, warnings = from_sheet(sheet_rows(args.source, c), c)
+    merged, diff, more = merge(load(c), new, args.accept_renames)
+    write(merged, c)
+    print(f"properties/{c.slug}.csv: {len([r for r in merged if r['status'] != 'removed'])} properties, added "
+          f"{len(diff['added'])}, kept {len(diff['kept'])}, removed {len(diff['removed'])}"
+          + (f", renamed {len(diff['renamed'])}" if diff["renamed"] else ""))
     for k in ("added", "removed", "renamed"):
         for x in diff[k]:
             print(f"  {k}: {x}")
     for w in warnings + more:
         print(f"  warning: {w}", file=sys.stderr)
-    print("Review the diff, then run `golden-datasets properties apply --all`.")
+    print(f"Review the diff, then run `golden-datasets properties apply --class {c.slug} --all`.")
     return 0
 
 
 def cmd_list(args) -> int:
-    rows = load()
-    head = ("rule_id", "label", "path", "list", "req", "row", "status")
+    rows = load(args.cls)
+    head = ("rule_id", "label", "path", "list", "tier", "key", "row", "status")
+    names = dict(TIERS)
     table = [(r["rule_id"], r["label"], shown(r["path"]) or "—", "list" if r["multiple"] else "",
-              "course key" if r["course_key"] else "req" if r["required"] else "", str(r["sheet_row"] or ""),
-              r["status"]) for r in rows]
+              names[tier(r)], "record key" if r["record_key"] else "", str(r["sheet_row"] or ""), r["status"])
+             for r in rows]
     widths = [max(len(h), *(len(t[i]) for t in table)) for i, h in enumerate(head)]
     for t in (head, *table):
         print("  ".join(c.ljust(w) for c, w in zip(t, widths)).rstrip())
@@ -348,21 +421,27 @@ def cmd_list(args) -> int:
 
 
 # --- apply: the file's new properties into each catalog (§4.1, §4.6) ----------------------------------------
-COURSE_LOCATOR = "locator-course-page"
+def record_locator(rules: dict[str, dict], cls: CtdlClass | str) -> str | None:
+    """The record locator of a class's pages: `locator-<class>-page` (`locator-course-page`), else the locator the
+    class's External Identifier rule reads; for Course, else the first locator."""
+    c = classes.get(cls)
+    named = f"locator-{c.slug}-page"
+    if rules.get(named, {}).get("kind") == "locator":
+        return named
+    keyed = sorted(r["definition"].get("locator") for rid, r in rules.items() if r["kind"] == "property"
+                   and rid.startswith(c.rule_prefix) and r.get("ctdl_property") == RECORD_KEY
+                   and r["definition"].get("locator"))
+    if keyed:
+        return keyed[0]
+    if c.slug == "course":
+        return next((rid for rid in sorted(rules) if rules[rid]["kind"] == "locator"), None)
+    return None
 
 
-def course_locator(rules: dict[str, dict], settings: dict) -> str | None:
-    """The record locator of course pages: `locator-course-page`, else the one whose course key a rule reads."""
-    if rules.get(COURSE_LOCATOR, {}).get("kind") == "locator":
-        return COURSE_LOCATOR
-    keyed = sorted((settings or {}).get("course_key_rule") or {})
-    return keyed[0] if keyed else next((rid for rid in sorted(rules) if rules[rid]["kind"] == "locator"), None)
-
-
-def missing_rules(rules: dict[str, dict], settings: dict) -> dict[str, dict]:
-    """Drafts for the file's properties a catalog has no rule for (by rule id, or by path on course pages):
-    `rule_type: none`, with the sheet's definition as its "what"."""
-    loc = course_locator(rules, settings)
+def missing_rules(rules: dict[str, dict], cls: CtdlClass | str) -> dict[str, dict]:
+    """Drafts for the class's properties a catalog has no rule for (by rule id, or by path on the class's pages):
+    `rule_type: none`, with the sheet's definition as its "what". None without a record locator for the class."""
+    loc = record_locator(rules, cls)
     if loc is None:
         return {}
     have_paths = {r.get("ctdl_property") for r in rules.values() if r["kind"] == "property"
@@ -370,7 +449,7 @@ def missing_rules(rules: dict[str, dict], settings: dict) -> dict[str, dict]:
     have_labels = {r.get("property_label") for r in rules.values() if r["kind"] == "property"
                    and r["definition"].get("locator") == loc}
     out = {}
-    for p in active():
+    for p in active(cls):
         if p["rule_id"] in rules or (p["path"] and p["path"] in have_paths) or p["label"] in have_labels:
             continue
         out[p["rule_id"]] = {"rule_id": p["rule_id"], "kind": "property", "ctdl_property": p["path"] or None,
@@ -390,12 +469,12 @@ def apply(ctx, by: str, log=lambda *a: None) -> dict | None:
     latest = ctx.latest_ruleset()
     rs, base = ctx.ruleset_rules(latest)
     kept, folded, removed = profiles_rule.fold_rules(base)
-    drafts = missing_rules(kept, rs["settings"])
+    drafts = missing_rules(kept, ctx.cls)
     if not drafts and not folded and not removed:
         return None
     planned = rulesets.plan_versions(ctx, {**drafts, **folded}, base)
     note = "; ".join(x for x in (
-        f"added {len(drafts)} property rules from the Phase 1 sheet" if drafts else "",
+        f"added {len(drafts)} property rules from the sheet's {ctx.ctdl_class.sheet_tab} tab" if drafts else "",
         f"Estimated Duration is one list of objects ({len(removed)} child rules folded in)" if removed else "") if x)
     doc = rulesets.publish(ctx, {**kept, **planned}, rs["settings"], note, by)
     meta = extract.extract(ctx, doc["version"], created_by=by, log=log)
@@ -416,12 +495,12 @@ def cmd_apply(args) -> int:
         doc, _ = manifest.load(root)
         catalogs = [c["catalog"] for c in doc["catalogs"] if c.get("rulesets")]
     for catalog in catalogs:
-        out = apply(Ctx(root, catalog), args.by, log=lambda m: print(m, file=sys.stderr))
+        out = apply(Ctx(root, catalog, cls=args.cls), args.by, log=lambda m: print(m, file=sys.stderr))
         if out is None:
             print(f"{catalog}: every property already has a rule (nothing published)")
         else:
             print(f"{catalog}: ruleset v{out['ruleset_version']} adds {len(out['added'])} property rules with no "
-                  f"rule yet · {out['extraction']}")
+                  f"rule yet, {out['extraction']}")
             if out["removed"]:
                 print(f"  folded into a list of objects: {', '.join(out['folded']) or 'nothing (no rule yet)'}; "
                       f"removed: {', '.join(out['removed'])}")

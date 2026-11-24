@@ -8,7 +8,7 @@ const f = (rule_id: string, property_label: string, ctdl: string | null, value: 
 });
 
 const geog: CourseDetail = {
-  course_key: "GEOG222", extraction: "rs-0002",
+  record_external_identifier: "GEOG222", extraction: "rs-0002",
   occurrences: [
     { occurrence_key: "c@1", page_stem: "course", url: "u1", page_title: "GEOG 222 - Cartography", locator_rule_id: "locator-course-page", css_path: "html",
       properties: [f("course-code", "Coded Notation", "ceterms:codedNotation", "GEOG 222"), f("course-name", "Learning Opportunity Name", "ceterms:name", "Cartography"),

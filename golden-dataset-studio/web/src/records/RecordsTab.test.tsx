@@ -9,14 +9,14 @@ import type { CatalogDetail } from "../api/types";
 const course = vi.fn();
 vi.mock("../api/client", () => ({ api: { course: (...a: unknown[]) => course(...a), annotate: vi.fn() } }));
 vi.mock("../rules/api", () => ({ apiX: {
-  courses: () => Promise.resolve([{ course_key: "GEOG 222", occurrences: 1, line: null }]),
+  courses: () => Promise.resolve([{ record_external_identifier: "GEOG 222", occurrences: 1, line: null }]),
   annotators: () => Promise.resolve({ people: [], waiting: 0, rules: null }),
 } }));
 vi.mock("../pagepane", () => ({ PagePane: () => null }));
 import RecordsTab from "./RecordsTab";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
-const COURSE: CourseDetail = { course_key: "GEOG 222", extraction: "rs-0002", occurrences: [{
+const COURSE: CourseDetail = { record_external_identifier: "GEOG 222", extraction: "rs-0002", occurrences: [{
   occurrence_key: "p1@html", page_stem: "p1", url: "https://x/p1", page_title: "GEOG 222 - Cartography", locator_rule_id: "locator-course-page",
   css_path: "html", properties: [
     { rule_id: "codedNotation", property_label: "Coded Notation", ctdl_property: "ceterms:codedNotation", value: "GEOG 222", status: "found",

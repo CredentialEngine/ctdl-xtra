@@ -38,7 +38,7 @@ def test_reset_takes_back_the_reviews_and_the_approval_and_withdraws_the_column(
     rules["rules"][2]["definition"]["regex"] = "^(C)"
     draft = tmp_path / "v2.json"
     draft.write_text(json.dumps(rules))
-    publish = ["rule", "publish", "--root", ctx.root.uri, "--catalog", CAT, str(draft), "--note", "v2"]
+    publish = ["rule", "publish", "--class", "course", "--root", ctx.root.uri, "--catalog", CAT, str(draft), "--note", "v2"]
     assert main(publish) == 2
     capsys.readouterr()
 
@@ -64,8 +64,8 @@ def test_reset_takes_back_the_reviews_and_the_approval_and_withdraws_the_column(
     assert _event(c, "approve", "course-code")["published"]["columns"] == ["codedNotation"]
     assert _columns(ctx) == ["Coded Notation"]
     assert _rows(c, "course-code")["page-0"]["before_reset"] is None  # reviewed again
-    assert main(["properties", "apply", "--root", ctx.root.uri, "-c", CAT]) == 0  # `check` asks for every property
-    assert main(["check", "--root", ctx.root.uri, "-c", CAT]) == 0  # a reset event is a valid annotation
+    assert main(["properties", "apply", "--class", "course", "--root", ctx.root.uri, "-c", CAT]) == 0  # `check` asks for every property
+    assert main(["check", "--class", "course", "--root", ctx.root.uri, "-c", CAT]) == 0  # a reset event is a valid annotation
     capsys.readouterr()
 
 

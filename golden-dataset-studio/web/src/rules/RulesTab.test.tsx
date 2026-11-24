@@ -40,7 +40,7 @@ const detail = (o: Partial<RuleDetail> = {}): RuleDetail => ({
 });
 
 const row = (i: number, o: Partial<RowX> = {}): RowX => ({
-  key: `p${i}@html`, occurrence_key: `p${i}@html`, course_key: `GEOG${i}`, page_stem: `p${i}`, url: `https://x/p${i}`,
+  key: `p${i}@html`, occurrence_key: `p${i}@html`, record_external_identifier: `GEOG${i}`, page_stem: `p${i}`, url: `https://x/p${i}`,
   page_title: `Page ${i}`, value: `Value ${i}`, status: "found", css_path: "html > body:nth-of-type(1)", char_start: 0, char_end: 5,
   occurrence_css_path: "html", context: `GEOG ${i} - Course`, state: null, verdict: null, reattached: false, comments: [],
   signal_count: 0, other_pages: [], group: `${i * 20}–${i * 20 + 19} words (percentile ${i * 33}–${i * 33 + 33})`, ...o,
@@ -709,11 +709,11 @@ describe("RulesTab", () => {
 
   // --- sme-fixes §3: course blocks ---------------------------------------------------------------------------------
   const loc = (o: Partial<RowX>, i: number, stem: string, n: number): RowX => row(i, { key: `${stem}@b${i}`, occurrence_key: `${stem}@b${i}`,
-    page_stem: stem, page_title: "View - CurriQunet META", value: `INTD ${i} - Course ${i}`, page_courses: n, course_key: `INTD${i}`,
+    page_stem: stem, page_title: "View - CurriQunet META", value: `INTD ${i} - Course ${i}`, page_courses: n, record_external_identifier: `INTD${i}`,
     css_path: `html > div:nth-of-type(${i + 1})`, ...o });
   const ccsf = (): RowsX => ({ ...rows, rule_id: "locator-course-page", total: 5, focus_index: null, rows: [
     loc({}, 0, "intd", 3), loc({}, 1, "intd", 3), loc({}, 2, "intd", 3),
-    loc({ course_key: "SPAN1" }, 3, "span", 2), loc({ course_key: "SPAN2" }, 4, "span", 2)] });
+    loc({ record_external_identifier: "SPAN1" }, 3, "span", 2), loc({ record_external_identifier: "SPAN2" }, 4, "span", 2)] });
   const locator = (repeat: string | null) => detail({ rule_id: "locator-course-page", kind: "locator", property_label: null,
     title: repeat ? `Course blocks: every ${repeat} on the page` : "Whole page is one course", subtitle: "s",
     definition: { page_rules: ["course-page"], repeat, repeat_filter: repeat ? { selector: ".course-title", regex: "\\d" } : null } });
@@ -723,7 +723,7 @@ describe("RulesTab", () => {
     const fetchMock = vi.mocked(fetch);
     const base = fetchMock.getMockImplementation()!;
     fetchMock.mockImplementation((url, init) => (String(url).includes("/overlay") ? json({ marks: [], blocks: data.rows.slice(0, 3).map((r, n) => (
-      { occurrence_key: r.occurrence_key, css_path: r.css_path, n: n + 1, course_key: r.course_key })) }) : base(url as string, init)));
+      { occurrence_key: r.occurrence_key, css_path: r.css_path, n: n + 1, record_external_identifier: r.record_external_identifier })) }) : base(url as string, init)));
   };
   const key = (k: string, shiftKey = false) => act(async () => { window.dispatchEvent(new KeyboardEvent("keydown", { key: k, shiftKey })); });
 

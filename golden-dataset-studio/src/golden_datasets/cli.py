@@ -55,6 +55,16 @@ def _catalog_args(p: argparse.ArgumentParser, required: bool = True) -> None:
     p.add_argument("--crawl", default=None, help="crawl id (default: the catalog's current crawl)")
 
 
+def _class_args(p: argparse.ArgumentParser) -> None:
+    """`--class` (or GOLDEN_DATASETS_CLASS), required with no default, on the commands that read or write one class's
+    data (LearningProgram spec, approved item 19). The others don't take it, so argparse refuses it there."""
+    from .classes import ENV, SLUGS
+
+    p.add_argument("--class", dest="cls", choices=SLUGS, default=os.environ.get(ENV) or None,
+                   required=not os.environ.get(ENV),
+                   help=f"the CTDL class: {', '.join(SLUGS)} (default: ${ENV})")
+
+
 def _crawls_root_args(p: argparse.ArgumentParser) -> None:
     p.add_argument("--crawls-root", default=os.environ.get("GOLDEN_DATASETS_CRAWLS_ROOT"),
                    help="where xtra-cli's crawls are (default: $GOLDEN_DATASETS_CRAWLS_ROOT, else the container above "
@@ -79,7 +89,8 @@ def _cmd(p: argparse.ArgumentParser, target: str) -> None:
 def build_parser() -> argparse.ArgumentParser:
     ap = argparse.ArgumentParser(
         prog="golden-datasets",
-        description="CTDL Golden Dataset Studio: build golden datasets of CTDL Courses by improving rules.",
+        description="CTDL Golden Dataset Studio: build golden datasets of CTDL classes (Course, LearningProgram) by "
+                    "improving rules.",
     )
     sub = ap.add_subparsers(dest="command", metavar="COMMAND")
 
@@ -108,31 +119,28 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--by", default=None, help="who added it (recorded in the manifest)")
     _cmd(p, "golden_datasets.crawls:cmd_add")
 
-    p = sub.add_parser("import-v2", help="v2 rules.json → rule versions v1 + ruleset v1; v2 decisions → annotations")
-    _root_args(p), _catalog_args(p)
-    p.add_argument("--v2-root", default=None,
-                   help="where v2's extractions/ and review-ui/ live (default: the storage root)")
-    p.add_argument("--session", default=None, help="v2 review session id (default: the latest with decisions)")
-    _cmd(p, "golden_datasets.import_v2:cmd_import_v2")
-
-    props = sub.add_parser("properties", help="the property list (properties.csv): sync from the sheet, list, apply")
+    props = sub.add_parser("properties", help="a class's property list (properties/<class>.csv): sync from the sheet, "
+                                              "list, apply")
     prsub = props.add_subparsers(dest="properties_command", metavar="ACTION", required=True)
-    p = prsub.add_parser("sync", help="the Phase 1 sheet → properties.csv (writes only the file: added / kept / "
-                                      "removed, and warnings)")
+    p = prsub.add_parser("sync", help="the class's tab of the sheet (<Name> Properties) → properties/<class>.csv "
+                                      "(writes only the file: added, kept, removed, and warnings)")
     p.add_argument("--from", dest="source", default=None, metavar="FILE",
-                   help="an xlsx export of the sheet, or a CSV of its Phase 1 tab (default: download the sheet)")
+                   help="an xlsx export of the sheet, or a CSV export of the class's tab (default: download the sheet)")
     p.add_argument("--accept-renames", action="store_true",
                    help="write a changed path or name on an existing rule id")
+    _class_args(p)
     _cmd(p, "golden_datasets.properties:cmd_sync")
-    p = prsub.add_parser("list", help="properties.csv as a table")
+    p = prsub.add_parser("list", help="properties/<class>.csv as a table, with each property's tier")
+    _class_args(p)
     _cmd(p, "golden_datasets.properties:cmd_list")
-    p = prsub.add_parser("apply", help="add properties.csv's new properties to catalogs, with no rule yet (one "
-                                       "ruleset version per catalog that gets any)")
+    p = prsub.add_parser("apply", help="add the class's new properties to catalogs, with no rule yet (one ruleset "
+                                       "version per catalog that gets any)")
     _root_args(p)
     g = p.add_mutually_exclusive_group(required=True)
     g.add_argument("--catalog", "-c", default=None, help="catalog folder or short name")
     g.add_argument("--all", action="store_true", help="every catalog in the root")
     p.add_argument("--by", default=os.environ.get("GOLDEN_DATASETS_AUTHOR", "golden-datasets properties apply"))
+    _class_args(p)
     _cmd(p, "golden_datasets.properties:cmd_apply")
 
     # --- Run -------------------------------------------------------------------------------------------
@@ -140,10 +148,12 @@ def build_parser() -> argparse.ArgumentParser:
     _root_args(p), _catalog_args(p)
     p.add_argument("--ruleset", type=int, default=None, help="ruleset version (default: the latest)")
     p.add_argument("--again", action="store_true", help="re-extract an extracted ruleset (gets a -b, -c … id)")
+    _class_args(p)
     _cmd(p, "golden_datasets.extract:cmd_extract")
 
     p = sub.add_parser("check", help="validate every primary/foreign key and every hash")
     _root_args(p), _catalog_args(p, required=False)
+    _class_args(p)
     _cmd(p, "golden_datasets.check:cmd_check")
 
     p = sub.add_parser("sql", help="DuckDB over named views (pages, occurrences, matches, signals, annotations, rules)")
@@ -157,16 +167,19 @@ def build_parser() -> argparse.ArgumentParser:
     rsub = rule.add_subparsers(dest="rule_command", metavar="ACTION", required=True)
     p = rsub.add_parser("list", help="every rule in the current ruleset, with status, fill and signal counts")
     _root_args(p), _catalog_args(p)
+    _class_args(p)
     _cmd(p, "golden_datasets.loop:cmd_rule_list")
     p = rsub.add_parser("show", help="a rule's definition, what/how/why, status, fill and signal counts")
     _root_args(p), _catalog_args(p)
     p.add_argument("rule_id")
     p.add_argument("--version", type=int, default=None)
+    _class_args(p)
     _cmd(p, "golden_datasets.loop:cmd_rule_show")
     p = rsub.add_parser("annotations", help="each annotation with value seen, expected text + location, note, page path")
     _root_args(p), _catalog_args(p)
     p.add_argument("rule_id")
     p.add_argument("--open", action="store_true", help="only verdicts that still need work")
+    _class_args(p)
     _cmd(p, "golden_datasets.loop:cmd_rule_annotations")
     p = rsub.add_parser("draft", help="current versions of one or more rules as an editable draft (JSON on stdout)")
     _root_args(p), _catalog_args(p)
@@ -174,6 +187,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--all", action="store_true", help="every rule of the latest ruleset")
     p.add_argument("--for", dest="for_catalog", default=None, metavar="CATALOG",
                    help="a template for another catalog's first ruleset: every rule and the settings, for CATALOG")
+    _class_args(p)
     _cmd(p, "golden_datasets.loop:cmd_rule_draft")
     inferred_help = ("the values you worked out for courses marked wrong with no expected value: [{rule, course, "
                      "annotation, value}] (default: ./inferred.json if there is one)")
@@ -183,6 +197,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("draft")
     p.add_argument("--json", action="store_true", help="print the scorecard as JSON")
     p.add_argument("--inferred", default=None, metavar="PATH", help=inferred_help)
+    _class_args(p)
     _cmd(p, "golden_datasets.loop:cmd_rule_try")
     p = rsub.add_parser("publish", help="new rule versions + ruleset version + extraction, uploaded together (one "
                                         "publish at a time; rebased on the latest version, or refused if another "
@@ -193,10 +208,12 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--force", action="store_true", help="publish even when a golden value that was right gets worse")
     p.add_argument("--by", default="Claude Code via golden-datasets rule publish")
     p.add_argument("--inferred", default=None, metavar="PATH", help=inferred_help)
+    _class_args(p)
     _cmd(p, "golden_datasets.loop:cmd_rule_publish")
     p = rsub.add_parser("downstream", help="the rules that read these rules, directly or not (what an edit can move)")
     _root_args(p), _catalog_args(p)
     p.add_argument("rule_ids", nargs="+")
+    _class_args(p)
     _cmd(p, "golden_datasets.loop:cmd_rule_downstream")
 
     rsets = sub.add_parser("ruleset", help="ruleset versions: revert")
@@ -206,6 +223,7 @@ def build_parser() -> argparse.ArgumentParser:
     _root_args(p), _catalog_args(p)
     p.add_argument("version", type=int)
     p.add_argument("--by", default=os.environ.get("GOLDEN_DATASETS_AUTHOR", "golden-datasets ruleset revert"))
+    _class_args(p)
     _cmd(p, "golden_datasets.loop:cmd_ruleset_revert")
 
     pages = sub.add_parser("pages", help="saved pages: get, sample")
@@ -220,6 +238,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--rule", required=True)
     p.add_argument("--signal", default=None)
     p.add_argument("-n", type=int, default=20)
+    _class_args(p)
     _cmd(p, "golden_datasets.loop:cmd_pages_sample")
 
     # --- Agent runs (Claude on the remote agent reports here; docs/qrspi/k2-runs) -----------------------
@@ -231,6 +250,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--run", default=None, help="the run id from the prompt (default: $GOLDEN_DATASETS_RUN)")
     p.add_argument("text", nargs="+")
     p.add_argument("--by", default="golden-rules agent")
+    _class_args(p)
     _cmd(p, "golden_datasets.agent_runs:cmd_note")
     p = nsub.add_parser("done", help="end the run with your report.json: it is checked, then shown in the Studio")
     _root_args(p)
@@ -243,16 +263,19 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--summary-file", default=None, metavar="PATH",
                    help="your full report (Markdown), kept with the run and shown in the Studio; - reads stdin")
     p.add_argument("--by", default="golden-rules agent")
+    _class_args(p)
     _cmd(p, "golden_datasets.agent_runs:cmd_done")
     p = nsub.add_parser("show", help="the run record and its notes")
     _root_args(p)
     _catalog_args(p)
     p.add_argument("--run", required=True)
+    _class_args(p)
     _cmd(p, "golden_datasets.agent_runs:cmd_show")
     p = nsub.add_parser("context", help="each rule's last run and the annotations since (for a fresh session)")
     _root_args(p)
     _catalog_args(p)
     p.add_argument("rule_ids", nargs="+")
+    _class_args(p)
     _cmd(p, "golden_datasets.agent_runs:cmd_context")
 
     # --- Prompt ----------------------------------------------------------------------------------------
@@ -264,6 +287,7 @@ def build_parser() -> argparse.ArgumentParser:
     g.add_argument("--first-rules", action="store_true",
                    help="a catalog with no rules yet: write and publish its first ruleset from a template")
     _target_args(p)
+    _class_args(p)
     _cmd(p, "golden_datasets.prompt:cmd_prompt")
 
     # --- Golden ----------------------------------------------------------------------------------------
@@ -282,6 +306,7 @@ def build_parser() -> argparse.ArgumentParser:
                         "approved). Columns published earlier in the same ruleset stay")
     p.add_argument("--allow-unapproved", action="store_true",
                    help="testing only: publish a property although its rule isn't approved (recorded in publication.json)")
+    _class_args(p)
     _cmd(p, "golden_datasets.golden:cmd_golden_publish")
     p = gsub.add_parser("backfill", help="rebuild the publications made before versions (pub-…) as golden dataset "
                                          "versions (ruleset-vN), from their lineage and the immutable extractions")
@@ -290,6 +315,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--again", action="store_true",
                    help="also write every existing version again in the current layout (its columns, extraction and "
                         "publication time kept); old version folders aren't removed")
+    _class_args(p)
     _cmd(p, "golden_datasets.golden:cmd_golden_backfill")
 
     # --- Evals ---------------------------------------------------------------------------------------
@@ -307,6 +333,7 @@ def build_parser() -> argparse.ArgumentParser:
                         "(extraction_report/, or an older records/) (default: the latest in "
                         "$GOLDEN_DATASETS_XTRA_SOURCE, copied when new)")
     p.add_argument("--by", default=os.environ.get("GOLDEN_DATASETS_AUTHOR", "golden-datasets score"))
+    _class_args(p)
     _cmd(p, "golden_datasets.scores:cmd_score")
 
     # --- Local work ------------------------------------------------------------------------------------

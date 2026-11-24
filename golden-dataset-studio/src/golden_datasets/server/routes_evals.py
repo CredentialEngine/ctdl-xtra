@@ -195,5 +195,5 @@ def catalogs_summary(request: Request, basis: str = "human") -> dict:
     root = st.ctx(next(iter(CATALOGS))).root
     counts = human_reviewed_counts(root, [e["catalog"] for e in entries if e.get("rulesets")], st.ctx)
     columns = scores.columns_in_order(counts)
-    return {"basis": basis, "columns": columns, "labels": scores.COLUMN_LABELS,
-            "required": scores.REQUIRED_COLUMNS, "properties": len(columns), "catalogs": out}
+    return {"basis": basis, "columns": columns, "labels": scores.column_labels(),
+            "required": scores.required_columns(), "properties": len(columns), "catalogs": out}

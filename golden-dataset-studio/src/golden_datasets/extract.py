@@ -117,10 +117,10 @@ def plan(rules: dict[str, dict], settings: dict, parent: dict | None, parent_rul
         return {"input_hashes": hashes, "rerun": set(rules), "copied": set(), "settings_changed": True}
     old = parent.get("input_hashes", {})
     rerun = {rid for rid in rules if old.get(rid) != hashes[rid]}
-    # A changed code rule changes course_key on the occurrences of its locator.
+    # A changed key rule changes record_external_identifier on the occurrences of its locator.
     for loc in [r for r in rules if rules[r]["kind"] == "locator"]:
-        code = model.code_rule_for(loc, rules, settings)
-        old_code = model.code_rule_for(loc, parent_rules or {}, parent_settings or {}) if parent_rules else None
+        code = model.key_rule_for(loc, rules)
+        old_code = model.key_rule_for(loc, parent_rules or {}) if parent_rules else None
         if code in rerun or code != old_code:
             rerun.add(loc)
     return {"input_hashes": hashes, "rerun": rerun, "copied": set(rules) - rerun,

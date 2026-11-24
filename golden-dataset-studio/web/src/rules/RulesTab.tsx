@@ -430,7 +430,7 @@ export default function RulesTab({ catalog, route }: TabProps) {
     const r = rows[i];
     if (!r || !detail) return;
     const confirming = "verdict" in what && canConfirm(r, role);
-    if ("verdict" in what && r.state === "correct" && !confirming) { toast(`Already correct · ${r.course_key ?? shortTitle(r.page_title, 40)}`); advance(i); return; }
+    if ("verdict" in what && r.state === "correct" && !confirming) { toast(`Already correct · ${r.record_external_identifier ?? shortTitle(r.page_title, 40)}`); advance(i); return; }
     const target = rowTarget(detail.kind, detail.rule_id, r);
     const ev = verdictEvent(me, target, r.verdict, what, r.value);
     const brief = await post(ev);
@@ -443,7 +443,7 @@ export default function RulesTab({ catalog, route }: TabProps) {
     setSaved((n) => n + 1);
     const label = ev.type === "comment" ? "Comment saved" : ev.verdict === "question" ? "Question for the institution saved"
       : confirming ? "Confirmed: human-reviewed" : ev.verdict === "correct" ? "Correct" : "Wrong";
-    toast(`${label} · ${r.course_key ?? shortTitle(r.page_title, 40)}`);
+    toast(`${label} · ${r.record_external_identifier ?? shortTitle(r.page_title, 40)}`);
     if (ev.type === "verdict" && ev.verdict !== "question") advance(i);
   }, [rows, detail, me, role, post, advance]);
 
@@ -462,7 +462,7 @@ export default function RulesTab({ catalog, route }: TabProps) {
     }
     if (n) setSaved((k) => k + 1);
     const first = rows[g.start];
-    toast(n ? `${n} ${n === 1 ? "course" : "courses"} correct · ${subjectOf(rows.slice(g.start, g.end).map((r) => r.course_key)) || shortTitle(first?.page_title, 40)}`
+    toast(n ? `${n} ${n === 1 ? "course" : "courses"} correct · ${subjectOf(rows.slice(g.start, g.end).map((r) => r.record_external_identifier)) || shortTitle(first?.page_title, 40)}`
       : "Every course on this page is already correct");
     const m = moveIn(groups, g.start, "page", "next");
     selectRow(m.sel, "page");
@@ -492,12 +492,12 @@ export default function RulesTab({ catalog, route }: TabProps) {
   const saveItem = useCallback(async (i: number, it: RowItem, verdict: "correct" | "wrong") => {
     const r = rows[i];
     if (!r || !detail) return;
-    if (verdict === "correct" && it.state === "correct") { toast(`Already correct · ${r.course_key ?? ""}`); return; }
+    if (verdict === "correct" && it.state === "correct") { toast(`Already correct · ${r.record_external_identifier ?? ""}`); return; }
     const brief = await post(itemEvent(me, detail.rule_id, r, it.value_index, verdict, it.verdict?.annotation_id ?? null));
     if (!brief) return;
     setRows((rs) => rs.map((x, j) => (j === i ? applyItem(x, it.value_index, brief, role) : x)));
     setSaved((n) => n + 1);
-    toast(`${verdict === "correct" ? "Correct" : "Wrong"} · ${r.course_key ?? shortTitle(r.page_title, 40)}`);
+    toast(`${verdict === "correct" ? "Correct" : "Wrong"} · ${r.record_external_identifier ?? shortTitle(r.page_title, 40)}`);
   }, [rows, detail, me, role, post]);
 
   const startAddItem = useCallback(() => { setDraft(null); setMissed(null); setItemAdd({ capture: null }); }, []);
@@ -508,7 +508,7 @@ export default function RulesTab({ catalog, route }: TabProps) {
     if (!brief) return;
     setRows((rs) => rs.map((x, j) => (j === sel ? applyMissingItem(x, brief) : x)));
     setItemAdd(null);
-    toast(`Missing item saved · ${r.course_key ?? ""}`);
+    toast(`Missing item saved · ${r.record_external_identifier ?? ""}`);
   }, [itemAdd, detail, rows, sel, me, post]);
 
   // a list of objects (§5.3): select text, label it as a field; saved once every field is labelled (or by Save)
@@ -520,7 +520,7 @@ export default function RulesTab({ catalog, route }: TabProps) {
     if (!brief) return;
     setRows((rs) => rs.map((x, j) => (j === sel ? applyMissingItem(x, brief) : x)));
     setObjAdd(null);
-    toast(`Added · ${r.course_key ?? ""}`);
+    toast(`Added · ${r.record_external_identifier ?? ""}`);
   }, [detail, rows, sel, profile, me, post]);
   const labelObject = useCallback((field: string) => {
     if (!objAdd || !profile) return;
@@ -565,7 +565,7 @@ export default function RulesTab({ catalog, route }: TabProps) {
     setRows((rs) => rs.map((x, j) => (j === sel ? applyItem(x, it.value_index, brief, role) : x)));
     setObjFix(null);
     setSaved((n) => n + 1);
-    toast(`Corrected · ${r.course_key ?? ""}`);
+    toast(`Corrected · ${r.record_external_identifier ?? ""}`);
   }, [objFix, detail, rows, sel, profile, me, role, post]);
   // ✕ on an added object takes it back
   const takeBack = useCallback(async (added: EventBrief) => {
@@ -574,7 +574,7 @@ export default function RulesTab({ catalog, route }: TabProps) {
     const brief = await post(takeBackEvent(me, detail.rule_id, r.occurrence_key, added));
     if (!brief) return;
     setRows((rs) => rs.map((x, j) => (j === sel ? { ...x, missing_items: (x.missing_items ?? []).filter((m) => m.annotation_id !== added.annotation_id) } : x)));
-    toast(`Removed · ${r.course_key ?? ""}`);
+    toast(`Removed · ${r.record_external_identifier ?? ""}`);
   }, [detail, rows, sel, me, post]);
   // 1 / 2 on a list's row: every item ✓ or ✕ (no answer), one event each; an item that already says so is skipped
   const markAll = useCallback(async (verdict: "correct" | "wrong") => {
@@ -590,7 +590,7 @@ export default function RulesTab({ catalog, route }: TabProps) {
     }
     if (n) setSaved((k) => k + 1);
     const word = verdict === "correct" ? "correct" : "wrong";
-    toast(n ? `${n} ${n === 1 ? noun : `${noun}s`} ${word} · ${r.course_key ?? ""}` : `Every ${noun} is already ${word}`);
+    toast(n ? `${n} ${n === 1 ? noun : `${noun}s`} ${word} · ${r.record_external_identifier ?? ""}` : `Every ${noun} is already ${word}`);
   }, [rows, sel, detail, me, role, post, noun]);
 
   const startMissed = useCallback(() => {
@@ -694,8 +694,8 @@ export default function RulesTab({ catalog, route }: TabProps) {
   let legend: ReactNode = null;
   let banner: ReactNode = null;
   if (detail && row) {
-    const what = kind === "property" ? <><b>{detail.property_label ?? detail.title}</b> · {row.course_key ?? ""}</>
-      : kind === "locator" ? <><b>Course</b> · {row.course_key ?? ""}</> : <b>{detail.title}</b>;
+    const what = kind === "property" ? <><b>{detail.property_label ?? detail.title}</b> · {row.record_external_identifier ?? ""}</>
+      : kind === "locator" ? <><b>Course</b> · {row.record_external_identifier ?? ""}</> : <b>{detail.title}</b>;
     if (objFix && listRule) {
       legend = <><Ico name="highlight" /><span><b>Select the right text</b> on the page for the selected {noun} of {what}, then pick its field;
         Enter saves the correction.</span></>;
@@ -784,8 +784,8 @@ export default function RulesTab({ catalog, route }: TabProps) {
               <RowCard key={r.key} row={r} kind={detail.kind} index={i} on={on} draft={on ? draft : null} perPage={perPage}
                 label={kind === "property" ? detail.property_label : "Found"} onClick={() => selectRow(i, "course")}
                 // "Open in Records →" on the selected row (the same for every kind of row)
-                links={on && r.course_key ? <a className="xbtn" title="Open this course in the Records tab, with this property selected"
-                  href={href(cat, "records", r.course_key, { prop: kind === "property" ? detail.property_label : null, occ: r.occurrence_key })}
+                links={on && r.record_external_identifier ? <a className="xbtn" title="Open this course in the Records tab, with this property selected"
+                  href={href(cat, "records", r.record_external_identifier, { prop: kind === "property" ? detail.property_label : null, occ: r.occurrence_key })}
                   onClick={(e) => e.stopPropagation()}>Open in Records →</a> : null}
                 items={!listRule || !r.items ? undefined
                   : profile ? <ProfileItems row={r} on={on} fields={profile.fields} keyField={profile.key}
@@ -810,7 +810,7 @@ export default function RulesTab({ catalog, route }: TabProps) {
             const open = g === cur;
             const n = rs[0]?.page_courses ?? rs.length;
             const all = rs.length === n && rs.every((r) => r.state === "correct");
-            const subject = subjectOf(rs.map((r) => r.course_key));
+            const subject = subjectOf(rs.map((r) => r.record_external_identifier));
             return (
               <div key={`${g.stem}@${g.start}`} className={`page-group${open ? " open" : ""}`}>
                 <div className={`row page-head${open && onPage ? " on" : ""}${all ? " done" : ""}`} data-page-start={g.start}

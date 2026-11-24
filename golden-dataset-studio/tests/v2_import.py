@@ -1,4 +1,6 @@
-"""`golden-datasets import-v2`: review-ui-v2's rules and Jared's verdicts, imported (spec §3.2, §5.5).
+"""review-ui-v2's rules and Jared's verdicts, imported (spec §3.2, §5.5): once the `golden-datasets import-v2`
+command, removed from the Studio with LearningProgram (approved item 19). The slow tests still build AVC at
+ruleset v1 with it.
 
 1. v2's `rules.json` (the copy saved with the extraction the latest review session used) → rule versions v1 and
    ruleset v1. Label rules become page rules (renamed: §2 bans "label"); the `scope / repeat / repeat_filter`
@@ -17,12 +19,13 @@ import hashlib
 import re
 from collections import Counter, defaultdict
 
-from . import engine, layout, model, rulesets
-from .catalogs import info
-from .context import Ctx
-from .errors import UserError
-from .log import AnnotationLog
-from .storage import open_root
+from golden_datasets import engine, layout, model, rulesets
+from golden_datasets.catalogs import info
+from golden_datasets.context import Ctx
+from golden_datasets.errors import UserError
+from golden_datasets.log import AnnotationLog
+from golden_datasets.rulesets import LABEL_TEXT
+from golden_datasets.storage import open_root
 
 IN_SCOPE = {label for label, _ in model.FIRST_EIGHT}  # frozen (property-rules spec §3)
 PAGE_RULE_IDS = {
@@ -104,8 +107,6 @@ AVC_PROSE = {
 AVC_PANE_CSS = (".accordionheader{height:auto!important;overflow:visible!important}"
                 ".accordionheader-x-nested{display:block!important;opacity:1!important;transform:none!important;"
                 "max-height:none!important;pointer-events:auto!important}")
-LABEL_TEXT = (r"^\s*(Prerequisites?|Corequisites?|Advisory|Recommended Preparation|Units?|Description|Course)\s*:"
-              r"|\b(Prerequisites?|Corequisites?)\s*:")
 
 
 def iso(v2ts: str) -> str:
@@ -220,16 +221,11 @@ def build_v1_rules(ctx: Ctx, v2: dict) -> tuple[dict[str, dict], dict, dict]:
             dr["what"], dr["how"] = describe(dr, names)
         dr.pop("_v2_description", None)
         dr["depends_on"] = model.dependencies(dr)
-    code_rules = {}
-    for loc_id in {d["definition"]["locator"] for d in drafts.values() if d["kind"] == "property"}:
-        code_rules[loc_id] = next(rid for rid, d in sorted(drafts.items()) if d["kind"] == "property"
-                                  and d["definition"]["locator"] == loc_id and d["property_label"] == "Coded Notation")
     meta = info(ctx.catalog)
     settings = {
         "content_root": v2["content_root"], "page_title": v2.get("page_title", []),
         "pane_css": AVC_PANE_CSS if avc else "",
         "pane_css_v2": v2.get("pane_css"),
-        "course_key_rule": dict(sorted(code_rules.items())),
         "signals": {"course_code_pattern": meta.get("course_code_pattern") or r"\b[A-Z]{2,5} ?\d{3}[A-Z]?\b",
                     "label_text_pattern": LABEL_TEXT, "shape_outlier_max_share": 0.02, "shape_dominance": 0.5,
                     "length_outlier_percentiles": [1, 99], "missed_page_min_codes": 5, "page_allow": []},
@@ -290,14 +286,14 @@ def import_annotations(ctx: Ctx, v2root, session: str, ext: str) -> tuple[list[d
     pages.update({p["requested_url"]: p["page_stem"] for p in ctx.pages()})
     occs = ctx.table(ext, "occurrences").to_pylist()
     matches = ctx.table(ext, "matches").to_pylist()
-    ck_of = {o["occurrence_key"]: o["course_key"] for o in occs}
+    ck_of = {o["occurrence_key"]: o["record_external_identifier"] for o in occs}
     occ_path = {o["occurrence_key"]: o["css_path"] for o in occs}
     m_by = {}
     for m in matches:
         m_by.setdefault((m["rule_id"], m["page_stem"], ck_of[m["occurrence_key"]]), m)
     o_by = {}
     for o in occs:
-        o_by.setdefault((o["page_stem"], o["course_key"]), o)
+        o_by.setdefault((o["page_stem"], o["record_external_identifier"]), o)
     rs_version = ctx.extraction_meta(ext)["ruleset_version"]
     _, rules = ctx.ruleset_rules(rs_version)
     rule_for = {(r["property_label"], r["definition"]["locator"]): rid for rid, r in rules.items() if r["kind"] == "property"}
@@ -321,7 +317,7 @@ def import_annotations(ctx: Ctx, v2root, session: str, ext: str) -> tuple[list[d
         return {"kind": kind, "rule_id": rule_id,
                 "rule_version_seen": rules[rule_id]["version"] if rule_id else None,
                 "extraction_seen": ext, "occurrence_key": occ["occurrence_key"] if occ else None,
-                "course_key": occ["course_key"] if occ else None, "page_stem": stem, "value_index": vi,
+                "record_external_identifier": occ["record_external_identifier"] if occ else None, "page_stem": stem, "value_index": vi,
                 "value_seen": value_seen}
 
     def event(at, author, tgt, verdict, imported, expected=None, note=None):
@@ -411,7 +407,7 @@ def import_annotations(ctx: Ctx, v2root, session: str, ext: str) -> tuple[list[d
             out.append({"annotation_id": aid(imported, "ap"), "type": "approve", "at": rulesets.now_iso(),
                         "author": "golden-datasets import-v2", "catalog": ctx.catalog, "crawl": None,
                         "target": {"kind": "rule", "rule_id": rid, "rule_version_seen": r["version"],
-                                   "extraction_seen": None, "occurrence_key": None, "course_key": None,
+                                   "extraction_seen": None, "occurrence_key": None, "record_external_identifier": None,
                                    "page_stem": None, "value_index": None, "value_seen": None},
                         "verdict": None, "expected": None,
                         "note": "Constant / page-URL rule: approved on import (spec §4.3).", "supersedes": None,
@@ -426,7 +422,7 @@ def _n(v):
 
 
 def import_v2(ctx: Ctx, v2_root: str | None, session: str | None, log=print) -> dict:
-    from .extract import extract
+    from golden_datasets.extract import extract
 
     v2root = open_root(v2_root) if v2_root else ctx.root
     session, sess_meta = find_session(v2root, ctx.catalog, ctx.crawl, session)

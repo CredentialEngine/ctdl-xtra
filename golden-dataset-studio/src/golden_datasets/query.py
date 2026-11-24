@@ -5,7 +5,7 @@ Views (every path comes from the manifest; files are read from the local disk ca
     pages, assets, page_assets
     rule_versions (every version), rulesets, ruleset_rules (ruleset_version × rule), rules (the latest ruleset's)
     extractions
-    page_labels, occurrences, raw_matches, matches (+ course_key from occurrences), signals   — all extractions,
+    page_labels, occurrences, raw_matches, matches (+ record_external_identifier from occurrences), signals   — all extractions,
         with an `extraction` column; `*_latest` views hold only the latest extraction
     annotations (annotations.jsonl)
     lineage (every golden publication)
@@ -25,7 +25,7 @@ from .context import Ctx
 ANNOTATION_COLUMNS = """{'annotation_id':'VARCHAR', 'type':'VARCHAR', 'at':'VARCHAR', 'author':'VARCHAR',
  'catalog':'VARCHAR', 'crawl':'VARCHAR',
  'target':'STRUCT(kind VARCHAR, rule_id VARCHAR, rule_version_seen INTEGER, extraction_seen VARCHAR,
-   occurrence_key VARCHAR, course_key VARCHAR, page_stem VARCHAR, value_index INTEGER, value_seen VARCHAR,
+   occurrence_key VARCHAR, record_external_identifier VARCHAR, page_stem VARCHAR, value_index INTEGER, value_seen VARCHAR,
    item BOOLEAN)',
  'verdict':'VARCHAR',
  'expected':'STRUCT(text VARCHAR, css_path VARCHAR, char_start INTEGER, char_end INTEGER,
@@ -114,7 +114,7 @@ def connect(ctx: Ctx) -> duckdb.DuckDBPyConnection:
         else:  # an empty view with the right columns
             con.register(f"_{name}_empty", pa.Table.from_pylist([], schema=TABLE_SCHEMAS[table]))
             con.execute(f"CREATE VIEW {name} AS SELECT NULL::VARCHAR AS extraction, * FROM _{name}_empty")
-    con.execute("""CREATE VIEW matches AS SELECT m.*, o.course_key FROM raw_matches m
+    con.execute("""CREATE VIEW matches AS SELECT m.*, o.record_external_identifier FROM raw_matches m
                    LEFT JOIN occurrences o USING (extraction, occurrence_key)""")
     for table in ("page_labels", "occurrences", "matches", "signals"):
         con.execute(f"CREATE VIEW {table}_latest AS SELECT * EXCLUDE (extraction) FROM {table} "
@@ -129,7 +129,7 @@ def connect(ctx: Ctx) -> duckdb.DuckDBPyConnection:
         con.execute("""CREATE VIEW annotations AS SELECT NULL::VARCHAR annotation_id, NULL::VARCHAR type,
                        NULL::VARCHAR verdict, NULL::VARCHAR crawl, NULL::VARCHAR supersedes,
                        NULL::STRUCT(kind VARCHAR, rule_id VARCHAR, rule_version_seen INTEGER, extraction_seen VARCHAR,
-                       occurrence_key VARCHAR, course_key VARCHAR, page_stem VARCHAR, value_index INTEGER,
+                       occurrence_key VARCHAR, record_external_identifier VARCHAR, page_stem VARCHAR, value_index INTEGER,
                        value_seen VARCHAR, item BOOLEAN) target WHERE false""")
     golden = k.get("golden") or []
     import pyarrow.parquet as pq

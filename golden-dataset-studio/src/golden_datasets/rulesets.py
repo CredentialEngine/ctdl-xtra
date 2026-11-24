@@ -21,24 +21,20 @@ def now_iso() -> str:
     return datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
-def first_settings(rules: dict[str, dict], given: dict | None = None) -> dict:
-    """Settings for a catalog's first ruleset (one added from the picker has none to inherit): import-v2's defaults,
-    `given` (a draft's `settings`) on top, and each record locator's course key read by its Coded Notation rule
-    unless the draft names one."""
-    from .import_v2 import LABEL_TEXT
+#: A label a value starts with (`Prerequisite:`): the `label_text` signal's pattern, from review-ui-v2.
+LABEL_TEXT = (r"^\s*(Prerequisites?|Corequisites?|Advisory|Recommended Preparation|Units?|Description|Course)\s*:"
+              r"|\b(Prerequisites?|Corequisites?)\s*:")
 
+
+def first_settings(rules: dict[str, dict], given: dict | None = None) -> dict:
+    """Settings for a catalog's first ruleset (one added from the picker has none to inherit): the defaults, with
+    `given` (a draft's `settings`) on top. A record's key isn't a setting: it is the value of its locator's External
+    Identifier rule (model.key_rule_for)."""
     given = given or {}
-    code_rules = {}
-    for loc in sorted(rid for rid, r in rules.items() if r["kind"] == "locator"):
-        code = next((rid for rid, r in sorted(rules.items()) if r["kind"] == "property"
-                     and r["definition"].get("locator") == loc and r.get("property_label") == "Coded Notation"), None)
-        if code:
-            code_rules[loc] = code
     signals = {"course_code_pattern": r"\b[A-Z]{2,5} ?\d{3}[A-Z]?\b", "label_text_pattern": LABEL_TEXT,
                "shape_outlier_max_share": 0.02, "shape_dominance": 0.5, "length_outlier_percentiles": [1, 99],
                "missed_page_min_codes": 5, "page_allow": [], **(given.get("signals") or {})}
-    return {"content_root": "body", "page_title": [], "pane_css": "", **given,
-            "course_key_rule": given.get("course_key_rule") or code_rules, "signals": signals}
+    return {"content_root": "body", "page_title": [], "pane_css": "", **given, "signals": signals}
 
 
 def plan_versions(ctx: Ctx, drafts: dict[str, dict], base: dict[str, dict]) -> dict[str, dict]:

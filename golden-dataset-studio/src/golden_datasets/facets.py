@@ -16,7 +16,7 @@ signals, review state, the ruleset version the row was annotated in and, on Comp
 Pure functions, so they are tested without a catalog; the callers (routes_review.py, routes_compare.py) build the
 items.
 
-An item is a dict: `key`, `value`, `status`, `course_key`, `page_stem`, `signals` (names), `url`, and optionally
+An item is a dict: `key`, `value`, `status`, `record_external_identifier`, `page_stem`, `signals` (names), `url`, and optionally
 `state` (review state), `annotated_in` (the ruleset versions the row's verdicts and comments were made in; who made
 them is the Rules tab's "Annotated by" filter, review.annotated_match), `on_page` (courses on its page), `rule` (rule id), `change` and `before` (Compare: how the
 value changed, and the value in A).
@@ -43,7 +43,7 @@ STATE_NAME = {None: "unreviewed", "correct": "marked correct", "wrong": "marked 
 
 def item(row: dict, url: str | None, **extra) -> dict:
     """A snapshot row as a facet item."""
-    return {"key": row["key"], "value": row["value"], "status": row["status"], "course_key": row.get("course_key"),
+    return {"key": row["key"], "value": row["value"], "status": row["status"], "record_external_identifier": row.get("record_external_identifier"),
             "page_stem": row["page_stem"], "signals": [s["signal"] for s in row.get("signals") or []], "url": url,
             **extra}
 
@@ -151,7 +151,7 @@ def dimensions(kind: str, items: list[dict]) -> list[dict]:
         elif len(shapes) <= FEW_VALUES:
             add("shape", "Shape", "letters → A, digits → 9",
                 *_categorical({i["key"]: [f"“{shape(i['value'])[:40]}”" if _has(i) else EMPTY] for i in items}))
-    if any(i.get("course_key") for i in items):
+    if any(i.get("record_external_identifier") for i in items):
         add("subject", "Subject", "the letters of the course code",
             *_categorical({i["key"]: [subject(i) or "—"] for i in items}))
     add("url", "URL pattern", "the page's URL path, numbers → 9, last part → *",

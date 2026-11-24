@@ -79,7 +79,7 @@ def build(tmp_path: Path) -> Path:
     crawls.add_catalog(LocalRoot(dst), src, CAT, log=lambda *a, **k: None)
     draft = tmp_path / "first.json"
     draft.write_text(json.dumps(RULES))
-    assert main(["rule", "publish", "--root", str(dst), "--catalog", CAT, str(draft), "--note", "first"]) == 0
+    assert main(["rule", "publish", "--class", "course", "--root", str(dst), "--catalog", CAT, str(draft), "--note", "first"]) == 0
     return dst
 
 
@@ -87,8 +87,18 @@ def ctx(root: Path) -> Ctx:
     return Ctx(LocalRoot(root), CAT)
 
 
-def cli(root: Path, *argv: str) -> int:
-    return main([*argv, "--root", str(root), "-c", CAT])
+#: The commands that don't take `--class` (approved item 19): argparse refuses it on them.
+NO_CLASS = {"init", "assets", "crawls", "pages get", "sync", "serve", "hash-password", "sql"}
+
+
+def with_class(argv: list[str], cls: str = "course") -> list[str]:
+    """argv, with `--class cls` when its command takes one."""
+    head = " ".join(a for a in argv[:2] if not a.startswith("-"))
+    return argv if argv[0] in NO_CLASS or head in NO_CLASS else [*argv, "--class", cls]
+
+
+def cli(root: Path, *argv: str, cls: str = "course") -> int:
+    return main(with_class([*argv, "--root", str(root), "-c", CAT], cls))
 
 
 def draft(root: Path, tmp_path: Path, capsys, name: str, *rules: str, edit=None) -> str:
@@ -114,14 +124,14 @@ def mark(root: Path, rule: str, course: str, verdict: str | None, author: str = 
     c = ctx(root)
     c.invalidate()
     snap = LOADER.snapshot(c, c.latest_extraction())
-    row = next(r for r in snap.rows(rule) if r["course_key"] == course)
+    row = next(r for r in snap.rows(rule) if r["record_external_identifier"] == course)
     aid = new_id()
     LOADER.log(c).append({
         "annotation_id": aid, "type": "verdict" if verdict else "comment",
         "at": at or datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"), "author": author, "author_role": role,
         "catalog": CAT, "crawl": c.crawl,
         "target": {"kind": "match", "rule_id": rule, "rule_version_seen": snap.rules[rule]["version"],
-                   "extraction_seen": snap.ext, "occurrence_key": row["occurrence_key"], "course_key": course,
+                   "extraction_seen": snap.ext, "occurrence_key": row["occurrence_key"], "record_external_identifier": course,
                    "page_stem": row["page_stem"], "value_index": 0, "value_seen": row["value"]},
         "verdict": verdict, "expected": {"text": expected} if expected is not None else None, "note": note,
         "supersedes": None})

@@ -138,10 +138,10 @@ SQL_CHECKS: list[tuple[str, str, str, str, str]] = [
      """SELECT a.annotation_id FROM annotations a LEFT JOIN rule_versions rv ON rv.rule_id = a.target.rule_id
         AND rv.version = a.target.rule_version_seen WHERE a.target.rule_id IS NOT NULL AND rv.rule_id IS NULL""",
      "annotations"),
-    ("annotations", "FK", "occurrence_key → occurrences of extraction_seen, course_key agrees",
+    ("annotations", "FK", "occurrence_key → occurrences of extraction_seen, record_external_identifier agrees",
      """SELECT a.annotation_id FROM annotations a LEFT JOIN occurrences o ON o.extraction = a.target.extraction_seen
         AND o.occurrence_key = a.target.occurrence_key WHERE a.target.occurrence_key IS NOT NULL
-        AND (o.occurrence_key IS NULL OR o.course_key IS DISTINCT FROM a.target.course_key)""", "annotations"),
+        AND (o.occurrence_key IS NULL OR o.record_external_identifier IS DISTINCT FROM a.target.record_external_identifier)""", "annotations"),
     ("annotations", "FK", "match target → matches of extraction_seen",
      """SELECT a.annotation_id FROM annotations a LEFT JOIN raw_matches m ON m.extraction = a.target.extraction_seen
         AND m.rule_id = a.target.rule_id AND m.occurrence_key = a.target.occurrence_key
@@ -358,26 +358,26 @@ DOMAIN_LEAKS = ("rule_id", "rule_version", "occurrence_key", "annotation_ids", "
 
 
 def property_checks(ctx: Ctx) -> list[tuple]:
-    """properties.csv and each catalog's rules against it (property-rules spec §4.15)."""
+    """The class's properties file and each catalog's rules against it (property-rules spec §4.15)."""
     from . import engine, properties
 
     out = []
-    rows = properties.load()
+    rows = properties.load(ctx.cls)
     for col in ("rule_id", "label", "path"):
         vals = [r[col] for r in rows if r[col] or col != "path"]
         dup = sorted({v for v in vals if vals.count(v) > 1})
-        out.append(("properties.csv", "PK", f"{col} unique", len(dup), len(rows), dup[:3]))
+        out.append((f"properties/{ctx.cls}.csv", "PK", f"{col} unique", len(dup), len(rows), dup[:3]))
     paths = {r["path"] for r in rows}
     orphans = [r["rule_id"] for r in rows if r["parent"] and r["parent"] not in paths]
-    out.append(("properties.csv", "FK", "every parent is a row", len(orphans), len(rows), orphans[:3]))
+    out.append((f"properties/{ctx.cls}.csv", "FK", "every parent is a row", len(orphans), len(rows), orphans[:3]))
     unnoted = [r["rule_id"] for r in rows if r["sheet_path"] != r["path"] and r["sheet_path"] and not r["path_note"]]
-    out.append(("properties.csv", "CHK", "a path that differs from the sheet's has a path_note", len(unnoted),
+    out.append((f"properties/{ctx.cls}.csv", "CHK", "a path that differs from the sheet's has a path_note", len(unnoted),
                 len(rows), unnoted[:3]))
     if ctx.ruleset_versions():
         rs, rules = ctx.ruleset_rules(ctx.latest_ruleset())
-        missing = sorted(properties.missing_rules(rules, rs["settings"]))
-        active = properties.active()
-        out.append(("ruleset", "CHK", "the latest ruleset has a property rule for every row of properties.csv "
+        missing = sorted(properties.missing_rules(rules, ctx.cls))
+        active = properties.active(ctx.cls)
+        out.append(("ruleset", "CHK", f"the latest ruleset has a property rule for every row of properties/{ctx.cls}.csv "
                     "(golden-datasets properties apply)", len(missing), len(active), missing[:3]))
         props = {rid: r for rid, r in rules.items() if r["kind"] == "property"}
         bad = []
@@ -416,7 +416,7 @@ def golden_file_checks(ctx: Ctx, con) -> list[tuple]:
     from .storage import open_root
 
     out = []
-    known_paths = {r["path"] for r in properties.load()} | {t for _, t in model.FIRST_EIGHT if t}
+    known_paths = {r["path"] for r in properties.load(ctx.cls)} | {t for _, t in model.FIRST_EIGHT if t}
     docs = [ctx.read_json(f"{g['path']}/publication.json", immutable=False)
             for g in ctx.crawl_entry().get("golden", [])]
     newest = max((d["ruleset_version"] for d in docs if VERSION.match(d["publication"])), default=None)
@@ -482,7 +482,7 @@ def golden_file_checks(ctx: Ctx, con) -> list[tuple]:
                         "per page", len(bad_files), len(stems), bad_files[:3]))
             out.append(("golden page", "CHK", f"{where} domain-only (no rule ids / keys / annotation ids)", leaked,
                         n_rec, []))
-            out.append(("golden page", "FK", f"{where} every ctdl_property is a path of properties.csv",
+            out.append(("golden page", "FK", f"{where} every ctdl_property is a path of properties/{ctx.cls}.csv",
                         len(unknown), n_val, sorted(set(unknown))[:3]))
         if versioned:
             prefix = version_prefix(ctx, d["ruleset_version"], HUMAN_REVIEWED)
@@ -563,7 +563,7 @@ def cmd_check(args) -> int:
     failed = total = 0
     for catalog in catalogs:
         t0 = time.perf_counter()
-        ctx = Ctx(root, catalog, args.crawl)
+        ctx = Ctx(root, catalog, args.crawl, cls=args.cls)
         results = run(ctx)
         width = max(len(r[2]) for r in results)
         print(f"golden-datasets check: {root.uri} · {catalog} · {ctx.crawl}")

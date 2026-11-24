@@ -147,8 +147,8 @@ class Known:
         if key not in self._rows:
             by: dict[str, dict] = {}
             for r in snap.rows(rule):
-                if r.get("course_key"):
-                    by.setdefault(r["course_key"], r)
+                if r.get("record_external_identifier"):
+                    by.setdefault(r["record_external_identifier"], r)
             self._rows[key] = by
         return self._rows[key].get(course)
 
@@ -181,7 +181,7 @@ def page_text_reader(ctx, snap: Snapshot):
 
     def read(course: str) -> str | None:
         if course not in cache:
-            stem = next((o["page_stem"] for o in snap.occurrences.values() if o.get("course_key") == course), None)
+            stem = next((o["page_stem"] for o in snap.occurrences.values() if o.get("record_external_identifier") == course), None)
             try:
                 cache[course] = page_text(ctx.page_path(stem).read_bytes()) if stem else None
             except (FileNotFoundError, OSError):
@@ -214,16 +214,16 @@ def build_known(ctx, run: dict) -> Known:
     courses = {}
     if snap is not None:
         for o in snap.occurrences.values():
-            if o.get("course_key") and o["course_key"] not in courses:
+            if o.get("record_external_identifier") and o["record_external_identifier"] not in courses:
                 p = snap.page.get(o["page_stem"]) or {}
-                courses[o["course_key"]] = {"title": p.get("title"), "url": p.get("url"), "page_stem": o["page_stem"]}
+                courses[o["record_external_identifier"]] = {"title": p.get("title"), "url": p.get("url"), "page_stem": o["page_stem"]}
     notes = {}
     for e in events:
         if e["type"] not in ("verdict", "comment"):
             continue
         t = e.get("target") or {}
         notes[e["annotation_id"]] = {"author": e["author"], "at": e["at"], "rule": t.get("rule_id"),
-                                     "course": t.get("course_key"), "kind": e.get("verdict") or "comment",
+                                     "course": t.get("record_external_identifier"), "kind": e.get("verdict") or "comment",
                                      "text": e.get("note"), "expected": (e.get("expected") or {}).get("text"),
                                      "event": e}
     d = layout.agent_run_dir(ctx.catalog, run["run_id"])
@@ -636,8 +636,8 @@ class Resolver:
             got = []
             for row in (self.k.snap.rows(rid) if self.k.snap and rid in self.k.snap.rules else []):
                 st = self.state(rid, row)
-                if st and st.state in states and row.get("course_key"):
-                    got.append(row["course_key"])
+                if st and st.state in states and row.get("record_external_identifier"):
+                    got.append(row["record_external_identifier"])
             return rid, sorted(set(got))
         return rule, list(ref)
 
@@ -904,8 +904,8 @@ def resolve(facts: dict, k: Known) -> dict:
             if changed:
                 rows = [card(rid, c) for c in changed[:3] if k.row(rid, c)]
             else:
-                held = next((row["course_key"] for row in (k.snap.rows(rid) if k.snap and rid in k.snap.rules else [])
-                             if row.get("course_key") and (R.state(rid, row) or None)
+                held = next((row["record_external_identifier"] for row in (k.snap.rows(rid) if k.snap and rid in k.snap.rules else [])
+                             if row.get("record_external_identifier") and (R.state(rid, row) or None)
                              and R.state(rid, row).state == "correct"), None)
                 rows = [card(rid, held)] if held else []
         b = item.get("because")
@@ -1105,7 +1105,7 @@ def last_try_doc(ev: dict, base_ruleset: int | None, published: int | None) -> d
         for r in c["annotated_rows"]:
             key = {"fixed": "fixed", "still wrong": "still_wrong", "newly wrong": "newly_wrong"}.get(r["outcome"])
             if key:
-                by[key].append(r.get("course_key") or r["page_stem"])
+                by[key].append(r.get("record_external_identifier") or r["page_stem"])
         cards.append({"rule_id": c["rule_id"], **{k: sorted(set(v)) for k, v in by.items()}})
     s = ev.get("suite") or {}
     return {"base_ruleset": base_ruleset, "published": published, "totals": ev["totals"], "cards": cards,

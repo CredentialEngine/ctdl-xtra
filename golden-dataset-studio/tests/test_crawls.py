@@ -173,10 +173,10 @@ def test_first_rules_publish_ruleset_v1_and_the_card_opens(roots, tmp_path, caps
     assert f"--all --for {cat}" in prompt["text"] and "/catalog/iq/" in prompt["text"]  # the URL shapes
     draft = tmp_path / "first.json"
     draft.write_text(json.dumps(FIRST))
-    assert main(["rule", "try", "--root", dst.uri, "--catalog", cat, str(draft)]) == 0
+    assert main(["rule", "try", "--class", "course", "--root", dst.uri, "--catalog", cat, str(draft)]) == 0
     out = capsys.readouterr().out
     assert "no ruleset yet" in out and "locator-course-page" in out
-    assert main(["rule", "publish", "--root", dst.uri, "--catalog", cat, str(draft), "--note", "first"]) == 0
+    assert main(["rule", "publish", "--class", "course", "--root", dst.uri, "--catalog", cat, str(draft), "--note", "first"]) == 0
     assert "published ruleset v1 (the first)" in capsys.readouterr().out
     entry = manifest.catalog_entry(manifest.load(dst)[0], cat, create=False)
     assert [r["version"] for r in entry["rulesets"]] == [1] and entry["annotations"] is None
@@ -184,9 +184,9 @@ def test_first_rules_publish_ruleset_v1_and_the_card_opens(roots, tmp_path, caps
     from golden_datasets.context import Ctx
 
     rs = Ctx(dst, cat).ruleset(1)
-    assert rs["settings"]["course_key_rule"] == {"locator-course-page": "course-code"}
+    assert not [k for k in rs["settings"] if k.endswith("_key_rule")]  # the key is the External Identifier rule's value
     card = next(x for x in c.get("/api/catalogs").json() if x["catalog"] == cat)
     assert card["status"] == "ready" and card["rules_total"] == 4
-    assert main(["check", "--root", dst.uri, "--catalog", cat]) == 1  # no rule yet for 39 of properties.csv's rows
-    assert main(["properties", "apply", "--root", dst.uri, "--catalog", cat]) == 0
-    assert main(["check", "--root", dst.uri, "--catalog", cat]) == 0
+    assert main(["check", "--class", "course", "--root", dst.uri, "--catalog", cat]) == 1  # no rule yet for 39 of properties.csv's rows
+    assert main(["properties", "apply", "--class", "course", "--root", dst.uri, "--catalog", cat]) == 0
+    assert main(["check", "--class", "course", "--root", dst.uri, "--catalog", cat]) == 0

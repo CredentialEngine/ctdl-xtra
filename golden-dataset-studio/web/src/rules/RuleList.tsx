@@ -105,7 +105,7 @@ export function RuleList({ rules, active, onPick, talk, onTalk, top, bottom, cou
                 data-rule={r.rule_id} onClick={() => onPick(r.rule_id)} onKeyDown={(e) => onItemKey(e, r.rule_id)}>
                 <div className="ico" title={r.status} data-tour={tour ? "rule-status" : undefined}><Ico name={r.status} /></div>
                 <div style={{ minWidth: 0 }}>
-                  <div className="nm">{hit(r.title, q)}{r.course_key && <span className="rl-tag">course key</span>}</div>
+                  <div className="nm">{hit(r.title, q)}{r.record_key && <span className="rl-tag">record key</span>}</div>
                   <div className={`id${r.kind === "property" && !child ? "" : " plain"}`} title={r.subtitle}>
                     {hit(r.subtitle, q)}{r.list && <span className="rl-tag">list</span>}</div>
                 </div>

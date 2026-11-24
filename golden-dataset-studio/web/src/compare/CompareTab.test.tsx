@@ -16,7 +16,7 @@ import CompareTab from "./CompareTab";
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 const brief = (ck: string, a: string, b: string) => ({
-  key: `${ck.toLowerCase()}@div`, course_key: ck, page_stem: ck.toLowerCase(), a_value: a, b_value: b,
+  key: `${ck.toLowerCase()}@div`, record_external_identifier: ck, page_stem: ck.toLowerCase(), a_value: a, b_value: b,
   diff: a === b ? [{ op: "same" as const, text: a }]
     : [{ op: "del" as const, text: a.slice(0, a.length - b.length) }, { op: "same" as const, text: b }],
   css_path: null, char_start: null, char_end: null,

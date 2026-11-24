@@ -18,7 +18,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from . import model
+from . import model, properties
 from .catalogs import info
 from .cli import DEFAULT_AZURE_ROOT, ENV_FILE
 from .context import Ctx
@@ -45,6 +45,7 @@ FORMAT = {
                 "output), `selector` (CSS, inside one course occurrence), optional `attribute`, `join`, `regex` + "
                 "`group`, `multiple` (a list: `{\"split\": \"elements\" | \"separator\" | \"regex\", …, "
                 "\"keep\": <regex>}`), `transforms` (strip, collapse_ws, upper, lower, remove_spaces, "
+                "generated_id:<type> (issue #368's `{type}-{normalized name}`, e.g. `program-anthropology-b.a.`), "
                 "rstrip:<chars>), optional `map`. Order: the element's text (a `<br>` reads as a newline, script and "
                 "style text is left out) → `regex` (Python, MULTILINE) → `group` → the split → `keep` → `transforms` "
                 "→ `map`.",
@@ -140,7 +141,7 @@ def _where(a: dict, exp: dict) -> str:
 
 
 def _who(a: dict) -> str:
-    return a["course_key"] or a["page_title"] or a["page_stem"] or "—"
+    return a["record_external_identifier"] or a["page_title"] or a["page_stem"] or "—"
 
 
 def _notes(a: dict) -> str:
@@ -179,7 +180,7 @@ def _signal_rows(rv: Review, rid: str) -> list[list]:
     examples: dict[str, list[tuple[str, str]]] = {}
     for row in snap.rows(rid):
         for s in row["signals"]:
-            examples.setdefault(s["signal"], []).append((row["course_key"] or row["page_stem"], s["detail"] or ""))
+            examples.setdefault(s["signal"], []).append((row["record_external_identifier"] or row["page_stem"], s["detail"] or ""))
     counts = snap.signal_counts.get(rid, {})
     out = []
     for name, total in sorted(counts.items(), key=lambda kv: (-kv[1], kv[0])):
@@ -213,7 +214,7 @@ def _setup(ctx: Ctx, target: str, root_uri: str, first_rule: str, check: str | N
         n += 1
     L.append(f"{n}. Point the CLI at the {'shared Azure' if azure else 'Studio'} root and check it:")
     L += ["", "   ```sh", f"   cat > {ENV_FILE} <<'EOF'", f"   GOLDEN_DATASETS_ROOT={root_uri}",
-          f"   GOLDEN_DATASETS_CATALOG={short_name}", "   EOF", f"   {check or f'golden-datasets rule show {first_rule}'}",
+          f"   GOLDEN_DATASETS_CATALOG={short_name}", f"   GOLDEN_DATASETS_CLASS={ctx.cls}", "   EOF", f"   {check or f'golden-datasets rule show {first_rule}'}",
           "   ```", ""]
     if azure:
         L.append("   Pages download once into a local cache (`~/.cache/golden-datasets`); `rule publish` uploads the "
@@ -374,12 +375,13 @@ def _setup_k2(ctx: Ctx, root_uri: str, first_rule: str, check: str | None, run: 
             "which every folder below it reads. No `az login`.", "",
             "1. Make this run's folder, install this run's own copy of the CLI into it (uv is installed; another run "
             "may be installing its copy at the same time, so never install into the shared tool folder), and name "
-            "the run's root and catalog:", "",
+            "the run's root, catalog and class:", "",
             "   ```sh",
             f"   find {tools} -mindepth 1 -maxdepth 1 -mmin +{TOOLS_KEPT_MINUTES} -exec rm -rf {{}} + 2>/dev/null; true",
             f"   mkdir -p {d} {t} && cd {d} && UV_TOOL_DIR={t} UV_TOOL_BIN_DIR={d}/bin uv tool install '{src['spec']}'",
             f"   printf '%s\\n' 'GOLDEN_DATASETS_ROOT={root_uri}' "
-            f"'GOLDEN_DATASETS_CATALOG={short_name}' 'GOLDEN_DATASETS_RUN={_run_id(run)}' > {d}/{ENV_FILE}",
+            f"'GOLDEN_DATASETS_CATALOG={short_name}' 'GOLDEN_DATASETS_CLASS={ctx.cls}' "
+            f"'GOLDEN_DATASETS_RUN={_run_id(run)}' > {d}/{ENV_FILE}",
             f"   cd {d} && {check}", "   ```", "",
             f"   If the install fails, don't install another version: `golden-datasets run` exists only on "
             f"`{src['ref']}`. Stop and say so in your reply.",
@@ -448,7 +450,7 @@ def build_prompt(ctx: Ctx, rule: str | None = None, needs_work: bool = False, rv
                  f"{', '.join(f'`{t}`' for t in targets)}. You may change any other rule if a goal needs it: a page "
                  "rule, a locator, a rule a goal reads or that reads it. Keep every change as small as possible. "
                  "`golden-datasets rule downstream <rule>` shows what reads a rule.")
-    L.append("- Only the properties of `properties.csv` count (`golden-datasets properties list`): don't add rules "
+    L.append(f"- Only the properties of `properties/{ctx.cls}.csv` count (`golden-datasets properties list`): don't add rules "
              "for anything else.")
     L.append("- Rules stay declarative (the formats above). If the format can't express the fix, stop and say so.")
     L.append("- Every `rule try` checks all the catalog's rules against all their golden values (values marked "
@@ -545,7 +547,7 @@ def build_prompt(ctx: Ctx, rule: str | None = None, needs_work: bool = False, rv
         if changed:
             L.append("")
             L.append(f"**Marked correct, but the value changed since ({len(changed)}); the expert will look again:** "
-                     + ", ".join(a["course_key"] or a["page_stem"] for a in changed))
+                     + ", ".join(a["record_external_identifier"] or a["page_stem"] for a in changed))
         talk = discussion["rules"].get(rid, [])
         if talk:
             L.append("")
@@ -771,10 +773,11 @@ def _how_read(rule: dict) -> str:
 
 
 def property_table(ctx: Ctx, rules_by_catalog: dict[str, dict[str, dict]]) -> list[list]:
-    """Every property of properties.csv: its name, path, parent, list, required, the sheet's definition and sample,
-    and how each catalog with a rule reads it."""
+    """Every property of the class's properties file: its name, path, parent, list, tier, the sheet's definition and
+    sample, and how each catalog with a rule reads it."""
     rows = []
-    for r in model.PROPERTY_ROWS:
+    tiers = dict(properties.TIERS)
+    for r in model.property_rows(ctx.cls):
         how = []
         for sn, rules in sorted(rules_by_catalog.items()):
             rule = rules.get(r["rule_id"])
@@ -783,7 +786,7 @@ def property_table(ctx: Ctx, rules_by_catalog: dict[str, dict[str, dict]]) -> li
         definition = re.sub(r"\s+", " ", r["definition_text"])[:140]
         rows.append([r["label"], f"`{r['path'].replace('>', ' → ')}`" if r["path"] else "—",
                      r["parent"].split(":", 1)[-1] if r["parent"] else "", "list" if r["multiple"] else "single",
-                     "course key" if r["course_key"] else "required" if r["required"] else "", definition,
+                     ("record key, " if r["record_key"] else "") + tiers[properties.tier(r)], definition,
                      re.sub(r"\s+", " ", r["sample"])[:40], "; ".join(how) or "none yet"])
     return rows
 
@@ -878,23 +881,22 @@ def build_first_rules_prompt(ctx: Ctx, target: str = "azure", azure_root: str | 
     L.append("")
     L += [FORMAT["page"], FORMAT["locator"], LOCATOR_NAMING, FORMAT["property"],
           "- Settings (the draft's `settings`): `content_root` (CSS: the part of every page that holds the content; "
-          "rules evaluate inside it), `page_title`, `course_key_rule` (record locator → the property rule whose value "
-          "identifies a course, its Coded Notation), `signals.course_code_pattern` (a regex for this catalog's course "
+          "rules evaluate inside it), `page_title`, `signals.course_code_pattern` (a regex for this catalog's course "
           "codes, e.g. `ACCT 2310`).", ""]
     rules_by_catalog = {}
     for sn, folder in sorted(ready.items()):
         try:
-            other = Ctx(ctx.root, folder)
+            other = Ctx(ctx.root, folder, cls=ctx.cls)
             rules_by_catalog[sn] = other.ruleset_rules(other.latest_ruleset())[1]
         except (UserError, FileNotFoundError):
             continue
     if mine:
         rules_by_catalog.setdefault(info(ctx.catalog)["short"], mine)
     L += ["## Every property", "",
-          f"One property rule per row ({len(model.PROPERTY_ROWS)} in all), with the rule id of `properties.csv` "
-          "(`golden-datasets properties list`). Paths are stored with `>` and shown here with arrows. *How catalogs "
+          f"One property rule per row ({len(model.property_rows(ctx.cls))} in all), with the rule id of "
+          f"`properties/{ctx.cls}.csv` (`golden-datasets properties list --class {ctx.cls}`). Paths are stored with `>` and shown here with arrows. *How catalogs "
           "read it* is each catalog's current rule, a starting point for a page like theirs.", ""]
-    L += table(["Property", "Path", "Parent", "Values", "Required", "The sheet's definition", "Sample",
+    L += table(["Property", "Path", "Parent", "Values", "Tier", "The sheet's definition", "Sample",
                 "How catalogs read it"], property_table(ctx, rules_by_catalog))
     L += ["", "## Every rule type and input", ""]
     L += table(["Type / input", "Reads", "Real example"], RULE_TYPES)
@@ -938,7 +940,7 @@ def build_first_rules_prompt(ctx: Ctx, target: str = "azure", azure_root: str | 
     L += ["", "Do not commit or push anything.", ""]
     L += _run_close(run) if target == "k2" else \
         [f"Report back, per property: the rule written, or why none; the final `rule try` table; and coverage "
-         f"(properties with a rule, of {len(model.PROPERTY_ROWS)})."]
+         f"(properties with a rule, of {len(model.property_rows(ctx.cls))})."]
     text = "\n".join(L) + "\n"
     if target == "k2":
         text = text.replace("`golden-datasets ", "`./bin/golden-datasets ")

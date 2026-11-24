@@ -6,7 +6,7 @@ from golden_datasets import facets
 
 
 def it(i: int, value: str, **kw) -> dict:
-    return {"key": f"k{i}", "value": value, "status": "found" if value else "no_match", "course_key": kw.pop("ck", f"ABC{i}"),
+    return {"key": f"k{i}", "value": value, "status": "found" if value else "no_match", "record_external_identifier": kw.pop("ck", f"ABC{i}"),
             "page_stem": f"p{i}", "signals": kw.pop("signals", []), "url": "https://x/catalog/2026/course/a", **kw}
 
 

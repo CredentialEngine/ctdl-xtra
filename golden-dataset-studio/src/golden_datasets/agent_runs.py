@@ -481,7 +481,7 @@ class AgentRuns:
                            "author_role": "ai", "catalog": self.cat, "crawl": self.ctx.crawl,
                            "target": {"kind": "match", "rule_id": r["rule"],
                                       "rule_version_seen": k.rules[r["rule"]]["version"], "extraction_seen": k.ext,
-                                      "occurrence_key": row["occurrence_key"], "course_key": row["course_key"],
+                                      "occurrence_key": row["occurrence_key"], "record_external_identifier": row["record_external_identifier"],
                                       "page_stem": row["page_stem"], "value_index": 0, "value_seen": row["value"]},
                            "verdict": None, "expected": None, "note": " ".join(r["comment"].split()),
                            "supersedes": None, "run_id": run_id, "ruleset_version": version})
@@ -924,8 +924,8 @@ def context_lines(ar: AgentRuns, rule: str, names: dict[str, str], events: list[
     out.append(f"Annotations {'since then' if since else 'so far'}: {len(new)}")
     for e in new[-30:]:
         t = e["target"]
-        what = f"marked {t.get('course_key') or t.get('page_stem') or 'it'} {e['verdict']}" if e["type"] == "verdict" \
-            else f"commented on {t.get('course_key') or t.get('page_stem') or 'the rule'}"
+        what = f"marked {t.get('record_external_identifier') or t.get('page_stem') or 'it'} {e['verdict']}" if e["type"] == "verdict" \
+            else f"commented on {t.get('record_external_identifier') or t.get('page_stem') or 'the rule'}"
         exp = (e.get("expected") or {}).get("text")
         out.append(f"- {e['at'][:16]} {e['author']} {what} ({e['annotation_id']})"
                    + (f": {' '.join(e['note'].split())}" if e.get("note") else "")

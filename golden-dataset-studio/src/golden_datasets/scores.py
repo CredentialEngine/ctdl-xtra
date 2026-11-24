@@ -1009,19 +1009,21 @@ def column_key(label: str, path: str | None) -> str:
     return column(path) if path else label
 
 
-#: Every property's column, in the fixed order (property-rules spec §4.9); the home table puts the other properties
-#: in the Rules tab's order (columns_in_order).
-STUDIO_COLUMNS = [column_key(label, t) for label, t in model.PROPERTIES]
-COLUMN_LABELS = {column_key(label, t): (column(t).replace(">", " → ") if t else label) for label, t in model.PROPERTIES}
-REQUIRED_COLUMNS = [column_key(r["label"], r["path"] or None) for r in model.PROPERTY_ROWS if r["required"]]
+def column_labels(cls: str = "course") -> dict[str, str]:
+    """Every property's column → its name, in the fixed order (property-rules spec §4.9)."""
+    return {column_key(label, t): (column(t).replace(">", " → ") if t else label) for label, t in model.properties_of(cls)}
 
 
-def columns_in_order(counts: Counter) -> list[str]:
+def required_columns(cls: str = "course") -> list[str]:
+    return [column_key(r["label"], r["path"] or None) for r in model.property_rows(cls) if r["required"]]
+
+
+def columns_in_order(counts: Counter, cls: str = "course") -> list[str]:
     """Required columns first, then the others by values experts reviewed across catalogs (`counts`, by rule id),
     then sheet order: the Rules tab's order (§4.8)."""
-    rest = [r for r in model.PROPERTY_ROWS if not r["required"]]
+    rest = [r for r in model.property_rows(cls) if not r["required"]]
     rest.sort(key=lambda r: (-counts.get(r["rule_id"], 0), r["sheet_row"]))
-    return REQUIRED_COLUMNS + [column_key(r["label"], r["path"] or None) for r in rest]
+    return required_columns(cls) + [column_key(r["label"], r["path"] or None) for r in rest]
 
 
 def column_statuses(ctx: Ctx, cache: dict | None = None) -> dict[str, dict]:
@@ -1071,9 +1073,10 @@ def column_statuses(ctx: Ctx, cache: dict | None = None) -> dict[str, dict]:
     return out
 
 
-def coverage(columns: dict[str, dict]) -> int:
+def coverage(columns: dict[str, dict], cls: str = "course") -> int:
     """Properties with a rule in this catalog (§4.9)."""
-    return sum(1 for k, c in columns.items() if k in COLUMN_LABELS and not c.get("no_rule"))
+    labels = column_labels(cls)
+    return sum(1 for k, c in columns.items() if k in labels and not c.get("no_rule"))
 
 
 def _column_counts(ctx: Ctx, rv, doc: dict) -> dict[str, Counter]:
