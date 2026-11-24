@@ -58,8 +58,10 @@ def get(slug: str | CtdlClass) -> CtdlClass:
 
 
 def of_rule(rule_id: str) -> CtdlClass | None:
-    """The class whose prefix a rule id carries, or None (page rules and locators may carry none)."""
-    return next((c for c in CLASSES.values() if rule_id.startswith(c.rule_prefix)), None)
+    """The class a rule id names: its prefix (`learningprogram-name`), or inside it (`locator-learningprogram-page`);
+    None when it names none (Course's older page rules and locators: `course-page`, `program-page`)."""
+    return next((c for c in CLASSES.values() if rule_id.startswith(c.rule_prefix) or f"-{c.slug}-" in rule_id
+                 or rule_id.endswith(f"-{c.slug}")), None)
 
 
 def from_env() -> str | None:

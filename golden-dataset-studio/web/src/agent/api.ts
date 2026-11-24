@@ -2,6 +2,7 @@
 // started from a run button and watched from the run bar. The run lives on the storage root, so every Studio and
 // every browser sees the same one.
 import type { EventBrief, ReviewMarks, RowStateName } from "../api/types";
+import { withClass } from "../shell/klass";
 import { signedOut } from "../shell/session";
 
 export type RunState = "sending" | "waiting" | "running" | "finished" | "needs_you" | "failed" | "cancelled" | "timed_out" | "ended";
@@ -62,7 +63,7 @@ const json = (body: unknown): RequestInit =>
   ({ method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
 
 async function get<T>(path: string, init?: RequestInit): Promise<T> {
-  const r = await fetch(path, init);
+  const r = await fetch(withClass(path), init);
   if (r.status === 401) signedOut();
   if (!r.ok) {
     let detail = r.statusText;
@@ -86,7 +87,7 @@ export const agentApi = {
   async start(catalog: string, scope: RunScope, author: string): Promise<StartResult> {
     let r: Response;
     try {
-      r = await fetch(c(catalog), json({ scope, author, studio_url: location.origin + location.pathname }));
+      r = await fetch(withClass(c(catalog)), json({ scope, author, studio_url: location.origin + location.pathname }));
     } catch {
       return { ok: false, kind: "fallback", reason: "the Studio's server didn't answer" };
     }
@@ -308,7 +309,7 @@ export const agentApi2 = {
   async start(catalog: string, rules: string[], author: string): Promise<StartResult2> {
     let r: Response;
     try {
-      r = await fetch(c(catalog), json({ scope: { kind: "rules", rules }, author, studio_url: location.origin + location.pathname }));
+      r = await fetch(withClass(c(catalog)), json({ scope: { kind: "rules", rules }, author, studio_url: location.origin + location.pathname }));
     } catch {
       return { ok: false, kind: "fallback", reason: "the Studio's server didn't answer" };
     }

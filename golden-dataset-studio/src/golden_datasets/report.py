@@ -138,6 +138,7 @@ class Known:
     publishes: list = field(default_factory=list)
     page_text: object = None          # course → the saved page's text (or None)
     _rows: dict = field(default_factory=dict)
+    cls: str = "course"               # the class the run is for (the Studio's addresses name it)
 
     def row(self, rule: str, course: str, snap: Snapshot | None = None) -> dict | None:
         snap = snap or self.snap
@@ -237,7 +238,7 @@ def build_known(ctx, run: dict) -> Known:
         publishes = []
     based_on = publishes[-1]["base"] if publishes else before
     scope = run.get("scope") or {}
-    return Known(catalog=info(ctx.catalog)["short"], folder=ctx.catalog, rules=rules,
+    return Known(catalog=info(ctx.catalog)["short"], folder=ctx.catalog, cls=ctx.cls, rules=rules,
                  names=rule_names({**(base.rules if base else {}), **rules}), courses=courses, notes=notes, run=run,
                  goals=list(scope.get("rules") or []), published=published, changed_by_run=changed,
                  ruleset_before=before, ruleset_after=versions[-1] if versions else None, based_on=based_on,
@@ -545,12 +546,12 @@ class Resolver:
         self._states: dict[str, dict] = {}
 
     def rules_link(self, rid: str, **p) -> str:
-        return _h(f"{urlquote(self.k.catalog)}/rules/{urlquote(rid)}", p)
+        return _h(f"{urlquote(self.k.catalog)}/{self.k.cls}/rules/{urlquote(rid)}", p)
 
     def compare_url(self, a, b, rid: str | None = None) -> str | None:
         if not a or not b:
             return None
-        return _h(f"{urlquote(self.k.catalog)}/compare", {"a": a, "b": b, "rule": rid})
+        return _h(f"{urlquote(self.k.catalog)}/{self.k.cls}/compare", {"a": a, "b": b, "rule": rid})
 
     def state(self, rid: str, row: dict):
         if self.review is None:
@@ -946,7 +947,8 @@ def resolve(facts: dict, k: Known) -> dict:
             "suite": {x: s[x] for x in ("rules", "golden", "now_right", "inferred", "got_worse")} if s else None,
             "inferred": inferred, "to_do": to_do, "rules": rules, "also_changed": also_changed, "together": together,
             "notes": notes.strip() if isinstance(notes, str) and notes.strip() else None,
-            "links": {"report": _h(f"{urlquote(k.catalog)}/rules", {"run": run.get("run_id")}), "compare": compare},
+            "links": {"report": _h(f"{urlquote(k.catalog)}/{k.cls}/rules", {"run": run.get("run_id")}),
+                      "compare": compare},
             "revert": revert}
 
 

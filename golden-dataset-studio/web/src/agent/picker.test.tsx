@@ -101,7 +101,7 @@ describe("Run with Claude? (the rule picker)", () => {
   it("ticks the rules that need work, lists the rest unticked, and says where the run will stand", async () => {
     await dialog();
     expect(document.querySelector(".run-ask p")!.textContent).toBe(
-      "Tick the rules you want improved. Claude may also make small changes to other rules when that helps, and every check covers all 44 rules.");
+      "Tick the rules you want improved. Claude may also make small changes to other Course rules when that helps, and every check covers all 44 of them. LearningProgram rules stay as they are.");
     expect([...document.querySelectorAll(".run-pick-list .panel-title")].map((t) => t.textContent)).toEqual(["Need work", "Nothing open"]);
     expect(boxes().map((b) => [b.getAttribute("aria-label"), b.checked])).toEqual([
       ["Description", true], ["Credit Value", true], ["Subject Webpage", false], ["Coded Notation", false]]);
@@ -150,8 +150,46 @@ describe("Run with Claude? (the rule picker)", () => {
     expect(document.querySelector("#run-ask-h")).toBeNull();
     await act(async () => openRunDialog(["course-code"]));
     await flush();
-    expect(document.querySelector("#run-ask-h")!.textContent).toBe("Run with Claude?");
+    expect(document.querySelector("#run-ask-h")!.textContent).toBe("Run with Claude on Course rules?");  // the class named
     expect(boxes().filter((b) => b.checked).map((b) => b.getAttribute("aria-label"))).toEqual(["Coded Notation"]);
+  });
+});
+
+describe("Run with Claude? with All classes (w2-run-all-classes)", () => {
+  const LP: Picker = { total_rules: 30, ticked: 1, rules: [
+    { rule: "learningprogram-name", name: "Name", status: "needs work", reviewed: 15, total: 617, ticked: true, why: "2 open" },
+    { rule: "learningprogram-code", name: "External Identifier", status: "in review", reviewed: 12, total: 617, ticked: false, why: "nothing open" },
+    { rule: "learningprogram-description", name: "Description", status: "in review", reviewed: 0, total: 617, ticked: false, why: "nothing open" }] };
+  beforeEach(() => {
+    location.hash = "#/c/avc/all/rules";
+    const inner = globalThis.fetch;
+    vi.stubGlobal("fetch", (url: string, init?: RequestInit) => {
+      if (url === "/api/catalogs/avc") return respond(200, { classes: [
+        { slug: "course", name: "Course", ruleset_version: 9 }, { slug: "learningprogram", name: "LearningProgram", ruleset_version: 1 }] });
+      if (url.endsWith("/rules/picker?class=learningprogram")) return respond(200, LP);
+      return inner(url, init);
+    });
+  });
+  afterEach(() => { location.hash = ""; });
+
+  it("lists each class under its heading, folds the rules nobody reviewed, and starts one run per class", async () => {
+    await dialog();
+    expect(document.querySelector("#run-ask-h")!.textContent).toBe("Run with Claude?");
+    expect([...document.querySelectorAll(".run-pick-list .cls-h")].map((h) => h.textContent)).toEqual(
+      ["Course44 rules, 2 need work", "LearningProgram30 rules, 1 needs work"]);
+    expect(boxes().map((b) => [b.getAttribute("aria-label"), b.checked])).toEqual([
+      ["Description", true], ["Credit Value", true], ["Subject Webpage", false], ["Coded Notation", false],
+      ["Name", true], ["External Identifier", false]]);
+    const more = document.querySelector<HTMLButtonElement>("[data-class=learningprogram] .run-pick-more")!;
+    expect(more.textContent).toBe("1 more rule with nothing reviewed");
+    await act(async () => more.click());
+    expect(boxes().map((b) => b.getAttribute("aria-label")).slice(-1)).toEqual(["Description"]);
+    expect(runBtn().textContent).toBe("Run on 3 rules in 2 classes");
+    await act(async () => runBtn().click());
+    await flush();
+    expect(posts.map((p) => [p.url, (p.body as { scope: { rules: string[] } }).scope.rules])).toEqual([
+      ["/api/catalogs/avc/agent-runs", ["course-description", "course-credit-value"]],
+      ["/api/catalogs/avc/agent-runs?class=learningprogram", ["learningprogram-name"]]]);
   });
 });
 

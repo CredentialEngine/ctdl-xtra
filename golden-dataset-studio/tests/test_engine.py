@@ -107,3 +107,19 @@ def test_the_key_rule_is_the_external_identifier_else_the_code():
     rules["c-id"] = prop("ceterms:identifier", "none")  # listed, no rule yet
     assert key_rule_for("loc", rules) == ("c-code", True)
     assert key_rule_for("other", rules) == (None, False)
+
+
+def test_a_rule_falls_back_when_it_finds_nothing():
+    """Issue #368: the code the page prints, else an identifier generated from the name (`fallback`)."""
+    ident = {"locator": "loc", "rule_type": "css+regex", "selector": "p", "join": "\n", "regex": r"Major Code:\s*(\d{4})", "group": 1,
+             "fallback": {"rule_type": "css", "selector": "h1", "transforms": ["collapse_ws", "generated_id:program"]}}
+
+    def run(html):
+        doc = engine.parse(f"<html><body>{html}</body></html>")
+        body = engine.select_one(doc, "body", True)
+        return engine.run_property(ident, body, "https://x/p", lambda el: "body", "body")[0]
+
+    assert run("<h1>Accountancy, M.Acc.</h1><p>Intro</p><p>Major Code: 2166</p>")["value"] == "2166"
+    got = run("<h1>Geography Minor</h1><p>Twelve hours.</p>")
+    assert (got["status"], got["value"]) == ("found", "program-geography-minor")
+    assert run("<p>nothing</p>")["status"] in ("empty", "no_match")

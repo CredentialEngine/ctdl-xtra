@@ -224,7 +224,10 @@ class Snapshot:
         return self._course_lines[occ_key]
 
     def _course_line(self, occ_key: str) -> str:
+        """A course's "GEOG 222 - Cartography"; another class's record: its page's title (mockup w4-class-menu)."""
         o = self.occurrences[occ_key]
+        if self.ctx.cls != "course":
+            return self.page[o["page_stem"]]["title"] or o["page_stem"]
         ms = self.matches_by_occ[occ_key]
         code = (ms.get(self.code_rule.get(o["locator_rule_id"])) or {}).get("value")
         name = (ms.get(self.name_rule.get(o["locator_rule_id"])) or {}).get("value")

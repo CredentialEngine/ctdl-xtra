@@ -19,6 +19,8 @@ export function unitWord(kind: RuleKind, locator: string | null): string {
 export function whereWord(locator: string | null): string {
   if (!locator || locator === "locator-course-page") return "course pages";
   if (locator === "locator-program-requirement") return "course lines on program pages";
+  const own = /^locator-(learningprogram)-page$/.exec(locator);  // a class's own record locator: its records' pages
+  if (own) return "program pages";
   return locator.replace(/^locator-/, "").replace(/-/g, " ");
 }
 

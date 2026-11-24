@@ -3,9 +3,10 @@ import type {
   ExtractOutputs, MatchRow, ScoreBasis, ScoreDoc, ScoreValues, CatalogsSummary, WrongGroups, WrongKey,
   CatalogCard, CatalogDetail, CrawledCatalog, FirstRulesPrompt, CompareRecords, CompareResponse, Discussion, CourseDetail, CourseHit, GoldenFileText, GoldenLineage, GoldenResponse,
   AnnotateResponse, ApprovePreview, ResetPreview,
-  NewEvent, Overlay,
+  KeySource, NewEvent, Overlay,
   PromptResponse, RuleDetail, RulesResponse, RowsResponse, UnclassifiedPage,
 } from "./types";
+import { withClass } from "../shell/klass";
 import { signedOut } from "../shell/session";
 
 export class ApiError extends Error {
@@ -13,7 +14,7 @@ export class ApiError extends Error {
 }
 
 async function call<T>(path: string, init?: RequestInit): Promise<T> {
-  const r = await fetch(path, init);
+  const r = await fetch(withClass(path), init);
   if (!r.ok) {
     if (r.status === 401) signedOut();
     let detail = r.statusText;
@@ -98,6 +99,7 @@ export const api = {
   /** "Where it's wrong" (sme-fixes spec §8.4) */
   scoreWrong: (catalog: string, id: string, o: { basis: string; column?: string | null; key?: WrongKey | null }) =>
     call<WrongGroups>(`${c(catalog)}/scores/${encodeURIComponent(id)}/wrong${q(o)}`),
+  keySource: (catalog: string, occ: string) => call<KeySource>(`${c(catalog)}/key-source${q({ occ })}`),
   match: (catalog: string, rule: string, occ: string, ext?: string | null) =>
     call<MatchRow>(`${c(catalog)}/match${q({ rule, occ, ext })}`),
   startScore: (catalog: string, body: { golden: string; output: string; by: string }) =>

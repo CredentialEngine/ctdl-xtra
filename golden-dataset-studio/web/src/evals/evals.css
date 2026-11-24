@@ -64,9 +64,10 @@ button.evx-gchip:hover { border-color: var(--accent); }
 .evx-col.sel::before { content: ""; position: absolute; inset: -6px -4px -46px; background: rgba(16, 24, 40, .07); border-radius: 8px; z-index: 0; }
 .evx-col > * { position: relative; z-index: 1; }
 .evx-pc { font-size: 11.5px; font-weight: 600; font-variant-numeric: tabular-nums; }
-.evx-stack { width: 34px; display: flex; flex-direction: column; gap: 2px; border: 0; padding: 0; background: none; justify-content: flex-end; }
+/* matches at the bottom (LearningProgram spec, item 18; mockup m8-evals-green-bottom): the green grows up */
+.evx-stack { width: 34px; display: flex; flex-direction: column-reverse; gap: 2px; border: 0; padding: 0; background: none; justify-content: flex-start; }
 .evx-stack i { display: block; flex: none; }
-.evx-stack i:first-child { border-radius: 4px 4px 0 0; }
+.evx-stack i:last-child { border-radius: 4px 4px 0 0; }
 .evx-stack:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .evx-empty-bar { width: 34px; border: 1.5px dashed var(--line-2); border-bottom: 0; border-radius: 4px 4px 0 0; display: flex; flex-direction: column;
                  align-items: center; justify-content: center; gap: 6px; cursor: pointer; }
@@ -94,7 +95,7 @@ td .evx-tipw, .evx-grow .evx-tipw { display: flex; width: 100%; }
 .evx-pair { display: flex; align-items: center; gap: 8px; margin: 10px 0 8px; flex-wrap: wrap; }
 .evx-xchip { display: inline-flex; align-items: center; gap: 6px; background: rgba(16, 24, 40, .07); border-radius: 7px; padding: 3px 9px; font-weight: 600; font-size: 12.5px; }
 .evx-xchip .muted { font-weight: 400; }
-.evx-mini { display: inline-flex; flex-direction: column; justify-content: flex-end; width: 7px; height: 14px; gap: 1px; }
+.evx-mini { display: inline-flex; flex-direction: column-reverse; justify-content: flex-start; width: 7px; height: 14px; gap: 1px; }
 .evx-mini b { display: block; border-radius: 1px; flex: none; }
 .evx-flag { margin: 2px 0 8px; padding: 6px 10px; border-radius: 7px; background: var(--amber-soft); color: var(--amber); font-size: 12.5px; }
 
@@ -236,3 +237,7 @@ td .evx-tipw, .evx-grow .evx-tipw { display: flex; width: 100%; }
 .evx-link { border: 0; background: none; color: var(--accent); font: inherit; font-weight: 600; cursor: pointer; padding: 0; }
 /* a long example (a whole description) stays three lines; the full text is in its tooltip */
 .evx-clamp { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+
+/* All classes (mockup w2-evals-all): one row of bars per class */
+.evx-main .cls-h3 { font-size: 15px; font-weight: 650; margin: 18px 0 6px; display: flex; gap: 10px; align-items: baseline; }
+.evx-main .cls-h3 span { font-size: 12.5px; font-weight: 400; color: var(--muted); }

@@ -42,7 +42,7 @@ afterEach(() => { act(() => root.unmount()); host.remove(); });
 describe("the Records tab's cards", () => {
   it("shows every property of the course as a card; one with no rule yet says so; a list shows one line per item", async () => {
     await act(async () => {
-      root.render(<RecordsTab catalog={{ short: "avc", ruleset_version: 2 } as CatalogDetail} route={parseRoute("#/c/avc/records/GEOG%20222")} reload={() => {}} />);
+      root.render(<RecordsTab catalog={{ short: "avc", ruleset_version: 2 } as CatalogDetail} route={parseRoute("#/c/avc/course/records/GEOG%20222")} reload={() => {}} />);
     });
     await flush();
     const cards = [...host.querySelectorAll(".card")];

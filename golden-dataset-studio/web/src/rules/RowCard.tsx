@@ -1,14 +1,15 @@
-// One row of the Rules tab, as a card: the course code, the value box (or a list's items), the course title, the
-// row's links, the strata chips, the history line and the ✓ ✕ comment controls. The Rules tab lists them; an AI run's
+// One row of the Rules tab, as a card: the record key (its card on hover says where it came from; no tags under the
+// rows, approved item 13), the value box (or a list's items), the record's title,
+// the row's links, the history line and the ✓ ✕ comment controls. The Rules tab lists them; an AI run's
 // report shows the rows it talks about with the same card (one-rule-runs spec §1.4), so the reader knows which row is
 // meant. In the report the card is not selectable and takes no keyboard focus (no `index`).
 import type { ReactNode } from "react";
 import type { RuleKind } from "../api/types";
-import { StrataTags } from "../shell/Sample";
 import { ReviewLine } from "./AnnotatedBy";
 import type { RowX } from "./api";
 import { statusWords } from "./claims";
 import { isSettled, type Draft, type HistItem } from "./logic";
+import { KeyCode } from "./KeyCode";
 import { Controls, HistoryLine, Value } from "./parts";
 
 export type Pick3 = "correct" | "wrong" | "comment";
@@ -50,7 +51,7 @@ export function RowCard({ row: r, kind, label, on, draft = null, perPage = false
   return (
     <div className={cls} data-row-index={selectable ? index : undefined} tabIndex={selectable ? -1 : undefined}
       onClick={onClick} data-testid={selectable ? undefined : "row-card"} data-course={r.record_external_identifier ?? undefined}>
-      {kind !== "page" && <div className="code">{r.record_external_identifier ?? "—"}</div>}
+      {kind !== "page" && <KeyCode id={r.record_external_identifier} occ={r.occurrence_key} generated={r.key_generated} />}
       <div className="body">
         {kind === "page"
           ? <><div className="val">{r.page_title ?? r.page_stem}</div><div className="pg">{r.url.replace(/^https?:\/\//, "")}</div></>
@@ -66,7 +67,6 @@ export function RowCard({ row: r, kind, label, on, draft = null, perPage = false
               {linkRow}</>}
         {below}
         {review && <ReviewLine r={r} />}
-        <StrataTags tags={r.tags} />
         <HistoryLine state={r.state} verdict={r.verdict} reattached={r.reattached} comments={r.comments} page_questions={r.page_questions}
           linked={linked} stacked={stacked} lead={lead} items={history} />
         {expansion}

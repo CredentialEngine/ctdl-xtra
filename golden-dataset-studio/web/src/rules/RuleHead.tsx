@@ -3,6 +3,7 @@
 // (greyed out with the reason while a course is wrong or missing, or the property has no rule yet), and "How this rule
 // works ›" (collapsed, a chevron icon; open for a property with no rule yet), and "Reset rule" beside Approve rule and
 // Reopen (phase1-followups §4). The current version only.
+import { recordNoun } from "../shell/klass";
 import type { CatalogDetail, RuleDetail } from "../api/types";
 import { Ico } from "../shell/icons";
 import { fmt, termUrl } from "../shell/ui";
@@ -115,8 +116,8 @@ export function RuleHead({ catalog, rule, onApprove, onReopen, onReset, busy }: 
         <dl className="tech">
           <DefRows rule={rule} />
           <dt>{isProperty ? "Filled" : "Found"}</dt>
-          <dd>{isProperty ? `${fmt(fill.found)} of ${fmt(fill.rows)} courses have a value (${fill.rows ? Math.round(100 * fill.found / fill.rows) : 0}%)`
-                       : `${fmt(fill.found)} ${rule.kind === "page" ? "pages" : "courses"}`}</dd>
+          <dd>{isProperty ? `${fmt(fill.found)} of ${fmt(fill.rows)} ${recordNoun()[1]} have a value (${fill.rows ? Math.round(100 * fill.found / fill.rows) : 0}%)`
+                       : `${fmt(fill.found)} ${rule.kind === "page" ? "pages" : recordNoun()[1]}`}</dd>
           {rule.depends_on.length > 0 && <><dt>Depends on</dt><dd>{rule.depends_on.map((d, i) => (
             <span key={d}>{i ? ", " : ""}{plain(d)} <span className="faint">(<code>{d}</code>)</span></span>))}: if that rule changes, this one is run again.</dd></>}
           <dt>Version</dt><dd>Version {rule.version} of this rule{rule.version === 1 ? " (the first)" : ""}

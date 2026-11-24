@@ -7,6 +7,7 @@ incrementally), so a request costs milliseconds once the extraction is loaded (s
 from __future__ import annotations
 
 import json
+import re
 import time
 from collections import Counter
 from datetime import UTC, datetime
@@ -25,10 +26,12 @@ from .state import not_found, studio
 router = APIRouter(prefix="/api")
 
 PAGE_RULE_TITLES = {"course-page": "Course pages", "program-page": "Program pages",
-                    "program-page-with-courses": "Program pages that list courses"}
+                    "program-page-with-courses": "Program pages that list courses",
+                    "learningprogram-page": "Program pages"}
 PLAIN_SUBTITLES = {"course-page": "Which pages are a single course's own page",
                    "program-page": "Which pages describe a degree or certificate",
-                   "program-page-with-courses": "Which program pages name courses in their requirements"}
+                   "program-page-with-courses": "Which program pages name courses in their requirements",
+                   "learningprogram-page": "Pages with a program: degree, minor, certificate"}
 #: Record locators listed first, in this order (their titles come from their definitions: `locator_title`).
 KNOWN_LOCATORS = ("locator-course-page", "locator-program-requirement")
 
@@ -38,12 +41,14 @@ def property_row(cls: str) -> dict[str, dict]:
     return {r["label"]: r for r in model.property_rows(cls)}
 
 
-def locator_title(d: dict) -> tuple[str, str]:
-    """A record locator's (title, subtitle), from what its definition does (sme-fixes §3): with `repeat`, many courses
-    share a page (CCSF's department pages); without, the page is one course (AVC)."""
+def locator_title(d: dict, cls: str = "course") -> tuple[str, str]:
+    """A record locator's (title, subtitle), from what its definition does (sme-fixes §3): with `repeat`, many records
+    share a page (CCSF's department pages); without, the page is one record (AVC). In the class's words."""
+    one, many = RECORD_NOUN.get(cls, ("record", "records"))
     if d.get("repeat"):
-        return f"Course blocks: every {d['repeat']} on the page", "Several courses on one page, one block each"
-    return "Whole page is one course", "Each page's content area is one course"
+        return (f"{one.capitalize()} blocks: every {d['repeat']} on the page",
+                f"Several {many} on one page, one block each")
+    return f"Whole page is one {one}", f"Each page's content area is one {one}"
 
 
 def rule_title(rule: dict, rules: dict[str, dict] | None = None) -> tuple[str, str]:
@@ -55,9 +60,10 @@ def rule_title(rule: dict, rules: dict[str, dict] | None = None) -> tuple[str, s
         return (PAGE_RULE_TITLES.get(rule["rule_id"], rule["rule_id"]),
                 "Pages with courses" if repeats else PLAIN_SUBTITLES.get(rule["rule_id"]) or rule.get("what") or "")
     if rule["kind"] == "locator":
-        return locator_title(rule["definition"])
+        return locator_title(rule["definition"], _class_of(rule))
     label = rule.get("property_label") or rule["rule_id"]
-    if rule["definition"].get("locator") not in (None, "locator-course-page"):
+    own = (properties.record_locator(rules, _class_of(rule)) if rules else None) or "locator-course-page"
+    if rule["definition"].get("locator") not in (None, own, f"locator-{_class_of(rule)}-page"):
         label += " · program pages" if rule["definition"]["locator"] == "locator-program-requirement" \
             else f" · {rule['definition']['locator'].removeprefix('locator-')}"
     path = rule.get("ctdl_property") or ""
@@ -181,8 +187,41 @@ def catalogs(request: Request) -> list[dict]:
     return out
 
 
+#: What a class's records are called (the class menu's counts).
+RECORD_NOUN = {"course": ("course", "courses"), "learningprogram": ("program", "programs")}
+
+
+def class_summaries(st, folder: str) -> list[dict]:
+    """The class menu (LearningProgram spec, approved item 11): each class's rules, approvals and records in this
+    catalog, and its properties. Records come from the latest rule run's `extraction.json` (no tables are read)."""
+    out = []
+    for c in classes.CLASSES.values():
+        ctx = st.ctx(folder, c.slug)
+        item = {"slug": c.slug, "name": c.name, "properties": len(properties.active(c.slug)),
+                "noun": RECORD_NOUN.get(c.slug, ("record", "records")), "ruleset_version": None, "rules_total": 0,
+                "rules_approved": 0, "records": None}
+        try:
+            versions = ctx.ruleset_versions()
+            if versions:
+                rs = ctx.ruleset(versions[-1])
+                item.update(ruleset_version=versions[-1], rules_total=len(rs["rules"]),
+                            rules_approved=approved_count(rs, LOADER.log(ctx).events()))
+                ext = ctx.latest_extraction()
+                if ext:
+                    files = ctx.extraction_meta(ext).get("files") or {}
+                    item["records"] = (files.get("occurrences.parquet") or {}).get("rows")
+        except (UserError, FileNotFoundError):
+            pass
+        out.append(item)
+    return out
+
+
 @router.get("/catalogs/{catalog}")
 def catalog(request: Request, catalog: str, ext: str | None = None) -> dict:
+    st = studio(request)
+    ctx = st.ctx(catalog)
+    if not ctx.ruleset_versions() or not ctx.extractions():
+        return _empty_catalog(st, ctx)
     rv = _review(request, catalog, ext)
     ctx = rv.snap.ctx
     meta = info(ctx.catalog)
@@ -207,7 +246,19 @@ def catalog(request: Request, catalog: str, ext: str | None = None) -> dict:
             "extractions": [{"extraction": e["extraction"], "ruleset_version": e["ruleset_version"],
                              "parent_extraction": e.get("parent_extraction")} for e in ctx.extractions()],
             "rulesets": rulesets, "authors": authors, "pane_css": rv.snap.settings.get("pane_css", ""),
-            "root": ctx.root.uri}
+            "root": ctx.root.uri, "cls": ctx.cls, "classes": class_summaries(st, ctx.catalog)}
+
+
+def _empty_catalog(st, ctx) -> dict:
+    """A catalog with no rules in this class yet: enough for the top bar and the class menu, and the tabs' empty
+    state (`extraction` None)."""
+    meta = info(ctx.catalog)
+    k = ctx.crawl_entry()
+    return {"catalog": ctx.catalog, "short": meta["short"], "name": meta["name"], "institution": meta["institution"],
+            "logo": f"/logos/{meta['logo']}" if meta.get("logo") else None, "crawl": ctx.crawl,
+            "crawl_started": ctx.crawl, "pages": k.get("page_count"), "extraction": None, "ruleset_version": None,
+            "extractions": [], "rulesets": [], "authors": [], "pane_css": "", "root": ctx.root.uri, "cls": ctx.cls,
+            "classes": class_summaries(st, ctx.catalog)}
 
 
 # =====================================================================================================
@@ -258,7 +309,7 @@ def input_words(rule: dict, rules: dict[str, dict]) -> str:
         parent = rules.get(inp.get("rule") or "", {})
         name = parent.get("property_label") or inp.get("rule")
         return f"{name}'s {'element' if inp.get('use') == 'element' else 'value'}"
-    return "the course record"
+    return f"the {RECORD_NOUN.get(_class_of(rule), ('record',))[0]} record"
 
 
 def _page_questions(rv: Review, rid: str) -> dict[str, list[dict]]:
@@ -331,26 +382,27 @@ def by_page(ordered: list) -> list:
     return [x for rs in pages.values() for x in sorted(rs, key=lambda x: x[0].get("locator_index") or 0)]
 
 
-#: The rule list's groups after Page rules and Record locators (property-rules spec §4.8): `collapsed` ones start shut.
-PROPERTY_GROUPS = (("required", "Required", False), ("other", "Other properties", False),
-                   ("not-started", "Not started", True), ("program", "Program page lines", True))
+#: The rule list's groups after Page rules and Record locators: the class's three tiers (LearningProgram spec,
+#: approved item 13; Phase 2 starts shut), then rules on another record locator. `collapsed` ones start shut.
+PROPERTY_GROUPS = (("required", "Required", False), ("phase1", "Phase 1", False), ("phase2", "Phase 2", True),
+                   ("program", "Other record locators", True))
 
 
 def property_group(rule: dict, rows: dict[str, dict], locator: str | None) -> str:
-    """`rows`: the class's properties by label; `locator`: the class's record locator."""
+    """`rows`: the class's properties by label; `locator`: the class's record locator. A property the class's file
+    doesn't list (an old rule) goes with Phase 2."""
     if rule["definition"].get("locator") not in (None, locator):
         return "program"
     row = rows.get(rule.get("property_label"))
-    if row is not None and row["required"]:
-        return "required"
-    return "not-started" if rule["definition"].get("rule_type") == "none" else "other"
+    return properties.tier(row) if row is not None else "phase2"
 
 
 @router.get("/catalogs/{catalog}/rules")
 def rules(request: Request, catalog: str, ext: str | None = None) -> dict:
-    """The rule list. Properties: Required (in a fixed order, the record key first), then Other properties by how
-    many values experts reviewed across every catalog, then sheet order; Not started (no rule yet) in sheet order;
-    Program page lines. Sorted when the list loads (a verdict doesn't re-sort the list someone is looking at)."""
+    """The rule list. Properties in the class's tiers: Required (in a fixed order, the record key first), Phase 1 and
+    Phase 2, each by how many values experts reviewed across every catalog, then sheet order, with the properties
+    that have no rule yet last; then rules on another record locator. Sorted when the list loads (a verdict doesn't
+    re-sort the list someone is looking at)."""
     rv = _review(request, catalog, ext)
     snap = rv.snap
     groups = []
@@ -377,16 +429,18 @@ def rules(request: Request, catalog: str, ext: str | None = None) -> dict:
         return (place.get(r.get("property_label"), 99), sheet, rid)
 
     by_group["required"].sort(key=order)
-    by_group["other"].sort(key=lambda rid: (-counts.get(rid, 0), *order(rid)[1:]))
-    by_group["not-started"].sort(key=lambda rid: order(rid)[1:])
+    for tier in ("phase1", "phase2"):  # rules by values experts reviewed, then sheet order; no rule yet at the end
+        by_group[tier].sort(key=lambda rid: (snap.rules[rid]["definition"].get("rule_type") == "none",
+                                             -counts.get(rid, 0), *order(rid)[1:]))
     by_group["program"].sort(key=lambda rid: (snap.rules[rid]["definition"]["locator"], *order(rid)))
     for gid, label, collapsed in PROPERTY_GROUPS:
         if not by_group[gid]:
             continue
         items = [_rule_summary(rv, rid) for rid in by_group[gid]]
         groups.append({"id": gid, "kind": "property", "label": label, "rules": items, "collapsed": collapsed,
-                       "approved": sum(1 for i in items if i["status"] == "approved")})
-    return {"extraction": snap.ext, "ruleset_version": snap.ruleset_version, "groups": groups}
+                       "approved": sum(1 for i in items if i["status"] == "approved"),
+                       "not_started": sum(1 for i in items if i.get("no_rule"))})
+    return {"extraction": snap.ext, "ruleset_version": snap.ruleset_version, "groups": groups, "cls": snap.ctx.cls}
 
 
 @router.get("/catalogs/{catalog}/rules/{rule_id}")
@@ -470,7 +524,9 @@ the versions: "Annotated in"), `nobody` or `waiting` (engineer-checked); `verdic
     for r, s in page:
         p = snap.page[r["page_stem"]]
         others = [st for st in course_pages.get(r["record_external_identifier"], []) if st != r["page_stem"]][:6]
-        out.append({"key": r["key"], "occurrence_key": r["occurrence_key"], "record_external_identifier": r["record_external_identifier"],
+        rei = r["record_external_identifier"]
+        out.append({"key": r["key"], "occurrence_key": r["occurrence_key"], "record_external_identifier": rei,
+                    "key_generated": bool(rei and rei.startswith(f"{snap.ctx.ctdl_class.id_prefix}-")),
                     "page_stem": r["page_stem"], "url": p["url"], "page_title": p["title"], "value": r["value"],
                     "status": r["status"], "css_path": r["css_path"], "char_start": r["char_start"],
                     "char_end": r["char_end"], "occurrence_css_path": r["occurrence_css_path"],
@@ -492,6 +548,44 @@ the versions: "Annotated in"), `nobody` or `waiting` (engineer-checked); `verdic
     return {"rule_id": rule_id, "extraction": snap.ext, "total": len(ordered), "offset": offset, "rows": out,
             "spread": spread, "sample": sample if offset == 0 else None,
             "missing": missing, "focus_index": focus_index, "elapsed_ms": round(1000 * (time.perf_counter() - t0), 1)}
+
+
+@router.get("/catalogs/{catalog}/key-source")
+def key_source(request: Request, catalog: str, occ: str, ext: str | None = None) -> dict:
+    """Where a record's External Identifier came from (the Rules tab's record-key card, approved item 13): the rule
+    that reads it, the text it was read from on the page, whether it was generated (`{type}-{normalized name}`), and
+    the page rule that matched the page, with its URL pattern."""
+    from .. import engine
+
+    rv = _review(request, catalog, ext)
+    snap = rv.snap
+    o = snap.occurrences.get(occ)
+    if o is None:
+        raise not_found(occ)
+    rid, from_code = model.key_rule_for(o["locator_rule_id"], snap.rules)
+    rule = snap.rules.get(rid) if rid else None
+    m = snap.matches_by_occ[occ].get(rid) if rid else None
+    text = None
+    if m and m.get("full_css_path"):
+        try:
+            doc = engine.parse(snap.ctx.page_path(o["page_stem"]).read_bytes())
+            el = engine.select_one(doc, m["full_css_path"], True)
+            d = (rule or {}).get("definition") or {}
+            if d.get("regex") and d.get("selector"):  # a joined read: the element whose own text has the match
+                el = next((x for x in engine.select(doc, d["selector"])
+                           if re.search(d["regex"], " ".join(x.text_content().split()))), el)
+            text = " ".join(el.text_content().split())[:160] if el is not None else None
+        except (OSError, ValueError, re.error):
+            text = None
+    rei = o["record_external_identifier"] or ""
+    generated = bool(rule and any(str(t).startswith("generated_id:")
+                                  for t in rule["definition"].get("transforms") or [])) \
+        or rei.startswith(f"{snap.ctx.ctdl_class.id_prefix}-")  # from the rule's fallback
+    page = snap.rules.get(o.get("page_rule_id") or "") or {}
+    return {"identifier": o["record_external_identifier"], "rule_id": rid,
+            "rule_label": (rule or {}).get("property_label"), "from_code": from_code, "generated": generated,
+            "text": text, "page_rule": rule_title(page, snap.rules)[0] if page else None,
+            "url_pattern": (page.get("definition") or {}).get("url_regex")}
 
 
 @router.get("/catalogs/{catalog}/match")
@@ -595,16 +689,27 @@ def courses(request: Request, catalog: str, q: str | None = None, ext: str | Non
         ck = o["record_external_identifier"]
         if ck is None:
             continue
-        item = by.setdefault(ck, {"record_external_identifier": ck, "occurrences": 0, "line": None, "annotated": False})
+        item = by.setdefault(ck, {"record_external_identifier": ck, "occurrences": 0, "line": None, "name": None,
+                                  "pages": set(), "annotated": False})
         item["occurrences"] += 1
+        item["pages"].add(o["page_stem"])
         if item["line"] is None or o["locator_rule_id"] == "locator-course-page":
             item["line"] = rv.snap.course_line(o["occurrence_key"])
+        if item["name"] is None:
+            nr = rv.snap.name_rule.get(o["locator_rule_id"])
+            m = rv.snap.matches_by_occ[o["occurrence_key"]].get(nr) if nr else None
+            item["name"] = m["value"] if m and m["status"] == "found" else None
+    for item in by.values():
+        item["pages"] = len(item["pages"])
     for e in rv.live:
         ck = e["target"].get("record_external_identifier")
         if ck in by and e["type"] in ("verdict", "comment") and not e["author"].startswith("golden-datasets"):
             by[ck]["annotated"] = True
-    # courses someone has looked at first (a dot in the list, screen 07), then by code
-    items = sorted(by.values(), key=lambda x: (not x["annotated"], x["record_external_identifier"]))
+    # records someone has looked at first (a dot in the list, screen 07), then courses by code and other classes'
+    # records by name (w2-records-lp: a generated identifier sorts with its name)
+    named = rv.snap.ctx.cls != "course"
+    items = sorted(by.values(), key=lambda x: (not x["annotated"], ((x["name"] or "").casefold() if named else ""),
+                                               x["record_external_identifier"]))
     if who or verdict:
         snap, keep, touched = rv.snap, set(), set()
         for rid, r in snap.rules.items():
@@ -617,9 +722,10 @@ def courses(request: Request, catalog: str, q: str | None = None, ext: str | Non
                 if annotated_match(a, who, verdict):
                     keep.add(ck)
         items = [i for i in items if (i["record_external_identifier"] not in touched if who == "nobody" else i["record_external_identifier"] in keep)]
-    if q:
+    if q:  # the identifier or the name (approved item 16)
         ql = q.lower().replace(" ", "")
-        items = [i for i in items if ql in i["record_external_identifier"].lower() or ql in (i["line"] or "").lower().replace(" ", "")]
+        items = [i for i in items if ql in i["record_external_identifier"].lower()
+                 or ql in (i["line"] or "").lower().replace(" ", "") or ql in (i["name"] or "").lower().replace(" ", "")]
     return items[:limit]
 
 

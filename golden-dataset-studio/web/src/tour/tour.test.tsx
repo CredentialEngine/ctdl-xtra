@@ -52,22 +52,22 @@ describe("opens once per browser", () => {
 
 describe("where the tour works", () => {
   it("keeps the reader's property rule and row", () => {
-    const c = makeCtx(catalog, "#/c/avc/rules/stub-name?row=CFE101", rules);
-    expect(c.base).toBe("#/c/avc/rules/stub-name?row=CFE101");
+    const c = makeCtx(catalog, "#/c/avc/course/rules/stub-name?row=CFE101", rules);
+    expect(c.base).toBe("#/c/avc/course/rules/stub-name?row=CFE101");
     expect(c.ruleId).toBe("stub-name");
     expect(c.headText["stub-name"]).toBe("Name");  // the rule head's title: the property's name
   });
   it("uses the default rule from another tab or a non-property rule", () => {
-    for (const o of ["#/c/avc/compare", "#/c/avc/rules/course-page", "#/"]) {
+    for (const o of ["#/c/avc/course/compare", "#/c/avc/course/rules/course-page", "#/"]) {
       const c = makeCtx(catalog, o, rules);
-      expect(c.base).toBe("#/c/avc/rules/course-description");
+      expect(c.base).toBe("#/c/avc/course/rules/course-description");
       expect(c.ruleId).toBe("course-description");
     }
   });
   it("prefers the program-requirement locator, and has Compare only with two versions", () => {
     const c = makeCtx(catalog, "#/", rules);
-    expect(c.locator).toBe("#/c/avc/rules/locator-program-requirement");
-    expect(c.compare).toBe("#/c/avc/compare");
+    expect(c.locator).toBe("#/c/avc/course/rules/locator-program-requirement");
+    expect(c.compare).toBe("#/c/avc/course/compare");
     const one = makeCtx({ ...catalog, ruleset_version: 1 }, "#/", { ...rules, groups: rules.groups.filter((g) => g.kind !== "locator") });
     expect(one.locator).toBeNull();
     expect(one.compare).toBeNull();
@@ -77,11 +77,11 @@ describe("where the tour works", () => {
 describe("the Approve step", () => {
   it("goes to a rule Approve is greyed out on, keeping the reader's own if it is one", () => {
     const c = makeCtx(catalog, "#/", rules);
-    expect(c.blocked).toBe("#/c/avc/rules/course-page");
+    expect(c.blocked).toBe("#/c/avc/course/rules/course-page");
     expect(c.blockedId).toBe("course-page");
     const blockedGroups = rules.groups.map((g) => g.kind !== "property" ? g
       : { ...g, rules: g.rules.map((r) => r.rule_id === "stub-name" ? { ...r, open_wrong: 1, status: "needs work" as const } : r) });
-    const own = makeCtx(catalog, "#/c/avc/rules/stub-name", { ...rules, groups: blockedGroups });
+    const own = makeCtx(catalog, "#/c/avc/course/rules/stub-name", { ...rules, groups: blockedGroups });
     expect(own.blocked).toBe(own.base);
     const none = makeCtx(catalog, "#/", { ...rules, groups: rules.groups.filter((g) => g.kind === "property") });
     expect(none.blocked).toBe(none.base);
@@ -98,12 +98,12 @@ describe("the steps", () => {
     const ctx = makeCtx(catalog, "#/", rules);
     const by = (id: string) => STEPS.find((s) => s.id === id)!;
     expect(by("locator").route(ctx)).toBe(ctx.locator);
-    expect(by("compare").route(ctx)).toBe("#/c/avc/compare");
+    expect(by("compare").route(ctx)).toBe("#/c/avc/course/compare");
     const bare = { ...ctx, locator: null, compare: null };
     expect(by("locator").route(bare)).toBeNull();
     expect(by("compare").route(bare)).toBeNull();
     expect(by("compare").absent(bare)).toBeTruthy();
-    expect(by("evals").route(ctx)).toBe("#/c/avc/evals");
+    expect(by("evals").route(ctx)).toBe("#/c/avc/course/evals");
   });
 });
 
@@ -120,18 +120,18 @@ function manualWait() {
   const flush = () => { for (const p of pending.splice(0)) if (p.live && p.ready()) p.then(); };
   return { wait, flush, pending };
 }
-const ctx0 = { catalog: "avc", base: "#/c/avc/rules/x" } as TourCtx;
+const ctx0 = { catalog: "avc", base: "#/c/avc/course/rules/x" } as TourCtx;
 
 describe("TourSession", () => {
   it("goes where each step needs, undoes the step it leaves, and goes back on close", () => {
-    const nav = fakeNav("#/c/avc/datasets");
+    const nav = fakeNav("#/c/avc/course/datasets");
     const w = manualWait();
     const s = new TourSession(nav, w.wait);
     const did: string[] = [];
     const a: SessionStep = { route: (c) => c.base, arrive: () => { did.push("a+"); return () => did.push("a-"); } };
-    const b: SessionStep = { route: () => "#/c/avc/compare", arrive: () => { did.push("b+"); return () => did.push("b-"); } };
+    const b: SessionStep = { route: () => "#/c/avc/course/compare", arrive: () => { did.push("b+"); return () => did.push("b-"); } };
     s.enter(a, ctx0);
-    expect(nav.get()).toBe("#/c/avc/rules/x");
+    expect(nav.get()).toBe("#/c/avc/course/rules/x");
     expect(did).toEqual([]);
     w.flush();
     expect(did).toEqual(["a+"]);
@@ -143,11 +143,11 @@ describe("TourSession", () => {
     expect(did).toEqual(["a+", "a-", "b+", "b-", "a+"]);
     s.close();
     expect(did[did.length - 1]).toBe("a-");
-    expect(nav.get()).toBe("#/c/avc/datasets");
-    expect(nav.log).toEqual(["#/c/avc/rules/x", "#/c/avc/compare", "#/c/avc/rules/x", "#/c/avc/datasets"]);
+    expect(nav.get()).toBe("#/c/avc/course/datasets");
+    expect(nav.log).toEqual(["#/c/avc/course/rules/x", "#/c/avc/course/compare", "#/c/avc/course/rules/x", "#/c/avc/course/datasets"]);
   });
   it("doesn't act for a step left before the screen was ready", () => {
-    const nav = fakeNav("#/c/avc/rules/x");
+    const nav = fakeNav("#/c/avc/course/rules/x");
     const w = manualWait();
     const s = new TourSession(nav, w.wait);
     const did: string[] = [];
@@ -158,15 +158,15 @@ describe("TourSession", () => {
     expect(nav.log).toEqual([]); // already there: never navigated
   });
   it("stays put for a step with nowhere to go, and survives an undo that throws", () => {
-    const nav = fakeNav("#/c/avc/rules/x");
+    const nav = fakeNav("#/c/avc/course/rules/x");
     const w = manualWait();
     const s = new TourSession(nav, w.wait);
-    s.enter({ route: () => "#/c/avc/prompt", arrive: () => () => { throw new Error("gone"); } }, ctx0);
+    s.enter({ route: () => "#/c/avc/course/prompt", arrive: () => () => { throw new Error("gone"); } }, ctx0);
     w.flush();
     s.enter({ route: () => null }, ctx0);
-    expect(nav.get()).toBe("#/c/avc/prompt");
+    expect(nav.get()).toBe("#/c/avc/course/prompt");
     s.close();
-    expect(nav.get()).toBe("#/c/avc/rules/x");
+    expect(nav.get()).toBe("#/c/avc/course/rules/x");
   });
 });
 
@@ -266,12 +266,12 @@ describe("Tour", () => {
   const key = (k: string) => act(() => { window.dispatchEvent(new KeyboardEvent("keydown", { key: k, bubbles: true })); });
 
   it("opens by itself the first time, starts on the Rules tab, moves with the keys, and goes back on Esc", async () => {
-    history.replaceState(null, "", "#/c/avc/datasets");
+    history.replaceState(null, "", "#/c/avc/course/datasets");
     document.body.insertAdjacentHTML("beforeend", `<div data-tour="rule-list"></div>`);
     act(() => root.render(<Harness />));
     await flush();
     expect(localStorage.getItem(SEEN_KEY)).toBe("1");
-    expect(location.hash).toBe("#/c/avc/rules/course-description");
+    expect(location.hash).toBe("#/c/avc/course/rules/course-description");
     expect(document.querySelector(".tour-count")?.textContent).toBe("Step 1 of 12");
     key("ArrowRight");
     expect(document.querySelector(".tour-count")?.textContent).toBe("Step 2 of 12");
@@ -284,7 +284,7 @@ describe("Tour", () => {
     expect(seen).not.toHaveBeenCalled();
     key("Escape");
     expect(document.querySelector(".tour")).toBeNull();
-    expect(location.hash).toBe("#/c/avc/datasets");
+    expect(location.hash).toBe("#/c/avc/course/datasets");
   });
 
   it("doesn't open by itself the second time; the button opens it", async () => {

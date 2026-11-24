@@ -45,7 +45,9 @@ FORMAT = {
                 "output), `selector` (CSS, inside one course occurrence), optional `attribute`, `join`, `regex` + "
                 "`group`, `multiple` (a list: `{\"split\": \"elements\" | \"separator\" | \"regex\", …, "
                 "\"keep\": <regex>}`), `transforms` (strip, collapse_ws, upper, lower, remove_spaces, "
-                "generated_id:<type> (issue #368's `{type}-{normalized name}`, e.g. `program-anthropology-b.a.`), "
+                "generated_id:<type> (issue #368's `{type}-{normalized name}`, e.g. `program-anthropology-b.a.`; with "
+                "`fallback`, a definition read when the rule finds nothing, an identifier is the printed code, else "
+                "generated), "
                 "rstrip:<chars>), optional `map`. Order: the element's text (a `<br>` reads as a newline, script and "
                 "style text is left out) → `regex` (Python, MULTILINE) → `group` → the split → `keep` → `transforms` "
                 "→ `map`.",

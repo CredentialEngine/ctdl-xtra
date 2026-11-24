@@ -89,3 +89,44 @@ def test_the_prompt_names_the_class(lp, capsys):
                  "--target", "local"]) == 0
     out = capsys.readouterr().out
     assert "GOLDEN_DATASETS_CLASS=learningprogram" in out
+
+
+def test_the_catalog_lists_its_classes_with_their_rules_and_records(lp):
+    """The class menu (w4-class-menu): each class, its rules and records, Course first; a class with no rules says so."""
+    c, _, _ = lp
+    d = c.get(f"/api/catalogs/{programs.WVU}", params=LP).json()
+    assert d["cls"] == "learningprogram"
+    got = {x["slug"]: x for x in d["classes"]}
+    assert list(got) == ["course", "learningprogram"]
+    assert got["course"]["ruleset_version"] is None and got["course"]["rules_total"] == 0
+    p = got["learningprogram"]
+    assert (p["name"], p["noun"], p["ruleset_version"], p["records"], p["rules_approved"]) == (
+        "LearningProgram", ["program", "programs"], 1, 2, 0)
+    assert p["rules_total"] >= 5
+    # Course has no rules here: its catalog answer is empty, not an error
+    assert c.get(f"/api/catalogs/{programs.WVU}").json()["extraction"] is None
+
+
+def test_the_record_key_says_where_it_came_from(lp):
+    """The External Identifier card (w2-rules-id-card, w2-rules-id-generated): the code the page prints, quoted, or
+    how a generated one was made; and the page rule with its URL pattern."""
+    c, _, _ = lp
+    rows = c.get(f"/api/catalogs/{programs.WVU}/rules/learningprogram-name/rows", params=LP).json()["rows"]
+    occ = next(r["occurrence_key"] for r in rows if r["record_external_identifier"] == "2166")
+    k = c.get(f"/api/catalogs/{programs.WVU}/key-source", params={**LP, "occ": occ}).json()
+    assert (k["identifier"], k["rule_id"], k["generated"]) == ("2166", "learningprogram-external-id", False)
+    assert k["from_code"] is False  # read by the External Identifier rule, not a Coded Notation one
+    assert "Major Code: 2166" in k["text"]
+    assert (k["page_rule"], k["url_pattern"]) == ("Program pages", "/(undergraduate|graduate)/")
+    rows = c.get(f"/api/catalogs/{programs.AVC}/rules/learningprogram-name/rows", params=LP).json()["rows"]
+    assert [r["key_generated"] for r in rows] == [True]
+    k = c.get(f"/api/catalogs/{programs.AVC}/key-source", params={**LP, "occ": rows[0]["occurrence_key"]}).json()
+    assert (k["identifier"], k["from_code"], k["generated"]) == ("program-accounting-a.a.", False, True)
+
+
+def test_programs_are_listed_by_name(lp):
+    """The Records list (w2-records-lp): a program's name over its identifier, sorted by name."""
+    c, _, _ = lp
+    hits = c.get(f"/api/catalogs/{programs.WVU}/courses", params=LP).json()
+    assert [(h["name"], h["record_external_identifier"], h["pages"]) for h in hits] == [
+        ("Accountancy, B.S.B.A.", "2166", 1), ("Mining Engineering, B.S.Min.E.", "5542", 1)]

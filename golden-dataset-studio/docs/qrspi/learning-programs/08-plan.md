@@ -340,3 +340,61 @@ Add one line per phase as it lands: the phase, the commit, the checks run, and a
   - **Checks:** `uv run pytest` 247 passed; `ruff` clean; web unchanged.
   - **Left over:** published golden versions are in the shared container, so scoring against them can't run
     offline here; drafts can.
+- **Phase 4** (the UI by class).
+  - **The API's class:** every catalog request takes `?class=` (Course when it names none, so Course calls are
+    unchanged). A middleware sets it for `studio().ctx()`, and `class=program` is a 422. The catalog answer lists
+    the classes with their properties, rules, approved rules and records. A class with no ruleset answers an empty
+    catalog, not an error.
+  - **The address:** `#/c/<catalog>/<class>/<tab>/<id>`, with `all` for All classes. With All classes, a record
+    says its class with `?in=` and a rule with its id. `shell/klass.ts` (`apiClass`, `inClass`, `withClass`) adds
+    the class to every catalog call.
+  - **Class menu** (w4-class-menu): after the catalog chip. Each class with "45 rules, 22,023 courses, 9
+    approved" (or "30 properties, no rules yet"), then All classes. Tabs keep the class; a class with no rules
+    shows an empty state.
+  - **Rules:**
+    - Groups are Required, Phase 1 and Phase 2 (Phase 2 folded), plus "Other record locators" for programs. Each
+      group with properties not started says how many.
+    - All classes (w4-rules-all-classes): a heading per class ("7 required, 37 properties, 9 of 45 rules
+      approved"), and "Search 73 properties in 2 classes".
+    - The record key (w2-rules-id-card, w2-rules-id-generated) is `.code.k`, a generated one greyed. A hover card
+      (`GET /catalogs/{c}/key-source?occ=`) quotes the page text it was read from, or how it was generated, and
+      the page rule with its URL pattern. The strata tags on rows are gone.
+    - Wording names the class's records ("the program record", "program pages").
+  - **Run with Claude** (w2-run-one-class, w2-run-all-classes):
+    - One class: "Run with Claude on LearningProgram rules?", and the other classes stay as they are.
+    - All classes: one list with a heading per class ("45 rules, 1 needs work"). A class lists its rules that need
+      work or have reviews; the rest wait behind "N more rules with nothing reviewed". It starts one run per class
+      with a ticked rule ("Run on 2 rules in 2 classes").
+  - **Records** (w2-records-lp, w2-records-all):
+    - Items show the name over the identifier, a generated one greyed. A class other than Course sorts by name;
+      annotated records stay first.
+    - All classes: a folding heading per class, the record's class open.
+    - "Values from N pages" and each card's page line show only when the record has several pages.
+  - **Datasets** (w2-datasets-lp, w2-datasets-all): All classes has a section per class ("37 properties, published
+    as ruleset-v8", "nothing published yet" or "no rules yet"). The empty silver row names the class, and the
+    footer's command has `--class`.
+  - **Evals** (w2-evals-lp, w2-evals-all, m8-evals-green-bottom): All classes has one History row per class under
+    its heading, with one legend; a bar opens that class. Bars stack match at the bottom (m8). Compare with All
+    classes says to compare one class at a time.
+  - **Engine:** a property definition can have a `fallback` (another read, used when the first finds nothing),
+    which is how a page with no printed code gets `program-<name>`. `css+regex` with `join` reads every matched
+    element.
+  - **Tests:**
+    - `tests/test_learning_programs.py`: class summaries, key-source (printed and generated), programs by name.
+    - `test_engine`: the fallback.
+    - Web:
+      - `shell/classes.test.tsx`: the menu, the API's class, Records with one class and with All classes;
+      - All-classes cases in `RuleList`, `picker` (one run per class), `GoldenTab` and `EvalsTab`.
+  - **Screens** (`screens/impl/`, each named after its mockup, compared with it):
+    - They come from a scratch copy of `root-migrated` with a demo LearningProgram ruleset for WVU (105 programs:
+      7 printed codes, 98 generated) and one demo "wrong" verdict, served locally. Nothing here is real program
+      review.
+    - `w2-run-all-classes-scrolled` shows the program part of the list; WVU's Course has a dozen reviewed rules,
+      so it starts below the fold.
+    - Not shown: `w2-records-multi` (no demo program spans several pages; the rule is in the code and the tests).
+    - `w2-evals-lp` is the empty state, because WVU has no local extract output. `w2-evals-all` uses AVC, whose
+      local mirror makes 26 Oct the latest output and 28 Oct a scored earlier one.
+    - Records opens a record on its Description card, as Course always has, not on Name as the mockup does.
+  - **Checks:** `uv run pytest` 251 passed; `ruff` clean; web typecheck clean, 289 passed, build OK.
+  - **Left over:** the run bar and the AI runs panel (`AgentProvider`) follow one class. With All classes they
+    show Course's runs.

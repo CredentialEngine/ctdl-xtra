@@ -114,8 +114,8 @@
             }
           ],
           "links": {
-            "rules": "#/c/avc/rules/course-subject-webpage?row=ACCT199&by=anyone&ext=rs-0010",
-            "wrong": "#/c/avc/rules/course-subject-webpage?row=ACCT199&by=anyone&ext=rs-0010&mark=wrong"
+            "rules": "#/c/avc/course/rules/course-subject-webpage?row=ACCT199&by=anyone&ext=rs-0010",
+            "wrong": "#/c/avc/course/rules/course-subject-webpage?row=ACCT199&by=anyone&ext=rs-0010&mark=wrong"
           },
           "lead": "Here is the row Jared Diener marked wrong:"
         }
@@ -191,8 +191,8 @@
                 }
               ],
               "links": {
-                "rules": "#/c/avc/rules/course-subject-webpage?row=AERO199&by=anyone&ext=rs-0010",
-                "wrong": "#/c/avc/rules/course-subject-webpage?row=AERO199&by=anyone&ext=rs-0010&mark=wrong"
+                "rules": "#/c/avc/course/rules/course-subject-webpage?row=AERO199&by=anyone&ext=rs-0010",
+                "wrong": "#/c/avc/course/rules/course-subject-webpage?row=AERO199&by=anyone&ext=rs-0010&mark=wrong"
               },
               "lead": "Here is one of the 13 courses Jared Diener marked correct:"
             }
@@ -226,7 +226,7 @@
                 "run_at": null
               },
               "links": {
-                "rules": "#/c/avc/rules/course-subject-webpage?row=AJ912&by=anyone&ext=rs-0010"
+                "rules": "#/c/avc/course/rules/course-subject-webpage?row=AJ912&by=anyone&ext=rs-0010"
               }
             },
             {
@@ -257,7 +257,7 @@
                 "run_at": null
               },
               "links": {
-                "rules": "#/c/avc/rules/course-subject-webpage?row=AUTO230&by=anyone&ext=rs-0010"
+                "rules": "#/c/avc/course/rules/course-subject-webpage?row=AUTO230&by=anyone&ext=rs-0010"
               }
             },
             {
@@ -288,7 +288,7 @@
                 "run_at": null
               },
               "links": {
-                "rules": "#/c/avc/rules/course-subject-webpage?row=CFE114&by=anyone&ext=rs-0010"
+                "rules": "#/c/avc/course/rules/course-subject-webpage?row=CFE114&by=anyone&ext=rs-0010"
               }
             },
             {
@@ -319,7 +319,7 @@
                 "run_at": null
               },
               "links": {
-                "rules": "#/c/avc/rules/course-subject-webpage?row=DFST202&by=anyone&ext=rs-0010"
+                "rules": "#/c/avc/course/rules/course-subject-webpage?row=DFST202&by=anyone&ext=rs-0010"
               }
             },
             {
@@ -350,7 +350,7 @@
                 "run_at": null
               },
               "links": {
-                "rules": "#/c/avc/rules/course-subject-webpage?row=ENGR955&by=anyone&ext=rs-0010"
+                "rules": "#/c/avc/course/rules/course-subject-webpage?row=ENGR955&by=anyone&ext=rs-0010"
               }
             },
             {
@@ -381,7 +381,7 @@
                 "run_at": null
               },
               "links": {
-                "rules": "#/c/avc/rules/course-subject-webpage?row=FTV201&by=anyone&ext=rs-0010"
+                "rules": "#/c/avc/course/rules/course-subject-webpage?row=FTV201&by=anyone&ext=rs-0010"
               }
             },
             {
@@ -412,7 +412,7 @@
                 "run_at": null
               },
               "links": {
-                "rules": "#/c/avc/rules/course-subject-webpage?row=GEOG222&by=anyone&ext=rs-0010"
+                "rules": "#/c/avc/course/rules/course-subject-webpage?row=GEOG222&by=anyone&ext=rs-0010"
               }
             },
             {
@@ -443,7 +443,7 @@
                 "run_at": null
               },
               "links": {
-                "rules": "#/c/avc/rules/course-subject-webpage?row=IATH105&by=anyone&ext=rs-0010"
+                "rules": "#/c/avc/course/rules/course-subject-webpage?row=IATH105&by=anyone&ext=rs-0010"
               }
             },
             {
@@ -474,7 +474,7 @@
                 "run_at": null
               },
               "links": {
-                "rules": "#/c/avc/rules/course-subject-webpage?row=KINF244&by=anyone&ext=rs-0010"
+                "rules": "#/c/avc/course/rules/course-subject-webpage?row=KINF244&by=anyone&ext=rs-0010"
               }
             },
             {
@@ -505,7 +505,7 @@
                 "run_at": null
               },
               "links": {
-                "rules": "#/c/avc/rules/course-subject-webpage?row=NS922L&by=anyone&ext=rs-0010"
+                "rules": "#/c/avc/course/rules/course-subject-webpage?row=NS922L&by=anyone&ext=rs-0010"
               }
             },
             {
@@ -536,7 +536,7 @@
                 "run_at": null
               },
               "links": {
-                "rules": "#/c/avc/rules/course-subject-webpage?row=PHIL106&by=anyone&ext=rs-0010"
+                "rules": "#/c/avc/course/rules/course-subject-webpage?row=PHIL106&by=anyone&ext=rs-0010"
               }
             },
             {
@@ -567,12 +567,12 @@
                 "run_at": null
               },
               "links": {
-                "rules": "#/c/avc/rules/course-subject-webpage?row=PHYS102&by=anyone&ext=rs-0010"
+                "rules": "#/c/avc/course/rules/course-subject-webpage?row=PHYS102&by=anyone&ext=rs-0010"
               }
             }
           ],
           "others_lead": "The other 12 courses Jared Diener marked correct:",
-          "link": "#/c/avc/rules/course-subject-webpage?by=anyone&verdict=correct"
+          "link": "#/c/avc/course/rules/course-subject-webpage?by=anyone&verdict=correct"
         }
       ],
       "options": [
@@ -581,7 +581,7 @@
           "label": "mark the 13 courses Not on the page",
           "button": "Yes: mark the 13 courses Not on the page",
           "text": "If yes, mark the 13 courses \"Not on the page\" for Subject Webpage. The next run publishes Subject Webpage and In Catalog together.",
-          "link": "#/c/avc/rules/course-subject-webpage?by=anyone&verdict=correct",
+          "link": "#/c/avc/course/rules/course-subject-webpage?by=anyone&verdict=correct",
           "do": {
             "mark": "not_on_page",
             "rule": "course-subject-webpage",
@@ -623,7 +623,7 @@
                   "run_at": null
                 },
                 "links": {
-                  "rules": "#/c/avc/rules/course-subject-webpage?row=AERO199&by=anyone&ext=rs-0010"
+                  "rules": "#/c/avc/course/rules/course-subject-webpage?row=AERO199&by=anyone&ext=rs-0010"
                 }
               },
               {
@@ -654,7 +654,7 @@
                   "run_at": null
                 },
                 "links": {
-                  "rules": "#/c/avc/rules/course-subject-webpage?row=AJ912&by=anyone&ext=rs-0010"
+                  "rules": "#/c/avc/course/rules/course-subject-webpage?row=AJ912&by=anyone&ext=rs-0010"
                 }
               },
               {
@@ -685,7 +685,7 @@
                   "run_at": null
                 },
                 "links": {
-                  "rules": "#/c/avc/rules/course-subject-webpage?row=AUTO230&by=anyone&ext=rs-0010"
+                  "rules": "#/c/avc/course/rules/course-subject-webpage?row=AUTO230&by=anyone&ext=rs-0010"
                 }
               },
               {
@@ -716,7 +716,7 @@
                   "run_at": null
                 },
                 "links": {
-                  "rules": "#/c/avc/rules/course-subject-webpage?row=CFE114&by=anyone&ext=rs-0010"
+                  "rules": "#/c/avc/course/rules/course-subject-webpage?row=CFE114&by=anyone&ext=rs-0010"
                 }
               },
               {
@@ -747,7 +747,7 @@
                   "run_at": null
                 },
                 "links": {
-                  "rules": "#/c/avc/rules/course-subject-webpage?row=DFST202&by=anyone&ext=rs-0010"
+                  "rules": "#/c/avc/course/rules/course-subject-webpage?row=DFST202&by=anyone&ext=rs-0010"
                 }
               },
               {
@@ -778,7 +778,7 @@
                   "run_at": null
                 },
                 "links": {
-                  "rules": "#/c/avc/rules/course-subject-webpage?row=ENGR955&by=anyone&ext=rs-0010"
+                  "rules": "#/c/avc/course/rules/course-subject-webpage?row=ENGR955&by=anyone&ext=rs-0010"
                 }
               },
               {
@@ -809,7 +809,7 @@
                   "run_at": null
                 },
                 "links": {
-                  "rules": "#/c/avc/rules/course-subject-webpage?row=FTV201&by=anyone&ext=rs-0010"
+                  "rules": "#/c/avc/course/rules/course-subject-webpage?row=FTV201&by=anyone&ext=rs-0010"
                 }
               },
               {
@@ -840,7 +840,7 @@
                   "run_at": null
                 },
                 "links": {
-                  "rules": "#/c/avc/rules/course-subject-webpage?row=GEOG222&by=anyone&ext=rs-0010"
+                  "rules": "#/c/avc/course/rules/course-subject-webpage?row=GEOG222&by=anyone&ext=rs-0010"
                 }
               },
               {
@@ -871,7 +871,7 @@
                   "run_at": null
                 },
                 "links": {
-                  "rules": "#/c/avc/rules/course-subject-webpage?row=IATH105&by=anyone&ext=rs-0010"
+                  "rules": "#/c/avc/course/rules/course-subject-webpage?row=IATH105&by=anyone&ext=rs-0010"
                 }
               },
               {
@@ -902,7 +902,7 @@
                   "run_at": null
                 },
                 "links": {
-                  "rules": "#/c/avc/rules/course-subject-webpage?row=KINF244&by=anyone&ext=rs-0010"
+                  "rules": "#/c/avc/course/rules/course-subject-webpage?row=KINF244&by=anyone&ext=rs-0010"
                 }
               },
               {
@@ -933,7 +933,7 @@
                   "run_at": null
                 },
                 "links": {
-                  "rules": "#/c/avc/rules/course-subject-webpage?row=NS922L&by=anyone&ext=rs-0010"
+                  "rules": "#/c/avc/course/rules/course-subject-webpage?row=NS922L&by=anyone&ext=rs-0010"
                 }
               },
               {
@@ -964,7 +964,7 @@
                   "run_at": null
                 },
                 "links": {
-                  "rules": "#/c/avc/rules/course-subject-webpage?row=PHIL106&by=anyone&ext=rs-0010"
+                  "rules": "#/c/avc/course/rules/course-subject-webpage?row=PHIL106&by=anyone&ext=rs-0010"
                 }
               },
               {
@@ -995,7 +995,7 @@
                   "run_at": null
                 },
                 "links": {
-                  "rules": "#/c/avc/rules/course-subject-webpage?row=PHYS102&by=anyone&ext=rs-0010"
+                  "rules": "#/c/avc/course/rules/course-subject-webpage?row=PHYS102&by=anyone&ext=rs-0010"
                 }
               }
             ]
@@ -1036,7 +1036,7 @@
           "label": "mark ACCT199 correct",
           "button": "No: mark ACCT199 correct",
           "text": "If no, mark ACCT199 correct for Subject Webpage.",
-          "link": "#/c/avc/rules/course-subject-webpage?row=ACCT199&by=anyone",
+          "link": "#/c/avc/course/rules/course-subject-webpage?row=ACCT199&by=anyone",
           "do": {
             "mark": "correct",
             "rule": "course-subject-webpage",
@@ -1075,7 +1075,7 @@
                   "run_at": null
                 },
                 "links": {
-                  "rules": "#/c/avc/rules/course-subject-webpage?row=ACCT199&by=anyone&ext=rs-0010"
+                  "rules": "#/c/avc/course/rules/course-subject-webpage?row=ACCT199&by=anyone&ext=rs-0010"
                 }
               }
             ]
@@ -1200,8 +1200,8 @@
             }
           ],
           "links": {
-            "rules": "#/c/avc/rules/course-subject-webpage?row=ACCT199&by=anyone&ext=rs-0010",
-            "wrong": "#/c/avc/rules/course-subject-webpage?row=ACCT199&by=anyone&ext=rs-0010&mark=wrong"
+            "rules": "#/c/avc/course/rules/course-subject-webpage?row=ACCT199&by=anyone&ext=rs-0010",
+            "wrong": "#/c/avc/course/rules/course-subject-webpage?row=ACCT199&by=anyone&ext=rs-0010&mark=wrong"
           }
         }
       ]
@@ -1231,7 +1231,7 @@
   ],
   "notes": "ACCT199 was first marked correct and later marked wrong by the same reviewer.",
   "links": {
-    "report": "#/c/avc/rules?run=20261106T012457Z-b970",
+    "report": "#/c/avc/course/rules?run=20261106T012457Z-b970",
     "compare": null
   },
   "revert": null

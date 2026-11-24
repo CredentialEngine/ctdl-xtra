@@ -265,7 +265,7 @@ def test_run_done_writes_the_resolved_report_and_claudes_comments(cat, tmp_path,
         {"label": "Checked", "text": "All 9 rules against 2 golden values. Nothing that was right got worse."},
         {"label": "Ruleset", "text": "v1 to v2"}]
     assert rep["ruleset"]["ext"] == "rs-0002" and rep["ruleset"]["compare"]["url"] == "#/c/" + \
-        f"{m.CAT}/compare?a=1&b=2"
+        f"{m.CAT}/course/compare?a=1&b=2"
     goal = rep["rules"][0]
     assert goal["values_changed"]["count"] == 6 and goal["values_changed"]["text"] == "6 of 6 courses"
     assert goal["values_changed"]["compare_url"].endswith("compare?a=1&b=2&rule=course-credit-value")
@@ -274,7 +274,7 @@ def test_run_done_writes_the_resolved_report_and_claudes_comments(cat, tmp_path,
     assert card["value"] is None and card["value_before"] == {"version": 1, "value": "1.0 - 8.0 Units"}
     assert card["comment"] == "Empty is the value Jared's note asks for."
     assert card["inferred"] == {"value": "", "annotation": wrong, "saves": "correct"}
-    assert card["links"]["rules"] == f"#/c/{m.CAT}/rules/{CV}?row=ACCT199&by=anyone&ext=rs-0002"
+    assert card["links"]["rules"] == f"#/c/{m.CAT}/course/rules/{CV}?row=ACCT199&by=anyone&ext=rs-0002"
     assert card["links"]["wrong"].endswith("&mark=wrong")
     hist = card["history"]
     assert [h["author"] for h in hist] == ["Jared Diener", "Claude"]
@@ -394,7 +394,7 @@ def test_report_references_resolve_and_refuse(cat, tmp_path, capsys, run):
         "The other course Jared Diener marked correct:"
     other = s["courses"][0]
     assert other["verdict"] == "correct" and other["current"]["author"] == "Jared Diener"
-    assert other["links"]["rules"] == f"#/c/{m.CAT}/rules/{SW}?row=GEOG222&by=anyone&ext=rs-0001"
+    assert other["links"]["rules"] == f"#/c/{m.CAT}/course/rules/{SW}?row=GEOG222&by=anyone&ext=rs-0001"
     assert s["link"].endswith(f"rules/{SW}?by=anyone&verdict=correct")
     # the answers: buttons, what each posts per course (rule, occurrence, the verdict it supersedes), done words
     yes, no = t["options"]
@@ -587,7 +587,7 @@ def test_a_run_ends_on_the_version_it_published_not_a_later_one(cat, tmp_path, c
     _publish_elsewhere(cat, tmp_path, capsys, monkeypatch, "other.json")  # v3, another run
     ended, _ = ar.done_report(r["run_id"], facts, by="golden-rules agent")
     assert ended["ruleset_before"] == 1 and ended["ruleset_after"] == 2 and ended["ruleset_base"] == 1
-    assert ar.report(r["run_id"])["ruleset"]["compare"] == {"a": 1, "b": 2, "url": f"#/c/{m.CAT}/compare?a=1&b=2"}
+    assert ar.report(r["run_id"])["ruleset"]["compare"] == {"a": 1, "b": 2, "url": f"#/c/{m.CAT}/course/compare?a=1&b=2"}
 
 
 def test_a_rebased_run_compares_from_the_version_it_built_on(cat, tmp_path, capsys, run, monkeypatch):
@@ -600,5 +600,5 @@ def test_a_rebased_run_compares_from_the_version_it_built_on(cat, tmp_path, caps
     assert ended["ruleset_before"] == 1 and ended["ruleset_after"] == 3 and ended["ruleset_base"] == 2
     rep = ar.report(r["run_id"])
     assert rep["ruleset"]["compare"]["a"] == 2 and rep["ruleset"]["compare"]["b"] == 3
-    assert rep["links"]["compare"] == f"#/c/{m.CAT}/compare?a=2&b=3"
+    assert rep["links"]["compare"] == f"#/c/{m.CAT}/course/compare?a=2&b=3"
     assert {"label": "Ruleset", "text": "Based on v2; started on v1."} in rep["facts"]

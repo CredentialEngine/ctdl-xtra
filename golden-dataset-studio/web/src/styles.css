@@ -603,3 +603,15 @@ select.vsel { appearance: none; -webkit-appearance: none; padding: 5px 30px 5px 
 .ab-car, .evx-caret, .tw, .sf-chev, .run-caret .ico, .evx-dd-more .ico { display: inline-flex; align-items: center; }
 .ab-car svg, .evx-caret svg, .run-caret svg { width: 14px; height: 14px; }
 .tw svg, .sf-chev svg, .evx-dd-more svg { width: 12px; height: 12px; }
+
+/* The class menu after the catalog chip (LearningProgram spec, item 11; mockup w4-class-menu) */
+.class-menu { position: relative; display: inline-flex; }
+.crumbs .crumb-class { display: inline-flex; align-items: center; gap: 6px; font: inherit; cursor: pointer; }
+.crumbs .crumb-class svg { width: 12px; height: 12px; opacity: .6; }
+.class-menu .menu { left: 0; right: auto; top: calc(100% + 6px); width: 300px; }
+.class-menu .menu button.on { background: var(--surface-2); }
+.class-menu .menu i { display: block; width: 14px; }
+.menu .menu-sep { height: 1px; background: var(--line); margin: 4px 2px; }
+.empty-class { max-width: 640px; margin: 64px auto; padding: 0 24px; }
+.empty-class h2 { font-size: 18px; margin: 0 0 8px; }
+.empty-class code { font-size: 12.5px; }

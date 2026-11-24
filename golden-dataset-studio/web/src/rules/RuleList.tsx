@@ -12,6 +12,7 @@ import type { RuleSummaryX } from "./api";
 import { Composer, Thread } from "./Discussion";
 import { isField, matchesRule } from "./logic";
 import { Tip } from "../evals/EvalsTab";
+import { classOfRule, recordNoun } from "../shell/klass";
 
 export type PostTalk = (target: { kind: "rule" | "ruleset"; rule_id: string | null }, note: string, topic: Topic) => Promise<boolean>;
 
@@ -22,14 +23,23 @@ function hit(text: string, query: string): ReactNode {
   return text.split(new RegExp(`(${esc})`, "i")).map((part, i) => (i % 2 ? <mark key={i}>{part}</mark> : part));
 }
 
-/** A group's line under its name: the properties not started and the program page lines are counted, the rest approved. */
+/** A group's line under its name: rules on another locator are counted; a tier with no rule yet says how many are not
+ * started; the rest say how many are approved. */
 const COUNTED: Record<string, string> = { "not-started": "properties", program: "rules" };
-const groupSub = (g: RuleGroup) => (COUNTED[g.id] ? `${g.rules.length} ${COUNTED[g.id]}` : `${g.approved} of ${g.rules.length} approved`);
+const groupSub = (g: RuleGroup) => (COUNTED[g.id] ? `${g.rules.length} ${COUNTED[g.id]}`
+  : g.rules.length && g.not_started === g.rules.length ? `${g.rules.length} not started`
+  : `${g.approved} of ${g.rules.length} approved`);
+const groupKey = (g: RuleGroup) => `${g.cls ?? ""}:${g.id}`;
+
+/** All classes (mockup w4-rules-all-classes): a heading per class above its groups, with what it has. */
+export interface ClassHead { name: string; sub: string }
 const joinNames = (names: string[]) => (names.length < 2 ? names.join("")
   : `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`);
 
-export function RuleList({ rules, active, onPick, talk, onTalk, top, bottom, counts, countTip, onImprove, aiStat }: {
+export function RuleList({ rules, active, onPick, talk, onTalk, top, bottom, counts, countTip, onImprove, aiStat, heads }: {
   rules: RulesResponse; active: string | null; onPick: (id: string) => void; talk?: Discussion | null; onTalk?: PostTalk;
+  /** All classes: each class's heading, by class (its groups carry `cls`) */
+  heads?: Record<string, ClassHead> | null;
   counts?: Record<string, number> | null; countTip?: (n: number) => string;
   top?: ReactNode; /** after every group: the fix bar (Improve rules with AI…), last so labeling comes first */ bottom?: ReactNode;
   /** ✦ Improve on the hovered or selected row (one-rule-runs §1.1): starts a run on that one rule */
@@ -45,7 +55,7 @@ export function RuleList({ rules, active, onPick, talk, onTalk, top, bottom, cou
   const listRef = useRef<HTMLDivElement>(null);
   const q = query.trim();
   const searching = q !== "";
-  const isOpen = (g: RuleGroup) => searching || (toggled[g.id] ?? !g.collapsed);
+  const isOpen = (g: RuleGroup) => searching || (toggled[groupKey(g)] ?? !g.collapsed);
   const shown = rules.groups.map((g) => ({ g, open: isOpen(g), list: searching ? g.rules.filter((r) => matchesRule(r, q)) : g.rules }));
   const firstResult = searching ? shown.flatMap((x) => x.list)[0] : undefined;
   const folded = searching ? shown.filter((x) => x.list.length === 0).map((x) => x.g.label) : [];
@@ -84,12 +94,15 @@ export function RuleList({ rules, active, onPick, talk, onTalk, top, bottom, cou
       {top}
       <div className="rule-search-box">
         <input ref={search} className="rule-search" type="search" value={query} aria-label="Search the rules"
-          placeholder={`Search ${properties} properties`} onChange={(e) => setQuery(e.target.value)} onKeyDown={onSearchKey} />
+          placeholder={heads ? `Search ${properties} properties in ${Object.keys(heads).length} classes` : `Search ${properties} properties`}
+          onChange={(e) => setQuery(e.target.value)} onKeyDown={onSearchKey} />
       </div>
-      {shown.filter((x) => !searching || x.list.length > 0).map(({ g, open, list }) => (
-        <div key={g.id} className="rule-group" data-group={g.id}>
+      {shown.filter((x) => !searching || x.list.length > 0).map(({ g, open, list }, i, all) => (
+        <div key={groupKey(g)} className="rule-group" data-group={g.id} data-class={g.cls}>
+          {heads && g.cls && heads[g.cls] && all[i - 1]?.g.cls !== g.cls && (
+            <div className="cls-h" data-testid="class-heading">{heads[g.cls].name}<span>{heads[g.cls].sub}</span></div>)}
           <button type="button" className="group-h" aria-expanded={open} disabled={searching}
-            onClick={() => setToggled((t) => ({ ...t, [g.id]: !open }))}>
+            onClick={() => setToggled((t) => ({ ...t, [groupKey(g)]: !open }))}>
             <Ico name="chevron" className={`grp-car${open ? " open" : ""}`} />
             <span className="panel-title">{g.label}</span>
             <span className="sub">{searching ? `${list.length} of ${g.rules.length} match` : groupSub(g)}</span>
@@ -115,7 +128,7 @@ export function RuleList({ rules, active, onPick, talk, onTalk, top, bottom, cou
                       ? <Tip delay={1000} width={260} tip={countTip?.(counts[r.rule_id])}>
                           <span className="rev match">{fmt(counts[r.rule_id])}</span></Tip>
                       : <span className="rev match none">—</span>
-                    : <span className={`rev${r.reviewed ? "" : " none"}`} title="courses with a verdict / all courses"
+                    : <span className={`rev${r.reviewed ? "" : " none"}`} title={`${recordNoun(r.rule_id && classOfRule(r.rule_id) || undefined)[1]} with a verdict / all ${recordNoun(classOfRule(r.rule_id) || undefined)[1]}`}
                         data-tour={tour ? "reviewed-count" : undefined}>{fmt(r.reviewed)} / {fmt(r.total)} reviewed</span>}
                   {notes > 0 && <span className="stat open" title="comments and questions for the institution"><Ico name="bubble" />{notes}</span>}
                   {aiStat?.(r)}

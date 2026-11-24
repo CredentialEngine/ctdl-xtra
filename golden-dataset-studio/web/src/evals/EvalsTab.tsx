@@ -21,7 +21,8 @@ import type { CatalogsSummary, ColumnSummary, ExtractOutputs, GoldenChoice, Matc
 import type { CapturedSelection } from "../pagepane";
 import { addCapture, BY_ANYONE, newDraft, verdictEvent, type Draft } from "../rules/logic";
 import { useReviewer } from "../shell/reviewer";
-import { go, href } from "../shell/router";
+import { go, href, type ClassSlug } from "../shell/router";
+import { inClass } from "../shell/klass";
 import type { TabProps } from "../shell/tabProps";
 import { fmt, Ico, toast, useKeyHints } from "../shell/ui";
 import { fmtDay, fmtDayTime } from "../valuediff/diff";
@@ -134,7 +135,72 @@ export function scoreFor(o: Output, basis: ScoreBasis, golden: string, latest: s
   return mine.find((s) => s.status === "done" && outcomes(s)) ?? mine.find((s) => s.status === "running") ?? mine[0];
 }
 
-export default function EvalsTab({ catalog, route }: TabProps) {
+export default function EvalsTab(props: TabProps) {
+  return props.route.cls === "all" ? <AllClasses {...props} /> : <OneClass {...props} />;
+}
+
+/** All classes (approved item 18; mockup w2-evals-all): one row of bars per class, each against its own golden dataset.
+ * A bar opens that class's Evals at that extract output. */
+function AllClasses({ catalog, route }: TabProps) {
+  const me = useReviewer();
+  const cat = catalog.short;
+  const basis: ScoreBasis = route.params.get("b") === "rule" ? "rule" : "human";
+  const ruled = (catalog.classes ?? []).filter((c) => c.ruleset_version);
+  const [each, setEach] = useState<{ cls: ClassSlug; name: string; idx: ExtractOutputs | null }[] | null>(null);
+  const key = ruled.map((c) => c.slug).join(",");
+  const load = useCallback(() => Promise.all(ruled.map((c) => inClass(c.slug, () => api.extractOutputs(cat))
+    .then((idx) => ({ cls: c.slug, name: c.name, idx }), () => ({ cls: c.slug, name: c.name, idx: null }))))
+    .then(setEach), [cat, key]);
+  useEffect(() => { void load(); }, [load]);
+  useKeyHints(<span><span className="mono">golden-datasets score</span> does the same from the CLI</span>, []);
+  if (!each) return <div className="evx" />;
+  return (
+    <div className="evx">
+      <section className="evx-main">
+        <header className="evx-title">
+          <span className="evx-gchip big">{basis === "human" ? goldenName(HUMAN) : "Silver datasets (rule-matched)"}
+            {basis === "human" && <span className="evx-gchip-d"> · as of now</span>}</span>
+          <span className="evx-vs">vs</span><code className="evx-cmd">xtra catalog extract</code><span>outputs over time</span>
+          <span className="grow" />
+          <span className="evx-basis">scored against
+            <span className="seg xs" role="group" aria-label="Scored against">
+              <button className={basis === "human" ? "on" : ""} onClick={() => go(href(cat, "evals", null, {}), true)}>Human-reviewed</button>
+              <button className={basis === "rule" ? "on" : ""} onClick={() => go(href(cat, "evals", null, { b: "rule" }), true)}>Rule-matched</button>
+            </span>
+            <Tip width={300} tip={BASIS_TIP}><span className="evx-i" tabIndex={0} aria-label="What each scores">ⓘ</span></Tip>
+          </span>
+        </header>
+        {each.map(({ cls, name, idx }, i) => {
+          const latestGolden = idx?.latest_golden ?? null;
+          const g = basis === "human" ? HUMAN : latestGolden ?? idx?.goldens[0]?.id ?? "";
+          const outputs = [...(idx?.outputs ?? [])].reverse();
+          const last = idx?.outputs[0];
+          const b = last ? scoreFor(last, basis, g, latestGolden) : undefined;
+          const values = b?.status === "done" ? total(basis === "human" ? b.human_outcomes : b.rule_outcomes) : null;
+          return (
+            <div key={cls} data-class={cls}>
+              <h3 className="cls-h3">{name}<span>{values === null ? "the latest output isn't scored yet" : `${fmt(values)} values scored in the latest output`}</span></h3>
+              {outputs.length ? (
+                <div className="evx-chartrow">
+                  <History outputs={outputs} latest={last?.id} basis={basis} golden={g} latestGolden={latestGolden} picked={last?.id ?? null}
+                    busy={!!idx?.running}
+                    onPick={(id) => go(href(cat, "evals", null, { x: id === last?.id ? null : id, b: basis === "rule" ? "rule" : null }, cls))}
+                    onScore={(o) => inClass(cls, () => api.startScore(cat, { golden: g, output: o.id, by: me })).then(load, (e) => toast(String(e)))} />
+                  {i === 0 && <div className="evx-legend-v">
+                    {OUTCOMES.map((o) => <span key={o} className="evx-k"><i className={`sw o-${o}`} />{o}</span>)}
+                    <span className="faint evx-hint">Click a bar to compare with that extract output. A dashed bar hasn't been scored yet.</span>
+                  </div>}
+                </div>
+              ) : <p className="muted evx-empty">{idx?.error ?? `xtra hasn't written an extract output with ${name} records yet.`}</p>}
+            </div>
+          );
+        })}
+      </section>
+    </div>
+  );
+}
+
+function OneClass({ catalog, route }: TabProps) {
   const me = useReviewer();
   const cat = catalog.short;
   const [idx, setIdx] = useState<ExtractOutputs | null>(null);

@@ -3,13 +3,14 @@
 // switch (?by=…&v=…, Evals spec §6.7) filter the rows of every rule, and the rule list counts the rows that pass.
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { api, ApiError } from "../api/client";
-import type { AnnotateResponse, ApprovePreview, CatalogDetail, ResetPreview, Discussion, EventBrief, NewEvent, Overlay, RowItem, RuleDetail, RulesResponse,
+import type { AnnotateResponse, ApprovePreview, CatalogDetail, ClassSummary, ResetPreview, Discussion, EventBrief, NewEvent, Overlay, RowItem, RuleDetail, RulesResponse,
   RuleSummary, SampleInfo, UnclassifiedPage } from "../api/types";
 import { PagePane, prefetchPages, type BarAction, type CapturedSelection, type Highlight } from "../pagepane";
 import { Ico } from "../shell/icons";
 import { useReviewer, useRole } from "../shell/reviewer";
 import { SampleDrawer, samplePrefs, sampleQuery, type SamplePrefs } from "../shell/Sample";
-import { go, href, replaceParam } from "../shell/router";
+import { go, href, replaceParam, type ClassSlug } from "../shell/router";
+import { classOfRule, inClass } from "../shell/klass";
 import type { TabProps } from "../shell/tabProps";
 import { fmt, toast, useKeyHints } from "../shell/ui";
 import { AnnotatedBy, VerdictSwitch, WaitingNote } from "./AnnotatedBy";
@@ -47,6 +48,24 @@ export function defaultRule(rules: RulesResponse | null): string | null {
   if (!rules) return null;
   const all = rules.groups.flatMap((g) => g.rules);
   return (all.find((r) => r.rule_id === "course-description") ?? all.find((r) => r.kind === "property") ?? all[0])?.rule_id ?? null;
+}
+
+/** All classes: one list from each class's, its groups tagged with their class; the active class's extraction and
+ * ruleset are the list's. Every group starts folded but the one that holds the open rule (mockup w4-rules-all-classes). */
+export function mergeClasses(each: { cls: ClassSlug; rules: RulesResponse }[], mine: ClassSlug, active: string | null): RulesResponse {
+  const own = each.find((x) => x.cls === mine) ?? each[0];
+  return {
+    extraction: own?.rules.extraction ?? "", ruleset_version: own?.rules.ruleset_version ?? 0, cls: own?.cls,
+    groups: each.flatMap(({ cls, rules }) => rules.groups.map((g) => ({
+      ...g, cls, collapsed: !(active && g.rules.some((r) => r.rule_id === active)) }))),
+  };
+}
+
+/** A class's heading with All classes: "8 required, 37 properties, 30 of 43 rules approved". */
+export function classHead(c: ClassSummary, rules: RulesResponse | null) {
+  const required = rules?.groups.filter((g) => g.cls === c.slug && g.id === "required").reduce((n, g) => n + g.rules.length, 0) ?? 0;
+  const approved = c.rules_approved ? `${fmt(c.rules_approved)} of ${fmt(c.rules_total)} rules approved` : "0 approved";
+  return { name: c.name, sub: `${required ? `${required} required, ` : ""}${fmt(c.properties)} properties, ${approved}` };
 }
 
 export function replaceSummary(rules: RulesResponse, s: RuleSummary): RulesResponse {
@@ -183,11 +202,28 @@ export default function RulesTab({ catalog, route }: TabProps) {
   const sq = useMemo(() => JSON.parse(qKey) as ReturnType<typeof sampleQuery>, [qKey]);
   const filtered = sq.f.length > 0;
 
-  useEffect(() => { api.rules(cat, ext).then(setRules, (e) => setError(String(e))); }, [cat, ext]);
-  // comments on whole rules and on the ruleset (the sidebar)
+  // with All classes, every class that has rules here, each in its own section of the list (approved item 14)
+  const all = route.cls === "all";
+  const ruled = useMemo(() => (catalog.classes ?? []).filter((c) => c.ruleset_version), [catalog.classes]);
+  const ruledKey = ruled.map((c) => c.slug).join(",");
+  useEffect(() => {
+    if (!all) { api.rules(cat, ext).then(setRules, (e) => setError(String(e))); return; }
+    const mine = classOfRule(route.id) ?? "course";
+    Promise.all(ruled.map((c) => inClass(c.slug, () => api.rules(cat, c.slug === mine ? ext : null)).then((r) => ({ c, r }))))
+      .then((each) => setRules(mergeClasses(each.map(({ c, r }) => ({ cls: c.slug, rules: r })), mine, route.id)),
+            (e) => setError(String(e)));
+  }, [cat, ext, all, ruledKey]);
+  const heads = useMemo(() => (all ? Object.fromEntries(ruled.map((c) => [c.slug, classHead(c, rules)])) : null),
+                        [all, ruled, rules]);
+  // comments on whole rules and on the ruleset (the sidebar); with All classes, every class's
   const [talk, setTalk] = useState<Discussion | null>(null);
-  const loadTalk = useCallback(() => api.discussion(cat).then((d) => setTalk({ ruleset: d?.ruleset ?? [], rules: d?.rules ?? {} }),
-                                                               () => setTalk({ ruleset: [], rules: {} })), [cat]);
+  const loadTalk = useCallback(() => {
+    const one = (slug?: string) => (slug ? inClass(slug as ClassSlug, () => api.discussion(cat)) : api.discussion(cat));
+    const asks = all ? ruled.map((c) => one(c.slug)) : [one()];
+    return Promise.all(asks).then((ds) => setTalk({ ruleset: ds.flatMap((d) => d?.ruleset ?? []),
+                                                    rules: Object.assign({}, ...ds.map((d) => d?.rules ?? {})) }),
+                                  () => setTalk({ ruleset: [], rules: {} }));
+  }, [cat, all, ruledKey]);
   useEffect(() => { void loadTalk(); }, [loadTalk]);
   const postTalk = useCallback<PostTalk>(async (target, note, topic) => {
     try {
@@ -737,7 +773,8 @@ export default function RulesTab({ catalog, route }: TabProps) {
 
   return (
     <div className="rules-layout w4-rules">
-      <aside className="col">{rules && <RuleList rules={rules} active={ruleId} onPick={(id) => go(href(cat, "rules", id, { ext, by: byParam, v: verdict }))}
+      <aside className="col">{rules && <RuleList rules={rules} active={ruleId} heads={heads}
+        onPick={(id) => go(href(cat, "rules", id, { ext: all && classOfRule(id) !== classOfRule(ruleId) ? null : ext, by: byParam, v: verdict }))}
         talk={talk} onTalk={postTalk} counts={people?.rules} countTip={(n) => filterCountTip(n, by, verdict)}
         aiStat={aiStat} onImprove={ext ? undefined : (r) => openRunDialog([r.rule_id])}
         top={<RulesetPicker catalog={catalog} ext={ext} onPick={(x) => go(href(cat, "rules", ruleId, { ext: x, by: byParam, v: verdict }))} />}

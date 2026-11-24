@@ -75,7 +75,7 @@ describe("the catalogs table", () => {
     expect(avc.querySelector("td.c[aria-label='inLanguage: published'] annotation")!.textContent).toBe("\\dfrac{14}{1{,}062}");
     expect(avc.querySelector("td.c[aria-label='name: in review'] annotation")!.textContent).toBe("\\dfrac{14}{1{,}062}");
     expect(avc.querySelector("a.btn")!.textContent).toBe("Open →");
-    expect(avc.querySelector("a.btn")!.getAttribute("href")).toBe("#/c/avc/rules");
+    expect(avc.querySelector("a.btn")!.getAttribute("href")).toBe("#/c/avc/course/rules");
     expect(ualr.textContent).toContain("no rules yet");
     expect(ualr.querySelector("button")!.textContent).toBe("Generate rules");
     expect(ualr.querySelector("button .ico svg")).toBeTruthy();  // the AI sparkle

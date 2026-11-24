@@ -127,3 +127,26 @@ describe("searching the rules (m4)", () => {
     expect(onPick).toHaveBeenLastCalledWith("creditValue");
   });
 });
+
+describe("the rule list with All classes (w4-rules-all-classes)", () => {
+  it("heads each class's groups once, keeps the same group of two classes apart, and searches every class", async () => {
+    const lpName = rule({ rule_id: "learningprogram-name", title: "Name", subtitle: "ceterms:name", input: "the program record" });
+    const groups: RulesResponse = { extraction: "rs-0002", ruleset_version: 2, groups: [
+      group({ id: "required", label: "Required", cls: "course", rules: [coded, language] }),
+      group({ id: "phase1", label: "Phase 1", cls: "course", collapsed: true, not_started: 2, rules: [isNonCredit, unitType] }),
+      group({ id: "required", label: "Required", cls: "learningprogram", rules: [lpName] })] };
+    const heads = { course: { name: "Course", sub: "7 required, 37 properties, 9 of 45 rules approved" },
+                    learningprogram: { name: "LearningProgram", sub: "7 required, 30 properties, 0 approved" } };
+    await act(async () => { root.render(<RuleList rules={groups} active={null} onPick={onPick} heads={heads} />); });
+    expect([...host.querySelectorAll("[data-testid=class-heading]")].map((h) => h.textContent)).toEqual([
+      "Course7 required, 37 properties, 9 of 45 rules approved", "LearningProgram7 required, 30 properties, 0 approved"]);
+    expect([...host.querySelectorAll(".rule-group")].map((g) => `${g.getAttribute("data-class")}:${g.getAttribute("data-group")}`))
+      .toEqual(["course:required", "course:phase1", "learningprogram:required"]);
+    expect(host.querySelector("[data-class=course][data-group=phase1] .sub")!.textContent).toBe("2 not started");
+    expect(input().placeholder).toMatch(/^Search \d+ properties in 2 classes$/);
+    // the two Required groups fold on their own
+    await act(async () => host.querySelector<HTMLButtonElement>("[data-class=course][data-group=required] .group-h")!.click());
+    expect(host.querySelector("[data-class=learningprogram][data-group=required] .group-h")!.getAttribute("aria-expanded")).toBe("true");
+  });
+});
+

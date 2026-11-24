@@ -426,7 +426,16 @@ def run_property(definition: dict, el, url: str, paths: Paths, occ_path: str,
     no_match. Each result has value, raw_text, css_path (relative to the occurrence, or from the document root when
     the text is outside it), offsets, and private `_text` / `_el` for rules that read it (§4.2). A list of objects
     (`profile`, profiles_rule.py) gives one object per item; `absent_if` (absent.py) turns nothing found into the
-    rule's "not on the page" claim (status absent)."""
+    rule's "not on the page" claim (status absent); `fallback` (a definition of its own) is read when the rule finds
+    nothing: the External Identifier a page prints, else one generated from the name (issue #368)."""
+    if definition.get("fallback"):  # the rule, else (when it finds nothing) its fallback: a code, else a generated id
+        plain = {k: v for k, v in definition.items() if k != "fallback"}
+        res = run_property(plain, el, url, paths, occ_path, parent_out)
+        if any(r["status"] == "found" for r in res):
+            return res
+        alt = {"locator": definition.get("locator"), **definition["fallback"]}
+        got = run_property(alt, el, url, paths, occ_path, parent_out)
+        return got if any(r["status"] == "found" for r in got) else res
     if definition.get("profile") or definition.get("absent_if"):
         from . import absent, profiles_rule
 

@@ -126,24 +126,25 @@ def test_the_rule_list_groups_and_sorts_properties(studio, tmp_path, capsys):  #
         return {g["id"]: g for g in out}
 
     g = groups()
-    assert list(g) == ["page", "locator", "required", "other", "not-started"]
-    # approved item 4: Coded Notation is Phase 1 now, not Required
+    # approved items 3, 4, 13: the three tiers, Phase 2 folded; Coded Notation is Phase 1 now, not Required
+    assert list(g) == ["page", "locator", "required", "phase1", "phase2"]
     assert [r["rule_id"] for r in g["required"]["rules"]][:3] == ["course-external-id", "course-learning-type",
                                                                    "course-name"]
     assert g["required"]["rules"][0]["tier"] == "required"
-    assert g["required"]["rules"][0]["record_key"] and g["not-started"]["collapsed"]
-    assert [r["rule_id"] for r in g["other"]["rules"]] == ["course-code", "course-content-description",
-                                                           "course-subject"]  # sheet order
-    assert [r["tier"] for r in g["other"]["rules"]] == ["phase1", "phase2", "phase2"]
-    child = next(r for r in g["not-started"]["rules"] if r["rule_id"] == "course-credit-value-min-value")
+    assert g["required"]["rules"][0]["record_key"] and g["phase2"]["collapsed"] and not g["phase1"]["collapsed"]
+    assert [r["rule_id"] for r in g["phase1"]["rules"]][:1] == ["course-code"]  # a rule first, no rule yet after
+    assert {r["tier"] for r in g["phase1"]["rules"]} == {"phase1"} and {r["tier"] for r in g["phase2"]["rules"]} == {
+        "phase2"}
+    assert [r["rule_id"] for r in g["phase2"]["rules"]][:2] == ["course-content-description", "course-subject"]
+    assert g["phase2"]["not_started"] == len(g["phase2"]["rules"]) - 2
+    child = next(r for r in g["phase1"]["rules"] if r["rule_id"] == "course-credit-value-min-value")
     assert child["subtitle"] == "part of Credit Value" and child["path_shown"] == "ceterms:creditValue → schema:minValue"
     assert child["no_rule"] and child["input"] == "nothing yet: no rule"
-    other = {r["rule_id"]: r for r in g["other"]["rules"]}
+    other = {r["rule_id"]: r for r in g["phase2"]["rules"]}
     assert other["course-content-description"]["input"] == "Subjects's value" and other["course-subject"]["list"]
 
     row = _rows(c, "course-subject")["page-1"]  # an expert's ✓ on Subjects: it sorts first now
     r = c.post(f"{B}/annotations", json={"type": "verdict", "author": JARED, "verdict": "correct", "target": {
         "kind": "match", "rule_id": "course-subject", "occurrence_key": row["key"], "item": True, "value_index": 0}})
     assert r.status_code == 200, r.text
-    assert [r["rule_id"] for r in groups()["other"]["rules"]] == ["course-subject", "course-code",
-                                                                  "course-content-description"]
+    assert [r["rule_id"] for r in groups()["phase2"]["rules"]][:2] == ["course-subject", "course-content-description"]

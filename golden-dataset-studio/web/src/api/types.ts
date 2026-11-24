@@ -32,11 +32,19 @@ export interface RulesetInfo {
   changed_rules: string[]; extraction: string | null;
 }
 
+/** One class in this catalog (the class menu, LearningProgram spec item 11). */
+export interface ClassSummary {
+  slug: "course" | "learningprogram"; name: string; properties: number; noun: [string, string];
+  ruleset_version: number | null; rules_total: number; rules_approved: number; records: number | null;
+}
+
+/** A catalog in one class. `extraction` is null when the class has no rules in this catalog yet. */
 export interface CatalogDetail {
   catalog: string; short: string; name: string; institution: string; logo: string | null;
   crawl: string; crawl_started: string; pages: number; extraction: string; ruleset_version: number;
   extractions: { extraction: string; ruleset_version: number; parent_extraction: string | null }[];
   rulesets: RulesetInfo[]; authors: string[]; pane_css: string; root: string;
+  cls?: "course" | "learningprogram"; classes?: ClassSummary[];
 }
 
 export interface RuleSummary {
@@ -58,10 +66,12 @@ export interface RuleSummary {
 
 /** A rule group of the rule list: `id` is "page" | "locator" | "required" | "other" | "not-started" | "program";
  * `collapsed` starts it shut (Not started and Program page lines). The server sorts the rules; the list keeps that order. */
+/** A rule group of the rule list. With All classes, `cls` says whose it is (the list puts a heading per class). */
 export interface RuleGroup {
   id: string; kind: RuleKind; label: string; collapsed: boolean; rules: RuleSummary[]; approved: number;
+  not_started?: number; cls?: "course" | "learningprogram";
 }
-export interface RulesResponse { extraction: string; ruleset_version: number; groups: RuleGroup[] }
+export interface RulesResponse { extraction: string; ruleset_version: number; groups: RuleGroup[]; cls?: "course" | "learningprogram" }
 
 export interface RuleDetail extends RuleSummary {
   definition: Record<string, unknown>; what: string; how: string; why: string;
@@ -128,6 +138,8 @@ export interface RowItem {
 export interface Row extends ReviewMarks {
   key: string;                       // occurrence_key (property rules, locators) or page_stem (page rules)
   occurrence_key: string | null; record_external_identifier: string | null; page_stem: string; url: string; page_title: string | null;
+  /** the record key was generated (`program-<name>`): the page prints none (issue #368) */
+  key_generated?: boolean;
   /** the value's text; a list's items joined by line breaks; null for a property with no rule ("none") */
   value: string | null; status: "found" | "empty" | "no_match" | "none" | "absent";  // absent: the rule's claim (§6)
   /** a list property's items, one line each, and the items a reviewer marked missing (`expected.text`) */
@@ -157,7 +169,16 @@ export interface Overlay {
 
 export interface UnclassifiedPage { page_stem: string; url: string; title: string | null; detail: string }
 
-export interface CourseHit { record_external_identifier: string; occurrences: number; line: string | null }
+/** A record in the Records list: its External Identifier, its name, on how many pages its values are. */
+export interface CourseHit {
+  record_external_identifier: string; occurrences: number; line: string | null; name?: string | null; pages?: number;
+  annotated?: boolean; cls?: "course" | "learningprogram";
+}
+/** Where a record's External Identifier came from (the Rules tab's record-key card). */
+export interface KeySource {
+  identifier: string; rule_id: string | null; rule_label: string | null; from_code: boolean; generated: boolean;
+  text: string | null; page_rule: string | null; url_pattern: string | null;
+}
 /** A value of a list property on a course (the Records tab): its text and where it is on the page. */
 export interface CourseItem { value_index: number; value: string; css_path: string | null; char_start: number | null; char_end: number | null }
 export interface CourseProperty extends ReviewMarks {
