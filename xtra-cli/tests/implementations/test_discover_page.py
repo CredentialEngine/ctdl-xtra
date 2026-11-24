@@ -725,6 +725,59 @@ def test_a_heading_listing_several_awards_is_a_rule_for_all_of_them() -> None:
     assert profile.labels == []
 
 
+COLLEGE_REQUIREMENTS = (
+    f"<main><h1>College of Education and Health Professions</h1>{INTRO}"
+    "<h2>Minimum Requirements for the B.S.E. or B.S. or B.S.N. Degree</h2>"
+    "<table class='sc_courselist'><tr><td class='codecol'>EDUC 101</td>"
+    "<td class='hourscol'>3</td></tr></table>"
+)
+
+
+def courseblock(code: str, title: str) -> str:
+    return (
+        f"<div class='courseblock'><p class='courseblocktitle'>"
+        f"{code}. {title}. 3 Hours.</p></div>"
+    )
+
+
+def test_a_college_printing_its_courses_below_its_requirements_is_a_course_page() -> (
+    None
+):
+    """WVU's college pages print every program's requirements, then every
+    course the college teaches, and were labelled nothing at all.
+    """
+    profile = page(
+        COLLEGE_REQUIREMENTS
+        + courseblock("EDUC 101", "Foundations of Education")
+        + courseblock("EDUC 210", "Learning and Development")
+        + courseblock("NURS 300", "Health Assessment")
+        + courseblock("EXPH 240", "Exercise Physiology")
+        + "</main>"
+    )
+    assert profile.labels == ["Course"]
+    assert "3 in no requirement list" in profile.rules_fired["Course"]
+
+
+def test_courses_marked_up_only_as_the_requirement_list_are_not_described() -> (
+    None
+):
+    """Acalog expands each required course in place; every one is listed."""
+    codes = ["EDUC 101", "EDUC 210", "NURS 300", "EXPH 240"]
+    listed = "".join(
+        f"<tr><td class='codecol'>{code}</td><td class='hourscol'>3</td></tr>"
+        for code in codes
+    )
+    profile = page(
+        f"<main><h1>College of Education and Health Professions</h1>{INTRO}"
+        "<h2>Minimum Requirements for the B.S.E. or B.S. or B.S.N. Degree</h2>"
+        f"<table class='sc_courselist'>{listed}</table>"
+        + "".join(courseblock(code, "Required Course") for code in codes)
+        + "</main>"
+    )
+    assert profile.course_block_count == 4
+    assert "Course" not in profile.labels
+
+
 def test_a_glossary_term_is_not_a_section_of_the_page() -> None:
     """A bold term is a definition, not a heading over requirements."""
     profile = page(
@@ -819,12 +872,7 @@ def test_a_word_in_the_url_slug_is_not_a_program() -> None:
     assert profile.labels == []
 
 
-# --- a catalog menu beside the page -------------------------------------------
-
-# eLumen prints its whole catalog menu beside <main> on every page, one
-# course or program per line. A program's name can end in a value, and the
-# menu's last courses sit just above the page's own units.
-ELUMEN_MENU = (
+SITE_MENU = (
     "<div id='nav'><ul>"
     "<li><a href='/course/chem110'>CHEM 110 - General Chemistry</a></li>"
     "<li><a href='/course/chem120'>CHEM 120 - General Chemistry</a></li>"
@@ -836,13 +884,13 @@ ELUMEN_MENU = (
     "Exam</a></li>"
     "</ul></div>"
 )
-ELUMEN_COURSE_URL = "https://avc.elumenapp.com/catalog/2026-27/course/biol110"
+COURSE_URL = "https://catalog.example.edu/catalog/2026-27/course/biol110"
 
 
-def elumen_course(description: str) -> str:
+def course_with_menu(description: str) -> str:
     return (
         "<title>BIOL 110 - General Biology</title>"
-        f"{ELUMEN_MENU}"
+        f"{SITE_MENU}"
         "<main><h1 class='u-visuallyhidden'>2026-27 Catalog</h1>"
         "<div id='mainContent'><header class='header'>"
         "<h2>General Biology</h2><h3>BIOL 110:</h3>"
@@ -855,16 +903,13 @@ def elumen_course(description: str) -> str:
 
 
 def test_a_catalog_menu_listing_every_course_adds_none_to_the_page() -> None:
-    """Antelope Valley lost every course page to its own menu.
-
-    Read as one string, the menu's CHEM courses sit above "(12 Unit)" and
-    its WELD courses above the page's "4.0 Units", so every page there
-    described five courses or more, and extraction skipped all 1311 of
-    them as multi_course_page.
+    """Read as one string, the menu's CHEM courses sit above "(12 Unit)"
+    and its WELD courses above the page's "4.0 Units", so the page looked
+    like it described five courses or more.
     """
     profile = page(
-        elumen_course("Survey of living things, from cells to ecosystems."),
-        url=ELUMEN_COURSE_URL,
+        course_with_menu("Survey of living things, from cells to ecosystems."),
+        url=COURSE_URL,
     )
     assert profile.course_block_count == 1
     assert profile.course_code_count == 1
@@ -875,11 +920,11 @@ def test_a_catalog_menu_listing_every_course_adds_none_to_the_page() -> None:
 def test_a_policy_page_under_that_menu_is_not_a_course_page() -> None:
     """The academic calendar was a Course page holding two courses."""
     profile = page(
-        f"<title>Academic Calendar</title>{ELUMEN_MENU}"
+        f"<title>Academic Calendar</title>{SITE_MENU}"
         "<main><h1 class='u-visuallyhidden'>2026-27 Catalog</h1>"
         "<h2>Academic Calendar</h2>"
         "<p>Fall classes begin on the third Monday of August.</p></main>",
-        url="https://avc.elumenapp.com/catalog/2026-27/academiccalendar",
+        url="https://catalog.example.edu/catalog/2026-27/academiccalendar",
     )
     assert profile.course_block_count == 0
     assert "Course" not in profile.labels
@@ -892,22 +937,21 @@ def test_a_prerequisite_the_menu_also_lists_is_still_a_reference() -> None:
     is that the page's own text never prints it as a title.
     """
     profile = page(
-        elumen_course(
+        course_with_menu(
             "Prerequisite: Completion of CHEM 110. Survey of living things, "
             "from cells to ecosystems."
         ),
-        url=ELUMEN_COURSE_URL,
+        url=COURSE_URL,
     )
     assert profile.course_block_count == 1
     assert profile.labels == ["Course"]
 
 
 def test_a_code_printed_in_the_pages_own_aside_still_counts() -> None:
-    """Arapahoe prints a course's code and credits in an <aside> in <main>.
+    """A page can print its course's code and credits in an <aside> in <main>.
 
     content_text drops that aside as furniture. Read against it, the
-    page's own course looked printed outside the page, and 49 of
-    Arapahoe's 55 course records were lost.
+    page's own course looked printed outside the page.
     """
     profile = page(
         "<title>ACC 115 - Payroll Accounting</title>"
@@ -915,7 +959,7 @@ def test_a_code_printed_in_the_pages_own_aside_still_counts() -> None:
         "<aside class='course-full__aside'><p>ACC 115</p>"
         "<p>Credits 3</p></aside></main>",
         url=(
-            "https://www.arapahoe.edu/academics-programs/catalog/courses/"
+            "https://www.example.edu/academics-programs/catalog/courses/"
             "2018-2019/acc-115-payroll-accounting"
         ),
     )
@@ -924,11 +968,10 @@ def test_a_code_printed_in_the_pages_own_aside_still_counts() -> None:
 
 
 def test_codes_under_a_courses_path_need_no_block_to_be_a_listing() -> None:
-    """City College of San Francisco prints units as "(6.5)".
+    """Units printed as "(6.5)" are not read as a value.
 
-    No rule reads that as a value, so the one block on its vocational
-    nursing page was a cross-reference, and three codes under /courses/
-    then made twenty-two courses one Course page with one course on it.
+    The one block found on this listing is a cross-reference, so the three
+    codes under /courses/ have to make it a listing on their own.
     """
     profile = page(
         "<main><h2>VOCN - Vocational Nursing - Licensed</h2>"
@@ -940,11 +983,145 @@ def test_codes_under_a_courses_path_need_no_block_to_be_a_listing() -> None:
         "skills lab</p>"
         "<p>VOCN 51 - Fundamentals of Nursing (8.0)</p>"
         "<p>Catalog Notes: Replaces VOCN 42A and VOCN 42B</p></main>",
-        url="https://ccsf.curricunet.com/catalog/iq/courses/3/170",
+        url="https://catalog.example.edu/catalog/iq/courses/3/170",
     )
     assert profile.course_code_count == 3
     assert profile.course_block_count == 1
     assert "Course" not in profile.labels
+
+
+def test_a_page_named_for_a_course_is_a_course_page() -> None:
+    """The h1 opens with the code; nothing else on the page reads as a
+    course. Only two codes, the course's own and its former number, and
+    no credits value at all."""
+    profile = page(
+        "<main><h1>ABCD 7001 - (was ABC 700) Example Concepts</h1>"
+        "<p>Graded on a pass/fail basis.</p></main>",
+        url="https://catalog.example.edu/course?id=1",
+    )
+    assert profile.course_block_count == 0
+    assert profile.labels == ["Course"]
+    assert profile.rules_fired["Course"] == "named for course ABCD 7001"
+
+
+def test_a_page_named_for_a_course_can_print_the_code_last() -> None:
+    profile = page(
+        "<main><h1>Example Concepts - ABCD 70013</h1>"
+        "<p>Graded on a pass/fail basis.</p></main>",
+    )
+    assert profile.rules_fired["Course"] == "named for course ABCD 70013"
+
+
+def test_a_code_inside_a_page_s_name_does_not_name_the_page() -> None:
+    profile = page(
+        "<main><h1>Placement into ABCD 7001 and Beyond</h1>"
+        "<p>Graded on a pass/fail basis.</p></main>",
+    )
+    assert "Course" not in profile.labels
+
+
+def test_a_course_page_title_without_the_site_names_the_course() -> None:
+    profile = page(
+        "<title>ABCD 7001 - Example Concepts | Example College</title>"
+        "<main><p>Graded on a pass/fail basis.</p></main>",
+    )
+    assert profile.labels == ["Course"]
+
+
+def test_a_course_page_with_credits_in_words_has_a_course_block() -> None:
+    profile = page(
+        "<main><h2>ABCD 7001 - Example Concepts</h2>"
+        "<p>Three credit hours.</p></main>",
+    )
+    assert profile.course_block_count == 1
+    assert profile.labels == ["Course"]
+
+
+def test_a_page_whose_address_names_one_course_is_a_course_page() -> None:
+    """A training portal prints no code and no credits; its address says
+    which course the page is."""
+    profile = page(
+        "<main><h1>Python Programming for Data Science 2</h1>"
+        "<p>In this certificate you will learn to write Python.</p></main>",
+        url="https://training.example.edu/portal/training?cmd=catalog&course=109497",
+    )
+    assert profile.labels == ["Course"]
+    assert profile.rules_fired["Course"] == (
+        "address names one course: /portal/training?cmd=catalog&course={n}"
+    )
+
+
+def test_a_curriqunet_department_page_is_a_course_page() -> None:
+    """Its codes ("PLS 1") are ones the code pattern refuses; the
+    platform's own block markup says each block is a course."""
+    block = (
+        "<div class='course-summary-wrapper'>"
+        "<span class='course-subject'>PLS </span>"
+        "<span class='course-number'>{n} </span> - "
+        "<span class='course-title'>Paralegal Studies {n}</span> (3.0)</div>"
+    )
+    profile = page(
+        "<title>View - CurriQunet META</title><main>"
+        + block.format(n=1)
+        + block.format(n=2)
+        + "</main>",
+        url="https://catalog.example.edu/catalog/iq/courses/3/142",
+    )
+    assert profile.course_block_count == 2
+    assert profile.labels == ["Course"]
+
+
+def test_an_honors_course_page_is_named_for_its_course() -> None:
+    profile = page(
+        "<main><h1>HNRS 121H3 - (was SCHL 1321) Science and Society II</h1>"
+        "<p>Graded on a pass/fail basis.</p></main>",
+    )
+    assert profile.rules_fired["Course"] == "named for course HNRS 121H3"
+
+
+def test_an_award_word_in_a_course_s_title_is_not_an_award() -> None:
+    """ "Doctoral" names the seminar's level, not a doctorate."""
+    profile = page(
+        "<main><h1>EDLE 90003 - Doctoral Seminar and Scholarly Writing</h1>"
+        "<p>Graded on a pass/fail basis.</p></main>",
+    )
+    assert profile.labels == ["Course"]
+    assert profile.rules_fired["Course"] == "named for course EDLE 90003"
+
+
+def test_a_course_its_address_names_can_lead_to_a_certification() -> None:
+    """The address names one course, and the name the award it leads to."""
+    profile = page(
+        "<main><h1>Retort Processing Certification</h1>"
+        "<p>The course covers thermal processing of low-acid foods.</p>"
+        "</main>",
+        url=(
+            "https://training.example.edu/portal/training?cmd=catalog"
+            "&course=retort-processing-certification"
+        ),
+    )
+    assert profile.labels == ["Course", "Credential"]
+    assert profile.rules_fired["Credential"] == (
+        "award in the name: Certification"
+    )
+
+
+def test_a_page_named_for_something_else_is_not_a_course_page() -> None:
+    profile = page(
+        "<main><h1>Example Studies</h1>"
+        "<p>Students take ABCD 7001 and ABCD 7002 in their first year.</p>"
+        "</main>",
+    )
+    assert "Course" not in profile.labels
+
+
+def test_hours_in_a_sentence_are_not_a_course_s_credits() -> None:
+    profile = page(
+        "<main><h2>ABCD 7001</h2><p>Students who have completed three "
+        "hours of study in a related subject may ask the department to "
+        "waive this course.</p></main>",
+    )
+    assert profile.course_block_count == 0
 
 
 PLATFORM_FIXTURES = {

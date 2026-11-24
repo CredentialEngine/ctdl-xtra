@@ -44,6 +44,24 @@ class LocalStorageWriter:
                     errors.append(f"{key}: {exc}")
         return uploaded_keys
 
+    def upload_new(
+        self,
+        *,
+        key: str,
+        content: bytes | str,
+        content_type: str,
+    ) -> str:
+        path = self.root_path / key
+        if isinstance(content, str):
+            content = content.encode("utf-8")
+        path.parent.mkdir(parents=True, exist_ok=True)
+        try:
+            with path.open("xb") as stream:
+                stream.write(content)
+        except FileExistsError:
+            raise FileExistsError(key) from None
+        return key
+
     @contextmanager
     def open_binary_writer(
         self,

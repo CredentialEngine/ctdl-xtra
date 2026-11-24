@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import hashlib
 import re
+from collections.abc import Sequence
 from urllib.parse import urlsplit
 
 from common.clock import run_id_for_path
@@ -76,12 +77,21 @@ def crawl_key(catalog_folder: str, run_id: str) -> str:
     return f"{run_prefix(catalog_folder, run_id)}/crawl.json"
 
 
-def state_key(catalog_folder: str, run_id: str) -> str:
-    return f"{run_prefix(catalog_folder, run_id)}/state.json"
+def navigation_key(catalog_folder: str, run_id: str) -> str:
+    """The run's link map, rebuilt from its saved pages."""
+    return f"{run_prefix(catalog_folder, run_id)}/navigation.json"
 
 
-def failed_key(catalog_folder: str, run_id: str) -> str:
-    return f"{run_prefix(catalog_folder, run_id)}/failed.jsonl"
+def manifest_key(catalog_folder: str, run_id: str) -> str:
+    return f"{run_prefix(catalog_folder, run_id)}/manifest.json"
+
+
+def pages_prefix(catalog_folder: str, run_id: str) -> str:
+    return f"{run_prefix(catalog_folder, run_id)}/pages"
+
+
+PAGES_FAILED = "failed"
+PAGES_SKIPPED = "skipped"
 
 
 def page_html_key(catalog_folder: str, run_id: str, stem: str) -> str:
@@ -90,6 +100,18 @@ def page_html_key(catalog_folder: str, run_id: str, stem: str) -> str:
 
 def page_meta_key(catalog_folder: str, run_id: str, stem: str) -> str:
     return f"{run_prefix(catalog_folder, run_id)}/pages/{stem}.meta.json"
+
+
+def failed_meta_key(catalog_folder: str, run_id: str, stem: str) -> str:
+    """What became of a URL that was asked for and not saved."""
+    prefix = pages_prefix(catalog_folder, run_id)
+    return f"{prefix}/{PAGES_FAILED}/{stem}.meta.json"
+
+
+def skipped_meta_key(catalog_folder: str, run_id: str, stem: str) -> str:
+    """A URL that answered and is not a page of the run."""
+    prefix = pages_prefix(catalog_folder, run_id)
+    return f"{prefix}/{PAGES_SKIPPED}/{stem}.meta.json"
 
 
 def discovery_root(catalog_folder: str, run_id: str) -> str:
@@ -111,6 +133,49 @@ def discovery_key(
 ) -> str:
     return (
         f"{discovery_prefix(catalog_folder, run_id, discovery_run_id)}/{name}"
+    )
+
+
+def property_key(prop: str) -> str:
+    """A property as a file or key name: "ceterms:name" is ceterms_name.
+    This is the same as the extractor module name, so the extractor can be found by the property.
+    """
+    steps = [step.strip() for step in prop.split(">")]
+    return "__".join(step.replace(":", "_", 1) for step in steps)
+
+
+EXTRACTION_REPORT_DIR = "extraction_report"
+
+
+def extract_property_prefix(catalog_folder: str, run_id: str, prop: str) -> str:
+    """Where one property's files are, beside records/.
+
+    The folders follow the extractors' own: ceterms:name is under
+    extraction_report/ceterms/ceterms_name/, as its extractor is
+    implementations/extract/ceterms/ceterms_name.py.
+    """
+    prefix = prop.split(":", 1)[0].strip()
+    return (
+        f"{run_prefix(catalog_folder, run_id)}/{EXTRACTION_REPORT_DIR}"
+        f"/{prefix}/{property_key(prop)}"
+    )
+
+
+def extract_resource_key(
+    catalog_folder: str, run_id: str, prop: str, resource_id: str
+) -> str:
+    """One property of one resource."""
+    prefix = extract_property_prefix(catalog_folder, run_id, prop)
+    return f"{prefix}/{resource_id}.json"
+
+
+def property_extract_report_key(
+    catalog_folder: str, run_id: str, prop: str
+) -> str:
+    """Beside discovery/, one per property extracted."""
+    return (
+        f"{run_prefix(catalog_folder, run_id)}"
+        f"/extraction-{property_key(prop)}-report.json"
     )
 
 
@@ -140,12 +205,17 @@ def expected_key(catalog_folder: str, run_id: str, record_id: str) -> str:
 
 
 def extraction_match_report_key(
-    catalog_folder: str, run_id: str, mode: str
+    catalog_folder: str, run_id: str, mode: str, props: Sequence[str] = ()
 ) -> str:
-    """Beside records/ for the same reason as the extract report."""
+    """Beside records/ for the same reason as the extract report.
+
+    A match of some properties has its own file, named for them in sorted
+    order, so it never overwrites the report of the whole run.
+    """
+    scope = "".join(f"-{property_key(p)}" for p in sorted(set(props)))
     return (
         f"{run_prefix(catalog_folder, run_id)}"
-        f"/extraction-match-{mode}-report.json"
+        f"/extraction-match-{mode}{scope}-report.json"
     )
 
 

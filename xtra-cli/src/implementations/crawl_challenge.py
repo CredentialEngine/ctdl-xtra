@@ -13,7 +13,7 @@ retryable failure and never a page in the run.
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 
 CHALLENGE_AWS_WAF = "aws-waf"
 CHALLENGE_AWS_WAF_CAPTCHA = "aws-waf-captcha"
@@ -94,7 +94,9 @@ def challenge_kind(
     return None
 
 
-def challenge_tokens(cookies: list[Mapping[str, object]]) -> dict[str, str]:
+def challenge_tokens(
+    cookies: Sequence[Mapping[str, object]],
+) -> dict[str, str]:
     """The challenge-token cookies among a context's cookies, by name."""
     tokens: dict[str, str] = {}
     for cookie in cookies:

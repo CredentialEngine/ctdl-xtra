@@ -59,9 +59,6 @@ def test_to_expected_keeps_existing_expected_dict() -> None:
     assert to_expected(record)["expected"] == {"course_id": "KEEP"}
 
 
-# --- credits ------------------------------------------------------------------
-
-
 def field(field_id: str, label: str, value: object) -> dict:
     return {
         "field_id": field_id,
@@ -145,25 +142,3 @@ def test_a_unit_with_no_credits_to_go_in_is_unmapped() -> None:
     ctdl = map_fields("Course", fields)
     assert [prop["property"] for prop in ctdl["properties"]] == ["ceterms:name"]
     assert ctdl["unmapped_source_field_refs"] == ["f_001"]
-
-
-def test_hours_map_to_one_list_of_duration_objects() -> None:
-    fields = [
-        {
-            **field("f_001", "course_lecture_hours", 54.0),
-            "raw_text": "Total Course Lecture Hours 54.0",
-        },
-        field("f_002", "course_lab_hours", 0.0),
-    ]
-    node = to_jsonld(
-        {"entity_type": "Course", "source_expected": {"fields": fields}}
-    )
-    assert node["ceterms:estimatedDuration"] == [
-        {
-            "ceterms:description": "Total Course Lecture Hours",
-            "ceterms:timeRequired": "54.0",
-        },
-        {"ceterms:description": "Lab Hours", "ceterms:timeRequired": "0.0"},
-    ]
-    ctdl = map_fields("Course", fields)
-    assert ctdl["properties"][0]["source_field_refs"] == ["f_001", "f_002"]

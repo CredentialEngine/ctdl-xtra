@@ -303,8 +303,9 @@ def build_parser() -> argparse.ArgumentParser:
     g.add_argument("--human-reviewed", action="store_true",
                    help="the human-reviewed values as they are now (the latest version's trees)")
     p.add_argument("--output", default=None, metavar="PATH|ID",
-                   help="the extract output: a copy's id (extract-outputs/<id>), or a folder with records/ and "
-                        "extract-report.json (default: the latest in $GOLDEN_DATASETS_XTRA_SOURCE, copied when new)")
+                   help="the extract output: a copy's id (extract-outputs/<id>), or a folder xtra extracted into "
+                        "(extraction_report/, or an older records/) (default: the latest in "
+                        "$GOLDEN_DATASETS_XTRA_SOURCE, copied when new)")
     p.add_argument("--by", default=os.environ.get("GOLDEN_DATASETS_AUTHOR", "golden-datasets score"))
     _cmd(p, "golden_datasets.scores:cmd_score")
 

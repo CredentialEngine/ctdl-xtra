@@ -5,7 +5,7 @@ labelled wrong, the fix is a rule in this file and a fixture next to the
 others that proves it. Nothing else in the discovery code carries a literal
 pattern or a cut-off, so tuning is one file to read and one file to review.
 
-Four entities are recognised, and they are the four `lib/mapping.py` can
+Four entities are recognised, and they are the four `src/lib/mapping.py` can
 write CTDL for:
 
     Course               ceterms:Course          one course, or a page of them
@@ -40,7 +40,7 @@ that print non-breaking spaces inside course codes.
 from __future__ import annotations
 
 import re
-from urllib.parse import urlsplit
+from urllib.parse import parse_qsl, urlsplit
 
 # --- thresholds -------------------------------------------------------------
 
@@ -91,14 +91,9 @@ HEAD_MAX_LINES = 8
 HEAD_LINE_CHARS = 80
 # Longer than this is a sentence, not a heading or a label.
 SECTION_HEADING_CHARS = 120
-# Longer than this, what a "Prerequisites" heading stands over is a section
-# of the page, not a course's prerequisite. The longest real one seen is
-# Atlantic Cape's BIOL220, at 470 characters.
+# Longer than this is a page section, not a prerequisite.
 PREREQUISITE_MAX_CHARS = 600
-# How long a prerequisite may run to the end of the paragraph a description
-# is read from, when no full stop, line break or other requisite label ends
-# it. Across every sampled course page the real ones run 156 characters at
-# most (CCSF); one run on to the end of the paragraph is the description.
+# Longer than this, an unended prerequisite has run into the description.
 PREREQUISITE_RUN_ON_CHARS = 300
 SHORT_LINE_CHARS = 60
 # How much of the first paragraph may name the program's award, and how
@@ -129,7 +124,11 @@ PAGE_TYPE_UNKNOWN = "Unknown"
 
 # The subject prefix: two to six capitals. Five was too few and dropped
 # every Pitt page, where the subject is spelled out (AFRCNA 1415).
-_CODE_SUBJECT = r"[A-Z]{2,6}"
+#
+# An ampersand may sit between two of them: WVU prints A&VS 591, HN&F 500
+# and C&I 600. Without it, 359 of WVU's courses had no code, so none of
+# them had a resource id and extraction wrote nothing for them.
+_CODE_SUBJECT = r"[A-Z](?:&?[A-Z]){1,5}"
 
 # What sits between the subject and the number. A plain space or hyphen is
 # the common case; Acalog and CourseLeaf print a non-breaking space or a
@@ -139,13 +138,15 @@ _CODE_SEPARATOR = r"[  ‑–-]?"
 
 # The number, in the three shapes catalogs print:
 #   ENGL 101, AFRCNA 1415, CIS114DE - three or four digits
+#   HNRS 101H1                      - three or four digits, a letter, a digit
 #   ACCT A101                       - a letter, then two digits
 #   ACTG 1A, ACTG 1BH               - one or two digits, then a letter
 # The third shape has to end in a letter. Without that, "GOAL 1", "SLO 3",
 # "OSHA 10" and "LEVEL 1" all read as course codes, and a page of learning
 # outcomes counted six courses.
 _CODE_NUMBER = (
-    r"(?:[A-Z]?\d{3,4}[A-Z]{0,2}|[A-Z]\d{2}[A-Z]{0,2}|\d{1,2}[A-Z]{1,2})"
+    r"(?:[A-Z]?\d{3,4}(?:[A-Z]{1,2}\d?)?|[A-Z]\d{2}[A-Z]{0,2}"
+    r"|\d{1,2}[A-Z]{1,2})"
 )
 
 # The fourth shape, kept apart because it needs a longer subject: five
@@ -158,8 +159,13 @@ _CODE_NUMBER = (
 # Three letters at least, and never a ZIP+4, because two capitals and five
 # digits is the last line of every address a catalog prints
 # ("Fayetteville, AR 72701").
+#
+# The number can also be six digits (CPSI 200023), or ten: a course
+# offered at two levels can print both five-digit numbers joined
+# together (GERO 4900349003). Without these lengths, those courses had
+# no code, so their pages were not read as courses.
 _CODE_SUBJECT_LONG = r"[A-Z]{3,6}"
-_CODE_NUMBER_LONG = r"\d{5}[A-Z]{0,2}(?!-\d{4}\b)"
+_CODE_NUMBER_LONG = r"\d{5}(?:\d|\d{5})?[A-Z]{0,2}(?!-\d{4}\b)"
 
 COURSE_CODE_RE = re.compile(
     rf"\b(?:{_CODE_SUBJECT_LONG}{_CODE_SEPARATOR}{_CODE_NUMBER_LONG}"
@@ -200,7 +206,12 @@ _CREDIT_PREFIX = (
     r"(?:(?:semester|quarter|course|contact|clock|lecture|lab|credit)\s+){0,2}"
 )
 
-_NUMBER = r"\d+(?:\.\d+)?"
+# A number as digits, or spelled out: "Three credit hours." Up to twelve,
+# which covers any one course's value.
+_NUMBER_WORD = (
+    r"\b(?:one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve)\b"
+)
+_NUMBER = rf"(?:\d+(?:\.\d+)?|{_NUMBER_WORD})"
 # "3", "3.0", "1-3" and "1 to 3" are all one printed value.
 _RANGE = rf"{_NUMBER}(?:\s*(?:-|to)\s*{_NUMBER})?"
 
@@ -261,44 +272,31 @@ RECOMMENDED_RE = re.compile(
     re.IGNORECASE,
 )
 
-# Any text naming a requisite at all: where a requisite label can be.
 REQUISITE_WORD_RE = re.compile(r"requisite|prereq", re.IGNORECASE)
-# An element's own white-space setting, and the settings under which a
-# browser shows the newlines in its text as line breaks. Antelope Valley's
-# descriptions are white-space: pre-wrap, and print the prerequisite on a
-# line of its own above the description with only a newline between them.
+# Inline white-space styles under which newlines show as line breaks.
 WHITE_SPACE_STYLE_RE = re.compile(r"white-space\s*:\s*([\w-]+)", re.IGNORECASE)
 LINE_KEEPING_WHITE_SPACE = frozenset(
     {"pre", "pre-wrap", "pre-line", "break-spaces"}
 )
-# The label a course's prerequisite is printed under, in every spelling a
-# catalog uses: "Prerequisite", "Prerequisites:", Acalog's
-# "Prerequisite(s):", "Pre-requisite", the short "Prereq". A label is a
-# whole element's text or the head of a line, never a word in a sentence.
+# "Prerequisite", "Prerequisites:", "Prerequisite(s):", "Pre-requisite",
+# "Prereq".
 _PREREQUISITE = r"(?:pre[\s-]?requisites?|prereqs?)(?:\s*\(s\))?"
 PREREQUISITE_LABEL_RE = re.compile(rf"{_PREREQUISITE}\s*:?", re.IGNORECASE)
 PREREQUISITE_LEAD_RE = re.compile(rf"\b{_PREREQUISITE}\s*:\s*", re.IGNORECASE)
-# Clean Catalog's second prerequisite field: the courses the statement
-# names, as links. "Prerequisite Courses" over "PSYC101: General
-# Psychology", printed before the statement it shortens.
+# "Prerequisite Courses": a list of the courses a prerequisite names.
 PREREQUISITE_COURSES_LABEL_RE = re.compile(
     rf"{_PREREQUISITE}\s+courses?(?:\s*\(s\))?\s*:?", re.IGNORECASE
 )
-# One label for both relations, which says the course may be taken before
-# or alongside: "Prerequisite/Corequisite" at Front Range, "Prerequisite
-# and/or Corequisite" at CNCC, "Pre/Corequisite", "Pre- or Co-requisite".
-# PREREQ_COREQ_COMBINED_RE is discovery's marker and misses the shortened
-# first word; changing it would change the markers, so this is separate.
+# One label for both relations: "Prerequisite/Corequisite",
+# "Pre/Corequisite". Wider than PREREQ_COREQ_COMBINED_RE, which the
+# discovery markers use.
 COMBINED_REQUISITE_RE = re.compile(
     r"\bpre(?:[\s-]?requisites?(?:\s*\(s\))?|-)?\s*"
     r"(?:\band\s*/\s*or\b|/|&|\band\b|\bor\b)\s*"
     r"co[\s-]?requisites?(?:\s*\(s\))?",
     re.IGNORECASE,
 )
-# Every label in the family a prerequisite is printed among, and so every
-# label that ends the prerequisite before it. eLumen prints "Limitation on
-# Enrollment: ... Prerequisite: ... Corequisite: ..." as one run, Cabrillo
-# a Co-Requisite beside it, and a recommendation is not a requirement.
+# Requisite labels; each one ends the prerequisite before it.
 _REQUISITE_LABELS = (
     rf"{COMBINED_REQUISITE_RE.pattern}"
     r"|\b(?:pre|co|anti)[\s-]?requisites?(?:\s*\(s\))?|\bprereqs?\b"
@@ -310,20 +308,15 @@ _REQUISITE_LABELS = (
 )
 REQUISITE_LABEL_RE = re.compile(rf"(?:{_REQUISITE_LABELS})\s*:?", re.IGNORECASE)
 REQUISITE_LEAD_RE = re.compile(rf"(?:{_REQUISITE_LABELS})\s*:", re.IGNORECASE)
-# What a page prints where a course has no prerequisite: Morgan's "None",
-# RCCD's "None.", "N/A", "No prerequisites".
+# "None", "N/A", "No prerequisites".
 NO_PREREQUISITE_RE = re.compile(
     r"(?:none(?:\s+required)?|n/?a|no\s+pre[\s-]?requisites?(?:\s*\(s\))?)"
     r"\s*\.?",
     re.IGNORECASE,
 )
-# The words a requisites list joins two of its items with: Cabrillo prints
-# "Prerequisite", a course, "OR", "Prerequisite", another course.
+# Joins two requisites in a list: "A OR B".
 REQUISITE_CONNECTOR_RE = re.compile(r"and|or", re.IGNORECASE)
-# Where a sentence ends: a full stop before a capital, unless it closes a
-# one-letter word. "Completion of AM 135A. Instructional materials fee
-# required" ends after 135A; "Proof of U.S. citizenship" does not end
-# inside U.S.
+# A full stop before a capital, but not after an initial ("U.S.").
 SENTENCE_END_RE = re.compile(r"(?<!\b[A-Z])[.!?](?=\s+[A-Z])")
 
 # --- outcomes and competencies -----------------------------------------------
@@ -863,9 +856,12 @@ TERM_HEADING_RE = re.compile(
 # A heading that opens with a course code is a course's title. CourseLeaf
 # titles read "FREN 30603. Ph.D. Reading Requirement I. 3 Hours.", which
 # otherwise reads as a heading over a Ph.D.'s requirements. Five digits,
-# because graduate course numbers there are five digits long.
+# because graduate course numbers there are five digits long. It also
+# accepts the six- and ten-digit numbers and the honors suffix (HNRS 121H3)
+# that COURSE_CODE_RE accepts, so the two agree on the same title.
 COURSE_TITLE_RE = re.compile(
-    r"^\s*[A-Z]{2,6}[\s ‑–-]?[A-Z]?\d{3,5}[A-Z]{0,2}\b"
+    rf"^\s*{_CODE_SUBJECT}[\s ‑–-]?[A-Z]?(?:\d{{3,6}}|\d{{10}})"
+    rf"(?:[A-Z]{{1,2}}\d?)?\b"
 )
 
 # The outline number a catalog prints in front of a heading, which is not
@@ -1210,37 +1206,28 @@ COURSE_BLOCK_DESC_CLASS_RE = re.compile(
 # "ASTR 50303.  Astrophysics I: Stars and Planetary Systems.  3 Hours."
 # ends "3 Hours."; a variable-credit course ends "1-6 Hour.". A course
 # with no credits printed ends with its name, so this has to be optional.
-# The unit is kept as printed, "Hours" or "UNITS": it is what the credits
-# are counted in.
+# The unit is kept as printed.
 COURSE_BLOCK_CREDITS_RE = re.compile(
     r"(?P<credits>\d+(?:\.\d+)?)(?:\s*-\s*(?P<maximum>\d+(?:\.\d+)?))?"
     r"\s*(?P<unit>(?:credit|hour|unit)s?)\s*\.?\s*$",
     re.IGNORECASE,
 )
-# The unit a credits label names, as printed: "Credits" in "Credits:",
-# "CREDIT HOURS" in "CREDIT HOURS MIN:". The same words a course-block
-# line ends with, so a label and a line give the same kind of answer.
+# The unit a credits label names: "CREDIT HOURS" in "CREDIT HOURS MIN:".
 CREDIT_UNIT_RE = re.compile(
     rf"\b{_CREDIT_PREFIX}(?:credit|hour|unit)s?\b", re.IGNORECASE
 )
 # What separates the code, the name and the credits on that one line.
 COURSE_TITLE_SPLIT_RE = re.compile(r"\s*[.:–-]\s+|\s*\.\s*")
-# eLumen labels none of a course's code, name or units. It groups them in
-# a <header>: the name, a heading that is nothing but the code ("ELEC
-# 150:"), and the units on a line of their own ("4.0 Units"). Bakersfield's
-# theme puts the code in the h1 and the name above it. The name is read
-# only from inside such a group, because a bare code heading elsewhere has
-# no name beside it: Clean Catalog prints "Course Catalog Software by Clean
-# Catalog" just above its <h1>ENGL101:</h1>.
+# Elements that group a course's name, code heading and units. The name
+# is only read from inside one.
 HEADING_GROUP_TAGS = frozenset({"header", "hgroup"})
-# How many elements after the code heading the units line may be. Antelope
-# Valley prints it next; Bakersfield two wrappers further down.
+# How many elements after the code heading the units line may be.
 COURSE_HEADING_REACH = 8
 
 # What a printed label means, as one canonical field name per label. The
 # keys are what normalize_field_label returns, so "Credit Hour(s):" and
 # "CREDIT HOURS" are one key. Only labels that map onto a canonical field
-# in lib/FIELD_INVENTORY.csv are here; anything else a page prints is
+# in src/lib/FIELD_INVENTORY.csv are here; anything else a page prints is
 # kept in the report but is not a field.
 COURSE_FIELD_LABELS = {
     "credits": "course_credits",
@@ -1259,9 +1246,7 @@ COURSE_FIELD_LABELS = {
     "pre-requisite": "course_prerequisites",
     "pre-requisites": "course_prerequisites",
     "prereq": "course_prerequisites",
-    # Acalog prints "Prerequisite(s):", and normalize_field_label keeps the
-    # bracket. "Prerequisite Courses" is not here on purpose: it lists the
-    # courses a statement names, and the statement is what a record wants.
+    # "Prerequisite Courses" is left out on purpose; it is read last.
     "prerequisite(s)": "course_prerequisites",
     "pre-requisite(s)": "course_prerequisites",
     "pre requisite": "course_prerequisites",
@@ -1282,10 +1267,7 @@ COURSE_FIELD_LABELS = {
     "laboratory hours": "course_lab_hours",
     "lab/clinical/field study": "course_lab_hours",
     "lab/clinical/field study hours": "course_lab_hours",
-    # eLumen prints the hours for the whole term, as a heading over the
-    # value: "Total Course Lecture Hours" 54.0 at Antelope Valley, "Total
-    # Lecture Hours:" 27.0 at Bakersfield. The labels above usually carry
-    # weekly hours; each is what the page prints under that name.
+    # Hours for the whole term.
     "total course lecture hours": "course_lecture_hours",
     "total lecture hours": "course_lecture_hours",
     "total course lab hours": "course_lab_hours",
@@ -1308,7 +1290,7 @@ COURSE_FIELD_LABELS = {
     "general education": "course_general_education",
 }
 # Which record a page carrying each label should produce. The names on
-# the right are what lib/mapping.py maps to a CTDL class, and they are
+# the right are what src/lib/mapping.py maps to a CTDL class, and they are
 # not all spelled the way discovery spells its labels: the page discovery
 # calls a LearningOpportunity becomes a ceterms:LearningProgram.
 #
@@ -1462,6 +1444,21 @@ COURSE_URL_RE = re.compile(r"course|subject", re.IGNORECASE)
 # preview_course.php, and the .aspx and .jsp a few others serve. There the
 # last segment is the only segment there is, so it does name the kind.
 VENDOR_ENDPOINT_RE = re.compile(r"\.(?:php|aspx?|jsp|cgi|do)$", re.IGNORECASE)
+
+
+# A query parameter naming the one course the page is about:
+# ?course=109497, ?course=achieving-quality-asphalt-emulsion, ?course_id=,
+# ?courseId=. Its value is the course's own identifier, which a training
+# portal's pages may be the only place to print.
+COURSE_QUERY_KEY_RE = re.compile(r"course(?:[_-]?id)?", re.IGNORECASE)
+
+
+def course_in_query(url: str) -> str | None:
+    """The value of the address's course parameter, or None."""
+    for key, value in parse_qsl(urlsplit(url).query):
+        if COURSE_QUERY_KEY_RE.fullmatch(key.strip()) and value.strip():
+            return value.strip()
+    return None
 
 
 def path_names_courses(template: str) -> bool:
@@ -2078,31 +2075,18 @@ def described_course_codes(
     site look like a page holding two, which marked it multi_course_page
     and made extraction skip it.
 
-    A course is titled when its code opens its line, the way a catalog
-    prints the course a block describes: "ABDY 112:" over "5.0 Units". A
-    code after a label or inside a sentence is a cross-reference, however
-    close a credits field sits below it. eLumen prints "Minimum Credit
-    Units" under every description, so at Antelope Valley "Prerequisite:
-    Completion of AM 135A.", "Formerly ENGL 103" and "(C-ID: ENGL 105)"
-    each read as a second course on the page, and extraction skipped the
-    course page as multi_course_page. Once a page titles any course, only
-    the titled ones count.
-
-    A page that titles none is counted as before, cross-references and
-    all. Front Range prints a long description between a course's title
-    and its credits, so the course's own code is never near them and only
-    a code a sentence cites is: counting nothing there loses the course.
+    A course is titled when its code opens its line ("ABC 101:" over "3.0
+    Units"). A code after a label or inside a sentence is a reference. Once
+    a page titles any course, only the titled ones count; a page that
+    titles none is counted as before.
 
     `ignore` is the codes the markup shows to be references, which are
     never descriptions however they read once flattened. A transfer
     equivalency table prints a code, a title and a credit count per row,
     so on the text alone every row is a course being described.
 
-    `titles` is the codes that open a line of the page's own text, when
-    that is known. The flattened text holds the site's menus too, and a
-    menu prints its courses one per line: CHEM 110 opens a line in
-    eLumen's menu, so without this a biology course whose prerequisite is
-    CHEM 110 titled two courses and was skipped.
+    `titles` is the codes that open a line of the page's own text, so a
+    site menu listing one course per line titles nothing.
     """
     described: set[str] = set()
     titled: set[str] = set()
@@ -2185,11 +2169,8 @@ def course_block_credits(match: re.Match[str]) -> tuple[str, str]:
 def split_course_title(line: str) -> tuple[str, str, str, str]:
     """A course-block title line as its code, name, credits and unit.
 
-    CourseLeaf prints all of them on one line - "ASTR 50303.  Astrophysics
-    I: Stars and Planetary Systems.  3 Hours." - so a course page there
-    has no labelled fields at all to read. The credits are optional,
-    because a zero-credit seminar prints none, and so is the name; the
-    unit is there whenever the credits are.
+    "ABC 101.  Course Name.  3 Hours." The name and the credits are
+    optional; the unit comes with the credits.
     """
     text = collapse(line)
     code_match = COURSE_CODE_RE.search(text)

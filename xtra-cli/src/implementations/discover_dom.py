@@ -89,6 +89,10 @@ from implementations.discover_rules import (
     evidence,
     normalize_course_code,
 )
+from implementations.extract_platform import (
+    COURSE_BLOCK_SELECTORS,
+    COURSE_CODE_PARTS,
+)
 
 # Markup that prints nothing, plus <head>, whose <title> is read on its own.
 _SKIP_TAGS = frozenset(
@@ -330,11 +334,7 @@ def find_main(soup: BeautifulSoup) -> Tag | None:
 
 
 def _keeps_lines(tag: Tag, inherited: bool) -> bool:
-    """Whether a browser shows the newlines inside this element.
-
-    white-space is inherited, so an element keeps its parent's setting
-    unless its own style names one, and a <pre> keeps them by default.
-    """
+    """Whether a browser shows the newlines inside this element."""
     match = WHITE_SPACE_STYLE_RE.search(tag.get("style") or "")
     if match is not None:
         return match.group(1).lower() in LINE_KEEPING_WHITE_SPACE
@@ -344,10 +344,7 @@ def _keeps_lines(tag: Tag, inherited: bool) -> bool:
 class _Reader:
     """One walk of the tree, collecting everything the page prints.
 
-    With `printed_lines`, a newline the page's own styling shows as a line
-    break - inside white-space: pre-wrap, or a <pre> - starts a new line of
-    the content text, as it does on screen. Discovery reads without it, so
-    its labels and reports do not move.
+    `printed_lines` keeps the line breaks a pre-wrap style shows.
     """
 
     def __init__(
@@ -488,39 +485,19 @@ def _lines(raw: str) -> str:
 
 
 def element_lines(tag: Tag) -> list[str]:
-    """One element's text as the lines a browser prints it.
-
-    A line per block and per <br>, and per newline where the styling shows
-    one; inline runs joined; the site's own furniture and scripts left out.
-    element_text joins everything into one string, so a cell printing "MATH
-    105<br>or<br>MATH 105H" reads "MATH 105orMATH 105H"; this keeps its
-    three lines apart.
-    """
+    """One element's text as the lines a browser shows."""
     reader = _Reader(tag, tag, printed_lines=True)
     return reader.read().content_text.splitlines()
 
 
 def printed_text(soup: BeautifulSoup) -> str:
-    """The page's own content as the lines a browser prints it.
-
-    content_text, except that a newline the styling shows - inside
-    white-space: pre-wrap, or a <pre> - is a line break too. Antelope
-    Valley prints a course's prerequisite on a line of its own above the
-    description, with nothing but a newline between them; read as content
-    text, the two are one paragraph and the prerequisite runs on into it.
-    """
+    """content_text, keeping the line breaks a pre-wrap style shows."""
     reader = _Reader(soup, find_main(soup), printed_lines=True)
     return reader.read().content_text
 
 
 def lines_after(tag: Tag) -> list[tuple[Tag | None, list[str]]]:
-    """What the element's parent prints after it, a block at a time.
-
-    One entry per block sibling, with the lines it prints, and one per run
-    of inline text between blocks, which has no element of its own. This
-    is how a label is read: SmartCatalog prints <h2>Prerequisite</h2> and
-    then a bare link, Cabrillo a bold paragraph and the course under it.
-    """
+    """What the element's parent prints after it, one block at a time."""
     entries: list[tuple[Tag | None, list[str]]] = []
     run: list[str] = []
 
@@ -576,14 +553,23 @@ def _outermost(soup: BeautifulSoup, pattern: re.Pattern[str]) -> list[Tag]:
     return found
 
 
-def read_course_blocks(soup: BeautifulSoup) -> list[CourseBlock]:
+def read_course_blocks(
+    soup: BeautifulSoup, platform: str = ""
+) -> list[CourseBlock]:
     """The courses this page's markup says it describes.
 
     A block counts once it names a course code. The same code marked up
     twice - the breadcrumb above the heading, the print view below it - is
     still one course.
+
+    The platform's own course elements are read first, as extraction
+    reads them, with the code taken from its subject and number parts.
+    That finds codes like "PLS 1", which the code pattern refuses so as
+    not to read "GOAL 1" as a course.
     """
-    blocks: list[CourseBlock] = []
+    blocks = _platform_course_blocks(soup, platform)
+    if blocks:
+        return blocks
     seen: set[str] = set()
     for tag in _outermost(soup, COURSE_BLOCK_CLASS_RE):
         text = collapse(tag.get_text(" "))
@@ -591,6 +577,41 @@ def read_course_blocks(soup: BeautifulSoup) -> list[CourseBlock]:
         if match is None:
             continue
         code = normalize_course_code(match.group(0))
+        if code in seen:
+            continue
+        seen.add(code)
+        blocks.append(CourseBlock(code=code, quote=evidence(text)))
+    return blocks
+
+
+def _platform_course_blocks(
+    soup: BeautifulSoup, platform: str
+) -> list[CourseBlock]:
+    """The blocks the platform's own markup names, each with its code."""
+    selector = COURSE_BLOCK_SELECTORS.get(platform)
+    if not selector:
+        return []
+    parts = COURSE_CODE_PARTS.get(platform, ())
+    blocks: list[CourseBlock] = []
+    seen: set[str] = set()
+    taken: set[int] = set()
+    for tag in soup.select(selector):
+        if any(id(parent) in taken for parent in tag.parents):
+            continue
+        taken.add(id(tag))
+        text = collapse(tag.get_text(" "))
+        printed = [
+            collapse(part.get_text(" "))
+            for part in (tag.select_one(p) for p in parts)
+            if part is not None
+        ]
+        if parts and len(printed) == len(parts) and all(printed):
+            code = normalize_course_code(" ".join(printed))
+        else:
+            match = COURSE_CODE_RE.search(text)
+            if match is None:
+                continue
+            code = normalize_course_code(match.group(0))
         if code in seen:
             continue
         seen.add(code)
@@ -1017,7 +1038,7 @@ def read_markup(html: str) -> Markup:
         # The site's own name is not the page's name, wherever it is
         # printed. Coursedog prints it as the only h1 on every page.
         markup.h1 = ""
-    markup.course_blocks = read_course_blocks(soup)
+    markup.course_blocks = read_course_blocks(soup, fingerprint.platform)
     markup.requirement_lists, markup.reference_codes = read_requirement_lists(
         soup
     )

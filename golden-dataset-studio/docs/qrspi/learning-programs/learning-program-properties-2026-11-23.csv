@@ -1,0 +1,109 @@
+xTRA Status,Top Level Class ,Subclass,CTDL Property Label,CTDL Shorthand URI,CLI Extraction Label,Value Type,Definition,Extraction Notes,CTDL Transformation Notes,Controlled Vocabulary,Link,Multiple Values,Sample
+Phase 1,ceterms:LearningProgram,,External Identifier,ceterms:identifier,ceterms:identifier,ceterms:IdentifierValue,A unique alphanumeric identifier for this learning opportunity that is used for your customers or for internal processes within your system.,,"Published as a ceterms:IdentifierValue with Identifier Type Name ""External Identifier"" and the supplied value as its Identifier Value Code.",,https://credreg.net/ctdl/terms/identifier,Multiple,BIOL20003
+Phase 1,ceterms:LearningProgram,,Name,ceterms:name,ceterms:name,rdf:langString,Name or title of the resource.,,,,http://credreg.net/ctdl/terms/name,Single,General Microbiology
+Phase 1,ceterms:LearningProgram,,Description,ceterms:description,ceterms:description,rdf:langString,"Statement, characterization or account of the entity.",,Must be a minimum of 15 characters.,,http://credreg.net/ctdl/terms/description,Single,This course guides students in the development of...
+Phase 1,ceterms:LearningProgram,,Subject Webpage,ceterms:subjectWebpage,ceterms:subjectWebpage,xsd:anyURI,Webpage that describes this entity.,,Must be a properly formatted URL beginning in https://,,http://credreg.net/ctdl/terms/subjectWebpage,Single,https://example.org/resource/123
+Phase 1,ceterms:LearningProgram,,Life Cycle Status Type,ceterms:lifeCycleStatusType,ceterms:lifeCycleStatusType,ceterms:CredentialAlignmentObject,Type of state of the resource in terms of its stage in a life cycle; select from an enumeration of such types.,"For the initial upload, this would typically be ""Active""",This property requires a value from a controlled vocabulary. Select one of the defined values.,"Active
+Ceased
+Ceasing
+Developing
+Suspended
+Teach Out",http://credreg.net/ctdl/terms/lifeCycleStatusType,Single,Active
+Phase 1,ceterms:LearningProgram,,Language,ceterms:inLanguage,ceterms:inLanguage,xsd:language,"The primary language or languages of the entity, even if it makes use of other languages.","Must be a known language name. If no language is provided, the value will default to English.","If there are multiple languages, use a pipe-separated (|) list. ",,http://credreg.net/ctdl/terms/inLanguage,Multiple,English | Spanish
+Phase 1,ceterms:LearningProgram,,In Catalog,ceterms:inCatalog,ceterms:inCatalog,xsd:anyURI,An inventory or listing of resources that includes this resource.,Use this property instead of ceterms:subjectWebpage if the source of the course information is a defined catalog.,Must be a properly formatted URL beginning in https://,,http://credreg.net/ctdl/terms/inCatalog,Single,https://example.com/incatalogurl
+Phase 1,ceterms:LearningProgram,,Credit Value,ceterms:creditValue,ceterms:creditValue,ceterms:ValueProfile,A credit-related value.,"This property uses the value ceterms:ValueProfile.
+
+Enter the number of credit units awarded for college credit or continuing education units for successful completion of the learning opportunity.",,,http://credreg.net/ctdl/terms/creditValue,Single,
+Phase 1,ceterms:LearningProgram,ceterms:ValueProfile,Value,schema:value,ceterms:creditValue>schema:value,xsd:float,The value of the property value node.,"In CTDL: for single values, use schema:value; for ranges, use schema:minValue and schema:maxValue.",,,https://credreg.net/ctdl/terms/value,Single,3.0
+Phase 1,ceterms:LearningProgram,ceterms:ValueProfile,Credit Unit Min Value,schema:minValue,ceterms:creditValue>schema:minValue,xsd:float,The lower value of some characteristic or property.,"In CTDL: for single values, use schema:value; for ranges, use schema:minValue and schema:maxValue.",,,http://credreg.net/ctdl/terms/creditValue#minValue,Single,2.0
+Phase 1,ceterms:LearningProgram,ceterms:ValueProfile,Credit Unit Max Value,schema:maxValue,ceterms:creditValue>schema:maxValue,xsd:float,The upper value of some characteristic or property.,"In CTDL: for single values, use schema:value; for ranges, use schema:minValue and schema:maxValue.",,,http://credreg.net/ctdl/terms/creditValue#maxValue,Single,6.0
+Phase 1,ceterms:LearningProgram,ceterms:ValueProfile,Credit Unit Type,ceterms:creditUnitType,ceterms:creditValue>ceterms:creditUnitType,skos:Concept,The type of credit associated with the credit awarded or required.,"If the unit type is not listed, use Credit Unit Type Description to describe the units.",This property should point to terms applicable to the Credit Unit Concept Scheme.,"Academic Unit
+Carnegie Unit
+Certificate Credit
+Clock Hour
+Competency Credit
+Contact Hour
+Continuing Education Unit
+Degree Credit
+Dual Credit
+Quarter Hour
+Requirement Credit
+Secondary Diploma Credit
+Semester Hour
+Time Based Credit
+Type Based Credit",https://credreg.net/ctdl/terms/creditUnitType,Single,ContactHour
+Phase 1,ceterms:LearningProgram,,Is Non-Credit,ceterms:isNonCredit,ceterms:isNonCredit,xsd:boolean,Resource carries or confers no official academic credit according to the provider of the resource.,"If the learning opportunity is non-credit, enter the value TRUE. Otherwise, leave blank.",,,http://credreg.net/ctdl/terms/IsNonCredit,Single,True
+Phase 2,ceterms:LearningProgram,,Available At,ceterms:availableAt,"The value is ceterms:Place. Should we attempt to extract properties for Place, or simply extract the verbatim text and handle Place during transformation?",ceterms:Place,"Physical location where the credential, assessment, or learning opportunity can be pursued.",,,,https://credreg.net/ctdl/terms/availableAt,Multiple,https://example.com/availableAt
+Phase 2,ceterms:LearningProgram,,Available Online At,ceterms:availableOnlineAt,ceterms:availableOnlineAt,xsd:anyURI,"Online location where the credential, assessment, or learning opportunity can be pursued.",,Must be a properly formatted URL beginning in https://,,https://credreg.net/ctdl/terms/availableOnlineAt,Multiple,https://example.com/availableOnlineAt
+Phase 2,ceterms:LearningProgram,,Availability Listing,ceterms:availabilityListing,ceterms:availabilityListing,xsd:anyURI,Listing of online and/or physical locations where a resource can be found or pursued.,,Must be a properly formatted URL beginning in https://,,https://credreg.net/ctdl/terms/availabilityListing,Multiple,
+Phase 2,ceterms:LearningProgram,,Audience Level Type,ceterms:audienceLevelType,ceterms:audienceLevelType,ceterms:CredentialAlignmentObject,"Type of level indicating a point in a progression through an educational or training context, for which the resource is intended; select from an existing enumeration of such types.",,This property requires a value from a controlled vocabulary. Select one of the defined values.,"Advanced Level
+Associates Degree Level
+Bachelors Degree Level
+Beginner Level
+Doctoral Degree Level
+Early Childhood
+Graduate Level
+Intermediate Level
+Lower Division Level
+Lower Secondary
+Masters Degree Level
+Post-Secondary Level
+Primary
+Professional Level
+Remedial Level
+Secondary Level
+Undergraduate Level
+Upper Division Level
+Upper Secondary",https://credreg.net/ctdl/terms/audienceLevelType,Multiple,Upper Division Level
+Phase 2,ceterms:LearningProgram,,Date Effective,ceterms:dateEffective,ceterms:dateEffective,xsd:date,Date after which this resource is available or applicable.,"Values should be a full date, i.e. year, month and day; if the day or month are not known use ceterms:approximateDateEffective instead.",Must be a valid date using YYYY/MM/DD or MM/DD/YYYY format. Can also use a hyphen for separator (YYYY-MM-DD).,,https://credreg.net/ctdl/terms/dateEffective,Single,2026-09-01 00:00:00
+Phase 2,ceterms:LearningProgram,,Approximate Date Effective,ceterms:approximateDateEffective,ceterms:approximateDateEffective,schema:Date,Approximate date after which this resource is available or applicable.,"Values may be just a year (e.g. 2026) or a year and a month (e.g. (2026-05). If the full date, i.e. year, month and day, are known use ceterms:dateEffective.",The value should be in ISO 8601 date format; specifically YYYY or YYY-MM.,,https://credreg.net/ctdl/terms/approximateDateEffective,Single,2026.0
+Phase 2,ceterms:LearningProgram,,Delivery Type,ceterms:deliveryType,ceterms:deliveryType,ceterms:CredentialAlignmentObject,Type of means by which a learning opportunity or assessment is delivered to credential seekers and by which they interact; select from an existing enumeration of such types.,,"This property requires a value from a controlled vocabulary. Select from the list of defined values. For multiple, separate with pipes (|).","Asynchronous
+Blended Delivery
+In Person
+Mixed Synchronous
+Online Only
+Synchronous
+Variable Site",http://credreg.net/ctdl/terms/deliveryType,Multiple,Blended Delivery|Synchronous
+Phase 2,ceterms:LearningProgram,,Delivery Type Description,ceterms:deliveryTypeDescription,ceterms:deliveryTypeDescription,rdf:langString,Detailed description of the delivery type of an assessment or learning opportunity.,Use this property if the delivery type described for the course does not match one of the controlled variables in ceterms:deliveryType. The value should be the verbatim text of the delivery type.,,,http://credreg.net/ctdl/terms/deliveryTypeDescription,Single,This program includes a mix of delivery types that are designed to fit different schedules.
+Phase 2,ceterms:LearningProgram,,Learning Method Type,ceterms:learningMethodType,ceterms:learningMethodType,ceterms:CredentialAlignmentObject,Types of methods used to conduct the learning opportunity; select from an existing enumeration of such types.,,This property should point to terms applicable to the Learning Method Concept Scheme via the Credential Alignment Object's ceterms:targetNode property.,"Applied
+Apprenticeship
+Augmented Reality
+Clinical Rotation
+Cocurricular Learning
+Cohort-Based
+Competency Based
+Gaming
+Instructor-Led
+Internship
+Laboratory
+Lecture
+Medical Residency
+Prerecorded
+Self Paced
+Seminar
+Simulation
+Work Based",http://credreg.net/ctdl/terms/learningMethodType,Multiple,Lecture|Laboratory
+Phase 2,ceterms:LearningProgram,,Learning Method Description,ceterms:learningMethodDescription,ceterms:learningMethodDescription,,Description of the methods used to conduct learning.,Use this property if the learning method described for the course does not match one of the controlled variables in ceterms:learningMethodDescription. The value should be the verbatim text of the learning method.,,,http://credreg.net/ctdl/terms/learningMethodDescription,Single,This program includes experiential and project-based learning methods.
+Phase 2,ceterms:LearningProgram,,Content Description,ceterms:contentDescription,ceterms:contentDescription,rdf:langString,"Description of the topics, concepts, theories, and practices addressed by a learning opportunity, program, course or assessment.",,,,https://credreg.net/ctdl/terms/contentDescription,Single,"Topics covered are mechanical waves, sound, electrostatics, current and DC circuits, magnetism, light and optics, and modern physics."
+Phase 2,ceterms:LearningProgram,,Subject,ceterms:subject,ceterms:subject,ceterms:CredentialAlignmentObject,Words or brief phrases describing the topicality of the entity; select subject terms from an existing enumeration of such terms.,,A pipe-separated (|) list of values.,,http://credreg.net/ctdl/terms/subject,Multiple,Algebra|Geometry
+Phase 2,ceterms:LearningProgram,,Entry Condition,ceterms:entryCondition,ceterms:entryCondition,,"Requirements for entry into a credentialing program, a learning opportunity, or an assessment, including credentials, transcripts, records of previous experience, or other forms of entry documentation.","ceterms:entryCondition has a value of Condition Profile and uses the properties associated with Condition Profile.
+
+Use this property for requirements for entry, enrollment, or participation in a Course that are not Prerequisites, Corequisites, Co-Prerequisites, or recommendations.",,,https://credreg.net/ctdl/terms/entryCondition,Multiple,
+Phase 2,ceterms:LearningProgram,ceterms:ConditionProfile,Description,ceterms:description,ceterms:entryCondition>ceterms:description,rdf:langString,"Statement, characterization or account of the entity.",Use this property for the verbatim textual information that is specified in the Entry Condition. ,,,https://credreg.net/ctdl/terms/description,Single,Students who earn a grade point average of 3.0 or higher are eligible to apply.
+Phase 2,ceterms:LearningProgram,ceterms:ConditionProfile,Target Learning Opportunity,ceterms:targetLearningOpportunity,ceterms:entryCondition>ceterms:targetLearningOpportunity,"ceterms:Course 
+ceterms:LearningOpportunity 
+ceterms:LearningOpportunityProfile 
+ceterms:LearningProgram","Learning opportunity that is the focus of a condition, process or another learning opportunity.","Use this property to list the specific course objects that are included in the Entry Condition, using External Identifier(s) as the value(s).",,,https://credreg.net/ctdl/terms/targetLearningOpportunity,Multiple,CHEM14103
+Phase 2,ceterms:LearningProgram,,Estimated Duration,ceterms:estimatedDuration,ceterms:estimatedDuration,ceterms:DurationProfile,"Estimated time it will take to complete an activity, event, or resource.","Use this property to describe time-based values using the subclass ceterms:DurationProfile.
+
+ceterms:DurationProfile is defined as: Entity describing the temporal aspects of a resource. Temporal aspects include exact, minimum, and maximum timeframes of an activity.
+
+A resource may list multiple time-based values, in which case there should be multiple Duration Profiles.",,,http://credreg.net/ctdl/terms/estimatedDuration,Multiple,
+Phase 2,ceterms:LearningProgram,ceterms:DurationProfile,Estimated Duration Description,ceterms:description,ceterms:estimatedDuration>ceterms:description,rdf:langString,"Statement, characterization or account of the entity.",Use this property for the verbatim textual description of the time-based values.,,,http://credreg.net/ctdl/terms/description,Single,"Total Course In-Class (Contact) Hours
+"
+Phase 2,ceterms:LearningProgram,ceterms:DurationProfile,Exact Duration,ceterms:exactDuration,ceterms:estimatedDuration>ceterms:exactDuration,schema:Duration,"Overall span of time it will take to complete the activity, event, or resource.","This is intended to indicate overall time span, regardless of what portion of that time is spent actively pursuing the completion of the activity, event, or resource. ","If a resource takes 50 hours over a span of 6 months to complete, use this to record 6 months as P6M.",,https://credreg.net/ctdl/terms/exactDuration,Single,6 months
+Phase 2,ceterms:LearningProgram,ceterms:DurationProfile,Minimum Duration,ceterms:minimumDuration,ceterms:estimatedDuration>ceterms:minimumDuration,schema:Duration,"Minimum overall span of time it will take to complete the activity, event, or resource.","This is intended to indicate overall time span, regardless of what portion of that time is spent actively pursuing the completion of the activity, event, or resource.","If a resource takes 50 hours over a span of 3-9 months to complete, use this to record 3 months as P3M.",,https://credreg.net/ctdl/terms/minimumDuration,Single,3 months
+Phase 2,ceterms:LearningProgram,ceterms:DurationProfile,Maximum Duration,ceterms:maximumDuration,ceterms:estimatedDuration>ceterms:maximumDuration,schema:Duration,"Maximum overall span of time it will take to complete the activity, event, or resource.","This is intended to indicate overall time span, regardless of what portion of that time is spent actively pursuing the completion of the activity, event, or resource.
+
+Do not use ceterms:maximumDuration to identify the renewal frequency of a credential; use ceterms:renewalFrequency instead.","If a resource takes 50 hours over a span of 3-9 months to complete, use this to record 9 months as P9M. ",,https://credreg.net/ctdl/terms/maximumDuration,Single,9 months
+Phase 2,ceterms:LearningProgram,ceterms:DurationProfile,Time Required,ceterms:timeRequired,ceterms:estimatedDuration>ceterms:timeRequired,schema:Duration,"Total engaged or participating time it will take to complete the activity, event, or resource.","This is intended to indicate only the sum of the individual amounts of time which are spent actively engaged in pursuing the completion of the activity, event, or resource, regardless of the overall time span required to complete it.","If a resource takes 50 hours over a span of 6 months to complete, use this to record 50 hours as PT50H.",,https://credreg.net/ctdl/terms/timeRequired,Single,54.0

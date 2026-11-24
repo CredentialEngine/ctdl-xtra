@@ -199,7 +199,7 @@ def test_open_binary_writer_commits_under_the_prefixed_key(monkeypatch) -> None:
         return clients[key]
 
     service = FakeService()
-    service.container.get_blob_client = get_blob_client
+    monkeypatch.setattr(service.container, "get_blob_client", get_blob_client)
     writer = _writer(monkeypatch, service, prefix_path="catalogs/")
     with writer.open_binary_writer(
         key="/run/pages/a.html", content_type="text/html"
@@ -225,3 +225,56 @@ def test_azurite_roundtrip() -> None:
     key = "example/2026-09-14T18:12:00Z/crawl.json"
     store.put_json(key, {"ok": True})
     assert store.get_json(key) == {"ok": True}
+
+
+class _WriteOnceContainer:
+    """Blobs that remember they exist, like the service does."""
+
+    def __init__(self) -> None:
+        self.blobs: dict[str, bytes | str] = {}
+
+    def create_container(self) -> None:
+        return None
+
+    def get_blob_client(self, key: str):
+        container = self
+
+        class Client:
+            def upload_blob(self, content, overwrite, content_settings) -> None:
+                from azure.core.exceptions import ResourceExistsError
+
+                if not overwrite and key in container.blobs:
+                    raise ResourceExistsError(
+                        "The specified blob already exists."
+                    )
+                container.blobs[key] = content
+
+        return Client()
+
+
+class _WriteOnceService:
+    def __init__(self) -> None:
+        self.container = _WriteOnceContainer()
+
+    def get_container_client(self, container_name: str) -> _WriteOnceContainer:
+        return self.container
+
+
+def test_upload_new_writes_a_blob_once_and_refuses_a_second(
+    monkeypatch,
+) -> None:
+    service = _WriteOnceService()
+    writer = _writer(monkeypatch, service)
+    blob_key = writer.upload_new(
+        key="run/manifest.json",
+        content="first",
+        content_type="application/json",
+    )
+    assert blob_key == "catalogs/run/manifest.json"
+    with pytest.raises(FileExistsError, match="run/manifest.json"):
+        writer.upload_new(
+            key="run/manifest.json",
+            content="second",
+            content_type="application/json",
+        )
+    assert service.container.blobs == {"catalogs/run/manifest.json": "first"}

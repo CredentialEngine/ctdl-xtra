@@ -294,8 +294,10 @@ def score_checks(ctx: Ctx, con) -> list[tuple]:
     if not ids and not outs and not ctx.root.exists(layout.pending_score(ctx.catalog, ctx.crawl)):
         return []
     out = []
-    bad = [o["id"] for o in outs.values() if not ctx.root.exists(f"{o.get('copy')}/extract-report.json")]
-    out.append(("extract output", "FK", "copy → extract-outputs/<id>/extract-report.json", len(bad), len(outs), bad))
+    bad = [o["id"] for o in outs.values()  # extract-report.json, or today's extraction-<property>-report.json files
+           if not any(ctx.root.exists(f"{o.get('copy')}/{n}")
+                      for n in scores.RecordsStore(ctx.root, o.get("copy") or "", ctx.catalog, ctx.crawl).reports())]
+    out.append(("extract output", "FK", "copy → extract-outputs/<id>/ has its extract report", len(bad), len(outs), bad))
     docs, unreadable = [], []
     for sid in ids:
         try:

@@ -317,7 +317,8 @@ def test_only_the_columns_the_output_emits_are_scored(scored, capsys):
     assert rule["xtra"]["values"] == 6 and rule["xtra"]["exact_match_rate"] == 0.5
     # the candidates per column, and the columns xtra's extract writes at all (Evals: "No candidates …")
     assert doc["candidates"] == {"codedNotation": 3}
-    assert "name" in doc["xtra_extracts"] and "estimatedDuration" in doc["xtra_extracts"]
+    # (today's xtra has one extractor per property, and none yet for estimatedDuration)
+    assert "name" in doc["xtra_extracts"] and "estimatedDuration" not in doc["xtra_extracts"]
 
 
 def test_scores_carry_found_right_and_where_its_wrong(scored, capsys):

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import gzip
 
+import httpx2
 import pytest
 
 from implementations.crawl_robots import (
@@ -158,38 +159,39 @@ def test_a_self_referencing_index_cannot_loop() -> None:
     assert calls == ["https://x.edu/sitemap.xml"]
 
 
-class _FakeResponse:
-    def __init__(self, url: str) -> None:
-        self._url = url
-
-    def geturl(self) -> str:
-        return self._url
-
-    def __enter__(self):
-        return self
-
-    def __exit__(self, *exc) -> None:
-        return None
+def answer(monkeypatch, respond) -> None:
+    monkeypatch.setattr(
+        httpx2.HTTPTransport,
+        "handle_request",
+        lambda transport, request: respond(request),
+    )
 
 
 def test_resolve_final_url_reports_where_a_seed_answers(monkeypatch) -> None:
-    monkeypatch.setattr(
-        "urllib.request.urlopen",
-        lambda request, timeout=None: _FakeResponse("https://catalog.new.edu/"),
-    )
+    def moved(request):
+        if request.url.host == "catalog.example.edu":
+            return httpx2.Response(
+                301, headers={"Location": "https://catalog.new.edu/"}
+            )
+        return httpx2.Response(200)
+
+    answer(monkeypatch, moved)
     assert resolve_final_url(SEED) == "https://catalog.new.edu/"
 
 
 def test_resolve_final_url_falls_back_to_the_url_it_was_given(
     monkeypatch,
 ) -> None:
-    """A site that refuses urllib is still crawled from the typed URL."""
+    def refused(request):
+        raise httpx2.ConnectError("connection refused", request=request)
 
-    def boom(request, timeout=None):
-        raise OSError("connection refused")
-
-    monkeypatch.setattr("urllib.request.urlopen", boom)
+    answer(monkeypatch, refused)
     assert resolve_final_url(SEED) == SEED
+
+
+def test_fetch_url_returns_an_error_status_with_its_body(monkeypatch) -> None:
+    answer(monkeypatch, lambda request: httpx2.Response(404, content=b"gone"))
+    assert fetch_url(robots_url(SEED)) == (404, b"gone")
 
 
 @pytest.mark.parametrize(

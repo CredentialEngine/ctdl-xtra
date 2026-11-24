@@ -22,9 +22,9 @@ from implementations.score_extraction_match import (
     similarity,
 )
 
-FOLDER = "avc-elumenapp-com-catalog-2026-27-welcome"
+FOLDER = "avc-elumenapp-com-catalog"
 RUN = "2026-10-12T20:59:13Z"
-STEM = "avc-elumenapp-com-catalog-2026-27-course-acct199-02f732419a"
+STEM = "avc-course-acct199-02f732419a"
 URL = "https://avc.elumenapp.com/catalog/2026-27/course/acct199"
 DESCRIPTION = (
     "Work Experience Education is supervised employment designed to "
@@ -477,6 +477,29 @@ def test_an_exact_run_counts_outcomes_and_the_exact_rate(
     assert report["by_property"]["ceterms:inLanguage"]["missing"] == 1
 
 
+def test_a_page_of_a_thousand_courses_pairs_them_in_page_order(
+    stores: Stores,
+) -> None:
+    """WVU prints 4,850 courses on one page.
+
+    Read as text, --resource-1000 sorts before --resource-101, and every
+    pairing after the hundredth course went to the wrong entity.
+    """
+    names = [f"Course {n}" for n in range(1, 1001)]
+    stores.put_baseline(
+        STEM, [{"fields": [baseline_field("ceterms:name", n)]} for n in names]
+    )
+    for index, name in enumerate(names, start=1):
+        record_id = STEM if index == 1 else f"{STEM}--resource-{index:03d}"
+        stores.put_record(
+            record_of(prop("ceterms:name", name), record_id=record_id)
+        )
+
+    report = stores.match()
+
+    assert report["by_property"]["ceterms:name"]["match"] == 1000
+
+
 def test_implied_fields_are_counted_but_leave_the_totals_alone(
     stores: Stores,
 ) -> None:
@@ -624,6 +647,44 @@ def test_a_page_extract_never_considered_is_not_counted(
     assert report["pages_out_of_scope"] == 1
 
 
+def test_when_the_whole_catalog_was_extracted_a_page_never_written_is_missing(
+    stores: Stores,
+) -> None:
+    """The baseline expected a course there, and extraction wrote none:
+    discovery labelled the page something else, or the course had no
+    code to name it by."""
+    other = "other-page-0000000000"
+    stores.put_baseline(
+        STEM, [{"fields": [baseline_field("ceterms:name", "A")]}]
+    )
+    stores.put_baseline(
+        other, [{"fields": [baseline_field("ceterms:name", "B")]}]
+    )
+    stores.put_record(record_of(prop("ceterms:name", "A")))
+
+    report = match_extraction_run(
+        stores.records,
+        stores.baseline,
+        FOLDER,
+        RUN,
+        MODE_EXACT,
+        whole_catalog=True,
+    )
+
+    assert report["fields_total"] == 2
+    assert report["outcomes"] == {
+        "match": 1,
+        "mismatch": 0,
+        "missing": 1,
+        "unsure": 0,
+    }
+    assert report["pages_not_extracted"] == 1
+    assert report["pages_out_of_scope"] == 0
+    assert report["out_of_scope"] == []
+    (page,) = [p for p in report["pages"] if p["stem"] == other]
+    assert page["status"] == "not_extracted"
+
+
 def test_a_malformed_baseline_file_is_reported_and_skipped(
     stores: Stores,
 ) -> None:
@@ -732,3 +793,103 @@ def test_the_partial_table_names_the_threshold(stores: Stores) -> None:
 
     assert "Extraction match (partial)" in table
     assert "partial at 0.8 similarity" in table
+
+
+def test_one_property_scores_only_that_property(stores: Stores) -> None:
+    stores.put_baseline(STEM, [{"fields": baseline_acct199()}])
+    stores.put_record(
+        record_of(prop("ceterms:name", "Work Experience Education"))
+    )
+
+    report = match_extraction_run(
+        stores.records,
+        stores.baseline,
+        FOLDER,
+        RUN,
+        MODE_EXACT,
+        ctdl_properties=("ceterms:description",),
+    )
+
+    assert report["ctdl_properties"] == ["ceterms:description"]
+    assert report["fields_total"] == 1
+    assert report["outcomes"] == {
+        "match": 0,
+        "mismatch": 0,
+        "missing": 1,
+        "unsure": 0,
+    }
+    assert list(report["by_property"]) == ["ceterms:description"]
+    assert "Extraction match (exact, ceterms:description)" in format_table(
+        report
+    )
+
+
+def test_one_property_keeps_entities_paired_in_page_order(
+    stores: Stores,
+) -> None:
+    """The second entity has no description; the third still pairs with the
+    third record."""
+    stores.put_baseline(
+        STEM,
+        [
+            {"fields": [baseline_field("ceterms:description", "First")]},
+            {"fields": [baseline_field("ceterms:name", "Second")]},
+            {"fields": [baseline_field("ceterms:description", "Third")]},
+        ],
+    )
+    for index, text in enumerate(("First", "Other", "Third"), start=1):
+        record_id = STEM if index == 1 else f"{STEM}--resource-{index:03d}"
+        stores.put_record(
+            record_of(prop("ceterms:description", text), record_id=record_id)
+        )
+
+    report = match_extraction_run(
+        stores.records,
+        stores.baseline,
+        FOLDER,
+        RUN,
+        MODE_EXACT,
+        ctdl_properties=("ceterms:description",),
+    )
+
+    assert report["outcomes"] == {
+        "match": 2,
+        "mismatch": 0,
+        "missing": 0,
+        "unsure": 0,
+    }
+
+
+def test_several_properties_score_only_those_properties(
+    stores: Stores,
+) -> None:
+    stores.put_baseline(STEM, [{"fields": baseline_acct199()}])
+    stores.put_record(
+        record_of(prop("ceterms:name", "Work Experience Education"))
+    )
+
+    report = match_extraction_run(
+        stores.records,
+        stores.baseline,
+        FOLDER,
+        RUN,
+        MODE_EXACT,
+        ctdl_properties=("ceterms:name", "ceterms:description"),
+    )
+
+    assert report["ctdl_properties"] == ["ceterms:name", "ceterms:description"]
+    assert report["fields_total"] == 2
+    assert report["outcomes"] == {
+        "match": 1,
+        "mismatch": 0,
+        "missing": 1,
+        "unsure": 0,
+    }
+    assert sorted(report["by_property"]) == [
+        "ceterms:description",
+        "ceterms:name",
+    ]
+    assert (
+        "Extraction match (exact, ceterms:name, ceterms:description)"
+        in format_table(report)
+    )

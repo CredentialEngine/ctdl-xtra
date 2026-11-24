@@ -3,6 +3,7 @@ from __future__ import annotations
 import urllib.request
 from pathlib import Path
 
+import httpx2
 import pytest
 
 from implementations import crawl_browser
@@ -36,6 +37,11 @@ def no_network(request, monkeypatch) -> None:
         )
 
     monkeypatch.setattr(urllib.request, "urlopen", refuse)
+    monkeypatch.setattr(
+        httpx2.HTTPTransport,
+        "handle_request",
+        lambda transport, request: refuse(str(request.url)),
+    )
     monkeypatch.setattr(
         crawl_browser.PlaywrightFetcher, "__init__", refuse_browser
     )

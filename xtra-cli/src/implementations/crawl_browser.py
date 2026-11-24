@@ -1,9 +1,11 @@
-"""One Playwright browser per worker thread, reused across that thread's pages.
+"""One Playwright browser per worker thread, open only while it fetches.
 
 The sync Playwright API is bound to the thread that created it, so a pool of
-workers cannot share one browser. Each worker starts its own on first use,
-opens a fresh page per URL, and closes everything on its own thread when the
-run ends.
+workers cannot share one browser. Each worker starts its own on first use and
+opens a fresh page per URL. After each URL it keeps the cookies and closes the
+browser, so a worker waiting out its pacing gap holds no browser at all; the
+next URL opens one again with those cookies. --keep-browser-open keeps one
+browser per worker for the whole run instead.
 
 A page is taken when it is ready, not when its load event fires. CurriQunet
 catalogs fetch every word of their content by XHR after load, so the HTML at
@@ -14,6 +16,7 @@ out in the browser rather than saved as if it were the page.
 from __future__ import annotations
 
 import logging
+import random
 import threading
 import time
 from collections.abc import Callable
@@ -21,7 +24,7 @@ from concurrent.futures import ALL_COMPLETED, Future, ThreadPoolExecutor
 from concurrent.futures import wait as wait_for_futures
 from contextlib import suppress
 from dataclasses import dataclass
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from common.polite import WorkerPacer
 from implementations.crawl_challenge import (
@@ -32,12 +35,19 @@ from implementations.crawl_challenge import (
 from implementations.crawl_robots import browser_user_agent
 from implementations.crawl_scope import REASON_NON_HTML
 
+if TYPE_CHECKING:
+    from playwright.sync_api import ViewportSize
+
 logger = logging.getLogger(__name__)
 
 DEFAULT_TIMEOUT_MS = 60000
+# pick between chromium and chrome
+BROWSER_CHROMIUM = "chromium"
+BROWSER_CHROME = "chrome"
+BROWSERS = (BROWSER_CHROMIUM, BROWSER_CHROME)
 BARRIER_TIMEOUT_SECONDS = 30.0
 CLOSE_TIMEOUT_SECONDS = 120.0
-VIEWPORT = {"width": 1400, "height": 1800}
+VIEWPORT: ViewportSize = {"width": 1400, "height": 1800}
 
 # The readiness budget was measured on CurriQunet, CourseLeaf and Acalog.
 # The slowest CurriQunet page went network-idle 7.1 s after its load event.
@@ -97,6 +107,10 @@ NAVIGATING_MARKERS = (
 # goto's error when the page navigated again before load, as a challenge
 # script does when it reloads the page it was served on.
 INTERRUPTED_BY_NAVIGATION = "interrupted by another navigation"
+
+
+class FetcherStartError(RuntimeError):
+    """A worker's browser could not be started, so it can fetch nothing."""
 
 
 class FetchError(RuntimeError):
@@ -212,35 +226,81 @@ def _result(
 
 
 class PlaywrightFetcher:
-    """Playwright, a browser, and one context, all owned by one thread."""
+    """Playwright, a browser, and one context, all owned by one thread.
+
+    They are opened when the worker starts. Unless `keep_open`
+    """
 
     def __init__(
         self,
         *,
         user_agent: str,
         timeout_ms: int = DEFAULT_TIMEOUT_MS,
+        keep_open: bool = False,
+        browser: str = BROWSER_CHROMIUM,
     ) -> None:
-        from playwright.sync_api import Error as PlaywrightError
+        if browser not in BROWSERS:
+            raise ValueError(f"browser is one of {BROWSERS}, not {browser!r}")
+        self._timeout_ms = timeout_ms
+        self._user_agent = user_agent
+        self._keep_open = keep_open
+        self._browser_name = browser
+        self._playwright: Any = None
+        self._browser: Any = None
+        self._context: Any = None
+        self._storage_state: dict[str, Any] | None = None
+        self._open()
+
+    def _open(self) -> None:
+        if self._context is not None:
+            return
         from playwright.sync_api import sync_playwright
 
-        self._timeout_ms = timeout_ms
-        self._playwright = sync_playwright().start()
         try:
-            browser = self._playwright.chromium.launch(
-                headless=True, channel="chrome"
-            )
-        except PlaywrightError:
-            browser = self._playwright.chromium.launch(headless=True)
-        self._browser = browser
-        self._context = browser.new_context(
-            viewport=VIEWPORT,
-            user_agent=user_agent,
-            ignore_https_errors=True,
-            accept_downloads=False,
-        )
-        self._context.add_init_script(script=MUTATION_CLOCK_JS)
+            self._playwright = sync_playwright().start()
+            if self._browser_name == BROWSER_CHROME:
+                browser = self._playwright.chromium.launch(
+                    headless=True, channel="chrome"
+                )
+            else:
+                browser = self._playwright.chromium.launch(headless=True)
+            self._browser = browser
+            options: dict[str, Any] = {
+                "viewport": VIEWPORT,
+                "user_agent": self._user_agent,
+                "ignore_https_errors": True,
+                "accept_downloads": False,
+            }
+            if self._storage_state is not None:
+                options["storage_state"] = self._storage_state
+            self._context = browser.new_context(**options)
+            self._context.add_init_script(script=MUTATION_CLOCK_JS)
+        except Exception as exc:
+            self._shut()
+            raise FetcherStartError(
+                f"the browser could not start: {exc}"
+            ) from exc
+
+    def _release(self) -> None:
+        from playwright.sync_api import Error as PlaywrightError
+
+        if self._context is None:
+            return
+        try:
+            self._storage_state = self._context.storage_state()
+        except PlaywrightError as exc:
+            logger.debug("BROWSER cookies could not be read: %s", exc)
+        self._shut()
 
     def fetch(self, url: str) -> FetchResult:
+        self._open()
+        try:
+            return self._fetch(url)
+        finally:
+            if not self._keep_open:
+                self._release()
+
+    def _fetch(self, url: str) -> FetchResult:
         """Render one URL once it is ready, waiting out any bot challenge.
 
         Every pass opens a fresh page. A pass that meets a challenge keeps
@@ -485,28 +545,38 @@ class PlaywrightFetcher:
             f"{CHALLENGE_WAIT_MS // 1000} s"
         )
 
-    def close(self) -> None:
+    def _shut(self) -> None:
         from playwright.sync_api import Error as PlaywrightError
 
         closers = (
-            self._context.close,
-            self._browser.close,
-            self._playwright.stop,
+            self._context.close if self._context is not None else None,
+            self._browser.close if self._browser is not None else None,
+            self._playwright.stop if self._playwright is not None else None,
         )
+        self._context = self._browser = self._playwright = None
         for shut in closers:
+            if shut is None:
+                continue
             with suppress(PlaywrightError):
                 shut()
+
+    def close(self) -> None:
+        self._shut()
 
 
 def playwright_fetcher_factory(
     *,
     user_agent: str | None = None,
     timeout_ms: int = DEFAULT_TIMEOUT_MS,
+    keep_open: bool = False,
+    browser: str = BROWSER_CHROMIUM,
 ) -> Callable[[], PlaywrightFetcher]:
     def factory() -> PlaywrightFetcher:
         return PlaywrightFetcher(
             user_agent=user_agent or browser_user_agent(),
             timeout_ms=timeout_ms,
+            keep_open=keep_open,
+            browser=browser,
         )
 
     return factory
@@ -534,11 +604,19 @@ class WorkerPool:
         fetcher_factory: Callable[[], Any],
         min_interval: float,
         sleep: Callable[[float], None] = time.sleep,
+        jitter_fraction: float = 0.0,
+        max_interval: float | None = None,
+        uniform: Callable[[float, float], float] = random.uniform,
+        monotonic: Callable[[], float] = time.monotonic,
     ) -> None:
         self.workers = max(1, int(workers))
         self.min_interval = float(min_interval)
+        self.jitter_fraction = float(jitter_fraction)
+        self.max_interval = max_interval
         self._fetcher_factory = fetcher_factory
         self._sleep = sleep
+        self._monotonic = monotonic
+        self._uniform = uniform
         self._local = threading.local()
         self._executor = ThreadPoolExecutor(
             max_workers=self.workers, thread_name_prefix="xtra-fetch"
@@ -550,7 +628,14 @@ class WorkerPool:
         if state is None:
             state = WorkerState(
                 fetcher=self._fetcher_factory(),
-                pacer=WorkerPacer(self.min_interval, sleep=self._sleep),
+                pacer=WorkerPacer(
+                    self.min_interval,
+                    jitter_fraction=self.jitter_fraction,
+                    max_interval=self.max_interval,
+                    sleep=self._sleep,
+                    monotonic=self._monotonic,
+                    uniform=self._uniform,
+                ),
             )
             self._local.state = state
         return state
@@ -559,7 +644,15 @@ class WorkerPool:
         return self._executor.submit(self._run, work, args)
 
     def _run(self, work: Callable[..., Any], args: tuple[Any, ...]) -> Any:
-        return work(self._state(), *args)
+        try:
+            state = self._state()
+        except FetcherStartError:
+            raise
+        except Exception as exc:
+            raise FetcherStartError(
+                f"the browser could not start: {exc}"
+            ) from exc
+        return work(state, *args)
 
     def _close_one(self, barrier: threading.Barrier) -> None:
         state = getattr(self._local, "state", None)
