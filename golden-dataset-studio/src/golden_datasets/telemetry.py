@@ -17,8 +17,12 @@ Following Honeycomb's advice (wide events, few spans), the useful numbers go on 
 - `span(name, {...})` makes a sub-span for work that takes real time: a cold extraction load, a publication, a
   score (scores and catalog adds run in threads after the request: they start a trace of their own, linked to it).
 
-Everything that says where the Studio runs (`service.namespace`, `deployment.*`, `vcs.*`, `cicd.*`, `k8s.*`) comes
-from outside the code: `OTEL_RESOURCE_ATTRIBUTES` set at build or deploy time, and the collector's processors.
+Everything that says where the Studio runs, and which change put it there, comes from outside the code:
+`OTEL_RESOURCE_ATTRIBUTES` set at build or deploy time, and the collector's processors. The build adds the commit
+(`vcs.ref.head.*`, `ce.vcs.commit.*`), its pull request if it has one (`vcs.change.*`, `ce.vcs.change.*`) and the
+pipeline (`cicd.*`, `ce.cicd.*`); the deployment adds `deployment.*`, who deployed (`ce.deploy.*`) and, from the
+Kubernetes downward API, the pod (`k8s.pod.*`, `k8s.node.name`, `k8s.namespace.name`, `host.name`). Values are
+percent-encoded there (a pull request's title may hold `,` or `=`); the SDK decodes them.
 
 `browser_config()` is what the web app needs to send its own spans: None when the server has no
 `GOLDEN_DATASETS_OTEL_BROWSER_ENDPOINT`. `browser_page()` puts it in the app's index.html as an inline JSON script, so the
@@ -57,6 +61,11 @@ QUERY_PARAMS = {"ext": "ce.extraction.id", "rule": "ce.rule.id", "offset": "ce.q
 POLL_ROUTES = ("/agent-runs/current", "/agent-runs/queue")
 #: Not traced: health checks and the built web app's files (regexes, searched in the full URL)
 EXCLUDED_URLS = r"/api/health$,//[^/]+/(assets|logos)/,//[^/]+/[^/]+\.(ico|svg|png|js|css|txt)$"
+#: Resource attributes the web app's spans repeat (prefixes): the build (vcs.*, including the pull request's
+#: vcs.change.*; cicd.*), the change and who made and shipped it (ce.vcs.*, ce.cicd.*, ce.deploy.*), the deployment and
+#: the pod that served the page (k8s.*, host.name). Not process.* or telemetry.*: those describe this Python process.
+BROWSER_RESOURCE_KEYS = ("service.version", "service.namespace", "deployment.", "vcs.", "cicd.", "k8s.", "host.",
+                         "ce.vcs.", "ce.cicd.", "ce.deploy.")
 MAX_VALUE = 256  # characters kept of a string attribute that comes from a request
 
 _enabled = False
@@ -90,7 +99,6 @@ def init(exporter=None) -> bool:
         return False
     try:
         from opentelemetry import trace
-        from opentelemetry.sdk.resources import OTELResourceDetector, Resource
         from opentelemetry.sdk.trace import TracerProvider
         from opentelemetry.sdk.trace.export import BatchSpanProcessor, SimpleSpanProcessor
     except ImportError:
@@ -100,13 +108,7 @@ def init(exporter=None) -> bool:
     from . import __version__
 
     os.environ.setdefault("OTEL_SEMCONV_STABILITY_OPT_IN", "http")  # http.request.method, url.path... (stable names)
-    # the code's defaults first, then OTEL_SERVICE_NAME / OTEL_RESOURCE_ATTRIBUTES, which win
-    resource = Resource.create({
-        "service.name": SERVICE_NAME, "service.version": __version__,
-        "process.runtime.name": sys.implementation.name, "process.runtime.version": sys.version.split()[0],
-        "process.pid": os.getpid(),
-    }).merge(OTELResourceDetector().detect())
-    provider = TracerProvider(resource=resource)  # sampler: OTEL_TRACES_SAMPLER, default parent-based always-on
+    provider = TracerProvider(resource=resource())  # sampler: OTEL_TRACES_SAMPLER, default parent-based always-on
     if exporter is None:
         from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
 
@@ -117,6 +119,20 @@ def init(exporter=None) -> bool:
     _tracer = trace.get_tracer("golden_datasets", __version__)
     _enabled = True
     return True
+
+
+def resource():
+    """This process's OpenTelemetry Resource: the code's defaults first, then OTEL_SERVICE_NAME and
+    OTEL_RESOURCE_ATTRIBUTES (percent-decoded by the SDK), which win. Needs the otel extra."""
+    from opentelemetry.sdk.resources import OTELResourceDetector, Resource
+
+    from . import __version__
+
+    return Resource.create({
+        "service.name": SERVICE_NAME, "service.version": __version__,
+        "process.runtime.name": sys.implementation.name, "process.runtime.version": sys.version.split()[0],
+        "process.pid": os.getpid(),
+    }).merge(OTELResourceDetector().detect())
 
 
 def install(app, exporter=None) -> bool:
@@ -135,13 +151,14 @@ def install(app, exporter=None) -> bool:
 
 def browser_config() -> dict | None:
     """What the web app needs to send spans, or None: no endpoint, no telemetry in the browser.
-    `resource` is this server's deployment identity, so browser spans say which build served them."""
+    `resource` is this server's deployment identity, so browser spans say which build, change, deployment and pod
+    served them (the collector can't tell a browser span's pod: it comes through the Ingress)."""
     endpoint = os.environ.get(ENV_BROWSER_ENDPOINT)
     if not (_enabled and endpoint):
         return None
     from opentelemetry import trace
 
-    keep = ("service.version", "service.namespace", "deployment.", "vcs.", "cicd.")
+    keep = BROWSER_RESOURCE_KEYS
     attrs = getattr(trace.get_tracer_provider(), "resource", None)
     resource = {k: v for k, v in (attrs.attributes.items() if attrs else ()) if k.startswith(keep)}
     try:
