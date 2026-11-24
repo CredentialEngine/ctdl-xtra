@@ -123,3 +123,20 @@ def test_a_rule_falls_back_when_it_finds_nothing():
     got = run("<h1>Geography Minor</h1><p>Twelve hours.</p>")
     assert (got["status"], got["value"]) == ("found", "program-geography-minor")
     assert run("<p>nothing</p>")["status"] in ("empty", "no_match")
+
+
+def test_a_fallback_can_read_the_whole_page():
+    """WVU prints a program's heading above the content root: the generated identifier reads it from the page, and
+    the code still comes from the record."""
+    ident = {"locator": "loc", "rule_type": "css+regex", "selector": "p", "join": "\n", "regex": r"Code:\s*(\w+)",
+             "fallback": {"rule_type": "css", "selector": "h1", "input": {"from": "page"},
+                          "transforms": ["collapse_ws", "generated_id:program"]}}
+
+    def run(html):
+        doc = engine.parse(f"<html><body><header><h1>Mining Engineering, Ph.D.</h1></header><main>{html}</main></body></html>")
+        main = engine.select_one(doc, "main", True)
+        return engine.run_property(ident, main, "https://x/p", lambda el: "html > body > main", "html > body > main")[0]
+
+    assert run("<p>Major Code: 5542</p>")["value"] == "5542"
+    got = run("<p>Thirty hours.</p>")
+    assert (got["status"], got["value"]) == ("found", "program-mining-engineering-ph.d.")

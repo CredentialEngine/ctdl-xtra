@@ -434,7 +434,9 @@ def run_property(definition: dict, el, url: str, paths: Paths, occ_path: str,
         if any(r["status"] == "found" for r in res):
             return res
         alt = {"locator": definition.get("locator"), **definition["fallback"]}
-        got = run_property(alt, el, url, paths, occ_path, parent_out)
+        # a fallback that reads the whole page (a heading above the content root) reads it from the document
+        at = el.getroottree().getroot() if input_of(alt)["from"] == "page" and el is not None else el
+        got = run_property(alt, at, url, paths, occ_path, parent_out)
         return got if any(r["status"] == "found" for r in got) else res
     if definition.get("profile") or definition.get("absent_if"):
         from . import absent, profiles_rule

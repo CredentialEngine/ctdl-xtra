@@ -507,3 +507,47 @@ Add one line per phase as it lands: the phase, the commit, the checks run, and a
       illustrative; Seth's text is not.
     - The score tables in w4-property-review and w4-scores-by-property-status use Phase 5's illustrative history.
   - **Checks:** `uv run pytest` 260 passed; `ruff` clean; web typecheck clean, 303 passed, build OK.
+- **Phase 7** (the first LearningProgram rules, WVU and AVC), on `root-migrated` with the Studio's own tools:
+  `rule try` for each draft, then `rule publish --class learningprogram`, then `properties apply` (27 properties with
+  no rule yet). WVU is at ruleset v3 (rs-0003) and AVC at v2 (rs-0002). The published definitions are in
+  `rules-phase7/{wvu,avc}.json`, exported with `rule draft`.
+  - **Rules:**
+    - **Program pages:** WVU pages with a `table.sc_courselist` (degrees, minors, certificates), except five unit
+      landing pages, named in the rule. AVC pages at `/program/<name>` with Program Requirements.
+    - **Locator:** one program per page.
+    - **Name:** the `h1`. On WVU it is above the content root, so the rule reads the whole page.
+    - **Description:** WVU takes the paragraph under "Nature of the Program", else the Overview's first paragraph.
+      AVC takes the whole `div.introtext`.
+  - **External Identifier:**
+    - **Printed codes:** the first Major, Minor or Certificate Code the page prints (ask 1).
+    - **Shared codes:** five codes are printed by two different programs: 1160, 3075, 3076, 3712 and 8948. The rule
+      skips them, so those programs get `program-<name>` (ask 2). The list lives in WVU's rule, not in the engine.
+    - **Prefix and fallback:** otherwise `program-<normalized name>` (ask 3).
+    - **AVC** prints no codes.
+  - **Fill rates:**
+
+    | Catalog | Program pages | Records | External Identifier | Name | Description |
+    |---|---|---|---|---|---|
+    | WVU | 722 | 593 | 100% (508 printed, 214 generated) | 100% | 73.7% (532) |
+    | AVC | 197 | 197 | 100% (all generated, none repeated) | 100% | 100% |
+
+  - **WVU records with two pages:** 129.
+    - 110 are pages crawled twice (the same address, or `…/index.html`).
+    - The rest are the same degree on two campuses with no printed code (for example Mechanical Engineering,
+      B.S.M.E. at Morgantown and WVU Tech). These merge, as Nursing's printed code 8649 already does.
+  - **WVU pages with no description (190):** mostly minors and certificates that print only a code and a course
+    list.
+  - **Code changes:**
+    - `engine`: a `fallback` that reads the page (`input: page`) reads it from the document.
+    - `check`: such a fallback may give a document-root `css_path`.
+    - The identifier card quotes the smallest element that prints the code ("Minor Code - U120"), not the whole tab.
+    - Tests are in `test_engine` and `test_learning_programs`.
+  - **Screens** (`screens/impl`, against `m3-rules-learningprogram`, `w2-rules-id-card` and `w2-rules-id-generated`):
+    - `m3-rules-learningprogram-wvu`, `-wvu-identifier` and `-avc`;
+    - `w2-rules-id-card-wvu` and `w2-rules-id-generated-avc`.
+  - **Checks:** `uv run pytest` 261 passed; `ruff` clean; `golden-datasets check --class learningprogram` reports
+    0 failed for WVU and AVC.
+  - **Left over:**
+    - A few WVU pages hold two degrees ("Computer Science, M.S.C.S., Ph.D."), or a department heading names a degree
+      page ("Department of Mining Engineering"). One record per tab could split the first kind later.
+    - No golden values have been labelled yet.

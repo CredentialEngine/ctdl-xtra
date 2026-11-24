@@ -113,7 +113,8 @@ SQL_CHECKS: list[tuple[str, str, str, str, str]] = [
     ("matches", "CHK", "css_path is relative to the occurrence (unless the rule reads the page); offsets within bounds",
      """SELECT m.* FROM raw_matches m JOIN rule_versions rv ON rv.rule_id = m.rule_id AND rv.version = m.rule_version
         WHERE (starts_with(m.css_path, 'html') AND json_extract_string(rv.definition, '$.input.from')
-        IS DISTINCT FROM 'page') OR m.char_start > m.char_end OR m.char_start < 0""",
+        IS DISTINCT FROM 'page' AND json_extract_string(rv.definition, '$.fallback.input.from') IS DISTINCT FROM 'page')
+        OR m.char_start > m.char_end OR m.char_start < 0""",
      "raw_matches"),
     ("signals", "PK", "(extraction, target, signal, location) unique",
      pk("signals", "extraction, target_kind, rule_id, occurrence_key, value_index, page_stem, signal, css_path, char_start"),

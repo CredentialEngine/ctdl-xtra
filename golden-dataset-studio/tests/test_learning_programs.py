@@ -116,7 +116,7 @@ def test_the_record_key_says_where_it_came_from(lp):
     k = c.get(f"/api/catalogs/{programs.WVU}/key-source", params={**LP, "occ": occ}).json()
     assert (k["identifier"], k["rule_id"], k["generated"]) == ("2166", "learningprogram-external-id", False)
     assert k["from_code"] is False  # read by the External Identifier rule, not a Coded Notation one
-    assert "Major Code: 2166" in k["text"]
+    assert k["text"] == "In-Person Major Code: 2166"  # the smallest element that prints it, not the whole tab
     assert (k["page_rule"], k["url_pattern"]) == ("Program pages", "/(undergraduate|graduate)/")
     rows = c.get(f"/api/catalogs/{programs.AVC}/rules/learningprogram-name/rows", params=LP).json()["rows"]
     assert [r["key_generated"] for r in rows] == [True]

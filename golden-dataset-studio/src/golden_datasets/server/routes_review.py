@@ -574,9 +574,10 @@ def key_source(request: Request, catalog: str, occ: str, ext: str | None = None)
             doc = engine.parse(snap.ctx.page_path(o["page_stem"]).read_bytes())
             el = engine.select_one(doc, m["full_css_path"], True)
             d = (rule or {}).get("definition") or {}
-            if d.get("regex") and d.get("selector"):  # a joined read: the element whose own text has the match
-                el = next((x for x in engine.select(doc, d["selector"])
-                           if re.search(d["regex"], " ".join(x.text_content().split()))), el)
+            if d.get("regex") and d.get("selector"):  # a joined read: the smallest element whose text has the match
+                hits = [x for top in engine.select(doc, d["selector"]) for x in top.iter()
+                        if isinstance(x.tag, str) and re.search(d["regex"], " ".join(x.text_content().split()))]
+                el = min(hits, key=lambda x: len(x.text_content())) if hits else el
             text = " ".join(el.text_content().split())[:160] if el is not None else None
         except (OSError, ValueError, re.error):
             text = None
