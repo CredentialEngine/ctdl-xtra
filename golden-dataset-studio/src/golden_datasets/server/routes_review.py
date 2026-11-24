@@ -16,7 +16,7 @@ from typing import Annotated
 from fastapi import APIRouter, Body, HTTPException, Query, Request
 
 from .. import classes, facets, golden, layout, manifest, model, profiles_rule, properties
-from ..catalogs import CATALOGS, info
+from ..catalogs import CATALOGS, KNOWN, info
 from ..errors import UserError
 from ..log import FULL_NAMES, new_id, validate
 from ..profiles import role_of, roles
@@ -149,10 +149,10 @@ def catalogs(request: Request) -> list[dict]:
     doc = st.ctx(next(iter(CATALOGS))).manifest()
     entries = {c["catalog"]: c for c in doc["catalogs"]}
     out = []
-    shown = lambda f: (info(f)["name"] if f in CATALOGS else (entries[f].get("name") or f)).lower()  # noqa: E731
+    shown = lambda f: (info(f)["name"] if f in CATALOGS or f in KNOWN else (entries[f].get("name") or f)).lower()  # noqa: E731
     for folder in sorted(set(CATALOGS) | set(entries), key=shown):
         meta, e = info(folder), entries.get(folder)
-        if folder not in CATALOGS and e:  # added from the picker: named from its crawl (crawls.display_name)
+        if folder not in CATALOGS and folder not in KNOWN and e:  # added from the picker: named from its crawl
             meta = {**meta, "name": e.get("name") or folder, "institution": e.get("name") or folder}
         item = {"catalog": folder, "short": meta["short"], "name": meta["name"], "institution": meta["institution"],
                 "platform": meta["platform"], "logo": f"/logos/{meta['logo']}" if meta.get("logo") else None,

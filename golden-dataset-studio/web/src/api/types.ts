@@ -498,3 +498,36 @@ export interface ScoreHistory {
   history: Record<string, Record<string, ScoreLine[]>>;
 }
 
+/** Findings, property status and discussion (learning-programs Phase 6). */
+export type PropertyStatusName = "needs review" | "done";
+export interface PropertyStatus {
+  status: PropertyStatusName; by: string; role: string | null; at: string;
+  history: { status: PropertyStatusName; by: string; role: string | null; at: string }[];
+}
+export type FindingOutcome = "partial" | "wrong" | "missing";
+/** a Where-it's-wrong group a finding covers (catalog: its short name) */
+export interface FindingLink { catalog: string; outcome: string; field: string | null; by: string; key: string; group_by: string }
+export interface Finding {
+  id: string; code: string; title: string; kind: "mismatch" | "missing";
+  whose: "silver" | "extractor" | "baseline" | "normalization" | null;
+  cause?: string | null; fix?: string | null; assessment?: string | null; state: "open" | "fixed";
+  links: FindingLink[];
+  /** the running notes' counts (golden, silver), until the finding is linked to groups */
+  counts?: Partial<Record<FindingOutcome, [number, number] | null>> | null; catalogs?: string | null; source?: string;
+  at: string; author: string; created: { at: string; by: string };
+}
+export interface FindingX extends Finding {
+  /** its linked groups' units in each catalog's latest score */
+  live: { counts: Record<FindingOutcome, [number, number] | null>;
+          rows: { catalog: string; outcome: string; by: string; key: string; golden: number; silver: number }[] } | null;
+  comments: number;
+}
+export interface PropertyReview {
+  cls: ClassSlug; column: string; status: PropertyStatus | null; findings: FindingX[];
+  /** thread key ("finding:<id>", "group:<catalog>|<outcome>|<field>|<by>|<key>") → its comments */
+  threads: Record<string, number>;
+}
+export type ThreadTarget = { kind: "finding"; id: string }
+  | { kind: "group"; catalog: string; outcome: string; field?: string | null; by: string; key: string };
+export interface ThreadComment { annotation_id: string; type: "comment"; at: string; author: string; note: string; target: ThreadTarget }
+

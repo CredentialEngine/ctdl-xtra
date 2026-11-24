@@ -457,3 +457,53 @@ Add one line per phase as it lands: the phase, the commit, the checks run, and a
   - **Checks:** `uv run pytest` 254 passed; `ruff` clean; web typecheck clean, 301 passed, build OK.
   - **Left over:** which catalogs are "Not a LearningProgram source" isn't known yet. Set `not_sources:
     ["learningprogram"]` on those catalogs' manifest entries.
+- **Phase 6** (findings, property status, discussion), with four fixes to Phase 5.
+  - **Storage:** Studio data, per class and property, across catalogs (`findings.py`):
+    - `properties/<class>/<property>/findings.jsonl`: append-only, each save is the whole finding, latest wins, and
+      the first save says who opened it;
+    - `status.json`: Needs review or Done, who set it and when, with the earlier ones kept;
+    - `threads.jsonl`: comments on a finding or on a Where-it's-wrong group, in the annotations' comment event
+      shape. A comment on one unit stays in the catalog's annotations, as Evals already did.
+  - **Who can do what:** anyone sets Needs review; only the SME role sets Done (403 otherwise). A finding never
+    closes by itself: at 0 units it says so, and a person sets it fixed.
+  - **Live units:** a finding links Where-it's-wrong groups (catalog, outcome, field, grouping and key). Their
+    units are counted, golden and silver, in each catalog's latest score: the latest output's, else the newest
+    finished score on that basis.
+  - **API:**
+    - `GET /api/properties/{class}/{property}/review`;
+    - `POST …/status`;
+    - `POST …/findings`, `PUT …/findings/{id}`;
+    - `GET|POST …/threads`;
+    - `GET /api/property-status?class=`.
+  - **CLI:** `golden-datasets findings list|seed --class`.
+  - **Seed:** `seed` imports Seth's Course description codes from the running notes' Extraction Report
+    (2026-11-18): D1–D9 (with D1b, which the table lists) and M1–M4. The text is verbatim, with the notes' counts,
+    catalogs and whose error (`data/running_notes_description.json`). A second run adds nothing.
+  - **Evals** (w4-evals-findings, w4-evals-finding-panel):
+    - With a property picked, *Where it's wrong* has a Finding column: the group's finding, or *+ Add finding* (a
+      new one, or add the group to an existing finding), and *Discuss* with its comment count.
+    - The finding editor is a drawer on the right: code and title, whose error, the units it covers per catalog
+      (live), cause, fix and assessment (shown as written, click to edit), state, and its thread.
+  - **Review page** (w4-property-review): the one-property scope has the status control at the top (Done only for
+    the SME role), and below the scores the findings table: code, kind, partial, wrong and missing as golden /
+    silver, catalogs, whose error, state and comments. Each row opens the editor. Choosing one property narrows
+    Classes to its class.
+  - **Rows by property** (w4-scores-by-property-status): each property shows *Needs review* or *✓ Done*.
+  - **Fixes to Phase 5:**
+    - The All row's exact is red below 90%.
+    - A class with one catalog reads "1 catalog, over its scored properties".
+    - UARK is known by its short name: `catalogs.KNOWN` gives `uark`/"UARK" and `not_sources: ["learningprogram"]`,
+      so the golden view says "Not a LearningProgram source" with no hand edits. The address takes `uark` too.
+  - **Tests:**
+    - `tests/test_findings.py`: role rules, findings saved whole and marked fixed, live units from the score,
+      threads, the verbatim seed, UARK.
+    - Web:
+      - Evals: the Finding column, the editor, adding a group to a finding;
+      - score views: status tags, the status bar and its role rule, the findings table, a new finding.
+  - **Screens:**
+    - Taken on the scratch root, with the seed imported and statuses set as in the running notes (description, name
+      and identifier: Needs review; codedNotation: Done).
+    - D8 and D3 are linked to real AVC groups, and the four comments are demo text. These links and comments are
+      illustrative; Seth's text is not.
+    - The score tables in w4-property-review and w4-scores-by-property-status use Phase 5's illustrative history.
+  - **Checks:** `uv run pytest` 260 passed; `ruff` clean; web typecheck clean, 303 passed, build OK.

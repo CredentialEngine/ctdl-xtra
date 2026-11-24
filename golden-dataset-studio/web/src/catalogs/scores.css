@@ -42,14 +42,14 @@
 .sv-table th.sv-n, .sv-table td.sv-n { text-align: right; font-variant-numeric: tabular-nums; }
 .sv-table tbody { border-bottom: 1px solid var(--line); }
 .sv-table td { padding: 7px 8px; vertical-align: middle; }
-.sv-table td.sv-hd { width: 1%; min-width: 150px; padding-left: 12px; vertical-align: top; padding-top: 12px; }
+.sv-table td.sv-hd { width: 1%; min-width: 150px; max-width: 300px; padding-left: 12px; vertical-align: top; padding-top: 12px; }
 .sv-table td.sv-hd a { color: inherit; text-decoration: none; }
 .sv-table td.sv-hd a:hover b, .sv-table td.sv-hd a:hover .mono { text-decoration: underline; }
 .sv-table td.sv-tr { width: 1%; color: var(--muted); padding-right: 14px; }
 .sv-table tbody.strong td.sv-tr, .sv-table tbody.strong td.sv-n { font-weight: 600; color: var(--ink); }
 .sv-table td.sv-b { width: 44%; min-width: 260px; }
 .sv-table.nums td.sv-n { min-width: 64px; }
-.sv-table td.sv-ex.under { color: #b42318; }
+.sv-table td.sv-ex.under, .sv-table tbody.strong td.sv-ex.under { color: #b42318; }
 .sv-table td.sv-hs { width: 1%; }
 .sv-table td.sv-ev { width: 1%; white-space: nowrap; }
 .sv-table td.sv-sw { font-size: 12.5px; line-height: 1.6; white-space: nowrap; vertical-align: top; padding-top: 12px; }

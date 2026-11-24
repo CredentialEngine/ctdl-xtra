@@ -6,11 +6,12 @@
 // outcome), and its last 7 scores. A row opens the next scope down; one catalog and one property is that property's
 // scores over time, with a link to the catalog's Evals tab at it. Read-only: scores come from xtra-cli's container
 // (`GET /api/score-history`), never from here.
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { Fragment, useEffect, useMemo, useState, type ReactNode } from "react";
 import { api } from "../api/client";
 import type { CatalogCard, ScoreHistory, ScoreLine } from "../api/types";
 import { CLASS_NAME, href, type ClassSlug } from "../shell/router";
 import { fmt } from "../shell/ui";
+import { FindingsTable, StatusBar, useReview } from "../findings/Review";
 import { goHome, homeHref, type HomeState } from "./homeState";
 import { CatalogsMenu, ClassesMenu, PropertiesMenu, type ClassInfo } from "./menus";
 import {
@@ -170,6 +171,13 @@ export function ScoreViews({ cats, state }: { cats: CatalogCard[]; state: HomeSt
     return () => { live = false; };
   }, [state.classes.join(",")]);  // eslint-disable-line react-hooks/exhaustive-deps
 
+  // each property's status (Needs review / Done), shown beside it in rows by property (learning-programs Phase 6)
+  const [stat, setStat] = useState<Partial<Record<ClassSlug, Record<string, { status: string }>>>>({});
+  useEffect(() => {
+    let live = true;
+    for (const cls of state.classes) api.propertyStatuses(cls).then((x) => live && setStat((s) => ({ ...s, [cls]: x })), () => {});
+    return () => { live = false; };
+  }, [state.classes.join(",")]);  // eslint-disable-line react-hooks/exhaustive-deps
   const byFolder = useMemo(() => new Map(cats.map((c) => [c.catalog, c])), [cats]);
   const catalogs = cats.filter((c) => Object.values(hist).some((h) => h?.catalogs.includes(c.catalog)));
   const pickedCat = state.catalog ? cats.find((c) => c.short === state.catalog) ?? null : null;
@@ -178,6 +186,8 @@ export function ScoreViews({ cats, state }: { cats: CatalogCard[]; state: HomeSt
   const tickedAll = options.filter((o) => on(o.cls, o.column));
   const oneProp = tickedAll.length === 1 ? tickedAll[0] : null;
   const scope = scopeOf(!!pickedCat, !!oneProp);
+  // one property: its review (status, findings), the running notes' section made from data
+  const { review, reload, catalogName } = useReview(oneProp?.cls ?? "course", oneProp?.column ?? null);
   const set = (x: Partial<HomeState>) => goHome({ ...state, ...x });
   const info = Object.fromEntries(Object.entries(hist).map(([k, h]) =>
     [k, { slug: k, properties: h!.properties.length, catalogs: h!.catalogs.length } as ClassInfo]));
@@ -186,7 +196,7 @@ export function ScoreViews({ cats, state }: { cats: CatalogCard[]; state: HomeSt
     <div className="hm-tools">
       <CatalogsMenu picked={pickedCat?.short ?? null} catalogs={catalogs.map((c) => ({ short: c.short, name: c.name }))}
         onChange={(c) => set({ catalog: c })} />
-      <ClassesMenu picked={state.classes} info={info} onChange={(c) => set({ classes: c, props: null })}
+      <ClassesMenu picked={oneProp ? [oneProp.cls] : state.classes} info={info} onChange={(c) => set({ classes: c, props: null })}
         note="A table for each ticked class, one above the next" />
       <PropertiesMenu classes={state.classes} options={options} picked={state.props} onChange={(p) => set({ props: p })} />
       {scope === "all" && <span className="hm-rows">Rows
@@ -223,24 +233,31 @@ export function ScoreViews({ cats, state }: { cats: CatalogCard[]; state: HomeSt
       const c = byFolder.get(folder);
       return <span className="sv-cat">{c?.logo ? <img src={c.logo} alt="" /> : <i />}<b>{c?.name ?? folder}</b></span>;
     };
-    const propHead = (p: ScoreHistory["properties"][number]) =>
-      <span className="sv-prop"><span className="mono">{termOf(p)}</span><span className="faint mono">{TIER_WORD[p.tier]}</span></span>;
+    const propHead = (p: ScoreHistory["properties"][number]) => {
+      const st = stat[cls]?.[p.column]?.status;
+      return <span className="sv-prop"><span><span className="mono">{termOf(p)}</span>
+        {st && <span className={`sv-status ${st === "done" ? "done" : "review"}`} data-testid="property-status-tag">{st === "done" ? "✓ Done" : "Needs review"}</span>}</span>
+        <span className="faint mono">{TIER_WORD[p.tier]}</span></span>;
+    };
     const shortOf = (folder: string) => byFolder.get(folder)?.short ?? folder;
     if (scope === "one" && pickedCat && oneProp) {
       const p = h.properties.find((x) => x.column === oneProp.column)!;
-      return <OneProperty key={cls} h={h} cls={cls} cat={pickedCat} name={termOf(p)} col={p.column} short={pickedCat.short} />;
+      return <Fragment key={cls}><OneProperty h={h} cls={cls} cat={pickedCat} name={termOf(p)} col={p.column} short={pickedCat.short} />
+        <FindingsTable cls={cls} col={p.column} review={review} reload={reload} catalogName={catalogName} /></Fragment>;
     }
     let rows: Row[], first: string, sub: string, unscored: string;
     if (scope === "catalog" || (scope === "all" && state.rows === "properties")) {
       const one = scope === "catalog";
       rows = props.map((p) => ({
         key: p.column, head: propHead(p), pairs: inCats.map((c) => [c, p.column] as Pair),
-        open: homeHref({ ...state, props: new Set([`${cls}:${p.column}`]) }),
+        open: homeHref({ ...state, classes: [cls], props: new Set([`${cls}:${p.column}`]) }),  // one property: its class
         evals: one ? href(shortOf(inCats[0]), "evals", null, { col: p.column }, cls) : undefined,
       }));
       first = "Property";
-      sub = one ? `${byFolder.get(inCats[0])?.name}, ${props.length} properties. A property opens its history.`
-        : `${props.length} properties, each over every catalog. A property opens it in each catalog.`;
+      const nP = `${props.length} propert${props.length === 1 ? "y" : "ies"}`;
+      sub = one ? `${byFolder.get(inCats[0])?.name}, ${nP}. A property opens its history.`
+        : inCats.length === 1 ? `${nP} in ${byFolder.get(inCats[0])?.name ?? inCats[0]}. A property opens it there.`
+          : `${nP}, each over every catalog. A property opens it in each catalog.`;
       unscored = "properties";
     } else {
       const cols = props.map((p) => p.column);
@@ -251,7 +268,8 @@ export function ScoreViews({ cats, state }: { cats: CatalogCard[]; state: HomeSt
       if (rows.length > 1) rows.push({ key: "all", head: <b>All</b>, pairs: inCats.flatMap((c) => cols.map((col) => [c, col] as Pair)), strong: true });
       first = "Catalog";
       sub = oneProp ? `${oneProp.name} in ${inCats.length} catalog${inCats.length === 1 ? "" : "s"}. A catalog opens its history.`
-        : `${inCats.length} catalog${inCats.length === 1 ? "" : "s"}, each over its scored properties. A catalog opens its properties.`;
+        : inCats.length === 1 ? `1 catalog, over its scored properties. The catalog opens its properties.`
+          : `${inCats.length} catalogs, each over its scored properties. A catalog opens its properties.`;
       unscored = "catalogs";
     }
     const shown = rows.filter((r) => scored(r.pairs));
@@ -262,6 +280,7 @@ export function ScoreViews({ cats, state }: { cats: CatalogCard[]; state: HomeSt
         {shown.length ? <Table h={h} rows={shown} first={first} numbers={state.numbers} evals={scope === "catalog"} />
           : <p className="muted sv-empty">Not scored yet. A score is made when the golden dataset or xtra's extract output changes.</p>}
         {shown.length > 0 && left > 0 && <p className="faint sv-left">{left} {left === 1 ? unscored.replace(/ies$/, "y").replace(/s$/, "") : unscored} not scored yet.</p>}
+        {scope === "property" && oneProp && <FindingsTable cls={cls} col={oneProp.column} review={review} reload={reload} catalogName={catalogName} />}
       </section>
     );
   });
@@ -270,6 +289,7 @@ export function ScoreViews({ cats, state }: { cats: CatalogCard[]; state: HomeSt
       {toolbar}
       {legend}
       {error && <p className="muted">{error}</p>}
+      {oneProp && <StatusBar cls={oneProp.cls} col={oneProp.column} review={review} reload={reload} />}
       {sections}
     </div>
   );

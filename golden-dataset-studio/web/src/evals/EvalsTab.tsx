@@ -17,12 +17,15 @@ import { Fragment, useCallback, useEffect, useRef, useState, type ReactNode } fr
 import { createPortal } from "react-dom";
 import { api } from "../api/client";
 import type { CatalogsSummary, ColumnSummary, ExtractOutputs, GoldenChoice, MatchRow, OutcomeCounts, ScoreBasis, ScoreBrief, ScoreDoc,
-  ScoreOutcome, ScoreRow, ScoreValues, WrongGroups, WrongKey } from "../api/types";
+  FindingLink, FindingX, PropertyReview, ScoreOutcome, ScoreRow, ScoreValues, ThreadTarget, WrongGroups, WrongKey } from "../api/types";
 import type { CapturedSelection } from "../pagepane";
 import { addCapture, BY_ANYONE, newDraft, verdictEvent, type Draft } from "../rules/logic";
-import { useReviewer } from "../shell/reviewer";
+import { FindingPanel } from "../findings/FindingPanel";
+import { findingOf, groupThread, linkOf } from "../findings/logic";
+import { useReview } from "../findings/Review";
+import { currentReviewer, useReviewer } from "../shell/reviewer";
 import { go, href, type ClassSlug } from "../shell/router";
-import { inClass } from "../shell/klass";
+import { apiClass, inClass } from "../shell/klass";
 import type { TabProps } from "../shell/tabProps";
 import { fmt, Ico, toast, useKeyHints } from "../shell/ui";
 import { fmtDay, fmtDayTime } from "../valuediff/diff";
@@ -540,7 +543,7 @@ function ScoreBody({ cat, basis, view, col, subj, outcome, grp, wk, offset, rowK
         </tbody>
       </table>
 
-      <WhereWrong cat={cat} doc={doc} basis={basis} col={col} wk={wk} nav={nav} />
+      <WhereWrong cat={cat} cls={apiClass()} doc={doc} basis={basis} col={col} wk={wk} nav={nav} />
 
       <div className="evx-controls">
         <div className="seg">
@@ -655,10 +658,13 @@ const WRONG_SHOWN = 12;
 /** Every unit that isn't a match (under the picked column, or all), grouped by outcome × field × a key, biggest group
  * first: each group's count, one example (golden → candidate), and its courses, each a link to its row in the Rules
  * tab (anyone's annotations shown). */
-function WhereWrong({ cat, doc, basis, col, wk, nav }: { cat: string; doc: ScoreDoc; basis: ScoreBasis; col: string | null; wk: WrongKey;
+function WhereWrong({ cat, cls, doc, basis, col, wk, nav }: { cat: string; cls: ClassSlug; doc: ScoreDoc; basis: ScoreBasis; col: string | null; wk: WrongKey;
   nav: (ch: Record<string, string | number | null>, keepRow?: boolean) => void }) {
   const [w, setW] = useState<WrongGroups | null>(null);
   const [all, setAll] = useState(false);
+  // findings are per property (learning-programs Phase 6): with a column picked, each group's finding and discussion
+  const { review, reload, catalogName } = useReview(cls, col);
+  const [panel, setPanel] = useState<{ finding: FindingX | null; link: FindingLink | null; thread?: { target: ThreadTarget; title: string } } | null>(null);
   useEffect(() => {
     let live = true;
     api.scoreWrong(cat, doc.id, { basis, column: col, key: wk }).then((r) => live && setW(r), () => live && setW(null));
@@ -666,6 +672,7 @@ function WhereWrong({ cat, doc, basis, col, wk, nav }: { cat: string; doc: Score
   }, [cat, doc.id, basis, col, wk]);
   if (!w) return null;
   const shownGroups = all ? w.groups : w.groups.slice(0, WRONG_SHOWN);
+  const me = currentReviewer();
   const term = goldenTerm(basis).toLowerCase().replace(/s$/, "");
   const link = (t: { rule_id: string | null; occurrence_key: string | null }) =>
     t.rule_id ? href(cat, "rules", t.rule_id, { row: t.occurrence_key, by: BY_ANYONE }) : null;
@@ -683,7 +690,8 @@ function WhereWrong({ cat, doc, basis, col, wk, nav }: { cat: string; doc: Score
       </header>
       {w.groups.length === 0 ? <p className="muted small">Nothing: every unit matched.</p> : (
         <table className="evx-wrong-t">
-          <thead><tr><th className="r">Units</th><th>Reason (outcome · field · how it differs)</th><th>Grouped by</th><th>Example ({term} → candidate)</th><th>Courses</th></tr></thead>
+          <thead><tr><th className="r">Units</th><th>Reason (outcome · field · how it differs)</th><th>Grouped by</th><th>Example ({term} → candidate)</th><th>Courses</th>
+            {col && <th>Finding</th>}</tr></thead>
           <tbody>
             {shownGroups.map((g) => {
               const ex = link(g.example);
@@ -712,6 +720,14 @@ function WhereWrong({ cat, doc, basis, col, wk, nav }: { cat: string; doc: Score
                     })}
                     {g.courses > g.targets.length && <span className="muted small"> +{fmt(g.courses - g.targets.length)}</span>}
                   </td>
+                  {col && <FindingCell review={review} link={linkOf(cat, g, wk)}
+                    onOpen={(finding, link) => setPanel({ finding, link })}
+                    onLink={async (f, link) => {
+                      try { await api.saveFinding(cls, col, { author: me, links: [...f.links, link] }, f.id); toast(`Added to ${f.code}`); reload(); }
+                      catch (e) { toast(`Not saved: ${e instanceof Error ? e.message : String(e)}`); }
+                    }}
+                    onDiscuss={(link) => setPanel({ finding: null, link, thread: { target: { kind: "group", catalog: link.catalog, outcome: link.outcome,
+                      field: link.field, by: link.by, key: link.key }, title: `${g.outcome}, ${g.key}` } })} />}
                 </tr>
               );
             })}
@@ -719,7 +735,37 @@ function WhereWrong({ cat, doc, basis, col, wk, nav }: { cat: string; doc: Score
         </table>
       )}
       {w.groups.length > WRONG_SHOWN && <button className="btn sm" onClick={() => setAll(!all)}>{all ? "Show fewer" : `Show all ${fmt(w.groups.length)} groups`}</button>}
+      {panel && col && <FindingPanel key={panel.finding?.id ?? panel.thread?.title ?? "new"} cls={cls} col={col}
+        finding={panel.finding ? review?.findings.find((f) => f.id === panel.finding!.id) ?? panel.finding : null}
+        link={panel.link} thread={panel.thread ?? null} catalogName={catalogName}
+        onClose={() => setPanel(null)} onSaved={reload} />}
     </section>
+  );
+}
+
+/** A group's finding (code, title, whose error) or + Add finding (a new one, or an existing finding of the property), and
+ * its discussion with its comment count. */
+function FindingCell({ review, link, onOpen, onLink, onDiscuss }: {
+  review: PropertyReview | null; link: FindingLink;
+  onOpen: (f: FindingX | null, link: FindingLink) => void; onLink: (f: FindingX, link: FindingLink) => void; onDiscuss: (link: FindingLink) => void;
+}) {
+  const [menu, setMenu] = useState(false);
+  const f = findingOf(review, link);
+  const n = review?.threads[groupThread(link)] ?? 0;
+  return (
+    <td className="fd-cell" data-testid="finding-cell">
+      {f ? <button className="fd-chip" onClick={() => onOpen(f, link)}><b className="mono">{f.code}</b><span>{f.title}</span>
+          {f.whose && <span className="w">{f.whose}</span>}</button>
+        : <div style={{ position: "relative" }}>
+          <button className="fd-add" onClick={() => (review?.findings.length ? setMenu(!menu) : onOpen(null, link))}>+ Add finding</button>
+          {menu && <div className="fd-menu" role="menu">
+            <button role="menuitem" onClick={() => { setMenu(false); onOpen(null, link); }}>New finding…</button>
+            {review!.findings.map((x) => <button key={x.id} role="menuitem" onClick={() => { setMenu(false); onLink(x, link); }}>
+              Add to <b className="mono">{x.code}</b> {x.title}</button>)}
+          </div>}
+        </div>}
+      <button className="fd-disc" onClick={() => onDiscuss(link)}><Ico name="open" />{n ? <><b>{n}</b> comment{n === 1 ? "" : "s"}</> : "Discuss"}</button>
+    </td>
   );
 }
 

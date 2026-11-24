@@ -1,12 +1,12 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { CatalogDetail, CatalogsSummary, ExtractOutputs, ScoreBrief, ScoreDoc, ScoreRow, ScoreValues, WrongGroups } from "../api/types";
+import type { CatalogDetail, CatalogsSummary, PropertyReview, ExtractOutputs, ScoreBrief, ScoreDoc, ScoreRow, ScoreValues, WrongGroups } from "../api/types";
 import { apiClass } from "../shell/klass";
 import { parseRoute } from "../shell/router";
 
 const api = { extractOutputs: vi.fn(), scoreDoc: vi.fn(), scoreValues: vi.fn(), scoreWrong: vi.fn(), startScore: vi.fn(), match: vi.fn(), annotate: vi.fn(),
-  catalogsSummary: vi.fn() };
+  catalogsSummary: vi.fn(), propertyReview: vi.fn(), saveFinding: vi.fn(), propertyThread: vi.fn(), addPropertyComment: vi.fn(), catalogs: vi.fn() };
 vi.mock("../api/client", () => ({ api: new Proxy({}, { get: (_t, k: string) => (...a: unknown[]) => (api as Record<string, (...x: unknown[]) => unknown>)[k](...a) }) }));
 vi.mock("../pagepane", () => ({ PagePane: () => null }));
 import EvalsTab, { rowText, scoreFor, shown, unscoredFacts } from "./EvalsTab";
@@ -67,12 +67,19 @@ const WRONG: WrongGroups = { basis: "human", column: null, key: "auto", groups: 
                extracted_value: DUR("Total Course In-Class (Contact) Hours", "54.0"), rule_id: "course-estimated-duration", occurrence_key: "acct101@div" },
     targets: [{ golden_record_id: "ACCT101", rule_id: "course-estimated-duration", occurrence_key: "acct101@div" }] }] };
 
+// D3 covers the second group (wrong, cut short); the first has no finding and two comments
+const REVIEW: PropertyReview = { cls: "course", column: "estimatedDuration", status: null,
+  threads: { "group:avc|extra||description label|Minimum Credit Units": 2 },
+  findings: [{ id: "fd-1", code: "D3", title: "The silver keeps the lead-in", kind: "mismatch", whose: "silver", state: "open",
+    links: [{ catalog: "avc", outcome: "wrong", field: "timeRequired", by: "value shape", key: "9.9 - 9.9 → 9.9", group_by: "auto" }],
+    at: "2026-11-18T10:00:00Z", author: "Seth Alt", created: { at: "2026-11-18T10:00:00Z", by: "Seth Alt" }, live: null, comments: 0 }] };
 const CATALOG = { catalog: "avc-x", short: "avc", name: "AVC", ruleset_version: 3 } as CatalogDetail;
 let host: HTMLDivElement, root: Root;
 beforeEach(() => {
   host = document.createElement("div"); document.body.appendChild(host); root = createRoot(host);
   api.extractOutputs.mockResolvedValue(INDEX); api.scoreDoc.mockResolvedValue(DOC); api.scoreValues.mockResolvedValue(VALUES);
   api.catalogsSummary.mockResolvedValue(SUMMARY); api.scoreWrong.mockResolvedValue(WRONG);
+  api.propertyReview.mockResolvedValue(REVIEW); api.propertyThread.mockResolvedValue([]); api.catalogs.mockResolvedValue([]);
 });
 afterEach(() => { act(() => root.unmount()); host.remove(); Object.values(api).forEach((f) => f.mockReset()); });
 const render = async (hash: string) => {
@@ -191,6 +198,22 @@ describe("EvalsTab", () => {
     expect(groups[0].textContent).toContain("ACCT299");  // no Studio row: listed, not linked
     expect(groups[1].textContent).toContain("timeRequired cut short");
     expect(groups[1].textContent).toContain("value shape 9.9 - 9.9 → 9.9");
+    // with a column picked: each group's finding, or + Add finding, and its discussion
+    expect(api.propertyReview).toHaveBeenCalledWith("course", "estimatedDuration");
+    const cells = [...host.querySelectorAll("[data-testid=finding-cell]")].map((c) => c.textContent);
+    expect(cells).toEqual(["+ Add finding2 comments", "D3The silver keeps the lead-insilverDiscuss"]);
+    await act(async () => groups[1].querySelector<HTMLButtonElement>(".fd-chip")!.click());
+    await act(async () => { await new Promise((r) => setTimeout(r, 0)); });
+    expect(host.querySelector("[data-testid=finding-panel] h2")!.textContent).toBe("D3The silver keeps the lead-in");
+    // + Add finding offers a new finding or the property's others; adding links the group to it
+    await act(async () => groups[0].querySelector<HTMLButtonElement>(".fd-add")!.click());
+    expect([...host.querySelectorAll(".fd-menu button")].map((b) => b.textContent)).toEqual(
+      ["New finding…", "Add to D3 The silver keeps the lead-in"]);
+    api.saveFinding.mockResolvedValue({});
+    await act(async () => host.querySelectorAll<HTMLButtonElement>(".fd-menu button")[1].click());
+    expect(api.saveFinding).toHaveBeenCalledWith("course", "estimatedDuration", expect.objectContaining({ links: [
+      REVIEW.findings[0].links[0],
+      { catalog: "avc", outcome: "extra", field: null, by: "description label", key: "Minimum Credit Units", group_by: "auto" }] }), "fd-1");
     // the grouping key is in the URL
     const pick = host.querySelector<HTMLSelectElement>("[aria-label=\"Where it's wrong: group by\"]")!;
     await act(async () => { pick.value = "subject"; pick.dispatchEvent(new Event("change", { bubbles: true })); });

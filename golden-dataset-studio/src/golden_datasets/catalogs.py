@@ -27,6 +27,15 @@ CATALOGS = {
         "logo": "wvu.png"},
 }
 
+#: Catalogs added from the picker that the Studio knows more about than their crawl says: a short name for the score
+#: tables and the address, and the classes the catalog has none of (`not_sources`: the home page says "Not a
+#: LearningProgram source"). Unlike CATALOGS, these are only shown once they're in the manifest.
+KNOWN = {
+    "training-uark-edu-portal-training": {
+        "short": "uark", "name": "UARK", "institution": "University of Arkansas Professional and Workforce Development",
+        "platform": "", "logo": None, "not_sources": ("learningprogram",)},
+}
+
 
 def resolve(name: str | None) -> str:
     """Folder name for a catalog given its folder name or short name."""
@@ -34,12 +43,14 @@ def resolve(name: str | None) -> str:
         raise UserError("--catalog is required")
     if name in CATALOGS:
         return name
-    for folder, meta in CATALOGS.items():
+    if name in KNOWN:
+        return name
+    for folder, meta in (CATALOGS | KNOWN).items():
         if meta["short"] == name.lower():
             return folder
     return name  # an unknown catalog folder is allowed (it just has no logo or display name)
 
 
 def info(catalog: str) -> dict:
-    return CATALOGS.get(catalog, {"short": catalog, "name": catalog, "institution": catalog, "platform": "",
-                                  "logo": None})
+    return CATALOGS.get(catalog) or KNOWN.get(catalog) or {"short": catalog, "name": catalog, "institution": catalog,
+                                                           "platform": "", "logo": None}

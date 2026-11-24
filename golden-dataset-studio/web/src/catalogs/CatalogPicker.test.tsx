@@ -38,7 +38,7 @@ const calls: string[] = [];
 vi.mock("../api/client", () => ({ api: {
   catalogs: () => Promise.resolve(CARDS),
   catalogsSummary: (b: ScoreBasis, cls?: string) => { calls.push(`${b}:${cls}`); return Promise.resolve(cls === "learningprogram" ? LP_SUM : summary(b)); },
-  scoreHistory: () => new Promise(() => {}),
+  scoreHistory: () => new Promise(() => {}), propertyStatuses: () => Promise.resolve({}),
 } }));
 import CatalogPicker from "./CatalogPicker";
 

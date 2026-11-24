@@ -3,7 +3,7 @@ import type {
   ExtractOutputs, MatchRow, ScoreBasis, ScoreDoc, ScoreValues, CatalogsSummary, WrongGroups, WrongKey,
   CatalogCard, CatalogDetail, CrawledCatalog, FirstRulesPrompt, CompareRecords, CompareResponse, Discussion, CourseDetail, CourseHit, GoldenFileText, GoldenLineage, GoldenResponse,
   AnnotateResponse, ApprovePreview, ResetPreview,
-  KeySource, NewEvent, Overlay, ScoreHistory,
+  Finding, KeySource, NewEvent, Overlay, PropertyReview, PropertyStatus, PropertyStatusName, ScoreHistory, ThreadComment, ThreadTarget,
   PromptResponse, RuleDetail, RulesResponse, RowsResponse, UnclassifiedPage,
 } from "./types";
 import { withClass } from "../shell/klass";
@@ -34,10 +34,25 @@ const q = (params: Record<string, string | number | boolean | null | undefined>)
 const c = (catalog: string) => `/api/catalogs/${encodeURIComponent(catalog)}`;
 const v = (catalog: string, version: string) => `${c(catalog)}/golden/${encodeURIComponent(version)}`;
 
+const pp = (cls: ClassSlug, col: string) => `/api/properties/${cls}/${encodeURIComponent(col)}`;
+const jsonInit = (method: string, body: unknown): RequestInit =>
+  ({ method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+
 export const api = {
   catalogs: () => call<CatalogCard[]>("/api/catalogs"),
   catalogsSummary: (basis: ScoreBasis, cls?: ClassSlug) =>
     call<CatalogsSummary>(`/api/catalogs-summary?basis=${basis}${cls && cls !== "course" ? `&class=${cls}` : ""}`),
+  // findings, property status and discussion (learning-programs Phase 6), per class and property
+  propertyReview: (cls: ClassSlug, col: string) => call<PropertyReview>(`${pp(cls, col)}/review`),
+  setPropertyStatus: (cls: ClassSlug, col: string, status: PropertyStatusName, author: string) =>
+    call<PropertyStatus>(`${pp(cls, col)}/status`, jsonInit("POST", { status, author })),
+  saveFinding: (cls: ClassSlug, col: string, body: Partial<Finding> & { author: string }, id?: string) =>
+    call<Finding>(id ? `${pp(cls, col)}/findings/${encodeURIComponent(id)}` : `${pp(cls, col)}/findings`, jsonInit(id ? "PUT" : "POST", body)),
+  propertyThread: (cls: ClassSlug, col: string, key: string) => call<ThreadComment[]>(`${pp(cls, col)}/threads?key=${encodeURIComponent(key)}`),
+  addPropertyComment: (cls: ClassSlug, col: string, body: { author: string; note: string; target: ThreadTarget }) =>
+    call<ThreadComment>(`${pp(cls, col)}/threads`, jsonInit("POST", body)),
+  propertyStatuses: (cls: ClassSlug) =>
+    call<Record<string, { status: PropertyStatusName; by: string; at: string }>>(`/api/property-status${cls !== "course" ? `?class=${cls}` : ""}`),
   /** the home page's score views: a class's properties and each catalog's last scores per property */
   scoreHistory: (cls: ClassSlug) => call<ScoreHistory>(`/api/score-history${cls !== "course" ? `?class=${cls}` : ""}`),
   crawls: () => call<{ crawls_root: string; items: CrawledCatalog[] }>("/api/crawls"),

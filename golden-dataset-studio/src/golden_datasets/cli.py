@@ -143,6 +143,20 @@ def build_parser() -> argparse.ArgumentParser:
     _class_args(p)
     _cmd(p, "golden_datasets.properties:cmd_apply")
 
+    fnd = sub.add_parser("findings", help="a property's findings (per class, across catalogs): list, seed")
+    fsub = fnd.add_subparsers(dest="findings_cmd", required=True)
+    p = fsub.add_parser("list", help="a property's findings, with their state and the running notes' counts")
+    _root_args(p)
+    p.add_argument("--property", required=True, help="the property's column: description, creditValue>minValue")
+    _class_args(p)
+    _cmd(p, "golden_datasets.findings:cmd_list")
+    p = fsub.add_parser("seed", help="import findings a property doesn't have yet from a JSON file (default: Seth's "
+                                     "Course description codes D1–D9 and M1–M4 from the running notes, verbatim)")
+    _root_args(p)
+    p.add_argument("--file", default=None, help="{class, column, findings: [...]} (default: the running notes' codes)")
+    _class_args(p)
+    _cmd(p, "golden_datasets.findings:cmd_seed")
+
     # --- Run -------------------------------------------------------------------------------------------
     p = sub.add_parser("extract", help="run a ruleset version over the crawl (refuses if that extraction exists)")
     _root_args(p), _catalog_args(p)

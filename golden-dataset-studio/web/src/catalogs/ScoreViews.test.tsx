@@ -4,7 +4,8 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { CatalogCard, ScoreHistory, ScoreLine, ScoreNumbers } from "../api/types";
+import type { CatalogCard, PropertyReview, ScoreHistory, ScoreLine, ScoreNumbers } from "../api/types";
+import { setIdentity } from "../shell/reviewer";
 import { parseRoute } from "../shell/router";
 import { readHome } from "./homeState";
 import { latest, series } from "./scoreLogic";
@@ -35,7 +36,27 @@ const COURSE: ScoreHistory = {
 const LP: ScoreHistory = { cls: "learningprogram", target: 0.9, catalogs: ["wvu-x"],
   properties: [{ column: "name", label: "name", term: "ceterms:name", tier: "required" }],
   history: { "wvu-x": { name: [line("2026-11-24T08:00:00Z", "sc-1", "new-output", "w1", n(3, 3, 4), n(30, 30, 40))] } } };
-vi.mock("../api/client", () => ({ api: { scoreHistory: (cls: string) => Promise.resolve(cls === "course" ? COURSE : LP) } }));
+const REVIEW: PropertyReview = { cls: "course", column: "name", threads: {},
+  status: { status: "needs review", by: "Jared Diener", role: "sme", at: "2026-11-18T10:00:00Z", history: [] },
+  findings: [
+    { id: "fd-1", code: "N2", title: "The name is read from the card, not the h1", kind: "mismatch", whose: "extractor", state: "open",
+      links: [], counts: { partial: [5, 6], wrong: [0, 1], missing: null }, catalogs: "UARK", at: "", author: "Seth Alt",
+      created: { at: "2026-11-18T10:00:00Z", by: "Seth Alt" }, live: null, comments: 2 },
+    { id: "fd-2", code: "N1", title: "Double spaces", kind: "mismatch", whose: "baseline", state: "fixed", links: [{ catalog: "avc", outcome: "partial",
+      field: null, by: "word diff", key: "spaces", group_by: "auto" }], at: "", author: "Seth Alt", created: { at: "2026-11-18T10:00:00Z", by: "Seth Alt" },
+      live: { counts: { partial: [0, 7], wrong: null, missing: null }, rows: [{ catalog: "avc", outcome: "partial", by: "word diff", key: "spaces", golden: 0, silver: 7 }] },
+      comments: 0 }] };
+const setStatus = vi.fn(() => Promise.resolve({}));
+const saveFinding = vi.fn(() => Promise.resolve({}));
+vi.mock("../api/client", () => ({ api: {
+  scoreHistory: (cls: string) => Promise.resolve(cls === "course" ? COURSE : LP),
+  propertyStatuses: (cls: string) => Promise.resolve(cls === "course" ? { name: { status: "done", by: "Jared Diener", at: "" },
+    codedNotation: { status: "needs review", by: "Eric Riddoch", at: "" } } : {}),
+  propertyReview: () => Promise.resolve(REVIEW), catalogs: () => Promise.resolve([{ short: "avc", name: "AVC" }]),
+  propertyThread: () => Promise.resolve([]),
+  setPropertyStatus: (...a: unknown[]) => (setStatus as (...x: unknown[]) => Promise<unknown>)(...a),
+  saveFinding: (...a: unknown[]) => (saveFinding as (...x: unknown[]) => Promise<unknown>)(...a),
+} }));
 import { ScoreViews } from "./ScoreViews";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -77,6 +98,9 @@ describe("the xtra score view", () => {
     expect(cells("course", "avc-x", "td.sv-ex")).toEqual(["100.0%", "93.5%"]);      // 20 of 20; 187 of 200
     expect(cells("course", "wvu-x", "td.sv-ex")).toEqual(["50.0%", "50.0%"]);
     expect(host.querySelector("[data-class=course] tbody[data-row=wvu-x] td.sv-ex")!.classList.contains("under")).toBe(true);
+    expect(host.querySelector("[data-class=course] tbody[data-row=all] td.sv-ex")!.classList.contains("under")).toBe(true);  // 83.3%
+    expect(host.querySelector("[data-class=learningprogram] .sv-h .muted")!.textContent).toBe(
+      "1 catalog, over its scored properties. The catalog opens its properties.");
     expect(cells("course", "all", "td.sv-ex")).toEqual(["83.3%", "79.0%"]);         // 25 of 30; 237 of 300
     expect(host.querySelectorAll("[data-class=course] tbody[data-row=avc-x] [data-testid=history]")).toHaveLength(2);
     expect(host.querySelector("[data-class=course] tbody[data-row=avc-x] a")!.getAttribute("href")).toBe("#/?v=score&c=avc");
@@ -86,9 +110,9 @@ describe("the xtra score view", () => {
 
   it("Rows: Properties lists each property over every catalog; unscored ones are counted, not listed", async () => {
     await show("#/?v=score&rows=props");
-    expect(heads("course")).toEqual(["ceterms:namerequired", "ceterms:codedNotationrequired"]);
+    expect(heads("course")).toEqual(["ceterms:name✓ Donerequired", "ceterms:codedNotationNeeds reviewrequired"]);
     expect(host.querySelector("[data-class=course] .sv-left")!.textContent).toBe("1 property not scored yet.");
-    expect(host.querySelector("[data-class=course] tbody a")!.getAttribute("href")).toBe("#/?v=score&p=course%3Aname&rows=props");
+    expect(host.querySelector("[data-class=course] tbody a")!.getAttribute("href")).toBe("#/?v=score&cls=course&p=course%3Aname&rows=props");
   });
 
   it("Numbers: a column per outcome, its heading in the outcome's colour", async () => {
@@ -102,7 +126,7 @@ describe("the xtra score view", () => {
   it("one catalog: its properties, each with Evals →", async () => {
     await show("#/?v=score&c=wvu");
     expect(host.querySelector(".sv")!.getAttribute("data-scope")).toBe("catalog");
-    expect(heads("course")).toEqual(["ceterms:namerequired"]);
+    expect(heads("course")).toEqual(["ceterms:name✓ Donerequired"]);
     expect(host.querySelector("[data-class=course] td.sv-ev a")!.getAttribute("href")).toBe("#/c/wvu/course/evals?col=name");
     expect(host.querySelector("[data-class=learningprogram] td.sv-ev a")!.getAttribute("href")).toBe("#/c/wvu/learningprogram/evals?col=name");
   });
@@ -111,6 +135,8 @@ describe("the xtra score view", () => {
     await show("#/?v=score&p=course:name");
     expect(host.querySelector(".sv")!.getAttribute("data-scope")).toBe("property");
     expect(host.querySelector("[data-class=learningprogram]")).toBeNull();   // a property list never mixes classes
+    expect(host.querySelector("[data-testid=classes-menu]")!.textContent).toContain("Course");  // narrowed to its class
+    expect(host.querySelector("[data-testid=classes-menu]")!.textContent).not.toContain("LearningProgram");
     expect(heads("course")).toEqual(["AVC", "WVU", "All"]);
     expect(host.querySelector("[data-class=course] .sv-h .muted")!.textContent).toBe("ceterms:name in 2 catalogs. A catalog opens its history.");
     expect(host.querySelector("[data-class=course] tbody a")!.getAttribute("href")).toBe("#/?v=score&c=avc&p=course%3Aname");
@@ -146,6 +172,50 @@ describe("the xtra score view", () => {
     const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!;
     await act(async () => { setter.call(find, "coded"); find.dispatchEvent(new Event("input", { bubbles: true })); });
     expect([...host.querySelectorAll(".hm-opt.sub")].map((o) => o.textContent)).toEqual(["ceterms:codedNotation"]);
+  });
+
+  it("one property: its status at the top (Done only for an expert), and its findings below the scores", async () => {
+    setIdentity("Eric Riddoch", "engineer");
+    await show("#/?v=score&p=course:name");
+    const bar = host.querySelector("[data-testid=property-status]")!;
+    expect(bar.textContent).toBe("Course › ceterms:nameNeeds reviewDoneset by Jared, 18 Nov1 open finding, 1 fixed");
+    expect(bar.querySelector<HTMLButtonElement>("[aria-label=Status] button:last-child")!.disabled).toBe(true);
+    const rows = [...host.querySelectorAll("[data-testid=findings] tbody tr")].map((r) => [...r.querySelectorAll("td")].map((t) => t.textContent));
+    expect(rows).toEqual([
+      ["N2", "mismatch", "The name is read from the card, not the h1", "5 / 6", "0 / 1", "–", "UARK", "extractor", "open", "2"],
+      ["N1", "mismatch", "Double spaces", "0 / 7", "–", "–", "AVC", "baseline", "fixed", "0"]]);
+    setIdentity("Jared Diener", "sme");
+    await show("#/?v=score&p=course:name");
+    const done = host.querySelector<HTMLButtonElement>("[data-testid=property-status] [aria-label=Status] button:last-child")!;
+    expect(done.disabled).toBe(false);
+    await act(async () => done.click());
+    expect(setStatus).toHaveBeenCalledWith("course", "name", "done", "Jared Diener");
+    // a finding opens its editor, with the running notes' counts until it's linked
+    await act(async () => host.querySelector<HTMLElement>("[data-finding=N2]")!.click());
+    const panel = host.querySelector("[data-testid=finding-panel]")!;
+    expect(panel.querySelector("h2")!.textContent).toBe("N2The name is read from the card, not the h1");
+    expect(panel.textContent).toContain("Opened by Seth, 18 Nov. Open.");
+    expect(panel.querySelector(".fd-units")!.textContent).toContain("UARK. From the running notes");
+    expect(panel.querySelector("[aria-label='Whose error'] .on")!.textContent).toBe("extractor");
+  });
+
+  it("+ Add finding writes a new one: code and title, whose error, cause, fix and assessment", async () => {
+    setIdentity("Eric Riddoch", "engineer");
+    await show("#/?v=score&p=course:name");
+    await act(async () => [...host.querySelectorAll<HTMLButtonElement>("[data-testid=findings] button")].find((b) => b.textContent === "+ Add finding")!.click());
+    const panel = host.querySelector("[data-testid=finding-panel]")!;
+    const type = async (el: HTMLInputElement | HTMLTextAreaElement, v: string) => {
+      const proto = el instanceof HTMLTextAreaElement ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;
+      Object.getOwnPropertyDescriptor(proto, "value")!.set!.call(el, v);
+      await act(async () => { el.dispatchEvent(new Event("input", { bubbles: true })); });
+    };
+    await type(panel.querySelector<HTMLInputElement>("[aria-label=Code]")!, "N5");
+    await type(panel.querySelector<HTMLInputElement>("[aria-label=Title]")!, "Trailing full stop");
+    await act(async () => [...panel.querySelectorAll<HTMLButtonElement>("[aria-label='Whose error'] button")].find((b) => b.textContent === "baseline")!.click());
+    await type(panel.querySelector<HTMLTextAreaElement>("textarea[aria-label=cause]")!, "The baseline keeps the dot.");
+    await act(async () => [...panel.querySelectorAll<HTMLButtonElement>("button")].find((b) => b.textContent === "Save finding")!.click());
+    expect(saveFinding).toHaveBeenCalledWith("course", "name", expect.objectContaining({
+      author: "Eric Riddoch", code: "N5", title: "Trailing full stop", whose: "baseline", cause: "The baseline keeps the dot.", state: "open" }), undefined);
   });
 });
 

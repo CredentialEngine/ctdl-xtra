@@ -29,6 +29,7 @@ ROUTERS = [
     "golden_datasets.server.routes_profiles", # profiles: who is reviewing (name + role), shared on the root
     "golden_datasets.server.routes_crawls",   # Add a catalog: search xtra-cli's crawls, add one
     "golden_datasets.server.routes_evals",    # Evals: extract outputs and scores (docs/qrspi/evals)
+    "golden_datasets.server.routes_findings", # findings, property status and discussion (learning-programs Phase 6)
 ]
 
 
