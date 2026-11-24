@@ -32,7 +32,9 @@ const MAX_VIEW_MS = 30000; // ...or after this long, whatever is still loading
 
 interface View {
   span: Span; id: string; page: PageInfo; route: string; implicit: boolean; start: number; lastActivity: number; inflight: number;
-  calls: number; errors: number; polls: number; bytes: number; apiMs: number; slowest: number; timer?: number;
+  calls: number; errors: number; polls: number; bytes: number; apiMs: number; slowest: number;
+  quietTimer?: number; // ends the view once no call has run for IDLE_MS
+  maxTimer?: number;   // ends it after MAX_VIEW_MS, whatever is still loading
 }
 
 export async function init(cfg: BrowserConfig): Promise<Impl> {
@@ -93,7 +95,8 @@ export async function init(cfg: BrowserConfig): Promise<Impl> {
     const v = view;
     if (!v) return;
     view = null;
-    window.clearTimeout(v.timer);
+    window.clearTimeout(v.quietTimer);
+    window.clearTimeout(v.maxTimer);
     // "ready" = from the route change to the end of the page's last API call: what the reader waited for
     const timeToReadyMs = Math.round(v.lastActivity - v.start);
     const slowestCallMs = Math.round(v.slowest);
@@ -118,9 +121,9 @@ export async function init(cfg: BrowserConfig): Promise<Impl> {
   function settle() {
     const v = view;
     if (!v) return;
-    window.clearTimeout(v.timer); // a call started or ended: the quiet period starts over
+    window.clearTimeout(v.quietTimer); // a call ended: the quiet period starts over
     const noCallsInFlight = v.inflight === 0;
-    if (noCallsInFlight) v.timer = window.setTimeout(() => endView("ready"), IDLE_MS);
+    if (noCallsInFlight) v.quietTimer = window.setTimeout(() => endView("ready"), IDLE_MS);
     const viewAgeMs = performance.now() - v.start;
     if (viewAgeMs > MAX_VIEW_MS) endView("timeout");
   }
@@ -158,7 +161,7 @@ export async function init(cfg: BrowserConfig): Promise<Impl> {
              lastActivity: performance.now(), inflight: 0,
              calls: 0, errors: 0, polls: 0, bytes: 0, apiMs: 0, slowest: 0 };
     span.setAttribute("ce.page_view.id", view.id);
-    view.timer = window.setTimeout(() => endView("timeout"), MAX_VIEW_MS);
+    view.maxTimer = window.setTimeout(() => endView("timeout"), MAX_VIEW_MS);
     settle();
   }
   // leaving the page: end the view first (capture on window runs before the SDK's flush on document)
@@ -207,7 +210,11 @@ export async function init(cfg: BrowserConfig): Promise<Impl> {
 
     const countsTowardPage = v && !poll && !action; // the page's own reads: what "ready" waits for
     if (v && poll) v.polls++;
-    if (countsTowardPage) { v.inflight++; v.calls++; }
+    if (countsTowardPage) {
+      v.inflight++;
+      v.calls++;
+      window.clearTimeout(v.quietTimer); // a call started, so the page isn't quiet: no "ready" until it ends
+    }
     const callStartedAt = performance.now();
     const done = (ok: boolean, bytes: number) => {
       const callMs = performance.now() - callStartedAt;
