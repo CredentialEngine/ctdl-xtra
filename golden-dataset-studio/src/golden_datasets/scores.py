@@ -898,6 +898,31 @@ def record(ctx: Ctx, doc: dict) -> list[str]:
     return done
 
 
+#: What the home page's score views keep of a history line (LearningProgram spec §2).
+HISTORY_KEYS = ("at", "extract_run", "golden_version", "golden_kind", "trigger", "score", "scored_with", "golden",
+                "silver")
+
+
+def history_all(root: Root, cls: str, catalogs: list[str], last: int = 7) -> dict[str, dict[str, list[dict]]]:
+    """catalog → column → its last `last` history lines (oldest first), for every property of the class with a
+    history in xtra-cli's container: one listing of `scores/<class>/`, then one read per file."""
+    from common.keys import property_key
+
+    col_of = {property_key(t): column(t) for _, t in model.properties_of(cls) if t}
+    want = set(catalogs)
+    out: dict[str, dict[str, list[dict]]] = {}
+    for path in root.list(f"scores/{cls}"):
+        parts = path.split("/")
+        if len(parts) != 4 or not parts[3].endswith(".jsonl"):
+            continue
+        col, catalog = col_of.get(parts[2]), parts[3][: -len(".jsonl")]
+        if col is None or catalog not in want:
+            continue
+        lines = [json.loads(x) for x in root.read_bytes(path).decode().splitlines() if x.strip()][-last:]
+        out.setdefault(catalog, {})[col] = [{k: x.get(k) for k in HISTORY_KEYS} for x in lines]
+    return out
+
+
 def history(ctx: Ctx, col: str, last: int | None = None) -> list[dict]:
     """A property's score history in this catalog and class, oldest first (the last `last`)."""
     from common.keys import property_key
@@ -1185,11 +1210,20 @@ def required_columns(cls: str = "course") -> list[str]:
     return [column_key(r["label"], r["path"] or None) for r in model.property_rows(cls) if r["required"]]
 
 
+def column_tiers(cls: str = "course") -> dict[str, str]:
+    """column → its tier (`required`, `phase1`, `phase2`): the home page's column groups (LearningProgram spec, item 12)."""
+    from .properties import tier
+
+    return {column_key(r["label"], r["path"] or None): tier(r) for r in model.property_rows(cls)}
+
+
 def columns_in_order(counts: Counter, cls: str = "course") -> list[str]:
-    """Required columns first, then the others by values experts reviewed across catalogs (`counts`, by rule id),
-    then sheet order: the Rules tab's order (§4.8)."""
+    """Required columns first, then Phase 1's and then Phase 2's, each by values experts reviewed across catalogs
+    (`counts`, by rule id), then sheet order: the Rules tab's order (§4.8)."""
+    from .properties import tier
+
     rest = [r for r in model.property_rows(cls) if not r["required"]]
-    rest.sort(key=lambda r: (-counts.get(r["rule_id"], 0), r["sheet_row"]))
+    rest.sort(key=lambda r: (tier(r) == "phase2", -counts.get(r["rule_id"], 0), r["sheet_row"]))
     return required_columns(cls) + [column_key(r["label"], r["path"] or None) for r in rest]
 
 

@@ -1,27 +1,31 @@
-// Home: the catalogs table (Evals spec §6.1, §6.2; property-rules spec §4.9, m5). One compact row per catalog: Open → (or
-// ✦ Generate rules for a catalog without rules) in its own first column, its logo, its name, then one cell per property
-// under angled headers (the labels; Required in bold), and Coverage: the properties with a rule there, of all. The catalog
-// and Coverage stay fixed; the properties scroll sideways between them. Two views, switched next to the heading:
+// Home: the catalogs table (Evals spec §6.1, §6.2; property-rules spec §4.9, m5; LearningProgram spec, item 12). One
+// compact row per catalog: Open → (or ✦ Generate rules for a catalog without rules) in its own first column, its logo,
+// its name, then one cell per property under angled headers, and Coverage. Two views, switched next to the heading:
 // - Golden dataset: the date of its pages and, per property, a small fraction (KaTeX): the values an expert reviewed
-//   over the values the property's rule found; "—" with no rule yet;
-// - xtra score: exact matches of xtra's latest extract output against the latest golden dataset, overall and per
-//   property, scored against Human-reviewed | Rule-matched; hovering a bar or a legend colour explains the outcomes.
+//   over the values the property's rule found; "—" with no rule yet. A Classes menu ticks the classes whose columns
+//   show, side by side under a heading per class, in the three tiers (Required in bold, Phase 1, Phase 2 folded into
+//   one column until clicked). A catalog without a class's rules says so across that class's columns.
+// - xtra score: ScoreViews (the four scopes of the score history).
 // + Add a catalog (a crawl xtra-cli has already made) adds a row that shows its progress until it's ready.
 //
-// URL: #/?v=score&b=rule
+// URL: #/?v=score&cls=course&c=wvu&p=course:name&rows=props&n=1 (homeState.ts)
 import katex from "katex";
 import "katex/dist/katex.min.css";
-import { useCallback, useEffect, useState } from "react";
+import { Fragment, useCallback, useEffect, useState } from "react";
 import { api } from "../api/client";
-import type { CatalogCard, CatalogSummary, CatalogsSummary, ScoreBasis } from "../api/types";
-import { Bar, BAR_ORDER, OUTCOMES, OutcomeTip, Tip } from "../evals/EvalsTab";
-import { go, href, useRoute } from "../shell/router";
+import type { CatalogCard, CatalogSummary, CatalogsSummary } from "../api/types";
+import { Tip } from "../evals/EvalsTab";
+import { CLASS_NAME, CLASS_SLUGS, href, useRoute, type ClassSlug } from "../shell/router";
 import { fmt, fmtDate, Ico } from "../shell/ui";
 import { AddCatalogModal } from "./AddCatalogModal";
 import { GenerateRulesModal } from "./GenerateRulesModal";
+import { goHome, readHome } from "./homeState";
 import { LoopModal, shouldShowLoop } from "./LoopModal";
+import { ClassesMenu, type ClassInfo } from "./menus";
+import { ScoreViews } from "./ScoreViews";
 import "../evals/evals.css";
 import "./ctab.css";
+import "./scores.css";
 
 const STEP: Record<string, string> = {
   starting: "Starting…", copying: "Copying pages…", indexing: "Indexing pages…", assets: "Saving page styles…",
@@ -35,7 +39,6 @@ function addingText(c: CatalogCard): string {
   return a.step === "copying" && a.total ? `Copying pages… ${Math.floor((100 * a.done) / a.total)}%` : STEP[a.step] ?? "Adding…";
 }
 
-const pct = (match: number, values: number) => `${Math.round((100 * match) / values)}%`;
 /** LaTeX for a count: thousands with a thin comma (1{,}048). */
 const tex = (n: number) => fmt(n).replace(/,/g, "{,}");
 const katexHtml = (src: string) => ({ __html: katex.renderToString(src, { throwOnError: false }) });
@@ -51,21 +54,19 @@ export function fractionTip(human: number, found: number, status: string): strin
   return `${v(human)} an expert reviewed, of ${v(found)} the rule found`
     + (status === "needs work" ? ". Some values are marked wrong." : "");
 }
-const BASIS_NAME: Record<ScoreBasis, string> = { human: "human-reviewed", rule: "rule-matched" };
 
 export default function CatalogPicker() {
   const route = useRoute();
-  const view = route.params.get("v") === "score" ? "score" : "golden";
-  const basis: ScoreBasis = route.params.get("b") === "rule" ? "rule" : "human";
-  const nav = (v: string, b: ScoreBasis) =>
-    go(`#/${v === "score" ? `?v=score${b === "rule" ? "&b=rule" : ""}` : ""}`, true);
+  const state = readHome(route.params);
+  const view = state.view;
 
   const [cats, setCats] = useState<CatalogCard[] | null>(null);
-  const [sum, setSum] = useState<CatalogsSummary | null>(null);
+  const [sums, setSums] = useState<Partial<Record<ClassSlug, CatalogsSummary>>>({});
   const [error, setError] = useState<string | null>(null);
   const [loop, setLoop] = useState(shouldShowLoop);
   const [adding, setAdding] = useState(false);
   const [generate, setGenerate] = useState<CatalogCard | null>(null);
+  const [p2, setP2] = useState<Set<ClassSlug>>(new Set());  // the classes whose Phase 2 columns are shown
   const load = useCallback(() => api.catalogs().then(setCats, (e) => setError(String(e))), []);
   useEffect(() => { load(); }, [load]);
   // while a catalog is being added, follow its progress; once it's added, its row's summary
@@ -78,57 +79,84 @@ export default function CatalogPicker() {
   }, [busy, load]);
   useEffect(() => {
     let live = true;
-    api.catalogsSummary(basis).then((s) => live && setSum(s), (e) => live && setError(String(e)));
+    // every class's summary: the Classes menu says what each has, the table shows the ticked ones
+    for (const cls of CLASS_SLUGS) {
+      api.catalogsSummary("human", cls).then((s) => live && setSums((x) => ({ ...x, [cls]: s })), (e) => live && setError(String(e)));
+    }
     return () => { live = false; };
-  }, [basis, added]);
+  }, [added]);
 
   const modal = (loop && <LoopModal onClose={() => setLoop(false)} />)
     || (adding && <AddCatalogModal onClose={() => setAdding(false)} onAdded={load} />)
     || (generate && <GenerateRulesModal card={generate} onClose={() => { setGenerate(null); load(); }} />);
+  const info = Object.fromEntries(Object.entries(sums).map(([k, s]) =>
+    [k, { slug: k, properties: s!.properties, catalogs: Object.keys(s!.catalogs).length } as ClassInfo]));
   const head = (
     <div className="picker-head">
       <h1>Catalogs</h1>
       <span className="seg" role="group" aria-label="View">
-        <button className={view === "golden" ? "on" : ""} onClick={() => nav("golden", basis)}>Golden dataset</button>
-        <button className={view === "score" ? "on" : ""} onClick={() => nav("score", basis)}>xtra score</button>
+        <button className={view === "golden" ? "on" : ""} onClick={() => goHome({ ...state, view: "golden" })}>Golden dataset</button>
+        <button className={view === "score" ? "on" : ""} onClick={() => goHome({ ...state, view: "score" })}>xtra score</button>
       </span>
+      {view === "golden" && <ClassesMenu picked={state.classes} info={info} onChange={(c) => goHome({ ...state, classes: c })}
+        note="Columns for each ticked class, side by side" />}
       <span className="grow" />
       <button className="btn" onClick={() => setAdding(true)}>+ Add a catalog</button>
     </div>
   );
   if (error) return <div className="picker"><div className="picker-in ctab-page">{head}<p className="muted">{error}</p></div>{modal}</div>;
   if (!cats) return <div className="picker"><div className="picker-in ctab-page">{head}</div>{modal}</div>;
-  const cols = sum?.columns ?? [];
-  const required = new Set(sum?.required ?? []);
-  const labels = sum?.labels ?? {};
-  const headers = cols.map((k) => (
-    <th key={k} className={`rot${required.has(k) ? " req" : ""}`}><span>{labels[k] ?? k}</span></th>));
+  if (view === "score") {
+    return (
+      <div className="picker">
+        <div className="picker-in ctab-page sv-page">{head}<ScoreViews cats={cats} state={state} />
+          <button className="loop-again" onClick={() => setLoop(true)}>How the Studio works</button></div>
+        {modal}
+      </div>
+    );
+  }
+
+  // the golden view: each ticked class's columns, side by side under its heading, in the three tiers (once every
+  // ticked class's summary is here, so columns don't move)
+  if (state.classes.some((c) => !sums[c])) return <div className="picker"><div className="picker-in ctab-page">{head}<p className="faint">Loading…</p></div>{modal}</div>;
+  const groups = state.classes.flatMap((cls) => {
+    const s = sums[cls];
+    if (!s) return [];
+    const tier = (k: string) => s.tiers?.[k] ?? (s.required.includes(k) ? "required" : "phase1");
+    const req = s.columns.filter((k) => tier(k) === "required"), ph1 = s.columns.filter((k) => tier(k) === "phase1");
+    const ph2 = s.columns.filter((k) => tier(k) === "phase2");
+    return [{ cls, s, req, ph1, ph2, open: p2.has(cls) }];
+  });
+  const width = (g: (typeof groups)[number]) => g.req.length + g.ph1.length + (g.open ? g.ph2.length : g.ph2.length ? 1 : 0);
+  const rot = (g: (typeof groups)[number], k: string, start: boolean) => (
+    <th key={`${g.cls}:${k}`} className={`rot${g.req.includes(k) ? " req" : ""}${start ? " tier-start" : ""}`}><span>{g.s.labels[k] ?? k}</span></th>);
 
   return (
     <div className="picker">
       <div className="picker-in ctab-page">
         {head}
-        {view === "score" && <>
-          <div className="ctab-title">How closely xtra's latest extract output matches each catalog's latest golden dataset</div>
-          <div className="evx-basis ctab-basis">scored against
-            <span className="seg xs" role="group" aria-label="Scored against">
-              <button className={basis === "human" ? "on" : ""} onClick={() => nav("score", "human")}>Human-reviewed</button>
-              <button className={basis === "rule" ? "on" : ""} onClick={() => nav("score", "rule")}>Rule-matched</button>
-            </span>
-          </div>
-        </>}
         <div className="ctab-wrap">
         <table className="ctab">
-          <thead><tr>
-            <th className="act" /><th className="logo" /><th className="name plain">Catalog</th>
-            {view === "golden" ? <th className="date plain">Pages from</th>
-              : <><th className="rate plain">Exact matches<span className={`evx-basis-pill ${basis}`}>{BASIS_NAME[basis]}</span></th><th className="ratebar" /></>}
-            {headers}
-            <th className="cov plain">Coverage</th>
-          </tr></thead>
+          <thead>
+            <tr className="cls-row"><th colSpan={3} className="fixed" /><th className="gap" />
+              {groups.map((g) => (
+                <th key={g.cls} colSpan={width(g)} data-class={g.cls}><span className="in"><b>{CLASS_NAME[g.cls]}</b>
+                  {g.req.length} required, {g.ph1.length} more in Phase 1, {g.ph2.length} in Phase 2</span></th>))}
+              <th className="fixed right" /></tr>
+            <tr>
+              <th className="act" /><th className="logo" /><th className="name plain">Catalog</th><th className="date plain">Pages from</th>
+              {groups.map((g) => <Fragment key={g.cls}>
+                {g.req.map((k, i) => rot(g, k, i === 0))}
+                {g.ph1.map((k, i) => rot(g, k, i === 0))}
+                {g.open ? g.ph2.map((k, i) => rot(g, k, i === 0))
+                  : g.ph2.length > 0 && <th className="rot p2 tier-start" title="Show the Phase 2 columns"
+                    onClick={() => setP2((x) => new Set([...x, g.cls]))}><span>+ {g.ph2.length} Phase 2</span></th>}
+              </Fragment>)}
+              <th className="cov plain">Coverage</th>
+            </tr>
+          </thead>
           <tbody>
             {cats.map((c) => {
-              const s = sum?.catalogs[c.catalog];
               const isReady = c.status === "ready";
               const inFlight = c.status === "adding" || c.status === "failed";
               const why = inFlight ? addingText(c) : c.status === "not imported" ? (c.pages ? "no rules yet" : "pages not indexed") : "";
@@ -142,22 +170,35 @@ export default function CatalogPicker() {
                   </td>
                   <td className="logo">{c.logo && <img src={c.logo} alt={`${c.name} logo`} />}</td>
                   <td className="name"><span className="nm">{c.institution}</span></td>
-                  {view === "golden"
-                    ? <GoldenCells c={c} s={s} cols={cols} why={why} />
-                    : <ScoreCells c={c} s={s} cols={cols} why={why} basis={basis} />}
-                  <td className="cov">{s && isReady ? <><b>{s.coverage}</b> <span className="faint">of {sum?.properties ?? cols.length}</span></> : <span className="faint">—</span>}</td>
+                  <td className="date" title={c.pages != null ? `${fmt(c.pages)} pages in this crawl` : undefined}>{c.crawl ? fmtDate(c.crawl) : "—"}</td>
+                  {!isReady
+                    ? <td colSpan={groups.reduce((n, g) => n + width(g), 0)} className="c faint why" title={c.adding?.error ?? undefined}>{why}</td>
+                    : groups.map((g) => {
+                      const s = g.s.catalogs[c.catalog];
+                      if (!s) {
+                        return <td key={g.cls} colSpan={width(g)} className="nosrc tier-start">
+                          {(c.not_sources ?? []).includes(g.cls) ? `Not a ${CLASS_NAME[g.cls]} source` : `No ${CLASS_NAME[g.cls]} rules yet`}</td>;
+                      }
+                      return <Fragment key={g.cls}>
+                        <GoldenCells s={s} cols={g.req} start />
+                        <GoldenCells s={s} cols={g.ph1} start />
+                        {g.open ? <GoldenCells s={s} cols={g.ph2} start />
+                          : g.ph2.length > 0 && <td className="p2c tier-start" title="Phase 2 properties with a rule here">
+                            {g.ph2.filter((k) => s.columns[k] && !s.columns[k].no_rule).length} of {g.ph2.length}</td>}
+                      </Fragment>;
+                    })}
+                  <td className="cov">{isReady ? groups.map((g) => {
+                    const s = g.s.catalogs[c.catalog];
+                    return s ? <span key={g.cls} className="cl"><b>{s.coverage}</b> <span className="faint">of {g.s.properties} {CLASS_NAME[g.cls]}</span></span> : null;
+                  }) : <span className="faint">—</span>}</td>
                 </tr>
               );
             })}
           </tbody>
         </table>
         </div>
-        {view === "golden" ? null : (
-          <div className="ctab-legend">
-            {OUTCOMES.slice().reverse().map((o) => <OutcomeTip key={o} counts={null}><span className="evx-k"><i className={`sw o-${o}`} />{o}</span></OutcomeTip>)}
-            <span className="faint">— no rule, or not scored yet · n/s not scored (not read from the page)</span>
-          </div>
-        )}
+        <div className="ctab-key"><span><b>Bold</b>required</span><span>Regular: the rest of Phase 1</span>
+          <span>+ Phase 2: click to show its columns</span></div>
         <button className="loop-again" onClick={() => setLoop(true)}>How the Studio works</button>
       </div>
       {modal}
@@ -165,68 +206,22 @@ export default function CatalogPicker() {
   );
 }
 
-/** Golden dataset: the date of its pages and, per property, its values in the golden dataset as a fraction ("—" with no
- * rule in this catalog). */
-function GoldenCells({ c, s, cols, why }: { c: CatalogCard; s: CatalogSummary | undefined; cols: string[]; why: string }) {
+/** Golden dataset: per property, its values in the golden dataset as a fraction ("—" with no rule in this catalog).
+ * `start`: the first column of a tier, set apart by a rule. */
+function GoldenCells({ s, cols, start }: { s: CatalogSummary; cols: string[]; start?: boolean }) {
   return (
     <>
-      <td className="date" title={c.pages != null ? `${fmt(c.pages)} pages in this crawl` : undefined}>{c.crawl ? fmtDate(c.crawl) : "—"}</td>
-      {c.status !== "ready" || !s
-        ? <td colSpan={cols.length} className="c faint why" title={c.adding?.error ?? undefined}>{why}</td>
-        : cols.map((k) => {
-          const st = s.columns[k];
-          if (!st || st.no_rule) return <td key={k} className="c faint">—</td>;
-          return (
-            <td key={k} className={"c frac " + st.status.replace(" ", "-")} aria-label={`${k}: ${st.status}`}>
-              <Tip tip={fractionTip(st.human, st.found, st.status)} width={300} delay={1000}>
-                <span tabIndex={0} className="fr" dangerouslySetInnerHTML={katexHtml(fractionTex(st.human, st.found))} />
-              </Tip>
-            </td>
-          );
-        })}
-    </>
-  );
-}
-
-/** xtra score: exact matches overall (the % with its count, then its bar in a column with no heading, as tall as the
- * columns' bars) and per property (%, a thin bar, the count); "—" where nothing is scored, "n/s" for properties not read
- * from the page. */
-function ScoreCells({ c, s, cols, why, basis }: { c: CatalogCard; s: CatalogSummary | undefined; cols: string[]; why: string; basis: ScoreBasis }) {
-  const sc = s?.score;
-  if (!sc) {
-    return (
-      <>
-        <td className="rate faint">{c.status === "ready" ? "—" : why}</td>
-        <td className="ratebar" />
-        {cols.map((k) => <td key={k} className="c faint">—</td>)}
-      </>
-    );
-  }
-  const total = { values: sc.values, ...sc.outcomes };
-  return (
-    <>
-      <td className="rate"><span className="pct">{pct(total.match, total.values)}<span className="cnt">of {fmt(total.values)}</span></span></td>
-      <td className="ratebar">
-        <OutcomeTip counts={total} title={`${c.institution} · ${fmt(total.values)} ${BASIS_NAME[basis]} values`}><Bar c={total} /></OutcomeTip>
-      </td>
-      {cols.map((k) => {
-        const v = sc.by_column[k];
-        if (v && v.values) {
-          return (
-            <td key={k} className="c sc">
-              <OutcomeTip counts={v} title={`${k} · ${c.institution} · ${fmt(v.values)} ${BASIS_NAME[basis]} values`}>
-                <span className="sc-in" tabIndex={0}>
-                  <span className="pct">{pct(v.match, v.values)}</span>
-                  <span className="cellbar">{BAR_ORDER.filter((o) => (v[o] ?? 0) > 0).map((o) => <i key={o} className={`o-${o}`} style={{ flexGrow: v[o] }} />)}</span>
-                  <span className="cnt">{fmt(v.values)}</span>
-                </span>
-              </OutcomeTip>
-            </td>
-          );
-        }
-        return sc.implied.includes(k)
-          ? <td key={k} className="c faint ns" title="not scored: not read from the page">n/s</td>
-          : <td key={k} className="c faint">—</td>;
+      {cols.map((k, i) => {
+        const st = s.columns[k];
+        const edge = start && i === 0 ? " tier-start" : "";
+        if (!st || st.no_rule) return <td key={k} className={`c faint${edge}`}>—</td>;
+        return (
+          <td key={k} className={"c frac " + st.status.replace(" ", "-") + edge} aria-label={`${k}: ${st.status}`}>
+            <Tip tip={fractionTip(st.human, st.found, st.status)} width={300} delay={1000}>
+              <span tabIndex={0} className="fr" dangerouslySetInnerHTML={katexHtml(fractionTex(st.human, st.found))} />
+            </Tip>
+          </td>
+        );
       })}
     </>
   );

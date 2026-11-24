@@ -8,10 +8,12 @@ import { Markdown } from "../prompt/markdown";
 import "../prompt/prompt.css";
 import { Ico } from "../shell/icons";
 import { useReviewer } from "../shell/reviewer";
-import { href, parseRoute } from "../shell/router";
+import { CLASS_NAME, href, parseRoute } from "../shell/router";
 import { compareOf, agentApi, agentApi2, andNames, elapsed, LIVE, ordinal, scopeWords, type AgentRun, type Queue, type QueueRun, type RunDetail,
 } from "./api";
+import { apiClass, classOfRule, inClass, noteRunClass } from "../shell/klass";
 import { Report } from "./Report";
+import { classPrefix, useAgent } from "./state";
 import { openRunDialog } from "./RunDialog";
 import "./agent.css";
 
@@ -27,14 +29,16 @@ export function runMeta(r: AgentRun): string {
   return `${when(r.created_at)} by ${r.started_by}${r.ended_at ? `, ran ${elapsed(r.created_at, r.ended_at)}` : LIVE.includes(r.state) ? ", still going" : ""}`;
 }
 
-/** "AVC: Credit Value, Description (yours)". */
+/** "AVC: Credit Value, Description (yours)"; a run outside Course names its class: "WVU LearningProgram: Name". */
 const queueWhat = (q: QueueRun, me: string) =>
-  `${q.catalog_name ?? q.catalog}: ${(q.rule_names?.length ? q.rule_names : q.rules).join(", ")}${q.started_by === me ? " (yours)" : ""}`;
+  `${q.catalog_name ?? q.catalog}${q.class && q.class !== "course" ? ` ${CLASS_NAME[q.class]}` : ""}: `
+  + `${(q.rule_names?.length ? q.rule_names : q.rules).join(", ")}${q.started_by === me ? " (yours)" : ""}`;
 
 export function RunsPanel({ catalog, initial, rule = null, ruleName = null, onClose }: {
   catalog: string; initial: string | null; rule?: string | null; ruleName?: string | null; onClose: () => void;
 }) {
   const me = useReviewer();
+  const { classes } = useAgent();
   const [runs, setRuns] = useState<AgentRun[] | null>(null);
   const [queue, setQueue] = useState<Queue | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -43,10 +47,14 @@ export function RunsPanel({ catalog, initial, rule = null, ruleName = null, onCl
   useEffect(() => {
     let live = true;
     setRuns(null);
-    (only ? agentApi2.ofRule(catalog, only) : agentApi.history(catalog))
+    // with All classes: every class's runs, each tagged with its class, newest first
+    const each = classes.length > 1 && !only ? classes : [only ? classOfRule(only) ?? apiClass() : apiClass()];
+    Promise.all(each.map((cls) => inClass(cls, () => (only ? agentApi2.ofRule(catalog, only) : agentApi.history(catalog)))
+      .then((rs) => (each.length > 1 ? rs.map((r) => { noteRunClass(r.run_id, cls); return { ...r, cls }; }) : rs))))
+      .then((xs) => xs.flat().sort((a, b) => b.created_at.localeCompare(a.created_at)))
       .then((r) => { if (live) setRuns(r); }, (e) => { if (live) setError(String(e.message ?? e)); });
     return () => { live = false; };
-  }, [catalog, only]);
+  }, [catalog, only, classes.join(",")]);  // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     let live = true;
     if (!only) agentApi2.queue().then((q) => { if (live) setQueue(q); }, () => {});
@@ -74,7 +82,7 @@ export function RunsPanel({ catalog, initial, rule = null, ruleName = null, onCl
     <li key={r.run_id}>
       <button className="runs-item" onClick={() => setOpen(r.run_id)} data-run={r.run_id}>
         <span className={`runs-state s-${r.state}`}>{STATE[r.state] ?? r.state}</span>
-        <span className="runs-what">{r.outcome ?? (r.scope.kind === "rules" && r.rule_names
+        <span className="runs-what">{classPrefix(r, classes)}{r.outcome ?? (r.scope.kind === "rules" && r.rule_names
           ? `Improving ${andNames((r.scope.rules ?? []).map((id) => r.rule_names?.[id] ?? id))}` : scopeWords(r.scope))}</span>
         <span className="runs-meta faint">{runMeta(r)}</span>
       </button>

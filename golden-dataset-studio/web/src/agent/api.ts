@@ -1,3 +1,4 @@
+import type { ClassSlug } from "../shell/router";
 // Agent runs (docs/qrspi/k2-runs/03-spec.md; server: routes_agent.py): Claude improves rules on the remote agent,
 // started from a run button and watched from the run bar. The run lives on the storage root, so every Studio and
 // every browser sees the same one.
@@ -13,6 +14,8 @@ export interface RunScope { kind: ScopeKind; rule_id?: string | null; rules?: st
 
 export interface AgentRun {
   run_id: string; catalog: string; scope: RunScope; started_by: string;
+  /** with All classes: the class the run is in (the client tags it) */
+  cls?: ClassSlug;
   created_at: string; updated_at: string; deadline: string; state: RunState;
   sent_at: string | null; next_try_at: string | null;
   k2: { url: string; agent: string; delivery_id: string | null };
@@ -191,6 +194,8 @@ export const ruleNames = (r: Pick<AgentRun, "scope" | "rule_names">): string[] =
 /** A run in the queue (GET /api/agent-runs/queue, contract §2.8). */
 export interface QueueRun {
   run: string; catalog: string; catalog_name?: string; rules: string[]; rule_names?: string[]; started_by: string; since: string;
+  /** the run's class (each catalog and class has its own runs; all share the queue) */
+  class?: ClassSlug;
   /** working */ minutes_so_far?: number; left_min?: number;
   /** waiting: 1 = next */ place?: number; start_in_min?: number;
 }

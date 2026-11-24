@@ -9,7 +9,7 @@ import { PagePane, prefetchPages, type BarAction, type CapturedSelection, type H
 import { Ico } from "../shell/icons";
 import { useReviewer, useRole } from "../shell/reviewer";
 import { SampleDrawer, samplePrefs, sampleQuery, type SamplePrefs } from "../shell/Sample";
-import { go, href, replaceParam, type ClassSlug } from "../shell/router";
+import { CLASS_NAME, go, href, replaceParam, type ClassSlug } from "../shell/router";
 import { classOfRule, inClass } from "../shell/klass";
 import type { TabProps } from "../shell/tabProps";
 import { fmt, toast, useKeyHints } from "../shell/ui";
@@ -730,8 +730,9 @@ export default function RulesTab({ catalog, route }: TabProps) {
   let legend: ReactNode = null;
   let banner: ReactNode = null;
   if (detail && row) {
-    const what = kind === "property" ? <><b>{detail.property_label ?? detail.title}</b> · {row.record_external_identifier ?? ""}</>
-      : kind === "locator" ? <><b>Course</b> · {row.record_external_identifier ?? ""}</> : <b>{detail.title}</b>;
+    const key = row.record_external_identifier ?? "";
+    const what = kind === "property" ? <><b>{detail.property_label ?? detail.title}</b>{key ? ` on ${key}` : ""}</>
+      : kind === "locator" ? <><b>{CLASS_NAME[classOfRule(detail.rule_id) ?? "course"]}</b>{key ? ` ${key}` : ""}</> : <b>{detail.title}</b>;
     if (objFix && listRule) {
       legend = <><Ico name="highlight" /><span><b>Select the right text</b> on the page for the selected {noun} of {what}, then pick its field;
         Enter saves the correction.</span></>;

@@ -10,6 +10,49 @@ import { parseRoute } from "../shell/router";
 
 const cache = new Map<string, Promise<KeySource | null>>();
 
+/** A page rule's URL regex as a short path to read (the full regex is the tooltip): each alternative's literal start,
+ * "…" where the pattern takes over (`/graduate/collegeofbusinessandeconomics/…`); a group of plain words stays as it
+ * is (`/(undergraduate|graduate)/`). Over two alternatives, or over 60 characters, it says how many more. */
+export function shortPattern(re: string): string {
+  let body = re.replace(/^\^/, "").replace(/\$$/, "");
+  const close = (s: string, i: number) => {  // the index of the ")" that closes the "(" at i
+    for (let d = 0, j = i; j < s.length; j++) {
+      if (s[j] === "\\") { j++; continue; }
+      if (s[j] === "(") d++;
+      else if (s[j] === ")" && --d === 0) return j;
+    }
+    return -1;
+  };
+  if (body.startsWith("(") && close(body, 0) === body.length - 1) body = body.slice(1, -1);
+  const alts: string[] = [];
+  for (let d = 0, start = 0, j = 0; j <= body.length; j++) {
+    const c = body[j];
+    if (c === "\\") { j++; continue; }
+    if (c === "(" || c === "[") d++;
+    else if (c === ")" || c === "]") d--;
+    else if ((c === "|" && d === 0) || j === body.length) { alts.push(body.slice(start, j)); start = j + 1; }
+  }
+  const literal = (a: string) => {
+    let out = "";
+    for (let j = 0; j < a.length; j++) {
+      const c = a[j];
+      if (c === "\\" && /[/.\-_]/.test(a[j + 1] ?? "")) { out += a[++j]; continue; }
+      if (c === "(") {
+        const k = close(a, j), inner = a.slice(j + 1, k);
+        if (k > 0 && /^[\w|-]+$/.test(inner)) { out += a.slice(j, k + 1); j = k; continue; }
+      }
+      if (/[\\[(.*+?{|^$)]/.test(c)) return `${out}…`;
+      out += c;
+    }
+    return out;
+  };
+  const parts = alts.map(literal);
+  const shown = parts.slice(0, 2).join(" or ");
+  const more = parts.length - 2;
+  if (shown.length > 60) return `${parts[0].length > 60 ? `${parts[0].slice(0, 59)}…` : parts[0]}${parts.length > 1 ? `, and ${parts.length - 1} more` : ""}`;
+  return more > 0 ? `${shown}, and ${more} more` : shown;
+}
+
 function source(occ: string): Promise<KeySource | null> {
   const cat = parseRoute(location.hash).catalog ?? "";
   const k = `${location.hash.split("?")[0]}|${occ}`;
@@ -50,7 +93,10 @@ export function KeyCode({ id, occ, generated }: { id: string | null; occ: string
                     lower case, spaces as hyphens (issue #368)</>
                 : src?.text ? <>the page, <code>{src.text}</code></> : <>the page</>}</dd>
             {src?.page_rule && <><dt>Page rule</dt>
-              <dd>{src.page_rule}{src.url_pattern ? <>, URL pattern <code>{src.url_pattern}</code></> : null}</dd></>}
+              <dd>{src.page_rule}{src.url_pattern ? (() => {
+                const [path, more] = shortPattern(src.url_pattern).split(", and ");
+                return <>, URL pattern <code title={src.url_pattern}>{path}</code>{more ? `, and ${more}` : ""}</>;
+              })() : null}</dd></>}
           </dl>
         </div>
       )}

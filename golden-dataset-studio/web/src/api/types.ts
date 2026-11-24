@@ -1,6 +1,7 @@
 // The JSON the Studio server returns (src/golden_datasets/server/routes_*.py). This file is the contract between
 // the server and the tabs; change both sides together.
 
+type ClassSlug = "course" | "learningprogram";
 export type RuleKind = "page" | "locator" | "property";
 export type RuleStatus = "approved" | "needs work" | "in review";
 export type Verdict = "correct" | "wrong" | "missing" | "question";
@@ -8,6 +9,8 @@ export type Verdict = "correct" | "wrong" | "missing" | "question";
 export type RowStateName = Verdict | "fixed" | "still-wrong" | "changed-since-correct";
 
 export interface CatalogCard {
+  /** the classes this catalog has none of ("Not a LearningProgram source" on the home page) */
+  not_sources?: ("course" | "learningprogram")[];
   catalog: string; short: string; name: string; institution: string; platform: string; logo: string | null;
   pages: number | null; crawl: string | null; ruleset_version: number | null;
   rules_total: number; rules_approved: number; status: "ready" | "not imported" | "adding" | "failed";
@@ -389,6 +392,10 @@ export interface CatalogsSummary {
   labels: Record<string, string>;
   /** the Required columns (bold in the home table) */
   required: string[];
+  /** the class these columns are of */
+  cls?: ClassSlug;
+  /** column → its tier: Required, Phase 1, Phase 2 (folded on the home page) */
+  tiers?: Record<string, "required" | "phase1" | "phase2">;
   properties: number;
   catalogs: Record<string, CatalogSummary>;
 }
@@ -468,3 +475,26 @@ export interface MatchRow extends ReviewMarks {
   css_path: string | null; char_start: number | null; char_end: number | null;
   state: RowStateName | null; verdict: EventBrief | null; comments: EventBrief[];
 }
+
+/** One outcome count of a score line (`GET /api/score-history`): values and each outcome, exact and partial apart. */
+export interface ScoreNumbers {
+  values: number; match: number; partial: number; unsure: number; wrong: number; missing: number; extra?: number;
+  exact: number | null; partial_share: number | null; meets_target?: boolean;
+}
+/** One score of one property in one catalog (a line of `scores/<class>/<property>/<catalog>.jsonl`). */
+export interface ScoreLine {
+  at: string; extract_run: string; golden_version: string; golden_kind?: string;
+  trigger: "golden-published" | "new-output" | "manual" | string; score: string;
+  scored_with: { xtra_cli_version: string | null; xtra_cli_commit: string | null } | null;
+  golden: ScoreNumbers | null; silver: ScoreNumbers | null;
+}
+export interface ScoreHistory {
+  cls: ClassSlug; target: number;
+  /** the class's properties in the Rules tab's order */
+  properties: { column: string; label: string; term: string | null; tier: "required" | "phase1" | "phase2" }[];
+  /** the catalogs (folders) with the class's rules */
+  catalogs: string[];
+  /** catalog → column → its last scores, oldest first */
+  history: Record<string, Record<string, ScoreLine[]>>;
+}
+

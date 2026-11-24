@@ -373,7 +373,7 @@ class AgentRuns:
         rules = list(scope.get("rules") or [])
         from .catalogs import info
 
-        run = {"run_id": run_id, "catalog": self.cat, "catalog_short": info(self.cat)["short"],
+        run = {"run_id": run_id, "catalog": self.cat, "catalog_short": info(self.cat)["short"], "class": self.ctx.cls,
                "scope": {"kind": scope["kind"], "rules": rules, "added": []},
                "rule_names": {r: (rule_names or {}).get(r, r) for r in rules}, "started_by": author,
                "state": "waiting", "created_at": iso(t), "updated_at": iso(t), "sending_at": None, "sent_at": None,
@@ -647,9 +647,9 @@ class Queue:
     def live(self) -> list[tuple[AgentRuns, dict]]:
         """Every live run of every catalog, oldest first."""
         out = []
-        for folder in self.catalogs():
-            ar = self.runs_for(folder)
-            out += [(ar, r) for r in ar.live_runs()]
+        for item in self.catalogs():  # a catalog folder, or (folder, class): each class has its own runs
+            ar = self.runs_for(*item) if isinstance(item, tuple) else self.runs_for(item)
+            out += [(ar, {**r, "class": r.get("class") or ar.ctx.cls}) for r in ar.live_runs()]
         return sorted(out, key=lambda x: x[1]["created_at"])
 
     # -- the view the routes show --------------------------------------------------------------------------
@@ -684,7 +684,8 @@ class Queue:
             names = r.get("rule_names") or {}
             return {"run": r["run_id"], "catalog": r.get("catalog_short") or info(r["catalog"])["short"],
                     "catalog_folder": r["catalog"], "catalog_name": info(r["catalog"])["name"], "rules": rules,
-                    "rule_names": [names.get(x, x) for x in rules], "started_by": r["started_by"], "state": r["state"]}
+                    "rule_names": [names.get(x, x) for x in rules], "started_by": r["started_by"], "state": r["state"],
+                    "class": r.get("class") or "course"}
         out_working = [base(r) | {"since": r.get("sent_at") or r.get("sending_at"), "minutes_so_far": round(m),
                                   "left_min": round(x)} for r, m, x in zip(working, so_far, left)]
         out_waiting = [base(r) | {"since": r["created_at"], "place": i + 1, "start_in_min": round(s)}

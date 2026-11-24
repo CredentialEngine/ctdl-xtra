@@ -398,3 +398,62 @@ Add one line per phase as it lands: the phase, the commit, the checks run, and a
   - **Checks:** `uv run pytest` 251 passed; `ruff` clean; web typecheck clean, 289 passed, build OK.
   - **Left over:** the run bar and the AI runs panel (`AgentProvider`) follow one class. With All classes they
     show Course's runs.
+- **Phase 5** (the home page), with three fixes to Phase 4.
+  - **Golden dataset view** (w2-home-classes-menu, w2-home-scrolled):
+    - A *Classes* menu (each class with its properties and catalogs) ticks the classes whose columns show. They sit
+      side by side under a heading per class ("Course 8 required, 7 more in Phase 1, 22 in Phase 2").
+    - The columns come in three tiers: Required in bold, then Phase 1, then Phase 2 folded into one column ("6 of 22")
+      that opens on a click.
+    - Coverage has a line per class. A catalog without a class's rules says "No LearningProgram rules yet" across
+      that class's columns, or "Not a LearningProgram source" when the catalog lists the class in `not_sources` (the
+      manifest entry, else `catalogs.py`; no catalog does yet).
+    - The table waits for every ticked class's summary, so columns don't move. The catalog columns stay fixed when
+      it scrolls.
+  - **xtra score view** (w4-scores-all, w4-scores-all-numbers, w4-scores-props-menu, w4-scores-one-catalog,
+    w3-scores-one-property, w4-scores-one-catalog-one-property):
+    - **Menus:** Catalogs (all, or one), Classes, and Properties (under their class, with a search; a class ticks all
+      of its own).
+    - **Scopes:** the menus pick one of the four. All catalogs and all properties has *Rows: Catalogs | Properties*.
+    - **Tables:** each class is its own table. Every row has Golden and Silver lines: a stacked outcome bar with the
+      90% target dotted, exact and partial apart (or *Numbers*: a column per outcome), and the last 7 scores as
+      stacked bars with an axis, the 90 line and the first and last day.
+    - **Navigation:** a row opens the next scope down. One catalog links each property's *Evals →*. One catalog and
+      one property shows two large charts (each bar marked golden or output), then each score with its trigger, the
+      golden version and the xtra-cli version and commit, and a link into that catalog's Evals tab at the property.
+    - **Unscored rows:** rows with no score aren't listed; a line counts them. There is no Score now button.
+    - **Sums:** a row's counts are the sum of its pairs' latest scores, so exact is match ÷ values over everything
+      the row covers. Its history sums every pair's latest score at each point. Across catalogs, one day is one
+      point.
+  - **API:**
+    - `GET /api/catalogs-summary` takes `?class=` and adds `cls` and `tiers`. Columns are ordered Required, Phase 1,
+      Phase 2.
+    - `GET /api/score-history?class=` returns the class's properties (column, label, term, tier), its catalogs, and
+      per catalog each property's last 7 history lines from xtra-cli's container (one listing, one read per file).
+    - `/catalogs` cards add `not_sources`.
+  - **Fixes to Phase 4:**
+    - The identifier card shows a page rule's URL pattern as a short path (`/graduate/collegeofbusinessandeconomics/…,
+      and 1 more`), with the full regex as its tooltip.
+    - The page pane's note reads "Name on program-business-administration", with no middle dot.
+    - With All classes, the run bar and the AI runs panel poll every class with rules. Each run says its class
+      ("LearningProgram: Claude is working on Name"), and a run's actions (report, Cancel) go to its class.
+    - Found while doing this: the shared queue only looked at Course runs, so a LearningProgram run neither took a
+      place nor showed in *See the queue*. The queue now walks every catalog and class. Runs record their `class`,
+      and queue entries show it ("WVU LearningProgram: Name").
+  - **Tests:**
+    - `test_score_classes`: score history and the class summary with tiers.
+    - `test_learning_programs`: a program run takes its place in the shared queue.
+    - Web:
+      - `ScoreViews.test.tsx`: sums and history, each scope, Numbers, the Properties menu;
+      - `CatalogPicker.test.tsx`: tiers, Phase 2 folded and opened, classes side by side, no rules or not a source;
+      - `KeyCode.test.ts`: the short pattern;
+      - `picker.test.tsx`: runs with All classes.
+  - **Screens** (`screens/impl/`):
+    - The golden view is real: the scratch root with the demo WVU LearningProgram ruleset.
+    - The score views' history is illustrative. Locally only AVC Course has an extract output, so Playwright serves
+      generated scores for the real classes, catalogs and properties.
+    - `w4-scores-one-catalog-one-property-real` and `w4-scores-all-real` use real AVC scores. These are drafts scored
+      on a scratch copy of xtra-cli's container (`score --draft rs-0026|rs-0029 --output <id>`).
+    - `w4-scores-by-property-status` (property status) is Phase 6. The mockup's *Score now* is out of scope.
+  - **Checks:** `uv run pytest` 254 passed; `ruff` clean; web typecheck clean, 301 passed, build OK.
+  - **Left over:** which catalogs are "Not a LearningProgram source" isn't known yet. Set `not_sources:
+    ["learningprogram"]` on those catalogs' manifest entries.

@@ -102,7 +102,8 @@ export default function App() {
   }
   return (
     <KeysContext.Provider value={setKeys}>
-    <AgentProvider catalog={route.catalog && catalog ? catalog.short : null}>
+    <AgentProvider catalog={route.catalog && catalog ? catalog.short : null}
+      classes={route.cls === "all" ? (catalog?.classes ?? []).filter((c) => c.ruleset_version).map((c) => c.slug) : [route.cls]}>
       <TopBar catalog={route.catalog ? catalog : null} tab={route.catalog ? route.tab : null} cls={route.cls} onTour={tour.open} />
       {route.catalog && catalog && <RunBar catalog={catalog.short} />}
       <main id="app">{body}</main>

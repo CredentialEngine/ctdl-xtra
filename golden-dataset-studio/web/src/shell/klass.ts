@@ -4,6 +4,9 @@
 import { CLASS_SLUGS, parseRoute, type ClassSlug } from "./router";
 
 let scoped: ClassSlug | null = null;
+/** A run's class, once a view with All classes has seen it: calls on that run (its report, Cancel) go to its class. */
+const RUN_CLASS = new Map<string, ClassSlug>();
+export function noteRunClass(runId: string, cls: ClassSlug): void { RUN_CLASS.set(runId, cls); }
 
 /** The class a rule belongs to, from its id (`learningprogram-name`, `locator-learningprogram-page`); null when the
  * id names none (Course's older page rules and locators: `course-page`, `program-page`). */
@@ -37,6 +40,7 @@ export function inClass<T>(cls: ClassSlug, f: () => T): T {
  * Course call stays as it always was. */
 export function withClass(path: string): string {
   if (!path.startsWith("/api/catalogs/") || /[?&]class=/.test(path)) return path;
-  const cls = apiClass();
+  const run = /\/agent-runs\/([^/?]+)/.exec(path)?.[1];
+  const cls = (run && RUN_CLASS.get(run)) || apiClass();
   return cls === "course" ? path : `${path}${path.includes("?") ? "&" : "?"}class=${cls}`;
 }

@@ -124,3 +124,29 @@ def test_verdicts_gather_their_columns_for_the_pending_score(studio):  # noqa: F
     assert pending["columns"] == ["codedNotation", "name"]
     golden.request_score(Ctx(ctx.root, CAT), "every column")  # None: every column
     assert ctx.root.read_json(f"{CAT}/{ctx.crawl}/course/scores-pending.json")["columns"] is None
+
+
+def test_the_home_page_reads_each_propertys_history_by_class(scored):  # noqa: F811
+    """The home page's score views (LearningProgram spec §2): per catalog with the class's rules, each property's last
+    scores, Golden and Silver counts with exact and partial apart, and what scored it."""
+    c, ctx, _ = scored
+    scores.score(Ctx(ctx.root, CAT), "ruleset-v1", trigger="new-output")
+    h = c.get("/api/score-history").json()
+    assert h["cls"] == "course" and h["target"] == 0.9 and CAT in h["catalogs"]
+    props = {p["column"]: p for p in h["properties"]}
+    assert props["name"]["term"] == "ceterms:name" and props["name"]["tier"] == "required"
+    [line] = h["history"][CAT]["name"]
+    assert (line["trigger"], line["golden_version"]) == ("new-output", "ruleset-v1")
+    assert line["golden"]["values"] == 1 and line["silver"]["partial"] == 1 and "scored_with" in line
+    assert "catalog" not in line  # only what the views show
+    assert c.get("/api/score-history", params={"class": "learningprogram"}).json()["history"] == {}
+
+
+def test_the_golden_view_has_each_classs_columns_in_tiers(scored):  # noqa: F811
+    c, _, _ = scored
+    s = c.get("/api/catalogs-summary").json()
+    assert s["cls"] == "course" and set(s["tiers"].values()) == {"required", "phase1", "phase2"}
+    tiers = [s["tiers"][k] for k in s["columns"]]
+    assert tiers == sorted(tiers, key=["required", "phase1", "phase2"].index)  # Required, Phase 1, then Phase 2
+    lp = c.get("/api/catalogs-summary", params={"class": "learningprogram"}).json()
+    assert lp["cls"] == "learningprogram" and lp["catalogs"] == {} and "Learning Type" in lp["columns"]

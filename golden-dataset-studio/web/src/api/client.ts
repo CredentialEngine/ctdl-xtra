@@ -3,10 +3,11 @@ import type {
   ExtractOutputs, MatchRow, ScoreBasis, ScoreDoc, ScoreValues, CatalogsSummary, WrongGroups, WrongKey,
   CatalogCard, CatalogDetail, CrawledCatalog, FirstRulesPrompt, CompareRecords, CompareResponse, Discussion, CourseDetail, CourseHit, GoldenFileText, GoldenLineage, GoldenResponse,
   AnnotateResponse, ApprovePreview, ResetPreview,
-  KeySource, NewEvent, Overlay,
+  KeySource, NewEvent, Overlay, ScoreHistory,
   PromptResponse, RuleDetail, RulesResponse, RowsResponse, UnclassifiedPage,
 } from "./types";
 import { withClass } from "../shell/klass";
+import type { ClassSlug } from "../shell/router";
 import { signedOut } from "../shell/session";
 
 export class ApiError extends Error {
@@ -35,7 +36,10 @@ const v = (catalog: string, version: string) => `${c(catalog)}/golden/${encodeUR
 
 export const api = {
   catalogs: () => call<CatalogCard[]>("/api/catalogs"),
-  catalogsSummary: (basis: ScoreBasis) => call<CatalogsSummary>(`/api/catalogs-summary?basis=${basis}`),
+  catalogsSummary: (basis: ScoreBasis, cls?: ClassSlug) =>
+    call<CatalogsSummary>(`/api/catalogs-summary?basis=${basis}${cls && cls !== "course" ? `&class=${cls}` : ""}`),
+  /** the home page's score views: a class's properties and each catalog's last scores per property */
+  scoreHistory: (cls: ClassSlug) => call<ScoreHistory>(`/api/score-history${cls !== "course" ? `?class=${cls}` : ""}`),
   crawls: () => call<{ crawls_root: string; items: CrawledCatalog[] }>("/api/crawls"),
   addCatalog: (catalog: string, body: { crawl?: string; by?: string }) =>
     call<unknown>(`/api/crawls/${encodeURIComponent(catalog)}/add`, {

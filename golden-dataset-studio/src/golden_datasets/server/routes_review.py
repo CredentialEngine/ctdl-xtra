@@ -157,7 +157,10 @@ def catalogs(request: Request) -> list[dict]:
         item = {"catalog": folder, "short": meta["short"], "name": meta["name"], "institution": meta["institution"],
                 "platform": meta["platform"], "logo": f"/logos/{meta['logo']}" if meta.get("logo") else None,
                 "pages": None, "crawl": None, "ruleset_version": None, "rules_total": 0, "rules_approved": 0,
-                "status": "not imported"}
+                "status": "not imported",
+                # the classes this catalog has none of (the home page says "Not a LearningProgram source"): the
+                # catalog's entry in the manifest, else catalogs.py
+                "not_sources": list((e or {}).get("not_sources") or meta.get("not_sources") or [])}
         if e:
             k = next((c for c in e["crawls"] if c["crawl"] == e.get("current_crawl")), None)
             item.update(pages=(k or {}).get("page_count"), crawl=e.get("current_crawl"))

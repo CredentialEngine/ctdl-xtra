@@ -319,3 +319,35 @@ describe("Wording", () => {
     expect(uiText(files["./RunDialog.tsx"]).some((t) => t.includes("Tick the rules you want improved"))).toBe(true);
   });
 });
+
+describe("runs with All classes", () => {
+  it("polls every class: the run bar and the runs panel say each run's class, and a run's actions go to its class", async () => {
+    const LP_RUN: LiveRun = { ...WORKING, run_id: "r-lp", scope: { kind: "rules", rules: ["learningprogram-name"] },
+      rule_names: { "learningprogram-name": "Name" } };
+    vi.stubGlobal("fetch", (url: string, init?: RequestInit) => {
+      if (init?.method === "POST") { posts.push({ url, body: JSON.parse(String(init.body)) }); return respond(200, { run: LP_RUN }); }
+      if (url === "/api/agent-runs/config") return respond(200, { enabled: true, off_reason: null, agent_name: "x", k2_url: null, agent: null, minutes: 90, prompt_users: [], cap: 2 });
+      const lp = url.includes("class=learningprogram");
+      if (url.includes("/agent-runs/current")) return respond(200, { ...current, runs: lp ? [LP_RUN] : [WORKING] });
+      if (url.includes("/agent-runs/queue")) return respond(200, { ...QUEUE, waiting: [], working: [
+        { ...QUEUE.working[0], run: "r-lp", catalog_name: "WVU", rule_names: ["Name"], class: "learningprogram" }] });
+      if (/\/agent-runs(\?|$)/.test(url)) return respond(200, lp ? [{ ...RUN, run_id: "r-lp", state: "finished", created_at: "2026-11-06T16:00:00Z",
+        scope: { kind: "rules", rules: ["learningprogram-name"] }, rule_names: { "learningprogram-name": "Name" } }] : [{ ...RUN, state: "finished" }]);
+      return respond(404, { detail: "no" });
+    });
+    await act(async () => root.render(<AgentProvider catalog="wvu" classes={["course", "learningprogram"]}>
+      <RunBar catalog="wvu" /><RunsPanel catalog="wvu" initial={null} onClose={() => {}} /></AgentProvider>));
+    for (let i = 0; i < 5; i++) await flush();
+    expect(host.querySelector("[data-testid=run-bar] .run-text")!.textContent).toBe(
+      "Course: Claude is working on Credit Value. LearningProgram: Claude is working on Name.");
+    expect([...host.querySelectorAll("[data-testid=queue-working] .runs-item")].map((i) => i.textContent)[0])
+      .toContain("WVU LearningProgram: Name");
+    const past = [...host.querySelectorAll("[data-testid=runs-list] .runs-what")].map((x) => x.textContent).slice(1);  // after the queue
+    expect(past).toEqual(["LearningProgram: Improving Name", "Course: Improving Description"]);
+    vi.spyOn(window, "confirm").mockReturnValue(true);
+    await act(async () => [...host.querySelectorAll<HTMLButtonElement>("[data-testid=run-bar] button")].find((b) => b.textContent === "Cancel")!.click());
+    await flush();
+    expect(posts.map((p) => p.url)).toEqual(["/api/catalogs/wvu/agent-runs/r-0/cancel"]);  // the first working: Course's
+  });
+});
+

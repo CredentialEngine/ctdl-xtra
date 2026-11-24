@@ -11,6 +11,7 @@ from urllib.parse import parse_qs
 
 from fastapi import HTTPException, Request
 
+from .. import classes
 from ..catalogs import resolve
 from ..context import Ctx
 from ..storage import Root, open_root
@@ -65,21 +66,23 @@ class Studio:
         """A catalog's AI runs, with this Studio's K2, run length and prompt."""
         return self.agent_runs_of(resolve(catalog))
 
-    def agent_runs_of(self, folder: str):
+    def agent_runs_of(self, folder: str, cls: str | None = None):
         from ..agent_runs import AgentRuns, studio_prompter
 
-        ctx = self.ctx(folder)
+        ctx = self.ctx(folder, cls)
         return AgentRuns(ctx, self.k2, self.agent_minutes, prompter=studio_prompter(ctx, self.azure_root))
 
-    def catalog_folders(self) -> list[str]:
-        """Every catalog in the manifest (the queue looks at each one's live runs)."""
+    def catalog_folders(self) -> list[tuple[str, str]]:
+        """Every catalog in the manifest, with each class that has rules there: the queue looks at each one's live
+        runs (each catalog and class has its own runs and lock; all of them share the queue's places)."""
         from .. import manifest
 
         try:
             doc, _ = manifest.load(self.root)
         except FileNotFoundError:
             return []
-        return [c["catalog"] for c in doc.get("catalogs", [])]
+        return [(c["catalog"], cls) for c in doc.get("catalogs", []) for cls in classes.SLUGS
+                if manifest.has_rules(c, cls) or cls == "course"]
 
     def ctx(self, catalog: str, cls: str | None = None) -> Ctx:
         """A catalog's context for a class: `cls`, else the request's (`?class=`), else Course."""

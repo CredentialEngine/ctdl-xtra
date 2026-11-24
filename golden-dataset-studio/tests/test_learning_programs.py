@@ -130,3 +130,29 @@ def test_programs_are_listed_by_name(lp):
     hits = c.get(f"/api/catalogs/{programs.WVU}/courses", params=LP).json()
     assert [(h["name"], h["record_external_identifier"], h["pages"]) for h in hits] == [
         ("Accountancy, B.S.B.A.", "2166", 1), ("Mining Engineering, B.S.Min.E.", "5542", 1)]
+
+
+def test_a_program_run_takes_its_place_in_the_shared_queue(lp):
+    """Each catalog and class has its own runs and lock, and every run shares the queue's places: a LearningProgram run
+    is in the queue, saying its class."""
+    from test_agent_runs import FakeK2
+
+    c, _, _ = lp
+    st = c.app.state.studio
+    st.k2 = st.queue.k2 = FakeK2()
+    B = f"/api/catalogs/{programs.WVU}"
+    rows = c.get(f"{B}/rules/learningprogram-name/rows", params=LP).json()["rows"]
+    r = c.post(f"{B}/annotations", params=LP, json={
+        "type": "verdict", "author": "Jared Diener", "verdict": "wrong",
+        "target": {"kind": "match", "rule_id": "learningprogram-name", "occurrence_key": rows[0]["occurrence_key"]}})
+    assert r.status_code == 200, r.text
+    r = c.post(f"{B}/agent-runs", params=LP,
+               json={"scope": {"kind": "rules", "rules": ["learningprogram-name"]}, "author": "Jared Diener"})
+    assert r.status_code == 201, r.text
+    assert r.json()["run"]["class"] == "learningprogram"
+    q = c.get("/api/agent-runs/queue").json()
+    [mine] = [x for x in q["working"] + q["waiting"] if x["run"] == r.json()["run"]["run_id"]]
+    assert (mine["catalog"], mine["class"], mine["rules"]) == ("wvu", "learningprogram", ["learningprogram-name"])
+    # the run is the class's: Course's run list doesn't have it
+    assert c.get(f"{B}/agent-runs").json() == []
+    assert [x["run_id"] for x in c.get(f"{B}/agent-runs", params=LP).json()] == [r.json()["run"]["run_id"]]
