@@ -28,10 +28,31 @@ export function Thread({ items }: { items: TalkItem[] }) {
 }
 
 /** A note and Post; `topics` (if more than one) are offered as a choice, `question` as a checkbox. */
-export function Composer({ placeholder, topics, question, onPost }: {
+export function Composer({ placeholder, topics, question, onPost }: ComposerProps) {
+  const form = useComposer(topics, question, onPost);
+  return (
+    <div className="talk-composer" onClick={(e) => e.stopPropagation()}>
+      {topics && topics.length > 1 && <TopicSwitch topics={topics} topic={form.topic} onPick={form.setTopic} />}
+      <NoteInput form={form} placeholder={topics && form.topic === "new-rule" ? NEW_RULE_EXAMPLE : placeholder} />
+      <div className="talk-actions">
+        {question && <label className="talk-q"><input type="checkbox" checked={form.asks} onChange={(e) => form.setAsks(e.target.checked)} />
+          Question whether this rule is needed</label>}
+        <button className="btn primary sm" disabled={!form.note.trim() || form.busy} onClick={() => void form.post()}>Post</button>
+      </div>
+    </div>
+  );
+}
+
+interface ComposerProps {
   placeholder: string; topics?: Topic[]; question?: boolean;
   onPost: (note: string, topic: Topic) => Promise<boolean>;
-}) {
+}
+
+const NEW_RULE_EXAMPLE = "e.g. Every course in this catalog is in English: set ceterms:inLanguage to English for all of them.";
+
+type ComposerForm = ReturnType<typeof useComposer>;
+
+function useComposer(topics: Topic[] | undefined, question: boolean | undefined, onPost: (note: string, topic: Topic) => Promise<boolean>) {
   const [note, setNote] = useState("");
   const [topic, setTopic] = useState<Topic>(topics?.[0] ?? "other");
   const [asks, setAsks] = useState(false);
@@ -43,22 +64,21 @@ export function Composer({ placeholder, topics, question, onPost }: {
     setBusy(false);
     if (ok) { setNote(""); setAsks(false); }
   };
+  return { note, setNote, topic, setTopic, asks, setAsks, busy, post };
+}
+
+function TopicSwitch({ topics, topic, onPick }: { topics: Topic[]; topic: Topic; onPick: (t: Topic) => void }) {
   return (
-    <div className="talk-composer" onClick={(e) => e.stopPropagation()}>
-      {topics && topics.length > 1 && (
-        <div className="seg talk-topics" role="group" aria-label="About">
-          {topics.map((t) => <button key={t} className={t === topic ? "on" : ""} onClick={() => setTopic(t)}>{TOPIC_LABEL[t]}</button>)}
-        </div>
-      )}
-      <textarea className="talk-input" rows={3} value={note} placeholder={topics && topic === "new-rule"
-        ? "e.g. Every course in this catalog is in English: set ceterms:inLanguage to English for all of them." : placeholder}
-        onChange={(e) => setNote(e.target.value)}
-        onKeyDown={(e) => { e.stopPropagation(); if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) void post(); }} />
-      <div className="talk-actions">
-        {question && <label className="talk-q"><input type="checkbox" checked={asks} onChange={(e) => setAsks(e.target.checked)} />
-          Question whether this rule is needed</label>}
-        <button className="btn primary sm" disabled={!note.trim() || busy} onClick={() => void post()}>Post</button>
-      </div>
+    <div className="seg talk-topics" role="group" aria-label="About">
+      {topics.map((t) => <button key={t} className={t === topic ? "on" : ""} onClick={() => onPick(t)}>{TOPIC_LABEL[t]}</button>)}
     </div>
+  );
+}
+
+function NoteInput({ form, placeholder }: { form: ComposerForm; placeholder: string }) {
+  return (
+    <textarea className="talk-input" rows={3} value={form.note} placeholder={placeholder}
+      onChange={(e) => form.setNote(e.target.value)}
+      onKeyDown={(e) => { e.stopPropagation(); if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) void form.post(); }} />
   );
 }
