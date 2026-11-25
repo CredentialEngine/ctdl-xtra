@@ -230,7 +230,8 @@ def test_a_thread_pool_works_in_the_request(traced):
                 list(pool.map(read_in_request, range(20)))
     finally:
         telemetry._counters.reset(token)
-    assert request_counters == {"stats.storage.local.reads": 20}
+    storage = {k: v for k, v in request_counters.items() if k.startswith("stats.storage.")}  # not stats.gc.*
+    assert storage == {"stats.storage.local.reads": 20}
     spans = exporter.get_finished_spans()
     parent = next(s for s in spans if s.name == "snapshot.read_tables")
     reads = [s for s in spans if s.name.startswith("read ")]

@@ -124,6 +124,7 @@ class _Recent(dict):
             super().__setitem__(key, value)
             while len(self) > self.RULES_KEPT:
                 super().__delitem__(next(iter(self)))
+                telemetry.count("stats.rule_cache.evictions")
 
 
 def _count_rebuild(what: str, started: float, rows: int) -> None:
@@ -238,6 +239,15 @@ class Snapshot:
             self.name_rule[loc] = next((rid for rid, r in sorted(self.rules.items()) if r["kind"] == "property"
                                         and r["definition"]["locator"] == loc
                                         and r.get("ctdl_property") == "ceterms:name"), None)
+
+    def sizes(self) -> dict:
+        """How big this extraction is: the counts a request's latency follows (`ce.catalog.records`...)."""
+        if getattr(self, "_sizes", None) is None:
+            self._sizes = {"ce.catalog.records": len({o["record_external_identifier"] for o in self.occurrences.values()}),
+                           "ce.snapshot.occurrences": len(self.occurrences),
+                           "ce.snapshot.matches": sum(map(len, self.matches_by_rule.values())),
+                           "ce.snapshot.pages": len(self.page), "ce.rules.count": len(self.rules)}
+        return self._sizes
 
     # -- rows ---------------------------------------------------------------------------------------------
     def course_line(self, occ_key: str) -> str:
@@ -413,6 +423,14 @@ class Review:
         for e in self.live:
             if e["target"].get("rule_id"):
                 self._by_rule[e["target"]["rule_id"]].append(e["annotation_id"])
+
+    def report_sizes(self) -> None:
+        """Put the catalog's size on the request's span: records, matched values, pages, rules, annotation events, and
+        how full the snapshot cache is. Bubble-up then shows which size a slow request follows."""
+        parent = self.parent.sizes()["ce.snapshot.matches"] if self.parent is not None else None
+        telemetry.set({**self.snap.sizes(), "ce.snapshot.parent.matches": parent,
+                       "ce.annotations.events": len(self.events), "ce.annotations.live": len(self.live),
+                       **LOADER.occupancy()})
 
     # -- verdicts on rows ------------------------------------------------------------------------------
     def _target_key(self, e: dict) -> tuple:
@@ -672,6 +690,7 @@ class Review:
                self.parent.ext if self.parent is not None else None, rule_id, tuple(self._by_rule.get(rule_id, ())))
         got = STATUS_CACHE.get(key)
         if got is None:
+            telemetry.count("stats.rule_status.computed")
             got = STATUS_CACHE[key] = self._rule_status(rule_id, states)
             if len(STATUS_CACHE) > 20_000:
                 STATUS_CACHE.clear()
@@ -811,6 +830,7 @@ class Review:
                self.parent.ext if self.parent is not None else None, rule_id, tuple(self._by_rule.get(rule_id, ())))
         got = PEOPLE_CACHE.get(key)
         if got is None:
+            telemetry.count("stats.rule_people.computed")
             values: Counter = Counter()
             waiting = experts = engineers = 0
             for a in self.annotations(rule_id).values():
@@ -900,11 +920,24 @@ def release_memory() -> None:
     import ctypes.util
     import gc
 
-    gc.collect()
-    try:
-        ctypes.CDLL(ctypes.util.find_library("c") or "libc.so.6").malloc_trim(0)
-    except (OSError, AttributeError):
-        pass
+    with telemetry.span("memory.release"):
+        before = telemetry.rss_mb()
+        gc.collect()
+        try:
+            ctypes.CDLL(ctypes.util.find_library("c") or "libc.so.6").malloc_trim(0)
+        except (OSError, AttributeError):
+            pass
+        telemetry.set(_memory_change(before))
+    telemetry.count("stats.snapshot.releases")
+
+
+def _memory_change(before: float | None) -> dict:
+    """Resident memory before and after some work, for its span (`ce.process.memory.rss_*_mb`)."""
+    after = telemetry.rss_mb()
+    if before is None or after is None:
+        return {}
+    return {"ce.process.memory.rss_before_mb": before, "ce.process.memory.rss_after_mb": after,
+            "ce.process.memory.rss_delta_mb": round(after - before, 1)}
 
 
 class Loader:
@@ -987,7 +1020,9 @@ class Loader:
                           "ce.snapshot.rows": incoming,
                           "ce.snapshot.evicted": evicted, "ce.snapshot.is_parent": reported_as.endswith(".parent")}
             with telemetry.span("snapshot.load", load_attrs):
+                before = telemetry.rss_mb()
                 snap = Snapshot(ctx, ext)  # outside `_lock`: a cold load takes seconds; cached reads go on meanwhile
+                telemetry.set(_memory_change(before))
             with self._lock:
                 self._snaps[key] = snap
                 self._snaps.move_to_end(key)
@@ -1020,12 +1055,20 @@ class Loader:
         while len(small) > self.MAX_SMALL - (1 if small_in else 0):
             drop.append(small.pop(0))
         for k in drop:
+            telemetry.count("stats.snapshot.evictions")
             snap = self._snaps.pop(k)
             self._reviews = {rk: rv for rk, rv in self._reviews.items()
                              if rv.snap is not snap and rv.parent is not snap}
         if drop:
             del snap
             release_memory()
+
+    def occupancy(self) -> dict:
+        """How full the snapshot cache is (`ce.snapshot.cached.*`), against its budget in rows."""
+        with self._lock:
+            rows = sum(self.weight(s) for s in self._snaps.values())
+            return {"ce.snapshot.cached.count": len(self._snaps), "ce.snapshot.cached.rows": rows,
+                    "ce.snapshot.budget.rows": self.budget}
 
     def cached_extractions(self) -> list[tuple]:
         """(catalog, crawl, extraction) of the snapshots kept now, least recently used first."""

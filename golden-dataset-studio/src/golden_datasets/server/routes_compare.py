@@ -86,6 +86,7 @@ def _cards(st, ctx, ea: str, eb: str) -> tuple:
     """(snapshot A, snapshot B, review, log offset, every changed rule's card), cached per log offset."""
     snap_a, snap_b = LOADER.snapshot(ctx, ea), LOADER.snapshot(ctx, eb)
     rv = LOADER.review(ctx, eb, with_parent=False)  # reads the log's new lines, so the offset below is current
+    rv.report_sizes()
     offset = LOADER.log(ctx).offset
     key = ("compare", ctx.catalog, ctx.cls, ea, eb, offset)
     if key not in st.cache:

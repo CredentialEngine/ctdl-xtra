@@ -38,6 +38,7 @@ def _values_now(st, ctx, doc: dict) -> Counter:
     """The latest version's values as its files hold them now (each expert verdict rewrites a page's files): values
     with a CTDL term, and how many are human-reviewed. Kept until the annotation log moves."""
     rv = LOADER.review(ctx, doc["extraction"])
+    rv.report_sizes()
     key = ("golden-values", ctx.catalog, ctx.cls, doc["publication"], doc.get("published_at"), LOADER.log(ctx).offset)
     if key not in st.cache:
         files = golden.trees(golden.plan(rv, set(doc.get("properties") or []))["pages"])
@@ -121,6 +122,7 @@ def _golden_now(st, ctx) -> dict:
     """The golden dataset as it is now (property-rules spec §4.16): only values an expert reviewed, by property,
     published or not. Kept until the annotation log moves."""
     rv = LOADER.review(ctx)
+    rv.report_sizes()
     key = ("golden-now", ctx.catalog, ctx.cls, rv.snap.ext, LOADER.log(ctx).offset)
     if key not in st.cache:
         rows = []
@@ -142,6 +144,7 @@ def approve_preview(request: Request, catalog: str, rule_id: str) -> dict:
     st = studio(request)
     ctx = st.ctx(catalog)
     rv = LOADER.review(ctx)
+    rv.report_sizes()
     if rule_id not in rv.snap.rules:
         raise not_found(f"unknown rule {rule_id}")
     what = golden.approval_publishes(rv, rule_id)
