@@ -22,6 +22,7 @@ Shape (`golden-datasets-manifest/2`: per class, LearningProgram spec item 20):
 
 from __future__ import annotations
 
+import json
 import time
 from collections.abc import Callable
 from datetime import UTC, datetime
@@ -34,31 +35,6 @@ SCHEMA = "golden-datasets-manifest/2"
 #: What each class keeps, at the catalog level and per crawl.
 CLASS_FIELDS = {"rule_versions": list, "rulesets": list, "annotations": lambda: None}
 CRAWL_CLASS_FIELDS = {"extractions": list, "golden": list, "scores": list}
-
-
-def now_iso() -> str:
-    return datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
-
-
-def empty() -> dict:
-    return {"schema": SCHEMA, "updated_at": None, "catalogs": []}
-
-
-def load(root: Root) -> tuple[dict, str | None]:
-    """The manifest and its ETag (None when there is no manifest yet)."""
-    st = root.stat(PATH)
-    if st is None:
-        return empty(), None
-    # Read and stat can race; the ETag we return must describe the bytes we parsed, so re-check.
-    for _ in range(5):
-        data = root.read_bytes(PATH)
-        st2 = root.stat(PATH)
-        if st2 and st2.etag == st.etag:
-            import json
-
-            return json.loads(data), st.etag
-        st = st2
-    raise ConflictError("manifest keeps changing while being read")
 
 
 def update(root: Root, change: Callable[[dict], None], retries: int = 8) -> dict:
@@ -79,6 +55,21 @@ def update(root: Root, change: Callable[[dict], None], retries: int = 8) -> dict
 
 
 # --- helpers used by writers -------------------------------------------------------------------------
+def load(root: Root) -> tuple[dict, str | None]:
+    """The manifest and its ETag (None when there is no manifest yet)."""
+    st = root.stat(PATH)
+    if st is None:
+        return empty(), None
+    # Read and stat can race; the ETag we return must describe the bytes we parsed, so re-check.
+    for _ in range(5):
+        data = root.read_bytes(PATH)
+        st2 = root.stat(PATH)
+        if st2 and st2.etag == st.etag:
+            return json.loads(data), st.etag
+        st = st2
+    raise ConflictError("manifest keeps changing while being read")
+
+
 def catalog_entry(doc: dict, catalog: str, create: bool = True) -> dict | None:
     for c in doc["catalogs"]:
         if c["catalog"] == catalog:
@@ -143,3 +134,11 @@ def add_unique(items: list, value, key: Callable | None = None) -> None:
     k = key or (lambda x: x)
     if not any(k(x) == k(value) for x in items):
         items.append(value)
+
+
+def now_iso() -> str:
+    return datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def empty() -> dict:
+    return {"schema": SCHEMA, "updated_at": None, "catalogs": []}
