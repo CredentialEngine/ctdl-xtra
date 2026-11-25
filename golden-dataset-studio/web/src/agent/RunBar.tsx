@@ -15,7 +15,7 @@ import { compareOf, agentApi, agentApi2, andNames, elapsed, endedIcon, endedLine
 } from "./api";
 import { openPrompt } from "../prompt/PromptModal";
 import { Report, useReportRows } from "./Report";
-import { useAgent } from "./state";
+import { classPrefix, useAgent } from "./state";
 import "./agent.css";
 
 const DISMISSED = "studio.run.dismissed";
@@ -74,7 +74,7 @@ function workingTip(run: AgentRun, notes: RunNote[], now: string): string {
 
 export function RunBar({ catalog }: { catalog: string }) {
   const me = useReviewer();
-  const { config, runs, last, notes, recent, now, refresh } = useAgent();
+  const { config, runs, last, notes, recent, now, classes, refresh } = useAgent();
   const [watch, setWatch] = useState<string | null>(null);  // the run whose panel is open
   const [, bump] = useState(0);
   const name = config?.agent_name ?? "Remote AI rule generator";
@@ -107,14 +107,15 @@ export function RunBar({ catalog }: { catalog: string }) {
     const live = new Set(runs.flatMap((r) => r.scope.rules ?? []));
     const decisions = Object.entries(recent).filter(([rule, r]) => !live.has(rule) && r.state === "needs_you" && r.to_do_count && (r as { rule_name?: string }).rule_name)
       .map(([, r]) => `${(r as { rule_name?: string }).rule_name} needs ${r.to_do_count} decision${r.to_do_count === 1 ? "" : "s"} from you.`);
-    text = [...working.map((r) => (r === silent ? SILENT_WORDS : workingWords(r, name))), ...waiting.map((r) => waitingWords(r, me)), ...decisions].join(" ");
+    text = [...working.map((r) => classPrefix(r, classes) + (r === silent ? SILENT_WORDS : workingWords(r, name))),
+            ...waiting.map((r) => classPrefix(r, classes) + waitingWords(r, me)), ...decisions].join(" ");
     tip = working[0] ? workingTip(working[0], working[0].notes ?? [], now) : undefined;
     cls = silent ? "is-silent" : "is-live";
   } else {
     const e = ended!;
     const also = (e.also_changed ?? []).map((id) => e.rule_names?.[id] ?? id);
     const n = feedback?.new_feedback ?? 0;
-    text = [`${endedWords(e)}.`, also.length ? `It also changed ${andNames(also)}.` : "",
+    text = [`${classPrefix(e, classes)}${endedWords(e)}.`, also.length ? `It also changed ${andNames(also)}.` : "",
             n ? `${n} row${n === 1 ? " has" : "s have"} new feedback since.` : ""].filter(Boolean).join(" ");
     cls = stateClass(e);
   }

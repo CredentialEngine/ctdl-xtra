@@ -1,7 +1,8 @@
 """Scores (Evals spec §4): one extract output compared with one golden dataset by xtra's own scorer, and kept.
 
-    <crawl>/golden-dataset-studio/scores/sc-NNNN/{score.json, values.parquet}
-    <crawl>/golden-dataset-studio/extract-outputs/<report last modified>/{records/, extract-report.json}
+    <xtra>/<catalog>/<crawl>/extract/<output>/scores/<golden>/<class>/sc-NNNN/{score.json, values.parquet}
+
+in xtra-cli's container (`xtra_paths`), beside the extract output it scored (approved item 21).
 
 **The scorer** is xtra-cli's (`match_extraction_run`, a uv path dependency on `../xtra-cli`), called in-process with
 two store adapters (`list_keys`, `get_json`, `describe_location`): `RecordsStore` reads an extract output's
@@ -18,8 +19,12 @@ The trees hold only what the scorer accepts (`golden.tree_pages`: no values with
 value with `location: null` is implied, not on the page, and the scorer skips it (xtra-cli #343).
 
 **An extract output** is what `xtra catalog extract` wrote for the crawl (`$GOLDEN_DATASETS_XTRA_SOURCE`, else the
-shared container). xtra overwrites it in place, so the first time the Studio sees a report (by ETag) it copies
-`records/` and the report into `extract-outputs/<report last modified>/`, and scores read that copy.
+shared container). Today's xtra writes one file per property of each resource, `extraction_report/<prefix>/<property
+key>/<resource>.json`, and one `extraction-<property key>-report.json` per property; older outputs have `records/` and
+`extract-report.json`. xtra's own `extraction_records` turns the new files into the records its scorer reads. The
+first time the Studio sees an output's reports (by ETag) it registers it, and reads it where xtra wrote it; xtra
+overwrites it with the next run, so only the latest output can be scored again. Outputs the Studio copied before
+class folders are kept in xtra's container, at `extract/<output id>/`.
 
 A pair (golden dataset content, extract output) is scored once: asking again returns the score there is.
 
@@ -36,7 +41,6 @@ from __future__ import annotations
 import functools
 import hashlib
 import json
-import os
 import re
 import subprocess
 from collections import Counter, defaultdict
@@ -47,19 +51,22 @@ from pathlib import Path
 
 import pyarrow as pa
 
+from . import classes, layout, manifest, model, xtra_paths
 from . import golden as golden_mod
-from . import layout, manifest, model
 from .context import Ctx
 from .errors import UserError
-from .storage import AzureRoot, Root, open_root
+from .storage import Root, open_root
 
-SHARED_XTRA_ROOT = "azure://https://ceteststorage.blob.core.windows.net/xtra-cli-output"
 HUMAN_REVIEWED = golden_mod.HUMAN_REVIEWED
 BASES = ("human", "rule")  # the human-reviewed values only; every rule-matched value
 TREE = {"human": golden_mod.HUMAN_REVIEWED, "rule": golden_mod.RULE_MATCHED}  # each basis's tree
 #: A golden unit's outcome (sme-fixes spec §8.1), worst first; `extra` is an extracted unit with no golden partner.
 GOLDEN_OUTCOMES = ("missing", "wrong", "partial", "unsure", "match")
 OUTCOMES = (*GOLDEN_OUTCOMES, "extra")
+#: Where today's xtra writes one file per property of each resource (xtra-cli `EXTRACTION_REPORT_DIR`).
+EXTRACTION_REPORT = "extraction_report"
+#: One property's extract report (not xtra's match or score reports, which sit beside it in older outputs).
+PROPERTY_REPORT = re.compile(r"extraction-(?!match-|score-)[a-z]+_[A-Za-z_]+-report\.json")
 SLOT_NAMES = "this output uses slot names; re-extract with the current xtra-cli"
 #: values.parquet: model.SCORE_VALUES plus what a unit is (value · object · absent), the object fields that differ
 #: (comma-separated, prefix-free) and why it isn't a match (`reason`, see `reason_for`).
@@ -83,11 +90,18 @@ def _text(v) -> str | None:
 
 # --- store adapters ----------------------------------------------------------------------------------
 class RecordsStore:
-    """An extract output (`records/`, `extract-report.json`) under `base` in `root`, as the scorer sees it at
-    `<catalog>/<crawl>/…`. Read-only; records are read once and kept for the next run."""
+    """An extract output under `base` in `root`, as the scorer sees it at `<catalog>/<crawl>/…`: today's
+    `extraction_report/` (read through xtra's `extraction_records`) or an older `records/`. Read-only; records are read
+    once and kept for the next run.
 
-    def __init__(self, root: Root, base: str, catalog: str, crawl: str):
+    With a class (`cls`), the scorer sees only that class's records (approved item 23): an older record by its
+    `entity_type` (`LearningProgram`), today's files by their `type` (`ceterms:LearningProgram`). A page that holds a
+    program and courses then pairs each class's golden records with that class's records only."""
+
+    def __init__(self, root: Root, base: str, catalog: str, crawl: str, cls: str | None = None):
         self.root, self.base, self.prefix = root, base.strip("/"), f"{catalog}/{crawl}"
+        self.catalog, self.crawl = catalog, crawl
+        self.ctdl_class = classes.get(cls) if cls else None
         self._json: dict[str, object] = {}
 
     def _path(self, key: str) -> str:
@@ -96,7 +110,7 @@ class RecordsStore:
             raise FileNotFoundError(key)
         return "/".join(p for p in (self.base, key[len(self.prefix):].strip("/")) if p)
 
-    def list_keys(self, under: str = "") -> list[str]:
+    def _files(self, under: str) -> list[str]:
         try:
             path = self._path(under)
         except FileNotFoundError:
@@ -104,16 +118,91 @@ class RecordsStore:
         cut = len(self.base) + 1 if self.base else 0
         return [f"{self.prefix}/{p[cut:]}" for p in self.root.list(path)]
 
+    @functools.cached_property
+    def _built(self):
+        """xtra's records built from `extraction_report/` (today's layout), or None for an output with `records/`."""
+        if not self._files(f"{self.prefix}/{EXTRACTION_REPORT}"):
+            return None
+        from implementations.score_extraction_transform import extraction_records
+
+        return extraction_records(_Raw(self), self.catalog, self.crawl)
+
+    def _built_key(self, key: str) -> bool:
+        return key.strip("/").startswith(f"{self.prefix}/records") and self._built is not None
+
+    def list_keys(self, under: str = "") -> list[str]:
+        if self._built_key(under):
+            return self._built.list_keys(under.strip("/"))
+        keys = self._files(under)
+        if self.ctdl_class and under.strip("/").startswith(f"{self.prefix}/records"):
+            keys = [k for k in keys if not k.endswith(".json") or self.of_class(self.get_json(k))]
+        return keys
+
+    def of_class(self, doc) -> bool:
+        """A record or an extraction file of this store's class (any, with none; one that names no class: yes)."""
+        if self.ctdl_class is None or not isinstance(doc, dict):
+            return True
+        if doc.get("entity_type") is not None:
+            return doc["entity_type"] == self.ctdl_class.entity_type
+        if doc.get("type") is not None:
+            return doc["type"] == self.ctdl_class.ctdl_type
+        return True
+
     def get_json(self, key: str) -> object:
+        if self._built_key(key):
+            return self._built.get_json(key.strip("/"))
         if key not in self._json:
             self._json[key] = self.root.read_json(self._path(key))
         return self._json[key]
+
+    def get_text(self, key: str) -> str:
+        """A saved page (xtra orders a page's resources by where their values are on it)."""
+        return self.root.read_text(self._path(key))
 
     def describe_location(self) -> str:
         return "/".join(p for p in (self.root.uri, self.base) if p)
 
     def records(self) -> list[str]:
         return [k for k in self.list_keys(f"{self.prefix}/records") if k.endswith(".json")]
+
+    def reports(self) -> list[str]:
+        """The output's report files: `extract-report.json` (older xtra) or one `extraction-<property>-report.json`
+        per property extracted (today's xtra), relative to the output."""
+        if self.root.exists("/".join(p for p in (self.base, "extract-report.json") if p)):
+            return ["extract-report.json"]
+        cut = len(self.prefix) + len(EXTRACTION_REPORT) + 2
+        folders = sorted({k[cut:].split("/")[1] for k in self._files(f"{self.prefix}/{EXTRACTION_REPORT}")
+                          if k[cut:].count("/") == 2})
+        if folders:
+            return [f"extraction-{f}-report.json" for f in folders]
+        # the Studio's copy keeps the records it built and the property reports, not extraction_report/
+        return sorted(n for n in (k[len(self.prefix) + 1:] for k in self._files(self.prefix))
+                      if PROPERTY_REPORT.fullmatch(n))
+
+
+class _Raw:
+    """A RecordsStore's files as they are (only its class's), for xtra's `extraction_records` to read."""
+
+    def __init__(self, store: RecordsStore):
+        self.store = store
+        self._json: dict[str, object] = {}
+
+    def list_keys(self, under: str = "") -> list[str]:
+        keys = self.store._files(under)
+        if self.store.ctdl_class is None:
+            return keys
+        return [k for k in keys if not k.endswith(".json") or self.store.of_class(self.get_json(k))]
+
+    def get_json(self, key: str) -> object:
+        if key not in self._json:
+            self._json[key] = self.store.root.read_json(self.store._path(key))
+        return self._json[key]
+
+    def get_text(self, key: str) -> str:
+        return self.store.get_text(key)
+
+    def describe_location(self) -> str:
+        return self.store.describe_location()
 
 
 class GoldenStore:
@@ -197,7 +286,7 @@ def load_golden(ctx: Ctx, gid: str) -> Golden:
         root = open_root(vs[n]["to"])
         tree = {b: _read_pages(root, golden_mod.version_prefix(ctx, n, t)) for b, t in TREE.items()}
         uris = {b: f"{root.uri}/{golden_mod.version_root(ctx, n, t)}" for b, t in TREE.items()}
-        where = f"{root.uri}/catalogs/{ctx.catalog}/versions/{golden_mod.version_name(n)}"
+        where = f"{root.uri}/{golden_mod.version_root(ctx, n).rsplit('/', 1)[0]}"
         return Golden(gid, "human-reviewed" if gid == HUMAN_REVIEWED else "version", where, tree,
                       {"human": _human_left_out(tree["rule"]), "rule": []}, baseline_uris=uris)
     if gid in {e["extraction"] for e in ctx.extractions()}:
@@ -212,46 +301,67 @@ def load_golden(ctx: Ctx, gid: str) -> Golden:
 
 # --- extract outputs ---------------------------------------------------------------------------------
 def xtra_source(root: Root) -> str:
-    """Where xtra-cli writes extract outputs: $GOLDEN_DATASETS_XTRA_SOURCE, else the shared container."""
-    src = os.environ.get("GOLDEN_DATASETS_XTRA_SOURCE")
+    """xtra-cli's container, where it writes extract outputs (xtra_paths.xtra_root)."""
+    src = xtra_paths.xtra_root(root)
     if src:
         return src
-    if isinstance(root, AzureRoot):
-        return SHARED_XTRA_ROOT
-    raise UserError("set GOLDEN_DATASETS_XTRA_SOURCE to the xtra-cli output root (a folder, or azure://…/xtra-cli-output)")
+    raise UserError(f"set {xtra_paths.ENV} to xtra-cli's output root (a folder, or azure://…/xtra-cli-output)")
 
 
 def outputs(ctx: Ctx) -> list[dict]:
-    """The extract outputs the Studio has seen (and copied), oldest first."""
+    """The extract outputs the Studio has seen, oldest first."""
     return list(ctx.crawl_entry().get("extract_outputs", []))
 
 
+def _reports_stat(store: RecordsStore) -> tuple[list[str], str, datetime] | None:
+    """An output's report files, one ETag for all of them, and the latest last-modified time; None with no report."""
+    names = store.reports()
+    stats = [store.root.stat("/".join(p for p in (store.base, n) if p)) for n in names]
+    found = [(n, st) for n, st in zip(names, stats, strict=True) if st is not None]
+    if not found:
+        return None
+    etag = found[0][1].etag if len(found) == 1 and names == ["extract-report.json"] else hashlib.sha256(
+        "\n".join(f"{n} {st.etag}" for n, st in found).encode()).hexdigest()[:32]
+    modified = max((st.modified or datetime.now(UTC)) for _, st in found).astimezone(UTC)
+    return [n for n, _ in found], etag, modified
+
+
 def _identity(root: Root, base: str, catalog: str, crawl: str) -> dict:
-    """What identifies an extract output: its report's ETag and last-modified time, its counts."""
-    path = "/".join(p for p in (base, "extract-report.json") if p)
-    st = root.stat(path)
-    if st is None:
-        raise UserError(f"{root.uri}/{path}: no extract report")
-    report = root.read_json(path)
+    """What identifies an extract output: its reports' ETag and last-modified time, its counts."""
     store = RecordsStore(root, base, catalog, crawl)
+    seen = _reports_stat(store)
+    if seen is None:
+        raise UserError(f"{store.describe_location()}: no extract report")
+    names, etag, modified = seen
+    report = root.read_json("/".join(p for p in (base, names[0]) if p))
     n = len(store.records())
-    modified = (st.modified or datetime.now(UTC)).astimezone(UTC)
-    return {"id": modified.strftime("%Y-%m-%dT%H-%M-%SZ"), "path": store.describe_location(), "report_etag": st.etag,
-            "last_modified": modified.strftime("%Y-%m-%dT%H:%M:%SZ"), "run_id": report.get("run_id"),
-            "discovery_run_id": report.get("discovery_run_id"), "only_golden_sample": report.get("only_golden_sample"),
-            "records": n, "records_written": report.get("records_written"),
-            "records_mismatch": report.get("records_written") is not None and n != report.get("records_written")}
+    written = report.get("records_written") if names == ["extract-report.json"] else None
+    out = {"id": modified.strftime("%Y-%m-%dT%H-%M-%SZ"), "path": store.describe_location(), "report_etag": etag,
+           "last_modified": modified.strftime("%Y-%m-%dT%H:%M:%SZ"), "run_id": report.get("run_id"),
+           "discovery_run_id": report.get("discovery_run_id"), "only_golden_sample": report.get("only_golden_sample"),
+           "records": n, "records_written": written, "records_mismatch": written is not None and n != written,
+           "extracted_with": report.get("xtra_version") or report.get("version")}
+    if names != ["extract-report.json"]:
+        out["properties"] = sorted(root.read_json("/".join(p for p in (base, n) if p)).get("property") or n
+                                   for n in names)
+    return out
+
+
+def xtra(ctx: Ctx) -> Root:
+    """xtra-cli's container: the extract outputs, and the scores the Studio writes under them (approved item 21)."""
+    return open_root(xtra_source(ctx.root))
 
 
 def see_output(ctx: Ctx, log=print) -> tuple[dict | None, bool]:
     """The latest extract output for the crawl (None if xtra hasn't written one), and whether it is new: the first
-    time its report's ETag is seen, `records/` and the report are copied into extract-outputs/<id>/."""
-    src = open_root(xtra_source(ctx.root))
+    time its reports' ETag is seen, it is registered (read in place: xtra-cli owns it, approved item 21)."""
+    src = xtra(ctx)
     prefix = f"{ctx.catalog}/{ctx.crawl}"
-    st = src.stat(f"{prefix}/extract-report.json")
-    if st is None:
+    store = RecordsStore(src, prefix, ctx.catalog, ctx.crawl)
+    seen = _reports_stat(store)
+    if seen is None:
         return None, False
-    known = next((o for o in outputs(ctx) if o["report_etag"] == st.etag), None)
+    known = next((o for o in outputs(ctx) if o["report_etag"] == seen[1]), None)
     if known:
         return known, False
     ident = _identity(src, prefix, ctx.catalog, ctx.crawl)
@@ -260,16 +370,8 @@ def see_output(ctx: Ctx, log=print) -> tuple[dict | None, bool]:
     while ident["id"] in taken:  # two outputs written within the same second
         n += 1
         ident["id"] = f"{base_id}-{n}"
-    copy = layout.extract_output_dir(ctx.catalog, ctx.crawl, ident["id"])
-    paths = [*src.list(f"{prefix}/records"), f"{prefix}/extract-report.json"]
-    log(f"new extract output {ident['id']}: copying {len(paths):,} files into {copy}")
-
-    def one(p: str) -> None:
-        ctx.root.write_bytes(f"{copy}/{p[len(prefix) + 1:]}", src.read_bytes(p))
-
-    with ThreadPoolExecutor(max_workers=16) as pool:
-        list(pool.map(one, paths))
-    entry = {**ident, "copy": copy, "seen_at": _now()}
+    log(f"new extract output {ident['id']}: {ident['records']:,} records at {ident['path']}")
+    entry = {**ident, "copy": None, "seen_at": _now()}
 
     def change(m: dict) -> None:
         k = manifest.crawl_entry(manifest.catalog_entry(m, ctx.catalog), ctx.crawl)
@@ -282,7 +384,8 @@ def see_output(ctx: Ctx, log=print) -> tuple[dict | None, bool]:
 
 def resolve_output(ctx: Ctx, output: str | None, log=print) -> tuple[dict, RecordsStore]:
     """An extract output: None or `latest` (the one xtra wrote last, copied when new), a copy's id, or a folder that
-    holds records/ and extract-report.json (a path or an azure:// URI, read in place)."""
+    holds an output (a path or an azure:// URI, read in place): `extraction_report/` and its reports, or `records/`
+    and extract-report.json."""
     if output in (None, "latest"):
         entry, _ = see_output(ctx, log)
         if entry is None:
@@ -291,10 +394,10 @@ def resolve_output(ctx: Ctx, output: str | None, log=print) -> tuple[dict, Recor
         output = entry["id"]
     entry = next((o for o in reversed(outputs(ctx)) if o["id"] == output), None)
     if entry:
-        return entry, RecordsStore(ctx.root, entry["copy"], ctx.catalog, ctx.crawl)
+        return entry, output_store(ctx, entry)
     root = open_root(output)
-    base = "" if root.exists("extract-report.json") else f"{ctx.catalog}/{ctx.crawl}"
-    return _identity(root, base, ctx.catalog, ctx.crawl), RecordsStore(root, base, ctx.catalog, ctx.crawl)
+    base = "" if RecordsStore(root, "", ctx.catalog, ctx.crawl).reports() else f"{ctx.catalog}/{ctx.crawl}"
+    return _identity(root, base, ctx.catalog, ctx.crawl), RecordsStore(root, base, ctx.catalog, ctx.crawl, ctx.cls)
 
 
 def uses_slot_names(store: RecordsStore) -> bool:
@@ -511,15 +614,37 @@ def commands(ctx: Ctx, g: Golden, output: dict) -> list[str]:
             f"  --catalog-id {ctx.catalog} \\\n  --run-id {ctx.crawl}" for b in BASES]
 
 
+def output_store(ctx: Ctx, entry: dict) -> RecordsStore:
+    """A registered extract output's records: its kept copy in xtra-cli's container (`extract/<id>/`), else the
+    output where xtra wrote it, if xtra hasn't overwritten it since."""
+    src = xtra(ctx)
+    if entry.get("copy"):
+        return RecordsStore(src, entry["copy"], ctx.catalog, ctx.crawl, ctx.cls)
+    prefix = f"{ctx.catalog}/{ctx.crawl}"
+    store = RecordsStore(src, prefix, ctx.catalog, ctx.crawl, ctx.cls)
+    seen = _reports_stat(store)
+    if seen is None or seen[1] != entry["report_etag"]:
+        raise UserError(f"extract output {entry['id']}: xtra has written a newer output over it at "
+                        f"{store.describe_location()}; score the latest instead")
+    return store
+
+
 # --- score documents ---------------------------------------------------------------------------------
 def score_ids(ctx: Ctx) -> list[str]:
-    return [s["id"] for s in ctx.crawl_entry().get("scores", [])]
+    return [s["id"] for s in ctx.crawl_class().get("scores", [])]
+
+
+def score_path(ctx: Ctx, sid: str) -> str:
+    """Where a score's score.json and values.parquet are, in xtra-cli's container (xtra_paths.score_dir)."""
+    got = next((s for s in ctx.crawl_class().get("scores", []) if s["id"] == sid), None)
+    if got is None:
+        raise UserError(f"{sid}: no such score")
+    return got["path"]
 
 
 def read(ctx: Ctx, sid: str) -> dict:
-    if sid not in score_ids(ctx):
-        raise UserError(f"{sid}: no such score")
-    return ctx.read_json(f"{layout.score_dir(ctx.catalog, ctx.crawl, sid)}/score.json", immutable=False)
+    path = score_path(ctx, sid)
+    return {**xtra(ctx).read_json(f"{path}/score.json"), "path": path}
 
 
 def all_scores(ctx: Ctx) -> list[dict]:
@@ -530,11 +655,24 @@ def all_scores(ctx: Ctx) -> list[dict]:
 
 
 def values(ctx: Ctx, sid: str) -> list[dict]:
-    return ctx.rows(f"{layout.score_dir(ctx.catalog, ctx.crawl, sid)}/values.parquet")
+    import pyarrow.parquet as pq
+
+    return pq.read_table(xtra(ctx).local_path(f"{score_path(ctx, sid)}/values.parquet")).to_pylist()
 
 
 def _write(ctx: Ctx, doc: dict, **kw) -> None:
-    ctx.root.write_json(f"{layout.score_dir(ctx.catalog, ctx.crawl, doc['id'])}/score.json", doc, **kw)
+    doc.setdefault("path", score_path(ctx, doc["id"]) if "path" not in doc else doc["path"])
+    xtra(ctx).write_json(f"{doc['path']}/score.json", doc, **kw)
+
+
+def _write_values(ctx: Ctx, doc: dict, rows: list[dict]) -> None:
+    import io
+
+    import pyarrow.parquet as pq
+
+    buf = io.BytesIO()
+    pq.write_table(pa.Table.from_pylist(rows, schema=SCORE_VALUES), buf, compression="zstd")
+    xtra(ctx).write_bytes(f"{doc['path']}/values.parquet", buf.getvalue())
 
 
 @dataclass
@@ -563,22 +701,26 @@ def existing(ctx: Ctx, p: Prepared) -> dict | None:
     return None
 
 
-def begin(ctx: Ctx, p: Prepared, by: str, reason: str) -> dict:
-    """score.json with status `running`, registered in the manifest."""
+def begin(ctx: Ctx, p: Prepared, by: str, reason: str, trigger: str = "manual",
+          properties: list[str] | None = None) -> dict:
+    """score.json with status `running`, registered in the manifest. `trigger` (TRIGGERS) and `properties` (the
+    columns it is for; None: every one) decide which properties get a result and a history line when it is done."""
     ctx.invalidate()  # the server's manifest may be a few seconds old
     ids = score_ids(ctx)
     sid = f"sc-{max((int(i.split('-')[1]) for i in ids), default=0) + 1:04d}"
-    doc = {"id": sid, "status": "running", "pair": p.pair, "created_at": _now(), "finished_at": None, "by": by,
+    path = xtra_paths.score_dir(ctx.catalog, ctx.crawl, p.output["id"], p.golden.id, ctx.cls, sid)
+    doc = {"id": sid, "path": path, "status": "running", "pair": p.pair, "created_at": _now(), "finished_at": None, "by": by,
            "reason": reason, "error": None,
            "golden": {"id": p.golden.id, "kind": p.golden.kind, "from": p.golden.where, "as_of": p.golden.as_of,
                       "sha256": p.golden.sha256},
            "output": p.output, "slot_names": None, "scorer": {"xtra_cli_commit": xtra_cli_commit()},
-           "commands": commands(ctx, p.golden, p.output), "columns": [], "results": {}}
+           "commands": commands(ctx, p.golden, p.output), "columns": [], "results": {},
+           "trigger": trigger, "properties": sorted(properties) if properties is not None else None}
     _write(ctx, doc, if_none_match=True)
 
     def change(m: dict) -> None:
-        k = manifest.crawl_entry(manifest.catalog_entry(m, ctx.catalog), ctx.crawl)
-        manifest.add_unique(k.setdefault("scores", []), {"id": sid}, key=lambda s: s["id"])
+        k = manifest.crawl_class(manifest.crawl_entry(manifest.catalog_entry(m, ctx.catalog), ctx.crawl), ctx.cls)
+        manifest.add_unique(k["scores"], {"id": sid, "path": path}, key=lambda s: s["id"])
 
     manifest.update(ctx.root, change)
     ctx.invalidate()
@@ -609,14 +751,17 @@ def emitted(records: RecordsStore) -> set[str]:
 
 
 @functools.cache
-def xtra_terms() -> frozenset[str]:
-    """The CTDL properties xtra's extract writes at all (its TERMS, the identifier and the subject webpage): a column
-    outside it is one "xtra doesn't extract". Empty when xtra-cli's extract can't be imported."""
+def xtra_terms(cls: str = "course") -> frozenset[str]:
+    """The CTDL properties xtra's extract writes for a class at all (one extractor file per property, each naming the
+    classes it reads): a column outside it is one "xtra doesn't extract". Empty when xtra-cli's extractors can't be
+    imported."""
     try:
-        from implementations.extract import IDENTIFIER, SUBJECT_WEBPAGE, TERMS
+        from xtra.catalog.extract import extractors
+
+        want = classes.get(cls).ctdl_type
+        return frozenset(p for p, x in extractors().items() if any(c.term == want for c in x.classes))
     except Exception:  # noqa: BLE001 - only the wording of an unscored column depends on it
         return frozenset()
-    return frozenset({*TERMS.values(), IDENTIFIER, SUBJECT_WEBPAGE})
 
 
 def only_emitted(pages: dict[str, list[dict]], props: set[str]) -> dict[str, list[dict]]:
@@ -643,7 +788,7 @@ def finish(ctx: Ctx, doc: dict, p: Prepared, log=print) -> dict:
         props = set(found)
         # the candidates per column (Evals: "N candidates"), and the columns xtra's extract writes at all
         doc["candidates"] = {column(k): n for k, n in sorted(found.items())}
-        doc["xtra_extracts"] = sorted(column(t) for t in xtra_terms())
+        doc["xtra_extracts"] = sorted(column(t) for t in xtra_terms(ctx.cls))
         if doc["slot_names"]:  # an old output names no CTDL paths: score every column, as before, and say so
             props |= {f["ctdl_property"] for tree in p.golden.trees.values() for ents in tree.values() for e in ents
                       for f in e["fields"] if f.get("ctdl_property")}
@@ -667,8 +812,7 @@ def finish(ctx: Ctx, doc: dict, p: Prepared, log=print) -> dict:
             rows += mine
         doc["golden"]["values"] = sizes
         doc["columns"] = sorted({r["column"] for r in rows if r["basis"] == "rule"})
-        ctx.write_table(f"{layout.score_dir(ctx.catalog, ctx.crawl, doc['id'])}/values.parquet", rows,
-                        SCORE_VALUES, if_none_match=False)
+        _write_values(ctx, doc, rows)
         doc["status"] = "done"
         if doc["slot_names"]:
             doc["error"] = SLOT_NAMES
@@ -676,14 +820,129 @@ def finish(ctx: Ctx, doc: dict, p: Prepared, log=print) -> dict:
         doc["status"], doc["error"] = "failed", str(e)
         log(f"{doc['id']} failed: {e}")
     doc["finished_at"] = _now()
+    if doc["status"] == "done":
+        try:
+            doc["recorded"] = record(ctx, doc)
+        except Exception as e:  # noqa: BLE001 - the score stands; its history lines are what failed
+            doc["record_error"] = str(e)
+            log(f"{doc['id']}: results not recorded: {e}")
     _write(ctx, doc)
     return doc
 
 
-def score(ctx: Ctx, golden: str | None, output: str | None = None, by: str = "", reason: str = "", log=print) -> dict:
+# --- each property's result and its history (LearningProgram spec §3; approved items 25–28) ----------------------
+#: The target every property is held to: golden exact (match ÷ golden values). Partial is shown beside it, never
+#: added to it (approved item 27).
+TARGET = 0.9
+#: What starts a score: a golden dataset published (an approval, a reset, an expert's verdicts), a new extract output,
+#: or someone asking (`golden-datasets score`, the Evals tab).
+TRIGGERS = ("golden-published", "new-output", "manual")
+BASELINES = {"human": "golden", "rule": "silver"}
+
+
+def numbers(c: dict, golden: bool) -> dict:
+    """One property's counts against one tree, with exact and partial apart (both ÷ golden values); for the golden
+    tree, whether exact reaches TARGET."""
+    values = c.get("values") or 0
+    out = {k: c.get(k, 0) for k in ("values", *OUTCOMES)}
+    out["exact"] = round(c.get("match", 0) / values, 4) if values else None
+    out["partial_share"] = round(c.get("partial", 0) / values, 4) if values else None
+    if golden:
+        out["meets_target"] = out["exact"] is not None and out["exact"] >= TARGET
+    return out
+
+
+@functools.cache
+def xtra_cli_version() -> str | None:
+    try:
+        from xtra.version import get_version
+
+        return get_version()
+    except Exception:  # noqa: BLE001 - only the record of what scored it
+        return None
+
+
+def record(ctx: Ctx, doc: dict) -> list[str]:
+    """A done score's results, per property it is for: `score.json` under the extract output, per tree, and one line
+    appended to the property's history (xtra_paths). Returns the properties recorded."""
+    from common.keys import property_key
+
+    want = doc.get("properties")
+    term = {column(t): t for _, t in model.properties_of(ctx.cls) if t}
+    src, out, g = xtra(ctx), doc["output"], doc["golden"]
+    head = {"at": doc["finished_at"], "catalog": ctx.catalog, "crawl": ctx.crawl, "class": ctx.cls,
+            "extract_run": out["id"], "golden_version": g["id"], "golden_kind": g["kind"],
+            "golden_sha256": g["sha256"],
+            "trigger": doc.get("trigger") or "manual", "score": doc["id"],
+            "scored_with": {"xtra_cli_version": xtra_cli_version(),
+                            "xtra_cli_commit": (doc.get("scorer") or {}).get("xtra_cli_commit")},
+            "extracted_with": out.get("extracted_with")}
+    done = []
+    for col in doc["columns"]:
+        if (want is not None and col not in want) or col not in term:
+            continue
+        key = property_key(term[col])
+        line = {**head, "property": term[col], "column": col}
+        for basis, tree in BASELINES.items():
+            got = ((doc["results"].get(basis) or {}).get("by_column") or {}).get(col)
+            if got is None:
+                continue
+            line[tree] = numbers(got, golden=tree == "golden")
+            baseline = f"{g['id']}-{tree}"
+            folder = xtra_paths.property_score_dir(ctx.catalog, ctx.crawl, out["id"], baseline, ctx.cls, key)
+            src.write_json(f"{folder}/score.json", {**head, "property": term[col], "column": col,
+                                                     "baseline": baseline, **line[tree]})
+        src.append(xtra_paths.history(ctx.cls, key, ctx.catalog),
+                   (json.dumps(line, ensure_ascii=False) + "\n").encode())
+        done.append(col)
+    return done
+
+
+#: What the home page's score views keep of a history line (LearningProgram spec §2).
+HISTORY_KEYS = ("at", "extract_run", "golden_version", "golden_kind", "trigger", "score", "scored_with", "golden",
+                "silver")
+
+
+def history_all(root: Root, cls: str, catalogs: list[str], last: int = 7) -> dict[str, dict[str, list[dict]]]:
+    """catalog → column → its last `last` history lines (oldest first), for every property of the class with a
+    history in xtra-cli's container: one listing of `scores/<class>/`, then one read per file."""
+    from common.keys import property_key
+
+    col_of = {property_key(t): column(t) for _, t in model.properties_of(cls) if t}
+    want = set(catalogs)
+    out: dict[str, dict[str, list[dict]]] = {}
+    for path in root.list(f"scores/{cls}"):
+        parts = path.split("/")
+        if len(parts) != 4 or not parts[3].endswith(".jsonl"):
+            continue
+        col, catalog = col_of.get(parts[2]), parts[3][: -len(".jsonl")]
+        if col is None or catalog not in want:
+            continue
+        lines = [json.loads(x) for x in root.read_bytes(path).decode().splitlines() if x.strip()][-last:]
+        out.setdefault(catalog, {})[col] = [{k: x.get(k) for k in HISTORY_KEYS} for x in lines]
+    return out
+
+
+def history(ctx: Ctx, col: str, last: int | None = None) -> list[dict]:
+    """A property's score history in this catalog and class, oldest first (the last `last`)."""
+    from common.keys import property_key
+
+    term = dict((column(t), t) for _, t in model.properties_of(ctx.cls) if t).get(col)
+    if term is None:
+        return []
+    try:
+        data = xtra(ctx).read_bytes(xtra_paths.history(ctx.cls, property_key(term), ctx.catalog))
+    except FileNotFoundError:
+        return []
+    lines = [json.loads(x) for x in data.decode().splitlines() if x.strip()]
+    return lines[-last:] if last else lines
+
+
+def score(ctx: Ctx, golden: str | None, output: str | None = None, by: str = "", reason: str = "", log=print,
+          trigger: str = "manual", properties: list[str] | None = None) -> dict:
     """Score an extract output against a golden dataset, now (the CLI); an existing score of the pair is returned."""
     p = prepare(ctx, golden, output, log)
-    return existing(ctx, p) or finish(ctx, begin(ctx, p, by, reason), p, log)
+    return existing(ctx, p) or finish(ctx, begin(ctx, p, by, reason, trigger, properties), p, log)
 
 
 def interrupt_running(ctx: Ctx) -> list[str]:
@@ -698,9 +957,9 @@ def interrupt_running(ctx: Ctx) -> list[str]:
 
 
 def pending(ctx: Ctx) -> dict | None:
-    """scores/pending.json, when its time has come."""
+    """scores-pending.json, when its time has come."""
     try:
-        doc = ctx.root.read_json(layout.pending_score(ctx.catalog, ctx.crawl))
+        doc = ctx.root.read_json(layout.pending_score(ctx.catalog, ctx.crawl, ctx.cls))
     except FileNotFoundError:
         return None
     return doc if doc.get("due_at", "") <= _now() else None
@@ -708,7 +967,7 @@ def pending(ctx: Ctx) -> dict | None:
 
 def done_pending(ctx: Ctx) -> None:
     try:
-        ctx.root.delete(layout.pending_score(ctx.catalog, ctx.crawl))
+        ctx.root.delete(layout.pending_score(ctx.catalog, ctx.crawl, ctx.cls))
     except FileNotFoundError:
         pass
 
@@ -872,12 +1131,32 @@ def wrong_groups(rows: list[dict], key: str = "auto") -> list[dict]:
 
 def scored_against(ctx: Ctx, output_id: str, golden_id: str) -> bool:
     """Whether a score of this extract output against this golden dataset exists (in any state: a failed one isn't
-    retried by itself). Reads score.json files newest first, so it usually reads one."""
-    for sid in reversed(score_ids(ctx)):
-        doc = read(ctx, sid)
-        if doc["output"]["id"] == output_id and doc["golden"]["id"] == golden_id:
-            return True
-    return False
+    retried by itself). From the manifest: a score's path names its output and golden dataset (xtra_paths)."""
+    return any(f"/extract/{output_id}/scores/{golden_id}/" in (s.get("path") or "")
+               for s in ctx.crawl_class().get("scores", []))
+
+
+def scored_output(ctx: Ctx, output_id: str) -> bool:
+    """Whether this class has scored this extract output against any golden dataset."""
+    return any(f"/extract/{output_id}/scores/" in (s.get("path") or "") for s in ctx.crawl_class().get("scores", []))
+
+
+def changed_columns(ctx: Ctx, golden_id: str) -> list[str] | None:
+    """The columns a golden dataset version changed: the ones its publication has that the version before it hadn't;
+    None (every column) for a first version, or one that only rewrote its columns."""
+    m = golden_mod.VERSION.match(golden_id)
+    vs = golden_mod.versions(ctx)
+    if not m or int(m.group(1)) not in vs:
+        return None
+    n = int(m.group(1))
+
+    def cols(v: int) -> set[str]:
+        doc = ctx.read_json(f"{vs[v]['path']}/publication.json", immutable=False)
+        return set(golden_mod.columns_of(doc.get("properties") or [], ctx.cls))
+
+    before = [v for v in vs if v < n]
+    added = cols(n) - (cols(max(before)) if before else set())
+    return sorted(added) if before and added else None
 
 
 # --- CLI ---------------------------------------------------------------------------------------------
@@ -922,19 +1201,30 @@ def column_key(label: str, path: str | None) -> str:
     return column(path) if path else label
 
 
-#: Every property's column, in the fixed order (property-rules spec §4.9); the home table puts the other properties
-#: in the Rules tab's order (columns_in_order).
-STUDIO_COLUMNS = [column_key(label, t) for label, t in model.PROPERTIES]
-COLUMN_LABELS = {column_key(label, t): (column(t).replace(">", " → ") if t else label) for label, t in model.PROPERTIES}
-REQUIRED_COLUMNS = [column_key(r["label"], r["path"] or None) for r in model.PROPERTY_ROWS if r["required"]]
+def column_labels(cls: str = "course") -> dict[str, str]:
+    """Every property's column → its name, in the fixed order (property-rules spec §4.9)."""
+    return {column_key(label, t): (column(t).replace(">", " → ") if t else label) for label, t in model.properties_of(cls)}
 
 
-def columns_in_order(counts: Counter) -> list[str]:
-    """Required columns first, then the others by values experts reviewed across catalogs (`counts`, by rule id),
-    then sheet order: the Rules tab's order (§4.8)."""
-    rest = [r for r in model.PROPERTY_ROWS if not r["required"]]
-    rest.sort(key=lambda r: (-counts.get(r["rule_id"], 0), r["sheet_row"]))
-    return REQUIRED_COLUMNS + [column_key(r["label"], r["path"] or None) for r in rest]
+def required_columns(cls: str = "course") -> list[str]:
+    return [column_key(r["label"], r["path"] or None) for r in model.property_rows(cls) if r["required"]]
+
+
+def column_tiers(cls: str = "course") -> dict[str, str]:
+    """column → its tier (`required`, `phase1`, `phase2`): the home page's column groups (LearningProgram spec, item 12)."""
+    from .properties import tier
+
+    return {column_key(r["label"], r["path"] or None): tier(r) for r in model.property_rows(cls)}
+
+
+def columns_in_order(counts: Counter, cls: str = "course") -> list[str]:
+    """Required columns first, then Phase 1's and then Phase 2's, each by values experts reviewed across catalogs
+    (`counts`, by rule id), then sheet order: the Rules tab's order (§4.8)."""
+    from .properties import tier
+
+    rest = [r for r in model.property_rows(cls) if not r["required"]]
+    rest.sort(key=lambda r: (tier(r) == "phase2", -counts.get(r["rule_id"], 0), r["sheet_row"]))
+    return required_columns(cls) + [column_key(r["label"], r["path"] or None) for r in rest]
 
 
 def column_statuses(ctx: Ctx, cache: dict | None = None) -> dict[str, dict]:
@@ -984,9 +1274,10 @@ def column_statuses(ctx: Ctx, cache: dict | None = None) -> dict[str, dict]:
     return out
 
 
-def coverage(columns: dict[str, dict]) -> int:
+def coverage(columns: dict[str, dict], cls: str = "course") -> int:
     """Properties with a rule in this catalog (§4.9)."""
-    return sum(1 for k, c in columns.items() if k in COLUMN_LABELS and not c.get("no_rule"))
+    labels = column_labels(cls)
+    return sum(1 for k, c in columns.items() if k in labels and not c.get("no_rule"))
 
 
 def _column_counts(ctx: Ctx, rv, doc: dict) -> dict[str, Counter]:

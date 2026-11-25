@@ -23,7 +23,7 @@ import lxml.html
 from cssselect import HTMLTranslator
 from lxml import etree
 
-from .model import code_rule_for, course_key
+from .model import key_rule_for, record_key
 
 _WS = re.compile(r"\s+")
 _TRANSLATOR = HTMLTranslator()
@@ -182,6 +182,13 @@ def relative(occ_path: str, path: str) -> str:
 
 
 # --- the v2 rule primitives ----------------------------------------------------------------------------
+def generated_id(kind: str, name: str) -> str:
+    """Issue #368's External Identifier for a resource that prints none: `{type}-{normalized name}`, at most 100
+    characters (`program`, "Anthropology, B.A." → `program-anthropology-b.a.`)."""
+    slug = re.sub(r"[^a-z0-9.\s-]", "", name.lower())
+    return f"{kind}-{'-'.join(slug.split())}"[:100].rstrip("-")
+
+
 def apply_transforms(value: str, transforms: list[str]) -> str:
     for name in transforms:
         if name == "strip":
@@ -196,6 +203,8 @@ def apply_transforms(value: str, transforms: list[str]) -> str:
             value = _WS.sub("", value)
         elif name.startswith("rstrip:"):
             value = value.rstrip(name[len("rstrip:"):])
+        elif name.startswith("generated_id:"):
+            value = generated_id(name[len("generated_id:"):], value)
     return value
 
 
@@ -417,7 +426,18 @@ def run_property(definition: dict, el, url: str, paths: Paths, occ_path: str,
     no_match. Each result has value, raw_text, css_path (relative to the occurrence, or from the document root when
     the text is outside it), offsets, and private `_text` / `_el` for rules that read it (§4.2). A list of objects
     (`profile`, profiles_rule.py) gives one object per item; `absent_if` (absent.py) turns nothing found into the
-    rule's "not on the page" claim (status absent)."""
+    rule's "not on the page" claim (status absent); `fallback` (a definition of its own) is read when the rule finds
+    nothing: the External Identifier a page prints, else one generated from the name (issue #368)."""
+    if definition.get("fallback"):  # the rule, else (when it finds nothing) its fallback: a code, else a generated id
+        plain = {k: v for k, v in definition.items() if k != "fallback"}
+        res = run_property(plain, el, url, paths, occ_path, parent_out)
+        if any(r["status"] == "found" for r in res):
+            return res
+        alt = {"locator": definition.get("locator"), **definition["fallback"]}
+        # a fallback that reads the whole page (a heading above the content root) reads it from the document
+        at = el.getroottree().getroot() if input_of(alt)["from"] == "page" and el is not None else el
+        got = run_property(alt, at, url, paths, occ_path, parent_out)
+        return got if any(r["status"] == "found" for r in got) else res
     if definition.get("profile") or definition.get("absent_if"):
         from . import absent, profiles_rule
 
@@ -515,10 +535,10 @@ def run_page(stem: str, url: str, html: bytes, rules: dict[str, dict], settings:
             continue
         elements = locate(loc["definition"], root)
         found_blocks[loc_id] = elements
-        code_rule = code_rule_for(loc_id, rules, settings)
+        code_rule, from_code = key_rule_for(loc_id, rules)
         props = [f for f, r in rules.items() if r["kind"] == "property" and r["definition"]["locator"] == loc_id
                  and r["definition"].get("rule_type") != "none"]
-        # what has to run: the wanted rules, the code rule, and every rule they read (parents first)
+        # what has to run: the wanted rules, the key rule, and every rule they read (parents first)
         run: set[str] = set()
         for fid in props:
             if fid in props_wanted or fid == code_rule:
@@ -553,7 +573,7 @@ def run_page(stem: str, url: str, html: bytes, rules: dict[str, dict], settings:
             out["occurrences"].append({"occurrence_key": key, "page_stem": stem, "page_rule_id": page_rule,
                                        "locator_rule_id": loc_id, "locator_rule_version": loc["version"],
                                        "css_path": occ_path, "locator_index": index,
-                                       "course_key": course_key(code_value)})
+                                       "record_external_identifier": record_key(code_value, from_code)})
 
     if need.get("page_facts"):
         from .signals import page_facts

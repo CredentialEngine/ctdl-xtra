@@ -44,7 +44,7 @@ const obj = (i: number, d: string, t: string, state: "correct" | "wrong" | null 
   value_index: i, value: JSON.stringify({ [D]: d, [T]: t }), css_path: P, char_start: 0, char_end: 5, state, verdict: null, human: false,
   fields: { [D]: field(d, i * 100), [T]: field(t, i * 100 + 60) } });
 const row = (o: Partial<RowX> = {}): RowX => ({
-  key: "acct199@html", occurrence_key: "acct199@html", course_key: "ACCT199", page_stem: "acct199", url: "https://x/acct199",
+  key: "acct199@html", occurrence_key: "acct199@html", record_external_identifier: "ACCT199", page_stem: "acct199", url: "https://x/acct199",
   page_title: "ACCT199", value: "…", status: "found", css_path: P, char_start: 0, char_end: 5, occurrence_css_path: "html",
   context: "ACCT 199 - Work Experience", state: null, verdict: null, reattached: false, comments: [], signal_count: 0, other_pages: [],
   group: null, missing_items: [],
@@ -75,7 +75,7 @@ function serve(d: RuleDetail, r: RowsX) {
   }));
 }
 
-async function render(hash = "#/c/avc/rules/course-estimated-duration?by=anyone") {
+async function render(hash = "#/c/avc/course/rules/course-estimated-duration?by=anyone") {
   await act(async () => { root.render(<RulesTab catalog={catalog} route={parseRoute(hash)} reload={() => {}} />); });
   await act(async () => { await new Promise((r) => setTimeout(r, 0)); });
 }
@@ -220,7 +220,7 @@ describe("not on the page", () => {
   it("reads 'Not on the page (rule's claim)' with the box the rule looked in dashed; 'Nothing found' claims nothing", async () => {
     serve(flat, rowsOf([prereq({ status: "absent", value: null, css_path: "html > body > div:nth-of-type(1)", char_start: null, char_end: null }),
                         prereq({ key: "k2", occurrence_key: "k2", status: "no_match", value: null, css_path: null })]));
-    await render("#/c/avc/rules/course-prerequisite-description?by=anyone");
+    await render("#/c/avc/course/rules/course-prerequisite-description?by=anyone");
     expect(container.querySelector(".row.on [data-testid=row-full-value]")!.textContent).toBe("Not on the page (rule's claim)");
     expect(container.querySelector(".row.on .valbox")!.className).toContain("claim");
     expect(pane.props!.highlights.map((h) => [h.id, h.kind])).toEqual([["looked", "looked"]]);
@@ -230,7 +230,7 @@ describe("not on the page", () => {
 
   it("✕ shows 'Why wrong?'; ticking Not on the page saves it as a reason", async () => {
     serve(flat, rowsOf([prereq({ value: "Grade Mode: Normal Grading Mode" })]));
-    await render("#/c/avc/rules/course-prerequisite-description?by=anyone");
+    await render("#/c/avc/course/rules/course-prerequisite-description?by=anyone");
     expect(container.querySelector("[data-testid=why-wrong]")).toBeNull();  // only after ✕
     await act(async () => container.querySelector<HTMLButtonElement>(".row.on .cb.no")!.click());
     const box = container.querySelector<HTMLLabelElement>("[data-testid=why-wrong] .why-r")!;

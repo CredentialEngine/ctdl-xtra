@@ -5,6 +5,7 @@ from urllib.robotparser import RobotFileParser
 import pytest
 
 from implementations.crawl_scope import (
+    LINK_TEXT_LIMIT,
     QUIET_REASONS,
     REASON_DUPLICATE,
     REASON_EXCLUDE_RULE,
@@ -18,6 +19,7 @@ from implementations.crawl_scope import (
     content_type_is_html,
     directory_of,
     extension_of,
+    extract_link_records,
     extract_links,
     first_path_segment,
 )
@@ -185,6 +187,62 @@ def test_the_same_link_twice_is_returned_once() -> None:
     assert extract_links(html, "https://catalog.example.edu/") == [
         "https://catalog.example.edu/a"
     ]
+
+
+LINK_PAGES = [
+    '<a href="/a">A</a><area href="b" alt="B"><link rel="next" href="?p=2">',
+    '<base href="https://x.org/d/"><a href="c">C<a href="d">D</a></a>',
+    '<a>no href</a><a href="">empty</a><a href="/a#x">dup</a><a href="/a">',
+    '<a href="/u"><img alt="Logo"> Home</a><a href="/v"/>after',
+    '<a href="/x">open <area href="/in" alt="In"> tail</a></a></a>',
+    '<LINK REL="Next" HREF="/n"><A HREF="/caps">Caps</A>',
+]
+
+
+@pytest.mark.parametrize("html", LINK_PAGES)
+def test_link_records_are_the_links_the_crawler_follows(html: str) -> None:
+    """The text rides along; which links, and in what order, never changes."""
+    records = extract_link_records(html, SEED)
+    assert [record.url for record in records] == extract_links(html, SEED)
+
+
+def test_a_link_record_keeps_the_text_a_reader_sees() -> None:
+    html = (
+        '<a href="/engl">  English\n <b>101</b> </a>'
+        '<a href="/home"><img src="i.png" alt="Logo"> Home</a>'
+        '<area href="/map" alt="Campus map">'
+        '<link rel="next" href="?page=2">'
+        '<a href="/bare"></a>'
+    )
+    texts = [record.text for record in extract_link_records(html, SEED)]
+    assert texts == ["English 101", "Logo Home", "Campus map", "next", ""]
+
+
+def test_a_link_inside_a_link_closes_the_first_one() -> None:
+    html = '<a href="/one">One <a href="/two">Two</a> after</a>'
+    records = extract_link_records(html, SEED)
+    assert [(r.url.rsplit("/", 1)[1], r.text) for r in records] == [
+        ("one", "One"),
+        ("two", "Two"),
+    ]
+
+
+def test_a_tag_inside_a_link_does_not_take_its_text() -> None:
+    html = '<a href="/x">open <area href="/in" alt="In"> tail</a>'
+    texts = [record.text for record in extract_link_records(html, SEED)]
+    assert texts == ["open tail", "In"]
+
+
+def test_a_repeated_link_keeps_the_text_it_had_first() -> None:
+    html = '<a href="/a">first</a><a href="/a#x">second</a>'
+    records = extract_link_records(html, SEED)
+    assert [record.text for record in records] == ["first"]
+
+
+def test_long_link_text_is_cut_short() -> None:
+    html = f'<a href="/a">{"word " * 100}</a>'
+    (record,) = extract_link_records(html, SEED)
+    assert len(record.text) == LINK_TEXT_LIMIT
 
 
 def test_only_scope_decisions_are_quiet() -> None:

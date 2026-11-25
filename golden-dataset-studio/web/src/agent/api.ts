@@ -1,7 +1,9 @@
+import type { ClassSlug } from "../shell/router";
 // Agent runs (docs/qrspi/k2-runs/03-spec.md; server: routes_agent.py): Claude improves rules on the remote agent,
 // started from a run button and watched from the run bar. The run lives on the storage root, so every Studio and
 // every browser sees the same one.
 import type { EventBrief, ReviewMarks, RowStateName } from "../api/types";
+import { withClass } from "../shell/klass";
 import { signedOut } from "../shell/session";
 
 export type RunState = "sending" | "waiting" | "running" | "finished" | "needs_you" | "failed" | "cancelled" | "timed_out" | "ended";
@@ -12,6 +14,8 @@ export interface RunScope { kind: ScopeKind; rule_id?: string | null; rules?: st
 
 export interface AgentRun {
   run_id: string; catalog: string; scope: RunScope; started_by: string;
+  /** with All classes: the class the run is in (the client tags it) */
+  cls?: ClassSlug;
   created_at: string; updated_at: string; deadline: string; state: RunState;
   sent_at: string | null; next_try_at: string | null;
   k2: { url: string; agent: string; delivery_id: string | null };
@@ -62,7 +66,7 @@ const json = (body: unknown): RequestInit =>
   ({ method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
 
 async function get<T>(path: string, init?: RequestInit): Promise<T> {
-  const r = await fetch(path, init);
+  const r = await fetch(withClass(path), init);
   if (r.status === 401) signedOut();
   if (!r.ok) {
     let detail = r.statusText;
@@ -86,7 +90,7 @@ export const agentApi = {
   async start(catalog: string, scope: RunScope, author: string): Promise<StartResult> {
     let r: Response;
     try {
-      r = await fetch(c(catalog), json({ scope, author, studio_url: location.origin + location.pathname }));
+      r = await fetch(withClass(c(catalog)), json({ scope, author, studio_url: location.origin + location.pathname }));
     } catch {
       return { ok: false, kind: "fallback", reason: "the Studio's server didn't answer" };
     }
@@ -190,6 +194,8 @@ export const ruleNames = (r: Pick<AgentRun, "scope" | "rule_names">): string[] =
 /** A run in the queue (GET /api/agent-runs/queue, contract §2.8). */
 export interface QueueRun {
   run: string; catalog: string; catalog_name?: string; rules: string[]; rule_names?: string[]; started_by: string; since: string;
+  /** the run's class (each catalog and class has its own runs; all share the queue) */
+  class?: ClassSlug;
   /** working */ minutes_so_far?: number; left_min?: number;
   /** waiting: 1 = next */ place?: number; start_in_min?: number;
 }
@@ -308,7 +314,7 @@ export const agentApi2 = {
   async start(catalog: string, rules: string[], author: string): Promise<StartResult2> {
     let r: Response;
     try {
-      r = await fetch(c(catalog), json({ scope: { kind: "rules", rules }, author, studio_url: location.origin + location.pathname }));
+      r = await fetch(withClass(c(catalog)), json({ scope: { kind: "rules", rules }, author, studio_url: location.origin + location.pathname }));
     } catch {
       return { ok: false, kind: "fallback", reason: "the Studio's server didn't answer" };
     }

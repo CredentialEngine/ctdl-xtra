@@ -2,7 +2,7 @@
 (spec §6 "The scorecard", §7.4, §5.8).
 
 Rows of the two versions are joined on their key (occurrence_key, or page_stem for page rules), falling back to
-(course_key, page) and then course_key alone; rows that can't be joined are "new" or "vanished" (D9).
+(record_external_identifier, page) and then record_external_identifier alone; rows that can't be joined are "new" or "vanished" (D9).
 
 Each annotated row gets an outcome, in this order (the query of spec §5.8):
 - `unchanged`   the value is the same in A and B;
@@ -31,9 +31,9 @@ def _index(rows: list[dict]) -> tuple[dict, dict, dict]:
     by_key = {r["key"]: r for r in rows}
     by_cp, by_c = {}, defaultdict(list)
     for r in rows:
-        if r.get("course_key"):
-            by_cp.setdefault((r["course_key"], r["page_stem"]), r)
-            by_c[r["course_key"]].append(r)
+        if r.get("record_external_identifier"):
+            by_cp.setdefault((r["record_external_identifier"], r["page_stem"]), r)
+            by_c[r["record_external_identifier"]].append(r)
     return by_key, by_cp, by_c
 
 
@@ -43,10 +43,10 @@ def pair_rows(a_rows: list[dict], b_rows: list[dict]) -> tuple[list[tuple[dict, 
     pairs, new, used = [], [], set()
     for b in b_rows:
         a = a_key.get(b["key"])
-        if a is None and b.get("course_key"):
-            a = a_cp.get((b["course_key"], b["page_stem"]))
-            if a is None and len(a_c.get(b["course_key"], [])) == 1:
-                a = a_c[b["course_key"]][0]
+        if a is None and b.get("record_external_identifier"):
+            a = a_cp.get((b["record_external_identifier"], b["page_stem"]))
+            if a is None and len(a_c.get(b["record_external_identifier"], [])) == 1:
+                a = a_c[b["record_external_identifier"]][0]
         if a is None or a["key"] in used:
             new.append(b)
         else:
@@ -97,7 +97,7 @@ def history_signal(verdict: str, oc: str) -> str:
 
 
 def verdict_order(r: dict) -> tuple:
-    return (HISTORY[r["outcome"]][1], r["verdict"] != "wrong", r.get("course_key") or "", r["key"])
+    return (HISTORY[r["outcome"]][1], r["verdict"] != "wrong", r.get("record_external_identifier") or "", r["key"])
 
 
 def _signal_names(row: dict) -> set[str]:
@@ -115,17 +115,17 @@ def rule_scorecard(rule_id: str, a: Snapshot | None, b: Snapshot, review: Review
     pairs, new, vanished = pair_rows(a_rows, b_rows)
     changed = [(x, y) for x, y in pairs if norm(x["value"]) != norm(y["value"]) or x["status"] != y["status"]]
     latest = review.verdicts_for(rule_id)["latest"]
-    by_cp = {(e["target"].get("course_key"), e["target"].get("page_stem")): e for e in latest.values()
-             if e["target"].get("course_key")}
+    by_cp = {(e["target"].get("record_external_identifier"), e["target"].get("page_stem")): e for e in latest.values()
+             if e["target"].get("record_external_identifier")}
     annotated, counts = [], Counter()
     for x, y in pairs:
-        e = latest.get(x["key"]) or latest.get(y["key"]) or by_cp.get((y.get("course_key"), y["page_stem"]))
+        e = latest.get(x["key"]) or latest.get(y["key"]) or by_cp.get((y.get("record_external_identifier"), y["page_stem"]))
         if e is None or e["verdict"] not in ("correct", "wrong"):
             continue
         expected = (e.get("expected") or {}).get("text")
         oc = outcome(e["verdict"], x["value"], y["value"], expected)
         counts[oc] += 1
-        annotated.append({"key": y["key"], "course_key": y.get("course_key"), "page_stem": y["page_stem"],
+        annotated.append({"key": y["key"], "record_external_identifier": y.get("record_external_identifier"), "page_stem": y["page_stem"],
                           "verdict": e["verdict"], "author": e["author"], "note": e.get("note"),
                           "expected": expected, "a_value": x["value"], "b_value": y["value"], "outcome": oc,
                           "diff": word_diff(x["value"], y["value"]), "css_path": y.get("css_path"),
@@ -212,7 +212,7 @@ def item_diff(x: dict | None, y: dict | None) -> dict | None:
 def _brief(x: dict | None, y: dict | None) -> dict:
     r = y or x
     items = item_diff(x, y)
-    return {"key": r["key"], "course_key": r.get("course_key"), "page_stem": r["page_stem"],
+    return {"key": r["key"], "record_external_identifier": r.get("record_external_identifier"), "page_stem": r["page_stem"],
             "a_value": x["value"] if x else None, "b_value": y["value"] if y else None,
             "diff": word_diff(x["value"] if x else None, y["value"] if y else None),
             "css_path": r.get("css_path"), "char_start": r.get("char_start"), "char_end": r.get("char_end"),

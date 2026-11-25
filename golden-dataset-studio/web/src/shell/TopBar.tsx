@@ -1,11 +1,14 @@
-// Top bar on every screen (spec §7): Studio name, catalog, crawl date, ruleset version, the five tabs,
+// Top bar on every screen (spec §7): Studio name, catalog, the class menu (LearningProgram spec, item 11), the five tabs,
 // the reviewer's first name (picked once on the "Who are you?" screen; role on hover) and "Show the tour".
 import type { CatalogDetail } from "../api/types";
 import { ROLE_LABEL, useReviewer, useRole } from "./reviewer";
-import { href, TAB_LABEL, TABS, type Tab } from "./router";
+import { ClassMenu } from "./ClassMenu";
+import { href, TAB_LABEL, TABS, type ClassSel, type Tab } from "./router";
 import { fmtDate } from "./ui";
 
-export function TopBar({ catalog, tab, onTour }: { catalog: CatalogDetail | null; tab: Tab | null; onTour?: () => void }) {
+export function TopBar({ catalog, tab, cls = "course", onTour }: {
+  catalog: CatalogDetail | null; tab: Tab | null; cls?: ClassSel; onTour?: () => void;
+}) {
   const me = useReviewer();
   const role = useRole();
   return (
@@ -26,12 +29,14 @@ export function TopBar({ catalog, tab, onTour }: { catalog: CatalogDetail | null
               title={`pages from ${fmtDate(catalog.crawl)} · latest ruleset v${catalog.ruleset_version}`}>
               {catalog.logo && <img src={catalog.logo} alt="" />}{catalog.name}
             </a>
+            <span className="sep">/</span>
+            <ClassMenu catalog={catalog} cls={cls} tab={tab ?? "rules"} />
           </>
         )}
       </nav>
       <nav className="tabs" data-tour="tabs">
         {catalog && TABS.map((t) => (
-          <a key={t} href={href(catalog.short, t)} className={t === tab ? "on" : ""} data-tab={t}>
+          <a key={t} href={href(catalog.short, t, null, {}, cls)} className={t === tab ? "on" : ""} data-tab={t}>
             {TAB_LABEL[t]}
           </a>
         ))}

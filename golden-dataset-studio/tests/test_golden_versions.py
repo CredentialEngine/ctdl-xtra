@@ -38,7 +38,7 @@ def studio(tmp_path, capsys, monkeypatch):
     crawls.add_catalog(LocalRoot(dst), src, CAT, log=lambda *a, **k: None)
     draft = tmp_path / "first.json"
     draft.write_text(json.dumps(RULES))
-    assert main(["rule", "publish", "--root", str(dst), "--catalog", CAT, str(draft), "--note", "first"]) == 0
+    assert main(["rule", "publish", "--class", "course", "--root", str(dst), "--catalog", CAT, str(draft), "--note", "first"]) == 0
     capsys.readouterr()
     return TestClient(create_app(str(dst))), Ctx(LocalRoot(dst), CAT), tmp_path / "golden"
 
@@ -81,7 +81,7 @@ def test_an_engineers_check_waits_for_an_expert_whose_check_is_published_at_once
                                   "approval": "human", "approved_by": JARED}]
     assert (gold / golden.latest_prefix(ctx) / "page-0" / "page-0.html").exists()
     assert not (gold / golden.version_prefix(ctx, 1) / "page-0" / "page-0.html").exists()  # version trees: JSON only
-    pending = ctx.root.read_json(layout.pending_score(CAT, ctx.crawl))
+    pending = ctx.root.read_json(layout.pending_score(CAT, ctx.crawl, "course"))
     due = datetime.strptime(pending["due_at"], "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=UTC)
     assert 280 < (due - datetime.now(UTC)).total_seconds() <= 300 and "course-name" in pending["reason"]
 
@@ -140,7 +140,7 @@ def test_annotated_by_filters_rows_courses_and_the_rule_list(studio):
     assert keys(by="waiting") == ["page-0"]
     assert keys(by=JARED) == ["page-1"] and keys(by=JARED, verdict="correct") == []
     assert keys(verdict="wrong") == ["page-1"] and sorted(keys(by="nobody")) == ["page-2"]
-    courses = lambda **p: sorted(x["course_key"] for x in c.get(f"{B}/courses", params=p).json())  # noqa: E731
+    courses = lambda **p: sorted(x["record_external_identifier"] for x in c.get(f"{B}/courses", params=p).json())  # noqa: E731
     assert len(courses(by=JARED)) == 2 and len(courses(by="waiting")) == 1 and len(courses(by="nobody")) == 0
     ck = courses(by="waiting")[0]
     fields = c.get(f"{B}/courses/{ck}").json()["occurrences"][0]["properties"]
@@ -196,8 +196,8 @@ def test_publishing_writes_the_whole_version_and_replaces_the_latest(studio, tmp
     doc = golden.publish(ctx, str(gold), "test", properties=["Coded Notation"])
     assert (doc["publication"], doc["properties"], doc["latest"]) == ("ruleset-v1", ["Coded Notation"], True)
     rec = _page(gold, ctx, "page-0", 1)[0]
-    assert [f["property"] for f in rec["fields"]] == ["Coded Notation", "Learning Opportunity Name"]
-    assert [f["approval"] for f in rec["fields"]] == ["rule", "human"] and rec["approval"] == "mixed"
+    assert [f["property"] for f in rec["fields"]] == ["Learning Opportunity Name", "Coded Notation"]  # tier order
+    assert [f["approval"] for f in rec["fields"]] == ["human", "rule"] and rec["approval"] == "mixed"
     [hr] = _page(gold, ctx, "page-0", 1, golden.HUMAN_REVIEWED)  # only the human-reviewed value, only its page
     assert [f["property"] for f in hr["fields"]] == ["Learning Opportunity Name"] and hr["approval"] == "human"
     assert _page(gold, ctx, "page-1", 1, golden.HUMAN_REVIEWED) is None
@@ -206,7 +206,7 @@ def test_publishing_writes_the_whole_version_and_replaces_the_latest(studio, tmp
     assert doc["trees"] == {golden.RULE_MATCHED: {"prefix": golden.version_prefix(ctx, 1), "pages": 3},
                             golden.HUMAN_REVIEWED: {"prefix": golden.version_prefix(ctx, 1, golden.HUMAN_REVIEWED),
                                                     "pages": 1}}
-    gdir = layout.golden_dir(CAT, ctx.crawl, "ruleset-v1")
+    gdir = layout.golden_dir(CAT, ctx.crawl, "course", "ruleset-v1")
     rows = pq.read_table(ctx.root.local_path(f"{gdir}/golden.parquet")).to_pylist()
     assert len(rows) == 4 and {r["stem"] for r in rows} == {"page-0", "page-1", "page-2"}
     assert {(r["property"], r["approval"]) for r in rows if r["stem"] == "page-0"} == {
@@ -220,29 +220,29 @@ def test_publishing_writes_the_whole_version_and_replaces_the_latest(studio, tmp
     rules = json.loads(json.dumps(RULES))
     rules["rules"][3]["definition"] |= {"rule_type": "css+regex", "regex": "^C (\\d+)", "group": 1}  # the number only
     draft.write_text(json.dumps(rules))
-    assert main(["rule", "publish", "--root", ctx.root.uri, "--catalog", CAT, str(draft), "--note", "v2", "--force"]) == 0
+    assert main(["rule", "publish", "--class", "course", "--root", ctx.root.uri, "--catalog", CAT, str(draft), "--note", "v2", "--force"]) == 0
     capsys.readouterr()
     rv2 = golden.LOADER.review(Ctx(ctx.root, CAT))
-    assert golden.approval_publishes(rv2, "course-name")["after"] == ["Coded Notation", "Learning Opportunity Name"]
+    assert golden.approval_publishes(rv2, "course-name")["after"] == ["Learning Opportunity Name", "Coded Notation"]
     v2 = golden.publish(Ctx(ctx.root, CAT), str(gold), "test", allow_unapproved=True,
                         properties=["Learning Opportunity Name"])
-    assert v2["publication"] == "ruleset-v2" and v2["properties"] == ["Coded Notation", "Learning Opportunity Name"]
+    assert v2["publication"] == "ruleset-v2" and v2["properties"] == ["Learning Opportunity Name", "Coded Notation"]
     latest = _page(gold, ctx, "page-1")[0]
-    assert [(f["property"], f["value"]) for f in latest["fields"]] == [("Coded Notation", "C 1"),
-                                                                        ("Learning Opportunity Name", "1")]
+    assert [(f["property"], f["value"]) for f in latest["fields"]] == [("Learning Opportunity Name", "1"),
+                                                                        ("Coded Notation", "C 1")]
     assert _page(gold, ctx, "page-1", 1)[0]["fields"][0]["property"] == "Coded Notation"
-    assert {g["publication"] for g in Ctx(ctx.root, CAT).crawl_entry()["golden"]} == {"ruleset-v1", "ruleset-v2"}
+    assert {g["publication"] for g in Ctx(ctx.root, CAT).crawl_class()["golden"]} == {"ruleset-v1", "ruleset-v2"}
     properties.apply(Ctx(ctx.root, CAT), "test")  # check wants every property of properties.csv in the ruleset
-    assert main(["check", "--root", ctx.root.uri, "--catalog", CAT]) == 0
+    assert main(["check", "--class", "course", "--root", ctx.root.uri, "--catalog", CAT]) == 0
     # a stray file in a tree is caught; writing the versions again in the current layout removes it
     stray = gold / golden.version_prefix(ctx, 1, golden.HUMAN_REVIEWED) / "page-2" / "page-2.json"
     stray.parent.mkdir(parents=True)
     stray.write_text(json.dumps(_page(gold, ctx, "page-2", 1)))
-    assert main(["check", "--root", ctx.root.uri, "--catalog", CAT]) == 1
-    assert main(["golden", "backfill", "--root", ctx.root.uri, "--catalog", CAT, "--to", str(gold), "--again"]) == 0
+    assert main(["check", "--class", "course", "--root", ctx.root.uri, "--catalog", CAT]) == 1
+    assert main(["golden", "backfill", "--class", "course", "--root", ctx.root.uri, "--catalog", CAT, "--to", str(gold), "--again"]) == 0
     out = capsys.readouterr().out
-    assert "ruleset-v2 (Coded Notation, Learning Opportunity Name) written again" in out and not stray.exists()
-    assert _page(gold, ctx, "page-1")[0]["fields"][1]["value"] == "1"  # v2 is still the latest
+    assert "ruleset-v2 (Learning Opportunity Name, Coded Notation) written again" in out and not stray.exists()
+    assert _page(gold, ctx, "page-1")[0]["fields"][0]["value"] == "1"  # v2 is still the latest
 
 
 def test_backfill_rebuilds_old_publications_as_versions(studio, capsys):
@@ -250,7 +250,7 @@ def test_backfill_rebuilds_old_publications_as_versions(studio, capsys):
     from golden_datasets import manifest
 
     pub = "pub-2026-10-27-cuesta-rs-0001"
-    gdir = layout.golden_dir(CAT, ctx.crawl, pub)
+    gdir = layout.golden_dir(CAT, ctx.crawl, "course", pub)
     ctx.root.write_bytes(f"{gdir}/lineage.parquet", _parquet({"golden_id": ["C0", "C1"],
                                                               "property": ["Coded Notation", "Coded Notation"]}))
     ctx.root.write_json(f"{gdir}/publication.json", {
@@ -258,19 +258,19 @@ def test_backfill_rebuilds_old_publications_as_versions(studio, capsys):
         "published_by": "Eric via the Studio UI", "to": "azure://https://x.blob.core.windows.net/xtra-golden-sets"})
 
     def change(m):
-        k = manifest.crawl_entry(manifest.catalog_entry(m, CAT), ctx.crawl)
+        k = manifest.crawl_class(manifest.crawl_entry(manifest.catalog_entry(m, CAT), ctx.crawl), "course")
         k["golden"] = [{"publication": pub, "path": gdir, "to": "azure://…"}]
 
     manifest.update(ctx.root, change)
-    assert main(["golden", "backfill", "--root", ctx.root.uri, "--catalog", CAT, "--to", str(gold)]) == 0
+    assert main(["golden", "backfill", "--class", "course", "--root", ctx.root.uri, "--catalog", CAT, "--to", str(gold)]) == 0
     out = capsys.readouterr().out
     assert "ruleset-v1 (Coded Notation) from pub-2026-10-27-cuesta-rs-0001: 3 pages" in out and " 0 bad" in out
     fresh = Ctx(ctx.root, CAT)
-    assert [g["publication"] for g in fresh.crawl_entry()["golden"]] == ["ruleset-v1"]
-    doc = fresh.read_json(f"{layout.golden_dir(CAT, ctx.crawl, 'ruleset-v1')}/publication.json", immutable=False)
+    assert [g["publication"] for g in fresh.crawl_class()["golden"]] == ["ruleset-v1"]
+    doc = fresh.read_json(f"{layout.golden_dir(CAT, ctx.crawl, 'course', 'ruleset-v1')}/publication.json", immutable=False)
     assert doc["published_at"] == "2026-10-27T01:02:29Z" and doc["backfilled_from"] == [pub]
     assert _page(gold, ctx, "page-2", 1)[0]["fields"][0]["value"] == "C 2"
-    assert main(["golden", "backfill", "--root", ctx.root.uri, "--catalog", CAT, "--to", str(gold)]) == 0
+    assert main(["golden", "backfill", "--class", "course", "--root", ctx.root.uri, "--catalog", CAT, "--to", str(gold)]) == 0
     assert "nothing to backfill" in capsys.readouterr().out
 
 
@@ -304,7 +304,8 @@ def test_new_versions_store_golden_and_silver_trees_and_old_ones_keep_their_fold
     assert golden.versions(Ctx(ctx.root, CAT))[1]["trees"] == golden.NAMED
 
     def forget(m: dict) -> None:  # a version written before the new names: its entry has no `trees`
-        k = manifest.crawl_entry(manifest.catalog_entry(m, CAT), Ctx(ctx.root, CAT).crawl)
+        k = manifest.crawl_class(manifest.crawl_entry(manifest.catalog_entry(m, CAT), Ctx(ctx.root, CAT).crawl),
+                                 "course")
         for g in k["golden"]:
             g.pop("trees", None)
 

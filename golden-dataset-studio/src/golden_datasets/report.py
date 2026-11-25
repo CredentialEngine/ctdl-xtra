@@ -138,6 +138,7 @@ class Known:
     publishes: list = field(default_factory=list)
     page_text: object = None          # course → the saved page's text (or None)
     _rows: dict = field(default_factory=dict)
+    cls: str = "course"               # the class the run is for (the Studio's addresses name it)
 
     def row(self, rule: str, course: str, snap: Snapshot | None = None) -> dict | None:
         snap = snap or self.snap
@@ -147,8 +148,8 @@ class Known:
         if key not in self._rows:
             by: dict[str, dict] = {}
             for r in snap.rows(rule):
-                if r.get("course_key"):
-                    by.setdefault(r["course_key"], r)
+                if r.get("record_external_identifier"):
+                    by.setdefault(r["record_external_identifier"], r)
             self._rows[key] = by
         return self._rows[key].get(course)
 
@@ -181,7 +182,7 @@ def page_text_reader(ctx, snap: Snapshot):
 
     def read(course: str) -> str | None:
         if course not in cache:
-            stem = next((o["page_stem"] for o in snap.occurrences.values() if o.get("course_key") == course), None)
+            stem = next((o["page_stem"] for o in snap.occurrences.values() if o.get("record_external_identifier") == course), None)
             try:
                 cache[course] = page_text(ctx.page_path(stem).read_bytes()) if stem else None
             except (FileNotFoundError, OSError):
@@ -214,19 +215,19 @@ def build_known(ctx, run: dict) -> Known:
     courses = {}
     if snap is not None:
         for o in snap.occurrences.values():
-            if o.get("course_key") and o["course_key"] not in courses:
+            if o.get("record_external_identifier") and o["record_external_identifier"] not in courses:
                 p = snap.page.get(o["page_stem"]) or {}
-                courses[o["course_key"]] = {"title": p.get("title"), "url": p.get("url"), "page_stem": o["page_stem"]}
+                courses[o["record_external_identifier"]] = {"title": p.get("title"), "url": p.get("url"), "page_stem": o["page_stem"]}
     notes = {}
     for e in events:
         if e["type"] not in ("verdict", "comment"):
             continue
         t = e.get("target") or {}
         notes[e["annotation_id"]] = {"author": e["author"], "at": e["at"], "rule": t.get("rule_id"),
-                                     "course": t.get("course_key"), "kind": e.get("verdict") or "comment",
+                                     "course": t.get("record_external_identifier"), "kind": e.get("verdict") or "comment",
                                      "text": e.get("note"), "expected": (e.get("expected") or {}).get("text"),
                                      "event": e}
-    d = layout.agent_run_dir(ctx.catalog, run["run_id"])
+    d = layout.agent_run_dir(ctx.catalog, ctx.cls, run["run_id"])
     try:
         last_try = ctx.root.read_json(f"{d}/last-try.json")
     except FileNotFoundError:
@@ -237,7 +238,7 @@ def build_known(ctx, run: dict) -> Known:
         publishes = []
     based_on = publishes[-1]["base"] if publishes else before
     scope = run.get("scope") or {}
-    return Known(catalog=info(ctx.catalog)["short"], folder=ctx.catalog, rules=rules,
+    return Known(catalog=info(ctx.catalog)["short"], folder=ctx.catalog, cls=ctx.cls, rules=rules,
                  names=rule_names({**(base.rules if base else {}), **rules}), courses=courses, notes=notes, run=run,
                  goals=list(scope.get("rules") or []), published=published, changed_by_run=changed,
                  ruleset_before=before, ruleset_after=versions[-1] if versions else None, based_on=based_on,
@@ -545,12 +546,12 @@ class Resolver:
         self._states: dict[str, dict] = {}
 
     def rules_link(self, rid: str, **p) -> str:
-        return _h(f"{urlquote(self.k.catalog)}/rules/{urlquote(rid)}", p)
+        return _h(f"{urlquote(self.k.catalog)}/{self.k.cls}/rules/{urlquote(rid)}", p)
 
     def compare_url(self, a, b, rid: str | None = None) -> str | None:
         if not a or not b:
             return None
-        return _h(f"{urlquote(self.k.catalog)}/compare", {"a": a, "b": b, "rule": rid})
+        return _h(f"{urlquote(self.k.catalog)}/{self.k.cls}/compare", {"a": a, "b": b, "rule": rid})
 
     def state(self, rid: str, row: dict):
         if self.review is None:
@@ -636,8 +637,8 @@ class Resolver:
             got = []
             for row in (self.k.snap.rows(rid) if self.k.snap and rid in self.k.snap.rules else []):
                 st = self.state(rid, row)
-                if st and st.state in states and row.get("course_key"):
-                    got.append(row["course_key"])
+                if st and st.state in states and row.get("record_external_identifier"):
+                    got.append(row["record_external_identifier"])
             return rid, sorted(set(got))
         return rule, list(ref)
 
@@ -904,8 +905,8 @@ def resolve(facts: dict, k: Known) -> dict:
             if changed:
                 rows = [card(rid, c) for c in changed[:3] if k.row(rid, c)]
             else:
-                held = next((row["course_key"] for row in (k.snap.rows(rid) if k.snap and rid in k.snap.rules else [])
-                             if row.get("course_key") and (R.state(rid, row) or None)
+                held = next((row["record_external_identifier"] for row in (k.snap.rows(rid) if k.snap and rid in k.snap.rules else [])
+                             if row.get("record_external_identifier") and (R.state(rid, row) or None)
                              and R.state(rid, row).state == "correct"), None)
                 rows = [card(rid, held)] if held else []
         b = item.get("because")
@@ -946,7 +947,8 @@ def resolve(facts: dict, k: Known) -> dict:
             "suite": {x: s[x] for x in ("rules", "golden", "now_right", "inferred", "got_worse")} if s else None,
             "inferred": inferred, "to_do": to_do, "rules": rules, "also_changed": also_changed, "together": together,
             "notes": notes.strip() if isinstance(notes, str) and notes.strip() else None,
-            "links": {"report": _h(f"{urlquote(k.catalog)}/rules", {"run": run.get("run_id")}), "compare": compare},
+            "links": {"report": _h(f"{urlquote(k.catalog)}/{k.cls}/rules", {"run": run.get("run_id")}),
+                      "compare": compare},
             "revert": revert}
 
 
@@ -1105,7 +1107,7 @@ def last_try_doc(ev: dict, base_ruleset: int | None, published: int | None) -> d
         for r in c["annotated_rows"]:
             key = {"fixed": "fixed", "still wrong": "still_wrong", "newly wrong": "newly_wrong"}.get(r["outcome"])
             if key:
-                by[key].append(r.get("course_key") or r["page_stem"])
+                by[key].append(r.get("record_external_identifier") or r["page_stem"])
         cards.append({"rule_id": c["rule_id"], **{k: sorted(set(v)) for k, v in by.items()}})
     s = ev.get("suite") or {}
     return {"base_ruleset": base_ruleset, "published": published, "totals": ev["totals"], "cards": cards,

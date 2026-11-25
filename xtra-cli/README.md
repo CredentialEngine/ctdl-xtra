@@ -9,7 +9,7 @@ This CLI does not invent CTIDs and does not publish to the Credential Registry.
 > **Architecture and ETL pipeline:** [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) —
 > how the five stages (crawl → discover → extract → transform → score) fit together,
 > with flow charts, the storage layout, the data contracts between stages, and what
-> lives in `src/common/` versus `lib/`. Read that first if you are new to the repo;
+> lives in `src/common/` versus `src/lib/`. Read that first if you are new to the repo;
 > this README is the operator's reference for the flags.
 
 ## Install
@@ -18,7 +18,7 @@ Python 3.10+. From this directory:
 
 ```bash
 python3 -m pip install -e ".[dev]"
-python3 -m playwright install chrome
+python3 -m playwright install chromium
 ```
 
 Azure Blob (production or Azurite) needs the extra:
@@ -52,7 +52,7 @@ python -m playwright install chromium
 
 xtra --version
 xtra environment set dev --data-uri .\xtra-cache
-xtra catalog crawl --with-playwright --url https://catalog.brookdalecc.edu --limit 5 --min-interval-in-seconds 0
+xtra catalog crawl --with-playwright --url https://catalog.brookdalecc.edu --limit 5 --min-interval-in-seconds 10
 ```
 
 If activation is blocked, run `Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass`
@@ -104,7 +104,7 @@ To run one command elsewhere without changing the active environment, pass `--en
 
 ```bash
 xtra catalog crawl --with-playwright --env sandbox --url https://catalog.brookdalecc.edu --limit 5
-XTRA_ENV=test xtra catalog extract --with-template --catalog-id brookdalecc --run-id 2026-09-14T18:12:00Z
+XTRA_ENV=test xtra catalog extract ceterms:name --catalog-id brookdalecc --run-id 2026-09-14T18:12:00Z
 ```
 
 Resolution order for every run, highest first:
@@ -145,20 +145,24 @@ Filesystem path matches invocation, the same way ceops does (`ceops elasticsearc
 ```text
 xtra environment set    -> src/xtra/environment.py
 xtra catalog crawl      -> src/xtra/catalog/crawl.py
+xtra catalog crawl status -> src/xtra/catalog/crawl_status.py
+xtra catalog crawl summary -> src/xtra/catalog/crawl_summary.py
   --with-playwright     -> src/implementations/crawl_browser.py
   --with-crawl4ai       -> src/implementations/crawl_crawl4ai.py
   --with-firecrawl      -> src/implementations/crawl_firecrawl.py
 xtra catalog discover   -> src/xtra/catalog/discover.py
-xtra catalog extract    -> src/xtra/catalog/extract.py
+xtra catalog extract PROPERTY -> src/xtra/catalog/extract.py
+  ceterms:name          -> src/implementations/extract/ceterms/ceterms_name.py
 xtra catalog transform  -> src/xtra/catalog/transform.py
-xtra score extraction match -> src/xtra/scoring/extraction/match.py
+xtra score extraction match -> src/xtra/score/extraction/match.py
   --exactly / --partially   -> src/implementations/score_extraction_match.py
+  reads extraction_report/  -> src/implementations/score_extraction_transform.py
 ```
 
 ### Crawl
 
 The crawler downloads and saves. It renders a page, writes the HTML and a
-metadata sidecar, follows links, and stops when nothing in scope is left or
+metadata meta, follows links, and stops when nothing in scope is left or
 `--limit` is reached. It does not detect a CMS family, name an institution,
 pick a template, or normalize text. Those are jobs for discovery and
 extraction, which read what the crawler saved.
@@ -176,25 +180,35 @@ xtra catalog crawl --with-playwright \
 | Flag | Default | What it does |
 | --- | --- | --- |
 | `--url` | required | The catalog URL the crawl starts from. |
-| `--run-id` | now | UTC run id, `yyyy-MM-ddTHH:mm:ssZ` or `yyyy-MM-ddTHH-mm-ssZ`. Reuse one to resume. |
-| `--limit` | none | Stop after this many pages are saved in the run, across resumes. |
-| `--concurrency-limit` | `1` | Pages downloaded in parallel. Each worker runs its own browser. |
-| `--min-interval-in-seconds` | `180` | Smallest gap between one worker's GETs, and the first retry wait. |
+| `--run-id` | now | UTC run id, `yyyy-MM-ddTHH:mm:ssZ` or `yyyy-MM-ddTHH-mm-ssZ`. A run id is used once. |
+| `--from-run-id` | none | An earlier run to continue from. The pages it saved are copied instead of fetched. See [Continuing a run](#continuing-a-run). |
+| `--limit` | none | Stop after this many pages are saved in the run, copied pages included. |
+| `--concurrency-limit` | `1` | Workers, each with its own browser and its own pacing clock. Only `1` for now. |
+| `--min-interval-in-seconds` | `180` | Smallest gap between one worker's GETs, and the first retry wait. At least `10`. |
 | `--max-interval-in-seconds` | `3600` | Cap on the exponential backoff between retries. |
-| `--max-retries` | `5` | Retries after the first attempt, for network errors, timeouts, HTTP 429, and HTTP 5xx. |
+| `--max-retries` | `5` | Retries after the first attempt, for network errors, timeouts, HTTP 429, HTTP 5xx, and bot-challenge pages that were not waited out. |
+| `--max-consecutive-failures` | `20` | Stop the run after this many blocking failures in a row. See [Failures](#failures). |
 | `--scope-prefix` | directory of `--url` | Keep only URLs whose path starts with this URL's path. |
 | `--include-regex` | none | Repeatable. A followed URL is kept only when it matches one of these. |
 | `--exclude-regex` | none | Repeatable. A followed URL is dropped when it matches one of these. |
 | `--seed-urls-file` | none | Extra start URLs, one per line, for pages no link reaches. |
+| `--browser` | `chromium` | With `--with-playwright`: `chromium`, which comes with Playwright, or `chrome`, Google Chrome as installed. See [Which browser](#which-browser). |
+| `--keep-browser-open` | off | With `--with-playwright`, keep each worker's browser open for the whole run instead of closing it between pages. See [The browser between pages](#the-browser-between-pages). |
 
 A crawl is a rare, one-time job, so the defaults are slow on purpose: one
-page every three minutes, one worker. Getting it wrong means doing it again.
+page every three minutes or a little more, one worker. Getting it wrong
+means doing it again.
+
+No wait is exact. Every gap between GETs and every retry wait adds a random
+0 to 25 percent on top of what it would otherwise be, so a site never sees
+requests on a fixed beat. The random addition never takes a wait past
+`--max-interval-in-seconds`.
 
 #### Which strategy to pick
 
 Three backends fetch pages. Everything else about a crawl is identical
 whichever one runs: the frontier, the scope rules, robots.txt, the retry
-ladder, the pacing, the checkpoints, the log lines, and everything discovery
+ladder, the pacing, the page records, the log lines, and everything discovery
 reads afterwards. A strategy only decides how one URL becomes one saved page.
 
 | Flag | Key needed | Install | Pick it when |
@@ -216,7 +230,7 @@ more of a given catalog. It also records `strategy_version`, read from the
 installed packages rather than written down anywhere, `strategy_settings`,
 what the backend was handed, and `strategy_notes`, the places where a
 backend honours one of those settings only approximately. Every saved page
-carries its `strategy` in the sidecar, so one page can be traced back to the
+carries its `strategy` in the meta, so one page can be traced back to the
 backend that fetched it.
 
 ```bash
@@ -227,6 +241,21 @@ xtra catalog crawl --with-crawl4ai   --url "$CATALOG" --run-id "$B" --limit 5 --
 On the catalog tested here the two agreed to within half a percent of bytes,
 which is the expected result when a site is not fighting back. The difference
 only shows up when one is.
+
+#### The browser between pages
+
+`--keep-browser-open` keeps one browser per worker for the whole run, as
+earlier versions did. Try it on a site that challenges every fresh browser.
+`crawl.json` records which was used as `strategy_settings.between_pages`.
+A browser that cannot be opened again stops the run the same way one that
+cannot start at all does.
+
+#### Which browser
+
+`--with-playwright` starts Playwright's own Chromium unless `--browser
+chrome` asks for Google Chrome as installed on the machine. Chromium needs
+no install beyond `playwright install chromium`.  `crawl.json` records the choice as `strategy_settings.browser_channel`.
+
 
 #### Crawl4AI
 
@@ -299,25 +328,6 @@ remembered too, so a redirect chain is not walked twice.
 Links come from the `href` of `a`, `area`, and `link rel=next` in the
 rendered HTML.
 
-A Coursedog catalog shows its courses and programs 20 to a page, and its
-page numbers are buttons, not links, so following links alone stops after
-the first 20 of each list. The crawler reads those buttons as the addresses
-they stand for, `/courses?page=2` and so on, and checks the site answers
-them before relying on it:
-
-- the first page of a list queues its second page;
-- a page that opens as the page its address asks for queues every page
-  after it, up to the last;
-- a list that shows another page than the one asked for costs that one
-  page and a `LIST` warning, and nothing more of it is queued.
-
-List pages go ahead of the links of the page that leads to them. They are
-links like any other, so `--include-regex` and `--exclude-regex` apply to
-them. Coursedog also rewrites `/courses` to `/courses?page=1&cq=` once the
-list is up, and that address must pass the regexes too: narrow a test run
-with `--include-regex "/courses"`, not `"/courses/"`, or the list page is
-skipped as `redirect_out_of_scope`.
-
 A response that is not `text/html` or `application/xhtml+xml`, and a
 navigation that starts a download, are skipped with reason `non_html`. A
 redirect that lands off the site is skipped with reason
@@ -326,14 +336,14 @@ redirect that lands off the site is skipped with reason
 The frontier starts from `--url`, then the same-host URLs in `/sitemap.xml`
 and in any `Sitemap:` line of `robots.txt`, then every line of
 `--seed-urls-file`, then the links found on the pages themselves in document
-order, with a Coursedog list's next pages first. That order is recorded as `frontier_order` in `crawl.json`. The
+order. That order is recorded as `frontier_order` in `crawl.json`. The
 sitemap is the site's own index of its content pages, so a limited run
 reaches real content first and a full run ends up with the same pages either
-way. A resume reorders what it reads back the same way, so sitemap URLs do
-not wait behind a section the first pass queued.
+way. A run started with `--from-run-id` builds its queue the same way, so
+sitemap URLs do not wait behind a section the earlier run queued.
 
 Sitemap index files and `.gz` sitemaps are followed. `robots.txt` is fetched
-with `urllib` and the shared browser user agent; a 4xx means the site
+with `httpx2` and the shared browser user agent; a 4xx means the site
 published no rules, and a 5xx or a network error means the same plus a
 warning. `robots_status` is recorded in `crawl.json`. When `robots.txt` sets
 `Crawl-delay` for `*`, the effective minimum interval is the larger of that
@@ -348,14 +358,22 @@ host, inside the scope prefix, and allowed by `robots.txt`.
 #### Catalogs that keep several years
 
 Some hosts publish every catalog year on one site. That is an operator
-decision, not something the crawler guesses, so narrow the run with a regex:
+decision, not something the crawler guesses, so narrow the run with a regex.
+It is searched anywhere in the full URL, so bound the number, or `catoid=13`
+also keeps `catoid=130`; the `;` covers links written with a stray `&amp;`:
 
 ```bash
 xtra catalog crawl --with-playwright \
-  --url https://catalog.bergen.edu/content.php?catoid=13&navoid=664 \
-  --include-regex "catoid=13" \
+  --url "https://catalog.bergen.edu/content.php?catoid=13&navoid=664" \
+  --include-regex '[?&;]catoid=13(?!\d)' \
   --target-uri ./xtra-cache
 ```
+
+Start URLs skip the regex, but the links that lead to the catalog have to
+pass it. When the start page links only to other years, as a home page that
+lists its current catalogs only in a drop-down does, put each wanted
+catalog's `index.php?catoid=N` page in `--seed-urls-file`, or the run saves
+the start page and ends `complete`.
 
 #### What the log says
 
@@ -366,16 +384,23 @@ GET https://catalog.example.edu/english/engl101 -> 200 48213 bytes 1840 ms -> az
 RETRY https://catalog.example.edu/english/engl102 attempt 2 of 6 after HTTP 429, waiting 360 s
 FAIL https://catalog.example.edu/english/engl103 after 6 attempts: HTTP 503
 SKIP https://catalog.example.edu/private/x reason=robots
-FROM-STORAGE https://catalog.example.edu/english/engl101 (already saved, no GET)
-LIST https://catalog.example.edu/courses is page 1 of 137; queued page 2 to check the list opens by page number
-LIST https://catalog.example.edu/courses?page=2 opened as page 2 of 137; queued 135 more page(s) of the list
-PROGRESS saved=120 failed=2 skipped=340 frontier=880 elapsed=06:01:10 eta=44:00:00
+CACHE run 2026-09-17T14:20:01Z saved 412 pages; each is copied when the crawl reaches it, instead of fetched
+COPY https://catalog.example.edu/english/engl101 (saved by run 2026-09-17T14:20:01Z, no GET)
+RETRY https://catalog.example.edu/english/engl104 attempt 2 of 6 after aws-waf challenge did not resolve within 30 s, waiting 180 s
+REFETCH https://catalog.example.edu/english/engl105 the page run 2026-09-17T14:20:01Z saved is a bot challenge (aws-waf), not the catalog page, so it is fetched again
+PROGRESS saved=120 copied=80 failed=2 skipped=340 frontier=880 elapsed=06:01:10 eta=44:00:00
+STOP 20 blocking failures in a row (401, 403, 429, 5xx, challenge pages, network errors; --max-consecutive-failures 20). The site is probably blocking this crawl, so the run is left incomplete.
 ```
 
-A `LIST` WARNING says when a Coursedog list cannot be paged further: the
-site showed another page than the one asked for, the page was saved before
-its list loaded (`Loading results...`), no button marks the page on screen,
-or the list has more than 1,000 pages and only that many are queued.
+A firewall's bot challenge, the script page AWS WAF serves with HTTP 202 or
+Cloudflare's "Just a moment...", is never saved, whatever the strategy. With
+`--with-playwright` it is waited out in the browser, and a page that needed
+one says so under `render.challenge` in its meta; the other strategies
+detect the challenge page and retry it. One that does not clear is a
+retryable failure. Runs crawled before challenges were waited out
+(2026-10-01) can hold saved challenge pages; a run started from one with
+`--from-run-id` logs each as a `REFETCH` WARNING and fetches it again
+instead of copying it.
 
 `bytes` is the size of the saved HTML in UTF-8. `latency_ms` runs from
 navigation start to the HTML being in hand. The path is the full URI of the
@@ -392,41 +417,149 @@ section of the catalog and nothing above it.
 Skips that are ordinary scope decisions (`out_of_scope`, `duplicate`,
 `extension`, `include_rule`, `exclude_rule`, `scheme`) log at DEBUG, because
 on a real catalog they outnumber the GET lines many times over. The
-surprises (`robots`, `non_html`, `redirect_out_of_scope`) stay at INFO. Set
-`LOG_LEVEL=DEBUG` to see every decision.
+surprises (`robots`, `non_html`, `redirect_out_of_scope`) stay at INFO,
+once per URL: a disallowed page linked from every page of the catalog is
+one INFO line, and the repeats go to DEBUG. Set `LOG_LEVEL=DEBUG` to see
+every decision.
 
 `crawl.json` is printed to stdout when the run ends.
 
-#### Resume
+#### Continuing a run
 
-Rerun with the same `--url` and the same `--run-id`. `state.json` carries
-the frontier, the seen set, the failed URLs, and the strategy that fetched
-them. `state.json`, `failed.jsonl` and `crawl.json` are written once at
-startup before the first GET, again after the first saved page, then every
-25 saved pages, on Ctrl+C, when the run gives up, and at the end. A run that
-is killed outright still leaves a manifest saying what it was and that it
-did not finish.
+A run is never continued in place, and a run id is used once. When a run
+stops, by `--limit`, Ctrl+C, a `STOP` or a crash, carry on with a **new run**
+that names it:
 
-A resume may not change the backend: a rerun with a different
-`--with-<strategy>` stops with an error naming both, because one run folder
-must not mix rendered sources.
+```bash
+xtra catalog crawl --with-playwright --url https://catalog.example.edu --from-run-id 2026-09-17T14:20:01Z
+```
 
-A frontier URL whose `.html` is already in storage is not fetched again: its
-HTML is read back and its links are still followed, so a resume re-checks
-coverage without touching the site. Failed URLs whose error was retryable are
-queued once more. `--limit` counts pages saved across the whole run, so
-rerunning with a higher limit continues where the last one stopped.
+The new run gets its own run id (now, unless `--run-id` gives one) and
+builds its queue from scratch, exactly as a first run does. When the queue
+reaches a page the earlier run saved, that page and its meta are
+**copied** into the new run's `pages/` instead of fetched (`COPY` in the
+log), and its links are followed. Nothing is sent to the site for it, and
+there is no pacing wait.
 
-After 20 URLs fail in a row the run stops, checkpoints, and reports
-`incomplete`, on the assumption that the site is blocking it.
+| In the earlier run | In the new run |
+| --- | --- |
+| a saved page | copied, with `copied_from_run` and `copied_at` added to its meta; `retrieved_at` stays the time of the original GET |
+| a saved bot-challenge page (runs before 2026-10-01) | fetched again (`REFETCH`), never copied |
+| a page whose meta is missing or unreadable | fetched again |
+| a failed URL, a 404 included | fetched again |
+| a skipped URL | fetched again |
+
+**The manifest.** The first thing a run writes is `manifest.json`, once:
+the settings that decide which pages belong to it (`--url`,
+`--scope-prefix`, `--include-regex`, `--exclude-regex`, the URLs of
+`--seed-urls-file`, the `--with-<strategy>`) under `locked`, their SHA-256
+as `locked_sha256`, and `from_run_id`. When a later run copies from this
+one, it checks the backend against that manifest, and a manifest edited by
+hand is refused.
+
+**What each URL leaves behind.** Every URL the run asks for gets one
+`.meta.json`, written once, in a folder that says what became of it:
+
+```text
+pages/{stem}.html               the page
+pages/{stem}.meta.json          saved: the meta, "result": "saved"
+pages/failed/{stem}.meta.json   failed or failed-retryable: the error, status, attempts and kind
+pages/skipped/{stem}.meta.json  answered, but not a page of the run: non_html, redirect_out_of_scope
+```
+
+#### What crawl.json says while a run is going
+
+`crawl.json` is written when the run ends: complete, limit reached,
+stopped (blocked, or a browser or storage failure), or Ctrl+C. Until then a
+run has its `manifest.json` and its page files, and `crawl status` counts
+those live, saying `run=running`. A process killed outright writes no
+`crawl.json`; the next run with `--from-run-id` copies its pages all the
+same. `crawl.json` records `from_run_id`, `pages_copied` and
+`pages_fetched`, and `finished_at` is null after a Ctrl+C.
+
+#### Seeing what a run has crawled
+
+```bash
+xtra catalog crawl status --url https://catalog.example.edu --run-id 2026-09-17T14:20:01Z
+```
+
+```text
+TOTAL failed=1 saved=102 urls=103 copied=80 fetched=22 from_run=2026-09-16T10:00:00Z run=incomplete frontier_remaining=103 updated_at=2026-09-17T22:41:53Z
+```
+
+One line. The counts come from one listing of the run's `pages/`,
+`pages/failed/` and `pages/skipped/` without opening a file, so it is quick
+on a run of any size, in Azure too, and safe to run every few minutes while
+the crawl is going. `copied`, `fetched`, `from_run`, `run`,
+`frontier_remaining` and `updated_at` come from `crawl.json`, which is
+written when the run ends; until then the line ends
+`run=running (crawl.json is written when it ends)`.
+
+```bash
+xtra catalog crawl summary --url https://catalog.example.edu --run-id 2026-09-17T14:20:01Z
+xtra catalog crawl summary --url https://catalog.example.edu --run-id 2026-09-17T14:20:01Z --failed
+xtra catalog crawl summary --url https://catalog.example.edu --run-id 2026-09-17T14-20-01Z --format csv > crawl.csv
+```
+
+```text
+RESULT  HTTP_STATUS  ATTEMPTS  BYTES  AT                    URL                                          DETAIL
+saved   200          1         48213  2026-09-16T10:03:02Z  https://catalog.example.edu/english/engl101  copied from 2026-09-16T10:00:00Z
+failed  404          1                2026-09-17T14:26:15Z  https://catalog.example.edu/english/gone     HTTP 404
+TOTAL failed=1 saved=1 urls=2 copied=1 fetched=0 from_run=2026-09-16T10:00:00Z run=incomplete frontier_remaining=880 updated_at=2026-09-17T14:26:15Z
+```
+
+One row per URL the run has asked for, read from its `.meta.json`, then the
+same totals line. It opens every `.meta.json`, so on a large run in Azure it
+takes a minute or so; `status` gives the counts at once.
+
+| Flag | Command | What it does |
+| --- | --- | --- |
+| `--url` | both | The catalog URL the crawl started from. Required. |
+| `--run-id` | both | The run, in either form: with colons as `crawl.json` writes it, or with hyphens as the folder is named. Required. |
+| `--saved` / `--failed` / `--skipped` | summary | Show only those rows. They combine; with none, every row is shown. `--failed` includes `failed-retryable`. |
+| `--format` | summary | `table` (default) or `csv`, for Excel. The totals line is printed with `table` only. |
+| `--target-uri`, `--env`, `--azure-storage-connection-string` | both | Where the run lives, resolved the same way as for the crawl. |
+
+URLs found but not asked for yet have no row, and neither do URLs skipped
+before a fetch (robots, scope, duplicates); those are counted under
+`skipped_by_reason` in `crawl.json`. A run crawled before failures got their
+own `.meta.json` shows only its saved pages. Every option goes after the
+subcommand: `xtra catalog crawl --url X status` is refused with a message
+saying so, because `--url` there would be read as the crawl's own option.
+
+#### Failures
+
+A failure is one of two kinds, recorded in its
+`pages/failed/{stem}.meta.json`:
+
+- **page**: an HTTP 4xx other than 401, 403 and 429, such as a 404 or a 410.
+  The page is gone; the site is still answering. It is recorded and never
+  counted toward stopping the run, and it does not reset the count either.
+- **blocking**: HTTP 401, 403, 429 or 5xx after every retry, a bot challenge
+  that did not clear, a network error, or a worker that crashed. These are how
+  a site refusing a crawl looks.
+
+After `--max-consecutive-failures` blocking failures in a row (default 20) the
+run logs `STOP`, writes `crawl.json`, and reports `incomplete`, on the
+assumption that the site is blocking it. A saved page, or a URL the site
+answered and that was skipped (`non_html`, `redirect_out_of_scope`), resets
+the count. Pages copied from `--from-run-id` do not, because they are not a
+GET.
+
+Two things stop a run at once, whatever the count: a browser that will not
+start, and storage that refuses a write. Fetching more would either fail every
+page or lose what it fetched. The run writes what it can, prints the reason on
+stderr, and exits 1; fix the cause and start a new run with `--from-run-id`
+naming this one.
 
 #### Exit codes
 
 | Code | Meaning |
 | --- | --- |
 | `0` | `status` is `complete` or `limit_reached`, and no page failed |
-| `1` | pages failed, or the run ended `incomplete`; one line on stderr says which |
-| `130` | Ctrl+C. The checkpoint is written, so the same `--run-id` resumes |
+| `1` | pages failed, the run ended `incomplete`, it was stopped by a browser that would not start or storage that refused a write, or it was refused before it started (a used `--run-id`, a `--from-run-id` with nothing in it or from another backend); one line on stderr says which |
+| `2` | a usage error: a missing or wrong flag, or a minimum interval under 10 seconds |
+| `130` | Ctrl+C. `crawl.json` is written before the browsers close; carry on with `--from-run-id` naming this run |
 
 ### Discover
 
@@ -466,7 +599,7 @@ xtra catalog discover --catalog-id catalog-atlanticcape-edu   --run-id 2026-09-1
 The stem is the `stem` field of the page's `.meta.json`, and `html_path`
 there is the whole path to the page it describes.
 
-Text is normalized in memory with the same normalizer the extractors use.
+Text is normalized in memory with the engine's normalizer in `src/lib/`.
 No normalized file is written; only its SHA-256 is kept, which is what
 identifies two copies of one page.
 
@@ -497,7 +630,7 @@ What only the tree can say:
 
 #### What a page gets labelled
 
-Four labels, one per entity `lib/mapping.py` can write CTDL for. They are
+Four labels, one per entity `src/lib/mapping.py` can write CTDL for. They are
 tried in this order, and the first three are exclusive: a page has one
 subject, and only a competency list rides along with it.
 
@@ -517,13 +650,12 @@ never counted, however they are printed.
 
 Once a page prints any such course as a title — its code opening the line,
 in the page's own text — only those count. A code after a label or inside
-a sentence ("Prerequisite: Completion of AM 135A.", "Formerly ENGL 103") is
+a sentence ("Prerequisite: Completion of ABC 101.", "Formerly ABC 100") is
 a cross-reference, however close a credits field sits below it; a page
 that titles no course is counted as before. And a code the page prints only
-outside its main container is the site's, not the page's: eLumen prints
-its whole catalog menu beside `<main>` on every page, and before this every
-page at Antelope Valley read as describing six courses or more, so
-extraction skipped all of them.
+outside its main container is the site's, not the page's. Without that, a
+catalog menu printed beside `<main>` on every page makes every course page
+look like it describes several courses.
 
 Before the tree reading, a whole catalog could be missed on the printed
 form alone. A CourseLeaf graduate subject page numbers its courses with
@@ -687,8 +819,8 @@ forced the extra pages are listed. If the population is smaller than
 ```text
 {catalog-folder}/{run-id}/discovery/{discovery-run-id}/
   summary.json                 counts, unknown share, git commit, version
-  pages.jsonl                  one profile per page
-  labels.json                  the preprocessed list extraction reads
+  pages.jsonl                  one profile per page, with its labels; extract reads this
+  labels.json                  the labels alone, one entry per page
   field-labels.csv             vocabulary, rarest first, then headings
   entities.csv                 what each page names, by kind, with a quote
   patterns.json                every pattern as data
@@ -712,154 +844,129 @@ report, and names the label it looked for and the page types it found
 instead. When the population is smaller than `--sample-size` it warns with
 both numbers and takes the whole population.
 
-### Extract and transform
+Saved pages that are a firewall's bot-challenge page are counted in a
+`CHALLENGE` warning and as `challenge_pages` in `summary.json`. The crawler
+has not saved one since 2026-10-01, so they come from a run crawled before
+then, and the warning says when the run started. Crawl again with
+`--from-run-id` naming that run: the good pages are copied and just those
+are fetched again, into a new run to discover. Tuning the
+rules cannot help, because whatever those pages would have linked to was
+never fetched. Discovery still exits 0 unless the sample is empty, so check
+`challenge_pages`. When an empty sample comes with challenge pages making up
+at least half the run, its error says to crawl again from the run instead
+of tuning the rules.
 
-Same `--with-<strategy>` pattern:
+#### What the log says
+
+One INFO line per phase, so a run read from Azure is never silent for
+minutes:
+
+```text
+LIST 556 saved pages under catalog-example-edu/2026-09-27T07-46-53Z/pages
+READ 100/556 (17%) elapsed=00:00:03 eta=00:00:14
+READ 556/556 (100%) elapsed=00:00:15 eta=00:00:00
+PROFILE 100/556 (17%) elapsed=00:00:05 eta=00:00:26
+PROFILE 556/556 (100%) elapsed=00:00:30 eta=00:00:00
+PATTERNS 148 groups of pages, 130 special
+SAMPLE 30 pages from the 130 labelled Course, covering 32 of 32 features
+PROFILED pages=556 duplicates=1 patterns=148 special=130 unknown=96
+WRITE pages.jsonl 916618 bytes -> azure://https://ACCOUNT.blob.core.windows.net/xtra/catalog-example-edu/2026-09-27T07-46-53Z/discovery/2026-10-13T16-14-07Z/pages.jsonl
+DONE discovery run 2026-10-13T16-14-07Z in 00:00:47
+```
+
+`READ` and `PROFILE` report every 100 pages and at the last one, with the
+time spent and an estimate of the time left. Saved pages are read 100 at a
+time, with 16 downloads in parallel when the run is in Azure. A `WRITE` line
+follows each of the eight reports with its size
+and where it went. The `CRAWL`, `STEMS`, `CHALLENGE` and `SAMPLE` warnings
+still appear when `crawl.json` is missing, `--stem` narrows the run, saved
+pages are bot-challenge pages, or the golden sample is empty or short.
+
+### Extract
+
+`xtra catalog extract` reads one CTDL property, named by its Shorthand URI, and
+writes one file per resource to `extraction_report/`, beside `records/`.
+The property file declares the classes it is
+read from, and the command reads every page discovery labelled with each
+of them:
 
 ```bash
-xtra catalog extract --with-template \
-  --source-uri "$TARGET" --target-uri "$TARGET" \
-  --catalog-id catalog-brookdalecc-edu --run-id 2026-09-17T14:20:01Z
+xtra catalog extract ceterms:name \
+  --catalog-id catalog-wvu-edu --run-id 2026-10-20T13:19:46Z
+```
 
+It takes `--discovery-run-id` (default: the newest), `--only-golden-sample`,
+`--limit`, `--env`, `--source-uri` and `--target-uri` the way `discover`
+does. `xtra catalog extract --help` lists every property that has an
+extractor, with its class.
+
+- **One file per resource, in the extractor's folders:**
+  `extraction_report/ceterms/ceterms_name/{resource_id}.json`, as the
+  extractor is `implementations/extract/ceterms/ceterms_name.py`.
+
+  ```json
+  {
+    "type": "ceterms:Course",
+    "resource_id": "catalog-marshall-edu_ABA610",
+    "ctdl_property": "ceterms:name",
+    "value": "Theory Phil Behavioral Anyls",
+    "catalog_id": "catalog-marshall-edu",
+    "source_url": "https://catalog.marshall.edu/graduate/courses-az/aba/",
+    "retrieved_at": "2026-10-20T13:28:28Z",
+    "notes": "strategy=profile_title platform=courseleaf css=…"
+  }
+  ```
+
+- **Each run replaces the property's folder.** It empties
+  `extraction_report/ceterms/ceterms_name/` first, so the folder holds only
+  this run's files. Other properties and the rest of the run are left alone.
+- **The report** goes beside `extraction_report/`, named for the property:
+  `extraction-ceterms_name-report.json`, with counts by strategy, class,
+  platform and reason, and up to 50 values not found. It records
+  whether `only_golden_sample` and `limit` were used, so scoring knows whether the run read
+  the whole catalog.
+
+The extractors are organized by property, the way CE's split schema names
+its files (CredentialEngine/Schema-Development,
+`src/Schema/ctdl/Split/properties/ceterms_name.jsonld`): a folder per
+vocabulary prefix, a file per property named `<prefix>_<LocalName>`, and
+nothing deeper.
+
+```text
+src/xtra/catalog/
+  extract.py               the command, the registry, and CLASSES
+src/implementations/
+  extract/ceterms/ceterms_name.py  PROPERTY, CLASS, read (one occurrence's name)
+  extract_run.py           what every property shares: pages, files, report
+  extract_course.py        COURSE: the pages that hold courses, where each is, its resource id
+```
+
+To add a property, add its file to its prefix's folder, declaring
+`PROPERTY = "ceterms:…"`, `CLASS = ("ceterms:Course",)` and
+`read(occurrence, page) -> Reading`, and its test file. Nothing is
+registered by hand: the registry walks the folders and refuses a file not
+named for the property it declares, a file outside its prefix's folder,
+anything nested deeper, and a class it doesn't know. A path of
+properties, `ceterms:creditValue > schema:value`, is named
+`ceterms/ceterms_creditValue__schema_value.py`. A new class is defined once
+in `implementations/` and added to `CLASSES`.
+
+Platform knowledge, which element holds a course or its title, is keyed by
+discovery's fingerprint and holds vendor markup only. No catalog id, host
+or URL appears in the extraction code, and a test checks that.
+
+### Transform
+
+```bash
 xtra catalog transform --with-ctdl \
   --source-uri "$TARGET" --target-uri "$TARGET" \
   --catalog-id catalog-brookdalecc-edu --run-id 2026-09-17T14:20:01Z
 ```
 
-`--with-template` is the deterministic reading: the CMS extractors (Clean
-Catalog, Coursedog, Acalog) and, for what they do not match, the page's own
-markup. `--with-ctdl` maps printed labels to CTDL JSON-LD and never writes a
-CTID. `--with-ai-agent` is reserved on both verbs. No LLM reads a page at
-either stage.
-
-Extract works from the list discovery produced rather than guessing what a
-saved page is. It reads `labels.json` from the newest discovery run of the
-crawl run, or from `--discovery-run-id` when you name one, and processes
-every page discovery gave an entity to.
-
-| Label | Record | CTDL class |
-| --- | --- | --- |
-| `Course` | one course, when the page holds exactly one course block | `ceterms:Course` |
-| `Credential` | the award the page grants | `ceterms:Credential` |
-| `LearningOpportunity` | the programme of instruction | `ceterms:LearningProgram` |
-| `Competency` | one competency per outcome the page lists | `ceasn:Competency` |
-
-A page that is two of those is two records. Every program page at Atlantic
-Cape prints both the credential and the list of what its students will be
-able to do, and a single record has nowhere to put the second; the page's own
-id belongs to what it is mainly about, and the other gets `{stem}--{entity}`.
-
-#### Two readings, in order
-
-A course page goes to the college templates in `lib/templates` first. They
-are the verified path and they have fixtures behind them, so where one
-matches it is the answer.
-
-Everything else is read from the markup by
-`src/implementations/extract_dom.py`, which is the same tree reading
-discovery uses. Every catalog platform marks a field up, names its label and
-names its value beside it — Drupal writes `field__label` and `field__item`,
-Coursedog writes `field-label` and `field-value`, CourseLeaf prints a course
-block whose title line carries the code, the name and the credits together,
-and the rest of the web writes a definition list or a table row. Reading
-those needs no rule per college, and it is the only way the three entities
-beside `Course` are read at all: the templates are course templates, and a
-credential page has no course block for them to find.
-
-eLumen labels none of a course's fields. It prints a heading group — the
-name, a heading that is nothing but the code (`ELEC 150:`), the units on a
-line of their own (`4.0 Units`) — and its hours as a heading over a number
-("Total Course Lecture Hours", 54.0), so those two shapes are read as well.
-A description is the whole first paragraph, not its first 600 characters.
-
-Credits keep the word they are counted in. Every reading above writes the
-unit printed with the number as `course_credits_unit`: `Units` from eLumen's
-`4.0 Units`, `UNITS` at Bakersfield, `Hours` from CourseLeaf's `3 Hours.`,
-`Credit Hours` from a field labelled that way. The unit always comes from
-the same reading as the credits, or not at all, and the record keeps the
-word as printed, not as a `creditUnit:` concept, under
-`ceterms:creditUnitType` beside `ceterms:creditValue`. Transform's mapping
-writes the two as one `ceterms:ValueProfile` — `schema:value`, or
-`schema:minValue` and `schema:maxValue` for a printed range — with the word
-in its `ceterms:creditUnitType`. The college templates do not read the unit.
-
-The prerequisite is read the same way, wherever a page prints it:
-- a labelled field: `Prerequisite(s)` and `Prereqs` count too;
-- a bold label with the value on the same line (Acalog, CourseLeaf's `courseblockreqs`, CurriQunet, WordPress);
-- a heading or bold label with the value under it (SmartCatalog, Drupal, eLumen's requisites list), including in a sidebar inside the page's own content (Arapahoe's `<aside>`);
-- a `Prerequisite:` line, including the run of requisites AVC opens a description with.
-
-The record keeps the text after the label, as printed, as
-`ceterms:prerequisite`. There is one per course: the first the page prints.
-Alternatives an eLumen list joins with OR stay together ("ACCT451A - … OR
-ACCT1A - …"). Clean Catalog's "Prerequisite Courses" list is used only when
-nothing else names a prerequisite.
-
-Some things are not read as a prerequisite:
-- `None`, `N/A` and `No prerequisites` mean there is no prerequisite, so the field is left out.
-- A label naming both relations (`Prerequisite/Corequisite`, `Prerequisite and/or Corequisite`) gives nothing: the course may be taken alongside.
-- Corequisites, advisories and recommended preparation are never read as one.
-
-A description that prints the prerequisite keeps it: AVC's descriptions are
-unchanged. The college templates read prerequisites their own way, as before.
-
-Each field records the element it came from, so a reviewer can go and look.
-A page that prints too little to be a record — one field, which every page
-has, because every page has a name — is skipped rather than written as an
-empty record that looks extracted.
-
-| Flag | What it does |
-| --- | --- |
-| `--discovery-run-id` | Read this discovery run instead of the newest. |
-| `--only-golden-sample` | Extract only the pages in `golden-sample-course.json`, for review. |
-
-A page holding several courses, a page holding several credentials, and a
-page nothing could read are skipped and recorded in
-`{catalog-folder}/{run-id}/extract-report.json` with the reason. That file
-sits **beside** `records/` and never inside it, because transform reads every
-JSON file under `records/` and would treat a report as a course.
-
-Pages are read by the stem discovery lists, which is the stem the crawler
-saved them under. The `Slot.stem` property in `lib/` still slugs the URL the
-old way, so it is never used for a storage key, and the record carries the
-crawl stem instead.
-
-#### What a record holds
-
-A record names every field by the CTDL term it goes out under, not by the
-label the reader gave it. Each entry in `source_expected.fields` has a
-`property` such as `ceterms:name`, and `expected` maps the same terms to
-their values. A term read more than once, like the outcomes of a competency
-list, holds every value as a list in the order they were read.
-
-A course carries the minimum data for courses and nothing more:
-
-| Property | CTDL term | Value |
-| --- | --- | --- |
-| External Identifier | `ceterms:identifier` | the printed course code |
-| Name | `ceterms:name` | the printed name |
-| Description | `ceterms:description` | the printed description |
-| Subject Webpage | `ceterms:subjectWebpage` | the page's own URL |
-| Coded Notation | `ceterms:codedNotation` | the printed course code |
-| Credit Value | `ceterms:creditValue` | the credits as printed: `3`, `1.0-4.0` |
-| Credit Unit Type | `ceterms:creditUnitType` | the unit word printed with them |
-| Prerequisite | `ceterms:prerequisite` | the printed prerequisites |
-| Estimated Duration | `ceterms:estimatedDuration` | a list, one `{ceterms:description, ceterms:timeRequired}` per printed hours line, in the page's words: `{"ceterms:description": "Total Course Lecture Hours", "ceterms:timeRequired": "54.0"}` |
-
-A Coursedog page that prints a minimum and a maximum gives
-`ceterms:creditMinValue` and `ceterms:creditMaxValue` instead, the names the
-Learning Opportunity bulk-upload template uses. The identifier and the
-webpage are the two no page prints as a field, so they come last, with ids
-from `derived_001`. Everything else a course page prints, such as the
-department or the corequisites, is still read, because
-each field counts toward the two a page needs to be a record at all, but
-the record leaves it out. Credentials, learning programs and competencies
-keep every field they have.
-
-Records no longer carry `ctdl_expected`. Transform has not caught up: it
-still maps the old labels, so `xtra catalog transform` stops with
-`KeyError: 'canonical_label'` on a record extracted this way and works only
-on records extracted before.
+`--with-ctdl` maps the records under `records/` to CTDL JSON-LD and never
+writes a CTID. `--with-ai-agent` is reserved. Nothing writes `records/` any
+more: `xtra catalog extract` writes `extraction_report/`, and transform has
+not caught up with it yet.
 
 ### Scoring extraction against a baseline
 
@@ -873,19 +980,44 @@ xtra score extraction match --exactly \
 
 xtra score extraction match --partially \
   --catalog-id avc-elumenapp-com-catalog-2026-27-welcome --run-id 2026-10-12T20:59:13Z
+
+# one property
+xtra score extraction match --exactly --property ceterms:description \
+  --catalog-id avc-elumenapp-com-catalog-2026-27-welcome --run-id 2026-10-12T20:59:13Z
+
+# several properties in one report: repeat --property
+xtra score extraction match --exactly \
+  --property ceterms:description \
+  --property ceterms:name \
+  --property ceterms:identifier \
+  --catalog-id avc-elumenapp-com-catalog-2026-27-welcome --run-id 2026-10-12T20:59:13Z
 ```
 
-It reads records that are already written, so a corrected baseline can be
-matched again without extracting again. Pick exactly one of `--exactly` and
-`--partially`; each writes its own report.
+It reads the `extraction_report/` files `xtra catalog extract` has
+already written, so a corrected baseline can be matched again without
+extracting again. Pick exactly one of `--exactly` and `--partially`; each
+writes its own report.
+
+The files are turned into records in memory first, and nothing is written
+to `records/`:
+
+- every property of one `resource_id` is one record, its `expected` the
+  present values by `ctdl_property`;
+- the record's page is the stem of its `source_url`, the name the crawl saved
+  the page under, which is how the baseline is filed;
+- a page's records are in the order the page prints them, found from each
+  value's element (the `css=` in its notes) in the saved page. Scoring then
+  pairs them with the baseline's entities in that order.
+
 
 | Flag | What it does |
 | --- | --- |
 | `--exactly` | Count the extracted values that are identical to the baseline. |
 | `--partially` | Set the exact matches aside and measure how close the other values come. |
 | `--run-id` | The extraction run being scored. The baseline files are filed under the same run id. |
-| `--catalog-id` | The catalog folder. Together with `--run-id` it locates the records and the baseline. |
-| `--source-uri` | Where the records live. Default: the environment's data URI. |
+| `--catalog-id` | The catalog folder. Together with `--run-id` it locates the `extraction_report/` files and the baseline. |
+| `--property` | Score only this property, e.g. `ceterms:description`. Repeat it to score several in one report. Only the baseline's fields of those properties are matched; its entities keep their order, so the pairing with resources does not change. |
+| `--source-uri` | Where the `extraction_report/` files live. Default: the environment's data URI. |
 | `--baseline-uri` | Where the baseline lives. Default: the environment's baseline URI. |
 | `--source-azure-storage-connection-string` | Connection string for `--source-uri`. Default: `AZURE_STORAGE_CONNECTION_STRING`, then the environment's secret. |
 | `--baseline-azure-storage-connection-string` | Connection string for `--baseline-uri`, which may be a different storage account. Same default. |
@@ -900,8 +1032,8 @@ extraction, one folder per page, and the baseline file is named for its page:
 
 A baseline file is a list of entities, each a list of
 `{ctdl_property, value, source_url}`. A page's first baseline entity is
-compared with its own record and later ones with its `{stem}--{entity}`
-records, in order. The baseline HTML is not read, and `source_url` is not
+compared with the first resource the page prints, the second with the
+second, and so on. The baseline HTML is not read, and `source_url` is not
 used: matching compares values only.
 
 Each baseline field is matched against the value the record's `expected`
@@ -915,30 +1047,6 @@ the record's `source_url`. A property the record has and the baseline does not
 is listed as `unscored_extras` and costs nothing; the baseline may simply be
 incomplete.
 
-What is compared is a **unit**: a value; an object, for a list-of-objects
-property (`ceterms:estimatedDuration`: several baseline fields whose `value`
-is a `{ceterms:description, ceterms:timeRequired}` object form the list);
-or **absent**, a baseline field `{"value": null, "absent": true}` saying the
-property is not on the page. Objects pair by their description and are exact
-only when every field is. In a record, an explicit `null` is the claim "not
-on the page" (it matches a baseline absent); a key left out is no claim.
-
-| Unit outcome | Meaning |
-| --- | --- |
-| `match` | Exact; an absent baseline against the record's `null`. |
-| `partial` | Paired, similarity 0.8 or more, not exact (an object: every field). |
-| `wrong` | Paired below 0.8 (an object: any field). |
-| `missing` | A baseline unit with no partner (a baseline value against the record's `null` too). |
-| `unsure` | The baseline says absent and the record has no key for the property. |
-| `extra` | An extracted unit with no partner, for a property the baseline entity covers (an absent one included). |
-
-Both modes report, per property and overall, summed over every entity:
-`found` (recall) = match / baseline units, `right` (precision) = match /
-extracted units, the `extras` (count and list), `unsure`, and
-`entities_exact` (entities whose every unit matched / entities). The
-stderr table prints found and right per property. The report schema is
-`xtra-extraction-match-report-2`.
-
 **Exact** is the tier to aim for. A value matches only when it is identical to
 the baseline as printed: no case, spacing or punctuation leniency, and `1.0`
 is not `1`.
@@ -948,7 +1056,6 @@ is not `1`.
 | `match` | Identical to the baseline value. |
 | `mismatch` | A value was extracted but it is not identical. The report keeps its similarity. |
 | `missing` | The extractor emitted nothing for the property. |
-| `unsure` | The baseline says absent; the extractor made no claim. |
 
 **Partial** tells how much non-exactness the extractor shows. Exact matches
 are set aside first (the report counts them as `excluded_exact`), so a pile of
@@ -964,27 +1071,34 @@ code also compares with its punctuation and spaces removed, so `ACCT 199` is
 | `wrong` | A value was extracted and its similarity is below 0.8. |
 | `missing` | The extractor emitted nothing for the property. |
 
-**Nothing is averaged per page.** An average hides outliers. The report
-carries counts by outcome, by property and by page, plus `outliers`: every
-field that is not an exact match, worst first (missing, then lowest
-similarity), each with its page, property, baseline value and extracted
-value. The ratios are ratios of summed counts: `exact_match_rate` (matches
-over fields, in the exact report, equal to `found`), `found`, `right` and
-`entities_exact`.
+**Nothing is averaged.** An average hides outliers. The report carries counts
+by outcome, by property and by page, plus `outliers`: every field that is not
+an exact match, worst first (missing, then lowest similarity), each with its
+page, property, baseline value and extracted value. The only ratio is
+`exact_match_rate` (matches over fields) in the exact report.
 
-Each baseline page falls in one of three groups:
+Each baseline page falls in one of four groups:
 
-- **scored**: extract wrote a record for it.
-- **skipped**: extract considered the page and skipped it (multi-course page,
-  nothing read). All its fields are `missing`, because that is an extractor
-  miss.
-- **out of scope**: extract never considered it, because it is outside
-  discovery or `--only-golden-sample`. It is listed and not counted.
+- **scored**: extract wrote a file for a resource on it.
+- **not extracted**: extract wrote nothing for it, and every property's
+  `extraction-<property>-report.json` says the run read every page it was
+  given (`only_golden_sample` false, `limit` null). The baseline expected a
+  course there and none came out: discovery gave the page another label, or
+  its course had no code to name it by. All its fields are `missing`.
+- **skipped**: listed as skipped in `extract-report.json`. All its fields are
+  `missing`. Nothing writes that file any more, so no page lands here.
+- **out of scope**: extract wrote nothing for it, and the run was narrowed by
+  `--only-golden-sample` or `--limit`, or its report predates the `limit`
+  field, so the page may simply not have been asked for. It is listed and
+  not counted.
 
 The reports are
 `{catalog-folder}/{run-id}/extraction-match-exact-report.json` and
-`extraction-match-partial-report.json`, beside `records/` like
-`extract-report.json`. The stdout JSON is a short summary and a table of the
+`extraction-match-partial-report.json`, beside `extraction_report/`. With
+`--property` the properties are in the name, sorted, as in
+`extraction-match-exact-ceterms_description-ceterms_name-report.json`, so
+the report of the whole run is kept. The
+stdout JSON is a short summary and a table of the
 counts and the worst outliers goes to stderr. A baseline with no files for the
 run, or one that cannot be reached, exits non-zero. A malformed baseline file
 is listed in the report under `malformed` and skipped.
@@ -995,16 +1109,18 @@ is listed in the report under `malformed` and skipped.
 
 ```text
 {target-uri}/{catalog-folder}/{yyyy-MM-ddTHH-mm-ssZ}/
-  crawl.json
-  state.json
-  failed.jsonl
+  manifest.json                     written once, at the start
+  crawl.json                        written at the end of the crawl
   pages/{stem}.html
-  pages/{stem}.meta.json
+  pages/{stem}.meta.json            saved
+  pages/failed/{stem}.meta.json     failed
+  pages/skipped/{stem}.meta.json    skipped after its fetch
   discovery/{discovery-run-id}/summary.json
   discovery/{discovery-run-id}/labels.json
   discovery/{discovery-run-id}/patterns.md
   discovery/{discovery-run-id}/golden-sample-course.json
-  extract-report.json
+  extraction-ceterms_name-report.json
+  extraction_report/ceterms/ceterms_name/{resource-id}.json
   extraction-match-exact-report.json
   extraction-match-partial-report.json
   records/{record-id}.json
@@ -1020,6 +1136,10 @@ Downstream commands take that folder name as `--catalog-id`.
 The run folder is the run id with hyphens instead of colons, the same on
 every operating system, so a Windows machine and a Linux machine write the
 same keys. JSON keeps the colon form in `run_id`.
+
+Runs crawled before `--from-run-id` may also hold `checkpoints/`,
+`state.json`, `outcomes/`, `quarantine/` or `failed.jsonl`. Nothing reads
+them any more; a later run copies only their `pages/`.
 
 The page file name is the same hyphen conversion of the deduplicated URL, cut
 to 80 characters, plus the first 10 hex characters of its SHA-256. That keeps
@@ -1073,7 +1193,7 @@ docker run --rm -e AZURE_STORAGE_CONNECTION_STRING xtra-cli catalog crawl \
 
 The entrypoint is `xtra`. The image carries Chrome, Playwright's chromium, and the `azure` extra, but not `crawl4ai`. It runs as uid 1001 in `/data`, so a relative `--target-uri ./xtra-cache` lands in a volume mounted there. An environment saved with `xtra environment set` lives only as long as the container unless `/home/xtra/.xtra` is mounted, so prefer `--target-uri`.
 
-The CLI is installed editable from the source tree on purpose: `lib/` is not a package, so a wheel cannot import the extractors. On arm64 build with `--build-arg PLAYWRIGHT_BROWSERS=chromium`, because Google ships Chrome for amd64 only.
+The CLI is installed editable from the source tree on purpose: `src/lib/` is not a package, so a wheel cannot import the engine discovery and crawl use. On arm64 build with `--build-arg PLAYWRIGHT_BROWSERS=chromium`, because Google ships Chrome for amd64 only.
 
 ## Non-goals
 

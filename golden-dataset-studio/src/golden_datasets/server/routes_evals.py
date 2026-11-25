@@ -20,12 +20,12 @@ from typing import Annotated
 
 from fastapi import APIRouter, Body, HTTPException, Request
 
-from .. import scores
+from .. import manifest, model, scores
 from ..catalogs import CATALOGS
 from ..errors import UserError
 from ..review import human_reviewed_counts
 from .jobs import ScoreJobs
-from .state import not_found, studio
+from .state import REQUEST_CLASS, not_found, studio
 
 router = APIRouter(prefix="/api")
 PAGE = 50
@@ -106,7 +106,7 @@ GROUPS = ("column", "subject")
 def _rows(request: Request, ctx, doc: dict, sid: str) -> list[dict]:
     """A done score's values.parquet rows, each with a stable key, its subject and its Studio match; kept."""
     st = studio(request)
-    key = ("score-values", ctx.catalog, sid)
+    key = ("score-values", ctx.catalog, ctx.cls, sid)
     if key not in st.cache:  # values.parquet doesn't change once the score is done
         rows, seen = scores.values(ctx, sid), Counter()
         for r in rows:  # a stable key per value: page, course, column, and which of its values
@@ -173,27 +173,50 @@ def score_values(request: Request, catalog: str, sid: str, basis: str = "human",
 
 @router.get("/catalogs-summary")
 def catalogs_summary(request: Request, basis: str = "human") -> dict:
-    """The columns (the Studio's, then those xtra extracts that the Studio doesn't cover yet), and per catalog with
-    rules: each column's status and its latest score on `basis` (None: not scored yet). Catalogs without rules are
-    left out: the picker's list (`/catalogs`) says what they are."""
+    """For the request's class (`?class=`, Course when none): the columns in the Rules tab's tiers (Required, Phase 1,
+    Phase 2, each column's `tiers` entry; within a tier, the Studio's columns by values experts reviewed), and per
+    catalog with the class's rules: each column's status and its latest score on `basis` (None: not scored yet).
+    Catalogs without the class's rules are left out: the picker's list (`/catalogs`) says what they are."""
     if basis not in scores.BASES:
         raise HTTPException(422, f"basis must be one of {', '.join(scores.BASES)}")
     st = studio(request)
+    cls = REQUEST_CLASS.get()
     out = {}
     entries = st.ctx(next(iter(CATALOGS))).manifest()["catalogs"]
     for e in entries:
         k = next((c for c in e["crawls"] if c["crawl"] == e.get("current_crawl")), None)
-        if not (e.get("rulesets") and k and k.get("extractions")):
+        if not (manifest.has_rules(e, cls) and k and manifest.crawl_class(k, cls, create=False)["extractions"]):
             continue
         try:
             ctx = st.ctx(e["catalog"])
             cols = scores.column_statuses(ctx, st.cache)
-            out[e["catalog"]] = {"columns": cols, "coverage": scores.coverage(cols),
+            out[e["catalog"]] = {"columns": cols, "coverage": scores.coverage(cols, cls),
                                  "score": scores.latest_score(ctx, basis, st.cache)}
         except UserError as exc:
             out[e["catalog"]] = {"columns": {}, "coverage": 0, "score": None, "error": str(exc)}
     root = st.ctx(next(iter(CATALOGS))).root
-    counts = human_reviewed_counts(root, [e["catalog"] for e in entries if e.get("rulesets")], st.ctx)
-    columns = scores.columns_in_order(counts)
-    return {"basis": basis, "columns": columns, "labels": scores.COLUMN_LABELS,
-            "required": scores.REQUIRED_COLUMNS, "properties": len(columns), "catalogs": out}
+    counts = human_reviewed_counts(root, [e["catalog"] for e in entries if manifest.has_rules(e, cls)], st.ctx)
+    columns = scores.columns_in_order(counts, cls)
+    return {"basis": basis, "cls": cls, "columns": columns, "labels": scores.column_labels(cls),
+            "tiers": scores.column_tiers(cls),
+            "required": scores.required_columns(cls), "properties": len(columns), "catalogs": out}
+
+
+@router.get("/score-history")
+def score_history(request: Request, last: int = 7) -> dict:
+    """The home page's xtra score views (LearningProgram spec §2), for the request's class: its properties in the
+    Rules tab's order with their tiers, and per catalog with the class's rules, each property's last `last` scores
+    (Golden and Silver counts, exact and partial apart, what scored it)."""
+    st = studio(request)
+    cls = REQUEST_CLASS.get()
+    entries = st.ctx(next(iter(CATALOGS))).manifest()["catalogs"]
+    cats = [e["catalog"] for e in entries if manifest.has_rules(e, cls)]
+    root = st.ctx(next(iter(CATALOGS))).root
+    tiers, labels = scores.column_tiers(cls), scores.column_labels(cls)
+    terms = {scores.column_key(label, t): t for label, t in model.properties_of(cls)}
+    props = [{"column": c, "label": labels[c], "term": terms.get(c), "tier": tiers[c]}
+             for c in scores.columns_in_order(human_reviewed_counts(root, cats, st.ctx), cls)]
+    src = scores.xtra(st.ctx(cats[0])) if cats else None
+    return {"cls": cls, "target": scores.TARGET, "properties": props, "catalogs": cats,
+            "history": scores.history_all(src, cls, cats, last) if src else {}}
+

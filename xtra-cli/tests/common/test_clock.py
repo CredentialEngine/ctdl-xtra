@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 import pytest
 
 from common.clock import (
+    format_duration,
     is_iso8601_utc,
     run_id_for_json,
     run_id_for_path,
@@ -56,3 +57,10 @@ def test_json_keeps_the_colon_form_whichever_was_typed() -> None:
     assert run_id_for_json(HYPHEN) == COLON
     assert run_id_for_json(COLON) == COLON
     assert run_id_for_json("not-a-run-id") == "not-a-run-id"
+
+
+def test_a_duration_reads_as_hours_minutes_and_seconds() -> None:
+    assert format_duration(0) == "00:00:00"
+    assert format_duration(59.9) == "00:00:59"
+    assert format_duration(21670) == "06:01:10"
+    assert format_duration(-5) == "00:00:00"

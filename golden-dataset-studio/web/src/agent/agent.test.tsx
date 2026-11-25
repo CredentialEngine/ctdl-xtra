@@ -62,7 +62,7 @@ beforeEach(() => {
     return respond(404, { detail: "no" });
   });
   setIdentity("Jared Diener", "sme");
-  location.hash = "#/c/avc/rules";
+  location.hash = "#/c/avc/course/rules";
 });
 
 let host: HTMLDivElement, root: Root;
@@ -164,7 +164,7 @@ describe("RunBar", () => {
     await act(async () => root.render(<AgentProvider catalog="avc"><RunBar catalog="avc" /></AgentProvider>));
     await flush();
     expect(host.querySelector(".run-text")!.textContent).toBe("Claude published ruleset v7.");
-    expect(host.querySelector<HTMLAnchorElement>("a.btn")!.getAttribute("href")).toBe("#/c/avc/compare?a=6&b=7");
+    expect(host.querySelector<HTMLAnchorElement>("a.btn")!.getAttribute("href")).toBe("#/c/avc/course/compare?a=6&b=7");
     await act(async () => host.querySelector<HTMLButtonElement>(".run-x")!.click());
     expect(host.querySelector("[data-testid=run-bar]")).toBeNull();
   });
@@ -246,7 +246,7 @@ describe("RunBar", () => {
     await flush();
     expect(document.querySelector("#run-watch-h")!.textContent).toBe("Claude's report");
     expect(report()!.querySelector(".run-done-t")!.textContent).toBe("Claude published ruleset v7");
-    expect(report()!.querySelector<HTMLAnchorElement>(".run-done a")!.getAttribute("href")).toBe("#/c/avc/compare?a=6&b=7");
+    expect(report()!.querySelector<HTMLAnchorElement>(".run-done a")!.getAttribute("href")).toBe("#/c/avc/course/compare?a=6&b=7");
     expect(report()!.querySelector(".runs-report")!.textContent).toContain("Course description v3 → v4.");
     const fold = report()!.querySelector("details")!;
     expect(fold.open).toBe(false);

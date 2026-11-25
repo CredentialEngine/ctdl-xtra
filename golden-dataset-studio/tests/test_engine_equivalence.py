@@ -11,9 +11,9 @@ from types import SimpleNamespace
 
 import lxml.html
 import pytest
+from v2_import import IN_SCOPE, PAGE_RULE_IDS, build_v1_rules
 
 from golden_datasets import engine, v2engine
-from golden_datasets.import_v2 import IN_SCOPE, PAGE_RULE_IDS, build_v1_rules
 
 MIRROR = Path.home() / "review-ui-v3-data" / "xtra-cli-output"
 CATALOGS = {  # catalog → (crawl, v2 extraction whose rules.json the latest session used)

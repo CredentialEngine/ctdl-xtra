@@ -239,8 +239,13 @@
 .expand .sel-pin .sel-quote { border-left-color: #98a2b3; background: #f2f4f7; color: var(--ink); }
 
 /* ✦ Improve on a sidebar row (one-rule-runs §1.1): only on the hovered or selected row; it is the Discuss button */
-.rule-item .rule-improve { display: none; }
-.rule-item:hover .rule-improve, .rule-item.on .rule-improve, .rule-item:focus-within .rule-improve { display: inline-flex; }
+/* Improve and Comment: two small bordered buttons, always there, so a row never changes height on hover */
+.rule-item .rule-acts { display: inline-flex; gap: 4px; margin-top: 4px; }
+.rule-item .rule-act { height: 24px; min-width: 24px; padding: 0 5px; gap: 3px; display: inline-flex; align-items: center; cursor: pointer; }
+.rule-item .rule-act svg { width: 13px; height: 13px; display: block; }
+.rule-item .rule-act .n { font-size: 11.5px; }
+.rule-item .rule-act.has { color: var(--accent); }
+.rule-item .rule-act.on { background: var(--accent-soft); border-color: #b9c7fa; color: var(--accent); }
 .rule-item .meta .stat[role=button] { cursor: pointer; }
 .rule-item .meta .stat[role=button]:hover { text-decoration: underline; }
 .rule-item .meta .stat .run-pulse { width: 7px; height: 7px; }
@@ -254,3 +259,22 @@
   border: 1px solid var(--line-2); border-radius: 6px; resize: vertical; }
 .rv-line.before-reset { font-style: italic; }
 .rh-reset { display: block; text-align: right; font-size: 12px; }
+
+/* All classes: a heading per class above its groups (LearningProgram spec, item 14; mockup w4-rules-all-classes) */
+.rule-list .cls-h { display: flex; align-items: baseline; gap: 8px; margin: 14px 4px 2px; padding-bottom: 6px;
+  border-bottom: 1px solid var(--line); font-weight: 600; font-size: 13.5px; color: var(--ink); }
+.rule-list .cls-h span { font-weight: 400; font-size: 12px; color: var(--muted); }
+
+/* The record key and its card (LearningProgram spec, item 13; mockups w2-rules-id-card, w2-rules-id-generated) */
+.rows .row .code { word-break: break-all; }
+.rows .row .code.k { position: relative; text-decoration: underline dotted var(--faint, #98a2b3); text-underline-offset: 4px; cursor: help; }
+.rows .row .code.gen { color: var(--muted); font-weight: 500; }
+.idcard { position: fixed; z-index: 50; width: 330px; background: var(--surface); border: 1px solid var(--line-2); border-radius: 9px;
+  box-shadow: 0 10px 30px rgba(16,24,40,.14); padding: 10px 12px; font-size: 12.5px; line-height: 1.45; color: var(--ink);
+  font-family: var(--f-ui, system-ui); font-weight: 400; text-decoration: none; cursor: default; white-space: normal; word-break: normal; }
+.idcard .h { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; margin-bottom: 2px; }
+.idcard .idv { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-weight: 600; font-size: 13.5px; margin-bottom: 8px; word-break: break-all; }
+.idcard dl { display: grid; grid-template-columns: 92px 1fr; gap: 4px 8px; margin: 0; }
+.idcard dt { color: var(--muted); } .idcard dd { margin: 0; }
+.idcard code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; background: var(--surface-2, #eef0f4);
+  border: 1px solid var(--line); border-radius: 4px; padding: 0 4px; overflow-wrap: anywhere; }

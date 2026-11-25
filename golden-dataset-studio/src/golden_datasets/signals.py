@@ -153,7 +153,7 @@ def compute(tables: dict, rules: dict, settings: dict, facts: list[dict], url_of
             old_page_signals: list[dict] | None) -> list[dict]:
     sig = thresholds(settings)
     out: list[dict] = []
-    occ_key = {o["occurrence_key"]: o["course_key"] for o in tables["occurrences"]}
+    occ_key = {o["occurrence_key"]: o["record_external_identifier"] for o in tables["occurrences"]}
 
     def add(kind, rule_id, occ, page, name, detail, vi=None, where=None):
         out.append({"target_kind": kind, "rule_id": rule_id, "occurrence_key": occ,
@@ -207,16 +207,16 @@ def compute(tables: dict, rules: dict, settings: dict, facts: list[dict], url_of
                     vi)
 
     # -- record locators -------------------------------------------------------------------------------
-    per_page = Counter((o["page_stem"], o["course_key"], o["locator_rule_id"]) for o in tables["occurrences"])
+    per_page = Counter((o["page_stem"], o["record_external_identifier"], o["locator_rule_id"]) for o in tables["occurrences"])
     for o in tables["occurrences"]:
-        if o["course_key"] is None:
+        if o["record_external_identifier"] is None:
             add("occurrence", o["locator_rule_id"], o["occurrence_key"], o["page_stem"], "no-course-key",
                 "the Coded Notation rule found nothing in this course block")
         else:
-            n = per_page[(o["page_stem"], o["course_key"], o["locator_rule_id"])]
+            n = per_page[(o["page_stem"], o["record_external_identifier"], o["locator_rule_id"])]
             if n > 1:
                 add("occurrence", o["locator_rule_id"], o["occurrence_key"], o["page_stem"], "duplicate-occurrence",
-                    f"{o['course_key']} occurs {n}× on this page")
+                    f"{o['record_external_identifier']} occurs {n}× on this page")
 
     # -- page signals (need the parsed pages; copied from the parent when nothing they depend on changed) -------
     if old_page_signals is not None:

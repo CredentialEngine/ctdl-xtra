@@ -40,7 +40,7 @@ const detail = (o: Partial<RuleDetail> = {}): RuleDetail => ({
 });
 
 const row = (i: number, o: Partial<RowX> = {}): RowX => ({
-  key: `p${i}@html`, occurrence_key: `p${i}@html`, course_key: `GEOG${i}`, page_stem: `p${i}`, url: `https://x/p${i}`,
+  key: `p${i}@html`, occurrence_key: `p${i}@html`, record_external_identifier: `GEOG${i}`, page_stem: `p${i}`, url: `https://x/p${i}`,
   page_title: `Page ${i}`, value: `Value ${i}`, status: "found", css_path: "html > body:nth-of-type(1)", char_start: 0, char_end: 5,
   occurrence_css_path: "html", context: `GEOG ${i} - Course`, state: null, verdict: null, reattached: false, comments: [],
   signal_count: 0, other_pages: [], group: `${i * 20}–${i * 20 + 19} words (percentile ${i * 33}–${i * 33 + 33})`, ...o,
@@ -95,7 +95,7 @@ afterEach(() => {
 const sel = (text: string, at: number) => ({ text, css_path: `html > body > p:nth-of-type(${at})`, char_start: 0,
   char_end: text.length, prefix: "", suffix: "", doc_start: at * 100, doc_end: at * 100 + text.length });
 
-async function render(hash = "#/c/avc/rules/course-description?row=GEOG1") {
+async function render(hash = "#/c/avc/course/rules/course-description?row=GEOG1") {
   await act(async () => {
     root.render(<RulesTab catalog={catalog} route={parseRoute(hash)} reload={() => {}} />);
   });
@@ -103,6 +103,28 @@ async function render(hash = "#/c/avc/rules/course-description?row=GEOG1") {
 }
 
 describe("RulesTab", () => {
+  it("clears the rule list on a class switch and shows a loading preview until the new class's rules arrive", async () => {
+    await render();
+    expect(container.querySelectorAll(".rule-item").length).toBeGreaterThan(0);
+    const fetchMock = vi.mocked(fetch);
+    const base = fetchMock.getMockImplementation()!;
+    let arrive: (v: Response) => void = () => {};
+    fetchMock.mockImplementation((url, init) => (String(url).endsWith("/rules")
+      ? new Promise<Response>((r) => { arrive = r; }) : base(url as string, init)));
+    await act(async () => {
+      root.render(<RulesTab catalog={catalog} route={parseRoute("#/c/avc/learningprogram/rules")} reload={() => {}} />);
+    });
+    expect(container.querySelector(".rules-layout aside [data-testid=loading]")).toBeTruthy();  // the preview, at once
+    expect(container.querySelectorAll(".rule-item").length).toBe(0);  // not the last class's rules, looking current
+    expect(container.querySelector(".rules-layout .mid [data-testid=loading]")).toBeTruthy();
+    // no rule of the last class is asked of this one while its list is on its way
+    expect(fetchMock.mock.calls.filter(([u]) => /\/rules\/course-/.test(String(u)) && /class=learningprogram/.test(String(u)))).toEqual([]);
+    await act(async () => { arrive(new Response(JSON.stringify(rules), { status: 200, headers: { "Content-Type": "application/json" } }));
+                            await new Promise((r) => setTimeout(r, 0)); });
+    expect(container.querySelector(".rules-layout aside [data-testid=loading]")).toBeNull();
+    expect(container.querySelectorAll(".rule-item").length).toBeGreaterThan(0);
+  });
+
   it("discusses a whole rule in the sidebar, and posts comments with their topic", async () => {
     let talk = { ruleset: [] as unknown[], rules: {} as Record<string, unknown[]> };
     const fetchMock = vi.mocked(fetch);
@@ -129,14 +151,15 @@ describe("RulesTab", () => {
       await act(async () => { setter.call(ta, text); ta.dispatchEvent(new Event("input", { bubbles: true })); });
       await act(async () => { box.querySelector<HTMLButtonElement>(".talk-actions .btn")!.click(); await new Promise((r) => setTimeout(r, 0)); });
     };
-    const btn = container.querySelector<HTMLButtonElement>("[data-rule=course-description] .rule-talk-btn[aria-expanded]")!;
-    expect(btn.textContent).toBe("Discuss");
+    const btn = container.querySelector<HTMLButtonElement>("[data-rule=course-description] .rule-act.talk[aria-expanded]")!;
+    expect(btn.getAttribute("aria-label")).toBe("Comment on Description");
+    expect(btn.textContent).toBe("");  // an icon; the tooltip says what it does
     await act(async () => btn.click());
     const thread = container.querySelector("[data-testid=rule-talk]")!;
     await act(async () => thread.querySelector<HTMLInputElement>(".talk-q input")!.click());
     await type(thread, "Do we need this rule at all?");
     expect(posted[posted.length - 1]).toMatchObject({ topic: "question-rule", target: { kind: "rule", rule_id: "course-description" } });
-    expect(container.querySelector("[data-rule=course-description] .rule-talk-btn[aria-expanded]")!.textContent).toBe("1");
+    expect(container.querySelector("[data-rule=course-description] .rule-act.talk[aria-expanded]")!.textContent).toBe("1");
   });
 
   it("closes the Sample drawer when the reader moves to another row", async () => {
@@ -163,7 +186,7 @@ describe("RulesTab", () => {
     expect(container.querySelectorAll("[data-testid=row-full-value]").length).toBe(1);  // only the selected row
     const link = container.querySelector<HTMLAnchorElement>(".row.on .row-links .xbtn")!;
     expect(link.textContent).toBe("Open in Records →");
-    expect(link.getAttribute("href")).toBe("#/c/avc/records/GEOG1?prop=Description&occ=p1%40html");
+    expect(link.getAttribute("href")).toBe("#/c/avc/course/records/GEOG1?prop=Description&occ=p1%40html");
   });
 
   it("sends the Sample drawer's order and filters to /rows and shows the rows' strata tags", async () => {
@@ -185,7 +208,12 @@ describe("RulesTab", () => {
     await act(async () => { bar.click(); await new Promise((r) => setTimeout(r, 0)); });
     expect(last().getAll("f")).toEqual(["length:0–9 chars"]);
     expect(container.querySelector(".sm-chip")!.textContent).toContain("0–9 chars");
-    expect(container.querySelector(".row .sm-tag")!.textContent).toBe("Length 0–9 chars");
+    // no tags under the rows (LearningProgram spec, item 13); the record key opens its card on hover
+    expect(container.querySelector(".row .sm-tag")).toBeNull();
+    const key = container.querySelector<HTMLElement>(".row [data-testid=record-key]")!;
+    expect(key.classList.contains("k")).toBe(true);
+    await act(async () => { key.dispatchEvent(new MouseEvent("mouseover", { bubbles: true })); await new Promise((r) => setTimeout(r, 300)); });
+    expect(container.querySelector("[data-testid=key-card]")!.textContent).toContain("External Identifier");
     await act(async () => { mode("Autostratify").click(); await new Promise((r) => setTimeout(r, 0)); });
     expect(last().get("order")).toBe("auto");
     expect(last().get("prior")).toBeNull();
@@ -215,7 +243,7 @@ describe("RulesTab", () => {
 
   it("filters every rule's rows by Annotated by, counts them in the rule list, and lets an expert confirm an engineer's check", async () => {
     const last = annotated({ "course-description": 17, "course-language": 0, "course-page": 0 });
-    await render("#/c/avc/rules/course-description?row=GEOG1&by=waiting&v=correct");
+    await render("#/c/avc/course/rules/course-description?row=GEOG1&by=waiting&v=correct");
     expect(last().get("by")).toBe("waiting");
     expect(last().get("verdict")).toBe("correct");
     expect(container.querySelector(".ab-btn")!.textContent).toContain("Any engineer · waiting for an expert");
@@ -245,7 +273,7 @@ describe("RulesTab", () => {
     });
     expect(items()).toEqual(["Subject matter experts · human-reviewed", "Jared Diener112 values", "Engineers · waiting for an expert"]);
     await act(async () => container.querySelector<HTMLButtonElement>(".ab-pop .ab-item")!.click());
-    expect(location.hash).toBe("#/c/avc/rules/course-description?by=Jared+Diener&v=correct");
+    expect(location.hash).toBe("#/c/avc/course/rules/course-description?by=Jared+Diener&v=correct");
   });
 
   it("shows an engineer the check waiting, without Confirm or the experts' note", async () => {
@@ -490,7 +518,7 @@ describe("RulesTab", () => {
     serve(detail({ rule_id: "creditUnitMinValue", title: "Credit Unit Min Value", property_label: "Credit Unit Min Value", subtitle: "part of Credit Value",
                     ctdl_property: "ceterms:creditValue>schema:minValue", path_shown: "ceterms:creditValue → schema:minValue",
                     parent_label: "Credit Value", input: "Credit Value's value" }));
-    await render("#/c/avc/rules/creditUnitMinValue?row=GEOG1");
+    await render("#/c/avc/course/rules/creditUnitMinValue?row=GEOG1");
     expect(container.querySelector(".rule-head .rh-path")!.textContent).toBe("ceterms:creditValue → schema:minValue");
     const term = container.querySelector<HTMLAnchorElement>(".rule-head a.term")!;
     expect(term.textContent).toBe("schema:minValue");
@@ -503,7 +531,7 @@ describe("RulesTab", () => {
     serve(detail({ no_rule: true, what: "Whether the course is non-credit", status: "in review" }), { ...rows, rows: [
       row(0, { status: "none", value: null, css_path: null, char_start: null, char_end: null }),
       row(1, { status: "none", value: null, css_path: null, char_start: null, char_end: null }), row(2)] });
-    await render("#/c/avc/rules/course-description?row=GEOG1");
+    await render("#/c/avc/course/rules/course-description?row=GEOG1");
     expect(container.querySelector(".rh-norule")!.textContent).toContain("No rule yet");
     expect(container.querySelector<HTMLDetailsElement>("details.how")!.open).toBe(true);
     expect(container.querySelector(".wwh")!.textContent).toContain("Whether the course is non-credit");
@@ -682,14 +710,14 @@ describe("RulesTab", () => {
 
   // --- sme-fixes §2: deep links ------------------------------------------------------------------------------------
   it("selecting a row writes ?row= to the address bar, replacing the entry (no new history entry)", async () => {
-    history.replaceState(null, "", "#/c/avc/rules/course-description?row=GEOG1");
+    history.replaceState(null, "", "#/c/avc/course/rules/course-description?row=GEOG1");
     const replace = vi.spyOn(history, "replaceState");
     const push = vi.spyOn(history, "pushState");
     await render();
     await act(async () => container.querySelectorAll<HTMLElement>(".row")[2].click());
-    expect(location.hash).toBe("#/c/avc/rules/course-description?row=p2%40html");
+    expect(location.hash).toBe("#/c/avc/course/rules/course-description?row=p2%40html");
     await act(async () => { window.dispatchEvent(new KeyboardEvent("keydown", { key: "Tab", shiftKey: true })); });
-    expect(location.hash).toBe("#/c/avc/rules/course-description?row=p1%40html");
+    expect(location.hash).toBe("#/c/avc/course/rules/course-description?row=p1%40html");
     expect(replace).toHaveBeenCalled();
     expect(push).not.toHaveBeenCalled();
     replace.mockRestore(); push.mockRestore();
@@ -698,22 +726,22 @@ describe("RulesTab", () => {
   // --- sme-fixes §9: defaults ------------------------------------------------------------------------------------
   it("'Annotated by' is Anyone by default; ?by= is written only when a person is picked", async () => {
     const last = annotated(null);
-    await render("#/c/avc/rules/course-description");
+    await render("#/c/avc/course/rules/course-description");
     expect(last().get("by")).toBeNull();
     expect(container.querySelector(".ab-btn")!.textContent).toContain("Anyone");
     await act(async () => container.querySelector<HTMLButtonElement>(".ab-btn")!.click());
     const item = (t: string) => [...container.querySelectorAll<HTMLButtonElement>(".ab-pop .ab-item")].find((b) => b.textContent!.startsWith(t))!;
     await act(async () => item("Anyone").click());
-    expect(location.hash).toBe("#/c/avc/rules/course-description");
+    expect(location.hash).toBe("#/c/avc/course/rules/course-description");
   });
 
   // --- sme-fixes §3: course blocks ---------------------------------------------------------------------------------
   const loc = (o: Partial<RowX>, i: number, stem: string, n: number): RowX => row(i, { key: `${stem}@b${i}`, occurrence_key: `${stem}@b${i}`,
-    page_stem: stem, page_title: "View - CurriQunet META", value: `INTD ${i} - Course ${i}`, page_courses: n, course_key: `INTD${i}`,
+    page_stem: stem, page_title: "View - CurriQunet META", value: `INTD ${i} - Course ${i}`, page_courses: n, record_external_identifier: `INTD${i}`,
     css_path: `html > div:nth-of-type(${i + 1})`, ...o });
   const ccsf = (): RowsX => ({ ...rows, rule_id: "locator-course-page", total: 5, focus_index: null, rows: [
     loc({}, 0, "intd", 3), loc({}, 1, "intd", 3), loc({}, 2, "intd", 3),
-    loc({ course_key: "SPAN1" }, 3, "span", 2), loc({ course_key: "SPAN2" }, 4, "span", 2)] });
+    loc({ record_external_identifier: "SPAN1" }, 3, "span", 2), loc({ record_external_identifier: "SPAN2" }, 4, "span", 2)] });
   const locator = (repeat: string | null) => detail({ rule_id: "locator-course-page", kind: "locator", property_label: null,
     title: repeat ? `Course blocks: every ${repeat} on the page` : "Whole page is one course", subtitle: "s",
     definition: { page_rules: ["course-page"], repeat, repeat_filter: repeat ? { selector: ".course-title", regex: "\\d" } : null } });
@@ -723,13 +751,13 @@ describe("RulesTab", () => {
     const fetchMock = vi.mocked(fetch);
     const base = fetchMock.getMockImplementation()!;
     fetchMock.mockImplementation((url, init) => (String(url).includes("/overlay") ? json({ marks: [], blocks: data.rows.slice(0, 3).map((r, n) => (
-      { occurrence_key: r.occurrence_key, css_path: r.css_path, n: n + 1, course_key: r.course_key })) }) : base(url as string, init)));
+      { occurrence_key: r.occurrence_key, css_path: r.css_path, n: n + 1, record_external_identifier: r.record_external_identifier })) }) : base(url as string, init)));
   };
   const key = (k: string, shiftKey = false) => act(async () => { window.dispatchEvent(new KeyboardEvent("keydown", { key: k, shiftKey })); });
 
   it("a repeating locator has one row per page with its courses nested; Tab / Shift+Tab / Enter / Esc move between levels", async () => {
     serveLoc(".course-summary-wrapper");
-    await render("#/c/ccsf/rules/locator-course-page");
+    await render("#/c/ccsf/course/rules/locator-course-page");
     const heads = () => [...container.querySelectorAll("[data-testid=page-head]")].map((h) => h.querySelector(".ph-t")!.textContent);
     expect(heads()).toEqual(["INTD · View - CurriQunet META · 3 courses", "SPAN · View - CurriQunet META · 2 courses"]);
     expect(container.querySelector("h1")!.textContent).toBe("Course blocks: every .course-summary-wrapper on the page");
@@ -765,7 +793,7 @@ describe("RulesTab", () => {
     const data = ccsf();
     data.rows[1] = { ...data.rows[1], state: "wrong", verdict: wrong };
     serveLoc(".course-summary-wrapper", data);
-    await render("#/c/ccsf/rules/locator-course-page");
+    await render("#/c/ccsf/course/rules/locator-course-page");
     expect(pane.props!.highlights.filter((h) => h.kind === "block").map((h) => h.state)).toEqual([null, "bad", null]);
     await key("Enter");
     expect(pane.props!.focusId).toBe("intd@b0");  // the current course is the filled one
@@ -779,7 +807,7 @@ describe("RulesTab", () => {
 
   it("a locator without repeat keeps one row per course", async () => {
     serveLoc(null);
-    await render("#/c/avc/rules/locator-course-page");
+    await render("#/c/avc/course/rules/locator-course-page");
     expect(container.querySelector("[data-testid=page-head]")).toBeNull();
     expect(container.querySelectorAll(".row[data-row-index]").length).toBe(5);
     expect(container.querySelector("h1")!.textContent).toBe("Whole page is one course");
@@ -794,7 +822,7 @@ describe("RulesTab", () => {
 
   // one-rule-runs §1.6: an AI run's report opens ✕ in a new tab with &mark=wrong
   it("opens the linked row with ✕ pressed when the link says mark=wrong", async () => {
-    await render("#/c/avc/rules/course-description?row=GEOG1&by=anyone&mark=wrong");
+    await render("#/c/avc/course/rules/course-description?row=GEOG1&by=anyone&mark=wrong");
     const on = container.querySelector(".row.on")!;
     expect(on.querySelector(".code")!.textContent).toBe("GEOG1");
     expect(on.querySelector(".expand.wrong")).toBeTruthy();
@@ -803,7 +831,7 @@ describe("RulesTab", () => {
   });
 
   it("doesn't press ✕ without mark=wrong", async () => {
-    await render("#/c/avc/rules/course-description?row=GEOG1");
+    await render("#/c/avc/course/rules/course-description?row=GEOG1");
     expect(container.querySelector(".row.on .expand")).toBeNull();
   });
 

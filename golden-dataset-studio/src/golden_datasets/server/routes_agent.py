@@ -256,7 +256,7 @@ def run_rows(request: Request, catalog: str, run_id: str) -> dict:
         if rid not in by_course:
             rows = rv.snap.rows(rid)
             states = rv.row_states(rid, rows)
-            by_course[rid] = {r["course_key"]: (r, states[r["key"]]) for r in reversed(rows) if r.get("course_key")}
+            by_course[rid] = {r["record_external_identifier"]: (r, states[r["key"]]) for r in reversed(rows) if r.get("record_external_identifier")}
         r, s = by_course[rid].get(course, (None, None))
         if r is None:
             continue

@@ -3,7 +3,8 @@
 Keys (spec §4.2):
 - `occurrence_key` = `<page_stem>@<css_path of the occurrence from the document root>`;
 - matches store `css_path` relative to their occurrence ("" = the occurrence element itself);
-- `course_key` (normalized code) lives only on occurrences; matches get it through a join;
+- `record_external_identifier` (the record's External Identifier, issue #368) lives only on occurrences; matches
+  get it through a join;
 - character offsets are positions in the element's DOM `textContent`.
 
 `content_hash` = hash of a rule's own `definition` (its identity: decides version numbers and what an approval
@@ -13,6 +14,7 @@ refers to). `input_hash` = hash of the definition, its dependencies' input hashe
 
 from __future__ import annotations
 
+import functools
 import hashlib
 import json
 import re
@@ -38,22 +40,47 @@ FIRST_EIGHT = [
 ]
 
 
-def _ordered_properties() -> list[dict]:
-    """properties.csv's rows in their fixed order (property-rules spec §4.8): required ones first in REQUIRED_ORDER,
-    then sheet order. (The Rules tab also sorts by human-reviewed counts, which change; this order doesn't.)"""
+@functools.lru_cache(maxsize=16)
+def _ordered(cls: str, mtime: float) -> tuple[dict, ...]:
     from . import properties
 
-    rows = properties.active()
-    req = {p: i for i, p in enumerate(properties.REQUIRED_ORDER)}
-    return sorted(rows, key=lambda r: (0, req.get(r["path"], 99), r["sheet_row"]) if r["required"]
-                  else (1, 0, r["sheet_row"]))
+    rows = properties.active(cls)
+    req = {p: i for i, p in enumerate(properties.required_order(cls))}
+    return tuple(sorted(rows, key=lambda r: (0, req.get(r["path"], 99), r["sheet_row"]) if r["required"]
+                        else (1 if properties.tier(r) == "phase1" else 2, 0, r["sheet_row"])))
 
 
-#: Every property (label, path or None), in display order: a view of properties.csv.
-PROPERTY_ROWS = _ordered_properties()
-PROPERTIES = [(r["label"], r["path"] or None) for r in PROPERTY_ROWS]
-PROPERTY_ORDER = {label: i for i, (label, _) in enumerate(PROPERTIES)}
-CTDL_TERM = dict(PROPERTIES)
+def property_rows(cls: str = "course") -> tuple[dict, ...]:
+    """A class's properties file in its fixed order (property-rules spec §4.8): Required first in the class's order,
+    then Phase 1, then Phase 2, each in sheet order. (The Rules tab also sorts by human-reviewed counts, which change;
+    this order doesn't.)"""
+    from . import properties
+
+    f = properties.file_of(cls)
+    return _ordered(properties.classes.get(cls).slug, f.stat().st_mtime if f.exists() else 0.0)
+
+
+def properties_of(cls: str = "course") -> list[tuple[str, str | None]]:
+    """Every property of a class (label, path or None), in display order."""
+    return [(r["label"], r["path"] or None) for r in property_rows(cls)]
+
+
+def property_order(cls: str = "course") -> dict[str, int]:
+    """label → its place in the class's order (cached: sort keys call it per row; don't change it)."""
+    rows = property_rows(cls)
+    got = _ORDERS.get(id(rows))
+    if got is None or got[0] is not rows:
+        got = _ORDERS[id(rows)] = (rows, {r["label"]: i for i, r in enumerate(rows)})
+    return got[1]
+
+
+_ORDERS: dict[int, tuple[tuple, dict[str, int]]] = {}  # property_rows' cached tuple → its order
+
+
+def ctdl_term(cls: str = "course") -> dict[str, str | None]:
+    return dict(properties_of(cls))
+
+
 FIRST_EIGHT_ORDER = {label: i for i, (label, _) in enumerate(FIRST_EIGHT)}
 DERIVED_RULE_TYPES = ("constant", "source_url")  # nothing is read from the page
 #: A property rule's types (property-rules spec §4.3): `none` is a property with no rule yet (§4.6).
@@ -71,7 +98,7 @@ PAGE_LABELS = pa.schema([
 OCCURRENCES = pa.schema([
     ("occurrence_key", pa.string()), ("page_stem", pa.string()), ("page_rule_id", pa.string()),
     ("locator_rule_id", pa.string()), ("locator_rule_version", pa.int32()), ("css_path", pa.string()),
-    ("locator_index", pa.int32()), ("course_key", pa.string()),
+    ("locator_index", pa.int32()), ("record_external_identifier", pa.string()),
 ])
 MATCHES = pa.schema([
     ("rule_id", pa.string()), ("rule_version", pa.int32()), ("occurrence_key", pa.string()),
@@ -175,9 +202,18 @@ def dependencies(rule: dict) -> list[str]:
     return []
 
 
-def course_key(code: str | None) -> str | None:
-    """'ABDY 113' and 'ABDY113' are the same course: spaces removed, upper case."""
+def code_key(code: str | None) -> str | None:
+    """'ABDY 113' and 'ABDY113' are the same course: spaces removed, upper case (issue #368's identifier from a
+    printed code: `CHEM212A`)."""
     return re.sub(r"\s+", "", code).upper() if code else None
+
+
+def record_key(value: str | None, from_code: bool) -> str | None:
+    """A record's External Identifier (issue #368): its External Identifier rule's value as read (at most 100
+    characters), or, read from a Coded Notation rule, the code without spaces in upper case."""
+    if not value:
+        return None
+    return code_key(value) if from_code else " ".join(value.split())[:100] or None
 
 
 def ext_id(ruleset_version: int, suffix: str = "") -> str:
@@ -190,16 +226,17 @@ def sort_rows(table: str, rows: list[dict]) -> list[dict]:
                                             else r[c] for c in cols))
 
 
-def code_rule_for(locator_id: str, rules: dict[str, dict], settings: dict) -> str | None:
-    """The property rule whose value gives occurrences of this locator their course_key."""
-    explicit = (settings.get("course_key_rule") or {}).get(locator_id)
-    if explicit:
-        return explicit
-    for rid, r in sorted(rules.items()):
-        if r["kind"] == "property" and r["definition"].get("locator") == locator_id \
-                and r.get("ctdl_property") == "ceterms:codedNotation":
-            return rid
-    return None
+def key_rule_for(locator_id: str, rules: dict[str, dict]) -> tuple[str | None, bool]:
+    """The property rule whose value is the `record_external_identifier` of this locator's records, and whether it
+    is a Coded Notation rule: the locator's External Identifier rule, else (none, or one with no rule yet) its Coded
+    Notation rule."""
+    on = sorted((rid, r) for rid, r in rules.items() if r["kind"] == "property"
+                and r["definition"].get("locator") == locator_id and r["definition"].get("rule_type") != "none")
+    for term, from_code in (("ceterms:identifier", False), ("ceterms:codedNotation", True)):
+        rid = next((rid for rid, r in on if r.get("ctdl_property") == term), None)
+        if rid:
+            return rid, from_code
+    return None, False
 
 
 def full_css_path(occ_path: str, rel: str | None) -> str | None:

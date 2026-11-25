@@ -9,6 +9,7 @@ import json
 from pathlib import Path
 
 import pytest
+from minicat import with_class
 
 from golden_datasets import loop
 from golden_datasets.cli import main
@@ -66,13 +67,13 @@ def test_read_draft_errors(tmp_path):
 def root(tmp_path_factory, avc_v1_root):
     """An independent copy of the session's AVC v1 root (AVC at ruleset v1, rs-0001, Jared's 153 annotations)."""
     dst = tmp_path_factory.mktemp("w6") / "root"
-    assert main(["sync", "--from", str(avc_v1_root), "--to", str(dst), "-c", "avc", "--pages", "link"]) == 0
+    assert main(["sync", "--from", str(avc_v1_root), "--to", str(dst), "-c", "avc"]) == 0
     return str(dst)
 
 
 def run(root, capsys, *argv) -> tuple[int, str, str]:
     capsys.readouterr()
-    code = main([*argv, "--root", root, "-c", "avc"])
+    code = main(with_class([*argv, "--root", root, "-c", "avc"]))
     out = capsys.readouterr()
     return code, out.out, out.err
 

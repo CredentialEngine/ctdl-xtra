@@ -99,18 +99,22 @@ def test_list_has_one_row_per_catalog_with_its_latest_crawl(roots):
     assert crawls.matches(c, "cuesta 27137") and not crawls.matches(c, "ualr")
 
 
-def test_add_copies_indexes_and_names_the_catalog(roots):
+def test_add_indexes_and_names_the_catalog_and_reads_the_crawl_in_place(roots):
     src, dst = roots
     steps = []
     out = crawls.add_catalog(dst, src, "cuesta-curriqunet-com-catalog-iq-27137", by="Eric Riddoch",
                              progress=lambda **kw: steps.append(kw["step"]), log=lambda *a, **k: None)
     assert out["pages"] == 3 and out["crawl"] == "2026-10-21T10-00-00Z"
-    assert steps[0] == "copying" and steps[-1] == "done"
+    assert steps[0] == "indexing" and steps[-1] == "done"
+    # approved item 21: the crawl stays in xtra-cli's container; the manifest names it
+    assert not dst.exists("cuesta-curriqunet-com-catalog-iq-27137/2026-10-21T10-00-00Z/crawl.json")
+    assert not dst.list("cuesta-curriqunet-com-catalog-iq-27137/2026-10-21T10-00-00Z/pages")
     cat = manifest.catalog_entry(manifest.load(dst)[0], "cuesta-curriqunet-com-catalog-iq-27137", create=False)
+    assert cat["crawls_root"] == src.uri
     assert cat["name"] == "Cuesta" and cat["added_by"] == "Eric Riddoch"
     assert cat["current_crawl"] == "2026-10-21T10-00-00Z" and cat["crawls"][0]["page_count"] == 3
     assert crawls.added_catalogs(dst) == {"cuesta-curriqunet-com-catalog-iq-27137"}
-    # again: nothing left to copy, still fine
+    # again: still fine
     crawls.add_catalog(dst, src, "cuesta-curriqunet-com-catalog-iq-27137", log=lambda *a, **k: None)
 
 
@@ -173,20 +177,21 @@ def test_first_rules_publish_ruleset_v1_and_the_card_opens(roots, tmp_path, caps
     assert f"--all --for {cat}" in prompt["text"] and "/catalog/iq/" in prompt["text"]  # the URL shapes
     draft = tmp_path / "first.json"
     draft.write_text(json.dumps(FIRST))
-    assert main(["rule", "try", "--root", dst.uri, "--catalog", cat, str(draft)]) == 0
+    assert main(["rule", "try", "--class", "course", "--root", dst.uri, "--catalog", cat, str(draft)]) == 0
     out = capsys.readouterr().out
     assert "no ruleset yet" in out and "locator-course-page" in out
-    assert main(["rule", "publish", "--root", dst.uri, "--catalog", cat, str(draft), "--note", "first"]) == 0
+    assert main(["rule", "publish", "--class", "course", "--root", dst.uri, "--catalog", cat, str(draft), "--note", "first"]) == 0
     assert "published ruleset v1 (the first)" in capsys.readouterr().out
     entry = manifest.catalog_entry(manifest.load(dst)[0], cat, create=False)
-    assert [r["version"] for r in entry["rulesets"]] == [1] and entry["annotations"] is None
-    assert entry["crawls"][0]["extractions"][0]["ruleset_version"] == 1
+    course = entry["classes"]["course"]
+    assert [r["version"] for r in course["rulesets"]] == [1] and course["annotations"] is None
+    assert entry["crawls"][0]["classes"]["course"]["extractions"][0]["ruleset_version"] == 1
     from golden_datasets.context import Ctx
 
     rs = Ctx(dst, cat).ruleset(1)
-    assert rs["settings"]["course_key_rule"] == {"locator-course-page": "course-code"}
+    assert not [k for k in rs["settings"] if k.endswith("_key_rule")]  # the key is the External Identifier rule's value
     card = next(x for x in c.get("/api/catalogs").json() if x["catalog"] == cat)
     assert card["status"] == "ready" and card["rules_total"] == 4
-    assert main(["check", "--root", dst.uri, "--catalog", cat]) == 1  # no rule yet for 39 of properties.csv's rows
-    assert main(["properties", "apply", "--root", dst.uri, "--catalog", cat]) == 0
-    assert main(["check", "--root", dst.uri, "--catalog", cat]) == 0
+    assert main(["check", "--class", "course", "--root", dst.uri, "--catalog", cat]) == 1  # no rule yet for 39 of properties.csv's rows
+    assert main(["properties", "apply", "--class", "course", "--root", dst.uri, "--catalog", cat]) == 0
+    assert main(["check", "--class", "course", "--root", dst.uri, "--catalog", cat]) == 0

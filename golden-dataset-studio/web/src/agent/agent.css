@@ -175,3 +175,12 @@ p.report-rule-status { display: flex; align-items: center; gap: 6px; margin: 8px
 div.runs-item { cursor: default; }
 div.runs-item:hover { background: none; }
 .runs-head-acts { border-top: 0; }
+
+/* All classes in "Run with Claude?" (mockup w2-run-all-classes): a heading per class, one scrolling list */
+.run-pick-list .cls-h { display: flex; align-items: baseline; gap: 8px; margin: 12px 2px 2px; padding-bottom: 5px;
+  border-bottom: 1px solid var(--line); font-weight: 600; font-size: 13px; color: var(--ink); }
+.run-pick-list .cls-h span { font-weight: 400; color: var(--muted); font-size: 12px; }
+.run-pick-list .run-pick-more { display: block; margin: 2px 0 4px 34px; padding: 3px 0; border: 0; background: none;
+  color: var(--accent); font: inherit; font-size: 12px; cursor: pointer; }
+.run-pick-list .run-pick-more:hover { text-decoration: underline; }
+.run-pick-list.all { max-height: 430px; overflow-y: auto; }

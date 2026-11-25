@@ -25,14 +25,14 @@ def _index(snap: Snapshot | None, rid: str) -> tuple[dict, dict]:
     if snap is None or rid not in snap.rules:
         return {}, {}
     rows = snap.rows(rid)
-    return {r["key"]: r for r in rows}, {(r.get("course_key"), r["page_stem"]): r for r in rows if r.get("course_key")}
+    return {r["key"]: r for r in rows}, {(r.get("record_external_identifier"), r["page_stem"]): r for r in rows if r.get("record_external_identifier")}
 
 
 def _find(index: tuple[dict, dict], target: dict) -> dict | None:
     by_key, by_cp = index
     row = by_key.get(target.get("occurrence_key") or "")
-    if row is None and target.get("course_key"):
-        row = by_cp.get((target["course_key"], target.get("page_stem")))
+    if row is None and target.get("record_external_identifier"):
+        row = by_cp.get((target["record_external_identifier"], target.get("page_stem")))
     return row
 
 
@@ -49,7 +49,7 @@ def golden_values(rv: Review, rules: dict[str, dict], inferred: list[dict] | Non
             t = e["target"]
             if t.get("kind") != "match":
                 continue
-            base = {"course": t.get("course_key"), "page_stem": t.get("page_stem"),
+            base = {"course": t.get("record_external_identifier"), "page_stem": t.get("page_stem"),
                     "occurrence_key": t.get("occurrence_key"), "annotation": e["annotation_id"]}
             exp = (e.get("expected") or {}).get("text")
             if e["verdict"] == "correct":
@@ -69,7 +69,7 @@ def values_changed(base: Snapshot | None, draft: Snapshot, rid: str, keep: int =
     b = draft.rows(rid) if rid in draft.rules else []
     pairs, new, gone = pair_rows(a, b)
     moved = [y for x, y in pairs if norm(x["value"]) != norm(y["value"]) or x["status"] != y["status"]] + new + gone
-    courses = sorted({r.get("course_key") or r["page_stem"] for r in moved})
+    courses = sorted({r.get("record_external_identifier") or r["page_stem"] for r in moved})
     return {"count": len(moved), "of": len(b), "courses": courses[:keep]}
 
 

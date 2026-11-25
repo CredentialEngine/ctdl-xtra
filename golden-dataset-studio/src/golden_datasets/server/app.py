@@ -15,7 +15,7 @@ from fastapi.responses import FileResponse
 
 from . import auth
 from .jobs import ScoreJobs
-from .state import Studio
+from .state import ClassParam, Studio
 
 WEB_DIST = Path(__file__).resolve().parents[3] / "web" / "dist"
 ROUTERS = [
@@ -29,6 +29,7 @@ ROUTERS = [
     "golden_datasets.server.routes_profiles", # profiles: who is reviewing (name + role), shared on the root
     "golden_datasets.server.routes_crawls",   # Add a catalog: search xtra-cli's crawls, add one
     "golden_datasets.server.routes_evals",    # Evals: extract outputs and scores (docs/qrspi/evals)
+    "golden_datasets.server.routes_findings", # findings, property status and discussion (learning-programs Phase 6)
 ]
 
 
@@ -38,6 +39,7 @@ def create_app(root: str, azure_root: str | None = None, crawls_root: str | None
     app.state.studio = Studio(root, azure_root, crawls_root, agent)
     app.state.scores = ScoreJobs()  # scores run as durable jobs, one per catalog at a time
     app.add_middleware(GZipMiddleware, minimum_size=2048)  # rows, compare and rendered pages compress ~5-20x
+    app.add_middleware(ClassParam)  # `?class=`: the class every route's context is for (Course by default)
     auth.install(app)  # the shared password, when the environment sets one
 
     @app.get("/api/health")

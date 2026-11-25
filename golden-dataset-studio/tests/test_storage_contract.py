@@ -154,34 +154,30 @@ def test_list_and_list_dirs(root):
     assert root.sizes("c/2026")["c/2026/crawl.json"] == 1
 
 
-def _fake_crawl(r, catalog="cat", crawl="2026-10-01T00-00-00Z"):
-    r.write_text(f"{catalog}/{crawl}/crawl.json", "{}")
-    r.write_text(f"{catalog}/{crawl}/pages/p1.html", "<html></html>")
-    r.write_text(f"{catalog}/{crawl}/pages/p1.meta.json", "{}")
-    r.write_text(f"{catalog}/golden-dataset-studio/rules/r/v0001.json", "{}")
-    r.append(f"{catalog}/golden-dataset-studio/annotations.jsonl", b'{"a":1}\n')
+def _fake_catalog(r, catalog="cat", crawl="2026-10-01T00-00-00Z"):
+    """A catalog's Studio files: a Course rule, its log and a rule run; its crawl stays in xtra-cli's container."""
+    r.write_text(f"{catalog}/course/rules/r/v0001.json", "{}")
+    r.append(f"{catalog}/course/annotations.jsonl", b'{"a":1}\n')
+    r.write_text(f"{catalog}/{crawl}/pages.parquet", "x")
+    r.write_text(f"{catalog}/{crawl}/course/rule-runs/rs-0001/extraction.json", "{}")
     manifest.update(r, lambda doc: doc["catalogs"].append(
-        {"catalog": catalog, "name": catalog, "crawls": [{"crawl": crawl}], "current_crawl": crawl}))
+        {"catalog": catalog, "name": catalog, "crawls_root": "/xtra", "classes": {"course": {"rulesets": []}},
+         "crawls": [{"crawl": crawl}], "current_crawl": crawl}))
 
 
 def test_sync_both_directions(root, tmp_path):
     local = LocalRoot(tmp_path / "local")
-    _fake_crawl(local)
-    stats = sync_catalog(local, root, "cat", None, "copy", False, False)
-    assert stats["pages_total"] == 2 and root.read_text("cat/2026-10-01T00-00-00Z/pages/p1.html") == "<html></html>"
-    assert manifest.load(root)[0]["catalogs"][0]["catalog"] == "cat"
+    _fake_catalog(local)
+    stats = sync_catalog(local, root, "cat", None, False)
+    assert stats["studio_files"] == 3 and stats["classes"] == "course"
+    assert root.read_text("cat/2026-10-01T00-00-00Z/course/rule-runs/rs-0001/extraction.json") == "{}"
+    got = manifest.load(root)[0]["catalogs"][0]
+    assert got["catalog"] == "cat" and got["crawls_root"] == "/xtra"  # the crawl is read where it is
+    assert not root.exists("cat/2026-10-01T00-00-00Z/crawl.json")
     # Append on the target, then sync back: the log is appended, never overwritten.
-    root.append("cat/golden-dataset-studio/annotations.jsonl", b'{"a":2}\n')
-    back = sync_catalog(root, local, "cat", None, "skip", False, False)
-    assert back["annotations"].startswith("appended")
-    assert local.read_text("cat/golden-dataset-studio/annotations.jsonl") == '{"a":1}\n{"a":2}\n'
-    again = sync_catalog(local, root, "cat", None, "copy", False, False)
-    assert again["studio_files"] == 0 and again["pages_to_copy"] == 0
-
-
-def test_sync_link_pages(tmp_path):
-    src, dst = LocalRoot(tmp_path / "src"), LocalRoot(tmp_path / "dst")
-    _fake_crawl(src)
-    sync_catalog(src, dst, "cat", None, "link", False, False)
-    assert (dst.base / "cat/2026-10-01T00-00-00Z/pages").is_symlink()
-    assert dst.read_text("cat/2026-10-01T00-00-00Z/pages/p1.html") == "<html></html>"
+    root.append("cat/course/annotations.jsonl", b'{"a":2}\n')
+    back = sync_catalog(root, local, "cat", None, False)
+    assert back["annotations course"].startswith("appended")
+    assert local.read_text("cat/course/annotations.jsonl") == '{"a":1}\n{"a":2}\n'
+    again = sync_catalog(local, root, "cat", None, False)
+    assert again["studio_files"] == 0

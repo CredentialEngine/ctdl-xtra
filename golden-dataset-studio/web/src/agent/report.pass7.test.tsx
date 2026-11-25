@@ -57,7 +57,7 @@ beforeEach(() => {
     return respond(404, { detail: "no" });
   });
   setIdentity("Eric Riddoch", "engineer");
-  location.hash = "#/c/avc/rules";
+  location.hash = "#/c/avc/course/rules";
 });
 
 let host: HTMLDivElement, root: Root;
@@ -111,7 +111,7 @@ describe("A decision tells its story first (the live run)", () => {
     expect([...rows[0].querySelectorAll("td")].map((td) => td.textContent)).toEqual([
       "AJ912", "AJ 912 - Intermediate Health and Fitness for First Responders II",
       "https://avc.elumenapp.com/catalog/2026-27/course/aj912", "Correct", "Open in Rules →"]);
-    expect(rows[0].querySelector("a")!.getAttribute("href")).toBe(`#/c/avc/rules/${SW}?row=AJ912&by=anyone&ext=rs-0010`);
+    expect(rows[0].querySelector("a")!.getAttribute("href")).toBe(`#/c/avc/course/rules/${SW}?row=AJ912&by=anyone&ext=rs-0010`);
     expect(host.textContent).not.toMatch(/AERO199, AJ912/);
   });
 

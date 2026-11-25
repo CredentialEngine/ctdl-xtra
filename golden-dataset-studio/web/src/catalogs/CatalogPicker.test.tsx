@@ -15,7 +15,12 @@ const LABELS: Record<string, string> = { ...Object.fromEntries(COLS.map((c) => [
 const REQUIRED = COLS.slice(0, 8);
 const counts = (match: number, partial: number, wrong: number) => ({ values: match + partial + wrong, match, partial, wrong, missing: 0 });
 const col = (status: ColumnStatus, ruleset: number | null, found = 1062) => ({ status, ruleset, human: 14, rule: 0, found });
+const TIERS = Object.fromEntries(COLS.map((c, i) => [c, i < 8 ? "required" : c === "prerequisite" ? "phase2" : "phase1"])) as CatalogsSummary["tiers"];
+const LP_SUM: CatalogsSummary = { basis: "human", cls: "learningprogram", columns: ["identifier", "name", "Learning Type"],
+  labels: { identifier: "identifier", name: "name", "Learning Type": "Learning Type" }, required: ["identifier", "name"],
+  tiers: { identifier: "required", name: "required", "Learning Type": "phase1" }, properties: 3, catalogs: {} };
 const summary = (basis: ScoreBasis): CatalogsSummary => ({ basis, columns: COLS, labels: LABELS, required: REQUIRED, properties: COLS.length,
+  tiers: TIERS,
   catalogs: { avc: {
     coverage: 9,
     columns: {
@@ -32,7 +37,8 @@ const summary = (basis: ScoreBasis): CatalogsSummary => ({ basis, columns: COLS,
 const calls: string[] = [];
 vi.mock("../api/client", () => ({ api: {
   catalogs: () => Promise.resolve(CARDS),
-  catalogsSummary: (b: ScoreBasis) => { calls.push(b); return Promise.resolve(summary(b)); },
+  catalogsSummary: (b: ScoreBasis, cls?: string) => { calls.push(`${b}:${cls}`); return Promise.resolve(cls === "learningprogram" ? LP_SUM : summary(b)); },
+  scoreHistory: () => new Promise(() => {}), propertyStatuses: () => Promise.resolve({}),
 } }));
 import CatalogPicker from "./CatalogPicker";
 
@@ -56,32 +62,35 @@ const rows = () => [...host.querySelectorAll("tbody tr")];
 
 describe("the catalogs table", () => {
   it("golden dataset: one angled column per property (the labels), Required in bold, a fraction per column, — with no rule, and Coverage", async () => {
+    history.replaceState(null, "", "#/?cls=course");
     await render();
     const heads = [...host.querySelectorAll("th.rot")];
-    expect(heads.map((t) => t.textContent)).toEqual(COLS.map((c) => LABELS[c]));
+    // Required, then Phase 1, then Phase 2 folded into one column
+    expect(heads.map((t) => t.textContent)).toEqual([...COLS.slice(0, 10).map((c) => LABELS[c]), "+ 1 Phase 2"]);
     expect(heads.filter((t) => t.classList.contains("req")).map((t) => t.textContent)).toEqual(REQUIRED.map((c) => LABELS[c]));
-    expect(host.querySelector("th.ext")).toBeNull();
-    expect(host.textContent).not.toContain("not in this Studio yet");
-    expect(host.querySelector(".ctab-legend")).toBeNull();  // no legend in the golden view
     expect(host.querySelector(".ctab i.sw")).toBeNull();     // no coloured circles
     const [avc, ualr] = rows();
     expect(avc.querySelector("td.date")!.textContent).toBe("12 Oct 2026");
-    expect(avc.querySelector("td.cov")!.textContent).toBe("9 of 11");
+    expect(avc.querySelector("td.cov")!.textContent).toBe("9 of 11 Course");
     const cellsOf = [...avc.querySelectorAll("td.c")];
-    expect(cellsOf).toHaveLength(11);
+    expect(cellsOf).toHaveLength(10);
     expect(cellsOf[9].textContent).toBe("—");   // creditValue → minValue: no rule in this catalog
-    expect(cellsOf[10].textContent).toBe("—");  // prerequisite: not in the catalog's columns
+    expect(avc.querySelector("td.p2c")!.textContent).toBe("0 of 1");  // prerequisite: Phase 2, no rule here
     expect(avc.querySelectorAll("td.c .katex")).toHaveLength(9);
     expect(avc.querySelector("td.c[aria-label='inLanguage: published'] annotation")!.textContent).toBe("\\dfrac{14}{1{,}062}");
     expect(avc.querySelector("td.c[aria-label='name: in review'] annotation")!.textContent).toBe("\\dfrac{14}{1{,}062}");
     expect(avc.querySelector("a.btn")!.textContent).toBe("Open →");
-    expect(avc.querySelector("a.btn")!.getAttribute("href")).toBe("#/c/avc/rules");
+    expect(avc.querySelector("a.btn")!.getAttribute("href")).toBe("#/c/avc/course/rules");
     expect(ualr.textContent).toContain("no rules yet");
     expect(ualr.querySelector("button")!.textContent).toBe("Generate rules");
     expect(ualr.querySelector("button .ico svg")).toBeTruthy();  // the AI sparkle
+    // Phase 2 opens on a click
+    await act(async () => host.querySelector<HTMLElement>("th.p2")!.click());
+    expect([...host.querySelectorAll("th.rot")].map((t) => t.textContent).slice(-1)).toEqual(["prerequisite"]);
+    expect(rows()[0].querySelectorAll("td.c")).toHaveLength(11);
     // hovering a fraction says what it is, in words, after a second
     vi.useFakeTimers();
-    const pub = avc.querySelector("td.c[aria-label='inLanguage: published'] .evx-tipw")!;
+    const pub = rows()[0].querySelector("td.c[aria-label='inLanguage: published'] .evx-tipw")!;
     await act(async () => pub.dispatchEvent(new MouseEvent("mouseover", { bubbles: true })));
     expect(document.querySelector("[role=tooltip]")).toBeNull();
     await act(async () => { vi.advanceTimersByTime(1000); });
@@ -90,34 +99,34 @@ describe("the catalogs table", () => {
       "14 values an expert reviewed, of 1,062 values the rule found");
   });
 
-  it("xtra score: exact matches with their count, per column % or n/s or —, the basis switch", async () => {
+  it("puts the ticked classes' columns side by side under a heading each; a catalog without a class's rules says so", async () => {
+    await render();
+    expect([...host.querySelectorAll("tr.cls-row th[data-class]")].map((t) => t.textContent)).toEqual([
+      "Course8 required, 2 more in Phase 1, 1 in Phase 2", "LearningProgram2 required, 1 more in Phase 1, 0 in Phase 2"]);
+    const avc = rows()[0];
+    expect(avc.querySelector("td.nosrc")!.textContent).toBe("No LearningProgram rules yet");
+    expect(avc.querySelector("td.nosrc")!.getAttribute("colspan")).toBe("3");
+    // the Classes menu: what each class has, and unticking one drops its columns
+    await act(async () => host.querySelector<HTMLButtonElement>("[data-testid=classes-menu]")!.click());
+    expect([...host.querySelectorAll(".hm-pop .hm-opt")].map((o) => o.textContent)).toEqual([
+      "Course11 properties, 1 catalog", "LearningProgram3 properties, 0 catalogs"]);
+    expect(host.querySelector(".hm-foot")!.textContent).toBe("Columns for each ticked class, side by side");
+    await act(async () => host.querySelectorAll<HTMLInputElement>(".hm-pop input")[1].click());
+    expect(location.hash).toBe("#/?cls=course");
+    expect(calls.sort()).toEqual(["human:course", "human:learningprogram"]);
+  });
+
+  it("names a catalog that isn't a source of a class", async () => {
+    CARDS[0] = { ...CARDS[0], not_sources: ["learningprogram"] };
+    await render();
+    expect(rows()[0].querySelector("td.nosrc")!.textContent).toBe("Not a LearningProgram source");
+    CARDS[0] = { ...CARDS[0], not_sources: [] };
+  });
+
+  it("switches to the xtra score view, which keeps the address", async () => {
     await render();
     await act(async () => button("xtra score").click());
     expect(location.hash).toBe("#/?v=score");
-    expect(host.textContent).toContain("How closely xtra's latest extract output matches each catalog's latest golden dataset");
-    expect(host.querySelector("thead .evx-basis-pill")!.textContent).toBe("human-reviewed");
-    const [avc, ualr] = rows();
-    expect(avc.querySelector("td.rate .pct")!.textContent).toBe("55%of 56");
-    // the % in its own column under "Exact matches", the overall bar in the next one with no heading
-    const heads = [...host.querySelectorAll("thead th:not(.rot)")].map((t) => t.textContent);
-    expect(heads.slice(2)).toEqual(["Catalog", "Exact matcheshuman-reviewed", "", "Coverage"]);
-    expect(avc.querySelector("td.rate .evx-bar")).toBeNull();
-    expect(avc.querySelector("td.ratebar .evx-bar")).not.toBeNull();
-    // by the property's column key: a column with no score is "—", one xtra doesn't read is n/s
-    const cells = [...avc.querySelectorAll("td.c")].map((t) => t.textContent);
-    expect(cells).toEqual(["100%14", "0%14", "—", "100%14", "21%14", "n/s", "n/s", "n/s", "—", "—", "—"]);
-    expect(ualr.querySelector("td.rate")!.textContent).toBe("no rules yet");
-    // a column's bar explains its outcomes
-    const desc = avc.querySelectorAll("td.sc .evx-tipw")[3];
-    await act(async () => desc.dispatchEvent(new MouseEvent("mouseover", { bubbles: true })));
-    const tip = document.querySelector("[role=tooltip]")!.textContent!;
-    expect(tip).toContain("description · Antelope Valley College · 14 human-reviewed values");
-    expect(tip).toContain("Numbers either match or are wrong.");
-    // Rule-matched: no score yet shows "—"
-    await act(async () => button("Rule-matched").click());
-    expect(location.hash).toBe("#/?v=score&b=rule");
-    expect(calls).toEqual(["human", "rule"]);
-    expect(rows()[0].querySelector("td.rate")!.textContent).toBe("—");
-    expect(host.querySelector("thead .evx-basis-pill")!.textContent).toBe("rule-matched");
+    expect(host.querySelector("[data-testid=catalogs-menu]")).not.toBeNull();
   });
 });

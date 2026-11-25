@@ -2,7 +2,9 @@
 // visible. Each poll also moves the run forward on the server (a waiting run is sent when the agent is free).
 // Notes accumulate: only lines after the last one seen are fetched.
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
-import { agentApi, LIVE, type AgentConfig, type AgentRun, type LiveRun, type RecentRun, type RunNote, type Slots } from "./api";
+import { inClass, noteRunClass } from "../shell/klass";
+import { CLASS_NAME, type ClassSlug } from "../shell/router";
+import { agentApi, LIVE, type AgentConfig, type AgentRun, type CurrentRun, type LiveRun, type RecentRun, type RunNote, type Slots } from "./api";
 
 export interface AgentState {
   config: AgentConfig | null;
@@ -15,11 +17,13 @@ export interface AgentState {
   recent: Record<string, RecentRun>;
   slots: Slots | null;
   now: string;
+  /** the classes polled: one, or with All classes each class with rules (each run then says its class) */
+  classes: ClassSlug[];
   refresh: () => void;
 }
 
 const EMPTY: AgentState = { config: null, run: null, last: null, notes: [], runs: [], recent: {}, slots: null,
-  now: new Date().toISOString(), refresh: () => {} };
+  now: new Date().toISOString(), classes: [], refresh: () => {} };
 const Ctx = createContext<AgentState>(EMPTY);
 export const useAgent = () => useContext(Ctx);
 
@@ -42,31 +46,67 @@ export function useAgentConfig(): AgentConfig | null {
 
 export const POLL_MS = 3000;
 
-export function AgentProvider({ catalog, children }: { catalog: string | null; children: ReactNode }) {
+/** A run's class before its words when several classes are shown ("LearningProgram: Claude is working on Name"). */
+export function classPrefix(r: AgentRun | null | undefined, classes: ClassSlug[]): string {
+  return r?.cls && classes.length > 1 ? `${CLASS_NAME[r.cls]}: ` : "";
+}
+
+type Seen = { runId: string | null; notes: RunNote[] };
+
+/** One class's poll: its current run with the notes after the ones already seen. */
+async function pollOne(catalog: string, cls: ClassSlug, s: Seen): Promise<{ d: CurrentRun; seen: Seen }> {
+  let d = await inClass(cls, () => agentApi.current(catalog, s.notes.length));
+  const shown = d.run ?? d.last;
+  let notes: RunNote[];
+  if (shown && shown.run_id === s.runId) notes = [...s.notes, ...d.notes];
+  else if (!shown) notes = [];
+  else {  // another run than the one we had: its notes from the start
+    d = d.since === 0 ? d : await inClass(cls, () => agentApi.current(catalog, 0));
+    notes = d.notes;
+  }
+  return { d, seen: { runId: (d.run ?? d.last)?.run_id ?? null, notes } };
+}
+
+export function AgentProvider({ catalog, classes = ["course"], children }: {
+  catalog: string | null; classes?: ClassSlug[]; children: ReactNode;
+}) {
   const config = useAgentConfig();
   const [state, setState] = useState<Omit<AgentState, "config" | "refresh">>(EMPTY);
-  const seen = useRef<{ catalog: string | null; runId: string | null; notes: RunNote[] }>({ catalog: null, runId: null, notes: [] });
+  const key = `${catalog}|${classes.join(",")}`;
+  const seen = useRef<{ key: string; by: Partial<Record<ClassSlug, Seen>> }>({ key: "", by: {} });
 
   const poll = useCallback(async () => {
     if (!catalog) return;
-    const s = seen.current.catalog === catalog ? seen.current : { catalog, runId: null, notes: [] };
-    let d = await agentApi.current(catalog, s.notes.length);
-    const shown = d.run ?? d.last;
-    let notes: RunNote[];
-    if (shown && shown.run_id === s.runId) notes = [...s.notes, ...d.notes];
-    else if (!shown) notes = [];
-    else {  // another run than the one we had: its notes from the start
-      d = d.since === 0 ? d : await agentApi.current(catalog, 0);
-      notes = d.notes;
+    if (seen.current.key !== key) seen.current = { key, by: {} };
+    const got = await Promise.all(classes.map((cls) =>
+      pollOne(catalog, cls, seen.current.by[cls] ?? { runId: null, notes: [] }).then((x) => ({ cls, ...x }))));
+    const tag = <T extends AgentRun | null>(r: T, cls: ClassSlug): T => {
+      if (!r || classes.length < 2) return r;
+      noteRunClass(r.run_id, cls);
+      return { ...r, cls };
+    };
+    let runs: LiveRun[] = [], run: AgentRun | null = null, last: AgentRun | null = null, notes: RunNote[] = [];
+    let recent: Record<string, RecentRun> = {}, slots: Slots | null = null, now = new Date().toISOString();
+    for (const { cls, d, seen: s } of got) {
+      seen.current.by[cls] = s;
+      // an older server has only `run`: it is the one live run
+      const mine = d.runs ?? (d.run ? [{ ...d.run, notes: s.notes, queue: { place: null, start_in_min: null, left_min: null, minutes_so_far: null } }] : []);
+      runs = [...runs, ...mine.map((r) => tag(r, cls))];
+      if (d.run && !run) { run = tag(d.run, cls); notes = s.notes; }
+      if (d.last && (!last || (d.last.ended_at ?? "") > (last.ended_at ?? ""))) {
+        last = tag(d.last, cls);
+        if (!run) notes = s.notes;
+      }
+      recent = { ...recent, ...(d.recent ?? {}) };
+      slots = slots ?? d.slots ?? null;
+      now = d.now;
     }
-    seen.current = { catalog, runId: (d.run ?? d.last)?.run_id ?? null, notes };
-    // an older server has only `run`: it is the one live run
-    const runs = d.runs ?? (d.run ? [{ ...d.run, notes, queue: { place: null, start_in_min: null, left_min: null, minutes_so_far: null } }] : []);
-    setState({ run: d.run, last: d.last, notes, runs, recent: d.recent ?? {}, slots: d.slots ?? null, now: d.now });
-  }, [catalog]);
+    runs.sort((a, b) => a.created_at.localeCompare(b.created_at));
+    setState({ run, last, notes, runs, recent, slots, now, classes });
+  }, [catalog, key]);  // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
-    seen.current = { catalog, runId: null, notes: [] };
+    seen.current = { key, by: {} };
     setState(EMPTY);
     if (!catalog) return;
     let stop = false;
@@ -76,7 +116,7 @@ export function AgentProvider({ catalog, children }: { catalog: string | null; c
     const onVis = () => { if (document.visibilityState === "visible") tick(); };
     document.addEventListener("visibilitychange", onVis);
     return () => { stop = true; window.clearInterval(id); document.removeEventListener("visibilitychange", onVis); };
-  }, [catalog, poll]);
+  }, [key, poll]);  // eslint-disable-line react-hooks/exhaustive-deps
 
   const refresh = useCallback(() => { poll().catch(() => {}); }, [poll]);
   return <Ctx.Provider value={{ ...state, config, refresh }}>{children}</Ctx.Provider>;

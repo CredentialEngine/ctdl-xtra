@@ -113,8 +113,8 @@
             }
           ],
           "links": {
-            "rules": "#/c/avc/rules/course-subject-webpage?row=ACCT199&by=anyone&ext=rs-0010",
-            "wrong": "#/c/avc/rules/course-subject-webpage?row=ACCT199&by=anyone&ext=rs-0010&mark=wrong"
+            "rules": "#/c/avc/course/rules/course-subject-webpage?row=ACCT199&by=anyone&ext=rs-0010",
+            "wrong": "#/c/avc/course/rules/course-subject-webpage?row=ACCT199&by=anyone&ext=rs-0010&mark=wrong"
           }
         }
       ],
@@ -189,8 +189,8 @@
                 }
               ],
               "links": {
-                "rules": "#/c/avc/rules/course-subject-webpage?row=AERO199&by=anyone&ext=rs-0010",
-                "wrong": "#/c/avc/rules/course-subject-webpage?row=AERO199&by=anyone&ext=rs-0010&mark=wrong"
+                "rules": "#/c/avc/course/rules/course-subject-webpage?row=AERO199&by=anyone&ext=rs-0010",
+                "wrong": "#/c/avc/course/rules/course-subject-webpage?row=AERO199&by=anyone&ext=rs-0010&mark=wrong"
               }
             }
           ],
@@ -268,19 +268,19 @@
               "verdict": "correct"
             }
           ],
-          "link": "#/c/avc/rules/course-subject-webpage?by=anyone&verdict=correct"
+          "link": "#/c/avc/course/rules/course-subject-webpage?by=anyone&verdict=correct"
         }
       ],
       "options": [
         {
           "answer": "yes",
           "text": "If yes, mark the 13 courses \"Not on the page\" for Subject Webpage. The next run publishes Subject Webpage.",
-          "link": "#/c/avc/rules/course-subject-webpage?by=anyone&verdict=correct"
+          "link": "#/c/avc/course/rules/course-subject-webpage?by=anyone&verdict=correct"
         },
         {
           "answer": "no",
           "text": "If no, mark ACCT199 correct for Subject Webpage.",
-          "link": "#/c/avc/rules/course-subject-webpage?row=ACCT199&by=anyone"
+          "link": "#/c/avc/course/rules/course-subject-webpage?row=ACCT199&by=anyone"
         }
       ],
       "effect": [
@@ -388,8 +388,8 @@
             }
           ],
           "links": {
-            "rules": "#/c/avc/rules/course-subject-webpage?row=ACCT199&by=anyone&ext=rs-0010",
-            "wrong": "#/c/avc/rules/course-subject-webpage?row=ACCT199&by=anyone&ext=rs-0010&mark=wrong"
+            "rules": "#/c/avc/course/rules/course-subject-webpage?row=ACCT199&by=anyone&ext=rs-0010",
+            "wrong": "#/c/avc/course/rules/course-subject-webpage?row=ACCT199&by=anyone&ext=rs-0010&mark=wrong"
           }
         }
       ]
@@ -419,7 +419,7 @@
   ],
   "notes": "ACCT199 was first marked correct and later marked wrong by the same reviewer.",
   "links": {
-    "report": "#/c/avc/rules?run=20261106T012457Z-b970",
+    "report": "#/c/avc/course/rules?run=20261106T012457Z-b970",
     "compare": null
   },
   "revert": null

@@ -7,10 +7,9 @@ says its `author_role` since the Evals work, and older events take their author'
 
 from __future__ import annotations
 
-from . import layout
 from .log import FULL_NAMES as RENAMED
 
-PATH = f"{layout.STUDIO}/profiles.json"
+PATH = "profiles.json"  # in the Studio's root
 ROLES = ("sme", "engineer")
 DEFAULT = [("Jared Diener", "sme"), ("Cadence Calixto", "sme"), ("Nicolas Soto", "engineer"),
            ("Rohit Joy", "engineer"), ("Eric Riddoch", "engineer"), ("Seth Alt", "engineer")]

@@ -55,7 +55,7 @@ def test_raw_html_detector():
 @pytest.fixture(scope="module")
 def ctx(tmp_path_factory, avc_v1_root):
     dst = tmp_path_factory.mktemp("w6p") / "root"
-    assert main(["sync", "--from", str(avc_v1_root), "--to", str(dst), "-c", "avc", "--pages", "link"]) == 0
+    assert main(["sync", "--from", str(avc_v1_root), "--to", str(dst), "-c", "avc"]) == 0
     return Ctx(str(dst), "avc")
 
 
@@ -113,7 +113,7 @@ def test_k2_version_is_a_run(ctx):
     assert f"mkdir -p {d} {t} && cd {d} && UV_TOOL_DIR={t} UV_TOOL_BIN_DIR={d}/bin uv tool install '" in text
     assert "find /var/lib/k2/.cache/golden-datasets-tools -mindepth 1 -maxdepth 1 -mmin +1440 -exec rm -rf {} +" in text
     assert "/.tools" not in text and "/var/lib/k2/work/golden-rules/runs/20261028T031209Z-a1b2/.tools" not in text
-    assert f"printf '%s\\n' 'GOLDEN_DATASETS_ROOT={azure}' 'GOLDEN_DATASETS_CATALOG=avc' 'GOLDEN_DATASETS_RUN=20261028T031209Z-a1b2' > {d}/golden-datasets.env" in text
+    assert f"printf '%s\\n' 'GOLDEN_DATASETS_ROOT={azure}' 'GOLDEN_DATASETS_CATALOG=avc' 'GOLDEN_DATASETS_CLASS=course' 'GOLDEN_DATASETS_RUN=20261028T031209Z-a1b2' > {d}/golden-datasets.env" in text
     assert "/var/lib/k2/work/golden-datasets.env" in text and "If the install fails, don't install another version" in text
     assert "## End the run" in text and f"cd {d} && ./bin/golden-datasets run done --report report.json" in text
     assert f"`{d}/report.json`" in text
@@ -156,7 +156,7 @@ def test_cli_and_api_give_the_same_text(ctx, capsys):
     from golden_datasets.server.app import create_app
 
     capsys.readouterr()
-    assert main(["prompt", "--root", ctx.root.uri, "-c", "avc", "--rule", "course-description"]) == 0
+    assert main(["prompt", "--class", "course", "--root", ctx.root.uri, "-c", "avc", "--rule", "course-description"]) == 0
     cli_text = capsys.readouterr().out
     c = TestClient(create_app(ctx.root.uri))
     api = c.get("/api/catalogs/avc/prompt", params={"rule": "course-description"}).json()

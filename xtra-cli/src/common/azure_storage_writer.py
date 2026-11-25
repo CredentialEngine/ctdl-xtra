@@ -6,7 +6,7 @@ import io
 from collections.abc import Iterator
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from contextlib import contextmanager, suppress
-from typing import BinaryIO
+from typing import BinaryIO, cast
 
 
 class AzureBlobUploadWriter(io.RawIOBase):
@@ -141,6 +141,28 @@ class AzureBlobStorageWriter:
                     errors.append(f"{key}: {exc}")
         return uploaded_keys
 
+    def upload_new(
+        self,
+        *,
+        key: str,
+        content: bytes | str,
+        content_type: str,
+    ) -> str:
+        from azure.core.exceptions import ResourceExistsError
+        from azure.storage.blob import ContentSettings
+
+        blob_key = self._blob_key(key)
+        blob_client = self.container_client.get_blob_client(blob_key)
+        try:
+            blob_client.upload_blob(
+                content,
+                overwrite=False,
+                content_settings=ContentSettings(content_type=content_type),
+            )
+        except ResourceExistsError:
+            raise FileExistsError(key) from None
+        return blob_key
+
     @contextmanager
     def open_binary_writer(
         self,
@@ -154,7 +176,7 @@ class AzureBlobStorageWriter:
             blob_client=blob_client,
             content_type=content_type,
         ) as writer:
-            yield writer
+            yield cast(BinaryIO, writer)
 
     def delete_batch(
         self,

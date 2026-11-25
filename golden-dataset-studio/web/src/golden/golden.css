@@ -78,3 +78,9 @@
 .gd-table td.mono { font-size: 12.5px; overflow-wrap: anywhere; }
 .gd-table .n { text-align: right; white-space: nowrap; width: 170px; font-variant-numeric: tabular-nums; }
 .gd-table tfoot td { font-weight: 600; border-bottom: 0; }
+
+/* All classes (mockup w2-datasets-all): a section per class */
+.doc-in .cls-h2 { font-size: 20px; margin: 34px 0 2px; padding-bottom: 6px; border-bottom: 2px solid var(--ink); display: flex; align-items: baseline; gap: 10px; }
+.doc-in .cls-h2 span { font-size: 13px; font-weight: 400; color: var(--muted); }
+.doc-in .cls-sec:first-of-type .cls-h2 { margin-top: 18px; }
+.gv-table td.empty { color: var(--muted); }

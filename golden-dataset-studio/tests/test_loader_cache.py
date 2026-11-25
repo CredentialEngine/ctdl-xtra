@@ -9,12 +9,13 @@ import pytest
 from golden_datasets import review
 from golden_datasets.review import Loader
 
-ROWS = {"a": 300, "b": 300, "c": 300, "d": 10, "e": 10, "f": 10, "big": 900}
+ROWS = {"a": 300, "b": 300, "c": 300, "d": 10, "e": 10, "f": 10, "big": 900,
+        "wvu7": 420, "wvu8": 420, "lp2": 3, "lp3": 3, **{f"s{i}": 5 for i in range(9)}}
 
 
 class FakeCtx:
     root = type("R", (), {"uri": "mem://"})()
-    catalog, crawl = "cat", "k"
+    catalog, crawl, cls = "cat", "k", "course"
 
     def extraction_meta(self, ext):
         return {"files": {"matches.parquet": {"rows": ROWS[ext]}, "occurrences.parquet": {"rows": 0}}}
@@ -47,15 +48,38 @@ def test_the_least_recently_used_snapshots_go_past_the_budget(loads):
     assert kept(loader) == ["a", "c"]
 
 
-def test_at_most_max_snapshots_however_small(loads):
+def test_at_most_max_snapshots_of_the_big_ones(monkeypatch):
+    class FakeSnapshot:
+        def __init__(self, ctx, ext):
+            self.ext, self.meta = ext, ctx.extraction_meta(ext)
+
+    monkeypatch.setattr(review, "Snapshot", FakeSnapshot)
+    loader, ctx = Loader(budget=10_000), FakeCtx()   # 300 rows each: big (over 2% of the budget), well under budget
+    for ext in ["a", "b", "c", "big", "wvu7"]:
+        loader.snapshot(ctx, ext)
+    assert kept(loader) == ["b", "c", "big", "wvu7"]  # a (oldest) went: 4 big ones at most
+
+
+def test_small_snapshots_are_kept_apart_and_capped(loads):
+    """A class with a few hundred records doesn't push a big class out; small ones have a cap of their own."""
     loader, _ = loads
     ctx = FakeCtx()
-    for ext in "def":
-        loader.snapshot(ctx, ext)
-    loader.snapshot(ctx, "a"), loader.snapshot(ctx, "d")
-    assert kept(loader) == ["e", "f", "a", "d"]
-    loader.snapshot(ctx, "b")
-    assert kept(loader) == ["f", "a", "d", "b"]  # e (oldest) went: 4 at most
+    loader.snapshot(ctx, "a")
+    for i in range(8):
+        loader.snapshot(ctx, f"s{i}")
+    small = [x for x in kept(loader) if x.startswith("s")]
+    assert "a" in kept(loader) and small == [f"s{i}" for i in range(2, 8)]  # the 6 most recent small ones
+
+
+def test_a_small_class_doesnt_evict_a_big_one_over_the_budget(loads):
+    """WVU: Course's pair (418,635 rows each) is over the budget on its own; LearningProgram's pair is 2,888 rows.
+    With All classes, both are read on every page: they used to evict each other, a 4 s reload every time."""
+    loader, loaded = loads
+    ctx = FakeCtx()
+    for _ in range(3):
+        loader.snapshot(ctx, "wvu8"), loader.snapshot(ctx, "wvu7")  # a Review and its parent
+        loader.snapshot(ctx, "lp3"), loader.snapshot(ctx, "lp2")
+    assert sorted(x for x, _ in loaded) == ["lp2", "lp3", "wvu7", "wvu8"]  # each loaded once
 
 
 def test_room_is_made_before_a_big_one_loads_and_the_most_recent_stays(loads):

@@ -1,0 +1,94 @@
+{
+  "catalog": "avc-elumenapp-com-catalog-2026-27-welcome",
+  "base_ruleset": 2,
+  "rules": [
+    {
+      "rule_id": "learningprogram-page",
+      "kind": "page",
+      "ctdl_property": null,
+      "property_label": null,
+      "definition": {
+        "url_regex": "/catalog/[^/]+/program/[^/?#]+$",
+        "requires_selector": "#mainContent #accordion-program-builder-rules",
+        "label": "LearningProgram"
+      },
+      "what": "Pages at /catalog/2026-27/program/<name>, one degree or certificate each, credit or noncredit.",
+      "how": "The address has /program/, and the page has the 'Program Requirements' section.",
+      "why": "",
+      "examples": []
+    },
+    {
+      "rule_id": "locator-learningprogram-page",
+      "kind": "locator",
+      "ctdl_property": null,
+      "property_label": null,
+      "definition": {
+        "page_rules": [
+          "learningprogram-page"
+        ],
+        "scope": null,
+        "repeat": null,
+        "repeat_filter": null
+      },
+      "what": "One program per page.",
+      "how": "The whole main content is the record.",
+      "why": "",
+      "examples": []
+    },
+    {
+      "rule_id": "learningprogram-external-id",
+      "kind": "property",
+      "ctdl_property": "ceterms:identifier",
+      "property_label": "External Identifier",
+      "definition": {
+        "locator": "locator-learningprogram-page",
+        "rule_type": "css",
+        "selector": "header.header h2",
+        "transforms": [
+          "collapse_ws",
+          "generated_id:program"
+        ]
+      },
+      "what": "program- and the program's normalized name ('program-administration-of-justice-aa').",
+      "how": "AVC prints no program code, so every program gets `program-<normalized name>` from its heading.",
+      "why": "Issue #368 and ask 3: the prefix is `program`.",
+      "examples": []
+    },
+    {
+      "rule_id": "learningprogram-name",
+      "kind": "property",
+      "ctdl_property": "ceterms:name",
+      "property_label": "Name",
+      "definition": {
+        "locator": "locator-learningprogram-page",
+        "rule_type": "css",
+        "selector": "header.header h2",
+        "transforms": [
+          "collapse_ws"
+        ]
+      },
+      "what": "The program's name as the orange header prints it ('Administration of Justice AA').",
+      "how": "The header's `h2`.",
+      "why": "",
+      "examples": []
+    },
+    {
+      "rule_id": "learningprogram-description",
+      "kind": "property",
+      "ctdl_property": "ceterms:description",
+      "property_label": "Description",
+      "definition": {
+        "locator": "locator-learningprogram-page",
+        "rule_type": "css",
+        "selector": "div.introtext",
+        "transforms": [
+          "collapse_ws"
+        ]
+      },
+      "what": "The introduction above Program Requirements, whole.",
+      "how": "The `div.introtext` block, every paragraph of it.",
+      "why": "Extraction keeps whole text blocks.",
+      "examples": []
+    }
+  ]
+}

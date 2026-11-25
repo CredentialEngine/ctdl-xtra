@@ -35,7 +35,7 @@ class Rev:
 
 
 def row(ck: str, value: str, signals=(), key: str | None = None) -> dict:
-    return {"key": key or f"p-{ck}@div", "course_key": ck, "page_stem": f"p-{ck}", "value": value, "status": "found",
+    return {"key": key or f"p-{ck}@div", "record_external_identifier": ck, "page_stem": f"p-{ck}", "value": value, "status": "found",
             "css_path": None, "char_start": None, "char_end": None,
             "signals": [{"signal": s, "severity": "medium", "detail": ""} for s in signals]}
 
@@ -44,7 +44,7 @@ def verdict(ck: str, v: str, expected: str | None = None, note: str | None = Non
     return {"annotation_id": f"ann-{ck}", "type": "verdict", "verdict": v, "author": "Jared", "note": note,
             "at": "2026-10-20T00:00:00Z", "expected": {"text": expected} if expected else None,
             "target": {"kind": "match", "rule_id": "course-description", "occurrence_key": f"p-{ck}@div",
-                       "course_key": ck, "page_stem": f"p-{ck}"}}
+                       "record_external_identifier": ck, "page_stem": f"p-{ck}"}}
 
 
 A = [row("FIX1", "Prerequisite: X. Body one", ["contains-label-text"]),
@@ -71,7 +71,7 @@ def card():
 
 def test_earlier_verdicts_follow_history_signals(card):
     """A4.1: changed-since-correct first, then previously-wrong (still wrong, fixed), then unchanged rows."""
-    got = [(r["course_key"], r["outcome"], r["history"]) for r in card["annotated_rows"]]
+    got = [(r["record_external_identifier"], r["outcome"], r["history"]) for r in card["annotated_rows"]]
     assert got == [("REGR1", "newly wrong", "changed-since-correct"),
                    ("STILL1", "still wrong", "previously-wrong"),
                    ("FIX1", "fixed", "previously-wrong"),
@@ -82,8 +82,8 @@ def test_earlier_verdicts_follow_history_signals(card):
 
 
 def test_verdict_order_puts_wrong_before_correct_within_an_outcome():
-    rows = [{"outcome": "unchanged", "verdict": "correct", "course_key": "A", "key": "a"},
-            {"outcome": "unchanged", "verdict": "wrong", "course_key": "B", "key": "b"}]
+    rows = [{"outcome": "unchanged", "verdict": "correct", "record_external_identifier": "A", "key": "a"},
+            {"outcome": "unchanged", "verdict": "wrong", "record_external_identifier": "B", "key": "b"}]
     assert [r["key"] for r in sorted(rows, key=verdict_order)] == ["b", "a"]
 
 
@@ -96,7 +96,7 @@ def test_signals_count_lost_and_gained_including_new_and_vanished_rows(card):
     assert len(clt["lost"]) == 1                                         # capped by signal_rows; totals are not
     assert {s["signal"]: (s["a"], s["b"], s["gained_total"]) for s in card["signals"]}["length-outlier"] == (0, 1, 1)
     gained = clt["gained"][0]
-    assert gained["course_key"] == "NEW1" and gained["a_value"] is None and gained["b_value"] == "Units: new"
+    assert gained["record_external_identifier"] == "NEW1" and gained["a_value"] is None and gained["b_value"] == "Units: new"
 
 
 def test_signal_lists_are_complete_without_a_cap():
@@ -108,9 +108,9 @@ def test_signal_lists_are_complete_without_a_cap():
 def test_values_sample_and_records_changed(card):
     assert card["values"] == {"changed": 4, "total": 6, "new": 1, "vanished": 1}
     assert records_changed(card) == 6
-    assert card["sample_total"] == 1 and [r["course_key"] for r in card["sample"]] == ["OTHER1"]
-    assert [r["course_key"] for r in card["new_rows"]] == ["NEW1"]
-    assert [r["course_key"] for r in card["vanished_rows"]] == ["GONE1"]
+    assert card["sample_total"] == 1 and [r["record_external_identifier"] for r in card["sample"]] == ["OTHER1"]
+    assert [r["record_external_identifier"] for r in card["new_rows"]] == ["NEW1"]
+    assert [r["record_external_identifier"] for r in card["vanished_rows"]] == ["GONE1"]
 
 
 def test_compare_keeps_the_rule_try_contract():
@@ -133,7 +133,7 @@ def client(tmp_path_factory):
     from golden_datasets.sync import sync_catalog
 
     root = tmp_path_factory.mktemp("compare") / "root"
-    sync_catalog(LocalRoot(str(DEMO)), LocalRoot(str(root)), AVC, None, "link", False, False, log=lambda *a: None)
+    sync_catalog(LocalRoot(str(DEMO)), LocalRoot(str(root)), AVC, None, False, log=lambda *a: None)
     return TestClient(create_app(str(root)))
 
 
@@ -154,7 +154,7 @@ def test_avc_compare_v1_to_v2(client):
     card = d["rules"][0]
     rows = card["annotated_rows"]
     assert len(rows) == 14
-    assert {r["course_key"] for r in rows[:5]} == {"AUTO230", "DFST202", "ENGR955", "GEOG222", "PHYS102"}
+    assert {r["record_external_identifier"] for r in rows[:5]} == {"AUTO230", "DFST202", "ENGR955", "GEOG222", "PHYS102"}
     assert all(r["outcome"] == "fixed" and r["history"] == "previously-wrong" for r in rows[:5])
     assert all(r["outcome"] == "unchanged" and r["verdict"] == "correct" for r in rows[5:])
     sig = {s["signal"]: s for s in card["signals"]}

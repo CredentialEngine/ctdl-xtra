@@ -8,7 +8,7 @@ import json
 import time
 
 import pytest
-from test_golden_versions import CAT, JARED, B, _mark, _rows, studio  # noqa: F401  (studio: the fixture)
+from test_golden_versions import CAT, JARED, RULES, B, _mark, _rows, studio  # noqa: F401  (studio: the fixture)
 
 from golden_datasets import golden, layout, scores
 from golden_datasets.cli import main
@@ -49,7 +49,7 @@ def scored(studio, tmp_path, monkeypatch):  # noqa: F811
 
 def test_a_score_has_both_results_and_one_row_per_value(scored, capsys):
     c, ctx, tmp = scored
-    assert main(["score", "--root", ctx.root.uri, "--catalog", CAT, "--ruleset", "1"]) == 0
+    assert main(["score", "--class", "course", "--root", ctx.root.uri, "--catalog", CAT, "--ruleset", "1"]) == 0
     out = capsys.readouterr().out
     assert "sc-0001" in out and "human-reviewed  100.0% exact of 1 values" in out
     assert "rule-matched    66.7% exact of 6 values · match 4 · partial 1 · wrong 0 · missing 1" in out
@@ -65,10 +65,14 @@ def test_a_score_has_both_results_and_one_row_per_value(scored, capsys):
     assert len(rows) == 7
     assert (rows[("rule", "page-1", "name")]["outcome"], rows[("rule", "page-1", "name")]["extracted_value"]) == ("partial", "C 11")
     assert rows[("human", "page-0", "name")]["approved_by"] == JARED
-    # the output was copied, and xtra's folder has nothing new in it
-    copy = layout.extract_output_dir(CAT, ctx.crawl, doc["output"]["id"])
-    assert ctx.root.exists(f"{copy}/records/page-0.json") and ctx.root.exists(f"{copy}/extract-report.json")
-    assert sorted(p.name for p in (tmp / "xtra-cli-output" / CAT / ctx.crawl).iterdir()) == ["crawl.json", "extract-report.json", "pages", "records"]
+    # approved item 21: the output is read where xtra wrote it (no copy), and the score is kept beside it, in
+    # xtra-cli's container, under the extract output it scored
+    assert doc["output"]["copy"] is None and not ctx.root.list(f"{CAT}/{ctx.crawl}/extract")
+    xtra = tmp / "xtra-cli-output" / CAT / ctx.crawl
+    assert sorted(p.name for p in xtra.iterdir()) == ["crawl.json", "extract", "extract-report.json", "pages", "records"]
+    kept = xtra / "extract" / doc["output"]["id"] / "scores" / "ruleset-v1" / "course" / "sc-0001"
+    assert sorted(p.name for p in kept.iterdir() if not p.name.startswith(".")) == ["score.json", "values.parquet"]
+    assert doc["path"] == f"{CAT}/{ctx.crawl}/extract/{doc['output']['id']}/scores/ruleset-v1/course/sc-0001"
     # a pair is scored once
     assert scores.score(Ctx(ctx.root, CAT), "ruleset-v1")["id"] == "sc-0001"
 
@@ -86,7 +90,7 @@ def test_human_reviewed_values_are_read_live_from_the_page_files(scored):
 def test_slot_names_and_a_record_count_that_disagrees_are_flagged(scored, capsys):
     _, ctx, tmp = scored
     _output(tmp / "old", ctx.crawl, slot_names=True, written=5)
-    assert main(["score", "--root", ctx.root.uri, "--catalog", CAT, "--output", str(tmp / "old")]) == 0
+    assert main(["score", "--class", "course", "--root", ctx.root.uri, "--catalog", CAT, "--output", str(tmp / "old")]) == 0
     out = capsys.readouterr().out
     assert scores.SLOT_NAMES in out and "3 records in the folder, the report says 5" in out
     doc = scores.read(Ctx(ctx.root, CAT), "sc-0001")
@@ -196,21 +200,21 @@ def test_evals_rows_map_to_their_studio_match_and_notes_keep_the_comparison(scor
 def test_one_score_runs_per_catalog_at_a_time(scored):
     c, ctx, _ = scored
     jobs = c.app.state.scores
-    jobs._busy[CAT] = "sc-0042"  # as while a score runs in its thread
+    jobs._busy[(CAT, "course")] = "sc-0042"  # as while a score runs in its thread
     r = c.post(f"{B}/scores", json={"golden": "ruleset-v1", "by": JARED})
     assert (r.status_code, r.json()["detail"]) == (409, "sc-0042 is still running")
     assert jobs.after_publish(Ctx(ctx.root, CAT), JARED) is None  # approving still succeeds; its score is skipped
-    jobs._busy.pop(CAT)
+    jobs._busy.pop((CAT, "course"))
     assert c.post(f"{B}/scores", json={"golden": "nope", "by": JARED}).status_code == 400
 
 
 def test_the_cli_scores_the_human_reviewed_values_and_a_draft(scored, capsys):
     _, ctx, _ = scored
-    assert main(["score", "--root", ctx.root.uri, "--catalog", CAT, "--human-reviewed"]) == 0
+    assert main(["score", "--class", "course", "--root", ctx.root.uri, "--catalog", CAT, "--human-reviewed"]) == 0
     out = capsys.readouterr().out
     assert "vs human-reviewed [done]" in out and "human-reviewed  100.0% exact of 1 values" in out
     draft = Ctx(ctx.root, CAT).latest_extraction()
-    assert main(["score", "--root", ctx.root.uri, "--catalog", CAT, "--draft", draft]) == 0
+    assert main(["score", "--class", "course", "--root", ctx.root.uri, "--catalog", CAT, "--draft", draft]) == 0
     doc = scores.all_scores(Ctx(ctx.root, CAT))[0]
     assert (doc["golden"]["id"], doc["golden"]["kind"], doc["commands"]) == (draft, "draft", [])  # a draft has no files
 
@@ -218,7 +222,7 @@ def test_the_cli_scores_the_human_reviewed_values_and_a_draft(scored, capsys):
 def test_the_pending_score_runs_when_due(scored):
     c, ctx, _ = scored
     jobs, st = c.app.state.scores, c.app.state.studio
-    path = layout.pending_score(CAT, ctx.crawl)
+    path = layout.pending_score(CAT, ctx.crawl, "course")
     ctx.root.write_json(path, {"due_at": "2999-01-01T00:00:00Z", "reason": "later"})
     jobs.tick(st)  # sees the extract output and scores it against ruleset v1; the pending score isn't due
     while jobs.busy(CAT):
@@ -237,10 +241,9 @@ def test_the_catalogs_summary_has_each_columns_status_and_the_latest_score(score
     """Evals step 5: the home page's catalogs table, from small files only (score.json, publication.json, the log)."""
     c, ctx, tmp = scored
     s = c.get("/api/catalogs-summary").json()
-    # every property a column (property-rules spec §4.9): the required ones first, the course key first
-    assert s["basis"] == "human" and s["columns"][:8] == ["codedNotation", "identifier", "Learning Type", "name",
-                                                          "description", "subjectWebpage", "lifeCycleStatusType",
-                                                          "inLanguage"] \
+    # every property a column (property-rules spec §4.9): the required ones first, the record key first
+    assert s["basis"] == "human" and s["columns"][:7] == ["identifier", "Learning Type", "name", "description",
+                                                          "subjectWebpage", "lifeCycleStatusType", "inLanguage"] \
         and len(s["columns"]) == s["properties"] == 37 and "creditValue>minValue" in s["columns"]
     assert s["labels"]["creditValue>minValue"] == "creditValue → minValue" and "not_in_studio" not in s
     cat = s["catalogs"][CAT]
@@ -254,7 +257,7 @@ def test_the_catalogs_summary_has_each_columns_status_and_the_latest_score(score
     statuses = {k: v["status"] for k, v in cat["columns"].items()}
     assert set(statuses) <= set(s["columns"]) and statuses.get("description", "in review") == "in review"
 
-    assert main(["score", "--root", ctx.root.uri, "--catalog", CAT, "--ruleset", "1"]) == 0
+    assert main(["score", "--class", "course", "--root", ctx.root.uri, "--catalog", CAT, "--ruleset", "1"]) == 0
     c.app.state.studio.ctx(CAT).invalidate()  # the server re-reads the manifest every few seconds
     human = c.get("/api/catalogs-summary", params={"basis": "human"}).json()["catalogs"][CAT]["score"]
     assert (human["id"], human["golden"], human["values"], human["outcomes"]["match"]) == ("sc-0001", "ruleset-v1", 1, 1)
@@ -291,15 +294,15 @@ def test_check_resolves_each_scores_provenance_and_reports_a_score_left_running(
 
     rows = [r for r in check.run(Ctx(ctx.root, CAT)) if r[0] in ("score", "score values", "extract output")]
     assert len(rows) == 7 and not failed(Ctx(ctx.root, CAT))
-    path = f"{layout.score_dir(CAT, ctx.crawl, doc['id'])}/score.json"
-    ctx.root.write_json(path, {**doc, "status": "running", "created_at": "2000-01-01T00:00:00Z",
+    path = f"{scores.score_path(Ctx(ctx.root, CAT), doc['id'])}/score.json"
+    scores.xtra(ctx).write_json(path, {**doc, "status": "running", "created_at": "2000-01-01T00:00:00Z",
                                "golden": {**doc["golden"], "id": "ruleset-v9"},
                                "output": {**doc["output"], "report_etag": "elsewhere"}})
-    ctx.root.write_json(layout.pending_score(CAT, ctx.crawl), {"due_at": "soon"})
+    ctx.root.write_json(layout.pending_score(CAT, ctx.crawl, "course"), {"due_at": "soon"})
     assert failed(Ctx(ctx.root, CAT)) == [
         "golden → a version, human-reviewed as of a time, or a draft extraction",
         f"none left running (> {check.STALE_RUNNING // 60} min; a server start marks it interrupted)",
-        "output → a kept extract output (same report ETag)",
+        "output → a registered extract output (same report ETag)",
         "scores/pending.json is {due_at: ISO time, reason}",
     ]
 
@@ -308,7 +311,7 @@ def test_only_the_columns_the_output_emits_are_scored(scored, capsys):
     """Property-rules spec P10: a column xtra doesn't extract isn't scored against it; xtra's own numbers stay."""
     _, ctx, tmp = scored
     _output(tmp / "codes-only", ctx.crawl, names={"page-0": None, "page-1": None, "page-2": None})
-    assert main(["score", "--root", ctx.root.uri, "--catalog", CAT, "--output", str(tmp / "codes-only")]) == 0
+    assert main(["score", "--class", "course", "--root", ctx.root.uri, "--catalog", CAT, "--output", str(tmp / "codes-only")]) == 0
     capsys.readouterr()
     doc = scores.read(Ctx(ctx.root, CAT), "sc-0001")
     assert doc["not_scored"] == ["name"]
@@ -317,14 +320,15 @@ def test_only_the_columns_the_output_emits_are_scored(scored, capsys):
     assert rule["xtra"]["values"] == 6 and rule["xtra"]["exact_match_rate"] == 0.5
     # the candidates per column, and the columns xtra's extract writes at all (Evals: "No candidates …")
     assert doc["candidates"] == {"codedNotation": 3}
-    assert "name" in doc["xtra_extracts"] and "estimatedDuration" in doc["xtra_extracts"]
+    # (today's xtra has one extractor per property, and none yet for estimatedDuration)
+    assert "name" in doc["xtra_extracts"] and "estimatedDuration" not in doc["xtra_extracts"]
 
 
 def test_scores_carry_found_right_and_where_its_wrong(scored, capsys):
     """sme-fixes spec §8: values.parquet has unit, field and reason; the CLI prints found and right; /wrong groups
     every unit that isn't a match, each with an example and its courses' Studio rows."""
     c, ctx, _ = scored
-    assert main(["score", "--root", ctx.root.uri, "--catalog", CAT, "--ruleset", "1"]) == 0
+    assert main(["score", "--class", "course", "--root", ctx.root.uri, "--catalog", CAT, "--ruleset", "1"]) == 0
     out = capsys.readouterr().out
     assert "found (recall) 66.7% · right (precision) 80.0% of 5 candidates" in out
     rows = scores.values(ctx, "sc-0001")
@@ -348,18 +352,40 @@ def test_scores_carry_found_right_and_where_its_wrong(scored, capsys):
         == "course subject"
 
 
-def test_the_loop_scores_a_golden_dataset_published_outside_the_studio(scored):
-    """§8.3: an extract output already seen, then a golden dataset published by the CLI: the loop scores the pair."""
-    c, ctx, _ = scored
+def test_the_loop_scores_a_new_output_then_a_golden_dataset_published_outside_the_studio(scored, capsys):
+    """LearningProgram Phase 3: an output the class hasn't scored is a `new-output` score of every property; a golden
+    version published from the CLI is a `golden-published` score of the columns it added. Each appends one history
+    line per property, and the pair is scored once."""
+    c, ctx, tmp = scored
     jobs, st = c.app.state.scores, c.app.state.studio
-    scores.see_output(Ctx(ctx.root, CAT))  # seen (copied) before: not new for the loop
-    assert scores.all_scores(Ctx(ctx.root, CAT)) == []
+
+    def wait():
+        while jobs.busy(CAT):
+            time.sleep(0.05)
+
+    scores.see_output(Ctx(ctx.root, CAT))
     jobs.tick(st)
-    while jobs.busy(CAT):
-        time.sleep(0.05)
+    wait()
     [doc] = scores.all_scores(Ctx(ctx.root, CAT))
-    assert (doc["golden"]["id"], doc["reason"]) == ("ruleset-v1", "a new golden dataset, ruleset-v1")
+    assert (doc["golden"]["id"], doc["trigger"], doc["properties"]) == ("ruleset-v1", "new-output", None)
+    assert doc["recorded"] == ["codedNotation", "name"]
     jobs.tick(st)  # scored once
-    while jobs.busy(CAT):
-        time.sleep(0.05)
+    wait()
     assert len(scores.all_scores(Ctx(ctx.root, CAT))) == 1
+    # ruleset v2, published from the CLI with the same columns: a `golden-published` score of every column
+    rules = json.loads(json.dumps(RULES))
+    rules["rules"][3]["definition"]["transforms"] = ["collapse_ws", "upper"]  # a new ruleset version
+    (tmp / "v2.json").write_text(json.dumps(rules))
+    assert main(["rule", "publish", "--class", "course", "--root", ctx.root.uri, "--catalog", CAT,
+                 str(tmp / "v2.json"), "--note", "v2", "--force"]) == 0
+    golden.publish(Ctx(ctx.root, CAT), str(tmp / "golden"), "test", allow_unapproved=True,
+                   properties=["Coded Notation", "Learning Opportunity Name"])
+    capsys.readouterr()
+    jobs.tick(st)
+    wait()
+    newest = scores.all_scores(Ctx(ctx.root, CAT))[0]
+    assert (newest["golden"]["id"], newest["trigger"], newest["properties"]) == ("ruleset-v2", "golden-published",
+                                                                                None)
+    history = scores.history(Ctx(ctx.root, CAT), "name")
+    assert [(h["golden_version"], h["trigger"]) for h in history] == [("ruleset-v1", "new-output"),
+                                                             ("ruleset-v2", "golden-published")]

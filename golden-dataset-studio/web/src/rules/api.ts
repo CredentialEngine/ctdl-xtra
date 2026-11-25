@@ -1,5 +1,6 @@
 // W4's additions to the review API (routes_review.py). They extend the shared contract in `api/types.ts` /
 // `api/client.ts` (owned by the lead); fold these in there when convenient.
+import { withClass } from "../shell/klass";
 import { ApiError } from "../api/client";
 import type { CourseHit, EventBrief, Row, RowsResponse, RuleSummary, SampleInfo, StrataTag } from "../api/types";
 
@@ -21,7 +22,7 @@ export interface Annotators {
 }
 
 async function get<T>(path: string, signal?: AbortSignal): Promise<T> {
-  const r = await fetch(path, { signal });
+  const r = await fetch(withClass(path), { signal });
   if (!r.ok) {
     let detail = r.statusText;
     try { detail = (await r.json()).detail ?? detail; } catch { /* not JSON */ }

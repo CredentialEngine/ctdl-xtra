@@ -74,6 +74,7 @@ from implementations.discover_rules import (
     award_in_name_line,
     catalog_year_value,
     course_codes,
+    course_in_query,
     described_course_codes,
     distinct_awards,
     evidence,
@@ -230,6 +231,21 @@ def page_head(structure: Markup, text: str) -> str:
     return f"{structure.title} {structure.h1} {opening}"
 
 
+def course_named_by(name: str) -> str | None:
+    """The course a page is named for: the code its name opens or closes with.
+
+    "ABC 1234 - Course Name" and "Course Name - ABC 1234" both name one
+    course. A code anywhere else in the name is a reference.
+    """
+    opening = COURSE_TITLE_RE.match(name)
+    if opening is not None:
+        return opening.group(0).strip()
+    closing = TITLE_SEPARATOR_RE.split(name)[-1].strip()
+    if COURSE_CODE_RE.fullmatch(closing):
+        return closing
+    return None
+
+
 def title_name(title: str) -> str:
     """A <title> without the site: "Programs | Example College" is Programs."""
     return TITLE_SEPARATOR_RE.split(title)[0].strip()
@@ -270,9 +286,8 @@ def first_paragraph(content_text: str, limit: int | None = INTRO_CHARS) -> str:
     description a string of telephone numbers and hid the sentence under
     it that says which award the page is about.
 
-    `limit` is for the award rules, which only read the opening of it.
-    A description is the whole paragraph: cut at INTRO_CHARS, every
-    Cabrillo course description stopped mid-sentence.
+    `limit` is for the award rules, which read only the opening; a
+    description is the whole paragraph.
     """
     for line in content_text.splitlines():
         if len(line) > HEAD_LINE_CHARS and not is_contact_line(line):
@@ -402,10 +417,21 @@ class ProgramEvidence:
     @property
     def lists_its_own_requirements(self) -> bool:
         """Why a page full of course codes is not a run of descriptions."""
+        return bool(self.lists_requirements_besides_its_name or self.name_award)
+
+    @property
+    def lists_requirements_besides_its_name(self) -> bool:
+        """lists_its_own_requirements, without the award the name names.
+
+        A page that names its one course, by a code or by its URL,
+        is a course page even if it could also be a credential.
+        "EDLE 90003 - Doctoral Seminar and Scholarly Writing" is a seminar,
+        not a doctorate, and "Retort Processing Certification" is a course
+        that also has a certificate or can lead to a certification.
+        """
         return bool(
             self.prints_requirements
             or self.mentions_requirements
-            or self.name_award
             or self.url_label
         )
 
@@ -733,6 +759,17 @@ def course_label(
             f"{blocks} course block(s), "
             f"code {code_at_the_top.group(0)} at the top"
         )
+    names_one_course = not program.lists_requirements_besides_its_name
+    named_for = course_named_by(page_name(structure))
+    if named_for is not None and names_one_course:
+        # That holds however the page prints its credits, in words
+        # ("Three credit hours."), or not at all.
+        return f"named for course {named_for}"
+    named_in_address = course_in_query(template)
+    if named_in_address is not None and names_one_course:
+        # A training portal prints no code at all; its address says which
+        # course the page is: /portal/training?cmd=catalog&course=109497.
+        return f"address names one course: {template}"
     if structure.course_blocks and not lists_its_own_requirements:
         # The platform marked its course descriptions up, so there is
         # nothing to infer. One marked-up description is enough: a
@@ -741,6 +778,22 @@ def course_label(
         quote = structure.course_blocks[0].quote
         return (
             f"{len(structure.course_blocks)} course block(s) marked up: {quote}"
+        )
+    described = {block.code for block in structure.course_blocks}
+    unlisted = described - structure.reference_codes
+    if (
+        len(unlisted) >= MIN_COURSE_LIST_CODES
+        and program_label(program) is None
+    ):
+        # A college prints every program's requirements and then every
+        # course it teaches: WVU's Eberly College marks up 1,611 courses
+        # below them. It is no one program's page, so the requirements do
+        # not make it a credential, and the courses no requirement list
+        # names are descriptions, not the program's own list.
+        quote = structure.course_blocks[0].quote
+        return (
+            f"{len(described)} course block(s) marked up, "
+            f"{len(unlisted)} in no requirement list: {quote}"
         )
     if blocks >= 2 and not lists_its_own_requirements:
         return f"{blocks} course blocks"
@@ -753,13 +806,8 @@ def course_label(
         # No credits anywhere, so no course blocks. Texas A&M International
         # encodes the credit count in the course number and prints nothing
         # else, which left a page of twenty-six course descriptions
-        # labelled as a program. Only then: where one block was found, the
-        # page is that course's, or a listing whose other courses print
-        # their credits in a form the rules cannot read, and the codes
-        # cannot say which. City College of San Francisco prints units as
-        # "VOCN 23 - Nurse Assistant/Convalescent Care (6.5)", so the one
-        # block on its vocational nursing page was a cross-reference, and
-        # twenty-two courses were extracted as one.
+        # labelled as a program. With one block found, the codes cannot
+        # tell a course page from a listing, so this rule stays out.
         return f"{codes} course codes under {template}"
     return None
 
@@ -816,6 +864,19 @@ def apply_labels(
         if course is not None:
             labels.append(LABEL_COURSE)
             fired[LABEL_COURSE] = course
+            # A training portal's address names one course, and the name
+            # can name the award it leads to: "Retort Processing
+            # Certification" is a course and a credential. A name that is
+            # a course's title, "EDLE 90003 - Doctoral Seminar", names none.
+            if (
+                program.name_award is not None
+                and course_in_query(template) is not None
+                and course_named_by(page_name(structure)) is None
+            ):
+                decided = program_label(program)
+                if decided is not None:
+                    labels.append(decided[0])
+                    fired[decided[0]] = decided[1]
         # Once the page is a course page, the award words and the program
         # vocabulary on it belong to the catalog's sidebar, not to the
         # course. Only the outcome list below can still be a second entity.
@@ -904,11 +965,8 @@ class PageProfile:
 def furniture_codes(printed: set[str], structure: Markup) -> set[str]:
     """The course codes the page prints only outside its main container.
 
-    Read against main_text rather than content_text: Arapahoe prints a
-    course's credits in an <aside> inside <main>, which content_text
-    drops as furniture, and discounting the codes there lost 49 of its
-    55 course records. A page with no main container has nothing to tell
-    the two apart, so nothing on it is furniture.
+    Read against main_text, which keeps a sidebar inside <main>. A page
+    with no main container has no furniture.
     """
     if not structure.main_text:
         return set()
@@ -941,12 +999,7 @@ def profile_page(
     the page titles when it titles any (see described_course_codes).
 
     Neither count takes a code the page prints only outside its main
-    container. eLumen prints its whole catalog menu beside <main> on every
-    page, and the menu has values in it: six CHEM courses listed just
-    above "Child and Family Education Associate Teacher Certificate (12
-    Unit)" read as six courses described on every page at Antelope
-    Valley, so every page there, its calendar included, was a Course page
-    holding six or more courses and extraction skipped all 1311 of them.
+    container, such as in a site-wide course menu.
     """
     text = normalized_text(html)
     structure = parse_structure(html)

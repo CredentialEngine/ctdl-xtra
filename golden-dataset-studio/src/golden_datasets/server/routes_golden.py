@@ -38,7 +38,7 @@ def _values_now(st, ctx, doc: dict) -> Counter:
     """The latest version's values as its files hold them now (each expert verdict rewrites a page's files): values
     with a CTDL term, and how many are human-reviewed. Kept until the annotation log moves."""
     rv = LOADER.review(ctx, doc["extraction"])
-    key = ("golden-values", ctx.catalog, doc["publication"], doc.get("published_at"), LOADER.log(ctx).offset)
+    key = ("golden-values", ctx.catalog, ctx.cls, doc["publication"], doc.get("published_at"), LOADER.log(ctx).offset)
     if key not in st.cache:
         files = golden.trees(golden.plan(rv, set(doc.get("properties") or []))["pages"])
         st.cache[key] = Counter(
@@ -108,7 +108,7 @@ def golden_versions(request: Request, catalog: str) -> dict:
             "values": counts["values"], "human": counts["human"], "published_at": doc.get("published_at"),
             "created_at": doc.get("created_at"), "published_by": doc.get("published_by"),
             "extraction": doc.get("extraction"), "score": _score(docs, vid, latest_out),
-            "where": {"root": vs[n].get("to"), "version": f"catalogs/{ctx.catalog}/versions/{vid}/",
+            "where": {"root": vs[n].get("to"), "version": f"{golden.version_root(ctx, n).rsplit('/', 1)[0]}/",
                       "trees": {t: {"prefix": golden.version_prefix(ctx, n, t), "pages": (trees.get(t) or {}).get("pages")}
                                 for t in golden.TREES},
                       "latest": golden.latest_prefix(ctx) if latest else None, "studio": f"{vs[n]['path']}/"}})
@@ -120,7 +120,7 @@ def _golden_now(st, ctx) -> dict:
     """The golden dataset as it is now (property-rules spec §4.16): only values an expert reviewed, by property,
     published or not. Kept until the annotation log moves."""
     rv = LOADER.review(ctx)
-    key = ("golden-now", ctx.catalog, rv.snap.ext, LOADER.log(ctx).offset)
+    key = ("golden-now", ctx.catalog, ctx.cls, rv.snap.ext, LOADER.log(ctx).offset)
     if key not in st.cache:
         rows = []
         for r in golden.property_rules(rv):
@@ -149,12 +149,13 @@ def approve_preview(request: Request, catalog: str, rule_id: str) -> dict:
     base = {"publishes": what["writes"], "rule_id": rule_id, "property": what["property"], "column": what["column"],
             "golden": what["golden"], "ruleset_version": what["ruleset_version"], "creates": what["creates"],
             "now": golden.columns_of(what["now"]), "after": golden.columns_of(what["after"]),
-            "where": f"{golden.default_target(ctx).rstrip('/')}/catalogs/{ctx.catalog}/versions/{what['golden']}/"}
+            "where": f"{golden.default_target(ctx).rstrip('/')}/"
+                     f"{golden.version_root(ctx, what['ruleset_version']).rsplit('/', 1)[0]}/"}
     path = rv.snap.rules[rule_id].get("ctdl_property")
     base |= {"path_shown": properties.shown(path) or None, "xtra_extracts": _xtra_extracts(st, ctx, path)}
     if not what["writes"]:
         return base
-    key = ("approve-values", ctx.catalog, rv.snap.ext, LOADER.log(ctx).offset, what["property"])
+    key = ("approve-values", ctx.catalog, ctx.cls, rv.snap.ext, LOADER.log(ctx).offset, what["property"])
     if key not in st.cache:
         files = golden.trees(golden.plan(rv, {what["property"]})["pages"])[golden.RULE_MATCHED]
         mine = [f for recs in files.values() for r in recs for f in r["fields"] if f["property"] == what["property"]]

@@ -9,11 +9,11 @@ def test_outcome_order_follows_the_spec_query():
     assert outcome("wrong", "A  b", "A b", "x") == "unchanged"  # whitespace-insensitive
 
 
-def test_pair_rows_falls_back_to_course_key():
-    a = [{"key": "p@x", "course_key": "A1", "page_stem": "p", "value": "1"},
-         {"key": "p@gone", "course_key": "Z9", "page_stem": "p", "value": "z"}]
-    b = [{"key": "p@y", "course_key": "A1", "page_stem": "p", "value": "1"},
-         {"key": "p@new", "course_key": "N1", "page_stem": "p", "value": "n"}]
+def test_pair_rows_falls_back_to_record_external_identifier():
+    a = [{"key": "p@x", "record_external_identifier": "A1", "page_stem": "p", "value": "1"},
+         {"key": "p@gone", "record_external_identifier": "Z9", "page_stem": "p", "value": "z"}]
+    b = [{"key": "p@y", "record_external_identifier": "A1", "page_stem": "p", "value": "1"},
+         {"key": "p@new", "record_external_identifier": "N1", "page_stem": "p", "value": "n"}]
     pairs, new, vanished = pair_rows(a, b)
     assert [(x["key"], y["key"]) for x, y in pairs] == [("p@x", "p@y")]
     assert [r["key"] for r in new] == ["p@new"] and [r["key"] for r in vanished] == ["p@gone"]

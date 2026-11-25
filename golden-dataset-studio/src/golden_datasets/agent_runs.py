@@ -60,8 +60,8 @@ DEFAULT_MINUTES = 6   # the estimate's run length before any run has ended
 RECENT_RUNS = 10
 AGENT_NAME = "Remote AI rule generator"  # what users see; K2 appears only in links and technical details
 STUDIO = "Golden Dataset Studio"
-SLOTS = f"{layout.STUDIO}/agent-slots.json"
-RECENT = f"{layout.STUDIO}/agent-runs-recent.json"
+SLOTS = "agent-slots.json"         # in the Studio's root, for every catalog and class
+RECENT = "agent-runs-recent.json"
 
 
 def now() -> datetime:
@@ -233,10 +233,10 @@ class AgentRuns:
         return self.ctx.catalog
 
     def _path(self, name: str) -> str:
-        return f"{layout.agent_runs_dir(self.cat)}/{name}"
+        return f"{layout.agent_runs_dir(self.cat, self.ctx.cls)}/{name}"
 
     def _dir(self, run_id: str) -> str:
-        return layout.agent_run_dir(self.cat, run_id)
+        return layout.agent_run_dir(self.cat, self.ctx.cls, run_id)
 
     # -- reads -------------------------------------------------------------------------------------------
     def live_runs(self) -> list[dict]:
@@ -302,7 +302,7 @@ class AgentRuns:
         """Runs, newest first, live ones included. `rule`: only runs that had it as a goal or changed it."""
         live = {r["run_id"]: r for r in self.live_runs()}
         out = []
-        for run_id in sorted(set(self.root.list_dirs(layout.agent_runs_dir(self.cat))) | set(live), reverse=True):
+        for run_id in sorted(set(self.root.list_dirs(layout.agent_runs_dir(self.cat, self.ctx.cls))) | set(live), reverse=True):
             run = live.get(run_id) or self._read(run_id, "run.json", as_json=True)
             if run is None:
                 continue
@@ -373,7 +373,7 @@ class AgentRuns:
         rules = list(scope.get("rules") or [])
         from .catalogs import info
 
-        run = {"run_id": run_id, "catalog": self.cat, "catalog_short": info(self.cat)["short"],
+        run = {"run_id": run_id, "catalog": self.cat, "catalog_short": info(self.cat)["short"], "class": self.ctx.cls,
                "scope": {"kind": scope["kind"], "rules": rules, "added": []},
                "rule_names": {r: (rule_names or {}).get(r, r) for r in rules}, "started_by": author,
                "state": "waiting", "created_at": iso(t), "updated_at": iso(t), "sending_at": None, "sent_at": None,
@@ -481,7 +481,7 @@ class AgentRuns:
                            "author_role": "ai", "catalog": self.cat, "crawl": self.ctx.crawl,
                            "target": {"kind": "match", "rule_id": r["rule"],
                                       "rule_version_seen": k.rules[r["rule"]]["version"], "extraction_seen": k.ext,
-                                      "occurrence_key": row["occurrence_key"], "course_key": row["course_key"],
+                                      "occurrence_key": row["occurrence_key"], "record_external_identifier": row["record_external_identifier"],
                                       "page_stem": row["page_stem"], "value_index": 0, "value_seen": row["value"]},
                            "verdict": None, "expected": None, "note": " ".join(r["comment"].split()),
                            "supersedes": None, "run_id": run_id, "ruleset_version": version})
@@ -647,9 +647,9 @@ class Queue:
     def live(self) -> list[tuple[AgentRuns, dict]]:
         """Every live run of every catalog, oldest first."""
         out = []
-        for folder in self.catalogs():
-            ar = self.runs_for(folder)
-            out += [(ar, r) for r in ar.live_runs()]
+        for item in self.catalogs():  # a catalog folder, or (folder, class): each class has its own runs
+            ar = self.runs_for(*item) if isinstance(item, tuple) else self.runs_for(item)
+            out += [(ar, {**r, "class": r.get("class") or ar.ctx.cls}) for r in ar.live_runs()]
         return sorted(out, key=lambda x: x[1]["created_at"])
 
     # -- the view the routes show --------------------------------------------------------------------------
@@ -684,7 +684,8 @@ class Queue:
             names = r.get("rule_names") or {}
             return {"run": r["run_id"], "catalog": r.get("catalog_short") or info(r["catalog"])["short"],
                     "catalog_folder": r["catalog"], "catalog_name": info(r["catalog"])["name"], "rules": rules,
-                    "rule_names": [names.get(x, x) for x in rules], "started_by": r["started_by"], "state": r["state"]}
+                    "rule_names": [names.get(x, x) for x in rules], "started_by": r["started_by"], "state": r["state"],
+                    "class": r.get("class") or "course"}
         out_working = [base(r) | {"since": r.get("sent_at") or r.get("sending_at"), "minutes_so_far": round(m),
                                   "left_min": round(x)} for r, m, x in zip(working, so_far, left)]
         out_waiting = [base(r) | {"since": r["created_at"], "place": i + 1, "start_in_min": round(s)}
@@ -924,8 +925,8 @@ def context_lines(ar: AgentRuns, rule: str, names: dict[str, str], events: list[
     out.append(f"Annotations {'since then' if since else 'so far'}: {len(new)}")
     for e in new[-30:]:
         t = e["target"]
-        what = f"marked {t.get('course_key') or t.get('page_stem') or 'it'} {e['verdict']}" if e["type"] == "verdict" \
-            else f"commented on {t.get('course_key') or t.get('page_stem') or 'the rule'}"
+        what = f"marked {t.get('record_external_identifier') or t.get('page_stem') or 'it'} {e['verdict']}" if e["type"] == "verdict" \
+            else f"commented on {t.get('record_external_identifier') or t.get('page_stem') or 'the rule'}"
         exp = (e.get("expected") or {}).get("text")
         out.append(f"- {e['at'][:16]} {e['author']} {what} ({e['annotation_id']})"
                    + (f": {' '.join(e['note'].split())}" if e.get("note") else "")

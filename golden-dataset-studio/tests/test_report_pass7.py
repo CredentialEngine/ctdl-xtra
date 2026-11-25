@@ -85,7 +85,7 @@ def test_summary_md_of_the_real_case_says_what_to_do_first():
         "The other 12 courses Jared Diener marked correct:")]
     assert order == sorted(order)
     assert "AERO199, AJ912" not in md  # no comma-separated codes: one line per course
-    assert "- [AJ912](https://studio.test/#/c/avc/rules/course-subject-webpage?row=AJ912" in md
+    assert "- [AJ912](https://studio.test/#/c/avc/course/rules/course-subject-webpage?row=AJ912" in md
     # ACCT199's row is in the decision; the Subject Webpage section points back to it instead of repeating it
     section = md.split("## Subject Webpage", 1)[1]
     assert "- ACCT199's row is shown above." in section and "acct199`" not in section

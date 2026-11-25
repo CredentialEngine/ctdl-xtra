@@ -10,7 +10,7 @@ import json
 from test_golden_versions import CAT, JARED, RULES, B, _mark, _page, _rows, studio  # noqa: F401  (studio: the fixture)
 from test_scores import _output, _wait
 
-from golden_datasets import golden
+from golden_datasets import golden, scores
 from golden_datasets.cli import main
 from golden_datasets.context import Ctx
 
@@ -40,18 +40,22 @@ def test_approving_a_column_publishes_it_then_scores_it(studio, tmp_path, monkey
     assert out["published"] | {"files": 0} == {"written": True, "publication": "ruleset-v1", "created": False,
                                                "column": "codedNotation", "columns": ["codedNotation"], "files": 0}
     assert out["score"]["golden"] == "ruleset-v1" and _wait(c, out["score"]["id"])["status"] == "done"
+    first = scores.read(Ctx(ctx.root, CAT), out["score"]["id"])  # Phase 3: the approved column only
+    assert (first["trigger"], first["properties"], first["recorded"]) == ("golden-published", ["codedNotation"],
+                                                                         ["codedNotation"])
     [rec] = _page(gold, ctx, "page-0", 1)
-    assert [f["property"] for f in rec["fields"]] == ["Coded Notation", "Learning Opportunity Name"]
+    assert [f["property"] for f in rec["fields"]] == ["Learning Opportunity Name", "Coded Notation"]  # tier order
     [hr] = _page(gold, ctx, "page-0", 1, golden.HUMAN_REVIEWED)
     assert [f["property"] for f in hr["fields"]] == ["Learning Opportunity Name"]
 
     # the next column rewrites the same version with the extra column, and is scored again
     pre = c.get(f"{B}/golden/approve/course-name").json()
-    assert (pre["now"], pre["after"], pre["values"], pre["human"]) == (["codedNotation"], ["codedNotation", "name"], 3, 1)
+    assert (pre["now"], pre["after"], pre["values"], pre["human"]) == (["codedNotation"], ["name", "codedNotation"], 3, 1)
     out = _approve(c, "course-name")
-    assert out["published"]["columns"] == ["codedNotation", "name"] and out["published"]["publication"] == "ruleset-v1"
+    assert out["published"]["columns"] == ["name", "codedNotation"] and out["published"]["publication"] == "ruleset-v1"
     done = _wait(c, out["score"]["id"])
     assert done["columns"] == ["codedNotation", "name"] and done["results"]["rule"]["values"] == 6
+    assert scores.read(Ctx(ctx.root, CAT), done["id"])["recorded"] == ["name"]
 
     # a rule that isn't a column's approves as before
     out = _approve(c, "locator-course-page")
@@ -60,7 +64,7 @@ def test_approving_a_column_publishes_it_then_scores_it(studio, tmp_path, monkey
     # the Golden datasets tab's record
     g = c.get(f"{B}/golden").json()
     [v] = g["versions"]
-    assert (v["id"], v["latest"], v["columns"], v["values"], v["human"]) == ("ruleset-v1", True, ["codedNotation", "name"], 6, 1)
+    assert (v["id"], v["latest"], v["columns"], v["values"], v["human"]) == ("ruleset-v1", True, ["name", "codedNotation"], 6, 1)
     assert v["score"] | {"id": "", "finished_at": "", "output": ""} == {
         "id": "", "status": "done", "basis": "human", "rate": 1.0, "values": 1, "match": 1, "finished_at": "", "output": ""}
     assert v["where"]["version"] == f"catalogs/{CAT}/versions/ruleset-v1/" and v["where"]["latest"] == golden.latest_prefix(ctx)
@@ -75,7 +79,7 @@ def test_a_column_with_no_ctdl_term_is_approved_but_not_written(studio, tmp_path
                                                                  "value": "Course"}})
     draft = tmp_path / "v2.json"
     draft.write_text(json.dumps(rules))
-    assert main(["rule", "publish", "--root", ctx.root.uri, "--catalog", CAT, str(draft), "--note", "v2", "--force"]) == 0
+    assert main(["rule", "publish", "--class", "course", "--root", ctx.root.uri, "--catalog", CAT, str(draft), "--note", "v2", "--force"]) == 0
     capsys.readouterr()
     pre = c.get(f"{B}/golden/approve/course-learning-type").json()
     assert (pre["publishes"], pre["property"], pre["column"]) == (False, "Learning Type", None)

@@ -1,11 +1,12 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { CatalogDetail, CatalogsSummary, ExtractOutputs, ScoreBrief, ScoreDoc, ScoreRow, ScoreValues, WrongGroups } from "../api/types";
+import type { CatalogDetail, CatalogsSummary, PropertyReview, ExtractOutputs, ScoreBrief, ScoreDoc, ScoreRow, ScoreValues, WrongGroups } from "../api/types";
+import { apiClass } from "../shell/klass";
 import { parseRoute } from "../shell/router";
 
 const api = { extractOutputs: vi.fn(), scoreDoc: vi.fn(), scoreValues: vi.fn(), scoreWrong: vi.fn(), startScore: vi.fn(), match: vi.fn(), annotate: vi.fn(),
-  catalogsSummary: vi.fn() };
+  catalogsSummary: vi.fn(), propertyReview: vi.fn(), saveFinding: vi.fn(), propertyThread: vi.fn(), addPropertyComment: vi.fn(), catalogs: vi.fn() };
 vi.mock("../api/client", () => ({ api: new Proxy({}, { get: (_t, k: string) => (...a: unknown[]) => (api as Record<string, (...x: unknown[]) => unknown>)[k](...a) }) }));
 vi.mock("../pagepane", () => ({ PagePane: () => null }));
 import EvalsTab, { rowText, scoreFor, shown, unscoredFacts } from "./EvalsTab";
@@ -66,12 +67,19 @@ const WRONG: WrongGroups = { basis: "human", column: null, key: "auto", groups: 
                extracted_value: DUR("Total Course In-Class (Contact) Hours", "54.0"), rule_id: "course-estimated-duration", occurrence_key: "acct101@div" },
     targets: [{ golden_record_id: "ACCT101", rule_id: "course-estimated-duration", occurrence_key: "acct101@div" }] }] };
 
+// D3 covers the second group (wrong, cut short); the first has no finding and two comments
+const REVIEW: PropertyReview = { cls: "course", column: "estimatedDuration", status: null,
+  threads: { "group:avc|extra||description label|Minimum Credit Units": 2 },
+  findings: [{ id: "fd-1", code: "D3", title: "The silver keeps the lead-in", kind: "mismatch", whose: "silver", state: "open",
+    links: [{ catalog: "avc", outcome: "wrong", field: "timeRequired", by: "value shape", key: "9.9 - 9.9 → 9.9", group_by: "auto" }],
+    at: "2026-11-18T10:00:00Z", author: "Seth Alt", created: { at: "2026-11-18T10:00:00Z", by: "Seth Alt" }, live: null, comments: 0 }] };
 const CATALOG = { catalog: "avc-x", short: "avc", name: "AVC", ruleset_version: 3 } as CatalogDetail;
 let host: HTMLDivElement, root: Root;
 beforeEach(() => {
   host = document.createElement("div"); document.body.appendChild(host); root = createRoot(host);
   api.extractOutputs.mockResolvedValue(INDEX); api.scoreDoc.mockResolvedValue(DOC); api.scoreValues.mockResolvedValue(VALUES);
   api.catalogsSummary.mockResolvedValue(SUMMARY); api.scoreWrong.mockResolvedValue(WRONG);
+  api.propertyReview.mockResolvedValue(REVIEW); api.propertyThread.mockResolvedValue([]); api.catalogs.mockResolvedValue([]);
 });
 afterEach(() => { act(() => root.unmount()); host.remove(); Object.values(api).forEach((f) => f.mockReset()); });
 const render = async (hash: string) => {
@@ -88,7 +96,7 @@ describe("EvalsTab", () => {
   });
 
   it("titles the comparison, charts every output and shows the human-reviewed headline", async () => {
-    await render("#/c/avc/evals");
+    await render("#/c/avc/course/evals");
     expect(host.querySelector(".evx-title")!.textContent).toContain("Golden dataset (human-reviewed)");
     expect(host.querySelector(".evx-title")!.textContent).toContain("vsxtra catalog extractoutputs over time");
     const bars = host.querySelectorAll("[data-testid=history-bar]");
@@ -104,7 +112,7 @@ describe("EvalsTab", () => {
   });
 
   it("lists every property: a scored one with its bar, the others say why", async () => {
-    await render("#/c/avc/evals");
+    await render("#/c/avc/course/evals");
     const row = (c: string) => host.querySelector(`[data-column="${c}"]`)!;
     expect([...host.querySelectorAll(".evx-cols .evx-h")].map((h) => h.textContent)).toEqual(["Required", "Other properties"]);
     expect([...host.querySelectorAll(".evx-cols tbody tr[data-column]")].map((r) => r.getAttribute("data-column")))
@@ -131,7 +139,7 @@ describe("EvalsTab", () => {
   });
 
   it("defines candidates and golden values in each fact's tooltip, and says rule-matched values on that side", async () => {
-    await render("#/c/avc/evals");
+    await render("#/c/avc/course/evals");
     const [cand, gold] = host.querySelectorAll<HTMLElement>('[data-column="identifier"] .evx-fact');
     await act(async () => { cand.focus(); });
     expect(document.querySelector("[role=tooltip]")!.textContent).toContain("Candidates: the values in xtra's extract output for this property.");
@@ -152,7 +160,7 @@ describe("EvalsTab", () => {
   });
 
   it("shows found, right and courses exact per column, with extra (striped) and unsure segments", async () => {
-    await render("#/c/avc/evals");
+    await render("#/c/avc/course/evals");
     const dur = host.querySelector('[data-column="estimatedDuration"]')!;
     expect(dur.querySelector("[data-num=found]")!.textContent).toBe("80%");
     expect(dur.querySelector("[data-num=right]")!.textContent).toBe("80%");
@@ -176,7 +184,7 @@ describe("EvalsTab", () => {
   });
 
   it("groups what's wrong, biggest first, each with an example and links to its courses in the Rules tab", async () => {
-    await render("#/c/avc/evals?col=estimatedDuration");
+    await render("#/c/avc/course/evals?col=estimatedDuration");
     expect(api.scoreWrong).toHaveBeenCalledWith("avc", "sc-0006", { basis: "human", column: "estimatedDuration", key: "auto" });
     const groups = host.querySelectorAll("[data-testid=wrong-group]");
     expect(groups).toHaveLength(2);
@@ -185,11 +193,27 @@ describe("EvalsTab", () => {
     expect(groups[0].textContent).toContain("description label Minimum Credit Units");
     expect(groups[0].textContent).toContain("none → description: Minimum Credit Units · timeRequired: 1.0");
     const links = [...groups[0].querySelectorAll("a")].map((a) => a.getAttribute("href"));
-    expect(links).toEqual(["#/c/avc/rules/course-estimated-duration?row=acct199%40div&by=anyone",
-                           "#/c/avc/rules/course-estimated-duration?row=acct199%40div&by=anyone"]);
+    expect(links).toEqual(["#/c/avc/course/rules/course-estimated-duration?row=acct199%40div&by=anyone",
+                           "#/c/avc/course/rules/course-estimated-duration?row=acct199%40div&by=anyone"]);
     expect(groups[0].textContent).toContain("ACCT299");  // no Studio row: listed, not linked
     expect(groups[1].textContent).toContain("timeRequired cut short");
     expect(groups[1].textContent).toContain("value shape 9.9 - 9.9 → 9.9");
+    // with a column picked: each group's finding, or + Add finding, and its discussion
+    expect(api.propertyReview).toHaveBeenCalledWith("course", "estimatedDuration");
+    const cells = [...host.querySelectorAll("[data-testid=finding-cell]")].map((c) => c.textContent);
+    expect(cells).toEqual(["+ Add finding2 comments", "D3The silver keeps the lead-insilverComment"]);
+    await act(async () => groups[1].querySelector<HTMLButtonElement>(".fd-chip")!.click());
+    await act(async () => { await new Promise((r) => setTimeout(r, 0)); });
+    expect(host.querySelector("[data-testid=finding-panel] h2")!.textContent).toBe("D3The silver keeps the lead-in");
+    // + Add finding offers a new finding or the property's others; adding links the group to it
+    await act(async () => groups[0].querySelector<HTMLButtonElement>(".fd-add")!.click());
+    expect([...host.querySelectorAll(".fd-menu button")].map((b) => b.textContent)).toEqual(
+      ["New finding…", "Add to D3 The silver keeps the lead-in"]);
+    api.saveFinding.mockResolvedValue({});
+    await act(async () => host.querySelectorAll<HTMLButtonElement>(".fd-menu button")[1].click());
+    expect(api.saveFinding).toHaveBeenCalledWith("course", "estimatedDuration", expect.objectContaining({ links: [
+      REVIEW.findings[0].links[0],
+      { catalog: "avc", outcome: "extra", field: null, by: "description label", key: "Minimum Credit Units", group_by: "auto" }] }), "fd-1");
     // the grouping key is in the URL
     const pick = host.querySelector<HTMLSelectElement>("[aria-label=\"Where it's wrong: group by\"]")!;
     await act(async () => { pick.value = "subject"; pick.dispatchEvent(new Event("change", { bubbles: true })); });
@@ -215,19 +239,19 @@ describe("EvalsTab", () => {
   });
 
   it("says what xtra's own score covers, under the headline, when the score has it", async () => {
-    await render("#/c/avc/evals");
+    await render("#/c/avc/course/evals");
     expect(host.querySelector("[data-testid=xtra-line]")!.textContent).toBe("xtra's own, over every column: 60% exact matches of 1,065 values");
   });
 
   it("names the golden side: the silver dataset of a version, the golden dataset for human-reviewed values", async () => {
-    await render("#/c/avc/evals?b=rule&g=ruleset-v2");
+    await render("#/c/avc/course/evals?b=rule&g=ruleset-v2");
     expect(host.querySelector(".evx-title")!.textContent).toContain("Silver dataset ruleset-v2");
     expect(host.querySelector(".evx-title")!.textContent).not.toContain("ruleset v2");
   });
 
   it("scores an output from its dashed bar, against the golden side shown", async () => {
     api.startScore.mockResolvedValue({});
-    await render("#/c/avc/evals?b=rule&g=ruleset-v2");
+    await render("#/c/avc/course/evals?b=rule&g=ruleset-v2");
     await act(async () => { host.querySelector<HTMLButtonElement>(".evx-score")!.click(); });
     expect(api.startScore).toHaveBeenCalledWith("avc", { golden: "ruleset-v2", output: "out-1", by: expect.any(String) });
   });
@@ -236,7 +260,7 @@ describe("EvalsTab", () => {
     api.match.mockResolvedValue({ rule_id: "course-description", occurrence_key: "ns922l@div", page_stem: "ns922l", state: null,
       verdict: null, comments: [] });
     api.annotate.mockResolvedValue({ event: {}, rule: null });
-    await render("#/c/avc/evals?row=ns922l%7C0%7Cdescription%7C0");
+    await render("#/c/avc/course/evals?row=ns922l%7C0%7Cdescription%7C0");
     const panel = host.querySelector("[data-testid=row-panel]")!;
     expect(panel.querySelector(".vd.split .vd-side.del mark")!.textContent!.trim()).toBe("Advisory.");
     expect(panel.querySelector(".vd-side.add .vd-lab")!.textContent).toBe("extract output 26 Oct");
@@ -257,7 +281,7 @@ describe("EvalsTab", () => {
   });
 
   it("says what each basis scores in the ⓘ beside the switch", async () => {
-    await render("#/c/avc/evals");
+    await render("#/c/avc/course/evals");
     const i = host.querySelector<HTMLElement>(".evx-basis .evx-i")!;
     await act(async () => { i.focus(); });
     const tip = document.querySelector("[role=tooltip]")!.textContent!;
@@ -265,3 +289,20 @@ describe("EvalsTab", () => {
     expect(tip).toContain("Human-reviewed scores only the values an expert reviewed.");
   });
 });
+
+describe("EvalsTab with All classes (w2-evals-all)", () => {
+  it("charts each class's outputs under its heading, with one legend, and says a class xtra hasn't extracted yet", async () => {
+    api.extractOutputs.mockImplementation(() => Promise.resolve(apiClass() === "course" ? INDEX : { ...INDEX, outputs: [] }));
+    const catalog = { ...CATALOG, classes: [{ slug: "course", name: "Course", ruleset_version: 3 },
+      { slug: "learningprogram", name: "LearningProgram", ruleset_version: 1 }] } as unknown as CatalogDetail;
+    await act(async () => { root.render(<EvalsTab catalog={catalog} route={parseRoute("#/c/avc/all/evals")} reload={() => {}} />); });
+    await act(async () => { await new Promise((r) => setTimeout(r, 0)); });
+    expect([...host.querySelectorAll("h3.cls-h3")].map((h) => h.textContent)).toEqual(
+      ["Course56 values scored in the latest output", "LearningProgramthe latest output isn't scored yet"]);
+    expect(host.querySelectorAll("[data-class=course] [data-testid=history-bar]")).toHaveLength(2);
+    expect(host.querySelectorAll(".evx-legend-v")).toHaveLength(1);
+    expect(host.querySelector("[data-class=learningprogram]")!.textContent).toContain(
+      "xtra hasn't written an extract output with LearningProgram records yet.");
+  });
+});
+

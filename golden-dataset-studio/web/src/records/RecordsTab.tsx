@@ -2,6 +2,7 @@
 // verdict controls as the Rules tab (the same `verdict` events, targeting (property rule, occurrence)) and the same
 // page pane with numbered highlights for each property. "Annotated by" (?by=…, Evals spec §6.8) lists only the courses a
 // person annotated; on a course, their properties come first and the rest fold into one line.
+import { Skel, SkelCards, SkelList } from "../shell/Skeleton";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api } from "../api/client";
 import type { CourseDetail, EventBrief, NewEvent } from "../api/types";
@@ -18,8 +19,10 @@ import { Ico } from "../shell/icons";
 import { useReviewer, useRole } from "../shell/reviewer";
 import { go, href } from "../shell/router";
 import type { TabProps } from "../shell/tabProps";
-import { termUrl, toast, useKeyHints } from "../shell/ui";
-import { courseHeading, foldLine, foundOn, groupCards, splitCards, valueKey, type CardValue } from "./logic";
+import { fmt, termUrl, toast, useKeyHints } from "../shell/ui";
+import { foldLine, groupCards, recordHeading, splitCards, valueKey, type CardValue } from "./logic";
+import { apiClass, inClass, NOUN, recordNoun } from "../shell/klass";
+import type { ClassSlug } from "../shell/router";
 import "./records.css";
 
 const HINTS = (
@@ -41,7 +44,7 @@ export default function RecordsTab({ catalog, route }: TabProps) {
   const listRef = useRef<HTMLDivElement>(null);
   useKeyHints(HINTS, []);
 
-  const courseKey = route.id;
+  const recordKey = route.id;
   const by = route.params.get("by");
   const wantProp = route.params.get("prop") ?? (by ? null : "Description");
   const wantOcc = route.params.get("occ");
@@ -49,26 +52,50 @@ export default function RecordsTab({ catalog, route }: TabProps) {
   const [showAll, setShowAll] = useState(false);
   useEffect(() => { apiX.annotators(cat).then(setPeople, () => setPeople(null)); }, [cat]);
 
+  // with All classes, every class's records, a folding heading per class (approved item 16)
+  const allCls = route.cls === "all";
+  const ruled = useMemo(() => (catalog.classes ?? []).filter((c) => c.ruleset_version), [catalog.classes]);
+  const ruledKey = ruled.map((c) => c.slug).join(",");
+  const openCls = (route.params.get("in") as ClassSlug | null) ?? (allCls ? null : (route.cls as ClassSlug));
+  const [shut, setShut] = useState<Record<string, boolean>>({});
+  // the list belongs to one catalog and class: after a switch, a loading preview shows until that list arrives
+  // (typing a search keeps the current list; only a switch clears it)
+  const listKey = `${cat}|${route.cls}`;
+  const [hitsFor, setHitsFor] = useState<string | null>(null);
   useEffect(() => {
     let live = true;
-    const t = window.setTimeout(() => apiX.courses(cat, q || undefined, by).then((h) => { if (live) setHits(h); }, (e) => setError(String(e))), q ? 120 : 0);
+    const key = listKey;
+    const ask = () => (allCls
+      ? Promise.all(ruled.map((c) => inClass(c.slug, () => apiX.courses(cat, q || undefined, by))
+          .then((hs) => hs.map((h) => ({ ...h, cls: c.slug }))))).then((xs) => xs.flat())
+      : apiX.courses(cat, q || undefined, by));
+    const t = window.setTimeout(() => ask().then((h) => { if (live) { setHits(h); setHitsFor(key); } }, (e) => setError(String(e))), q ? 120 : 0);
     return () => { live = false; window.clearTimeout(t); };
-  }, [cat, q, by]);
+  }, [cat, q, by, allCls, ruledKey, listKey]);
+  const listLoading = hitsFor !== listKey && !error;
 
-  // no course in the address yet: open the first one in the list
+  // no record in the address yet: open the first one in the list
   useEffect(() => {
-    if (!courseKey && hits && hits.length && !q) go(href(cat, "records", hits[0].course_key, { by }), true);
-  }, [courseKey, hits, q, cat, by]);
+    if (!recordKey && hits && hits.length && !q) {
+      const h = hits.find((x) => !allCls || x.cls === (openCls ?? ruled[ruled.length - 1]?.slug)) ?? hits[0];
+      go(href(cat, "records", h.record_external_identifier, { by, in: allCls ? h.cls : null }), true);
+    }
+  }, [recordKey, hits, q, cat, by]);
 
   useEffect(() => {
-    if (!courseKey) return;
+    if (!recordKey) return;
     let live = true;
     setDraft(null); setActiveStem(null); setShowAll(false);
-    api.course(cat, courseKey).then((d) => { if (live) { setCourse(d); setError(null); } }, (e) => { if (live) { setCourse(null); setError(String(e)); } });
+    api.course(cat, recordKey).then((d) => { if (live) { setCourse(d); setError(null); } }, (e) => { if (live) { setCourse(null); setError(String(e)); } });
     return () => { live = false; };
-  }, [cat, courseKey]);
+  }, [cat, recordKey, openCls]);
 
   const all = useMemo(() => (course ? groupCards(course) : []), [course]);
+  // the record in the address hasn't arrived yet (another record, or a class switch): placeholders, not the last one
+  const recordLoading = !!recordKey && !error && course?.record_external_identifier !== recordKey;
+  // the pages the record's values come from: only when there are several does each card say which (approved item 16)
+  const pages = useMemo(() => new Set(course?.occurrences.map((o) => o.page_stem) ?? []).size, [course]);
+  const noun = recordNoun(allCls ? (openCls ?? "course") : (route.cls as ClassSlug));
   const { mine, folded } = useMemo(() => splitCards(all, by), [all, by]);
   const cards = useMemo(() => (showAll ? [...mine, ...folded] : mine), [mine, folded, showAll]);
   useEffect(() => {
@@ -82,7 +109,7 @@ export default function RecordsTab({ catalog, route }: TabProps) {
     const box = listRef.current;
     const el = box?.querySelector<HTMLElement>(".course-item.on");
     if (box && el) scrollWithin(box, el, false);
-  }, [hits, courseKey]);
+  }, [hits, recordKey]);
 
   const cardsRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -176,24 +203,45 @@ export default function RecordsTab({ catalog, route }: TabProps) {
   return (
     <div className="rec-layout w4-records">
       <aside className="col">
-        <input className="search" placeholder="Find a course code" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Find a course" />
+        <input className="search" placeholder={allCls ? "Find a course or a program" : `Find a ${noun[0]} by name or identifier`}
+          value={q} onChange={(e) => setQ(e.target.value)} aria-label={`Find a ${noun[0]}`} />
         <div className="records-filter">
           <AnnotatedBy people={people} by={by} me={me} onPick={(x) => go(href(cat, "records", null, { by: x }))} />
         </div>
         <div className="course-list" ref={listRef}>
-          {(hits ?? []).map((h) => (
-            <a key={h.course_key} className={`course-item${h.course_key === courseKey ? " on" : ""}`} href={href(cat, "records", h.course_key, { by })}>
-              <span className="c">{h.course_key}{h.annotated && <span className="dot" title="has verdicts" />}</span>
-              <span className="t">{(h.line ?? "").replace(/^[^-]*-\s*/, "")}</span>
-            </a>
-          ))}
-          {hits && hits.length === 0 && <div className="faint" style={{ padding: 10 }}>{q ? <>No course matches “{q}”.</> : "No course passes the Annotated by filter."}</div>}
+          {listLoading && <SkelList label={`Loading ${noun[1]}`} heads={false} />}
+          {!listLoading && (allCls ? ruled.map((c) => c.slug) : [null]).map((cls) => {
+            const mine = (hits ?? []).filter((h) => !cls || h.cls === cls);
+            const sum = cls ? ruled.find((c) => c.slug === cls) : null;
+            const isShut = cls ? (shut[cls] ?? (cls !== (openCls ?? ruled[ruled.length - 1]?.slug) && !q)) : false;
+            return (
+              <div key={cls ?? "one"} className="cls-list">
+                {cls && sum && (
+                  <button type="button" className={`cls-h${isShut ? " shut" : ""}`} aria-expanded={!isShut}
+                    onClick={() => setShut((s) => ({ ...s, [cls]: !isShut }))}>
+                    <Ico name="chevron" />{sum.name}<span>{sum.records === null ? "" : `${fmt(sum.records)} ${NOUN[cls][1]}`}</span>
+                  </button>)}
+                {!isShut && mine.map((h) => (
+                  <a key={`${h.cls ?? ""}:${h.record_external_identifier}`} title={h.line ?? undefined}
+                    className={`course-item named${h.record_external_identifier === recordKey && (!cls || cls === openCls) ? " on" : ""}`}
+                    href={href(cat, "records", h.record_external_identifier, { by, in: cls })}>
+                    <span className="t">{h.name ?? (h.line ?? "").replace(/^[^-]*-\s*/, "")}{h.annotated && <span className="dot" title="has verdicts" />}</span>
+                    <span className={`c${h.record_external_identifier.startsWith(`${NOUN[(h.cls ?? openCls ?? "course") as ClassSlug][0]}-`) ? " gen" : ""}`}>
+                      {h.record_external_identifier}</span>
+                  </a>
+                ))}
+              </div>
+            );
+          })}
+          {!listLoading && hits && hits.length === 0 && <div className="faint" style={{ padding: 10 }}>{q ? <>No {noun[0]} matches “{q}”.</> : `No ${noun[0]} passes the Annotated by filter.`}</div>}
         </div>
       </aside>
       <section className="col mid">
         {error && <div className="placeholder muted" style={{ padding: 18 }}>{error}</div>}
-        {course && <>
-          <div className="rec-head"><h1>{courseHeading(all, course.course_key)}</h1><div className="sub">{foundOn(course)}</div></div>
+        {recordLoading && <><div className="rec-head"><Skel w="34%" h={22} /></div><SkelCards label={`Loading this ${noun[0]}`} /></>}
+        {course && !recordLoading && <>
+          <div className="rec-head"><h1>{recordHeading(all, course.record_external_identifier, apiClass())}</h1>
+            {pages > 1 && <div className="sub">Values from {pages} pages</div>}</div>
           <div className="cards" ref={cardsRef}>
             {cards.map((c) => {
               const url = termUrl(c.ctdl_property);
@@ -216,7 +264,7 @@ export default function RecordsTab({ catalog, route }: TabProps) {
                               ? v.items.map((it) => <div key={it.value_index} className="item-line">{it.value}</div>)  // a list: one line per item
                               : <div className="tx">{statusWords(v.status, v.value)}</div>}
                           </div>
-                          <div className="src"><span className="tag">{v.on_course_page ? "course page" : "program page"}</span><span>{shortTitle(v.page_title, 70)}</span></div>
+                          {pages > 1 && <div className="src"><span className="tag">{v.on_course_page ? `${noun[0]} page` : "other page"}</span><span>{shortTitle(v.page_title, 70)}</span></div>}
                           {on && (
                             <div className="row-links">
                               <a className="xbtn" title="Open this property's rule in the Rules tab, with this course selected"

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from golden_datasets import engine
-from golden_datasets.model import course_key
+from golden_datasets.model import key_rule_for, record_key
 
 PAGE = b"""<html><head><title>t</title></head><body>
 <div id="top">nav</div>
@@ -37,7 +37,7 @@ def run():
 
 def test_occurrences_and_document_root_paths():
     out = run()
-    assert [o["course_key"] for o in out["occurrences"]] == ["GEOG222", "MATH150"]
+    assert [o["record_external_identifier"] for o in out["occurrences"]] == ["GEOG222", "MATH150"]
     assert out["occurrences"][0]["css_path"] == "html > body:nth-of-type(1) > main:nth-of-type(1) > div:nth-of-type(1)"
     assert out["occurrences"][1]["occurrence_key"].startswith("p@html > body:nth-of-type(1)")
 
@@ -91,5 +91,52 @@ def test_selector_semantics_match_soupsieve():
     assert engine.select_one(course, "div.course") is None
 
 
-def test_course_key():
-    assert course_key("abdy 113") == "ABDY113" and course_key(None) is None
+def test_record_key_is_the_external_identifier():
+    """Issue #368: the identifier rule's value as read; read from a code, without spaces in upper case."""
+    assert record_key("abdy 113", from_code=True) == "ABDY113" and record_key(None, from_code=True) is None
+    assert record_key(" program-anthropology-b.a. ", from_code=False) == "program-anthropology-b.a."
+    assert len(record_key("x" * 150, from_code=False)) == 100
+
+
+def test_the_key_rule_is_the_external_identifier_else_the_code():
+    def prop(term, rule_type="css"):
+        return {"kind": "property", "ctdl_property": term, "definition": {"locator": "loc", "rule_type": rule_type}}
+
+    rules = {"c-code": prop("ceterms:codedNotation"), "c-id": prop("ceterms:identifier"), "c-name": prop("ceterms:name")}
+    assert key_rule_for("loc", rules) == ("c-id", False)
+    rules["c-id"] = prop("ceterms:identifier", "none")  # listed, no rule yet
+    assert key_rule_for("loc", rules) == ("c-code", True)
+    assert key_rule_for("other", rules) == (None, False)
+
+
+def test_a_rule_falls_back_when_it_finds_nothing():
+    """Issue #368: the code the page prints, else an identifier generated from the name (`fallback`)."""
+    ident = {"locator": "loc", "rule_type": "css+regex", "selector": "p", "join": "\n", "regex": r"Major Code:\s*(\d{4})", "group": 1,
+             "fallback": {"rule_type": "css", "selector": "h1", "transforms": ["collapse_ws", "generated_id:program"]}}
+
+    def run(html):
+        doc = engine.parse(f"<html><body>{html}</body></html>")
+        body = engine.select_one(doc, "body", True)
+        return engine.run_property(ident, body, "https://x/p", lambda el: "body", "body")[0]
+
+    assert run("<h1>Accountancy, M.Acc.</h1><p>Intro</p><p>Major Code: 2166</p>")["value"] == "2166"
+    got = run("<h1>Geography Minor</h1><p>Twelve hours.</p>")
+    assert (got["status"], got["value"]) == ("found", "program-geography-minor")
+    assert run("<p>nothing</p>")["status"] in ("empty", "no_match")
+
+
+def test_a_fallback_can_read_the_whole_page():
+    """WVU prints a program's heading above the content root: the generated identifier reads it from the page, and
+    the code still comes from the record."""
+    ident = {"locator": "loc", "rule_type": "css+regex", "selector": "p", "join": "\n", "regex": r"Code:\s*(\w+)",
+             "fallback": {"rule_type": "css", "selector": "h1", "input": {"from": "page"},
+                          "transforms": ["collapse_ws", "generated_id:program"]}}
+
+    def run(html):
+        doc = engine.parse(f"<html><body><header><h1>Mining Engineering, Ph.D.</h1></header><main>{html}</main></body></html>")
+        main = engine.select_one(doc, "main", True)
+        return engine.run_property(ident, main, "https://x/p", lambda el: "html > body > main", "html > body > main")[0]
+
+    assert run("<p>Major Code: 5542</p>")["value"] == "5542"
+    got = run("<p>Thirty hours.</p>")
+    assert (got["status"], got["value"]) == ("found", "program-mining-engineering-ph.d.")

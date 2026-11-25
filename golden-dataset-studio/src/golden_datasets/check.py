@@ -113,7 +113,8 @@ SQL_CHECKS: list[tuple[str, str, str, str, str]] = [
     ("matches", "CHK", "css_path is relative to the occurrence (unless the rule reads the page); offsets within bounds",
      """SELECT m.* FROM raw_matches m JOIN rule_versions rv ON rv.rule_id = m.rule_id AND rv.version = m.rule_version
         WHERE (starts_with(m.css_path, 'html') AND json_extract_string(rv.definition, '$.input.from')
-        IS DISTINCT FROM 'page') OR m.char_start > m.char_end OR m.char_start < 0""",
+        IS DISTINCT FROM 'page' AND json_extract_string(rv.definition, '$.fallback.input.from') IS DISTINCT FROM 'page')
+        OR m.char_start > m.char_end OR m.char_start < 0""",
      "raw_matches"),
     ("signals", "PK", "(extraction, target, signal, location) unique",
      pk("signals", "extraction, target_kind, rule_id, occurrence_key, value_index, page_stem, signal, css_path, char_start"),
@@ -138,10 +139,10 @@ SQL_CHECKS: list[tuple[str, str, str, str, str]] = [
      """SELECT a.annotation_id FROM annotations a LEFT JOIN rule_versions rv ON rv.rule_id = a.target.rule_id
         AND rv.version = a.target.rule_version_seen WHERE a.target.rule_id IS NOT NULL AND rv.rule_id IS NULL""",
      "annotations"),
-    ("annotations", "FK", "occurrence_key → occurrences of extraction_seen, course_key agrees",
+    ("annotations", "FK", "occurrence_key → occurrences of extraction_seen, record_external_identifier agrees",
      """SELECT a.annotation_id FROM annotations a LEFT JOIN occurrences o ON o.extraction = a.target.extraction_seen
         AND o.occurrence_key = a.target.occurrence_key WHERE a.target.occurrence_key IS NOT NULL
-        AND (o.occurrence_key IS NULL OR o.course_key IS DISTINCT FROM a.target.course_key)""", "annotations"),
+        AND (o.occurrence_key IS NULL OR o.record_external_identifier IS DISTINCT FROM a.target.record_external_identifier)""", "annotations"),
     ("annotations", "FK", "match target → matches of extraction_seen",
      """SELECT a.annotation_id FROM annotations a LEFT JOIN raw_matches m ON m.extraction = a.target.extraction_seen
         AND m.rule_id = a.target.rule_id AND m.occurrence_key = a.target.occurrence_key
@@ -188,28 +189,29 @@ def _tables(con) -> set[str]:
 def file_checks(ctx: Ctx, con) -> list[tuple]:
     """Checks that need Python: files exist, hashes recompute, copied rows are identical, golden files."""
     out = []
-    cat = ctx.entry() or {}
-    paths = list(cat.get("rule_versions", [])) + [r["path"] for r in cat.get("rulesets", [])]
-    if cat.get("annotations"):
-        paths.append(cat["annotations"])
+    cat, mine = ctx.entry() or {}, ctx.class_entry()
+    paths = list(mine.get("rule_versions", [])) + [r["path"] for r in mine.get("rulesets", [])]
+    if mine.get("annotations"):
+        paths.append(mine["annotations"])
     for k in cat.get("crawls", []):
         if k.get("pages"):
             paths.append(k["pages"])
         for name in ("assets", "page_assets"):
             if (k.get("assets") or {}).get(name):
                 paths.append(k["assets"][name])
-        paths += [f"{e['path']}/extraction.json" for e in k.get("extractions", [])]
-        paths += [f"{g['path']}/publication.json" for g in k.get("golden", [])]
+        kc = manifest.crawl_class(k, ctx.cls, create=False)
+        paths += [f"{e['path']}/extraction.json" for e in kc.get("extractions", [])]
+        paths += [f"{g['path']}/publication.json" for g in kc.get("golden", [])]
     missing = [p for p in paths if not ctx.root.exists(p)]
     out.append(("manifest", "FK", "every path in manifest.json exists", len(missing), len(paths), missing[:3]))
     # rule versions: hash recomputes, file name = version
     bad = []
-    for path in cat.get("rule_versions", []):
+    for path in mine.get("rule_versions", []):
         r = ctx.read_json(path)
-        if model.content_hash(r) != r["content_hash"] or path != layout.rule_version(ctx.catalog, r["rule_id"], r["version"]):
+        if model.content_hash(r) != r["content_hash"] or path != layout.rule_version(ctx.catalog, ctx.cls, r["rule_id"], r["version"]):
             bad.append(path)
     out.append(("rule_version", "CHK", "content_hash = sha256(definition); path = rules/<id>/v<version>", len(bad),
-                len(cat.get("rule_versions", [])), bad[:3]))
+                len(mine.get("rule_versions", [])), bad[:3]))
     # extraction.json: files' sha256 + row counts; input hashes recompute
     bad, total = [], 0
     for e in ctx.extractions():
@@ -262,9 +264,9 @@ def file_checks(ctx: Ctx, con) -> list[tuple]:
                         con.execute(f"SELECT count(*) FROM {t} WHERE extraction = '{c}'").fetchone()[0], []))
     # pages: saved html exists (a sample when the root is remote: listing is what we avoid)
     html = [r[0] for r in con.execute("SELECT html_path FROM pages ORDER BY page_stem").fetchall()]
-    sample = html if ctx.root.uri.startswith("/") else html[:: max(1, len(html) // 25)]
-    out.append(("pages", "FK", "html_path → saved page file" + ("" if sample is html else " (sample)"),
-                sum(not ctx.root.exists(h) for h in sample), len(sample), []))
+    sample = html if ctx.crawl_root.uri.startswith("/") else html[:: max(1, len(html) // 25)]
+    out.append(("pages", "FK", "html_path → saved page file in xtra-cli's container" + (
+        "" if sample is html else " (sample)"), sum(not ctx.crawl_root.exists(h) for h in sample), len(sample), []))
     k = ctx.crawl_entry()
     if (k.get("assets") or {}).get("assets") and "assets" in _tables(con):
         shas = [r[0] for r in con.execute("SELECT DISTINCT sha256 FROM assets WHERE sha256 IS NOT NULL").fetchall()]
@@ -289,17 +291,22 @@ def score_checks(ctx: Ctx, con) -> list[tuple]:
     from .golden import VERSION, versions
 
     k = ctx.crawl_entry()
-    ids = [s["id"] for s in k.get("scores", [])]
+    ids = scores.score_ids(ctx)
     outs = {o["id"]: o for o in k.get("extract_outputs", [])}
-    if not ids and not outs and not ctx.root.exists(layout.pending_score(ctx.catalog, ctx.crawl)):
+    if not ids and not outs and not ctx.root.exists(layout.pending_score(ctx.catalog, ctx.crawl, ctx.cls)):
         return []
     out = []
-    bad = [o["id"] for o in outs.values() if not ctx.root.exists(f"{o.get('copy')}/extract-report.json")]
-    out.append(("extract output", "FK", "copy → extract-outputs/<id>/extract-report.json", len(bad), len(outs), bad))
+    xtra = scores.xtra(ctx) if outs or ids else None
+    kept = {i: o for i, o in outs.items() if o.get("copy")}
+    bad = [i for i, o in kept.items()  # extract-report.json, or today's extraction-<property>-report.json files
+           if not any(xtra.exists(f"{o['copy']}/{n}")
+                      for n in scores.RecordsStore(xtra, o["copy"], ctx.catalog, ctx.crawl).reports())]
+    out.append(("extract output", "FK", "a kept copy → extract/<id>/ in xtra-cli's container has its extract report",
+                len(bad), len(kept), bad))
     docs, unreadable = [], []
     for sid in ids:
         try:
-            docs.append(ctx.read_json(f"{layout.score_dir(ctx.catalog, ctx.crawl, sid)}/score.json", immutable=False))
+            docs.append(scores.read(ctx, sid))
         except FileNotFoundError:
             unreadable.append(sid)
     out.append(("score", "FK", "every score in manifest.json has its score.json", len(unreadable), len(ids), unreadable))
@@ -319,14 +326,13 @@ def score_checks(ctx: Ctx, con) -> list[tuple]:
                 len(docs), bad))
     bad = [d["id"] for d in docs if (outs.get(d["output"].get("id")) or {}).get("report_etag")
            != d["output"].get("report_etag")]
-    out.append(("score", "FK", "output → a kept extract output (same report ETag)", len(bad), len(docs), bad))
+    out.append(("score", "FK", "output → a registered extract output (same report ETag)", len(bad), len(docs), bad))
     stems = {r[0] for r in con.execute("SELECT page_stem FROM pages").fetchall()}
     done = [d for d in docs if d["status"] == "done"]
     bad, n = [], 0
     for d in done:
         try:
-            rows = ctx.read_table(f"{layout.score_dir(ctx.catalog, ctx.crawl, d['id'])}/values.parquet",
-                                  ["page_stem"]).column("page_stem").to_pylist()
+            rows = [r["page_stem"] for r in scores.values(ctx, d["id"])]
         except OSError:
             bad.append(f"{d['id']}: no values.parquet")
             continue
@@ -340,7 +346,7 @@ def score_checks(ctx: Ctx, con) -> list[tuple]:
                 len(stale), len(docs), stale))
     bad = [d["id"] for d in docs if d["status"] not in ("running", "done", "failed", "interrupted")]
     out.append(("score", "CHK", "status ∈ running/done/failed/interrupted", len(bad), len(docs), bad))
-    path = layout.pending_score(ctx.catalog, ctx.crawl)
+    path = layout.pending_score(ctx.catalog, ctx.crawl, ctx.cls)
     if ctx.root.exists(path):
         try:
             p = ctx.root.read_json(path)
@@ -356,26 +362,26 @@ DOMAIN_LEAKS = ("rule_id", "rule_version", "occurrence_key", "annotation_ids", "
 
 
 def property_checks(ctx: Ctx) -> list[tuple]:
-    """properties.csv and each catalog's rules against it (property-rules spec §4.15)."""
+    """The class's properties file and each catalog's rules against it (property-rules spec §4.15)."""
     from . import engine, properties
 
     out = []
-    rows = properties.load()
+    rows = properties.load(ctx.cls)
     for col in ("rule_id", "label", "path"):
         vals = [r[col] for r in rows if r[col] or col != "path"]
         dup = sorted({v for v in vals if vals.count(v) > 1})
-        out.append(("properties.csv", "PK", f"{col} unique", len(dup), len(rows), dup[:3]))
+        out.append((f"properties/{ctx.cls}.csv", "PK", f"{col} unique", len(dup), len(rows), dup[:3]))
     paths = {r["path"] for r in rows}
     orphans = [r["rule_id"] for r in rows if r["parent"] and r["parent"] not in paths]
-    out.append(("properties.csv", "FK", "every parent is a row", len(orphans), len(rows), orphans[:3]))
+    out.append((f"properties/{ctx.cls}.csv", "FK", "every parent is a row", len(orphans), len(rows), orphans[:3]))
     unnoted = [r["rule_id"] for r in rows if r["sheet_path"] != r["path"] and r["sheet_path"] and not r["path_note"]]
-    out.append(("properties.csv", "CHK", "a path that differs from the sheet's has a path_note", len(unnoted),
+    out.append((f"properties/{ctx.cls}.csv", "CHK", "a path that differs from the sheet's has a path_note", len(unnoted),
                 len(rows), unnoted[:3]))
     if ctx.ruleset_versions():
         rs, rules = ctx.ruleset_rules(ctx.latest_ruleset())
-        missing = sorted(properties.missing_rules(rules, rs["settings"]))
-        active = properties.active()
-        out.append(("ruleset", "CHK", "the latest ruleset has a property rule for every row of properties.csv "
+        missing = sorted(properties.missing_rules(rules, ctx.cls))
+        active = properties.active(ctx.cls)
+        out.append(("ruleset", "CHK", f"the latest ruleset has a property rule for every row of properties/{ctx.cls}.csv "
                     "(golden-datasets properties apply)", len(missing), len(active), missing[:3]))
         props = {rid: r for rid, r in rules.items() if r["kind"] == "property"}
         bad = []
@@ -414,9 +420,9 @@ def golden_file_checks(ctx: Ctx, con) -> list[tuple]:
     from .storage import open_root
 
     out = []
-    known_paths = {r["path"] for r in properties.load()} | {t for _, t in model.FIRST_EIGHT if t}
+    known_paths = {r["path"] for r in properties.load(ctx.cls)} | {t for _, t in model.FIRST_EIGHT if t}
     docs = [ctx.read_json(f"{g['path']}/publication.json", immutable=False)
-            for g in ctx.crawl_entry().get("golden", [])]
+            for g in ctx.crawl_class().get("golden", [])]
     newest = max((d["ruleset_version"] for d in docs if VERSION.match(d["publication"])), default=None)
     for d in docs:
         name = d["publication"]
@@ -480,7 +486,7 @@ def golden_file_checks(ctx: Ctx, con) -> list[tuple]:
                         "per page", len(bad_files), len(stems), bad_files[:3]))
             out.append(("golden page", "CHK", f"{where} domain-only (no rule ids / keys / annotation ids)", leaked,
                         n_rec, []))
-            out.append(("golden page", "FK", f"{where} every ctdl_property is a path of properties.csv",
+            out.append(("golden page", "FK", f"{where} every ctdl_property is a path of properties/{ctx.cls}.csv",
                         len(unknown), n_val, sorted(set(unknown))[:3]))
         if versioned:
             prefix = version_prefix(ctx, d["ruleset_version"], HUMAN_REVIEWED)
@@ -557,11 +563,11 @@ def cmd_check(args) -> int:
         catalogs = [resolve(args.catalog)]
     else:
         doc, _ = manifest.load(root)
-        catalogs = [c["catalog"] for c in doc["catalogs"] if c.get("rulesets")]
+        catalogs = [c["catalog"] for c in doc["catalogs"] if manifest.has_rules(c, args.cls)]
     failed = total = 0
     for catalog in catalogs:
         t0 = time.perf_counter()
-        ctx = Ctx(root, catalog, args.crawl)
+        ctx = Ctx(root, catalog, args.crawl, cls=args.cls)
         results = run(ctx)
         width = max(len(r[2]) for r in results)
         print(f"golden-datasets check: {root.uri} · {catalog} · {ctx.crawl}")

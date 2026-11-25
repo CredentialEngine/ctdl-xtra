@@ -1,0 +1,250 @@
+{
+ "source": "CTDL xTRA Engineering Running Notes, Extraction Report - 2026.11.18 (Seth Alt), verbatim",
+ "class": "course",
+ "column": "description",
+ "findings": [
+  {
+   "code": "D1",
+   "kind": "mismatch",
+   "whose": "silver",
+   "title": "The silver stores a requisite (\"PR: Consent.\") as the description of a course that has none",
+   "counts": {
+    "partial": null,
+    "wrong": null,
+    "missing": [
+     0,
+     317
+    ]
+   },
+   "catalogs": "WVU 286, Marshall 31",
+   "cause": "D1, requisites only (317 silver). The Studio rule falls back to the requisite text when there is no description.\n- Marshall [CD 580](https://catalog.marshall.edu/graduate/courses-az/cd/): the silver value is \"PR: Permission of chair.\", extracted none.\n- WVU [FIS 610L](http://catalog.wvu.edu/graduate/courses/): the silver value is \"PR: Corequisite of FIS 610.Firearms Examination - FIS 610 Laboratory.\", extracted none.",
+   "assessment": "leaving these empty is correct. The golden convention keeps requisites out of ceterms:description."
+  },
+  {
+   "code": "D1b",
+   "kind": "mismatch",
+   "whose": "extractor",
+   "title": "The catalog runs the description into the \"PR:\" sentence with no full stop, so the reader takes it all as requisites",
+   "counts": {
+    "partial": null,
+    "wrong": null,
+    "missing": [
+     0,
+     2
+    ]
+   },
+   "catalogs": "WVU (CS 558)",
+   "cause": "D1b, [CS 558](http://catalog.wvu.edu/graduate/collegeofengineeringandmineralresources/) (WVU, 2 silver).\n- The source is \"PR: CS 350 or EE 465 or consent, requirements and QOS; multimedia data acquisition, … retrieval of multimedia data.\" There is no full stop between the requisite and the description.",
+   "assessment": "this is a real miss, but the catalog's own text is broken."
+  },
+  {
+   "code": "D2",
+   "kind": "mismatch",
+   "whose": "silver",
+   "title": "The silver rule trims too much: it drops real description sentences after a \"PR:\" lead-in",
+   "counts": {
+    "partial": [
+     0,
+     26
+    ],
+    "wrong": [
+     0,
+     356
+    ],
+    "missing": null
+   },
+   "catalogs": "WVU",
+   "cause": "D2, the WVU silver trims too much (382 silver).\nthe Studio regex (course-description v1) ends a \"PR:\" sentence at a full stop followed by a capital letter. When the description opens with \"(\" the match runs on to a later full stop, so real sentences are dropped:\n- [CPE 450](http://catalog.wvu.edu/westvirginiauniversityinstituteoftechnology/courses/):\n  - source: \"PR: EE 251. (VLSI-Very Large Scale Integrated) circuit design, … CAD tools are used for projects. (3 hr. lec.).\";\n  - silver: \"CAD tools are used for projects. (3 hr. lec.).\";\n  - extracted: everything after \"PR: EE 251.\".\n- [ADV 419](http://catalog.wvu.edu/undergraduate/collegeofcreativeartsandmedia/):\n  - silver: \"Students learn how to use advertising…\";\n  - extracted: \"(Advertising minors only.) Introduces students to the concept of branding. Students learn…\".",
+   "assessment": "the extractor is right. WVU golden is 24/24."
+  },
+  {
+   "code": "D3",
+   "kind": "mismatch",
+   "whose": "silver",
+   "title": "The silver keeps the requisite lead-in that the golden convention drops",
+   "counts": {
+    "partial": [
+     0,
+     185
+    ],
+    "wrong": [
+     0,
+     13
+    ],
+    "missing": null
+   },
+   "catalogs": "WVU 0 / 194, AVC 0 / 4",
+   "cause": "D3, the silver keeps the lead-in (198 silver). The same regex fails to match when the \"PR:\" sentence ends \".)\" or the next sentence starts with \"(\", so the whole text, lead-in included, goes into silver.\n- WVU [HIST 702](http://catalog.wvu.edu/graduate/courses/): the silver value starts \"PR: HIST 701; (Reading knowledge of Latin … recommended.) Directed examination…\". Extracted: \"Directed examination…\".\n- AVC [IATH 265](https://avc.elumenapp.com/catalog/2026-27/course/iath265): the silver value starts \"Limitation on enrollment: Physical examination and tryout required. Designed for…\". Extracted: \"Designed for…\". AVC golden drops this lead-in and is 44/44."
+  },
+  {
+   "code": "D4",
+   "kind": "mismatch",
+   "whose": "baseline",
+   "title": "The baseline keeps the source's double spaces or line breaks",
+   "counts": {
+    "partial": [
+     8,
+     225
+    ],
+    "wrong": null,
+    "missing": null
+   },
+   "catalogs": "CCSF 8 / 223, AVC 0 / 2",
+   "cause": "D4, whitespace (8 golden, 225 silver).\n- CCSF [SMBU 9793](https://ccsf.curricunet.com/catalog/iq/courses/3/152): \"…a successful marketing␠␠strategy…\" in the baseline, one space when extracted.",
+   "assessment": "this is the CCSF golden's own convention. It keeps whitespace no browser shows, and it is all of CCSF's golden partials."
+  },
+  {
+   "code": "D5",
+   "kind": "mismatch",
+   "whose": "normalization",
+   "title": "The baseline keeps a space before a full stop after a course link (\"ARTS 71103 .\")",
+   "counts": {
+    "partial": [
+     0,
+     92
+    ],
+    "wrong": null,
+    "missing": null
+   },
+   "catalogs": "UALR",
+   "cause": "D5, UALR spacing at a course link (92 silver). For [ARTS 71203](https://catalog.ualr.edu/preview_course_nopop.php?catoid=42&coid=131139):\n- the baseline is \"Continuation of ARTS 71103 . At completion…\";\n- the extracted value is \"Continuation of ARTS 71103. At completion…\".\nThe source has whitespace between the linked course code and the full stop. The baseline keeps it; the extractor removes it."
+  },
+  {
+   "code": "D6",
+   "kind": "mismatch",
+   "whose": "silver",
+   "title": "The silver value stops at a line break in the source",
+   "counts": {
+    "partial": [
+     0,
+     1
+    ],
+    "wrong": [
+     0,
+     4
+    ],
+    "missing": null
+   },
+   "catalogs": "UALR",
+   "cause": "D6, the UALR silver is cut at a line break (5 silver). For [ECED 44003](https://catalog.ualr.edu/preview_course_nopop.php?catoid=43&coid=137633):\n- the silver value ends \"…an endorsement in Pre-K (Ages 3-\";\n- the extracted value carries on through \"4). Restrictions will be…\"."
+  },
+  {
+   "code": "D7",
+   "kind": "mismatch",
+   "whose": "silver",
+   "title": "The silver keeps only the closing line (\"Three hours lecture. Three credit hours.\")",
+   "counts": {
+    "partial": null,
+    "wrong": [
+     0,
+     2
+    ],
+    "missing": null
+   },
+   "catalogs": "UALR (CHEM 43003, CHEM 53003)",
+   "cause": "D7, the UALR silver keeps only the closing line (2 silver). [CHEM 43003](https://catalog.ualr.edu/preview_course_nopop.php?catoid=43&coid=139497) and [CHEM 53003](https://catalog.ualr.edu/preview_course_nopop.php?catoid=42&coid=139498) have silver \"Three hours lecture. Three credit hours.\" The extracted value is the course's full description paragraph."
+  },
+  {
+   "code": "D8",
+   "kind": "mismatch",
+   "whose": "extractor",
+   "title": "A requisite lead-in with no colon (\"Prerequisite Completion of…\") isn't dropped",
+   "counts": {
+    "partial": [
+     0,
+     1
+    ],
+    "wrong": null,
+    "missing": null
+   },
+   "catalogs": "AVC (FTEC 295A)",
+   "cause": "D8, AVC [FTEC 295A](https://avc.elumenapp.com/catalog/2026-27/course/ftec295a) (1 silver). The extracted value starts:\nPrerequisite Completion of FTEC 111.\nCorequisite: Concurrent enrollment in FTEC 295AL.\nThe baseline starts at \"Combined with FTEC 295B…\". The lead-in has no colon, so the lead-in rule doesn't drop it.",
+   "assessment": "This is a real miss."
+  },
+  {
+   "code": "D9",
+   "kind": "mismatch",
+   "whose": "extractor",
+   "title": "The whole description element is read; the golden keeps only the narrative paragraphs",
+   "counts": {
+    "partial": [
+     2,
+     7
+    ],
+    "wrong": [
+     24,
+     101
+    ],
+    "missing": null
+   },
+   "catalogs": "UARK",
+   "cause": "D9, UARK reads the whole description element (26 golden, 108 silver). The golden keeps only the narrative paragraphs. The extracted value also carries:\n| What the extracted value adds | Golden / silver | Example |\n| :- | :- | :- |\n| Closing boilerplate or lists after the narrative: online-readiness notes, externship terms, \"Objectives\", outcome lists | 8 / 41 | [solar-energy](https://training.uark.edu/portal/training?cmd=catalog&course=solar-energy) adds \"…foundational skills will help you engage fully with our primarily online courses.\"; [civil-litigation-specialist](https://training.uark.edu/portal/training?cmd=catalog&course=civil-litigation-specialist) adds \"…criminal background checks, etc. may be required by the externship facility.\" |\n| A heading or tagline before, and a call to action after | 0 / 15 | [child-development-preschool-years](https://training.uark.edu/portal/training?cmd=catalog&course=child-development-preschool-years) adds \"Build the Knowledge and Skills That Support Preschoolers' Growth and Learning\" and \"Ready to strengthen your preschool practice? Enroll today!\"; asphalt certificates such as [application-asphalt-emulsion](https://training.uark.edu/portal/training?cmd=catalog&course=application-asphalt-emulsion) add \"Pavement Maintenance and Rehabilitation Certificate\" and \"Course Preview Video 0:35\"; [data-science-learning-assessment](https://training.uark.edu/portal/training?cmd=catalog&course=data-science-learning-assessment) adds \"Coming Fall 2026!\" |\n| Provider-number and registration lines before the narrative | 2 / 2 | [best-practices-parent-consultation-in-play-therapy](https://training.uark.edu/portal/training?cmd=catalog&course=best-practices-parent-consultation-in-play-therapy) and [109497](https://training.uark.edu/portal/training?cmd=catalog&course=109497) add \"APT Approved Provider # 15-403 / NBCC Approved Provider # 4008 / …\" |\n| Extra text, plus a baseline with broken encoding (â\\x80\\x99 for ’) | 16 / 49 | [history-football-2](https://training.uark.edu/portal/training?cmd=catalog&course=history-football-2): \"America’s\" is extracted, and the baseline has \"Americaâ\\x80\\x99s\" |\n| Broken baseline encoding only | 0 / 1 | [python-learning-assessment](https://training.uark.edu/portal/training?cmd=catalog&course=python-learning-assessment) |",
+   "fix": "UARK needs a narrower description reader. Read the narrative paragraphs and leave out:\n- headings and taglines;\n- Approved Provider # lines;\n- lists after a lead-in such as \"Objectives\" or \"students will:\";\n- closing calls to action and boilerplate."
+  },
+  {
+   "code": "M1",
+   "kind": "missing",
+   "whose": null,
+   "title": "The course page is labelled Course, but no course code is found where the reader looks, so no resource id and no records are written",
+   "counts": {
+    "partial": null,
+    "wrong": null,
+    "missing": [
+     5,
+     209
+    ]
+   },
+   "catalogs": "UALR",
+   "cause": "M1: no course code where the reader looks.\ncourse_code() looks for a code at the start of the title, and two UALR title forms don't fit:\n- Law School: the code comes at the end of the title. 195 silver, 4 golden.\n  - Example: [Administrative Law - LAWW 65043](https://catalog.ualr.edu/preview_course_nopop.php?catoid=44&coid=139236). The baseline identifier is LAWW65043.\n- Honors: codes like HNRS 103H1 have a section suffix the code pattern doesn't accept. 14 silver, 1 golden.\n  - Example: [Scholars Colloquium II](https://catalog.ualr.edu/preview_course_nopop.php?catoid=43&coid=137425). The baseline is HNRS103H1.",
+   "fix": "this is the course code follow-up. ceterms:identifier and the resource id both come from course_identifier(), so fixing course_code() recovers all three properties."
+  },
+  {
+   "code": "M2",
+   "kind": "missing",
+   "whose": null,
+   "title": "Discovery labels the page Unknown, so it isn't read as a course",
+   "counts": {
+    "partial": null,
+    "wrong": null,
+    "missing": [
+     13,
+     181
+    ]
+   },
+   "catalogs": "CCSF 13 / 176, UALR 0 / 5",
+   "cause": "M2: not labelled Course.\n- CCSF (176 silver, 13 golden), 23 department pages:\n  - Example: [ccsf.curricunet.com/catalog/iq/courses/3/142](https://ccsf.curricunet.com/catalog/iq/courses/3/142) lists \"PLS 1 Introduction to Paralegal Studies\", \"PLS 2…\" and more.\n  - Discovery counts too few course codes on these pages to call them Course.\n  - The reason: CurriQunet codes like PLS 1 and PARA 51 have a one- or two-digit number, and the code pattern refuses those so that it doesn't read \"GOAL 1\" as a course.\n  - Read directly, these pages give 69/69 golden identifiers.\n- UALR (5 silver): one-course pages whose titles discovery can't read as a course:\n  - 3 Honors pages, such as [HNRS 121H3](https://catalog.ualr.edu/preview_course_nopop.php?catoid=43&coid=137429);\n  - [a page that prints two dual-listed numbers](https://catalog.ualr.edu/preview_course_nopop.php?catoid=43&coid=136179) (baseline GERO4900349003);\n  - [one CPSI page](https://catalog.ualr.edu/preview_course_nopop.php?catoid=43&coid=137732)."
+  },
+  {
+   "code": "M3",
+   "kind": "missing",
+   "whose": null,
+   "title": "Discovery labels the page Credential, so it isn't read as a course",
+   "counts": {
+    "partial": null,
+    "wrong": null,
+    "missing": [
+     2,
+     5
+    ]
+   },
+   "catalogs": "UARK 3 / 4, UALR 0 / 1",
+   "cause": "M3: labelled Credential.\n- UARK (4 silver; golden 3 name, 2 description, 1* identifier): certification pages such as [retort-processing-certification](https://training.uark.edu/portal/training?cmd=catalog&course=retort-processing-certification) and [complete-bpcs-certification](https://training.uark.edu/portal/training?cmd=catalog&course=complete-bpcs-certification).\n  - The address names one course, but the page lists its own requirements. The guard (lists_its_own_requirements) therefore keeps the Course rules from labelling it, and the page stays a Credential.\n- UALR (1 silver): [EDLE 90003 \"Doctoral Seminar and Scholarly Writing\"](https://catalog.ualr.edu/preview_course_nopop.php?catoid=42&coid=132248). Its description reads like program requirements."
+  },
+  {
+   "code": "M4",
+   "kind": "missing",
+   "whose": null,
+   "title": "The course is read, but it has no description apart from requisites (see D1)",
+   "counts": {
+    "partial": null,
+    "wrong": null,
+    "missing": [
+     0,
+     319
+    ]
+   },
+   "catalogs": "WVU 0 / 288, Marshall 0 / 31",
+   "cause": "M4: the course has only requisites. See D1."
+  }
+ ]
+}

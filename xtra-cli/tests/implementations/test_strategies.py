@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from implementations.strategies import (
     CRAWL_STRATEGIES,
-    EXTRACT_STRATEGIES,
     TRANSFORM_STRATEGIES,
     unimplemented_message,
 )
@@ -15,8 +14,7 @@ def test_crawl_strategies_include_the_backends_and_the_placeholders() -> None:
         assert reserved in CRAWL_STRATEGIES
 
 
-def test_extract_and_transform_share_ai_agent_extension_point() -> None:
-    assert EXTRACT_STRATEGIES == ("template", "ai-agent")
+def test_transform_has_an_ai_agent_extension_point() -> None:
     assert TRANSFORM_STRATEGIES == ("ctdl", "ai-agent")
 
 

@@ -57,6 +57,7 @@ from __future__ import annotations
 import json
 import re
 import unicodedata
+from collections.abc import Sequence
 from typing import Any
 
 from rapidfuzz import fuzz
@@ -112,6 +113,8 @@ UNIT_ABSENT = "absent"
 
 STATUS_SCORED = "scored"
 STATUS_SKIPPED = "skipped"
+# Extract read the whole catalog and wrote nothing for this baseline page.
+STATUS_NOT_EXTRACTED = "not_extracted"
 
 CREDIT_VALUE = "ceterms:creditValue"
 CREDIT_MIN = "ceterms:creditMinValue"
@@ -633,6 +636,7 @@ def summarize(
     pages: list[dict],
     out_of_scope: list[str],
     malformed: list[dict],
+    ctdl_properties: Sequence[str] = (),
 ) -> dict:
     """The report: counts by outcome, by property and by page, then outliers.
 
@@ -705,8 +709,12 @@ def summarize(
         "mode": mode,
         "catalog_folder": catalog_folder,
         "run_id": run_id,
+        "ctdl_properties": list(ctdl_properties),
         "pages_scored": sum(1 for p in pages if p["status"] == STATUS_SCORED),
         "pages_skipped": sum(1 for p in pages if p["status"] == STATUS_SKIPPED),
+        "pages_not_extracted": sum(
+            1 for p in pages if p["status"] == STATUS_NOT_EXTRACTED
+        ),
         "pages_out_of_scope": len(out_of_scope),
         "fields_total": len(all_fields),
         "outcomes": _counts(outcomes, all_fields),
@@ -765,12 +773,21 @@ def match_extraction_run(
     catalog_folder: str,
     run_id: str,
     mode: str,
+    *,
+    whole_catalog: bool = False,
+    ctdl_properties: Sequence[str] = (),
 ) -> dict:
     """Match every baseline page of one run against the records it wrote.
 
     A baseline page whose extract was considered but skipped is all missing,
-    since that is an extractor miss. One never considered, outside discovery
-    or outside --only-golden-sample, is listed and not counted.
+    since that is an extractor miss. So is one extract wrote nothing for
+    when it read the whole catalog (`whole_catalog`): discovery gave the
+    page another label, or its course had no code to name it by. Otherwise
+    a page with no records may simply have been left out, by
+    --only-golden-sample or --limit, and is listed and not counted.
+
+    With `ctdl_properties`, only the baseline fields of those properties are
+    matched. Entities keep their places, so pairing with records is unchanged.
     """
     baseline_stems = _baseline_stems(baseline_store, catalog_folder, run_id)
     if not baseline_stems:
@@ -791,6 +808,11 @@ def match_extraction_run(
         except (FileNotFoundError, ValueError) as exc:
             malformed.append({"stem": stem, "detail": str(exc)})
             continue
+        if ctdl_properties:
+            entities = [
+                [f for f in fields if f["ctdl_property"] in ctdl_properties]
+                for fields in entities
+            ]
 
         keys = record_keys.get(stem)
         if keys:
@@ -798,6 +820,9 @@ def match_extraction_run(
             records = [records_store.get_json(key) for key in keys]
         elif stem in skipped:
             status = STATUS_SKIPPED
+            records = []
+        elif whole_catalog:
+            status = STATUS_NOT_EXTRACTED
             records = []
         else:
             out_of_scope.append(stem)
@@ -817,6 +842,7 @@ def match_extraction_run(
         pages=pages,
         out_of_scope=out_of_scope,
         malformed=malformed,
+        ctdl_properties=ctdl_properties,
     )
 
 
@@ -851,11 +877,19 @@ def _record_keys_by_stem(
             key
         )
     # "--" sorts before ".", so a plain sort would put the extra-entity
-    # records ahead of the page's own.
+    # records ahead of the page's own. The resource number is compared as
+    # a number: as text, --resource-1000 sorts before --resource-101.
     return {
-        stem: sorted(keys, key=lambda key: (key.count("--"), key))
-        for stem, keys in by_stem.items()
+        stem: sorted(keys, key=_page_order) for stem, keys in by_stem.items()
     }
+
+
+_RESOURCE_NUMBER_RE = re.compile(r"--resource-(\d+)\.json$")
+
+
+def _page_order(key: str) -> tuple[int, int, str]:
+    number = _RESOURCE_NUMBER_RE.search(key)
+    return (key.count("--"), int(number.group(1)) if number else 0, key)
 
 
 def _skipped_stems(
@@ -890,8 +924,10 @@ def format_table(report: dict) -> str:
     worst outliers and extras, for a terminal."""
     mode = report["mode"]
     outcomes = MODE_OUTCOMES[mode]
+    scope = ", ".join(report.get("ctdl_properties", []))
     head = (
-        f"Extraction match ({mode}): {report['fields_total']} fields, "
+        f"Extraction match ({mode}{f', {scope}' if scope else ''}): "
+        f"{report['fields_total']} fields, "
         + ", ".join(f"{report['outcomes'][o]} {o}" for o in outcomes)
     )
     if mode == MODE_EXACT:
@@ -912,6 +948,7 @@ def format_table(report: dict) -> str:
         f"entities exact {_rate(report['entities_exact'])}",
         f"  {report['pages_scored']} scored, "
         f"{report['pages_skipped']} skipped, "
+        f"{report['pages_not_extracted']} not extracted, "
         f"{report['pages_out_of_scope']} out of scope, "
         f"{len(report['malformed'])} malformed, "
         f"{report['skipped_implied']} implied skipped",

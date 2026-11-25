@@ -8,7 +8,7 @@ grow (Evals spec §1 rows 3, 16), except that Reset rule withdraws its column un
 (phase1-followups spec §4.5). The first publication in a ruleset
 creates its version; later ones rewrite it with the extra column. Every version is kept as two parallel trees, and
 the latest version's rule-matched tree also replaces each page's file at the usual location, in the
-`xtra-golden-sets` container:
+`xtra-golden-sets` container (for Course; every other class has the same tree under `<class>/`, `class_prefix`):
 
     <golden root>/<catalog>/<crawl>/<page_stem>/<page_stem>.{json,html}                     the latest version
     <golden root>/catalogs/<catalog>/versions/ruleset-vN/rule-matched/<catalog>/<crawl>/<page_stem>/<page_stem>.json
@@ -41,8 +41,8 @@ every golden value back to its match, rule version and annotations, and a Parque
                                                                               golden.parquet}
 
 Every course found on a page is published, course pages and program-page course lines alike. `golden_record_id` is the
-`course_key`, unless the course pages with that code name different courses (Marshall, WVU): then each distinct
-name gets `course_key~<n>`, and the Golden screen lists them for confirmation.
+`record_external_identifier`, unless the course pages with that code name different courses (Marshall, WVU): then each distinct
+name gets `record_external_identifier~<n>`, and the Golden screen lists them for confirmation.
 """
 
 from __future__ import annotations
@@ -54,13 +54,13 @@ from collections import Counter, defaultdict
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
-from . import golden_answers, layout, manifest, model
+from . import golden_answers, layout, manifest, model, properties
 from .context import Ctx
 from .errors import UserError
 from .review import HUMAN_STATES, LOADER, Review, norm  # noqa: F401  (HUMAN_STATES: the row states a person confirmed)
 from .storage import AzureRoot, LocalRoot, open_root
 
-FULL_LOCATOR = "locator-course-page"
+FULL_LOCATOR = "locator-course-page"  # Course's record locator (properties.record_locator finds any class's)
 VERSION = re.compile(r"ruleset-v(\d+)$")
 RESCORE_AFTER = timedelta(minutes=5)
 RULE_MATCHED, HUMAN_REVIEWED = "rule-matched", "human-reviewed"
@@ -84,14 +84,16 @@ def _name_key(v: str | None) -> str:
 def golden_record_ids(rv: Review) -> tuple[dict[str, str], list[dict]]:
     """occurrence_key → golden_record_id, and the collisions (codes whose course pages name different courses)."""
     snap = rv.snap
-    names: dict[str, dict[str, str]] = defaultdict(dict)  # course_key → {normalized name: display name}
+    full = properties.record_locator(snap.rules, snap.ctx.cls)
+    names: dict[str, dict[str, str]] = defaultdict(dict)  # record_external_identifier → {normalized name: display name}
     occ_name = {}
     for o in snap.occurrences.values():
         name_rule = snap.name_rule.get(o["locator_rule_id"])
         m = snap.matches_by_occ[o["occurrence_key"]].get(name_rule) if name_rule else None
         occ_name[o["occurrence_key"]] = m["value"] if m and m["status"] == "found" else None
-        if o["course_key"] and o["locator_rule_id"] == FULL_LOCATOR and occ_name[o["occurrence_key"]]:
-            names[o["course_key"]].setdefault(_name_key(occ_name[o["occurrence_key"]]), occ_name[o["occurrence_key"]])
+        key, name = o["record_external_identifier"], occ_name[o["occurrence_key"]]
+        if key and o["locator_rule_id"] == full and name:
+            names[key].setdefault(_name_key(name), name)
     variant = {}
     collisions = []
     for ck, by_name in sorted(names.items()):
@@ -99,11 +101,12 @@ def golden_record_ids(rv: Review) -> tuple[dict[str, str], list[dict]]:
             keys = sorted(by_name)
             for i, k in enumerate(keys, 1):
                 variant[(ck, k)] = f"{ck}~{i}"
-            collisions.append({"course_key": ck, "golden_record_ids": [f"{ck}~{i}" for i in range(1, len(keys) + 1)],
+            collisions.append({"record_external_identifier": ck,
+                               "golden_record_ids": [f"{ck}~{i}" for i in range(1, len(keys) + 1)],
                                "names": [by_name[k] for k in keys]})
     out = {}
     for key, o in snap.occurrences.items():
-        ck = o["course_key"]
+        ck = o["record_external_identifier"]
         if ck is None:
             continue
         out[key] = variant.get((ck, _name_key(occ_name[key])), ck)
@@ -169,7 +172,7 @@ def plan(rv: Review, properties: set[str] | None = None, stems: set[str] | None 
         url = snap.page[stem]["url"]
         fields, rows = [], []
         rids = sorted(set(snap.items_by_occ[key]) | answered.get(key, set()), key=lambda rid: (
-            model.PROPERTY_ORDER.get(snap.rules[rid].get("property_label"), 99), rid))
+            model.property_order(rv.snap.ctx.cls).get(snap.rules[rid].get("property_label"), 99), rid))
         for rid in rids:
             r = snap.rules[rid]
             st = by_rule.get(rid, {})
@@ -197,7 +200,7 @@ def plan(rv: Review, properties: set[str] | None = None, stems: set[str] | None 
             used[(gid, stem, row["property"])] += 1
         pages[stem].append(record)
         lineage.extend(rows)
-    return {"pages": dict(pages), "lineage": lineage, "collisions": collisions, "skipped_no_course_key": skipped_no_key,
+    return {"pages": dict(pages), "lineage": lineage, "collisions": collisions, "skipped_no_record_external_identifier": skipped_no_key,
             "courses": len({r["golden_record_id"] for r in lineage}), "records": sum(len(v) for v in pages.values())}
 
 
@@ -205,9 +208,9 @@ def property_rules(rv: Review) -> list[dict]:
     """Each property the property rules fill, with its rule and status (for the full courses' locator, i.e. the
     course pages)."""
     out = []
-    for rid, r in sorted(rv.snap.rules.items(), key=lambda kv: (model.PROPERTY_ORDER.get(kv[1].get("property_label"), 99),
-                                                                 kv[0])):
-        if r["kind"] != "property" or r["definition"].get("locator") != FULL_LOCATOR:
+    place, full = model.property_order(rv.snap.ctx.cls), properties.record_locator(rv.snap.rules, rv.snap.ctx.cls)
+    for rid, r in sorted(rv.snap.rules.items(), key=lambda kv: (place.get(kv[1].get("property_label"), 99), kv[0])):
+        if r["kind"] != "property" or r["definition"].get("locator") != full:
             continue
         st = rv.rule_status(rid)
         out.append({"property": r["property_label"], "ctdl_property": r.get("ctdl_property"), "rule_id": rid,
@@ -220,7 +223,7 @@ def published_properties(ctx: Ctx, to: str) -> dict[str, dict]:
     published every property)."""
     out: dict[str, dict] = {}
     docs = []
-    for g in ctx.crawl_entry().get("golden", []):
+    for g in ctx.crawl_class().get("golden", []):
         if g.get("to", "").rstrip("/") != to.rstrip("/"):
             continue
         try:
@@ -261,8 +264,14 @@ def version_name(ruleset_version: int) -> str:
     return f"ruleset-v{ruleset_version}"
 
 
+def class_prefix(ctx: Ctx) -> str:
+    """A class's part of the golden root: Course keeps the paths xtra-cli reads today; every other class sits under
+    its own folder, so its page files never meet Course's (`learningprogram/<catalog>/<crawl>/…`)."""
+    return "" if ctx.cls == "course" else f"{ctx.cls}/"
+
+
 def latest_prefix(ctx: Ctx) -> str:
-    return f"{ctx.catalog}/{ctx.crawl}/"
+    return f"{class_prefix(ctx)}{ctx.catalog}/{ctx.crawl}/"
 
 
 #: Where a version's trees are stored (property-rules spec §4.16, X1): the golden dataset is only human-reviewed
@@ -281,7 +290,7 @@ def named_trees(ctx: Ctx, ruleset_version: int) -> bool:
 def version_root(ctx: Ctx, ruleset_version: int, tree: str = RULE_MATCHED) -> str:
     """What `xtra score --baseline-uri` points at (below the golden root) to score one tree of a version."""
     folder = TREE_DIRS[tree] if named_trees(ctx, ruleset_version) else tree
-    return f"catalogs/{ctx.catalog}/versions/{version_name(ruleset_version)}/{folder}"
+    return f"{class_prefix(ctx)}catalogs/{ctx.catalog}/versions/{version_name(ruleset_version)}/{folder}"
 
 
 def version_prefix(ctx: Ctx, ruleset_version: int, tree: str = RULE_MATCHED) -> str:
@@ -331,7 +340,7 @@ def tree_stems(target, prefix: str) -> list[str]:
 def versions(ctx: Ctx) -> dict[int, dict]:
     """ruleset version → its golden dataset's manifest entry ({publication, path, to})."""
     out = {}
-    for g in ctx.crawl_entry().get("golden", []):
+    for g in ctx.crawl_class().get("golden", []):
         m = VERSION.match(g["publication"])
         if m:
             out[int(m.group(1))] = g
@@ -403,7 +412,7 @@ def publication_doc(ctx: Ctx, rv: Review, p: dict, pub: str, to: str, by: str, o
             "pages": len(p["pages"]),
             "page_stems": sorted(p["pages"]), "courses": p["courses"], "records": p["records"],
             "lineage_rows": info["rows"], "lineage_sha256": info["sha256"],
-            "golden_record_id_collisions": p["collisions"], "skipped_no_course_key": p["skipped_no_course_key"],
+            "golden_record_id_collisions": p["collisions"], "skipped_no_record_external_identifier": p["skipped_no_record_external_identifier"],
             "format": "golden sets per-page shape: <catalog>/<crawl>/<stem>/<stem>.json = "
                       "[{golden_record_id, approval, fields: [{ctdl_property, property, value, source_url, location, "
                       "approval, approved_by, approved_at}]}], in two trees (rule-matched: every value; "
@@ -438,8 +447,9 @@ def _copy_html(ctx: Ctx, target, path: str, stem: str) -> None:
     if target.stat(path) is not None:
         return
     src = layout.page_html(ctx.catalog, ctx.crawl, stem)
-    if isinstance(target, AzureRoot) and isinstance(ctx.root, AzureRoot) and target.account == ctx.root.account:
-        target.copy_from_url(path, ctx.root.blob_url_with_sas(src))  # server-side, nothing downloaded
+    crawls = ctx.crawl_root
+    if isinstance(target, AzureRoot) and isinstance(crawls, AzureRoot) and target.account == crawls.account:
+        target.copy_from_url(path, crawls.blob_url_with_sas(src))  # server-side, nothing downloaded
     else:
         target.write_file(path, ctx.page_path(stem))
 
@@ -462,7 +472,7 @@ def _write_page(ctx: Ctx, target, folder: str, records: list[dict]) -> None:
 def _stems_written(ctx: Ctx, to: str) -> set[str]:
     """Pages any publication to `to` wrote at the latest location."""
     out = set()
-    for g in ctx.crawl_entry().get("golden", []):
+    for g in ctx.crawl_class().get("golden", []):
         if g.get("to", "").rstrip("/") == to.rstrip("/"):
             try:
                 out |= set(ctx.read_json(f"{g['path']}/publication.json", immutable=False).get("page_stems", []))
@@ -482,14 +492,14 @@ def publish(ctx: Ctx, to: str, by: str, allow_unapproved: bool = False, log=prin
     ok, statuses = approval(rv)
     chosen = choose(rv, properties, allow_unapproved) if properties != [] else []
     pub = version_name(n)
-    gdir = layout.golden_dir(ctx.catalog, ctx.crawl, pub)
+    gdir = layout.golden_dir(ctx.catalog, ctx.crawl, ctx.cls, pub)
     try:
         before = ctx.read_json(f"{gdir}/publication.json", immutable=False)
     except FileNotFoundError:
         before = None
     # columns only grow, except a column whose rule was reset since its approval (phase1-followups §4.5)
     columns = sorted((set(chosen) | set((before or {}).get("properties", [])) | inherited_columns(ctx, n))
-                     - (rv.withdrawn() - set(chosen)), key=lambda x: model.PROPERTY_ORDER.get(x, 99))
+                     - (rv.withdrawn() - set(chosen)), key=lambda x: model.property_order(ctx.cls).get(x, 99))
     p = plan(rv, set(columns))
     target = open_root(to)
     latest = n >= max(versions(ctx), default=0)
@@ -527,9 +537,9 @@ def publish(ctx: Ctx, to: str, by: str, allow_unapproved: bool = False, log=prin
     named = named_trees(ctx, n)
 
     def change(m: dict) -> None:
-        k = manifest.crawl_entry(manifest.catalog_entry(m, ctx.catalog), ctx.crawl)
-        manifest.add_unique(k.setdefault("golden", []), {"publication": pub, "path": gdir, "to": target.uri,
-                                                         **({"trees": NAMED} if named else {})},
+        k = manifest.crawl_class(manifest.crawl_entry(manifest.catalog_entry(m, ctx.catalog), ctx.crawl), ctx.cls)
+        manifest.add_unique(k["golden"], {"publication": pub, "path": gdir, "to": target.uri,
+                                          **({"trees": NAMED} if named else {})},
                             key=lambda g: g["publication"])
 
     manifest.update(ctx.root, change)
@@ -537,7 +547,8 @@ def publish(ctx: Ctx, to: str, by: str, allow_unapproved: bool = False, log=prin
     return doc | {"latest": latest}  # whether it also went to the latest location (not saved: a newer one may come)
 
 
-def publish_page(ctx: Ctx, stem: str, reason: str, by: str, create: bool = False) -> dict | None:
+def publish_page(ctx: Ctx, stem: str, reason: str, by: str, create: bool = False,
+                 column: str | None = None) -> dict | None:
     """After a verdict on a value of this page: rebuild its file from the Studio's state and overwrite it in both
     trees of the latest golden dataset and at the latest location (small files; a page with no values left in a tree
     loses its file there), then ask for a score 5 minutes from now. With no golden dataset yet, `create` (an expert's verdict) creates the current ruleset's. Returns
@@ -547,7 +558,7 @@ def publish_page(ctx: Ctx, stem: str, reason: str, by: str, create: bool = False
         if not create:
             return None
         doc = publish(ctx, default_target(ctx), by, properties=[])
-        due = request_score(ctx, reason)
+        due = request_score(ctx, reason, [column] if column else None)
         return {"publication": doc["publication"], "created": True, "files": doc["pages"], "due_at": due}
     n = max(vs)
     doc = ctx.read_json(f"{vs[n]['path']}/publication.json", immutable=False)
@@ -568,18 +579,19 @@ def publish_page(ctx: Ctx, stem: str, reason: str, by: str, create: bool = False
         changed.append(f"{folder}/{stem}.json")
     if not changed:
         return None
-    return {"publication": doc["publication"], "created": False, "files": changed, "due_at": request_score(ctx, reason)}
+    return {"publication": doc["publication"], "created": False, "files": changed,
+            "due_at": request_score(ctx, reason, [column] if column else None)}
 
 
-def column_name(prop: str) -> str | None:
+def column_name(prop: str, cls: str = "course") -> str | None:
     """A property's column: its CTDL path without prefixes (None for one with no CTDL term, e.g. Learning Type)."""
-    term = model.CTDL_TERM.get(prop)
+    term = model.ctdl_term(cls).get(prop)
     return ">".join(t.split(":", 1)[-1] for t in term.split(">")) if term else None
 
 
-def columns_of(props: list[str]) -> list[str]:
+def columns_of(props: list[str], cls: str = "course") -> list[str]:
     """The columns of these properties, in display order; properties with no CTDL term aren't columns."""
-    return [c for c in (column_name(p) for p in sorted(props, key=lambda x: model.PROPERTY_ORDER.get(x, 99))) if c]
+    return [c for c in (column_name(p, cls) for p in sorted(props, key=lambda x: model.property_order(cls).get(x, 99))) if c]
 
 
 def approval_publishes(rv: Review, rule_id: str) -> dict | None:
@@ -593,7 +605,7 @@ def approval_publishes(rv: Review, rule_id: str) -> dict | None:
         return None
     ctx, n = rv.snap.ctx, rv.snap.ruleset_version
     try:
-        now = ctx.read_json(f"{layout.golden_dir(ctx.catalog, ctx.crawl, version_name(n))}/publication.json",
+        now = ctx.read_json(f"{layout.golden_dir(ctx.catalog, ctx.crawl, ctx.cls, version_name(n))}/publication.json",
                             immutable=False).get("properties") or []
         creates = False
     except FileNotFoundError:
@@ -601,8 +613,8 @@ def approval_publishes(rv: Review, rule_id: str) -> dict | None:
     adds = [r["property"] for r in property_rules(rv)
             if r["ctdl_property"] and (r["status"] == "approved" or r["rule_id"] == rule_id)]
     after = sorted((set(now) | set(adds) | inherited_columns(ctx, n)) - (rv.withdrawn() - {col["property"]}),
-                   key=lambda x: model.PROPERTY_ORDER.get(x, 99)) if col["ctdl_property"] else now
-    return {"rule_id": rule_id, "property": col["property"], "column": column_name(col["property"]),
+                   key=lambda x: model.property_order(rv.snap.ctx.cls).get(x, 99)) if col["ctdl_property"] else now
+    return {"rule_id": rule_id, "property": col["property"], "column": column_name(col["property"], rv.snap.ctx.cls),
             "writes": bool(col["ctdl_property"]), "golden": version_name(n), "ruleset_version": n, "creates": creates,
             "now": now, "after": after, "adds": [p for p in after if p not in now] or [col["property"]],
             "approved": adds}
@@ -629,10 +641,17 @@ def publish_approved(ctx: Ctx, rule_id: str, by: str) -> dict | None:
     return doc | {"created": p["creates"]}
 
 
-def request_score(ctx: Ctx, reason: str) -> str:
-    """scores/pending.json: a score is due 5 minutes from now (each review moves it on; the server's loop runs it)."""
+def request_score(ctx: Ctx, reason: str, columns: list[str] | None = None) -> str:
+    """scores-pending.json: a score is due 5 minutes from now (each review moves it on; the server's loop runs it),
+    for the columns reviewed since the last one (`columns`, gathered; None: every column)."""
     due = (datetime.now(UTC) + RESCORE_AFTER).strftime("%Y-%m-%dT%H:%M:%SZ")
-    ctx.root.write_json(layout.pending_score(ctx.catalog, ctx.crawl), {"due_at": due, "reason": reason})
+    path = layout.pending_score(ctx.catalog, ctx.crawl, ctx.cls)
+    try:
+        before = ctx.root.read_json(path).get("columns", [])
+    except FileNotFoundError:
+        before = []
+    cols = None if columns is None or before is None else sorted(set(before) | set(columns))
+    ctx.root.write_json(path, {"due_at": due, "reason": reason, "columns": cols})
     return due
 
 
@@ -645,7 +664,7 @@ def backfill(ctx: Ctx, to: str, log=print, again: bool = False) -> list[dict]:
     import pyarrow.parquet as pq
 
     old = []
-    for g in ctx.crawl_entry().get("golden", []):
+    for g in ctx.crawl_class().get("golden", []):
         if VERSION.match(g["publication"]):
             continue
         d = ctx.read_json(f"{g['path']}/publication.json", immutable=False)
@@ -658,7 +677,7 @@ def backfill(ctx: Ctx, to: str, log=print, again: bool = False) -> list[dict]:
     done = []
     for _, items in sorted(by_ruleset.items()):
         last = items[-1][0]
-        cols = sorted(set().union(*(c for _, c in items)), key=lambda x: model.PROPERTY_ORDER.get(x, 99))
+        cols = sorted(set().union(*(c for _, c in items)), key=lambda x: model.property_order(ctx.cls).get(x, 99))
         doc = publish(ctx, to, last["published_by"], allow_unapproved=True, properties=cols, ext=last["extraction"],
                       published_at=last["published_at"], note={"backfilled_from": [d["publication"] for d, _ in items]})
         log(f"{doc['publication']} ({', '.join(doc['properties'])}) from {', '.join(d['publication'] for d, _ in items)}: "
@@ -668,8 +687,8 @@ def backfill(ctx: Ctx, to: str, log=print, again: bool = False) -> list[dict]:
     gone = {d["publication"] for d, _ in old}
 
     def change(m: dict) -> None:
-        k = manifest.crawl_entry(manifest.catalog_entry(m, ctx.catalog), ctx.crawl)
-        k["golden"] = [g for g in k.get("golden", []) if g["publication"] not in gone]
+        k = manifest.crawl_class(manifest.crawl_entry(manifest.catalog_entry(m, ctx.catalog), ctx.crawl), ctx.cls)
+        k["golden"] = [g for g in k["golden"] if g["publication"] not in gone]
 
     manifest.update(ctx.root, change)
     ctx.invalidate()
@@ -710,7 +729,8 @@ def cmd_golden_publish(args) -> int:
 
 
 def _report_checks(ctx: Ctx, golden_file_checks, connect, pubs: set[str]) -> int:
-    results = golden_file_checks(Ctx(ctx.root, ctx.catalog, ctx.crawl), connect(Ctx(ctx.root, ctx.catalog, ctx.crawl)))
+    results = golden_file_checks(Ctx(ctx.root, ctx.catalog, ctx.crawl, cls=ctx.cls),
+                                 connect(Ctx(ctx.root, ctx.catalog, ctx.crawl, cls=ctx.cls)))
     mine = [r for r in results if r[2].split(":")[0] in pubs]
     for r in mine:
         print(f"  check: {r[2]} — {r[4]} rows, {r[3]} bad")

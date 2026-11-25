@@ -99,3 +99,44 @@ def test_the_removed_http_strategy_is_gone() -> None:
     assert "http" not in IMPLEMENTED_CRAWL_STRATEGIES
     with pytest.raises(StrategyNotImplementedError):
         fetcher_factory_for("http")
+
+
+@pytest.mark.parametrize("keep", [False, True])
+def test_keep_browser_open_reaches_the_playwright_fetcher(
+    monkeypatch, keep: bool
+) -> None:
+    asked: list[dict] = []
+    monkeypatch.setattr(
+        "implementations.crawl_fetchers.playwright_fetcher_factory",
+        lambda **kwargs: asked.append(kwargs),
+    )
+    fetcher_factory_for("playwright", keep_browser_open=keep)
+    assert asked == [{"keep_open": keep, "browser": "chromium"}]
+
+
+def test_the_browser_choice_reaches_the_playwright_fetcher(
+    monkeypatch,
+) -> None:
+    asked: list[dict] = []
+    monkeypatch.setattr(
+        "implementations.crawl_fetchers.playwright_fetcher_factory",
+        lambda **kwargs: asked.append(kwargs),
+    )
+    fetcher_factory_for("playwright", browser="chrome")
+    assert asked == [{"keep_open": False, "browser": "chrome"}]
+
+
+@pytest.mark.parametrize("strategy", ["crawl4ai", "firecrawl"])
+def test_choosing_chrome_is_only_for_playwright(strategy: str) -> None:
+    with pytest.raises(StrategyOptionError, match="--browser chrome"):
+        fetcher_factory_for(
+            strategy, firecrawl_api_key="fc-x", browser="chrome"
+        )
+
+
+@pytest.mark.parametrize("strategy", ["crawl4ai", "firecrawl"])
+def test_keep_browser_open_is_only_for_playwright(strategy: str) -> None:
+    with pytest.raises(StrategyOptionError, match="--with-playwright"):
+        fetcher_factory_for(
+            strategy, firecrawl_api_key="fc-x", keep_browser_open=True
+        )

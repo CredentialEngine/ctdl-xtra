@@ -6,6 +6,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { api } from "../api/client";
 import type { GoldenResponse, GoldenTree, GoldenVersion } from "../api/types";
+import { inClass } from "../shell/klass";
+import { CLASS_NAME, currentClass, replaceParam, type ClassSlug } from "../shell/router";
 import type { TabProps } from "../shell/tabProps";
 import { fmt, useKeyHints } from "../shell/ui";
 import { FilePreview } from "./FilePreview";
@@ -85,15 +87,67 @@ function GoldenSection({ golden }: { golden: GoldenResponse["golden"] }) {
   );
 }
 
+/** One class's datasets with All classes: its name and what it has published, over its two sections. */
+interface ClassData { cls: ClassSlug; name: string; properties: number; d: GoldenResponse | null; error?: string }
+
 export default function GoldenTab({ catalog, route }: TabProps) {
+  const all = route.cls === "all";
   const [d, setD] = useState<GoldenResponse | null>(null);
+  const [each, setEach] = useState<ClassData[] | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [open, setOpen] = useState<GoldenFile | null>(null);
-  const [chosen, setChosen] = useState<string | null>(route.params.get("v"));
+  const classes = catalog.classes ?? [];
+  const classesKey = classes.map((c) => `${c.slug}:${c.ruleset_version}`).join(",");
   const load = useCallback(() => {
-    api.golden(catalog.short).then(setD, (e) => setError(String(e)));
-  }, [catalog.short]);
+    if (!all) { api.golden(catalog.short).then(setD, (e) => setError(String(e))); return; }
+    Promise.all(classes.map((c) => (c.ruleset_version
+      ? inClass(c.slug, () => api.golden(catalog.short)).then((x) => ({ d: x }), (e) => ({ d: null, error: String(e) }))
+      : Promise.resolve({ d: null }))
+      .then((x) => ({ cls: c.slug, name: c.name, properties: c.properties, ...x }))))
+      .then(setEach);
+  }, [catalog.short, all, classesKey]);
   useEffect(load, [load]);
+  const cls = all ? "CLASS" : route.cls;
+  useKeyHints(<span>Approving a rule on the Rules tab publishes its silver dataset. Engineers can also run{" "}
+    <span className="mono">golden-datasets golden publish --catalog {catalog.short} --class {cls} --property NAME</span></span>,
+    [catalog.short, cls]);
+
+  if (error) return <div className="doc"><div className="doc-in"><p className="muted">{error}</p></div></div>;
+  const head = <div className="gv-head"><h1>Datasets</h1><span className="muted">Approving a rule publishes its silver dataset. The golden dataset changes only when an expert gives a verdict.</span></div>;
+  if (all) {
+    if (!each) return <div className="doc"><div className="doc-in"><h1>Datasets</h1></div></div>;
+    return (
+      <div className="doc"><div className="doc-in">
+        {head}
+        {each.map((x) => {
+          const latest = x.d?.versions[0];
+          return (
+            <div key={x.cls} className="cls-sec" data-class={x.cls}>
+              <h2 className="cls-h2">{x.name}<span>{fmt(x.properties)} properties, {latest ? `published as ${latest.id}`
+                : x.d ? "nothing published yet" : "no rules yet"}</span></h2>
+              {x.d ? <ClassDatasets catalog={catalog.short} d={x.d} cls={x.cls} name={x.name} chosenId={null} />
+                : <p className="muted gv-none">{x.error ?? `No ${x.name} rules for ${catalog.name} yet, so no datasets.`}</p>}
+            </div>
+          );
+        })}
+      </div></div>
+    );
+  }
+  if (!d) return <div className="doc"><div className="doc-in"><h1>Datasets</h1></div></div>;
+  return (
+    <div className="doc"><div className="doc-in">
+      {head}
+      <ClassDatasets catalog={catalog.short} d={d} cls={route.cls as ClassSlug} name={CLASS_NAME[route.cls]}
+        chosenId={route.params.get("v")} />
+    </div></div>
+  );
+}
+
+/** One class's golden dataset and silver datasets, with where a version's files are. */
+function ClassDatasets({ catalog, d, cls, name, chosenId }: {
+  catalog: string; d: GoldenResponse; cls: ClassSlug; name: string; chosenId: string | null;
+}) {
+  const [open, setOpen] = useState<GoldenFile | null>(null);
+  const [chosen, setChosen] = useState<string | null>(chosenId);
   const [where, setWhere] = useState(false);
   useEffect(() => {
     if (!where || open) return;
@@ -101,24 +155,24 @@ export default function GoldenTab({ catalog, route }: TabProps) {
     window.addEventListener("keydown", esc);
     return () => window.removeEventListener("keydown", esc);
   }, [where, open]);
-  useKeyHints(<span>Approving a rule on the Rules tab publishes its silver dataset. Engineers can also run{" "}
-    <span className="mono">golden-datasets golden publish --catalog {catalog.short} --property NAME</span></span>, [catalog.short]);
-
-  if (error) return <div className="doc"><div className="doc-in"><p className="muted">{error}</p></div></div>;
-  if (!d) return <div className="doc"><div className="doc-in"><h1>Datasets</h1></div></div>;
+  // with All classes, the samples a file opens are this class's (klass.ts reads ?in=)
+  const openWhere = () => { if (currentClass() === "all") replaceParam("in", cls); setWhere(true); };
   const v = d.versions.find((x) => x.id === chosen) ?? d.versions[0];
 
   return (
-    <div className="doc"><div className="doc-in">
-      {open && v && <FilePreview catalog={catalog.short} version={v.id} latest={v.latest} file={open} onClose={() => setOpen(null)} />}
-      <div className="gv-head"><h1>Datasets</h1><span className="muted">Approving a rule publishes its silver dataset. The golden dataset changes only when an expert gives a verdict.</span></div>
+    <>
+      {open && v && <FilePreview catalog={catalog} version={v.id} latest={v.latest} file={open} onClose={() => setOpen(null)} />}
       <GoldenSection golden={d.golden} />
       <section className="gd-sec">
         <h2>Silver datasets</h2>
         <p className="muted gd-lead">One per ruleset version: every value an approved rule found, also called the rule-matched dataset. The latest
           location holds the latest silver dataset, which xtra's scorer reads by default.</p>
         {!d.versions.length ? (
-          <p className="muted gv-none">No silver dataset yet. Approving a rule on the Rules tab publishes its silver dataset.</p>
+          <table className="gv-table">
+            <thead><tr><th>Silver dataset</th><th>Columns</th><th className="n">Human-reviewed values</th><th className="n">Rule-matched values</th></tr></thead>
+            <tbody><tr><td className="empty" colSpan={4}>No silver dataset yet. Approving a{/^[AEIOU]/.test(name) ? "n" : ""} {name} rule on
+              the Rules tab publishes <b>ruleset-v1</b>.</td></tr></tbody>
+          </table>
         ) : (
           <>
             <table className="gv-table">
@@ -133,7 +187,7 @@ export default function GoldenTab({ catalog, route }: TabProps) {
                 </tr>))}
               </tbody>
             </table>
-            <div className="gv-foot"><button className="gv-help" onClick={() => setWhere(true)} title={`Where ${silverName(v.id)} is written`}>
+            <div className="gv-foot"><button className="gv-help" onClick={openWhere} title={`Where ${silverName(v.id)} is written`}>
               <span className="q" aria-hidden>?</span>Where these files are</button></div>
             {where && (
               <div className="gv-back" onClick={() => setWhere(false)}>
@@ -146,6 +200,6 @@ export default function GoldenTab({ catalog, route }: TabProps) {
           </>
         )}
       </section>
-    </div></div>
+    </>
   );
 }

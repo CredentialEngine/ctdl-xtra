@@ -1,6 +1,7 @@
 # CTDL Golden Dataset Studio
 
-Build a golden dataset of CTDL Courses for one catalog by improving **rules**, not by editing records. Jared
+Build a golden dataset of CTDL resources for one catalog by improving **rules**, not by editing records. Each CTDL
+class has its own rules and datasets: Course and LearningProgram today, more to come. Jared
 reviews one rule at a time across the whole catalog; Claude Code turns his annotations into a new rule version; the
 Studio reruns it over every saved page in seconds and shows what changed. When every rule is approved, the
 extraction is the golden dataset.
@@ -26,20 +27,42 @@ export AZURE_STORAGE_CONNECTION_STRING="$(az storage account show-connection-str
 Files that never change (pages, Parquet, rule versions) are cached in `~/.cache/golden-datasets`
 (`GOLDEN_DATASETS_CACHE`).
 
+**Classes** ([`docs/qrspi/learning-programs`](docs/qrspi/learning-programs/05-approved.md)). The classes are
+`course` and `learningprogram` (`src/golden_datasets/classes.py`). Every command that reads or writes one class's data
+takes `--class` (or `GOLDEN_DATASETS_CLASS`), with no default: `properties`, `extract`, `check`, `rule …`, `ruleset
+revert`, `pages sample`, `run …`, `prompt`, `golden …` and `score`. The others (`init`, `assets`, `crawls`, `pages
+get`, `sync`, `serve`, `sql`, `hash-password`) refuse it. Rule ids carry the class (`course-name`,
+`learningprogram-name`). Every class's record key is its External Identifier (issue #368), stored as
+`record_external_identifier`: the code the resource prints, or else `{type}-{normalized name}`
+(`program-anthropology-b.a.`, the `generated_id:program` transform).
+
 ## A catalog, from a crawl to a reviewable extraction (spec §3.2)
 
 ```sh
-export GOLDEN_DATASETS_ROOT=$PWD/.data/root
-# a local root whose pages are symlinks into a local mirror of xtra-cli-output (never written to)
-golden-datasets sync --from ~/review-ui-v3-data/xtra-cli-output --to $GOLDEN_DATASETS_ROOT -c avc --pages link
-golden-datasets init -c avc                    # pages.parquet + manifest
+export GOLDEN_DATASETS_ROOT=$PWD/.data/root    # the Studio's own files
+export GOLDEN_DATASETS_XTRA_SOURCE=~/review-ui-v3-data/xtra-cli-output   # xtra-cli's: crawls, extract outputs, scores
+golden-datasets crawls add avc-elumenapp-com-catalog-2026-27-welcome   # index the crawl where it is, archive assets
 golden-datasets assets fetch -c avc            # CSS, fonts, images, by hash (never runs JS)
-golden-datasets import-v2 -c avc --v2-root ~/review-ui-v3-data/xtra-cli-output   # rules v1, rs-0001, Jared's verdicts
-golden-datasets check -c avc                   # every key and hash
+golden-datasets check -c avc --class course    # every key and hash
 golden-datasets serve                          # http://127.0.0.1:8000
 ```
 
 Catalogs: `avc`, `ccsf`, `marshall`, `ualr`, `wvu` (or the full folder names).
+
+**Storage** (`layout.py`, `xtra_paths.py`; approved items 20–21). The Studio's root holds only its own files, per
+class: `manifest.json`, `<catalog>/<class>/{rules, rulesets, annotations.jsonl, agent-runs, publish.json}`,
+`<catalog>/<crawl>/{pages.parquet, assets/}` and `<catalog>/<crawl>/<class>/{rule-runs/, golden/,
+scores-pending.json}`. xtra-cli's container holds what xtra-cli owns, and the Studio reads it there and never copies
+it: the crawls (each catalog's `crawls_root` in the manifest), the extract outputs, and the scores the Studio computes,
+kept beside the output they scored (`<catalog>/<crawl>/extract/<output>/scores/<golden>/<class>/sc-NNNN/`).
+
+**Migrating a root from before class folders**, once (`--dry-run` first: it prints every move and changes nothing;
+a second run does nothing). Rewritten files keep their original as `*.legacy`:
+
+```sh
+golden-datasets migrate --to-classes --dry-run --root $GOLDEN_DATASETS_ROOT --xtra-root <xtra-cli container>
+golden-datasets migrate --to-classes --root $GOLDEN_DATASETS_ROOT --xtra-root <xtra-cli container>
+```
 
 **Shared password.** `serve` asks for one password before the profile when the environment sets
 `GOLDEN_DATASETS_PASSWORD_HASH` (from `golden-datasets hash-password`, which reads the password and prints a salted
@@ -48,17 +71,20 @@ scrypt hash) or `GOLDEN_DATASETS_PASSWORD` (hashed at startup). With neither, th
 
 ## Properties: one rule per CLI Extraction Label ([`docs/qrspi/property-rules`](docs/qrspi/property-rules/03-spec.md))
 
-Every property of the "xTRA: Learning Opportunity BU Template" sheet's Phase 1 Extraction tab (column F), plus
-Learning Type, is a property rule in every catalog: 43 in all, listed in the checked-in
-[`src/golden_datasets/properties.csv`](src/golden_datasets/properties.csv). Nested properties are flat paths
-(`ceterms:creditValue>schema:minValue`), shown with arrows. The app never reads the sheet: sync it into the file,
-review the diff like code, then add the new properties to each catalog with no rule yet (`rule_type: none`).
+Every property of a class's tab of the "xTRA: Learning Opportunity BU Template" sheet (`Course Properties`,
+`Learning Program Properties`: the CLI Extraction Label, else the CTDL Shorthand URI), plus Learning Type, is a
+property rule in every catalog: 37 for Course and 30 for LearningProgram, listed in the checked-in
+[`src/golden_datasets/properties/<class>.csv`](src/golden_datasets/properties/). Each property is in one of three
+tiers: Required (the class's CTDL-required properties), then Phase 1, then Phase 2 (the sheet's xTRA Status column).
+Nested properties are flat paths (`ceterms:creditValue>schema:minValue`), shown with arrows. The app never reads the
+sheet: sync it into the file, review the diff like code, then add the new properties to each catalog with no rule yet
+(`rule_type: none`). A new class needs a new tab and an entry in `classes.py`, not new code.
 
 ```sh
-golden-datasets properties sync [--from bu.xlsx | phase1.csv]   # the sheet → properties.csv: added / kept / removed
-golden-datasets properties list
-golden-datasets properties apply --all     # one ruleset version per catalog that gets new properties
-golden-datasets prompt --first-rules -c avc   # the Generate rules prompt: write the rules still missing
+golden-datasets properties sync --class learningprogram [--from bu.xlsx | tab.csv]   # the tab → its file
+golden-datasets properties list --class learningprogram     # with each property's tier
+golden-datasets properties apply --class course --all       # one ruleset version per catalog that gets new properties
+golden-datasets prompt --first-rules -c avc --class course   # the Generate rules prompt: write the rules still missing
 ```
 
 A property rule says what it reads (`input`: the record, the whole page, the URL or another rule's output, so a child
@@ -71,9 +97,10 @@ row per course with a ✓ / ✕ per item. Anyone can annotate any property, a ru
 1. In the UI, Jared marks rows ✓ / ✗ (selecting the right text on the page) or asks a question for the institution.
 2. **Improve all rules with Claude** (foot of the rule list) → the prompt → **Copy prompt**, or
    `golden-datasets prompt -c avc --rule course-description`.
-3. Claude Code works only through the CLI:
+3. Claude Code works only through the CLI (the prompt's `golden-datasets.env` names the catalog and the class):
 
 ```sh
+export GOLDEN_DATASETS_CLASS=course
 golden-datasets rule show course-description -c avc
 golden-datasets rule annotations course-description -c avc --open
 golden-datasets pages get <stem> -c avc            # the saved page, locally
@@ -94,9 +121,9 @@ golden-datasets rule publish draft.json -c avc     # refused if a value marked c
    written, each file a link to a sample. Engineers can still publish from the CLI:
 
 ```sh
-golden-datasets golden publish -c avc --property Description   # into ruleset vN's silver dataset, written whole
-golden-datasets golden backfill -c avc     # once: publications from before versions (pub-…) → ruleset-vN
-golden-datasets golden backfill -c avc --again   # also write every version again in the current layout
+golden-datasets golden publish -c avc --class course --property Description   # into ruleset vN's silver dataset, written whole
+golden-datasets golden backfill -c avc --class course     # once: publications from before versions (pub-…) → ruleset-vN
+golden-datasets golden backfill -c avc --class course --again   # also write every version again in the current layout
 ```
 
 A version's ID is its ruleset's (`ruleset-v3`). Each version is kept as two parallel trees,
@@ -109,7 +136,7 @@ xtra's scorer reads by default. Versions written before the property list keep t
 (Learning Type) stay out of the files (`xtra score` rejects them) and in the Studio's lineage and `golden.parquet`. The
 golden root defaults to `.data/golden` beside a local root (`$GOLDEN_DATASETS_GOLDEN_ROOT` overrides; an Azure root
 publishes to `xtra-golden-sets`). An expert's verdict rewrites that page's file in all three places at once
-(human-reviewed values, any column) and writes `scores/pending.json`.
+(human-reviewed values, any column) and writes `scores-pending.json`.
 
 ```sh
 golden-datasets sql -c avc "SELECT rule_id, count(*) FROM matches_latest WHERE status <> 'found' GROUP BY 1"
@@ -125,33 +152,45 @@ rules). The **Evals** tab charts them per extract output, with each value's diff
 the latest score of every catalog.
 
 The Studio doesn't run xtra: engineers run `xtra catalog extract`, and the Studio reads what it wrote
-(`$GOLDEN_DATASETS_XTRA_SOURCE/<catalog>/<crawl>/records/`, else the shared `xtra-cli-output` container) and scores it
-with xtra's own scorer, called in-process (xtra-cli is a path dependency on `../xtra-cli`). Each score is kept in
-`<crawl>/golden-dataset-studio/scores/sc-NNNN/` (`score.json`, `values.parquet`) with two results: the version's
+(`$GOLDEN_DATASETS_XTRA_SOURCE/<catalog>/<crawl>/extraction_report/`, one file per property of each resource, read
+through xtra's own `extraction_records`; or an older output's `records/`; else the shared `xtra-cli-output` container)
+and scores it with xtra's own scorer, called in-process (xtra-cli is a path dependency on `../xtra-cli`). Each score is kept in
+xtra-cli's container, `<catalog>/<crawl>/extract/<output>/scores/<golden>/<class>/sc-NNNN/` (`score.json`,
+`values.parquet`), with two results: the version's
 golden tree (human-reviewed) and its silver tree (rule-matched), each exactly what `xtra score extraction match --baseline-uri
-<golden root>/catalogs/<catalog>/versions/ruleset-vN/<tree>` gives (`score.json` holds both commands). The first time the Studio sees an extract output it copies it into
-`extract-outputs/<report last modified>/`, so it stays scorable after xtra overwrites it.
+<golden root>/catalogs/<catalog>/versions/ruleset-vN/<tree>` gives (`score.json` holds both commands). The Studio registers each extract output the first time it sees it and
+reads it where xtra wrote it; once xtra overwrites it, only the newer one can be scored.
 Only the columns the extract output emits under the same path are scored: a property xtra doesn't extract yet is
 listed in `not_scored`, and each result's `xtra` keeps the scorer's own numbers over every column.
 
 ```sh
 export GOLDEN_DATASETS_XTRA_SOURCE=~/review-ui-v3-data/xtra-cli-output   # where xtra writes extract outputs
+export GOLDEN_DATASETS_CLASS=course
 golden-datasets score                       # the latest extract output vs the latest golden dataset
 golden-datasets score --ruleset 2           # … vs golden dataset ruleset v2
 golden-datasets score --human-reviewed      # … vs the human-reviewed values as they are now
 golden-datasets score --draft rs-0004       # … vs an unpublished extraction
-golden-datasets score --output <copy id or folder with records/>
+golden-datasets score --output <copy id or a folder xtra extracted into>
 ```
 
-The server scores on its own: a new extract output against the latest golden dataset, and the human-reviewed values
-5 minutes after the last review (`scores/pending.json`, checked every 30 s).
+**Per property, with history** (approved items 25–28). Each done score also writes every property it is for under
+the extract output, per tree (`…/extract/<output>/scores/<golden>-golden|silver/<class>/<property>/score.json`), and
+appends one line to `scores/<class>/<property>/<catalog>.jsonl` in xtra-cli's container: the time, the extract run,
+the golden version, the trigger (`golden-published`, `new-output` or `manual`), both trees' counts with exact and
+partial apart, whether golden exact reaches the 90% target, and the xtra-cli version and commit that scored it (and
+the one that extracted it, when its report says). Records are filtered to the class before xtra's scorer pairs them.
+
+The server scores on its own, for each catalog and class: an extract output the class hasn't scored against the latest
+golden dataset (`new-output`, every property), a golden version published from the CLI (`golden-published`, the
+columns it added), an approval or reset (`golden-published`, that column), and the human-reviewed values 5 minutes
+after the last review (`scores-pending.json`, the columns reviewed; checked every 30 s).
 
 ## Develop
 
 ```sh
 make check          # ruff + pytest + web typecheck / vitest / build
 make slow           # end-to-end tests on the local mirror (all five catalogs)
-golden-datasets check -c avc   # keys, hashes, golden dataset files and each score's provenance
+golden-datasets check -c avc --class course   # keys, hashes, golden dataset files and each score's provenance
 uv run --with playwright python bench/shots_review.py --base http://127.0.0.1:8000 --out docs/qrspi/screens   # spec screens
 #   … --out docs/qrspi/evals/screens --only e   (the Evals spec's screens; run the server on a scratch copy of the roots)
 uv run pytest -m azure tests/test_storage_contract.py   # the storage contract on Azurite + the Azure scratch prefix

@@ -3,9 +3,11 @@ import type {
   ExtractOutputs, MatchRow, ScoreBasis, ScoreDoc, ScoreValues, CatalogsSummary, WrongGroups, WrongKey,
   CatalogCard, CatalogDetail, CrawledCatalog, FirstRulesPrompt, CompareRecords, CompareResponse, Discussion, CourseDetail, CourseHit, GoldenFileText, GoldenLineage, GoldenResponse,
   AnnotateResponse, ApprovePreview, ResetPreview,
-  NewEvent, Overlay,
+  Finding, KeySource, NewEvent, Overlay, PropertyReview, PropertyStatus, PropertyStatusName, ScoreHistory, ThreadComment, ThreadTarget,
   PromptResponse, RuleDetail, RulesResponse, RowsResponse, UnclassifiedPage,
 } from "./types";
+import { withClass } from "../shell/klass";
+import type { ClassSlug } from "../shell/router";
 import { signedOut } from "../shell/session";
 
 export class ApiError extends Error {
@@ -13,7 +15,7 @@ export class ApiError extends Error {
 }
 
 async function call<T>(path: string, init?: RequestInit): Promise<T> {
-  const r = await fetch(path, init);
+  const r = await fetch(withClass(path), init);
   if (!r.ok) {
     if (r.status === 401) signedOut();
     let detail = r.statusText;
@@ -32,9 +34,27 @@ const q = (params: Record<string, string | number | boolean | null | undefined>)
 const c = (catalog: string) => `/api/catalogs/${encodeURIComponent(catalog)}`;
 const v = (catalog: string, version: string) => `${c(catalog)}/golden/${encodeURIComponent(version)}`;
 
+const pp = (cls: ClassSlug, col: string) => `/api/properties/${cls}/${encodeURIComponent(col)}`;
+const jsonInit = (method: string, body: unknown): RequestInit =>
+  ({ method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+
 export const api = {
   catalogs: () => call<CatalogCard[]>("/api/catalogs"),
-  catalogsSummary: (basis: ScoreBasis) => call<CatalogsSummary>(`/api/catalogs-summary?basis=${basis}`),
+  catalogsSummary: (basis: ScoreBasis, cls?: ClassSlug) =>
+    call<CatalogsSummary>(`/api/catalogs-summary?basis=${basis}${cls && cls !== "course" ? `&class=${cls}` : ""}`),
+  // findings, property status and discussion (learning-programs Phase 6), per class and property
+  propertyReview: (cls: ClassSlug, col: string) => call<PropertyReview>(`${pp(cls, col)}/review`),
+  setPropertyStatus: (cls: ClassSlug, col: string, status: PropertyStatusName, author: string) =>
+    call<PropertyStatus>(`${pp(cls, col)}/status`, jsonInit("POST", { status, author })),
+  saveFinding: (cls: ClassSlug, col: string, body: Partial<Finding> & { author: string }, id?: string) =>
+    call<Finding>(id ? `${pp(cls, col)}/findings/${encodeURIComponent(id)}` : `${pp(cls, col)}/findings`, jsonInit(id ? "PUT" : "POST", body)),
+  propertyThread: (cls: ClassSlug, col: string, key: string) => call<ThreadComment[]>(`${pp(cls, col)}/threads?key=${encodeURIComponent(key)}`),
+  addPropertyComment: (cls: ClassSlug, col: string, body: { author: string; note: string; target: ThreadTarget }) =>
+    call<ThreadComment>(`${pp(cls, col)}/threads`, jsonInit("POST", body)),
+  propertyStatuses: (cls: ClassSlug) =>
+    call<Record<string, { status: PropertyStatusName; by: string; at: string }>>(`/api/property-status${cls !== "course" ? `?class=${cls}` : ""}`),
+  /** the home page's score views: a class's properties and each catalog's last scores per property */
+  scoreHistory: (cls: ClassSlug) => call<ScoreHistory>(`/api/score-history${cls !== "course" ? `?class=${cls}` : ""}`),
   crawls: () => call<{ crawls_root: string; items: CrawledCatalog[] }>("/api/crawls"),
   addCatalog: (catalog: string, body: { crawl?: string; by?: string }) =>
     call<unknown>(`/api/crawls/${encodeURIComponent(catalog)}/add`, {
@@ -54,8 +74,8 @@ export const api = {
   unclassifiedPages: (catalog: string, ext?: string | null) =>
     call<UnclassifiedPage[]>(`${c(catalog)}/unclassified-pages${q({ ext })}`),
   courses: (catalog: string, query?: string) => call<CourseHit[]>(`${c(catalog)}/courses${q({ q: query })}`),
-  course: (catalog: string, courseKey: string) =>
-    call<CourseDetail>(`${c(catalog)}/courses/${encodeURIComponent(courseKey)}`),
+  course: (catalog: string, recordKey: string) =>
+    call<CourseDetail>(`${c(catalog)}/courses/${encodeURIComponent(recordKey)}`),
   annotate: (catalog: string, event: NewEvent) =>
     call<AnnotateResponse>(`${c(catalog)}/annotations`, {
       method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(event),
@@ -98,6 +118,7 @@ export const api = {
   /** "Where it's wrong" (sme-fixes spec §8.4) */
   scoreWrong: (catalog: string, id: string, o: { basis: string; column?: string | null; key?: WrongKey | null }) =>
     call<WrongGroups>(`${c(catalog)}/scores/${encodeURIComponent(id)}/wrong${q(o)}`),
+  keySource: (catalog: string, occ: string) => call<KeySource>(`${c(catalog)}/key-source${q({ occ })}`),
   match: (catalog: string, rule: string, occ: string, ext?: string | null) =>
     call<MatchRow>(`${c(catalog)}/match${q({ rule, occ, ext })}`),
   startScore: (catalog: string, body: { golden: string; output: string; by: string }) =>

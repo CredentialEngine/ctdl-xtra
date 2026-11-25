@@ -33,7 +33,7 @@ const summary = (o: Partial<RuleSummary> = {}): RuleSummary => ({
 const rules: RulesResponse = { extraction: "rs-0003", ruleset_version: 3, groups: [
   { id: "other", kind: "property", label: "Property rules", collapsed: false, approved: 0, rules: [summary()] }] };
 const row: RowX = {
-  key: "p0@html", occurrence_key: "p0@html", course_key: "GEOG0", page_stem: "p0", url: "https://x/p0", page_title: "Page 0",
+  key: "p0@html", occurrence_key: "p0@html", record_external_identifier: "GEOG0", page_stem: "p0", url: "https://x/p0", page_title: "Page 0",
   value: "GEOG 0", status: "found", css_path: "html", char_start: 0, char_end: 5, occurrence_css_path: "html", context: "",
   state: null, verdict: null, reattached: false, comments: [], signal_count: 0, other_pages: [], group: null,
 } as RowX;
@@ -82,17 +82,17 @@ describe("a linked row this ruleset doesn't show", () => {
   });
 
   it("says a rule the ruleset dropped has no value here, links to the ruleset that has it, and shows the page", async () => {
-    await render(`#/c/avc/rules/stub-code?row=${encodeURIComponent(KEY)}`);
+    await render(`#/c/avc/course/rules/stub-code?row=${encodeURIComponent(KEY)}`);
     const box = container.querySelector("[data-testid=not-here]")!;
     expect(box.textContent).toContain("This record has no value in ruleset v3: this ruleset has no rule stub-code.");
     expect(box.querySelector("a")!.textContent).toBe("See it in ruleset v2 →");
-    expect(box.querySelector("a")!.getAttribute("href")).toBe(`#/c/avc/rules/stub-code?${new URLSearchParams({ row: KEY, ext: "rs-0002" })}`);
+    expect(box.querySelector("a")!.getAttribute("href")).toBe(`#/c/avc/course/rules/stub-code?${new URLSearchParams({ row: KEY, ext: "rs-0002" })}`);
     expect(pane.props!.tabs.map((t) => [t.stem, t.url, t.title])).toEqual([[STEM, "https://avc/program/aj", "Administration of Justice AA"]]);
     expect(pane.props!.activeStem).toBe(STEM);
   });
 
   it("says the rule found no value for it, selects no other row, shows its page, and isn't hidden by the default Annotated by", async () => {
-    await render(`#/c/avc/rules/course-code?row=${encodeURIComponent(KEY)}`);
+    await render(`#/c/avc/course/rules/course-code?row=${encodeURIComponent(KEY)}`);
     expect(urls.find((u) => u.includes("/rows"))).not.toContain("by=");  // a link to one row: everyone's rows
     expect(container.querySelector("[data-testid=not-here]")!.textContent)
       .toContain("This record has no value for Coded Notation in ruleset v3:");

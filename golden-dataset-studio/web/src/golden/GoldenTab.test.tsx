@@ -41,7 +41,7 @@ const RESP: GoldenResponse = { catalog: CAT, crawl: CRAWL, latest_output: "2026-
 let host: HTMLDivElement, root: Root;
 const flush = () => act(async () => { await new Promise((r) => setTimeout(r, 0)); });
 const render = async () => {
-  await act(async () => root.render(<GoldenTab catalog={{ short: "avc" } as CatalogDetail} route={parseRoute("#/c/avc/datasets")} reload={() => {}} />));
+  await act(async () => root.render(<GoldenTab catalog={{ short: "avc" } as CatalogDetail} route={parseRoute("#/c/avc/course/datasets")} reload={() => {}} />));
   await flush();
 };
 beforeEach(() => {
@@ -116,6 +116,20 @@ describe("Datasets tab", () => {
   it("says how a silver dataset comes to be when there is none", async () => {
     golden.mockResolvedValue({ ...RESP, versions: [] });
     await render();
-    expect(host.textContent).toContain("Approving a rule on the Rules tab publishes its silver dataset");
+    expect(host.querySelector(".gv-table td.empty")!.textContent).toBe(
+      "No silver dataset yet. Approving a Course rule on the Rules tab publishes ruleset-v1.");
+  });
+
+  it("with All classes, has a section per class: what it published, or that it has no rules yet", async () => {
+    const classes = [{ slug: "course", name: "Course", properties: 37, ruleset_version: 3 },
+                     { slug: "learningprogram", name: "LearningProgram", properties: 30, ruleset_version: null }];
+    await act(async () => root.render(<GoldenTab catalog={{ short: "avc", name: "AVC", classes } as unknown as CatalogDetail}
+      route={parseRoute("#/c/avc/all/datasets")} reload={() => {}} />));
+    await flush();
+    expect([...host.querySelectorAll("h2.cls-h2")].map((h) => h.textContent)).toEqual(
+      ["Course37 properties, published as ruleset-v3", "LearningProgram30 properties, no rules yet"]);
+    expect(golden).toHaveBeenCalledTimes(1);  // only a class with rules is asked
+    expect(host.querySelector("[data-class=learningprogram]")!.textContent).toContain("No LearningProgram rules for AVC yet, so no datasets.");
+    expect(host.querySelectorAll("[data-class=course] [data-testid=golden] tbody tr")).toHaveLength(3);
   });
 });

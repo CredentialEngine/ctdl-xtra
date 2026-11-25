@@ -1,23 +1,21 @@
 """Catalogs xtra-cli has crawled, and adding one to the Studio (spec §7.1, "Add a catalog").
 
-The crawls root is where xtra-cli writes (`<catalog>/<crawl>/crawl.json + pages/`). It is the storage root itself
-when the Studio serves that folder, or the container above the root's prefix on Azure (the Studio's root there is
-`xtra-cli-output/<prefix>`, the crawls are in `xtra-cli-output/`). `GOLDEN_DATASETS_CRAWLS_ROOT` overrides it.
+The crawls root is xtra-cli's container, where it writes `<catalog>/<crawl>/crawl.json + pages/`
+(`xtra_paths.xtra_root`: `GOLDEN_DATASETS_XTRA_SOURCE`, or the older `GOLDEN_DATASETS_CRAWLS_ROOT`; on Azure, the
+container above the Studio root's prefix).
 
 Everything a search row shows comes from the crawl itself: the institution's name from its saved pages (the name
 their titles repeat, or the site name they declare), else from the host of `crawl.json`'s `seed_url`; `finished_at`,
 `pages_saved` and `status` from `crawl.json`. The Studio never starts a crawl.
 
-Adding a catalog copies one crawl's `crawl.json` and `pages/` into the root (server-side on Azure; nothing when
-the crawls root is the root), indexes the pages (`init`), archives their assets, and names the catalog in the
-manifest. It is setup work, so it may list folders; the rest of the Studio never does.
+Adding a catalog names it in the manifest with the root its crawl is in (the Studio reads the crawl there, and
+never copies it: LearningProgram spec, approved item 21), indexes the pages (`init`) and archives their assets. It is setup work, so it may list folders; the rest of the Studio never does.
 """
 
 from __future__ import annotations
 
 import html as htmllib
 import json
-import os
 import re
 import sys
 from collections import Counter
@@ -28,21 +26,18 @@ from urllib.parse import urlsplit
 from . import layout, manifest
 from .catalogs import CATALOGS
 from .errors import UserError
-from .storage import AzureRoot, Root, open_root
-from .sync import copy_one
+from .storage import Root, open_root
 
-ENV = "GOLDEN_DATASETS_CRAWLS_ROOT"
+ENV = "GOLDEN_DATASETS_CRAWLS_ROOT"  # the older name of xtra_paths.ENV, still read
 # Host labels that say "catalog", not whose catalog it is.
 GENERIC = {"www", "catalog", "catalogs", "coursecatalog", "main", "public", "prod", "m"}
 
 
 def default_crawls_root(root: Root) -> str:
-    """$GOLDEN_DATASETS_CRAWLS_ROOT, else the container above an Azure root's prefix, else the root itself."""
-    if os.environ.get(ENV):
-        return os.environ[ENV]
-    if isinstance(root, AzureRoot) and root.prefix:
-        return root.uri[: -len(root.prefix)].rstrip("/")
-    return root.uri
+    """xtra-cli's container (xtra_paths.xtra_root), else the root itself."""
+    from .xtra_paths import xtra_root
+
+    return xtra_root(root) or root.uri
 
 
 def short_name(seed_url: str) -> str:
@@ -178,9 +173,10 @@ def added_catalogs(root: Root) -> set[str]:
 
 def add_catalog(root: Root, src: Root, catalog: str, crawl: str | None = None, by: str | None = None,
                 progress=lambda **kw: None, log=print) -> dict:
-    """Copy one crawl into the root, index its pages, archive their assets and name the catalog in the manifest.
+    """Add one crawl to the Studio: name the catalog in the manifest with where its crawls are (read in place,
+    never copied: approved item 21), index its pages and archive their assets.
 
-    `progress(step=…, done=…, total=…)` is called as it goes. Safe to run again: copied files are skipped."""
+    `progress(step=…, done=…, total=…)` is called as it goes. Safe to run again."""
     from . import assets, extract
     from .context import Ctx
 
@@ -194,20 +190,9 @@ def add_catalog(root: Root, src: Root, catalog: str, crawl: str | None = None, b
         raise UserError(f"{catalog}/{k['crawl']} saved no pages")
     crawl = k["crawl"]
 
-    if src.uri != root.uri:
-        files = [layout.crawl_json(catalog, crawl)] + [
-            p for p in src.list(layout.pages_dir(catalog, crawl)) if p.endswith((".html", ".meta.json"))]
-        have = root.sizes(layout.crawl_input(catalog, crawl))
-        sizes = src.sizes(layout.crawl_input(catalog, crawl))
-        todo = [p for p in files if have.get(p) != sizes.get(p)]
-        progress(step="copying", done=len(files) - len(todo), total=len(files))
-        with ThreadPoolExecutor(max_workers=32) as pool:
-            for i, _ in enumerate(pool.map(lambda p: copy_one(src, root, p), todo), 1):
-                if i % 100 == 0 or i == len(todo):
-                    progress(step="copying", done=len(files) - len(todo) + i, total=len(files))
-
     progress(step="indexing", done=0, total=k["pages"])
     ctx = Ctx(root, catalog, crawl)
+    ctx.crawl_root = src  # read in place; init records it in the manifest (crawls_root)
     out = extract.init(ctx, crawl)
     progress(step="assets", done=0, total=0)
     try:

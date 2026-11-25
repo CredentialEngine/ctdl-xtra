@@ -9,6 +9,7 @@ import { OPEN_PROMPT, PromptModal } from "./prompt/PromptModal";
 import RecordsTab from "./records/RecordsTab";
 import RulesTab from "./rules/RulesTab";
 import { useRoute } from "./shell/router";
+import { apiClass } from "./shell/klass";
 import { IdentityScreen } from "./shell/Identity";
 import { useHasIdentity } from "./shell/reviewer";
 import { useSession } from "./shell/session";
@@ -30,10 +31,12 @@ export default function App() {
   const [catalog, setCatalog] = useState<CatalogDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [keys, setKeys] = useState<ReactNode>(null);
+  // the class the tabs read now: the class menu's, or with All classes the one of the item on screen (klass.ts)
+  const effCls = route.cls === "all" ? apiClass() : route.cls;
   const load = useCallback(() => {
     if (!route.catalog) { setCatalog(null); return; }
     api.catalog(route.catalog).then((c) => { setCatalog(c); setError(null); }, (e) => setError(String(e)));
-  }, [route.catalog]);
+  }, [route.catalog, effCls]);
   const session = useSession();
   const signedIn = !!session?.signed_in;
   useEffect(() => { if (signedIn) load(); }, [load, signedIn]);
@@ -88,6 +91,10 @@ export default function App() {
   if (!route.catalog) body = <CatalogPicker />;
   else if (error) body = <div className="placeholder muted" style={{ padding: 24 }}>{error}</div>;
   else if (!catalog || catalog.short !== route.catalog && catalog.catalog !== route.catalog) body = null;
+  else if (!catalog.extraction && route.cls !== "all") body = <EmptyClass catalog={catalog} />;
+  else if (route.cls === "all" && route.tab === "compare") body = (
+    <div className="empty-class" data-testid="compare-one-class"><h2>Compare one class at a time</h2>
+      <p className="muted">Ruleset versions belong to a class. Pick Course or LearningProgram in the class menu above.</p></div>);
   else {
     const props = { catalog, route, reload: load };
     body = { rules: <RulesTab {...props} />, records: <RecordsTab {...props} />, compare: <CompareTab {...props} />,
@@ -95,8 +102,9 @@ export default function App() {
   }
   return (
     <KeysContext.Provider value={setKeys}>
-    <AgentProvider catalog={route.catalog && catalog ? catalog.short : null}>
-      <TopBar catalog={route.catalog ? catalog : null} tab={route.catalog ? route.tab : null} onTour={tour.open} />
+    <AgentProvider catalog={route.catalog && catalog ? catalog.short : null}
+      classes={route.cls === "all" ? (catalog?.classes ?? []).filter((c) => c.ruleset_version).map((c) => c.slug) : [route.cls]}>
+      <TopBar catalog={route.catalog ? catalog : null} tab={route.catalog ? route.tab : null} cls={route.cls} onTour={tour.open} />
       {route.catalog && catalog && <RunBar catalog={catalog.short} />}
       <main id="app">{body}</main>
       <footer className="keys"><span className="keys-hints">{keys}</span>
@@ -116,5 +124,18 @@ export default function App() {
         version={catalog.ruleset_version} warning={promptOpen} onClose={() => setPromptOpen(undefined)} />}
     </AgentProvider>
     </KeysContext.Provider>
+  );
+}
+
+/** A class with no rules in this catalog yet: what it would have, and how its first rules come. */
+function EmptyClass({ catalog }: { catalog: CatalogDetail }) {
+  const c = catalog.classes?.find((x) => x.slug === catalog.cls);
+  const name = c?.name ?? catalog.cls ?? "This class";
+  return (
+    <div className="empty-class" data-testid="empty-class">
+      <h2>No {name} rules for {catalog.name} yet</h2>
+      <p className="muted">{c ? `${c.properties} properties are waiting for rules. ` : ""}The first rules come from an AI run,
+        or from <code>golden-datasets rule publish --class {catalog.cls}</code>. The class menu above switches back.</p>
+    </div>
   );
 }

@@ -1,7 +1,9 @@
-// Hash routes: #/ (catalog picker) · #/c/<catalog>/<tab>/<id>?<params>
-// Examples: #/c/avc/rules/course-description?row=<occurrence_key> · #/c/avc/records/GEOG222
-//           #/c/avc/compare?a=1&b=2&rule=course-description · #/c/avc/datasets
-// The old Prompt tab (#/c/avc/prompt…) opens the Rules tab with the prompt modal (?prompt=1).
+// Hash routes: #/ (catalog picker) · #/c/<catalog>/<class>/<tab>/<id>?<params> (LearningProgram spec, item 11)
+// <class> is a class slug (course, learningprogram) or `all` (All classes).
+// Examples: #/c/avc/course/rules/course-description?row=<occurrence_key> · #/c/avc/course/records/GEOG222
+//           #/c/avc/course/compare?a=1&b=2&rule=course-description · #/c/wvu/all/datasets
+// A link from before classes (#/c/avc/rules/…) isn't kept: it opens the catalog's Course rules. The old Prompt tab
+// (#/c/avc/<class>/prompt…) opens the Rules tab with the prompt modal (?prompt=1).
 import { useEffect, useState } from "react";
 
 export type Tab = "rules" | "records" | "compare" | "datasets" | "evals";
@@ -11,26 +13,42 @@ export const TAB_LABEL: Record<Tab, string> = { rules: "Rules", records: "Record
 /** Old tab names still open the right tab (the Publish tab, then Golden datasets, are now Datasets). */
 const RENAMED: Record<string, Tab> = { publish: "datasets", golden: "datasets" };
 
-export interface Route { catalog: string | null; tab: Tab; id: string | null; params: URLSearchParams }
+/** A CTDL class (its slug), or `all`: the class menu's choice, which every tab to its right follows. */
+export type ClassSlug = "course" | "learningprogram";
+export type ClassSel = ClassSlug | "all";
+export const CLASS_SLUGS: ClassSlug[] = ["course", "learningprogram"];
+export const CLASS_NAME: Record<ClassSel, string> = { course: "Course", learningprogram: "LearningProgram", all: "All classes" };
+
+export interface Route { catalog: string | null; cls: ClassSel; tab: Tab; id: string | null; params: URLSearchParams }
 
 export function parseRoute(hash: string): Route {
   const h = hash.replace(/^#/, "") || "/";
   const [path, qs] = h.split("?");
   const p = path.split("/").filter(Boolean).map(decodeURIComponent);
   const params = new URLSearchParams(qs || "");
-  if (p[0] !== "c" || !p[1]) return { catalog: null, tab: "rules", id: null, params };
-  if (p[2] === "prompt") {  // the Prompt tab became a modal over the Rules tab
+  if (p[0] !== "c" || !p[1]) return { catalog: null, cls: "course", tab: "rules", id: null, params };
+  const cls = p[2] as ClassSel;
+  if (!(CLASS_SLUGS as string[]).includes(cls) && cls !== "all")  // a link from before classes: not kept
+    return { catalog: p[1], cls: "course", tab: "rules", id: null, params: new URLSearchParams() };
+  if (p[3] === "prompt") {  // the Prompt tab became a modal over the Rules tab
     params.delete("rule");
     params.set("prompt", "1");
-    return { catalog: p[1], tab: "rules", id: null, params };
+    return { catalog: p[1], cls, tab: "rules", id: null, params };
   }
-  const name = RENAMED[p[2]] ?? p[2];
+  const name = RENAMED[p[3]] ?? p[3];
   const tab = (TABS as string[]).includes(name) ? (name as Tab) : "rules";
-  return { catalog: p[1], tab, id: p[3] ?? null, params };
+  return { catalog: p[1], cls, tab, id: p[4] ?? null, params };
 }
 
-export function href(catalog: string, tab: Tab, id?: string | null, params?: Record<string, string | number | null | undefined>): string {
-  let h = `#/c/${encodeURIComponent(catalog)}/${tab}`;
+/** The class the address bar names now (Course on the picker). */
+export function currentClass(): ClassSel {
+  return parseRoute(location.hash).cls;
+}
+
+/** A tab's address. `cls`: the class (default: the one the address bar names now). */
+export function href(catalog: string, tab: Tab, id?: string | null, params?: Record<string, string | number | null | undefined>,
+                     cls?: ClassSel): string {
+  let h = `#/c/${encodeURIComponent(catalog)}/${cls ?? currentClass()}/${tab}`;
   if (id) h += `/${encodeURIComponent(id)}`;
   const s = new URLSearchParams();
   for (const [k, v] of Object.entries(params ?? {})) if (v !== null && v !== undefined && v !== "") s.set(k, String(v));

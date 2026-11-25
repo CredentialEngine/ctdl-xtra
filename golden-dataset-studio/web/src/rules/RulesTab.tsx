@@ -2,14 +2,16 @@
 // (sorted by the server with the likeliest problems first), the saved page on the right. "Annotated by" and its verdict
 // switch (?by=…&v=…, Evals spec §6.7) filter the rows of every rule, and the rule list counts the rows that pass.
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { SkelCards, SkelHead, SkelList } from "../shell/Skeleton";
 import { api, ApiError } from "../api/client";
-import type { AnnotateResponse, ApprovePreview, CatalogDetail, ResetPreview, Discussion, EventBrief, NewEvent, Overlay, RowItem, RuleDetail, RulesResponse,
+import type { AnnotateResponse, ApprovePreview, CatalogDetail, ClassSummary, ResetPreview, Discussion, EventBrief, NewEvent, Overlay, RowItem, RuleDetail, RulesResponse,
   RuleSummary, SampleInfo, UnclassifiedPage } from "../api/types";
 import { PagePane, prefetchPages, type BarAction, type CapturedSelection, type Highlight } from "../pagepane";
 import { Ico } from "../shell/icons";
 import { useReviewer, useRole } from "../shell/reviewer";
 import { SampleDrawer, samplePrefs, sampleQuery, type SamplePrefs } from "../shell/Sample";
-import { go, href, replaceParam } from "../shell/router";
+import { CLASS_NAME, go, href, replaceParam, type ClassSlug } from "../shell/router";
+import { classOfRule, inClass } from "../shell/klass";
 import type { TabProps } from "../shell/tabProps";
 import { fmt, toast, useKeyHints } from "../shell/ui";
 import { AnnotatedBy, VerdictSwitch, WaitingNote } from "./AnnotatedBy";
@@ -47,6 +49,24 @@ export function defaultRule(rules: RulesResponse | null): string | null {
   if (!rules) return null;
   const all = rules.groups.flatMap((g) => g.rules);
   return (all.find((r) => r.rule_id === "course-description") ?? all.find((r) => r.kind === "property") ?? all[0])?.rule_id ?? null;
+}
+
+/** All classes: one list from each class's, its groups tagged with their class; the active class's extraction and
+ * ruleset are the list's. Every group starts folded but the one that holds the open rule (mockup w4-rules-all-classes). */
+export function mergeClasses(each: { cls: ClassSlug; rules: RulesResponse }[], mine: ClassSlug, active: string | null): RulesResponse {
+  const own = each.find((x) => x.cls === mine) ?? each[0];
+  return {
+    extraction: own?.rules.extraction ?? "", ruleset_version: own?.rules.ruleset_version ?? 0, cls: own?.cls,
+    groups: each.flatMap(({ cls, rules }) => rules.groups.map((g) => ({
+      ...g, cls, collapsed: !(active && g.rules.some((r) => r.rule_id === active)) }))),
+  };
+}
+
+/** A class's heading with All classes: "8 required, 37 properties, 30 of 43 rules approved". */
+export function classHead(c: ClassSummary, rules: RulesResponse | null) {
+  const required = rules?.groups.filter((g) => g.cls === c.slug && g.id === "required").reduce((n, g) => n + g.rules.length, 0) ?? 0;
+  const approved = c.rules_approved ? `${fmt(c.rules_approved)} of ${fmt(c.rules_total)} rules approved` : "0 approved";
+  return { name: c.name, sub: `${required ? `${required} required, ` : ""}${fmt(c.properties)} properties, ${approved}` };
 }
 
 export function replaceSummary(rules: RulesResponse, s: RuleSummary): RulesResponse {
@@ -145,7 +165,11 @@ export default function RulesTab({ catalog, route }: TabProps) {
   const centerNext = useRef(true);
   useTourAnchors(paneRef);
 
-  const ruleId = route.id ?? defaultRule(rules);
+  // the list in hand belongs to this catalog and class (a switch clears it; until the new one lands, no default rule:
+  // the last class's first rule would be asked of this class and fail)
+  const listKey = `${cat}|${route.cls}|${route.params.get("ext") ?? ""}`;
+  const [rulesFor, setRulesFor] = useState<string | null>(null);
+  const ruleId = route.id ?? (rulesFor === listKey ? defaultRule(rules) : null);
   const focus = route.params.get("row");
   const linkedNote = route.params.get("note");  // a report's link to one annotation of the linked row (report-links §4)
   // an AI run's report sends ✕ here in a new browser tab (one-rule-runs §1.6): the linked row opens with ✕ pressed
@@ -183,11 +207,37 @@ export default function RulesTab({ catalog, route }: TabProps) {
   const sq = useMemo(() => JSON.parse(qKey) as ReturnType<typeof sampleQuery>, [qKey]);
   const filtered = sq.f.length > 0;
 
-  useEffect(() => { api.rules(cat, ext).then(setRules, (e) => setError(String(e))); }, [cat, ext]);
-  // comments on whole rules and on the ruleset (the sidebar)
+  // with All classes, every class that has rules here, each in its own section of the list (approved item 14)
+  // the rule in the address hasn't loaded yet (a class switch, another rule): placeholders, not the last rule's rows
+  const loadingRule = !notHere && !error && (!rules || (!!ruleId && detail?.rule_id !== ruleId));
+  const all = route.cls === "all";
+  const ruled = useMemo(() => (catalog.classes ?? []).filter((c) => c.ruleset_version), [catalog.classes]);
+  const ruledKey = ruled.map((c) => c.slug).join(",");
+  // a class or catalog switch clears the list at once (a loading preview shows), so the old class's rules never
+  // linger looking current; a late answer for the previous class is dropped
+  const rulesTok = useRef(0);
+  useEffect(() => {
+    const tok = ++rulesTok.current;
+    const key = listKey;
+    const keep = (r: RulesResponse) => { if (tok === rulesTok.current) { setRules(r); setRulesFor(key); } };
+    setRules(null); setError(null);
+    if (!all) { api.rules(cat, ext).then(keep, (e) => setError(String(e))); return; }
+    const mine = classOfRule(route.id) ?? "course";
+    Promise.all(ruled.map((c) => inClass(c.slug, () => api.rules(cat, c.slug === mine ? ext : null)).then((r) => ({ c, r }))))
+      .then((each) => keep(mergeClasses(each.map(({ c, r }) => ({ cls: c.slug, rules: r })), mine, route.id)),
+            (e) => setError(String(e)));
+  }, [cat, ext, all, ruledKey, listKey]);
+  const heads = useMemo(() => (all ? Object.fromEntries(ruled.map((c) => [c.slug, classHead(c, rules)])) : null),
+                        [all, ruled, rules]);
+  // comments on whole rules and on the ruleset (the sidebar); with All classes, every class's
   const [talk, setTalk] = useState<Discussion | null>(null);
-  const loadTalk = useCallback(() => api.discussion(cat).then((d) => setTalk({ ruleset: d?.ruleset ?? [], rules: d?.rules ?? {} }),
-                                                               () => setTalk({ ruleset: [], rules: {} })), [cat]);
+  const loadTalk = useCallback(() => {
+    const one = (slug?: string) => (slug ? inClass(slug as ClassSlug, () => api.discussion(cat)) : api.discussion(cat));
+    const asks = all ? ruled.map((c) => one(c.slug)) : [one()];
+    return Promise.all(asks).then((ds) => setTalk({ ruleset: ds.flatMap((d) => d?.ruleset ?? []),
+                                                    rules: Object.assign({}, ...ds.map((d) => d?.rules ?? {})) }),
+                                  () => setTalk({ ruleset: [], rules: {} }));
+  }, [cat, all, ruledKey]);
   useEffect(() => { void loadTalk(); }, [loadTalk]);
   const postTalk = useCallback<PostTalk>(async (target, note, topic) => {
     try {
@@ -430,7 +480,7 @@ export default function RulesTab({ catalog, route }: TabProps) {
     const r = rows[i];
     if (!r || !detail) return;
     const confirming = "verdict" in what && canConfirm(r, role);
-    if ("verdict" in what && r.state === "correct" && !confirming) { toast(`Already correct · ${r.course_key ?? shortTitle(r.page_title, 40)}`); advance(i); return; }
+    if ("verdict" in what && r.state === "correct" && !confirming) { toast(`Already correct · ${r.record_external_identifier ?? shortTitle(r.page_title, 40)}`); advance(i); return; }
     const target = rowTarget(detail.kind, detail.rule_id, r);
     const ev = verdictEvent(me, target, r.verdict, what, r.value);
     const brief = await post(ev);
@@ -443,7 +493,7 @@ export default function RulesTab({ catalog, route }: TabProps) {
     setSaved((n) => n + 1);
     const label = ev.type === "comment" ? "Comment saved" : ev.verdict === "question" ? "Question for the institution saved"
       : confirming ? "Confirmed: human-reviewed" : ev.verdict === "correct" ? "Correct" : "Wrong";
-    toast(`${label} · ${r.course_key ?? shortTitle(r.page_title, 40)}`);
+    toast(`${label} · ${r.record_external_identifier ?? shortTitle(r.page_title, 40)}`);
     if (ev.type === "verdict" && ev.verdict !== "question") advance(i);
   }, [rows, detail, me, role, post, advance]);
 
@@ -462,7 +512,7 @@ export default function RulesTab({ catalog, route }: TabProps) {
     }
     if (n) setSaved((k) => k + 1);
     const first = rows[g.start];
-    toast(n ? `${n} ${n === 1 ? "course" : "courses"} correct · ${subjectOf(rows.slice(g.start, g.end).map((r) => r.course_key)) || shortTitle(first?.page_title, 40)}`
+    toast(n ? `${n} ${n === 1 ? "course" : "courses"} correct · ${subjectOf(rows.slice(g.start, g.end).map((r) => r.record_external_identifier)) || shortTitle(first?.page_title, 40)}`
       : "Every course on this page is already correct");
     const m = moveIn(groups, g.start, "page", "next");
     selectRow(m.sel, "page");
@@ -492,12 +542,12 @@ export default function RulesTab({ catalog, route }: TabProps) {
   const saveItem = useCallback(async (i: number, it: RowItem, verdict: "correct" | "wrong") => {
     const r = rows[i];
     if (!r || !detail) return;
-    if (verdict === "correct" && it.state === "correct") { toast(`Already correct · ${r.course_key ?? ""}`); return; }
+    if (verdict === "correct" && it.state === "correct") { toast(`Already correct · ${r.record_external_identifier ?? ""}`); return; }
     const brief = await post(itemEvent(me, detail.rule_id, r, it.value_index, verdict, it.verdict?.annotation_id ?? null));
     if (!brief) return;
     setRows((rs) => rs.map((x, j) => (j === i ? applyItem(x, it.value_index, brief, role) : x)));
     setSaved((n) => n + 1);
-    toast(`${verdict === "correct" ? "Correct" : "Wrong"} · ${r.course_key ?? shortTitle(r.page_title, 40)}`);
+    toast(`${verdict === "correct" ? "Correct" : "Wrong"} · ${r.record_external_identifier ?? shortTitle(r.page_title, 40)}`);
   }, [rows, detail, me, role, post]);
 
   const startAddItem = useCallback(() => { setDraft(null); setMissed(null); setItemAdd({ capture: null }); }, []);
@@ -508,7 +558,7 @@ export default function RulesTab({ catalog, route }: TabProps) {
     if (!brief) return;
     setRows((rs) => rs.map((x, j) => (j === sel ? applyMissingItem(x, brief) : x)));
     setItemAdd(null);
-    toast(`Missing item saved · ${r.course_key ?? ""}`);
+    toast(`Missing item saved · ${r.record_external_identifier ?? ""}`);
   }, [itemAdd, detail, rows, sel, me, post]);
 
   // a list of objects (§5.3): select text, label it as a field; saved once every field is labelled (or by Save)
@@ -520,7 +570,7 @@ export default function RulesTab({ catalog, route }: TabProps) {
     if (!brief) return;
     setRows((rs) => rs.map((x, j) => (j === sel ? applyMissingItem(x, brief) : x)));
     setObjAdd(null);
-    toast(`Added · ${r.course_key ?? ""}`);
+    toast(`Added · ${r.record_external_identifier ?? ""}`);
   }, [detail, rows, sel, profile, me, post]);
   const labelObject = useCallback((field: string) => {
     if (!objAdd || !profile) return;
@@ -565,7 +615,7 @@ export default function RulesTab({ catalog, route }: TabProps) {
     setRows((rs) => rs.map((x, j) => (j === sel ? applyItem(x, it.value_index, brief, role) : x)));
     setObjFix(null);
     setSaved((n) => n + 1);
-    toast(`Corrected · ${r.course_key ?? ""}`);
+    toast(`Corrected · ${r.record_external_identifier ?? ""}`);
   }, [objFix, detail, rows, sel, profile, me, role, post]);
   // ✕ on an added object takes it back
   const takeBack = useCallback(async (added: EventBrief) => {
@@ -574,7 +624,7 @@ export default function RulesTab({ catalog, route }: TabProps) {
     const brief = await post(takeBackEvent(me, detail.rule_id, r.occurrence_key, added));
     if (!brief) return;
     setRows((rs) => rs.map((x, j) => (j === sel ? { ...x, missing_items: (x.missing_items ?? []).filter((m) => m.annotation_id !== added.annotation_id) } : x)));
-    toast(`Removed · ${r.course_key ?? ""}`);
+    toast(`Removed · ${r.record_external_identifier ?? ""}`);
   }, [detail, rows, sel, me, post]);
   // 1 / 2 on a list's row: every item ✓ or ✕ (no answer), one event each; an item that already says so is skipped
   const markAll = useCallback(async (verdict: "correct" | "wrong") => {
@@ -590,7 +640,7 @@ export default function RulesTab({ catalog, route }: TabProps) {
     }
     if (n) setSaved((k) => k + 1);
     const word = verdict === "correct" ? "correct" : "wrong";
-    toast(n ? `${n} ${n === 1 ? noun : `${noun}s`} ${word} · ${r.course_key ?? ""}` : `Every ${noun} is already ${word}`);
+    toast(n ? `${n} ${n === 1 ? noun : `${noun}s`} ${word} · ${r.record_external_identifier ?? ""}` : `Every ${noun} is already ${word}`);
   }, [rows, sel, detail, me, role, post, noun]);
 
   const startMissed = useCallback(() => {
@@ -694,8 +744,9 @@ export default function RulesTab({ catalog, route }: TabProps) {
   let legend: ReactNode = null;
   let banner: ReactNode = null;
   if (detail && row) {
-    const what = kind === "property" ? <><b>{detail.property_label ?? detail.title}</b> · {row.course_key ?? ""}</>
-      : kind === "locator" ? <><b>Course</b> · {row.course_key ?? ""}</> : <b>{detail.title}</b>;
+    const key = row.record_external_identifier ?? "";
+    const what = kind === "property" ? <><b>{detail.property_label ?? detail.title}</b>{key ? ` on ${key}` : ""}</>
+      : kind === "locator" ? <><b>{CLASS_NAME[classOfRule(detail.rule_id) ?? "course"]}</b>{key ? ` ${key}` : ""}</> : <b>{detail.title}</b>;
     if (objFix && listRule) {
       legend = <><Ico name="highlight" /><span><b>Select the right text</b> on the page for the selected {noun} of {what}, then pick its field;
         Enter saves the correction.</span></>;
@@ -737,7 +788,8 @@ export default function RulesTab({ catalog, route }: TabProps) {
 
   return (
     <div className="rules-layout w4-rules">
-      <aside className="col">{rules && <RuleList rules={rules} active={ruleId} onPick={(id) => go(href(cat, "rules", id, { ext, by: byParam, v: verdict }))}
+      <aside className="col">{!rules && <SkelList label="Loading rules" />}{rules && <RuleList rules={rules} active={ruleId} heads={heads}
+        onPick={(id) => go(href(cat, "rules", id, { ext: all && classOfRule(id) !== classOfRule(ruleId) ? null : ext, by: byParam, v: verdict }))}
         talk={talk} onTalk={postTalk} counts={people?.rules} countTip={(n) => filterCountTip(n, by, verdict)}
         aiStat={aiStat} onImprove={ext ? undefined : (r) => openRunDialog([r.rule_id])}
         top={<RulesetPicker catalog={catalog} ext={ext} onPick={(x) => go(href(cat, "rules", ruleId, { ext: x, by: byParam, v: verdict }))} />}
@@ -746,7 +798,8 @@ export default function RulesTab({ catalog, route }: TabProps) {
             onToggle={() => setFilter({ by: by === BY_WAITING ? null : BY_WAITING, v: null })} />}
           {!ext && <FixBar catalog={cat} name={catalog.name} rules={rules} />}</>} />}</aside>
       <section className="col mid">
-        {detail && <RuleHead catalog={catalog} rule={detail} busy={busy} onApprove={() => approve("approve")} onReopen={() => approve("reopen")}
+        {loadingRule && <SkelHead />}
+        {detail && !loadingRule && <RuleHead catalog={catalog} rule={detail} busy={busy} onApprove={() => approve("approve")} onReopen={() => approve("reopen")}
           onReset={() => void openReset()} />}
         {resetting && <ResetDialog p={resetting} catalogName={catalog.name} busy={busy} onReset={(why) => void reset(why)} onClose={() => setResetting(null)} />}
         {asking && <ApproveDialog p={asking} busy={busy} onApprove={() => approve("approve", true)} onClose={() => setAsking(null)} />}
@@ -776,7 +829,8 @@ export default function RulesTab({ catalog, route }: TabProps) {
               ))}
             </div>
           )}
-          {detail && (() => {
+          {loadingRule && <SkelCards label="Loading this rule's rows" />}
+          {detail && !loadingRule && (() => {
           const rowEl = (r: RowX, i: number) => {
             const on = i === sel && !onPage;
             const noun = (detail.property_label ?? "item").replace(/^Estimated /, "").toLowerCase();
@@ -784,8 +838,8 @@ export default function RulesTab({ catalog, route }: TabProps) {
               <RowCard key={r.key} row={r} kind={detail.kind} index={i} on={on} draft={on ? draft : null} perPage={perPage}
                 label={kind === "property" ? detail.property_label : "Found"} onClick={() => selectRow(i, "course")}
                 // "Open in Records →" on the selected row (the same for every kind of row)
-                links={on && r.course_key ? <a className="xbtn" title="Open this course in the Records tab, with this property selected"
-                  href={href(cat, "records", r.course_key, { prop: kind === "property" ? detail.property_label : null, occ: r.occurrence_key })}
+                links={on && r.record_external_identifier ? <a className="xbtn" title="Open this course in the Records tab, with this property selected"
+                  href={href(cat, "records", r.record_external_identifier, { prop: kind === "property" ? detail.property_label : null, occ: r.occurrence_key })}
                   onClick={(e) => e.stopPropagation()}>Open in Records →</a> : null}
                 items={!listRule || !r.items ? undefined
                   : profile ? <ProfileItems row={r} on={on} fields={profile.fields} keyField={profile.key}
@@ -810,7 +864,7 @@ export default function RulesTab({ catalog, route }: TabProps) {
             const open = g === cur;
             const n = rs[0]?.page_courses ?? rs.length;
             const all = rs.length === n && rs.every((r) => r.state === "correct");
-            const subject = subjectOf(rs.map((r) => r.course_key));
+            const subject = subjectOf(rs.map((r) => r.record_external_identifier));
             return (
               <div key={`${g.stem}@${g.start}`} className={`page-group${open ? " open" : ""}`}>
                 <div className={`row page-head${open && onPage ? " on" : ""}${all ? " done" : ""}`} data-page-start={g.start}
@@ -831,8 +885,8 @@ export default function RulesTab({ catalog, route }: TabProps) {
             );
           });
           })()}
-          {detail && rows.length < total && <div className="row more-rows" onClick={loadMore}>+ {fmt(total - rows.length)} more · scroll to load</div>}
-          {detail && total === 0 && <div className="empty-state muted">{by || verdict
+          {detail && !loadingRule && rows.length < total && <div className="row more-rows" onClick={loadMore}>+ {fmt(total - rows.length)} more · scroll to load</div>}
+          {detail && !loadingRule && total === 0 && <div className="empty-state muted">{by || verdict
             ? "No row of this rule passes the Annotated by filter. Pick another rule, or Anyone above."
             : filtered ? "No row is in every stratum you picked. Remove a filter above." : "This rule found nothing in this extraction."}</div>}
         </div>

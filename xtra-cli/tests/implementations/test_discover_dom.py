@@ -32,9 +32,6 @@ def page(body: str, *, title: str = "Example", meta: str = "") -> str:
     return PAGE.format(title=title, body=body, meta=meta)
 
 
-# --- the page's own name ------------------------------------------------------
-
-
 def test_an_h1_in_the_menu_is_not_the_pages_name() -> None:
     """Coursedog prints the college's name as the only h1 on every page.
 
@@ -84,9 +81,6 @@ def test_an_h1_of_punctuation_is_a_divider_not_a_name() -> None:
         )
     )
     assert markup.h1 == ""
-
-
-# --- the page's own content ---------------------------------------------------
 
 
 def test_the_main_container_is_found_by_id_when_nothing_says_main() -> None:
@@ -151,10 +145,9 @@ def test_an_unclosed_tag_in_the_menu_does_not_swallow_the_page() -> None:
 def test_main_text_keeps_the_pages_own_aside_not_the_sites_menu() -> None:
     """Two readings of one container, for two different questions.
 
-    content_text drops an <aside> inside <main> as furniture. Arapahoe
-    prints a course's code and credits there, so main_text keeps it: it
-    is what the page prints, as against the catalog menu eLumen prints
-    beside <main> on every page.
+    content_text drops an <aside> inside <main> as furniture. A page can
+    print its course's code and credits there, so main_text keeps it: it
+    is what the page prints, as against a site menu beside <main>.
     """
     markup = read_markup(
         page(
@@ -179,7 +172,7 @@ def test_a_page_without_a_main_container_has_no_main_text() -> None:
 
 
 def test_main_text_keeps_a_code_split_across_two_strings_whole() -> None:
-    """CurriQunet prints "APP-" and "450" as two strings.
+    """A code can be printed as two strings, "APP-" and "450".
 
     Read with a space between every pair, as `get_text(" ")` reads them,
     the code becomes "APP- 450", which is no course code, and the page's
@@ -201,9 +194,6 @@ def test_an_element_reads_the_way_the_content_lines_read() -> None:
     assert element_text(soup.find("li")) == "Apply the nursing process;"
 
 
-# --- course descriptions and requirement lists --------------------------------
-
-
 COURSEBLOCK = (
     "<div class='courseblock'><p class='courseblocktitle'><strong>"
     "ASTR 50303.  Astrophysics I.  3 Hours.</strong></p>"
@@ -216,6 +206,28 @@ COURSEBLOCK = (
 def test_a_marked_up_course_description_is_counted_as_one() -> None:
     blocks = read_course_blocks(parse(page(COURSEBLOCK)))
     assert [block.code for block in blocks] == ["ASTR50303"]
+
+
+CURRIQUNET_BLOCK = (
+    "<div class='container-fluid course-summary-wrapper'>"
+    "<b class='course-title-units-row'><span class='course-subject'>PLS "
+    "</span><span class='course-number'>{number} </span>"
+    "<span class='course-sbj-num-delimiter'> - </span>"
+    "<span class='course-title'>Paralegal Studies</span> "
+    "<span class='course-unit-range'>(3.0)</span></b></div>"
+)
+
+
+def test_a_platform_s_own_block_markup_names_its_course() -> None:
+    """The platform prints "PLS 1", a code the code pattern refuses so as
+    not to read "GOAL 1" as a course; its own markup says it is one."""
+    html = page(
+        CURRIQUNET_BLOCK.format(number="1")
+        + CURRIQUNET_BLOCK.format(number="2")
+    )
+    blocks = read_course_blocks(parse(html), "curriqunet")
+    assert [block.code for block in blocks] == ["PLS1", "PLS2"]
+    assert read_course_blocks(parse(html)) == []
 
 
 def test_the_same_course_marked_up_twice_is_still_one_course() -> None:
@@ -273,9 +285,6 @@ def test_a_list_whose_class_names_requirements_needs_no_hours_column() -> None:
         )
     )
     assert quotes and "NURS 101" in quotes[0]
-
-
-# --- what the publisher declares ----------------------------------------------
 
 
 def test_json_ld_saying_the_page_is_a_course_is_read() -> None:
@@ -351,9 +360,6 @@ def test_a_teaser_does_not_give_the_page_its_type() -> None:
     assert read_cms_page_type(soup) == ""
 
 
-# --- labels and headings ------------------------------------------------------
-
-
 def test_a_bold_run_is_a_label_only_when_something_follows_it() -> None:
     markup = read_markup(
         page(
@@ -394,7 +400,7 @@ def test_what_follows_a_label_is_read_one_block_at_a_time() -> None:
 
 
 def test_printed_text_keeps_the_line_breaks_a_pre_wrap_element_shows() -> None:
-    """Antelope Valley sets the prerequisite on a line of its own this way.
+    """A pre-wrap description can set the prerequisite on a line of its own.
 
     Discovery reads the page as it always has: there a newline is a space.
     """

@@ -39,8 +39,8 @@ const row = (o: Partial<ReportRow> & Pick<ReportRow, "rule" | "course">): Report
   rule_name: o.rule, legend: o.rule, kind: "property", title: `${o.course} - A course`, page_stem: `p-${o.course.toLowerCase()}`,
   url: `https://avc.example/${o.course}`, key: `p-${o.course}@html`, occurrence_key: `p-${o.course}@html`, value: "x", status: "found",
   verdict: null, state: null, history: [], ...o,
-  links: { rules: `#/c/avc/rules/${o.rule}?row=${o.course}&by=anyone&ext=rs-0010`,
-           wrong: `#/c/avc/rules/${o.rule}?row=${o.course}&by=anyone&ext=rs-0010&mark=wrong`, ...o.links },
+  links: { rules: `#/c/avc/course/rules/${o.rule}?row=${o.course}&by=anyone&ext=rs-0010`,
+           wrong: `#/c/avc/course/rules/${o.rule}?row=${o.course}&by=anyone&ext=rs-0010&mark=wrong`, ...o.links },
 });
 const ACCT_CV = row({ rule: "course-credit-value", course: "ACCT199", legend: "Credit Value", value: null, status: "absent",
   value_before: { version: 9, value: "1.0 - 8.0 Units" }, comment: CLAUDE.note, verdict: JARED_WRONG, state: "still-wrong",
@@ -71,7 +71,7 @@ const REPORT: ResolvedReport = {
              { rule: "course-in-catalog", rule_name: "In Catalog", course: "GEOG222", value: GEOG.inferred!.value, published: true, row: GEOG }],
   to_do: [todo("Should Subject Webpage be empty for every course?"), todo("Second?"), todo("Third?"), todo("Fourth?")],
   rules: [{ rule: "course-credit-value", name: "Credit Value", goal: true, outcome: "published", now: "empty on every course", why: null,
-            values_changed: { count: 1062, of: 1062, base: 9, published: 10, compare_url: "#/c/avc/compare?a=9&b=10&rule=course-credit-value",
+            values_changed: { count: 1062, of: 1062, base: 9, published: 10, compare_url: "#/c/avc/course/compare?a=9&b=10&rule=course-credit-value",
                               text: "1,062 of 1,062 courses" }, rows: [ACCT_CV] }],
   also_changed: [{ rule: "course-credit-value-credit-unit-type", name: "Credit Unit Type", goal: false, outcome: "published",
                    why: "It took its unit word from Credit Value; it now reads the same line on the page.",
@@ -121,7 +121,7 @@ beforeEach(() => {
     return respond(404, { detail: "no" });
   });
   setIdentity("Jared Diener", "sme");
-  location.hash = "#/c/avc/rules";
+  location.hash = "#/c/avc/course/rules";
 });
 
 let host: HTMLDivElement, root: Root;
@@ -173,7 +173,7 @@ describe("Report", () => {
     // published, with 4 decisions left: a partial publish, so the band is amber and says what still waits
     expect(host.querySelector(".run-done-t")!.textContent).toBe("Claude published Credit Value in ruleset v10. 4 decisions still wait for you.");
     expect(host.querySelector(".run-done")!.className).toContain("is-partial");
-    expect(host.querySelector(".run-done a")!.getAttribute("href")).toBe("#/c/avc/compare?a=9&b=10");
+    expect(host.querySelector(".run-done a")!.getAttribute("href")).toBe("#/c/avc/course/compare?a=9&b=10");
     const facts = [...host.querySelectorAll("[data-testid=report-facts] dt")].map((d) => d.textContent);
     expect(facts).toEqual(["Checked", "Started", "Ran"]);  // the rules are the contents above
     expect([...host.querySelectorAll("[data-testid=report-toc] li")].map((li) => li.textContent))
@@ -182,7 +182,7 @@ describe("Report", () => {
     expect(secs.map((s) => s.querySelector("h2")!.textContent)).toEqual(["Credit Value", "Credit Unit Type"]);
     const vc = secs[0].querySelector("[data-testid=values-changed]")!;
     expect(vc.textContent).toBe("1,062 of 1,062 courses. Compare v9 and v10");
-    expect(vc.querySelector("a")!.getAttribute("href")).toBe("#/c/avc/compare?a=9&b=10&rule=course-credit-value");
+    expect(vc.querySelector("a")!.getAttribute("href")).toBe("#/c/avc/course/compare?a=9&b=10&rule=course-credit-value");
     // an also-changed rule: its count, a Compare link made from the versions, and its one sentence
     expect(secs[1].querySelector("[data-testid=values-changed]")!.textContent).toBe("0 of 1,062 courses. Compare v9 and v10");
     expect(secs[1].querySelector("[data-testid=rule-status]")!.textContent).toBe("Also changed in v10");
@@ -206,7 +206,7 @@ describe("Report", () => {
     expect(lines[0]).toBe("In v9: 1.0 - 8.0 Units");
     expect(lines[1]).toBe("Jared Diener: “There should be no values for this property.”");
     expect(lines[2]).toBe("Claude (v10, AI run Nov 6): Empty is the value Jared's note asks for.");
-    expect(card.querySelector(".hist a")!.getAttribute("href")).toBe(`#/c/avc/rules?run=${RUN.run_id}`);
+    expect(card.querySelector(".hist a")!.getAttribute("href")).toBe(`#/c/avc/course/rules?run=${RUN.run_id}`);
     // a relative time, never a bare clock time; the tooltip has the date and the time zone
     expect(lines[3]).toBe("Jared Diener marked it correct 2 hours ago, after this run.");
     const t = card.querySelector(".hist time")!;
@@ -256,7 +256,7 @@ describe("Report", () => {
                        ["AJ912", "AJ 912 - Law", "https://avc.example/aj912", "Correct", "Open in Rules →"]]);
     const a = t.querySelector<HTMLAnchorElement>("tbody a.xbtn")!;
     expect(a.target).toBe("_blank");
-    expect(a.getAttribute("href")).toBe("#/c/avc/rules/course-subject-webpage?row=AERO199&by=anyone&ext=rs-0010");
+    expect(a.getAttribute("href")).toBe("#/c/avc/course/rules/course-subject-webpage?row=AERO199&by=anyone&ext=rs-0010");
     expect(host.querySelector(".report-others")).toBeNull();  // no comma-separated codes
   });
 
@@ -318,9 +318,9 @@ describe("Report", () => {
     const card = cardOf("course-credit-value", "ACCT199");
     const rules = [...card.querySelectorAll<HTMLAnchorElement>(".xbtn")].find((a) => a.textContent === "Open in Rules →")!;
     expect(rules.target).toBe("_blank");
-    expect(rules.getAttribute("href")).toBe("#/c/avc/rules/course-credit-value?row=ACCT199&by=anyone&ext=rs-0010");
+    expect(rules.getAttribute("href")).toBe("#/c/avc/course/rules/course-credit-value?row=ACCT199&by=anyone&ext=rs-0010");
     await act(async () => card.querySelector<HTMLButtonElement>(".cb.no")!.click());
-    expect(open).toHaveBeenCalledWith("#/c/avc/rules/course-credit-value?row=ACCT199&by=anyone&ext=rs-0010&mark=wrong", "_blank", "noopener");
+    expect(open).toHaveBeenCalledWith("#/c/avc/course/rules/course-credit-value?row=ACCT199&by=anyone&ext=rs-0010&mark=wrong", "_blank", "noopener");
     expect(posts).toHaveLength(0);
   });
 
@@ -330,9 +330,9 @@ describe("Report", () => {
     await render({ ...REPORT, inferred: [], to_do: [], rules: [], also_changed: [{ ...REPORT.also_changed[0], rows: [bare] }] });
     const card = host.querySelector("[data-testid=row-card]")!;
     expect(card.querySelectorAll<HTMLAnchorElement>(".xbtn")[1].getAttribute("href"))
-      .toBe("#/c/avc/rules/course-credit-value-credit-unit-type?row=ACCT199&by=anyone&ext=rs-0010");
+      .toBe("#/c/avc/course/rules/course-credit-value-credit-unit-type?row=ACCT199&by=anyone&ext=rs-0010");
     await act(async () => card.querySelector<HTMLButtonElement>(".cb.no")!.click());
-    expect(open.mock.calls[0][0]).toBe("#/c/avc/rules/course-credit-value-credit-unit-type?row=ACCT199&by=anyone&ext=rs-0010&mark=wrong");
+    expect(open.mock.calls[0][0]).toBe("#/c/avc/course/rules/course-credit-value-credit-unit-type?row=ACCT199&by=anyone&ext=rs-0010&mark=wrong");
   });
 
   it("refetches the rows on open, when the window gets focus and when the page becomes visible", async () => {
@@ -432,7 +432,7 @@ describe("Compare for a run that rebased or ended after another run's publish (e
                                            compare: { a: 11, b: 12 } } };
     await render(report, run);
     const a = host.querySelector(".run-done a")!;
-    expect(a.getAttribute("href")).toBe("#/c/avc/compare?a=11&b=12");
+    expect(a.getAttribute("href")).toBe("#/c/avc/course/compare?a=11&b=12");
     expect(a.textContent).toBe("Compare v11 → v12");
   });
   it("compareOf: the run record's base when it has one, else ruleset_before; nothing when nothing was published", () => {
@@ -470,12 +470,12 @@ describe("RunsPanel with reports", () => {
   });
 
   it("closes on the first hashchange to another tab, with a parent that re-renders on it (e2e, 2026-11-05)", async () => {
-    location.hash = "#/c/avc/rules/course-credit-value";
+    location.hash = "#/c/avc/course/rules/course-credit-value";
     const onClosed = vi.fn();
     await act(async () => root.render(<Host onClosed={onClosed} />));
     await flush();
     expect(host.querySelector("[data-testid=run-report]")).not.toBeNull();
-    history.replaceState(null, "", "#/c/avc/compare?a=9&b=10");  // no event of its own (jsdom fires one for location.hash)
+    history.replaceState(null, "", "#/c/avc/course/compare?a=9&b=10");  // no event of its own (jsdom fires one for location.hash)
     // one hashchange, dispatched as the browser does, outside act: React flushes the parent's discrete update during it
     window.dispatchEvent(new HashChangeEvent("hashchange"));
     await flush();
@@ -484,14 +484,14 @@ describe("RunsPanel with reports", () => {
   });
 
   it("closes when a link in the report goes to another tab (Compare), not when the Rules tab's address changes", async () => {
-    location.hash = "#/c/avc/rules/course-credit-value";
+    location.hash = "#/c/avc/course/rules/course-credit-value";
     const onClose = vi.fn();
     await act(async () => root.render(<RunsPanel catalog="avc" initial={RUN.run_id} onClose={onClose} />));
     await flush();
-    await act(async () => { location.hash = "#/c/avc/rules/course-credit-value?row=ACCT199"; window.dispatchEvent(new HashChangeEvent("hashchange")); });
+    await act(async () => { location.hash = "#/c/avc/course/rules/course-credit-value?row=ACCT199"; window.dispatchEvent(new HashChangeEvent("hashchange")); });
     expect(onClose).not.toHaveBeenCalled();
     const compare = host.querySelector<HTMLAnchorElement>(".run-done a.btn")!.getAttribute("href")!;
-    expect(compare).toBe("#/c/avc/compare?a=9&b=10");
+    expect(compare).toBe("#/c/avc/course/compare?a=9&b=10");
     await act(async () => { location.hash = compare; window.dispatchEvent(new HashChangeEvent("hashchange")); });  // jsdom doesn't follow it
     expect(onClose).toHaveBeenCalled();
   });

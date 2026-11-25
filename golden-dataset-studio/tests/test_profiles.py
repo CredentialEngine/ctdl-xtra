@@ -23,14 +23,13 @@ def test_profiles_default_add_and_set_role(tmp_path):
     c.post("/api/profiles", json={"name": "  Ana   Lopez ", "role": "engineer"})
     names = {p["name"]: p["role"] for p in c.get("/api/profiles").json()["profiles"]}
     assert names["Seth Alt"] == "sme" and names["Ana Lopez"] == "engineer" and len(names) == 7
-    assert (tmp_path / "golden-dataset-studio" / "profiles.json").exists()
+    assert (tmp_path / "profiles.json").exists()
     assert c.post("/api/profiles", json={"name": "X", "role": "boss"}).status_code == 400
     assert c.post("/api/profiles", json={"name": " ", "role": "sme"}).status_code == 400
 
 
 def test_saved_first_name_profiles_get_full_names(tmp_path):
-    (tmp_path / "golden-dataset-studio").mkdir()
-    (tmp_path / "golden-dataset-studio" / "profiles.json").write_text(json.dumps({"profiles": [
+    (tmp_path / "profiles.json").write_text(json.dumps({"profiles": [
         {"name": "Nicholas", "role": "engineer"}, {"name": "Jared", "role": "sme"}, {"name": "Ana", "role": "sme"}]}))
     c = TestClient(create_app(str(tmp_path)))
     assert [p["name"] for p in c.get("/api/profiles").json()["profiles"]] == ["Nicolas Soto", "Jared Diener", "Ana"]

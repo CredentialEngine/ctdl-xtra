@@ -101,7 +101,7 @@ describe("Run with Claude? (the rule picker)", () => {
   it("ticks the rules that need work, lists the rest unticked, and says where the run will stand", async () => {
     await dialog();
     expect(document.querySelector(".run-ask p")!.textContent).toBe(
-      "Tick the rules you want improved. Claude may also make small changes to other rules when that helps, and every check covers all 44 rules.");
+      "Tick the rules you want improved. Claude may also make small changes to other Course rules when that helps, and every check covers all 44 of them. LearningProgram rules stay as they are.");
     expect([...document.querySelectorAll(".run-pick-list .panel-title")].map((t) => t.textContent)).toEqual(["Need work", "Nothing open"]);
     expect(boxes().map((b) => [b.getAttribute("aria-label"), b.checked])).toEqual([
       ["Description", true], ["Credit Value", true], ["Subject Webpage", false], ["Coded Notation", false]]);
@@ -150,8 +150,46 @@ describe("Run with Claude? (the rule picker)", () => {
     expect(document.querySelector("#run-ask-h")).toBeNull();
     await act(async () => openRunDialog(["course-code"]));
     await flush();
-    expect(document.querySelector("#run-ask-h")!.textContent).toBe("Run with Claude?");
+    expect(document.querySelector("#run-ask-h")!.textContent).toBe("Run with Claude on Course rules?");  // the class named
     expect(boxes().filter((b) => b.checked).map((b) => b.getAttribute("aria-label"))).toEqual(["Coded Notation"]);
+  });
+});
+
+describe("Run with Claude? with All classes (w2-run-all-classes)", () => {
+  const LP: Picker = { total_rules: 30, ticked: 1, rules: [
+    { rule: "learningprogram-name", name: "Name", status: "needs work", reviewed: 15, total: 617, ticked: true, why: "2 open" },
+    { rule: "learningprogram-code", name: "External Identifier", status: "in review", reviewed: 12, total: 617, ticked: false, why: "nothing open" },
+    { rule: "learningprogram-description", name: "Description", status: "in review", reviewed: 0, total: 617, ticked: false, why: "nothing open" }] };
+  beforeEach(() => {
+    location.hash = "#/c/avc/all/rules";
+    const inner = globalThis.fetch;
+    vi.stubGlobal("fetch", (url: string, init?: RequestInit) => {
+      if (url === "/api/catalogs/avc") return respond(200, { classes: [
+        { slug: "course", name: "Course", ruleset_version: 9 }, { slug: "learningprogram", name: "LearningProgram", ruleset_version: 1 }] });
+      if (url.endsWith("/rules/picker?class=learningprogram")) return respond(200, LP);
+      return inner(url, init);
+    });
+  });
+  afterEach(() => { location.hash = ""; });
+
+  it("lists each class under its heading, folds the rules nobody reviewed, and starts one run per class", async () => {
+    await dialog();
+    expect(document.querySelector("#run-ask-h")!.textContent).toBe("Run with Claude?");
+    expect([...document.querySelectorAll(".run-pick-list .cls-h")].map((h) => h.textContent)).toEqual(
+      ["Course44 rules, 2 need work", "LearningProgram30 rules, 1 needs work"]);
+    expect(boxes().map((b) => [b.getAttribute("aria-label"), b.checked])).toEqual([
+      ["Description", true], ["Credit Value", true], ["Subject Webpage", false], ["Coded Notation", false],
+      ["Name", true], ["External Identifier", false]]);
+    const more = document.querySelector<HTMLButtonElement>("[data-class=learningprogram] .run-pick-more")!;
+    expect(more.textContent).toBe("1 more rule with nothing reviewed");
+    await act(async () => more.click());
+    expect(boxes().map((b) => b.getAttribute("aria-label")).slice(-1)).toEqual(["Description"]);
+    expect(runBtn().textContent).toBe("Run on 3 rules in 2 classes");
+    await act(async () => runBtn().click());
+    await flush();
+    expect(posts.map((p) => [p.url, (p.body as { scope: { rules: string[] } }).scope.rules])).toEqual([
+      ["/api/catalogs/avc/agent-runs", ["course-description", "course-credit-value"]],
+      ["/api/catalogs/avc/agent-runs?class=learningprogram", ["learningprogram-name"]]]);
   });
 });
 
@@ -160,12 +198,13 @@ describe("✦ Improve and the AI status on a sidebar row", () => {
     const aiStat = useAiStat();
     return <RuleList rules={RULES} active="course-code" onPick={() => {}} aiStat={aiStat} onImprove={(r) => onImprove(r.rule_id)} />;
   }
-  it("is the Discuss button with the spark, its tooltip the app's Tip, and opens the picker on that rule", async () => {
+  it("is a bordered spark button on every row, beside Comment, its tooltip the app's Tip at once, and opens the picker on that rule", async () => {
     const asked: unknown[] = [];
     await act(async () => root.render(<AgentProvider catalog="avc"><List onImprove={(id) => openRunDialog([id])} /></AgentProvider>));
     await flush();
-    const btn = host.querySelector<HTMLButtonElement>("[data-rule=course-description] .rule-improve .rule-talk-btn")!;
-    expect(btn.textContent).toBe("Improve");
+    const btn = host.querySelector<HTMLButtonElement>("[data-rule=course-description] .rule-acts .rule-act")!;
+    expect(btn.getAttribute("aria-label")).toBe("Improve Description with AI");
+    expect(host.querySelectorAll(".rule-acts .rule-act").length).toBe(host.querySelectorAll(".rule-item").length);  // on every row, not on hover
     expect(btn.querySelector(".ico")).toBeTruthy();
     await act(async () => btn.parentElement!.dispatchEvent(new MouseEvent("mouseover", { bubbles: true })));
     expect(document.querySelector(".evx-tip")!.textContent).toBe(
@@ -281,3 +320,35 @@ describe("Wording", () => {
     expect(uiText(files["./RunDialog.tsx"]).some((t) => t.includes("Tick the rules you want improved"))).toBe(true);
   });
 });
+
+describe("runs with All classes", () => {
+  it("polls every class: the run bar and the runs panel say each run's class, and a run's actions go to its class", async () => {
+    const LP_RUN: LiveRun = { ...WORKING, run_id: "r-lp", scope: { kind: "rules", rules: ["learningprogram-name"] },
+      rule_names: { "learningprogram-name": "Name" } };
+    vi.stubGlobal("fetch", (url: string, init?: RequestInit) => {
+      if (init?.method === "POST") { posts.push({ url, body: JSON.parse(String(init.body)) }); return respond(200, { run: LP_RUN }); }
+      if (url === "/api/agent-runs/config") return respond(200, { enabled: true, off_reason: null, agent_name: "x", k2_url: null, agent: null, minutes: 90, prompt_users: [], cap: 2 });
+      const lp = url.includes("class=learningprogram");
+      if (url.includes("/agent-runs/current")) return respond(200, { ...current, runs: lp ? [LP_RUN] : [WORKING] });
+      if (url.includes("/agent-runs/queue")) return respond(200, { ...QUEUE, waiting: [], working: [
+        { ...QUEUE.working[0], run: "r-lp", catalog_name: "WVU", rule_names: ["Name"], class: "learningprogram" }] });
+      if (/\/agent-runs(\?|$)/.test(url)) return respond(200, lp ? [{ ...RUN, run_id: "r-lp", state: "finished", created_at: "2026-11-06T16:00:00Z",
+        scope: { kind: "rules", rules: ["learningprogram-name"] }, rule_names: { "learningprogram-name": "Name" } }] : [{ ...RUN, state: "finished" }]);
+      return respond(404, { detail: "no" });
+    });
+    await act(async () => root.render(<AgentProvider catalog="wvu" classes={["course", "learningprogram"]}>
+      <RunBar catalog="wvu" /><RunsPanel catalog="wvu" initial={null} onClose={() => {}} /></AgentProvider>));
+    for (let i = 0; i < 5; i++) await flush();
+    expect(host.querySelector("[data-testid=run-bar] .run-text")!.textContent).toBe(
+      "Course: Claude is working on Credit Value. LearningProgram: Claude is working on Name.");
+    expect([...host.querySelectorAll("[data-testid=queue-working] .runs-item")].map((i) => i.textContent)[0])
+      .toContain("WVU LearningProgram: Name");
+    const past = [...host.querySelectorAll("[data-testid=runs-list] .runs-what")].map((x) => x.textContent).slice(1);  // after the queue
+    expect(past).toEqual(["LearningProgram: Improving Name", "Course: Improving Description"]);
+    vi.spyOn(window, "confirm").mockReturnValue(true);
+    await act(async () => [...host.querySelectorAll<HTMLButtonElement>("[data-testid=run-bar] button")].find((b) => b.textContent === "Cancel")!.click());
+    await flush();
+    expect(posts.map((p) => p.url)).toEqual(["/api/catalogs/wvu/agent-runs/r-0/cancel"]);  // the first working: Course's
+  });
+});
+

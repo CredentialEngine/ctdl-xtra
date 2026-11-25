@@ -16,7 +16,7 @@ import CompareTab from "./CompareTab";
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 const brief = (ck: string, a: string, b: string) => ({
-  key: `${ck.toLowerCase()}@div`, course_key: ck, page_stem: ck.toLowerCase(), a_value: a, b_value: b,
+  key: `${ck.toLowerCase()}@div`, record_external_identifier: ck, page_stem: ck.toLowerCase(), a_value: a, b_value: b,
   diff: a === b ? [{ op: "same" as const, text: a }]
     : [{ op: "del" as const, text: a.slice(0, a.length - b.length) }, { op: "same" as const, text: b }],
   css_path: null, char_start: null, char_end: null,
@@ -80,7 +80,7 @@ async function render(hash: string, resp: CompareResponseX = RESPONSE) {
 
 describe("CompareTab", () => {
   it("shows the summary line, the changed rules and the earlier verdicts", async () => {
-    await render("#/c/avc/compare");
+    await render("#/c/avc/course/compare");
     expect(compareMock).toHaveBeenCalledWith("avc", { a: undefined, b: undefined, rule: undefined });
     const to = host.querySelector<HTMLSelectElement>("select[aria-label=to]")!;
     expect([...to.options].map((o) => o.textContent)).toEqual(["ruleset v1", "ruleset v2 (latest)"]);
@@ -109,7 +109,7 @@ describe("CompareTab", () => {
   it("has one Split | Unified switch at the top that changes every diff, remembered", async () => {
     const saved = new Map<string, string>();
     vi.stubGlobal("localStorage", { getItem: (k: string) => saved.get(k) ?? null, setItem: (k: string, v: string) => saved.set(k, v) });
-    await render("#/c/avc/compare");
+    await render("#/c/avc/course/compare");
     expect(host.querySelectorAll("[aria-label='Diff layout']")).toHaveLength(1);
     expect(host.querySelector(".cmp-head [aria-label='Diff layout']")).not.toBeNull();
     const unified = [...host.querySelectorAll<HTMLButtonElement>("[aria-label='Diff layout'] button")].find((b) => b.textContent === "Unified")!;
@@ -129,18 +129,18 @@ describe("CompareTab", () => {
       signals: [], sample: [], vanished_rows: [brief("AJ101", "AJ 101", "")], values: { changed: 1, total: 1, new: 0, vanished: 1 } };
     const resp = { ...RESPONSE, a: 2, b: 3, a_extraction: "rs-0002", b_extraction: "rs-0003",
       versions: [...RESPONSE.versions, { version: 3, extraction: "rs-0003", note: null }], rules: [card, dropped] };
-    await render("#/c/avc/compare?a=2&b=3", resp);
+    await render("#/c/avc/course/compare?a=2&b=3", resp);
     const links = [...host.querySelectorAll<HTMLAnchorElement>("a.see")].map((x) => x.getAttribute("href")!);
-    expect(links).toContain("#/c/avc/rules/stub-code?row=aj101%40div&ext=rs-0002");  // From's ruleset: v3 has no stub-code
-    expect(links).toContain("#/c/avc/rules/course-description?row=geog222%40div");    // To is the latest: no ?ext
-    await render("#/c/avc/compare?a=1&b=2", { ...resp, a: 1, b: 2, a_extraction: "rs-0001", b_extraction: "rs-0002" });
+    expect(links).toContain("#/c/avc/course/rules/stub-code?row=aj101%40div&ext=rs-0002");  // From's ruleset: v3 has no stub-code
+    expect(links).toContain("#/c/avc/course/rules/course-description?row=geog222%40div");    // To is the latest: no ?ext
+    await render("#/c/avc/course/compare?a=1&b=2", { ...resp, a: 1, b: 2, a_extraction: "rs-0001", b_extraction: "rs-0002" });
     expect(host.querySelector<HTMLAnchorElement>("a.see")!.getAttribute("href")).toBe(
-      "#/c/avc/rules/course-description?row=geog222%40div&ext=rs-0002");  // To isn't the latest
+      "#/c/avc/course/rules/course-description?row=geog222%40div&ext=rs-0002");  // To isn't the latest
   });
 
   it("saves a note on a changed value with what it was compared with", async () => {
     annotateMock.mockReset().mockResolvedValue({ event: {}, rule: null, elapsed_ms: 1 });
-    await render("#/c/avc/compare");
+    await render("#/c/avc/course/compare");
     const row = host.querySelector(".crec.cv")!;
     const note = [...row.querySelectorAll("button")].find((b) => b.textContent === "Note…")!;
     expect([...row.querySelectorAll("button")].some((b) => b.textContent === "The new value is wrong…")).toBe(true);
@@ -160,14 +160,14 @@ describe("CompareTab", () => {
   });
 
   it("links every record to the Rules tab with that record selected", async () => {
-    await render("#/c/avc/compare");
+    await render("#/c/avc/course/compare");
     const see = host.querySelector<HTMLAnchorElement>(".crec .see")!;
-    expect(see.getAttribute("href")).toBe("#/c/avc/rules/course-description?row=geog222%40div");
+    expect(see.getAttribute("href")).toBe("#/c/avc/course/rules/course-description?row=geog222%40div");
     expect(see.textContent).toBe("See on page →");
   });
 
   it("expands a signal into the records that lost it", async () => {
-    await render("#/c/avc/compare");
+    await render("#/c/avc/course/compare");
     const sig = host.querySelector<HTMLElement>(".sigrow")!;
     expect(sig.textContent).toContain("-274");
     expect(host.querySelector(".sigdrill")).toBeNull();
@@ -178,7 +178,7 @@ describe("CompareTab", () => {
   });
 
   it("pages through every other changed record, 50 at a time by default", async () => {
-    await render("#/c/avc/compare");
+    await render("#/c/avc/course/compare");
     expect(recordsMock).toHaveBeenLastCalledWith("avc", { a: 1, b: 2, rule: undefined, offset: 0, limit: 50, order: "shuffle", f: [], seed: 0 });
     expect(host.textContent).toContain("Other changed records 273, in random order");
     expect(host.querySelectorAll(".clist")[1].querySelectorAll(".crec").length).toBe(50);
@@ -194,7 +194,7 @@ describe("CompareTab", () => {
   });
 
   it("samples by autostratify with tags, filters by a bar in manual select, and reshuffles", async () => {
-    await render("#/c/avc/compare");
+    await render("#/c/avc/course/compare");
     const mode = (name: string) => [...host.querySelectorAll<HTMLButtonElement>(".sm-modes button")].find((b) => b.textContent === name)!;
     await act(async () => mode("Autostratify").click());
     expect(recordsMock).toHaveBeenLastCalledWith("avc", expect.objectContaining({ order: "auto", offset: 0 }));
@@ -215,18 +215,18 @@ describe("CompareTab", () => {
   });
 
   it("keeps From / To and the selected rule in the URL", async () => {
-    await render("#/c/avc/compare?a=1&b=2&rule=course-description");
+    await render("#/c/avc/course/compare?a=1&b=2&rule=course-description");
     expect(compareMock).toHaveBeenCalledWith("avc", { a: 1, b: 2, rule: "course-description" });
     const from = host.querySelector<HTMLSelectElement>("select[aria-label=from]")!;
     expect(from.value).toBe("1");
     await act(async () => { from.value = "2"; from.dispatchEvent(new Event("change", { bubbles: true })); });
-    expect(location.hash).toBe("#/c/avc/compare?a=2&b=2&rule=course-description");
+    expect(location.hash).toBe("#/c/avc/course/compare?a=2&b=2&rule=course-description");
     await act(async () => host.querySelectorAll<HTMLElement>(".rule-item")[0].click());
-    expect(location.hash).toBe("#/c/avc/compare?a=1&b=2");
+    expect(location.hash).toBe("#/c/avc/course/compare?a=1&b=2");
   });
 
   it("says so when there is only one ruleset version", async () => {
-    await render("#/c/avc/compare", { ...RESPONSE, a: 1, b: 1, versions: [RESPONSE.versions[0]], changed_rules: [],
+    await render("#/c/avc/course/compare", { ...RESPONSE, a: 1, b: 1, versions: [RESPONSE.versions[0]], changed_rules: [],
                                       rules: [], records_changed: 0 });
     expect(host.textContent).toContain("Only one ruleset version so far");
     expect(host.querySelector(".sumline")).toBeNull();

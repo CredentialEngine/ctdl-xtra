@@ -8,8 +8,35 @@ slow on purpose.
 
 from __future__ import annotations
 
+import random
+import threading
 import time
 from collections.abc import Callable
+
+# Waits are the minimum plus a random 0-25% of it: 180 s becomes 180-225 s.
+PACING_JITTER_FRACTION = 0.25
+
+
+def jittered(
+    seconds: float,
+    *,
+    jitter_fraction: float,
+    ceiling: float | None = None,
+    uniform: Callable[[float, float], float] = random.uniform,
+) -> float:
+    """Return `seconds` plus a random 0 to `jitter_fraction` of it.
+
+    Jitter only adds, so the result is never less than `seconds`.
+    `ceiling` caps the total, but never below `seconds`: a wait already
+    at or above the ceiling comes back unchanged, with no jitter.
+        jittered(180, jitter_fraction=0.25)               -> 180 to 225
+    """
+    if jitter_fraction <= 0 or seconds <= 0:
+        return float(seconds)
+    delay = seconds + uniform(0.0, seconds * jitter_fraction)
+    if ceiling is not None:
+        delay = min(delay, max(seconds, ceiling))
+    return float(delay)
 
 
 def backoff_delay(
@@ -18,6 +45,8 @@ def backoff_delay(
     min_interval: float,
     max_interval: float,
     retry_after: float | None = None,
+    jitter_fraction: float = 0.0,
+    uniform: Callable[[float, float], float] = random.uniform,
 ) -> float:
     """Seconds to wait before retry `retry`, counting the first retry as 1.
 
@@ -29,7 +58,12 @@ def backoff_delay(
     delay = min(max_interval, min_interval * (2 ** (retry - 1)))
     if retry_after is not None and retry_after > delay:
         delay = min(max_interval, retry_after)
-    return float(delay)
+    return jittered(
+        delay,
+        jitter_fraction=jitter_fraction,
+        ceiling=max_interval,
+        uniform=uniform,
+    )
 
 
 class WorkerPacer:
@@ -43,26 +77,47 @@ class WorkerPacer:
         self,
         min_interval: float,
         *,
+        jitter_fraction: float = 0.0,
+        max_interval: float | None = None,
         sleep: Callable[[float], None] = time.sleep,
         monotonic: Callable[[], float] = time.monotonic,
+        uniform: Callable[[float, float], float] = random.uniform,
     ) -> None:
         if min_interval < 0:
             raise ValueError("min_interval must be >= 0")
+        if jitter_fraction < 0:
+            raise ValueError("jitter_fraction must be >= 0")
         self.min_interval = float(min_interval)
+        self.jitter_fraction = float(jitter_fraction)
+        self.max_interval = max_interval
         self._sleep = sleep
         self._monotonic = monotonic
-        self._last_fetch: float | None = None
+        self._uniform = uniform
+        self._lock = threading.Lock()
+        self._next_at: float | None = None
 
-    def wait(self) -> float:
-        """Block until this worker may GET again. Returns seconds slept."""
-        if self._last_fetch is None or self.min_interval <= 0:
-            return 0.0
-        sleep_for = self._last_fetch + self.min_interval - self._monotonic()
-        if sleep_for <= 0:
-            return 0.0
-        self._sleep(sleep_for)
+    def _gap(self) -> float:
+        return jittered(
+            self.min_interval,
+            jitter_fraction=self.jitter_fraction,
+            ceiling=self.max_interval,
+            uniform=self._uniform,
+        )
+
+    def wait(self, at_least: float = 0.0) -> float:
+        with self._lock:
+            now = self._monotonic()
+            sleep_for = float(at_least)
+            if self._next_at is not None:
+                sleep_for = max(sleep_for, self._next_at - now)
+            sleep_for = max(sleep_for, 0.0)
+            self._next_at = now + sleep_for + self._gap()
+        if sleep_for > 0:
+            self._sleep(sleep_for)
         return sleep_for
 
     def record_fetch(self) -> None:
-        """Mark that this worker has just issued a GET."""
-        self._last_fetch = self._monotonic()
+        with self._lock:
+            after = self._monotonic() + self._gap()
+            if self._next_at is None or after > self._next_at:
+                self._next_at = after

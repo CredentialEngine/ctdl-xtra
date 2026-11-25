@@ -21,24 +21,20 @@ def now_iso() -> str:
     return datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
-def first_settings(rules: dict[str, dict], given: dict | None = None) -> dict:
-    """Settings for a catalog's first ruleset (one added from the picker has none to inherit): import-v2's defaults,
-    `given` (a draft's `settings`) on top, and each record locator's course key read by its Coded Notation rule
-    unless the draft names one."""
-    from .import_v2 import LABEL_TEXT
+#: A label a value starts with (`Prerequisite:`): the `label_text` signal's pattern, from review-ui-v2.
+LABEL_TEXT = (r"^\s*(Prerequisites?|Corequisites?|Advisory|Recommended Preparation|Units?|Description|Course)\s*:"
+              r"|\b(Prerequisites?|Corequisites?)\s*:")
 
+
+def first_settings(rules: dict[str, dict], given: dict | None = None) -> dict:
+    """Settings for a catalog's first ruleset (one added from the picker has none to inherit): the defaults, with
+    `given` (a draft's `settings`) on top. A record's key isn't a setting: it is the value of its locator's External
+    Identifier rule (model.key_rule_for)."""
     given = given or {}
-    code_rules = {}
-    for loc in sorted(rid for rid, r in rules.items() if r["kind"] == "locator"):
-        code = next((rid for rid, r in sorted(rules.items()) if r["kind"] == "property"
-                     and r["definition"].get("locator") == loc and r.get("property_label") == "Coded Notation"), None)
-        if code:
-            code_rules[loc] = code
     signals = {"course_code_pattern": r"\b[A-Z]{2,5} ?\d{3}[A-Z]?\b", "label_text_pattern": LABEL_TEXT,
                "shape_outlier_max_share": 0.02, "shape_dominance": 0.5, "length_outlier_percentiles": [1, 99],
                "missed_page_min_codes": 5, "page_allow": [], **(given.get("signals") or {})}
-    return {"content_root": "body", "page_title": [], "pane_css": "", **given,
-            "course_key_rule": given.get("course_key_rule") or code_rules, "signals": signals}
+    return {"content_root": "body", "page_title": [], "pane_css": "", **given, "signals": signals}
 
 
 def plan_versions(ctx: Ctx, drafts: dict[str, dict], base: dict[str, dict]) -> dict[str, dict]:
@@ -138,28 +134,28 @@ def publish(ctx: Ctx, rules: dict[str, dict], settings: dict, note: str, by: str
     if parent and not changed and not removed and base_settings == settings:
         return None
     for r in rules.values():
-        path = layout.rule_version(ctx.catalog, r["rule_id"], r["version"])
+        path = layout.rule_version(ctx.catalog, ctx.cls, r["rule_id"], r["version"])
         if not ctx.root.exists(path):
             r = {**r, "published_by": by, "published_at": now_iso()}
             ctx.root.write_json(path, _ordered(r), if_none_match=True)
     version = (parent or 0) + 1
     doc = ruleset_doc(ctx, version, rules, settings, parent, changed + removed, note, by, extra)
     try:
-        ctx.root.write_json(layout.ruleset(ctx.catalog, version), doc, if_none_match=True)
+        ctx.root.write_json(layout.ruleset(ctx.catalog, ctx.cls, version), doc, if_none_match=True)
     except ConflictError:
         raise UserError(f"ruleset v{version} was published by someone else meanwhile; try again") from None
 
-    log_exists = ctx.root.exists(layout.annotations(ctx.catalog))
+    log_exists = ctx.root.exists(layout.annotations(ctx.catalog, ctx.cls))
 
     def change(m: dict) -> None:
-        cat = manifest.catalog_entry(m, ctx.catalog)
+        cat = manifest.class_entry(manifest.catalog_entry(m, ctx.catalog), ctx.cls)
         for r in rules.values():
-            manifest.add_unique(cat["rule_versions"], layout.rule_version(ctx.catalog, r["rule_id"], r["version"]))
+            manifest.add_unique(cat["rule_versions"], layout.rule_version(ctx.catalog, ctx.cls, r["rule_id"], r["version"]))
         cat["rule_versions"].sort()
-        manifest.add_unique(cat["rulesets"], {"version": version, "path": layout.ruleset(ctx.catalog, version)},
+        manifest.add_unique(cat["rulesets"], {"version": version, "path": layout.ruleset(ctx.catalog, ctx.cls, version)},
                             key=lambda x: x["version"])
         if log_exists:  # a catalog's first ruleset has no annotations yet; readers find the log by its path
-            cat["annotations"] = layout.annotations(ctx.catalog)
+            cat["annotations"] = layout.annotations(ctx.catalog, ctx.cls)
 
     manifest.update(ctx.root, change)
     return doc

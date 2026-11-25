@@ -1,6 +1,7 @@
 // The JSON the Studio server returns (src/golden_datasets/server/routes_*.py). This file is the contract between
 // the server and the tabs; change both sides together.
 
+type ClassSlug = "course" | "learningprogram";
 export type RuleKind = "page" | "locator" | "property";
 export type RuleStatus = "approved" | "needs work" | "in review";
 export type Verdict = "correct" | "wrong" | "missing" | "question";
@@ -8,6 +9,8 @@ export type Verdict = "correct" | "wrong" | "missing" | "question";
 export type RowStateName = Verdict | "fixed" | "still-wrong" | "changed-since-correct";
 
 export interface CatalogCard {
+  /** the classes this catalog has none of ("Not a LearningProgram source" on the home page) */
+  not_sources?: ("course" | "learningprogram")[];
   catalog: string; short: string; name: string; institution: string; platform: string; logo: string | null;
   pages: number | null; crawl: string | null; ruleset_version: number | null;
   rules_total: number; rules_approved: number; status: "ready" | "not imported" | "adding" | "failed";
@@ -32,11 +35,19 @@ export interface RulesetInfo {
   changed_rules: string[]; extraction: string | null;
 }
 
+/** One class in this catalog (the class menu, LearningProgram spec item 11). */
+export interface ClassSummary {
+  slug: "course" | "learningprogram"; name: string; properties: number; noun: [string, string];
+  ruleset_version: number | null; rules_total: number; rules_approved: number; records: number | null;
+}
+
+/** A catalog in one class. `extraction` is null when the class has no rules in this catalog yet. */
 export interface CatalogDetail {
   catalog: string; short: string; name: string; institution: string; logo: string | null;
   crawl: string; crawl_started: string; pages: number; extraction: string; ruleset_version: number;
   extractions: { extraction: string; ruleset_version: number; parent_extraction: string | null }[];
   rulesets: RulesetInfo[]; authors: string[]; pane_css: string; root: string;
+  cls?: "course" | "learningprogram"; classes?: ClassSummary[];
 }
 
 export interface RuleSummary {
@@ -47,7 +58,8 @@ export interface RuleSummary {
   rule_comments?: number;             // comments on the whole rule (sidebar)
   // property rules only (property-rules spec §4.8, §4.2, §4.4):
   required?: boolean;                 // in the Required group (Coded Notation, External Identifier, …)
-  course_key?: boolean;               // Coded Notation: the course key, tagged "course key"
+  record_key?: boolean;               // External Identifier: the record key, tagged "record key"
+  tier?: "required" | "phase1" | "phase2" | null;
   no_rule?: boolean;                  // rule_type none: no rule yet (Not started)
   list?: boolean;                     // `multiple`: several values per course, one line each
   path_shown?: string | null;         // "ceterms:creditValue → schema:minValue", or null for a top-level property
@@ -57,10 +69,12 @@ export interface RuleSummary {
 
 /** A rule group of the rule list: `id` is "page" | "locator" | "required" | "other" | "not-started" | "program";
  * `collapsed` starts it shut (Not started and Program page lines). The server sorts the rules; the list keeps that order. */
+/** A rule group of the rule list. With All classes, `cls` says whose it is (the list puts a heading per class). */
 export interface RuleGroup {
   id: string; kind: RuleKind; label: string; collapsed: boolean; rules: RuleSummary[]; approved: number;
+  not_started?: number; cls?: "course" | "learningprogram";
 }
-export interface RulesResponse { extraction: string; ruleset_version: number; groups: RuleGroup[] }
+export interface RulesResponse { extraction: string; ruleset_version: number; groups: RuleGroup[]; cls?: "course" | "learningprogram" }
 
 export interface RuleDetail extends RuleSummary {
   definition: Record<string, unknown>; what: string; how: string; why: string;
@@ -126,7 +140,9 @@ export interface RowItem {
 
 export interface Row extends ReviewMarks {
   key: string;                       // occurrence_key (property rules, locators) or page_stem (page rules)
-  occurrence_key: string | null; course_key: string | null; page_stem: string; url: string; page_title: string | null;
+  occurrence_key: string | null; record_external_identifier: string | null; page_stem: string; url: string; page_title: string | null;
+  /** the record key was generated (`program-<name>`): the page prints none (issue #368) */
+  key_generated?: boolean;
   /** the value's text; a list's items joined by line breaks; null for a property with no rule ("none") */
   value: string | null; status: "found" | "empty" | "no_match" | "none" | "absent";  // absent: the rule's claim (§6)
   /** a list property's items, one line each, and the items a reviewer marked missing (`expected.text`) */
@@ -150,13 +166,22 @@ export interface RowsResponse {
 }
 
 export interface Overlay {
-  blocks: { occurrence_key: string; css_path: string; n: number; course_key: string | null }[];
+  blocks: { occurrence_key: string; css_path: string; n: number; record_external_identifier: string | null }[];
   marks: { css_path: string; char_start: number; char_end: number; detail: string }[];
 }
 
 export interface UnclassifiedPage { page_stem: string; url: string; title: string | null; detail: string }
 
-export interface CourseHit { course_key: string; occurrences: number; line: string | null }
+/** A record in the Records list: its External Identifier, its name, on how many pages its values are. */
+export interface CourseHit {
+  record_external_identifier: string; occurrences: number; line: string | null; name?: string | null; pages?: number;
+  annotated?: boolean; cls?: "course" | "learningprogram";
+}
+/** Where a record's External Identifier came from (the Rules tab's record-key card). */
+export interface KeySource {
+  identifier: string; rule_id: string | null; rule_label: string | null; from_code: boolean; generated: boolean;
+  text: string | null; page_rule: string | null; url_pattern: string | null;
+}
 /** A value of a list property on a course (the Records tab): its text and where it is on the page. */
 export interface CourseItem { value_index: number; value: string; css_path: string | null; char_start: number | null; char_end: number | null }
 export interface CourseProperty extends ReviewMarks {
@@ -170,7 +195,7 @@ export interface CourseProperty extends ReviewMarks {
   state: RowStateName | null; verdict: EventBrief | null; comments: EventBrief[];
 }
 export interface CourseDetail {
-  course_key: string; extraction: string;
+  record_external_identifier: string; extraction: string;
   occurrences: { occurrence_key: string; page_stem: string; url: string; page_title: string | null;
                  locator_rule_id: string; css_path: string; properties: CourseProperty[] }[];
 }
@@ -203,7 +228,7 @@ export interface Discussion { ruleset: TalkItem[]; rules: Record<string, TalkIte
 // --- Compare (routes_compare.py, scorecard.py) -------------------------------------------------------
 export interface DiffPart { op: "same" | "del" | "add"; text: string }
 export interface BriefRow {
-  key: string; course_key: string | null; page_stem: string; a_value: string | null; b_value: string | null;
+  key: string; record_external_identifier: string | null; page_stem: string; a_value: string | null; b_value: string | null;
   diff: DiffPart[]; css_path: string | null; char_start: number | null; char_end: number | null;
 }
 export interface AnnotatedRow extends BriefRow {
@@ -367,6 +392,10 @@ export interface CatalogsSummary {
   labels: Record<string, string>;
   /** the Required columns (bold in the home table) */
   required: string[];
+  /** the class these columns are of */
+  cls?: ClassSlug;
+  /** column → its tier: Required, Phase 1, Phase 2 (folded on the home page) */
+  tiers?: Record<string, "required" | "phase1" | "phase2">;
   properties: number;
   catalogs: Record<string, CatalogSummary>;
 }
@@ -442,7 +471,63 @@ export interface ScoreValues {
 /** `/match`: one property rule's row on one occurrence, with its verdict and comments (what a diff's actions act on). */
 export interface MatchRow extends ReviewMarks {
   rule_id: string; kind: RuleKind; ctdl_property: string | null; property_label: string | null; extraction: string;
-  key: string; occurrence_key: string; course_key: string | null; page_stem: string; value: string | null; status: string;
+  key: string; occurrence_key: string; record_external_identifier: string | null; page_stem: string; value: string | null; status: string;
   css_path: string | null; char_start: number | null; char_end: number | null;
   state: RowStateName | null; verdict: EventBrief | null; comments: EventBrief[];
 }
+
+/** One outcome count of a score line (`GET /api/score-history`): values and each outcome, exact and partial apart. */
+export interface ScoreNumbers {
+  values: number; match: number; partial: number; unsure: number; wrong: number; missing: number; extra?: number;
+  exact: number | null; partial_share: number | null; meets_target?: boolean;
+}
+/** One score of one property in one catalog (a line of `scores/<class>/<property>/<catalog>.jsonl`). */
+export interface ScoreLine {
+  at: string; extract_run: string; golden_version: string; golden_kind?: string;
+  trigger: "golden-published" | "new-output" | "manual" | string; score: string;
+  scored_with: { xtra_cli_version: string | null; xtra_cli_commit: string | null } | null;
+  golden: ScoreNumbers | null; silver: ScoreNumbers | null;
+}
+export interface ScoreHistory {
+  cls: ClassSlug; target: number;
+  /** the class's properties in the Rules tab's order */
+  properties: { column: string; label: string; term: string | null; tier: "required" | "phase1" | "phase2" }[];
+  /** the catalogs (folders) with the class's rules */
+  catalogs: string[];
+  /** catalog → column → its last scores, oldest first */
+  history: Record<string, Record<string, ScoreLine[]>>;
+}
+
+/** Findings, property status and discussion (learning-programs Phase 6). */
+export type PropertyStatusName = "needs review" | "done";
+export interface PropertyStatus {
+  status: PropertyStatusName; by: string; role: string | null; at: string;
+  history: { status: PropertyStatusName; by: string; role: string | null; at: string }[];
+}
+export type FindingOutcome = "partial" | "wrong" | "missing";
+/** a Where-it's-wrong group a finding covers (catalog: its short name) */
+export interface FindingLink { catalog: string; outcome: string; field: string | null; by: string; key: string; group_by: string }
+export interface Finding {
+  id: string; code: string; title: string; kind: "mismatch" | "missing";
+  whose: "silver" | "extractor" | "baseline" | "normalization" | null;
+  cause?: string | null; fix?: string | null; assessment?: string | null; state: "open" | "fixed";
+  links: FindingLink[];
+  /** the running notes' counts (golden, silver), until the finding is linked to groups */
+  counts?: Partial<Record<FindingOutcome, [number, number] | null>> | null; catalogs?: string | null; source?: string;
+  at: string; author: string; created: { at: string; by: string };
+}
+export interface FindingX extends Finding {
+  /** its linked groups' units in each catalog's latest score */
+  live: { counts: Record<FindingOutcome, [number, number] | null>;
+          rows: { catalog: string; outcome: string; by: string; key: string; golden: number; silver: number }[] } | null;
+  comments: number;
+}
+export interface PropertyReview {
+  cls: ClassSlug; column: string; status: PropertyStatus | null; findings: FindingX[];
+  /** thread key ("finding:<id>", "group:<catalog>|<outcome>|<field>|<by>|<key>") → its comments */
+  threads: Record<string, number>;
+}
+export type ThreadTarget = { kind: "finding"; id: string }
+  | { kind: "group"; catalog: string; outcome: string; field?: string | null; by: string; key: string };
+export interface ThreadComment { annotation_id: string; type: "comment"; at: string; author: string; note: string; target: ThreadTarget }
+

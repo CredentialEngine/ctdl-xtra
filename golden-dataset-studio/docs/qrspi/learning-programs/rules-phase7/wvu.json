@@ -1,0 +1,114 @@
+{
+  "catalog": "catalog-wvu-edu",
+  "base_ruleset": 3,
+  "rules": [
+    {
+      "rule_id": "learningprogram-page",
+      "kind": "page",
+      "ctdl_property": null,
+      "property_label": null,
+      "definition": {
+        "url_regex": "^(?!.*/(?:potomacstatecollegeofwvu/liberalarts|undergraduate/cocurricularprograms|undergraduate/eberlycollegeofartsandsciences|undergraduate/schoolofdentistry|westvirginiauniversityinstituteoftechnology/schoolofbusiness)/$)",
+        "requires_selector": "table.sc_courselist",
+        "label": "LearningProgram"
+      },
+      "what": "Pages for one program: a degree, minor or certificate, each with its course list.",
+      "how": "Pages with a `table.sc_courselist`, except five landing pages that list a unit's programs: Liberal Arts Division, Co-Curricular Programs, Eberly College of Arts and Sciences, School of Dentistry, and WVU Tech's School of Business.",
+      "why": "A minor, a certificate and a degree each count as a program (approved item 7).",
+      "examples": []
+    },
+    {
+      "rule_id": "locator-learningprogram-page",
+      "kind": "locator",
+      "ctdl_property": null,
+      "property_label": null,
+      "definition": {
+        "page_rules": [
+          "learningprogram-page"
+        ],
+        "scope": null,
+        "repeat": null,
+        "repeat_filter": null
+      },
+      "what": "One program per page.",
+      "how": "The whole content area is the record.",
+      "why": "A few pages cover two degrees (such as 'Computer Science, M.S.C.S., Ph.D.'); they stay one record for now.",
+      "examples": []
+    },
+    {
+      "rule_id": "learningprogram-external-id",
+      "kind": "property",
+      "ctdl_property": "ceterms:identifier",
+      "property_label": "External Identifier",
+      "definition": {
+        "locator": "locator-learningprogram-page",
+        "rule_type": "css+regex",
+        "selector": "#textcontainer, .tab_content",
+        "join": "\n",
+        "regex": "(?:Major|Minor|Certificate) Code\\s*[:\\-–]?\\s*(?!(?:1160|3075|3076|3712|8948)\\b)([A-Z]{0,3}\\d{2,4})\\b",
+        "group": 1,
+        "fallback": {
+          "rule_type": "css",
+          "selector": "h1",
+          "input": {
+            "from": "page"
+          },
+          "transforms": [
+            "collapse_ws",
+            "generated_id:program"
+          ]
+        }
+      },
+      "what": "The code the page prints (Major Code 2166, Minor Code U070, Certificate Code CG32), else program- and the name.",
+      "how": "The first 'Major Code', 'Minor Code' or 'Certificate Code' across the page's tabs. A page that prints none, or whose first code is one another program prints too (1160, 3075, 3076, 3712, 8948), gets `program-<normalized name>` from the heading.",
+      "why": "Issue #368 and asks 1-3: the first code printed; a shared code gives each program the generated identifier; the prefix is `program`.",
+      "examples": []
+    },
+    {
+      "rule_id": "learningprogram-name",
+      "kind": "property",
+      "ctdl_property": "ceterms:name",
+      "property_label": "Name",
+      "definition": {
+        "locator": "locator-learningprogram-page",
+        "rule_type": "css",
+        "selector": "h1",
+        "input": {
+          "from": "page"
+        },
+        "transforms": [
+          "collapse_ws"
+        ]
+      },
+      "what": "The program's name as the heading prints it, with its award ('Accountancy, M.Acc.').",
+      "how": "The page's `h1`, in the header above the content area.",
+      "why": "",
+      "examples": []
+    },
+    {
+      "rule_id": "learningprogram-description",
+      "kind": "property",
+      "ctdl_property": "ceterms:description",
+      "property_label": "Description",
+      "definition": {
+        "locator": "locator-learningprogram-page",
+        "rule_type": "css",
+        "selector": "#textcontainer h2:contains('Nature of the Program') + p",
+        "transforms": [
+          "collapse_ws"
+        ],
+        "fallback": {
+          "rule_type": "css",
+          "selector": "#textcontainer > p:not(:contains('Department website')):not(:contains('Please use this link')):not(:contains('NOTE:'))",
+          "transforms": [
+            "collapse_ws"
+          ]
+        }
+      },
+      "what": "The paragraph that introduces the program.",
+      "how": "The paragraph under 'Nature of the Program' on the Overview tab, else the Overview's first paragraph that isn't a website link, a link note or a NOTE.",
+      "why": "Minors and certificates have no 'Nature of the Program'; their first paragraph says what the program is.",
+      "examples": []
+    }
+  ]
+}

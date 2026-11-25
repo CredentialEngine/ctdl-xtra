@@ -35,6 +35,7 @@ from implementations.discover_rules import (
     catalog_year_value,
     course_block_count,
     course_codes,
+    course_in_query,
     credential_award,
     described_course_codes,
     distinct_awards,
@@ -59,6 +60,31 @@ from implementations.discover_rules import (
     url_label,
     url_template,
 )
+
+
+@pytest.mark.parametrize(
+    ("url", "named"),
+    [
+        (
+            "https://training.example.edu/portal/training?cmd=catalog&course=109497",
+            "109497",
+        ),
+        (
+            "https://x.edu/portal?course=quality-asphalt-emulsion",
+            "quality-asphalt-emulsion",
+        ),
+        ("https://x.edu/view?course_id=A12", "A12"),
+        ("https://x.edu/view?courseId=7", "7"),
+        ("https://x.edu/portal?course=%20python-2", "python-2"),
+        # Not a course: another parameter, an empty one, no query at all.
+        ("https://x.edu/preview_course_nopop.php?catoid=43&coid=137424", None),
+        ("https://x.edu/course?id=1", None),
+        ("https://x.edu/portal?course=", None),
+        ("https://x.edu/courses/engl101", None),
+    ],
+)
+def test_the_course_an_address_names(url: str, named: str | None) -> None:
+    assert course_in_query(url) == named
 
 
 @pytest.mark.parametrize(
@@ -111,6 +137,18 @@ def test_a_credits_value_is_read_in_either_order() -> None:
     assert CREDIT_VALUE_RE.search("Credits\n3")
     assert CREDIT_VALUE_RE.search("1-3 credit hours")
     assert CREDIT_VALUE_RE.search("4.0 units")
+
+
+def test_a_credits_value_spelled_out_is_a_value() -> None:
+    assert CREDIT_VALUE_RE.search("Three credit hours.")
+    assert CREDIT_VALUE_RE.search("one to four credits")
+    assert CREDIT_VALUE_RE.search("Credits: twelve")
+
+
+def test_a_number_word_inside_another_word_is_not_a_value() -> None:
+    """A number word has to stand alone: "none" ends in "one"."""
+    assert not CREDIT_VALUE_RE.search("none credits")
+    assert not CREDIT_VALUE_RE.search("often hours")
 
 
 def test_a_credit_word_inside_another_word_is_not_a_value() -> None:
@@ -279,7 +317,7 @@ def test_a_prerequisite_printed_as_none_says_there_is_none(
 
 
 def test_every_requisite_label_in_a_run_is_found() -> None:
-    """eLumen prints the requisites as one run; each label ends the last."""
+    """Requisites printed as one run: each label ends the one before it."""
     line = (
         "Limitation on Enrollment: Must be selected. Recommended "
         "Prerequisite: MATH 50. Prerequisite: Completion of PSY 301. "
@@ -313,7 +351,7 @@ def test_every_prerequisite_field_label_is_a_prerequisite_label() -> None:
     """The label table and the label reading agree on what a label is.
 
     "Prerequisite Courses" is not in the table: it lists the courses a
-    statement names, and Clean Catalog prints it before the statement.
+    statement names, and can be printed before the statement.
     """
     for label, field in COURSE_FIELD_LABELS.items():
         if field == "course_prerequisites":
@@ -405,19 +443,18 @@ def test_one_course_printed_twice_is_still_one_block() -> None:
 
 
 def test_a_code_after_a_label_or_in_a_sentence_is_a_reference() -> None:
-    """eLumen prints "Minimum Credit Units" under every description.
+    """A "Minimum Credit Units" line under the description.
 
-    Every code in the description then has a value within reach, so at
-    Antelope Valley the prerequisite, the course's old number and its
-    C-ID each read as one more course on the page, and extraction skipped
-    the page as holding four. A course the page describes is printed as a
+    Every code in the description then has a value within reach, so the
+    prerequisite, the course's old number and its C-ID each read as one
+    more course on the page. A course the page describes is printed as a
     title, its code opening the line; the rest are references to others.
     """
     page = (
         "Basic Auto Body Repair\nABDY 112:\n5.0 Units\n"
         "Prerequisite: Completion of AM 135A.\n"
         "Formerly ENGL 103\n"
-        "(C-ID: ENGL 105) (UC, CSU, AVC)\n"
+        "(C-ID: ENGL 105) (UC, CSU)\n"
         "Minimum Credit Units\n5.0"
     )
     described, titled = described_course_codes(page)
@@ -427,7 +464,7 @@ def test_a_code_after_a_label_or_in_a_sentence_is_a_reference() -> None:
 
 
 def test_a_page_that_titles_no_course_is_counted_as_before() -> None:
-    """Front Range prints a long description between title and credits.
+    """A long description can sit between a course's title and its credits.
 
     The course's own code is too far from its credits to count, and only
     the code a sentence cites is near them. Counting titles alone there
@@ -446,7 +483,7 @@ def test_a_page_that_titles_no_course_is_counted_as_before() -> None:
 def test_a_code_titled_only_in_the_menu_is_not_titled_on_the_page() -> None:
     """`titles` is the codes the page's own text prints as titles.
 
-    eLumen's menu lists CHEM 110 on a line of its own, just above a
+    A site menu lists CHEM 110 on a line of its own, just above a
     certificate whose name ends "(12 Unit)". A biology course whose
     prerequisite is CHEM 110 titled two courses on the flattened page.
     """
@@ -484,6 +521,13 @@ def test_the_same_code_spelled_three_ways_is_one_course() -> None:
         "ACCT A101",  # a letter in front of the number
         "ACTG 1A",  # De Anza and Foothill number courses from 1
         "CIS114DE",  # a two-letter suffix, glued
+        "HNRS 101H1",  # UALR's Honors courses: a letter, then a digit
+        "HNRS 310H3",
+        "CPSI 200023",  # six digits
+        "GERO 4900349003",  # and a dual-listed course's two numbers, run together
+        "A&VS 591",  # WVU puts an ampersand inside the subject
+        "HN&F 500",
+        "C&I 600",
     ],
 )
 def test_a_course_code_is_read_in_every_shape_a_catalog_prints(
@@ -1009,6 +1053,10 @@ def test_a_heading_that_opens_with_a_course_code_is_a_course_title() -> None:
         "FREN 30603. Ph.D. Reading Requirement I. 3 Hours."
     )
     assert COURSE_TITLE_RE.match("ACCT 2013. Accounting Principles I. 3 Hours.")
+    assert COURSE_TITLE_RE.match("A&VS 591. Advanced Topics. 1-6 Hours.")
+    assert COURSE_TITLE_RE.match("HNRS 121H3 - Science and Society II")
+    assert COURSE_TITLE_RE.match("CPSI 200023 - Web Development I")
+    assert COURSE_TITLE_RE.match("GERO 4900349003 - Directed Study")
     assert not COURSE_TITLE_RE.match(
         "Requirements for B.S. in Chemical Engineering"
     )

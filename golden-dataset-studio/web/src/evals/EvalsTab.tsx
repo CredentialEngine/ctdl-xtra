@@ -17,11 +17,15 @@ import { Fragment, useCallback, useEffect, useRef, useState, type ReactNode } fr
 import { createPortal } from "react-dom";
 import { api } from "../api/client";
 import type { CatalogsSummary, ColumnSummary, ExtractOutputs, GoldenChoice, MatchRow, OutcomeCounts, ScoreBasis, ScoreBrief, ScoreDoc,
-  ScoreOutcome, ScoreRow, ScoreValues, WrongGroups, WrongKey } from "../api/types";
+  FindingLink, FindingX, PropertyReview, ScoreOutcome, ScoreRow, ScoreValues, ThreadTarget, WrongGroups, WrongKey } from "../api/types";
 import type { CapturedSelection } from "../pagepane";
 import { addCapture, BY_ANYONE, newDraft, verdictEvent, type Draft } from "../rules/logic";
-import { useReviewer } from "../shell/reviewer";
-import { go, href } from "../shell/router";
+import { FindingPanel } from "../findings/FindingPanel";
+import { findingOf, groupThread, linkOf } from "../findings/logic";
+import { useReview } from "../findings/Review";
+import { currentReviewer, useReviewer } from "../shell/reviewer";
+import { go, href, type ClassSlug } from "../shell/router";
+import { apiClass, inClass } from "../shell/klass";
 import type { TabProps } from "../shell/tabProps";
 import { fmt, Ico, toast, useKeyHints } from "../shell/ui";
 import { fmtDay, fmtDayTime } from "../valuediff/diff";
@@ -134,7 +138,72 @@ export function scoreFor(o: Output, basis: ScoreBasis, golden: string, latest: s
   return mine.find((s) => s.status === "done" && outcomes(s)) ?? mine.find((s) => s.status === "running") ?? mine[0];
 }
 
-export default function EvalsTab({ catalog, route }: TabProps) {
+export default function EvalsTab(props: TabProps) {
+  return props.route.cls === "all" ? <AllClasses {...props} /> : <OneClass {...props} />;
+}
+
+/** All classes (approved item 18; mockup w2-evals-all): one row of bars per class, each against its own golden dataset.
+ * A bar opens that class's Evals at that extract output. */
+function AllClasses({ catalog, route }: TabProps) {
+  const me = useReviewer();
+  const cat = catalog.short;
+  const basis: ScoreBasis = route.params.get("b") === "rule" ? "rule" : "human";
+  const ruled = (catalog.classes ?? []).filter((c) => c.ruleset_version);
+  const [each, setEach] = useState<{ cls: ClassSlug; name: string; idx: ExtractOutputs | null }[] | null>(null);
+  const key = ruled.map((c) => c.slug).join(",");
+  const load = useCallback(() => Promise.all(ruled.map((c) => inClass(c.slug, () => api.extractOutputs(cat))
+    .then((idx) => ({ cls: c.slug, name: c.name, idx }), () => ({ cls: c.slug, name: c.name, idx: null }))))
+    .then(setEach), [cat, key]);
+  useEffect(() => { void load(); }, [load]);
+  useKeyHints(<span><span className="mono">golden-datasets score</span> does the same from the CLI</span>, []);
+  if (!each) return <div className="evx" />;
+  return (
+    <div className="evx">
+      <section className="evx-main">
+        <header className="evx-title">
+          <span className="evx-gchip big">{basis === "human" ? goldenName(HUMAN) : "Silver datasets (rule-matched)"}
+            {basis === "human" && <span className="evx-gchip-d"> · as of now</span>}</span>
+          <span className="evx-vs">vs</span><code className="evx-cmd">xtra catalog extract</code><span>outputs over time</span>
+          <span className="grow" />
+          <span className="evx-basis">scored against
+            <span className="seg xs" role="group" aria-label="Scored against">
+              <button className={basis === "human" ? "on" : ""} onClick={() => go(href(cat, "evals", null, {}), true)}>Human-reviewed</button>
+              <button className={basis === "rule" ? "on" : ""} onClick={() => go(href(cat, "evals", null, { b: "rule" }), true)}>Rule-matched</button>
+            </span>
+            <Tip width={300} tip={BASIS_TIP}><span className="evx-i" tabIndex={0} aria-label="What each scores">ⓘ</span></Tip>
+          </span>
+        </header>
+        {each.map(({ cls, name, idx }, i) => {
+          const latestGolden = idx?.latest_golden ?? null;
+          const g = basis === "human" ? HUMAN : latestGolden ?? idx?.goldens[0]?.id ?? "";
+          const outputs = [...(idx?.outputs ?? [])].reverse();
+          const last = idx?.outputs[0];
+          const b = last ? scoreFor(last, basis, g, latestGolden) : undefined;
+          const values = b?.status === "done" ? total(basis === "human" ? b.human_outcomes : b.rule_outcomes) : null;
+          return (
+            <div key={cls} data-class={cls}>
+              <h3 className="cls-h3">{name}<span>{values === null ? "the latest output isn't scored yet" : `${fmt(values)} values scored in the latest output`}</span></h3>
+              {outputs.length ? (
+                <div className="evx-chartrow">
+                  <History outputs={outputs} latest={last?.id} basis={basis} golden={g} latestGolden={latestGolden} picked={last?.id ?? null}
+                    busy={!!idx?.running}
+                    onPick={(id) => go(href(cat, "evals", null, { x: id === last?.id ? null : id, b: basis === "rule" ? "rule" : null }, cls))}
+                    onScore={(o) => inClass(cls, () => api.startScore(cat, { golden: g, output: o.id, by: me })).then(load, (e) => toast(String(e)))} />
+                  {i === 0 && <div className="evx-legend-v">
+                    {OUTCOMES.map((o) => <span key={o} className="evx-k"><i className={`sw o-${o}`} />{o}</span>)}
+                    <span className="faint evx-hint">Click a bar to compare with that extract output. A dashed bar hasn't been scored yet.</span>
+                  </div>}
+                </div>
+              ) : <p className="muted evx-empty">{idx?.error ?? `xtra hasn't written an extract output with ${name} records yet.`}</p>}
+            </div>
+          );
+        })}
+      </section>
+    </div>
+  );
+}
+
+function OneClass({ catalog, route }: TabProps) {
   const me = useReviewer();
   const cat = catalog.short;
   const [idx, setIdx] = useState<ExtractOutputs | null>(null);
@@ -474,7 +543,7 @@ function ScoreBody({ cat, basis, view, col, subj, outcome, grp, wk, offset, rowK
         </tbody>
       </table>
 
-      <WhereWrong cat={cat} doc={doc} basis={basis} col={col} wk={wk} nav={nav} />
+      <WhereWrong cat={cat} cls={apiClass()} doc={doc} basis={basis} col={col} wk={wk} nav={nav} />
 
       <div className="evx-controls">
         <div className="seg">
@@ -589,10 +658,13 @@ const WRONG_SHOWN = 12;
 /** Every unit that isn't a match (under the picked column, or all), grouped by outcome × field × a key, biggest group
  * first: each group's count, one example (golden → candidate), and its courses, each a link to its row in the Rules
  * tab (anyone's annotations shown). */
-function WhereWrong({ cat, doc, basis, col, wk, nav }: { cat: string; doc: ScoreDoc; basis: ScoreBasis; col: string | null; wk: WrongKey;
+function WhereWrong({ cat, cls, doc, basis, col, wk, nav }: { cat: string; cls: ClassSlug; doc: ScoreDoc; basis: ScoreBasis; col: string | null; wk: WrongKey;
   nav: (ch: Record<string, string | number | null>, keepRow?: boolean) => void }) {
   const [w, setW] = useState<WrongGroups | null>(null);
   const [all, setAll] = useState(false);
+  // findings are per property (learning-programs Phase 6): with a column picked, each group's finding and discussion
+  const { review, reload, catalogName } = useReview(cls, col);
+  const [panel, setPanel] = useState<{ finding: FindingX | null; link: FindingLink | null; thread?: { target: ThreadTarget; title: string } } | null>(null);
   useEffect(() => {
     let live = true;
     api.scoreWrong(cat, doc.id, { basis, column: col, key: wk }).then((r) => live && setW(r), () => live && setW(null));
@@ -600,6 +672,7 @@ function WhereWrong({ cat, doc, basis, col, wk, nav }: { cat: string; doc: Score
   }, [cat, doc.id, basis, col, wk]);
   if (!w) return null;
   const shownGroups = all ? w.groups : w.groups.slice(0, WRONG_SHOWN);
+  const me = currentReviewer();
   const term = goldenTerm(basis).toLowerCase().replace(/s$/, "");
   const link = (t: { rule_id: string | null; occurrence_key: string | null }) =>
     t.rule_id ? href(cat, "rules", t.rule_id, { row: t.occurrence_key, by: BY_ANYONE }) : null;
@@ -617,7 +690,8 @@ function WhereWrong({ cat, doc, basis, col, wk, nav }: { cat: string; doc: Score
       </header>
       {w.groups.length === 0 ? <p className="muted small">Nothing: every unit matched.</p> : (
         <table className="evx-wrong-t">
-          <thead><tr><th className="r">Units</th><th>Reason (outcome · field · how it differs)</th><th>Grouped by</th><th>Example ({term} → candidate)</th><th>Courses</th></tr></thead>
+          <thead><tr><th className="r">Units</th><th>Reason (outcome · field · how it differs)</th><th>Grouped by</th><th>Example ({term} → candidate)</th><th>Courses</th>
+            {col && <th>Finding</th>}</tr></thead>
           <tbody>
             {shownGroups.map((g) => {
               const ex = link(g.example);
@@ -646,6 +720,14 @@ function WhereWrong({ cat, doc, basis, col, wk, nav }: { cat: string; doc: Score
                     })}
                     {g.courses > g.targets.length && <span className="muted small"> +{fmt(g.courses - g.targets.length)}</span>}
                   </td>
+                  {col && <FindingCell review={review} link={linkOf(cat, g, wk)}
+                    onOpen={(finding, link) => setPanel({ finding, link })}
+                    onLink={async (f, link) => {
+                      try { await api.saveFinding(cls, col, { author: me, links: [...f.links, link] }, f.id); toast(`Added to ${f.code}`); reload(); }
+                      catch (e) { toast(`Not saved: ${e instanceof Error ? e.message : String(e)}`); }
+                    }}
+                    onDiscuss={(link) => setPanel({ finding: null, link, thread: { target: { kind: "group", catalog: link.catalog, outcome: link.outcome,
+                      field: link.field, by: link.by, key: link.key }, title: `${g.outcome}, ${g.key}` } })} />}
                 </tr>
               );
             })}
@@ -653,7 +735,37 @@ function WhereWrong({ cat, doc, basis, col, wk, nav }: { cat: string; doc: Score
         </table>
       )}
       {w.groups.length > WRONG_SHOWN && <button className="btn sm" onClick={() => setAll(!all)}>{all ? "Show fewer" : `Show all ${fmt(w.groups.length)} groups`}</button>}
+      {panel && col && <FindingPanel key={panel.finding?.id ?? panel.thread?.title ?? "new"} cls={cls} col={col}
+        finding={panel.finding ? review?.findings.find((f) => f.id === panel.finding!.id) ?? panel.finding : null}
+        link={panel.link} thread={panel.thread ?? null} catalogName={catalogName}
+        onClose={() => setPanel(null)} onSaved={reload} />}
     </section>
+  );
+}
+
+/** A group's finding (code, title, whose error) or + Add finding (a new one, or an existing finding of the property), and
+ * its discussion with its comment count. */
+function FindingCell({ review, link, onOpen, onLink, onDiscuss }: {
+  review: PropertyReview | null; link: FindingLink;
+  onOpen: (f: FindingX | null, link: FindingLink) => void; onLink: (f: FindingX, link: FindingLink) => void; onDiscuss: (link: FindingLink) => void;
+}) {
+  const [menu, setMenu] = useState(false);
+  const f = findingOf(review, link);
+  const n = review?.threads[groupThread(link)] ?? 0;
+  return (
+    <td className="fd-cell" data-testid="finding-cell">
+      {f ? <button className="fd-chip" onClick={() => onOpen(f, link)}><b className="mono">{f.code}</b><span>{f.title}</span>
+          {f.whose && <span className="w">{f.whose}</span>}</button>
+        : <div style={{ position: "relative" }}>
+          <button className="fd-add" onClick={() => (review?.findings.length ? setMenu(!menu) : onOpen(null, link))}>+ Add finding</button>
+          {menu && <div className="fd-menu" role="menu">
+            <button role="menuitem" onClick={() => { setMenu(false); onOpen(null, link); }}>New finding…</button>
+            {review!.findings.map((x) => <button key={x.id} role="menuitem" onClick={() => { setMenu(false); onLink(x, link); }}>
+              Add to <b className="mono">{x.code}</b> {x.title}</button>)}
+          </div>}
+        </div>}
+      <button className="fd-disc" onClick={() => onDiscuss(link)}><Ico name="open" />{n ? <><b>{n}</b> comment{n === 1 ? "" : "s"}</> : "Comment"}</button>
+    </td>
   );
 }
 

@@ -9,13 +9,12 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
+from v2_import import import_v2
 
 from golden_datasets import check, engine, extract, rulesets
 from golden_datasets.context import Ctx
-from golden_datasets.import_v2 import import_v2
 from golden_datasets.query import connect
 from golden_datasets.storage import LocalRoot
-from golden_datasets.sync import sync_catalog
 
 MIRROR = Path.home() / "review-ui-v3-data" / "xtra-cli-output"
 AVC = "avc-elumenapp-com-catalog-2026-27-welcome"
@@ -28,8 +27,8 @@ def ctx(tmp_path_factory):
     if not (MIRROR / AVC).exists():
         pytest.skip("local mirror not available")
     root = LocalRoot(tmp_path_factory.mktemp("avc") / "root")
-    sync_catalog(LocalRoot(MIRROR), root, AVC, None, "link", False, False)
     c = Ctx(root, "avc")
+    c.crawl_root = LocalRoot(MIRROR)  # the crawl is read where xtra-cli wrote it (approved item 21)
     extract.init(c)
     out = import_v2(c, str(MIRROR), None, log=lambda *a: None)
     c.import_result = out
@@ -120,7 +119,7 @@ def test_api_rules_rows_compare_and_verdict(ctx):
         "type": "verdict", "author": "Test", "verdict": "correct",
         "target": {"kind": "match", "rule_id": "course-description", "occurrence_key": row["occurrence_key"]}})
     assert r.status_code == 200 and r.json()["event"]["target"]["value_seen"] == row["value"]
-    again = c.get(f"/api/catalogs/avc/rules/course-description/rows?q={row['course_key']}").json()
+    again = c.get(f"/api/catalogs/avc/rules/course-description/rows?q={row['record_external_identifier']}").json()
     mine = next(x for x in again["rows"] if x["key"] == row["key"])
     assert mine["state"] == "correct" and mine["verdict"]["author"] == "Test"
     approve = c.post("/api/catalogs/avc/annotations", json={
@@ -152,8 +151,8 @@ def test_api_strata_on_rows_and_compare_records(ctx):
     # a comment on one property puts the course first in another property's list, tagged with where it was reviewed
     some = c.get("/api/catalogs/avc/rules/course-name/rows", params={"limit": 400}).json()["rows"]
     target = next(r for r in reversed(some) if r["state"] is None and not r["comments"])
-    desc = next(r for r in c.get(url, params={"q": target["course_key"]}).json()["rows"]
-                if r["course_key"] == target["course_key"])
+    desc = next(r for r in c.get(url, params={"q": target["record_external_identifier"]}).json()["rows"]
+                if r["record_external_identifier"] == target["record_external_identifier"])
     assert c.post("/api/catalogs/avc/annotations", json={
         "type": "comment", "author": "Test", "note": "looks odd",
         "target": {"kind": "match", "rule_id": "course-description", "occurrence_key": desc["occurrence_key"]}}).status_code == 200
@@ -161,7 +160,7 @@ def test_api_strata_on_rows_and_compare_records(ctx):
     n = first["sample"]["elsewhere"]
     lead = first["rows"][:n]
     assert n >= 1 and all(r["tags"][-1]["dim"] == "elsewhere" for r in lead)
-    mine = next(r for r in lead if r["course_key"] == target["course_key"])
+    mine = next(r for r in lead if r["record_external_identifier"] == target["record_external_identifier"])
     assert mine["tags"][-1] == {"dim": "elsewhere", "label": "Reviewed in", "bucket": "Description"}
     assert not any(t["dim"] == "elsewhere" for r in first["rows"][n:] for t in r["tags"])
 

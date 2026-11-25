@@ -42,9 +42,15 @@ export function foundOn(d: CourseDetail): string {
 }
 
 /** The heading: "GEOG 222 · Cartography for Geographic Information Science (GIS)". */
-export function courseHeading(cards: Card[], courseKey: string): string {
+/** A record's heading: a course's code and name; another class's record by its name (approved item 16). */
+export function recordHeading(cards: Card[], recordKey: string, cls: string = "course"): string {
+  if (cls === "course") return courseHeading(cards, recordKey);
+  return cards.find((c) => c.ctdl_property === "ceterms:name")?.values.find((v) => v.value)?.value ?? recordKey;
+}
+
+export function courseHeading(cards: Card[], recordKey: string): string {
   const val = (prop: string) => cards.find((c) => c.ctdl_property === prop)?.values.find((v) => v.value)?.value ?? null;
-  const code = val("ceterms:codedNotation") ?? courseKey;
+  const code = val("ceterms:codedNotation") ?? recordKey;
   const name = val("ceterms:name");
   return name ? `${code} · ${name}` : code;
 }

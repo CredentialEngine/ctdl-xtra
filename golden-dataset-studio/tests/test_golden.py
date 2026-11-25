@@ -25,7 +25,7 @@ def ctx(tmp_path_factory):
     if not (DEMO / "golden-dataset-studio" / "manifest.json").exists():
         pytest.skip("demo root not built (.data/root-demo)")
     root = LocalRoot(tmp_path_factory.mktemp("gold") / "root")
-    sync_catalog(LocalRoot(DEMO), root, "avc-elumenapp-com-catalog-2026-27-welcome", None, "link", False, False)
+    sync_catalog(LocalRoot(DEMO), root, "avc-elumenapp-com-catalog-2026-27-welcome", None, False)
     return Ctx(root, "avc")
 
 

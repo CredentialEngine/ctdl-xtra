@@ -90,7 +90,7 @@ function toRow(r: ReportRow, st: ReportRowState | undefined, history: HistEvent[
   const inf = r.inferred && r.inferred.saves === "expected" ? r.inferred : null;
   const value = inf ? inf.value : r.value;
   return {
-    key: rowKey(r.rule, r.course), occurrence_key: r.occurrence_key ?? st?.occurrence_key ?? null, course_key: r.course,
+    key: rowKey(r.rule, r.course), occurrence_key: r.occurrence_key ?? st?.occurrence_key ?? null, record_external_identifier: r.course,
     page_stem: r.page_stem, url: r.url, page_title: r.title, context: r.title,
     value, status: inf ? (value ? "found" : "absent") : r.status,
     css_path: null, char_start: null, char_end: null, occurrence_css_path: null,

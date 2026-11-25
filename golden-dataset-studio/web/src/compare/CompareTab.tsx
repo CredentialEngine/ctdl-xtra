@@ -4,6 +4,7 @@
 // filterable by strata.
 // Every record links to the Rules tab ("See on page →") in the ruleset that has it: To's, or From's for a record or rule
 // To dropped (?ext=, none for the latest); Compare has no page pane.
+import { SkelTable } from "../shell/Skeleton";
 import { createContext, useContext, useEffect, useState, type KeyboardEvent, type ReactNode } from "react";
 import { api } from "../api/client";
 import type { BriefRow, CompareRecords } from "../api/types";
@@ -51,7 +52,7 @@ export default function CompareTab({ catalog, route }: TabProps) {
   if (error && !data) return <div className="cmp-layout"><div /><section className="doc"><div className="doc-in">
     <h1>Compare ruleset versions</h1><p className="muted cmp-empty">{error}</p></div></section></div>;
   if (!data) return <div className="cmp-layout"><aside className="col" /><section className="doc"><div className="doc-in">
-    <h1>Compare ruleset versions</h1><p className="muted cmp-empty">Loading…</p></div></section></div>;
+    <h1>Compare ruleset versions</h1><SkelTable label="Loading the comparison" rows={6} cols={5} /></div></section></div>;
 
   return (
     <div className={"cmp-layout" + (loading ? " loading" : "")}>
@@ -257,7 +258,7 @@ function See({ r, card, short }: { r: BriefRow; card: RuleCardX; short: string }
 }
 
 function Ck({ r, card, many }: { r: BriefRow; card: RuleCardX; many: boolean }) {
-  return <span className="ck">{r.course_key ?? "—"}{many && <span className="rtag">{card.ctdl_property ?? card.title}</span>}</span>;
+  return <span className="ck">{r.record_external_identifier ?? "—"}{many && <span className="rtag">{card.ctdl_property ?? card.title}</span>}</span>;
 }
 
 /** A changed value: the shared value diff (Split by default) with Note… and "The new value is wrong…" (property rules). */

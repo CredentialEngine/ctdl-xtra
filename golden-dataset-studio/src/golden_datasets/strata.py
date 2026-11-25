@@ -41,7 +41,7 @@ def shape(v: str | None) -> str:
 
 def subject(row: dict) -> str:
     """ABDY for ABDY112; for a page row, the first word of its title."""
-    m = re.match(r"[A-Za-z]+", row.get("course_key") or row.get("value") or "")
+    m = re.match(r"[A-Za-z]+", row.get("record_external_identifier") or row.get("value") or "")
     return m.group(0).upper() if m else ""
 
 
