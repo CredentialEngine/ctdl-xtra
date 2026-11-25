@@ -10,10 +10,12 @@ from contextvars import ContextVar
 from urllib.parse import parse_qs
 
 from fastapi import HTTPException, Request
+from starlette.responses import JSONResponse
 
 from .. import classes
 from ..catalogs import resolve
 from ..context import Ctx, SharedManifest
+from ..errors import UserError
 from ..storage import Root, open_root
 
 
@@ -33,22 +35,27 @@ class Studio:
         # where xtra-cli's crawls are (Add a catalog searches it) and the catalogs being added: {folder: progress}
         self.crawls_root = crawls_root or default_crawls_root(self.root)
         self.adding: dict[str, dict] = {}
-        # runs on the remote agent (agent_runs.py, routes_agent.py): {k2_url, k2_key, k2_agent, minutes, prompt_users,
-        # max_runs}
-        from ..agent_runs import DEFAULT_CAP, K2, Queue
-        agent = agent or {}
+        self._set_up_agent(agent or {})
+
+    def _set_up_agent(self, agent: dict) -> None:
+        """Runs on the remote agent (agent_runs.py, routes_agent.py): `agent` is {k2_url, k2_key, k2_agent, minutes,
+        prompt_users, max_runs}."""
+        from ..agent_runs import DEFAULT_CAP, Queue
+
         self.prompt_users: list[str] = [n.strip() for n in agent.get("prompt_users", "").split(",") if n.strip()]
         self.agent_minutes: int = agent.get("minutes", 90)
         self.agent_cap: int = int(agent.get("max_runs") or DEFAULT_CAP)  # runs working at once, all catalogs
-        self.k2: K2 | None = None
-        self.agent_off: str | None = None  # why runs are off, for the config route
-        if not (agent.get("k2_url") and agent.get("k2_key")):
-            self.agent_off = "no K2 server configured (--k2-url and GOLDEN_DATASETS_K2_KEY)"
-        elif not self.root.uri.startswith("azure://"):
-            self.agent_off = "the agent reports to the shared Azure root, and this Studio serves another root"
-        else:
-            self.k2 = K2(agent["k2_url"], agent["k2_key"], agent.get("k2_agent") or "golden-rules")
+        self.k2, self.agent_off = self._k2_server(agent)  # agent_off: why runs are off, for the config route
         self.queue = Queue(self.root, self.k2, self.agent_runs_of, self.catalog_folders, cap=self.agent_cap)
+
+    def _k2_server(self, agent: dict):
+        from ..agent_runs import K2
+
+        if not (agent.get("k2_url") and agent.get("k2_key")):
+            return None, "no K2 server configured (--k2-url and GOLDEN_DATASETS_K2_KEY)"
+        if not self.root.uri.startswith("azure://"):
+            return None, "the agent reports to the shared Azure root, and this Studio serves another root"
+        return K2(agent["k2_url"], agent["k2_key"], agent.get("k2_agent") or "golden-rules"), None
 
     def warm_crawls(self) -> None:
         """List the crawls once in the background, so Add a catalog opens fast (reading each crawl's name from its
@@ -68,28 +75,36 @@ class Studio:
         cold, it loads every catalog's latest extraction and plans its golden dataset (minutes of CPU on the biggest
         catalogs), and the first visit after a restart would wait for all of it. Then each catalog's rule list
         (`warm_rule_list`). One catalog at a time, through the same snapshot loader and caches a visit uses."""
-        def run() -> None:
-            from .. import telemetry
-            from .routes_evals import home_summary
-
-            for cls in classes.SLUGS:
-                REQUEST_CLASS.set(cls)  # this thread's own context: routes' helpers read the class from it
-                try:
-                    with telemetry.span("warm.home", {"ce.class": cls}):
-                        home_summary(self, cls)
-                except Exception as exc:  # noqa: BLE001 — a visit works it out itself and shows any error
-                    print(f"warming the home page ({cls}): {exc}")
-            for folder, cls in self.catalog_folders():
-                REQUEST_CLASS.set(cls)
-                try:
-                    with telemetry.span("warm.rules", {"ce.catalog.folder": folder, "ce.class": cls}):
-                        self.warm_rule_list(folder, cls)
-                except Exception as exc:  # noqa: BLE001
-                    print(f"warming the rule list ({folder}, {cls}): {exc}")
-
-        t = threading.Thread(target=run, name="warm-home", daemon=True)
+        t = threading.Thread(target=self._warm_home, name="warm-home", daemon=True)
         t.start()
         return t
+
+    def _warm_home(self) -> None:
+        self._warm_home_tables()
+        self._warm_rule_lists()
+
+    def _warm_home_tables(self) -> None:
+        from .. import telemetry
+        from .routes_evals import home_summary
+
+        for cls in classes.SLUGS:
+            REQUEST_CLASS.set(cls)  # this thread's own context: routes' helpers read the class from it
+            try:
+                with telemetry.span("warm.home", {"ce.class": cls}):
+                    home_summary(self, cls)
+            except Exception as exc:  # noqa: BLE001 — a visit works it out itself and shows any error
+                print(f"warming the home page ({cls}): {exc}")
+
+    def _warm_rule_lists(self) -> None:
+        from .. import telemetry
+
+        for folder, cls in self.catalog_folders():
+            REQUEST_CLASS.set(cls)
+            try:
+                with telemetry.span("warm.rules", {"ce.catalog.folder": folder, "ce.class": cls}):
+                    self.warm_rule_list(folder, cls)
+            except Exception as exc:  # noqa: BLE001
+                print(f"warming the rule list ({folder}, {cls}): {exc}")
 
     def warm_rule_list(self, folder: str, cls: str) -> None:
         """Work out a catalog's rule statuses and "Annotated by" counts for a class, as the Rules tab's first visit
@@ -148,24 +163,17 @@ class ClassParam:
         self.app = app
 
     async def __call__(self, scope, receive, send):
-        if scope["type"] != "http":
+        asked = parse_qs(scope.get("query_string", b"").decode()).get("class") if scope["type"] == "http" else None
+        if not asked:
             return await self.app(scope, receive, send)
-        from .. import classes
-        from ..errors import UserError
-
-        got = parse_qs(scope.get("query_string", b"").decode()).get("class")
-        if got:
-            try:
-                token = REQUEST_CLASS.set(classes.get(got[0]).slug)
-            except UserError as exc:
-                from starlette.responses import JSONResponse
-
-                return await JSONResponse({"detail": str(exc)}, status_code=422)(scope, receive, send)
-            try:
-                return await self.app(scope, receive, send)
-            finally:
-                REQUEST_CLASS.reset(token)
-        return await self.app(scope, receive, send)
+        try:
+            token = REQUEST_CLASS.set(classes.get(asked[0]).slug)
+        except UserError as exc:
+            return await JSONResponse({"detail": str(exc)}, status_code=422)(scope, receive, send)
+        try:
+            return await self.app(scope, receive, send)
+        finally:
+            REQUEST_CLASS.reset(token)
 
 
 def studio(request: Request) -> Studio:

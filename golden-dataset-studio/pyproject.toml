@@ -54,5 +54,18 @@ src = ["src"]
 exclude = ["docs"]
 
 [tool.ruff.lint]
-select = ["E", "F", "W", "I", "B", "UP"]
-ignore = ["E501", "B905"]
+# N: names (CamelCase classes, lowercase functions and variables); C901 / PLR0912 / PLR0915: a coarse guard on long or
+# tangled functions. The line limit itself (15 per function) is tests/test_function_length.py, which ruff can't count.
+select = ["E", "F", "W", "I", "B", "UP", "N", "C901", "PLR0912", "PLR0915"]
+ignore = ["E501", "B905", "N818"]  # N818: the exception names (K2Full, LockBusy...) are fine as they are
+
+[tool.ruff.lint.pylint]
+max-statements = 15
+max-branches = 8
+
+[tool.ruff.lint.mccabe]
+max-complexity = 8
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["N806", "C901", "PLR0912", "PLR0915"]  # the style rules are for the Studio's code; tests name constants they bind locally (B, LOADER) like constants
+"src/golden_datasets/v2engine.py" = ["C901", "PLR0912", "PLR0915"]  # the v2 engine, kept as it was for the equivalence test

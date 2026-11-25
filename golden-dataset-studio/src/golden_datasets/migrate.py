@@ -196,16 +196,19 @@ def _prune(root: Root, folders: list[str]) -> None:
         return
     for folder in folders:
         top = root._p(folder)
-        if not top.is_dir() or top.is_symlink():
-            continue
-        for f in top.rglob(".*.lock"):  # LocalRoot's write locks, not data
-            if f.is_file():
-                f.unlink()
-        for d in sorted((x for x in top.rglob("*") if x.is_dir() and not x.is_symlink()), reverse=True):
-            if not any(d.iterdir()):
-                d.rmdir()
-        if not any(top.iterdir()):
-            top.rmdir()
+        if top.is_dir() and not top.is_symlink():
+            _prune_folder(top)
+
+
+def _prune_folder(top) -> None:
+    for f in top.rglob(".*.lock"):  # LocalRoot's write locks, not data
+        if f.is_file():
+            f.unlink()
+    for d in sorted((x for x in top.rglob("*") if x.is_dir() and not x.is_symlink()), reverse=True):
+        if not any(d.iterdir()):
+            d.rmdir()
+    if not any(top.iterdir()):
+        top.rmdir()
 
 
 # --- the plan -------------------------------------------------------------------------------------------------
