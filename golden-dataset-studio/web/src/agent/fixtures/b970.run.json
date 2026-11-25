@@ -34,7 +34,7 @@
   "ended_at": "2026-11-06T01:25:45Z",
   "ended_by": "golden-rules agent",
   "fallback_reason": null,
-  "studio_url": "https://golden-rules-studio.mlops-club.org/",
+  "studio_url": "https://studio.example.org/",
   "to_do_count": 1,
   "report_version": 2,
   "session_ended_at": null

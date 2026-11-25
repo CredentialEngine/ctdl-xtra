@@ -309,13 +309,13 @@ Eric confirms these exact steps. It changes **three things** on the server (a ke
 each one has its undo below. It starts at most **two real Claude sessions**, for a few minutes, with a harmless
 prompt. It doesn't touch the canonical `golden-rules` agent, its chat, the storage root or any catalog.
 
-All calls run **inside the pod**, against the daemon on `127.0.0.1:7420`. The owner token never leaves the pod;
+All calls run **inside the K2 server's container**, against the daemon on `127.0.0.1:7420`. The owner token never leaves the container;
 `deploy.sh` reaches the daemon the same way (`deploy.sh:30-33`). The `k2` CLI isn't used, because it needs
 `python3`, which the image lacks.
 
 ```sh
-x()   { kubectl -n k2 exec -i k2-0 -c k2-daemon -- "$@"; }
-# owner routes (/cli/...): the daemon's owner token, read inside the pod
+x()   { "$@"; }  # run in the K2 server's container (how you get a shell there is up to its host)
+# owner routes (/cli/...): the daemon's owner token, read inside the container
 cli() { x sh -c "curl -sS -H 'Content-Type: application/json' ${2:+--data-binary @-} \"http://127.0.0.1:7420$1\$(case '$1' in *\?*) echo '&';; *) echo '?';; esac)token=\$(cat .k2/daemon.token)\""; }
 # /v1 routes: the test key, passed on stdin so it isn't in the process list
 v1()  { x sh -c 'read -r K; curl -sS -w "\n[%{http_code} in %{time_total}s]\n" -H "Authorization: Bearer $K" -H "Content-Type: application/json" "$@"' sh "$@"; }
@@ -406,7 +406,7 @@ done. Keys and stream tokens are redacted.
 
 **Step 0 (before):** `hostSessionCellCap: null` (K2's default, 15); guest policy the K2 default ("[K2 API guest
 policy] … Prefer read-only work …"); 3 `claude` processes already running (two 6 days old, one 1 day old); memory
-use of the pod 3,440,705,536 bytes.
+use of the container 3,440,705,536 bytes.
 
 **Step 1:** created key `studio-host-sessions-test` (id `3f013305-…`), capabilities
 `{"hostSessions": true, "canonicalMessage": false, "db": false, "hire": false, "sandboxes": false}`.
@@ -433,7 +433,7 @@ show `hostSessionCellCap = 2`.
 | start A2 | `200` in 0.03 s, `sessionId 4e020266-…` |
 | start B2 | `200` in 0.03 s, `sessionId 6a555324-…` (so the canonical `golden-rules` agent does **not** count toward the cap) |
 | start C2, 20 s later | **`429` in 30.0 s, `{"code":"workspace-cell-cap","error":"concurrent host-session limit reached for this workspace"}`**: the cap of 2 works |
-| memory | pod 3,780,149,248 bytes; 5 `claude` processes, 1,499 MB RSS together (the 3 old ones + A2 + B2) |
+| memory | container 3,780,149,248 bytes; 5 `claude` processes, 1,499 MB RSS together (the 3 old ones + A2 + B2) |
 | kill A2 | `200 {"killed": true, "resumable": true}` |
 | start C2 again | `200` in **0.03 s**: the freed place is reused at once |
 | kill B2, kill C2 | `200 {"killed": true}` each |
@@ -447,7 +447,7 @@ processes remain.
 - K2 may also *accept* a start after a wait of up to 30 s (when a place frees during it), so the Studio's K2 timeout
   must be over 30 s (the spec uses 45 s), and starts run in the background loop, not in a browser request.
 - A finished session answers `200 phase: finished`, not 404: treat `live: false` as "the place is free".
-- Memory is tight: with two runs working, the pod was at ~3.8 GB of its 4 GiB limit, much of it the three idle
+- Memory is tight: with two runs working, the container was at ~3.8 GB of its 4 GiB limit, much of it the three idle
   Claude tabs (about 860 MB). Closing idle tabs, or raising the limit, gives real runs more room.
 - The guest policy is still K2's default ("Prefer read-only work"). Real runs that publish need the Studio's text
   (step 3) before they ship.
