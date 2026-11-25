@@ -88,20 +88,10 @@ export const agentApi = {
     get<{ run: AgentRun; notes: RunNote[]; summary: string | null }>(`${c(catalog)}/${encodeURIComponent(runId)}`),
   prompt: (catalog: string, runId: string) => get<{ text: string }>(`${c(catalog)}/${encodeURIComponent(runId)}/prompt`),
   async start(catalog: string, scope: RunScope, author: string): Promise<StartResult> {
-    let r: Response;
-    try {
-      r = await fetch(withClass(c(catalog)), json({ scope, author, studio_url: location.origin + location.pathname }));
-    } catch {
-      return { ok: false, kind: "fallback", reason: "the Studio's server didn't answer" };
-    }
-    if (r.status === 401) signedOut();
-    let body: Record<string, unknown> = {};
-    try { body = await r.json(); } catch { /* not JSON */ }
-    if (r.ok) return { ok: true, run: body.run as AgentRun };
-    if (body.fallback === "prompt") return { ok: false, kind: "fallback", reason: String(body.reason ?? body.detail ?? "") };
-    if (r.status === 409) return { ok: false, kind: "busy", run: (body.run as AgentRun) ?? null, detail: String(body.detail ?? "") };
-    if (r.status >= 500) return { ok: false, kind: "fallback", reason: `the Studio's server answered ${r.status}` };
-    return { ok: false, kind: "error", detail: String(body.detail ?? r.statusText) };
+    const reply = await postStart(catalog, scope, author);
+    if (!reply) return UNANSWERED;
+    if (reply.r.ok) return { ok: true, run: reply.body.run as AgentRun };
+    return refusalOf(reply);
   },
 };
 
@@ -136,27 +126,29 @@ export function endedWords(r: AgentRun): string {
   // a run on named rules says which (one-rule-runs §1.3): "Claude published Credit Value in ruleset v10"
   const names = r.scope.kind === "rules" && r.rule_names ? andNames(ruleNames(r)) : "";
   switch (r.state) {
-    case "finished":
-      if (!published(r)) return names ? `Claude finished ${names} without publishing` : "Claude finished";
-      {
-        // a reported run's own sentence names only the rules it published (the run's rules may be more)
-        const said = r.report_version && r.outcome ? r.outcome.trim().replace(/\.$/, "") : null;
-        const pubd = said ?? (names ? `Claude published ${names} in ruleset v${r.ruleset_after}` : `Claude published ruleset v${r.ruleset_after}`);
-        if (!isPartial(r) || /\b(needs?|wait)\b/.test(said ?? "")) return pubd;
-        const n = r.to_do_count ?? 0;
-        return `${pubd}. ${n ? `${n} decision${n === 1 ? "" : "s"} still wait${n === 1 ? "s" : ""} for you` : "Some rules still wait for you"}`;
-      }
-    case "needs_you": {
-      const n = r.to_do_count;
-      if (names) return n ? `Claude needs ${n} decision${n === 1 ? "" : "s"} before it can publish ${names}` : `Claude needs you before it can publish ${names}`;
-      return n ? `${n} thing${n === 1 ? "" : "s"} to fix before Claude can publish` : "Things to fix before Claude can publish";
-    }
+    case "finished": return finishedWords(r, names);
+    case "needs_you": return needsYouWords(r.to_do_count, names);
     case "failed": return "Claude couldn't finish";
     case "cancelled": return "Run cancelled";
     case "timed_out": return "Run timed out";
     case "ended": return "Run marked as ended";
     default: return r.state;
   }
+}
+
+function finishedWords(r: AgentRun, names: string): string {
+  if (!published(r)) return names ? `Claude finished ${names} without publishing` : "Claude finished";
+  // a reported run's own sentence names only the rules it published (the run's rules may be more)
+  const said = r.report_version && r.outcome ? r.outcome.trim().replace(/\.$/, "") : null;
+  const pubd = said ?? (names ? `Claude published ${names} in ruleset v${r.ruleset_after}` : `Claude published ruleset v${r.ruleset_after}`);
+  if (!isPartial(r) || /\b(needs?|wait)\b/.test(said ?? "")) return pubd;
+  const n = r.to_do_count ?? 0;
+  return `${pubd}. ${n ? `${n} decision${n === 1 ? "" : "s"} still wait${n === 1 ? "s" : ""} for you` : "Some rules still wait for you"}`;
+}
+
+function needsYouWords(n: number | null | undefined, names: string): string {
+  if (names) return n ? `Claude needs ${n} decision${n === 1 ? "" : "s"} before it can publish ${names}` : `Claude needs you before it can publish ${names}`;
+  return n ? `${n} thing${n === 1 ? "" : "s"} to fix before Claude can publish` : "Things to fix before Claude can publish";
 }
 
 /** The ended run's words with its outcome line, for the report and the run list (where details belong). */
@@ -312,26 +304,43 @@ export const agentApi2 = {
     get<{ version: number; reverted: number; rules?: { rule: string; name: string }[]; suite?: { line?: string } }>(
       `/api/catalogs/${encodeURIComponent(catalog)}/rulesets/${version}/revert`, json({ author })),
   async start(catalog: string, rules: string[], author: string): Promise<StartResult2> {
-    let r: Response;
-    try {
-      r = await fetch(withClass(c(catalog)), json({ scope: { kind: "rules", rules }, author, studio_url: location.origin + location.pathname }));
-    } catch {
-      return { ok: false, kind: "fallback", reason: "the Studio's server didn't answer" };
-    }
-    if (r.status === 401) signedOut();
-    let body: Record<string, unknown> = {};
-    try { body = await r.json(); } catch { /* not JSON */ }
+    const reply = await postStart(catalog, { kind: "rules", rules }, author);
+    if (!reply) return UNANSWERED;
+    const { r, body } = reply;
     if (r.ok) return { ok: true, run: body.run as AgentRun, queue: (body.queue as { place: number; start_in_min: number }) ?? null };
-    if (body.fallback === "prompt") return { ok: false, kind: "fallback", reason: String(body.reason ?? body.detail ?? "") };
-    if (r.status === 409 && body.rule) {
-      return { ok: false, kind: "held", rule: String(body.rule), rule_name: String(body.rule_name ?? body.rule),
-               run: (body.run as AgentRun) ?? null, detail: String(body.detail ?? "") };
-    }
-    if (r.status === 409) return { ok: false, kind: "busy", run: (body.run as AgentRun) ?? null, detail: String(body.detail ?? "") };
-    if (r.status >= 500) return { ok: false, kind: "fallback", reason: `the Studio's server answered ${r.status}` };
-    return { ok: false, kind: "error", detail: String(body.detail ?? r.statusText) };
+    if (body.fallback !== "prompt" && r.status === 409 && body.rule) return heldOf(body);
+    return refusalOf(reply);
   },
 };
+
+type StartReply = { r: Response; body: Record<string, unknown> };
+const UNANSWERED = { ok: false, kind: "fallback", reason: "the Studio's server didn't answer" } as const;
+
+/** POST a run; null when the server didn't answer. */
+async function postStart(catalog: string, scope: RunScope, author: string): Promise<StartReply | null> {
+  let r: Response;
+  try {
+    r = await fetch(withClass(c(catalog)), json({ scope, author, studio_url: location.origin + location.pathname }));
+  } catch {
+    return null;
+  }
+  if (r.status === 401) signedOut();
+  let body: Record<string, unknown> = {};
+  try { body = await r.json(); } catch { /* not JSON */ }
+  return { r, body };
+}
+
+function refusalOf({ r, body }: StartReply): Exclude<StartResult, { ok: true }> {
+  if (body.fallback === "prompt") return { ok: false, kind: "fallback", reason: String(body.reason ?? body.detail ?? "") };
+  if (r.status === 409) return { ok: false, kind: "busy", run: (body.run as AgentRun) ?? null, detail: String(body.detail ?? "") };
+  if (r.status >= 500) return { ok: false, kind: "fallback", reason: `the Studio's server answered ${r.status}` };
+  return { ok: false, kind: "error", detail: String(body.detail ?? r.statusText) };
+}
+
+function heldOf(body: Record<string, unknown>): StartResult2 {
+  return { ok: false, kind: "held", rule: String(body.rule), rule_name: String(body.rule_name ?? body.rule),
+           run: (body.run as AgentRun) ?? null, detail: String(body.detail ?? "") };
+}
 
 /** "1st", "2nd", "3rd", "11th". */
 export function ordinal(n: number): string {
