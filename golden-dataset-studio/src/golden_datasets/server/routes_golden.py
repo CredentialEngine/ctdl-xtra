@@ -55,8 +55,17 @@ def _table(ctx, path: str) -> list[dict]:
     return pq.read_table(ctx.root.local_path(path, mutable=True)).to_pylist()
 
 
-def _values_then(ctx, path: str) -> Counter:
-    """An older version's values, as published (golden.parquet): those with a CTDL term."""
+def _values_then(st, ctx, path: str, doc: dict) -> Counter:
+    """An older version's values, as published (golden.parquet): those with a CTDL term. Only the latest version's
+    files change (with each verdict), so an older one's counts are kept, per its publication: each visit to Datasets
+    downloaded every older version's golden.parquet again (nine on Marshall)."""
+    key = ("golden-values-then", path, doc.get("published_at"))
+    if key not in st.cache:
+        st.cache[key] = _count_values(ctx, path)
+    return st.cache[key]
+
+
+def _count_values(ctx, path: str) -> Counter:
     try:
         rows = _table(ctx, f"{path}/golden.parquet")
     except FileNotFoundError:
@@ -102,7 +111,7 @@ def golden_versions(request: Request, catalog: str) -> dict:
         doc = _pub(ctx, vs, n)
         latest = n == max(vs)
         vid = golden.version_name(n)
-        counts = _values_now(st, ctx, doc) if latest and doc else _values_then(ctx, vs[n]["path"])
+        counts = _values_now(st, ctx, doc) if latest and doc else _values_then(st, ctx, vs[n]["path"], doc)
         trees = doc.get("trees") or {}
         out.append({
             "id": vid, "ruleset_version": n, "latest": latest, "columns": golden.columns_of(doc.get("properties") or []),
@@ -128,9 +137,7 @@ def _golden_now(st, ctx) -> dict:
         rows = []
         for r in golden.property_rules(rv):
             rid = r["rule_id"]
-            states = rv.row_states(rid, rv.snap.rows(rid))
-            n = sum(1 for x in states.values() if x.human) + sum(1 for x in states.values()
-                                                                  for i in x.items.values() if i.human)
+            n = rv.rule_status(rid)["human_values"]  # worked out with the rule's status, once per rule (_summarize)
             rows.append({"property": r["property"], "rule_id": rid,
                          "path_shown": properties.shown(r["ctdl_property"]) or None, "human": n})
         st.cache[key] = {"by_property": rows, "human": sum(x["human"] for x in rows)}

@@ -751,8 +751,10 @@ def course(request: Request, catalog: str, record_external_identifier: str, ext:
                   key=lambda o: (o["locator_rule_id"] != "locator-course-page", o["page_stem"], o["locator_index"]))
     if not occs:
         raise not_found(record_external_identifier)
+    # the record's own pages: each rule's rows and states are built there alone (`rows_on`), not over the whole
+    # catalog (every property rule's rows, and the parent's, took 10 s+ on the big catalogs for one record)
+    stems = {o["page_stem"] for o in occs}
     states_cache: dict = {}
-    annotations: dict = {}
     out = []
     for o in occs:
         props = []
@@ -762,8 +764,7 @@ def course(request: Request, catalog: str, record_external_identifier: str, ext:
         place = model.property_order(snap.ctx.cls)
         for rid in sorted(rids, key=lambda x: (place.get(snap.rules[x].get("property_label"), 99), x)):
             if rid not in states_cache:
-                states_cache[rid] = rv.row_states(rid, snap.rows(rid))
-                annotations[rid] = rv.annotations(rid)
+                states_cache[rid] = rv.row_states(rid, snap.rows_on(rid, stems), stems)
             s = states_cache[rid].get(o["occurrence_key"])
             r = snap.rules[rid]
             m = ms.get(rid) or {"value": None, "status": "none", "full_css_path": None, "char_start": None,
@@ -771,7 +772,7 @@ def course(request: Request, catalog: str, record_external_identifier: str, ext:
             items = snap.items_by_occ[o["occurrence_key"]].get(rid) or []
             found = [x for x in items if x["status"] == "found"]
             is_list = bool(r["definition"].get("multiple"))
-            ann = annotations[rid].get(o["occurrence_key"]) or {"people": {}}
+            ann = rv.annotation(s) if s else {"people": {}}
             props.append({"rule_id": rid, "property_label": r.get("property_label"),
                           "ctdl_property": r.get("ctdl_property"),
                           "value": profiles_rule.row_value(found) if is_list and found else m["value"],

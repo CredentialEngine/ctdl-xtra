@@ -365,17 +365,17 @@ def storage_op(kind: str, call_span: bool = True):
 
 
 # -- what a request competed for: CPU, memory, other requests, garbage collection ---------------------------------
-def rss_mb() -> float | None:
+def rss_mb() -> int | None:
     """This process's resident memory now, in MiB (Linux: /proc/self/statm; elsewhere None)."""
     try:
         with open("/proc/self/statm") as f:
             pages = int(f.read().split()[1])
-        return round(pages * os.sysconf("SC_PAGE_SIZE") / 2**20, 1)
+        return round(pages * os.sysconf("SC_PAGE_SIZE") / 2**20)
     except (OSError, ValueError, IndexError):
         return None
 
 
-def peak_rss_mb() -> float | None:
+def peak_rss_mb() -> int | None:
     """The most resident memory this process has held since it started, in MiB (getrusage: KiB on Linux, bytes on
     macOS)."""
     try:
@@ -384,7 +384,7 @@ def peak_rss_mb() -> float | None:
         peak = res.getrusage(res.RUSAGE_SELF).ru_maxrss
     except (ImportError, OSError):
         return None
-    return round(peak / (2**20 if sys.platform == "darwin" else 2**10), 1)
+    return round(peak / (2**20 if sys.platform == "darwin" else 2**10))
 
 
 class Resources:
@@ -421,12 +421,12 @@ class Resources:
         cpu_ms = (time.process_time() - self.cpu) * 1000
         rss = rss_mb()
         self.close()
-        out = {"ce.process.cpu.duration_ms": round(cpu_ms, 1),
+        out = {"ce.process.cpu.duration_ms": round(cpu_ms),
                "ce.process.cpu.utilization": round(cpu_ms / wall_ms, 2) if wall_ms > 0 else None,
                "ce.http.inflight": self.inflight, "ce.http.inflight.max": self.max_inflight,
                "ce.process.memory.rss_mb": rss, "ce.process.memory.peak_mb": peak_rss_mb()}
         if rss is not None and self.rss is not None:
-            out["ce.process.memory.rss_delta_mb"] = round(rss - self.rss, 1)
+            out["ce.process.memory.rss_delta_mb"] = rss - self.rss
         return {k: v for k, v in out.items() if v is not None}
 
 
@@ -548,7 +548,8 @@ def _what(scope) -> dict:
 
 
 def _storage(counters: dict) -> dict:
-    return {f"ce.{k}": (round(v, 1) if isinstance(v, float) else v) for k, v in counters.items()}
+    # whole numbers (milliseconds, bytes): TraceQL metrics (histograms, quantiles) skip float attributes
+    return {f"ce.{k}": (round(v) if isinstance(v, float) else v) for k, v in counters.items()}
 
 
 def _error(state: dict) -> dict:

@@ -48,6 +48,9 @@ VERDICT_KIND = {"correct": "correct", "fixed": "correct", "wrong": "wrong", "sti
 #: "Annotated by" choices besides a person's name: nobody yet, an engineer's check waiting for an expert, any subject
 #: matter expert, any engineer.
 NOBODY, WAITING, EXPERTS, ENGINEERS = "nobody", "waiting", "experts", "engineers"
+#: The "Annotated by" menu's choices of who (a person's name besides) and of verdict, all counted per rule at once.
+FILTER_WHO = (None, NOBODY, WAITING, EXPERTS, ENGINEERS)
+FILTER_VERDICTS = (None, *sorted(set(VERDICT_KIND.values())))
 
 
 #: Rule statuses, see Review.rule_status. Cleared when a profile's role changes (Loader.forget_reviews).
@@ -57,6 +60,23 @@ STATUS_CACHE: dict[tuple, dict] = {}
 # verdict recounts only its own rule. The per-rule caches of a Review keep only a few rules, so walking every rule for
 # the dropdown used to rebuild every rule's rows and row states on each call (6-12 s on Marshall).
 PEOPLE_CACHE: dict[tuple, dict] = {}
+_RULE_LOCKS: dict[tuple, threading.RLock] = {}  # STATUS_CACHE's key → the lock its work is done under
+_RULE_LOCKS_LOCK = threading.Lock()
+CACHE_LIMIT = 20_000  # entries a per-rule cache holds before it starts again
+
+
+def _rule_lock(key: tuple) -> threading.RLock:
+    with _RULE_LOCKS_LOCK:
+        if len(_RULE_LOCKS) > CACHE_LIMIT:
+            _RULE_LOCKS.clear()  # a lock someone holds stays alive with them; a new one is made for the next asker
+        return _RULE_LOCKS.setdefault(key, threading.RLock())
+
+
+def _keep(cache: dict, key: tuple, value: dict) -> dict:
+    if len(cache) > CACHE_LIMIT:
+        cache.clear()
+    cache[key] = value
+    return value
 
 
 def norm(v: str | None) -> str:
@@ -686,15 +706,32 @@ class Review:
     def rule_status(self, rule_id: str, states: dict[str, RowState] | None = None) -> dict:
         """Cached per (extraction, parent, the rule's own live events) across Reviews: a verdict recomputes only
         its own rule's status (property-rules spec §4.14)."""
-        key = (self.snap.ctx.root.uri, self.snap.ctx.catalog, self.snap.ctx.cls, self.snap.ext,
-               self.parent.ext if self.parent is not None else None, rule_id, tuple(self._by_rule.get(rule_id, ())))
-        got = STATUS_CACHE.get(key)
+        got = STATUS_CACHE.get(self._rule_key(rule_id))
         if got is None:
-            telemetry.count("stats.rule_status.computed")
-            got = STATUS_CACHE[key] = self._rule_status(rule_id, states)
-            if len(STATUS_CACHE) > 20_000:
-                STATUS_CACHE.clear()
+            got = self._summarize(rule_id, states)[0]
         return dict(got)
+
+    def _rule_key(self, rule_id: str) -> tuple:
+        """STATUS_CACHE's and PEOPLE_CACHE's key: the extraction, its parent and the rule's own live events."""
+        return (self.snap.ctx.root.uri, self.snap.ctx.catalog, self.snap.ctx.cls, self.snap.ext,
+                self.parent.ext if self.parent is not None else None, rule_id, tuple(self._by_rule.get(rule_id, ())))
+
+    def _summarize(self, rule_id: str, states: dict[str, RowState] | None = None) -> tuple[dict, dict]:
+        """A rule's status and its "Annotated by" counts, worked out together from one build of its rows and row
+        states. The Rules tab asks for every rule's status while its "Annotated by" menu asks for every rule's counts,
+        at the same time: each used to build every rule's rows for itself (only `_Recent.RULES_KEPT` rules stay
+        cached), the two sharing one core, so each took twice as long. One request per rule at a time: another that
+        wants the same rule waits for it, then finds both cached."""
+        key = self._rule_key(rule_id)
+        with _rule_lock(key):
+            status, people = STATUS_CACHE.get(key), PEOPLE_CACHE.get(key)
+            if status is None:
+                telemetry.count("stats.rule_status.computed")
+                status = _keep(STATUS_CACHE, key, self._rule_status(rule_id, states))
+            if people is None:
+                telemetry.count("stats.rule_people.computed")
+                people = _keep(PEOPLE_CACHE, key, self._count_people(rule_id))
+        return status, people
 
     def _rule_status(self, rule_id: str, states: dict[str, RowState] | None = None) -> dict:
         rule = self.snap.rules[rule_id]
@@ -718,7 +755,10 @@ class Review:
         else:
             status = "in review"
         questions = sum(1 for s in states.values() if s.state == "question")
+        human = sum(1 for s in states.values() if s.human) + sum(1 for s in states.values() for i in s.items.values()
+                                                                 if i.human)
         return {"status": status, "reviewed": reviewed, "total": len(states), "open_wrong": open_rows,
+                "human_values": human,
                 "open_missing": open_missing, "questions": questions,
                 "approved_by": last["author"] if status == "approved" else None,
                 "approved_at": last["at"] if status == "approved" else None}
@@ -803,55 +843,55 @@ class Review:
         if cached is None:
             rows = self.snap.rows(rule_id)
             states = self.row_states(rule_id, rows)
-            out = {}
-            for r in rows:
-                st = states[r["key"]]
-                people: dict[str, dict] = {}
-                for e in st.events:  # oldest first: the latest verdict wins
-                    if e["author"].startswith("golden-datasets"):
-                        continue
-                    p = people.setdefault(FULL_NAMES.get(e["author"], e["author"]), {"verdict": None, "note": False})
-                    if e["type"] == "verdict" and e["verdict"] != "question":
-                        p["verdict"] = VERDICT_KIND.get(e["verdict"])
-                    else:
-                        p["note"] = True
-                    p["at"] = e["at"]
-                kinds = {VERDICT_KIND[st.state]} if st.state in VERDICT_KIND else set()
-                out[r["key"]] = {
-                    "people": {n: {"kinds": [k for k in (p["verdict"], "note" if p["note"] else None) if k],
-                                   "at": p["at"], "role": self.roles.get(n) or "engineer"} for n, p in people.items()},
-                    "kinds": sorted(kinds | ({"note"} if st.comments else set())), "waiting": st.engineer_checked}
-            self._annotations[rule_id] = cached = out
+            self._annotations[rule_id] = cached = {r["key"]: self.annotation(states[r["key"]]) for r in rows}
         return cached
+
+    def annotation(self, st: RowState) -> dict:
+        """One row's entry in `annotations`, from its state."""
+        people: dict[str, dict] = {}
+        for e in st.events:  # oldest first: the latest verdict wins
+            if e["author"].startswith("golden-datasets"):
+                continue
+            p = people.setdefault(FULL_NAMES.get(e["author"], e["author"]), {"verdict": None, "note": False})
+            if e["type"] == "verdict" and e["verdict"] != "question":
+                p["verdict"] = VERDICT_KIND.get(e["verdict"])
+            else:
+                p["note"] = True
+            p["at"] = e["at"]
+        kinds = {VERDICT_KIND[st.state]} if st.state in VERDICT_KIND else set()
+        return {"people": {n: {"kinds": [k for k in (p["verdict"], "note" if p["note"] else None) if k],
+                               "at": p["at"], "role": self.roles.get(n) or "engineer"} for n, p in people.items()},
+                "kinds": sorted(kinds | ({"note"} if st.comments else set())), "waiting": st.engineer_checked}
 
     def _people_entry(self, rule_id: str) -> dict:
         """PEOPLE_CACHE's entry for this rule: its counts for the dropdown, filled in on first use."""
-        key = (self.snap.ctx.root.uri, self.snap.ctx.catalog, self.snap.ctx.cls, self.snap.ext,
-               self.parent.ext if self.parent is not None else None, rule_id, tuple(self._by_rule.get(rule_id, ())))
-        got = PEOPLE_CACHE.get(key)
+        got = PEOPLE_CACHE.get(self._rule_key(rule_id))
         if got is None:
-            telemetry.count("stats.rule_people.computed")
-            values: Counter = Counter()
-            waiting = experts = engineers = 0
-            for a in self.annotations(rule_id).values():
-                values.update(list(a["people"]))
-                waiting += a["waiting"]
-                experts += annotated_match(a, EXPERTS, None)
-                engineers += annotated_match(a, ENGINEERS, None)
-            if len(PEOPLE_CACHE) > 20_000:
-                PEOPLE_CACHE.clear()
-            got = PEOPLE_CACHE[key] = {"values": values, "waiting": waiting, "experts": experts,
-                                       "engineers": engineers, "counts": {}}
+            got = self._summarize(rule_id)[1]
         return got
 
+    def _count_people(self, rule_id: str) -> dict:
+        """The rule's "Annotated by" counts: values per person, and rows passing every filter the menu offers (each
+        choice of who, everyone who annotated the rule among them, with each verdict), so choosing one in the menu
+        doesn't build every rule's rows again (8.5 s on Marshall)."""
+        values: Counter = Counter()
+        counts: Counter = Counter()
+        for a in self.annotations(rule_id).values():
+            if not (a["people"] or a["kinds"] or a["waiting"]):  # most rows: nobody has touched them
+                counts[(None, None)] += 1
+                counts[(NOBODY, None)] += 1
+                continue
+            values.update(list(a["people"]))
+            for by in (*FILTER_WHO, *a["people"]):
+                for verdict in FILTER_VERDICTS:
+                    counts[(by, verdict)] += annotated_match(a, by, verdict)
+        return {"values": values, "waiting": counts[(WAITING, None)], "experts": counts[(EXPERTS, None)],
+                "engineers": counts[(ENGINEERS, None)], "counts": counts}
+
     def annotated_count(self, rule_id: str, by: str | None, verdict: str | None) -> int:
-        """How many of the rule's rows pass the "Annotated by" filter (the rule list's counts)."""
-        entry = self._people_entry(rule_id)
-        n = entry["counts"].get((by, verdict))
-        if n is None:
-            n = entry["counts"][(by, verdict)] = sum(1 for a in self.annotations(rule_id).values()
-                                                     if annotated_match(a, by, verdict))
-        return n
+        """How many of the rule's rows pass the "Annotated by" filter (the rule list's counts). Every filter the menu
+        offers is counted (`_count_people`): one it doesn't (someone who never annotated the rule) passes no row."""
+        return self._people_entry(rule_id)["counts"][(by, verdict)]
 
     def people(self) -> dict:
         """The "Annotated by" dropdown: every profile and everyone who annotated a value, with their role and how many
@@ -922,7 +962,9 @@ def release_memory() -> None:
 
     with telemetry.span("memory.release"):
         before = telemetry.rss_mb()
+        gc.unfreeze()  # the evicted snapshot's objects back where a collection sees them (see `freeze_loaded`)
         gc.collect()
+        gc.freeze()
         try:
             ctypes.CDLL(ctypes.util.find_library("c") or "libc.so.6").malloc_trim(0)
         except (OSError, AttributeError):
@@ -931,27 +973,54 @@ def release_memory() -> None:
     telemetry.count("stats.snapshot.releases")
 
 
-def _memory_change(before: float | None) -> dict:
+#: The garbage collector's thresholds while serving (`tune_gc`). Python's default (700, 10, 10) collects the young
+#: objects every 700 allocations: building a big catalog's rows (half a million dicts for the Rules tab) made 3-4
+#: thousand collections, a few of them full ones over every loaded snapshot, 2.6-4.4 s of a 13 s request on Marshall.
+GC_THRESHOLDS = (50_000, 20, 10)
+
+
+def tune_gc() -> None:
+    """Collect less often while serving (`GC_THRESHOLDS`); the server calls it once when it starts."""
+    import gc
+
+    gc.set_threshold(*GC_THRESHOLDS)
+
+
+def freeze_loaded() -> None:
+    """Move every object alive now (the snapshots just loaded) out of the collector's sight: a full collection no
+    longer walks millions of snapshot rows that never become garbage. Refcounting still frees them; an eviction's
+    `release_memory` unfreezes, collects and freezes again, so cycles in an evicted snapshot are collected too."""
+    import gc
+
+    gc.freeze()
+
+
+def _memory_change(before: int | None) -> dict:
     """Resident memory before and after some work, for its span (`ce.process.memory.rss_*_mb`)."""
     after = telemetry.rss_mb()
     if before is None or after is None:
         return {}
     return {"ce.process.memory.rss_before_mb": before, "ce.process.memory.rss_after_mb": after,
-            "ce.process.memory.rss_delta_mb": round(after - before, 1)}
+            "ce.process.memory.rss_delta_mb": after - before}
 
 
 class Loader:
     """Caches snapshots and log readers per catalog (the server keeps one for its lifetime).
 
-    Snapshots are big (WVU's latest extraction is ~1.3 GB of Python objects), so only the most recently used ones are
-    kept: at most `MAX_SNAPSHOTS`, and fewer once their values add up to more than `budget` (env
-    `GOLDEN_DATASETS_SNAPSHOT_BUDGET`, matched values); the two most recent always stay (a Review and its parent).
-    Reviews are dropped with their snapshots, so nothing else keeps an evicted snapshot alive."""
+    Snapshots are big, so only the most recently used ones are kept: at most `MAX_SNAPSHOTS`, and fewer once their
+    values add up to more than `budget` (env `GOLDEN_DATASETS_SNAPSHOT_BUDGET`, matched values); the two most recent
+    always stay (a Review and its parent). Reviews are dropped with their snapshots, so nothing else keeps an evicted
+    snapshot alive.
 
-    MAX_SNAPSHOTS = 4
+    Sized from production's traces (2026-11-25): a snapshot.load adds 0.4-1.3 KB of resident memory per row, and the
+    server sat at 1.1-1.9 GB of its 6 GiB while 4 snapshots and 600,000 rows were all it kept, so going back to a
+    catalog reloaded it (5-12 s each time). Every catalog's current extraction and its parent add up to ~1.55 million
+    rows: they now all stay (~3 GB)."""
+
+    MAX_SNAPSHOTS = 12
     KEEP = 2
-    DEFAULT_BUDGET = 600_000
-    SMALL_SHARE = 0.02  # a snapshot this share of the budget or less is "small" (12,000 rows by default)
+    DEFAULT_BUDGET = 1_600_000
+    SMALL_SHARE = 0.0075  # a snapshot this share of the budget or less is "small" (12,000 rows by default)
     MAX_SMALL = 6       # small snapshots kept, apart from the big ones: at most 12% of the budget together
 
     def __init__(self, budget: int | None = None):
@@ -1027,6 +1096,7 @@ class Loader:
                 self._snaps[key] = snap
                 self._snaps.move_to_end(key)
                 self._evict()
+            freeze_loaded()
         return snap
 
     def _small(self, rows: int) -> bool:

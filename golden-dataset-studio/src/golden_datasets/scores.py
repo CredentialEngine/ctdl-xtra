@@ -51,7 +51,7 @@ from pathlib import Path
 
 import pyarrow as pa
 
-from . import classes, layout, manifest, model, xtra_paths
+from . import classes, layout, manifest, model, telemetry, xtra_paths
 from . import golden as golden_mod
 from .context import Ctx
 from .errors import UserError
@@ -170,14 +170,22 @@ class RecordsStore:
         per property extracted (today's xtra), relative to the output."""
         if self.root.exists("/".join(p for p in (self.base, "extract-report.json") if p)):
             return ["extract-report.json"]
-        cut = len(self.prefix) + len(EXTRACTION_REPORT) + 2
-        folders = sorted({k[cut:].split("/")[1] for k in self._files(f"{self.prefix}/{EXTRACTION_REPORT}")
-                          if k[cut:].count("/") == 2})
+        folders = self._property_folders()
         if folders:
             return [f"extraction-{f}-report.json" for f in folders]
         # the Studio's copy keeps the records it built and the property reports, not extraction_report/
         return sorted(n for n in (k[len(self.prefix) + 1:] for k in self._files(self.prefix))
                       if PROPERTY_REPORT.fullmatch(n))
+
+
+    def _property_folders(self) -> list[str]:
+        """The property folders of `extraction_report/<resource>/<property>/`, two folder listings deep. Listing every
+        file under it took 28 s on Marshall (a file per property of each record) and ran on each visit to Evals."""
+        try:
+            top = self._path(f"{self.prefix}/{EXTRACTION_REPORT}")
+        except FileNotFoundError:
+            return []
+        return sorted({p for r in self.root.list_dirs(top) for p in self.root.list_dirs(f"{top}/{r}")})
 
 
 class _Raw:
@@ -315,8 +323,12 @@ def outputs(ctx: Ctx) -> list[dict]:
 
 def _reports_stat(store: RecordsStore) -> tuple[list[str], str, datetime] | None:
     """An output's report files, one ETag for all of them, and the latest last-modified time; None with no report."""
+    from concurrent.futures import ThreadPoolExecutor
+
     names = store.reports()
-    stats = [store.root.stat("/".join(p for p in (store.base, n) if p)) for n in names]
+    stat = telemetry.in_this_request(lambda n: store.root.stat("/".join(p for p in (store.base, n) if p)))
+    with ThreadPoolExecutor(max_workers=8) as pool:  # a report per property: their stats at once
+        stats = list(pool.map(stat, names))
     found = [(n, st) for n, st in zip(names, stats, strict=True) if st is not None]
     if not found:
         return None

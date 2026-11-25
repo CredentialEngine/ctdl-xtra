@@ -99,7 +99,7 @@ class Root:
         return self.list(prefix)[:n]
 
     def list_dirs(self, prefix: str) -> list[str]:
-        """Names of the immediate sub-folders of `prefix`. Setup commands only."""
+        """Names of the immediate sub-folders of `prefix`: one listing of that level, not of every file below."""
         raise NotImplementedError
 
     def sizes(self, prefix: str) -> dict[str, int]:
@@ -374,6 +374,7 @@ class AzureRoot(Root):
         blobs = self.container.list_blobs(name_starts_with=start, results_per_page=n)
         return [b.name[cut:] for b in itertools.islice(blobs, n)]
 
+    @telemetry.storage_op("list_dirs")
     def list_dirs(self, prefix: str) -> list[str]:
         start = self._name(prefix) if prefix else self.prefix
         start = (start.rstrip("/") + "/") if start else ""
