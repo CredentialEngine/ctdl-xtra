@@ -1249,8 +1249,8 @@ def column_statuses(ctx: Ctx, cache: dict | None = None) -> dict[str, dict]:
             pass
     log = LOADER.log(ctx)
     log.events()  # reads what was appended since, so the offset is current
-    key = ("column-statuses", ctx.catalog, ctx.crawl, ctx.latest_extraction(), doc.get("publication"),
-           doc.get("published_at"), log.offset, LOADER.generation)
+    key = ("column-statuses", ctx.catalog, ctx.cls, ctx.crawl, ctx.latest_extraction(), doc.get("publication"),
+           doc.get("published_at"), log.offset, LOADER.generation)  # by class: each class's counts are kept apart
     if cache is not None and key in cache:
         return cache[key]
     published = set(doc.get("properties") or [])
@@ -1268,7 +1268,7 @@ def column_statuses(ctx: Ctx, cache: dict | None = None) -> dict[str, dict]:
             out[k] = {"status": "needs work" if r["status"] == "needs work" else "in review", "ruleset": None,
                       **n, "no_rule": no_rule}
     if cache is not None:
-        for old in [k for k in cache if isinstance(k, tuple) and k[:3] == key[:3]]:  # this catalog's older counts
+        for old in [k for k in cache if isinstance(k, tuple) and k[:4] == key[:4]]:  # this catalog's older counts
             del cache[old]
         cache[key] = out
     return out
@@ -1307,7 +1307,7 @@ def latest_score(ctx: Ctx, basis: str, cache: dict | None = None) -> dict | None
         return None
     want = {HUMAN_REVIEWED, latest} if basis == "human" else {latest}
     for sid in reversed(score_ids(ctx)):
-        key = ("score.json", ctx.catalog, ctx.crawl, sid)
+        key = ("score.json", ctx.catalog, ctx.cls, ctx.crawl, sid)  # each class numbers its own scores
         doc = (cache or {}).get(key) or read(ctx, sid)
         if doc["status"] == "done" and cache is not None:
             cache[key] = doc

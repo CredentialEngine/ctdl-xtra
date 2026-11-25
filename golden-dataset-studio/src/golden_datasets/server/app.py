@@ -79,6 +79,7 @@ def cmd_serve(args) -> int:
              "minutes": args.agent_run_minutes, "prompt_users": args.prompt_users, "max_runs": args.k2_max_runs}
     app = create_app(args.root, args.azure_root, args.crawls_root, agent)
     app.state.studio.warm_crawls()
+    app.state.studio.warm_home()  # the home page's table, so the first visit after a restart doesn't work it out
     # AI runs: start waiting runs, watch their K2 sessions, end them (every 5 s, never inside a request)
     threading.Thread(target=app.state.studio.queue.loop, args=(threading.Event(),), name="agent-runs",
                      daemon=True).start()

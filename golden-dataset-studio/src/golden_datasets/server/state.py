@@ -62,6 +62,27 @@ class Studio:
 
         threading.Thread(target=run, name="warm-crawls", daemon=True).start()
 
+    def warm_home(self) -> threading.Thread:
+        """Work out the home page's catalogs table for each class once, in the background, when the server starts:
+        cold, it loads every catalog's latest extraction and plans its golden dataset (minutes of CPU on the biggest
+        catalogs), and the first visit after a restart would wait for all of it. One catalog at a time, through the
+        same snapshot loader and caches a visit uses."""
+        def run() -> None:
+            from .. import telemetry
+            from .routes_evals import home_summary
+
+            for cls in classes.SLUGS:
+                REQUEST_CLASS.set(cls)  # this thread's own context: routes' helpers read the class from it
+                try:
+                    with telemetry.span("warm.home", {"ce.class": cls}):
+                        home_summary(self, cls)
+                except Exception as exc:  # noqa: BLE001 — a visit works it out itself and shows any error
+                    print(f"warming the home page ({cls}): {exc}")
+
+        t = threading.Thread(target=run, name="warm-home", daemon=True)
+        t.start()
+        return t
+
     def agent_runs(self, catalog: str):
         """A catalog's AI runs, with this Studio's K2, run length and prompt."""
         return self.agent_runs_of(resolve(catalog))

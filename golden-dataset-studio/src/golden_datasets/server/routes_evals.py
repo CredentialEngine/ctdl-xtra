@@ -15,6 +15,7 @@
 
 from __future__ import annotations
 
+import threading
 from collections import Counter
 from typing import Annotated
 
@@ -181,8 +182,23 @@ def catalogs_summary(request: Request, basis: str = "human") -> dict:
     Catalogs without the class's rules are left out: the picker's list (`/catalogs`) says what they are."""
     if basis not in scores.BASES:
         raise HTTPException(422, f"basis must be one of {', '.join(scores.BASES)}")
-    st = studio(request)
-    cls = REQUEST_CLASS.get()
+    return home_summary(studio(request), REQUEST_CLASS.get(), basis)
+
+
+def home_summary(st, cls: str, basis: str = "human") -> dict:
+    """`/catalogs-summary` for a class. Cold, it loads every catalog's latest extraction and works out its golden
+    dataset's values (a minute or two on the biggest catalogs); `st.cache` keeps each catalog's part until it changes,
+    and the server works it out once when it starts (`Studio.warm_home`), so the first visit doesn't wait for it.
+    One at a time per class: a visit while it's being worked out waits for it, then reads the cache, rather than
+    working it all out a second time alongside."""
+    with _HOME_LOCKS.setdefault(cls, threading.Lock()):
+        return _home_summary(st, cls, basis)
+
+
+_HOME_LOCKS: dict[str, threading.Lock] = {}
+
+
+def _home_summary(st, cls: str, basis: str) -> dict:
     out = {}
     entries = st.ctx(next(iter(CATALOGS))).manifest()["catalogs"]
     for e in entries:
@@ -190,14 +206,15 @@ def catalogs_summary(request: Request, basis: str = "human") -> dict:
         if not (manifest.has_rules(e, cls) and k and manifest.crawl_class(k, cls, create=False)["extractions"]):
             continue
         try:
-            ctx = st.ctx(e["catalog"])
+            ctx = st.ctx(e["catalog"], cls)
             cols = scores.column_statuses(ctx, st.cache)
             out[e["catalog"]] = {"columns": cols, "coverage": scores.coverage(cols, cls),
                                  "score": scores.latest_score(ctx, basis, st.cache)}
         except UserError as exc:
             out[e["catalog"]] = {"columns": {}, "coverage": 0, "score": None, "error": str(exc)}
     root = st.ctx(next(iter(CATALOGS))).root
-    counts = human_reviewed_counts(root, [e["catalog"] for e in entries if manifest.has_rules(e, cls)], st.ctx)
+    counts = human_reviewed_counts(root, [e["catalog"] for e in entries if manifest.has_rules(e, cls)],
+                                   lambda c: st.ctx(c, cls))
     columns = scores.columns_in_order(counts, cls)
     return {"basis": basis, "cls": cls, "columns": columns, "labels": scores.column_labels(cls),
             "tiers": scores.column_tiers(cls),
