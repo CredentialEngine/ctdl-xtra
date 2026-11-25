@@ -52,30 +52,53 @@ export function headText(r: RuleSummary): string {
   return r.kind === "property" ? r.property_label ?? r.title : r.title;
 }
 
+type CatalogFacts = { short: string; crawl: string; ruleset_version: number; rulesets: unknown[] };
+
 /** Where the tour works: the reader's own property rule when they are on one, else the Rules tab's default rule. */
-export function makeCtx(catalog: { short: string; crawl: string; ruleset_version: number; rulesets: unknown[] },
-                        origin: string, rules: RulesResponse | null): TourCtx {
+export function makeCtx(catalog: CatalogFacts, origin: string, rules: RulesResponse | null): TourCtx {
   const cat = catalog.short;
   const list = allRules(rules);
-  const o = parseRoute(origin);
-  const mine = o.catalog === cat && o.tab === "rules" && o.id ? list.find((r) => r.rule_id === o.id) : undefined;
-  let base: string, ruleId: string | null;
-  if (mine && mine.kind === "property") { base = origin.startsWith("#") ? origin : `#${origin}`; ruleId = mine.rule_id; }
-  else { ruleId = defaultRule(rules); base = href(cat, "rules", ruleId); }
-  const loc = list.find((r) => r.rule_id === "locator-program-requirement") ?? list.find((r) => r.kind === "locator");
-  const isBlocked = (r: RuleSummary) => r.open_wrong + r.open_missing > 0 && r.status !== "approved";
-  const mineNow = list.find((r) => r.rule_id === ruleId);
-  const blk = mineNow && isBlocked(mineNow) ? mineNow
-    : list.find((r) => isBlocked(r) && r.kind === "property") ?? list.find(isBlocked) ?? null;
-  const twoVersions = catalog.ruleset_version > 1 || catalog.rulesets.length > 1;
+  const { base, ruleId } = workingRule(cat, origin, list, rules);
   return {
     catalog: cat, base, ruleId, crawl: catalog.crawl,
-    locator: loc ? href(cat, "rules", loc.rule_id) : null, locatorId: loc?.rule_id ?? null,
-    blocked: blk && blk.rule_id !== ruleId ? href(cat, "rules", blk.rule_id) : base, blockedId: blk?.rule_id ?? ruleId,
-    compare: twoVersions ? href(cat, "compare") : null,
+    ...locatorLinks(cat, list),
+    ...blockedLinks(cat, list, base, ruleId),
+    compare: hasTwoVersions(catalog) ? href(cat, "compare") : null,
     evals: href(cat, "evals"),
     headText: Object.fromEntries(list.map((r) => [r.rule_id, headText(r)])),
   };
+}
+
+function workingRule(cat: string, origin: string, list: RuleSummary[], rules: RulesResponse | null): { base: string; ruleId: string | null } {
+  const o = parseRoute(origin);
+  const mine = o.catalog === cat && o.tab === "rules" && o.id ? list.find((r) => r.rule_id === o.id) : undefined;
+  if (mine && mine.kind === "property") return { base: origin.startsWith("#") ? origin : `#${origin}`, ruleId: mine.rule_id };
+  const ruleId = defaultRule(rules);
+  return { base: href(cat, "rules", ruleId), ruleId };
+}
+
+function locatorLinks(cat: string, list: RuleSummary[]): Pick<TourCtx, "locator" | "locatorId"> {
+  const loc = list.find((r) => r.rule_id === "locator-program-requirement") ?? list.find((r) => r.kind === "locator");
+  return { locator: loc ? href(cat, "rules", loc.rule_id) : null, locatorId: loc?.rule_id ?? null };
+}
+
+function blockedLinks(cat: string, list: RuleSummary[], base: string, ruleId: string | null): Pick<TourCtx, "blocked" | "blockedId"> {
+  const blk = blockedRule(list, ruleId);
+  return { blocked: blk && blk.rule_id !== ruleId ? href(cat, "rules", blk.rule_id) : base, blockedId: blk?.rule_id ?? ruleId };
+}
+
+function blockedRule(list: RuleSummary[], ruleId: string | null): RuleSummary | null {
+  const mineNow = list.find((r) => r.rule_id === ruleId);
+  if (mineNow && isBlocked(mineNow)) return mineNow;
+  return list.find((r) => isBlocked(r) && r.kind === "property") ?? list.find(isBlocked) ?? null;
+}
+
+function isBlocked(r: RuleSummary): boolean {
+  return r.open_wrong + r.open_missing > 0 && r.status !== "approved";
+}
+
+function hasTwoVersions(catalog: CatalogFacts): boolean {
+  return catalog.ruleset_version > 1 || catalog.rulesets.length > 1;
 }
 
 // --- undo bookkeeping -----------------------------------------------------------------------------------------

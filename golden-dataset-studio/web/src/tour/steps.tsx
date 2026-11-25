@@ -115,20 +115,10 @@ export const STEPS: Step[] = [
     body: (f) => (
       <>
         <p>A catalog is read in three steps, and each step has its own rules:</p>
-        <ol className="tour-kinds">
-          <li><b>Page rules</b> decide <b>which saved pages</b> hold courses: the catalog's course pages
-            {f.page ? <> (e.g. “{String(f.page)}”)</> : null}. Their rows are pages.</li>
-          <li><b>Record locators</b> find <b>where each course starts and ends</b> on those pages, whether a page holds
-            one course or many{f.locator ? <> (e.g. “{String(f.locator)}”)</> : null}.
-            Their rows are courses.</li>
-          <li><b>Property rules</b> read <b>one property</b> (Description, Coded Notation, Name …) inside each course a locator
-            found{f.property ? <> (e.g. “{String(f.property)}”)</> : null}. Their rows are that property's values; a list property
-            (Estimated Duration) has one line per item.</li>
-        </ol>
+        <RuleKindsList f={f} />
         <p>So a wrong page rule or locator affects every property after it. A <b>missing</b> course or page can only be
           added on a page rule or a locator; on a property rule an empty value is simply wrong.</p>
-        <p className="faint">Here: {Number(f.pages)} page {Number(f.pages) === 1 ? "rule" : "rules"} · {Number(f.locators)} record{" "}
-          {Number(f.locators) === 1 ? "locator" : "locators"} · {Number(f.properties)} property {Number(f.properties) === 1 ? "rule" : "rules"} shown.</p>
+        <RuleKindCounts f={f} />
       </>
     ),
     absent: () => <p>The rule list hasn't loaded.</p>,
@@ -361,10 +351,7 @@ export const STEPS: Step[] = [
       <>
         <p>When everything a rule found is right, press <b>Approve rule</b>. A rule is rejected if even one course is wrong.</p>
         {c.blocked !== c.base && f.rule ? <p>“{String(f.rule)}” has been opened for you.</p> : null}
-        {f.approved ? <p>This rule is already approved ({String(f.by ?? "").replace(/\s*·\s*Reopen(\s*·\s*Reset rule)?$/, "")}).</p>
-          : f.blocked ? <p>Here it's <b>greyed out</b>: some courses are still marked wrong or missing, and the reason
-              is shown under the button. Approve stays greyed out until none is. Fix it with Improve rules with AI, or change those verdicts.</p>
-          : <p>Nothing is marked wrong or missing here, so Approve can be pressed. The tour doesn't press it.</p>}
+        <ApproveState f={f} />
         <p><b>Approving a rule publishes its silver dataset</b> (also called the rule-matched dataset): every value the rule found,
           even while other properties are still being worked on. The golden dataset holds only the values an expert reviewed,
           and doesn't change. Approve asks once first, then scores xtra's latest extract output against it. The{" "}
@@ -401,3 +388,35 @@ export const STEPS: Step[] = [
   },
 ];
 
+function RuleKindsList({ f }: { f: Facts }) {
+  return (
+    <ol className="tour-kinds">
+      <li><b>Page rules</b> decide <b>which saved pages</b> hold courses: the catalog's course pages
+        {f.page ? <> (e.g. “{String(f.page)}”)</> : null}. Their rows are pages.</li>
+      <li><b>Record locators</b> find <b>where each course starts and ends</b> on those pages, whether a page holds
+        one course or many{f.locator ? <> (e.g. “{String(f.locator)}”)</> : null}.
+        Their rows are courses.</li>
+      <li><b>Property rules</b> read <b>one property</b> (Description, Coded Notation, Name …) inside each course a locator
+        found{f.property ? <> (e.g. “{String(f.property)}”)</> : null}. Their rows are that property's values; a list property
+        (Estimated Duration) has one line per item.</li>
+    </ol>
+  );
+}
+
+function RuleKindCounts({ f }: { f: Facts }) {
+  return (
+    <p className="faint">Here: {Number(f.pages)} page {Number(f.pages) === 1 ? "rule" : "rules"} · {Number(f.locators)} record{" "}
+      {Number(f.locators) === 1 ? "locator" : "locators"} · {Number(f.properties)} property {Number(f.properties) === 1 ? "rule" : "rules"} shown.</p>
+  );
+}
+
+function ApproveState({ f }: { f: Facts }) {
+  return (
+    <>
+      {f.approved ? <p>This rule is already approved ({String(f.by ?? "").replace(/\s*·\s*Reopen(\s*·\s*Reset rule)?$/, "")}).</p>
+        : f.blocked ? <p>Here it's <b>greyed out</b>: some courses are still marked wrong or missing, and the reason
+            is shown under the button. Approve stays greyed out until none is. Fix it with Improve rules with AI, or change those verdicts.</p>
+        : <p>Nothing is marked wrong or missing here, so Approve can be pressed. The tour doesn't press it.</p>}
+    </>
+  );
+}
