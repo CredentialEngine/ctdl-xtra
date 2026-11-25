@@ -764,7 +764,7 @@ function FindingCell({ review, link, onOpen, onLink, onDiscuss }: {
               Add to <b className="mono">{x.code}</b> {x.title}</button>)}
           </div>}
         </div>}
-      <button className="fd-disc" onClick={() => onDiscuss(link)}><Ico name="open" />{n ? <><b>{n}</b> comment{n === 1 ? "" : "s"}</> : "Discuss"}</button>
+      <button className="fd-disc" onClick={() => onDiscuss(link)}><Ico name="open" />{n ? <><b>{n}</b> comment{n === 1 ? "" : "s"}</> : "Comment"}</button>
     </td>
   );
 }

@@ -2,6 +2,7 @@
 // title, whose error, the units it covers (live per catalog, else the running notes' counts), cause, fix and
 // assessment, its state, and its thread. The same drawer holds a group's thread alone (`thread` without a finding).
 // Anyone edits; a person says Fixed (a finding never closes by itself, wave 4 §4.3).
+import { SkelCards } from "../shell/Skeleton";
 import { useEffect, useRef, useState } from "react";
 import { Markdown } from "../prompt/markdown";
 import "../prompt/prompt.css";
@@ -51,7 +52,7 @@ export function Thread({ cls, col, target, onPosted }: { cls: ClassSlug; col: st
   };
   return (
     <div className="fd-thread" data-testid="thread">
-      {items === null ? <p className="faint">Loading…</p> : items.length === 0 ? <p className="faint">No comments yet.</p>
+      {items === null ? <SkelCards n={2} label="Loading comments" /> : items.length === 0 ? <p className="faint">No comments yet.</p>
         : items.map((c) => (
           <div key={c.annotation_id} className="fd-cm"><div><b>{c.author}</b> <span className="faint">{day(c.at)}</span></div>
             <p>{c.note}</p></div>))}

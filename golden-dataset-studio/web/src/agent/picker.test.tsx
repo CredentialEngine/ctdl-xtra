@@ -198,12 +198,13 @@ describe("✦ Improve and the AI status on a sidebar row", () => {
     const aiStat = useAiStat();
     return <RuleList rules={RULES} active="course-code" onPick={() => {}} aiStat={aiStat} onImprove={(r) => onImprove(r.rule_id)} />;
   }
-  it("is the Discuss button with the spark, its tooltip the app's Tip, and opens the picker on that rule", async () => {
+  it("is a bordered spark button on every row, beside Comment, its tooltip the app's Tip at once, and opens the picker on that rule", async () => {
     const asked: unknown[] = [];
     await act(async () => root.render(<AgentProvider catalog="avc"><List onImprove={(id) => openRunDialog([id])} /></AgentProvider>));
     await flush();
-    const btn = host.querySelector<HTMLButtonElement>("[data-rule=course-description] .rule-improve .rule-talk-btn")!;
-    expect(btn.textContent).toBe("Improve");
+    const btn = host.querySelector<HTMLButtonElement>("[data-rule=course-description] .rule-acts .rule-act")!;
+    expect(btn.getAttribute("aria-label")).toBe("Improve Description with AI");
+    expect(host.querySelectorAll(".rule-acts .rule-act").length).toBe(host.querySelectorAll(".rule-item").length);  // on every row, not on hover
     expect(btn.querySelector(".ico")).toBeTruthy();
     await act(async () => btn.parentElement!.dispatchEvent(new MouseEvent("mouseover", { bubbles: true })));
     expect(document.querySelector(".evx-tip")!.textContent).toBe(

@@ -103,6 +103,28 @@ async function render(hash = "#/c/avc/course/rules/course-description?row=GEOG1"
 }
 
 describe("RulesTab", () => {
+  it("clears the rule list on a class switch and shows a loading preview until the new class's rules arrive", async () => {
+    await render();
+    expect(container.querySelectorAll(".rule-item").length).toBeGreaterThan(0);
+    const fetchMock = vi.mocked(fetch);
+    const base = fetchMock.getMockImplementation()!;
+    let arrive: (v: Response) => void = () => {};
+    fetchMock.mockImplementation((url, init) => (String(url).endsWith("/rules")
+      ? new Promise<Response>((r) => { arrive = r; }) : base(url as string, init)));
+    await act(async () => {
+      root.render(<RulesTab catalog={catalog} route={parseRoute("#/c/avc/learningprogram/rules")} reload={() => {}} />);
+    });
+    expect(container.querySelector(".rules-layout aside [data-testid=loading]")).toBeTruthy();  // the preview, at once
+    expect(container.querySelectorAll(".rule-item").length).toBe(0);  // not the last class's rules, looking current
+    expect(container.querySelector(".rules-layout .mid [data-testid=loading]")).toBeTruthy();
+    // no rule of the last class is asked of this one while its list is on its way
+    expect(fetchMock.mock.calls.filter(([u]) => /\/rules\/course-/.test(String(u)) && /class=learningprogram/.test(String(u)))).toEqual([]);
+    await act(async () => { arrive(new Response(JSON.stringify(rules), { status: 200, headers: { "Content-Type": "application/json" } }));
+                            await new Promise((r) => setTimeout(r, 0)); });
+    expect(container.querySelector(".rules-layout aside [data-testid=loading]")).toBeNull();
+    expect(container.querySelectorAll(".rule-item").length).toBeGreaterThan(0);
+  });
+
   it("discusses a whole rule in the sidebar, and posts comments with their topic", async () => {
     let talk = { ruleset: [] as unknown[], rules: {} as Record<string, unknown[]> };
     const fetchMock = vi.mocked(fetch);
@@ -129,14 +151,15 @@ describe("RulesTab", () => {
       await act(async () => { setter.call(ta, text); ta.dispatchEvent(new Event("input", { bubbles: true })); });
       await act(async () => { box.querySelector<HTMLButtonElement>(".talk-actions .btn")!.click(); await new Promise((r) => setTimeout(r, 0)); });
     };
-    const btn = container.querySelector<HTMLButtonElement>("[data-rule=course-description] .rule-talk-btn[aria-expanded]")!;
-    expect(btn.textContent).toBe("Discuss");
+    const btn = container.querySelector<HTMLButtonElement>("[data-rule=course-description] .rule-act.talk[aria-expanded]")!;
+    expect(btn.getAttribute("aria-label")).toBe("Comment on Description");
+    expect(btn.textContent).toBe("");  // an icon; the tooltip says what it does
     await act(async () => btn.click());
     const thread = container.querySelector("[data-testid=rule-talk]")!;
     await act(async () => thread.querySelector<HTMLInputElement>(".talk-q input")!.click());
     await type(thread, "Do we need this rule at all?");
     expect(posted[posted.length - 1]).toMatchObject({ topic: "question-rule", target: { kind: "rule", rule_id: "course-description" } });
-    expect(container.querySelector("[data-rule=course-description] .rule-talk-btn[aria-expanded]")!.textContent).toBe("1");
+    expect(container.querySelector("[data-rule=course-description] .rule-act.talk[aria-expanded]")!.textContent).toBe("1");
   });
 
   it("closes the Sample drawer when the reader moves to another row", async () => {

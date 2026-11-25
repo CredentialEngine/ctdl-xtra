@@ -42,7 +42,7 @@ export function RuleList({ rules, active, onPick, talk, onTalk, top, bottom, cou
   heads?: Record<string, ClassHead> | null;
   counts?: Record<string, number> | null; countTip?: (n: number) => string;
   top?: ReactNode; /** after every group: the fix bar (Improve rules with AI…), last so labeling comes first */ bottom?: ReactNode;
-  /** ✦ Improve on the hovered or selected row (one-rule-runs §1.1): starts a run on that one rule */
+  /** ✦ Improve on every row, beside Comment (one-rule-runs §1.1): starts a run on that one rule */
   onImprove?: (r: RuleSummaryX) => void;
   /** a rule's AI status as one more row counter (working, in line, decisions waiting): null for none */
   aiStat?: (r: RuleSummaryX) => ReactNode;
@@ -132,25 +132,30 @@ export function RuleList({ rules, active, onPick, talk, onTalk, top, bottom, cou
                         data-tour={tour ? "reviewed-count" : undefined}>{fmt(r.reviewed)} / {fmt(r.total)} reviewed</span>}
                   {notes > 0 && <span className="stat open" title="comments and questions for the institution"><Ico name="bubble" />{notes}</span>}
                   {aiStat?.(r)}
-                  {onImprove && (
-                    <span className="rule-improve">
-                      <Tip width={340} tip={<><span className="hd">Improve {r.title} with AI</span>Claude may make small changes to
-                        other rules if this one needs it. Every check covers all {fmt(allRules)} rules.</>}>
-                        <button className="rule-talk-btn" aria-label={`Improve ${r.title} with AI`}
-                          onClick={(e) => { e.stopPropagation(); onImprove(r); }}><Ico name="spark" />Improve</button>
-                      </Tip>
+                  {(onImprove || (talk && onTalk)) && (
+                    <span className="rule-acts">
+                      {onImprove && (
+                        <Tip width={320} tip={<><span className="hd">Improve {r.title} with AI</span>Claude may make small changes to
+                          other rules if this one needs it. Every check covers all {fmt(allRules)} rules.</>}>
+                          <button className="cb rule-act" aria-label={`Improve ${r.title} with AI`}
+                            onClick={(e) => { e.stopPropagation(); onImprove(r); }}><Ico name="spark" /></button>
+                        </Tip>
+                      )}
+                      {talk && onTalk && (() => {
+                        const n = talk.rules[r.rule_id]?.length ?? 0;
+                        const on = openTalk === r.rule_id;
+                        return (
+                          <Tip width={260} tip={n ? `${n} comment${n === 1 ? "" : "s"} on ${r.title} as a whole: open them, or add one`
+                            : `Comment on ${r.title} as a whole`}>
+                            <button className={"cb rule-act talk" + (n ? " has" : "") + (on ? " on" : "")} aria-expanded={on}
+                              aria-label={`Comment on ${r.title}`}
+                              onClick={(e) => { e.stopPropagation(); setOpenTalk(on ? null : r.rule_id); }}>
+                              <Ico name="open" />{n > 0 && <span className="n">{n}</span>}</button>
+                          </Tip>
+                        );
+                      })()}
                     </span>
                   )}
-                  {talk && onTalk && (() => {
-                    const n = talk.rules[r.rule_id]?.length ?? 0;
-                    const on = openTalk === r.rule_id;
-                    return (
-                      <button className={"rule-talk-btn" + (n ? " has" : "") + (on ? " on" : "")} aria-expanded={on}
-                        title={n ? `${n} comment${n === 1 ? "" : "s"} on this whole rule` : "Comment on this whole rule"}
-                        onClick={(e) => { e.stopPropagation(); setOpenTalk(on ? null : r.rule_id); }}>
-                        <Ico name="open" />{n > 0 ? n : "Discuss"}</button>
-                    );
-                  })()}
                 </div>
               </div>
               {talk && onTalk && openTalk === r.rule_id && (

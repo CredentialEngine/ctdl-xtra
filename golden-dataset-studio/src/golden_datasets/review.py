@@ -890,6 +890,8 @@ class Loader:
     MAX_SNAPSHOTS = 4
     KEEP = 2
     DEFAULT_BUDGET = 600_000
+    SMALL_SHARE = 0.02  # a snapshot this share of the budget or less is "small" (12,000 rows by default)
+    MAX_SMALL = 6       # small snapshots kept, apart from the big ones: at most 12% of the budget together
 
     def __init__(self, budget: int | None = None):
         import os
@@ -951,20 +953,36 @@ class Loader:
                 self._evict()
         return snap
 
+    def _small(self, rows: int) -> bool:
+        return rows <= self.budget * self.SMALL_SHARE
+
     def _evict(self, incoming: int = 0) -> None:
         """Drop least recently used snapshots (and their Reviews) until the kept ones, plus `incoming` rows about to
-        load, fit; the `KEEP` most recent stay whatever their size."""
-        slots = self.MAX_SNAPSHOTS - (1 if incoming else 0)
-        keep = self.KEEP - (1 if incoming else 0)
-        total = incoming + sum(self.weight(s) for s in self._snaps.values())
-        dropped = False
-        while len(self._snaps) > keep and (len(self._snaps) > slots or total > self.budget):
-            _, snap = self._snaps.popitem(last=False)
-            total -= self.weight(snap)
-            self._reviews = {k: rv for k, rv in self._reviews.items()
+        load, fit; the `KEEP` most recent stay whatever their size.
+
+        Small snapshots (at most `SMALL_SHARE` of the budget, such as a class with a few hundred records) are kept
+        apart, at most `MAX_SMALL` of them, and don't count against the big ones. Otherwise opening WVU's
+        LearningProgram (2,888 rows) evicted WVU's Course pair (418,635 rows each), and with All classes the two
+        classes evicted each other on every request: a 4 s reload each time."""
+        big_in = bool(incoming) and not self._small(incoming)
+        small_in = bool(incoming) and not big_in
+        slots = self.MAX_SNAPSHOTS - (1 if big_in else 0)
+        keep = self.KEEP - (1 if big_in else 0)
+        large = [k for k, s in self._snaps.items() if not self._small(self.weight(s))]  # least recently used first
+        small = [k for k, s in self._snaps.items() if self._small(self.weight(s))]
+        total = (incoming if big_in else 0) + sum(self.weight(self._snaps[k]) for k in large)
+        drop = []
+        while len(large) > keep and (len(large) > slots or total > self.budget):
+            k = large.pop(0)
+            total -= self.weight(self._snaps[k])
+            drop.append(k)
+        while len(small) > self.MAX_SMALL - (1 if small_in else 0):
+            drop.append(small.pop(0))
+        for k in drop:
+            snap = self._snaps.pop(k)
+            self._reviews = {rk: rv for rk, rv in self._reviews.items()
                              if rv.snap is not snap and rv.parent is not snap}
-            dropped = True
-        if dropped:
+        if drop:
             del snap
             release_memory()
 

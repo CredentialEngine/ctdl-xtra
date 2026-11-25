@@ -2,6 +2,7 @@
 // (sorted by the server with the likeliest problems first), the saved page on the right. "Annotated by" and its verdict
 // switch (?by=…&v=…, Evals spec §6.7) filter the rows of every rule, and the rule list counts the rows that pass.
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { SkelCards, SkelHead, SkelList } from "../shell/Skeleton";
 import { api, ApiError } from "../api/client";
 import type { AnnotateResponse, ApprovePreview, CatalogDetail, ClassSummary, ResetPreview, Discussion, EventBrief, NewEvent, Overlay, RowItem, RuleDetail, RulesResponse,
   RuleSummary, SampleInfo, UnclassifiedPage } from "../api/types";
@@ -164,7 +165,11 @@ export default function RulesTab({ catalog, route }: TabProps) {
   const centerNext = useRef(true);
   useTourAnchors(paneRef);
 
-  const ruleId = route.id ?? defaultRule(rules);
+  // the list in hand belongs to this catalog and class (a switch clears it; until the new one lands, no default rule:
+  // the last class's first rule would be asked of this class and fail)
+  const listKey = `${cat}|${route.cls}|${route.params.get("ext") ?? ""}`;
+  const [rulesFor, setRulesFor] = useState<string | null>(null);
+  const ruleId = route.id ?? (rulesFor === listKey ? defaultRule(rules) : null);
   const focus = route.params.get("row");
   const linkedNote = route.params.get("note");  // a report's link to one annotation of the linked row (report-links §4)
   // an AI run's report sends ✕ here in a new browser tab (one-rule-runs §1.6): the linked row opens with ✕ pressed
@@ -203,16 +208,25 @@ export default function RulesTab({ catalog, route }: TabProps) {
   const filtered = sq.f.length > 0;
 
   // with All classes, every class that has rules here, each in its own section of the list (approved item 14)
+  // the rule in the address hasn't loaded yet (a class switch, another rule): placeholders, not the last rule's rows
+  const loadingRule = !notHere && !error && (!rules || (!!ruleId && detail?.rule_id !== ruleId));
   const all = route.cls === "all";
   const ruled = useMemo(() => (catalog.classes ?? []).filter((c) => c.ruleset_version), [catalog.classes]);
   const ruledKey = ruled.map((c) => c.slug).join(",");
+  // a class or catalog switch clears the list at once (a loading preview shows), so the old class's rules never
+  // linger looking current; a late answer for the previous class is dropped
+  const rulesTok = useRef(0);
   useEffect(() => {
-    if (!all) { api.rules(cat, ext).then(setRules, (e) => setError(String(e))); return; }
+    const tok = ++rulesTok.current;
+    const key = listKey;
+    const keep = (r: RulesResponse) => { if (tok === rulesTok.current) { setRules(r); setRulesFor(key); } };
+    setRules(null); setError(null);
+    if (!all) { api.rules(cat, ext).then(keep, (e) => setError(String(e))); return; }
     const mine = classOfRule(route.id) ?? "course";
     Promise.all(ruled.map((c) => inClass(c.slug, () => api.rules(cat, c.slug === mine ? ext : null)).then((r) => ({ c, r }))))
-      .then((each) => setRules(mergeClasses(each.map(({ c, r }) => ({ cls: c.slug, rules: r })), mine, route.id)),
+      .then((each) => keep(mergeClasses(each.map(({ c, r }) => ({ cls: c.slug, rules: r })), mine, route.id)),
             (e) => setError(String(e)));
-  }, [cat, ext, all, ruledKey]);
+  }, [cat, ext, all, ruledKey, listKey]);
   const heads = useMemo(() => (all ? Object.fromEntries(ruled.map((c) => [c.slug, classHead(c, rules)])) : null),
                         [all, ruled, rules]);
   // comments on whole rules and on the ruleset (the sidebar); with All classes, every class's
@@ -774,7 +788,7 @@ export default function RulesTab({ catalog, route }: TabProps) {
 
   return (
     <div className="rules-layout w4-rules">
-      <aside className="col">{rules && <RuleList rules={rules} active={ruleId} heads={heads}
+      <aside className="col">{!rules && <SkelList label="Loading rules" />}{rules && <RuleList rules={rules} active={ruleId} heads={heads}
         onPick={(id) => go(href(cat, "rules", id, { ext: all && classOfRule(id) !== classOfRule(ruleId) ? null : ext, by: byParam, v: verdict }))}
         talk={talk} onTalk={postTalk} counts={people?.rules} countTip={(n) => filterCountTip(n, by, verdict)}
         aiStat={aiStat} onImprove={ext ? undefined : (r) => openRunDialog([r.rule_id])}
@@ -784,7 +798,8 @@ export default function RulesTab({ catalog, route }: TabProps) {
             onToggle={() => setFilter({ by: by === BY_WAITING ? null : BY_WAITING, v: null })} />}
           {!ext && <FixBar catalog={cat} name={catalog.name} rules={rules} />}</>} />}</aside>
       <section className="col mid">
-        {detail && <RuleHead catalog={catalog} rule={detail} busy={busy} onApprove={() => approve("approve")} onReopen={() => approve("reopen")}
+        {loadingRule && <SkelHead />}
+        {detail && !loadingRule && <RuleHead catalog={catalog} rule={detail} busy={busy} onApprove={() => approve("approve")} onReopen={() => approve("reopen")}
           onReset={() => void openReset()} />}
         {resetting && <ResetDialog p={resetting} catalogName={catalog.name} busy={busy} onReset={(why) => void reset(why)} onClose={() => setResetting(null)} />}
         {asking && <ApproveDialog p={asking} busy={busy} onApprove={() => approve("approve", true)} onClose={() => setAsking(null)} />}
@@ -814,7 +829,8 @@ export default function RulesTab({ catalog, route }: TabProps) {
               ))}
             </div>
           )}
-          {detail && (() => {
+          {loadingRule && <SkelCards label="Loading this rule's rows" />}
+          {detail && !loadingRule && (() => {
           const rowEl = (r: RowX, i: number) => {
             const on = i === sel && !onPage;
             const noun = (detail.property_label ?? "item").replace(/^Estimated /, "").toLowerCase();
@@ -869,8 +885,8 @@ export default function RulesTab({ catalog, route }: TabProps) {
             );
           });
           })()}
-          {detail && rows.length < total && <div className="row more-rows" onClick={loadMore}>+ {fmt(total - rows.length)} more · scroll to load</div>}
-          {detail && total === 0 && <div className="empty-state muted">{by || verdict
+          {detail && !loadingRule && rows.length < total && <div className="row more-rows" onClick={loadMore}>+ {fmt(total - rows.length)} more · scroll to load</div>}
+          {detail && !loadingRule && total === 0 && <div className="empty-state muted">{by || verdict
             ? "No row of this rule passes the Annotated by filter. Pick another rule, or Anyone above."
             : filtered ? "No row is in every stratum you picked. Remove a filter above." : "This rule found nothing in this extraction."}</div>}
         </div>

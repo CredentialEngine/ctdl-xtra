@@ -239,8 +239,13 @@
 .expand .sel-pin .sel-quote { border-left-color: #98a2b3; background: #f2f4f7; color: var(--ink); }
 
 /* ✦ Improve on a sidebar row (one-rule-runs §1.1): only on the hovered or selected row; it is the Discuss button */
-.rule-item .rule-improve { display: none; }
-.rule-item:hover .rule-improve, .rule-item.on .rule-improve, .rule-item:focus-within .rule-improve { display: inline-flex; }
+/* Improve and Comment: two small bordered buttons, always there, so a row never changes height on hover */
+.rule-item .rule-acts { display: inline-flex; gap: 4px; margin-top: 4px; }
+.rule-item .rule-act { height: 24px; min-width: 24px; padding: 0 5px; gap: 3px; display: inline-flex; align-items: center; cursor: pointer; }
+.rule-item .rule-act svg { width: 13px; height: 13px; display: block; }
+.rule-item .rule-act .n { font-size: 11.5px; }
+.rule-item .rule-act.has { color: var(--accent); }
+.rule-item .rule-act.on { background: var(--accent-soft); border-color: #b9c7fa; color: var(--accent); }
 .rule-item .meta .stat[role=button] { cursor: pointer; }
 .rule-item .meta .stat[role=button]:hover { text-decoration: underline; }
 .rule-item .meta .stat .run-pulse { width: 7px; height: 7px; }

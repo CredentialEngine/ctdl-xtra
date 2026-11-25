@@ -2,6 +2,7 @@
 // verdict controls as the Rules tab (the same `verdict` events, targeting (property rule, occurrence)) and the same
 // page pane with numbered highlights for each property. "Annotated by" (?by=…, Evals spec §6.8) lists only the courses a
 // person annotated; on a course, their properties come first and the rest fold into one line.
+import { Skel, SkelCards, SkelList } from "../shell/Skeleton";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api } from "../api/client";
 import type { CourseDetail, EventBrief, NewEvent } from "../api/types";
@@ -57,15 +58,21 @@ export default function RecordsTab({ catalog, route }: TabProps) {
   const ruledKey = ruled.map((c) => c.slug).join(",");
   const openCls = (route.params.get("in") as ClassSlug | null) ?? (allCls ? null : (route.cls as ClassSlug));
   const [shut, setShut] = useState<Record<string, boolean>>({});
+  // the list belongs to one catalog and class: after a switch, a loading preview shows until that list arrives
+  // (typing a search keeps the current list; only a switch clears it)
+  const listKey = `${cat}|${route.cls}`;
+  const [hitsFor, setHitsFor] = useState<string | null>(null);
   useEffect(() => {
     let live = true;
+    const key = listKey;
     const ask = () => (allCls
       ? Promise.all(ruled.map((c) => inClass(c.slug, () => apiX.courses(cat, q || undefined, by))
           .then((hs) => hs.map((h) => ({ ...h, cls: c.slug }))))).then((xs) => xs.flat())
       : apiX.courses(cat, q || undefined, by));
-    const t = window.setTimeout(() => ask().then((h) => { if (live) setHits(h); }, (e) => setError(String(e))), q ? 120 : 0);
+    const t = window.setTimeout(() => ask().then((h) => { if (live) { setHits(h); setHitsFor(key); } }, (e) => setError(String(e))), q ? 120 : 0);
     return () => { live = false; window.clearTimeout(t); };
-  }, [cat, q, by, allCls, ruledKey]);
+  }, [cat, q, by, allCls, ruledKey, listKey]);
+  const listLoading = hitsFor !== listKey && !error;
 
   // no record in the address yet: open the first one in the list
   useEffect(() => {
@@ -84,6 +91,8 @@ export default function RecordsTab({ catalog, route }: TabProps) {
   }, [cat, recordKey, openCls]);
 
   const all = useMemo(() => (course ? groupCards(course) : []), [course]);
+  // the record in the address hasn't arrived yet (another record, or a class switch): placeholders, not the last one
+  const recordLoading = !!recordKey && !error && course?.record_external_identifier !== recordKey;
   // the pages the record's values come from: only when there are several does each card say which (approved item 16)
   const pages = useMemo(() => new Set(course?.occurrences.map((o) => o.page_stem) ?? []).size, [course]);
   const noun = recordNoun(allCls ? (openCls ?? "course") : (route.cls as ClassSlug));
@@ -200,7 +209,8 @@ export default function RecordsTab({ catalog, route }: TabProps) {
           <AnnotatedBy people={people} by={by} me={me} onPick={(x) => go(href(cat, "records", null, { by: x }))} />
         </div>
         <div className="course-list" ref={listRef}>
-          {(allCls ? ruled.map((c) => c.slug) : [null]).map((cls) => {
+          {listLoading && <SkelList label={`Loading ${noun[1]}`} heads={false} />}
+          {!listLoading && (allCls ? ruled.map((c) => c.slug) : [null]).map((cls) => {
             const mine = (hits ?? []).filter((h) => !cls || h.cls === cls);
             const sum = cls ? ruled.find((c) => c.slug === cls) : null;
             const isShut = cls ? (shut[cls] ?? (cls !== (openCls ?? ruled[ruled.length - 1]?.slug) && !q)) : false;
@@ -223,12 +233,13 @@ export default function RecordsTab({ catalog, route }: TabProps) {
               </div>
             );
           })}
-          {hits && hits.length === 0 && <div className="faint" style={{ padding: 10 }}>{q ? <>No {noun[0]} matches “{q}”.</> : `No ${noun[0]} passes the Annotated by filter.`}</div>}
+          {!listLoading && hits && hits.length === 0 && <div className="faint" style={{ padding: 10 }}>{q ? <>No {noun[0]} matches “{q}”.</> : `No ${noun[0]} passes the Annotated by filter.`}</div>}
         </div>
       </aside>
       <section className="col mid">
         {error && <div className="placeholder muted" style={{ padding: 18 }}>{error}</div>}
-        {course && <>
+        {recordLoading && <><div className="rec-head"><Skel w="34%" h={22} /></div><SkelCards label={`Loading this ${noun[0]}`} /></>}
+        {course && !recordLoading && <>
           <div className="rec-head"><h1>{recordHeading(all, course.record_external_identifier, apiClass())}</h1>
             {pages > 1 && <div className="sub">Values from {pages} pages</div>}</div>
           <div className="cards" ref={cardsRef}>

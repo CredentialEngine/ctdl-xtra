@@ -201,7 +201,7 @@ describe("EvalsTab", () => {
     // with a column picked: each group's finding, or + Add finding, and its discussion
     expect(api.propertyReview).toHaveBeenCalledWith("course", "estimatedDuration");
     const cells = [...host.querySelectorAll("[data-testid=finding-cell]")].map((c) => c.textContent);
-    expect(cells).toEqual(["+ Add finding2 comments", "D3The silver keeps the lead-insilverDiscuss"]);
+    expect(cells).toEqual(["+ Add finding2 comments", "D3The silver keeps the lead-insilverComment"]);
     await act(async () => groups[1].querySelector<HTMLButtonElement>(".fd-chip")!.click());
     await act(async () => { await new Promise((r) => setTimeout(r, 0)); });
     expect(host.querySelector("[data-testid=finding-panel] h2")!.textContent).toBe("D3The silver keeps the lead-in");

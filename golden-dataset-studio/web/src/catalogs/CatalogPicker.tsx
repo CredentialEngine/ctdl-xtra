@@ -9,6 +9,7 @@
 // + Add a catalog (a crawl xtra-cli has already made) adds a row that shows its progress until it's ready.
 //
 // URL: #/?v=score&cls=course&c=wvu&p=course:name&rows=props&n=1 (homeState.ts)
+import { SkelTable } from "../shell/Skeleton";
 import katex from "katex";
 import "katex/dist/katex.min.css";
 import { Fragment, useCallback, useEffect, useState } from "react";
@@ -118,7 +119,7 @@ export default function CatalogPicker() {
 
   // the golden view: each ticked class's columns, side by side under its heading, in the three tiers (once every
   // ticked class's summary is here, so columns don't move)
-  if (state.classes.some((c) => !sums[c])) return <div className="picker"><div className="picker-in ctab-page">{head}<p className="faint">Loading…</p></div>{modal}</div>;
+  if (state.classes.some((c) => !sums[c])) return <div className="picker"><div className="picker-in ctab-page">{head}<SkelTable label="Loading catalogs" rows={6} cols={14} /></div>{modal}</div>;
   const groups = state.classes.flatMap((cls) => {
     const s = sums[cls];
     if (!s) return [];

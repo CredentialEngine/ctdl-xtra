@@ -6,6 +6,7 @@
 // outcome), and its last 7 scores. A row opens the next scope down; one catalog and one property is that property's
 // scores over time, with a link to the catalog's Evals tab at it. Read-only: scores come from xtra-cli's container
 // (`GET /api/score-history`), never from here.
+import { SkelTable } from "../shell/Skeleton";
 import { Fragment, useEffect, useMemo, useState, type ReactNode } from "react";
 import { api } from "../api/client";
 import type { CatalogCard, ScoreHistory, ScoreLine } from "../api/types";
@@ -220,7 +221,7 @@ export function ScoreViews({ cats, state }: { cats: CatalogCard[]; state: HomeSt
 
   const sections = state.classes.map((cls) => {
     const h = hist[cls];
-    if (!h) return <section key={cls} className="sv-sec"><div className="sv-h"><h2>{CLASS_NAME[cls]}</h2><span className="faint">Loading…</span></div></section>;
+    if (!h) return <section key={cls} className="sv-sec"><div className="sv-h"><h2>{CLASS_NAME[cls]}</h2></div><SkelTable label={`Loading ${CLASS_NAME[cls]} scores`} rows={5} cols={6} /></section>;
     const props = h.properties.filter((p) => on(cls, p.column));
     if (!props.length) return null;
     const inCats = pickedCat ? (h.catalogs.includes(pickedCat.catalog) ? [pickedCat.catalog] : []) : h.catalogs;
