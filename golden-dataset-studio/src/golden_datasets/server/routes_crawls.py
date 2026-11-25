@@ -21,18 +21,6 @@ router = APIRouter(prefix="/api")
 TTL = 300.0
 
 
-def _list(st, refresh: bool = False) -> dict:
-    hit = st.cache.get(("crawls",))
-    if hit and not refresh and time.monotonic() - hit[0] < TTL:
-        rows = hit[1]
-    else:
-        rows = crawls.list_crawled(open_root(st.crawls_root))
-        st.cache[("crawls",)] = (time.monotonic(), rows)
-    added = crawls.added_catalogs(st.root)
-    return {"crawls_root": st.crawls_root,
-            "items": [{**r, "added": r["catalog"] in added, "adding": r["catalog"] in st.adding} for r in rows]}
-
-
 @router.get("/crawls")
 def crawled(request: Request, refresh: bool = False) -> dict:
     return _list(studio(request), refresh)
@@ -41,33 +29,70 @@ def crawled(request: Request, refresh: bool = False) -> dict:
 @router.post("/crawls/{catalog}/add")
 def add(request: Request, catalog: str, body: Annotated[dict, Body()]) -> dict:
     st = studio(request)
+    row, crawl, pages = addable_crawl(st, catalog, body.get("crawl"))
+    with st._lock:
+        running = st.adding.get(catalog)
+        if running and running["step"] not in ("failed", "done"):
+            return running
+        job = new_job(catalog, row, crawl, pages, body.get("by"))
+        st.adding[catalog] = job
+    attrs = {"ce.catalog.folder": catalog, "ce.crawl.id": crawl, "ce.crawl.pages": pages}
+    carried = telemetry.carry()
+    telemetry.set(attrs)
+    threading.Thread(target=run_add_job, args=(job, st, attrs, carried), name=f"add-{catalog}", daemon=True).start()
+    return job
+
+
+@router.delete("/crawls/{catalog}/add")
+def dismiss(request: Request, catalog: str) -> dict:
+    """Forget a failed add (the card goes away)."""
+    st = studio(request)
+    with st._lock:
+        job = st.adding.get(catalog)
+        if job and job["step"] == "failed":
+            st.adding.pop(catalog)
+    return {"ok": True}
+
+
+def _list(st, refresh: bool = False) -> dict:
+    rows = crawled_rows(st, refresh)
+    added = crawls.added_catalogs(st.root)
+    return {"crawls_root": st.crawls_root,
+            "items": [{**r, "added": r["catalog"] in added, "adding": r["catalog"] in st.adding} for r in rows]}
+
+
+def crawled_rows(st, refresh: bool) -> list[dict]:
+    hit = st.cache.get(("crawls",))
+    if hit and not refresh and time.monotonic() - hit[0] < TTL:
+        return hit[1]
+    rows = crawls.list_crawled(open_root(st.crawls_root))
+    st.cache[("crawls",)] = (time.monotonic(), rows)
+    return rows
+
+
+def addable_crawl(st, catalog: str, crawl: str | None) -> tuple[dict, str, int]:
+    """(the catalog's row, the crawl to add, its pages); refused when it's added already or saved no pages."""
     row = next((r for r in _list(st)["items"] if r["catalog"] == catalog), None)
     if row is None:
         raise HTTPException(404, f"no crawl of {catalog}")
     if row["added"]:
         raise HTTPException(409, f"{row['name']} is already in the Studio")
-    crawl = body.get("crawl") or row["crawl"]
-    k = next((c for c in row["crawls"] if c["crawl"] == crawl), None)
-    if k is None or not k["pages"]:
+    crawl = crawl or row["crawl"]
+    chosen = next((c for c in row["crawls"] if c["crawl"] == crawl), None)
+    if chosen is None or not chosen["pages"]:
         raise HTTPException(400, f"{catalog}/{crawl} has no saved pages")
-    with st._lock:
-        if catalog in st.adding and st.adding[catalog]["step"] not in ("failed", "done"):
-            return st.adding[catalog]
-        job = {"catalog": catalog, "name": row["name"], "crawl": crawl, "seed_url": row["seed_url"],
-               "pages": k["pages"], "by": body.get("by"), "step": "starting", "done": 0, "total": 0, "error": None,
-               "started_at": time.time()}
-        st.adding[catalog] = job
+    return row, crawl, chosen["pages"]
 
-    carried = telemetry.carry()
-    telemetry.set({"ce.catalog.folder": catalog, "ce.crawl.id": crawl, "ce.crawl.pages": k["pages"]})
 
-    def run() -> None:
-        with telemetry.job("catalog.add", {"ce.catalog.folder": catalog, "ce.crawl.id": crawl,
-                                           "ce.crawl.pages": k["pages"]}, carried=carried):
-            _add(job, st, catalog, crawl)
+def new_job(catalog: str, row: dict, crawl: str, pages: int, by: str | None) -> dict:
+    return {"catalog": catalog, "name": row["name"], "crawl": crawl, "seed_url": row["seed_url"],
+            "pages": pages, "by": by, "step": "starting", "done": 0, "total": 0, "error": None,
+            "started_at": time.time()}
 
-    threading.Thread(target=run, name=f"add-{catalog}", daemon=True).start()
-    return job
+
+def run_add_job(job: dict, st, attrs: dict, carried: dict) -> None:
+    with telemetry.job("catalog.add", attrs, carried=carried):
+        _add(job, st, job["catalog"], job["crawl"])
 
 
 def _add(job: dict, st, catalog: str, crawl: str) -> None:
@@ -83,14 +108,3 @@ def _add(job: dict, st, catalog: str, crawl: str) -> None:
         print(f"add {catalog}: {exc}", file=sys.stderr)
         job.update(step="failed", error=str(exc))
         telemetry.error(exc)
-
-
-@router.delete("/crawls/{catalog}/add")
-def dismiss(request: Request, catalog: str) -> dict:
-    """Forget a failed add (the card goes away)."""
-    st = studio(request)
-    with st._lock:
-        job = st.adding.get(catalog)
-        if job and job["step"] == "failed":
-            st.adding.pop(catalog)
-    return {"ok": True}
