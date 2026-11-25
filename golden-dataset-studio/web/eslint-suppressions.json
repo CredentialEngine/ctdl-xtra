@@ -14,11 +14,6 @@
       "count": 4
     }
   },
-  "src/catalogs/ScoreViews.tsx": {
-    "max-lines-per-function": {
-      "count": 9
-    }
-  },
   "src/catalogs/menus.tsx": {
     "max-lines-per-function": {
       "count": 5
