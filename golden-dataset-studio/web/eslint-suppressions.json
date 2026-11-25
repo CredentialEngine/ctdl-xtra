@@ -14,11 +14,6 @@
       "count": 4
     }
   },
-  "src/catalogs/menus.tsx": {
-    "max-lines-per-function": {
-      "count": 5
-    }
-  },
   "src/catalogs/scoreLogic.ts": {
     "max-lines-per-function": {
       "count": 1
