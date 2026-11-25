@@ -24,54 +24,12 @@ IMMUTABLE = "public, max-age=31536000, immutable"
 _lock = threading.Lock()
 
 
-def _ctx(request: Request, catalog: str) -> Ctx:
-    try:
-        ctx = studio(request).ctx(catalog)
-        ctx.crawl  # noqa: B018 - raises when the catalog has no crawl
-        return ctx
-    except UserError as exc:
-        raise not_found(str(exc)) from exc
-
-
-def _pages(request: Request, ctx: Ctx) -> dict[str, dict]:
-    """stem -> pages.parquet row, memoized per catalog and crawl."""
-    cache = studio(request).cache
-    key = ("pages_by_stem", ctx.catalog, ctx.crawl)
-    got = cache.get(key)
-    if got is None:
-        with _lock:
-            got = cache.get(key)
-            if got is None:
-                got = {p["page_stem"]: p for p in ctx.pages()}
-                cache[key] = got
-    return got
-
-
-def _page(request: Request, ctx: Ctx, stem: str) -> dict:
-    row = _pages(request, ctx).get(stem)
-    if row is None:
-        raise not_found(f"{ctx.catalog}: no page {stem!r}")
-    return row
-
-
-def _etag_matches(request: Request, etag: str) -> bool:
-    inm = request.headers.get("if-none-match")
-    return bool(inm) and (inm.strip() == "*" or etag in [t.strip() for t in inm.split(",")])
-
-
 @router.get("/api/catalogs/{catalog}/pages/{stem}/render")
 def page_render(request: Request, catalog: str, stem: str, ruleset: int | None = None):
     ctx = _ctx(request, catalog)
     row = _page(request, ctx, stem)
-    try:
-        pane_css = render.pane_css_for(ctx, ruleset)
-    except (UserError, FileNotFoundError) as exc:
-        raise not_found(f"{ctx.catalog}: no ruleset v{ruleset}") from exc
-    r = render.rendered(ctx, stem, row["url"], pane_css)
-    # With an explicit ruleset the bytes never change (short of a new asset fetch); "latest" can move.
-    headers = {"ETag": r.etag, "Content-Security-Policy": CSP, "X-Content-Type-Options": "nosniff",
-               "Cache-Control": "private, max-age=86400" if ruleset is not None else "private, max-age=600",
-               "Vary": "Accept-Encoding"}
+    r = render.rendered(ctx, stem, row["url"], pane_css(ctx, ruleset))
+    headers = render_headers(r.etag, ruleset)
     if _etag_matches(request, r.etag):
         return Response(status_code=304, headers=headers)
     if "gzip" in request.headers.get("accept-encoding", ""):
@@ -97,13 +55,6 @@ def page_meta(request: Request, catalog: str, stem: str):
     return {"stem": stem, "url": row["url"], "title": row.get("title") or ""}
 
 
-def _media_type(ctype: str | None, url: str) -> str:
-    if ctype and ctype not in ("application/octet-stream", "binary/octet-stream"):
-        return ctype
-    guess = mimetypes.guess_type(urlsplit(url).path)[0]
-    return guess or ctype or "application/octet-stream"
-
-
 @router.get("/api/catalogs/{catalog}/assets/{sha256}")
 def asset(request: Request, catalog: str, sha256: str):
     if len(sha256) != 64 or any(c not in "0123456789abcdef" for c in sha256):
@@ -114,15 +65,84 @@ def asset(request: Request, catalog: str, sha256: str):
         raise not_found(f"{ctx.catalog}: no archived asset {sha256}")
     etag = f'"{sha256[:32]}"'
     media = _media_type(meta["content_type"], meta["final_url"])
-    headers = {"Cache-Control": IMMUTABLE, "ETag": etag, "X-Content-Type-Options": "nosniff",
-               "Access-Control-Allow-Origin": "*"}
+    headers = asset_headers(etag)
     if _etag_matches(request, etag):
         return Response(status_code=304, headers=headers)
+    local = asset_file(ctx, sha256)
+    if "css" in media:
+        return Response(render.asset_css(ctx, sha256, local.read_bytes()), media_type=media, headers=headers)
+    return FileResponse(local, media_type=media, headers=headers)
+
+
+# --- Rendered pages ---------------------------------------------------------------------------------------------
+
+
+def pane_css(ctx: Ctx, ruleset: int | None) -> str:
     try:
-        local = ctx.root.local_path(layout.asset_file(ctx.catalog, ctx.crawl, sha256))
+        return render.pane_css_for(ctx, ruleset)
+    except (UserError, FileNotFoundError) as exc:
+        raise not_found(f"{ctx.catalog}: no ruleset v{ruleset}") from exc
+
+
+def render_headers(etag: str, ruleset: int | None) -> dict:
+    # With an explicit ruleset the bytes never change (short of a new asset fetch); "latest" can move.
+    return {"ETag": etag, "Content-Security-Policy": CSP, "X-Content-Type-Options": "nosniff",
+            "Cache-Control": "private, max-age=86400" if ruleset is not None else "private, max-age=600",
+            "Vary": "Accept-Encoding"}
+
+
+def _ctx(request: Request, catalog: str) -> Ctx:
+    try:
+        ctx = studio(request).ctx(catalog)
+        ctx.crawl  # noqa: B018 - raises when the catalog has no crawl
+        return ctx
+    except UserError as exc:
+        raise not_found(str(exc)) from exc
+
+
+def _page(request: Request, ctx: Ctx, stem: str) -> dict:
+    row = _pages(request, ctx).get(stem)
+    if row is None:
+        raise not_found(f"{ctx.catalog}: no page {stem!r}")
+    return row
+
+
+def _pages(request: Request, ctx: Ctx) -> dict[str, dict]:
+    """stem -> pages.parquet row, memoized per catalog and crawl."""
+    cache = studio(request).cache
+    key = ("pages_by_stem", ctx.catalog, ctx.crawl)
+    got = cache.get(key)
+    if got is None:
+        with _lock:
+            got = cache.get(key)
+            if got is None:
+                got = {p["page_stem"]: p for p in ctx.pages()}
+                cache[key] = got
+    return got
+
+
+# --- Archived assets --------------------------------------------------------------------------------------------
+
+
+def asset_headers(etag: str) -> dict:
+    return {"Cache-Control": IMMUTABLE, "ETag": etag, "X-Content-Type-Options": "nosniff",
+            "Access-Control-Allow-Origin": "*"}
+
+
+def asset_file(ctx: Ctx, sha256: str):
+    try:
+        return ctx.root.local_path(layout.asset_file(ctx.catalog, ctx.crawl, sha256))
     except FileNotFoundError as exc:
         raise not_found(f"{ctx.catalog}: asset file {sha256} missing") from exc
-    if "css" in media:
-        body = render.asset_css(ctx, sha256, local.read_bytes())
-        return Response(body, media_type=media, headers=headers)
-    return FileResponse(local, media_type=media, headers=headers)
+
+
+def _media_type(ctype: str | None, url: str) -> str:
+    if ctype and ctype not in ("application/octet-stream", "binary/octet-stream"):
+        return ctype
+    guess = mimetypes.guess_type(urlsplit(url).path)[0]
+    return guess or ctype or "application/octet-stream"
+
+
+def _etag_matches(request: Request, etag: str) -> bool:
+    inm = request.headers.get("if-none-match")
+    return bool(inm) and (inm.strip() == "*" or etag in [t.strip() for t in inm.split(",")])

@@ -40,8 +40,7 @@ def compare(request: Request, catalog: str, a: int | None = None, b: int | None 
     loaded = _cards(st, ctx, head["a_extraction"], head["b_extraction"])
     cards = loaded[-1]
     selected = cards if rule is None else selected_cards(st, ctx, catalog, head, rule, loaded)
-    telemetry.set({"ce.compare.changed_rules": len(cards), "ce.compare.rules_shown": len(selected),
-                   "ce.compare.records_changed": sum(scorecard.records_changed(c) for c in selected)})
+    describe_span(cards, selected)
     return {**head, "changed_rules": [changed_rule(c) for c in cards],
             "records_changed": sum(scorecard.records_changed(c) for c in selected),
             "totals": {k: sum(c["annotated"][k] for c in selected) for k in TOTAL_KEYS},
@@ -74,6 +73,11 @@ def selected_cards(st, ctx, catalog: str, head: dict, rule: str, loaded: tuple) 
         st.cache[one] = _titled(scorecard.rule_scorecard(rule, snap_a, snap_b, rv, signal_rows=SIGNAL_ROWS),
                                 snap_a, snap_b)
     return [st.cache[one]]
+
+
+def describe_span(cards: list[dict], selected: list[dict]) -> None:
+    telemetry.set({"ce.compare.changed_rules": len(cards), "ce.compare.rules_shown": len(selected),
+                   "ce.compare.records_changed": sum(scorecard.records_changed(c) for c in selected)})
 
 
 def changed_rule(c: dict) -> dict:
