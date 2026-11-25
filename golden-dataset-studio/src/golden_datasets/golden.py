@@ -163,6 +163,8 @@ def plan(rv: Review, properties: set[str] | None = None, stems: set[str] | None 
     used: Counter = Counter()  # (golden_record_id, page_stem, property) → values already published
     occs = snap.occurrences.items() if stems is None else \
         ((k, o) for k, o in snap.occurrences.items() if o["page_stem"] in stems)
+    place = model.property_order(rv.snap.ctx.cls)  # once: it checks the properties file each call
+    seen: dict[tuple[str, str], list[dict]] = defaultdict(list)  # (page, golden_record_id) → its records there
     for key, o in sorted(occs, key=lambda kv: (kv[1]["page_stem"], kv[1]["locator_index"])):
         gid = ids.get(key)
         if gid is None:
@@ -172,7 +174,7 @@ def plan(rv: Review, properties: set[str] | None = None, stems: set[str] | None 
         url = snap.page[stem]["url"]
         fields, rows = [], []
         rids = sorted(set(snap.items_by_occ[key]) | answered.get(key, set()), key=lambda rid: (
-            model.property_order(rv.snap.ctx.cls).get(snap.rules[rid].get("property_label"), 99), rid))
+            place.get(snap.rules[rid].get("property_label"), 99), rid))
         for rid in rids:
             r = snap.rules[rid]
             st = by_rule.get(rid, {})
@@ -192,8 +194,9 @@ def plan(rv: Review, properties: set[str] | None = None, stems: set[str] | None 
         if properties is not None and not fields:
             continue  # nothing of the chosen properties for this course
         record = _record(gid, fields)
-        if any(r["golden_record_id"] == gid and r == record for r in pages[stem]):
+        if any(r == record for r in seen[(stem, gid)]):
             continue  # the same course listed twice on a page with identical values: once is enough
+        seen[(stem, gid)].append(record)
         # A second, different record with the same golden_record_id on the same page: its values get the next value_index.
         for row in rows:
             row["value_index"] = used[(gid, stem, row["property"])]

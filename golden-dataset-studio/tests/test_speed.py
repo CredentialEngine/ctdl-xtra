@@ -79,3 +79,78 @@ def _wait_long(c, sid: str) -> dict:
             return doc
         time.sleep(0.1)
     raise AssertionError(f"{sid} still running")
+
+
+def test_a_plan_reads_the_property_order_once_not_per_course(studio, monkeypatch):  # noqa: F811
+    """The property order checks the class's properties file each call; called in the plan's per-course sort, it was
+    a file check per course (~650k on the biggest catalog) whenever the home page worked out a catalog's counts."""
+    from golden_datasets import model
+
+    _, ctx, _ = studio
+    rv = LOADER.review(Ctx(ctx.root, CAT))
+    calls: list[str] = []
+    real = model.property_rows
+
+    def counting(cls="course"):
+        calls.append(cls)
+        return real(cls)
+    monkeypatch.setattr(model, "property_rows", counting)
+    assert golden.plan(rv)["courses"] > 1
+    assert len(calls) == 1
+
+
+def test_the_server_works_out_the_home_page_when_it_starts(studio, monkeypatch):  # noqa: F811
+    """Cold, the home page's table loads every catalog's extraction and plans its golden dataset (over a minute on
+    the biggest catalogs): the server does it once when it starts, so the first visit only reads the cache."""
+    c, _, _ = studio
+    st = c.app.state.studio
+    st.cache.clear()
+    warm = st.warm_home()
+    warm.join(timeout=60)
+    assert not warm.is_alive()
+    planned: list[str] = []
+    real = golden.plan
+
+    def counting(rv, *a, **k):
+        planned.append(rv.snap.ctx.catalog)
+        return real(rv, *a, **k)
+    monkeypatch.setattr(golden, "plan", counting)
+    course = c.get("/api/catalogs-summary").json()
+    lp = c.get("/api/catalogs-summary", params={"class": "learningprogram"}).json()
+    assert CAT in course["catalogs"] and course["catalogs"][CAT]["columns"] and lp["cls"] == "learningprogram"
+    assert planned == []  # warm: nothing is worked out again
+    st.cache.clear()
+    c.get("/api/catalogs-summary")
+    assert planned == [CAT]  # (cold, a visit works it out)
+
+
+def test_each_classs_home_page_counts_are_kept_apart(studio, tmp_path, capsys, monkeypatch):  # noqa: F811
+    """The home page asks for every class's table at once. A catalog's LearningProgram counts used to replace its
+    Course counts in the cache (the key had no class), so every visit worked out the biggest catalog's Course counts
+    again (over a minute on WVU)."""
+    import json
+
+    import programs
+    from golden_datasets.cli import main
+
+    c, ctx, _ = studio
+    draft = tmp_path / "lp.json"
+    draft.write_text(json.dumps({**programs._rules(programs.AVC), "catalog": CAT}))
+    assert main(["rule", "publish", "--class", "learningprogram", "--root", str(ctx.root.base), "--catalog", CAT,
+                 str(draft), "--note", "first LearningProgram rules"]) == 0
+    capsys.readouterr()
+    planned: list[tuple[str, str]] = []
+    real = golden.plan
+
+    def counting(rv, *a, **k):
+        planned.append((rv.snap.ctx.catalog, rv.snap.ctx.cls))
+        return real(rv, *a, **k)
+    monkeypatch.setattr(golden, "plan", counting)
+    c.app.state.studio.cache.clear()
+    course = c.get("/api/catalogs-summary").json()["catalogs"][CAT]
+    lp = c.get("/api/catalogs-summary", params={"class": "learningprogram"}).json()["catalogs"][CAT]
+    assert sorted(planned) == [(CAT, "course"), (CAT, "learningprogram")]
+    assert c.get("/api/catalogs-summary").json()["catalogs"][CAT] == course
+    assert c.get("/api/catalogs-summary", params={"class": "learningprogram"}).json()["catalogs"][CAT] == lp
+    assert len(planned) == 2  # both kept: nothing is worked out again
+    assert course["columns"] != lp["columns"]

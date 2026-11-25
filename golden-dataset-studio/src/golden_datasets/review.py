@@ -609,8 +609,9 @@ class Review:
             # the engineer's check: still on the row, or the one an expert's Confirm superseded
             checks = [*([self.by_id.get(st.human.get("supersedes"))] if st.human and st.human.get("supersedes") else []),
                       *st.events]
-            st.checked = max((x for x in checks if x and x["type"] == "verdict" and x["verdict"] == "correct"
-                              and self.role(x) != "sme"), key=lambda x: x["at"], default=None)
+            if checks:  # most rows have no events: skip the scan (it ran on every row of a cold load)
+                st.checked = max((x for x in checks if x and x["type"] == "verdict" and x["verdict"] == "correct"
+                                  and self.role(x) != "sme"), key=lambda x: x["at"], default=None)
             if item_events:
                 es = item_events.get((row.get("record_external_identifier") or row["occurrence_key"], row["page_stem"]), [])
                 if es:
