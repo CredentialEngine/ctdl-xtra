@@ -48,36 +48,43 @@ export function DiffModeSwitch() {
   );
 }
 
-function Parts({ parts, mark }: { parts: ShownPart[]; mark: "del" | "add" }) {
-  return <>{parts.map((p, i) => p.op === mark ? <mark key={i}>{p.text}</mark>
-    : p.op === "gap" ? <span key={i} className="vd-gap">{p.text}</span> : <span key={i}>{p.text}</span>)}</>;
-}
-
 /** Two values: `a` (left / −) and `b` (right / +). `bEmpty` says why `b` is missing ("nothing extracted"). */
 export function ValueDiff({ a, b, aLabel, bLabel, mode, compact = false, bEmpty = "no value" }: {
   a: string | null; b: string | null; aLabel: ReactNode; bLabel: ReactNode; mode: DiffMode; compact?: boolean; bEmpty?: string;
 }) {
-  const same = a !== null && b !== null && sameText(a, b);
   const { left, right } = useMemo(() => sides(a, b, compact), [a, b, compact]);
-  const A = a === null ? <span className="vd-none">no value</span> : <Parts parts={left} mark="del" />;
-  const B = b === null ? <span className="vd-none">{bEmpty}</span> : <Parts parts={right} mark="add" />;
-  if (mode === "unified") {
-    return (
-      <div className={`vd unified${compact ? " compact" : ""}`} data-testid="value-diff">
-        <div className="vd-hdr"><span>{aLabel}</span><span className="faint">→</span><span>{bLabel}</span></div>
-        {same ? <div className="vd-ln"><span className="s" /><span className="t">{A}</span></div> : <>
-          <div className="vd-ln del"><span className="s">−</span><span className="t">{A}</span></div>
-          <div className="vd-ln add"><span className="s">+</span><span className="t">{B}</span></div>
-        </>}
-      </div>
-    );
-  }
+  const view: DiffView = { aLabel, bLabel, compact, same: a !== null && b !== null && sameText(a, b),
+    before: a === null ? <span className="vd-none">no value</span> : <Parts parts={left} mark="del" />,
+    after: b === null ? <span className="vd-none">{bEmpty}</span> : <Parts parts={right} mark="add" /> };
+  return mode === "unified" ? <UnifiedDiff {...view} /> : <SplitDiff {...view} />;
+}
+
+interface DiffView { before: ReactNode; after: ReactNode; aLabel: ReactNode; bLabel: ReactNode; compact: boolean; same: boolean }
+
+function UnifiedDiff({ before, after, aLabel, bLabel, compact, same }: DiffView) {
   return (
-    <div className={`vd split${compact ? " compact" : ""}${same ? " same" : ""}`} data-testid="value-diff">
-      <div className="vd-side del"><div className="vd-lab">{aLabel}</div><div className="t">{A}</div></div>
-      <div className="vd-side add"><div className="vd-lab">{bLabel}</div><div className="t">{B}</div></div>
+    <div className={`vd unified${compact ? " compact" : ""}`} data-testid="value-diff">
+      <div className="vd-hdr"><span>{aLabel}</span><span className="faint">→</span><span>{bLabel}</span></div>
+      {same ? <div className="vd-ln"><span className="s" /><span className="t">{before}</span></div> : <>
+        <div className="vd-ln del"><span className="s">−</span><span className="t">{before}</span></div>
+        <div className="vd-ln add"><span className="s">+</span><span className="t">{after}</span></div>
+      </>}
     </div>
   );
+}
+
+function SplitDiff({ before, after, aLabel, bLabel, compact, same }: DiffView) {
+  return (
+    <div className={`vd split${compact ? " compact" : ""}${same ? " same" : ""}`} data-testid="value-diff">
+      <div className="vd-side del"><div className="vd-lab">{aLabel}</div><div className="t">{before}</div></div>
+      <div className="vd-side add"><div className="vd-lab">{bLabel}</div><div className="t">{after}</div></div>
+    </div>
+  );
+}
+
+function Parts({ parts, mark }: { parts: ShownPart[]; mark: "del" | "add" }) {
+  return <>{parts.map((p, i) => p.op === mark ? <mark key={i}>{p.text}</mark>
+    : p.op === "gap" ? <span key={i} className="vd-gap">{p.text}</span> : <span key={i}>{p.text}</span>)}</>;
 }
 
 /** What a diff's note or verdict was compared with, as a chip label ("extract output 28 Oct", "ruleset v1"). */
@@ -89,9 +96,24 @@ export function comparedChip(c: ComparedWith | null | undefined, outputDay?: (sc
 }
 
 /** The note box under a diff. `collapsed` (Compare): "Note…" until clicked. The second action opens the ✗ flow. */
-export function NoteActions({ wrongLabel, onSave, onWrong, collapsed = false, disabled = false }: {
+export function NoteActions(props: NoteActionsProps) {
+  const box = useNoteBox(props.onSave, !!props.collapsed);
+  if (!box.open) {
+    return (
+      <div className="vd-acts">
+        <button className="btn sm" disabled={props.disabled} onClick={() => box.setOpen(true)}>Note…</button>
+        <button className="btn sm" disabled={props.disabled} onClick={props.onWrong}>{props.wrongLabel}</button>
+      </div>
+    );
+  }
+  return <NoteBox box={box} {...props} />;
+}
+
+interface NoteActionsProps {
   wrongLabel: string; onSave: (note: string) => Promise<boolean>; onWrong: () => void; collapsed?: boolean; disabled?: boolean;
-}) {
+}
+
+function useNoteBox(onSave: (note: string) => Promise<boolean>, collapsed: boolean) {
   const [open, setOpen] = useState(!collapsed);
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
@@ -102,23 +124,19 @@ export function NoteActions({ wrongLabel, onSave, onWrong, collapsed = false, di
     setBusy(false);
     if (ok) { setNote(""); if (collapsed) setOpen(false); }
   };
-  if (!open) {
-    return (
-      <div className="vd-acts">
-        <button className="btn sm" disabled={disabled} onClick={() => setOpen(true)}>Note…</button>
-        <button className="btn sm" disabled={disabled} onClick={onWrong}>{wrongLabel}</button>
-      </div>
-    );
-  }
+  return { open, setOpen, note, setNote, busy, save };
+}
+
+function NoteBox({ box, wrongLabel, onWrong, collapsed = false, disabled = false }: NoteActionsProps & { box: ReturnType<typeof useNoteBox> }) {
   return (
     <div className="vd-note">
-      <textarea placeholder="Note on this difference" value={note} disabled={disabled} autoFocus={collapsed}
-        onChange={(e) => setNote(e.target.value)}
-        onKeyDown={(e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) { e.preventDefault(); void save(); } }} />
+      <textarea placeholder="Note on this difference" value={box.note} disabled={disabled} autoFocus={collapsed}
+        onChange={(e) => box.setNote(e.target.value)}
+        onKeyDown={(e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) { e.preventDefault(); void box.save(); } }} />
       <div className="vd-acts">
-        <button className="btn sm primary" disabled={disabled || busy || !note.trim()} onClick={() => void save()}>Save note</button>
+        <button className="btn sm primary" disabled={disabled || box.busy || !box.note.trim()} onClick={() => void box.save()}>Save note</button>
         {collapsed
-          ? <button className="btn sm" onClick={() => { setOpen(false); setNote(""); }}>Cancel</button>
+          ? <button className="btn sm" onClick={() => { box.setOpen(false); box.setNote(""); }}>Cancel</button>
           : <button className="btn sm" disabled={disabled} onClick={onWrong}>{wrongLabel}</button>}
       </div>
     </div>
@@ -140,13 +158,19 @@ export function MarkedWrong({ verdict, what, column, compared }: {
     <div className="vd-marked" data-testid="marked-wrong">
       <div className="h"><Ico name="needs work" /><b>Marked wrong</b><span className="muted">· {what}</span>
         <span className="when">{verdict.author} · {fmtDayTime(verdict.at)}</span></div>
-      <table><tbody>
-        {verdict.expected?.text && <tr><th>Right text</th><td>{verdict.expected.text}</td></tr>}
-        {verdict.note && <tr><th>Note</th><td>{verdict.note}</td></tr>}
-        {compared && <tr><th>Compared with</th><td><span className="vd-xchip">{compared}</span></td></tr>}
-      </tbody></table>
+      <WrongDetails verdict={verdict} compared={compared} />
       <div className="f"><Ico name="needs work" /><span><span className="mono">{column}</span> rule: known wrong values, until a new rule version fixes it</span></div>
     </div>
+  );
+}
+
+function WrongDetails({ verdict, compared }: { verdict: EventBrief; compared: string | null }) {
+  return (
+    <table><tbody>
+      {verdict.expected?.text && <tr><th>Right text</th><td>{verdict.expected.text}</td></tr>}
+      {verdict.note && <tr><th>Note</th><td>{verdict.note}</td></tr>}
+      {compared && <tr><th>Compared with</th><td><span className="vd-xchip">{compared}</span></td></tr>}
+    </tbody></table>
   );
 }
 
@@ -167,31 +191,9 @@ export function RowNotes({ comments, label }: { comments: EventBrief[]; label: (
 
 /** The saved page: the left value (green) at its recorded location, the right value (pink) wherever its text is
  * found, and while the ✗ flow is open, the pieces selected (they can be removed with ×). */
-export function ValuePage({ catalog, stem, url, title, golden, other, captures, capturing, onCapture, onRemove, labels, ruleset }: {
-  catalog: string; stem: string; url: string; title: string;
-  golden: { cssPath: string | null; charStart: number | null; charEnd: number | null; text: string | null } | null;
-  other: string | null; captures: CapturedSelection[]; capturing: boolean;
-  onCapture: (c: CapturedSelection) => void; onRemove: (i: number) => void;
-  labels: { golden: string; other: string }; ruleset?: number | null;
-}) {
-  const highlights = useMemo<Highlight[]>(() => {
-    const h: Highlight[] = [];
-    if (captures.length) {
-      captures.forEach((c, i) => h.push({ id: `capture-${i}`, kind: "expected", cssPath: c.css_path, charStart: c.char_start,
-        charEnd: c.char_end, text: c.text, removable: true }));
-      return h;
-    }
-    if (golden?.cssPath) h.push({ id: "golden", kind: "expected", cssPath: golden.cssPath, charStart: golden.charStart,
-      charEnd: golden.charEnd, text: golden.text });
-    if (other) {
-      h.push({ id: "other", kind: "mark", cssPath: "body", text: other });
-      if (other.length > 90) h.push({ id: "other-start", kind: "mark", cssPath: "body", text: other.slice(0, 80) });
-    }
-    return h;
-  }, [golden, other, captures]);
-  const [focus, setFocus] = useState<string | null>(null);
-  useEffect(() => { setFocus(captures.length ? "capture-0" : golden?.cssPath ? "golden" : other ? "other" : null); },
-    [stem, golden, other, captures.length]);
+export function ValuePage({ catalog, stem, url, title, golden, other, captures, capturing, onCapture, onRemove, labels, ruleset }: ValuePageProps) {
+  const highlights = useMemo(() => pageHighlights(golden, other, captures), [golden, other, captures]);
+  const focus = useFirstHighlight(stem, golden, other, captures.length);
   return (
     <div className="vd-page">
       <PagePane catalog={catalog} tabs={[{ stem, url, title }]} activeStem={stem} onActivate={() => {}}
@@ -202,4 +204,37 @@ export function ValuePage({ catalog, stem, url, title, golden, other, captures, 
           {other && <span><i className="sw x" />{labels.other}</span>}</span>} />
     </div>
   );
+}
+
+interface ValuePageProps {
+  catalog: string; stem: string; url: string; title: string; golden: GoldenSpot | null;
+  other: string | null; captures: CapturedSelection[]; capturing: boolean;
+  onCapture: (c: CapturedSelection) => void; onRemove: (i: number) => void;
+  labels: { golden: string; other: string }; ruleset?: number | null;
+}
+type GoldenSpot = { cssPath: string | null; charStart: number | null; charEnd: number | null; text: string | null };
+
+/** While the ✗ flow has pieces, only them; else the left value at its location and the right value by its text. */
+function pageHighlights(golden: GoldenSpot | null, other: string | null, captures: CapturedSelection[]): Highlight[] {
+  if (captures.length) return captures.map((c, i) => ({ id: `capture-${i}`, kind: "expected", cssPath: c.css_path, charStart: c.char_start,
+    charEnd: c.char_end, text: c.text, removable: true }));
+  return [...goldenHighlight(golden), ...otherHighlights(other)];
+}
+
+function useFirstHighlight(stem: string, golden: GoldenSpot | null, other: string | null, captureCount: number): string | null {
+  const [focus, setFocus] = useState<string | null>(null);
+  useEffect(() => { setFocus(captureCount ? "capture-0" : golden?.cssPath ? "golden" : other ? "other" : null); },
+    [stem, golden, other, captureCount]);
+  return focus;
+}
+
+function goldenHighlight(golden: GoldenSpot | null): Highlight[] {
+  if (!golden?.cssPath) return [];
+  return [{ id: "golden", kind: "expected", cssPath: golden.cssPath, charStart: golden.charStart, charEnd: golden.charEnd, text: golden.text }];
+}
+
+function otherHighlights(other: string | null): Highlight[] {
+  if (!other) return [];
+  const start: Highlight[] = other.length > 90 ? [{ id: "other-start", kind: "mark", cssPath: "body", text: other.slice(0, 80) }] : [];
+  return [{ id: "other", kind: "mark", cssPath: "body", text: other }, ...start];
 }

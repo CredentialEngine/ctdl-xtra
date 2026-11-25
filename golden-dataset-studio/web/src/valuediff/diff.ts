@@ -9,27 +9,9 @@ const MAX_TOKENS = 1500;
 
 /** `a` → `b`: `del` is only in `a`, `add` only in `b`. */
 export function wordDiff(a: string, b: string): DiffPart[] {
-  const x = a.split(/(\s+)/).filter(Boolean), y = b.split(/(\s+)/).filter(Boolean);
+  const x = words(a), y = words(b);
   if (x.length > MAX_TOKENS || y.length > MAX_TOKENS) return [{ op: "del", text: a }, { op: "add", text: b }];
-  const n = x.length, m = y.length;
-  const L = Array.from({ length: n + 1 }, () => new Uint16Array(m + 1));
-  for (let i = n - 1; i >= 0; i--)
-    for (let j = m - 1; j >= 0; j--)
-      L[i][j] = x[i] === y[j] ? L[i + 1][j + 1] + 1 : Math.max(L[i + 1][j], L[i][j + 1]);
-  const out: DiffPart[] = [];
-  const push = (op: DiffPart["op"], text: string) => {
-    const last = out[out.length - 1];
-    if (last && last.op === op) last.text += text; else out.push({ op, text });
-  };
-  let i = 0, j = 0;
-  while (i < n && j < m) {
-    if (x[i] === y[j]) { push("same", x[i]); i++; j++; }
-    else if (L[i + 1][j] >= L[i][j + 1]) push("del", x[i++]);
-    else push("add", y[j++]);
-  }
-  while (i < n) push("del", x[i++]);
-  while (j < m) push("add", y[j++]);
-  return out;
+  return walkDiff(x, y, commonLengths(x, y));
 }
 
 /** The two sides of a split view: the left keeps `same` and `del`, the right `same` and `add`. `compact` shortens long
@@ -40,6 +22,39 @@ export function sides(a: string | null, b: string | null, compact = false): { le
   const keep = (drop: DiffPart["op"]) => shown.filter((p) => p.op !== drop)
     .map((p) => (p.op !== "same" && p.op !== "gap" && !p.text.trim() ? { op: "same" as const, text: p.text } : p));
   return { left: keep("add"), right: keep("del") };
+}
+
+function words(text: string): string[] {
+  return text.split(/(\s+)/).filter(Boolean);
+}
+
+/** `L[i][j]`: the length of the longest common subsequence of `x[i:]` and `y[j:]`. */
+function commonLengths(x: string[], y: string[]): Uint16Array[] {
+  const n = x.length, m = y.length;
+  const L = Array.from({ length: n + 1 }, () => new Uint16Array(m + 1));
+  for (let i = n - 1; i >= 0; i--)
+    for (let j = m - 1; j >= 0; j--)
+      L[i][j] = x[i] === y[j] ? L[i + 1][j + 1] + 1 : Math.max(L[i + 1][j], L[i][j + 1]);
+  return L;
+}
+
+/** Walks the table from the start: a common word is `same`, else the side that keeps the longer subsequence goes. */
+function walkDiff(x: string[], y: string[], L: Uint16Array[]): DiffPart[] {
+  const out: DiffPart[] = [];
+  let i = 0, j = 0;
+  while (i < x.length && j < y.length) {
+    if (x[i] === y[j]) { appendPart(out, "same", x[i]); i++; j++; }
+    else if (L[i + 1][j] >= L[i][j + 1]) appendPart(out, "del", x[i++]);
+    else appendPart(out, "add", y[j++]);
+  }
+  while (i < x.length) appendPart(out, "del", x[i++]);
+  while (j < y.length) appendPart(out, "add", y[j++]);
+  return out;
+}
+
+function appendPart(out: DiffPart[], op: DiffPart["op"], text: string) {
+  const last = out[out.length - 1];
+  if (last && last.op === op) last.text += text; else out.push({ op, text });
 }
 
 /** True when the two values differ only in spacing (the scorer and review.norm ignore it). */
