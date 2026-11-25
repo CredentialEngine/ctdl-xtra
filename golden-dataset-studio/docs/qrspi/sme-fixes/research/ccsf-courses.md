@@ -93,13 +93,13 @@ The locator's route id is `locator-course-page` (the Rules tab reads the rule id
 `#/c/ccsf/rules/course-page` opens the **page rule**, whose rows are pages (`?row=<page stem>`).
 
 - Locator, INTD 100 (block 1 of 3):
-  https://golden-rules-studio.mlops-club.org/#/c/ccsf/rules/locator-course-page?row=ccsf-curricunet-com-catalog-iq-courses-3-102-3ecab791c0%40html+%3E+body%3Anth-of-type%281%29+%3E+div%3Anth-of-type%283%29+%3E+div%3Anth-of-type%281%29+%3E+div%3Anth-of-type%283%29+%3E+article%3Anth-of-type%281%29+%3E+ol%3Anth-of-type%281%29+%3E+div%3Anth-of-type%281%29+%3E+div%3Anth-of-type%281%29+%3E+div%3Anth-of-type%281%29+%3E+div%3Anth-of-type%281%29+%3E+div%3Anth-of-type%281%29
+  https://studio.example.org/#/c/ccsf/rules/locator-course-page?row=ccsf-curricunet-com-catalog-iq-courses-3-102-3ecab791c0%40html+%3E+body%3Anth-of-type%281%29+%3E+div%3Anth-of-type%283%29+%3E+div%3Anth-of-type%281%29+%3E+div%3Anth-of-type%283%29+%3E+article%3Anth-of-type%281%29+%3E+ol%3Anth-of-type%281%29+%3E+div%3Anth-of-type%281%29+%3E+div%3Anth-of-type%281%29+%3E+div%3Anth-of-type%281%29+%3E+div%3Anth-of-type%281%29+%3E+div%3Anth-of-type%281%29
 - Locator, INTD 102 (block 2 of 3):
-  https://golden-rules-studio.mlops-club.org/#/c/ccsf/rules/locator-course-page?row=ccsf-curricunet-com-catalog-iq-courses-3-102-3ecab791c0%40html+%3E+body%3Anth-of-type%281%29+%3E+div%3Anth-of-type%283%29+%3E+div%3Anth-of-type%281%29+%3E+div%3Anth-of-type%283%29+%3E+article%3Anth-of-type%281%29+%3E+ol%3Anth-of-type%281%29+%3E+div%3Anth-of-type%281%29+%3E+div%3Anth-of-type%281%29+%3E+div%3Anth-of-type%282%29+%3E+div%3Anth-of-type%281%29+%3E+div%3Anth-of-type%281%29
+  https://studio.example.org/#/c/ccsf/rules/locator-course-page?row=ccsf-curricunet-com-catalog-iq-courses-3-102-3ecab791c0%40html+%3E+body%3Anth-of-type%281%29+%3E+div%3Anth-of-type%283%29+%3E+div%3Anth-of-type%281%29+%3E+div%3Anth-of-type%283%29+%3E+article%3Anth-of-type%281%29+%3E+ol%3Anth-of-type%281%29+%3E+div%3Anth-of-type%281%29+%3E+div%3Anth-of-type%281%29+%3E+div%3Anth-of-type%282%29+%3E+div%3Anth-of-type%281%29+%3E+div%3Anth-of-type%281%29
 - Locator, SPAN 1 (block 1 of 28):
-  https://golden-rules-studio.mlops-club.org/#/c/ccsf/rules/locator-course-page?row=ccsf-curricunet-com-catalog-iq-courses-3-155-b4b7757633%40html+%3E+body%3Anth-of-type%281%29+%3E+div%3Anth-of-type%283%29+%3E+div%3Anth-of-type%281%29+%3E+div%3Anth-of-type%283%29+%3E+article%3Anth-of-type%281%29+%3E+ol%3Anth-of-type%281%29+%3E+div%3Anth-of-type%281%29+%3E+div%3Anth-of-type%281%29+%3E+div%3Anth-of-type%281%29+%3E+div%3Anth-of-type%281%29+%3E+div%3Anth-of-type%281%29
-- Page rule, Interior Design page: https://golden-rules-studio.mlops-club.org/#/c/ccsf/rules/course-page?row=ccsf-curricunet-com-catalog-iq-courses-3-102-3ecab791c0
-- Page rule, Spanish page: https://golden-rules-studio.mlops-club.org/#/c/ccsf/rules/course-page?row=ccsf-curricunet-com-catalog-iq-courses-3-155-b4b7757633
+  https://studio.example.org/#/c/ccsf/rules/locator-course-page?row=ccsf-curricunet-com-catalog-iq-courses-3-155-b4b7757633%40html+%3E+body%3Anth-of-type%281%29+%3E+div%3Anth-of-type%283%29+%3E+div%3Anth-of-type%281%29+%3E+div%3Anth-of-type%283%29+%3E+article%3Anth-of-type%281%29+%3E+ol%3Anth-of-type%281%29+%3E+div%3Anth-of-type%281%29+%3E+div%3Anth-of-type%281%29+%3E+div%3Anth-of-type%281%29+%3E+div%3Anth-of-type%281%29+%3E+div%3Anth-of-type%281%29
+- Page rule, Interior Design page: https://studio.example.org/#/c/ccsf/rules/course-page?row=ccsf-curricunet-com-catalog-iq-courses-3-102-3ecab791c0
+- Page rule, Spanish page: https://studio.example.org/#/c/ccsf/rules/course-page?row=ccsf-curricunet-com-catalog-iq-courses-3-155-b4b7757633
 
 ## Q8.3: rows today
 

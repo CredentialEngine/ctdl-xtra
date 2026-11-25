@@ -73,13 +73,13 @@ instead of selecting it on the page.
 | Note | `https://avc.elumenapp.com/catalog/2026-27/course/acct199` |
 
 Studio URL:
-https://golden-rules-studio.mlops-club.org/#/c/avc/rules/course-in-catalog?row=avc-elumenapp-com-catalog-2026-27-course-acct199-02f732419a%40html+%3E+body%3Anth-of-type%281%29+%3E+app-root%3Anth-of-type%281%29+%3E+app-public%3Anth-of-type%281%29+%3E+div%3Anth-of-type%282%29+%3E+div%3Anth-of-type%282%29+%3E+div%3Anth-of-type%282%29+%3E+main%3Anth-of-type%281%29+%3E+div%3Anth-of-type%284%29
+https://studio.example.org/#/c/avc/rules/course-in-catalog?row=avc-elumenapp-com-catalog-2026-27-course-acct199-02f732419a%40html+%3E+body%3Anth-of-type%281%29+%3E+app-root%3Anth-of-type%281%29+%3E+app-public%3Anth-of-type%281%29+%3E+div%3Anth-of-type%282%29+%3E+div%3Anth-of-type%282%29+%3E+div%3Anth-of-type%282%29+%3E+main%3Anth-of-type%281%29+%3E+div%3Anth-of-type%284%29
 
 A second one, same course: an-822d94938a8d, ✗ on `course-entry-condition` (no rule yet), Jared Diener,
 2026-11-04 15:35:19, no expected value, no note.
 
 Studio URL:
-https://golden-rules-studio.mlops-club.org/#/c/avc/rules/course-entry-condition?row=avc-elumenapp-com-catalog-2026-27-course-acct199-02f732419a%40html+%3E+body%3Anth-of-type%281%29+%3E+app-root%3Anth-of-type%281%29+%3E+app-public%3Anth-of-type%281%29+%3E+div%3Anth-of-type%282%29+%3E+div%3Anth-of-type%282%29+%3E+div%3Anth-of-type%282%29+%3E+main%3Anth-of-type%281%29+%3E+div%3Anth-of-type%284%29
+https://studio.example.org/#/c/avc/rules/course-entry-condition?row=avc-elumenapp-com-catalog-2026-27-course-acct199-02f732419a%40html+%3E+body%3Anth-of-type%281%29+%3E+app-root%3Anth-of-type%281%29+%3E+app-public%3Anth-of-type%281%29+%3E+div%3Anth-of-type%282%29+%3E+div%3Anth-of-type%282%29+%3E+div%3Anth-of-type%282%29+%3E+main%3Anth-of-type%281%29+%3E+div%3Anth-of-type%284%29
 
 **Would an expected value reach the golden dataset? No** (`golden.py:142-171`):
 - The loop walks the extraction's matches only, and skips any match whose status isn't `found` (line 156). A "no rule
@@ -114,7 +114,7 @@ is not human-reviewed.
 **Page:** https://avc.elumenapp.com/catalog/2026-27/course/acct199
 
 **Studio URL:**
-https://golden-rules-studio.mlops-club.org/#/c/avc/rules/course-entry-condition-description?row=avc-elumenapp-com-catalog-2026-27-course-acct199-02f732419a%40html+%3E+body%3Anth-of-type%281%29+%3E+app-root%3Anth-of-type%281%29+%3E+app-public%3Anth-of-type%281%29+%3E+div%3Anth-of-type%282%29+%3E+div%3Anth-of-type%282%29+%3E+div%3Anth-of-type%282%29+%3E+main%3Anth-of-type%281%29+%3E+div%3Anth-of-type%284%29
+https://studio.example.org/#/c/avc/rules/course-entry-condition-description?row=avc-elumenapp-com-catalog-2026-27-course-acct199-02f732419a%40html+%3E+body%3Anth-of-type%281%29+%3E+app-root%3Anth-of-type%281%29+%3E+app-public%3Anth-of-type%281%29+%3E+div%3Anth-of-type%282%29+%3E+div%3Anth-of-type%282%29+%3E+div%3Anth-of-type%282%29+%3E+main%3Anth-of-type%281%29+%3E+div%3Anth-of-type%284%29
 
 **Did this ✗ alone make the rule "needs work"? Yes.**
 - The rule has 1,062 rows, 201 with a value. 4 rows are reviewed. ACCT199 is its only open ✗ (`open_wrong: 1`).
@@ -154,7 +154,7 @@ Separately, WVU has 3 imported ✗ on rows that had a value then and have no row
 1. Marshall, `course-description`, WS483, ✓ by Seth 2026-10-23 15:09:53 (an-29c9b01440af, imported). The rule finds
    nothing (`no_match`); Seth accepted "no description" as correct. Page:
    https://catalog.marshall.edu/undergraduate/courses-az/ws/. Studio URL:
-   https://golden-rules-studio.mlops-club.org/#/c/marshall/rules/course-description?row=catalog-marshall-edu-undergraduate-courses-az-ws-d237b66e12%40html+%3E+body%3Anth-of-type%281%29+%3E+section%3Anth-of-type%281%29+%3E+div%3Anth-of-type%281%29+%3E+div%3Anth-of-type%282%29+%3E+main%3Anth-of-type%281%29+%3E+div%3Anth-of-type%281%29+%3E+div%3Anth-of-type%281%29+%3E+div%3Anth-of-type%281%29
+   https://studio.example.org/#/c/marshall/rules/course-description?row=catalog-marshall-edu-undergraduate-courses-az-ws-d237b66e12%40html+%3E+body%3Anth-of-type%281%29+%3E+section%3Anth-of-type%281%29+%3E+div%3Anth-of-type%281%29+%3E+div%3Anth-of-type%282%29+%3E+main%3Anth-of-type%281%29+%3E+div%3Anth-of-type%281%29+%3E+div%3Anth-of-type%281%29+%3E+div%3Anth-of-type%281%29
 2. AVC, `course-credit-value`, ACCT199, ✗ on a found value (`1.0 - 8.0 Units`), Jared Diener 2026-11-04 16:40:19:
    "There should be no values for this property. ceterms:creditValue takes the sub-class Value Profile…". The text is
    on the page, but the property should have no flat value. This is the only ✗ meaning "this property should be

@@ -10,7 +10,7 @@ Given on 2026-11-04, in one conversation. Reproduced verbatim.
 
 2. implement deep URLs so when a sample is highlighted, a link to that sample and comment can be shared
 
-3. https://golden-rules-studio.mlops-club.org/#/c/ccsf/rules/course-page for this one, in the "one course per page" locator rule.
+3. https://studio.example.org/#/c/ccsf/rules/course-page for this one, in the "one course per page" locator rule.
 
 4. Jared clicked the "improve these 5 rules" button and I don't see any output from claude. Health check please look and investigate what's wrong there
 

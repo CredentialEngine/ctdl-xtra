@@ -142,18 +142,18 @@ The 6-rule report, **today (real):** [`../report-links/screens/report-sim.png`](
 
 ## 2. K2: several Claudes at once
 
-All facts below come from the K2 server's deploy scripts (`apps/k2/`: `Dockerfile`, `manifest.yaml`, `deploy.sh`, `README.md`), K2 v0.46.5's own release notes and
-help text (inside the daemon binary, `build/k2-daemon-linux-x86_64`), and read-only `kubectl get/exec ls/cat/ps` on
-pod `k2/k2-0`. Nothing on the server was changed.
+All facts below come from the K2 server's deploy scripts (`Dockerfile`, deploy manifest, `deploy.sh`, `README.md`), K2 v0.46.5's own release notes and
+help text (inside the daemon binary, `build/k2-daemon-linux-x86_64`), and read-only `ls`, `cat` and `ps` in
+the K2 server's container. Nothing on the server was changed.
 
 ### 2.1 What the K2 server runs today
 
 | Fact | Where |
 |---|---|
-| One pod: K2 daemon + Claude Code 2.1.308 + uv, Ubuntu 24.04 | `apps/k2/Dockerfile`, `versions.env` |
-| The `/v1` API is on: `K2_API: "1"` ("POST /v1/w/<ws>/host-sessions starts an agent with a prompt") | `apps/k2/manifest.yaml:39-40` |
-| Memory request 1 GiB, **limit 4 GiB**; no CPU limit; 4 cores visible | `manifest.yaml:122-124`; `nproc` = 4, `cpu.cfs_quota_us` = -1 |
-| No `python3`, so most `k2` CLI commands fail in the pod (`k2 done`, `k2 respond`, `k2 workspace …`) | `Dockerfile` (apt installs only curl, git, libssl3, tini) |
+| One container: K2 daemon + Claude Code 2.1.308 + uv, Ubuntu 24.04 | `Dockerfile`, `versions.env` |
+| The `/v1` API is on: `K2_API: "1"` ("POST /v1/w/<ws>/host-sessions starts an agent with a prompt") | deploy manifest |
+| Memory request 1 GiB, **limit 4 GiB**; no CPU limit; 4 cores visible | deploy manifest; `nproc` = 4, `cpu.cfs_quota_us` = -1 |
+| No `python3`, so most `k2` CLI commands fail in the container (`k2 done`, `k2 respond`, `k2 workspace …`) | `Dockerfile` (apt installs only curl, git, libssl3, tini) |
 | Workspaces are folders: `/var/lib/k2/work/golden-rules` (created by `deploy.sh`), plus `k2` | `deploy.sh:57`; `ls /var/lib/k2/work` |
 | 17 run folders under `golden-rules/runs/` (Oct 28 → Nov 5) | `ls /var/lib/k2/work/golden-rules/runs` |
 | Processes now: daemon 213 MB; the canonical `golden-rules` Claude 299 MB; two idle Claude tabs opened 6 days ago, 264 MB and 299 MB | `ps` |
@@ -216,9 +216,9 @@ K2 v0.46.5 ships a "host sessions" API (release notes 0.40.30, 0.40.76, 0.40.87�
   so the prompt should say "report only with `golden-datasets run`; don't use `k2 respond`" (or `python3` gets added).
 - The API key is scoped: `k2 api-key create --workspaces golden-rules --allow host-sessions,canonical-message`
   (help text in the daemon). The Studio's key today was made with `--allow canonical-message` only (k2-runs spec
-  §9), so **a new key is needed**. `k2 api-key create` is run with `kubectl exec` (README "The API"). If it needs
+  §9), so **a new key is needed**. `k2 api-key create` is run in the K2 server's container (README "The API"). If it needs
   `python3` like other commands, `deploy.sh`'s pattern of calling the daemon's `/cli/…` routes with `curl` from
-  inside the pod works (`deploy.sh:30-33`; the route is `/cli/api-keys/create`).
+  inside the container works (`deploy.sh:30-33`; the route is `/cli/api-keys/create`).
 
 **What the Studio needs:** the same URL and a new key; a setting for how many runs may be live (default 3, Q2.1);
 a new client method `spawn` (POST host-sessions, `429` = wait, like `409` today), plus `kill`. The per-workspace cap
