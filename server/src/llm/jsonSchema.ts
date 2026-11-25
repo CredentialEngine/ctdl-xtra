@@ -58,3 +58,53 @@ export function toolParametersJsonSchema(
   }
   return normalizeStrictJsonSchema(schema);
 }
+
+/**
+ * OpenAI strict `json_schema` response format requires every object node's
+ * `required` to list all keys in `properties` (tools allow partial required).
+ */
+export function openAiStrictToolResponseSchema(schema: JSONSchema): JSONSchema {
+  return requireAllObjectProperties(normalizeStrictJsonSchema(schema)) as JSONSchema;
+}
+
+function requireAllObjectProperties(node: unknown): unknown {
+  if (node === null || typeof node !== "object") {
+    return node;
+  }
+  if (Array.isArray(node)) {
+    return node.map(requireAllObjectProperties);
+  }
+
+  const obj = { ...(node as Record<string, unknown>) };
+
+  if (
+    obj.properties &&
+    typeof obj.properties === "object" &&
+    !Array.isArray(obj.properties)
+  ) {
+    const props = obj.properties as Record<string, unknown>;
+    obj.properties = Object.fromEntries(
+      Object.entries(props).map(([key, value]) => [
+        key,
+        requireAllObjectProperties(value),
+      ])
+    );
+    if (obj.type === "object" || obj.type === undefined) {
+      obj.type = "object";
+      obj.additionalProperties = false;
+      obj.required = Object.keys(props);
+    }
+  }
+
+  if (obj.items !== undefined) {
+    obj.items = requireAllObjectProperties(obj.items);
+  }
+
+  for (const combiner of ["anyOf", "allOf", "oneOf"] as const) {
+    if (Array.isArray(obj[combiner])) {
+      obj[combiner] = (obj[combiner] as unknown[]).map(requireAllObjectProperties);
+    }
+  }
+
+  return obj;
+}

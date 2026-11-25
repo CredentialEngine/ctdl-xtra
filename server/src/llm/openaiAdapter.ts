@@ -5,14 +5,21 @@ import {
   ChatCompletionCreateParams,
   ChatCompletionMessageParam,
 } from "openai/resources/chat/completions";
+import { JSONSchema } from "../../../common/catalogueTypes";
 import { Provider, ProviderModel } from "../../../common/types";
 import getLogger from "../logging";
 import { getOpenAi } from "../openai";
 import {
   normalizeStrictJsonSchema,
+  openAiStrictToolResponseSchema,
   toolParametersJsonSchema,
 } from "./jsonSchema";
-import { stripsImages, supportsTopP } from "./models";
+import {
+  openAiReasoningEffortNoneForTools,
+  openAiUsesJsonSchemaForTools,
+  stripsImages,
+  supportsTopP,
+} from "./models";
 import {
   LlmContentPart,
   LlmMessage,
@@ -83,6 +90,50 @@ function applySampling(
   }
 }
 
+function applyOpenAiToolCompat(
+  completionOptions: ChatCompletionCreateParams,
+  selectedModel: ProviderModel
+) {
+  if (openAiReasoningEffortNoneForTools(selectedModel)) {
+    (completionOptions as ChatCompletionCreateParams & {
+      reasoning_effort?: "none";
+    }).reasoning_effort = "none";
+  }
+}
+
+async function openAiJsonSchemaCompletion(
+  openai: OpenAI,
+  options: {
+    messages: LlmMessage[];
+    model: ProviderModel;
+    schema: JSONSchema;
+    temperature?: number;
+    top_p?: number;
+  }
+): Promise<ChatCompletion> {
+  const completionOptions: ChatCompletionCreateParams = {
+    messages: [],
+    model: options.model,
+    frequency_penalty: 0,
+    presence_penalty: 0,
+    response_format: {
+      type: "json_schema",
+      json_schema: {
+        strict: true,
+        name: "schema",
+        schema: normalizeStrictJsonSchema(options.schema),
+      },
+    } as any,
+  };
+  applySampling(completionOptions, options.model, options);
+  return createChatCompletion(
+    openai,
+    completionOptions,
+    options.messages,
+    options.model
+  );
+}
+
 async function createChatCompletion(
   openai: OpenAI,
   completionOptions: ChatCompletionCreateParams,
@@ -120,6 +171,38 @@ export const openaiAdapter: LlmProviderAdapter = {
   ): Promise<SimpleToolCompletionResult<T>> {
     const openai = await getOpenAi();
     const selectedModel = options.model || ProviderModel.Gpt5;
+
+    if (openAiUsesJsonSchemaForTools(selectedModel)) {
+      const schema = openAiStrictToolResponseSchema(
+        toolParametersJsonSchema(
+          options.parameters,
+          options.requiredParameters as string[] | undefined
+        )
+      );
+      const chatCompletion = await openAiJsonSchemaCompletion(openai, {
+        messages: options.messages,
+        model: selectedModel,
+        schema,
+        temperature: options.temperature,
+        top_p: options.top_p,
+      });
+      const inputTokenCount = chatCompletion.usage?.prompt_tokens || 0;
+      const outputTokenCount = chatCompletion.usage?.completion_tokens || 0;
+      const content = chatCompletion.choices[0].message.content;
+      if (!content) {
+        return {
+          toolCallArgs: null,
+          inputTokenCount,
+          outputTokenCount,
+        };
+      }
+      return {
+        toolCallArgs: JSON.parse(content) as SimpleToolCompletionResult<T>["toolCallArgs"],
+        inputTokenCount,
+        outputTokenCount,
+      };
+    }
+
     const completionOptions: ChatCompletionCreateParams = {
       messages: [],
       model: selectedModel,
@@ -143,6 +226,7 @@ export const openaiAdapter: LlmProviderAdapter = {
       },
     };
     applySampling(completionOptions, selectedModel, options);
+    applyOpenAiToolCompat(completionOptions, selectedModel);
 
     const chatCompletion = await createChatCompletion(
       openai,
@@ -178,28 +262,14 @@ export const openaiAdapter: LlmProviderAdapter = {
   ): Promise<StructuredCompletionResult<T>> {
     const openai = await getOpenAi();
     const selectedModel = options.model || ProviderModel.Gpt5;
-    const completionOptions: ChatCompletionCreateParams = {
-      messages: [],
-      model: selectedModel,
-      frequency_penalty: 0,
-      presence_penalty: 0,
-      response_format: {
-        type: "json_schema",
-        json_schema: {
-          strict: true,
-          name: "schema",
-          schema: normalizeStrictJsonSchema(options.schema),
-        },
-      } as any,
-    };
-    applySampling(completionOptions, selectedModel, options);
 
-    const chatCompletion = await createChatCompletion(
-      openai,
-      completionOptions,
-      options.messages,
-      selectedModel
-    );
+    const chatCompletion = await openAiJsonSchemaCompletion(openai, {
+      messages: options.messages,
+      model: selectedModel,
+      schema: options.schema,
+      temperature: options.temperature,
+      top_p: options.top_p,
+    });
 
     const inputTokenCount = chatCompletion.usage?.prompt_tokens || 0;
     const outputTokenCount = chatCompletion.usage?.completion_tokens || 0;

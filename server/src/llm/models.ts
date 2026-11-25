@@ -16,6 +16,27 @@ const NO_TOP_P = new Set<ProviderModel>([
   ProviderModel.Gpt6Luna,
 ]);
 
+/** Luna: chat/completions tools require reasoning_effort none. */
+const REASONING_EFFORT_NONE_FOR_TOOLS = new Set<ProviderModel>([
+  ProviderModel.Gpt6Luna,
+]);
+
+export function openAiReasoningEffortNoneForTools(
+  model: ProviderModel
+): boolean {
+  return REASONING_EFFORT_NONE_FOR_TOOLS.has(model);
+}
+
+/** Astra/Sol: chat/completions cannot combine tools with reasoning; use JSON schema output. */
+const OPENAI_JSON_SCHEMA_FOR_TOOLS = new Set<ProviderModel>([
+  ProviderModel.Gpt6Astra,
+  ProviderModel.Gpt61Sol,
+]);
+
+export function openAiUsesJsonSchemaForTools(model: ProviderModel): boolean {
+  return OPENAI_JSON_SCHEMA_FOR_TOOLS.has(model);
+}
+
 export function supportsTopP(model: ProviderModel): boolean {
   if (providerForModel(model) !== Provider.OpenAI) {
     return false;
@@ -27,7 +48,13 @@ export function stripsImages(model: ProviderModel): boolean {
   return model === ProviderModel.O3Mini;
 }
 
-/** Fable 5.1 rejects forced `tool_choice: { type: "tool" }`. */
+/** Anthropic models that require structured JSON instead of forced tool_choice. */
+const ANTHROPIC_JSON_SCHEMA_FOR_TOOLS = new Set<ProviderModel>([
+  ProviderModel.ClaudeFable51,
+  ProviderModel.ClaudeSonnet55,
+  ProviderModel.ClaudeOpus55,
+]);
+
 export function usesForcedToolChoice(model: ProviderModel): boolean {
-  return model !== ProviderModel.ClaudeFable51;
+  return !ANTHROPIC_JSON_SCHEMA_FOR_TOOLS.has(model);
 }
