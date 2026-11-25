@@ -1,0 +1,323 @@
+{
+  "src/App.tsx": {
+    "max-lines-per-function": {
+      "count": 1
+    }
+  },
+  "src/agent/AiStat.tsx": {
+    "max-lines-per-function": {
+      "count": 2
+    }
+  },
+  "src/agent/FixBar.tsx": {
+    "max-lines-per-function": {
+      "count": 1
+    }
+  },
+  "src/agent/Report.tsx": {
+    "max-lines-per-function": {
+      "count": 11
+    }
+  },
+  "src/agent/RunBar.tsx": {
+    "max-lines-per-function": {
+      "count": 3
+    }
+  },
+  "src/agent/RunButton.tsx": {
+    "max-lines-per-function": {
+      "count": 1
+    }
+  },
+  "src/agent/RunDialog.tsx": {
+    "max-lines-per-function": {
+      "count": 5
+    }
+  },
+  "src/agent/RunsPanel.tsx": {
+    "max-lines-per-function": {
+      "count": 3
+    }
+  },
+  "src/agent/api.ts": {
+    "max-lines-per-function": {
+      "count": 3
+    }
+  },
+  "src/agent/state.tsx": {
+    "max-lines-per-function": {
+      "count": 2
+    }
+  },
+  "src/catalogs/AddCatalogModal.tsx": {
+    "max-lines-per-function": {
+      "count": 1
+    }
+  },
+  "src/catalogs/CatalogPicker.tsx": {
+    "max-lines-per-function": {
+      "count": 3
+    }
+  },
+  "src/catalogs/GenerateRulesModal.tsx": {
+    "max-lines-per-function": {
+      "count": 3
+    }
+  },
+  "src/catalogs/LoopModal.tsx": {
+    "max-lines-per-function": {
+      "count": 4
+    }
+  },
+  "src/catalogs/ScoreViews.tsx": {
+    "max-lines-per-function": {
+      "count": 9
+    }
+  },
+  "src/catalogs/menus.tsx": {
+    "max-lines-per-function": {
+      "count": 5
+    }
+  },
+  "src/catalogs/scoreLogic.ts": {
+    "max-lines-per-function": {
+      "count": 1
+    }
+  },
+  "src/compare/CompareTab.tsx": {
+    "max-lines-per-function": {
+      "count": 6
+    }
+  },
+  "src/compare/CompareValue.tsx": {
+    "max-lines-per-function": {
+      "count": 1
+    }
+  },
+  "src/evals/EvalsTab.tsx": {
+    "max-lines-per-function": {
+      "count": 14
+    }
+  },
+  "src/files/StorageFiles.tsx": {
+    "max-lines-per-function": {
+      "count": 5
+    }
+  },
+  "src/findings/FindingPanel.tsx": {
+    "max-lines-per-function": {
+      "count": 2
+    }
+  },
+  "src/findings/Review.tsx": {
+    "max-lines-per-function": {
+      "count": 2
+    }
+  },
+  "src/golden/FilePreview.tsx": {
+    "max-lines-per-function": {
+      "count": 4
+    }
+  },
+  "src/golden/GoldenTab.tsx": {
+    "max-lines-per-function": {
+      "count": 4
+    }
+  },
+  "src/pagepane/HighlightBar.tsx": {
+    "max-lines-per-function": {
+      "count": 1
+    }
+  },
+  "src/pagepane/PagePane.tsx": {
+    "max-lines-per-function": {
+      "count": 5
+    }
+  },
+  "src/pagepane/SourceView.tsx": {
+    "max-lines-per-function": {
+      "count": 3
+    }
+  },
+  "src/pagepane/dom.ts": {
+    "max-lines-per-function": {
+      "count": 4
+    }
+  },
+  "src/pagepane/paint.ts": {
+    "max-depth": {
+      "count": 5
+    },
+    "max-lines-per-function": {
+      "count": 2
+    }
+  },
+  "src/pagepane/view.ts": {
+    "max-lines-per-function": {
+      "count": 1
+    }
+  },
+  "src/prompt/PromptModal.tsx": {
+    "max-lines-per-function": {
+      "count": 2
+    }
+  },
+  "src/prompt/highlight.ts": {
+    "max-lines-per-function": {
+      "count": 1
+    }
+  },
+  "src/prompt/markdown.tsx": {
+    "max-lines-per-function": {
+      "count": 4
+    }
+  },
+  "src/records/RecordsTab.tsx": {
+    "max-lines-per-function": {
+      "count": 4
+    }
+  },
+  "src/records/logic.ts": {
+    "max-lines-per-function": {
+      "count": 1
+    }
+  },
+  "src/rules/AnnotatedBy.tsx": {
+    "max-lines-per-function": {
+      "count": 2
+    }
+  },
+  "src/rules/ApproveDialog.tsx": {
+    "max-lines-per-function": {
+      "count": 1
+    }
+  },
+  "src/rules/Discussion.tsx": {
+    "max-lines-per-function": {
+      "count": 1
+    }
+  },
+  "src/rules/KeyCode.tsx": {
+    "max-lines-per-function": {
+      "count": 2
+    }
+  },
+  "src/rules/ListItems.tsx": {
+    "max-lines-per-function": {
+      "count": 1
+    }
+  },
+  "src/rules/MissedPanel.tsx": {
+    "max-lines-per-function": {
+      "count": 2
+    }
+  },
+  "src/rules/NotHere.tsx": {
+    "max-lines-per-function": {
+      "count": 2
+    }
+  },
+  "src/rules/ProfileItems.tsx": {
+    "max-lines-per-function": {
+      "count": 2
+    }
+  },
+  "src/rules/ResetDialog.tsx": {
+    "max-lines-per-function": {
+      "count": 1
+    }
+  },
+  "src/rules/RowCard.tsx": {
+    "max-lines-per-function": {
+      "count": 1
+    }
+  },
+  "src/rules/RuleHead.tsx": {
+    "max-lines-per-function": {
+      "count": 2
+    }
+  },
+  "src/rules/RuleList.tsx": {
+    "max-lines-per-function": {
+      "count": 3
+    }
+  },
+  "src/rules/RulesTab.tsx": {
+    "max-depth": {
+      "count": 4
+    },
+    "max-lines-per-function": {
+      "count": 11
+    }
+  },
+  "src/rules/logic.ts": {
+    "max-lines-per-function": {
+      "count": 4
+    }
+  },
+  "src/rules/parts.tsx": {
+    "max-lines-per-function": {
+      "count": 3
+    }
+  },
+  "src/shell/ClassMenu.tsx": {
+    "max-lines-per-function": {
+      "count": 1
+    }
+  },
+  "src/shell/Identity.tsx": {
+    "max-lines-per-function": {
+      "count": 2
+    }
+  },
+  "src/shell/Sample.tsx": {
+    "max-lines-per-function": {
+      "count": 3
+    }
+  },
+  "src/shell/TopBar.tsx": {
+    "max-lines-per-function": {
+      "count": 1
+    }
+  },
+  "src/shell/router.ts": {
+    "max-lines-per-function": {
+      "count": 1
+    }
+  },
+  "src/shell/theme.tsx": {
+    "max-lines-per-function": {
+      "count": 1
+    }
+  },
+  "src/telemetry/otel.ts": {
+    "max-lines-per-function": {
+      "count": 4
+    }
+  },
+  "src/tour/index.tsx": {
+    "max-lines-per-function": {
+      "count": 3
+    }
+  },
+  "src/tour/model.ts": {
+    "max-lines-per-function": {
+      "count": 1
+    }
+  },
+  "src/tour/steps.tsx": {
+    "max-lines-per-function": {
+      "count": 2
+    }
+  },
+  "src/valuediff/ValueDiff.tsx": {
+    "max-lines-per-function": {
+      "count": 4
+    }
+  },
+  "src/valuediff/diff.ts": {
+    "max-lines-per-function": {
+      "count": 1
+    }
+  }
+}
