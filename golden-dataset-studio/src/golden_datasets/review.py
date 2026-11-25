@@ -1007,7 +1007,7 @@ class Snapshot:
 
     def _add_items(self, row: dict, rule_id: str, m: dict) -> None:
         found = [x for x in self.items_by_occ[m["occurrence_key"]][rule_id] if x["status"] == "found"]
-        row["items"] = [_list_item(x, row["occurrence_css_path"]) for x in found]
+        row["items"] = [list_item(x, row["occurrence_css_path"]) for x in found]
         row["value"] = profiles_rule.row_value(found) if found else None
 
     def _unruled_rows(self, locator: str, stems: set[str] | None) -> list[dict]:
@@ -1329,7 +1329,7 @@ def _is_property_of(rule: dict, locator: str, ctdl_property: str) -> bool:
         and rule.get("ctdl_property") == ctdl_property
 
 
-def _list_item(match: dict, occurrence_css_path: str) -> dict:
+def list_item(match: dict, occurrence_css_path: str) -> dict:
     return {"value_index": match["value_index"], "value": match["value"], "css_path": match["full_css_path"],
             "char_start": match["char_start"], "char_end": match["char_end"],
             **profiles_rule.row_item(match, occurrence_css_path)}
