@@ -13,7 +13,7 @@ from fastapi import HTTPException, Request
 
 from .. import classes
 from ..catalogs import resolve
-from ..context import Ctx
+from ..context import Ctx, SharedManifest
 from ..storage import Root, open_root
 
 
@@ -27,6 +27,7 @@ class Studio:
         # where the Azure version of the prompt points Claude (the root itself when the Studio serves Azure)
         self.azure_root = self.root.uri if self.root.uri.startswith("azure://") else (azure_root or DEFAULT_AZURE_ROOT)
         self._ctx: dict[tuple[str, str], Ctx] = {}
+        self.manifest = SharedManifest()  # one copy of the manifest for every context (context.SharedManifest)
         self._lock = threading.Lock()
         self.cache: dict = {}  # route modules may memoize derived data here, keyed by tuples
         # where xtra-cli's crawls are (Add a catalog searches it) and the catalogs being added: {folder: progress}
@@ -65,8 +66,8 @@ class Studio:
     def warm_home(self) -> threading.Thread:
         """Work out the home page's catalogs table for each class once, in the background, when the server starts:
         cold, it loads every catalog's latest extraction and plans its golden dataset (minutes of CPU on the biggest
-        catalogs), and the first visit after a restart would wait for all of it. One catalog at a time, through the
-        same snapshot loader and caches a visit uses."""
+        catalogs), and the first visit after a restart would wait for all of it. Then each catalog's rule list
+        (`warm_rule_list`). One catalog at a time, through the same snapshot loader and caches a visit uses."""
         def run() -> None:
             from .. import telemetry
             from .routes_evals import home_summary
@@ -78,10 +79,31 @@ class Studio:
                         home_summary(self, cls)
                 except Exception as exc:  # noqa: BLE001 — a visit works it out itself and shows any error
                     print(f"warming the home page ({cls}): {exc}")
+            for folder, cls in self.catalog_folders():
+                REQUEST_CLASS.set(cls)
+                try:
+                    with telemetry.span("warm.rules", {"ce.catalog.folder": folder, "ce.class": cls}):
+                        self.warm_rule_list(folder, cls)
+                except Exception as exc:  # noqa: BLE001
+                    print(f"warming the rule list ({folder}, {cls}): {exc}")
 
         t = threading.Thread(target=run, name="warm-home", daemon=True)
         t.start()
         return t
+
+    def warm_rule_list(self, folder: str, cls: str) -> None:
+        """Work out a catalog's rule statuses and "Annotated by" counts for a class, as the Rules tab's first visit
+        would (every rule's rows and row states, then the parent's: 13 s on Marshall, while the counts took 12 s
+        alongside). They are kept per rule until its own annotations change, whichever snapshots stay loaded."""
+        from ..review import LOADER
+
+        ctx = self.ctx(folder, cls)
+        ext = ctx.latest_extraction()
+        if not ext:
+            return
+        rv = LOADER.review(ctx, ext)
+        for rid in rv.snap.rules:
+            rv.rule_status(rid)  # and its "Annotated by" counts (Review._summarize)
 
     def agent_runs(self, catalog: str):
         """A catalog's AI runs, with this Studio's K2, run length and prompt."""
@@ -110,7 +132,8 @@ class Studio:
         folder, cls = resolve(catalog), cls or REQUEST_CLASS.get()
         with self._lock:
             if (folder, cls) not in self._ctx:
-                self._ctx[(folder, cls)] = Ctx(self.root, folder, manifest_ttl=3.0, cls=cls)
+                self._ctx[(folder, cls)] = Ctx(self.root, folder, manifest_ttl=3.0, cls=cls,
+                                               shared_manifest=self.manifest)
             return self._ctx[(folder, cls)]
 
 

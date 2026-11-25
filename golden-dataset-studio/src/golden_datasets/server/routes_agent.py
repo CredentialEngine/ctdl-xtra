@@ -8,6 +8,7 @@ answer a start. A Studio whose loop isn't running (a test, or runs off) shows th
 
 from __future__ import annotations
 
+from concurrent.futures import ThreadPoolExecutor
 from typing import Literal
 
 from fastapi import APIRouter, HTTPException, Request
@@ -97,16 +98,19 @@ def current(request: Request, catalog: str, since: int = 0) -> dict:
     ended run, and the places across catalogs. `run`, `last`, `notes`, `since`: the shape older Studios poll."""
     st = studio(request)
     ar = st.agent_runs(catalog)
-    v = st.queue.view()
-    runs = [dict(r, notes=ar.notes(r["run_id"]), queue=_queue_of(v, r)) for r in ar.live_runs()]
+    with ThreadPoolExecutor(max_workers=4) as pool:  # four small files: read at once, not one round trip after another
+        in_request = telemetry.in_this_request
+        view, live, goals, last = (pool.submit(in_request(f)) for f in (st.queue.view, ar.live_runs, ar.goals, ar.last))
+        v, live, goals, last = view.result(), live.result(), goals.result(), last.result()
+    runs = [dict(r, notes=ar.notes(r["run_id"]), queue=_queue_of(v, r)) for r in live]
     recent = {rule: {k: x for k, x in b.items() if k != "rule_names"}
               | {"rule_name": (b.get("rule_names") or {}).get(rule, rule)}
-              for rule, b in ar.goals().items() if b.get("state") not in LIVE}
+              for rule, b in goals.items() if b.get("state") not in LIVE}
     slots = {"cap": v["cap"], "live": v["slots"]["live"],
              "waiting": [{"run": w["run"], "catalog": w["catalog"], "since": w["since"], "place": w["place"]}
                          for w in v["waiting"]]}
     run = runs[0] if runs else None
-    last = ar.last()  # the latest run that ended, live runs or not (the run bar shows its outcome)
+    # `last`: the latest run that ended, live runs or not (the run bar shows its outcome)
     shown = run or last
     legacy = {"run": {k: x for k, x in run.items() if k not in ("notes", "queue")} if run else None, "last": last,
               "notes": ar.notes(shown["run_id"], since) if shown else [], "since": since}

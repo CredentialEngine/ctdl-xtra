@@ -8,6 +8,8 @@ from __future__ import annotations
 
 import io
 import json
+import threading
+import time
 from functools import cached_property
 
 import pyarrow as pa
@@ -19,9 +21,28 @@ from .errors import UserError
 from .storage import Root, open_root
 
 
+class SharedManifest:
+    """One copy of the manifest for every context of a server (each catalog and class has its own `Ctx`). Each used to
+    download its own copy when its few seconds were up, so the home page, which reads every catalog, downloaded the
+    130 KB manifest six or seven times per visit (up to half a second each from Azure). Now a context whose few
+    seconds are up asks `current`: a `stat` tells whether the manifest changed (its ETag), and only then is it read."""
+
+    def __init__(self):
+        self._doc: dict | None = None
+        self._etag: str | None = None
+        self._lock = threading.Lock()  # one request checks or reads it at a time; the others then reuse it
+
+    def current(self, root: Root) -> dict:
+        with self._lock:
+            st = root.stat(manifest.PATH)
+            if self._doc is None or st is None or st.etag != self._etag:
+                self._doc, self._etag = manifest.load(root)
+            return self._doc
+
+
 class Ctx:
     def __init__(self, root: Root | str, catalog: str, crawl: str | None = None, manifest_ttl: float = 0.0,
-                 cls: str = "course"):
+                 cls: str = "course", shared_manifest: SharedManifest | None = None):
         self.root = open_root(root)
         self.catalog = resolve(catalog)
         self._crawl = crawl
@@ -29,6 +50,7 @@ class Ctx:
         self.cls = self.ctdl_class.slug
         self.manifest_ttl = manifest_ttl  # the server re-reads the manifest at most this often (seconds)
         self._manifest: tuple[float, dict] | None = None
+        self.shared_manifest = shared_manifest  # the server's contexts share one (SharedManifest)
 
     @classmethod
     def from_args(cls, args) -> Ctx:
@@ -36,12 +58,11 @@ class Ctx:
 
     # -- manifest ---------------------------------------------------------------------------------------
     def manifest(self) -> dict:
-        import time
-
         now = time.monotonic()
         if self._manifest and now - self._manifest[0] < self.manifest_ttl:
             return self._manifest[1]
-        doc = manifest.load(self.root)[0]
+        shared = self.shared_manifest
+        doc = shared.current(self.root) if shared is not None else manifest.load(self.root)[0]
         self._manifest = (now, doc)
         return doc
 

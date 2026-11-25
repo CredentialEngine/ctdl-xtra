@@ -7,9 +7,11 @@ from __future__ import annotations
 from test_golden_versions import CAT, ERIC, JARED, B, _mark, _rows, studio  # noqa: F401  (studio: the fixture)
 from test_scores import _wait, scored  # noqa: F401  (scored: the fixture)
 
-from golden_datasets import golden
+import threading
+
+from golden_datasets import golden, review
 from golden_datasets.context import Ctx
-from golden_datasets.review import LOADER, PEOPLE_CACHE, Review
+from golden_datasets.review import LOADER, PEOPLE_CACHE, Review, Snapshot
 
 
 def test_a_pages_plan_is_that_page_of_the_whole_plan(studio):  # noqa: F811
@@ -154,3 +156,184 @@ def test_each_classs_home_page_counts_are_kept_apart(studio, tmp_path, capsys, m
     assert c.get("/api/catalogs-summary", params={"class": "learningprogram"}).json()["catalogs"][CAT] == lp
     assert len(planned) == 2  # both kept: nothing is worked out again
     assert course["columns"] != lp["columns"]
+
+
+def test_the_rule_list_and_its_annotated_by_counts_share_one_pass_over_the_rules(studio, monkeypatch):  # noqa: F811
+    """Opening the Rules tab asks for every rule's status (/rules) and every rule's "Annotated by" counts (/annotators)
+    at once. Each rule's rows and row states are built once, for both: on Marshall the two requests used to do it
+    all twice, side by side on one core (13 s and 12 s)."""
+    c, ctx, _ = studio
+    _mark(c, JARED, "course-name", _rows(c, "course-name")["page-0"], "correct")
+    review.STATUS_CACHE.clear()
+    PEOPLE_CACHE.clear()
+    built: list[str] = []
+    real = Review._row_states
+
+    def counting(self, rule_id, rows, stems=None):
+        if stems is None:
+            built.append(rule_id)
+        return real(self, rule_id, rows, stems)
+    monkeypatch.setattr(Review, "_row_states", counting)
+    monkeypatch.setattr(review._Recent, "RULES_KEPT", 1)  # the per-rule cache can't keep rules between the two
+    LOADER.forget_reviews()
+    answers: dict = {}
+    threads = [threading.Thread(target=lambda p=p: answers.__setitem__(p, c.get(f"{B}/{p}").json()))
+               for p in ("rules", "annotators")]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join(timeout=60)
+    rules = LOADER.review(Ctx(ctx.root, CAT)).snap.rules
+    assert sorted(built) == sorted(rules)  # each rule once, for both requests
+    assert next(p for p in answers["annotators"]["people"] if p["name"] == JARED)["values"] == 1
+    assert {r["rule_id"] for g in answers["rules"]["groups"] for r in g["rules"]} == set(rules)
+
+
+def test_choosing_an_annotated_by_filter_reuses_the_counts_of_every_filter(studio, monkeypatch):  # noqa: F811
+    """The rule list's count for any "Annotated by" choice comes from the one pass that counted them all; it is the
+    count a row-by-row check gives."""
+    c, ctx, _ = studio
+    rows = _rows(c, "course-name")
+    _mark(c, JARED, "course-name", rows["page-0"], "correct")
+    _mark(c, ERIC, "course-name", rows["page-1"], "correct")
+    c.post(f"{B}/annotations", json={"type": "verdict", "author": JARED, "verdict": "wrong",
+                                     "expected": {"text": "Another name"},
+                                     "target": {"kind": "match", "rule_id": "course-name",
+                                                "occurrence_key": rows["page-2"]["key"]}})
+    assert c.get(f"{B}/annotators").status_code == 200  # counted once, with the rule list
+    rv = LOADER.review(Ctx(ctx.root, CAT))
+    for rid in rv.snap.rules:
+        annotations = rv.annotations(rid)
+        for by in (*review.FILTER_WHO, JARED, ERIC, "Somebody Else"):
+            for verdict in review.FILTER_VERDICTS:
+                expected = sum(1 for a in annotations.values() if review.annotated_match(a, by, verdict))
+                assert rv.annotated_count(rid, by, verdict) == expected, (rid, by, verdict)
+    calls: list[str] = []
+    real = Review.annotations
+    monkeypatch.setattr(Review, "annotations", lambda self, rid: calls.append(rid) or real(self, rid))
+    for by, verdict in ((review.EXPERTS, None), (JARED, "wrong"), (review.NOBODY, None)):
+        assert c.get(f"{B}/annotators", params={"by": by, "verdict": verdict}).status_code == 200
+    assert calls == []
+
+
+def test_the_server_works_out_each_catalogs_rule_list_when_it_starts(studio, monkeypatch):  # noqa: F811
+    """After the home page, the server works out every catalog's rule statuses and "Annotated by" counts, so the
+    first visit to a catalog's Rules tab after a restart doesn't."""
+    c, _, _ = studio
+    review.STATUS_CACHE.clear()
+    PEOPLE_CACHE.clear()
+    warm = c.app.state.studio.warm_home()
+    warm.join(timeout=60)
+    assert not warm.is_alive()
+    worked_out: list[str] = []
+    real = Review._rule_status
+
+    def counting(self, rule_id, states=None):
+        worked_out.append(rule_id)
+        return real(self, rule_id, states)
+    monkeypatch.setattr(Review, "_rule_status", counting)
+    assert c.get(f"{B}/rules").status_code == 200 and c.get(f"{B}/annotators").status_code == 200
+    assert worked_out == []
+
+
+def test_a_loaded_snapshot_is_out_of_the_collectors_sight_until_it_is_evicted(studio):  # noqa: F811
+    """A full garbage collection walked every loaded snapshot's rows (millions of objects) a few times per Rules tab:
+    a loaded snapshot is frozen, and an eviction unfreezes before it collects, so nothing frozen is kept for good."""
+    import gc
+    import weakref
+
+    c, ctx, _ = studio
+    gc.unfreeze()
+    LOADER._snaps.clear()
+    LOADER.review(Ctx(ctx.root, CAT))
+    assert gc.get_freeze_count() > 0
+
+    class Node:
+        pass
+    a, b = Node(), Node()
+    a.other, b.other = b, a  # a cycle: only a collection frees it, never refcounting
+    gone = weakref.ref(a)
+    review.freeze_loaded()
+    del a, b
+    review.release_memory()
+    assert gone() is None and gc.get_freeze_count() > 0
+    gc.unfreeze()
+
+
+def test_the_servers_contexts_download_the_manifest_once_until_it_changes(studio, monkeypatch):  # noqa: F811
+    """The home page reads every catalog and class: each context used to download its own copy of the manifest (six
+    or seven 130 KB downloads per visit); they share one, and only a change (its ETag) downloads it again."""
+    from golden_datasets import manifest
+
+    c, ctx, _ = studio
+    st = c.app.state.studio
+    root = st.ctx(CAT).root
+    downloads: list[str] = []
+    real = type(root).read_bytes
+
+    def counting(self, path, *a, **k):
+        if path == manifest.PATH:
+            downloads.append(path)
+        return real(self, path, *a, **k)
+    monkeypatch.setattr(type(root), "read_bytes", counting)
+    st._ctx.clear()
+    first = [st.ctx(CAT, cls).manifest() for cls in ("course", "learningprogram")]
+    assert len(downloads) == 1 and first[0] is first[1]
+    manifest.update(root, lambda doc: doc.setdefault("note", "changed"))  # a write from elsewhere (the CLI, a score)
+    downloads.clear()
+    st._ctx.clear()
+    assert st.ctx(CAT).manifest()["note"] == "changed" and len(downloads) >= 1
+
+
+def test_an_older_golden_versions_counts_are_read_once_per_publication(monkeypatch):
+    """Datasets lists every version with its values: an older version's files no longer change, so its
+    golden.parquet is counted once per publication, not downloaded again on every visit."""
+    from collections import Counter
+    from types import SimpleNamespace
+
+    from golden_datasets.server import routes_golden
+
+    reads: list[str] = []
+    monkeypatch.setattr(routes_golden, "_count_values", lambda ctx, path: reads.append(path) or Counter(values=3))
+    st = SimpleNamespace(cache={})
+    doc = {"published_at": "2026-11-01T00:00:00Z"}
+    for _ in range(3):
+        assert routes_golden._values_then(st, None, "golden/ruleset-v1", doc)["values"] == 3
+    assert reads == ["golden/ruleset-v1"]
+    routes_golden._values_then(st, None, "golden/ruleset-v1", {"published_at": "2026-11-02T00:00:00Z"})
+    assert len(reads) == 2  # published again: counted again
+
+
+def test_the_server_collects_less_often(monkeypatch):
+    import gc
+
+    before = gc.get_threshold()
+    try:
+        review.tune_gc()
+        assert gc.get_threshold() == review.GC_THRESHOLDS
+    finally:
+        gc.set_threshold(*before)
+
+
+def test_one_record_builds_its_rules_rows_on_its_own_pages_only(studio, monkeypatch):  # noqa: F811
+    """A record's page shows each property's value and state on that record: its rules' rows are built on the
+    record's pages, not over the whole catalog (every property rule's rows took 10 s+ on the big catalogs)."""
+    c, ctx, _ = studio
+    rows = _rows(c, "course-name")
+    _mark(c, JARED, "course-name", rows["page-0"], "correct")
+    record = rows["page-0"]["record_external_identifier"]
+    before = c.get(f"{B}/courses/{record}").json()
+    whole: list[str] = []
+    real = Snapshot._build_rows
+
+    def watching(self, rule_id, stems=None):
+        if stems is None:
+            whole.append(rule_id)
+        return real(self, rule_id, stems)
+    monkeypatch.setattr(Snapshot, "_build_rows", watching)
+    LOADER.review(Ctx(ctx.root, CAT)).snap._rows.clear()
+    after = c.get(f"{B}/courses/{record}").json()
+    assert whole == []
+    assert after == before
+    name = next(p for o in after["occurrences"] for p in o["properties"] if p["rule_id"] == "course-name")
+    assert name["state"] == "correct" and JARED in name["annotators"]

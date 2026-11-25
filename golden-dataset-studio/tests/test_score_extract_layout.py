@@ -62,6 +62,19 @@ def _golden() -> dict[str, list[dict]]:
     }
 
 
+def test_an_outputs_reports_are_found_without_listing_every_file(tmp_path, monkeypatch):
+    """Evals looks for a new extract output on every visit: two folder listings find its property reports. Listing
+    every file under extraction_report/ (one per property of each record) took 28 s on Marshall."""
+    new_output(tmp_path / "out")
+    root = LocalRoot(tmp_path / "out")
+
+    def no_full_listing(self, prefix):
+        raise AssertionError(f"listed every file under {prefix}")
+    monkeypatch.setattr(LocalRoot, "list", no_full_listing)
+    store = scores.RecordsStore(root, "", CAT, CRAWL)
+    assert store.reports() == ["extraction-ceterms_codedNotation-report.json", "extraction-ceterms_name-report.json"]
+
+
 def test_todays_extract_output_is_read_as_records_and_scored(tmp_path):
     new_output(tmp_path / "out")
     store = scores.RecordsStore(LocalRoot(tmp_path / "out"), "", CAT, CRAWL)

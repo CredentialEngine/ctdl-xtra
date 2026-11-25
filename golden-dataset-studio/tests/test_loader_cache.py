@@ -21,6 +21,13 @@ class FakeCtx:
         return {"files": {"matches.parquet": {"rows": ROWS[ext]}, "occurrences.parquet": {"rows": 0}}}
 
 
+@pytest.fixture(autouse=True)
+def small_cache(monkeypatch):
+    """The mechanism, at the sizes these fake extractions are written for (production's are in Loader)."""
+    monkeypatch.setattr(Loader, "MAX_SNAPSHOTS", 4)
+    monkeypatch.setattr(Loader, "SMALL_SHARE", 0.02)
+
+
 @pytest.fixture
 def loads(monkeypatch):
     loaded = []

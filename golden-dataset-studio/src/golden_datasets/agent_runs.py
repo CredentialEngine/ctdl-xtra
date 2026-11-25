@@ -646,10 +646,18 @@ class Queue:
 
     def live(self) -> list[tuple[AgentRuns, dict]]:
         """Every live run of every catalog, oldest first."""
-        out = []
-        for item in self.catalogs():  # a catalog folder, or (folder, class): each class has its own runs
+        from concurrent.futures import ThreadPoolExecutor
+
+        from . import telemetry
+
+        def live_of(item) -> list[tuple[AgentRuns, dict]]:  # a catalog folder, or (folder, class): each class has its own runs
             ar = self.runs_for(*item) if isinstance(item, tuple) else self.runs_for(item)
-            out += [(ar, {**r, "class": r.get("class") or ar.ctx.cls}) for r in ar.live_runs()]
+            return [(ar, {**r, "class": r.get("class") or ar.ctx.cls}) for r in ar.live_runs()]
+        # one live.json per catalog and class, read at once: one after another they took 3-4 s from Azure, longer
+        # than the 3 s between the web app's polls of /agent-runs/current
+        with ThreadPoolExecutor(max_workers=8) as pool:
+            found = pool.map(telemetry.in_this_request(live_of), self.catalogs())
+            out = [x for runs in found for x in runs]
         return sorted(out, key=lambda x: x[1]["created_at"])
 
     # -- the view the routes show --------------------------------------------------------------------------
