@@ -12,7 +12,9 @@ Following Honeycomb's advice (wide events, few spans), the useful numbers go on 
 - `install` wraps the app in a small ASGI middleware that adds, when the request ends: who (`user.id`, `user.roles`,
   `session.id`, from the W3C `baggage` header the web app sends), what (`ce.catalog.*`, `ce.rule.id`, `ce.page.stem`
   and the other path parameters, a few query parameters), how big (`http.response.body.size`), what storage it took
-  (`ce.stats.storage.*`: reads, writes, bytes, `duration_ms`) and, on 4xx/5xx, the error's detail (`ce.error.detail`);
+  (`ce.stats.storage.*`: reads, writes, bytes, `duration_ms`), what it competed for (`Resources`: process CPU against
+  wall time, requests in flight, resident memory; `ce.stats.gc.*`: garbage collection pauses) and, on 4xx/5xx, the
+  error's detail (`ce.error.detail`);
 - route code adds what only it knows with `set({...})` (rows returned, verdicts, cache hits...);
 - `span(name, {...})` makes a sub-span for work that takes real time: a cold extraction load, a publication, a
   score (scores and catalog adds run in threads after the request: they start a trace of their own, linked to it).
@@ -120,6 +122,9 @@ def init(exporter=None) -> bool:
     trace.set_tracer_provider(provider)
     _tracer = trace.get_tracer("golden_datasets", __version__)
     _enabled = True
+    import gc
+
+    gc.callbacks.append(_on_gc)
     return True
 
 
@@ -359,6 +364,91 @@ def storage_op(kind: str, call_span: bool = True):
     return wrap
 
 
+# -- what a request competed for: CPU, memory, other requests, garbage collection ---------------------------------
+def rss_mb() -> float | None:
+    """This process's resident memory now, in MiB (Linux: /proc/self/statm; elsewhere None)."""
+    try:
+        with open("/proc/self/statm") as f:
+            pages = int(f.read().split()[1])
+        return round(pages * os.sysconf("SC_PAGE_SIZE") / 2**20, 1)
+    except (OSError, ValueError, IndexError):
+        return None
+
+
+def peak_rss_mb() -> float | None:
+    """The most resident memory this process has held since it started, in MiB (getrusage: KiB on Linux, bytes on
+    macOS)."""
+    try:
+        import resource as res
+
+        peak = res.getrusage(res.RUSAGE_SELF).ru_maxrss
+    except (ImportError, OSError):
+        return None
+    return round(peak / (2**20 if sys.platform == "darwin" else 2**10), 1)
+
+
+class Resources:
+    """One request's view of the process, for its span: `ce.process.cpu.duration_ms` (CPU the whole process used while
+    the request ran) against its wall time (`ce.process.cpu.utilization`, in cores: Python runs one thread at a time,
+    so two busy requests at once each take about twice as long, and utilization stays near 1), `ce.http.inflight` (the
+    requests being served when it started, itself included) and `.max` (the most at once while it ran), and resident
+    memory before, after and at the process's peak (`ce.process.memory.*`)."""
+
+    _lock = threading.Lock()
+    _active: list[Resources] = []
+
+    def __init__(self):
+        self.wall, self.cpu, self.rss = time.perf_counter(), time.process_time(), rss_mb()
+        self.inflight = self.max_inflight = 0
+
+    @classmethod
+    def start(cls) -> Resources:
+        r = cls()
+        with cls._lock:
+            cls._active.append(r)
+            r.inflight = n = len(cls._active)
+            for other in cls._active:
+                other.max_inflight = max(other.max_inflight, n)
+        return r
+
+    def close(self) -> None:
+        with self._lock:
+            if self in self._active:
+                self._active.remove(self)
+
+    def end(self) -> dict:
+        wall_ms = (time.perf_counter() - self.wall) * 1000
+        cpu_ms = (time.process_time() - self.cpu) * 1000
+        rss = rss_mb()
+        self.close()
+        out = {"ce.process.cpu.duration_ms": round(cpu_ms, 1),
+               "ce.process.cpu.utilization": round(cpu_ms / wall_ms, 2) if wall_ms > 0 else None,
+               "ce.http.inflight": self.inflight, "ce.http.inflight.max": self.max_inflight,
+               "ce.process.memory.rss_mb": rss, "ce.process.memory.peak_mb": peak_rss_mb()}
+        if rss is not None and self.rss is not None:
+            out["ce.process.memory.rss_delta_mb"] = round(rss - self.rss, 1)
+        return {k: v for k, v in out.items() if v is not None}
+
+
+_gc_started: dict[int, float] = {}  # thread id → when its collection started
+
+
+def _on_gc(phase: str, info: dict) -> None:
+    """gc.callbacks hook: a collection's pause, counted on the request whose thread triggered it
+    (`ce.stats.gc.collections`, `.duration_ms`, `.gen2` for full collections)."""
+    me = threading.get_ident()
+    if phase == "start":
+        _gc_started[me] = time.perf_counter()
+        return
+    started = _gc_started.pop(me, None)
+    if started is None:
+        return
+    count("stats.gc.collections")
+    count("stats.gc.duration_ms", (time.perf_counter() - started) * 1000)
+    if info.get("generation") == 2:
+        count("stats.gc.gen2")
+
+
 # -- the request middleware -------------------------------------------------------------------------------------
 class WideSpanMiddleware:
     """Pure ASGI: runs inside the instrumentation's server span and adds the wide attributes when the request ends."""
@@ -378,6 +468,7 @@ class WideSpanMiddleware:
         t1 = _counters.set(counters)
         t2 = _inherited.set(who)
         state = {"status": 0, "size": 0, "error_body": b"", "flushed": False}
+        process = Resources.start()
 
         def flush() -> None:
             # the instrumentation ends the server span as it sends the last body chunk: set everything before that
@@ -386,9 +477,10 @@ class WideSpanMiddleware:
             state["flushed"] = True
             who_asked = who                          # user.id, session.id, ce.page: from the browser's baggage
             what_they_asked = _what(scope)           # ce.catalog, ce.rule.id, ce.query.q...: from the URL
-            storage_work = _storage(counters)        # ce.stats.storage.*: what the request read and wrote
+            storage_work = _storage(counters)        # ce.stats.storage.*, ce.stats.gc.*...: the request's counters
             error_detail = _error(state)             # ce.error.detail, on a 4xx/5xx
-            for key, value in {**who_asked, **what_they_asked, **storage_work, **error_detail}.items():
+            competed_for = process.end()             # ce.process.*, ce.http.inflight*: CPU, memory, other requests
+            for key, value in {**who_asked, **what_they_asked, **storage_work, **error_detail, **competed_for}.items():
                 server_span.set_attribute(key, value)
             server_span.set_attribute("http.response.body.size", state["size"])
 
@@ -409,6 +501,7 @@ class WideSpanMiddleware:
             await self.app(scope, receive, send_wrapper)
         finally:
             flush()  # no response was sent (an exception): the span is still open
+            process.close()
             _counters.reset(t1)
             _inherited.reset(t2)
 

@@ -92,6 +92,7 @@ def _review(request: Request, catalog: str, ext: str | None = None) -> Review:
     if not ext:
         raise not_found(f"{catalog}: no extraction yet")
     rv = LOADER.review(ctx, ext)
+    rv.report_sizes()
     telemetry.set({"ce.extraction.id": ext, "ce.ruleset.version": rv.snap.ruleset_version, "ce.crawl.id": ctx.crawl})
     return rv
 
@@ -738,6 +739,7 @@ def courses(request: Request, catalog: str, q: str | None = None, ext: str | Non
         ql = q.lower().replace(" ", "")
         items = [i for i in items if ql in i["record_external_identifier"].lower()
                  or ql in (i["line"] or "").lower().replace(" ", "") or ql in (i["name"] or "").lower().replace(" ", "")]
+    telemetry.set({"ce.records.total": len(by), "ce.records.matched": len(items), "ce.records.returned": len(items[:limit])})
     return items[:limit]
 
 
@@ -786,6 +788,7 @@ def course(request: Request, catalog: str, record_external_identifier: str, ext:
         out.append({"occurrence_key": o["occurrence_key"], "page_stem": o["page_stem"], "url": p["url"],
                     "page_title": p["title"], "locator_rule_id": o["locator_rule_id"],
                     "css_path": o["css_path"], "properties": props})
+    telemetry.set({"ce.record.occurrences": len(out), "ce.record.properties": sum(len(o["properties"]) for o in out)})
     return {"record_external_identifier": record_external_identifier, "extraction": snap.ext, "occurrences": out}
 
 

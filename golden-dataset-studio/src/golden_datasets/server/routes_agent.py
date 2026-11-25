@@ -60,7 +60,9 @@ def _latest(st: Studio, catalog: str):
         raise not_found(str(exc)) from None
     if not ext:
         raise not_found(f"{catalog}: no extraction yet")
-    return LOADER.review(ctx, ext)
+    rv = LOADER.review(ctx, ext)
+    rv.report_sizes()
+    return rv
 
 
 @router.get("/agent-runs/config")
