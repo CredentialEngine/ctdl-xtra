@@ -55,6 +55,8 @@ export function actionOf(method: string, template: string): string | null {
     annotations: "annotate", login: "sign_in", logout: "sign_out", profiles: "save_profile", scores: "start_score",
     "agent-runs": "start_agent_run", cancel: "cancel_agent_run", end: "end_agent_run", revert: "revert_ruleset",
     add: method === "DELETE" ? "dismiss_catalog_add" : "add_catalog",
+    // a property's review, across catalogs (LearningProgram, wave 4): its status, findings and discussion
+    status: "set_property_status", findings: method === "PUT" ? "edit_finding" : "add_finding", threads: "comment_property",
   };
   return named[last] ?? `${method.toLowerCase()} ${template}`;
 }

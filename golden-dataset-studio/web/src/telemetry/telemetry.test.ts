@@ -29,6 +29,9 @@ it("names pages and actions with few values", () => {
   expect(actionOf("GET", "/api/catalogs/{catalog}")).toBeNull();
   expect(actionOf("POST", "/api/catalogs/{catalog}/annotations")).toBe("annotate");
   expect(actionOf("DELETE", "/api/crawls/{catalog}/add")).toBe("dismiss_catalog_add");
+  expect(actionOf("POST", "/api/properties/{cls}/{column}/status")).toBe("set_property_status");
+  expect(actionOf("PUT", "/api/properties/{cls}/{column}/findings/{finding_id}")).toBe("edit_finding");
+  expect(actionOf("POST", "/api/properties/{cls}/{column}/threads")).toBe("comment_property");
   expect(POLL.test("/api/catalogs/avc/agent-runs/current")).toBe(true);
 });
 

@@ -359,6 +359,7 @@ class AzureRoot(Root):
                 return b""
             raise
 
+    @telemetry.storage_op("list")
     def list(self, prefix: str) -> list[str]:
         start = self._name(prefix) if prefix else self.prefix
         start = (start.rstrip("/") + "/") if start else ""

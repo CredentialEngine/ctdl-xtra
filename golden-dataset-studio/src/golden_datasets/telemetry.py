@@ -240,6 +240,18 @@ def in_this_request(fn: Callable) -> Callable:
 
 
 @contextlib.contextmanager
+def _client_span(name: str, attrs: dict[str, Any]):
+    """A CLIENT span around a call to another service (yields the span, or None when telemetry is off)."""
+    if not _enabled or _tracer is None:
+        yield None
+        return
+    from opentelemetry.trace import SpanKind
+
+    with _tracer.start_as_current_span(name, kind=SpanKind.CLIENT, attributes=_attrs(attrs)) as sp:
+        yield sp
+
+
+@contextlib.contextmanager
 def span(name: str, attrs: dict[str, Any] | None = None) -> Iterator[None]:
     """A sub-span of the current span, carrying the request's user and page."""
     if not _enabled:
@@ -278,26 +290,47 @@ def carry() -> dict:
     return {"span": ctx if ctx.is_valid else None, "attrs": dict(_inherited.get() or {})}
 
 
+#: The peer a storage call goes to, as the service map names it (a virtual node: Azure sends no spans of its own)
+AZURE_PEER = "azure-blob-storage"
+
+
+def _azure_attrs(root, kind: str, path: object) -> dict:
+    return {"peer.service": AZURE_PEER, "server.address": f"{getattr(root, 'account', '')}.blob.core.windows.net",
+            "cloud.provider": "azure", "ce.storage.container": getattr(root, "container_name", ""),
+            "ce.storage.op": kind, "ce.storage.path": str(path)[:MAX_VALUE]}
+
+
 def storage_op(kind: str):
     """Decorator for storage methods: counts calls, bytes and time into the request's `ce.stats.storage.*` (Honeycomb's
-    advice: roll-up counts on the request's span rather than a span per blob read)."""
+    advice: roll-up counts on the request's span rather than a span per blob read). A call to Azure Blob Storage also
+    gets a CLIENT span of its own (`azure.blob.<kind>`, `peer.service=azure-blob-storage`), so the service map draws
+    the Studio's edge to the bucket and a slow request shows which blobs it waited on; local files get none."""
     def wrap(fn):
         def inner(self, *a, **kw):
             if not _enabled or _counters.get() is None:
                 return fn(self, *a, **kw)
             started = time.perf_counter()
             where = "azure" if self.uri.startswith("azure://") else "local"
-            try:
-                out = fn(self, *a, **kw)
-            finally:  # a missing file (FileNotFoundError) still took a round trip
-                elapsed_ms = (time.perf_counter() - started) * 1000
-                count(f"stats.storage.{where}.{kind}s")
-                count(f"stats.storage.{where}.duration_ms", elapsed_ms)
-            if kind == "read" and isinstance(out, bytes | bytearray):
-                count(f"stats.storage.{where}.bytes_read", len(out))
             data = a[1] if len(a) > 1 else kw.get("data")
-            if kind == "write" and isinstance(data, bytes | bytearray):
-                count(f"stats.storage.{where}.bytes_written", len(data))
+            cm = (_client_span(f"azure.blob.{kind}", _azure_attrs(self, kind, a[0] if a else kw.get("path", kw.get("prefix", ""))))
+                  if where == "azure" else contextlib.nullcontext(None))
+            with cm as client:
+                try:
+                    out = fn(self, *a, **kw)
+                finally:  # a missing file (FileNotFoundError) still took a round trip
+                    elapsed_ms = (time.perf_counter() - started) * 1000
+                    count(f"stats.storage.{where}.{kind}s")
+                    count(f"stats.storage.{where}.duration_ms", elapsed_ms)
+                if kind == "read" and isinstance(out, bytes | bytearray):
+                    count(f"stats.storage.{where}.bytes_read", len(out))
+                    if client is not None:
+                        client.set_attribute("ce.storage.bytes", len(out))
+                if kind == "write" and isinstance(data, bytes | bytearray):
+                    count(f"stats.storage.{where}.bytes_written", len(data))
+                    if client is not None:
+                        client.set_attribute("ce.storage.bytes", len(data))
+                if kind == "list" and isinstance(out, list) and client is not None:
+                    client.set_attribute("ce.storage.items", len(out))
             return out
         inner.__name__, inner.__doc__, inner.__wrapped__ = fn.__name__, fn.__doc__, fn
         return inner

@@ -245,3 +245,39 @@ def test_in_this_request_is_the_function_itself_when_off(no_otel_env):
         return 1
 
     assert telemetry.in_this_request(read) is read
+
+
+def test_a_call_to_azure_blob_storage_is_a_client_span_and_a_local_file_is_not(traced):
+    """The service map's edge from the Studio to the bucket, and which blobs a slow request waited on."""
+    _, exporter = traced
+
+    class Fake:
+        uri, account, container_name = "azure://https://acct.blob.core.windows.net/box/pre", "acct", "box"
+
+        @telemetry.storage_op("read")
+        def read_bytes(self, path):
+            return b"12345"
+
+        @telemetry.storage_op("list")
+        def list(self, prefix):
+            return ["a", "b"]
+
+    class Local(Fake):
+        uri = "/tmp/root"
+
+    token = telemetry._counters.set({})
+    try:
+        with telemetry.span("request"):
+            Fake().read_bytes("cat/manifest.json")
+            Fake().list("cat/rules/")
+            Local().read_bytes("cat/manifest.json")
+    finally:
+        telemetry._counters.reset(token)
+    spans = {s.name: s for s in exporter.get_finished_spans()}
+    read, listed = spans["azure.blob.read"], spans["azure.blob.list"]
+    assert read.kind.name == "CLIENT" and read.parent.span_id == spans["request"].context.span_id
+    a = read.attributes
+    assert (a["peer.service"], a["server.address"], a["ce.storage.container"], a["ce.storage.path"], a["ce.storage.bytes"]) \
+        == ("azure-blob-storage", "acct.blob.core.windows.net", "box", "cat/manifest.json", 5)
+    assert listed.attributes["ce.storage.items"] == 2
+    assert [s.name for s in exporter.get_finished_spans()].count("azure.blob.read") == 1  # the local read made none
