@@ -9,23 +9,24 @@ export interface Card { n: number; property: string; ctdl_property: string | nul
 
 /** Group a course's values by property across its occurrences (course page first), numbered in order. */
 export function groupCards(d: CourseDetail): Card[] {
-  const cards: Card[] = [];
   const by = new Map<string, Card>();
   for (const o of d.occurrences) {
-    for (const f of o.properties) {
-      const property = f.property_label ?? f.rule_id;
-      let card = by.get(property);
-      if (!card) {
-        card = { n: 0, property, ctdl_property: f.ctdl_property, values: [] };
-        by.set(property, card);
-        cards.push(card);
-      }
-      card.values.push({ ...f, occurrence_key: o.occurrence_key, page_stem: o.page_stem, page_title: o.page_title,
-                         url: o.url, on_course_page: o.locator_rule_id === "locator-course-page" });
-    }
+    for (const f of o.properties) cardFor(by, f).values.push(cardValue(f, o));
   }
+  const cards = [...by.values()];
   cards.forEach((c, i) => { c.n = i + 1; });
   return cards;
+}
+
+function cardFor(by: Map<string, Card>, f: CourseProperty): Card {
+  const property = f.property_label ?? f.rule_id;
+  if (!by.has(property)) by.set(property, { n: 0, property, ctdl_property: f.ctdl_property, values: [] });
+  return by.get(property)!;
+}
+
+function cardValue(f: CourseProperty, o: CourseDetail["occurrences"][number]): CardValue {
+  return { ...f, occurrence_key: o.occurrence_key, page_stem: o.page_stem, page_title: o.page_title,
+           url: o.url, on_course_page: o.locator_rule_id === "locator-course-page" };
 }
 
 /** "Found on 2 pages: its course page and 1 program page that lists it". */

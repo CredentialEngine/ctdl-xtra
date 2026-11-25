@@ -167,16 +167,6 @@
       "count": 4
     }
   },
-  "src/records/RecordsTab.tsx": {
-    "max-lines-per-function": {
-      "count": 4
-    }
-  },
-  "src/records/logic.ts": {
-    "max-lines-per-function": {
-      "count": 1
-    }
-  },
   "src/rules/AnnotatedBy.tsx": {
     "max-lines-per-function": {
       "count": 2
