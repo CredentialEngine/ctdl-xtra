@@ -1,0 +1,100 @@
+{
+  "ending": "needs_you",
+  "rules": [
+    {
+      "rule": "course-subject-webpage",
+      "outcome": "held",
+      "now": "the course page's address on every course",
+      "why": "The note on ACCT199 applies to every course, but 13 courses with the same kind of value are marked correct."
+    }
+  ],
+  "rows": [
+    {
+      "rule": "course-subject-webpage",
+      "course": "ACCT199",
+      "comment": "The value is still the page's address, as on the 13 courses marked correct. Nothing on this page sets it apart from them."
+    }
+  ],
+  "to_do": [
+    {
+      "ask": "Should Subject Webpage be empty for every course in this catalog, with the page's address going to In Catalog instead?",
+      "about": [
+        {
+          "course": "ACCT199"
+        }
+      ],
+      "evidence": [
+        {
+          "quote": "use the property ceterms:inCatalog instead of ceterms:subjectWebpage",
+          "from": {
+            "note": "an-39127172c8e8"
+          }
+        },
+        {
+          "set": {
+            "courses": {
+              "rule": "course-subject-webpage",
+              "verdict": "correct"
+            }
+          },
+          "label": "marked correct"
+        }
+      ],
+      "options": [
+        {
+          "answer": "yes",
+          "do": {
+            "mark": "not_on_page",
+            "courses": {
+              "rule": "course-subject-webpage",
+              "verdict": "correct"
+            },
+            "rule": "course-subject-webpage"
+          },
+          "then": {
+            "publish": [
+              "course-subject-webpage"
+            ]
+          }
+        },
+        {
+          "answer": "no",
+          "do": {
+            "mark": "correct",
+            "courses": [
+              "ACCT199"
+            ],
+            "rule": "course-subject-webpage"
+          }
+        }
+      ],
+      "effect": [
+        {
+          "rule": "course-subject-webpage",
+          "after": ""
+        },
+        {
+          "rule": "course-in-catalog",
+          "after": {
+            "source": "page_url"
+          }
+        }
+      ]
+    }
+  ],
+  "together": [
+    {
+      "rules": [
+        "course-subject-webpage",
+        "course-in-catalog"
+      ],
+      "because": {
+        "quote": "use the property ceterms:inCatalog instead of ceterms:subjectWebpage",
+        "from": {
+          "note": "an-39127172c8e8"
+        }
+      }
+    }
+  ],
+  "notes": "ACCT199 was first marked correct and later marked wrong by the same reviewer."
+}

@@ -1,0 +1,259 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Add a catalog — mockup</title>
+<style>
+:root {
+  --bg: #f5f6f8; --surface: #ffffff; --surface-2: #f9fafb; --line: #e4e7ec; --line-2: #d0d5dd;
+  --ink: #101828; --ink-2: #344054; --muted: #667085; --faint: #98a2b3;
+  --accent: #2f54eb; --accent-soft: #eef2ff; --green: #12805c; --green-soft: #e7f6ef;
+  --amber: #b54708; --amber-soft: #fef4e6; --red: #c4320a; --red-soft: #fdeee8;
+  --mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+  --sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --r: 8px;
+}
+body { margin: 0; background: #e9ebef; color: var(--ink); font: 13px/1.45 var(--sans); }
+.doc { max-width: 1180px; margin: 0 auto; padding: 32px 20px 80px; }
+.doc > h1 { font-size: 26px; margin: 0 0 6px; letter-spacing: -0.01em; }
+.doc > p.lede { color: var(--ink-2); max-width: 760px; margin: 0 0 28px; font-size: 14px; }
+h2.frame-t { font-size: 15px; margin: 40px 0 4px; }
+h2.frame-t span { font: 600 11px var(--mono); color: var(--muted); margin-right: 8px; }
+p.frame-d { color: var(--muted); margin: 0 0 12px; max-width: 820px; }
+.mono { font-family: var(--mono); font-size: 12px; }
+.muted { color: var(--muted); } .faint { color: var(--faint); }
+
+/* a "screen" */
+.screen { background: var(--bg); border: 1px solid var(--line-2); border-radius: 10px; overflow: hidden; position: relative; box-shadow: 0 1px 2px rgba(16,24,40,.06); }
+.topbar { height: 44px; display: flex; align-items: center; gap: 10px; padding: 0 16px; background: var(--surface); border-bottom: 1px solid var(--line); }
+.topbar b { font-size: 14px; }
+.topbar .who { margin-left: auto; color: var(--muted); }
+.topbar .who span { color: var(--ink); border: 1px solid var(--line-2); border-radius: 6px; padding: 3px 10px; margin-left: 6px; }
+.gold { width: 18px; height: 14px; background: linear-gradient(#c9a227 0 40%, transparent 40% 55%, #c9a227 55% 100%); border-radius: 2px; }
+
+.picker-in { max-width: 720px; margin: 0 auto; padding: 32px 16px 28px; }
+.head-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+.head-row h3 { font-size: 22px; margin: 0; }
+.btn { font: 500 13px var(--sans); border-radius: 7px; padding: 7px 12px; border: 1px solid var(--line-2); background: var(--surface); color: var(--ink-2); cursor: default; white-space: nowrap; }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.btn.ghost { border-color: transparent; background: transparent; color: var(--accent); padding-left: 0; }
+.btn[disabled] { opacity: .45; }
+.cat { display: flex; align-items: center; gap: 16px; background: var(--surface); border: 1px solid #c9d2ff; border-radius: 10px; padding: 12px 16px; margin-bottom: 8px; }
+.cat.off { border-color: var(--line); }
+.logo { width: 64px; height: 40px; border-radius: 6px; display: grid; place-items: center; font: 700 12px var(--sans); color: #fff; flex: none; }
+.cat-main { flex: 1; min-width: 0; }
+.r1, .r2 { display: flex; justify-content: space-between; gap: 12px; align-items: center; }
+.r1 .nm { font-weight: 600; font-size: 14px; }
+.r1 .pg, .r2 .bt { color: var(--muted); font-size: 12px; }
+.bar { flex: 1; max-width: 280px; height: 4px; background: var(--line); border-radius: 2px; margin-top: 8px; overflow: hidden; }
+.bar i { display: block; height: 100%; background: var(--green); }
+.bar.busy i { width: 35%; background: var(--accent); }
+.open { color: var(--accent); font-weight: 600; width: 64px; text-align: right; }
+.cat.new { border-color: var(--green); box-shadow: 0 0 0 3px var(--green-soft); }
+.loop-link { color: var(--accent); text-decoration: underline; margin-top: 10px; display: inline-block; }
+
+/* modal */
+.scrim { position: absolute; inset: 44px 0 0 0; background: rgba(16,24,40,.38); }
+.screen.with-modal { min-height: 640px; }
+.screen.with-modal .picker-in { filter: blur(1px); }
+.modal { position: absolute; top: 72px; left: 50%; transform: translateX(-50%); width: min(640px, calc(100% - 32px)); background: var(--surface); border-radius: 12px; box-shadow: 0 20px 40px rgba(16,24,40,.22); overflow: hidden; }
+.m-head { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px 0; }
+.m-head h4 { margin: 0; font-size: 16px; }
+.x { color: var(--faint); font-size: 18px; }
+.seg { display: flex; gap: 4px; margin: 14px 20px 0; background: var(--surface-2); border: 1px solid var(--line); border-radius: 8px; padding: 3px; width: max-content; }
+.seg span { padding: 5px 12px; border-radius: 6px; color: var(--muted); font-weight: 500; }
+.seg span.on { background: var(--surface); color: var(--ink); box-shadow: 0 1px 2px rgba(16,24,40,.1); }
+.m-body { padding: 14px 20px 18px; }
+.search { display: flex; align-items: center; gap: 8px; border: 1px solid var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); border-radius: 8px; padding: 9px 12px; font-size: 14px; }
+.search .ic { width: 14px; height: 14px; border: 2px solid var(--faint); border-radius: 50%; position: relative; flex: none; }
+.search .caret { width: 1px; height: 16px; background: var(--ink); margin-left: -6px; }
+.search .hint { margin-left: auto; color: var(--faint); font-size: 12px; }
+.res-meta { display: flex; justify-content: space-between; color: var(--muted); font-size: 12px; margin: 12px 2px 6px; }
+.res { border: 1px solid var(--line); border-radius: 8px; max-height: 300px; overflow: hidden; }
+.row { display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; padding: 10px 12px; border-top: 1px solid var(--line); }
+.row:first-child { border-top: 0; }
+.row.sel { background: var(--accent-soft); box-shadow: inset 3px 0 0 var(--accent); }
+.row.dim { opacity: .55; }
+.row .t { font-weight: 600; }
+.row .t mark { background: #fff3b0; color: inherit; padding: 0 1px; border-radius: 2px; }
+.row .u { grid-column: 1; color: var(--muted); font-family: var(--mono); font-size: 11.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.row .side { grid-row: 1 / span 3; grid-column: 2; text-align: right; align-self: center; }
+.row .facts { grid-column: 1; display: flex; flex-wrap: wrap; gap: 4px 12px; color: var(--ink-2); font-size: 12px; }
+.chip { display: inline-block; font: 600 10.5px var(--sans); letter-spacing: .02em; padding: 2px 7px; border-radius: 999px; }
+.chip.ok { background: var(--green-soft); color: var(--green); }
+.chip.warn { background: var(--amber-soft); color: var(--amber); }
+.chip.bad { background: var(--red-soft); color: var(--red); }
+.chip.in { background: var(--surface-2); color: var(--muted); border: 1px solid var(--line); }
+.or { display: flex; align-items: center; gap: 10px; color: var(--muted); margin-top: 14px; font-size: 12.5px; }
+.or a { color: var(--accent); font-weight: 600; }
+.m-foot { display: flex; justify-content: flex-end; align-items: center; gap: 8px; padding: 12px 20px; border-top: 1px solid var(--line); background: var(--surface-2); }
+.m-foot .left { margin-right: auto; color: var(--muted); font-size: 12px; }
+
+/* form */
+.picked { display: flex; gap: 12px; align-items: center; border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; background: var(--surface-2); margin-bottom: 14px; }
+.picked .logo { width: 44px; height: 44px; }
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.fld label { display: block; font-weight: 600; font-size: 12px; color: var(--ink-2); margin-bottom: 4px; }
+.fld .in { border: 1px solid var(--line-2); border-radius: 7px; padding: 7px 10px; background: var(--surface); min-height: 18px; }
+.fld .in.focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+.fld .help { color: var(--muted); font-size: 11.5px; margin-top: 3px; }
+.fld .help.ok { color: var(--green); } .fld .help.warn { color: var(--amber); }
+.fld.full { grid-column: 1 / -1; }
+.crawl-pick { display: flex; gap: 8px; align-items: center; }
+.crawl-pick .in { flex: 1; }
+details.adv { margin-top: 12px; border-top: 1px dashed var(--line-2); padding-top: 10px; }
+details.adv summary { color: var(--ink-2); font-weight: 600; cursor: default; }
+.next { margin-top: 14px; background: var(--surface-2); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; }
+.next b { font-size: 12px; }
+.next ol { margin: 6px 0 0; padding-left: 18px; color: var(--ink-2); }
+.next li { margin: 2px 0; }
+table.found { width: 100%; border-collapse: collapse; margin-top: 12px; font-size: 12.5px; }
+table.found caption { text-align: left; font-weight: 600; font-size: 12px; color: var(--ink-2); margin-bottom: 4px; }
+table.found th { text-align: left; font-weight: 500; color: var(--muted); width: 120px; padding: 6px 8px 6px 0; border-top: 1px solid var(--line); vertical-align: top; }
+table.found td { padding: 6px 8px 6px 0; border-top: 1px solid var(--line); vertical-align: top; }
+table.found td.src { color: var(--faint); font-size: 11.5px; }
+table.found td.miss { color: var(--amber); }
+.note-callout { margin-top: 12px; padding: 9px 12px; border-radius: 8px; background: var(--amber-soft); color: var(--amber); font-size: 12px; }
+
+/* questions */
+.qs { margin-top: 48px; background: var(--surface); border: 1px solid var(--line-2); border-radius: 10px; padding: 20px 24px; }
+.qs h2 { margin: 0 0 4px; font-size: 18px; }
+.qs > p { color: var(--muted); margin: 0 0 14px; }
+.q { padding: 12px 0; border-top: 1px solid var(--line); display: grid; grid-template-columns: 34px 1fr; gap: 2px 8px; }
+.q .n { font: 700 13px var(--mono); color: var(--accent); }
+.q .qq { font-weight: 600; font-size: 13.5px; }
+.q .opts { grid-column: 2; color: var(--ink-2); margin-top: 4px; }
+.q .opts div { margin: 2px 0; }
+.q .rec { grid-column: 2; margin-top: 6px; font-size: 12px; color: var(--green); }
+.q .rec b { font-weight: 700; }
+
+@media (max-width: 640px) {
+  .grid2 { grid-template-columns: 1fr; }
+  .bar { max-width: 140px; }
+  .open { display: none; }
+  .modal { top: 56px; }
+}
+table.res-t { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+table.res-t th { text-align: left; font-weight: 600; font-size: 11px; color: var(--muted); padding: 6px 10px; border-bottom: 1px solid var(--line); background: var(--surface-2); }
+table.res-t td { padding: 8px 10px; border-top: 1px solid var(--line); vertical-align: top; }
+table.res-t tr.sel td { background: var(--accent-soft); }
+table.res-t tr.sel td:first-child { box-shadow: inset 3px 0 0 var(--accent); }
+table.res-t tr.dim td { opacity: .5; }
+table.res-t .nm { font-weight: 600; }
+table.res-t .u { color: var(--muted); font-family: var(--mono); font-size: 11px; }
+table.res-t td.num { text-align: right; white-space: nowrap; }
+table.found th.h, table.found td.h { font-weight: 600; font-size: 11px; color: var(--muted); }
+h4.with-info { position: relative; display: flex; align-items: center; gap: 6px; }
+.info { display: inline-grid; place-items: center; width: 16px; height: 16px; border-radius: 50%; border: 1.5px solid var(--faint); color: var(--muted); font: 700 10px/1 Georgia, serif; font-style: italic; }
+.tip { position: absolute; top: 26px; left: 96px; z-index: 2; width: 260px; background: var(--ink); color: #fff; font: 400 12px/1.45 var(--sans); padding: 8px 10px; border-radius: 6px; box-shadow: 0 6px 16px rgba(16,24,40,.25); }
+.tip::before { content: ""; position: absolute; top: -5px; left: 10px; border: 5px solid transparent; border-top: 0; border-bottom-color: var(--ink); }
+</style>
+</head>
+<body class="light">
+<div class="doc">
+  <h1>Add a catalog</h1>
+  <p class="lede">Mockup for spec §7.1. <b>+ Add a catalog</b> opens a modal. It lists the catalogs already crawled to
+  Azure; you pick one and we use its latest crawl. The Studio doesn't start crawls, and nobody types in names:
+  everything shown comes from each crawl's <span class="mono">crawl.json</span>.</p>
+
+  <h2 class="frame-t"><span>A</span>Picker</h2>
+  <p class="frame-d">One new button next to the heading.</p>
+  <div class="screen">
+    <div class="topbar"><div class="gold"></div><b>Golden Rules Studio</b><div class="who">Reviewing as<span>Jared Diener ▾</span></div></div>
+    <div class="picker-in">
+      <div class="head-row"><h3>Choose a catalog</h3><button class="btn primary">+ Add a catalog</button></div>
+      <div class="cat "><div class="logo" style="background:#e8762b;color:#fff">AVC</div><div class="cat-main"><div class="r1"><span class="nm">AVC</span><span class="pg">1,467 pages saved</span></div><div class="r2"><div class="bar"><i style="width:40%"></i></div><span class="bt">4 of 10 rules approved</span></div></div><span class="open">Open →</span></div><div class="cat "><div class="logo" style="background:#7a6a4f;color:#fff">CCSF</div><div class="cat-main"><div class="r1"><span class="nm">CCSF</span><span class="pg">521 pages saved</span></div><div class="r2"><div class="bar"><i style="width:40%"></i></div><span class="bt">4 of 10 rules approved</span></div></div><span class="open">Open →</span></div><div class="cat "><div class="logo" style="background:#00a651;color:#fff">M</div><div class="cat-main"><div class="r1"><span class="nm">Marshall</span><span class="pg">914 pages saved</span></div><div class="r2"><div class="bar"><i style="width:40%"></i></div><span class="bt">4 of 10 rules approved</span></div></div><span class="open">Open →</span></div><div class="cat "><div class="logo" style="background:#8a8d91;color:#fff">UALR</div><div class="cat-main"><div class="r1"><span class="nm">UALR</span><span class="pg">4,439 pages saved</span></div><div class="r2"><div class="bar"><i style="width:40%"></i></div><span class="bt">4 of 10 rules approved</span></div></div><span class="open">Open →</span></div><div class="cat "><div class="logo" style="background:#002855;color:#eaaa00">WV</div><div class="cat-main"><div class="r1"><span class="nm">WVU</span><span class="pg">900 pages saved</span></div><div class="r2"><div class="bar"><i style="width:40%"></i></div><span class="bt">4 of 10 rules approved</span></div></div><span class="open">Open →</span></div>
+      <span class="loop-link">How the Studio works</span>
+    </div>
+  </div>
+
+  <h2 class="frame-t"><span>B</span>Search</h2>
+  <p class="frame-d">The search box has focus and filters as you type. Each catalog is listed once, with its latest
+  crawl. Catalogs already in the Studio are greyed out. The ⓘ next to the title shows its note on hover or click
+  (shown open here).</p>
+  <table class="found" style="max-width:640px;margin:0 0 12px">
+    <tr><th class="h">Column</th><td class="h">From</td></tr>
+    <tr><th>Catalog</th><td>host of <span class="mono">seed_url</span> (the name is the tenant or domain: <span class="mono"><b>cuesta</b>.curriqunet.com</span>, <span class="mono">catalog.<b>ualr</b>.edu</span>)</td></tr>
+    <tr><th>Last crawled</th><td><span class="mono">finished_at</span> of the newest crawl folder</td></tr>
+    <tr><th>Pages</th><td><span class="mono">pages_saved</span></td></tr>
+    <tr><th>Crawl</th><td><span class="mono">status</span>: complete / limit_reached / incomplete</td></tr>
+  </table>
+  <div class="screen with-modal">
+    <div class="topbar"><div class="gold"></div><b>Golden Rules Studio</b><div class="who">Reviewing as<span>Jared Diener ▾</span></div></div>
+    <div class="picker-in"><div class="head-row"><h3>Choose a catalog</h3><button class="btn primary">+ Add a catalog</button></div><div class="cat "><div class="logo" style="background:#e8762b;color:#fff">AVC</div><div class="cat-main"><div class="r1"><span class="nm">AVC</span><span class="pg">1,467 pages saved</span></div><div class="r2"><div class="bar"><i style="width:40%"></i></div><span class="bt">4 of 10 rules approved</span></div></div><span class="open">Open →</span></div><div class="cat "><div class="logo" style="background:#7a6a4f;color:#fff">CCSF</div><div class="cat-main"><div class="r1"><span class="nm">CCSF</span><span class="pg">521 pages saved</span></div><div class="r2"><div class="bar"><i style="width:40%"></i></div><span class="bt">4 of 10 rules approved</span></div></div><span class="open">Open →</span></div><div class="cat "><div class="logo" style="background:#00a651;color:#fff">M</div><div class="cat-main"><div class="r1"><span class="nm">Marshall</span><span class="pg">914 pages saved</span></div><div class="r2"><div class="bar"><i style="width:40%"></i></div><span class="bt">4 of 10 rules approved</span></div></div><span class="open">Open →</span></div></div><div class="scrim"></div>
+    <div class="modal">
+      <div class="m-head"><h4 class="with-info">Add a catalog <span class="info" aria-label="About this list">i</span>
+        <span class="tip">Only catalogs the xTRA engine has already crawled can be found here. For a new catalog, ask engineering to crawl it.</span></h4><span class="x">×</span></div>
+            <div class="m-body">
+        <div class="search"><span class="ic"></span>c<span class="caret"></span><span class="hint">Search by name or URL</span></div>
+        <div class="res" style="margin-top:12px">
+          <table class="res-t">
+            <tr><th>Catalog</th><th>Last crawled</th><th class="num">Pages</th><th>Crawl</th></tr>
+            <tr class="sel"><td><div class="nm"><mark>C</mark>uesta</div><div class="u">cuesta.curriqunet.com</div></td><td>Oct 21, 2026</td><td class="num">2,104</td><td><span class="chip ok">Complete</span></td></tr>
+            <tr><td><div class="nm">Ba<mark>k</mark>ersfield</div><div class="u">bakersfield.elumenapp.com</div></td><td>Oct 18, 2026</td><td class="num">1,000</td><td><span class="chip warn">Hit page limit</span></td></tr>
+            <tr><td><div class="nm">Santa Rosa</div><div class="u">catalog.santarosa.edu</div></td><td>Oct 9, 2026</td><td class="num">388</td><td><span class="chip bad">Stopped early</span></td></tr>
+            <tr class="dim"><td><div class="nm"><mark>C</mark>CSF</div><div class="u">ccsf.curricunet.com</div></td><td>Oct 1, 2026</td><td class="num">521</td><td><span class="chip in">Already added</span></td></tr>
+          </table>
+        </div>
+              </div>
+      <div class="m-foot"><span class="left">↑↓ to move · Enter to choose</span><button class="btn">Cancel</button><button class="btn primary">Next</button></div>
+    </div>
+  </div>
+
+  <h2 class="frame-t"><span>C</span>Confirm</h2>
+  <p class="frame-d">The latest crawl is chosen; the dropdown lists older ones. Nothing can be edited.</p>
+  <div class="screen with-modal" style="min-height:560px">
+    <div class="topbar"><div class="gold"></div><b>Golden Rules Studio</b><div class="who">Reviewing as<span>Eric Riddoch ▾</span></div></div>
+    <div class="picker-in"><div class="head-row"><h3>Choose a catalog</h3><button class="btn primary">+ Add a catalog</button></div><div class="cat "><div class="logo" style="background:#e8762b;color:#fff">AVC</div><div class="cat-main"><div class="r1"><span class="nm">AVC</span><span class="pg">1,467 pages saved</span></div><div class="r2"><div class="bar"><i style="width:40%"></i></div><span class="bt">4 of 10 rules approved</span></div></div><span class="open">Open →</span></div><div class="cat "><div class="logo" style="background:#7a6a4f;color:#fff">CCSF</div><div class="cat-main"><div class="r1"><span class="nm">CCSF</span><span class="pg">521 pages saved</span></div><div class="r2"><div class="bar"><i style="width:40%"></i></div><span class="bt">4 of 10 rules approved</span></div></div><span class="open">Open →</span></div><div class="cat "><div class="logo" style="background:#00a651;color:#fff">M</div><div class="cat-main"><div class="r1"><span class="nm">Marshall</span><span class="pg">914 pages saved</span></div><div class="r2"><div class="bar"><i style="width:40%"></i></div><span class="bt">4 of 10 rules approved</span></div></div><span class="open">Open →</span></div></div><div class="scrim"></div>
+    <div class="modal">
+      <div class="m-head"><h4>Add Cuesta</h4><span class="x">×</span></div>
+      <div class="m-body">
+        <table class="found">
+          <tr><th>Name</th><td>Cuesta</td></tr>
+          <tr><th>Catalog URL</th><td class="mono">https://cuesta.curriqunet.com/catalog/iq/27137</td></tr>
+          <tr><th>Crawl</th><td><span class="fld"><span class="in" style="display:inline-block">Oct 21, 2026 (latest) ▾</span></span></td></tr>
+          <tr><th>Pages</th><td>2,104</td></tr>
+          <tr><th>Status</th><td><span class="chip ok">Complete</span></td></tr>
+        </table>
+      </div>
+      <div class="m-foot"><span class="left"><span style="color:var(--accent)">← Back</span></span><button class="btn">Cancel</button><button class="btn primary">Add catalog</button></div>
+    </div>
+  </div>
+
+  <h2 class="frame-t"><span>D</span>Picker afterwards</h2>
+  <p class="frame-d">The new catalog's card says “rules not run yet” until its first rules are written.</p>
+  <div class="screen">
+    <div class="topbar"><div class="gold"></div><b>Golden Rules Studio</b><div class="who">Reviewing as<span>Eric Riddoch ▾</span></div></div>
+    <div class="picker-in">
+      <div class="head-row"><h3>Choose a catalog</h3><button class="btn primary">+ Add a catalog</button></div>
+      <div class="cat "><div class="logo" style="background:#e8762b;color:#fff">AVC</div><div class="cat-main"><div class="r1"><span class="nm">AVC</span><span class="pg">1,467 pages saved</span></div><div class="r2"><div class="bar"><i style="width:40%"></i></div><span class="bt">4 of 10 rules approved</span></div></div><span class="open">Open →</span></div><div class="cat "><div class="logo" style="background:#002855;color:#eaaa00">WV</div><div class="cat-main"><div class="r1"><span class="nm">WVU</span><span class="pg">900 pages saved</span></div><div class="r2"><div class="bar"><i style="width:40%"></i></div><span class="bt">4 of 10 rules approved</span></div></div><span class="open">Open →</span></div>
+      <div class="cat new"><div class="logo" style="background:#1d4f91;color:#fff">C</div><div class="cat-main"><div class="r1"><span class="nm">Cuesta</span><span class="pg">2,104 pages saved</span></div><div class="r2"><div class="bar"><i style="width:0%"></i></div><span class="bt">rules not run yet</span></div></div><span class="open">Open →</span></div>
+      
+      <span class="loop-link">How the Studio works</span>
+    </div>
+  </div>
+
+<section class="qs">
+    <h2>Open questions</h2>
+    <p>Each one changes what gets built. The mockup assumes the recommended answer.</p>
+
+    <div class="q"><span class="n">Q1</span><span class="qq">Once a catalog's added, where do its first rules come from?</span>
+      <div class="opts"><div>New catalogs have no v2 <span class="mono">rules.json</span> to import. Should they start with an empty ruleset, a copy of the rules from another catalog on the same platform (e.g. CourseLeaf → Marshall/WVU), or a “write the first rules” prompt for Claude Code?</div></div>
+      <div class="rec"><b>My suggestion:</b> offer “Start from Marshall's rules (same platform)” whenever the platform matches, and otherwise a Claude prompt to bootstrap them.</div></div>
+
+    <div class="q"><span class="n">Q2</span><span class="qq">Can you add crawls that hit the page limit or stopped early?</span>
+      <div class="opts"><div>Allow them with the amber or red chip showing, allow only <span class="mono">complete</span> ones, or let you add them with a warning that a golden dataset has to be complete (§0)?</div></div>
+      <div class="rec"><b>Mockup:</b> they can be picked but carry a chip. Confirming one adds “This crawl isn't complete, so the golden dataset won't be either.”</div></div>
+
+    <div class="q"><span class="n">Q3</span><span class="qq">Who's allowed to add a catalog?</span>
+      <div class="opts"><div>Profiles now have roles (subject matter expert / engineer). Should anyone be able to, only engineers, or anyone for already-crawled catalogs but only engineers for a new crawl?</div></div></div>
+
+    <div class="q"><span class="n">Q4</span><span class="qq">What about a newer crawl of a catalog that's already in the Studio?</span>
+      <div class="opts"><div>Right now those rows say “Already added”. Should they say “Newer crawl available (Oct 25)” and let you switch to it? That brings up re-extraction and moving annotations across crawls, which is probably its own spec section.</div></div>
+      <div class="rec"><b>Recommend:</b> out of scope for this round. Show the newer date in the row and nothing more.</div></div>
+
+    </section>
+</div>
+</body>
+</html>

@@ -1,0 +1,280 @@
+/* Rules tab (W4): overrides on top of styles.css (the prototype's sheet). */
+.w4-rules, .w4-records { grid-template-rows: minmax(0, 1fr); height: 100%; min-width: 0; }
+.w4-rules .col.pane { position: relative; }
+.w4-rules .col.mid { min-width: 0; }
+.w4-rules .rule-item .id { overflow: hidden; text-overflow: ellipsis; }
+.w4-rules .rule-item .meta .stat.open svg { width: 12px; height: 12px; }
+.w4-rules .rule-head .rh-top { display: flex; gap: 10px; align-items: flex-start; }
+.w4-rules .rule-head .btn .ico svg, .w4-rules .rule-head .btn svg { width: 14px; height: 14px; }
+.w4-rules .rule-head .term .ico { display: inline-flex; }
+
+.btn.approve.is-approved { cursor: default; }
+.approved-by { display: inline-flex; flex-direction: column; align-items: flex-end; gap: 3px; }
+.approved-by .ab-who { font-size: 11px; color: var(--muted); }
+.linkish { border: 0; background: none; padding: 0; color: var(--accent); font: inherit; cursor: pointer; }
+.linkish:hover { text-decoration: underline; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+/* rows */
+.row.page-row { grid-template-columns: 1fr auto; }
+.row .val .nl { color: var(--faint); }
+.row .ico, .ctl3 .ico { display: inline-grid; place-items: center; }
+.cb .ico svg { width: 14px; height: 14px; display: block; }
+.hist .ico svg { width: 12px; height: 12px; vertical-align: -2px; margin-right: 3px; }
+.hist .h-expert { color: var(--violet); }
+.hist .h-muted { color: var(--faint); }
+/* the annotation a report links to (?note=) */
+.hist .is-linked { outline: 1.5px solid var(--violet); outline-offset: 1px; border-radius: 3px; }
+.hist .h-compared { color: var(--faint); font-style: normal; }
+.hist .h-comment .ico { color: var(--accent); }
+.hist .h-sep { color: var(--faint); }
+.hist .h-good + .h-note, .hist .h-bad + .h-note { color: var(--muted); }
+/* an AI run's report (one-rule-runs §1.4): one history item per line */
+.hist.stacked > span { display: block; }
+.row:focus { outline: none; }
+.row.more-rows { text-align: center; cursor: pointer; color: var(--muted); font-size: 12px; }
+
+/* open "missing" verdicts of a locator / page rule */
+.missing-list { padding: 8px 18px; border-bottom: 1px solid var(--line); background: var(--amber-soft, #fffaeb); font-size: 12px; }
+.missing-list .ml-h { display: flex; gap: 6px; align-items: center; font-weight: 600; color: var(--amber); margin-bottom: 4px; }
+.missing-list .ml-h svg { width: 12px; height: 12px; }
+.missing-list .ml-item { display: flex; justify-content: space-between; gap: 10px; padding: 2px 0; }
+.missing-list .ml-t { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink-2); }
+
+/* page pane legend / banner contents */
+.gpp-ctx .ico svg { width: 14px; height: 14px; display: block; }
+.gpp-ctx .grow { flex: 1; min-width: 0; }
+.gpp-ctx .missed-btn .ico svg { width: 12px; height: 12px; }
+.missed-panel .ico svg { width: 14px; height: 14px; display: block; }
+.missed-panel .mp-item.faint { cursor: default; }
+
+/* key hints in the footer */
+.key-hints { display: inline-flex; gap: 2px 8px; align-items: center; flex-wrap: wrap; }
+.key-hints kbd { margin-left: 6px; }
+/* Rule head: the title keeps room for its CTDL term; when the buttons (or "Approved by … · Reopen") don't fit
+   beside it, they wrap below it instead of overlapping it. */
+.w4-rules .rule-head .rh-top { flex-wrap: wrap; row-gap: 8px; }
+.w4-rules .rule-head .rh-title { flex: 1 1 15em; min-width: min(15em, 100%); }
+.w4-rules .rule-head .rh-title .term { display: inline-flex; align-items: center; gap: 4px; max-width: 100%; }
+/* The buttons stack in one column at the right, whether it sits beside the title or wraps below it. */
+.w4-rules .rule-head .rh-actions { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; margin-left: auto; }
+.w4-rules .rule-head .rh-actions > * { flex: none; }
+.w4-rules .rule-head .approved-by .ab-who { max-width: 18em; text-align: right; white-space: normal; }
+/* Rules ⇄ Records: a quick link on the selected row / value */
+.xlink { margin-left: 10px; white-space: nowrap; font-weight: 500; color: var(--accent); text-decoration: none; }
+.xlink:hover { text-decoration: underline; }
+
+/* Spread sample (strata.py): the bar names how rows are grouped; each row names its group. */
+.w4-rules .row .grp-line { margin-top: 3px; }
+.w4-rules .row .grp { display: inline-block; padding: 0 6px; border-radius: 4px; font-size: 10.5px;
+  line-height: 16px; color: var(--violet); background: var(--violet-soft); white-space: nowrap; vertical-align: 1px; }
+/* the selected row shows its whole value, paragraphs kept, like a property on the Records tab */
+.row.on .val.full { display: block; -webkit-line-clamp: unset; overflow: visible; white-space: pre-line; }
+/* Open in Records → / Open in Rules →: a small button on its own line under the selected row or value */
+.row-links { margin-top: 6px; display: flex; gap: 8px; flex-wrap: wrap; }
+.xbtn { display: inline-flex; align-items: center; font-size: 12px; font-weight: 550; color: var(--accent); text-decoration: none;
+  border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--line)); background: var(--accent-soft); border-radius: 6px; padding: 2px 9px; }
+.xbtn:hover { border-color: var(--accent); }
+/* the value itself, in its own box so it stands apart from the caption, history and buttons around it;
+   the selected one stronger, with a label (Rules and Records tabs) */
+.valbox { position: relative; background: var(--surface); border: 1px solid var(--line-2); border-radius: 7px; padding: 6px 10px; }
+.valbox.on { border: 1.5px solid color-mix(in srgb, var(--accent) 55%, var(--line-2)); padding: 14px 12px 9px;
+  box-shadow: 0 1px 3px rgba(16, 24, 40, .07); }
+.valbox.empty { border-style: dashed; background: transparent; }
+.valbox-k { position: absolute; top: -8px; left: 9px; padding: 0 5px; background: var(--surface); border-radius: 4px;
+  font-size: 10px; letter-spacing: .07em; text-transform: uppercase; font-weight: 650; color: var(--accent); line-height: 15px; }
+.row .valbox + .pg { margin-top: 5px; }
+.v .valbox .tx { margin: 0; }
+.v .valbox + .src { margin-top: 6px; }
+
+/* Ruleset picker at the top of the sidebar: which ruleset's extraction the tab shows. */
+.ruleset-pick { display: flex; align-items: center; gap: 10px; padding: 4px 8px 10px; margin-bottom: 6px;
+  border-bottom: 1px solid var(--line); }
+.ruleset-pick select { flex: 1; min-width: 0; font: 600 13px var(--sans); color: var(--ink); background-color: var(--surface);
+  border: 1px solid var(--line-2); border-radius: 7px; padding: 6px 34px 6px 10px; appearance: none; -webkit-appearance: none;
+  background-repeat: no-repeat; background-position: right 12px center; background-size: 11px; cursor: pointer;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M2 4.5 6 8.5 10 4.5' fill='none' stroke='%23667085' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E"); }
+
+/* "Annotated by" (AnnotatedBy.tsx, Evals spec §6.7, §6.8) */
+.ab { position: relative; min-width: 0; }
+.ab-v { flex: none; }
+.ab-btn { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; border: 1px solid var(--line-2); background: var(--surface); border-radius: 7px; padding: 4px 10px; font-size: 12px; color: var(--ink-2); max-width: 100%; }
+.ab-btn .ab-k { color: var(--muted); }
+.ab-btn b { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ab-btn.set, .ab-btn.open { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-soft); }
+.ab-car { color: var(--muted); margin-left: 2px; }
+.ab-pop { position: absolute; z-index: 30; top: calc(100% + 4px); left: 0; width: 320px; max-height: 420px; overflow: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 10px 28px rgba(16, 24, 40, .14); padding: 6px; }
+.ab-q { width: 100%; border: 1px solid var(--line-2); border-radius: 7px; padding: 5px 8px; font: inherit; font-size: 12.5px; margin-bottom: 4px; background: var(--surface); color: var(--ink); }
+.ab-item { display: flex; justify-content: space-between; gap: 10px; width: 100%; border: 0; background: none; text-align: left; padding: 5px 8px; border-radius: 6px; font-size: 12.5px; color: var(--ink); }
+.ab-item:hover { background: var(--surface-2); }
+.ab-item.on { background: var(--accent-soft); }
+.ab-n { color: var(--muted); font-size: 11.5px; white-space: nowrap; }
+.ab-h { margin: 8px 8px 2px; font-size: 10.5px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--faint); }
+.ab-v button { padding: 3px 9px; }
+.ab-note { margin: 10px 8px; padding: 10px 12px; border: 1px solid #f5d7a8; background: var(--amber-soft); border-radius: 9px; font-size: 12px; line-height: 1.45; }
+.ab-note p { margin: 0 0 8px; color: var(--ink-2); }
+.ab-note b { color: var(--amber); }
+.rule-item.dim { opacity: .45; }
+.rule-item .meta .rev.match { font-weight: 400; color: var(--amber); cursor: default; }
+.rule-item .meta .rev.match.none { font-weight: 400; color: var(--faint); }
+.records-filter { margin: 0 10px 8px; }
+.records-filter .ab-btn { width: 100%; padding: 6px 10px; }
+.records-filter .ab-car { margin-left: auto; }
+
+/* human-reviewed / engineer-checked, on rows of both tabs */
+.rv-line { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 6px; padding-top: 6px; border-top: 1px dashed var(--line); font-size: 11.5px; color: var(--ink-2); }
+.rv-line b { font-weight: 600; }
+.rv-chip { font-size: 10.5px; font-weight: 600; padding: 1px 7px; border-radius: 999px; white-space: nowrap; }
+.rv-chip.human { color: var(--green); background: var(--green-soft); }
+.rv-chip.eng { color: var(--amber); background: var(--amber-soft); }
+.rv-role { font-size: 10.5px; color: var(--muted); border: 1px solid var(--line-2); border-radius: 999px; padding: 0 6px; }
+.cb.confirm { background: var(--green); border-color: var(--green); color: #fff; font-weight: 600; font-size: 12px; gap: 4px; grid-auto-flow: column; padding: 0 10px; }
+.cb.confirm:hover { color: #fff; filter: brightness(1.08); }
+.rec-fold { border: 1px dashed var(--line-2); border-radius: 9px; padding: 9px 12px; font-size: 12px; color: var(--muted); margin: 8px 0; }
+
+/* Approve and publish (Evals spec §6.6, m4) */
+.apx-back { position: fixed; inset: 0; z-index: 1000; background: rgba(16, 24, 40, .4); display: grid; place-items: start center;
+  padding: 80px 16px 16px; }
+.apx { width: min(640px, 100%); background: var(--surface); border-radius: 12px; box-shadow: 0 20px 50px rgba(0, 0, 0, .25);
+  padding: 22px 22px 18px; }
+.apx h2 { margin: 0 0 10px; font-size: 16px; }
+.apx h2 code { font: 600 15px var(--mono); }
+.apx-lead { margin: 0 0 12px; font-size: 13px; line-height: 1.55; color: var(--ink-2); }
+.apx-cols { width: 100%; border-collapse: collapse; font-size: 13px; margin-bottom: 12px; }
+.apx-cols th, .apx-cols td { padding: 9px 10px; border-bottom: 1px solid var(--line); text-align: left; }
+.apx-cols thead th { border-top: 1px solid var(--line); font-weight: 500; color: var(--muted); font-size: 12px; }
+.apx-cols td:first-child { width: 170px; }
+.apx-cols td.mono { font-size: 12.5px; }
+.apx-count { margin: 0 0 14px; font-size: 12.5px; color: var(--muted); }
+.apx-where { position: relative; cursor: help; white-space: nowrap; }
+.apx-i { display: inline-grid; place-items: center; width: 15px; height: 15px; border: 1px solid var(--line-2); border-radius: 50%;
+  font: 600 10px var(--sans); color: var(--muted); margin-left: 3px; }
+.apx-foot { display: flex; justify-content: flex-end; gap: 8px; }
+
+/* the filter box (Sample, Annotated by) sits flush under the rule header: square, no gap */
+.w4-rules .sample { margin: 0; border-radius: 0; border-width: 0 0 1px; }
+
+/* Approve and publish: the path, and the warning when xtra doesn't extract the property yet (property-rules §4.10) */
+.apx-path { font-size: 12.5px; color: var(--muted); margin: -4px 0 12px; }
+.apx-path code { font: 12.5px var(--mono); color: var(--ink-2); }
+.apx-xtra { margin: 0 0 14px; padding: 9px 12px; font-size: 12.5px; line-height: 1.5; color: var(--amber); background: var(--amber-soft);
+  border: 1px solid #f5d7a8; border-radius: 9px; }
+.apx-xtra b { font-weight: 600; }
+
+/* Rule list (property-rules spec §4.8, m4): the groups open and shut from their headers; search; the tags */
+.rule-group .group-h { display: flex; align-items: baseline; gap: 6px; width: 100%; border: 0; background: none; font: inherit;
+  color: inherit; text-align: left; cursor: pointer; border-radius: 6px; }
+.rule-group .group-h:hover:not(:disabled) { background: var(--surface-2); }
+.rule-group .group-h:disabled { cursor: default; }
+.rule-group .group-h .sub { margin-left: auto; }
+.rule-group .group-h .grp-car { align-self: center; display: inline-flex; color: var(--faint); transform: rotate(-90deg); transition: transform .15s; }
+.rule-group .group-h .grp-car.open { transform: none; }
+.rule-group .group-h .grp-car svg { width: 12px; height: 12px; }
+.rule-search-box { padding: 2px 8px 8px; }
+.rule-search { width: 100%; border: 1px solid var(--line-2); border-radius: 7px; padding: 6px 10px; font: 13px var(--sans);
+  color: var(--ink); background: var(--surface); }
+.rule-search:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-soft); }
+.rule-list mark { background: var(--amber-soft); color: inherit; border-radius: 2px; }
+.rl-tag { display: inline-block; margin-left: 6px; padding: 0 6px; border-radius: 4px; font: 600 10px var(--sans); line-height: 15px;
+  color: var(--accent); background: var(--accent-soft); vertical-align: 1px; white-space: nowrap; }
+.rl-nomatch { padding: 8px 10px; font-size: 12px; }
+
+/* Rule head (m1): the path with its arrows, what the rule reads, a property with no rule yet */
+.rh-line { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 10px; margin-top: 4px; font: 12.5px var(--mono); color: var(--ink-2); }
+.rh-line .term { font-size: 12.5px; }
+.rh-line .rl-tag { margin-left: 0; }
+.rh-path .term { display: inline-flex; }
+.rh-input { margin-top: 4px; font-size: 12.5px; color: var(--ink-2); }
+.rh-input b { font-weight: 600; }
+.rh-norule { margin: 10px 0 0; padding: 8px 12px; font-size: 12.5px; line-height: 1.5; color: var(--amber); background: var(--amber-soft);
+  border: 1px solid #f5d7a8; border-radius: 8px; }
+
+/* A list property's row (m2): one line per item, each with its own ✓ and ✕; the missing items under the row */
+.items { display: grid; gap: 6px; }
+.item { display: grid; grid-template-columns: 20px minmax(0, 1fr) auto; gap: 8px; align-items: center; background: var(--surface);
+  border: 1px solid var(--line-2); border-radius: 7px; padding: 4px 5px 4px 6px; }
+.item.st-correct { border-color: #9fd9c2; }
+.item.st-wrong { border-color: #f3b9a4; }
+.item-n { font: 11px var(--mono); color: var(--faint); text-align: center; }
+.item-v { min-width: 0; font-size: 13.5px; color: var(--ink); overflow-wrap: anywhere; }
+.item-btns { display: inline-flex; gap: 4px; }
+.ibtn { display: inline-grid; place-items: center; height: 26px; min-width: 28px; padding: 0 6px; border-radius: 7px; cursor: pointer;
+  border: 1px solid var(--line); background: var(--surface); color: var(--faint); }
+.ibtn svg { width: 14px; height: 14px; display: block; }
+.ibtn:hover { border-color: var(--line-2); color: var(--ink-2); }
+.ibtn.ok.on { background: var(--green-soft); border-color: #9fd9c2; color: var(--green); }
+.ibtn.no.on { background: var(--red-soft); border-color: #f3b9a4; color: var(--red); }
+.items-meta { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 12px; margin-top: 2px; font-size: 12px; }
+.add-item { display: inline-flex; align-items: center; gap: 5px; border: 0; background: none; padding: 0; font: inherit; font-size: 12px;
+  font-weight: 550; color: var(--accent); cursor: pointer; }
+.add-item:hover { text-decoration: underline; }
+.add-item svg { width: 12px; height: 12px; }
+.add-item-q { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 6px; font-size: 12.5px; }
+.add-item-q .sel-quote { flex-basis: 100%; }
+.missing-items { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px; margin-top: 6px; font-size: 12px; }
+.missing-items .mi { color: var(--amber); background: var(--amber-soft); border-radius: 5px; padding: 1px 7px; }
+.item-line { font-size: 13.5px; line-height: 1.45; color: var(--ink); overflow-wrap: anywhere; }
+@media (prefers-reduced-motion: reduce) { .rule-group .group-h .grp-car { transition: none; } }
+
+/* Highlight bar pieces (sme-fixes §1): a piece marked "not in the answer" is red dashed; a pinned comment's number. */
+.sel-quote.out { border-left: 3px dashed #d92d20; background: #fef3f2; }
+.sel-pol { flex: none; font-size: 11px; color: #b42318; padding-top: 6px; }
+.sel-pol.pin { color: var(--ink-2, #475467); display: inline-flex; align-items: flex-start; gap: 3px; }
+.sel-pol.pin .ico svg { width: 12px; height: 12px; display: block; margin-top: 1px; }
+.sel-anchor { margin: 0 0 6px; }
+.h-n { display: inline-block; min-width: 14px; height: 14px; margin-right: 3px; border-radius: 7px; background: var(--accent);
+  color: #fff; font: 700 9.5px/14px var(--sans); text-align: center; vertical-align: 1px; }
+
+/* Course blocks (sme-fixes §3): one row per page, the current page's courses inside it. */
+.page-group { border-bottom: 1px solid var(--line); }
+.page-group.open { box-shadow: inset 0 0 0 1px var(--line-2, #d0d5dd); }
+.row.page-head { grid-template-columns: 1fr auto; align-items: center; }
+.row.page-head .ph-t { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.row.page-head .ph-car { margin-left: 6px; color: var(--faint); vertical-align: -2px; }
+.page-group.open .row.page-head:not(.on) { background: var(--surface-2, #f9fafb); }
+.row.in-page { padding-left: 30px; }
+.row.add-course { display: block; width: 100%; padding: 8px 30px; border: 0; border-top: 1px dashed var(--line); text-align: left;
+  font: italic 12.5px var(--sans); color: var(--muted); background: transparent; cursor: pointer; }
+.row.add-course:hover { color: var(--accent); }
+.expand .sel-pin .sel-quote { border-left-color: #98a2b3; background: #f2f4f7; color: var(--ink); }
+
+/* ✦ Improve on a sidebar row (one-rule-runs §1.1): only on the hovered or selected row; it is the Discuss button */
+/* Improve and Comment: two small bordered buttons, always there, so a row never changes height on hover */
+.rule-item .rule-acts { display: inline-flex; gap: 4px; margin-top: 4px; }
+.rule-item .rule-act { height: 24px; min-width: 24px; padding: 0 5px; gap: 3px; display: inline-flex; align-items: center; cursor: pointer; }
+.rule-item .rule-act svg { width: 13px; height: 13px; display: block; }
+.rule-item .rule-act .n { font-size: 11.5px; }
+.rule-item .rule-act.has { color: var(--accent); }
+.rule-item .rule-act.on { background: var(--accent-soft); border-color: #b9c7fa; color: var(--accent); }
+.rule-item .meta .stat[role=button] { cursor: pointer; }
+.rule-item .meta .stat[role=button]:hover { text-decoration: underline; }
+.rule-item .meta .stat .run-pulse { width: 7px; height: 7px; }
+/* Reset rule (phase1-followups §4.1): the link beside Reopen, its dialog's reason, the hint on a reset row */
+.linkish.reset { color: var(--red); }
+.linkish.reset:disabled { color: var(--faint); cursor: default; }
+.btn.danger { background: var(--red); border-color: var(--red); color: #fff; }
+.btn.danger:disabled { opacity: .5; }
+.rsx-why { display: block; margin: 0 0 6px; font-size: 13px; font-weight: 600; }
+.rsx-text { width: 100%; min-height: 64px; margin-bottom: 14px; padding: 8px; box-sizing: border-box; font: inherit; font-size: 13px;
+  border: 1px solid var(--line-2); border-radius: 6px; resize: vertical; }
+.rv-line.before-reset { font-style: italic; }
+.rh-reset { display: block; text-align: right; font-size: 12px; }
+
+/* All classes: a heading per class above its groups (LearningProgram spec, item 14; mockup w4-rules-all-classes) */
+.rule-list .cls-h { display: flex; align-items: baseline; gap: 8px; margin: 14px 4px 2px; padding-bottom: 6px;
+  border-bottom: 1px solid var(--line); font-weight: 600; font-size: 13.5px; color: var(--ink); }
+.rule-list .cls-h span { font-weight: 400; font-size: 12px; color: var(--muted); }
+
+/* The record key and its card (LearningProgram spec, item 13; mockups w2-rules-id-card, w2-rules-id-generated) */
+.rows .row .code { word-break: break-all; }
+.rows .row .code.k { position: relative; text-decoration: underline dotted var(--faint, #98a2b3); text-underline-offset: 4px; cursor: help; }
+.rows .row .code.gen { color: var(--muted); font-weight: 500; }
+.idcard { position: fixed; z-index: 50; width: 330px; background: var(--surface); border: 1px solid var(--line-2); border-radius: 9px;
+  box-shadow: 0 10px 30px rgba(16,24,40,.14); padding: 10px 12px; font-size: 12.5px; line-height: 1.45; color: var(--ink);
+  font-family: var(--f-ui, system-ui); font-weight: 400; text-decoration: none; cursor: default; white-space: normal; word-break: normal; }
+.idcard .h { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; margin-bottom: 2px; }
+.idcard .idv { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-weight: 600; font-size: 13.5px; margin-bottom: 8px; word-break: break-all; }
+.idcard dl { display: grid; grid-template-columns: 92px 1fr; gap: 4px 8px; margin: 0; }
+.idcard dt { color: var(--muted); } .idcard dd { margin: 0; }
+.idcard code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; background: var(--surface-2, #eef0f4);
+  border: 1px solid var(--line); border-radius: 4px; padding: 0 4px; overflow-wrap: anywhere; }

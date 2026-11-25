@@ -1,0 +1,48 @@
+/* The loop modal (LoopModal.tsx) */
+.loop-back { position: fixed; inset: 0; z-index: 1000; background: rgba(16, 24, 40, .45); display: grid; place-items: center; padding: 16px; }
+.loop { background: var(--surface); color: var(--ink); border-radius: 14px; box-shadow: 0 20px 60px rgba(0, 0, 0, .3); width: min(600px, 100%); max-height: calc(100vh - 32px); overflow: auto; padding: 22px 24px 18px; }
+.loop h2 { margin: 0; font-size: 19px; }
+.loop-ring { position: relative; aspect-ratio: 520 / 360; margin: 10px 0 0; }
+.loop-ring svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+.loop-arc { fill: none; stroke: var(--accent); stroke-width: 2.5; stroke-linecap: round; opacity: .8; }
+.loop-head { fill: var(--accent); }
+.loop-node { position: absolute; transform: translate(-50%, -50%); width: 27%; background: var(--surface); border: 1.5px solid var(--accent); border-radius: 12px; padding: 14px 10px 9px; display: grid; gap: 3px; text-align: center; box-shadow: 0 2px 8px rgba(16, 24, 40, .08); line-height: 1.25; }
+.loop-node b { font-size: 13.5px; }
+/* send: the box squeezes (anticipation), then springs back with a tight ring as it fires the dot;
+   land: a swell, a tint and a wide ring as the dot arrives */
+.loop-node.send { animation: loop-send .5s cubic-bezier(.3, 0, .2, 1); }
+.loop-node.land { animation: loop-land .8s ease-out; }
+@keyframes loop-send {
+  0% { transform: translate(-50%, -50%) scale(1); box-shadow: 0 0 0 0 transparent; }
+  44% { transform: translate(-50%, -50%) scale(.92); box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 60%, transparent); }
+  58% { transform: translate(-50%, -50%) scale(1.04); }
+  100% { transform: translate(-50%, -50%) scale(1); box-shadow: 0 0 0 9px color-mix(in srgb, var(--accent) 0%, transparent); }
+}
+@keyframes loop-land {     /* from the first frame: the box takes the dot at once */
+  0% { background: var(--accent-soft); transform: translate(-50%, -50%) scale(1.07);
+       box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 50%, transparent); }
+  100% { transform: translate(-50%, -50%) scale(1); box-shadow: 0 0 0 18px color-mix(in srgb, var(--accent) 0%, transparent); }
+}
+.loop-dot { fill: var(--accent); }                /* no fade: it is gone the moment the box takes it */
+/* holding the dot: a soft charged glow until the box fires it */
+.loop-node { transition: background-color .4s, box-shadow .4s; }
+.loop-node.holding { background: color-mix(in srgb, var(--accent) 7%, var(--surface));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent), 0 2px 8px rgba(16, 24, 40, .08); }
+.loop-n { position: absolute; top: -11px; left: 50%; transform: translateX(-50%); width: 22px; height: 22px; border-radius: 50%; background: var(--accent); color: #fff; font-weight: 700; font-size: 12px; display: grid; place-items: center; }
+.loop-w { font-size: 11px; color: var(--accent); font-weight: 600; }
+.loop-center { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: 30%; text-align: center; color: var(--ink-2); font-size: 12.5px; line-height: 1.4; }
+.loop-rep { display: block; font-size: 16px; font-weight: 700; color: var(--accent); margin-bottom: 2px; }
+.loop-list { display: none; margin: 12px 0 0; padding-left: 20px; line-height: 1.5; }
+.loop-list li { margin: 6px 0; }
+.loop-list .loop-w { display: block; }
+.loop-rep-li { list-style: none; margin-left: -20px !important; color: var(--accent); font-weight: 600; }
+.loop-note { margin: 12px 0 0; padding: 10px 12px; border-radius: 8px; background: var(--surface-2); color: var(--ink-2); font-size: 12.5px; line-height: 1.5; }
+.loop-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 10px; flex-wrap: wrap; }
+.loop-foot label { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); font-size: 12.5px; cursor: pointer; }
+/* phones: the ring gets too small to read, so the loop becomes a numbered list */
+@media (max-width: 520px) {
+  .loop-ring { display: none; }
+  .loop-list { display: block; }
+}
+.loop-again { margin-top: 16px; border: 0; background: none; color: var(--accent); font: inherit; cursor: pointer; text-decoration: underline; padding: 0; }
+@media (prefers-reduced-motion: reduce) { .loop-node.send, .loop-node.land { animation: none; } }

@@ -1,0 +1,305 @@
+<title>Studio Fixes, Nov 4</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&family=Fraunces:opsz,wght@9..144,600&display=swap">
+<style>
+/* Layout: one column of numbered fixes; each fix is a Today / Proposed pair of miniature Studio screens. */
+:root {
+  --bg: #f6f7fb; --paper: #ffffff; --ink: #1c2233; --muted: #5d6680; --line: #dde1ec;
+  --accent: #2f54eb; --accent-soft: rgba(47,84,235,.08);
+  --value: rgba(253,224,120,.92); --expected: rgba(190,242,214,.95); --expected-ink: #0f6b3e;
+  --bad: #b3261e; --bad-soft: #fdecea; --warn: #8a5a00; --warn-soft: #fff4d6; --good-soft: #e6f6ed;
+  --page: #fbfbf8; --shadow: 0 1px 2px rgba(20,30,60,.06), 0 4px 16px rgba(20,30,60,.05);
+  --f-display: "Fraunces", Georgia, serif; --f-body: "IBM Plex Sans", system-ui, sans-serif; --f-mono: "IBM Plex Mono", ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #12151d; --paper: #1a1f2b; --ink: #e6e9f2; --muted: #9aa3ba; --line: #2c3344;
+  --accent: #7d97ff; --accent-soft: rgba(125,151,255,.12);
+  --value: rgba(200,165,40,.55); --expected: rgba(60,170,110,.45); --expected-ink: #8fe0b4;
+  --bad: #ff8a80; --bad-soft: #3a1d1c; --warn: #f2c66d; --warn-soft: #33290f; --good-soft: #17301f;
+  --page: #161a24; --shadow: none; color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --bg: #12151d; --paper: #1a1f2b; --ink: #e6e9f2; --muted: #9aa3ba; --line: #2c3344;
+  --accent: #7d97ff; --accent-soft: rgba(125,151,255,.12);
+  --value: rgba(200,165,40,.55); --expected: rgba(60,170,110,.45); --expected-ink: #8fe0b4;
+  --bad: #ff8a80; --bad-soft: #3a1d1c; --warn: #f2c66d; --warn-soft: #33290f; --good-soft: #17301f;
+  --page: #161a24; --shadow: none; color-scheme: dark; }
+body { background: var(--bg); color: var(--ink); font: 15px/1.55 var(--f-body); }
+.wrap { max-width: 1080px; margin: 0 auto; padding-block: 40px 80px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: grid; gap: 44px; }
+header h1 { font: 600 34px/1.15 var(--f-display); margin: 0 0 8px; text-wrap: balance; }
+header p { margin: 0; color: var(--muted); max-width: 68ch; }
+.legend { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 14px; font-size: 13px; color: var(--muted); }
+.sw { display: inline-block; width: 22px; height: 12px; border-radius: 2px; vertical-align: -1px; margin-right: 6px; }
+section.fix { display: grid; gap: 14px; }
+.fix-head { display: flex; gap: 14px; align-items: baseline; flex-wrap: wrap; }
+.num { font: 500 13px var(--f-mono); color: var(--accent); border: 1px solid var(--accent); border-radius: 999px; padding: 1px 9px; }
+.fix-head h2 { font: 600 21px/1.3 var(--f-body); margin: 0; text-wrap: balance; }
+.why { margin: 0; color: var(--muted); max-width: 75ch; font-size: 14px; }
+.why code, .q code { font: 12.5px var(--f-mono); background: var(--accent-soft); padding: 0 4px; border-radius: 3px; }
+.pair { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 760px) { .pair { grid-template-columns: 1fr; } }
+.screen { background: var(--paper); border: 1px solid var(--line); border-radius: 8px; box-shadow: var(--shadow); min-width: 0; overflow: hidden; }
+.cap { font: 500 11px var(--f-mono); letter-spacing: .08em; text-transform: uppercase; padding: 8px 12px; border-bottom: 1px solid var(--line); display: flex; justify-content: space-between; gap: 8px; }
+.cap.today { color: var(--bad); } .cap.prop { color: var(--expected-ink); }
+.body { padding: 14px; display: grid; gap: 10px; font-size: 13px; }
+.pg { background: var(--page); border: 1px solid var(--line); border-radius: 4px; padding: 12px; font-size: 12.5px; line-height: 1.6; position: relative; }
+.pg h4 { margin: 0 0 4px; font-size: 13px; }
+.lbl { font-weight: 600; font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
+.v { background: var(--value); border-radius: 2px; }
+.e { background: var(--expected); border-radius: 2px; }
+.sel { background: #b4d5fe; color: #0b1f44; border-radius: 2px; }
+.cursor { font: 11px var(--f-mono); color: var(--muted); }
+.toast { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 8px 10px; border-radius: 6px; font-size: 12.5px; }
+.toast.good { background: var(--good-soft); color: var(--expected-ink); }
+.toast.bad { background: var(--bad-soft); color: var(--bad); }
+.toast.warn { background: var(--warn-soft); color: var(--warn); }
+.toast.muted { background: var(--accent-soft); color: var(--muted); }
+.btn { font: 500 12px var(--f-body); border: 1px solid var(--line); background: var(--paper); color: var(--ink); border-radius: 5px; padding: 3px 9px; white-space: nowrap; }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.ghost { color: var(--muted); font-style: italic; font-size: 12px; }
+.url { font: 12px var(--f-mono); background: var(--bg); border: 1px solid var(--line); border-radius: 5px; padding: 5px 8px; overflow-x: auto; white-space: nowrap; }
+.url b { color: var(--accent); font-weight: 500; }
+.row { display: grid; grid-template-columns: 18px 1fr auto; gap: 8px; align-items: center; padding: 6px 8px; border: 1px solid var(--line); border-radius: 5px; font-size: 12.5px; }
+.row.on { border-color: var(--accent); background: var(--accent-soft); }
+.dot { width: 10px; height: 10px; border-radius: 50%; background: var(--line); }
+.dot.ok { background: #2e9e5b; } .dot.no { background: var(--bad); }
+.cmt { border-left: 3px solid var(--line); padding: 6px 10px; font-size: 12.5px; display: grid; gap: 2px; }
+.cmt.lit { border-color: var(--accent); background: var(--accent-soft); animation: pulse 2s ease-out 1; }
+@keyframes pulse { from { box-shadow: 0 0 0 4px var(--accent-soft); } to { box-shadow: none; } }
+@media (prefers-reduced-motion: reduce) { .cmt.lit { animation: none; } }
+.meta { font-size: 11px; color: var(--muted); }
+.bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 8px 10px; border-radius: 6px; font-size: 12.5px; border: 1px solid var(--line); }
+.bar.live { background: var(--accent-soft); }
+.bar.dead { background: var(--bad-soft); border-color: var(--bad); color: var(--bad); }
+.bar .grow { flex: 1 1 200px; min-width: 0; }
+.spinner { width: 10px; height: 10px; border: 2px solid var(--accent); border-right-color: transparent; border-radius: 50%; display: inline-block; }
+.quote { font: 12px/1.5 var(--f-mono); background: var(--paper); color: var(--ink); border: 1px solid var(--line); border-radius: 4px; padding: 8px; }
+.timeline { display: grid; grid-template-columns: auto 1fr; gap: 3px 10px; font-size: 12px; }
+.timeline time { font: 11.5px var(--f-mono); color: var(--muted); }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.chip { font-size: 12px; border: 1px solid var(--line); border-radius: 999px; padding: 2px 10px; background: var(--paper); }
+.chip.on { background: var(--accent); color: #fff; border-color: var(--accent); }
+.course { border-radius: 3px; padding: 6px 8px 6px 22px; position: relative; margin-top: 8px; font-size: 12px; }
+.course .b { position: absolute; left: -7px; top: -7px; background: var(--accent); color: #fff; font: 600 9.5px/16px var(--f-mono); min-width: 16px; height: 16px; text-align: center; border-radius: 3px; padding: 0 3px; }
+.course.thin { box-shadow: 0 0 0 1.5px rgba(47,84,235,.55); }
+.course.focus { box-shadow: 0 0 0 2.5px var(--accent); background: rgba(47,84,235,.06); }
+.course.found { box-shadow: 0 0 0 2px var(--accent); background: rgba(47,84,235,.05); }
+.course.found.sel2 { box-shadow: 0 0 0 3px var(--accent), 0 0 0 6px var(--accent-soft); }
+.rhead { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; flex-wrap: wrap; }
+.rhead strong { font-size: 14px; }
+.strike { text-decoration: line-through; color: var(--muted); }
+.q { background: var(--paper); border: 1px dashed var(--line); border-radius: 8px; padding: 10px 14px; font-size: 13.5px; display: grid; gap: 4px; }
+.q b { color: var(--accent); font-weight: 600; }
+.bonus { border-top: 1px solid var(--line); padding-top: 24px; }
+</style>
+
+<div class="wrap">
+<header>
+  <h1>Studio fixes from Jared's session, Nov 4</h1>
+  <p>Each fix pairs what the Studio shows today with what it should show. These drawings belong to the Q step: they show the problem and a default answer. Each <b>Q</b> below links to a question in <code>01-questions.md</code>.</p>
+  <div class="legend">
+    <span><span class="sw" style="background:var(--value)"></span>value the rule found</span>
+    <span><span class="sw" style="background:var(--expected)"></span>the right answer (annotation)</span>
+    <span><span class="sw" style="background:#b4d5fe"></span>text the reviewer highlighted</span>
+    <span><span class="sw" style="box-shadow:0 0 0 2px var(--accent) inset"></span>a course the locator found</span>
+  </div>
+</header>
+
+<!-- 1 -->
+<section class="fix" id="fix-1">
+  <div class="fix-head"><span class="num">1</span><h2>Highlighting the value the rule already found does nothing</h2></div>
+  <p class="why">On ACCT199, <code>Entry Condition: Description</code>, Jared highlighted the full "LIMITATION ON ENROLLMENT…" paragraph. That paragraph is exactly what the rule extracted. <code>RulesTab.tsx:250</code> silently ignores a selection equal to the found value ("nothing to fix"). No green segment appeared, so he marked the value <b>wrong</b> and pasted the same paragraph into the note (annotation <code>an-362cba1649b5</code>, 16:30Z). The golden set now says a correct value is wrong.</p>
+  <div class="pair">
+    <div class="screen"><div class="cap today"><span>Today</span><span>16:30 ACCT199</span></div><div class="body">
+      <div class="pg"><span class="lbl">Limitation on enrollment</span><br><span class="e">LIMITATION ON ENROLLMENT: To participate in work experience education, students must have a paid or unpaid job or internship…</span></div>
+      <div class="ghost">This green is just the browser's text selection: <code>::selection</code> uses the answer green (<code>render.py:53</code>). Nothing was saved, and no message appears.</div>
+      <div class="toast bad">✗ Wrong · note: "LIMITATION ON ENROLLMENT: To participate…" (identical to the value)</div>
+    </div></div>
+    <div class="screen"><div class="cap prop"><span>Proposed</span><span>default</span></div><div class="body">
+      <div class="pg"><span class="lbl">Limitation on enrollment</span><br><span class="e">LIMITATION ON ENROLLMENT: To participate in work experience education, students must have a paid or unpaid job or internship…</span></div>
+      <div class="toast good"><b>✓ Same as what the rule found.</b> Marked correct. <span class="btn">Undo</span></div>
+      <div class="meta">Text selection turns <span class="sel">blue</span>, so green always means a saved answer. A highlight equal to the found value marks ✓. A different highlight still opens the ✗ draft, as it does today. When a highlight can't be used (no row selected, or the wrong tab), a one-line hint says why.</div>
+    </div></div>
+  </div>
+  <div class="q"><span><b>Q1.1</b> Should highlighting the exact found value mark the row ✓ correct (default), or only say "this matches" and leave the verdict to you?</span><span><b>Q1.2</b> Repair Jared's 16:30 ACCT199 verdict (wrong → correct) through a superseding annotation, or leave it as it is?</span></div>
+</section>
+
+<!-- 2 -->
+<section class="fix" id="fix-2">
+  <div class="fix-head"><span class="num">2</span><h2>Link to a sample and its comment</h2></div>
+  <p class="why"><code>?row=&lt;key&gt;</code> already opens a sample (the server pages until it's included). However, clicking a row doesn't put <code>?row=</code> in the address bar, comments have no id in the URL, and there's no Copy link button anywhere.</p>
+  <div class="pair">
+    <div class="screen"><div class="cap today"><span>Today</span></div><div class="body">
+      <div class="url">#/c/avc/rules/course-entry-condition-description</div>
+      <div class="row on"><span class="dot no"></span><span>ACCT199 · LIMITATION ON ENROLLMENT: To participate…</span><span></span></div>
+      <div class="cmt"><span>Same text as the value. Why wrong?</span><span class="meta">Eric · 2 min ago</span></div>
+      <div class="ghost">Copying the address shares the rule only. The colleague lands on row 1.</div>
+    </div></div>
+    <div class="screen"><div class="cap prop"><span>Proposed</span></div><div class="body">
+      <div class="url">#/c/avc/rules/course-entry-condition-description<b>?row=…acct199…&amp;c=an-362cba1649b5</b></div>
+      <div class="row on"><span class="dot no"></span><span>ACCT199 · LIMITATION ON ENROLLMENT: To participate…</span><span class="btn">Copy link</span></div>
+      <div class="cmt lit"><span>Same text as the value. Why wrong?</span><span class="meta">Eric · 2 min ago · <u>Copy link</u></span></div>
+      <div class="meta">Opening the link selects the row, scrolls the page to its value and outlines the comment. Ruleset (<code>ext</code>) and filters stay in the link.</div>
+    </div></div>
+  </div>
+  <div class="q"><span><b>Q2.1</b> Should a shared link also open the verdict or annotation itself (e.g. Jared's ✗ with its note), or only the comment thread?</span><span><b>Q2.2</b> Should clicking a row update the address bar as you go (default: yes, without adding history entries)?</span></div>
+</section>
+
+<!-- 3 + 8 -->
+<section class="fix" id="fix-8">
+  <div class="fix-head"><span class="num">3 = 8</span><h2>"One course per course page" when a page holds several courses</h2></div>
+  <p class="why">The name "One course per course page" is a fixed label (<code>routes_review.py:33</code>, <code>RuleHead.tsx:13</code>) written for AVC. The CCSF locator actually repeats on <code>.course-summary-wrapper</code>, so it finds every course on a department page. The <b>filled blue</b> block is just the course for the row selected on the left (<code>gds-focus</code>, <code>render.py:64</code>). The <b>outlined</b> blocks were found too. Nothing on screen says so.</p>
+  <div class="pair">
+    <div class="screen"><div class="cap today"><span>Today</span><span>#/c/ccsf/rules/…course-page</span></div><div class="body">
+      <div class="rhead"><strong>One course per course page</strong><span class="meta">courses found: 1,412</span></div>
+      <div class="pg" style="padding-left:18px">
+        <div class="course focus"><span class="b">1</span><b>ANAT 14</b> Human Anatomy · 5 units</div>
+        <div class="course thin"><span class="b">2</span><b>ANAT 25</b> Intro to Human Anatomy · 3 units</div>
+        <div class="course thin"><span class="b">3</span><b>ANAT 26</b> Anatomy Lab · 1 unit</div>
+      </div>
+      <div class="ghost">Why is only #1 blue? Did the rule miss #2 and #3?</div>
+    </div></div>
+    <div class="screen"><div class="cap prop"><span>Proposed</span><span>default</span></div><div class="body">
+      <div class="rhead"><strong>Course blocks <span class="meta">· each <code>.course-summary-wrapper</code></span></strong><span class="meta">1,412 courses on 61 pages</span></div>
+      <div class="toast muted"><b style="color:var(--ink)">This page: 3 courses found</b> <span class="chips"><span class="chip on">1 ANAT 14</span><span class="chip">2 ANAT 25</span><span class="chip">3 ANAT 26</span></span></div>
+      <div class="pg" style="padding-left:18px">
+        <div class="course found sel2"><span class="b">1</span><b>ANAT 14</b> Human Anatomy · 5 units</div>
+        <div class="course found"><span class="b">2</span><b>ANAT 25</b> Intro to Human Anatomy · 3 units</div>
+        <div class="course found"><span class="b">3</span><b>ANAT 26</b> Anatomy Lab · 1 unit</div>
+      </div>
+      <div class="meta">Every found course gets the same fill. The selected one gets a thicker ring and its chip is filled. Clicking a block or chip selects that row. Pages with one course say "This page: 1 course".</div>
+    </div></div>
+  </div>
+  <div class="q"><span><b>Q3.1</b> Your item 3 got cut off ("in the one course per page locator rule."). Is it the same as point 8, or something else?</span><span><b>Q8.1</b> Rename the locator per catalog from what it does ("Course blocks · each <code>.x</code>" / "Whole page is one course"), or keep one name for all?</span><span><b>Q8.2</b> Should the locator's rows be grouped by page (one row per page, with its courses inside), or stay one row per course (default)?</span></div>
+</section>
+
+<!-- 4 -->
+<section class="fix" id="fix-4">
+  <div class="fix-head"><span class="num">4</span><h2>"Improve these 5 rules" ran for 30 seconds and the Studio never found out</h2></div>
+  <div class="toast good"><b>Fixed Nov 4, 17:15Z:</b> the storage keys were regenerated on Nov 2, and the agent's token was never renewed. It's renewed now (all 4 containers OK), and Jared's run is ended with an explanation. Press Improve again. What's left is Q4.2, so this can't go silent next time.</div>
+  <p class="why">Health check, 16:34Z run <code>20261104T163408Z-f428</code> on AVC. The Studio sent the run, and K2 woke the golden-rules agent. Claude's very first <code>golden-datasets</code> call failed: <b>Azure rejected the agent's storage token</b> (<code>AuthenticationFailed</code>, signature not accepted; expiry 2027-10-29). Claude stopped at 16:34:43 and explained in its own chat. It couldn't post that to the Studio, because notes go through the same storage. The Studio shows "no update from Claude yet" until the 90-minute timeout at 18:04Z. The Studio's own token works (Jared's annotations save), so only the agent's token is broken.</p>
+  <div class="pair">
+    <div class="screen"><div class="cap today"><span>Today</span><span>for 90 min</span></div><div class="body">
+      <div class="bar live"><span class="spinner"></span><span class="grow">Claude is improving 5 rules · started by Jared Diener · 41m · no update from Claude yet</span><span class="btn">Watch</span><span class="btn">Cancel</span></div>
+      <div class="timeline"><time>16:34:08</time><span>Started by Jared Diener</span><time>16:34:08</time><span>Sent to the golden-rules agent</span><time></time><span class="ghost">No notes yet.</span></div>
+    </div></div>
+    <div class="screen"><div class="cap prop"><span>Proposed</span></div><div class="body">
+      <div class="bar dead"><span class="grow"><b>Claude stopped after 35 s without finishing.</b> Nothing was published.</span><span class="btn">End run</span><span class="btn">Show details</span></div>
+      <div class="quote">Claude's last message: "I couldn't start run 20261104T163408Z-f428. Azure is rejecting the storage token… every golden-datasets command fails."</div>
+      <div class="meta">Before anyone can press "Improve", a daily self-check shows <span class="toast warn" style="display:inline-flex;padding:1px 8px">Remote AI can't reach storage. Runs are paused.</span> on the button.</div>
+    </div></div>
+  </div>
+  <div class="q"><span><b>Q4.1</b> Fix the token now? It needs a new SAS for <code>xtra-cli-output</code> written into the agent's env file. That's an admin action on the agent host, so it's yours to approve.</span><span><b>Q4.2</b> How should the Studio notice a silent stop: ask K2 whether the agent's session is idle (shown above), a "no first note in 5 min" warning, or both (default)?</span><span><b>Q4.3</b> End the stuck run now, or let it time out at 18:04Z?</span></div>
+</section>
+
+<!-- 5 + 6 -->
+<section class="fix" id="fix-56">
+  <div class="fix-head"><span class="num">5 + 6</span><h2>Defaults: Autostratify sample, "Anyone" filter</h2></div>
+  <p class="why">The sample defaults to <code>review</code> order (<code>RulesTab.tsx:73</code>), and resets on every rule switch. "Annotated by" defaults to the expert with the most annotations (<code>logic.ts:266</code>). Neither is saved in localStorage, so changing the defaults reaches everyone right away. Links that already carry <code>?by=</code> keep their filter.</p>
+  <div class="pair">
+    <div class="screen"><div class="cap today"><span>Today</span></div><div class="body">
+      <div class="chips"><span class="meta">Sample</span><span class="chip on">Review order</span><span class="chip">Autostratify</span><span class="chip">Shuffle</span><span class="chip">Manual</span></div>
+      <div class="chips"><span class="meta">Annotated by</span><span class="chip on">Jared Diener (most)</span><span class="chip">Anyone</span></div>
+    </div></div>
+    <div class="screen"><div class="cap prop"><span>Proposed</span></div><div class="body">
+      <div class="chips"><span class="meta">Sample</span><span class="chip">Review order</span><span class="chip on">Autostratify</span><span class="chip">Shuffle</span><span class="chip">Manual</span></div>
+      <div class="chips"><span class="meta">Annotated by</span><span class="chip">Jared Diener</span><span class="chip on">Anyone</span></div>
+    </div></div>
+  </div>
+  <div class="q"><span><b>Q5.1</b> Autostratify on the Compare tab too (default: Rules tab only; Compare stays on Shuffle)?</span><span><b>Q5.2</b> Keep the drawer closed when Autostratify is the default (default: closed; the chip shows the mode)?</span></div>
+</section>
+
+<!-- 10 -->
+<section class="fix" id="fix-10">
+  <div class="fix-head"><span class="num">10</span><h2>Profile values: Estimated Duration is a list of objects, not text</h2></div>
+  <p class="why">Today <code>estimatedDuration</code> and its five children (<code>description</code>, <code>timeRequired</code>, exact, minimum and maximum duration) are six separate text rules. Nothing links the Nth description to the Nth time, so ACCT199's four lines can't become four DurationProfiles. Every layer is flat today: a rule's value is one string (<code>model.py:77</code>), the golden file has one field per value, and xtra's scorer drops any profile object except <code>creditValue</code>. In property-rules, Seth's A3.13 answer put pairing a profile's parts together out of scope.</p>
+  <div class="pair">
+    <div class="screen"><div class="cap today"><span>Today</span><span>ACCT199 · 6 rules</span></div><div class="body">
+      <div class="pg"><span class="lbl">Estimated Duration</span><br><span class="v">Total Course In-Class (Contact) Hours 54.0 - 432.0<br>Total Course Out-of-Class Hours 0.0 - 0.0<br>Total Course Lecture Hours 0.0<br>Total Course Lab Hours 432.0</span></div>
+      <div class="pg"><span class="lbl">…&gt; Description</span><br><span class="v">Total Course In-Class (Contact) Hours<br>Total Course Out-of-Class Hours<br>Total Course Lecture Hours<br>Total Course Lab Hours</span></div>
+      <div class="pg"><span class="lbl">…&gt; Time Required</span> <span class="ghost">(separate list, separate ✓/✕)</span><br><span class="v">54.0 - 432.0</span> · <span class="v">0.0 - 0.0</span> · <span class="v">0.0</span> · <span class="v">432.0</span></div>
+      <div class="ghost">Highlighting can only mark text. "This time belongs to that description" can't be said.</div>
+    </div></div>
+    <div class="screen"><div class="cap prop"><span>Proposed</span><span>one "profile list" rule</span></div><div class="body">
+      <div class="rhead"><strong>Estimated Duration <span class="meta">· DurationProfile × 4</span></strong><span class="btn">+ Add profile</span></div>
+      <table style="width:100%;border-collapse:collapse;font-size:12px">
+        <thead><tr style="text-align:left;color:var(--muted);font-size:11px"><th style="padding:4px">#</th><th>description</th><th>min / max duration</th><th></th></tr></thead>
+        <tbody>
+          <tr style="border-top:1px solid var(--line)"><td style="padding:5px 4px"><span class="num" style="font-size:10px;padding:0 6px">1</span></td><td><span class="v">Total Course In-Class (Contact) Hours</span></td><td><span class="v">54 – 432</span> <span class="meta">PT54H / PT432H</span></td><td>✓ ✕</td></tr>
+          <tr style="border-top:1px solid var(--line)"><td style="padding:5px 4px"><span class="num" style="font-size:10px;padding:0 6px">2</span></td><td><span class="v">Total Course Out-of-Class Hours</span></td><td><span class="v">0 – 0</span> <span class="meta">PT0H / PT0H</span></td><td>✓ ✕</td></tr>
+          <tr style="border-top:1px solid var(--line)"><td style="padding:5px 4px"><span class="num" style="font-size:10px;padding:0 6px">3</span></td><td><span class="v">Total Course Lecture Hours</span></td><td><span class="e" style="outline:2px solid var(--expected-ink);outline-offset:1px">0.0</span> <span class="meta">h · editing</span></td><td>✓ ✕</td></tr>
+          <tr style="border-top:1px solid var(--line)"><td style="padding:5px 4px"><span class="num" style="font-size:10px;padding:0 6px">4</span></td><td><span class="v">Total Course Lab Hours</span></td><td><span class="v">432</span> <span class="meta">PT432H</span></td><td>✓ ✕</td></tr>
+        </tbody>
+      </table>
+      <div class="meta">✓/✕ per profile. ✕ opens the profile's fields: click a cell, then highlight its text on the page (the page shows the same numbered badges). "+ Add profile" walks through the fields one at a time: highlight the description, then the time.</div>
+    </div></div>
+  </div>
+  <div class="screen"><div class="cap prop"><span>Proposed scoring</span><span>pair, then score fields</span></div><div class="body">
+    <svg viewBox="0 0 640 170" style="width:100%;max-width:720px" role="img" aria-label="Golden profiles paired with extracted profiles by description, then each field scored">
+      <g font-family="IBM Plex Sans, sans-serif" font-size="11">
+        <text x="10" y="14" fill="var(--muted)">golden (Jared)</text><text x="400" y="14" fill="var(--muted)">extracted (rule)</text>
+        <g fill="var(--paper)" stroke="var(--line)">
+          <rect x="10" y="24" width="230" height="30" rx="4"/><rect x="10" y="62" width="230" height="30" rx="4"/><rect x="10" y="100" width="230" height="30" rx="4"/>
+          <rect x="400" y="24" width="230" height="30" rx="4"/><rect x="400" y="62" width="230" height="30" rx="4"/><rect x="400" y="138" width="230" height="30" rx="4" stroke-dasharray="4 3"/>
+        </g>
+        <g fill="var(--ink)">
+          <text x="18" y="43">In-Class (Contact) · 54–432 h</text><text x="18" y="81">Out-of-Class · 0–0 h</text><text x="18" y="119">Lab · 432 h</text>
+          <text x="408" y="43">In-Class (Contact) · 54–432 h</text><text x="408" y="81">Out-of-Class Hours · 0 h</text><text x="408" y="157">Lecture · 0 h</text>
+        </g>
+        <path d="M240 39 H400" stroke="#2e9e5b" stroke-width="2"/><text x="268" y="34" fill="#2e9e5b">2/2 fields</text>
+        <path d="M240 77 H400" stroke="var(--warn)" stroke-width="2"/><text x="268" y="72" fill="var(--warn)">1/2 (time 0 ≠ 0–0)</text>
+        <text x="250" y="119" fill="var(--bad)">missed</text><text x="300" y="157" fill="var(--muted)">extra</text>
+      </g>
+    </svg>
+    <div class="meta">1) Pair golden and extracted profiles one-to-one by their description (the same greedy similarity pairing xtra uses). 2) Score each paired field: text by similarity, numbers and ranges by value. 3) An unpaired golden profile counts as missed and an unpaired extracted one as extra. The result: field recall 3/6 (missed fields count against it), profile precision 2/3.</div>
+  </div></div>
+  <div class="toast warn"><b>CTDL check:</b> <code>timeRequired</code> holds one ISO 8601 duration (<code>PT54H</code>), never a range. In CTDL, Jared's "timeRequired 54.0 - 432.0" is <code>minimumDuration PT54H</code> + <code>maximumDuration PT432H</code>. A single number such as Lab 432.0 can be <code>exactDuration</code> or <code>timeRequired</code>.</div>
+  <div class="q"><span><b>Q10.1</b> Which of ACCT199's four lines are profiles? Jared's example lists two (In-Class, Out-of-Class), and Lecture and Lab look like a breakdown of In-Class.</span><span><b>Q10.2</b> Who owns reversing A3.13 (you or Seth), and does it cover all six profile properties or start with Duration and Credit Value?</span><span><b>Q10.3</b> Should extra profiles count against a score (precision), or only missed ones (as xtra does today)?</span><span><b>Q10.4</b> Should the golden value be the CTDL shape (<code>minimumDuration PT54H</code>), the page's words ("54.0 - 432.0"), or both?</span></div>
+</section>
+
+<!-- 10, Q10.4 example -->
+<section class="fix" id="fix-10-score">
+  <div class="fix-head"><span class="num">10 · Q10.4</span><h2>Should grabbing too much cost a rule points?</h2></div>
+  <p class="why">ACCT199's "Units and Hours" card prints a credit line, <code>Minimum Credit Units 1.0</code>, right beside the four duration lines. A sloppy rule can take it as a fifth duration.</p>
+  <div class="pair">
+    <div class="screen"><div class="cap today"><span>Rule A · sloppy</span></div><div class="body">
+      <div class="pg"><span class="v">In-Class (Contact) 54.0 - 432.0</span><br><span class="v">Out-of-Class 0.0 - 0.0</span><br><span class="v">Lecture 0.0</span><br><span class="v">Lab 432.0</span><br><span class="v" style="outline:2px dashed var(--bad);outline-offset:1px">Minimum Credit Units 1.0</span> <span class="meta" style="color:var(--bad)">← not a duration</span></div>
+      <div class="chips"><span class="chip">today (xtra): <b>4/4 = 100%</b></span><span class="chip">with extras: found 4/4 · right 4/5 · <b>F1 89%</b></span></div>
+    </div></div>
+    <div class="screen"><div class="cap prop"><span>Rule B · exact</span></div><div class="body">
+      <div class="pg"><span class="v">In-Class (Contact) 54.0 - 432.0</span><br><span class="v">Out-of-Class 0.0 - 0.0</span><br><span class="v">Lecture 0.0</span><br><span class="v">Lab 432.0</span></div>
+      <div class="chips"><span class="chip">today (xtra): <b>4/4 = 100%</b></span><span class="chip">with extras: <b>100%</b></span></div>
+    </div></div>
+  </div>
+  <div class="q"><span><b>Q10.4</b> Today both rules score 100%. Should B beat A? Default: yes, report "found" and "right" separately, so Claude can't improve a rule by grabbing more.</span></div>
+</section>
+
+<!-- 11 -->
+<section class="fix" id="fix-11">
+  <div class="fix-head"><span class="num">11</span><h2>Watching Claude, then finding its report</h2></div>
+  <p class="why">Watch streams progress notes. When the run ends, the panel only changes its title and shows the one-line outcome. The full report (what went wrong, what changed, per rule) lives under <i>Past AI runs</i> → pick the run (<code>RunsPanel.tsx</code>), which you only reach after closing Watch.</p>
+  <div class="pair">
+    <div class="screen"><div class="cap today"><span>Today</span><span>run just finished</span></div><div class="body">
+      <div class="rhead"><strong>Finished</strong><span class="btn">×</span></div>
+      <div class="meta">State: Finished: Published v9; 3 of 5 rules improved</div>
+      <div class="timeline"><time>16:41</time><span>Drafting course-description v4</span><time>16:52</time><span>Scored: 18/20 on sample</span><time>17:03</time><span>Published ruleset v9</span></div>
+      <div class="ghost">Where's the report? → close → Past AI runs → pick the run → scroll.</div>
+      <div><span class="btn" style="opacity:.6">Past AI runs</span></div>
+    </div></div>
+    <div class="screen"><div class="cap prop"><span>Proposed</span><span>same panel, in place</span></div><div class="body">
+      <div class="toast good"><b>✓ Claude finished: 3 of 5 rules improved</b> <span class="btn primary">Compare v8 → v9</span></div>
+      <div class="pg" style="font-size:12px"><b>Report</b><br>
+        <b>course-description</b> v3 → v4: stopped at "Advisory:" lines (DA205 fixed). 18/20 → 20/20<br>
+        <b>course-entry-condition-description</b>: unchanged. Jared's ✗ on ACCT199 matches the value; asked for review.<br>
+        <b>course-in-catalog</b> v1 → v2: …</div>
+      <details><summary class="meta">Progress notes (14)</summary></details>
+      <div class="meta">When you're not watching, the bar reads "Claude finished · <u>Read the report</u>" and opens this same view.</div>
+    </div></div>
+  </div>
+  <div class="q"><span><b>Q11.1</b> When a watched run ends, should the panel become the report in place? Default: yes.</span><span><b>Q11.2</b> Should "Details" on the bar become "Read the report", opening the same view? Default: yes.</span></div>
+</section>
+
+<section class="fix bonus" id="bonus">
+  <div class="fix-head"><span class="num">bonus</span><h2>Found during the health check: a crash in the new rule cache</h2></div>
+  <p class="why"><code>GET /api/catalogs/avc/annotators</code> returned 500 with <code>KeyError: 'course-keyword'</code> at <code>review.py:75</code>. <code>_Recent</code>, the per-rule LRU added in #353, is shared by request threads without a lock, so two requests evicting at once delete the same key. It's intermittent and shows up as an empty "Annotated by" list. Fix: a lock around <code>_Recent</code>.</p>
+</section>
+</div>

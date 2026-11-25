@@ -13,8 +13,13 @@ INVENTORY: dict[str, tuple[tuple[str, ...], str, str | None]] = {
     "course_credits_unit": (("Course",), "string", "ceterms:creditUnitType"),
     "course_prerequisites": (("Course",), "string", "ceterms:requires"),
     "course_corequisites": (("Course",), "string", None),
-    "course_lecture_hours": (("Course",), "number", None),
-    "course_lab_hours": (("Course",), "number", None),
+    # Each printed hours line is one DurationProfile in estimatedDuration.
+    "course_lecture_hours": (
+        ("Course",),
+        "number",
+        "ceterms:estimatedDuration",
+    ),
+    "course_lab_hours": (("Course",), "number", "ceterms:estimatedDuration"),
     "course_ceu_credits": (("Course",), "number", None),
     "course_program": (("Course",), "string", None),
     "course_department": (("Course",), "string", None),

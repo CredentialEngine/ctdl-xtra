@@ -1,0 +1,266 @@
+"""Evals API (Evals spec §4): extract outputs, and scores of one against a golden dataset.
+
+- `GET  /catalogs/{c}/extract-outputs`: the outputs the Studio has seen (copied), newest first, with their scores;
+  a new one is copied and scored against the latest golden dataset.
+- `POST /catalogs/{c}/scores` `{golden, output, by}`: the score of that pair (the existing one, or `running`).
+- `GET  /catalogs/{c}/scores`, `/scores/{id}`, `/scores/{id}/values` (one basis, narrowed by a column, a subject and
+  an outcome, worst first, a page at a time, optionally grouped). Each row carries its Studio match (`rule_id`,
+  `occurrence_key`, `value_index`, through the golden dataset's lineage), where a note or a verdict on it goes.
+- `GET  /catalogs/{c}/scores/{id}/wrong` (sme-fixes spec §8.4): "Where it's wrong", every unit that isn't a match
+  grouped by outcome × field × a grouping key, biggest group first, each with an example and its courses' Studio rows.
+- `GET  /catalogs-summary?basis=human|rule`: the home page's catalogs table (§6.1, §6.2): per catalog with rules, each
+  column's status, its values in the latest golden dataset (human-reviewed, rule-labelled) and the values its rule
+  found, and the exact matches of xtra's latest extract output against the latest golden dataset.
+"""
+
+from __future__ import annotations
+
+import threading
+from collections import Counter
+from typing import Annotated
+
+from fastapi import APIRouter, Body, HTTPException, Request
+
+from .. import manifest, model, scores, telemetry
+from ..catalogs import CATALOGS
+from ..errors import UserError
+from ..review import human_reviewed_counts
+from .jobs import ScoreJobs
+from .state import REQUEST_CLASS, not_found, studio
+
+router = APIRouter(prefix="/api")
+PAGE = 50
+
+
+def jobs(request: Request) -> ScoreJobs:
+    return request.app.state.scores
+
+
+def _brief(doc: dict) -> dict:
+    res = doc.get("results") or {}
+    return {"id": doc["id"], "status": doc["status"], "golden": doc["golden"]["id"], "output": doc["output"]["id"],
+            "created_at": doc["created_at"], "error": doc.get("error"),
+            **{f"{b}_rate": (res.get(b) or {}).get("exact_match_rate") for b in scores.BASES},
+            **{f"{b}_values": (res.get(b) or {}).get("values") for b in scores.BASES},
+            **{f"{b}_outcomes": (res.get(b) or {}).get("outcomes") for b in scores.BASES},
+            **{f"{b}_found": (res.get(b) or {}).get("found") for b in scores.BASES},
+            **{f"{b}_right": (res.get(b) or {}).get("right") for b in scores.BASES},
+            "golden_kind": doc["golden"]["kind"], "golden_as_of": doc["golden"].get("as_of"),
+            "finished_at": doc.get("finished_at"), "slot_names": doc.get("slot_names")}
+
+
+@router.get("/catalogs/{catalog}/extract-outputs")
+def extract_outputs(request: Request, catalog: str) -> dict:
+    ctx = studio(request).ctx(catalog)
+    error = _see_new_output(request, ctx)
+    by_output = _scores_by_output(ctx)
+    telemetry.set({"ce.evals.outputs": len(scores.outputs(ctx)), "ce.evals.scores": sum(map(len, by_output.values())),
+                   "ce.error.detail": error})
+    return {"outputs": [{**o, "scores": by_output.get(o["id"], [])} for o in reversed(scores.outputs(ctx))],
+            "latest_golden": scores.latest_golden(ctx), "goldens": scores.goldens(ctx), "error": error,
+            "running": jobs(request).busy(ctx.catalog)}
+
+
+def _see_new_output(request: Request, ctx) -> str | None:
+    """Registers xtra's latest extract output and, when it is new, scores it against the latest golden dataset.
+    Returns why it couldn't, if it couldn't."""
+    try:
+        entry, new = scores.see_output(ctx)
+        if new and scores.latest_golden(ctx):
+            jobs(request)._quietly(ctx, None, "the Studio", f"a new extract output, {entry['id']}")
+    except UserError as e:
+        return str(e)
+    return None
+
+
+def _scores_by_output(ctx) -> dict[str, list[dict]]:
+    by_output: dict[str, list[dict]] = {}
+    for doc in scores.all_scores(ctx):
+        by_output.setdefault(doc["output"]["id"], []).append(_brief(doc))
+    return by_output
+
+
+@router.get("/catalogs/{catalog}/scores")
+def list_scores(request: Request, catalog: str) -> list[dict]:
+    return [_brief(d) for d in scores.all_scores(studio(request).ctx(catalog))]
+
+
+@router.post("/catalogs/{catalog}/scores")
+def start_score(request: Request, catalog: str, body: Annotated[dict, Body()]) -> dict:
+    """`golden`: ruleset-vN (default: the latest), human-reviewed or a draft rs-NNNN; `output`: a copy's id (default:
+    the latest)."""
+    ctx = studio(request).ctx(catalog)
+    try:
+        return jobs(request).start(ctx, body.get("golden"), body.get("output"), by=body.get("by") or "",
+                                   reason="Score in the Studio")
+    except UserError as e:
+        raise HTTPException(409 if "still running" in str(e) else 400, str(e)) from None
+
+
+def _doc(request: Request, catalog: str, sid: str):
+    ctx = studio(request).ctx(catalog)
+    try:
+        return ctx, scores.read(ctx, sid)
+    except UserError as e:
+        raise not_found(str(e)) from None
+
+
+@router.get("/catalogs/{catalog}/scores/{sid}")
+def get_score(request: Request, catalog: str, sid: str) -> dict:
+    return _doc(request, catalog, sid)[1]
+
+
+def _counts(rows: list[dict]) -> dict:
+    return scores.counts(rows)
+
+
+GROUPS = ("column", "subject")
+
+
+def _rows(request: Request, ctx, doc: dict, sid: str) -> list[dict]:
+    """A done score's values.parquet rows, each with a stable key, its subject and its Studio match; kept."""
+    st = studio(request)
+    key = ("score-values", ctx.catalog, ctx.cls, sid)
+    if key not in st.cache:  # values.parquet doesn't change once the score is done
+        rows, seen = scores.values(ctx, sid), Counter()
+        for r in rows:  # a stable key per value: page, course, column, and which of its values
+            for k in ("unit", "field", "reason"):  # a score from before sme-fixes has none of these
+                r.setdefault(k, None)
+            k = (r["basis"], r["page_stem"], r["entity"], r["column"])
+            r["key"] = f"{r['page_stem']}|{r['entity']}|{r['column']}|{seen[k]}"
+            r["subject"] = scores.subject(r["golden_record_id"])
+            seen[k] += 1
+        scores.studio_targets(ctx, doc, rows)
+        st.cache[key] = rows
+    return st.cache[key]
+
+
+def _done(request: Request, catalog: str, sid: str):
+    ctx, doc = _doc(request, catalog, sid)
+    if doc["status"] != "done":
+        raise HTTPException(409, f"{sid} is {doc['status']}")
+    return ctx, doc
+
+
+@router.get("/catalogs/{catalog}/scores/{sid}/wrong")
+def where_wrong(request: Request, catalog: str, sid: str, basis: str = "human", column: str | None = None,
+                key: str = "auto") -> dict:
+    """Where it's wrong: one basis's units that aren't a match (in a column, or all), grouped (`scores.wrong_groups`).
+    `key`: auto · label · shape · diff · subject."""
+    if key not in scores.WRONG_KEYS:
+        raise HTTPException(422, f"key must be one of {', '.join(scores.WRONG_KEYS)}")
+    ctx, doc = _done(request, catalog, sid)
+    rows = [r for r in _rows(request, ctx, doc, sid) if r["basis"] == basis and (not column or r["column"] == column)]
+    return {"basis": basis, "column": column, "key": key, "groups": scores.wrong_groups(rows, key)}
+
+
+@router.get("/catalogs/{catalog}/scores/{sid}/values")
+def score_values(request: Request, catalog: str, sid: str, basis: str = "human", column: str | None = None,
+                 subject: str | None = None, outcome: str | None = None, group: str | None = None,
+                 offset: int = 0) -> dict:
+    """`group` (column · subject): the values narrowed by everything but that, in groups, each with its counts."""
+    ctx, doc = _done(request, catalog, sid)
+    if group not in (None, "", *GROUPS):
+        raise HTTPException(422, f"group must be one of {', '.join(GROUPS)}")
+    mine = [r for r in _rows(request, ctx, doc, sid) if r["basis"] == basis]
+    in_col = [r for r in mine if (not column or r["column"] == column) and (not subject or r["subject"] == subject)]
+    kept = [r for r in in_col if not outcome or r["outcome"] == outcome]
+    return {"basis": basis, "result": doc["results"].get(basis), "total": _counts(mine),
+            "columns": _per_column(mine), "outcomes": _counts(in_col),
+            "groups": _groups(mine, group, column, subject, outcome) if group else None,
+            "rows": {"total": len(kept), "offset": offset, "page": PAGE, "items": _worst_first(kept)[offset:offset + PAGE]}}
+
+
+def _per_column(rows: list[dict]) -> list[dict]:
+    by_col: dict[str, list[dict]] = {}
+    for r in rows:
+        by_col.setdefault(r["column"], []).append(r)
+    return [{"column": c, **_counts(rs)} for c, rs in sorted(by_col.items())]
+
+
+def _groups(rows: list[dict], group: str, column: str | None, subject: str | None, outcome: str | None) -> list[dict]:
+    """The rows narrowed by every filter but the one they're grouped by, in groups, biggest first."""
+    groups: dict[str, list[dict]] = {}
+    for r in rows:
+        if (outcome and r["outcome"] != outcome) or (group != "column" and column and r["column"] != column) \
+                or (group != "subject" and subject and r["subject"] != subject):
+            continue
+        groups.setdefault(r[group] or "—", []).append(r)
+    return sorted(({"name": n, **_counts(rs)} for n, rs in groups.items()), key=lambda x: (-x["values"], x["name"]))
+
+
+def _worst_first(rows: list[dict]) -> list[dict]:
+    order = {o: i for i, o in enumerate(("missing", "wrong", "extra", "partial", "unsure", "match"))}
+    return sorted(rows, key=lambda r: (order[r["outcome"]], r["similarity"] if r["similarity"] is not None else 0,
+                                       r["page_stem"], r["entity"]))
+
+
+@router.get("/catalogs-summary")
+def catalogs_summary(request: Request, basis: str = "human") -> dict:
+    """For the request's class (`?class=`, Course when none): the columns in the Rules tab's tiers (Required, Phase 1,
+    Phase 2, each column's `tiers` entry; within a tier, the Studio's columns by values experts reviewed), and per
+    catalog with the class's rules: each column's status and its latest score on `basis` (None: not scored yet).
+    Catalogs without the class's rules are left out: the picker's list (`/catalogs`) says what they are."""
+    if basis not in scores.BASES:
+        raise HTTPException(422, f"basis must be one of {', '.join(scores.BASES)}")
+    return home_summary(studio(request), REQUEST_CLASS.get(), basis)
+
+
+def home_summary(st, cls: str, basis: str = "human") -> dict:
+    """`/catalogs-summary` for a class. Cold, it loads every catalog's latest extraction and works out its golden
+    dataset's values (a minute or two on the biggest catalogs); `st.cache` keeps each catalog's part until it changes,
+    and the server works it out once when it starts (`Studio.warm_home`), so the first visit doesn't wait for it.
+    One at a time per class: a visit while it's being worked out waits for it, then reads the cache, rather than
+    working it all out a second time alongside."""
+    with _HOME_LOCKS.setdefault(cls, threading.Lock()):
+        return _home_summary(st, cls, basis)
+
+
+_HOME_LOCKS: dict[str, threading.Lock] = {}
+
+
+def _home_summary(st, cls: str, basis: str) -> dict:
+    entries = st.ctx(next(iter(CATALOGS))).manifest()["catalogs"]
+    out = {e["catalog"]: _catalog_summary(st, e["catalog"], cls, basis) for e in entries if _has_extraction(e, cls)}
+    root = st.ctx(next(iter(CATALOGS))).root
+    counts = human_reviewed_counts(root, [e["catalog"] for e in entries if manifest.has_rules(e, cls)],
+                                   lambda c: st.ctx(c, cls))
+    columns = scores.columns_in_order(counts, cls)
+    return {"basis": basis, "cls": cls, "columns": columns, "labels": scores.column_labels(cls),
+            "tiers": scores.column_tiers(cls),
+            "required": scores.required_columns(cls), "properties": len(columns), "catalogs": out}
+
+
+def _has_extraction(entry: dict, cls: str) -> bool:
+    """The catalog has the class's rules and an extraction of them in its current crawl."""
+    crawl = next((c for c in entry["crawls"] if c["crawl"] == entry.get("current_crawl")), None)
+    return bool(manifest.has_rules(entry, cls) and crawl and manifest.crawl_class(crawl, cls, create=False)["extractions"])
+
+
+def _catalog_summary(st, catalog: str, cls: str, basis: str) -> dict:
+    try:
+        ctx = st.ctx(catalog, cls)
+        cols = scores.column_statuses(ctx, st.cache)
+        return {"columns": cols, "coverage": scores.coverage(cols, cls), "score": scores.latest_score(ctx, basis, st.cache)}
+    except UserError as exc:
+        return {"columns": {}, "coverage": 0, "score": None, "error": str(exc)}
+
+
+@router.get("/score-history")
+def score_history(request: Request, last: int = 7) -> dict:
+    """The home page's xtra score views (LearningProgram spec §2), for the request's class: its properties in the
+    Rules tab's order with their tiers, and per catalog with the class's rules, each property's last `last` scores
+    (Golden and Silver counts, exact and partial apart, what scored it)."""
+    st = studio(request)
+    cls = REQUEST_CLASS.get()
+    entries = st.ctx(next(iter(CATALOGS))).manifest()["catalogs"]
+    cats = [e["catalog"] for e in entries if manifest.has_rules(e, cls)]
+    root = st.ctx(next(iter(CATALOGS))).root
+    tiers, labels = scores.column_tiers(cls), scores.column_labels(cls)
+    terms = {scores.column_key(label, t): t for label, t in model.properties_of(cls)}
+    props = [{"column": c, "label": labels[c], "term": terms.get(c), "tier": tiers[c]}
+             for c in scores.columns_in_order(human_reviewed_counts(root, cats, st.ctx), cls)]
+    src = scores.xtra(st.ctx(cats[0])) if cats else None
+    return {"cls": cls, "target": scores.TARGET, "properties": props, "catalogs": cats,
+            "history": scores.history_all(src, cls, cats, last) if src else {}}
+

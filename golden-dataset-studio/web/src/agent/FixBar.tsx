@@ -1,0 +1,52 @@
+// The fix bar at the bottom of the Rules tab's rule list (spec §1): how many rules need work and one button that hands
+// them all to Claude. It sits after the rules so that labeling comes first; a run works on every rule at once.
+import type { RulesResponse } from "../api/types";
+import { fmt } from "../shell/ui";
+import { RunButton } from "./RunButton";
+import { openRuns } from "./api";
+import { openRunDialog } from "./RunDialog";
+import "./agent.css";
+
+export function FixBar({ catalog, name, rules }: { catalog: string; name: string; rules: RulesResponse }) {
+  const n = fixCounts(rules);
+  if (!n.rules) return <ClearFixBar />;
+  return (
+    <div className="fix-bar" data-testid="fix-bar" data-tour="fix-bar">
+      <FixSummary counts={n} />
+      <RunButton catalog={catalog} scope={{ kind: "needs_work" }} label="Improve rules with AI…" onAsk={() => openRunDialog()}
+        confirm={`Improve ${plural(n.rules, "rule")} on ${name} with Claude? It gets every open wrong and missing verdict.`} />
+      {pastRuns}
+    </div>
+  );
+}
+
+export function fixCounts(rules: RulesResponse) {
+  const all = rules.groups.flatMap((g) => g.rules);
+  const needing = all.filter((r) => r.status === "needs work");
+  return {
+    rules: needing.length,
+    wrong: needing.reduce((n, r) => n + r.open_wrong, 0),
+    missing: needing.reduce((n, r) => n + r.open_missing, 0),
+    questions: all.reduce((n, r) => n + (r.questions ?? 0), 0),
+  };
+}
+
+const pastRuns = <button className="linkish fb-past" onClick={() => openRuns()}>Past AI runs</button>;
+
+function ClearFixBar() {
+  return <div className="fix-bar is-clear" data-testid="fix-bar">
+    <span className="fb-t">Nothing to fix: no rule has open wrong or missing verdicts.</span>{pastRuns}</div>;
+}
+
+function FixSummary({ counts: n }: { counts: ReturnType<typeof fixCounts> }) {
+  const detail = [n.wrong && `${fmt(n.wrong)} wrong`, n.missing && `${fmt(n.missing)} missing`,
+                  n.questions && plural(n.questions, "question") + " for the institution"].filter(Boolean).join(" · ");
+  return (
+    <div className="fb-t"><b>{plural(n.rules, "rule")} need{n.rules === 1 ? "s" : ""} work</b>
+      {detail && <span className="faint"> · {detail}</span>}</div>
+  );
+}
+
+function plural(k: number, w: string): string {
+  return `${fmt(k)} ${w}${k === 1 ? "" : "s"}`;
+}

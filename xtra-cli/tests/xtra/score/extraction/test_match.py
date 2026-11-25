@@ -100,7 +100,12 @@ def test_exactly_writes_its_own_report_beside_the_records(
 
     assert result.exit_code == 0, result.output
     report = read_report(tmp_path, "exact")
-    assert report["outcomes"] == {"match": 1, "mismatch": 0, "missing": 1}
+    assert report["outcomes"] == {
+        "match": 1,
+        "mismatch": 0,
+        "missing": 1,
+        "unsure": 0,
+    }
     assert report["by_property"]["ceterms:inLanguage"]["missing"] == 1
     assert not (
         tmp_path / "data" / extraction_match_report_key(FOLDER, RUN, "partial")
@@ -126,7 +131,12 @@ def test_a_page_a_whole_catalog_run_never_wrote_is_missing(
 
     assert result.exit_code == 0, result.output
     report = read_report(tmp_path, "exact")
-    assert report["outcomes"] == {"match": 1, "mismatch": 0, "missing": 1}
+    assert report["outcomes"] == {
+        "match": 1,
+        "mismatch": 0,
+        "missing": 1,
+        "unsure": 0,
+    }
     assert report["pages_not_extracted"] == 1
     assert json.loads(result.stdout)["pages_not_extracted"] == 1
 
@@ -147,7 +157,12 @@ def test_partially_writes_its_own_report_and_skips_exact_matches(
     assert result.exit_code == 0, result.output
     report = read_report(tmp_path, "partial")
     assert report["excluded_exact"] == 1
-    assert report["outcomes"] == {"partial": 1, "wrong": 0, "missing": 0}
+    assert report["outcomes"] == {
+        "partial": 1,
+        "wrong": 0,
+        "missing": 0,
+        "unsure": 0,
+    }
 
 
 def test_stdout_is_json_and_the_table_goes_to_stderr(tmp_path: Path) -> None:
@@ -241,6 +256,37 @@ def test_without_a_baseline_uri_it_says_how_to_set_one(tmp_path: Path) -> None:
     assert "--baseline-uri" in result.output
 
 
+def test_the_cli_reports_found_right_extras_and_unsure(tmp_path: Path) -> None:
+    """The record's code answers a wrong baseline code; the baseline says
+    the prerequisite isn't on the page and the record says nothing."""
+    seed(
+        tmp_path,
+        [
+            field("ceterms:name", "Composition"),
+            field("ceterms:codedNotation", "MATH999"),
+            {
+                "ctdl_property": "ceterms:prerequisite",
+                "value": None,
+                "absent": True,
+            },
+        ],
+    )
+
+    result = match(tmp_path, "--exactly")
+
+    assert result.exit_code == 0, result.stderr
+    payload = json.loads(result.stdout)
+    assert payload["found"] == round(1 / 3, 4)
+    assert payload["right"] == 0.5
+    assert payload["extras"] == 0
+    assert payload["unsure"] == 1
+    assert payload["entities_exact"] == 0.0
+    report = read_report(tmp_path, "exact")
+    assert report["schema"] == "xtra-extraction-match-report-2"
+    assert report["by_property"]["ceterms:name"]["found"] == 1.0
+    assert "found (recall)" in result.stderr
+
+
 def test_nothing_is_written_to_records(tmp_path: Path) -> None:
     seed(tmp_path, [field("ceterms:name", "Composition")])
 
@@ -289,7 +335,12 @@ def test_property_writes_its_own_report_and_leaves_the_full_one(
             )
         ).read_text(encoding="utf-8")
     )
-    assert report["outcomes"] == {"match": 1, "mismatch": 0, "missing": 0}
+    assert report["outcomes"] == {
+        "match": 1,
+        "mismatch": 0,
+        "missing": 0,
+        "unsure": 0,
+    }
     assert read_report(tmp_path, "exact")["fields_total"] == 2
     assert json.loads(result.stdout)["ctdl_properties"] == ["ceterms:name"]
     assert "Extraction match (exact, ceterms:name)" in result.stderr

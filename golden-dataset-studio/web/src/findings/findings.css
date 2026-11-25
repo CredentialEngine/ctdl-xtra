@@ -1,0 +1,74 @@
+/* Findings, property status and discussion (learning-programs Phase 6): borders, not fills. */
+.fd-panel { position: fixed; z-index: 40; top: 58px; right: 0; bottom: 34px; width: min(560px, 46vw); overflow: auto;
+  padding: 22px 26px 28px; border-left: 1px solid var(--line); background: var(--surface);
+  box-shadow: -8px 0 24px rgb(0 0 0 / 6%); }
+.fd-x { position: absolute; top: 14px; right: 16px; }
+.fd-h { margin: 0 24px 4px 0; font-size: 19px; line-height: 1.3; }
+.fd-c { margin-right: 12px; font-size: 15px; }
+.fd-sub { margin: 0 0 14px; font-size: 13px; }
+.fd-l { margin: 16px 0 6px; font-size: 12px; font-weight: 500; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.fd-seg button { text-transform: none; }
+.fd-box { width: 100%; box-sizing: border-box; padding: 9px 12px; border: 1px solid var(--line); border-radius: 8px;
+  background: transparent; font: inherit; font-size: 13.5px; color: var(--ink); line-height: 1.5; }
+.fd-ta { resize: vertical; white-space: pre-wrap; overflow: hidden; min-height: 60px; }
+.fd-read { cursor: text; overflow-wrap: anywhere; }
+.fd-read:hover { border-color: var(--line-2, #d0d5dd); }
+.fd-read.empty { padding: 6px 12px; }
+.fd-read .md > :first-child { margin-top: 0; } .fd-read .md > :last-child { margin-bottom: 0; }
+.fd-read .md p, .fd-read .md ul { margin: 0 0 6px; }
+.fd-read .md table { font-size: 12.5px; }
+.fd-ta:focus, .fd-reply:focus, .fd-new input:focus { outline: none; border-color: var(--accent); }
+.fd-units table { width: 100%; border-collapse: collapse; }
+.fd-units th { font-weight: 500; color: var(--muted); font-size: 12px; padding: 2px 4px; }
+.fd-units td { padding: 3px 4px; }
+.fd-units .r { text-align: right; font-variant-numeric: tabular-nums; width: 64px; }
+.fd-units tfoot td { padding-top: 8px; font-size: 12px; }
+.fd-units p { margin: 0; }
+.fd-new { display: flex; gap: 8px; margin: 0 30px 6px 0; }
+.fd-new input { height: 34px; padding: 0 10px; border: 1px solid var(--line); border-radius: 8px; font: inherit;
+  background: transparent; color: inherit; }
+.fd-code { width: 70px; }
+.fd-title { flex: 1; }
+.fd-save { margin: 14px 0 0; display: flex; justify-content: flex-end; }
+.fd-thread { border-top: 1px solid var(--line); }
+.fd-cm { padding: 10px 0; border-bottom: 1px solid var(--line); font-size: 13.5px; }
+.fd-cm p { margin: 4px 0 0; white-space: pre-wrap; }
+.fd-reply { width: 100%; box-sizing: border-box; height: 34px; margin-top: 10px; padding: 0 10px; border: 1px solid var(--line);
+  border-radius: 8px; font: inherit; background: transparent; color: inherit; }
+
+/* the review page: status at the top, findings below the score table */
+.fd-status { display: flex; align-items: center; gap: 14px; margin: 0 0 22px; padding: 10px 14px; border: 1px solid var(--line);
+  border-radius: 8px; font-size: 14px; }
+.fd-sec { margin: 8px 0 30px; }
+.fd-table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+.fd-table th { padding: 6px 8px; text-align: left; font-weight: 400; color: var(--muted); border-bottom: 1px solid var(--line); white-space: nowrap; }
+.fd-table td { padding: 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.fd-table tbody tr { cursor: pointer; }
+.fd-table tbody tr:hover td { background: var(--hover, rgb(0 0 0 / 3%)); }
+.fd-table .r { text-align: right; } .fd-table .num { white-space: nowrap; font-variant-numeric: tabular-nums; }
+.fd-table .b { font-weight: 600; }
+.fd-table .fd-t { min-width: 260px; }
+.fd-kind { font: 12px var(--mono); padding: 1px 5px; border: 1px solid var(--line); border-radius: 4px; }
+.fd-kind.missing { color: var(--o-missing); border-color: color-mix(in srgb, var(--o-missing) 40%, transparent); }
+.fd-kind.mismatch { color: #b7791f; border-color: color-mix(in srgb, #b7791f 40%, transparent); }
+.fd-state.fixed { color: var(--green); }
+.fd-n { white-space: nowrap; } .fd-n .ico { display: inline-flex; vertical-align: -2px; margin-right: 4px; }
+.fd-n .ico svg { width: 13px; height: 13px; }
+
+/* Where it's wrong: the Finding column */
+.fd-cell { min-width: 200px; }
+.fd-chip { display: flex; gap: 8px; align-items: baseline; width: 100%; padding: 6px 9px; border: 1px solid var(--line);
+  border-radius: 8px; background: transparent; font: inherit; font-size: 13px; text-align: left; color: var(--ink); cursor: pointer; }
+.fd-chip:hover { border-color: var(--accent); }
+.fd-chip .w { margin-left: auto; color: var(--muted); font-size: 12px; }
+.fd-add, .fd-disc { display: inline-flex; align-items: center; gap: 5px; padding: 2px 0; border: 0; background: none; font: inherit;
+  font-size: 13px; color: var(--muted); cursor: pointer; }
+.fd-add:hover, .fd-disc:hover { color: var(--accent); }
+.fd-disc { margin-top: 6px; } .fd-disc .ico svg { width: 13px; height: 13px; display: block; }
+.fd-menu { position: absolute; z-index: 30; margin-top: 4px; min-width: 260px; padding: 4px; border: 1px solid var(--line);
+  border-radius: 8px; background: var(--surface); box-shadow: 0 8px 24px rgb(0 0 0 / 10%); }
+.fd-menu button { display: block; width: 100%; padding: 6px 8px; border: 0; border-radius: 6px; background: none;
+  font: inherit; font-size: 13px; text-align: left; color: inherit; cursor: pointer; }
+.fd-menu button:hover { background: var(--hover, rgb(0 0 0 / 4%)); }
+.sv-status { margin-left: 8px; font: 600 12px var(--mono); white-space: nowrap; display: inline-block; }
+.sv-status.done { color: var(--green); } .sv-status.review { color: #b7791f; }

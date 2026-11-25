@@ -1,0 +1,47 @@
+--- /dev/fd/12	2026-10-26 14:17:44
++++ /dev/fd/13	2026-10-26 14:17:44
+@@ -1,6 +1,6 @@
+ {
+     "ruleset_id": "ccsf-curricunet-com-catalog",
+-    "version": 2,
++    "version": 3,
+     "catalog_folder": "ccsf-curricunet-com-catalog",
+     "entity_type": "Course",
+     "content_root": "#content-body",
+@@ -399,11 +399,34 @@
+                 "repeat": ".course-entry",
+                 "selector": ".block-entry-units-display",
+                 "regex": "^\\s*(\\d+(?:\\.\\d+)?)\\s*$",
+-                "group": 1
++                "group": 1,
++                "repeat_filter": {
++                    "selector": ".course-entry-subject:not([title$='Noncredit'])",
++                    "regex": "\\S"
++                }
+             },
+-            "description": "Units shown at the end of a program requirement row.",
++            "description": "Units shown at the end of a program requirement row, for credit courses only. Noncredit rows (subject title '... - Noncredit') show contact HOURS in that column, which is not a credit value.",
+             "example_input": "1.0",
+             "example_output": "1.0"
++        },
++        {
++            "entity_type": "Rule",
++            "rule_id": "stub-credit-value-noncredit",
++            "rule_type": "constant",
++            "canonical_label": "Credit Value",
++            "ctdl_property": "ceterms:creditValue",
++            "applies_to": [
++                "label-course-on-program-page"
++            ],
++            "properties": {
++                "repeat": ".course-entry",
++                "repeat_filter": {
++                    "selector": ".course-entry-subject[title$='Noncredit']",
++                    "regex": "\\S"
++                },
++                "value": "0.0"
++            },
++            "description": "A noncredit course listed on a program page carries 0.0 credits, as its department page shows '(0.0)'. The number in its row is contact hours, not units."
+         },
+         {
+             "entity_type": "Rule",

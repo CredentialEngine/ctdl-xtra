@@ -1,0 +1,640 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Evals mockups v3</title>
+<style>
+  :root { --bg:#f5f6f8; --surface:#fff; --s2:#f9fafb; --line:#e4e7ec; --line2:#d0d5dd; --ink:#101828; --ink2:#344054;
+          --muted:#667085; --faint:#98a2b3; --accent:#2f54eb; --accent-soft:#eef2ff;
+          --missing:#d03b3b; --wrong:#ec835a; --partial:#fab219; --match:#0ca30c; --mono:ui-monospace,SFMono-Regular,Menlo,monospace; }
+  * { box-sizing:border-box; }
+  body { margin:0; font:13px/1.45 Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; color:var(--ink); background:var(--bg); }
+  .shot { width:1360px; margin:0 0 40px; background:var(--bg); position:relative; }
+  .top { height:48px; display:flex; align-items:center; gap:18px; padding:0 16px; background:var(--surface); border-bottom:1px solid var(--line); }
+  .brand { font-weight:650; font-size:14px; display:flex; gap:8px; align-items:center; }
+  .brand i { width:18px; height:18px; background:#c9a227; border-radius:4px; display:inline-block; }
+  .tabs { margin-left:auto; display:flex; gap:2px; }
+  .tabs a { color:var(--muted); font-weight:500; padding:6px 12px; border-radius:6px; }
+  .tabs a.on { color:var(--ink); background:var(--accent-soft); box-shadow:inset 0 -2px 0 var(--accent); }
+  .page { padding:22px 28px 30px; }
+  h1 { font-size:20px; margin:0; }
+  .row { display:flex; align-items:center; gap:14px; }
+  .muted { color:var(--muted); } .faint { color:var(--faint); } .mono { font-family:var(--mono); font-size:12px; }
+  .seg { display:inline-flex; border:1px solid var(--line2); border-radius:7px; overflow:hidden; background:var(--surface); }
+  .seg b { font-weight:500; padding:5px 12px; color:var(--muted); font-size:12.5px; }
+  .seg b + b { border-left:1px solid var(--line); }
+  .seg b.on { background:var(--accent); color:#fff; }
+  .seg.sm b { padding:2px 9px; font-size:12px; }
+  .btn { border:1px solid var(--line2); background:var(--surface); border-radius:7px; padding:5px 12px; font-weight:500; color:var(--ink2); font-size:12.5px; white-space:nowrap; display:inline-flex; align-items:center; gap:5px; }
+  .btn.sm { padding:2px 9px; font-size:12px; }
+  .btn.primary { background:var(--accent); border-color:var(--accent); color:#fff; }
+  .btn svg { width:13px; height:13px; }
+  .info { width:20px; height:20px; border-radius:50%; border:1px solid var(--line2); display:inline-grid; place-items:center; font-size:11px; color:var(--muted); background:var(--surface); }
+  table.cat { border-collapse:separate; border-spacing:0; }
+  table.cat td { padding:8px 10px; border-bottom:1px solid var(--line); vertical-align:middle; }
+  table.cat th { height:110px; vertical-align:bottom; padding:0 0 8px; font-weight:500; color:var(--muted); font-size:12px; border-bottom:1px solid var(--line); text-align:left; }
+  table.cat th.rot { width:38px; position:relative; }
+  table.cat th.rot span { position:absolute; left:18px; bottom:10px; transform-origin:0 100%; transform:rotate(-55deg); white-space:nowrap; }
+  table.cat th.ext span { color:var(--faint); }
+  table.cat th.plain { padding:0 10px 8px; }
+  td.logo { width:56px; padding-right:0 !important; }
+  td.logo img { width:44px; height:28px; object-fit:contain; display:block; }
+  td.name { width:260px; }
+  td.name .nm { font-weight:600; line-height:1.3; }
+  td.name .wrapn { display:flex; align-items:center; gap:10px; justify-content:space-between; }
+  td.c { text-align:center; padding:8px 4px !important; }
+  td.ext { background:rgba(16,24,40,.025); }
+  td.date { white-space:nowrap; color:var(--muted); width:100px; }
+  .ri { width:17px; height:17px; vertical-align:middle; }
+  .tip { position:absolute; background:#101828; color:#fff; border-radius:8px; padding:8px 11px; font-size:12px; z-index:3; box-shadow:0 8px 20px rgba(0,0,0,.18); }
+  .tip.up::after { content:""; position:absolute; left:50%; top:-5px; margin-left:-5px; border:5px solid transparent; border-bottom-color:#101828; border-top:0; }
+  .tip table { border-collapse:collapse; margin-top:6px; }
+  .tip td { padding:2px 10px 2px 0; vertical-align:top; color:#e6e9ef; }
+  .tip td.n { text-align:right; font-variant-numeric:tabular-nums; color:#fff; font-weight:600; }
+  .tip .hd { font-weight:600; }
+  .tip .ft { color:#98a2b3; margin-top:6px; font-size:11.5px; max-width:360px; }
+  .legend { display:flex; gap:18px; font-size:12px; color:var(--ink2); margin-top:10px; align-items:center; flex-wrap:wrap; }
+  .legend .k::before { content:""; display:inline-block; width:9px; height:9px; border-radius:3px; margin-right:6px; vertical-align:-1px; background:var(--c); }
+  .pct { font-variant-numeric:tabular-nums; font-weight:600; font-size:12.5px; }
+  .cellbar { display:flex; gap:1px; height:4px; width:30px; margin:3px auto 0; }
+  .bar { display:flex; gap:2px; height:9px; }
+  .bar i:first-child { border-radius:4px 0 0 4px; } .bar i:last-child { border-radius:0 4px 4px 0; }
+  .m { background:var(--missing); } .w { background:var(--wrong); } .p { background:var(--partial); } .x { background:var(--match); }
+  .sw { display:inline-block; width:9px; height:9px; border-radius:3px; margin-right:6px; }
+  .dd { display:inline-flex; align-items:center; gap:8px; border:1px solid var(--line2); background:var(--surface); border-radius:8px; padding:6px 10px; font-size:12.5px; }
+  .dd .k { color:var(--muted); } .dd::after { content:"▾"; color:var(--faint); }
+  .rate b { font-size:30px; letter-spacing:-.02em; }
+  table.plain { border-collapse:collapse; width:100%; border-top:1px solid var(--line); }
+  table.plain td, table.plain th { padding:8px 10px; border-bottom:1px solid var(--line); text-align:left; }
+  table.plain th { font-weight:500; color:var(--muted); font-size:12px; }
+  .ctrls { display:flex; gap:14px; align-items:center; margin:14px 0 10px; }
+  .modal-bg { position:absolute; inset:48px 0 0 0; background:rgba(16,24,40,.35); }
+  .modal { position:absolute; left:50%; top:80px; transform:translateX(-50%); width:800px; background:var(--surface); border-radius:12px; box-shadow:0 20px 50px rgba(0,0,0,.25); padding:20px 22px; }
+  .modal h2 { margin:0 0 10px; font-size:16px; }
+  code, .code { font-family:var(--mono); font-size:11.5px; }
+  .term { position:relative; background:#0f1419; color:#e6e9ef; border-radius:8px; padding:12px 14px; font:11.5px/1.6 var(--mono); white-space:pre; overflow:hidden; }
+  .term .copy { position:absolute; top:8px; right:8px; border:1px solid #3a4351; background:#1c232c; color:#c3c9d4; border-radius:6px; padding:2px 8px; font:500 11px Inter,sans-serif; }
+  /* history chart */
+  .hist { display:flex; align-items:flex-end; gap:14px; height:190px; padding:8px 4px 0; border-bottom:1px solid var(--line2); position:relative; }
+  .hist .col { width:54px; display:flex; flex-direction:column; align-items:center; gap:4px; position:relative; }
+  .hist .stack { width:34px; display:flex; flex-direction:column-reverse; gap:2px; height:150px; }
+  .hist .stack i { display:block; }
+  .hist .stack i:last-child { border-radius:4px 4px 0 0; }
+  .hist .col.sel::before { content:""; position:absolute; inset:-6px -4px -2px; background:rgba(16,24,40,.07); border-radius:8px; z-index:0; }
+  .hist .col > * { position:relative; z-index:1; }
+  .hist .pc { font-size:11.5px; font-weight:600; font-variant-numeric:tabular-nums; }
+  .hist .empty { width:34px; height:150px; border:1.5px dashed var(--line2); border-radius:4px 4px 0 0; display:grid; place-items:center; }
+  .hist .gl { position:absolute; left:0; right:0; border-top:1px dashed var(--line); }
+  .xl { display:flex; gap:14px; padding:6px 4px 0; }
+  .xl span { width:54px; text-align:center; font-size:11px; color:var(--muted); line-height:1.25; }
+  .xl span.sel { color:var(--ink); font-weight:600; }
+  /* diff + page */
+  .split { display:grid; grid-template-columns:minmax(0,1fr) 680px; height:860px; }
+  .split .left { padding:18px 22px; overflow:hidden; border-right:1px solid var(--line); }
+  .split .right { background:var(--surface); display:flex; flex-direction:column; }
+  .ph { padding:10px 14px; border-bottom:1px solid var(--line); display:flex; gap:10px; align-items:center; }
+  .gh { margin:12px 14px; border:1px solid var(--line2); border-radius:8px; overflow:hidden; font:12px/1.55 var(--mono); }
+  .gh .hdr { background:#f6f8fa; border-bottom:1px solid var(--line2); padding:6px 10px; font:12px Inter,sans-serif; color:var(--muted); display:flex; gap:10px; align-items:center; }
+  .gh .ln { display:grid; grid-template-columns:22px 1fr; }
+  .gh .ln .s { text-align:center; color:var(--muted); user-select:none; }
+  .gh .ln.del { background:#ffebe9; } .gh .ln.del .s { color:#cf222e; }
+  .gh .ln.add { background:#e6ffec; } .gh .ln.add .s { color:#1a7f37; }
+  .gh .ln > span:last-child { padding:2px 10px 2px 0; white-space:pre-wrap; }
+  .gh .ln.del mark { background:#ff818266; color:inherit; }
+  .gh .ln.add mark { background:#abf2bc; color:inherit; }
+  .gh .two { display:grid; grid-template-columns:1fr 1fr; }
+  .gh .two > div + div { border-left:1px solid var(--line2); }
+  .gh .two .lab { background:#f6f8fa; border-bottom:1px solid var(--line2); padding:4px 10px; font:11px Inter,sans-serif; color:var(--muted); }
+  .note { padding:0 14px 10px; }
+  .note textarea { width:100%; height:48px; border:1px solid var(--line2); border-radius:7px; padding:6px 8px; font:inherit; resize:none; }
+  .frame { flex:1; margin:4px 14px 14px; border:1px solid var(--line2); border-radius:9px; overflow:hidden; display:flex; flex-direction:column; }
+  .frame .bar2 { background:#f2f4f7; padding:6px 10px; font:11px var(--mono); color:var(--muted); border-bottom:1px solid var(--line); }
+  .frame .lg { padding:5px 10px; font-size:11.5px; color:var(--ink2); border-bottom:1px solid var(--line); display:flex; gap:14px; }
+  .frame .doc { font:12px/1.55 Georgia,serif; color:#222; overflow:hidden; }
+  .frame .hero { background:#e8891d; color:#fff; padding:12px 18px; }
+  .frame .hero small { display:block; font:600 10px Inter,sans-serif; letter-spacing:.06em; }
+  .frame .hero b { font-size:20px; }
+  .frame .body { padding:10px 18px; }
+  .hl-g { background:rgba(120,220,170,.75); outline:1.5px solid #12805c; }
+  .hl-x { background:#ffc9d6; outline:1.5px solid #d6336c; }
+  .gk, .xk { display:inline-block; width:10px; height:10px; border-radius:3px; margin-right:5px; vertical-align:-1px; }
+  .gk { background:rgba(120,220,170,.95); } .xk { background:#ffc9d6; }
+  .rows td { font-size:12.5px; }
+  .rows tr.on td { background:var(--accent-soft); }
+  .chip { font-size:11px; border:1px solid var(--line2); border-radius:999px; padding:1px 8px; color:var(--ink2); }
+  .ttl { font-size:16px; font-weight:600; gap:10px; }
+  .cmd { font:600 14px var(--mono); background:#eef0f3; border:1px solid var(--line2); border-radius:6px; padding:2px 8px; color:var(--ink); }
+  .gchip { display:inline-flex; align-items:center; gap:6px; border:1px solid #c7d2fe; background:var(--accent-soft); color:#1e3a8a; border-radius:7px; padding:3px 9px; font-weight:600; }
+  .gchip::before { content:""; width:8px; height:8px; border-radius:2px; background:var(--accent); }
+  .xchip { display:inline-flex; align-items:center; gap:6px; background:rgba(16,24,40,.07); border-radius:7px; padding:3px 9px; font-weight:600; }
+  .xchip i { display:inline-flex; flex-direction:column-reverse; width:7px; height:14px; gap:1px; }
+  .xchip i b { display:block; border-radius:1px; }
+  .ann-x { margin:12px 14px; border:1px solid #f5c2b8; border-left:3px solid #d92d20; border-radius:8px; background:#fffbfa; font-size:12.5px; }
+  .ann-x .h { display:flex; align-items:center; gap:8px; padding:8px 12px; border-bottom:1px solid #fbe0da; }
+  .ann-x .h .when { color:var(--muted); margin-left:auto; font-size:12px; }
+  .ann-x table { border-collapse:collapse; width:100%; }
+  .ann-x th { text-align:left; font-weight:500; color:var(--muted); width:120px; padding:6px 12px; vertical-align:top; font-size:12px; }
+  .ann-x td { padding:6px 12px 6px 0; vertical-align:top; }
+  .ann-x .f { display:flex; align-items:center; gap:6px; padding:8px 12px; border-top:1px solid #fbe0da; color:#7a271a; font-size:12px; }
+  .tree { font:12px/1.75 var(--mono); white-space:pre; background:var(--surface); border:1px solid var(--line); border-radius:10px; padding:12px 16px; overflow-x:auto; }
+  .tree a { color:var(--accent); text-decoration:underline dotted; text-underline-offset:3px; }
+  .tree .c { color:var(--faint); }
+  .tree .t { color:var(--ink); font-weight:600; }
+  .basis { display:inline-flex; align-items:center; gap:8px; font-size:12.5px; color:var(--muted); }
+  .basis .seg b.on { background:#12805c; }
+  .basis { font-size:11.5px; gap:6px; }
+  .seg.xs { border-radius:6px; }
+  .seg.xs b { padding:1px 8px; font-size:11.5px; line-height:18px; }
+  .tabletitle { font-size:14px; font-weight:600; margin:2px 0 4px; }
+  .cnt { display:block; font-size:10.5px; color:var(--faint); font-weight:500; }
+  .hand { display:inline-flex; align-items:center; gap:4px; font-size:11px; font-weight:600; color:#12805c; background:#e7f6ef; border-radius:999px; padding:1px 7px; }
+  .ann { margin:0 14px 10px; padding:8px 10px; border-radius:8px; background:#fff4f2; border:1px solid #f5c2b8; font-size:12px; color:#7a271a; }
+</style>
+</head>
+<body>
+
+<!-- M1: Catalogs, golden dataset -->
+<section class="shot" id="m1">
+  <div class="top"><span class="brand"><i></i>Golden Rules Studio</span></div>
+  <div class="page">
+    <div class="row" style="margin-bottom:14px">
+      <h1>Catalogs</h1>
+      <span class="seg"><b class="on">Golden dataset</b><b>xtra score</b></span>
+      <span style="flex:1"></span><span class="btn">+ Add a catalog</span>
+    </div>
+    <table class="cat">
+      <thead><tr><th></th><th class="plain">Catalog</th><th class="plain">Pages from</th>
+        <th class="rot"><span>codedNotation</span></th><th class="rot"><span>identifier</span></th><th class="rot"><span>name</span></th>
+        <th class="rot"><span>description</span></th><th class="rot"><span>subjectWebpage</span></th><th class="rot"><span>lifeCycleStatusType</span></th>
+        <th class="rot"><span>inLanguage</span></th>
+        <th class="rot ext"><span>creditValue</span></th><th class="rot ext"><span>creditUnitType</span></th><th class="rot ext"><span>prerequisite</span></th>
+        <th style="width:150px"></th></tr></thead>
+      <tbody id="m1rows"></tbody>
+    </table>
+    <div class="legend">
+      <span class="row" style="gap:6px"><span data-i="A"></span>published in a golden dataset (hover for which ruleset)</span>
+      <span class="row" style="gap:6px"><span data-i="R"></span>in review</span>
+      <span class="row" style="gap:6px"><span data-i="N"></span>known wrong values</span>
+      <span class="row" style="gap:6px"><span class="faint" style="font-size:15px">—</span>not in this Studio yet (xtra extracts it)</span>
+    </div>
+    <div class="tip up" id="tip1">Published in golden dataset ruleset v3</div>
+  </div>
+</section>
+
+<!-- M2: Catalogs, xtra score -->
+<section class="shot" id="m2" style="height:610px">
+  <div class="top"><span class="brand"><i></i>Golden Rules Studio</span></div>
+  <div class="page">
+    <div class="row" style="margin-bottom:14px">
+      <h1>Catalogs</h1>
+      <span class="seg"><b>Golden dataset</b><b class="on">xtra score</b></span>
+    </div>
+    <div class="tabletitle">How closely xtra's latest extract output matches each catalog's latest golden dataset</div>
+    <div style="margin-bottom:4px"><span class="basis">scored against <span class="seg xs"><b class="on">Human-reviewed</b><b>Rule-matched</b></span></span></div>
+    <table class="cat">
+      <thead><tr><th></th><th class="plain">Catalog</th><th class="plain">Exact matches <span class="hand">human-reviewed</span></th>
+        <th class="rot"><span>codedNotation</span></th><th class="rot"><span>identifier</span></th><th class="rot"><span>name</span></th>
+        <th class="rot"><span>description</span></th><th class="rot"><span>subjectWebpage</span></th><th class="rot"><span>lifeCycleStatusType</span></th>
+        <th class="rot"><span>inLanguage</span></th>
+        <th class="rot ext"><span>creditValue</span></th><th class="rot ext"><span>creditUnitType</span></th><th class="rot ext"><span>prerequisite</span></th>
+        <th style="width:150px"></th></tr></thead>
+      <tbody id="m2rows"></tbody>
+    </table>
+    <div class="legend"><span class="k" style="--c:var(--match)">match</span><span class="k" style="--c:var(--partial)">partial</span><span class="k" style="--c:var(--wrong)">wrong</span><span class="k" style="--c:var(--missing)">missing</span>
+      <span class="faint">— not published yet, or not in this Studio yet · n/s not scored (not read from the page)</span></div>
+    <div class="tip up" id="tip2">
+      <div class="hd">description · Antelope Valley College · 16 human-reviewed values</div>
+      <table>
+        <tr><td><span class="sw x"></span>match</td><td class="n">4</td><td>identical to the golden value, as printed</td></tr>
+        <tr><td><span class="sw p"></span>partial</td><td class="n">8</td><td>similar text: similarity 0.8 or more</td></tr>
+        <tr><td><span class="sw w"></span>wrong</td><td class="n">4</td><td>a value, but similarity under 0.8</td></tr>
+        <tr><td><span class="sw m"></span>missing</td><td class="n">0</td><td>nothing extracted</td></tr>
+      </table>
+      <div class="ft">Similarity: text is compared ignoring case and spacing, and again without punctuation (the higher counts). Numbers either match or are wrong.</div>
+    </div>
+  </div>
+</section>
+
+<!-- M3: Evals tab with history -->
+<section class="shot" id="m3">
+  <div class="top"><span class="brand"><i></i>Golden Rules Studio</span><span class="muted">/ Antelope Valley College</span>
+    <span class="tabs"><a>Rules</a><a>Records</a><a>Compare</a><a>Golden datasets</a><a class="on">Evals</a></span></div>
+  <div class="page">
+    <div class="row ttl">
+      <span class="gchip">Human-reviewed values <span style="font-weight:400">· as of 28 Oct, 3:40 PM</span></span>
+      <span class="muted" style="font-weight:500">vs</span><code class="cmd">xtra catalog extract</code><span>outputs over time</span>
+      <span class="info">i</span><span style="flex:1"></span><span style="font-weight:400"><span class="basis">scored against <span class="seg xs"><b class="on">Human-reviewed</b><b>Rule-matched</b></span></span></span>
+    </div>
+    <div style="margin-top:14px;display:flex;gap:40px;align-items:flex-end">
+      <div>
+        <div class="hist" id="hist"></div>
+        <div class="xl" id="histx"></div>
+      </div>
+      <div class="legend" style="flex-direction:column;align-items:flex-start;gap:6px;margin:0 0 30px"><span class="k" style="--c:var(--missing)">missing</span><span class="k" style="--c:var(--wrong)">wrong</span><span class="k" style="--c:var(--partial)">partial</span><span class="k" style="--c:var(--match)">match</span>
+        <span class="faint" style="max-width:220px">Click a bar to compare with that extract output. A dashed bar hasn't been scored yet.</span></div>
+    </div>
+    <div class="row" style="margin:18px 0 6px;gap:8px"><span class="gchip">human-reviewed · 28 Oct, 3:40 PM</span><span class="muted">vs</span><span class="xchip"><i><b class="x" style="height:8px"></b><b class="p" style="height:4px"></b><b class="m" style="height:2px"></b></i>28 Oct, 11:49 AM<span class="muted" style="font-weight:400">(latest)</span></span></div>
+    <div class="row rate" style="margin:4px 0 10px"><b>65%</b><span style="font-weight:600">exact matches</span><span class="hand">human-reviewed</span><span class="muted">49 of 75 values an expert reviewed</span></div>
+    <div class="dev" style="right:28px;top:118px">Human-reviewed = xtra score --baseline-uri …/ruleset-v3/human-reviewed. Rule-matched swaps this chip for the ruleset dropdown. Re-scored 5 min after the last review (scores/pending.json).</div>
+    <table class="plain">
+      <tr><td style="width:220px;font-weight:600">All columns</td><td><div class="bar"><i class="x" style="flex:49"></i><i class="p" style="flex:22"></i><i class="w" style="flex:4"></i></div></td><td class="pct" style="width:60px;text-align:right">65%</td><td class="muted" style="width:90px;text-align:right">75 values</td></tr>
+      <tr><td class="mono">codedNotation</td><td><div class="bar"><i class="x" style="flex:1"></i></div></td><td class="pct" style="text-align:right">100%</td><td class="muted" style="text-align:right">31</td></tr>
+      <tr><td class="mono">identifier</td><td><div class="bar"><i class="p" style="flex:1"></i></div></td><td class="pct" style="text-align:right">0%</td><td class="muted" style="text-align:right">14</td></tr>
+      <tr><td class="mono">name</td><td><div class="bar"><i class="x" style="flex:1"></i></div></td><td class="pct" style="text-align:right">100%</td><td class="muted" style="text-align:right">14</td></tr>
+      <tr style="background:var(--accent-soft)"><td class="mono">description</td><td><div class="bar"><i class="x" style="flex:4"></i><i class="p" style="flex:8"></i><i class="w" style="flex:4"></i></div></td><td class="pct" style="text-align:right">25%</td><td class="muted" style="text-align:right">16</td></tr>
+    </table>
+    <div class="legend"><span class="faint">not scored: inLanguage, lifeCycleStatusType, subjectWebpage (not read from the page)</span></div>
+  </div>
+</section>
+
+<!-- M3c: info modal -->
+<section class="shot" id="m3c" style="height:620px">
+  <div class="top"><span class="brand"><i></i>Golden Rules Studio</span><span class="muted">/ Antelope Valley College</span>
+    <span class="tabs"><a>Rules</a><a>Records</a><a>Compare</a><a>Golden datasets</a><a class="on">Evals</a></span></div>
+  <div class="modal-bg"></div>
+  <div class="modal">
+    <div class="row"><h2 style="flex:1">Where these come from</h2><span class="btn sm">Close</span></div>
+    <table class="plain" style="margin-bottom:14px">
+      <tr><th style="width:130px">What</th><th>Where</th><th style="width:250px">Notes</th></tr>
+      <tr><td>Extract output</td><td class="code">xtra-cli-output/avc-elumenapp-com-catalog-2026-27-welcome/<br>2026-10-12T20-59-13Z/records/</td><td class="muted">Written by engineers with <code>xtra catalog extract</code>. Each run overwrites it; the Studio keeps what it scored.</td></tr>
+      <tr><td>Golden dataset</td><td class="code">xtra-golden-sets/catalogs/avc-elumenapp-com-catalog-2026-27-welcome/<br>versions/ruleset-v3/</td><td class="muted">Published from this Studio.</td></tr>
+      <tr><td>Score</td><td>28 Oct, 11:52 AM</td><td class="muted"><code>xtra score extraction match</code>, xtra-cli 3ca67be</td></tr>
+    </table>
+    <div class="term"><span class="copy">Copy</span>xtra score extraction match \
+  --exactly \
+  --source-uri azure://https://ceteststorage.blob.core.windows.net/xtra-cli-output \
+  --baseline-uri azure://https://ceteststorage.blob.core.windows.net/xtra-golden-sets/catalogs/
+      avc-elumenapp-com-catalog-2026-27-welcome/versions/ruleset-v3 \
+  --catalog-id avc-elumenapp-com-catalog-2026-27-welcome \
+  --run-id 2026-10-12T20-59-13Z</div>
+  </div>
+</section>
+
+<!-- M5: a row, unified diff -->
+<section class="shot" id="m5">
+  <div class="top"><span class="brand"><i></i>Golden Rules Studio</span><span class="muted">/ Antelope Valley College</span>
+    <span class="tabs"><a>Rules</a><a>Records</a><a>Compare</a><a>Golden datasets</a><a class="on">Evals</a></span></div>
+  <div class="split">
+    <div class="left">
+      <div class="row" style="gap:8px"><span class="gchip">ruleset v3</span><span class="muted">vs</span><span class="xchip"><i><b class="x" style="height:8px"></b><b class="p" style="height:4px"></b><b class="m" style="height:2px"></b></i>28 Oct, 11:49 AM<span class="muted" style="font-weight:400">(latest)</span></span></div>
+      <div class="ctrls"><span class="seg"><b>All 17</b><b class="on"><span class="sw w"></span>wrong 17</b></span><span class="chip">description ✕</span><span class="chip">Subject: NS ✕</span></div>
+      <table class="plain rows">
+        <tr class="on"><td style="width:14px"><span class="sw w"></span></td><td style="width:90px;font-weight:600">NS912L</td><td>Limitation on Enrollment: Formal enrollment in the Associate Degree…</td><td class="muted">0.35</td></tr>
+        <tr><td><span class="sw w"></span></td><td style="font-weight:600">NS924L</td><td>Limitation on Enrollment: Formal enrollment in the Associate Degree…</td><td class="muted">0.35</td></tr>
+        <tr><td><span class="sw w"></span></td><td style="font-weight:600">NS922L</td><td>Limitation on Enrollment: Formal enrollment in the Associate Degree…</td><td class="muted">0.35</td></tr>
+        <tr><td><span class="sw w"></span></td><td style="font-weight:600">NS913L</td><td>Limitation on Enrollment: Formal enrollment in the Associate Degree…</td><td class="muted">0.36</td></tr>
+        <tr><td><span class="sw w"></span></td><td style="font-weight:600">NS101A</td><td>Limitation on Enrollment: Formal admission to the Associate Degree…</td><td class="muted">0.47</td></tr>
+      </table>
+    </div>
+    <div class="right">
+      <div class="ph"><b>NS912L</b><span class="mono">description</span><span><span class="sw w"></span>wrong · 0.35</span><span style="flex:1"></span><span class="seg sm"><b class="on">Split</b><b>Unified</b></span><span class="muted" style="font-size:12px">Open in Rules →</span><span class="btn sm">✕</span></div>
+      <div class="gh">
+        <div class="two">
+          <div><div class="lab">golden dataset ruleset v3</div><div class="ln del" style="grid-template-columns:1fr"><span style="padding:4px 10px">Limitation on Enrollment: Formal enrollment in the Associate Degree Nursing program.
+<mark>Advisory: Concurrent enrollment NS 102A.
+Focus is on the development of nursing skills and basic components of competent nursing care for obstetrical clients. Participation is to develop and enhance skills in a non-threatening environment before the student interacts with clients in the clinical settings. (R unlimited)</mark></span></div></div>
+          <div><div class="lab">extract output 28 Oct</div><div class="ln add" style="grid-template-columns:1fr;height:100%"><span style="padding:4px 10px">Limitation on Enrollment: Formal enrollment in the Associate Degree Nursing program.</span></div></div>
+        </div>
+      </div>
+      <div class="note">
+        <textarea placeholder="Note on this difference">xtra stops at the first paragraph on NS lab courses; the golden value is right.</textarea>
+        <div class="row" style="margin-top:6px;gap:8px"><span class="btn sm primary">Save note</span><span class="btn sm">The golden value is wrong…</span></div>
+      </div>
+      <div class="frame">
+        <div class="bar2">https://avc.elumenapp.com/catalog/2026-27/course/ns912l</div>
+        <div class="lg"><span><span class="gk"></span>golden value</span><span><span class="xk"></span>extracted value</span></div>
+        <div class="doc">
+          <div class="hero"><small>NS 912L:</small><b>Skills Lab 912L</b></div>
+          <div class="body">
+            <p><span class="hl-g"><span class="hl-x">Limitation on Enrollment: Formal enrollment in the Associate Degree Nursing program.</span></span></p>
+            <p><span class="hl-g">Advisory: Concurrent enrollment NS 102A.</span></p>
+            <p><span class="hl-g">Focus is on the development of nursing skills and basic components of competent nursing care for obstetrical clients. Participation is to develop and enhance skills in a non-threatening environment before the student interacts with clients in the clinical settings. (R unlimited)</span></p>
+            <p style="color:#888;font:11px Inter,sans-serif;margin-top:14px">UNITS AND HOURS · 0.0 units · 3.0 lab hours</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- M5b: split diff, after "The golden value is wrong" -->
+<section class="shot" id="m5b" style="height:430px">
+  <div class="top"><span class="brand"><i></i>Golden Rules Studio</span><span class="muted">/ Antelope Valley College</span>
+    <span class="tabs"><a>Rules</a><a>Records</a><a>Compare</a><a>Golden datasets</a><a class="on">Evals</a></span></div>
+  <div style="width:680px;margin-left:680px;background:var(--surface);height:382px;border-left:1px solid var(--line)">
+    <div class="ph"><b>CHEM110H</b><span class="mono">description</span><span><span class="sw w"></span>wrong · 0.14</span><span style="flex:1"></span><span class="seg sm"><b class="on">Split</b><b>Unified</b></span><span class="btn sm">✕</span></div>
+    <div class="gh">
+      <div class="two">
+        <div><div class="lab">golden dataset ruleset v3</div><div class="ln del" style="grid-template-columns:1fr"><span style="padding:4px 10px"><mark>This general chemistry honors course, intended for students in the Honors Transfer Program,</mark> introduces the atom and its largest subatomic particles…</span></div></div>
+        <div><div class="lab">extract output 28 Oct</div><div class="ln add" style="grid-template-columns:1fr"><span style="padding:4px 10px"><mark>Prerequisite: Completion of Intermediate Algebra or higher or placement by multiple measures.</mark></span></div></div>
+      </div>
+    </div>
+    <div class="ann-x">
+      <div class="h"><span data-i="N"></span><b>Marked wrong</b><span class="muted">· the golden value</span><span class="when">Jared · 28 Oct, 2:41 PM</span></div>
+      <table>
+        <tr><th>Right text</th><td>Introduces the atom and its largest subatomic particles, describes and quantifies, where possible…</td></tr>
+        <tr><th>Note</th><td>The honors intro sentence belongs to the program page, not the course.</td></tr>
+        <tr><th>Compared with</th><td><span class="xchip" style="padding:1px 7px">extract output 28 Oct</span></td></tr>
+      </table>
+      <div class="f"><span data-i="N"></span><span><span class="mono">description</span> rule: known wrong values, until a new rule version fixes it</span></div>
+    </div>
+</div>
+  </div>
+</section>
+
+<!-- M6: compare, same diff -->
+<section class="shot" id="m6" style="height:300px">
+  <div class="top"><span class="brand"><i></i>Golden Rules Studio</span><span class="muted">/ Antelope Valley College</span>
+    <span class="tabs"><a>Rules</a><a>Records</a><a class="on">Compare</a><a>Golden datasets</a><a>Evals</a></span></div>
+  <div class="page" style="padding-top:16px">
+    <div class="row" style="margin-bottom:10px"><span class="dd"><span class="k">From</span><b>ruleset v1</b></span><span class="muted">→</span><span class="dd"><span class="k">To</span><b>ruleset v2</b></span></div>
+    <div style="background:var(--surface);border:1px solid var(--line);border-radius:10px;max-width:900px">
+      <div class="ph"><b>GEOG222</b><span class="mono">description</span><span class="chip">fixed</span><span style="flex:1"></span><span class="seg sm"><b class="on">Split</b><b>Unified</b></span><span class="muted" style="font-size:12px">See on page →</span></div>
+      <div class="gh" style="margin-bottom:8px">
+        <div class="two">
+          <div><div class="lab">ruleset v1</div><div class="ln del" style="grid-template-columns:1fr"><span style="padding:4px 10px"><mark>Prerequisite: Completion of, or concurrent enrollment in, GEOG 205.</mark> This course provides a general survey of basic methods used for the presentation of geographic information science (GIS) data…</span></div></div>
+          <div><div class="lab">ruleset v2</div><div class="ln add" style="grid-template-columns:1fr;height:100%"><span style="padding:4px 10px">This course provides a general survey of basic methods used for the presentation of geographic information science (GIS) data…</span></div></div>
+        </div>
+      </div>
+      <div class="row" style="padding:0 14px 12px;gap:8px"><span class="btn sm">Note…</span><span class="btn sm">The new value is wrong…</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- M4: approve publishes (Rules tab) -->
+<section class="shot" id="m4" style="height:520px">
+  <div class="top"><span class="brand"><i></i>Golden Rules Studio</span><span class="muted">/ Antelope Valley College</span>
+    <span class="tabs"><a class="on">Rules</a><a>Records</a><a>Compare</a><a>Golden datasets</a><a>Evals</a></span></div>
+  <div class="modal-bg"></div>
+  <div class="modal" style="width:640px;top:70px">
+    <h2>Approve <span class="mono" style="font-size:15px">codedNotation</span> and publish it?</h2>
+    <p class="muted" style="margin:0 0 12px">Approving a column's rule publishes it. Golden dataset <b style="color:var(--ink)">ruleset v3</b> gets this column, then xtra's latest extract output is scored against it.</p>
+    <table class="plain" style="margin-bottom:12px">
+      <tr><th style="width:170px">Golden dataset ruleset v3</th><th>Columns</th></tr>
+      <tr><td>Now</td><td class="mono">inLanguage</td></tr>
+      <tr><td>After approving</td><td class="mono">codedNotation, inLanguage</td></tr>
+    </table>
+    <p class="muted" style="margin:0 0 14px;font-size:12px">1,062 values: 31 checked by a person, 1,031 by this rule. Where it's written <span class="info" style="width:18px;height:18px">i</span></p>
+    <div class="row" style="justify-content:flex-end;gap:8px"><span class="btn">Cancel</span><span class="btn primary">Approve and publish</span></div>
+  </div>
+</section>
+
+<!-- M4b: the Golden datasets tab (read-only record) -->
+<section class="shot" id="m4b">
+  <div class="top"><span class="brand"><i></i>Golden Rules Studio</span><span class="muted">/ Antelope Valley College</span>
+    <span class="tabs"><a>Rules</a><a>Records</a><a>Compare</a><a class="on">Golden datasets</a><a>Evals</a></span></div>
+  <div class="page">
+    <div class="row" style="margin-bottom:14px"><h1>Golden datasets</h1><span class="muted">Published when a column's rule is approved.</span></div>
+    <table class="plain" style="max-width:1100px">
+      <tr><th style="width:160px">Golden dataset</th><th>Columns</th><th style="width:220px">Values</th><th style="width:200px">xtra score (latest output)</th></tr>
+      <tr><td><b>ruleset v3</b> <span class="muted">latest</span></td><td class="mono">codedNotation, inLanguage</td><td>2,124 · <span class="hand">45 human-reviewed</span></td><td><b>100%</b> <span class="muted">exact, human-reviewed</span></td></tr>
+      <tr><td><b>ruleset v2</b></td><td class="mono">inLanguage</td><td>1,062 · <span class="hand">14 human-reviewed</span></td><td class="muted">not scored (not read from the page)</td></tr>
+    </table>
+    <div style="margin-top:16px;max-width:1100px">
+      <div class="muted" style="margin-bottom:6px;font-size:12px">Where ruleset v3 is written · click a file to see a sample</div>
+<div class="tree"><span class="t">azure://…/xtra-golden-sets/</span>
+├── catalogs/avc-elumenapp-com-catalog-2026-27-welcome/versions/<span class="t">ruleset-v3/</span>   <span class="c"># this version, kept for good</span>
+│   └── avc-elumenapp-com-catalog-2026-27-welcome/2026-10-12T20-59-13Z/
+│       └── &lt;page&gt;/                   <span class="c"># one folder per page with courses (1,062)</span>
+│           ├── <a>&lt;page&gt;.json</a>           <span class="c"># [{golden_record_id, approval, fields: [{ctdl_property, value, location, approval, …}]}]</span>
+│           └── <a>&lt;page&gt;.html</a>           <span class="c"># the page as crawled; the locations point into it</span>
+└── avc-elumenapp-com-catalog-2026-27-welcome/2026-10-12T20-59-13Z/   <span class="c"># the latest version, replaced whole</span>
+    └── &lt;page&gt;/ …                     <span class="c"># same files as above</span>
+
+<span class="t">Studio: golden/ruleset-v3/</span>
+├── <a>publication.json</a>                 <span class="c"># which ruleset, columns, approvals, where it was written</span>
+├── <a>lineage.parquet</a>                  <span class="c"># one row per value → rule, version, occurrence, verdicts</span>
+└── <a>golden.parquet</a>                   <span class="c"># every value of this version, for Evals</span></div>
+    </div>
+  </div>
+</section>
+
+<style>
+  .dev { position:absolute; background:#fff8c5; border:1px solid #e3c55a; color:#4d3800; font:11px/1.45 var(--mono); padding:6px 9px; border-radius:6px; max-width:330px; box-shadow:0 4px 12px rgba(0,0,0,.08); z-index:6; }
+  .dev::before { content:"logic · "; font-weight:700; }
+  /* m7–m8: human-reviewed lifecycle and exploring annotations */
+  .stu { display:grid; height:820px; background:var(--surface); }
+  .stu .side { border-right:1px solid var(--line); padding:14px 14px; background:var(--surface); display:flex; flex-direction:column; gap:4px; }
+  .stu .mid { background:var(--bg); padding:14px 18px; overflow:hidden; border-right:1px solid var(--line); }
+  .stu .pane { background:var(--surface); padding:14px; }
+  .sec { font-size:11px; font-weight:600; letter-spacing:.06em; color:var(--muted); margin:10px 0 4px; display:flex; justify-content:space-between; }
+  .rl { display:grid; grid-template-columns:20px 1fr auto; gap:2px 8px; padding:7px 8px; border-radius:8px; align-items:start; }
+  .rl.on { background:var(--accent-soft); box-shadow:inset 3px 0 0 var(--accent); }
+  .rl .t { font-weight:600; } .rl .s { grid-column:2; font:11px var(--mono); color:var(--faint); }
+  .rl .n { font-size:12px; color:var(--muted); text-align:right; white-space:nowrap; }
+  .rl .n.q { color:#b54708; font-weight:600; }
+  .rl.dim { opacity:.45; }
+  .callout { margin-top:auto; border:1px solid #fedf89; background:#fffaeb; border-radius:10px; padding:10px 12px; font-size:12.5px; color:#7a2e0e; }
+  .callout b { color:#93370d; }
+  .fbar { display:flex; align-items:center; gap:10px; background:var(--surface); border:1px solid var(--line); border-radius:10px; padding:8px 12px; margin:10px 0; }
+  .fbar .lab { color:var(--muted); font-size:12.5px; }
+  .fbar, .fbar * { white-space:nowrap; }
+  .dd.act { border-color:var(--accent); box-shadow:0 0 0 3px rgba(47,84,235,.12); }
+  .card { background:var(--surface); border:1px solid var(--line); border-radius:10px; padding:10px 12px; margin-bottom:10px; display:grid; grid-template-columns:1fr auto; gap:6px 14px; }
+  .card.on { border-color:var(--accent); box-shadow:0 0 0 1px var(--accent); }
+  .card .val { font:13px/1.5 Georgia,serif; border:1px solid var(--line2); border-radius:7px; padding:6px 10px; }
+  .card .cap { grid-column:1; font-size:11.5px; color:var(--muted); }
+  .card .acts { display:flex; gap:6px; align-items:flex-start; }
+  .vb { width:30px; height:30px; border-radius:7px; border:1px solid var(--line2); display:grid; place-items:center; color:var(--muted); background:var(--surface); font-size:14px; }
+  .vb.ok { border-color:#12805c; color:#12805c; background:#e7f6ef; }
+  .confirm { border:1px solid #12805c; background:#12805c; color:#fff; border-radius:7px; padding:5px 11px; font-weight:600; font-size:12.5px; white-space:nowrap; }
+  .who { grid-column:1 / -1; display:flex; align-items:center; gap:8px; font-size:12px; color:var(--ink2); border-top:1px dashed var(--line); padding-top:7px; }
+  .eng { display:inline-flex; align-items:center; gap:4px; font-size:11px; font-weight:600; color:#b54708; background:#fef0c7; border-radius:999px; padding:1px 7px; }
+  .role { font-size:11px; color:var(--muted); border:1px solid var(--line2); border-radius:999px; padding:0 6px; }
+  .menu { position:absolute; width:340px; background:var(--surface); border:1px solid var(--line2); border-radius:10px; box-shadow:0 14px 34px rgba(16,24,40,.18); padding:6px; z-index:4; font-size:12.5px; }
+  .menu input { width:100%; border:1px solid var(--line2); border-radius:7px; padding:6px 9px; font:inherit; margin-bottom:4px; }
+  .menu .g { font-size:10.5px; font-weight:600; letter-spacing:.06em; color:var(--faint); padding:6px 8px 2px; }
+  .menu .o { display:flex; align-items:center; gap:8px; padding:6px 8px; border-radius:6px; }
+  .menu .o.on { background:var(--accent-soft); }
+  .menu .o .c { margin-left:auto; color:var(--muted); font-size:12px; }
+  .clist .ci { display:grid; grid-template-columns:96px 1fr; padding:5px 8px; border-radius:6px; font-size:12.5px; }
+  .clist .ci b { font:600 12px var(--mono); }
+  .clist .ci.on { background:var(--accent-soft); }
+  .fld { background:var(--surface); border:1px solid var(--line); border-radius:10px; padding:9px 12px; margin-bottom:9px; }
+  .fld .h { display:flex; gap:8px; align-items:center; font-size:12.5px; margin-bottom:6px; }
+  .fld .h .mono { color:var(--muted); }
+  .fld.hit { border-color:#12805c; box-shadow:inset 3px 0 0 #12805c; }
+  .fold { font-size:12.5px; color:var(--muted); padding:8px 12px; border:1px dashed var(--line2); border-radius:10px; margin-bottom:9px; }
+  .fold a { color:var(--accent); }
+</style>
+
+<!-- M7: Rules tab, values engineers checked, waiting for an expert -->
+<section class="shot" id="m7">
+  <div class="top"><span class="brand"><i></i>Golden Rules Studio</span><span class="muted">/ Antelope Valley College</span>
+    <span class="tabs"><a class="on">Rules</a><a>Records</a><a>Compare</a><a>Golden datasets</a><a>Evals</a></span><b style="font-size:12.5px">Jared</b></div>
+  <div class="stu" style="grid-template-columns:270px minmax(0,1fr) 320px">
+    <div class="side">
+      <div class="row" style="gap:10px"><span class="sec" style="margin:0">RULESET</span><span class="dd" style="flex:1">v3 (latest)</span></div>
+      <div class="sec"><span>FIELD RULES</span><span style="font-weight:500;letter-spacing:0">waiting for an expert</span></div>
+      <div class="rl on"><span data-i="R"></span><span class="t">Coded Notation</span><span class="n q">17</span><span class="s">codedNotation</span></div>
+      <div class="rl dim"><span data-i="R"></span><span class="t">External Identifier</span><span class="n">—</span><span class="s">identifier</span></div>
+      <div class="rl dim"><span data-i="R"></span><span class="t">Learning Opportunity Name</span><span class="n">—</span><span class="s">name</span></div>
+      <div class="rl"><span data-i="N"></span><span class="t">Description</span><span class="n q">5</span><span class="s">description</span></div>
+      <div class="rl dim"><span data-i="R"></span><span class="t">Subject Webpage</span><span class="n">—</span><span class="s">subjectWebpage</span></div>
+      <div class="rl dim"><span data-i="R"></span><span class="t">Life Cycle Status Type</span><span class="n">—</span><span class="s">lifeCycleStatusType</span></div>
+      <div class="rl dim"><span data-i="A"></span><span class="t">Language</span><span class="n">—</span><span class="s">inLanguage</span></div>
+      <div class="dev" style="position:static;margin:auto 0 8px">engineer = event.author_role, else the author's role in profiles.json. An engineer ✕ still marks the rule ✕.</div>
+      <div class="callout" style="margin-top:0"><b>22 values an engineer checked</b> are waiting for an expert. They aren't human-reviewed until you confirm them.
+        <div style="margin-top:8px"><span class="btn sm">Clear filter</span></div></div>
+    </div>
+    <div class="mid">
+      <div class="row" style="gap:10px"><span class="mono" style="font-size:15px;font-weight:650;color:var(--accent)">ceterms:codedNotation</span><span class="muted">Coded Notation · course pages</span></div>
+      <div class="fbar"><span class="lab">Annotated by</span><span class="dd act"><span>Any engineer · waiting for an expert</span></span>
+        <span class="seg sm"><b class="on">Any</b><b>✓ correct</b><b>✕ wrong</b><b>note</b></span>
+        <span style="flex:1"></span><span class="muted" style="font-size:12px">17 rows</span></div>
+      <div class="card on" style="position:relative">
+        <div class="val">BIOL 110</div>
+        <div class="acts"><span class="confirm">✓ Confirm</span><span class="vb">✕</span><span class="vb">💬</span></div>
+        <div class="cap">course page · BIOL 110 - General Molecular Cell Biology</div>
+        <div class="who"><span class="eng">✓ engineer-checked</span><b>Eric Riddoch</b><span class="role">engineer</span><span class="muted">· 21 Oct · waiting for an expert</span></div>
+      </div>
+      <div class="card">
+        <div class="val">ACCT 199</div>
+        <div class="acts"><span class="vb ok">✓</span><span class="vb">✕</span><span class="vb">💬</span></div>
+        <div class="cap">course page · ACCT 199 - Work Experience Education</div>
+        <div class="who"><span class="hand">✓ human-reviewed · published</span><b>Jared Diener</b><span class="muted">confirmed Eric Riddoch's check · just now</span></div>
+      </div>
+      <div class="card">
+        <div class="val">ANDI 120</div>
+        <div class="acts"><span class="confirm">✓ Confirm</span><span class="vb">✕</span><span class="vb">💬</span></div>
+        <div class="cap">course page · ANDI 120 - Non Destructive Inspection</div>
+        <div class="who"><span class="eng">✓ engineer-checked</span><b>Eric Riddoch</b><span class="role">engineer</span><span class="muted">· 21 Oct · waiting for an expert</span></div>
+      </div>
+      <div class="card">
+        <div class="val">ARTHC 120</div>
+        <div class="acts"><span class="confirm">✓ Confirm</span><span class="vb">✕</span><span class="vb">💬</span></div>
+        <div class="cap">course page · ARTHC 120 - Survey of Art from Prehistory to Gothic</div>
+        <div class="who"><span class="eng">✓ engineer-checked</span><b>Eric Riddoch</b><span class="role">engineer</span><span class="muted">· 21 Oct · waiting for an expert</span></div>
+      </div>
+      <div class="dev" style="position:static;max-width:none">Confirm = an expert `correct` → rewrite this page's &lt;stem&gt;.json (latest + ruleset-v3/rule-matched + ruleset-v3/human-reviewed) → scores/pending.json due in 5 min</div>
+    </div>
+    <div class="pane">
+      <div class="muted" style="font-size:12px;margin-bottom:8px">The saved page, as today</div>
+      <div class="frame" style="margin:0;height:520px"><div class="bar2">avc.elumenapp.com/catalog/2026-27/course/biol110</div>
+        <div class="doc"><div class="hero"><small><span class="hl-g">BIOL 110:</span></small><b>General Molecular Cell Biology</b></div>
+        <div class="body" style="font-size:11px;color:#555">Advisory: Completion of a general biology course is recommended …<br><br>A comprehensive and in-depth introduction for all biology majors …</div></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- M8: Records tab, Annotated by (menu open) -->
+<section class="shot" id="m8">
+  <div class="top"><span class="brand"><i></i>Golden Rules Studio</span><span class="muted">/ Antelope Valley College</span>
+    <span class="tabs"><a>Rules</a><a class="on">Records</a><a>Compare</a><a>Golden datasets</a><a>Evals</a></span><b style="font-size:12.5px">Jared</b></div>
+  <div class="stu" style="grid-template-columns:330px minmax(0,1fr) 380px; position:relative">
+    <div class="side" style="padding:10px">
+      <span class="dd" style="color:var(--faint)">Find a course code</span>
+      <span class="dd act" style="margin-top:6px"><span class="k">Annotated by</span><span>Jared Diener</span></span>
+      <div class="clist" style="margin-top:8px">
+        <div class="ci on"><b>ACCT199</b><span>Work Experience E…</span></div>
+        <div class="ci"><b>BIOL110</b><span>General Molecular …</span></div>
+        <div class="ci"><b>CFE114</b><span>Music and Movem…</span></div>
+        <div class="ci"><b>DFST202</b><span>American Sign Lan…</span></div>
+        <div class="ci"><b>ENGR955</b><span>Applications of Ro…</span></div>
+        <div class="ci"><b>GEOG222</b><span>Cartography for G…</span></div>
+        <div class="ci"><b>KINF244</b><span>Intermediate/Adva…</span></div>
+        <div class="ci"><b>LIB107</b><span>Information Literacy</span></div>
+      </div>
+      <div class="muted" style="font-size:12px;padding:6px 8px">14 courses Jared Diener annotated</div>
+      <div class="dev" style="position:static;margin-top:auto">#/c/avc/records?by=Jared+Diener · groups by role · counts are field values with a verdict</div>
+    </div>
+    <div class="mid">
+      <div style="font-size:18px;font-weight:650">ACCT 199 · Work Experience Education</div>
+      <div class="muted" style="margin-bottom:10px">Found on 1 page: its course page</div>
+      <div class="fld hit"><div class="h"><span class="mono">codedNotation</span><b>Coded Notation</b><span style="flex:1"></span><span class="hand">✓ human-reviewed · published</span></div>
+        <div class="card" style="margin:0;border:0;padding:0"><div class="val">ACCT 199</div><div class="acts"><span class="vb ok">✓</span></div>
+        <div class="who" style="border:0;padding:0"><b>Jared Diener</b><span class="muted">· 19 Oct</span></div></div></div>
+      <div class="fld hit"><div class="h"><span class="mono">description</span><b>Description</b><span style="flex:1"></span><span class="hand">✓ human-reviewed · published</span></div>
+        <div class="card" style="margin:0;border:0;padding:0"><div class="val" style="font-size:12px">LIMITATION ON ENROLLMENT: To participate in work experience education, students must have a paid or unpaid job or internship …</div><div class="acts"><span class="vb ok">✓</span></div>
+        <div class="who" style="border:0;padding:0"><b>Jared Diener</b><span class="muted">· 19 Oct</span></div></div></div>
+      <div class="fld hit"><div class="h"><span class="mono">name</span><b>Learning Opportunity Name</b><span style="flex:1"></span><span class="hand">✓ human-reviewed · published</span></div>
+        <div class="card" style="margin:0;border:0;padding:0"><div class="val">Work Experience Education</div><div class="acts"><span class="vb ok">✓</span></div>
+        <div class="who" style="border:0;padding:0"><b>Jared Diener</b><span class="muted">· 19 Oct</span></div></div></div>
+      <div class="fold">4 fields Jared Diener didn't annotate · <a>show</a></div>
+    </div>
+    <div class="pane"><div class="frame" style="margin:0;height:560px"><div class="bar2">avc.elumenapp.com/catalog/2026-27/course/acct199</div>
+      <div class="doc"><div class="hero"><small><span class="hl-g">ACCT 199</span></small><b><span class="hl-g">Work Experience Education</span></b></div>
+      <div class="body" style="font-size:11px;color:#555"><span class="hl-g">LIMITATION ON ENROLLMENT: To participate in work experience education …</span></div></div></div></div>
+    <div class="menu" style="left:10px; top:84px; width:310px">
+      <input value="" placeholder="Search people">
+      <div class="o"><span>Anyone</span></div>
+      <div class="o"><span>Not annotated yet</span></div>
+      <div class="g">SUBJECT MATTER EXPERTS · human-reviewed</div>
+      <div class="o on"><span>Jared Diener</span><span class="c">112 values</span></div>
+      <div class="o"><span>Cadence Calixto</span><span class="c">none yet</span></div>
+      <div class="g">ENGINEERS · waiting for an expert</div>
+      <div class="o"><span>Any engineer</span><span class="c">22 values</span></div>
+      <div class="o"><span>Eric Riddoch</span><span class="c">22 values</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- M9: where files go, and why -->
+<section class="shot" id="m9" style="height:380px">
+  <div class="page">
+    <h1 style="margin-bottom:12px">Where files go, and why</h1>
+<div class="tree"><span class="t">xtra-golden-sets/</span>
+├── &lt;catalog&gt;/&lt;crawl&gt;/&lt;stem&gt;/&lt;stem&gt;.json                    <span class="c"># where golden values go today; the latest rule-matched set; readers keep working</span>
+└── catalogs/&lt;catalog&gt;/versions/ruleset-vN/                 <span class="c"># all a catalog's versions in one folder</span>
+    ├── rule-matched/&lt;catalog&gt;/&lt;crawl&gt;/&lt;stem&gt;/&lt;stem&gt;.json   <span class="c"># every value: rule-matched + human-reviewed</span>
+    └── human-reviewed/&lt;catalog&gt;/&lt;crawl&gt;/&lt;stem&gt;/&lt;stem&gt;.json  <span class="c"># only approval: human values (only pages that have one)</span>
+                                                            <span class="c"># same layout: xtra score --baseline-uri …/ruleset-vN/human-reviewed (or rule-matched)</span>
+                                                            <span class="c"># catalog/crawl repeats because xtra score appends it to --baseline-uri</span>
+
+<span class="t">&lt;catalog&gt;/&lt;crawl&gt;/golden-dataset-studio/</span>                    <span class="c"># the Studio's own files, beside the crawl</span>
+├── golden/ruleset-vN/golden.parquet                        <span class="c"># Evals reads a version in one read, not 1,062 JSON files</span>
+├── scores/sc-NNNN/{score.json, values.parquet}             <span class="c"># numbered like extractions/rs-NNNN; immutable once done</span>
+├── scores/pending.json                                     <span class="c"># {due_at}: a file, not a timer, so the 5-min re-score survives a restart</span>
+└── extract-outputs/&lt;date&gt;/records/                         <span class="c"># xtra overwrites its output in place; this copy keeps old outputs scorable</span></div>
+  </div>
+</section>
+
+<script>
+  const ICON = {
+    A: '<svg class="ri" viewBox="0 0 16 16"><circle cx="8" cy="8" r="7.5" fill="#12805c"/><path d="m4.8 8.2 2.2 2.2 4.2-4.6" stroke="#fff" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+    N: '<svg class="ri" viewBox="0 0 16 16"><circle cx="8" cy="8" r="7.5" fill="#d92d20"/><path d="m5.6 5.6 4.8 4.8m0-4.8-4.8 4.8" stroke="#fff" stroke-width="1.8" stroke-linecap="round"/></svg>',
+    R: '<svg class="ri" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6.6" fill="#fff" stroke="#98a2b3" stroke-width="1.6"/><circle cx="8" cy="8" r="2" fill="#98a2b3"/></svg>',
+  };
+  const SPARK = '<svg viewBox="0 0 16 16" fill="none"><path d="M8 1.8 9.5 6.5 14.2 8 9.5 9.5 8 14.2 6.5 9.5 1.8 8 6.5 6.5 8 1.8Z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>';
+  document.querySelectorAll("[data-i]").forEach((e) => { e.innerHTML = ICON[e.dataset.i]; });
+  const L = "../../../../web/public/logos/";
+  const cats = [
+    { logo: "avc.png", name: "Antelope Valley College", date: "12 Oct 2026", cells: "RRRNRRA", score: { rate: "65%", n: 75, bar: [65, 22, 13, 0], cols: [["100%", "x", 31], ["0%", "p", 14], ["100%", "x", 14], ["25%", "xpw", 16], "ns", "ns", "ns"] } },
+    { logo: "ccsf.svg", name: "City College of San Francisco", date: "1 Oct 2026", cells: "RRRRRRR" },
+    { logo: "marshall.svg", name: "Marshall University", date: "20 Oct 2026", cells: "RRRNRRR" },
+    { logo: "ualr.svg", name: "University of Arkansas at Little Rock", date: "18 Oct 2026", cells: null },
+    { logo: "wvu.png", name: "West Virginia University", date: "20 Oct 2026", cells: "RRRRRRR" },
+  ];
+  const ext = '<td class="c ext faint">—</td>'.repeat(3);
+  const nameCell = (c) => `<td class="logo"><img src="${L}${c.logo}" alt=""></td><td class="name"><div class="wrapn"><span class="nm">${c.name}</span>
+    ${c.cells ? '<span class="btn sm">Open →</span>' : `<span class="btn sm">${SPARK}Generate rules</span>`}</div></td>`;
+  document.getElementById("m1rows").innerHTML = cats.map((c) => `<tr>${nameCell(c)}<td class="date">${c.date}</td>${
+    c.cells ? [...c.cells].map((k, i) => `<td class="c"${c.logo === "avc.png" && i === 6 ? ' id="pubcell"' : ""}>${ICON[k]}</td>`).join("") : '<td colspan="7" class="c faint">no rules yet</td>'}${ext}<td></td></tr>`).join("");
+  const bars = { x: '<i class="x" style="flex:1"></i>', p: '<i class="p" style="flex:1"></i>', xpw: '<i class="x" style="flex:38"></i><i class="p" style="flex:48"></i><i class="w" style="flex:14"></i>' };
+  document.getElementById("m2rows").innerHTML = cats.map((c) => {
+    const s = c.score;
+    const rate = s ? `<td style="width:190px"><div class="row" style="gap:8px"><span class="pct">${s.rate}<span class="cnt">of ${s.n}</span></span><div class="bar" style="flex:1">${s.bar.map((v, i) => v ? `<i class="${"xpwm"[i]}" style="flex:${v}"></i>` : "").join("")}</div></div></td>` : `<td class="faint" style="width:190px">${c.cells ? "nothing published yet" : "no rules yet"}</td>`;
+    const cols = s ? s.cols.map((v, i) => v === "ns" ? '<td class="c faint" style="font-size:11px">n/s</td>' : `<td class="c"${i === 3 ? ' id="desccell"' : ""}><span class="pct">${v[0]}</span><div class="cellbar">${bars[v[1]]}</div><span class="cnt">${v[2]}</span></td>`).join("") : '<td class="c faint">—</td>'.repeat(7);
+    return `<tr>${nameCell(c)}${rate}${cols}${ext}<td></td></tr>`;
+  }).join("");
+  function under(cellId, tipId, shotId) {
+    const cell = document.getElementById(cellId), tip = document.getElementById(tipId), shot = document.getElementById(shotId);
+    const r = cell.getBoundingClientRect(), s = shot.getBoundingClientRect();
+    tip.style.left = (r.left - s.left + r.width / 2 - tip.offsetWidth / 2) + "px";
+    tip.style.top = (r.bottom - s.top + 6) + "px";
+  }
+  under("pubcell", "tip1", "m1"); under("desccell", "tip2", "m2");
+  // history: [label, match, partial, wrong, missing] (illustrative)
+  const H = [["2 Oct", 36, 30, 20, 14], ["9 Oct", 44, 30, 16, 10], ["16 Oct", 51, 29, 13, 7], ["20 Oct", null], ["26 Oct", 61, 25, 9, 5], ["28 Oct\n(latest)", 65, 29, 6, 0]];
+  document.getElementById("hist").innerHTML = '<div class="gl" style="bottom:42px"></div><div class="gl" style="bottom:117px"></div>' + H.map((h, i) => {
+    const sel = i === H.length - 1 ? " sel" : "";
+    if (h[1] === null) return `<div class="col"><span class="pc faint">–</span><div class="empty"><span class="btn sm" style="transform:rotate(-90deg)">Score</span></div></div>`;
+    const t = h[1] + h[2] + h[3] + h[4];
+    const seg = [["x", h[1]], ["p", h[2]], ["w", h[3]], ["m", h[4]]].map(([c, v]) => `<i class="${c}" style="height:${(150 - 6) * v / t}px"></i>`).join("");
+    return `<div class="col${sel}"><span class="pc">${h[1]}%</span><div class="stack">${seg}</div></div>`;
+  }).join("");
+  document.getElementById("histx").innerHTML = H.map((h, i) => `<span class="${i === H.length - 1 ? "sel" : ""}">${h[0].replace("\n", "<br>")}</span>`).join("");
+</script>
+</body>
+</html>

@@ -1,0 +1,37 @@
+{
+  "avc": {
+    "file": "avc.png",
+    "how": "header image",
+    "src": "https://elumencatalog.s3.us-west-2.amazonaws.com/avc.elumenapp.com/66e0279f-a2c6-4022-8be8-467ff6f480e9/files/header-logo.png?1791854261806",
+    "bytes": 20227,
+    "dark_bg": false
+  },
+  "ccsf": {
+    "file": "ccsf.svg",
+    "how": "Wikimedia Commons (the college's own site, ccsf.edu, refuses scripted requests with 403; the saved CurricUNET pages only carry the platform logo)",
+    "src": "https://upload.wikimedia.org/wikipedia/en/3/31/City_College_of_San_Francisco_logo.svg?utm_source=en.wikipedia.org&utm_campaign=imageinfo&utm_content=original",
+    "bytes": 146937,
+    "dark_bg": false
+  },
+  "marshall": {
+    "file": "marshall.svg",
+    "how": "header image",
+    "src": "https://catalog.marshall.edu/images/logo.svg",
+    "bytes": 8011,
+    "dark_bg": false
+  },
+  "ualr": {
+    "file": "ualr.svg",
+    "how": "header image",
+    "src": "https://acalog-clients.s3.amazonaws.com/production/ualr/img/gateway/ua-little-rock-wordmark.svg",
+    "bytes": 4567,
+    "dark_bg": true
+  },
+  "wvu": {
+    "file": "wvu.png",
+    "how": "apple-touch-icon",
+    "src": "https://catalog.wvu.edu/apple-touch-icon.png",
+    "bytes": 7278,
+    "dark_bg": false
+  }
+}

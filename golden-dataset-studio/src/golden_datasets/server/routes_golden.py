@@ -1,0 +1,304 @@
+"""Golden datasets API (Evals spec §6.6): a read-only record of the catalog's golden dataset versions. Approving a
+column's rule publishes it (routes_review's approve); nothing here writes.
+
+- `GET /catalogs/{c}/golden`: one entry per version, newest first: its columns, its values (with how many are
+  human-reviewed), its latest xtra score against the latest extract output, and where it is written.
+- `GET /catalogs/{c}/golden/approve/{rule}`: what approving that rule would publish (the confirmation's numbers).
+- `GET /catalogs/{c}/golden/{version}/…`: samples of the files a version wrote: a page's JSON in each tree, its HTML
+  at the latest location, publication.json, lineage.parquet and golden.parquet.
+
+The CLI's `golden-datasets golden publish` still publishes for engineers.
+"""
+
+from __future__ import annotations
+
+import json
+from collections import Counter
+
+from fastapi import APIRouter, HTTPException, Query, Request
+
+from .. import golden, model, properties, scores, telemetry
+from ..review import LOADER
+from ..storage import open_root
+from .state import not_found, studio
+
+router = APIRouter(prefix="/api")
+HTML_PREVIEW_BYTES = 400_000
+TREES = (golden.RULE_MATCHED, golden.HUMAN_REVIEWED, "latest")
+
+
+@router.get("/catalogs/{catalog}/golden")
+def golden_versions(request: Request, catalog: str) -> dict:
+    st = studio(request)
+    ctx = st.ctx(catalog)
+    vs = golden.versions(ctx)
+    docs = scores.all_scores(ctx) if vs else []
+    outs = scores.outputs(ctx)
+    latest_out = outs[-1]["id"] if outs else None
+    out = [version_entry(st, ctx, vs, n, docs, latest_out) for n in sorted(vs, reverse=True)]
+    telemetry.set({"ce.golden.versions": len(out), "ce.crawl.id": ctx.crawl})
+    return {"catalog": ctx.catalog, "crawl": ctx.crawl, "versions": out, "latest_output": latest_out,
+            "running": request.app.state.scores.busy(ctx.catalog), "golden": _golden_now(st, ctx)}
+
+
+def version_entry(st, ctx, vs: dict, n: int, docs: list[dict], latest_out: str | None) -> dict:
+    doc = _pub(ctx, vs, n)
+    latest = n == max(vs)
+    vid = golden.version_name(n)
+    counts = _values_now(st, ctx, doc) if latest and doc else _values_then(st, ctx, vs[n]["path"], doc)
+    return {
+        "id": vid, "ruleset_version": n, "latest": latest, "columns": golden.columns_of(doc.get("properties") or []),
+        "values": counts["values"], "human": counts["human"], "published_at": doc.get("published_at"),
+        "created_at": doc.get("created_at"), "published_by": doc.get("published_by"),
+        "extraction": doc.get("extraction"), "score": _score(docs, vid, latest_out),
+        "where": version_where(ctx, vs, n, doc, latest)}
+
+
+def version_where(ctx, vs: dict, n: int, doc: dict, latest: bool) -> dict:
+    trees = doc.get("trees") or {}
+    return {"root": vs[n].get("to"), "version": f"{golden.version_root(ctx, n).rsplit('/', 1)[0]}/",
+            "trees": {t: {"prefix": golden.version_prefix(ctx, n, t), "pages": (trees.get(t) or {}).get("pages")}
+                      for t in golden.TREES},
+            "latest": golden.latest_prefix(ctx) if latest else None, "studio": f"{vs[n]['path']}/"}
+
+
+def _pub(ctx, vs: dict, n: int) -> dict:
+    try:
+        return ctx.read_json(f"{vs[n]['path']}/publication.json", immutable=False)
+    except FileNotFoundError:
+        return {}
+
+
+def _values_now(st, ctx, doc: dict) -> Counter:
+    """The latest version's values as its files hold them now (each expert verdict rewrites a page's files): values
+    with a CTDL term, and how many are human-reviewed. Kept until the annotation log moves."""
+    rv = LOADER.review(ctx, doc["extraction"])
+    rv.report_sizes()
+    key = ("golden-values", ctx.catalog, ctx.cls, doc["publication"], doc.get("published_at"), LOADER.log(ctx).offset)
+    if key not in st.cache:
+        files = golden.trees(golden.plan(rv, set(doc.get("properties") or []))["pages"])
+        st.cache[key] = Counter(
+            values=sum(len(r["fields"]) for recs in files[golden.RULE_MATCHED].values() for r in recs),
+            human=sum(len(r["fields"]) for recs in files[golden.HUMAN_REVIEWED].values() for r in recs))
+    return st.cache[key]
+
+
+def _values_then(st, ctx, path: str, doc: dict) -> Counter:
+    """An older version's values, as published (golden.parquet): those with a CTDL term. Only the latest version's
+    files change (with each verdict), so an older one's counts are kept, per its publication: each visit to Datasets
+    downloaded every older version's golden.parquet again (nine on Marshall)."""
+    key = ("golden-values-then", path, doc.get("published_at"))
+    if key not in st.cache:
+        st.cache[key] = _count_values(ctx, path)
+    return st.cache[key]
+
+
+def _count_values(ctx, path: str) -> Counter:
+    try:
+        rows = _table(ctx, f"{path}/golden.parquet")
+    except FileNotFoundError:
+        return Counter()
+    rows = [r for r in rows if r["ctdl_property"]]
+    return Counter(values=len(rows), human=sum(r["approval"] == "human" for r in rows))
+
+
+def _score(docs: list[dict], vid: str, output: str | None) -> dict | None:
+    """The newest score of this version against the latest extract output: done (its exact matches, on the
+    human-reviewed values if it has any, else the rule-matched ones), or still running."""
+    for d in docs:
+        if not _of(d, vid) or d["output"]["id"] != output or d["status"] not in ("done", "running"):
+            continue
+        if d["status"] == "running":
+            return {"id": d["id"], "status": "running"}
+        if summary := done_score(d):
+            return summary
+    return None
+
+
+def done_score(d: dict) -> dict | None:
+    res = d.get("results") or {}
+    basis = "human" if res.get("human") else "rule"
+    r = res.get(basis)
+    if not r:
+        return None
+    return {"id": d["id"], "status": "done", "basis": basis, "rate": r["exact_match_rate"],
+            "values": r["values"], "match": r["outcomes"]["match"], "output": d["output"]["id"],
+            "finished_at": d.get("finished_at")}
+
+
+def _of(doc: dict, vid: str) -> bool:
+    """Whether a score read this version (as `ruleset-vN`, or as the human-reviewed values when it was the latest)."""
+    g = doc["golden"]
+    return g["id"] == vid or (g["kind"] == "human-reviewed" and g.get("from", "").rstrip("/").endswith(f"/{vid}"))
+
+
+def _golden_now(st, ctx) -> dict:
+    """The golden dataset as it is now (property-rules spec §4.16): only values an expert reviewed, by property,
+    published or not. Kept until the annotation log moves."""
+    rv = LOADER.review(ctx)
+    rv.report_sizes()
+    key = ("golden-now", ctx.catalog, ctx.cls, rv.snap.ext, LOADER.log(ctx).offset)
+    if key not in st.cache:
+        rows = []
+        for r in golden.property_rules(rv):
+            rid = r["rule_id"]
+            n = rv.rule_status(rid)["human_values"]  # worked out with the rule's status, once per rule (_summarize)
+            rows.append({"property": r["property"], "rule_id": rid,
+                         "path_shown": properties.shown(r["ctdl_property"]) or None, "human": n})
+        st.cache[key] = {"by_property": rows, "human": sum(x["human"] for x in rows)}
+    return st.cache[key]
+
+
+# --- approving a column's rule ---------------------------------------------------------------------------------
+
+
+@router.get("/catalogs/{catalog}/golden/approve/{rule_id}")
+def approve_preview(request: Request, catalog: str, rule_id: str) -> dict:
+    """What approving this rule publishes: the golden dataset's columns now and after, and the column's values (how
+    many are human-reviewed, how many its rule labels). `publishes` False: not a column's rule (approved as before)."""
+    st = studio(request)
+    ctx = st.ctx(catalog)
+    rv = LOADER.review(ctx)
+    rv.report_sizes()
+    if rule_id not in rv.snap.rules:
+        raise not_found(f"unknown rule {rule_id}")
+    what = golden.approval_publishes(rv, rule_id)
+    if what is None:
+        return {"publishes": False, "rule_id": rule_id}
+    base = approval_summary(st, ctx, rv, rule_id, what)
+    if not what["writes"]:
+        return base
+    v = column_values(st, ctx, rv, what["property"])
+    return base | v | {"rule": v["values"] - v["human"]}
+
+
+def approval_summary(st, ctx, rv, rule_id: str, what: dict) -> dict:
+    path = rv.snap.rules[rule_id].get("ctdl_property")
+    return {"publishes": what["writes"], "rule_id": rule_id, "property": what["property"], "column": what["column"],
+            "golden": what["golden"], "ruleset_version": what["ruleset_version"], "creates": what["creates"],
+            "now": golden.columns_of(what["now"]), "after": golden.columns_of(what["after"]),
+            "where": f"{golden.default_target(ctx).rstrip('/')}/"
+                     f"{golden.version_root(ctx, what['ruleset_version']).rsplit('/', 1)[0]}/",
+            "path_shown": properties.shown(path) or None, "xtra_extracts": _xtra_extracts(st, ctx, path)}
+
+
+def column_values(st, ctx, rv, prop: str) -> dict:
+    """The column's values once published, and how many are human-reviewed. Kept until the annotation log moves."""
+    key = ("approve-values", ctx.catalog, ctx.cls, rv.snap.ext, LOADER.log(ctx).offset, prop)
+    if key not in st.cache:
+        files = golden.trees(golden.plan(rv, {prop})["pages"])[golden.RULE_MATCHED]
+        mine = [f for recs in files.values() for r in recs for f in r["fields"] if f["property"] == prop]
+        st.cache[key] = {"values": len(mine), "human": sum(f["approval"] == "human" for f in mine)}
+    return st.cache[key]
+
+
+def _xtra_extracts(st, ctx, path: str | None) -> bool | None:
+    """Whether xtra's latest extract output emits this property under the same path (None: no output seen yet), so
+    the approve dialog can say when xtra doesn't extract it yet (property-rules spec §4.10)."""
+    if not path:
+        return None
+    outs = scores.outputs(ctx)
+    if not outs:
+        return None
+    key = ("emitted", ctx.catalog, ctx.crawl, outs[-1]["id"])
+    if key not in st.cache:
+        st.cache[key] = emitted_paths(ctx, outs[-1]["id"])
+    got = st.cache[key]
+    return None if got is None else path in got
+
+
+def emitted_paths(ctx, output_id: str):
+    try:
+        _, store = scores.resolve_output(ctx, output_id, log=lambda *a: None)
+        return scores.emitted(store)
+    except Exception:  # noqa: BLE001 - an unreadable output: the dialog just doesn't say
+        return None
+
+
+# --- samples of what a version wrote ---------------------------------------------------------------------------
+def _version(request: Request, catalog: str, vid: str):
+    ctx = studio(request).ctx(catalog)
+    m = golden.VERSION.match(vid)
+    vs = golden.versions(ctx)
+    if not m or int(m.group(1)) not in vs:
+        raise not_found(f"{vid}: no such golden dataset")
+    n = int(m.group(1))
+    return ctx, n, vs[n], open_root(vs[n]["to"])
+
+
+def _prefix(ctx, n: int, vs: dict, tree: str) -> str:
+    if tree not in TREES:
+        raise HTTPException(422, f"tree must be one of {', '.join(TREES)}")
+    if tree == "latest":
+        if n != max(golden.versions(ctx)):
+            raise not_found("only the latest version is at the latest location")
+        return golden.latest_prefix(ctx)
+    return golden.version_prefix(ctx, n, tree)
+
+
+@router.get("/catalogs/{catalog}/golden/{vid}/stems")
+def version_stems(request: Request, catalog: str, vid: str, tree: str = golden.RULE_MATCHED) -> list[str]:
+    """The pages that have a file in this tree."""
+    ctx, n, entry, target = _version(request, catalog, vid)
+    return sorted(golden.tree_stems(target, _prefix(ctx, n, entry, tree)))
+
+
+@router.get("/catalogs/{catalog}/golden/{vid}/files/page/{stem}.json")
+def version_page_json(request: Request, catalog: str, vid: str, stem: str, tree: str = golden.RULE_MATCHED) -> dict:
+    ctx, n, entry, target = _version(request, catalog, vid)
+    path = f"{_prefix(ctx, n, entry, tree)}{stem}/{stem}.json"
+    try:
+        text = target.read_text(path)
+    except FileNotFoundError:
+        raise not_found(f"{stem}: no file in this tree") from None
+    return {"stem": stem, "path": f"{target.uri}/{path}", "records": len(json.loads(text)), "bytes": len(text.encode()),
+            "text": text}
+
+
+@router.get("/catalogs/{catalog}/golden/{vid}/files/page/{stem}.html")
+def version_page_html(request: Request, catalog: str, vid: str, stem: str) -> dict:
+    ctx, n, entry, target = _version(request, catalog, vid)
+    path = f"{_prefix(ctx, n, entry, 'latest')}{stem}/{stem}.html"
+    try:
+        data = target.read_bytes(path)
+    except FileNotFoundError:
+        raise not_found(f"{stem}: no page at the latest location") from None
+    return {"stem": stem, "path": f"{target.uri}/{path}", "bytes": len(data), "truncated": len(data) > HTML_PREVIEW_BYTES,
+            "text": data[:HTML_PREVIEW_BYTES].decode("utf-8", errors="replace")}
+
+
+@router.get("/catalogs/{catalog}/golden/{vid}/files/publication.json")
+def version_publication(request: Request, catalog: str, vid: str) -> dict:
+    ctx, n, entry, _ = _version(request, catalog, vid)
+    doc = ctx.read_json(f"{entry['path']}/publication.json", immutable=False)
+    more = len(doc.get("page_stems") or []) > 20
+    if more:
+        doc["page_stems"] = doc["page_stems"][:20] + [f"… {len(doc['page_stems']) - 20:,} more"]
+    return {"text": json.dumps(doc, indent=2, ensure_ascii=False) + "\n", "truncated_page_stems": more}
+
+
+@router.get("/catalogs/{catalog}/golden/{vid}/files/{table}.parquet")
+def version_table(request: Request, catalog: str, vid: str, table: str, q: str = "", offset: int = Query(0, ge=0),
+                  limit: int = Query(100, ge=1, le=500)) -> dict:
+    """lineage.parquet's or golden.parquet's rows: filter by any cell's text, a page of rows at a time."""
+    if table not in ("lineage", "golden"):
+        raise not_found(f"{table}.parquet: not a file of a golden dataset")
+    ctx, n, entry, _ = _version(request, catalog, vid)
+    try:
+        rows = _table(ctx, f"{entry['path']}/{table}.parquet")
+    except FileNotFoundError:
+        raise not_found(f"{vid} has no {table}.parquet") from None
+    total = len(rows)
+    if q:
+        needle = q.lower()
+        rows = [r for r in rows if any(needle in str(v).lower() for v in r.values())]
+    columns = (model.LINEAGE if table == "lineage" else model.GOLDEN).names
+    return {"columns": columns, "total": total, "matched": len(rows), "offset": offset,
+            "rows": [[r.get(c) for c in columns] for r in rows[offset:offset + limit]]}
+
+
+def _table(ctx, path: str) -> list[dict]:
+    """A version's Parquet file, read again each time (publishing rewrites it)."""
+    import pyarrow.parquet as pq
+
+    return pq.read_table(ctx.root.local_path(path, mutable=True)).to_pylist()

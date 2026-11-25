@@ -13,8 +13,12 @@
 Matches the extraction_report/ files of one extraction run, the ones
 `xtra catalog extract` writes, against a baseline, without extracting
 again. --exactly counts the values identical to the baseline.
---partially sets those aside and measures how close the rest come. Neither
-averages: the report is counts plus the outliers, worst first.
+--partially sets those aside and measures how close the rest come. Both
+report found (recall: match / baseline units) and right (precision: match /
+extracted units), per property and overall, summed over every entity, and
+list the extras (extracted units with no baseline partner) and the unsure
+ones (the baseline says "not on the page", the record says nothing). The
+table on stderr prints found and right per property.
 --property, repeatable, scores only those properties of the baseline.
 """
 
@@ -91,12 +95,18 @@ def match_and_report(
 
 
 def match_summary(report: dict) -> dict:
-    """The few numbers worth printing: counts, and the exact rate if any."""
+    """The few numbers worth printing: counts, found and right, and the
+    exact rate if any."""
     summary = {
         "mode": report["mode"],
         "ctdl_properties": report["ctdl_properties"],
         "fields_total": report["fields_total"],
         "outcomes": report["outcomes"],
+        "found": report["found"],
+        "right": report["right"],
+        "extras": report["extras"]["count"],
+        "unsure": report["unsure"],
+        "entities_exact": report["entities_exact"],
         "pages_scored": report["pages_scored"],
         "pages_skipped": report["pages_skipped"],
         "pages_not_extracted": report["pages_not_extracted"],

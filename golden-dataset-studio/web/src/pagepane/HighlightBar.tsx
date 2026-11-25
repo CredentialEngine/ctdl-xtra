@@ -1,0 +1,89 @@
+// The highlight bar (sme-fixes §1): after a text selection on the page, a compact dark bar just above it says what the
+// selection means. The actions are props, so each caller decides: a property rule's row has the comment bubble ·
+// ✓ In answer · ✕ Not in answer; a list-of-objects rule has its field names (§5.3). Hovering text already highlighted
+// (the value found, a piece of the answer) shows it too, for that text, until the pointer leaves both (Seth, sme-fixes
+// pass 3: "hover over that block of text that was found, you get … options, kind of like in Google Docs"). Esc or a
+// click elsewhere dismisses it. It is centred over the selection and always kept inside the pane, so a selection near an edge still shows it.
+import { useLayoutEffect, useRef, useState, type MouseEvent, type ReactNode } from "react";
+import type { CapturedSelection } from "./dom";
+
+export interface BarAction {
+  id: string;
+  /** What the button shows: a short label ("✓ In answer") or an icon (<Ico name="bubble" />). */
+  label: ReactNode;
+  /** The informative tooltip (also its accessible name when the label is an icon). */
+  title: string;
+  /** `in` green, `out` red, `note` the comment bubble (separated from the rest by a thin rule). */
+  tone?: "in" | "out" | "note";
+  /** The bar stays up after this one (the comment bubble: then ✓ or ✕ for the same text); it shows as pressed. */
+  keepOpen?: boolean;
+  run(sel: CapturedSelection): void;
+}
+
+/** `x`: the middle of the selection, `y`: the bar's top, both in the pane's pixels. */
+export interface BarAt { sel: CapturedSelection; x: number; y: number; /** the page's scroll when it was placed */ scrollY?: number;
+  /** Shown by hovering this highlight (its id): it goes when the pointer leaves the text and the bar. */
+  hover?: string }
+
+const EDGE = 4;  // the gap kept between the bar and the pane's sides
+
+interface HighlightBarProps {
+  at: BarAt;
+  actions: BarAction[];
+  onDone: () => void;
+  /** The pointer came onto the bar (true) or left it (false): a hover bar stays while the pointer is on it. */
+  onPointer?: (on: boolean) => void;
+  /** A keepOpen action ran: the bar stays up even when the pointer leaves. */
+  onPin?: () => void;
+}
+
+export function HighlightBar({ at, actions, onDone, onPointer, onPin }: HighlightBarProps) {
+  const { ref, left } = useBarLeft(at.x, actions);
+  const [pressed, setPressed] = useState<string[]>([]);
+  const press = (id: string) => { setPressed((p) => (p.includes(id) ? p : [...p, id])); onPin?.(); };
+  return (
+    <div ref={ref} className="gpp-hbar" role="toolbar" aria-label="What this selection means" data-testid="highlight-bar"
+      style={{ left, top: Math.max(EDGE, at.y) }}
+      // keep the selection in the page while a button is pressed
+      onMouseDown={(e) => e.preventDefault()}
+      onMouseEnter={() => onPointer?.(true)} onMouseLeave={() => onPointer?.(false)}>
+      {actions.map((a) => (
+        <BarButton key={a.id} action={a} sel={at.sel} pressed={pressed.includes(a.id)} onPress={press} onDone={onDone} />
+      ))}
+    </div>
+  );
+}
+
+/** Measured before paint: the bar never shows outside the pane, even for one frame. */
+function useBarLeft(x: number, actions: BarAction[]) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [left, setLeft] = useState(() => Math.max(EDGE, x));
+  useLayoutEffect(() => {
+    const el = ref.current;
+    const pane = el?.parentElement;
+    if (el && pane) setLeft(barLeft(x, el.offsetWidth, pane.clientWidth));
+  }, [x, actions]);
+  return { ref, left };
+}
+
+function BarButton({ action, sel, pressed, onPress, onDone }: { action: BarAction; sel: CapturedSelection; pressed: boolean;
+  onPress: (id: string) => void; onDone: () => void }) {
+  const run = (e: MouseEvent) => {
+    e.stopPropagation();
+    action.run(sel);
+    if (action.keepOpen) onPress(action.id);
+    else onDone();
+  };
+  return (
+    <button type="button" className={`gpp-hb${action.tone ? ` hb-${action.tone}` : ""}`} title={action.title}
+      aria-label={typeof action.label === "string" ? undefined : action.title} aria-pressed={action.keepOpen ? pressed : undefined}
+      data-action={action.id} onClick={run}>{action.label}</button>
+  );
+}
+
+/** The bar's left edge: centred on `x`, then moved inside a pane `paneW` wide. */
+export function barLeft(x: number, barW: number, paneW: number): number {
+  const centred = x - barW / 2;
+  if (!paneW) return Math.max(EDGE, centred);
+  return Math.max(EDGE, Math.min(centred, paneW - barW - EDGE));
+}
