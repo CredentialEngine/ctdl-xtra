@@ -3,7 +3,9 @@
 
 /** Zoom steps, like a browser's. 1 = fit the 1400 px desktop layout to the pane's width. */
 export const ZOOM_STEPS = [0.5, 0.67, 0.8, 0.9, 1, 1.1, 1.25, 1.5, 1.75, 2, 2.5, 3];
+
 const ZOOM_KEY = "studio.pane.zoom";
+
 const CSS_KEY = "studio.pane.css";
 
 export function nextZoom(z: number, dir: 1 | -1): number {
@@ -38,10 +40,26 @@ export function writeSetting(key: "zoom" | "css", value: unknown): void {
 
 // Sheets the Studio itself adds (highlights, the overlay's fallback); they stay on when the page's CSS is off.
 const KEEP_IDS = new Set(["gds-highlight-css", "gds-plain-css"]);
+
 // With the page's styles off, keep images and icons at a readable size and the text in a readable column.
 const PLAIN_CSS = `img,video,canvas,iframe{max-width:min(100%,480px)!important;max-height:240px!important;height:auto!important}
 svg{max-width:1.5em!important;max-height:1.5em!important}
 body{font:16px/1.5 Georgia,serif;margin:16px 24px;max-width:72em}`;
+
+/** Turn the page's own stylesheets, `<style>` elements and `style=""` attributes off or back on. */
+export function setPageCss(doc: Document, on: boolean): void {
+  toggleSheets(doc, on);
+  togglePlainCss(doc, on);
+  if (on) restoreInlineStyles(doc);
+  else stashInlineStyles(doc);
+}
+
+function toggleSheets(doc: Document, on: boolean): void {
+  for (const sheet of Array.from(doc.styleSheets)) {
+    if (isStudioSheet(sheet.ownerNode)) continue;
+    sheet.disabled = !on;
+  }
+}
 
 function isStudioSheet(node: Node | null): boolean {
   if (!node || !(node instanceof Element || (node as Element).nodeType === 1)) return false;
@@ -49,12 +67,7 @@ function isStudioSheet(node: Node | null): boolean {
   return KEEP_IDS.has(el.id) || !!el.closest?.("#gds-overlay");
 }
 
-/** Turn the page's own stylesheets, `<style>` elements and `style=""` attributes off or back on. */
-export function setPageCss(doc: Document, on: boolean): void {
-  for (const sheet of Array.from(doc.styleSheets)) {
-    if (isStudioSheet(sheet.ownerNode)) continue;
-    sheet.disabled = !on;
-  }
+function togglePlainCss(doc: Document, on: boolean): void {
   let plain = doc.getElementById("gds-plain-css");
   if (!on && !plain && doc.head) {
     plain = doc.createElement("style");
@@ -64,16 +77,19 @@ export function setPageCss(doc: Document, on: boolean): void {
   } else if (on && plain) {
     plain.remove();
   }
-  if (on) {
-    for (const el of Array.from(doc.querySelectorAll("[data-gds-style]"))) {
-      el.setAttribute("style", el.getAttribute("data-gds-style") ?? "");
-      el.removeAttribute("data-gds-style");
-    }
-  } else {
-    for (const el of Array.from(doc.querySelectorAll("body [style]"))) {
-      if (el.closest("#gds-overlay")) continue;
-      el.setAttribute("data-gds-style", el.getAttribute("style") ?? "");
-      el.removeAttribute("style");
-    }
+}
+
+function restoreInlineStyles(doc: Document): void {
+  for (const el of Array.from(doc.querySelectorAll("[data-gds-style]"))) {
+    el.setAttribute("style", el.getAttribute("data-gds-style") ?? "");
+    el.removeAttribute("data-gds-style");
+  }
+}
+
+function stashInlineStyles(doc: Document): void {
+  for (const el of Array.from(doc.querySelectorAll("body [style]"))) {
+    if (el.closest("#gds-overlay")) continue;
+    el.setAttribute("data-gds-style", el.getAttribute("style") ?? "");
+    el.removeAttribute("style");
   }
 }
